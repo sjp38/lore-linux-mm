@@ -1,117 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id E1EDF6B0031
-	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 08:51:20 -0400 (EDT)
-Received: by mail-wi0-f182.google.com with SMTP id bs8so3982469wib.15
-        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 05:51:20 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id ge14si2579650wic.63.2014.06.16.05.51.18
-        for <linux-mm@kvack.org>;
-        Mon, 16 Jun 2014 05:51:19 -0700 (PDT)
-Date: Mon, 16 Jun 2014 09:50:41 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH 0/8] mm: add page cache limit and reclaim feature
-Message-ID: <20140616125040.GA29993@optiplex.redhat.com>
-References: <539EB7D6.8070401@huawei.com>
- <20140616111422.GA16915@dhcp22.suse.cz>
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BC316B0031
+	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 08:59:20 -0400 (EDT)
+Received: by mail-wi0-f170.google.com with SMTP id cc10so5233387wib.3
+        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 05:59:19 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id hk8si8432504wib.13.2014.06.16.05.59.18
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 16 Jun 2014 05:59:18 -0700 (PDT)
+Date: Mon, 16 Jun 2014 14:59:15 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 2/2] memcg: Allow guarantee reclaim
+Message-ID: <20140616125915.GB16915@dhcp22.suse.cz>
+References: <20140611075729.GA4520@dhcp22.suse.cz>
+ <1402473624-13827-1-git-send-email-mhocko@suse.cz>
+ <1402473624-13827-2-git-send-email-mhocko@suse.cz>
+ <20140611153631.GH2878@cmpxchg.org>
+ <20140612132207.GA32720@dhcp22.suse.cz>
+ <20140612135600.GI2878@cmpxchg.org>
+ <20140612142237.GB32720@dhcp22.suse.cz>
+ <20140612161733.GC23606@htj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140616111422.GA16915@dhcp22.suse.cz>
+In-Reply-To: <20140612161733.GC23606@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Li Zefan <lizefan@huawei.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Roman Gushchin <klamm@yandex-team.ru>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Li Zefan <lizefan@huawei.com>
 
-On Mon, Jun 16, 2014 at 01:14:22PM +0200, Michal Hocko wrote:
-> On Mon 16-06-14 17:24:38, Xishi Qiu wrote:
-> > When system(e.g. smart phone) running for a long time, the cache often takes
-> > a large memory, maybe the free memory is less than 50M, then OOM will happen
-> > if APP allocate a large order pages suddenly and memory reclaim too slowly. 
+On Thu 12-06-14 12:17:33, Tejun Heo wrote:
+> Hello, Michal.
 > 
-> Have you ever seen this to happen? Page cache should be easy to reclaim and
-> if there is too mach dirty memory then you should be able to tune the
-> amount by dirty_bytes/ratio knob. If the page allocator falls back to
-> OOM and there is a lot of page cache then I would call it a bug. I do
-> not think that limiting the amount of the page cache globally makes
-> sense. There are Unix systems which offer this feature but I think it is
-> a bad interface which only papers over the reclaim inefficiency or lack
-> of other isolations between loads.
->
-+1
-
-It would be good if you could show some numbers that serve as evidence
-of your theory on "excessive" pagecache acting as a trigger to your
-observed OOMs. I'm assuming, by your 'e.g', you're running a swapless
-system, so I would think your system OOMs are due to inability to
-reclaim anon memory, instead of pagecache.
-
- 
-> > Use "echo 3 > /proc/sys/vm/drop_caches" will drop the whole cache, this will
-> > affect the performance, so it is used for debugging only. 
-> > 
-
-If you are able to drop the whole pagecache by issuing the command
-above, than it means the majority of it is just unmapped cache pages, 
-and those would be normally reclaimed upon demand by the PFRA. One more 
-thing that makes me wonder you're just seeing the effect of a leaky app 
-making the system unable to swap out anon pages.
-
-
-> > suse has this feature, I tested it before, but it can not limit the page cache
-> > actually. So I rewrite the feature and add some parameters.
+> On Thu, Jun 12, 2014 at 04:22:37PM +0200, Michal Hocko wrote:
+> > The primary question would be, whether this is is the best transition
+> > strategy. I do not know how many users apart from developers are really
+> > using unified hierarchy. I would be worried that we merge a feature which
+> > will not be used for a long time.
 > 
-> The feature is there for historic reasons and I _really_ think the
-> interface is not appropriate. If there is a big pagecache usage which
-> affects other loads then Memory cgroup controller can be used to help
-> from interference.
+> I'm planning to drop __DEVEL__ mask from the unified hierarchy in a
+> cycle, at most two. 
+
+OK, I am obviously behind the current cgroup core changes. I thought
+that unified hierarchy will be for development only for much more time.
+
+> The biggest hold up at the moment is
+> straightening out the interfaces and interaction between memcg and
+> blkcg because I think it'd be silly to have to go through another
+> round of interface versioning effort right after transitioning to
+> unified hierarchy.  I'm not too confident whether it'd be possible to
+> get blkcg completely in shape by that time, but, if that takes too
+> long, I'll just leave blkcg behind temporarily.  So, at least from
+> kernel side, it's not gonna be too long.
 > 
-> > Christoph Lameter has written a patch "Limit the size of the pagecache"
-> > http://marc.info/?l=linux-mm&m=116959990228182&w=2
-> > It changes in zone fallback, this is not a good way.
-> > 
-> > The patchset is based on v3.15, it introduces two features, page cache limit
-> > and page cache reclaim in circles.
-> > 
-> > Add four parameters in /proc/sys/vm
-> > 
-> > 1) cache_limit_mbytes
-> > This is used to limit page cache amount.
-> > The input unit is MB, value range is from 0 to totalram_pages.
-> > If this is set to 0, it will not limit page cache.
-> > When written to the file, cache_limit_ratio will be updated too.
-> > The default value is 0.
-> > 
-> > 2) cache_limit_ratio
-> > This is used to limit page cache amount.
-> > The input unit is percent, value range is from 0 to 100.
-> > If this is set to 0, it will not limit page cache.
-> > When written to the file, cache_limit_mbytes will be updated too.
-> > The default value is 0.
-> > 
-> > 3) cache_reclaim_s
-> > This is used to reclaim page cache in circles.
-> > The input unit is second, the minimum value is 0.
-> > If this is set to 0, it will disable the feature.
-> > The default value is 0.
-> > 
-> > 4) cache_reclaim_weight
-> > This is used to speed up page cache reclaim.
-> > It depend on enabling cache_limit_mbytes/cache_limit_ratio or cache_reclaim_s.
-> > Value range is from 1(slow) to 100(fast).
-> > The default value is 1.
-> > 
-> > I tested the two features on my system(x86_64), it seems to work right.
-> > However, as it changes the hot path "add_to_page_cache_lru()", I don't know
-> > how much it will the affect the performance, maybe there are some errors
-> > in the patches too, RFC.
+> There sure is a question of how fast userland will move to the new
+> interface. 
+
+Yeah, I was mostly thinking about those who would need to to bigger
+changes. AFAIR threads will no longer be distributable between groups.
+
+> Some are already playing with unified hierarchy and
+> planning to migrate as soon as possible but there sure will be others
+> who will take more time.  Can't tell for sure, but the thing is that
+> migration to min/low/high/max scheme is a signficant migration effort
+> too, so I'm not sure how much we'd gain by doing that separately.
+> It'd be an extra transition step for userland (optional but still),
+> more combinations of configration to handle for memcg, and it's not
+> like unified hierarchy is that difficult to transition to.
 > 
-> I haven't looked at patches yet but you would need to explain why the
-> feature is needed much better and why the existing features are not
-> sufficient.
-> -- 
-> Michal Hocko
-> SUSE Labs
+> > Moreover, if somebody wants to transition from soft limit then it would
+> > be really hard because switching to unified hierarchy might be a no-go.
+> 
+> Why would that be a no-go? 
+
+I remember discussions about per-thread distributions and some other
+things missing from the new API.
+
+> Its usage is mostly similar with
+> tranditional hierarchies and can be used with other hierarchies, so
+> while it'd take some adaptation, in most cases gradual transition
+> shouldn't be a big problem.
+
+OK
+
+> > I think that it is clear that we should deprecate soft_limit ASAP. I
+> > also think it wont't hurt to have min, low, high in both old and unified
+> > API and strongly warn if somebody tries to use soft_limit along with any
+> > of the new APIs in the first step. Later we can even forbid any
+> > combination by a hard failure.
+> 
+> I don't quite understand how you plan to deprecate it.  Sure you can
+> fail with -EINVAL or whatnot when the wrong combination
+
+Yes, I was thinking that direction. First warn and then EINVAL later.
+
+> is used but I don't think there's any chance of removing the knob.
+> There's a reason why we're introducing a new version of the whole
+> cgroup interface which can co-exist with the existing one after all.
+> If you wanna version memcg interface separately, maybe that'd work but
+> it sounds like a lot of extra hassle for not much gain.
+
+No, I didn't mean to version the interface. I just wanted to have
+gradual transition for potential soft_limit users.
+
+Maybe I am misunderstanding something but I thought that new version of
+API will contain all knobs which are not marked .flags = CFTYPE_INSANE
+while the old API will contain all of them.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
