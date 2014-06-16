@@ -1,74 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FCD26B0031
-	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 18:24:42 -0400 (EDT)
-Received: by mail-wi0-f169.google.com with SMTP id hi2so6009796wib.4
-        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 15:24:41 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id lm9si10201033wic.98.2014.06.16.15.24.39
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id EED886B0031
+	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 18:53:30 -0400 (EDT)
+Received: by mail-pb0-f50.google.com with SMTP id rp16so4964148pbb.37
+        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 15:53:30 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id qj3si11504902pbb.53.2014.06.16.15.53.29
         for <linux-mm@kvack.org>;
-        Mon, 16 Jun 2014 15:24:40 -0700 (PDT)
-Date: Tue, 17 Jun 2014 00:24:09 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 0/4] Volatile Ranges (v14 - madvise reborn edition!)
-Message-ID: <20140616222409.GA27291@redhat.com>
-References: <1398806483-19122-1-git-send-email-john.stultz@linaro.org>
- <536BBB08.3000503@linaro.org>
- <20140603145710.GQ2878@cmpxchg.org>
- <CALAqxLXBs0scEEb7-rYbq9vHHs8VWUg-9vFXDoK4mzUt4smbYw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALAqxLXBs0scEEb7-rYbq9vHHs8VWUg-9vFXDoK4mzUt4smbYw@mail.gmail.com>
+        Mon, 16 Jun 2014 15:53:30 -0700 (PDT)
+Date: Mon, 16 Jun 2014 15:53:28 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [mmotm:master 148/178] mm/memcontrol.c:6961:21: error: call to
+ '__compiletime_assert_6961' declared with attribute error: BUILD_BUG failed
+Message-Id: <20140616155328.6dfe4821baa7835999467746@linux-foundation.org>
+In-Reply-To: <539a5b9b.KeRIMtUWy5rRR18V%fengguang.wu@intel.com>
+References: <539a5b9b.KeRIMtUWy5rRR18V%fengguang.wu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, Keith Packard <keithp@keithp.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Linux Memory Management List <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Hello everyone,
+On Fri, 13 Jun 2014 10:02:03 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
 
-On Mon, Jun 16, 2014 at 01:12:41PM -0700, John Stultz wrote:
-> On Tue, Jun 3, 2014 at 7:57 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > That, however, truly is a separate virtual memory feature.  Would it
-> > be possible for you to take MADV_FREE and MADV_REVIVE as a base and
-> > implement an madvise op that switches the no-page behavior of a VMA
-> > from zero-filling to SIGBUS delivery?
+> tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> head:   a621774e0e7bbd9e8a024230af4704cc489bd40e
+> commit: e6b81384e2275775b2ae090b97043077dea26c11 [148/178] memcg: deprecate memory.force_empty knob
+> config: make ARCH=ia64 allmodconfig
 > 
-> I'll see if I can look into it if I get some time. However, I suspect
-> its more likely I'll just have to admit defeat on this one and let
-> someone else champion the effort. Interest and reviews have seemingly
-> dropped again here and with other work ramping up, I'm not sure if
-> I'll be able to justify further work on this. :(
+> All error/warnings:
+> 
+>    mm/memcontrol.c: In function 'mem_cgroup_move_charge_pte':
+>    mm/memcontrol.c:6913:3: warning: value computed is not used [-Wunused-value]
+>    mm/memcontrol.c:6902:10: warning: unused variable 'orig_pte' [-Wunused-variable]
+>    mm/memcontrol.c: In function 'mem_cgroup_move_charge_pmd':
+> >> mm/memcontrol.c:6961:21: error: call to '__compiletime_assert_6961' declared with attribute error: BUILD_BUG failed
 
-About adding an madvise op that switches the no-page behavior from
-zero-filling to SIGBUS delivery (right now only for anonymous vmas but
-we can evaluate to extend it) I've mostly completed the
-userfaultfd/madvise(MADV_USERFAULT) according to the design I
-described earlier. Like we discussed earlier that may fit the bill if
-extended to tmpfs? The first preliminary tests just passed last week.
+Actually it is caused by
+mm-pagewalk-replace-mm_walk-skip-with-more-general-mm_walk-control.patch,
+so it seems that something has gone wrong with the bisection.
 
-http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/?h=userfault
-
-If userfaultfd() isn't instantiated by the process, it only sends a
-SIBGUS to the thread accessing the unmapped virtual address
-(handle_mm_faults returns VM_FAULT_SIGBUS). The address of the fault
-is then available in siginfo->si_addr.
-
-You strictly need a memory externalization thread opening the
-userfaultfd and speaking the userfaultfd protocol only if you need to
-access the memory also through syscalls or drivers doing GUP
-calls. This allows memory mapped in a secondary MMU for example to be
-externalized without a single change to the secondary MMU code. The
-userfault becomes invisible to
-handle_mm_fault/gup()/gup_fast/FOLL_NOWAIT etc.... The only
-requirement is that the memory externalization thread never accesses
-any memory in the MADV_USERFAULT marked regions (and if it does
-because of a bug, the deadlock should be quite apparent by simply
-checking the stack trace of the externalization thread blocked in
-handle_userfault(), sigkill will then clear it up :). If you close the
-userfaultfd the SIGBUS behavior will immediately return for the
-MADV_USERFAULT marked regions and any hung task waiting to be waken
-will get an immediate SIGBUS.
+> vim +/__compiletime_assert_6961 +6961 mm/memcontrol.c
+> 
+> 5e2db449 Naoya Horiguchi   2014-06-13  6907  		 * We have consumed all precharges we got in can_attach().
+> 5e2db449 Naoya Horiguchi   2014-06-13  6908  		 * We try charge one by one, but don't do any additional
+> 5e2db449 Naoya Horiguchi   2014-06-13  6909  		 * charges to mc.to if we have failed in charge once in attach()
+> 5e2db449 Naoya Horiguchi   2014-06-13  6910  		 * phase.
+> 5e2db449 Naoya Horiguchi   2014-06-13  6911  		 */
+> 5e2db449 Naoya Horiguchi   2014-06-13  6912  		ret = mem_cgroup_do_precharge(1);
+> 5e2db449 Naoya Horiguchi   2014-06-13 @6913  		pte_offset_map(walk->pmd, addr & PMD_MASK);
+> 5e2db449 Naoya Horiguchi   2014-06-13  6914  		spin_lock(walk->ptl);
+> 5e2db449 Naoya Horiguchi   2014-06-13  6915  		if (!ret)
+> 5e2db449 Naoya Horiguchi   2014-06-13  6916  			goto retry;
+> 5e2db449 Naoya Horiguchi   2014-06-13  6917  		return ret;
+> 5e2db449 Naoya Horiguchi   2014-06-13  6918  	}
+> 5e2db449 Naoya Horiguchi   2014-06-13  6919  
+> 5e2db449 Naoya Horiguchi   2014-06-13  6920  	switch (get_mctgt_type(vma, addr, *pte, &target)) {
+> 5e2db449 Naoya Horiguchi   2014-06-13  6921  	case MC_TARGET_PAGE:
+> 5e2db449 Naoya Horiguchi   2014-06-13  6922  		page = target.page;
+> 5e2db449 Naoya Horiguchi   2014-06-13  6923  		if (isolate_lru_page(page))
+> 5e2db449 Naoya Horiguchi   2014-06-13  6924  			goto put;
+> 5e2db449 Naoya Horiguchi   2014-06-13  6925  		pc = lookup_page_cgroup(page);
+> 5e2db449 Naoya Horiguchi   2014-06-13  6926  		if (!mem_cgroup_move_account(page, 1, pc,
+> 5e2db449 Naoya Horiguchi   2014-06-13  6927  					     mc.from, mc.to)) {
+> 5e2db449 Naoya Horiguchi   2014-06-13  6928  			mc.precharge--;
+> 5e2db449 Naoya Horiguchi   2014-06-13  6929  			/* we uncharge from mc.from later. */
+> 5e2db449 Naoya Horiguchi   2014-06-13  6930  			mc.moved_charge++;
+> 5e2db449 Naoya Horiguchi   2014-06-13  6931  		}
+> 5e2db449 Naoya Horiguchi   2014-06-13  6932  		putback_lru_page(page);
+> 5e2db449 Naoya Horiguchi   2014-06-13  6933  put:		/* get_mctgt_type() gets the page */
+> 5e2db449 Naoya Horiguchi   2014-06-13  6934  		put_page(page);
+> 5e2db449 Naoya Horiguchi   2014-06-13  6935  		break;
+> 5e2db449 Naoya Horiguchi   2014-06-13  6936  	case MC_TARGET_SWAP:
+> 5e2db449 Naoya Horiguchi   2014-06-13  6937  		ent = target.ent;
+> 5e2db449 Naoya Horiguchi   2014-06-13  6938  		if (!mem_cgroup_move_swap_account(ent, mc.from, mc.to)) {
+> 5e2db449 Naoya Horiguchi   2014-06-13  6939  			mc.precharge--;
+> 5e2db449 Naoya Horiguchi   2014-06-13  6940  			/* we fixup refcnts and charges later. */
+> 5e2db449 Naoya Horiguchi   2014-06-13  6941  			mc.moved_swap++;
+> 5e2db449 Naoya Horiguchi   2014-06-13  6942  		}
+> 5e2db449 Naoya Horiguchi   2014-06-13  6943  		break;
+> 5e2db449 Naoya Horiguchi   2014-06-13  6944  	default:
+> 5e2db449 Naoya Horiguchi   2014-06-13  6945  		break;
+> 5e2db449 Naoya Horiguchi   2014-06-13  6946  	}
+> 5e2db449 Naoya Horiguchi   2014-06-13  6947  
+> 5e2db449 Naoya Horiguchi   2014-06-13  6948  	return 0;
+> 5e2db449 Naoya Horiguchi   2014-06-13  6949  }
+> 5e2db449 Naoya Horiguchi   2014-06-13  6950  
+> 5e2db449 Naoya Horiguchi   2014-06-13  6951  static int mem_cgroup_move_charge_pmd(pmd_t *pmd,
+> 5e2db449 Naoya Horiguchi   2014-06-13  6952  				unsigned long addr, unsigned long end,
+> 5e2db449 Naoya Horiguchi   2014-06-13  6953  				struct mm_walk *walk)
+> 5e2db449 Naoya Horiguchi   2014-06-13  6954  {
+> 5e2db449 Naoya Horiguchi   2014-06-13  6955  	struct vm_area_struct *vma = walk->vma;
+> 12724850 Naoya Horiguchi   2012-03-21  6956  	enum mc_target_type target_type;
+> 12724850 Naoya Horiguchi   2012-03-21  6957  	union mc_target target;
+> 12724850 Naoya Horiguchi   2012-03-21  6958  	struct page *page;
+> 12724850 Naoya Horiguchi   2012-03-21  6959  	struct page_cgroup *pc;
+> 4ffef5fe Daisuke Nishimura 2010-03-10  6960  
+> d6dc1086 Naoya Horiguchi   2014-06-13 @6961  	if (mc.precharge < HPAGE_PMD_NR)
+> d6dc1086 Naoya Horiguchi   2014-06-13  6962  		return 0;
+> d6dc1086 Naoya Horiguchi   2014-06-13  6963  	target_type = get_mctgt_type_thp(vma, addr, *pmd, &target);
+> d6dc1086 Naoya Horiguchi   2014-06-13  6964  	if (target_type == MC_TARGET_PAGE) {
+> 
+> :::::: The code at line 6961 was first introduced by commit
+> :::::: d6dc10868bc1439159231b2353dbbfc635a0c104 mm/pagewalk: move pmd_trans_huge_lock() from callbacks to common code
+> 
+> :::::: TO: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> :::::: CC: Johannes Weiner <hannes@cmpxchg.org>
+> 
+> ---
+> 0-DAY kernel build testing backend              Open Source Technology Center
+> http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
