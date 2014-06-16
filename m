@@ -1,48 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 9ED8C6B0031
-	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 10:40:24 -0400 (EDT)
-Received: by mail-qa0-f49.google.com with SMTP id w8so7359838qac.8
-        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 07:40:24 -0700 (PDT)
-Received: from mail-qa0-x235.google.com (mail-qa0-x235.google.com [2607:f8b0:400d:c00::235])
-        by mx.google.com with ESMTPS id r2si13464856qat.30.2014.06.16.07.40.24
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C1916B0031
+	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 10:59:34 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id fp1so1231878pdb.30
+        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 07:59:34 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id vv7si13950898pab.124.2014.06.16.07.59.33
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 16 Jun 2014 07:40:24 -0700 (PDT)
-Received: by mail-qa0-f53.google.com with SMTP id j15so7394361qaq.26
-        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 07:40:24 -0700 (PDT)
-Date: Mon, 16 Jun 2014 10:40:21 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/2] memcg: Allow guarantee reclaim
-Message-ID: <20140616144021.GC11542@htj.dyndns.org>
-References: <20140611153631.GH2878@cmpxchg.org>
- <20140612132207.GA32720@dhcp22.suse.cz>
- <20140612135600.GI2878@cmpxchg.org>
- <20140612142237.GB32720@dhcp22.suse.cz>
- <20140612161733.GC23606@htj.dyndns.org>
- <20140616125915.GB16915@dhcp22.suse.cz>
- <20140616135741.GA11542@htj.dyndns.org>
- <20140616140448.GE16915@dhcp22.suse.cz>
- <20140616141233.GB11542@htj.dyndns.org>
- <20140616142915.GF16915@dhcp22.suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 16 Jun 2014 07:59:33 -0700 (PDT)
+Message-ID: <539F064B.8020701@oracle.com>
+Date: Mon, 16 Jun 2014 22:59:23 +0800
+From: Jeff Liu <jeff.liu@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140616142915.GF16915@dhcp22.suse.cz>
+Subject: Re: [PATCH] slub: correct return errno on slab_sysfs_init failure
+References: <5399A360.3060309@oracle.com> <alpine.DEB.2.10.1406131050430.913@gentwo.org> <539BFDBA.8000806@oracle.com> <alpine.DEB.2.11.1406160859360.9480@gentwo.org>
+In-Reply-To: <alpine.DEB.2.11.1406160859360.9480@gentwo.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Roman Gushchin <klamm@yandex-team.ru>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Li Zefan <lizefan@huawei.com>
+To: Christoph Lameter <cl@gentwo.org>
+Cc: linux-mm@kvack.org, penberg@kernel.org, mpm@selenic.com
 
-On Mon, Jun 16, 2014 at 04:29:15PM +0200, Michal Hocko wrote:
-> > They're all in the mainline now.
+
+On 06/16/2014 22:00 PM, Christoph Lameter wrote:
+> On Sat, 14 Jun 2014, Jeff Liu wrote:
 > 
-> git grep CFTYPE_ON_ON_DFL origin/master didn't show me anything.
+>> Thanks for your clarification and sorry for the noise.
+> 
+> Dont be worried. I am not sure anymore that this was such a wise move.
+> Maybe get kset_create_and_add to return an error code instead and return
+> that instead of -ENOSYS?
 
-lol, it should have been CFTYPE_ONLY_ON_DFL.
+Personally, I prefer to get kset_create_and_add() to return an error which
+can reflect the actual cause of the failure given that kset_register() can
+failed due to different reasons.  If so, however, looks we have to make a
+certain amount of change for the existing modules which are support sysfs
+since they all return -ENOMEM if kset_create_and_add() return NULL, maybe
+this is inherited from samples/kobject/kset-example.c...
 
--- 
-tejun
+
+Cheers,
+-Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
