@@ -1,130 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C4676B0031
-	for <linux-mm@kvack.org>; Sun, 15 Jun 2014 22:40:12 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id r10so3941115pdi.9
-        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 19:40:12 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id gq8si9341532pbc.50.2014.06.15.19.40.09
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F2AC6B0031
+	for <linux-mm@kvack.org>; Sun, 15 Jun 2014 23:03:34 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id ey11so526723pad.12
+        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 20:03:33 -0700 (PDT)
+Received: from mail-pd0-x229.google.com (mail-pd0-x229.google.com [2607:f8b0:400e:c02::229])
+        by mx.google.com with ESMTPS id ey5si9396404pbb.58.2014.06.15.20.03.32
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 15 Jun 2014 19:40:09 -0700 (PDT)
-Message-ID: <1402886406.25275.1.camel@concordia>
-Subject: Re: kmemleak: Unable to handle kernel paging request
-From: Michael Ellerman <mpe@ellerman.id.au>
-Date: Mon, 16 Jun 2014 12:40:06 +1000
-In-Reply-To: <CAOJe8K1VJ5RFWSB9i4PMdYq5X2vEgv0opGwU39ZRhYdfwj-kPw@mail.gmail.com>
-References: 
-	<CAOJe8K3fy3XFxDdVc3y1hiMAqUCPmkUhECU7j5TT=E=gxwBqHg@mail.gmail.com>
-	 <20140611173851.GA5556@MacBook-Pro.local>
-	 <CAOJe8K1TgTDX5=LdE9r6c0ami7TRa7zr0hL_uu6YpiWrsePAgQ@mail.gmail.com>
-	 <B01EB0A1-992B-49F4-93AE-71E4BA707795@arm.com>
-	 <CAOJe8K3LDhhPWbtdaWt23mY+2vnw5p05+eyk2D8fovOxC10cgA@mail.gmail.com>
-	 <CAOJe8K2WaJUP9_buwgKw89fxGe56mGP1Mn8rDUO9W48KZzmybA@mail.gmail.com>
-	 <20140612143916.GB8970@arm.com>
-	 <CAOJe8K3zN+fFWumKaGx3Tmv5JRZu10_FZ6R3Tjjc+nc-KVB0hg@mail.gmail.com>
-	 <20140613085640.GA21018@arm.com>
-	 <CAOJe8K1VJ5RFWSB9i4PMdYq5X2vEgv0opGwU39ZRhYdfwj-kPw@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 15 Jun 2014 20:03:33 -0700 (PDT)
+Received: by mail-pd0-f169.google.com with SMTP id g10so1320530pdj.0
+        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 20:03:32 -0700 (PDT)
+Date: Sun, 15 Jun 2014 20:01:27 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: 3.15-rc8 oops in copy_page_rep after page fault.
+In-Reply-To: <5392108F.8060405@oracle.com>
+Message-ID: <alpine.LSU.2.11.1406151957560.5820@eggly.anvils>
+References: <20140606174317.GA1741@redhat.com> <CA+55aFxiOsceOsm7zYyvFAxDF3=gxUXj=_61Nce3VkELfJr7cg@mail.gmail.com> <20140606184926.GA16083@node.dhcp.inet.fi> <5392108F.8060405@oracle.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Denis Kirjanov <kda@linux-powerpc.org>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linuxppc-dev@lists.ozlabs.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>
 
-On Fri, 2014-06-13 at 14:26 +0400, Denis Kirjanov wrote:
-> On 6/13/14, Catalin Marinas <catalin.marinas@arm.com> wrote:
-> > On Fri, Jun 13, 2014 at 08:12:08AM +0100, Denis Kirjanov wrote:
-> >> On 6/12/14, Catalin Marinas <catalin.marinas@arm.com> wrote:
-> >> > On Thu, Jun 12, 2014 at 01:00:57PM +0100, Denis Kirjanov wrote:
-> >> >> On 6/12/14, Denis Kirjanov <kda@linux-powerpc.org> wrote:
-> >> >> > On 6/12/14, Catalin Marinas <catalin.marinas@arm.com> wrote:
-> >> >> >> On 11 Jun 2014, at 21:04, Denis Kirjanov <kda@linux-powerpc.org>
-> >> >> >> wrote:
-> >> >> >>> On 6/11/14, Catalin Marinas <catalin.marinas@arm.com> wrote:
-> >> >> >>>> On Wed, Jun 11, 2014 at 04:13:07PM +0400, Denis Kirjanov wrote:
-> >> >> >>>>> I got a trace while running 3.15.0-08556-gdfb9454:
-> >> >> >>>>>
-> >> >> >>>>> [  104.534026] Unable to handle kernel paging request for data
-> >> >> >>>>> at
-> >> >> >>>>> address 0xc00000007f000000
-> >> >> >>>>
-> >> >> >>>> Were there any kmemleak messages prior to this, like "kmemleak
-> >> >> >>>> disabled"? There could be a race when kmemleak is disabled
-> >> >> >>>> because
-> >> >> >>>> of
-> >> >> >>>> some fatal (for kmemleak) error while the scanning is taking
-> >> >> >>>> place
-> >> >> >>>> (which needs some more thinking to fix properly).
-> >> >> >>>
-> >> >> >>> No. I checked for the similar problem and didn't find anything
-> >> >> >>> relevant.
-> >> >> >>> I'll try to bisect it.
-> >> >> >>
-> >> >> >> Does this happen soon after boot? I guess ita??s the first scan
-> >> >> >> (scheduled at around 1min after boot). Something seems to be
-> >> >> >> telling
-> >> >> >> kmemleak that there is a valid memory block at 0xc00000007f000000.
-> >> >> >
-> >> >> > Yeah, it happens after a while with a booted system so that's the
-> >> >> > first kmemleak scan.
-> >> >>
-> >> >> I've bisected to this commit: d4c54919ed86302094c0ca7d48a8cbd4ee753e92
-> >> >> "mm: add !pte_present() check on existing hugetlb_entry callbacks".
-> >> >> Reverting the commit fixes the issue
-> >> >
-> >> > I can't figure how this causes the problem but I have more questions.
-> >> > Is
-> >> > 0xc00000007f000000 address always the same in all crashes? If yes, you
-> >> > could comment out start_scan_thread() in kmemleak_late_init() to avoid
-> >> > the scanning thread starting. Once booted, you can run:
-> >> >
-> >> >   echo dump=0xc00000007f000000 > /sys/kernel/debug/kmemleak
-> >> >
-> >> > and check the dmesg for what kmemleak knows about that address, when it
-> >> > was allocated and whether it should be mapped or not.
-> >>
-> >> The address is always the same.
-> >>
-> >> [  179.466239] kmemleak: Object 0xc00000007f000000 (size 16777216):
-> >> [  179.466503] kmemleak:   comm "swapper/0", pid 0, jiffies 4294892300
-> >> [  179.466508] kmemleak:   min_count = 0
-> >> [  179.466512] kmemleak:   count = 0
-> >> [  179.466517] kmemleak:   flags = 0x1
-> >> [  179.466522] kmemleak:   checksum = 0
-> >> [  179.466526] kmemleak:   backtrace:
-> >> [  179.466531]      [<c000000000afc3dc>]
-> >> .memblock_alloc_range_nid+0x68/0x88
-> >> [  179.466544]      [<c000000000afc444>] .memblock_alloc_base+0x20/0x58
-> >> [  179.466553]      [<c000000000ae96cc>] .alloc_dart_table+0x5c/0xb0
-> >> [  179.466561]      [<c000000000aea300>] .pmac_probe+0x38/0xa0
-> >> [  179.466569]      [<000000000002166c>] 0x2166c
-> >> [  179.466579]      [<0000000000ae0e68>] 0xae0e68
-> >> [  179.466587]      [<0000000000009bc4>] 0x9bc4
-> >
-> > OK, so that's the DART table allocated via alloc_dart_table(). Is
-> > dart_tablebase removed from the kernel linear mapping after allocation?
-> > If that's the case, we need to tell kmemleak to ignore this block (see
-> > patch below, untested). But I still can't explain how commit
-> > d4c54919ed863020 causes this issue.
-> >
-> > (also cc'ing the powerpc list and maintainers)
+On Fri, 6 Jun 2014, Sasha Levin wrote:
+> On 06/06/2014 02:49 PM, Kirill A. Shutemov wrote:
+> > On Fri, Jun 06, 2014 at 11:26:14AM -0700, Linus Torvalds wrote:
+> >> > On Fri, Jun 6, 2014 at 10:43 AM, Dave Jones <davej@redhat.com> wrote:
+> >>> > >
+> >>> > > RIP: 0010:[<ffffffff8b3287b5>]  [<ffffffff8b3287b5>] copy_page_rep+0x5/0x10
+> >> > 
+> >> > Ok, it's the first iteration of "rep movsq" (%rcx is still 0x200) for
+> >> > copying a page, and the pages are
+> >> > 
+> >> >   RSI: ffff880052766000
+> >> >   RDI: ffff880014efe000
+> >> > 
+> >> > which both look like reasonable kernel addresses. So I'm assuming it's
+> >> > DEBUG_PAGEALLOC that makes this trigger, and since the error code is
+> >> > 0, and the CR2 value matches RSI, it's the source page that seems to
+> >> > have been freed.
+> >> > 
+> >> > And I see absolutely _zero_ reason for wht your 64k mmap_min_addr
+> >> > should make any difference what-so-ever. That's just odd.
+> >> > 
+> >> > Anyway, can you try to figure out _which_ copy_user_highpage() it is
+> >> > (by looking at what is around the call-site at
+> >> > "handle_mm_fault+0x1e0". The fact that we have a stale
+> >> > do_huge_pmd_wp_page() on the stack makes me suspect that we have hit
+> >> > that VM_FAULT_FALLBACK case and this is related to splitting. Adding a
+> >> > few more people explicitly to the cc in case anybody sees anything
+> >> > (original email on lkml and linux-mm for context, guys).
+> > Looks like a known false positive from DEBUG_PAGEALLOC:
+> > 
+> > https://lkml.org/lkml/2013/3/29/103
+> > 
+> > We huge copy page in do_huge_pmd_wp_page() without ptl taken and the page
+> > can be splitted and freed under us. Once page is copied we take ptl again
+> > and recheck that PMD is not changed. If changed, we don't use new page.
+> > Not a bug, never triggered with DEBUG_PAGEALLOC disabled.
+> > 
+> > It would be nice to have a way to mark this kind of speculative access.
 > 
-> Ok, your path fixes the oops.
+> FWIW, this issue makes fuzzing with DEBUG_PAGEALLOC nearly impossible since
+> this thing is so common we never get to do anything "fun" before this issue
+> triggers.
 > 
-> Ben, can you shed some light on this issue?
+> A fix would be more than welcome.
 
-(I'm not Ben)
+Please give this a try: I think it's right, but I could easily be wrong.
 
-Yes, the memory for dart_tablebase is removed from the linear mapping. In fact
-it's never mapped, see htab_initialize().
 
-I don't easily see how commit d4c54919ed8, could have exposed this, but I don't
-know enough of the kmemleak internals to say for sure.
+[PATCH] thp: fix DEBUG_PAGEALLOC oops in copy_page_rep
 
-cheers
+Trinity has for over a year been reporting a CONFIG_DEBUG_PAGEALLOC
+oops in copy_page_rep() called from copy_user_huge_page() called from
+do_huge_pmd_wp_page().
 
+I believe this is a DEBUG_PAGEALLOC false positive, due to the source
+page being split, and a tail page freed, while copy is in progress; and
+not a problem without DEBUG_PAGEALLOC, since the pmd_same() check will
+prevent a miscopy from being made visible.
+
+Fix by adding get_user_huge_page() and put_user_huge_page(): reducing
+to the usual get_page() and put_page() on head page in the usual config;
+but get and put references to all of the tail pages when DEBUG_PAGEALLOC.
+
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+
+ mm/huge_memory.c |   35 +++++++++++++++++++++++++++++++----
+ 1 file changed, 31 insertions(+), 4 deletions(-)
+
+--- 3.16-rc1/mm/huge_memory.c	2014-06-08 18:09:10.544479312 -0700
++++ linux/mm/huge_memory.c	2014-06-15 19:32:58.993126929 -0700
+@@ -941,6 +941,33 @@ unlock:
+ 	spin_unlock(ptl);
+ }
+ 
++/*
++ * Save CONFIG_DEBUG_PAGEALLOC from faulting falsely on tail pages
++ * during copy_user_huge_page()'s copy_page_rep(): in the case when
++ * the source page gets split and a tail freed before copy completes.
++ * Called under pmd_lock of checked pmd, so safe from splitting itself.
++ */
++static void get_user_huge_page(struct page *page)
++{
++	if (IS_ENABLED(CONFIG_DEBUG_PAGEALLOC)) {
++		struct page *endpage = page + HPAGE_PMD_NR;
++		atomic_add(HPAGE_PMD_NR, &page->_count);
++		while (++page < endpage)
++			get_huge_page_tail(page);
++	} else
++		get_page(page);
++}
++
++static void put_user_huge_page(struct page *page)
++{
++	if (IS_ENABLED(CONFIG_DEBUG_PAGEALLOC)) {
++		struct page *endpage = page + HPAGE_PMD_NR;
++		while (page < endpage)
++			put_page(page++);
++	} else
++		put_page(page);
++}
++
+ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
+ 					struct vm_area_struct *vma,
+ 					unsigned long address,
+@@ -1074,7 +1101,7 @@ int do_huge_pmd_wp_page(struct mm_struct
+ 		ret |= VM_FAULT_WRITE;
+ 		goto out_unlock;
+ 	}
+-	get_page(page);
++	get_user_huge_page(page);
+ 	spin_unlock(ptl);
+ alloc:
+ 	if (transparent_hugepage_enabled(vma) &&
+@@ -1095,7 +1122,7 @@ alloc:
+ 				split_huge_page(page);
+ 				ret |= VM_FAULT_FALLBACK;
+ 			}
+-			put_page(page);
++			put_user_huge_page(page);
+ 		}
+ 		count_vm_event(THP_FAULT_FALLBACK);
+ 		goto out;
+@@ -1105,7 +1132,7 @@ alloc:
+ 		put_page(new_page);
+ 		if (page) {
+ 			split_huge_page(page);
+-			put_page(page);
++			put_user_huge_page(page);
+ 		} else
+ 			split_huge_page_pmd(vma, address, pmd);
+ 		ret |= VM_FAULT_FALLBACK;
+@@ -1127,7 +1154,7 @@ alloc:
+ 
+ 	spin_lock(ptl);
+ 	if (page)
+-		put_page(page);
++		put_user_huge_page(page);
+ 	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
+ 		spin_unlock(ptl);
+ 		mem_cgroup_uncharge_page(new_page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
