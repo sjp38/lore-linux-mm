@@ -1,153 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A557D6B0037
-	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 06:43:38 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id rp16so4352557pbb.38
-        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 03:43:38 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
-        by mx.google.com with ESMTPS id oq10si13260688pac.48.2014.06.16.03.43.32
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 16 Jun 2014 03:43:37 -0700 (PDT)
-Message-ID: <539ECA21.5090906@huawei.com>
-Date: Mon, 16 Jun 2014 18:42:41 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
+	by kanga.kvack.org (Postfix) with ESMTP id CDFBB6B0036
+	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 06:57:41 -0400 (EDT)
+Received: by mail-qa0-f46.google.com with SMTP id i13so7146721qae.33
+        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 03:57:41 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id f77si6789595qge.35.2014.06.16.03.57.40
+        for <linux-mm@kvack.org>;
+        Mon, 16 Jun 2014 03:57:40 -0700 (PDT)
+Date: Mon, 16 Jun 2014 11:57:34 +0100
+From: "Bryn M. Reeves" <bmr@redhat.com>
+Subject: Re: [linux-lvm] copying file results in out of memory, kills other
+ processes, makes system unavailable
+Message-ID: <20140616105733.GB2241@localhost.localdomain>
+References: <539C275B.4010003@davidnewall.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/8] mm: add page cache limit and reclaim feature
-References: <539EB7D6.8070401@huawei.com> <539EC117.1040105@cn.fujitsu.com>
-In-Reply-To: <539EC117.1040105@cn.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <539C275B.4010003@davidnewall.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, aquini@redhat.com, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Li Zefan <lizefan@huawei.com>
+To: LVM general discussion and development <linux-lvm@redhat.com>
+Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 2014/6/16 18:04, Zhang Yanfei wrote:
+On Sat, Jun 14, 2014 at 08:13:39PM +0930, David Newall wrote:
+> I'm running a qemu virtual machine, 2 x i686 with 2GB RAM.  VM's disks are
+> managed via LVM2.  Most disk activity is on one LV, formatted as ext4.
+> Backups are taken using snapshots, and at the time of the problem that I am
+> about to describe, there were ten of them, or so.  OS is Ubuntu 12.04 with
 
-> Hi,
-> 
-> On 06/16/2014 05:24 PM, Xishi Qiu wrote:
->> When system(e.g. smart phone) running for a long time, the cache often takes
->> a large memory, maybe the free memory is less than 50M, then OOM will happen
->> if APP allocate a large order pages suddenly and memory reclaim too slowly. 
-> 
-> If there is really too many page caches, and the free memory is low. I think
-> the page allocator will enter the slowpath to free more memory for allocation.
-> And it the slowpath, there is indeed the direct reclaim operation, so is that
-> really not enough to reclaim pagecaches?
-> 
+You don't mention what type of snapshots you're using but by the sound
+of it these are legacy LVM2 snapshots using the snapshot target. For
+applications where you want to have this number of snapshots present
+simultaneously you really want to be using the new snapshot
+implementation ('thin snapshots').
 
-Hi Yanfei,
+Take a look at the RHEL docs for creating and managing these (the
+commands work the same whay on Ubuntu):
 
-Do you mean this path?
-__alloc_pages_slowpath()
-	__alloc_pages_direct_reclaim()
-		__perform_reclaim()
-			try_to_free_pages()
-the "nr_to_reclaim = SWAP_CLUSTER_MAX" is only 32 pages.
+  http://tinyurl.com/pjdovee  [access.redhat.com]
 
->>
->> Use "echo 3 > /proc/sys/vm/drop_caches" will drop the whole cache, this will
->> affect the performance, so it is used for debugging only. 
->>
->> suse has this feature, I tested it before, but it can not limit the page cache
->> actually. So I rewrite the feature and add some parameters.
->>
->> Christoph Lameter has written a patch "Limit the size of the pagecache"
->> http://marc.info/?l=linux-mm&m=116959990228182&w=2
->> It changes in zone fallback, this is not a good way.
->>
->> The patchset is based on v3.15, it introduces two features, page cache limit
->> and page cache reclaim in circles.
->>
->> Add four parameters in /proc/sys/vm
->>
->> 1) cache_limit_mbytes
->> This is used to limit page cache amount.
->> The input unit is MB, value range is from 0 to totalram_pages.
->> If this is set to 0, it will not limit page cache.
->> When written to the file, cache_limit_ratio will be updated too.
->> The default value is 0.
->>
->> 2) cache_limit_ratio
->> This is used to limit page cache amount.
->> The input unit is percent, value range is from 0 to 100.
->> If this is set to 0, it will not limit page cache.
->> When written to the file, cache_limit_mbytes will be updated too.
->> The default value is 0.
->>
->> 3) cache_reclaim_s
->> This is used to reclaim page cache in circles.
->> The input unit is second, the minimum value is 0.
->> If this is set to 0, it will disable the feature.
->> The default value is 0.
->>
->> 4) cache_reclaim_weight
->> This is used to speed up page cache reclaim.
->> It depend on enabling cache_limit_mbytes/cache_limit_ratio or cache_reclaim_s.
->> Value range is from 1(slow) to 100(fast).
->> The default value is 1.
->>
->> I tested the two features on my system(x86_64), it seems to work right.
->> However, as it changes the hot path "add_to_page_cache_lru()", I don't know
->> how much it will the affect the performance,
-> 
-> Yeah, at a quick glance, for every invoke of add_to_page_cache_lru(), there is the 
-> newly added test:
-> 
-> if (vm_cache_limit_mbytes && page_cache_over_limit())
-> 
-> and if the test is passed, shrink_page_cache()->do_try_to_free_pages() is called.
-> And this is a sync operation. IMO, it is better to make such an operation async.
-> (You've implemented async operation but I doubt if it is suitable to put the sync operation
-> here.)
-> 
-> Thanks.
-> 
+The problem with traditional snapshots is that they will issue separate
+IO for each active snapshot so for one snap a write to the origin (that
+triggers a CoW exception) will cause a read and a write of that block in
+the snapshot table. With ten active snapshots you're writing that
+changed block separately to the ten active CoW areas.
 
-Sounds to a good idea, how about waking up kswapd()?
+It doesn't take a large number of snapshots before this scheme becomes
+unworkable as you've discovered. There are many threads on this topic in
+the list archives, e.g.:
 
-Thanks,
-Xishi Qiu
+  https://www.redhat.com/archives/linux-lvm/2013-July/msg00044.html
 
->  maybe there are some errors
->> in the patches too, RFC.
->>
->>
->> *** BLURB HERE ***
->>
->> Xishi Qiu (8):
->>   mm: introduce cache_limit_ratio and cache_limit_mbytes
->>   mm: add shrink page cache core
->>   mm: implement page cache limit feature
->>   mm: introduce cache_reclaim_s
->>   mm: implement page cache reclaim in circles
->>   mm: introduce cache_reclaim_weight
->>   mm: implement page cache reclaim speed
->>   doc: update Documentation/sysctl/vm.txt
->>
->>  Documentation/sysctl/vm.txt |   43 +++++++++++++++++++
->>  include/linux/swap.h        |   17 ++++++++
->>  kernel/sysctl.c             |   35 +++++++++++++++
->>  mm/filemap.c                |    3 +
->>  mm/hugetlb.c                |    3 +
->>  mm/page_alloc.c             |   51 ++++++++++++++++++++++
->>  mm/vmscan.c                 |   97 ++++++++++++++++++++++++++++++++++++++++++-
->>  7 files changed, 248 insertions(+), 1 deletions(-)
->>
->>
->> --
->> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
->> the body of a message to majordomo@vger.kernel.org
->> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->> Please read the FAQ at  http://www.tux.org/lkml/
->> .
->>
+> Let me be clear: Process A requests memory; processes B & C are killed;
+> where B & C later become D, E & F!
 > 
-> 
+> I feel that over-committing memory is a foolish and odious practice, and
+> makes problem determination very much harder than it need be. When a process
+> requests memory, if that cannot be satisfied the system should return an
+> error and that be the end of it.
 
+You can disable memory over-commit by setting mode 3 in ('don't
+overcommit') in vm.overcommit-memory but see:
 
+  Documentation/vm/overcommit-accounting
+
+As well as the documentation for the per-process OOM controls (oom_adj,
+oom_score_adj, oom_score). These are discussed in:
+
+  Documentation/filesystems/proc.txt
+ 
+> Actual use of snapshots seems to beg denial of service.
+
+Keeping that number of legacy snapshots present is certainly going to
+cause you performance problems like this. Try using thin snapshots or
+reducing the number that you keep active.
+
+Regards,
+Bryn.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
