@@ -1,170 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F2AC6B0031
-	for <linux-mm@kvack.org>; Sun, 15 Jun 2014 23:03:34 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id ey11so526723pad.12
-        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 20:03:33 -0700 (PDT)
-Received: from mail-pd0-x229.google.com (mail-pd0-x229.google.com [2607:f8b0:400e:c02::229])
-        by mx.google.com with ESMTPS id ey5si9396404pbb.58.2014.06.15.20.03.32
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EA296B0031
+	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 00:36:37 -0400 (EDT)
+Received: by mail-wi0-f172.google.com with SMTP id hi2so3343405wib.5
+        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 21:36:36 -0700 (PDT)
+Received: from mail-wg0-x22f.google.com (mail-wg0-x22f.google.com [2a00:1450:400c:c00::22f])
+        by mx.google.com with ESMTPS id o19si6898644wie.29.2014.06.15.21.36.35
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 15 Jun 2014 20:03:33 -0700 (PDT)
-Received: by mail-pd0-f169.google.com with SMTP id g10so1320530pdj.0
-        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 20:03:32 -0700 (PDT)
-Date: Sun, 15 Jun 2014 20:01:27 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: 3.15-rc8 oops in copy_page_rep after page fault.
-In-Reply-To: <5392108F.8060405@oracle.com>
-Message-ID: <alpine.LSU.2.11.1406151957560.5820@eggly.anvils>
-References: <20140606174317.GA1741@redhat.com> <CA+55aFxiOsceOsm7zYyvFAxDF3=gxUXj=_61Nce3VkELfJr7cg@mail.gmail.com> <20140606184926.GA16083@node.dhcp.inet.fi> <5392108F.8060405@oracle.com>
+        Sun, 15 Jun 2014 21:36:35 -0700 (PDT)
+Received: by mail-wg0-f47.google.com with SMTP id k14so5026514wgh.30
+        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 21:36:35 -0700 (PDT)
+Message-ID: <539E6E93.6070102@gmail.com>
+Date: Mon, 16 Jun 2014 06:12:03 +0200
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH v3 3/7] shm: add memfd_create() syscall
+References: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com>	<1402655819-14325-4-git-send-email-dh.herrmann@gmail.com>	<CAKgNAkgnnWjrbE+2KAETsmiyrnrMQu0h7-MrYLvkiwj--_nxcQ@mail.gmail.com>	<CANq1E4R2K+eq9AxtFewp4YUL2cujg+dg+sN19Anvf-zWuvgyWw@mail.gmail.com>	<CAKgNAkgMA39AfoSoA5Pe1r9N+ZzfYQNvNPvcRN7tOvRb8+v06Q@mail.gmail.com> <CALAqxLUDDYhDbU-fa50ZHVe+yOmv0m3aOO3WmGpRrk-cPzsMAg@mail.gmail.com>
+In-Reply-To: <CALAqxLUDDYhDbU-fa50ZHVe+yOmv0m3aOO3WmGpRrk-cPzsMAg@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>
+To: John Stultz <john.stultz@linaro.org>
+Cc: mtk.manpages@gmail.com, David Herrmann <dh.herrmann@gmail.com>, lkml <linux-kernel@vger.kernel.org>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Greg Kroah-Hartman <greg@kroah.com>, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>, Hugh Dickins <hughd@google.com>, Tony Battersby <tonyb@cybernetics.com>, Andy Lutomirski <luto@amacapital.net>
 
-On Fri, 6 Jun 2014, Sasha Levin wrote:
-> On 06/06/2014 02:49 PM, Kirill A. Shutemov wrote:
-> > On Fri, Jun 06, 2014 at 11:26:14AM -0700, Linus Torvalds wrote:
-> >> > On Fri, Jun 6, 2014 at 10:43 AM, Dave Jones <davej@redhat.com> wrote:
-> >>> > >
-> >>> > > RIP: 0010:[<ffffffff8b3287b5>]  [<ffffffff8b3287b5>] copy_page_rep+0x5/0x10
-> >> > 
-> >> > Ok, it's the first iteration of "rep movsq" (%rcx is still 0x200) for
-> >> > copying a page, and the pages are
-> >> > 
-> >> >   RSI: ffff880052766000
-> >> >   RDI: ffff880014efe000
-> >> > 
-> >> > which both look like reasonable kernel addresses. So I'm assuming it's
-> >> > DEBUG_PAGEALLOC that makes this trigger, and since the error code is
-> >> > 0, and the CR2 value matches RSI, it's the source page that seems to
-> >> > have been freed.
-> >> > 
-> >> > And I see absolutely _zero_ reason for wht your 64k mmap_min_addr
-> >> > should make any difference what-so-ever. That's just odd.
-> >> > 
-> >> > Anyway, can you try to figure out _which_ copy_user_highpage() it is
-> >> > (by looking at what is around the call-site at
-> >> > "handle_mm_fault+0x1e0". The fact that we have a stale
-> >> > do_huge_pmd_wp_page() on the stack makes me suspect that we have hit
-> >> > that VM_FAULT_FALLBACK case and this is related to splitting. Adding a
-> >> > few more people explicitly to the cc in case anybody sees anything
-> >> > (original email on lkml and linux-mm for context, guys).
-> > Looks like a known false positive from DEBUG_PAGEALLOC:
-> > 
-> > https://lkml.org/lkml/2013/3/29/103
-> > 
-> > We huge copy page in do_huge_pmd_wp_page() without ptl taken and the page
-> > can be splitted and freed under us. Once page is copied we take ptl again
-> > and recheck that PMD is not changed. If changed, we don't use new page.
-> > Not a bug, never triggered with DEBUG_PAGEALLOC disabled.
-> > 
-> > It would be nice to have a way to mark this kind of speculative access.
+On 06/13/2014 06:20 PM, John Stultz wrote:
+> On Fri, Jun 13, 2014 at 7:20 AM, Michael Kerrisk (man-pages)
+> <mtk.manpages@gmail.com> wrote:
+>>
+>> The general notion these days is that a (comprehensive) manual page
+>> _should_ come *with* the system call, rather than after the fact. And
+>> there's a lot of value in that. I've found no end of bugs and design
+>> errors while writing (comprehensive) man pages after the fact (by
+>> which time it's too late to fix the design errors), and also found
+>> quite a few of those issues when I've managed to work with folk at the
+>> same time as they write the syscall. Bottom line: you really should
+>> write formal documentation now, as part of the process of code
+>> submission. It improves the chance of finding implementation and
+>> design bugs, and may well widen your circle of reviewers.
 > 
-> FWIW, this issue makes fuzzing with DEBUG_PAGEALLOC nearly impossible since
-> this thing is so common we never get to do anything "fun" before this issue
-> triggers.
+> I very much agree here. One practical issue I've noticed is that
+> having separate targets for both the code changes and the manpages can
+> be an extra barrier for folks getting changes correctly documented as
+> the change is being submitted. Reviewers may say "be sure to send
+> updates to the man pages" but its not always easy to remember to
+> follow up and make sure the submitter got the changes (which match the
+> merged patches) to you as well.
 > 
-> A fix would be more than welcome.
+> I've been thinking it might be nice to have the kernel syscall man
+> pages included in the kernel source tree, then have them
+> copied/imported over to the man-pages project (similar to how glibc
+> imports uapi kernel headers).  They could even be kept in the
+> include/uapi directory, and checkpatch could ensure that changes that
+> touch include/uapi also have modifications to something in the
+> manpages directory. This way folks would be able to include the man
+> page change with the code change, making it easier for developers to
+> do the right thing, making it easier for reviewers to ensure its
+> correct, and making it easier for maintainers to ensure man page
+> documentation is properly in sync.
+> 
+> Or is this something that has been hashed over already? I do admit
+> this would disrupt your process a bit.
 
-Please give this a try: I think it's right, but I could easily be wrong.
+It's more a less a FAQ from my point of view, so I wrote this:
+https://www.kernel.org/doc/man-pages/todo.html#migrate_to_kernel_source
+
+In short, I agree that the current process is not optimal, but lacking
+(a lot) more time, it'd be hard to make any change to the current 
+process. In any case, I think there's room for a lot of improvement
+even without changing the current process. (For example, while I 
+agree that having man pages in a separate location from the kernel 
+source does create some barriers, I don't think it's the reason
+most developers don't update the man pages. One just has to
+look at the patchy state Documentation/filesystems/proc.txt as one 
+example to support that view point.)
+
+Cheers,
+
+Michael
 
 
-[PATCH] thp: fix DEBUG_PAGEALLOC oops in copy_page_rep
-
-Trinity has for over a year been reporting a CONFIG_DEBUG_PAGEALLOC
-oops in copy_page_rep() called from copy_user_huge_page() called from
-do_huge_pmd_wp_page().
-
-I believe this is a DEBUG_PAGEALLOC false positive, due to the source
-page being split, and a tail page freed, while copy is in progress; and
-not a problem without DEBUG_PAGEALLOC, since the pmd_same() check will
-prevent a miscopy from being made visible.
-
-Fix by adding get_user_huge_page() and put_user_huge_page(): reducing
-to the usual get_page() and put_page() on head page in the usual config;
-but get and put references to all of the tail pages when DEBUG_PAGEALLOC.
-
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
-
- mm/huge_memory.c |   35 +++++++++++++++++++++++++++++++----
- 1 file changed, 31 insertions(+), 4 deletions(-)
-
---- 3.16-rc1/mm/huge_memory.c	2014-06-08 18:09:10.544479312 -0700
-+++ linux/mm/huge_memory.c	2014-06-15 19:32:58.993126929 -0700
-@@ -941,6 +941,33 @@ unlock:
- 	spin_unlock(ptl);
- }
- 
-+/*
-+ * Save CONFIG_DEBUG_PAGEALLOC from faulting falsely on tail pages
-+ * during copy_user_huge_page()'s copy_page_rep(): in the case when
-+ * the source page gets split and a tail freed before copy completes.
-+ * Called under pmd_lock of checked pmd, so safe from splitting itself.
-+ */
-+static void get_user_huge_page(struct page *page)
-+{
-+	if (IS_ENABLED(CONFIG_DEBUG_PAGEALLOC)) {
-+		struct page *endpage = page + HPAGE_PMD_NR;
-+		atomic_add(HPAGE_PMD_NR, &page->_count);
-+		while (++page < endpage)
-+			get_huge_page_tail(page);
-+	} else
-+		get_page(page);
-+}
-+
-+static void put_user_huge_page(struct page *page)
-+{
-+	if (IS_ENABLED(CONFIG_DEBUG_PAGEALLOC)) {
-+		struct page *endpage = page + HPAGE_PMD_NR;
-+		while (page < endpage)
-+			put_page(page++);
-+	} else
-+		put_page(page);
-+}
-+
- static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
- 					struct vm_area_struct *vma,
- 					unsigned long address,
-@@ -1074,7 +1101,7 @@ int do_huge_pmd_wp_page(struct mm_struct
- 		ret |= VM_FAULT_WRITE;
- 		goto out_unlock;
- 	}
--	get_page(page);
-+	get_user_huge_page(page);
- 	spin_unlock(ptl);
- alloc:
- 	if (transparent_hugepage_enabled(vma) &&
-@@ -1095,7 +1122,7 @@ alloc:
- 				split_huge_page(page);
- 				ret |= VM_FAULT_FALLBACK;
- 			}
--			put_page(page);
-+			put_user_huge_page(page);
- 		}
- 		count_vm_event(THP_FAULT_FALLBACK);
- 		goto out;
-@@ -1105,7 +1132,7 @@ alloc:
- 		put_page(new_page);
- 		if (page) {
- 			split_huge_page(page);
--			put_page(page);
-+			put_user_huge_page(page);
- 		} else
- 			split_huge_page_pmd(vma, address, pmd);
- 		ret |= VM_FAULT_FALLBACK;
-@@ -1127,7 +1154,7 @@ alloc:
- 
- 	spin_lock(ptl);
- 	if (page)
--		put_page(page);
-+		put_user_huge_page(page);
- 	if (unlikely(!pmd_same(*pmd, orig_pmd))) {
- 		spin_unlock(ptl);
- 		mem_cgroup_uncharge_page(new_page);
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
