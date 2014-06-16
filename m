@@ -1,84 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f44.google.com (mail-qa0-f44.google.com [209.85.216.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E7356B0031
-	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 12:44:54 -0400 (EDT)
-Received: by mail-qa0-f44.google.com with SMTP id hw13so6508709qab.17
-        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 09:44:54 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id c10si13908797qab.7.2014.06.16.09.44.53
-        for <linux-mm@kvack.org>;
-        Mon, 16 Jun 2014 09:44:54 -0700 (PDT)
-Date: Mon, 16 Jun 2014 12:44:49 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 7/7] mincore: apply page table walker on do_mincore()
-Message-ID: <20140616164449.GB13264@nhori.bos.redhat.com>
-References: <1402095520-10109-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1402095520-10109-8-git-send-email-n-horiguchi@ah.jp.nec.com>
- <539F0C20.10101@oracle.com>
+Received: from mail-vc0-f174.google.com (mail-vc0-f174.google.com [209.85.220.174])
+	by kanga.kvack.org (Postfix) with ESMTP id C4B6B6B0037
+	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 12:57:40 -0400 (EDT)
+Received: by mail-vc0-f174.google.com with SMTP id hy4so5169745vcb.19
+        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 09:57:40 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id n8si13920472qag.105.2014.06.16.09.57.39
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 16 Jun 2014 09:57:40 -0700 (PDT)
+Message-ID: <539F21F4.20206@infradead.org>
+Date: Mon, 16 Jun 2014 09:57:24 -0700
+From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <539F0C20.10101@oracle.com>
+Subject: Re: [PATCH 8/8] doc: update Documentation/sysctl/vm.txt
+References: <539EB803.9070001@huawei.com>
+In-Reply-To: <539EB803.9070001@huawei.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, Dave Jones <davej@redhat.com>
+To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, aquini@redhat.com, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Li Zefan <lizefan@huawei.com>
 
-Hi Sasha,
-
-Thanks for bug reporting.
-
-On Mon, Jun 16, 2014 at 11:24:16AM -0400, Sasha Levin wrote:
-> On 06/06/2014 06:58 PM, Naoya Horiguchi wrote:
-> > This patch makes do_mincore() use walk_page_vma(), which reduces many lines
-> > of code by using common page table walk code.
-> > 
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+On 06/16/14 02:25, Xishi Qiu wrote:
+> Update the doc.
 > 
-> Hi Naoya,
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> ---
+>  Documentation/sysctl/vm.txt |   43 +++++++++++++++++++++++++++++++++++++++++++
+>  1 files changed, 43 insertions(+), 0 deletions(-)
 > 
-> This patch is causing a few issues on -next:
+> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+> index dd9d0e3..8008e53 100644
+> --- a/Documentation/sysctl/vm.txt
+> +++ b/Documentation/sysctl/vm.txt
+> @@ -20,6 +20,10 @@ Currently, these files are in /proc/sys/vm:
+>  
+>  - admin_reserve_kbytes
+>  - block_dump
+> +- cache_limit_mbytes
+> +- cache_limit_ratio
+> +- cache_reclaim_s
+> +- cache_reclaim_weight
+>  - compact_memory
+>  - dirty_background_bytes
+>  - dirty_background_ratio
+> @@ -97,6 +101,45 @@ information on block I/O debugging is in Documentation/laptops/laptop-mode.txt.
+>  
+>  ==============================================================
+>  
+> +cache_limit_mbytes
+> +
+> +This is used to limit page cache amount. The input unit is MB, value range
+> +is from 0 to totalram_pages. If this is set to 0, it will not limit page cache.
+
+Where does one find the value of totalram_pages?
+
+Is totalram_pages in MB or does totalram_pages need to be divided by some value
+to convert it to MB?
+
+> +When written to the file, cache_limit_ratio will be updated too.
+> +
+> +The default value is 0.
+> +
+> +==============================================================
+> +
+> +cache_limit_ratio
+> +
+> +This is used to limit page cache amount. The input unit is percent, value
+> +range is from 0 to 100. If this is set to 0, it will not limit page cache.
+> +When written to the file, cache_limit_mbytes will be updated too.
+> +
+> +The default value is 0.
+> +
+> +==============================================================
+> +
+> +cache_reclaim_s
+> +
+> +This is used to reclaim page cache in circles. The input unit is second,
+> +the minimum value is 0. If this is set to 0, it will disable the feature.
+> +
+> +The default value is 0.
+> +
+> +==============================================================
+> +
+> +cache_reclaim_weight
+> +
+> +This is used to speed up page cache reclaim. It depend on enabling
+
+                                                   depends on
+
+> +cache_limit_mbytes/cache_limit_ratio or cache_reclaim_s. Value range is
+> +from 1(slow) to 100(fast).
+> +
+> +The default value is 1.
+> +
+> +==============================================================
+> +
+>  compact_memory
+>  
+>  Available only when CONFIG_COMPACTION is set. When 1 is written to the file,
 > 
-> [  367.679282] BUG: sleeping function called from invalid context at mm/mincore.c:37
 
-cond_resched() in mincore_hugetlb() triggered this. This is done in common
-pagewalk code, so I should have removed it.
 
-...
-> And:
-> 
-> [  391.118663] BUG: unable to handle kernel paging request at ffff880142aca000
-> [  391.118663] IP: mincore_hole (mm/mincore.c:99 (discriminator 2))
-
-walk->pte_hole cannot assume walk->vma != NULL, so I should've checked it
-in mincore_hole() before using walk->vma.
-
-Could you try the following fixes?
-
-Thanks,
-Naoya Horiguchi
----
-diff --git a/mm/mincore.c b/mm/mincore.c
-index d8a5e9f62268..3261788369bd 100644
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -34,7 +34,6 @@ static int mincore_hugetlb(pte_t *pte, unsigned long addr,
- 	present = pte && !huge_pte_none(huge_ptep_get(pte));
- 	for (; addr != end; vec++, addr += PAGE_SIZE)
- 		*vec = present;
--	cond_resched();
- 	walk->private += (end - addr) >> PAGE_SHIFT;
- #else
- 	BUG();
-@@ -91,7 +90,7 @@ static int mincore_hole(unsigned long addr, unsigned long end,
- 	unsigned long nr = (end - addr) >> PAGE_SHIFT;
- 	int i;
- 
--	if (vma->vm_file) {
-+	if (vma && vma->vm_file) {
- 		pgoff_t pgoff;
- 
- 		pgoff = linear_page_index(vma, addr);
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
