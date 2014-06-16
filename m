@@ -1,136 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id B87856B0036
-	for <linux-mm@kvack.org>; Sun, 15 Jun 2014 22:02:04 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id et14so3910138pad.41
-        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 19:02:04 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id ta6si11977076pab.54.2014.06.15.19.02.02
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1ACE76B0031
+	for <linux-mm@kvack.org>; Sun, 15 Jun 2014 22:31:15 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id hz1so763644pad.38
+        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 19:31:14 -0700 (PDT)
+Received: from mail-pb0-x229.google.com (mail-pb0-x229.google.com [2607:f8b0:400e:c01::229])
+        by mx.google.com with ESMTPS id fg5si12027999pad.120.2014.06.15.19.31.13
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 15 Jun 2014 19:02:03 -0700 (PDT)
-Date: Mon, 16 Jun 2014 12:01:52 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: linux-next: build failure after merge of the akpm-current tree
-Message-ID: <20140616120152.752ec516@canb.auug.org.au>
-In-Reply-To: <1402672324-io6h33kn@n-horiguchi@ah.jp.nec.com>
-References: <20140613150550.7b2e2c4c@canb.auug.org.au>
-	<1402672324-io6h33kn@n-horiguchi@ah.jp.nec.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 15 Jun 2014 19:31:14 -0700 (PDT)
+Received: by mail-pb0-f41.google.com with SMTP id ma3so3955447pbc.28
+        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 19:31:13 -0700 (PDT)
+Date: Sun, 15 Jun 2014 19:29:53 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: mm: shm: hang in shmem_fallocate
+In-Reply-To: <539A0FC8.8090504@oracle.com>
+Message-ID: <alpine.LSU.2.11.1406151921070.2850@eggly.anvils>
+References: <52AE7B10.2080201@oracle.com> <52F6898A.50101@oracle.com> <alpine.LSU.2.11.1402081841160.26825@eggly.anvils> <52F82E62.2010709@oracle.com> <539A0FC8.8090504@oracle.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
- boundary="Sig_/zZth.15U7q6c4+IBs2hWzHW"; protocol="application/pgp-signature"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
---Sig_/zZth.15U7q6c4+IBs2hWzHW
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+On Thu, 12 Jun 2014, Sasha Levin wrote:
+> On 02/09/2014 08:41 PM, Sasha Levin wrote:
+> > On 02/08/2014 10:25 PM, Hugh Dickins wrote:
+> >> Would trinity be likely to have a thread or process repeatedly faulting
+> >> in pages from the hole while it is being punched?
+> > 
+> > I can see how trinity would do that, but just to be certain - Cc davej.
+> > 
+> > On 02/08/2014 10:25 PM, Hugh Dickins wrote:
+> >> Does this happen with other holepunch filesystems?  If it does not,
+> >> I'd suppose it's because the tmpfs fault-in-newly-created-page path
+> >> is lighter than a consistent disk-based filesystem's has to be.
+> >> But we don't want to make the tmpfs path heavier to match them.
+> > 
+> > No, this is strictly limited to tmpfs, and AFAIK trinity tests hole
+> > punching in other filesystems and I make sure to get a bunch of those
+> > mounted before starting testing.
+> 
+> Just pinging this one again. I still see hangs in -next where the hang
+> location looks same as before:
+> 
 
-Hi Naoya,
-
-On Fri, 13 Jun 2014 11:12:06 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.c=
-om> wrote:
->
-> On Fri, Jun 13, 2014 at 03:05:50PM +1000, Stephen Rothwell wrote:
-> >=20
-> > After merging the akpm-current tree, today's linux-next build (powerpc =
-ppc64_defconfig)
-> > failed like this:
-> >=20
-> > fs/proc/task_mmu.c: In function 'smaps_pmd':
-> > include/linux/compiler.h:363:38: error: call to '__compiletime_assert_5=
-05' declared with attribute error: BUILD_BUG failed
-> >   _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
-> >                                       ^
-> > include/linux/compiler.h:346:4: note: in definition of macro '__compile=
-time_assert'
-> >     prefix ## suffix();    \
-> >     ^
-> > include/linux/compiler.h:363:2: note: in expansion of macro '_compileti=
-me_assert'
-> >   _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
-> >   ^
-> > include/linux/bug.h:50:37: note: in expansion of macro 'compiletime_ass=
-ert'
-> >  #define BUILD_BUG_ON_MSG(cond, msg) compiletime_assert(!(cond), msg)
-> >                                      ^
-> > include/linux/bug.h:84:21: note: in expansion of macro 'BUILD_BUG_ON_MS=
-G'
-> >  #define BUILD_BUG() BUILD_BUG_ON_MSG(1, "BUILD_BUG failed")
-> >                      ^
-> > include/linux/huge_mm.h:167:27: note: in expansion of macro 'BUILD_BUG'
-> >  #define HPAGE_PMD_SIZE ({ BUILD_BUG(); 0; })
-> >                            ^
-> > fs/proc/task_mmu.c:505:39: note: in expansion of macro 'HPAGE_PMD_SIZE'
-> >   smaps_pte((pte_t *)pmd, addr, addr + HPAGE_PMD_SIZE, walk);
-> >                                        ^
-> >=20
-> > Caused by commit b0e08c526179 ("mm/pagewalk: move pmd_trans_huge_lock()
-> > from callbacks to common code").
-> >=20
-> > The reference to HPAGE_PMD_SIZE (which contains a BUILD_BUG() when
-> > CONFIG_TRANSPARENT_HUGEPAGE is not defined) used to be protected by a
-> > call to pmd_trans_huge_lock() (a static inline function that was
-> > contact 0 when CONFIG_TRANSPARENT_HUGEPAGE is not defined) so gcc did
-> > not see the reference and the BUG_ON.  That protection has been
-> > removed ...
-> >=20
-> > I have reverted that commit and commit 2dc554765dd1
-> > ("mm-pagewalk-move-pmd_trans_huge_lock-from-callbacks-to-common-code-ch=
-eckpatch-fixes")
-> > that depend on it for today.
->=20
-> Sorry about that, this build failure happens because I moved the
-> pmd_trans_huge_lock() into the common pagewalk code,
-> clearly this makes mm_walk->pmd_entry handle only transparent hugepage,
-> so the additional patch below explicitly declare it with #ifdef
-> CONFIG_TRANSPARENT_HUGEPAGE.
->=20
-> I'll merge this in the next version of my series, but this will help
-> linux-next for a quick solution.
->=20
-> Thanks,
-> Naoya Horiguchi
-> ---
-> From da0850cd03baa3d50c8e353976b5b9edbfbd4413 Mon Sep 17 00:00:00 2001
-> Date: Fri, 13 Jun 2014 10:33:26 -0400
-> Subject: [PATCH] fix build error of v3.15-mmotm-2014-06-12-16-38
->=20
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-
-I added that to the akpm-current tree in linux-next today and the build
-failures went away.
-
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
+Please give this patch a try.  It fixes what I can reproduce, but given
+your unexplained page_mapped() BUG in this area, we know there's more
+yet to be understood, so perhaps this patch won't do enough for you.
 
 
---Sig_/zZth.15U7q6c4+IBs2hWzHW
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Disposition: attachment; filename=signature.asc
+[PATCH] shmem: fix faulting into a hole while it's punched
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
+Trinity finds that mmap access to a hole while it's punched from shmem
+can prevent the madvise(MADV_REMOVE) or fallocate(FALLOC_FL_PUNCH_HOLE)
+from completing, until the reader chooses to stop; with the puncher's
+hold on i_mutex locking out all other writers until it can complete.
 
-iQIcBAEBCAAGBQJTnlAVAAoJEMDTa8Ir7ZwVgp0P/1wf84gPCsAYfq+GPjEKff3D
-onSccGzVUP3dp2ll1eRoIAKvK1wOpDhdqeX3csOFXdjfmoWo3/M2krVnnf7RU5QN
-1OBs26iIRMsjp+X3CMBktT66jwSEiUvuWs7eg7hN/utJHoTXdx5psjgsUGSfco8T
-RbkQkLbdfHxDzeoakfVn8ykkLqAkEROb4xcTRCezSZeuupUHg4W8aaNu+F+RMeTp
-j/R33lUylSUw1EuEbzeAGB9l0m8cGLakENrLRLln8CJLzTTwtdt5/l4jip9ddDeP
-pOvSWNdME304AOlzfLmX6CKIuF2KEco5EilbP72oH2MWsuwJh1nCK1xVUUOPFzzP
-8dIy8AntnL518e4Q1o95ma9sh1jyzD+osqQhwlxEFf8AY7K9htSg3eP72vjGk502
-dO05M/2CWfU49RjsNytdU/bIdOKlUQ1ubzl4YI1RELOzUkcZQMVUidmStu7auMhB
-e79Z4md/6PgXCureChkgQVOJicwwNh3tD6UQ7XggbsQpBAiHxU96/ky/HsPPJ9ne
-423qX1Vr6s/4rRprjLoFJXM9f+s0Uud9xErTIyLbHtgw8l3Y5c/ty2Xm9dYC88qI
-5yo3trUA2NtSM+jFFlp+MWXkxnUL4n5bo2FkT7PdhWwJvVS9uyyAdlZiMWSRrMLD
-vSYjVh2csernoZcXc9/L
-=WIZ5
------END PGP SIGNATURE-----
+It appears that the tmpfs fault path is too light in comparison with
+its hole-punching path, lacking an i_data_sem to obstruct it; but we
+don't want to slow down the common case.
 
---Sig_/zZth.15U7q6c4+IBs2hWzHW--
+Extend shmem_fallocate()'s existing range notification mechanism, so
+shmem_fault() can refrain from faulting pages into the hole while it's
+punched, waiting instead on i_mutex (when safe to sleep; or repeatedly
+faulting when not).
+
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+
+ mm/shmem.c |   55 +++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 51 insertions(+), 4 deletions(-)
+
+--- 3.16-rc1/mm/shmem.c	2014-06-12 11:20:43.200001098 -0700
++++ linux/mm/shmem.c	2014-06-15 18:32:00.049039969 -0700
+@@ -80,11 +80,12 @@ static struct vfsmount *shm_mnt;
+ #define SHORT_SYMLINK_LEN 128
+ 
+ /*
+- * shmem_fallocate and shmem_writepage communicate via inode->i_private
+- * (with i_mutex making sure that it has only one user at a time):
+- * we would prefer not to enlarge the shmem inode just for that.
++ * shmem_fallocate communicates with shmem_fault or shmem_writepage via
++ * inode->i_private (with i_mutex making sure that it has only one user at
++ * a time): we would prefer not to enlarge the shmem inode just for that.
+  */
+ struct shmem_falloc {
++	int	mode;		/* FALLOC_FL mode currently operating */
+ 	pgoff_t start;		/* start of range currently being fallocated */
+ 	pgoff_t next;		/* the next page offset to be fallocated */
+ 	pgoff_t nr_falloced;	/* how many new pages have been fallocated */
+@@ -759,6 +760,7 @@ static int shmem_writepage(struct page *
+ 			spin_lock(&inode->i_lock);
+ 			shmem_falloc = inode->i_private;
+ 			if (shmem_falloc &&
++			    !shmem_falloc->mode &&
+ 			    index >= shmem_falloc->start &&
+ 			    index < shmem_falloc->next)
+ 				shmem_falloc->nr_unswapped++;
+@@ -1233,6 +1235,43 @@ static int shmem_fault(struct vm_area_st
+ 	int error;
+ 	int ret = VM_FAULT_LOCKED;
+ 
++	/*
++	 * Trinity finds that probing a hole which tmpfs is punching can
++	 * prevent the hole-punch from ever completing: which in turn
++	 * locks writers out with its hold on i_mutex.  So refrain from
++	 * faulting pages into the hole while it's being punched, and
++	 * wait on i_mutex to be released if vmf->flags permits, 
++	 */
++	if (unlikely(inode->i_private)) {
++		struct shmem_falloc *shmem_falloc;
++		spin_lock(&inode->i_lock);
++		shmem_falloc = inode->i_private;
++		if (!shmem_falloc ||
++		    shmem_falloc->mode != FALLOC_FL_PUNCH_HOLE ||
++		    vmf->pgoff < shmem_falloc->start ||
++		    vmf->pgoff >= shmem_falloc->next)
++			shmem_falloc = NULL;
++		spin_unlock(&inode->i_lock);
++		/*
++		 * i_lock has protected us from taking shmem_falloc seriously
++		 * once return from shmem_fallocate() went back up that stack.
++		 * i_lock does not serialize with i_mutex at all, but it does
++		 * not matter if sometimes we wait unnecessarily, or sometimes
++		 * miss out on waiting: we just need to make those cases rare.
++		 */
++		if (shmem_falloc) {
++			if ((vmf->flags & FAULT_FLAG_ALLOW_RETRY) &&
++			   !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT)) {
++				up_read(&vma->vm_mm->mmap_sem);
++				mutex_lock(&inode->i_mutex);
++				mutex_unlock(&inode->i_mutex);
++				return VM_FAULT_RETRY;
++			}
++			/* cond_resched? Leave that to GUP or return to user */
++			return VM_FAULT_NOPAGE;
++		}
++	}
++
+ 	error = shmem_getpage(inode, vmf->pgoff, &vmf->page, SGP_CACHE, &ret);
+ 	if (error)
+ 		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
+@@ -1726,18 +1765,26 @@ static long shmem_fallocate(struct file
+ 
+ 	mutex_lock(&inode->i_mutex);
+ 
++	shmem_falloc.mode = mode & ~FALLOC_FL_KEEP_SIZE;
++
+ 	if (mode & FALLOC_FL_PUNCH_HOLE) {
+ 		struct address_space *mapping = file->f_mapping;
+ 		loff_t unmap_start = round_up(offset, PAGE_SIZE);
+ 		loff_t unmap_end = round_down(offset + len, PAGE_SIZE) - 1;
+ 
++		shmem_falloc.start = unmap_start >> PAGE_SHIFT;
++		shmem_falloc.next = (unmap_end + 1) >> PAGE_SHIFT;
++		spin_lock(&inode->i_lock);
++		inode->i_private = &shmem_falloc;
++		spin_unlock(&inode->i_lock);
++
+ 		if ((u64)unmap_end > (u64)unmap_start)
+ 			unmap_mapping_range(mapping, unmap_start,
+ 					    1 + unmap_end - unmap_start, 0);
+ 		shmem_truncate_range(inode, offset, offset + len - 1);
+ 		/* No need to unmap again: hole-punching leaves COWed pages */
+ 		error = 0;
+-		goto out;
++		goto undone;
+ 	}
+ 
+ 	/* We need to check rlimit even when FALLOC_FL_KEEP_SIZE */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
