@@ -1,103 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 129826B0031
-	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 09:26:23 -0400 (EDT)
-Received: by mail-we0-f169.google.com with SMTP id t60so5818040wes.0
-        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 06:26:23 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.198])
-        by mx.google.com with ESMTP id vp1si19255677wjc.44.2014.06.16.06.26.22
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 8891D6B0031
+	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 09:41:29 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id r10so4450450pdi.32
+        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 06:41:29 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id yv3si13744280pac.77.2014.06.16.06.41.28
         for <linux-mm@kvack.org>;
-        Mon, 16 Jun 2014 06:26:22 -0700 (PDT)
-Date: Mon, 16 Jun 2014 16:26:17 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: 3.15-rc8 oops in copy_page_rep after page fault.
-Message-ID: <20140616132617.GA7031@node.dhcp.inet.fi>
-References: <20140606174317.GA1741@redhat.com>
- <CA+55aFxiOsceOsm7zYyvFAxDF3=gxUXj=_61Nce3VkELfJr7cg@mail.gmail.com>
- <20140606184926.GA16083@node.dhcp.inet.fi>
- <5392108F.8060405@oracle.com>
- <alpine.LSU.2.11.1406151957560.5820@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1406151957560.5820@eggly.anvils>
+        Mon, 16 Jun 2014 06:41:28 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <1402676778-27174-1-git-send-email-chris@chris-wilson.co.uk>
+References: <1402676778-27174-1-git-send-email-chris@chris-wilson.co.uk>
+Subject: RE: [PATCH 1/2] mm: Report attempts to overwrite PTE from
+ remap_pfn_range()
+Content-Transfer-Encoding: 7bit
+Message-Id: <20140616134124.0ED73E00A2@blue.fi.intel.com>
+Date: Mon, 16 Jun 2014 16:41:24 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>
+To: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: intel-gfx@lists.freedesktop.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Cyrill Gorcunov <gorcunov@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
 
-On Sun, Jun 15, 2014 at 08:01:27PM -0700, Hugh Dickins wrote:
-> On Fri, 6 Jun 2014, Sasha Levin wrote:
-> > On 06/06/2014 02:49 PM, Kirill A. Shutemov wrote:
-> > > On Fri, Jun 06, 2014 at 11:26:14AM -0700, Linus Torvalds wrote:
-> > >> > On Fri, Jun 6, 2014 at 10:43 AM, Dave Jones <davej@redhat.com> wrote:
-> > >>> > >
-> > >>> > > RIP: 0010:[<ffffffff8b3287b5>]  [<ffffffff8b3287b5>] copy_page_rep+0x5/0x10
-> > >> > 
-> > >> > Ok, it's the first iteration of "rep movsq" (%rcx is still 0x200) for
-> > >> > copying a page, and the pages are
-> > >> > 
-> > >> >   RSI: ffff880052766000
-> > >> >   RDI: ffff880014efe000
-> > >> > 
-> > >> > which both look like reasonable kernel addresses. So I'm assuming it's
-> > >> > DEBUG_PAGEALLOC that makes this trigger, and since the error code is
-> > >> > 0, and the CR2 value matches RSI, it's the source page that seems to
-> > >> > have been freed.
-> > >> > 
-> > >> > And I see absolutely _zero_ reason for wht your 64k mmap_min_addr
-> > >> > should make any difference what-so-ever. That's just odd.
-> > >> > 
-> > >> > Anyway, can you try to figure out _which_ copy_user_highpage() it is
-> > >> > (by looking at what is around the call-site at
-> > >> > "handle_mm_fault+0x1e0". The fact that we have a stale
-> > >> > do_huge_pmd_wp_page() on the stack makes me suspect that we have hit
-> > >> > that VM_FAULT_FALLBACK case and this is related to splitting. Adding a
-> > >> > few more people explicitly to the cc in case anybody sees anything
-> > >> > (original email on lkml and linux-mm for context, guys).
-> > > Looks like a known false positive from DEBUG_PAGEALLOC:
-> > > 
-> > > https://lkml.org/lkml/2013/3/29/103
-> > > 
-> > > We huge copy page in do_huge_pmd_wp_page() without ptl taken and the page
-> > > can be splitted and freed under us. Once page is copied we take ptl again
-> > > and recheck that PMD is not changed. If changed, we don't use new page.
-> > > Not a bug, never triggered with DEBUG_PAGEALLOC disabled.
-> > > 
-> > > It would be nice to have a way to mark this kind of speculative access.
-> > 
-> > FWIW, this issue makes fuzzing with DEBUG_PAGEALLOC nearly impossible since
-> > this thing is so common we never get to do anything "fun" before this issue
-> > triggers.
-> > 
-> > A fix would be more than welcome.
+Chris Wilson wrote:
+> When using remap_pfn_range() from a fault handler, we are exposed to
+> races between concurrent faults. Rather than hitting a BUG, report the
+> error back to the caller, like vm_insert_pfn().
 > 
-> Please give this a try: I think it's right, but I could easily be wrong.
+> Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Cyrill Gorcunov <gorcunov@gmail.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: linux-mm@kvack.org
+> ---
+>  mm/memory.c | 8 ++++++--
+>  1 file changed, 6 insertions(+), 2 deletions(-)
 > 
-> 
-> [PATCH] thp: fix DEBUG_PAGEALLOC oops in copy_page_rep
-> 
-> Trinity has for over a year been reporting a CONFIG_DEBUG_PAGEALLOC
-> oops in copy_page_rep() called from copy_user_huge_page() called from
-> do_huge_pmd_wp_page().
-> 
-> I believe this is a DEBUG_PAGEALLOC false positive, due to the source
-> page being split, and a tail page freed, while copy is in progress; and
-> not a problem without DEBUG_PAGEALLOC, since the pmd_same() check will
-> prevent a miscopy from being made visible.
-> 
-> Fix by adding get_user_huge_page() and put_user_huge_page(): reducing
-> to the usual get_page() and put_page() on head page in the usual config;
-> but get and put references to all of the tail pages when DEBUG_PAGEALLOC.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 037b812a9531..6603a9e6a731 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2306,19 +2306,23 @@ static int remap_pte_range(struct mm_struct *mm, pmd_t *pmd,
+>  {
+>  	pte_t *pte;
+>  	spinlock_t *ptl;
+> +	int ret = 0;
+>  
+>  	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
+>  	if (!pte)
+>  		return -ENOMEM;
+>  	arch_enter_lazy_mmu_mode();
+>  	do {
+> -		BUG_ON(!pte_none(*pte));
+> +		if (!pte_none(*pte)) {
+> +			ret = -EBUSY;
+> +			break;
 
-Ugly, but should do the job:
+I think you need at least remove entries you've setup if the check failed not
+at first iteration.
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-
-BTW, we will not need this with new THP refcounting I'm playing with:
-reference on the page will be enough to protect against splitting.
+And nobody propagate your -EBUSY back to remap_pfn_range(): caller will
+see -ENOMEM, which is not what you want, I believe.
 
 -- 
  Kirill A. Shutemov
