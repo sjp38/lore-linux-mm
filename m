@@ -1,45 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id D308A6B0031
-	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 17:00:22 -0400 (EDT)
-Received: by mail-wi0-f170.google.com with SMTP id cc10so5923999wib.5
-        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 14:00:22 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.198])
-        by mx.google.com with ESMTP id uy7si21025680wjc.123.2014.06.16.14.00.21
-        for <linux-mm@kvack.org>;
-        Mon, 16 Jun 2014 14:00:21 -0700 (PDT)
-Date: Mon, 16 Jun 2014 23:59:46 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm, thp: move invariant bug check out of loop in
- __split_huge_page_map
-Message-ID: <20140616205946.GB14208@node.dhcp.inet.fi>
-References: <1402947348-60655-1-git-send-email-Waiman.Long@hp.com>
- <20140616204934.GA14208@node.dhcp.inet.fi>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140616204934.GA14208@node.dhcp.inet.fi>
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 271BD6B0031
+	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 17:08:19 -0400 (EDT)
+Received: by mail-wi0-f174.google.com with SMTP id bs8so4788591wib.7
+        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 14:08:18 -0700 (PDT)
+Received: from mail-wi0-f202.google.com (mail-wi0-f202.google.com [209.85.212.202])
+        by mx.google.com with ESMTPS id j1si10046848wie.44.2014.06.16.14.08.17
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 16 Jun 2014 14:08:17 -0700 (PDT)
+Received: by mail-wi0-f202.google.com with SMTP id hi2so394530wib.5
+        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 14:08:17 -0700 (PDT)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: [PATCH] mm: page_alloc: simplify drain_zone_pages by using min()
+Date: Mon, 16 Jun 2014 23:08:14 +0200
+Message-Id: <1402952894-13200-1-git-send-email-mina86@mina86.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <Waiman.Long@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Scott J Norton <scott.norton@hp.com>
+To: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>
 
-On Mon, Jun 16, 2014 at 11:49:34PM +0300, Kirill A. Shutemov wrote:
-> On Mon, Jun 16, 2014 at 03:35:48PM -0400, Waiman Long wrote:
-> > In the __split_huge_page_map() function, the check for
-> > page_mapcount(page) is invariant within the for loop. Because of the
-> > fact that the macro is implemented using atomic_read(), the redundant
-> > check cannot be optimized away by the compiler leading to unnecessary
-> > read to the page structure.
+Instead of open-coding getting minimal value of two, just use min macro.
+That is why it is there for.  While changing the function also change
+type of batch local variable to match type of per_cpu_pages::batch
+(which is int).
 
-And atomic_read() is *not* atomic operation. It's implemented as
-dereferencing though cast to volatile, which suppress compiler
-optimization, but doesn't affect what CPU can do with the variable.
+Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
+---
+ mm/page_alloc.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
 
-So I doubt difference will be measurable anywhere.
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5dba293..26aa003 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1224,15 +1224,11 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+ void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp)
+ {
+ 	unsigned long flags;
+-	int to_drain;
+-	unsigned long batch;
++	int to_drain, batch;
+ 
+ 	local_irq_save(flags);
+ 	batch = ACCESS_ONCE(pcp->batch);
+-	if (pcp->count >= batch)
+-		to_drain = batch;
+-	else
+-		to_drain = pcp->count;
++	to_drain = min(pcp->count, batch);
+ 	if (to_drain > 0) {
+ 		free_pcppages_bulk(zone, to_drain, pcp);
+ 		pcp->count -= to_drain;
 -- 
- Kirill A. Shutemov
+2.0.0.526.g5318336
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
