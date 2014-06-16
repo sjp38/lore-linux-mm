@@ -1,72 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 8891D6B0031
-	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 09:41:29 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id r10so4450450pdi.32
-        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 06:41:29 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id yv3si13744280pac.77.2014.06.16.06.41.28
-        for <linux-mm@kvack.org>;
-        Mon, 16 Jun 2014 06:41:28 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <1402676778-27174-1-git-send-email-chris@chris-wilson.co.uk>
-References: <1402676778-27174-1-git-send-email-chris@chris-wilson.co.uk>
-Subject: RE: [PATCH 1/2] mm: Report attempts to overwrite PTE from
- remap_pfn_range()
-Content-Transfer-Encoding: 7bit
-Message-Id: <20140616134124.0ED73E00A2@blue.fi.intel.com>
-Date: Mon, 16 Jun 2014 16:41:24 +0300 (EEST)
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 27AFC6B0037
+	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 09:57:45 -0400 (EDT)
+Received: by mail-qc0-f180.google.com with SMTP id r5so4192132qcx.25
+        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 06:57:44 -0700 (PDT)
+Received: from mail-qc0-x232.google.com (mail-qc0-x232.google.com [2607:f8b0:400d:c01::232])
+        by mx.google.com with ESMTPS id b38si10286207qge.54.2014.06.16.06.57.44
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 16 Jun 2014 06:57:44 -0700 (PDT)
+Received: by mail-qc0-f178.google.com with SMTP id c9so7929702qcz.9
+        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 06:57:44 -0700 (PDT)
+Date: Mon, 16 Jun 2014 09:57:41 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 2/2] memcg: Allow guarantee reclaim
+Message-ID: <20140616135741.GA11542@htj.dyndns.org>
+References: <20140611075729.GA4520@dhcp22.suse.cz>
+ <1402473624-13827-1-git-send-email-mhocko@suse.cz>
+ <1402473624-13827-2-git-send-email-mhocko@suse.cz>
+ <20140611153631.GH2878@cmpxchg.org>
+ <20140612132207.GA32720@dhcp22.suse.cz>
+ <20140612135600.GI2878@cmpxchg.org>
+ <20140612142237.GB32720@dhcp22.suse.cz>
+ <20140612161733.GC23606@htj.dyndns.org>
+ <20140616125915.GB16915@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140616125915.GB16915@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: intel-gfx@lists.freedesktop.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Cyrill Gorcunov <gorcunov@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Roman Gushchin <klamm@yandex-team.ru>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Li Zefan <lizefan@huawei.com>
 
-Chris Wilson wrote:
-> When using remap_pfn_range() from a fault handler, we are exposed to
-> races between concurrent faults. Rather than hitting a BUG, report the
-> error back to the caller, like vm_insert_pfn().
+Hello, Michal.
+
+On Mon, Jun 16, 2014 at 02:59:15PM +0200, Michal Hocko wrote:
+> > There sure is a question of how fast userland will move to the new
+> > interface. 
 > 
-> Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Cyrill Gorcunov <gorcunov@gmail.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: linux-mm@kvack.org
-> ---
->  mm/memory.c | 8 ++++++--
->  1 file changed, 6 insertions(+), 2 deletions(-)
+> Yeah, I was mostly thinking about those who would need to to bigger
+> changes. AFAIR threads will no longer be distributable between groups.
+
+Thread-level granularity should go away no matter what, but this is
+completely irrelevant to memcg which can't do per-thread anyway.  For
+whatever reason, a user is stuck with thread-level granularity for
+controllers which work that way, the user can use the old hierarchies
+for them for the time being.
+
+> > is used but I don't think there's any chance of removing the knob.
+> > There's a reason why we're introducing a new version of the whole
+> > cgroup interface which can co-exist with the existing one after all.
+> > If you wanna version memcg interface separately, maybe that'd work but
+> > it sounds like a lot of extra hassle for not much gain.
 > 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 037b812a9531..6603a9e6a731 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2306,19 +2306,23 @@ static int remap_pte_range(struct mm_struct *mm, pmd_t *pmd,
->  {
->  	pte_t *pte;
->  	spinlock_t *ptl;
-> +	int ret = 0;
->  
->  	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
->  	if (!pte)
->  		return -ENOMEM;
->  	arch_enter_lazy_mmu_mode();
->  	do {
-> -		BUG_ON(!pte_none(*pte));
-> +		if (!pte_none(*pte)) {
-> +			ret = -EBUSY;
-> +			break;
+> No, I didn't mean to version the interface. I just wanted to have
+> gradual transition for potential soft_limit users.
+> 
+> Maybe I am misunderstanding something but I thought that new version of
+> API will contain all knobs which are not marked .flags = CFTYPE_INSANE
+> while the old API will contain all of them.
 
-I think you need at least remove entries you've setup if the check failed not
-at first iteration.
+Nope, some changes don't fit that model.  CFTYPE_ON_ON_DFL is the
+opposite.  Knobs marked with the flag only appear on the default
+hierarchy (cgroup core internally calls it the default hierarchy as
+this is the tree all the controllers are attached to by default).
 
-And nobody propagate your -EBUSY back to remap_pfn_range(): caller will
-see -ENOMEM, which is not what you want, I believe.
+Thanks.
 
 -- 
- Kirill A. Shutemov
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
