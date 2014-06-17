@@ -1,139 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 54BC76B0031
-	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 10:38:58 -0400 (EDT)
-Received: by mail-wg0-f47.google.com with SMTP id k14so7112798wgh.6
-        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 07:38:57 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id e8si12885110wib.22.2014.06.17.07.38.55
-        for <linux-mm@kvack.org>;
-        Tue, 17 Jun 2014 07:38:56 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v2] hugetlb: fix copy_hugetlb_page_range() to handle migration/hwpoisoned entry
-Date: Tue, 17 Jun 2014 09:49:55 -0400
-Message-Id: <1403012995-538-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <alpine.LSU.2.11.1406161750520.1190@eggly.anvils>
-References: <alpine.LSU.2.11.1406161750520.1190@eggly.anvils>
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AF7A6B0031
+	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 10:59:33 -0400 (EDT)
+Received: by mail-we0-f182.google.com with SMTP id q59so7265420wes.41
+        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 07:59:32 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i8si12961280wiv.41.2014.06.17.07.59.31
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 17 Jun 2014 07:59:32 -0700 (PDT)
+Date: Tue, 17 Jun 2014 16:59:30 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 06/12] mm: memcontrol: simplify move precharge function
+Message-ID: <20140617145930.GE19886@dhcp22.suse.cz>
+References: <1402948472-8175-1-git-send-email-hannes@cmpxchg.org>
+ <1402948472-8175-7-git-send-email-hannes@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1402948472-8175-7-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
-Cc: Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-There's a race between fork() and hugepage migration, as a result we try to
-"dereference" a swap entry as a normal pte, causing kernel panic.
-The cause of the problem is that copy_hugetlb_page_range() can't handle "swap
-entry" family (migration entry and hwpoisoned entry,) so let's fix it.
+On Mon 16-06-14 15:54:26, Johannes Weiner wrote:
+> The move precharge function does some baroque things: it tries raw
+> res_counter charging of the entire amount first, and then falls back
+> to a loop of one-by-one charges, with checks for pending signals and
+> cond_resched() batching.
+> 
+> Just use mem_cgroup_try_charge() without __GFP_WAIT for the first bulk
+> charge attempt.  In the one-by-one loop, remove the signal check (this
+> is already checked in try_charge), and simply call cond_resched()
+> after every charge - it's not that expensive.
 
-ChangeLog v2:
-- stop applying is_cow_mapping() in copy_hugetlb_page_range()
-- use set_huge_pte_at() in hugepage code
-- fix stable version
+Agreed. There shouldn't be any calls to res_counters for {un}charging
+outside of mem_cgroup_try_charge and kmem variant.
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: stable@vger.kernel.org # v2.6.37+
----
- mm/hugetlb.c | 70 ++++++++++++++++++++++++++++++++++++------------------------
- 1 file changed, 42 insertions(+), 28 deletions(-)
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-diff --git v3.16-rc1.orig/mm/hugetlb.c v3.16-rc1/mm/hugetlb.c
-index 226910cb7c9b..a3f6349ab5b5 100644
---- v3.16-rc1.orig/mm/hugetlb.c
-+++ v3.16-rc1/mm/hugetlb.c
-@@ -2520,6 +2520,31 @@ static void set_huge_ptep_writable(struct vm_area_struct *vma,
- 		update_mmu_cache(vma, address, ptep);
- }
- 
-+static int is_hugetlb_entry_migration(pte_t pte)
-+{
-+	swp_entry_t swp;
-+
-+	if (huge_pte_none(pte) || pte_present(pte))
-+		return 0;
-+	swp = pte_to_swp_entry(pte);
-+	if (non_swap_entry(swp) && is_migration_entry(swp))
-+		return 1;
-+	else
-+		return 0;
-+}
-+
-+static int is_hugetlb_entry_hwpoisoned(pte_t pte)
-+{
-+	swp_entry_t swp;
-+
-+	if (huge_pte_none(pte) || pte_present(pte))
-+		return 0;
-+	swp = pte_to_swp_entry(pte);
-+	if (non_swap_entry(swp) && is_hwpoison_entry(swp))
-+		return 1;
-+	else
-+		return 0;
-+}
- 
- int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 			    struct vm_area_struct *vma)
-@@ -2559,10 +2584,25 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 		dst_ptl = huge_pte_lock(h, dst, dst_pte);
- 		src_ptl = huge_pte_lockptr(h, src, src_pte);
- 		spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
--		if (!huge_pte_none(huge_ptep_get(src_pte))) {
-+		entry = huge_ptep_get(src_pte);
-+		if (huge_pte_none(entry)) { /* skip none entry */
-+			;
-+		} else if (unlikely(is_hugetlb_entry_migration(entry) ||
-+				    is_hugetlb_entry_hwpoisoned(entry))) {
-+			swp_entry_t swp_entry = pte_to_swp_entry(entry);
-+			if (is_write_migration_entry(swp_entry) && cow) {
-+				/*
-+				 * COW mappings require pages in both
-+				 * parent and child to be set to read.
-+				 */
-+				make_migration_entry_read(&swp_entry);
-+				entry = swp_entry_to_pte(swp_entry);
-+				set_huge_pte_at(src, addr, src_pte, entry);
-+			}
-+			set_huge_pte_at(dst, addr, dst_pte, entry);
-+		} else {
- 			if (cow)
- 				huge_ptep_set_wrprotect(src, addr, src_pte);
--			entry = huge_ptep_get(src_pte);
- 			ptepage = pte_page(entry);
- 			get_page(ptepage);
- 			page_dup_rmap(ptepage);
-@@ -2578,32 +2618,6 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 	return ret;
- }
- 
--static int is_hugetlb_entry_migration(pte_t pte)
--{
--	swp_entry_t swp;
--
--	if (huge_pte_none(pte) || pte_present(pte))
--		return 0;
--	swp = pte_to_swp_entry(pte);
--	if (non_swap_entry(swp) && is_migration_entry(swp))
--		return 1;
--	else
--		return 0;
--}
--
--static int is_hugetlb_entry_hwpoisoned(pte_t pte)
--{
--	swp_entry_t swp;
--
--	if (huge_pte_none(pte) || pte_present(pte))
--		return 0;
--	swp = pte_to_swp_entry(pte);
--	if (non_swap_entry(swp) && is_hwpoison_entry(swp))
--		return 1;
--	else
--		return 0;
--}
--
- void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 			    unsigned long start, unsigned long end,
- 			    struct page *ref_page)
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  mm/memcontrol.c | 51 +++++++++++++++++----------------------------------
+>  1 file changed, 17 insertions(+), 34 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 9c646b9b56f4..3d9df94896a7 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -6372,55 +6372,38 @@ static void mem_cgroup_css_free(struct cgroup_subsys_state *css)
+>  
+>  #ifdef CONFIG_MMU
+>  /* Handlers for move charge at task migration. */
+> -#define PRECHARGE_COUNT_AT_ONCE	256
+>  static int mem_cgroup_do_precharge(unsigned long count)
+>  {
+> -	int ret = 0;
+> -	int batch_count = PRECHARGE_COUNT_AT_ONCE;
+> -	struct mem_cgroup *memcg = mc.to;
+> +	int ret;
+>  
+> -	if (mem_cgroup_is_root(memcg)) {
+> +	if (mem_cgroup_is_root(mc.to)) {
+>  		mc.precharge += count;
+>  		/* we don't need css_get for root */
+>  		return ret;
+>  	}
+> -	/* try to charge at once */
+> -	if (count > 1) {
+> -		struct res_counter *dummy;
+> -		/*
+> -		 * "memcg" cannot be under rmdir() because we've already checked
+> -		 * by cgroup_lock_live_cgroup() that it is not removed and we
+> -		 * are still under the same cgroup_mutex. So we can postpone
+> -		 * css_get().
+> -		 */
+> -		if (res_counter_charge(&memcg->res, PAGE_SIZE * count, &dummy))
+> -			goto one_by_one;
+> -		if (do_swap_account && res_counter_charge(&memcg->memsw,
+> -						PAGE_SIZE * count, &dummy)) {
+> -			res_counter_uncharge(&memcg->res, PAGE_SIZE * count);
+> -			goto one_by_one;
+> -		}
+> +
+> +	/* Try a single bulk charge without reclaim first */
+> +	ret = mem_cgroup_try_charge(mc.to, GFP_KERNEL & ~__GFP_WAIT,
+> +				    count, false);
+> +	if (!ret) {
+>  		mc.precharge += count;
+>  		return ret;
+>  	}
+> -one_by_one:
+> -	/* fall back to one by one charge */
+> +
+> +	/* Try charges one by one with reclaim */
+>  	while (count--) {
+> -		if (signal_pending(current)) {
+> -			ret = -EINTR;
+> -			break;
+> -		}
+> -		if (!batch_count--) {
+> -			batch_count = PRECHARGE_COUNT_AT_ONCE;
+> -			cond_resched();
+> -		}
+> -		ret = mem_cgroup_try_charge(memcg, GFP_KERNEL, 1, false);
+> +		ret = mem_cgroup_try_charge(mc.to, GFP_KERNEL, 1, false);
+> +		/*
+> +		 * In case of failure, any residual charges against
+> +		 * mc.to will be dropped by mem_cgroup_clear_mc()
+> +		 * later on.
+> +		 */
+>  		if (ret)
+> -			/* mem_cgroup_clear_mc() will do uncharge later */
+>  			return ret;
+>  		mc.precharge++;
+> +		cond_resched();
+>  	}
+> -	return ret;
+> +	return 0;
+>  }
+>  
+>  /**
+> -- 
+> 2.0.0
+> 
+
 -- 
-1.9.3
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
