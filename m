@@ -1,86 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 954A36B0031
-	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 09:53:46 -0400 (EDT)
-Received: by mail-wi0-f176.google.com with SMTP id n3so5902623wiv.3
-        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 06:53:46 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gy6si24316708wjc.34.2014.06.17.06.53.44
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 17 Jun 2014 06:53:45 -0700 (PDT)
-Date: Tue, 17 Jun 2014 15:53:44 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 04/12] mm: memcontrol: retry reclaim for oom-disabled and
- __GFP_NOFAIL charges
-Message-ID: <20140617135344.GC19886@dhcp22.suse.cz>
-References: <1402948472-8175-1-git-send-email-hannes@cmpxchg.org>
- <1402948472-8175-5-git-send-email-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1402948472-8175-5-git-send-email-hannes@cmpxchg.org>
+Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
+	by kanga.kvack.org (Postfix) with ESMTP id D69486B0031
+	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 10:09:13 -0400 (EDT)
+Received: by mail-qc0-f177.google.com with SMTP id r5so6359822qcx.8
+        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 07:09:13 -0700 (PDT)
+Received: from qmta05.emeryville.ca.mail.comcast.net (qmta05.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:48])
+        by mx.google.com with ESMTP id h69si10202583qgd.93.2014.06.17.07.09.12
+        for <linux-mm@kvack.org>;
+        Tue, 17 Jun 2014 07:09:13 -0700 (PDT)
+Date: Tue, 17 Jun 2014 09:09:09 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: mm: NULL ptr deref in remove_migration_pte
+In-Reply-To: <539F5BC5.3010501@oracle.com>
+Message-ID: <alpine.DEB.2.11.1406170907540.12946@gentwo.org>
+References: <534E9ACA.2090008@oracle.com> <5367B365.1070709@oracle.com> <537FE9F3.40508@oracle.com> <alpine.LSU.2.11.1405261255530.3649@eggly.anvils> <538498A1.7010305@oracle.com> <alpine.LSU.2.11.1406092104330.12382@eggly.anvils>
+ <539F5BC5.3010501@oracle.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Mel Gorman <mgorman@suse.de>, Bob Liu <bob.liu@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
 
-On Mon 16-06-14 15:54:24, Johannes Weiner wrote:
-> There is no reason why oom-disabled and __GFP_NOFAIL charges should
-> try to reclaim only once when every other charge tries several times
-> before giving up.  Make them all retry the same number of times.
+On Mon, 16 Jun 2014, Sasha Levin wrote:
 
-OK, this makes sense for oom-disabled and __GFP_NOFAIL but does it make
-sense to do additional reclaim for tasks with fatal_signal_pending?
+> It took some time to hit something here, but I think that the following
+> is related:
 
-It is little bit unexpected, because we bypass if the condition happens
-before the reclaim but then we ignore it.
+This related thing looks like someone did a random memset. The SLUB
+diagnostic show the object, redzone and padding were overwritten with
+zeros.
 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  mm/memcontrol.c | 8 ++++----
->  1 file changed, 4 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index e946f7439b16..52550bbff1ef 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2566,7 +2566,7 @@ static int mem_cgroup_try_charge(struct mem_cgroup *memcg,
->  				 bool oom)
->  {
->  	unsigned int batch = max(CHARGE_BATCH, nr_pages);
-> -	int nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
-> +	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
->  	struct mem_cgroup *mem_over_limit;
->  	struct res_counter *fail_res;
->  	unsigned long nr_reclaimed;
-> @@ -2638,6 +2638,9 @@ retry:
->  	if (mem_cgroup_wait_acct_move(mem_over_limit))
->  		goto retry;
->  
-> +	if (nr_retries--)
-> +		goto retry;
-> +
->  	if (gfp_mask & __GFP_NOFAIL)
->  		goto bypass;
->  
-> @@ -2647,9 +2650,6 @@ retry:
->  	if (!oom)
->  		goto nomem;
->  
-> -	if (nr_oom_retries--)
-> -		goto retry;
-> -
->  	mem_cgroup_oom(mem_over_limit, gfp_mask, get_order(batch));
->  nomem:
->  	if (!(gfp_mask & __GFP_NOFAIL))
-> -- 
-> 2.0.0
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+> [  494.710068] =============================================================================
+> [  494.710068] BUG page->ptl (Not tainted): Redzone overwritten
+> [  494.710068] -----------------------------------------------------------------------------
+> [  494.710068]
+> [  494.710068] INFO: 0xffff8804e4730e58-0xffff8804e4730e5f. First byte 0x0 instead of 0xbb
+> [  494.710068] INFO: Slab 0xffffea001391cc00 objects=40 used=40 fp=0x          (null) flags=0x56fffff80004080
+> [  494.710068] INFO: Object 0xffff8804e4730e10 @offset=3600 fp=0x          (null)
+> [  494.710068]
+> [  494.710068] Bytes b4 ffff8804e4730e00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  494.710068] Object ffff8804e4730e10: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  494.710068] Object ffff8804e4730e20: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  494.710068] Object ffff8804e4730e30: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  494.710068] Object ffff8804e4730e40: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+> [  494.710068] Object ffff8804e4730e50: 00 00 00 00 00 00 00 00                          ........
+> [  494.710068] Redzone ffff8804e4730e58: 00 00 00 00 00 00 00 00                          ........
+> [  494.710068] Padding ffff8804e4730f98: 00 00 00 00 00 00 00 00                          ........
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
