@@ -1,122 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 8ABBB6B0036
-	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 21:21:49 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id ft15so1415898pdb.7
-        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 18:21:49 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id eb5si12694419pbc.126.2014.06.16.18.21.46
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 16 Jun 2014 18:21:48 -0700 (PDT)
-Message-ID: <539F97E8.6070607@huawei.com>
-Date: Tue, 17 Jun 2014 09:20:40 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 50DBD6B0031
+	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 21:29:36 -0400 (EDT)
+Received: by mail-pb0-f51.google.com with SMTP id rp16so5089637pbb.10
+        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 18:29:36 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id pk4si1086777pbc.252.2014.06.16.18.29.34
+        for <linux-mm@kvack.org>;
+        Mon, 16 Jun 2014 18:29:35 -0700 (PDT)
+Date: Tue, 17 Jun 2014 10:33:50 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v3 -next 1/9] DMA, CMA: fix possible memory leak
+Message-ID: <20140617013349.GB6825@js1304-P5Q-DELUXE>
+References: <1402897251-23639-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1402897251-23639-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <20140616062719.GA18790@bbox>
 MIME-Version: 1.0
-Subject: Re: [PATCH 8/8] doc: update Documentation/sysctl/vm.txt
-References: <539EB803.9070001@huawei.com> <539F21F4.20206@infradead.org>
-In-Reply-To: <539F21F4.20206@infradead.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140616062719.GA18790@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, aquini@redhat.com, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Li Zefan <lizefan@huawei.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On 2014/6/17 0:57, Randy Dunlap wrote:
-
-> On 06/16/14 02:25, Xishi Qiu wrote:
->> Update the doc.
->>
->> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
->> ---
->>  Documentation/sysctl/vm.txt |   43 +++++++++++++++++++++++++++++++++++++++++++
->>  1 files changed, 43 insertions(+), 0 deletions(-)
->>
->> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
->> index dd9d0e3..8008e53 100644
->> --- a/Documentation/sysctl/vm.txt
->> +++ b/Documentation/sysctl/vm.txt
->> @@ -20,6 +20,10 @@ Currently, these files are in /proc/sys/vm:
->>  
->>  - admin_reserve_kbytes
->>  - block_dump
->> +- cache_limit_mbytes
->> +- cache_limit_ratio
->> +- cache_reclaim_s
->> +- cache_reclaim_weight
->>  - compact_memory
->>  - dirty_background_bytes
->>  - dirty_background_ratio
->> @@ -97,6 +101,45 @@ information on block I/O debugging is in Documentation/laptops/laptop-mode.txt.
->>  
->>  ==============================================================
->>  
->> +cache_limit_mbytes
->> +
->> +This is used to limit page cache amount. The input unit is MB, value range
->> +is from 0 to totalram_pages. If this is set to 0, it will not limit page cache.
+On Mon, Jun 16, 2014 at 03:27:19PM +0900, Minchan Kim wrote:
+> Hi, Joonsoo
 > 
-> Where does one find the value of totalram_pages?
+> On Mon, Jun 16, 2014 at 02:40:43PM +0900, Joonsoo Kim wrote:
+> > We should free memory for bitmap when we find zone mis-match,
+> > otherwise this memory will leak.
+> > 
+> > Additionally, I copy code comment from PPC KVM's CMA code to inform
+> > why we need to check zone mis-match.
+> > 
+> > * Note
+> > Minchan suggested to add a tag for the stable, but, I don't do it,
+> > because I found this possibility during code-review and, IMO,
+> > this patch isn't suitable for stable tree.
 > 
-
-"cat /proc/meminfo | grep MemTotal" or "free -m"
-
-> Is totalram_pages in MB or does totalram_pages need to be divided by some value
-> to convert it to MB?
+> Nice idea to put the comment in here. Thanks Joonsoo.
 > 
-
-Yes, should convert it to MB.
-
-Thanks,
-Xishi Qiu
-
->> +When written to the file, cache_limit_ratio will be updated too.
->> +
->> +The default value is 0.
->> +
->> +==============================================================
->> +
->> +cache_limit_ratio
->> +
->> +This is used to limit page cache amount. The input unit is percent, value
->> +range is from 0 to 100. If this is set to 0, it will not limit page cache.
->> +When written to the file, cache_limit_mbytes will be updated too.
->> +
->> +The default value is 0.
->> +
->> +==============================================================
->> +
->> +cache_reclaim_s
->> +
->> +This is used to reclaim page cache in circles. The input unit is second,
->> +the minimum value is 0. If this is set to 0, it will disable the feature.
->> +
->> +The default value is 0.
->> +
->> +==============================================================
->> +
->> +cache_reclaim_weight
->> +
->> +This is used to speed up page cache reclaim. It depend on enabling
+> It seems you obey "It must fix a real bug that bothers people"
+> on Documentation/stable_kernel_rules.txt but it's a really obvious
+> bug and hard to get a report from people because limited user and
+> hard to detect small such small memory leak.
 > 
->                                                    depends on
-> 
->> +cache_limit_mbytes/cache_limit_ratio or cache_reclaim_s. Value range is
->> +from 1(slow) to 100(fast).
->> +
->> +The default value is 1.
->> +
->> +==============================================================
->> +
->>  compact_memory
->>  
->>  Available only when CONFIG_COMPACTION is set. When 1 is written to the file,
->>
-> 
-> 
+> In my experince, Andrew perfered stable marking for such a obvious
+> problem but simple fix like this but not sure so let's pass the decision
+> to him and will learn a lesson from him and will follow the decision
+> from now on.
 
+Yes, I intended to pass the decision to others. :)
 
+> 
+> Thanks.
+> 
+> Acked-by: Minchan Kim <minchan@kernel.org>
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
