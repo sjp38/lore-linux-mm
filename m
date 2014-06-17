@@ -1,52 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 105B76B0037
-	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 12:36:18 -0400 (EDT)
-Received: by mail-wg0-f46.google.com with SMTP id y10so7412252wgg.29
-        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 09:36:18 -0700 (PDT)
-Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com [2a00:1450:400c:c05::231])
-        by mx.google.com with ESMTPS id fw4si10844697wib.96.2014.06.17.09.36.17
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ECA66B0038
+	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 12:36:56 -0400 (EDT)
+Received: by mail-ig0-f178.google.com with SMTP id hn18so4399629igb.17
+        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 09:36:56 -0700 (PDT)
+Received: from mail-ig0-x236.google.com (mail-ig0-x236.google.com [2607:f8b0:4001:c05::236])
+        by mx.google.com with ESMTPS id hg12si4188810icb.17.2014.06.17.09.36.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 17 Jun 2014 09:36:17 -0700 (PDT)
-Received: by mail-wi0-f177.google.com with SMTP id r20so6188722wiv.10
-        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 09:36:17 -0700 (PDT)
-Date: Tue, 17 Jun 2014 18:36:15 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 00/12] mm: memcontrol: naturalize charge lifetime v3
-Message-ID: <20140617163615.GD9572@dhcp22.suse.cz>
-References: <1402948472-8175-1-git-send-email-hannes@cmpxchg.org>
+        Tue, 17 Jun 2014 09:36:55 -0700 (PDT)
+Received: by mail-ig0-f182.google.com with SMTP id a13so4401626igq.3
+        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 09:36:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1402948472-8175-1-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <CALCETrVpZ0vFM4usHK+tQhk234Y2jWzB1522kGcGvdQQFAqsZQ@mail.gmail.com>
+References: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com>
+	<CALCETrVoE+JO2rLsBUHAOJdvescEEjxikj8iQ339Nxfopfc7pw@mail.gmail.com>
+	<CANq1E4SaWLD=hNEc-CDJbNnrGfXE_PkxZFBhpW4tbK7wor7xPA@mail.gmail.com>
+	<CALCETrU8N9EbnJ3=oQ1WQCG9Vunn3nR9Ba=J48wJm0SuH0YB4A@mail.gmail.com>
+	<CANq1E4QQUKHabheq18AzkVZk3WDtAeC-6W66tVNB+EKgYOx1Vg@mail.gmail.com>
+	<53A01049.6020502@redhat.com>
+	<CANq1E4T3KJZ++=KF2OZ_dd+NvPqg+=4Pw6O7Po3-ZxaaMHPukw@mail.gmail.com>
+	<CALCETrVpZ0vFM4usHK+tQhk234Y2jWzB1522kGcGvdQQFAqsZQ@mail.gmail.com>
+Date: Tue, 17 Jun 2014 18:36:55 +0200
+Message-ID: <CANq1E4QdGz6cRm2Y-vMQHV1O=VK74XNP8qCAmiAskVaVKpJuxg@mail.gmail.com>
+Subject: Re: [PATCH v3 0/7] File Sealing & memfd_create()
+From: David Herrmann <dh.herrmann@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg KH <greg@kroah.com>, Florian Weimer <fweimer@redhat.com>, Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Lennart Poettering <lennart@poettering.net>, Andrew Morton <akpm@linux-foundation.org>, Linux API <linux-api@vger.kernel.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Kay Sievers <kay@vrfy.org>, John Stultz <john.stultz@linaro.org>, Linus Torvalds <torvalds@linux-foundation.org>, Daniel Mack <zonque@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Tony Battersby <tonyb@cybernetics.com>
 
-On Mon 16-06-14 15:54:20, Johannes Weiner wrote:
-> Hi,
-> 
-> this is v3 of the memcg charge naturalization series.  Changes since
-> v2 include:
-> 
-> o make THP charges use __GFP_NORETRY to prevent excessive reclaim (Michal)
-> o simplify move precharging while in the area
-> o add acks & rebase to v3.16-rc1
+Hi
 
-I still didn't get to the last two patches and they need a more
-throughout review. The rest is good and nice on its own and maybe it
-would be easier if those go in first.
+On Tue, Jun 17, 2014 at 6:20 PM, Andy Lutomirski <luto@amacapital.net> wrote:
+> Can you summarize why holes can't be reliably backed by the zero page?
 
-I would like to get to the last two ASAP but this is heavier and I am
-quite swamped by other small tasks last weeks so I do not want to delay
-the whole series.
+To answer this, I will quote Hugh from "PATCH v2 1/3":
 
-What do you think?
--- 
-Michal Hocko
-SUSE Labs
+> We do already use the ZERO_PAGE instead of allocating when it's a
+> simple read; and on the face of it, we could extend that to mmap
+> once the file is sealed.  But I am rather afraid to do so - for
+> many years there was an mmap /dev/zero case which did that, but
+> it was an easily forgotten case which caught us out at least
+> once, so I'm reluctant to reintroduce it now for sealing.
+>
+> Anyway, I don't expect you to resolve the issue of sealed holes:
+> that's very much my territory, to give you support on.
+
+Holes can be avoided with a simple fallocate(). I don't understand why
+I should make SEAL_WRITE do the fallocate for the caller. During the
+discussion of memfd_create() I was told to drop the "size" parameter,
+because it is redundant. I don't see how this implicit fallocate()
+does not fall into the same category?
+
+Thanks
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
