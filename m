@@ -1,69 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f44.google.com (mail-yh0-f44.google.com [209.85.213.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 13C806B0036
-	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 10:28:17 -0400 (EDT)
-Received: by mail-yh0-f44.google.com with SMTP id f10so5544863yha.3
-        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 07:28:16 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id u7si22493500yhc.15.2014.06.17.07.28.16
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 17 Jun 2014 07:28:16 -0700 (PDT)
-Message-ID: <53A05071.2010905@oracle.com>
-Date: Tue, 17 Jun 2014 22:28:01 +0800
-From: Jeff Liu <jeff.liu@oracle.com>
-MIME-Version: 1.0
-Subject: [PATCH 03/24] slub: return actual error on sysfs functions
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 54BC76B0031
+	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 10:38:58 -0400 (EDT)
+Received: by mail-wg0-f47.google.com with SMTP id k14so7112798wgh.6
+        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 07:38:57 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id e8si12885110wib.22.2014.06.17.07.38.55
+        for <linux-mm@kvack.org>;
+        Tue, 17 Jun 2014 07:38:56 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v2] hugetlb: fix copy_hugetlb_page_range() to handle migration/hwpoisoned entry
+Date: Tue, 17 Jun 2014 09:49:55 -0400
+Message-Id: <1403012995-538-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <alpine.LSU.2.11.1406161750520.1190@eggly.anvils>
+References: <alpine.LSU.2.11.1406161750520.1190@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
+Cc: Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Jie Liu <jeff.liu@oracle.com>
+There's a race between fork() and hugepage migration, as a result we try to
+"dereference" a swap entry as a normal pte, causing kernel panic.
+The cause of the problem is that copy_hugetlb_page_range() can't handle "swap
+entry" family (migration entry and hwpoisoned entry,) so let's fix it.
 
-Return the actual error code if call kset_create_and_add() failed
+ChangeLog v2:
+- stop applying is_cow_mapping() in copy_hugetlb_page_range()
+- use set_huge_pte_at() in hugepage code
+- fix stable version
 
-Cc: Christoph Lameter <cl@linux-foundation.org>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: Matt Mackall <mpm@selenic.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Jie Liu <jeff.liu@oracle.com>
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: stable@vger.kernel.org # v2.6.37+
 ---
- mm/slub.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ mm/hugetlb.c | 70 ++++++++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 42 insertions(+), 28 deletions(-)
 
-diff --git a/mm/slub.c b/mm/slub.c
-index b2b0473..fc9f5bc 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -5215,8 +5215,8 @@ static int sysfs_slab_add(struct kmem_cache *s)
- #ifdef CONFIG_MEMCG_KMEM
- 	if (is_root_cache(s)) {
- 		s->memcg_kset = kset_create_and_add("cgroup", NULL, &s->kobj);
--		if (!s->memcg_kset) {
--			err = -ENOMEM;
-+		if (IS_ERR(s->memcg_kset)) {
-+			err = PTR_ERR(s->memcg_kset);
- 			goto out_del_kobj;
- 		}
- 	}
-@@ -5298,10 +5298,10 @@ static int __init slab_sysfs_init(void)
- 	mutex_lock(&slab_mutex);
+diff --git v3.16-rc1.orig/mm/hugetlb.c v3.16-rc1/mm/hugetlb.c
+index 226910cb7c9b..a3f6349ab5b5 100644
+--- v3.16-rc1.orig/mm/hugetlb.c
++++ v3.16-rc1/mm/hugetlb.c
+@@ -2520,6 +2520,31 @@ static void set_huge_ptep_writable(struct vm_area_struct *vma,
+ 		update_mmu_cache(vma, address, ptep);
+ }
  
- 	slab_kset = kset_create_and_add("slab", &slab_uevent_ops, kernel_kobj);
--	if (!slab_kset) {
-+	if (IS_ERR(slab_kset)) {
- 		mutex_unlock(&slab_mutex);
- 		pr_err("Cannot register slab subsystem.\n");
--		return -ENOSYS;
-+		return PTR_ERR(slab_kset);
- 	}
++static int is_hugetlb_entry_migration(pte_t pte)
++{
++	swp_entry_t swp;
++
++	if (huge_pte_none(pte) || pte_present(pte))
++		return 0;
++	swp = pte_to_swp_entry(pte);
++	if (non_swap_entry(swp) && is_migration_entry(swp))
++		return 1;
++	else
++		return 0;
++}
++
++static int is_hugetlb_entry_hwpoisoned(pte_t pte)
++{
++	swp_entry_t swp;
++
++	if (huge_pte_none(pte) || pte_present(pte))
++		return 0;
++	swp = pte_to_swp_entry(pte);
++	if (non_swap_entry(swp) && is_hwpoison_entry(swp))
++		return 1;
++	else
++		return 0;
++}
  
- 	slab_state = FULL;
+ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 			    struct vm_area_struct *vma)
+@@ -2559,10 +2584,25 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 		dst_ptl = huge_pte_lock(h, dst, dst_pte);
+ 		src_ptl = huge_pte_lockptr(h, src, src_pte);
+ 		spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
+-		if (!huge_pte_none(huge_ptep_get(src_pte))) {
++		entry = huge_ptep_get(src_pte);
++		if (huge_pte_none(entry)) { /* skip none entry */
++			;
++		} else if (unlikely(is_hugetlb_entry_migration(entry) ||
++				    is_hugetlb_entry_hwpoisoned(entry))) {
++			swp_entry_t swp_entry = pte_to_swp_entry(entry);
++			if (is_write_migration_entry(swp_entry) && cow) {
++				/*
++				 * COW mappings require pages in both
++				 * parent and child to be set to read.
++				 */
++				make_migration_entry_read(&swp_entry);
++				entry = swp_entry_to_pte(swp_entry);
++				set_huge_pte_at(src, addr, src_pte, entry);
++			}
++			set_huge_pte_at(dst, addr, dst_pte, entry);
++		} else {
+ 			if (cow)
+ 				huge_ptep_set_wrprotect(src, addr, src_pte);
+-			entry = huge_ptep_get(src_pte);
+ 			ptepage = pte_page(entry);
+ 			get_page(ptepage);
+ 			page_dup_rmap(ptepage);
+@@ -2578,32 +2618,6 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 	return ret;
+ }
+ 
+-static int is_hugetlb_entry_migration(pte_t pte)
+-{
+-	swp_entry_t swp;
+-
+-	if (huge_pte_none(pte) || pte_present(pte))
+-		return 0;
+-	swp = pte_to_swp_entry(pte);
+-	if (non_swap_entry(swp) && is_migration_entry(swp))
+-		return 1;
+-	else
+-		return 0;
+-}
+-
+-static int is_hugetlb_entry_hwpoisoned(pte_t pte)
+-{
+-	swp_entry_t swp;
+-
+-	if (huge_pte_none(pte) || pte_present(pte))
+-		return 0;
+-	swp = pte_to_swp_entry(pte);
+-	if (non_swap_entry(swp) && is_hwpoison_entry(swp))
+-		return 1;
+-	else
+-		return 0;
+-}
+-
+ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 			    unsigned long start, unsigned long end,
+ 			    struct page *ref_page)
 -- 
-1.8.3.2
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
