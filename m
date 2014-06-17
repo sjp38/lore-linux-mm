@@ -1,57 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 890966B0031
-	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 03:24:22 -0400 (EDT)
-Received: by mail-wi0-f181.google.com with SMTP id n3so5237422wiv.2
-        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 00:24:21 -0700 (PDT)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.198])
-        by mx.google.com with ESMTP id i9si22693622wjr.31.2014.06.17.00.24.20
-        for <linux-mm@kvack.org>;
-        Tue, 17 Jun 2014 00:24:21 -0700 (PDT)
-Date: Tue, 17 Jun 2014 10:23:37 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm, thp: move invariant bug check out of loop in
- __split_huge_page_map
-Message-ID: <20140617072337.GA19715@node.dhcp.inet.fi>
-References: <1402947348-60655-1-git-send-email-Waiman.Long@hp.com>
- <20140616204934.GA14208@node.dhcp.inet.fi>
- <20140616205946.GB14208@node.dhcp.inet.fi>
- <539FB9E6.2030601@hp.com>
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 46C676B0037
+	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 03:29:47 -0400 (EDT)
+Received: by mail-lb0-f172.google.com with SMTP id c11so3779282lbj.3
+        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 00:29:46 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id rp4si18757230lbb.61.2014.06.17.00.29.44
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 17 Jun 2014 00:29:45 -0700 (PDT)
+Date: Tue, 17 Jun 2014 11:29:33 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH] slab: fix oops when reading /proc/slab_allocators
+Message-ID: <20140617072933.GA26418@esperanza>
+References: <1402967392-7003-1-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <539FB9E6.2030601@hp.com>
+In-Reply-To: <1402967392-7003-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <waiman.long@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Scott J Norton <scott.norton@hp.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org
 
-On Mon, Jun 16, 2014 at 11:45:42PM -0400, Waiman Long wrote:
-> On 06/16/2014 04:59 PM, Kirill A. Shutemov wrote:
-> >On Mon, Jun 16, 2014 at 11:49:34PM +0300, Kirill A. Shutemov wrote:
-> >>On Mon, Jun 16, 2014 at 03:35:48PM -0400, Waiman Long wrote:
-> >>>In the __split_huge_page_map() function, the check for
-> >>>page_mapcount(page) is invariant within the for loop. Because of the
-> >>>fact that the macro is implemented using atomic_read(), the redundant
-> >>>check cannot be optimized away by the compiler leading to unnecessary
-> >>>read to the page structure.
-> >And atomic_read() is *not* atomic operation. It's implemented as
-> >dereferencing though cast to volatile, which suppress compiler
-> >optimization, but doesn't affect what CPU can do with the variable.
-> >
-> >So I doubt difference will be measurable anywhere.
-> >
-> 
-> Because it is treated as an volatile object, the compiler will have to
-> reread the value of the relevant page structure field in every iteration of
-> the loop (512 for x86) when pmd_write(*pmd) is true. I saw some slight
-> improvement (about 2%) of a microbench that I wrote to break up 1000 THPs
-> with 1000 forked processes.
+Hi,
 
-Then bring patch with performance data.
+On Tue, Jun 17, 2014 at 10:09:52AM +0900, Joonsoo Kim wrote:
+[...]
+> To fix the problem, I introduces object status buffer on each slab.
+> With this, we can track object status precisely, so slab leak detector
+> would not access active object and no kernel oops would occur.
+> Memory overhead caused by this fix is only imposed to
+> CONFIG_DEBUG_SLAB_LEAK which is mainly used for debugging, so memory
+> overhead isn't big problem.
+[...]
+>  
+> +static size_t calculate_freelist_size(int nr_objs, size_t align)
+> +{
+> +	size_t freelist_size;
+> +
+> +	freelist_size = nr_objs * sizeof(freelist_idx_t);
+> +	if (IS_ENABLED(CONFIG_DEBUG_SLAB_LEAK))
+> +		freelist_size += nr_objs * sizeof(char);
+> +
+> +	if (align)
+> +		freelist_size = ALIGN(freelist_size, align);
+> +
+> +	return freelist_size;
+> +}
+> +
+>  static int calculate_nr_objs(size_t slab_size, size_t buffer_size,
+>  				size_t idx_size, size_t align)
+>  {
+>  	int nr_objs;
+> +	size_t remained_size;
+>  	size_t freelist_size;
+> +	int extra_space = 0;
+>  
+> +	if (IS_ENABLED(CONFIG_DEBUG_SLAB_LEAK))
+> +		extra_space = sizeof(char);
+>  	/*
+>  	 * Ignore padding for the initial guess. The padding
+>  	 * is at most @align-1 bytes, and @buffer_size is at
+> @@ -590,14 +641,15 @@ static int calculate_nr_objs(size_t slab_size, size_t buffer_size,
+>  	 * into the memory allocation when taking the padding
+>  	 * into account.
+>  	 */
+> -	nr_objs = slab_size / (buffer_size + idx_size);
+> +	nr_objs = slab_size / (buffer_size + idx_size + extra_space);
 
--- 
- Kirill A. Shutemov
+There is one more function that wants to know how much space per object
+is spent for management. It's calculate_slab_order():
+
+	if (flags & CFLGS_OFF_SLAB) {
+		/*
+		 * Max number of objs-per-slab for caches which
+		 * use off-slab slabs. Needed to avoid a possible
+		 * looping condition in cache_grow().
+		 */
+		offslab_limit = size;
+		offslab_limit /= sizeof(freelist_idx_t);
+
+		if (num > offslab_limit)
+			break;
+	}
+
+May be, we should update it too?
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
