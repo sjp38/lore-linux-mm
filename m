@@ -1,72 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B5B76B0031
-	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 06:01:56 -0400 (EDT)
-Received: by mail-ie0-f171.google.com with SMTP id x19so6120307ier.2
-        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 03:01:56 -0700 (PDT)
-Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com [2607:f8b0:4001:c05::231])
-        by mx.google.com with ESMTPS id j1si15348900igv.36.2014.06.17.03.01.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 17 Jun 2014 03:01:55 -0700 (PDT)
-Received: by mail-ig0-f177.google.com with SMTP id c1so827627igq.16
-        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 03:01:55 -0700 (PDT)
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AEDC6B0031
+	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 06:05:13 -0400 (EDT)
+Received: by mail-wg0-f45.google.com with SMTP id l18so6736898wgh.28
+        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 03:05:13 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id dr4si11884766wib.100.2014.06.17.03.05.11
+        for <linux-mm@kvack.org>;
+        Tue, 17 Jun 2014 03:05:12 -0700 (PDT)
+Message-ID: <53A012C8.7060109@redhat.com>
+Date: Tue, 17 Jun 2014 12:04:56 +0200
+From: Florian Weimer <fweimer@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <53A01049.6020502@redhat.com>
-References: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com>
-	<CALCETrVoE+JO2rLsBUHAOJdvescEEjxikj8iQ339Nxfopfc7pw@mail.gmail.com>
-	<CANq1E4SaWLD=hNEc-CDJbNnrGfXE_PkxZFBhpW4tbK7wor7xPA@mail.gmail.com>
-	<CALCETrU8N9EbnJ3=oQ1WQCG9Vunn3nR9Ba=J48wJm0SuH0YB4A@mail.gmail.com>
-	<CANq1E4QQUKHabheq18AzkVZk3WDtAeC-6W66tVNB+EKgYOx1Vg@mail.gmail.com>
-	<53A01049.6020502@redhat.com>
-Date: Tue, 17 Jun 2014 12:01:55 +0200
-Message-ID: <CANq1E4T3KJZ++=KF2OZ_dd+NvPqg+=4Pw6O7Po3-ZxaaMHPukw@mail.gmail.com>
 Subject: Re: [PATCH v3 0/7] File Sealing & memfd_create()
-From: David Herrmann <dh.herrmann@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+References: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com>	<CALCETrVoE+JO2rLsBUHAOJdvescEEjxikj8iQ339Nxfopfc7pw@mail.gmail.com>	<CANq1E4SaWLD=hNEc-CDJbNnrGfXE_PkxZFBhpW4tbK7wor7xPA@mail.gmail.com>	<CALCETrU8N9EbnJ3=oQ1WQCG9Vunn3nR9Ba=J48wJm0SuH0YB4A@mail.gmail.com>	<CANq1E4QQUKHabheq18AzkVZk3WDtAeC-6W66tVNB+EKgYOx1Vg@mail.gmail.com>	<53A01049.6020502@redhat.com> <CANq1E4T3KJZ++=KF2OZ_dd+NvPqg+=4Pw6O7Po3-ZxaaMHPukw@mail.gmail.com>
+In-Reply-To: <CANq1E4T3KJZ++=KF2OZ_dd+NvPqg+=4Pw6O7Po3-ZxaaMHPukw@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
+To: David Herrmann <dh.herrmann@gmail.com>
 Cc: Andy Lutomirski <luto@amacapital.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Greg Kroah-Hartman <greg@kroah.com>, John Stultz <john.stultz@linaro.org>, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>, Hugh Dickins <hughd@google.com>, Tony Battersby <tonyb@cybernetics.com>
 
-Hi
+On 06/17/2014 12:01 PM, David Herrmann wrote:
 
-On Tue, Jun 17, 2014 at 11:54 AM, Florian Weimer <fweimer@redhat.com> wrote:
-> On 06/13/2014 05:33 PM, David Herrmann wrote:
+>> I don't think this is what potential users expect because mlock requires
+>> capabilities which are not available to them.
 >>
->> On Fri, Jun 13, 2014 at 5:17 PM, Andy Lutomirski <luto@amacapital.net>
->> wrote:
->>>
->>> Isn't the point of SEAL_SHRINK to allow servers to mmap and read
->>> safely without worrying about SIGBUS?
->>
->>
->> No, I don't think so.
->> The point of SEAL_SHRINK is to prevent a file from shrinking. SIGBUS
->> is an effect, not a cause. It's only a coincidence that "OOM during
->> reads" and "reading beyond file-boundaries" has the same effect:
->> SIGBUS.
->> We only protect against reading beyond file-boundaries due to
->> shrinking. Therefore, OOM-SIGBUS is unrelated to SEAL_SHRINK.
->>
->> Anyone dealing with mmap() _has_ to use mlock() to protect against
->> OOM-SIGBUS. Making SEAL_SHRINK protect against OOM-SIGBUS would be
->> redundant, because you can achieve the same with SEAL_SHRINK+mlock().
+>> A couple of weeks ago, sealing was to be applied to anonymous shared memory.
+>> Has this changed?  Why should *reading* it trigger OOM?
 >
->
-> I don't think this is what potential users expect because mlock requires
-> capabilities which are not available to them.
->
-> A couple of weeks ago, sealing was to be applied to anonymous shared memory.
-> Has this changed?  Why should *reading* it trigger OOM?
+> The file might have holes, therefore, you'd have to allocate backing
+> pages. This might hit a soft-limit and fail. To avoid this, use
+> fallocate() to allocate pages prior to mmap()
 
-The file might have holes, therefore, you'd have to allocate backing
-pages. This might hit a soft-limit and fail. To avoid this, use
-fallocate() to allocate pages prior to mmap() or mlock() to make the
-kernel lock them in memory.
+This does not work because the consuming side does not know how the 
+descriptor was set up if sealing does not imply that.
 
-Thanks
-David
+> or mlock() to make the kernel lock them in memory.
+
+See above for why that does not work.
+
+I think you should eliminate the holes on sealing and report ENOMEM 
+there if necessary.
+
+-- 
+Florian Weimer / Red Hat Product Security Team
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
