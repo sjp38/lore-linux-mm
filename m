@@ -1,165 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f171.google.com (mail-vc0-f171.google.com [209.85.220.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 468B16B0036
-	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 12:21:07 -0400 (EDT)
-Received: by mail-vc0-f171.google.com with SMTP id id10so6590983vcb.2
-        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 09:21:06 -0700 (PDT)
-Received: from mail-vc0-f175.google.com (mail-vc0-f175.google.com [209.85.220.175])
-        by mx.google.com with ESMTPS id j2si5668102vcy.78.2014.06.17.09.21.06
+Received: from mail-ve0-f179.google.com (mail-ve0-f179.google.com [209.85.128.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A42B6B0031
+	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 12:22:04 -0400 (EDT)
+Received: by mail-ve0-f179.google.com with SMTP id sa20so5916848veb.38
+        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 09:22:04 -0700 (PDT)
+Received: from mail-vc0-f180.google.com (mail-vc0-f180.google.com [209.85.220.180])
+        by mx.google.com with ESMTPS id r4si1064129vdp.12.2014.06.17.09.22.03
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 17 Jun 2014 09:21:06 -0700 (PDT)
-Received: by mail-vc0-f175.google.com with SMTP id hy4so6652602vcb.34
-        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 09:21:06 -0700 (PDT)
+        Tue, 17 Jun 2014 09:22:03 -0700 (PDT)
+Received: by mail-vc0-f180.google.com with SMTP id im17so6478328vcb.25
+        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 09:22:03 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CANq1E4T3KJZ++=KF2OZ_dd+NvPqg+=4Pw6O7Po3-ZxaaMHPukw@mail.gmail.com>
-References: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com>
- <CALCETrVoE+JO2rLsBUHAOJdvescEEjxikj8iQ339Nxfopfc7pw@mail.gmail.com>
- <CANq1E4SaWLD=hNEc-CDJbNnrGfXE_PkxZFBhpW4tbK7wor7xPA@mail.gmail.com>
- <CALCETrU8N9EbnJ3=oQ1WQCG9Vunn3nR9Ba=J48wJm0SuH0YB4A@mail.gmail.com>
- <CANq1E4QQUKHabheq18AzkVZk3WDtAeC-6W66tVNB+EKgYOx1Vg@mail.gmail.com>
- <53A01049.6020502@redhat.com> <CANq1E4T3KJZ++=KF2OZ_dd+NvPqg+=4Pw6O7Po3-ZxaaMHPukw@mail.gmail.com>
+In-Reply-To: <53A00EDB.3050108@redhat.com>
+References: <1395256011-2423-1-git-send-email-dh.herrmann@gmail.com>
+ <20140320153250.GC20618@thunk.org> <CANq1E4SUXrzAV8FS8HVYxnRVb1oOR6HSTyucJzyFs5PuS5Y88A@mail.gmail.com>
+ <20140320163806.GA10440@thunk.org> <5346ED93.9040500@amacapital.net>
+ <20140410203246.GB31614@thunk.org> <CALCETrVmaGNCxo-L4-dPbUev3VXXEPR7xBzo3Fux6ny7yh_Gzw@mail.gmail.com>
+ <53A00EDB.3050108@redhat.com>
 From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 17 Jun 2014 09:20:46 -0700
-Message-ID: <CALCETrVpZ0vFM4usHK+tQhk234Y2jWzB1522kGcGvdQQFAqsZQ@mail.gmail.com>
-Subject: Re: [PATCH v3 0/7] File Sealing & memfd_create()
-Content-Type: multipart/alternative; boundary=089e01182c3ee1a3f004fc0a8717
+Date: Tue, 17 Jun 2014 09:21:43 -0700
+Message-ID: <CALCETrXsY9zqD5parMwmRBw5wEOQDstXGQ8zs_UQHYMyueJwaw@mail.gmail.com>
+Subject: Re: [PATCH 0/6] File Sealing & memfd_create()
+Content-Type: multipart/alternative; boundary=001a11c1f8044dd47d04fc0a8b5a
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Herrmann <dh.herrmann@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg KH <greg@kroah.com>, Florian Weimer <fweimer@redhat.com>, Hugh Dickins <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Lennart Poettering <lennart@poettering.net>, Andrew Morton <akpm@linux-foundation.org>, Linux API <linux-api@vger.kernel.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Kay Sievers <kay@vrfy.org>, John Stultz <john.stultz@linaro.org>, Linus Torvalds <torvalds@linux-foundation.org>, Daniel Mack <zonque@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Tony Battersby <tonyb@cybernetics.com>
+To: Florian Weimer <fweimer@redhat.com>
+Cc: Michael Kerrisk <mtk.manpages@gmail.com>, Greg KH <greg@kroah.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Lennart Poettering <lennart@poettering.net>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Kay Sievers <kay@vrfy.org>, Alexander Viro <viro@zeniv.linux.org.uk>, John Stultz <john.stultz@linaro.org>, Linus Torvalds <torvalds@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Theodore Ts'o <tytso@mit.edu>, Ryan Lortie <desrt@desrt.ca>, Daniel Mack <zonque@gmail.com>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-kernel <linux-kernel@vger.kernel.org>, David Herrmann <dh.herrmann@gmail.com>, Karol Lewandowski <k.lewandowsk@samsung.com>
 
---089e01182c3ee1a3f004fc0a8717
+--001a11c1f8044dd47d04fc0a8b5a
 Content-Type: text/plain; charset=UTF-8
 
-On Jun 17, 2014 3:01 AM, "David Herrmann" <dh.herrmann@gmail.com> wrote:
+On Jun 17, 2014 2:48 AM, "Florian Weimer" <fweimer@redhat.com> wrote:
 >
-> Hi
+> On 04/10/2014 10:37 PM, Andy Lutomirski wrote:
 >
-> On Tue, Jun 17, 2014 at 11:54 AM, Florian Weimer <fweimer@redhat.com>
-wrote:
-> > On 06/13/2014 05:33 PM, David Herrmann wrote:
-> >>
-> >> On Fri, Jun 13, 2014 at 5:17 PM, Andy Lutomirski <luto@amacapital.net>
-> >> wrote:
-> >>>
-> >>> Isn't the point of SEAL_SHRINK to allow servers to mmap and read
-> >>> safely without worrying about SIGBUS?
-> >>
-> >>
-> >> No, I don't think so.
-> >> The point of SEAL_SHRINK is to prevent a file from shrinking. SIGBUS
-> >> is an effect, not a cause. It's only a coincidence that "OOM during
-> >> reads" and "reading beyond file-boundaries" has the same effect:
-> >> SIGBUS.
-> >> We only protect against reading beyond file-boundaries due to
-> >> shrinking. Therefore, OOM-SIGBUS is unrelated to SEAL_SHRINK.
-> >>
-> >> Anyone dealing with mmap() _has_ to use mlock() to protect against
-> >> OOM-SIGBUS. Making SEAL_SHRINK protect against OOM-SIGBUS would be
-> >> redundant, because you can achieve the same with SEAL_SHRINK+mlock().
-> >
-> >
-> > I don't think this is what potential users expect because mlock requires
-> > capabilities which are not available to them.
-> >
-> > A couple of weeks ago, sealing was to be applied to anonymous shared
-memory.
-> > Has this changed?  Why should *reading* it trigger OOM?
+>> It occurs to me that, before going nuts with these kinds of flags, it
+>> may pay to just try to fix the /proc/self/fd issue for real -- we
+>> could just make open("/proc/self/fd/3", O_RDWR) fail if fd 3 is
+>> read-only.  That may be enough for the file sealing thing.
 >
-> The file might have holes, therefore, you'd have to allocate backing
-> pages. This might hit a soft-limit and fail. To avoid this, use
-> fallocate() to allocate pages prior to mmap() or mlock() to make the
-> kernel lock them in memory.
 >
+> Increasing privilege on O_PATH descriptors via access through
+/proc/self/fd is part of the userspace API.  The same thing might be true
+for O_RDONLY descriptors, but it's a bit less likely that there are any
+users out there.  In any case, I'm not sure it makes sense to plug the
+O_RDONLY hole while leaving the O_PATH hole open.
 
-Can you summarize why holes can't be reliably backed by the zero page?
+Do you mean O_PATH fds for the directory or O_PATH fds for the file
+itself?  In any event, I'm much less concerned about passing O_PATH memfds
+around than O_RDONLY memfds.
 
-(I realize the kernel could OOM on PTE allocation, but fallocate won't fix
-that. OTOH MAP_POPULATE should work.)
+I have incomplete patches for this stuff.  I need to fix them so they work
+and get past Al Viro.
 
-And I don't think I like hole filling being allowed on write-sealed files.
-Holes are observable these days with SEEK_HOLE and such.
-
-Alternatively, we could add a new syscall or madvise option to populate a
-mapping.
 
 --Andy
 
---089e01182c3ee1a3f004fc0a8717
+--001a11c1f8044dd47d04fc0a8b5a
 Content-Type: text/html; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 
 <div dir=3D"ltr"><p dir=3D"ltr"><br>
-On Jun 17, 2014 3:01 AM, &quot;David Herrmann&quot; &lt;<a href=3D"mailto:d=
-h.herrmann@gmail.com" target=3D"_blank">dh.herrmann@gmail.com</a>&gt; wrote=
-:<br>
+On Jun 17, 2014 2:48 AM, &quot;Florian Weimer&quot; &lt;<a href=3D"mailto:f=
+weimer@redhat.com" target=3D"_blank">fweimer@redhat.com</a>&gt; wrote:<br>
 &gt;<br>
-&gt; Hi<br>
+&gt; On 04/10/2014 10:37 PM, Andy Lutomirski wrote:<br>
 &gt;<br>
-&gt; On Tue, Jun 17, 2014 at 11:54 AM, Florian Weimer &lt;<a href=3D"mailto=
-:fweimer@redhat.com" target=3D"_blank">fweimer@redhat.com</a>&gt; wrote:<br=
+&gt;&gt; It occurs to me that, before going nuts with these kinds of flags,=
+ it<br>
+&gt;&gt; may pay to just try to fix the /proc/self/fd issue for real -- we<=
+br>
+&gt;&gt; could just make open(&quot;/proc/self/fd/3&quot;, O_RDWR) fail if =
+fd 3 is<br>
+&gt;&gt; read-only. =C2=A0That may be enough for the file sealing thing.<br=
 >
-&gt; &gt; On 06/13/2014 05:33 PM, David Herrmann wrote:<br>
-&gt; &gt;&gt;<br>
-&gt; &gt;&gt; On Fri, Jun 13, 2014 at 5:17 PM, Andy Lutomirski &lt;<a href=
-=3D"mailto:luto@amacapital.net" target=3D"_blank">luto@amacapital.net</a>&g=
-t;<br>
-&gt; &gt;&gt; wrote:<br>
-&gt; &gt;&gt;&gt;<br>
-&gt; &gt;&gt;&gt; Isn&#39;t the point of SEAL_SHRINK to allow servers to mm=
-ap and read<br>
-&gt; &gt;&gt;&gt; safely without worrying about SIGBUS?<br>
-&gt; &gt;&gt;<br>
-&gt; &gt;&gt;<br>
-&gt; &gt;&gt; No, I don&#39;t think so.<br>
-&gt; &gt;&gt; The point of SEAL_SHRINK is to prevent a file from shrinking.=
- SIGBUS<br>
-&gt; &gt;&gt; is an effect, not a cause. It&#39;s only a coincidence that &=
-quot;OOM during<br>
-&gt; &gt;&gt; reads&quot; and &quot;reading beyond file-boundaries&quot; ha=
-s the same effect:<br>
-&gt; &gt;&gt; SIGBUS.<br>
-&gt; &gt;&gt; We only protect against reading beyond file-boundaries due to=
-<br>
-&gt; &gt;&gt; shrinking. Therefore, OOM-SIGBUS is unrelated to SEAL_SHRINK.=
-<br>
-&gt; &gt;&gt;<br>
-&gt; &gt;&gt; Anyone dealing with mmap() _has_ to use mlock() to protect ag=
-ainst<br>
-&gt; &gt;&gt; OOM-SIGBUS. Making SEAL_SHRINK protect against OOM-SIGBUS wou=
-ld be<br>
-&gt; &gt;&gt; redundant, because you can achieve the same with SEAL_SHRINK+=
-mlock().<br>
-&gt; &gt;<br>
-&gt; &gt;<br>
-&gt; &gt; I don&#39;t think this is what potential users expect because mlo=
-ck requires<br>
-&gt; &gt; capabilities which are not available to them.<br>
-&gt; &gt;<br>
-&gt; &gt; A couple of weeks ago, sealing was to be applied to anonymous sha=
-red memory.<br>
-&gt; &gt; Has this changed? =C2=A0Why should *reading* it trigger OOM?<br>
 &gt;<br>
-&gt; The file might have holes, therefore, you&#39;d have to allocate backi=
-ng<br>
-&gt; pages. This might hit a soft-limit and fail. To avoid this, use<br>
-&gt; fallocate() to allocate pages prior to mmap() or mlock() to make the<b=
-r>
-&gt; kernel lock them in memory.<br>
-&gt;</p>
-<p dir=3D"ltr">Can you summarize why holes can&#39;t be reliably backed by =
-the zero page?</p>
-<p dir=3D"ltr">(I realize the kernel could OOM on PTE allocation, but fallo=
-cate won&#39;t fix that. OTOH MAP_POPULATE should work.)</p>
-<p dir=3D"ltr">And I don&#39;t think I like hole filling being allowed on w=
-rite-sealed files.=C2=A0 Holes are observable these days with SEEK_HOLE and=
- such.</p><p>Alternatively, we could add a new syscall or madvise option to=
- populate a mapping.<br>
+&gt;<br>
+&gt; Increasing privilege on O_PATH descriptors via access through /proc/se=
+lf/fd is part of the userspace API. =C2=A0The same thing might be true for =
+O_RDONLY descriptors, but it&#39;s a bit less likely that there are any use=
+rs out there. =C2=A0In any case, I&#39;m not sure it makes sense to plug th=
+e O_RDONLY hole while leaving the O_PATH hole open.</p>
 
-</p><p>--Andy</p></div>
 
---089e01182c3ee1a3f004fc0a8717--
+
+<p dir=3D"ltr">Do you mean O_PATH fds for the directory or O_PATH fds for t=
+he file itself?=C2=A0 In any event, I&#39;m much less concerned about passi=
+ng O_PATH memfds around than O_RDONLY memfds.<br></p>
+<p dir=3D"ltr">I have incomplete patches for this stuff.=C2=A0 I need to fi=
+x them so they work and get past Al Viro.</p><p dir=3D"ltr"><br></p><p>--An=
+dy</p></div>
+
+--001a11c1f8044dd47d04fc0a8b5a--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
