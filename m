@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id D94456B0031
-	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 18:15:38 -0400 (EDT)
-Received: by mail-ie0-f174.google.com with SMTP id lx4so2144iec.5
-        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 15:15:38 -0700 (PDT)
-Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com [2607:f8b0:4001:c05::229])
-        by mx.google.com with ESMTPS id qo6si18593740igb.27.2014.06.17.15.15.38
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 667966B0036
+	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 18:16:05 -0400 (EDT)
+Received: by mail-ig0-f177.google.com with SMTP id c1so117974igq.10
+        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 15:16:05 -0700 (PDT)
+Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com [2607:f8b0:4001:c05::235])
+        by mx.google.com with ESMTPS id m3si510424igx.17.2014.06.17.15.16.04
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 17 Jun 2014 15:15:38 -0700 (PDT)
-Received: by mail-ig0-f169.google.com with SMTP id a13so5587535igq.2
-        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 15:15:38 -0700 (PDT)
-Date: Tue, 17 Jun 2014 15:15:36 -0700 (PDT)
+        Tue, 17 Jun 2014 15:16:05 -0700 (PDT)
+Received: by mail-ig0-f181.google.com with SMTP id h15so123435igd.2
+        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 15:16:04 -0700 (PDT)
+Date: Tue, 17 Jun 2014 15:16:03 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, slab: mark enable_cpucache as init text
-Message-ID: <alpine.DEB.2.02.1406171515030.32660@chino.kir.corp.google.com>
+Subject: [patch] mm, slub: mark resiliency_test as init text
+Message-ID: <alpine.DEB.2.02.1406171515390.32660@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -22,26 +22,26 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org
 
-enable_cpucache() is only called for bootstrap, so it may be moved to init.text 
+resiliency_test() is only called for bootstrap, so it may be moved to init.text 
 and freed after boot.
 
 Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- mm/slab.c | 2 +-
+ mm/slub.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/slab.c b/mm/slab.c
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3861,7 +3861,7 @@ static int do_tune_cpucache(struct kmem_cache *cachep, int limit,
- }
+diff --git a/mm/slub.c b/mm/slub.c
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -4207,7 +4207,7 @@ static int list_locations(struct kmem_cache *s, char *buf,
+ #endif
  
- /* Called with slab_mutex held always */
--static int enable_cpucache(struct kmem_cache *cachep, gfp_t gfp)
-+static int __init enable_cpucache(struct kmem_cache *cachep, gfp_t gfp)
+ #ifdef SLUB_RESILIENCY_TEST
+-static void resiliency_test(void)
++static void __init resiliency_test(void)
  {
- 	int err;
- 	int limit = 0;
+ 	u8 *p;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
