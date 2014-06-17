@@ -1,47 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 667966B0036
-	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 18:16:05 -0400 (EDT)
-Received: by mail-ig0-f177.google.com with SMTP id c1so117974igq.10
-        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 15:16:05 -0700 (PDT)
-Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com [2607:f8b0:4001:c05::235])
-        by mx.google.com with ESMTPS id m3si510424igx.17.2014.06.17.15.16.04
+Received: from mail-oa0-f48.google.com (mail-oa0-f48.google.com [209.85.219.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CDDC6B0031
+	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 18:38:20 -0400 (EDT)
+Received: by mail-oa0-f48.google.com with SMTP id m1so48043oag.7
+        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 15:38:20 -0700 (PDT)
+Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
+        by mx.google.com with ESMTPS id s3si16026obd.77.2014.06.17.15.38.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 17 Jun 2014 15:16:05 -0700 (PDT)
-Received: by mail-ig0-f181.google.com with SMTP id h15so123435igd.2
-        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 15:16:04 -0700 (PDT)
-Date: Tue, 17 Jun 2014 15:16:03 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, slub: mark resiliency_test as init text
-Message-ID: <alpine.DEB.2.02.1406171515390.32660@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 17 Jun 2014 15:38:20 -0700 (PDT)
+From: Waiman Long <Waiman.Long@hp.com>
+Subject: [PATCH v2 0/2] mm, thp: two THP splitting performance fixes
+Date: Tue, 17 Jun 2014 18:37:57 -0400
+Message-Id: <1403044679-9993-1-git-send-email-Waiman.Long@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Scott J Norton <scott.norton@hp.com>, Waiman Long <Waiman.Long@hp.com>
 
-resiliency_test() is only called for bootstrap, so it may be moved to init.text 
-and freed after boot.
+v1->v2:
+ - Add a second patch to replace smp_mb() by smp_mb__after_atomic().
+ - Add performance data to the first patch
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/slub.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+This mini-series contains 2 minor changes to the transparent huge
+page splitting code to split its performance, particularly for the
+x86 architecture.
 
-diff --git a/mm/slub.c b/mm/slub.c
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -4207,7 +4207,7 @@ static int list_locations(struct kmem_cache *s, char *buf,
- #endif
- 
- #ifdef SLUB_RESILIENCY_TEST
--static void resiliency_test(void)
-+static void __init resiliency_test(void)
- {
- 	u8 *p;
- 
+Waiman Long (2):
+  mm, thp: move invariant bug check out of loop in
+    __split_huge_page_map
+  mm, thp: replace smp_mb after atomic_add by smp_mb__after_atomic
+
+ mm/huge_memory.c |    6 +++---
+ 1 files changed, 3 insertions(+), 3 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
