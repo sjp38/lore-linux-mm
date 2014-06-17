@@ -1,45 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 781666B0031
-	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 11:45:38 -0400 (EDT)
-Received: by mail-we0-f169.google.com with SMTP id t60so7615744wes.0
-        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 08:45:38 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id qn1si24773921wjc.117.2014.06.17.08.45.36
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 17 Jun 2014 08:45:37 -0700 (PDT)
-Date: Tue, 17 Jun 2014 11:45:27 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 04/12] mm: memcontrol: retry reclaim for oom-disabled and
- __GFP_NOFAIL charges
-Message-ID: <20140617154527.GC7331@cmpxchg.org>
-References: <1402948472-8175-1-git-send-email-hannes@cmpxchg.org>
- <1402948472-8175-5-git-send-email-hannes@cmpxchg.org>
- <20140617135344.GC19886@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140617135344.GC19886@dhcp22.suse.cz>
+Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
+	by kanga.kvack.org (Postfix) with ESMTP id D9A076B0031
+	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 11:52:42 -0400 (EDT)
+Received: by mail-qc0-f174.google.com with SMTP id x13so9964469qcv.5
+        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 08:52:42 -0700 (PDT)
+Received: from qmta02.emeryville.ca.mail.comcast.net (qmta02.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:24])
+        by mx.google.com with ESMTP id p10si16736521qci.12.2014.06.17.08.52.41
+        for <linux-mm@kvack.org>;
+        Tue, 17 Jun 2014 08:52:42 -0700 (PDT)
+Date: Tue, 17 Jun 2014 10:52:35 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: [PATCH 03/24] slub: return actual error on sysfs functions
+In-Reply-To: <53A05071.2010905@oracle.com>
+Message-ID: <alpine.DEB.2.11.1406171051430.20610@gentwo.org>
+References: <53A05071.2010905@oracle.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jeff Liu <jeff.liu@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Jun 17, 2014 at 03:53:44PM +0200, Michal Hocko wrote:
-> On Mon 16-06-14 15:54:24, Johannes Weiner wrote:
-> > There is no reason why oom-disabled and __GFP_NOFAIL charges should
-> > try to reclaim only once when every other charge tries several times
-> > before giving up.  Make them all retry the same number of times.
-> 
-> OK, this makes sense for oom-disabled and __GFP_NOFAIL but does it make
-> sense to do additional reclaim for tasks with fatal_signal_pending?
-> 
-> It is little bit unexpected, because we bypass if the condition happens
-> before the reclaim but then we ignore it.
+On Tue, 17 Jun 2014, Jeff Liu wrote:
 
-"mm: memcontrol: rearrange charging fast path", moves the pending
-signal check inside the retry block, right before reclaim.
+> Return the actual error code if call kset_create_and_add() failed
+
+This all looks fine to me aside from the patch sequencing issues mentioned
+by others.
+
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
