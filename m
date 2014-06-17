@@ -1,278 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 7582B6B0039
-	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 21:39:36 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fb1so2667019pad.0
-        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 18:39:36 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id ee6si15535207pac.4.2014.06.16.18.39.35
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 16 Jun 2014 18:39:35 -0700 (PDT)
-From: Laura Abbott <lauraa@codeaurora.org>
-Subject: [PATCHv3 5/5] arm64: Add atomic pool for non-coherent and CMA allocations.
-Date: Mon, 16 Jun 2014 18:39:25 -0700
-Message-Id: <1402969165-7526-6-git-send-email-lauraa@codeaurora.org>
-In-Reply-To: <1402969165-7526-1-git-send-email-lauraa@codeaurora.org>
-References: <1402969165-7526-1-git-send-email-lauraa@codeaurora.org>
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 81D716B0031
+	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 22:15:12 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id z10so3599507pdj.29
+        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 19:15:12 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id ce7si15596221pad.113.2014.06.16.19.15.10
+        for <linux-mm@kvack.org>;
+        Mon, 16 Jun 2014 19:15:11 -0700 (PDT)
+Date: Tue, 17 Jun 2014 10:15:09 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [mmotm:master 148/178] mm/memcontrol.c:6961:21: error: call to
+ '__compiletime_assert_6961' declared with attribute error: BUILD_BUG failed
+Message-ID: <20140617021509.GB32408@localhost>
+References: <539a5b9b.KeRIMtUWy5rRR18V%fengguang.wu@intel.com>
+ <20140616155328.6dfe4821baa7835999467746@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140616155328.6dfe4821baa7835999467746@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>
-Cc: Laura Abbott <lauraa@codeaurora.org>, David Riley <davidriley@chromium.org>, linux-arm-kernel@lists.infradead.org, Ritesh Harjain <ritesh.harjani@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Linux Memory Management List <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Neither CMA nor noncoherent allocations support atomic allocations.
-Add a dedicated atomic pool to support this.
+On Mon, Jun 16, 2014 at 03:53:28PM -0700, Andrew Morton wrote:
+> On Fri, 13 Jun 2014 10:02:03 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+> 
+> > tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> > head:   a621774e0e7bbd9e8a024230af4704cc489bd40e
+> > commit: e6b81384e2275775b2ae090b97043077dea26c11 [148/178] memcg: deprecate memory.force_empty knob
+> > config: make ARCH=ia64 allmodconfig
+> > 
+> > All error/warnings:
+> > 
+> >    mm/memcontrol.c: In function 'mem_cgroup_move_charge_pte':
+> >    mm/memcontrol.c:6913:3: warning: value computed is not used [-Wunused-value]
+> >    mm/memcontrol.c:6902:10: warning: unused variable 'orig_pte' [-Wunused-variable]
+> >    mm/memcontrol.c: In function 'mem_cgroup_move_charge_pmd':
+> > >> mm/memcontrol.c:6961:21: error: call to '__compiletime_assert_6961' declared with attribute error: BUILD_BUG failed
+> 
+> Actually it is caused by
+> mm-pagewalk-replace-mm_walk-skip-with-more-general-mm_walk-control.patch,
+> so it seems that something has gone wrong with the bisection.
 
-Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
----
- arch/arm64/Kconfig          |   1 +
- arch/arm64/mm/dma-mapping.c | 155 +++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 139 insertions(+), 17 deletions(-)
+Yes, it is bad bisect. The number in __compiletime_assert_6961 is not
+stable, which leads to the bad bisect. I've fixed the bisect script by
+removing the numbers in that function name.
 
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 7295419..9de71a26 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -14,6 +14,7 @@ config ARM64
- 	select COMMON_CLK
- 	select CPU_PM if (SUSPEND || CPU_IDLE)
- 	select DCACHE_WORD_ACCESS
-+	select GENERIC_ALLOCATOR
- 	select GENERIC_CLOCKEVENTS
- 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
- 	select GENERIC_CPU_AUTOPROBE
-diff --git a/arch/arm64/mm/dma-mapping.c b/arch/arm64/mm/dma-mapping.c
-index 4164c5a..8e8049b 100644
---- a/arch/arm64/mm/dma-mapping.c
-+++ b/arch/arm64/mm/dma-mapping.c
-@@ -27,6 +27,7 @@
- #include <linux/vmalloc.h>
- #include <linux/swiotlb.h>
- #include <linux/amba/bus.h>
-+#include <linux/genalloc.h>
- 
- #include <asm/cacheflush.h>
- 
-@@ -41,6 +42,55 @@ static pgprot_t __get_dma_pgprot(struct dma_attrs *attrs, pgprot_t prot,
- 	return prot;
- }
- 
-+static struct gen_pool *atomic_pool;
-+
-+#define DEFAULT_DMA_COHERENT_POOL_SIZE  SZ_256K
-+static size_t atomic_pool_size = DEFAULT_DMA_COHERENT_POOL_SIZE;
-+
-+static int __init early_coherent_pool(char *p)
-+{
-+	atomic_pool_size = memparse(p, &p);
-+	return 0;
-+}
-+early_param("coherent_pool", early_coherent_pool);
-+
-+static void *__alloc_from_pool(size_t size, struct page **ret_page)
-+{
-+	unsigned long val;
-+	void *ptr = NULL;
-+
-+	if (!atomic_pool) {
-+		WARN(1, "coherent pool not initialised!\n");
-+		return NULL;
-+	}
-+
-+	val = gen_pool_alloc(atomic_pool, size);
-+	if (val) {
-+		phys_addr_t phys = gen_pool_virt_to_phys(atomic_pool, val);
-+
-+		*ret_page = phys_to_page(phys);
-+		ptr = (void *)val;
-+	}
-+
-+	return ptr;
-+}
-+
-+static bool __in_atomic_pool(void *start, size_t size)
-+{
-+	return addr_in_gen_pool(atomic_pool, (unsigned long)start, size);
-+}
-+
-+static int __free_from_pool(void *start, size_t size)
-+{
-+	if (!__in_atomic_pool(start, size))
-+		return 0;
-+
-+	gen_pool_free(atomic_pool, (unsigned long)start, size);
-+
-+	return 1;
-+}
-+
-+
- static void *__dma_alloc_coherent(struct device *dev, size_t size,
- 				  dma_addr_t *dma_handle, gfp_t flags,
- 				  struct dma_attrs *attrs)
-@@ -53,7 +103,8 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
- 	if (IS_ENABLED(CONFIG_ZONE_DMA) &&
- 	    dev->coherent_dma_mask <= DMA_BIT_MASK(32))
- 		flags |= GFP_DMA;
--	if (IS_ENABLED(CONFIG_DMA_CMA)) {
-+
-+	if (!(flags & __GFP_WAIT) && IS_ENABLED(CONFIG_DMA_CMA)) {
- 		struct page *page;
- 
- 		size = PAGE_ALIGN(size);
-@@ -73,50 +124,56 @@ static void __dma_free_coherent(struct device *dev, size_t size,
- 				void *vaddr, dma_addr_t dma_handle,
- 				struct dma_attrs *attrs)
- {
-+	bool freed;
-+	phys_addr_t paddr = dma_to_phys(dev, dma_handle);
-+
- 	if (dev == NULL) {
- 		WARN_ONCE(1, "Use an actual device structure for DMA allocation\n");
- 		return;
- 	}
- 
--	if (IS_ENABLED(CONFIG_DMA_CMA)) {
--		phys_addr_t paddr = dma_to_phys(dev, dma_handle);
- 
--		dma_release_from_contiguous(dev,
-+	freed = dma_release_from_contiguous(dev,
- 					phys_to_page(paddr),
- 					size >> PAGE_SHIFT);
--	} else {
-+	if (!freed)
- 		swiotlb_free_coherent(dev, size, vaddr, dma_handle);
--	}
- }
- 
- static void *__dma_alloc_noncoherent(struct device *dev, size_t size,
- 				     dma_addr_t *dma_handle, gfp_t flags,
- 				     struct dma_attrs *attrs)
- {
--	struct page *page, **map;
-+	struct page *page;
- 	void *ptr, *coherent_ptr;
--	int order, i;
- 
- 	size = PAGE_ALIGN(size);
--	order = get_order(size);
-+
-+	if (!(flags & __GFP_WAIT)) {
-+		struct page *page = NULL;
-+		void *addr = __alloc_from_pool(size, &page);
-+
-+		if (addr)
-+			*dma_handle = phys_to_dma(dev, page_to_phys(page));
-+
-+		return addr;
-+
-+	}
- 
- 	ptr = __dma_alloc_coherent(dev, size, dma_handle, flags, attrs);
- 	if (!ptr)
- 		goto no_mem;
--	map = kmalloc(sizeof(struct page *) << order, flags & ~GFP_DMA);
--	if (!map)
--		goto no_map;
- 
- 	/* remove any dirty cache lines on the kernel alias */
- 	__dma_flush_range(ptr, ptr + size);
- 
-+
- 	/* create a coherent mapping */
- 	page = virt_to_page(ptr);
--	for (i = 0; i < (size >> PAGE_SHIFT); i++)
--		map[i] = page + i;
--	coherent_ptr = vmap(map, size >> PAGE_SHIFT, VM_MAP,
--			    __get_dma_pgprot(attrs, __pgprot(PROT_NORMAL_NC), false));
--	kfree(map);
-+	coherent_ptr = dma_common_contiguous_remap(page, size, VM_USERMAP,
-+				__get_dma_pgprot(attrs,
-+					__pgprot(PROT_NORMAL_NC), false),
-+					NULL);
- 	if (!coherent_ptr)
- 		goto no_map;
- 
-@@ -135,6 +192,8 @@ static void __dma_free_noncoherent(struct device *dev, size_t size,
- {
- 	void *swiotlb_addr = phys_to_virt(dma_to_phys(dev, dma_handle));
- 
-+	if (__free_from_pool(vaddr, size))
-+		return;
- 	vunmap(vaddr);
- 	__dma_free_coherent(dev, size, swiotlb_addr, dma_handle, attrs);
- }
-@@ -332,6 +391,68 @@ static struct notifier_block amba_bus_nb = {
- 
- extern int swiotlb_late_init_with_default_size(size_t default_size);
- 
-+static int __init atomic_pool_init(void)
-+{
-+	pgprot_t prot = __pgprot(PROT_NORMAL_NC);
-+	unsigned long nr_pages = atomic_pool_size >> PAGE_SHIFT;
-+	struct page *page;
-+	void *addr;
-+
-+
-+	if (dev_get_cma_area(NULL))
-+		page = dma_alloc_from_contiguous(NULL, nr_pages,
-+					get_order(atomic_pool_size));
-+	else
-+		page = alloc_pages(GFP_KERNEL, get_order(atomic_pool_size));
-+
-+
-+	if (page) {
-+		int ret;
-+
-+		atomic_pool = gen_pool_create(PAGE_SHIFT, -1);
-+		if (!atomic_pool)
-+			goto free_page;
-+
-+		addr = dma_common_contiguous_remap(page, atomic_pool_size,
-+					VM_USERMAP, prot, atomic_pool_init);
-+
-+		if (!addr)
-+			goto destroy_genpool;
-+
-+		memset(addr, 0, atomic_pool_size);
-+		__dma_flush_range(addr, addr + atomic_pool_size);
-+
-+		ret = gen_pool_add_virt(atomic_pool, (unsigned long)addr,
-+					page_to_phys(page),
-+					atomic_pool_size, -1);
-+		if (ret)
-+			goto remove_mapping;
-+
-+		gen_pool_set_algo(atomic_pool,
-+				  gen_pool_first_fit_order_align,
-+				  (void *)PAGE_SHIFT);
-+
-+		pr_info("DMA: preallocated %zd KiB pool for atomic allocations\n",
-+			atomic_pool_size / 1024);
-+		return 0;
-+	}
-+	goto out;
-+
-+remove_mapping:
-+	dma_common_free_remap(addr, atomic_pool_size, VM_USERMAP);
-+destroy_genpool:
-+	gen_pool_destroy(atomic_pool);
-+	atomic_pool == NULL;
-+free_page:
-+	if (!dma_release_from_contiguous(NULL, page, nr_pages))
-+		__free_pages(page, get_order(atomic_pool_size));
-+out:
-+	pr_err("DMA: failed to allocate %zx KiB pool for atomic coherent allocation\n",
-+		atomic_pool_size / 1024);
-+	return -ENOMEM;
-+}
-+postcore_initcall(atomic_pool_init);
-+
- static int __init swiotlb_late_init(void)
- {
- 	size_t swiotlb_size = min(SZ_64M, MAX_ORDER_NR_PAGES << PAGE_SHIFT);
--- 
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
-hosted by The Linux Foundation
+Thanks,
+Fengguang
+
+> > vim +/__compiletime_assert_6961 +6961 mm/memcontrol.c
+> > 
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6907  		 * We have consumed all precharges we got in can_attach().
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6908  		 * We try charge one by one, but don't do any additional
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6909  		 * charges to mc.to if we have failed in charge once in attach()
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6910  		 * phase.
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6911  		 */
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6912  		ret = mem_cgroup_do_precharge(1);
+> > 5e2db449 Naoya Horiguchi   2014-06-13 @6913  		pte_offset_map(walk->pmd, addr & PMD_MASK);
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6914  		spin_lock(walk->ptl);
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6915  		if (!ret)
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6916  			goto retry;
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6917  		return ret;
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6918  	}
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6919  
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6920  	switch (get_mctgt_type(vma, addr, *pte, &target)) {
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6921  	case MC_TARGET_PAGE:
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6922  		page = target.page;
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6923  		if (isolate_lru_page(page))
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6924  			goto put;
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6925  		pc = lookup_page_cgroup(page);
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6926  		if (!mem_cgroup_move_account(page, 1, pc,
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6927  					     mc.from, mc.to)) {
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6928  			mc.precharge--;
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6929  			/* we uncharge from mc.from later. */
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6930  			mc.moved_charge++;
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6931  		}
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6932  		putback_lru_page(page);
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6933  put:		/* get_mctgt_type() gets the page */
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6934  		put_page(page);
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6935  		break;
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6936  	case MC_TARGET_SWAP:
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6937  		ent = target.ent;
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6938  		if (!mem_cgroup_move_swap_account(ent, mc.from, mc.to)) {
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6939  			mc.precharge--;
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6940  			/* we fixup refcnts and charges later. */
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6941  			mc.moved_swap++;
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6942  		}
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6943  		break;
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6944  	default:
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6945  		break;
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6946  	}
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6947  
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6948  	return 0;
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6949  }
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6950  
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6951  static int mem_cgroup_move_charge_pmd(pmd_t *pmd,
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6952  				unsigned long addr, unsigned long end,
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6953  				struct mm_walk *walk)
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6954  {
+> > 5e2db449 Naoya Horiguchi   2014-06-13  6955  	struct vm_area_struct *vma = walk->vma;
+> > 12724850 Naoya Horiguchi   2012-03-21  6956  	enum mc_target_type target_type;
+> > 12724850 Naoya Horiguchi   2012-03-21  6957  	union mc_target target;
+> > 12724850 Naoya Horiguchi   2012-03-21  6958  	struct page *page;
+> > 12724850 Naoya Horiguchi   2012-03-21  6959  	struct page_cgroup *pc;
+> > 4ffef5fe Daisuke Nishimura 2010-03-10  6960  
+> > d6dc1086 Naoya Horiguchi   2014-06-13 @6961  	if (mc.precharge < HPAGE_PMD_NR)
+> > d6dc1086 Naoya Horiguchi   2014-06-13  6962  		return 0;
+> > d6dc1086 Naoya Horiguchi   2014-06-13  6963  	target_type = get_mctgt_type_thp(vma, addr, *pmd, &target);
+> > d6dc1086 Naoya Horiguchi   2014-06-13  6964  	if (target_type == MC_TARGET_PAGE) {
+> > 
+> > :::::: The code at line 6961 was first introduced by commit
+> > :::::: d6dc10868bc1439159231b2353dbbfc635a0c104 mm/pagewalk: move pmd_trans_huge_lock() from callbacks to common code
+> > 
+> > :::::: TO: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > :::::: CC: Johannes Weiner <hannes@cmpxchg.org>
+> > 
+> > ---
+> > 0-DAY kernel build testing backend              Open Source Technology Center
+> > http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
