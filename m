@@ -1,152 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 40FD16B0031
-	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 00:58:35 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id g10so2570465pdj.28
-        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 21:58:34 -0700 (PDT)
-Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-        by mx.google.com with ESMTPS id e10si14190198pat.80.2014.06.16.21.58.32
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 16 Jun 2014 21:58:32 -0700 (PDT)
-Received: by mail-pb0-f43.google.com with SMTP id um1so2548540pbc.16
-        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 21:57:57 -0700 (PDT)
-From: Chen Yucong <slaoub@gmail.com>
-Subject: [PATCH] mm/vmscan.c: fix an implementation flaw in proportional scanning
-Date: Tue, 17 Jun 2014 12:55:02 +0800
-Message-Id: <1402980902-6345-1-git-send-email-slaoub@gmail.com>
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 890966B0031
+	for <linux-mm@kvack.org>; Tue, 17 Jun 2014 03:24:22 -0400 (EDT)
+Received: by mail-wi0-f181.google.com with SMTP id n3so5237422wiv.2
+        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 00:24:21 -0700 (PDT)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.198])
+        by mx.google.com with ESMTP id i9si22693622wjr.31.2014.06.17.00.24.20
+        for <linux-mm@kvack.org>;
+        Tue, 17 Jun 2014 00:24:21 -0700 (PDT)
+Date: Tue, 17 Jun 2014 10:23:37 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm, thp: move invariant bug check out of loop in
+ __split_huge_page_map
+Message-ID: <20140617072337.GA19715@node.dhcp.inet.fi>
+References: <1402947348-60655-1-git-send-email-Waiman.Long@hp.com>
+ <20140616204934.GA14208@node.dhcp.inet.fi>
+ <20140616205946.GB14208@node.dhcp.inet.fi>
+ <539FB9E6.2030601@hp.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <539FB9E6.2030601@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: minchan@kernel.org, mgorman@suse.de, hannes@cmpxchg.org, mhocko@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Yucong <slaoub@gmail.com>
+To: Waiman Long <waiman.long@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Scott J Norton <scott.norton@hp.com>
 
-Via https://lkml.org/lkml/2013/4/10/897, we can know that the relative design
-idea is to keep
+On Mon, Jun 16, 2014 at 11:45:42PM -0400, Waiman Long wrote:
+> On 06/16/2014 04:59 PM, Kirill A. Shutemov wrote:
+> >On Mon, Jun 16, 2014 at 11:49:34PM +0300, Kirill A. Shutemov wrote:
+> >>On Mon, Jun 16, 2014 at 03:35:48PM -0400, Waiman Long wrote:
+> >>>In the __split_huge_page_map() function, the check for
+> >>>page_mapcount(page) is invariant within the for loop. Because of the
+> >>>fact that the macro is implemented using atomic_read(), the redundant
+> >>>check cannot be optimized away by the compiler leading to unnecessary
+> >>>read to the page structure.
+> >And atomic_read() is *not* atomic operation. It's implemented as
+> >dereferencing though cast to volatile, which suppress compiler
+> >optimization, but doesn't affect what CPU can do with the variable.
+> >
+> >So I doubt difference will be measurable anywhere.
+> >
+> 
+> Because it is treated as an volatile object, the compiler will have to
+> reread the value of the relevant page structure field in every iteration of
+> the loop (512 for x86) when pmd_write(*pmd) is true. I saw some slight
+> improvement (about 2%) of a microbench that I wrote to break up 1000 THPs
+> with 1000 forked processes.
 
-    scan_target[anon] : scan_target[file]
-        == really_scanned_num[anon] : really_scanned_num[file]
+Then bring patch with performance data.
 
-But we can find the following snippet in shrink_lruvec():
-
-    if (nr_file > nr_anon) {
-        ...
-    } else {
-        ...
-    }
-
-However, the above code fragment broke the design idea. We can assume:
-
-      nr[LRU_ACTIVE_FILE] = 30
-      nr[LRU_INACTIVE_FILE] = 30
-      nr[LRU_ACTIVE_ANON] = 0
-      nr[LRU_INACTIVE_ANON] = 40
-
-When the value of (nr_reclaimed < nr_to_reclaim) become false, there are
-the following results:
-
-      nr[LRU_ACTIVE_FILE] = 15
-      nr[LRU_INACTIVE_FILE] = 15
-      nr[LRU_ACTIVE_ANON] = 0
-      nr[LRU_INACTIVE_ANON] = 25
-      nr_file = 30
-      nr_anon = 25
-      file_percent = 30 / 60 = 0.5
-      anon_percent = 25 / 40 = 0.65
-
-According to the above design idea, we should scan some pages from ANON,
-but in fact we execute the an error code path due to "if (nr_file > nr_anon)".
-In this way, nr[lru] is likely to be a negative number. Luckily,
-"nr[lru] -= min(nr[lru], nr_scanned)" can help us to filter this situation,
-but it has rebelled against our design idea.
-
-Signed-off-by: Chen Yucong <slaoub@gmail.com>
----
- mm/vmscan.c |   39 ++++++++++++++++++---------------------
- 1 file changed, 18 insertions(+), 21 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a8ffe4e..2c35e34 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2057,8 +2057,7 @@ out:
- static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
- {
- 	unsigned long nr[NR_LRU_LISTS];
--	unsigned long targets[NR_LRU_LISTS];
--	unsigned long nr_to_scan;
-+	unsigned long file_target, anon_target;
- 	enum lru_list lru;
- 	unsigned long nr_reclaimed = 0;
- 	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
-@@ -2067,8 +2066,8 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
- 
- 	get_scan_count(lruvec, sc, nr);
- 
--	/* Record the original scan target for proportional adjustments later */
--	memcpy(targets, nr, sizeof(nr));
-+	file_target = nr[LRU_INACTIVE_FILE] + nr[LRU_ACTIVE_FILE];
-+	anon_target = nr[LRU_INACTIVE_ANON] + nr[LRU_ACTIVE_ANON];
- 
- 	/*
- 	 * Global reclaiming within direct reclaim at DEF_PRIORITY is a normal
-@@ -2087,8 +2086,8 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
- 	blk_start_plug(&plug);
- 	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
- 					nr[LRU_INACTIVE_FILE]) {
--		unsigned long nr_anon, nr_file, percentage;
--		unsigned long nr_scanned;
-+		unsigned long nr_anon, nr_file, file_percent, anon_percent;
-+		unsigned long nr_to_scan, nr_scanned, percentage;
- 
- 		for_each_evictable_lru(lru) {
- 			if (nr[lru]) {
-@@ -2122,16 +2121,19 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
- 		if (!nr_file || !nr_anon)
- 			break;
- 
--		if (nr_file > nr_anon) {
--			unsigned long scan_target = targets[LRU_INACTIVE_ANON] +
--						targets[LRU_ACTIVE_ANON] + 1;
-+		file_percent = nr_file * 100 / file_target;
-+		anon_percent = nr_anon * 100 / anon_target;
-+
-+		if (file_percent > anon_percent) {
- 			lru = LRU_BASE;
--			percentage = nr_anon * 100 / scan_target;
-+			nr_scanned = file_target - nr_file;
-+			nr_to_scan = file_target * (100 - anon_percent) / 100;
-+			percentage = nr[LRU_FILE] * 100 / nr_file;
- 		} else {
--			unsigned long scan_target = targets[LRU_INACTIVE_FILE] +
--						targets[LRU_ACTIVE_FILE] + 1;
- 			lru = LRU_FILE;
--			percentage = nr_file * 100 / scan_target;
-+			nr_scanned = anon_target - nr_anon;
-+			nr_to_scan = anon_target * (100 - file_percent) / 100;
-+			percentage = nr[LRU_BASE] * 100 / nr_anon;
- 		}
- 
- 		/* Stop scanning the smaller of the LRU */
-@@ -2143,14 +2145,9 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
- 		 * scan target and the percentage scanning already complete
- 		 */
- 		lru = (lru == LRU_FILE) ? LRU_BASE : LRU_FILE;
--		nr_scanned = targets[lru] - nr[lru];
--		nr[lru] = targets[lru] * (100 - percentage) / 100;
--		nr[lru] -= min(nr[lru], nr_scanned);
--
--		lru += LRU_ACTIVE;
--		nr_scanned = targets[lru] - nr[lru];
--		nr[lru] = targets[lru] * (100 - percentage) / 100;
--		nr[lru] -= min(nr[lru], nr_scanned);
-+		nr_to_scan -= min(nr_to_scan, nr_scanned);
-+		nr[lru] = nr_to_scan * percentage / 100;
-+		nr[lru + LRU_ACTIVE] = nr_to_scan - nr[lru];
- 
- 		scan_adjusted = true;
- 	}
 -- 
-1.7.10.4
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
