@@ -1,59 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 087256B0031
-	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 09:33:35 -0400 (EDT)
-Received: by mail-lb0-f175.google.com with SMTP id q8so512635lbi.6
-        for <linux-mm@kvack.org>; Wed, 18 Jun 2014 06:33:35 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id na5si3096237lbb.7.2014.06.18.06.33.33
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id A64966B0031
+	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 10:17:44 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id lf10so792457pab.30
+        for <linux-mm@kvack.org>; Wed, 18 Jun 2014 07:17:44 -0700 (PDT)
+Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
+        by mx.google.com with ESMTPS id ce7si2378023pad.113.2014.06.18.07.17.43
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 18 Jun 2014 06:33:34 -0700 (PDT)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH] fork: dup_mm: init vm stat counters under mmap_sem
-Date: Wed, 18 Jun 2014 17:33:11 +0400
-Message-ID: <1403098391-24546-1-git-send-email-vdavydov@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Wed, 18 Jun 2014 07:17:43 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout3.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0N7D004SOBPGGS40@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 18 Jun 2014 15:17:40 +0100 (BST)
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+Subject: [PATCH] mm: slab.h: wrap the whole file with guarding macro
+Date: Wed, 18 Jun 2014 18:11:35 +0400
+Message-id: <1403100695-1350-1-git-send-email-a.ryabinin@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: oleg@redhat.com, rientjes@google.com, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrey Ryabinin <a.ryabinin@samsung.com>
 
-If a forking process has a thread calling (un)mmap (silly but still),
-the child process may have some of its mm's vm stats (total_vm and
-friends) screwed up, because currently they are copied from oldmm w/o
-holding any locks (see dup_mm).
+Guarding section:
+	#ifndef MM_SLAB_H
+	#define MM_SLAB_H
+	...
+	#endif
+currently doesn't cover the whole mm/slab.h. It seems like it was
+done unintentionally.
 
-This patch moves the stats initialization to dup_mmap to be called under
-oldmm->mmap_sem, which eliminates any possibility of race.
+Wrap the whole file by moving closing #endif to the end of it.
 
-Also, mm->pinned_vm is not reset on fork. Let's fix it.
-
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
 ---
- kernel/fork.c |    5 +++++
- 1 file changed, 5 insertions(+)
+ mm/slab.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/kernel/fork.c b/kernel/fork.c
-index d2799d1fc952..eaacc75da4f7 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -365,7 +365,12 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
- 	 */
- 	down_write_nested(&mm->mmap_sem, SINGLE_DEPTH_NESTING);
+diff --git a/mm/slab.h b/mm/slab.h
+index 961a3fb..90954f5e 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -260,8 +260,6 @@ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
+ 	WARN_ON_ONCE(1);
+ 	return s;
+ }
+-#endif
+-
  
-+	mm->total_vm = oldmm->total_vm;
- 	mm->locked_vm = 0;
-+	mm->pinned_vm = 0;
-+	mm->shared_vm = oldmm->shared_vm;
-+	mm->exec_vm = oldmm->exec_vm;
-+	mm->stack_vm = oldmm->stack_vm;
- 	mm->mmap = NULL;
- 	mm->vmacache_seqnum = 0;
- 	mm->map_count = 0;
+ /*
+  * The slab lists for all objects.
+@@ -296,3 +294,5 @@ struct kmem_cache_node {
+ 
+ void *slab_next(struct seq_file *m, void *p, loff_t *pos);
+ void slab_stop(struct seq_file *m, void *p);
++
++#endif /* MM_SLAB_H */
 -- 
-1.7.10.4
+1.8.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
