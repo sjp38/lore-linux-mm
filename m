@@ -1,103 +1,230 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EC7F6B006E
-	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 01:03:14 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id r10so297911pdi.4
-        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 22:03:14 -0700 (PDT)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [2001:44b8:8060:ff02:300:1:2:6])
-        by mx.google.com with ESMTP id xo10si853563pac.162.2014.06.17.22.03.12
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id A33A46B0071
+	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 01:49:13 -0400 (EDT)
+Received: by mail-pb0-f48.google.com with SMTP id rq2so361457pbb.35
+        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 22:49:13 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id ie10si985610pad.64.2014.06.17.22.49.11
         for <linux-mm@kvack.org>;
-        Tue, 17 Jun 2014 22:03:12 -0700 (PDT)
-Date: Wed, 18 Jun 2014 15:02:30 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] [RFC] xfs: wire up aio_fsync method
-Message-ID: <20140618050230.GO9508@dastard>
-References: <20140616020030.GC9508@dastard>
- <539E5D66.8040605@kernel.dk>
- <20140616071951.GD9508@dastard>
- <539F45E2.5030909@kernel.dk>
- <20140616222729.GE9508@dastard>
- <53A0416E.20105@kernel.dk>
- <20140618002845.GM9508@dastard>
- <53A0F84A.6040708@kernel.dk>
- <20140618031329.GN9508@dastard>
- <53A10597.6020707@kernel.dk>
+        Tue, 17 Jun 2014 22:49:12 -0700 (PDT)
+From: Tang Chen <tangchen@cn.fujitsu.com>
+Subject: [RFC PATCH 1/1] Move two pinned pages to non-movable node in kvm.
+Date: Wed, 18 Jun 2014 13:50:00 +0800
+Message-ID: <1403070600-6083-1-git-send-email-tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <53A10597.6020707@kernel.dk>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-man@vger.kernel.org, xfs@oss.sgi.com, linux-mm@kvack.org
+To: gleb@kernel.org, pbonzini@redhat.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, mgorman@suse.de, yinghai@kernel.org
+Cc: isimatu.yasuaki@jp.fujitsu.com, guz.fnst@cn.fujitsu.com, laijs@cn.fujitsu.com, kvm@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Jun 17, 2014 at 08:20:55PM -0700, Jens Axboe wrote:
-> On 2014-06-17 20:13, Dave Chinner wrote:
-> >On Tue, Jun 17, 2014 at 07:24:10PM -0700, Jens Axboe wrote:
-> >>On 2014-06-17 17:28, Dave Chinner wrote:
-> >>>[cc linux-mm]
-> >>>
-> >>>On Tue, Jun 17, 2014 at 07:23:58AM -0600, Jens Axboe wrote:
-> >>>>On 2014-06-16 16:27, Dave Chinner wrote:
-> >>>>>On Mon, Jun 16, 2014 at 01:30:42PM -0600, Jens Axboe wrote:
-> >>>>>>On 06/16/2014 01:19 AM, Dave Chinner wrote:
-> >>>>>>>On Sun, Jun 15, 2014 at 08:58:46PM -0600, Jens Axboe wrote:
-> >>>>>>>>On 2014-06-15 20:00, Dave Chinner wrote:
-> >>>>>>>>>On Mon, Jun 16, 2014 at 08:33:23AM +1000, Dave Chinner wrote:
-> >>>>>>>>>FWIW, the non-linear system CPU overhead of a fs_mark test I've been
-> >>>>>>>>>running isn't anything related to XFS.  The async fsync workqueue
-> >>>>>>>>>results in several thousand worker threads dispatching IO
-> >>>>>>>>>concurrently across 16 CPUs:
-> >....
-> >>>>>>>>>I know that the tag allocator has been rewritten, so I tested
-> >>>>>>>>>against a current a current Linus kernel with the XFS aio-fsync
-> >>>>>>>>>patch. The results are all over the place - from several sequential
-> >>>>>>>>>runs of the same test (removing the files in between so each tests
-> >>>>>>>>>starts from an empty fs):
-> >>>>>>>>>
-> >>>>>>>>>Wall time	sys time	IOPS	 files/s
-> >>>>>>>>>4m58.151s	11m12.648s	30,000	 13,500
-> >>>>>>>>>4m35.075s	12m45.900s	45,000	 15,000
-> >>>>>>>>>3m10.665s	11m15.804s	65,000	 21,000
-> >>>>>>>>>3m27.384s	11m54.723s	85,000	 20,000
-> >>>>>>>>>3m59.574s	11m12.012s	50,000	 16,500
-> >>>>>>>>>4m12.704s	12m15.720s	50,000	 17,000
+Hi,
 
-....
-> >But the IOPS rate has definitely increased with this config
-> >- I just saw 90k, 100k and 110k IOPS in the last 3 iterations of the
-> >workload (the above profile is from the 100k IOPS period). However,
-> >the wall time was still only 3m58s, which again tends to implicate
-> >the write() portion of the benchmark for causing the slowdowns
-> >rather than the fsync() portion that is dispatching all the IO...
-> 
-> Some contention for this case is hard to avoid, and the above looks
-> better than 3.15 does. So the big question is whether it's worth
-> fixing the gaps with multiple waitqueues (and if that actually still
-> buys us anything), or whether we should just disable them.
-> 
-> If I can get you to try one more thing, can you apply this patch and
-> give that a whirl? Get rid of the other patches I sent first, this
-> has everything.
+I met a problem when offlining memory with a kvm guest running.
 
-Not much difference in the CPU usage profiles or base line
-performance. It runs at 3m10s from empty memory, and ~3m45s when
-memory starts full of clean pages. system time varies from 10m40s to
-12m55s with no real correlation to overall runtime.
 
->From observation of all the performance metrics I graph in real
-time, however, the pattern of the peaks and troughs from run to run
-and even iteration to iteration is much more regular than the
-previous patches. So from that perspective it is an improvement.
-Again, all the variability in the graphs show up when free memory
-runs out...
+[Problem]
+When qemu creates vpus, it will call the following two functions
+to allocate two pages:
+1. alloc_apic_access_page(): allocate apic access page for FlexPriority in intel cpu.
+2. alloc_identity_pagetable(): allocate ept identity pagetable for real mode.
 
-Cheers,
+And unfortunately, these two pages will be pinned in memory, and they cannot
+be migrated. As a result, they cannot be offlined. And memory hot-remove will fail.
 
-Dave.
+
+
+[The way I tried]
+I tried to migrate these two pages, but I think I cannot find a proper way
+to migrate them.
+
+Let's take ept identity pagetable for example:
+In my opinion, since it is pagetable, CPU will access this page every time the guest
+read/write memory. For example, the following code will access memory:
+	int a;
+	a = 0;
+So this ept identity pagetable page can be accessed at any time by CPU automatically.
+
+
+
+[Solution]
+I have a basic idea to solve this problem: allocate these two pages in non-movable nodes.
+(For now, we can only hot-remove memory in movable nodes.)
+
+alloc_identity_pagetable()
+|-> __kvm_set_memory_region()
+|   |-> kvm_arch_prepare_memory_region()
+|       |-> userspace_addr = vm_mmap();
+|       |-> memslot->userspace_addr = userspace_addr;  /* map usespace address (qemu) */
+|
+|   /*
+|    * Here, set memory policy for the mapped but not allocated page,
+|    * make it can only be allocated in non-movable nodes.
+|    * (We can reuse "numa_kernel_nodes" node mask in movable_node functionality.)
+|    */
+|
+|-> page = gfn_to_page()  /* allocate and pin page */
+
+Please refer to the attached patch for detail.
+I did some basic test for the patch, and it will make memory offline succeed.
+
+
+
+[Questions]
+And by the way, would you guys please answer the following questions for me ?
+
+1. What's the ept identity pagetable for ?  Only one page is enough ?
+
+2. Is the ept identity pagetable only used in realmode ?
+   Can we free it once the guest is up (vcpu in protect mode)?
+
+3. Now, ept identity pagetable is allocated in qemu userspace.
+   Can we allocate it in kernel space ?
+
+4. If I want to migrate these two pages, what do you think is the best way ?
+
+Thanks.
+
+
+Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+---
+ arch/x86/include/asm/numa.h | 1 +
+ arch/x86/kvm/vmx.c          | 5 +++++
+ arch/x86/kvm/x86.c          | 1 +
+ arch/x86/mm/numa.c          | 3 ++-
+ include/linux/mempolicy.h   | 6 ++++++
+ mm/mempolicy.c              | 9 +++++++++
+ 6 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/arch/x86/include/asm/numa.h b/arch/x86/include/asm/numa.h
+index 4064aca..6312577 100644
+--- a/arch/x86/include/asm/numa.h
++++ b/arch/x86/include/asm/numa.h
+@@ -30,6 +30,7 @@ extern int numa_off;
+  */
+ extern s16 __apicid_to_node[MAX_LOCAL_APIC];
+ extern nodemask_t numa_nodes_parsed __initdata;
++extern nodemask_t numa_kernel_nodes;
+ 
+ extern int __init numa_add_memblk(int nodeid, u64 start, u64 end);
+ extern void __init numa_set_distance(int from, int to, int distance);
+diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c
+index 801332e..4a3b5b5 100644
+--- a/arch/x86/kvm/vmx.c
++++ b/arch/x86/kvm/vmx.c
+@@ -32,6 +32,7 @@
+ #include <linux/slab.h>
+ #include <linux/tboot.h>
+ #include <linux/hrtimer.h>
++#include <linux/mempolicy.h>
+ #include "kvm_cache_regs.h"
+ #include "x86.h"
+ 
+@@ -3988,6 +3989,8 @@ static int alloc_apic_access_page(struct kvm *kvm)
+ 	if (r)
+ 		goto out;
+ 
++	numa_bind_non_movable(kvm_userspace_mem.userspace_addr, PAGE_SIZE);
++
+ 	page = gfn_to_page(kvm, 0xfee00);
+ 	if (is_error_page(page)) {
+ 		r = -EFAULT;
+@@ -4018,6 +4021,8 @@ static int alloc_identity_pagetable(struct kvm *kvm)
+ 	if (r)
+ 		goto out;
+ 
++	numa_bind_non_movable(kvm_userspace_mem.userspace_addr, PAGE_SIZE);
++
+ 	page = gfn_to_page(kvm, kvm->arch.ept_identity_map_addr >> PAGE_SHIFT);
+ 	if (is_error_page(page)) {
+ 		r = -EFAULT;
+diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+index f32a025..3962a23 100644
+--- a/arch/x86/kvm/x86.c
++++ b/arch/x86/kvm/x86.c
+@@ -7295,6 +7295,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
+ 			return PTR_ERR((void *)userspace_addr);
+ 
+ 		memslot->userspace_addr = userspace_addr;
++		mem->userspace_addr = userspace_addr;
+ 	}
+ 
+ 	return 0;
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index a32b706..d706148 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -22,6 +22,8 @@
+ 
+ int __initdata numa_off;
+ nodemask_t numa_nodes_parsed __initdata;
++nodemask_t numa_kernel_nodes;
++EXPORT_SYMBOL(numa_kernel_nodes);
+ 
+ struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
+ EXPORT_SYMBOL(node_data);
+@@ -557,7 +559,6 @@ static void __init numa_init_array(void)
+ static void __init numa_clear_kernel_node_hotplug(void)
+ {
+ 	int i, nid;
+-	nodemask_t numa_kernel_nodes = NODE_MASK_NONE;
+ 	unsigned long start, end;
+ 	struct memblock_region *r;
+ 
+diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+index f230a97..14f3f04 100644
+--- a/include/linux/mempolicy.h
++++ b/include/linux/mempolicy.h
+@@ -140,6 +140,7 @@ bool vma_policy_mof(struct task_struct *task, struct vm_area_struct *vma);
+ 
+ extern void numa_default_policy(void);
+ extern void numa_policy_init(void);
++extern long numa_bind_non_movable(unsigned long start, unsigned long len);
+ extern void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new,
+ 				enum mpol_rebind_step step);
+ extern void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new);
+@@ -243,6 +244,11 @@ static inline void numa_default_policy(void)
+ {
+ }
+ 
++static inline long numa_bind_non_movable(unsigned long start, unsigned long len)
++{
++	return -EINVAL;
++}
++
+ static inline void mpol_rebind_task(struct task_struct *tsk,
+ 				const nodemask_t *new,
+ 				enum mpol_rebind_step step)
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 2849742..20065a9 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -97,6 +97,7 @@
+ 
+ #include <asm/tlbflush.h>
+ #include <asm/uaccess.h>
++#include <asm/numa.h>
+ #include <linux/random.h>
+ 
+ #include "internal.h"
+@@ -2663,6 +2664,14 @@ void numa_default_policy(void)
+ 	do_set_mempolicy(MPOL_DEFAULT, 0, NULL);
+ }
+ 
++/* Bind a memory range to non-movable nodes. */
++long numa_bind_non_movable(unsigned long start, unsigned long len)
++{
++	return do_mbind(start, len, MPOL_BIND, MPOL_MODE_FLAGS,
++			&numa_kernel_nodes, MPOL_MF_STRICT);
++}
++EXPORT_SYMBOL(numa_bind_non_movable);
++
+ /*
+  * Parse and format mempolicy from/to strings
+  */
 -- 
-Dave Chinner
-david@fromorbit.com
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
