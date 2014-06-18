@@ -1,50 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
-	by kanga.kvack.org (Postfix) with ESMTP id CFD276B0073
-	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 02:12:36 -0400 (EDT)
-Received: by mail-we0-f177.google.com with SMTP id u56so300107wes.22
-        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 23:12:36 -0700 (PDT)
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-        by mx.google.com with ESMTPS id vo10si1223493wjc.86.2014.06.17.23.12.34
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 17 Jun 2014 23:12:35 -0700 (PDT)
-Received: by mail-wi0-f182.google.com with SMTP id bs8so464112wib.15
-        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 23:12:34 -0700 (PDT)
-Date: Wed, 18 Jun 2014 09:12:30 +0300
-From: Gleb Natapov <gleb@kernel.org>
-Subject: Re: [RFC PATCH 1/1] Move two pinned pages to non-movable node in kvm.
-Message-ID: <20140618061230.GA10948@minantech.com>
-References: <1403070600-6083-1-git-send-email-tangchen@cn.fujitsu.com>
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A1B76B0075
+	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 02:13:26 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id ma3so393228pbc.1
+        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 23:13:25 -0700 (PDT)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [2001:44b8:8060:ff02:300:1:2:6])
+        by mx.google.com with ESMTP id ad1si1026452pbd.83.2014.06.17.23.13.24
+        for <linux-mm@kvack.org>;
+        Tue, 17 Jun 2014 23:13:25 -0700 (PDT)
+Date: Wed, 18 Jun 2014 16:13:20 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] [RFC] xfs: wire up aio_fsync method
+Message-ID: <20140618061320.GP9508@dastard>
+References: <539E5D66.8040605@kernel.dk>
+ <20140616071951.GD9508@dastard>
+ <539F45E2.5030909@kernel.dk>
+ <20140616222729.GE9508@dastard>
+ <53A0416E.20105@kernel.dk>
+ <20140618002845.GM9508@dastard>
+ <53A0F84A.6040708@kernel.dk>
+ <20140618031329.GN9508@dastard>
+ <53A10597.6020707@kernel.dk>
+ <20140618050230.GO9508@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1403070600-6083-1-git-send-email-tangchen@cn.fujitsu.com>
+In-Reply-To: <20140618050230.GO9508@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: pbonzini@redhat.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, mgorman@suse.de, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, guz.fnst@cn.fujitsu.com, laijs@cn.fujitsu.com, kvm@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org
+To: Jens Axboe <axboe@kernel.dk>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com, linux-mm@kvack.org, linux-man@vger.kernel.org
 
-On Wed, Jun 18, 2014 at 01:50:00PM +0800, Tang Chen wrote:
-> [Questions]
-> And by the way, would you guys please answer the following questions for me ?
+On Wed, Jun 18, 2014 at 03:02:30PM +1000, Dave Chinner wrote:
+> On Tue, Jun 17, 2014 at 08:20:55PM -0700, Jens Axboe wrote:
+> > On 2014-06-17 20:13, Dave Chinner wrote:
+> > >On Tue, Jun 17, 2014 at 07:24:10PM -0700, Jens Axboe wrote:
+> > >>On 2014-06-17 17:28, Dave Chinner wrote:
+> > >>>[cc linux-mm]
+> > >>>
+> > >>>On Tue, Jun 17, 2014 at 07:23:58AM -0600, Jens Axboe wrote:
+> > >>>>On 2014-06-16 16:27, Dave Chinner wrote:
+> > >>>>>On Mon, Jun 16, 2014 at 01:30:42PM -0600, Jens Axboe wrote:
+> > >>>>>>On 06/16/2014 01:19 AM, Dave Chinner wrote:
+> > >>>>>>>On Sun, Jun 15, 2014 at 08:58:46PM -0600, Jens Axboe wrote:
+> > >>>>>>>>On 2014-06-15 20:00, Dave Chinner wrote:
+> > >>>>>>>>>On Mon, Jun 16, 2014 at 08:33:23AM +1000, Dave Chinner wrote:
+> > >>>>>>>>>FWIW, the non-linear system CPU overhead of a fs_mark test I've been
+> > >>>>>>>>>running isn't anything related to XFS.  The async fsync workqueue
+> > >>>>>>>>>results in several thousand worker threads dispatching IO
+> > >>>>>>>>>concurrently across 16 CPUs:
+> > >....
+> > >>>>>>>>>I know that the tag allocator has been rewritten, so I tested
+> > >>>>>>>>>against a current a current Linus kernel with the XFS aio-fsync
+> > >>>>>>>>>patch. The results are all over the place - from several sequential
+> > >>>>>>>>>runs of the same test (removing the files in between so each tests
+> > >>>>>>>>>starts from an empty fs):
+> > >>>>>>>>>
+> > >>>>>>>>>Wall time	sys time	IOPS	 files/s
+> > >>>>>>>>>4m58.151s	11m12.648s	30,000	 13,500
+> > >>>>>>>>>4m35.075s	12m45.900s	45,000	 15,000
+> > >>>>>>>>>3m10.665s	11m15.804s	65,000	 21,000
+> > >>>>>>>>>3m27.384s	11m54.723s	85,000	 20,000
+> > >>>>>>>>>3m59.574s	11m12.012s	50,000	 16,500
+> > >>>>>>>>>4m12.704s	12m15.720s	50,000	 17,000
 > 
-> 1. What's the ept identity pagetable for ?  Only one page is enough ?
+> ....
+> > >But the IOPS rate has definitely increased with this config
+> > >- I just saw 90k, 100k and 110k IOPS in the last 3 iterations of the
+> > >workload (the above profile is from the 100k IOPS period). However,
+> > >the wall time was still only 3m58s, which again tends to implicate
+> > >the write() portion of the benchmark for causing the slowdowns
+> > >rather than the fsync() portion that is dispatching all the IO...
+> > 
+> > Some contention for this case is hard to avoid, and the above looks
+> > better than 3.15 does. So the big question is whether it's worth
+> > fixing the gaps with multiple waitqueues (and if that actually still
+> > buys us anything), or whether we should just disable them.
+> > 
+> > If I can get you to try one more thing, can you apply this patch and
+> > give that a whirl? Get rid of the other patches I sent first, this
+> > has everything.
 > 
-> 2. Is the ept identity pagetable only used in realmode ?
->    Can we free it once the guest is up (vcpu in protect mode)?
+> Not much difference in the CPU usage profiles or base line
+> performance. It runs at 3m10s from empty memory, and ~3m45s when
+> memory starts full of clean pages. system time varies from 10m40s to
+> 12m55s with no real correlation to overall runtime.
 > 
-> 3. Now, ept identity pagetable is allocated in qemu userspace.
->    Can we allocate it in kernel space ?
-What would be the benefit?
+> From observation of all the performance metrics I graph in real
+> time, however, the pattern of the peaks and troughs from run to run
+> and even iteration to iteration is much more regular than the
+> previous patches. So from that perspective it is an improvement.
+> Again, all the variability in the graphs show up when free memory
+> runs out...
 
-> 
-> 4. If I want to migrate these two pages, what do you think is the best way ?
-> 
-I answered most of those here: http://www.mail-archive.com/kvm@vger.kernel.org/msg103718.html
+And I've identified the commit that caused the memory reclaim
+behaviour to go south:
 
---
-			Gleb.
+commit 1f6d64829db78a7e1d63e15c9f48f0a5d2b5a679
+Author: Dave Chinner <dchinner@redhat.com>
+Date:   Fri Jun 6 15:59:59 2014 +1000
+
+    xfs: block allocation work needs to be kswapd aware
+    
+    Upon memory pressure, kswapd calls xfs_vm_writepage() from
+    shrink_page_list(). This can result in delayed allocation occurring
+    and that gets deferred to the the allocation workqueue.
+    
+    The allocation then runs outside kswapd context, which means if it
+    needs memory (and it does to demand page metadata from disk) it can
+    block in shrink_inactive_list() waiting for IO congestion. These
+    blocking waits are normally avoiding in kswapd context, so under
+    memory pressure writeback from kswapd can be arbitrarily delayed by
+    memory reclaim.
+    
+    To avoid this, pass the kswapd context to the allocation being done
+    by the workqueue, so that memory reclaim understands correctly that
+    the work is being done for kswapd and therefore it is not blocked
+    and does not delay memory reclaim.
+    
+    To avoid issues with int->char conversion of flag fields (as noticed
+    in v1 of this patch) convert the flag fields in the struct
+    xfs_bmalloca to bool types. pahole indicates these variables are
+    still single byte variables, so no extra space is consumed by this
+    change.
+    
+    cc: <stable@vger.kernel.org>
+    Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+    Signed-off-by: Dave Chinner <dchinner@redhat.com>
+    Reviewed-by: Christoph Hellwig <hch@lst.de>
+    Signed-off-by: Dave Chinner <david@fromorbit.com>
+
+Reverting this patch results in runtimes of between 3m and 3m10s
+regardless of the amount of free memory when the test starts.
+
+I'm probably going to have to revert this and make sure it stays out
+of the stable kernels now - I think that unbalancing memory reclaim
+and introducing performance degradations of 25-30% to work around a
+problem that is only hit by an extreme memory pressure stress test
+is a bad trade-off.....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
