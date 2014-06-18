@@ -1,80 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E0A16B0031
-	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 19:02:09 -0400 (EDT)
-Received: by mail-pb0-f46.google.com with SMTP id md12so1217855pbc.5
-        for <linux-mm@kvack.org>; Wed, 18 Jun 2014 16:02:09 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id in9si3648277pbd.29.2014.06.18.16.02.08
-        for <linux-mm@kvack.org>;
-        Wed, 18 Jun 2014 16:02:08 -0700 (PDT)
-Date: Thu, 19 Jun 2014 07:01:18 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: arch/ia64/include/uapi/asm/fcntl.h:9:41: error: 'PER_LINUX32'
+Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 055476B0031
+	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 19:09:28 -0400 (EDT)
+Received: by mail-ie0-f171.google.com with SMTP id x19so1352378ier.30
+        for <linux-mm@kvack.org>; Wed, 18 Jun 2014 16:09:28 -0700 (PDT)
+Received: from mail-ie0-x22e.google.com (mail-ie0-x22e.google.com [2607:f8b0:4001:c03::22e])
+        by mx.google.com with ESMTPS id ci7si998253igb.42.2014.06.18.16.09.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 18 Jun 2014 16:09:28 -0700 (PDT)
+Received: by mail-ie0-f174.google.com with SMTP id lx4so1362519iec.19
+        for <linux-mm@kvack.org>; Wed, 18 Jun 2014 16:09:28 -0700 (PDT)
+Date: Wed, 18 Jun 2014 16:09:26 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: arch/ia64/include/uapi/asm/fcntl.h:9:41: error: 'PER_LINUX32'
  undeclared
-Message-ID: <53a21a3e.1HJ5drRU6UL26Oem%fengguang.wu@intel.com>
+In-Reply-To: <53a21a3e.1HJ5drRU6UL26Oem%fengguang.wu@intel.com>
+Message-ID: <alpine.DEB.2.02.1406181607490.22789@chino.kir.corp.google.com>
+References: <53a21a3e.1HJ5drRU6UL26Oem%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Woods <wwoods@redhat.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Will Woods <wwoods@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org
 
-tree:   git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-head:   e99cfa2d0634881b8a41d56c48b5956b9a3ba162
-commit: 1e2ee49f7f1b79f0b14884fe6a602f0411b39552 fanotify: fix -EOVERFLOW with large files on 64-bit
-date:   6 weeks ago
-config: make ARCH=ia64 allmodconfig
+On Thu, 19 Jun 2014, kbuild test robot wrote:
 
-All error/warnings:
+> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
+> head:   e99cfa2d0634881b8a41d56c48b5956b9a3ba162
+> commit: 1e2ee49f7f1b79f0b14884fe6a602f0411b39552 fanotify: fix -EOVERFLOW with large files on 64-bit
+> date:   6 weeks ago
+> config: make ARCH=ia64 allmodconfig
+> 
+> All error/warnings:
+> 
+>    fs/notify/fanotify/fanotify_user.c: In function 'SYSC_fanotify_init':
+>    fs/notify/fanotify/fanotify_user.c:701:2: error: implicit declaration of function 'personality' [-Werror=implicit-function-declaration]
+>      if (force_o_largefile())
+>      ^
+>    In file included from include/uapi/linux/fcntl.h:4:0,
+>                     from include/linux/fcntl.h:4,
+>                     from fs/notify/fanotify/fanotify_user.c:2:
+> >> arch/ia64/include/uapi/asm/fcntl.h:9:41: error: 'PER_LINUX32' undeclared (first use in this function)
+>       (personality(current->personality) != PER_LINUX32)
+>                                             ^
+>    fs/notify/fanotify/fanotify_user.c:701:6: note: in expansion of macro 'force_o_largefile'
+>      if (force_o_largefile())
+>          ^
+>    arch/ia64/include/uapi/asm/fcntl.h:9:41: note: each undeclared identifier is reported only once for each function it appears in
+>       (personality(current->personality) != PER_LINUX32)
+>                                             ^
+>    fs/notify/fanotify/fanotify_user.c:701:6: note: in expansion of macro 'force_o_largefile'
+>      if (force_o_largefile())
+>          ^
+>    cc1: some warnings being treated as errors
+> 
 
-   fs/notify/fanotify/fanotify_user.c: In function 'SYSC_fanotify_init':
-   fs/notify/fanotify/fanotify_user.c:701:2: error: implicit declaration of function 'personality' [-Werror=implicit-function-declaration]
-     if (force_o_largefile())
-     ^
-   In file included from include/uapi/linux/fcntl.h:4:0,
-                    from include/linux/fcntl.h:4,
-                    from fs/notify/fanotify/fanotify_user.c:2:
->> arch/ia64/include/uapi/asm/fcntl.h:9:41: error: 'PER_LINUX32' undeclared (first use in this function)
-      (personality(current->personality) != PER_LINUX32)
-                                            ^
-   fs/notify/fanotify/fanotify_user.c:701:6: note: in expansion of macro 'force_o_largefile'
-     if (force_o_largefile())
-         ^
-   arch/ia64/include/uapi/asm/fcntl.h:9:41: note: each undeclared identifier is reported only once for each function it appears in
-      (personality(current->personality) != PER_LINUX32)
-                                            ^
-   fs/notify/fanotify/fanotify_user.c:701:6: note: in expansion of macro 'force_o_largefile'
-     if (force_o_largefile())
-         ^
-   cc1: some warnings being treated as errors
+I think this wants to add #include <linux/personality.h> to 
+arch/ia64/include/uapi/asm/fcntl.h.  I don't think we should be adding it 
+to fs/notify/fanotify/fanotify_user.c if 
+arch/ia64/include/uapi/asm/fcntl.h strictly requires it.
 
-vim +/PER_LINUX32 +9 arch/ia64/include/uapi/asm/fcntl.h
-
-^1da177e include/asm-ia64/fcntl.h Linus Torvalds   2005-04-16   1  #ifndef _ASM_IA64_FCNTL_H
-^1da177e include/asm-ia64/fcntl.h Linus Torvalds   2005-04-16   2  #define _ASM_IA64_FCNTL_H
-^1da177e include/asm-ia64/fcntl.h Linus Torvalds   2005-04-16   3  /*
-^1da177e include/asm-ia64/fcntl.h Linus Torvalds   2005-04-16   4   * Modified 1998-2000
-^1da177e include/asm-ia64/fcntl.h Linus Torvalds   2005-04-16   5   *	David Mosberger-Tang <davidm@hpl.hp.com>, Hewlett-Packard Co.
-^1da177e include/asm-ia64/fcntl.h Linus Torvalds   2005-04-16   6   */
-^1da177e include/asm-ia64/fcntl.h Linus Torvalds   2005-04-16   7  
-ff67b597 include/asm-ia64/fcntl.h Tony Luck        2005-08-30   8  #define force_o_largefile()	\
-ff67b597 include/asm-ia64/fcntl.h Tony Luck        2005-08-30  @9  		(personality(current->personality) != PER_LINUX32)
-ef3daeda include/asm-ia64/fcntl.h Yoav Zach        2005-06-23  10  
-9317259e include/asm-ia64/fcntl.h Stephen Rothwell 2005-09-06  11  #include <asm-generic/fcntl.h>
-9317259e include/asm-ia64/fcntl.h Stephen Rothwell 2005-09-06  12  
-^1da177e include/asm-ia64/fcntl.h Linus Torvalds   2005-04-16  13  #endif /* _ASM_IA64_FCNTL_H */
-
-:::::: The code at line 9 was first introduced by commit
-:::::: ff67b59726a8cd3549b069dfa78de2f538d3b8e3 [IA64] Low byte of current->personality is not a bitmask.
-
-:::::: TO: Tony Luck <tony.luck@intel.com>
-:::::: CC: Tony Luck <tony.luck@intel.com>
-
----
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+Yay for build errors reported six weeks later and after 3.15 had been 
+released.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
