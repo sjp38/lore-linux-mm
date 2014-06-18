@@ -1,93 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E030F6B0031
-	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 18:27:54 -0400 (EDT)
-Received: by mail-pb0-f46.google.com with SMTP id md12so1196520pbc.33
-        for <linux-mm@kvack.org>; Wed, 18 Jun 2014 15:27:54 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id ps5si3568000pbb.80.2014.06.18.15.27.53
+	by kanga.kvack.org (Postfix) with ESMTP id 5E0A16B0031
+	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 19:02:09 -0400 (EDT)
+Received: by mail-pb0-f46.google.com with SMTP id md12so1217855pbc.5
+        for <linux-mm@kvack.org>; Wed, 18 Jun 2014 16:02:09 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id in9si3648277pbd.29.2014.06.18.16.02.08
         for <linux-mm@kvack.org>;
-        Wed, 18 Jun 2014 15:27:54 -0700 (PDT)
-Date: Wed, 18 Jun 2014 15:27:51 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/vmscan.c: fix an implementation flaw in proportional
- scanning
-Message-Id: <20140618152751.283deda95257cc32ccea8f20@linux-foundation.org>
-In-Reply-To: <1402980902-6345-1-git-send-email-slaoub@gmail.com>
-References: <1402980902-6345-1-git-send-email-slaoub@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Wed, 18 Jun 2014 16:02:08 -0700 (PDT)
+Date: Thu, 19 Jun 2014 07:01:18 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: arch/ia64/include/uapi/asm/fcntl.h:9:41: error: 'PER_LINUX32'
+ undeclared
+Message-ID: <53a21a3e.1HJ5drRU6UL26Oem%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Yucong <slaoub@gmail.com>
-Cc: minchan@kernel.org, mgorman@suse.de, hannes@cmpxchg.org, mhocko@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Will Woods <wwoods@redhat.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org
 
-On Tue, 17 Jun 2014 12:55:02 +0800 Chen Yucong <slaoub@gmail.com> wrote:
+tree:   git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
+head:   e99cfa2d0634881b8a41d56c48b5956b9a3ba162
+commit: 1e2ee49f7f1b79f0b14884fe6a602f0411b39552 fanotify: fix -EOVERFLOW with large files on 64-bit
+date:   6 weeks ago
+config: make ARCH=ia64 allmodconfig
 
-> Via https://lkml.org/lkml/2013/4/10/897, we can know that the relative design
-> idea is to keep
-> 
->     scan_target[anon] : scan_target[file]
->         == really_scanned_num[anon] : really_scanned_num[file]
-> 
-> But we can find the following snippet in shrink_lruvec():
-> 
->     if (nr_file > nr_anon) {
->         ...
->     } else {
->         ...
->     }
-> 
-> However, the above code fragment broke the design idea. We can assume:
-> 
->       nr[LRU_ACTIVE_FILE] = 30
->       nr[LRU_INACTIVE_FILE] = 30
->       nr[LRU_ACTIVE_ANON] = 0
->       nr[LRU_INACTIVE_ANON] = 40
-> 
-> When the value of (nr_reclaimed < nr_to_reclaim) become false, there are
-> the following results:
-> 
->       nr[LRU_ACTIVE_FILE] = 15
->       nr[LRU_INACTIVE_FILE] = 15
->       nr[LRU_ACTIVE_ANON] = 0
->       nr[LRU_INACTIVE_ANON] = 25
->       nr_file = 30
->       nr_anon = 25
->       file_percent = 30 / 60 = 0.5
->       anon_percent = 25 / 40 = 0.65
-> 
-> According to the above design idea, we should scan some pages from ANON,
-> but in fact we execute the an error code path due to "if (nr_file > nr_anon)".
-> In this way, nr[lru] is likely to be a negative number. Luckily,
-> "nr[lru] -= min(nr[lru], nr_scanned)" can help us to filter this situation,
-> but it has rebelled against our design idea.
+All error/warnings:
 
-Mel, could you please pencil in some time to look at this one?
+   fs/notify/fanotify/fanotify_user.c: In function 'SYSC_fanotify_init':
+   fs/notify/fanotify/fanotify_user.c:701:2: error: implicit declaration of function 'personality' [-Werror=implicit-function-declaration]
+     if (force_o_largefile())
+     ^
+   In file included from include/uapi/linux/fcntl.h:4:0,
+                    from include/linux/fcntl.h:4,
+                    from fs/notify/fanotify/fanotify_user.c:2:
+>> arch/ia64/include/uapi/asm/fcntl.h:9:41: error: 'PER_LINUX32' undeclared (first use in this function)
+      (personality(current->personality) != PER_LINUX32)
+                                            ^
+   fs/notify/fanotify/fanotify_user.c:701:6: note: in expansion of macro 'force_o_largefile'
+     if (force_o_largefile())
+         ^
+   arch/ia64/include/uapi/asm/fcntl.h:9:41: note: each undeclared identifier is reported only once for each function it appears in
+      (personality(current->personality) != PER_LINUX32)
+                                            ^
+   fs/notify/fanotify/fanotify_user.c:701:6: note: in expansion of macro 'force_o_largefile'
+     if (force_o_largefile())
+         ^
+   cc1: some warnings being treated as errors
 
-Perhaps before doing that you could suggest what sort of testing might
-help us understand any runtime effects from this fix.
+vim +/PER_LINUX32 +9 arch/ia64/include/uapi/asm/fcntl.h
 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index a8ffe4e..2c35e34 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2087,8 +2086,8 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
->  	blk_start_plug(&plug);
->  	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
->  					nr[LRU_INACTIVE_FILE]) {
-> -		unsigned long nr_anon, nr_file, percentage;
-> -		unsigned long nr_scanned;
-> +		unsigned long nr_anon, nr_file, file_percent, anon_percent;
-> +		unsigned long nr_to_scan, nr_scanned, percentage;
->  
->  		for_each_evictable_lru(lru) {
->  			if (nr[lru]) {
+^1da177e include/asm-ia64/fcntl.h Linus Torvalds   2005-04-16   1  #ifndef _ASM_IA64_FCNTL_H
+^1da177e include/asm-ia64/fcntl.h Linus Torvalds   2005-04-16   2  #define _ASM_IA64_FCNTL_H
+^1da177e include/asm-ia64/fcntl.h Linus Torvalds   2005-04-16   3  /*
+^1da177e include/asm-ia64/fcntl.h Linus Torvalds   2005-04-16   4   * Modified 1998-2000
+^1da177e include/asm-ia64/fcntl.h Linus Torvalds   2005-04-16   5   *	David Mosberger-Tang <davidm@hpl.hp.com>, Hewlett-Packard Co.
+^1da177e include/asm-ia64/fcntl.h Linus Torvalds   2005-04-16   6   */
+^1da177e include/asm-ia64/fcntl.h Linus Torvalds   2005-04-16   7  
+ff67b597 include/asm-ia64/fcntl.h Tony Luck        2005-08-30   8  #define force_o_largefile()	\
+ff67b597 include/asm-ia64/fcntl.h Tony Luck        2005-08-30  @9  		(personality(current->personality) != PER_LINUX32)
+ef3daeda include/asm-ia64/fcntl.h Yoav Zach        2005-06-23  10  
+9317259e include/asm-ia64/fcntl.h Stephen Rothwell 2005-09-06  11  #include <asm-generic/fcntl.h>
+9317259e include/asm-ia64/fcntl.h Stephen Rothwell 2005-09-06  12  
+^1da177e include/asm-ia64/fcntl.h Linus Torvalds   2005-04-16  13  #endif /* _ASM_IA64_FCNTL_H */
 
-The increased stack use is a slight concern - we can be very deep here.
-I suspect the "percent" locals are more for convenience/clarity, and
-they could be eliminated (in a separate patch) at some cost of clarity?
+:::::: The code at line 9 was first introduced by commit
+:::::: ff67b59726a8cd3549b069dfa78de2f538d3b8e3 [IA64] Low byte of current->personality is not a bitmask.
+
+:::::: TO: Tony Luck <tony.luck@intel.com>
+:::::: CC: Tony Luck <tony.luck@intel.com>
+
+---
+0-DAY kernel build testing backend              Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
