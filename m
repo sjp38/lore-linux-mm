@@ -1,93 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 8265E6B0031
-	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 19:20:47 -0400 (EDT)
-Received: by mail-pb0-f53.google.com with SMTP id uo5so1232749pbc.12
-        for <linux-mm@kvack.org>; Wed, 18 Jun 2014 16:20:47 -0700 (PDT)
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A0EC6B0031
+	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 19:30:16 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id ey11so1231631pad.40
+        for <linux-mm@kvack.org>; Wed, 18 Jun 2014 16:30:16 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id ez7si3694339pab.241.2014.06.18.16.20.46
+        by mx.google.com with ESMTP id si5si3763711pab.41.2014.06.18.16.30.15
         for <linux-mm@kvack.org>;
-        Wed, 18 Jun 2014 16:20:46 -0700 (PDT)
-Date: Wed, 18 Jun 2014 16:20:45 -0700
+        Wed, 18 Jun 2014 16:30:15 -0700 (PDT)
+Date: Wed, 18 Jun 2014 16:30:13 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: arch/ia64/include/uapi/asm/fcntl.h:9:41: error: 'PER_LINUX32'
  undeclared
-Message-Id: <20140618162045.11cbe478dcd0b236f974f953@linux-foundation.org>
-In-Reply-To: <53a21a3e.1HJ5drRU6UL26Oem%fengguang.wu@intel.com>
+Message-Id: <20140618163013.6e8434a9bab01b46a7531ed4@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.02.1406181607490.22789@chino.kir.corp.google.com>
 References: <53a21a3e.1HJ5drRU6UL26Oem%fengguang.wu@intel.com>
+	<alpine.DEB.2.02.1406181607490.22789@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: Will Woods <wwoods@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org, "Luck, Tony" <tony.luck@intel.com>
+To: David Rientjes <rientjes@google.com>
+Cc: kbuild test robot <fengguang.wu@intel.com>, Will Woods <wwoods@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org, Tony Luck <tony.luck@gmail.com>
 
-On Thu, 19 Jun 2014 07:01:18 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+On Wed, 18 Jun 2014 16:09:26 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
 
-> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-> head:   e99cfa2d0634881b8a41d56c48b5956b9a3ba162
-> commit: 1e2ee49f7f1b79f0b14884fe6a602f0411b39552 fanotify: fix -EOVERFLOW with large files on 64-bit
-> date:   6 weeks ago
-> config: make ARCH=ia64 allmodconfig
->
-> All error/warnings:
-> 
->    fs/notify/fanotify/fanotify_user.c: In function 'SYSC_fanotify_init':
->    fs/notify/fanotify/fanotify_user.c:701:2: error: implicit declaration of function 'personality' [-Werror=implicit-function-declaration]
->      if (force_o_largefile())
->      ^
->    In file included from include/uapi/linux/fcntl.h:4:0,
->                     from include/linux/fcntl.h:4,
->                     from fs/notify/fanotify/fanotify_user.c:2:
-> >> arch/ia64/include/uapi/asm/fcntl.h:9:41: error: 'PER_LINUX32' undeclared (first use in this function)
->       (personality(current->personality) != PER_LINUX32)
->                                             ^
->    fs/notify/fanotify/fanotify_user.c:701:6: note: in expansion of macro 'force_o_largefile'
->      if (force_o_largefile())
->          ^
->    arch/ia64/include/uapi/asm/fcntl.h:9:41: note: each undeclared identifier is reported only once for each function it appears in
->       (personality(current->personality) != PER_LINUX32)
->                                             ^
->    fs/notify/fanotify/fanotify_user.c:701:6: note: in expansion of macro 'force_o_largefile'
->      if (force_o_largefile())
->          ^
->    cc1: some warnings being treated as errors
+> Yay for build errors reported six weeks later and after 3.15 had been 
+> released.
 
-Thanks.  This works for me:
+ia64 allmodconfig has other problems in 3.15:
 
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: ia64: arch/ia64/include/uapi/asm/fcntl.h needs personality.h
-
-fs/notify/fanotify/fanotify_user.c: In function 'SYSC_fanotify_init':
-fs/notify/fanotify/fanotify_user.c:726: error: implicit declaration of function 'personality'
-fs/notify/fanotify/fanotify_user.c:726: error: 'PER_LINUX32' undeclared (first use in this function)
-fs/notify/fanotify/fanotify_user.c:726: error: (Each undeclared identifier is reported only once
-fs/notify/fanotify/fanotify_user.c:726: error: for each function it appears in.)
-
-Reported-by: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Will Woods <wwoods@redhat.com>
-Cc: "Luck, Tony" <tony.luck@intel.com>
-Cc: <stable@vger.kernel.org>	[3.15.x]
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- arch/ia64/include/uapi/asm/fcntl.h |    1 +
- 1 file changed, 1 insertion(+)
-
-diff -puN arch/ia64/include/uapi/asm/fcntl.h~ia64-arch-ia64-include-uapi-asm-fcntlh-needs-personalityh arch/ia64/include/uapi/asm/fcntl.h
---- a/arch/ia64/include/uapi/asm/fcntl.h~ia64-arch-ia64-include-uapi-asm-fcntlh-needs-personalityh
-+++ a/arch/ia64/include/uapi/asm/fcntl.h
-@@ -8,6 +8,7 @@
- #define force_o_largefile()	\
- 		(personality(current->personality) != PER_LINUX32)
- 
-+#include <linux/personality.h>
- #include <asm-generic/fcntl.h>
- 
- #endif /* _ASM_IA64_FCNTL_H */
-_
+In file included from drivers/nfc/pn544/i2c.c:30:
+include/linux/unaligned/access_ok.h:7: error: redefinition of 'get_unaligned_le16'
+include/linux/unaligned/le_struct.h:6: note: previous definition of 'get_unaligned_le16' was here
+include/linux/unaligned/access_ok.h:12: error: redefinition of 'get_unaligned_le32'
+include/linux/unaligned/le_struct.h:11: note: previous definition of 'get_unaligned_le32' was here
+...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
