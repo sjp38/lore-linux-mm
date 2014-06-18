@@ -1,85 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 7205A6B0088
-	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 02:50:38 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id z10so389443pdj.29
-        for <linux-mm@kvack.org>; Tue, 17 Jun 2014 23:50:38 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id lq2si1114164pab.168.2014.06.17.23.50.36
-        for <linux-mm@kvack.org>;
-        Tue, 17 Jun 2014 23:50:37 -0700 (PDT)
-Message-ID: <53A136C4.5070206@cn.fujitsu.com>
-Date: Wed, 18 Jun 2014 14:50:44 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH 1/1] Move two pinned pages to non-movable node in
- kvm.
-References: <1403070600-6083-1-git-send-email-tangchen@cn.fujitsu.com> <20140618061230.GA10948@minantech.com>
-In-Reply-To: <20140618061230.GA10948@minantech.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 397D16B0037
+	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 04:23:32 -0400 (EDT)
+Received: by mail-wg0-f47.google.com with SMTP id k14so442086wgh.6
+        for <linux-mm@kvack.org>; Wed, 18 Jun 2014 01:23:31 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cz10si1702283wjb.75.2014.06.18.01.23.29
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 18 Jun 2014 01:23:29 -0700 (PDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 0/4] Improve sequential read throughput
+Date: Wed, 18 Jun 2014 09:23:23 +0100
+Message-Id: <1403079807-24690-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gleb Natapov <gleb@kernel.org>
-Cc: pbonzini@redhat.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, mgorman@suse.de, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, guz.fnst@cn.fujitsu.com, laijs@cn.fujitsu.com, kvm@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, Tang Chen <tangchen@cn.fujitsu.com>
+To: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jens Axboe <axboe@kernel.dk>, Mel Gorman <mgorman@suse.de>
 
-Hi Gleb,
+IO performance since 3.0 has been a mixed bag. In many respects we are
+better and in some we are worse and one of those places is sequential read
+performance, particularly for higher numbers of threads. This is visible
+in a number of benchmarks but tiobench has been the one I looked at the
+closest despite its age.
 
-Thanks for the quick reply. Please see below.
+                                      3.16.0-rc1            3.16.0-rc1                 3.0.0
+                                         vanilla          patch-series               vanilla
+Mean   SeqRead-MB/sec-1         121.88 (  0.00%)      133.84 (  9.81%)      134.59 ( 10.42%)
+Mean   SeqRead-MB/sec-2         101.99 (  0.00%)      115.01 ( 12.77%)      122.59 ( 20.20%)
+Mean   SeqRead-MB/sec-4          97.42 (  0.00%)      108.40 ( 11.27%)      114.78 ( 17.82%)
+Mean   SeqRead-MB/sec-8          83.39 (  0.00%)       97.50 ( 16.92%)      100.14 ( 20.09%)
+Mean   SeqRead-MB/sec-16         68.90 (  0.00%)       82.14 ( 19.22%)       81.64 ( 18.50%)
 
-On 06/18/2014 02:12 PM, Gleb Natapov wrote:
-> On Wed, Jun 18, 2014 at 01:50:00PM +0800, Tang Chen wrote:
->> [Questions]
->> And by the way, would you guys please answer the following questions for me ?
->>
->> 1. What's the ept identity pagetable for ?  Only one page is enough ?
->>
->> 2. Is the ept identity pagetable only used in realmode ?
->>     Can we free it once the guest is up (vcpu in protect mode)?
->>
->> 3. Now, ept identity pagetable is allocated in qemu userspace.
->>     Can we allocate it in kernel space ?
-> What would be the benefit?
+The impact on the other operations is negligible. Note that 3.0-vanilla is
+still far better but bringing the patch series further in line would involve
+increasing the CFQ target latency higher and there should be better options.
+This series is a major improvement on 3.16-rc1-vanilla at least so worth
+sending out to a larger audience for comment.
 
-I think the benefit is we can hot-remove the host memory a kvm guest
-is using.
+ block/cfq-iosched.c            |   2 +-
+ include/linux/mmzone.h         |   9 +++
+ include/linux/writeback.h      |   1 +
+ include/trace/events/pagemap.h |  16 ++--
+ mm/internal.h                  |   1 +
+ mm/mm_init.c                   |   5 +-
+ mm/page-writeback.c            |  15 ++--
+ mm/page_alloc.c                | 176 ++++++++++++++++++++++++++---------------
+ mm/swap.c                      |   4 +-
+ 9 files changed, 144 insertions(+), 85 deletions(-)
 
-For now, only memory in ZONE_MOVABLE can be migrated/hot-removed. And 
-the kernel
-will never use ZONE_MOVABLE memory. So if we can allocate these two 
-pages in
-kernel space, we can pin them without any trouble. When doing memory 
-hot-remove,
-the kernel will not try to migrate these two pages.
-
->
->>
->> 4. If I want to migrate these two pages, what do you think is the best way ?
->>
-> I answered most of those here: http://www.mail-archive.com/kvm@vger.kernel.org/msg103718.html
-
-I'm sorry I must missed this email.
-
-Seeing your advice, we can unpin these two pages and repin them in the 
-next EPT violation.
-So about this problem, which solution would you prefer, allocate these 
-two pages in kernel
-space, or migrate them before memory hot-remove ?
-
-I think the first solution is simpler. But I'm not quite sure if there 
-is any other pages
-pinned in memory. If we have the same problem with other kvm pages, I 
-think it is better to
-solve it in the second way.
-
-What do you think ?
-
-Thanks.
-
-
-
-
-
+-- 
+1.8.4.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
