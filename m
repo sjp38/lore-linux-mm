@@ -1,54 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CD496B0031
-	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 16:22:35 -0400 (EDT)
-Received: by mail-ig0-f171.google.com with SMTP id h18so5801288igc.10
-        for <linux-mm@kvack.org>; Wed, 18 Jun 2014 13:22:35 -0700 (PDT)
-Received: from mail-ig0-x230.google.com (mail-ig0-x230.google.com [2607:f8b0:4001:c05::230])
-        by mx.google.com with ESMTPS id x5si400339igl.25.2014.06.18.13.22.34
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 475BA6B0031
+	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 16:26:30 -0400 (EDT)
+Received: by mail-wi0-f177.google.com with SMTP id r20so1798316wiv.4
+        for <linux-mm@kvack.org>; Wed, 18 Jun 2014 13:26:29 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id t11si4139302wib.5.2014.06.18.13.26.28
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 18 Jun 2014 13:22:34 -0700 (PDT)
-Received: by mail-ig0-f176.google.com with SMTP id c1so100677igq.3
-        for <linux-mm@kvack.org>; Wed, 18 Jun 2014 13:22:34 -0700 (PDT)
-Date: Wed, 18 Jun 2014 13:22:32 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: slab.h: wrap the whole file with guarding macro
-In-Reply-To: <1403100695-1350-1-git-send-email-a.ryabinin@samsung.com>
-Message-ID: <alpine.DEB.2.02.1406181321010.10339@chino.kir.corp.google.com>
-References: <1403100695-1350-1-git-send-email-a.ryabinin@samsung.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 18 Jun 2014 13:26:28 -0700 (PDT)
+Date: Wed, 18 Jun 2014 16:26:17 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 03/12] mm: huge_memory: use GFP_TRANSHUGE when charging
+ huge pages
+Message-ID: <20140618202617.GE7331@cmpxchg.org>
+References: <1402948472-8175-1-git-send-email-hannes@cmpxchg.org>
+ <1402948472-8175-4-git-send-email-hannes@cmpxchg.org>
+ <20140617142317.GD19886@dhcp22.suse.cz>
+ <20140617153814.GB7331@cmpxchg.org>
+ <20140617162747.GB9572@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140617162747.GB9572@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 18 Jun 2014, Andrey Ryabinin wrote:
-
-> Guarding section:
-> 	#ifndef MM_SLAB_H
-> 	#define MM_SLAB_H
-> 	...
-> 	#endif
-> currently doesn't cover the whole mm/slab.h. It seems like it was
-> done unintentionally.
+On Tue, Jun 17, 2014 at 06:27:47PM +0200, Michal Hocko wrote:
+> On Tue 17-06-14 11:38:14, Johannes Weiner wrote:
+> > On Tue, Jun 17, 2014 at 04:23:17PM +0200, Michal Hocko wrote:
+> [...]
+> > > @@ -2647,7 +2645,7 @@ retry:
+> > >  	if (fatal_signal_pending(current))
+> > >  		goto bypass;
+> > >  
+> > > -	if (!oom)
+> > > +	if (!oom_gfp_allowed(gfp_mask))
+> > >  		goto nomem;
+> > 
+> > We don't actually need that check: if __GFP_NORETRY is set, we goto
+> > nomem directly after reclaim fails and don't even reach here.
 > 
-> Wrap the whole file by moving closing #endif to the end of it.
+> I meant it for further robustness. If we ever change oom_gfp_allowed in
+> future and have new and unexpected users then we should back off.  Or
+> maybe WARN_ON(!oom_gfp_allowed(gfp_mask)) would be more appropriate to
+> catch those and fix the charging code or the charger?
+
+There is a slight deviation from the page allocator in that we could
+potentially invoke OOM on NOFS charges, but I'm not sure whether NOFS
+flags are wrong to enter the memcg charge code, per se, so the WARN_ON
+would appear like a fairly random restriction to have...
+
+> > From eda800d2aa2376d347d6d4f7660e3450bd4c5dbb Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.cz>
+> > Date: Tue, 17 Jun 2014 11:10:59 -0400
+> > Subject: [patch] mm: memcontrol: remove explicit OOM parameter in charge path
+> > 
+> > For the page allocator, __GFP_NORETRY implies that no OOM should be
+> > triggered, whereas memcg has an explicit parameter to disable OOM.
+> > 
+> > The only callsites that want OOM disabled are THP charges and charge
+> > moving.  THP already uses __GFP_NORETRY and charge moving can use it
+> > as well - one full reclaim cycle should be plenty.  Switch it over,
+> > then remove the OOM parameter.
+> > 
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 > 
-> Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
-Acked-by: David Rientjes <rientjes@google.com>
-
-Looks like
-
-ca34956b804b ("slab: Common definition for kmem_cache_node")
-e25839f67948 ("mm/slab: Sharing s_next and s_stop between slab and slub
-276a2439ce79 ("mm/slab: Give s_next and s_stop slab-specific names")
-
-added onto the header without the guard and it has been this way since 
-Jan 10 2013.  Andrey, how did you notice that this was an issue?  Simply 
-by visual inspection?
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
