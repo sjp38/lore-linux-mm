@@ -1,134 +1,195 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 36C626B0031
-	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 07:29:12 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y10so611074pdj.19
-        for <linux-mm@kvack.org>; Wed, 18 Jun 2014 04:29:11 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id fn2si1887251pab.164.2014.06.18.04.29.10
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 18 Jun 2014 04:29:11 -0700 (PDT)
-Message-ID: <53A176F2.8060502@oracle.com>
-Date: Wed, 18 Jun 2014 07:24:34 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id D37DE6B0031
+	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 07:49:16 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id ey11so662146pad.26
+        for <linux-mm@kvack.org>; Wed, 18 Jun 2014 04:49:16 -0700 (PDT)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [2001:44b8:8060:ff02:300:1:2:6])
+        by mx.google.com with ESMTP id ei3si1900750pbb.219.2014.06.18.04.49.14
+        for <linux-mm@kvack.org>;
+        Wed, 18 Jun 2014 04:49:15 -0700 (PDT)
+Date: Wed, 18 Jun 2014 21:48:58 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: xfs: two deadlock problems occur when kswapd writebacks XFS
+ pages.
+Message-ID: <20140618114858.GQ9508@dastard>
+References: <53A0013A.1010100@jp.fujitsu.com>
+ <20140617132609.GI9508@dastard>
+ <53A15DC7.50001@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: mm: NULL ptr deref in remove_migration_pte
-References: <534E9ACA.2090008@oracle.com> <5367B365.1070709@oracle.com> <537FE9F3.40508@oracle.com> <alpine.LSU.2.11.1405261255530.3649@eggly.anvils> <538498A1.7010305@oracle.com> <alpine.LSU.2.11.1406092104330.12382@eggly.anvils> <539F5BC5.3010501@oracle.com> <alpine.LSU.2.11.1406171959470.1535@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1406171959470.1535@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53A15DC7.50001@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Mel Gorman <mgorman@suse.de>, Bob Liu <bob.liu@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@gentwo.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
+To: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+Cc: xfs@oss.sgi.com, linux-mm@kvack.org
 
-On 06/17/2014 11:36 PM, Hugh Dickins wrote:
-> On Mon, 16 Jun 2014, Sasha Levin wrote:
->> On 06/10/2014 12:20 AM, Hugh Dickins wrote:
->>> Although there's nothing in the backtrace to implicate it,
->>> I think this crash is caused by THP: please try this patch - thanks.
->>>
->>> [PATCH] mm: let mm_find_pmd fix buggy race with THP fault
+On Wed, Jun 18, 2014 at 06:37:11PM +0900, Masayoshi Mizuma wrote:
+> 
+> On Tue, 17 Jun 2014 23:26:09 +1000 Dave Chinner wrote:
+> >On Tue, Jun 17, 2014 at 05:50:02PM +0900, Masayoshi Mizuma wrote:
+> >>I found two deadlock problems occur when kswapd writebacks XFS pages.
+> >>I detected these problems on RHEL kernel actually, and I suppose these
+> >>also happen on upstream kernel (3.16-rc1).
+> >>
+> >>1.
+> >>
+> >>A process (processA) has acquired read semaphore "xfs_cil.xc_ctx_lock"
+> >>at xfs_log_commit_cil() and it is waiting for the kswapd. Then, a
+> >>kworker has issued xlog_cil_push_work() and it is waiting for acquiring
+> >>the write semaphore. kswapd is waiting for acquiring the read semaphore
+> >>at xfs_log_commit_cil() because the kworker has been waiting before for
+> >>acquiring the write semaphore at xlog_cil_push(). Therefore, a deadlock
+> >>happens.
+> >>
+> >>The deadlock flow is as follows.
+> >>
+> >>   processA              | kworker                  | kswapd
+> >>   ----------------------+--------------------------+----------------------
+> >>| xfs_trans_commit      |                          |
+> >>| xfs_log_commit_cil    |                          |
+> >>| down_read(xc_ctx_lock)|                          |
+> >>| xlog_cil_insert_items |                          |
+> >>| xlog_cil_insert_format_items                     |
+> >>| kmem_alloc            |                          |
+> >>| :                     |                          |
+> >>| shrink_inactive_list  |                          |
+> >>| congestion_wait       |                          |
+> >>| # waiting for kswapd..|                          |
+> >>|                       | xlog_cil_push_work       |
+> >>|                       | xlog_cil_push            |
+> >>|                       | xfs_trans_commit         |
+> >>|                       | down_write(xc_ctx_lock)  |
+> >>|                       | # waiting for processA...|
+> >>|                       |                          | shrink_page_list
+> >>|                       |                          | xfs_vm_writepage
+> >>|                       |                          | xfs_map_blocks
+> >>|                       |                          | xfs_iomap_write_allocate
+> >>|                       |                          | xfs_trans_commit
+> >>|                       |                          | xfs_log_commit_cil
+> >>|                       |                          | down_read(xc_ctx_lock)
+> >>V(time)                 |                          | # waiting for kworker...
+> >>   ----------------------+--------------------------+-----------------------
+> >
+> >Where's the deadlock here? congestion_wait() simply times out and
+> >processA continues onward doing memory reclaim. It should continue
+> >making progress, albeit slowly, and if it isn't then the allocation
+> >will fail. If the allocation repeatedly fails then you should be
+> >seeing this in the logs:
+> >
+> >XFS: possible memory allocation deadlock in <func> (mode:0x%x)
+> >
+> >If you aren't seeing that in the logs a few times a second and never
+> >stopping, then the system is still making progress and isn't
+> >deadlocked.
+> 
+> processA is stuck at following while loop. In this situation,
+> too_many_isolated() always returns true because kswapd is also stuck...
+
+How is this a filesystem problem, though? kswapd is not guaranteed
+to make writeback progress It's *always* been able to stall waiting
+on log space or transaction commit during writeback like this, and
+filesystems are allowed to simply redirty pages to avoid deadlocks.
+
+For those playing along at home, this is also the reason why
+filesystems can't use mempools for writeback structures - they can't
+guarantee forward progress in low memory situations and mempools
+aren't a solution to memory allocation problems.
+
+Here's a basic example for you:
+
+Process A				kswapd
+
+start transaction
+allocate block
+lock AGF 1
+read btree block
+allocate memory for btree buffer
+<direct memory reclaim>
+loop while (too many isolated)
+    <blocks waiting on kswapd>
+
+					shrink_page_list
+					xfs_vm_writepage
+					xfs_map_blocks
+					xfs_iomap_write_allocate
+					....
+					start transaction
+					<allocate block>
+					lock AGF 1
+					<blocks waiting on process A>
+
+See how simple it is to prevent kswapd from making progress? I can
+think of many, many other ways that XFS can prevent kswapd from
+making progress and none of them are new....
+
+> ---
+> static noinline_for_stack unsigned long
+> shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>                      struct scan_control *sc, enum lru_list lru)
+> {
 > ...
->>
->> It took some time to hit something here,
+>         while (unlikely(too_many_isolated(zone, file, sc))) {
+>                 congestion_wait(BLK_RW_ASYNC, HZ/10);
 > 
-> I take that to mean that you were running with the mm_find_pmd patch in,
-> and it seemed to take a little longer to hit the problem than before?
+>                 /* We are about to die and free our memory. Return now. */
+>                 if (fatal_signal_pending(current))
+>                         return SWAP_CLUSTER_MAX;
+>         }
+> ---
+> 
+> On that point, this problem is similar to the problem fixed by
+> the following commit.
+> 
+> 1f6d64829d xfs: block allocation work needs to be kswapd aware
 
-Yes. I've also only seen it once so far.
+Which has already proven to be the wrong thing to do. I'm ready to
+revert that because of other performance and memory reclaim
+regressions I've isolated to that patch. Indeed, it makes my test
+VMs start to issue allocation deadlock warnings from XFS under
+workloads that it's never had problems with before....
 
->> but I think that the following is related:
-> 
-> I agree it does look like a variant of what you got before the patch;
-> but I still think the patch is good, and don't believe it caused this.
-> 
-> It looks as if these symptoms have an additional cause, which that patch
-> did not even attempt to address.  I've looked around, but not found what.
-> 
->>
->> [  489.152166] INFO: trying to register non-static key.
->> [  489.152166] the code is fine but needs lockdep annotation.
->> [  489.152166] turning off the locking correctness validator.
->> [  489.152166] CPU: 23 PID: 12148 Comm: trinity-c79 Not tainted 3.15.0-next-20140616-sasha-00025-g0fd1f7d-dirty #657
->> [  489.152166]  ffff8804dd013000 ffff8804e15a38e8 ffffffff965140d1 0000000000000002
->> [  489.152166]  ffffffff9a5ce7c0 ffff8804e15a39e8 ffffffff931ca363 ffff8804e15a3928
->> [  489.152166]  0000000000000000 0000000000000000 ffff8804e4730978 0000000000000001
->> [  489.152166] Call Trace:
->> [  489.152166] dump_stack (lib/dump_stack.c:52)
->> [  489.152166] __lock_acquire (kernel/locking/lockdep.c:743 kernel/locking/lockdep.c:3078)
->> [  489.152166] ? __lock_acquire (kernel/locking/lockdep.c:3189)
->> [  489.152166] ? kvm_clock_read (./arch/x86/include/asm/preempt.h:90 arch/x86/kernel/kvmclock.c:86)
->> [  489.152166] lock_acquire (./arch/x86/include/asm/current.h:14 kernel/locking/lockdep.c:3602)
->> [  489.152166] ? __page_check_address (include/linux/spinlock.h:303 mm/rmap.c:630)
->> [  489.152166] _raw_spin_lock (include/linux/spinlock_api_smp.h:143 kernel/locking/spinlock.c:151)
->> [  489.152166] ? __page_check_address (include/linux/spinlock.h:303 mm/rmap.c:630)
->> [  489.152166] ? get_parent_ip (kernel/sched/core.c:2546)
->> [  489.152166] __page_check_address (include/linux/spinlock.h:303 mm/rmap.c:630)
->> [  489.152166] try_to_unmap_one (mm/rmap.c:1153)
->> [  489.152166] ? __const_udelay (arch/x86/lib/delay.c:126)
->> [  489.152166] ? __rcu_read_unlock (kernel/rcu/update.c:97)
->> [  489.152166] ? page_lock_anon_vma_read (mm/rmap.c:448)
->> [  489.152166] rmap_walk (mm/rmap.c:1654 mm/rmap.c:1725)
->> [  489.152166] ? preempt_count_sub (kernel/sched/core.c:2602)
->> [  489.152166] try_to_unmap (mm/rmap.c:1547)
->> [  489.152166] ? page_remove_rmap (mm/rmap.c:1144)
->> [  489.152166] ? invalid_migration_vma (mm/rmap.c:1503)
->> [  489.152166] ? try_to_unmap_one (mm/rmap.c:1411)
->> [  489.152166] ? anon_vma_prepare (mm/rmap.c:448)
->> [  489.152166] ? invalid_mkclean_vma (mm/rmap.c:1498)
->> [  489.152166] ? page_get_anon_vma (mm/rmap.c:405)
->> [  489.152166] migrate_pages (mm/migrate.c:913 mm/migrate.c:959 mm/migrate.c:1146)
->> [  489.152166] ? _raw_spin_unlock_irq (./arch/x86/include/asm/preempt.h:98 include/linux/spinlock_api_smp.h:169 kernel/locking/spinlock.c:199)
->> [  489.152166] ? perf_trace_mm_numa_migrate_ratelimit (mm/migrate.c:1594)
->> [  489.152166] migrate_misplaced_page (mm/migrate.c:1754)
->> [  489.152166] __handle_mm_fault (mm/memory.c:3157 mm/memory.c:3207 mm/memory.c:3317)
->> [  489.152166] handle_mm_fault (include/linux/memcontrol.h:151 mm/memory.c:3343)
->> [  489.152166] ? __do_page_fault (arch/x86/mm/fault.c:1163)
->> [  489.152166] __do_page_fault (arch/x86/mm/fault.c:1230)
->> [  489.152166] ? vtime_account_user (kernel/sched/cputime.c:687)
->> [  489.152166] ? get_parent_ip (kernel/sched/core.c:2546)
->> [  489.152166] ? preempt_count_sub (kernel/sched/core.c:2602)
->> [  489.152166] ? context_tracking_user_exit (kernel/context_tracking.c:184)
->> [  489.152166] ? __this_cpu_preempt_check (lib/smp_processor_id.c:63)
->> [  489.152166] ? trace_hardirqs_off_caller (kernel/locking/lockdep.c:2638 (discriminator 2))
->> [  489.152166] trace_do_page_fault (arch/x86/mm/fault.c:1313 include/linux/jump_label.h:115 include/linux/context_tracking_state.h:27 include/linux/context_tracking.h:45 arch/x86/mm/fault.c:1314)
->> [  489.152166] do_async_page_fault (arch/x86/kernel/kvm.c:264)
->> [  489.152166] async_page_fault (arch/x86/kernel/entry_64.S:1322)
-> 
-> Originally I thought that the trace above and the trace below were
-> probably unrelated, there being more than five seconds between them.
-> 
-> But then noticed ffff8804e4730978 in the stack contents above, with
-> ffff8804e4730e10 the object address in the slub diagnostic below.
-> 
-> As Christoph points out, the slub diagnostic shows that something
-> has been overwriting with zeroes there.
-> 
-> Maybe the whole page (containing the slub-allocated page table lock
-> being checked by lockdep above) has been overwritten with zeroes.
-> 
-> From experience a few months ago in another context, I believe that
-> would issue precisely the cryptic "INFO: trying to register non-static
-> key.  the code is fine but needs lockdep annotation." seen above.
-> 
-> I think I'm going to ignore this one for now, assuming it to be
-> some randomish slab corruption from a bad patch in linux-next.
-> 
-> (I do take reports on 3.XY-rcZ more seriously than reports on
-> linux-next; but recognize that you're trying to give advance
-> warning, and to cover different territory than Dave does.)
-> 
-> If it's reproducible on linux-next in a week or so's time,
-> please let me know, and I'll worry about it some more then.
+> So, the same solution, for example we add PF_KSWAPD to current->flags
+> before calling kmem_alloc(), may fix this problem1...
 
-Sounds good to me. I'll ping again whenever the issue reproduces. The
-way it looks now it won't be any time soon.
+That's just a nasty hack, not a solution.
 
+What we need to know is exactly why we are getting stuck with too
+many isolated pages, and why kswapd seems to be the only thing that
+can "unisolate" them. Why isn't the bdi flusher thread making
+progress cleaning pages?  Is it stuck in memory reclaim, too? Why do
+we wait forever rather than failing, winding up the reclaim priority
+and retrying?
 
-Thanks,
-Sasha
+I'm not going hack stuff into a filesystem when the problem really
+looks like a direct reclaim throttling issue. We need to understand
+exactly how reclaim is getting stuck here and then work out how
+direct reclaim can avoid getting stuck. Especially in the context of
+GFP_NOFS allocations...
+
+> >>To fix this, should we up the read semaphore before calling kmem_alloc()
+> >>at xlog_cil_insert_format_items() to avoid blocking the kworker? Or,
+> >>should we the second argument of kmem_alloc() from KM_SLEEP|KM_NOFS
+> >>to KM_NOSLEEP to avoid waiting for the kswapd. Or...
+> >
+> >Can't do that - it's in transaction context and so reclaim can't
+> >recurse into the fs. Even if you do remove the flag, kmem_alloc()
+> >will re-add the GFP_NOFS silently because of the PF_FSTRANS flag on
+> >the task, so it won't affect anything...
+> 
+> I think kmem_alloc() doesn't re-add the GFP_NOFS if the second argument
+> is set to KM_NOSLEEP. kmem_alloc() will re-add GFP_ATOMIC and __GFP_NOWARN.
+
+The second argument is KM_SLEEP|KM_NOFS, so what it does when
+KM_NOSLEEP is set is irrelevant to the discussion at hand.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
