@@ -1,203 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 24FCA6B0031
-	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 14:52:56 -0400 (EDT)
-Received: by mail-qg0-f49.google.com with SMTP id f51so2476113qge.8
-        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 11:52:55 -0700 (PDT)
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D7AC6B0031
+	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 15:10:34 -0400 (EDT)
+Received: by mail-qg0-f50.google.com with SMTP id j5so2476588qga.23
+        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 12:10:34 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c36si3930300qgd.64.2014.06.19.11.52.55
+        by mx.google.com with ESMTPS id t12si5872018qam.37.2014.06.19.12.10.33
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Jun 2014 11:52:55 -0700 (PDT)
-Date: Thu, 19 Jun 2014 20:15:43 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 1/3] fork/exec: cleanup mm initialization
-Message-ID: <20140619181543.GA32548@redhat.com>
-References: <fa98629155872c1b97ba4dcd00d509a1e467c1c3.1403168346.git.vdavydov@parallels.com>
+        Thu, 19 Jun 2014 12:10:33 -0700 (PDT)
+Date: Thu, 19 Jun 2014 16:00:24 -0300
+From: Marcelo Tosatti <mtosatti@redhat.com>
+Subject: Re: [RFC PATCH 1/1] Move two pinned pages to non-movable node in kvm.
+Message-ID: <20140619190024.GA3887@amt.cnet>
+References: <1403070600-6083-1-git-send-email-tangchen@cn.fujitsu.com>
+ <20140618061230.GA10948@minantech.com>
+ <53A136C4.5070206@cn.fujitsu.com>
+ <20140619092031.GA429@minantech.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <fa98629155872c1b97ba4dcd00d509a1e467c1c3.1403168346.git.vdavydov@parallels.com>
+In-Reply-To: <20140619092031.GA429@minantech.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>, Andi Kleen <andi@firstfloor.org>
-Cc: akpm@linux-foundation.org, rientjes@google.com, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Gleb Natapov <gleb@kernel.org>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, pbonzini@redhat.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, mgorman@suse.de, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, guz.fnst@cn.fujitsu.com, laijs@cn.fujitsu.com, kvm@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, Avi Kivity <avi.kivity@gmail.com>
 
-On 06/19, Vladimir Davydov wrote:
->
-> mm initialization on fork/exec is spread all over the place, which makes
-> the code look inconsistent.
->
-> We have mm_init(), which is supposed to init/nullify mm's internals, but
-> it doesn't init all the fields it should:
->
->  - on fork ->mmap,mm_rb,vmacache_seqnum,map_count,mm_cpumask,locked_vm
->    are zeroed in dup_mmap();
->
->  - on fork ->pmd_huge_pte is zeroed in dup_mm(), immediately before
->    calling mm_init();
->
->  - ->cpu_vm_mask_var ptr is initialized by mm_init_cpumask(), which is
->    called before mm_init() on both fork and exec;
->
->  - ->context is initialized by init_new_context(), which is called after
->    mm_init() on both fork and exec;
->
-> Let's consolidate all the initializations in mm_init() to make the code
-> look cleaner.
-
-Yes, agreed. Afaics, the patch is fine (2 and 3 too).
-
-
-This is off-topic, but why init_new_context() copies ldt even on exec?
-
-
-> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-> ---
->  fs/exec.c                |    4 ----
->  include/linux/mm_types.h |    1 +
->  kernel/fork.c            |   47 ++++++++++++++++++++--------------------------
->  3 files changed, 21 insertions(+), 31 deletions(-)
+On Thu, Jun 19, 2014 at 12:20:32PM +0300, Gleb Natapov wrote:
+> CCing Marcelo,
 > 
-> diff --git a/fs/exec.c b/fs/exec.c
-> index a3d33fe592d6..2ef2751f5a8d 100644
-> --- a/fs/exec.c
-> +++ b/fs/exec.c
-> @@ -368,10 +368,6 @@ static int bprm_mm_init(struct linux_binprm *bprm)
->  	if (!mm)
->  		goto err;
->  
-> -	err = init_new_context(current, mm);
-> -	if (err)
-> -		goto err;
-> -
->  	err = __bprm_mm_init(bprm);
->  	if (err)
->  		goto err;
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 96c5750e3110..21bff4be4379 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -461,6 +461,7 @@ static inline void mm_init_cpumask(struct mm_struct *mm)
->  #ifdef CONFIG_CPUMASK_OFFSTACK
->  	mm->cpu_vm_mask_var = &mm->cpumask_allocation;
->  #endif
-> +	cpumask_clear(mm->cpu_vm_mask_var);
->  }
->  
->  /* Future-safe accessor for struct mm_struct's cpu_vm_mask. */
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index d2799d1fc952..01f0d0c56cb9 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -365,12 +365,6 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
->  	 */
->  	down_write_nested(&mm->mmap_sem, SINGLE_DEPTH_NESTING);
->  
-> -	mm->locked_vm = 0;
-> -	mm->mmap = NULL;
-> -	mm->vmacache_seqnum = 0;
-> -	mm->map_count = 0;
-> -	cpumask_clear(mm_cpumask(mm));
-> -	mm->mm_rb = RB_ROOT;
->  	rb_link = &mm->mm_rb.rb_node;
->  	rb_parent = NULL;
->  	pprev = &mm->mmap;
-> @@ -529,17 +523,27 @@ static void mm_init_aio(struct mm_struct *mm)
->  
->  static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
->  {
-> +	mm->mmap = NULL;
-> +	mm->mm_rb = RB_ROOT;
-> +	mm->vmacache_seqnum = 0;
->  	atomic_set(&mm->mm_users, 1);
->  	atomic_set(&mm->mm_count, 1);
->  	init_rwsem(&mm->mmap_sem);
->  	INIT_LIST_HEAD(&mm->mmlist);
->  	mm->core_state = NULL;
->  	atomic_long_set(&mm->nr_ptes, 0);
-> +	mm->map_count = 0;
-> +	mm->locked_vm = 0;
->  	memset(&mm->rss_stat, 0, sizeof(mm->rss_stat));
->  	spin_lock_init(&mm->page_table_lock);
-> +	mm_init_cpumask(mm);
->  	mm_init_aio(mm);
->  	mm_init_owner(mm, p);
-> +	mmu_notifier_mm_init(mm);
->  	clear_tlb_flush_pending(mm);
-> +#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
-> +	mm->pmd_huge_pte = NULL;
-> +#endif
->  
->  	if (current->mm) {
->  		mm->flags = current->mm->flags & MMF_INIT_MASK;
-> @@ -549,11 +553,17 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
->  		mm->def_flags = 0;
->  	}
->  
-> -	if (likely(!mm_alloc_pgd(mm))) {
-> -		mmu_notifier_mm_init(mm);
-> -		return mm;
-> -	}
-> +	if (mm_alloc_pgd(mm))
-> +		goto fail_nopgd;
-> +
-> +	if (init_new_context(p, mm))
-> +		goto fail_nocontext;
->  
-> +	return mm;
-> +
-> +fail_nocontext:
-> +	mm_free_pgd(mm);
-> +fail_nopgd:
->  	free_mm(mm);
->  	return NULL;
->  }
-> @@ -587,7 +597,6 @@ struct mm_struct *mm_alloc(void)
->  		return NULL;
->  
->  	memset(mm, 0, sizeof(*mm));
-> -	mm_init_cpumask(mm);
->  	return mm_init(mm, current);
->  }
->  
-> @@ -819,17 +828,10 @@ static struct mm_struct *dup_mm(struct task_struct *tsk)
->  		goto fail_nomem;
->  
->  	memcpy(mm, oldmm, sizeof(*mm));
-> -	mm_init_cpumask(mm);
->  
-> -#if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
-> -	mm->pmd_huge_pte = NULL;
-> -#endif
->  	if (!mm_init(mm, tsk))
->  		goto fail_nomem;
->  
-> -	if (init_new_context(tsk, mm))
-> -		goto fail_nocontext;
-> -
->  	dup_mm_exe_file(oldmm, mm);
->  
->  	err = dup_mmap(mm, oldmm);
-> @@ -851,15 +853,6 @@ free_pt:
->  
->  fail_nomem:
->  	return NULL;
-> -
-> -fail_nocontext:
-> -	/*
-> -	 * If init_new_context() failed, we cannot use mmput() to free the mm
-> -	 * because it calls destroy_context()
-> -	 */
-> -	mm_free_pgd(mm);
-> -	free_mm(mm);
-> -	return NULL;
->  }
->  
->  static int copy_mm(unsigned long clone_flags, struct task_struct *tsk)
-> -- 
-> 1.7.10.4
+> On Wed, Jun 18, 2014 at 02:50:44PM +0800, Tang Chen wrote:
+> > Hi Gleb,
+> > 
+> > Thanks for the quick reply. Please see below.
+> > 
+> > On 06/18/2014 02:12 PM, Gleb Natapov wrote:
+> > >On Wed, Jun 18, 2014 at 01:50:00PM +0800, Tang Chen wrote:
+> > >>[Questions]
+> > >>And by the way, would you guys please answer the following questions for me ?
+> > >>
+> > >>1. What's the ept identity pagetable for ?  Only one page is enough ?
+> > >>
+> > >>2. Is the ept identity pagetable only used in realmode ?
+> > >>    Can we free it once the guest is up (vcpu in protect mode)?
+> > >>
+> > >>3. Now, ept identity pagetable is allocated in qemu userspace.
+> > >>    Can we allocate it in kernel space ?
+> > >What would be the benefit?
+> > 
+> > I think the benefit is we can hot-remove the host memory a kvm guest
+> > is using.
+> > 
+> > For now, only memory in ZONE_MOVABLE can be migrated/hot-removed. And the
+> > kernel
+> > will never use ZONE_MOVABLE memory. So if we can allocate these two pages in
+> > kernel space, we can pin them without any trouble. When doing memory
+> > hot-remove,
+> > the kernel will not try to migrate these two pages.
+> But we can do that by other means, no? The patch you've sent for instance.
 > 
+> > 
+> > >
+> > >>
+> > >>4. If I want to migrate these two pages, what do you think is the best way ?
+> > >>
+> > >I answered most of those here: http://www.mail-archive.com/kvm@vger.kernel.org/msg103718.html
+> > 
+> > I'm sorry I must missed this email.
+> > 
+> > Seeing your advice, we can unpin these two pages and repin them in the next
+> > EPT violation.
+> > So about this problem, which solution would you prefer, allocate these two
+> > pages in kernel
+> > space, or migrate them before memory hot-remove ?
+> > 
+> > I think the first solution is simpler. But I'm not quite sure if there is
+> > any other pages
+> > pinned in memory. If we have the same problem with other kvm pages, I think
+> > it is better to
+> > solve it in the second way.
+> > 
+> > What do you think ?
+> Remove pinning is preferable. In fact looks like for identity pagetable
+> it should be trivial, just don't pin. APIC access page is a little bit
+> more complicated since its physical address needs to be tracked to be
+> updated in VMCS.
+
+Yes, and there are new users of page pinning as well soon (see PEBS
+threads on kvm-devel).
+
+Was thinking of notifiers scheme. Perhaps:
+
+->begin_page_unpin(struct page *page)
+	- Remove any possible access to page.
+
+->end_page_unpin(struct page *page)
+	- Reinstantiate any possible access to page.
+
+For KVM:
+
+->begin_page_unpin()
+	- Remove APIC-access page address from VMCS.
+	  or
+	- Remove spte translation to pinned page.
+	
+	- Put vcpu in state where no VM-entries are allowed.
+
+->end_page_unpin()
+	- Setup APIC-access page, ...
+	- Allow vcpu to VM-entry.
+
+
+Because allocating APIC access page from distant NUMA node can
+be a performance problem, i believe.
+
+I'd be happy to know why notifiers are overkill.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
