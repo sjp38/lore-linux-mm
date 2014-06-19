@@ -1,45 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f182.google.com (mail-vc0-f182.google.com [209.85.220.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 228426B0031
-	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 12:25:43 -0400 (EDT)
-Received: by mail-vc0-f182.google.com with SMTP id il7so2507511vcb.27
-        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 09:25:42 -0700 (PDT)
-Received: from mail-ve0-x233.google.com (mail-ve0-x233.google.com [2607:f8b0:400c:c01::233])
-        by mx.google.com with ESMTPS id 6si2629711vct.68.2014.06.19.09.25.42
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 19 Jun 2014 09:25:42 -0700 (PDT)
-Received: by mail-ve0-f179.google.com with SMTP id sa20so2509078veb.24
-        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 09:25:42 -0700 (PDT)
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 388086B0031
+	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 12:36:20 -0400 (EDT)
+Received: by mail-wi0-f177.google.com with SMTP id r20so3158351wiv.4
+        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 09:36:19 -0700 (PDT)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.198])
+        by mx.google.com with ESMTP id by5si7857986wjc.114.2014.06.19.09.36.18
+        for <linux-mm@kvack.org>;
+        Thu, 19 Jun 2014 09:36:18 -0700 (PDT)
+Date: Thu, 19 Jun 2014 19:36:14 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: kernel BUG - handle_mm_fault - Ubuntu 14.04 kernel
+ 3.13.0-29-generic
+Message-ID: <20140619163614.GA24297@node.dhcp.inet.fi>
 MIME-Version: 1.0
-In-Reply-To: <20140618163013.6e8434a9bab01b46a7531ed4@linux-foundation.org>
-References: <53a21a3e.1HJ5drRU6UL26Oem%fengguang.wu@intel.com>
-	<alpine.DEB.2.02.1406181607490.22789@chino.kir.corp.google.com>
-	<20140618163013.6e8434a9bab01b46a7531ed4@linux-foundation.org>
-Date: Thu, 19 Jun 2014 09:25:42 -0700
-Message-ID: <CA+8MBbKK6d+9D2SdebNavYPf9ZyjkCyqj8gvvq8wxPjpWs9Opg@mail.gmail.com>
-Subject: Re: arch/ia64/include/uapi/asm/fcntl.h:9:41: error: 'PER_LINUX32' undeclared
-From: Tony Luck <tony.luck@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53A30B63.107@brockmann-consult.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, kbuild test robot <fengguang.wu@intel.com>, Will Woods <wwoods@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org
+To: Peter Maloney <peter.maloney@brockmann-consult.de>, Rik van Riel <riel@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Kamal Mostafa <kamal@canonical.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On Wed, Jun 18, 2014 at 4:30 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> ia64 allmodconfig has other problems in 3.15:
->
-> In file included from drivers/nfc/pn544/i2c.c:30:
-> include/linux/unaligned/access_ok.h:7: error: redefinition of 'get_unaligned_le16'
+On Thu, Jun 19, 2014 at 06:10:11PM +0200, Peter Maloney wrote:
+> Hi, can someone please take a look at this and tell me what is going on?
+> 
+> The event log reports no ECC errors.
+> 
+> This machine was working fine with an older Ubuntu version, and has
+> failed this way twice since an upgrade 2 weeks ago.
+> 
+> Symptoms include:
+>  - load goes up high, currently 1872.72
+>  - "ps -ef" hangs
+>  - this time I tested "echo w > /proc/sysrq-trigger" which made the
+> local shell and ssh hang, and ctrl+alt+del doesn't work, but machine
+> still responds to ping
+> 
+> Please CC me; I'm not on the list.
+> 
+> Thanks,
+> Peter
+> 
+> 
+> 
+> Here's the log:
+> 
+> Jun 12 15:42:42 node73 kernel: [17196.908781] ------------[ cut here
+> ]------------
+> Jun 12 15:42:42 node73 kernel: [17196.909789] kernel BUG at
+> /build/buildd/linux-3.13.0/mm/memory.c:3756!
 
-I don't regularly build allmodconfig ... so this stuff slips by.  It's
-hard to build up
-enthusiasm for making a NFC driver work on ia64.  I don't see a lot of people
-pulling a 200lb 4U server off the rack and hauling it to the subway so they can
-buy a ticket by bumping it against the ticket machine.
+Looks like this:
 
--Tony
+http://lkml.org/lkml/2014/5/8/275
+
+It seems the commit 107437febd49 has added to 3.13.11.3 "extended stable",
+but not in other -stable.
+
+Rik, should it be there too?
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
