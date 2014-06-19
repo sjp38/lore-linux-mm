@@ -1,49 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F4D46B0031
-	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 09:59:54 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id y13so1847133pdi.41
-        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 06:59:54 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id hb8si5912017pbc.8.2014.06.19.06.59.53
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id D53306B0031
+	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 10:29:55 -0400 (EDT)
+Received: by mail-qg0-f44.google.com with SMTP id j107so2185136qga.3
+        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 07:29:55 -0700 (PDT)
+Received: from qmta01.emeryville.ca.mail.comcast.net (qmta01.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:16])
+        by mx.google.com with ESMTP id o5si6520366qck.6.2014.06.19.07.29.54
         for <linux-mm@kvack.org>;
-        Thu, 19 Jun 2014 06:59:53 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <20140619132240.GF25975@nuc-i3427.alporthouse.com>
-References: <20140616134124.0ED73E00A2@blue.fi.intel.com>
- <1403162349-14512-1-git-send-email-chris@chris-wilson.co.uk>
- <20140619115018.412D2E00A3@blue.fi.intel.com>
- <20140619120004.GC25975@nuc-i3427.alporthouse.com>
- <20140619125746.25A03E00A3@blue.fi.intel.com>
- <20140619132240.GF25975@nuc-i3427.alporthouse.com>
-Subject: Re: [PATCH] mm: Report attempts to overwrite PTE from
- remap_pfn_range()
-Content-Transfer-Encoding: 7bit
-Message-Id: <20140619135944.20837E00A3@blue.fi.intel.com>
-Date: Thu, 19 Jun 2014 16:59:44 +0300 (EEST)
+        Thu, 19 Jun 2014 07:29:55 -0700 (PDT)
+Date: Thu, 19 Jun 2014 09:29:52 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: [PATCH] mm: percpu: micro-optimize round-to-even
+In-Reply-To: <20140619132536.GF11042@htj.dyndns.org>
+Message-ID: <alpine.DEB.2.11.1406190925430.2785@gentwo.org>
+References: <1403172149-25353-1-git-send-email-linux@rasmusvillemoes.dk> <20140619132536.GF11042@htj.dyndns.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, intel-gfx@lists.freedesktop.org, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Cyrill Gorcunov <gorcunov@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Rasmus Villemoes <linux@rasmusvillemoes.dk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Chris Wilson wrote:
-> On Thu, Jun 19, 2014 at 03:57:46PM +0300, Kirill A. Shutemov wrote:
-> > One possible option is to create a variant of remap_pfn_range() which will
-> > return how many PTEs it was able to setup, before hitting the !pte_none().
-> > Caller will decide what to do with partially filled range.
-> 
-> Looked at just returning the address remap_pfn_range() got up to, which is
-> easy enough, but I think given that remap_pfn_range() will clean up
-> correctly after a failed remap, any EBUSY from partway through would be
-> a pathological driver error. 
+On Thu, 19 Jun 2014, Tejun Heo wrote:
 
-I would prefer keep remap_pfn_range() interface intact with BUG_ON() on
-unexpected !pte_none() and introduce new function with more flexible
-behaviour (sharing underlying infrastructure).
-This way we can avoid changing every remap_pfn_range() caller.
+> On Thu, Jun 19, 2014 at 12:02:29PM +0200, Rasmus Villemoes wrote:
+> > This change shaves a few bytes off the generated code.
+> >
+> > Signed-off-by: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+> > ---
+> >  mm/percpu.c | 3 +--
+> >  1 file changed, 1 insertion(+), 2 deletions(-)
+> >
+> > diff --git a/mm/percpu.c b/mm/percpu.c
+> > index 2ddf9a9..978097f 100644
+> > --- a/mm/percpu.c
+> > +++ b/mm/percpu.c
+> > @@ -720,8 +720,7 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved)
+> >  	if (unlikely(align < 2))
+> >  		align = 2;
+> >
+> > -	if (unlikely(size & 1))
+> > -		size++;
+> > +	size += size & 1;
+>
+> I'm not gonna apply this.  This isn't that hot a path.  It's not
+> worthwhile to micro optimize code like this.
 
--- 
- Kirill A. Shutemov
+Dont we have an ALIGN() macro for this?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
