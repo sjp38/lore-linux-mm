@@ -1,47 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f50.google.com (mail-qa0-f50.google.com [209.85.216.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F3F06B0031
-	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 11:01:08 -0400 (EDT)
-Received: by mail-qa0-f50.google.com with SMTP id m5so2085973qaj.9
-        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 08:01:07 -0700 (PDT)
-Received: from mail-qg0-x233.google.com (mail-qg0-x233.google.com [2607:f8b0:400d:c04::233])
-        by mx.google.com with ESMTPS id b35si6681336qgb.79.2014.06.19.08.01.07
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 19 Jun 2014 08:01:07 -0700 (PDT)
-Received: by mail-qg0-f51.google.com with SMTP id z60so2194368qgd.38
-        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 08:01:07 -0700 (PDT)
-Date: Thu, 19 Jun 2014 11:01:04 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] mm: percpu: micro-optimize round-to-even
-Message-ID: <20140619150104.GH26904@htj.dyndns.org>
-References: <1403172149-25353-1-git-send-email-linux@rasmusvillemoes.dk>
- <20140619132536.GF11042@htj.dyndns.org>
- <alpine.DEB.2.11.1406190925430.2785@gentwo.org>
- <20140619143458.GF26904@htj.dyndns.org>
- <alpine.DEB.2.11.1406190957030.2785@gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1406190957030.2785@gentwo.org>
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id BF0D86B0031
+	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 11:03:08 -0400 (EDT)
+Received: by mail-qg0-f41.google.com with SMTP id i50so2235028qgf.28
+        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 08:03:08 -0700 (PDT)
+Received: from qmta08.emeryville.ca.mail.comcast.net (qmta08.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:80])
+        by mx.google.com with ESMTP id n7si6852311qas.81.2014.06.19.08.03.07
+        for <linux-mm@kvack.org>;
+        Thu, 19 Jun 2014 08:03:08 -0700 (PDT)
+Date: Thu, 19 Jun 2014 10:03:04 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: slub/debugobjects: lockup when freeing memory
+In-Reply-To: <53A2F406.4010109@oracle.com>
+Message-ID: <alpine.DEB.2.11.1406191001090.2785@gentwo.org>
+References: <53A2F406.4010109@oracle.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: Rasmus Villemoes <linux@rasmusvillemoes.dk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jun 19, 2014 at 09:59:18AM -0500, Christoph Lameter wrote:
-> On Thu, 19 Jun 2014, Tejun Heo wrote:
-> 
-> > Indeed, a patch?
-> 
-> Subject: percpu: Use ALIGN macro instead of hand coding alignment calculation
-> 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+On Thu, 19 Jun 2014, Sasha Levin wrote:
 
-Applied to percpu/for-3.17.  Thanks.
+> [  690.770137] ? __this_cpu_preempt_check (lib/smp_processor_id.c:63)
+> [  690.770137] __slab_alloc (mm/slub.c:1732 mm/slub.c:2205 mm/slub.c:2369)
+> [  690.770137] ? __lock_acquire (kernel/locking/lockdep.c:3189)
+> [  690.770137] ? __debug_object_init (lib/debugobjects.c:100 lib/debugobjects.c:312)
+> [  690.770137] kmem_cache_alloc (mm/slub.c:2442 mm/slub.c:2484 mm/slub.c:2489)
+> [  690.770137] ? __debug_object_init (lib/debugobjects.c:100 lib/debugobjects.c:312)
+> [  690.770137] ? debug_object_activate (lib/debugobjects.c:439)
+> [  690.770137] __debug_object_init (lib/debugobjects.c:100 lib/debugobjects.c:312)
+> [  690.770137] debug_object_init (lib/debugobjects.c:365)
+> [  690.770137] rcuhead_fixup_activate (kernel/rcu/update.c:231)
+> [  690.770137] debug_object_activate (lib/debugobjects.c:280 lib/debugobjects.c:439)
+> [  690.770137] ? discard_slab (mm/slub.c:1486)
+> [  690.770137] __call_rcu (kernel/rcu/rcu.h:76 (discriminator 2) kernel/rcu/tree.c:2585 (discriminator 2))
 
--- 
-tejun
+__call_rcu does a slab allocation? This means __call_rcu can no longer be
+used in slab allocators? What happened?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
