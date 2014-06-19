@@ -1,121 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D7AC6B0031
-	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 15:10:34 -0400 (EDT)
-Received: by mail-qg0-f50.google.com with SMTP id j5so2476588qga.23
-        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 12:10:34 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t12si5872018qam.37.2014.06.19.12.10.33
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 868C66B0031
+	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 15:29:21 -0400 (EDT)
+Received: by mail-we0-f181.google.com with SMTP id q59so2843950wes.12
+        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 12:29:21 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id t2si8406051wjw.106.2014.06.19.12.29.19
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 19 Jun 2014 12:10:33 -0700 (PDT)
-Date: Thu, 19 Jun 2014 16:00:24 -0300
-From: Marcelo Tosatti <mtosatti@redhat.com>
-Subject: Re: [RFC PATCH 1/1] Move two pinned pages to non-movable node in kvm.
-Message-ID: <20140619190024.GA3887@amt.cnet>
-References: <1403070600-6083-1-git-send-email-tangchen@cn.fujitsu.com>
- <20140618061230.GA10948@minantech.com>
- <53A136C4.5070206@cn.fujitsu.com>
- <20140619092031.GA429@minantech.com>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Thu, 19 Jun 2014 12:29:19 -0700 (PDT)
+Date: Thu, 19 Jun 2014 21:29:08 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: slub/debugobjects: lockup when freeing memory
+In-Reply-To: <20140619165247.GA4904@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.10.1406192127100.5170@nanos>
+References: <53A2F406.4010109@oracle.com> <alpine.DEB.2.11.1406191001090.2785@gentwo.org> <20140619165247.GA4904@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140619092031.GA429@minantech.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gleb Natapov <gleb@kernel.org>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, pbonzini@redhat.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, mgorman@suse.de, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, guz.fnst@cn.fujitsu.com, laijs@cn.fujitsu.com, kvm@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, Avi Kivity <avi.kivity@gmail.com>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Christoph Lameter <cl@gentwo.org>, Sasha Levin <sasha.levin@oracle.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jun 19, 2014 at 12:20:32PM +0300, Gleb Natapov wrote:
-> CCing Marcelo,
+On Thu, 19 Jun 2014, Paul E. McKenney wrote:
+
+> On Thu, Jun 19, 2014 at 10:03:04AM -0500, Christoph Lameter wrote:
+> > On Thu, 19 Jun 2014, Sasha Levin wrote:
+> > 
+> > > [  690.770137] ? __this_cpu_preempt_check (lib/smp_processor_id.c:63)
+> > > [  690.770137] __slab_alloc (mm/slub.c:1732 mm/slub.c:2205 mm/slub.c:2369)
+> > > [  690.770137] ? __lock_acquire (kernel/locking/lockdep.c:3189)
+> > > [  690.770137] ? __debug_object_init (lib/debugobjects.c:100 lib/debugobjects.c:312)
+> > > [  690.770137] kmem_cache_alloc (mm/slub.c:2442 mm/slub.c:2484 mm/slub.c:2489)
+> > > [  690.770137] ? __debug_object_init (lib/debugobjects.c:100 lib/debugobjects.c:312)
+> > > [  690.770137] ? debug_object_activate (lib/debugobjects.c:439)
+> > > [  690.770137] __debug_object_init (lib/debugobjects.c:100 lib/debugobjects.c:312)
+> > > [  690.770137] debug_object_init (lib/debugobjects.c:365)
+> > > [  690.770137] rcuhead_fixup_activate (kernel/rcu/update.c:231)
+> > > [  690.770137] debug_object_activate (lib/debugobjects.c:280 lib/debugobjects.c:439)
+> > > [  690.770137] ? discard_slab (mm/slub.c:1486)
+> > > [  690.770137] __call_rcu (kernel/rcu/rcu.h:76 (discriminator 2) kernel/rcu/tree.c:2585 (discriminator 2))
+> > 
+> > __call_rcu does a slab allocation? This means __call_rcu can no longer be
+> > used in slab allocators? What happened?
 > 
-> On Wed, Jun 18, 2014 at 02:50:44PM +0800, Tang Chen wrote:
-> > Hi Gleb,
-> > 
-> > Thanks for the quick reply. Please see below.
-> > 
-> > On 06/18/2014 02:12 PM, Gleb Natapov wrote:
-> > >On Wed, Jun 18, 2014 at 01:50:00PM +0800, Tang Chen wrote:
-> > >>[Questions]
-> > >>And by the way, would you guys please answer the following questions for me ?
-> > >>
-> > >>1. What's the ept identity pagetable for ?  Only one page is enough ?
-> > >>
-> > >>2. Is the ept identity pagetable only used in realmode ?
-> > >>    Can we free it once the guest is up (vcpu in protect mode)?
-> > >>
-> > >>3. Now, ept identity pagetable is allocated in qemu userspace.
-> > >>    Can we allocate it in kernel space ?
-> > >What would be the benefit?
-> > 
-> > I think the benefit is we can hot-remove the host memory a kvm guest
-> > is using.
-> > 
-> > For now, only memory in ZONE_MOVABLE can be migrated/hot-removed. And the
-> > kernel
-> > will never use ZONE_MOVABLE memory. So if we can allocate these two pages in
-> > kernel space, we can pin them without any trouble. When doing memory
-> > hot-remove,
-> > the kernel will not try to migrate these two pages.
-> But we can do that by other means, no? The patch you've sent for instance.
+> My guess is that the root cause is a double call_rcu(), call_rcu_sched(),
+> call_rcu_bh(), or call_srcu().
 > 
-> > 
-> > >
-> > >>
-> > >>4. If I want to migrate these two pages, what do you think is the best way ?
-> > >>
-> > >I answered most of those here: http://www.mail-archive.com/kvm@vger.kernel.org/msg103718.html
-> > 
-> > I'm sorry I must missed this email.
-> > 
-> > Seeing your advice, we can unpin these two pages and repin them in the next
-> > EPT violation.
-> > So about this problem, which solution would you prefer, allocate these two
-> > pages in kernel
-> > space, or migrate them before memory hot-remove ?
-> > 
-> > I think the first solution is simpler. But I'm not quite sure if there is
-> > any other pages
-> > pinned in memory. If we have the same problem with other kvm pages, I think
-> > it is better to
-> > solve it in the second way.
-> > 
-> > What do you think ?
-> Remove pinning is preferable. In fact looks like for identity pagetable
-> it should be trivial, just don't pin. APIC access page is a little bit
-> more complicated since its physical address needs to be tracked to be
-> updated in VMCS.
+> Perhaps the DEBUG_OBJECTS code now allocates memory to report errors?
+> That would be unfortunate...
 
-Yes, and there are new users of page pinning as well soon (see PEBS
-threads on kvm-devel).
+Well, no. Look at the callchain:
 
-Was thinking of notifiers scheme. Perhaps:
+__call_rcu
+    debug_object_activate
+       rcuhead_fixup_activate
+          debug_object_init
+              kmem_cache_alloc
 
-->begin_page_unpin(struct page *page)
-	- Remove any possible access to page.
+So call rcu activates the object, but the object has no reference in
+the debug objects code so the fixup code is called which inits the
+object and allocates a reference ....
 
-->end_page_unpin(struct page *page)
-	- Reinstantiate any possible access to page.
+Thanks,
 
-For KVM:
-
-->begin_page_unpin()
-	- Remove APIC-access page address from VMCS.
-	  or
-	- Remove spte translation to pinned page.
-	
-	- Put vcpu in state where no VM-entries are allowed.
-
-->end_page_unpin()
-	- Setup APIC-access page, ...
-	- Allow vcpu to VM-entry.
-
-
-Because allocating APIC access page from distant NUMA node can
-be a performance problem, i believe.
-
-I'd be happy to know why notifiers are overkill.
-
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
