@@ -1,81 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FE1E6B0031
-	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 04:13:45 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id g10so1594493pdj.28
-        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 01:13:45 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id e10si5005616pat.80.2014.06.19.01.13.43
-        for <linux-mm@kvack.org>;
-        Thu, 19 Jun 2014 01:13:44 -0700 (PDT)
-Date: Thu, 19 Jun 2014 17:18:07 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3 -next 4/9] DMA, CMA: support arbitrary bitmap
- granularity
-Message-ID: <20140619081807.GA28611@js1304-P5Q-DELUXE>
-References: <1402897251-23639-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1402897251-23639-5-git-send-email-iamjoonsoo.kim@lge.com>
- <20140618134815.69c4d0a5f916846f9857e9ff@linux-foundation.org>
+Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id DCF956B0031
+	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 04:31:37 -0400 (EDT)
+Received: by mail-ie0-f172.google.com with SMTP id lx4so1725081iec.17
+        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 01:31:37 -0700 (PDT)
+Received: from mail-ig0-x22c.google.com (mail-ig0-x22c.google.com [2607:f8b0:4001:c05::22c])
+        by mx.google.com with ESMTPS id h5si2741132igg.14.2014.06.19.01.31.37
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 19 Jun 2014 01:31:37 -0700 (PDT)
+Received: by mail-ig0-f172.google.com with SMTP id hn18so3169201igb.11
+        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 01:31:37 -0700 (PDT)
+Date: Thu, 19 Jun 2014 01:31:35 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm/mem-hotplug: replace simple_strtoul() with
+ kstrtoul()
+In-Reply-To: <53A2962B.9070904@huawei.com>
+Message-ID: <alpine.DEB.2.02.1406190128190.13670@chino.kir.corp.google.com>
+References: <1403151749-14013-1-git-send-email-zhenzhang.zhang@huawei.com> <53A2962B.9070904@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140618134815.69c4d0a5f916846f9857e9ff@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Zhang Zhen <zhenzhang.zhang@huawei.com>
+Cc: nfont@austin.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org
 
-On Wed, Jun 18, 2014 at 01:48:15PM -0700, Andrew Morton wrote:
-> On Mon, 16 Jun 2014 14:40:46 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+On Thu, 19 Jun 2014, Zhang Zhen wrote:
+
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index 89f752d..c1b118a 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -406,7 +406,9 @@ memory_probe_store(struct device *dev, struct device_attribute *attr,
+>  	int i, ret;
+>  	unsigned long pages_per_block = PAGES_PER_SECTION * sections_per_block;
 > 
-> > PPC KVM's CMA area management requires arbitrary bitmap granularity,
-> > since they want to reserve very large memory and manage this region
-> > with bitmap that one bit for several pages to reduce management overheads.
-> > So support arbitrary bitmap granularity for following generalization.
-> > 
-> > ...
-> >
-> > --- a/drivers/base/dma-contiguous.c
-> > +++ b/drivers/base/dma-contiguous.c
-> > @@ -38,6 +38,7 @@ struct cma {
-> >  	unsigned long	base_pfn;
-> >  	unsigned long	count;
-> >  	unsigned long	*bitmap;
-> > +	unsigned int order_per_bit; /* Order of pages represented by one bit */
-> >  	struct mutex	lock;
-> >  };
-> >  
-> > @@ -157,9 +158,37 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
-> >  
-> >  static DEFINE_MUTEX(cma_mutex);
-> >  
-> > +static unsigned long cma_bitmap_aligned_mask(struct cma *cma, int align_order)
-> > +{
-> > +	return (1 << (align_order >> cma->order_per_bit)) - 1;
-> > +}
+> -	phys_addr = simple_strtoull(buf, NULL, 0);
+> +	ret = kstrtoull(buf, 0, phys_addr);
+> +	if (ret)
+> +		return -EINVAL;
 > 
-> Might want a "1UL << ..." here.
+>  	if (phys_addr & ((pages_per_block << PAGE_SHIFT) - 1))
+>  		return -EINVAL;
 
-Okay!
+Three issues:
 
-> 
-> > +static unsigned long cma_bitmap_maxno(struct cma *cma)
-> > +{
-> > +	return cma->count >> cma->order_per_bit;
-> > +}
-> > +
-> > +static unsigned long cma_bitmap_pages_to_bits(struct cma *cma,
-> > +						unsigned long pages)
-> > +{
-> > +	return ALIGN(pages, 1 << cma->order_per_bit) >> cma->order_per_bit;
-> > +}
-> 
-> Ditto.  I'm not really sure what the compiler will do in these cases,
-> but would prefer not to rely on it anyway!
+ - this isn't compile tested, one of your parameters to kstrtoull() has 
+   the wrong type,
 
-Okay!
+ - this disregards the error returned by kstrtoull() and returns -EINVAL 
+   for all possible errors, kstrtoull() returns other errors as well, and
 
-Thanks for fix!
+ - the patch title in the subject line refers to simple_strtoul() and
+   kstrtoul() which do not appear in your patch.
+
+Please fix issues and resubmit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
