@@ -1,59 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E0676B0031
-	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 05:38:05 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id ma3so1749294pbc.29
-        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 02:38:05 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id kv4si5234473pab.78.2014.06.19.02.38.03
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 24F9E6B0031
+	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 06:02:51 -0400 (EDT)
+Received: by mail-lb0-f172.google.com with SMTP id c11so1298927lbj.17
+        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 03:02:50 -0700 (PDT)
+Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
+        by mx.google.com with ESMTPS id w1si1212586lbo.10.2014.06.19.03.02.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 19 Jun 2014 02:38:04 -0700 (PDT)
-Message-ID: <53A2AEB4.40608@huawei.com>
-Date: Thu, 19 Jun 2014 17:34:44 +0800
-From: Zhang Zhen <zhenzhang.zhang@huawei.com>
-MIME-Version: 1.0
-Subject: [PATCH v2] mm/mem-hotplug: replace simple_strtoull() with kstrtoull()
-References: <1403170456-25054-1-git-send-email-zhenzhang.zhang@huawei.com>
-In-Reply-To: <1403170456-25054-1-git-send-email-zhenzhang.zhang@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 19 Jun 2014 03:02:49 -0700 (PDT)
+Received: by mail-lb0-f173.google.com with SMTP id s7so1304426lbd.32
+        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 03:02:48 -0700 (PDT)
+From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Subject: [PATCH] mm: percpu: micro-optimize round-to-even
+Date: Thu, 19 Jun 2014 12:02:29 +0200
+Message-Id: <1403172149-25353-1-git-send-email-linux@rasmusvillemoes.dk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: nfont@austin.ibm.com, akpm@linux-foundation.org, David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rasmus Villemoes <linux@rasmusvillemoes.dk>
 
-use the newer and more pleasant kstrtoull() to replace simple_strtoull(),
-because simple_strtoull() is marked for obsoletion.
+This change shaves a few bytes off the generated code.
 
-Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
+Signed-off-by: Rasmus Villemoes <linux@rasmusvillemoes.dk>
 ---
- drivers/base/memory.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ mm/percpu.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 89f752d..4fee600 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -406,7 +406,9 @@ memory_probe_store(struct device *dev, struct device_attribute *attr,
- 	int i, ret;
- 	unsigned long pages_per_block = PAGES_PER_SECTION * sections_per_block;
-
--	phys_addr = simple_strtoull(buf, NULL, 0);
-+	ret = kstrtoull(buf, 0, &phys_addr);
-+	if (ret)
-+		return ret;
-
- 	if (phys_addr & ((pages_per_block << PAGE_SHIFT) - 1))
- 		return -EINVAL;
+diff --git a/mm/percpu.c b/mm/percpu.c
+index 2ddf9a9..978097f 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -720,8 +720,7 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved)
+ 	if (unlikely(align < 2))
+ 		align = 2;
+ 
+-	if (unlikely(size & 1))
+-		size++;
++	size += size & 1;
+ 
+ 	if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE)) {
+ 		WARN(true, "illegal size (%zu) or align (%zu) for "
 -- 
-1.8.1.2
-
-
-.
-
-
-
+1.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
