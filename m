@@ -1,42 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A0EC6B0031
-	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 19:30:16 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id ey11so1231631pad.40
-        for <linux-mm@kvack.org>; Wed, 18 Jun 2014 16:30:16 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id si5si3763711pab.41.2014.06.18.16.30.15
-        for <linux-mm@kvack.org>;
-        Wed, 18 Jun 2014 16:30:15 -0700 (PDT)
-Date: Wed, 18 Jun 2014 16:30:13 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: arch/ia64/include/uapi/asm/fcntl.h:9:41: error: 'PER_LINUX32'
- undeclared
-Message-Id: <20140618163013.6e8434a9bab01b46a7531ed4@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.02.1406181607490.22789@chino.kir.corp.google.com>
-References: <53a21a3e.1HJ5drRU6UL26Oem%fengguang.wu@intel.com>
-	<alpine.DEB.2.02.1406181607490.22789@chino.kir.corp.google.com>
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 87D446B0031
+	for <linux-mm@kvack.org>; Wed, 18 Jun 2014 20:07:14 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id et14so1264460pad.27
+        for <linux-mm@kvack.org>; Wed, 18 Jun 2014 17:07:14 -0700 (PDT)
+Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com [2607:f8b0:400e:c03::230])
+        by mx.google.com with ESMTPS id cc2si3736489pbb.208.2014.06.18.17.07.13
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 18 Jun 2014 17:07:13 -0700 (PDT)
+Received: by mail-pa0-f48.google.com with SMTP id et14so1259591pad.7
+        for <linux-mm@kvack.org>; Wed, 18 Jun 2014 17:07:13 -0700 (PDT)
+Message-ID: <1403136272.12954.4.camel@debian>
+Subject: Re: [PATCH] mm/vmscan.c: fix an implementation flaw in proportional
+ scanning
+From: Chen Yucong <slaoub@gmail.com>
+Date: Thu, 19 Jun 2014 08:04:32 +0800
+In-Reply-To: <20140618152751.283deda95257cc32ccea8f20@linux-foundation.org>
+References: <1402980902-6345-1-git-send-email-slaoub@gmail.com>
+	 <20140618152751.283deda95257cc32ccea8f20@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: kbuild test robot <fengguang.wu@intel.com>, Will Woods <wwoods@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org, Tony Luck <tony.luck@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: minchan@kernel.org, mgorman@suse.de, hannes@cmpxchg.org, mhocko@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 18 Jun 2014 16:09:26 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+On Wed, 2014-06-18 at 15:27 -0700, Andrew Morton wrote:
+> On Tue, 17 Jun 2014 12:55:02 +0800 Chen Yucong <slaoub@gmail.com> wrote:
+> 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index a8ffe4e..2c35e34 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -2087,8 +2086,8 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+> >  	blk_start_plug(&plug);
+> >  	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
+> >  					nr[LRU_INACTIVE_FILE]) {
+> > -		unsigned long nr_anon, nr_file, percentage;
+> > -		unsigned long nr_scanned;
+> > +		unsigned long nr_anon, nr_file, file_percent, anon_percent;
+> > +		unsigned long nr_to_scan, nr_scanned, percentage;
+> >  
+> >  		for_each_evictable_lru(lru) {
+> >  			if (nr[lru]) {
+> 
+> The increased stack use is a slight concern - we can be very deep here.
+> I suspect the "percent" locals are more for convenience/clarity, and
+> they could be eliminated (in a separate patch) at some cost of clarity?
+> 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index a8ffe4e..2c35e34 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2057,8 +2057,7 @@ out:
+ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control
+*sc)
+ {
+        unsigned long nr[NR_LRU_LISTS];
+-       unsigned long targets[NR_LRU_LISTS];
+-       unsigned long nr_to_scan;
++       unsigned long file_target, anon_target;
 
-> Yay for build errors reported six weeks later and after 3.15 had been 
-> released.
+>From the above snippet, we can know that the "percent" locals come from
+targets[NR_LRU_LISTS]. So this fix does not increase the stack.
 
-ia64 allmodconfig has other problems in 3.15:
+thx!
+cyc
 
-In file included from drivers/nfc/pn544/i2c.c:30:
-include/linux/unaligned/access_ok.h:7: error: redefinition of 'get_unaligned_le16'
-include/linux/unaligned/le_struct.h:6: note: previous definition of 'get_unaligned_le16' was here
-include/linux/unaligned/access_ok.h:12: error: redefinition of 'get_unaligned_le32'
-include/linux/unaligned/le_struct.h:11: note: previous definition of 'get_unaligned_le32' was here
-...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
