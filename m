@@ -1,69 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A1E46B0031
-	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 17:32:56 -0400 (EDT)
-Received: by mail-wg0-f51.google.com with SMTP id x12so2879488wgg.22
-        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 14:32:55 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id a17si7297906wib.72.2014.06.19.14.32.54
+Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
+	by kanga.kvack.org (Postfix) with ESMTP id BE5C56B0036
+	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 17:34:07 -0400 (EDT)
+Received: by mail-ie0-f173.google.com with SMTP id y20so2545245ier.18
+        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 14:34:07 -0700 (PDT)
+Received: from mail-ie0-x233.google.com (mail-ie0-x233.google.com [2607:f8b0:4001:c03::233])
+        by mx.google.com with ESMTPS id a11si11308628icr.106.2014.06.19.14.34.07
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 19 Jun 2014 14:32:55 -0700 (PDT)
-Date: Thu, 19 Jun 2014 23:32:41 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: slub/debugobjects: lockup when freeing memory
-In-Reply-To: <20140619205307.GL4904@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.10.1406192331250.5170@nanos>
-References: <53A2F406.4010109@oracle.com> <alpine.DEB.2.11.1406191001090.2785@gentwo.org> <20140619165247.GA4904@linux.vnet.ibm.com> <alpine.DEB.2.10.1406192127100.5170@nanos> <20140619202928.GG4904@linux.vnet.ibm.com> <alpine.DEB.2.10.1406192230390.5170@nanos>
- <20140619205307.GL4904@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 19 Jun 2014 14:34:07 -0700 (PDT)
+Received: by mail-ie0-f179.google.com with SMTP id tr6so2558848ieb.10
+        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 14:34:07 -0700 (PDT)
+Date: Thu, 19 Jun 2014 14:34:05 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH RESEND] slub: return correct error on slab_sysfs_init
+In-Reply-To: <20140619133201.7f84ae4acbc1b9d8f65e2b4f@linux-foundation.org>
+Message-ID: <alpine.DEB.2.02.1406191432220.8611@chino.kir.corp.google.com>
+References: <53A0EB84.7030308@oracle.com> <alpine.DEB.2.02.1406181314290.10339@chino.kir.corp.google.com> <alpine.DEB.2.11.1406190939030.2785@gentwo.org> <20140619133201.7f84ae4acbc1b9d8f65e2b4f@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Christoph Lameter <cl@gentwo.org>, Sasha Levin <sasha.levin@oracle.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@gentwo.org>, Jeff Liu <jeff.liu@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, akpm@linuxfoundation.org
 
+On Thu, 19 Jun 2014, Andrew Morton wrote:
 
-
-On Thu, 19 Jun 2014, Paul E. McKenney wrote:
-
-> On Thu, Jun 19, 2014 at 10:37:17PM +0200, Thomas Gleixner wrote:
-> > On Thu, 19 Jun 2014, Paul E. McKenney wrote:
-> > > On Thu, Jun 19, 2014 at 09:29:08PM +0200, Thomas Gleixner wrote:
-> > > > On Thu, 19 Jun 2014, Paul E. McKenney wrote:
-> > > > Well, no. Look at the callchain:
-> > > > 
-> > > > __call_rcu
-> > > >     debug_object_activate
-> > > >        rcuhead_fixup_activate
-> > > >           debug_object_init
-> > > >               kmem_cache_alloc
-> > > > 
-> > > > So call rcu activates the object, but the object has no reference in
-> > > > the debug objects code so the fixup code is called which inits the
-> > > > object and allocates a reference ....
-> > > 
-> > > OK, got it.  And you are right, call_rcu() has done this for a very
-> > > long time, so not sure what changed.  But it seems like the right
-> > > approach is to provide a debug-object-free call_rcu_alloc() for use
-> > > by the memory allocators.
-> > > 
-> > > Seem reasonable?  If so, please see the following patch.
+> > > Why?  kset_create_and_add() can fail for a few other reasons other than
+> > > memory constraints and given that this is only done at bootstrap, it
+> > > actually seems like a duplicate name would be a bigger concern than low on
+> > > memory if another init call actually registered it.
 > > 
-> > Not really, you're torpedoing the whole purpose of debugobjects :)
-> > 
-> > So, why can't we just init the rcu head when the stuff is created?
+> > Greg said that the only reason for failure would be out of memory.
 > 
-> That would allow me to keep my code unchanged, so I am in favor.  ;-)
+> The kset_create_and_add interface is busted - it should return an
+> ERR_PTR on error, not NULL.  This seems to be a common gregkh failing :(
+> 
+> It's plausible that out-of-memory is the most common reason for
+> kset_create_and_add() failure, dunno.
+> 
 
-Almost unchanged. You need to provide a function to do so, i.e. make
-use of
-
-    debug_init_rcu_head()
-
-Thanks,
-
-	tglx
+I seriously doubt out of memory issues are the most common reason for 
+failure since this is only done at init, it seems much more likely that 
+someone accidently added an object of the same name, "slab", erroneous and 
+then -ENOMEM wouldn't make any sense.  kset_create_and_add() can most 
+certainly return other errors rather than just -ENOMEM.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
