@@ -1,71 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id EBCD46B0031
-	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 09:22:45 -0400 (EDT)
-Received: by mail-wg0-f52.google.com with SMTP id b13so2247631wgh.11
-        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 06:22:45 -0700 (PDT)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [87.106.93.118])
-        by mx.google.com with ESMTP id we9si7213879wjb.88.2014.06.19.06.22.44
-        for <linux-mm@kvack.org>;
-        Thu, 19 Jun 2014 06:22:44 -0700 (PDT)
-Date: Thu, 19 Jun 2014 14:22:40 +0100
-From: Chris Wilson <chris@chris-wilson.co.uk>
-Subject: Re: [PATCH] mm: Report attempts to overwrite PTE from
- remap_pfn_range()
-Message-ID: <20140619132240.GF25975@nuc-i3427.alporthouse.com>
-References: <20140616134124.0ED73E00A2@blue.fi.intel.com>
- <1403162349-14512-1-git-send-email-chris@chris-wilson.co.uk>
- <20140619115018.412D2E00A3@blue.fi.intel.com>
- <20140619120004.GC25975@nuc-i3427.alporthouse.com>
- <20140619125746.25A03E00A3@blue.fi.intel.com>
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id D2D336B0031
+	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 09:25:39 -0400 (EDT)
+Received: by mail-qg0-f44.google.com with SMTP id j107so2099315qga.3
+        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 06:25:39 -0700 (PDT)
+Received: from mail-qg0-x236.google.com (mail-qg0-x236.google.com [2607:f8b0:400d:c04::236])
+        by mx.google.com with ESMTPS id o111si6363669qge.25.2014.06.19.06.25.39
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 19 Jun 2014 06:25:39 -0700 (PDT)
+Received: by mail-qg0-f54.google.com with SMTP id q107so2116643qgd.27
+        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 06:25:39 -0700 (PDT)
+Date: Thu, 19 Jun 2014 09:25:36 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] mm: percpu: micro-optimize round-to-even
+Message-ID: <20140619132536.GF11042@htj.dyndns.org>
+References: <1403172149-25353-1-git-send-email-linux@rasmusvillemoes.dk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140619125746.25A03E00A3@blue.fi.intel.com>
+In-Reply-To: <1403172149-25353-1-git-send-email-linux@rasmusvillemoes.dk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: intel-gfx@lists.freedesktop.org, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Cyrill Gorcunov <gorcunov@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
+To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Cc: Christoph Lameter <cl@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jun 19, 2014 at 03:57:46PM +0300, Kirill A. Shutemov wrote:
-> Chris Wilson wrote:
-> > On Thu, Jun 19, 2014 at 02:50:18PM +0300, Kirill A. Shutemov wrote:
-> > > > +	if (err) {
-> > > >  		untrack_pfn(vma, pfn, PAGE_ALIGN(size));
-> > > > +		if (err != -EBUSY)
-> > > > +			zap_page_range_single(vma, addr, size, NULL);
-> > > 
-> > > Hm. If I read it correctly, you zap whole range, not only what you've
-> > > set up. Looks wrong.
-> > 
-> > Yes. I didn't fancy threading the last touched pte back, but that should
-> > be easier if moving to a struct.
-> >  
-> > > And for after zap, you probably whant to return -EBUSY to caller of
-> > > remap_pfn_range(), not -EINVAL.
-> > 
-> > No, it has to be EINVAL for my purpose. If we return EBUSY, the caller
-> > will just report VM_NOPAGE back to the fault handler, and the fault will
-> > be retriggered - but the overlapping object will still be present.
+On Thu, Jun 19, 2014 at 12:02:29PM +0200, Rasmus Villemoes wrote:
+> This change shaves a few bytes off the generated code.
 > 
-> IIUC, what you're saying makes sense only if the range starts from PTE
-> you've got fault to. I failed to see why this assumption should be part of
-> remap_pfn_range() interface.
+> Signed-off-by: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+> ---
+>  mm/percpu.c | 3 +--
+>  1 file changed, 1 insertion(+), 2 deletions(-)
+> 
+> diff --git a/mm/percpu.c b/mm/percpu.c
+> index 2ddf9a9..978097f 100644
+> --- a/mm/percpu.c
+> +++ b/mm/percpu.c
+> @@ -720,8 +720,7 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved)
+>  	if (unlikely(align < 2))
+>  		align = 2;
+>  
+> -	if (unlikely(size & 1))
+> -		size++;
+> +	size += size & 1;
 
-That I agree with.
- 
-> One possible option is to create a variant of remap_pfn_range() which will
-> return how many PTEs it was able to setup, before hitting the !pte_none().
-> Caller will decide what to do with partially filled range.
+I'm not gonna apply this.  This isn't that hot a path.  It's not
+worthwhile to micro optimize code like this.
 
-Looked at just returning the address remap_pfn_range() got up to, which is
-easy enough, but I think given that remap_pfn_range() will clean up
-correctly after a failed remap, any EBUSY from partway through would be
-a pathological driver error. 
--Chris
+Thanks.
 
 -- 
-Chris Wilson, Intel Open Source Technology Centre
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
