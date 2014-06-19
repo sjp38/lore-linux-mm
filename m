@@ -1,60 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
-	by kanga.kvack.org (Postfix) with ESMTP id DCF956B0031
-	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 04:31:37 -0400 (EDT)
-Received: by mail-ie0-f172.google.com with SMTP id lx4so1725081iec.17
-        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 01:31:37 -0700 (PDT)
-Received: from mail-ig0-x22c.google.com (mail-ig0-x22c.google.com [2607:f8b0:4001:c05::22c])
-        by mx.google.com with ESMTPS id h5si2741132igg.14.2014.06.19.01.31.37
+Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id A61376B0036
+	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 04:33:59 -0400 (EDT)
+Received: by mail-ie0-f178.google.com with SMTP id rd18so1741665iec.9
+        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 01:33:59 -0700 (PDT)
+Received: from mail-ie0-x22d.google.com (mail-ie0-x22d.google.com [2607:f8b0:4001:c03::22d])
+        by mx.google.com with ESMTPS id mb9si7615488icc.18.2014.06.19.01.33.58
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 19 Jun 2014 01:31:37 -0700 (PDT)
-Received: by mail-ig0-f172.google.com with SMTP id hn18so3169201igb.11
-        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 01:31:37 -0700 (PDT)
-Date: Thu, 19 Jun 2014 01:31:35 -0700 (PDT)
+        Thu, 19 Jun 2014 01:33:59 -0700 (PDT)
+Received: by mail-ie0-f173.google.com with SMTP id y20so1715986ier.4
+        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 01:33:58 -0700 (PDT)
+Date: Thu, 19 Jun 2014 01:33:56 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm/mem-hotplug: replace simple_strtoul() with
- kstrtoul()
-In-Reply-To: <53A2962B.9070904@huawei.com>
-Message-ID: <alpine.DEB.2.02.1406190128190.13670@chino.kir.corp.google.com>
-References: <1403151749-14013-1-git-send-email-zhenzhang.zhang@huawei.com> <53A2962B.9070904@huawei.com>
+Subject: Re: [next:master 77/159] fs/proc/task_mmu.c:505:193: error: call to
+ '__compiletime_assert_505' declared with attribute error: BUILD_BUG failed
+In-Reply-To: <53a29abf.v2bhnSChDbNTCQGt%fengguang.wu@intel.com>
+Message-ID: <alpine.DEB.2.02.1406190133060.13670@chino.kir.corp.google.com>
+References: <53a29abf.v2bhnSChDbNTCQGt%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Zhen <zhenzhang.zhang@huawei.com>
-Cc: nfont@austin.ibm.com, akpm@linux-foundation.org, linux-mm@kvack.org
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org
 
-On Thu, 19 Jun 2014, Zhang Zhen wrote:
+On Thu, 19 Jun 2014, kbuild test robot wrote:
 
-> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-> index 89f752d..c1b118a 100644
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -406,7 +406,9 @@ memory_probe_store(struct device *dev, struct device_attribute *attr,
->  	int i, ret;
->  	unsigned long pages_per_block = PAGES_PER_SECTION * sections_per_block;
+> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> head:   07d0e2d232fee3ff692c50150b2aa6e3b7755f8f
+> commit: b0e08c526179642dccfd2c7caff31d2419492829 [77/159] mm/pagewalk: move pmd_trans_huge_lock() from callbacks to common code
+> config: make ARCH=i386 defconfig
 > 
-> -	phys_addr = simple_strtoull(buf, NULL, 0);
-> +	ret = kstrtoull(buf, 0, phys_addr);
-> +	if (ret)
-> +		return -EINVAL;
+> Note: the next/master HEAD 07d0e2d232fee3ff692c50150b2aa6e3b7755f8f builds fine.
+>       It only hurts bisectibility.
 > 
->  	if (phys_addr & ((pages_per_block << PAGE_SHIFT) - 1))
->  		return -EINVAL;
+> All error/warnings:
+> 
+>    fs/proc/task_mmu.c: In function 'smaps_pmd':
+> >> fs/proc/task_mmu.c:505:193: error: call to '__compiletime_assert_505' declared with attribute error: BUILD_BUG failed
+>      smaps_pte((pte_t *)pmd, addr, addr + HPAGE_PMD_SIZE, walk);
+>                                                                                                                                                                                                     ^
+> >> fs/proc/task_mmu.c:506:178: error: call to '__compiletime_assert_506' declared with attribute error: BUILD_BUG failed
+>      mss->anonymous_thp += HPAGE_PMD_SIZE;
+>                                                                                                                                                                                      ^
 
-Three issues:
-
- - this isn't compile tested, one of your parameters to kstrtoull() has 
-   the wrong type,
-
- - this disregards the error returned by kstrtoull() and returns -EINVAL 
-   for all possible errors, kstrtoull() returns other errors as well, and
-
- - the patch title in the subject line refers to simple_strtoul() and
-   kstrtoul() which do not appear in your patch.
-
-Please fix issues and resubmit.
+mm-pagewalk-move-pmd_trans_huge_lock-from-callbacks-to-common-code.patch 
+was removed from -mm on Monday.  We probably need to wait for another 
+mmotm before this vanishes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
