@@ -1,50 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id A937E6B0036
-	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 10:59:53 -0400 (EDT)
-Received: by mail-qg0-f45.google.com with SMTP id 63so2161459qgz.4
-        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 07:59:53 -0700 (PDT)
-Received: from mail-qa0-x229.google.com (mail-qa0-x229.google.com [2607:f8b0:400d:c00::229])
-        by mx.google.com with ESMTPS id t5si6560289qga.16.2014.06.19.07.59.53
+Received: from mail-qa0-f50.google.com (mail-qa0-f50.google.com [209.85.216.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F3F06B0031
+	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 11:01:08 -0400 (EDT)
+Received: by mail-qa0-f50.google.com with SMTP id m5so2085973qaj.9
+        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 08:01:07 -0700 (PDT)
+Received: from mail-qg0-x233.google.com (mail-qg0-x233.google.com [2607:f8b0:400d:c04::233])
+        by mx.google.com with ESMTPS id b35si6681336qgb.79.2014.06.19.08.01.07
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 19 Jun 2014 07:59:53 -0700 (PDT)
-Received: by mail-qa0-f41.google.com with SMTP id cm18so2072132qab.28
-        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 07:59:53 -0700 (PDT)
-Date: Thu, 19 Jun 2014 10:59:50 -0400
-From: Tejun Heo <htejun@gmail.com>
-Subject: Re: Node 0 not necessary for powerpc?
-Message-ID: <20140619145950.GG26904@htj.dyndns.org>
-References: <20140311195632.GA946@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1403120839110.6865@nuc>
- <20140313164949.GC22247@linux.vnet.ibm.com>
- <20140519182400.GM8941@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1405210915170.7859@gentwo.org>
- <20140521185812.GA5259@htj.dyndns.org>
- <20140521195743.GA5755@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1406091447240.5271@chino.kir.corp.google.com>
- <20140610233157.GB24463@linux.vnet.ibm.com>
+        Thu, 19 Jun 2014 08:01:07 -0700 (PDT)
+Received: by mail-qg0-f51.google.com with SMTP id z60so2194368qgd.38
+        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 08:01:07 -0700 (PDT)
+Date: Thu, 19 Jun 2014 11:01:04 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] mm: percpu: micro-optimize round-to-even
+Message-ID: <20140619150104.GH26904@htj.dyndns.org>
+References: <1403172149-25353-1-git-send-email-linux@rasmusvillemoes.dk>
+ <20140619132536.GF11042@htj.dyndns.org>
+ <alpine.DEB.2.11.1406190925430.2785@gentwo.org>
+ <20140619143458.GF26904@htj.dyndns.org>
+ <alpine.DEB.2.11.1406190957030.2785@gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140610233157.GB24463@linux.vnet.ibm.com>
+In-Reply-To: <alpine.DEB.2.11.1406190957030.2785@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Cc: David Rientjes <rientjes@google.com>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, anton@samba.org, benh@kernel.crashing.org, tony.luck@intel.com
+To: Christoph Lameter <cl@gentwo.org>
+Cc: Rasmus Villemoes <linux@rasmusvillemoes.dk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jun 10, 2014 at 04:31:57PM -0700, Nishanth Aravamudan wrote:
-> > I think what this really wants to do is NODE_DATA(cpu_to_mem(cpu)) and I 
-> > thought ppc had the cpu-to-local-memory-node mappings correct?
+On Thu, Jun 19, 2014 at 09:59:18AM -0500, Christoph Lameter wrote:
+> On Thu, 19 Jun 2014, Tejun Heo wrote:
 > 
-> Except cpu_to_mem relies on the mapping being defined, but early in
-> boot, specifically, it isn't yet (at least not necessarily).
+> > Indeed, a patch?
+> 
+> Subject: percpu: Use ALIGN macro instead of hand coding alignment calculation
+> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Can't ppc NODE_DATA simply return dummy generic node_data during early
-boot?  Populating it with just enough to make early boot work
-shouldn't be too hard, right?
-
-Thanks.
+Applied to percpu/for-3.17.  Thanks.
 
 -- 
 tejun
