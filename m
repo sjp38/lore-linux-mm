@@ -1,89 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DE4E6B0035
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 11:20:06 -0400 (EDT)
-Received: by mail-wg0-f41.google.com with SMTP id a1so3794897wgh.0
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 08:19:59 -0700 (PDT)
-Received: from mail-we0-x22e.google.com (mail-we0-x22e.google.com [2a00:1450:400c:c03::22e])
-        by mx.google.com with ESMTPS id y6si7044576wjx.170.2014.06.20.08.19.58
+Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 837016B0037
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 11:32:25 -0400 (EDT)
+Received: by mail-we0-f174.google.com with SMTP id u57so4044059wes.33
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 08:32:24 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t9si7088829wjy.178.2014.06.20.08.32.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 20 Jun 2014 08:19:59 -0700 (PDT)
-Received: by mail-we0-f174.google.com with SMTP id u57so3951785wes.19
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 08:19:58 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [mmotm:master 141/230] include/linux/kernel.h:744:28: note: in expansion of macro 'min'
-In-Reply-To: <20140620055210.GA26552@localhost>
-References: <53a3c359.yUYVC7fzjYpZLyLq%fengguang.wu@intel.com> <20140620055210.GA26552@localhost>
-Date: Fri, 20 Jun 2014 17:19:55 +0200
-Message-ID: <xa1tppi3vc9w.fsf@mina86.com>
+        Fri, 20 Jun 2014 08:32:21 -0700 (PDT)
+Date: Fri, 20 Jun 2014 17:32:12 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 0/8] mm: add page cache limit and reclaim feature
+Message-ID: <20140620153212.GD23115@dhcp22.suse.cz>
+References: <539EB7D6.8070401@huawei.com>
+ <20140616111422.GA16915@dhcp22.suse.cz>
+ <20140616125040.GA29993@optiplex.redhat.com>
+ <539F9B6C.1080802@huawei.com>
+ <53A3E948.5020701@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53A3E948.5020701@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Hagen Paul Pfeifer <hagen@jauu.net>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Li Zefan <lizefan@huawei.com>
 
-On Fri, Jun 20 2014, Fengguang Wu <fengguang.wu@intel.com> wrote:
->>> include/linux/kernel.h:744:28: note: in expansion of macro 'min'
->     #define clamp(val, lo, hi) min(max(val, lo), hi)
->                                ^
->>> drivers/net/ethernet/intel/i40e/i40e_debugfs.c:1901:11: note: in expans=
-ion of macro 'clamp'
->       bytes =3D clamp(bytes, (u16)1024, (u16)I40E_MAX_AQ_BUF_SIZE);
->               ^
+On Fri 20-06-14 15:56:56, Xishi Qiu wrote:
+> On 2014/6/17 9:35, Xishi Qiu wrote:
+> 
+> > On 2014/6/16 20:50, Rafael Aquini wrote:
+> > 
+> >> On Mon, Jun 16, 2014 at 01:14:22PM +0200, Michal Hocko wrote:
+> >>> On Mon 16-06-14 17:24:38, Xishi Qiu wrote:
+> >>>> When system(e.g. smart phone) running for a long time, the cache often takes
+> >>>> a large memory, maybe the free memory is less than 50M, then OOM will happen
+> >>>> if APP allocate a large order pages suddenly and memory reclaim too slowly. 
+> >>>
+> >>> Have you ever seen this to happen? Page cache should be easy to reclaim and
+> >>> if there is too mach dirty memory then you should be able to tune the
+> >>> amount by dirty_bytes/ratio knob. If the page allocator falls back to
+> >>> OOM and there is a lot of page cache then I would call it a bug. I do
+> >>> not think that limiting the amount of the page cache globally makes
+> >>> sense. There are Unix systems which offer this feature but I think it is
+> >>> a bad interface which only papers over the reclaim inefficiency or lack
+> >>> of other isolations between loads.
+> >>>
+> >> +1
+> >>
+> >> It would be good if you could show some numbers that serve as evidence
+> >> of your theory on "excessive" pagecache acting as a trigger to your
+> >> observed OOMs. I'm assuming, by your 'e.g', you're running a swapless
+> >> system, so I would think your system OOMs are due to inability to
+> >> reclaim anon memory, instead of pagecache.
+> >>
+> 
+> I asked some colleagues, when the cache takes a large memory, it will not
+> trigger OOM, but performance regression. 
+> 
+> It is because that business process do IO high frequency, and this will 
+> increase page cache. When there is not enough memory, page cache will
+> be reclaimed first, then alloc a new page, and add it to page cache. This
+> often takes too much time, and causes performance regression.
 
-The obvious fix:
+I cannot say I would understand the problem you are describing. So the
+page cache eats the most of the memory and that increases allocation
+latency for new page cache? Is it because of the direct reclaim?
+Why kswapd doesn't reclaim the clean pagecache? Or is the memory dirty?
 
------------ >8 ------------------------------------------------------------=
---
-diff --git a/include/linux/kernel.h b/include/linux/kernel.h
-index 44649e0..149864b 100644
---- a/include/linux/kernel.h
-+++ b/include/linux/kernel.h
-@@ -719,8 +719,8 @@ static inline void ftrace_dump(enum ftrace_dump_mode oo=
-ps_dump_mode) { }
-        (void) (&_max1 =3D=3D &_max2);              \
-        _max1 > _max2 ? _max1 : _max2; })
-=20
--#define min3(x, y, z) min(min(x, y), z)
--#define max3(x, y, z) max(max(x, y), z)
-+#define min3(x, y, z) min((typeof(x))min(x, y), z)
-+#define max3(x, y, z) max((typeof(x))max(x, y), z)
-=20
- /**
-  * min_not_zero - return the minimum that is _not_ zero, unless both are z=
-ero
-@@ -741,7 +741,7 @@ static inline void ftrace_dump(enum ftrace_dump_mode oo=
-ps_dump_mode) { }
-  * This macro does strict typechecking of min/max to make sure they are of=
- the
-  * same type as val.  See the unnecessary pointer comparisons.
-  */
--#define clamp(val, lo, hi) min(max(val, lo), hi)
-+#define clamp(val, lo, hi) min((typeof(val))max(val, lo), hi)
-=20
- /*
-  * ..and if you can't take the strict
------------ >8 ------------------------------------------------------------=
---
+> In view of this situation, if we reclaim page cache in circles may be
+> fix this problem. What do you think?
 
-increases size of the kernel:
-
--rwx------ 1 mpn eng 437026785 Jun 20 15:45 vmlinux.before
--rwx------ 1 mpn eng 437026881 Jun 20 15:30 vmlinux.after
-
-even though it's still slightly smaller than w/o the patch all together:
-
--rwx------ 1 mpn eng 437027411 Jun 20 16:04 vmlinux.before.before
-
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
+No, it seems more like either system misconfiguration or a reclaim bug.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
