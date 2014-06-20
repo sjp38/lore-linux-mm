@@ -1,68 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id CD5AD6B0035
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 03:52:35 -0400 (EDT)
-Received: by mail-pb0-f49.google.com with SMTP id rr13so2823442pbb.22
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 00:52:35 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id mi7si8800237pab.136.2014.06.20.00.52.34
-        for <linux-mm@kvack.org>;
-        Fri, 20 Jun 2014 00:52:34 -0700 (PDT)
-Date: Fri, 20 Jun 2014 15:52:18 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [mmotm:master 153/230] lib/glob.c:48:32: sparse: Using plain integer
- as NULL pointer
-Message-ID: <20140620075218.GA3059@localhost>
-References: <53a3cf27.i2H5zBcGy/9VGAAt%fengguang.wu@intel.com>
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id E216D6B0035
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 03:57:50 -0400 (EDT)
+Received: by mail-pb0-f48.google.com with SMTP id rq2so2844659pbb.21
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 00:57:50 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id qp5si8799802pab.192.2014.06.20.00.57.47
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 20 Jun 2014 00:57:49 -0700 (PDT)
+Message-ID: <53A3E948.5020701@huawei.com>
+Date: Fri, 20 Jun 2014 15:56:56 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <53a3cf27.i2H5zBcGy/9VGAAt%fengguang.wu@intel.com>
+Subject: Re: [PATCH 0/8] mm: add page cache limit and reclaim feature
+References: <539EB7D6.8070401@huawei.com> <20140616111422.GA16915@dhcp22.suse.cz> <20140616125040.GA29993@optiplex.redhat.com> <539F9B6C.1080802@huawei.com>
+In-Reply-To: <539F9B6C.1080802@huawei.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: George Spelvin <linux@horizon.com>
-Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Rafael Aquini <aquini@redhat.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik
+ van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Li Zefan <lizefan@huawei.com>
 
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   df25ba7db0775d87018e2cd92f26b9b087093840
-commit: 31b8d64a94ed8129048a904cc07c11a05c2efd6f [153/230] libata: Use glob_match from lib/glob.c
-reproduce: make C=1 CF=-D__CHECK_ENDIAN__
+On 2014/6/17 9:35, Xishi Qiu wrote:
 
->> lib/glob.c:48:32: sparse: Using plain integer as NULL pointer
+> On 2014/6/16 20:50, Rafael Aquini wrote:
+> 
+>> On Mon, Jun 16, 2014 at 01:14:22PM +0200, Michal Hocko wrote:
+>>> On Mon 16-06-14 17:24:38, Xishi Qiu wrote:
+>>>> When system(e.g. smart phone) running for a long time, the cache often takes
+>>>> a large memory, maybe the free memory is less than 50M, then OOM will happen
+>>>> if APP allocate a large order pages suddenly and memory reclaim too slowly. 
+>>>
+>>> Have you ever seen this to happen? Page cache should be easy to reclaim and
+>>> if there is too mach dirty memory then you should be able to tune the
+>>> amount by dirty_bytes/ratio knob. If the page allocator falls back to
+>>> OOM and there is a lot of page cache then I would call it a bug. I do
+>>> not think that limiting the amount of the page cache globally makes
+>>> sense. There are Unix systems which offer this feature but I think it is
+>>> a bad interface which only papers over the reclaim inefficiency or lack
+>>> of other isolations between loads.
+>>>
+>> +1
+>>
+>> It would be good if you could show some numbers that serve as evidence
+>> of your theory on "excessive" pagecache acting as a trigger to your
+>> observed OOMs. I'm assuming, by your 'e.g', you're running a swapless
+>> system, so I would think your system OOMs are due to inability to
+>> reclaim anon memory, instead of pagecache.
+>>
 
-vim +48 lib/glob.c
+I asked some colleagues, when the cache takes a large memory, it will not
+trigger OOM, but performance regression. 
 
-37e65fe1 George Spelvin 2014-06-20  32   * treat / or leading . specially; it isn't actually used for pathnames.
-37e65fe1 George Spelvin 2014-06-20  33   *
-37e65fe1 George Spelvin 2014-06-20  34   * Note that according to glob(7) (and unlike bash), character classes
-37e65fe1 George Spelvin 2014-06-20  35   * are complemented by a leading !; this does not support the regex-style
-37e65fe1 George Spelvin 2014-06-20  36   * [^a-z] syntax.
-37e65fe1 George Spelvin 2014-06-20  37   *
-37e65fe1 George Spelvin 2014-06-20  38   * An opening bracket without a matching close is matched literally.
-37e65fe1 George Spelvin 2014-06-20  39   */
-37e65fe1 George Spelvin 2014-06-20  40  bool __pure glob_match(char const *pat, char const *str)
-37e65fe1 George Spelvin 2014-06-20  41  {
-37e65fe1 George Spelvin 2014-06-20  42  	/*
-37e65fe1 George Spelvin 2014-06-20  43  	 * Backtrack to previous * on mismatch and retry starting one
-37e65fe1 George Spelvin 2014-06-20  44  	 * character later in the string.  Because * matches all characters
-37e65fe1 George Spelvin 2014-06-20  45  	 * (no exception for /), it can be easily proved that there's
-37e65fe1 George Spelvin 2014-06-20  46  	 * never a need to backtrack multiple levels.
-37e65fe1 George Spelvin 2014-06-20  47  	 */
-37e65fe1 George Spelvin 2014-06-20 @48  	char const *back_pat = 0, *back_str = back_str;
-37e65fe1 George Spelvin 2014-06-20  49  
-37e65fe1 George Spelvin 2014-06-20  50  	/*
-37e65fe1 George Spelvin 2014-06-20  51  	 * Loop over each token (character or class) in pat, matching
-37e65fe1 George Spelvin 2014-06-20  52  	 * it against the remaining unmatched tail of str.  Return false
-37e65fe1 George Spelvin 2014-06-20  53  	 * on mismatch, or true after matching the trailing nul bytes.
-37e65fe1 George Spelvin 2014-06-20  54  	 */
-37e65fe1 George Spelvin 2014-06-20  55  	for (;;) {
-37e65fe1 George Spelvin 2014-06-20  56  		unsigned char c = *str++;
+It is because that business process do IO high frequency, and this will 
+increase page cache. When there is not enough memory, page cache will
+be reclaimed first, then alloc a new page, and add it to page cache. This
+often takes too much time, and causes performance regression.
 
+In view of this situation, if we reclaim page cache in circles may be
+fix this problem. What do you think?
 
+Thanks,
+Xishi Qiu
 
----
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
