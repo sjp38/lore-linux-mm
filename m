@@ -1,49 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
-	by kanga.kvack.org (Postfix) with ESMTP id E5E436B0039
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 16:39:29 -0400 (EDT)
-Received: by mail-qg0-f42.google.com with SMTP id e89so4004584qgf.1
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 13:39:29 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v7si12388780qad.84.2014.06.20.13.39.29
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jun 2014 13:39:29 -0700 (PDT)
-Date: Fri, 20 Jun 2014 17:39:03 -0300
-From: Marcelo Tosatti <mtosatti@redhat.com>
-Subject: Re: [RFC PATCH 1/1] Move two pinned pages to non-movable node in kvm.
-Message-ID: <20140620203903.GA7838@amt.cnet>
-References: <1403070600-6083-1-git-send-email-tangchen@cn.fujitsu.com>
- <20140618061230.GA10948@minantech.com>
- <53A136C4.5070206@cn.fujitsu.com>
- <20140619092031.GA429@minantech.com>
- <20140619190024.GA3887@amt.cnet>
- <20140620111509.GE20764@minantech.com>
- <20140620125326.GA22283@amt.cnet>
- <20140620142622.GA28698@minantech.com>
- <20140620203146.GA6580@amt.cnet>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140620203146.GA6580@amt.cnet>
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 88A0A6B003A
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 16:39:56 -0400 (EDT)
+Received: by mail-pb0-f45.google.com with SMTP id rr13so3492152pbb.18
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 13:39:56 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id sy3si11258107pab.158.2014.06.20.13.39.55
+        for <linux-mm@kvack.org>;
+        Fri, 20 Jun 2014 13:39:55 -0700 (PDT)
+Date: Fri, 20 Jun 2014 13:39:54 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [mmotm:master 141/230] include/linux/kernel.h:744:28: note: in
+ expansion of macro 'min'
+Message-Id: <20140620133954.3cc60a53f60edac2d8001b63@linux-foundation.org>
+In-Reply-To: <xa1tppi3vc9w.fsf@mina86.com>
+References: <53a3c359.yUYVC7fzjYpZLyLq%fengguang.wu@intel.com>
+	<20140620055210.GA26552@localhost>
+	<xa1tppi3vc9w.fsf@mina86.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gleb Natapov <gleb@kernel.org>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, pbonzini@redhat.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, mgorman@suse.de, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, guz.fnst@cn.fujitsu.com, laijs@cn.fujitsu.com, kvm@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, Avi Kivity <avi.kivity@gmail.com>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Hagen Paul Pfeifer <hagen@jauu.net>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Fri, Jun 20, 2014 at 05:31:46PM -0300, Marcelo Tosatti wrote:
-> > IIRC your shadow page pinning patch series support flushing of ptes
-> > by mmu notifier by forcing MMU reload and, as a result, faulting in of
-> > pinned pages during next entry.  Your patch series does not pin pages
-> > by elevating their page count.
+On Fri, 20 Jun 2014 17:19:55 +0200 Michal Nazarewicz <mina86@mina86.com> wrote:
+
+> On Fri, Jun 20 2014, Fengguang Wu <fengguang.wu@intel.com> wrote:
+> >>> include/linux/kernel.h:744:28: note: in expansion of macro 'min'
+> >     #define clamp(val, lo, hi) min(max(val, lo), hi)
+> >                                ^
+> >>> drivers/net/ethernet/intel/i40e/i40e_debugfs.c:1901:11: note: in expansion of macro 'clamp'
+> >       bytes = clamp(bytes, (u16)1024, (u16)I40E_MAX_AQ_BUF_SIZE);
+> >               ^
 > 
-> No but PEBS series does and its required to stop swap-out
-> of the page.
+> The obvious fix:
+> 
+> ----------- >8 --------------------------------------------------------------
+> diff --git a/include/linux/kernel.h b/include/linux/kernel.h
+> index 44649e0..149864b 100644
+> --- a/include/linux/kernel.h
+> +++ b/include/linux/kernel.h
+> @@ -719,8 +719,8 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
+>         (void) (&_max1 == &_max2);              \
+>         _max1 > _max2 ? _max1 : _max2; })
+>  
+> -#define min3(x, y, z) min(min(x, y), z)
+> -#define max3(x, y, z) max(max(x, y), z)
+> +#define min3(x, y, z) min((typeof(x))min(x, y), z)
+> +#define max3(x, y, z) max((typeof(x))max(x, y), z)
 
-Well actually no because of mmu notifiers.
+I don't get it.  All the types are u16 so we should be good.
 
-Tang, can you implement mmu notifiers for the other breaker of 
-mem hotplug ?
+What is the return type of
+
+	_max1 > _max2 ? _max1 : _max2;
+
+when both _max1 and _max2 are u16?  Something other than u16 apparently
+- I never knew that.
+
+Maybe we should be fixing min() and max()?
+
+--- a/include/linux/kernel.h~a
++++ a/include/linux/kernel.h
+@@ -711,13 +711,13 @@ static inline void ftrace_dump(enum ftra
+ 	typeof(x) _min1 = (x);			\
+ 	typeof(y) _min2 = (y);			\
+ 	(void) (&_min1 == &_min2);		\
+-	_min1 < _min2 ? _min1 : _min2; })
++	(typeof(x))(_min1 < _min2 ? _min1 : _min2); })
+ 
+ #define max(x, y) ({				\
+ 	typeof(x) _max1 = (x);			\
+ 	typeof(y) _max2 = (y);			\
+ 	(void) (&_max1 == &_max2);		\
+-	_max1 > _max2 ? _max1 : _max2; })
++	(typeof(x))(_max1 > _max2 ? _max1 : _max2); })
+ 
+ #define min3(x, y, z) min(min(x, y), z)
+ #define max3(x, y, z) max(max(x, y), z)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
