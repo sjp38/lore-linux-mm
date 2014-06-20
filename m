@@ -1,135 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
-	by kanga.kvack.org (Postfix) with ESMTP id EDB416B003C
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 07:47:37 -0400 (EDT)
-Received: by mail-we0-f176.google.com with SMTP id u56so3600814wes.7
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 04:47:37 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id wf7si10803481wjb.2.2014.06.20.04.47.36
+Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
+	by kanga.kvack.org (Postfix) with ESMTP id EFA796B0035
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 08:53:57 -0400 (EDT)
+Received: by mail-qa0-f49.google.com with SMTP id w8so3095661qac.22
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 05:53:57 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c3si1910463qam.66.2014.06.20.05.53.56
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 20 Jun 2014 04:47:36 -0700 (PDT)
-Message-ID: <53A41F54.8000501@suse.cz>
-Date: Fri, 20 Jun 2014 13:47:32 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Jun 2014 05:53:57 -0700 (PDT)
+Date: Fri, 20 Jun 2014 09:53:26 -0300
+From: Marcelo Tosatti <mtosatti@redhat.com>
+Subject: Re: [RFC PATCH 1/1] Move two pinned pages to non-movable node in kvm.
+Message-ID: <20140620125326.GA22283@amt.cnet>
+References: <1403070600-6083-1-git-send-email-tangchen@cn.fujitsu.com>
+ <20140618061230.GA10948@minantech.com>
+ <53A136C4.5070206@cn.fujitsu.com>
+ <20140619092031.GA429@minantech.com>
+ <20140619190024.GA3887@amt.cnet>
+ <20140620111509.GE20764@minantech.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 02/10] mm, compaction: report compaction as contended
- only due to lock contention
-References: <1402305982-6928-1-git-send-email-vbabka@suse.cz> <1402305982-6928-2-git-send-email-vbabka@suse.cz> <20140611011019.GC15630@bbox> <53984A06.6020607@suse.cz> <20140611234944.GA12415@bbox> <5399B2DC.2040004@suse.cz> <20140613024005.GA8704@gmail.com>
-In-Reply-To: <20140613024005.GA8704@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140620111509.GE20764@minantech.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Gleb Natapov <gleb@minantech.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, pbonzini@redhat.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, mgorman@suse.de, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, guz.fnst@cn.fujitsu.com, laijs@cn.fujitsu.com, kvm@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, Avi Kivity <avi.kivity@gmail.com>
 
-On 06/13/2014 04:40 AM, Minchan Kim wrote:
-> On Thu, Jun 12, 2014 at 04:02:04PM +0200, Vlastimil Babka wrote:
->> On 06/12/2014 01:49 AM, Minchan Kim wrote:
->> >On Wed, Jun 11, 2014 at 02:22:30PM +0200, Vlastimil Babka wrote:
->> >>On 06/11/2014 03:10 AM, Minchan Kim wrote:
->> >>>On Mon, Jun 09, 2014 at 11:26:14AM +0200, Vlastimil Babka wrote:
->> >>>>Async compaction aborts when it detects zone lock contention or need_resched()
->> >>>>is true. David Rientjes has reported that in practice, most direct async
->> >>>>compactions for THP allocation abort due to need_resched(). This means that a
->> >>>>second direct compaction is never attempted, which might be OK for a page
->> >>>>fault, but hugepaged is intended to attempt a sync compaction in such case and
->> >>>>in these cases it won't.
->> >>>>
->> >>>>This patch replaces "bool contended" in compact_control with an enum that
->> >>>>distinguieshes between aborting due to need_resched() and aborting due to lock
->> >>>>contention. This allows propagating the abort through all compaction functions
->> >>>>as before, but declaring the direct compaction as contended only when lock
->> >>>>contantion has been detected.
->> >>>>
->> >>>>As a result, hugepaged will proceed with second sync compaction as intended,
->> >>>>when the preceding async compaction aborted due to need_resched().
->> >>>
->> >>>You said "second direct compaction is never attempted, which might be OK
->> >>>for a page fault" and said "hugepagd is intented to attempt a sync compaction"
->> >>>so I feel you want to handle khugepaged so special unlike other direct compact
->> >>>(ex, page fault).
->> >>
->> >>Well khugepaged is my primary concern, but I imagine there are other
->> >>direct compaction users besides THP page fault and khugepaged.
->> >>
->> >>>By this patch, direct compaction take care only lock contention, not rescheduling
->> >>>so that pop questions.
->> >>>
->> >>>Is it okay not to consider need_resched in direct compaction really?
->> >>
->> >>It still considers need_resched() to back of from async compaction.
->> >>It's only about signaling contended_compaction back to
->> >>__alloc_pages_slowpath(). There's this code executed after the
->> >>first, async compaction fails:
->> >>
->> >>/*
->> >>  * It can become very expensive to allocate transparent hugepages at
->> >>  * fault, so use asynchronous memory compaction for THP unless it is
->> >>  * khugepaged trying to collapse.
->> >>  */
->> >>if (!(gfp_mask & __GFP_NO_KSWAPD) || (current->flags & PF_KTHREAD))
->> >>         migration_mode = MIGRATE_SYNC_LIGHT;
->> >>
->> >>/*
->> >>  * If compaction is deferred for high-order allocations, it is because
->> >>  * sync compaction recently failed. In this is the case and the caller
->> >>  * requested a movable allocation that does not heavily disrupt the
->> >>  * system then fail the allocation instead of entering direct reclaim.
->> >>  */
->> >>if ((deferred_compaction || contended_compaction) &&
->> >>                                         (gfp_mask & __GFP_NO_KSWAPD))
->> >>         goto nopage;
->> >>
->> >>Both THP page fault and khugepaged use __GFP_NO_KSWAPD. The first
->> >>if() decides whether the second attempt will be sync (for
->> >>khugepaged) or async (page fault). The second if() decides that if
->> >>compaction was contended, then there won't be any second attempt
->> >>(and reclaim) at all. Counting need_resched() as contended in this
->> >>case is bad for khugepaged. Even for page fault it means no direct
->> >
->> >I agree khugepaged shouldn't count on need_resched, even lock contention
->> >because it was a result from admin's decision.
->> >If it hurts system performance, he should adjust knobs for khugepaged.
->> >
->> >>reclaim and a second async compaction. David says need_resched()
->> >>occurs so often then it is a poor heuristic to decide this.
->> >
->> >But page fault is a bit different. Inherently, high-order allocation
->> >(ie, above PAGE_ALLOC_COSTLY_ORDER) is fragile so all of the caller
->> >shoud keep in mind that and prepare second plan(ex, 4K allocation)
->> >so direct reclaim/compaction should take care of latency rather than
->> >success ratio.
->> 
->> Yes it's a rather delicate balance. But the plan is now to try
->> balance this differently than using need_resched.
->> 
->> >If need_resched in second attempt(ie, synchronous compaction) is almost
->> >true, it means the process consumed his timeslice so it shouldn't be
->> >greedy and gives a CPU resource to others.
->> 
->> Synchronous compaction uses cond_resched() so that's fine I think?
-> 
-> Sorry for being not clear. I post for the clarification before taking
-> a rest in holiday. :)
-> 
-> When THP page fault occurs and found rescheduling while doing async
-> direct compaction, it goes "nopage" and fall-backed to 4K page.
-> It's good to me.
-> 
-> Another topic: I couldn't find any cond_resched. Anyway, it could be
-> another patch.
-> 
+On Fri, Jun 20, 2014 at 02:15:10PM +0300, Gleb Natapov wrote:
+> On Thu, Jun 19, 2014 at 04:00:24PM -0300, Marcelo Tosatti wrote:
+> > On Thu, Jun 19, 2014 at 12:20:32PM +0300, Gleb Natapov wrote:
+> > > CCing Marcelo,
+> > > 
+> > > On Wed, Jun 18, 2014 at 02:50:44PM +0800, Tang Chen wrote:
+> > > > Hi Gleb,
+> > > > 
+> > > > Thanks for the quick reply. Please see below.
+> > > > 
+> > > > On 06/18/2014 02:12 PM, Gleb Natapov wrote:
+> > > > >On Wed, Jun 18, 2014 at 01:50:00PM +0800, Tang Chen wrote:
+> > > > >>[Questions]
+> > > > >>And by the way, would you guys please answer the following questions for me ?
+> > > > >>
+> > > > >>1. What's the ept identity pagetable for ?  Only one page is enough ?
+> > > > >>
+> > > > >>2. Is the ept identity pagetable only used in realmode ?
+> > > > >>    Can we free it once the guest is up (vcpu in protect mode)?
+> > > > >>
+> > > > >>3. Now, ept identity pagetable is allocated in qemu userspace.
+> > > > >>    Can we allocate it in kernel space ?
+> > > > >What would be the benefit?
+> > > > 
+> > > > I think the benefit is we can hot-remove the host memory a kvm guest
+> > > > is using.
+> > > > 
+> > > > For now, only memory in ZONE_MOVABLE can be migrated/hot-removed. And the
+> > > > kernel
+> > > > will never use ZONE_MOVABLE memory. So if we can allocate these two pages in
+> > > > kernel space, we can pin them without any trouble. When doing memory
+> > > > hot-remove,
+> > > > the kernel will not try to migrate these two pages.
+> > > But we can do that by other means, no? The patch you've sent for instance.
+> > > 
+> > > > 
+> > > > >
+> > > > >>
+> > > > >>4. If I want to migrate these two pages, what do you think is the best way ?
+> > > > >>
+> > > > >I answered most of those here: http://www.mail-archive.com/kvm@vger.kernel.org/msg103718.html
+> > > > 
+> > > > I'm sorry I must missed this email.
+> > > > 
+> > > > Seeing your advice, we can unpin these two pages and repin them in the next
+> > > > EPT violation.
+> > > > So about this problem, which solution would you prefer, allocate these two
+> > > > pages in kernel
+> > > > space, or migrate them before memory hot-remove ?
+> > > > 
+> > > > I think the first solution is simpler. But I'm not quite sure if there is
+> > > > any other pages
+> > > > pinned in memory. If we have the same problem with other kvm pages, I think
+> > > > it is better to
+> > > > solve it in the second way.
+> > > > 
+> > > > What do you think ?
+> > > Remove pinning is preferable. In fact looks like for identity pagetable
+> > > it should be trivial, just don't pin. APIC access page is a little bit
+> > > more complicated since its physical address needs to be tracked to be
+> > > updated in VMCS.
+> > 
+> > Yes, and there are new users of page pinning as well soon (see PEBS
+> > threads on kvm-devel).
+> > 
+> > Was thinking of notifiers scheme. Perhaps:
+> > 
+> > ->begin_page_unpin(struct page *page)
+> > 	- Remove any possible access to page.
+> > 
+> > ->end_page_unpin(struct page *page)
+> > 	- Reinstantiate any possible access to page.
+> > 
+> > For KVM:
+> > 
+> > ->begin_page_unpin()
+> > 	- Remove APIC-access page address from VMCS.
+> > 	  or
+> > 	- Remove spte translation to pinned page.
+> > 	
+> > 	- Put vcpu in state where no VM-entries are allowed.
+> > 
+> > ->end_page_unpin()
+> > 	- Setup APIC-access page, ...
+> > 	- Allow vcpu to VM-entry.
+> > 
+> I believe that to handle identity page and APIC access page we do not
+> need any of those. 
+> We can use mmu notifiers to track when page begins
+> to be moved and we can find new page location on EPT violation.
 
-Thanks for the explanation. I'll include a cond_resched() at the level of
-try_to_compact_pages() where it fits better, so it's not necessary in the place you
-suggested. This should solve the "don't be greedy" problem. I will not yet include
-the "bail out for latency" part because we are now slowly moving towards removing
-need_resched() as a condition for stopping compaction, and this would on the contrary
-extend it to prevent direct reclaim as well. David's data suggests that compaction often
-bails out due to need_resched(), so this would reduce the amount of direct reclaim and I
-don't want to touch that area in this series :)
+Does page migration hook via mmu notifiers? I don't think so. 
+
+It won't even attempt page migration because the page count is
+increased (would have to confirm though). Tang?
+
+The problem with identity page is this: its location is written into the
+guest CR3. So you cannot allow it (the page which the guest CR3 points
+to) to be reused before you remove the reference.
+
+Where is the guarantee there will be an EPT violation, allowing a vcpu
+to execute with guest CR3 pointing to page with random data?
+
+Same with the APIC access page.
+
+> > Because allocating APIC access page from distant NUMA node can
+> > be a performance problem, i believe.
+> I do not think this is the case. APIC access page is never written to,
+> and in fact SDM advice to share it between all vcpus.
+
+Right. 
+
+But the point is not so much relevant as this should be handled for
+PEBS pages which would be interesting to force to non-movable zones.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
