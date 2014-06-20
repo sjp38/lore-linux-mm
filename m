@@ -1,214 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id DE4BB6B0036
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 03:38:56 -0400 (EDT)
-Received: by mail-pb0-f47.google.com with SMTP id up15so2825190pbc.34
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 00:38:56 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id eh8si8755927pac.153.2014.06.20.00.38.55
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id CD5AD6B0035
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 03:52:35 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id rr13so2823442pbb.22
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 00:52:35 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id mi7si8800237pab.136.2014.06.20.00.52.34
         for <linux-mm@kvack.org>;
-        Fri, 20 Jun 2014 00:38:55 -0700 (PDT)
-Date: Fri, 20 Jun 2014 15:38:30 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 188/230] fs/jffs2/debug.h:69:3: note: in expansion
- of macro 'pr_debug'
-Message-ID: <53a3e4f6.LlTrbyV58fY2TrZa%fengguang.wu@intel.com>
+        Fri, 20 Jun 2014 00:52:34 -0700 (PDT)
+Date: Fri, 20 Jun 2014 15:52:18 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [mmotm:master 153/230] lib/glob.c:48:32: sparse: Using plain integer
+ as NULL pointer
+Message-ID: <20140620075218.GA3059@localhost>
+References: <53a3cf27.i2H5zBcGy/9VGAAt%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <53a3cf27.i2H5zBcGy/9VGAAt%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghai Lu <yinghai@kernel.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: George Spelvin <linux@horizon.com>
+Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
 tree:   git://git.cmpxchg.org/linux-mmotm.git master
 head:   df25ba7db0775d87018e2cd92f26b9b087093840
-commit: 0b3f61ac78013e35939696ddd63b9b871d11bf72 [188/230] initramfs: support initramfs that is more than 2G
-config: make ARCH=x86_64 allmodconfig
+commit: 31b8d64a94ed8129048a904cc07c11a05c2efd6f [153/230] libata: Use glob_match from lib/glob.c
+reproduce: make C=1 CF=-D__CHECK_ENDIAN__
 
-All warnings:
+>> lib/glob.c:48:32: sparse: Using plain integer as NULL pointer
 
-   fs/jffs2/compr_zlib.c:97:37: sparse: incompatible types in comparison expression (different type sizes)
-   In file included from fs/jffs2/compr_zlib.c:19:0:
-   fs/jffs2/compr_zlib.c: In function 'jffs2_zlib_compress':
-   include/linux/kernel.h:713:17: warning: comparison of distinct pointer types lacks a cast [enabled by default]
-     (void) (&_min1 == &_min2);  \
-                    ^
-   fs/jffs2/compr_zlib.c:97:23: note: in expansion of macro 'min'
-      def_strm.avail_in = min((unsigned)(*sourcelen-def_strm.total_in), def_strm.avail_out);
-                          ^
-   In file included from include/linux/printk.h:257:0,
-                    from include/linux/kernel.h:13,
-                    from fs/jffs2/compr_zlib.c:19:
-   include/linux/dynamic_debug.h:64:16: warning: format '%d' expects argument of type 'int', but argument 3 has type 'uLong' [-Wformat=]
-     static struct _ddebug  __aligned(8)   \
-                   ^
-   include/linux/dynamic_debug.h:76:2: note: in expansion of macro 'DEFINE_DYNAMIC_DEBUG_METADATA'
-     DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);  \
-     ^
-   include/linux/printk.h:263:2: note: in expansion of macro 'dynamic_pr_debug'
-     dynamic_pr_debug(fmt, ##__VA_ARGS__)
-     ^
->> fs/jffs2/debug.h:69:3: note: in expansion of macro 'pr_debug'
-      pr_debug(fmt, ##__VA_ARGS__); \
-      ^
->> fs/jffs2/compr_zlib.c:98:3: note: in expansion of macro 'jffs2_dbg'
-      jffs2_dbg(1, "calling deflate with avail_in %d, avail_out %d\n",
-      ^
-   include/linux/dynamic_debug.h:64:16: warning: format '%d' expects argument of type 'int', but argument 4 has type 'uLong' [-Wformat=]
-     static struct _ddebug  __aligned(8)   \
-                   ^
-   include/linux/dynamic_debug.h:76:2: note: in expansion of macro 'DEFINE_DYNAMIC_DEBUG_METADATA'
-     DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);  \
-     ^
-   include/linux/printk.h:263:2: note: in expansion of macro 'dynamic_pr_debug'
-     dynamic_pr_debug(fmt, ##__VA_ARGS__)
-     ^
->> fs/jffs2/debug.h:69:3: note: in expansion of macro 'pr_debug'
-      pr_debug(fmt, ##__VA_ARGS__); \
-      ^
->> fs/jffs2/compr_zlib.c:98:3: note: in expansion of macro 'jffs2_dbg'
-      jffs2_dbg(1, "calling deflate with avail_in %d, avail_out %d\n",
-      ^
-   include/linux/dynamic_debug.h:64:16: warning: format '%d' expects argument of type 'int', but argument 3 has type 'uLong' [-Wformat=]
-     static struct _ddebug  __aligned(8)   \
-                   ^
-   include/linux/dynamic_debug.h:76:2: note: in expansion of macro 'DEFINE_DYNAMIC_DEBUG_METADATA'
-     DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);  \
-     ^
-   include/linux/printk.h:263:2: note: in expansion of macro 'dynamic_pr_debug'
-     dynamic_pr_debug(fmt, ##__VA_ARGS__)
-     ^
->> fs/jffs2/debug.h:69:3: note: in expansion of macro 'pr_debug'
-      pr_debug(fmt, ##__VA_ARGS__); \
-      ^
->> fs/jffs2/compr_zlib.c:101:3: note: in expansion of macro 'jffs2_dbg'
-      jffs2_dbg(1, "deflate returned with avail_in %d, avail_out %d, total_in %ld, total_out %ld\n",
-      ^
-   include/linux/dynamic_debug.h:64:16: warning: format '%d' expects argument of type 'int', but argument 4 has type 'uLong' [-Wformat=]
-     static struct _ddebug  __aligned(8)   \
-                   ^
-   include/linux/dynamic_debug.h:76:2: note: in expansion of macro 'DEFINE_DYNAMIC_DEBUG_METADATA'
-     DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);  \
-     ^
-   include/linux/printk.h:263:2: note: in expansion of macro 'dynamic_pr_debug'
-     dynamic_pr_debug(fmt, ##__VA_ARGS__)
-     ^
->> fs/jffs2/debug.h:69:3: note: in expansion of macro 'pr_debug'
-      pr_debug(fmt, ##__VA_ARGS__); \
-      ^
->> fs/jffs2/compr_zlib.c:101:3: note: in expansion of macro 'jffs2_dbg'
-      jffs2_dbg(1, "deflate returned with avail_in %d, avail_out %d, total_in %ld, total_out %ld\n",
-      ^
+vim +48 lib/glob.c
 
-sparse warnings: (new ones prefixed by >>)
+37e65fe1 George Spelvin 2014-06-20  32   * treat / or leading . specially; it isn't actually used for pathnames.
+37e65fe1 George Spelvin 2014-06-20  33   *
+37e65fe1 George Spelvin 2014-06-20  34   * Note that according to glob(7) (and unlike bash), character classes
+37e65fe1 George Spelvin 2014-06-20  35   * are complemented by a leading !; this does not support the regex-style
+37e65fe1 George Spelvin 2014-06-20  36   * [^a-z] syntax.
+37e65fe1 George Spelvin 2014-06-20  37   *
+37e65fe1 George Spelvin 2014-06-20  38   * An opening bracket without a matching close is matched literally.
+37e65fe1 George Spelvin 2014-06-20  39   */
+37e65fe1 George Spelvin 2014-06-20  40  bool __pure glob_match(char const *pat, char const *str)
+37e65fe1 George Spelvin 2014-06-20  41  {
+37e65fe1 George Spelvin 2014-06-20  42  	/*
+37e65fe1 George Spelvin 2014-06-20  43  	 * Backtrack to previous * on mismatch and retry starting one
+37e65fe1 George Spelvin 2014-06-20  44  	 * character later in the string.  Because * matches all characters
+37e65fe1 George Spelvin 2014-06-20  45  	 * (no exception for /), it can be easily proved that there's
+37e65fe1 George Spelvin 2014-06-20  46  	 * never a need to backtrack multiple levels.
+37e65fe1 George Spelvin 2014-06-20  47  	 */
+37e65fe1 George Spelvin 2014-06-20 @48  	char const *back_pat = 0, *back_str = back_str;
+37e65fe1 George Spelvin 2014-06-20  49  
+37e65fe1 George Spelvin 2014-06-20  50  	/*
+37e65fe1 George Spelvin 2014-06-20  51  	 * Loop over each token (character or class) in pat, matching
+37e65fe1 George Spelvin 2014-06-20  52  	 * it against the remaining unmatched tail of str.  Return false
+37e65fe1 George Spelvin 2014-06-20  53  	 * on mismatch, or true after matching the trailing nul bytes.
+37e65fe1 George Spelvin 2014-06-20  54  	 */
+37e65fe1 George Spelvin 2014-06-20  55  	for (;;) {
+37e65fe1 George Spelvin 2014-06-20  56  		unsigned char c = *str++;
 
->> fs/jffs2/compr_zlib.c:97:37: sparse: incompatible types in comparison expression (different type sizes)
-   In file included from fs/jffs2/compr_zlib.c:19:0:
-   fs/jffs2/compr_zlib.c: In function 'jffs2_zlib_compress':
-   include/linux/kernel.h:713:17: warning: comparison of distinct pointer types lacks a cast [enabled by default]
-     (void) (&_min1 == &_min2);  \
-                    ^
-   fs/jffs2/compr_zlib.c:97:23: note: in expansion of macro 'min'
-      def_strm.avail_in = min((unsigned)(*sourcelen-def_strm.total_in), def_strm.avail_out);
-                          ^
-   In file included from include/linux/printk.h:257:0,
-                    from include/linux/kernel.h:13,
-                    from fs/jffs2/compr_zlib.c:19:
-   include/linux/dynamic_debug.h:64:16: warning: format '%d' expects argument of type 'int', but argument 3 has type 'uLong' [-Wformat=]
-     static struct _ddebug  __aligned(8)   \
-                   ^
-   include/linux/dynamic_debug.h:76:2: note: in expansion of macro 'DEFINE_DYNAMIC_DEBUG_METADATA'
-     DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);  \
-     ^
-   include/linux/printk.h:263:2: note: in expansion of macro 'dynamic_pr_debug'
-     dynamic_pr_debug(fmt, ##__VA_ARGS__)
-     ^
-   fs/jffs2/debug.h:69:3: note: in expansion of macro 'pr_debug'
-      pr_debug(fmt, ##__VA_ARGS__); \
-      ^
-   fs/jffs2/compr_zlib.c:98:3: note: in expansion of macro 'jffs2_dbg'
-      jffs2_dbg(1, "calling deflate with avail_in %d, avail_out %d\n",
-      ^
-   include/linux/dynamic_debug.h:64:16: warning: format '%d' expects argument of type 'int', but argument 4 has type 'uLong' [-Wformat=]
-     static struct _ddebug  __aligned(8)   \
-                   ^
-   include/linux/dynamic_debug.h:76:2: note: in expansion of macro 'DEFINE_DYNAMIC_DEBUG_METADATA'
-     DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);  \
-     ^
-   include/linux/printk.h:263:2: note: in expansion of macro 'dynamic_pr_debug'
-     dynamic_pr_debug(fmt, ##__VA_ARGS__)
-     ^
-   fs/jffs2/debug.h:69:3: note: in expansion of macro 'pr_debug'
-      pr_debug(fmt, ##__VA_ARGS__); \
-      ^
-   fs/jffs2/compr_zlib.c:98:3: note: in expansion of macro 'jffs2_dbg'
-      jffs2_dbg(1, "calling deflate with avail_in %d, avail_out %d\n",
-      ^
-   include/linux/dynamic_debug.h:64:16: warning: format '%d' expects argument of type 'int', but argument 3 has type 'uLong' [-Wformat=]
-     static struct _ddebug  __aligned(8)   \
-                   ^
-   include/linux/dynamic_debug.h:76:2: note: in expansion of macro 'DEFINE_DYNAMIC_DEBUG_METADATA'
-     DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);  \
-     ^
-   include/linux/printk.h:263:2: note: in expansion of macro 'dynamic_pr_debug'
-     dynamic_pr_debug(fmt, ##__VA_ARGS__)
-     ^
-   fs/jffs2/debug.h:69:3: note: in expansion of macro 'pr_debug'
-      pr_debug(fmt, ##__VA_ARGS__); \
-      ^
-   fs/jffs2/compr_zlib.c:101:3: note: in expansion of macro 'jffs2_dbg'
-      jffs2_dbg(1, "deflate returned with avail_in %d, avail_out %d, total_in %ld, total_out %ld\n",
-      ^
-   include/linux/dynamic_debug.h:64:16: warning: format '%d' expects argument of type 'int', but argument 4 has type 'uLong' [-Wformat=]
-     static struct _ddebug  __aligned(8)   \
-                   ^
-   include/linux/dynamic_debug.h:76:2: note: in expansion of macro 'DEFINE_DYNAMIC_DEBUG_METADATA'
-     DEFINE_DYNAMIC_DEBUG_METADATA(descriptor, fmt);  \
-     ^
-   include/linux/printk.h:263:2: note: in expansion of macro 'dynamic_pr_debug'
-     dynamic_pr_debug(fmt, ##__VA_ARGS__)
-     ^
-   fs/jffs2/debug.h:69:3: note: in expansion of macro 'pr_debug'
-      pr_debug(fmt, ##__VA_ARGS__); \
-      ^
-   fs/jffs2/compr_zlib.c:101:3: note: in expansion of macro 'jffs2_dbg'
-      jffs2_dbg(1, "deflate returned with avail_in %d, avail_out %d, total_in %ld, total_out %ld\n",
-      ^
 
-vim +/pr_debug +69 fs/jffs2/debug.h
-
-e0c8e42f Artem B. Bityutskiy 2005-07-24  53  #if CONFIG_JFFS2_FS_DEBUG > 0
-9c261b33 Joe Perches         2012-02-15  54  #define DEBUG
-730554d9 Artem B. Bityutskiy 2005-07-17  55  #define D1(x) x
-730554d9 Artem B. Bityutskiy 2005-07-17  56  #else
-730554d9 Artem B. Bityutskiy 2005-07-17  57  #define D1(x)
-730554d9 Artem B. Bityutskiy 2005-07-17  58  #endif
-730554d9 Artem B. Bityutskiy 2005-07-17  59  
-730554d9 Artem B. Bityutskiy 2005-07-17  60  #if CONFIG_JFFS2_FS_DEBUG > 1
-730554d9 Artem B. Bityutskiy 2005-07-17  61  #define D2(x) x
-730554d9 Artem B. Bityutskiy 2005-07-17  62  #else
-730554d9 Artem B. Bityutskiy 2005-07-17  63  #define D2(x)
-730554d9 Artem B. Bityutskiy 2005-07-17  64  #endif
-730554d9 Artem B. Bityutskiy 2005-07-17  65  
-9c261b33 Joe Perches         2012-02-15  66  #define jffs2_dbg(level, fmt, ...)		\
-9c261b33 Joe Perches         2012-02-15  67  do {						\
-9c261b33 Joe Perches         2012-02-15  68  	if (CONFIG_JFFS2_FS_DEBUG >= level)	\
-9c261b33 Joe Perches         2012-02-15 @69  		pr_debug(fmt, ##__VA_ARGS__);	\
-9c261b33 Joe Perches         2012-02-15  70  } while (0)
-9c261b33 Joe Perches         2012-02-15  71  
-e0c8e42f Artem B. Bityutskiy 2005-07-24  72  /* The prefixes of JFFS2 messages */
-9bbf29e4 Joe Perches         2012-02-15  73  #define JFFS2_DBG		KERN_DEBUG
-81e39cf0 Artem B. Bityutskiy 2005-09-14  74  #define JFFS2_DBG_PREFIX	"[JFFS2 DBG]"
-81e39cf0 Artem B. Bityutskiy 2005-09-14  75  #define JFFS2_DBG_MSG_PREFIX	JFFS2_DBG JFFS2_DBG_PREFIX
-730554d9 Artem B. Bityutskiy 2005-07-17  76  
-e0c8e42f Artem B. Bityutskiy 2005-07-24  77  /* JFFS2 message macros */
-
-:::::: The code at line 69 was first introduced by commit
-:::::: 9c261b33a9c417ccaf07f41796be278d09d02d49 jffs2: Convert most D1/D2 macros to jffs2_dbg
-
-:::::: TO: Joe Perches <joe@perches.com>
-:::::: CC: David Woodhouse <David.Woodhouse@intel.com>
 
 ---
 0-DAY kernel build testing backend              Open Source Technology Center
