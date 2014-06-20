@@ -1,87 +1,221 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f178.google.com (mail-we0-f178.google.com [74.125.82.178])
-	by kanga.kvack.org (Postfix) with ESMTP id B1EA06B003D
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 12:36:18 -0400 (EDT)
-Received: by mail-we0-f178.google.com with SMTP id x48so4121876wes.9
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 09:36:18 -0700 (PDT)
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id C2BA16B003D
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 12:56:06 -0400 (EDT)
+Received: by mail-wi0-f176.google.com with SMTP id n3so1154334wiv.15
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 09:56:06 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m13si3054278wij.35.2014.06.20.09.36.17
+        by mx.google.com with ESMTPS id l3si3113299wix.100.2014.06.20.09.56.04
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 20 Jun 2014 09:36:17 -0700 (PDT)
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH -mm] memcg: mem_cgroup_charge_statistics needs preempt_disable
-Date: Fri, 20 Jun 2014 18:36:11 +0200
-Message-Id: <1403282171-25502-1-git-send-email-mhocko@suse.cz>
-In-Reply-To: <1403124045-24361-14-git-send-email-hannes@cmpxchg.org>
-References: <1403124045-24361-14-git-send-email-hannes@cmpxchg.org>
+        Fri, 20 Jun 2014 09:56:05 -0700 (PDT)
+Message-ID: <53A467A3.1050008@suse.cz>
+Date: Fri, 20 Jun 2014 18:56:03 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
+MIME-Version: 1.0
+Subject: Re: [patch 2/4] mm: vmscan: rework compaction-ready signaling in
+ direct reclaim
+References: <1403282030-29915-1-git-send-email-hannes@cmpxchg.org> <1403282030-29915-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1403282030-29915-2-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-preempt_disable was previously disabled by lock_page_cgroup which has
-been removed by "mm: memcontrol: rewrite uncharge API".
+On 06/20/2014 06:33 PM, Johannes Weiner wrote:
+> Page reclaim for a higher-order page runs until compaction is ready,
+> then aborts and signals this situation through the return value of
+> shrink_zones().  This is an oddly specific signal to encode in the
+> return value of shrink_zones(), though, and can be quite confusing.
+> 
+> Introduce sc->compaction_ready and signal the compactability of the
+> zones out-of-band to free up the return value of shrink_zones() for
+> actual zone reclaimability.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-This fixes the a flood of splats like this:
-[    3.149371] BUG: using __this_cpu_add() in preemptible [00000000] code: udevd/1271
-[    3.151458] caller is __this_cpu_preempt_check+0x13/0x15
-[    3.152927] CPU: 0 PID: 1271 Comm: udevd Not tainted 3.15.0-test1 #366
-[    3.154637] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-[    3.156788]  0000000000000000 ffff88000005fba8 ffffffff814efe3f 0000000000000000
-[    3.158810]  ffff88000005fbd8 ffffffff8125b969 ffff880007413448 0000000000000001
-[    3.160836]  ffffea00001e8c00 0000000000000001 ffff88000005fbe8 ffffffff8125b9a8
-[    3.162950] Call Trace:
-[    3.163598]  [<ffffffff814efe3f>] dump_stack+0x4e/0x7a
-[    3.164942]  [<ffffffff8125b969>] check_preemption_disabled+0xd2/0xe5
-[    3.166618]  [<ffffffff8125b9a8>] __this_cpu_preempt_check+0x13/0x15
-[    3.168267]  [<ffffffff8112b630>] mem_cgroup_charge_statistics.isra.36+0xb5/0xc6
-[    3.170169]  [<ffffffff8112d2c5>] commit_charge+0x23c/0x256
-[    3.171823]  [<ffffffff8113101b>] mem_cgroup_commit_charge+0xb8/0xd7
-[    3.173838]  [<ffffffff810f5dab>] shmem_getpage_gfp+0x399/0x605
-[    3.175363]  [<ffffffff810f7456>] shmem_write_begin+0x3d/0x58
-[    3.176854]  [<ffffffff810e1361>] generic_perform_write+0xbc/0x192
-[    3.178445]  [<ffffffff8114a086>] ? file_update_time+0x34/0xac
-[    3.179952]  [<ffffffff810e2ae4>] __generic_file_aio_write+0x2c0/0x300
-[    3.181655]  [<ffffffff810e2b76>] generic_file_aio_write+0x52/0xbd
-[    3.183234]  [<ffffffff81133944>] do_sync_write+0x59/0x78
-[    3.184630]  [<ffffffff81133ea8>] vfs_write+0xc4/0x181
-[    3.185957]  [<ffffffff81134801>] SyS_write+0x4a/0x91
-[    3.187258]  [<ffffffff814fd30e>] tracesys+0xd0/0xd5
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
----
-Andrew,
-the changelog is quite modest but this should be folded into
-mm-memcontrol-rewrite-uncharge-api.patch anyway. If you want a
-regular patch, please let me know.
+(with a nitpick below)
 
- mm/memcontrol.c | 3 +++
- 1 file changed, 3 insertions(+)
+> ---
+>  mm/vmscan.c | 67 ++++++++++++++++++++++++++++---------------------------------
+>  1 file changed, 31 insertions(+), 36 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 19b5b8016209..ed1efb84c542 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -65,6 +65,9 @@ struct scan_control {
+>  	/* Number of pages freed so far during a call to shrink_zones() */
+>  	unsigned long nr_reclaimed;
+>  
+> +	/* One of the zones is ready for compaction */
+> +	int compaction_ready;
+> +
+>  	/* How many pages shrink_list() should reclaim */
+>  	unsigned long nr_to_reclaim;
+>  
+> @@ -2292,15 +2295,11 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+>  }
+>  
+>  /* Returns true if compaction should go ahead for a high-order request */
+> -static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
+> +static inline bool compaction_ready(struct zone *zone, int order)
+>  {
+>  	unsigned long balance_gap, watermark;
+>  	bool watermark_ok;
+>  
+> -	/* Do not consider compaction for orders reclaim is meant to satisfy */
+> -	if (sc->order <= PAGE_ALLOC_COSTLY_ORDER)
+> -		return false;
+> -
+>  	/*
+>  	 * Compaction takes time to run and there are potentially other
+>  	 * callers using the pages just freed. Continue reclaiming until
+> @@ -2309,18 +2308,18 @@ static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
+>  	 */
+>  	balance_gap = min(low_wmark_pages(zone), DIV_ROUND_UP(
+>  			zone->managed_pages, KSWAPD_ZONE_BALANCE_GAP_RATIO));
+> -	watermark = high_wmark_pages(zone) + balance_gap + (2UL << sc->order);
+> +	watermark = high_wmark_pages(zone) + balance_gap + (2UL << order);
+>  	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, 0, 0);
+>  
+>  	/*
+>  	 * If compaction is deferred, reclaim up to a point where
+>  	 * compaction will have a chance of success when re-enabled
+>  	 */
+> -	if (compaction_deferred(zone, sc->order))
+> +	if (compaction_deferred(zone, order))
+>  		return watermark_ok;
+>  
+>  	/* If compaction is not ready to start, keep reclaiming */
+> -	if (!compaction_suitable(zone, sc->order))
+> +	if (!compaction_suitable(zone, order))
+>  		return false;
+>  
+>  	return watermark_ok;
+> @@ -2341,20 +2340,14 @@ static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
+>   *
+>   * If a zone is deemed to be full of pinned pages then just give it a light
+>   * scan then give up on it.
+> - *
+> - * This function returns true if a zone is being reclaimed for a costly
+> - * high-order allocation and compaction is ready to begin. This indicates to
+> - * the caller that it should consider retrying the allocation instead of
+> - * further reclaim.
+>   */
+> -static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+> +static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+>  {
+>  	struct zoneref *z;
+>  	struct zone *zone;
+>  	unsigned long nr_soft_reclaimed;
+>  	unsigned long nr_soft_scanned;
+>  	unsigned long lru_pages = 0;
+> -	bool aborted_reclaim = false;
+>  	struct reclaim_state *reclaim_state = current->reclaim_state;
+>  	gfp_t orig_mask;
+>  	struct shrink_control shrink = {
+> @@ -2391,22 +2384,24 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+>  			if (sc->priority != DEF_PRIORITY &&
+>  			    !zone_reclaimable(zone))
+>  				continue;	/* Let kswapd poll it */
+> -			if (IS_ENABLED(CONFIG_COMPACTION)) {
+> -				/*
+> -				 * If we already have plenty of memory free for
+> -				 * compaction in this zone, don't free any more.
+> -				 * Even though compaction is invoked for any
+> -				 * non-zero order, only frequent costly order
+> -				 * reclamation is disruptive enough to become a
+> -				 * noticeable problem, like transparent huge
+> -				 * page allocations.
+> -				 */
+> -				if ((zonelist_zone_idx(z) <= requested_highidx)
+> -				    && compaction_ready(zone, sc)) {
+> -					aborted_reclaim = true;
+> -					continue;
+> -				}
+> +
+> +			/*
+> +			 * If we already have plenty of memory free
+> +			 * for compaction in this zone, don't free any
+> +			 * more.  Even though compaction is invoked
+> +			 * for any non-zero order, only frequent
+> +			 * costly order reclamation is disruptive
+> +			 * enough to become a noticeable problem, like
+> +			 * transparent huge page allocations.
+> +			 */
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 241cf4f91e24..cbf373085b6c 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -904,6 +904,8 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
- 					 struct page *page,
- 					 int nr_pages)
- {
-+	preempt_disable();
-+
- 	/*
- 	 * Here, RSS means 'mapped anon' and anon's SwapCache. Shmem/tmpfs is
- 	 * counted as CACHE even if it's on ANON LRU.
-@@ -928,6 +930,7 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
- 	}
- 
- 	__this_cpu_add(memcg->stat->nr_page_events, nr_pages);
-+	preempt_enable();
- }
- 
- unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
--- 
-2.0.0
+You moved this comment block left, yet you further shortened the individual lines, despite
+there is now more space to prolong them.
+
+> +			if (IS_ENABLED(CONFIG_COMPACTION) &&
+> +			    sc->order > PAGE_ALLOC_COSTLY_ORDER &&
+> +			    zonelist_zone_idx(z) <= requested_highidx &&
+> +			    compaction_ready(zone, sc->order)) {
+> +				sc->compaction_ready = true;
+> +				continue;
+>  			}
+> +
+>  			/*
+>  			 * This steals pages from memory cgroups over softlimit
+>  			 * and returns the number of reclaimed pages and
+> @@ -2444,8 +2439,6 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+>  	 * promoted it to __GFP_HIGHMEM.
+>  	 */
+>  	sc->gfp_mask = orig_mask;
+> -
+> -	return aborted_reclaim;
+>  }
+>  
+>  /* All zones in zonelist are unreclaimable? */
+> @@ -2489,7 +2482,6 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+>  {
+>  	unsigned long total_scanned = 0;
+>  	unsigned long writeback_threshold;
+> -	bool aborted_reclaim;
+>  
+>  	delayacct_freepages_start();
+>  
+> @@ -2500,12 +2492,15 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+>  		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
+>  				sc->priority);
+>  		sc->nr_scanned = 0;
+> -		aborted_reclaim = shrink_zones(zonelist, sc);
+> +		shrink_zones(zonelist, sc);
+>  
+>  		total_scanned += sc->nr_scanned;
+>  		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
+>  			goto out;
+>  
+> +		if (sc->compaction_ready)
+> +			goto out;
+> +
+>  		/*
+>  		 * If we're getting trouble reclaiming, start doing
+>  		 * writepage even in laptop mode.
+> @@ -2526,7 +2521,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+>  						WB_REASON_TRY_TO_FREE_PAGES);
+>  			sc->may_writepage = 1;
+>  		}
+> -	} while (--sc->priority >= 0 && !aborted_reclaim);
+> +	} while (--sc->priority >= 0);
+>  
+>  out:
+>  	delayacct_freepages_end();
+> @@ -2535,7 +2530,7 @@ out:
+>  		return sc->nr_reclaimed;
+>  
+>  	/* Aborted reclaim to try compaction? don't OOM, then */
+> -	if (aborted_reclaim)
+> +	if (sc->compaction_ready)
+>  		return 1;
+>  
+>  	/* top priority shrink_zones still had more to do? don't OOM, then */
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
