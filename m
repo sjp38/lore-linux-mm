@@ -1,131 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EB206B0037
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 07:15:15 -0400 (EDT)
-Received: by mail-wg0-f47.google.com with SMTP id k14so3512729wgh.18
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 04:15:15 -0700 (PDT)
-Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
-        by mx.google.com with ESMTPS id p8si1713009wij.57.2014.06.20.04.15.14
+Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A5FD6B0039
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 07:29:02 -0400 (EDT)
+Received: by mail-we0-f169.google.com with SMTP id t60so3697962wes.28
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 04:29:01 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id es6si1741388wib.105.2014.06.20.04.29.00
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 20 Jun 2014 04:15:14 -0700 (PDT)
-Received: by mail-we0-f171.google.com with SMTP id q58so3593182wes.2
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 04:15:13 -0700 (PDT)
-Date: Fri, 20 Jun 2014 14:15:10 +0300
-From: Gleb Natapov <gleb@minantech.com>
-Subject: Re: [RFC PATCH 1/1] Move two pinned pages to non-movable node in kvm.
-Message-ID: <20140620111509.GE20764@minantech.com>
-References: <1403070600-6083-1-git-send-email-tangchen@cn.fujitsu.com>
- <20140618061230.GA10948@minantech.com>
- <53A136C4.5070206@cn.fujitsu.com>
- <20140619092031.GA429@minantech.com>
- <20140619190024.GA3887@amt.cnet>
+        Fri, 20 Jun 2014 04:29:01 -0700 (PDT)
+Date: Fri, 20 Jun 2014 12:28:57 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/4] cfq: Increase default value of target_latency
+Message-ID: <20140620112857.GF10819@suse.de>
+References: <1403079807-24690-1-git-send-email-mgorman@suse.de>
+ <1403079807-24690-2-git-send-email-mgorman@suse.de>
+ <x49y4wslp6z.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20140619190024.GA3887@amt.cnet>
+In-Reply-To: <x49y4wslp6z.fsf@segfault.boston.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marcelo Tosatti <mtosatti@redhat.com>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, pbonzini@redhat.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, mgorman@suse.de, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, guz.fnst@cn.fujitsu.com, laijs@cn.fujitsu.com, kvm@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, Avi Kivity <avi.kivity@gmail.com>
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Jens Axboe <axboe@kernel.dk>
 
-On Thu, Jun 19, 2014 at 04:00:24PM -0300, Marcelo Tosatti wrote:
-> On Thu, Jun 19, 2014 at 12:20:32PM +0300, Gleb Natapov wrote:
-> > CCing Marcelo,
-> > 
-> > On Wed, Jun 18, 2014 at 02:50:44PM +0800, Tang Chen wrote:
-> > > Hi Gleb,
-> > > 
-> > > Thanks for the quick reply. Please see below.
-> > > 
-> > > On 06/18/2014 02:12 PM, Gleb Natapov wrote:
-> > > >On Wed, Jun 18, 2014 at 01:50:00PM +0800, Tang Chen wrote:
-> > > >>[Questions]
-> > > >>And by the way, would you guys please answer the following questions for me ?
-> > > >>
-> > > >>1. What's the ept identity pagetable for ?  Only one page is enough ?
-> > > >>
-> > > >>2. Is the ept identity pagetable only used in realmode ?
-> > > >>    Can we free it once the guest is up (vcpu in protect mode)?
-> > > >>
-> > > >>3. Now, ept identity pagetable is allocated in qemu userspace.
-> > > >>    Can we allocate it in kernel space ?
-> > > >What would be the benefit?
-> > > 
-> > > I think the benefit is we can hot-remove the host memory a kvm guest
-> > > is using.
-> > > 
-> > > For now, only memory in ZONE_MOVABLE can be migrated/hot-removed. And the
-> > > kernel
-> > > will never use ZONE_MOVABLE memory. So if we can allocate these two pages in
-> > > kernel space, we can pin them without any trouble. When doing memory
-> > > hot-remove,
-> > > the kernel will not try to migrate these two pages.
-> > But we can do that by other means, no? The patch you've sent for instance.
-> > 
-> > > 
-> > > >
-> > > >>
-> > > >>4. If I want to migrate these two pages, what do you think is the best way ?
-> > > >>
-> > > >I answered most of those here: http://www.mail-archive.com/kvm@vger.kernel.org/msg103718.html
-> > > 
-> > > I'm sorry I must missed this email.
-> > > 
-> > > Seeing your advice, we can unpin these two pages and repin them in the next
-> > > EPT violation.
-> > > So about this problem, which solution would you prefer, allocate these two
-> > > pages in kernel
-> > > space, or migrate them before memory hot-remove ?
-> > > 
-> > > I think the first solution is simpler. But I'm not quite sure if there is
-> > > any other pages
-> > > pinned in memory. If we have the same problem with other kvm pages, I think
-> > > it is better to
-> > > solve it in the second way.
-> > > 
-> > > What do you think ?
-> > Remove pinning is preferable. In fact looks like for identity pagetable
-> > it should be trivial, just don't pin. APIC access page is a little bit
-> > more complicated since its physical address needs to be tracked to be
-> > updated in VMCS.
+On Thu, Jun 19, 2014 at 02:38:44PM -0400, Jeff Moyer wrote:
+> Mel Gorman <mgorman@suse.de> writes:
 > 
-> Yes, and there are new users of page pinning as well soon (see PEBS
-> threads on kvm-devel).
+> > The existing CFQ default target_latency results in very poor performance
+> > for larger numbers of threads doing sequential reads.  While this can be
+> > easily described as a tuning problem for users, it is one that is tricky
+> > to detect. This patch the default on the assumption that people with access
+> > to expensive fast storage also know how to tune their IO scheduler.
+> >
+> > The following is from tiobench run on a mid-range desktop with a single
+> > spinning disk.
+> >
+> >                                       3.16.0-rc1            3.16.0-rc1                 3.0.0
+> >                                          vanilla          cfq600                     vanilla
+> > Mean   SeqRead-MB/sec-1         121.88 (  0.00%)      121.60 ( -0.23%)      134.59 ( 10.42%)
+> > Mean   SeqRead-MB/sec-2         101.99 (  0.00%)      102.35 (  0.36%)      122.59 ( 20.20%)
+> > Mean   SeqRead-MB/sec-4          97.42 (  0.00%)       99.71 (  2.35%)      114.78 ( 17.82%)
+> > Mean   SeqRead-MB/sec-8          83.39 (  0.00%)       90.39 (  8.39%)      100.14 ( 20.09%)
+> > Mean   SeqRead-MB/sec-16         68.90 (  0.00%)       77.29 ( 12.18%)       81.64 ( 18.50%)
 > 
-> Was thinking of notifiers scheme. Perhaps:
-> 
-> ->begin_page_unpin(struct page *page)
-> 	- Remove any possible access to page.
-> 
-> ->end_page_unpin(struct page *page)
-> 	- Reinstantiate any possible access to page.
-> 
-> For KVM:
-> 
-> ->begin_page_unpin()
-> 	- Remove APIC-access page address from VMCS.
-> 	  or
-> 	- Remove spte translation to pinned page.
-> 	
-> 	- Put vcpu in state where no VM-entries are allowed.
-> 
-> ->end_page_unpin()
-> 	- Setup APIC-access page, ...
-> 	- Allow vcpu to VM-entry.
-> 
-I believe that to handle identity page and APIC access page we do not
-need any of those. We can use mmu notifiers to track when page begins
-to be moved and we can find new page location on EPT violation.
+> Did you test any workloads other than this? 
 
-> 
-> Because allocating APIC access page from distant NUMA node can
-> be a performance problem, i believe.
-I do not think this is the case. APIC access page is never written to,
-and in fact SDM advice to share it between all vcpus.
+dd tests were inconclusive due to high variability. The dbench results
+hadn't come through but regression tests there indicate that it has
+regressed for high numbers of clients. I know sequential reads of
+benchmarks like bonnie++ have also regressed but I have not reverified
+the results yet.
 
---
-			Gleb.
+> Also, what normal workload
+> has 8 or more threads doing sequential reads?  (That's an honest
+> question.)
+> 
+
+File servers, mail servers, streaming media servers with multiple users,
+multi-user systems
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
