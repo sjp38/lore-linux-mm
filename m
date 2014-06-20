@@ -1,77 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D17D6B0035
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 04:17:54 -0400 (EDT)
-Received: by mail-wi0-f172.google.com with SMTP id hi2so345986wib.11
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 01:17:53 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id qi1si10186962wjc.18.2014.06.20.01.17.52
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 20 Jun 2014 01:17:52 -0700 (PDT)
-Date: Fri, 20 Jun 2014 10:17:32 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: slub/debugobjects: lockup when freeing memory
-In-Reply-To: <20140619220449.GT4904@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.10.1406201015440.5170@nanos>
-References: <53A2F406.4010109@oracle.com> <alpine.DEB.2.11.1406191001090.2785@gentwo.org> <20140619165247.GA4904@linux.vnet.ibm.com> <alpine.DEB.2.10.1406192127100.5170@nanos> <20140619202928.GG4904@linux.vnet.ibm.com> <alpine.DEB.2.10.1406192230390.5170@nanos>
- <20140619205307.GL4904@linux.vnet.ibm.com> <alpine.DEB.2.10.1406192331250.5170@nanos> <20140619220449.GT4904@linux.vnet.ibm.com>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id EF6D76B0035
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 05:23:51 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id hz1so2924755pad.10
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 02:23:51 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id df3si8952565pbb.203.2014.06.20.02.23.50
+        for <linux-mm@kvack.org>;
+        Fri, 20 Jun 2014 02:23:51 -0700 (PDT)
+Date: Fri, 20 Jun 2014 17:23:45 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [next:master 182/217] arch/powerpc/boot/types.h:18:14: warning:
+ comparison of distinct pointer types lacks a cast
+Message-ID: <53a3fda1.xVZderbgEd9yLzdT%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Christoph Lameter <cl@gentwo.org>, Sasha Levin <sasha.levin@oracle.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org
 
-On Thu, 19 Jun 2014, Paul E. McKenney wrote:
-> On Thu, Jun 19, 2014 at 11:32:41PM +0200, Thomas Gleixner wrote:
-> > 
-> > 
-> > On Thu, 19 Jun 2014, Paul E. McKenney wrote:
-> > 
-> > > On Thu, Jun 19, 2014 at 10:37:17PM +0200, Thomas Gleixner wrote:
-> > > > On Thu, 19 Jun 2014, Paul E. McKenney wrote:
-> > > > > On Thu, Jun 19, 2014 at 09:29:08PM +0200, Thomas Gleixner wrote:
-> > > > > > On Thu, 19 Jun 2014, Paul E. McKenney wrote:
-> > > > > > Well, no. Look at the callchain:
-> > > > > > 
-> > > > > > __call_rcu
-> > > > > >     debug_object_activate
-> > > > > >        rcuhead_fixup_activate
-> > > > > >           debug_object_init
-> > > > > >               kmem_cache_alloc
-> > > > > > 
-> > > > > > So call rcu activates the object, but the object has no reference in
-> > > > > > the debug objects code so the fixup code is called which inits the
-> > > > > > object and allocates a reference ....
-> > > > > 
-> > > > > OK, got it.  And you are right, call_rcu() has done this for a very
-> > > > > long time, so not sure what changed.  But it seems like the right
-> > > > > approach is to provide a debug-object-free call_rcu_alloc() for use
-> > > > > by the memory allocators.
-> > > > > 
-> > > > > Seem reasonable?  If so, please see the following patch.
-> > > > 
-> > > > Not really, you're torpedoing the whole purpose of debugobjects :)
-> > > > 
-> > > > So, why can't we just init the rcu head when the stuff is created?
-> > > 
-> > > That would allow me to keep my code unchanged, so I am in favor.  ;-)
-> > 
-> > Almost unchanged. You need to provide a function to do so, i.e. make
-> > use of
-> > 
-> >     debug_init_rcu_head()
-> 
-> You mean like this?
+tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+head:   633594bb2d3890711a887897f2003f41735f0dfa
+commit: 8d9dfa4b0125b04eb215909a388cf83fcdeee719 [182/217] initramfs: support initramfs that is more than 2G
+config: make ARCH=powerpc mpc86xx_defconfig
 
-I'd rather name it init_rcu_head() and free_rcu_head() w/o the debug_
-prefix, so it's consistent with init_rcu_head_on_stack /
-destroy_rcu_head_on_stack. But either way works for me.
+All warnings:
 
-Acked-by: Thomas Gleixner <tglx@linutronix.de>
+   In file included from arch/powerpc/boot/ops.h:15:0,
+                    from arch/powerpc/boot/gunzip_util.c:14:
+   arch/powerpc/boot/gunzip_util.c: In function 'gunzip_partial':
+>> arch/powerpc/boot/types.h:18:14: warning: comparison of distinct pointer types lacks a cast [enabled by default]
+     (void) (&_x == &_y); \
+                 ^
+>> arch/powerpc/boot/gunzip_util.c:118:9: note: in expansion of macro 'min'
+      len = min(state->s.avail_in, (unsigned)dstlen);
+            ^
 
- 
+vim +18 arch/powerpc/boot/types.h
+
+b2c5f619 Mark A. Greer 2006-09-19   2  #define _TYPES_H_
+b2c5f619 Mark A. Greer 2006-09-19   3  
+b2c5f619 Mark A. Greer 2006-09-19   4  #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+b2c5f619 Mark A. Greer 2006-09-19   5  
+b2c5f619 Mark A. Greer 2006-09-19   6  typedef unsigned char		u8;
+b2c5f619 Mark A. Greer 2006-09-19   7  typedef unsigned short		u16;
+b2c5f619 Mark A. Greer 2006-09-19   8  typedef unsigned int		u32;
+b2c5f619 Mark A. Greer 2006-09-19   9  typedef unsigned long long	u64;
+72d06895 Geoff Levand  2007-06-16  10  typedef signed char		s8;
+72d06895 Geoff Levand  2007-06-16  11  typedef short			s16;
+72d06895 Geoff Levand  2007-06-16  12  typedef int			s32;
+72d06895 Geoff Levand  2007-06-16  13  typedef long long		s64;
+b2c5f619 Mark A. Greer 2006-09-19  14  
+b2c5f619 Mark A. Greer 2006-09-19  15  #define min(x,y) ({ \
+b2c5f619 Mark A. Greer 2006-09-19  16  	typeof(x) _x = (x);	\
+b2c5f619 Mark A. Greer 2006-09-19  17  	typeof(y) _y = (y);	\
+b2c5f619 Mark A. Greer 2006-09-19 @18  	(void) (&_x == &_y);	\
+b2c5f619 Mark A. Greer 2006-09-19  19  	_x < _y ? _x : _y; })
+b2c5f619 Mark A. Greer 2006-09-19  20  
+b2c5f619 Mark A. Greer 2006-09-19  21  #define max(x,y) ({ \
+b2c5f619 Mark A. Greer 2006-09-19  22  	typeof(x) _x = (x);	\
+b2c5f619 Mark A. Greer 2006-09-19  23  	typeof(y) _y = (y);	\
+b2c5f619 Mark A. Greer 2006-09-19  24  	(void) (&_x == &_y);	\
+b2c5f619 Mark A. Greer 2006-09-19  25  	_x > _y ? _x : _y; })
+b2c5f619 Mark A. Greer 2006-09-19  26  
+
+:::::: The code at line 18 was first introduced by commit
+:::::: b2c5f61920eeee9c4e78698de4fde4586fe5ae79 [POWERPC] Start arch/powerpc/boot code reorganization
+
+:::::: TO: Mark A. Greer <mgreer@mvista.com>
+:::::: CC: Paul Mackerras <paulus@samba.org>
+
+---
+0-DAY kernel build testing backend              Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
