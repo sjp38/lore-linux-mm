@@ -1,38 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
-	by kanga.kvack.org (Postfix) with ESMTP id CECC86B0078
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 16:32:43 -0400 (EDT)
-Received: by mail-qc0-f172.google.com with SMTP id o8so4076141qcw.31
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 13:32:43 -0700 (PDT)
-Received: from qmta02.emeryville.ca.mail.comcast.net (qmta02.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:24])
-        by mx.google.com with ESMTP id i10si12341670qas.118.2014.06.20.13.32.42
-        for <linux-mm@kvack.org>;
-        Fri, 20 Jun 2014 13:32:43 -0700 (PDT)
-Date: Fri, 20 Jun 2014 15:32:40 -0500 (CDT)
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: kernel BUG at /src/linux-dev/mm/mempolicy.c:1738! on v3.16-rc1
-In-Reply-To: <alpine.LSU.2.11.1406201257370.8123@eggly.anvils>
-Message-ID: <alpine.DEB.2.11.1406201531530.5221@gentwo.org>
-References: <20140619215641.GA9792@nhori.bos.redhat.com> <alpine.DEB.2.11.1406200923220.10271@gentwo.org> <20140620194639.GA30729@nhori.bos.redhat.com> <alpine.LSU.2.11.1406201257370.8123@eggly.anvils>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id E5E436B0039
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 16:39:29 -0400 (EDT)
+Received: by mail-qg0-f42.google.com with SMTP id e89so4004584qgf.1
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 13:39:29 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v7si12388780qad.84.2014.06.20.13.39.29
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Jun 2014 13:39:29 -0700 (PDT)
+Date: Fri, 20 Jun 2014 17:39:03 -0300
+From: Marcelo Tosatti <mtosatti@redhat.com>
+Subject: Re: [RFC PATCH 1/1] Move two pinned pages to non-movable node in kvm.
+Message-ID: <20140620203903.GA7838@amt.cnet>
+References: <1403070600-6083-1-git-send-email-tangchen@cn.fujitsu.com>
+ <20140618061230.GA10948@minantech.com>
+ <53A136C4.5070206@cn.fujitsu.com>
+ <20140619092031.GA429@minantech.com>
+ <20140619190024.GA3887@amt.cnet>
+ <20140620111509.GE20764@minantech.com>
+ <20140620125326.GA22283@amt.cnet>
+ <20140620142622.GA28698@minantech.com>
+ <20140620203146.GA6580@amt.cnet>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140620203146.GA6580@amt.cnet>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Gleb Natapov <gleb@kernel.org>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, pbonzini@redhat.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, mgorman@suse.de, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, guz.fnst@cn.fujitsu.com, laijs@cn.fujitsu.com, kvm@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, Avi Kivity <avi.kivity@gmail.com>
 
-On Fri, 20 Jun 2014, Hugh Dickins wrote:
+On Fri, Jun 20, 2014 at 05:31:46PM -0300, Marcelo Tosatti wrote:
+> > IIRC your shadow page pinning patch series support flushing of ptes
+> > by mmu notifier by forcing MMU reload and, as a result, faulting in of
+> > pinned pages during next entry.  Your patch series does not pin pages
+> > by elevating their page count.
+> 
+> No but PEBS series does and its required to stop swap-out
+> of the page.
 
-> [PATCH] mm: fix crashes from mbind() merging vmas
->
-> v2.6.34's 9d8cebd4bcd7 ("mm: fix mbind vma merge problem") introduced
-> vma merging to mbind(), but it should have also changed the convention
-> of passing start vma from queue_pages_range() (formerly check_range())
-> to new_vma_page(): vma merging may have already freed that structure,
-> resulting in BUG at mm/mempolicy.c:1738 and probably worse crashes.
+Well actually no because of mmu notifiers.
 
-Good catch. Cannot find fault with what I see.
-
-Acked-by: Christoph Lameter <cl@linux.com>
+Tang, can you implement mmu notifiers for the other breaker of 
+mem hotplug ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
