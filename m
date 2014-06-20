@@ -1,49 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 88A346B0035
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 10:29:27 -0400 (EDT)
-Received: by mail-qa0-f48.google.com with SMTP id x12so3248159qac.35
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 07:29:27 -0700 (PDT)
-Received: from qmta02.emeryville.ca.mail.comcast.net (qmta02.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:24])
-        by mx.google.com with ESMTP id i14si10975331qay.114.2014.06.20.07.29.26
+Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 81CF56B0036
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 10:30:59 -0400 (EDT)
+Received: by mail-qa0-f49.google.com with SMTP id w8so3203941qac.22
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 07:30:59 -0700 (PDT)
+Received: from qmta10.emeryville.ca.mail.comcast.net (qmta10.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:17])
+        by mx.google.com with ESMTP id l66si10795242qgf.78.2014.06.20.07.30.58
         for <linux-mm@kvack.org>;
-        Fri, 20 Jun 2014 07:29:26 -0700 (PDT)
-Date: Fri, 20 Jun 2014 09:29:23 -0500 (CDT)
+        Fri, 20 Jun 2014 07:30:58 -0700 (PDT)
+Date: Fri, 20 Jun 2014 09:30:52 -0500 (CDT)
 From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: [PATCH] mm: slub: SLUB_DEBUG=n: use the same alloc/free hooks
- as for SLUB_DEBUG=y
-In-Reply-To: <20140619140651.c3c49cf70a7f349db595239e@linux-foundation.org>
-Message-ID: <alpine.DEB.2.11.1406200925360.10271@gentwo.org>
-References: <1403193138-7677-1-git-send-email-a.ryabinin@samsung.com> <alpine.DEB.2.11.1406191555110.4002@gentwo.org> <20140619140651.c3c49cf70a7f349db595239e@linux-foundation.org>
+Subject: Re: slub/debugobjects: lockup when freeing memory
+In-Reply-To: <20140619220449.GT4904@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.11.1406200930270.10271@gentwo.org>
+References: <53A2F406.4010109@oracle.com> <alpine.DEB.2.11.1406191001090.2785@gentwo.org> <20140619165247.GA4904@linux.vnet.ibm.com> <alpine.DEB.2.10.1406192127100.5170@nanos> <20140619202928.GG4904@linux.vnet.ibm.com> <alpine.DEB.2.10.1406192230390.5170@nanos>
+ <20140619205307.GL4904@linux.vnet.ibm.com> <alpine.DEB.2.10.1406192331250.5170@nanos> <20140619220449.GT4904@linux.vnet.ibm.com>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, ryabinin.a.a@gmail.com, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Konstantin Khlebnikov <koct9i@gmail.com>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Sasha Levin <sasha.levin@oracle.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 19 Jun 2014, Andrew Morton wrote:
+On Thu, 19 Jun 2014, Paul E. McKenney wrote:
 
-> (Is that a nack?)
+> This commit therefore exports the debug_init_rcu_head() and
+> debug_rcu_head_free() functions, which permits the allocators to allocated
+> and pre-initialize the debug-objects information, so that there no longer
+> any need for call_rcu() to do that initialization, which in turn prevents
+> the recursion into the memory allocators.
 
-Not sure.
-
-> The intent seems to have been implemented strangely.  Perhaps it would
-> be clearer and more conventional to express all this using Kconfig
-> logic.
-
-Well it really does not work right since SLUB_DEBUG=y is the default
-config and this behavior would be a bit surprising.
-
-> Anyway, if we plan to leave the code as-is then can we please get a
-> comment in there so the next person is not similarly confused?
-
-Ok. Lets apply the patch.
-
-Gosh. I think we need some way to figure out if code is being added to the
-critical paths. I had no idea about that latest issue where might_sleep
-suddenly became a call to cond_resched() until I saw the bug report.
-
-
+Looks-good-to: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
