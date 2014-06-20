@@ -1,109 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 53EA46B0037
-	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 22:59:26 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id ey11so2548174pad.26
-        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 19:59:26 -0700 (PDT)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id qe5si8020783pac.103.2014.06.19.19.59.24
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 093676B0037
+	for <linux-mm@kvack.org>; Thu, 19 Jun 2014 23:08:09 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id r10so2459962pdi.23
+        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 20:08:09 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id fl10si8038498pab.132.2014.06.19.20.08.08
         for <linux-mm@kvack.org>;
-        Thu, 19 Jun 2014 19:59:25 -0700 (PDT)
-Date: Fri, 20 Jun 2014 12:00:02 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH] mm: Write down design and intentions in English for
- proportial scan
-Message-ID: <20140620030002.GA14884@bbox>
+        Thu, 19 Jun 2014 20:08:09 -0700 (PDT)
+Date: Fri, 20 Jun 2014 11:07:18 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [mmotm:master 141/230]
+ drivers/staging/iio/impedance-analyzer/ad5933.c:437:335: warning:
+ comparison of distinct pointer types lacks a cast
+Message-ID: <53a3a566.b2b0fo3XpXtGxiw4%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Chen Yucong <slaoub@gmail.com>, mgorman@suse.de, hannes@cmpxchg.org, mhocko@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Hagen Paul Pfeifer <hagen@jauu.net>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
 
-On Thu, Jun 19, 2014 at 01:13:22PM -0700, Andrew Morton wrote:
-> On Thu, 19 Jun 2014 10:02:39 +0900 Minchan Kim <minchan@kernel.org> wrote:
-> 
-> > > > @@ -2057,8 +2057,7 @@ out:
-> > > >  static void shrink_lruvec(struct lruvec *lruvec, struct scan_control
-> > > > *sc)
-> > > >  {
-> > > >         unsigned long nr[NR_LRU_LISTS];
-> > > > -       unsigned long targets[NR_LRU_LISTS];
-> > > > -       unsigned long nr_to_scan;
-> > > > +       unsigned long file_target, anon_target;
-> > > > 
-> > > > >From the above snippet, we can know that the "percent" locals come from
-> > > > targets[NR_LRU_LISTS]. So this fix does not increase the stack.
-> > > 
-> > > OK.  But I expect the stack use could be decreased by using more
-> > > complex expressions.
-> > 
-> > I didn't look at this patch yet but want to say.
-> > 
-> > The expression is not easy to follow since several people already
-> > confused/discuss/fixed a bit so I'd like to put more concern to clarity
-> > rather than stack footprint.
-> 
-> That code is absolutely awful :( It's terribly difficult to work out
-> what the design is - what the code is actually setting out to achieve. 
-> One is reduced to trying to reverse-engineer the intent from the
-> implementation and that becomes near impossible when the
-> implementation has bugs!
-> 
-> Look at this miserable comment:
-> 
-> 		/*
-> 		 * For kswapd and memcg, reclaim at least the number of pages
-> 		 * requested. Ensure that the anon and file LRUs are scanned
-> 		 * proportionally what was requested by get_scan_count(). We
-> 		 * stop reclaiming one LRU and reduce the amount scanning
-> 		 * proportional to the original scan target.
-> 		 */
-> 
-> 
-> > For kswapd and memcg, reclaim at least the number of pages
-> > requested.
-> 
-> *why*?
-> 
-> > Ensure that the anon and file LRUs are scanned
-> > proportionally what was requested by get_scan_count().
-> 
-> Ungramattical.  Lacks specificity.  Fails to explain *why*.
-> 
-> > We stop reclaiming one LRU and reduce the amount scanning
-> > proportional to the original scan target.
-> 
-> Ungramattical.  Lacks specificity.  Fails to explain *why*.
-> 
-> 
-> The only way we're going to fix all this up is to stop looking at the
-> code altogether.  Write down the design and the intentions in English. 
-> Review that.  Then implement that design in C.
-> 
-> So review and understanding of this code then is a two-stage thing. 
-> First, we review and understand the *design*, as written in English. 
-> Secondly, we check that the code faithfully implements that design. 
-> This second step becomes quite trivial.
-> 
-> 
-> That may all sound excessively long-winded and formal, but
-> shrink_lruvec() of all places needs such treatment.  I am completely
-> fed up with peering at the code trying to work out what on earth people
-> were thinking when they typed it in :(
-> 
-> 
-> So my suggestion is: let's stop fiddling with the code.  Someone please
-> prepare a patch which fully documents the design and let's get down and
-> review that.  Once that patch is complete, let's then start looking at
-> the implementation.
-> 
+tree:   git://git.cmpxchg.org/linux-mmotm.git master
+head:   df25ba7db0775d87018e2cd92f26b9b087093840
+commit: 99c369839f847d2cc4b8e759a9c57c925592efa2 [141/230] include/linux/kernel.h: rewrite min3, max3 and clamp using min and max
+config: make ARCH=i386 allyesconfig
 
-By suggestion from Andrew, first of all, I try to add only comment
-but I believe we could make it more clear by some change like this.
-https://lkml.org/lkml/2014/6/16/750
+All warnings:
 
-Anyway, push this patch firstly.
+   drivers/staging/iio/impedance-analyzer/ad5933.c: In function 'ad5933_store':
+>> drivers/staging/iio/impedance-analyzer/ad5933.c:437:335: warning: comparison of distinct pointer types lacks a cast [enabled by default]
+      val = clamp(val, (u16)0, (u16)0x7FF);
+                                                                                                                                                                                                                                                                                                                                                  ^
+>> drivers/staging/iio/impedance-analyzer/ad5933.c:451:331: warning: comparison of distinct pointer types lacks a cast [enabled by default]
+      val = clamp(val, (u16)0, (u16)511);
+                                                                                                                                                                                                                                                                                                                                              ^
+--
+   drivers/net/wireless/rtlwifi/rtl8723ae/dm.c: In function 'rtl92c_dm_ctrl_initgain_by_fa':
+>> drivers/net/wireless/rtlwifi/rtl8723ae/dm.c:269:368: warning: comparison of distinct pointer types lacks a cast [enabled by default]
+     value_igi = clamp(value_igi, (u8)DM_DIG_FA_LOWER, (u8)DM_DIG_FA_UPPER);
+                                                                                                                                                                                                                                                                                                                                                                                   ^
+--
+   drivers/net/ethernet/intel/i40e/i40e_debugfs.c: In function 'i40e_dbg_command_write':
+>> drivers/net/ethernet/intel/i40e/i40e_debugfs.c:1901:355: warning: comparison of distinct pointer types lacks a cast [enabled by default]
+      bytes = clamp(bytes, (u16)1024, (u16)I40E_MAX_AQ_BUF_SIZE);
+                                                                                                                                                                                                                                                                                                                                                                      ^
 
-================= &< =================
+vim +437 drivers/staging/iio/impedance-analyzer/ad5933.c
+
+f94aa354 Michael Hennerich 2011-08-02  431  			ret = -EINVAL;
+f94aa354 Michael Hennerich 2011-08-02  432  			break;
+f94aa354 Michael Hennerich 2011-08-02  433  		}
+f94aa354 Michael Hennerich 2011-08-02  434  		ret = ad5933_cmd(st, 0);
+f94aa354 Michael Hennerich 2011-08-02  435  		break;
+f94aa354 Michael Hennerich 2011-08-02  436  	case AD5933_OUT_SETTLING_CYCLES:
+e5e26dd5 Jingoo Han        2013-08-20 @437  		val = clamp(val, (u16)0, (u16)0x7FF);
+f94aa354 Michael Hennerich 2011-08-02  438  		st->settling_cycles = val;
+f94aa354 Michael Hennerich 2011-08-02  439  
+f94aa354 Michael Hennerich 2011-08-02  440  		/* 2x, 4x handling, see datasheet */
+f94aa354 Michael Hennerich 2011-08-02  441  		if (val > 511)
+f94aa354 Michael Hennerich 2011-08-02  442  			val = (val >> 1) | (1 << 9);
+f94aa354 Michael Hennerich 2011-08-02  443  		else if (val > 1022)
+f94aa354 Michael Hennerich 2011-08-02  444  			val = (val >> 2) | (3 << 9);
+f94aa354 Michael Hennerich 2011-08-02  445  
+f94aa354 Michael Hennerich 2011-08-02  446  		dat = cpu_to_be16(val);
+f94aa354 Michael Hennerich 2011-08-02  447  		ret = ad5933_i2c_write(st->client,
+f94aa354 Michael Hennerich 2011-08-02  448  				AD5933_REG_SETTLING_CYCLES, 2, (u8 *)&dat);
+f94aa354 Michael Hennerich 2011-08-02  449  		break;
+f94aa354 Michael Hennerich 2011-08-02  450  	case AD5933_FREQ_POINTS:
+e5e26dd5 Jingoo Han        2013-08-20 @451  		val = clamp(val, (u16)0, (u16)511);
+f94aa354 Michael Hennerich 2011-08-02  452  		st->freq_points = val;
+f94aa354 Michael Hennerich 2011-08-02  453  
+f94aa354 Michael Hennerich 2011-08-02  454  		dat = cpu_to_be16(val);
+
+:::::: The code at line 437 was first introduced by commit
+:::::: e5e26dd5bb740c34c975e2ae059126ba3486a1ce staging: iio: replace strict_strto*() with kstrto*()
+
+:::::: TO: Jingoo Han <jg1.han@samsung.com>
+:::::: CC: Jonathan Cameron <jic23@kernel.org>
+
+---
+0-DAY kernel build testing backend              Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
