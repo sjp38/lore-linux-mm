@@ -1,96 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F59A6B0035
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 00:37:13 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lj1so2676762pab.1
-        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 21:37:13 -0700 (PDT)
-Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com [2607:f8b0:400e:c02::232])
-        by mx.google.com with ESMTPS id hr2si8152264pbb.187.2014.06.19.21.37.12
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 19 Jun 2014 21:37:12 -0700 (PDT)
-Received: by mail-pd0-f178.google.com with SMTP id r10so2567994pdi.9
-        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 21:37:12 -0700 (PDT)
-Date: Thu, 19 Jun 2014 21:35:48 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: kernel BUG at /src/linux-dev/mm/mempolicy.c:1738! on v3.16-rc1
-In-Reply-To: <20140619215641.GA9792@nhori.bos.redhat.com>
-Message-ID: <alpine.LSU.2.11.1406192121470.988@eggly.anvils>
-References: <20140619215641.GA9792@nhori.bos.redhat.com>
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 86E946B0036
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 00:39:40 -0400 (EDT)
+Received: by mail-pb0-f46.google.com with SMTP id md12so2674842pbc.33
+        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 21:39:40 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id y3si8161098pbw.183.2014.06.19.21.39.39
+        for <linux-mm@kvack.org>;
+        Thu, 19 Jun 2014 21:39:39 -0700 (PDT)
+Date: Fri, 20 Jun 2014 12:39:35 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [mmotm:master 69/230] fs/ocfs2/dlm/dlmmaster.c:697:6: sparse: symbol
+ 'dlm_lockres_grab_inflight_worker' was not declared. Should it be static?
+Message-ID: <20140620043935.GA26225@localhost>
+References: <53a3b963.q9GAR9fXkW3Cu2/w%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53a3b963.q9GAR9fXkW3Cu2/w%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Xue jiufei <xuejiufei@huawei.com>
+Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Thu, 19 Jun 2014, Naoya Horiguchi wrote:
-> Hi,
-> 
-> I triggered the following bug on v3.16-rc1 when I did mbind() testing
-> where multiple processes repeat calling mbind() for a shared mapped file
-> (causing pingpong of page migration.)
+tree:   git://git.cmpxchg.org/linux-mmotm.git master
+head:   df25ba7db0775d87018e2cd92f26b9b087093840
+commit: 1d26b017b74447dcc978ecb358fdc3a71887fc1c [69/230] ocfs2/dlm: do not purge lockres that is queued for assert master
+reproduce: make C=1 CF=-D__CHECK_ENDIAN__
 
-The shared mapped file on shmem/tmpfs?  So involving shared policy stuff?
+>> fs/ocfs2/dlm/dlmmaster.c:697:6: sparse: symbol 'dlm_lockres_grab_inflight_worker' was not declared. Should it be static?
+>> fs/ocfs2/dlm/dlmmaster.c:705:6: sparse: symbol '__dlm_lockres_drop_inflight_worker' was not declared. Should it be static?
+>> fs/ocfs2/dlm/dlmmaster.c:716:6: sparse: symbol 'dlm_lockres_drop_inflight_worker' was not declared. Should it be static?
+   fs/ocfs2/dlm/dlmmaster.c:2690:20: sparse: context imbalance in 'dlm_empty_lockres' - unexpected unlock
+   fs/ocfs2/dlm/dlmcommon.h:1137:9: sparse: context imbalance in 'dlm_reset_mleres_owner' - unexpected unlock
+   fs/ocfs2/dlm/dlmmaster.c:3243:9: sparse: context imbalance in 'dlm_clean_master_list' - different lock contexts for basic block
 
-> 
-> In my investigation, it seems that some vma accidentally has vma->vm_start
-> = 0, which makes new_vma_page() choose a wrong vma and results in breaking
-> the assumption that the address passed to alloc_pages_vma() should be
-> inside a given vma.
+Please consider folding the attached diff :-)
 
-I've not heard of that before.  What evidence led you there?
+---
+0-DAY kernel build testing backend              Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
-> I'm suspecting that mbind_range() do something wrong around vma handling,
-> but I don't have enough luck yet. Anyone has an idea?
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [PATCH mmotm] ocfs2/dlm: dlm_lockres_grab_inflight_worker() can be static
+TO: Xue jiufei <xuejiufei@huawei.com>
+CC: Johannes Weiner <hannes@cmpxchg.org>
+CC: ocfs2-devel@oss.oracle.com 
+CC: linux-kernel@vger.kernel.org 
 
-No idea at present.
+CC: Xue jiufei <xuejiufei@huawei.com>
+CC: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+---
+ dlmmaster.c |    6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-Please send disassembly (objdump -d, or objdump -ld if you had DEBUG_INFO)
-of policy_zonelist() - the Code line isn't enough to go on, since it just
-shows where the BUG jumped to out-of-line, with no clue as to what might
-be in the registers - thanks.
-
-Hugh
-
-> 
-> Thanks,
-> Naoya Horiguchi
-> 
-> [  339.133960] ------------[ cut here ]------------
-> [  339.134893] kernel BUG at /src/linux-dev/mm/mempolicy.c:1738!
-> [  339.134893] invalid opcode: 0000 [#1] SMP
-> [  339.134893] Modules linked in: stap_2acbad8c3ba47062dbdc6f227d00f8f4__1958(O) bnep bluetooth cfg80211 rfkill ip6t_rpfilter ip6t_REJECT nf_conntrack_ipv6 nf_defrag_ipv6 xt_conntrack ebtable_nat ebtable_broute bridge stp llc ebtable_filter ebtables ip6table_mangle ip6table_security ip6table_raw ip6table_filter ip6_tables iptable_nat nf_conntrack_ipv4 nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack iptable_mangle iptable_security iptable_raw ppdev microcode i2c_piix4 pcspkr i2c_core virtio_balloon parport_pc parport serio_raw nfsd auth_rpcgss oid_registry nfs_acl lockd sunrpc virtio_blk virtio_net floppy ata_generic pata_acpi
-> [  339.134893] CPU: 2 PID: 2840 Comm: mbind_fuzz Tainted: G           O  3.16.0-rc1-140619-1205-00003-g80aa6b64a44e #157
-> [  339.134893] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
-> [  339.134893] task: ffff88007c133b60 ti: ffff88007dd28000 task.ti: ffff88007dd28000
-> [  339.134893] RIP: 0010:[<ffffffff811ebfe0>]  [<ffffffff811ebfe0>] policy_zonelist+0x50/0xb0
-> [  339.134893] RSP: 0000:ffff88007dd2bcf8  EFLAGS: 00010293
-> [  339.134893] RAX: 0000000000000000 RBX: ffff88007c133b60 RCX: 0000000000000000
-> [  339.134893] RDX: 0000000000000002 RSI: ffff88011bd3fad0 RDI: 00000000000200da
-> [  339.134893] RBP: ffff88007dd2bd00 R08: 0000000000000002 R09: 0000000000000002
-> [  339.134893] R10: ffff88007d8f3958 R11: 0000000000000001 R12: 00000000000200da
-> [  339.134893] R13: 0000000000000000 R14: ffff88011bd3fad0 R15: 0000000000000000
-> [  339.134893] FS:  00007f457cf90740(0000) GS:ffff8800bec00000(0000) knlGS:0000000000000000
-> [  339.134893] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [  339.134893] CR2: 0000700000184000 CR3: 000000007959b000 CR4: 00000000000006e0
-> [  339.134893] Stack:
-> [  339.134893]  ffff88007c133b60 ffff88007dd2bd68 ffffffff811eeac8 ffff88007c133b60
-> [  339.134893]  ffff88007c133b60 0000000000000000 000000020000000c 0000000000000000
-> [  339.134893]  ffff88007c387e60 ffff88007c387e60 ffffea0000e19340 ffff88007d8f3958
-> [  339.134893] Call Trace:
-> [  339.134893]  [<ffffffff811eeac8>] alloc_pages_vma+0x88/0x1a0
-> [  339.134893]  [<ffffffff811eec7b>] new_vma_page+0x9b/0xb0
-> [  339.134893]  [<ffffffff811fee4d>] unmap_and_move+0x3d/0x200
-> [  339.134893]  [<ffffffff811ff235>] migrate_pages+0xe5/0x1e0
-> [  339.134893]  [<ffffffff811eebe0>] ? alloc_pages_vma+0x1a0/0x1a0
-> [  339.134893]  [<ffffffff811ef3c2>] do_mbind+0x1f2/0x3a0
-> [  339.134893]  [<ffffffff811ef60b>] SyS_mbind+0x9b/0xb0
-> [  339.134893]  [<ffffffff8174798b>] tracesys+0xdd/0xe2
-> [  339.134893] Code: 63 d2 31 c0 85 db 48 8b 14 d5 00 2d d6 81 0f 95 c0 48 69 c0 20 22 01 00 5b 5d 48 8d 84 02 00 1d 00 00 c3 0f 1f 84 00 00 00 00 00 <0f> 0b 66 0f 1f 44 00 00 f6 46 06 02 75 12 89 fb 48 0f bf 56 08
-> [  339.134893] RIP  [<ffffffff811ebfe0>] policy_zonelist+0x50/0xb0
-> [  339.134893]  RSP <ffff88007dd2bcf8>
-> [  339.178924] ---[ end trace 37c12438b6936769 ]---
+diff --git a/fs/ocfs2/dlm/dlmmaster.c b/fs/ocfs2/dlm/dlmmaster.c
+index a302816..82abf0c 100644
+--- a/fs/ocfs2/dlm/dlmmaster.c
++++ b/fs/ocfs2/dlm/dlmmaster.c
+@@ -694,7 +694,7 @@ void __dlm_lockres_grab_inflight_worker(struct dlm_ctxt *dlm,
+ 			res->inflight_assert_workers);
+ }
+ 
+-void dlm_lockres_grab_inflight_worker(struct dlm_ctxt *dlm,
++static void dlm_lockres_grab_inflight_worker(struct dlm_ctxt *dlm,
+ 		struct dlm_lock_resource *res)
+ {
+ 	spin_lock(&res->spinlock);
+@@ -702,7 +702,7 @@ void dlm_lockres_grab_inflight_worker(struct dlm_ctxt *dlm,
+ 	spin_unlock(&res->spinlock);
+ }
+ 
+-void __dlm_lockres_drop_inflight_worker(struct dlm_ctxt *dlm,
++static void __dlm_lockres_drop_inflight_worker(struct dlm_ctxt *dlm,
+ 		struct dlm_lock_resource *res)
+ {
+ 	assert_spin_locked(&res->spinlock);
+@@ -713,7 +713,7 @@ void __dlm_lockres_drop_inflight_worker(struct dlm_ctxt *dlm,
+ 			res->inflight_assert_workers);
+ }
+ 
+-void dlm_lockres_drop_inflight_worker(struct dlm_ctxt *dlm,
++static void dlm_lockres_drop_inflight_worker(struct dlm_ctxt *dlm,
+ 		struct dlm_lock_resource *res)
+ {
+ 	spin_lock(&res->spinlock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
