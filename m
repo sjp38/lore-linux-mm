@@ -1,119 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id A47586B0038
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 02:48:01 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id ey11so2766882pad.40
-        for <linux-mm@kvack.org>; Thu, 19 Jun 2014 23:48:01 -0700 (PDT)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id qm15si8607921pab.185.2014.06.19.23.47.59
-        for <linux-mm@kvack.org>;
-        Thu, 19 Jun 2014 23:48:00 -0700 (PDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [RFCv2 3/3] mm: Free reclaimed pages indepdent of next reclaim
-Date: Fri, 20 Jun 2014 15:48:32 +0900
-Message-Id: <1403246912-18237-4-git-send-email-minchan@kernel.org>
-In-Reply-To: <1403246912-18237-1-git-send-email-minchan@kernel.org>
-References: <1403246912-18237-1-git-send-email-minchan@kernel.org>
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id B0F376B0035
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 03:07:04 -0400 (EDT)
+Received: by mail-pb0-f47.google.com with SMTP id up15so2792496pbc.20
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 00:07:04 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id fl3si8661624pab.165.2014.06.20.00.07.01
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 20 Jun 2014 00:07:03 -0700 (PDT)
+Message-ID: <53A3DD82.3070208@huawei.com>
+Date: Fri, 20 Jun 2014 15:06:42 +0800
+From: Zhang Zhen <zhenzhang.zhang@huawei.com>
+MIME-Version: 1.0
+Subject: Why we echo a invalid  start_address_of_new_memory succeeded ?
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: wangnan0@huawei.com, xiaofeng.yan@huawei.com, linux-mm@kvack.org
 
-Invalidate dirty/writeback page and file/swap I/O for reclaiming
-are asynchronous so that when page writeback is completed,
-it will be rotated back into LRU tail for freeing in next reclaim.
+Hi,
 
-But it would make unnecessary CPU overhead and more aging
-with higher priority of reclaim than necessary thing.
+I am testing mem-hotplug on a qemu virtual machine. I executed the following command
+to notify memory hot-add event by hand.
 
-This patch makes such pages instant release when I/O complete
-without LRU movement so that we could reduce reclaim events.
+% echo start_address_of_new_memory > /sys/devices/system/memory/probe
 
-This patch wakes up one waiting PG_writeback and then clear
-PG_reclaim bit because the page could be released during
-rotating so it makes slighly race with Readahead logic but
-the chance would be small and no huge side-effect even though
-that happens, I belive.
+To a different start_address_of_new_memory I got different results.
+The results are as follows:
 
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- mm/filemap.c | 17 +++++++++++------
- mm/swap.c    | 21 +++++++++++++++++++++
- 2 files changed, 32 insertions(+), 6 deletions(-)
+MBSC-x86_64 /sys/devices/system/memory # ls
+block_size_bytes  memory2           memory5           power
+memory0           memory3           memory6           probe
+memory1           memory4           memory7           uevent
+MBSC-x86_64 /sys/devices/system/memory # echo 0x70000000 > probe
+MBSC-x86_64 /sys/devices/system/memory # echo 0x78000000 > probe
+-sh: echo: write error: File exists
+MBSC-x86_64 /sys/devices/system/memory # echo 0x80000000 > probe
+-sh: echo: write error: File exists
+MBSC-x86_64 /sys/devices/system/memory # echo 0x88000000 > probe
+-sh: echo: write error: File exists
+MBSC-x86_64 /sys/devices/system/memory # echo 0x8f000000 > probe
+-sh: echo: write error: Invalid argument
+MBSC-x86_64 /sys/devices/system/memory # echo 0x90000000 > probe
+-sh: echo: write error: File exists
+MBSC-x86_64 /sys/devices/system/memory # echo 0xff0000000 > probe
+MBSC-x86_64 /sys/devices/system/memory # ls
+block_size_bytes  memory2           memory510         probe
+memory0           memory3           memory6           uevent
+memory1           memory4           memory7
+memory14          memory5           power
+MBSC-x86_64 /sys/devices/system/memory # echo 0xfff0000000 > probe
+MBSC-x86_64 /sys/devices/system/memory # ls
+block_size_bytes  memory2           memory510         power
+memory0           memory3           memory6           probe
+memory1           memory4           memory7           uevent
+memory14          memory5           memory8190
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index c2f30ed8e95f..6e09de6cf510 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -752,23 +752,28 @@ EXPORT_SYMBOL(unlock_page);
-  */
- void end_page_writeback(struct page *page)
- {
-+	if (!test_clear_page_writeback(page))
-+		BUG();
-+
-+	smp_mb__after_atomic();
-+	wake_up_page(page, PG_writeback);
-+
- 	/*
- 	 * TestClearPageReclaim could be used here but it is an atomic
- 	 * operation and overkill in this particular case. Failing to
- 	 * shuffle a page marked for immediate reclaim is too mild to
- 	 * justify taking an atomic operation penalty at the end of
- 	 * ever page writeback.
-+	 *
-+	 * Clearing PG_reclaim after waking up waiter is slightly racy.
-+	 * Readahead might see PageReclaim as PageReadahead marker
-+	 * so readahead logic might be broken temporally but it isn't
-+	 * matter enough to care.
- 	 */
- 	if (PageReclaim(page)) {
- 		ClearPageReclaim(page);
- 		rotate_reclaimable_page(page);
- 	}
--
--	if (!test_clear_page_writeback(page))
--		BUG();
--
--	smp_mb__after_atomic();
--	wake_up_page(page, PG_writeback);
- }
- EXPORT_SYMBOL(end_page_writeback);
- 
-diff --git a/mm/swap.c b/mm/swap.c
-index 3074210f245d..d61b8783ccc3 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -443,6 +443,27 @@ static void pagevec_move_tail_fn(struct page *page, struct lruvec *lruvec,
- 
- 	if (PageLRU(page) && !PageActive(page) && !PageUnevictable(page)) {
- 		enum lru_list lru = page_lru_base_type(page);
-+		struct address_space *mapping;
-+
-+		if (!trylock_page(page))
-+			goto move_tail;
-+
-+		mapping = page_mapping(page);
-+		if (!mapping)
-+			goto unlock;
-+
-+		/*
-+		 * If it is successful, aotmic_remove_mapping
-+		 * makes page->count one so the page will be
-+		 * released when caller release his refcount.
-+		 */
-+		if (atomic_remove_mapping(mapping, page)) {
-+			unlock_page(page);
-+			return;
-+		}
-+unlock:
-+		unlock_page(page);
-+move_tail:
- 		list_move_tail(&page->lru, &lruvec->lists[lru]);
- 		(*pgmoved)++;
- 	}
--- 
-2.0.0
+The qemu virtual machine's physical memory size is 2048M, and the boot memory is 1024M.
+
+MBSC-x86_64 / # cat /proc/meminfo
+MemTotal:        1018356 kB
+MBSC-x86_64 / # cat /sys/devices/system/memory/block_size_bytes
+8000000
+
+Three questions:
+1. The machine's physical memory size is 2048M, why echo 0x78000000 as the start_address_of_new_memory failed ?
+
+2. Why echo 0x8f000000 as the start_address_of_new_memory, the error message is different ?
+
+3. Why echo 0xfff0000000 as the start_address_of_new_memory succeeded ? 0xfff0000000 has exceeded the machine's physical memory size.
+
+Best regards!
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
