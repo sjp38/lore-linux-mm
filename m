@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DC9F6B005A
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E0DE6B005C
 	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 16:12:11 -0400 (EDT)
-Received: by mail-we0-f177.google.com with SMTP id u56so4233555wes.22
+Received: by mail-wg0-f44.google.com with SMTP id x13so4087524wgg.15
         for <linux-mm@kvack.org>; Fri, 20 Jun 2014 13:12:10 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k17si3940219wiv.42.2014.06.20.13.12.08
+        by mx.google.com with ESMTPS id by5si12521318wjc.114.2014.06.20.13.12.08
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 20 Jun 2014 13:12:08 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v3 07/13] numa_maps: remove numa_maps->vma
-Date: Fri, 20 Jun 2014 16:11:33 -0400
-Message-Id: <1403295099-6407-8-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v3 06/13] pagemap: use walk->vma instead of calling find_vma()
+Date: Fri, 20 Jun 2014 16:11:32 -0400
+Message-Id: <1403295099-6407-7-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1403295099-6407-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1403295099-6407-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,83 +20,40 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-pagewalk.c can handle vma in itself, so we don't have to pass vma via
-walk->private. And show_numa_map() walks pages on vma basis, so using
-walk_page_vma() is preferable.
+Page table walker has the information of the current vma in mm_walk, so
+we don't have to call find_vma() in each pagemap_hugetlb_range() call.
+
+NULL-vma check is omitted because we assume that we never run hugetlb_entry()
+callback on the address without vma. And even if it were broken, null pointer
+dereference would be detected, so we can get enough information for debugging.
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 ---
- fs/proc/task_mmu.c | 18 ++++++++----------
- 1 file changed, 8 insertions(+), 10 deletions(-)
+ fs/proc/task_mmu.c | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
 
 diff --git v3.16-rc1.orig/fs/proc/task_mmu.c v3.16-rc1/fs/proc/task_mmu.c
-index 74f87794afab..b4459c006d50 100644
+index 3c42cd40ad36..74f87794afab 100644
 --- v3.16-rc1.orig/fs/proc/task_mmu.c
 +++ v3.16-rc1/fs/proc/task_mmu.c
-@@ -1247,7 +1247,6 @@ const struct file_operations proc_pagemap_operations = {
- #ifdef CONFIG_NUMA
- 
- struct numa_maps {
--	struct vm_area_struct *vma;
- 	unsigned long pages;
- 	unsigned long anon;
- 	unsigned long active;
-@@ -1316,18 +1315,17 @@ static struct page *can_gather_numa_stats(pte_t pte, struct vm_area_struct *vma,
- static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
- 		unsigned long end, struct mm_walk *walk)
+@@ -1082,15 +1082,12 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
+ 				 struct mm_walk *walk)
  {
--	struct numa_maps *md;
-+	struct numa_maps *md = walk->private;
+ 	struct pagemapread *pm = walk->private;
+-	struct vm_area_struct *vma;
 +	struct vm_area_struct *vma = walk->vma;
- 	spinlock_t *ptl;
- 	pte_t *orig_pte;
- 	pte_t *pte;
+ 	int err = 0;
+ 	int flags2;
+ 	pagemap_entry_t pme;
  
--	md = walk->private;
+-	vma = find_vma(walk->mm, addr);
+-	WARN_ON_ONCE(!vma);
 -
--	if (pmd_trans_huge_lock(pmd, md->vma, &ptl) == 1) {
-+	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
- 		pte_t huge_pte = *(pte_t *)pmd;
- 		struct page *page;
- 
--		page = can_gather_numa_stats(huge_pte, md->vma, addr);
-+		page = can_gather_numa_stats(huge_pte, vma, addr);
- 		if (page)
- 			gather_stats(page, md, pte_dirty(huge_pte),
- 				     HPAGE_PMD_SIZE/PAGE_SIZE);
-@@ -1339,7 +1337,7 @@ static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
- 		return 0;
- 	orig_pte = pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
- 	do {
--		struct page *page = can_gather_numa_stats(*pte, md->vma, addr);
-+		struct page *page = can_gather_numa_stats(*pte, vma, addr);
- 		if (!page)
- 			continue;
- 		gather_stats(page, md, pte_dirty(*pte), 1);
-@@ -1398,12 +1396,11 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	/* Ensure we start with an empty set of numa_maps statistics. */
- 	memset(md, 0, sizeof(*md));
- 
--	md->vma = vma;
--
- 	walk.hugetlb_entry = gather_hugetbl_stats;
- 	walk.pmd_entry = gather_pte_stats;
- 	walk.private = md;
- 	walk.mm = mm;
-+	walk.vma = vma;
- 
- 	pol = get_vma_policy(task, vma, vma->vm_start);
- 	mpol_to_str(buffer, sizeof(buffer), pol);
-@@ -1434,7 +1431,8 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	if (is_vm_hugetlb_page(vma))
- 		seq_puts(m, " huge");
- 
--	walk_page_range(vma->vm_start, vma->vm_end, &walk);
-+	/* mmap_sem is held by m_start */
-+	walk_page_vma(vma, &walk);
- 
- 	if (!md->pages)
- 		goto out;
+-	if (vma && (vma->vm_flags & VM_SOFTDIRTY))
++	if (vma->vm_flags & VM_SOFTDIRTY)
+ 		flags2 = __PM_SOFT_DIRTY;
+ 	else
+ 		flags2 = 0;
 -- 
 1.9.3
 
