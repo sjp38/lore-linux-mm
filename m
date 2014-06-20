@@ -1,126 +1,313 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
-	by kanga.kvack.org (Postfix) with ESMTP id DE28D6B0068
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 16:12:12 -0400 (EDT)
-Received: by mail-we0-f169.google.com with SMTP id t60so4381290wes.0
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 405D06B0068
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 16:12:13 -0400 (EDT)
+Received: by mail-wg0-f49.google.com with SMTP id y10so4146007wgg.8
         for <linux-mm@kvack.org>; Fri, 20 Jun 2014 13:12:12 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id eu5si3937093wic.47.2014.06.20.13.12.11
+        by mx.google.com with ESMTPS id b10si3952061wiz.9.2014.06.20.13.12.11
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jun 2014 13:12:11 -0700 (PDT)
+        Fri, 20 Jun 2014 13:12:12 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v3 12/13] mm: /proc/pid/clear_refs: avoid split_huge_page()
-Date: Fri, 20 Jun 2014 16:11:38 -0400
-Message-Id: <1403295099-6407-13-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v3 13/13] mincore: apply page table walker on do_mincore()
+Date: Fri, 20 Jun 2014 16:11:39 -0400
+Message-Id: <1403295099-6407-14-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1403295099-6407-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1403295099-6407-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@parallels.com>, Andrea Arcangeli <aarcange@redhat.com>, Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+This patch makes do_mincore() use walk_page_vma(), which reduces many lines
+of code by using common page table walk code.
 
-Currently pagewalker splits all THP pages on any clear_refs request.  It's
-not necessary.  We can handle this on PMD level.
+ChangeLog v3:
+- add NULL vma check in mincore_unmapped_range()
+- don't use pte_entry()
 
-One side effect is that soft dirty will potentially see more dirty memory,
-since we will mark whole THP page dirty at once.
+ChangeLog v2:
+- change type of args of callbacks to void *
+- move definition of mincore_walk to the start of the function to fix compiler
+  warning
 
-Sanity checked with CRIU test suite. More testing is required.
-
-ChangeLog:
-- move code for thp to clear_refs_pte_range()
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Pavel Emelyanov <xemul@parallels.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Cyrill Gorcunov <gorcunov@gmail.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- fs/proc/task_mmu.c | 47 ++++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 44 insertions(+), 3 deletions(-)
+ mm/huge_memory.c |  20 -------
+ mm/mincore.c     | 174 ++++++++++++++++++++-----------------------------------
+ 2 files changed, 63 insertions(+), 131 deletions(-)
 
-diff --git v3.16-rc1.orig/fs/proc/task_mmu.c v3.16-rc1/fs/proc/task_mmu.c
-index ac50a829320a..2acbe144152c 100644
---- v3.16-rc1.orig/fs/proc/task_mmu.c
-+++ v3.16-rc1/fs/proc/task_mmu.c
-@@ -719,10 +719,10 @@ struct clear_refs_private {
- 	enum clear_refs_types type;
- };
- 
-+#ifdef CONFIG_MEM_SOFT_DIRTY
- static inline void clear_soft_dirty(struct vm_area_struct *vma,
- 		unsigned long addr, pte_t *pte)
- {
--#ifdef CONFIG_MEM_SOFT_DIRTY
- 	/*
- 	 * The soft-dirty tracker uses #PF-s to catch writes
- 	 * to pages, so write-protect the pte as well. See the
-@@ -741,9 +741,35 @@ static inline void clear_soft_dirty(struct vm_area_struct *vma,
- 	}
- 
- 	set_pte_at(vma->vm_mm, addr, pte, ptent);
--#endif
+diff --git v3.16-rc1.orig/mm/huge_memory.c v3.16-rc1/mm/huge_memory.c
+index c5ff461e0253..53f451969931 100644
+--- v3.16-rc1.orig/mm/huge_memory.c
++++ v3.16-rc1/mm/huge_memory.c
+@@ -1379,26 +1379,6 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 	return ret;
  }
  
-+static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
-+		unsigned long addr, pmd_t *pmdp)
-+{
-+	pmd_t pmd = *pmdp;
-+
-+	pmd = pmd_wrprotect(pmd);
-+	pmd = pmd_clear_flags(pmd, _PAGE_SOFT_DIRTY);
-+
-+	if (vma->vm_flags & VM_SOFTDIRTY)
-+		vma->vm_flags &= ~VM_SOFTDIRTY;
-+
-+	set_pmd_at(vma->vm_mm, addr, pmdp, pmd);
-+}
-+
-+#else
-+
-+static inline void clear_soft_dirty(struct vm_area_struct *vma,
-+		unsigned long addr, pte_t *pte)
-+{
-+}
-+
-+static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
-+		unsigned long addr, pmd_t *pmdp)
-+{
-+}
-+#endif
-+
- static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
- 				unsigned long end, struct mm_walk *walk)
- {
-@@ -753,7 +779,22 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
- 	spinlock_t *ptl;
- 	struct page *page;
+-int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+-		unsigned long addr, unsigned long end,
+-		unsigned char *vec)
+-{
+-	spinlock_t *ptl;
+-	int ret = 0;
+-
+-	if (__pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
+-		/*
+-		 * All logical pages in the range are present
+-		 * if backed by a huge page.
+-		 */
+-		spin_unlock(ptl);
+-		memset(vec, 1, (end - addr) >> PAGE_SHIFT);
+-		ret = 1;
+-	}
+-
+-	return ret;
+-}
+-
+ int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
+ 		  unsigned long old_addr,
+ 		  unsigned long new_addr, unsigned long old_end,
+diff --git v3.16-rc1.orig/mm/mincore.c v3.16-rc1/mm/mincore.c
+index 725c80961048..964bafed6320 100644
+--- v3.16-rc1.orig/mm/mincore.c
++++ v3.16-rc1/mm/mincore.c
+@@ -19,38 +19,26 @@
+ #include <asm/uaccess.h>
+ #include <asm/pgtable.h>
  
--	split_huge_page_pmd(vma, addr, pmd);
+-static void mincore_hugetlb_page_range(struct vm_area_struct *vma,
+-				unsigned long addr, unsigned long end,
+-				unsigned char *vec)
++static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
++			unsigned long end, struct mm_walk *walk)
+ {
++	int err = 0;
+ #ifdef CONFIG_HUGETLB_PAGE
+-	struct hstate *h;
++	unsigned char present;
++	unsigned char *vec = walk->private;
+ 
+-	h = hstate_vma(vma);
+-	while (1) {
+-		unsigned char present;
+-		pte_t *ptep;
+-		/*
+-		 * Huge pages are always in RAM for now, but
+-		 * theoretically it needs to be checked.
+-		 */
+-		ptep = huge_pte_offset(current->mm,
+-				       addr & huge_page_mask(h));
+-		present = ptep && !huge_pte_none(huge_ptep_get(ptep));
+-		while (1) {
+-			*vec = present;
+-			vec++;
+-			addr += PAGE_SIZE;
+-			if (addr == end)
+-				return;
+-			/* check hugepage border */
+-			if (!(addr & ~huge_page_mask(h)))
+-				break;
+-		}
+-	}
++	/*
++	 * Hugepages under user process are always in RAM and never
++	 * swapped out, but theoretically it needs to be checked.
++	 */
++	present = pte && !huge_pte_none(huge_ptep_get(pte));
++	for (; addr != end; vec++, addr += PAGE_SIZE)
++		*vec = present;
++	walk->private += (end - addr) >> PAGE_SHIFT;
+ #else
+ 	BUG();
+ #endif
++	return err;
+ }
+ 
+ /*
+@@ -94,14 +82,15 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
+ 	return present;
+ }
+ 
+-static void mincore_unmapped_range(struct vm_area_struct *vma,
+-				unsigned long addr, unsigned long end,
+-				unsigned char *vec)
++static int mincore_unmapped_range(unsigned long addr, unsigned long end,
++				   struct mm_walk *walk)
+ {
++	struct vm_area_struct *vma = walk->vma;
++	unsigned char *vec = walk->private;
+ 	unsigned long nr = (end - addr) >> PAGE_SHIFT;
+ 	int i;
+ 
+-	if (vma->vm_file) {
++	if (vma && vma->vm_file) {
+ 		pgoff_t pgoff;
+ 
+ 		pgoff = linear_page_index(vma, addr);
+@@ -111,25 +100,38 @@ static void mincore_unmapped_range(struct vm_area_struct *vma,
+ 		for (i = 0; i < nr; i++)
+ 			vec[i] = 0;
+ 	}
++	walk->private += nr;
++	return 0;
+ }
+ 
+-static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+-			unsigned long addr, unsigned long end,
+-			unsigned char *vec)
++static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
++			struct mm_walk *walk)
+ {
+-	unsigned long next;
+ 	spinlock_t *ptl;
++	struct vm_area_struct *vma = walk->vma;
+ 	pte_t *ptep;
+ 
+-	ptep = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+-	do {
 +	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
-+		if (cp->type == CLEAR_REFS_SOFT_DIRTY) {
-+			clear_soft_dirty_pmd(vma, addr, pmd);
-+			goto out;
-+		}
-+
-+		page = pmd_page(*pmd);
-+
-+		/* Clear accessed and referenced bits. */
-+		pmdp_test_and_clear_young(vma, addr, pmd);
-+		ClearPageReferenced(page);
-+out:
++		memset(walk->private, 1, (end - addr) >> PAGE_SHIFT);
++		walk->private += (end - addr) >> PAGE_SHIFT;
 +		spin_unlock(ptl);
 +		return 0;
 +	}
 +
- 	if (pmd_trans_unstable(pmd))
- 		return 0;
++	if (pmd_trans_unstable(pmd))
++		return 0;
++
++	ptep = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
++	for (; addr != end; ptep++, addr += PAGE_SIZE) {
+ 		pte_t pte = *ptep;
+ 		pgoff_t pgoff;
++		unsigned char *vec = walk->private;
  
+-		next = addr + PAGE_SIZE;
+-		if (pte_none(pte))
+-			mincore_unmapped_range(vma, addr, next, vec);
+-		else if (pte_present(pte))
++		if (pte_none(pte)) {
++			mincore_unmapped_range(addr, addr + PAGE_SIZE, walk);
++			continue;
++		}
++		if (pte_present(pte))
+ 			*vec = 1;
+ 		else if (pte_file(pte)) {
+ 			pgoff = pte_to_pgoff(pte);
+@@ -151,70 +153,11 @@ static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ #endif
+ 			}
+ 		}
+-		vec++;
+-	} while (ptep++, addr = next, addr != end);
++		walk->private++;
++	}
+ 	pte_unmap_unlock(ptep - 1, ptl);
+-}
+-
+-static void mincore_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+-			unsigned long addr, unsigned long end,
+-			unsigned char *vec)
+-{
+-	unsigned long next;
+-	pmd_t *pmd;
+-
+-	pmd = pmd_offset(pud, addr);
+-	do {
+-		next = pmd_addr_end(addr, end);
+-		if (pmd_trans_huge(*pmd)) {
+-			if (mincore_huge_pmd(vma, pmd, addr, next, vec)) {
+-				vec += (next - addr) >> PAGE_SHIFT;
+-				continue;
+-			}
+-			/* fall through */
+-		}
+-		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+-			mincore_unmapped_range(vma, addr, next, vec);
+-		else
+-			mincore_pte_range(vma, pmd, addr, next, vec);
+-		vec += (next - addr) >> PAGE_SHIFT;
+-	} while (pmd++, addr = next, addr != end);
+-}
+-
+-static void mincore_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
+-			unsigned long addr, unsigned long end,
+-			unsigned char *vec)
+-{
+-	unsigned long next;
+-	pud_t *pud;
+-
+-	pud = pud_offset(pgd, addr);
+-	do {
+-		next = pud_addr_end(addr, end);
+-		if (pud_none_or_clear_bad(pud))
+-			mincore_unmapped_range(vma, addr, next, vec);
+-		else
+-			mincore_pmd_range(vma, pud, addr, next, vec);
+-		vec += (next - addr) >> PAGE_SHIFT;
+-	} while (pud++, addr = next, addr != end);
+-}
+-
+-static void mincore_page_range(struct vm_area_struct *vma,
+-			unsigned long addr, unsigned long end,
+-			unsigned char *vec)
+-{
+-	unsigned long next;
+-	pgd_t *pgd;
+-
+-	pgd = pgd_offset(vma->vm_mm, addr);
+-	do {
+-		next = pgd_addr_end(addr, end);
+-		if (pgd_none_or_clear_bad(pgd))
+-			mincore_unmapped_range(vma, addr, next, vec);
+-		else
+-			mincore_pud_range(vma, pgd, addr, next, vec);
+-		vec += (next - addr) >> PAGE_SHIFT;
+-	} while (pgd++, addr = next, addr != end);
++	cond_resched();
++	return 0;
+ }
+ 
+ /*
+@@ -225,20 +168,29 @@ static void mincore_page_range(struct vm_area_struct *vma,
+ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *vec)
+ {
+ 	struct vm_area_struct *vma;
+-	unsigned long end;
++	int err;
++	struct mm_walk mincore_walk = {
++		.pmd_entry = mincore_pte_range,
++		.pte_hole = mincore_unmapped_range,
++		.hugetlb_entry = mincore_hugetlb,
++		.private = vec,
++	};
+ 
+ 	vma = find_vma(current->mm, addr);
+ 	if (!vma || addr < vma->vm_start)
+ 		return -ENOMEM;
++	mincore_walk.mm = vma->vm_mm;
++	mincore_walk.vma = vma;
+ 
+-	end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
+-
+-	if (is_vm_hugetlb_page(vma))
+-		mincore_hugetlb_page_range(vma, addr, end, vec);
+-	else
+-		mincore_page_range(vma, addr, end, vec);
++	err = walk_page_vma(vma, &mincore_walk);
++	if (err < 0)
++		return err;
++	else {
++		unsigned long end;
+ 
+-	return (end - addr) >> PAGE_SHIFT;
++		end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
++		return (end - addr) >> PAGE_SHIFT;
++	}
+ }
+ 
+ /*
 -- 
 1.9.3
 
