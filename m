@@ -1,318 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 405D06B0068
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 16:12:13 -0400 (EDT)
-Received: by mail-wg0-f49.google.com with SMTP id y10so4146007wgg.8
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 13:12:12 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b10si3952061wiz.9.2014.06.20.13.12.11
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 8966F6B0037
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 16:24:58 -0400 (EDT)
+Received: by mail-wg0-f50.google.com with SMTP id x13so4143346wgg.33
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 13:24:58 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id cb3si9100282wjc.67.2014.06.20.13.24.56
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jun 2014 13:12:12 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v3 13/13] mincore: apply page table walker on do_mincore()
-Date: Fri, 20 Jun 2014 16:11:39 -0400
-Message-Id: <1403295099-6407-14-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1403295099-6407-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1403295099-6407-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 20 Jun 2014 13:24:57 -0700 (PDT)
+Date: Fri, 20 Jun 2014 16:24:49 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 2/4] mm: vmscan: rework compaction-ready signaling in
+ direct reclaim
+Message-ID: <20140620202449.GA30849@cmpxchg.org>
+References: <1403282030-29915-1-git-send-email-hannes@cmpxchg.org>
+ <1403282030-29915-2-git-send-email-hannes@cmpxchg.org>
+ <53A467A3.1050008@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53A467A3.1050008@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This patch makes do_mincore() use walk_page_vma(), which reduces many lines
-of code by using common page table walk code.
+On Fri, Jun 20, 2014 at 06:56:03PM +0200, Vlastimil Babka wrote:
+> On 06/20/2014 06:33 PM, Johannes Weiner wrote:
+> > Page reclaim for a higher-order page runs until compaction is ready,
+> > then aborts and signals this situation through the return value of
+> > shrink_zones().  This is an oddly specific signal to encode in the
+> > return value of shrink_zones(), though, and can be quite confusing.
+> > 
+> > Introduce sc->compaction_ready and signal the compactability of the
+> > zones out-of-band to free up the return value of shrink_zones() for
+> > actual zone reclaimability.
+> > 
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-ChangeLog v3:
-- add NULL vma check in mincore_unmapped_range()
-- don't use pte_entry()
+Thanks, Vlastimil!
 
-ChangeLog v2:
-- change type of args of callbacks to void *
-- move definition of mincore_walk to the start of the function to fix compiler
-  warning
+> > @@ -2391,22 +2384,24 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+> >  			if (sc->priority != DEF_PRIORITY &&
+> >  			    !zone_reclaimable(zone))
+> >  				continue;	/* Let kswapd poll it */
+> > -			if (IS_ENABLED(CONFIG_COMPACTION)) {
+> > -				/*
+> > -				 * If we already have plenty of memory free for
+> > -				 * compaction in this zone, don't free any more.
+> > -				 * Even though compaction is invoked for any
+> > -				 * non-zero order, only frequent costly order
+> > -				 * reclamation is disruptive enough to become a
+> > -				 * noticeable problem, like transparent huge
+> > -				 * page allocations.
+> > -				 */
+> > -				if ((zonelist_zone_idx(z) <= requested_highidx)
+> > -				    && compaction_ready(zone, sc)) {
+> > -					aborted_reclaim = true;
+> > -					continue;
+> > -				}
+> > +
+> > +			/*
+> > +			 * If we already have plenty of memory free
+> > +			 * for compaction in this zone, don't free any
+> > +			 * more.  Even though compaction is invoked
+> > +			 * for any non-zero order, only frequent
+> > +			 * costly order reclamation is disruptive
+> > +			 * enough to become a noticeable problem, like
+> > +			 * transparent huge page allocations.
+> > +			 */
+> 
+> You moved this comment block left, yet you further shortened the individual lines, despite
+> there is now more space to prolong them.
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+This is a result of using emacs' auto-fill all the time when writing
+comments, I have to watch my reflexes while moving stuff around :-)
+
+Updated patch:
+
 ---
- mm/huge_memory.c |  20 -------
- mm/mincore.c     | 174 ++++++++++++++++++++-----------------------------------
- 2 files changed, 63 insertions(+), 131 deletions(-)
-
-diff --git v3.16-rc1.orig/mm/huge_memory.c v3.16-rc1/mm/huge_memory.c
-index c5ff461e0253..53f451969931 100644
---- v3.16-rc1.orig/mm/huge_memory.c
-+++ v3.16-rc1/mm/huge_memory.c
-@@ -1379,26 +1379,6 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 	return ret;
- }
- 
--int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
--		unsigned long addr, unsigned long end,
--		unsigned char *vec)
--{
--	spinlock_t *ptl;
--	int ret = 0;
--
--	if (__pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
--		/*
--		 * All logical pages in the range are present
--		 * if backed by a huge page.
--		 */
--		spin_unlock(ptl);
--		memset(vec, 1, (end - addr) >> PAGE_SHIFT);
--		ret = 1;
--	}
--
--	return ret;
--}
--
- int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
- 		  unsigned long old_addr,
- 		  unsigned long new_addr, unsigned long old_end,
-diff --git v3.16-rc1.orig/mm/mincore.c v3.16-rc1/mm/mincore.c
-index 725c80961048..964bafed6320 100644
---- v3.16-rc1.orig/mm/mincore.c
-+++ v3.16-rc1/mm/mincore.c
-@@ -19,38 +19,26 @@
- #include <asm/uaccess.h>
- #include <asm/pgtable.h>
- 
--static void mincore_hugetlb_page_range(struct vm_area_struct *vma,
--				unsigned long addr, unsigned long end,
--				unsigned char *vec)
-+static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
-+			unsigned long end, struct mm_walk *walk)
- {
-+	int err = 0;
- #ifdef CONFIG_HUGETLB_PAGE
--	struct hstate *h;
-+	unsigned char present;
-+	unsigned char *vec = walk->private;
- 
--	h = hstate_vma(vma);
--	while (1) {
--		unsigned char present;
--		pte_t *ptep;
--		/*
--		 * Huge pages are always in RAM for now, but
--		 * theoretically it needs to be checked.
--		 */
--		ptep = huge_pte_offset(current->mm,
--				       addr & huge_page_mask(h));
--		present = ptep && !huge_pte_none(huge_ptep_get(ptep));
--		while (1) {
--			*vec = present;
--			vec++;
--			addr += PAGE_SIZE;
--			if (addr == end)
--				return;
--			/* check hugepage border */
--			if (!(addr & ~huge_page_mask(h)))
--				break;
--		}
--	}
-+	/*
-+	 * Hugepages under user process are always in RAM and never
-+	 * swapped out, but theoretically it needs to be checked.
-+	 */
-+	present = pte && !huge_pte_none(huge_ptep_get(pte));
-+	for (; addr != end; vec++, addr += PAGE_SIZE)
-+		*vec = present;
-+	walk->private += (end - addr) >> PAGE_SHIFT;
- #else
- 	BUG();
- #endif
-+	return err;
- }
- 
- /*
-@@ -94,14 +82,15 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
- 	return present;
- }
- 
--static void mincore_unmapped_range(struct vm_area_struct *vma,
--				unsigned long addr, unsigned long end,
--				unsigned char *vec)
-+static int mincore_unmapped_range(unsigned long addr, unsigned long end,
-+				   struct mm_walk *walk)
- {
-+	struct vm_area_struct *vma = walk->vma;
-+	unsigned char *vec = walk->private;
- 	unsigned long nr = (end - addr) >> PAGE_SHIFT;
- 	int i;
- 
--	if (vma->vm_file) {
-+	if (vma && vma->vm_file) {
- 		pgoff_t pgoff;
- 
- 		pgoff = linear_page_index(vma, addr);
-@@ -111,25 +100,38 @@ static void mincore_unmapped_range(struct vm_area_struct *vma,
- 		for (i = 0; i < nr; i++)
- 			vec[i] = 0;
- 	}
-+	walk->private += nr;
-+	return 0;
- }
- 
--static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
--			unsigned long addr, unsigned long end,
--			unsigned char *vec)
-+static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
-+			struct mm_walk *walk)
- {
--	unsigned long next;
- 	spinlock_t *ptl;
-+	struct vm_area_struct *vma = walk->vma;
- 	pte_t *ptep;
- 
--	ptep = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
--	do {
-+	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
-+		memset(walk->private, 1, (end - addr) >> PAGE_SHIFT);
-+		walk->private += (end - addr) >> PAGE_SHIFT;
-+		spin_unlock(ptl);
-+		return 0;
-+	}
-+
-+	if (pmd_trans_unstable(pmd))
-+		return 0;
-+
-+	ptep = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
-+	for (; addr != end; ptep++, addr += PAGE_SIZE) {
- 		pte_t pte = *ptep;
- 		pgoff_t pgoff;
-+		unsigned char *vec = walk->private;
- 
--		next = addr + PAGE_SIZE;
--		if (pte_none(pte))
--			mincore_unmapped_range(vma, addr, next, vec);
--		else if (pte_present(pte))
-+		if (pte_none(pte)) {
-+			mincore_unmapped_range(addr, addr + PAGE_SIZE, walk);
-+			continue;
-+		}
-+		if (pte_present(pte))
- 			*vec = 1;
- 		else if (pte_file(pte)) {
- 			pgoff = pte_to_pgoff(pte);
-@@ -151,70 +153,11 @@ static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- #endif
- 			}
- 		}
--		vec++;
--	} while (ptep++, addr = next, addr != end);
-+		walk->private++;
-+	}
- 	pte_unmap_unlock(ptep - 1, ptl);
--}
--
--static void mincore_pmd_range(struct vm_area_struct *vma, pud_t *pud,
--			unsigned long addr, unsigned long end,
--			unsigned char *vec)
--{
--	unsigned long next;
--	pmd_t *pmd;
--
--	pmd = pmd_offset(pud, addr);
--	do {
--		next = pmd_addr_end(addr, end);
--		if (pmd_trans_huge(*pmd)) {
--			if (mincore_huge_pmd(vma, pmd, addr, next, vec)) {
--				vec += (next - addr) >> PAGE_SHIFT;
--				continue;
--			}
--			/* fall through */
--		}
--		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
--			mincore_unmapped_range(vma, addr, next, vec);
--		else
--			mincore_pte_range(vma, pmd, addr, next, vec);
--		vec += (next - addr) >> PAGE_SHIFT;
--	} while (pmd++, addr = next, addr != end);
--}
--
--static void mincore_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
--			unsigned long addr, unsigned long end,
--			unsigned char *vec)
--{
--	unsigned long next;
--	pud_t *pud;
--
--	pud = pud_offset(pgd, addr);
--	do {
--		next = pud_addr_end(addr, end);
--		if (pud_none_or_clear_bad(pud))
--			mincore_unmapped_range(vma, addr, next, vec);
--		else
--			mincore_pmd_range(vma, pud, addr, next, vec);
--		vec += (next - addr) >> PAGE_SHIFT;
--	} while (pud++, addr = next, addr != end);
--}
--
--static void mincore_page_range(struct vm_area_struct *vma,
--			unsigned long addr, unsigned long end,
--			unsigned char *vec)
--{
--	unsigned long next;
--	pgd_t *pgd;
--
--	pgd = pgd_offset(vma->vm_mm, addr);
--	do {
--		next = pgd_addr_end(addr, end);
--		if (pgd_none_or_clear_bad(pgd))
--			mincore_unmapped_range(vma, addr, next, vec);
--		else
--			mincore_pud_range(vma, pgd, addr, next, vec);
--		vec += (next - addr) >> PAGE_SHIFT;
--	} while (pgd++, addr = next, addr != end);
-+	cond_resched();
-+	return 0;
- }
- 
- /*
-@@ -225,20 +168,29 @@ static void mincore_page_range(struct vm_area_struct *vma,
- static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *vec)
- {
- 	struct vm_area_struct *vma;
--	unsigned long end;
-+	int err;
-+	struct mm_walk mincore_walk = {
-+		.pmd_entry = mincore_pte_range,
-+		.pte_hole = mincore_unmapped_range,
-+		.hugetlb_entry = mincore_hugetlb,
-+		.private = vec,
-+	};
- 
- 	vma = find_vma(current->mm, addr);
- 	if (!vma || addr < vma->vm_start)
- 		return -ENOMEM;
-+	mincore_walk.mm = vma->vm_mm;
-+	mincore_walk.vma = vma;
- 
--	end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
--
--	if (is_vm_hugetlb_page(vma))
--		mincore_hugetlb_page_range(vma, addr, end, vec);
--	else
--		mincore_page_range(vma, addr, end, vec);
-+	err = walk_page_vma(vma, &mincore_walk);
-+	if (err < 0)
-+		return err;
-+	else {
-+		unsigned long end;
- 
--	return (end - addr) >> PAGE_SHIFT;
-+		end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
-+		return (end - addr) >> PAGE_SHIFT;
-+	}
- }
- 
- /*
--- 
-1.9.3
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
