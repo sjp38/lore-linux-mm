@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 2ED456B003B
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 81BAC6B003B
 	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 11:50:11 -0400 (EDT)
-Received: by mail-wg0-f46.google.com with SMTP id y10so3863101wgg.17
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 08:50:10 -0700 (PDT)
+Received: by mail-wg0-f49.google.com with SMTP id y10so3861472wgg.8
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 08:50:11 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d9si11624051wje.76.2014.06.20.08.50.09
+        by mx.google.com with ESMTPS id eg5si11601015wjd.91.2014.06.20.08.50.09
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Fri, 20 Jun 2014 08:50:09 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v3 01/13] mm, THP: don't hold mmap_sem in khugepaged when allocating THP
-Date: Fri, 20 Jun 2014 17:49:31 +0200
-Message-Id: <1403279383-5862-2-git-send-email-vbabka@suse.cz>
+Subject: [PATCH v3 02/13] mm, compaction: defer each zone individually instead of preferred zone
+Date: Fri, 20 Jun 2014 17:49:32 +0200
+Message-Id: <1403279383-5862-3-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1403279383-5862-1-git-send-email-vbabka@suse.cz>
 References: <1403279383-5862-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,20 +20,50 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
 Cc: Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-When allocating huge page for collapsing, khugepaged currently holds mmap_sem
-for reading on the mm where collapsing occurs. Afterwards the read lock is
-dropped before write lock is taken on the same mmap_sem.
+When direct sync compaction is often unsuccessful, it may become deferred for
+some time to avoid further useless attempts, both sync and async. Successful
+high-order allocations un-defer compaction, while further unsuccessful
+compaction attempts prolong the copmaction deferred period.
 
-Holding mmap_sem during whole huge page allocation is therefore useless, the
-vma needs to be rechecked after taking the write lock anyway. Furthemore, huge
-page allocation might involve a rather long sync compaction, and thus block
-any mmap_sem writers and i.e. affect workloads that perform frequent m(un)map
-or mprotect oterations.
+Currently the checking and setting deferred status is performed only on the
+preferred zone of the allocation that invoked direct compaction. But compaction
+itself is attempted on all eligible zones in the zonelist, so the behavior is
+suboptimal and may lead both to scenarios where 1) compaction is attempted
+uselessly, or 2) where it's not attempted despite good chances of succeeding,
+as shown on the examples below:
 
-This patch simply releases the read lock before allocating a huge page. It
-also deletes an outdated comment that assumed vma must be stable, as it was
-using alloc_hugepage_vma(). This is no longer true since commit 9f1b868a13
-("mm: thp: khugepaged: add policy for finding target node").
+1) A direct compaction with Normal preferred zone failed and set deferred
+   compaction for the Normal zone. Another unrelated direct compaction with
+   DMA32 as preferred zone will attempt to compact DMA32 zone even though
+   the first compaction attempt also included DMA32 zone.
+
+   In another scenario, compaction with Normal preferred zone failed to compact
+   Normal zone, but succeeded in the DMA32 zone, so it will not defer
+   compaction. In the next attempt, it will try Normal zone which will fail
+   again, instead of skipping Normal zone and trying DMA32 directly.
+
+2) Kswapd will balance DMA32 zone and reset defer status based on watermarks
+   looking good. A direct compaction with preferred Normal zone will skip
+   compaction of all zones including DMA32 because Normal was still deferred.
+   The allocation might have succeeded in DMA32, but won't.
+
+This patch makes compaction deferring work on individual zone basis instead of
+preferred zone. For each zone, it checks compaction_deferred() to decide if the
+zone should be skipped. If watermarks fail after compacting the zone,
+defer_compaction() is called. The zone where watermarks passed can still be
+deferred when the allocation attempt is unsuccessful. When allocation is
+successful, compaction_defer_reset() is called for the zone containing the
+allocated page. This approach should approximate calling defer_compaction()
+only on zones where compaction was attempted and did not yield allocated page.
+There might be corner cases but that is inevitable as long as the decision
+to stop compacting dues not guarantee that a page will be allocated.
+
+During testing on a two-node machine with a single very small Normal zone on
+node 1, this patch has improved success rates in stress-highalloc mmtests
+benchmark. The success here were previously made worse by commit 3a025760fc
+("mm: page_alloc: spill to remote nodes before waking kswapd") as kswapd was
+no longer resetting often enough the deferred compaction for the Normal zone,
+and DMA32 zones on both nodes were thus not considered for compaction.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Cc: Minchan Kim <minchan@kernel.org>
@@ -45,44 +75,172 @@ Cc: Christoph Lameter <cl@linux.com>
 Cc: Rik van Riel <riel@redhat.com>
 Cc: David Rientjes <rientjes@google.com>
 ---
- mm/huge_memory.c | 20 +++++++-------------
- 1 file changed, 7 insertions(+), 13 deletions(-)
+ include/linux/compaction.h |  6 ++++--
+ mm/compaction.c            | 29 ++++++++++++++++++++++++-----
+ mm/page_alloc.c            | 33 ++++++++++++++++++---------------
+ 3 files changed, 46 insertions(+), 22 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 5d562a9..59ddc61 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2295,23 +2295,17 @@ static struct page
- 		       int node)
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index 01e3132..76f9beb 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -22,7 +22,8 @@ extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
+ extern int fragmentation_index(struct zone *zone, unsigned int order);
+ extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
+ 			int order, gfp_t gfp_mask, nodemask_t *mask,
+-			enum migrate_mode mode, bool *contended);
++			enum migrate_mode mode, bool *contended, bool *deferred,
++			struct zone **candidate_zone);
+ extern void compact_pgdat(pg_data_t *pgdat, int order);
+ extern void reset_isolation_suitable(pg_data_t *pgdat);
+ extern unsigned long compaction_suitable(struct zone *zone, int order);
+@@ -91,7 +92,8 @@ static inline bool compaction_restarting(struct zone *zone, int order)
+ #else
+ static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
+ 			int order, gfp_t gfp_mask, nodemask_t *nodemask,
+-			enum migrate_mode mode, bool *contended)
++			enum migrate_mode mode, bool *contended, bool *deferred,
++			struct zone **candidate_zone)
  {
- 	VM_BUG_ON_PAGE(*hpage, *hpage);
+ 	return COMPACT_CONTINUE;
+ }
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 5175019..7c491d0 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1122,13 +1122,15 @@ int sysctl_extfrag_threshold = 500;
+  * @nodemask: The allowed nodes to allocate from
+  * @mode: The migration mode for async, sync light, or sync migration
+  * @contended: Return value that is true if compaction was aborted due to lock contention
+- * @page: Optionally capture a free page of the requested order during compaction
++ * @deferred: Return value that is true if compaction was deferred in all zones
++ * @candidate_zone: Return the zone where we think allocation should succeed
+  *
+  * This is the main entry point for direct page compaction.
+  */
+ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+ 			int order, gfp_t gfp_mask, nodemask_t *nodemask,
+-			enum migrate_mode mode, bool *contended)
++			enum migrate_mode mode, bool *contended, bool *deferred,
++			struct zone **candidate_zone)
+ {
+ 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
+ 	int may_enter_fs = gfp_mask & __GFP_FS;
+@@ -1142,8 +1144,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+ 	if (!order || !may_enter_fs || !may_perform_io)
+ 		return rc;
+ 
+-	count_compact_event(COMPACTSTALL);
+-
++	*deferred = true;
+ #ifdef CONFIG_CMA
+ 	if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
+ 		alloc_flags |= ALLOC_CMA;
+@@ -1153,16 +1154,34 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+ 								nodemask) {
+ 		int status;
+ 
++		if (compaction_deferred(zone, order))
++			continue;
 +
- 	/*
--	 * Allocate the page while the vma is still valid and under
--	 * the mmap_sem read mode so there is no memory allocation
--	 * later when we take the mmap_sem in write mode. This is more
--	 * friendly behavior (OTOH it may actually hide bugs) to
--	 * filesystems in userland with daemons allocating memory in
--	 * the userland I/O paths.  Allocating memory with the
--	 * mmap_sem in read mode is good idea also to allow greater
--	 * scalability.
-+	 * Before allocating the hugepage, release the mmap_sem read lock.
-+	 * The allocation can take potentially a long time if it involves
-+	 * sync compaction, and we do not need to hold the mmap_sem during
-+	 * that. We will recheck the vma after taking it again in write mode.
- 	 */
-+	up_read(&mm->mmap_sem);
++		*deferred = false;
 +
- 	*hpage = alloc_pages_exact_node(node, alloc_hugepage_gfpmask(
- 		khugepaged_defrag(), __GFP_OTHER_NODE), HPAGE_PMD_ORDER);
--	/*
--	 * After allocating the hugepage, release the mmap_sem read lock in
--	 * preparation for taking it in write mode.
--	 */
--	up_read(&mm->mmap_sem);
- 	if (unlikely(!*hpage)) {
- 		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
- 		*hpage = ERR_PTR(-ENOMEM);
+ 		status = compact_zone_order(zone, order, gfp_mask, mode,
+ 						contended);
+ 		rc = max(status, rc);
+ 
+ 		/* If a normal allocation would succeed, stop compacting */
+ 		if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0,
+-				      alloc_flags))
++				      alloc_flags)) {
++			*candidate_zone = zone;
+ 			break;
++		} else if (mode != MIGRATE_ASYNC) {
++			/*
++			 * We think that allocation won't succeed in this zone
++			 * so we defer compaction there. If it ends up
++			 * succeeding after all, it will be reset.
++			 */
++			defer_compaction(zone, order);
++		}
+ 	}
+ 
++	/* If at least one zone wasn't deferred, we count a compaction stall */
++	if (!*deferred)
++		count_compact_event(COMPACTSTALL);
++
+ 	return rc;
+ }
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index ee92384..6593f79 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2238,18 +2238,17 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 	bool *contended_compaction, bool *deferred_compaction,
+ 	unsigned long *did_some_progress)
+ {
+-	if (!order)
+-		return NULL;
++	struct zone *last_compact_zone = NULL;
+ 
+-	if (compaction_deferred(preferred_zone, order)) {
+-		*deferred_compaction = true;
++	if (!order)
+ 		return NULL;
+-	}
+ 
+ 	current->flags |= PF_MEMALLOC;
+ 	*did_some_progress = try_to_compact_pages(zonelist, order, gfp_mask,
+ 						nodemask, mode,
+-						contended_compaction);
++						contended_compaction,
++						deferred_compaction,
++						&last_compact_zone);
+ 	current->flags &= ~PF_MEMALLOC;
+ 
+ 	if (*did_some_progress != COMPACT_SKIPPED) {
+@@ -2263,27 +2262,31 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 				order, zonelist, high_zoneidx,
+ 				alloc_flags & ~ALLOC_NO_WATERMARKS,
+ 				preferred_zone, classzone_idx, migratetype);
++
+ 		if (page) {
+-			preferred_zone->compact_blockskip_flush = false;
+-			compaction_defer_reset(preferred_zone, order, true);
++			struct zone *zone = page_zone(page);
++
++			zone->compact_blockskip_flush = false;
++			compaction_defer_reset(zone, order, true);
+ 			count_vm_event(COMPACTSUCCESS);
+ 			return page;
+ 		}
+ 
+ 		/*
++		 * last_compact_zone is where try_to_compact_pages thought
++		 * allocation should succeed, so it did not defer compaction.
++		 * But now we know that it didn't succeed, so we do the defer.
++		 */
++		if (last_compact_zone && mode != MIGRATE_ASYNC)
++			defer_compaction(last_compact_zone, order);
++
++		/*
+ 		 * It's bad if compaction run occurs and fails.
+ 		 * The most likely reason is that pages exist,
+ 		 * but not enough to satisfy watermarks.
+ 		 */
+ 		count_vm_event(COMPACTFAIL);
+ 
+-		/*
+-		 * As async compaction considers a subset of pageblocks, only
+-		 * defer if the failure was a sync compaction failure.
+-		 */
+-		if (mode != MIGRATE_ASYNC)
+-			defer_compaction(preferred_zone, order);
+-
+ 		cond_resched();
+ 	}
+ 
 -- 
 1.8.4.5
 
