@@ -1,81 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 837016B0037
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 11:32:25 -0400 (EDT)
-Received: by mail-we0-f174.google.com with SMTP id u57so4044059wes.33
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 08:32:24 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t9si7088829wjy.178.2014.06.20.08.32.21
+Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
+	by kanga.kvack.org (Postfix) with ESMTP id ABEE36B0037
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 11:40:21 -0400 (EDT)
+Received: by mail-qc0-f179.google.com with SMTP id x3so3639999qcv.38
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 08:40:21 -0700 (PDT)
+Received: from e35.co.us.ibm.com (e35.co.us.ibm.com. [32.97.110.153])
+        by mx.google.com with ESMTPS id k31si4075424qge.52.2014.06.20.08.40.20
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 20 Jun 2014 08:32:21 -0700 (PDT)
-Date: Fri, 20 Jun 2014 17:32:12 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 0/8] mm: add page cache limit and reclaim feature
-Message-ID: <20140620153212.GD23115@dhcp22.suse.cz>
-References: <539EB7D6.8070401@huawei.com>
- <20140616111422.GA16915@dhcp22.suse.cz>
- <20140616125040.GA29993@optiplex.redhat.com>
- <539F9B6C.1080802@huawei.com>
- <53A3E948.5020701@huawei.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 20 Jun 2014 08:40:20 -0700 (PDT)
+Received: from /spool/local
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Fri, 20 Jun 2014 09:40:19 -0600
+Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 1E7BF19D8041
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 09:40:08 -0600 (MDT)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by b03cxnp07028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s5KFct9j7471470
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 17:38:55 +0200
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id s5KFiCN4021685
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 09:44:13 -0600
+Date: Fri, 20 Jun 2014 08:40:14 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: slub/debugobjects: lockup when freeing memory
+Message-ID: <20140620154014.GC4904@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <53A2F406.4010109@oracle.com>
+ <alpine.DEB.2.11.1406191001090.2785@gentwo.org>
+ <20140619165247.GA4904@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1406192127100.5170@nanos>
+ <20140619202928.GG4904@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1406192230390.5170@nanos>
+ <20140619205307.GL4904@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1406192331250.5170@nanos>
+ <20140619220449.GT4904@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1406201015440.5170@nanos>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <53A3E948.5020701@huawei.com>
+In-Reply-To: <alpine.DEB.2.10.1406201015440.5170@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Li Zefan <lizefan@huawei.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Christoph Lameter <cl@gentwo.org>, Sasha Levin <sasha.levin@oracle.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri 20-06-14 15:56:56, Xishi Qiu wrote:
-> On 2014/6/17 9:35, Xishi Qiu wrote:
-> 
-> > On 2014/6/16 20:50, Rafael Aquini wrote:
+On Fri, Jun 20, 2014 at 10:17:32AM +0200, Thomas Gleixner wrote:
+> On Thu, 19 Jun 2014, Paul E. McKenney wrote:
+> > On Thu, Jun 19, 2014 at 11:32:41PM +0200, Thomas Gleixner wrote:
+> > > 
+> > > 
+> > > On Thu, 19 Jun 2014, Paul E. McKenney wrote:
+> > > 
+> > > > On Thu, Jun 19, 2014 at 10:37:17PM +0200, Thomas Gleixner wrote:
+> > > > > On Thu, 19 Jun 2014, Paul E. McKenney wrote:
+> > > > > > On Thu, Jun 19, 2014 at 09:29:08PM +0200, Thomas Gleixner wrote:
+> > > > > > > On Thu, 19 Jun 2014, Paul E. McKenney wrote:
+> > > > > > > Well, no. Look at the callchain:
+> > > > > > > 
+> > > > > > > __call_rcu
+> > > > > > >     debug_object_activate
+> > > > > > >        rcuhead_fixup_activate
+> > > > > > >           debug_object_init
+> > > > > > >               kmem_cache_alloc
+> > > > > > > 
+> > > > > > > So call rcu activates the object, but the object has no reference in
+> > > > > > > the debug objects code so the fixup code is called which inits the
+> > > > > > > object and allocates a reference ....
+> > > > > > 
+> > > > > > OK, got it.  And you are right, call_rcu() has done this for a very
+> > > > > > long time, so not sure what changed.  But it seems like the right
+> > > > > > approach is to provide a debug-object-free call_rcu_alloc() for use
+> > > > > > by the memory allocators.
+> > > > > > 
+> > > > > > Seem reasonable?  If so, please see the following patch.
+> > > > > 
+> > > > > Not really, you're torpedoing the whole purpose of debugobjects :)
+> > > > > 
+> > > > > So, why can't we just init the rcu head when the stuff is created?
+> > > > 
+> > > > That would allow me to keep my code unchanged, so I am in favor.  ;-)
+> > > 
+> > > Almost unchanged. You need to provide a function to do so, i.e. make
+> > > use of
+> > > 
+> > >     debug_init_rcu_head()
 > > 
-> >> On Mon, Jun 16, 2014 at 01:14:22PM +0200, Michal Hocko wrote:
-> >>> On Mon 16-06-14 17:24:38, Xishi Qiu wrote:
-> >>>> When system(e.g. smart phone) running for a long time, the cache often takes
-> >>>> a large memory, maybe the free memory is less than 50M, then OOM will happen
-> >>>> if APP allocate a large order pages suddenly and memory reclaim too slowly. 
-> >>>
-> >>> Have you ever seen this to happen? Page cache should be easy to reclaim and
-> >>> if there is too mach dirty memory then you should be able to tune the
-> >>> amount by dirty_bytes/ratio knob. If the page allocator falls back to
-> >>> OOM and there is a lot of page cache then I would call it a bug. I do
-> >>> not think that limiting the amount of the page cache globally makes
-> >>> sense. There are Unix systems which offer this feature but I think it is
-> >>> a bad interface which only papers over the reclaim inefficiency or lack
-> >>> of other isolations between loads.
-> >>>
-> >> +1
-> >>
-> >> It would be good if you could show some numbers that serve as evidence
-> >> of your theory on "excessive" pagecache acting as a trigger to your
-> >> observed OOMs. I'm assuming, by your 'e.g', you're running a swapless
-> >> system, so I would think your system OOMs are due to inability to
-> >> reclaim anon memory, instead of pagecache.
-> >>
+> > You mean like this?
 > 
-> I asked some colleagues, when the cache takes a large memory, it will not
-> trigger OOM, but performance regression. 
+> I'd rather name it init_rcu_head() and free_rcu_head() w/o the debug_
+> prefix, so it's consistent with init_rcu_head_on_stack /
+> destroy_rcu_head_on_stack. But either way works for me.
 > 
-> It is because that business process do IO high frequency, and this will 
-> increase page cache. When there is not enough memory, page cache will
-> be reclaimed first, then alloc a new page, and add it to page cache. This
-> often takes too much time, and causes performance regression.
+> Acked-by: Thomas Gleixner <tglx@linutronix.de>
 
-I cannot say I would understand the problem you are describing. So the
-page cache eats the most of the memory and that increases allocation
-latency for new page cache? Is it because of the direct reclaim?
-Why kswapd doesn't reclaim the clean pagecache? Or is the memory dirty?
+So just drop the _on_stack() from the other names, then.  Please see
+below.
 
-> In view of this situation, if we reclaim page cache in circles may be
-> fix this problem. What do you think?
+							Thanx, Paul
 
-No, it seems more like either system misconfiguration or a reclaim bug.
--- 
-Michal Hocko
-SUSE Labs
+------------------------------------------------------------------------
+
+rcu: Export debug_init_rcu_head() and and debug_init_rcu_head()
+
+Currently, call_rcu() relies on implicit allocation and initialization
+for the debug-objects handling of RCU callbacks.  If you hammer the
+kernel hard enough with Sasha's modified version of trinity, you can end
+up with the sl*b allocators recursing into themselves via this implicit
+call_rcu() allocation.
+
+This commit therefore exports the debug_init_rcu_head() and
+debug_rcu_head_free() functions, which permits the allocators to allocated
+and pre-initialize the debug-objects information, so that there no longer
+any need for call_rcu() to do that initialization, which in turn prevents
+the recursion into the memory allocators.
+
+Reported-by: Sasha Levin <sasha.levin@oracle.com>
+Suggested-by: Thomas Gleixner <tglx@linutronix.de>
+Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+Acked-by: Thomas Gleixner <tglx@linutronix.de>
+
+diff --git a/include/linux/rcupdate.h b/include/linux/rcupdate.h
+index 063a6bf1a2b6..37c92cfef9ec 100644
+--- a/include/linux/rcupdate.h
++++ b/include/linux/rcupdate.h
+@@ -358,9 +358,19 @@ void wait_rcu_gp(call_rcu_func_t crf);
+  * initialization.
+  */
+ #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
++void init_rcu_head(struct rcu_head *head);
++void destroy_rcu_head(struct rcu_head *head);
+ void init_rcu_head_on_stack(struct rcu_head *head);
+ void destroy_rcu_head_on_stack(struct rcu_head *head);
+ #else /* !CONFIG_DEBUG_OBJECTS_RCU_HEAD */
++static inline void init_rcu_head(struct rcu_head *head)
++{
++}
++
++static inline void destroy_rcu_head(struct rcu_head *head)
++{
++}
++
+ static inline void init_rcu_head_on_stack(struct rcu_head *head)
+ {
+ }
+diff --git a/kernel/rcu/update.c b/kernel/rcu/update.c
+index a2aeb4df0f60..0fb691e63ce6 100644
+--- a/kernel/rcu/update.c
++++ b/kernel/rcu/update.c
+@@ -200,12 +200,12 @@ void wait_rcu_gp(call_rcu_func_t crf)
+ EXPORT_SYMBOL_GPL(wait_rcu_gp);
+ 
+ #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
+-static inline void debug_init_rcu_head(struct rcu_head *head)
++void init_rcu_head(struct rcu_head *head)
+ {
+ 	debug_object_init(head, &rcuhead_debug_descr);
+ }
+ 
+-static inline void debug_rcu_head_free(struct rcu_head *head)
++void destroy_rcu_head(struct rcu_head *head)
+ {
+ 	debug_object_free(head, &rcuhead_debug_descr);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
