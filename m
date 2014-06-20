@@ -1,50 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 764966B0035
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 13:46:02 -0400 (EDT)
-Received: by mail-we0-f177.google.com with SMTP id u56so4182981wes.36
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 10:46:01 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.198])
-        by mx.google.com with ESMTP id df5si12056760wjb.42.2014.06.20.10.45.59
-        for <linux-mm@kvack.org>;
-        Fri, 20 Jun 2014 10:46:00 -0700 (PDT)
-Date: Fri, 20 Jun 2014 20:45:33 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v3 01/13] mm, THP: don't hold mmap_sem in khugepaged when
- allocating THP
-Message-ID: <20140620174533.GA9635@node.dhcp.inet.fi>
-References: <1403279383-5862-1-git-send-email-vbabka@suse.cz>
- <1403279383-5862-2-git-send-email-vbabka@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1403279383-5862-2-git-send-email-vbabka@suse.cz>
+Received: from mail-yk0-f179.google.com (mail-yk0-f179.google.com [209.85.160.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 410AC6B0035
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 14:36:31 -0400 (EDT)
+Received: by mail-yk0-f179.google.com with SMTP id 20so2935331yks.24
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 11:36:31 -0700 (PDT)
+Received: from g5t1627.atlanta.hp.com (g5t1627.atlanta.hp.com. [15.192.137.10])
+        by mx.google.com with ESMTPS id 61si9936121yho.139.2014.06.20.11.36.30
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 20 Jun 2014 11:36:30 -0700 (PDT)
+Message-ID: <1403288831.25108.0.camel@misato.fc.hp.com>
+Subject: Re: [PATCH 1/2] x86,mem-hotplug: pass sync_global_pgds() a correct
+ argument in remove_pagetable()
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Fri, 20 Jun 2014 12:27:11 -0600
+In-Reply-To: <53A1339E.2000000@jp.fujitsu.com>
+References: <53A132E2.9000605@jp.fujitsu.com>
+	 <53A1339E.2000000@jp.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-kernel@vger.kernel.org
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, tangchen@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, guz.fnst@cn.fujitsu.com, zhangyanfei@cn.fujitsu.com
 
-On Fri, Jun 20, 2014 at 05:49:31PM +0200, Vlastimil Babka wrote:
-> When allocating huge page for collapsing, khugepaged currently holds mmap_sem
-> for reading on the mm where collapsing occurs. Afterwards the read lock is
-> dropped before write lock is taken on the same mmap_sem.
+On Wed, 2014-06-18 at 15:37 +0900, Yasuaki Ishimatsu wrote:
+> remove_pagetable() gets start argument and passes the argument to
+> sync_global_pgds(). In this case, the argument must not be modified.
+> If the argument is modified and passed to sync_global_pgds(),
+> sync_global_pgds() does not correctly synchronize PGD to PGD entries
+> of all processes MM since synchronized range of memory [start, end]
+> is wrong.
 > 
-> Holding mmap_sem during whole huge page allocation is therefore useless, the
-> vma needs to be rechecked after taking the write lock anyway. Furthemore, huge
-> page allocation might involve a rather long sync compaction, and thus block
-> any mmap_sem writers and i.e. affect workloads that perform frequent m(un)map
-> or mprotect oterations.
+> Unfortunately the start argument is modified in remove_pagetable().
+> So this patch fixes the issue.
 > 
-> This patch simply releases the read lock before allocating a huge page. It
-> also deletes an outdated comment that assumed vma must be stable, as it was
-> using alloc_hugepage_vma(). This is no longer true since commit 9f1b868a13
-> ("mm: thp: khugepaged: add policy for finding target node").
+> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 
-There is no point in touching ->mmap_sem in khugepaged_alloc_page() at
-all. Please, move up_read() outside khugepaged_alloc_page().
+Acked-by: Toshi Kani <toshi.kani@hp.com>
 
--- 
- Kirill A. Shutemov
+Thanks,
+-Toshi
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
