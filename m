@@ -1,80 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id B0F376B0035
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 03:07:04 -0400 (EDT)
-Received: by mail-pb0-f47.google.com with SMTP id up15so2792496pbc.20
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 00:07:04 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id fl3si8661624pab.165.2014.06.20.00.07.01
+Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 167706B0035
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 03:38:52 -0400 (EDT)
+Received: by mail-la0-f49.google.com with SMTP id gf5so2130274lab.36
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 00:38:52 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id ka3si12400691lbc.0.2014.06.20.00.38.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 20 Jun 2014 00:07:03 -0700 (PDT)
-Message-ID: <53A3DD82.3070208@huawei.com>
-Date: Fri, 20 Jun 2014 15:06:42 +0800
-From: Zhang Zhen <zhenzhang.zhang@huawei.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 20 Jun 2014 00:38:51 -0700 (PDT)
+Date: Fri, 20 Jun 2014 11:38:38 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH 2/3] fork: reset mm->pinned_vm
+Message-ID: <20140620073838.GA5387@esperanza>
+References: <fa98629155872c1b97ba4dcd00d509a1e467c1c3.1403168346.git.vdavydov@parallels.com>
+ <63d594c88850aa64729fceec769681f9d1d6fa68.1403168346.git.vdavydov@parallels.com>
+ <20140619135820.57c4934dd613c5e723f9ca82@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Why we echo a invalid  start_address_of_new_memory succeeded ?
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20140619135820.57c4934dd613c5e723f9ca82@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: wangnan0@huawei.com, xiaofeng.yan@huawei.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: oleg@redhat.com, rientjes@google.com, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi,
+On Thu, Jun 19, 2014 at 01:58:20PM -0700, Andrew Morton wrote:
+> On Thu, 19 Jun 2014 13:07:47 +0400 Vladimir Davydov <vdavydov@parallels.com> wrote:
+> 
+> > mm->pinned_vm counts pages of mm's address space that were permanently
+> > pinned in memory by increasing their reference counter. The counter was
+> > introduced by commit bc3e53f682d9 ("mm: distinguish between mlocked and
+> > pinned pages"), while before it locked_vm had been used for such pages.
+> > 
+> > Obviously, we should reset the counter on fork if !CLONE_VM, just like
+> > we do with locked_vm, but currently we don't. Let's fix it.
+> > 
+> > ...
+> >
+> > --- a/kernel/fork.c
+> > +++ b/kernel/fork.c
+> > @@ -534,6 +534,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
+> >  	atomic_long_set(&mm->nr_ptes, 0);
+> >  	mm->map_count = 0;
+> >  	mm->locked_vm = 0;
+> > +	mm->pinned_vm = 0;
+> >  	memset(&mm->rss_stat, 0, sizeof(mm->rss_stat));
+> >  	spin_lock_init(&mm->page_table_lock);
+> >  	mm_init_cpumask(mm);
+> 
+> What are the runtime effects of this?  I think it is only
+> "/proc/pid/status:VmPin is screwed up", because we don't use vm_pinned
+> in rlimit checks.  Yes?
 
-I am testing mem-hotplug on a qemu virtual machine. I executed the following command
-to notify memory hot-add event by hand.
+Hmm, ib_umem_get[infiniband] and perf_mmap still check pinned_vm against
+RLIMIT_MEMLOCK. It's left from the times when pinned pages were
+accounted under locked_vm, but today it looks wrong. It isn't clear to
+me how we should deal with it.
 
-% echo start_address_of_new_memory > /sys/devices/system/memory/probe
+And BTW, we still have some drivers accounting pinned pages under
+mm->locked_vm - this is what commit bc3e53f682d9 was fighting against.
+It's infiniband/usnic and vfio.
 
-To a different start_address_of_new_memory I got different results.
-The results are as follows:
-
-MBSC-x86_64 /sys/devices/system/memory # ls
-block_size_bytes  memory2           memory5           power
-memory0           memory3           memory6           probe
-memory1           memory4           memory7           uevent
-MBSC-x86_64 /sys/devices/system/memory # echo 0x70000000 > probe
-MBSC-x86_64 /sys/devices/system/memory # echo 0x78000000 > probe
--sh: echo: write error: File exists
-MBSC-x86_64 /sys/devices/system/memory # echo 0x80000000 > probe
--sh: echo: write error: File exists
-MBSC-x86_64 /sys/devices/system/memory # echo 0x88000000 > probe
--sh: echo: write error: File exists
-MBSC-x86_64 /sys/devices/system/memory # echo 0x8f000000 > probe
--sh: echo: write error: Invalid argument
-MBSC-x86_64 /sys/devices/system/memory # echo 0x90000000 > probe
--sh: echo: write error: File exists
-MBSC-x86_64 /sys/devices/system/memory # echo 0xff0000000 > probe
-MBSC-x86_64 /sys/devices/system/memory # ls
-block_size_bytes  memory2           memory510         probe
-memory0           memory3           memory6           uevent
-memory1           memory4           memory7
-memory14          memory5           power
-MBSC-x86_64 /sys/devices/system/memory # echo 0xfff0000000 > probe
-MBSC-x86_64 /sys/devices/system/memory # ls
-block_size_bytes  memory2           memory510         power
-memory0           memory3           memory6           probe
-memory1           memory4           memory7           uevent
-memory14          memory5           memory8190
-
-The qemu virtual machine's physical memory size is 2048M, and the boot memory is 1024M.
-
-MBSC-x86_64 / # cat /proc/meminfo
-MemTotal:        1018356 kB
-MBSC-x86_64 / # cat /sys/devices/system/memory/block_size_bytes
-8000000
-
-Three questions:
-1. The machine's physical memory size is 2048M, why echo 0x78000000 as the start_address_of_new_memory failed ?
-
-2. Why echo 0x8f000000 as the start_address_of_new_memory, the error message is different ?
-
-3. Why echo 0xfff0000000 as the start_address_of_new_memory succeeded ? 0xfff0000000 has exceeded the machine's physical memory size.
-
-Best regards!
-
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
