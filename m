@@ -1,221 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id C2BA16B003D
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 12:56:06 -0400 (EDT)
-Received: by mail-wi0-f176.google.com with SMTP id n3so1154334wiv.15
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 09:56:06 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l3si3113299wix.100.2014.06.20.09.56.04
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 20 Jun 2014 09:56:05 -0700 (PDT)
-Message-ID: <53A467A3.1050008@suse.cz>
-Date: Fri, 20 Jun 2014 18:56:03 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 764966B0035
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 13:46:02 -0400 (EDT)
+Received: by mail-we0-f177.google.com with SMTP id u56so4182981wes.36
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 10:46:01 -0700 (PDT)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.198])
+        by mx.google.com with ESMTP id df5si12056760wjb.42.2014.06.20.10.45.59
+        for <linux-mm@kvack.org>;
+        Fri, 20 Jun 2014 10:46:00 -0700 (PDT)
+Date: Fri, 20 Jun 2014 20:45:33 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v3 01/13] mm, THP: don't hold mmap_sem in khugepaged when
+ allocating THP
+Message-ID: <20140620174533.GA9635@node.dhcp.inet.fi>
+References: <1403279383-5862-1-git-send-email-vbabka@suse.cz>
+ <1403279383-5862-2-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [patch 2/4] mm: vmscan: rework compaction-ready signaling in
- direct reclaim
-References: <1403282030-29915-1-git-send-email-hannes@cmpxchg.org> <1403282030-29915-2-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1403282030-29915-2-git-send-email-hannes@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-2
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1403279383-5862-2-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-kernel@vger.kernel.org
 
-On 06/20/2014 06:33 PM, Johannes Weiner wrote:
-> Page reclaim for a higher-order page runs until compaction is ready,
-> then aborts and signals this situation through the return value of
-> shrink_zones().  This is an oddly specific signal to encode in the
-> return value of shrink_zones(), though, and can be quite confusing.
+On Fri, Jun 20, 2014 at 05:49:31PM +0200, Vlastimil Babka wrote:
+> When allocating huge page for collapsing, khugepaged currently holds mmap_sem
+> for reading on the mm where collapsing occurs. Afterwards the read lock is
+> dropped before write lock is taken on the same mmap_sem.
 > 
-> Introduce sc->compaction_ready and signal the compactability of the
-> zones out-of-band to free up the return value of shrink_zones() for
-> actual zone reclaimability.
+> Holding mmap_sem during whole huge page allocation is therefore useless, the
+> vma needs to be rechecked after taking the write lock anyway. Furthemore, huge
+> page allocation might involve a rather long sync compaction, and thus block
+> any mmap_sem writers and i.e. affect workloads that perform frequent m(un)map
+> or mprotect oterations.
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> This patch simply releases the read lock before allocating a huge page. It
+> also deletes an outdated comment that assumed vma must be stable, as it was
+> using alloc_hugepage_vma(). This is no longer true since commit 9f1b868a13
+> ("mm: thp: khugepaged: add policy for finding target node").
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+There is no point in touching ->mmap_sem in khugepaged_alloc_page() at
+all. Please, move up_read() outside khugepaged_alloc_page().
 
-(with a nitpick below)
-
-> ---
->  mm/vmscan.c | 67 ++++++++++++++++++++++++++++---------------------------------
->  1 file changed, 31 insertions(+), 36 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 19b5b8016209..ed1efb84c542 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -65,6 +65,9 @@ struct scan_control {
->  	/* Number of pages freed so far during a call to shrink_zones() */
->  	unsigned long nr_reclaimed;
->  
-> +	/* One of the zones is ready for compaction */
-> +	int compaction_ready;
-> +
->  	/* How many pages shrink_list() should reclaim */
->  	unsigned long nr_to_reclaim;
->  
-> @@ -2292,15 +2295,11 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
->  }
->  
->  /* Returns true if compaction should go ahead for a high-order request */
-> -static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
-> +static inline bool compaction_ready(struct zone *zone, int order)
->  {
->  	unsigned long balance_gap, watermark;
->  	bool watermark_ok;
->  
-> -	/* Do not consider compaction for orders reclaim is meant to satisfy */
-> -	if (sc->order <= PAGE_ALLOC_COSTLY_ORDER)
-> -		return false;
-> -
->  	/*
->  	 * Compaction takes time to run and there are potentially other
->  	 * callers using the pages just freed. Continue reclaiming until
-> @@ -2309,18 +2308,18 @@ static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
->  	 */
->  	balance_gap = min(low_wmark_pages(zone), DIV_ROUND_UP(
->  			zone->managed_pages, KSWAPD_ZONE_BALANCE_GAP_RATIO));
-> -	watermark = high_wmark_pages(zone) + balance_gap + (2UL << sc->order);
-> +	watermark = high_wmark_pages(zone) + balance_gap + (2UL << order);
->  	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, 0, 0);
->  
->  	/*
->  	 * If compaction is deferred, reclaim up to a point where
->  	 * compaction will have a chance of success when re-enabled
->  	 */
-> -	if (compaction_deferred(zone, sc->order))
-> +	if (compaction_deferred(zone, order))
->  		return watermark_ok;
->  
->  	/* If compaction is not ready to start, keep reclaiming */
-> -	if (!compaction_suitable(zone, sc->order))
-> +	if (!compaction_suitable(zone, order))
->  		return false;
->  
->  	return watermark_ok;
-> @@ -2341,20 +2340,14 @@ static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
->   *
->   * If a zone is deemed to be full of pinned pages then just give it a light
->   * scan then give up on it.
-> - *
-> - * This function returns true if a zone is being reclaimed for a costly
-> - * high-order allocation and compaction is ready to begin. This indicates to
-> - * the caller that it should consider retrying the allocation instead of
-> - * further reclaim.
->   */
-> -static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
-> +static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
->  {
->  	struct zoneref *z;
->  	struct zone *zone;
->  	unsigned long nr_soft_reclaimed;
->  	unsigned long nr_soft_scanned;
->  	unsigned long lru_pages = 0;
-> -	bool aborted_reclaim = false;
->  	struct reclaim_state *reclaim_state = current->reclaim_state;
->  	gfp_t orig_mask;
->  	struct shrink_control shrink = {
-> @@ -2391,22 +2384,24 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
->  			if (sc->priority != DEF_PRIORITY &&
->  			    !zone_reclaimable(zone))
->  				continue;	/* Let kswapd poll it */
-> -			if (IS_ENABLED(CONFIG_COMPACTION)) {
-> -				/*
-> -				 * If we already have plenty of memory free for
-> -				 * compaction in this zone, don't free any more.
-> -				 * Even though compaction is invoked for any
-> -				 * non-zero order, only frequent costly order
-> -				 * reclamation is disruptive enough to become a
-> -				 * noticeable problem, like transparent huge
-> -				 * page allocations.
-> -				 */
-> -				if ((zonelist_zone_idx(z) <= requested_highidx)
-> -				    && compaction_ready(zone, sc)) {
-> -					aborted_reclaim = true;
-> -					continue;
-> -				}
-> +
-> +			/*
-> +			 * If we already have plenty of memory free
-> +			 * for compaction in this zone, don't free any
-> +			 * more.  Even though compaction is invoked
-> +			 * for any non-zero order, only frequent
-> +			 * costly order reclamation is disruptive
-> +			 * enough to become a noticeable problem, like
-> +			 * transparent huge page allocations.
-> +			 */
-
-You moved this comment block left, yet you further shortened the individual lines, despite
-there is now more space to prolong them.
-
-> +			if (IS_ENABLED(CONFIG_COMPACTION) &&
-> +			    sc->order > PAGE_ALLOC_COSTLY_ORDER &&
-> +			    zonelist_zone_idx(z) <= requested_highidx &&
-> +			    compaction_ready(zone, sc->order)) {
-> +				sc->compaction_ready = true;
-> +				continue;
->  			}
-> +
->  			/*
->  			 * This steals pages from memory cgroups over softlimit
->  			 * and returns the number of reclaimed pages and
-> @@ -2444,8 +2439,6 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
->  	 * promoted it to __GFP_HIGHMEM.
->  	 */
->  	sc->gfp_mask = orig_mask;
-> -
-> -	return aborted_reclaim;
->  }
->  
->  /* All zones in zonelist are unreclaimable? */
-> @@ -2489,7 +2482,6 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
->  {
->  	unsigned long total_scanned = 0;
->  	unsigned long writeback_threshold;
-> -	bool aborted_reclaim;
->  
->  	delayacct_freepages_start();
->  
-> @@ -2500,12 +2492,15 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
->  		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
->  				sc->priority);
->  		sc->nr_scanned = 0;
-> -		aborted_reclaim = shrink_zones(zonelist, sc);
-> +		shrink_zones(zonelist, sc);
->  
->  		total_scanned += sc->nr_scanned;
->  		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
->  			goto out;
->  
-> +		if (sc->compaction_ready)
-> +			goto out;
-> +
->  		/*
->  		 * If we're getting trouble reclaiming, start doing
->  		 * writepage even in laptop mode.
-> @@ -2526,7 +2521,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
->  						WB_REASON_TRY_TO_FREE_PAGES);
->  			sc->may_writepage = 1;
->  		}
-> -	} while (--sc->priority >= 0 && !aborted_reclaim);
-> +	} while (--sc->priority >= 0);
->  
->  out:
->  	delayacct_freepages_end();
-> @@ -2535,7 +2530,7 @@ out:
->  		return sc->nr_reclaimed;
->  
->  	/* Aborted reclaim to try compaction? don't OOM, then */
-> -	if (aborted_reclaim)
-> +	if (sc->compaction_ready)
->  		return 1;
->  
->  	/* top priority shrink_zones still had more to do? don't OOM, then */
-> 
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
