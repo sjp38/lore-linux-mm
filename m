@@ -1,71 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id E216D6B0035
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 03:57:50 -0400 (EDT)
-Received: by mail-pb0-f48.google.com with SMTP id rq2so2844659pbb.21
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 00:57:50 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
-        by mx.google.com with ESMTPS id qp5si8799802pab.192.2014.06.20.00.57.47
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D17D6B0035
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 04:17:54 -0400 (EDT)
+Received: by mail-wi0-f172.google.com with SMTP id hi2so345986wib.11
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 01:17:53 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id qi1si10186962wjc.18.2014.06.20.01.17.52
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 20 Jun 2014 00:57:49 -0700 (PDT)
-Message-ID: <53A3E948.5020701@huawei.com>
-Date: Fri, 20 Jun 2014 15:56:56 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 20 Jun 2014 01:17:52 -0700 (PDT)
+Date: Fri, 20 Jun 2014 10:17:32 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: slub/debugobjects: lockup when freeing memory
+In-Reply-To: <20140619220449.GT4904@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.10.1406201015440.5170@nanos>
+References: <53A2F406.4010109@oracle.com> <alpine.DEB.2.11.1406191001090.2785@gentwo.org> <20140619165247.GA4904@linux.vnet.ibm.com> <alpine.DEB.2.10.1406192127100.5170@nanos> <20140619202928.GG4904@linux.vnet.ibm.com> <alpine.DEB.2.10.1406192230390.5170@nanos>
+ <20140619205307.GL4904@linux.vnet.ibm.com> <alpine.DEB.2.10.1406192331250.5170@nanos> <20140619220449.GT4904@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/8] mm: add page cache limit and reclaim feature
-References: <539EB7D6.8070401@huawei.com> <20140616111422.GA16915@dhcp22.suse.cz> <20140616125040.GA29993@optiplex.redhat.com> <539F9B6C.1080802@huawei.com>
-In-Reply-To: <539F9B6C.1080802@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik
- van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Li Zefan <lizefan@huawei.com>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Christoph Lameter <cl@gentwo.org>, Sasha Levin <sasha.levin@oracle.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 2014/6/17 9:35, Xishi Qiu wrote:
-
-> On 2014/6/16 20:50, Rafael Aquini wrote:
+On Thu, 19 Jun 2014, Paul E. McKenney wrote:
+> On Thu, Jun 19, 2014 at 11:32:41PM +0200, Thomas Gleixner wrote:
+> > 
+> > 
+> > On Thu, 19 Jun 2014, Paul E. McKenney wrote:
+> > 
+> > > On Thu, Jun 19, 2014 at 10:37:17PM +0200, Thomas Gleixner wrote:
+> > > > On Thu, 19 Jun 2014, Paul E. McKenney wrote:
+> > > > > On Thu, Jun 19, 2014 at 09:29:08PM +0200, Thomas Gleixner wrote:
+> > > > > > On Thu, 19 Jun 2014, Paul E. McKenney wrote:
+> > > > > > Well, no. Look at the callchain:
+> > > > > > 
+> > > > > > __call_rcu
+> > > > > >     debug_object_activate
+> > > > > >        rcuhead_fixup_activate
+> > > > > >           debug_object_init
+> > > > > >               kmem_cache_alloc
+> > > > > > 
+> > > > > > So call rcu activates the object, but the object has no reference in
+> > > > > > the debug objects code so the fixup code is called which inits the
+> > > > > > object and allocates a reference ....
+> > > > > 
+> > > > > OK, got it.  And you are right, call_rcu() has done this for a very
+> > > > > long time, so not sure what changed.  But it seems like the right
+> > > > > approach is to provide a debug-object-free call_rcu_alloc() for use
+> > > > > by the memory allocators.
+> > > > > 
+> > > > > Seem reasonable?  If so, please see the following patch.
+> > > > 
+> > > > Not really, you're torpedoing the whole purpose of debugobjects :)
+> > > > 
+> > > > So, why can't we just init the rcu head when the stuff is created?
+> > > 
+> > > That would allow me to keep my code unchanged, so I am in favor.  ;-)
+> > 
+> > Almost unchanged. You need to provide a function to do so, i.e. make
+> > use of
+> > 
+> >     debug_init_rcu_head()
 > 
->> On Mon, Jun 16, 2014 at 01:14:22PM +0200, Michal Hocko wrote:
->>> On Mon 16-06-14 17:24:38, Xishi Qiu wrote:
->>>> When system(e.g. smart phone) running for a long time, the cache often takes
->>>> a large memory, maybe the free memory is less than 50M, then OOM will happen
->>>> if APP allocate a large order pages suddenly and memory reclaim too slowly. 
->>>
->>> Have you ever seen this to happen? Page cache should be easy to reclaim and
->>> if there is too mach dirty memory then you should be able to tune the
->>> amount by dirty_bytes/ratio knob. If the page allocator falls back to
->>> OOM and there is a lot of page cache then I would call it a bug. I do
->>> not think that limiting the amount of the page cache globally makes
->>> sense. There are Unix systems which offer this feature but I think it is
->>> a bad interface which only papers over the reclaim inefficiency or lack
->>> of other isolations between loads.
->>>
->> +1
->>
->> It would be good if you could show some numbers that serve as evidence
->> of your theory on "excessive" pagecache acting as a trigger to your
->> observed OOMs. I'm assuming, by your 'e.g', you're running a swapless
->> system, so I would think your system OOMs are due to inability to
->> reclaim anon memory, instead of pagecache.
->>
+> You mean like this?
 
-I asked some colleagues, when the cache takes a large memory, it will not
-trigger OOM, but performance regression. 
+I'd rather name it init_rcu_head() and free_rcu_head() w/o the debug_
+prefix, so it's consistent with init_rcu_head_on_stack /
+destroy_rcu_head_on_stack. But either way works for me.
 
-It is because that business process do IO high frequency, and this will 
-increase page cache. When there is not enough memory, page cache will
-be reclaimed first, then alloc a new page, and add it to page cache. This
-often takes too much time, and causes performance regression.
+Acked-by: Thomas Gleixner <tglx@linutronix.de>
 
-In view of this situation, if we reclaim page cache in circles may be
-fix this problem. What do you think?
-
-Thanks,
-Xishi Qiu
-
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
