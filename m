@@ -1,85 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 88A0A6B003A
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 16:39:56 -0400 (EDT)
-Received: by mail-pb0-f45.google.com with SMTP id rr13so3492152pbb.18
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 13:39:56 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id sy3si11258107pab.158.2014.06.20.13.39.55
-        for <linux-mm@kvack.org>;
-        Fri, 20 Jun 2014 13:39:55 -0700 (PDT)
-Date: Fri, 20 Jun 2014 13:39:54 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [mmotm:master 141/230] include/linux/kernel.h:744:28: note: in
- expansion of macro 'min'
-Message-Id: <20140620133954.3cc60a53f60edac2d8001b63@linux-foundation.org>
-In-Reply-To: <xa1tppi3vc9w.fsf@mina86.com>
-References: <53a3c359.yUYVC7fzjYpZLyLq%fengguang.wu@intel.com>
-	<20140620055210.GA26552@localhost>
-	<xa1tppi3vc9w.fsf@mina86.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 74C7F6B0037
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 17:01:41 -0400 (EDT)
+Received: by mail-qa0-f41.google.com with SMTP id cm18so3695872qab.0
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 14:01:41 -0700 (PDT)
+Received: from mail-qc0-x234.google.com (mail-qc0-x234.google.com [2607:f8b0:400d:c01::234])
+        by mx.google.com with ESMTPS id k96si12317456qgk.39.2014.06.20.14.01.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 20 Jun 2014 14:01:40 -0700 (PDT)
+Received: by mail-qc0-f180.google.com with SMTP id r5so3981324qcx.25
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 14:01:40 -0700 (PDT)
+Date: Fri, 20 Jun 2014 17:01:37 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] mm/mempolicy: fix sleeping function called from invalid
+ context
+Message-ID: <20140620210137.GA2059@mtj.dyndns.org>
+References: <53902A44.50005@cn.fujitsu.com>
+ <20140605132339.ddf6df4a0cf5c14d17eb8691@linux-foundation.org>
+ <539192F1.7050308@cn.fujitsu.com>
+ <alpine.DEB.2.02.1406081539140.21744@chino.kir.corp.google.com>
+ <539574F1.2060701@cn.fujitsu.com>
+ <alpine.DEB.2.02.1406090209460.24247@chino.kir.corp.google.com>
+ <53967465.7070908@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53967465.7070908@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Hagen Paul Pfeifer <hagen@jauu.net>, Linux Memory Management List <linux-mm@kvack.org>
+To: Li Zefan <lizefan@huawei.com>
+Cc: David Rientjes <rientjes@google.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>, stable@vger.kernel.org
 
-On Fri, 20 Jun 2014 17:19:55 +0200 Michal Nazarewicz <mina86@mina86.com> wrote:
+Hello, Li.
 
-> On Fri, Jun 20 2014, Fengguang Wu <fengguang.wu@intel.com> wrote:
-> >>> include/linux/kernel.h:744:28: note: in expansion of macro 'min'
-> >     #define clamp(val, lo, hi) min(max(val, lo), hi)
-> >                                ^
-> >>> drivers/net/ethernet/intel/i40e/i40e_debugfs.c:1901:11: note: in expansion of macro 'clamp'
-> >       bytes = clamp(bytes, (u16)1024, (u16)I40E_MAX_AQ_BUF_SIZE);
-> >               ^
+Sorry about the long delay.
+
+On Tue, Jun 10, 2014 at 10:58:45AM +0800, Li Zefan wrote:
+> Yes, this is a long-standing issue. Besides the race you described, the child
+> task's mems_allowed can be wrong if the cpuset's nodemask changes before the
+> child has been added to the cgroup's tasklist.
 > 
-> The obvious fix:
+> I remember Tejun once said he wanted to disallow task migration between
+> cgroups during fork, and that should fix this problem.
+
+I'm having trouble remembering but yeah enforcing stricter behavior
+across fork could be beneficial.  Hmmm... the problem with making
+forks exclusive against migrations is that we'll end up adding more
+locking to the fork path which isn't too nice.
+
+Hmmm... other controllers (cgroup_freezer) can reliably synchronize
+the child's state to the cgroup it belongs to.  Why can't cpuset?  Is
+there something fundamentally missing in the cgroup API?
+
+> > It needs to be slightly rewritten to work properly without negatively 
+> > impacting the latency of fork().  Do you have the cycles to do it?
+> > 
 > 
-> ----------- >8 --------------------------------------------------------------
-> diff --git a/include/linux/kernel.h b/include/linux/kernel.h
-> index 44649e0..149864b 100644
-> --- a/include/linux/kernel.h
-> +++ b/include/linux/kernel.h
-> @@ -719,8 +719,8 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
->         (void) (&_max1 == &_max2);              \
->         _max1 > _max2 ? _max1 : _max2; })
->  
-> -#define min3(x, y, z) min(min(x, y), z)
-> -#define max3(x, y, z) max(max(x, y), z)
-> +#define min3(x, y, z) min((typeof(x))min(x, y), z)
-> +#define max3(x, y, z) max((typeof(x))max(x, y), z)
+> Sounds you have other idea?
 
-I don't get it.  All the types are u16 so we should be good.
+I don't think the suggested patch breaks anything more than it was
+broken before and we should probably apply it for the time being.  Li?
 
-What is the return type of
+Thanks.
 
-	_max1 > _max2 ? _max1 : _max2;
-
-when both _max1 and _max2 are u16?  Something other than u16 apparently
-- I never knew that.
-
-Maybe we should be fixing min() and max()?
-
---- a/include/linux/kernel.h~a
-+++ a/include/linux/kernel.h
-@@ -711,13 +711,13 @@ static inline void ftrace_dump(enum ftra
- 	typeof(x) _min1 = (x);			\
- 	typeof(y) _min2 = (y);			\
- 	(void) (&_min1 == &_min2);		\
--	_min1 < _min2 ? _min1 : _min2; })
-+	(typeof(x))(_min1 < _min2 ? _min1 : _min2); })
- 
- #define max(x, y) ({				\
- 	typeof(x) _max1 = (x);			\
- 	typeof(y) _max2 = (y);			\
- 	(void) (&_max1 == &_max2);		\
--	_max1 > _max2 ? _max1 : _max2; })
-+	(typeof(x))(_max1 > _max2 ? _max1 : _max2); })
- 
- #define min3(x, y, z) min(min(x, y), z)
- #define max3(x, y, z) max(max(x, y), z)
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
