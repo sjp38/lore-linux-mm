@@ -1,185 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 506506B003C
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 16:32:26 -0400 (EDT)
-Received: by mail-qa0-f54.google.com with SMTP id v10so3644215qac.27
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 13:32:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b3si12360088qak.97.2014.06.20.13.32.25
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 20 Jun 2014 13:32:25 -0700 (PDT)
-Date: Fri, 20 Jun 2014 17:31:46 -0300
-From: Marcelo Tosatti <mtosatti@redhat.com>
-Subject: Re: [RFC PATCH 1/1] Move two pinned pages to non-movable node in kvm.
-Message-ID: <20140620203146.GA6580@amt.cnet>
-References: <1403070600-6083-1-git-send-email-tangchen@cn.fujitsu.com>
- <20140618061230.GA10948@minantech.com>
- <53A136C4.5070206@cn.fujitsu.com>
- <20140619092031.GA429@minantech.com>
- <20140619190024.GA3887@amt.cnet>
- <20140620111509.GE20764@minantech.com>
- <20140620125326.GA22283@amt.cnet>
- <20140620142622.GA28698@minantech.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140620142622.GA28698@minantech.com>
+Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
+	by kanga.kvack.org (Postfix) with ESMTP id CECC86B0078
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 16:32:43 -0400 (EDT)
+Received: by mail-qc0-f172.google.com with SMTP id o8so4076141qcw.31
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 13:32:43 -0700 (PDT)
+Received: from qmta02.emeryville.ca.mail.comcast.net (qmta02.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:24])
+        by mx.google.com with ESMTP id i10si12341670qas.118.2014.06.20.13.32.42
+        for <linux-mm@kvack.org>;
+        Fri, 20 Jun 2014 13:32:43 -0700 (PDT)
+Date: Fri, 20 Jun 2014 15:32:40 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: kernel BUG at /src/linux-dev/mm/mempolicy.c:1738! on v3.16-rc1
+In-Reply-To: <alpine.LSU.2.11.1406201257370.8123@eggly.anvils>
+Message-ID: <alpine.DEB.2.11.1406201531530.5221@gentwo.org>
+References: <20140619215641.GA9792@nhori.bos.redhat.com> <alpine.DEB.2.11.1406200923220.10271@gentwo.org> <20140620194639.GA30729@nhori.bos.redhat.com> <alpine.LSU.2.11.1406201257370.8123@eggly.anvils>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gleb Natapov <gleb@kernel.org>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>, pbonzini@redhat.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, mgorman@suse.de, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, guz.fnst@cn.fujitsu.com, laijs@cn.fujitsu.com, kvm@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, Avi Kivity <avi.kivity@gmail.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Fri, Jun 20, 2014 at 05:26:22PM +0300, Gleb Natapov wrote:
-> On Fri, Jun 20, 2014 at 09:53:26AM -0300, Marcelo Tosatti wrote:
-> > On Fri, Jun 20, 2014 at 02:15:10PM +0300, Gleb Natapov wrote:
-> > > On Thu, Jun 19, 2014 at 04:00:24PM -0300, Marcelo Tosatti wrote:
-> > > > On Thu, Jun 19, 2014 at 12:20:32PM +0300, Gleb Natapov wrote:
-> > > > > CCing Marcelo,
-> > > > > 
-> > > > > On Wed, Jun 18, 2014 at 02:50:44PM +0800, Tang Chen wrote:
-> > > > > > Hi Gleb,
-> > > > > > 
-> > > > > > Thanks for the quick reply. Please see below.
-> > > > > > 
-> > > > > > On 06/18/2014 02:12 PM, Gleb Natapov wrote:
-> > > > > > >On Wed, Jun 18, 2014 at 01:50:00PM +0800, Tang Chen wrote:
-> > > > > > >>[Questions]
-> > > > > > >>And by the way, would you guys please answer the following questions for me ?
-> > > > > > >>
-> > > > > > >>1. What's the ept identity pagetable for ?  Only one page is enough ?
-> > > > > > >>
-> > > > > > >>2. Is the ept identity pagetable only used in realmode ?
-> > > > > > >>    Can we free it once the guest is up (vcpu in protect mode)?
-> > > > > > >>
-> > > > > > >>3. Now, ept identity pagetable is allocated in qemu userspace.
-> > > > > > >>    Can we allocate it in kernel space ?
-> > > > > > >What would be the benefit?
-> > > > > > 
-> > > > > > I think the benefit is we can hot-remove the host memory a kvm guest
-> > > > > > is using.
-> > > > > > 
-> > > > > > For now, only memory in ZONE_MOVABLE can be migrated/hot-removed. And the
-> > > > > > kernel
-> > > > > > will never use ZONE_MOVABLE memory. So if we can allocate these two pages in
-> > > > > > kernel space, we can pin them without any trouble. When doing memory
-> > > > > > hot-remove,
-> > > > > > the kernel will not try to migrate these two pages.
-> > > > > But we can do that by other means, no? The patch you've sent for instance.
-> > > > > 
-> > > > > > 
-> > > > > > >
-> > > > > > >>
-> > > > > > >>4. If I want to migrate these two pages, what do you think is the best way ?
-> > > > > > >>
-> > > > > > >I answered most of those here: http://www.mail-archive.com/kvm@vger.kernel.org/msg103718.html
-> > > > > > 
-> > > > > > I'm sorry I must missed this email.
-> > > > > > 
-> > > > > > Seeing your advice, we can unpin these two pages and repin them in the next
-> > > > > > EPT violation.
-> > > > > > So about this problem, which solution would you prefer, allocate these two
-> > > > > > pages in kernel
-> > > > > > space, or migrate them before memory hot-remove ?
-> > > > > > 
-> > > > > > I think the first solution is simpler. But I'm not quite sure if there is
-> > > > > > any other pages
-> > > > > > pinned in memory. If we have the same problem with other kvm pages, I think
-> > > > > > it is better to
-> > > > > > solve it in the second way.
-> > > > > > 
-> > > > > > What do you think ?
-> > > > > Remove pinning is preferable. In fact looks like for identity pagetable
-> > > > > it should be trivial, just don't pin. APIC access page is a little bit
-> > > > > more complicated since its physical address needs to be tracked to be
-> > > > > updated in VMCS.
-> > > > 
-> > > > Yes, and there are new users of page pinning as well soon (see PEBS
-> > > > threads on kvm-devel).
-> > > > 
-> > > > Was thinking of notifiers scheme. Perhaps:
-> > > > 
-> > > > ->begin_page_unpin(struct page *page)
-> > > > 	- Remove any possible access to page.
-> > > > 
-> > > > ->end_page_unpin(struct page *page)
-> > > > 	- Reinstantiate any possible access to page.
-> > > > 
-> > > > For KVM:
-> > > > 
-> > > > ->begin_page_unpin()
-> > > > 	- Remove APIC-access page address from VMCS.
-> > > > 	  or
-> > > > 	- Remove spte translation to pinned page.
-> > > > 	
-> > > > 	- Put vcpu in state where no VM-entries are allowed.
-> > > > 
-> > > > ->end_page_unpin()
-> > > > 	- Setup APIC-access page, ...
-> > > > 	- Allow vcpu to VM-entry.
-> > > > 
-> > > I believe that to handle identity page and APIC access page we do not
-> > > need any of those. 
-> > > We can use mmu notifiers to track when page begins
-> > > to be moved and we can find new page location on EPT violation.
-> > 
-> > Does page migration hook via mmu notifiers? I don't think so. 
-> > 
-> Both identity page and APIC access page are userspace pages which will
-> have to be unmap from process address space during migration. At this point
-> mmu notifiers will be called.
+On Fri, 20 Jun 2014, Hugh Dickins wrote:
 
-Right.
+> [PATCH] mm: fix crashes from mbind() merging vmas
+>
+> v2.6.34's 9d8cebd4bcd7 ("mm: fix mbind vma merge problem") introduced
+> vma merging to mbind(), but it should have also changed the convention
+> of passing start vma from queue_pages_range() (formerly check_range())
+> to new_vma_page(): vma merging may have already freed that structure,
+> resulting in BUG at mm/mempolicy.c:1738 and probably worse crashes.
 
-> > It won't even attempt page migration because the page count is
-> > increased (would have to confirm though). Tang?
-> > 
-> Of course, we should not pin.
->  
-> > The problem with identity page is this: its location is written into the
-> > guest CR3. So you cannot allow it (the page which the guest CR3 points
-> > to) to be reused before you remove the reference.
-> > 
-> > Where is the guarantee there will be an EPT violation, allowing a vcpu
-> > to execute with guest CR3 pointing to page with random data?
-> > 
-> A guest's physical address is written into CR3 (0xfffbc000 usually),
-> not a physical address of an identity page directly. When a guest will
-> try to use CR3 KVM will get EPT violation and shadow page code will find
-> a page that backs guest's address 0xfffbc000 and will map it into EPT
-> table. This is what happens on a first vmentry after vcpu creation.
+Good catch. Cannot find fault with what I see.
 
-Right.
-
-> > Same with the APIC access page.
-> APIC page is always mapped into guest's APIC base address 0xfee00000.
-> The way it works is that when vCPU accesses page at 0xfee00000 the access
-> is translated to APIC access page physical address. CPU sees that access
-> is for APIC page and generates APIC access exit instead of memory access.
-> If address 0xfee00000 is not mapped by EPT then EPT violation exit will
-> be generated instead, EPT mapping will be instantiated, access retired
-> by a guest and this time will generate APIC access exit.
-
-Right, confused with the other APIC page which the CPU writes (the vAPIC page) 
-to.
-
-> > > > Because allocating APIC access page from distant NUMA node can
-> > > > be a performance problem, i believe.
-> > > I do not think this is the case. APIC access page is never written to,
-> > > and in fact SDM advice to share it between all vcpus.
-> > 
-> > Right. 
-> > 
-> > But the point is not so much relevant as this should be handled for
-> > PEBS pages which would be interesting to force to non-movable zones.
-> >
-> IIRC your shadow page pinning patch series support flushing of ptes
-> by mmu notifier by forcing MMU reload and, as a result, faulting in of
-> pinned pages during next entry.  Your patch series does not pin pages
-> by elevating their page count.
-
-No but PEBS series does and its required to stop swap-out
-of the page.
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
