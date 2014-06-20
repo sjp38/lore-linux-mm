@@ -1,75 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BCCA6B0031
-	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 17:14:18 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id et14so3544229pad.27
-        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 14:14:18 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id to10si11248856pbc.228.2014.06.20.14.14.17
-        for <linux-mm@kvack.org>;
-        Fri, 20 Jun 2014 14:14:18 -0700 (PDT)
-Date: Fri, 20 Jun 2014 14:14:16 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [mmotm:master 130/230] mm/swap.c:719:2: error: implicit
- declaration of function 'TestSetPageMlocked'
-Message-Id: <20140620141416.1f6930c591190557ff62416d@linux-foundation.org>
-In-Reply-To: <53a397d7.WKpm75H8yvJSkNsS%fengguang.wu@intel.com>
-References: <53a397d7.WKpm75H8yvJSkNsS%fengguang.wu@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AB276B0031
+	for <linux-mm@kvack.org>; Fri, 20 Jun 2014 17:16:54 -0400 (EDT)
+Received: by mail-wg0-f45.google.com with SMTP id l18so4207752wgh.28
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 14:16:53 -0700 (PDT)
+Received: from mail-wi0-x236.google.com (mail-wi0-x236.google.com [2a00:1450:400c:c05::236])
+        by mx.google.com with ESMTPS id em6si4173120wib.59.2014.06.20.14.16.52
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 20 Jun 2014 14:16:53 -0700 (PDT)
+Received: by mail-wi0-f182.google.com with SMTP id bs8so1428226wib.3
+        for <linux-mm@kvack.org>; Fri, 20 Jun 2014 14:16:52 -0700 (PDT)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [mmotm:master 141/230] include/linux/kernel.h:744:28: note: in expansion of macro 'min'
+In-Reply-To: <20140620133954.3cc60a53f60edac2d8001b63@linux-foundation.org>
+References: <53a3c359.yUYVC7fzjYpZLyLq%fengguang.wu@intel.com> <20140620055210.GA26552@localhost> <xa1tppi3vc9w.fsf@mina86.com> <20140620133954.3cc60a53f60edac2d8001b63@linux-foundation.org>
+Date: Fri, 20 Jun 2014 23:16:49 +0200
+Message-ID: <xa1t7g4buvr2.fsf@mina86.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Hagen Paul Pfeifer <hagen@jauu.net>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Fri, 20 Jun 2014 10:09:27 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+On Fri, Jun 20 2014, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Fri, 20 Jun 2014 17:19:55 +0200 Michal Nazarewicz <mina86@mina86.com> =
+wrote:
+>
+>> On Fri, Jun 20 2014, Fengguang Wu <fengguang.wu@intel.com> wrote:
+>> >>> include/linux/kernel.h:744:28: note: in expansion of macro 'min'
+>> >     #define clamp(val, lo, hi) min(max(val, lo), hi)
+>> >                                ^
+>> >>> drivers/net/ethernet/intel/i40e/i40e_debugfs.c:1901:11: note: in exp=
+ansion of macro 'clamp'
+>> >       bytes =3D clamp(bytes, (u16)1024, (u16)I40E_MAX_AQ_BUF_SIZE);
+>> >               ^
+>>=20
+>> The obvious fix:
+>>=20
+>> ----------- >8 ---------------------------------------------------------=
+-----
+>> diff --git a/include/linux/kernel.h b/include/linux/kernel.h
+>> index 44649e0..149864b 100644
+>> --- a/include/linux/kernel.h
+>> +++ b/include/linux/kernel.h
+>> @@ -719,8 +719,8 @@ static inline void ftrace_dump(enum ftrace_dump_mode=
+ oops_dump_mode) { }
+>>         (void) (&_max1 =3D=3D &_max2);              \
+>>         _max1 > _max2 ? _max1 : _max2; })
+>>=20=20
+>> -#define min3(x, y, z) min(min(x, y), z)
+>> -#define max3(x, y, z) max(max(x, y), z)
+>> +#define min3(x, y, z) min((typeof(x))min(x, y), z)
+>> +#define max3(x, y, z) max((typeof(x))max(x, y), z)
+>
+> I don't get it.  All the types are u16 so we should be good.
+>
+> What is the return type of
+>
+> 	_max1 > _max2 ? _max1 : _max2;
 
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   df25ba7db0775d87018e2cd92f26b9b087093840
-> commit: 8d72d7b20fab14a779df2f7ea7632d4ee223dfcc [130/230] mm: memcontrol: rewrite charge API
-> config: make ARCH=m32r m32104ut_defconfig
-> 
-> All error/warnings:
-> 
->    mm/swap.c: In function 'lru_cache_add_active_or_unevictable':
-> >> mm/swap.c:719:2: error: implicit declaration of function 'TestSetPageMlocked' [-Werror=implicit-function-declaration]
->    cc1: some warnings being treated as errors
-> 
-> vim +/TestSetPageMlocked +719 mm/swap.c
-> 
->    713		if (likely((vma->vm_flags & (VM_LOCKED | VM_SPECIAL)) != VM_LOCKED)) {
->    714			SetPageActive(page);
->    715			lru_cache_add(page);
->    716			return;
->    717		}
->    718	
->  > 719		if (!TestSetPageMlocked(page)) {
->    720			/*
->    721			 * We use the irq-unsafe __mod_zone_page_stat because this
->    722			 * counter is not modified from interrupt context, and the pte
-> 
+int=E2=80=A6 Since C promotes it.  (Or unsigned, I never remember, but I th=
+ink
+int if the possible values fit in signed int).
 
-hm, I can't think of anything very smart here.
+> when both _max1 and _max2 are u16?  Something other than u16 apparently
+> - I never knew that.
+>
+> Maybe we should be fixing min() and max()?
 
---- a/mm/swap.c~mm-memcontrol-rewrite-charge-api-fix-2
-+++ a/mm/swap.c
-@@ -716,6 +716,7 @@ void lru_cache_add_active_or_unevictable
- 		return;
- 	}
- 
-+#ifdef CONFIG_MMU
- 	if (!TestSetPageMlocked(page)) {
- 		/*
- 		 * We use the irq-unsafe __mod_zone_page_stat because this
-@@ -726,6 +727,7 @@ void lru_cache_add_active_or_unevictable
- 				    hpage_nr_pages(page));
- 		count_vm_event(UNEVICTABLE_PGMLOCKED);
- 	}
-+#else
- 	add_page_to_unevictable_list(page);
- }
- 
+This is also an option.  It would make min() and max() behave more like
+a function which takes arguments of type T and returns value of type T.
+Currently it behaves as a C operation which undergoes all the promotion
+rules other arithmetic operations undergo (i.e. all types smaller than
+int get promoted to int).  I don't have opinion either way.
+
+> --- a/include/linux/kernel.h~a
+> +++ a/include/linux/kernel.h
+> @@ -711,13 +711,13 @@ static inline void ftrace_dump(enum ftra
+>  	typeof(x) _min1 =3D (x);			\
+>  	typeof(y) _min2 =3D (y);			\
+>  	(void) (&_min1 =3D=3D &_min2);		\
+> -	_min1 < _min2 ? _min1 : _min2; })
+> +	(typeof(x))(_min1 < _min2 ? _min1 : _min2); })
+>=20=20
+>  #define max(x, y) ({				\
+>  	typeof(x) _max1 =3D (x);			\
+>  	typeof(y) _max2 =3D (y);			\
+>  	(void) (&_max1 =3D=3D &_max2);		\
+> -	_max1 > _max2 ? _max1 : _max2; })
+> +	(typeof(x))(_max1 > _max2 ? _max1 : _max2); })
+>=20=20
+>  #define min3(x, y, z) min(min(x, y), z)
+>  #define max3(x, y, z) max(max(x, y), z)
+>
+
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
