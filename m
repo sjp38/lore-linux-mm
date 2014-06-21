@@ -1,8 +1,8 @@
 From: Chris Wilson <chris@chris-wilson.co.uk>
-Subject: [PATCH 2/4] io-mapping: Always create a struct to hold
-	metadata about the io-mapping
-Date: Sat, 21 Jun 2014 16:53:54 +0100
-Message-ID: <1403366036-10169-2-git-send-email-chris@chris-wilson.co.uk>
+Subject: [PATCH 4/4] drm/i915: Use remap_io_mapping() to
+	prefault all PTE in a single pass
+Date: Sat, 21 Jun 2014 16:53:56 +0100
+Message-ID: <1403366036-10169-4-git-send-email-chris@chris-wilson.co.uk>
 References: <20140619135944.20837E00A3@blue.fi.intel.com>
  <1403366036-10169-1-git-send-email-chris@chris-wilson.co.uk>
 Mime-Version: 1.0
@@ -23,118 +23,64 @@ To: intel-gfx@lists.freedesktop.org
 Cc: linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-Currently, we only allocate a structure to hold metadata if we need to
-allocate an ioremap for every access, such as on x86-32. However, it
-would be useful to store basic information about the io-mapping, such as
-its page protection, on all platforms.
+On an Ivybridge i7-3720qm with 1600MHz DDR3, with 32 fences,
+Upload rate for 2 linear surfaces:  8134MiB/s -> 8154MiB/s
+Upload rate for 2 tiled surfaces:   8625MiB/s -> 8632MiB/s
+Upload rate for 4 linear surfaces:  8127MiB/s -> 8134MiB/s
+Upload rate for 4 tiled surfaces:   8602MiB/s -> 8629MiB/s
+Upload rate for 8 linear surfaces:  8124MiB/s -> 8137MiB/s
+Upload rate for 8 tiled surfaces:   8603MiB/s -> 8624MiB/s
+Upload rate for 16 linear surfaces: 8123MiB/s -> 8128MiB/s
+Upload rate for 16 tiled surfaces:  8606MiB/s -> 8618MiB/s
+Upload rate for 32 linear surfaces: 8121MiB/s -> 8128MiB/s
+Upload rate for 32 tiled surfaces:  8605MiB/s -> 8614MiB/s
+Upload rate for 64 linear surfaces: 8121MiB/s -> 8127MiB/s
+Upload rate for 64 tiled surfaces:  3017MiB/s -> 5202MiB/s
 
 Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+Testcase: igt/gem_fence_upload/performance
+Testcase: igt/gem_mmap_gtt
+Reviewed-by: Brad Volkin <bradley.d.volkin@intel.com>
 Cc: linux-mm@kvack.org
 ---
- include/linux/io-mapping.h | 52 ++++++++++++++++++++++++++++------------------
- 1 file changed, 32 insertions(+), 20 deletions(-)
+ drivers/gpu/drm/i915/i915_gem.c | 23 ++++++-----------------
+ 1 file changed, 6 insertions(+), 17 deletions(-)
 
-diff --git a/include/linux/io-mapping.h b/include/linux/io-mapping.h
-index 657fab4efab3..e053011f50bb 100644
---- a/include/linux/io-mapping.h
-+++ b/include/linux/io-mapping.h
-@@ -31,16 +31,17 @@
-  * See Documentation/io-mapping.txt
-  */
+diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
+index f6d123828926..f0628e40cb1d 100644
+--- a/drivers/gpu/drm/i915/i915_gem.c
++++ b/drivers/gpu/drm/i915/i915_gem.c
+@@ -1565,25 +1565,14 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	pfn = dev_priv->gtt.mappable_base + i915_gem_obj_ggtt_offset(obj);
+ 	pfn >>= PAGE_SHIFT;
  
--#ifdef CONFIG_HAVE_ATOMIC_IOMAP
--
--#include <asm/iomap.h>
--
- struct io_mapping {
- 	resource_size_t base;
- 	unsigned long size;
- 	pgprot_t prot;
-+	void __iomem *iomem;
- };
+-	if (!obj->fault_mappable) {
+-		unsigned long size = min_t(unsigned long,
+-					   vma->vm_end - vma->vm_start,
+-					   obj->base.size);
+-		int i;
++	ret = remap_io_mapping(vma,
++			       vma->vm_start, pfn, vma->vm_end - vma->vm_start,
++			       dev_priv->gtt.mappable);
++	if (ret)
++		goto unpin;
  
-+
-+#ifdef CONFIG_HAVE_ATOMIC_IOMAP
-+
-+#include <asm/iomap.h>
- /*
-  * For small address space machines, mapping large objects
-  * into the kernel virtual space isn't practical. Where
-@@ -119,48 +120,59 @@ io_mapping_unmap(void __iomem *vaddr)
- #else
+-		for (i = 0; i < size >> PAGE_SHIFT; i++) {
+-			ret = vm_insert_pfn(vma,
+-					    (unsigned long)vma->vm_start + i * PAGE_SIZE,
+-					    pfn + i);
+-			if (ret)
+-				break;
+-		}
++	obj->fault_mappable = true;
  
- #include <linux/uaccess.h>
--
--/* this struct isn't actually defined anywhere */
--struct io_mapping;
-+#include <asm/pgtable_types.h>
- 
- /* Create the io_mapping object*/
- static inline struct io_mapping *
- io_mapping_create_wc(resource_size_t base, unsigned long size)
- {
--	return (struct io_mapping __force *) ioremap_wc(base, size);
-+	struct io_mapping *iomap;
-+
-+	iomap = kmalloc(sizeof(*iomap), GFP_KERNEL);
-+	if (!iomap)
-+		return NULL;
-+
-+	iomap->base = base;
-+	iomap->size = size;
-+	iomap->iomem = ioremap_wc(base, size);
-+	iomap->prot = pgprot_writecombine(PAGE_KERNEL_IO);
-+
-+	return iomap;
- }
- 
- static inline void
- io_mapping_free(struct io_mapping *mapping)
- {
--	iounmap((void __force __iomem *) mapping);
-+	iounmap(mapping->iomem);
-+	kfree(mapping);
- }
- 
--/* Atomic map/unmap */
-+/* Non-atomic map/unmap */
- static inline void __iomem *
--io_mapping_map_atomic_wc(struct io_mapping *mapping,
--			 unsigned long offset)
-+io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset)
- {
--	pagefault_disable();
--	return ((char __force __iomem *) mapping) + offset;
-+	return mapping->iomem + offset;
- }
- 
- static inline void
--io_mapping_unmap_atomic(void __iomem *vaddr)
-+io_mapping_unmap(void __iomem *vaddr)
- {
--	pagefault_enable();
- }
- 
--/* Non-atomic map/unmap */
-+/* Atomic map/unmap */
- static inline void __iomem *
--io_mapping_map_wc(struct io_mapping *mapping, unsigned long offset)
-+io_mapping_map_atomic_wc(struct io_mapping *mapping,
-+			 unsigned long offset)
- {
--	return ((char __force __iomem *) mapping) + offset;
-+	pagefault_disable();
-+	return io_mapping_map_wc(mapping, offset);
- }
- 
- static inline void
--io_mapping_unmap(void __iomem *vaddr)
-+io_mapping_unmap_atomic(void __iomem *vaddr)
- {
-+	io_mapping_unmap(vaddr);
-+	pagefault_enable();
- }
- 
- #endif /* HAVE_ATOMIC_IOMAP */
+-		obj->fault_mappable = true;
+-	} else
+-		ret = vm_insert_pfn(vma,
+-				    (unsigned long)vmf->virtual_address,
+-				    pfn + page_offset);
+ unpin:
+ 	i915_gem_object_ggtt_unpin(obj);
+ unlock:
 -- 
 2.0.0
