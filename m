@@ -1,66 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F5336B0035
-	for <linux-mm@kvack.org>; Sun, 22 Jun 2014 04:51:50 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id et14so4623110pad.41
-        for <linux-mm@kvack.org>; Sun, 22 Jun 2014 01:51:50 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id sw1si17143149pab.131.2014.06.22.01.51.49
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id AB93C6B0035
+	for <linux-mm@kvack.org>; Sun, 22 Jun 2014 05:19:34 -0400 (EDT)
+Received: by mail-we0-f181.google.com with SMTP id q59so5381903wes.26
+        for <linux-mm@kvack.org>; Sun, 22 Jun 2014 02:19:34 -0700 (PDT)
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+        by mx.google.com with ESMTPS id ck3si11154900wib.26.2014.06.22.02.19.33
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 22 Jun 2014 01:51:49 -0700 (PDT)
-Received: by mail-pa0-f51.google.com with SMTP id hz1so4662717pad.10
-        for <linux-mm@kvack.org>; Sun, 22 Jun 2014 01:51:49 -0700 (PDT)
-From: Chen Yucong <slaoub@gmail.com>
-Subject: [PATCH] mm:vmscan:replace zone_watermark_ok with zone_balanced for determining if kswapd will call compaction
-Date: Sun, 22 Jun 2014 16:51:00 +0800
-Message-Id: <1403427060-16711-1-git-send-email-slaoub@gmail.com>
+        Sun, 22 Jun 2014 02:19:33 -0700 (PDT)
+Received: by mail-wg0-f48.google.com with SMTP id n12so5432365wgh.19
+        for <linux-mm@kvack.org>; Sun, 22 Jun 2014 02:19:32 -0700 (PDT)
+Date: Sun, 22 Jun 2014 12:19:27 +0300
+From: Gleb Natapov <gleb@kernel.org>
+Subject: Re: [RFC PATCH 1/1] Move two pinned pages to non-movable node in kvm.
+Message-ID: <20140622091927.GA18167@minantech.com>
+References: <1403070600-6083-1-git-send-email-tangchen@cn.fujitsu.com>
+ <20140618061230.GA10948@minantech.com>
+ <53A136C4.5070206@cn.fujitsu.com>
+ <20140619092031.GA429@minantech.com>
+ <20140619190024.GA3887@amt.cnet>
+ <20140620111509.GE20764@minantech.com>
+ <20140620125326.GA22283@amt.cnet>
+ <20140620142622.GA28698@minantech.com>
+ <20140620203146.GA6580@amt.cnet>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140620203146.GA6580@amt.cnet>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mgorman@suse.de
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, riel@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Yucong <slaoub@gmail.com>
+To: Marcelo Tosatti <mtosatti@redhat.com>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>, pbonzini@redhat.com, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, mgorman@suse.de, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, guz.fnst@cn.fujitsu.com, laijs@cn.fujitsu.com, kvm@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, Avi Kivity <avi.kivity@gmail.com>
 
-According to the commit messages of "mm: vmscan: fix endless loop in kswapd balancing"
-and "mm: vmscan: decide whether to compact the pgdat based on reclaim progress", minor
-change is required to the following snippet.
+On Fri, Jun 20, 2014 at 05:31:46PM -0300, Marcelo Tosatti wrote:
+> > > Same with the APIC access page.
+> > APIC page is always mapped into guest's APIC base address 0xfee00000.
+> > The way it works is that when vCPU accesses page at 0xfee00000 the access
+> > is translated to APIC access page physical address. CPU sees that access
+> > is for APIC page and generates APIC access exit instead of memory access.
+> > If address 0xfee00000 is not mapped by EPT then EPT violation exit will
+> > be generated instead, EPT mapping will be instantiated, access retired
+> > by a guest and this time will generate APIC access exit.
+> 
+> Right, confused with the other APIC page which the CPU writes (the vAPIC page) 
+> to.
+> 
+That one is allocated with kmalloc.
 
-        /*
-         * If any zone is currently balanced then kswapd will
-         * not call compaction as it is expected that the
-         * necessary pages are already available.
-         */
-        if (pgdat_needs_compaction &&
-                zone_watermark_ok(zone, order,
-                                        low_wmark_pages(zone),
-                                        *classzone_idx, 0))
-                pgdat_needs_compaction = false;
-
-zone_watermark_ok() should be replaced by zone_balanced() in the above snippet. That's
-because zone_balanced() is more suitable for the context.
-
-Signed-off-by: Chen Yucong <slaoub@gmail.com>
----
- mm/vmscan.c |    5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a8ffe4e..e1004ad 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3157,9 +3157,8 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
- 			 * necessary pages are already available.
- 			 */
- 			if (pgdat_needs_compaction &&
--					zone_watermark_ok(zone, order,
--						low_wmark_pages(zone),
--						*classzone_idx, 0))
-+					zone_balanced(zone, order, 0,
-+						*classzone_idx))
- 				pgdat_needs_compaction = false;
- 		}
- 
--- 
-1.7.10.4
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
