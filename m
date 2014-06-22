@@ -1,45 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 08DFB6B0035
-	for <linux-mm@kvack.org>; Sat, 21 Jun 2014 22:40:43 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y10so4281890pdj.5
-        for <linux-mm@kvack.org>; Sat, 21 Jun 2014 19:40:43 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id tp10si16013604pbc.170.2014.06.21.19.40.42
-        for <linux-mm@kvack.org>;
-        Sat, 21 Jun 2014 19:40:42 -0700 (PDT)
-Date: Sun, 22 Jun 2014 02:40:41 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [mmotm:master 188/230] fs/jffs2/debug.h:69:3: note: in expansion
- of macro 'pr_debug'
-Message-ID: <20140621184041.GA10854@localhost>
-References: <53a3e4f6.LlTrbyV58fY2TrZa%fengguang.wu@intel.com>
- <20140620132904.ec7eced87ff449625ad10d78@linux-foundation.org>
- <CAE9FiQVrOgEcP7wQhLtZZQ3yJ+gbYSE23_UYxJ2GKEWHU=GmWg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAE9FiQVrOgEcP7wQhLtZZQ3yJ+gbYSE23_UYxJ2GKEWHU=GmWg@mail.gmail.com>
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F5336B0035
+	for <linux-mm@kvack.org>; Sun, 22 Jun 2014 04:51:50 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id et14so4623110pad.41
+        for <linux-mm@kvack.org>; Sun, 22 Jun 2014 01:51:50 -0700 (PDT)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id sw1si17143149pab.131.2014.06.22.01.51.49
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 22 Jun 2014 01:51:49 -0700 (PDT)
+Received: by mail-pa0-f51.google.com with SMTP id hz1so4662717pad.10
+        for <linux-mm@kvack.org>; Sun, 22 Jun 2014 01:51:49 -0700 (PDT)
+From: Chen Yucong <slaoub@gmail.com>
+Subject: [PATCH] mm:vmscan:replace zone_watermark_ok with zone_balanced for determining if kswapd will call compaction
+Date: Sun, 22 Jun 2014 16:51:00 +0800
+Message-Id: <1403427060-16711-1-git-send-email-slaoub@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yinghai Lu <yinghai@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: mgorman@suse.de
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, riel@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Yucong <slaoub@gmail.com>
 
-Hi Yinghai,
+According to the commit messages of "mm: vmscan: fix endless loop in kswapd balancing"
+and "mm: vmscan: decide whether to compact the pgdat based on reclaim progress", minor
+change is required to the following snippet.
 
-> Hi Fenguang,
-> 
-> Is rest robot going to sweep all new added branches in kernel.org git?
+        /*
+         * If any zone is currently balanced then kswapd will
+         * not call compaction as it is expected that the
+         * necessary pages are already available.
+         */
+        if (pgdat_needs_compaction &&
+                zone_watermark_ok(zone, order,
+                                        low_wmark_pages(zone),
+                                        *classzone_idx, 0))
+                pgdat_needs_compaction = false;
 
-I need to manually add git tree URLs to the test pool. After that, the
-robot will auto sweep all new added branches in the monitored git trees.
+zone_watermark_ok() should be replaced by zone_balanced() in the above snippet. That's
+because zone_balanced() is more suitable for the context.
 
-Your tree is already in the test pool:
+Signed-off-by: Chen Yucong <slaoub@gmail.com>
+---
+ mm/vmscan.c |    5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
 
-git://git.kernel.org/pub/scm/linux/kernel/git/yinghai/linux-yinghai.git
-
-Thanks,
-Fengguang
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index a8ffe4e..e1004ad 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3157,9 +3157,8 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 			 * necessary pages are already available.
+ 			 */
+ 			if (pgdat_needs_compaction &&
+-					zone_watermark_ok(zone, order,
+-						low_wmark_pages(zone),
+-						*classzone_idx, 0))
++					zone_balanced(zone, order, 0,
++						*classzone_idx))
+ 				pgdat_needs_compaction = false;
+ 		}
+ 
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
