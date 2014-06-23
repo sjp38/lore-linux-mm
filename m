@@ -1,65 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F7656B0035
-	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 05:31:01 -0400 (EDT)
-Received: by mail-wi0-f173.google.com with SMTP id cc10so3747435wib.12
-        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 02:30:55 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ky5si22353577wjb.143.2014.06.23.02.30.54
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 23 Jun 2014 02:30:55 -0700 (PDT)
-Date: Mon, 23 Jun 2014 11:30:52 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 12/13] mm: memcontrol: rewrite charge API
-Message-ID: <20140623093052.GG9743@dhcp22.suse.cz>
-References: <1403124045-24361-1-git-send-email-hannes@cmpxchg.org>
- <1403124045-24361-13-git-send-email-hannes@cmpxchg.org>
- <20140623061526.GH13440@pengutronix.de>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D5626B0036
+	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 05:32:02 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so5651045pab.4
+        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 02:32:01 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id au10si21032442pbd.14.2014.06.23.02.32.00
+        for <linux-mm@kvack.org>;
+        Mon, 23 Jun 2014 02:32:01 -0700 (PDT)
+Message-ID: <53A7F406.6080309@cn.fujitsu.com>
+Date: Mon, 23 Jun 2014 17:31:50 +0800
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20140623061526.GH13440@pengutronix.de>
+Subject: Re: [PATCH v3 11/13] mm, compaction: pass gfp mask to compact_control
+References: <1403279383-5862-1-git-send-email-vbabka@suse.cz> <1403279383-5862-12-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1403279383-5862-12-git-send-email-vbabka@suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Uwe =?iso-8859-1?Q?Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel@pengutronix.de
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
 
-On Mon 23-06-14 08:15:26, Uwe Kleine-Konig wrote:
-> Hello,
+On 06/20/2014 11:49 PM, Vlastimil Babka wrote:
+> From: David Rientjes <rientjes@google.com>
 > 
-> On Wed, Jun 18, 2014 at 04:40:44PM -0400, Johannes Weiner wrote:
-> > The memcg charge API charges pages before they are rmapped - i.e. have
-> > an actual "type" - and so every callsite needs its own set of charge
-> > and uncharge functions to know what type is being operated on.  Worse,
-> > uncharge has to happen from a context that is still type-specific,
-> > rather than at the end of the page's lifetime with exclusive access,
-> > and so requires a lot of synchronization.
-> > ...
+> struct compact_control currently converts the gfp mask to a migratetype, but we
+> need the entire gfp mask in a follow-up patch.
 > 
-> this patch made it into next-20140623 as 5e49555277df (mm: memcontrol: rewrite
-> charge API) and it makes efm32_defconfig (ARCH=arm) fail with:
+> Pass the entire gfp mask as part of struct compact_control.
 > 
->   CC      mm/swap.o
-> mm/swap.c: In function 'lru_cache_add_active_or_unevictable':
-> mm/swap.c:719:2: error: implicit declaration of function 'TestSetPageMlocked' [-Werror=implicit-function-declaration]
->   if (!TestSetPageMlocked(page)) {
->   ^
-> cc1: some warnings being treated as errors
-> scripts/Makefile.build:257: recipe for target 'mm/swap.o' failed
-> make[3]: *** [mm/swap.o] Error 1
-> Makefile:1471: recipe for target 'mm/swap.o' failed
-> 
-> imx_v4_v5_defconfig works, so probably the thing that makes
-> efm32_defconfig fail is CONFIG_MMU=n.
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Michal Nazarewicz <mina86@mina86.com>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Rik van Riel <riel@redhat.com>
 
-Fix is here:
-http://marc.info/?l=linux-mm&m=140330132521104
+Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+
+> ---
+>  mm/compaction.c | 12 +++++++-----
+>  mm/internal.h   |  2 +-
+>  2 files changed, 8 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 32c768b..d4e0c13 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -975,8 +975,8 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  	return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
+>  }
+>  
+> -static int compact_finished(struct zone *zone,
+> -			    struct compact_control *cc)
+> +static int compact_finished(struct zone *zone, struct compact_control *cc,
+> +			    const int migratetype)
+>  {
+>  	unsigned int order;
+>  	unsigned long watermark;
+> @@ -1022,7 +1022,7 @@ static int compact_finished(struct zone *zone,
+>  		struct free_area *area = &zone->free_area[order];
+>  
+>  		/* Job done if page is free of the right migratetype */
+> -		if (!list_empty(&area->free_list[cc->migratetype]))
+> +		if (!list_empty(&area->free_list[migratetype]))
+>  			return COMPACT_PARTIAL;
+>  
+>  		/* Job done if allocation would set block type */
+> @@ -1088,6 +1088,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+>  	int ret;
+>  	unsigned long start_pfn = zone->zone_start_pfn;
+>  	unsigned long end_pfn = zone_end_pfn(zone);
+> +	const int migratetype = gfpflags_to_migratetype(cc->gfp_mask);
+>  	const bool sync = cc->mode != MIGRATE_ASYNC;
+>  
+>  	ret = compaction_suitable(zone, cc->order);
+> @@ -1130,7 +1131,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+>  
+>  	migrate_prep_local();
+>  
+> -	while ((ret = compact_finished(zone, cc)) == COMPACT_CONTINUE) {
+> +	while ((ret = compact_finished(zone, cc, migratetype)) ==
+> +						COMPACT_CONTINUE) {
+>  		int err;
+>  
+>  		switch (isolate_migratepages(zone, cc)) {
+> @@ -1185,7 +1187,7 @@ static unsigned long compact_zone_order(struct zone *zone, int order,
+>  		.nr_freepages = 0,
+>  		.nr_migratepages = 0,
+>  		.order = order,
+> -		.migratetype = gfpflags_to_migratetype(gfp_mask),
+> +		.gfp_mask = gfp_mask,
+>  		.zone = zone,
+>  		.mode = mode,
+>  	};
+> diff --git a/mm/internal.h b/mm/internal.h
+> index 584cd69..dd17a40 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -149,7 +149,7 @@ struct compact_control {
+>  	bool finished_update_migrate;
+>  
+>  	int order;			/* order a direct compactor needs */
+> -	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
+> +	const gfp_t gfp_mask;		/* gfp mask of a direct compactor */
+>  	struct zone *zone;
+>  	enum compact_contended contended; /* Signal need_sched() or lock
+>  					   * contention detected during
+> 
+
 
 -- 
-Michal Hocko
-SUSE Labs
+Thanks.
+Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
