@@ -1,84 +1,219 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 010EC6B005A
-	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 09:31:28 -0400 (EDT)
-Received: by mail-wi0-f173.google.com with SMTP id cc10so4333794wib.0
-        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 06:31:26 -0700 (PDT)
-Received: from demumfd002.nsn-inter.net (demumfd002.nsn-inter.net. [93.183.12.31])
-        by mx.google.com with ESMTPS id xm12si16743687wib.10.2014.06.23.06.31.24
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E7AC6B0062
+	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 09:32:27 -0400 (EDT)
+Received: by mail-we0-f177.google.com with SMTP id u56so7076052wes.36
+        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 06:32:26 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bu13si16714921wib.101.2014.06.23.06.32.24
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 23 Jun 2014 06:31:24 -0700 (PDT)
-Date: Mon, 23 Jun 2014 15:35:37 +0200
-From: Adam Endrodi <adam.endrodi@nsn.com>
-Subject: mmap()ing a size-extended file on a 100% full tmpfs
-Message-ID: <20140623133537.GD12012@timmy>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 23 Jun 2014 06:32:25 -0700 (PDT)
+Date: Mon, 23 Jun 2014 14:32:21 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch 3/4] mm: vmscan: remove all_unreclaimable()
+Message-ID: <20140623133221.GN10819@suse.de>
+References: <1403282030-29915-1-git-send-email-hannes@cmpxchg.org>
+ <1403282030-29915-3-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
+In-Reply-To: <1403282030-29915-3-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+
+On Fri, Jun 20, 2014 at 12:33:49PM -0400, Johannes Weiner wrote:
+> Direct reclaim currently calls shrink_zones() to reclaim all members
+> of a zonelist, and if that wasn't successful it does another pass
+> through the same zonelist to check overall reclaimability.
+> 
+> Just check reclaimability in shrink_zones() directly and propagate the
+> result through the return value.  Then remove all_unreclaimable().
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  mm/vmscan.c | 48 +++++++++++++++++++++++-------------------------
+>  1 file changed, 23 insertions(+), 25 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index ed1efb84c542..d0bc1a209746 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2244,9 +2244,10 @@ static inline bool should_continue_reclaim(struct zone *zone,
+>  	}
+>  }
+>  
+> -static void shrink_zone(struct zone *zone, struct scan_control *sc)
+> +static unsigned long shrink_zone(struct zone *zone, struct scan_control *sc)
+>  {
+>  	unsigned long nr_reclaimed, nr_scanned;
+> +	unsigned long zone_reclaimed = 0;
+>  
+>  	do {
+>  		struct mem_cgroup *root = sc->target_mem_cgroup;
+> @@ -2290,8 +2291,12 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+>  			   sc->nr_scanned - nr_scanned,
+>  			   sc->nr_reclaimed - nr_reclaimed);
+>  
+> +		zone_reclaimed += sc->nr_reclaimed - nr_reclaimed;
+> +
+>  	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
+>  					 sc->nr_scanned - nr_scanned, sc));
+> +
+> +	return zone_reclaimed;
+>  }
+
+You do not actually need a counter here because all that matters is that
+a page got reclaimed. It could just as easily have been
+
+bool zone_reclaimable = false;
+
+...
+
+if (sc->nr_reclaimed - nr_reclaimed)
+	zone_reclaimable = true;
+
+...
+
+return zone_reclaimable
+
+so that zone[s]_reclaimable is always a boolean and not sometimes a boolean
+and sometimes a counter.
 
 
-Hello,
+>  
+>  /* Returns true if compaction should go ahead for a high-order request */
+> @@ -2340,8 +2345,10 @@ static inline bool compaction_ready(struct zone *zone, int order)
+>   *
+>   * If a zone is deemed to be full of pinned pages then just give it a light
+>   * scan then give up on it.
+> + *
+> + * Returns whether the zones overall are reclaimable or not.
+>   */
 
+Returns true if a zone was reclaimable
 
-If you try to run the following program with /dev/shm being 100% full, it will
-be terminated by a SIGBUS in memset():
+> -static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+> +static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+>  {
+>  	struct zoneref *z;
+>  	struct zone *zone;
+> @@ -2354,6 +2361,7 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+>  		.gfp_mask = sc->gfp_mask,
+>  	};
+>  	enum zone_type requested_highidx = gfp_zone(sc->gfp_mask);
+> +	bool all_unreclaimable = true;
+>  
+>  	/*
+>  	 * If the number of buffer_heads in the machine exceeds the maximum
+> @@ -2368,6 +2376,8 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+>  
+>  	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+>  					gfp_zone(sc->gfp_mask), sc->nodemask) {
+> +		unsigned long zone_reclaimed = 0;
+> +
+>  		if (!populated_zone(zone))
+>  			continue;
+>  		/*
+> @@ -2414,10 +2424,15 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+>  						&nr_soft_scanned);
+>  			sc->nr_reclaimed += nr_soft_reclaimed;
+>  			sc->nr_scanned += nr_soft_scanned;
+> +			zone_reclaimed += nr_soft_reclaimed;
+>  			/* need some check for avoid more shrink_zone() */
+>  		}
+>  
+> -		shrink_zone(zone, sc);
+> +		zone_reclaimed += shrink_zone(zone, sc);
+> +
+> +		if (zone_reclaimed ||
+> +		    (global_reclaim(sc) && zone_reclaimable(zone)))
+> +			all_unreclaimable = false;
+>  	}
+>  
 
-"""
-#define _GNU_SOURCE
-#include <unistd.h>
-#include <errno.h>
-#include <string.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <sys/mman.h>
+This is where you don't need the counter as such. It could just as
+easily have been
 
-int main(void)
-{
-	int fd = shm_open("segg", O_CREAT|O_RDWR, 0666);
-	printf("fd: %d\n", fd);
-	printf("truncate: %d\n", ftruncate(fd, 1024*1024));
-//	errno = posix_fallocate(fd, 0, 1024*1024);
-//	printf("falloc: %s\n", strerror(errno));
-	void *ptr = mmap(NULL, 1024*1024, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
-	printf("ptr: %p\n", ptr);
+bool reclaimable = false;
+....
+if (shrink_zone(zone, sc))
+	reclaimable = true;
 
-	memset(ptr, 0, 1024*1024);
+if (!reclaimable && global_reclaim(sc) && zone_reclaimable(zone))
+	reclaimable = true;
 
-	return 0;
-}
-"""
+return reclaimable;
 
-On a similarly full ext2 file system memset() completes successfully (though
-I'm not sure whether it made through it by mere chance).
+It doesn't matter as such, it's just zone_reclaimed is implemented as a
+counter but not used as one.
 
-So the probelm is that the program may not know at all what the underlying
-file system is, and in case of tmpfs it may be terminated for a completely
-unexpected reason.
-
-A portable solution could be to [posix_]fallocate() the file before trying to
-mmap() it.  That works (except that perhaps tmpfs can deallocate memory if
-it's under pressure).
-
-Alternatively I could imagine such an ftruncate() implementation for tmpfs,
-which would incorporate fallocate()ion.
-
-In combination with this mmap() could refuse the operation if insufficient
-backing store is available.  Ie. it would return MAP_FAILED if the programmer
-didn't call ftruncate() which would include fallocate().
-
-The wayland developers faced the same problem last year:
-http://lists.freedesktop.org/archives/wayland-devel/2013-October/011501.html
-
-My opinion is that either ftruncate() or mmap() should return an error.
-What do you think?
+>  	/*
+> @@ -2439,26 +2454,8 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+>  	 * promoted it to __GFP_HIGHMEM.
+>  	 */
+>  	sc->gfp_mask = orig_mask;
+> -}
+>  
+> -/* All zones in zonelist are unreclaimable? */
+> -static bool all_unreclaimable(struct zonelist *zonelist,
+> -		struct scan_control *sc)
+> -{
+> -	struct zoneref *z;
+> -	struct zone *zone;
+> -
+> -	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+> -			gfp_zone(sc->gfp_mask), sc->nodemask) {
+> -		if (!populated_zone(zone))
+> -			continue;
+> -		if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
+> -			continue;
+> -		if (zone_reclaimable(zone))
+> -			return false;
+> -	}
+> -
+> -	return true;
+> +	return !all_unreclaimable;
+>  }
+>  
+>  /*
+> @@ -2482,6 +2479,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+>  {
+>  	unsigned long total_scanned = 0;
+>  	unsigned long writeback_threshold;
+> +	bool zones_reclaimable;
+>  
+>  	delayacct_freepages_start();
+>  
+> @@ -2492,7 +2490,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+>  		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
+>  				sc->priority);
+>  		sc->nr_scanned = 0;
+> -		shrink_zones(zonelist, sc);
+> +		zones_reclaimable = shrink_zones(zonelist, sc);
+>  
+>  		total_scanned += sc->nr_scanned;
+>  		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
+> @@ -2533,8 +2531,8 @@ out:
+>  	if (sc->compaction_ready)
+>  		return 1;
+>  
+> -	/* top priority shrink_zones still had more to do? don't OOM, then */
+> -	if (global_reclaim(sc) && !all_unreclaimable(zonelist, sc))
+> +	/* Any of the zones still reclaimable?  Don't OOM. */
+> +	if (zones_reclaimable)
+>  		return 1;
+>  
+>  	return 0;
+> -- 
+> 2.0.0
+> 
 
 -- 
-adam
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
