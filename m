@@ -1,102 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 846516B0035
-	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 05:52:40 -0400 (EDT)
-Received: by mail-wi0-f169.google.com with SMTP id hi2so3924192wib.0
-        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 02:52:39 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id C426E6B0035
+	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 06:00:59 -0400 (EDT)
+Received: by mail-wi0-f181.google.com with SMTP id n3so3814497wiv.8
+        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 03:00:58 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u19si22448929wjw.95.2014.06.23.02.52.35
+        by mx.google.com with ESMTPS id c9si22506408wje.25.2014.06.23.03.00.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 23 Jun 2014 02:52:36 -0700 (PDT)
-Message-ID: <53A7F8DC.8090106@suse.cz>
-Date: Mon, 23 Jun 2014 11:52:28 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        Mon, 23 Jun 2014 03:00:51 -0700 (PDT)
+Date: Mon, 23 Jun 2014 11:00:41 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm/vmscan.c: fix an implementation flaw in proportional
+ scanning
+Message-ID: <20140623100040.GH10819@suse.de>
+References: <1402980902-6345-1-git-send-email-slaoub@gmail.com>
+ <20140618152751.283deda95257cc32ccea8f20@linux-foundation.org>
+ <1403136272.12954.4.camel@debian>
+ <20140618174001.a5de7668.akpm@linux-foundation.org>
+ <20140619010239.GA2071@bbox>
+ <20140619131322.1ab89e3380bf2eed477f9030@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 01/13] mm, THP: don't hold mmap_sem in khugepaged when
- allocating THP
-References: <1403279383-5862-1-git-send-email-vbabka@suse.cz> <1403279383-5862-2-git-send-email-vbabka@suse.cz> <20140620174533.GA9635@node.dhcp.inet.fi> <53A7BD91.8020802@cn.fujitsu.com>
-In-Reply-To: <53A7BD91.8020802@cn.fujitsu.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140619131322.1ab89e3380bf2eed477f9030@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, Chen Yucong <slaoub@gmail.com>, hannes@cmpxchg.org, mhocko@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 06/23/2014 07:39 AM, Zhang Yanfei wrote:
-> Hello
->
-> On 06/21/2014 01:45 AM, Kirill A. Shutemov wrote:
->> On Fri, Jun 20, 2014 at 05:49:31PM +0200, Vlastimil Babka wrote:
->>> When allocating huge page for collapsing, khugepaged currently holds mmap_sem
->>> for reading on the mm where collapsing occurs. Afterwards the read lock is
->>> dropped before write lock is taken on the same mmap_sem.
->>>
->>> Holding mmap_sem during whole huge page allocation is therefore useless, the
->>> vma needs to be rechecked after taking the write lock anyway. Furthemore, huge
->>> page allocation might involve a rather long sync compaction, and thus block
->>> any mmap_sem writers and i.e. affect workloads that perform frequent m(un)map
->>> or mprotect oterations.
->>>
->>> This patch simply releases the read lock before allocating a huge page. It
->>> also deletes an outdated comment that assumed vma must be stable, as it was
->>> using alloc_hugepage_vma(). This is no longer true since commit 9f1b868a13
->>> ("mm: thp: khugepaged: add policy for finding target node").
->>
->> There is no point in touching ->mmap_sem in khugepaged_alloc_page() at
->> all. Please, move up_read() outside khugepaged_alloc_page().
->>
+On Thu, Jun 19, 2014 at 01:13:22PM -0700, Andrew Morton wrote:
+> On Thu, 19 Jun 2014 10:02:39 +0900 Minchan Kim <minchan@kernel.org> wrote:
+> 
+> > > > @@ -2057,8 +2057,7 @@ out:
+> > > >  static void shrink_lruvec(struct lruvec *lruvec, struct scan_control
+> > > > *sc)
+> > > >  {
+> > > >         unsigned long nr[NR_LRU_LISTS];
+> > > > -       unsigned long targets[NR_LRU_LISTS];
+> > > > -       unsigned long nr_to_scan;
+> > > > +       unsigned long file_target, anon_target;
+> > > > 
+> > > > >From the above snippet, we can know that the "percent" locals come from
+> > > > targets[NR_LRU_LISTS]. So this fix does not increase the stack.
+> > > 
+> > > OK.  But I expect the stack use could be decreased by using more
+> > > complex expressions.
+> > 
+> > I didn't look at this patch yet but want to say.
+> > 
+> > The expression is not easy to follow since several people already
+> > confused/discuss/fixed a bit so I'd like to put more concern to clarity
+> > rather than stack footprint.
+> 
+> That code is absolutely awful :( It's terribly difficult to work out
+> what the design is - what the code is actually setting out to achieve. 
+> One is reduced to trying to reverse-engineer the intent from the
+> implementation and that becomes near impossible when the
+> implementation has bugs!
+> 
+> Look at this miserable comment:
+> 
+> 		/*
+> 		 * For kswapd and memcg, reclaim at least the number of pages
+> 		 * requested. Ensure that the anon and file LRUs are scanned
+> 		 * proportionally what was requested by get_scan_count(). We
+> 		 * stop reclaiming one LRU and reduce the amount scanning
+> 		 * proportional to the original scan target.
+> 		 */
+> 
+> 
+> > For kswapd and memcg, reclaim at least the number of pages
+> > requested.
+> 
+> *why*?
+> 
 
-Well there's also currently no point in passing several parameters to 
-khugepaged_alloc_page(). So I could clean it up as well, but I imagine 
-later we would perhaps reintroduce them back, as I don't think the 
-current situation is ideal for at least two reasons.
+At the time of writing the intention was to reduce direct reclaim stall
+latency in the global case. Initially the following block was above it
 
-1. If you read commit 9f1b868a13 ("mm: thp: khugepaged: add policy for 
-finding target node"), it's based on a report where somebody found that 
-mempolicy is not observed properly when collapsing THP's. But the 
-'policy' introduced by the commit isn't based on real mempolicy, it 
-might just under certain conditions results in an interleave, which 
-happens to be what the reporter was trying.
+                /*
+                 * For global direct reclaim, reclaim only the number of pages
+                 * requested. Less care is taken to scan proportionally as it
+                 * is more important to minimise direct reclaim stall latency
+                 * than it is to properly age the LRU lists.
+                 */
+                if (global_reclaim(sc) && !current_is_kswapd())
+                        break;
 
-So ideally, it should be making node allocation decisions based on where 
-the original 4KB pages are located. For example, allocate a THP only if 
-all the 4KB pages are on the same node. That would also automatically 
-obey any policy that has lead to the allocation of those 4KB pages.
+When that comment was removed then the remaining comment is less clear.
 
-And for this, it will need again the parameters and mmap_sem in read 
-mode. It would be however still a good idea to drop mmap_sem before the 
-allocation itself, since compaction/reclaim might take some time...
 
-2. (less related) I'd expect khugepaged to first allocate a hugepage and 
-then scan for collapsing. Yes there's khugepaged_prealloc_page, but that 
-only does something on !NUMA systems and these are not the future.
-Although I don't have the data, I expect allocating a hugepage is a 
-bigger issue than finding something that could be collapsed. So why scan 
-for collapsing if in the end I cannot allocate a hugepage? And if I 
-really cannot find something to collapse, would e.g. caching a single 
-hugepage per node be a big hit? Also, if there's really nothing to 
-collapse, then it means khugepaged won't compact. And since khugepaged 
-is becoming the only source of sync compaction that doesn't give up 
-easily and tries to e.g. migrate movable pages out of unmovable 
-pageblocks, this might have bad effects on fragmentation.
-I believe this could be done smarter.
+> > Ensure that the anon and file LRUs are scanned
+> > proportionally what was requested by get_scan_count().
+> 
+> Ungramattical.  Lacks specificity.  Fails to explain *why*.
+> 
 
-> I might be wrong. If we up_read in khugepaged_scan_pmd(), then if we round again
-> do the for loop to get the next vma and handle it. Does we do this without holding
-> the mmap_sem in any mode?
->
-> And if the loop end, we have another up_read in breakouterloop. What if we have
-> released the mmap_sem in collapse_huge_page()?
+In the normal case, file/anon LRUs are scanned at a rate proportional
+to the value of vm.swappiness. get_scan_count() calculates the number of
+pages to scan from each LRU taking into account additional factors such
+as the availability of swap. When the requested number of pages have been
+reclaimed we adjust to scan targets to minimise the number of pages scanned
+while maintaining the ratio of file/anon pages that are scanned.
 
-collapse_huge_page() is only called from khugepaged_scan_pmd() in the if 
-(ret) condition. And khugepaged_scan_mm_slot() has similar if (ret) for 
-the return value of khugepaged_scan_pmd() to break out of the loop (and 
-not doing up_read() again). So I think this is correct and moving 
-up_read from khugepaged_alloc_page() to collapse_huge_page() wouldn't
-change this?
-
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
