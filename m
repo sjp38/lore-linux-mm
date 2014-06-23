@@ -1,60 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 20C5B6B003B
-	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 07:15:59 -0400 (EDT)
-Received: by mail-wi0-f179.google.com with SMTP id cc10so4060583wib.6
-        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 04:15:58 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 18si4884340wjt.144.2014.06.23.04.15.57
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id B99DB6B003D
+	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 07:18:29 -0400 (EDT)
+Received: by mail-pb0-f50.google.com with SMTP id rp16so5819410pbb.9
+        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 04:18:29 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id hd9si17076626pac.147.2014.06.23.04.18.26
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 23 Jun 2014 04:15:57 -0700 (PDT)
-Date: Mon, 23 Jun 2014 12:15:54 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm:vmscan:replace zone_watermark_ok with zone_balanced
- for determining if kswapd will call compaction
-Message-ID: <20140623111554.GJ10819@suse.de>
-References: <1403427060-16711-1-git-send-email-slaoub@gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 23 Jun 2014 04:18:28 -0700 (PDT)
+Message-ID: <53A80CF6.1090008@huawei.com>
+Date: Mon, 23 Jun 2014 19:18:14 +0800
+From: Zhang Zhen <zhenzhang.zhang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1403427060-16711-1-git-send-email-slaoub@gmail.com>
+Subject: Re: Why we echo a invalid  start_address_of_new_memory succeeded
+ ?
+References: <53A3DD82.3070208@huawei.com> <alpine.DEB.2.02.1406200317420.29234@chino.kir.corp.google.com> <53A80663.90603@huawei.com>
+In-Reply-To: <53A80663.90603@huawei.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Yucong <slaoub@gmail.com>
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, riel@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: wangnan0@huawei.com, xiaofeng.yan@huawei.com, linux-mm@kvack.org
 
-On Sun, Jun 22, 2014 at 04:51:00PM +0800, Chen Yucong wrote:
-> According to the commit messages of "mm: vmscan: fix endless loop in kswapd balancing"
-> and "mm: vmscan: decide whether to compact the pgdat based on reclaim progress", minor
-> change is required to the following snippet.
+On 2014/6/23 18:50, Zhang Zhen wrote:
+> On 2014/6/20 18:30, David Rientjes wrote:
+>> On Fri, 20 Jun 2014, Zhang Zhen wrote:
+>>
+>>> Hi,
+>>>
+>>> I am testing mem-hotplug on a qemu virtual machine. I executed the following command
+>>> to notify memory hot-add event by hand.
+>>>
+>>> % echo start_address_of_new_memory > /sys/devices/system/memory/probe
+>>>
+>>> To a different start_address_of_new_memory I got different results.
+>>> The results are as follows:
+>>>
+>>> MBSC-x86_64 /sys/devices/system/memory # ls
+>>> block_size_bytes  memory2           memory5           power
+>>> memory0           memory3           memory6           probe
+>>> memory1           memory4           memory7           uevent
+>>> MBSC-x86_64 /sys/devices/system/memory # echo 0x70000000 > probe
+>>
+>> Since block_size_bytes is 0x8000000 == 128MB, this is 0x70000000 / 
+>> 0x8000000 = section number 14.  Successfully hot added.  Presumably you're 
+>> reporting that there is no physical memory there, so this would default to 
+>> the online node of the first memory block, probably node 0.
+>>
+>>> MBSC-x86_64 /sys/devices/system/memory # echo 0x78000000 > probe
+>>> -sh: echo: write error: File exists
+>>
+>> EEXIST gets returned when the resource already exists, mostly likely 
+>> system RAM or reserved memory as reported by your BIOS.  You report this 
+>> is a 2GB machine, no reason to believe memory at 1920MB isn't already 
+>> online (including reserved).
+>>
+>>> MBSC-x86_64 /sys/devices/system/memory # echo 0x80000000 > probe
+>>> -sh: echo: write error: File exists
+>>> MBSC-x86_64 /sys/devices/system/memory # echo 0x88000000 > probe
+>>> -sh: echo: write error: File exists
+>>
+>> Same.
+>>
+>>> MBSC-x86_64 /sys/devices/system/memory # echo 0x8f000000 > probe
+>>> -sh: echo: write error: Invalid argument
+>>
+>> Returns EINVAL because it's not a multiple of block_size_bytes, it's not 
+>> aligned properly.
+>>
+>>> MBSC-x86_64 /sys/devices/system/memory # echo 0x90000000 > probe
+>>> -sh: echo: write error: File exists
+>>
+>> See above, the resoure already exists.  Check your e820 your dmesg, which 
+>> is missing from this report, to determine what already exists and may be 
+>> already online or reserved.
+>>
+>>> MBSC-x86_64 /sys/devices/system/memory # echo 0xff0000000 > probe
+>>
+>> 0xff0000000 / 0x8000000 is section 510, successfully onlined.
+>>
+>>> MBSC-x86_64 /sys/devices/system/memory # ls
+>>> block_size_bytes  memory2           memory510         probe
+>>> memory0           memory3           memory6           uevent
+>>> memory1           memory4           memory7
+>>> memory14          memory5           power
+>>
+>> Looks good, you onlined sections 14 and 510 above.
+>>
+>>> MBSC-x86_64 /sys/devices/system/memory # echo 0xfff0000000 > probe
+>>
+>> Same for section 8190.
+>>
+>>> MBSC-x86_64 /sys/devices/system/memory # ls
+>>> block_size_bytes  memory2           memory510         power
+>>> memory0           memory3           memory6           probe
+>>> memory1           memory4           memory7           uevent
+>>> memory14          memory5           memory8190
+>>>
+>>
+>> Confirmed it's onlined.
+>>
+>>> The qemu virtual machine's physical memory size is 2048M, and the boot memory is 1024M.
+>>>
+>>> MBSC-x86_64 / # cat /proc/meminfo
+>>> MemTotal:        1018356 kB
+>>> MBSC-x86_64 / # cat /sys/devices/system/memory/block_size_bytes
+>>> 8000000
+>>>
+>>
+>> That's irrelevant, you've explicitly onlined memory that doesn't exist.  
+>> Not sure why you're using the probe interface unless you need it for x86, 
+>> is ACPI not registering it correctly?
+>>
+>>> Three questions:
+>>> 1. The machine's physical memory size is 2048M, why echo 0x78000000 as the start_address_of_new_memory failed ?
+>>>
+>>
+>> Copy your e820 map from your dmesg, it's probably reserved or already 
+>> online, this is lower than 2048M.
+>>
 > 
->         /*
->          * If any zone is currently balanced then kswapd will
->          * not call compaction as it is expected that the
->          * necessary pages are already available.
->          */
->         if (pgdat_needs_compaction &&
->                 zone_watermark_ok(zone, order,
->                                         low_wmark_pages(zone),
->                                         *classzone_idx, 0))
->                 pgdat_needs_compaction = false;
+> Hi David,
 > 
-> zone_watermark_ok() should be replaced by zone_balanced() in the above snippet. That's
-> because zone_balanced() is more suitable for the context.
+> You are right, if we echo 0x78000000 as the start_address_of_new_memory, the end_address_of_new_memory is exceeded
+> the usable range.
+> Thank you for your comments.
+> 
+> My e820 map as follows:
+> 
+> [    0.000000] e820: BIOS-provided physical RAM map:
+> [    0.000000] BIOS-e820: [mem 0x0000000000000000-0x000000000009fbff] usable
+> [    0.000000] BIOS-e820: [mem 0x000000000009fc00-0x000000000009ffff] reserved
+> [    0.000000] BIOS-e820: [mem 0x00000000000f0000-0x00000000000fffff] reserved
+> [    0.000000] BIOS-e820: [mem 0x0000000000100000-0x000000007fffdfff] usable
+> [    0.000000] BIOS-e820: [mem 0x000000007fffe000-0x000000007fffffff] reserved
+> [    0.000000] BIOS-e820: [mem 0x00000000fffc0000-0x00000000ffffffff] reserved
+> [    0.000000] e820: remove [mem 0x40000000-0xfffffffffffffffe] usable
+> [    0.000000] NX (Execute Disable) protection: active
+> [    0.000000] e820: user-defined physical RAM map:
+> [    0.000000] user: [mem 0x0000000000000000-0x000000000009fbff] usable
+> [    0.000000] user: [mem 0x000000000009fc00-0x000000000009ffff] reserved
+> [    0.000000] user: [mem 0x00000000000f0000-0x00000000000fffff] reserved
+> [    0.000000] user: [mem 0x0000000000100000-0x000000003fffffff] usable
+> [    0.000000] user: [mem 0x000000007fffe000-0x000000007fffffff] reserved
+> [    0.000000] user: [mem 0x00000000fffc0000-0x00000000ffffffff] reserved
+> 
+>>> 2. Why echo 0x8f000000 as the start_address_of_new_memory, the error message is different ?
+>>>
+>>
+>> Not properly aligned to block_size_bytes.  It's a nuance, but 
+>> block_size_bytes is exported in hex, not decimal.
+> 
+> You are right, it's not properly aligned to block_size_bytes. I have made a mistake.
+> 
+>>
+>>> 3. Why echo 0xfff0000000 as the start_address_of_new_memory succeeded ? 0xfff0000000 has exceeded the machine's physical memory size.
+>>>
+>>
+>> You're telling the kernel differently.
+>>
+> 
+> I'm not clearly here,  0xfff0000000 is exceeded the usable range [mem 0x0000000000100000-0x000000007fffdfff] usable.
+> So i think here should return "File exists", but it succeeded.
+> 
+> Is it properly ?
 > 
 
-What bug does this fix?
+I got it, the address's validity should be guaranteed by me. Right?
+Thank you.
 
-The intent here is to prevent kswapd compacting a node if an allocation
-request within that node would succeed against the low watermark.
-Your change alters that to check against hte high watermark + balance gap
-without explaining why kswapd should compact until the high watermark is
-reached.
+> Best regards!
+> 
+>> .
+>>
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> .
+> 
 
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
