@@ -1,61 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id ABF3B6B0035
-	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 01:39:43 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id v10so5186849pde.26
-        for <linux-mm@kvack.org>; Sun, 22 Jun 2014 22:39:43 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id j1si20188346pbw.214.2014.06.22.22.39.41
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AC8E6B0035
+	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 02:15:17 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id fp1so5268101pdb.11
+        for <linux-mm@kvack.org>; Sun, 22 Jun 2014 23:15:16 -0700 (PDT)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id bh2si20306230pbb.204.2014.06.22.23.15.14
         for <linux-mm@kvack.org>;
-        Sun, 22 Jun 2014 22:39:42 -0700 (PDT)
-Message-ID: <53A7BD91.8020802@cn.fujitsu.com>
-Date: Mon, 23 Jun 2014 13:39:29 +0800
-From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+        Sun, 22 Jun 2014 23:15:16 -0700 (PDT)
+Date: Mon, 23 Jun 2014 15:16:04 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [patch 1/4] mm: vmscan: remove remains of kswapd-managed
+ zone->all_unreclaimable
+Message-ID: <20140623061604.GA15594@bbox>
+References: <1403282030-29915-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 01/13] mm, THP: don't hold mmap_sem in khugepaged when
- allocating THP
-References: <1403279383-5862-1-git-send-email-vbabka@suse.cz> <1403279383-5862-2-git-send-email-vbabka@suse.cz> <20140620174533.GA9635@node.dhcp.inet.fi>
-In-Reply-To: <20140620174533.GA9635@node.dhcp.inet.fi>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <1403282030-29915-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Hello
-
-On 06/21/2014 01:45 AM, Kirill A. Shutemov wrote:
-> On Fri, Jun 20, 2014 at 05:49:31PM +0200, Vlastimil Babka wrote:
->> When allocating huge page for collapsing, khugepaged currently holds mmap_sem
->> for reading on the mm where collapsing occurs. Afterwards the read lock is
->> dropped before write lock is taken on the same mmap_sem.
->>
->> Holding mmap_sem during whole huge page allocation is therefore useless, the
->> vma needs to be rechecked after taking the write lock anyway. Furthemore, huge
->> page allocation might involve a rather long sync compaction, and thus block
->> any mmap_sem writers and i.e. affect workloads that perform frequent m(un)map
->> or mprotect oterations.
->>
->> This patch simply releases the read lock before allocating a huge page. It
->> also deletes an outdated comment that assumed vma must be stable, as it was
->> using alloc_hugepage_vma(). This is no longer true since commit 9f1b868a13
->> ("mm: thp: khugepaged: add policy for finding target node").
+On Fri, Jun 20, 2014 at 12:33:47PM -0400, Johannes Weiner wrote:
+> shrink_zones() has a special branch to skip the all_unreclaimable()
+> check during hibernation, because a frozen kswapd can't mark a zone
+> unreclaimable.
 > 
-> There is no point in touching ->mmap_sem in khugepaged_alloc_page() at
-> all. Please, move up_read() outside khugepaged_alloc_page().
+> But ever since 6e543d5780e3 ("mm: vmscan: fix do_try_to_free_pages()
+> livelock"), determining a zone to be unreclaimable is done by directly
+> looking at its scan history and no longer relies on kswapd setting the
+> per-zone flag.
 > 
+> Remove this branch and let shrink_zones() check the reclaimability of
+> the target zones regardless of hibernation state.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Minchan Kim <minchan@kernel.org>
 
-I might be wrong. If we up_read in khugepaged_scan_pmd(), then if we round again
-do the for loop to get the next vma and handle it. Does we do this without holding
-the mmap_sem in any mode?
+It would be not bad to Cced KOSAKI who was involved all_unreclaimable
+series several time with me.
 
-And if the loop end, we have another up_read in breakouterloop. What if we have
-released the mmap_sem in collapse_huge_page()?
+> ---
+>  mm/vmscan.c | 8 --------
+>  1 file changed, 8 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 0f16ffe8eb67..19b5b8016209 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2534,14 +2534,6 @@ out:
+>  	if (sc->nr_reclaimed)
+>  		return sc->nr_reclaimed;
+>  
+> -	/*
+> -	 * As hibernation is going on, kswapd is freezed so that it can't mark
+> -	 * the zone into all_unreclaimable. Thus bypassing all_unreclaimable
+> -	 * check.
+> -	 */
+> -	if (oom_killer_disabled)
+> -		return 0;
+> -
+>  	/* Aborted reclaim to try compaction? don't OOM, then */
+>  	if (aborted_reclaim)
+>  		return 1;
+> -- 
+> 2.0.0
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-Thanks.
-Zhang Yanfei
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
