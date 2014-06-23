@@ -1,57 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 424696B0031
-	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 16:48:01 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id ma3so6331153pbc.28
-        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 13:48:00 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id bu3si23463282pbb.98.2014.06.23.13.47.59
+Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
+	by kanga.kvack.org (Postfix) with ESMTP id CC80C6B0031
+	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 17:04:44 -0400 (EDT)
+Received: by mail-lb0-f176.google.com with SMTP id w7so5355199lbi.35
+        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 14:04:44 -0700 (PDT)
+Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
+        by mx.google.com with ESMTPS id bm6si27840472lbb.30.2014.06.23.14.04.42
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 23 Jun 2014 13:48:00 -0700 (PDT)
-Message-ID: <53A8927B.3020409@codeaurora.org>
-Date: Mon, 23 Jun 2014 13:47:55 -0700
-From: Laura Abbott <lauraa@codeaurora.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 23 Jun 2014 14:04:43 -0700 (PDT)
+Received: by mail-lb0-f179.google.com with SMTP id z11so5291756lbi.38
+        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 14:04:42 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCHv5 2/2] arm: Get rid of meminfo
-References: <1396544698-15596-1-git-send-email-lauraa@codeaurora.org> <1396544698-15596-3-git-send-email-lauraa@codeaurora.org> <20140623091754.GD14781@pengutronix.de>
-In-Reply-To: <20140623091754.GD14781@pengutronix.de>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <53A88DE4.8050107@intel.com>
+References: <1403084656-27284-1-git-send-email-qiaowei.ren@intel.com>
+ <1403084656-27284-3-git-send-email-qiaowei.ren@intel.com> <53A884B2.5070702@mit.edu>
+ <53A88806.1060908@intel.com> <CALCETrXYZZiZsDiUvvZd0636+qHP9a0sHTN6wt_ZKjvLaeeBzw@mail.gmail.com>
+ <53A88DE4.8050107@intel.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Mon, 23 Jun 2014 14:04:22 -0700
+Message-ID: <CALCETrWBbkFzQR3tz1TphqxiGYycvzrFrKc=ghzMynbem=d7rg@mail.gmail.com>
+Subject: Re: [PATCH v6 02/10] x86, mpx: add MPX specific mmap interface
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?ISO-8859-1?Q?Uwe_Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
-Cc: Nicolas Pitre <nicolas.pitre@linaro.org>, Andrew Lunn <andrew@lunn.ch>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Grant Likely <grant.likely@secretlab.ca>, linux-mm@kvack.org, Daniel Walker <dwalker@fifo99.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Kukjin Kim <kgene.kim@samsung.com>, Russell King <linux@arm.linux.org.uk>, David Brown <davidb@codeaurora.org>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, Grygorii Strashko <grygorii.strashko@ti.com>, Jason Cooper <jason@lakedaemon.net>, linux-arm-msm@vger.kernel.org, Haojian Zhuang <haojian.zhuang@gmail.com>, Leif Lindholm <leif.lindholm@linaro.org>, Ben Dooks <ben-linux@fluff.org>, linux-arm-kernel@lists.infradead.org, Courtney Cavin <courtney.cavin@sonymobile.com>, Eric Miao <eric.y.miao@gmail.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, linux-kernel@vger.kernel.org, Santosh Shilimkar <santosh.shilimkar@ti.com>, kernel@pengutronix.de, Andrew Morton <akpm@linux-foundation.org>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Qiaowei Ren <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-Thanks for the report.
+On Mon, Jun 23, 2014 at 1:28 PM, Dave Hansen <dave.hansen@intel.com> wrote:
+> On 06/23/2014 01:06 PM, Andy Lutomirski wrote:
+>> Can the new vm_operation "name" be use for this?  The magic "always
+>> written to core dumps" feature might need to be reconsidered.
+>
+> One thing I'd like to avoid is an MPX vma getting merged with a non-MPX
+> vma.  I don't see any code to prevent two VMAs with different
+> vm_ops->names from getting merged.  That seems like a bit of a design
+> oversight for ->name.  Right?
 
-On 6/23/2014 2:17 AM, Uwe Kleine-Konig wrote:
-> This patch is in 3.16-rc1 as 1c2f87c22566cd057bc8cde10c37ae9da1a1bb76
-> now.
-> 
-> Unfortunately it makes my efm32 machine unbootable.
-> 
-> With earlyprintk enabled I get the following output:
-> 
-> [    0.000000] Booting Linux on physical CPU 0x0
-> [    0.000000] Linux version 3.15.0-rc1-00028-g1c2f87c22566-dirty (ukleinek@perseus) (gcc version 4.7.2 (OSELAS.Toolchain-2012.12.1) ) #280 PREEMPT Mon Jun 23 11:05:34 CEST 2014
-> [    0.000000] CPU: ARMv7-M [412fc231] revision 1 (ARMv7M), cr=00000000
-> [    0.000000] CPU: unknown data cache, unknown instruction cache
-> [    0.000000] Machine model: Energy Micro Giant Gecko Development Kit
-> [    0.000000] debug: ignoring loglevel setting.
-> [    0.000000] bootconsole [earlycon0] enabled
-> [    0.000000] On node 0 totalpages: 1024
-> [    0.000000] free_area_init_node: node 0, pgdat 880208f4, node_mem_map 00000000
-> [    0.000000]   Normal zone: 3840 pages exceeds freesize 1024
+AFAIK there are no ->name users that don't also set ->close, for
+exactly that reason.  I'd be okay with adding a check for ->name, too.
 
-This looks off. The number of pages for the memmap exceeds the available free
-size. Working backwards, I think the wrong bounds are being calculated in
-find_limits in arch/arm/mm/init.c . max_low is now calculated via the current
-limit but nommu never sets a limit unlike the mmu case. Can you try the
-following patch and see if it fixes the issue? If this doesn't work, can
-you share working bootup logs so I can do a bit more compare and contrast?
+Hmm.  If MPX vmas had a real struct file attached, this would all come
+for free.  Maybe vmas with non-default vm_ops and file != NULL should
+never be mergeable?
 
-Thanks,
-Laura
+>
+> Thinking out loud a bit... There are also some more complicated but more
+> performant cleanup mechanisms that I'd like to go after in the future.
+> Given a page, we might want to figure out if it is an MPX page or not.
+> I wonder if we'll ever collide with some other user of vm_ops->name.  It
+> looks fairly narrowly used at the moment, but would this keep us from
+> putting these pages on, say, a tmpfs mount?  Doesn't look that way at
+> the moment.
 
----8<----
+You could always check the vm_ops pointer to see if it's MPX.
+
+One feature I've wanted: a way to have special per-process vmas that
+can be easily found.  For example, I want to be able to efficiently
+find out where the vdso and vvar vmas are.  I don't think this is
+currently supported.
+
+--Andy
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
