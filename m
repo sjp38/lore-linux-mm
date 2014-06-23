@@ -1,50 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DD7426B0069
-	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 09:59:13 -0400 (EDT)
-Received: by mail-qa0-f51.google.com with SMTP id j7so5607469qaq.24
-        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 06:59:13 -0700 (PDT)
-Received: from qmta07.emeryville.ca.mail.comcast.net (qmta07.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:64])
-        by mx.google.com with ESMTP id x2si22785035qai.74.2014.06.23.06.59.12
-        for <linux-mm@kvack.org>;
-        Mon, 23 Jun 2014 06:59:13 -0700 (PDT)
-Date: Mon, 23 Jun 2014 08:59:10 -0500 (CDT)
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: [PATCH RESEND] slub: return correct error on slab_sysfs_init
-In-Reply-To: <53A5471E.50503@oracle.com>
-Message-ID: <alpine.DEB.2.11.1406230857010.8409@gentwo.org>
-References: <53A0EB84.7030308@oracle.com> <alpine.DEB.2.02.1406181314290.10339@chino.kir.corp.google.com> <alpine.DEB.2.11.1406190939030.2785@gentwo.org> <20140619133201.7f84ae4acbc1b9d8f65e2b4f@linux-foundation.org> <53A43C54.3090402@oracle.com>
- <alpine.DEB.2.02.1406201526190.16090@chino.kir.corp.google.com> <53A5471E.50503@oracle.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-vc0-f182.google.com (mail-vc0-f182.google.com [209.85.220.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B3A96B0031
+	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 12:02:52 -0400 (EDT)
+Received: by mail-vc0-f182.google.com with SMTP id il7so6139836vcb.41
+        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 09:02:51 -0700 (PDT)
+Received: from fujitsu24.fnanic.fujitsu.com (fujitsu24.fnanic.fujitsu.com. [192.240.6.14])
+        by mx.google.com with ESMTPS id i5si9269121vcp.33.2014.06.23.09.02.51
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 23 Jun 2014 09:02:51 -0700 (PDT)
+From: Motohiro Kosaki <Motohiro.Kosaki@us.fujitsu.com>
+Date: Mon, 23 Jun 2014 09:01:26 -0700
+Subject: RE: [patch 1/4] mm: vmscan: remove remains of kswapd-managed
+ zone->all_unreclaimable
+Message-ID: <6B2BA408B38BA1478B473C31C3D2074E341D40237A@SV-EXCHANGE1.Corp.FC.LOCAL>
+References: <1403282030-29915-1-git-send-email-hannes@cmpxchg.org>
+ <20140623061604.GA15594@bbox>
+In-Reply-To: <20140623061604.GA15594@bbox>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Liu <jeff.liu@oracle.com>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, akpm@linuxfoundation.org, Greg KH <gregkh@linuxfoundation.org>
+To: Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Motohiro Kosaki JP <kosaki.motohiro@jp.fujitsu.com>
 
-On Sat, 21 Jun 2014, Jeff Liu wrote:
-
-> >>
-> >
-> > Bullshit.  Read the above.
->   ^^^^^^^
-> I assume that you spoke like that because I have not reply to you in time, I can
-> understand if so.  Otherwise, don't talk to me like that no matter who you are!
-
-
-Ignore his BS. You already posted the patches that did what he asked for.
-Lets go back to that one. I am reversing my reversal. Sorry about that.
-
-> > If you want to return PTR_ERR() when this fails and fixup all the callers,
-> > then propose that patch.  Until then, it's a pretty simple rule: if you
-> > don't have an errno, don't assume the reason for failure.
->
-> As I mentioned previously, Greg don't like to fixup kobjects API via PTR_ERR().
-> For me, I neither want to propose PTR_ERR to kobject nor try to push the current
-> slub fix, because it's make no sense to slub with either errno.
-
-Lets ignore Greg's incorrect assessment and do what Andrew suggested. I
-prefer to have clean error code passing.
-
+DQoNCj4gLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gRnJvbTogTWluY2hhbiBLaW0gW21h
+aWx0bzptaW5jaGFuQGtlcm5lbC5vcmddDQo+IFNlbnQ6IE1vbmRheSwgSnVuZSAyMywgMjAxNCAy
+OjE2IEFNDQo+IFRvOiBKb2hhbm5lcyBXZWluZXINCj4gQ2M6IEFuZHJldyBNb3J0b247IE1lbCBH
+b3JtYW47IFJpayB2YW4gUmllbDsgTWljaGFsIEhvY2tvOyBsaW51eC1tbUBrdmFjay5vcmc7IGxp
+bnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7IE1vdG9oaXJvIEtvc2FraSBKUA0KPiBTdWJqZWN0
+OiBSZTogW3BhdGNoIDEvNF0gbW06IHZtc2NhbjogcmVtb3ZlIHJlbWFpbnMgb2Yga3N3YXBkLW1h
+bmFnZWQgem9uZS0+YWxsX3VucmVjbGFpbWFibGUNCj4gDQo+IE9uIEZyaSwgSnVuIDIwLCAyMDE0
+IGF0IDEyOjMzOjQ3UE0gLTA0MDAsIEpvaGFubmVzIFdlaW5lciB3cm90ZToNCj4gPiBzaHJpbmtf
+em9uZXMoKSBoYXMgYSBzcGVjaWFsIGJyYW5jaCB0byBza2lwIHRoZSBhbGxfdW5yZWNsYWltYWJs
+ZSgpDQo+ID4gY2hlY2sgZHVyaW5nIGhpYmVybmF0aW9uLCBiZWNhdXNlIGEgZnJvemVuIGtzd2Fw
+ZCBjYW4ndCBtYXJrIGEgem9uZQ0KPiA+IHVucmVjbGFpbWFibGUuDQo+ID4NCj4gPiBCdXQgZXZl
+ciBzaW5jZSA2ZTU0M2Q1NzgwZTMgKCJtbTogdm1zY2FuOiBmaXggZG9fdHJ5X3RvX2ZyZWVfcGFn
+ZXMoKQ0KPiA+IGxpdmVsb2NrIiksIGRldGVybWluaW5nIGEgem9uZSB0byBiZSB1bnJlY2xhaW1h
+YmxlIGlzIGRvbmUgYnkgZGlyZWN0bHkNCj4gPiBsb29raW5nIGF0IGl0cyBzY2FuIGhpc3Rvcnkg
+YW5kIG5vIGxvbmdlciByZWxpZXMgb24ga3N3YXBkIHNldHRpbmcgdGhlDQo+ID4gcGVyLXpvbmUg
+ZmxhZy4NCj4gPg0KPiA+IFJlbW92ZSB0aGlzIGJyYW5jaCBhbmQgbGV0IHNocmlua196b25lcygp
+IGNoZWNrIHRoZSByZWNsYWltYWJpbGl0eSBvZg0KPiA+IHRoZSB0YXJnZXQgem9uZXMgcmVnYXJk
+bGVzcyBvZiBoaWJlcm5hdGlvbiBzdGF0ZS4NCj4gPg0KPiA+IFNpZ25lZC1vZmYtYnk6IEpvaGFu
+bmVzIFdlaW5lciA8aGFubmVzQGNtcHhjaGcub3JnPg0KPiBBY2tlZC1ieTogTWluY2hhbiBLaW0g
+PG1pbmNoYW5Aa2VybmVsLm9yZz4NCj4gDQo+IEl0IHdvdWxkIGJlIG5vdCBiYWQgdG8gQ2NlZCBL
+T1NBS0kgd2hvIHdhcyBpbnZvbHZlZCBhbGxfdW5yZWNsYWltYWJsZSBzZXJpZXMgc2V2ZXJhbCB0
+aW1lIHdpdGggbWUuDQoNCkxvb2tzIGdvb2QgdG8gbWUuDQoNCktPU0FLSSBNb3RvaGlybyA8S29z
+YWtpLm1vdG9oaXJvQGpwLmZ1aml0c3UuY29tPg0KDQoNCg0KDQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
