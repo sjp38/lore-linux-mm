@@ -1,65 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 685E56B0035
-	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 00:16:35 -0400 (EDT)
-Received: by mail-wi0-f180.google.com with SMTP id hi2so3380268wib.7
-        for <linux-mm@kvack.org>; Sun, 22 Jun 2014 21:16:34 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id fx16si3066883wjc.31.2014.06.22.21.16.33
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id B06396B0035
+	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 01:15:11 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so5389060pab.15
+        for <linux-mm@kvack.org>; Sun, 22 Jun 2014 22:15:11 -0700 (PDT)
+Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com [2607:f8b0:400e:c03::22a])
+        by mx.google.com with ESMTPS id hx2si20121249pbb.205.2014.06.22.22.15.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 22 Jun 2014 21:16:34 -0700 (PDT)
-Date: Mon, 23 Jun 2014 00:16:21 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH -mm] memcg: mem_cgroup_charge_statistics needs
- preempt_disable
-Message-ID: <20140623041621.GM7331@cmpxchg.org>
-References: <1403124045-24361-14-git-send-email-hannes@cmpxchg.org>
- <1403282171-25502-1-git-send-email-mhocko@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1403282171-25502-1-git-send-email-mhocko@suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 22 Jun 2014 22:15:10 -0700 (PDT)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so5389052pab.15
+        for <linux-mm@kvack.org>; Sun, 22 Jun 2014 22:15:10 -0700 (PDT)
+From: Chen Yucong <slaoub@gmail.com>
+Subject: [PATCH] mm:kswapd: clean up the kswapd
+Date: Mon, 23 Jun 2014 13:14:54 +0800
+Message-Id: <1403500494-5110-1-git-send-email-slaoub@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: mgorman@suse.de
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, riel@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Yucong <slaoub@gmail.com>
 
-On Fri, Jun 20, 2014 at 06:36:11PM +0200, Michal Hocko wrote:
-> preempt_disable was previously disabled by lock_page_cgroup which has
-> been removed by "mm: memcontrol: rewrite uncharge API".
-> 
-> This fixes the a flood of splats like this:
-> [    3.149371] BUG: using __this_cpu_add() in preemptible [00000000] code: udevd/1271
-> [    3.151458] caller is __this_cpu_preempt_check+0x13/0x15
-> [    3.152927] CPU: 0 PID: 1271 Comm: udevd Not tainted 3.15.0-test1 #366
-> [    3.154637] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-> [    3.156788]  0000000000000000 ffff88000005fba8 ffffffff814efe3f 0000000000000000
-> [    3.158810]  ffff88000005fbd8 ffffffff8125b969 ffff880007413448 0000000000000001
-> [    3.160836]  ffffea00001e8c00 0000000000000001 ffff88000005fbe8 ffffffff8125b9a8
-> [    3.162950] Call Trace:
-> [    3.163598]  [<ffffffff814efe3f>] dump_stack+0x4e/0x7a
-> [    3.164942]  [<ffffffff8125b969>] check_preemption_disabled+0xd2/0xe5
-> [    3.166618]  [<ffffffff8125b9a8>] __this_cpu_preempt_check+0x13/0x15
-> [    3.168267]  [<ffffffff8112b630>] mem_cgroup_charge_statistics.isra.36+0xb5/0xc6
-> [    3.170169]  [<ffffffff8112d2c5>] commit_charge+0x23c/0x256
-> [    3.171823]  [<ffffffff8113101b>] mem_cgroup_commit_charge+0xb8/0xd7
-> [    3.173838]  [<ffffffff810f5dab>] shmem_getpage_gfp+0x399/0x605
-> [    3.175363]  [<ffffffff810f7456>] shmem_write_begin+0x3d/0x58
-> [    3.176854]  [<ffffffff810e1361>] generic_perform_write+0xbc/0x192
-> [    3.178445]  [<ffffffff8114a086>] ? file_update_time+0x34/0xac
-> [    3.179952]  [<ffffffff810e2ae4>] __generic_file_aio_write+0x2c0/0x300
-> [    3.181655]  [<ffffffff810e2b76>] generic_file_aio_write+0x52/0xbd
-> [    3.183234]  [<ffffffff81133944>] do_sync_write+0x59/0x78
-> [    3.184630]  [<ffffffff81133ea8>] vfs_write+0xc4/0x181
-> [    3.185957]  [<ffffffff81134801>] SyS_write+0x4a/0x91
-> [    3.187258]  [<ffffffff814fd30e>] tracesys+0xd0/0xd5
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+According to the commit 215ddd66 (mm: vmscan: only read new_classzone_idx from
+pgdat when reclaiming successfully) and the commit d2ebd0f6b (kswapd: avoid
+unnecessary rebalance after an unsuccessful balancing), we can use a boolean
+variable for replace balanced_* variables, which makes the kswapd more clarify.
 
-Thanks, Michal.
+Signed-off-by: Chen Yucong <slaoub@gmail.com>
+---
+ mm/vmscan.c |   29 ++++++++++++++++-------------
+ 1 file changed, 16 insertions(+), 13 deletions(-)
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index a8ffe4e..b0a75d1 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3332,10 +3332,9 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
+  */
+ static int kswapd(void *p)
+ {
++	bool balance_is_successful;
+ 	unsigned long order, new_order;
+-	unsigned balanced_order;
+ 	int classzone_idx, new_classzone_idx;
+-	int balanced_classzone_idx;
+ 	pg_data_t *pgdat = (pg_data_t*)p;
+ 	struct task_struct *tsk = current;
+ 
+@@ -3366,9 +3365,7 @@ static int kswapd(void *p)
+ 	set_freezable();
+ 
+ 	order = new_order = 0;
+-	balanced_order = 0;
+ 	classzone_idx = new_classzone_idx = pgdat->nr_zones - 1;
+-	balanced_classzone_idx = classzone_idx;
+ 	for ( ; ; ) {
+ 		bool ret;
+ 
+@@ -3377,24 +3374,32 @@ static int kswapd(void *p)
+ 		 * new request of a similar or harder type will succeed soon
+ 		 * so consider going to sleep on the basis we reclaimed at
+ 		 */
+-		if (balanced_classzone_idx >= new_classzone_idx &&
+-					balanced_order == new_order) {
++		balance_is_successful = false;
++		if (classzone_idx >= new_classzone_idx && order == new_order) {
++			/*
++			 * After the last balance_pgdat, if the `order' stays
++			 * constant and the scanned zones are not less than
++			 * specified by original classzone_idx, then the last
++			 * balance_pgdat was successful.
++			 */
+ 			new_order = pgdat->kswapd_max_order;
+ 			new_classzone_idx = pgdat->classzone_idx;
+ 			pgdat->kswapd_max_order =  0;
+ 			pgdat->classzone_idx = pgdat->nr_zones - 1;
++			balance_is_successful = true;
+ 		}
+ 
+-		if (order < new_order || classzone_idx > new_classzone_idx) {
++		if (balance_is_successful && (order < new_order ||
++					classzone_idx > new_classzone_idx)) {
+ 			/*
+ 			 * Don't sleep if someone wants a larger 'order'
+-			 * allocation or has tigher zone constraints
++			 * allocation or has tighter zone constraints on the
++			 * premise of the last balance_pgdat was successful.
+ 			 */
+ 			order = new_order;
+ 			classzone_idx = new_classzone_idx;
+ 		} else {
+-			kswapd_try_to_sleep(pgdat, balanced_order,
+-						balanced_classzone_idx);
++			kswapd_try_to_sleep(pgdat, order, classzone_idx);
+ 			order = pgdat->kswapd_max_order;
+ 			classzone_idx = pgdat->classzone_idx;
+ 			new_order = order;
+@@ -3413,9 +3418,7 @@ static int kswapd(void *p)
+ 		 */
+ 		if (!ret) {
+ 			trace_mm_vmscan_kswapd_wake(pgdat->node_id, order);
+-			balanced_classzone_idx = classzone_idx;
+-			balanced_order = balance_pgdat(pgdat, order,
+-						&balanced_classzone_idx);
++			order = balance_pgdat(pgdat, order, &classzone_idx);
+ 		}
+ 	}
+ 
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
