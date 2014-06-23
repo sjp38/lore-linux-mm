@@ -1,113 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id B06396B0035
-	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 01:15:11 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lj1so5389060pab.15
-        for <linux-mm@kvack.org>; Sun, 22 Jun 2014 22:15:11 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id hx2si20121249pbb.205.2014.06.22.22.15.10
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 22 Jun 2014 22:15:10 -0700 (PDT)
-Received: by mail-pa0-f42.google.com with SMTP id lj1so5389052pab.15
-        for <linux-mm@kvack.org>; Sun, 22 Jun 2014 22:15:10 -0700 (PDT)
-From: Chen Yucong <slaoub@gmail.com>
-Subject: [PATCH] mm:kswapd: clean up the kswapd
-Date: Mon, 23 Jun 2014 13:14:54 +0800
-Message-Id: <1403500494-5110-1-git-send-email-slaoub@gmail.com>
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id ABF3B6B0035
+	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 01:39:43 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id v10so5186849pde.26
+        for <linux-mm@kvack.org>; Sun, 22 Jun 2014 22:39:43 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id j1si20188346pbw.214.2014.06.22.22.39.41
+        for <linux-mm@kvack.org>;
+        Sun, 22 Jun 2014 22:39:42 -0700 (PDT)
+Message-ID: <53A7BD91.8020802@cn.fujitsu.com>
+Date: Mon, 23 Jun 2014 13:39:29 +0800
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v3 01/13] mm, THP: don't hold mmap_sem in khugepaged when
+ allocating THP
+References: <1403279383-5862-1-git-send-email-vbabka@suse.cz> <1403279383-5862-2-git-send-email-vbabka@suse.cz> <20140620174533.GA9635@node.dhcp.inet.fi>
+In-Reply-To: <20140620174533.GA9635@node.dhcp.inet.fi>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mgorman@suse.de
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, riel@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Yucong <slaoub@gmail.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
 
-According to the commit 215ddd66 (mm: vmscan: only read new_classzone_idx from
-pgdat when reclaiming successfully) and the commit d2ebd0f6b (kswapd: avoid
-unnecessary rebalance after an unsuccessful balancing), we can use a boolean
-variable for replace balanced_* variables, which makes the kswapd more clarify.
+Hello
 
-Signed-off-by: Chen Yucong <slaoub@gmail.com>
----
- mm/vmscan.c |   29 ++++++++++++++++-------------
- 1 file changed, 16 insertions(+), 13 deletions(-)
+On 06/21/2014 01:45 AM, Kirill A. Shutemov wrote:
+> On Fri, Jun 20, 2014 at 05:49:31PM +0200, Vlastimil Babka wrote:
+>> When allocating huge page for collapsing, khugepaged currently holds mmap_sem
+>> for reading on the mm where collapsing occurs. Afterwards the read lock is
+>> dropped before write lock is taken on the same mmap_sem.
+>>
+>> Holding mmap_sem during whole huge page allocation is therefore useless, the
+>> vma needs to be rechecked after taking the write lock anyway. Furthemore, huge
+>> page allocation might involve a rather long sync compaction, and thus block
+>> any mmap_sem writers and i.e. affect workloads that perform frequent m(un)map
+>> or mprotect oterations.
+>>
+>> This patch simply releases the read lock before allocating a huge page. It
+>> also deletes an outdated comment that assumed vma must be stable, as it was
+>> using alloc_hugepage_vma(). This is no longer true since commit 9f1b868a13
+>> ("mm: thp: khugepaged: add policy for finding target node").
+> 
+> There is no point in touching ->mmap_sem in khugepaged_alloc_page() at
+> all. Please, move up_read() outside khugepaged_alloc_page().
+> 
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a8ffe4e..b0a75d1 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3332,10 +3332,9 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
-  */
- static int kswapd(void *p)
- {
-+	bool balance_is_successful;
- 	unsigned long order, new_order;
--	unsigned balanced_order;
- 	int classzone_idx, new_classzone_idx;
--	int balanced_classzone_idx;
- 	pg_data_t *pgdat = (pg_data_t*)p;
- 	struct task_struct *tsk = current;
- 
-@@ -3366,9 +3365,7 @@ static int kswapd(void *p)
- 	set_freezable();
- 
- 	order = new_order = 0;
--	balanced_order = 0;
- 	classzone_idx = new_classzone_idx = pgdat->nr_zones - 1;
--	balanced_classzone_idx = classzone_idx;
- 	for ( ; ; ) {
- 		bool ret;
- 
-@@ -3377,24 +3374,32 @@ static int kswapd(void *p)
- 		 * new request of a similar or harder type will succeed soon
- 		 * so consider going to sleep on the basis we reclaimed at
- 		 */
--		if (balanced_classzone_idx >= new_classzone_idx &&
--					balanced_order == new_order) {
-+		balance_is_successful = false;
-+		if (classzone_idx >= new_classzone_idx && order == new_order) {
-+			/*
-+			 * After the last balance_pgdat, if the `order' stays
-+			 * constant and the scanned zones are not less than
-+			 * specified by original classzone_idx, then the last
-+			 * balance_pgdat was successful.
-+			 */
- 			new_order = pgdat->kswapd_max_order;
- 			new_classzone_idx = pgdat->classzone_idx;
- 			pgdat->kswapd_max_order =  0;
- 			pgdat->classzone_idx = pgdat->nr_zones - 1;
-+			balance_is_successful = true;
- 		}
- 
--		if (order < new_order || classzone_idx > new_classzone_idx) {
-+		if (balance_is_successful && (order < new_order ||
-+					classzone_idx > new_classzone_idx)) {
- 			/*
- 			 * Don't sleep if someone wants a larger 'order'
--			 * allocation or has tigher zone constraints
-+			 * allocation or has tighter zone constraints on the
-+			 * premise of the last balance_pgdat was successful.
- 			 */
- 			order = new_order;
- 			classzone_idx = new_classzone_idx;
- 		} else {
--			kswapd_try_to_sleep(pgdat, balanced_order,
--						balanced_classzone_idx);
-+			kswapd_try_to_sleep(pgdat, order, classzone_idx);
- 			order = pgdat->kswapd_max_order;
- 			classzone_idx = pgdat->classzone_idx;
- 			new_order = order;
-@@ -3413,9 +3418,7 @@ static int kswapd(void *p)
- 		 */
- 		if (!ret) {
- 			trace_mm_vmscan_kswapd_wake(pgdat->node_id, order);
--			balanced_classzone_idx = classzone_idx;
--			balanced_order = balance_pgdat(pgdat, order,
--						&balanced_classzone_idx);
-+			order = balance_pgdat(pgdat, order, &classzone_idx);
- 		}
- 	}
- 
+I might be wrong. If we up_read in khugepaged_scan_pmd(), then if we round again
+do the for loop to get the next vma and handle it. Does we do this without holding
+the mmap_sem in any mode?
+
+And if the loop end, we have another up_read in breakouterloop. What if we have
+released the mmap_sem in collapse_huge_page()?
+
 -- 
-1.7.10.4
+Thanks.
+Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
