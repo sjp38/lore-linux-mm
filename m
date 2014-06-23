@@ -1,86 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 27A696B0035
-	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 06:40:49 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id rd3so5721088pab.17
-        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 03:40:48 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id sn4si21342683pab.203.2014.06.23.03.40.47
-        for <linux-mm@kvack.org>;
-        Mon, 23 Jun 2014 03:40:48 -0700 (PDT)
-Message-ID: <53A80424.8030105@cn.fujitsu.com>
-Date: Mon, 23 Jun 2014 18:40:36 +0800
-From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id E9EF76B0037
+	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 06:50:25 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id et14so5759242pad.27
+        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 03:50:25 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id sr7si21376927pab.202.2014.06.23.03.50.23
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 23 Jun 2014 03:50:25 -0700 (PDT)
+Message-ID: <53A80663.90603@huawei.com>
+Date: Mon, 23 Jun 2014 18:50:11 +0800
+From: Zhang Zhen <zhenzhang.zhang@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 01/13] mm, THP: don't hold mmap_sem in khugepaged when
- allocating THP
-References: <1403279383-5862-1-git-send-email-vbabka@suse.cz> <1403279383-5862-2-git-send-email-vbabka@suse.cz> <20140620174533.GA9635@node.dhcp.inet.fi> <53A7BD91.8020802@cn.fujitsu.com> <53A7F8DC.8090106@suse.cz>
-In-Reply-To: <53A7F8DC.8090106@suse.cz>
+Subject: Re: Why we echo a invalid  start_address_of_new_memory succeeded
+ ?
+References: <53A3DD82.3070208@huawei.com> <alpine.DEB.2.02.1406200317420.29234@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1406200317420.29234@chino.kir.corp.google.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: wangnan0@huawei.com, xiaofeng.yan@huawei.com, linux-mm@kvack.org
 
-On 06/23/2014 05:52 PM, Vlastimil Babka wrote:
-> On 06/23/2014 07:39 AM, Zhang Yanfei wrote:
->> Hello
+On 2014/6/20 18:30, David Rientjes wrote:
+> On Fri, 20 Jun 2014, Zhang Zhen wrote:
+> 
+>> Hi,
 >>
->> On 06/21/2014 01:45 AM, Kirill A. Shutemov wrote:
->>> On Fri, Jun 20, 2014 at 05:49:31PM +0200, Vlastimil Babka wrote:
->>>> When allocating huge page for collapsing, khugepaged currently holds mmap_sem
->>>> for reading on the mm where collapsing occurs. Afterwards the read lock is
->>>> dropped before write lock is taken on the same mmap_sem.
->>>>
->>>> Holding mmap_sem during whole huge page allocation is therefore useless, the
->>>> vma needs to be rechecked after taking the write lock anyway. Furthemore, huge
->>>> page allocation might involve a rather long sync compaction, and thus block
->>>> any mmap_sem writers and i.e. affect workloads that perform frequent m(un)map
->>>> or mprotect oterations.
->>>>
->>>> This patch simply releases the read lock before allocating a huge page. It
->>>> also deletes an outdated comment that assumed vma must be stable, as it was
->>>> using alloc_hugepage_vma(). This is no longer true since commit 9f1b868a13
->>>> ("mm: thp: khugepaged: add policy for finding target node").
->>>
->>> There is no point in touching ->mmap_sem in khugepaged_alloc_page() at
->>> all. Please, move up_read() outside khugepaged_alloc_page().
->>>
-> 
-> Well there's also currently no point in passing several parameters to khugepaged_alloc_page(). So I could clean it up as well, but I imagine later we would perhaps reintroduce them back, as I don't think the current situation is ideal for at least two reasons.
-> 
-> 1. If you read commit 9f1b868a13 ("mm: thp: khugepaged: add policy for finding target node"), it's based on a report where somebody found that mempolicy is not observed properly when collapsing THP's. But the 'policy' introduced by the commit isn't based on real mempolicy, it might just under certain conditions results in an interleave, which happens to be what the reporter was trying.
-> 
-> So ideally, it should be making node allocation decisions based on where the original 4KB pages are located. For example, allocate a THP only if all the 4KB pages are on the same node. That would also automatically obey any policy that has lead to the allocation of those 4KB pages.
-> 
-> And for this, it will need again the parameters and mmap_sem in read mode. It would be however still a good idea to drop mmap_sem before the allocation itself, since compaction/reclaim might take some time...
-> 
-> 2. (less related) I'd expect khugepaged to first allocate a hugepage and then scan for collapsing. Yes there's khugepaged_prealloc_page, but that only does something on !NUMA systems and these are not the future.
-> Although I don't have the data, I expect allocating a hugepage is a bigger issue than finding something that could be collapsed. So why scan for collapsing if in the end I cannot allocate a hugepage? And if I really cannot find something to collapse, would e.g. caching a single hugepage per node be a big hit? Also, if there's really nothing to collapse, then it means khugepaged won't compact. And since khugepaged is becoming the only source of sync compaction that doesn't give up easily and tries to e.g. migrate movable pages out of unmovable pageblocks, this might have bad effects on fragmentation.
-> I believe this could be done smarter.
-> 
->> I might be wrong. If we up_read in khugepaged_scan_pmd(), then if we round again
->> do the for loop to get the next vma and handle it. Does we do this without holding
->> the mmap_sem in any mode?
+>> I am testing mem-hotplug on a qemu virtual machine. I executed the following command
+>> to notify memory hot-add event by hand.
 >>
->> And if the loop end, we have another up_read in breakouterloop. What if we have
->> released the mmap_sem in collapse_huge_page()?
+>> % echo start_address_of_new_memory > /sys/devices/system/memory/probe
+>>
+>> To a different start_address_of_new_memory I got different results.
+>> The results are as follows:
+>>
+>> MBSC-x86_64 /sys/devices/system/memory # ls
+>> block_size_bytes  memory2           memory5           power
+>> memory0           memory3           memory6           probe
+>> memory1           memory4           memory7           uevent
+>> MBSC-x86_64 /sys/devices/system/memory # echo 0x70000000 > probe
 > 
-> collapse_huge_page() is only called from khugepaged_scan_pmd() in the if (ret) condition. And khugepaged_scan_mm_slot() has similar if (ret) for the return value of khugepaged_scan_pmd() to break out of the loop (and not doing up_read() again). So I think this is correct and moving up_read from khugepaged_alloc_page() to collapse_huge_page() wouldn't
-> change this?
+> Since block_size_bytes is 0x8000000 == 128MB, this is 0x70000000 / 
+> 0x8000000 = section number 14.  Successfully hot added.  Presumably you're 
+> reporting that there is no physical memory there, so this would default to 
+> the online node of the first memory block, probably node 0.
+> 
+>> MBSC-x86_64 /sys/devices/system/memory # echo 0x78000000 > probe
+>> -sh: echo: write error: File exists
+> 
+> EEXIST gets returned when the resource already exists, mostly likely 
+> system RAM or reserved memory as reported by your BIOS.  You report this 
+> is a 2GB machine, no reason to believe memory at 1920MB isn't already 
+> online (including reserved).
+> 
+>> MBSC-x86_64 /sys/devices/system/memory # echo 0x80000000 > probe
+>> -sh: echo: write error: File exists
+>> MBSC-x86_64 /sys/devices/system/memory # echo 0x88000000 > probe
+>> -sh: echo: write error: File exists
+> 
+> Same.
+> 
+>> MBSC-x86_64 /sys/devices/system/memory # echo 0x8f000000 > probe
+>> -sh: echo: write error: Invalid argument
+> 
+> Returns EINVAL because it's not a multiple of block_size_bytes, it's not 
+> aligned properly.
+> 
+>> MBSC-x86_64 /sys/devices/system/memory # echo 0x90000000 > probe
+>> -sh: echo: write error: File exists
+> 
+> See above, the resoure already exists.  Check your e820 your dmesg, which 
+> is missing from this report, to determine what already exists and may be 
+> already online or reserved.
+> 
+>> MBSC-x86_64 /sys/devices/system/memory # echo 0xff0000000 > probe
+> 
+> 0xff0000000 / 0x8000000 is section 510, successfully onlined.
+> 
+>> MBSC-x86_64 /sys/devices/system/memory # ls
+>> block_size_bytes  memory2           memory510         probe
+>> memory0           memory3           memory6           uevent
+>> memory1           memory4           memory7
+>> memory14          memory5           power
+> 
+> Looks good, you onlined sections 14 and 510 above.
+> 
+>> MBSC-x86_64 /sys/devices/system/memory # echo 0xfff0000000 > probe
+> 
+> Same for section 8190.
+> 
+>> MBSC-x86_64 /sys/devices/system/memory # ls
+>> block_size_bytes  memory2           memory510         power
+>> memory0           memory3           memory6           probe
+>> memory1           memory4           memory7           uevent
+>> memory14          memory5           memory8190
+>>
+> 
+> Confirmed it's onlined.
+> 
+>> The qemu virtual machine's physical memory size is 2048M, and the boot memory is 1024M.
+>>
+>> MBSC-x86_64 / # cat /proc/meminfo
+>> MemTotal:        1018356 kB
+>> MBSC-x86_64 / # cat /sys/devices/system/memory/block_size_bytes
+>> 8000000
+>>
+> 
+> That's irrelevant, you've explicitly onlined memory that doesn't exist.  
+> Not sure why you're using the probe interface unless you need it for x86, 
+> is ACPI not registering it correctly?
+> 
+>> Three questions:
+>> 1. The machine's physical memory size is 2048M, why echo 0x78000000 as the start_address_of_new_memory failed ?
+>>
+> 
+> Copy your e820 map from your dmesg, it's probably reserved or already 
+> online, this is lower than 2048M.
+> 
 
-Ah, right.
+Hi David,
+
+You are right, if we echo 0x78000000 as the start_address_of_new_memory, the end_address_of_new_memory is exceeded
+the usable range.
+Thank you for your comments.
+
+My e820 map as follows:
+
+[    0.000000] e820: BIOS-provided physical RAM map:
+[    0.000000] BIOS-e820: [mem 0x0000000000000000-0x000000000009fbff] usable
+[    0.000000] BIOS-e820: [mem 0x000000000009fc00-0x000000000009ffff] reserved
+[    0.000000] BIOS-e820: [mem 0x00000000000f0000-0x00000000000fffff] reserved
+[    0.000000] BIOS-e820: [mem 0x0000000000100000-0x000000007fffdfff] usable
+[    0.000000] BIOS-e820: [mem 0x000000007fffe000-0x000000007fffffff] reserved
+[    0.000000] BIOS-e820: [mem 0x00000000fffc0000-0x00000000ffffffff] reserved
+[    0.000000] e820: remove [mem 0x40000000-0xfffffffffffffffe] usable
+[    0.000000] NX (Execute Disable) protection: active
+[    0.000000] e820: user-defined physical RAM map:
+[    0.000000] user: [mem 0x0000000000000000-0x000000000009fbff] usable
+[    0.000000] user: [mem 0x000000000009fc00-0x000000000009ffff] reserved
+[    0.000000] user: [mem 0x00000000000f0000-0x00000000000fffff] reserved
+[    0.000000] user: [mem 0x0000000000100000-0x000000003fffffff] usable
+[    0.000000] user: [mem 0x000000007fffe000-0x000000007fffffff] reserved
+[    0.000000] user: [mem 0x00000000fffc0000-0x00000000ffffffff] reserved
+
+>> 2. Why echo 0x8f000000 as the start_address_of_new_memory, the error message is different ?
+>>
+> 
+> Not properly aligned to block_size_bytes.  It's a nuance, but 
+> block_size_bytes is exported in hex, not decimal.
+
+You are right, it's not properly aligned to block_size_bytes. I have made a mistake.
 
 > 
+>> 3. Why echo 0xfff0000000 as the start_address_of_new_memory succeeded ? 0xfff0000000 has exceeded the machine's physical memory size.
+>>
 > 
+> You're telling the kernel differently.
+> 
+
+I'm not clearly here,  0xfff0000000 is exceeded the usable range [mem 0x0000000000100000-0x000000007fffdfff] usable.
+So i think here should return "File exists", but it succeeded.
+
+Is it properly ?
+
+Best regards!
+
 > .
 > 
 
-
--- 
-Thanks.
-Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
