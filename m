@@ -1,301 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E6E96B0035
-	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 04:56:09 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id y13so5429369pdi.13
-        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 01:56:09 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id oj8si20863439pbb.186.2014.06.23.01.56.06
-        for <linux-mm@kvack.org>;
-        Mon, 23 Jun 2014 01:56:08 -0700 (PDT)
-Message-ID: <53A7EB9B.5000406@cn.fujitsu.com>
-Date: Mon, 23 Jun 2014 16:55:55 +0800
-From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3 05/13] mm, compaction: report compaction as contended
- only due to lock contention
-References: <1403279383-5862-1-git-send-email-vbabka@suse.cz> <1403279383-5862-6-git-send-email-vbabka@suse.cz> <20140623013903.GA12413@bbox>
-In-Reply-To: <20140623013903.GA12413@bbox>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id E818F6B0035
+	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 05:11:36 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so5625467pab.15
+        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 02:11:36 -0700 (PDT)
+Received: from e28smtp02.in.ibm.com (e28smtp02.in.ibm.com. [122.248.162.2])
+        by mx.google.com with ESMTPS id ew3si20993803pac.229.2014.06.23.02.11.34
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 23 Jun 2014 02:11:36 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <lilei@linux.vnet.ibm.com>;
+	Mon, 23 Jun 2014 14:41:32 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id C23081258054
+	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 14:40:59 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s5N9CbQK44630040
+	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 14:42:38 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s5N9BQw0009158
+	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 14:41:26 +0530
+From: Lei Li <lilei@linux.vnet.ibm.com>
+Subject: [PATCH] Documentation: Update remove_from_page_cache with delete_from_page_cache
+Date: Mon, 23 Jun 2014 17:11:19 +0800
+Message-Id: <1403514679-24632-1-git-send-email-lilei@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
+To: "linux-mm@kvack.org.linux-kernel@vger.kernel.org.cgroups"@vger.kernel.org
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, tj@kernel.org, akpm@linux-foundation.org, Lei Li <lilei@linux.vnet.ibm.com>
 
-Hello Minchan,
+remove_from_page_cache has been renamed to delete_from_page_cache
+since Commit 702cfbf9 ("mm: goodbye remove_from_page_cache()"), adapt
+to it in Memcg documentation.
 
-On 06/23/2014 09:39 AM, Minchan Kim wrote:
-> Hello Vlastimil,
-> 
-> On Fri, Jun 20, 2014 at 05:49:35PM +0200, Vlastimil Babka wrote:
->> Async compaction aborts when it detects zone lock contention or need_resched()
->> is true. David Rientjes has reported that in practice, most direct async
->> compactions for THP allocation abort due to need_resched(). This means that a
->> second direct compaction is never attempted, which might be OK for a page
->> fault, but khugepaged is intended to attempt a sync compaction in such case and
->> in these cases it won't.
->>
->> This patch replaces "bool contended" in compact_control with an enum that
->> distinguieshes between aborting due to need_resched() and aborting due to lock
->> contention. This allows propagating the abort through all compaction functions
->> as before, but declaring the direct compaction as contended only when lock
->> contention has been detected.
->>
->> A second problem is that try_to_compact_pages() did not act upon the reported
->> contention (both need_resched() or lock contention) and could proceed with
->> another zone from the zonelist. When need_resched() is true, that means
->> initializing another zone compaction, only to check again need_resched() in
->> isolate_migratepages() and aborting. For zone lock contention, the unintended
->> consequence is that the contended status reported back to the allocator
->> is decided from the last zone where compaction was attempted, which is rather
->> arbitrary.
->>
->> This patch fixes the problem in the following way:
->> - need_resched() being true after async compaction returned from a zone means
->>   that further zones should not be tried. We do a cond_resched() so that we
->>   do not hog the CPU, and abort. "contended" is reported as false, since we
->>   did not fail due to lock contention.
->> - aborting zone compaction due to lock contention means we can still try
->>   another zone, since it has different locks. We report back "contended" as
->>   true only if *all* zones where compaction was attempted, it aborted due to
->>   lock contention.
->>
->> As a result of these fixes, khugepaged will proceed with second sync compaction
->> as intended, when the preceding async compaction aborted due to need_resched().
->> Page fault compactions aborting due to need_resched() will spare some cycles
->> previously wasted by initializing another zone compaction only to abort again.
->> Lock contention will be reported only when compaction in all zones aborted due
->> to lock contention, and therefore it's not a good idea to try again after
->> reclaim.
->>
->> Reported-by: David Rientjes <rientjes@google.com>
->> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
->> Cc: Minchan Kim <minchan@kernel.org>
->> Cc: Mel Gorman <mgorman@suse.de>
->> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->> Cc: Michal Nazarewicz <mina86@mina86.com>
->> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->> Cc: Christoph Lameter <cl@linux.com>
->> Cc: Rik van Riel <riel@redhat.com>
->> ---
->>  mm/compaction.c | 48 +++++++++++++++++++++++++++++++++++++++---------
->>  mm/internal.h   | 15 +++++++++++----
->>  2 files changed, 50 insertions(+), 13 deletions(-)
->>
->> diff --git a/mm/compaction.c b/mm/compaction.c
->> index ebe30c9..e8cfac9 100644
->> --- a/mm/compaction.c
->> +++ b/mm/compaction.c
->> @@ -180,9 +180,14 @@ static void update_pageblock_skip(struct compact_control *cc,
->>  }
->>  #endif /* CONFIG_COMPACTION */
->>  
->> -static inline bool should_release_lock(spinlock_t *lock)
->> +enum compact_contended should_release_lock(spinlock_t *lock)
->>  {
->> -	return need_resched() || spin_is_contended(lock);
->> +	if (spin_is_contended(lock))
->> +		return COMPACT_CONTENDED_LOCK;
->> +	else if (need_resched())
->> +		return COMPACT_CONTENDED_SCHED;
->> +	else
->> +		return COMPACT_CONTENDED_NONE;
-> 
-> If you want to raise priority of lock contention than need_resched
-> intentionally, please write it down on comment.
-> 
->>  }
->>  
->>  /*
->> @@ -197,7 +202,9 @@ static inline bool should_release_lock(spinlock_t *lock)
->>  static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
->>  				      bool locked, struct compact_control *cc)
->>  {
->> -	if (should_release_lock(lock)) {
->> +	enum compact_contended contended = should_release_lock(lock);
->> +
->> +	if (contended) {
->>  		if (locked) {
->>  			spin_unlock_irqrestore(lock, *flags);
->>  			locked = false;
->> @@ -205,7 +212,7 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
->>  
->>  		/* async aborts if taking too long or contended */
->>  		if (cc->mode == MIGRATE_ASYNC) {
->> -			cc->contended = true;
->> +			cc->contended = contended;
->>  			return false;
->>  		}
-> 
-> 
->>  
->> @@ -231,7 +238,7 @@ static inline bool compact_should_abort(struct compact_control *cc)
->>  	/* async compaction aborts if contended */
->>  	if (need_resched()) {
->>  		if (cc->mode == MIGRATE_ASYNC) {
->> -			cc->contended = true;
->> +			cc->contended = COMPACT_CONTENDED_SCHED;
->>  			return true;
->>  		}
->>  
->> @@ -1101,7 +1108,8 @@ static unsigned long compact_zone_order(struct zone *zone, int order,
->>  	VM_BUG_ON(!list_empty(&cc.freepages));
->>  	VM_BUG_ON(!list_empty(&cc.migratepages));
->>  
->> -	*contended = cc.contended;
->> +	/* We only signal lock contention back to the allocator */
->> +	*contended = cc.contended == COMPACT_CONTENDED_LOCK;
-> 
-> Please write down *WHY* as well as your intention we can know by looking at code.
-> 
->>  	return ret;
->>  }
->>  
->> @@ -1132,6 +1140,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
->>  	struct zone *zone;
->>  	int rc = COMPACT_SKIPPED;
->>  	int alloc_flags = 0;
->> +	bool all_zones_contended = true;
->>  
->>  	/* Check if the GFP flags allow compaction */
->>  	if (!order || !may_enter_fs || !may_perform_io)
->> @@ -1146,6 +1155,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
->>  	for_each_zone_zonelist_nodemask(zone, z, zonelist, high_zoneidx,
->>  								nodemask) {
->>  		int status;
->> +		bool zone_contended;
->>  
->>  		if (compaction_deferred(zone, order))
->>  			continue;
->> @@ -1153,8 +1163,9 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
->>  		*deferred = false;
->>  
->>  		status = compact_zone_order(zone, order, gfp_mask, mode,
->> -						contended);
->> +							&zone_contended);
->>  		rc = max(status, rc);
->> +		all_zones_contended &= zone_contended;
->>  
->>  		/* If a normal allocation would succeed, stop compacting */
->>  		if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0,
->> @@ -1168,12 +1179,31 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
->>  			 * succeeding after all, it will be reset.
->>  			 */
->>  			defer_compaction(zone, order);
->> +			/*
->> +			 * If we stopped compacting due to need_resched(), do
->> +			 * not try further zones and yield the CPU.
->> +			 */
-> 
-> For what? It would make your claim more clear.
-> 
->> +			if (need_resched()) {
-> 
-> compact_zone_order returns true state of contended only if it was lock contention
-> so it couldn't return true state of contended by need_resched so you made
-> need_resched check in here. It's fragile to me because it could be not a result
-> from ahead compact_zone_order call. More clear thing is compact_zone_order
-> should return zone_contended as enum, not bool and in here, you could check it.
-> 
-> It means you could return enum in compact_zone_order and make the result bool
-> in try_to_compact_pages.
-> 
->> +				/*
->> +				 * We might not have tried all the zones, so
->> +				 * be conservative and assume they are not
->> +				 * all lock contended.
->> +				 */
->> +				all_zones_contended = false;
->> +				cond_resched();
->> +				break;
->> +			}
->>  		}
->>  	}
->>  
->> -	/* If at least one zone wasn't deferred, we count a compaction stall */
->> -	if (!*deferred)
->> +	/*
->> +	 * If at least one zone wasn't deferred, we count a compaction stall
->> +	 * and we report if all zones that were tried were contended.
->> +	 */
->> +	if (!*deferred) {
->>  		count_compact_event(COMPACTSTALL);
->> +		*contended = all_zones_contended;
-> 
-> Why don't you initialize contended as *false* in function's intro?
-> 
->> +	}
->>  
->>  	return rc;
->>  }
->> diff --git a/mm/internal.h b/mm/internal.h
->> index a1b651b..2c187d2 100644
->> --- a/mm/internal.h
->> +++ b/mm/internal.h
->> @@ -117,6 +117,13 @@ extern int user_min_free_kbytes;
->>  
->>  #if defined CONFIG_COMPACTION || defined CONFIG_CMA
->>  
->> +/* Used to signal whether compaction detected need_sched() or lock contention */
->> +enum compact_contended {
->> +	COMPACT_CONTENDED_NONE = 0, /* no contention detected */
->> +	COMPACT_CONTENDED_SCHED,    /* need_sched() was true */
->> +	COMPACT_CONTENDED_LOCK,     /* zone lock or lru_lock was contended */
->> +};
->> +
->>  /*
->>   * in mm/compaction.c
->>   */
->> @@ -144,10 +151,10 @@ struct compact_control {
->>  	int order;			/* order a direct compactor needs */
->>  	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
->>  	struct zone *zone;
->> -	bool contended;			/* True if a lock was contended, or
->> -					 * need_resched() true during async
->> -					 * compaction
->> -					 */
->> +	enum compact_contended contended; /* Signal need_sched() or lock
->> +					   * contention detected during
->> +					   * compaction
->> +					   */
->>  };
->>  
->>  unsigned long
->> -- 
-> 
-> Anyway, most big concern is that you are changing current behavior as
-> I said earlier.
-> 
-> Old behavior in THP page fault when it consumes own timeslot was just
-> abort and fallback 4K page but with your patch, new behavior is
-> take a rest when it founds need_resched and goes to another round with
-> async, not sync compaction. I'm not sure we need another round with
-> async compaction at the cost of increasing latency rather than fallback
-> 4 page.
+Signed-off-by: Lei Li <lilei@linux.vnet.ibm.com>
+---
+ Documentation/cgroups/memcg_test.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-I don't see the new behavior works like what you said. If need_resched
-is true, it calls cond_resched() and after a rest it just breaks the loop.
-Why there is another round with async compact?
-
-Thanks.
-
-> 
-> It might be okay if the VMA has MADV_HUGEPAGE which is good hint to
-> indicate non-temporal VMA so latency would be trade-off but it's not
-> for temporal big memory allocation in HUGEPAGE_ALWAYS system.
-> 
-> If you really want to go this, could you show us numbers?
-> 
-> 1. How many could we can be successful in direct compaction by this patch?
-> 2. How long could we increase latency for temporal allocation
->    for HUGEPAGE_ALWAYS system?
-> 
-
-
+diff --git a/Documentation/cgroups/memcg_test.txt b/Documentation/cgroups/memcg_test.txt
+index 80ac454..b2d6ccc 100644
+--- a/Documentation/cgroups/memcg_test.txt
++++ b/Documentation/cgroups/memcg_test.txt
+@@ -171,10 +171,10 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
+ 	- add_to_page_cache_locked().
+ 
+ 	uncharged at
+-	- __remove_from_page_cache().
++	- __delete_from_page_cache().
+ 
+ 	The logic is very clear. (About migration, see below)
+-	Note: __remove_from_page_cache() is called by remove_from_page_cache()
++	Note: __delete_from_page_cache() is called by delete_from_page_cache()
+ 	and __remove_mapping().
+ 
+ 6. Shmem(tmpfs) Page Cache
 -- 
-Thanks.
-Zhang Yanfei
+1.8.5.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
