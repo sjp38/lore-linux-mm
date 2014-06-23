@@ -1,176 +1,228 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id E9EF76B0037
-	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 06:50:25 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id et14so5759242pad.27
-        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 03:50:25 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id sr7si21376927pab.202.2014.06.23.03.50.23
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id B98816B0039
+	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 07:02:47 -0400 (EDT)
+Received: by mail-wi0-f181.google.com with SMTP id n3so3946880wiv.8
+        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 04:02:45 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l4si5732754wiz.56.2014.06.23.04.02.43
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 23 Jun 2014 03:50:25 -0700 (PDT)
-Message-ID: <53A80663.90603@huawei.com>
-Date: Mon, 23 Jun 2014 18:50:11 +0800
-From: Zhang Zhen <zhenzhang.zhang@huawei.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 23 Jun 2014 04:02:44 -0700 (PDT)
+Date: Mon, 23 Jun 2014 12:02:40 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm/vmscan.c: fix an implementation flaw in proportional
+ scanning
+Message-ID: <20140623110240.GI10819@suse.de>
+References: <1402980902-6345-1-git-send-email-slaoub@gmail.com>
 MIME-Version: 1.0
-Subject: Re: Why we echo a invalid  start_address_of_new_memory succeeded
- ?
-References: <53A3DD82.3070208@huawei.com> <alpine.DEB.2.02.1406200317420.29234@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1406200317420.29234@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1402980902-6345-1-git-send-email-slaoub@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: wangnan0@huawei.com, xiaofeng.yan@huawei.com, linux-mm@kvack.org
+To: Chen Yucong <slaoub@gmail.com>
+Cc: akpm@linux-foundation.org, minchan@kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2014/6/20 18:30, David Rientjes wrote:
-> On Fri, 20 Jun 2014, Zhang Zhen wrote:
+On Tue, Jun 17, 2014 at 12:55:02PM +0800, Chen Yucong wrote:
+> Via https://lkml.org/lkml/2013/4/10/897, we can know that the relative design
+> idea is to keep
 > 
->> Hi,
->>
->> I am testing mem-hotplug on a qemu virtual machine. I executed the following command
->> to notify memory hot-add event by hand.
->>
->> % echo start_address_of_new_memory > /sys/devices/system/memory/probe
->>
->> To a different start_address_of_new_memory I got different results.
->> The results are as follows:
->>
->> MBSC-x86_64 /sys/devices/system/memory # ls
->> block_size_bytes  memory2           memory5           power
->> memory0           memory3           memory6           probe
->> memory1           memory4           memory7           uevent
->> MBSC-x86_64 /sys/devices/system/memory # echo 0x70000000 > probe
+>     scan_target[anon] : scan_target[file]
+>         == really_scanned_num[anon] : really_scanned_num[file]
 > 
-> Since block_size_bytes is 0x8000000 == 128MB, this is 0x70000000 / 
-> 0x8000000 = section number 14.  Successfully hot added.  Presumably you're 
-> reporting that there is no physical memory there, so this would default to 
-> the online node of the first memory block, probably node 0.
+> But we can find the following snippet in shrink_lruvec():
 > 
->> MBSC-x86_64 /sys/devices/system/memory # echo 0x78000000 > probe
->> -sh: echo: write error: File exists
-> 
-> EEXIST gets returned when the resource already exists, mostly likely 
-> system RAM or reserved memory as reported by your BIOS.  You report this 
-> is a 2GB machine, no reason to believe memory at 1920MB isn't already 
-> online (including reserved).
-> 
->> MBSC-x86_64 /sys/devices/system/memory # echo 0x80000000 > probe
->> -sh: echo: write error: File exists
->> MBSC-x86_64 /sys/devices/system/memory # echo 0x88000000 > probe
->> -sh: echo: write error: File exists
-> 
-> Same.
-> 
->> MBSC-x86_64 /sys/devices/system/memory # echo 0x8f000000 > probe
->> -sh: echo: write error: Invalid argument
-> 
-> Returns EINVAL because it's not a multiple of block_size_bytes, it's not 
-> aligned properly.
-> 
->> MBSC-x86_64 /sys/devices/system/memory # echo 0x90000000 > probe
->> -sh: echo: write error: File exists
-> 
-> See above, the resoure already exists.  Check your e820 your dmesg, which 
-> is missing from this report, to determine what already exists and may be 
-> already online or reserved.
-> 
->> MBSC-x86_64 /sys/devices/system/memory # echo 0xff0000000 > probe
-> 
-> 0xff0000000 / 0x8000000 is section 510, successfully onlined.
-> 
->> MBSC-x86_64 /sys/devices/system/memory # ls
->> block_size_bytes  memory2           memory510         probe
->> memory0           memory3           memory6           uevent
->> memory1           memory4           memory7
->> memory14          memory5           power
-> 
-> Looks good, you onlined sections 14 and 510 above.
-> 
->> MBSC-x86_64 /sys/devices/system/memory # echo 0xfff0000000 > probe
-> 
-> Same for section 8190.
-> 
->> MBSC-x86_64 /sys/devices/system/memory # ls
->> block_size_bytes  memory2           memory510         power
->> memory0           memory3           memory6           probe
->> memory1           memory4           memory7           uevent
->> memory14          memory5           memory8190
->>
-> 
-> Confirmed it's onlined.
-> 
->> The qemu virtual machine's physical memory size is 2048M, and the boot memory is 1024M.
->>
->> MBSC-x86_64 / # cat /proc/meminfo
->> MemTotal:        1018356 kB
->> MBSC-x86_64 / # cat /sys/devices/system/memory/block_size_bytes
->> 8000000
->>
-> 
-> That's irrelevant, you've explicitly onlined memory that doesn't exist.  
-> Not sure why you're using the probe interface unless you need it for x86, 
-> is ACPI not registering it correctly?
-> 
->> Three questions:
->> 1. The machine's physical memory size is 2048M, why echo 0x78000000 as the start_address_of_new_memory failed ?
->>
-> 
-> Copy your e820 map from your dmesg, it's probably reserved or already 
-> online, this is lower than 2048M.
+>     if (nr_file > nr_anon) {
+>         ...
+>     } else {
+>         ...
+>     }
 > 
 
-Hi David,
+This is to preserve the ratio of scanning between the lists once the
+reclaim target has been reached. One list scanning stops and the other
+continues until the proportional number of pages have been scanned.
 
-You are right, if we echo 0x78000000 as the start_address_of_new_memory, the end_address_of_new_memory is exceeded
-the usable range.
-Thank you for your comments.
-
-My e820 map as follows:
-
-[    0.000000] e820: BIOS-provided physical RAM map:
-[    0.000000] BIOS-e820: [mem 0x0000000000000000-0x000000000009fbff] usable
-[    0.000000] BIOS-e820: [mem 0x000000000009fc00-0x000000000009ffff] reserved
-[    0.000000] BIOS-e820: [mem 0x00000000000f0000-0x00000000000fffff] reserved
-[    0.000000] BIOS-e820: [mem 0x0000000000100000-0x000000007fffdfff] usable
-[    0.000000] BIOS-e820: [mem 0x000000007fffe000-0x000000007fffffff] reserved
-[    0.000000] BIOS-e820: [mem 0x00000000fffc0000-0x00000000ffffffff] reserved
-[    0.000000] e820: remove [mem 0x40000000-0xfffffffffffffffe] usable
-[    0.000000] NX (Execute Disable) protection: active
-[    0.000000] e820: user-defined physical RAM map:
-[    0.000000] user: [mem 0x0000000000000000-0x000000000009fbff] usable
-[    0.000000] user: [mem 0x000000000009fc00-0x000000000009ffff] reserved
-[    0.000000] user: [mem 0x00000000000f0000-0x00000000000fffff] reserved
-[    0.000000] user: [mem 0x0000000000100000-0x000000003fffffff] usable
-[    0.000000] user: [mem 0x000000007fffe000-0x000000007fffffff] reserved
-[    0.000000] user: [mem 0x00000000fffc0000-0x00000000ffffffff] reserved
-
->> 2. Why echo 0x8f000000 as the start_address_of_new_memory, the error message is different ?
->>
+> However, the above code fragment broke the design idea. We can assume:
 > 
-> Not properly aligned to block_size_bytes.  It's a nuance, but 
-> block_size_bytes is exported in hex, not decimal.
-
-You are right, it's not properly aligned to block_size_bytes. I have made a mistake.
-
+>       nr[LRU_ACTIVE_FILE] = 30
+>       nr[LRU_INACTIVE_FILE] = 30
+>       nr[LRU_ACTIVE_ANON] = 0
+>       nr[LRU_INACTIVE_ANON] = 40
 > 
->> 3. Why echo 0xfff0000000 as the start_address_of_new_memory succeeded ? 0xfff0000000 has exceeded the machine's physical memory size.
->>
+> When the value of (nr_reclaimed < nr_to_reclaim) become false, there are
+> the following results:
 > 
-> You're telling the kernel differently.
+>       nr[LRU_ACTIVE_FILE] = 15
+>       nr[LRU_INACTIVE_FILE] = 15
+>       nr[LRU_ACTIVE_ANON] = 0
+>       nr[LRU_INACTIVE_ANON] = 25
+>       nr_file = 30
+>       nr_anon = 25
+>       file_percent = 30 / 60 = 0.5
+>       anon_percent = 25 / 40 = 0.65
 > 
 
-I'm not clearly here,  0xfff0000000 is exceeded the usable range [mem 0x0000000000100000-0x000000007fffdfff] usable.
-So i think here should return "File exists", but it succeeded.
+The original proportion was
 
-Is it properly ?
+file_percent = 60
+anon_percent = 40
 
-Best regards!
+We check nr_file > nr_anon based on the remaining scan counts in nr[].
+We recheck what proportion the larger LRU should be scanned based on targets[]
 
-> .
+> According to the above design idea, we should scan some pages from ANON,
+> but in fact we execute the an error code path due to "if (nr_file > nr_anon)".
+> In this way, nr[lru] is likely to be a negative number. Luckily,
+> "nr[lru] -= min(nr[lru], nr_scanned)" can help us to filter this situation,
+> but it has rebelled against our design idea.
 > 
 
+What problem did you encounter? What is the measurable impact of the
+patch? One of the reasons why I have taken so long to look at this is
+because this information was missing.
+
+The original series that introduced this proportional reclaim was
+related to kswapd scanning excessively and swapping pages due to heavy
+writing IO. The overall intent of that series was to prevent kswapd
+scanning excessively while preserving the property that it scan
+file/anon LRU lists proportional to vm.swappiness.
+
+The primary test case used to measure that was memcachetest with varying
+amounts of IO in the background and monitoring the reclaim activity
+(https://lwn.net/Articles/551643/). Later postmark, ffsb, dd of a
+large file and a test that measured mmap latency during IO was used
+(http://lwn.net/Articles/600145/).
+
+In the memcachetest case, it was demonstrated that we no longer swapped
+processes just because there was some IO. That test case may still be
+useful for demonstrating problems with proportional reclaim but the
+"stutter" test that measured mmap latency during IO might be easier. The
+ideal test case would be the one you used for testing this patch and
+verifying it worked as expected.
+
+The point is that even though flaws were discovered later there was still
+data supporting the inclusion of the original patches.
+
+I did not find an example of where I talked about it publicly but at one
+point I used the mm_vmscan_lru_shrink_inactive tracepoint to verify that
+that lists were being scanned proportionally. At the time I would have used a
+fixed version of Documentation/trace/postprocess/trace-vmscan-postprocess.pl.
+mmtests has an equivalent script but it does not currently support reporting
+the proportion of anon/file pages scanned. It should be easy enough to
+generate a quick script that checks the file/anon rate of scanning with
+and without your patch applied
+
+
+> Signed-off-by: Chen Yucong <slaoub@gmail.com>
+> ---
+>  mm/vmscan.c |   39 ++++++++++++++++++---------------------
+>  1 file changed, 18 insertions(+), 21 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index a8ffe4e..2c35e34 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2057,8 +2057,7 @@ out:
+>  static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+>  {
+>  	unsigned long nr[NR_LRU_LISTS];
+> -	unsigned long targets[NR_LRU_LISTS];
+> -	unsigned long nr_to_scan;
+> +	unsigned long file_target, anon_target;
+>  	enum lru_list lru;
+>  	unsigned long nr_reclaimed = 0;
+>  	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
+> @@ -2067,8 +2066,8 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+>  
+>  	get_scan_count(lruvec, sc, nr);
+>  
+> -	/* Record the original scan target for proportional adjustments later */
+> -	memcpy(targets, nr, sizeof(nr));
+> +	file_target = nr[LRU_INACTIVE_FILE] + nr[LRU_ACTIVE_FILE];
+> +	anon_target = nr[LRU_INACTIVE_ANON] + nr[LRU_ACTIVE_ANON];
+>  
+>  	/*
+>  	 * Global reclaiming within direct reclaim at DEF_PRIORITY is a normal
+> @@ -2087,8 +2086,8 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+>  	blk_start_plug(&plug);
+>  	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
+>  					nr[LRU_INACTIVE_FILE]) {
+> -		unsigned long nr_anon, nr_file, percentage;
+> -		unsigned long nr_scanned;
+> +		unsigned long nr_anon, nr_file, file_percent, anon_percent;
+> +		unsigned long nr_to_scan, nr_scanned, percentage;
+>  
+>  		for_each_evictable_lru(lru) {
+>  			if (nr[lru]) {
+> @@ -2122,16 +2121,19 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+>  		if (!nr_file || !nr_anon)
+>  			break;
+>  
+> -		if (nr_file > nr_anon) {
+> -			unsigned long scan_target = targets[LRU_INACTIVE_ANON] +
+> -						targets[LRU_ACTIVE_ANON] + 1;
+> +		file_percent = nr_file * 100 / file_target;
+> +		anon_percent = nr_anon * 100 / anon_target;
+> +
+> +		if (file_percent > anon_percent) {
+
+About all that can be said here is the code is different but not obviously
+better or worse because there is no supporting data for your case.
+
+In the original code, it was assumed that we scanned the LRUs in batches
+of SWAP_CLUSTER_MAX until the requested number of pages were reclaimed.
+Assuming the scan counts do not reach zero prematurely, the ratio
+between nr_file/nr_anon should remain constant. Whether we check the
+remaining counts or the percentages should be irrelevant.
+
+>  			lru = LRU_BASE;
+> -			percentage = nr_anon * 100 / scan_target;
+> +			nr_scanned = file_target - nr_file;
+> +			nr_to_scan = file_target * (100 - anon_percent) / 100;
+> +			percentage = nr[LRU_FILE] * 100 / nr_file;
+>  		} else {
+> -			unsigned long scan_target = targets[LRU_INACTIVE_FILE] +
+> -						targets[LRU_ACTIVE_FILE] + 1;
+>  			lru = LRU_FILE;
+> -			percentage = nr_file * 100 / scan_target;
+> +			nr_scanned = anon_target - nr_anon;
+> +			nr_to_scan = anon_target * (100 - file_percent) / 100;
+> +			percentage = nr[LRU_BASE] * 100 / nr_anon;
+>  		}
+>  
+>  		/* Stop scanning the smaller of the LRU */
+
+
+There is some merit to recording the file_percentage and anon_percentage
+in advance, removing the need for the targets[] array and adjust the
+inactive/active lists by the scanning targets but the changelog should
+include the anon/file scan rates before and after.
+
+
+> @@ -2143,14 +2145,9 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+>  		 * scan target and the percentage scanning already complete
+>  		 */
+>  		lru = (lru == LRU_FILE) ? LRU_BASE : LRU_FILE;
+> -		nr_scanned = targets[lru] - nr[lru];
+> -		nr[lru] = targets[lru] * (100 - percentage) / 100;
+> -		nr[lru] -= min(nr[lru], nr_scanned);
+> -
+> -		lru += LRU_ACTIVE;
+> -		nr_scanned = targets[lru] - nr[lru];
+> -		nr[lru] = targets[lru] * (100 - percentage) / 100;
+> -		nr[lru] -= min(nr[lru], nr_scanned);
+> +		nr_to_scan -= min(nr_to_scan, nr_scanned);
+> +		nr[lru] = nr_to_scan * percentage / 100;
+> +		nr[lru + LRU_ACTIVE] = nr_to_scan - nr[lru];
+>  
+>  		scan_adjusted = true;
+>  	}
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
