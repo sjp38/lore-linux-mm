@@ -1,66 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
-	by kanga.kvack.org (Postfix) with ESMTP id D839C6B0069
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 03:49:08 -0400 (EDT)
-Received: by mail-lb0-f169.google.com with SMTP id l4so6024917lbv.14
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 00:49:08 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id e2si18966812lab.49.2014.06.24.00.49.03
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id A036A6B006E
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 04:09:36 -0400 (EDT)
+Received: by mail-pb0-f53.google.com with SMTP id uo5so6931573pbc.12
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 01:09:36 -0700 (PDT)
+Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com. [202.81.31.147])
+        by mx.google.com with ESMTPS id e10si25181581pat.80.2014.06.24.01.09.34
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jun 2014 00:49:07 -0700 (PDT)
-Date: Tue, 24 Jun 2014 11:48:53 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm v3 8/8] slab: do not keep free objects/slabs on dead
- memcg caches
-Message-ID: <20140624074853.GB18121@esperanza>
-References: <cover.1402602126.git.vdavydov@parallels.com>
- <a985aec824cd35df381692fca83f7a8debc80305.1402602126.git.vdavydov@parallels.com>
- <20140624073840.GC4836@js1304-P5Q-DELUXE>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20140624073840.GC4836@js1304-P5Q-DELUXE>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 24 Jun 2014 01:09:35 -0700 (PDT)
+Received: from /spool/local
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
+	Tue, 24 Jun 2014 18:09:32 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 6F1A42BB0047
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 18:09:29 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s5O7lCY212714390
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 17:47:12 +1000
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s5O89SeN012715
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 18:09:28 +1000
+From: Wei Yang <weiyang@linux.vnet.ibm.com>
+Subject: [PATCH] slub: reduce duplicate creation on the first object
+Date: Tue, 24 Jun 2014 16:08:55 +0800
+Message-Id: <1403597335-5465-1-git-send-email-weiyang@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: akpm@linux-foundation.org, cl@linux.com, rientjes@google.com, penberg@kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: clameter@sgi.com, cl@linux.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Wei Yang <weiyang@linux.vnet.ibm.com>
 
-On Tue, Jun 24, 2014 at 04:38:41PM +0900, Joonsoo Kim wrote:
-> On Fri, Jun 13, 2014 at 12:38:22AM +0400, Vladimir Davydov wrote:
-> > @@ -3462,6 +3474,17 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp,
-> >  
-> >  	kmemcheck_slab_free(cachep, objp, cachep->object_size);
-> >  
-> > +#ifdef CONFIG_MEMCG_KMEM
-> > +	if (unlikely(!ac)) {
-> > +		int nodeid = page_to_nid(virt_to_page(objp));
-> > +
-> > +		spin_lock(&cachep->node[nodeid]->list_lock);
-> > +		free_block(cachep, &objp, 1, nodeid);
-> > +		spin_unlock(&cachep->node[nodeid]->list_lock);
-> > +		return;
-> > +	}
-> > +#endif
-> > +
-> 
-> And, please document intention of this code. :)
+When a kmem_cache is created with ctor, each object in the kmem_cache will be
+initialized before ready to use. While in slub implementation, the first
+object will be initialized twice.
 
-Sure.
+This patch reduces the duplication of initialization of the first object.
 
-> And, you said that this way of implementation would be slow because
-> there could be many object in dead caches and this implementation
-> needs node spin_lock on each object freeing. Is it no problem now?
+Fix commit 7656c72b: SLUB: add macros for scanning objects in a slab.
 
-It may be :(
+Signed-off-by: Wei Yang <weiyang@linux.vnet.ibm.com>
+---
+ mm/slub.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-> If you have any performance data about this implementation and
-> alternative one, could you share it?
-
-I haven't (shame on me!). I'll do some testing today and send you the
-results.
-
-Thanks.
+diff --git a/mm/slub.c b/mm/slub.c
+index b2b0473..beefd45 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1433,7 +1433,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
+ 		memset(start, POISON_INUSE, PAGE_SIZE << order);
+ 
+ 	last = start;
+-	for_each_object(p, s, start, page->objects) {
++	for_each_object(p, s, start + s->size, page->objects - 1) {
+ 		setup_object(s, page, last);
+ 		set_freepointer(s, last, p);
+ 		last = p;
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
