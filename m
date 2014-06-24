@@ -1,93 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id AFE416B0031
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 19:20:54 -0400 (EDT)
-Received: by mail-ie0-f175.google.com with SMTP id tp5so951557ieb.20
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 16:20:54 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id p4si2865855ice.62.2014.06.24.16.20.53
-        for <linux-mm@kvack.org>;
-        Tue, 24 Jun 2014 16:20:54 -0700 (PDT)
-Date: Tue, 24 Jun 2014 16:20:52 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -mm 3/3] page-cgroup: fix flags definition
-Message-Id: <20140624162052.6778a13e3b3f4af251e300e7@linux-foundation.org>
-In-Reply-To: <aacc50fb60eeb9cbe14e07235310fb9295b2658b.1403626729.git.vdavydov@parallels.com>
-References: <9f5abf8dcb07fe5462f12f81867f199c22e883d3.1403626729.git.vdavydov@parallels.com>
-	<aacc50fb60eeb9cbe14e07235310fb9295b2658b.1403626729.git.vdavydov@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 4071E6B0037
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 19:30:07 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id z10so849620pdj.1
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 16:30:06 -0700 (PDT)
+Received: from fgwmail2.fujitsu.co.jp (fgwmail2.fujitsu.co.jp. [164.71.1.135])
+        by mx.google.com with ESMTPS id nx10si2456832pbb.197.2014.06.24.16.30.05
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 24 Jun 2014 16:30:06 -0700 (PDT)
+Received: from kw-mxq.gw.nic.fujitsu.com (unknown [10.0.237.131])
+	by fgwmail2.fujitsu.co.jp (Postfix) with ESMTP id F18653EE0BC
+	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 08:30:04 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.nic.fujitsu.com [10.0.50.94])
+	by kw-mxq.gw.nic.fujitsu.com (Postfix) with ESMTP id EF518AC077F
+	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 08:30:03 +0900 (JST)
+Received: from g01jpfmpwyt01.exch.g01.fujitsu.local (g01jpfmpwyt01.exch.g01.fujitsu.local [10.128.193.38])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 9A697E78003
+	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 08:30:03 +0900 (JST)
+Message-ID: <53AA09C0.4090109@jp.fujitsu.com>
+Date: Wed, 25 Jun 2014 08:29:04 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/2] x86,mem-hotplug: modify PGD entry when removing memory
+References: <53A132E2.9000605@jp.fujitsu.com>		 <53A133ED.2090005@jp.fujitsu.com>	 <1403289003.25108.3.camel@misato.fc.hp.com>	 <53A8C6F6.2060906@jp.fujitsu.com> <1403622753.25108.12.camel@misato.fc.hp.com>
+In-Reply-To: <1403622753.25108.12.camel@misato.fc.hp.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, tangchen@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, guz.fnst@cn.fujitsu.com, zhangyanfei@cn.fujitsu.com
 
-On Tue, 24 Jun 2014 20:33:06 +0400 Vladimir Davydov <vdavydov@parallels.com> wrote:
-
-> Since commit a9ce315aaec1f ("mm: memcontrol: rewrite uncharge API"),
-> PCG_* flags are used as bit masks, but they are still defined in a enum
-> as bit numbers. Fix it.
-> 
-> ...
+(2014/06/25 0:12), Toshi Kani wrote:
+> On Tue, 2014-06-24 at 09:31 +0900, Yasuaki Ishimatsu wrote:
+>> (2014/06/21 3:30), Toshi Kani wrote:
+>>> On Wed, 2014-06-18 at 15:38 +0900, Yasuaki Ishimatsu wrote:
+>>>    :
+>>>> @@ -186,7 +186,12 @@ void sync_global_pgds(unsigned long start, unsigned long end)
+>>>>    		const pgd_t *pgd_ref = pgd_offset_k(address);
+>>>>    		struct page *page;
+>>>>
+>>>> -		if (pgd_none(*pgd_ref))
+>>>> +		/*
+>>>> +		 * When it is called after memory hot remove, pgd_none()
+>>>> +		 * returns true. In this case (removed == 1), we must clear
+>>>> +		 * the PGD entries in the local PGD level page.
+>>>> +		 */
+>>>> +		if (pgd_none(*pgd_ref) && !removed)
+>>>>    			continue;
+>>>>
+>>>>    		spin_lock(&pgd_lock);
+>>>> @@ -199,12 +204,18 @@ void sync_global_pgds(unsigned long start, unsigned long end)
+>>>>    			pgt_lock = &pgd_page_get_mm(page)->page_table_lock;
+>>>>    			spin_lock(pgt_lock);
+>>>>
+>>>> -			if (pgd_none(*pgd))
+>>>> -				set_pgd(pgd, *pgd_ref);
+>>>> -			else
+>>
+>>>> +			if (!pgd_none(*pgd_ref) && !pgd_none(*pgd))
+>>>>    				BUG_ON(pgd_page_vaddr(*pgd)
+>>>>    				       != pgd_page_vaddr(*pgd_ref));
+>>>>
+>>>> +			if (removed) {
+>>>
+>>> Shouldn't this condition be "else if"?
+>>
+>> The first if sentence checks whether PGDs hit to BUG_ON. And the second
+>> if sentence checks whether the function was called after hot-removing memory.
+>> I think that the first if sentence and the second if sentence check different
+>> things. So I think the condition should be "if" sentence.
 >
-> --- a/include/linux/page_cgroup.h
-> +++ b/include/linux/page_cgroup.h
-> @@ -1,12 +1,10 @@
->  #ifndef __LINUX_PAGE_CGROUP_H
->  #define __LINUX_PAGE_CGROUP_H
->  
-> -enum {
-> -	/* flags for mem_cgroup */
-> -	PCG_USED,	/* This page is charged to a memcg */
-> -	PCG_MEM,	/* This page holds a memory charge */
-> -	PCG_MEMSW,	/* This page holds a memory+swap charge */
-> -};
-> +/* flags for mem_cgroup */
-> +#define PCG_USED	0x01	/* This page is charged to a memcg */
-> +#define PCG_MEM		0x02	/* This page holds a memory charge */
-> +#define PCG_MEMSW	0x04	/* This page holds a memory+swap charge */
->  
->  struct pglist_data;
->  
-> @@ -44,7 +42,7 @@ struct page *lookup_cgroup_page(struct page_cgroup *pc);
->  
->  static inline int PageCgroupUsed(struct page_cgroup *pc)
->  {
-> -	return test_bit(PCG_USED, &pc->flags);
-> +	return !!(pc->flags & PCG_USED);
->  }
->  #else /* !CONFIG_MEMCG */
->  struct page_cgroup;
+> When the 1st if sentence is true, you have no additional operation and
+> the 2nd if sentence is redundant. But I agree that the two ifs can be
+> logically separated. So:
+>
 
-hm, yes, whoops.  I think I'll redo this as a fix against
-mm-memcontrol-rewrite-uncharge-api.patch:
+> Acked-by: Toshi Kani <toshi.kani@hp.com>
 
---- a/include/linux/page_cgroup.h~page-cgroup-fix-flags-definition
-+++ a/include/linux/page_cgroup.h
-@@ -3,9 +3,9 @@
- 
- enum {
- 	/* flags for mem_cgroup */
--	PCG_USED,	/* This page is charged to a memcg */
--	PCG_MEM,	/* This page holds a memory charge */
--	PCG_MEMSW,	/* This page holds a memory+swap charge */
-+	PCG_USED = 0x01,	/* This page is charged to a memcg */
-+	PCG_MEM = 0x02,		/* This page holds a memory charge */
-+	PCG_MEMSW = 0x04,	/* This page holds a memory+swap charge */
- 	__NR_PCG_FLAGS,
- };
- 
-@@ -46,7 +46,7 @@ struct page *lookup_cgroup_page(struct p
- 
- static inline int PageCgroupUsed(struct page_cgroup *pc)
- {
--	return test_bit(PCG_USED, &pc->flags);
-+	return !!(pc->flags & PCG_USED);
- }
- 
- #else /* CONFIG_MEMCG */
-_
+Thank you for your review.
+
+Thanks,
+Yasuaki Ishimatsu
+
+>
+> Thanks,
+> -Toshi
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
