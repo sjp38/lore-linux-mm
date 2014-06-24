@@ -1,126 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 899ED6B0031
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 18:05:38 -0400 (EDT)
-Received: by mail-qg0-f50.google.com with SMTP id j5so897278qga.23
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 15:05:38 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f16si2118449qaq.15.2014.06.24.15.05.37
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id E76B46B0031
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 18:30:44 -0400 (EDT)
+Received: by mail-ig0-f175.google.com with SMTP id h3so5317810igd.8
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 15:30:44 -0700 (PDT)
+Received: from mail-ig0-x22f.google.com (mail-ig0-x22f.google.com [2607:f8b0:4001:c05::22f])
+        by mx.google.com with ESMTPS id bm3si2735230icb.49.2014.06.24.15.30.43
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jun 2014 15:05:37 -0700 (PDT)
-Date: Wed, 25 Jun 2014 08:05:30 +1000
-From: Dave Chinner <dchinner@redhat.com>
-Subject: Re: xfs: two deadlock problems occur when kswapd writebacks XFS
- pages.
-Message-ID: <20140624220530.GD1976@devil.localdomain>
-References: <53A0013A.1010100@jp.fujitsu.com>
- <20140617132609.GI9508@dastard>
- <53A15DC7.50001@jp.fujitsu.com>
- <53A7D6CC.1040605@jp.fujitsu.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 24 Jun 2014 15:30:44 -0700 (PDT)
+Received: by mail-ig0-f175.google.com with SMTP id h3so5321162igd.14
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 15:30:43 -0700 (PDT)
+Date: Tue, 24 Jun 2014 15:30:41 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, vmalloc: constify allocation mask
+Message-ID: <alpine.DEB.2.02.1406241527030.29176@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <53A7D6CC.1040605@jp.fujitsu.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
-Cc: xfs@oss.sgi.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Jun 23, 2014 at 04:27:08PM +0900, Masayoshi Mizuma wrote:
-> Hi Dave,
-> 
-> (I removed CCing xfs and linux-mm. And I changed your email address
->  to @redhat.com because this email includes RHEL7 kernel stack traces.)
+tmp_mask in the __vmalloc_area_node() iteration never changes so it can be 
+moved into function scope and marked with const.  This causes the movl and 
+orl to only be done once per call rather than area->nr_pages times.
 
-Please don't do that. There's nothing wrong with posting RHEL7 stack
-traces to public lists (though I'd prefer you to reproduce this
-problem on a 3.15 or 3.16-rc kernel), and breaking the thread of
-discussion makes it impossible to involve the people necessary to
-solve this problem.
+nested_gfp can also be marked const.
 
-I've re-added xfs and linux-mm to the cc list, and taken my redhat
-address off it...
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ mm/vmalloc.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-<snip the 3 process back traces>
-
-[looks at sysrq-w output]
-
-kswapd0 is blocked in shrink_inactive_list/congestion_wait().
-
-kswapd1 is blocked waiting for log space from
-shrink_inactive_list().
-
-kthreadd is blocked in shrink_inactive_list/congestion_wait trying
-to fork another process.
-
-xfsaild is in uninterruptible sleep, indicating that there is still
-metadata to be written to push the log tail to it's required target,
-and it will retry again in less than 20ms.
-
-xfslogd is not blocked, indicating the log has not deadlocked
-due to lack of space.
-
-there are lots of timestamp updates waiting for log space.
-
-There is one kworker stuck in data IO completion on an inode lock.
-
-There are several threads blocked on an AGF lock trying to free
-extents.
-
-The bdi writeback thread is blocked waiting for allocation.
-
-A single xfs_alloc_wq kworker is blocked in
-shrink_inactive_list/congestion_wait while trying to read in btree
-blocks for transactional modification. Indicative of memory pressure
-trashing the working set of cached metadata. waiting for memory
-reclaim
-	- holds agf lock, blocks unlinks
-
-There are 113 (!) blocked sadc processes - why are there so many
-stats gathering processes running? If you stop gathering stats, does
-the problem go away?
-
-There are 54 mktemp processes blocked - what is generating them?
-what filesystem are they actually running on? i.e. which XFS
-filesystem in the system is having log space shortages? And what is
-the xfs_info output of that filesystem i.e. have you simply
-oversubscribed a tiny log and so it crawls along at a very slow
-pace?
-
-All of the blocked processes are on CPUs 0-3 i.e. on node 0, which
-is handled by kswapd0, which is not blocked waiting for log
-space. Hmmm - what is the value of /proc/sys/vm/zone_reclaim_mode?
-If it is not zero, does setting it to zero make the problem go away?
-
-Interestingly enough, for a system under extreme memory pressure,
-don't see any processes blocked waiting for swap space or swap IO.
-Do you have any swap space configured on this machine?  If you
-don't, does the problem go away when you add a swap device?
-
-Overall, I can't see anything that indicates that the filesystem has
-actually hung. I can see it having trouble allocating the memory it
-needs to make forwards progress, but the system itself is not
-deadlocked. Is there any IO being issued when the system is in this
-state? If there is Io being issued, then progress is being made and
-the system is merely slow because of the extreme memory pressure
-generated by the stress test.
-
-If there is not IO being issued, does the system start making
-progress again if you kill one of the memory hogs? i.e. does the
-equivalent of triggering an OOM-kill make the system responsive
-again? If it does, then the filesystem is not hung and the problem
-is that there isn't enough free memory to allow the filesystem to do
-IO and hence allow memory reclaim to make progress. In which case,
-does increasing /proc/sys/vm/min_free_kbytes make the problem go
-away?
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-dchinner@redhat.com
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1566,7 +1566,8 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 	const int order = 0;
+ 	struct page **pages;
+ 	unsigned int nr_pages, array_size, i;
+-	gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
++	const gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
++	const gfp_t alloc_mask = gfp_mask | __GFP_NOWARN;
+ 
+ 	nr_pages = get_vm_area_size(area) >> PAGE_SHIFT;
+ 	array_size = (nr_pages * sizeof(struct page *));
+@@ -1589,12 +1590,11 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+ 
+ 	for (i = 0; i < area->nr_pages; i++) {
+ 		struct page *page;
+-		gfp_t tmp_mask = gfp_mask | __GFP_NOWARN;
+ 
+ 		if (node == NUMA_NO_NODE)
+-			page = alloc_page(tmp_mask);
++			page = alloc_page(alloc_mask);
+ 		else
+-			page = alloc_pages_node(node, tmp_mask, order);
++			page = alloc_pages_node(node, alloc_mask, order);
+ 
+ 		if (unlikely(!page)) {
+ 			/* Successfully allocated i pages, free them in __vunmap() */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
