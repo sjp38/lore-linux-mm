@@ -1,66 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
-	by kanga.kvack.org (Postfix) with ESMTP id E76B46B0031
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 18:30:44 -0400 (EDT)
-Received: by mail-ig0-f175.google.com with SMTP id h3so5317810igd.8
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 15:30:44 -0700 (PDT)
-Received: from mail-ig0-x22f.google.com (mail-ig0-x22f.google.com [2607:f8b0:4001:c05::22f])
-        by mx.google.com with ESMTPS id bm3si2735230icb.49.2014.06.24.15.30.43
+Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id A67F06B0031
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 18:44:36 -0400 (EDT)
+Received: by mail-ie0-f177.google.com with SMTP id tp5so888576ieb.8
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 15:44:36 -0700 (PDT)
+Received: from mail-ie0-x229.google.com (mail-ie0-x229.google.com [2607:f8b0:4001:c03::229])
+        by mx.google.com with ESMTPS id h20si2760623icc.67.2014.06.24.15.44.35
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 24 Jun 2014 15:30:44 -0700 (PDT)
-Received: by mail-ig0-f175.google.com with SMTP id h3so5321162igd.14
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 15:30:43 -0700 (PDT)
-Date: Tue, 24 Jun 2014 15:30:41 -0700 (PDT)
+        Tue, 24 Jun 2014 15:44:36 -0700 (PDT)
+Received: by mail-ie0-f169.google.com with SMTP id at1so925164iec.28
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 15:44:35 -0700 (PDT)
+Date: Tue, 24 Jun 2014 15:44:33 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, vmalloc: constify allocation mask
-Message-ID: <alpine.DEB.2.02.1406241527030.29176@chino.kir.corp.google.com>
+Subject: Re: [PATCH] mm: update the description for madvise_remove
+In-Reply-To: <53A9116B.9030004@gmail.com>
+Message-ID: <alpine.DEB.2.02.1406241542040.29176@chino.kir.corp.google.com>
+References: <53A9116B.9030004@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Wang Sheng-Hui <shhuiw@gmail.com>, Michael Kerrisk <mtk.manpages@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Johannes Weiner <hannes@cmpxchg.org>, Andi Kleen <ak@linux.intel.com>, Vladimir Cernov <gg.kaspersky@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
 
-tmp_mask in the __vmalloc_area_node() iteration never changes so it can be 
-moved into function scope and marked with const.  This causes the movl and 
-orl to only be done once per call rather than area->nr_pages times.
+On Tue, 24 Jun 2014, Wang Sheng-Hui wrote:
 
-nested_gfp can also be marked const.
+> 
+> Currently, we have more filesystems supporting fallocate, e.g
+> ext4/btrfs. Remove the outdated comment for madvise_remove.
+> 
+> Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
+> ---
+>  mm/madvise.c | 3 ---
+>  1 file changed, 3 deletions(-)
+> 
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index a402f8f..0938b30 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -292,9 +292,6 @@ static long madvise_dontneed(struct vm_area_struct *vma,
+>  /*
+>   * Application wants to free up the pages and associated backing store.
+>   * This is effectively punching a hole into the middle of a file.
+> - *
+> - * NOTE: Currently, only shmfs/tmpfs is supported for this operation.
+> - * Other filesystems return -ENOSYS.
+>   */
+>  static long madvise_remove(struct vm_area_struct *vma,
+>                                 struct vm_area_struct **prev,
 
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/vmalloc.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+[For those without context: this patch has been merged into the -mm tree.]
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1566,7 +1566,8 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
- 	const int order = 0;
- 	struct page **pages;
- 	unsigned int nr_pages, array_size, i;
--	gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
-+	const gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
-+	const gfp_t alloc_mask = gfp_mask | __GFP_NOWARN;
- 
- 	nr_pages = get_vm_area_size(area) >> PAGE_SHIFT;
- 	array_size = (nr_pages * sizeof(struct page *));
-@@ -1589,12 +1590,11 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
- 
- 	for (i = 0; i < area->nr_pages; i++) {
- 		struct page *page;
--		gfp_t tmp_mask = gfp_mask | __GFP_NOWARN;
- 
- 		if (node == NUMA_NO_NODE)
--			page = alloc_page(tmp_mask);
-+			page = alloc_page(alloc_mask);
- 		else
--			page = alloc_pages_node(node, tmp_mask, order);
-+			page = alloc_pages_node(node, alloc_mask, order);
- 
- 		if (unlikely(!page)) {
- 			/* Successfully allocated i pages, free them in __vunmap() */
+This reference also exists in the man-page for madvise(2), are you 
+planning on removing it as well?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
