@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CC696B0071
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 12:33:21 -0400 (EDT)
-Received: by mail-lb0-f174.google.com with SMTP id u10so809030lbd.5
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 09:33:21 -0700 (PDT)
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id A6B1E6B0074
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 12:33:22 -0400 (EDT)
+Received: by mail-lb0-f172.google.com with SMTP id c11so818024lbj.31
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 09:33:22 -0700 (PDT)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id xb4si1604372lbb.4.2014.06.24.09.33.19
+        by mx.google.com with ESMTPS id p2si744097laf.135.2014.06.24.09.33.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 24 Jun 2014 09:33:20 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm 1/3] page-cgroup: trivial cleanup
-Date: Tue, 24 Jun 2014 20:33:04 +0400
-Message-ID: <9f5abf8dcb07fe5462f12f81867f199c22e883d3.1403626729.git.vdavydov@parallels.com>
+Subject: [PATCH -mm 3/3] page-cgroup: fix flags definition
+Date: Tue, 24 Jun 2014 20:33:06 +0400
+Message-ID: <aacc50fb60eeb9cbe14e07235310fb9295b2658b.1403626729.git.vdavydov@parallels.com>
+In-Reply-To: <9f5abf8dcb07fe5462f12f81867f199c22e883d3.1403626729.git.vdavydov@parallels.com>
+References: <9f5abf8dcb07fe5462f12f81867f199c22e883d3.1403626729.git.vdavydov@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -20,81 +22,45 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Add forward declarations for struct pglist_data, mem_cgroup.
-
-Remove __init, __meminit from function prototypes and inline functions.
-
-Remove redundant inclusion of bit_spinlock.h.
+Since commit a9ce315aaec1f ("mm: memcontrol: rewrite uncharge API"),
+PCG_* flags are used as bit masks, but they are still defined in a enum
+as bit numbers. Fix it.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- include/linux/page_cgroup.h |   22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
+ include/linux/page_cgroup.h |   12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)
 
 diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
-index 97b5c39a31c8..23863edb95ff 100644
+index fb60e4a466c0..9065a61345a1 100644
 --- a/include/linux/page_cgroup.h
 +++ b/include/linux/page_cgroup.h
-@@ -12,8 +12,10 @@ enum {
- #ifndef __GENERATING_BOUNDS_H
- #include <generated/bounds.h>
+@@ -1,12 +1,10 @@
+ #ifndef __LINUX_PAGE_CGROUP_H
+ #define __LINUX_PAGE_CGROUP_H
  
-+struct pglist_data;
-+
- #ifdef CONFIG_MEMCG
--#include <linux/bit_spinlock.h>
-+struct mem_cgroup;
+-enum {
+-	/* flags for mem_cgroup */
+-	PCG_USED,	/* This page is charged to a memcg */
+-	PCG_MEM,	/* This page holds a memory charge */
+-	PCG_MEMSW,	/* This page holds a memory+swap charge */
+-};
++/* flags for mem_cgroup */
++#define PCG_USED	0x01	/* This page is charged to a memcg */
++#define PCG_MEM		0x02	/* This page holds a memory charge */
++#define PCG_MEMSW	0x04	/* This page holds a memory+swap charge */
  
- /*
-  * Page Cgroup can be considered as an extended mem_map.
-@@ -27,16 +29,16 @@ struct page_cgroup {
- 	struct mem_cgroup *mem_cgroup;
- };
+ struct pglist_data;
  
--void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat);
-+extern void pgdat_page_cgroup_init(struct pglist_data *pgdat);
+@@ -44,7 +42,7 @@ struct page *lookup_cgroup_page(struct page_cgroup *pc);
  
- #ifdef CONFIG_SPARSEMEM
--static inline void __init page_cgroup_init_flatmem(void)
-+static inline void page_cgroup_init_flatmem(void)
+ static inline int PageCgroupUsed(struct page_cgroup *pc)
  {
+-	return test_bit(PCG_USED, &pc->flags);
++	return !!(pc->flags & PCG_USED);
  }
--extern void __init page_cgroup_init(void);
-+extern void page_cgroup_init(void);
- #else
--void __init page_cgroup_init_flatmem(void);
--static inline void __init page_cgroup_init(void)
-+extern void page_cgroup_init_flatmem(void);
-+static inline void page_cgroup_init(void)
- {
- }
- #endif
-@@ -48,11 +50,10 @@ static inline int PageCgroupUsed(struct page_cgroup *pc)
- {
- 	return test_bit(PCG_USED, &pc->flags);
- }
--
--#else /* CONFIG_MEMCG */
-+#else /* !CONFIG_MEMCG */
+ #else /* !CONFIG_MEMCG */
  struct page_cgroup;
- 
--static inline void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat)
-+static inline void pgdat_page_cgroup_init(struct pglist_data *pgdat)
- {
- }
- 
-@@ -65,10 +66,9 @@ static inline void page_cgroup_init(void)
- {
- }
- 
--static inline void __init page_cgroup_init_flatmem(void)
-+static inline void page_cgroup_init_flatmem(void)
- {
- }
--
- #endif /* CONFIG_MEMCG */
- 
- #include <linux/swap.h>
 -- 
 1.7.10.4
 
