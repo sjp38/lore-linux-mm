@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id AC5366B0031
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 03:21:14 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id ma3so6915247pbc.29
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 00:21:14 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id ho3si6377764pac.233.2014.06.24.00.21.12
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id E85176B0037
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 03:34:01 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id et14so6883701pad.21
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 00:34:01 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id tx10si25065102pac.112.2014.06.24.00.33.59
         for <linux-mm@kvack.org>;
-        Tue, 24 Jun 2014 00:21:13 -0700 (PDT)
-Date: Tue, 24 Jun 2014 16:25:54 +0900
+        Tue, 24 Jun 2014 00:34:01 -0700 (PDT)
+Date: Tue, 24 Jun 2014 16:38:41 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Subject: Re: [PATCH -mm v3 8/8] slab: do not keep free objects/slabs on dead
  memcg caches
-Message-ID: <20140624072554.GB4836@js1304-P5Q-DELUXE>
+Message-ID: <20140624073840.GC4836@js1304-P5Q-DELUXE>
 References: <cover.1402602126.git.vdavydov@parallels.com>
  <a985aec824cd35df381692fca83f7a8debc80305.1402602126.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -87,12 +87,33 @@ On Fri, Jun 13, 2014 at 12:38:22AM +0400, Vladimir Davydov wrote:
 > -			if (n->free_objects > n->free_limit) {
 > +			if (n->free_objects > n->free_limit ||
 > +			    memcg_cache_dead(cachep)) {
+>  				n->free_objects -= cachep->num;
+>  				/* No need to drop any previously held
+>  				 * lock here, even if we have a off-slab slab
+> @@ -3462,6 +3474,17 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp,
+>  
+>  	kmemcheck_slab_free(cachep, objp, cachep->object_size);
+>  
+> +#ifdef CONFIG_MEMCG_KMEM
+> +	if (unlikely(!ac)) {
+> +		int nodeid = page_to_nid(virt_to_page(objp));
+> +
+> +		spin_lock(&cachep->node[nodeid]->list_lock);
+> +		free_block(cachep, &objp, 1, nodeid);
+> +		spin_unlock(&cachep->node[nodeid]->list_lock);
+> +		return;
+> +	}
+> +#endif
+> +
 
-Hello, Vladimir.
+And, please document intention of this code. :)
 
-I'd like to set 0 to free_limit in __kmem_cache_shrink()
-rather than memcg_cache_dead() test here, because memcg_cache_dead()
-is more expensive than it. Is there any problem in this way?
+And, you said that this way of implementation would be slow because
+there could be many object in dead caches and this implementation
+needs node spin_lock on each object freeing. Is it no problem now?
+
+If you have any performance data about this implementation and
+alternative one, could you share it?
 
 Thanks.
 
