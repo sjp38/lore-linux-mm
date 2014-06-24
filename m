@@ -1,81 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B7DB6B005A
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 03:45:31 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id rq2so6921812pbb.11
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 00:45:31 -0700 (PDT)
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 3ABE36B0062
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 03:47:43 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id y10so6590854pdj.8
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 00:47:42 -0700 (PDT)
 Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id ku7si25020116pbc.107.2014.06.24.00.45.29
+        by mx.google.com with ESMTP id wk8si25119598pab.59.2014.06.24.00.47.41
         for <linux-mm@kvack.org>;
-        Tue, 24 Jun 2014 00:45:30 -0700 (PDT)
-Date: Tue, 24 Jun 2014 16:50:11 +0900
+        Tue, 24 Jun 2014 00:47:42 -0700 (PDT)
+Date: Tue, 24 Jun 2014 16:52:23 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH -mm v3 7/8] slub: make dead memcg caches discard free
- slabs immediately
-Message-ID: <20140624075011.GD4836@js1304-P5Q-DELUXE>
-References: <cover.1402602126.git.vdavydov@parallels.com>
- <d4608a7a00080a51740d747703af5462f1255176.1402602126.git.vdavydov@parallels.com>
+Subject: Re: [PATCH v3 -next 0/9] CMA: generalize CMA reserved area
+ management code
+Message-ID: <20140624075223.GE4836@js1304-P5Q-DELUXE>
+References: <1402897251-23639-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <539EB4C7.3080106@samsung.com>
+ <20140617012507.GA6825@js1304-P5Q-DELUXE>
+ <20140618135144.297c785260f9e2aebead867c@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d4608a7a00080a51740d747703af5462f1255176.1402602126.git.vdavydov@parallels.com>
+In-Reply-To: <20140618135144.297c785260f9e2aebead867c@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: akpm@linux-foundation.org, cl@linux.com, rientjes@google.com, penberg@kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On Fri, Jun 13, 2014 at 12:38:21AM +0400, Vladimir Davydov wrote:
-> Since a dead memcg cache is destroyed only after the last slab allocated
-> to it is freed, we must disable caching of empty slabs for such caches,
-> otherwise they will be hanging around forever.
+On Wed, Jun 18, 2014 at 01:51:44PM -0700, Andrew Morton wrote:
+> On Tue, 17 Jun 2014 10:25:07 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 > 
-> This patch makes SLUB discard dead memcg caches' slabs as soon as they
-> become empty. To achieve that, it disables per cpu partial lists for
-> dead caches (see put_cpu_partial) and forbids keeping empty slabs on per
-> node partial lists by setting cache's min_partial to 0 on
-> kmem_cache_shrink, which is always called on memcg offline (see
-> memcg_unregister_all_caches).
+> > > >v2:
+> > > >   - Although this patchset looks very different with v1, the end result,
+> > > >   that is, mm/cma.c is same with v1's one. So I carry Ack to patch 6-7.
+> > > >
+> > > >This patchset is based on linux-next 20140610.
+> > > 
+> > > Thanks for taking care of this. I will test it with my setup and if
+> > > everything goes well, I will take it to my -next tree. If any branch
+> > > is required for anyone to continue his works on top of those patches,
+> > > let me know, I will also prepare it.
+> > 
+> > Hello,
+> > 
+> > I'm glad to hear that. :)
+> > But, there is one concern. As you already know, I am preparing further
+> > patches (Aggressively allocate the pages on CMA reserved memory). It
+> > may be highly related to MM branch and also slightly depends on this CMA
+> > changes. In this case, what is the best strategy to merge this
+> > patchset? IMHO, Anrew's tree is more appropriate branch. If there is
+> > no issue in this case, I am willing to develope further patches based
+> > on your tree.
 > 
-> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-> Thanks-to: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
->  mm/slub.c |   11 +++++++++++
->  1 file changed, 11 insertions(+)
-> 
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 52565a9426ef..0d2d1978e62c 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -2064,6 +2064,14 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
->  
->  	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page)
->  								!= oldpage);
-> +
-> +	if (memcg_cache_dead(s)) {
-> +		unsigned long flags;
-> +
-> +		local_irq_save(flags);
-> +		unfreeze_partials(s, this_cpu_ptr(s->cpu_slab));
-> +		local_irq_restore(flags);
-> +	}
->  #endif
->  }
->  
-> @@ -3409,6 +3417,9 @@ int __kmem_cache_shrink(struct kmem_cache *s)
->  		kmalloc(sizeof(struct list_head) * objects, GFP_KERNEL);
->  	unsigned long flags;
->  
-> +	if (memcg_cache_dead(s))
-> +		s->min_partial = 0;
-> +
->  	if (!slabs_by_inuse) {
->  		/*
->  		 * Do not fail shrinking empty slabs if allocation of the
+> That's probably easier.  Marek, I'll merge these into -mm (and hence
+> -next and git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git)
+> and shall hold them pending you review/ack/test/etc, OK?
 
-I think that you should move down n->nr_partial test after holding the
-lock in __kmem_cache_shrink(). Access to n->nr_partial without node lock
-is racy and you can see wrong value. It results in skipping to free empty
-slab so your destroying logic could fail.
+Hello, Marek.
+
+Could you share your decision about this patchset?
 
 Thanks.
 
