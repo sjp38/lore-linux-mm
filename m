@@ -1,81 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id A3DD76B0073
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 12:33:22 -0400 (EDT)
-Received: by mail-lb0-f177.google.com with SMTP id u10so818185lbd.36
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 09:33:21 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ji9si1563897lbc.48.2014.06.24.09.33.19
+Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 226C76B007B
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 13:34:24 -0400 (EDT)
+Received: by mail-qc0-f173.google.com with SMTP id l6so600764qcy.18
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 10:34:23 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k6si1266440qct.2.2014.06.24.10.34.23
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jun 2014 09:33:20 -0700 (PDT)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm 2/3] page-cgroup: get rid of NR_PCG_FLAGS
-Date: Tue, 24 Jun 2014 20:33:05 +0400
-Message-ID: <26252c1699103f7efe51b224dd61bdb74e31f255.1403626729.git.vdavydov@parallels.com>
-In-Reply-To: <9f5abf8dcb07fe5462f12f81867f199c22e883d3.1403626729.git.vdavydov@parallels.com>
-References: <9f5abf8dcb07fe5462f12f81867f199c22e883d3.1403626729.git.vdavydov@parallels.com>
+        Tue, 24 Jun 2014 10:34:23 -0700 (PDT)
+Date: Tue, 24 Jun 2014 12:58:21 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v3 04/13] mm, compaction: move pageblock checks up from
+ isolate_migratepages_range()
+Message-ID: <20140624165821.GC18289@nhori.bos.redhat.com>
+References: <1403279383-5862-1-git-send-email-vbabka@suse.cz>
+ <1403279383-5862-5-git-send-email-vbabka@suse.cz>
+ <20140624045252.GA18289@nhori.bos.redhat.com>
+ <53A99A88.1040500@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53A99A88.1040500@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-kernel@vger.kernel.org
 
-It's not used anywhere today, so let's remove it.
+On Tue, Jun 24, 2014 at 05:34:32PM +0200, Vlastimil Babka wrote:
+> On 06/24/2014 06:52 AM, Naoya Horiguchi wrote:
+> >>-	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn, false);
+> >>-	if (!low_pfn || cc->contended)
+> >>-		return ISOLATE_ABORT;
+> >>+		/* Do not scan within a memory hole */
+> >>+		if (!pfn_valid(low_pfn))
+> >>+			continue;
+> >>+
+> >>+		page = pfn_to_page(low_pfn);
+> >
+> >Can we move (page_zone != zone) check here as isolate_freepages() does?
+> 
+> Duplicate perhaps, not sure about move.
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
----
- include/linux/page_cgroup.h |    6 ------
- kernel/bounds.c             |    2 --
- 2 files changed, 8 deletions(-)
+Sorry for my unclearness.
+I meant that we had better do this check in per-pageblock loop (as the free
+scanner does) instead of in per-pfn loop (as we do now.)
 
-diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
-index 23863edb95ff..fb60e4a466c0 100644
---- a/include/linux/page_cgroup.h
-+++ b/include/linux/page_cgroup.h
-@@ -6,12 +6,8 @@ enum {
- 	PCG_USED,	/* This page is charged to a memcg */
- 	PCG_MEM,	/* This page holds a memory charge */
- 	PCG_MEMSW,	/* This page holds a memory+swap charge */
--	__NR_PCG_FLAGS,
- };
- 
--#ifndef __GENERATING_BOUNDS_H
--#include <generated/bounds.h>
--
- struct pglist_data;
- 
- #ifdef CONFIG_MEMCG
-@@ -107,6 +103,4 @@ static inline void swap_cgroup_swapoff(int type)
- 
- #endif /* CONFIG_MEMCG_SWAP */
- 
--#endif /* !__GENERATING_BOUNDS_H */
--
- #endif /* __LINUX_PAGE_CGROUP_H */
-diff --git a/kernel/bounds.c b/kernel/bounds.c
-index 9fd4246b04b8..e1d1d1952bfa 100644
---- a/kernel/bounds.c
-+++ b/kernel/bounds.c
-@@ -9,7 +9,6 @@
- #include <linux/page-flags.h>
- #include <linux/mmzone.h>
- #include <linux/kbuild.h>
--#include <linux/page_cgroup.h>
- #include <linux/log2.h>
- #include <linux/spinlock_types.h>
- 
-@@ -18,7 +17,6 @@ void foo(void)
- 	/* The enum constants to put into include/generated/bounds.h */
- 	DEFINE(NR_PAGEFLAGS, __NR_PAGEFLAGS);
- 	DEFINE(MAX_NR_ZONES, __MAX_NR_ZONES);
--	DEFINE(NR_PCG_FLAGS, __NR_PCG_FLAGS);
- #ifdef CONFIG_SMP
- 	DEFINE(NR_CPUS_BITS, ilog2(CONFIG_NR_CPUS));
- #endif
--- 
-1.7.10.4
+> Does CMA make sure that all pages
+> are in the same zone?
+
+It seems not, CMA just specifies start pfn and end pfn, so it can cover
+multiple zones.
+And we also have a case of node overlapping as commented in commit dc9086004
+"mm: compaction: check for overlapping nodes during isolation for migration".
+So we need this check in compaction side.
+
+Thanks,
+Naoya Horiguchi
+
+> Common sense tells me it would be useless otherwise,
+> but I haven't checked if we can rely on it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
