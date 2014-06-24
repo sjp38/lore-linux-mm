@@ -1,54 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f50.google.com (mail-qa0-f50.google.com [209.85.216.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C1896B0039
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 16:58:35 -0400 (EDT)
-Received: by mail-qa0-f50.google.com with SMTP id m5so749071qaj.37
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 13:58:35 -0700 (PDT)
-Received: from mail-qc0-x22a.google.com (mail-qc0-x22a.google.com [2607:f8b0:400d:c01::22a])
-        by mx.google.com with ESMTPS id l10si1911665qad.51.2014.06.24.13.58.34
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 899ED6B0031
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 18:05:38 -0400 (EDT)
+Received: by mail-qg0-f50.google.com with SMTP id j5so897278qga.23
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 15:05:38 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f16si2118449qaq.15.2014.06.24.15.05.37
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 24 Jun 2014 13:58:34 -0700 (PDT)
-Received: by mail-qc0-f170.google.com with SMTP id l6so875014qcy.15
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 13:58:34 -0700 (PDT)
-Date: Tue, 24 Jun 2014 16:58:32 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] mm/mempolicy: fix sleeping function called from invalid
- context
-Message-ID: <20140624205832.GB14909@htj.dyndns.org>
-References: <53902A44.50005@cn.fujitsu.com>
- <20140605132339.ddf6df4a0cf5c14d17eb8691@linux-foundation.org>
- <539192F1.7050308@cn.fujitsu.com>
- <alpine.DEB.2.02.1406081539140.21744@chino.kir.corp.google.com>
- <539574F1.2060701@cn.fujitsu.com>
- <alpine.DEB.2.02.1406090209460.24247@chino.kir.corp.google.com>
- <53967465.7070908@huawei.com>
- <20140620210137.GA2059@mtj.dyndns.org>
- <53A8E23C.4050103@huawei.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Jun 2014 15:05:37 -0700 (PDT)
+Date: Wed, 25 Jun 2014 08:05:30 +1000
+From: Dave Chinner <dchinner@redhat.com>
+Subject: Re: xfs: two deadlock problems occur when kswapd writebacks XFS
+ pages.
+Message-ID: <20140624220530.GD1976@devil.localdomain>
+References: <53A0013A.1010100@jp.fujitsu.com>
+ <20140617132609.GI9508@dastard>
+ <53A15DC7.50001@jp.fujitsu.com>
+ <53A7D6CC.1040605@jp.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <53A8E23C.4050103@huawei.com>
+In-Reply-To: <53A7D6CC.1040605@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: David Rientjes <rientjes@google.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>, stable@vger.kernel.org
+To: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+Cc: xfs@oss.sgi.com, linux-mm@kvack.org
 
-Hello,
-
-On Tue, Jun 24, 2014 at 10:28:12AM +0800, Li Zefan wrote:
-> > I don't think the suggested patch breaks anything more than it was
-> > broken before and we should probably apply it for the time being.  Li?
+On Mon, Jun 23, 2014 at 04:27:08PM +0900, Masayoshi Mizuma wrote:
+> Hi Dave,
 > 
-> Yeah, we should apply Gu Zheng's patch any way.
+> (I removed CCing xfs and linux-mm. And I changed your email address
+>  to @redhat.com because this email includes RHEL7 kernel stack traces.)
 
-Gu Zheng, can you please respin the patch with updated explanation on
-the temporary nature of the change.  I'll apply it once Li acks it.
+Please don't do that. There's nothing wrong with posting RHEL7 stack
+traces to public lists (though I'd prefer you to reproduce this
+problem on a 3.15 or 3.16-rc kernel), and breaking the thread of
+discussion makes it impossible to involve the people necessary to
+solve this problem.
 
-Thanks.
+I've re-added xfs and linux-mm to the cc list, and taken my redhat
+address off it...
 
+<snip the 3 process back traces>
+
+[looks at sysrq-w output]
+
+kswapd0 is blocked in shrink_inactive_list/congestion_wait().
+
+kswapd1 is blocked waiting for log space from
+shrink_inactive_list().
+
+kthreadd is blocked in shrink_inactive_list/congestion_wait trying
+to fork another process.
+
+xfsaild is in uninterruptible sleep, indicating that there is still
+metadata to be written to push the log tail to it's required target,
+and it will retry again in less than 20ms.
+
+xfslogd is not blocked, indicating the log has not deadlocked
+due to lack of space.
+
+there are lots of timestamp updates waiting for log space.
+
+There is one kworker stuck in data IO completion on an inode lock.
+
+There are several threads blocked on an AGF lock trying to free
+extents.
+
+The bdi writeback thread is blocked waiting for allocation.
+
+A single xfs_alloc_wq kworker is blocked in
+shrink_inactive_list/congestion_wait while trying to read in btree
+blocks for transactional modification. Indicative of memory pressure
+trashing the working set of cached metadata. waiting for memory
+reclaim
+	- holds agf lock, blocks unlinks
+
+There are 113 (!) blocked sadc processes - why are there so many
+stats gathering processes running? If you stop gathering stats, does
+the problem go away?
+
+There are 54 mktemp processes blocked - what is generating them?
+what filesystem are they actually running on? i.e. which XFS
+filesystem in the system is having log space shortages? And what is
+the xfs_info output of that filesystem i.e. have you simply
+oversubscribed a tiny log and so it crawls along at a very slow
+pace?
+
+All of the blocked processes are on CPUs 0-3 i.e. on node 0, which
+is handled by kswapd0, which is not blocked waiting for log
+space. Hmmm - what is the value of /proc/sys/vm/zone_reclaim_mode?
+If it is not zero, does setting it to zero make the problem go away?
+
+Interestingly enough, for a system under extreme memory pressure,
+don't see any processes blocked waiting for swap space or swap IO.
+Do you have any swap space configured on this machine?  If you
+don't, does the problem go away when you add a swap device?
+
+Overall, I can't see anything that indicates that the filesystem has
+actually hung. I can see it having trouble allocating the memory it
+needs to make forwards progress, but the system itself is not
+deadlocked. Is there any IO being issued when the system is in this
+state? If there is Io being issued, then progress is being made and
+the system is merely slow because of the extreme memory pressure
+generated by the stress test.
+
+If there is not IO being issued, does the system start making
+progress again if you kill one of the memory hogs? i.e. does the
+equivalent of triggering an OOM-kill make the system responsive
+again? If it does, then the filesystem is not hung and the problem
+is that there isn't enough free memory to allow the filesystem to do
+IO and hence allow memory reclaim to make progress. In which case,
+does increasing /proc/sys/vm/min_free_kbytes make the problem go
+away?
+
+Cheers,
+
+Dave.
 -- 
-tejun
+Dave Chinner
+dchinner@redhat.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
