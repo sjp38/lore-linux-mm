@@ -1,47 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 548676B0037
-	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 22:53:19 -0400 (EDT)
-Received: by mail-pb0-f44.google.com with SMTP id md12so6617096pbc.17
-        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 19:53:18 -0700 (PDT)
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id D1C016B0031
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 00:23:51 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id ft15so6477404pdb.21
+        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 21:23:51 -0700 (PDT)
 Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
-        by mx.google.com with ESMTP id rm10si24367710pab.197.2014.06.23.19.53.17
+        by mx.google.com with ESMTP id li1si24570895pab.183.2014.06.23.21.23.50
         for <linux-mm@kvack.org>;
-        Mon, 23 Jun 2014 19:53:18 -0700 (PDT)
-From: "Ren, Qiaowei" <qiaowei.ren@intel.com>
-Subject: RE: [PATCH v6 02/10] x86, mpx: add MPX specific mmap interface
-Date: Tue, 24 Jun 2014 02:53:12 +0000
-Message-ID: <9E0BE1322F2F2246BD820DA9FC397ADE016AF2DB@shsmsx102.ccr.corp.intel.com>
-References: <1403084656-27284-1-git-send-email-qiaowei.ren@intel.com>
- <1403084656-27284-3-git-send-email-qiaowei.ren@intel.com>
- <53A884B2.5070702@mit.edu>
-In-Reply-To: <53A884B2.5070702@mit.edu>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Mon, 23 Jun 2014 21:23:50 -0700 (PDT)
+Date: Tue, 24 Jun 2014 12:23:31 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [next:master 103/212] make[2]: *** No rule to make target
+ `arch/powerpc/kvm/book3s_hv_cma.o', needed by
+ `arch/powerpc/kvm/built-in.o'.
+Message-ID: <53a8fd43.3YaWacNnJ4rMjQ6L%fengguang.wu@intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>
-Cc: "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org
 
-On 2014-06-24, Andy Lutomirski wrote:
->> +	/* Make bounds tables and bouds directory unlocked. */
->> +	if (vm_flags & VM_LOCKED)
->> +		vm_flags &=3D ~VM_LOCKED;
->=20
-> Why?  I would expect MCL_FUTURE to lock these.
->=20
-Andy, I was just a little confused about LOCKED & POPULATE earlier and I th=
-ought VM_LOCKED is not necessary for MPX specific bounds tables. Now, this =
-checking should be removed, and there should be mm_populate() for VM_LOCKED=
- case after mmap_region():
+tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+head:   58ae500a03a6bf68eee323c342431bfdd3f460b6
+commit: e58e263e5254df63f3997192322220748e4f6223 [103/212] PPC, KVM, CMA: use general CMA reserved area management framework
+config: make ARCH=powerpc ppc64_defconfig
 
-   if (!IS_ERR_VALUE(addr) && (vm_flags & VM_LOCKED))
-       mm_populate(addr, len);
+All error/warnings:
 
-Thanks,
-Qiaowei
+>> make[2]: *** No rule to make target `arch/powerpc/kvm/book3s_hv_cma.o', needed by `arch/powerpc/kvm/built-in.o'.
+   make[2]: Target `__build' not remade because of errors.
+
+---
+0-DAY kernel build testing backend              Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
