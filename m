@@ -1,84 +1,303 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id E8A8E6B0037
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 11:24:35 -0400 (EDT)
-Received: by mail-we0-f174.google.com with SMTP id u57so579515wes.33
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 08:24:35 -0700 (PDT)
-Received: from mail-wg0-x229.google.com (mail-wg0-x229.google.com [2a00:1450:400c:c00::229])
-        by mx.google.com with ESMTPS id dr2si1652933wid.14.2014.06.24.08.24.34
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F0BC6B0039
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 11:29:35 -0400 (EDT)
+Received: by mail-wi0-f177.google.com with SMTP id r20so864609wiv.10
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 08:29:34 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id hf2si872711wjc.66.2014.06.24.08.29.31
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 24 Jun 2014 08:24:34 -0700 (PDT)
-Received: by mail-wg0-f41.google.com with SMTP id a1so568591wgh.24
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 08:24:34 -0700 (PDT)
+        Tue, 24 Jun 2014 08:29:32 -0700 (PDT)
+Message-ID: <53A99957.5050109@suse.cz>
+Date: Tue, 24 Jun 2014 17:29:27 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20140623141925.47507153d49f22ee5cca62e1@linux-foundation.org>
-References: <1400958369-3588-1-git-send-email-ddstreet@ieee.org>
- <1401747586-11861-1-git-send-email-ddstreet@ieee.org> <1401747586-11861-2-git-send-email-ddstreet@ieee.org>
- <20140623141925.47507153d49f22ee5cca62e1@linux-foundation.org>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Tue, 24 Jun 2014 11:24:12 -0400
-Message-ID: <CALZtONA59cwZYN+UHA8bPj-N3LgorZTbfJHX-OQAUpABpstSKw@mail.gmail.com>
-Subject: Re: [PATCHv2 1/6] mm/zbud: zbud_alloc() minor param change
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH v3 02/13] mm, compaction: defer each zone individually
+ instead of preferred zone
+References: <1403279383-5862-1-git-send-email-vbabka@suse.cz> <1403279383-5862-3-git-send-email-vbabka@suse.cz> <20140624082306.GF4836@js1304-P5Q-DELUXE>
+In-Reply-To: <20140624082306.GF4836@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Seth Jennings <sjennings@variantweb.net>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>, Nitin Gupta <ngupta@vflare.org>, Bob Liu <bob.liu@oracle.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-kernel@vger.kernel.org
 
-On Mon, Jun 23, 2014 at 5:19 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Mon,  2 Jun 2014 18:19:41 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
+On 06/24/2014 10:23 AM, Joonsoo Kim wrote:
+> On Fri, Jun 20, 2014 at 05:49:32PM +0200, Vlastimil Babka wrote:
+>> When direct sync compaction is often unsuccessful, it may become deferred for
+>> some time to avoid further useless attempts, both sync and async. Successful
+>> high-order allocations un-defer compaction, while further unsuccessful
+>> compaction attempts prolong the copmaction deferred period.
+>>
+>> Currently the checking and setting deferred status is performed only on the
+>> preferred zone of the allocation that invoked direct compaction. But compaction
+>> itself is attempted on all eligible zones in the zonelist, so the behavior is
+>> suboptimal and may lead both to scenarios where 1) compaction is attempted
+>> uselessly, or 2) where it's not attempted despite good chances of succeeding,
+>> as shown on the examples below:
+>>
+>> 1) A direct compaction with Normal preferred zone failed and set deferred
+>>     compaction for the Normal zone. Another unrelated direct compaction with
+>>     DMA32 as preferred zone will attempt to compact DMA32 zone even though
+>>     the first compaction attempt also included DMA32 zone.
+>>
+>>     In another scenario, compaction with Normal preferred zone failed to compact
+>>     Normal zone, but succeeded in the DMA32 zone, so it will not defer
+>>     compaction. In the next attempt, it will try Normal zone which will fail
+>>     again, instead of skipping Normal zone and trying DMA32 directly.
+>>
+>> 2) Kswapd will balance DMA32 zone and reset defer status based on watermarks
+>>     looking good. A direct compaction with preferred Normal zone will skip
+>>     compaction of all zones including DMA32 because Normal was still deferred.
+>>     The allocation might have succeeded in DMA32, but won't.
+>>
+>> This patch makes compaction deferring work on individual zone basis instead of
+>> preferred zone. For each zone, it checks compaction_deferred() to decide if the
+>> zone should be skipped. If watermarks fail after compacting the zone,
+>> defer_compaction() is called. The zone where watermarks passed can still be
+>> deferred when the allocation attempt is unsuccessful. When allocation is
+>> successful, compaction_defer_reset() is called for the zone containing the
+>> allocated page. This approach should approximate calling defer_compaction()
+>> only on zones where compaction was attempted and did not yield allocated page.
+>> There might be corner cases but that is inevitable as long as the decision
+>> to stop compacting dues not guarantee that a page will be allocated.
+>>
+>> During testing on a two-node machine with a single very small Normal zone on
+>> node 1, this patch has improved success rates in stress-highalloc mmtests
+>> benchmark. The success here were previously made worse by commit 3a025760fc
+>> ("mm: page_alloc: spill to remote nodes before waking kswapd") as kswapd was
+>> no longer resetting often enough the deferred compaction for the Normal zone,
+>> and DMA32 zones on both nodes were thus not considered for compaction.
+>>
+>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+>> Cc: Minchan Kim <minchan@kernel.org>
+>> Cc: Mel Gorman <mgorman@suse.de>
+>> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> Cc: Michal Nazarewicz <mina86@mina86.com>
+>> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>> Cc: Christoph Lameter <cl@linux.com>
+>> Cc: Rik van Riel <riel@redhat.com>
+>> Cc: David Rientjes <rientjes@google.com>
+>> ---
+>>   include/linux/compaction.h |  6 ++++--
+>>   mm/compaction.c            | 29 ++++++++++++++++++++++++-----
+>>   mm/page_alloc.c            | 33 ++++++++++++++++++---------------
+>>   3 files changed, 46 insertions(+), 22 deletions(-)
+>>
+>> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+>> index 01e3132..76f9beb 100644
+>> --- a/include/linux/compaction.h
+>> +++ b/include/linux/compaction.h
+>> @@ -22,7 +22,8 @@ extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
+>>   extern int fragmentation_index(struct zone *zone, unsigned int order);
+>>   extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
+>>   			int order, gfp_t gfp_mask, nodemask_t *mask,
+>> -			enum migrate_mode mode, bool *contended);
+>> +			enum migrate_mode mode, bool *contended, bool *deferred,
+>> +			struct zone **candidate_zone);
+>>   extern void compact_pgdat(pg_data_t *pgdat, int order);
+>>   extern void reset_isolation_suitable(pg_data_t *pgdat);
+>>   extern unsigned long compaction_suitable(struct zone *zone, int order);
+>> @@ -91,7 +92,8 @@ static inline bool compaction_restarting(struct zone *zone, int order)
+>>   #else
+>>   static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
+>>   			int order, gfp_t gfp_mask, nodemask_t *nodemask,
+>> -			enum migrate_mode mode, bool *contended)
+>> +			enum migrate_mode mode, bool *contended, bool *deferred,
+>> +			struct zone **candidate_zone)
+>>   {
+>>   	return COMPACT_CONTINUE;
+>>   }
+>> diff --git a/mm/compaction.c b/mm/compaction.c
+>> index 5175019..7c491d0 100644
+>> --- a/mm/compaction.c
+>> +++ b/mm/compaction.c
+>> @@ -1122,13 +1122,15 @@ int sysctl_extfrag_threshold = 500;
+>>    * @nodemask: The allowed nodes to allocate from
+>>    * @mode: The migration mode for async, sync light, or sync migration
+>>    * @contended: Return value that is true if compaction was aborted due to lock contention
+>> - * @page: Optionally capture a free page of the requested order during compaction
+>> + * @deferred: Return value that is true if compaction was deferred in all zones
+>> + * @candidate_zone: Return the zone where we think allocation should succeed
+>>    *
+>>    * This is the main entry point for direct page compaction.
+>>    */
+>>   unsigned long try_to_compact_pages(struct zonelist *zonelist,
+>>   			int order, gfp_t gfp_mask, nodemask_t *nodemask,
+>> -			enum migrate_mode mode, bool *contended)
+>> +			enum migrate_mode mode, bool *contended, bool *deferred,
+>> +			struct zone **candidate_zone)
+>>   {
+>>   	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
+>>   	int may_enter_fs = gfp_mask & __GFP_FS;
+>> @@ -1142,8 +1144,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+>>   	if (!order || !may_enter_fs || !may_perform_io)
+>>   		return rc;
+>>
+>> -	count_compact_event(COMPACTSTALL);
+>> -
+>> +	*deferred = true;
+>>   #ifdef CONFIG_CMA
+>>   	if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
+>>   		alloc_flags |= ALLOC_CMA;
+>> @@ -1153,16 +1154,34 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+>>   								nodemask) {
+>>   		int status;
+>>
+>> +		if (compaction_deferred(zone, order))
+>> +			continue;
+>> +
+>> +		*deferred = false;
+>> +
+>>   		status = compact_zone_order(zone, order, gfp_mask, mode,
+>>   						contended);
+>>   		rc = max(status, rc);
+>>
+>>   		/* If a normal allocation would succeed, stop compacting */
+>>   		if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0,
+>> -				      alloc_flags))
+>> +				      alloc_flags)) {
+>> +			*candidate_zone = zone;
+>>   			break;
 >
->> Change zbud to store gfp_t flags passed at pool creation to use for
->> each alloc; this allows the api to be closer to the existing zsmalloc
->> interface, and the only current zbud user (zswap) uses the same gfp
->> flags for all allocs.  Update zswap to use changed interface.
+> How about doing compaction_defer_reset() here?
 >
-> This would appear to be a step backwards.  There's nothing wrong with
-> requiring all callers to pass in a gfp_t and removing this option makes
-> the API less usable.
+> As you said before, although this check is successful, it doesn't ensure
+> success of highorder allocation, because of some unknown reason(ex: racy
+> allocation attempt steals this page). But, at least, passing this check
+> means that we succeed compaction and there is much possibility to exit
+> compaction without searching whole zone range.
+
+Well another reason is that the check is racy wrt NR_FREE counters 
+drift. But I think it tends to be false negative rather than false 
+positive. So it could work, and with page capture it would be quite 
+accurate. I'll try.
+
+> So, highorder allocation failure doesn't means that we should defer
+> compaction.
 >
-> IMO the patch needs much better justification, or dropping.
+>> +		} else if (mode != MIGRATE_ASYNC) {
+>> +			/*
+>> +			 * We think that allocation won't succeed in this zone
+>> +			 * so we defer compaction there. If it ends up
+>> +			 * succeeding after all, it will be reset.
+>> +			 */
+>> +			defer_compaction(zone, order);
+>> +		}
+>>   	}
+>>
+>> +	/* If at least one zone wasn't deferred, we count a compaction stall */
+>> +	if (!*deferred)
+>> +		count_compact_event(COMPACTSTALL);
+>> +
+>
+> Could you keep this counting in __alloc_pages_direct_compact()?
+> It will help to understand how this statistic works.
 
-Well, since zpool can be backed by either zsmalloc or zbud, those 2
-apis have to be consistent, and currently zbud does use a per-malloc
-gfp_t param while zsmalloc doesn't.  Does it make more sense to add a
-gfp_t param to zsmalloc's alloc function?
+Well, count_compact_event is defined in compaction.c and this would be 
+usage in page_alloc.c. I'm not sure if it helps.
 
+>>   	return rc;
+>>   }
+>
+> And if possible, it is better to makes deferred to one of compaction
+> status likes as COMPACTION_SKIPPDED. It makes code more clear.
 
-I wonder though if allowing the caller to pass a gfp_t for each alloc
-really does make sense, though.  Any memory alloc'ed isn't actually
-controllable by the caller, and in fact it's currently impossible for
-the caller to free memory alloc'ed by the backing pool - the caller
-can invalidate specific handles, but that doesn't guarantee the memory
-alloc'ed for that handle will then be freed - it could remain in use
-with some other handle(s).  Additionally, there's no guarantee that
-when the user creates a new handle, and new memory will be allocated -
-a previous available handle could be used.
+That could work inside try_to_compact_pages() as well.
 
-So I guess what I'm suggesting is that because 1) there is no
-guarantee that a call to zpool_malloc() will actually call kmalloc()
-with the provided gfp_t; previously kmalloc'ed memory with a different
-gfp_t could be (and probably in many cases will be) used, and 2) the
-caller has no way to free any memory kmalloc'ed with specific gfp_t
-(so for example, using GFP_ATOMIC would be a bad idea, since the
-caller couldn't then free that memory directly), it makes more sense
-to me to keep all allocations in the pool using the same gfp_t flags.
-If there was a need to be able to create pool handles using different
-gfp_t flags, then it would be probably more effective to create
-multiple pools, each one with the different desired gfp_t flags to
-use.
+>>
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index ee92384..6593f79 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -2238,18 +2238,17 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+>>   	bool *contended_compaction, bool *deferred_compaction,
+>>   	unsigned long *did_some_progress)
+>>   {
+>> -	if (!order)
+>> -		return NULL;
+>> +	struct zone *last_compact_zone = NULL;
+>>
+>> -	if (compaction_deferred(preferred_zone, order)) {
+>> -		*deferred_compaction = true;
+>> +	if (!order)
+>>   		return NULL;
+>> -	}
+>>
+>>   	current->flags |= PF_MEMALLOC;
+>>   	*did_some_progress = try_to_compact_pages(zonelist, order, gfp_mask,
+>>   						nodemask, mode,
+>> -						contended_compaction);
+>> +						contended_compaction,
+>> +						deferred_compaction,
+>> +						&last_compact_zone);
+>>   	current->flags &= ~PF_MEMALLOC;
+>>
+>>   	if (*did_some_progress != COMPACT_SKIPPED) {
+>> @@ -2263,27 +2262,31 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+>>   				order, zonelist, high_zoneidx,
+>>   				alloc_flags & ~ALLOC_NO_WATERMARKS,
+>>   				preferred_zone, classzone_idx, migratetype);
+>> +
+>>   		if (page) {
+>> -			preferred_zone->compact_blockskip_flush = false;
+>> -			compaction_defer_reset(preferred_zone, order, true);
+>> +			struct zone *zone = page_zone(page);
+>> +
+>> +			zone->compact_blockskip_flush = false;
+>> +			compaction_defer_reset(zone, order, true);
+>>   			count_vm_event(COMPACTSUCCESS);
+>>   			return page;
+>
+> This snippet raise a though to me.
+> Why don't we reset compaction_defer_reset() if we succeed to allocate
+> highorder page on fastpath or some other path? If we succeed to
+> allocate it on some other path rather than here, it means that the status of
+> memory changes. So this deferred check would be stale test.
 
-However, from the implementation side, changing zsmalloc is trivial to
-just add a gfp_t param to alloc, and update zpool_malloc to accept and
-pass through the gfp_t param.  So if that still makes more sense to
-you, I can update things to change the zsmalloc api to add the param,
-instead of this patch which removes the param from its api.  Assuming
-that Minchan and Nitin also have no problem with updating the zsmalloc
-api - there should be no functional difference in the zram/zsmalloc
-relationship, since zram would simply always pass the same gfp_t to
-zsmalloc.
+Hm, not sure if we want to do that in fast paths. As long as somebody 
+succeeds, that means nobody has to try checking for deferred compaction 
+and it doesn't matter. When they stop succeeding, then it may be stale, 
+yes. But is it worth polluting fast paths with defer resets?
+
+>
+>>   		}
+>>
+>>   		/*
+>> +		 * last_compact_zone is where try_to_compact_pages thought
+>> +		 * allocation should succeed, so it did not defer compaction.
+>> +		 * But now we know that it didn't succeed, so we do the defer.
+>> +		 */
+>> +		if (last_compact_zone && mode != MIGRATE_ASYNC)
+>> +			defer_compaction(last_compact_zone, order);
+>> +
+>> +		/*
+>>   		 * It's bad if compaction run occurs and fails.
+>>   		 * The most likely reason is that pages exist,
+>>   		 * but not enough to satisfy watermarks.
+>>   		 */
+>>   		count_vm_event(COMPACTFAIL);
+>>
+>> -		/*
+>> -		 * As async compaction considers a subset of pageblocks, only
+>> -		 * defer if the failure was a sync compaction failure.
+>> -		 */
+>> -		if (mode != MIGRATE_ASYNC)
+>> -			defer_compaction(preferred_zone, order);
+>> -
+>>   		cond_resched();
+>>   	}
+>>
+>> --
+>> 1.8.4.5
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
