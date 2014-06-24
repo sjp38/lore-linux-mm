@@ -1,227 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A7446B0031
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 18:48:11 -0400 (EDT)
-Received: by mail-wg0-f48.google.com with SMTP id n12so1081783wgh.7
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 15:48:10 -0700 (PDT)
-Received: from mail-wg0-f74.google.com (mail-wg0-f74.google.com [74.125.82.74])
-        by mx.google.com with ESMTPS id ek10si3491276wid.60.2014.06.24.15.48.09
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 24 Jun 2014 15:48:09 -0700 (PDT)
-Received: by mail-wg0-f74.google.com with SMTP id x13so120667wgg.5
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 15:48:09 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: [RFC] mm: cma: move init_cma_reserved_pageblock to cma.c
-Date: Wed, 25 Jun 2014 00:48:02 +0200
-Message-Id: <1403650082-10056-1-git-send-email-mina86@mina86.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 7239B6B0031
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 19:09:00 -0400 (EDT)
+Received: by mail-ie0-f178.google.com with SMTP id rd18so936601iec.37
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 16:09:00 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id v8si2878006icb.3.2014.06.24.16.08.59
+        for <linux-mm@kvack.org>;
+        Tue, 24 Jun 2014 16:08:59 -0700 (PDT)
+Date: Tue, 24 Jun 2014 16:08:57 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCHv4 3/6] mm/zpool: implement common zpool api to
+ zbud/zsmalloc
+Message-Id: <20140624160857.ebb638c4c69c1d290f64d01f@linux-foundation.org>
+In-Reply-To: <CALZtONDKmM8nRv3tqZThc8mC3Dmrxqj7if5-yAeivnfCbfwENw@mail.gmail.com>
+References: <1400958369-3588-1-git-send-email-ddstreet@ieee.org>
+	<1401747586-11861-1-git-send-email-ddstreet@ieee.org>
+	<1401747586-11861-4-git-send-email-ddstreet@ieee.org>
+	<20140623144614.d4549fa0aecb03b7b8044bc7@linux-foundation.org>
+	<CALZtONDKmM8nRv3tqZThc8mC3Dmrxqj7if5-yAeivnfCbfwENw@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Salter <msalter@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, Michal Nazarewicz <mina86@mina86.com>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Seth Jennings <sjennings@variantweb.net>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>, Nitin Gupta <ngupta@vflare.org>, Bob Liu <bob.liu@oracle.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-With [f495d26: a??generalize CMA reserved area management
-functionalitya??] patch CMA has its place under mm directory now so
-there is no need to shoehorn a highly CMA specific functions inside of
-page_alloc.c.
+On Tue, 24 Jun 2014 11:39:12 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
 
-As such move init_cma_reserved_pageblock from mm/page_alloc.c to
-mm/cma.c, rename it to cma_init_reserved_pageblock and refactor
-a little.
+> On Mon, Jun 23, 2014 at 5:46 PM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+> > On Mon,  2 Jun 2014 18:19:43 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
+> >
+> >> Add zpool api.
+> >>
+> >> zpool provides an interface for memory storage, typically of compressed
+> >> memory.  Users can select what backend to use; currently the only
+> >> implementations are zbud, a low density implementation with up to
+> >> two compressed pages per storage page, and zsmalloc, a higher density
+> >> implementation with multiple compressed pages per storage page.
+> >>
+> >> ...
+> >>
+> >> +/**
+> >> + * zpool_create_pool() - Create a new zpool
+> >> + * @type     The type of the zpool to create (e.g. zbud, zsmalloc)
+> >> + * @flags    What GFP flags should be used when the zpool allocates memory.
+> >> + * @ops              The optional ops callback.
+> >> + *
+> >> + * This creates a new zpool of the specified type.  The zpool will use the
+> >> + * given flags when allocating any memory.  If the ops param is NULL, then
+> >> + * the created zpool will not be shrinkable.
+> >> + *
+> >> + * Returns: New zpool on success, NULL on failure.
+> >> + */
+> >> +struct zpool *zpool_create_pool(char *type, gfp_t flags,
+> >> +                     struct zpool_ops *ops);
+> >
+> > It is unconventional to document the API in the .h file.  It's better
+> > to put the documentation where people expect to find it.
+> >
+> > It's irritating for me (for example) because this kernel convention has
+> > permitted me to train my tags system to ignore prototypes in headers.
+> > But if I want to find the zpool_create_pool documentation I will need
+> > to jump through hoops.
+> 
+> Got it, I will move it to the .c file.
+> 
+> I noticed you pulled these into -mm, do you want me to send follow-on
+> patches for these changes, or actually update the origin patches and
+> resend the patch set?
 
-Most importantly, if a !pfn_valid(pfn) is encountered, just
-return -EINVAL instead of warning and trying to continue the
-initialisation of the area.  It's not clear, to me at least, what good
-is continuing the work on a PFN that is known to be invalid.
+Full resend, I guess.  I often add things which are
+not-quite-fully-baked to give them a bit of testing, check for
+integration with other changes, etc.
 
-Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
----
- include/linux/gfp.h |  3 --
- mm/cma.c            | 85 +++++++++++++++++++++++++++++++++++++++++------------
- mm/page_alloc.c     | 31 -------------------
- 3 files changed, 66 insertions(+), 53 deletions(-)
+> >
+> >>
+> >> ...
+> >>
+> >> +
+> >> +struct zpool *zpool_create_pool(char *type, gfp_t flags,
+> >> +                     struct zpool_ops *ops)
+> >> +{
+> >> +     struct zpool_driver *driver;
+> >> +     struct zpool *zpool;
+> >> +
+> >> +     pr_info("creating pool type %s\n", type);
+> >> +
+> >> +     spin_lock(&drivers_lock);
+> >> +     driver = zpool_get_driver(type);
+> >> +     spin_unlock(&drivers_lock);
+> >
+> > Racy against unregister.  Can be solved with a standard get/put
+> > refcounting implementation.  Or perhaps a big fat mutex.
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 5e7219d..107793e9 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -415,9 +415,6 @@ extern int alloc_contig_range(unsigned long start, unsigned long end,
- 			      unsigned migratetype);
- extern void free_contig_range(unsigned long pfn, unsigned nr_pages);
- 
--/* CMA stuff */
--extern void init_cma_reserved_pageblock(struct page *page);
--
- #endif
- 
- #endif /* __LINUX_GFP_H */
-diff --git a/mm/cma.c b/mm/cma.c
-index c17751c..843b2b6 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -28,11 +28,14 @@
- #include <linux/err.h>
- #include <linux/mm.h>
- #include <linux/mutex.h>
-+#include <linux/page-isolation.h>
- #include <linux/sizes.h>
- #include <linux/slab.h>
- #include <linux/log2.h>
- #include <linux/cma.h>
- 
-+#include "internal.h"
-+
- struct cma {
- 	unsigned long	base_pfn;
- 	unsigned long	count;
-@@ -83,37 +86,81 @@ static void cma_clear_bitmap(struct cma *cma, unsigned long pfn, int count)
- 	mutex_unlock(&cma->lock);
- }
- 
-+/* Free whole pageblock and set its migration type to MIGRATE_CMA. */
-+static int __init cma_init_reserved_pageblock(struct zone *zone,
-+					      unsigned long pageblock_pfn)
-+{
-+	unsigned long pfn, nr_pages, i;
-+	struct page *page, *p;
-+	unsigned order;
-+
-+	pfn = pageblock_pfn;
-+	if (!pfn_valid(pfn))
-+		goto invalid_pfn;
-+	page = pfn_to_page(pfn);
-+
-+	p = page;
-+	i = pageblock_nr_pages;
-+	do {
-+		if (!pfn_valid(pfn))
-+			goto invalid_pfn;
-+
-+		/*
-+		 * alloc_contig_range requires the pfn range specified to be
-+		 * in the same zone. Make this simple by forcing the entire
-+		 * CMA resv range to be in the same zone.
-+		 */
-+		if (page_zone(p) != zone) {
-+			pr_err("pfn %lu belongs to %s, expecting %s\n",
-+			       pfn, page_zone(p)->name, zone->name);
-+			return -EINVAL;
-+		}
-+
-+		__ClearPageReserved(p);
-+		set_page_count(p, 0);
-+	} while (++p, ++pfn, --i);
-+
-+	/* Return all the pages to buddy allocator as MIGRATE_CMA. */
-+	set_pageblock_migratetype(page, MIGRATE_CMA);
-+
-+	order = min_t(unsigned, pageblock_order, MAX_ORDER - 1);
-+	nr_pages = min_t(unsigned long, pageblock_nr_pages, MAX_ORDER_NR_PAGES);
-+
-+	p = page;
-+	i = pageblock_nr_pages;
-+	do {
-+		set_page_refcounted(p);
-+		__free_pages(p, order);
-+		p += nr_pages;
-+	} while (i -= nr_pages);
-+
-+	adjust_managed_page_count(page, pageblock_nr_pages);
-+	return 0;
-+
-+invalid_pfn:
-+	pr_err("invalid pfn: %lu\n", pfn);
-+	return -EINVAL;
-+}
-+
- static int __init cma_activate_area(struct cma *cma)
- {
- 	int bitmap_size = BITS_TO_LONGS(cma_bitmap_maxno(cma)) * sizeof(long);
--	unsigned long base_pfn = cma->base_pfn, pfn = base_pfn;
- 	unsigned i = cma->count >> pageblock_order;
-+	unsigned long pfn = cma->base_pfn;
- 	struct zone *zone;
- 
--	cma->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
-+	if (WARN_ON(!pfn_valid(pfn)))
-+		return -EINVAL;
- 
-+	cma->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
- 	if (!cma->bitmap)
- 		return -ENOMEM;
- 
--	WARN_ON_ONCE(!pfn_valid(pfn));
- 	zone = page_zone(pfn_to_page(pfn));
--
- 	do {
--		unsigned j;
--
--		base_pfn = pfn;
--		for (j = pageblock_nr_pages; j; --j, pfn++) {
--			WARN_ON_ONCE(!pfn_valid(pfn));
--			/*
--			 * alloc_contig_range requires the pfn range
--			 * specified to be in the same zone. Make this
--			 * simple by forcing the entire CMA resv range
--			 * to be in the same zone.
--			 */
--			if (page_zone(pfn_to_page(pfn)) != zone)
--				goto err;
--		}
--		init_cma_reserved_pageblock(pfn_to_page(base_pfn));
-+		if (cma_init_reserved_pageblock(zone, pfn) < 0)
-+			goto err;
-+		pfn += pageblock_nr_pages;
- 	} while (--i);
- 
- 	mutex_init(&cma->lock);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index fef9614..d47f83f 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -804,37 +804,6 @@ void __init __free_pages_bootmem(struct page *page, unsigned int order)
- 	__free_pages(page, order);
- }
- 
--#ifdef CONFIG_CMA
--/* Free whole pageblock and set its migration type to MIGRATE_CMA. */
--void __init init_cma_reserved_pageblock(struct page *page)
--{
--	unsigned i = pageblock_nr_pages;
--	struct page *p = page;
--
--	do {
--		__ClearPageReserved(p);
--		set_page_count(p, 0);
--	} while (++p, --i);
--
--	set_pageblock_migratetype(page, MIGRATE_CMA);
--
--	if (pageblock_order >= MAX_ORDER) {
--		i = pageblock_nr_pages;
--		p = page;
--		do {
--			set_page_refcounted(p);
--			__free_pages(p, MAX_ORDER - 1);
--			p += MAX_ORDER_NR_PAGES;
--		} while (i -= MAX_ORDER_NR_PAGES);
--	} else {
--		set_page_refcounted(page);
--		__free_pages(page, pageblock_order);
--	}
--
--	adjust_managed_page_count(page, pageblock_nr_pages);
--}
--#endif
--
- /*
-  * The order of subdivision here is critical for the IO subsystem.
-  * Please do not alter this order without good reasons and regression
--- 
-2.0.0.526.g5318336
+Was there a decision here?
+
+> >> +void zpool_destroy_pool(struct zpool *zpool)
+> >> +{
+> >> +     pr_info("destroying pool type %s\n", zpool->type);
+> >> +
+> >> +     spin_lock(&pools_lock);
+> >> +     list_del(&zpool->list);
+> >> +     spin_unlock(&pools_lock);
+> >> +     zpool->driver->destroy(zpool->pool);
+> >> +     kfree(zpool);
+> >> +}
+> >
+> > What are the lifecycle rules here?  How do we know that nobody else can
+> > be concurrently using this pool?
+> 
+> Well I think with zpools, as well as direct use of zsmalloc and zbud
+> pools, whoever creates a pool is responsible for making sure it's no
+> longer in use before destroying it.
+
+Sounds reasonable.  Perhaps there's some convenient WARN_ON we can put
+in here to check that.
+
+>  I think in most use cases, pool
+> creators won't be sharing their pools, so there should be no issue
+> with concurrent use.  In fact, concurrent pool use it probably a bad
+> idea in general - zsmalloc for example relies on per-cpu data during
+> handle mapping, so concurrent use of a single pool might result in the
+> per-cpu data being overwritten if multiple users of a single pool
+> tried to map and use different handles from the same cpu.
+
+That's all a bit waffly.  Either we support concurrent use or we don't!
+
+> Should some use/sharing restrictions be added to the zpool documentation?
+
+Sure.  And the code if possible.  If a second user tries to use a pool
+which is already in use, that attempt should just fail, with WARN,
+printk, return -EBUSY, whatever.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
