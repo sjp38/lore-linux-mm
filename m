@@ -1,123 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 833156B0031
-	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 21:07:07 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y10so6279782pdj.19
-        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 18:07:07 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:6])
-        by mx.google.com with ESMTP id fl10si24124873pab.132.2014.06.23.18.07.05
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id AFC896B0035
+	for <linux-mm@kvack.org>; Mon, 23 Jun 2014 21:07:41 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id um1so6294088pbc.30
+        for <linux-mm@kvack.org>; Mon, 23 Jun 2014 18:07:41 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id mn6si24062116pbc.17.2014.06.23.18.07.39
         for <linux-mm@kvack.org>;
-        Mon, 23 Jun 2014 18:07:06 -0700 (PDT)
-Date: Tue, 24 Jun 2014 11:02:33 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: XFS WARN_ON in xfs_vm_writepage
-Message-ID: <20140624010233.GZ9508@dastard>
-References: <20140613051631.GA9394@redhat.com>
- <20140613062645.GZ9508@dastard>
- <20140613141925.GA24199@redhat.com>
- <20140619020340.GI4453@dastard>
- <20140623202714.GA2714@redhat.com>
+        Mon, 23 Jun 2014 18:07:40 -0700 (PDT)
+Message-ID: <53A8CF4B.90300@cn.fujitsu.com>
+Date: Tue, 24 Jun 2014 09:07:23 +0800
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140623202714.GA2714@redhat.com>
+Subject: Re: [PATCH v3 05/13] mm, compaction: report compaction as contended
+ only due to lock contention
+References: <1403279383-5862-1-git-send-email-vbabka@suse.cz> <1403279383-5862-6-git-send-email-vbabka@suse.cz> <20140623013903.GA12413@bbox> <53A7EB9B.5000406@cn.fujitsu.com> <20140623233507.GF15594@bbox>
+In-Reply-To: <20140623233507.GF15594@bbox>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, xfs@oss.sgi.com, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org
 
-On Mon, Jun 23, 2014 at 04:27:14PM -0400, Dave Jones wrote:
-> On Thu, Jun 19, 2014 at 12:03:40PM +1000, Dave Chinner wrote:
->  > On Fri, Jun 13, 2014 at 10:19:25AM -0400, Dave Jones wrote:
->  > > On Fri, Jun 13, 2014 at 04:26:45PM +1000, Dave Chinner wrote:
->  > > 
->  > > > >  970         if (WARN_ON_ONCE((current->flags & (PF_MEMALLOC|PF_KSWAPD)) ==
->  > > > >  971                         PF_MEMALLOC))
->  > > >
->  > > > What were you running at the time? The XFS warning is there to
->  > > > indicate that memory reclaim is doing something it shouldn't (i.e.
->  > > > dirty page writeback from direct reclaim), so this is one for the mm
->  > > > folk to work out...
->  > > 
->  > > Trinity had driven the machine deeply into swap, and the oom killer was
->  > > kicking in pretty often. Then this happened.
->  > 
->  > Yup, sounds like a problem somewhere in mm/vmscan.c....
->  
-> I'm now hitting this fairly often, and no-one seems to have offered up
-> any suggestions yet, so I'm going to flail and guess randomly until someone
-> has a better idea what could be wrong.
+Hello Minchan
 
-You are not alone - I haven't been able to get anyone from the MM
-side of things to comment on any of the bad behaviours we've had
-reported recently.
+Thank you for your explain. Actually, I read the kernel with an old
+version. The latest upstream kernel has the behaviour like you described
+below. Oops, how long didn't I follow the buddy allocator change.
 
-> That WARN commentary for the benefit of linux-mm readers..
+Thanks.
+
+On 06/24/2014 07:35 AM, Minchan Kim wrote:
+>>> Anyway, most big concern is that you are changing current behavior as
+>>> > > I said earlier.
+>>> > > 
+>>> > > Old behavior in THP page fault when it consumes own timeslot was just
+>>> > > abort and fallback 4K page but with your patch, new behavior is
+>>> > > take a rest when it founds need_resched and goes to another round with
+>>> > > async, not sync compaction. I'm not sure we need another round with
+>>> > > async compaction at the cost of increasing latency rather than fallback
+>>> > > 4 page.
+>> > 
+>> > I don't see the new behavior works like what you said. If need_resched
+>> > is true, it calls cond_resched() and after a rest it just breaks the loop.
+>> > Why there is another round with async compact?
+> One example goes
 > 
->  960         /*
->  961          * Refuse to write the page out if we are called from reclaim context.
->  962          *
->  963          * This avoids stack overflows when called from deeply used stacks in
->  964          * random callers for direct reclaim or memcg reclaim.  We explicitly
->  965          * allow reclaim from kswapd as the stack usage there is relatively low.
->  966          *
->  967          * This should never happen except in the case of a VM regression so
->  968          * warn about it.
->  969          */
->  970         if (WARN_ON_ONCE((current->flags & (PF_MEMALLOC|PF_KSWAPD)) ==
->  971                         PF_MEMALLOC))
->  972                 goto redirty;
+> Old:
+> page fault
+> huge page allocation
+> __alloc_pages_slowpath
+> __alloc_pages_direct_compact
+> compact_zone_order
+>         isolate_migratepages
+>         compact_checklock_irqsave
+>                 need_resched is true
+>                 cc->contended = true;
+>         return ISOLATE_ABORT
+> return COMPACT_PARTIAL with *contented = cc.contended;
+> COMPACTFAIL
+> if (contended_compaction && gfp_mask & __GFP_NO_KSWAPD)
+>         goto nopage;
 > 
+> New:
 > 
-> Looking at this trace..
+> page fault
+> huge page allocation
+> __alloc_pages_slowpath
+> __alloc_pages_direct_compact
+> compact_zone_order
+>         isolate_migratepages
+>         compact_unlock_should_abort
+>                 need_resched is true
+>                 cc->contended = COMPACT_CONTENDED_SCHED;
+>                 return true;
+>         return ISOLATE_ABORT
+> return COMPACT_PARTIAL with *contended = cc.contended == COMPACT_CONTENDED_LOCK (1)
+> COMPACTFAIL
+> if (contended_compaction && gfp_mask & __GFP_NO_KSWAPD)
+>         no goto nopage because contended_compaction was false by (1)
 > 
-> xfs_vm_writepage+0x5ce/0x630 [xfs]
-> ? preempt_count_sub+0xab/0x100
-> ? __percpu_counter_add+0x85/0xc0
-> shrink_page_list+0x8f9/0xb90
-> shrink_inactive_list+0x253/0x510
-> shrink_lruvec+0x563/0x6c0
-> shrink_zone+0x3b/0x100
-> shrink_zones+0x1f1/0x3c0
-> try_to_free_pages+0x164/0x380
-> __alloc_pages_nodemask+0x822/0xc90
-> alloc_pages_vma+0xaf/0x1c0
-> read_swap_cache_async+0x123/0x220
-> ? final_putname+0x22/0x50
-> swapin_readahead+0x149/0x1d0
-> ? find_get_entry+0xd5/0x130
-> ? pagecache_get_page+0x30/0x210
-> ? debug_smp_processor_id+0x17/0x20
-> handle_mm_fault+0x9d5/0xc50
-> __do_page_fault+0x1d2/0x640
-> ? __acct_update_integrals+0x8b/0x120
-> ? preempt_count_sub+0xab/0x100
-> do_page_fault+0x1e/0x70
-> page_fault+0x22/0x30
+> __alloc_pages_direct_reclaim
+> if (should_alloc_retry)
+> else
+>         __alloc_pages_direct_compact again with ASYNC_MODE
+>                         
 > 
-> The reclaim here looks to be triggered from the readahead code.
-> Should something in that path be setting PF_KSWAPD in the gfp mask ?
 
-Definitely not. It's not kswapd that is doing the memory allocation
-and we most certainly do not want direct reclaim to get a free pass
-through reclaim congestion and backoff algorithms.
 
-This could be another symptom of the other problems we've been
-seeing which involve direct reclaim thottling way too hard (via the
-too_many_isolated() loops) and getting stuck. This is a case of
-direct reclaim finding dirty pages on the LRU, which should have
-been handled by writeback threads or kswapd before direct reclaim
-can find them. IOWs, direct reclaim is doing work when it probably
-should have been throttled.
-
-As the comment in the XFS code says: "This should never happen
-except in the case of a VM regression..."
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+Thanks.
+Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
