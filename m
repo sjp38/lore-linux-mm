@@ -1,69 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A4FD6B0031
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 05:25:34 -0400 (EDT)
-Received: by mail-wi0-f172.google.com with SMTP id hi2so5523312wib.11
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 02:25:32 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id uw4si26543911wjc.48.2014.06.24.02.25.21
+Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AAC46B0031
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 05:43:03 -0400 (EDT)
+Received: by mail-lb0-f177.google.com with SMTP id u10so48849lbd.8
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 02:43:02 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id dr3si38143405lbc.33.2014.06.24.02.43.01
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 24 Jun 2014 02:25:21 -0700 (PDT)
-Date: Tue, 24 Jun 2014 11:25:11 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] Documentation: remove remove_from_page_cache note
-Message-ID: <20140624092511.GC15337@dhcp22.suse.cz>
-References: <1403601462-32167-1-git-send-email-lilei@linux.vnet.ibm.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Jun 2014 02:43:01 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH -mm] slub: kmem_cache_shrink: check if partial list is empty under list_lock
+Date: Tue, 24 Jun 2014 13:42:42 +0400
+Message-ID: <1403602962-18946-1-git-send-email-vdavydov@parallels.com>
+In-Reply-To: <20140624075011.GD4836@js1304-P5Q-DELUXE>
+References: <20140624075011.GD4836@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1403601462-32167-1-git-send-email-lilei@linux.vnet.ibm.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lei Li <lilei@linux.vnet.ibm.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: iamjoonsoo.kim@lge.com, cl@linux.com, rientjes@google.com, penberg@kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 24-06-14 17:17:42, Lei Li wrote:
-> Remove this note as remove_from_page_cache has been renamed to
-> delete_from_page_cache since Commit 702cfbf9 ("mm: goodbye
-> remove_from_page_cache()"), and it doesn't serve any useful
-> purpose.
-> 
-> Signed-off-by: Lei Li <lilei@linux.vnet.ibm.com>
+SLUB's implementation of kmem_cache_shrink skips nodes that have
+nr_partial=0, because they surely don't have any empty slabs to free.
+This check is done w/o holding any locks, therefore it can race with
+concurrent kfree adding an empty slab to a partial list. As a result, a
+just shrinked cache can have empty slabs.
 
-I am not sure how up-to-date the file is but this small clean up will
-not hurt.
+This is unacceptable for kmemcg, which needs to be sure that there will
+be no empty slabs on dead memcg caches after kmem_cache_shrink was
+called, because otherwise we may leak a dead cache.
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Let's fix this race by checking if node partial list is empty under
+node->list_lock. Since the nr_partial!=0 branch of kmem_cache_shrink
+does nothing if the list is empty, we can simply remove the nr_partial=0
+check.
 
-> ---
->  Documentation/cgroups/memcg_test.txt | 2 --
->  1 file changed, 2 deletions(-)
-> 
-> diff --git a/Documentation/cgroups/memcg_test.txt b/Documentation/cgroups/memcg_test.txt
-> index 8870b02..67c11a3 100644
-> --- a/Documentation/cgroups/memcg_test.txt
-> +++ b/Documentation/cgroups/memcg_test.txt
-> @@ -82,8 +82,6 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
->  	- add_to_page_cache_locked().
->  
->  	The logic is very clear. (About migration, see below)
-> -	Note: __remove_from_page_cache() is called by remove_from_page_cache()
-> -	and __remove_mapping().
->  
->  6. Shmem(tmpfs) Page Cache
->  	The best way to understand shmem's page state transition is to read
-> -- 
-> 1.8.5.3
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+Reported-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
+ mm/slub.c |    3 ---
+ 1 file changed, 3 deletions(-)
 
+diff --git a/mm/slub.c b/mm/slub.c
+index 67da14d9ec70..891ac6cd78cc 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3397,9 +3397,6 @@ int __kmem_cache_shrink(struct kmem_cache *s)
+ 
+ 	flush_all(s);
+ 	for_each_kmem_cache_node(s, node, n) {
+-		if (!n->nr_partial)
+-			continue;
+-
+ 		for (i = 0; i < objects; i++)
+ 			INIT_LIST_HEAD(slabs_by_inuse + i);
+ 
 -- 
-Michal Hocko
-SUSE Labs
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
