@@ -1,64 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id A036A6B006E
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 04:09:36 -0400 (EDT)
-Received: by mail-pb0-f53.google.com with SMTP id uo5so6931573pbc.12
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 01:09:36 -0700 (PDT)
-Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com. [202.81.31.147])
-        by mx.google.com with ESMTPS id e10si25181581pat.80.2014.06.24.01.09.34
+Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 630EB6B0071
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 04:16:23 -0400 (EDT)
+Received: by mail-lb0-f177.google.com with SMTP id u10so6049276lbd.36
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 01:16:22 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id yi2si37767531lbb.41.2014.06.24.01.16.20
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 24 Jun 2014 01:09:35 -0700 (PDT)
-Received: from /spool/local
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
-	Tue, 24 Jun 2014 18:09:32 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 6F1A42BB0047
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 18:09:29 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s5O7lCY212714390
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 17:47:12 +1000
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s5O89SeN012715
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 18:09:28 +1000
-From: Wei Yang <weiyang@linux.vnet.ibm.com>
-Subject: [PATCH] slub: reduce duplicate creation on the first object
-Date: Tue, 24 Jun 2014 16:08:55 +0800
-Message-Id: <1403597335-5465-1-git-send-email-weiyang@linux.vnet.ibm.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 24 Jun 2014 01:16:21 -0700 (PDT)
+Date: Tue, 24 Jun 2014 12:16:08 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH] slub: fix off by one in number of slab tests
+Message-ID: <20140624081608.GC18121@esperanza>
+References: <1403595842-28270-1-git-send-email-iamjoonsoo.kim@lge.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <1403595842-28270-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: clameter@sgi.com, cl@linux.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Wei Yang <weiyang@linux.vnet.ibm.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-When a kmem_cache is created with ctor, each object in the kmem_cache will be
-initialized before ready to use. While in slub implementation, the first
-object will be initialized twice.
+On Tue, Jun 24, 2014 at 04:44:01PM +0900, Joonsoo Kim wrote:
+> min_partial means minimum number of slab cached in node partial
+> list. So, if nr_partial is less than it, we keep newly empty slab
+> on node partial list rather than freeing it. But if nr_partial is
+> equal or greater than it, it means that we have enough partial slabs
+> so should free newly empty slab. Current implementation missed
+> the equal case so if we set min_partial is 0, then, at least one slab
+> could be cached. This is critical problem to kmemcg destroying logic
+> because it doesn't works properly if some slabs is cached. This patch
+> fixes this problem.
 
-This patch reduces the duplication of initialization of the first object.
+Oops, my fault :-(
 
-Fix commit 7656c72b: SLUB: add macros for scanning objects in a slab.
+Thank you for catching this!
 
-Signed-off-by: Wei Yang <weiyang@linux.vnet.ibm.com>
----
- mm/slub.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-diff --git a/mm/slub.c b/mm/slub.c
-index b2b0473..beefd45 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1433,7 +1433,7 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
- 		memset(start, POISON_INUSE, PAGE_SIZE << order);
- 
- 	last = start;
--	for_each_object(p, s, start, page->objects) {
-+	for_each_object(p, s, start + s->size, page->objects - 1) {
- 		setup_object(s, page, last);
- 		set_freepointer(s, last, p);
- 		last = p;
--- 
-1.7.9.5
+Acked-by: Vladimir Davydov <vdavydov@parallels.com>
+
+> 
+> diff --git a/mm/slub.c b/mm/slub.c
+> index c567927..67da14d 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1851,7 +1851,7 @@ redo:
+>  
+>  	new.frozen = 0;
+>  
+> -	if (!new.inuse && n->nr_partial > s->min_partial)
+> +	if (!new.inuse && n->nr_partial >= s->min_partial)
+>  		m = M_FREE;
+>  	else if (new.freelist) {
+>  		m = M_PARTIAL;
+> @@ -1962,7 +1962,7 @@ static void unfreeze_partials(struct kmem_cache *s,
+>  				new.freelist, new.counters,
+>  				"unfreezing slab"));
+>  
+> -		if (unlikely(!new.inuse && n->nr_partial > s->min_partial)) {
+> +		if (unlikely(!new.inuse && n->nr_partial >= s->min_partial)) {
+>  			page->next = discard_page;
+>  			discard_page = page;
+>  		} else {
+> @@ -2595,7 +2595,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+>                  return;
+>          }
+>  
+> -	if (unlikely(!new.inuse && n->nr_partial > s->min_partial))
+> +	if (unlikely(!new.inuse && n->nr_partial >= s->min_partial))
+>  		goto slab_empty;
+>  
+>  	/*
+> -- 
+> 1.7.9.5
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
