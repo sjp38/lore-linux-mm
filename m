@@ -1,94 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F65A6B0039
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 03:36:07 -0400 (EDT)
-Received: by mail-pb0-f50.google.com with SMTP id rp16so6894365pbb.37
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 00:36:06 -0700 (PDT)
-Received: from e28smtp05.in.ibm.com (e28smtp05.in.ibm.com. [122.248.162.5])
-        by mx.google.com with ESMTPS id fl5si24958004pbb.220.2014.06.24.00.36.04
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id BA77D6B003B
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 03:37:03 -0400 (EDT)
+Received: by mail-wg0-f48.google.com with SMTP id n12so7585962wgh.7
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 00:37:03 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k7si20220982wix.97.2014.06.24.00.37.01
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 24 Jun 2014 00:36:06 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <lilei@linux.vnet.ibm.com>;
-	Tue, 24 Jun 2014 13:06:02 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id E49EFE005B
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 13:07:11 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s5O7aFor63701026
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 13:06:16 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s5O7ZwAY030347
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 13:05:58 +0530
-Message-ID: <53A92A5B.4070403@linux.vnet.ibm.com>
-Date: Tue, 24 Jun 2014 15:35:55 +0800
-From: Lei Li <lilei@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 24 Jun 2014 00:37:02 -0700 (PDT)
+Date: Tue, 24 Jun 2014 09:36:59 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 0/8] mm: add page cache limit and reclaim feature
+Message-ID: <20140624073659.GA15337@dhcp22.suse.cz>
+References: <539EB7D6.8070401@huawei.com>
+ <20140616111422.GA16915@dhcp22.suse.cz>
+ <20140616125040.GA29993@optiplex.redhat.com>
+ <539F9B6C.1080802@huawei.com>
+ <53A3E948.5020701@huawei.com>
+ <20140620153212.GD23115@dhcp22.suse.cz>
+ <53A78B7C.1050302@huawei.com>
+ <20140623112955.GL9743@dhcp22.suse.cz>
+ <53A8E19C.40809@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Documentation: Update remove_from_page_cache with delete_from_page_cache
-References: <1403514679-24632-1-git-send-email-lilei@linux.vnet.ibm.com> <20140623092305.GF9743@dhcp22.suse.cz>
-In-Reply-To: <20140623092305.GF9743@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53A8E19C.40809@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: hannes@cmpxchg.org, tj@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Rafael Aquini <aquini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Li Zefan <lizefan@huawei.com>
 
+On Tue 24-06-14 10:25:32, Xishi Qiu wrote:
+> On 2014/6/23 19:29, Michal Hocko wrote:
+[...]
+> > This doesn't make much sense to me. So you have a problem with latency
+> > caused by direct reclaim so you add a new way of direct page cache
+> > reclaim.
+> > 
+> >> A user process produces page cache frequently, so free memory is not
+> >> enough after running a long time. Slow path takes much more time because 
+> >> direct reclaim. And kswapd will reclaim memory too, but not much. Thus it
+> >> always triggers slow path. this will cause performance regression.
+> > 
+> > If I were you I would focus on why the reclaim doesn't catch up with the
+> > page cache users. The mechanism you are proposing in unacceptable.
+> 
+> Hi Michal,
+> 
+> Do you mean why the reclaim is slower than page cache increase?
+> 
+> I think there are two reasons:
+> 1. kswapd and direct_reclaim will be triggered only when there is not 
+> enough memory(e.g. __alloc_pages_slowpath()). That means it will not 
+> reclaim when memory is enough(e.g. get_page_from_freelist()).
 
-On 06/23/2014 05:23 PM, Michal Hocko wrote:
-> On Mon 23-06-14 17:11:19, Lei Li wrote:
->> remove_from_page_cache has been renamed to delete_from_page_cache
->> since Commit 702cfbf9 ("mm: goodbye remove_from_page_cache()"), adapt
->> to it in Memcg documentation.
->>
->> Signed-off-by: Lei Li <lilei@linux.vnet.ibm.com>
-> This conflicts with the current mmotm tree because of Johannes' {un}charge rewrite.
-> Anyway the comment is not up-to-date anyway. __delete_from_page_cache is
-> called from more places and I do not see quite a good reason why to keep
-> this in the documentation.
-> I would just remove this note as it doesn't serve any useful purpose.
+Yeah and that is the whole point. If you want to start to reclaim earlier
+because you need a bigger pillow for the free memory for sudden memory
+pressure then increase min_free_kbytes.
 
-Thanks for your reply.
-Just take a quick look at Johannes' patch of rewriting uncharge API. I'll
-resend a patch with the note removed.
+> 2. __alloc_pages_direct_reclaim
+> 	try_to_free_pages
+> 		nr_to_reclaim = SWAP_CLUSTER_MAX
+> And "#define SWAP_CLUSTER_MAX 32UL", that means it expect to reclaim 32
+> pages. It is too few, if we alloc 2^10 pages in one time.
 
+Maybe _userspace_ allocates that much of memory but it is not faulted
+in/allocated by kernel in one shot. Besides that at the time you enter
+direct reclaim kswapd should be reclaiming memory to balance zones.
+So reclaiming SWAP_CLUSTER_MAX from the direct reclaim shouldn't
+matter that much. If it does then show us some numbers to prove it.
+SWAP_CLUSTER_MAX is kind of arbitrary number but I haven't seen any
+reclaim regression becuse of this value being too small AFAIR.
 
-Thanks,
-
-Lei
-
->
->> ---
->>   Documentation/cgroups/memcg_test.txt | 4 ++--
->>   1 file changed, 2 insertions(+), 2 deletions(-)
->>
->> diff --git a/Documentation/cgroups/memcg_test.txt b/Documentation/cgroups/memcg_test.txt
->> index 80ac454..b2d6ccc 100644
->> --- a/Documentation/cgroups/memcg_test.txt
->> +++ b/Documentation/cgroups/memcg_test.txt
->> @@ -171,10 +171,10 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
->>   	- add_to_page_cache_locked().
->>   
->>   	uncharged at
->> -	- __remove_from_page_cache().
->> +	- __delete_from_page_cache().
->>   
->>   	The logic is very clear. (About migration, see below)
->> -	Note: __remove_from_page_cache() is called by remove_from_page_cache()
->> +	Note: __delete_from_page_cache() is called by delete_from_page_cache()
->>   	and __remove_mapping().
->>   
->>   6. Shmem(tmpfs) Page Cache
->> -- 
->> 1.8.5.3
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
