@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
-	by kanga.kvack.org (Postfix) with ESMTP id A6B1E6B0074
+Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
+	by kanga.kvack.org (Postfix) with ESMTP id A3DD76B0073
 	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 12:33:22 -0400 (EDT)
-Received: by mail-lb0-f172.google.com with SMTP id c11so818024lbj.31
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 09:33:22 -0700 (PDT)
+Received: by mail-lb0-f177.google.com with SMTP id u10so818185lbd.36
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 09:33:21 -0700 (PDT)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id p2si744097laf.135.2014.06.24.09.33.19
+        by mx.google.com with ESMTPS id ji9si1563897lbc.48.2014.06.24.09.33.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 24 Jun 2014 09:33:20 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm 3/3] page-cgroup: fix flags definition
-Date: Tue, 24 Jun 2014 20:33:06 +0400
-Message-ID: <aacc50fb60eeb9cbe14e07235310fb9295b2658b.1403626729.git.vdavydov@parallels.com>
+Subject: [PATCH -mm 2/3] page-cgroup: get rid of NR_PCG_FLAGS
+Date: Tue, 24 Jun 2014 20:33:05 +0400
+Message-ID: <26252c1699103f7efe51b224dd61bdb74e31f255.1403626729.git.vdavydov@parallels.com>
 In-Reply-To: <9f5abf8dcb07fe5462f12f81867f199c22e883d3.1403626729.git.vdavydov@parallels.com>
 References: <9f5abf8dcb07fe5462f12f81867f199c22e883d3.1403626729.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,45 +22,58 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Since commit a9ce315aaec1f ("mm: memcontrol: rewrite uncharge API"),
-PCG_* flags are used as bit masks, but they are still defined in a enum
-as bit numbers. Fix it.
+It's not used anywhere today, so let's remove it.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- include/linux/page_cgroup.h |   12 +++++-------
- 1 file changed, 5 insertions(+), 7 deletions(-)
+ include/linux/page_cgroup.h |    6 ------
+ kernel/bounds.c             |    2 --
+ 2 files changed, 8 deletions(-)
 
 diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
-index fb60e4a466c0..9065a61345a1 100644
+index 23863edb95ff..fb60e4a466c0 100644
 --- a/include/linux/page_cgroup.h
 +++ b/include/linux/page_cgroup.h
-@@ -1,12 +1,10 @@
- #ifndef __LINUX_PAGE_CGROUP_H
- #define __LINUX_PAGE_CGROUP_H
+@@ -6,12 +6,8 @@ enum {
+ 	PCG_USED,	/* This page is charged to a memcg */
+ 	PCG_MEM,	/* This page holds a memory charge */
+ 	PCG_MEMSW,	/* This page holds a memory+swap charge */
+-	__NR_PCG_FLAGS,
+ };
  
--enum {
--	/* flags for mem_cgroup */
--	PCG_USED,	/* This page is charged to a memcg */
--	PCG_MEM,	/* This page holds a memory charge */
--	PCG_MEMSW,	/* This page holds a memory+swap charge */
--};
-+/* flags for mem_cgroup */
-+#define PCG_USED	0x01	/* This page is charged to a memcg */
-+#define PCG_MEM		0x02	/* This page holds a memory charge */
-+#define PCG_MEMSW	0x04	/* This page holds a memory+swap charge */
- 
+-#ifndef __GENERATING_BOUNDS_H
+-#include <generated/bounds.h>
+-
  struct pglist_data;
  
-@@ -44,7 +42,7 @@ struct page *lookup_cgroup_page(struct page_cgroup *pc);
+ #ifdef CONFIG_MEMCG
+@@ -107,6 +103,4 @@ static inline void swap_cgroup_swapoff(int type)
  
- static inline int PageCgroupUsed(struct page_cgroup *pc)
- {
--	return test_bit(PCG_USED, &pc->flags);
-+	return !!(pc->flags & PCG_USED);
- }
- #else /* !CONFIG_MEMCG */
- struct page_cgroup;
+ #endif /* CONFIG_MEMCG_SWAP */
+ 
+-#endif /* !__GENERATING_BOUNDS_H */
+-
+ #endif /* __LINUX_PAGE_CGROUP_H */
+diff --git a/kernel/bounds.c b/kernel/bounds.c
+index 9fd4246b04b8..e1d1d1952bfa 100644
+--- a/kernel/bounds.c
++++ b/kernel/bounds.c
+@@ -9,7 +9,6 @@
+ #include <linux/page-flags.h>
+ #include <linux/mmzone.h>
+ #include <linux/kbuild.h>
+-#include <linux/page_cgroup.h>
+ #include <linux/log2.h>
+ #include <linux/spinlock_types.h>
+ 
+@@ -18,7 +17,6 @@ void foo(void)
+ 	/* The enum constants to put into include/generated/bounds.h */
+ 	DEFINE(NR_PAGEFLAGS, __NR_PAGEFLAGS);
+ 	DEFINE(MAX_NR_ZONES, __MAX_NR_ZONES);
+-	DEFINE(NR_PCG_FLAGS, __NR_PCG_FLAGS);
+ #ifdef CONFIG_SMP
+ 	DEFINE(NR_CPUS_BITS, ilog2(CONFIG_NR_CPUS));
+ #endif
 -- 
 1.7.10.4
 
