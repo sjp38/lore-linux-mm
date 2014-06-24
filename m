@@ -1,282 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
-	by kanga.kvack.org (Postfix) with ESMTP id C1A306B003D
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 11:39:24 -0400 (EDT)
-Received: by mail-qc0-f169.google.com with SMTP id c9so443008qcz.28
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 08:39:24 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c11si815140qgc.99.2014.06.24.08.39.23
+Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
+	by kanga.kvack.org (Postfix) with ESMTP id BC0916B004D
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 11:39:35 -0400 (EDT)
+Received: by mail-we0-f169.google.com with SMTP id t60so587691wes.14
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 08:39:35 -0700 (PDT)
+Received: from mail-wi0-x22b.google.com (mail-wi0-x22b.google.com [2a00:1450:400c:c05::22b])
+        by mx.google.com with ESMTPS id cl19si942897wjb.18.2014.06.24.08.39.34
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jun 2014 08:39:24 -0700 (PDT)
-Date: Tue, 24 Jun 2014 11:39:00 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v3 06/13] mm, compaction: periodically drop lock and
- restore IRQs in scanners
-Message-ID: <20140624153900.GB18289@nhori.bos.redhat.com>
-References: <1403279383-5862-1-git-send-email-vbabka@suse.cz>
- <1403279383-5862-7-git-send-email-vbabka@suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 24 Jun 2014 08:39:34 -0700 (PDT)
+Received: by mail-wi0-f171.google.com with SMTP id n15so6251782wiw.16
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 08:39:33 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1403279383-5862-7-git-send-email-vbabka@suse.cz>
+In-Reply-To: <20140623144614.d4549fa0aecb03b7b8044bc7@linux-foundation.org>
+References: <1400958369-3588-1-git-send-email-ddstreet@ieee.org>
+ <1401747586-11861-1-git-send-email-ddstreet@ieee.org> <1401747586-11861-4-git-send-email-ddstreet@ieee.org>
+ <20140623144614.d4549fa0aecb03b7b8044bc7@linux-foundation.org>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Tue, 24 Jun 2014 11:39:12 -0400
+Message-ID: <CALZtONDKmM8nRv3tqZThc8mC3Dmrxqj7if5-yAeivnfCbfwENw@mail.gmail.com>
+Subject: Re: [PATCHv4 3/6] mm/zpool: implement common zpool api to zbud/zsmalloc
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Seth Jennings <sjennings@variantweb.net>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>, Nitin Gupta <ngupta@vflare.org>, Bob Liu <bob.liu@oracle.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Fri, Jun 20, 2014 at 05:49:36PM +0200, Vlastimil Babka wrote:
-> Compaction scanners regularly check for lock contention and need_resched()
-> through the compact_checklock_irqsave() function. However, if there is no
-> contention, the lock can be held and IRQ disabled for potentially long time.
-> 
-> This has been addressed by commit b2eef8c0d0 ("mm: compaction: minimise the
-> time IRQs are disabled while isolating pages for migration") for the migration
-> scanner. However, the refactoring done by commit 748446bb6b ("mm: compaction:
-> acquire the zone->lru_lock as late as possible") has changed the conditions so
+On Mon, Jun 23, 2014 at 5:46 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Mon,  2 Jun 2014 18:19:43 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
+>
+>> Add zpool api.
+>>
+>> zpool provides an interface for memory storage, typically of compressed
+>> memory.  Users can select what backend to use; currently the only
+>> implementations are zbud, a low density implementation with up to
+>> two compressed pages per storage page, and zsmalloc, a higher density
+>> implementation with multiple compressed pages per storage page.
+>>
+>> ...
+>>
+>> +/**
+>> + * zpool_create_pool() - Create a new zpool
+>> + * @type     The type of the zpool to create (e.g. zbud, zsmalloc)
+>> + * @flags    What GFP flags should be used when the zpool allocates memory.
+>> + * @ops              The optional ops callback.
+>> + *
+>> + * This creates a new zpool of the specified type.  The zpool will use the
+>> + * given flags when allocating any memory.  If the ops param is NULL, then
+>> + * the created zpool will not be shrinkable.
+>> + *
+>> + * Returns: New zpool on success, NULL on failure.
+>> + */
+>> +struct zpool *zpool_create_pool(char *type, gfp_t flags,
+>> +                     struct zpool_ops *ops);
+>
+> It is unconventional to document the API in the .h file.  It's better
+> to put the documentation where people expect to find it.
+>
+> It's irritating for me (for example) because this kernel convention has
+> permitted me to train my tags system to ignore prototypes in headers.
+> But if I want to find the zpool_create_pool documentation I will need
+> to jump through hoops.
 
-You seem to refer to the incorrect commit, maybe you meant commit 2a1402aa044b?
+Got it, I will move it to the .c file.
 
-> that the lock is dropped only when there's contention on the lock or
-> need_resched() is true. Also, need_resched() is checked only when the lock is
-> already held. The comment "give a chance to irqs before checking need_resched"
-> is therefore misleading, as IRQs remain disabled when the check is done.
-> 
-> This patch restores the behavior intended by commit b2eef8c0d0 and also tries
-> to better balance and make more deterministic the time spent by checking for
-> contention vs the time the scanners might run between the checks. It also
-> avoids situations where checking has not been done often enough before. The
-> result should be avoiding both too frequent and too infrequent contention
-> checking, and especially the potentially long-running scans with IRQs disabled
-> and no checking of need_resched() or for fatal signal pending, which can happen
-> when many consecutive pages or pageblocks fail the preliminary tests and do not
-> reach the later call site to compact_checklock_irqsave(), as explained below.
-> 
-> Before the patch:
-> 
-> In the migration scanner, compact_checklock_irqsave() was called each loop, if
-> reached. If not reached, some lower-frequency checking could still be done if
-> the lock was already held, but this would not result in aborting contended
-> async compaction until reaching compact_checklock_irqsave() or end of
-> pageblock. In the free scanner, it was similar but completely without the
-> periodical checking, so lock can be potentially held until reaching the end of
-> pageblock.
-> 
-> After the patch, in both scanners:
-> 
-> The periodical check is done as the first thing in the loop on each
-> SWAP_CLUSTER_MAX aligned pfn, using the new compact_unlock_should_abort()
-> function, which always unlocks the lock (if locked) and aborts async compaction
-> if scheduling is needed. It also aborts any type of compaction when a fatal
-> signal is pending.
-> 
-> The compact_checklock_irqsave() function is replaced with a slightly different
-> compact_trylock_irqsave(). The biggest difference is that the function is not
-> called at all if the lock is already held. The periodical need_resched()
-> checking is left solely to compact_unlock_should_abort(). The lock contention
-> avoidance for async compaction is achieved by the periodical unlock by
-> compact_unlock_should_abort() and by using trylock in compact_trylock_irqsave()
-> and aborting when trylock fails. Sync compaction does not use trylock.
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Michal Nazarewicz <mina86@mina86.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: David Rientjes <rientjes@google.com>
+I noticed you pulled these into -mm, do you want me to send follow-on
+patches for these changes, or actually update the origin patches and
+resend the patch set?
 
-Looks OK to me.
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>
+>>
+>> ...
+>>
+>> +int zpool_evict(void *pool, unsigned long handle)
+>> +{
+>> +     struct zpool *zpool;
+>> +
+>> +     spin_lock(&pools_lock);
+>> +     list_for_each_entry(zpool, &pools_head, list) {
+>> +             if (zpool->pool == pool) {
+>> +                     spin_unlock(&pools_lock);
+>
+> This is racy against zpool_unregister_driver().
+>
+>> +                     if (!zpool->ops || !zpool->ops->evict)
+>> +                             return -EINVAL;
+>> +                     return zpool->ops->evict(zpool, handle);
+>> +             }
+>> +     }
+>> +     spin_unlock(&pools_lock);
+>> +
+>> +     return -ENOENT;
+>> +}
+>> +EXPORT_SYMBOL(zpool_evict);
+>> +
+>> +static struct zpool_driver *zpool_get_driver(char *type)
+>
+> In kernel convention, "get" implies "take a reference upon".  A better
+> name would be zpool_find_driver or zpool_lookup_driver.
+>
+> This is especially important because the code appears to need a
+> for-real zpool_get_driver to fix the races!
 
-> ---
->  mm/compaction.c | 114 ++++++++++++++++++++++++++++++++++++--------------------
->  1 file changed, 73 insertions(+), 41 deletions(-)
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index e8cfac9..40da812 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -180,54 +180,72 @@ static void update_pageblock_skip(struct compact_control *cc,
->  }
->  #endif /* CONFIG_COMPACTION */
->  
-> -enum compact_contended should_release_lock(spinlock_t *lock)
-> +/*
-> + * Compaction requires the taking of some coarse locks that are potentially
-> + * very heavily contended. For async compaction, back out if the lock cannot
-> + * be taken immediately. For sync compaction, spin on the lock if needed.
-> + *
-> + * Returns true if the lock is held
-> + * Returns false if the lock is not held and compaction should abort
-> + */
-> +static bool compact_trylock_irqsave(spinlock_t *lock,
-> +			unsigned long *flags, struct compact_control *cc)
->  {
-> -	if (spin_is_contended(lock))
-> -		return COMPACT_CONTENDED_LOCK;
-> -	else if (need_resched())
-> -		return COMPACT_CONTENDED_SCHED;
-> -	else
-> -		return COMPACT_CONTENDED_NONE;
-> +	if (cc->mode == MIGRATE_ASYNC) {
-> +		if (!spin_trylock_irqsave(lock, *flags)) {
-> +			cc->contended = COMPACT_CONTENDED_LOCK;
-> +			return false;
-> +		}
-> +	} else {
-> +		spin_lock_irqsave(lock, *flags);
-> +	}
-> +
-> +	return true;
->  }
->  
->  /*
->   * Compaction requires the taking of some coarse locks that are potentially
-> - * very heavily contended. Check if the process needs to be scheduled or
-> - * if the lock is contended. For async compaction, back out in the event
-> - * if contention is severe. For sync compaction, schedule.
-> + * very heavily contended. The lock should be periodically unlocked to avoid
-> + * having disabled IRQs for a long time, even when there is nobody waiting on
-> + * the lock. It might also be that allowing the IRQs will result in
-> + * need_resched() becoming true. If scheduling is needed, async compaction
-> + * aborts. Sync compaction schedules.
-> + * Either compaction type will also abort if a fatal signal is pending.
-> + * In either case if the lock was locked, it is dropped and not regained.
->   *
-> - * Returns true if the lock is held.
-> - * Returns false if the lock is released and compaction should abort
-> + * Returns true if compaction should abort due to fatal signal pending, or
-> + *		async compaction due to need_resched()
-> + * Returns false when compaction can continue (sync compaction might have
-> + *		scheduled)
->   */
-> -static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
-> -				      bool locked, struct compact_control *cc)
-> +static bool compact_unlock_should_abort(spinlock_t *lock,
-> +		unsigned long flags, bool *locked, struct compact_control *cc)
->  {
-> -	enum compact_contended contended = should_release_lock(lock);
-> +	if (*locked) {
-> +		spin_unlock_irqrestore(lock, flags);
-> +		*locked = false;
-> +	}
->  
-> -	if (contended) {
-> -		if (locked) {
-> -			spin_unlock_irqrestore(lock, *flags);
-> -			locked = false;
-> -		}
-> +	if (fatal_signal_pending(current)) {
-> +		cc->contended = COMPACT_CONTENDED_SCHED;
-> +		return true;
-> +	}
->  
-> -		/* async aborts if taking too long or contended */
-> +	if (need_resched()) {
->  		if (cc->mode == MIGRATE_ASYNC) {
-> -			cc->contended = contended;
-> -			return false;
-> +			cc->contended = COMPACT_CONTENDED_SCHED;
-> +			return true;
->  		}
-> -
->  		cond_resched();
->  	}
->  
-> -	if (!locked)
-> -		spin_lock_irqsave(lock, *flags);
-> -	return true;
-> +	return false;
->  }
->  
->  /*
->   * Aside from avoiding lock contention, compaction also periodically checks
->   * need_resched() and either schedules in sync compaction or aborts async
-> - * compaction. This is similar to what compact_checklock_irqsave() does, but
-> + * compaction. This is similar to what compact_unlock_should_abort() does, but
->   * is used where no lock is concerned.
->   *
->   * Returns false when no scheduling was needed, or sync compaction scheduled.
-> @@ -286,6 +304,16 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->  		int isolated, i;
->  		struct page *page = cursor;
->  
-> +		/*
-> +		 * Periodically drop the lock (if held) regardless of its
-> +		 * contention, to give chance to IRQs. Abort async compaction
-> +		 * if contended.
-> +		 */
-> +		if (!(blockpfn % SWAP_CLUSTER_MAX)
-> +		    && compact_unlock_should_abort(&cc->zone->lock, flags,
-> +								&locked, cc))
-> +			break;
-> +
->  		nr_scanned++;
->  		if (!pfn_valid_within(blockpfn))
->  			goto isolate_fail;
-> @@ -303,8 +331,9 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->  		 * spin on the lock and we acquire the lock as late as
->  		 * possible.
->  		 */
-> -		locked = compact_checklock_irqsave(&cc->zone->lock, &flags,
-> -								locked, cc);
-> +		if (!locked)
-> +			locked = compact_trylock_irqsave(&cc->zone->lock,
-> +								&flags, cc);
->  		if (!locked)
->  			break;
->  
-> @@ -506,13 +535,15 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
->  
->  	/* Time to isolate some pages for migration */
->  	for (; low_pfn < end_pfn; low_pfn++) {
-> -		/* give a chance to irqs before checking need_resched() */
-> -		if (locked && !(low_pfn % SWAP_CLUSTER_MAX)) {
-> -			if (should_release_lock(&zone->lru_lock)) {
-> -				spin_unlock_irqrestore(&zone->lru_lock, flags);
-> -				locked = false;
-> -			}
-> -		}
-> +		/*
-> +		 * Periodically drop the lock (if held) regardless of its
-> +		 * contention, to give chance to IRQs. Abort async compaction
-> +		 * if contended.
-> +		 */
-> +		if (!(low_pfn % SWAP_CLUSTER_MAX)
-> +		    && compact_unlock_should_abort(&zone->lru_lock, flags,
-> +								&locked, cc))
-> +			break;
->  
->  		/*
->  		 * migrate_pfn does not necessarily start aligned to a
-> @@ -592,10 +623,11 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
->  		    page_count(page) > page_mapcount(page))
->  			continue;
->  
-> -		/* Check if it is ok to still hold the lock */
-> -		locked = compact_checklock_irqsave(&zone->lru_lock, &flags,
-> -								locked, cc);
-> -		if (!locked || fatal_signal_pending(current))
-> +		/* If the lock is not held, try to take it */
-> +		if (!locked)
-> +			locked = compact_trylock_irqsave(&zone->lru_lock,
-> +								&flags, cc);
-> +		if (!locked)
->  			break;
->  
->  		/* Recheck PageLRU and PageTransHuge under lock */
-> -- 
-> 1.8.4.5
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+yep as you mentioned in your next email, I will roll the
+try_module_get() protection into this patch.
+
+>
+>>
+>> ...
+>>
+>> +
+>> +struct zpool *zpool_create_pool(char *type, gfp_t flags,
+>> +                     struct zpool_ops *ops)
+>> +{
+>> +     struct zpool_driver *driver;
+>> +     struct zpool *zpool;
+>> +
+>> +     pr_info("creating pool type %s\n", type);
+>> +
+>> +     spin_lock(&drivers_lock);
+>> +     driver = zpool_get_driver(type);
+>> +     spin_unlock(&drivers_lock);
+>
+> Racy against unregister.  Can be solved with a standard get/put
+> refcounting implementation.  Or perhaps a big fat mutex.
+>
+>> +     if (!driver) {
+>> +             request_module(type);
+>> +             spin_lock(&drivers_lock);
+>> +             driver = zpool_get_driver(type);
+>> +             spin_unlock(&drivers_lock);
+>> +     }
+>> +
+>> +     if (!driver) {
+>> +             pr_err("no driver for type %s\n", type);
+>> +             return NULL;
+>> +     }
+>> +
+>> +     zpool = kmalloc(sizeof(*zpool), GFP_KERNEL);
+>> +     if (!zpool) {
+>> +             pr_err("couldn't create zpool - out of memory\n");
+>> +             return NULL;
+>> +     }
+>> +
+>> +     zpool->type = driver->type;
+>> +     zpool->driver = driver;
+>> +     zpool->pool = driver->create(flags, ops);
+>> +     zpool->ops = ops;
+>> +
+>> +     if (!zpool->pool) {
+>> +             pr_err("couldn't create %s pool\n", type);
+>> +             kfree(zpool);
+>> +             return NULL;
+>> +     }
+>> +
+>> +     pr_info("created %s pool\n", type);
+>> +
+>> +     spin_lock(&pools_lock);
+>> +     list_add(&zpool->list, &pools_head);
+>> +     spin_unlock(&pools_lock);
+>> +
+>> +     return zpool;
+>> +}
+>>
+>> ...
+>>
+>> +void zpool_destroy_pool(struct zpool *zpool)
+>> +{
+>> +     pr_info("destroying pool type %s\n", zpool->type);
+>> +
+>> +     spin_lock(&pools_lock);
+>> +     list_del(&zpool->list);
+>> +     spin_unlock(&pools_lock);
+>> +     zpool->driver->destroy(zpool->pool);
+>> +     kfree(zpool);
+>> +}
+>
+> What are the lifecycle rules here?  How do we know that nobody else can
+> be concurrently using this pool?
+
+Well I think with zpools, as well as direct use of zsmalloc and zbud
+pools, whoever creates a pool is responsible for making sure it's no
+longer in use before destroying it.  I think in most use cases, pool
+creators won't be sharing their pools, so there should be no issue
+with concurrent use.  In fact, concurrent pool use it probably a bad
+idea in general - zsmalloc for example relies on per-cpu data during
+handle mapping, so concurrent use of a single pool might result in the
+per-cpu data being overwritten if multiple users of a single pool
+tried to map and use different handles from the same cpu.
+
+Should some use/sharing restrictions be added to the zpool documentation?
+
+>
+>>
+>> ...
+>>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
