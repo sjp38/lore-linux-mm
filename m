@@ -1,99 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
-	by kanga.kvack.org (Postfix) with ESMTP id D41F46B0031
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 21:58:04 -0400 (EDT)
-Received: by mail-qa0-f41.google.com with SMTP id cm18so1000468qab.28
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 18:58:04 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 74si2704958qgq.23.2014.06.24.18.58.04
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A3726B0031
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 21:59:15 -0400 (EDT)
+Received: by mail-pb0-f52.google.com with SMTP id rq2so1002790pbb.39
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 18:59:14 -0700 (PDT)
+Received: from mail-pb0-x230.google.com (mail-pb0-x230.google.com [2607:f8b0:400e:c01::230])
+        by mx.google.com with ESMTPS id bg4si2928538pbb.67.2014.06.24.18.59.14
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 24 Jun 2014 18:58:04 -0700 (PDT)
-Date: Tue, 24 Jun 2014 21:57:33 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v3 12/13] mm, compaction: try to capture the just-created
- high-order freepage
-Message-ID: <20140625015733.GC12855@nhori.redhat.com>
-References: <1403279383-5862-1-git-send-email-vbabka@suse.cz>
- <1403279383-5862-13-git-send-email-vbabka@suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 24 Jun 2014 18:59:14 -0700 (PDT)
+Received: by mail-pb0-f48.google.com with SMTP id rq2so996307pbb.35
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 18:59:13 -0700 (PDT)
+Message-ID: <53AA2CD5.6060202@gmail.com>
+Date: Wed, 25 Jun 2014 09:58:45 +0800
+From: Wang Sheng-Hui <shhuiw@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1403279383-5862-13-git-send-email-vbabka@suse.cz>
+Subject: Re: [PATCH] mm: update the description for madvise_remove
+References: <53A9116B.9030004@gmail.com> <alpine.DEB.2.02.1406241542040.29176@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1406241542040.29176@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>, Michael Kerrisk <mtk.manpages@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Johannes Weiner <hannes@cmpxchg.org>, Andi Kleen <ak@linux.intel.com>, Vladimir Cernov <gg.kaspersky@gmail.com>, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-man@vger.kernel.org
 
-On Fri, Jun 20, 2014 at 05:49:42PM +0200, Vlastimil Babka wrote:
-> Compaction uses watermark checking to determine if it succeeded in creating
-> a high-order free page. My testing has shown that this is quite racy and it
-> can happen that watermark checking in compaction succeeds, and moments later
-> the watermark checking in page allocation fails, even though the number of
-> free pages has increased meanwhile.
-> 
-> It should be more reliable if direct compaction captured the high-order free
-> page as soon as it detects it, and pass it back to allocation. This would
-> also reduce the window for somebody else to allocate the free page.
-> 
-> Capture has been implemented before by 1fb3f8ca0e92 ("mm: compaction: capture
-> a suitable high-order page immediately when it is made available"), but later
-> reverted by 8fb74b9f ("mm: compaction: partially revert capture of suitable
-> high-order page") due to a bug.
-> 
-> This patch differs from the previous attempt in two aspects:
-> 
-> 1) The previous patch scanned free lists to capture the page. In this patch,
->    only the cc->order aligned block that the migration scanner just finished
->    is considered, but only if pages were actually isolated for migration in
->    that block. Tracking cc->order aligned blocks also has benefits for the
->    following patch that skips blocks where non-migratable pages were found.
-> 
-> 2) The operations done in buffered_rmqueue() and get_page_from_freelist() are
->    closely followed so that page capture mimics normal page allocation as much
->    as possible. This includes operations such as prep_new_page() and
->    page->pfmemalloc setting (that was missing in the previous attempt), zone
->    statistics are updated etc. Due to subtleties with IRQ disabling and
->    enabling this cannot be simply factored out from the normal allocation
->    functions without affecting the fastpath.
-> 
-> This patch has tripled compaction success rates (as recorded in vmstat) in
-> stress-highalloc mmtests benchmark, although allocation success rates increased
-> only by a few percent. Closer inspection shows that due to the racy watermark
-> checking and lack of lru_add_drain(), the allocations that resulted in direct
-> compactions were often failing, but later allocations succeeeded in the fast
-> path. So the benefit of the patch to allocation success rates may be limited,
-> but it improves the fairness in the sense that whoever spent the time
-> compacting has a higher change of benefitting from it, and also can stop
-> compacting sooner, as page availability is detected immediately. With better
-> success detection, the contribution of compaction to high-order allocation
-> success success rates is also no longer understated by the vmstats.
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Michal Nazarewicz <mina86@mina86.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: David Rientjes <rientjes@google.com>
-> ---
-...
-> @@ -669,6 +708,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
->  				continue;
->  			if (PageTransHuge(page)) {
->  				low_pfn += (1 << compound_order(page)) - 1;
-> +				next_capture_pfn = low_pfn + 1;
+Patch to man-page.
 
-Don't we need if (next_capture_pfn) here?
+[PATCH] madvise.2: update the description for MADV_REMOVE
 
-Thanks,
-Naoya Horiguchi
+Currently we have more filesystems supporting fallcate, e.g ext4/btrfs,
+which can response to MADV_REMOVE gracefully.
 
->  				continue;
->  			}
->  		}
+And if filesystems don't support fallocate, the return error would be
+EOPNOTSUPP, instead of ENOSYS.
+
+Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
+---
+ man2/madvise.2 | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/man2/madvise.2 b/man2/madvise.2
+index 032ead7..4ce869c 100644
+--- a/man2/madvise.2
++++ b/man2/madvise.2
+@@ -99,13 +99,9 @@ or zero-fill-on-demand pages for mappings
+ without an underlying file.
+ .TP
+ .BR MADV_REMOVE " (since Linux 2.6.16)"
+-Free up a given range of pages
+-and its associated backing store.
+-Currently,
+-.\" 2.6.18-rc5
+-only shmfs/tmpfs supports this; other filesystems return with the
+-error
+-.BR ENOSYS .
++Free up a given range of pages and its associated backing store.
++Filesystems that don't support fallocate will return error
++.BR EOPNOTSUPP.
+ .\" Databases want to use this feature to drop a section of their
+ .\" bufferpool (shared memory segments) - without writing back to
+ .\" disk/swap space.  This feature is also useful for supporting
+-- 
+1.8.3.2
+
+
+
+On 2014a1'06ae??25ae?JPY 06:44, David Rientjes wrote:
+> On Tue, 24 Jun 2014, Wang Sheng-Hui wrote:
+> 
+>>
+>> Currently, we have more filesystems supporting fallocate, e.g
+>> ext4/btrfs. Remove the outdated comment for madvise_remove.
+>>
+>> Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
+>> ---
+>>  mm/madvise.c | 3 ---
+>>  1 file changed, 3 deletions(-)
+>>
+>> diff --git a/mm/madvise.c b/mm/madvise.c
+>> index a402f8f..0938b30 100644
+>> --- a/mm/madvise.c
+>> +++ b/mm/madvise.c
+>> @@ -292,9 +292,6 @@ static long madvise_dontneed(struct vm_area_struct *vma,
+>>  /*
+>>   * Application wants to free up the pages and associated backing store.
+>>   * This is effectively punching a hole into the middle of a file.
+>> - *
+>> - * NOTE: Currently, only shmfs/tmpfs is supported for this operation.
+>> - * Other filesystems return -ENOSYS.
+>>   */
+>>  static long madvise_remove(struct vm_area_struct *vma,
+>>                                 struct vm_area_struct **prev,
+> 
+> [For those without context: this patch has been merged into the -mm tree.]
+> 
+> This reference also exists in the man-page for madvise(2), are you 
+> planning on removing it as well?
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
