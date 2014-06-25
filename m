@@ -1,111 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
-	by kanga.kvack.org (Postfix) with ESMTP id AF7846B004D
-	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 11:40:51 -0400 (EDT)
-Received: by mail-we0-f176.google.com with SMTP id u56so2304355wes.7
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 08:40:51 -0700 (PDT)
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-        by mx.google.com with ESMTPS id fu4si7464392wib.47.2014.06.25.08.40.42
+Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
+	by kanga.kvack.org (Postfix) with ESMTP id ADDA46B0038
+	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 11:47:03 -0400 (EDT)
+Received: by mail-qc0-f172.google.com with SMTP id o8so1922024qcw.31
+        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 08:47:03 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t2si5191405qae.64.2014.06.25.08.47.02
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 25 Jun 2014 08:40:42 -0700 (PDT)
-Received: by mail-wg0-f44.google.com with SMTP id x13so2242550wgg.15
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 08:40:42 -0700 (PDT)
-From: Steve Capper <steve.capper@linaro.org>
-Subject: [PATCH 4/6] arm: mm: Enable RCU fast_gup
-Date: Wed, 25 Jun 2014 16:40:22 +0100
-Message-Id: <1403710824-24340-5-git-send-email-steve.capper@linaro.org>
-In-Reply-To: <1403710824-24340-1-git-send-email-steve.capper@linaro.org>
-References: <1403710824-24340-1-git-send-email-steve.capper@linaro.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Jun 2014 08:47:03 -0700 (PDT)
+Date: Wed, 25 Jun 2014 11:46:50 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v3 04/13] mm, compaction: move pageblock checks up from
+ isolate_migratepages_range()
+Message-ID: <20140625154650.GA21235@nhori.bos.redhat.com>
+References: <1403279383-5862-1-git-send-email-vbabka@suse.cz>
+ <1403279383-5862-5-git-send-email-vbabka@suse.cz>
+ <20140624045252.GA18289@nhori.bos.redhat.com>
+ <53A99A88.1040500@suse.cz>
+ <20140624165821.GC18289@nhori.bos.redhat.com>
+ <53AA8D6B.6090301@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53AA8D6B.6090301@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, linux@arm.linux.org.uk, linux-arch@vger.kernel.org, linux-mm@kvack.org
-Cc: will.deacon@arm.com, gary.robertson@linaro.org, christoffer.dall@linaro.org, peterz@infradead.org, anders.roxell@linaro.org, akpm@linux-foundation.org, Steve Capper <steve.capper@linaro.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-kernel@vger.kernel.org
 
-Activate the RCU fast_gup for ARM. We also need to force THP splits to
-broadcast an IPI s.t. we block in the fast_gup page walker. As THP
-splits are comparatively rare, this should not lead to a noticeable
-performance degradation.
+On Wed, Jun 25, 2014 at 10:50:51AM +0200, Vlastimil Babka wrote:
+> On 06/24/2014 06:58 PM, Naoya Horiguchi wrote:
+> >On Tue, Jun 24, 2014 at 05:34:32PM +0200, Vlastimil Babka wrote:
+> >>On 06/24/2014 06:52 AM, Naoya Horiguchi wrote:
+> >>>>-	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn, false);
+> >>>>-	if (!low_pfn || cc->contended)
+> >>>>-		return ISOLATE_ABORT;
+> >>>>+		/* Do not scan within a memory hole */
+> >>>>+		if (!pfn_valid(low_pfn))
+> >>>>+			continue;
+> >>>>+
+> >>>>+		page = pfn_to_page(low_pfn);
+> >>>
+> >>>Can we move (page_zone != zone) check here as isolate_freepages() does?
+> >>
+> >>Duplicate perhaps, not sure about move.
+> >
+> >Sorry for my unclearness.
+> >I meant that we had better do this check in per-pageblock loop (as the free
+> >scanner does) instead of in per-pfn loop (as we do now.)
+> 
+> Hm I see, the migration and free scanners really do this differently. Free
+> scanned per-pageblock, but migration scanner per-page.
+> Can we assume that zones will never overlap within a single pageblock?
 
-Some pre-requisite functions pud_write and pud_page are also added.
+Maybe not, we have no such assumption.
 
-Signed-off-by: Steve Capper <steve.capper@linaro.org>
----
- arch/arm/Kconfig                      |  4 ++++
- arch/arm/include/asm/pgtable-3level.h |  8 ++++++++
- arch/arm/mm/flush.c                   | 19 +++++++++++++++++++
- 3 files changed, 31 insertions(+)
+> The example dc9086004 seems to be overlapping at even higher alignment so it
+> should be safe only to check first page in pageblock.
+> And if it wasn't the case, then I guess the freepage scanner would already
+> hit some errors on such system?
 
-diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 888bc8a..6d86ff6 100644
---- a/arch/arm/Kconfig
-+++ b/arch/arm/Kconfig
-@@ -1712,6 +1712,10 @@ config ARCH_SELECT_MEMORY_MODEL
- config HAVE_ARCH_PFN_VALID
- 	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
- 
-+config HAVE_RCU_GUP
-+	def_bool y
-+	depends on ARM_LPAE
-+
- config HIGHMEM
- 	bool "High Memory Support"
- 	depends on MMU
-diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
-index b286ba9..fa8dcb2 100644
---- a/arch/arm/include/asm/pgtable-3level.h
-+++ b/arch/arm/include/asm/pgtable-3level.h
-@@ -219,6 +219,8 @@ static inline pte_t pte_mkspecial(pte_t pte)
- 
- #define __HAVE_ARCH_PMD_WRITE
- #define pmd_write(pmd)		(!(pmd_val(pmd) & PMD_SECT_RDONLY))
-+#define pud_write(pud)		(0)
-+#define pud_page(pud)		pmd_page(__pmd(pud_val(pud)))
- 
- #define pmd_hugewillfault(pmd)	(!pmd_young(pmd) || !pmd_write(pmd))
- #define pmd_thp_or_huge(pmd)	(pmd_huge(pmd) || pmd_trans_huge(pmd))
-@@ -226,6 +228,12 @@ static inline pte_t pte_mkspecial(pte_t pte)
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- #define pmd_trans_huge(pmd)	(pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
- #define pmd_trans_splitting(pmd) (pmd_val(pmd) & PMD_SECT_SPLITTING)
-+
-+#ifdef CONFIG_HAVE_RCU_TABLE_FREE
-+#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
-+void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
-+			  pmd_t *pmdp);
-+#endif
- #endif
- 
- #define PMD_BIT_FUNC(fn,op) \
-diff --git a/arch/arm/mm/flush.c b/arch/arm/mm/flush.c
-index 43d54f5..9422820 100644
---- a/arch/arm/mm/flush.c
-+++ b/arch/arm/mm/flush.c
-@@ -400,3 +400,22 @@ void __flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned l
- 	 */
- 	__cpuc_flush_dcache_area(page_address(page), PAGE_SIZE);
- }
-+
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#ifdef CONFIG_HAVE_RCU_TABLE_FREE
-+static void thp_splitting_flush_sync(void *arg)
-+{
-+}
-+
-+void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
-+			  pmd_t *pmdp)
-+{
-+	pmd_t pmd = pmd_mksplitting(*pmdp);
-+	VM_BUG_ON(address & ~PMD_MASK);
-+	set_pmd_at(vma->vm_mm, address, pmdp, pmd);
-+
-+	/* dummy IPI to serialise against fast_gup */
-+	smp_call_function(thp_splitting_flush_sync, NULL, 1);
-+}
-+#endif /* CONFIG_HAVE_RCU_TABLE_FREE */
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
--- 
-1.9.3
+That's right. Such system might be rare so nobody detected it, I guess.
+So I was wrong, and page_zone check should be done in per-pfn loop in
+both scanner?
+
+I just think that it might be good if we have an iterator to run over
+pfns only on a given zone (not that check page zone on each page,)
+but it introduces some more complexity on the scanners, so at this time
+we don't have to do it in this series.
+
+> But if that's true, why does page_is_buddy test if pages are in the same
+> zone?
+
+Yeah, this is why we think we can't have the above mentioned assumption.
+
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
