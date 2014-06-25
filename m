@@ -1,282 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 862A66B0031
-	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 04:59:25 -0400 (EDT)
-Received: by mail-wg0-f43.google.com with SMTP id b13so1554345wgh.2
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 01:59:22 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lk16si2152089wic.65.2014.06.25.01.59.20
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 25 Jun 2014 01:59:21 -0700 (PDT)
-Message-ID: <53AA8F67.5020700@suse.cz>
-Date: Wed, 25 Jun 2014 10:59:19 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id DA2BE6B0031
+	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 05:31:55 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id bj1so1500963pad.9
+        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 02:31:55 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id kr7si4366892pab.13.2014.06.25.02.31.54
+        for <linux-mm@kvack.org>;
+        Wed, 25 Jun 2014 02:31:54 -0700 (PDT)
+Date: Wed, 25 Jun 2014 17:31:46 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [migration] kernel BUG at kernel/irq_work.c:175!
+Message-ID: <20140625093146.GC27280@localhost>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 04/13] mm, compaction: move pageblock checks up from
- isolate_migratepages_range()
-References: <1403279383-5862-1-git-send-email-vbabka@suse.cz> <1403279383-5862-5-git-send-email-vbabka@suse.cz> <20140624083325.GG4836@js1304-P5Q-DELUXE> <53A99C7A.7000806@suse.cz> <20140625005335.GA29373@js1304-P5Q-DELUXE>
-In-Reply-To: <20140625005335.GA29373@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, linux-kernel@vger.kernel.org
+To: Linux Memory Management List <linux-mm@kvack.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Jet Chen <jet.chen@intel.com>, Yuanhan Liu <yuanhan.liu@intel.com>, LKP <lkp@01.org>, "Su, Tao" <tao.su@intel.com>
 
-On 06/25/2014 02:53 AM, Joonsoo Kim wrote:
-> On Tue, Jun 24, 2014 at 05:42:50PM +0200, Vlastimil Babka wrote:
->> On 06/24/2014 10:33 AM, Joonsoo Kim wrote:
->>> On Fri, Jun 20, 2014 at 05:49:34PM +0200, Vlastimil Babka wrote:
->>>> isolate_migratepages_range() is the main function of the compaction scanner,
->>>> called either on a single pageblock by isolate_migratepages() during regular
->>>> compaction, or on an arbitrary range by CMA's __alloc_contig_migrate_range().
->>>> It currently perfoms two pageblock-wide compaction suitability checks, and
->>>> because of the CMA callpath, it tracks if it crossed a pageblock boundary in
->>>> order to repeat those checks.
->>>>
->>>> However, closer inspection shows that those checks are always true for CMA:
->>>> - isolation_suitable() is true because CMA sets cc->ignore_skip_hint to true
->>>> - migrate_async_suitable() check is skipped because CMA uses sync compaction
->>>>
->>>> We can therefore move the checks to isolate_migratepages(), reducing variables
->>>> and simplifying isolate_migratepages_range(). The update_pageblock_skip()
->>>> function also no longer needs set_unsuitable parameter.
->>>>
->>>> Furthermore, going back to compact_zone() and compact_finished() when pageblock
->>>> is unsuitable is wasteful - the checks are meant to skip pageblocks quickly.
->>>> The patch therefore also introduces a simple loop into isolate_migratepages()
->>>> so that it does not return immediately on pageblock checks, but keeps going
->>>> until isolate_migratepages_range() gets called once. Similarily to
->>>> isolate_freepages(), the function periodically checks if it needs to reschedule
->>>> or abort async compaction.
->>>>
->>>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
->>>> Cc: Minchan Kim <minchan@kernel.org>
->>>> Cc: Mel Gorman <mgorman@suse.de>
->>>> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->>>> Cc: Michal Nazarewicz <mina86@mina86.com>
->>>> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->>>> Cc: Christoph Lameter <cl@linux.com>
->>>> Cc: Rik van Riel <riel@redhat.com>
->>>> Cc: David Rientjes <rientjes@google.com>
->>>> ---
->>>>   mm/compaction.c | 112 +++++++++++++++++++++++++++++---------------------------
->>>>   1 file changed, 59 insertions(+), 53 deletions(-)
->>>>
->>>> diff --git a/mm/compaction.c b/mm/compaction.c
->>>> index 3064a7f..ebe30c9 100644
->>>> --- a/mm/compaction.c
->>>> +++ b/mm/compaction.c
->>>> @@ -132,7 +132,7 @@ void reset_isolation_suitable(pg_data_t *pgdat)
->>>>    */
->>>>   static void update_pageblock_skip(struct compact_control *cc,
->>>>   			struct page *page, unsigned long nr_isolated,
->>>> -			bool set_unsuitable, bool migrate_scanner)
->>>> +			bool migrate_scanner)
->>>>   {
->>>>   	struct zone *zone = cc->zone;
->>>>   	unsigned long pfn;
->>>> @@ -146,12 +146,7 @@ static void update_pageblock_skip(struct compact_control *cc,
->>>>   	if (nr_isolated)
->>>>   		return;
->>>>
->>>> -	/*
->>>> -	 * Only skip pageblocks when all forms of compaction will be known to
->>>> -	 * fail in the near future.
->>>> -	 */
->>>> -	if (set_unsuitable)
->>>> -		set_pageblock_skip(page);
->>>> +	set_pageblock_skip(page);
->>>>
->>>>   	pfn = page_to_pfn(page);
->>>>
->>>> @@ -180,7 +175,7 @@ static inline bool isolation_suitable(struct compact_control *cc,
->>>>
->>>>   static void update_pageblock_skip(struct compact_control *cc,
->>>>   			struct page *page, unsigned long nr_isolated,
->>>> -			bool set_unsuitable, bool migrate_scanner)
->>>> +			bool migrate_scanner)
->>>>   {
->>>>   }
->>>>   #endif /* CONFIG_COMPACTION */
->>>> @@ -345,8 +340,7 @@ isolate_fail:
->>>>
->>>>   	/* Update the pageblock-skip if the whole pageblock was scanned */
->>>>   	if (blockpfn == end_pfn)
->>>> -		update_pageblock_skip(cc, valid_page, total_isolated, true,
->>>> -				      false);
->>>> +		update_pageblock_skip(cc, valid_page, total_isolated, false);
->>>>
->>>>   	count_compact_events(COMPACTFREE_SCANNED, nr_scanned);
->>>>   	if (total_isolated)
->>>> @@ -474,14 +468,12 @@ unsigned long
->>>>   isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
->>>>   		unsigned long low_pfn, unsigned long end_pfn, bool unevictable)
->>>>   {
->>>> -	unsigned long last_pageblock_nr = 0, pageblock_nr;
->>>>   	unsigned long nr_scanned = 0, nr_isolated = 0;
->>>>   	struct list_head *migratelist = &cc->migratepages;
->>>>   	struct lruvec *lruvec;
->>>>   	unsigned long flags;
->>>>   	bool locked = false;
->>>>   	struct page *page = NULL, *valid_page = NULL;
->>>> -	bool set_unsuitable = true;
->>>>   	const isolate_mode_t mode = (cc->mode == MIGRATE_ASYNC ?
->>>>   					ISOLATE_ASYNC_MIGRATE : 0) |
->>>>   				    (unevictable ? ISOLATE_UNEVICTABLE : 0);
->>>> @@ -545,28 +537,6 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
->>>>   		if (!valid_page)
->>>>   			valid_page = page;
->>>>
->>>> -		/* If isolation recently failed, do not retry */
->>>> -		pageblock_nr = low_pfn >> pageblock_order;
->>>> -		if (last_pageblock_nr != pageblock_nr) {
->>>> -			int mt;
->>>> -
->>>> -			last_pageblock_nr = pageblock_nr;
->>>> -			if (!isolation_suitable(cc, page))
->>>> -				goto next_pageblock;
->>>> -
->>>> -			/*
->>>> -			 * For async migration, also only scan in MOVABLE
->>>> -			 * blocks. Async migration is optimistic to see if
->>>> -			 * the minimum amount of work satisfies the allocation
->>>> -			 */
->>>> -			mt = get_pageblock_migratetype(page);
->>>> -			if (cc->mode == MIGRATE_ASYNC &&
->>>> -			    !migrate_async_suitable(mt)) {
->>>> -				set_unsuitable = false;
->>>> -				goto next_pageblock;
->>>> -			}
->>>> -		}
->>>> -
->>>>   		/*
->>>>   		 * Skip if free. page_order cannot be used without zone->lock
->>>>   		 * as nothing prevents parallel allocations or buddy merging.
->>>> @@ -668,8 +638,7 @@ next_pageblock:
->>>>   	 * if the whole pageblock was scanned without isolating any page.
->>>>   	 */
->>>>   	if (low_pfn == end_pfn)
->>>> -		update_pageblock_skip(cc, valid_page, nr_isolated,
->>>> -				      set_unsuitable, true);
->>>> +		update_pageblock_skip(cc, valid_page, nr_isolated, true);
->>>>
->>>>   	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
->>>>
->>>> @@ -840,34 +809,74 @@ typedef enum {
->>>>   } isolate_migrate_t;
->>>>
->>>>   /*
->>>> - * Isolate all pages that can be migrated from the block pointed to by
->>>> - * the migrate scanner within compact_control.
->>>> + * Isolate all pages that can be migrated from the first suitable block,
->>>> + * starting at the block pointed to by the migrate scanner pfn within
->>>> + * compact_control.
->>>>    */
->>>>   static isolate_migrate_t isolate_migratepages(struct zone *zone,
->>>>   					struct compact_control *cc)
->>>>   {
->>>>   	unsigned long low_pfn, end_pfn;
->>>> +	struct page *page;
->>>>
->>>> -	/* Do not scan outside zone boundaries */
->>>> -	low_pfn = max(cc->migrate_pfn, zone->zone_start_pfn);
->>>> +	/* Start at where we last stopped, or beginning of the zone */
->>>> +	low_pfn = cc->migrate_pfn;
->>>>
->>>>   	/* Only scan within a pageblock boundary */
->>>>   	end_pfn = ALIGN(low_pfn + 1, pageblock_nr_pages);
->>>>
->>>> -	/* Do not cross the free scanner or scan within a memory hole */
->>>> -	if (end_pfn > cc->free_pfn || !pfn_valid(low_pfn)) {
->>>> -		cc->migrate_pfn = end_pfn;
->>>> -		return ISOLATE_NONE;
->>>> -	}
->>>> +	/*
->>>> +	 * Iterate over whole pageblocks until we find the first suitable.
->>>> +	 * Do not cross the free scanner.
->>>> +	 */
->>>> +	for (; end_pfn <= cc->free_pfn;
->>>> +			low_pfn = end_pfn, end_pfn += pageblock_nr_pages) {
->>>> +
->>>> +		/*
->>>> +		 * This can potentially iterate a massively long zone with
->>>> +		 * many pageblocks unsuitable, so periodically check if we
->>>> +		 * need to schedule, or even abort async compaction.
->>>> +		 */
->>>> +		if (!(low_pfn % (SWAP_CLUSTER_MAX * pageblock_nr_pages))
->>>> +						&& compact_should_abort(cc))
->>>> +			break;
->>>>
->>>> -	/* Perform the isolation */
->>>> -	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn, false);
->>>> -	if (!low_pfn || cc->contended)
->>>> -		return ISOLATE_ABORT;
->>>> +		/* Do not scan within a memory hole */
->>>> +		if (!pfn_valid(low_pfn))
->>>> +			continue;
->>>> +
->>>> +		page = pfn_to_page(low_pfn);
->>>> +		/* If isolation recently failed, do not retry */
->>>> +		if (!isolation_suitable(cc, page))
->>>> +			continue;
->>>>
->>>> +		/*
->>>> +		 * For async compaction, also only scan in MOVABLE blocks.
->>>> +		 * Async compaction is optimistic to see if the minimum amount
->>>> +		 * of work satisfies the allocation.
->>>> +		 */
->>>> +		if (cc->mode == MIGRATE_ASYNC &&
->>>> +		    !migrate_async_suitable(get_pageblock_migratetype(page)))
->>>> +			continue;
->>>> +
->>>> +		/* Perform the isolation */
->>>> +		low_pfn = isolate_migratepages_range(zone, cc, low_pfn,
->>>> +								end_pfn, false);
->>>> +		if (!low_pfn || cc->contended)
->>>> +			return ISOLATE_ABORT;
->>>> +
->>>> +		/*
->>>> +		 * Either we isolated something and proceed with migration. Or
->>>> +		 * we failed and compact_zone should decide if we should
->>>> +		 * continue or not.
->>>> +		 */
->>>> +		break;
->>>> +	}
->>>> +
->>>> +	/* Record where migration scanner will be restarted */
->>>
->>> If we make isolate_migratepages* interface like as isolate_freepages*,
->>> we can get more clean and micro optimized code. Because
->>> isolate_migratepages_range() can handle arbitrary range and this patch
->>> make isolate_migratepages() also handle arbitrary range, there would
->>> be some redundant codes. :)
->>
->> I'm not sure if it's worth already. Where is the arbitrary range
->> adding overhead? I can only imagine that next_pageblock: label could
->> do a 'break;' instead of setting up next_capture_pfn, but that's
->> about it AFAICS.
->
-> In fact, there is just minor overhead, pfn_valid().
-> And isolate_freepages variants seems to do this correctly. :)
->
-> Someone could wonder why there are two isolate_migratepages variants
-> with arbitrary range compaction ability. IMHO, one
-> isolate_migratepage_xxx for pageblock range and two
-> isolate_migratepage_yyy/zzz for compaction and CMA is better
-> architecture.
+Greetings,
 
-OK, I will try. But we need to resolve the "where to test for 
-page_zone() == cc->zone?" question.
+0day kernel testing robot got the below dmesg and the first bad commit is
 
-> And, One additional note. You can move update_pageblock_skip() to
-> isolate_migratepages() now.
+git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+commit 68c90b2c635f18ad51ae7440162f6c082ea1288d
+Merge: f08af6f ec11f8c
+Author:     Stephen Rothwell <sfr@canb.auug.org.au>
+AuthorDate: Mon Jun 23 14:12:48 2014 +1000
 
-Right, thanks.
+    Merge branch 'akpm-current/current'
 
-> Thanks.
->
++---------------------------------+------------+------------+------------+---------------+
+|                                 | f08af6fa87 | ec11f8c81f | 68c90b2c63 | next-20140623 |
++---------------------------------+------------+------------+------------+---------------+
+| boot_successes                  | 60         | 60         | 0          | 0             |
+| boot_failures                   | 0          | 0          | 20         | 13            |
+| kernel_BUG_at_kernel/irq_work.c | 0          | 0          | 20         | 13            |
+| invalid_opcode                  | 0          | 0          | 20         | 13            |
+| RIP:irq_work_run                | 0          | 0          | 20         | 13            |
+| backtrace:smpboot_thread_fn     | 0          | 0          | 20         | 13            |
++---------------------------------+------------+------------+------------+---------------+
+
+[    2.194744] EDD information not available.
+[    2.195290] Unregister pv shared memory for cpu 0
+[    2.206025] ------------[ cut here ]------------
+[    2.206025] kernel BUG at kernel/irq_work.c:175!
+[    2.206025] invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC
+[    2.206025] CPU: 0 PID: 9 Comm: migration/0 Not tainted 3.16.0-rc2-02039-g68c90b2 #1
+[    2.206025] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+[    2.206025] task: ffff88001219a7e0 ti: ffff8800121a4000 task.ti: ffff8800121a4000
+[    2.206025] RIP: 0010:[<ffffffff810f9318>]  [<ffffffff810f9318>] irq_work_run+0xf/0x1c
+[    2.206025] RSP: 0000:ffff8800121a7c48  EFLAGS: 00010046
+[    2.206025] RAX: 0000000080000001 RBX: 0000000000000000 RCX: 0000000000000005
+[    2.206025] RDX: 0000000000000000 RSI: 0000000000000008 RDI: 0000000000000000
+[    2.206025] RBP: ffff8800121a7c68 R08: 0000000000000002 R09: 0000000000000001
+[    2.206025] R10: ffffffff810e2a10 R11: ffffffff810b9de3 R12: ffff880012412340
+[    2.206025] R13: 0000000000000000 R14: 0000000000000000 R15: ffffffff81c83e50
+[    2.206025] FS:  0000000000000000(0000) GS:ffff880012400000(0000) knlGS:0000000000000000
+[    2.206025] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[    2.206025] CR2: 0000000000000000 CR3: 0000000001c0c000 CR4: 00000000000006b0
+[    2.206025] Stack:
+[    2.206025]  ffffffff810e87e0 ffff880012412380 00000000fffffff0 ffffffff81c81ba0
+[    2.206025]  ffff8800121a7c88 ffffffff810e88f0 0000000000000001 00000000fffffff0
+[    2.206025]  ffff8800121a7cd0 ffffffff810b6e23 0000000000000000 0000000000000008
+[    2.206025] Call Trace:
+[    2.206025]  [<ffffffff810e87e0>] ? flush_smp_call_function_queue+0xa4/0x107
+[    2.206025]  [<ffffffff810e88f0>] hotplug_cfd+0xad/0xbb
+[    2.206025]  [<ffffffff810b6e23>] notifier_call_chain+0x68/0x8e
+[    2.206025]  [<ffffffff810b70c0>] __raw_notifier_call_chain+0x9/0xb
+[    2.206025]  [<ffffffff8109b39e>] __cpu_notify+0x1b/0x32
+[    2.206025]  [<ffffffff8109b3c3>] cpu_notify+0xe/0x10
+[    2.206025]  [<ffffffff817e2817>] take_cpu_down+0x22/0x35
+[    2.206025]  [<ffffffff810f4153>] multi_cpu_stop+0x8c/0xe2
+[    2.206025]  [<ffffffff810f40c7>] ? cpu_stopper_thread+0x126/0x126
+[    2.206025]  [<ffffffff810f402e>] cpu_stopper_thread+0x8d/0x126
+[    2.206025]  [<ffffffff810cdab4>] ? lock_acquire+0x94/0x9d
+[    2.206025]  [<ffffffff817f25af>] ? _raw_spin_unlock_irqrestore+0x40/0x55
+[    2.206025]  [<ffffffff810cbdcd>] ? trace_hardirqs_on_caller+0x171/0x18d
+[    2.206025]  [<ffffffff817f25b7>] ? _raw_spin_unlock_irqrestore+0x48/0x55
+[    2.206025]  [<ffffffff810b8e39>] smpboot_thread_fn+0x182/0x1a0
+[    2.206025]  [<ffffffff810b8cb7>] ? in_egroup_p+0x2e/0x2e
+[    2.206025]  [<ffffffff810b372c>] kthread+0xcd/0xd5
+[    2.206025]  [<ffffffff810b365f>] ? __kthread_parkme+0x5c/0x5c
+[    2.206025]  [<ffffffff817f2f3c>] ret_from_fork+0x7c/0xb0
+[    2.206025]  [<ffffffff810b365f>] ? __kthread_parkme+0x5c/0x5c
+[    2.206025] Code: 48 c7 c7 65 cd b0 81 e8 43 20 fa ff c6 05 50 e1 c9 00 01 eb 02 31 db 88 d8 5b 5d c3 65 8b 04 25 10 b8 00 00 a9 00 00 0f 00 75 02 <0f> 0b 55 48 89 e5 e8 b5 fd ff ff 5d c3 55 48 89 e5 53 48 89 fb 
+[    2.206025] RIP  [<ffffffff810f9318>] irq_work_run+0xf/0x1c
+[    2.206025]  RSP <ffff8800121a7c48>
+[    2.206025] ---[ end trace f7f1564c3a1f35d0 ]---
+[    2.206025] note: migration/0[9] exited with preempt_count 1
+
+git bisect start 58ae500a03a6bf68eee323c342431bfdd3f460b6 f08af6fa87ea33262fe2fe5167119fb55ad9dd2c --
+git bisect  bad 68c90b2c635f18ad51ae7440162f6c082ea1288d  # 14:19      0-     20  Merge branch 'akpm-current/current'
+git bisect good 6b11d02e25c79a8961983a966b7fafcdc36c7a91  # 14:23     20+      0  slab: do not keep free objects/slabs on dead memcg caches
+git bisect good 11709212b3a5479fcc63dda3160f4f4b0251f914  # 14:27     20+      0  mm/util.c: add kstrimdup()
+git bisect good 6af20930dcfcd13270de4f29f3830312f3c36a17  # 14:33     20+      0  fork: reset mm->pinned_vm
+git bisect good 8e7c32fb574ec1b49fd0e451cb25febf51430dd9  # 14:38     20+      0  fs/qnx6: use pr_fmt and __func__ in logging
+git bisect good 6873969c750b85734bc7d06be3c51ad381b3c85a  # 14:41     20+      0  shm: remove unneeded extern for function
+git bisect good 2b9ed79abc340e15bc9652048d2e8d8a283bd8a1  # 14:48     20+      0  um: use asm-generic/scatterlist.h
+git bisect good ec11f8c81fbc76534c1374e29bdf36f085ed859a  # 15:12     20+      0  lib/scatterlist: clean up useless architecture versions of scatterlist.h
+# first bad commit: [68c90b2c635f18ad51ae7440162f6c082ea1288d] Merge branch 'akpm-current/current'
+git bisect good f08af6fa87ea33262fe2fe5167119fb55ad9dd2c  # 15:14     60+      0  Merge branch 'rd-docs/master'
+git bisect good ec11f8c81fbc76534c1374e29bdf36f085ed859a  # 15:19     60+      0  lib/scatterlist: clean up useless architecture versions of scatterlist.h
+git bisect  bad 58ae500a03a6bf68eee323c342431bfdd3f460b6  # 15:19      0-     13  Add linux-next specific files for 20140623
+git bisect good a497c3ba1d97fc69c1e78e7b96435ba8c2cb42ee  # 15:25     60+      0  Linux 3.16-rc2
+git bisect  bad 58ae500a03a6bf68eee323c342431bfdd3f460b6  # 15:25      0-     13  Add linux-next specific files for 20140623
+
+
+This script may reproduce the error.
+
+-----------------------------------------------------------------------------
+#!/bin/bash
+
+kernel=$1
+initrd=quantal-core-x86_64.cgz
+
+wget --no-clobber https://github.com/fengguang/reproduce-kernel-bug/blob/master/initrd/$initrd
+
+kvm=(
+	qemu-system-x86_64 -cpu kvm64 -enable-kvm 
+	-kernel $kernel
+	-initrd $initrd
+	-smp 2
+	-m 256M
+	-net nic,vlan=0,macaddr=00:00:00:00:00:00,model=virtio
+	-net user,vlan=0
+	-net nic,vlan=1,model=e1000
+	-net user,vlan=1
+	-boot order=nc
+	-no-reboot
+	-watchdog i6300esb
+	-serial stdio
+	-display none
+	-monitor null
+)
+
+append=(
+	debug
+	sched_debug
+	apic=debug
+	ignore_loglevel
+	sysrq_always_enabled
+	panic=10
+	prompt_ramdisk=0
+	earlyprintk=ttyS0,115200
+	console=ttyS0,115200
+	console=tty0
+	vga=normal
+	root=/dev/ram0
+	rw
+)
+
+"${kvm[@]}" --append "${append[*]}"
+-----------------------------------------------------------------------------
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
