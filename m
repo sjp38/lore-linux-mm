@@ -1,88 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 44DAB6B0031
-	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 11:40:39 -0400 (EDT)
-Received: by mail-wi0-f182.google.com with SMTP id bs8so2767161wib.15
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 08:40:38 -0700 (PDT)
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-        by mx.google.com with ESMTPS id dc5si7438460wib.85.2014.06.25.08.40.36
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id BB8706B0037
+	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 11:40:43 -0400 (EDT)
+Received: by mail-wg0-f46.google.com with SMTP id y10so2255718wgg.17
+        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 08:40:43 -0700 (PDT)
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+        by mx.google.com with ESMTPS id bh4si7465699wib.39.2014.06.25.08.40.42
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 25 Jun 2014 08:40:37 -0700 (PDT)
-Received: by mail-wg0-f41.google.com with SMTP id a1so2219408wgh.12
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 08:40:35 -0700 (PDT)
+        Wed, 25 Jun 2014 08:40:42 -0700 (PDT)
+Received: by mail-wi0-f174.google.com with SMTP id bs8so8031802wib.13
+        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 08:40:40 -0700 (PDT)
 From: Steve Capper <steve.capper@linaro.org>
-Subject: [PATCH 0/6] RCU get_user_pages_fast and __get_user_pages_fast
-Date: Wed, 25 Jun 2014 16:40:18 +0100
-Message-Id: <1403710824-24340-1-git-send-email-steve.capper@linaro.org>
+Subject: [PATCH 3/6] arm: mm: Enable HAVE_RCU_TABLE_FREE logic
+Date: Wed, 25 Jun 2014 16:40:21 +0100
+Message-Id: <1403710824-24340-4-git-send-email-steve.capper@linaro.org>
+In-Reply-To: <1403710824-24340-1-git-send-email-steve.capper@linaro.org>
+References: <1403710824-24340-1-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, linux@arm.linux.org.uk, linux-arch@vger.kernel.org, linux-mm@kvack.org
 Cc: will.deacon@arm.com, gary.robertson@linaro.org, christoffer.dall@linaro.org, peterz@infradead.org, anders.roxell@linaro.org, akpm@linux-foundation.org, Steve Capper <steve.capper@linaro.org>
 
-Hello,
-This series implements general forms of get_user_pages_fast and
-__get_user_pages_fast and activates them for arm and arm64.
+In order to implement fast_get_user_pages we need to ensure that the
+page table walker is protected from page table pages being freed from
+under it.
 
-These are required for Transparent HugePages to function correctly, as
-a futex on a THP tail will otherwise result in an infinite loop (due to
-the core implementation of __get_user_pages_fast always returning 0).
+This patch enables HAVE_RCU_TABLE_FREE, any page table pages belonging
+to address spaces with multiple users will be call_rcu_sched freed.
+Meaning that disabling interrupts will block the free and protect
+the fast gup page walker.
 
-This series may also be beneficial for direct-IO heavy workloads and
-certain KVM workloads.
+Signed-off-by: Steve Capper <steve.capper@linaro.org>
+---
+ arch/arm/Kconfig           |  1 +
+ arch/arm/include/asm/tlb.h | 38 ++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 37 insertions(+), 2 deletions(-)
 
-The main changes since RFC V5 are:
- * Rebased against 3.16-rc1.
- * pmd_present no longer tested for by gup_huge_pmd and gup_huge_pud,
-   because the entry must be present for these leaf functions to be
-   called. 
- * Rather than assume puds can be re-cast as pmds, a separate
-   function pud_write is instead used by the core gup.
- * ARM activation logic changed, now it will only activate
-   RCU_TABLE_FREE and RCU_GUP when running with LPAE.
-
-The main changes since RFC V4 are:
- * corrected the arm64 logic so it now correctly rcu-frees page
-   table backing pages.
- * rcu free logic relaxed for pre-ARMv7 ARM as we need an IPI to
-   invalidate TLBs anyway.
- * rebased to 3.15-rc3 (some minor changes were needed to allow it to merge).
- * dropped Catalin's mmu_gather patch as that's been merged already.
-
-This series has been tested with LTP and some custom futex tests that
-exacerbate the futex on THP tail case. Also debug counters were
-temporarily employed to ensure that the RCU_TABLE_FREE logic was
-behaving as expected.
-
-I would really appreciate any testers or comments (especially on the
-validity or otherwise of the core fast_gup implementation).
-
-Cheers,
---
-Steve
-
-Steve Capper (6):
-  mm: Introduce a general RCU get_user_pages_fast.
-  arm: mm: Introduce special ptes for LPAE
-  arm: mm: Enable HAVE_RCU_TABLE_FREE logic
-  arm: mm: Enable RCU fast_gup
-  arm64: mm: Enable HAVE_RCU_TABLE_FREE logic
-  arm64: mm: Enable RCU fast_gup
-
- arch/arm/Kconfig                      |   5 +
- arch/arm/include/asm/pgtable-2level.h |   2 +
- arch/arm/include/asm/pgtable-3level.h |  16 ++
- arch/arm/include/asm/pgtable.h        |   6 +-
- arch/arm/include/asm/tlb.h            |  38 ++++-
- arch/arm/mm/flush.c                   |  19 +++
- arch/arm64/Kconfig                    |   4 +
- arch/arm64/include/asm/pgtable.h      |  11 +-
- arch/arm64/include/asm/tlb.h          |  18 ++-
- arch/arm64/mm/flush.c                 |  19 +++
- mm/Kconfig                            |   3 +
- mm/gup.c                              | 278 ++++++++++++++++++++++++++++++++++
- 12 files changed, 410 insertions(+), 9 deletions(-)
-
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 245058b..888bc8a 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -59,6 +59,7 @@ config ARM
+ 	select HAVE_PERF_EVENTS
+ 	select HAVE_PERF_REGS
+ 	select HAVE_PERF_USER_STACK_DUMP
++	select HAVE_RCU_TABLE_FREE if (SMP && ARM_LPAE)
+ 	select HAVE_REGS_AND_STACK_ACCESS_API
+ 	select HAVE_SYSCALL_TRACEPOINTS
+ 	select HAVE_UID16
+diff --git a/arch/arm/include/asm/tlb.h b/arch/arm/include/asm/tlb.h
+index f1a0dac..3cadb72 100644
+--- a/arch/arm/include/asm/tlb.h
++++ b/arch/arm/include/asm/tlb.h
+@@ -35,12 +35,39 @@
+ 
+ #define MMU_GATHER_BUNDLE	8
+ 
++#ifdef CONFIG_HAVE_RCU_TABLE_FREE
++static inline void __tlb_remove_table(void *_table)
++{
++	free_page_and_swap_cache((struct page *)_table);
++}
++
++struct mmu_table_batch {
++	struct rcu_head		rcu;
++	unsigned int		nr;
++	void			*tables[0];
++};
++
++#define MAX_TABLE_BATCH		\
++	((PAGE_SIZE - sizeof(struct mmu_table_batch)) / sizeof(void *))
++
++extern void tlb_table_flush(struct mmu_gather *tlb);
++extern void tlb_remove_table(struct mmu_gather *tlb, void *table);
++
++#define tlb_remove_entry(tlb, entry)	tlb_remove_table(tlb, entry)
++#else
++#define tlb_remove_entry(tlb, entry)	tlb_remove_page(tlb, entry)
++#endif /* CONFIG_HAVE_RCU_TABLE_FREE */
++
+ /*
+  * TLB handling.  This allows us to remove pages from the page
+  * tables, and efficiently handle the TLB issues.
+  */
+ struct mmu_gather {
+ 	struct mm_struct	*mm;
++#ifdef CONFIG_HAVE_RCU_TABLE_FREE
++	struct mmu_table_batch	*batch;
++	unsigned int		need_flush;
++#endif
+ 	unsigned int		fullmm;
+ 	struct vm_area_struct	*vma;
+ 	unsigned long		start, end;
+@@ -101,6 +128,9 @@ static inline void __tlb_alloc_page(struct mmu_gather *tlb)
+ static inline void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
+ {
+ 	tlb_flush(tlb);
++#ifdef CONFIG_HAVE_RCU_TABLE_FREE
++	tlb_table_flush(tlb);
++#endif
+ }
+ 
+ static inline void tlb_flush_mmu_free(struct mmu_gather *tlb)
+@@ -129,6 +159,10 @@ tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long start
+ 	tlb->pages = tlb->local;
+ 	tlb->nr = 0;
+ 	__tlb_alloc_page(tlb);
++
++#ifdef CONFIG_HAVE_RCU_TABLE_FREE
++	tlb->batch = NULL;
++#endif
+ }
+ 
+ static inline void
+@@ -205,7 +239,7 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
+ 	tlb_add_flush(tlb, addr + SZ_1M);
+ #endif
+ 
+-	tlb_remove_page(tlb, pte);
++	tlb_remove_entry(tlb, pte);
+ }
+ 
+ static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
+@@ -213,7 +247,7 @@ static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
+ {
+ #ifdef CONFIG_ARM_LPAE
+ 	tlb_add_flush(tlb, addr);
+-	tlb_remove_page(tlb, virt_to_page(pmdp));
++	tlb_remove_entry(tlb, virt_to_page(pmdp));
+ #endif
+ }
+ 
 -- 
 1.9.3
 
