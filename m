@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AF586B003C
+Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
+	by kanga.kvack.org (Postfix) with ESMTP id AF7846B004D
 	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 11:40:51 -0400 (EDT)
-Received: by mail-we0-f180.google.com with SMTP id x48so2255921wes.11
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 08:40:49 -0700 (PDT)
-Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
-        by mx.google.com with ESMTPS id m4si28040253wiy.39.2014.06.25.08.40.39
+Received: by mail-we0-f176.google.com with SMTP id u56so2304355wes.7
+        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 08:40:51 -0700 (PDT)
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+        by mx.google.com with ESMTPS id fu4si7464392wib.47.2014.06.25.08.40.42
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 25 Jun 2014 08:40:40 -0700 (PDT)
-Received: by mail-we0-f181.google.com with SMTP id q59so2247130wes.26
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 08:40:39 -0700 (PDT)
+        Wed, 25 Jun 2014 08:40:42 -0700 (PDT)
+Received: by mail-wg0-f44.google.com with SMTP id x13so2242550wgg.15
+        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 08:40:42 -0700 (PDT)
 From: Steve Capper <steve.capper@linaro.org>
-Subject: [PATCH 2/6] arm: mm: Introduce special ptes for LPAE
-Date: Wed, 25 Jun 2014 16:40:20 +0100
-Message-Id: <1403710824-24340-3-git-send-email-steve.capper@linaro.org>
+Subject: [PATCH 4/6] arm: mm: Enable RCU fast_gup
+Date: Wed, 25 Jun 2014 16:40:22 +0100
+Message-Id: <1403710824-24340-5-git-send-email-steve.capper@linaro.org>
 In-Reply-To: <1403710824-24340-1-git-send-email-steve.capper@linaro.org>
 References: <1403710824-24340-1-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,88 +22,88 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, linux@arm.linux.org.uk, linux-arch@vger.kernel.org, linux-mm@kvack.org
 Cc: will.deacon@arm.com, gary.robertson@linaro.org, christoffer.dall@linaro.org, peterz@infradead.org, anders.roxell@linaro.org, akpm@linux-foundation.org, Steve Capper <steve.capper@linaro.org>
 
-We need a mechanism to tag ptes as being special, this indicates that
-no attempt should be made to access the underlying struct page *
-associated with the pte. This is used by the fast_gup when operating on
-ptes as it has no means to access VMAs (that also contain this
-information) locklessly.
+Activate the RCU fast_gup for ARM. We also need to force THP splits to
+broadcast an IPI s.t. we block in the fast_gup page walker. As THP
+splits are comparatively rare, this should not lead to a noticeable
+performance degradation.
 
-The L_PTE_SPECIAL bit is already allocated for LPAE, this patch modifies
-pte_special and pte_mkspecial to make use of it, and defines
-__HAVE_ARCH_PTE_SPECIAL.
-
-This patch also excludes special ptes from the icache/dcache sync logic.
+Some pre-requisite functions pud_write and pud_page are also added.
 
 Signed-off-by: Steve Capper <steve.capper@linaro.org>
 ---
- arch/arm/include/asm/pgtable-2level.h | 2 ++
- arch/arm/include/asm/pgtable-3level.h | 8 ++++++++
- arch/arm/include/asm/pgtable.h        | 6 ++----
- 3 files changed, 12 insertions(+), 4 deletions(-)
+ arch/arm/Kconfig                      |  4 ++++
+ arch/arm/include/asm/pgtable-3level.h |  8 ++++++++
+ arch/arm/mm/flush.c                   | 19 +++++++++++++++++++
+ 3 files changed, 31 insertions(+)
 
-diff --git a/arch/arm/include/asm/pgtable-2level.h b/arch/arm/include/asm/pgtable-2level.h
-index 219ac88..f027941 100644
---- a/arch/arm/include/asm/pgtable-2level.h
-+++ b/arch/arm/include/asm/pgtable-2level.h
-@@ -182,6 +182,8 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
- #define pmd_addr_end(addr,end) (end)
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 888bc8a..6d86ff6 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -1712,6 +1712,10 @@ config ARCH_SELECT_MEMORY_MODEL
+ config HAVE_ARCH_PFN_VALID
+ 	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
  
- #define set_pte_ext(ptep,pte,ext) cpu_set_pte_ext(ptep,pte,ext)
-+#define pte_special(pte)	(0)
-+static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
- 
- /*
-  * We don't have huge page support for short descriptors, for the moment
++config HAVE_RCU_GUP
++	def_bool y
++	depends on ARM_LPAE
++
+ config HIGHMEM
+ 	bool "High Memory Support"
+ 	depends on MMU
 diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
-index 85c60ad..b286ba9 100644
+index b286ba9..fa8dcb2 100644
 --- a/arch/arm/include/asm/pgtable-3level.h
 +++ b/arch/arm/include/asm/pgtable-3level.h
-@@ -207,6 +207,14 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
- #define pte_huge(pte)		(pte_val(pte) && !(pte_val(pte) & PTE_TABLE_BIT))
- #define pte_mkhuge(pte)		(__pte(pte_val(pte) & ~PTE_TABLE_BIT))
- 
-+#define pte_special(pte)	(!!(pte_val(pte) & L_PTE_SPECIAL))
-+static inline pte_t pte_mkspecial(pte_t pte)
-+{
-+	pte_val(pte) |= L_PTE_SPECIAL;
-+	return pte;
-+}
-+#define	__HAVE_ARCH_PTE_SPECIAL
-+
- #define pmd_young(pmd)		(pmd_val(pmd) & PMD_SECT_AF)
+@@ -219,6 +219,8 @@ static inline pte_t pte_mkspecial(pte_t pte)
  
  #define __HAVE_ARCH_PMD_WRITE
-diff --git a/arch/arm/include/asm/pgtable.h b/arch/arm/include/asm/pgtable.h
-index 5478e5d..63b1db2 100644
---- a/arch/arm/include/asm/pgtable.h
-+++ b/arch/arm/include/asm/pgtable.h
-@@ -222,7 +222,6 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
- #define pte_dirty(pte)		(pte_val(pte) & L_PTE_DIRTY)
- #define pte_young(pte)		(pte_val(pte) & L_PTE_YOUNG)
- #define pte_exec(pte)		(!(pte_val(pte) & L_PTE_XN))
--#define pte_special(pte)	(0)
+ #define pmd_write(pmd)		(!(pmd_val(pmd) & PMD_SECT_RDONLY))
++#define pud_write(pud)		(0)
++#define pud_page(pud)		pmd_page(__pmd(pud_val(pud)))
  
- #define pte_valid_user(pte)	\
- 	(pte_valid(pte) && (pte_val(pte) & L_PTE_USER) && pte_young(pte))
-@@ -241,7 +240,8 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
- 	unsigned long ext = 0;
+ #define pmd_hugewillfault(pmd)	(!pmd_young(pmd) || !pmd_write(pmd))
+ #define pmd_thp_or_huge(pmd)	(pmd_huge(pmd) || pmd_trans_huge(pmd))
+@@ -226,6 +228,12 @@ static inline pte_t pte_mkspecial(pte_t pte)
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ #define pmd_trans_huge(pmd)	(pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
+ #define pmd_trans_splitting(pmd) (pmd_val(pmd) & PMD_SECT_SPLITTING)
++
++#ifdef CONFIG_HAVE_RCU_TABLE_FREE
++#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
++void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
++			  pmd_t *pmdp);
++#endif
+ #endif
  
- 	if (addr < TASK_SIZE && pte_valid_user(pteval)) {
--		__sync_icache_dcache(pteval);
-+		if (!pte_special(pteval))
-+			__sync_icache_dcache(pteval);
- 		ext |= PTE_EXT_NG;
- 	}
- 
-@@ -260,8 +260,6 @@ PTE_BIT_FUNC(mkyoung,   |= L_PTE_YOUNG);
- PTE_BIT_FUNC(mkexec,   &= ~L_PTE_XN);
- PTE_BIT_FUNC(mknexec,   |= L_PTE_XN);
- 
--static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
--
- static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
- {
- 	const pteval_t mask = L_PTE_XN | L_PTE_RDONLY | L_PTE_USER |
+ #define PMD_BIT_FUNC(fn,op) \
+diff --git a/arch/arm/mm/flush.c b/arch/arm/mm/flush.c
+index 43d54f5..9422820 100644
+--- a/arch/arm/mm/flush.c
++++ b/arch/arm/mm/flush.c
+@@ -400,3 +400,22 @@ void __flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned l
+ 	 */
+ 	__cpuc_flush_dcache_area(page_address(page), PAGE_SIZE);
+ }
++
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++#ifdef CONFIG_HAVE_RCU_TABLE_FREE
++static void thp_splitting_flush_sync(void *arg)
++{
++}
++
++void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
++			  pmd_t *pmdp)
++{
++	pmd_t pmd = pmd_mksplitting(*pmdp);
++	VM_BUG_ON(address & ~PMD_MASK);
++	set_pmd_at(vma->vm_mm, address, pmdp, pmd);
++
++	/* dummy IPI to serialise against fast_gup */
++	smp_call_function(thp_splitting_flush_sync, NULL, 1);
++}
++#endif /* CONFIG_HAVE_RCU_TABLE_FREE */
++#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 -- 
 1.9.3
 
