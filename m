@@ -1,47 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id AA65C6B0031
-	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 21:03:24 -0400 (EDT)
-Received: by mail-ie0-f179.google.com with SMTP id tr6so1045889ieb.10
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 18:03:24 -0700 (PDT)
-Received: from mail-ie0-x232.google.com (mail-ie0-x232.google.com [2607:f8b0:4001:c03::232])
-        by mx.google.com with ESMTPS id c7si3108358icb.102.2014.06.24.18.03.24
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 24 Jun 2014 18:03:24 -0700 (PDT)
-Received: by mail-ie0-f178.google.com with SMTP id rd18so989360iec.23
-        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 18:03:24 -0700 (PDT)
-Date: Tue, 24 Jun 2014 18:03:22 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] slub: fix off by one in number of slab tests
-In-Reply-To: <1403595842-28270-1-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <alpine.DEB.2.02.1406241801240.22030@chino.kir.corp.google.com>
-References: <1403595842-28270-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C3A46B0031
+	for <linux-mm@kvack.org>; Tue, 24 Jun 2014 21:08:31 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id ma3so966959pbc.0
+        for <linux-mm@kvack.org>; Tue, 24 Jun 2014 18:08:31 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id kc4si2703253pad.223.2014.06.24.18.08.29
+        for <linux-mm@kvack.org>;
+        Tue, 24 Jun 2014 18:08:30 -0700 (PDT)
+Message-ID: <53AA1E5F.10800@cn.fujitsu.com>
+Date: Wed, 25 Jun 2014 08:57:03 +0800
+From: Gu Zheng <guz.fnst@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] mm/mempolicy: fix sleeping function called from invalid
+ context
+References: <53902A44.50005@cn.fujitsu.com> <20140605132339.ddf6df4a0cf5c14d17eb8691@linux-foundation.org> <539192F1.7050308@cn.fujitsu.com> <alpine.DEB.2.02.1406081539140.21744@chino.kir.corp.google.com> <539574F1.2060701@cn.fujitsu.com> <alpine.DEB.2.02.1406090209460.24247@chino.kir.corp.google.com> <53967465.7070908@huawei.com> <20140620210137.GA2059@mtj.dyndns.org> <53A8E23C.4050103@huawei.com> <20140624205832.GB14909@htj.dyndns.org>
+In-Reply-To: <20140624205832.GB14909@htj.dyndns.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vladimir Davydov <vdavydov@parallels.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Li Zefan <lizefan@huawei.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>, stable@vger.kernel.org
 
-On Tue, 24 Jun 2014, Joonsoo Kim wrote:
+Hi Tejun,
+On 06/25/2014 04:58 AM, Tejun Heo wrote:
 
-> min_partial means minimum number of slab cached in node partial
-> list. So, if nr_partial is less than it, we keep newly empty slab
-> on node partial list rather than freeing it. But if nr_partial is
-> equal or greater than it, it means that we have enough partial slabs
-> so should free newly empty slab. Current implementation missed
-> the equal case so if we set min_partial is 0, then, at least one slab
-> could be cached. This is critical problem to kmemcg destroying logic
-> because it doesn't works properly if some slabs is cached. This patch
-> fixes this problem.
+> Hello,
 > 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> On Tue, Jun 24, 2014 at 10:28:12AM +0800, Li Zefan wrote:
+>>> I don't think the suggested patch breaks anything more than it was
+>>> broken before and we should probably apply it for the time being.  Li?
+>>
+>> Yeah, we should apply Gu Zheng's patch any way.
+> 
+> Gu Zheng, can you please respin the patch with updated explanation on
+> the temporary nature of the change.  I'll apply it once Li acks it.
 
-Acked-by: David Rientjes <rientjes@google.com>
+OK, I'll resend it soon.
 
-Needed for 3.16 to fix commit 91cb69620284 ("slub: make dead memcg caches 
-discard free slabs immediately").
+Regards,
+Gu
+
+> 
+> Thanks.
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
