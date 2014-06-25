@@ -1,53 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 191926B0031
-	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 18:03:20 -0400 (EDT)
-Received: by mail-ie0-f180.google.com with SMTP id rl12so2273321iec.39
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 15:03:19 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id bq4si8022021icb.44.2014.06.25.15.03.19
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
+	by kanga.kvack.org (Postfix) with ESMTP id ACF8B6B0037
+	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 18:23:55 -0400 (EDT)
+Received: by mail-pb0-f45.google.com with SMTP id rr13so2257207pbb.32
+        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 15:23:55 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id cw3si7106866pbc.117.2014.06.25.15.23.54
         for <linux-mm@kvack.org>;
-        Wed, 25 Jun 2014 15:03:19 -0700 (PDT)
-Date: Wed, 25 Jun 2014 15:03:18 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+        Wed, 25 Jun 2014 15:23:54 -0700 (PDT)
+Message-ID: <53AB4BF1.3000504@intel.com>
+Date: Wed, 25 Jun 2014 15:23:45 -0700
+From: Dave Hansen <dave.hansen@intel.com>
+MIME-Version: 1.0
 Subject: Re: [PATCH 3/3] mm: catch memory commitment underflow
-Message-Id: <20140625150318.4355468ab59a5293e870605e@linux-foundation.org>
+References: <20140624201606.18273.44270.stgit@zurg> <20140624201614.18273.39034.stgit@zurg>
 In-Reply-To: <20140624201614.18273.39034.stgit@zurg>
-References: <20140624201606.18273.44270.stgit@zurg>
-	<20140624201614.18273.39034.stgit@zurg>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <koct9i@gmail.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org
 
-On Wed, 25 Jun 2014 00:16:14 +0400 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
-
-> This patch prints warning (if CONFIG_DEBUG_VM=y) when
-> memory commitment becomes too negative.
-> 
-> ...
->
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -134,6 +134,12 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
->  {
->  	unsigned long free, allowed, reserve;
+On 06/24/2014 01:16 PM, Konstantin Khlebnikov wrote:
+> reserve;
 >  
 > +#ifdef CONFIG_DEBUG_VM
 > +	WARN_ONCE(percpu_counter_read(&vm_committed_as) <
 > +			-(s64)vm_committed_as_batch * num_online_cpus(),
 > +			"memory commitment underflow");
 > +#endif
-> +
->  	vm_acct_memory(pages);
 
-The changelog doesn't describe the reasons for making the change.
-
-I assume this warning will detect the situation which the previous two
-patches just fixed?
+Why not use VM_WARN_ON_ONCE()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
