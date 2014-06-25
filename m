@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id F100B6B0038
-	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 03:58:56 -0400 (EDT)
-Received: by mail-wi0-f180.google.com with SMTP id hi2so1961702wib.7
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 00:58:54 -0700 (PDT)
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id B90496B0039
+	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 03:58:57 -0400 (EDT)
+Received: by mail-wi0-f173.google.com with SMTP id cc10so7382131wib.0
+        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 00:58:57 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id vo10si3981852wjc.86.2014.06.25.00.58.53
+        by mx.google.com with ESMTPS id u9si10292983wiy.4.2014.06.25.00.58.56
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 25 Jun 2014 00:58:53 -0700 (PDT)
+        Wed, 25 Jun 2014 00:58:56 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 2/6] mm: Rearrange zone fields into read-only, page alloc, statistics and page reclaim lines
-Date: Wed, 25 Jun 2014 08:58:45 +0100
-Message-Id: <1403683129-10814-3-git-send-email-mgorman@suse.de>
+Subject: [PATCH 6/6] cfq: Increase default value of target_latency
+Date: Wed, 25 Jun 2014 08:58:49 +0100
+Message-Id: <1403683129-10814-7-git-send-email-mgorman@suse.de>
 In-Reply-To: <1403683129-10814-1-git-send-email-mgorman@suse.de>
 References: <1403683129-10814-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,370 +20,75 @@ List-ID: <linux-mm.kvack.org>
 To: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Jens Axboe <axboe@kernel.dk>, Jeff Moyer <jmoyer@redhat.com>, Dave Chinner <david@fromorbit.com>, Mel Gorman <mgorman@suse.de>
 
-The arrangement of struct zone has changed over time and now it has reached the
-point where there is some inappropriate sharing going on. On x86-64 for example
+The existing CFQ default target_latency results in very poor performance
+for larger numbers of threads doing sequential reads. While this can be
+easily described as a tuning problem for users, it is one that is tricky
+to detect. This patch updates the default to benefit smaller machines.
+Dave Chinner points out that it is dangerous to assume that people know
+how to tune their IO scheduler. Jeff Moyer asked what workloads even
+care about threaded readers but it's reasonable to assume file,
+media, database and multi-user servers all experience large sequential
+readers from multiple sources at the same time.
 
-o The zone->node field is shared with the zone lock and zone->node is accessed
-  frequently from the page allocator due to the fair zone allocation policy.
-o span_seqlock is almost never used by shares a line with free_area
-o Some zone statistics share a cache line with the LRU lock so reclaim-intensive
-  and allocator-intensive workloads can bounce the cache line on a stat update
+It's a bit depressing to note how much slower this relatively simple case
+is in comparison to 3.0.  The following is from tiobench on a mid-range
+desktop using ext3 as the test filesystem although it's known other
+filesystems experience similar trouble.
 
-This patch rearranges struct zone to put read-only and read-mostly fields
-together and then splits the page allocator intensive fields, the zone
-statistics and the page reclaim intensive fields into their own cache
-lines. Note that arguably the biggest change is reducing the size of the
-lowmem_reserve type. It should still be large enough but by shrinking it
-the fields used by the page allocator fast path all fit in one cache line.
+                                      3.16.0-rc2            3.16.0-rc2                 3.0.0
+                                 lessdirty                cfq600                     vanilla
+Min    SeqRead-MB/sec-1         140.79 (  0.00%)      140.43 ( -0.26%)      134.04 ( -4.79%)
+Min    SeqRead-MB/sec-2         118.08 (  0.00%)      118.18 (  0.08%)      120.76 (  2.27%)
+Min    SeqRead-MB/sec-4         108.47 (  0.00%)      110.84 (  2.18%)      114.49 (  5.55%)
+Min    SeqRead-MB/sec-8          87.20 (  0.00%)       92.40 (  5.96%)       98.04 ( 12.43%)
+Min    SeqRead-MB/sec-16         68.98 (  0.00%)       76.68 ( 11.16%)       79.49 ( 15.24%)
 
-On the test configuration I used the overall size of struct zone shrunk
-by one cache line.
+The full series including this patch brings performance within an acceptable
+distance of 3.0.0-vanilla considering that read latencies and fairness are
+generally better now at the cost of overall throughput.
+
+Here is the very high-level view of the iostats
+
+                  3.16.0-rc2  3.16.0-rc2       3.0.0
+                   lessdirty      cfq600     vanilla
+Mean sda-avgqusz      935.48      957.28     1000.70
+Mean sda-avgrqsz      575.27      579.85      600.71
+Mean sda-await       4405.00     4471.12     4887.67
+Mean sda-r_await       82.43       87.95      108.53
+Mean sda-w_await    13272.23    10783.67    11599.83
+Mean sda-rrqm          14.12       10.14       19.68
+Mean sda-wrqm        1631.24     1744.00    11999.46
+Max  sda-avgqusz     2179.79     2238.95     2626.78
+Max  sda-avgrqsz     1021.03     1021.97     1024.00
+Max  sda-await      15007.79    13600.51    24971.00
+Max  sda-r_await      897.78      893.09     5308.00
+Max  sda-w_await   207814.40   179483.79   177698.47
+Max  sda-rrqm          68.40       45.60       73.30
+Max  sda-wrqm       19544.00    19619.20    58058.40
+
+await figures are generally ok.  Average wait times are still acceptable
+and the worst-case read wait times are ok. Queue sizes and request sizes
+generally look ok. It's worth noting that the iostats are generally *far*
+better than 3.0.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/mmzone.h | 201 +++++++++++++++++++++++++------------------------
- mm/page_alloc.c        |  13 ++--
- mm/vmstat.c            |   4 +-
- 3 files changed, 113 insertions(+), 105 deletions(-)
+ block/cfq-iosched.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 6cbd1b6..a2f6443 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -324,19 +324,12 @@ enum zone_type {
- #ifndef __GENERATING_BOUNDS_H
+diff --git a/block/cfq-iosched.c b/block/cfq-iosched.c
+index cadc378..876ae44 100644
+--- a/block/cfq-iosched.c
++++ b/block/cfq-iosched.c
+@@ -32,7 +32,7 @@ static int cfq_slice_async = HZ / 25;
+ static const int cfq_slice_async_rq = 2;
+ static int cfq_slice_idle = HZ / 125;
+ static int cfq_group_idle = HZ / 125;
+-static const int cfq_target_latency = HZ * 3/10; /* 300 ms */
++static const int cfq_target_latency = HZ * 6/10; /* 600 ms */
+ static const int cfq_hist_divisor = 4;
  
- struct zone {
--	/* Fields commonly accessed by the page allocator */
-+	/* Read-mostly fields */
- 
- 	/* zone watermarks, access with *_wmark_pages(zone) macros */
- 	unsigned long watermark[NR_WMARK];
- 
- 	/*
--	 * When free pages are below this point, additional steps are taken
--	 * when reading the number of free pages to avoid per-cpu counter
--	 * drift allowing watermarks to be breached
--	 */
--	unsigned long percpu_drift_mark;
--
--	/*
- 	 * We don't know if the memory that we're going to allocate will be freeable
- 	 * or/and it will be released eventually, so to avoid totally wasting several
- 	 * GB of ram we must reserve some of the lower zone memory (otherwise we risk
-@@ -344,41 +337,17 @@ struct zone {
- 	 * on the higher zones). This array is recalculated at runtime if the
- 	 * sysctl_lowmem_reserve_ratio sysctl changes.
- 	 */
--	unsigned long		lowmem_reserve[MAX_NR_ZONES];
--
--	/*
--	 * This is a per-zone reserve of pages that should not be
--	 * considered dirtyable memory.
--	 */
--	unsigned long		dirty_balance_reserve;
-+	unsigned int lowmem_reserve[MAX_NR_ZONES];
- 
-+	struct per_cpu_pageset __percpu *pageset;
- #ifdef CONFIG_NUMA
- 	int node;
--	/*
--	 * zone reclaim becomes active if more unmapped pages exist.
--	 */
--	unsigned long		min_unmapped_pages;
--	unsigned long		min_slab_pages;
- #endif
--	struct per_cpu_pageset __percpu *pageset;
- 	/*
--	 * free areas of different sizes
-+	 * The target ratio of ACTIVE_ANON to INACTIVE_ANON pages on
-+	 * this zone's LRU.  Maintained by the pageout code.
- 	 */
--	spinlock_t		lock;
--#if defined CONFIG_COMPACTION || defined CONFIG_CMA
--	/* Set to true when the PG_migrate_skip bits should be cleared */
--	bool			compact_blockskip_flush;
--
--	/* pfn where compaction free scanner should start */
--	unsigned long		compact_cached_free_pfn;
--	/* pfn where async and sync compaction migration scanner should start */
--	unsigned long		compact_cached_migrate_pfn[2];
--#endif
--#ifdef CONFIG_MEMORY_HOTPLUG
--	/* see spanned/present_pages for more description */
--	seqlock_t		span_seqlock;
--#endif
--	struct free_area	free_area[MAX_ORDER];
-+	unsigned int inactive_ratio;
- 
- #ifndef CONFIG_SPARSEMEM
- 	/*
-@@ -388,74 +357,37 @@ struct zone {
- 	unsigned long		*pageblock_flags;
- #endif /* CONFIG_SPARSEMEM */
- 
--#ifdef CONFIG_COMPACTION
- 	/*
--	 * On compaction failure, 1<<compact_defer_shift compactions
--	 * are skipped before trying again. The number attempted since
--	 * last failure is tracked with compact_considered.
-+	 * This is a per-zone reserve of pages that should not be
-+	 * considered dirtyable memory.
- 	 */
--	unsigned int		compact_considered;
--	unsigned int		compact_defer_shift;
--	int			compact_order_failed;
--#endif
--
--	ZONE_PADDING(_pad1_)
--
--	/* Fields commonly accessed by the page reclaim scanner */
--	spinlock_t		lru_lock;
--	struct lruvec		lruvec;
--
--	/* Evictions & activations on the inactive file list */
--	atomic_long_t		inactive_age;
--
--	unsigned long		pages_scanned;	   /* since last reclaim */
--	unsigned long		flags;		   /* zone flags, see below */
--
--	/* Zone statistics */
--	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
-+	unsigned long		dirty_balance_reserve;
- 
- 	/*
--	 * The target ratio of ACTIVE_ANON to INACTIVE_ANON pages on
--	 * this zone's LRU.  Maintained by the pageout code.
-+	 * When free pages are below this point, additional steps are taken
-+	 * when reading the number of free pages to avoid per-cpu counter
-+	 * drift allowing watermarks to be breached
- 	 */
--	unsigned int inactive_ratio;
--
--
--	ZONE_PADDING(_pad2_)
--	/* Rarely used or read-mostly fields */
-+	unsigned long percpu_drift_mark;
- 
-+#ifdef CONFIG_NUMA
- 	/*
--	 * wait_table		-- the array holding the hash table
--	 * wait_table_hash_nr_entries	-- the size of the hash table array
--	 * wait_table_bits	-- wait_table_size == (1 << wait_table_bits)
--	 *
--	 * The purpose of all these is to keep track of the people
--	 * waiting for a page to become available and make them
--	 * runnable again when possible. The trouble is that this
--	 * consumes a lot of space, especially when so few things
--	 * wait on pages at a given time. So instead of using
--	 * per-page waitqueues, we use a waitqueue hash table.
--	 *
--	 * The bucket discipline is to sleep on the same queue when
--	 * colliding and wake all in that wait queue when removing.
--	 * When something wakes, it must check to be sure its page is
--	 * truly available, a la thundering herd. The cost of a
--	 * collision is great, but given the expected load of the
--	 * table, they should be so rare as to be outweighed by the
--	 * benefits from the saved space.
--	 *
--	 * __wait_on_page_locked() and unlock_page() in mm/filemap.c, are the
--	 * primary users of these fields, and in mm/page_alloc.c
--	 * free_area_init_core() performs the initialization of them.
-+	 * zone reclaim becomes active if more unmapped pages exist.
- 	 */
--	wait_queue_head_t	* wait_table;
--	unsigned long		wait_table_hash_nr_entries;
--	unsigned long		wait_table_bits;
-+	unsigned long		min_unmapped_pages;
-+	unsigned long		min_slab_pages;
-+#endif /* CONFIG_NUMA */
-+
-+	const char		*name;
- 
- 	/*
--	 * Discontig memory support fields.
-+	 * Number of MIGRATE_RESEVE page block. To maintain for just
-+	 * optimization. Protected by zone->lock.
- 	 */
-+	int			nr_migrate_reserve_block;
-+
- 	struct pglist_data	*zone_pgdat;
-+
- 	/* zone_start_pfn == zone_start_paddr >> PAGE_SHIFT */
- 	unsigned long		zone_start_pfn;
- 
-@@ -504,16 +436,89 @@ struct zone {
- 	unsigned long		present_pages;
- 	unsigned long		managed_pages;
- 
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+	/* see spanned/present_pages for more description */
-+	seqlock_t		span_seqlock;
-+#endif
-+
- 	/*
--	 * Number of MIGRATE_RESEVE page block. To maintain for just
--	 * optimization. Protected by zone->lock.
-+	 * wait_table		-- the array holding the hash table
-+	 * wait_table_hash_nr_entries	-- the size of the hash table array
-+	 * wait_table_bits	-- wait_table_size == (1 << wait_table_bits)
-+	 *
-+	 * The purpose of all these is to keep track of the people
-+	 * waiting for a page to become available and make them
-+	 * runnable again when possible. The trouble is that this
-+	 * consumes a lot of space, especially when so few things
-+	 * wait on pages at a given time. So instead of using
-+	 * per-page waitqueues, we use a waitqueue hash table.
-+	 *
-+	 * The bucket discipline is to sleep on the same queue when
-+	 * colliding and wake all in that wait queue when removing.
-+	 * When something wakes, it must check to be sure its page is
-+	 * truly available, a la thundering herd. The cost of a
-+	 * collision is great, but given the expected load of the
-+	 * table, they should be so rare as to be outweighed by the
-+	 * benefits from the saved space.
-+	 *
-+	 * __wait_on_page_locked() and unlock_page() in mm/filemap.c, are the
-+	 * primary users of these fields, and in mm/page_alloc.c
-+	 * free_area_init_core() performs the initialization of them.
- 	 */
--	int			nr_migrate_reserve_block;
-+	wait_queue_head_t	*wait_table;
-+	unsigned long		wait_table_hash_nr_entries;
-+	unsigned long		wait_table_bits;
-+
-+	ZONE_PADDING(_pad1_)
-+
-+	/* Write-intensive fields used from the page allocator */
-+	spinlock_t		lock;
-+
-+	/* free areas of different sizes */
-+	struct free_area	free_area[MAX_ORDER];
-+
-+	/* zone flags, see below */
-+	unsigned long		flags;
-+
-+	ZONE_PADDING(_pad2_)
-+
-+	/* Write-intensive fields used by page reclaim */
-+
-+	/* Fields commonly accessed by the page reclaim scanner */
-+	spinlock_t		lru_lock;
-+	struct lruvec		lruvec;
-+
-+	/* Evictions & activations on the inactive file list */
-+	atomic_long_t		inactive_age;
-+
-+	unsigned long		pages_scanned;	   /* since last reclaim */
-+
-+#if defined CONFIG_COMPACTION || defined CONFIG_CMA
-+	/* pfn where compaction free scanner should start */
-+	unsigned long		compact_cached_free_pfn;
-+	/* pfn where async and sync compaction migration scanner should start */
-+	unsigned long		compact_cached_migrate_pfn[2];
-+#endif
- 
-+#ifdef CONFIG_COMPACTION
- 	/*
--	 * rarely used fields:
-+	 * On compaction failure, 1<<compact_defer_shift compactions
-+	 * are skipped before trying again. The number attempted since
-+	 * last failure is tracked with compact_considered.
- 	 */
--	const char		*name;
-+	unsigned int		compact_considered;
-+	unsigned int		compact_defer_shift;
-+	int			compact_order_failed;
-+#endif
-+
-+#if defined CONFIG_COMPACTION || defined CONFIG_CMA
-+	/* Set to true when the PG_migrate_skip bits should be cleared */
-+	bool			compact_blockskip_flush;
-+#endif
-+
-+	ZONE_PADDING(_pad3_)
-+	/* Zone statistics */
-+	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
- } ____cacheline_internodealigned_in_smp;
- 
- typedef enum {
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4f59fa2..ebbdbcd 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1699,7 +1699,6 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- {
- 	/* free_pages my go negative - that's OK */
- 	long min = mark;
--	long lowmem_reserve = z->lowmem_reserve[classzone_idx];
- 	int o;
- 	long free_cma = 0;
- 
-@@ -1714,7 +1713,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- 		free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
- #endif
- 
--	if (free_pages - free_cma <= min + lowmem_reserve)
-+	if (free_pages - free_cma <= min + z->lowmem_reserve[classzone_idx])
- 		return false;
- 	for (o = 0; o < order; o++) {
- 		/* At the next order, this order's pages become unavailable */
-@@ -3245,7 +3244,7 @@ void show_free_areas(unsigned int filter)
- 			);
- 		printk("lowmem_reserve[]:");
- 		for (i = 0; i < MAX_NR_ZONES; i++)
--			printk(" %lu", zone->lowmem_reserve[i]);
-+			printk(" %u", zone->lowmem_reserve[i]);
- 		printk("\n");
- 	}
- 
-@@ -5566,7 +5565,7 @@ static void calculate_totalreserve_pages(void)
- 	for_each_online_pgdat(pgdat) {
- 		for (i = 0; i < MAX_NR_ZONES; i++) {
- 			struct zone *zone = pgdat->node_zones + i;
--			unsigned long max = 0;
-+			unsigned int max = 0;
- 
- 			/* Find valid and maximum lowmem_reserve in the zone */
- 			for (j = i; j < MAX_NR_ZONES; j++) {
-@@ -5617,6 +5616,7 @@ static void setup_per_zone_lowmem_reserve(void)
- 			idx = j;
- 			while (idx) {
- 				struct zone *lower_zone;
-+				unsigned long reserve;
- 
- 				idx--;
- 
-@@ -5624,8 +5624,11 @@ static void setup_per_zone_lowmem_reserve(void)
- 					sysctl_lowmem_reserve_ratio[idx] = 1;
- 
- 				lower_zone = pgdat->node_zones + idx;
--				lower_zone->lowmem_reserve[j] = managed_pages /
-+				reserve = managed_pages /
- 					sysctl_lowmem_reserve_ratio[idx];
-+				if (WARN_ON(reserve > UINT_MAX))
-+					reserve = UINT_MAX;
-+				lower_zone->lowmem_reserve[j] = reserve;
- 				managed_pages += lower_zone->managed_pages;
- 			}
- 		}
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index b37bd49..c6d6fae 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1077,10 +1077,10 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
- 				zone_page_state(zone, i));
- 
- 	seq_printf(m,
--		   "\n        protection: (%lu",
-+		   "\n        protection: (%u",
- 		   zone->lowmem_reserve[0]);
- 	for (i = 1; i < ARRAY_SIZE(zone->lowmem_reserve); i++)
--		seq_printf(m, ", %lu", zone->lowmem_reserve[i]);
-+		seq_printf(m, ", %u", zone->lowmem_reserve[i]);
- 	seq_printf(m,
- 		   ")"
- 		   "\n  pagesets");
+ /*
 -- 
 1.8.4.5
 
