@@ -1,128 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A0986B0031
-	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 08:35:38 -0400 (EDT)
-Received: by mail-pb0-f43.google.com with SMTP id um1so1660654pbc.30
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 05:35:38 -0700 (PDT)
-Received: from mail-pb0-x22e.google.com (mail-pb0-x22e.google.com [2607:f8b0:400e:c01::22e])
-        by mx.google.com with ESMTPS id po7si5022141pbb.66.2014.06.25.05.35.37
+Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E5E556B0031
+	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 09:43:48 -0400 (EDT)
+Received: by mail-qa0-f51.google.com with SMTP id j7so1517724qaq.38
+        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 06:43:48 -0700 (PDT)
+Received: from mail-qg0-x233.google.com (mail-qg0-x233.google.com [2607:f8b0:400d:c04::233])
+        by mx.google.com with ESMTPS id o5si4686224qck.6.2014.06.25.06.43.48
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 25 Jun 2014 05:35:37 -0700 (PDT)
-Received: by mail-pb0-f46.google.com with SMTP id md12so1657583pbc.5
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 05:35:37 -0700 (PDT)
-From: Chen Yucong <slaoub@gmail.com>
-Subject: [RESEND PATCH] mm: kswapd: clean up the kswapd
-Date: Wed, 25 Jun 2014 20:35:17 +0800
-Message-Id: <1403699717-23744-1-git-send-email-slaoub@gmail.com>
+        Wed, 25 Jun 2014 06:43:48 -0700 (PDT)
+Received: by mail-qg0-f51.google.com with SMTP id z60so1671658qgd.10
+        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 06:43:48 -0700 (PDT)
+Date: Wed, 25 Jun 2014 09:43:45 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH V2] mm/mempolicy: fix sleeping function called from
+ invalid context
+Message-ID: <20140625134345.GA26883@htj.dyndns.org>
+References: <53AA2C7E.3050707@cn.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53AA2C7E.3050707@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mgorman@suse.de
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, riel@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Yucong <slaoub@gmail.com>
+To: Gu Zheng <guz.fnst@cn.fujitsu.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>, stable@vger.kernel.org, Li Zefan <lizefan@huawei.com>, David Rientjes <rientjes@google.com>
 
-The type of variables(order, new_order, and balanced_order) has some
-flaws. According to the *order* argument for kswapd_try_to_sleep() and
-balance_pgdat() and the *order* field of scan_control, they should be
-defined as 'int' rather than 'unsigned long' or 'unsigned'. At the same
-time, the type of the return value of balance_pgdat() should also be
-changed from 'unsigned long' to 'int', based on its comment "Returns
-the final order kswapd was reclaiming at".
+On Wed, Jun 25, 2014 at 09:57:18AM +0800, Gu Zheng wrote:
+> When runing with the kernel(3.15-rc7+), the follow bug occurs:
+> [ 9969.258987] BUG: sleeping function called from invalid context at kernel/locking/mutex.c:586
+> [ 9969.359906] in_atomic(): 1, irqs_disabled(): 0, pid: 160655, name: python
+> [ 9969.441175] INFO: lockdep is turned off.
+> [ 9969.488184] CPU: 26 PID: 160655 Comm: python Tainted: G       A      3.15.0-rc7+ #85
+> [ 9969.581032] Hardware name: FUJITSU-SV PRIMEQUEST 1800E/SB, BIOS PRIMEQUEST 1000 Series BIOS Version 1.39 11/16/2012
+> [ 9969.706052]  ffffffff81a20e60 ffff8803e941fbd0 ffffffff8162f523 ffff8803e941fd18
+> [ 9969.795323]  ffff8803e941fbe0 ffffffff8109995a ffff8803e941fc58 ffffffff81633e6c
+> [ 9969.884710]  ffffffff811ba5dc ffff880405c6b480 ffff88041fdd90a0 0000000000002000
+> [ 9969.974071] Call Trace:
+> [ 9970.003403]  [<ffffffff8162f523>] dump_stack+0x4d/0x66
+> [ 9970.065074]  [<ffffffff8109995a>] __might_sleep+0xfa/0x130
+> [ 9970.130743]  [<ffffffff81633e6c>] mutex_lock_nested+0x3c/0x4f0
+> [ 9970.200638]  [<ffffffff811ba5dc>] ? kmem_cache_alloc+0x1bc/0x210
+> [ 9970.272610]  [<ffffffff81105807>] cpuset_mems_allowed+0x27/0x140
+> [ 9970.344584]  [<ffffffff811b1303>] ? __mpol_dup+0x63/0x150
+> [ 9970.409282]  [<ffffffff811b1385>] __mpol_dup+0xe5/0x150
+> [ 9970.471897]  [<ffffffff811b1303>] ? __mpol_dup+0x63/0x150
+> [ 9970.536585]  [<ffffffff81068c86>] ? copy_process.part.23+0x606/0x1d40
+> [ 9970.613763]  [<ffffffff810bf28d>] ? trace_hardirqs_on+0xd/0x10
+> [ 9970.683660]  [<ffffffff810ddddf>] ? monotonic_to_bootbased+0x2f/0x50
+> [ 9970.759795]  [<ffffffff81068cf0>] copy_process.part.23+0x670/0x1d40
+> [ 9970.834885]  [<ffffffff8106a598>] do_fork+0xd8/0x380
+> [ 9970.894375]  [<ffffffff81110e4c>] ? __audit_syscall_entry+0x9c/0xf0
+> [ 9970.969470]  [<ffffffff8106a8c6>] SyS_clone+0x16/0x20
+> [ 9971.030011]  [<ffffffff81642009>] stub_clone+0x69/0x90
+> [ 9971.091573]  [<ffffffff81641c29>] ? system_call_fastpath+0x16/0x1b
+> 
+> The cause is that cpuset_mems_allowed() try to take mutex_lock(&callback_mutex)
+> under the rcu_read_lock(which was hold in __mpol_dup()). And in cpuset_mems_allowed(),
+> the access to cpuset is under rcu_read_lock, so in __mpol_dup, we can reduce the
+> rcu_read_lock protection region to protect the access to cpuset only in
+> current_cpuset_is_being_rebound(). So that we can avoid this bug.
+> This patch is a temporary solution that just addresses the bug mentioned above,
+> can not fix the long-standing issue about cpuset.mems rebinding on fork():
+> "
+> When the forker's task_struct is duplicated (which includes ->mems_allowed)
+> and it races with an update to cpuset_being_rebound in update_tasks_nodemask()
+> then the task's mems_allowed doesn't get updated. And the child task's
+> mems_allowed can be wrong if the cpuset's nodemask changes before the
+> child has been added to the cgroup's tasklist.
+> "
+> 
+> Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
+> Cc: stable <stable@vger.kernel.org>
 
-This patch also does minimal cleanup, which makes the kswapd more clarify.
+Applied to cgroup/for-3.16-fixes w/ minor updates to patch subject and
+description.  Please format the text to 80 columns.  The error
+messages are fine but it's usually nicer to remove the timestamps.
 
-The output of `size' command:
+Thanks.
 
-   text    data     bss     dec     hex filename
-5773502 1277496  929792 7980790  79c6f6 vmlinux-3.16-rc1
-5773502 1277496  929792 7980790  79c6f6 vmlinux-3.16-rc1-fix
-
-The output of checkstack.pl:
-        3.16-rc1    3.16-rc1-fix
-kswapd    104          104
-
-Signed-off-by: Chen Yucong <slaoub@gmail.com>
----
- mm/vmscan.c |   36 +++++++++++++++++++-----------------
- 1 file changed, 19 insertions(+), 17 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a8ffe4e..37b3453 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3070,8 +3070,7 @@ static bool kswapd_shrink_zone(struct zone *zone,
-  * interoperates with the page allocator fallback scheme to ensure that aging
-  * of pages is balanced across the zones.
-  */
--static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
--							int *classzone_idx)
-+static int balance_pgdat(pg_data_t *pgdat, int order, int *classzone_idx)
- {
- 	int i;
- 	int end_zone = 0;	/* Inclusive.  0 = ZONE_DMA */
-@@ -3332,8 +3331,8 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order, int classzone_idx)
-  */
- static int kswapd(void *p)
- {
--	unsigned long order, new_order;
--	unsigned balanced_order;
-+	int order, new_order;
-+	int balanced_order;
- 	int classzone_idx, new_classzone_idx;
- 	int balanced_classzone_idx;
- 	pg_data_t *pgdat = (pg_data_t*)p;
-@@ -3371,34 +3370,37 @@ static int kswapd(void *p)
- 	balanced_classzone_idx = classzone_idx;
- 	for ( ; ; ) {
- 		bool ret;
-+		bool sleep = true;
- 
- 		/*
- 		 * If the last balance_pgdat was unsuccessful it's unlikely a
- 		 * new request of a similar or harder type will succeed soon
- 		 * so consider going to sleep on the basis we reclaimed at
- 		 */
--		if (balanced_classzone_idx >= new_classzone_idx &&
--					balanced_order == new_order) {
-+		if (balanced_classzone_idx >= classzone_idx &&
-+					balanced_order == order) {
- 			new_order = pgdat->kswapd_max_order;
- 			new_classzone_idx = pgdat->classzone_idx;
--			pgdat->kswapd_max_order =  0;
-+			pgdat->kswapd_max_order = 0;
- 			pgdat->classzone_idx = pgdat->nr_zones - 1;
-+
-+			if (order < new_order ||
-+					classzone_idx > new_classzone_idx) {
-+				/*
-+				 * Don't sleep if someone wants a larger 'order'
-+				 * allocation or has tighter zone constraints
-+				 */
-+				order = new_order;
-+				classzone_idx = new_classzone_idx;
-+				sleep = false;
-+			}
- 		}
- 
--		if (order < new_order || classzone_idx > new_classzone_idx) {
--			/*
--			 * Don't sleep if someone wants a larger 'order'
--			 * allocation or has tigher zone constraints
--			 */
--			order = new_order;
--			classzone_idx = new_classzone_idx;
--		} else {
-+		if (sleep) {
- 			kswapd_try_to_sleep(pgdat, balanced_order,
- 						balanced_classzone_idx);
- 			order = pgdat->kswapd_max_order;
- 			classzone_idx = pgdat->classzone_idx;
--			new_order = order;
--			new_classzone_idx = classzone_idx;
- 			pgdat->kswapd_max_order = 0;
- 			pgdat->classzone_idx = pgdat->nr_zones - 1;
- 		}
 -- 
-1.7.10.4
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
