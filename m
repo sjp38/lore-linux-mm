@@ -1,68 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id C32B06B0031
-	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 05:55:00 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id rd3so1512033pab.18
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 02:55:00 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id dk1si4365244pbb.213.2014.06.25.02.54.59
-        for <linux-mm@kvack.org>;
-        Wed, 25 Jun 2014 02:55:00 -0700 (PDT)
-Date: Wed, 25 Jun 2014 17:54:44 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [cpufreq] kernel BUG at kernel/irq_work.c:175!
-Message-ID: <20140625095444.GA1635@localhost>
-References: <20140625093650.GD27280@localhost>
- <CAKohpo=qmJktRviycErY205xo=-MJ1NZG-uGidRXjO+aAEczEg@mail.gmail.com>
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CFEB6B0036
+	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 05:55:30 -0400 (EDT)
+Received: by mail-wi0-f174.google.com with SMTP id bs8so7540758wib.1
+        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 02:55:30 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m2si12831405wix.100.2014.06.25.02.55.29
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 25 Jun 2014 02:55:29 -0700 (PDT)
+Date: Wed, 25 Jun 2014 10:55:26 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch 2/4] mm: vmscan: rework compaction-ready signaling in
+ direct reclaim
+Message-ID: <20140625095526.GX10819@suse.de>
+References: <1403282030-29915-1-git-send-email-hannes@cmpxchg.org>
+ <1403282030-29915-2-git-send-email-hannes@cmpxchg.org>
+ <20140623130705.GM10819@suse.de>
+ <20140623172056.GN7331@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <CAKohpo=qmJktRviycErY205xo=-MJ1NZG-uGidRXjO+aAEczEg@mail.gmail.com>
+In-Reply-To: <20140623172056.GN7331@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Viresh Kumar <viresh.kumar@linaro.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Stephen Rothwell <sfr@canb.auug.org.au>, Jet Chen <jet.chen@intel.com>, Yuanhan Liu <yuanhan.liu@intel.com>, LKP <lkp@01.org>, "Su, Tao" <tao.su@intel.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Stephen Warren <swarren@wwwdotorg.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-> Nothing specific to my tree, its there in linux-next and PeterZ is
-> already working on it:
+On Mon, Jun 23, 2014 at 01:20:56PM -0400, Johannes Weiner wrote:
+> Hi Mel,
 > 
-> https://lkml.org/lkml/2014/6/25/25
+> On Mon, Jun 23, 2014 at 02:07:05PM +0100, Mel Gorman wrote:
+> > On Fri, Jun 20, 2014 at 12:33:48PM -0400, Johannes Weiner wrote:
+> > > Page reclaim for a higher-order page runs until compaction is ready,
+> > > then aborts and signals this situation through the return value of
+> > > shrink_zones().  This is an oddly specific signal to encode in the
+> > > return value of shrink_zones(), though, and can be quite confusing.
+> > > 
+> > > Introduce sc->compaction_ready and signal the compactability of the
+> > > zones out-of-band to free up the return value of shrink_zones() for
+> > > actual zone reclaimability.
+> > > 
+> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > > ---
+> > >  mm/vmscan.c | 67 ++++++++++++++++++++++++++++---------------------------------
+> > >  1 file changed, 31 insertions(+), 36 deletions(-)
+> > > 
+> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > index 19b5b8016209..ed1efb84c542 100644
+> > > --- a/mm/vmscan.c
+> > > +++ b/mm/vmscan.c
+> > > @@ -65,6 +65,9 @@ struct scan_control {
+> > >  	/* Number of pages freed so far during a call to shrink_zones() */
+> > >  	unsigned long nr_reclaimed;
+> > >  
+> > > +	/* One of the zones is ready for compaction */
+> > > +	int compaction_ready;
+> > > +
+> > >  	/* How many pages shrink_list() should reclaim */
+> > >  	unsigned long nr_to_reclaim;
+> > >  
+> > 
+> > You are not the criminal here but scan_control is larger than it needs
+> > to be and the stack usage of reclaim has reared its head again.
+> > 
+> > Add a preparation patch that convert sc->may* and sc->hibernation_mode
+> > to bool and moves them towards the end of the struct. Then add
+> > compaction_ready as a bool.
+> 
+> Good idea, I'll do that.
+> 
 
-That's great! Sorry I should have googled LKML before reporting this error.
+Thanks.
 
-Fengguang
+> > > @@ -2292,15 +2295,11 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+> > >  }
+> > >  
+> > >  /* Returns true if compaction should go ahead for a high-order request */
+> > > -static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
+> > > +static inline bool compaction_ready(struct zone *zone, int order)
+> > > 
+> > >  {
+> > 
+> > Why did you remove the use of sc->order? In this patch there is only one
+> > called of compaction_ready and it looks like
+> > 
+> >                      if (IS_ENABLED(CONFIG_COMPACTION) &&
+> >                          sc->order > PAGE_ALLOC_COSTLY_ORDER &&
+> >                          zonelist_zone_idx(z) <= requested_highidx &&
+> >                          compaction_ready(zone, sc->order)) {
+> > 
+> > So it's unclear why you changed the signature.
+> 
+> Everything else in compaction_ready() is about internal compaction
+> requirements, like checking for free pages and deferred compaction,
+> whereas this order check is more of a reclaim policy rule according to
+> the comment in the caller:
+> 
+> 			 ...
+> 			 * Even though compaction is invoked for any
+> 			 * non-zero order, only frequent costly order
+> 			 * reclamation is disruptive enough to become a
+> 			 * noticeable problem, like transparent huge
+> 			 * page allocations.
+> 			 */
+> 
+> But it's an unrelated in-the-area-anyway change, I can split it out -
+> or drop it entirely - if you prefer.
+> 
 
-> Last diff from him:
-> 
-> ---
->  kernel/irq_work.c |   12 +-----------
->  1 file changed, 1 insertion(+), 11 deletions(-)
-> 
-> Index: linux-2.6/kernel/irq_work.c
-> ===================================================================
-> --- linux-2.6.orig/kernel/irq_work.c
-> +++ linux-2.6/kernel/irq_work.c
-> @@ -160,21 +160,11 @@ static void irq_work_run_list(struct lli
->         }
->  }
-> 
-> -static void __irq_work_run(void)
-> +static void irq_work_run(void)
->  {
->         irq_work_run_list(&__get_cpu_var(raised_list));
->         irq_work_run_list(&__get_cpu_var(lazy_list));
->  }
-> -
-> -/*
-> - * Run the irq_work entries on this cpu. Requires to be ran from hardirq
-> - * context with local IRQs disabled.
-> - */
-> -void irq_work_run(void)
-> -{
-> -       BUG_ON(!in_irq());
-> -       __irq_work_run();
-> -}
->  EXPORT_SYMBOL_GPL(irq_work_run);
+It's ok as-is. It just seemed unrelated and seemed to do nothing. I was
+wondering if this was a rebasing artifact and some other change that
+required it got lost along the way by accident.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
