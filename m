@@ -1,86 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E5E556B0031
-	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 09:43:48 -0400 (EDT)
-Received: by mail-qa0-f51.google.com with SMTP id j7so1517724qaq.38
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 06:43:48 -0700 (PDT)
-Received: from mail-qg0-x233.google.com (mail-qg0-x233.google.com [2607:f8b0:400d:c04::233])
-        by mx.google.com with ESMTPS id o5si4686224qck.6.2014.06.25.06.43.48
+Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AB9F6B0031
+	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 09:46:03 -0400 (EDT)
+Received: by mail-la0-f42.google.com with SMTP id pn19so773053lab.15
+        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 06:46:02 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id o1si3407316lah.115.2014.06.25.06.46.00
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 25 Jun 2014 06:43:48 -0700 (PDT)
-Received: by mail-qg0-f51.google.com with SMTP id z60so1671658qgd.10
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 06:43:48 -0700 (PDT)
-Date: Wed, 25 Jun 2014 09:43:45 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH V2] mm/mempolicy: fix sleeping function called from
- invalid context
-Message-ID: <20140625134345.GA26883@htj.dyndns.org>
-References: <53AA2C7E.3050707@cn.fujitsu.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 25 Jun 2014 06:46:01 -0700 (PDT)
+Date: Wed, 25 Jun 2014 17:45:45 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -mm v3 8/8] slab: do not keep free objects/slabs on dead
+ memcg caches
+Message-ID: <20140625134545.GB22340@esperanza>
+References: <cover.1402602126.git.vdavydov@parallels.com>
+ <a985aec824cd35df381692fca83f7a8debc80305.1402602126.git.vdavydov@parallels.com>
+ <20140624073840.GC4836@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <53AA2C7E.3050707@cn.fujitsu.com>
+In-Reply-To: <20140624073840.GC4836@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gu Zheng <guz.fnst@cn.fujitsu.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>, stable@vger.kernel.org, Li Zefan <lizefan@huawei.com>, David Rientjes <rientjes@google.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: akpm@linux-foundation.org, cl@linux.com, rientjes@google.com, penberg@kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jun 25, 2014 at 09:57:18AM +0800, Gu Zheng wrote:
-> When runing with the kernel(3.15-rc7+), the follow bug occurs:
-> [ 9969.258987] BUG: sleeping function called from invalid context at kernel/locking/mutex.c:586
-> [ 9969.359906] in_atomic(): 1, irqs_disabled(): 0, pid: 160655, name: python
-> [ 9969.441175] INFO: lockdep is turned off.
-> [ 9969.488184] CPU: 26 PID: 160655 Comm: python Tainted: G       A      3.15.0-rc7+ #85
-> [ 9969.581032] Hardware name: FUJITSU-SV PRIMEQUEST 1800E/SB, BIOS PRIMEQUEST 1000 Series BIOS Version 1.39 11/16/2012
-> [ 9969.706052]  ffffffff81a20e60 ffff8803e941fbd0 ffffffff8162f523 ffff8803e941fd18
-> [ 9969.795323]  ffff8803e941fbe0 ffffffff8109995a ffff8803e941fc58 ffffffff81633e6c
-> [ 9969.884710]  ffffffff811ba5dc ffff880405c6b480 ffff88041fdd90a0 0000000000002000
-> [ 9969.974071] Call Trace:
-> [ 9970.003403]  [<ffffffff8162f523>] dump_stack+0x4d/0x66
-> [ 9970.065074]  [<ffffffff8109995a>] __might_sleep+0xfa/0x130
-> [ 9970.130743]  [<ffffffff81633e6c>] mutex_lock_nested+0x3c/0x4f0
-> [ 9970.200638]  [<ffffffff811ba5dc>] ? kmem_cache_alloc+0x1bc/0x210
-> [ 9970.272610]  [<ffffffff81105807>] cpuset_mems_allowed+0x27/0x140
-> [ 9970.344584]  [<ffffffff811b1303>] ? __mpol_dup+0x63/0x150
-> [ 9970.409282]  [<ffffffff811b1385>] __mpol_dup+0xe5/0x150
-> [ 9970.471897]  [<ffffffff811b1303>] ? __mpol_dup+0x63/0x150
-> [ 9970.536585]  [<ffffffff81068c86>] ? copy_process.part.23+0x606/0x1d40
-> [ 9970.613763]  [<ffffffff810bf28d>] ? trace_hardirqs_on+0xd/0x10
-> [ 9970.683660]  [<ffffffff810ddddf>] ? monotonic_to_bootbased+0x2f/0x50
-> [ 9970.759795]  [<ffffffff81068cf0>] copy_process.part.23+0x670/0x1d40
-> [ 9970.834885]  [<ffffffff8106a598>] do_fork+0xd8/0x380
-> [ 9970.894375]  [<ffffffff81110e4c>] ? __audit_syscall_entry+0x9c/0xf0
-> [ 9970.969470]  [<ffffffff8106a8c6>] SyS_clone+0x16/0x20
-> [ 9971.030011]  [<ffffffff81642009>] stub_clone+0x69/0x90
-> [ 9971.091573]  [<ffffffff81641c29>] ? system_call_fastpath+0x16/0x1b
+On Tue, Jun 24, 2014 at 04:38:41PM +0900, Joonsoo Kim wrote:
+> On Fri, Jun 13, 2014 at 12:38:22AM +0400, Vladimir Davydov wrote:
+> And, you said that this way of implementation would be slow because
+> there could be many object in dead caches and this implementation
+> needs node spin_lock on each object freeing. Is it no problem now?
 > 
-> The cause is that cpuset_mems_allowed() try to take mutex_lock(&callback_mutex)
-> under the rcu_read_lock(which was hold in __mpol_dup()). And in cpuset_mems_allowed(),
-> the access to cpuset is under rcu_read_lock, so in __mpol_dup, we can reduce the
-> rcu_read_lock protection region to protect the access to cpuset only in
-> current_cpuset_is_being_rebound(). So that we can avoid this bug.
-> This patch is a temporary solution that just addresses the bug mentioned above,
-> can not fix the long-standing issue about cpuset.mems rebinding on fork():
-> "
-> When the forker's task_struct is duplicated (which includes ->mems_allowed)
-> and it races with an update to cpuset_being_rebound in update_tasks_nodemask()
-> then the task's mems_allowed doesn't get updated. And the child task's
-> mems_allowed can be wrong if the cpuset's nodemask changes before the
-> child has been added to the cgroup's tasklist.
-> "
-> 
-> Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
-> Cc: stable <stable@vger.kernel.org>
+> If you have any performance data about this implementation and
+> alternative one, could you share it?
 
-Applied to cgroup/for-3.16-fixes w/ minor updates to patch subject and
-description.  Please format the text to 80 columns.  The error
-messages are fine but it's usually nicer to remove the timestamps.
+I ran some tests on a 2 CPU x 6 core x 2 HT box. The kernel was compiled
+with a config taken from a popular distro, so it had most of debug
+options turned off.
+
+---
+
+TEST #1: Each logical CPU executes a task that frees 1M objects
+         allocated from the same cache. All frees are node-local.
+
+RESULTS:
+
+objsize (bytes) | cache is dead? | objects free time (ms)
+----------------+----------------+-----------------------
+          64    |       -        |       373 +- 5
+           -    |       +        |      1300 +- 6
+                |                |
+         128    |       -        |       387 +- 6
+           -    |       +        |      1337 +- 6
+                |                |
+         256    |       -        |       484 +- 4
+           -    |       +        |      1407 +- 6
+                |                |
+         512    |       -        |       686 +-  5
+           -    |       +        |      1561 +- 18
+                |                |
+        1024    |       -        |      1073 +- 11
+           -    |       +        |      1897 +- 12
+
+TEST #2: Each logical CPU executes a task that removes 1M empty files
+         from its own RAMFS mount. All frees are node-local.
+
+RESULTS:
+
+ cache is dead? | files removal time (s)
+----------------+----------------------------------
+      -         |       15.57 +- 0.55   (base)
+      +         |       16.80 +- 0.62   (base + 8%)
+
+---
+
+So, according to TEST #1 the relative slowdown introduced by zapping per
+cpu arrays is really dreadful - it can be up to 4x! However, the
+absolute numbers aren't that huge - ~1 second for 24 million objects.
+If we do something else except kfree the slowdown shouldn't be that
+visible IMO.
+
+TEST #2 is an attempt to estimate how zapping of per cpu arrays will
+affect FS objects destruction, which is the most common case of dead
+caches usage. To avoid disk-bound operations it uses RAMFS. From the
+test results it follows that the relative slowdown of massive file
+deletion is within 2 stdev, which looks decent.
+
+Anyway, the alternative approach (reaping dead caches periodically)
+won't have this kfree slowdown at all. However, periodic reaping can
+become a real disaster as the system evolves and the number of dead
+caches grows. Currently I don't know how we can estimate real life
+effects of this. If you have any ideas, please let me know.
 
 Thanks.
-
--- 
-tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
