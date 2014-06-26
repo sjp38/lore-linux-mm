@@ -1,107 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id E1E506B003A
-	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 08:59:18 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id et14so3174603pad.27
-        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 05:59:18 -0700 (PDT)
-Received: from sjc00mx1.hgst.com (sjc00mx1.hitachigst.com. [199.255.44.36])
-        by mx.google.com with ESMTPS id hs1si9753946pac.33.2014.06.26.05.59.17
+Received: from mail-oa0-f53.google.com (mail-oa0-f53.google.com [209.85.219.53])
+	by kanga.kvack.org (Postfix) with ESMTP id C74B26B0069
+	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 09:00:53 -0400 (EDT)
+Received: by mail-oa0-f53.google.com with SMTP id l6so3884528oag.12
+        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 06:00:53 -0700 (PDT)
+Received: from mx10.nec.com (mx10.nec.com. [143.101.113.5])
+        by mx.google.com with ESMTPS id e10si9732305oeu.26.2014.06.26.06.00.53
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 26 Jun 2014 05:59:17 -0700 (PDT)
-Message-ID: <53AC1919.60905@hgst.com>
-Date: Thu, 26 Jun 2014 16:59:05 +0400
-From: Vyacheslav Dubeyko <Vyacheslav.Dubeyko@hgst.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 26 Jun 2014 06:00:53 -0700 (PDT)
+Content-Class: urn:content-classes:message
 MIME-Version: 1.0
-Subject: Re: [mmotm:master 212/319] fs/nilfs2/sysfs.c:256:1: sparse: symbol
- 'nilfs_sysfs_create_mounted_snapshots_group' was not declared. Should it
- be static?
-References: <53abdbf7.4djbeHCO91dyNSec%fengguang.wu@intel.com>
-In-Reply-To: <53abdbf7.4djbeHCO91dyNSec%fengguang.wu@intel.com>
-Content-Type: multipart/mixed;
-	boundary="------------040901070409090503040700"
+Content-Type: multipart/alternative;
+	boundary="----_=_NextPart_001_01CF913E.A7E9CDA7"
+Subject: RE: [mempolicy] 5507231dd04: -18.2% vm-scalability.migrate_mbps
+Date: Thu, 26 Jun 2014 07:59:41 -0500
+Message-ID: <FC3CA273EA98D94B96901B237F5F506BB61DB1@irvmail101.necam.prv>
+References: <a2aff3e6884b425481b1dd542effbb87@BPXC19GP.gisp.nec.co.jp>
+From: "Horiguchi, Naoya" <Naoya.Horiguchi@necam.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: Jet Chen <jet.chen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKP <lkp@01.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
---------------040901070409090503040700
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+------_=_NextPart_001_01CF913E.A7E9CDA7
+Content-Type: text/plain; charset="iso-2022-jp"
 Content-Transfer-Encoding: 7bit
 
+> Hi Naoya,                                                                                      
+>
+> FYI, we noticed the below changes on
+>
+> git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git am437x-starterkit
+> commit 5507231dd04d3d68796bafe83e6a20c985a0ef68 ("mempolicy: apply page table walker on queue_pages_range()")
 
-On 06/26/2014 12:38 PM, kbuild test robot wrote:
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   9477ec75947f2cf0fc47e8ab781a5e9171099be2
-> commit: c4d5ec2ba1ab268de64dcad7c6544d99a2218999 [212/319] nilfs2: integrate sysfs support into driver
-> reproduce: make C=1 CF=-D__CHECK_ENDIAN__
->
->
-> sparse warnings: (new ones prefixed by >>)
->
->>> fs/nilfs2/sysfs.c:256:1: sparse: symbol 'nilfs_sysfs_create_mounted_snapshots_group' was not declared. Should it be static?
->>> fs/nilfs2/sysfs.c:369:1: sparse: symbol 'nilfs_sysfs_create_checkpoints_group' was not declared. Should it be static?
->>> fs/nilfs2/sysfs.c:458:1: sparse: symbol 'nilfs_sysfs_create_segments_group' was not declared. Should it be static?
->>> fs/nilfs2/sysfs.c:720:1: sparse: symbol 'nilfs_sysfs_create_segctor_group' was not declared. Should it be static?
->>> fs/nilfs2/sysfs.c:846:1: sparse: symbol 'nilfs_sysfs_create_superblock_group' was not declared. Should it be static?
-> Please consider folding the attached diff :-)
-
-The diff looks good for me. But what about to fix the issue in the source?
-Please, find my vision of the patch in the attachment.
+This patch is to be revised with one with less performance impact,
+where I stop calling ->pte_entry() callback heavily.
 
 Thanks,
-Vyacheslav Dubeyko.
+Naoya Horiguchi
 
+------_=_NextPart_001_01CF913E.A7E9CDA7
+Content-Type: text/html; charset="iso-2022-jp"
+Content-Transfer-Encoding: quoted-printable
 
---------------040901070409090503040700
-Content-Type: text/x-patch;
-	name="0001-nilfs2-nilfs_sysfs_create_mounted_snapshots_group-ca.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
-	filename*0="0001-nilfs2-nilfs_sysfs_create_mounted_snapshots_group-ca.pa";
-	filename*1="tch"
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; =
+charset=3Diso-2022-jp">
+<META NAME=3D"Generator" CONTENT=3D"MS Exchange Server version =
+6.5.7654.12">
+<TITLE>RE: [mempolicy] 5507231dd04: -18.2% =
+vm-scalability.migrate_mbps</TITLE>
+</HEAD>
+<BODY>
+<!-- Converted from text/plain format -->
 
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [PATCH mmotm] nilfs2: nilfs_sysfs_create_mounted_snapshots_group can be static
-TO: Vyacheslav Dubeyko <Vyacheslav.Dubeyko@hgst.com>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-CC: linux-nilfs@vger.kernel.org
-CC: linux-kernel@vger.kernel.org
+<P><FONT SIZE=3D2>&gt; Hi =
+Naoya,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n=
+bsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb=
+sp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp=
+;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;<BR>
+&gt;<BR>
+&gt; FYI, we noticed the below changes on<BR>
+&gt;<BR>
+&gt; git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git =
+am437x-starterkit<BR>
+&gt; commit 5507231dd04d3d68796bafe83e6a20c985a0ef68 (&quot;mempolicy: =
+apply page table walker on queue_pages_range()&quot;)<BR>
+<BR>
+This patch is to be revised with one with less performance impact,<BR>
+where I stop calling -&gt;pte_entry() callback heavily.<BR>
+<BR>
+Thanks,<BR>
+Naoya Horiguchi<BR>
+</FONT>
+</P>
 
-CC: Vyacheslav Dubeyko <Vyacheslav.Dubeyko@hgst.com>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
----
- fs/nilfs2/sysfs.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/fs/nilfs2/sysfs.c b/fs/nilfs2/sysfs.c
-index 0f6148c..bbb0dcc 100644
---- a/fs/nilfs2/sysfs.c
-+++ b/fs/nilfs2/sysfs.c
-@@ -87,7 +87,7 @@ static struct kobj_type nilfs_##name##_ktype = { \
- };
- 
- #define NILFS_DEV_INT_GROUP_FNS(name, parent_name) \
--int nilfs_sysfs_create_##name##_group(struct the_nilfs *nilfs) \
-+static int nilfs_sysfs_create_##name##_group(struct the_nilfs *nilfs) \
- { \
- 	struct kobject *parent; \
- 	struct kobject *kobj; \
-@@ -106,7 +106,7 @@ int nilfs_sysfs_create_##name##_group(struct the_nilfs *nilfs) \
- 		return err; \
- 	return 0; \
- } \
--void nilfs_sysfs_delete_##name##_group(struct the_nilfs *nilfs) \
-+static void nilfs_sysfs_delete_##name##_group(struct the_nilfs *nilfs) \
- { \
- 	kobject_del(&nilfs->ns_##parent_name##_subgroups->sg_##name##_kobj); \
- }
--- 
-1.7.9.5
-
-
---------------040901070409090503040700--
+</BODY>
+</HTML>
+------_=_NextPart_001_01CF913E.A7E9CDA7--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
