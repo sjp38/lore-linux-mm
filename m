@@ -1,52 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 64E976B009D
-	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 14:04:46 -0400 (EDT)
-Received: by mail-qa0-f49.google.com with SMTP id w8so3055396qac.22
-        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 11:04:46 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l10si10403834qad.51.2014.06.26.11.04.45
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jun 2014 11:04:45 -0700 (PDT)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: [PATCH 6/6] cfq: Increase default value of target_latency
-References: <1403683129-10814-1-git-send-email-mgorman@suse.de>
-	<1403683129-10814-7-git-send-email-mgorman@suse.de>
-	<x491tub65t9.fsf@segfault.boston.devel.redhat.com>
-	<20140626161955.GH10819@suse.de>
-	<x49simr4ntz.fsf@segfault.boston.devel.redhat.com>
-	<20140626174500.GI10819@suse.de>
-Date: Thu, 26 Jun 2014 14:04:34 -0400
-In-Reply-To: <20140626174500.GI10819@suse.de> (Mel Gorman's message of "Thu,
-	26 Jun 2014 18:45:00 +0100")
-Message-ID: <x49k3834kel.fsf@segfault.boston.devel.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id D9FC86B00A0
+	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 14:23:19 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id um1so3486939pbc.2
+        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 11:23:19 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id hp4si11076396pac.0.2014.06.26.11.23.18
+        for <linux-mm@kvack.org>;
+        Thu, 26 Jun 2014 11:23:18 -0700 (PDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: [PATCH] hwpoison: Fix race with changing page during offlining
+Date: Thu, 26 Jun 2014 11:22:52 -0700
+Message-Id: <1403806972-14267-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jens Axboe <axboe@kernel.dk>, Dave Chinner <david@fromorbit.com>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, tony.luck@intel.com, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, dave.hansen@linux.intel.com
 
-Mel Gorman <mgorman@suse.de> writes:
+From: Andi Kleen <ak@linux.intel.com>
 
->> And we should probably run our standard set of I/O exercisers at the
->> very least.  But, like I said, it seems like wasted effort.
->> 
->
-> Out of curiousity, what do you consider to be the standard set of I/O
-> exercisers?
+While running the mcelog test suite on 3.14 I hit the following VM_BUG_ON:
 
-Yes, that was vague, sorry.  I was referring to any io generator that
-will perform sequential and random I/O (writes, re-writes, reads, random
-writes, random reads, strided reads, backwards reads, etc).  We use
-iozone internally, testing both buffered and direct I/O, varying file
-and record sizes and across multiple file systems.  Data sets that fall
-inside of the page cache tend to have a high standard deviation, so, as
-an I/O guy, I ignore those.  ;-)
+soft_offline: 0x56d4: unknown non LRU page type 3ffff800008000
+page:ffffea000015b400 count:3 mapcount:2097169 mapping:          (null) index:0xffff8800056d7000
+page flags: 0x3ffff800004081(locked|slab|head)
+------------[ cut here ]------------
+kernel BUG at mm/rmap.c:1495!
 
-Cheers,
-Jeff
+I think what happened is that a LRU page turned into a slab page in parallel
+with offlining. memory_failure initially tests for this case, but doesn't
+retest later after the page has been locked.
+
+This patch fixes this race. It also check for the case that the page
+changed compound pages.
+
+Unfortunately since it's a race I wasn't able to reproduce later,
+so the specific case is not tested.
+
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: dave.hansen@linux.intel.com
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
+---
+ mm/memory-failure.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 90002ea..e277726a 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1143,6 +1143,22 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+ 	lock_page(hpage);
+ 
+ 	/*
++	 * The page could have turned into a non LRU page or
++	 * changed compound pages during the locking.
++	 * If this happens just bail out.
++	 */
++	if (compound_head(p) != hpage) {
++		action_result(pfn, "different compound page after locking", IGNORED);
++		res = -EBUSY;
++		goto out;
++	}
++	if (!PageLRU(hpage)) {
++		action_result(pfn, "non LRU after locking", IGNORED);
++		res = -EBUSY;
++		goto out;
++	}
++
++	/*
+ 	 * We use page flags to determine what action should be taken, but
+ 	 * the flags can be modified by the error containment action.  One
+ 	 * example is an mlocked page, where PG_mlocked is cleared by
+-- 
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
