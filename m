@@ -1,114 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id F21026B0031
-	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 23:55:11 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id rd3so2607413pab.3
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 20:55:11 -0700 (PDT)
-Received: from mail-pd0-x235.google.com (mail-pd0-x235.google.com [2607:f8b0:400e:c02::235])
-        by mx.google.com with ESMTPS id bg4si7993938pbb.67.2014.06.25.20.55.10
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 473B96B0037
+	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 00:08:51 -0400 (EDT)
+Received: by mail-ig0-f176.google.com with SMTP id c1so259655igq.3
+        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 21:08:51 -0700 (PDT)
+Received: from mail-ie0-x231.google.com (mail-ie0-x231.google.com [2607:f8b0:4001:c03::231])
+        by mx.google.com with ESMTPS id l3si296047igx.12.2014.06.25.21.08.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 25 Jun 2014 20:55:11 -0700 (PDT)
-Received: by mail-pd0-f181.google.com with SMTP id v10so2481811pde.12
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 20:55:10 -0700 (PDT)
-Date: Wed, 25 Jun 2014 20:53:52 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 2/3] shmem: update memory reservation on truncate
-In-Reply-To: <20140624201610.18273.93645.stgit@zurg>
-Message-ID: <alpine.LSU.2.11.1406252044420.30620@eggly.anvils>
-References: <20140624201606.18273.44270.stgit@zurg> <20140624201610.18273.93645.stgit@zurg>
+        Wed, 25 Jun 2014 21:08:50 -0700 (PDT)
+Received: by mail-ie0-f177.google.com with SMTP id tp5so2540962ieb.36
+        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 21:08:50 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20140625150318.4355468ab59a5293e870605e@linux-foundation.org>
+References: <20140624201606.18273.44270.stgit@zurg>
+	<20140624201614.18273.39034.stgit@zurg>
+	<20140625150318.4355468ab59a5293e870605e@linux-foundation.org>
+Date: Thu, 26 Jun 2014 08:08:50 +0400
+Message-ID: <CALYGNiOtO9bV2RJuM_42fc-R_9aHpjkfRxX7V_zy=GBX68UW_A@mail.gmail.com>
+Subject: Re: [PATCH 3/3] mm: catch memory commitment underflow
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Wed, 25 Jun 2014, Konstantin Khlebnikov wrote:
+On Thu, Jun 26, 2014 at 2:03 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Wed, 25 Jun 2014 00:16:14 +0400 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+>
+>> This patch prints warning (if CONFIG_DEBUG_VM=y) when
+>> memory commitment becomes too negative.
+>>
+>> ...
+>>
+>> --- a/mm/mmap.c
+>> +++ b/mm/mmap.c
+>> @@ -134,6 +134,12 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
+>>  {
+>>       unsigned long free, allowed, reserve;
+>>
+>> +#ifdef CONFIG_DEBUG_VM
+>> +     WARN_ONCE(percpu_counter_read(&vm_committed_as) <
+>> +                     -(s64)vm_committed_as_batch * num_online_cpus(),
+>> +                     "memory commitment underflow");
+>> +#endif
+>> +
+>>       vm_acct_memory(pages);
+>
+> The changelog doesn't describe the reasons for making the change.
+>
+> I assume this warning will detect the situation which the previous two
+> patches just fixed?
 
-> Shared anonymous mapping created without MAP_NORESERVE holds memory
-> reservation for whole range of shmem segment. Usually there is no way to
-> change its size, but /proc/<pid>/map_files/...
-> (available if CONFIG_CHECKPOINT_RESTORE=y) allows to do that.
-> 
-> This patch adjust memory reservation in shmem_setattr().
-> 
-> Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
+Yep. Otherwise there is no way to validate these bugs, /proc/meminfo
+hides negative values.
 
-Acked-by: Hugh Dickins <hughd@google.com>
+> Why not use VM_WARN_ON_ONCE()?
 
-Thank you, I knew nothing about this backdoor to shmem objects.  Scary.
-Was this really the only problem map_files access leads to?  If you
-did not do so already, please try to think through other possibilities.
-
-I haven't begun, but perhaps it's not so bad.  I guess the interaction
-with mremap extension is benign - it's annoyed people in the past that
-the underlying shmem object is not extended, but now here's a way that
-it can be. 
-
-(I'll leave it to others comment on 3/3 if they wish.)
-
-> 
-> ---
-> 
-> exploit:
-> 
-> #include <sys/mman.h>
-> #include <unistd.h>
-> #include <stdio.h>
-> 
-> int main(int argc, char **argv)
-> {
-> 	unsigned long addr;
-> 	char path[100];
-> 
-> 	/* charge 4KiB */
-> 	addr = (unsigned long)mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
-> 	sprintf(path, "/proc/self/map_files/%lx-%lx", addr, addr + 4096);
-> 	truncate(path, 1 << 30);
-> 	/* uncharge 1GiB */
-> }
-> ---
->  mm/shmem.c |   17 +++++++++++++++++
->  1 file changed, 17 insertions(+)
-> 
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 0aabcbd..a3c49d6 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -149,6 +149,19 @@ static inline void shmem_unacct_size(unsigned long flags, loff_t size)
->  		vm_unacct_memory(VM_ACCT(size));
->  }
->  
-> +static inline int shmem_reacct_size(unsigned long flags,
-> +		loff_t oldsize, loff_t newsize)
-> +{
-> +	if (!(flags & VM_NORESERVE)) {
-> +		if (VM_ACCT(newsize) > VM_ACCT(oldsize))
-> +			return security_vm_enough_memory_mm(current->mm,
-> +					VM_ACCT(newsize) - VM_ACCT(oldsize));
-> +		else if (VM_ACCT(newsize) < VM_ACCT(oldsize))
-> +			vm_unacct_memory(VM_ACCT(oldsize) - VM_ACCT(newsize));
-> +	}
-> +	return 0;
-> +}
-> +
->  /*
->   * ... whereas tmpfs objects are accounted incrementally as
->   * pages are allocated, in order to allow huge sparse files.
-> @@ -543,6 +556,10 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
->  		loff_t newsize = attr->ia_size;
->  
->  		if (newsize != oldsize) {
-> +			error = shmem_reacct_size(SHMEM_I(inode)->flags,
-> +					oldsize, newsize);
-> +			if (error)
-> +				return error;
->  			i_size_write(inode, newsize);
->  			inode->i_ctime = inode->i_mtime = CURRENT_TIME;
->  		}
-> 
-> 
+This patch is older than this macro.
+Previously I've sent it in the last september and it was ignored. Now
+I've found it again in my backlog.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
