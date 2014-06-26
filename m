@@ -1,49 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B0666B00A8
-	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 16:02:25 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id at1so3540731iec.14
-        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 13:02:25 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id bl5si13063070icb.36.2014.06.26.13.02.24
-        for <linux-mm@kvack.org>;
-        Thu, 26 Jun 2014 13:02:24 -0700 (PDT)
-Date: Thu, 26 Jun 2014 13:02:23 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [mmotm:master 108/319] kernel/events/uprobes.c:319:2: error:
- implicit declaration of function 'mem_cgroup_charge_anon'
-Message-Id: <20140626130223.2db7a085421f594eb1707eb8@linux-foundation.org>
-In-Reply-To: <53ab71c4.YGFc6XN+rgscOdCJ%fengguang.wu@intel.com>
-References: <53ab71c4.YGFc6XN+rgscOdCJ%fengguang.wu@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BEEF6B0036
+	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 16:28:59 -0400 (EDT)
+Received: by mail-qg0-f45.google.com with SMTP id 63so3505420qgz.4
+        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 13:28:59 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r6si10962391qar.32.2014.06.26.13.28.58
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Jun 2014 13:28:58 -0700 (PDT)
+Message-ID: <53AC7D54.4010407@redhat.com>
+Date: Thu, 26 Jun 2014 16:06:44 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2] mm: export NR_SHMEM via sysinfo(2) / si_meminfo()
+ interfaces
+References: <198dc298821a20a476656dccc85a8d77f166c61a.1403812625.git.aquini@redhat.com>
+In-Reply-To: <198dc298821a20a476656dccc85a8d77f166c61a.1403812625.git.aquini@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org
+To: Rafael Aquini <aquini@redhat.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
 
-On Thu, 26 Jun 2014 09:05:08 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+On 06/26/2014 04:00 PM, Rafael Aquini wrote:
+> Historically, we exported shared pages to userspace via sysinfo(2) sharedram
+> and /proc/meminfo's "MemShared" fields. With the advent of tmpfs, from kernel
+> v2.4 onward, that old way for accounting shared mem was deemed inaccurate and
+> we started to export a hard-coded 0 for sysinfo.sharedram. Later on, during
+> the 2.6 timeframe, "MemShared" got re-introduced to /proc/meminfo re-branded
+> as "Shmem", but we're still reporting sysinfo.sharedmem as that old hard-coded
+> zero, which makes the "shared memory" report inconsistent across interfaces.
+> 
+> This patch leverages the addition of explicit accounting for pages used by
+> shmem/tmpfs -- "4b02108 mm: oom analysis: add shmem vmstat" -- in order to
+> make the users of sysinfo(2) and si_meminfo*() friends aware of that
+> vmstat entry and make them report it consistently across the interfaces,
+> as well to make sysinfo(2) returned data consistent with our current API
+> documentation states.
+> 
+> Signed-off-by: Rafael Aquini <aquini@redhat.com>
 
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   9477ec75947f2cf0fc47e8ab781a5e9171099be2
-> commit: 5c83b35612a2f2894b54d902ac50612cec2e1926 [108/319] mm: memcontrol: rewrite charge API
-> config: i386-randconfig-ha2-0626 (attached as .config)
-> 
-> Note: the mmotm/master HEAD 9477ec75947f2cf0fc47e8ab781a5e9171099be2 builds fine.
->       It only hurts bisectibility.
-> 
-> All error/warnings:
-> 
->    kernel/events/uprobes.c: In function 'uprobe_write_opcode':
-> >> kernel/events/uprobes.c:319:2: error: implicit declaration of function 'mem_cgroup_charge_anon' [-Werror=implicit-function-declaration]
->      if (mem_cgroup_charge_anon(new_page, mm, GFP_KERNEL))
->      ^
->    cc1: some warnings being treated as errors
-
-The next patch mm-memcontrol-rewrite-charge-api-fix-3.patch fixes this
-up.  Is there something I did which fooled the buildbot's
-hey-theres-a-fixup-patch detector?
+Acked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
