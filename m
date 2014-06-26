@@ -1,75 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 68B426B0031
-	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 04:29:03 -0400 (EDT)
-Received: by mail-wi0-f179.google.com with SMTP id cc10so554135wib.0
-        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 01:29:02 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hx1si7784852wjb.169.2014.06.26.01.29.01
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 26 Jun 2014 01:29:02 -0700 (PDT)
-Date: Thu, 26 Jun 2014 10:29:00 +0200
-From: "Luis R. Rodriguez" <mcgrof@suse.com>
-Subject: Re: [mmotm:master 155/319] kernel/printk/printk.c:269:37: error:
-	'CONFIG_LOG_CPU_MAX_BUF_SHIFT' undeclared
-Message-ID: <20140626082900.GD27687@wotan.suse.de>
-References: <53ab75fb.TL6r6DI5RYoz6W9P%fengguang.wu@intel.com> <20140626022455.GC27687@wotan.suse.de> <alpine.DEB.2.02.1406252308160.3960@chino.kir.corp.google.com>
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C4136B0037
+	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 04:41:01 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id ma3so2865722pbc.14
+        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 01:41:00 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id sd3si8820496pac.94.2014.06.26.01.41.00
+        for <linux-mm@kvack.org>;
+        Thu, 26 Jun 2014 01:41:00 -0700 (PDT)
+Date: Thu, 26 Jun 2014 16:38:15 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [mmotm:master 212/319] fs/nilfs2/sysfs.c:256:1: sparse: symbol
+ 'nilfs_sysfs_create_mounted_snapshots_group' was not declared. Should it be static?
+Message-ID: <53abdbf7.4djbeHCO91dyNSec%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1406252308160.3960@chino.kir.corp.google.com>
+Content-Type: multipart/mixed;
+ boundary="=_53abdbf7.l4ueiEf66KseJoA5ts7i80NjlZddh98h/E1CsfQzc/rWOn0K"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: kbuild test robot <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Petr Mladek <pmladek@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: Vyacheslav Dubeyko <Vyacheslav.Dubeyko@hgst.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
 
-On Wed, Jun 25, 2014 at 11:10:28PM -0700, David Rientjes wrote:
-> On Thu, 26 Jun 2014, Luis R. Rodriguez wrote:
-> 
-> > diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-> > index 83f7a95..65ed0a6 100644
-> > --- a/kernel/printk/printk.c
-> > +++ b/kernel/printk/printk.c
-> > @@ -266,7 +266,11 @@ static u32 clear_idx;
-> >  #define LOG_ALIGN __alignof__(struct printk_log)
-> >  #endif
-> >  #define __LOG_BUF_LEN (1 << CONFIG_LOG_BUF_SHIFT)
-> > +#if defined(CONFIG_LOG_CPU_MAX_BUF_SHIFT)
-> >  #define __LOG_CPU_MAX_BUF_LEN (1 << CONFIG_LOG_CPU_MAX_BUF_SHIFT)
-> > +#else
-> > +#define __LOG_CPU_MAX_BUF_LEN 1
-> > +#endif
-> >  static char __log_buf[__LOG_BUF_LEN] __aligned(LOG_ALIGN);
-> >  static char *log_buf = __log_buf;
-> >  static u32 log_buf_len = __LOG_BUF_LEN;
-> 
-> No, I think this would be much cleaner to just define 
-> CONFIG_LOG_CPU_MAX_BUF_SHIFT unconditionally to 0 when !SMP || BASE_SMALL 
-> and otherwise allow it to be configured according to the allowed range.
-> 
-> The verbosity of this configuration option is just downright excessive.
+This is a multi-part message in MIME format.
 
-Good point, this seems to do it:
+--=_53abdbf7.l4ueiEf66KseJoA5ts7i80NjlZddh98h/E1CsfQzc/rWOn0K
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-diff --git a/init/Kconfig b/init/Kconfig
-index 573d3f6..2339118 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -822,10 +822,9 @@ config LOG_BUF_SHIFT
+tree:   git://git.cmpxchg.org/linux-mmotm.git master
+head:   9477ec75947f2cf0fc47e8ab781a5e9171099be2
+commit: c4d5ec2ba1ab268de64dcad7c6544d99a2218999 [212/319] nilfs2: integrate sysfs support into driver
+reproduce: make C=1 CF=-D__CHECK_ENDIAN__
+
+
+sparse warnings: (new ones prefixed by >>)
+
+>> fs/nilfs2/sysfs.c:256:1: sparse: symbol 'nilfs_sysfs_create_mounted_snapshots_group' was not declared. Should it be static?
+>> fs/nilfs2/sysfs.c:369:1: sparse: symbol 'nilfs_sysfs_create_checkpoints_group' was not declared. Should it be static?
+>> fs/nilfs2/sysfs.c:458:1: sparse: symbol 'nilfs_sysfs_create_segments_group' was not declared. Should it be static?
+>> fs/nilfs2/sysfs.c:720:1: sparse: symbol 'nilfs_sysfs_create_segctor_group' was not declared. Should it be static?
+>> fs/nilfs2/sysfs.c:846:1: sparse: symbol 'nilfs_sysfs_create_superblock_group' was not declared. Should it be static?
+
+Please consider folding the attached diff :-)
+
+---
+0-DAY kernel build testing backend              Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+
+--=_53abdbf7.l4ueiEf66KseJoA5ts7i80NjlZddh98h/E1CsfQzc/rWOn0K
+Content-Type: text/x-diff;
+ charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename="make-it-static-c4d5ec2ba1ab268de64dcad7c6544d99a2218999.diff"
+
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [PATCH mmotm] nilfs2: nilfs_sysfs_create_mounted_snapshots_group can be static
+TO: Vyacheslav Dubeyko <Vyacheslav.Dubeyko@hgst.com>
+CC: Johannes Weiner <hannes@cmpxchg.org>
+CC: linux-nilfs@vger.kernel.org 
+CC: linux-kernel@vger.kernel.org 
+
+CC: Vyacheslav Dubeyko <Vyacheslav.Dubeyko@hgst.com>
+CC: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+---
+ sysfs.c |   10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/fs/nilfs2/sysfs.c b/fs/nilfs2/sysfs.c
+index 0f6148c..46ca55b 100644
+--- a/fs/nilfs2/sysfs.c
++++ b/fs/nilfs2/sysfs.c
+@@ -253,7 +253,7 @@ static struct attribute *nilfs_mounted_snapshots_attrs[] = {
  
- config LOG_CPU_MAX_BUF_SHIFT
- 	int "CPU kernel log buffer size contribution (13 => 8 KB, 17 => 128KB)"
--	range 0 21
--	default 12
--	depends on SMP
--	depends on !BASE_SMALL
-+	range 0 21 if SMP && !BASE_SMALL
-+	default 12 if SMP && !BASE_SMALL
-+	default 0 if !SMP || BASE_SMALL
- 	help
- 	  The kernel ring buffer will get additional data logged onto it
- 	  when multiple CPUs are supported. Typically the contributions are
+ NILFS_DEV_INT_GROUP_OPS(mounted_snapshots, dev);
+ NILFS_DEV_INT_GROUP_TYPE(mounted_snapshots, dev);
+-NILFS_DEV_INT_GROUP_FNS(mounted_snapshots, dev);
++static NILFS_DEV_INT_GROUP_FNS(mounted_snapshots, dev);
+ 
+ /************************************************************************
+  *                      NILFS checkpoints attrs                         *
+@@ -366,7 +366,7 @@ static struct attribute *nilfs_checkpoints_attrs[] = {
+ 
+ NILFS_DEV_INT_GROUP_OPS(checkpoints, dev);
+ NILFS_DEV_INT_GROUP_TYPE(checkpoints, dev);
+-NILFS_DEV_INT_GROUP_FNS(checkpoints, dev);
++static NILFS_DEV_INT_GROUP_FNS(checkpoints, dev);
+ 
+ /************************************************************************
+  *                        NILFS segments attrs                          *
+@@ -455,7 +455,7 @@ static struct attribute *nilfs_segments_attrs[] = {
+ 
+ NILFS_DEV_INT_GROUP_OPS(segments, dev);
+ NILFS_DEV_INT_GROUP_TYPE(segments, dev);
+-NILFS_DEV_INT_GROUP_FNS(segments, dev);
++static NILFS_DEV_INT_GROUP_FNS(segments, dev);
+ 
+ /************************************************************************
+  *                        NILFS segctor attrs                           *
+@@ -717,7 +717,7 @@ static struct attribute *nilfs_segctor_attrs[] = {
+ 
+ NILFS_DEV_INT_GROUP_OPS(segctor, dev);
+ NILFS_DEV_INT_GROUP_TYPE(segctor, dev);
+-NILFS_DEV_INT_GROUP_FNS(segctor, dev);
++static NILFS_DEV_INT_GROUP_FNS(segctor, dev);
+ 
+ /************************************************************************
+  *                        NILFS superblock attrs                        *
+@@ -843,7 +843,7 @@ static struct attribute *nilfs_superblock_attrs[] = {
+ 
+ NILFS_DEV_INT_GROUP_OPS(superblock, dev);
+ NILFS_DEV_INT_GROUP_TYPE(superblock, dev);
+-NILFS_DEV_INT_GROUP_FNS(superblock, dev);
++static NILFS_DEV_INT_GROUP_FNS(superblock, dev);
+ 
+ /************************************************************************
+  *                        NILFS device attrs                            *
+
+--=_53abdbf7.l4ueiEf66KseJoA5ts7i80NjlZddh98h/E1CsfQzc/rWOn0K--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
