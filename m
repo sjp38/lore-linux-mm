@@ -1,78 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
-	by kanga.kvack.org (Postfix) with ESMTP id E12586B0096
-	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 12:50:51 -0400 (EDT)
-Received: by mail-qg0-f48.google.com with SMTP id q108so3268740qgd.7
-        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 09:50:51 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id bt6si10076099qcb.16.2014.06.26.09.50.51
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jun 2014 09:50:51 -0700 (PDT)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: [PATCH 6/6] cfq: Increase default value of target_latency
-References: <1403683129-10814-1-git-send-email-mgorman@suse.de>
-	<1403683129-10814-7-git-send-email-mgorman@suse.de>
-	<x491tub65t9.fsf@segfault.boston.devel.redhat.com>
-	<20140626161955.GH10819@suse.de>
-Date: Thu, 26 Jun 2014 12:50:32 -0400
-In-Reply-To: <20140626161955.GH10819@suse.de> (Mel Gorman's message of "Thu,
-	26 Jun 2014 17:19:56 +0100")
-Message-ID: <x49simr4ntz.fsf@segfault.boston.devel.redhat.com>
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 525AD6B009A
+	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 13:18:39 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id w10so3280175pde.24
+        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 10:18:39 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id xk1si10803479pab.68.2014.06.26.10.18.38
+        for <linux-mm@kvack.org>;
+        Thu, 26 Jun 2014 10:18:38 -0700 (PDT)
+Date: Fri, 27 Jun 2014 01:16:27 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [mmotm:master 267/319]
+ drivers/staging/emxx_udc/emxx_udc.c:3287:3: error: implicit declaration of
+ function 'strict_strtol'
+Message-ID: <53ac556b.+g45EjHnjjbYiaYP%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jens Axboe <axboe@kernel.dk>, Dave Chinner <david@fromorbit.com>
+To: Daniel Walter <dwalter@google.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
 
-Mel Gorman <mgorman@suse.de> writes:
+tree:   git://git.cmpxchg.org/linux-mmotm.git master
+head:   9477ec75947f2cf0fc47e8ab781a5e9171099be2
+commit: a8dd850199c85e4c424a6c4b0d80288d3b1f4ba5 [267/319] include/linux: remove strict_strto* definitions
+config: make ARCH=arm allmodconfig
 
-> On Thu, Jun 26, 2014 at 11:36:50AM -0400, Jeff Moyer wrote:
->> Right, and I guess I hadn't considered that case as I thought folks used
->> more than one spinning disk for such workloads.
->> 
->
-> They probably are but by and large my IO testing is based on simple
-> storage. The reasoning is that if we get the simple case wrong then we
-> probably are getting the complex case wrong too or at least not performing
-> as well as we should. I also don't use SSD on my own machines for the
-> same reason.
+All error/warnings:
 
-A single disk is actually the hard case in this instance, but I
-understand what you're saying.  ;-)
+   drivers/staging/emxx_udc/emxx_udc.c: In function 'nbu2ss_drv_set_ep_info':
+>> drivers/staging/emxx_udc/emxx_udc.c:3287:3: error: implicit declaration of function 'strict_strtol' [-Werror=implicit-function-declaration]
+      res = strict_strtol(tempbuf, 16, &num);
+      ^
+   drivers/staging/emxx_udc/emxx_udc.c: In function 'nbu2ss_drv_probe':
+   drivers/staging/emxx_udc/emxx_udc.c:3370:2: error: implicit declaration of function 'devm_request_and_ioremap' [-Werror=implicit-function-declaration]
+     mmio_base = devm_request_and_ioremap(&pdev->dev, r);
+     ^
+   drivers/staging/emxx_udc/emxx_udc.c:3370:12: warning: assignment makes pointer from integer without a cast
+     mmio_base = devm_request_and_ioremap(&pdev->dev, r);
+               ^
+   cc1: some warnings being treated as errors
 
->> My main reservation about this change is that you've only provided
->> numbers for one benchmark. 
->
-> The other obvious one to run would be pgbench workloads but it's a rathole of
-> arguing whether the configuration is valid and whether it's inappropriate
-> to test on simple storage. The tiobench tests alone take a long time to
-> complete -- 1.5 hours on a simple machine, 7 hours on a low-end NUMA machine.
+vim +/strict_strtol +3287 drivers/staging/emxx_udc/emxx_udc.c
 
-And we should probably run our standard set of I/O exercisers at the
-very least.  But, like I said, it seems like wasted effort.
+3d17e832e mmotm auto import 2014-06-26  3281  		long	num;
+3d17e832e mmotm auto import 2014-06-26  3282  		int	res;
+3d17e832e mmotm auto import 2014-06-26  3283  		char	tempbuf[2];
+3d17e832e mmotm auto import 2014-06-26  3284  
+3d17e832e mmotm auto import 2014-06-26  3285  		tempbuf[0] = name[2];
+3d17e832e mmotm auto import 2014-06-26  3286  		tempbuf[1] = '\0';
+3d17e832e mmotm auto import 2014-06-26 @3287  		res = strict_strtol(tempbuf, 16, &num);
+3d17e832e mmotm auto import 2014-06-26  3288  
+3d17e832e mmotm auto import 2014-06-26  3289  		if (num == 0)
+3d17e832e mmotm auto import 2014-06-26  3290  			ep->ep.maxpacket = EP0_PACKETSIZE;
 
->> To bump the default target_latency, ideally
->> we'd know how it affects other workloads.  However, I'm having a hard
->> time justifying putting any time into this for a couple of reasons:
->> 1) blk-mq pretty much does away with the i/o scheduler, and that is the
->>    future
->> 2) there is work in progress to convert cfq into bfq, and that will
->>    essentially make any effort put into this irrelevant (so it might be
->>    interesting to test your workload with bfq)
->> 
->
-> Ok, you've convinced me and I'll drop this patch. For anyone based on
-> kernels from around this time they can tune CFQ or buy a better disk.
-> Hopefully they will find this via Google.
+:::::: The code at line 3287 was first introduced by commit
+:::::: 3d17e832e96cd00132dd72bede3f5435b5c9b540 linux-next
 
-Funny, I wasn't weighing in against your patch.  I was merely indicating
-that I personally wasn't going to invest the time to validate it.  But,
-if you're ok with dropping it, that's obviously fine with me.
+:::::: TO: mmotm auto import <mm-commits@vger.kernel.org>
+:::::: CC: Johannes Weiner <hannes@cmpxchg.org>
 
-Cheers,
-Jeff
+---
+0-DAY kernel build testing backend              Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
