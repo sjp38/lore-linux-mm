@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 504546B0031
-	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 23:45:54 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id v10so2476964pde.34
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 20:45:53 -0700 (PDT)
-Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com [2607:f8b0:400e:c02::22e])
-        by mx.google.com with ESMTPS id sl2si7896799pbc.221.2014.06.25.20.45.52
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id F21026B0031
+	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 23:55:11 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id rd3so2607413pab.3
+        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 20:55:11 -0700 (PDT)
+Received: from mail-pd0-x235.google.com (mail-pd0-x235.google.com [2607:f8b0:400e:c02::235])
+        by mx.google.com with ESMTPS id bg4si7993938pbb.67.2014.06.25.20.55.10
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 25 Jun 2014 20:45:53 -0700 (PDT)
-Received: by mail-pd0-f174.google.com with SMTP id y10so2469879pdj.19
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 20:45:52 -0700 (PDT)
-Date: Wed, 25 Jun 2014 20:44:28 -0700 (PDT)
+        Wed, 25 Jun 2014 20:55:11 -0700 (PDT)
+Received: by mail-pd0-f181.google.com with SMTP id v10so2481811pde.12
+        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 20:55:10 -0700 (PDT)
+Date: Wed, 25 Jun 2014 20:53:52 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 1/3] shmem: fix double uncharge in __shmem_file_setup()
-In-Reply-To: <20140624201606.18273.44270.stgit@zurg>
-Message-ID: <alpine.LSU.2.11.1406252039290.30620@eggly.anvils>
-References: <20140624201606.18273.44270.stgit@zurg>
+Subject: Re: [PATCH 2/3] shmem: update memory reservation on truncate
+In-Reply-To: <20140624201610.18273.93645.stgit@zurg>
+Message-ID: <alpine.LSU.2.11.1406252044420.30620@eggly.anvils>
+References: <20140624201606.18273.44270.stgit@zurg> <20140624201610.18273.93645.stgit@zurg>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -26,71 +26,89 @@ Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins 
 
 On Wed, 25 Jun 2014, Konstantin Khlebnikov wrote:
 
-> If __shmem_file_setup() fails on struct file allocation it uncharges memory
-> commitment twice: first by shmem_unacct_size() and second time implicitly in
-> shmem_evict_inode() when it kills newly created inode.
-> This patch removes shmem_unacct_size() from error path if inode already here.
+> Shared anonymous mapping created without MAP_NORESERVE holds memory
+> reservation for whole range of shmem segment. Usually there is no way to
+> change its size, but /proc/<pid>/map_files/...
+> (available if CONFIG_CHECKPOINT_RESTORE=y) allows to do that.
+> 
+> This patch adjust memory reservation in shmem_setattr().
 > 
 > Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
 
 Acked-by: Hugh Dickins <hughd@google.com>
 
-Thank you for the patch, and thank you for your patience (or perhaps for
-your kindly concealed impatience): I realize that this (and the other two)
-have been languishing in the must-get-to-look-at-it-sometime end of my
-mailbox for nine months now - sorry.
+Thank you, I knew nothing about this backdoor to shmem objects.  Scary.
+Was this really the only problem map_files access leads to?  If you
+did not do so already, please try to think through other possibilities.
 
+I haven't begun, but perhaps it's not so bad.  I guess the interaction
+with mremap extension is benign - it's annoyed people in the past that
+the underlying shmem object is not extended, but now here's a way that
+it can be. 
+
+(I'll leave it to others comment on 3/3 if they wish.)
+
+> 
 > ---
->  mm/shmem.c |   12 ++++++------
->  1 file changed, 6 insertions(+), 6 deletions(-)
+> 
+> exploit:
+> 
+> #include <sys/mman.h>
+> #include <unistd.h>
+> #include <stdio.h>
+> 
+> int main(int argc, char **argv)
+> {
+> 	unsigned long addr;
+> 	char path[100];
+> 
+> 	/* charge 4KiB */
+> 	addr = (unsigned long)mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+> 	sprintf(path, "/proc/self/map_files/%lx-%lx", addr, addr + 4096);
+> 	truncate(path, 1 << 30);
+> 	/* uncharge 1GiB */
+> }
+> ---
+>  mm/shmem.c |   17 +++++++++++++++++
+>  1 file changed, 17 insertions(+)
 > 
 > diff --git a/mm/shmem.c b/mm/shmem.c
-> index 8f419cf..0aabcbd 100644
+> index 0aabcbd..a3c49d6 100644
 > --- a/mm/shmem.c
 > +++ b/mm/shmem.c
-> @@ -2895,16 +2895,16 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
->  	this.len = strlen(name);
->  	this.hash = 0; /* will go */
->  	sb = shm_mnt->mnt_sb;
-> +	path.mnt = mntget(shm_mnt);
->  	path.dentry = d_alloc_pseudo(sb, &this);
->  	if (!path.dentry)
->  		goto put_memory;
->  	d_set_d_op(path.dentry, &anon_ops);
-> -	path.mnt = mntget(shm_mnt);
->  
->  	res = ERR_PTR(-ENOSPC);
->  	inode = shmem_get_inode(sb, NULL, S_IFREG | S_IRWXUGO, 0, flags);
->  	if (!inode)
-> -		goto put_dentry;
-> +		goto put_memory;
->  
->  	inode->i_flags |= i_flags;
->  	d_instantiate(path.dentry, inode);
-> @@ -2912,19 +2912,19 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
->  	clear_nlink(inode);	/* It is unlinked */
->  	res = ERR_PTR(ramfs_nommu_expand_for_mapping(inode, size));
->  	if (IS_ERR(res))
-> -		goto put_dentry;
-> +		goto put_path;
->  
->  	res = alloc_file(&path, FMODE_WRITE | FMODE_READ,
->  		  &shmem_file_operations);
->  	if (IS_ERR(res))
-> -		goto put_dentry;
-> +		goto put_path;
->  
->  	return res;
->  
-> -put_dentry:
-> -	path_put(&path);
->  put_memory:
->  	shmem_unacct_size(flags, size);
-> +put_path:
-> +	path_put(&path);
->  	return res;
+> @@ -149,6 +149,19 @@ static inline void shmem_unacct_size(unsigned long flags, loff_t size)
+>  		vm_unacct_memory(VM_ACCT(size));
 >  }
 >  
+> +static inline int shmem_reacct_size(unsigned long flags,
+> +		loff_t oldsize, loff_t newsize)
+> +{
+> +	if (!(flags & VM_NORESERVE)) {
+> +		if (VM_ACCT(newsize) > VM_ACCT(oldsize))
+> +			return security_vm_enough_memory_mm(current->mm,
+> +					VM_ACCT(newsize) - VM_ACCT(oldsize));
+> +		else if (VM_ACCT(newsize) < VM_ACCT(oldsize))
+> +			vm_unacct_memory(VM_ACCT(oldsize) - VM_ACCT(newsize));
+> +	}
+> +	return 0;
+> +}
+> +
+>  /*
+>   * ... whereas tmpfs objects are accounted incrementally as
+>   * pages are allocated, in order to allow huge sparse files.
+> @@ -543,6 +556,10 @@ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
+>  		loff_t newsize = attr->ia_size;
+>  
+>  		if (newsize != oldsize) {
+> +			error = shmem_reacct_size(SHMEM_I(inode)->flags,
+> +					oldsize, newsize);
+> +			if (error)
+> +				return error;
+>  			i_size_write(inode, newsize);
+>  			inode->i_ctime = inode->i_mtime = CURRENT_TIME;
+>  		}
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
