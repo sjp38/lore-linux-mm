@@ -1,56 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id D130B6B0088
-	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 11:37:02 -0400 (EDT)
-Received: by mail-ig0-f173.google.com with SMTP id uq10so862894igb.6
-        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 08:37:02 -0700 (PDT)
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 5086E6B008A
+	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 11:52:08 -0400 (EDT)
+Received: by mail-ig0-f169.google.com with SMTP id c1so912858igq.2
+        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 08:52:08 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r3si11760512icl.89.2014.06.26.08.37.01
+        by mx.google.com with ESMTPS id y5si3199236igl.3.2014.06.26.08.52.07
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jun 2014 08:37:02 -0700 (PDT)
-From: Jeff Moyer <jmoyer@redhat.com>
-Subject: Re: [PATCH 6/6] cfq: Increase default value of target_latency
-References: <1403683129-10814-1-git-send-email-mgorman@suse.de>
-	<1403683129-10814-7-git-send-email-mgorman@suse.de>
-Date: Thu, 26 Jun 2014 11:36:50 -0400
-In-Reply-To: <1403683129-10814-7-git-send-email-mgorman@suse.de> (Mel Gorman's
-	message of "Wed, 25 Jun 2014 08:58:49 +0100")
-Message-ID: <x491tub65t9.fsf@segfault.boston.devel.redhat.com>
+        Thu, 26 Jun 2014 08:52:07 -0700 (PDT)
+Message-ID: <53AC4182.3020504@redhat.com>
+Date: Thu, 26 Jun 2014 11:51:30 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH] x86: numa: setup_node_data(): drop dead code and rename
+ function
+References: <20140619222019.3db6ad7e@redhat.com>	<53AC335F.4010308@redhat.com> <20140626110501.78bb611d@redhat.com>
+In-Reply-To: <20140626110501.78bb611d@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jens Axboe <axboe@kernel.dk>, Dave Chinner <david@fromorbit.com>
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, andi@firstfloor.org, akpm@linux-foundation.org, rientjes@google.com
 
-Mel Gorman <mgorman@suse.de> writes:
+On 06/26/2014 11:05 AM, Luiz Capitulino wrote:
+> On Thu, 26 Jun 2014 10:51:11 -0400
+> Rik van Riel <riel@redhat.com> wrote:
+> 
+> On 06/19/2014 10:20 PM, Luiz Capitulino wrote:
+> 
+>>>> @@ -523,8 +508,17 @@ static int __init numa_register_memblks(struct
+>>>> numa_meminfo *mi) end = max(mi->blk[i].end, end); }
+>>>>
+>>>> -		if (start < end) -			setup_node_data(nid, start, end); +		if
+>>>> (start >= end) +			continue; + +		/* +		 * Don't confuse VM with a
+>>>> node that doesn't have the +		 * minimum amount of memory: +		 */ +
+>>>> if (end && (end - start) < NODE_MIN_SIZE) +			continue; + +
+>>>> alloc_node_data(nid); }
+> 
+> Minor nit.  If we skip a too-small node, should we remember that we
+> did so, and add its memory to another node, assuming it is physically
+> contiguous memory?
+> 
+>> Interesting point. Honest question, please disregard if this doesn't
+>> make sense: but won't this affect automatic numa performance? Because
+>> the kernel won't know that that extra memory actually pertains to another
+>> node and hence that extra memory will have a difference distance of the
+>> node that's making use it of it.
 
-> The existing CFQ default target_latency results in very poor performance
-> for larger numbers of threads doing sequential reads. While this can be
-> easily described as a tuning problem for users, it is one that is tricky
-> to detect. This patch updates the default to benefit smaller machines.
-> Dave Chinner points out that it is dangerous to assume that people know
-> how to tune their IO scheduler. Jeff Moyer asked what workloads even
-> care about threaded readers but it's reasonable to assume file,
-> media, database and multi-user servers all experience large sequential
-> readers from multiple sources at the same time.
+If there is so little memory the kernel is unwilling to turn
+it into its own zone or node, it should not be enough to
+affect placement policy at all.
 
-Right, and I guess I hadn't considered that case as I thought folks used
-more than one spinning disk for such workloads.
-
-My main reservation about this change is that you've only provided
-numbers for one benchmark.  To bump the default target_latency, ideally
-we'd know how it affects other workloads.  However, I'm having a hard
-time justifying putting any time into this for a couple of reasons:
-1) blk-mq pretty much does away with the i/o scheduler, and that is the
-   future
-2) there is work in progress to convert cfq into bfq, and that will
-   essentially make any effort put into this irrelevant (so it might be
-   interesting to test your workload with bfq)
-
-Cheers,
-Jeff
+Whether or not we use that last little bit of memory is probably
+not very important, either :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
