@@ -1,110 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 905476B00A2
-	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 15:51:17 -0400 (EDT)
-Received: by mail-wi0-f180.google.com with SMTP id hi2so1699661wib.13
-        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 12:51:16 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id cm4si6672879wib.21.2014.06.26.12.51.14
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jun 2014 12:51:15 -0700 (PDT)
-Date: Thu, 26 Jun 2014 15:50:36 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 98C406B00A1
+	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 15:56:59 -0400 (EDT)
+Received: by mail-ie0-f181.google.com with SMTP id y20so3502883ier.40
+        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 12:56:59 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id v8si13001112icx.92.2014.06.26.12.56.58
+        for <linux-mm@kvack.org>;
+        Thu, 26 Jun 2014 12:56:58 -0700 (PDT)
+Date: Thu, 26 Jun 2014 12:56:57 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] hwpoison: Fix race with changing page during offlining
-Message-ID: <20140626195036.GA5311@nhori.redhat.com>
+Message-Id: <20140626125657.f1830a0b399cbe5a97071206@linux-foundation.org>
+In-Reply-To: <20140626195036.GA5311@nhori.redhat.com>
 References: <1403806972-14267-1-git-send-email-andi@firstfloor.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1403806972-14267-1-git-send-email-andi@firstfloor.org>
+	<20140626195036.GA5311@nhori.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, tony.luck@intel.com, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, dave.hansen@linux.intel.com
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, tony.luck@intel.com, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, dave.hansen@linux.intel.com, Chen Yucong <slaoub@gmail.com>
 
-Thank you for testing/reporting.
+On Thu, 26 Jun 2014 15:50:36 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-On Thu, Jun 26, 2014 at 11:22:52AM -0700, Andi Kleen wrote:
-> From: Andi Kleen <ak@linux.intel.com>
+> > index 90002ea..e277726a 100644
+> > --- a/mm/memory-failure.c
+> > +++ b/mm/memory-failure.c
+> > @@ -1143,6 +1143,22 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+> >  	lock_page(hpage);
+> >  
+> >  	/*
+> > +	 * The page could have turned into a non LRU page or
+> > +	 * changed compound pages during the locking.
+> > +	 * If this happens just bail out.
+> > +	 */
+> > +	if (compound_head(p) != hpage) {
+> > +		action_result(pfn, "different compound page after locking", IGNORED);
+> > +		res = -EBUSY;
+> > +		goto out;
+> > +	}
 > 
-> While running the mcelog test suite on 3.14 I hit the following VM_BUG_ON:
+> This is a useful check.
 > 
-> soft_offline: 0x56d4: unknown non LRU page type 3ffff800008000
-
-This line comes from error path in get_any_page(), I guess this function was
-called for a thp (due to the race between thp collapse and soft offlining.)
-But in this case soft offlining is not tried, so there's no harm from this.
-
-> page:ffffea000015b400 count:3 mapcount:2097169 mapping:          (null) index:0xffff8800056d7000
-> page flags: 0x3ffff800004081(locked|slab|head)
-> ------------[ cut here ]------------
-> kernel BUG at mm/rmap.c:1495!
-
-This seems to be caused by calling try_to_unmap() for a slab page, which
-was called from hwpoison_user_mappings().
-
+> > +	if (!PageLRU(hpage)) {
+> > +		action_result(pfn, "non LRU after locking", IGNORED);
+> > +		res = -EBUSY;
+> > +		goto out;
+> > +	}
 > 
-> I think what happened is that a LRU page turned into a slab page in parallel
-> with offlining. memory_failure initially tests for this case, but doesn't
-> retest later after the page has been locked.
-> 
-> This patch fixes this race. It also check for the case that the page
-> changed compound pages.
-> 
-> Unfortunately since it's a race I wasn't able to reproduce later,
-> so the specific case is not tested.
-> 
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: dave.hansen@linux.intel.com
-> Signed-off-by: Andi Kleen <ak@linux.intel.com>
-> ---
->  mm/memory-failure.c | 16 ++++++++++++++++
->  1 file changed, 16 insertions(+)
-> 
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 90002ea..e277726a 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -1143,6 +1143,22 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
->  	lock_page(hpage);
->  
->  	/*
-> +	 * The page could have turned into a non LRU page or
-> +	 * changed compound pages during the locking.
-> +	 * If this happens just bail out.
-> +	 */
-> +	if (compound_head(p) != hpage) {
-> +		action_result(pfn, "different compound page after locking", IGNORED);
-> +		res = -EBUSY;
-> +		goto out;
-> +	}
+> I think this makes sense in v3.14, but maybe redundant if the patch "hwpoison:
+> fix the handling path of the victimized page frame that belong to non-LRU"
+> from Chen Yucong is merged into mainline (now it's in linux-mmotm).
 
-This is a useful check.
+Andi, can you please check that and test?  If the patch is good I'll
+bump it into 3.16 with an enhanced changelog..
 
-> +	if (!PageLRU(hpage)) {
-> +		action_result(pfn, "non LRU after locking", IGNORED);
-> +		res = -EBUSY;
-> +		goto out;
-> +	}
 
-I think this makes sense in v3.14, but maybe redundant if the patch "hwpoison:
-fix the handling path of the victimized page frame that belong to non-LRU"
-from Chen Yucong is merged into mainline (now it's in linux-mmotm).
+From: Chen Yucong <slaoub@gmail.com>
+Subject: hwpoison: fix the handling path of the victimized page frame that belong to non-LRU
 
-And I think that the problem you report is caused by another part of hwpoison
-code, because we have PageSlab check at the beginning of hwpoison_user_mappings(),
-so if LRU page truned into slab page just before locking the page, we never
-reach try_to_unmap().
-I think this was caused by the code around lock migration after thp split
-in hwpoison_user_mappings(), which was introduced in commit 54b9dd14d09f
-("mm/memory-failure.c: shift page lock from head page to tail page after thp split").
-I guess the tail page (raw error page) was freed and turned into Slab page
-just after thp split and before locking the error page.
-So possible solution is to do page status check again after thp split.
+Until now, the kernel has the same policy to handle victimized page frames
+that belong to kernel-space(reserved/slab-subsystem) or non-LRU(unknown
+page state).  In other word, the result of handling either of these
+victimized page frames is (IGNORED | FAILED), and the return value of
+memory_failure() is -EBUSY.
 
-Thanks,
-Naoya Horiguchi
+This patch is to avoid that memory_failure() returns very soon due to the
+"true" value of (!PageLRU(p)), and it also ensures that action_result()
+can report more precise information("reserved kernel", "kernel slab", and
+"unknown page state") instead of "non LRU", especially for memory errors
+which are detected by memory-scrubbing.
+
+Signed-off-by: Chen Yucong <slaoub@gmail.com>
+Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/memory-failure.c |    9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff -puN mm/memory-failure.c~hwpoison-fix-the-handling-path-of-the-victimized-page-frame-that-belong-to-non-lur mm/memory-failure.c
+--- a/mm/memory-failure.c~hwpoison-fix-the-handling-path-of-the-victimized-page-frame-that-belong-to-non-lur
++++ a/mm/memory-failure.c
+@@ -895,7 +895,7 @@ static int hwpoison_user_mappings(struct
+ 	struct page *hpage = *hpagep;
+ 	struct page *ppage;
+ 
+-	if (PageReserved(p) || PageSlab(p))
++	if (PageReserved(p) || PageSlab(p) || !PageLRU(p))
+ 		return SWAP_SUCCESS;
+ 
+ 	/*
+@@ -1159,9 +1159,6 @@ int memory_failure(unsigned long pfn, in
+ 					action_result(pfn, "free buddy, 2nd try", DELAYED);
+ 				return 0;
+ 			}
+-			action_result(pfn, "non LRU", IGNORED);
+-			put_page(p);
+-			return -EBUSY;
+ 		}
+ 	}
+ 
+@@ -1194,6 +1191,9 @@ int memory_failure(unsigned long pfn, in
+ 		return 0;
+ 	}
+ 
++	if (!PageHuge(p) && !PageTransTail(p) && !PageLRU(p))
++		goto identify_page_state;
++
+ 	/*
+ 	 * For error on the tail page, we should set PG_hwpoison
+ 	 * on the head page to show that the hugepage is hwpoisoned
+@@ -1243,6 +1243,7 @@ int memory_failure(unsigned long pfn, in
+ 		goto out;
+ 	}
+ 
++identify_page_state:
+ 	res = -EBUSY;
+ 	/*
+ 	 * The first check uses the current page flags which may not have any
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
