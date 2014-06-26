@@ -1,55 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id C86C76B0031
-	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 22:24:58 -0400 (EDT)
-Received: by mail-wg0-f52.google.com with SMTP id b13so2904850wgh.23
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 19:24:58 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m6si7808818wjy.2.2014.06.25.19.24.57
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 504546B0031
+	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 23:45:54 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id v10so2476964pde.34
+        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 20:45:53 -0700 (PDT)
+Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com [2607:f8b0:400e:c02::22e])
+        by mx.google.com with ESMTPS id sl2si7896799pbc.221.2014.06.25.20.45.52
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 25 Jun 2014 19:24:57 -0700 (PDT)
-Date: Thu, 26 Jun 2014 04:24:55 +0200
-From: "Luis R. Rodriguez" <mcgrof@suse.com>
-Subject: Re: [mmotm:master 155/319] kernel/printk/printk.c:269:37: error:
-	'CONFIG_LOG_CPU_MAX_BUF_SHIFT' undeclared
-Message-ID: <20140626022455.GC27687@wotan.suse.de>
-References: <53ab75fb.TL6r6DI5RYoz6W9P%fengguang.wu@intel.com>
+        Wed, 25 Jun 2014 20:45:53 -0700 (PDT)
+Received: by mail-pd0-f174.google.com with SMTP id y10so2469879pdj.19
+        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 20:45:52 -0700 (PDT)
+Date: Wed, 25 Jun 2014 20:44:28 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 1/3] shmem: fix double uncharge in __shmem_file_setup()
+In-Reply-To: <20140624201606.18273.44270.stgit@zurg>
+Message-ID: <alpine.LSU.2.11.1406252039290.30620@eggly.anvils>
+References: <20140624201606.18273.44270.stgit@zurg>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <53ab75fb.TL6r6DI5RYoz6W9P%fengguang.wu@intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Petr Mladek <pmladek@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org
 
-On Thu, Jun 26, 2014 at 09:23:07AM +0800, kbuild test robot wrote:
->    kernel/printk/printk.c: In function 'log_buf_add_cpu':
-> >> kernel/printk/printk.c:269:37: error: 'CONFIG_LOG_CPU_MAX_BUF_SHIFT' undeclared (first use in this function)
->     #define __LOG_CPU_MAX_BUF_LEN (1 << CONFIG_LOG_CPU_MAX_BUF_SHIFT)
+On Wed, 25 Jun 2014, Konstantin Khlebnikov wrote:
 
-Indeed, this fixes it, Andrew should I respin or submit a fix for this
-as a separate patch, let me know what you prefer.
+> If __shmem_file_setup() fails on struct file allocation it uncharges memory
+> commitment twice: first by shmem_unacct_size() and second time implicitly in
+> shmem_evict_inode() when it kills newly created inode.
+> This patch removes shmem_unacct_size() from error path if inode already here.
+> 
+> Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
 
-  Luis
+Acked-by: Hugh Dickins <hughd@google.com>
 
-diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
-index 83f7a95..65ed0a6 100644
---- a/kernel/printk/printk.c
-+++ b/kernel/printk/printk.c
-@@ -266,7 +266,11 @@ static u32 clear_idx;
- #define LOG_ALIGN __alignof__(struct printk_log)
- #endif
- #define __LOG_BUF_LEN (1 << CONFIG_LOG_BUF_SHIFT)
-+#if defined(CONFIG_LOG_CPU_MAX_BUF_SHIFT)
- #define __LOG_CPU_MAX_BUF_LEN (1 << CONFIG_LOG_CPU_MAX_BUF_SHIFT)
-+#else
-+#define __LOG_CPU_MAX_BUF_LEN 1
-+#endif
- static char __log_buf[__LOG_BUF_LEN] __aligned(LOG_ALIGN);
- static char *log_buf = __log_buf;
- static u32 log_buf_len = __LOG_BUF_LEN;
+Thank you for the patch, and thank you for your patience (or perhaps for
+your kindly concealed impatience): I realize that this (and the other two)
+have been languishing in the must-get-to-look-at-it-sometime end of my
+mailbox for nine months now - sorry.
+
+> ---
+>  mm/shmem.c |   12 ++++++------
+>  1 file changed, 6 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 8f419cf..0aabcbd 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -2895,16 +2895,16 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
+>  	this.len = strlen(name);
+>  	this.hash = 0; /* will go */
+>  	sb = shm_mnt->mnt_sb;
+> +	path.mnt = mntget(shm_mnt);
+>  	path.dentry = d_alloc_pseudo(sb, &this);
+>  	if (!path.dentry)
+>  		goto put_memory;
+>  	d_set_d_op(path.dentry, &anon_ops);
+> -	path.mnt = mntget(shm_mnt);
+>  
+>  	res = ERR_PTR(-ENOSPC);
+>  	inode = shmem_get_inode(sb, NULL, S_IFREG | S_IRWXUGO, 0, flags);
+>  	if (!inode)
+> -		goto put_dentry;
+> +		goto put_memory;
+>  
+>  	inode->i_flags |= i_flags;
+>  	d_instantiate(path.dentry, inode);
+> @@ -2912,19 +2912,19 @@ static struct file *__shmem_file_setup(const char *name, loff_t size,
+>  	clear_nlink(inode);	/* It is unlinked */
+>  	res = ERR_PTR(ramfs_nommu_expand_for_mapping(inode, size));
+>  	if (IS_ERR(res))
+> -		goto put_dentry;
+> +		goto put_path;
+>  
+>  	res = alloc_file(&path, FMODE_WRITE | FMODE_READ,
+>  		  &shmem_file_operations);
+>  	if (IS_ERR(res))
+> -		goto put_dentry;
+> +		goto put_path;
+>  
+>  	return res;
+>  
+> -put_dentry:
+> -	path_put(&path);
+>  put_memory:
+>  	shmem_unacct_size(flags, size);
+> +put_path:
+> +	path_put(&path);
+>  	return res;
+>  }
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
