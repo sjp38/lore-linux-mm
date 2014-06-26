@@ -1,79 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 423C96B0031
-	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 03:56:13 -0400 (EDT)
-Received: by mail-pb0-f43.google.com with SMTP id um1so2816983pbc.16
-        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 00:56:12 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id hq3si8679290pad.87.2014.06.26.00.56.11
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 68B426B0031
+	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 04:29:03 -0400 (EDT)
+Received: by mail-wi0-f179.google.com with SMTP id cc10so554135wib.0
+        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 01:29:02 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id hx1si7784852wjb.169.2014.06.26.01.29.01
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jun 2014 00:56:12 -0700 (PDT)
-Date: Thu, 26 Jun 2014 09:56:05 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 6/6] arm64: mm: Enable RCU fast_gup
-Message-ID: <20140626075605.GB12054@laptop.lan>
-References: <1403710824-24340-1-git-send-email-steve.capper@linaro.org>
- <1403710824-24340-7-git-send-email-steve.capper@linaro.org>
- <20140625165003.GI15240@leverpostej>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 26 Jun 2014 01:29:02 -0700 (PDT)
+Date: Thu, 26 Jun 2014 10:29:00 +0200
+From: "Luis R. Rodriguez" <mcgrof@suse.com>
+Subject: Re: [mmotm:master 155/319] kernel/printk/printk.c:269:37: error:
+	'CONFIG_LOG_CPU_MAX_BUF_SHIFT' undeclared
+Message-ID: <20140626082900.GD27687@wotan.suse.de>
+References: <53ab75fb.TL6r6DI5RYoz6W9P%fengguang.wu@intel.com> <20140626022455.GC27687@wotan.suse.de> <alpine.DEB.2.02.1406252308160.3960@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140625165003.GI15240@leverpostej>
+In-Reply-To: <alpine.DEB.2.02.1406252308160.3960@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Steve Capper <steve.capper@linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <Catalin.Marinas@arm.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "anders.roxell@linaro.org" <anders.roxell@linaro.org>, "gary.robertson@linaro.org" <gary.robertson@linaro.org>, Will Deacon <Will.Deacon@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "christoffer.dall@linaro.org" <christoffer.dall@linaro.org>, Thomas Gleixner <tglx@linutronix.de>
+To: David Rientjes <rientjes@google.com>
+Cc: kbuild test robot <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Petr Mladek <pmladek@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
 
-On Wed, Jun 25, 2014 at 05:50:03PM +0100, Mark Rutland wrote:
-> Hi Steve,
+On Wed, Jun 25, 2014 at 11:10:28PM -0700, David Rientjes wrote:
+> On Thu, 26 Jun 2014, Luis R. Rodriguez wrote:
 > 
-> On Wed, Jun 25, 2014 at 04:40:24PM +0100, Steve Capper wrote:
-> > Activate the RCU fast_gup for ARM64. We also need to force THP splits
-> > to broadcast an IPI s.t. we block in the fast_gup page walker. As THP
-> > splits are comparatively rare, this should not lead to a noticeable
-> > performance degradation.
-> > 
-> > Some pre-requisite functions pud_write and pud_page are also added.
-> > 
-> > Signed-off-by: Steve Capper <steve.capper@linaro.org>
-> > ---
-> >  arch/arm64/Kconfig               |  3 +++
-> >  arch/arm64/include/asm/pgtable.h | 11 ++++++++++-
-> >  arch/arm64/mm/flush.c            | 19 +++++++++++++++++++
-> >  3 files changed, 32 insertions(+), 1 deletion(-)
+> > diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
+> > index 83f7a95..65ed0a6 100644
+> > --- a/kernel/printk/printk.c
+> > +++ b/kernel/printk/printk.c
+> > @@ -266,7 +266,11 @@ static u32 clear_idx;
+> >  #define LOG_ALIGN __alignof__(struct printk_log)
+> >  #endif
+> >  #define __LOG_BUF_LEN (1 << CONFIG_LOG_BUF_SHIFT)
+> > +#if defined(CONFIG_LOG_CPU_MAX_BUF_SHIFT)
+> >  #define __LOG_CPU_MAX_BUF_LEN (1 << CONFIG_LOG_CPU_MAX_BUF_SHIFT)
+> > +#else
+> > +#define __LOG_CPU_MAX_BUF_LEN 1
+> > +#endif
+> >  static char __log_buf[__LOG_BUF_LEN] __aligned(LOG_ALIGN);
+> >  static char *log_buf = __log_buf;
+> >  static u32 log_buf_len = __LOG_BUF_LEN;
 > 
-> [...]
+> No, I think this would be much cleaner to just define 
+> CONFIG_LOG_CPU_MAX_BUF_SHIFT unconditionally to 0 when !SMP || BASE_SMALL 
+> and otherwise allow it to be configured according to the allowed range.
 > 
-> > diff --git a/arch/arm64/mm/flush.c b/arch/arm64/mm/flush.c
-> > index e4193e3..ddf96c1 100644
-> > --- a/arch/arm64/mm/flush.c
-> > +++ b/arch/arm64/mm/flush.c
-> > @@ -103,3 +103,22 @@ EXPORT_SYMBOL(flush_dcache_page);
-> >   */
-> >  EXPORT_SYMBOL(flush_cache_all);
-> >  EXPORT_SYMBOL(flush_icache_range);
-> > +
-> > +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> > +#ifdef CONFIG_HAVE_RCU_TABLE_FREE
-> > +static void thp_splitting_flush_sync(void *arg)
-> > +{
-> > +}
-> > +
-> > +void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
-> > +			  pmd_t *pmdp)
-> > +{
-> > +	pmd_t pmd = pmd_mksplitting(*pmdp);
-> > +	VM_BUG_ON(address & ~PMD_MASK);
-> > +	set_pmd_at(vma->vm_mm, address, pmdp, pmd);
-> > +
-> > +	/* dummy IPI to serialise against fast_gup */
-> > +	smp_call_function(thp_splitting_flush_sync, NULL, 1);
-> 
-> Is there some reason we can't use kick_all_cpus_sync()?
+> The verbosity of this configuration option is just downright excessive.
 
-Yes that would be equivalent. But looking at that, I worry about the
-smp_mb(); archs are supposed to make sure IPIs are serializing.
+Good point, this seems to do it:
+
+diff --git a/init/Kconfig b/init/Kconfig
+index 573d3f6..2339118 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -822,10 +822,9 @@ config LOG_BUF_SHIFT
+ 
+ config LOG_CPU_MAX_BUF_SHIFT
+ 	int "CPU kernel log buffer size contribution (13 => 8 KB, 17 => 128KB)"
+-	range 0 21
+-	default 12
+-	depends on SMP
+-	depends on !BASE_SMALL
++	range 0 21 if SMP && !BASE_SMALL
++	default 12 if SMP && !BASE_SMALL
++	default 0 if !SMP || BASE_SMALL
+ 	help
+ 	  The kernel ring buffer will get additional data logged onto it
+ 	  when multiple CPUs are supported. Typically the contributions are
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
