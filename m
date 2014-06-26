@@ -1,84 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f176.google.com (mail-ve0-f176.google.com [209.85.128.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 319F66B0078
-	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 11:05:27 -0400 (EDT)
-Received: by mail-ve0-f176.google.com with SMTP id db12so3830865veb.35
-        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 08:05:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id fa3si4555260vdc.63.2014.06.26.08.05.26
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 79E416B007D
+	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 11:12:07 -0400 (EDT)
+Received: by mail-wi0-f171.google.com with SMTP id n15so1263941wiw.4
+        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 08:12:04 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id bb8si33443582wib.1.2014.06.26.08.11.32
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 26 Jun 2014 08:05:26 -0700 (PDT)
-Date: Thu, 26 Jun 2014 11:05:01 -0400
-From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: Re: [PATCH] x86: numa: setup_node_data(): drop dead code and rename
- function
-Message-ID: <20140626110501.78bb611d@redhat.com>
-In-Reply-To: <53AC335F.4010308@redhat.com>
-References: <20140619222019.3db6ad7e@redhat.com>
-	<53AC335F.4010308@redhat.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 26 Jun 2014 08:11:32 -0700 (PDT)
+Date: Thu, 26 Jun 2014 11:11:11 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 5/6] mm: page_alloc: Reduce cost of dirty zone balancing
+Message-ID: <20140626151111.GB30849@cmpxchg.org>
+References: <1403683129-10814-1-git-send-email-mgorman@suse.de>
+ <1403683129-10814-6-git-send-email-mgorman@suse.de>
+ <20140625163528.11368b86ef7d0a38cf9d1255@linux-foundation.org>
+ <20140626084314.GE10819@suse.de>
+ <20140626143738.GS7331@cmpxchg.org>
+ <20140626145632.GG10819@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140626145632.GG10819@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, andi@firstfloor.org, akpm@linux-foundation.org, rientjes@google.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Jens Axboe <axboe@kernel.dk>, Jeff Moyer <jmoyer@redhat.com>, Dave Chinner <david@fromorbit.com>
 
-On Thu, 26 Jun 2014 10:51:11 -0400
-Rik van Riel <riel@redhat.com> wrote:
-
-> -----BEGIN PGP SIGNED MESSAGE-----
-> Hash: SHA1
-> 
-> On 06/19/2014 10:20 PM, Luiz Capitulino wrote:
-> 
-> > @@ -523,8 +508,17 @@ static int __init numa_register_memblks(struct
-> > numa_meminfo *mi) end = max(mi->blk[i].end, end); }
+On Thu, Jun 26, 2014 at 03:56:32PM +0100, Mel Gorman wrote:
+> On Thu, Jun 26, 2014 at 10:37:38AM -0400, Johannes Weiner wrote:
+> > On Thu, Jun 26, 2014 at 09:43:14AM +0100, Mel Gorman wrote:
+> > > On Wed, Jun 25, 2014 at 04:35:28PM -0700, Andrew Morton wrote:
+> > > > On Wed, 25 Jun 2014 08:58:48 +0100 Mel Gorman <mgorman@suse.de> wrote:
+> > > > 
+> > > > > @@ -325,7 +321,14 @@ static unsigned long zone_dirty_limit(struct zone *zone)
+> > > > >   */
+> > > > >  bool zone_dirty_ok(struct zone *zone)
+> > > > >  {
+> > > > > -	unsigned long limit = zone_dirty_limit(zone);
+> > > > > +	unsigned long limit = zone->dirty_limit_cached;
+> > > > > +	struct task_struct *tsk = current;
+> > > > > +
+> > > > > +	if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk)) {
+> > > > > +		limit = zone_dirty_limit(zone);
+> > > > > +		zone->dirty_limit_cached = limit;
+> > > > > +		limit += limit / 4;
+> > > > > +	}
+> > > > 
+> > > > Could we get a comment in here explaining what we're doing and why
+> > > > PF_LESS_THROTTLE and rt_task control whether we do it?
+> > > > 
+> > > 
+> > >         /*
+> > >          * The dirty limits are lifted by 1/4 for PF_LESS_THROTTLE (ie. nfsd)
+> > >          * and real-time tasks to prioritise their allocations.
+> > >          * PF_LESS_THROTTLE tasks may be cleaning memory and rt tasks may be
+> > >          * blocking tasks that can clean pages.
+> > >          */
+> > > 
+> > > That's fairly weak though. It would also seem reasonable to just delete
+> > > this check and allow PF_LESS_THROTTLE and rt_tasks to fall into the slow
+> > > path if dirty pages are already fairly distributed between zones.
+> > > Johannes, any objection to that limit raising logic being deleted?
 > > 
-> > -		if (start < end) -			setup_node_data(nid, start, end); +		if
-> > (start >= end) +			continue; + +		/* +		 * Don't confuse VM with a
-> > node that doesn't have the +		 * minimum amount of memory: +		 */ +
-> > if (end && (end - start) < NODE_MIN_SIZE) +			continue; + +
-> > alloc_node_data(nid); }
+> > I copied that over from global_dirty_limits() such that the big
+> > picture and the per-zone picture have the same view - otherwise these
+> > tasks fall back to first fit zone allocations before global limits
+> > start throttling dirtiers and waking up the flushers.  This increases
+> > the probability of reclaim running into dirty pages.
+> > 
+> > Would you remove it from global_dirty_limits() as well?
+> > 
+> > On that note, I don't really understand why global_dirty_limits()
+> > raises the *background* limit for less-throttle/rt tasks, shouldn't it
+> > only raise the dirty limit?  Sure, the throttle point is somewhere
+> > between the two limits, but we don't really want to defer waking up
+> > the flushers for them.
 > 
-> Minor nit.  If we skip a too-small node, should we remember that we
-> did so, and add its memory to another node, assuming it is physically
-> contiguous memory?
+> All of which is fair enough and is something that should be examined on
+> a rainy day (shouldn't take too long in Ireland). I'm not going to touch
+> it within this series though. It's outside the scope of what I'm trying
+> to do here -- restore performance of tiobench and bonnie++ to as close to
+> 3.0 levels as possible. The series is tripping up enough on the fair zone
+> and CFQ aspects as it is without increasing the scope :(
 
-Interesting point. Honest question, please disregard if this doesn't
-make sense: but won't this affect automatic numa performance? Because
-the kernel won't know that that extra memory actually pertains to another
-node and hence that extra memory will have a difference distance of the
-node that's making use it of it.
+You asked to remove it, I'm just asking follow-up questions ;-)
 
-If my thinking is wrong or if even then you believe this is a good feature,
-I can work on it on a different patch, as this check is not being introduced
-by this patch. Although I also wonder how many numa machines have such small
-nodes...
+I agree that this is out-of-scope for your patches and it probably
+should be left alone for now.  However, I do like your comment and
+wouldn't mind including it in this change.
 
-> Other than that...
-> 
-> Acked-by: Rik van Riel <riel@redhat.com>
-
-Thanks!
-
-> 
-> - -- 
-> All rights reversed
-> -----BEGIN PGP SIGNATURE-----
-> Version: GnuPG v1
-> Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
-> 
-> iQEcBAEBAgAGBQJTrDNfAAoJEM553pKExN6DrNgH/j160OIey5moCEFMH51a1e3+
-> D6iOIXxsVii5/wqabYuA1DCQ8Asgd/UK2BWdxxRZVZuTHXXn97iifq1IkIPEQxXc
-> pjz25/ZFSpa3fgZk8iyUzOQjLukFfkiaO1mSopO7IWwUZoEa9fJ7bOBvwcnFU4oQ
-> uZAV375RpxiPEXNh2qQZXX0kNrycZd8S81jUSuQv3OLPRI1EQo+txOg/u7ir0pOJ
-> z1fkBK0hiSHziAzB/nyjR/RgSb23vpMlUlPoGMhwCMp08aJkL147bHZvsCtlg/w4
-> kBqq/zy9te4ecSicUsX/l16o0SJ9a1JtvFAlqz0iqlGcKQGCEw2P+y0ZyrhfvaE=
-> =NOgK
-> -----END PGP SIGNATURE-----
-> 
+Would everybody be okay with that?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
