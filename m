@@ -1,53 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 17E3E6B0035
-	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 22:02:00 -0400 (EDT)
-Received: by mail-yk0-f177.google.com with SMTP id 10so1631058ykt.22
-        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 19:01:59 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id t31si8363715yhe.60.2014.06.25.19.01.59
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id C86C76B0031
+	for <linux-mm@kvack.org>; Wed, 25 Jun 2014 22:24:58 -0400 (EDT)
+Received: by mail-wg0-f52.google.com with SMTP id b13so2904850wgh.23
+        for <linux-mm@kvack.org>; Wed, 25 Jun 2014 19:24:58 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m6si7808818wjy.2.2014.06.25.19.24.57
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 25 Jun 2014 19:01:59 -0700 (PDT)
-Message-ID: <53AB7F0B.5050900@oracle.com>
-Date: Thu, 26 Jun 2014 10:01:47 +0800
-From: Jeff Liu <jeff.liu@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 25 Jun 2014 19:24:57 -0700 (PDT)
+Date: Thu, 26 Jun 2014 04:24:55 +0200
+From: "Luis R. Rodriguez" <mcgrof@suse.com>
+Subject: Re: [mmotm:master 155/319] kernel/printk/printk.c:269:37: error:
+	'CONFIG_LOG_CPU_MAX_BUF_SHIFT' undeclared
+Message-ID: <20140626022455.GC27687@wotan.suse.de>
+References: <53ab75fb.TL6r6DI5RYoz6W9P%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Subject: Re: [next:master 156/212] fs/binfmt_elf.c:158:18: note: in expansion
- of macro 'min'
-References: <53aa90d2.Yd3WgTmElIsuiwuV%fengguang.wu@intel.com> <20140625100213.GA1866@localhost> <53AAB2D3.2050809@oracle.com> <alpine.DEB.2.02.1406251543080.4592@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1406251543080.4592@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53ab75fb.TL6r6DI5RYoz6W9P%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Petr Mladek <pmladek@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
 
+On Thu, Jun 26, 2014 at 09:23:07AM +0800, kbuild test robot wrote:
+>    kernel/printk/printk.c: In function 'log_buf_add_cpu':
+> >> kernel/printk/printk.c:269:37: error: 'CONFIG_LOG_CPU_MAX_BUF_SHIFT' undeclared (first use in this function)
+>     #define __LOG_CPU_MAX_BUF_LEN (1 << CONFIG_LOG_CPU_MAX_BUF_SHIFT)
 
-On 06/26/2014 06:44 AM, David Rientjes wrote:
-> On Wed, 25 Jun 2014, Jeff Liu wrote:
-> 
->>>    fs/binfmt_elf.c: In function 'get_atrandom_bytes':
->>>    include/linux/kernel.h:713:17: warning: comparison of distinct pointer types lacks a cast
->>>      (void) (&_min1 == &_min2);  \
->>>                     ^
->>>>> fs/binfmt_elf.c:158:18: note: in expansion of macro 'min'
->>>       size_t chunk = min(nbytes, sizeof(random_variable));
->>
->> I remember we have the same report on arch mn10300 about half a year ago, but the code
->> is correct. :)
->>
-> 
-> Casting the sizeof operator to size_t would fix this issue on am33.
+Indeed, this fixes it, Andrew should I respin or submit a fix for this
+as a separate patch, let me know what you prefer.
 
-Thanks for pointing this out, I once considered to use min_t() to do explicitly casting.
-However, both values to compare are already size_t, maybe this depending on the compiler's
-result of what sizeof() would be...
+  Luis
 
-
-Cheers,
--Jeff
+diff --git a/kernel/printk/printk.c b/kernel/printk/printk.c
+index 83f7a95..65ed0a6 100644
+--- a/kernel/printk/printk.c
++++ b/kernel/printk/printk.c
+@@ -266,7 +266,11 @@ static u32 clear_idx;
+ #define LOG_ALIGN __alignof__(struct printk_log)
+ #endif
+ #define __LOG_BUF_LEN (1 << CONFIG_LOG_BUF_SHIFT)
++#if defined(CONFIG_LOG_CPU_MAX_BUF_SHIFT)
+ #define __LOG_CPU_MAX_BUF_LEN (1 << CONFIG_LOG_CPU_MAX_BUF_SHIFT)
++#else
++#define __LOG_CPU_MAX_BUF_LEN 1
++#endif
+ static char __log_buf[__LOG_BUF_LEN] __aligned(LOG_ALIGN);
+ static char *log_buf = __log_buf;
+ static u32 log_buf_len = __LOG_BUF_LEN;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
