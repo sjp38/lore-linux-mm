@@ -1,90 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f53.google.com (mail-oa0-f53.google.com [209.85.219.53])
-	by kanga.kvack.org (Postfix) with ESMTP id C74B26B0069
-	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 09:00:53 -0400 (EDT)
-Received: by mail-oa0-f53.google.com with SMTP id l6so3884528oag.12
-        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 06:00:53 -0700 (PDT)
-Received: from mx10.nec.com (mx10.nec.com. [143.101.113.5])
-        by mx.google.com with ESMTPS id e10si9732305oeu.26.2014.06.26.06.00.53
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A0066B006E
+	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 09:35:47 -0400 (EDT)
+Received: by mail-ig0-f180.google.com with SMTP id h18so703028igc.13
+        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 06:35:47 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a13si2515422igm.21.2014.06.26.06.35.46
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 26 Jun 2014 06:00:53 -0700 (PDT)
-Content-Class: urn:content-classes:message
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Jun 2014 06:35:46 -0700 (PDT)
+Message-ID: <53AC21A8.5090703@redhat.com>
+Date: Thu, 26 Jun 2014 15:35:36 +0200
+From: Jerome Marchand <jmarchan@redhat.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="----_=_NextPart_001_01CF913E.A7E9CDA7"
-Subject: RE: [mempolicy] 5507231dd04: -18.2% vm-scalability.migrate_mbps
-Date: Thu, 26 Jun 2014 07:59:41 -0500
-Message-ID: <FC3CA273EA98D94B96901B237F5F506BB61DB1@irvmail101.necam.prv>
-References: <a2aff3e6884b425481b1dd542effbb87@BPXC19GP.gisp.nec.co.jp>
-From: "Horiguchi, Naoya" <Naoya.Horiguchi@necam.com>
+Subject: Re: [PATCH v3 04/13] smaps: remove mem_size_stats->vma and use walk_page_vma()
+References: <1403295099-6407-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1403295099-6407-5-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1403295099-6407-5-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jet Chen <jet.chen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKP <lkp@01.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-------_=_NextPart_001_01CF913E.A7E9CDA7
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-Transfer-Encoding: 7bit
+On 06/20/2014 10:11 PM, Naoya Horiguchi wrote:
+> pagewalk.c can handle vma in itself, so we don't have to pass vma via
+> walk->private. And show_smap() walks pages on vma basis, so using
+> walk_page_vma() is preferable.
+> 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+>  fs/proc/task_mmu.c | 10 ++++------
+>  1 file changed, 4 insertions(+), 6 deletions(-)
+> 
+> diff --git v3.16-rc1.orig/fs/proc/task_mmu.c v3.16-rc1/fs/proc/task_mmu.c
+> index cfa63ee92c96..9b6c7d4fd3f4 100644
+> --- v3.16-rc1.orig/fs/proc/task_mmu.c
+> +++ v3.16-rc1/fs/proc/task_mmu.c
+> @@ -430,7 +430,6 @@ const struct file_operations proc_tid_maps_operations = {
+>  
+>  #ifdef CONFIG_PROC_PAGE_MONITOR
+>  struct mem_size_stats {
+> -	struct vm_area_struct *vma;
+>  	unsigned long resident;
+>  	unsigned long shared_clean;
+>  	unsigned long shared_dirty;
+> @@ -449,7 +448,7 @@ static void smaps_pte_entry(pte_t ptent, unsigned long addr,
+>  		unsigned long ptent_size, struct mm_walk *walk)
+>  {
+>  	struct mem_size_stats *mss = walk->private;
+> -	struct vm_area_struct *vma = mss->vma;
+> +	struct vm_area_struct *vma = walk->vma;
+>  	pgoff_t pgoff = linear_page_index(vma, addr);
+>  	struct page *page = NULL;
+>  	int mapcount;
+> @@ -501,7 +500,7 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+>  			   struct mm_walk *walk)
+>  {
+>  	struct mem_size_stats *mss = walk->private;
+> -	struct vm_area_struct *vma = mss->vma;
+> +	struct vm_area_struct *vma = walk->vma;
+>  	pte_t *pte;
+>  	spinlock_t *ptl;
+>  
+> @@ -590,14 +589,13 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
+>  	struct mm_walk smaps_walk = {
+>  		.pmd_entry = smaps_pte_range,
+>  		.mm = vma->vm_mm,
+> +		.vma = vma,
 
-> Hi Naoya,                                                                                      
->
-> FYI, we noticed the below changes on
->
-> git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git am437x-starterkit
-> commit 5507231dd04d3d68796bafe83e6a20c985a0ef68 ("mempolicy: apply page table walker on queue_pages_range()")
+Seems redundant: walk_page_vma() sets walk.vma anyway and so does
+walk_page_range(). Is there any case when the caller should set .vma itself?
 
-This patch is to be revised with one with less performance impact,
-where I stop calling ->pte_entry() callback heavily.
+Jerome
 
-Thanks,
-Naoya Horiguchi
-
-------_=_NextPart_001_01CF913E.A7E9CDA7
-Content-Type: text/html; charset="iso-2022-jp"
-Content-Transfer-Encoding: quoted-printable
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
-<HTML>
-<HEAD>
-<META HTTP-EQUIV=3D"Content-Type" CONTENT=3D"text/html; =
-charset=3Diso-2022-jp">
-<META NAME=3D"Generator" CONTENT=3D"MS Exchange Server version =
-6.5.7654.12">
-<TITLE>RE: [mempolicy] 5507231dd04: -18.2% =
-vm-scalability.migrate_mbps</TITLE>
-</HEAD>
-<BODY>
-<!-- Converted from text/plain format -->
-
-<P><FONT SIZE=3D2>&gt; Hi =
-Naoya,&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
-nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n=
-bsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb=
-sp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs=
-p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp=
-;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
-nbsp;<BR>
-&gt;<BR>
-&gt; FYI, we noticed the below changes on<BR>
-&gt;<BR>
-&gt; git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git =
-am437x-starterkit<BR>
-&gt; commit 5507231dd04d3d68796bafe83e6a20c985a0ef68 (&quot;mempolicy: =
-apply page table walker on queue_pages_range()&quot;)<BR>
-<BR>
-This patch is to be revised with one with less performance impact,<BR>
-where I stop calling -&gt;pte_entry() callback heavily.<BR>
-<BR>
-Thanks,<BR>
-Naoya Horiguchi<BR>
-</FONT>
-</P>
-
-</BODY>
-</HTML>
-------_=_NextPart_001_01CF913E.A7E9CDA7--
+>  		.private = &mss,
+>  	};
+>  
+>  	memset(&mss, 0, sizeof mss);
+> -	mss.vma = vma;
+>  	/* mmap_sem is held in m_start */
+> -	if (vma->vm_mm && !is_vm_hugetlb_page(vma))
+> -		walk_page_range(vma->vm_start, vma->vm_end, &smaps_walk);
+> +	walk_page_vma(vma, &smaps_walk);
+>  
+>  	show_map_vma(m, vma, is_pid);
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
