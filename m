@@ -1,127 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 129186B0035
-	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 05:22:35 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id v10so2811029pde.12
-        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 02:22:34 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id hn2si8909739pbc.256.2014.06.26.02.22.33
-        for <linux-mm@kvack.org>;
-        Thu, 26 Jun 2014 02:22:34 -0700 (PDT)
-Date: Thu, 26 Jun 2014 17:22:18 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [next:master 138/302] mm/zbud.c:137:6: sparse: symbol
- 'zbud_zpool_destroy' was not declared. Should it be static?
-Message-ID: <53abe64a.qgmlsuCh+7811kqd%fengguang.wu@intel.com>
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 413086B004D
+	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 06:17:59 -0400 (EDT)
+Received: by mail-wi0-f174.google.com with SMTP id bs8so732065wib.7
+        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 03:17:57 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q1si11471111wiz.56.2014.06.26.03.17.44
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 26 Jun 2014 03:17:44 -0700 (PDT)
+Date: Thu, 26 Jun 2014 11:17:20 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 3/6] mm: vmscan: Do not reclaim from lower zones if they
+ are balanced
+Message-ID: <20140626101720.GF10819@suse.de>
+References: <1403683129-10814-1-git-send-email-mgorman@suse.de>
+ <1403683129-10814-4-git-send-email-mgorman@suse.de>
+ <20140625163250.354f12cd0fa5ff16e32056bf@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: multipart/mixed;
- boundary="=_53abe64a.rwd+HxDAPUGpWZ2YVzNSYy9YJ3Kem4MDBxscL9Z3mrtk+Vaz"
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140625163250.354f12cd0fa5ff16e32056bf@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jens Axboe <axboe@kernel.dk>, Jeff Moyer <jmoyer@redhat.com>, Dave Chinner <david@fromorbit.com>
 
-This is a multi-part message in MIME format.
+On Wed, Jun 25, 2014 at 04:32:50PM -0700, Andrew Morton wrote:
+> On Wed, 25 Jun 2014 08:58:46 +0100 Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > Historically kswapd scanned from DMA->Movable in the opposite direction
+> > to the page allocator to avoid allocating behind kswapd direction of
+> > progress. The fair zone allocation policy altered this in a non-obvious
+> > manner.
+> > 
+> > Traditionally, the page allocator prefers to use the highest eligible zone
+> > until the watermark is depleted, woke kswapd and moved onto the next zone.
+> > kswapd scans zones in the opposite direction so the scanning lists on
+> > 64-bit look like this;
+> > 
+> > ...
+> >
+> > Note that this patch makes a large performance difference for lower
+> > numbers of threads and brings performance closer to 3.0 figures. It was
+> > also tested against xfs and there are similar gains although I don't have
+> > 3.0 figures to compare against. There are still regressions for higher
+> > number of threads but this is related to changes in the CFQ IO scheduler.
+> > 
+> 
+> Why did this patch make a difference to sequential read performance? 
+> IOW, by what means was/is reclaim interfering with sequential reads?
+> 
 
---=_53abe64a.rwd+HxDAPUGpWZ2YVzNSYy9YJ3Kem4MDBxscL9Z3mrtk+Vaz
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+The fair zone allocator is interleaving between Normal/DMA32. Kswapd is
+reclaiming from DMA->Highest where Highest is an unbalanced zone. Kswapd
+will reclaim from DMA32 even if it is balanced if Normal is below watermarks.
 
-tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-head:   070b95becb3dee794bc6e313ec391b598e8664f9
-commit: a5eaa8ab0f9c42b8b4c457c15c09b8f9b092ecef [138/302] mm/zpool: update zswap to use zpool
-reproduce: make C=1 CF=-D__CHECK_ENDIAN__
+Let N = high_wmark(Normal) + high_wmark(DMA32)
 
+Of the last N allocations, some percentage will be allocated from Normal
+and some from DMA32. The percentage depends on the ratio of the zone sizes
+and when their watermarks were hit. If Normal is unbalanced, DMA32 will be
+shrunk by kswapd. If DMA32 is unbalanced only DMA32 will be shrunk. This
+leads to a difference of ages between DMA32 and Normal. Relatively young
+pages are then continually rotated and reclaimed from DMA32 due to the
+higher zone being unbalanced.
 
-sparse warnings: (new ones prefixed by >>)
+A debugging patch showed that some PageReadahead pages are reaching the
+end of the LRU. The number is not very high but it's there. Monitoring
+of nr_free_pages on a per-zone basis show that there is constant reclaim
+of the lower zones even when the watermarks should be ok. The iostats
+showed that without the page there are more pages being read.
 
->> mm/zbud.c:137:6: sparse: symbol 'zbud_zpool_destroy' was not declared. Should it be static?
->> mm/zbud.c:142:5: sparse: symbol 'zbud_zpool_malloc' was not declared. Should it be static?
->> mm/zbud.c:146:6: sparse: symbol 'zbud_zpool_free' was not declared. Should it be static?
->> mm/zbud.c:151:5: sparse: symbol 'zbud_zpool_shrink' was not declared. Should it be static?
->> mm/zbud.c:170:6: sparse: symbol 'zbud_zpool_map' was not declared. Should it be static?
->> mm/zbud.c:175:6: sparse: symbol 'zbud_zpool_unmap' was not declared. Should it be static?
->> mm/zbud.c:180:5: sparse: symbol 'zbud_zpool_total_size' was not declared. Should it be static?
+I believe the difference in sequential read performance is because relatively
+young pages recently readahead are being reclaimed from the lower zones.
 
-Please consider folding the attached diff :-)
-
----
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
-
---=_53abe64a.rwd+HxDAPUGpWZ2YVzNSYy9YJ3Kem4MDBxscL9Z3mrtk+Vaz
-Content-Type: text/x-diff;
- charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
- filename="make-it-static-a5eaa8ab0f9c42b8b4c457c15c09b8f9b092ecef.diff"
-
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [PATCH next] mm/zpool: zbud_zpool_destroy() can be static
-TO: Dan Streetman <ddstreet@ieee.org>
-CC: linux-mm@kvack.org 
-CC: linux-kernel@vger.kernel.org 
-
-CC: Dan Streetman <ddstreet@ieee.org>
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
----
- zbud.c |   14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
-
-diff --git a/mm/zbud.c b/mm/zbud.c
-index 645379e..1695c28 100644
---- a/mm/zbud.c
-+++ b/mm/zbud.c
-@@ -134,21 +134,21 @@ static void *zbud_zpool_create(gfp_t gfp, struct zpool_ops *zpool_ops)
- 	return zbud_create_pool(gfp, &zbud_zpool_ops);
- }
- 
--void zbud_zpool_destroy(void *pool)
-+static void zbud_zpool_destroy(void *pool)
- {
- 	zbud_destroy_pool(pool);
- }
- 
--int zbud_zpool_malloc(void *pool, size_t size, unsigned long *handle)
-+static int zbud_zpool_malloc(void *pool, size_t size, unsigned long *handle)
- {
- 	return zbud_alloc(pool, size, handle);
- }
--void zbud_zpool_free(void *pool, unsigned long handle)
-+static void zbud_zpool_free(void *pool, unsigned long handle)
- {
- 	zbud_free(pool, handle);
- }
- 
--int zbud_zpool_shrink(void *pool, unsigned int pages,
-+static int zbud_zpool_shrink(void *pool, unsigned int pages,
- 			unsigned int *reclaimed)
- {
- 	unsigned int total = 0;
-@@ -167,17 +167,17 @@ int zbud_zpool_shrink(void *pool, unsigned int pages,
- 	return ret;
- }
- 
--void *zbud_zpool_map(void *pool, unsigned long handle,
-+static void *zbud_zpool_map(void *pool, unsigned long handle,
- 			enum zpool_mapmode mm)
- {
- 	return zbud_map(pool, handle);
- }
--void zbud_zpool_unmap(void *pool, unsigned long handle)
-+static void zbud_zpool_unmap(void *pool, unsigned long handle)
- {
- 	zbud_unmap(pool, handle);
- }
- 
--u64 zbud_zpool_total_size(void *pool)
-+static u64 zbud_zpool_total_size(void *pool)
- {
- 	return zbud_get_pool_size(pool) * PAGE_SIZE;
- }
-
---=_53abe64a.rwd+HxDAPUGpWZ2YVzNSYy9YJ3Kem4MDBxscL9Z3mrtk+Vaz--
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
