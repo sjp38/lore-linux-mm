@@ -1,82 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id A2FCC6B0036
-	for <linux-mm@kvack.org>; Fri, 27 Jun 2014 07:51:23 -0400 (EDT)
-Received: by mail-wg0-f41.google.com with SMTP id a1so5058108wgh.12
-        for <linux-mm@kvack.org>; Fri, 27 Jun 2014 04:51:23 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id ba6si17145392wib.17.2014.06.27.04.51.20
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Jun 2014 04:51:21 -0700 (PDT)
-Date: Fri, 27 Jun 2014 13:51:11 +0200 (CEST)
-From: =?ISO-8859-15?Q?Luk=E1=A8_Czerner?= <lczerner@redhat.com>
-Subject: Re: [PATCH] msync: fix incorrect fstart calculation
-In-Reply-To: <006a01cf91fc$5d225170$1766f450$@samsung.com>
-Message-ID: <alpine.LFD.2.00.1406271348150.2349@localhost.localdomain>
-References: <006a01cf91fc$5d225170$1766f450$@samsung.com>
+Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 92F1C6B0031
+	for <linux-mm@kvack.org>; Fri, 27 Jun 2014 08:17:50 -0400 (EDT)
+Received: by mail-yk0-f177.google.com with SMTP id 10so2794188ykt.22
+        for <linux-mm@kvack.org>; Fri, 27 Jun 2014 05:17:50 -0700 (PDT)
+Received: from cam-admin0.cambridge.arm.com (cam-admin0.cambridge.arm.com. [217.140.96.50])
+        by mx.google.com with ESMTP id v5si2791805yhe.210.2014.06.27.05.17.49
+        for <linux-mm@kvack.org>;
+        Fri, 27 Jun 2014 05:17:50 -0700 (PDT)
+Date: Fri, 27 Jun 2014 13:17:21 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH 2/6] arm: mm: Introduce special ptes for LPAE
+Message-ID: <20140627121721.GM26276@arm.com>
+References: <1403710824-24340-1-git-send-email-steve.capper@linaro.org>
+ <1403710824-24340-3-git-send-email-steve.capper@linaro.org>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="8323328-1417942477-1403869875=:2349"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1403710824-24340-3-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Namjae Jeon <namjae.jeon@samsung.com>
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-ext4 <linux-ext4@vger.kernel.org>, 'Matthew Wilcox' <matthew.r.wilcox@intel.com>, 'Eric Whitney' <enwlinux@gmail.com>, Ashish Sangwan <a.sangwan@samsung.com>
+To: Steve Capper <steve.capper@linaro.org>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <Catalin.Marinas@arm.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "gary.robertson@linaro.org" <gary.robertson@linaro.org>, "christoffer.dall@linaro.org" <christoffer.dall@linaro.org>, "peterz@infradead.org" <peterz@infradead.org>, "anders.roxell@linaro.org" <anders.roxell@linaro.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
-
---8323328-1417942477-1403869875=:2349
-Content-Type: TEXT/PLAIN; charset=iso-8859-2
-Content-Transfer-Encoding: 8BIT
-
-On Fri, 27 Jun 2014, Namjae Jeon wrote:
-
-> Date: Fri, 27 Jun 2014 20:38:49 +0900
-> From: Namjae Jeon <namjae.jeon@samsung.com>
-> To: 'Andrew Morton' <akpm@linux-foundation.org>
-> Cc: linux-mm@kvack.org, linux-ext4 <linux-ext4@vger.kernel.org>,
->     Luka1 Czerner <lczerner@redhat.com>,
->     'Matthew Wilcox' <matthew.r.wilcox@intel.com>,
->     'Eric Whitney' <enwlinux@gmail.com>,
->     Ashish Sangwan <a.sangwan@samsung.com>
-> Subject: [PATCH] msync: fix incorrect fstart calculation
+On Wed, Jun 25, 2014 at 04:40:20PM +0100, Steve Capper wrote:
+> We need a mechanism to tag ptes as being special, this indicates that
+> no attempt should be made to access the underlying struct page *
+> associated with the pte. This is used by the fast_gup when operating on
+> ptes as it has no means to access VMAs (that also contain this
+> information) locklessly.
 > 
-> Fix a regression caused by Commit 7fc34a62ca mm/msync.c: sync only
-> the requested range in msync().
-> xfstests generic/075 fail occured on ext4 data=journal mode because
-> the intended range was not syncing due to wrong fstart calculation.
-
-Looks good to me and it fixes the issues with data=journal on ext4.
-
-Reviewed-by: Lukas Czerner <lczerner@redhat.com>
-Tested-by: Lukas Czerner <lczerner@redhat.com>
-
+> The L_PTE_SPECIAL bit is already allocated for LPAE, this patch modifies
+> pte_special and pte_mkspecial to make use of it, and defines
+> __HAVE_ARCH_PTE_SPECIAL.
 > 
-> Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
-> Cc: Luka1 Czerner <lczerner@redhat.com>
-> Reported-by: Eric Whitney <enwlinux@gmail.com>
-> Signed-off-by: Namjae Jeon <namjae.jeon@samsung.com>
-> Signed-off-by: Ashish Sangwan <a.sangwan@samsung.com>
+> This patch also excludes special ptes from the icache/dcache sync logic.
+> 
+> Signed-off-by: Steve Capper <steve.capper@linaro.org>
 > ---
->  mm/msync.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
+>  arch/arm/include/asm/pgtable-2level.h | 2 ++
+>  arch/arm/include/asm/pgtable-3level.h | 8 ++++++++
+>  arch/arm/include/asm/pgtable.h        | 6 ++----
+>  3 files changed, 12 insertions(+), 4 deletions(-)
 > 
-> diff --git a/mm/msync.c b/mm/msync.c
-> index a5c6736..ad97dce 100644
-> --- a/mm/msync.c
-> +++ b/mm/msync.c
-> @@ -78,7 +78,8 @@ SYSCALL_DEFINE3(msync, unsigned long, start, size_t, len, int, flags)
->  			goto out_unlock;
->  		}
->  		file = vma->vm_file;
-> -		fstart = start + ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
-> +		fstart = (start - vma->vm_start) +
-> +			 ((loff_t)vma->vm_pgoff << PAGE_SHIFT);
->  		fend = fstart + (min(end, vma->vm_end) - start) - 1;
->  		start = vma->vm_end;
->  		if ((flags & MS_SYNC) && file &&
-> 
---8323328-1417942477-1403869875=:2349--
+> diff --git a/arch/arm/include/asm/pgtable-2level.h b/arch/arm/include/asm/pgtable-2level.h
+> index 219ac88..f027941 100644
+> --- a/arch/arm/include/asm/pgtable-2level.h
+> +++ b/arch/arm/include/asm/pgtable-2level.h
+> @@ -182,6 +182,8 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
+>  #define pmd_addr_end(addr,end) (end)
+>  
+>  #define set_pte_ext(ptep,pte,ext) cpu_set_pte_ext(ptep,pte,ext)
+> +#define pte_special(pte)	(0)
+> +static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
+>  
+>  /*
+>   * We don't have huge page support for short descriptors, for the moment
+> diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
+> index 85c60ad..b286ba9 100644
+> --- a/arch/arm/include/asm/pgtable-3level.h
+> +++ b/arch/arm/include/asm/pgtable-3level.h
+> @@ -207,6 +207,14 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
+>  #define pte_huge(pte)		(pte_val(pte) && !(pte_val(pte) & PTE_TABLE_BIT))
+>  #define pte_mkhuge(pte)		(__pte(pte_val(pte) & ~PTE_TABLE_BIT))
+>  
+> +#define pte_special(pte)	(!!(pte_val(pte) & L_PTE_SPECIAL))
+
+Why the !!? Also, shouldn't this be rebased on your series adding the
+pte_isset macro to ARM?
+
+> +static inline pte_t pte_mkspecial(pte_t pte)
+> +{
+> +	pte_val(pte) |= L_PTE_SPECIAL;
+> +	return pte;
+> +}
+
+If you put this in pgtable.h based on #ifdef __HAVE_ARCH_PTE_SPECIAL, then
+you can use PTE_BIT_FUNC to avoid reinventing the wheel (or define
+L_PTE_SPECIAL as 0 for 2-level and have one function).
+
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
