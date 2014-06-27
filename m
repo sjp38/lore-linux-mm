@@ -1,128 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id E1EE46B0038
-	for <linux-mm@kvack.org>; Fri, 27 Jun 2014 01:55:56 -0400 (EDT)
-Received: by mail-pb0-f54.google.com with SMTP id un15so4148516pbc.13
-        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 22:55:56 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id fb3si12771173pab.58.2014.06.26.22.55.54
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id F0A866B0031
+	for <linux-mm@kvack.org>; Fri, 27 Jun 2014 02:00:43 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id bj1so4170523pad.37
+        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 23:00:43 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id ja1si12703679pbc.254.2014.06.26.23.00.41
         for <linux-mm@kvack.org>;
-        Thu, 26 Jun 2014 22:55:56 -0700 (PDT)
-Date: Fri, 27 Jun 2014 15:00:47 +0900
+        Thu, 26 Jun 2014 23:00:43 -0700 (PDT)
+Date: Fri, 27 Jun 2014 15:05:34 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC] mm: cma: move init_cma_reserved_pageblock to cma.c
-Message-ID: <20140627060047.GB9511@js1304-P5Q-DELUXE>
-References: <1403650082-10056-1-git-send-email-mina86@mina86.com>
+Subject: Re: [PATCH -mm v3 8/8] slab: do not keep free objects/slabs on dead
+ memcg caches
+Message-ID: <20140627060534.GC9511@js1304-P5Q-DELUXE>
+References: <cover.1402602126.git.vdavydov@parallels.com>
+ <a985aec824cd35df381692fca83f7a8debc80305.1402602126.git.vdavydov@parallels.com>
+ <20140624073840.GC4836@js1304-P5Q-DELUXE>
+ <20140625134545.GB22340@esperanza>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1403650082-10056-1-git-send-email-mina86@mina86.com>
+In-Reply-To: <20140625134545.GB22340@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>
-Cc: Mark Salter <msalter@redhat.com>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: akpm@linux-foundation.org, cl@linux.com, rientjes@google.com, penberg@kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jun 25, 2014 at 12:48:02AM +0200, Michal Nazarewicz wrote:
-> With [f495d26: a??generalize CMA reserved area management
-> functionalitya??] patch CMA has its place under mm directory now so
-> there is no need to shoehorn a highly CMA specific functions inside of
-> page_alloc.c.
+On Wed, Jun 25, 2014 at 05:45:45PM +0400, Vladimir Davydov wrote:
+> On Tue, Jun 24, 2014 at 04:38:41PM +0900, Joonsoo Kim wrote:
+> > On Fri, Jun 13, 2014 at 12:38:22AM +0400, Vladimir Davydov wrote:
+> > And, you said that this way of implementation would be slow because
+> > there could be many object in dead caches and this implementation
+> > needs node spin_lock on each object freeing. Is it no problem now?
+> > 
+> > If you have any performance data about this implementation and
+> > alternative one, could you share it?
 > 
-> As such move init_cma_reserved_pageblock from mm/page_alloc.c to
-> mm/cma.c, rename it to cma_init_reserved_pageblock and refactor
-> a little.
+> I ran some tests on a 2 CPU x 6 core x 2 HT box. The kernel was compiled
+> with a config taken from a popular distro, so it had most of debug
+> options turned off.
 > 
-> Most importantly, if a !pfn_valid(pfn) is encountered, just
-> return -EINVAL instead of warning and trying to continue the
-> initialisation of the area.  It's not clear, to me at least, what good
-> is continuing the work on a PFN that is known to be invalid.
-> 
-> Signed-off-by: Michal Nazarewicz <mina86@mina86.com>
-
-Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-
-One question below.
-
 > ---
->  include/linux/gfp.h |  3 --
->  mm/cma.c            | 85 +++++++++++++++++++++++++++++++++++++++++------------
->  mm/page_alloc.c     | 31 -------------------
->  3 files changed, 66 insertions(+), 53 deletions(-)
 > 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 5e7219d..107793e9 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -415,9 +415,6 @@ extern int alloc_contig_range(unsigned long start, unsigned long end,
->  			      unsigned migratetype);
->  extern void free_contig_range(unsigned long pfn, unsigned nr_pages);
->  
-> -/* CMA stuff */
-> -extern void init_cma_reserved_pageblock(struct page *page);
-> -
->  #endif
->  
->  #endif /* __LINUX_GFP_H */
-> diff --git a/mm/cma.c b/mm/cma.c
-> index c17751c..843b2b6 100644
-> --- a/mm/cma.c
-> +++ b/mm/cma.c
-> @@ -28,11 +28,14 @@
->  #include <linux/err.h>
->  #include <linux/mm.h>
->  #include <linux/mutex.h>
-> +#include <linux/page-isolation.h>
->  #include <linux/sizes.h>
->  #include <linux/slab.h>
->  #include <linux/log2.h>
->  #include <linux/cma.h>
->  
-> +#include "internal.h"
-> +
->  struct cma {
->  	unsigned long	base_pfn;
->  	unsigned long	count;
-> @@ -83,37 +86,81 @@ static void cma_clear_bitmap(struct cma *cma, unsigned long pfn, int count)
->  	mutex_unlock(&cma->lock);
->  }
->  
-> +/* Free whole pageblock and set its migration type to MIGRATE_CMA. */
-> +static int __init cma_init_reserved_pageblock(struct zone *zone,
-> +					      unsigned long pageblock_pfn)
-> +{
-> +	unsigned long pfn, nr_pages, i;
-> +	struct page *page, *p;
-> +	unsigned order;
-> +
-> +	pfn = pageblock_pfn;
-> +	if (!pfn_valid(pfn))
-> +		goto invalid_pfn;
-> +	page = pfn_to_page(pfn);
-> +
-> +	p = page;
-> +	i = pageblock_nr_pages;
-> +	do {
-> +		if (!pfn_valid(pfn))
-> +			goto invalid_pfn;
-> +
-> +		/*
-> +		 * alloc_contig_range requires the pfn range specified to be
-> +		 * in the same zone. Make this simple by forcing the entire
-> +		 * CMA resv range to be in the same zone.
-> +		 */
-> +		if (page_zone(p) != zone) {
-> +			pr_err("pfn %lu belongs to %s, expecting %s\n",
-> +			       pfn, page_zone(p)->name, zone->name);
-> +			return -EINVAL;
-> +		}
-> +
-> +		__ClearPageReserved(p);
-> +		set_page_count(p, 0);
-> +	} while (++p, ++pfn, --i);
+> TEST #1: Each logical CPU executes a task that frees 1M objects
+>          allocated from the same cache. All frees are node-local.
+> 
+> RESULTS:
+> 
+> objsize (bytes) | cache is dead? | objects free time (ms)
+> ----------------+----------------+-----------------------
+>           64    |       -        |       373 +- 5
+>            -    |       +        |      1300 +- 6
+>                 |                |
+>          128    |       -        |       387 +- 6
+>            -    |       +        |      1337 +- 6
+>                 |                |
+>          256    |       -        |       484 +- 4
+>            -    |       +        |      1407 +- 6
+>                 |                |
+>          512    |       -        |       686 +-  5
+>            -    |       +        |      1561 +- 18
+>                 |                |
+>         1024    |       -        |      1073 +- 11
+>            -    |       +        |      1897 +- 12
+> 
+> TEST #2: Each logical CPU executes a task that removes 1M empty files
+>          from its own RAMFS mount. All frees are node-local.
+> 
+> RESULTS:
+> 
+>  cache is dead? | files removal time (s)
+> ----------------+----------------------------------
+>       -         |       15.57 +- 0.55   (base)
+>       +         |       16.80 +- 0.62   (base + 8%)
+> 
+> ---
+> 
+> So, according to TEST #1 the relative slowdown introduced by zapping per
+> cpu arrays is really dreadful - it can be up to 4x! However, the
+> absolute numbers aren't that huge - ~1 second for 24 million objects.
+> If we do something else except kfree the slowdown shouldn't be that
+> visible IMO.
+> 
+> TEST #2 is an attempt to estimate how zapping of per cpu arrays will
+> affect FS objects destruction, which is the most common case of dead
+> caches usage. To avoid disk-bound operations it uses RAMFS. From the
+> test results it follows that the relative slowdown of massive file
+> deletion is within 2 stdev, which looks decent.
+> 
+> Anyway, the alternative approach (reaping dead caches periodically)
+> won't have this kfree slowdown at all. However, periodic reaping can
+> become a real disaster as the system evolves and the number of dead
+> caches grows. Currently I don't know how we can estimate real life
+> effects of this. If you have any ideas, please let me know.
+> 
 
-So, when we meet fail condition, __ClearPageReserved, set_page_count()
-are already executed for some pages. Is that no problem?
+Hello,
+
+I have no idea here. I don't have much experience on large scale
+system. But, current implementation would also have big trouble if
+system is larger than yours.
+
+I think that Christoph can say something about this result.
+
+Christoph,
+Is it tolerable result for large scale system? Or do we need to find
+another solution?
 
 Thanks.
 
