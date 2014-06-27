@@ -1,104 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id CA5456B0031
-	for <linux-mm@kvack.org>; Fri, 27 Jun 2014 03:53:40 -0400 (EDT)
-Received: by mail-pb0-f54.google.com with SMTP id un15so4242277pbc.41
-        for <linux-mm@kvack.org>; Fri, 27 Jun 2014 00:53:40 -0700 (PDT)
-Received: from mail-pb0-x235.google.com (mail-pb0-x235.google.com [2607:f8b0:400e:c01::235])
-        by mx.google.com with ESMTPS id kr8si13098994pbc.32.2014.06.27.00.53.39
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id D017D6B0031
+	for <linux-mm@kvack.org>; Fri, 27 Jun 2014 04:14:44 -0400 (EDT)
+Received: by mail-wg0-f50.google.com with SMTP id m15so4825255wgh.9
+        for <linux-mm@kvack.org>; Fri, 27 Jun 2014 01:14:44 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fx6si13141320wjb.172.2014.06.27.01.14.43
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 27 Jun 2014 00:53:39 -0700 (PDT)
-Received: by mail-pb0-f53.google.com with SMTP id uo5so4254162pbc.12
-        for <linux-mm@kvack.org>; Fri, 27 Jun 2014 00:53:39 -0700 (PDT)
-From: Chen Yucong <slaoub@gmail.com>
-Subject: [PATCH] mm:vmscan: update the trace-vmscan-postprocess.pl for event vmscan/mm_vmscan_lru_isolate
-Date: Fri, 27 Jun 2014 15:53:26 +0800
-Message-Id: <1403855607-26857-1-git-send-email-slaoub@gmail.com>
+        Fri, 27 Jun 2014 01:14:43 -0700 (PDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 0/5] Improve sequential read throughput v3
+Date: Fri, 27 Jun 2014 09:14:35 +0100
+Message-Id: <1403856880-12597-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mgorman@suse.de
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Yucong <slaoub@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
 
-When using *trace-vmscan-postprocess.pl* for checking the file/anon rate of scanning,
-we can find that it can not be performed. At the same time, the following message will
-be reported.
+Changelog since V2
+o Simply fair zone policy cost reduction
+o Drop CFQ patch
 
-WARNING: Format not as expected for event vmscan/mm_vmscan_lru_isolate 'file' != 'contig_taken'
-Fewer fields than expected in format at ./trace-vmscan-postprocess.pl line 171, <FORMAT> line 76.
+Changelog since v1
+o Rebase to v3.16-rc2
+o Move CFQ patch to end of series where it can be rejected easier if necessary
+o Introduce page-reclaim related patch related to kswapd/fairzone interactions
+o Rework fast zone policy patch
 
-In trace-vmscan-postprocess.pl, (contig_taken, contig_dirty, and contig_failed) are be
-associated respectively to (nr_lumpy_taken, nr_lumpy_dirty, and nr_lumpy_failed) for lumpy
-reclaim. Via commit c53919adc045b(mm: vmscan: remove lumpy reclaim), lumpy reclaim had
-already been removed by Mel, but the update for trace-vmscan-postprocess.pl was missed.
+IO performance since 3.0 has been a mixed bag. In many respects we are
+better and in some we are worse and one of those places is sequential
+read throughput. This is visible in a number of benchmarks but I looked
+at tiobench the closest. This is using ext3 on a mid-range desktop and
+the series applied.
 
-Signed-off-by: Chen Yucong <slaoub@gmail.com>
----
- .../trace/postprocess/trace-vmscan-postprocess.pl        |   14 ++------------
- 1 file changed, 2 insertions(+), 12 deletions(-)
+                                      3.16.0-rc2            3.16.0-rc2
+                                         vanilla             lessdirty
+Min    SeqRead-MB/sec-1         120.92 (  0.00%)      140.73 ( 16.38%)
+Min    SeqRead-MB/sec-2         100.25 (  0.00%)      117.43 ( 17.14%)
+Min    SeqRead-MB/sec-4          96.27 (  0.00%)      109.01 ( 13.23%)
+Min    SeqRead-MB/sec-8          83.55 (  0.00%)       90.86 (  8.75%)
+Min    SeqRead-MB/sec-16         66.77 (  0.00%)       74.12 ( 11.01%)
 
-diff --git a/Documentation/trace/postprocess/trace-vmscan-postprocess.pl b/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
-index 00e425f..78c9a7b 100644
---- a/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
-+++ b/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
-@@ -47,7 +47,6 @@ use constant HIGH_KSWAPD_REWAKEUP		=> 21;
- use constant HIGH_NR_SCANNED			=> 22;
- use constant HIGH_NR_TAKEN			=> 23;
- use constant HIGH_NR_RECLAIMED			=> 24;
--use constant HIGH_NR_CONTIG_DIRTY		=> 25;
- 
- my %perprocesspid;
- my %perprocess;
-@@ -105,7 +104,7 @@ my $regex_direct_end_default = 'nr_reclaimed=([0-9]*)';
- my $regex_kswapd_wake_default = 'nid=([0-9]*) order=([0-9]*)';
- my $regex_kswapd_sleep_default = 'nid=([0-9]*)';
- my $regex_wakeup_kswapd_default = 'nid=([0-9]*) zid=([0-9]*) order=([0-9]*)';
--my $regex_lru_isolate_default = 'isolate_mode=([0-9]*) order=([0-9]*) nr_requested=([0-9]*) nr_scanned=([0-9]*) nr_taken=([0-9]*) contig_taken=([0-9]*) contig_dirty=([0-9]*) contig_failed=([0-9]*)';
-+my $regex_lru_isolate_default = 'isolate_mode=([0-9]*) order=([0-9]*) nr_requested=([0-9]*) nr_scanned=([0-9]*) nr_taken=([0-9]*) file=([0-9]*)';
- my $regex_lru_shrink_inactive_default = 'nid=([0-9]*) zid=([0-9]*) nr_scanned=([0-9]*) nr_reclaimed=([0-9]*) priority=([0-9]*) flags=([A-Z_|]*)';
- my $regex_lru_shrink_active_default = 'lru=([A-Z_]*) nr_scanned=([0-9]*) nr_rotated=([0-9]*) priority=([0-9]*)';
- my $regex_writepage_default = 'page=([0-9a-f]*) pfn=([0-9]*) flags=([A-Z_|]*)';
-@@ -200,7 +199,7 @@ $regex_lru_isolate = generate_traceevent_regex(
- 			$regex_lru_isolate_default,
- 			"isolate_mode", "order",
- 			"nr_requested", "nr_scanned", "nr_taken",
--			"contig_taken", "contig_dirty", "contig_failed");
-+			"file");
- $regex_lru_shrink_inactive = generate_traceevent_regex(
- 			"vmscan/mm_vmscan_lru_shrink_inactive",
- 			$regex_lru_shrink_inactive_default,
-@@ -375,7 +374,6 @@ EVENT_PROCESS:
- 			}
- 			my $isolate_mode = $1;
- 			my $nr_scanned = $4;
--			my $nr_contig_dirty = $7;
- 
- 			# To closer match vmstat scanning statistics, only count isolate_both
- 			# and isolate_inactive as scanning. isolate_active is rotation
-@@ -385,7 +383,6 @@ EVENT_PROCESS:
- 			if ($isolate_mode != 2) {
- 				$perprocesspid{$process_pid}->{HIGH_NR_SCANNED} += $nr_scanned;
- 			}
--			$perprocesspid{$process_pid}->{HIGH_NR_CONTIG_DIRTY} += $nr_contig_dirty;
- 		} elsif ($tracepoint eq "mm_vmscan_lru_shrink_inactive") {
- 			$details = $6;
- 			if ($details !~ /$regex_lru_shrink_inactive/o) {
-@@ -539,13 +536,6 @@ sub dump_stats {
- 				}
- 			}
- 		}
--		if ($stats{$process_pid}->{HIGH_NR_CONTIG_DIRTY}) {
--			print "      ";
--			my $count = $stats{$process_pid}->{HIGH_NR_CONTIG_DIRTY};
--			if ($count != 0) {
--				print "contig-dirty=$count ";
--			}
--		}
- 
- 		print "\n";
- 	}
+Overall system CPU usage is reduced
+
+          3.16.0-rc2  3.16.0-rc2
+             vanilla lessdirty-v3
+User          390.13      390.20
+System        404.41      379.08
+Elapsed      5412.45     5123.74
+
+This series does not fully restore throughput performance to 3.0 levels
+but it brings it close for lower thread counts. Higher thread counts are
+known to be worse than 3.0 due to CFQ changes but there is no appetite
+for changing the defaults there.
+
+ include/linux/mmzone.h         | 210 ++++++++++++++++++++++-------------------
+ include/linux/writeback.h      |   1 +
+ include/trace/events/pagemap.h |  16 ++--
+ mm/internal.h                  |   1 +
+ mm/mm_init.c                   |   4 +-
+ mm/page-writeback.c            |  23 +++--
+ mm/page_alloc.c                | 173 ++++++++++++++++++++-------------
+ mm/swap.c                      |   4 +-
+ mm/vmscan.c                    |  16 ++--
+ mm/vmstat.c                    |   4 +-
+ 10 files changed, 258 insertions(+), 194 deletions(-)
+
 -- 
-1.7.10.4
+1.8.4.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
