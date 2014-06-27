@@ -1,85 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f53.google.com (mail-yh0-f53.google.com [209.85.213.53])
-	by kanga.kvack.org (Postfix) with ESMTP id EC01A6B0039
-	for <linux-mm@kvack.org>; Fri, 27 Jun 2014 08:20:56 -0400 (EDT)
-Received: by mail-yh0-f53.google.com with SMTP id b6so2934369yha.40
-        for <linux-mm@kvack.org>; Fri, 27 Jun 2014 05:20:56 -0700 (PDT)
-Received: from cam-admin0.cambridge.arm.com (cam-admin0.cambridge.arm.com. [217.140.96.50])
-        by mx.google.com with ESMTP id t15si2896549yha.5.2014.06.27.05.20.55
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id A2A336B003B
+	for <linux-mm@kvack.org>; Fri, 27 Jun 2014 08:43:34 -0400 (EDT)
+Received: by mail-pb0-f53.google.com with SMTP id uo5so4535469pbc.12
+        for <linux-mm@kvack.org>; Fri, 27 Jun 2014 05:43:34 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id hd2si13813026pbb.196.2014.06.27.05.43.33
         for <linux-mm@kvack.org>;
-        Fri, 27 Jun 2014 05:20:56 -0700 (PDT)
-Date: Fri, 27 Jun 2014 13:20:32 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH 6/6] arm64: mm: Enable RCU fast_gup
-Message-ID: <20140627122032.GN26276@arm.com>
-References: <1403710824-24340-1-git-send-email-steve.capper@linaro.org>
- <1403710824-24340-7-git-send-email-steve.capper@linaro.org>
- <20140625165003.GI15240@leverpostej>
- <20140626075605.GB12054@laptop.lan>
+        Fri, 27 Jun 2014 05:43:33 -0700 (PDT)
+From: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
+Subject: RE: [PATCH] msync: fix incorrect fstart calculation
+Date: Fri, 27 Jun 2014 12:43:30 +0000
+Message-ID: <100D68C7BA14664A8938383216E40DE0407A787B@FMSMSX114.amr.corp.intel.com>
+References: <006a01cf91fc$5d225170$1766f450$@samsung.com>
+In-Reply-To: <006a01cf91fc$5d225170$1766f450$@samsung.com>
+Content-Language: en-CA
+Content-Type: text/plain; charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140626075605.GB12054@laptop.lan>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Mark Rutland <Mark.Rutland@arm.com>, Steve Capper <steve.capper@linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <Catalin.Marinas@arm.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "anders.roxell@linaro.org" <anders.roxell@linaro.org>, "gary.robertson@linaro.org" <gary.robertson@linaro.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "christoffer.dall@linaro.org" <christoffer.dall@linaro.org>, Thomas Gleixner <tglx@linutronix.de>
+To: Namjae Jeon <namjae.jeon@samsung.com>, 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-ext4 <linux-ext4@vger.kernel.org>, =?Windows-1252?Q?Luk=E1=9A_Czerner?= <lczerner@redhat.com>, 'Eric Whitney' <enwlinux@gmail.com>, Ashish Sangwan <a.sangwan@samsung.com>
 
-On Thu, Jun 26, 2014 at 08:56:05AM +0100, Peter Zijlstra wrote:
-> On Wed, Jun 25, 2014 at 05:50:03PM +0100, Mark Rutland wrote:
-> > Hi Steve,
-> > 
-> > On Wed, Jun 25, 2014 at 04:40:24PM +0100, Steve Capper wrote:
-> > > Activate the RCU fast_gup for ARM64. We also need to force THP splits
-> > > to broadcast an IPI s.t. we block in the fast_gup page walker. As THP
-> > > splits are comparatively rare, this should not lead to a noticeable
-> > > performance degradation.
-> > > 
-> > > Some pre-requisite functions pud_write and pud_page are also added.
-> > > 
-> > > Signed-off-by: Steve Capper <steve.capper@linaro.org>
-> > > ---
-> > >  arch/arm64/Kconfig               |  3 +++
-> > >  arch/arm64/include/asm/pgtable.h | 11 ++++++++++-
-> > >  arch/arm64/mm/flush.c            | 19 +++++++++++++++++++
-> > >  3 files changed, 32 insertions(+), 1 deletion(-)
-> > 
-> > [...]
-> > 
-> > > diff --git a/arch/arm64/mm/flush.c b/arch/arm64/mm/flush.c
-> > > index e4193e3..ddf96c1 100644
-> > > --- a/arch/arm64/mm/flush.c
-> > > +++ b/arch/arm64/mm/flush.c
-> > > @@ -103,3 +103,22 @@ EXPORT_SYMBOL(flush_dcache_page);
-> > >   */
-> > >  EXPORT_SYMBOL(flush_cache_all);
-> > >  EXPORT_SYMBOL(flush_icache_range);
-> > > +
-> > > +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> > > +#ifdef CONFIG_HAVE_RCU_TABLE_FREE
-> > > +static void thp_splitting_flush_sync(void *arg)
-> > > +{
-> > > +}
-> > > +
-> > > +void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
-> > > +			  pmd_t *pmdp)
-> > > +{
-> > > +	pmd_t pmd = pmd_mksplitting(*pmdp);
-> > > +	VM_BUG_ON(address & ~PMD_MASK);
-> > > +	set_pmd_at(vma->vm_mm, address, pmdp, pmd);
-> > > +
-> > > +	/* dummy IPI to serialise against fast_gup */
-> > > +	smp_call_function(thp_splitting_flush_sync, NULL, 1);
-> > 
-> > Is there some reason we can't use kick_all_cpus_sync()?
-> 
-> Yes that would be equivalent. But looking at that, I worry about the
-> smp_mb(); archs are supposed to make sure IPIs are serializing.
-
-Agreed; smp_call_function would be hopelessly broken if that wasn't true
-(at least, everywhere I've used it ;)
-
-Will
+Acked-by: Matthew Wilcox <matthew.r.wilcox@intel.com>=0A=
+________________________________________=0A=
+From: Namjae Jeon [namjae.jeon@samsung.com]=0A=
+Sent: June 27, 2014 4:38 AM=0A=
+To: 'Andrew Morton'=0A=
+Cc: linux-mm@kvack.org; linux-ext4; Luk=E1=9A Czerner; Wilcox, Matthew R; '=
+Eric Whitney'; Ashish Sangwan=0A=
+Subject: [PATCH] msync: fix incorrect fstart calculation=0A=
+=0A=
+Fix a regression caused by Commit 7fc34a62ca mm/msync.c: sync only=0A=
+the requested range in msync().=0A=
+xfstests generic/075 fail occured on ext4 data=3Djournal mode because=0A=
+the intended range was not syncing due to wrong fstart calculation.=0A=
+=0A=
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>=0A=
+Cc: Luk=E1=9A Czerner <lczerner@redhat.com>=0A=
+Reported-by: Eric Whitney <enwlinux@gmail.com>=0A=
+Signed-off-by: Namjae Jeon <namjae.jeon@samsung.com>=0A=
+Signed-off-by: Ashish Sangwan <a.sangwan@samsung.com>=0A=
+---=0A=
+ mm/msync.c | 3 ++-=0A=
+ 1 file changed, 2 insertions(+), 1 deletion(-)=0A=
+=0A=
+diff --git a/mm/msync.c b/mm/msync.c=0A=
+index a5c6736..ad97dce 100644=0A=
+--- a/mm/msync.c=0A=
++++ b/mm/msync.c=0A=
+@@ -78,7 +78,8 @@ SYSCALL_DEFINE3(msync, unsigned long, start, size_t, len,=
+ int, flags)=0A=
+                        goto out_unlock;=0A=
+                }=0A=
+                file =3D vma->vm_file;=0A=
+-               fstart =3D start + ((loff_t)vma->vm_pgoff << PAGE_SHIFT);=
+=0A=
++               fstart =3D (start - vma->vm_start) +=0A=
++                        ((loff_t)vma->vm_pgoff << PAGE_SHIFT);=0A=
+                fend =3D fstart + (min(end, vma->vm_end) - start) - 1;=0A=
+                start =3D vma->vm_end;=0A=
+                if ((flags & MS_SYNC) && file &&=0A=
+--=0A=
+1.7.11-rc0=0A=
+=0A=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
