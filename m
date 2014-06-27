@@ -1,72 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id D017D6B0031
-	for <linux-mm@kvack.org>; Fri, 27 Jun 2014 04:14:44 -0400 (EDT)
-Received: by mail-wg0-f50.google.com with SMTP id m15so4825255wgh.9
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 4635D6B0036
+	for <linux-mm@kvack.org>; Fri, 27 Jun 2014 04:14:45 -0400 (EDT)
+Received: by mail-wi0-f178.google.com with SMTP id n15so2367467wiw.5
         for <linux-mm@kvack.org>; Fri, 27 Jun 2014 01:14:44 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fx6si13141320wjb.172.2014.06.27.01.14.43
+        by mx.google.com with ESMTPS id fu4si16366915wib.47.2014.06.27.01.14.43
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 27 Jun 2014 01:14:43 -0700 (PDT)
+        Fri, 27 Jun 2014 01:14:44 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 0/5] Improve sequential read throughput v3
-Date: Fri, 27 Jun 2014 09:14:35 +0100
-Message-Id: <1403856880-12597-1-git-send-email-mgorman@suse.de>
+Subject: [PATCH 1/5] mm: pagemap: Avoid unnecessary overhead when tracepoints are deactivated
+Date: Fri, 27 Jun 2014 09:14:36 +0100
+Message-Id: <1403856880-12597-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1403856880-12597-1-git-send-email-mgorman@suse.de>
+References: <1403856880-12597-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
 
-Changelog since V2
-o Simply fair zone policy cost reduction
-o Drop CFQ patch
+The LRU insertion and activate tracepoints take PFN as a parameter forcing
+the overhead to the caller.  Move the overhead to the tracepoint fast-assign
+method to ensure the cost is only incurred when the tracepoint is active.
 
-Changelog since v1
-o Rebase to v3.16-rc2
-o Move CFQ patch to end of series where it can be rejected easier if necessary
-o Introduce page-reclaim related patch related to kswapd/fairzone interactions
-o Rework fast zone policy patch
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ include/trace/events/pagemap.h | 16 +++++++---------
+ mm/swap.c                      |  4 ++--
+ 2 files changed, 9 insertions(+), 11 deletions(-)
 
-IO performance since 3.0 has been a mixed bag. In many respects we are
-better and in some we are worse and one of those places is sequential
-read throughput. This is visible in a number of benchmarks but I looked
-at tiobench the closest. This is using ext3 on a mid-range desktop and
-the series applied.
-
-                                      3.16.0-rc2            3.16.0-rc2
-                                         vanilla             lessdirty
-Min    SeqRead-MB/sec-1         120.92 (  0.00%)      140.73 ( 16.38%)
-Min    SeqRead-MB/sec-2         100.25 (  0.00%)      117.43 ( 17.14%)
-Min    SeqRead-MB/sec-4          96.27 (  0.00%)      109.01 ( 13.23%)
-Min    SeqRead-MB/sec-8          83.55 (  0.00%)       90.86 (  8.75%)
-Min    SeqRead-MB/sec-16         66.77 (  0.00%)       74.12 ( 11.01%)
-
-Overall system CPU usage is reduced
-
-          3.16.0-rc2  3.16.0-rc2
-             vanilla lessdirty-v3
-User          390.13      390.20
-System        404.41      379.08
-Elapsed      5412.45     5123.74
-
-This series does not fully restore throughput performance to 3.0 levels
-but it brings it close for lower thread counts. Higher thread counts are
-known to be worse than 3.0 due to CFQ changes but there is no appetite
-for changing the defaults there.
-
- include/linux/mmzone.h         | 210 ++++++++++++++++++++++-------------------
- include/linux/writeback.h      |   1 +
- include/trace/events/pagemap.h |  16 ++--
- mm/internal.h                  |   1 +
- mm/mm_init.c                   |   4 +-
- mm/page-writeback.c            |  23 +++--
- mm/page_alloc.c                | 173 ++++++++++++++++++++-------------
- mm/swap.c                      |   4 +-
- mm/vmscan.c                    |  16 ++--
- mm/vmstat.c                    |   4 +-
- 10 files changed, 258 insertions(+), 194 deletions(-)
-
+diff --git a/include/trace/events/pagemap.h b/include/trace/events/pagemap.h
+index 1c9fabd..ce0803b 100644
+--- a/include/trace/events/pagemap.h
++++ b/include/trace/events/pagemap.h
+@@ -28,12 +28,10 @@ TRACE_EVENT(mm_lru_insertion,
+ 
+ 	TP_PROTO(
+ 		struct page *page,
+-		unsigned long pfn,
+-		int lru,
+-		unsigned long flags
++		int lru
+ 	),
+ 
+-	TP_ARGS(page, pfn, lru, flags),
++	TP_ARGS(page, lru),
+ 
+ 	TP_STRUCT__entry(
+ 		__field(struct page *,	page	)
+@@ -44,9 +42,9 @@ TRACE_EVENT(mm_lru_insertion,
+ 
+ 	TP_fast_assign(
+ 		__entry->page	= page;
+-		__entry->pfn	= pfn;
++		__entry->pfn	= page_to_pfn(page);
+ 		__entry->lru	= lru;
+-		__entry->flags	= flags;
++		__entry->flags	= trace_pagemap_flags(page);
+ 	),
+ 
+ 	/* Flag format is based on page-types.c formatting for pagemap */
+@@ -64,9 +62,9 @@ TRACE_EVENT(mm_lru_insertion,
+ 
+ TRACE_EVENT(mm_lru_activate,
+ 
+-	TP_PROTO(struct page *page, unsigned long pfn),
++	TP_PROTO(struct page *page),
+ 
+-	TP_ARGS(page, pfn),
++	TP_ARGS(page),
+ 
+ 	TP_STRUCT__entry(
+ 		__field(struct page *,	page	)
+@@ -75,7 +73,7 @@ TRACE_EVENT(mm_lru_activate,
+ 
+ 	TP_fast_assign(
+ 		__entry->page	= page;
+-		__entry->pfn	= pfn;
++		__entry->pfn	= page_to_pfn(page);
+ 	),
+ 
+ 	/* Flag format is based on page-types.c formatting for pagemap */
+diff --git a/mm/swap.c b/mm/swap.c
+index 9e8e347..d10be45 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -501,7 +501,7 @@ static void __activate_page(struct page *page, struct lruvec *lruvec,
+ 		SetPageActive(page);
+ 		lru += LRU_ACTIVE;
+ 		add_page_to_lru_list(page, lruvec, lru);
+-		trace_mm_lru_activate(page, page_to_pfn(page));
++		trace_mm_lru_activate(page);
+ 
+ 		__count_vm_event(PGACTIVATE);
+ 		update_page_reclaim_stat(lruvec, file, 1);
+@@ -996,7 +996,7 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
+ 	SetPageLRU(page);
+ 	add_page_to_lru_list(page, lruvec, lru);
+ 	update_page_reclaim_stat(lruvec, file, active);
+-	trace_mm_lru_insertion(page, page_to_pfn(page), lru, trace_pagemap_flags(page));
++	trace_mm_lru_insertion(page, lru);
+ }
+ 
+ /*
 -- 
 1.8.4.5
 
