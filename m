@@ -1,39 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 0658C6B003D
-	for <linux-mm@kvack.org>; Fri, 27 Jun 2014 13:43:08 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id y10so4644908pdj.22
-        for <linux-mm@kvack.org>; Fri, 27 Jun 2014 10:43:08 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id fl5si14657737pbb.220.2014.06.27.10.43.07
-        for <linux-mm@kvack.org>;
-        Fri, 27 Jun 2014 10:43:08 -0700 (PDT)
-Message-ID: <53ADACF7.7080203@intel.com>
-Date: Fri, 27 Jun 2014 10:42:15 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 630B26B004D
+	for <linux-mm@kvack.org>; Fri, 27 Jun 2014 14:04:26 -0400 (EDT)
+Received: by mail-pb0-f52.google.com with SMTP id rq2so4858365pbb.11
+        for <linux-mm@kvack.org>; Fri, 27 Jun 2014 11:04:26 -0700 (PDT)
+Received: from mail-pb0-x235.google.com (mail-pb0-x235.google.com [2607:f8b0:400e:c01::235])
+        by mx.google.com with ESMTPS id pt9si14710445pbb.240.2014.06.27.11.04.25
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 27 Jun 2014 11:04:25 -0700 (PDT)
+Received: by mail-pb0-f53.google.com with SMTP id uo5so4795647pbc.26
+        for <linux-mm@kvack.org>; Fri, 27 Jun 2014 11:04:25 -0700 (PDT)
+Date: Fri, 27 Jun 2014 11:03:02 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: mm: shm: hang in shmem_fallocate
+In-Reply-To: <53AD84CE.20806@oracle.com>
+Message-ID: <alpine.LSU.2.11.1406271043270.28744@eggly.anvils>
+References: <52AE7B10.2080201@oracle.com> <52F6898A.50101@oracle.com> <alpine.LSU.2.11.1402081841160.26825@eggly.anvils> <52F82E62.2010709@oracle.com> <539A0FC8.8090504@oracle.com> <alpine.LSU.2.11.1406151921070.2850@eggly.anvils> <53A9A7D8.2020703@suse.cz>
+ <alpine.LSU.2.11.1406251152450.1580@eggly.anvils> <53AC383F.3010007@oracle.com> <alpine.LSU.2.11.1406262236370.27670@eggly.anvils> <53AD84CE.20806@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v6 02/10] x86, mpx: add MPX specific mmap interface
-References: <1403084656-27284-1-git-send-email-qiaowei.ren@intel.com> <53A884B2.5070702@mit.edu> <53A88806.1060908@intel.com> <CALCETrXYZZiZsDiUvvZd0636+qHP9a0sHTN6wt_ZKjvLaeeBzw@mail.gmail.com> <53A88DE4.8050107@intel.com> <CALCETrWBbkFzQR3tz1TphqxiGYycvzrFrKc=ghzMynbem=d7rg@mail.gmail.com> <9E0BE1322F2F2246BD820DA9FC397ADE016AF41C@shsmsx102.ccr.corp.intel.com> <CALCETrX+iS5N8bCUm_O-1E4GPu4oG-SuFJoJjx_+S054K9-6pw@mail.gmail.com> <9E0BE1322F2F2246BD820DA9FC397ADE016B26AB@shsmsx102.ccr.corp.intel.com> <CALCETrWmmVC2qQtL0Js_Y7LvSPdTh5Hpk6c5ZG3Rt8uTJBWoHQ@mail.gmail.com> <CALCETrUD3L5Ta_v+NqgUrTk7Ok3zE=CRg0rqeKthOj2OORCLKQ@mail.gmail.com> <53AB42E1.4090102@intel.com> <CALCETrVTTh9yuXH0hfcOpytyBd25K6thPfqqUBQtnOqx90ZRqw@mail.gmail.com> <53ACA5B3.3010702@intel.com> <CALCETrVceOhRunCg1b9Q3VL10Kcb+uA-HFUURnq5f2S63_jACg@mail.gmail.com> <53ACB8A7.9050002@intel.com> <CALCETrVR9QB3QvA2x_JjAXCFoqMw4B+byFTPDC3gQMUC1C-2NA@mail.gmail .com> <53ADAB39.6030403@intel.com>
-In-Reply-To: <53ADAB39.6030403@intel.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: "Ren, Qiaowei" <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Hugh Dickins <hughd@google.com>, Vlastimil Babka <vbabka@suse.cz>, Konstantin Khlebnikov <koct9i@gmail.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On 06/27/2014 10:34 AM, Dave Hansen wrote:
-> I'm claiming that we need COW behavior for the bounds tables, at least
-> by default.  If userspace knows enough about the ways that it is using
-> the tables and knows how to share them, let it go to town.  The kernel
-> will permit this kind of usage model, but we simply won't be helping
-> with the management of the tables when userspace creates them.
+On Fri, 27 Jun 2014, Sasha Levin wrote:
+> On 06/27/2014 01:59 AM, Hugh Dickins wrote:
+> >> > First, this:
+> >> > 
+> >> > [  681.267487] BUG: unable to handle kernel paging request at ffffea0003480048
+> >> > [  681.268621] IP: zap_pte_range (mm/memory.c:1132)
+> > Weird, I don't think we've seen anything like that before, have we?
+> > I'm pretty sure it's not a consequence of my "index = min(index, end)",
+> > but what it portends I don't know.  Please confirm mm/memory.c:1132 -
+> > that's the "if (PageAnon(page))" line, isn't it?  Which indeed matches
+> > the code below.  So accessing page->mapping is causing an oops...
+> 
+> Right, that's the correct line.
+> 
+> At this point I'm pretty sure that it's somehow related to that one line
+> patch since it reproduced fairly quickly after applying it, and when I
+> removed it I didn't see it happening again during the overnight fuzzing.
 
-Actually, this is another reason we need to mark VMAs as being
-MPX-related explicitly instead of inferring it from the tables.  If
-userspace does something really specialized like this, the kernel does
-not want to confuse these VMAs the ones it created.
+Oh, I assumed it was a one-off: you're saying that you saw it more than
+once with the min(index, end) patch in?  But not since removing it (did
+you replace that by the newer patch? or by the older? or by nothing?).
 
+I want to exclaim "That makes no sense!", but bugs don't make sense
+anyway.  It's going to be a challenge to work out a connection though.
+I think I want to ask for more attempts to reproduce, with and without
+the min(index, end) patch (if you have enough time - there must be a
+limit to the amount of time you can give me on this).
+
+I rather hoped that the oops on PageAnon might shed light from another
+direction on the outstanding page_mapped bug: both seem like page table
+corruption of some kind (though I've not seen a plausible path to either).
+
+And regarding the page_mapped bug: we've heard nothing since Dave
+Hansen suggested a VM_BUG_ON_PAGE for that - has it gone away now?
+
+Thanks,
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
