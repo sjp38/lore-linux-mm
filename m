@@ -1,54 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CAA26B00B4
-	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 19:23:59 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id et14so3783828pad.21
-        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 16:23:58 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id ra4si11811831pbb.78.2014.06.26.16.23.57
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EAC96B00B6
+	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 20:19:57 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so3854852pab.1
+        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 17:19:57 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id ez5si11897283pbc.174.2014.06.26.17.19.56
         for <linux-mm@kvack.org>;
-        Thu, 26 Jun 2014 16:23:58 -0700 (PDT)
-Message-ID: <53ACAB82.6020201@lge.com>
-Date: Fri, 27 Jun 2014 08:23:46 +0900
-From: Gioh Kim <gioh.kim@lge.com>
+        Thu, 26 Jun 2014 17:19:56 -0700 (PDT)
+Message-ID: <53ACB8A7.9050002@intel.com>
+Date: Thu, 26 Jun 2014 17:19:51 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] CMA page migration failure due to buffers on bh_lru
-References: <53A8D092.4040801@lge.com> <xa1td2dvmznq.fsf@mina86.com>
-In-Reply-To: <xa1td2dvmznq.fsf@mina86.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH v6 02/10] x86, mpx: add MPX specific mmap interface
+References: <1403084656-27284-1-git-send-email-qiaowei.ren@intel.com> <1403084656-27284-3-git-send-email-qiaowei.ren@intel.com> <53A884B2.5070702@mit.edu> <53A88806.1060908@intel.com> <CALCETrXYZZiZsDiUvvZd0636+qHP9a0sHTN6wt_ZKjvLaeeBzw@mail.gmail.com> <53A88DE4.8050107@intel.com> <CALCETrWBbkFzQR3tz1TphqxiGYycvzrFrKc=ghzMynbem=d7rg@mail.gmail.com> <9E0BE1322F2F2246BD820DA9FC397ADE016AF41C@shsmsx102.ccr.corp.intel.com> <CALCETrX+iS5N8bCUm_O-1E4GPu4oG-SuFJoJjx_+S054K9-6pw@mail.gmail.com> <9E0BE1322F2F2246BD820DA9FC397ADE016B26AB@shsmsx102.ccr.corp.intel.com> <CALCETrWmmVC2qQtL0Js_Y7LvSPdTh5Hpk6c5ZG3Rt8uTJBWoHQ@mail.gmail.com> <CALCETrUD3L5Ta_v+NqgUrTk7Ok3zE=CRg0rqeKthOj2OORCLKQ@mail.gmail.com> <53AB42E1.4090102@intel.com> <CALCETrVTTh9yuXH0hfcOpytyBd25K6thPfqqUBQtnOqx90ZRqw@mail.gmail.com> <53ACA5B3.3010702@intel.com> <CALCETrVceOhRunCg1b9Q3VL10Kcb+uA-HFUURnq5f2S63_jACg@mail.gmail.com>
+In-Reply-To: <CALCETrVceOhRunCg1b9Q3VL10Kcb+uA-HFUURnq5f2S63_jACg@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, =?UTF-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "Ren, Qiaowei" <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
+On 06/26/2014 04:15 PM, Andy Lutomirski wrote:
+> So here's my mental image of how I might do this if I were doing it
+> entirely in userspace: I'd create a file or memfd for the bound tables
+> and another for the bound directory.  These files would be *huge*: the
+> bound directory file would be 2GB and the bounds table file would be
+> 2^48 bytes or whatever it is.  (Maybe even bigger?)
+> 
+> Then I'd just map pieces of those files wherever they'd need to be,
+> and I'd make the mappings sparse.  I suspect that you don't actually
+> want a vma for each piece of bound table that gets mapped -- the space
+> of vmas could end up incredibly sparse.  So I'd at least map (in the
+> vma sense, not the pte sense) and entire bound table at a time.  And
+> I'd probably just map the bound directory in one big piece.
+> 
+> Then I'd populate it in the fault handler.
+> 
+> This is almost what the code is doing, I think, modulo the files.
+> 
+> This has one killer problem: these mappings need to be private (cowed
+> on fork).  So memfd is no good.
 
+This essentially uses the page cache's radix tree as a parallel data
+structure in order to keep a vaddr->mpx_vma map.  That's not a bad idea,
+but it is a parallel data structure that does not handle copy-on-write
+very well.
 
-2014-06-27 i??i ? 12:57, Michal Nazarewicz i?' e,?:
-> On Tue, Jun 24 2014, Gioh Kim <gioh.kim@lge.com> wrote:
->> Hello,
->>
->> I am trying to apply CMA feature for my platform.
->> My kernel version, 3.10.x, is not allocating memory from CMA area so that I applied
->> a Joonsoo Kim's patch (https://lkml.org/lkml/2014/5/28/64).
->> Now my platform can use CMA area effectively.
->>
->> But I have many failures to allocate memory from CMA area.
->> I found the same situation to Laura Abbott's patch descrbing,
->> https://lkml.org/lkml/2012/8/31/313,
->> that releases buffer-heads attached at CPU's LRU list.
->>
->> If Joonsoo's patch is applied and/or CMA feature is applied more and more,
->> buffer-heads problem is going to be serious definitely.
->>
->> Please look into the Laura's patch again.
->> I think it must be applied with Joonsoo's patch.
->
-> Just to make sure I understood you correctly, you're saying Laura's
-> patch at <https://lkml.org/lkml/2012/8/31/313> fixes your issue?
->
+I'm pretty sure we need the semantics that anonymous memory provides.
 
-Yes, it is.
+> There's got to be an easyish way to
+> modify the mm code to allow anonymous maps with vm_ops.  Maybe a new
+> mmap_region parameter or something?  Maybe even a special anon_vma,
+> but I don't really understand how those work.
+
+Yeah, we very well might end up having to go down that path.
+
+> Also, egads: what happens when a bound table entry is associated with
+> a MAP_SHARED page?
+
+Bounds table entries are for pointers.  Do we keep pointers inside of
+MAP_SHARED-mapped things? :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
