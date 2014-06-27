@@ -1,373 +1,427 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AD3B900002
-	for <linux-mm@kvack.org>; Thu, 26 Jun 2014 22:11:08 -0400 (EDT)
-Received: by mail-pb0-f44.google.com with SMTP id md12so3926746pbc.31
-        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 19:11:08 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id xi3si12179369pab.111.2014.06.26.19.11.06
-        for <linux-mm@kvack.org>;
-        Thu, 26 Jun 2014 19:11:07 -0700 (PDT)
-Message-ID: <53ACD20B.2030601@cn.fujitsu.com>
-Date: Fri, 27 Jun 2014 10:08:11 +0800
-From: Xiaoguang Wang <wangxg.fnst@cn.fujitsu.com>
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 22F096B0031
+	for <linux-mm@kvack.org>; Fri, 27 Jun 2014 01:37:48 -0400 (EDT)
+Received: by mail-pb0-f47.google.com with SMTP id up15so4119533pbc.20
+        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 22:37:47 -0700 (PDT)
+Received: from mail-pb0-x22d.google.com (mail-pb0-x22d.google.com [2607:f8b0:400e:c01::22d])
+        by mx.google.com with ESMTPS id he6si12732263pac.20.2014.06.26.22.37.46
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 26 Jun 2014 22:37:47 -0700 (PDT)
+Received: by mail-pb0-f45.google.com with SMTP id rr13so4110334pbb.18
+        for <linux-mm@kvack.org>; Thu, 26 Jun 2014 22:37:46 -0700 (PDT)
+Date: Thu, 26 Jun 2014 22:36:20 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: mm: shm: hang in shmem_fallocate
+In-Reply-To: <53ABE479.3080508@suse.cz>
+Message-ID: <alpine.LSU.2.11.1406262108390.27670@eggly.anvils>
+References: <52AE7B10.2080201@oracle.com> <52F6898A.50101@oracle.com> <alpine.LSU.2.11.1402081841160.26825@eggly.anvils> <52F82E62.2010709@oracle.com> <539A0FC8.8090504@oracle.com> <alpine.LSU.2.11.1406151921070.2850@eggly.anvils> <53A9A7D8.2020703@suse.cz>
+ <alpine.LSU.2.11.1406251152450.1580@eggly.anvils> <53ABE479.3080508@suse.cz>
 MIME-Version: 1.0
-Subject: Corruption with O_DIRECT and unaligned user buffers
-Content-Type: multipart/mixed;
-	boundary="------------020305080509070701090509"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, mgorman@suse.de, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, chrubis@suse.cz
-
---------------020305080509070701090509
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
-
-Hi maintainers,
-
-In August 2008, there was a discussion about 'Corruption with O_DIRECT and unaligned user buffers',
-please have a look at this url: http://thread.gmane.org/gmane.linux.file-systems/27358
-
-The attached test program written by Tim has been added to LTP, please see this below url:
-https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/io/direct_io/dma_thread_diotest.c
-
-
-Now I tested this program in kernel 3.16.0-rc1+, it seems that the date corruption still exists. Meanwhile
-there is also such a section in open(2)'s manpage warning that O_DIRECT I/Os should never be run
-concurrently with the fork(2) system call. Please see below section:
-
-    O_DIRECT I/Os should never be run concurrently with the fork(2) system call, if the memory buffer
-    is a private mapping (i.e., any mapping created with the mmap(2) MAP_PRIVATE flag; this includes
-    memory allocated on the heap and statically allocated buffers).  Any such I/Os, whether  submitted
-    via an asynchronous I/O interface or from another thread in the process, should be completed before
-    fork(2) is called.  Failure to do so can result in data corruption and undefined behavior in parent
-    and child processes.  This restriction does not apply when the memory buffer for  the  O_DIRECT
-    I/Os  was  created  using shmat(2) or mmap(2) with the MAP_SHARED flag.  Nor does this restriction
-    apply when the memory buffer has been advised as MADV_DONTFORK with madvise(2), ensuring that it will
-    not be available to the child after fork(2).
-
-Hmm, so I'd like to know whether you have some plans to fix this bug, or this is not considered as a
-bug, it's just a programming specification that we should avoid doing fork() while we are having O_DIRECT
-file operation with non-page aligned IO, thanks.
-
-Steps to run this attached program:
-1. ./dma_thread  # create temp files
-2. ./dma_thread -a 512 -w 8 $ alignment is 512 and create 8 threads.
-
-
-Regards,
-Xiaoguang Wang
-
---------------020305080509070701090509
-Content-Type: text/x-csrc; name="dma_thread.c"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment; filename="dma_thread.c"
-
-/* compile with 'gcc -g -o dma_thread dma_thread.c -lpthread' */
-
-#define _GNU_SOURCE 1
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <memory.h>
-#include <pthread.h>
-#include <getopt.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-
-#define FILESIZE (12*1024*1024) 
-#define READSIZE  (1024*1024)
-
-#define FILENAME    "test_%.04d.tmp"
-#define FILECOUNT   100
-#define MIN_WORKERS 2
-#define MAX_WORKERS 256
-#define PAGE_SIZE   4096
-
-#define true	1
-#define false	0
-
-typedef int bool;
-
-bool	done	= false;
-int	workers = 2;
-
-#define PATTERN (0xfa)
-
-static void
-usage (void)
-{
-    fprintf(stderr, "\nUsage: dma_thread [-h | -a <alignment> [ -w <workers>]\n"
-		    "\nWith no arguments, generate test files and exit.\n"
-		    "-h Display this help and exit.\n"
-		    "-a align read buffer to offset <alignment>.\n"
-		    "-w number of worker threads, 2 (default) to 256,\n"
-		    "   defaults to number of cores.\n\n"
-
-		    "Run first with no arguments to generate files.\n"
-		    "Then run with -a <alignment> = 512  or 0. \n");
-}
-
-typedef struct {
-    pthread_t	    tid;
-    int		    worker_number;
-    int		    fd;
-    int		    offset;
-    int		    length;
-    int		    pattern;
-    unsigned char  *buffer;
-} worker_t;
-
-
-void *worker_thread(void * arg)
-{
-    int		    bytes_read;
-    int		    i,k;
-    worker_t	   *worker  = (worker_t *) arg;
-    int		    offset  = worker->offset;
-    int		    fd	    = worker->fd;
-    unsigned char  *buffer  = worker->buffer;
-    int		    pattern = worker->pattern;
-    int		    length  = worker->length;
-    
-    if (lseek(fd, offset, SEEK_SET) < 0) {
-	fprintf(stderr, "Failed to lseek to %d on fd %d: %s.\n", 
-			offset, fd, strerror(errno));
-	exit(1);
-    }
-
-    bytes_read = read(fd, buffer, length);
-    if (bytes_read != length) {
-	fprintf(stderr, "read failed on fd %d: bytes_read %d, %s\n", 
-			fd, bytes_read, strerror(errno));
-	exit(1);
-    }
-
-    /* Corruption check */
-    for (i = 0; i < length; i++) {
-	if (buffer[i] != pattern) {
-	    printf("Bad data at 0x%.06x: %p, \n", i, buffer + i);
-	    printf("Data dump starting at 0x%.06x:\n", i - 8);
-	    printf("Expect 0x%x followed by 0x%x:\n",
-		    pattern, PATTERN);
-
-	    for (k = 0; k < 16; k++) {
-		printf("%02x ", buffer[i - 8 + k]);
-		if (k == 7) {
-		    printf("\n");
-		}       
-	    }
-
-	    printf("\n");
-	    abort();
-	}
-    }
-
-    return 0;
-}
-
-void *fork_thread (void *arg) 
-{
-    pid_t pid;
-
-    while (!done) {
-	pid = fork();
-	if (pid == 0) {
-	    exit(0);
-	} else if (pid < 0) {
-	    fprintf(stderr, "Failed to fork child.\n");
-	    exit(1);
-	} 
-	waitpid(pid, NULL, 0 );
-	usleep(100);
-    }
-
-    return NULL;
-
-}
-
-int main(int argc, char *argv[])
-{
-    unsigned char  *buffer = NULL;
-    char	    filename[1024];
-    int		    fd;
-    bool	    dowrite = true;
-    pthread_t	    fork_tid;
-    int		    c, n, j;
-    worker_t	   *worker;
-    int		    align = 0;
-    int		    offset, rc;
-
-    workers = sysconf(_SC_NPROCESSORS_ONLN);
-
-    while ((c = getopt(argc, argv, "a:hw:")) != -1) {
-	switch (c) {
-	case 'a':
-	    align = atoi(optarg);
-	    if (align < 0 || align > PAGE_SIZE) {
-		printf("Bad alignment %d.\n", align);
-		exit(1);
-	    }
-	    dowrite = false;
-	    break;
-
-	case 'h':
-	    usage();
-	    exit(0);
-	    break;
-
-	case 'w':
-	    workers = atoi(optarg);
-	    if (workers < MIN_WORKERS || workers > MAX_WORKERS) {
-		fprintf(stderr, "Worker count %d not between "
-				"%d and %d, inclusive.\n",
-				workers, MIN_WORKERS, MAX_WORKERS);
-		usage();
-		exit(1);
-	    }
-	    dowrite = false;
-	    break;
-
-	default:
-	    usage();
-	    exit(1);
-	}
-    }
-
-    if (argc > 1 && (optind < argc)) {
-	fprintf(stderr, "Bad command line.\n");
-	usage();
-	exit(1);
-    }
-
-    if (dowrite) {
-
-	buffer = malloc(FILESIZE);
-	if (buffer == NULL) {
-	    fprintf(stderr, "Failed to malloc write buffer.\n");
-	    exit(1);
-	}
-
-	for (n = 1; n <= FILECOUNT; n++) {
-	    sprintf(filename, FILENAME, n);
-	    fd = open(filename, O_RDWR|O_CREAT|O_TRUNC, 0666);
-	    if (fd < 0) {
-		printf("create failed(%s): %s.\n", filename, strerror(errno));
-		exit(1);
-	    }
-	    memset(buffer, n, FILESIZE);
-	    printf("Writing file %s.\n", filename);
-	    if (write(fd, buffer, FILESIZE) != FILESIZE) {
-		printf("write failed (%s)\n", filename);
-	    }
-
-	    close(fd);
-	    fd = -1;
-	}
-
-	free(buffer);
-	buffer = NULL;
-
-	printf("done\n");
-	exit(0);
-    }
-
-    printf("Using %d workers.\n", workers);
-
-    worker = malloc(workers * sizeof(worker_t));
-    if (worker == NULL) {
-	fprintf(stderr, "Failed to malloc worker array.\n");
-	exit(1);
-    }
-
-    for (j = 0; j < workers; j++) {
-	worker[j].worker_number = j;
-    }
-
-    printf("Using alignment %d.\n", align);
-    
-    posix_memalign((void *)&buffer, PAGE_SIZE, READSIZE+ align);
-    printf("Read buffer: %p.\n", buffer);
-    for (n = 1; n <= FILECOUNT; n++) {
-
-	sprintf(filename, FILENAME, n);
-	for (j = 0; j < workers; j++) {
-	    if ((worker[j].fd = open(filename,  O_RDONLY|O_DIRECT)) < 0) {
-		fprintf(stderr, "Failed to open %s: %s.\n",
-				filename, strerror(errno));
-		exit(1);
-	    }
-
-	    worker[j].pattern = n;
-	}
-
-	printf("Reading file %d.\n", n);
-
-	for (offset = 0; offset < FILESIZE; offset += READSIZE) {
-	    memset(buffer, PATTERN, READSIZE + align);
-	    for (j = 0; j < workers; j++) {
-		worker[j].offset = offset + j * PAGE_SIZE;
-		worker[j].buffer = buffer + align + j * PAGE_SIZE;
-		worker[j].length = PAGE_SIZE;
-	    }
-	    /* The final worker reads whatever is left over. */
-	    worker[workers - 1].length = READSIZE - PAGE_SIZE * (workers - 1);
-
-	    done = 0;
-
-	    rc = pthread_create(&fork_tid, NULL, fork_thread, NULL);
-	    if (rc != 0) {
-		fprintf(stderr, "Can't create fork thread: %s.\n", 
-				strerror(rc));
-		exit(1);
-	    }
-
-	    for (j = 0; j < workers; j++) {
-		rc = pthread_create(&worker[j].tid, 
-				    NULL, 
-				    worker_thread, 
-				    worker + j);
-		if (rc != 0) {
-		    fprintf(stderr, "Can't create worker thread %d: %s.\n", 
-				    j, strerror(rc));
-		    exit(1);
-		}
-	    }
-
-	    for (j = 0; j < workers; j++) {
-		rc = pthread_join(worker[j].tid, NULL);
-		if (rc != 0) {
-		    fprintf(stderr, "Failed to join worker thread %d: %s.\n",
-				    j, strerror(rc));
-		    exit(1);
-		}
-	    }
-
-	    /* Let the fork thread know it's ok to exit */
-	    done = 1;
-
-	    rc = pthread_join(fork_tid, NULL);
-	    if (rc != 0) {
-		fprintf(stderr, "Failed to join fork thread: %s.\n",
-				strerror(rc));
-		exit(1);
-	    }
-	}
-
-	/* Close the fd's for the next file. */
-	for (j = 0; j < workers; j++) {
-	    close(worker[j].fd);
-	}
-    }
-
-    return 0;
-}
-
---------------020305080509070701090509--
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+
+[Cc Johannes: at the end I have a particular question for you]
+
+On Thu, 26 Jun 2014, Vlastimil Babka wrote:
+> On 06/26/2014 12:36 AM, Hugh Dickins wrote:
+> > On Tue, 24 Jun 2014, Vlastimil Babka wrote:
+> > 
+> > Sorry for the slow response: I have got confused, learnt more, and
+> > changed my mind, several times in the course of replying to you.
+> > I think this reply will be stable... though not final.
+> 
+> Thanks a lot for looking into it!
+> 
+> > > 
+> > > since this got a CVE,
+> > 
+> > Oh.  CVE-2014-4171.  Couldn't locate that yesterday but see it now.
+> 
+> Sorry, I should have mentioned it explicitly.
+> 
+> > Looks overrated to me
+> 
+> I'd bet it would pass unnoticed if you didn't use the sentence "but whether
+> it's a serious matter in the scale of denials of service, I'm not so sure" in
+> your first reply to Sasha's report :) I wouldn't be surprised if people grep
+> for this.
+
+Hah, you're probably right,
+I better choose my words more carefully in future.
+
+> 
+> > (and amusing to see my pompous words about a
+> > "range notification mechanism" taken too seriously), but of course
+> > we do need to address it.
+> > 
+> > > I've been looking at backport to an older kernel where
+> > 
+> > Thanks a lot for looking into it.  I didn't think it was worth a
+> > Cc: stable@vger.kernel.org myself, but admit to being both naive
+> > and inconsistent about that.
+> > 
+> > > fallocate(FALLOC_FL_PUNCH_HOLE) is not yet supported, and there's also no
+> > > range notification mechanism yet. There's just madvise(MADV_REMOVE) and
+> > > since
+> > 
+> > Yes, that mechanism could be ported back pre-v3.5,
+> > but I agree with your preference not to.
+> > 
+> > > it doesn't guarantee anything, it seems simpler just to give up retrying
+> > > to
+> > 
+> > Right, I don't think we have formally documented the instant of "full hole"
+> > that I strove for there, and it's probably not externally verifiable, nor
+> > guaranteed by other filesystems.  I just thought it a good QoS aim, but
+> > it has given us this problem.
+> > 
+> > > truncate really everything. Then I realized that maybe it would work for
+> > > current kernel as well, without having to add any checks in the page
+> > > fault
+> > > path. The semantics of fallocate(FALLOC_FL_PUNCH_HOLE) might look
+> > > different
+> > > from madvise(MADV_REMOVE), but it seems to me that as long as it does
+> > > discard
+> > > the old data from the range, it's fine from any information leak point of
+> > > view.
+> > > If someone races page faulting, it IMHO doesn't matter if he gets a new
+> > > zeroed
+> > > page before the parallel truncate has ended, or right after it has ended.
+> > 
+> > Yes.  I disagree with your actual patch, for more than one reason,
+> > but it's in the right area; and I found myself growing to agree with
+> > you, that's it's better to have one kind of fix for all these releases,
+> > than one for v3.5..v3.15 and another for v3.1..v3.4.  (The CVE cites
+> > v3.0 too, I'm sceptical about that, but haven't tried it as yet.)
+> 
+> I was looking at our 3.0 based kernel, but it could be due to backported
+> patches on top.
+
+And later you confirm that 3.0.101 vanilla is okay: thanks, that fits.
+
+> 
+> > If I'd realized that we were going to have to backport, I'd have spent
+> > longer looking for a patch like yours originally.  So my inclination
+> > now is to go your route, make a new patch for v3.16 and backports,
+> > and revert the f00cdc6df7d7 that has already gone in.
+> > 
+> > > So I'm posting it here as a RFC. I haven't thought about the
+> > > i915_gem_object_truncate caller yet. I think that this path wouldn't
+> > > satisfy
+> > 
+> > My understanding is that i915_gem_object_truncate() is not a problem,
+> > that i915's dev->struct_mutex serializes all its relevant transitions,
+> > plus the object woudn't even be interestingly accessible to the user.
+> > 
+> > > the new "lstart < inode->i_size" condition, but I don't know if it's
+> > > "vulnerable"
+> > > to the problem.
+> > 
+> > I don't think i915 is vulnerable, but if it is, that condition would
+> > be fine for it, as would be the patch I'm now thinking of.
+> > 
+> > > 
+> > > -----8<-----
+> > > From: Vlastimil Babka <vbabka@suse.cz>
+> > > Subject: [RFC PATCH] shmem: prevent livelock between page fault and hole
+> > > punching
+> > > 
+> > > ---
+> > >   mm/shmem.c | 19 +++++++++++++++++++
+> > >   1 file changed, 19 insertions(+)
+> > > 
+> > > diff --git a/mm/shmem.c b/mm/shmem.c
+> > > index f484c27..6d6005c 100644
+> > > --- a/mm/shmem.c
+> > > +++ b/mm/shmem.c
+> > > @@ -476,6 +476,25 @@ static void shmem_undo_range(struct inode *inode,
+> > > loff_t lstart, loff_t lend,
+> > >   		if (!pvec.nr) {
+> > >   			if (index == start || unfalloc)
+> > >   				break;
+> > > +                        /*
+> > > +                         * When this condition is true, it means we were
+> > > +                         * called from fallocate(FALLOC_FL_PUNCH_HOLE).
+> > > +                         * To prevent a livelock when someone else is
+> > > faulting
+> > > +                         * pages back, we are content with single pass
+> > > and do
+> > > +                         * not retry with index = start. It's important
+> > > that
+> > > +                         * previous page content has been discarded, and
+> > > +                         * faulter(s) got new zeroed pages.
+> > > +                         *
+> > > +                         * The other callsites are shmem_setattr (for
+> > > +                         * truncation) and shmem_evict_inode, which set
+> > > i_size
+> > > +                         * to truncated size or 0, respectively, and
+> > > then call
+> > > +                         * us with lstart == inode->i_size. There we do
+> > > want to
+> > > +                         * retry, and livelock cannot happen for other
+> > > reasons.
+> > > +                         *
+> > > +                         * XXX what about i915_gem_object_truncate?
+> > > +                         */
+> > 
+> > I doubt you have ever faced such a criticism before, but I'm going
+> > to speak my mind and say that comment is too long!  A comment of that
+> > length is okay above or just inside or at a natural break in a function,
+> > but here it distracts too much from what the code is actually doing.
+> 
+> Fair enough. The reasoning should have gone into commit log, not comment.
+> 
+> > In particular, the words "this condition" are so much closer to the
+> > condition above than the condition below, that it's rather confusing.
+> > 
+> > /* Single pass when hole-punching to not livelock on racing faults */
+> > would have been enough (yes, I've cheated, that would be 2 or 4 lines).
+> > 
+> > > +                        if (lstart < inode->i_size)
+> > 
+> > For a long time I was going to suggest that you leave i_size out of it,
+> > and use "lend > 0" instead.  Then suddenly I realized that this is the
+> > wrong place for the test.
+> 
+> Well my first idea was to just add a flag about how persistent it should be.
+> And set it false for the punch hole case. Then I wondered if there's already
+> some bit that distinguishes it. But it makes it more subtle.
+> 
+> > And then that it's not your fault, it's mine,
+> > in v3.1's d0823576bf4b "mm: pincer in truncate_inode_pages_range".
+> > Wow, that really pessimized the hole-punch case!
+> > 
+> > When is pvec.nr 0?  When we've reached the end of the file.  Why should
+> > we go to the end of the file, when punching a hole at the start?  Ughh!
+> 
+> Ah, I see (I think). But I managed to reproduce this problem when there was
+> only an extra page between lend and the end of file, so I doubt this is the
+> only problem. AFAIU it's enough to try punching a large enough hole, then the
+> loop can only do a single pagevec worth of pages per iteration, which gives
+> enough time for somebody faulting pages back?
+
+That's useful info, thank you: I just wasn't trying hard enough then;
+and you didn't even need 1024 cpus to show it either.  Right, we have
+to revert my pincer, certainly on shmem.  And I think I'd better do the
+same change on generic filesystems too (nobody has bothered to implement
+hole-punch on ramfs, but if they did, they would hit the same problem):
+though that part of it doesn't need a backport to -stable.
+
+> 
+> > > +                                break;
+> > >   			index = start;
+> > >   			continue;
+> > >   		}
+> > > --
+> > > 1.8.4.5
+> > 
+> > But there is another problem.  We cannot break out after one pass on
+> > shmem, because there's a possiblilty that a swap entry in the radix_tree
+> > got swizzled into a page just as it was about to be removed - your patch
+> > might then leave that data behind in the hole.
+> 
+> Thanks, I didn't notice that. Do I understand correctly that this could mean
+> info leak for the punch hole call, but wouldn't be a problem for madvise? (In
+> any case, that means the solution is not general enough for all kernels, so
+> I'm asking just to be sure).
+
+It's exactly the same issue for the madvise as for the fallocate:
+data that is promised to have been punched out would still be there.
+
+Very hard case to trigger, though, I think: since by the time we get
+to this loop, we have already made one pass down the hole, getting rid
+of everything that wasn't page-locked at the time, so the chance of
+catching any swap in this loop is lower.
+
+> 
+> > As it happens, Konstantin Khlebnikov suggested a patch for that a few
+> > weeks ago, before noticing that it's already handled by the endless loop.
+> > If we make that loop no longer endless, we need to add in Konstantin's
+> > "if (shmem_free_swap) goto retry" patch.
+> > 
+> > Right now I'm thinking that my idiocy in d0823576bf4b may actually
+> > be the whole of Trinity's problem: patch below.  If we waste time
+> > traversing the radix_tree to end-of-file, no wonder that concurrent
+> > faults have time to put something in the hole every time.
+> > 
+> > Sasha, may I trespass on your time, and ask you to revert the previous
+> > patch from your tree, and give this patch below a try?  I am very
+> > interested to learn if in fact it fixes it for you (as it did for me).
+> 
+> I will try this, but as I explained above, I doubt that alone will help.
+
+And afterwards you confirmed, thank you.
+
+> 
+> > However, I am wasting your time, in that I think we shall decide that
+> > it's too unsafe to rely solely upon the patch below (what happens if
+> > 1024 cpus are all faulting on it while we try to punch a 4MB hole at
+> 
+> My reproducer is 4MB file, where the puncher tries punching everything except
+> first and last page. And there are 8 other threads (as I have 8 logical
+> CPU's) that just repeatedly sweep the same range, reading only the first byte
+> of each page.
+> 
+> > end of file? if we care).  I think we shall end up with the optimization
+> > below (or some such: it can be written in various ways), plus reverting
+> > d0823576bf4b's "index == start && " pincer, plus Konstantin's
+> > shmem_free_swap handling, rolled into a single patch; and a similar
+> 
+> So that means no retry in any case (except the swap thing)? All callers can
+> handle that? I guess shmem_evict_inode would be ok, as nobody else
+> can be accessing that inode. But what about shmem_setattr? (i.e. straight
+> truncation) As you said earlier, faulters will get a SIGBUS (which AFAIU is
+> due to i_size being updated before we enter shmem_undo_range). But could
+> possibly a faulter already pass the i_size test, and proceed with the fault
+> only when we are already in shmem_undo_range and have passed the page in
+> question?
+
+We still have to retry indefinitely in the truncation case, as you
+rightly guess.  SIGBUS beyond i_size makes it a much easier case to
+handle, and there's no danger of "indefinitely" becoming "infinitely"
+as in the punch-hole case.  But, depending on how the filesystem
+handles its end, there is still some possibility of a race with faulting,
+which some filesystems may require pagecache truncation to resolve.
+
+Does shmem truncation itself require that?  Er, er, it would take me
+too long to work out the definitive answer: perhaps it doesn't, but for
+safety I certainly assume that it does require that - that is, I never
+even considered removing the indefinite loop from the truncation case.
+
+> 
+> > patch (without the swap part) for several functions in truncate.c.
+> > 
+> > Hugh
+> > 
+> > --- 3.16-rc2/mm/shmem.c	2014-06-16 00:28:55.124076531 -0700
+> > +++ linux/mm/shmem.c	2014-06-25 10:28:47.063967052 -0700
+> > @@ -470,6 +470,7 @@ static void shmem_undo_range(struct inod
+> >   	for ( ; ; ) {
+> >   		cond_resched();
+> > 
+> > +		index = min(index, end);
+> >   		pvec.nr = find_get_entries(mapping, index,
+> >   				min(end - index, (pgoff_t)PAGEVEC_SIZE),
+> >   				pvec.pages, indices);
+
+So let's all forget that patch, although it does help to highlight my
+mistake in d0823576bf4b.  (Oh, hey, let's all forget my mistake too!)
+
+Here's the 3.16-rc2 patch that I've now settled on (which will also
+require a revert of current git's f00cdc6df7d7; well, not require the
+revert, but this makes that redundant, and cannot be tested with it in).
+
+I've not yet had time to write up the patch description, nor to test
+it fully; but thought I should get the patch itself into the open for
+review and testing before then.
+
+I've checked against v3.1 to see how it works out there: certainly
+wouldn't apply cleanly (and beware: prior to v3.5's shmem_undo_range,
+"end" was included in the range, not excluded), but the same
+principles apply.  Haven't checked the intermediates yet, will
+probably leave those until each stable wants them - but if you've a
+particular release in mind, please ask, or ask me to check your port.
+
+I've included the mm/truncate.c part of it here, but that will be a
+separate (not for -stable) patch when I post the finalized version.
+
+Hannes, a question for you please, I just could not make up my mind.
+In mm/truncate.c truncate_inode_pages_range(), what should be done
+with a failed clear_exceptional_entry() in the case of hole-punch?
+Is that case currently depending on the rescan loop (that I'm about
+to revert) to remove a new page, so I would need to add a retry for
+that rather like the shmem_free_swap() one?  Or is it irrelevant,
+and can stay unchanged as below?  I've veered back and forth,
+thinking first one and then the other.
+
+Thanks,
+Hugh
+
+---
+
+ mm/shmem.c    |   19 ++++++++++---------
+ mm/truncate.c |   14 +++++---------
+ 2 files changed, 15 insertions(+), 18 deletions(-)
+
+--- 3.16-rc2/mm/shmem.c	2014-06-16 00:28:55.124076531 -0700
++++ linux/mm/shmem.c	2014-06-26 15:41:52.704362962 -0700
+@@ -467,23 +467,20 @@ static void shmem_undo_range(struct inod
+ 		return;
+ 
+ 	index = start;
+-	for ( ; ; ) {
++	while (index < end) {
+ 		cond_resched();
+ 
+ 		pvec.nr = find_get_entries(mapping, index,
+ 				min(end - index, (pgoff_t)PAGEVEC_SIZE),
+ 				pvec.pages, indices);
+ 		if (!pvec.nr) {
+-			if (index == start || unfalloc)
++			/* If all gone or hole-punch or unfalloc, we're done */
++			if (index == start || end != -1)
+ 				break;
++			/* But if truncating, restart to make sure all gone */
+ 			index = start;
+ 			continue;
+ 		}
+-		if ((index == start || unfalloc) && indices[0] >= end) {
+-			pagevec_remove_exceptionals(&pvec);
+-			pagevec_release(&pvec);
+-			break;
+-		}
+ 		mem_cgroup_uncharge_start();
+ 		for (i = 0; i < pagevec_count(&pvec); i++) {
+ 			struct page *page = pvec.pages[i];
+@@ -495,8 +492,12 @@ static void shmem_undo_range(struct inod
+ 			if (radix_tree_exceptional_entry(page)) {
+ 				if (unfalloc)
+ 					continue;
+-				nr_swaps_freed += !shmem_free_swap(mapping,
+-								index, page);
++				if (shmem_free_swap(mapping, index, page)) {
++					/* Swap was replaced by page: retry */
++					index--;
++					break;
++				}
++				nr_swaps_freed++;
+ 				continue;
+ 			}
+ 
+--- 3.16-rc2/mm/truncate.c	2014-06-08 11:19:54.000000000 -0700
++++ linux/mm/truncate.c	2014-06-26 16:31:35.932433863 -0700
+@@ -352,21 +352,17 @@ void truncate_inode_pages_range(struct a
+ 		return;
+ 
+ 	index = start;
+-	for ( ; ; ) {
++	while (index < end) {
+ 		cond_resched();
+ 		if (!pagevec_lookup_entries(&pvec, mapping, index,
+-			min(end - index, (pgoff_t)PAGEVEC_SIZE),
+-			indices)) {
+-			if (index == start)
++			min(end - index, (pgoff_t)PAGEVEC_SIZE), indices)) {
++			/* If all gone or hole-punch, we're done */
++			if (index == start || end != -1)
+ 				break;
++			/* But if truncating, restart to make sure all gone */
+ 			index = start;
+ 			continue;
+ 		}
+-		if (index == start && indices[0] >= end) {
+-			pagevec_remove_exceptionals(&pvec);
+-			pagevec_release(&pvec);
+-			break;
+-		}
+ 		mem_cgroup_uncharge_start();
+ 		for (i = 0; i < pagevec_count(&pvec); i++) {
+ 			struct page *page = pvec.pages[i];
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
