@@ -1,68 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 320566B0036
-	for <linux-mm@kvack.org>; Fri, 27 Jun 2014 17:05:17 -0400 (EDT)
-Received: by mail-qa0-f53.google.com with SMTP id j15so4577959qaq.12
-        for <linux-mm@kvack.org>; Fri, 27 Jun 2014 14:05:17 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c36si15498553qgd.64.2014.06.27.14.05.16
+Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
+	by kanga.kvack.org (Postfix) with ESMTP id A6BE46B0031
+	for <linux-mm@kvack.org>; Fri, 27 Jun 2014 22:00:47 -0400 (EDT)
+Received: by mail-qc0-f177.google.com with SMTP id r5so5191256qcx.8
+        for <linux-mm@kvack.org>; Fri, 27 Jun 2014 19:00:47 -0700 (PDT)
+Received: from mail-qc0-x232.google.com (mail-qc0-x232.google.com [2607:f8b0:400d:c01::232])
+        by mx.google.com with ESMTPS id f5si3222921qcq.17.2014.06.27.19.00.47
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Jun 2014 14:05:16 -0700 (PDT)
-Date: Fri, 27 Jun 2014 17:05:12 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 1/1] mm/hwpoison-inject.c: remove unnecessary null test
- before debugfs_remove_recursive
-Message-ID: <20140627210512.GA18026@nhori.bos.redhat.com>
-References: <1403902696-12162-1-git-send-email-fabf@skynet.be>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 27 Jun 2014 19:00:47 -0700 (PDT)
+Received: by mail-qc0-f178.google.com with SMTP id c9so5142555qcz.23
+        for <linux-mm@kvack.org>; Fri, 27 Jun 2014 19:00:46 -0700 (PDT)
+From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <j.glisse@gmail.com>
+Subject: mm preparatory patches for HMM and IOMMUv2
+Date: Fri, 27 Jun 2014 22:00:18 -0400
+Message-Id: <1403920822-14488-1-git-send-email-j.glisse@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1403902696-12162-1-git-send-email-fabf@skynet.be>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fabian Frederick <fabf@skynet.be>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: mgorman@suse.de, hpa@zytor.com, peterz@infraread.org, aarcange@redhat.com, riel@redhat.com, jweiner@redhat.com, torvalds@linux-foundation.org, Mark Hairgrove <mhairgrove@nvidia.com>, Jatin Kumar <jakumar@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, Oded Gabbay <Oded.Gabbay@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Andrew Lewycky <Andrew.Lewycky@amd.com>
 
-On Fri, Jun 27, 2014 at 10:58:16PM +0200, Fabian Frederick wrote:
-> Fix checkpatch warning:
-> "WARNING: debugfs_remove_recursive(NULL) is safe this check is probably not required"
-> 
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: linux-mm@kvack.org
-> Signed-off-by: Fabian Frederick <fabf@skynet.be>
+Andrew so here are a set of mm patch that do some ground modification to core
+mm code. They apply on top of today's linux-next and they pass checkpatch.pl
+with flying color (except patch 4 but i did not wanted to be a nazi about 80
+char line).
 
-Looks good to me, thank you.
+Patch 1 is the mmput notifier call chain we discussed with AMD.
 
-Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Patch 2, 3 and 4 are so far only useful to HMM but i am discussing with AMD and
+i believe it will be useful to them to (in the context of IOMMUv2).
 
-> ---
->  mm/hwpoison-inject.c | 3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
-> 
-> diff --git a/mm/hwpoison-inject.c b/mm/hwpoison-inject.c
-> index 95487c7..329caf5 100644
-> --- a/mm/hwpoison-inject.c
-> +++ b/mm/hwpoison-inject.c
-> @@ -72,8 +72,7 @@ DEFINE_SIMPLE_ATTRIBUTE(unpoison_fops, NULL, hwpoison_unpoison, "%lli\n");
->  
->  static void pfn_inject_exit(void)
->  {
-> -	if (hwpoison_dir)
-> -		debugfs_remove_recursive(hwpoison_dir);
-> +	debugfs_remove_recursive(hwpoison_dir);
->  }
->  
->  static int pfn_inject_init(void)
-> -- 
-> 1.8.4.5
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Patch 2 allows to differentiate page unmap for vmscan reason or for poisoning.
+
+Patch 3 associate mmu_notifier with an event type allowing to take different code
+path inside mmu_notifier callback depending on what is currently happening to the
+cpu page table. There is no functional change, it just add a new argument to the
+various mmu_notifier calls and callback.
+
+Patch 4 pass along the vma into which the range invalidation is happening. There
+is few functional changes in place where mmu_notifier_range_invalidate_start/end
+used [0, -1] as range, instead now those place call the notifier once for each
+vma. This might prove to add unwanted overhead hence why i did it as a separate
+patch.
+
+I did not include the core hmm patch but i intend to send a v4 next week. So i
+really would like to see those included for next release.
+
+As usual comments welcome.
+
+Cheers,
+JA(C)rA'me Glisse
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
