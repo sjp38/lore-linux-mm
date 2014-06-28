@@ -1,48 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f182.google.com (mail-yk0-f182.google.com [209.85.160.182])
-	by kanga.kvack.org (Postfix) with ESMTP id E40026B0035
-	for <linux-mm@kvack.org>; Sat, 28 Jun 2014 15:14:31 -0400 (EDT)
-Received: by mail-yk0-f182.google.com with SMTP id 19so3700000ykq.41
-        for <linux-mm@kvack.org>; Sat, 28 Jun 2014 12:14:31 -0700 (PDT)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id l47si8719755yhl.27.2014.06.28.12.14.30
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Sat, 28 Jun 2014 12:14:31 -0700 (PDT)
-Date: Sat, 28 Jun 2014 15:14:25 -0400
-From: Theodore Ts'o <tytso@mit.edu>
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 393AB6B0036
+	for <linux-mm@kvack.org>; Sat, 28 Jun 2014 15:43:40 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id ey11so6256722pad.26
+        for <linux-mm@kvack.org>; Sat, 28 Jun 2014 12:43:39 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id qu8si18067464pbb.27.2014.06.28.12.43.39
+        for <linux-mm@kvack.org>;
+        Sat, 28 Jun 2014 12:43:39 -0700 (PDT)
+Date: Sat, 28 Jun 2014 12:44:21 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] msync: fix incorrect fstart calculation
-Message-ID: <20140628191425.GA2162@thunk.org>
+Message-Id: <20140628124421.c499b001.akpm@linux-foundation.org>
+In-Reply-To: <20140628191425.GA2162@thunk.org>
 References: <006a01cf91fc$5d225170$1766f450$@samsung.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <006a01cf91fc$5d225170$1766f450$@samsung.com>
+	<20140628191425.GA2162@thunk.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Namjae Jeon <namjae.jeon@samsung.com>
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-ext4 <linux-ext4@vger.kernel.org>, =?utf-8?B?THVrw6HFoQ==?= Czerner <lczerner@redhat.com>, 'Matthew Wilcox' <matthew.r.wilcox@intel.com>, 'Eric Whitney' <enwlinux@gmail.com>, Ashish Sangwan <a.sangwan@samsung.com>
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Namjae Jeon <namjae.jeon@samsung.com>, linux-mm@kvack.org, linux-ext4 <linux-ext4@vger.kernel.org>, =?UTF-8?Q?Luk=C3=A1=C5=A1?= Czerner <lczerner@redhat.com>, 'Matthew Wilcox' <matthew.r.wilcox@intel.com>, 'Eric Whitney' <enwlinux@gmail.com>, Ashish Sangwan <a.sangwan@samsung.com>
 
-On Fri, Jun 27, 2014 at 08:38:49PM +0900, Namjae Jeon wrote:
-> Fix a regression caused by Commit 7fc34a62ca mm/msync.c: sync only
-> the requested range in msync().
-> xfstests generic/075 fail occured on ext4 data=journal mode because
-> the intended range was not syncing due to wrong fstart calculation.
+On Sat, 28 Jun 2014 15:14:25 -0400 "Theodore Ts'o" <tytso@mit.edu> wrote:
+
+> On Fri, Jun 27, 2014 at 08:38:49PM +0900, Namjae Jeon wrote:
+> > Fix a regression caused by Commit 7fc34a62ca mm/msync.c: sync only
+> > the requested range in msync().
+> > xfstests generic/075 fail occured on ext4 data=journal mode because
+> > the intended range was not syncing due to wrong fstart calculation.
+> > 
+> > Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
+> > Cc: Luk____ Czerner <lczerner@redhat.com>
+> > Reported-by: Eric Whitney <enwlinux@gmail.com>
+> > Signed-off-by: Namjae Jeon <namjae.jeon@samsung.com>
+> > Signed-off-by: Ashish Sangwan <a.sangwan@samsung.com>
 > 
-> Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
-> Cc: LukA!A! Czerner <lczerner@redhat.com>
-> Reported-by: Eric Whitney <enwlinux@gmail.com>
-> Signed-off-by: Namjae Jeon <namjae.jeon@samsung.com>
-> Signed-off-by: Ashish Sangwan <a.sangwan@samsung.com>
+> Reviewed-by: Theodore Ts'o <tytso@mit.edu>
+> 
+> Andrew, do you want to take this in the mm tree,
 
-Reviewed-by: Theodore Ts'o <tytso@mit.edu>
+I have done so.
 
-Andrew, do you want to take this in the mm tree, or shall I take it in
-the ext4 tree?  I would prefer if we could get this pushed to Linus as
-soon as possible, since it fixes a regression.
+> or shall I take it in
+> the ext4 tree?  I would prefer if we could get this pushed to Linus as
+> soon as possible, since it fixes a regression.
 
-					- Ted
+Yep, I'll get it over to Linus early next week.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
