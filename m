@@ -1,89 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id ED0386B0036
-	for <linux-mm@kvack.org>; Sun, 29 Jun 2014 15:38:12 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id g10so7022621pdj.14
-        for <linux-mm@kvack.org>; Sun, 29 Jun 2014 12:38:12 -0700 (PDT)
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id DD49B6B0039
+	for <linux-mm@kvack.org>; Sun, 29 Jun 2014 15:49:39 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id v10so7051594pde.12
+        for <linux-mm@kvack.org>; Sun, 29 Jun 2014 12:49:39 -0700 (PDT)
 Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id ka6si20654068pbc.153.2014.06.29.12.38.11
+        by mx.google.com with ESMTPS id rw8si20664321pab.167.2014.06.29.12.49.38
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 29 Jun 2014 12:38:12 -0700 (PDT)
-Message-ID: <53B06B22.9090203@codeaurora.org>
-Date: Sun, 29 Jun 2014 12:38:10 -0700
+        Sun, 29 Jun 2014 12:49:38 -0700 (PDT)
+Message-ID: <53B06DD0.8030106@codeaurora.org>
+Date: Sun, 29 Jun 2014 12:49:36 -0700
 From: Laura Abbott <lauraa@codeaurora.org>
 MIME-Version: 1.0
-Subject: Re: [PATCHv3 2/5] lib/genalloc.c: Add genpool range check function
-References: <1402969165-7526-1-git-send-email-lauraa@codeaurora.org> <1402969165-7526-3-git-send-email-lauraa@codeaurora.org> <20140620093856.GM25104@arm.com>
-In-Reply-To: <20140620093856.GM25104@arm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Subject: Re: [RFC] CMA page migration failure due to buffers on bh_lru
+References: <53A8D092.4040801@lge.com> <xa1td2dvmznq.fsf@mina86.com> <53ACAB82.6020201@lge.com>
+In-Reply-To: <53ACAB82.6020201@lge.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: David Riley <davidriley@chromium.org>, Catalin Marinas <Catalin.Marinas@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ritesh Harjain <ritesh.harjani@gmail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Gioh Kim <gioh.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, =?UTF-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>, Hugh Dickins <hughd@google.com>
 
-On 6/20/2014 2:38 AM, Will Deacon wrote:
-> On Tue, Jun 17, 2014 at 02:39:22AM +0100, Laura Abbott wrote:
->> After allocating an address from a particular genpool,
->> there is no good way to verify if that address actually
->> belongs to a genpool. Introduce addr_in_gen_pool which
->> will return if an address plus size falls completely
->> within the genpool range.
->>
->> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
->> ---
->>  include/linux/genalloc.h |  3 +++
->>  lib/genalloc.c           | 29 +++++++++++++++++++++++++++++
->>  2 files changed, 32 insertions(+)
->>
->> diff --git a/include/linux/genalloc.h b/include/linux/genalloc.h
->> index 3cd0934..1ccaab4 100644
->> --- a/include/linux/genalloc.h
->> +++ b/include/linux/genalloc.h
->> @@ -121,6 +121,9 @@ extern struct gen_pool *devm_gen_pool_create(struct device *dev,
->>  		int min_alloc_order, int nid);
->>  extern struct gen_pool *dev_get_gen_pool(struct device *dev);
->>  
->> +bool addr_in_gen_pool(struct gen_pool *pool, unsigned long start,
->> +			size_t size);
->> +
->>  #ifdef CONFIG_OF
->>  extern struct gen_pool *of_get_named_gen_pool(struct device_node *np,
->>  	const char *propname, int index);
->> diff --git a/lib/genalloc.c b/lib/genalloc.c
->> index 9758529..66edf93 100644
->> --- a/lib/genalloc.c
->> +++ b/lib/genalloc.c
->> @@ -403,6 +403,35 @@ void gen_pool_for_each_chunk(struct gen_pool *pool,
->>  EXPORT_SYMBOL(gen_pool_for_each_chunk);
->>  
->>  /**
->> + * addr_in_gen_pool - checks if an address falls within the range of a pool
->> + * @pool:	the generic memory pool
->> + * @start:	start address
->> + * @size:	size of the region
->> + *
->> + * Check if the range of addresses falls within the specified pool. Takes
->> + * the rcu_read_lock for the duration of the check.
->> + */
->> +bool addr_in_gen_pool(struct gen_pool *pool, unsigned long start,
->> +			size_t size)
->> +{
->> +	bool found = false;
->> +	unsigned long end = start + size;
->> +	struct gen_pool_chunk *chunk;
->> +
->> +	rcu_read_lock();
->> +	list_for_each_entry_rcu(chunk, &(pool)->chunks, next_chunk) {
->> +		if (start >= chunk->start_addr && start <= chunk->end_addr) {
-> 
-> Why do you need to check start against the end of the chunk? Is that in case
-> of overflow?
-> 
+(cc-ing Hugh since he had comments on the patch before)
 
-Yes, this provides an extra check for overflow and also matches similar logic for
-gen_pool_virt_to_phys.
+On 6/26/2014 4:23 PM, Gioh Kim wrote:
+> 
+> 
+> 2014-06-27 i??i ? 12:57, Michal Nazarewicz i?' e,?:
+>> On Tue, Jun 24 2014, Gioh Kim <gioh.kim@lge.com> wrote:
+>>> Hello,
+>>>
+>>> I am trying to apply CMA feature for my platform.
+>>> My kernel version, 3.10.x, is not allocating memory from CMA area so that I applied
+>>> a Joonsoo Kim's patch (https://lkml.org/lkml/2014/5/28/64).
+>>> Now my platform can use CMA area effectively.
+>>>
+>>> But I have many failures to allocate memory from CMA area.
+>>> I found the same situation to Laura Abbott's patch descrbing,
+>>> https://lkml.org/lkml/2012/8/31/313,
+>>> that releases buffer-heads attached at CPU's LRU list.
+>>>
+>>> If Joonsoo's patch is applied and/or CMA feature is applied more and more,
+>>> buffer-heads problem is going to be serious definitely.
+>>>
+>>> Please look into the Laura's patch again.
+>>> I think it must be applied with Joonsoo's patch.
+>>
+>> Just to make sure I understood you correctly, you're saying Laura's
+>> patch at <https://lkml.org/lkml/2012/8/31/313> fixes your issue?
+>>
+> 
+> Yes, it is.
+
+I submitted this before and it was suggested that this was more
+related to filesystems
+
+http://marc.info/?l=linaro-mm-sig&m=137645770708817&w=2
+
+I never saw more discussion and pushed this into the 'CMA hacks' pile. 
+So far we've been keeping the patch out of tree and it's useful to know
+that others have found the same problem. I'm willing to resubmit the
+patch for further discussion.
 
 Thanks,
 Laura
