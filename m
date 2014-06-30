@@ -1,480 +1,238 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 434A46B0035
-	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 11:08:10 -0400 (EDT)
-Received: by mail-qa0-f42.google.com with SMTP id dc16so6627310qab.15
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 08:08:08 -0700 (PDT)
-Received: from mail-qg0-x22f.google.com (mail-qg0-x22f.google.com [2607:f8b0:400d:c04::22f])
-        by mx.google.com with ESMTPS id p10si25380381qat.123.2014.06.30.08.08.08
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id B09786B0036
+	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 11:22:19 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id w10so8399430pde.17
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 08:22:19 -0700 (PDT)
+Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com [2607:f8b0:400e:c02::22e])
+        by mx.google.com with ESMTPS id hk10si23527225pac.55.2014.06.30.08.22.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 30 Jun 2014 08:08:08 -0700 (PDT)
-Received: by mail-qg0-f47.google.com with SMTP id q108so2076394qgd.6
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 08:08:08 -0700 (PDT)
-Date: Mon, 30 Jun 2014 11:07:56 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [PATCH 1/6] mmput: use notifier chain to call subsystem exit
- handler.
-Message-ID: <20140630150755.GB1956@gmail.com>
-References: <1403920822-14488-1-git-send-email-j.glisse@gmail.com>
- <1403920822-14488-2-git-send-email-j.glisse@gmail.com>
- <alpine.DEB.2.10.1406292033070.21595@blueforge.nvidia.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <alpine.DEB.2.10.1406292033070.21595@blueforge.nvidia.com>
+        Mon, 30 Jun 2014 08:22:18 -0700 (PDT)
+Received: by mail-pd0-f174.google.com with SMTP id y10so8386716pdj.19
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 08:22:18 -0700 (PDT)
+From: Chen Yucong <slaoub@gmail.com>
+Subject: [PATCH] mm: vmscan: proportional scanning cleanup
+Date: Mon, 30 Jun 2014 23:22:07 +0800
+Message-Id: <1404141727-31601-1-git-send-email-slaoub@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, hpa@zytor.com, peterz@infraread.org, aarcange@redhat.com, riel@redhat.com, jweiner@redhat.com, torvalds@linux-foundation.org, Mark Hairgrove <mhairgrove@nvidia.com>, Jatin Kumar <jakumar@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, Oded Gabbay <Oded.Gabbay@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Andrew Lewycky <Andrew.Lewycky@amd.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
+To: mgorman@suse.de
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, riel@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Yucong <slaoub@gmail.com>
 
-On Sun, Jun 29, 2014 at 08:49:16PM -0700, John Hubbard wrote:
-> On Fri, 27 Jun 2014, Jerome Glisse wrote:
-> 
-> > From: Jerome Glisse <jglisse@redhat.com>
-> > 
-> > Several subsystem require a callback when a mm struct is being destroy
-> > so that they can cleanup there respective per mm struct. Instead of
-> > having each subsystem add its callback to mmput use a notifier chain
-> > to call each of the subsystem.
-> > 
-> > This will allow new subsystem to register callback even if they are
-> > module. There should be no contention on the rw semaphore protecting
-> > the call chain and the impact on the code path should be low and
-> > burried in the noise.
-> > 
-> > Note that this patch also move the call to cleanup functions after
-> > exit_mmap so that new call back can assume that mmu_notifier_release
-> > have already been call. This does not impact existing cleanup functions
-> > as they do not rely on anything that exit_mmap is freeing. Also moved
-> > khugepaged_exit to exit_mmap so that ordering is preserved for that
-> > function.
-> > 
-> > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
-> > ---
-> >  fs/aio.c                | 29 ++++++++++++++++++++++-------
-> >  include/linux/aio.h     |  2 --
-> >  include/linux/ksm.h     | 11 -----------
-> >  include/linux/sched.h   |  5 +++++
-> >  include/linux/uprobes.h |  1 -
-> >  kernel/events/uprobes.c | 19 ++++++++++++++++---
-> >  kernel/fork.c           | 22 ++++++++++++++++++----
-> >  mm/ksm.c                | 26 +++++++++++++++++++++-----
-> >  mm/mmap.c               |  3 +++
-> >  9 files changed, 85 insertions(+), 33 deletions(-)
-> > 
-> > diff --git a/fs/aio.c b/fs/aio.c
-> > index c1d8c48..1d06e92 100644
-> > --- a/fs/aio.c
-> > +++ b/fs/aio.c
-> > @@ -40,6 +40,7 @@
-> >  #include <linux/ramfs.h>
-> >  #include <linux/percpu-refcount.h>
-> >  #include <linux/mount.h>
-> > +#include <linux/notifier.h>
-> >  
-> >  #include <asm/kmap_types.h>
-> >  #include <asm/uaccess.h>
-> > @@ -774,20 +775,22 @@ ssize_t wait_on_sync_kiocb(struct kiocb *req)
-> >  EXPORT_SYMBOL(wait_on_sync_kiocb);
-> >  
-> >  /*
-> > - * exit_aio: called when the last user of mm goes away.  At this point, there is
-> > + * aio_exit: called when the last user of mm goes away.  At this point, there is
-> >   * no way for any new requests to be submited or any of the io_* syscalls to be
-> >   * called on the context.
-> >   *
-> >   * There may be outstanding kiocbs, but free_ioctx() will explicitly wait on
-> >   * them.
-> >   */
-> > -void exit_aio(struct mm_struct *mm)
-> > +static int aio_exit(struct notifier_block *nb,
-> > +		    unsigned long action, void *data)
-> >  {
-> > +	struct mm_struct *mm = data;
-> >  	struct kioctx_table *table = rcu_dereference_raw(mm->ioctx_table);
-> >  	int i;
-> >  
-> >  	if (!table)
-> > -		return;
-> > +		return 0;
-> >  
-> >  	for (i = 0; i < table->nr; ++i) {
-> >  		struct kioctx *ctx = table->table[i];
-> > @@ -796,10 +799,10 @@ void exit_aio(struct mm_struct *mm)
-> >  			continue;
-> >  		/*
-> >  		 * We don't need to bother with munmap() here - exit_mmap(mm)
-> > -		 * is coming and it'll unmap everything. And we simply can't,
-> > -		 * this is not necessarily our ->mm.
-> > -		 * Since kill_ioctx() uses non-zero ->mmap_size as indicator
-> > -		 * that it needs to unmap the area, just set it to 0.
-> > +		 * have already been call and everything is unmap by now. But
-> > +		 * to be safe set ->mmap_size to 0 since aio_free_ring() uses
-> > +		 * non-zero ->mmap_size as indicator that it needs to unmap the
-> > +		 * area.
-> >  		 */
-> 
-> Actually, I think the original part of the comment about kill_ioctx
-> was accurate, but the new reference to aio_free_ring looks like a typo 
-> (?).  I'd write the entire comment as follows (I've dropped the leading 
-> whitespace, for email):
-> 
->     /*
->      * We don't need to bother with munmap() here - exit_mmap(mm)
->      * has already been called and everything is unmapped by now.
->      * But to be safe, set ->mmap_size to 0 since kill_ioctx() uses a
->      * non-zero >mmap_size as an indicator that it needs to unmap the
->      * area.
->      */
->
+This patch aims for clean up, not changing behavior. It records the file_targets
+and anon_target in advance, removing the need for the targets[] array and adjusts
+the inactive/active lists by the scanning targets.
 
-This is a rebase issue, the code changed and i updated the code but
-not the comment.
+This patch also adds some comments, making it more readable and clarify. To be
+clear: most of those comments stem from https://lkml.org/lkml/2014/6/17/17 and
+https://lkml.org/lkml/2014/6/19/723.
+
+Check the file/anon rate of scanning by invoking trace-vmscan-postprocess.pl during
+the execution of mmtests(config-global-dhp__pagereclaim-performance).
+
+FTrace Reclaim Statistics: vmscan
+
+The first round of the test:
+					without-patch  with-patch
+Direct reclaims:     			4502		4629
+Direct reclaim pages scanned:		584978		586063
+Direct reclaim file pages scanned:	556080		565488
+Direct reclaim anon pages scanned:	28898		20575
+Direct reclaim file/anon ratio:		19.242		27.484
+Direct reclaim pages reclaimed:		226069		234171
+Direct reclaim write file sync I/O:	0		0
+Direct reclaim write anon sync I/O:	0		0
+Direct reclaim write file async I/O:	0		0
+Direct reclaim write anon async I/O:	12		9
+Wake kswapd requests:			17676		18974
+Time stalled direct reclaim(seconds): 	3.40		3.77
+
+Kswapd wakeups:				3369		3566
+Kswapd pages scanned:			21777692	21657203
+Kswapd file pages scanned:		21312208	21189120
+Kswapd anon pages scanned:		465484		468083
+Kswapd file/anon ratio:			45.785		45.267
+Kswapd pages reclaimed:			15289358	15239544
+Kswapd reclaim write file sync I/O:	0		0
+Kswapd reclaim write anon sync I/O:	0		0
+Kswapd reclaim write file async I/O:	0		0
+Kswapd reclaim write anon async I/O:	1064		1077
+Time kswapd awake(seconds):		1410.73		1460.54
+
+The second round of the test:
+					without-patch  with-patch
+Direct reclaims:     			5455		4034
+Direct reclaim pages scanned:		686646		557039
+Direct reclaim file pages scanned:	633144		527209
+Direct reclaim anon pages scanned:	53502		29830
+Direct reclaim file/anon ratio:		11.834		17.673
+Direct reclaim pages reclaimed:		272571		202050
+Direct reclaim write file sync I/O:	0		0
+Direct reclaim write anon sync I/O:	0		0
+Direct reclaim write file async I/O:	0		0
+Direct reclaim write anon async I/O:	7		5
+Wake kswapd requests:			19404		18786
+Time stalled direct reclaim(seconds): 	3.89		4.52
+
+Kswapd wakeups:				3109		3583
+Kswapd pages scanned:			22006470	21619496
+Kswapd file pages scanned:		21568763	21165916
+Kswapd anon pages scanned:		437707		453580
+Kswapd file/anon ratio:			49.276		46.664
+Kswapd pages reclaimed:			15363377	15237407
+Kswapd reclaim write file sync I/O:	0		0
+Kswapd reclaim write anon sync I/O:	0		0
+Kswapd reclaim write file async I/O:	0		0
+Kswapd reclaim write anon async I/O:	1104		1101
+Time kswapd awake(seconds):		1318.28		1486.85
+
+Signed-off-by: Chen Yucong <slaoub@gmail.com>
+---
+ mm/vmscan.c |   84 ++++++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 57 insertions(+), 27 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index a8ffe4e..ad46a7b 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2057,8 +2057,7 @@ out:
+ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+ {
+ 	unsigned long nr[NR_LRU_LISTS];
+-	unsigned long targets[NR_LRU_LISTS];
+-	unsigned long nr_to_scan;
++	unsigned long file_target, anon_target;
+ 	enum lru_list lru;
+ 	unsigned long nr_reclaimed = 0;
+ 	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
+@@ -2067,8 +2066,12 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
  
-> 
-> >  		ctx->mmap_size = 0;
-> >  		kill_ioctx(mm, ctx, NULL);
-> > @@ -807,6 +810,7 @@ void exit_aio(struct mm_struct *mm)
-> >  
-> >  	RCU_INIT_POINTER(mm->ioctx_table, NULL);
-> >  	kfree(table);
-> > +	return 0;
-> >  }
-> >  
-> >  static void put_reqs_available(struct kioctx *ctx, unsigned nr)
-> > @@ -1629,3 +1633,14 @@ SYSCALL_DEFINE5(io_getevents, aio_context_t, ctx_id,
-> >  	}
-> >  	return ret;
-> >  }
-> > +
-> > +static struct notifier_block aio_mmput_nb = {
-> > +	.notifier_call		= aio_exit,
-> > +	.priority		= 1,
-> > +};
-> > +
-> > +static int __init aio_init(void)
-> > +{
-> > +	return mmput_register_notifier(&aio_mmput_nb);
-> > +}
-> > +subsys_initcall(aio_init);
-> > diff --git a/include/linux/aio.h b/include/linux/aio.h
-> > index d9c92da..6308fac 100644
-> > --- a/include/linux/aio.h
-> > +++ b/include/linux/aio.h
-> > @@ -73,7 +73,6 @@ static inline void init_sync_kiocb(struct kiocb *kiocb, struct file *filp)
-> >  extern ssize_t wait_on_sync_kiocb(struct kiocb *iocb);
-> >  extern void aio_complete(struct kiocb *iocb, long res, long res2);
-> >  struct mm_struct;
-> > -extern void exit_aio(struct mm_struct *mm);
-> >  extern long do_io_submit(aio_context_t ctx_id, long nr,
-> >  			 struct iocb __user *__user *iocbpp, bool compat);
-> >  void kiocb_set_cancel_fn(struct kiocb *req, kiocb_cancel_fn *cancel);
-> > @@ -81,7 +80,6 @@ void kiocb_set_cancel_fn(struct kiocb *req, kiocb_cancel_fn *cancel);
-> >  static inline ssize_t wait_on_sync_kiocb(struct kiocb *iocb) { return 0; }
-> >  static inline void aio_complete(struct kiocb *iocb, long res, long res2) { }
-> >  struct mm_struct;
-> > -static inline void exit_aio(struct mm_struct *mm) { }
-> >  static inline long do_io_submit(aio_context_t ctx_id, long nr,
-> >  				struct iocb __user * __user *iocbpp,
-> >  				bool compat) { return 0; }
-> > diff --git a/include/linux/ksm.h b/include/linux/ksm.h
-> > index 3be6bb1..84c184f 100644
-> > --- a/include/linux/ksm.h
-> > +++ b/include/linux/ksm.h
-> > @@ -20,7 +20,6 @@ struct mem_cgroup;
-> >  int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
-> >  		unsigned long end, int advice, unsigned long *vm_flags);
-> >  int __ksm_enter(struct mm_struct *mm);
-> > -void __ksm_exit(struct mm_struct *mm);
-> >  
-> >  static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
-> >  {
-> > @@ -29,12 +28,6 @@ static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
-> >  	return 0;
-> >  }
-> >  
-> > -static inline void ksm_exit(struct mm_struct *mm)
-> > -{
-> > -	if (test_bit(MMF_VM_MERGEABLE, &mm->flags))
-> > -		__ksm_exit(mm);
-> > -}
-> > -
-> >  /*
-> >   * A KSM page is one of those write-protected "shared pages" or "merged pages"
-> >   * which KSM maps into multiple mms, wherever identical anonymous page content
-> > @@ -83,10 +76,6 @@ static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
-> >  	return 0;
-> >  }
-> >  
-> > -static inline void ksm_exit(struct mm_struct *mm)
-> > -{
-> > -}
-> > -
-> >  static inline int PageKsm(struct page *page)
-> >  {
-> >  	return 0;
-> > diff --git a/include/linux/sched.h b/include/linux/sched.h
-> > index 322d4fc..428b3cf 100644
-> > --- a/include/linux/sched.h
-> > +++ b/include/linux/sched.h
-> > @@ -2384,6 +2384,11 @@ static inline void mmdrop(struct mm_struct * mm)
-> >  		__mmdrop(mm);
-> >  }
-> >  
-> > +/* mmput call list of notifier and subsystem/module can register
-> > + * new one through this call.
-> > + */
-> > +extern int mmput_register_notifier(struct notifier_block *nb);
-> > +extern int mmput_unregister_notifier(struct notifier_block *nb);
-> >  /* mmput gets rid of the mappings and all user-space */
-> >  extern void mmput(struct mm_struct *);
-> >  /* Grab a reference to a task's mm, if it is not already going away */
-> > diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
-> > index 4f844c6..44e7267 100644
-> > --- a/include/linux/uprobes.h
-> > +++ b/include/linux/uprobes.h
-> > @@ -120,7 +120,6 @@ extern int uprobe_pre_sstep_notifier(struct pt_regs *regs);
-> >  extern void uprobe_notify_resume(struct pt_regs *regs);
-> >  extern bool uprobe_deny_signal(void);
-> >  extern bool arch_uprobe_skip_sstep(struct arch_uprobe *aup, struct pt_regs *regs);
-> > -extern void uprobe_clear_state(struct mm_struct *mm);
-> >  extern int  arch_uprobe_analyze_insn(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long addr);
-> >  extern int  arch_uprobe_pre_xol(struct arch_uprobe *aup, struct pt_regs *regs);
-> >  extern int  arch_uprobe_post_xol(struct arch_uprobe *aup, struct pt_regs *regs);
-> > diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-> > index 46b7c31..32b04dc 100644
-> > --- a/kernel/events/uprobes.c
-> > +++ b/kernel/events/uprobes.c
-> > @@ -37,6 +37,7 @@
-> >  #include <linux/percpu-rwsem.h>
-> >  #include <linux/task_work.h>
-> >  #include <linux/shmem_fs.h>
-> > +#include <linux/notifier.h>
-> >  
-> >  #include <linux/uprobes.h>
-> >  
-> > @@ -1220,16 +1221,19 @@ static struct xol_area *get_xol_area(void)
-> >  /*
-> >   * uprobe_clear_state - Free the area allocated for slots.
-> >   */
-> > -void uprobe_clear_state(struct mm_struct *mm)
-> > +static int uprobe_clear_state(struct notifier_block *nb,
-> > +			      unsigned long action, void *data)
-> >  {
-> > +	struct mm_struct *mm = data;
-> >  	struct xol_area *area = mm->uprobes_state.xol_area;
-> >  
-> >  	if (!area)
-> > -		return;
-> > +		return 0;
-> >  
-> >  	put_page(area->page);
-> >  	kfree(area->bitmap);
-> >  	kfree(area);
-> > +	return 0;
-> >  }
-> >  
-> >  void uprobe_start_dup_mmap(void)
-> > @@ -1979,9 +1983,14 @@ static struct notifier_block uprobe_exception_nb = {
-> >  	.priority		= INT_MAX-1,	/* notified after kprobes, kgdb */
-> >  };
-> >  
-> > +static struct notifier_block uprobe_mmput_nb = {
-> > +	.notifier_call		= uprobe_clear_state,
-> > +	.priority		= 0,
-> > +};
-> > +
-> >  static int __init init_uprobes(void)
-> >  {
-> > -	int i;
-> > +	int i, err;
-> >  
-> >  	for (i = 0; i < UPROBES_HASH_SZ; i++)
-> >  		mutex_init(&uprobes_mmap_mutex[i]);
-> > @@ -1989,6 +1998,10 @@ static int __init init_uprobes(void)
-> >  	if (percpu_init_rwsem(&dup_mmap_sem))
-> >  		return -ENOMEM;
-> >  
-> > +	err = mmput_register_notifier(&uprobe_mmput_nb);
-> > +	if (err)
-> > +		return err;
-> > +
-> >  	return register_die_notifier(&uprobe_exception_nb);
-> >  }
-> >  __initcall(init_uprobes);
-> > diff --git a/kernel/fork.c b/kernel/fork.c
-> > index dd8864f..b448509 100644
-> > --- a/kernel/fork.c
-> > +++ b/kernel/fork.c
-> > @@ -87,6 +87,8 @@
-> >  #define CREATE_TRACE_POINTS
-> >  #include <trace/events/task.h>
-> >  
-> > +static BLOCKING_NOTIFIER_HEAD(mmput_notifier);
-> > +
-> >  /*
-> >   * Protected counters by write_lock_irq(&tasklist_lock)
-> >   */
-> > @@ -623,6 +625,21 @@ void __mmdrop(struct mm_struct *mm)
-> >  EXPORT_SYMBOL_GPL(__mmdrop);
-> >  
-> >  /*
-> > + * Register a notifier that will be call by mmput
-> > + */
-> > +int mmput_register_notifier(struct notifier_block *nb)
-> > +{
-> > +	return blocking_notifier_chain_register(&mmput_notifier, nb);
-> > +}
-> > +EXPORT_SYMBOL_GPL(mmput_register_notifier);
-> > +
-> > +int mmput_unregister_notifier(struct notifier_block *nb)
-> > +{
-> > +	return blocking_notifier_chain_unregister(&mmput_notifier, nb);
-> > +}
-> > +EXPORT_SYMBOL_GPL(mmput_unregister_notifier);
-> > +
-> > +/*
-> >   * Decrement the use count and release all resources for an mm.
-> >   */
-> >  void mmput(struct mm_struct *mm)
-> > @@ -630,11 +647,8 @@ void mmput(struct mm_struct *mm)
-> >  	might_sleep();
-> >  
-> >  	if (atomic_dec_and_test(&mm->mm_users)) {
-> > -		uprobe_clear_state(mm);
-> > -		exit_aio(mm);
-> > -		ksm_exit(mm);
-> > -		khugepaged_exit(mm); /* must run before exit_mmap */
-> >  		exit_mmap(mm);
-> > +		blocking_notifier_call_chain(&mmput_notifier, 0, mm);
-> >  		set_mm_exe_file(mm, NULL);
-> >  		if (!list_empty(&mm->mmlist)) {
-> >  			spin_lock(&mmlist_lock);
-> > diff --git a/mm/ksm.c b/mm/ksm.c
-> > index 346ddc9..cb1e976 100644
-> > --- a/mm/ksm.c
-> > +++ b/mm/ksm.c
-> > @@ -37,6 +37,7 @@
-> >  #include <linux/freezer.h>
-> >  #include <linux/oom.h>
-> >  #include <linux/numa.h>
-> > +#include <linux/notifier.h>
-> >  
-> >  #include <asm/tlbflush.h>
-> >  #include "internal.h"
-> > @@ -1586,7 +1587,7 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
-> >  		ksm_scan.mm_slot = slot;
-> >  		spin_unlock(&ksm_mmlist_lock);
-> >  		/*
-> > -		 * Although we tested list_empty() above, a racing __ksm_exit
-> > +		 * Although we tested list_empty() above, a racing ksm_exit
-> >  		 * of the last mm on the list may have removed it since then.
-> >  		 */
-> >  		if (slot == &ksm_mm_head)
-> > @@ -1658,9 +1659,9 @@ next_mm:
-> >  		/*
-> >  		 * We've completed a full scan of all vmas, holding mmap_sem
-> >  		 * throughout, and found no VM_MERGEABLE: so do the same as
-> > -		 * __ksm_exit does to remove this mm from all our lists now.
-> > -		 * This applies either when cleaning up after __ksm_exit
-> > -		 * (but beware: we can reach here even before __ksm_exit),
-> > +		 * ksm_exit does to remove this mm from all our lists now.
-> > +		 * This applies either when cleaning up after ksm_exit
-> > +		 * (but beware: we can reach here even before ksm_exit),
-> >  		 * or when all VM_MERGEABLE areas have been unmapped (and
-> >  		 * mmap_sem then protects against race with MADV_MERGEABLE).
-> >  		 */
-> > @@ -1821,11 +1822,16 @@ int __ksm_enter(struct mm_struct *mm)
-> >  	return 0;
-> >  }
-> >  
-> > -void __ksm_exit(struct mm_struct *mm)
-> > +static int ksm_exit(struct notifier_block *nb,
-> > +		    unsigned long action, void *data)
-> >  {
-> > +	struct mm_struct *mm = data;
-> >  	struct mm_slot *mm_slot;
-> >  	int easy_to_free = 0;
-> >  
-> > +	if (!test_bit(MMF_VM_MERGEABLE, &mm->flags))
-> > +		return 0;
-> > +
-> >  	/*
-> >  	 * This process is exiting: if it's straightforward (as is the
-> >  	 * case when ksmd was never running), free mm_slot immediately.
-> > @@ -1857,6 +1863,7 @@ void __ksm_exit(struct mm_struct *mm)
-> >  		down_write(&mm->mmap_sem);
-> >  		up_write(&mm->mmap_sem);
-> >  	}
-> > +	return 0;
-> >  }
-> >  
-> >  struct page *ksm_might_need_to_copy(struct page *page,
-> > @@ -2305,11 +2312,20 @@ static struct attribute_group ksm_attr_group = {
-> >  };
-> >  #endif /* CONFIG_SYSFS */
-> >  
-> > +static struct notifier_block ksm_mmput_nb = {
-> > +	.notifier_call		= ksm_exit,
-> > +	.priority		= 2,
-> > +};
-> > +
-> >  static int __init ksm_init(void)
-> >  {
-> >  	struct task_struct *ksm_thread;
-> >  	int err;
-> >  
-> > +	err = mmput_register_notifier(&ksm_mmput_nb);
-> > +	if (err)
-> > +		return err;
-> > +
-> 
-> In order to be perfectly consistent with this routine's existing code, you 
-> would want to write:
-> 
-> if (err)
-> 	goto out;
-> 
-> ...but it does the same thing as your code. It' just a consistency thing.
-> 
-> >  	err = ksm_slab_init();
-> >  	if (err)
-> >  		goto out;
-> > diff --git a/mm/mmap.c b/mm/mmap.c
-> > index 61aec93..b684a21 100644
-> > --- a/mm/mmap.c
-> > +++ b/mm/mmap.c
-> > @@ -2775,6 +2775,9 @@ void exit_mmap(struct mm_struct *mm)
-> >  	struct vm_area_struct *vma;
-> >  	unsigned long nr_accounted = 0;
-> >  
-> > +	/* Important to call this first. */
-> > +	khugepaged_exit(mm);
-> > +
-> >  	/* mm's last user has gone, and its about to be pulled down */
-> >  	mmu_notifier_release(mm);
-> >  
-> > -- 
-> > 1.9.0
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> > 
-> 
-> Above points are extremely minor, so:
-> 
-> Reviewed-by: John Hubbard <jhubbard@nvidia.com>
-
-I will respin none the less with fixed comment.
-
-> 
-> thanks,
-> John H.
+ 	get_scan_count(lruvec, sc, nr);
+ 
+-	/* Record the original scan target for proportional adjustments later */
+-	memcpy(targets, nr, sizeof(nr));
++	/*
++	 * Record the original scan target of file and anon for proportional
++	 * adjustments later
++	 */
++	file_target = nr[LRU_INACTIVE_FILE] + nr[LRU_ACTIVE_FILE];
++	anon_target = nr[LRU_INACTIVE_ANON] + nr[LRU_ACTIVE_ANON];
+ 
+ 	/*
+ 	 * Global reclaiming within direct reclaim at DEF_PRIORITY is a normal
+@@ -2084,11 +2087,18 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+ 	scan_adjusted = (global_reclaim(sc) && !current_is_kswapd() &&
+ 			 sc->priority == DEF_PRIORITY);
+ 
++	/*
++	 * we scanned the LRUs in batches of SWAP_CLUSTER_MAX until the
++	 * requested number of pages were reclaimed. Assuming the scan
++	 * counts do not reach zero prematurely, the ratio between nr_file
++	 * and nr_anon should remain constant.
++	 */
+ 	blk_start_plug(&plug);
+ 	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
+ 					nr[LRU_INACTIVE_FILE]) {
+-		unsigned long nr_anon, nr_file, percentage;
+-		unsigned long nr_scanned;
++		unsigned long nr_to_scan, nr_scanned;
++		unsigned long nr_anon, nr_file;
++		unsigned percentage;
+ 
+ 		for_each_evictable_lru(lru) {
+ 			if (nr[lru]) {
+@@ -2104,11 +2114,14 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+ 			continue;
+ 
+ 		/*
+-		 * For kswapd and memcg, reclaim at least the number of pages
+-		 * requested. Ensure that the anon and file LRUs are scanned
+-		 * proportionally what was requested by get_scan_count(). We
+-		 * stop reclaiming one LRU and reduce the amount scanning
+-		 * proportional to the original scan target.
++		 * In the normal case, file/anon LRUs are scanned at a rate
++		 * proportional to the value of vm.swappiness. get_scan_count()
++		 * calculates the number of pages to scan from each LRU taking
++		 * into account additional factors such as the availability of
++		 * swap. When the requested number of pages have been reclaimed
++		 * we adjust to scan targets to minimize the number of pages
++		 * scanned while maintaining the ratio of file/anon pages that
++		 * are scanned.
+ 		 */
+ 		nr_file = nr[LRU_INACTIVE_FILE] + nr[LRU_ACTIVE_FILE];
+ 		nr_anon = nr[LRU_INACTIVE_ANON] + nr[LRU_ACTIVE_ANON];
+@@ -2122,35 +2135,52 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+ 		if (!nr_file || !nr_anon)
+ 			break;
+ 
++		/*
++		 * Scan the bigger of the LRU more while stop scanning the
++		 * smaller of the LRU to keep aging balance between LRUs
++		 */
+ 		if (nr_file > nr_anon) {
+-			unsigned long scan_target = targets[LRU_INACTIVE_ANON] +
+-						targets[LRU_ACTIVE_ANON] + 1;
++			/*
++			 * In order to maintain the original proportion, we
++			 * need to calculate the percentage of anonymous LRUs
++			 * that has already been scanned. In other words, we
++			 * still need to scan file LRUs until they achieve the
++			 * same *percentage*.
++			 */
++			percentage = nr_anon * 100 / anon_target;
++			nr_scanned = file_target - nr_file;
++			nr_to_scan = file_target * (100 - percentage) / 100;
+ 			lru = LRU_BASE;
+-			percentage = nr_anon * 100 / scan_target;
++
++			/*
++			 * Here, Recalculating the percentage is just used to
++			 * divide nr_so_scan pages appropriately between active
++			 * and inactive lists.
++			 */
++			percentage = nr[LRU_FILE] * 100 / nr_file;
+ 		} else {
+-			unsigned long scan_target = targets[LRU_INACTIVE_FILE] +
+-						targets[LRU_ACTIVE_FILE] + 1;
++			percentage = nr_file * 100 / file_target;
++			nr_scanned = anon_target - nr_anon;
++			nr_to_scan = anon_target * (100 - percentage) / 100;
+ 			lru = LRU_FILE;
+-			percentage = nr_file * 100 / scan_target;
++			percentage = nr[LRU_BASE] * 100 / nr_anon;
+ 		}
++
++		if (nr_to_scan <= nr_scanned)
++			break;
++		nr_to_scan -= nr_scanned;
+ 
+ 		/* Stop scanning the smaller of the LRU */
+ 		nr[lru] = 0;
+ 		nr[lru + LRU_ACTIVE] = 0;
+ 
+ 		/*
+-		 * Recalculate the other LRU scan count based on its original
+-		 * scan target and the percentage scanning already complete
++		 * Distribute nr_so_scan pages proportionally between active and
++		 * inactive LRU lists.
+ 		 */
+ 		lru = (lru == LRU_FILE) ? LRU_BASE : LRU_FILE;
+-		nr_scanned = targets[lru] - nr[lru];
+-		nr[lru] = targets[lru] * (100 - percentage) / 100;
+-		nr[lru] -= min(nr[lru], nr_scanned);
+-
+-		lru += LRU_ACTIVE;
+-		nr_scanned = targets[lru] - nr[lru];
+-		nr[lru] = targets[lru] * (100 - percentage) / 100;
+-		nr[lru] -= min(nr[lru], nr_scanned);
++		nr[lru] = nr_to_scan * percentage / 100;
++		nr[lru + LRU_ACTIVE] = nr_to_scan - nr[lru];
+ 
+ 		scan_adjusted = true;
+ 	}
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
