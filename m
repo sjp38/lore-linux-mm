@@ -1,109 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 38CC56B0031
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 95AED6B0036
 	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 12:48:08 -0400 (EDT)
-Received: by mail-wg0-f47.google.com with SMTP id k14so8370748wgh.18
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 09:48:07 -0700 (PDT)
+Received: by mail-wg0-f41.google.com with SMTP id a1so8428699wgh.12
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 09:48:08 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i5si11102045wiw.11.2014.06.30.09.48.06
+        by mx.google.com with ESMTPS id bm8si9795326wjb.103.2014.06.30.09.48.06
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Mon, 30 Jun 2014 09:48:07 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 1/4] mm: pagemap: Avoid unnecessary overhead when tracepoints are deactivated
-Date: Mon, 30 Jun 2014 17:48:00 +0100
-Message-Id: <1404146883-21414-2-git-send-email-mgorman@suse.de>
-In-Reply-To: <1404146883-21414-1-git-send-email-mgorman@suse.de>
-References: <1404146883-21414-1-git-send-email-mgorman@suse.de>
+Subject: [PATCH 0/5] Improve sequential read throughput v4r8
+Date: Mon, 30 Jun 2014 17:47:59 +0100
+Message-Id: <1404146883-21414-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
 
-The LRU insertion and activate tracepoints take PFN as a parameter forcing
-the overhead to the caller.  Move the overhead to the tracepoint fast-assign
-method to ensure the cost is only incurred when the tracepoint is active.
+Changelog since V3
+o Push down kwapd changes to cover the balance gap
+o Drop drop page distribution patch
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- include/trace/events/pagemap.h | 16 +++++++---------
- mm/swap.c                      |  4 ++--
- 2 files changed, 9 insertions(+), 11 deletions(-)
+Changelog since V2
+o Simply fair zone policy cost reduction
+o Drop CFQ patch
 
-diff --git a/include/trace/events/pagemap.h b/include/trace/events/pagemap.h
-index 1c9fabd..ce0803b 100644
---- a/include/trace/events/pagemap.h
-+++ b/include/trace/events/pagemap.h
-@@ -28,12 +28,10 @@ TRACE_EVENT(mm_lru_insertion,
- 
- 	TP_PROTO(
- 		struct page *page,
--		unsigned long pfn,
--		int lru,
--		unsigned long flags
-+		int lru
- 	),
- 
--	TP_ARGS(page, pfn, lru, flags),
-+	TP_ARGS(page, lru),
- 
- 	TP_STRUCT__entry(
- 		__field(struct page *,	page	)
-@@ -44,9 +42,9 @@ TRACE_EVENT(mm_lru_insertion,
- 
- 	TP_fast_assign(
- 		__entry->page	= page;
--		__entry->pfn	= pfn;
-+		__entry->pfn	= page_to_pfn(page);
- 		__entry->lru	= lru;
--		__entry->flags	= flags;
-+		__entry->flags	= trace_pagemap_flags(page);
- 	),
- 
- 	/* Flag format is based on page-types.c formatting for pagemap */
-@@ -64,9 +62,9 @@ TRACE_EVENT(mm_lru_insertion,
- 
- TRACE_EVENT(mm_lru_activate,
- 
--	TP_PROTO(struct page *page, unsigned long pfn),
-+	TP_PROTO(struct page *page),
- 
--	TP_ARGS(page, pfn),
-+	TP_ARGS(page),
- 
- 	TP_STRUCT__entry(
- 		__field(struct page *,	page	)
-@@ -75,7 +73,7 @@ TRACE_EVENT(mm_lru_activate,
- 
- 	TP_fast_assign(
- 		__entry->page	= page;
--		__entry->pfn	= pfn;
-+		__entry->pfn	= page_to_pfn(page);
- 	),
- 
- 	/* Flag format is based on page-types.c formatting for pagemap */
-diff --git a/mm/swap.c b/mm/swap.c
-index 9e8e347..d10be45 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -501,7 +501,7 @@ static void __activate_page(struct page *page, struct lruvec *lruvec,
- 		SetPageActive(page);
- 		lru += LRU_ACTIVE;
- 		add_page_to_lru_list(page, lruvec, lru);
--		trace_mm_lru_activate(page, page_to_pfn(page));
-+		trace_mm_lru_activate(page);
- 
- 		__count_vm_event(PGACTIVATE);
- 		update_page_reclaim_stat(lruvec, file, 1);
-@@ -996,7 +996,7 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
- 	SetPageLRU(page);
- 	add_page_to_lru_list(page, lruvec, lru);
- 	update_page_reclaim_stat(lruvec, file, active);
--	trace_mm_lru_insertion(page, page_to_pfn(page), lru, trace_pagemap_flags(page));
-+	trace_mm_lru_insertion(page, lru);
- }
- 
- /*
+Changelog since v1
+o Rebase to v3.16-rc2
+o Move CFQ patch to end of series where it can be rejected easier if necessary
+o Introduce page-reclaim related patch related to kswapd/fairzone interactions
+o Rework fast zone policy patch
+
+IO performance since 3.0 has been a mixed bag. In many respects we are
+better and in some we are worse and one of those places is sequential
+read throughput. This is visible in a number of benchmarks but I looked
+at tiobench the closest. This is using ext3 on a mid-range desktop and
+the series applied.
+
+                                      3.16.0-rc2                 3.0.0            3.16.0-rc2
+                                         vanilla               vanilla         fairzone-v4r5
+Min    SeqRead-MB/sec-1         120.92 (  0.00%)      133.65 ( 10.53%)      140.68 ( 16.34%)
+Min    SeqRead-MB/sec-2         100.25 (  0.00%)      121.74 ( 21.44%)      118.13 ( 17.84%)
+Min    SeqRead-MB/sec-4          96.27 (  0.00%)      113.48 ( 17.88%)      109.84 ( 14.10%)
+Min    SeqRead-MB/sec-8          83.55 (  0.00%)       97.87 ( 17.14%)       89.62 (  7.27%)
+Min    SeqRead-MB/sec-16         66.77 (  0.00%)       82.59 ( 23.69%)       70.49 (  5.57%)
+
+Overall system CPU usage is reduced
+
+          3.16.0-rc2       3.0.0  3.16.0-rc2
+             vanilla     vanilla fairzone-v4
+User          390.13      251.45      396.13
+System        404.41      295.13      389.61
+Elapsed      5412.45     5072.42     5163.49
+
+This series does not fully restore throughput performance to 3.0 levels
+but it brings it close for lower thread counts. Higher thread counts are
+known to be worse than 3.0 due to CFQ changes but there is no appetite
+for changing the defaults there.
+
+ include/linux/mmzone.h         | 207 ++++++++++++++++++++++-------------------
+ include/linux/swap.h           |   9 --
+ include/trace/events/pagemap.h |  16 ++--
+ mm/page_alloc.c                | 126 ++++++++++++++-----------
+ mm/swap.c                      |   4 +-
+ mm/vmscan.c                    |  46 ++++-----
+ mm/vmstat.c                    |   4 +-
+ 7 files changed, 208 insertions(+), 204 deletions(-)
+
 -- 
 1.8.4.5
 
