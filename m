@@ -1,104 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 86A616B0035
-	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 18:50:09 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id y13so8936849pdi.41
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 15:50:09 -0700 (PDT)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id rm10si24693614pab.197.2014.06.30.15.50.08
+Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 351106B0035
+	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 18:52:10 -0400 (EDT)
+Received: by mail-ie0-f181.google.com with SMTP id y20so7427343ier.40
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 15:52:09 -0700 (PDT)
+Received: from mail-ig0-x22f.google.com (mail-ig0-x22f.google.com [2607:f8b0:4001:c05::22f])
+        by mx.google.com with ESMTPS id w9si31682264icy.8.2014.06.30.15.52.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 30 Jun 2014 15:50:08 -0700 (PDT)
-Received: by mail-pa0-f43.google.com with SMTP id lf10so9416863pab.16
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 15:50:08 -0700 (PDT)
-Date: Mon, 30 Jun 2014 15:48:39 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH mmotm/next] mm: memcontrol: rewrite charge API: fix
- shmem_unuse
-Message-ID: <alpine.LSU.2.11.1406301541420.4349@eggly.anvils>
+        Mon, 30 Jun 2014 15:52:09 -0700 (PDT)
+Received: by mail-ig0-f175.google.com with SMTP id h3so4872698igd.14
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 15:52:08 -0700 (PDT)
+Date: Mon, 30 Jun 2014 15:52:05 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] binfmt_elf.c: use get_random_int() to fix entropy depleting
+ fix
+In-Reply-To: <20140626074735.GA24582@localhost>
+Message-ID: <alpine.DEB.2.02.1406301549020.23648@chino.kir.corp.google.com>
+References: <53aa90d2.Yd3WgTmElIsuiwuV%fengguang.wu@intel.com> <20140625100213.GA1866@localhost> <53AAB2D3.2050809@oracle.com> <alpine.DEB.2.02.1406251543080.4592@chino.kir.corp.google.com> <53AB7F0B.5050900@oracle.com> <alpine.DEB.2.02.1406252310560.3960@chino.kir.corp.google.com>
+ <53ABBEA0.1010307@oracle.com> <20140626074735.GA24582@localhost>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Jeff Liu <jeff.liu@oracle.com>, Kees Cook <keescook@chromium.org>, linux-mm@kvack.org
 
-Under shmem swapping and swapoff load, I sometimes hit the
-VM_BUG_ON_PAGE(!page->mapping) in mem_cgroup_commit_charge() at
-mm/memcontrol.c:6502!  Each time it has been a call from shmem_unuse().
+The type of size_t on am33 is unsigned int for gcc major versions >= 4.
 
-Yes, there are some cases (most commonly when the page being unswapped
-is in a file being unlinked and evicted at that time) when the charge
-should not be committed.  In the old scheme, the page got uncharged
-again on release; but in the new scheme, it hits that BUG beforehand.
-
-It's a useful BUG, so adapt shmem_unuse() to allow for it.  Which needs
-more info from shmem_unuse_inode(): so abuse -EAGAIN internally to
-replace the previous !found state (-ENOENT would be a more natural
-code, but that's exactly what you get when the swap has been evicted).
-
-Signed-off-by: Hugh Dickins <hughd@google.com>
+Reported-by: Fengguang Wu <fengguang.wu@intel.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
 ---
+ fs/binfmt_elf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
- mm/shmem.c |   14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
-
---- 3.16-rc2-mm1/mm/shmem.c	2014-06-25 18:43:59.868588121 -0700
-+++ linux/mm/shmem.c	2014-06-30 15:05:50.736335600 -0700
-@@ -611,7 +611,7 @@ static int shmem_unuse_inode(struct shme
- 	radswap = swp_to_radix_entry(swap);
- 	index = radix_tree_locate_item(&mapping->page_tree, radswap);
- 	if (index == -1)
--		return 0;
-+		return -EAGAIN;
+diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
+--- a/fs/binfmt_elf.c
++++ b/fs/binfmt_elf.c
+@@ -155,7 +155,7 @@ static void get_atrandom_bytes(unsigned char *buf, size_t nbytes)
  
- 	/*
- 	 * Move _head_ to start search for next from here.
-@@ -670,7 +670,6 @@ static int shmem_unuse_inode(struct shme
- 			spin_unlock(&info->lock);
- 			swap_free(swap);
- 		}
--		error = 1;	/* not an error, but entry was found */
- 	}
- 	return error;
- }
-@@ -683,7 +682,6 @@ int shmem_unuse(swp_entry_t swap, struct
- 	struct list_head *this, *next;
- 	struct shmem_inode_info *info;
- 	struct mem_cgroup *memcg;
--	int found = 0;
- 	int error = 0;
+ 	while (nbytes) {
+ 		unsigned int random_variable;
+-		size_t chunk = min(nbytes, sizeof(random_variable));
++		size_t chunk = min(nbytes, (size_t)sizeof(random_variable));
  
- 	/*
-@@ -702,22 +700,24 @@ int shmem_unuse(swp_entry_t swap, struct
- 	if (error)
- 		goto out;
- 	/* No radix_tree_preload: swap entry keeps a place for page in tree */
-+	error = -EAGAIN;
- 
- 	mutex_lock(&shmem_swaplist_mutex);
- 	list_for_each_safe(this, next, &shmem_swaplist) {
- 		info = list_entry(this, struct shmem_inode_info, swaplist);
- 		if (info->swapped)
--			found = shmem_unuse_inode(info, swap, &page);
-+			error = shmem_unuse_inode(info, swap, &page);
- 		else
- 			list_del_init(&info->swaplist);
- 		cond_resched();
--		if (found)
-+		if (error != -EAGAIN)
- 			break;
- 	}
- 	mutex_unlock(&shmem_swaplist_mutex);
- 
--	if (found < 0) {
--		error = found;
-+	if (error) {
-+		if (error != -ENOMEM)
-+			error = 0;
- 		mem_cgroup_cancel_charge(page, memcg);
- 	} else
- 		mem_cgroup_commit_charge(page, memcg, true);
+ 		random_variable = get_random_int();
+ 		memcpy(p, &random_variable, chunk);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
