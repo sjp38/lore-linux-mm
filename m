@@ -1,36 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f174.google.com (mail-ve0-f174.google.com [209.85.128.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 06CB56B0031
-	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 11:06:37 -0400 (EDT)
-Received: by mail-ve0-f174.google.com with SMTP id jx11so8339031veb.33
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 08:06:37 -0700 (PDT)
-Received: from mail-qc0-x229.google.com (mail-qc0-x229.google.com [2607:f8b0:400d:c01::229])
-        by mx.google.com with ESMTPS id w15si10157088vcq.9.2014.06.30.08.06.37
+Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 434A46B0035
+	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 11:08:10 -0400 (EDT)
+Received: by mail-qa0-f42.google.com with SMTP id dc16so6627310qab.15
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 08:08:08 -0700 (PDT)
+Received: from mail-qg0-x22f.google.com (mail-qg0-x22f.google.com [2607:f8b0:400d:c04::22f])
+        by mx.google.com with ESMTPS id p10si25380381qat.123.2014.06.30.08.08.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 30 Jun 2014 08:06:37 -0700 (PDT)
-Received: by mail-qc0-f169.google.com with SMTP id c9so7292274qcz.0
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 08:06:37 -0700 (PDT)
-Date: Mon, 30 Jun 2014 11:06:30 -0400
+        Mon, 30 Jun 2014 08:08:08 -0700 (PDT)
+Received: by mail-qg0-f47.google.com with SMTP id q108so2076394qgd.6
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 08:08:08 -0700 (PDT)
+Date: Mon, 30 Jun 2014 11:07:56 -0400
 From: Jerome Glisse <j.glisse@gmail.com>
 Subject: Re: [PATCH 1/6] mmput: use notifier chain to call subsystem exit
  handler.
-Message-ID: <20140630150628.GA1956@gmail.com>
+Message-ID: <20140630150755.GB1956@gmail.com>
 References: <1403920822-14488-1-git-send-email-j.glisse@gmail.com>
  <1403920822-14488-2-git-send-email-j.glisse@gmail.com>
- <019CCE693E457142B37B791721487FD91806B836@storexdag01.amd.com>
+ <alpine.DEB.2.10.1406292033070.21595@blueforge.nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <019CCE693E457142B37B791721487FD91806B836@storexdag01.amd.com>
+In-Reply-To: <alpine.DEB.2.10.1406292033070.21595@blueforge.nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Gabbay, Oded" <Oded.Gabbay@amd.com>
-Cc: "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Lewycky, Andrew" <Andrew.Lewycky@amd.com>, "Cornwall, Jay" <Jay.Cornwall@amd.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mgorman@suse.de" <mgorman@suse.de>, "hpa@zytor.com" <hpa@zytor.com>, "peterz@infraread.org" <peterz@infraread.org>, "aarcange@redhat.com" <aarcange@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, Mark Hairgrove <mhairgrove@nvidia.com>, Jatin Kumar <jakumar@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, Joerg Roedel <joro@8bytes.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, hpa@zytor.com, peterz@infraread.org, aarcange@redhat.com, riel@redhat.com, jweiner@redhat.com, torvalds@linux-foundation.org, Mark Hairgrove <mhairgrove@nvidia.com>, Jatin Kumar <jakumar@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, Oded Gabbay <Oded.Gabbay@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Andrew Lewycky <Andrew.Lewycky@amd.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
 
-On Mon, Jun 30, 2014 at 02:41:24PM +0000, Gabbay, Oded wrote:
-> On Fri, 2014-06-27 at 22:00 -0400, Jerome Glisse wrote:
+On Sun, Jun 29, 2014 at 08:49:16PM -0700, John Hubbard wrote:
+> On Fri, 27 Jun 2014, Jerome Glisse wrote:
+> 
 > > From: Jerome Glisse <jglisse@redhat.com>
 > > 
 > > Several subsystem require a callback when a mm struct is being destroy
@@ -114,6 +115,25 @@ On Mon, Jun 30, 2014 at 02:41:24PM +0000, Gabbay, Oded wrote:
 > > +		 * non-zero ->mmap_size as indicator that it needs to unmap the
 > > +		 * area.
 > >  		 */
+> 
+> Actually, I think the original part of the comment about kill_ioctx
+> was accurate, but the new reference to aio_free_ring looks like a typo 
+> (?).  I'd write the entire comment as follows (I've dropped the leading 
+> whitespace, for email):
+> 
+>     /*
+>      * We don't need to bother with munmap() here - exit_mmap(mm)
+>      * has already been called and everything is unmapped by now.
+>      * But to be safe, set ->mmap_size to 0 since kill_ioctx() uses a
+>      * non-zero >mmap_size as an indicator that it needs to unmap the
+>      * area.
+>      */
+>
+
+This is a rebase issue, the code changed and i updated the code but
+not the comment.
+ 
+> 
 > >  		ctx->mmap_size = 0;
 > >  		kill_ioctx(mm, ctx, NULL);
 > > @@ -807,6 +810,7 @@ void exit_aio(struct mm_struct *mm)
@@ -410,6 +430,15 @@ On Mon, Jun 30, 2014 at 02:41:24PM +0000, Gabbay, Oded wrote:
 > > +	if (err)
 > > +		return err;
 > > +
+> 
+> In order to be perfectly consistent with this routine's existing code, you 
+> would want to write:
+> 
+> if (err)
+> 	goto out;
+> 
+> ...but it does the same thing as your code. It' just a consistency thing.
+> 
 > >  	err = ksm_slab_init();
 > >  	if (err)
 > >  		goto out;
@@ -427,37 +456,25 @@ On Mon, Jun 30, 2014 at 02:41:24PM +0000, Gabbay, Oded wrote:
 > >  	/* mm's last user has gone, and its about to be pulled down */
 > >  	mmu_notifier_release(mm);
 > >  
+> > -- 
+> > 1.9.0
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> > 
 > 
-> Hi Jerome, I reviewed the patch, integrated and tested it in AMD's HSA
-> driver (KFD). It works as expected and I didn't find any problems with
-> it.
+> Above points are extremely minor, so:
 > 
-> I did face some problems regarding the amd IOMMU v2 driver, which
-> changed its behavior (see commit "iommu/amd: Implement
-> mmu_notifier_release call-back") to use mmu_notifier_release and did
-> some "bad things" inside that
-> notifier (primarily, but not only, deleting the object which held the
-> mmu_notifier object itself, which you mustn't do because of the
-> locking). 
-> 
-> I'm thinking of changing that driver's behavior to use this new
-> mechanism instead of using mmu_notifier_release. Does that seem
-> acceptable ? Another solution will be to add a new mmu_notifier call,
-> but we already ruled that out ;)
-> 
+> Reviewed-by: John Hubbard <jhubbard@nvidia.com>
 
-This sounds acceptable. You can check how i did it in hmm :
-http://cgit.freedesktop.org/~glisse/linux/log/?h=hmm
+I will respin none the less with fixed comment.
 
-As it had similar issues.
-
-Cheers,
-Jerome
-
-> So,
-> Reviewed-by: Oded Gabbay <oded.gabbay@amd.com>
 > 
-> 	Oded
+> thanks,
+> John H.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
