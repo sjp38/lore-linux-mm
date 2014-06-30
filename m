@@ -1,146 +1,463 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id D03566B0037
-	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 10:41:48 -0400 (EDT)
-Received: by mail-wi0-f171.google.com with SMTP id n15so6202233wiw.16
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 07:41:48 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id da1si10565896wib.71.2014.06.30.07.41.47
+Received: from mail-ve0-f174.google.com (mail-ve0-f174.google.com [209.85.128.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 06CB56B0031
+	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 11:06:37 -0400 (EDT)
+Received: by mail-ve0-f174.google.com with SMTP id jx11so8339031veb.33
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 08:06:37 -0700 (PDT)
+Received: from mail-qc0-x229.google.com (mail-qc0-x229.google.com [2607:f8b0:400d:c01::229])
+        by mx.google.com with ESMTPS id w15si10157088vcq.9.2014.06.30.08.06.37
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 30 Jun 2014 07:41:47 -0700 (PDT)
-Date: Mon, 30 Jun 2014 10:41:42 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 4/5] mm: page_alloc: Reduce cost of the fair zone
- allocation policy
-Message-ID: <20140630144142.GA1369@cmpxchg.org>
-References: <1403856880-12597-1-git-send-email-mgorman@suse.de>
- <1403856880-12597-5-git-send-email-mgorman@suse.de>
- <20140627185700.GV7331@cmpxchg.org>
- <20140627192537.GM10819@suse.de>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 30 Jun 2014 08:06:37 -0700 (PDT)
+Received: by mail-qc0-f169.google.com with SMTP id c9so7292274qcz.0
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 08:06:37 -0700 (PDT)
+Date: Mon, 30 Jun 2014 11:06:30 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [PATCH 1/6] mmput: use notifier chain to call subsystem exit
+ handler.
+Message-ID: <20140630150628.GA1956@gmail.com>
+References: <1403920822-14488-1-git-send-email-j.glisse@gmail.com>
+ <1403920822-14488-2-git-send-email-j.glisse@gmail.com>
+ <019CCE693E457142B37B791721487FD91806B836@storexdag01.amd.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20140627192537.GM10819@suse.de>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <019CCE693E457142B37B791721487FD91806B836@storexdag01.amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
+To: "Gabbay, Oded" <Oded.Gabbay@amd.com>
+Cc: "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Lewycky, Andrew" <Andrew.Lewycky@amd.com>, "Cornwall, Jay" <Jay.Cornwall@amd.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mgorman@suse.de" <mgorman@suse.de>, "hpa@zytor.com" <hpa@zytor.com>, "peterz@infraread.org" <peterz@infraread.org>, "aarcange@redhat.com" <aarcange@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, Mark Hairgrove <mhairgrove@nvidia.com>, Jatin Kumar <jakumar@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, Joerg Roedel <joro@8bytes.org>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>
 
-On Fri, Jun 27, 2014 at 08:25:37PM +0100, Mel Gorman wrote:
-> On Fri, Jun 27, 2014 at 02:57:00PM -0400, Johannes Weiner wrote:
-> > On Fri, Jun 27, 2014 at 09:14:39AM +0100, Mel Gorman wrote:
-> > > And the number of pages allocated from each zone is comparable
-> > > 
-> > >                             3.16.0-rc2  3.16.0-rc2
-> > >                               checklow    fairzone
-> > > DMA allocs                           0           0
-> > > DMA32 allocs                   7374217     7920241
-> > > Normal allocs                999277551   996568115
+On Mon, Jun 30, 2014 at 02:41:24PM +0000, Gabbay, Oded wrote:
+> On Fri, 2014-06-27 at 22:00 -0400, Jerome Glisse wrote:
+> > From: Jerome Glisse <jglisse@redhat.com>
 > > 
-> > Wow, the DMA32 zone gets less than 1% of the allocations.  What are
-> > the zone sizes in this machine?
+> > Several subsystem require a callback when a mm struct is being destroy
+> > so that they can cleanup there respective per mm struct. Instead of
+> > having each subsystem add its callback to mmput use a notifier chain
+> > to call each of the subsystem.
 > > 
+> > This will allow new subsystem to register callback even if they are
+> > module. There should be no contention on the rw semaphore protecting
+> > the call chain and the impact on the code path should be low and
+> > burried in the noise.
+> > 
+> > Note that this patch also move the call to cleanup functions after
+> > exit_mmap so that new call back can assume that mmu_notifier_release
+> > have already been call. This does not impact existing cleanup functions
+> > as they do not rely on anything that exit_mmap is freeing. Also moved
+> > khugepaged_exit to exit_mmap so that ordering is preserved for that
+> > function.
+> > 
+> > Signed-off-by: Jerome Glisse <jglisse@redhat.com>
+> > ---
+> >  fs/aio.c                | 29 ++++++++++++++++++++++-------
+> >  include/linux/aio.h     |  2 --
+> >  include/linux/ksm.h     | 11 -----------
+> >  include/linux/sched.h   |  5 +++++
+> >  include/linux/uprobes.h |  1 -
+> >  kernel/events/uprobes.c | 19 ++++++++++++++++---
+> >  kernel/fork.c           | 22 ++++++++++++++++++----
+> >  mm/ksm.c                | 26 +++++++++++++++++++++-----
+> >  mm/mmap.c               |  3 +++
+> >  9 files changed, 85 insertions(+), 33 deletions(-)
+> > 
+> > diff --git a/fs/aio.c b/fs/aio.c
+> > index c1d8c48..1d06e92 100644
+> > --- a/fs/aio.c
+> > +++ b/fs/aio.c
+> > @@ -40,6 +40,7 @@
+> >  #include <linux/ramfs.h>
+> >  #include <linux/percpu-refcount.h>
+> >  #include <linux/mount.h>
+> > +#include <linux/notifier.h>
+> >  
+> >  #include <asm/kmap_types.h>
+> >  #include <asm/uaccess.h>
+> > @@ -774,20 +775,22 @@ ssize_t wait_on_sync_kiocb(struct kiocb *req)
+> >  EXPORT_SYMBOL(wait_on_sync_kiocb);
+> >  
+> >  /*
+> > - * exit_aio: called when the last user of mm goes away.  At this point, there is
+> > + * aio_exit: called when the last user of mm goes away.  At this point, there is
+> >   * no way for any new requests to be submited or any of the io_* syscalls to be
+> >   * called on the context.
+> >   *
+> >   * There may be outstanding kiocbs, but free_ioctx() will explicitly wait on
+> >   * them.
+> >   */
+> > -void exit_aio(struct mm_struct *mm)
+> > +static int aio_exit(struct notifier_block *nb,
+> > +		    unsigned long action, void *data)
+> >  {
+> > +	struct mm_struct *mm = data;
+> >  	struct kioctx_table *table = rcu_dereference_raw(mm->ioctx_table);
+> >  	int i;
+> >  
+> >  	if (!table)
+> > -		return;
+> > +		return 0;
+> >  
+> >  	for (i = 0; i < table->nr; ++i) {
+> >  		struct kioctx *ctx = table->table[i];
+> > @@ -796,10 +799,10 @@ void exit_aio(struct mm_struct *mm)
+> >  			continue;
+> >  		/*
+> >  		 * We don't need to bother with munmap() here - exit_mmap(mm)
+> > -		 * is coming and it'll unmap everything. And we simply can't,
+> > -		 * this is not necessarily our ->mm.
+> > -		 * Since kill_ioctx() uses non-zero ->mmap_size as indicator
+> > -		 * that it needs to unmap the area, just set it to 0.
+> > +		 * have already been call and everything is unmap by now. But
+> > +		 * to be safe set ->mmap_size to 0 since aio_free_ring() uses
+> > +		 * non-zero ->mmap_size as indicator that it needs to unmap the
+> > +		 * area.
+> >  		 */
+> >  		ctx->mmap_size = 0;
+> >  		kill_ioctx(mm, ctx, NULL);
+> > @@ -807,6 +810,7 @@ void exit_aio(struct mm_struct *mm)
+> >  
+> >  	RCU_INIT_POINTER(mm->ioctx_table, NULL);
+> >  	kfree(table);
+> > +	return 0;
+> >  }
+> >  
+> >  static void put_reqs_available(struct kioctx *ctx, unsigned nr)
+> > @@ -1629,3 +1633,14 @@ SYSCALL_DEFINE5(io_getevents, aio_context_t, ctx_id,
+> >  	}
+> >  	return ret;
+> >  }
+> > +
+> > +static struct notifier_block aio_mmput_nb = {
+> > +	.notifier_call		= aio_exit,
+> > +	.priority		= 1,
+> > +};
+> > +
+> > +static int __init aio_init(void)
+> > +{
+> > +	return mmput_register_notifier(&aio_mmput_nb);
+> > +}
+> > +subsys_initcall(aio_init);
+> > diff --git a/include/linux/aio.h b/include/linux/aio.h
+> > index d9c92da..6308fac 100644
+> > --- a/include/linux/aio.h
+> > +++ b/include/linux/aio.h
+> > @@ -73,7 +73,6 @@ static inline void init_sync_kiocb(struct kiocb *kiocb, struct file *filp)
+> >  extern ssize_t wait_on_sync_kiocb(struct kiocb *iocb);
+> >  extern void aio_complete(struct kiocb *iocb, long res, long res2);
+> >  struct mm_struct;
+> > -extern void exit_aio(struct mm_struct *mm);
+> >  extern long do_io_submit(aio_context_t ctx_id, long nr,
+> >  			 struct iocb __user *__user *iocbpp, bool compat);
+> >  void kiocb_set_cancel_fn(struct kiocb *req, kiocb_cancel_fn *cancel);
+> > @@ -81,7 +80,6 @@ void kiocb_set_cancel_fn(struct kiocb *req, kiocb_cancel_fn *cancel);
+> >  static inline ssize_t wait_on_sync_kiocb(struct kiocb *iocb) { return 0; }
+> >  static inline void aio_complete(struct kiocb *iocb, long res, long res2) { }
+> >  struct mm_struct;
+> > -static inline void exit_aio(struct mm_struct *mm) { }
+> >  static inline long do_io_submit(aio_context_t ctx_id, long nr,
+> >  				struct iocb __user * __user *iocbpp,
+> >  				bool compat) { return 0; }
+> > diff --git a/include/linux/ksm.h b/include/linux/ksm.h
+> > index 3be6bb1..84c184f 100644
+> > --- a/include/linux/ksm.h
+> > +++ b/include/linux/ksm.h
+> > @@ -20,7 +20,6 @@ struct mem_cgroup;
+> >  int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
+> >  		unsigned long end, int advice, unsigned long *vm_flags);
+> >  int __ksm_enter(struct mm_struct *mm);
+> > -void __ksm_exit(struct mm_struct *mm);
+> >  
+> >  static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
+> >  {
+> > @@ -29,12 +28,6 @@ static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
+> >  	return 0;
+> >  }
+> >  
+> > -static inline void ksm_exit(struct mm_struct *mm)
+> > -{
+> > -	if (test_bit(MMF_VM_MERGEABLE, &mm->flags))
+> > -		__ksm_exit(mm);
+> > -}
+> > -
+> >  /*
+> >   * A KSM page is one of those write-protected "shared pages" or "merged pages"
+> >   * which KSM maps into multiple mms, wherever identical anonymous page content
+> > @@ -83,10 +76,6 @@ static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
+> >  	return 0;
+> >  }
+> >  
+> > -static inline void ksm_exit(struct mm_struct *mm)
+> > -{
+> > -}
+> > -
+> >  static inline int PageKsm(struct page *page)
+> >  {
+> >  	return 0;
+> > diff --git a/include/linux/sched.h b/include/linux/sched.h
+> > index 322d4fc..428b3cf 100644
+> > --- a/include/linux/sched.h
+> > +++ b/include/linux/sched.h
+> > @@ -2384,6 +2384,11 @@ static inline void mmdrop(struct mm_struct * mm)
+> >  		__mmdrop(mm);
+> >  }
+> >  
+> > +/* mmput call list of notifier and subsystem/module can register
+> > + * new one through this call.
+> > + */
+> > +extern int mmput_register_notifier(struct notifier_block *nb);
+> > +extern int mmput_unregister_notifier(struct notifier_block *nb);
+> >  /* mmput gets rid of the mappings and all user-space */
+> >  extern void mmput(struct mm_struct *);
+> >  /* Grab a reference to a task's mm, if it is not already going away */
+> > diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
+> > index 4f844c6..44e7267 100644
+> > --- a/include/linux/uprobes.h
+> > +++ b/include/linux/uprobes.h
+> > @@ -120,7 +120,6 @@ extern int uprobe_pre_sstep_notifier(struct pt_regs *regs);
+> >  extern void uprobe_notify_resume(struct pt_regs *regs);
+> >  extern bool uprobe_deny_signal(void);
+> >  extern bool arch_uprobe_skip_sstep(struct arch_uprobe *aup, struct pt_regs *regs);
+> > -extern void uprobe_clear_state(struct mm_struct *mm);
+> >  extern int  arch_uprobe_analyze_insn(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long addr);
+> >  extern int  arch_uprobe_pre_xol(struct arch_uprobe *aup, struct pt_regs *regs);
+> >  extern int  arch_uprobe_post_xol(struct arch_uprobe *aup, struct pt_regs *regs);
+> > diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
+> > index 46b7c31..32b04dc 100644
+> > --- a/kernel/events/uprobes.c
+> > +++ b/kernel/events/uprobes.c
+> > @@ -37,6 +37,7 @@
+> >  #include <linux/percpu-rwsem.h>
+> >  #include <linux/task_work.h>
+> >  #include <linux/shmem_fs.h>
+> > +#include <linux/notifier.h>
+> >  
+> >  #include <linux/uprobes.h>
+> >  
+> > @@ -1220,16 +1221,19 @@ static struct xol_area *get_xol_area(void)
+> >  /*
+> >   * uprobe_clear_state - Free the area allocated for slots.
+> >   */
+> > -void uprobe_clear_state(struct mm_struct *mm)
+> > +static int uprobe_clear_state(struct notifier_block *nb,
+> > +			      unsigned long action, void *data)
+> >  {
+> > +	struct mm_struct *mm = data;
+> >  	struct xol_area *area = mm->uprobes_state.xol_area;
+> >  
+> >  	if (!area)
+> > -		return;
+> > +		return 0;
+> >  
+> >  	put_page(area->page);
+> >  	kfree(area->bitmap);
+> >  	kfree(area);
+> > +	return 0;
+> >  }
+> >  
+> >  void uprobe_start_dup_mmap(void)
+> > @@ -1979,9 +1983,14 @@ static struct notifier_block uprobe_exception_nb = {
+> >  	.priority		= INT_MAX-1,	/* notified after kprobes, kgdb */
+> >  };
+> >  
+> > +static struct notifier_block uprobe_mmput_nb = {
+> > +	.notifier_call		= uprobe_clear_state,
+> > +	.priority		= 0,
+> > +};
+> > +
+> >  static int __init init_uprobes(void)
+> >  {
+> > -	int i;
+> > +	int i, err;
+> >  
+> >  	for (i = 0; i < UPROBES_HASH_SZ; i++)
+> >  		mutex_init(&uprobes_mmap_mutex[i]);
+> > @@ -1989,6 +1998,10 @@ static int __init init_uprobes(void)
+> >  	if (percpu_init_rwsem(&dup_mmap_sem))
+> >  		return -ENOMEM;
+> >  
+> > +	err = mmput_register_notifier(&uprobe_mmput_nb);
+> > +	if (err)
+> > +		return err;
+> > +
+> >  	return register_die_notifier(&uprobe_exception_nb);
+> >  }
+> >  __initcall(init_uprobes);
+> > diff --git a/kernel/fork.c b/kernel/fork.c
+> > index dd8864f..b448509 100644
+> > --- a/kernel/fork.c
+> > +++ b/kernel/fork.c
+> > @@ -87,6 +87,8 @@
+> >  #define CREATE_TRACE_POINTS
+> >  #include <trace/events/task.h>
+> >  
+> > +static BLOCKING_NOTIFIER_HEAD(mmput_notifier);
+> > +
+> >  /*
+> >   * Protected counters by write_lock_irq(&tasklist_lock)
+> >   */
+> > @@ -623,6 +625,21 @@ void __mmdrop(struct mm_struct *mm)
+> >  EXPORT_SYMBOL_GPL(__mmdrop);
+> >  
+> >  /*
+> > + * Register a notifier that will be call by mmput
+> > + */
+> > +int mmput_register_notifier(struct notifier_block *nb)
+> > +{
+> > +	return blocking_notifier_chain_register(&mmput_notifier, nb);
+> > +}
+> > +EXPORT_SYMBOL_GPL(mmput_register_notifier);
+> > +
+> > +int mmput_unregister_notifier(struct notifier_block *nb)
+> > +{
+> > +	return blocking_notifier_chain_unregister(&mmput_notifier, nb);
+> > +}
+> > +EXPORT_SYMBOL_GPL(mmput_unregister_notifier);
+> > +
+> > +/*
+> >   * Decrement the use count and release all resources for an mm.
+> >   */
+> >  void mmput(struct mm_struct *mm)
+> > @@ -630,11 +647,8 @@ void mmput(struct mm_struct *mm)
+> >  	might_sleep();
+> >  
+> >  	if (atomic_dec_and_test(&mm->mm_users)) {
+> > -		uprobe_clear_state(mm);
+> > -		exit_aio(mm);
+> > -		ksm_exit(mm);
+> > -		khugepaged_exit(mm); /* must run before exit_mmap */
+> >  		exit_mmap(mm);
+> > +		blocking_notifier_call_chain(&mmput_notifier, 0, mm);
+> >  		set_mm_exe_file(mm, NULL);
+> >  		if (!list_empty(&mm->mmlist)) {
+> >  			spin_lock(&mmlist_lock);
+> > diff --git a/mm/ksm.c b/mm/ksm.c
+> > index 346ddc9..cb1e976 100644
+> > --- a/mm/ksm.c
+> > +++ b/mm/ksm.c
+> > @@ -37,6 +37,7 @@
+> >  #include <linux/freezer.h>
+> >  #include <linux/oom.h>
+> >  #include <linux/numa.h>
+> > +#include <linux/notifier.h>
+> >  
+> >  #include <asm/tlbflush.h>
+> >  #include "internal.h"
+> > @@ -1586,7 +1587,7 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
+> >  		ksm_scan.mm_slot = slot;
+> >  		spin_unlock(&ksm_mmlist_lock);
+> >  		/*
+> > -		 * Although we tested list_empty() above, a racing __ksm_exit
+> > +		 * Although we tested list_empty() above, a racing ksm_exit
+> >  		 * of the last mm on the list may have removed it since then.
+> >  		 */
+> >  		if (slot == &ksm_mm_head)
+> > @@ -1658,9 +1659,9 @@ next_mm:
+> >  		/*
+> >  		 * We've completed a full scan of all vmas, holding mmap_sem
+> >  		 * throughout, and found no VM_MERGEABLE: so do the same as
+> > -		 * __ksm_exit does to remove this mm from all our lists now.
+> > -		 * This applies either when cleaning up after __ksm_exit
+> > -		 * (but beware: we can reach here even before __ksm_exit),
+> > +		 * ksm_exit does to remove this mm from all our lists now.
+> > +		 * This applies either when cleaning up after ksm_exit
+> > +		 * (but beware: we can reach here even before ksm_exit),
+> >  		 * or when all VM_MERGEABLE areas have been unmapped (and
+> >  		 * mmap_sem then protects against race with MADV_MERGEABLE).
+> >  		 */
+> > @@ -1821,11 +1822,16 @@ int __ksm_enter(struct mm_struct *mm)
+> >  	return 0;
+> >  }
+> >  
+> > -void __ksm_exit(struct mm_struct *mm)
+> > +static int ksm_exit(struct notifier_block *nb,
+> > +		    unsigned long action, void *data)
+> >  {
+> > +	struct mm_struct *mm = data;
+> >  	struct mm_slot *mm_slot;
+> >  	int easy_to_free = 0;
+> >  
+> > +	if (!test_bit(MMF_VM_MERGEABLE, &mm->flags))
+> > +		return 0;
+> > +
+> >  	/*
+> >  	 * This process is exiting: if it's straightforward (as is the
+> >  	 * case when ksmd was never running), free mm_slot immediately.
+> > @@ -1857,6 +1863,7 @@ void __ksm_exit(struct mm_struct *mm)
+> >  		down_write(&mm->mmap_sem);
+> >  		up_write(&mm->mmap_sem);
+> >  	}
+> > +	return 0;
+> >  }
+> >  
+> >  struct page *ksm_might_need_to_copy(struct page *page,
+> > @@ -2305,11 +2312,20 @@ static struct attribute_group ksm_attr_group = {
+> >  };
+> >  #endif /* CONFIG_SYSFS */
+> >  
+> > +static struct notifier_block ksm_mmput_nb = {
+> > +	.notifier_call		= ksm_exit,
+> > +	.priority		= 2,
+> > +};
+> > +
+> >  static int __init ksm_init(void)
+> >  {
+> >  	struct task_struct *ksm_thread;
+> >  	int err;
+> >  
+> > +	err = mmput_register_notifier(&ksm_mmput_nb);
+> > +	if (err)
+> > +		return err;
+> > +
+> >  	err = ksm_slab_init();
+> >  	if (err)
+> >  		goto out;
+> > diff --git a/mm/mmap.c b/mm/mmap.c
+> > index 61aec93..b684a21 100644
+> > --- a/mm/mmap.c
+> > +++ b/mm/mmap.c
+> > @@ -2775,6 +2775,9 @@ void exit_mmap(struct mm_struct *mm)
+> >  	struct vm_area_struct *vma;
+> >  	unsigned long nr_accounted = 0;
+> >  
+> > +	/* Important to call this first. */
+> > +	khugepaged_exit(mm);
+> > +
+> >  	/* mm's last user has gone, and its about to be pulled down */
+> >  	mmu_notifier_release(mm);
+> >  
 > 
->         managed  3976
->         managed  755409
->         managed  1281601
-
-Something seems way off with this.  On my system here, the DMA32 zone
-makes up for 20% of managed pages and it gets roughly 20% of the page
-allocations, as I would expect.
-
-Your DMA32 zone makes up for 37% of the managed pages and receives
-merely 0.7% of the page allocations.  Unless a large portion of that
-zone is somehow unreclaimable, fairness seems completely obliberated
-in both kernels.
-
-Is that checklow's doing?
-
-> > > @@ -3287,10 +3287,18 @@ void show_free_areas(unsigned int filter)
-> > >  	show_swap_cache_info();
-> > >  }
-> > >  
-> > > -static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
-> > > +static int zoneref_set_zone(pg_data_t *pgdat, struct zone *zone,
-> > > +			struct zoneref *zoneref, struct zone *preferred_zone)
-> > >  {
-> > > +	int zone_type = zone_idx(zone);
-> > > +	bool fair_enabled = zone_local(zone, preferred_zone);
-> > > +	if (zone_type == 0 &&
-> > > +			zone->managed_pages < (pgdat->node_present_pages >> 4))
-> > > +		fair_enabled = false;
-> > 
-> > This needs a comment.
-> > 
+> Hi Jerome, I reviewed the patch, integrated and tested it in AMD's HSA
+> driver (KFD). It works as expected and I didn't find any problems with
+> it.
 > 
->         /*
->          * Do not count the lowest zone as of relevance to the fair zone
->          * allocation policy if it's a small percentage of the node
->          */
+> I did face some problems regarding the amd IOMMU v2 driver, which
+> changed its behavior (see commit "iommu/amd: Implement
+> mmu_notifier_release call-back") to use mmu_notifier_release and did
+> some "bad things" inside that
+> notifier (primarily, but not only, deleting the object which held the
+> mmu_notifier object itself, which you mustn't do because of the
+> locking). 
 > 
-> However, as I write this I'll look at getting rid of this entirely. It
-> made some sense when fair_eligible was tracked on a per-zone basis but
-> it's more complex than necessary.
->
-> > >  	zoneref->zone = zone;
-> > > -	zoneref->zone_idx = zone_idx(zone);
-> > > +	zoneref->zone_idx = zone_type;
-> > > +	return fair_enabled;
-> > >  }
-> > >  
-> > >  /*
-> > > @@ -3303,17 +3311,26 @@ static int build_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
-> > >  {
-> > >  	struct zone *zone;
-> > >  	enum zone_type zone_type = MAX_NR_ZONES;
-> > > +	struct zone *preferred_zone = NULL;
-> > > +	int nr_fair = 0;
-> > >  
-> > >  	do {
-> > >  		zone_type--;
-> > >  		zone = pgdat->node_zones + zone_type;
-> > >  		if (populated_zone(zone)) {
-> > > -			zoneref_set_zone(zone,
-> > > -				&zonelist->_zonerefs[nr_zones++]);
-> > > +			if (!preferred_zone)
-> > > +				preferred_zone = zone;
-> > > +
-> > > +			nr_fair += zoneref_set_zone(pgdat, zone,
-> > > +				&zonelist->_zonerefs[nr_zones++],
-> > > +				preferred_zone);
-> > 
-> > Passing preferred_zone to determine locality seems pointless when you
-> > walk the zones of a single node.
-> > 
+> I'm thinking of changing that driver's behavior to use this new
+> mechanism instead of using mmu_notifier_release. Does that seem
+> acceptable ? Another solution will be to add a new mmu_notifier call,
+> but we already ruled that out ;)
 > 
-> True.
+
+This sounds acceptable. You can check how i did it in hmm :
+http://cgit.freedesktop.org/~glisse/linux/log/?h=hmm
+
+As it had similar issues.
+
+Cheers,
+Jerome
+
+> So,
+> Reviewed-by: Oded Gabbay <oded.gabbay@amd.com>
 > 
-> > And the return value of zoneref_set_zone() is fairly unexpected.
-> > 
-> 
-> How so?
-
-Given the name zoneref_set_zone(), I wouldn't expect any return value,
-or a success/failure type return value at best - certainly not whether
-the passed zone is eligible for the fairness policy.
-
-> > It's probably better to determine fair_enabled in the callsite, that
-> > would fix both problems, and write a separate helper that tests if a
-> > zone is eligible for fair treatment (type && managed_pages test).
-> > 
-> 
-> Are you thinking of putting that into the page allocator fast path? I'm
-> trying to take stuff out of there :/.
-
-Not at all, I was just suggesting to restructure the code for building
-the zonelists, and move the fairness stuff out of zoneref_set_zone().
-
-If you remove the small-zone exclusion as per above, this only leaves
-the locality check when building the zonelist in zone order and that
-can easily be checked inline in build_zonelists_in_zone_order().
-
-build_zonelists_node() can just count every populated zone in nr_fair.
+> 	Oded
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
