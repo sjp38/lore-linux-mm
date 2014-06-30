@@ -1,54 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D7DF86B0038
-	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 18:00:37 -0400 (EDT)
-Received: by mail-wg0-f48.google.com with SMTP id n12so8739484wgh.31
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 15:00:37 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n9si12260870wiz.23.2014.06.30.15.00.36
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id A7C6F6B0038
+	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 18:03:24 -0400 (EDT)
+Received: by mail-ig0-f179.google.com with SMTP id uq10so4793919igb.6
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 15:03:24 -0700 (PDT)
+Received: from mail-ie0-x233.google.com (mail-ie0-x233.google.com [2607:f8b0:4001:c03::233])
+        by mx.google.com with ESMTPS id j1si13543357igx.5.2014.06.30.15.03.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 30 Jun 2014 15:00:36 -0700 (PDT)
-Date: Mon, 30 Jun 2014 23:00:33 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 1/2] shmem: fix init_page_accessed use to stop !PageLRU
- bug
-Message-ID: <20140630220033.GS10819@suse.de>
-References: <alpine.LSU.2.11.1406301405230.1096@eggly.anvils>
+        Mon, 30 Jun 2014 15:03:24 -0700 (PDT)
+Received: by mail-ie0-f179.google.com with SMTP id tr6so7484170ieb.38
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 15:03:23 -0700 (PDT)
+Date: Mon, 30 Jun 2014 15:03:21 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: mm: slub: invalid memory access in setup_object
+In-Reply-To: <alpine.DEB.2.11.1406251228130.29216@gentwo.org>
+Message-ID: <alpine.DEB.2.02.1406301500410.13545@chino.kir.corp.google.com>
+References: <53AAFDF7.2010607@oracle.com> <alpine.DEB.2.11.1406251228130.29216@gentwo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1406301405230.1096@eggly.anvils>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@gentwo.org>, Sasha Levin <sasha.levin@oracle.com>, Wei Yang <weiyang@linux.vnet.ibm.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
 
-On Mon, Jun 30, 2014 at 02:08:11PM -0700, Hugh Dickins wrote:
-> Under shmem swapping load, I sometimes hit the VM_BUG_ON_PAGE(!PageLRU)
-> in isolate_lru_pages() at mm/vmscan.c:1281!
-> 
-> Commit 2457aec63745 ("mm: non-atomically mark page accessed during page
-> cache allocation where possible") looks like interrupted work-in-progress.
-> 
-> mm/filemap.c's call to init_page_accessed() is fine, but not mm/shmem.c's
-> - shmem_write_begin() is clearly wrong to use it after shmem_getpage(),
-> when the page is always visible in radix_tree, and often already on LRU.
-> 
-> Revert change to shmem_write_begin(), and use init_page_accessed() or
-> mark_page_accessed() appropriately for SGP_WRITE in shmem_getpage_gfp().
-> 
-> SGP_WRITE also covers shmem_symlink(), which did not mark_page_accessed()
-> before; but since many other filesystems use [__]page_symlink(), which did
-> and does mark the page accessed, consider this as rectifying an oversight.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+On Wed, 25 Jun 2014, Christoph Lameter wrote:
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+> On Wed, 25 Jun 2014, Sasha Levin wrote:
+> 
+> > [  791.669480] ? init_object (mm/slub.c:665)
+> > [  791.669480] setup_object.isra.34 (mm/slub.c:1008 mm/slub.c:1373)
+> > [  791.669480] new_slab (mm/slub.c:278 mm/slub.c:1412)
+> 
+> So we just got a new page from the page allocator but somehow cannot
+> write to it. This is the first write access to the page.
+> 
 
--- 
-Mel Gorman
-SUSE Labs
+I'd be inclined to think that this was a result of "slub: reduce duplicate 
+creation on the first object" from -mm[*] that was added the day before 
+Sasha reported the problem.
+
+It's not at all clear to me that that patch is correct.  Wei?
+
+Sasha, with a revert of that patch, does this reproduce?
+
+ [*] http://ozlabs.org/~akpm/mmotm/broken-out/slub-reduce-duplicate-creation-on-the-first-object.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
