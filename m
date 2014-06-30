@@ -1,218 +1,308 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id CE9CB6B0031
-	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 10:27:05 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id rd3so8693222pab.18
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 07:27:05 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id bu3si23362586pbb.98.2014.06.30.07.27.04
-        for <linux-mm@kvack.org>;
-        Mon, 30 Jun 2014 07:27:04 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <1403366036-10169-1-git-send-email-chris@chris-wilson.co.uk>
-References: <20140619135944.20837E00A3@blue.fi.intel.com>
- <1403366036-10169-1-git-send-email-chris@chris-wilson.co.uk>
-Subject: RE: [PATCH 1/4] mm: Refactor remap_pfn_range()
-Content-Transfer-Encoding: 7bit
-Message-Id: <20140630142659.B6F7DE00A3@blue.fi.intel.com>
-Date: Mon, 30 Jun 2014 17:26:59 +0300 (EEST)
+Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D4F36B0035
+	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 10:28:50 -0400 (EDT)
+Received: by mail-we0-f176.google.com with SMTP id u56so8104225wes.21
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 07:28:49 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id ft19si10537371wic.27.2014.06.30.07.28.47
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 30 Jun 2014 07:28:48 -0700 (PDT)
+Date: Mon, 30 Jun 2014 10:28:37 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v3 02/13] pagewalk: improve vma handling
+Message-ID: <20140630142837.GA4319@nhori.bos.redhat.com>
+References: <1403295099-6407-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1403295099-6407-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20140630115311.GR19833@node.dhcp.inet.fi>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140630115311.GR19833@node.dhcp.inet.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Cyrill Gorcunov <gorcunov@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-Chris Wilson wrote:
-> In preparation for exporting very similar functionality through another
-> interface, gut the current remap_pfn_range(). The motivating factor here
-> is to reuse the PGB/PUD/PMD/PTE walker, but allow back progation of
-> errors rather than BUG_ON.
+On Mon, Jun 30, 2014 at 02:53:11PM +0300, Kirill A. Shutemov wrote:
+> On Fri, Jun 20, 2014 at 04:11:28PM -0400, Naoya Horiguchi wrote:
+> > Current implementation of page table walker has a fundamental problem
+> > in vma handling, which started when we tried to handle vma(VM_HUGETLB).
+> > Because it's done in pgd loop, considering vma boundary makes code
+> > complicated and bug-prone.
+> > 
+> > From the users viewpoint, some user checks some vma-related condition to
+> > determine whether the user really does page walk over the vma.
+> > 
+> > In order to solve these, this patch moves vma check outside pgd loop and
+> > introduce a new callback ->test_walk().
+> > 
+> > ChangeLog v3:
+> > - drop walk->skip control
+> > 
+> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > ---
+> >  include/linux/mm.h |  15 +++-
+> >  mm/pagewalk.c      | 198 ++++++++++++++++++++++++++++++-----------------------
+> >  2 files changed, 126 insertions(+), 87 deletions(-)
+> > 
+> > diff --git v3.16-rc1.orig/include/linux/mm.h v3.16-rc1/include/linux/mm.h
+> > index c5cb6394e6cb..489a63a06a4a 100644
+> > --- v3.16-rc1.orig/include/linux/mm.h
+> > +++ v3.16-rc1/include/linux/mm.h
+> > @@ -1107,10 +1107,16 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+> >   * @pte_entry: if set, called for each non-empty PTE (4th-level) entry
+> >   * @pte_hole: if set, called for each hole at all levels
+> >   * @hugetlb_entry: if set, called for each hugetlb entry
+> > - *		   *Caution*: The caller must hold mmap_sem() if @hugetlb_entry
+> > - * 			      is used.
+> > + * @test_walk: caller specific callback function to determine whether
+> > + *             we walk over the current vma or not. A positive returned
+> > + *             value means "do page table walk over the current vma,"
+> > + *             and a negative one means "abort current page table walk
+> > + *             right now." 0 means "skip the current vma."
+> > + * @mm:        mm_struct representing the target process of page table walk
+> > + * @vma:       vma currently walked (NULL if walking outside vmas)
+> > + * @private:   private data for callbacks' usage
+> >   *
+> > - * (see walk_page_range for more details)
+> > + * (see the comment on walk_page_range() for more details)
+> >   */
+> >  struct mm_walk {
+> >  	int (*pmd_entry)(pmd_t *pmd, unsigned long addr,
+> > @@ -1122,7 +1128,10 @@ struct mm_walk {
+> >  	int (*hugetlb_entry)(pte_t *pte, unsigned long hmask,
+> >  			     unsigned long addr, unsigned long next,
+> >  			     struct mm_walk *walk);
+> > +	int (*test_walk)(unsigned long addr, unsigned long next,
+> > +			struct mm_walk *walk);
+> >  	struct mm_struct *mm;
+> > +	struct vm_area_struct *vma;
+> >  	void *private;
+> >  };
+> >  
+> > diff --git v3.16-rc1.orig/mm/pagewalk.c v3.16-rc1/mm/pagewalk.c
+> > index 335690650b12..86d811202374 100644
+> > --- v3.16-rc1.orig/mm/pagewalk.c
+> > +++ v3.16-rc1/mm/pagewalk.c
+> > @@ -59,7 +59,7 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
+> >  			continue;
+> >  
+> >  		split_huge_page_pmd_mm(walk->mm, addr, pmd);
+> > -		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+> > +		if (pmd_trans_unstable(pmd))
+> >  			goto again;
+> >  		err = walk_pte_range(pmd, addr, next, walk);
+> >  		if (err)
+> > @@ -95,6 +95,32 @@ static int walk_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end,
+> >  	return err;
+> >  }
+> >  
+> > +static int walk_pgd_range(unsigned long addr, unsigned long end,
+> > +			  struct mm_walk *walk)
+> > +{
+> > +	pgd_t *pgd;
+> > +	unsigned long next;
+> > +	int err = 0;
+> > +
+> > +	pgd = pgd_offset(walk->mm, addr);
+> > +	do {
+> > +		next = pgd_addr_end(addr, end);
+> > +		if (pgd_none_or_clear_bad(pgd)) {
+> > +			if (walk->pte_hole)
+> > +				err = walk->pte_hole(addr, next, walk);
+> > +			if (err)
+> > +				break;
+> > +			continue;
+> > +		}
+> > +		if (walk->pmd_entry || walk->pte_entry)
+> > +			err = walk_pud_range(pgd, addr, next, walk);
+> > +		if (err)
+> > +			break;
+> > +	} while (pgd++, addr = next, addr != end);
+> > +
+> > +	return err;
+> > +}
+> > +
+> >  #ifdef CONFIG_HUGETLB_PAGE
+> >  static unsigned long hugetlb_entry_end(struct hstate *h, unsigned long addr,
+> >  				       unsigned long end)
+> > @@ -103,10 +129,10 @@ static unsigned long hugetlb_entry_end(struct hstate *h, unsigned long addr,
+> >  	return boundary < end ? boundary : end;
+> >  }
+> >  
+> > -static int walk_hugetlb_range(struct vm_area_struct *vma,
+> > -			      unsigned long addr, unsigned long end,
+> > +static int walk_hugetlb_range(unsigned long addr, unsigned long end,
+> >  			      struct mm_walk *walk)
+> >  {
+> > +	struct vm_area_struct *vma = walk->vma;
+> >  	struct hstate *h = hstate_vma(vma);
+> >  	unsigned long next;
+> >  	unsigned long hmask = huge_page_mask(h);
+> > @@ -119,15 +145,14 @@ static int walk_hugetlb_range(struct vm_area_struct *vma,
+> >  		if (pte && walk->hugetlb_entry)
+> >  			err = walk->hugetlb_entry(pte, hmask, addr, next, walk);
+> >  		if (err)
+> > -			return err;
+> > +			break;
+> >  	} while (addr = next, addr != end);
+> >  
+> >  	return 0;
 > 
-> Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Cyrill Gorcunov <gorcunov@gmail.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: linux-mm@kvack.org
-> ---
->  mm/memory.c | 102 +++++++++++++++++++++++++++++++++---------------------------
->  1 file changed, 57 insertions(+), 45 deletions(-)
+> I guess it should be 'return err;', right?
 > 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 037b812a9531..d2c7fe88a289 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2295,71 +2295,81 @@ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
->  }
->  EXPORT_SYMBOL(vm_insert_mixed);
->  
-> +struct remap_pfn {
-> +	struct mm_struct *mm;
-> +	unsigned long addr;
-> +	unsigned long pfn;
-> +	pgprot_t prot;
-> +};
-> +
->  /*
->   * maps a range of physical memory into the requested pages. the old
->   * mappings are removed. any references to nonexistent pages results
->   * in null mappings (currently treated as "copy-on-access")
->   */
-> -static int remap_pte_range(struct mm_struct *mm, pmd_t *pmd,
-> -			unsigned long addr, unsigned long end,
-> -			unsigned long pfn, pgprot_t prot)
-> +static inline int remap_pfn(struct remap_pfn *r, pte_t *pte)
-> +{
-> +	if (!pte_none(*pte))
-> +		return -EBUSY;
-> +
-> +	set_pte_at(r->mm, r->addr, pte,
-> +		   pte_mkspecial(pfn_pte(r->pfn, r->prot)));
-> +	r->pfn++;
-> +	r->addr += PAGE_SIZE;
-> +	return 0;
-> +}
-> +
-> +static int remap_pte_range(struct remap_pfn *r, pmd_t *pmd, unsigned long end)
->  {
->  	pte_t *pte;
->  	spinlock_t *ptl;
-> +	int err;
->  
-> -	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
-> +	pte = pte_alloc_map_lock(r->mm, pmd, r->addr, &ptl);
->  	if (!pte)
->  		return -ENOMEM;
-> +
->  	arch_enter_lazy_mmu_mode();
->  	do {
-> -		BUG_ON(!pte_none(*pte));
-> -		set_pte_at(mm, addr, pte, pte_mkspecial(pfn_pte(pfn, prot)));
-> -		pfn++;
-> -	} while (pte++, addr += PAGE_SIZE, addr != end);
-> +		err = remap_pfn(r, pte++);
-> +	} while (err == 0 && r->addr < end);
->  	arch_leave_lazy_mmu_mode();
-> +
->  	pte_unmap_unlock(pte - 1, ptl);
-> -	return 0;
-> +	return err;
->  }
->  
-> -static inline int remap_pmd_range(struct mm_struct *mm, pud_t *pud,
-> -			unsigned long addr, unsigned long end,
-> -			unsigned long pfn, pgprot_t prot)
-> +static inline int remap_pmd_range(struct remap_pfn *r, pud_t *pud, unsigned long end)
->  {
->  	pmd_t *pmd;
-> -	unsigned long next;
-> +	int err;
->  
-> -	pfn -= addr >> PAGE_SHIFT;
-> -	pmd = pmd_alloc(mm, pud, addr);
-> +	pmd = pmd_alloc(r->mm, pud, r->addr);
->  	if (!pmd)
->  		return -ENOMEM;
->  	VM_BUG_ON(pmd_trans_huge(*pmd));
-> +
->  	do {
-> -		next = pmd_addr_end(addr, end);
-> -		if (remap_pte_range(mm, pmd, addr, next,
-> -				pfn + (addr >> PAGE_SHIFT), prot))
-> -			return -ENOMEM;
-> -	} while (pmd++, addr = next, addr != end);
-> -	return 0;
-> +		err = remap_pte_range(r, pmd++, pmd_addr_end(r->addr, end));
-> +	} while (err == 0 && r->addr < end);
-> +
-> +	return err;
->  }
->  
-> -static inline int remap_pud_range(struct mm_struct *mm, pgd_t *pgd,
-> -			unsigned long addr, unsigned long end,
-> -			unsigned long pfn, pgprot_t prot)
-> +static inline int remap_pud_range(struct remap_pfn *r, pgd_t *pgd, unsigned long end)
->  {
->  	pud_t *pud;
-> -	unsigned long next;
-> +	int err;
->  
-> -	pfn -= addr >> PAGE_SHIFT;
-> -	pud = pud_alloc(mm, pgd, addr);
-> +	pud = pud_alloc(r->mm, pgd, r->addr);
->  	if (!pud)
->  		return -ENOMEM;
-> +
->  	do {
-> -		next = pud_addr_end(addr, end);
-> -		if (remap_pmd_range(mm, pud, addr, next,
-> -				pfn + (addr >> PAGE_SHIFT), prot))
-> -			return -ENOMEM;
-> -	} while (pud++, addr = next, addr != end);
-> -	return 0;
-> +		err = remap_pmd_range(r, pud++, pud_addr_end(r->addr, end));
-> +	} while (err == 0 && r->addr < end);
-> +
-> +	return err;
->  }
->  
->  /**
-> @@ -2375,10 +2385,9 @@ static inline int remap_pud_range(struct mm_struct *mm, pgd_t *pgd,
->  int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
->  		    unsigned long pfn, unsigned long size, pgprot_t prot)
->  {
-> -	pgd_t *pgd;
-> -	unsigned long next;
->  	unsigned long end = addr + PAGE_ALIGN(size);
-> -	struct mm_struct *mm = vma->vm_mm;
-> +	struct remap_pfn r;
-> +	pgd_t *pgd;
->  	int err;
->  
->  	/*
-> @@ -2412,19 +2421,22 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
->  	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP;
->  
->  	BUG_ON(addr >= end);
-> -	pfn -= addr >> PAGE_SHIFT;
-> -	pgd = pgd_offset(mm, addr);
->  	flush_cache_range(vma, addr, end);
-> +
-> +	r.mm = vma->vm_mm;
-> +	r.addr = addr;
-> +	r.pfn = pfn;
-> +	r.prot = prot;
-> +
-> +	pgd = pgd_offset(r.mm, addr);
->  	do {
-> -		next = pgd_addr_end(addr, end);
-> -		err = remap_pud_range(mm, pgd, addr, next,
-> -				pfn + (addr >> PAGE_SHIFT), prot);
-> -		if (err)
-> -			break;
-> -	} while (pgd++, addr = next, addr != end);
-> +		err = remap_pud_range(&r, pgd++, pgd_addr_end(r.addr, end));
-> +	} while (err == 0 && r.addr < end);
->  
-> -	if (err)
-> +	if (err) {
->  		untrack_pfn(vma, pfn, PAGE_ALIGN(size));
-> +		BUG_ON(err == -EBUSY);
+> >  }
+> >  
+> >  #else /* CONFIG_HUGETLB_PAGE */
+> > -static int walk_hugetlb_range(struct vm_area_struct *vma,
+> > -			      unsigned long addr, unsigned long end,
+> > +static int walk_hugetlb_range(unsigned long addr, unsigned long end,
+> >  			      struct mm_walk *walk)
+> >  {
+> >  	return 0;
+> > @@ -135,109 +160,114 @@ static int walk_hugetlb_range(struct vm_area_struct *vma,
+> >  
+> >  #endif /* CONFIG_HUGETLB_PAGE */
+> >  
+> > +/*
+> > + * Decide whether we really walk over the current vma on [@start, @end)
+> > + * or skip it via the returned value. Return 0 if we do walk over the
+> > + * current vma, and return 1 if we skip the vma. Negative values means
+> > + * error, where we abort the current walk.
+> > + *
+> > + * Default check (only VM_PFNMAP check for now) is used when the caller
+> > + * doesn't define test_walk() callback.
+> > + */
+> > +static int walk_page_test(unsigned long start, unsigned long end,
+> > +			struct mm_walk *walk)
+> > +{
+> > +	struct vm_area_struct *vma = walk->vma;
+> > +
+> > +	if (walk->test_walk)
+> > +		return walk->test_walk(start, end, walk);
+> >  
+> > +	/*
+> > +	 * Do not walk over vma(VM_PFNMAP), because we have no valid struct
+> > +	 * page backing a VM_PFNMAP range. See also commit a9ff785e4437.
+> > +	 */
+> > +	if (vma->vm_flags & VM_PFNMAP)
+> > +		return 1;
+> > +	return 0;
+> > +}
+> > +
+> > +static int __walk_page_range(unsigned long start, unsigned long end,
+> > +			struct mm_walk *walk)
+> > +{
+> > +	int err = 0;
+> > +	struct vm_area_struct *vma = walk->vma;
+> > +
+> > +	if (vma && is_vm_hugetlb_page(vma)) {
+> > +		if (walk->hugetlb_entry)
+> > +			err = walk_hugetlb_range(start, end, walk);
+> > +	} else
+> > +		err = walk_pgd_range(start, end, walk);
+> > +
+> > +	return err;
+> > +}
+> >  
+> >  /**
+> > - * walk_page_range - walk a memory map's page tables with a callback
+> > - * @addr: starting address
+> > - * @end: ending address
+> > - * @walk: set of callbacks to invoke for each level of the tree
+> > - *
+> > - * Recursively walk the page table for the memory area in a VMA,
+> > - * calling supplied callbacks. Callbacks are called in-order (first
+> > - * PGD, first PUD, first PMD, first PTE, second PTE... second PMD,
+> > - * etc.). If lower-level callbacks are omitted, walking depth is reduced.
+> > + * walk_page_range - walk page table with caller specific callbacks
+> >   *
+> > - * Each callback receives an entry pointer and the start and end of the
+> > - * associated range, and a copy of the original mm_walk for access to
+> > - * the ->private or ->mm fields.
+> > + * Recursively walk the page table tree of the process represented by @walk->mm
+> > + * within the virtual address range [@start, @end). During walking, we can do
+> > + * some caller-specific works for each entry, by setting up pmd_entry(),
+> > + * pte_entry(), and/or hugetlb_entry(). If you don't set up for some of these
+> > + * callbacks, the associated entries/pages are just ignored.
+> > + * The return values of these callbacks are commonly defined like below:
+> > + *  - 0  : succeeded to handle the current entry, and if you don't reach the
+> > + *         end address yet, continue to walk.
+> > + *  - >0 : succeeded to handle the current entry, and return to the caller
+> > + *         with caller specific value.
+> > + *  - <0 : failed to handle the current entry, and return to the caller
+> > + *         with error code.
+> >   *
+> > - * Usually no locks are taken, but splitting transparent huge page may
+> > - * take page table lock. And the bottom level iterator will map PTE
+> > - * directories from highmem if necessary.
+> > + * Before starting to walk page table, some callers want to check whether
+> > + * they really want to walk over the current vma, typically by checking
+> > + * its vm_flags. walk_page_test() and @walk->test_walk() are used for this
+> > + * purpose.
+> >   *
+> > - * If any callback returns a non-zero value, the walk is aborted and
+> > - * the return value is propagated back to the caller. Otherwise 0 is returned.
+> > + * struct mm_walk keeps current values of some common data like vma and pmd,
+> > + * which are useful for the access from callbacks. If you want to pass some
+> > + * caller-specific data to callbacks, @walk->private should be helpful.
+> >   *
+> > - * walk->mm->mmap_sem must be held for at least read if walk->hugetlb_entry
+> > - * is !NULL.
+> > + * Locking:
+> > + *   Callers of walk_page_range() and walk_page_vma() should hold
+> > + *   @walk->mm->mmap_sem, because these function traverse vma list and/or
+> > + *   access to vma's data.
+> >   */
+> > -int walk_page_range(unsigned long addr, unsigned long end,
+> > +int walk_page_range(unsigned long start, unsigned long end,
+> >  		    struct mm_walk *walk)
+> >  {
+> > -	pgd_t *pgd;
+> > -	unsigned long next;
+> >  	int err = 0;
+> > +	unsigned long next;
+> >  
+> > -	if (addr >= end)
+> > -		return err;
+> > +	if (start >= end)
+> > +		return -EINVAL;
+> >  
+> >  	if (!walk->mm)
+> >  		return -EINVAL;
+> >  
+> >  	VM_BUG_ON(!rwsem_is_locked(&walk->mm->mmap_sem));
+> >  
+> > -	pgd = pgd_offset(walk->mm, addr);
+> >  	do {
+> > -		struct vm_area_struct *vma = NULL;
+> > +		struct vm_area_struct *vma;
+> >  
+> > -		next = pgd_addr_end(addr, end);
+> > +		vma = find_vma(walk->mm, start);
+> > +		if (!vma) { /* after the last vma */
+> > +			walk->vma = NULL;
+> > +			next = end;
+> > +		} else if (start < vma->vm_start) { /* outside the found vma */
+> > +			walk->vma = NULL;
+> > +			next = vma->vm_start;
+> 
+> Is there a reason why we shoul go for __walk_page_range() for these two
+> cases if walkj->pte_hole() is not defined?
 
-We probably need a comment for the BUG_ON().
+Oh, I see, we can omit it.
+I'll do it.
 
-Otherwise,
+> 
+> Otherwise, looks okay.
+> 
+> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Thank you for your reviewing.
 
-> +	}
->  
->  	return err;
->  }
--- 
- Kirill A. Shutemov
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
