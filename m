@@ -1,121 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f173.google.com (mail-vc0-f173.google.com [209.85.220.173])
-	by kanga.kvack.org (Postfix) with ESMTP id DAE646B0031
-	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 12:31:35 -0400 (EDT)
-Received: by mail-vc0-f173.google.com with SMTP id lf12so7698725vcb.4
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 09:31:35 -0700 (PDT)
-Received: from mail-vc0-x236.google.com (mail-vc0-x236.google.com [2607:f8b0:400c:c03::236])
-        by mx.google.com with ESMTPS id yx7si10254281vdb.9.2014.06.30.09.31.35
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 38CC56B0031
+	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 12:48:08 -0400 (EDT)
+Received: by mail-wg0-f47.google.com with SMTP id k14so8370748wgh.18
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 09:48:07 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i5si11102045wiw.11.2014.06.30.09.48.06
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 30 Jun 2014 09:31:35 -0700 (PDT)
-Received: by mail-vc0-f182.google.com with SMTP id il7so7720480vcb.41
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 09:31:35 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20140629204231.GD12943@pd.tnic>
-References: <CAC-LjFtjS5RS9=Lvb090-0aEnSdR1a28Scve2gvTR3yAZtt+9g@mail.gmail.com>
- <20140629191254.GA13271@pd.tnic> <CAC-LjFsF1qAVPKJeYmR0+6wTVmCwo2TkC8bia-KmxQ3wyUXYaw@mail.gmail.com>
- <20140629204231.GD12943@pd.tnic>
-From: Jeshwanth Kumar N K <jeshkumar555@gmail.com>
-Date: Mon, 30 Jun 2014 22:01:14 +0530
-Message-ID: <CAC-LjFsseRBAhnEw8rSfidW91eS3GRX3xn=Q0A1H-YQ6rsm5Qw@mail.gmail.com>
-Subject: Re: [BUG] User process tainting in linux-next tree
-Content-Type: text/plain; charset=UTF-8
+        Mon, 30 Jun 2014 09:48:07 -0700 (PDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 1/4] mm: pagemap: Avoid unnecessary overhead when tracepoints are deactivated
+Date: Mon, 30 Jun 2014 17:48:00 +0100
+Message-Id: <1404146883-21414-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1404146883-21414-1-git-send-email-mgorman@suse.de>
+References: <1404146883-21414-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
 
-On Mon, Jun 30, 2014 at 2:12 AM, Borislav Petkov <bp@alien8.de> wrote:
-> Hi,
->
-> first of all, please do not top-post. Here's why:
->
-> A: Because it messes up the order in which people normally read text.
-> Q: Why is top-posting such a bad thing?
-> A: Top-posting.
-> Q: What is the most annoying thing in e-mail?
+The LRU insertion and activate tracepoints take PFN as a parameter forcing
+the overhead to the caller.  Move the overhead to the tracepoint fast-assign
+method to ensure the cost is only incurred when the tracepoint is active.
 
-Looks bottom posting is better :). Thanks
->
->> Yes booted by increase the buffer length, but the ignore_loglevel is
->> running continously for 5 minutes.
->
-> Huh, what? I can't parse that sentence above.
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ include/trace/events/pagemap.h | 16 +++++++---------
+ mm/swap.c                      |  4 ++--
+ 2 files changed, 9 insertions(+), 11 deletions(-)
 
-I will explain:
-1. I have compiled kernel with LOG level 7.
-2. You have mentioned to run with "log_buf_len=10M ignore_loglevel".
-When I ran, the Error messages started splashing continuously, I
-waited for 5 mins and tried to switch modes using Ctrl+alt+F1, no use.
-3. The one I attached dmesg is only log_buf_len=500M (no ignore_loglevel).
-
->
-> ignore_loglevel is another kernel cmdline parameter:
->
->         ignore_loglevel [KNL]
->                         Ignore loglevel setting - this will print /all/
->                         kernel messages to the console. Useful for debugging.
->                         We also add it as printk module parameter, so users
->                         could change it dynamically, usually by
->                         /sys/module/printk/parameters/ignore_loglevel.
->
->
->> So I ignored that and ran with
->> log_buf_len=500M ( because 10M also filled) only.
->>
->> When I copied the dmesg, the size was 76M, so I attached only first
->> 1500 lines. Please find in below link.
->>
->> https://bugzilla.kernel.org/show_bug.cgi?id=79171
->
-> Ok, that's better. The warnings start spewing pretty early with the one
-> below. Let's CC linux-mm.
->
-> [    1.062658] registered taskstats version 1
-> [    1.063400] ------------[ cut here ]------------
-> [    1.063455] WARNING: CPU: 0 PID: 55 at kernel/res_counter.c:28 res_counter_uncharge_until+0x84/0x110()
-> [    1.063513] Modules linked in:
-> [    1.063516] CPU: 0 PID: 55 Comm: modprobe Not tainted 3.16.0-rc1-next-20140620+ #4
-> [    1.063518] Hardware name: Dell Inc. Studio 1555/0C234M, BIOS A11 03/29/2010
-> [    1.063520]  00000000 00000000 d34d7de4 c1648de3 00000000 d34d7e14 c105b74e c1822e40
-> [    1.063524]  00000000 00000037 c183384f 0000001c c10dab24 c10dab24 d3c048c8 ffffffff
-> [    1.063529]  00000000 d34d7e24 c105b812 00000009 00000000 d34d7e58 c10dab24 00000282
-> [    1.063534] Call Trace:
-> [    1.063538]  [<c1648de3>] dump_stack+0x41/0x52
-> [    1.063541]  [<c105b74e>] warn_slowpath_common+0x7e/0xa0
-> [    1.063543]  [<c10dab24>] ? res_counter_uncharge_until+0x84/0x110
-> [    1.063546]  [<c10dab24>] ? res_counter_uncharge_until+0x84/0x110
-> [    1.063548]  [<c105b812>] warn_slowpath_null+0x22/0x30
-> [    1.063551]  [<c10dab24>] res_counter_uncharge_until+0x84/0x110
-> [    1.063553]  [<c10dabc1>] res_counter_uncharge+0x11/0x20
-> [    1.063557]  [<c117e975>] mem_cgroup_uncharge_end+0x85/0xa0
-> [    1.063560]  [<c113acb1>] release_pages+0x71/0x1c0
-> [    1.063563]  [<c1164072>] free_pages_and_swap_cache+0x92/0xb0
-> [    1.063567]  [<c1151b63>] tlb_flush_mmu_free+0x23/0x40
-> [    1.063570]  [<c11523cd>] tlb_flush_mmu+0x1d/0x30
-> [    1.063572]  [<c11523f1>] tlb_finish_mmu+0x11/0x40
-> [    1.063575]  [<c11588c7>] unmap_region+0x97/0xc0
-> [    1.063577]  [<c1158c22>] ? vma_rb_erase+0xe2/0x1b0
-> [    1.063580]  [<c115a8e3>] do_munmap+0x1c3/0x2d0
-> [    1.063582]  [<c115aa27>] vm_munmap+0x37/0x50
-> [    1.063584]  [<c115b710>] SyS_munmap+0x20/0x30
-> [    1.063588]  [<c1650318>] sysenter_do_call+0x12/0x28
-> [    1.063590] ---[ end trace 812035dd9a004e6c ]---
->
-> --
-> Regards/Gruss,
->     Boris.
->
-> Sent from a fat crate under my desk. Formatting is fine.
-> --
-
-
-
+diff --git a/include/trace/events/pagemap.h b/include/trace/events/pagemap.h
+index 1c9fabd..ce0803b 100644
+--- a/include/trace/events/pagemap.h
++++ b/include/trace/events/pagemap.h
+@@ -28,12 +28,10 @@ TRACE_EVENT(mm_lru_insertion,
+ 
+ 	TP_PROTO(
+ 		struct page *page,
+-		unsigned long pfn,
+-		int lru,
+-		unsigned long flags
++		int lru
+ 	),
+ 
+-	TP_ARGS(page, pfn, lru, flags),
++	TP_ARGS(page, lru),
+ 
+ 	TP_STRUCT__entry(
+ 		__field(struct page *,	page	)
+@@ -44,9 +42,9 @@ TRACE_EVENT(mm_lru_insertion,
+ 
+ 	TP_fast_assign(
+ 		__entry->page	= page;
+-		__entry->pfn	= pfn;
++		__entry->pfn	= page_to_pfn(page);
+ 		__entry->lru	= lru;
+-		__entry->flags	= flags;
++		__entry->flags	= trace_pagemap_flags(page);
+ 	),
+ 
+ 	/* Flag format is based on page-types.c formatting for pagemap */
+@@ -64,9 +62,9 @@ TRACE_EVENT(mm_lru_insertion,
+ 
+ TRACE_EVENT(mm_lru_activate,
+ 
+-	TP_PROTO(struct page *page, unsigned long pfn),
++	TP_PROTO(struct page *page),
+ 
+-	TP_ARGS(page, pfn),
++	TP_ARGS(page),
+ 
+ 	TP_STRUCT__entry(
+ 		__field(struct page *,	page	)
+@@ -75,7 +73,7 @@ TRACE_EVENT(mm_lru_activate,
+ 
+ 	TP_fast_assign(
+ 		__entry->page	= page;
+-		__entry->pfn	= pfn;
++		__entry->pfn	= page_to_pfn(page);
+ 	),
+ 
+ 	/* Flag format is based on page-types.c formatting for pagemap */
+diff --git a/mm/swap.c b/mm/swap.c
+index 9e8e347..d10be45 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -501,7 +501,7 @@ static void __activate_page(struct page *page, struct lruvec *lruvec,
+ 		SetPageActive(page);
+ 		lru += LRU_ACTIVE;
+ 		add_page_to_lru_list(page, lruvec, lru);
+-		trace_mm_lru_activate(page, page_to_pfn(page));
++		trace_mm_lru_activate(page);
+ 
+ 		__count_vm_event(PGACTIVATE);
+ 		update_page_reclaim_stat(lruvec, file, 1);
+@@ -996,7 +996,7 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
+ 	SetPageLRU(page);
+ 	add_page_to_lru_list(page, lruvec, lru);
+ 	update_page_reclaim_stat(lruvec, file, active);
+-	trace_mm_lru_insertion(page, page_to_pfn(page), lru, trace_pagemap_flags(page));
++	trace_mm_lru_insertion(page, lru);
+ }
+ 
+ /*
 -- 
-Regards
-Jeshwanth Kumar N K
-Bangalore, India
+1.8.4.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
