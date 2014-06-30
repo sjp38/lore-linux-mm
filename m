@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 30F366B0037
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id AAD3C6B0036
 	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 12:48:09 -0400 (EDT)
-Received: by mail-wg0-f45.google.com with SMTP id l18so8260132wgh.28
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 09:48:08 -0700 (PDT)
+Received: by mail-wg0-f49.google.com with SMTP id y10so8397973wgg.8
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 09:48:09 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hh4si11104972wib.9.2014.06.30.09.48.07
+        by mx.google.com with ESMTPS id j2si11063475wiz.79.2014.06.30.09.48.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 30 Jun 2014 09:48:07 -0700 (PDT)
+        Mon, 30 Jun 2014 09:48:08 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 2/4] mm: Rearrange zone fields into read-only, page alloc, statistics and page reclaim lines
-Date: Mon, 30 Jun 2014 17:48:01 +0100
-Message-Id: <1404146883-21414-3-git-send-email-mgorman@suse.de>
+Subject: [PATCH 3/4] mm: vmscan: Do not reclaim from lower zones if they are balanced
+Date: Mon, 30 Jun 2014 17:48:02 +0100
+Message-Id: <1404146883-21414-4-git-send-email-mgorman@suse.de>
 In-Reply-To: <1404146883-21414-1-git-send-email-mgorman@suse.de>
 References: <1404146883-21414-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,370 +20,234 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
 
-The arrangement of struct zone has changed over time and now it has reached the
-point where there is some inappropriate sharing going on. On x86-64 for example
+Historically kswapd scanned from DMA->Movable in the opposite direction
+to the page allocator to avoid allocating behind kswapd direction of
+progress. The fair zone allocation policy altered this in a non-obvious
+manner.
 
-o The zone->node field is shared with the zone lock and zone->node is accessed
-  frequently from the page allocator due to the fair zone allocation policy.
-o span_seqlock is almost never used by shares a line with free_area
-o Some zone statistics share a cache line with the LRU lock so reclaim-intensive
-  and allocator-intensive workloads can bounce the cache line on a stat update
+Traditionally, the page allocator prefers to use the highest eligible
+zones in order until the low watermarks are reached and then wakes kswapd.
+Once kswapd is awake, it scans zones in the opposite direction so the
+scanning lists on 64-bit look like this;
 
-This patch rearranges struct zone to put read-only and read-mostly fields
-together and then splits the page allocator intensive fields, the zone
-statistics and the page reclaim intensive fields into their own cache
-lines. Note that arguably the biggest change is reducing the size of the
-lowmem_reserve type. It should still be large enough but by shrinking it
-the fields used by the page allocator fast path all fit in one cache line.
+Page alloc		Kswapd
+----------              ------
+Movable			DMA
+Normal			DMA32
+DMA32			Normal
+DMA			Movable
 
-On the test configuration I used the overall size of struct zone shrunk
-by one cache line.
+If kswapd scanned in the same direction as the page allocator then it is
+possible that kswapd would proportionally reclaim the lower zones that
+were never used as the page allocator was always allocating behind the
+reclaim. This would work as follows
+
+	pgalloc hits Normal low wmark
+					kswapd reclaims Normal
+					kswapd reclaims DMA32
+	pgalloc hits Normal low wmark
+					kswapd reclaims Normal
+					kswapd reclaims DMA32
+
+The introduction of the fair zone allocation policy fundamentally altered
+this problem by interleaving between zones until the low watermark is
+reached. There are at least two issues with this
+
+o The page allocator can allocate behind kswapds progress (scans/reclaims
+  lower zone and fair zone allocation policy then uses those pages)
+o When the low watermark of the high zone is reached there may recently
+  allocated pages allocated from the lower zone but as kswapd scans
+  dma->highmem to the highest zone needing balancing it'll reclaim the
+  lower zone even if it was balanced.
+
+Let N = high_wmark(Normal) + high_wmark(DMA32). Of the last N allocations,
+some percentage will be allocated from Normal and some from DMA32. The
+percentage depends on the ratio of the zone sizes and when their watermarks
+were hit. If Normal is unbalanced, DMA32 will be shrunk by kswapd. If DMA32
+is unbalanced only DMA32 will be shrunk. This leads to a difference of
+ages between DMA32 and Normal. Relatively young pages are then continually
+rotated and reclaimed from DMA32 due to the higher zone being unbalanced.
+Some of these pages may be recently read-ahead pages requiring that the page
+be re-read from disk and impacting overall performance.
+
+The problem is fundamental to the fact we have per-zone LRU and allocation
+policies and ideally we would only have per-node allocation and LRU lists.
+This would avoid the need for the fair zone allocation policy but the
+low-memory-starvation issue would have to be addressed again from scratch.
+
+kswapd shrinks equally from all zones up to the high watermark plus a
+balance gap and the lowmem reserves. This patch removes the additional
+reclaim from lower zones on the grounds that the fair zone allocation
+policy will typically be interleaving between the zones.  This should not
+break the normal page aging as the proportional allocations due to the
+fair zone allocation policy should compensate.
+
+tiobench was used to evaluate this because it includes a simple
+sequential reader which is the most obvious regression. It also has threaded
+readers that produce reasonably steady figures.
+
+                                      3.16.0-rc2                 3.0.0            3.16.0-rc2
+                                         vanilla               vanilla           checklow-v4
+Min    SeqRead-MB/sec-1         120.92 (  0.00%)      133.65 ( 10.53%)      140.64 ( 16.31%)
+Min    SeqRead-MB/sec-2         100.25 (  0.00%)      121.74 ( 21.44%)      117.67 ( 17.38%)
+Min    SeqRead-MB/sec-4          96.27 (  0.00%)      113.48 ( 17.88%)      107.56 ( 11.73%)
+Min    SeqRead-MB/sec-8          83.55 (  0.00%)       97.87 ( 17.14%)       88.08 (  5.42%)
+Min    SeqRead-MB/sec-16         66.77 (  0.00%)       82.59 ( 23.69%)       71.04 (  6.40%)
+
+There are still regressions for higher number of threads but this is
+related to changes in the CFQ IO scheduler.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/mmzone.h | 201 +++++++++++++++++++++++++------------------------
- mm/page_alloc.c        |  13 ++--
- mm/vmstat.c            |   4 +-
- 3 files changed, 113 insertions(+), 105 deletions(-)
+ include/linux/swap.h |  9 ---------
+ mm/vmscan.c          | 46 ++++++++++++++++------------------------------
+ 2 files changed, 16 insertions(+), 39 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 6cbd1b6..a2f6443 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -324,19 +324,12 @@ enum zone_type {
- #ifndef __GENERATING_BOUNDS_H
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 4bdbee8..1680307 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -165,15 +165,6 @@ enum {
+ #define SWAP_CLUSTER_MAX 32UL
+ #define COMPACT_CLUSTER_MAX SWAP_CLUSTER_MAX
  
- struct zone {
--	/* Fields commonly accessed by the page allocator */
-+	/* Read-mostly fields */
- 
- 	/* zone watermarks, access with *_wmark_pages(zone) macros */
- 	unsigned long watermark[NR_WMARK];
- 
- 	/*
--	 * When free pages are below this point, additional steps are taken
--	 * when reading the number of free pages to avoid per-cpu counter
--	 * drift allowing watermarks to be breached
--	 */
--	unsigned long percpu_drift_mark;
+-/*
+- * Ratio between zone->managed_pages and the "gap" that above the per-zone
+- * "high_wmark". While balancing nodes, We allow kswapd to shrink zones that
+- * do not meet the (high_wmark + gap) watermark, even which already met the
+- * high_wmark, in order to provide better per-zone lru behavior. We are ok to
+- * spend not more than 1% of the memory for this zone balancing "gap".
+- */
+-#define KSWAPD_ZONE_BALANCE_GAP_RATIO 100
 -
--	/*
- 	 * We don't know if the memory that we're going to allocate will be freeable
- 	 * or/and it will be released eventually, so to avoid totally wasting several
- 	 * GB of ram we must reserve some of the lower zone memory (otherwise we risk
-@@ -344,41 +337,17 @@ struct zone {
- 	 * on the higher zones). This array is recalculated at runtime if the
- 	 * sysctl_lowmem_reserve_ratio sysctl changes.
- 	 */
--	unsigned long		lowmem_reserve[MAX_NR_ZONES];
--
--	/*
--	 * This is a per-zone reserve of pages that should not be
--	 * considered dirtyable memory.
--	 */
--	unsigned long		dirty_balance_reserve;
-+	unsigned int lowmem_reserve[MAX_NR_ZONES];
- 
-+	struct per_cpu_pageset __percpu *pageset;
- #ifdef CONFIG_NUMA
- 	int node;
--	/*
--	 * zone reclaim becomes active if more unmapped pages exist.
--	 */
--	unsigned long		min_unmapped_pages;
--	unsigned long		min_slab_pages;
- #endif
--	struct per_cpu_pageset __percpu *pageset;
- 	/*
--	 * free areas of different sizes
-+	 * The target ratio of ACTIVE_ANON to INACTIVE_ANON pages on
-+	 * this zone's LRU.  Maintained by the pageout code.
- 	 */
--	spinlock_t		lock;
--#if defined CONFIG_COMPACTION || defined CONFIG_CMA
--	/* Set to true when the PG_migrate_skip bits should be cleared */
--	bool			compact_blockskip_flush;
--
--	/* pfn where compaction free scanner should start */
--	unsigned long		compact_cached_free_pfn;
--	/* pfn where async and sync compaction migration scanner should start */
--	unsigned long		compact_cached_migrate_pfn[2];
--#endif
--#ifdef CONFIG_MEMORY_HOTPLUG
--	/* see spanned/present_pages for more description */
--	seqlock_t		span_seqlock;
--#endif
--	struct free_area	free_area[MAX_ORDER];
-+	unsigned int inactive_ratio;
- 
- #ifndef CONFIG_SPARSEMEM
- 	/*
-@@ -388,74 +357,37 @@ struct zone {
- 	unsigned long		*pageblock_flags;
- #endif /* CONFIG_SPARSEMEM */
- 
--#ifdef CONFIG_COMPACTION
- 	/*
--	 * On compaction failure, 1<<compact_defer_shift compactions
--	 * are skipped before trying again. The number attempted since
--	 * last failure is tracked with compact_considered.
-+	 * This is a per-zone reserve of pages that should not be
-+	 * considered dirtyable memory.
- 	 */
--	unsigned int		compact_considered;
--	unsigned int		compact_defer_shift;
--	int			compact_order_failed;
--#endif
--
--	ZONE_PADDING(_pad1_)
--
--	/* Fields commonly accessed by the page reclaim scanner */
--	spinlock_t		lru_lock;
--	struct lruvec		lruvec;
--
--	/* Evictions & activations on the inactive file list */
--	atomic_long_t		inactive_age;
--
--	unsigned long		pages_scanned;	   /* since last reclaim */
--	unsigned long		flags;		   /* zone flags, see below */
--
--	/* Zone statistics */
--	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
-+	unsigned long		dirty_balance_reserve;
- 
- 	/*
--	 * The target ratio of ACTIVE_ANON to INACTIVE_ANON pages on
--	 * this zone's LRU.  Maintained by the pageout code.
-+	 * When free pages are below this point, additional steps are taken
-+	 * when reading the number of free pages to avoid per-cpu counter
-+	 * drift allowing watermarks to be breached
- 	 */
--	unsigned int inactive_ratio;
--
--
--	ZONE_PADDING(_pad2_)
--	/* Rarely used or read-mostly fields */
-+	unsigned long percpu_drift_mark;
- 
-+#ifdef CONFIG_NUMA
- 	/*
--	 * wait_table		-- the array holding the hash table
--	 * wait_table_hash_nr_entries	-- the size of the hash table array
--	 * wait_table_bits	-- wait_table_size == (1 << wait_table_bits)
--	 *
--	 * The purpose of all these is to keep track of the people
--	 * waiting for a page to become available and make them
--	 * runnable again when possible. The trouble is that this
--	 * consumes a lot of space, especially when so few things
--	 * wait on pages at a given time. So instead of using
--	 * per-page waitqueues, we use a waitqueue hash table.
--	 *
--	 * The bucket discipline is to sleep on the same queue when
--	 * colliding and wake all in that wait queue when removing.
--	 * When something wakes, it must check to be sure its page is
--	 * truly available, a la thundering herd. The cost of a
--	 * collision is great, but given the expected load of the
--	 * table, they should be so rare as to be outweighed by the
--	 * benefits from the saved space.
--	 *
--	 * __wait_on_page_locked() and unlock_page() in mm/filemap.c, are the
--	 * primary users of these fields, and in mm/page_alloc.c
--	 * free_area_init_core() performs the initialization of them.
-+	 * zone reclaim becomes active if more unmapped pages exist.
- 	 */
--	wait_queue_head_t	* wait_table;
--	unsigned long		wait_table_hash_nr_entries;
--	unsigned long		wait_table_bits;
-+	unsigned long		min_unmapped_pages;
-+	unsigned long		min_slab_pages;
-+#endif /* CONFIG_NUMA */
-+
-+	const char		*name;
- 
- 	/*
--	 * Discontig memory support fields.
-+	 * Number of MIGRATE_RESEVE page block. To maintain for just
-+	 * optimization. Protected by zone->lock.
- 	 */
-+	int			nr_migrate_reserve_block;
-+
- 	struct pglist_data	*zone_pgdat;
-+
- 	/* zone_start_pfn == zone_start_paddr >> PAGE_SHIFT */
- 	unsigned long		zone_start_pfn;
- 
-@@ -504,16 +436,89 @@ struct zone {
- 	unsigned long		present_pages;
- 	unsigned long		managed_pages;
- 
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+	/* see spanned/present_pages for more description */
-+	seqlock_t		span_seqlock;
-+#endif
-+
- 	/*
--	 * Number of MIGRATE_RESEVE page block. To maintain for just
--	 * optimization. Protected by zone->lock.
-+	 * wait_table		-- the array holding the hash table
-+	 * wait_table_hash_nr_entries	-- the size of the hash table array
-+	 * wait_table_bits	-- wait_table_size == (1 << wait_table_bits)
-+	 *
-+	 * The purpose of all these is to keep track of the people
-+	 * waiting for a page to become available and make them
-+	 * runnable again when possible. The trouble is that this
-+	 * consumes a lot of space, especially when so few things
-+	 * wait on pages at a given time. So instead of using
-+	 * per-page waitqueues, we use a waitqueue hash table.
-+	 *
-+	 * The bucket discipline is to sleep on the same queue when
-+	 * colliding and wake all in that wait queue when removing.
-+	 * When something wakes, it must check to be sure its page is
-+	 * truly available, a la thundering herd. The cost of a
-+	 * collision is great, but given the expected load of the
-+	 * table, they should be so rare as to be outweighed by the
-+	 * benefits from the saved space.
-+	 *
-+	 * __wait_on_page_locked() and unlock_page() in mm/filemap.c, are the
-+	 * primary users of these fields, and in mm/page_alloc.c
-+	 * free_area_init_core() performs the initialization of them.
- 	 */
--	int			nr_migrate_reserve_block;
-+	wait_queue_head_t	*wait_table;
-+	unsigned long		wait_table_hash_nr_entries;
-+	unsigned long		wait_table_bits;
-+
-+	ZONE_PADDING(_pad1_)
-+
-+	/* Write-intensive fields used from the page allocator */
-+	spinlock_t		lock;
-+
-+	/* free areas of different sizes */
-+	struct free_area	free_area[MAX_ORDER];
-+
-+	/* zone flags, see below */
-+	unsigned long		flags;
-+
-+	ZONE_PADDING(_pad2_)
-+
-+	/* Write-intensive fields used by page reclaim */
-+
-+	/* Fields commonly accessed by the page reclaim scanner */
-+	spinlock_t		lru_lock;
-+	struct lruvec		lruvec;
-+
-+	/* Evictions & activations on the inactive file list */
-+	atomic_long_t		inactive_age;
-+
-+	unsigned long		pages_scanned;	   /* since last reclaim */
-+
-+#if defined CONFIG_COMPACTION || defined CONFIG_CMA
-+	/* pfn where compaction free scanner should start */
-+	unsigned long		compact_cached_free_pfn;
-+	/* pfn where async and sync compaction migration scanner should start */
-+	unsigned long		compact_cached_migrate_pfn[2];
-+#endif
- 
-+#ifdef CONFIG_COMPACTION
- 	/*
--	 * rarely used fields:
-+	 * On compaction failure, 1<<compact_defer_shift compactions
-+	 * are skipped before trying again. The number attempted since
-+	 * last failure is tracked with compact_considered.
- 	 */
--	const char		*name;
-+	unsigned int		compact_considered;
-+	unsigned int		compact_defer_shift;
-+	int			compact_order_failed;
-+#endif
-+
-+#if defined CONFIG_COMPACTION || defined CONFIG_CMA
-+	/* Set to true when the PG_migrate_skip bits should be cleared */
-+	bool			compact_blockskip_flush;
-+#endif
-+
-+	ZONE_PADDING(_pad3_)
-+	/* Zone statistics */
-+	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
- } ____cacheline_internodealigned_in_smp;
- 
- typedef enum {
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 4f59fa2..ebbdbcd 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1699,7 +1699,6 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
+ #define SWAP_MAP_MAX	0x3e	/* Max duplication count, in first swap_map */
+ #define SWAP_MAP_BAD	0x3f	/* Note pageblock is bad, in first swap_map */
+ #define SWAP_HAS_CACHE	0x40	/* Flag page is cached, in first swap_map */
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 0f16ffe..3e315c7 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2294,7 +2294,7 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+ /* Returns true if compaction should go ahead for a high-order request */
+ static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
  {
- 	/* free_pages my go negative - that's OK */
- 	long min = mark;
--	long lowmem_reserve = z->lowmem_reserve[classzone_idx];
- 	int o;
- 	long free_cma = 0;
+-	unsigned long balance_gap, watermark;
++	unsigned long watermark;
+ 	bool watermark_ok;
  
-@@ -1714,7 +1713,7 @@ static bool __zone_watermark_ok(struct zone *z, unsigned int order,
- 		free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
- #endif
+ 	/* Do not consider compaction for orders reclaim is meant to satisfy */
+@@ -2307,9 +2307,7 @@ static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
+ 	 * there is a buffer of free pages available to give compaction
+ 	 * a reasonable chance of completing and allocating the page
+ 	 */
+-	balance_gap = min(low_wmark_pages(zone), DIV_ROUND_UP(
+-			zone->managed_pages, KSWAPD_ZONE_BALANCE_GAP_RATIO));
+-	watermark = high_wmark_pages(zone) + balance_gap + (2UL << sc->order);
++	watermark = high_wmark_pages(zone) + (2UL << sc->order);
+ 	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, 0, 0);
  
--	if (free_pages - free_cma <= min + lowmem_reserve)
-+	if (free_pages - free_cma <= min + z->lowmem_reserve[classzone_idx])
+ 	/*
+@@ -2816,11 +2814,9 @@ static void age_active_anon(struct zone *zone, struct scan_control *sc)
+ 	} while (memcg);
+ }
+ 
+-static bool zone_balanced(struct zone *zone, int order,
+-			  unsigned long balance_gap, int classzone_idx)
++static bool zone_balanced(struct zone *zone, int order)
+ {
+-	if (!zone_watermark_ok_safe(zone, order, high_wmark_pages(zone) +
+-				    balance_gap, classzone_idx, 0))
++	if (!zone_watermark_ok_safe(zone, order, high_wmark_pages(zone), 0, 0))
  		return false;
- 	for (o = 0; o < order; o++) {
- 		/* At the next order, this order's pages become unavailable */
-@@ -3245,7 +3244,7 @@ void show_free_areas(unsigned int filter)
- 			);
- 		printk("lowmem_reserve[]:");
- 		for (i = 0; i < MAX_NR_ZONES; i++)
--			printk(" %lu", zone->lowmem_reserve[i]);
-+			printk(" %u", zone->lowmem_reserve[i]);
- 		printk("\n");
- 	}
  
-@@ -5566,7 +5565,7 @@ static void calculate_totalreserve_pages(void)
- 	for_each_online_pgdat(pgdat) {
- 		for (i = 0; i < MAX_NR_ZONES; i++) {
- 			struct zone *zone = pgdat->node_zones + i;
--			unsigned long max = 0;
-+			unsigned int max = 0;
- 
- 			/* Find valid and maximum lowmem_reserve in the zone */
- 			for (j = i; j < MAX_NR_ZONES; j++) {
-@@ -5617,6 +5616,7 @@ static void setup_per_zone_lowmem_reserve(void)
- 			idx = j;
- 			while (idx) {
- 				struct zone *lower_zone;
-+				unsigned long reserve;
- 
- 				idx--;
- 
-@@ -5624,8 +5624,11 @@ static void setup_per_zone_lowmem_reserve(void)
- 					sysctl_lowmem_reserve_ratio[idx] = 1;
- 
- 				lower_zone = pgdat->node_zones + idx;
--				lower_zone->lowmem_reserve[j] = managed_pages /
-+				reserve = managed_pages /
- 					sysctl_lowmem_reserve_ratio[idx];
-+				if (WARN_ON(reserve > UINT_MAX))
-+					reserve = UINT_MAX;
-+				lower_zone->lowmem_reserve[j] = reserve;
- 				managed_pages += lower_zone->managed_pages;
- 			}
+ 	if (IS_ENABLED(CONFIG_COMPACTION) && order &&
+@@ -2877,7 +2873,7 @@ static bool pgdat_balanced(pg_data_t *pgdat, int order, int classzone_idx)
+ 			continue;
  		}
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index b37bd49..c6d6fae 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1077,10 +1077,10 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
- 				zone_page_state(zone, i));
  
- 	seq_printf(m,
--		   "\n        protection: (%lu",
-+		   "\n        protection: (%u",
- 		   zone->lowmem_reserve[0]);
- 	for (i = 1; i < ARRAY_SIZE(zone->lowmem_reserve); i++)
--		seq_printf(m, ", %lu", zone->lowmem_reserve[i]);
-+		seq_printf(m, ", %u", zone->lowmem_reserve[i]);
- 	seq_printf(m,
- 		   ")"
- 		   "\n  pagesets");
+-		if (zone_balanced(zone, order, 0, i))
++		if (zone_balanced(zone, order))
+ 			balanced_pages += zone->managed_pages;
+ 		else if (!order)
+ 			return false;
+@@ -2934,7 +2930,6 @@ static bool kswapd_shrink_zone(struct zone *zone,
+ 			       unsigned long *nr_attempted)
+ {
+ 	int testorder = sc->order;
+-	unsigned long balance_gap;
+ 	struct reclaim_state *reclaim_state = current->reclaim_state;
+ 	struct shrink_control shrink = {
+ 		.gfp_mask = sc->gfp_mask,
+@@ -2956,21 +2951,11 @@ static bool kswapd_shrink_zone(struct zone *zone,
+ 		testorder = 0;
+ 
+ 	/*
+-	 * We put equal pressure on every zone, unless one zone has way too
+-	 * many pages free already. The "too many pages" is defined as the
+-	 * high wmark plus a "gap" where the gap is either the low
+-	 * watermark or 1% of the zone, whichever is smaller.
+-	 */
+-	balance_gap = min(low_wmark_pages(zone), DIV_ROUND_UP(
+-			zone->managed_pages, KSWAPD_ZONE_BALANCE_GAP_RATIO));
+-
+-	/*
+ 	 * If there is no low memory pressure or the zone is balanced then no
+ 	 * reclaim is necessary
+ 	 */
+ 	lowmem_pressure = (buffer_heads_over_limit && is_highmem(zone));
+-	if (!lowmem_pressure && zone_balanced(zone, testorder,
+-						balance_gap, classzone_idx))
++	if (!lowmem_pressure && zone_balanced(zone, testorder))
+ 		return true;
+ 
+ 	shrink_zone(zone, sc);
+@@ -2993,7 +2978,7 @@ static bool kswapd_shrink_zone(struct zone *zone,
+ 	 * waits.
+ 	 */
+ 	if (zone_reclaimable(zone) &&
+-	    zone_balanced(zone, testorder, 0, classzone_idx)) {
++	    zone_balanced(zone, testorder)) {
+ 		zone_clear_flag(zone, ZONE_CONGESTED);
+ 		zone_clear_flag(zone, ZONE_TAIL_LRU_DIRTY);
+ 	}
+@@ -3079,7 +3064,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 				break;
+ 			}
+ 
+-			if (!zone_balanced(zone, order, 0, 0)) {
++			if (!zone_balanced(zone, order)) {
+ 				end_zone = i;
+ 				break;
+ 			} else {
+@@ -3124,12 +3109,13 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 
+ 		/*
+ 		 * Now scan the zone in the dma->highmem direction, stopping
+-		 * at the last zone which needs scanning.
+-		 *
+-		 * We do this because the page allocator works in the opposite
+-		 * direction.  This prevents the page allocator from allocating
+-		 * pages behind kswapd's direction of progress, which would
+-		 * cause too much scanning of the lower zones.
++		 * at the last zone which needs scanning. We do this because
++		 * the page allocators prefers to work in the opposite
++		 * direction and we want to avoid the page allocator reclaiming
++		 * behind kswapd's direction of progress. Due to the fair zone
++		 * allocation policy interleaving allocations between zones
++		 * we no longer proportionally scan the lower zones if the
++		 * watermarks are ok.
+ 		 */
+ 		for (i = 0; i <= end_zone; i++) {
+ 			struct zone *zone = pgdat->node_zones + i;
+@@ -3397,7 +3383,7 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
+ 	}
+ 	if (!waitqueue_active(&pgdat->kswapd_wait))
+ 		return;
+-	if (zone_balanced(zone, order, 0, 0))
++	if (zone_balanced(zone, order))
+ 		return;
+ 
+ 	trace_mm_vmscan_wakeup_kswapd(pgdat->node_id, zone_idx(zone), order);
 -- 
 1.8.4.5
 
