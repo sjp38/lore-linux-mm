@@ -1,20 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 4144A6B0035
-	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 17:09:42 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id r10so8867764pdi.37
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 14:09:41 -0700 (PDT)
-Received: from mail-pd0-x233.google.com (mail-pd0-x233.google.com [2607:f8b0:400e:c02::233])
-        by mx.google.com with ESMTPS id ra6si24529277pab.44.2014.06.30.14.09.40
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 435806B0037
+	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 17:11:14 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id w10so8854508pde.17
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 14:11:13 -0700 (PDT)
+Received: from mail-pd0-x22b.google.com (mail-pd0-x22b.google.com [2607:f8b0:400e:c02::22b])
+        by mx.google.com with ESMTPS id sj10si24478855pab.159.2014.06.30.14.11.13
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 30 Jun 2014 14:09:41 -0700 (PDT)
-Received: by mail-pd0-f179.google.com with SMTP id w10so8832057pde.24
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 14:09:40 -0700 (PDT)
-Date: Mon, 30 Jun 2014 14:08:11 -0700 (PDT)
+        Mon, 30 Jun 2014 14:11:13 -0700 (PDT)
+Received: by mail-pd0-f171.google.com with SMTP id fp1so8859886pdb.2
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 14:11:13 -0700 (PDT)
+Date: Mon, 30 Jun 2014 14:09:49 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 1/2] shmem: fix init_page_accessed use to stop !PageLRU bug
-Message-ID: <alpine.LSU.2.11.1406301405230.1096@eggly.anvils>
+Subject: [PATCH 2/2] mm: replace init_page_accessed by __SetPageReferenced
+In-Reply-To: <alpine.LSU.2.11.1406301405230.1096@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1406301408310.1096@eggly.anvils>
+References: <alpine.LSU.2.11.1406301405230.1096@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -22,76 +24,85 @@ List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Under shmem swapping load, I sometimes hit the VM_BUG_ON_PAGE(!PageLRU)
-in isolate_lru_pages() at mm/vmscan.c:1281!
-
-Commit 2457aec63745 ("mm: non-atomically mark page accessed during page
-cache allocation where possible") looks like interrupted work-in-progress.
-
-mm/filemap.c's call to init_page_accessed() is fine, but not mm/shmem.c's
-- shmem_write_begin() is clearly wrong to use it after shmem_getpage(),
-when the page is always visible in radix_tree, and often already on LRU.
-
-Revert change to shmem_write_begin(), and use init_page_accessed() or
-mark_page_accessed() appropriately for SGP_WRITE in shmem_getpage_gfp().
-
-SGP_WRITE also covers shmem_symlink(), which did not mark_page_accessed()
-before; but since many other filesystems use [__]page_symlink(), which did
-and does mark the page accessed, consider this as rectifying an oversight.
+Do we really need an exported alias for __SetPageReferenced()?
+Its callers better know what they're doing, in which case the page
+would not be already marked referenced.  Kill init_page_accessed(),
+just __SetPageReferenced() inline.
 
 Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
 
- mm/shmem.c |   15 ++++++++++-----
- 1 file changed, 10 insertions(+), 5 deletions(-)
+ include/linux/swap.h |    1 -
+ mm/filemap.c         |    4 ++--
+ mm/shmem.c           |    2 +-
+ mm/swap.c            |   14 +++-----------
+ 4 files changed, 6 insertions(+), 15 deletions(-)
 
---- 3.16-rc3/mm/shmem.c	2014-06-29 15:22:10.592003936 -0700
-+++ linux/mm/shmem.c	2014-06-30 12:15:52.204093217 -0700
-@@ -1029,6 +1029,9 @@ repeat:
- 		goto failed;
- 	}
+--- 3.16-rc3+/include/linux/swap.h	2014-06-16 00:28:54.916076526 -0700
++++ linux/include/linux/swap.h	2014-06-30 12:55:35.216149853 -0700
+@@ -311,7 +311,6 @@ extern void lru_add_page_tail(struct pag
+ 			 struct lruvec *lruvec, struct list_head *head);
+ extern void activate_page(struct page *);
+ extern void mark_page_accessed(struct page *);
+-extern void init_page_accessed(struct page *page);
+ extern void lru_add_drain(void);
+ extern void lru_add_drain_cpu(int cpu);
+ extern void lru_add_drain_all(void);
+--- 3.16-rc3+/mm/filemap.c	2014-06-16 00:28:55.100076530 -0700
++++ linux/mm/filemap.c	2014-06-30 12:55:35.216149853 -0700
+@@ -1100,9 +1100,9 @@ no_page:
+ 		if (WARN_ON_ONCE(!(fgp_flags & FGP_LOCK)))
+ 			fgp_flags |= FGP_LOCK;
  
-+	if (page && sgp == SGP_WRITE)
-+		mark_page_accessed(page);
-+
- 	/* fallocated page? */
- 	if (page && !PageUptodate(page)) {
- 		if (sgp != SGP_READ)
-@@ -1110,6 +1113,9 @@ repeat:
- 		shmem_recalc_inode(inode);
- 		spin_unlock(&info->lock);
+-		/* Init accessed so avoit atomic mark_page_accessed later */
++		/* Init accessed so avoid atomic mark_page_accessed later */
+ 		if (fgp_flags & FGP_ACCESSED)
+-			init_page_accessed(page);
++			__SetPageReferenced(page);
  
-+		if (sgp == SGP_WRITE)
-+			mark_page_accessed(page);
-+
- 		delete_from_swap_cache(page);
- 		set_page_dirty(page);
- 		swap_free(swap);
-@@ -1136,6 +1142,9 @@ repeat:
- 
+ 		err = add_to_page_cache_lru(page, mapping, offset, radix_gfp_mask);
+ 		if (unlikely(err)) {
+--- 3.16-rc3+/mm/shmem.c	2014-06-30 12:15:52.204093217 -0700
++++ linux/mm/shmem.c	2014-06-30 12:55:35.216149853 -0700
+@@ -1143,7 +1143,7 @@ repeat:
  		__SetPageSwapBacked(page);
  		__set_page_locked(page);
-+		if (sgp == SGP_WRITE)
-+			init_page_accessed(page);
-+
+ 		if (sgp == SGP_WRITE)
+-			init_page_accessed(page);
++			__SetPageReferenced(page);
+ 
  		error = mem_cgroup_charge_file(page, current->mm,
  						gfp & GFP_RECLAIM_MASK);
- 		if (error)
-@@ -1412,13 +1421,9 @@ shmem_write_begin(struct file *file, str
- 			loff_t pos, unsigned len, unsigned flags,
- 			struct page **pagep, void **fsdata)
+--- 3.16-rc3+/mm/swap.c	2014-06-16 00:28:55.132076531 -0700
++++ linux/mm/swap.c	2014-06-30 12:55:35.216149853 -0700
+@@ -589,6 +589,9 @@ static void __lru_cache_activate_page(st
+  * inactive,unreferenced	->	inactive,referenced
+  * inactive,referenced		->	active,unreferenced
+  * active,unreferenced		->	active,referenced
++ *
++ * When a newly allocated page is not yet visible, so safe for non-atomic ops,
++ * __SetPageReferenced(page) may be substituted for mark_page_accessed(page).
+  */
+ void mark_page_accessed(struct page *page)
  {
--	int ret;
- 	struct inode *inode = mapping->host;
- 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
--	ret = shmem_getpage(inode, index, pagep, SGP_WRITE, NULL);
--	if (ret == 0 && *pagep)
--		init_page_accessed(*pagep);
--	return ret;
-+	return shmem_getpage(inode, index, pagep, SGP_WRITE, NULL);
+@@ -614,17 +617,6 @@ void mark_page_accessed(struct page *pag
  }
+ EXPORT_SYMBOL(mark_page_accessed);
  
- static int
+-/*
+- * Used to mark_page_accessed(page) that is not visible yet and when it is
+- * still safe to use non-atomic ops
+- */
+-void init_page_accessed(struct page *page)
+-{
+-	if (!PageReferenced(page))
+-		__SetPageReferenced(page);
+-}
+-EXPORT_SYMBOL(init_page_accessed);
+-
+ static void __lru_cache_add(struct page *page)
+ {
+ 	struct pagevec *pvec = &get_cpu_var(lru_add_pvec);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
