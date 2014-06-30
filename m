@@ -1,50 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A26F6B0035
-	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 10:31:15 -0400 (EDT)
-Received: by mail-wi0-f171.google.com with SMTP id n15so6182448wiw.16
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 07:31:14 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id ja10si10504429wic.105.2014.06.30.07.31.12
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Jun 2014 07:31:13 -0700 (PDT)
-Date: Mon, 30 Jun 2014 10:31:05 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v3 09/13] memcg: apply walk_page_vma()
-Message-ID: <20140630143105.GB4319@nhori.bos.redhat.com>
-References: <1403295099-6407-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1403295099-6407-10-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20140630122016.GY19833@node.dhcp.inet.fi>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140630122016.GY19833@node.dhcp.inet.fi>
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D9126B0035
+	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 10:32:46 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id w10so8355329pde.31
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 07:32:46 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
+        by mx.google.com with ESMTP id vq10si23352843pab.121.2014.06.30.07.32.45
+        for <linux-mm@kvack.org>;
+        Mon, 30 Jun 2014 07:32:45 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <1403366036-10169-3-git-send-email-chris@chris-wilson.co.uk>
+References: <20140619135944.20837E00A3@blue.fi.intel.com>
+ <1403366036-10169-1-git-send-email-chris@chris-wilson.co.uk>
+ <1403366036-10169-3-git-send-email-chris@chris-wilson.co.uk>
+Subject: RE: [PATCH 3/4] mm: Export remap_io_mapping()
+Content-Transfer-Encoding: 7bit
+Message-Id: <20140630143240.25B87E00A3@blue.fi.intel.com>
+Date: Mon, 30 Jun 2014 17:32:40 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Cyrill Gorcunov <gorcunov@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Mon, Jun 30, 2014 at 03:20:16PM +0300, Kirill A. Shutemov wrote:
-> On Fri, Jun 20, 2014 at 04:11:35PM -0400, Naoya Horiguchi wrote:
-> > pagewalk.c can handle vma in itself, so we don't have to pass vma via
-> > walk->private. And both of mem_cgroup_count_precharge() and
-> > mem_cgroup_move_charge() walk over all vmas (not interested in outside vma,)
-> > so using walk_page_vma() is preferable.
-> > 
-> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Chris Wilson wrote:
+> This is similar to remap_pfn_range(), and uses the recently refactor
+> code to do the page table walking. The key difference is that is back
+> propagates its error as this is required for use from within a pagefault
+> handler. The other difference, is that it combine the page protection
+> from io-mapping, which is known from when the io-mapping is created,
+> with the per-vma page protection flags. This avoids having to walk the
+> entire system description to rediscover the special page protection
+> established for the io-mapping.
 > 
-> My first thought was to suggest walk_page_range(0, -1, &walk) instead
-> since we walk over all vmas. But walk_page_range() uses find_vma() on each
-> iteration, which is expensive.
-> Is there a reason why we cannot use vma->vm_next in walk_page_range()?
+> Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
 
-Right, we can use vma->vm_next. The old code uses find_vma() because
-addr can jump to the next pgd boundary, but that doesn't happen with
-this patch, so using vma->vm_next is fine.
+Looks okay to me:
 
-Thanks,
-Naoya Horiguchi
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
