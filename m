@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 096656B0031
-	for <linux-mm@kvack.org>; Sun, 29 Jun 2014 23:29:08 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id ey11so7781496pad.12
-        for <linux-mm@kvack.org>; Sun, 29 Jun 2014 20:29:08 -0700 (PDT)
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id qp5si21523629pab.192.2014.06.29.20.29.07
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 787956B0031
+	for <linux-mm@kvack.org>; Sun, 29 Jun 2014 23:49:24 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id fp1so7493564pdb.2
+        for <linux-mm@kvack.org>; Sun, 29 Jun 2014 20:49:24 -0700 (PDT)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id df3si21575907pbb.203.2014.06.29.20.49.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 29 Jun 2014 20:29:08 -0700 (PDT)
-Date: Sun, 29 Jun 2014 20:29:01 -0700
+        Sun, 29 Jun 2014 20:49:23 -0700 (PDT)
+Date: Sun, 29 Jun 2014 20:49:16 -0700
 From: John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [PATCH 4/6] mmu_notifier: pass through vma to invalidate_range
- and invalidate_page
-In-Reply-To: <1403920822-14488-5-git-send-email-j.glisse@gmail.com>
-Message-ID: <alpine.DEB.2.10.1406292011200.21595@blueforge.nvidia.com>
-References: <1403920822-14488-1-git-send-email-j.glisse@gmail.com> <1403920822-14488-5-git-send-email-j.glisse@gmail.com>
+Subject: Re: [PATCH 1/6] mmput: use notifier chain to call subsystem exit
+ handler.
+In-Reply-To: <1403920822-14488-2-git-send-email-j.glisse@gmail.com>
+Message-ID: <alpine.DEB.2.10.1406292033070.21595@blueforge.nvidia.com>
+References: <1403920822-14488-1-git-send-email-j.glisse@gmail.com> <1403920822-14488-2-git-send-email-j.glisse@gmail.com>
 MIME-Version: 1.0
 Content-Type: multipart/mixed;
-	boundary="279739828-296501848-1404098946=:21595"
+	boundary="279739828-74989328-1404100161=:21595"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: =?ISO-8859-15?Q?J=E9r=F4me_Glisse?= <j.glisse@gmail.com>
 Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, hpa@zytor.com, peterz@infraread.org, aarcange@redhat.com, riel@redhat.com, jweiner@redhat.com, torvalds@linux-foundation.org, Mark Hairgrove <mhairgrove@nvidia.com>, Jatin Kumar <jakumar@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, Oded Gabbay <Oded.Gabbay@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Andrew Lewycky <Andrew.Lewycky@amd.com>, =?ISO-8859-15?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>
 
---279739828-296501848-1404098946=:21595
+--279739828-74989328-1404100161=:21595
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 8BIT
 
@@ -32,864 +32,424 @@ On Fri, 27 Jun 2014, JA(C)rA'me Glisse wrote:
 
 > From: JA(C)rA'me Glisse <jglisse@redhat.com>
 > 
-> New user of the mmu_notifier interface need to lookup vma in order to
-> perform the invalidation operation. Instead of redoing a vma lookup
-> inside the callback just pass through the vma from the call site where
-> it is already available.
+> Several subsystem require a callback when a mm struct is being destroy
+> so that they can cleanup there respective per mm struct. Instead of
+> having each subsystem add its callback to mmput use a notifier chain
+> to call each of the subsystem.
 > 
-> This needs small refactoring in memory.c to call invalidate_range on
-> vma boundary the overhead should be low enough.
+> This will allow new subsystem to register callback even if they are
+> module. There should be no contention on the rw semaphore protecting
+> the call chain and the impact on the code path should be low and
+> burried in the noise.
+> 
+> Note that this patch also move the call to cleanup functions after
+> exit_mmap so that new call back can assume that mmu_notifier_release
+> have already been call. This does not impact existing cleanup functions
+> as they do not rely on anything that exit_mmap is freeing. Also moved
+> khugepaged_exit to exit_mmap so that ordering is preserved for that
+> function.
 > 
 > Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 > ---
->  drivers/gpu/drm/i915/i915_gem_userptr.c |  1 +
->  drivers/iommu/amd_iommu_v2.c            |  3 +++
->  drivers/misc/sgi-gru/grutlbpurge.c      |  6 ++++-
->  drivers/xen/gntdev.c                    |  4 +++-
->  fs/proc/task_mmu.c                      | 16 ++++++++-----
->  include/linux/mmu_notifier.h            | 19 ++++++++++++---
->  kernel/events/uprobes.c                 |  4 ++--
->  mm/filemap_xip.c                        |  3 ++-
->  mm/huge_memory.c                        | 26 ++++++++++----------
->  mm/hugetlb.c                            | 16 ++++++-------
->  mm/ksm.c                                |  8 +++----
->  mm/memory.c                             | 42 +++++++++++++++++++++------------
->  mm/migrate.c                            |  6 ++---
->  mm/mmu_notifier.c                       |  9 ++++---
->  mm/mprotect.c                           |  5 ++--
->  mm/mremap.c                             |  4 ++--
->  mm/rmap.c                               |  9 +++----
->  virt/kvm/kvm_main.c                     |  3 +++
->  18 files changed, 116 insertions(+), 68 deletions(-)
+>  fs/aio.c                | 29 ++++++++++++++++++++++-------
+>  include/linux/aio.h     |  2 --
+>  include/linux/ksm.h     | 11 -----------
+>  include/linux/sched.h   |  5 +++++
+>  include/linux/uprobes.h |  1 -
+>  kernel/events/uprobes.c | 19 ++++++++++++++++---
+>  kernel/fork.c           | 22 ++++++++++++++++++----
+>  mm/ksm.c                | 26 +++++++++++++++++++++-----
+>  mm/mmap.c               |  3 +++
+>  9 files changed, 85 insertions(+), 33 deletions(-)
 > 
-
-Hi Jerome, considering that you have to change every call site already, it 
-seems to me that it would be ideal to just delete the mm argument from all 
-of these invalidate_range* callbacks. In other words, replace the mm 
-argument with the new vma argument.  I don't see much point in passing 
-them both around, and while it would make the patch a *bit* larger, it's 
-mostly just an extra line or two per call site:
-
-  mm = vma->vm_mm;
-
-Also, passing the vma around really does seem like a good approach, but it 
-does cause a bunch of additional calls to the invalidate_range* routines,
-because we generate a call per vma, instead of just one for the entire mm.
-So that brings up a couple questions:
-
-1) Is there any chance that this could cause measurable performance 
-regressions?
-
-2) Should you put a little note in the commit message, mentioning this 
-point?
-
-> diff --git a/drivers/gpu/drm/i915/i915_gem_userptr.c b/drivers/gpu/drm/i915/i915_gem_userptr.c
-> index ed6f35e..191ac71 100644
-> --- a/drivers/gpu/drm/i915/i915_gem_userptr.c
-> +++ b/drivers/gpu/drm/i915/i915_gem_userptr.c
-> @@ -55,6 +55,7 @@ struct i915_mmu_object {
+> diff --git a/fs/aio.c b/fs/aio.c
+> index c1d8c48..1d06e92 100644
+> --- a/fs/aio.c
+> +++ b/fs/aio.c
+> @@ -40,6 +40,7 @@
+>  #include <linux/ramfs.h>
+>  #include <linux/percpu-refcount.h>
+>  #include <linux/mount.h>
+> +#include <linux/notifier.h>
 >  
->  static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
->  						       struct mm_struct *mm,
-> +						       struct vm_area_struct *vma,
->  						       unsigned long start,
->  						       unsigned long end,
->  						       enum mmu_event event)
-
-That routine has a local variable named vma, so it might be polite to 
-rename the local variable, to make it more obvious to the reader that they 
-are different. Of course, since the compiler knows which is which, feel 
-free to ignore this comment.
-
-> diff --git a/drivers/iommu/amd_iommu_v2.c b/drivers/iommu/amd_iommu_v2.c
-> index 2bb9771..9f9e706 100644
-> --- a/drivers/iommu/amd_iommu_v2.c
-> +++ b/drivers/iommu/amd_iommu_v2.c
-> @@ -422,6 +422,7 @@ static void mn_change_pte(struct mmu_notifier *mn,
+>  #include <asm/kmap_types.h>
+>  #include <asm/uaccess.h>
+> @@ -774,20 +775,22 @@ ssize_t wait_on_sync_kiocb(struct kiocb *req)
+>  EXPORT_SYMBOL(wait_on_sync_kiocb);
 >  
->  static void mn_invalidate_page(struct mmu_notifier *mn,
->  			       struct mm_struct *mm,
-> +			       struct vm_area_struct *vma,
->  			       unsigned long address,
->  			       enum mmu_event event)
->  {
-> @@ -430,6 +431,7 @@ static void mn_invalidate_page(struct mmu_notifier *mn,
->  
->  static void mn_invalidate_range_start(struct mmu_notifier *mn,
->  				      struct mm_struct *mm,
-> +				      struct vm_area_struct *vma,
->  				      unsigned long start,
->  				      unsigned long end,
->  				      enum mmu_event event)
-> @@ -453,6 +455,7 @@ static void mn_invalidate_range_start(struct mmu_notifier *mn,
->  
->  static void mn_invalidate_range_end(struct mmu_notifier *mn,
->  				    struct mm_struct *mm,
-> +				    struct vm_area_struct *vma,
->  				    unsigned long start,
->  				    unsigned long end,
->  				    enum mmu_event event)
-> diff --git a/drivers/misc/sgi-gru/grutlbpurge.c b/drivers/misc/sgi-gru/grutlbpurge.c
-> index e67fed1..d02e4c7 100644
-> --- a/drivers/misc/sgi-gru/grutlbpurge.c
-> +++ b/drivers/misc/sgi-gru/grutlbpurge.c
-> @@ -221,6 +221,7 @@ void gru_flush_all_tlb(struct gru_state *gru)
+>  /*
+> - * exit_aio: called when the last user of mm goes away.  At this point, there is
+> + * aio_exit: called when the last user of mm goes away.  At this point, there is
+>   * no way for any new requests to be submited or any of the io_* syscalls to be
+>   * called on the context.
+>   *
+>   * There may be outstanding kiocbs, but free_ioctx() will explicitly wait on
+>   * them.
 >   */
->  static void gru_invalidate_range_start(struct mmu_notifier *mn,
->  				       struct mm_struct *mm,
-> +				       struct vm_area_struct *vma,
->  				       unsigned long start, unsigned long end,
->  				       enum mmu_event event)
+> -void exit_aio(struct mm_struct *mm)
+> +static int aio_exit(struct notifier_block *nb,
+> +		    unsigned long action, void *data)
 >  {
-> @@ -235,7 +236,9 @@ static void gru_invalidate_range_start(struct mmu_notifier *mn,
+> +	struct mm_struct *mm = data;
+>  	struct kioctx_table *table = rcu_dereference_raw(mm->ioctx_table);
+>  	int i;
+>  
+>  	if (!table)
+> -		return;
+> +		return 0;
+>  
+>  	for (i = 0; i < table->nr; ++i) {
+>  		struct kioctx *ctx = table->table[i];
+> @@ -796,10 +799,10 @@ void exit_aio(struct mm_struct *mm)
+>  			continue;
+>  		/*
+>  		 * We don't need to bother with munmap() here - exit_mmap(mm)
+> -		 * is coming and it'll unmap everything. And we simply can't,
+> -		 * this is not necessarily our ->mm.
+> -		 * Since kill_ioctx() uses non-zero ->mmap_size as indicator
+> -		 * that it needs to unmap the area, just set it to 0.
+> +		 * have already been call and everything is unmap by now. But
+> +		 * to be safe set ->mmap_size to 0 since aio_free_ring() uses
+> +		 * non-zero ->mmap_size as indicator that it needs to unmap the
+> +		 * area.
+>  		 */
+
+Actually, I think the original part of the comment about kill_ioctx
+was accurate, but the new reference to aio_free_ring looks like a typo 
+(?).  I'd write the entire comment as follows (I've dropped the leading 
+whitespace, for email):
+
+    /*
+     * We don't need to bother with munmap() here - exit_mmap(mm)
+     * has already been called and everything is unmapped by now.
+     * But to be safe, set ->mmap_size to 0 since kill_ioctx() uses a
+     * non-zero >mmap_size as an indicator that it needs to unmap the
+     * area.
+     */
+
+
+>  		ctx->mmap_size = 0;
+>  		kill_ioctx(mm, ctx, NULL);
+> @@ -807,6 +810,7 @@ void exit_aio(struct mm_struct *mm)
+>  
+>  	RCU_INIT_POINTER(mm->ioctx_table, NULL);
+>  	kfree(table);
+> +	return 0;
 >  }
 >  
->  static void gru_invalidate_range_end(struct mmu_notifier *mn,
-> -				     struct mm_struct *mm, unsigned long start,
-> +				     struct mm_struct *mm,
-> +				     struct vm_area_struct *vma,
-> +				     unsigned long start,
->  				     unsigned long end,
->  				     enum mmu_event event)
+>  static void put_reqs_available(struct kioctx *ctx, unsigned nr)
+> @@ -1629,3 +1633,14 @@ SYSCALL_DEFINE5(io_getevents, aio_context_t, ctx_id,
+>  	}
+>  	return ret;
+>  }
+> +
+> +static struct notifier_block aio_mmput_nb = {
+> +	.notifier_call		= aio_exit,
+> +	.priority		= 1,
+> +};
+> +
+> +static int __init aio_init(void)
+> +{
+> +	return mmput_register_notifier(&aio_mmput_nb);
+> +}
+> +subsys_initcall(aio_init);
+> diff --git a/include/linux/aio.h b/include/linux/aio.h
+> index d9c92da..6308fac 100644
+> --- a/include/linux/aio.h
+> +++ b/include/linux/aio.h
+> @@ -73,7 +73,6 @@ static inline void init_sync_kiocb(struct kiocb *kiocb, struct file *filp)
+>  extern ssize_t wait_on_sync_kiocb(struct kiocb *iocb);
+>  extern void aio_complete(struct kiocb *iocb, long res, long res2);
+>  struct mm_struct;
+> -extern void exit_aio(struct mm_struct *mm);
+>  extern long do_io_submit(aio_context_t ctx_id, long nr,
+>  			 struct iocb __user *__user *iocbpp, bool compat);
+>  void kiocb_set_cancel_fn(struct kiocb *req, kiocb_cancel_fn *cancel);
+> @@ -81,7 +80,6 @@ void kiocb_set_cancel_fn(struct kiocb *req, kiocb_cancel_fn *cancel);
+>  static inline ssize_t wait_on_sync_kiocb(struct kiocb *iocb) { return 0; }
+>  static inline void aio_complete(struct kiocb *iocb, long res, long res2) { }
+>  struct mm_struct;
+> -static inline void exit_aio(struct mm_struct *mm) { }
+>  static inline long do_io_submit(aio_context_t ctx_id, long nr,
+>  				struct iocb __user * __user *iocbpp,
+>  				bool compat) { return 0; }
+> diff --git a/include/linux/ksm.h b/include/linux/ksm.h
+> index 3be6bb1..84c184f 100644
+> --- a/include/linux/ksm.h
+> +++ b/include/linux/ksm.h
+> @@ -20,7 +20,6 @@ struct mem_cgroup;
+>  int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
+>  		unsigned long end, int advice, unsigned long *vm_flags);
+>  int __ksm_enter(struct mm_struct *mm);
+> -void __ksm_exit(struct mm_struct *mm);
+>  
+>  static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
 >  {
-> @@ -250,6 +253,7 @@ static void gru_invalidate_range_end(struct mmu_notifier *mn,
+> @@ -29,12 +28,6 @@ static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
+>  	return 0;
 >  }
 >  
->  static void gru_invalidate_page(struct mmu_notifier *mn, struct mm_struct *mm,
-> +				struct vm_area_struct *vma,
->  				unsigned long address,
->  				enum mmu_event event)
+> -static inline void ksm_exit(struct mm_struct *mm)
+> -{
+> -	if (test_bit(MMF_VM_MERGEABLE, &mm->flags))
+> -		__ksm_exit(mm);
+> -}
+> -
+>  /*
+>   * A KSM page is one of those write-protected "shared pages" or "merged pages"
+>   * which KSM maps into multiple mms, wherever identical anonymous page content
+> @@ -83,10 +76,6 @@ static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
+>  	return 0;
+>  }
+>  
+> -static inline void ksm_exit(struct mm_struct *mm)
+> -{
+> -}
+> -
+>  static inline int PageKsm(struct page *page)
 >  {
-> diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
-> index fe9da94..219928b 100644
-> --- a/drivers/xen/gntdev.c
-> +++ b/drivers/xen/gntdev.c
-> @@ -428,6 +428,7 @@ static void unmap_if_in_range(struct grant_map *map,
->  
->  static void mn_invl_range_start(struct mmu_notifier *mn,
->  				struct mm_struct *mm,
-> +				struct vm_area_struct *vma,
->  				unsigned long start,
->  				unsigned long end,
->  				enum mmu_event event)
-> @@ -447,10 +448,11 @@ static void mn_invl_range_start(struct mmu_notifier *mn,
->  
->  static void mn_invl_page(struct mmu_notifier *mn,
->  			 struct mm_struct *mm,
-> +			 struct vm_area_struct *vma,
->  			 unsigned long address,
->  			 enum mmu_event event)
->  {
-> -	mn_invl_range_start(mn, mm, address, address + PAGE_SIZE, event);
-> +	mn_invl_range_start(mn, mm, vma, address, address + PAGE_SIZE, event);
+>  	return 0;
+> diff --git a/include/linux/sched.h b/include/linux/sched.h
+> index 322d4fc..428b3cf 100644
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -2384,6 +2384,11 @@ static inline void mmdrop(struct mm_struct * mm)
+>  		__mmdrop(mm);
 >  }
 >  
->  static void mn_release(struct mmu_notifier *mn,
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index e9e79f7..8b0f25d 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -829,13 +829,15 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
->  			.private = &cp,
->  		};
->  		down_read(&mm->mmap_sem);
-> -		if (type == CLEAR_REFS_SOFT_DIRTY)
-> -			mmu_notifier_invalidate_range_start(mm, 0,
-> -							    -1, MMU_STATUS);
->  		for (vma = mm->mmap; vma; vma = vma->vm_next) {
->  			cp.vma = vma;
->  			if (is_vm_hugetlb_page(vma))
->  				continue;
-> +			if (type == CLEAR_REFS_SOFT_DIRTY)
-> +				mmu_notifier_invalidate_range_start(mm, vma,
-> +								    vma->vm_start,
-> +								    vma->vm_end,
-> +								    MMU_STATUS);
->  			/*
->  			 * Writing 1 to /proc/pid/clear_refs affects all pages.
->  			 *
-> @@ -857,10 +859,12 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
->  			}
->  			walk_page_range(vma->vm_start, vma->vm_end,
->  					&clear_refs_walk);
-> +			if (type == CLEAR_REFS_SOFT_DIRTY)
-> +				mmu_notifier_invalidate_range_end(mm, vma,
-> +								  vma->vm_start,
-> +								  vma->vm_end,
-> +								  MMU_STATUS);
->  		}
-> -		if (type == CLEAR_REFS_SOFT_DIRTY)
-> -			mmu_notifier_invalidate_range_end(mm, 0,
-> -							  -1, MMU_STATUS);
->  		flush_tlb_mm(mm);
->  		up_read(&mm->mmap_sem);
->  		mmput(mm);
-> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-> index 82e9577..8907e5d 100644
-> --- a/include/linux/mmu_notifier.h
-> +++ b/include/linux/mmu_notifier.h
-> @@ -137,6 +137,7 @@ struct mmu_notifier_ops {
->  	 */
->  	void (*invalidate_page)(struct mmu_notifier *mn,
->  				struct mm_struct *mm,
-> +				struct vm_area_struct *vma,
->  				unsigned long address,
->  				enum mmu_event event);
->  
-> @@ -185,11 +186,13 @@ struct mmu_notifier_ops {
->  	 */
->  	void (*invalidate_range_start)(struct mmu_notifier *mn,
->  				       struct mm_struct *mm,
-> +				       struct vm_area_struct *vma,
->  				       unsigned long start,
->  				       unsigned long end,
->  				       enum mmu_event event);
->  	void (*invalidate_range_end)(struct mmu_notifier *mn,
->  				     struct mm_struct *mm,
-> +				     struct vm_area_struct *vma,
->  				     unsigned long start,
->  				     unsigned long end,
->  				     enum mmu_event event);
-> @@ -233,13 +236,16 @@ extern void __mmu_notifier_change_pte(struct mm_struct *mm,
->  				      pte_t pte,
->  				      enum mmu_event event);
->  extern void __mmu_notifier_invalidate_page(struct mm_struct *mm,
-> +					   struct vm_area_struct *vma,
->  					  unsigned long address,
->  					  enum mmu_event event);
->  extern void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-> +						  struct vm_area_struct *vma,
->  						  unsigned long start,
->  						  unsigned long end,
->  						  enum mmu_event event);
->  extern void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
-> +						struct vm_area_struct *vma,
->  						unsigned long start,
->  						unsigned long end,
->  						enum mmu_event event);
-> @@ -276,29 +282,33 @@ static inline void mmu_notifier_change_pte(struct mm_struct *mm,
->  }
->  
->  static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,
-> +						struct vm_area_struct *vma,
->  						unsigned long address,
->  						enum mmu_event event)
->  {
->  	if (mm_has_notifiers(mm))
-> -		__mmu_notifier_invalidate_page(mm, address, event);
-> +		__mmu_notifier_invalidate_page(mm, vma, address, event);
->  }
->  
->  static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-> +						       struct vm_area_struct *vma,
->  						       unsigned long start,
->  						       unsigned long end,
->  						       enum mmu_event event)
->  {
->  	if (mm_has_notifiers(mm))
-> -		__mmu_notifier_invalidate_range_start(mm, start, end, event);
-> +		__mmu_notifier_invalidate_range_start(mm, vma, start,
-> +						      end, event);
->  }
->  
->  static inline void mmu_notifier_invalidate_range_end(struct mm_struct *mm,
-> +						     struct vm_area_struct *vma,
->  						     unsigned long start,
->  						     unsigned long end,
->  						     enum mmu_event event)
->  {
->  	if (mm_has_notifiers(mm))
-> -		__mmu_notifier_invalidate_range_end(mm, start, end, event);
-> +		__mmu_notifier_invalidate_range_end(mm, vma, start, end, event);
->  }
->  
->  static inline void mmu_notifier_mm_init(struct mm_struct *mm)
-> @@ -380,12 +390,14 @@ static inline void mmu_notifier_change_pte(struct mm_struct *mm,
->  }
->  
->  static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,
-> +						struct vm_area_struct *vma,
->  						unsigned long address,
->  						enum mmu_event event)
->  {
->  }
->  
->  static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-> +						       struct vm_area_struct *vma,
->  						       unsigned long start,
->  						       unsigned long end,
->  						       enum mmu_event event)
-> @@ -393,6 +405,7 @@ static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
->  }
->  
->  static inline void mmu_notifier_invalidate_range_end(struct mm_struct *mm,
-> +						     struct vm_area_struct *vma,
->  						     unsigned long start,
->  						     unsigned long end,
->  						     enum mmu_event event)
+> +/* mmput call list of notifier and subsystem/module can register
+> + * new one through this call.
+> + */
+> +extern int mmput_register_notifier(struct notifier_block *nb);
+> +extern int mmput_unregister_notifier(struct notifier_block *nb);
+>  /* mmput gets rid of the mappings and all user-space */
+>  extern void mmput(struct mm_struct *);
+>  /* Grab a reference to a task's mm, if it is not already going away */
+> diff --git a/include/linux/uprobes.h b/include/linux/uprobes.h
+> index 4f844c6..44e7267 100644
+> --- a/include/linux/uprobes.h
+> +++ b/include/linux/uprobes.h
+> @@ -120,7 +120,6 @@ extern int uprobe_pre_sstep_notifier(struct pt_regs *regs);
+>  extern void uprobe_notify_resume(struct pt_regs *regs);
+>  extern bool uprobe_deny_signal(void);
+>  extern bool arch_uprobe_skip_sstep(struct arch_uprobe *aup, struct pt_regs *regs);
+> -extern void uprobe_clear_state(struct mm_struct *mm);
+>  extern int  arch_uprobe_analyze_insn(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long addr);
+>  extern int  arch_uprobe_pre_xol(struct arch_uprobe *aup, struct pt_regs *regs);
+>  extern int  arch_uprobe_post_xol(struct arch_uprobe *aup, struct pt_regs *regs);
 > diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-> index 296f81e..0f552bc 100644
+> index 46b7c31..32b04dc 100644
 > --- a/kernel/events/uprobes.c
 > +++ b/kernel/events/uprobes.c
-> @@ -177,7 +177,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
->  	/* For try_to_free_swap() and munlock_vma_page() below */
->  	lock_page(page);
+> @@ -37,6 +37,7 @@
+>  #include <linux/percpu-rwsem.h>
+>  #include <linux/task_work.h>
+>  #include <linux/shmem_fs.h>
+> +#include <linux/notifier.h>
 >  
-> -	mmu_notifier_invalidate_range_start(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_start(mm, vma, mmun_start,
->  					    mmun_end, MMU_MIGRATE);
->  	err = -EAGAIN;
->  	ptep = page_check_address(page, mm, addr, &ptl, 0);
-> @@ -212,7 +212,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
->  	err = 0;
->   unlock:
->  	mem_cgroup_cancel_charge(kpage, memcg);
-> -	mmu_notifier_invalidate_range_end(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_end(mm, vma, mmun_start,
->  					  mmun_end, MMU_MIGRATE);
->  	unlock_page(page);
->  	return err;
-> diff --git a/mm/filemap_xip.c b/mm/filemap_xip.c
-> index a2b3f09..f0113df 100644
-> --- a/mm/filemap_xip.c
-> +++ b/mm/filemap_xip.c
-> @@ -198,7 +198,8 @@ retry:
->  			BUG_ON(pte_dirty(pteval));
->  			pte_unmap_unlock(pte, ptl);
->  			/* must invalidate_page _before_ freeing the page */
-> -			mmu_notifier_invalidate_page(mm, address, MMU_MIGRATE);
-> +			mmu_notifier_invalidate_page(mm, vma, address,
-> +						     MMU_MIGRATE);
->  			page_cache_release(page);
->  		}
->  	}
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index fa30857..cc74b60 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1022,7 +1022,7 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
+>  #include <linux/uprobes.h>
 >  
->  	mmun_start = haddr;
->  	mmun_end   = haddr + HPAGE_PMD_SIZE;
-> -	mmu_notifier_invalidate_range_start(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_start(mm, vma, mmun_start,
->  					    mmun_end, MMU_MIGRATE);
+> @@ -1220,16 +1221,19 @@ static struct xol_area *get_xol_area(void)
+>  /*
+>   * uprobe_clear_state - Free the area allocated for slots.
+>   */
+> -void uprobe_clear_state(struct mm_struct *mm)
+> +static int uprobe_clear_state(struct notifier_block *nb,
+> +			      unsigned long action, void *data)
+>  {
+> +	struct mm_struct *mm = data;
+>  	struct xol_area *area = mm->uprobes_state.xol_area;
 >  
->  	for (i = 0; i < HPAGE_PMD_NR; i++) {
-> @@ -1064,7 +1064,7 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
->  	page_remove_rmap(page);
->  	spin_unlock(ptl);
+>  	if (!area)
+> -		return;
+> +		return 0;
 >  
-> -	mmu_notifier_invalidate_range_end(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_end(mm, vma, mmun_start,
->  					  mmun_end, MMU_MIGRATE);
->  
->  	ret |= VM_FAULT_WRITE;
-> @@ -1075,7 +1075,7 @@ out:
->  
->  out_free_pages:
->  	spin_unlock(ptl);
-> -	mmu_notifier_invalidate_range_end(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_end(mm, vma, mmun_start,
->  					  mmun_end, MMU_MIGRATE);
->  	for (i = 0; i < HPAGE_PMD_NR; i++) {
->  		memcg = (void *)page_private(pages[i]);
-> @@ -1162,7 +1162,7 @@ alloc:
->  
->  	mmun_start = haddr;
->  	mmun_end   = haddr + HPAGE_PMD_SIZE;
-> -	mmu_notifier_invalidate_range_start(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_start(mm, vma, mmun_start,
->  					    mmun_end, MMU_MIGRATE);
->  
->  	if (!page)
-> @@ -1201,7 +1201,7 @@ alloc:
->  	}
->  	spin_unlock(ptl);
->  out_mn:
-> -	mmu_notifier_invalidate_range_end(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_end(mm, vma, mmun_start,
->  					  mmun_end, MMU_MIGRATE);
->  out:
->  	return ret;
-> @@ -1637,7 +1637,7 @@ static int __split_huge_page_splitting(struct page *page,
->  	const unsigned long mmun_start = address;
->  	const unsigned long mmun_end   = address + HPAGE_PMD_SIZE;
->  
-> -	mmu_notifier_invalidate_range_start(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_start(mm, vma, mmun_start,
->  					    mmun_end, MMU_STATUS);
->  	pmd = page_check_address_pmd(page, mm, address,
->  			PAGE_CHECK_ADDRESS_PMD_NOTSPLITTING_FLAG, &ptl);
-> @@ -1653,7 +1653,7 @@ static int __split_huge_page_splitting(struct page *page,
->  		ret = 1;
->  		spin_unlock(ptl);
->  	}
-> -	mmu_notifier_invalidate_range_end(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_end(mm, vma, mmun_start,
->  					  mmun_end, MMU_STATUS);
->  
->  	return ret;
-> @@ -2453,7 +2453,7 @@ static void collapse_huge_page(struct mm_struct *mm,
->  
->  	mmun_start = address;
->  	mmun_end   = address + HPAGE_PMD_SIZE;
-> -	mmu_notifier_invalidate_range_start(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_start(mm, vma, mmun_start,
->  					    mmun_end, MMU_MIGRATE);
->  	pmd_ptl = pmd_lock(mm, pmd); /* probably unnecessary */
->  	/*
-> @@ -2464,7 +2464,7 @@ static void collapse_huge_page(struct mm_struct *mm,
->  	 */
->  	_pmd = pmdp_clear_flush(vma, address, pmd);
->  	spin_unlock(pmd_ptl);
-> -	mmu_notifier_invalidate_range_end(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_end(mm, vma, mmun_start,
->  					  mmun_end, MMU_MIGRATE);
->  
->  	spin_lock(pte_ptl);
-> @@ -2854,19 +2854,19 @@ void __split_huge_page_pmd(struct vm_area_struct *vma, unsigned long address,
->  	mmun_start = haddr;
->  	mmun_end   = haddr + HPAGE_PMD_SIZE;
->  again:
-> -	mmu_notifier_invalidate_range_start(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_start(mm, vma, mmun_start,
->  					    mmun_end, MMU_MIGRATE);
->  	ptl = pmd_lock(mm, pmd);
->  	if (unlikely(!pmd_trans_huge(*pmd))) {
->  		spin_unlock(ptl);
-> -		mmu_notifier_invalidate_range_end(mm, mmun_start,
-> +		mmu_notifier_invalidate_range_end(mm, vma, mmun_start,
->  						  mmun_end, MMU_MIGRATE);
->  		return;
->  	}
->  	if (is_huge_zero_pmd(*pmd)) {
->  		__split_huge_zero_page_pmd(vma, haddr, pmd);
->  		spin_unlock(ptl);
-> -		mmu_notifier_invalidate_range_end(mm, mmun_start,
-> +		mmu_notifier_invalidate_range_end(mm, vma, mmun_start,
->  						  mmun_end, MMU_MIGRATE);
->  		return;
->  	}
-> @@ -2874,7 +2874,7 @@ again:
->  	VM_BUG_ON_PAGE(!page_count(page), page);
->  	get_page(page);
->  	spin_unlock(ptl);
-> -	mmu_notifier_invalidate_range_end(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_end(mm, vma, mmun_start,
->  					  mmun_end, MMU_MIGRATE);
->  
->  	split_huge_page(page);
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 73e1576..15f0123 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -2565,7 +2565,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
->  	mmun_start = vma->vm_start;
->  	mmun_end = vma->vm_end;
->  	if (cow)
-> -		mmu_notifier_invalidate_range_start(src, mmun_start,
-> +		mmu_notifier_invalidate_range_start(src, vma, mmun_start,
->  						    mmun_end, MMU_MIGRATE);
->  
->  	for (addr = vma->vm_start; addr < vma->vm_end; addr += sz) {
-> @@ -2616,7 +2616,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
->  	}
->  
->  	if (cow)
-> -		mmu_notifier_invalidate_range_end(src, mmun_start,
-> +		mmu_notifier_invalidate_range_end(src, vma, mmun_start,
->  						  mmun_end, MMU_MIGRATE);
->  
->  	return ret;
-> @@ -2643,7 +2643,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
->  	BUG_ON(end & ~huge_page_mask(h));
->  
->  	tlb_start_vma(tlb, vma);
-> -	mmu_notifier_invalidate_range_start(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_start(mm, vma, mmun_start,
->  					    mmun_end, MMU_MIGRATE);
->  again:
->  	for (address = start; address < end; address += sz) {
-> @@ -2715,7 +2715,7 @@ unlock:
->  		if (address < end && !ref_page)
->  			goto again;
->  	}
-> -	mmu_notifier_invalidate_range_end(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_end(mm, vma, mmun_start,
->  					  mmun_end, MMU_MIGRATE);
->  	tlb_end_vma(tlb, vma);
+>  	put_page(area->page);
+>  	kfree(area->bitmap);
+>  	kfree(area);
+> +	return 0;
 >  }
-> @@ -2903,7 +2903,7 @@ retry_avoidcopy:
 >  
->  	mmun_start = address & huge_page_mask(h);
->  	mmun_end = mmun_start + huge_page_size(h);
-> -	mmu_notifier_invalidate_range_start(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_start(mm, vma, mmun_start,
->  					    mmun_end, MMU_MIGRATE);
->  	/*
->  	 * Retake the page table lock to check for racing updates
-> @@ -2924,7 +2924,7 @@ retry_avoidcopy:
->  		new_page = old_page;
->  	}
->  	spin_unlock(ptl);
-> -	mmu_notifier_invalidate_range_end(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_end(mm, vma, mmun_start,
->  					  mmun_end, MMU_MIGRATE);
->  	page_cache_release(new_page);
->  	page_cache_release(old_page);
-> @@ -3363,7 +3363,7 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
->  	BUG_ON(address >= end);
->  	flush_cache_range(vma, address, end);
+>  void uprobe_start_dup_mmap(void)
+> @@ -1979,9 +1983,14 @@ static struct notifier_block uprobe_exception_nb = {
+>  	.priority		= INT_MAX-1,	/* notified after kprobes, kgdb */
+>  };
 >  
-> -	mmu_notifier_invalidate_range_start(mm, start, end, event);
-> +	mmu_notifier_invalidate_range_start(mm, vma, start, end, event);
->  	mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
->  	for (; address < end; address += huge_page_size(h)) {
->  		spinlock_t *ptl;
-> @@ -3393,7 +3393,7 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
->  	 */
->  	flush_tlb_range(vma, start, end);
->  	mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
-> -	mmu_notifier_invalidate_range_end(mm, start, end, event);
-> +	mmu_notifier_invalidate_range_end(mm, vma, start, end, event);
+> +static struct notifier_block uprobe_mmput_nb = {
+> +	.notifier_call		= uprobe_clear_state,
+> +	.priority		= 0,
+> +};
+> +
+>  static int __init init_uprobes(void)
+>  {
+> -	int i;
+> +	int i, err;
 >  
->  	return pages << h->order;
+>  	for (i = 0; i < UPROBES_HASH_SZ; i++)
+>  		mutex_init(&uprobes_mmap_mutex[i]);
+> @@ -1989,6 +1998,10 @@ static int __init init_uprobes(void)
+>  	if (percpu_init_rwsem(&dup_mmap_sem))
+>  		return -ENOMEM;
+>  
+> +	err = mmput_register_notifier(&uprobe_mmput_nb);
+> +	if (err)
+> +		return err;
+> +
+>  	return register_die_notifier(&uprobe_exception_nb);
 >  }
+>  __initcall(init_uprobes);
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index dd8864f..b448509 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -87,6 +87,8 @@
+>  #define CREATE_TRACE_POINTS
+>  #include <trace/events/task.h>
+>  
+> +static BLOCKING_NOTIFIER_HEAD(mmput_notifier);
+> +
+>  /*
+>   * Protected counters by write_lock_irq(&tasklist_lock)
+>   */
+> @@ -623,6 +625,21 @@ void __mmdrop(struct mm_struct *mm)
+>  EXPORT_SYMBOL_GPL(__mmdrop);
+>  
+>  /*
+> + * Register a notifier that will be call by mmput
+> + */
+> +int mmput_register_notifier(struct notifier_block *nb)
+> +{
+> +	return blocking_notifier_chain_register(&mmput_notifier, nb);
+> +}
+> +EXPORT_SYMBOL_GPL(mmput_register_notifier);
+> +
+> +int mmput_unregister_notifier(struct notifier_block *nb)
+> +{
+> +	return blocking_notifier_chain_unregister(&mmput_notifier, nb);
+> +}
+> +EXPORT_SYMBOL_GPL(mmput_unregister_notifier);
+> +
+> +/*
+>   * Decrement the use count and release all resources for an mm.
+>   */
+>  void mmput(struct mm_struct *mm)
+> @@ -630,11 +647,8 @@ void mmput(struct mm_struct *mm)
+>  	might_sleep();
+>  
+>  	if (atomic_dec_and_test(&mm->mm_users)) {
+> -		uprobe_clear_state(mm);
+> -		exit_aio(mm);
+> -		ksm_exit(mm);
+> -		khugepaged_exit(mm); /* must run before exit_mmap */
+>  		exit_mmap(mm);
+> +		blocking_notifier_call_chain(&mmput_notifier, 0, mm);
+>  		set_mm_exe_file(mm, NULL);
+>  		if (!list_empty(&mm->mmlist)) {
+>  			spin_lock(&mmlist_lock);
 > diff --git a/mm/ksm.c b/mm/ksm.c
-> index 4b659f1..1f3c4d7 100644
+> index 346ddc9..cb1e976 100644
 > --- a/mm/ksm.c
 > +++ b/mm/ksm.c
-> @@ -873,7 +873,7 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
+> @@ -37,6 +37,7 @@
+>  #include <linux/freezer.h>
+>  #include <linux/oom.h>
+>  #include <linux/numa.h>
+> +#include <linux/notifier.h>
 >  
->  	mmun_start = addr;
->  	mmun_end   = addr + PAGE_SIZE;
-> -	mmu_notifier_invalidate_range_start(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_start(mm, vma, mmun_start,
->  					    mmun_end, MMU_MPROT_RONLY);
->  
->  	ptep = page_check_address(page, mm, addr, &ptl, 0);
-> @@ -914,7 +914,7 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
->  out_unlock:
->  	pte_unmap_unlock(ptep, ptl);
->  out_mn:
-> -	mmu_notifier_invalidate_range_end(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_end(mm, vma, mmun_start,
->  					  mmun_end, MMU_MPROT_RONLY);
->  out:
->  	return err;
-> @@ -951,7 +951,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
->  
->  	mmun_start = addr;
->  	mmun_end   = addr + PAGE_SIZE;
-> -	mmu_notifier_invalidate_range_start(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_start(mm, vma, mmun_start,
->  					    mmun_end, MMU_MIGRATE);
->  
->  	ptep = pte_offset_map_lock(mm, pmd, addr, &ptl);
-> @@ -977,7 +977,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
->  	pte_unmap_unlock(ptep, ptl);
->  	err = 0;
->  out_mn:
-> -	mmu_notifier_invalidate_range_end(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_end(mm, vma, mmun_start,
->  					  mmun_end, MMU_MIGRATE);
->  out:
->  	return err;
-> diff --git a/mm/memory.c b/mm/memory.c
-> index d3908f0..4717579 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1049,7 +1049,7 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
->  	mmun_start = addr;
->  	mmun_end   = end;
->  	if (is_cow)
-> -		mmu_notifier_invalidate_range_start(src_mm, mmun_start,
-> +		mmu_notifier_invalidate_range_start(src_mm, vma, mmun_start,
->  						    mmun_end, MMU_MIGRATE);
->  
->  	ret = 0;
-> @@ -1067,8 +1067,8 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
->  	} while (dst_pgd++, src_pgd++, addr = next, addr != end);
->  
->  	if (is_cow)
-> -		mmu_notifier_invalidate_range_end(src_mm, mmun_start, mmun_end,
-> -						  MMU_MIGRATE);
-> +		mmu_notifier_invalidate_range_end(src_mm, vma, mmun_start,
-> +						  mmun_end, MMU_MIGRATE);
->  	return ret;
->  }
->  
-> @@ -1372,12 +1372,17 @@ void unmap_vmas(struct mmu_gather *tlb,
->  {
->  	struct mm_struct *mm = vma->vm_mm;
->  
-> -	mmu_notifier_invalidate_range_start(mm, start_addr,
-> -					    end_addr, MMU_MUNMAP);
-> -	for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next)
-> +	for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next) {
-> +		mmu_notifier_invalidate_range_start(mm, vma,
-> +						    max(start_addr, vma->vm_start),
-> +						    min(end_addr, vma->vm_end),
-> +						    MMU_MUNMAP);
->  		unmap_single_vma(tlb, vma, start_addr, end_addr, NULL);
-> -	mmu_notifier_invalidate_range_end(mm, start_addr,
-> -					  end_addr, MMU_MUNMAP);
-> +		mmu_notifier_invalidate_range_end(mm, vma,
-> +						  max(start_addr, vma->vm_start),
-> +						  min(end_addr, vma->vm_end),
-> +						  MMU_MUNMAP);
-> +	}
->  }
->  
->  /**
-> @@ -1399,10 +1404,17 @@ void zap_page_range(struct vm_area_struct *vma, unsigned long start,
->  	lru_add_drain();
->  	tlb_gather_mmu(&tlb, mm, start, end);
->  	update_hiwater_rss(mm);
-> -	mmu_notifier_invalidate_range_start(mm, start, end, MMU_MUNMAP);
-> -	for ( ; vma && vma->vm_start < end; vma = vma->vm_next)
-> +	for ( ; vma && vma->vm_start < end; vma = vma->vm_next) {
-> +		mmu_notifier_invalidate_range_start(mm, vma,
-> +						    max(start, vma->vm_start),
-> +						    min(end, vma->vm_end),
-> +						    MMU_MUNMAP);
->  		unmap_single_vma(&tlb, vma, start, end, details);
-> -	mmu_notifier_invalidate_range_end(mm, start, end, MMU_MUNMAP);
-> +		mmu_notifier_invalidate_range_end(mm, vma,
-> +						  max(start, vma->vm_start),
-> +						  min(end, vma->vm_end),
-> +						  MMU_MUNMAP);
-> +	}
->  	tlb_finish_mmu(&tlb, start, end);
->  }
->  
-> @@ -1425,9 +1437,9 @@ static void zap_page_range_single(struct vm_area_struct *vma, unsigned long addr
->  	lru_add_drain();
->  	tlb_gather_mmu(&tlb, mm, address, end);
->  	update_hiwater_rss(mm);
-> -	mmu_notifier_invalidate_range_start(mm, address, end, MMU_MUNMAP);
-> +	mmu_notifier_invalidate_range_start(mm, vma, address, end, MMU_MUNMAP);
->  	unmap_single_vma(&tlb, vma, address, end, details);
-> -	mmu_notifier_invalidate_range_end(mm, address, end, MMU_MUNMAP);
-> +	mmu_notifier_invalidate_range_end(mm, vma, address, end, MMU_MUNMAP);
->  	tlb_finish_mmu(&tlb, address, end);
->  }
->  
-> @@ -2211,7 +2223,7 @@ gotten:
->  
->  	mmun_start  = address & PAGE_MASK;
->  	mmun_end    = mmun_start + PAGE_SIZE;
-> -	mmu_notifier_invalidate_range_start(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_start(mm, vma, mmun_start,
->  					    mmun_end, MMU_MIGRATE);
->  
->  	/*
-> @@ -2283,7 +2295,7 @@ gotten:
->  unlock:
->  	pte_unmap_unlock(page_table, ptl);
->  	if (mmun_end > mmun_start)
-> -		mmu_notifier_invalidate_range_end(mm, mmun_start,
-> +		mmu_notifier_invalidate_range_end(mm, vma, mmun_start,
->  						  mmun_end, MMU_MIGRATE);
->  	if (old_page) {
+>  #include <asm/tlbflush.h>
+>  #include "internal.h"
+> @@ -1586,7 +1587,7 @@ static struct rmap_item *scan_get_next_rmap_item(struct page **page)
+>  		ksm_scan.mm_slot = slot;
+>  		spin_unlock(&ksm_mmlist_lock);
 >  		/*
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index b526c72..0c61aa9 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -1820,13 +1820,13 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
->  	WARN_ON(PageLRU(new_page));
->  
->  	/* Recheck the target PMD */
-> -	mmu_notifier_invalidate_range_start(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_start(mm, vma, mmun_start,
->  					    mmun_end, MMU_MIGRATE);
->  	ptl = pmd_lock(mm, pmd);
->  	if (unlikely(!pmd_same(*pmd, entry) || page_count(page) != 2)) {
->  fail_putback:
->  		spin_unlock(ptl);
-> -		mmu_notifier_invalidate_range_end(mm, mmun_start,
-> +		mmu_notifier_invalidate_range_end(mm, vma, mmun_start,
->  						  mmun_end, MMU_MIGRATE);
->  
->  		/* Reverse changes made by migrate_page_copy() */
-> @@ -1880,7 +1880,7 @@ fail_putback:
->  	page_remove_rmap(page);
->  
->  	spin_unlock(ptl);
-> -	mmu_notifier_invalidate_range_end(mm, mmun_start,
-> +	mmu_notifier_invalidate_range_end(mm, vma, mmun_start,
->  					  mmun_end, MMU_MIGRATE);
->  
->  	/* Take an "isolate" reference and put new page on the LRU. */
-> diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-> index 9decb88..87e6bc5 100644
-> --- a/mm/mmu_notifier.c
-> +++ b/mm/mmu_notifier.c
-> @@ -139,6 +139,7 @@ void __mmu_notifier_change_pte(struct mm_struct *mm,
+> -		 * Although we tested list_empty() above, a racing __ksm_exit
+> +		 * Although we tested list_empty() above, a racing ksm_exit
+>  		 * of the last mm on the list may have removed it since then.
+>  		 */
+>  		if (slot == &ksm_mm_head)
+> @@ -1658,9 +1659,9 @@ next_mm:
+>  		/*
+>  		 * We've completed a full scan of all vmas, holding mmap_sem
+>  		 * throughout, and found no VM_MERGEABLE: so do the same as
+> -		 * __ksm_exit does to remove this mm from all our lists now.
+> -		 * This applies either when cleaning up after __ksm_exit
+> -		 * (but beware: we can reach here even before __ksm_exit),
+> +		 * ksm_exit does to remove this mm from all our lists now.
+> +		 * This applies either when cleaning up after ksm_exit
+> +		 * (but beware: we can reach here even before ksm_exit),
+>  		 * or when all VM_MERGEABLE areas have been unmapped (and
+>  		 * mmap_sem then protects against race with MADV_MERGEABLE).
+>  		 */
+> @@ -1821,11 +1822,16 @@ int __ksm_enter(struct mm_struct *mm)
+>  	return 0;
 >  }
 >  
->  void __mmu_notifier_invalidate_page(struct mm_struct *mm,
-> +				    struct vm_area_struct *vma,
->  				    unsigned long address,
->  				    enum mmu_event event)
+> -void __ksm_exit(struct mm_struct *mm)
+> +static int ksm_exit(struct notifier_block *nb,
+> +		    unsigned long action, void *data)
 >  {
-> @@ -148,12 +149,13 @@ void __mmu_notifier_invalidate_page(struct mm_struct *mm,
->  	id = srcu_read_lock(&srcu);
->  	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
->  		if (mn->ops->invalidate_page)
-> -			mn->ops->invalidate_page(mn, mm, address, event);
-> +			mn->ops->invalidate_page(mn, mm, vma, address, event);
->  	}
->  	srcu_read_unlock(&srcu, id);
->  }
+> +	struct mm_struct *mm = data;
+>  	struct mm_slot *mm_slot;
+>  	int easy_to_free = 0;
 >  
->  void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-> +					   struct vm_area_struct *vma,
->  					   unsigned long start,
->  					   unsigned long end,
->  					   enum mmu_event event)
-> @@ -165,7 +167,7 @@ void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
->  	id = srcu_read_lock(&srcu);
->  	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
->  		if (mn->ops->invalidate_range_start)
-> -			mn->ops->invalidate_range_start(mn, mm, start,
-> +			mn->ops->invalidate_range_start(mn, vma, mm, start,
->  							end, event);
->  	}
->  	srcu_read_unlock(&srcu, id);
-> @@ -173,6 +175,7 @@ void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
->  EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_start);
->  
->  void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
-> +					 struct vm_area_struct *vma,
->  					 unsigned long start,
->  					 unsigned long end,
->  					 enum mmu_event event)
-> @@ -183,7 +186,7 @@ void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
->  	id = srcu_read_lock(&srcu);
->  	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
->  		if (mn->ops->invalidate_range_end)
-> -			mn->ops->invalidate_range_end(mn, mm, start,
-> +			mn->ops->invalidate_range_end(mn, vma, mm, start,
->  						      end, event);
->  	}
->  	srcu_read_unlock(&srcu, id);
-> diff --git a/mm/mprotect.c b/mm/mprotect.c
-> index 6ce6c23..16ce504 100644
-> --- a/mm/mprotect.c
-> +++ b/mm/mprotect.c
-> @@ -158,7 +158,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
->  		/* invoke the mmu notifier if the pmd is populated */
->  		if (!mni_start) {
->  			mni_start = addr;
-> -			mmu_notifier_invalidate_range_start(mm, mni_start,
-> +			mmu_notifier_invalidate_range_start(mm, vma, mni_start,
->  							    end, event);
->  		}
->  
-> @@ -187,7 +187,8 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
->  	} while (pmd++, addr = next, addr != end);
->  
->  	if (mni_start)
-> -		mmu_notifier_invalidate_range_end(mm, mni_start, end, event);
-> +		mmu_notifier_invalidate_range_end(mm, vma, mni_start,
-> +						  end, event);
->  
->  	if (nr_huge_updates)
->  		count_vm_numa_events(NUMA_HUGE_PTE_UPDATES, nr_huge_updates);
-> diff --git a/mm/mremap.c b/mm/mremap.c
-> index 6827d2f..9bee6de 100644
-> --- a/mm/mremap.c
-> +++ b/mm/mremap.c
-> @@ -177,7 +177,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
->  
->  	mmun_start = old_addr;
->  	mmun_end   = old_end;
-> -	mmu_notifier_invalidate_range_start(vma->vm_mm, mmun_start,
-> +	mmu_notifier_invalidate_range_start(vma->vm_mm, vma, mmun_start,
->  					    mmun_end, MMU_MIGRATE);
->  
->  	for (; old_addr < old_end; old_addr += extent, new_addr += extent) {
-> @@ -229,7 +229,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
->  	if (likely(need_flush))
->  		flush_tlb_range(vma, old_end-len, old_addr);
->  
-> -	mmu_notifier_invalidate_range_end(vma->vm_mm, mmun_start,
-> +	mmu_notifier_invalidate_range_end(vma->vm_mm, vma, mmun_start,
->  					  mmun_end, MMU_MIGRATE);
->  
->  	return len + old_addr - old_end;	/* how much done */
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index bd7e6d7..f1be50d 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -840,7 +840,7 @@ static int page_mkclean_one(struct page *page, struct vm_area_struct *vma,
->  	pte_unmap_unlock(pte, ptl);
->  
->  	if (ret) {
-> -		mmu_notifier_invalidate_page(mm, address, MMU_WB);
-> +		mmu_notifier_invalidate_page(mm, vma, address, MMU_WB);
->  		(*cleaned)++;
->  	}
->  out:
-> @@ -1237,7 +1237,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
->  out_unmap:
->  	pte_unmap_unlock(pte, ptl);
->  	if (ret != SWAP_FAIL && !(flags & TTU_MUNLOCK))
-> -		mmu_notifier_invalidate_page(mm, address, event);
-> +		mmu_notifier_invalidate_page(mm, vma, address, event);
->  out:
->  	return ret;
->  
-> @@ -1325,7 +1325,8 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
->  
->  	mmun_start = address;
->  	mmun_end   = end;
-> -	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end, event);
-> +	mmu_notifier_invalidate_range_start(mm, vma, mmun_start,
-> +					    mmun_end, event);
->  
+> +	if (!test_bit(MMF_VM_MERGEABLE, &mm->flags))
+> +		return 0;
+> +
 >  	/*
->  	 * If we can acquire the mmap_sem for read, and vma is VM_LOCKED,
-> @@ -1390,7 +1391,7 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
->  		(*mapcount)--;
+>  	 * This process is exiting: if it's straightforward (as is the
+>  	 * case when ksmd was never running), free mm_slot immediately.
+> @@ -1857,6 +1863,7 @@ void __ksm_exit(struct mm_struct *mm)
+>  		down_write(&mm->mmap_sem);
+>  		up_write(&mm->mmap_sem);
 >  	}
->  	pte_unmap_unlock(pte - 1, ptl);
-> -	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end, event);
-> +	mmu_notifier_invalidate_range_end(mm, vma, mmun_start, mmun_end, event);
->  	if (locked_vma)
->  		up_read(&vma->vm_mm->mmap_sem);
->  	return ret;
-> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-> index 6e1992f..c4b7bf9 100644
-> --- a/virt/kvm/kvm_main.c
-> +++ b/virt/kvm/kvm_main.c
-> @@ -262,6 +262,7 @@ static inline struct kvm *mmu_notifier_to_kvm(struct mmu_notifier *mn)
+> +	return 0;
+>  }
 >  
->  static void kvm_mmu_notifier_invalidate_page(struct mmu_notifier *mn,
->  					     struct mm_struct *mm,
-> +					     struct vm_area_struct *vma,
->  					     unsigned long address,
->  					     enum mmu_event event)
+>  struct page *ksm_might_need_to_copy(struct page *page,
+> @@ -2305,11 +2312,20 @@ static struct attribute_group ksm_attr_group = {
+>  };
+>  #endif /* CONFIG_SYSFS */
+>  
+> +static struct notifier_block ksm_mmput_nb = {
+> +	.notifier_call		= ksm_exit,
+> +	.priority		= 2,
+> +};
+> +
+>  static int __init ksm_init(void)
 >  {
-> @@ -318,6 +319,7 @@ static void kvm_mmu_notifier_change_pte(struct mmu_notifier *mn,
+>  	struct task_struct *ksm_thread;
+>  	int err;
 >  
->  static void kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
->  						    struct mm_struct *mm,
-> +						    struct vm_area_struct *vma,
->  						    unsigned long start,
->  						    unsigned long end,
->  						    enum mmu_event event)
-> @@ -345,6 +347,7 @@ static void kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
+> +	err = mmput_register_notifier(&ksm_mmput_nb);
+> +	if (err)
+> +		return err;
+> +
+
+In order to be perfectly consistent with this routine's existing code, you 
+would want to write:
+
+if (err)
+	goto out;
+
+...but it does the same thing as your code. It' just a consistency thing.
+
+>  	err = ksm_slab_init();
+>  	if (err)
+>  		goto out;
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 61aec93..b684a21 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -2775,6 +2775,9 @@ void exit_mmap(struct mm_struct *mm)
+>  	struct vm_area_struct *vma;
+>  	unsigned long nr_accounted = 0;
 >  
->  static void kvm_mmu_notifier_invalidate_range_end(struct mmu_notifier *mn,
->  						  struct mm_struct *mm,
-> +						  struct vm_area_struct *vma,
->  						  unsigned long start,
->  						  unsigned long end,
->  						  enum mmu_event event)
+> +	/* Important to call this first. */
+> +	khugepaged_exit(mm);
+> +
+>  	/* mm's last user has gone, and its about to be pulled down */
+>  	mmu_notifier_release(mm);
+>  
 > -- 
 > 1.9.0
 > 
@@ -900,14 +460,13 @@ free to ignore this comment.
 > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
 
-Other than the refinements suggested above, I can't seem to find anything 
-wrong with this patch, so:
+Above points are extremely minor, so:
 
 Reviewed-by: John Hubbard <jhubbard@nvidia.com>
 
 thanks,
 John H.
---279739828-296501848-1404098946=:21595--
+--279739828-74989328-1404100161=:21595--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
