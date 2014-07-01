@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com [209.85.160.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 25B6B6B0055
+Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 762A46B004D
 	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 13:07:55 -0400 (EDT)
-Received: by mail-yk0-f178.google.com with SMTP id q9so5824328ykb.23
-        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 10:07:54 -0700 (PDT)
+Received: by mail-qg0-f43.google.com with SMTP id z60so3606701qgd.2
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 10:07:55 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h13si21471550yha.163.2014.07.01.10.07.53
+        by mx.google.com with ESMTPS id a1si29989978qas.126.2014.07.01.10.07.53
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 01 Jul 2014 10:07:54 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v4 04/13] smaps: remove mem_size_stats->vma and use walk_page_vma()
-Date: Tue,  1 Jul 2014 13:07:22 -0400
-Message-Id: <1404234451-21695-5-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v4 09/13] memcg: cleanup preparation for page table walk
+Date: Tue,  1 Jul 2014 13:07:27 -0400
+Message-Id: <1404234451-21695-10-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1404234451-21695-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1404234451-21695-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -21,59 +21,107 @@ To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
 pagewalk.c can handle vma in itself, so we don't have to pass vma via
-walk->private. And show_smap() walks pages on vma basis, so using
-walk_page_vma() is preferable.
+walk->private. And both of mem_cgroup_count_precharge() and
+mem_cgroup_move_charge() do for each vma loop themselves, but now it's
+done in pagewalk.c, so let's clean up them.
 
 ChangeLog v4:
-- remove redundant vma
+- use walk_page_range() instead of walk_page_vma() with for loop.
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/proc/task_mmu.c | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ mm/memcontrol.c | 49 ++++++++++++++++---------------------------------
+ 1 file changed, 16 insertions(+), 33 deletions(-)
 
-diff --git v3.16-rc3.orig/fs/proc/task_mmu.c v3.16-rc3/fs/proc/task_mmu.c
-index cfa63ee92c96..3067bf08393b 100644
---- v3.16-rc3.orig/fs/proc/task_mmu.c
-+++ v3.16-rc3/fs/proc/task_mmu.c
-@@ -430,7 +430,6 @@ const struct file_operations proc_tid_maps_operations = {
- 
- #ifdef CONFIG_PROC_PAGE_MONITOR
- struct mem_size_stats {
--	struct vm_area_struct *vma;
- 	unsigned long resident;
- 	unsigned long shared_clean;
- 	unsigned long shared_dirty;
-@@ -449,7 +448,7 @@ static void smaps_pte_entry(pte_t ptent, unsigned long addr,
- 		unsigned long ptent_size, struct mm_walk *walk)
+diff --git v3.16-rc3.orig/mm/memcontrol.c v3.16-rc3/mm/memcontrol.c
+index a2c7bcb0e6eb..6c075113c363 100644
+--- v3.16-rc3.orig/mm/memcontrol.c
++++ v3.16-rc3/mm/memcontrol.c
+@@ -6654,7 +6654,7 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
+ 					unsigned long addr, unsigned long end,
+ 					struct mm_walk *walk)
  {
- 	struct mem_size_stats *mss = walk->private;
--	struct vm_area_struct *vma = mss->vma;
-+	struct vm_area_struct *vma = walk->vma;
- 	pgoff_t pgoff = linear_page_index(vma, addr);
- 	struct page *page = NULL;
- 	int mapcount;
-@@ -501,7 +500,7 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 			   struct mm_walk *walk)
- {
- 	struct mem_size_stats *mss = walk->private;
--	struct vm_area_struct *vma = mss->vma;
+-	struct vm_area_struct *vma = walk->private;
 +	struct vm_area_struct *vma = walk->vma;
  	pte_t *pte;
  	spinlock_t *ptl;
  
-@@ -594,10 +593,8 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 	};
+@@ -6680,20 +6680,13 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
+ static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
+ {
+ 	unsigned long precharge;
+-	struct vm_area_struct *vma;
  
- 	memset(&mss, 0, sizeof mss);
--	mss.vma = vma;
- 	/* mmap_sem is held in m_start */
--	if (vma->vm_mm && !is_vm_hugetlb_page(vma))
--		walk_page_range(vma->vm_start, vma->vm_end, &smaps_walk);
-+	walk_page_vma(vma, &smaps_walk);
++	struct mm_walk mem_cgroup_count_precharge_walk = {
++		.pmd_entry = mem_cgroup_count_precharge_pte_range,
++		.mm = mm,
++	};
+ 	down_read(&mm->mmap_sem);
+-	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+-		struct mm_walk mem_cgroup_count_precharge_walk = {
+-			.pmd_entry = mem_cgroup_count_precharge_pte_range,
+-			.mm = mm,
+-			.private = vma,
+-		};
+-		if (is_vm_hugetlb_page(vma))
+-			continue;
+-		walk_page_range(vma->vm_start, vma->vm_end,
+-					&mem_cgroup_count_precharge_walk);
+-	}
++	walk_page_range(0, ~0UL, &mem_cgroup_count_precharge_walk);
+ 	up_read(&mm->mmap_sem);
  
- 	show_map_vma(m, vma, is_pid);
+ 	precharge = mc.precharge;
+@@ -6832,7 +6825,7 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+ 				struct mm_walk *walk)
+ {
+ 	int ret = 0;
+-	struct vm_area_struct *vma = walk->private;
++	struct vm_area_struct *vma = walk->vma;
+ 	pte_t *pte;
+ 	spinlock_t *ptl;
+ 	enum mc_target_type target_type;
+@@ -6932,7 +6925,10 @@ put:			/* get_mctgt_type() gets the page */
+ 
+ static void mem_cgroup_move_charge(struct mm_struct *mm)
+ {
+-	struct vm_area_struct *vma;
++	struct mm_walk mem_cgroup_move_charge_walk = {
++		.pmd_entry = mem_cgroup_move_charge_pte_range,
++		.mm = mm,
++	};
+ 
+ 	lru_add_drain_all();
+ retry:
+@@ -6948,24 +6944,11 @@ static void mem_cgroup_move_charge(struct mm_struct *mm)
+ 		cond_resched();
+ 		goto retry;
+ 	}
+-	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+-		int ret;
+-		struct mm_walk mem_cgroup_move_charge_walk = {
+-			.pmd_entry = mem_cgroup_move_charge_pte_range,
+-			.mm = mm,
+-			.private = vma,
+-		};
+-		if (is_vm_hugetlb_page(vma))
+-			continue;
+-		ret = walk_page_range(vma->vm_start, vma->vm_end,
+-						&mem_cgroup_move_charge_walk);
+-		if (ret)
+-			/*
+-			 * means we have consumed all precharges and failed in
+-			 * doing additional charge. Just abandon here.
+-			 */
+-			break;
+-	}
++	/*
++	 * When we have consumed all precharges and failed in doing
++	 * additional charge, the page walk just aborts.
++	 */
++	walk_page_range(0, ~0UL, &mem_cgroup_move_charge_walk);
+ 	up_read(&mm->mmap_sem);
+ }
  
 -- 
 1.9.3
