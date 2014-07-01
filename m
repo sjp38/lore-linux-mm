@@ -1,62 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 175A86B0035
-	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 20:12:24 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id ft15so9048697pdb.35
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 17:12:23 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id sy3si24865724pab.158.2014.06.30.17.12.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 30 Jun 2014 17:12:23 -0700 (PDT)
-Received: by mail-pa0-f42.google.com with SMTP id lj1so9586488pab.29
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 17:12:22 -0700 (PDT)
-Date: Mon, 30 Jun 2014 17:10:54 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH mmotm/next] mm: memcontrol: rewrite charge API: fix
- shmem_unuse
-In-Reply-To: <20140630160212.46caf9c3d41445b61fece666@linux-foundation.org>
-Message-ID: <alpine.LSU.2.11.1406301658430.4898@eggly.anvils>
-References: <alpine.LSU.2.11.1406301541420.4349@eggly.anvils> <20140630160212.46caf9c3d41445b61fece666@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id C11B26B0035
+	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 20:32:21 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id w10so9061176pde.24
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 17:32:21 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id iu6si99598pbc.4.2014.06.30.17.32.20
+        for <linux-mm@kvack.org>;
+        Mon, 30 Jun 2014 17:32:20 -0700 (PDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: [PATCH] hwpoison: Fix race with changing page during offlining v2
+Date: Mon, 30 Jun 2014 17:32:16 -0700
+Message-Id: <1404174736-17480-1-git-send-email-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Andi Kleen <ak@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On Mon, 30 Jun 2014, Andrew Morton wrote:
-> On Mon, 30 Jun 2014 15:48:39 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
-> > -		return 0;
-> > +		return -EAGAIN;
-> 
-> Maybe it's time to document the shmem_unuse_inode() return values.
+From: Andi Kleen <ak@linux.intel.com>
 
-Oh dear.  I had hoped they would look after themselves.  This one is a
-private matter between shmem_unuse_inode and its one caller, just below.
+When a hwpoison page is locked it could change state
+due to parallel modifications.  Check after the lock
+if the page is still the same compound page.
 
-> > +	if (error) {
-> > +		if (error != -ENOMEM)
-> > +			error = 0;
-> >  		mem_cgroup_cancel_charge(page, memcg);
-> >  	} else
-> >  		mem_cgroup_commit_charge(page, memcg, true);
-> 
-> If I'm reading this correctly, shmem_unuse() can now return -EAGAIN and
-> that can get all the way back to userspace.  `man 2 swapoff' doesn't
-> know this...
+[v2: Removed earlier non LRU check which should be already
+covered elsewhere]
 
-if (error) {
-	if (error != -ENOMEM)
-		error = 0;
-...
-	return error;
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: Andi Kleen <ak@linux.intel.com>
+---
+ mm/memory-failure.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
-So the only values returned from shmem_unuse_inode() to its caller
-try_to_unuse() are 0 and -ENOMEM.  Those may get passed back to the
-user, but -EAGAIN was just an internal shmem.c detail.
-
-Hugh
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index cd8989c..99e5077 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1168,6 +1168,16 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+ 	lock_page(hpage);
+ 
+ 	/*
++	 * The page could have changed compound pages during the locking.
++	 * If this happens just bail out.
++	 */
++	if (compound_head(p) != hpage) {
++		action_result(pfn, "different compound page after locking", IGNORED);
++		res = -EBUSY;
++		goto out;
++	}
++
++	/*
+ 	 * We use page flags to determine what action should be taken, but
+ 	 * the flags can be modified by the error containment action.  One
+ 	 * example is an mlocked page, where PG_mlocked is cleared by
+-- 
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
