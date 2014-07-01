@@ -1,58 +1,437 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 34F4C6B0037
-	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 05:41:46 -0400 (EDT)
-Received: by mail-wi0-f177.google.com with SMTP id r20so7353838wiv.16
-        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 02:41:45 -0700 (PDT)
-Received: from mail.8bytes.org (8bytes.org. [2a01:238:4242:f000:64f:6c43:3523:e535])
-        by mx.google.com with ESMTP id by15si3666425wib.73.2014.07.01.02.41.44
-        for <linux-mm@kvack.org>;
-        Tue, 01 Jul 2014 02:41:44 -0700 (PDT)
-Received: from localhost (localhost [127.0.0.1])
-	by mail.8bytes.org (Postfix) with SMTP id 92D3A12B325
-	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 11:41:43 +0200 (CEST)
-Date: Tue, 1 Jul 2014 11:41:41 +0200
-From: Joerg Roedel <joro@8bytes.org>
-Subject: Re: [PATCH 1/6] mmput: use notifier chain to call subsystem exit
- handler.
-Message-ID: <20140701094141.GG26537@8bytes.org>
-References: <1403920822-14488-1-git-send-email-j.glisse@gmail.com>
- <1403920822-14488-2-git-send-email-j.glisse@gmail.com>
- <019CCE693E457142B37B791721487FD91806B836@storexdag01.amd.com>
- <20140630154042.GD26537@8bytes.org>
- <20140630160604.GF1956@gmail.com>
- <20140630181623.GE26537@8bytes.org>
- <20140630183556.GB3280@gmail.com>
- <3725846D7614874B8367361CC6008D741645DFA0@storexdag01.amd.com>
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id C4E3E6B0031
+	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 07:52:04 -0400 (EDT)
+Received: by mail-wg0-f48.google.com with SMTP id n12so9327095wgh.19
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 04:52:03 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e8si14773819wib.22.2014.07.01.04.52.02
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 01 Jul 2014 04:52:02 -0700 (PDT)
+Message-ID: <53B2A0E0.3000503@suse.cz>
+Date: Tue, 01 Jul 2014 13:52:00 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3725846D7614874B8367361CC6008D741645DFA0@storexdag01.amd.com>
+Subject: Re: mm: shm: hang in shmem_fallocate
+References: <52AE7B10.2080201@oracle.com> <52F6898A.50101@oracle.com> <alpine.LSU.2.11.1402081841160.26825@eggly.anvils> <52F82E62.2010709@oracle.com> <539A0FC8.8090504@oracle.com> <alpine.LSU.2.11.1406151921070.2850@eggly.anvils> <53A9A7D8.2020703@suse.cz> <alpine.LSU.2.11.1406251152450.1580@eggly.anvils> <53ABE479.3080508@suse.cz> <alpine.LSU.2.11.1406262108390.27670@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1406262108390.27670@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Lewycky, Andrew" <Andrew.Lewycky@amd.com>
-Cc: Jerome Glisse <j.glisse@gmail.com>, "Gabbay, Oded" <Oded.Gabbay@amd.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Cornwall, Jay" <Jay.Cornwall@amd.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mgorman@suse.de" <mgorman@suse.de>, "hpa@zytor.com" <hpa@zytor.com>, "peterz@infraread.org" <peterz@infraread.org>, "aarcange@redhat.com" <aarcange@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, Mark Hairgrove <mhairgrove@nvidia.com>, Jatin Kumar <jakumar@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-Hi Andrew,
+On 06/27/2014 07:36 AM, Hugh Dickins wrote:> [Cc Johannes: at the end I 
+have a particular question for you]
+>
+> On Thu, 26 Jun 2014, Vlastimil Babka wrote:
+>> On 06/26/2014 12:36 AM, Hugh Dickins wrote:
+>>> On Tue, 24 Jun 2014, Vlastimil Babka wrote:
+>>>
+>>> Sorry for the slow response: I have got confused, learnt more, and
+>>> changed my mind, several times in the course of replying to you.
+>>> I think this reply will be stable... though not final.
+>>
+>> Thanks a lot for looking into it!
+>>
+>>>>
+>>>> since this got a CVE,
+>>>
+>>> Oh.  CVE-2014-4171.  Couldn't locate that yesterday but see it now.
+>>
+>> Sorry, I should have mentioned it explicitly.
+>>
+>>> Looks overrated to me
+>>
+>> I'd bet it would pass unnoticed if you didn't use the sentence "but whether
+>> it's a serious matter in the scale of denials of service, I'm not so sure" in
+>> your first reply to Sasha's report :) I wouldn't be surprised if people grep
+>> for this.
+>
+> Hah, you're probably right,
+> I better choose my words more carefully in future.
+>
+>>
+>>> (and amusing to see my pompous words about a
+>>> "range notification mechanism" taken too seriously), but of course
+>>> we do need to address it.
+>>>
+>>>> I've been looking at backport to an older kernel where
+>>>
+>>> Thanks a lot for looking into it.  I didn't think it was worth a
+>>> Cc: stable@vger.kernel.org myself, but admit to being both naive
+>>> and inconsistent about that.
+>>>
+>>>> fallocate(FALLOC_FL_PUNCH_HOLE) is not yet supported, and there's also no
+>>>> range notification mechanism yet. There's just madvise(MADV_REMOVE) and
+>>>> since
+>>>
+>>> Yes, that mechanism could be ported back pre-v3.5,
+>>> but I agree with your preference not to.
+>>>
+>>>> it doesn't guarantee anything, it seems simpler just to give up retrying
+>>>> to
+>>>
+>>> Right, I don't think we have formally documented the instant of "full hole"
+>>> that I strove for there, and it's probably not externally verifiable, nor
+>>> guaranteed by other filesystems.  I just thought it a good QoS aim, but
+>>> it has given us this problem.
+>>>
+>>>> truncate really everything. Then I realized that maybe it would work for
+>>>> current kernel as well, without having to add any checks in the page
+>>>> fault
+>>>> path. The semantics of fallocate(FALLOC_FL_PUNCH_HOLE) might look
+>>>> different
+>>>> from madvise(MADV_REMOVE), but it seems to me that as long as it does
+>>>> discard
+>>>> the old data from the range, it's fine from any information leak point of
+>>>> view.
+>>>> If someone races page faulting, it IMHO doesn't matter if he gets a new
+>>>> zeroed
+>>>> page before the parallel truncate has ended, or right after it has ended.
+>>>
+>>> Yes.  I disagree with your actual patch, for more than one reason,
+>>> but it's in the right area; and I found myself growing to agree with
+>>> you, that's it's better to have one kind of fix for all these releases,
+>>> than one for v3.5..v3.15 and another for v3.1..v3.4.  (The CVE cites
+>>> v3.0 too, I'm sceptical about that, but haven't tried it as yet.)
+>>
+>> I was looking at our 3.0 based kernel, but it could be due to backported
+>> patches on top.
+>
+> And later you confirm that 3.0.101 vanilla is okay: thanks, that fits.
+>
+>>
+>>> If I'd realized that we were going to have to backport, I'd have spent
+>>> longer looking for a patch like yours originally.  So my inclination
+>>> now is to go your route, make a new patch for v3.16 and backports,
+>>> and revert the f00cdc6df7d7 that has already gone in.
+>>>
+>>>> So I'm posting it here as a RFC. I haven't thought about the
+>>>> i915_gem_object_truncate caller yet. I think that this path wouldn't
+>>>> satisfy
+>>>
+>>> My understanding is that i915_gem_object_truncate() is not a problem,
+>>> that i915's dev->struct_mutex serializes all its relevant transitions,
+>>> plus the object woudn't even be interestingly accessible to the user.
+>>>
+>>>> the new "lstart < inode->i_size" condition, but I don't know if it's
+>>>> "vulnerable"
+>>>> to the problem.
+>>>
+>>> I don't think i915 is vulnerable, but if it is, that condition would
+>>> be fine for it, as would be the patch I'm now thinking of.
+>>>
+>>>>
+>>>> -----8<-----
+>>>> From: Vlastimil Babka <vbabka@suse.cz>
+>>>> Subject: [RFC PATCH] shmem: prevent livelock between page fault and hole
+>>>> punching
+>>>>
+>>>> ---
+>>>>    mm/shmem.c | 19 +++++++++++++++++++
+>>>>    1 file changed, 19 insertions(+)
+>>>>
+>>>> diff --git a/mm/shmem.c b/mm/shmem.c
+>>>> index f484c27..6d6005c 100644
+>>>> --- a/mm/shmem.c
+>>>> +++ b/mm/shmem.c
+>>>> @@ -476,6 +476,25 @@ static void shmem_undo_range(struct inode *inode,
+>>>> loff_t lstart, loff_t lend,
+>>>>    		if (!pvec.nr) {
+>>>>    			if (index == start || unfalloc)
+>>>>    				break;
+>>>> +                        /*
+>>>> +                         * When this condition is true, it means we were
+>>>> +                         * called from fallocate(FALLOC_FL_PUNCH_HOLE).
+>>>> +                         * To prevent a livelock when someone else is
+>>>> faulting
+>>>> +                         * pages back, we are content with single pass
+>>>> and do
+>>>> +                         * not retry with index = start. It's important
+>>>> that
+>>>> +                         * previous page content has been discarded, and
+>>>> +                         * faulter(s) got new zeroed pages.
+>>>> +                         *
+>>>> +                         * The other callsites are shmem_setattr (for
+>>>> +                         * truncation) and shmem_evict_inode, which set
+>>>> i_size
+>>>> +                         * to truncated size or 0, respectively, and
+>>>> then call
+>>>> +                         * us with lstart == inode->i_size. There we do
+>>>> want to
+>>>> +                         * retry, and livelock cannot happen for other
+>>>> reasons.
+>>>> +                         *
+>>>> +                         * XXX what about i915_gem_object_truncate?
+>>>> +                         */
+>>>
+>>> I doubt you have ever faced such a criticism before, but I'm going
+>>> to speak my mind and say that comment is too long!  A comment of that
+>>> length is okay above or just inside or at a natural break in a function,
+>>> but here it distracts too much from what the code is actually doing.
+>>
+>> Fair enough. The reasoning should have gone into commit log, not comment.
+>>
+>>> In particular, the words "this condition" are so much closer to the
+>>> condition above than the condition below, that it's rather confusing.
+>>>
+>>> /* Single pass when hole-punching to not livelock on racing faults */
+>>> would have been enough (yes, I've cheated, that would be 2 or 4 lines).
+>>>
+>>>> +                        if (lstart < inode->i_size)
+>>>
+>>> For a long time I was going to suggest that you leave i_size out of it,
+>>> and use "lend > 0" instead.  Then suddenly I realized that this is the
+>>> wrong place for the test.
+>>
+>> Well my first idea was to just add a flag about how persistent it should be.
+>> And set it false for the punch hole case. Then I wondered if there's already
+>> some bit that distinguishes it. But it makes it more subtle.
+>>
+>>> And then that it's not your fault, it's mine,
+>>> in v3.1's d0823576bf4b "mm: pincer in truncate_inode_pages_range".
+>>> Wow, that really pessimized the hole-punch case!
+>>>
+>>> When is pvec.nr 0?  When we've reached the end of the file.  Why should
+>>> we go to the end of the file, when punching a hole at the start?  Ughh!
+>>
+>> Ah, I see (I think). But I managed to reproduce this problem when there was
+>> only an extra page between lend and the end of file, so I doubt this is the
+>> only problem. AFAIU it's enough to try punching a large enough hole, then the
+>> loop can only do a single pagevec worth of pages per iteration, which gives
+>> enough time for somebody faulting pages back?
+>
+> That's useful info, thank you: I just wasn't trying hard enough then;
+> and you didn't even need 1024 cpus to show it either.  Right, we have
+> to revert my pincer, certainly on shmem.  And I think I'd better do the
+> same change on generic filesystems too (nobody has bothered to implement
+> hole-punch on ramfs, but if they did, they would hit the same problem):
+> though that part of it doesn't need a backport to -stable.
+>
+>>
+>>>> +                                break;
+>>>>    			index = start;
+>>>>    			continue;
+>>>>    		}
+>>>> --
+>>>> 1.8.4.5
+>>>
+>>> But there is another problem.  We cannot break out after one pass on
+>>> shmem, because there's a possiblilty that a swap entry in the radix_tree
+>>> got swizzled into a page just as it was about to be removed - your patch
+>>> might then leave that data behind in the hole.
+>>
+>> Thanks, I didn't notice that. Do I understand correctly that this could mean
+>> info leak for the punch hole call, but wouldn't be a problem for madvise? (In
+>> any case, that means the solution is not general enough for all kernels, so
+>> I'm asking just to be sure).
+>
+> It's exactly the same issue for the madvise as for the fallocate:
+> data that is promised to have been punched out would still be there.
 
-On Mon, Jun 30, 2014 at 06:57:48PM +0000, Lewycky, Andrew wrote:
-> As an aside we found another small issue: amd_iommu_bind_pasid calls
-> get_task_mm. This bumps the mm_struct use count and it will never be
-> released. This would prevent the buggy code path described above from
-> ever running in the first place.
+AFAIK madvise doesn't promise anything. But nevermind.
 
-You are right, the current code is a bit problematic, but to fix this no
-new notifier chain in mm-code is needed.
+> Very hard case to trigger, though, I think: since by the time we get
+> to this loop, we have already made one pass down the hole, getting rid
+> of everything that wasn't page-locked at the time, so the chance of
+> catching any swap in this loop is lower.
+>
+>>
+>>> As it happens, Konstantin Khlebnikov suggested a patch for that a few
+>>> weeks ago, before noticing that it's already handled by the endless loop.
+>>> If we make that loop no longer endless, we need to add in Konstantin's
+>>> "if (shmem_free_swap) goto retry" patch.
+>>>
+>>> Right now I'm thinking that my idiocy in d0823576bf4b may actually
+>>> be the whole of Trinity's problem: patch below.  If we waste time
+>>> traversing the radix_tree to end-of-file, no wonder that concurrent
+>>> faults have time to put something in the hole every time.
+>>>
+>>> Sasha, may I trespass on your time, and ask you to revert the previous
+>>> patch from your tree, and give this patch below a try?  I am very
+>>> interested to learn if in fact it fixes it for you (as it did for me).
+>>
+>> I will try this, but as I explained above, I doubt that alone will help.
+>
+> And afterwards you confirmed, thank you.
+>
+>>
+>>> However, I am wasting your time, in that I think we shall decide that
+>>> it's too unsafe to rely solely upon the patch below (what happens if
+>>> 1024 cpus are all faulting on it while we try to punch a 4MB hole at
+>>
+>> My reproducer is 4MB file, where the puncher tries punching everything except
+>> first and last page. And there are 8 other threads (as I have 8 logical
+>> CPU's) that just repeatedly sweep the same range, reading only the first byte
+>> of each page.
+>>
+>>> end of file? if we care).  I think we shall end up with the optimization
+>>> below (or some such: it can be written in various ways), plus reverting
+>>> d0823576bf4b's "index == start && " pincer, plus Konstantin's
+>>> shmem_free_swap handling, rolled into a single patch; and a similar
+>>
+>> So that means no retry in any case (except the swap thing)? All callers can
+>> handle that? I guess shmem_evict_inode would be ok, as nobody else
+>> can be accessing that inode. But what about shmem_setattr? (i.e. straight
+>> truncation) As you said earlier, faulters will get a SIGBUS (which AFAIU is
+>> due to i_size being updated before we enter shmem_undo_range). But could
+>> possibly a faulter already pass the i_size test, and proceed with the fault
+>> only when we are already in shmem_undo_range and have passed the page in
+>> question?
+>
+> We still have to retry indefinitely in the truncation case, as you
+> rightly guess.  SIGBUS beyond i_size makes it a much easier case to
+> handle, and there's no danger of "indefinitely" becoming "infinitely"
+> as in the punch-hole case.  But, depending on how the filesystem
+> handles its end, there is still some possibility of a race with faulting,
+> which some filesystems may require pagecache truncation to resolve.
+>
+> Does shmem truncation itself require that?  Er, er, it would take me
+> too long to work out the definitive answer: perhaps it doesn't, but for
+> safety I certainly assume that it does require that - that is, I never
+> even considered removing the indefinite loop from the truncation case.
+>
+>>
+>>> patch (without the swap part) for several functions in truncate.c.
+>>>
+>>> Hugh
+>>>
+>>> --- 3.16-rc2/mm/shmem.c	2014-06-16 00:28:55.124076531 -0700
+>>> +++ linux/mm/shmem.c	2014-06-25 10:28:47.063967052 -0700
+>>> @@ -470,6 +470,7 @@ static void shmem_undo_range(struct inod
+>>>    	for ( ; ; ) {
+>>>    		cond_resched();
+>>>
+>>> +		index = min(index, end);
+>>>    		pvec.nr = find_get_entries(mapping, index,
+>>>    				min(end - index, (pgoff_t)PAGEVEC_SIZE),
+>>>    				pvec.pages, indices);
+>
+> So let's all forget that patch, although it does help to highlight my
+> mistake in d0823576bf4b.  (Oh, hey, let's all forget my mistake too!)
 
-In fact, using get_task_mm() is a good way to keep a reference to the mm
-as a user (an external device is in fact another user) and defer the
-destruction of the mappings to the file-close path (where you can call
-mmput to destroy it). So this is another way to solve the problem
-without any new notifier.
+What patch? What mistake? :)
 
+> Here's the 3.16-rc2 patch that I've now settled on (which will also
+> require a revert of current git's f00cdc6df7d7; well, not require the
+> revert, but this makes that redundant, and cannot be tested with it in).
+>
+> I've not yet had time to write up the patch description, nor to test
+> it fully; but thought I should get the patch itself into the open for
+> review and testing before then.
 
-	Joerg
+It seems to work here (tested 3.16-rc1 which didn't have f00cdc6df7d7 yet).
+Checking for end != -1 is indeed much more elegant solution than i_size.
+Thanks. So you can add my Tested-by.
 
+> I've checked against v3.1 to see how it works out there: certainly
+> wouldn't apply cleanly (and beware: prior to v3.5's shmem_undo_range,
+> "end" was included in the range, not excluded), but the same
+> principles apply.  Haven't checked the intermediates yet, will
+> probably leave those until each stable wants them - but if you've a
+> particular release in mind, please ask, or ask me to check your port.
+
+I will try, thanks.
+
+> I've included the mm/truncate.c part of it here, but that will be a
+> separate (not for -stable) patch when I post the finalized version.
+>
+> Hannes, a question for you please, I just could not make up my mind.
+> In mm/truncate.c truncate_inode_pages_range(), what should be done
+> with a failed clear_exceptional_entry() in the case of hole-punch?
+> Is that case currently depending on the rescan loop (that I'm about
+> to revert) to remove a new page, so I would need to add a retry for
+> that rather like the shmem_free_swap() one?  Or is it irrelevant,
+> and can stay unchanged as below?  I've veered back and forth,
+> thinking first one and then the other.
+>
+> Thanks,
+> Hugh
+>
+> ---
+>
+>   mm/shmem.c    |   19 ++++++++++---------
+>   mm/truncate.c |   14 +++++---------
+>   2 files changed, 15 insertions(+), 18 deletions(-)
+>
+> --- 3.16-rc2/mm/shmem.c	2014-06-16 00:28:55.124076531 -0700
+> +++ linux/mm/shmem.c	2014-06-26 15:41:52.704362962 -0700
+> @@ -467,23 +467,20 @@ static void shmem_undo_range(struct inod
+>   		return;
+>
+>   	index = start;
+> -	for ( ; ; ) {
+> +	while (index < end) {
+>   		cond_resched();
+>
+>   		pvec.nr = find_get_entries(mapping, index,
+>   				min(end - index, (pgoff_t)PAGEVEC_SIZE),
+>   				pvec.pages, indices);
+>   		if (!pvec.nr) {
+> -			if (index == start || unfalloc)
+> +			/* If all gone or hole-punch or unfalloc, we're done */
+> +			if (index == start || end != -1)
+>   				break;
+> +			/* But if truncating, restart to make sure all gone */
+>   			index = start;
+>   			continue;
+>   		}
+> -		if ((index == start || unfalloc) && indices[0] >= end) {
+> -			pagevec_remove_exceptionals(&pvec);
+> -			pagevec_release(&pvec);
+> -			break;
+> -		}
+>   		mem_cgroup_uncharge_start();
+>   		for (i = 0; i < pagevec_count(&pvec); i++) {
+>   			struct page *page = pvec.pages[i];
+> @@ -495,8 +492,12 @@ static void shmem_undo_range(struct inod
+>   			if (radix_tree_exceptional_entry(page)) {
+>   				if (unfalloc)
+>   					continue;
+> -				nr_swaps_freed += !shmem_free_swap(mapping,
+> -								index, page);
+> +				if (shmem_free_swap(mapping, index, page)) {
+> +					/* Swap was replaced by page: retry */
+> +					index--;
+> +					break;
+> +				}
+> +				nr_swaps_freed++;
+>   				continue;
+>   			}
+>
+> --- 3.16-rc2/mm/truncate.c	2014-06-08 11:19:54.000000000 -0700
+> +++ linux/mm/truncate.c	2014-06-26 16:31:35.932433863 -0700
+> @@ -352,21 +352,17 @@ void truncate_inode_pages_range(struct a
+>   		return;
+>
+>   	index = start;
+> -	for ( ; ; ) {
+> +	while (index < end) {
+>   		cond_resched();
+>   		if (!pagevec_lookup_entries(&pvec, mapping, index,
+> -			min(end - index, (pgoff_t)PAGEVEC_SIZE),
+> -			indices)) {
+> -			if (index == start)
+> +			min(end - index, (pgoff_t)PAGEVEC_SIZE), indices)) {
+> +			/* If all gone or hole-punch, we're done */
+> +			if (index == start || end != -1)
+>   				break;
+> +			/* But if truncating, restart to make sure all gone */
+>   			index = start;
+>   			continue;
+>   		}
+> -		if (index == start && indices[0] >= end) {
+> -			pagevec_remove_exceptionals(&pvec);
+> -			pagevec_release(&pvec);
+> -			break;
+> -		}
+>   		mem_cgroup_uncharge_start();
+>   		for (i = 0; i < pagevec_count(&pvec); i++) {
+>   			struct page *page = pvec.pages[i];
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
