@@ -1,65 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DAE36B0038
-	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 12:50:33 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id z10so10480786pdj.29
-        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 09:50:32 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id ln8si27511474pab.187.2014.07.01.09.50.31
-        for <linux-mm@kvack.org>;
-        Tue, 01 Jul 2014 09:50:32 -0700 (PDT)
-Subject: [PATCH 4/7] x86: mm: unify remote invlpg code
-From: Dave Hansen <dave@sr71.net>
-Date: Tue, 01 Jul 2014 09:48:52 -0700
-References: <20140701164845.8D1A5702@viggo.jf.intel.com>
-In-Reply-To: <20140701164845.8D1A5702@viggo.jf.intel.com>
-Message-Id: <20140701164852.F61ED607@viggo.jf.intel.com>
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 0729E6B003A
+	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 13:07:46 -0400 (EDT)
+Received: by mail-wi0-f171.google.com with SMTP id n15so8232879wiw.4
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 10:07:46 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u10si28766906wjr.88.2014.07.01.10.07.44
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 01 Jul 2014 10:07:45 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v4 00/13] pagewalk: improve vma handling, apply to new users
+Date: Tue,  1 Jul 2014 13:07:18 -0400
+Message-Id: <1404234451-21695-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, hpa@zytor.com, mingo@redhat.com, tglx@linutronix.de, x86@kernel.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com, riel@redhat.com, mgorman@suse.de
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
+This series is ver.4 of page table walker patchset.
+I reflected comments in the previous version (thanks Kirill, Jerome).
+And rebased onto v3.16-rc3. Recently code around queue_pages_range()
+is changed by commit d05f0cdcbe63 "mm: fix crashes from mbind() merging
+vma", which affects this series a little.
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+Thanks,
+Naoya Horiguchi
 
-There are currently three paths through the remote flush code:
-
-1. full invalidation
-2. single page invalidation using invlpg
-3. ranged invalidation using invlpg
-
-This takes 2 and 3 and combines them in to a single path by
-making the single-page one just be the start and end be start
-plus a single page.  This makes placement of our tracepoint easier.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>
+Tree: git@github.com:Naoya-Horiguchi/linux.git
+Branch: v3.16-rc3/page_table_walker.ver4
 ---
+Summary:
 
- b/arch/x86/mm/tlb.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+Kirill A. Shutemov (1):
+      mm: /proc/pid/clear_refs: avoid split_huge_page()
 
-diff -puN arch/x86/mm/tlb.c~x86-tlb-simplify-remote-flush-code arch/x86/mm/tlb.c
---- a/arch/x86/mm/tlb.c~x86-tlb-simplify-remote-flush-code	2014-06-30 16:18:28.009559635 -0700
-+++ b/arch/x86/mm/tlb.c	2014-06-30 16:18:28.013559817 -0700
-@@ -102,13 +102,13 @@ static void flush_tlb_func(void *info)
- 
- 	if (f->flush_mm != this_cpu_read(cpu_tlbstate.active_mm))
- 		return;
-+	if (!f->flush_end)
-+		f->flush_end = f->flush_start + PAGE_SIZE;
- 
- 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
- 	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK) {
- 		if (f->flush_end == TLB_FLUSH_ALL)
- 			local_flush_tlb();
--		else if (!f->flush_end)
--			__flush_tlb_single(f->flush_start);
- 		else {
- 			unsigned long addr;
- 			addr = f->flush_start;
-_
+Naoya Horiguchi (12):
+      mm/pagewalk: remove pgd_entry() and pud_entry()
+      pagewalk: improve vma handling
+      pagewalk: add walk_page_vma()
+      smaps: remove mem_size_stats->vma and use walk_page_vma()
+      clear_refs: remove clear_refs_private->vma and introduce clear_refs_test_walk()
+      pagemap: use walk->vma instead of calling find_vma()
+      numa_maps: fix typo in gather_hugetbl_stats
+      numa_maps: remove numa_maps->vma
+      memcg: cleanup preparation for page table walk
+      arch/powerpc/mm/subpage-prot.c: use walk->vma and walk_page_vma()
+      mempolicy: apply page table walker on queue_pages_range()
+      mincore: apply page table walker on do_mincore()
+
+ arch/powerpc/mm/subpage-prot.c |   6 +-
+ fs/proc/task_mmu.c             | 150 ++++++++++++++++-----------
+ include/linux/mm.h             |  22 ++--
+ mm/huge_memory.c               |  20 ----
+ mm/memcontrol.c                |  49 +++------
+ mm/mempolicy.c                 | 224 ++++++++++++++++------------------------
+ mm/mincore.c                   | 173 +++++++++++--------------------
+ mm/pagewalk.c                  | 228 ++++++++++++++++++++++++-----------------
+ 8 files changed, 409 insertions(+), 463 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
