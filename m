@@ -1,84 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E1336B0035
-	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 21:07:10 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id et14so9650818pad.27
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 18:07:09 -0700 (PDT)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id go6si25017679pac.116.2014.06.30.18.07.08
-        for <linux-mm@kvack.org>;
-        Mon, 30 Jun 2014 18:07:09 -0700 (PDT)
-Message-ID: <53B209BA.8010106@lge.com>
-Date: Tue, 01 Jul 2014 10:07:06 +0900
-From: Gioh Kim <gioh.kim@lge.com>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 4084E6B0036
+	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 21:07:57 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fb1so9616774pad.28
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 18:07:56 -0700 (PDT)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id ax6si12661321pbd.19.2014.06.30.18.07.56
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 30 Jun 2014 18:07:56 -0700 (PDT)
+Received: by mail-pa0-f41.google.com with SMTP id fb1so9549356pad.14
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 18:07:56 -0700 (PDT)
+Date: Mon, 30 Jun 2014 18:06:27 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH mmotm/next] mm: memcontrol: rewrite charge API: fix
+ shmem_unuse
+In-Reply-To: <20140630173428.5ebeed18.akpm@linux-foundation.org>
+Message-ID: <alpine.LSU.2.11.1406301805020.10594@eggly.anvils>
+References: <alpine.LSU.2.11.1406301541420.4349@eggly.anvils> <20140630160212.46caf9c3d41445b61fece666@linux-foundation.org> <alpine.LSU.2.11.1406301658430.4898@eggly.anvils> <20140630173428.5ebeed18.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [RFC] CMA page migration failure due to buffers on bh_lru
-References: <53A8D092.4040801@lge.com> <xa1td2dvmznq.fsf@mina86.com> <53ACAB82.6020201@lge.com> <53B06DD0.8030106@codeaurora.org>
-In-Reply-To: <53B06DD0.8030106@codeaurora.org>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, =?UTF-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>, Hugh Dickins <hughd@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi,Laura.
+On Mon, 30 Jun 2014, Andrew Morton wrote:
+> On Mon, 30 Jun 2014 17:10:54 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
+> > On Mon, 30 Jun 2014, Andrew Morton wrote:
+> > > On Mon, 30 Jun 2014 15:48:39 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
+> > > > -		return 0;
+> > > > +		return -EAGAIN;
+> > > 
+> > > Maybe it's time to document the shmem_unuse_inode() return values.
+> > 
+> > Oh dear.  I had hoped they would look after themselves.  This one is a
+> > private matter between shmem_unuse_inode and its one caller, just below.
+> 
+> Well, readers of shmem_unuse_inode() won't know that unless we tell them.
 
-I have a question.
+Add comments on the private use of -EAGAIN.
 
-Does the __evict_bh_lru() not need bh_lru_lock()?
-The get_cpu_var() has already preenpt_disable() and can prevent other thread.
-But get_cpu_var cannot prevent IRQ context such like page-fault.
-I think if a page-fault occured and a file is read in IRQ context it can change cpu-lru.
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
 
-Is my concern correct?
+ mm/shmem.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-
-2014-06-30 i??i ? 4:49, Laura Abbott i?' e,?:
-> (cc-ing Hugh since he had comments on the patch before)
->
-> On 6/26/2014 4:23 PM, Gioh Kim wrote:
->>
->>
->> 2014-06-27 i??i ? 12:57, Michal Nazarewicz i?' e,?:
->>> On Tue, Jun 24 2014, Gioh Kim <gioh.kim@lge.com> wrote:
->>>> Hello,
->>>>
->>>> I am trying to apply CMA feature for my platform.
->>>> My kernel version, 3.10.x, is not allocating memory from CMA area so that I applied
->>>> a Joonsoo Kim's patch (https://lkml.org/lkml/2014/5/28/64).
->>>> Now my platform can use CMA area effectively.
->>>>
->>>> But I have many failures to allocate memory from CMA area.
->>>> I found the same situation to Laura Abbott's patch descrbing,
->>>> https://lkml.org/lkml/2012/8/31/313,
->>>> that releases buffer-heads attached at CPU's LRU list.
->>>>
->>>> If Joonsoo's patch is applied and/or CMA feature is applied more and more,
->>>> buffer-heads problem is going to be serious definitely.
->>>>
->>>> Please look into the Laura's patch again.
->>>> I think it must be applied with Joonsoo's patch.
->>>
->>> Just to make sure I understood you correctly, you're saying Laura's
->>> patch at <https://lkml.org/lkml/2012/8/31/313> fixes your issue?
->>>
->>
->> Yes, it is.
->
-> I submitted this before and it was suggested that this was more
-> related to filesystems
->
-> http://marc.info/?l=linaro-mm-sig&m=137645770708817&w=2
->
-> I never saw more discussion and pushed this into the 'CMA hacks' pile.
-> So far we've been keeping the patch out of tree and it's useful to know
-> that others have found the same problem. I'm willing to resubmit the
-> patch for further discussion.
->
-> Thanks,
-> Laura
->
+--- 3.16-rc2-mm1+/mm/shmem.c	2014-06-30 15:05:50.736335600 -0700
++++ linux/mm/shmem.c	2014-06-30 18:00:02.820584009 -0700
+@@ -611,7 +611,7 @@ static int shmem_unuse_inode(struct shme
+ 	radswap = swp_to_radix_entry(swap);
+ 	index = radix_tree_locate_item(&mapping->page_tree, radswap);
+ 	if (index == -1)
+-		return -EAGAIN;
++		return -EAGAIN;	/* tell shmem_unuse we found nothing */
+ 
+ 	/*
+ 	 * Move _head_ to start search for next from here.
+@@ -712,6 +712,7 @@ int shmem_unuse(swp_entry_t swap, struct
+ 		cond_resched();
+ 		if (error != -EAGAIN)
+ 			break;
++		/* found nothing in this: move on to search the next */
+ 	}
+ 	mutex_unlock(&shmem_swaplist_mutex);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
