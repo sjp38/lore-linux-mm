@@ -1,129 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 65C1A6B0031
-	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 18:43:32 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id fp1so10741802pdb.25
-        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 15:43:32 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id tz6si28330213pbc.165.2014.07.01.15.43.30
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id B4D986B0031
+	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 19:09:54 -0400 (EDT)
+Received: by mail-wg0-f43.google.com with SMTP id k14so1477133wgh.26
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 16:09:54 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t5si22581272wja.153.2014.07.01.16.09.53
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 01 Jul 2014 15:43:31 -0700 (PDT)
-Message-ID: <53B3381B.8000601@oracle.com>
-Date: Tue, 01 Jul 2014 18:37:15 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 01 Jul 2014 16:09:53 -0700 (PDT)
+Date: Wed, 2 Jul 2014 00:09:49 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 0/5] Improve sequential read throughput v4r8
+Message-ID: <20140701230949.GZ10819@suse.de>
+References: <1404146883-21414-1-git-send-email-mgorman@suse.de>
+ <20140701171611.GB1369@cmpxchg.org>
+ <20140701183915.GW10819@suse.de>
+ <20140701223817.GI4453@dastard>
 MIME-Version: 1.0
-Subject: mm: shmem: hang in shmem_fault (WAS: mm: shm: hang in shmem_fallocate)
-References: <52AE7B10.2080201@oracle.com> <52F6898A.50101@oracle.com> <alpine.LSU.2.11.1402081841160.26825@eggly.anvils> <52F82E62.2010709@oracle.com> <539A0FC8.8090504@oracle.com> <alpine.LSU.2.11.1406151921070.2850@eggly.anvils> <53A9A7D8.2020703@suse.cz> <alpine.LSU.2.11.1406251152450.1580@eggly.anvils> <53AC383F.3010007@oracle.com> <alpine.LSU.2.11.1406262236370.27670@eggly.anvils> <53AD84CE.20806@oracle.com> <alpine.LSU.2.11.1406271043270.28744@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1406271043270.28744@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140701223817.GI4453@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Konstantin Khlebnikov <koct9i@gmail.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-Hi Hugh,
+On Wed, Jul 02, 2014 at 08:38:17AM +1000, Dave Chinner wrote:
+> On Tue, Jul 01, 2014 at 07:39:15PM +0100, Mel Gorman wrote:
+> > On Tue, Jul 01, 2014 at 01:16:11PM -0400, Johannes Weiner wrote:
+> > > On Mon, Jun 30, 2014 at 05:47:59PM +0100, Mel Gorman wrote:
+> > > Seqread throughput is up, randread takes a small hit.  But allocation
+> > > latency is badly screwed at higher concurrency levels:
+> > 
+> > So the results are roughly similar. You don't state which filesystem it is
+> > but FWIW if it's the ext3 filesystem using the ext4 driver then throughput
+> > at higher levels is also affected by filesystem fragmentation. The problem
+> > was outside the scope of the series.
+> 
+> I'd suggest you're both going wrong that the "using ext3" point.
+> 
+> Use ext4 or XFS for your performance measurements because that's
+> what everyone is using for the systems these days. iNot to mention
+> they don'thave all the crappy allocation artifacts that ext3 has,
+> nor the throughput limitations caused by the ext3 journal, and so
+> on.
+> 
+> Fundamentally, ext3 performance is simply not a relevant performance
+> metric anymore - it's a legacy filesystem in maintenance mode and
+> has been for a few years now...
+> 
 
-I've been observing a very nonspecific hang involving some mutexes from fs/ but
-without any lockdep output or a concrete way to track it down.
+The problem crosses filesystems. ext3 is simply the first in the queue
+because by and large it behaved the worst.  Covering the rest of them
+simply takes more time and with different results as you may expect. Here
+are the xfs results for the smaller of the machines as it was able to get
+that far before it got reset
 
-It seems that today was my lucky day, and after enough tinkering I've managed
-to get output out of lockdep, which pointed me to shmem:
+                                      3.16.0-rc2                 3.0.0            3.16.0-rc2
+                                         vanilla               vanilla           fairzone-v4
+Min    SeqRead-MB/sec-1          92.69 (  0.00%)       99.68 (  7.54%)      104.47 ( 12.71%)
+Min    SeqRead-MB/sec-2         106.81 (  0.00%)      123.43 ( 15.56%)      123.24 ( 15.38%)
+Min    SeqRead-MB/sec-4         101.89 (  0.00%)      113.78 ( 11.67%)      116.85 ( 14.68%)
+Min    SeqRead-MB/sec-8          95.31 (  0.00%)       91.40 ( -4.10%)      101.68 (  6.68%)
+Min    SeqRead-MB/sec-16         81.84 (  0.00%)       88.53 (  8.17%)       86.63 (  5.85%)
 
-[ 1871.989131] =============================================
-[ 1871.990028] [ INFO: possible recursive locking detected ]
-[ 1871.992591] 3.16.0-rc3-next-20140630-sasha-00023-g44434d4-dirty #758 Tainted: G        W
-[ 1871.992591] ---------------------------------------------
-[ 1871.992591] trinity-c84/27757 is trying to acquire lock:
-[ 1871.992591] (&sb->s_type->i_mutex_key#17){+.+.+.}, at: shmem_fault (mm/shmem.c:1289)
-[ 1871.992591]
-[ 1871.992591] but task is already holding lock:
-[ 1871.992591] (&sb->s_type->i_mutex_key#17){+.+.+.}, at: generic_file_write_iter (mm/filemap.c:2633)
-[ 1871.992591]
-[ 1871.992591] other info that might help us debug this:
-[ 1871.992591]  Possible unsafe locking scenario:
-[ 1871.992591]
-[ 1871.992591]        CPU0
-[ 1871.992591]        ----
-[ 1871.992591]   lock(&sb->s_type->i_mutex_key#17);
-[ 1871.992591]   lock(&sb->s_type->i_mutex_key#17);
-[ 1872.013889]
-[ 1872.013889]  *** DEADLOCK ***
-[ 1872.013889]
-[ 1872.013889]  May be due to missing lock nesting notation
-[ 1872.013889]
-[ 1872.013889] 3 locks held by trinity-c84/27757:
-[ 1872.013889] #0: (&f->f_pos_lock){+.+.+.}, at: __fdget_pos (fs/file.c:714)
-[ 1872.030221] #1: (sb_writers#13){.+.+.+}, at: do_readv_writev (include/linux/fs.h:2264 fs/read_write.c:830)
-[ 1872.030221] #2: (&sb->s_type->i_mutex_key#17){+.+.+.}, at: generic_file_write_iter (mm/filemap.c:2633)
-[ 1872.030221]
-[ 1872.030221] stack backtrace:
-[ 1872.030221] CPU: 6 PID: 27757 Comm: trinity-c84 Tainted: G        W      3.16.0-rc3-next-20140630-sasha-00023-g44434d4-dirty #758
-[ 1872.030221]  ffffffff9fc112b0 ffff8803c844f5d8 ffffffff9c531022 0000000000000002
-[ 1872.030221]  ffffffff9fc112b0 ffff8803c844f6d8 ffffffff991d1a8d ffff8803c5da3000
-[ 1872.030221]  ffff8803c5da3d70 ffff880300000001 ffff8803c5da3000 ffff8803c5da3da8
-[ 1872.030221] Call Trace:
-[ 1872.030221] dump_stack (lib/dump_stack.c:52)
-[ 1872.030221] __lock_acquire (kernel/locking/lockdep.c:3034 kernel/locking/lockdep.c:3180)
-[ 1872.030221] lock_acquire (./arch/x86/include/asm/current.h:14 kernel/locking/lockdep.c:3602)
-[ 1872.030221] ? shmem_fault (mm/shmem.c:1289)
-[ 1872.030221] mutex_lock_nested (kernel/locking/mutex.c:486 kernel/locking/mutex.c:587)
-[ 1872.030221] ? shmem_fault (mm/shmem.c:1289)
-[ 1872.030221] ? shmem_fault (mm/shmem.c:1288)
-[ 1872.030221] ? shmem_fault (mm/shmem.c:1289)
-[ 1872.030221] shmem_fault (mm/shmem.c:1289)
-[ 1872.030221] __do_fault (mm/memory.c:2705)
-[ 1872.030221] ? _raw_spin_unlock (./arch/x86/include/asm/preempt.h:98 include/linux/spinlock_api_smp.h:152 kernel/locking/spinlock.c:183)
-[ 1872.030221] do_read_fault.isra.40 (mm/memory.c:2896)
-[ 1872.030221] ? get_parent_ip (kernel/sched/core.c:2550)
-[ 1872.030221] __handle_mm_fault (mm/memory.c:3037 mm/memory.c:3198 mm/memory.c:3322)
-[ 1872.030221] handle_mm_fault (mm/memory.c:3345)
-[ 1872.030221] __do_page_fault (arch/x86/mm/fault.c:1230)
-[ 1872.030221] ? retint_restore_args (arch/x86/kernel/entry_64.S:829)
-[ 1872.030221] ? __this_cpu_preempt_check (lib/smp_processor_id.c:63)
-[ 1872.030221] ? trace_hardirqs_on_caller (kernel/locking/lockdep.c:2557 kernel/locking/lockdep.c:2599)
-[ 1872.030221] ? context_tracking_user_exit (kernel/context_tracking.c:184)
-[ 1872.030221] ? __this_cpu_preempt_check (lib/smp_processor_id.c:63)
-[ 1872.030221] ? trace_hardirqs_off_caller (kernel/locking/lockdep.c:2638 (discriminator 2))
-[ 1872.030221] trace_do_page_fault (arch/x86/mm/fault.c:1313 include/linux/jump_label.h:115 include/linux/context_tracking_state.h:27 include/linux/context_tracking.h:45 arch/x86/mm/fault.c:1314)
-[ 1872.030221] do_async_page_fault (arch/x86/kernel/kvm.c:264)
-[ 1872.030221] async_page_fault (arch/x86/kernel/entry_64.S:1322)
-[ 1872.030221] ? iov_iter_fault_in_readable (include/linux/pagemap.h:598 mm/iov_iter.c:267)
-[ 1872.030221] generic_perform_write (mm/filemap.c:2461)
-[ 1872.030221] ? __mnt_drop_write (./arch/x86/include/asm/preempt.h:98 fs/namespace.c:455)
-[ 1872.030221] __generic_file_write_iter (mm/filemap.c:2608)
-[ 1872.030221] ? generic_file_llseek (fs/read_write.c:467)
-[ 1872.030221] generic_file_write_iter (mm/filemap.c:2634)
-[ 1872.030221] do_iter_readv_writev (fs/read_write.c:666)
-[ 1872.030221] do_readv_writev (fs/read_write.c:834)
-[ 1872.030221] ? __generic_file_write_iter (mm/filemap.c:2627)
-[ 1872.030221] ? __generic_file_write_iter (mm/filemap.c:2627)
-[ 1872.030221] ? mutex_lock_nested (./arch/x86/include/asm/preempt.h:98 kernel/locking/mutex.c:570 kernel/locking/mutex.c:587)
-[ 1872.030221] ? __fdget_pos (fs/file.c:714)
-[ 1872.030221] ? __fdget_pos (fs/file.c:714)
-[ 1872.030221] ? __fget_light (include/linux/rcupdate.h:402 include/linux/fdtable.h:80 fs/file.c:684)
-[ 1872.101905] vfs_writev (fs/read_write.c:879)
-[ 1872.101905] SyS_writev (fs/read_write.c:912 fs/read_write.c:904)
-[ 1872.101905] tracesys (arch/x86/kernel/entry_64.S:542)
-
-It seems like it was introduced by your fix to the shmem_fallocate hang, and is
-triggered in shmem_fault():
-
-+               if (shmem_falloc) {
-+                       if ((vmf->flags & FAULT_FLAG_ALLOW_RETRY) &&
-+                          !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT)) {
-+                               up_read(&vma->vm_mm->mmap_sem);
-+                               mutex_lock(&inode->i_mutex);		<=== HERE
-+                               mutex_unlock(&inode->i_mutex);
-+                               return VM_FAULT_RETRY;
-+                       }
-+                       /* cond_resched? Leave that to GUP or return to user */
-+                       return VM_FAULT_NOPAGE;
-
-
-Thanks,
-Sasha
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
