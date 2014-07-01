@@ -1,63 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id A16566B0035
-	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 18:27:19 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id ft15so10780899pdb.35
-        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 15:27:19 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id os9si28285165pac.155.2014.07.01.15.27.17
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 53A8A6B0031
+	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 18:38:23 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id v10so10812311pde.12
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 15:38:23 -0700 (PDT)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id fv4si28292487pbb.224.2014.07.01.15.38.20
         for <linux-mm@kvack.org>;
-        Tue, 01 Jul 2014 15:27:18 -0700 (PDT)
-Date: Tue, 1 Jul 2014 15:27:16 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] hwpoison: Fix race with changing page during offlining
- v2
-Message-Id: <20140701152716.b9b4b04ee67cf987844b1aa4@linux-foundation.org>
-In-Reply-To: <1404174736-17480-1-git-send-email-andi@firstfloor.org>
-References: <1404174736-17480-1-git-send-email-andi@firstfloor.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 01 Jul 2014 15:38:21 -0700 (PDT)
+Date: Wed, 2 Jul 2014 08:38:17 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 0/5] Improve sequential read throughput v4r8
+Message-ID: <20140701223817.GI4453@dastard>
+References: <1404146883-21414-1-git-send-email-mgorman@suse.de>
+ <20140701171611.GB1369@cmpxchg.org>
+ <20140701183915.GW10819@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140701183915.GW10819@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-On Mon, 30 Jun 2014 17:32:16 -0700 Andi Kleen <andi@firstfloor.org> wrote:
-
-> From: Andi Kleen <ak@linux.intel.com>
+On Tue, Jul 01, 2014 at 07:39:15PM +0100, Mel Gorman wrote:
+> On Tue, Jul 01, 2014 at 01:16:11PM -0400, Johannes Weiner wrote:
+> > On Mon, Jun 30, 2014 at 05:47:59PM +0100, Mel Gorman wrote:
+> > Seqread throughput is up, randread takes a small hit.  But allocation
+> > latency is badly screwed at higher concurrency levels:
 > 
-> When a hwpoison page is locked it could change state
-> due to parallel modifications.  Check after the lock
-> if the page is still the same compound page.
-> 
-> ...
->
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -1168,6 +1168,16 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
->  	lock_page(hpage);
->  
->  	/*
-> +	 * The page could have changed compound pages during the locking.
-> +	 * If this happens just bail out.
-> +	 */
-> +	if (compound_head(p) != hpage) {
+> So the results are roughly similar. You don't state which filesystem it is
+> but FWIW if it's the ext3 filesystem using the ext4 driver then throughput
+> at higher levels is also affected by filesystem fragmentation. The problem
+> was outside the scope of the series.
 
-How can a 4k page change compound pages?  The original compound page
-was torn down and then this 4k page became part of a differently-sized
-compound page?
+I'd suggest you're both going wrong that the "using ext3" point.
 
-> +		action_result(pfn, "different compound page after locking", IGNORED);
-> +		res = -EBUSY;
-> +		goto out;
-> +	}
-> +
-> +	/*
+Use ext4 or XFS for your performance measurements because that's
+what everyone is using for the systems these days. iNot to mention
+they don'thave all the crappy allocation artifacts that ext3 has,
+nor the throughput limitations caused by the ext3 journal, and so
+on.
 
-I don't get it.  We just go and fail the poisoning attempt?  Shouldn't
-we go back, grab the new hpage and try again?
+Fundamentally, ext3 performance is simply not a relevant performance
+metric anymore - it's a legacy filesystem in maintenance mode and
+has been for a few years now...
 
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
