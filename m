@@ -1,56 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B4F96B004D
-	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 04:22:36 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id fp1so9759497pdb.11
-        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 01:22:35 -0700 (PDT)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id iq4si26157793pbb.75.2014.07.01.01.22.33
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C6696B0031
+	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 05:26:23 -0400 (EDT)
+Received: by mail-ig0-f180.google.com with SMTP id h18so5229776igc.7
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 02:26:23 -0700 (PDT)
+Received: from cam-admin0.cambridge.arm.com (cam-admin0.cambridge.arm.com. [217.140.96.50])
+        by mx.google.com with ESMTP id fl10si26291771pab.132.2014.07.01.02.26.22
         for <linux-mm@kvack.org>;
-        Tue, 01 Jul 2014 01:22:34 -0700 (PDT)
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v3 9/9] slab: remove BAD_ALIEN_MAGIC
-Date: Tue,  1 Jul 2014 17:27:38 +0900
-Message-Id: <1404203258-8923-10-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1404203258-8923-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1404203258-8923-1-git-send-email-iamjoonsoo.kim@lge.com>
+        Tue, 01 Jul 2014 02:26:22 -0700 (PDT)
+Date: Tue, 1 Jul 2014 10:23:46 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v2 09/10] arm64,ia64,ppc,s390,sh,tile,um,x86,mm: Remove
+ default gate area
+Message-ID: <20140701092345.GH28164@arm.com>
+References: <cover.1404164803.git.luto@amacapital.net>
+ <e1656ab2adfd1891f62610abe3e85ad992ee0cbf.1404164803.git.luto@amacapital.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e1656ab2adfd1891f62610abe3e85ad992ee0cbf.1404164803.git.luto@amacapital.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vladimir Davydov <vdavydov@parallels.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "x86@kernel.org" <x86@kernel.org>, "hpa@zytor.org" <hpa@zytor.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "linux390@de.ibm.com" <linux390@de.ibm.com>, Chris Metcalf <cmetcalf@tilera.com>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Nathan Lynch <Nathan_Lynch@mentor.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, "user-mode-linux-devel@lists.sourceforge.net" <user-mode-linux-devel@lists.sourceforge.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-BAD_ALIEN_MAGIC value isn't used anymore. So remove it.
+On Mon, Jun 30, 2014 at 10:53:20PM +0100, Andy Lutomirski wrote:
+> The core mm code will provide a default gate area based on
+> FIXADDR_USER_START and FIXADDR_USER_END if
+> !defined(__HAVE_ARCH_GATE_AREA) && defined(AT_SYSINFO_EHDR).
+> 
+> This default is only useful for ia64.  arm64, ppc, s390, sh, tile,
+> 64-bit UML, and x86_32 have their own code just to disable it.  arm,
+> 32-bit UML, and x86_64 have gate areas, but they have their own
+> implementations.
+> 
+> This gets rid of the default and moves the code into ia64.
+> 
+> This should save some code on architectures without a gate area: it's
+> now possible to inline the gate_area functions in the default case.
 
-Acked-by: Christoph Lameter <cl@linux.com>
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- mm/slab.c |    4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+For the arm64 bit:
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 7820a45..60c9e11 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -470,8 +470,6 @@ static struct kmem_cache kmem_cache_boot = {
- 	.name = "kmem_cache",
- };
- 
--#define BAD_ALIEN_MAGIC 0x01020304ul
--
- static DEFINE_PER_CPU(struct delayed_work, slab_reap_work);
- 
- static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
-@@ -838,7 +836,7 @@ static int transfer_objects(struct array_cache *to,
- static inline struct alien_cache **alloc_alien_cache(int node,
- 						int limit, gfp_t gfp)
- {
--	return (struct alien_cache **)BAD_ALIEN_MAGIC;
-+	return NULL;
- }
- 
- static inline void free_alien_cache(struct alien_cache **ac_ptr)
--- 
-1.7.9.5
+  Acked-by: Will Deacon <will.deacon@arm.com>
+
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
