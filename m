@@ -1,56 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id DA8F46B0031
-	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 10:51:22 -0400 (EDT)
-Received: by mail-wi0-f170.google.com with SMTP id cc10so7576467wib.3
-        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 07:51:22 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.198])
-        by mx.google.com with ESMTP id dk1si15469979wib.50.2014.07.01.07.51.20
+Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
+	by kanga.kvack.org (Postfix) with ESMTP id E9A4C6B0031
+	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 10:58:57 -0400 (EDT)
+Received: by mail-qc0-f171.google.com with SMTP id w7so8732228qcr.30
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 07:58:57 -0700 (PDT)
+Received: from qmta15.emeryville.ca.mail.comcast.net (qmta15.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:228])
+        by mx.google.com with ESMTP id 79si29866191qgc.45.2014.07.01.07.58.56
         for <linux-mm@kvack.org>;
-        Tue, 01 Jul 2014 07:51:21 -0700 (PDT)
-Date: Tue, 1 Jul 2014 17:50:58 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v9] mm: support madvise(MADV_FREE)
-Message-ID: <20140701145058.GA2084@node.dhcp.inet.fi>
-References: <1404174975-22019-1-git-send-email-minchan@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1404174975-22019-1-git-send-email-minchan@kernel.org>
+        Tue, 01 Jul 2014 07:58:56 -0700 (PDT)
+Date: Tue, 1 Jul 2014 09:58:52 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: mm: slub: invalid memory access in setup_object
+In-Reply-To: <alpine.DEB.2.02.1406301500410.13545@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.11.1407010956470.5353@gentwo.org>
+References: <53AAFDF7.2010607@oracle.com> <alpine.DEB.2.11.1406251228130.29216@gentwo.org> <alpine.DEB.2.02.1406301500410.13545@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Wei Yang <weiyang@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
 
-On Tue, Jul 01, 2014 at 09:36:15AM +0900, Minchan Kim wrote:
-> +	do {
-> +		/*
-> +		 * XXX: We can optimize with supporting Hugepage free
-> +		 * if the range covers.
-> +		 */
-> +		next = pmd_addr_end(addr, end);
-> +		if (pmd_trans_huge(*pmd))
-> +			split_huge_page_pmd(vma, addr, pmd);
+On Mon, 30 Jun 2014, David Rientjes wrote:
 
-Could you implement proper THP support before upstreaming the feature?
-It shouldn't be a big deal.
+> It's not at all clear to me that that patch is correct.  Wei?
 
-> +		/*
-> +		 * Here there can be other concurrent MADV_DONTNEED or
-> +		 * trans huge page faults running, and if the pmd is
-> +		 * none or trans huge it can change under us. This is
-> +		 * because MADV_LAZYFREE holds the mmap_sem in read
-> +		 * mode.
-> +		 */
-> +		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
-> +			goto next;
-> +		next = madvise_free_pte_range(tlb, vma, pmd, addr, next);
-> +next:
-> +		cond_resched();
-> +	} while (pmd++, addr = next, addr != end);
+Looks ok to me. But I do not like the convoluted code in new_slab() which
+Wei's patch does not make easier to read. Makes it difficult for the
+reader to see whats going on.
 
--- 
- Kirill A. Shutemov
+Lets drop the use of the variable named "last".
+
+
+Subject: slub: Only call setup_object once for each object
+
+Modify the logic for object initialization to be less convoluted
+and initialize an object only once.
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c	2014-07-01 09:50:02.486846653 -0500
++++ linux/mm/slub.c	2014-07-01 09:52:07.918802585 -0500
+@@ -1409,7 +1409,6 @@ static struct page *new_slab(struct kmem
+ {
+ 	struct page *page;
+ 	void *start;
+-	void *last;
+ 	void *p;
+ 	int order;
+
+@@ -1432,15 +1431,11 @@ static struct page *new_slab(struct kmem
+ 	if (unlikely(s->flags & SLAB_POISON))
+ 		memset(start, POISON_INUSE, PAGE_SIZE << order);
+
+-	last = start;
+ 	for_each_object(p, s, start, page->objects) {
+-		setup_object(s, page, last);
+-		set_freepointer(s, last, p);
+-		last = p;
++		setup_object(s, page, p);
++		set_freepointer(s, p, p + s->size);
+ 	}
+-	setup_object(s, page, last);
+-	set_freepointer(s, last, NULL);
+-
++	set_freepointer(s, start + (page->objects - 1) * s->size, NULL);
+ 	page->freelist = start;
+ 	page->inuse = page->objects;
+ 	page->frozen = 1;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
