@@ -1,105 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 097F06B003C
-	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 13:52:58 -0400 (EDT)
-Received: by mail-qa0-f42.google.com with SMTP id dc16so8110805qab.29
-        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 10:52:57 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c5si3676322qar.73.2014.07.01.10.52.56
+Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 133EE6B003D
+	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 13:57:55 -0400 (EDT)
+Received: by mail-we0-f174.google.com with SMTP id u57so10252150wes.33
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 10:57:55 -0700 (PDT)
+Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
+        by mx.google.com with ESMTPS id fx6si28888981wjb.172.2014.07.01.10.57.54
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Jul 2014 10:52:57 -0700 (PDT)
-Date: Tue, 1 Jul 2014 10:05:08 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [patch] mm, hugetlb: remove hugetlb_zero and hugetlb_infinity
-Message-ID: <20140701140508.GA12661@nhori.bos.redhat.com>
-References: <alpine.DEB.2.02.1406301655480.27587@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1406301745200.7070@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 01 Jul 2014 10:57:55 -0700 (PDT)
+Date: Tue, 1 Jul 2014 19:57:54 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] hwpoison: Fix race with changing page during offlining
+Message-ID: <20140701175753.GL5714@two.firstfloor.org>
+References: <1403806972-14267-1-git-send-email-andi@firstfloor.org>
+ <20140626195036.GA5311@nhori.redhat.com>
+ <20140626125657.f1830a0b399cbe5a97071206@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1406301745200.7070@chino.kir.corp.google.com>
+In-Reply-To: <20140626125657.f1830a0b399cbe5a97071206@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Luiz Capitulino <lcapitulino@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, tony.luck@intel.com, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, dave.hansen@linux.intel.com, Chen Yucong <slaoub@gmail.com>
 
-On Mon, Jun 30, 2014 at 05:46:35PM -0700, David Rientjes wrote:
-> They are unnecessary: "zero" can be used in place of "hugetlb_zero" and 
-> passing extra2 == NULL is equivalent to infinity.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> Andi, can you please check that and test?  If the patch is good I'll
+> bump it into 3.16 with an enhanced changelog..
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+I think the original problem was a race, so it is not easy to reproduce.
+I ran this patch in a loop over night with some stress plus 
+the mcelog test suite running in a loop. I cannot guarantee it hit it,
+but it should have given it a good beating.
 
-> ---
->  include/linux/hugetlb.h | 1 -
->  kernel/sysctl.c         | 9 +++------
->  mm/hugetlb.c            | 1 -
->  3 files changed, 3 insertions(+), 8 deletions(-)
-> 
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -86,7 +86,6 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud);
->  #endif
->  
->  extern unsigned long hugepages_treat_as_movable;
-> -extern const unsigned long hugetlb_zero, hugetlb_infinity;
->  extern int sysctl_hugetlb_shm_group;
->  extern struct list_head huge_boot_pages;
->  
-> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-> --- a/kernel/sysctl.c
-> +++ b/kernel/sysctl.c
-> @@ -1240,8 +1240,7 @@ static struct ctl_table vm_table[] = {
->  		.maxlen		= sizeof(unsigned long),
->  		.mode		= 0644,
->  		.proc_handler	= hugetlb_sysctl_handler,
-> -		.extra1		= (void *)&hugetlb_zero,
-> -		.extra2		= (void *)&hugetlb_infinity,
-> +		.extra1		= &zero,
->  	},
->  #ifdef CONFIG_NUMA
->  	{
-> @@ -1250,8 +1249,7 @@ static struct ctl_table vm_table[] = {
->  		.maxlen         = sizeof(unsigned long),
->  		.mode           = 0644,
->  		.proc_handler   = &hugetlb_mempolicy_sysctl_handler,
-> -		.extra1		= (void *)&hugetlb_zero,
-> -		.extra2		= (void *)&hugetlb_infinity,
-> +		.extra1		= &zero,
->  	},
->  #endif
->  	 {
-> @@ -1274,8 +1272,7 @@ static struct ctl_table vm_table[] = {
->  		.maxlen		= sizeof(unsigned long),
->  		.mode		= 0644,
->  		.proc_handler	= hugetlb_overcommit_handler,
-> -		.extra1		= (void *)&hugetlb_zero,
-> -		.extra2		= (void *)&hugetlb_infinity,
-> +		.extra1		= &zero,
->  	},
->  #endif
->  	{
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -35,7 +35,6 @@
->  #include <linux/node.h>
->  #include "internal.h"
->  
-> -const unsigned long hugetlb_zero = 0, hugetlb_infinity = ~0UL;
->  unsigned long hugepages_treat_as_movable;
->  
->  int hugetlb_max_hstate __read_mostly;
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+The kernel survived with no messages, although the mcelog test suite
+got killed at some point because it couldn't fork anymore. Probably
+some unrelated problem.
+
+So the patch is ok for me for .16.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
