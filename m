@@ -1,76 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BBCE6B0031
-	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 00:19:45 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id fp1so9315575pdb.25
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 21:19:45 -0700 (PDT)
-Received: from mail-pd0-x22f.google.com (mail-pd0-x22f.google.com [2607:f8b0:400e:c02::22f])
-        by mx.google.com with ESMTPS id xw3si13310332pab.89.2014.06.30.21.19.44
+Received: from mail-oa0-f43.google.com (mail-oa0-f43.google.com [209.85.219.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 8147F6B0031
+	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 03:30:09 -0400 (EDT)
+Received: by mail-oa0-f43.google.com with SMTP id o6so10101625oag.2
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 00:30:09 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id ik8si29015328obc.39.2014.07.01.00.30.06
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 30 Jun 2014 21:19:44 -0700 (PDT)
-Received: by mail-pd0-f175.google.com with SMTP id v10so9353717pde.6
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 21:19:44 -0700 (PDT)
-Date: Mon, 30 Jun 2014 21:18:15 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: Corruption with O_DIRECT and unaligned user buffers
-In-Reply-To: <53ACD20B.2030601@cn.fujitsu.com>
-Message-ID: <alpine.LSU.2.11.1406302056510.12406@eggly.anvils>
-References: <53ACD20B.2030601@cn.fujitsu.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 01 Jul 2014 00:30:08 -0700 (PDT)
+Message-ID: <53B26364.1040606@huawei.com>
+Date: Tue, 1 Jul 2014 15:29:40 +0800
+From: Zhang Zhen <zhenzhang.zhang@huawei.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: How to boot up an ARM board enabled CONFIG_SPARSEMEM
+References: <53B26229.5030504@huawei.com>
+In-Reply-To: <53B26229.5030504@huawei.com>
+Content-Type: multipart/mixed;
+	boundary="------------040206030606030302060306"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiaoguang Wang <wangxg.fnst@cn.fujitsu.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mgorman@suse.de, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, chrubis@suse.cz
+To: linux-mm@kvack.org
+Cc: wangnan0@huawei.com, yinghai@kernel.org
 
-On Fri, 27 Jun 2014, Xiaoguang Wang wrote:
-> Hi maintainers,
+--------------040206030606030302060306
+Content-Type: text/plain; charset="gb18030"
+Content-Transfer-Encoding: 7bit
 
-That's not me, but I'll answer with my opinion.
+Hi,
 
-> 
-> In August 2008, there was a discussion about 'Corruption with O_DIRECT and unaligned user buffers',
-> please have a look at this url: http://thread.gmane.org/gmane.linux.file-systems/27358
+Recently We are testing stable kernel 3.10 on an ARM board.
+It failed to boot if we enabled CONFIG_SPARSEMEM config.
 
-Whereas (now the truth can be told!) "someone wishing to remain anonymous"
-in that thread was indeed me.  Then as now, disinclined to spend time on it.
+Through the analysis, we found that mem_init() assumes the pages of different
+sections are continuous.
 
-> 
-> The attached test program written by Tim has been added to LTP, please see this below url:
-> https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/io/direct_io/dma_thread_diotest.c
-> 
-> 
-> Now I tested this program in kernel 3.16.0-rc1+, it seems that the date corruption still exists. Meanwhile
-> there is also such a section in open(2)'s manpage warning that O_DIRECT I/Os should never be run
-> concurrently with the fork(2) system call. Please see below section:
-> 
->     O_DIRECT I/Os should never be run concurrently with the fork(2) system call, if the memory buffer
->     is a private mapping (i.e., any mapping created with the mmap(2) MAP_PRIVATE flag; this includes
->     memory allocated on the heap and statically allocated buffers).  Any such I/Os, whether  submitted
->     via an asynchronous I/O interface or from another thread in the process, should be completed before
->     fork(2) is called.  Failure to do so can result in data corruption and undefined behavior in parent
->     and child processes.  This restriction does not apply when the memory buffer for  the  O_DIRECT
->     I/Os  was  created  using shmat(2) or mmap(2) with the MAP_SHARED flag.  Nor does this restriction
->     apply when the memory buffer has been advised as MADV_DONTFORK with madvise(2), ensuring that it will
->     not be available to the child after fork(2).
-> 
-> Hmm, so I'd like to know whether you have some plans to fix this bug, or this is not considered as a
-> bug, it's just a programming specification that we should avoid doing fork() while we are having O_DIRECT
-> file operation with non-page aligned IO, thanks.
-> 
-> Steps to run this attached program:
-> 1. ./dma_thread  # create temp files
-> 2. ./dma_thread -a 512 -w 8 $ alignment is 512 and create 8 threads.
+But the truth is the pages of different sections are not continuous when
+CONFIG_SPARSEMEM is enabled.
 
-I regard it, then and now, as a displeasing limitation;
-but one whose fix would cause more trouble than it's worth.
+So now we have two ways to boot up when we enabled CONFIG_SPARSEMEM on an arm board.
 
-I thought we settled long ago on MADV_DONTFORK as an imperfect but
-good enough workaround.  Not everyone will agree.  I certainly have
-no plans to go further myself.
+1. In mem_init() and show_mem() compare pfn instead of page just like the patch in attachement.
+2. Enable CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER when enabled CONFIG_SPARSEMEM.
 
-Hugh
+QUESTION:
+
+I want to know why CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER depends on x86_64 ?
+
+Whether we can enable it on an ARM board ?
+
+Or any other better solution ?
+
+
+Best regards!
+
+
+
+
+--------------040206030606030302060306
+Content-Type: text/plain; charset="gb18030";
+	name="0001-sparse-mem-compare-pfn-instead-of-page.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+	filename="0001-sparse-mem-compare-pfn-instead-of-page.patch"
+
+>From c142b3157d4e0f9909076a24b6fe58c60afde0f3 Mon Sep 17 00:00:00 2001
+From: Zhang Zhen <zhenzhang.zhang@huawei.com>
+Date: Tue, 1 Jul 2014 14:59:19 +0800
+Subject: [PATCH] sparse mem: compare pfn instead of page
+
+If CONFIG_SPARSEMEM is enabled, here the pages of different
+sections are not continuous.
+So we compare pfn instead of page.
+
+Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
+---
+ arch/arm/mm/init.c | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+index 0ecc43f..a36caac 100644
+--- a/arch/arm/mm/init.c
++++ b/arch/arm/mm/init.c
+@@ -115,6 +115,9 @@ void show_mem(unsigned int filter)
+ 
+ 		do {
+ 			total++;
++#if defined(CONFIG_SPARSEMEM) && defined(CONFIG_MACH_HI1380)
++			page = pfn_to_page(pfn1);
++#endif
+ 			if (PageReserved(page))
+ 				reserved++;
+ 			else if (PageSwapCache(page))
+@@ -125,8 +128,13 @@ void show_mem(unsigned int filter)
+ 				free++;
+ 			else
+ 				shared += page_count(page) - 1;
++#if defined(CONFIG_SPARSEMEM) && defined(CONFIG_MACH_HI1380)
++			pfn1++;
++		} while (pfn1 < pfn2);
++#else
+ 			page++;
+ 		} while (page < end);
++#endif
+ 	}
+ 
+ 	printk("%d pages of RAM\n", total);
+@@ -619,12 +627,21 @@ void __init mem_init(void)
+ 		end  = pfn_to_page(pfn2 - 1) + 1;
+ 
+ 		do {
++#if defined(CONFIG_SPARSEMEM) && defined(CONFIG_MACH_HI1380)
++			page = pfn_to_page(pfn1);
++#endif
+ 			if (PageReserved(page))
+ 				reserved_pages++;
+ 			else if (!page_count(page))
+ 				free_pages++;
++
++#if defined(CONFIG_SPARSEMEM) && defined(CONFIG_MACH_HI1380)
++			pfn1++;
++		} while (pfn1 < pfn2);
++#else
+ 			page++;
+ 		} while (page < end);
++#endif
+ 	}
+ 
+ 	/*
+-- 
+1.8.1.2
+
+
+
+--------------040206030606030302060306--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
