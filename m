@@ -1,48 +1,79 @@
-From: Joerg Roedel <joro-zLv9SwRftAIdnm+yROfE0A@public.gmane.org>
-Subject: Re: [PATCH 1/6] mmput: use notifier chain to call subsystem exit
-	handler.
-Date: Mon, 30 Jun 2014 17:40:42 +0200
-Message-ID: <20140630154042.GD26537@8bytes.org>
-References: <1403920822-14488-1-git-send-email-j.glisse@gmail.com>
-	<1403920822-14488-2-git-send-email-j.glisse@gmail.com>
-	<019CCE693E457142B37B791721487FD91806B836@storexdag01.amd.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Return-path: <iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
-Content-Disposition: inline
-In-Reply-To: <019CCE693E457142B37B791721487FD91806B836-0nO7ALo/ziwxlywnonMhLEEOCMrvLtNR@public.gmane.org>
-List-Unsubscribe: <https://lists.linuxfoundation.org/mailman/options/iommu>,
-	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
-List-Archive: <http://lists.linuxfoundation.org/pipermail/iommu/>
-List-Post: <mailto:iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
-List-Help: <mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
-List-Subscribe: <https://lists.linuxfoundation.org/mailman/listinfo/iommu>,
-	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
-Sender: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-Errors-To: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-To: "Gabbay, Oded" <Oded.Gabbay-5C7GfCeVMHo@public.gmane.org>
-Cc: Sherry Cheung <SCheung-DDmLM1+adcrQT0dZR+AlfA@public.gmane.org>, "linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org" <linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org>, "hpa-YMNOUZJC4hwAvxtiuMwx3w@public.gmane.org" <hpa-YMNOUZJC4hwAvxtiuMwx3w@public.gmane.org>, =?iso-8859-1?B?Suly9G1l?= Glisse <j.glisse-Re5JQEeQqe8AvxtiuMwx3w@public.gmane.org>, "aarcange-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org" <aarcange-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Jatin Kumar <jakumar-DDmLM1+adcrQT0dZR+AlfA@public.gmane.org>, Lucien Dunning <ldunning-DDmLM1+adcrQT0dZR+AlfA@public.gmane.org>, "mgorman-l3A5Bk7waGM@public.gmane.org" <mgorman-l3A5Bk7waGM@public.gmane.org>, "jweiner-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org" <jweiner-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Subhash Gutti <sgutti-DDmLM1+adcrQT0dZR+AlfA@public.gmane.org>, "riel-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org" <riel-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, John Hubbard <jhubbard-DDmLM1+adcrQT0dZR+AlfA@public.gmane.org>, Mark Hairgrove <mhairgrove-DDmLM1+adcrQT0dZR+AlfA@public.gmane.org>, Cameron Buschardt <cabuschardt-DDmLM1+adcrQT0dZR+AlfA@public.gmane.org>, "peterz-hDdKplPs4pWWVfeAwA7xHQ@public.gmane.org" <peterz-hDdKplPs4pWWVfeAwA7xHQ@public.gmane.org>, Duncan Poole <dpoole-DDmLM1+adcrQT0dZR+AlfA@public.gmane.org>, "Cornwall,
-	Jay" <Jay.Cornwall-5C7GfCeVMHo@public.gmane.org>, "Lewycky, Andrew" <Andrew.Lewycky-5C7GfCeVMHo@public.gmane.org>, "linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org" <linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>, "iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org" <iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>, Arvind Gopalakrishnan <arv>
-List-Id: linux-mm.kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BBCE6B0031
+	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 00:19:45 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id fp1so9315575pdb.25
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 21:19:45 -0700 (PDT)
+Received: from mail-pd0-x22f.google.com (mail-pd0-x22f.google.com [2607:f8b0:400e:c02::22f])
+        by mx.google.com with ESMTPS id xw3si13310332pab.89.2014.06.30.21.19.44
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 30 Jun 2014 21:19:44 -0700 (PDT)
+Received: by mail-pd0-f175.google.com with SMTP id v10so9353717pde.6
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 21:19:44 -0700 (PDT)
+Date: Mon, 30 Jun 2014 21:18:15 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: Corruption with O_DIRECT and unaligned user buffers
+In-Reply-To: <53ACD20B.2030601@cn.fujitsu.com>
+Message-ID: <alpine.LSU.2.11.1406302056510.12406@eggly.anvils>
+References: <53ACD20B.2030601@cn.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Xiaoguang Wang <wangxg.fnst@cn.fujitsu.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mgorman@suse.de, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, chrubis@suse.cz
 
-On Mon, Jun 30, 2014 at 02:41:24PM +0000, Gabbay, Oded wrote:
-> I did face some problems regarding the amd IOMMU v2 driver, which
-> changed its behavior (see commit "iommu/amd: Implement
-> mmu_notifier_release call-back") to use mmu_notifier_release and did
-> some "bad things" inside that
-> notifier (primarily, but not only, deleting the object which held the
-> mmu_notifier object itself, which you mustn't do because of the
-> locking). 
+On Fri, 27 Jun 2014, Xiaoguang Wang wrote:
+> Hi maintainers,
+
+That's not me, but I'll answer with my opinion.
+
 > 
-> I'm thinking of changing that driver's behavior to use this new
-> mechanism instead of using mmu_notifier_release. Does that seem
-> acceptable ? Another solution will be to add a new mmu_notifier call,
-> but we already ruled that out ;)
+> In August 2008, there was a discussion about 'Corruption with O_DIRECT and unaligned user buffers',
+> please have a look at this url: http://thread.gmane.org/gmane.linux.file-systems/27358
 
-The mmu_notifier_release() function is exactly what this new notifier
-aims to do. Unless there is a very compelling reason to duplicate this
-functionality I stronly NACK this approach.
+Whereas (now the truth can be told!) "someone wishing to remain anonymous"
+in that thread was indeed me.  Then as now, disinclined to spend time on it.
 
+> 
+> The attached test program written by Tim has been added to LTP, please see this below url:
+> https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/io/direct_io/dma_thread_diotest.c
+> 
+> 
+> Now I tested this program in kernel 3.16.0-rc1+, it seems that the date corruption still exists. Meanwhile
+> there is also such a section in open(2)'s manpage warning that O_DIRECT I/Os should never be run
+> concurrently with the fork(2) system call. Please see below section:
+> 
+>     O_DIRECT I/Os should never be run concurrently with the fork(2) system call, if the memory buffer
+>     is a private mapping (i.e., any mapping created with the mmap(2) MAP_PRIVATE flag; this includes
+>     memory allocated on the heap and statically allocated buffers).  Any such I/Os, whether  submitted
+>     via an asynchronous I/O interface or from another thread in the process, should be completed before
+>     fork(2) is called.  Failure to do so can result in data corruption and undefined behavior in parent
+>     and child processes.  This restriction does not apply when the memory buffer for  the  O_DIRECT
+>     I/Os  was  created  using shmat(2) or mmap(2) with the MAP_SHARED flag.  Nor does this restriction
+>     apply when the memory buffer has been advised as MADV_DONTFORK with madvise(2), ensuring that it will
+>     not be available to the child after fork(2).
+> 
+> Hmm, so I'd like to know whether you have some plans to fix this bug, or this is not considered as a
+> bug, it's just a programming specification that we should avoid doing fork() while we are having O_DIRECT
+> file operation with non-page aligned IO, thanks.
+> 
+> Steps to run this attached program:
+> 1. ./dma_thread  # create temp files
+> 2. ./dma_thread -a 512 -w 8 $ alignment is 512 and create 8 threads.
 
-	Joerg
+I regard it, then and now, as a displeasing limitation;
+but one whose fix would cause more trouble than it's worth.
+
+I thought we settled long ago on MADV_DONTFORK as an imperfect but
+good enough workaround.  Not everyone will agree.  I certainly have
+no plans to go further myself.
+
+Hugh
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
