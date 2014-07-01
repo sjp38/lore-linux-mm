@@ -1,55 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 690476B0031
-	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 04:02:10 -0400 (EDT)
-Received: by mail-wi0-f173.google.com with SMTP id cc10so7296688wib.0
-        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 01:02:09 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cu9si13857581wib.74.2014.07.01.01.02.08
+Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
+	by kanga.kvack.org (Postfix) with ESMTP id C5D7F6B0031
+	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 04:17:58 -0400 (EDT)
+Received: by mail-qa0-f54.google.com with SMTP id v10so7279372qac.41
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 01:17:58 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a5si7715028qge.60.2014.07.01.01.17.57
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 01 Jul 2014 01:02:09 -0700 (PDT)
-Date: Tue, 1 Jul 2014 09:02:05 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 4/4] mm: page_alloc: Reduce cost of the fair zone
- allocation policy
-Message-ID: <20140701080205.GT10819@suse.de>
-References: <1404146883-21414-1-git-send-email-mgorman@suse.de>
- <1404146883-21414-5-git-send-email-mgorman@suse.de>
- <20140630141404.e09bdb5fa6a879d17c4556b1@linux-foundation.org>
- <20140630215121.GQ10819@suse.de>
- <20140630150914.6db3805c28c60283deb94206@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20140630150914.6db3805c28c60283deb94206@linux-foundation.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 01 Jul 2014 01:17:58 -0700 (PDT)
+From: "Jerome Marchand" <jmarchan@redhat.com>
+Subject: [PATCH] mm: make copy_pte_range static again
+Date: Tue,  1 Jul 2014 10:17:54 +0200
+Message-Id: <1404202674-11648-1-git-send-email-jmarchan@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>
 
-On Mon, Jun 30, 2014 at 03:09:14PM -0700, Andrew Morton wrote:
-> On Mon, 30 Jun 2014 22:51:21 +0100 Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > > That's a large change in system time.  Does this all include kswapd
-> > > activity?
-> > > 
-> > 
-> > I don't have a profile to quantify that exactly. It takes 7 hours to
-> > complete a test on that machine in this configuration
-> 
-> That's nuts.  Why should measuring this require more than a few minutes?
+Commit 71e3aac (thp: transparent hugepage core) adds copy_pte_range
+prototype to huge_mm.h. I'm not sure why (or if) this function have
+been used outside of memory.c, but it currently isn't.
+This patch makes copy_pte_range() static again.
 
-That's how long the full test takes to complete for each part of the IO
-test. Profiling a subsection of it will miss some parts with no
-guarantee the sampled subset is representative. Profiling for smaller
-amounts of IO so the test completes quickly does not guarantee that the
-sample is representative. Reducing the size of memory of the machine
-using any tricks is also not representative etc.
+Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+---
+ include/linux/huge_mm.h | 4 ----
+ mm/memory.c             | 2 +-
+ 2 files changed, 1 insertion(+), 5 deletions(-)
 
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index b826239..63579cb 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -93,10 +93,6 @@ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
+ #endif /* CONFIG_DEBUG_VM */
+ 
+ extern unsigned long transparent_hugepage_flags;
+-extern int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+-			  pmd_t *dst_pmd, pmd_t *src_pmd,
+-			  struct vm_area_struct *vma,
+-			  unsigned long addr, unsigned long end);
+ extern int split_huge_page_to_list(struct page *page, struct list_head *list);
+ static inline int split_huge_page(struct page *page)
+ {
+diff --git a/mm/memory.c b/mm/memory.c
+index 09e2cd0..13141ae 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -884,7 +884,7 @@ out_set_pte:
+ 	return 0;
+ }
+ 
+-int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
++static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+ 		   pmd_t *dst_pmd, pmd_t *src_pmd, struct vm_area_struct *vma,
+ 		   unsigned long addr, unsigned long end)
+ {
 -- 
-Mel Gorman
-SUSE Labs
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
