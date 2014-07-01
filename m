@@ -1,47 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id ED1EC6B0031
-	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 16:15:53 -0400 (EDT)
-Received: by mail-wg0-f41.google.com with SMTP id a1so10208987wgh.12
-        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 13:15:53 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.199])
-        by mx.google.com with ESMTP id t3si29400832wju.44.2014.07.01.13.15.52
-        for <linux-mm@kvack.org>;
-        Tue, 01 Jul 2014 13:15:52 -0700 (PDT)
-Date: Tue, 1 Jul 2014 23:15:40 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] rmap: fix pgoff calculation to handle hugepage correctly
-Message-ID: <20140701201540.GA5953@node.dhcp.inet.fi>
-References: <1404225982-22739-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20140701180739.GA4985@node.dhcp.inet.fi>
- <20140701185021.GA10356@nhori.bos.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140701185021.GA10356@nhori.bos.redhat.com>
+Received: from mail-oa0-f54.google.com (mail-oa0-f54.google.com [209.85.219.54])
+	by kanga.kvack.org (Postfix) with ESMTP id B91EF6B0031
+	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 16:21:42 -0400 (EDT)
+Received: by mail-oa0-f54.google.com with SMTP id eb12so11125623oac.13
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 13:21:42 -0700 (PDT)
+Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
+        by mx.google.com with ESMTPS id r10si31738550oep.103.2014.07.01.13.21.41
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 01 Jul 2014 13:21:41 -0700 (PDT)
+From: Davidlohr Bueso <davidlohr@hp.com>
+Subject: [PATCH 1/2] mm,hugetlb: make unmap_ref_private() return void
+Date: Tue,  1 Jul 2014 13:21:36 -0700
+Message-Id: <1404246097-18810-1-git-send-email-davidlohr@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: akpm@linux-foundation.org
+Cc: davidlohr@hp.com, aswin@hp.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jul 01, 2014 at 02:50:21PM -0400, Naoya Horiguchi wrote:
-> On Tue, Jul 01, 2014 at 09:07:39PM +0300, Kirill A. Shutemov wrote:
-> > Why do we need this special case for hugetlb page ->index? Why not use
-> > PAGE_SIZE units there too? Or I miss something?
-> 
-> hugetlb pages are never split, so we use larger page cache size for
-> hugetlbfs file (to avoid large sparse page cache tree.)
+This function always returns 1, thus no need to check return value
+in hugetlb_cow(). By doing so, we can get rid of the unnecessary WARN_ON
+call. While this logic perhaps existed as a way of identifying future
+unmap_ref_private() mishandling, reality is it serves no apparent purpose.
 
-For transparent huge page cache I would like to have native support in
-page cache radix-tree: since huge pages are always naturally aligned we
-can create a leaf node for it several (RADIX_TREE_MAP_SHIFT -
-HPAGE_PMD_ORDER) levels up by tree, which would cover all indexes in the
-range the huge page represents. This approach should fit hugetlb too. And
--1 special case for hugetlb.
-But I'm not sure when I'll get time to play with this...
+Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+---
+ mm/hugetlb.c | 32 ++++++++++++++------------------
+ 1 file changed, 14 insertions(+), 18 deletions(-)
 
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 2024bbd..3c4d535 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -2753,8 +2753,8 @@ void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
+  * from other VMAs and let the children be SIGKILLed if they are faulting the
+  * same region.
+  */
+-static int unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
+-				struct page *page, unsigned long address)
++static void unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
++			      struct page *page, unsigned long address)
+ {
+ 	struct hstate *h = hstate_vma(vma);
+ 	struct vm_area_struct *iter_vma;
+@@ -2793,8 +2793,6 @@ static int unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
+ 					     address + huge_page_size(h), page);
+ 	}
+ 	mutex_unlock(&mapping->i_mmap_mutex);
+-
+-	return 1;
+ }
+ 
+ /*
+@@ -2856,20 +2854,18 @@ retry_avoidcopy:
+ 		 */
+ 		if (outside_reserve) {
+ 			BUG_ON(huge_pte_none(pte));
+-			if (unmap_ref_private(mm, vma, old_page, address)) {
+-				BUG_ON(huge_pte_none(pte));
+-				spin_lock(ptl);
+-				ptep = huge_pte_offset(mm, address & huge_page_mask(h));
+-				if (likely(ptep &&
+-					   pte_same(huge_ptep_get(ptep), pte)))
+-					goto retry_avoidcopy;
+-				/*
+-				 * race occurs while re-acquiring page table
+-				 * lock, and our job is done.
+-				 */
+-				return 0;
+-			}
+-			WARN_ON_ONCE(1);
++			unmap_ref_private(mm, vma, old_page, address);
++			BUG_ON(huge_pte_none(pte));
++			spin_lock(ptl);
++			ptep = huge_pte_offset(mm, address & huge_page_mask(h));
++			if (likely(ptep &&
++				   pte_same(huge_ptep_get(ptep), pte)))
++				goto retry_avoidcopy;
++			/*
++			 * race occurs while re-acquiring page table
++			 * lock, and our job is done.
++			 */
++			return 0;
+ 		}
+ 
+ 		/* Caller expects lock to be held */
 -- 
- Kirill A. Shutemov
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
