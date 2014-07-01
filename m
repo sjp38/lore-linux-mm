@@ -1,42 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id CCB8E6B0031
-	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 18:26:29 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id at1so8794218iec.0
-        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 15:26:29 -0700 (PDT)
-Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com [2607:f8b0:4001:c05::233])
-        by mx.google.com with ESMTPS id h5si18386707igg.14.2014.07.01.15.26.28
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 01 Jul 2014 15:26:28 -0700 (PDT)
-Received: by mail-ig0-f179.google.com with SMTP id uq10so5984140igb.6
-        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 15:26:28 -0700 (PDT)
-Date: Tue, 1 Jul 2014 15:26:26 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v3 4/9] slab: factor out initialization of arracy cache
-In-Reply-To: <1404203258-8923-5-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <alpine.DEB.2.02.1407011525350.4004@chino.kir.corp.google.com>
-References: <1404203258-8923-1-git-send-email-iamjoonsoo.kim@lge.com> <1404203258-8923-5-git-send-email-iamjoonsoo.kim@lge.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id A16566B0035
+	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 18:27:19 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id ft15so10780899pdb.35
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 15:27:19 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id os9si28285165pac.155.2014.07.01.15.27.17
+        for <linux-mm@kvack.org>;
+        Tue, 01 Jul 2014 15:27:18 -0700 (PDT)
+Date: Tue, 1 Jul 2014 15:27:16 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] hwpoison: Fix race with changing page during offlining
+ v2
+Message-Id: <20140701152716.b9b4b04ee67cf987844b1aa4@linux-foundation.org>
+In-Reply-To: <1404174736-17480-1-git-send-email-andi@firstfloor.org>
+References: <1404174736-17480-1-git-send-email-andi@firstfloor.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vladimir Davydov <vdavydov@parallels.com>
+To: Andi Kleen <andi@firstfloor.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On Tue, 1 Jul 2014, Joonsoo Kim wrote:
+On Mon, 30 Jun 2014 17:32:16 -0700 Andi Kleen <andi@firstfloor.org> wrote:
 
-> Factor out initialization of array cache to use it in following patch.
+> From: Andi Kleen <ak@linux.intel.com>
 > 
-> Acked-by: Christoph Lameter <cl@linux.com>
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> When a hwpoison page is locked it could change state
+> due to parallel modifications.  Check after the lock
+> if the page is still the same compound page.
+> 
+> ...
+>
+> --- a/mm/memory-failure.c
+> +++ b/mm/memory-failure.c
+> @@ -1168,6 +1168,16 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+>  	lock_page(hpage);
+>  
+>  	/*
+> +	 * The page could have changed compound pages during the locking.
+> +	 * If this happens just bail out.
+> +	 */
+> +	if (compound_head(p) != hpage) {
 
-Not sure what happened to my
+How can a 4k page change compound pages?  The original compound page
+was torn down and then this 4k page became part of a differently-sized
+compound page?
 
-Acked-by: David Rientjes <rientjes@google.com>
+> +		action_result(pfn, "different compound page after locking", IGNORED);
+> +		res = -EBUSY;
+> +		goto out;
+> +	}
+> +
+> +	/*
 
-from http://marc.info/?l=linux-mm&m=139951195724487 and my comment still 
-stands about s/arracy/array/ in the patch title.
+I don't get it.  We just go and fail the poisoning attempt?  Shouldn't
+we go back, grab the new hpage and try again?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
