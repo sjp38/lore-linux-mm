@@ -1,71 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 4084E6B0036
-	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 21:07:57 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fb1so9616774pad.28
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 18:07:56 -0700 (PDT)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id ax6si12661321pbd.19.2014.06.30.18.07.56
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B6076B0035
+	for <linux-mm@kvack.org>; Mon, 30 Jun 2014 21:08:54 -0400 (EDT)
+Received: by mail-ig0-f170.google.com with SMTP id h15so4820489igd.3
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 18:08:53 -0700 (PDT)
+Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com [2607:f8b0:4001:c05::229])
+        by mx.google.com with ESMTPS id m5si13940037ige.60.2014.06.30.18.08.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 30 Jun 2014 18:07:56 -0700 (PDT)
-Received: by mail-pa0-f41.google.com with SMTP id fb1so9549356pad.14
-        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 18:07:56 -0700 (PDT)
-Date: Mon, 30 Jun 2014 18:06:27 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH mmotm/next] mm: memcontrol: rewrite charge API: fix
- shmem_unuse
-In-Reply-To: <20140630173428.5ebeed18.akpm@linux-foundation.org>
-Message-ID: <alpine.LSU.2.11.1406301805020.10594@eggly.anvils>
-References: <alpine.LSU.2.11.1406301541420.4349@eggly.anvils> <20140630160212.46caf9c3d41445b61fece666@linux-foundation.org> <alpine.LSU.2.11.1406301658430.4898@eggly.anvils> <20140630173428.5ebeed18.akpm@linux-foundation.org>
+        Mon, 30 Jun 2014 18:08:53 -0700 (PDT)
+Received: by mail-ig0-f169.google.com with SMTP id c1so4817285igq.4
+        for <linux-mm@kvack.org>; Mon, 30 Jun 2014 18:08:53 -0700 (PDT)
+Date: Mon, 30 Jun 2014 18:08:51 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [mmotm:master 74/230] mm/slab.h:299:10: error: 'struct kmem_cache'
+ has no member named 'node'
+In-Reply-To: <alpine.DEB.2.11.1406200916070.10271@gentwo.org>
+Message-ID: <alpine.DEB.2.02.1406301808190.9926@chino.kir.corp.google.com>
+References: <53a38f31.ttbTrpTZnPLPRHcz%fengguang.wu@intel.com> <alpine.DEB.2.11.1406200916070.10271@gentwo.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@gentwo.org>
+Cc: kbuild test robot <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
 
-On Mon, 30 Jun 2014, Andrew Morton wrote:
-> On Mon, 30 Jun 2014 17:10:54 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
-> > On Mon, 30 Jun 2014, Andrew Morton wrote:
-> > > On Mon, 30 Jun 2014 15:48:39 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
-> > > > -		return 0;
-> > > > +		return -EAGAIN;
-> > > 
-> > > Maybe it's time to document the shmem_unuse_inode() return values.
-> > 
-> > Oh dear.  I had hoped they would look after themselves.  This one is a
-> > private matter between shmem_unuse_inode and its one caller, just below.
+On Fri, 20 Jun 2014, Christoph Lameter wrote:
+
+> Argh a SLOB configuration which does not use node specfic management data.
 > 
-> Well, readers of shmem_unuse_inode() won't know that unless we tell them.
+> Subject: SLOB has no node specific management structures.
+> 
+> Do not provide the defintions for node management structures for SLOB.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Add comments on the private use of -EAGAIN.
-
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
-
- mm/shmem.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
---- 3.16-rc2-mm1+/mm/shmem.c	2014-06-30 15:05:50.736335600 -0700
-+++ linux/mm/shmem.c	2014-06-30 18:00:02.820584009 -0700
-@@ -611,7 +611,7 @@ static int shmem_unuse_inode(struct shme
- 	radswap = swp_to_radix_entry(swap);
- 	index = radix_tree_locate_item(&mapping->page_tree, radswap);
- 	if (index == -1)
--		return -EAGAIN;
-+		return -EAGAIN;	/* tell shmem_unuse we found nothing */
- 
- 	/*
- 	 * Move _head_ to start search for next from here.
-@@ -712,6 +712,7 @@ int shmem_unuse(swp_entry_t swap, struct
- 		cond_resched();
- 		if (error != -EAGAIN)
- 			break;
-+		/* found nothing in this: move on to search the next */
- 	}
- 	mutex_unlock(&shmem_swaplist_mutex);
- 
+Reported-by: Fengguang Wu <fengguang.wu@intel.com>
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
