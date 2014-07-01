@@ -1,55 +1,57 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id F36DE6B0035
-	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 21:37:45 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id g10so4510928pdj.26
-        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 18:37:45 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id bz3si3924269pdb.493.2014.07.31.18.37.44
-        for <linux-mm@kvack.org>;
-        Thu, 31 Jul 2014 18:37:45 -0700 (PDT)
-Message-ID: <53DAEFB5.7060501@cn.fujitsu.com>
-Date: Fri, 1 Aug 2014 09:39:01 +0800
-From: Lai Jiangshan <laijs@cn.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] swap: remove the struct cpumask has_work
-References: <1406777421-12830-3-git-send-email-laijs@cn.fujitsu.com> <20140731115137.GA20244@dhcp22.suse.cz> <53DA6A2F.100@tilera.com>
-In-Reply-To: <53DA6A2F.100@tilera.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Chris Metcalf <cmetcalf@tilera.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@gentwo.org>, Frederic Weisbecker <fweisbec@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Jianyu Zhan <nasa4836@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Khalid Aziz <khalid.aziz@oracle.com>, linux-mm@kvack.org, Gilad Ben-Yossef <gilad@benyossef.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Subject: Re: [PATCH 3/6] mmu_notifier: add event information to address
+ invalidation v2
+Date: Mon, 30 Jun 2014 18:57:25 -0700
+Message-ID: <CA+55aFxKs=LXNw+eg8JuGSBXpBUcjEu5iLm1gfZ3NSDF=PcmPw@mail.gmail.com>
+References: <1403920822-14488-1-git-send-email-j.glisse@gmail.com>
+	<1403920822-14488-4-git-send-email-j.glisse@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: QUOTED-PRINTABLE
+Return-path: <linux-kernel-owner@vger.kernel.org>
+In-Reply-To: <1403920822-14488-4-git-send-email-j.glisse@gmail.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <j.glisse@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, Peter Anvin <hpa@zytor.com>, peterz@infraread.org, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Jatin Kumar <jakumar@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, Oded Gabbay <Oded.Gabbay@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Andrew Lewycky <Andrew.Lewycky@amd.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+List-Id: linux-mm.kvack.org
 
-On 08/01/2014 12:09 AM, Chris Metcalf wrote:
-> On 7/31/2014 7:51 AM, Michal Hocko wrote:
->> On Thu 31-07-14 11:30:19, Lai Jiangshan wrote:
->>> It is suggested that cpumask_var_t and alloc_cpumask_var() should be used
->>> instead of struct cpumask.  But I don't want to add this complicity nor
->>> leave this unwelcome "static struct cpumask has_work;", so I just remove
->>> it and use flush_work() to perform on all online drain_work.  flush_work()
->>> performs very quickly on initialized but unused work item, thus we don't
->>> need the struct cpumask has_work for performance.
->> Why? Just because there is general recommendation for using
->> cpumask_var_t rather than cpumask?
->>
->> In this particular case cpumask shouldn't matter much as it is static.
->> Your code will work as well, but I do not see any strong reason to
->> change it just to get rid of cpumask which is not on stack.
-> 
-> The code uses for_each_cpu with a cpumask to avoid waking cpus that don't
-> need to do work.  This is important for the nohz_full type functionality,
-> power efficiency, etc.  So, nack for this change.
-> 
+On Fri, Jun 27, 2014 at 7:00 PM, J=C3=A9r=C3=B4me Glisse <j.glisse@gmai=
+l.com> wrote:
+> From: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>
+> The event information will be useful [...]
 
-flush_work() on initialized but unused work item just disables irq and
-fetches work->data to test and restores irq and return.
+That needs to be cleaned up, though.
 
-the struct cpumask has_work is just premature optimization.
+Why the heck are you making up ew and stupid event types? Now you make
+the generic VM code do stupid things like this:
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
++       if ((vma->vm_flags & VM_READ) && (vma->vm_flags & VM_WRITE))
++               event =3D MMU_MPROT_RANDW;
++       else if (vma->vm_flags & VM_WRITE)
++               event =3D MMU_MPROT_WONLY;
++       else if (vma->vm_flags & VM_READ)
++               event =3D MMU_MPROT_RONLY;
+
+which makes no sense at all. The names are some horrible abortion too
+("RANDW"? That sounds like "random write" to me, not "read-and-write",
+which is commonly shortened RW or perhaps RDWR. Same foes for
+RONLY/WONLY - what kind of crazy names are those?
+
+But more importantly, afaik none of that is needed. Instead, tell us
+why you need particular flags, and don't make up crazy names like
+this. As far as I can tell, you're already passing in the new
+protection information (thanks to passing in the vma), so all those
+badly named states you've made up seem to be totally pointless. They
+add no actual information, but they *do* add crazy code like the above
+to generic code that doesn't even WANT any of this crap. The only
+thing this should need is a MMU_MPROT event, and just use that. Then
+anybody who wants to look at whether the protections are being changed
+to read-only, they can just look at the vma->vm_flags themselves.
+
+So things like this need to be tightened up and made sane before any
+chance of merging it.
+
+So NAK NAK NAK in the meantime.
+
+            Linus
