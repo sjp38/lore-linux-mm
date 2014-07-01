@@ -1,76 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f50.google.com (mail-qa0-f50.google.com [209.85.216.50])
-	by kanga.kvack.org (Postfix) with ESMTP id B7CBB6B0031
-	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 09:33:56 -0400 (EDT)
-Received: by mail-qa0-f50.google.com with SMTP id m5so7555043qaj.37
-        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 06:33:56 -0700 (PDT)
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A14A6B0031
+	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 10:16:47 -0400 (EDT)
+Received: by mail-we0-f182.google.com with SMTP id q59so9828636wes.27
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 07:16:41 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p95si29573501qgd.71.2014.07.01.06.33.55
+        by mx.google.com with ESMTPS id fu10si12392707wic.31.2014.07.01.07.16.37
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Jul 2014 06:33:56 -0700 (PDT)
-From: "Jerome Marchand" <jmarchan@redhat.com>
-Subject: [PATCH 3/5] mm, shmem: Add shmem_vma() helper
-Date: Tue,  1 Jul 2014 15:01:59 +0200
-Message-Id: <1404219721-32241-4-git-send-email-jmarchan@redhat.com>
-In-Reply-To: <1404219721-32241-1-git-send-email-jmarchan@redhat.com>
-References: <1404219721-32241-1-git-send-email-jmarchan@redhat.com>
+        Tue, 01 Jul 2014 07:16:38 -0700 (PDT)
+Message-ID: <53B2C2A9.7030900@redhat.com>
+Date: Tue, 01 Jul 2014 10:16:09 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v9] mm: support madvise(MADV_FREE)
+References: <1404174975-22019-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1404174975-22019-1-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-Add a simple helper to check if a vm area belongs to shmem.
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
----
- include/linux/mm.h | 6 ++++++
- mm/shmem.c         | 8 ++++++++
- 2 files changed, 14 insertions(+)
+On 06/30/2014 08:36 PM, Minchan Kim wrote:
+> Linux doesn't have an ability to free pages lazy while other OS 
+> already have been supported that named by madvise(MADV_FREE).
+> 
+> The gain is clear that kernel can discard freed pages rather than 
+> swapping out or OOM if memory pressure happens.
+> 
+> Without memory pressure, freed pages would be reused by userspace 
+> without another additional overhead(ex, page fault + allocation +
+> zeroing).
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 34099fa..04a58d1 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1074,11 +1074,17 @@ int shmem_zero_setup(struct vm_area_struct *);
- 
- extern int shmem_locate(struct vm_area_struct *vma, pgoff_t pgoff, int *count);
- bool shmem_mapping(struct address_space *mapping);
-+bool shmem_vma(struct vm_area_struct *vma);
-+
- #else
- static inline bool shmem_mapping(struct address_space *mapping)
- {
- 	return false;
- }
-+static inline bool shmem_vma(struct vm_area_struct *vma)
-+{
-+	return false;
-+}
- #endif
- 
- extern int can_do_mlock(void);
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 11b37a7..be87a20 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1447,6 +1447,14 @@ bool shmem_mapping(struct address_space *mapping)
- 	return mapping->backing_dev_info == &shmem_backing_dev_info;
- }
- 
-+bool shmem_vma(struct vm_area_struct *vma)
-+{
-+	return (vma->vm_file &&
-+		vma->vm_file->f_dentry->d_inode->i_mapping->backing_dev_info
-+		== &shmem_backing_dev_info);
-+
-+}
-+
- #ifdef CONFIG_TMPFS
- static const struct inode_operations shmem_symlink_inode_operations;
- static const struct inode_operations shmem_short_symlink_operations;
--- 
-1.9.3
+> Cc: Michael Kerrisk <mtk.manpages@gmail.com> Cc: Linux API
+> <linux-api@vger.kernel.org> Cc: Hugh Dickins <hughd@google.com> Cc:
+> Johannes Weiner <hannes@cmpxchg.org> Cc: Rik van Riel
+> <riel@redhat.com> Cc: KOSAKI Motohiro
+> <kosaki.motohiro@jp.fujitsu.com> Cc: Mel Gorman <mgorman@suse.de> 
+> Cc: Jason Evans <je@fb.com> Cc: Zhang Yanfei
+> <zhangyanfei@cn.fujitsu.com> Signed-off-by: Minchan Kim
+> <minchan@kernel.org>
+
+Acked-by: Rik van Riel <riel@redhat.com>
+
+
+- -- 
+All rights reversed
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
+
+iQEcBAEBAgAGBQJTssKpAAoJEM553pKExN6DspUH/3fdn95zVIA6GGfmFG/g05Fm
+SYv82v0ee2gGM7yRGeVkFSVuj5qYCneyJeprERHBs43huafqqnWd9MMcZxxskNk7
+MpyVmRsCh54qC2Y6Rqu5E15jEKjCcxss1vCbHp0ExtZHnfU29re+JB0oRE9IKszW
+p2r6rsolHtNY4otTAQ6pAtA6ioH1E0xppK5mpqHAUpFJuq3PqXbSsptFdl6AJciw
+25zBB6iOdVgpciYwkn7yBvaZiY+sRuiRFSAH0klQVHlX0ZueIXYnJtybVhHSqGs/
+Nu1/zhrRrohOcj0Ka6cTJBBH2RyXTmgcurfTUlI4IZzcDqJWtuXjXBty0wkhIZQ=
+=RjYx
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
