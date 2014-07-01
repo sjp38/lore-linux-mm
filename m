@@ -1,73 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 2718D6B0031
-	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 17:52:11 -0400 (EDT)
-Received: by mail-ie0-f170.google.com with SMTP id tr6so8784905ieb.15
-        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 14:52:11 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id bm3si36278709icb.49.2014.07.01.14.52.09
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 87AC86B0035
+	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 17:52:12 -0400 (EDT)
+Received: by mail-wi0-f173.google.com with SMTP id cc10so8603625wib.6
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 14:52:12 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v8si29632134wjq.85.2014.07.01.14.52.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 01 Jul 2014 14:52:10 -0700 (PDT)
-Message-ID: <53B32D80.8000601@oracle.com>
-Date: Tue, 01 Jul 2014 17:52:00 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 01 Jul 2014 14:52:11 -0700 (PDT)
+Date: Tue, 1 Jul 2014 17:51:56 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v4 11/13] mempolicy: apply page table walker on
+ queue_pages_range()
+Message-ID: <20140701215156.GA21032@nhori.bos.redhat.com>
+References: <1404234451-21695-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1404234451-21695-12-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <53B32170.1040707@intel.com>
 MIME-Version: 1.0
-Subject: Re: mm: slub: invalid memory access in setup_object
-References: <53AAFDF7.2010607@oracle.com>	<alpine.DEB.2.11.1406251228130.29216@gentwo.org>	<alpine.DEB.2.02.1406301500410.13545@chino.kir.corp.google.com>	<alpine.DEB.2.11.1407010956470.5353@gentwo.org> <20140701144947.5ce3f93729759d8f38d7813a@linux-foundation.org>
-In-Reply-To: <20140701144947.5ce3f93729759d8f38d7813a@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53B32170.1040707@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@gentwo.org>
-Cc: David Rientjes <rientjes@google.com>, Wei Yang <weiyang@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>, Jet Chen <jet.chen@intel.com>
 
-On 07/01/2014 05:49 PM, Andrew Morton wrote:
-> On Tue, 1 Jul 2014 09:58:52 -0500 (CDT) Christoph Lameter <cl@gentwo.org> wrote:
+On Tue, Jul 01, 2014 at 02:00:32PM -0700, Dave Hansen wrote:
+> On 07/01/2014 10:07 AM, Naoya Horiguchi wrote:
+> > queue_pages_range() does page table walking in its own way now, but there
+> > is some code duplicate. This patch applies page table walker to reduce
+> > lines of code.
+> > 
+> > queue_pages_range() has to do some precheck to determine whether we really
+> > walk over the vma or just skip it. Now we have test_walk() callback in
+> > mm_walk for this purpose, so we can do this replacement cleanly.
+> > queue_pages_test_walk() depends on not only the current vma but also the
+> > previous one, so queue_pages->prev is introduced to remember it.
 > 
->> On Mon, 30 Jun 2014, David Rientjes wrote:
->>
->>> It's not at all clear to me that that patch is correct.  Wei?
->>
->> Looks ok to me. But I do not like the convoluted code in new_slab() which
->> Wei's patch does not make easier to read. Makes it difficult for the
->> reader to see whats going on.
->>
->> Lets drop the use of the variable named "last".
->>
->>
->> Subject: slub: Only call setup_object once for each object
->>
->> Modify the logic for object initialization to be less convoluted
->> and initialize an object only once.
->>
+> Hi Naoya,
 > 
-> Well, um.  Wei's changelog was much better:
+> The previous version of this patch caused a performance regression which
+> was reported to you:
 > 
-> : When a kmem_cache is created with ctor, each object in the kmem_cache will
-> : be initialized before use.  In the slub implementation, the first object
-> : will be initialized twice.
-> : 
-> : This patch avoids the duplication of initialization of the first object.
-> : 
-> : Fixes commit 7656c72b5a63: ("SLUB: add macros for scanning objects in a
-> : slab").
+> 	http://marc.info/?l=linux-kernel&m=140375975525069&w=2
 > 
-> I can copy that text over and add the reported-by etc (ho hum) but I
-> have a tiny feeling that this patch hasn't been rigorously tested? 
-> Perhaps someone (Wei?) can do that?
-> 
-> And we still don't know why Sasha's kernel went oops.
+> Has that been dealt with in this version somehow?
 
-I only saw this oops once, and after David's message yesterday I tried reverting
-the patch he pointed out, but not much changed.
-
-Is there a better way to stress test slub?
-
+I believe so, in previous version we called ->pte_entry() callback
+for each pte entries, but in this version I stop doing this and
+most of works are done in ->pmd_entry() callback, so the number
+of function calls are reduced by about 1/512. And rather than that,
+I just cleaned up queue_pages_* without major behavioral changes, so
+the visible regression should be solved.
 
 Thanks,
-Sasha
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
