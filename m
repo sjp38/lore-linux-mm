@@ -1,317 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id C70736B0070
-	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 13:08:05 -0400 (EDT)
-Received: by mail-wi0-f181.google.com with SMTP id n3so8134494wiv.8
-        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 10:08:05 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id vn7si28795790wjc.45.2014.07.01.10.08.04
+	by kanga.kvack.org (Postfix) with ESMTP id CB9A06B0038
+	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 13:16:29 -0400 (EDT)
+Received: by mail-wi0-f181.google.com with SMTP id n3so8188997wiv.2
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 10:16:29 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id ec3si19247851wib.0.2014.07.01.10.16.17
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Jul 2014 10:08:05 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v4 13/13] mincore: apply page table walker on do_mincore()
-Date: Tue,  1 Jul 2014 13:07:31 -0400
-Message-Id: <1404234451-21695-14-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1404234451-21695-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1404234451-21695-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 01 Jul 2014 10:16:17 -0700 (PDT)
+Date: Tue, 1 Jul 2014 13:16:11 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 0/5] Improve sequential read throughput v4r8
+Message-ID: <20140701171611.GB1369@cmpxchg.org>
+References: <1404146883-21414-1-git-send-email-mgorman@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1404146883-21414-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-This patch makes do_mincore() use walk_page_vma(), which reduces many lines
-of code by using common page table walk code.
+On Mon, Jun 30, 2014 at 05:47:59PM +0100, Mel Gorman wrote:
+> Changelog since V3
+> o Push down kwapd changes to cover the balance gap
+> o Drop drop page distribution patch
+> 
+> Changelog since V2
+> o Simply fair zone policy cost reduction
+> o Drop CFQ patch
+> 
+> Changelog since v1
+> o Rebase to v3.16-rc2
+> o Move CFQ patch to end of series where it can be rejected easier if necessary
+> o Introduce page-reclaim related patch related to kswapd/fairzone interactions
+> o Rework fast zone policy patch
+> 
+> IO performance since 3.0 has been a mixed bag. In many respects we are
+> better and in some we are worse and one of those places is sequential
+> read throughput. This is visible in a number of benchmarks but I looked
+> at tiobench the closest. This is using ext3 on a mid-range desktop and
+> the series applied.
+> 
+>                                       3.16.0-rc2                 3.0.0            3.16.0-rc2
+>                                          vanilla               vanilla         fairzone-v4r5
+> Min    SeqRead-MB/sec-1         120.92 (  0.00%)      133.65 ( 10.53%)      140.68 ( 16.34%)
+> Min    SeqRead-MB/sec-2         100.25 (  0.00%)      121.74 ( 21.44%)      118.13 ( 17.84%)
+> Min    SeqRead-MB/sec-4          96.27 (  0.00%)      113.48 ( 17.88%)      109.84 ( 14.10%)
+> Min    SeqRead-MB/sec-8          83.55 (  0.00%)       97.87 ( 17.14%)       89.62 (  7.27%)
+> Min    SeqRead-MB/sec-16         66.77 (  0.00%)       82.59 ( 23.69%)       70.49 (  5.57%)
+> 
+> Overall system CPU usage is reduced
+> 
+>           3.16.0-rc2       3.0.0  3.16.0-rc2
+>              vanilla     vanilla fairzone-v4
+> User          390.13      251.45      396.13
+> System        404.41      295.13      389.61
+> Elapsed      5412.45     5072.42     5163.49
+> 
+> This series does not fully restore throughput performance to 3.0 levels
+> but it brings it close for lower thread counts. Higher thread counts are
+> known to be worse than 3.0 due to CFQ changes but there is no appetite
+> for changing the defaults there.
 
-ChangeLog v4:
-- remove redundant vma
+I ran tiobench locally and here are the results:
 
-ChangeLog v3:
-- add NULL vma check in mincore_unmapped_range()
-- don't use pte_entry()
+tiobench MB/sec
+                                        3.16-rc1              3.16-rc1
+                                                           seqreadv4r8
+Mean   SeqRead-MB/sec-1         129.66 (  0.00%)      156.16 ( 20.44%)
+Mean   SeqRead-MB/sec-2         115.74 (  0.00%)      138.50 ( 19.66%)
+Mean   SeqRead-MB/sec-4         110.21 (  0.00%)      127.08 ( 15.31%)
+Mean   SeqRead-MB/sec-8         101.70 (  0.00%)      108.47 (  6.65%)
+Mean   SeqRead-MB/sec-16         86.45 (  0.00%)       91.57 (  5.92%)
+Mean   RandRead-MB/sec-1          1.14 (  0.00%)        1.11 ( -2.35%)
+Mean   RandRead-MB/sec-2          1.30 (  0.00%)        1.25 ( -3.85%)
+Mean   RandRead-MB/sec-4          1.50 (  0.00%)        1.46 ( -2.23%)
+Mean   RandRead-MB/sec-8          1.72 (  0.00%)        1.60 ( -6.96%)
+Mean   RandRead-MB/sec-16         1.72 (  0.00%)        1.69 ( -2.13%)
 
-ChangeLog v2:
-- change type of args of callbacks to void *
-- move definition of mincore_walk to the start of the function to fix compiler
-  warning
+Seqread throughput is up, randread takes a small hit.  But allocation
+latency is badly screwed at higher concurrency levels:
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- mm/huge_memory.c |  20 -------
- mm/mincore.c     | 173 ++++++++++++++++++++-----------------------------------
- 2 files changed, 62 insertions(+), 131 deletions(-)
+tiobench Maximum Latency
+                                            3.16-rc1              3.16-rc1
+                                                               seqreadv4r8
+Mean   SeqRead-MaxLatency-1          77.23 (  0.00%)       57.69 ( 25.30%)
+Mean   SeqRead-MaxLatency-2         228.80 (  0.00%)      218.50 (  4.50%)
+Mean   SeqRead-MaxLatency-4         329.58 (  0.00%)      325.93 (  1.11%)
+Mean   SeqRead-MaxLatency-8         485.13 (  0.00%)      475.35 (  2.02%)
+Mean   SeqRead-MaxLatency-16        599.10 (  0.00%)      637.89 ( -6.47%)
+Mean   RandRead-MaxLatency-1         66.98 (  0.00%)       18.21 ( 72.81%)
+Mean   RandRead-MaxLatency-2        132.88 (  0.00%)      119.61 (  9.98%)
+Mean   RandRead-MaxLatency-4        222.95 (  0.00%)      213.82 (  4.10%)
+Mean   RandRead-MaxLatency-8        982.99 (  0.00%)     1009.71 ( -2.72%)
+Mean   RandRead-MaxLatency-16       515.24 (  0.00%)     1883.82 (-265.62%)
+Mean   SeqWrite-MaxLatency-1        239.78 (  0.00%)      233.61 (  2.57%)
+Mean   SeqWrite-MaxLatency-2        517.85 (  0.00%)      413.39 ( 20.17%)
+Mean   SeqWrite-MaxLatency-4        249.10 (  0.00%)      416.33 (-67.14%)
+Mean   SeqWrite-MaxLatency-8        629.31 (  0.00%)      851.62 (-35.33%)
+Mean   SeqWrite-MaxLatency-16       987.05 (  0.00%)     1080.92 ( -9.51%)
+Mean   RandWrite-MaxLatency-1         0.01 (  0.00%)        0.01 (  0.00%)
+Mean   RandWrite-MaxLatency-2         0.02 (  0.00%)        0.02 (  0.00%)
+Mean   RandWrite-MaxLatency-4         0.02 (  0.00%)        0.02 (  0.00%)
+Mean   RandWrite-MaxLatency-8         1.83 (  0.00%)        1.96 ( -6.73%)
+Mean   RandWrite-MaxLatency-16        1.52 (  0.00%)        1.33 ( 12.72%)
 
-diff --git v3.16-rc3.orig/mm/huge_memory.c v3.16-rc3/mm/huge_memory.c
-index 33514d88fef9..63bed13c6cf5 100644
---- v3.16-rc3.orig/mm/huge_memory.c
-+++ v3.16-rc3/mm/huge_memory.c
-@@ -1410,26 +1410,6 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 	return ret;
- }
- 
--int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
--		unsigned long addr, unsigned long end,
--		unsigned char *vec)
--{
--	spinlock_t *ptl;
--	int ret = 0;
--
--	if (__pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
--		/*
--		 * All logical pages in the range are present
--		 * if backed by a huge page.
--		 */
--		spin_unlock(ptl);
--		memset(vec, 1, (end - addr) >> PAGE_SHIFT);
--		ret = 1;
--	}
--
--	return ret;
--}
--
- int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
- 		  unsigned long old_addr,
- 		  unsigned long new_addr, unsigned long old_end,
-diff --git v3.16-rc3.orig/mm/mincore.c v3.16-rc3/mm/mincore.c
-index 725c80961048..3c64dcbcb3e2 100644
---- v3.16-rc3.orig/mm/mincore.c
-+++ v3.16-rc3/mm/mincore.c
-@@ -19,38 +19,26 @@
- #include <asm/uaccess.h>
- #include <asm/pgtable.h>
- 
--static void mincore_hugetlb_page_range(struct vm_area_struct *vma,
--				unsigned long addr, unsigned long end,
--				unsigned char *vec)
-+static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
-+			unsigned long end, struct mm_walk *walk)
- {
-+	int err = 0;
- #ifdef CONFIG_HUGETLB_PAGE
--	struct hstate *h;
-+	unsigned char present;
-+	unsigned char *vec = walk->private;
- 
--	h = hstate_vma(vma);
--	while (1) {
--		unsigned char present;
--		pte_t *ptep;
--		/*
--		 * Huge pages are always in RAM for now, but
--		 * theoretically it needs to be checked.
--		 */
--		ptep = huge_pte_offset(current->mm,
--				       addr & huge_page_mask(h));
--		present = ptep && !huge_pte_none(huge_ptep_get(ptep));
--		while (1) {
--			*vec = present;
--			vec++;
--			addr += PAGE_SIZE;
--			if (addr == end)
--				return;
--			/* check hugepage border */
--			if (!(addr & ~huge_page_mask(h)))
--				break;
--		}
--	}
-+	/*
-+	 * Hugepages under user process are always in RAM and never
-+	 * swapped out, but theoretically it needs to be checked.
-+	 */
-+	present = pte && !huge_pte_none(huge_ptep_get(pte));
-+	for (; addr != end; vec++, addr += PAGE_SIZE)
-+		*vec = present;
-+	walk->private += (end - addr) >> PAGE_SHIFT;
- #else
- 	BUG();
- #endif
-+	return err;
- }
- 
- /*
-@@ -94,14 +82,15 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
- 	return present;
- }
- 
--static void mincore_unmapped_range(struct vm_area_struct *vma,
--				unsigned long addr, unsigned long end,
--				unsigned char *vec)
-+static int mincore_unmapped_range(unsigned long addr, unsigned long end,
-+				   struct mm_walk *walk)
- {
-+	struct vm_area_struct *vma = walk->vma;
-+	unsigned char *vec = walk->private;
- 	unsigned long nr = (end - addr) >> PAGE_SHIFT;
- 	int i;
- 
--	if (vma->vm_file) {
-+	if (vma && vma->vm_file) {
- 		pgoff_t pgoff;
- 
- 		pgoff = linear_page_index(vma, addr);
-@@ -111,25 +100,38 @@ static void mincore_unmapped_range(struct vm_area_struct *vma,
- 		for (i = 0; i < nr; i++)
- 			vec[i] = 0;
- 	}
-+	walk->private += nr;
-+	return 0;
- }
- 
--static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
--			unsigned long addr, unsigned long end,
--			unsigned char *vec)
-+static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
-+			struct mm_walk *walk)
- {
--	unsigned long next;
- 	spinlock_t *ptl;
-+	struct vm_area_struct *vma = walk->vma;
- 	pte_t *ptep;
- 
--	ptep = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
--	do {
-+	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
-+		memset(walk->private, 1, (end - addr) >> PAGE_SHIFT);
-+		walk->private += (end - addr) >> PAGE_SHIFT;
-+		spin_unlock(ptl);
-+		return 0;
-+	}
-+
-+	if (pmd_trans_unstable(pmd))
-+		return 0;
-+
-+	ptep = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
-+	for (; addr != end; ptep++, addr += PAGE_SIZE) {
- 		pte_t pte = *ptep;
- 		pgoff_t pgoff;
-+		unsigned char *vec = walk->private;
- 
--		next = addr + PAGE_SIZE;
--		if (pte_none(pte))
--			mincore_unmapped_range(vma, addr, next, vec);
--		else if (pte_present(pte))
-+		if (pte_none(pte)) {
-+			mincore_unmapped_range(addr, addr + PAGE_SIZE, walk);
-+			continue;
-+		}
-+		if (pte_present(pte))
- 			*vec = 1;
- 		else if (pte_file(pte)) {
- 			pgoff = pte_to_pgoff(pte);
-@@ -151,70 +153,11 @@ static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- #endif
- 			}
- 		}
--		vec++;
--	} while (ptep++, addr = next, addr != end);
-+		walk->private++;
-+	}
- 	pte_unmap_unlock(ptep - 1, ptl);
--}
--
--static void mincore_pmd_range(struct vm_area_struct *vma, pud_t *pud,
--			unsigned long addr, unsigned long end,
--			unsigned char *vec)
--{
--	unsigned long next;
--	pmd_t *pmd;
--
--	pmd = pmd_offset(pud, addr);
--	do {
--		next = pmd_addr_end(addr, end);
--		if (pmd_trans_huge(*pmd)) {
--			if (mincore_huge_pmd(vma, pmd, addr, next, vec)) {
--				vec += (next - addr) >> PAGE_SHIFT;
--				continue;
--			}
--			/* fall through */
--		}
--		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
--			mincore_unmapped_range(vma, addr, next, vec);
--		else
--			mincore_pte_range(vma, pmd, addr, next, vec);
--		vec += (next - addr) >> PAGE_SHIFT;
--	} while (pmd++, addr = next, addr != end);
--}
--
--static void mincore_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
--			unsigned long addr, unsigned long end,
--			unsigned char *vec)
--{
--	unsigned long next;
--	pud_t *pud;
--
--	pud = pud_offset(pgd, addr);
--	do {
--		next = pud_addr_end(addr, end);
--		if (pud_none_or_clear_bad(pud))
--			mincore_unmapped_range(vma, addr, next, vec);
--		else
--			mincore_pmd_range(vma, pud, addr, next, vec);
--		vec += (next - addr) >> PAGE_SHIFT;
--	} while (pud++, addr = next, addr != end);
--}
--
--static void mincore_page_range(struct vm_area_struct *vma,
--			unsigned long addr, unsigned long end,
--			unsigned char *vec)
--{
--	unsigned long next;
--	pgd_t *pgd;
--
--	pgd = pgd_offset(vma->vm_mm, addr);
--	do {
--		next = pgd_addr_end(addr, end);
--		if (pgd_none_or_clear_bad(pgd))
--			mincore_unmapped_range(vma, addr, next, vec);
--		else
--			mincore_pud_range(vma, pgd, addr, next, vec);
--		vec += (next - addr) >> PAGE_SHIFT;
--	} while (pgd++, addr = next, addr != end);
-+	cond_resched();
-+	return 0;
- }
- 
- /*
-@@ -225,20 +168,28 @@ static void mincore_page_range(struct vm_area_struct *vma,
- static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *vec)
- {
- 	struct vm_area_struct *vma;
--	unsigned long end;
-+	int err;
-+	struct mm_walk mincore_walk = {
-+		.pmd_entry = mincore_pte_range,
-+		.pte_hole = mincore_unmapped_range,
-+		.hugetlb_entry = mincore_hugetlb,
-+		.private = vec,
-+	};
- 
- 	vma = find_vma(current->mm, addr);
- 	if (!vma || addr < vma->vm_start)
- 		return -ENOMEM;
-+	mincore_walk.mm = vma->vm_mm;
- 
--	end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
--
--	if (is_vm_hugetlb_page(vma))
--		mincore_hugetlb_page_range(vma, addr, end, vec);
--	else
--		mincore_page_range(vma, addr, end, vec);
-+	err = walk_page_vma(vma, &mincore_walk);
-+	if (err < 0)
-+		return err;
-+	else {
-+		unsigned long end;
- 
--	return (end - addr) >> PAGE_SHIFT;
-+		end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
-+		return (end - addr) >> PAGE_SHIFT;
-+	}
- }
- 
- /*
--- 
-1.9.3
+Zone fairness is completely gone.  The overall allocation distribution
+on this system goes from 40%/60% to 10%/90%, and during the workload
+the DMA32 zone is not used *at all*:
+
+                              3.16-rc1    3.16-rc1
+                                       seqreadv4r8
+Zone normal velocity         11358.492   17996.733
+Zone dma32 velocity           8213.852       0.000
+
+Both negative effects stem from kswapd suddenly ignoring the classzone
+index while the page allocator respects it: the page allocator will
+keep the low wmark + lowmem reserves in DMA32 free, but kswapd won't
+reclaim in there until it drops down to the high watermark.  The low
+watermark + lowmem reserve is usually bigger than the high watermark,
+so you effectively disable kswapd service in DMA32 for user requests.
+The zone is then no longer used until it fills with enough kernel
+pages to trigger kswapd, or the workload goes into direct reclaim.
+
+The classzone change is a non-sensical change IMO, and there is no
+useful description of it to be found in the changelog.  But for the
+given tests it appears to be the only change in the entire series to
+make a measurable difference; reverting it gets me back to baseline:
+
+tiobench MB/sec
+                                        3.16-rc1              3.16-rc1              3.16-rc1
+                                                           seqreadv4r8  seqreadv4r8classzone
+Mean   SeqRead-MB/sec-1         129.66 (  0.00%)      156.16 ( 20.44%)      129.72 (  0.05%)
+Mean   SeqRead-MB/sec-2         115.74 (  0.00%)      138.50 ( 19.66%)      115.61 ( -0.11%)
+Mean   SeqRead-MB/sec-4         110.21 (  0.00%)      127.08 ( 15.31%)      110.15 ( -0.06%)
+Mean   SeqRead-MB/sec-8         101.70 (  0.00%)      108.47 (  6.65%)      102.15 (  0.44%)
+Mean   SeqRead-MB/sec-16         86.45 (  0.00%)       91.57 (  5.92%)       86.63 (  0.20%)
+
+            3.16-rc1    3.16-rc1    3.16-rc1
+                     seqreadv4r8seqreadv4r8classzone
+User          272.45      277.17      272.23
+System        197.89      186.30      193.73
+Elapsed      4589.17     4356.23     4584.57
+
+                              3.16-rc1    3.16-rc1    3.16-rc1
+                                       seqreadv4r8seqreadv4r8classzone
+Zone normal velocity         11358.492   17996.733   12695.547
+Zone dma32 velocity           8213.852       0.000    6891.421
+
+Please stop making multiple logical changes in a single patch/testing
+unit.  This will make it easier to verify them, and hopefully make it
+also more obvious if individual changes are underdocumented.  As it
+stands, it's hard to impossible to verify the implementation when the
+intentions are not fully documented.  Performance results can only do
+so much.  They are meant to corroborate the model, not replace it.
+
+And again, if you change the way zone fairness works, please always
+include the zone velocity numbers or allocation numbers to show that
+your throughput improvements don't just come from completely wrecking
+fairness - or in this case from disabling an entire zone.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
