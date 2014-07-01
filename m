@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A87D6B0044
-	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 13:07:53 -0400 (EDT)
-Received: by mail-wi0-f179.google.com with SMTP id cc10so8134157wib.12
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id DACEC6B004D
+	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 13:07:54 -0400 (EDT)
+Received: by mail-wg0-f48.google.com with SMTP id n12so9762040wgh.19
         for <linux-mm@kvack.org>; Tue, 01 Jul 2014 10:07:52 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id ef3si15989806wic.104.2014.07.01.10.07.52
+        by mx.google.com with ESMTPS id bm6si16027366wib.40.2014.07.01.10.07.51
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Jul 2014 10:07:52 -0700 (PDT)
+        Tue, 01 Jul 2014 10:07:51 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v4 06/13] pagemap: use walk->vma instead of calling find_vma()
-Date: Tue,  1 Jul 2014 13:07:24 -0400
-Message-Id: <1404234451-21695-7-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH v4 05/13] clear_refs: remove clear_refs_private->vma and introduce clear_refs_test_walk()
+Date: Tue,  1 Jul 2014 13:07:23 -0400
+Message-Id: <1404234451-21695-6-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1404234451-21695-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1404234451-21695-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,41 +20,111 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-Page table walker has the information of the current vma in mm_walk, so
-we don't have to call find_vma() in each pagemap_hugetlb_range() call.
+clear_refs_write() has some prechecks to determine if we really walk over
+a given vma. Now we have a test_walk() callback to filter vmas, so let's
+utilize it.
 
-NULL-vma check is omitted because we assume that we never run hugetlb_entry()
-callback on the address without vma. And even if it were broken, null pointer
-dereference would be detected, so we can get enough information for debugging.
+ChangeLog v4:
+- use walk_page_range instead of walk_page_vma with for loop
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/proc/task_mmu.c | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+ fs/proc/task_mmu.c | 54 ++++++++++++++++++++++++++----------------------------
+ 1 file changed, 26 insertions(+), 28 deletions(-)
 
 diff --git v3.16-rc3.orig/fs/proc/task_mmu.c v3.16-rc3/fs/proc/task_mmu.c
-index df9f368e01b7..5ebc238d1a38 100644
+index 3067bf08393b..df9f368e01b7 100644
 --- v3.16-rc3.orig/fs/proc/task_mmu.c
 +++ v3.16-rc3/fs/proc/task_mmu.c
-@@ -1080,15 +1080,12 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
- 				 struct mm_walk *walk)
- {
- 	struct pagemapread *pm = walk->private;
--	struct vm_area_struct *vma;
-+	struct vm_area_struct *vma = walk->vma;
- 	int err = 0;
- 	int flags2;
- 	pagemap_entry_t pme;
+@@ -715,7 +715,6 @@ enum clear_refs_types {
+ };
  
--	vma = find_vma(walk->mm, addr);
--	WARN_ON_ONCE(!vma);
--
--	if (vma && (vma->vm_flags & VM_SOFTDIRTY))
-+	if (vma->vm_flags & VM_SOFTDIRTY)
- 		flags2 = __PM_SOFT_DIRTY;
- 	else
- 		flags2 = 0;
+ struct clear_refs_private {
+-	struct vm_area_struct *vma;
+ 	enum clear_refs_types type;
+ };
+ 
+@@ -748,7 +747,7 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
+ 				unsigned long end, struct mm_walk *walk)
+ {
+ 	struct clear_refs_private *cp = walk->private;
+-	struct vm_area_struct *vma = cp->vma;
++	struct vm_area_struct *vma = walk->vma;
+ 	pte_t *pte, ptent;
+ 	spinlock_t *ptl;
+ 	struct page *page;
+@@ -782,6 +781,29 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
+ 	return 0;
+ }
+ 
++static int clear_refs_test_walk(unsigned long start, unsigned long end,
++				struct mm_walk *walk)
++{
++	struct clear_refs_private *cp = walk->private;
++	struct vm_area_struct *vma = walk->vma;
++
++	/*
++	 * Writing 1 to /proc/pid/clear_refs affects all pages.
++	 * Writing 2 to /proc/pid/clear_refs only affects anonymous pages.
++	 * Writing 3 to /proc/pid/clear_refs only affects file mapped pages.
++	 * Writing 4 to /proc/pid/clear_refs affects all pages.
++	 */
++	if (cp->type == CLEAR_REFS_ANON && vma->vm_file)
++		return 1;
++	if (cp->type == CLEAR_REFS_MAPPED && !vma->vm_file)
++		return 1;
++	if (cp->type == CLEAR_REFS_SOFT_DIRTY) {
++		if (vma->vm_flags & VM_SOFTDIRTY)
++			vma->vm_flags &= ~VM_SOFTDIRTY;
++	}
++	return 0;
++}
++
+ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+ 				size_t count, loff_t *ppos)
+ {
+@@ -822,38 +844,14 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+ 		};
+ 		struct mm_walk clear_refs_walk = {
+ 			.pmd_entry = clear_refs_pte_range,
++			.test_walk = clear_refs_test_walk,
+ 			.mm = mm,
+ 			.private = &cp,
+ 		};
+ 		down_read(&mm->mmap_sem);
+ 		if (type == CLEAR_REFS_SOFT_DIRTY)
+ 			mmu_notifier_invalidate_range_start(mm, 0, -1);
+-		for (vma = mm->mmap; vma; vma = vma->vm_next) {
+-			cp.vma = vma;
+-			if (is_vm_hugetlb_page(vma))
+-				continue;
+-			/*
+-			 * Writing 1 to /proc/pid/clear_refs affects all pages.
+-			 *
+-			 * Writing 2 to /proc/pid/clear_refs only affects
+-			 * Anonymous pages.
+-			 *
+-			 * Writing 3 to /proc/pid/clear_refs only affects file
+-			 * mapped pages.
+-			 *
+-			 * Writing 4 to /proc/pid/clear_refs affects all pages.
+-			 */
+-			if (type == CLEAR_REFS_ANON && vma->vm_file)
+-				continue;
+-			if (type == CLEAR_REFS_MAPPED && !vma->vm_file)
+-				continue;
+-			if (type == CLEAR_REFS_SOFT_DIRTY) {
+-				if (vma->vm_flags & VM_SOFTDIRTY)
+-					vma->vm_flags &= ~VM_SOFTDIRTY;
+-			}
+-			walk_page_range(vma->vm_start, vma->vm_end,
+-					&clear_refs_walk);
+-		}
++		walk_page_range(0, ~0UL, &clear_refs_walk);
+ 		if (type == CLEAR_REFS_SOFT_DIRTY)
+ 			mmu_notifier_invalidate_range_end(mm, 0, -1);
+ 		flush_tlb_mm(mm);
 -- 
 1.9.3
 
