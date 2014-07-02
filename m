@@ -1,495 +1,393 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 102BB6B0035
-	for <linux-mm@kvack.org>; Wed,  2 Jul 2014 18:08:22 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id ft15so12607575pdb.7
-        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 15:08:21 -0700 (PDT)
-Received: from mail-pa0-f73.google.com (mail-pa0-f73.google.com [209.85.220.73])
-        by mx.google.com with ESMTPS id dt16si378392pdb.108.2014.07.02.15.08.19
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C3C06B0035
+	for <linux-mm@kvack.org>; Wed,  2 Jul 2014 18:30:21 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id et14so13363122pad.27
+        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 15:30:21 -0700 (PDT)
+Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com [2607:f8b0:400e:c03::22e])
+        by mx.google.com with ESMTPS id zf6si31278670pab.226.2014.07.02.15.30.19
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 02 Jul 2014 15:08:20 -0700 (PDT)
-Received: by mail-pa0-f73.google.com with SMTP id kq14so2024714pab.2
-        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 15:08:19 -0700 (PDT)
-Date: Wed, 02 Jul 2014 15:08:19 -0700
-From: akpm@linux-foundation.org
-Subject: mmotm 2014-07-02-15-07 uploaded
-Message-ID: <53b482d3.gR7nYB/K7hPREviI%akpm@linux-foundation.org>
+        Wed, 02 Jul 2014 15:30:20 -0700 (PDT)
+Received: by mail-pa0-f46.google.com with SMTP id eu11so13230593pac.19
+        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 15:30:19 -0700 (PDT)
+Date: Wed, 2 Jul 2014 15:28:49 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: mm: memcontrol: rewrite uncharge API: problems
+In-Reply-To: <20140702212004.GF1369@cmpxchg.org>
+Message-ID: <alpine.LSU.2.11.1407021518120.8299@eggly.anvils>
+References: <alpine.LSU.2.11.1406301558090.4572@eggly.anvils> <20140701174612.GC1369@cmpxchg.org> <20140702212004.GF1369@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The mm-of-the-moment snapshot 2014-07-02-15-07 has been uploaded to
+On Wed, 2 Jul 2014, Johannes Weiner wrote:
+> On Tue, Jul 01, 2014 at 01:46:12PM -0400, Johannes Weiner wrote:
+> > Hi Hugh,
+> > 
+> > On Mon, Jun 30, 2014 at 04:55:10PM -0700, Hugh Dickins wrote:
+> > > Hi Hannes,
+> > > 
+> > > Your rewrite of the memcg charge/uncharge API is bold and attractive,
+> > > but I'm having some problems with the way release_pages() now does
+> > > uncharging in I/O completion context.
+> > 
+> > Yes, I need to make the uncharge path IRQ-safe.  This looks doable.
+> > 
+> > > At the bottom see the lockdep message I get when I start shmem swapping.
+> > > Which I have not begun to attempt to decipher (over to you!), but I do
+> > > see release_pages() mentioned in there (also i915, hope it's irrelevant).
+> > 
+> > This seems to be about uncharge acquiring the IRQ-unsafe soft limit
+> > tree lock while the outer release_pages() holds the IRQ-safe lru_lock.
+> > A separate issue, AFAICS, that would also be fixed by IRQ-proofing the
+> > uncharge path.
+> > 
+> > > Which was already worrying me on the PowerPC G5, when moving tasks from
+> > > one memcg to another and removing the old, while swapping and swappingoff
+> > > (I haven't tried much else actually, maybe it's much easier to reproduce).
+> > > 
+> > > I get "unable to handle kernel paging at 0x180" oops in __raw_spinlock <
+> > > res_counter_uncharge_until < mem_cgroup_uncharge_end < release_pages <
+> > > free_pages_and_swap_cache < tlb_flush_mmu_free < tlb_finish_mmu <
+> > > unmap_region < do_munmap (or from exit_mmap < mmput < do_exit).
+> > > 
+> > > I do have CONFIG_MEMCG_SWAP=y, and I think 0x180 corresponds to the
+> > > memsw res_counter spinlock, if memcg is NULL.  I don't understand why
+> > > usually the PowerPC: I did see something like it once on this x86 laptop,
+> > > maybe having lockdep in on this slows things down enough not to hit that.
+> > > 
+> > > I've stopped those crashes with patch below: the memcg_batch uncharging
+> > > was never designed for use from interrupts.  But I bet it needs more work:
+> > > to disable interrupts, or do something clever with atomics, or... over to
+> > > you again.
+> > 
+> > I was convinced I had tested these changes with lockdep enabled, but
+> > it must have been at an earlier stage while developing the series.
+> > Otherwise, I should have gotten the same splat as you report.
+> 
+> Turns out this was because the soft limit was not set in my tests, and
+> without soft limit excess that spinlock is never acquired.  I could
+> reproduce it now.
+> 
+> > Thanks for the report, I hope to have something useful ASAP.
+> 
+> Could you give the following patch a spin?  I put it in the mmots
+> stack on top of mm-memcontrol-rewrite-charge-api-fix-shmem_unuse-fix.
 
-   http://www.ozlabs.org/~akpm/mmotm/
+I'm just with the laptop until this evening.  I slapped it on top of
+my 3.16-rc2-mm1 plus fixes (but obviously minus my memcg_batch one
+- which incidentally continues to run without crashing on the G5),
+and it quickly gave me this lockdep splat, which doesn't look very
+different from the one before.
 
-mmotm-readme.txt says
+I see there's now an -rc3-mm1, I'll try it out on that in half an
+hour... but unless I send word otherwise, assume that's the same.
 
-README for mm-of-the-moment:
+======================================================
+[ INFO: SOFTIRQ-safe -> SOFTIRQ-unsafe lock order detected ]
+3.16.0-rc2-mm1 #6 Not tainted
+------------------------------------------------------
+cc1/1272 [HC0[0]:SC0[0]:HE0:SE1] is trying to acquire:
+ (&(&rtpz->lock)->rlock){+.+.-.}, at: [<ffffffff81151a4c>] memcg_check_events+0x174/0x1fe
 
-http://www.ozlabs.org/~akpm/mmotm/
+and this task is already holding:
+ (&(&zone->lru_lock)->rlock){..-.-.}, at: [<ffffffff8110da3f>] release_pages+0xe7/0x239
+which would create a new lock dependency:
+ (&(&zone->lru_lock)->rlock){..-.-.} -> (&(&rtpz->lock)->rlock){+.+.-.}
 
-This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-more than once a week.
+but this new dependency connects a SOFTIRQ-irq-safe lock:
+ (&(&zone->lru_lock)->rlock){..-.-.}
+... which became SOFTIRQ-irq-safe at:
+  [<ffffffff810c201e>] __lock_acquire+0x59f/0x17e8
+  [<ffffffff810c38a6>] lock_acquire+0x61/0x78
+  [<ffffffff815be1e5>] _raw_spin_lock_irqsave+0x3f/0x51
+  [<ffffffff8110dc0e>] pagevec_lru_move_fn+0x7d/0xf6
+  [<ffffffff8110dca4>] pagevec_move_tail+0x1d/0x2c
+  [<ffffffff8110e298>] rotate_reclaimable_page+0xb2/0xd4
+  [<ffffffff811018bf>] end_page_writeback+0x1c/0x45
+  [<ffffffff81134594>] end_swap_bio_write+0x5c/0x69
+  [<ffffffff81234952>] bio_endio+0x50/0x6e
+  [<ffffffff81239002>] blk_update_request+0x163/0x255
+  [<ffffffff8123910b>] blk_update_bidi_request+0x17/0x65
+  [<ffffffff81239456>] blk_end_bidi_request+0x1a/0x56
+  [<ffffffff8123949d>] blk_end_request+0xb/0xd
+  [<ffffffff813a097a>] scsi_io_completion+0x16d/0x553
+  [<ffffffff81399e2f>] scsi_finish_command+0xb6/0xbf
+  [<ffffffff813a0784>] scsi_softirq_done+0xe9/0xf0
+  [<ffffffff8123eaf9>] blk_done_softirq+0x79/0x8b
+  [<ffffffff81088675>] __do_softirq+0xfc/0x21f
+  [<ffffffff8108898f>] irq_exit+0x3d/0x92
+  [<ffffffff81032379>] do_IRQ+0xcc/0xe5
+  [<ffffffff815bf7ec>] ret_from_intr+0x0/0x13
+  [<ffffffff81145e78>] cache_alloc_debugcheck_after.isra.51+0x26/0x1ad
+  [<ffffffff81147011>] kmem_cache_alloc+0x11f/0x171
+  [<ffffffff81234a42>] bvec_alloc+0xa7/0xc7
+  [<ffffffff81234b55>] bio_alloc_bioset+0xf3/0x17d
+  [<ffffffff811c3a7a>] ext4_bio_write_page+0x1e2/0x2c8
+  [<ffffffff811bcd89>] mpage_submit_page+0x5c/0x72
+  [<ffffffff811bd28c>] mpage_map_and_submit_buffers+0x1a5/0x215
+  [<ffffffff811c11de>] ext4_writepages+0x9dc/0xa1f
+  [<ffffffff8110c389>] do_writepages+0x1c/0x2a
+  [<ffffffff8117d218>] __writeback_single_inode+0x3c/0xee
+  [<ffffffff8117da90>] writeback_sb_inodes+0x1c6/0x30b
+  [<ffffffff8117dc44>] __writeback_inodes_wb+0x6f/0xb3
+  [<ffffffff8117df27>] wb_writeback+0x101/0x195
+  [<ffffffff8117e37d>] bdi_writeback_workfn+0x87/0x2a1
+  [<ffffffff8109b122>] process_one_work+0x221/0x3c5
+  [<ffffffff8109bdd5>] worker_thread+0x2ec/0x3ef
+  [<ffffffff810a1923>] kthread+0xf1/0xf9
+  [<ffffffff815bec6c>] ret_from_fork+0x7c/0xb0
 
-You will need quilt to apply these patches to the latest Linus release (3.x
-or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-http://ozlabs.org/~akpm/mmotm/series
+to a SOFTIRQ-irq-unsafe lock:
+ (&(&rtpz->lock)->rlock){+.+.-.}
+... which became SOFTIRQ-irq-unsafe at:
+...  [<ffffffff810c2095>] __lock_acquire+0x616/0x17e8
+  [<ffffffff810c38a6>] lock_acquire+0x61/0x78
+  [<ffffffff815be0c7>] _raw_spin_lock+0x34/0x41
+  [<ffffffff811566ca>] mem_cgroup_soft_limit_reclaim+0x260/0x6b9
+  [<ffffffff81113012>] balance_pgdat+0x26e/0x503
+  [<ffffffff811135ae>] kswapd+0x307/0x341
+  [<ffffffff810a1923>] kthread+0xf1/0xf9
+  [<ffffffff815bec6c>] ret_from_fork+0x7c/0xb0
 
-The file broken-out.tar.gz contains two datestamp files: .DATE and
-.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-followed by the base kernel version against which this patch series is to
-be applied.
+other info that might help us debug this:
 
-This tree is partially included in linux-next.  To see which patches are
-included in linux-next, consult the `series' file.  Only the patches
-within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-linux-next.
+ Possible interrupt unsafe locking scenario:
 
-A git tree which contains the memory management portion of this tree is
-maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-by Michal Hocko.  It contains the patches which are between the
-"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
-file, http://www.ozlabs.org/~akpm/mmotm/series.
+       CPU0                    CPU1
+       ----                    ----
+  lock(&(&rtpz->lock)->rlock);
+                               local_irq_disable();
+                               lock(&(&zone->lru_lock)->rlock);
+                               lock(&(&rtpz->lock)->rlock);
+  <Interrupt>
+    lock(&(&zone->lru_lock)->rlock);
+
+ *** DEADLOCK ***
+
+1 lock held by cc1/1272:
+ #0:  (&(&zone->lru_lock)->rlock){..-.-.}, at: [<ffffffff8110da3f>] release_pages+0xe7/0x239
+
+the dependencies between SOFTIRQ-irq-safe lock and the holding lock:
+-> (&(&zone->lru_lock)->rlock){..-.-.} ops: 125969 {
+   IN-SOFTIRQ-W at:
+                    [<ffffffff810c201e>] __lock_acquire+0x59f/0x17e8
+                    [<ffffffff810c38a6>] lock_acquire+0x61/0x78
+                    [<ffffffff815be1e5>] _raw_spin_lock_irqsave+0x3f/0x51
+                    [<ffffffff8110dc0e>] pagevec_lru_move_fn+0x7d/0xf6
+                    [<ffffffff8110dca4>] pagevec_move_tail+0x1d/0x2c
+                    [<ffffffff8110e298>] rotate_reclaimable_page+0xb2/0xd4
+                    [<ffffffff811018bf>] end_page_writeback+0x1c/0x45
+                    [<ffffffff81134594>] end_swap_bio_write+0x5c/0x69
+                    [<ffffffff81234952>] bio_endio+0x50/0x6e
+                    [<ffffffff81239002>] blk_update_request+0x163/0x255
+                    [<ffffffff8123910b>] blk_update_bidi_request+0x17/0x65
+                    [<ffffffff81239456>] blk_end_bidi_request+0x1a/0x56
+                    [<ffffffff8123949d>] blk_end_request+0xb/0xd
+                    [<ffffffff813a097a>] scsi_io_completion+0x16d/0x553
+                    [<ffffffff81399e2f>] scsi_finish_command+0xb6/0xbf
+                    [<ffffffff813a0784>] scsi_softirq_done+0xe9/0xf0
+                    [<ffffffff8123eaf9>] blk_done_softirq+0x79/0x8b
+                    [<ffffffff81088675>] __do_softirq+0xfc/0x21f
+                    [<ffffffff8108898f>] irq_exit+0x3d/0x92
+                    [<ffffffff81032379>] do_IRQ+0xcc/0xe5
+                    [<ffffffff815bf7ec>] ret_from_intr+0x0/0x13
+                    [<ffffffff81145e78>] cache_alloc_debugcheck_after.isra.51+0x26/0x1ad
+                    [<ffffffff81147011>] kmem_cache_alloc+0x11f/0x171
+                    [<ffffffff81234a42>] bvec_alloc+0xa7/0xc7
+                    [<ffffffff81234b55>] bio_alloc_bioset+0xf3/0x17d
+                    [<ffffffff811c3a7a>] ext4_bio_write_page+0x1e2/0x2c8
+                    [<ffffffff811bcd89>] mpage_submit_page+0x5c/0x72
+                    [<ffffffff811bd28c>] mpage_map_and_submit_buffers+0x1a5/0x215
+                    [<ffffffff811c11de>] ext4_writepages+0x9dc/0xa1f
+                    [<ffffffff8110c389>] do_writepages+0x1c/0x2a
+                    [<ffffffff8117d218>] __writeback_single_inode+0x3c/0xee
+                    [<ffffffff8117da90>] writeback_sb_inodes+0x1c6/0x30b
+                    [<ffffffff8117dc44>] __writeback_inodes_wb+0x6f/0xb3
+                    [<ffffffff8117df27>] wb_writeback+0x101/0x195
+                    [<ffffffff8117e37d>] bdi_writeback_workfn+0x87/0x2a1
+                    [<ffffffff8109b122>] process_one_work+0x221/0x3c5
+                    [<ffffffff8109bdd5>] worker_thread+0x2ec/0x3ef
+                    [<ffffffff810a1923>] kthread+0xf1/0xf9
+                    [<ffffffff815bec6c>] ret_from_fork+0x7c/0xb0
+   IN-RECLAIM_FS-W at:
+                       [<ffffffff810c20c3>] __lock_acquire+0x644/0x17e8
+                       [<ffffffff810c38a6>] lock_acquire+0x61/0x78
+                       [<ffffffff815be1e5>] _raw_spin_lock_irqsave+0x3f/0x51
+                       [<ffffffff8110dc0e>] pagevec_lru_move_fn+0x7d/0xf6
+                       [<ffffffff8110dcc5>] __pagevec_lru_add+0x12/0x14
+                       [<ffffffff8110e648>] lru_add_drain_cpu+0x28/0xb3
+                       [<ffffffff8110e783>] lru_add_drain+0x1a/0x37
+                       [<ffffffff81111be5>] shrink_active_list+0x62/0x2cb
+                       [<ffffffff81112efa>] balance_pgdat+0x156/0x503
+                       [<ffffffff811135ae>] kswapd+0x307/0x341
+                       [<ffffffff810a1923>] kthread+0xf1/0xf9
+                       [<ffffffff815bec6c>] ret_from_fork+0x7c/0xb0
+   INITIAL USE at:
+                   [<ffffffff810c20db>] __lock_acquire+0x65c/0x17e8
+                   [<ffffffff810c38a6>] lock_acquire+0x61/0x78
+                   [<ffffffff815be1e5>] _raw_spin_lock_irqsave+0x3f/0x51
+                   [<ffffffff8110dc0e>] pagevec_lru_move_fn+0x7d/0xf6
+                   [<ffffffff8110dcc5>] __pagevec_lru_add+0x12/0x14
+                   [<ffffffff8110dd37>] __lru_cache_add+0x70/0x9f
+                   [<ffffffff8110e44e>] lru_cache_add_anon+0x14/0x16
+                   [<ffffffff81115b5c>] shmem_getpage_gfp+0x3be/0x68a
+                   [<ffffffff81115f25>] shmem_read_mapping_page_gfp+0x2e/0x49
+                   [<ffffffff813318af>] i915_gem_object_get_pages_gtt+0xe5/0x3f9
+                   [<ffffffff8132d88e>] i915_gem_object_get_pages+0x64/0x8f
+                   [<ffffffff813310ca>] i915_gem_object_pin+0x2a0/0x5af
+                   [<ffffffff81340b1b>] intel_init_ring_buffer+0x2ba/0x3e6
+                   [<ffffffff8134345a>] intel_init_render_ring_buffer+0x38b/0x3a6
+                   [<ffffffff8132fcce>] i915_gem_init_hw+0x127/0x2c6
+                   [<ffffffff8132ff77>] i915_gem_init+0x10a/0x189
+                   [<ffffffff81381f2c>] i915_driver_load+0xb1b/0xde7
+                   [<ffffffff81300180>] drm_dev_register+0x7f/0xf8
+                   [<ffffffff813023a5>] drm_get_pci_dev+0xf7/0x1b4
+                   [<ffffffff81311f4f>] i915_pci_probe+0x40/0x49
+                   [<ffffffff8127dffd>] local_pci_probe+0x1f/0x51
+                   [<ffffffff8127e0f5>] pci_device_probe+0xc6/0xec
+                   [<ffffffff81389940>] driver_probe_device+0x99/0x1b9
+                   [<ffffffff81389af4>] __driver_attach+0x5c/0x7e
+                   [<ffffffff8138809f>] bus_for_each_dev+0x55/0x89
+                   [<ffffffff81389616>] driver_attach+0x19/0x1b
+                   [<ffffffff813891d2>] bus_add_driver+0xec/0x1d3
+                   [<ffffffff8138a041>] driver_register+0x89/0xc5
+                   [<ffffffff8127d6af>] __pci_register_driver+0x58/0x5b
+                   [<ffffffff813024bb>] drm_pci_init+0x59/0xda
+                   [<ffffffff8199497f>] i915_init+0x89/0x90
+                   [<ffffffff8100030e>] do_one_initcall+0xea/0x18c
+                   [<ffffffff81970f8d>] kernel_init_freeable+0x104/0x196
+                   [<ffffffff815a92d8>] kernel_init+0x9/0xd5
+                   [<ffffffff815bec6c>] ret_from_fork+0x7c/0xb0
+ }
+ ... key      at: [<ffffffff8273c920>] __key.37664+0x0/0x8
+ ... acquired at:
+   [<ffffffff810c0f1b>] check_irq_usage+0x54/0xa8
+   [<ffffffff810c2b50>] __lock_acquire+0x10d1/0x17e8
+   [<ffffffff810c38a6>] lock_acquire+0x61/0x78
+   [<ffffffff815be1e5>] _raw_spin_lock_irqsave+0x3f/0x51
+   [<ffffffff81151a4c>] memcg_check_events+0x174/0x1fe
+   [<ffffffff81157384>] mem_cgroup_uncharge+0xfa/0x1fc
+   [<ffffffff8110db2a>] release_pages+0x1d2/0x239
+   [<ffffffff81135036>] free_pages_and_swap_cache+0x72/0x8c
+   [<ffffffff81121503>] tlb_flush_mmu_free+0x21/0x3c
+   [<ffffffff81121ef1>] tlb_flush_mmu+0x1b/0x1e
+   [<ffffffff81121f03>] tlb_finish_mmu+0xf/0x34
+   [<ffffffff8112aafc>] exit_mmap+0xb5/0x117
+   [<ffffffff81081a9d>] mmput+0x52/0xce
+   [<ffffffff81086842>] do_exit+0x355/0x9b7
+   [<ffffffff81086f46>] do_group_exit+0x76/0xb5
+   [<ffffffff81086f94>] __wake_up_parent+0x0/0x23
+   [<ffffffff815bed12>] system_call_fastpath+0x16/0x1b
 
 
-A full copy of the full kernel tree with the linux-next and mmotm patches
-already applied is available through git within an hour of the mmotm
-release.  Individual mmotm releases are tagged.  The master branch always
-points to the latest release, so it's constantly rebasing.
+the dependencies between the lock to be acquired and SOFTIRQ-irq-unsafe lock:
+-> (&(&rtpz->lock)->rlock){+.+.-.} ops: 857 {
+   HARDIRQ-ON-W at:
+                    [<ffffffff810c2073>] __lock_acquire+0x5f4/0x17e8
+                    [<ffffffff810c38a6>] lock_acquire+0x61/0x78
+                    [<ffffffff815be0c7>] _raw_spin_lock+0x34/0x41
+                    [<ffffffff811566ca>] mem_cgroup_soft_limit_reclaim+0x260/0x6b9
+                    [<ffffffff81113012>] balance_pgdat+0x26e/0x503
+                    [<ffffffff811135ae>] kswapd+0x307/0x341
+                    [<ffffffff810a1923>] kthread+0xf1/0xf9
+                    [<ffffffff815bec6c>] ret_from_fork+0x7c/0xb0
+   SOFTIRQ-ON-W at:
+                    [<ffffffff810c2095>] __lock_acquire+0x616/0x17e8
+                    [<ffffffff810c38a6>] lock_acquire+0x61/0x78
+                    [<ffffffff815be0c7>] _raw_spin_lock+0x34/0x41
+                    [<ffffffff811566ca>] mem_cgroup_soft_limit_reclaim+0x260/0x6b9
+                    [<ffffffff81113012>] balance_pgdat+0x26e/0x503
+                    [<ffffffff811135ae>] kswapd+0x307/0x341
+                    [<ffffffff810a1923>] kthread+0xf1/0xf9
+                    [<ffffffff815bec6c>] ret_from_fork+0x7c/0xb0
+   IN-RECLAIM_FS-W at:
+                       [<ffffffff810c20c3>] __lock_acquire+0x644/0x17e8
+                       [<ffffffff810c38a6>] lock_acquire+0x61/0x78
+                       [<ffffffff815be231>] _raw_spin_lock_irq+0x3a/0x47
+                       [<ffffffff811564ea>] mem_cgroup_soft_limit_reclaim+0x80/0x6b9
+                       [<ffffffff81113012>] balance_pgdat+0x26e/0x503
+                       [<ffffffff811135ae>] kswapd+0x307/0x341
+                       [<ffffffff810a1923>] kthread+0xf1/0xf9
+                       [<ffffffff815bec6c>] ret_from_fork+0x7c/0xb0
+   INITIAL USE at:
+                   [<ffffffff810c20db>] __lock_acquire+0x65c/0x17e8
+                   [<ffffffff810c38a6>] lock_acquire+0x61/0x78
+                   [<ffffffff815be1e5>] _raw_spin_lock_irqsave+0x3f/0x51
+                   [<ffffffff81151a4c>] memcg_check_events+0x174/0x1fe
+                   [<ffffffff81153756>] commit_charge+0x260/0x26f
+                   [<ffffffff811571da>] mem_cgroup_commit_charge+0xb1/0xdb
+                   [<ffffffff81101535>] __add_to_page_cache_locked+0x205/0x23d
+                   [<ffffffff8110159b>] add_to_page_cache_lru+0x20/0x63
+                   [<ffffffff8118bbf5>] mpage_readpages+0x8c/0xfa
+                   [<ffffffff811bccbb>] ext4_readpages+0x37/0x3e
+                   [<ffffffff8110c95d>] __do_page_cache_readahead+0x1fa/0x27d
+                   [<ffffffff8110cd5b>] ondemand_readahead+0x37b/0x38c
+                   [<ffffffff8110ceaf>] page_cache_sync_readahead+0x38/0x3a
+                   [<ffffffff811031d0>] generic_file_read_iter+0x1bd/0x588
+                   [<ffffffff8115a28a>] new_sync_read+0x78/0x9c
+                   [<ffffffff8115a630>] vfs_read+0x89/0x124
+                   [<ffffffff8115afa7>] SyS_read+0x45/0x8c
+                   [<ffffffff815bed12>] system_call_fastpath+0x16/0x1b
+ }
+ ... key      at: [<ffffffff82747bf0>] __key.49550+0x0/0x8
+ ... acquired at:
+   [<ffffffff810c0f1b>] check_irq_usage+0x54/0xa8
+   [<ffffffff810c2b50>] __lock_acquire+0x10d1/0x17e8
+   [<ffffffff810c38a6>] lock_acquire+0x61/0x78
+   [<ffffffff815be1e5>] _raw_spin_lock_irqsave+0x3f/0x51
+   [<ffffffff81151a4c>] memcg_check_events+0x174/0x1fe
+   [<ffffffff81157384>] mem_cgroup_uncharge+0xfa/0x1fc
+   [<ffffffff8110db2a>] release_pages+0x1d2/0x239
+   [<ffffffff81135036>] free_pages_and_swap_cache+0x72/0x8c
+   [<ffffffff81121503>] tlb_flush_mmu_free+0x21/0x3c
+   [<ffffffff81121ef1>] tlb_flush_mmu+0x1b/0x1e
+   [<ffffffff81121f03>] tlb_finish_mmu+0xf/0x34
+   [<ffffffff8112aafc>] exit_mmap+0xb5/0x117
+   [<ffffffff81081a9d>] mmput+0x52/0xce
+   [<ffffffff81086842>] do_exit+0x355/0x9b7
+   [<ffffffff81086f46>] do_group_exit+0x76/0xb5
+   [<ffffffff81086f94>] __wake_up_parent+0x0/0x23
+   [<ffffffff815bed12>] system_call_fastpath+0x16/0x1b
 
-http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary
 
-To develop on top of mmotm git:
+stack backtrace:
+CPU: 0 PID: 1272 Comm: cc1 Not tainted 3.16.0-rc2-mm1 #6
+Hardware name: LENOVO 4174EH1/4174EH1, BIOS 8CET51WW (1.31 ) 11/29/2011
+ 0000000000000000 ffff8800108f3a08 ffffffff815b2d51 ffff8800100f1268
+ ffff8800108f3b00 ffffffff810c0eb6 0000000000000000 ffff880000000000
+ ffffffff00000001 0000000400000006 ffffffff81811f0a ffff8800108f3a50
+Call Trace:
+ [<ffffffff815b2d51>] dump_stack+0x4e/0x7a
+ [<ffffffff810c0eb6>] check_usage+0x591/0x5a2
+ [<ffffffff81151317>] ? lookup_page_cgroup_used+0x9/0x19
+ [<ffffffff810c0f1b>] check_irq_usage+0x54/0xa8
+ [<ffffffff810c2b50>] __lock_acquire+0x10d1/0x17e8
+ [<ffffffff810c38a6>] lock_acquire+0x61/0x78
+ [<ffffffff81151a4c>] ? memcg_check_events+0x174/0x1fe
+ [<ffffffff815be1e5>] _raw_spin_lock_irqsave+0x3f/0x51
+ [<ffffffff81151a4c>] ? memcg_check_events+0x174/0x1fe
+ [<ffffffff81151a4c>] memcg_check_events+0x174/0x1fe
+ [<ffffffff81157384>] mem_cgroup_uncharge+0xfa/0x1fc
+ [<ffffffff8110da3f>] ? release_pages+0xe7/0x239
+ [<ffffffff8110db2a>] release_pages+0x1d2/0x239
+ [<ffffffff81135036>] free_pages_and_swap_cache+0x72/0x8c
+ [<ffffffff81121503>] tlb_flush_mmu_free+0x21/0x3c
+ [<ffffffff81121ef1>] tlb_flush_mmu+0x1b/0x1e
+ [<ffffffff81121f03>] tlb_finish_mmu+0xf/0x34
+ [<ffffffff8112aafc>] exit_mmap+0xb5/0x117
+ [<ffffffff81081a9d>] mmput+0x52/0xce
+ [<ffffffff81086842>] do_exit+0x355/0x9b7
+ [<ffffffff815bf88e>] ? retint_swapgs+0xe/0x13
+ [<ffffffff81086f46>] do_group_exit+0x76/0xb5
+ [<ffffffff81086f94>] SyS_exit_group+0xf/0xf
+ [<ffffffff815bed12>] system_call_fastpath+0x16/0x1b
 
-  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-  $ git remote update mmotm
-  $ git checkout -b topic mmotm/master
-  <make changes, commit>
-  $ git send-email mmotm/master.. [...]
-
-To rebase a branch with older patches to a new mmotm release:
-
-  $ git remote update mmotm
-  $ git rebase --onto mmotm/master <topic base> topic
-
-
-
-
-The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
-contains daily snapshots of the -mm tree.  It is updated more frequently
-than mmotm, and is untested.
-
-A git copy of this tree is available at
-
-	http://git.cmpxchg.org/?p=linux-mmots.git;a=summary
-
-and use of this tree is similar to
-http://git.cmpxchg.org/?p=linux-mmotm.git, described above.
-
-
-This mmotm tree contains the following patches against 3.16-rc3:
-(patches marked "*" will be included in linux-next)
-
-  origin.patch
-  i-need-old-gcc.patch
-  arch-alpha-kernel-systblss-remove-debug-check.patch
-  maintainers-akpm-maintenance.patch
-* mm-page_alloc-fix-cma-area-initialisation-when-pageblock-max_order.patch
-* slub-fix-off-by-one-in-number-of-slab-tests.patch
-* autofs4-fix-false-positive-compile-error.patch
-* tools-cpu-hotplug-fix-unexpected-operator-error.patch
-* tools-memory-hotplug-fix-unexpected-operator-error.patch
-* zram-revalidate-disk-after-capacity-change.patch
-* msync-fix-incorrect-fstart-calculation.patch
-* mm-vmscan-update-the-trace-vmscan-postprocesspl-for-event-vmscan-mm_vmscan_lru_isolate.patch
-* hwpoison-fix-the-handling-path-of-the-victimized-page-frame-that-belong-to-non-lur.patch
-* proc-stat-convert-to-single_open_size.patch
-* fs-seq_file-fallback-to-vmalloc-allocation.patch
-* tools-msgque-improve-error-handling-when-not-running-as-root.patch
-* kernel-printk-printkc-revert-printk-enable-interrupts-before-calling-console_trylock_for_printk.patch
-* shmem-fix-init_page_accessed-use-to-stop-pagelru-bug.patch
-* revert-shmem-fix-faulting-into-a-hole-while-its-punched.patch
-* shmem-fix-faulting-into-a-hole-while-its-punched-take-2.patch
-* mm-fs-fix-pessimization-in-hole-punching-pagecache.patch
-* x86mem-hotplug-pass-sync_global_pgds-a-correct-argument-in-remove_pagetable.patch
-* x86mem-hotplug-modify-pgd-entry-when-removing-memory.patch
-* x86-numa-setup_node_data-drop-dead-code-and-rename-function.patch
-* x86-numa-setup_node_data-drop-dead-code-and-rename-function-checkpatch-fixes.patch
-* kernel-auditfilterc-replace-countsize-kmalloc-by-kcalloc.patch
-* fs-cifs-remove-obsolete-__constant.patch
-* fs-cifs-filec-replace-countsize-kzalloc-by-kcalloc.patch
-* fs-cifs-smb2filec-replace-countsize-kzalloc-by-kcalloc.patch
-* kernel-posix-timersc-code-clean-up.patch
-* kernel-posix-timersc-code-clean-up-checkpatch-fixes.patch
-* input-route-kbd-leds-through-the-generic-leds-layer.patch
-* input-route-kbd-leds-through-the-generic-leds-layer-fix.patch
-* remove-cpu_subtype_sh7764.patch
-* fs-squashfs-file_directc-replace-countsize-kmalloc-by-kmalloc_array.patch
-* fs-squashfs-superc-logging-clean-up.patch
-* drivers-net-irda-donauboe-convert-to-module_pci_driver.patch
-* fs-ext4-fsyncc-generic_file_fsync-call-based-on-barrier-flag.patch
-* ocfs2-correctly-check-the-return-value-of-ocfs2_search_extent_list.patch
-* ocfs2-remove-convertion-of-total_backoff-in-dlm_join_domain.patch
-* ocfs2-do-not-write-error-flag-to-user-structure-we-cannot-copy-from-to.patch
-* ocfs2-free-inode-when-i_count-becomes-zero.patch
-* ocfs2-free-inode-when-i_count-becomes-zero-checkpatch-fixes.patch
-* ocfs2-o2net-dont-shutdown-connection-when-idle-timeout.patch
-* ocfs2-o2net-set-tcp-user-timeout-to-max-value.patch
-* ocfs2-quorum-add-a-log-for-node-not-fenced.patch
-* ocfs2-call-ocfs2_journal_access_di-before-ocfs2_journal_dirty-in-ocfs2_write_end_nolock.patch
-* fs-ocfs2-slot_mapc-replace-countsize-kzalloc-by-kcalloc.patch
-* ocfs2-dlm-fix-race-between-dispatched_work-and-dlm_lockres_grab_inflight_worker.patch
-* maintainers-update-ibm-serveraid-raid-info.patch
-* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
-* kernel-watchdogc-convert-printk-pr_warning-to-pr_foo.patch
-  mm.patch
-* mm-slabc-add-__init-to-init_lock_keys.patch
-* slab-common-add-functions-for-kmem_cache_node-access.patch
-* slab-common-add-functions-for-kmem_cache_node-access-fix.patch
-* slub-use-new-node-functions.patch
-* slub-use-new-node-functions-checkpatch-fixes.patch
-* slub-use-new-node-functions-fix.patch
-* slab-use-get_node-and-kmem_cache_node-functions.patch
-* slab-use-get_node-and-kmem_cache_node-functions-fix.patch
-* slab-use-get_node-and-kmem_cache_node-functions-fix-2.patch
-* slab-use-get_node-and-kmem_cache_node-functions-fix-2-fix.patch
-* mm-slabh-wrap-the-whole-file-with-guarding-macro.patch
-* mm-slub-mark-resiliency_test-as-init-text.patch
-* mm-slub-slub_debug=n-use-the-same-alloc-free-hooks-as-for-slub_debug=y.patch
-* memcg-cleanup-memcg_cache_params-refcnt-usage.patch
-* memcg-destroy-kmem-caches-when-last-slab-is-freed.patch
-* memcg-mark-caches-that-belong-to-offline-memcgs-as-dead.patch
-* slub-dont-fail-kmem_cache_shrink-if-slab-placement-optimization-fails.patch
-* slub-make-slab_free-non-preemptable.patch
-* memcg-wait-for-kfrees-to-finish-before-destroying-cache.patch
-* slub-make-dead-memcg-caches-discard-free-slabs-immediately.patch
-* slub-kmem_cache_shrink-check-if-partial-list-is-empty-under-list_lock.patch
-* slab-do-not-keep-free-objects-slabs-on-dead-memcg-caches.patch
-* slab-set-free_limit-for-dead-caches-to-0.patch
-* slab-add-unlikely-macro-to-help-compiler.patch
-* slab-move-up-code-to-get-kmem_cache_node-in-free_block.patch
-* slab-defer-slab_destroy-in-free_block.patch
-* slab-defer-slab_destroy-in-free_block-v4.patch
-* slab-factor-out-initialization-of-arracy-cache.patch
-* slab-introduce-alien_cache.patch
-* slab-use-the-lock-on-alien_cache-instead-of-the-lock-on-array_cache.patch
-* slab-destroy-a-slab-without-holding-any-alien-cache-lock.patch
-* slab-remove-a-useless-lockdep-annotation.patch
-* slab-remove-bad_alien_magic.patch
-* slab-change-int-to-size_t-for-representing-allocation-size.patch
-* slub-reduce-duplicate-creation-on-the-first-object.patch
-* mm-readaheadc-remove-unused-file_ra_state-from-count_history_pages.patch
-* mm-memory_hotplugc-add-__meminit-to-grow_zone_span-grow_pgdat_span.patch
-* mm-page_alloc-add-__meminit-to-alloc_pages_exact_nid.patch
-* mm-page_allocc-unexport-alloc_pages_exact_nid.patch
-* include-linux-memblockh-add-__init-to-memblock_set_bottom_up.patch
-* vmalloc-use-rcu-list-iterator-to-reduce-vmap_area_lock-contention.patch
-* mm-memoryc-use-entry-=-access_oncepte-in-handle_pte_fault.patch
-* mem-hotplug-avoid-illegal-state-prefixed-with-legal-state-when-changing-state-of-memory_block.patch
-* mem-hotplug-introduce-mmop_offline-to-replace-the-hard-coding-1.patch
-* mm-page_alloc-simplify-drain_zone_pages-by-using-min.patch
-* mm-internalh-use-nth_page.patch
-* dma-cma-separate-core-cma-management-codes-from-dma-apis.patch
-* dma-cma-support-alignment-constraint-on-cma-region.patch
-* dma-cma-support-arbitrary-bitmap-granularity.patch
-* dma-cma-support-arbitrary-bitmap-granularity-fix.patch
-* cma-generalize-cma-reserved-area-management-functionality.patch
-* cma-generalize-cma-reserved-area-management-functionality-fix.patch
-* ppc-kvm-cma-use-general-cma-reserved-area-management-framework.patch
-* ppc-kvm-cma-use-general-cma-reserved-area-management-framework-fix.patch
-* mm-cma-clean-up-cma-allocation-error-path.patch
-* mm-cma-change-cma_declare_contiguous-to-obey-coding-convention.patch
-* mm-cma-clean-up-log-message.patch
-* mm-hugetlbfs-fix-rmapping-for-anonymous-hugepages-with-page_pgoff.patch
-* mm-hugetlbfs-fix-rmapping-for-anonymous-hugepages-with-page_pgoff-v2.patch
-* mm-hugetlbfs-fix-rmapping-for-anonymous-hugepages-with-page_pgoff-v3.patch
-* mm-hugetlbfs-fix-rmapping-for-anonymous-hugepages-with-page_pgoff-v3-fix.patch
-* mm-thp-move-invariant-bug-check-out-of-loop-in-__split_huge_page_map.patch
-* mm-thp-replace-smp_mb-after-atomic_add-by-smp_mb__after_atomic.patch
-* mm-page-flags-clean-up-the-page-flag-test-set-clear-macros.patch
-* mm-memcontrol-fold-mem_cgroup_do_charge.patch
-* mm-memcontrol-rearrange-charging-fast-path.patch
-* mm-memcontrol-reclaim-at-least-once-for-__gfp_noretry.patch
-* mm-huge_memory-use-gfp_transhuge-when-charging-huge-pages.patch
-* mm-memcontrol-retry-reclaim-for-oom-disabled-and-__gfp_nofail-charges.patch
-* mm-memcontrol-remove-explicit-oom-parameter-in-charge-path.patch
-* mm-memcontrol-simplify-move-precharge-function.patch
-* mm-memcontrol-catch-root-bypass-in-move-precharge.patch
-* mm-memcontrol-use-root_mem_cgroup-res_counter.patch
-* mm-memcontrol-remove-ordering-between-pc-mem_cgroup-and-pagecgroupused.patch
-* mm-memcontrol-do-not-acquire-page_cgroup-lock-for-kmem-pages.patch
-* mm-memcontrol-rewrite-charge-api.patch
-* mm-memcontrol-rewrite-charge-api-fix-3.patch
-* mm-memcontrol-rewrite-uncharge-api.patch
-* mm-memcontrol-rewrite-uncharge-api-fix-2.patch
-* mm-memcontrol-rewrite-uncharge-api-fix-4.patch
-* mm-memcontrol-rewrite-uncharge-api-fix-5.patch
-* mm-memcontrol-rewrite-charge-api-fix-shmem_unuse.patch
-* mm-memcontrol-rewrite-charge-api-fix-shmem_unuse-fix.patch
-* page-cgroup-trivial-cleanup.patch
-* page-cgroup-get-rid-of-nr_pcg_flags.patch
-* mm-mem-hotplug-replace-simple_strtoull-with-kstrtoull.patch
-* memcg-remove-lookup_cgroup_page-prototype.patch
-* mm-update-comments-for-get-set_pfnblock_flags_mask.patch
-* mem-hotplug-improve-zone_movable_is_highmem-logic.patch
-* mm-vmscan-remove-remains-of-kswapd-managed-zone-all_unreclaimable.patch
-* mm-vmscan-rework-compaction-ready-signaling-in-direct-reclaim.patch
-* mm-vmscan-remove-all_unreclaimable.patch
-* mm-vmscan-move-swappiness-out-of-scan_control.patch
-* tracing-tell-mm_migrate_pages-event-about-numa_misplaced.patch
-* mm-update-the-description-for-madvise_remove.patch
-* mm-vmallocc-add-a-schedule-point-to-vmalloc.patch
-* mm-vmallocc-add-a-schedule-point-to-vmalloc-fix.patch
-* mm-vmalloc-constify-allocation-mask.patch
-* include-linux-mmdebugh-add-vm_warn_once.patch
-* shmem-fix-double-uncharge-in-__shmem_file_setup.patch
-* shmem-update-memory-reservation-on-truncate.patch
-* mm-catch-memory-commitment-underflow.patch
-* mm-catch-memory-commitment-underflow-fix.patch
-* mm-export-nr_shmem-via-sysinfo2-si_meminfo-interfaces.patch
-* mm-hwpoison-injectc-remove-unnecessary-null-test-before-debugfs_remove_recursive.patch
-* mm-replace-init_page_accessed-by-__setpagereferenced.patch
-* mmhugetlb-make-unmap_ref_private-return-void.patch
-* mmhugetlb-simplify-error-handling-in-hugetlb_cow.patch
-* hwpoison-fix-race-with-changing-page-during-offlining-v2.patch
-* mm-hugetlb-generalize-writes-to-nr_hugepages.patch
-* mm-hugetlb-remove-hugetlb_zero-and-hugetlb_infinity.patch
-* mm-make-copy_pte_range-static-again.patch
-* mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix.patch
-* mm-compactionc-isolate_freepages_block-small-tuneup.patch
-* fs-mpagec-forgotten-write_sync-in-case-of-data-integrity-write.patch
-* m68k-call-find_vma-with-the-mmap_sem-held-in-sys_cacheflush.patch
-* zram-rename-struct-table-to-zram_table_entry.patch
-* zram-remove-unused-sector_size-define.patch
-* zram-use-size_t-instead-of-u16.patch
-* zram-remove-global-tb_lock-with-fine-grain-lock.patch
-* mm-zswapc-add-__init-to-zswap_entry_cache_destroy.patch
-* mm-zbud-zbud_alloc-minor-param-change.patch
-* mm-zbud-change-zbud_alloc-size-type-to-size_t.patch
-* mm-zpool-implement-common-zpool-api-to-zbud-zsmalloc.patch
-* mm-zpool-implement-common-zpool-api-to-zbud-zsmalloc-fix.patch
-* mm-zpool-zbud-zsmalloc-implement-zpool.patch
-* mm-zpool-update-zswap-to-use-zpool.patch
-* mm-zpool-update-zswap-to-use-zpool-fix.patch
-* mm-zpool-prevent-zbud-zsmalloc-from-unloading-when-used.patch
-* mm-zpool-prevent-zbud-zsmalloc-from-unloading-when-used-checkpatch-fixes.patch
-* do_shared_fault-check-that-mmap_sem-is-held.patch
-* include-kernelh-rewrite-min3-max3-and-clamp-using-min-and-max.patch
-* include-kernelh-rewrite-min3-max3-and-clamp-using-min-and-max-fix.patch
-* makefile-tell-gcc-optimizer-to-never-introduce-new-data-races.patch
-* fs-asus_atk0110-fix-define_simple_attribute-semicolon-definition-and-use.patch
-* drivers-misc-ti-st-st_corec-fix-null-dereference-on-protocol-type-check.patch
-* printk-make-dynamic-kernel-ring-buffer-alignment-explicit.patch
-* printk-move-power-of-2-practice-of-ring-buffer-size-to-a-helper.patch
-* printk-make-dynamic-units-clear-for-the-kernel-ring-buffer.patch
-* printk-allow-increasing-the-ring-buffer-depending-on-the-number-of-cpus.patch
-* printk-allow-increasing-the-ring-buffer-depending-on-the-number-of-cpus-fix.patch
-* printk-tweak-do_syslog-to-match-comments.patch
-* lib-vsprintf-add-%pt-format-specifier.patch
-* maintainers-remove-two-ancient-eata-sections.patch
-* drivers-video-backlight-backlightc-remove-backlight-sysfs-uevent.patch
-* list-use-argument-hlist_add_after-names-from-rcu-variant.patch
-* list-fix-order-of-arguments-for-hlist_add_after_rcu.patch
-* list-fix-order-of-arguments-for-hlist_add_after_rcu-checkpatch-fixes.patch
-* klist-use-same-naming-scheme-as-hlist-for-klist_add_after.patch
-* mm-utilc-add-kstrimdup.patch
-* add-lib-globc.patch
-* add-lib-globc-fix.patch
-* lib-globc-add-config_glob_selftest.patch
-* libata-use-glob_match-from-lib-globc.patch
-* lib-add-size-unit-t-p-e-to-memparse.patch
-* lib-string_helpersc-constify-static-arrays.patch
-* lib-test-kstrtoxc-use-array_size-instead-of-sizeof-sizeof.patch
-* kernelh-remove-deprecated-pack_hex_byte.patch
-* lib-list_sort_test-return-enomem-when-allocation-fails.patch
-* lib-list_sort_test-add-extra-corruption-check.patch
-* lib-list_sort_test-simplify-and-harden-cleanup.patch
-* lib-list_sortc-limit-number-of-unused-cmp-callbacks.patch
-* lib-list_sortc-convert-to-pr_foo.patch
-* lib-list_sortc-convert-to-pr_foo-fix.patch
-* lib-add-crc64-ecma-module.patch
-* fs-compatc-remove-unnecessary-test-on-unsigned-value.patch
-* checkpatch-attempt-to-find-unnecessary-out-of-memory-messages.patch
-* checkpatch-warn-on-unnecessary-else-after-return-or-break.patch
-* checkpatch-fix-complex-macro-false-positive-for-escaped-constant-char.patch
-* checkpatch-fix-function-pointers-in-blank-line-needed-after-declarations-test.patch
-* checkpatch-ignore-email-headers-better.patch
-* checkpatchpl-also-suggest-else-if-when-if-follows-brace.patch
-* checkpatch-add-test-for-blank-lines-after-function-struct-union-enum.patch
-* checkpatch-add-test-for-blank-lines-after-function-struct-union-enum-declarations.patch
-* checkpatch-add-a-multiple-blank-lines-test.patch
-* checkpatch-change-blank-line-after-declaration-type-to-line_spacing.patch
-* checkpatch-quiet-kconfig-help-message-checking.patch
-* checkpatch-warn-on-unnecessary-parentheses-around-references-of-foo-bar.patch
-* checkpatch-allow-multiple-const-types.patch
-* checkpatch-improve-no-space-after-cast-test.patch
-* checkpatch-emit-fewer-kmalloc_array-kcalloc-conversion-warnings.patch
-* checkpatch-add-test-for-commit-id-formatting-style-in-commit-log.patch
-* fs-efs-nameic-return-is-not-a-function.patch
-* binfmt_elfc-use-get_random_int-to-fix-entropy-depleting.patch
-* binfmt_elfc-use-get_random_int-to-fix-entropy-depleting-fix.patch
-* fs-ramfs-file-nommuc-replace-countsize-kzalloc-by-kcalloc.patch
-* init-make-rootdelay=n-consistent-with-rootwait-behaviour.patch
-* kernel-test_kprobesc-use-current-logging-functions.patch
-* rtc-add-support-of-nvram-for-maxim-dallas-rtc-ds1343.patch
-* rtc-move-ds2404-entry-where-it-belongs.patch
-* rtc-add-hardware-dependency-to-rtc-moxart.patch
-* rtc-rtc-ds1742-revert-drivers-rtc-rtc-ds1742c-remove-redundant-of_match_ptr-helper.patch
-* rtc-efi-check-for-invalid-data-coming-back-from-uefi.patch
-* fs-isofs-logging-clean-up.patch
-* fs-isofs-logging-clean-up-fix.patch
-* fs-coda-use-linux-uaccessh.patch
-* fs-nilfs2-superc-remove-unnecessary-test-on-unsigned-value.patch
-* nilfs2-add-sys-fs-nilfs2-features-group.patch
-* nilfs2-add-sys-fs-nilfs2-device-group.patch
-* nilfs2-add-sys-fs-nilfs2-device-superblock-group.patch
-* nilfs2-add-sys-fs-nilfs2-device-segctor-group.patch
-* nilfs2-add-sys-fs-nilfs2-device-segments-group.patch
-* nilfs2-add-sys-fs-nilfs2-device-checkpoints-group.patch
-* nilfs2-add-sys-fs-nilfs2-device-mounted_snapshots-group.patch
-* nilfs2-add-sys-fs-nilfs2-device-mounted_snapshots-snapshot-group.patch
-* nilfs2-integrate-sysfs-support-into-driver.patch
-* nilfs2-integrate-sysfs-support-into-driver-fix.patch
-* hfsplus-fix-longname-handling.patch
-* fs-ufs-convert-printk-to-pr_foo.patch
-* fs-ufs-use-pr_fmt.patch
-* fs-ufs-superc-use-__func__-in-logging.patch
-* fs-ufs-superc-use-va_format-instead-of-buffer-vsnprintf.patch
-* fs-ufs-convert-ufsd-printk-to-pr_debug.patch
-* fs-reiserfs-replace-not-standard-%lu-%ld.patch
-* fs-reiserfs-use-linux-uaccessh.patch
-* fs-reiserfs-xattrc-fix-blank-line-missing-after-declarations.patch
-* fs-hpfs-dnodec-fix-suspect-code-indent.patch
-* fs-proc-kcorec-use-page_align-instead-of-alignpage_size.patch
-* proc-constify-seq_operations.patch
-* fork-exec-cleanup-mm-initialization.patch
-* fork-reset-mm-pinned_vm.patch
-* fork-copy-mms-vm-usage-counters-under-mmap_sem.patch
-* bin2c-move-bin2c-in-scripts-basic.patch
-* kernel-build-bin2c-based-on-config-option-config_build_bin2c.patch
-* kexec-rename-unusebale_pages-to-unusable_pages.patch
-* kexec-move-segment-verification-code-in-a-separate-function.patch
-* kexec-use-common-function-for-kimage_normal_alloc-and-kimage_crash_alloc.patch
-* resource-provide-new-functions-to-walk-through-resources.patch
-* kexec-make-kexec_segment-user-buffer-pointer-a-union.patch
-* kexec-new-syscall-kexec_file_load-declaration.patch
-* kexec-implementation-of-new-syscall-kexec_file_load.patch
-* kexec-implementation-of-new-syscall-kexec_file_load-checkpatch-fixes.patch
-* kexec-implementation-of-new-syscall-kexec_file_load-fix.patch
-* purgatory-sha256-provide-implementation-of-sha256-in-purgaotory-context.patch
-* purgatory-core-purgatory-functionality.patch
-* kexec-load-and-relocate-purgatory-at-kernel-load-time.patch
-* kexec-bzimage64-support-for-loading-bzimage-using-64bit-entry.patch
-* kexec-bzimage64-support-for-loading-bzimage-using-64bit-entry-fix.patch
-* kexec-support-for-kexec-on-panic-using-new-system-call.patch
-* kexec-support-for-kexec-on-panic-using-new-system-call-fix.patch
-* kexec-support-kexec-kdump-on-efi-systems.patch
-* kexec-support-kexec-kdump-on-efi-systems-fix.patch
-* lib-idr-fix-out-of-bounds-pointer-dereference.patch
-* sysctl-remove-now-unused-typedef-ctl_table.patch
-* sysctl-remove-now-unused-typedef-ctl_table-fix.patch
-* fs-exofs-ore_raidc-replace-countsize-kzalloc-by-kcalloc.patch
-* kernel-gcov-fsc-remove-unnecessary-null-test-before-debugfs_remove.patch
-* fs-adfs-dir_fplusc-use-array_size-instead-of-sizeof-sizeof.patch
-* fs-adfs-dir_fplusc-replace-countsize-kzalloc-by-kcalloc.patch
-* adfs-add-__printf-verification-fix-format-argument-mismatches.patch
-* fs-bfs-use-bfs-prefix-for-dump_imap.patch
-* panic-add-taint_softlockup.patch
-* panic-add-taint_softlockup-fix.patch
-* drivers-parport-parport_ip32c-use-ptr_err_or_zero.patch
-* fs-pstore-ram_corec-replace-countsize-kmalloc-by-kmalloc_array.patch
-* fs-cachefiles-daemonc-remove-unnecessary-tests-on-unsigned-values.patch
-* fs-cachefiles-bindc-remove-unnecessary-assertions.patch
-* fs-omfs-inodec-replace-countsize-kzalloc-by-kcalloc.patch
-* fs-romfs-superc-convert-printk-to-pr_foo.patch
-* fs-romfs-superc-use-pr_fmt-in-logging.patch
-* fs-romfs-superc-add-blank-line-after-declarations.patch
-* fs-qnx6-convert-printk-to-pr_foo.patch
-* fs-qnx6-use-pr_fmt-and-__func__-in-logging.patch
-* fs-qnx6-update-debugging-to-current-functions.patch
-* initrd-fix-lz4-decompress-with-initrd.patch
-* initramfs-support-initrd-that-is-bigger-than-2gib.patch
-* initramfs-support-initramfs-that-is-bigger-than-2gib.patch
-* shm-make-exit_shm-work-proportional-to-task-activity.patch
-* shm-allow-exit_shm-in-parallel-if-only-marking-orphans.patch
-* shm-remove-unneeded-extern-for-function.patch
-* lib-scatterlist-make-arch_has_sg_chain-an-actual-kconfig.patch
-* lib-scatterlist-make-arch_has_sg_chain-an-actual-kconfig-fix.patch
-* lib-scatterlist-make-arch_has_sg_chain-an-actual-kconfig-fix-2.patch
-* lib-scatterlist-make-arch_has_sg_chain-an-actual-kconfig-fix-3.patch
-* lib-scatterlist-clean-up-useless-architecture-versions-of-scatterlisth.patch
-* scripts-coccinelle-free-add-null-test-before-freeing-functions.patch
-* scripts-tagssh-include-compat_sys_-symbols-in-the-generated-tags.patch
-* fs-dlm-debug_fsc-remove-unnecessary-null-test-before-debugfs_remove.patch
-  linux-next.patch
-* drivers-gpio-gpio-zevioc-fix-build.patch
-* init-mainc-code-clean-up.patch
-* arch-arm-mach-omap2-replace-strict_strto-with-kstrto.patch
-* arch-arm-mach-pxa-replace-strict_strto-call-with-kstrto.patch
-* arch-arm-mach-s3c24xx-mach-jivec-replace-strict_strto-with-kstrto.patch
-* arch-arm-mach-w90x900-cpuc-replace-obsolete-strict_strto.patch
-* arch-powerpc-replace-obsolete-strict_strto-calls.patch
-* arch-x86-replace-strict_strto-calls.patch
-* drivers-scsi-replace-strict_strto-calls.patch
-* net-sunrpc-replace-strict_strto-calls.patch
-* drivers-staging-emxx_udc-emxx_udcc-replace-strict_strto-with-kstrto.patch
-* include-linux-remove-strict_strto-definitions.patch
-* pci-dma-compat-add-pci_zalloc_consistent-helper.patch
-* atm-use-pci_zalloc_consistent.patch
-* block-use-pci_zalloc_consistent.patch
-* crypto-use-pci_zalloc_consistent.patch
-* infiniband-use-pci_zalloc_consistent.patch
-* i810-use-pci_zalloc_consistent.patch
-* media-use-pci_zalloc_consistent.patch
-* amd-use-pci_zalloc_consistent.patch
-* atl1e-use-pci_zalloc_consistent.patch
-* enic-use-pci_zalloc_consistent.patch
-* sky2-use-pci_zalloc_consistent.patch
-* micrel-use-pci_zalloc_consistent.patch
-* qlogic-use-pci_zalloc_consistent.patch
-* irda-use-pci_zalloc_consistent.patch
-* ipw2100-use-pci_zalloc_consistent.patch
-* mwl8k-use-pci_zalloc_consistent.patch
-* rtl818x-use-pci_zalloc_consistent.patch
-* rtlwifi-use-pci_zalloc_consistent.patch
-* scsi-use-pci_zalloc_consistent.patch
-* staging-use-pci_zalloc_consistent.patch
-* synclink_gt-use-pci_zalloc_consistent.patch
-* vme-bridges-use-pci_zalloc_consistent.patch
-* amd-neaten-and-remove-unnecessary-oom-messages.patch
-* kernel-kprobesc-convert-printk-to-pr_foo.patch
-* mm-replace-remap_file_pages-syscall-with-emulation.patch
-* mm-replace-remap_file_pages-syscall-with-emulation-fix.patch
-* mm-replace-remap_file_pages-syscall-with-emulation-fix-2.patch
-* mm-replace-remap_file_pages-syscall-with-emulation-fix-3.patch
-* memcg-deprecate-memoryforce_empty-knob.patch
-* memcg-deprecate-memoryforce_empty-knob-fix.patch
-* fat-add-i_disksize-to-represent-uninitialized-size-v4.patch
-* fat-add-fat_fallocate-operation-v4.patch
-* fat-zero-out-seek-range-on-_fat_get_block-v4.patch
-* fat-fallback-to-buffered-write-in-case-of-fallocated-region-on-direct-io-v4.patch
-* fat-permit-to-return-phy-block-number-by-fibmap-in-fallocated-region-v4.patch
-* documentation-filesystems-vfattxt-update-the-limitation-for-fat-fallocate-v4.patch
-* w1-call-put_device-if-device_register-fails.patch
-* mm-add-strictlimit-knob-v2.patch
-  debugging-keep-track-of-page-owners.patch
-  page-owners-correct-page-order-when-to-free-page.patch
-  make-sure-nobodys-leaking-resources.patch
-  journal_add_journal_head-debug.patch
-  journal_add_journal_head-debug-fix.patch
-  releasing-resources-with-children.patch
-  make-frame_pointer-default=y.patch
-  kernel-forkc-export-kernel_thread-to-modules.patch
-  mutex-subsystem-synchro-test-module.patch
-  slab-leaks3-default-y.patch
-  put_bh-debug.patch
-  add-debugging-aid-for-memory-initialisation-problems.patch
-  workaround-for-a-pci-restoring-bug.patch
-  single_open-seq_release-leak-diagnostics.patch
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
