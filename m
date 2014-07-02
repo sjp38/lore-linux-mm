@@ -1,42 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C8146B0038
-	for <linux-mm@kvack.org>; Wed,  2 Jul 2014 14:24:19 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id rd3so12923377pab.18
-        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 11:24:19 -0700 (PDT)
-Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
-        by mx.google.com with ESMTP id cd2si30939522pbb.90.2014.07.02.11.24.16
-        for <linux-mm@kvack.org>;
-        Wed, 02 Jul 2014 11:24:17 -0700 (PDT)
-Message-ID: <53B44E4E.6020706@sr71.net>
-Date: Wed, 02 Jul 2014 11:24:14 -0700
-From: Dave Hansen <dave@sr71.net>
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A6126B0038
+	for <linux-mm@kvack.org>; Wed,  2 Jul 2014 14:40:57 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id g10so12412395pdj.28
+        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 11:40:56 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id ck17si289518pdb.421.2014.07.02.11.40.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Jul 2014 11:40:51 -0700 (PDT)
+Date: Wed, 2 Jul 2014 11:40:50 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: IMA: kernel reading files opened with O_DIRECT
+Message-ID: <20140702184050.GA24583@infradead.org>
+References: <53B3D3AA.3000408@samsung.com>
+ <x49y4wbu54y.fsf@segfault.boston.devel.redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 7/7] x86: mm: set TLB flush tunable to sane value (33)
-References: <20140701164845.8D1A5702@viggo.jf.intel.com> <20140701164856.3020D644@viggo.jf.intel.com> <53B44C9A.9070808@nellans.org>
-In-Reply-To: <53B44C9A.9070808@nellans.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <x49y4wbu54y.fsf@segfault.boston.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Nellans <david@nellans.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "hpa@zytor.com" <hpa@zytor.com>, "mingo@redhat.com" <mingo@redhat.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "x86@kernel.org" <x86@kernel.org>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "riel@redhat.com" <riel@redhat.com>, "mgorman@suse.de" <mgorman@suse.de>
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Dmitry Kasatkin <d.kasatkin@samsung.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, viro@ZenIV.linux.org.uk, Mimi Zohar <zohar@linux.vnet.ibm.com>, linux-security-module <linux-security-module@vger.kernel.org>, Greg KH <gregkh@linuxfoundation.org>, Dmitry Kasatkin <dmitry.kasatkin@gmail.com>
 
-On 07/02/2014 11:16 AM, David Nellans wrote:
-> Intuition here is that invalidate caused refills will almost always
-> be serviced from the L2 or better since we've recently walked to
-> modify the page needing flush and thus pre-warmed the caches for any
-> refill? Or is this an artifact of the flush/refill test setup?
+On Wed, Jul 02, 2014 at 11:55:41AM -0400, Jeff Moyer wrote:
+> It's acceptable.
 
-There are lots of caches in place, not just the CPU's normal L1/2/3
-memory caches.  See "4.10.3 Paging-Structure Caches" in the Intel SDM.
-I _believe_ TLB misses can be serviced from these caches and their
-purpose is to avoid going out to memory (or the memory caches).
+It's not because it will then also affect other reads going on at the
+same time.
 
-So I think the effect that we're seeing is from _all_ of the caches,
-plus prefetching.  If you start a prefetch for a TLB miss before you
-actually start to run the instruction needing the TLB entry, you will
-pay less than the entire cost of going out to memory (or the memory caches).
+The whole concept of ima is just broken, and if you want to do these
+sort of verification they need to happen inside the filesystem and not
+above it.
+
+We really should never have merged ima, and I think we should leave
+these sorts of issue that have been there since day one unfixed and
+deprecate it instead of adding workaround on top of workaround.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
