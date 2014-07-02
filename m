@@ -1,140 +1,223 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id D7E586B0031
-	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 21:29:13 -0400 (EDT)
-Received: by mail-we0-f173.google.com with SMTP id t60so10558745wes.4
-        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 18:29:13 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ku4si11809485wjb.157.2014.07.01.18.29.12
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 604EA6B0031
+	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 21:50:28 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id r10so11053598pdi.37
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 18:50:28 -0700 (PDT)
+Received: from mail-pd0-x22b.google.com (mail-pd0-x22b.google.com [2607:f8b0:400e:c02::22b])
+        by mx.google.com with ESMTPS id v3si66300pdp.385.2014.07.01.18.50.26
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 01 Jul 2014 18:29:12 -0700 (PDT)
-Date: Wed, 2 Jul 2014 11:28:58 +1000
-From: NeilBrown <neilb@suse.de>
-Subject: Re: [PATCH] SCHED: remove proliferation of wait_on_bit action
- functions.
-Message-ID: <20140702112858.12c8a504@notabene.brown>
-In-Reply-To: <20140606060419.GA3737@gmail.com>
-References: <20140501123738.3e64b2d2@notabene.brown>
-	<20140522090502.GB30094@gmail.com>
-	<20140522195056.445f2dcb@notabene.brown>
-	<20140605124509.GA1975@gmail.com>
-	<20140606102303.09ef9fb3@notabene.brown>
-	<20140606060419.GA3737@gmail.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=PGP-SHA1;
- boundary="Sig_/=QYeP+QY288.xRlZtBKJOUE"; protocol="application/pgp-signature"
+        Tue, 01 Jul 2014 18:50:27 -0700 (PDT)
+Received: by mail-pd0-f171.google.com with SMTP id fp1so11056052pdb.16
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 18:50:26 -0700 (PDT)
+Date: Tue, 1 Jul 2014 18:49:03 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: mm: shm: hang in shmem_fallocate
+In-Reply-To: <53B2A0E0.3000503@suse.cz>
+Message-ID: <alpine.LSU.2.11.1407011717350.14301@eggly.anvils>
+References: <52AE7B10.2080201@oracle.com> <52F6898A.50101@oracle.com> <alpine.LSU.2.11.1402081841160.26825@eggly.anvils> <52F82E62.2010709@oracle.com> <539A0FC8.8090504@oracle.com> <alpine.LSU.2.11.1406151921070.2850@eggly.anvils> <53A9A7D8.2020703@suse.cz>
+ <alpine.LSU.2.11.1406251152450.1580@eggly.anvils> <53ABE479.3080508@suse.cz> <alpine.LSU.2.11.1406262108390.27670@eggly.anvils> <53B2A0E0.3000503@suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Oleg Nesterov <oleg@redhat.com>, David Howells <dhowells@redhat.com>, Steven Whitehouse <swhiteho@redhat.com>, dm-devel@redhat.com, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, Steve French <sfrench@samba.org>, Theodore Ts'o <tytso@mit.edu>, Trond Myklebust <trond.myklebust@primarydata.com>, Ingo Molnar <mingo@redhat.com>, Roland McGrath <roland@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
---Sig_/=QYeP+QY288.xRlZtBKJOUE
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+On Tue, 1 Jul 2014, Vlastimil Babka wrote:
+> On 06/27/2014 07:36 AM, Hugh Dickins wrote:> [Cc Johannes: at the end I have
+> a particular question for you]
+> > On Thu, 26 Jun 2014, Vlastimil Babka wrote:
+> > > 
+> > > Thanks, I didn't notice that. Do I understand correctly that this could
+> > > mean
+> > > info leak for the punch hole call, but wouldn't be a problem for madvise?
+> > > (In
+> > > any case, that means the solution is not general enough for all kernels,
+> > > so
+> > > I'm asking just to be sure).
+> > 
+> > It's exactly the same issue for the madvise as for the fallocate:
+> > data that is promised to have been punched out would still be there.
+> 
+> AFAIK madvise doesn't promise anything. But nevermind.
 
-On Fri, 6 Jun 2014 08:04:19 +0200 Ingo Molnar <mingo@kernel.org> wrote:
+Good point.  I was looking at it from an implementation point of
+view, that the implementation is the same for both, so therefore the
+same issue for both.  But you are right, madvise makes no promise,
+so we can therefore excuse it.  You'd make a fine lawyer :)
 
->=20
-> * NeilBrown <neilb@suse.de> wrote:
->=20
-> > On Thu, 5 Jun 2014 14:45:09 +0200 Ingo Molnar <mingo@kernel.org> wrote:
-> >=20
-> > >=20
-> > > * NeilBrown <neilb@suse.de> wrote:
-> > >=20
-> > > > On Thu, 22 May 2014 11:05:02 +0200 Ingo Molnar <mingo@kernel.org> w=
-rote:
-> > > >=20
-> > > > >=20
-> > > > > * NeilBrown <neilb@suse.de> wrote:
-> > > > >=20
-> > > > > > [[ get_maintainer.pl suggested 61 email address for this patch.
-> > > > > >    I've trimmed that list somewhat.  Hope I didn't miss anyone
-> > > > > >    important...
-> > > > > >    I'm hoping it will go in through the scheduler tree, but wou=
-ld
-> > > > > >    particularly like an Acked-by for the fscache parts.  Other =
-acks
-> > > > > >    welcome.
-> > > > > > ]]
-> > > > > >=20
-> > > > > > The current "wait_on_bit" interface requires an 'action' functi=
-on
-> > > > > > to be provided which does the actual waiting.
-> > > > > > There are over 20 such functions, many of them identical.
-> > > > > > Most cases can be satisfied by one of just two functions, one
-> > > > > > which uses io_schedule() and one which just uses schedule().
-> > > > > >=20
-> > > > > > So:
-> > > > > >  Rename wait_on_bit and        wait_on_bit_lock to
-> > > > > >         wait_on_bit_action and wait_on_bit_lock_action
-> > > > > >  to make it explicit that they need an action function.
-> > > > > >=20
-> > > > > >  Introduce new wait_on_bit{,_lock} and wait_on_bit{,_lock}_io
-> > > > > >  which are *not* given an action function but implicitly use
-> > > > > >  a standard one.
-> > > > > >  The decision to error-out if a signal is pending is now made
-> > > > > >  based on the 'mode' argument rather than being encoded in the =
-action
-> > > > > >  function.
-> > > > >=20
-> > > > > this patch fails to build on x86-32 allyesconfigs.
-> > > >=20
-> > > > Could you share the build errors?
-> > >=20
-> > > Sure, find it attached below.
-> >=20
-> > Thanks.
-> >=20
-> > It looks like this is a wait_on_bit usage that was added after I create=
-d the
-> > patch.
-> >=20
-> > How about you drop my patch for now, we wait for -rc1 to come out, then=
- I
-> > submit a new version against -rc1 and we get that into -rc2.
-> > That should minimise such conflicts.
-> >=20
-> > Does that work for you?
->=20
-> Sure, that sounds like a good approach, if Linus doesn't object.
->=20
+> > 
+> > So let's all forget that patch, although it does help to highlight my
+> > mistake in d0823576bf4b.  (Oh, hey, let's all forget my mistake too!)
+> 
+> What patch? What mistake? :)
 
-Hi Ingo,
- I re-posted these patches based on -rc2 (I missed -rc1, it was too fast) a=
-nd
- have not heard anything over a week later.  Did I misunderstand?  Did you
- want me to send them direct to Linus?
- Or are you on a summer break and I should just be patient?
+Yes, which of my increasingly many? :(
 
-Thanks,
-NeilBrown
+> 
+> > Here's the 3.16-rc2 patch that I've now settled on (which will also
+> > require a revert of current git's f00cdc6df7d7; well, not require the
+> > revert, but this makes that redundant, and cannot be tested with it in).
+> > 
+> > I've not yet had time to write up the patch description, nor to test
+> > it fully; but thought I should get the patch itself into the open for
+> > review and testing before then.
+> 
+> It seems to work here (tested 3.16-rc1 which didn't have f00cdc6df7d7 yet).
+> Checking for end != -1 is indeed much more elegant solution than i_size.
+> Thanks. So you can add my Tested-by.
 
+Thanks a lot for the testing, Vlastimir.
 
---Sig_/=QYeP+QY288.xRlZtBKJOUE
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Disposition: attachment; filename=signature.asc
+Though I'm happy with the new shmem.c patch, I've thought more about my
+truncate.c patch meanwhile, and grown unhappy with it for two reasons.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.22 (GNU/Linux)
+One was remembering that XFS still uses lend -1 even when punching a
+hole: it writes out dirty pages, then throws away the pagecache from
+start of hole to end of file; not brilliant (and a violation of mlock),
+but that's how it is, and I'm not about to become an XFS hacker to fix
+it (I did long ago send a patch I thought fixed it, but it never went
+in, and I could easily have overlooked all kinds of XFS subtleties).
 
-iQIVAwUBU7NgWjnsnt1WYoG5AQII1w//VComARvqt3VvWrvmnDLA0VuceV4ZipH/
-bJ/z5WegEkvgo3YXg6TuiU5149NOrCV3ccqGyQAqzOamXzUbFIMYxQbSMNPpNcAq
-aOj24ngtnFlRttn6x4KiyF3iZCj553+nazZ423XBCn74K8doav66M/iuHu1KDzuu
-oV9zgkzwefx3+/bfsX4SIoHelgjM2b5oiIiAYbvlF35dJgHDfHWYERbURCegbb4l
-jNSCdyu7hYQ9hv0JZUGHjziG4WAf4eEJMXOnOHtcz6Ud/pnCc1IhJGJjyDUImPXp
-VPYo+C8T/zd6+OnAgxQ0xZhDLMw8BS8xfc9U8/BvypxeVoDVPYfBDwL0WsdyVrfj
-3O5+8p3Tlh78AhXAuU5IoXD0X5ADvObXrAqoPa3N1ZmzbdKDy23WPqsC0nIOw6p1
-LIviOly29b9/DZLr+fUZ6Q3fKvY4QKVM3Y301oEHpFOwdhDl0gUJ+rk2602Oj56f
-N+lJLkUYsfeFs+RcU7elzNM+RYXHCUuVk8Jf5sRek7D8jq86+y4W/nRZ+h4G6vmt
-KRnS+ZP7tfD+hfH6nc2gg1ntKBz5siYkQNumgei2w8mgwFymA7Q932qhfL3lI3vJ
-UbqMTlHq3vujWJ6bNPxpwC8GzCToce6ufjS4Yx2oI+AK6SrGP5yKZazQymDtxtuR
-ONcujyX/idg=
-=bvEK
------END PGP SIGNATURE-----
+So although the end -1 test is more satisfying in tmpfs, and I don't
+particularly like making assumptions in truncate_inode_pages_range()
+about what i_size will show at that point, XFS would probably push
+me back to using your original i_size test in truncate.c.
 
---Sig_/=QYeP+QY288.xRlZtBKJOUE--
+If we are to stop the endless pincer in truncate.c like in shmem.c.
+
+But the other reason I'm unhappy with it, is really a generalization
+of that.  Starting from the question I asked Hannes below, I came to
+realize that truncate_inode_pages_range() is serving many filesystems,
+and I don't know what all their assumptions are; and even if I spent
+days researching what each requires of truncate_inode_pages_range(),
+chances are that I wouldn't get the right answer on all of them.
+Maybe there is a filesystem which now depends upon it to clean out
+that hole completely: obviously not before I made the change, but
+perhaps in the years since.
+
+So, although I dislike tmpfs behaviour diverging from the others here,
+we do have Sasha's assurance that tmpfs was the only one to show the
+problem, and no intention of implementing hole-punch on ramfs: so I
+think the safest course is for me not to interfere with the other
+filesystems, just fix the pessimization I introduced back then.
+
+And now that we have hard evidence that my "fix" there in -rc3
+must be reverted, I should move forward with the alternative.
+
+Hugh
+
+> 
+> > I've checked against v3.1 to see how it works out there: certainly
+> > wouldn't apply cleanly (and beware: prior to v3.5's shmem_undo_range,
+> > "end" was included in the range, not excluded), but the same
+> > principles apply.  Haven't checked the intermediates yet, will
+> > probably leave those until each stable wants them - but if you've a
+> > particular release in mind, please ask, or ask me to check your port.
+> 
+> I will try, thanks.
+> 
+> > I've included the mm/truncate.c part of it here, but that will be a
+> > separate (not for -stable) patch when I post the finalized version.
+> > 
+> > Hannes, a question for you please, I just could not make up my mind.
+> > In mm/truncate.c truncate_inode_pages_range(), what should be done
+> > with a failed clear_exceptional_entry() in the case of hole-punch?
+> > Is that case currently depending on the rescan loop (that I'm about
+> > to revert) to remove a new page, so I would need to add a retry for
+> > that rather like the shmem_free_swap() one?  Or is it irrelevant,
+> > and can stay unchanged as below?  I've veered back and forth,
+> > thinking first one and then the other.
+> > 
+> > Thanks,
+> > Hugh
+> > 
+> > ---
+> > 
+> >   mm/shmem.c    |   19 ++++++++++---------
+> >   mm/truncate.c |   14 +++++---------
+> >   2 files changed, 15 insertions(+), 18 deletions(-)
+> > 
+> > --- 3.16-rc2/mm/shmem.c	2014-06-16 00:28:55.124076531 -0700
+> > +++ linux/mm/shmem.c	2014-06-26 15:41:52.704362962 -0700
+> > @@ -467,23 +467,20 @@ static void shmem_undo_range(struct inod
+> >   		return;
+> > 
+> >   	index = start;
+> > -	for ( ; ; ) {
+> > +	while (index < end) {
+> >   		cond_resched();
+> > 
+> >   		pvec.nr = find_get_entries(mapping, index,
+> >   				min(end - index, (pgoff_t)PAGEVEC_SIZE),
+> >   				pvec.pages, indices);
+> >   		if (!pvec.nr) {
+> > -			if (index == start || unfalloc)
+> > +			/* If all gone or hole-punch or unfalloc, we're done
+> > */
+> > +			if (index == start || end != -1)
+> >   				break;
+> > +			/* But if truncating, restart to make sure all gone
+> > */
+> >   			index = start;
+> >   			continue;
+> >   		}
+> > -		if ((index == start || unfalloc) && indices[0] >= end) {
+> > -			pagevec_remove_exceptionals(&pvec);
+> > -			pagevec_release(&pvec);
+> > -			break;
+> > -		}
+> >   		mem_cgroup_uncharge_start();
+> >   		for (i = 0; i < pagevec_count(&pvec); i++) {
+> >   			struct page *page = pvec.pages[i];
+> > @@ -495,8 +492,12 @@ static void shmem_undo_range(struct inod
+> >   			if (radix_tree_exceptional_entry(page)) {
+> >   				if (unfalloc)
+> >   					continue;
+> > -				nr_swaps_freed += !shmem_free_swap(mapping,
+> > -								index, page);
+> > +				if (shmem_free_swap(mapping, index, page)) {
+> > +					/* Swap was replaced by page: retry
+> > */
+> > +					index--;
+> > +					break;
+> > +				}
+> > +				nr_swaps_freed++;
+> >   				continue;
+> >   			}
+> > 
+> > --- 3.16-rc2/mm/truncate.c	2014-06-08 11:19:54.000000000 -0700
+> > +++ linux/mm/truncate.c	2014-06-26 16:31:35.932433863 -0700
+> > @@ -352,21 +352,17 @@ void truncate_inode_pages_range(struct a
+> >   		return;
+> > 
+> >   	index = start;
+> > -	for ( ; ; ) {
+> > +	while (index < end) {
+> >   		cond_resched();
+> >   		if (!pagevec_lookup_entries(&pvec, mapping, index,
+> > -			min(end - index, (pgoff_t)PAGEVEC_SIZE),
+> > -			indices)) {
+> > -			if (index == start)
+> > +			min(end - index, (pgoff_t)PAGEVEC_SIZE), indices)) {
+> > +			/* If all gone or hole-punch, we're done */
+> > +			if (index == start || end != -1)
+> >   				break;
+> > +			/* But if truncating, restart to make sure all gone
+> > */
+> >   			index = start;
+> >   			continue;
+> >   		}
+> > -		if (index == start && indices[0] >= end) {
+> > -			pagevec_remove_exceptionals(&pvec);
+> > -			pagevec_release(&pvec);
+> > -			break;
+> > -		}
+> >   		mem_cgroup_uncharge_start();
+> >   		for (i = 0; i < pagevec_count(&pvec); i++) {
+> >   			struct page *page = pvec.pages[i];
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
