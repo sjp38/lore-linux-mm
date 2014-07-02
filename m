@@ -1,22 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 593FA6B0031
-	for <linux-mm@kvack.org>; Wed,  2 Jul 2014 15:13:25 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id et14so12998350pad.7
-        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 12:13:25 -0700 (PDT)
-Received: from mail-pd0-x233.google.com (mail-pd0-x233.google.com [2607:f8b0:400e:c02::233])
-        by mx.google.com with ESMTPS id ic8si30999779pad.95.2014.07.02.12.13.22
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D4786B0031
+	for <linux-mm@kvack.org>; Wed,  2 Jul 2014 15:14:53 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id ey11so13001623pad.12
+        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 12:14:53 -0700 (PDT)
+Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com [2607:f8b0:400e:c03::22a])
+        by mx.google.com with ESMTPS id os2si30984037pbc.168.2014.07.02.12.14.51
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 02 Jul 2014 12:13:23 -0700 (PDT)
-Received: by mail-pd0-f179.google.com with SMTP id w10so12491717pde.10
-        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 12:13:22 -0700 (PDT)
-Date: Wed, 2 Jul 2014 12:11:59 -0700 (PDT)
+        Wed, 02 Jul 2014 12:14:52 -0700 (PDT)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so13104895pab.1
+        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 12:14:51 -0700 (PDT)
+Date: Wed, 2 Jul 2014 12:13:28 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 2/3] shmem: fix faulting into a hole while it's punched, take
- 2
+Subject: [PATCH 3/3] mm/fs: fix pessimization in hole-punching pagecache
 In-Reply-To: <alpine.LSU.2.11.1407021204180.12131@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1407021209570.12131@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1407021212060.12131@eggly.anvils>
 References: <alpine.LSU.2.11.1407021204180.12131@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
@@ -25,92 +24,75 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Sasha Levin <sasha.levin@oracle.com>, Vlastimil Babka <vbabka@suse.cz>, Konstantin Khlebnikov <koct9i@gmail.com>, Lukas Czerner <lczerner@redhat.com>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Trinity finds that mmap access to a hole while it's punched from shmem
-can prevent the madvise(MADV_REMOVE) or fallocate(FALLOC_FL_PUNCH_HOLE)
-from completing, until the (killable) reader stops; with the puncher's
-hold on i_mutex locking out all other writers until it can complete.
-This issue was tagged with CVE-2014-4171.
+I wanted to revert my v3.1 commit d0823576bf4b ("mm: pincer in
+truncate_inode_pages_range"), to keep truncate_inode_pages_range()
+in synch with shmem_undo_range(); but have stepped back - a change
+to hole-punching in truncate_inode_pages_range() is a change to
+hole-punching in every filesystem (except tmpfs) that supports it.
 
-It appears that the tmpfs fault path is too light in comparison with its
-hole-punching path, lacking an i_data_sem to obstruct it; but we don't
-want to slow down the common case.  It is not a problem in truncation,
-because there the SIGBUS beyond i_size stops pages from being appended.
+If there's a logical proof why no filesystem can depend for its own
+correctness on the pincer guarantee in truncate_inode_pages_range() -
+an instant when the entire hole is removed from pagecache - then let's
+revisit later.  But the evidence is that only tmpfs suffered from the
+livelock, and we have no intention of extending hole-punch to ramfs.
+So for now just add a few comments (to match or differ from those in
+shmem_undo_range()), and fix one silliness noticed in d0823576bf4b...
 
-The origin of this problem is my v3.1 commit d0823576bf4b ("mm: pincer
-in truncate_inode_pages_range"), once it was duplicated into shmem.c.
-It seemed like a nice idea at the time, to ensure (barring RCU lookup
-fuzziness) that there's an instant when the entire hole is empty; but 
-the indefinitely repeated scans to ensure that make it vulnerable.
+Its "index == start" addition to the hole-punch termination test was
+incomplete: it opened a way for the end condition to be missed, and the
+loop go on looking through the radix_tree, all the way to end of file.
+Fix that pessimization by resetting index when detected in inner loop.
 
-Revert that "enhancement" to hole-punch from shmem_undo_range(), but
-retain the unproblematic rescanning when it's truncating; add a couple
-of comments there.
+Note that it's actually hard to hit this case, without the obsessive
+concurrent faulting that trinity does: normally all pages are removed
+in the initial trylock_page() pass, and this loop finds nothing to do.
+I had to "#if 0" out the initial pass to reproduce bug and test fix.
 
-Remove the "indices[0] >= end" test: that is now handled satisfactorily
-by the inner loop, and mem_cgroup_uncharge_start()/end() are too light
-to be worth avoiding here.
-
-But if we do not always loop indefinitely, we do need to handle the
-case of swap swizzled back to page before shmem_free_swap() gets it:
-add a retry for that case, as suggested by Konstantin Khlebnikov.
-
-Reported-by: Sasha Levin <sasha.levin@oracle.com>
-Suggested-and-Tested-by: Vlastimil Babka <vbabka@suse.cz>
 Signed-off-by: Hugh Dickins <hughd@google.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
 Cc: Konstantin Khlebnikov <koct9i@gmail.com>
 Cc: Lukas Czerner <lczerner@redhat.com>
 Cc: Dave Jones <davej@redhat.com>
-Cc: stable@vger.kernel.org # v3.1+
 ---
 
- mm/shmem.c |   19 ++++++++++---------
- 1 file changed, 10 insertions(+), 9 deletions(-)
+ mm/truncate.c |   11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
 
---- 3.16-rc3+/mm/shmem.c	2014-07-02 03:31:12.956546569 -0700
-+++ linux/mm/shmem.c	2014-07-02 03:34:13.172550852 -0700
-@@ -467,23 +467,20 @@ static void shmem_undo_range(struct inod
- 		return;
- 
- 	index = start;
--	for ( ; ; ) {
-+	while (index < end) {
+--- 3.16-rc3/mm/truncate.c	2014-06-08 11:19:54.000000000 -0700
++++ linux/mm/truncate.c	2014-07-02 03:36:05.972553533 -0700
+@@ -355,14 +355,16 @@ void truncate_inode_pages_range(struct a
+ 	for ( ; ; ) {
  		cond_resched();
- 
- 		pvec.nr = find_get_entries(mapping, index,
- 				min(end - index, (pgoff_t)PAGEVEC_SIZE),
- 				pvec.pages, indices);
- 		if (!pvec.nr) {
--			if (index == start || unfalloc)
-+			/* If all gone or hole-punch or unfalloc, we're done */
-+			if (index == start || end != -1)
+ 		if (!pagevec_lookup_entries(&pvec, mapping, index,
+-			min(end - index, (pgoff_t)PAGEVEC_SIZE),
+-			indices)) {
++			min(end - index, (pgoff_t)PAGEVEC_SIZE), indices)) {
++			/* If all gone from start onwards, we're done */
+ 			if (index == start)
  				break;
-+			/* But if truncating, restart to make sure all gone */
++			/* Otherwise restart to make sure all gone */
  			index = start;
  			continue;
  		}
--		if ((index == start || unfalloc) && indices[0] >= end) {
--			pagevec_remove_exceptionals(&pvec);
--			pagevec_release(&pvec);
--			break;
--		}
- 		mem_cgroup_uncharge_start();
- 		for (i = 0; i < pagevec_count(&pvec); i++) {
- 			struct page *page = pvec.pages[i];
-@@ -495,8 +492,12 @@ static void shmem_undo_range(struct inod
- 			if (radix_tree_exceptional_entry(page)) {
- 				if (unfalloc)
- 					continue;
--				nr_swaps_freed += !shmem_free_swap(mapping,
--								index, page);
-+				if (shmem_free_swap(mapping, index, page)) {
-+					/* Swap was replaced by page: retry */
-+					index--;
-+					break;
-+				}
-+				nr_swaps_freed++;
- 				continue;
- 			}
+ 		if (index == start && indices[0] >= end) {
++			/* All gone out of hole to be punched, we're done */
+ 			pagevec_remove_exceptionals(&pvec);
+ 			pagevec_release(&pvec);
+ 			break;
+@@ -373,8 +375,11 @@ void truncate_inode_pages_range(struct a
  
+ 			/* We rely upon deletion not changing page->index */
+ 			index = indices[i];
+-			if (index >= end)
++			if (index >= end) {
++				/* Restart punch to make sure all gone */
++				index = start - 1;
+ 				break;
++			}
+ 
+ 			if (radix_tree_exceptional_entry(page)) {
+ 				clear_exceptional_entry(mapping, index, page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
