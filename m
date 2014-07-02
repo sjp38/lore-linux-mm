@@ -1,82 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C0876B0037
-	for <linux-mm@kvack.org>; Wed,  2 Jul 2014 17:20:11 -0400 (EDT)
-Received: by mail-we0-f169.google.com with SMTP id t60so11936293wes.14
-        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 14:20:10 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id jp7si33295950wjc.62.2014.07.02.14.20.09
+Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 90D3A6B0039
+	for <linux-mm@kvack.org>; Wed,  2 Jul 2014 17:25:42 -0400 (EDT)
+Received: by mail-qg0-f45.google.com with SMTP id a108so5201360qge.18
+        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 14:25:42 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e6si34939118qar.46.2014.07.02.14.25.40
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 02 Jul 2014 14:20:10 -0700 (PDT)
-Date: Wed, 2 Jul 2014 17:20:04 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: mm: memcontrol: rewrite uncharge API: problems
-Message-ID: <20140702212004.GF1369@cmpxchg.org>
-References: <alpine.LSU.2.11.1406301558090.4572@eggly.anvils>
- <20140701174612.GC1369@cmpxchg.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Jul 2014 14:25:41 -0700 (PDT)
+Date: Wed, 2 Jul 2014 17:25:29 -0400
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: Re: [patch] mm, hugetlb: generalize writes to nr_hugepages
+Message-ID: <20140702172529.347f2dd2@redhat.com>
+In-Reply-To: <alpine.DEB.2.02.1406301655480.27587@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1406301655480.27587@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140701174612.GC1369@cmpxchg.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Jul 01, 2014 at 01:46:12PM -0400, Johannes Weiner wrote:
-> Hi Hugh,
-> 
-> On Mon, Jun 30, 2014 at 04:55:10PM -0700, Hugh Dickins wrote:
-> > Hi Hannes,
-> > 
-> > Your rewrite of the memcg charge/uncharge API is bold and attractive,
-> > but I'm having some problems with the way release_pages() now does
-> > uncharging in I/O completion context.
-> 
-> Yes, I need to make the uncharge path IRQ-safe.  This looks doable.
-> 
-> > At the bottom see the lockdep message I get when I start shmem swapping.
-> > Which I have not begun to attempt to decipher (over to you!), but I do
-> > see release_pages() mentioned in there (also i915, hope it's irrelevant).
-> 
-> This seems to be about uncharge acquiring the IRQ-unsafe soft limit
-> tree lock while the outer release_pages() holds the IRQ-safe lru_lock.
-> A separate issue, AFAICS, that would also be fixed by IRQ-proofing the
-> uncharge path.
-> 
-> > Which was already worrying me on the PowerPC G5, when moving tasks from
-> > one memcg to another and removing the old, while swapping and swappingoff
-> > (I haven't tried much else actually, maybe it's much easier to reproduce).
-> > 
-> > I get "unable to handle kernel paging at 0x180" oops in __raw_spinlock <
-> > res_counter_uncharge_until < mem_cgroup_uncharge_end < release_pages <
-> > free_pages_and_swap_cache < tlb_flush_mmu_free < tlb_finish_mmu <
-> > unmap_region < do_munmap (or from exit_mmap < mmput < do_exit).
-> > 
-> > I do have CONFIG_MEMCG_SWAP=y, and I think 0x180 corresponds to the
-> > memsw res_counter spinlock, if memcg is NULL.  I don't understand why
-> > usually the PowerPC: I did see something like it once on this x86 laptop,
-> > maybe having lockdep in on this slows things down enough not to hit that.
-> > 
-> > I've stopped those crashes with patch below: the memcg_batch uncharging
-> > was never designed for use from interrupts.  But I bet it needs more work:
-> > to disable interrupts, or do something clever with atomics, or... over to
-> > you again.
-> 
-> I was convinced I had tested these changes with lockdep enabled, but
-> it must have been at an earlier stage while developing the series.
-> Otherwise, I should have gotten the same splat as you report.
+On Mon, 30 Jun 2014 16:57:06 -0700 (PDT)
+David Rientjes <rientjes@google.com> wrote:
 
-Turns out this was because the soft limit was not set in my tests, and
-without soft limit excess that spinlock is never acquired.  I could
-reproduce it now.
+> Three different interfaces alter the maximum number of hugepages for an
+> hstate:
+> 
+>  - /proc/sys/vm/nr_hugepages for global number of hugepages of the default
+>    hstate,
+> 
+>  - /sys/kernel/mm/hugepages/hugepages-X/nr_hugepages for global number of
+>    hugepages for a specific hstate, and
+> 
+>  - /sys/kernel/mm/hugepages/hugepages-X/nr_hugepages/mempolicy for number of
+>    hugepages for a specific hstate over the set of allowed nodes.
+> 
+> Generalize the code so that a single function handles all of these writes 
+> instead of duplicating the code in two different functions.
+> 
+> This decreases the number of lines of code, but also reduces the size of
+> .text by about half a percent since set_max_huge_pages() can be inlined.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>  mm/hugetlb.c | 61 ++++++++++++++++++++++++++----------------------------------
+>  1 file changed, 26 insertions(+), 35 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1734,21 +1734,13 @@ static ssize_t nr_hugepages_show_common(struct kobject *kobj,
+>  	return sprintf(buf, "%lu\n", nr_huge_pages);
+>  }
+>  
+> -static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+> -			struct kobject *kobj, struct kobj_attribute *attr,
+> -			const char *buf, size_t len)
+> +static ssize_t __nr_hugepages_store_common(bool obey_mempolicy,
+> +					   struct hstate *h, int nid,
+> +					   unsigned long count, size_t len)
+>  {
+>  	int err;
+> -	int nid;
+> -	unsigned long count;
+> -	struct hstate *h;
+>  	NODEMASK_ALLOC(nodemask_t, nodes_allowed, GFP_KERNEL | __GFP_NORETRY);
+>  
+> -	err = kstrtoul(buf, 10, &count);
+> -	if (err)
+> -		goto out;
+> -
+> -	h = kobj_to_hstate(kobj, &nid);
+>  	if (hstate_is_gigantic(h) && !gigantic_page_supported()) {
+>  		err = -EINVAL;
+>  		goto out;
+> @@ -1784,6 +1776,23 @@ out:
+>  	return err;
+>  }
+>  
+> +static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+> +					 struct kobject *kobj, const char *buf,
+> +					 size_t len)
+> +{
+> +	struct hstate *h;
+> +	unsigned long count;
+> +	int nid;
+> +	int err;
+> +
+> +	err = kstrtoul(buf, 10, &count);
+> +	if (err)
+> +		return err;
+> +
+> +	h = kobj_to_hstate(kobj, &nid);
+> +	return __nr_hugepages_store_common(obey_mempolicy, h, nid, count, len);
+> +}
+> +
+>  static ssize_t nr_hugepages_show(struct kobject *kobj,
+>  				       struct kobj_attribute *attr, char *buf)
+>  {
+> @@ -1793,7 +1802,7 @@ static ssize_t nr_hugepages_show(struct kobject *kobj,
+>  static ssize_t nr_hugepages_store(struct kobject *kobj,
+>  	       struct kobj_attribute *attr, const char *buf, size_t len)
+>  {
+> -	return nr_hugepages_store_common(false, kobj, attr, buf, len);
+> +	return nr_hugepages_store_common(false, kobj, buf, len);
+>  }
+>  HSTATE_ATTR(nr_hugepages);
+>  
+> @@ -1812,7 +1821,7 @@ static ssize_t nr_hugepages_mempolicy_show(struct kobject *kobj,
+>  static ssize_t nr_hugepages_mempolicy_store(struct kobject *kobj,
+>  	       struct kobj_attribute *attr, const char *buf, size_t len)
+>  {
+> -	return nr_hugepages_store_common(true, kobj, attr, buf, len);
+> +	return nr_hugepages_store_common(true, kobj, buf, len);
+>  }
+>  HSTATE_ATTR(nr_hugepages_mempolicy);
+>  #endif
+> @@ -2248,36 +2257,18 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
+>  			 void __user *buffer, size_t *length, loff_t *ppos)
+>  {
+>  	struct hstate *h = &default_hstate;
+> -	unsigned long tmp;
+> +	unsigned long tmp = h->max_huge_pages;
+>  	int ret;
+>  
+> -	if (!hugepages_supported())
+> -		return -ENOTSUPP;
 
-> Thanks for the report, I hope to have something useful ASAP.
+Shouldn't you add this check to __nr_hugepages_store_common()? Otherwise
+looks good to me.
 
-Could you give the following patch a spin?  I put it in the mmots
-stack on top of mm-memcontrol-rewrite-charge-api-fix-shmem_unuse-fix.
+> -
+> -	tmp = h->max_huge_pages;
+> -
+> -	if (write && hstate_is_gigantic(h) && !gigantic_page_supported())
+> -		return -EINVAL;
+> -
+>  	table->data = &tmp;
+>  	table->maxlen = sizeof(unsigned long);
+>  	ret = proc_doulongvec_minmax(table, write, buffer, length, ppos);
+>  	if (ret)
+>  		goto out;
+>  
+> -	if (write) {
+> -		NODEMASK_ALLOC(nodemask_t, nodes_allowed,
+> -						GFP_KERNEL | __GFP_NORETRY);
+> -		if (!(obey_mempolicy &&
+> -			       init_nodemask_of_mempolicy(nodes_allowed))) {
+> -			NODEMASK_FREE(nodes_allowed);
+> -			nodes_allowed = &node_states[N_MEMORY];
+> -		}
+> -		h->max_huge_pages = set_max_huge_pages(h, tmp, nodes_allowed);
+> -
+> -		if (nodes_allowed != &node_states[N_MEMORY])
+> -			NODEMASK_FREE(nodes_allowed);
+> -	}
+> +	if (write)
+> +		ret = __nr_hugepages_store_common(obey_mempolicy, h,
+> +						  NUMA_NO_NODE, tmp, *length);
+>  out:
+>  	return ret;
+>  }
+> 
 
-Thanks!
-
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
