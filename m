@@ -1,71 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 012E06B0035
-	for <linux-mm@kvack.org>; Wed,  2 Jul 2014 16:42:24 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id y10so12405114pdj.8
-        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 13:42:24 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id hq3si31172794pad.87.2014.07.02.13.42.17
-        for <linux-mm@kvack.org>;
-        Wed, 02 Jul 2014 13:42:23 -0700 (PDT)
-Date: Wed, 2 Jul 2014 13:42:15 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 0/3] free reclaimed pages by paging out instantly
-Message-Id: <20140702134215.2bf830dcb904c34bd2e2b9e8@linux-foundation.org>
-In-Reply-To: <1404260029-11525-1-git-send-email-minchan@kernel.org>
-References: <1404260029-11525-1-git-send-email-minchan@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C0876B0037
+	for <linux-mm@kvack.org>; Wed,  2 Jul 2014 17:20:11 -0400 (EDT)
+Received: by mail-we0-f169.google.com with SMTP id t60so11936293wes.14
+        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 14:20:10 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id jp7si33295950wjc.62.2014.07.02.14.20.09
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 02 Jul 2014 14:20:10 -0700 (PDT)
+Date: Wed, 2 Jul 2014 17:20:04 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: mm: memcontrol: rewrite uncharge API: problems
+Message-ID: <20140702212004.GF1369@cmpxchg.org>
+References: <alpine.LSU.2.11.1406301558090.4572@eggly.anvils>
+ <20140701174612.GC1369@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140701174612.GC1369@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed,  2 Jul 2014 09:13:46 +0900 Minchan Kim <minchan@kernel.org> wrote:
-
-> Normally, I/O completed pages for reclaim would be rotated into
-> inactive LRU tail without freeing. The why it works is we can't free
-> page from atomic context(ie, end_page_writeback) due to vaious locks
-> isn't aware of atomic context.
+On Tue, Jul 01, 2014 at 01:46:12PM -0400, Johannes Weiner wrote:
+> Hi Hugh,
 > 
-> So for reclaiming the I/O completed pages, we need one more iteration
-> of reclaim and it could make unnecessary aging as well as CPU overhead.
+> On Mon, Jun 30, 2014 at 04:55:10PM -0700, Hugh Dickins wrote:
+> > Hi Hannes,
+> > 
+> > Your rewrite of the memcg charge/uncharge API is bold and attractive,
+> > but I'm having some problems with the way release_pages() now does
+> > uncharging in I/O completion context.
 > 
-> Long time ago, at the first trial, most concern was memcg locking
-> but recently, Johnannes tried amazing effort to make memcg lock simple
-> and got merged into mmotm so I coded up based on mmotm tree.
-> (Kudos to Johannes)
+> Yes, I need to make the uncharge path IRQ-safe.  This looks doable.
 > 
-> On 1G, 12 CPU kvm guest, build kernel 5 times and result was
+> > At the bottom see the lockdep message I get when I start shmem swapping.
+> > Which I have not begun to attempt to decipher (over to you!), but I do
+> > see release_pages() mentioned in there (also i915, hope it's irrelevant).
 > 
-> allocstall
-> vanilla: records: 5 avg: 4733.80 std: 913.55(19.30%) max: 6442.00 min: 3719.00
-> improve: records: 5 avg: 1514.20 std: 441.69(29.17%) max: 1974.00 min: 863.00
-
-Well yes.  We're now doing unaccounted, impact-a-random-process work in
-irq context which was previously being done in process context,
-accounted to the process which was allocating the memory.  Some would
-call this a regression ;)
-
-> pgrotated
-> vanilla: records: 5 avg: 873313.80 std: 40999.20(4.69%) max: 954722.00 min: 845903.00
-> improve: records: 5 avg: 28406.40 std: 3296.02(11.60%) max: 34552.00 min: 25047.00
-
-Still a surprisingly high amount of rotation going on.
-
-> Most of field in vmstat are not changed too much but things I can notice
-> is allocstall and pgrotated. We could save allocstall(ie, direct relcaim)
-> and pgrotated very much.
+> This seems to be about uncharge acquiring the IRQ-unsafe soft limit
+> tree lock while the outer release_pages() holds the IRQ-safe lru_lock.
+> A separate issue, AFAICS, that would also be fixed by IRQ-proofing the
+> uncharge path.
 > 
-> Welcome testing, review and any feedback!
+> > Which was already worrying me on the PowerPC G5, when moving tasks from
+> > one memcg to another and removing the old, while swapping and swappingoff
+> > (I haven't tried much else actually, maybe it's much easier to reproduce).
+> > 
+> > I get "unable to handle kernel paging at 0x180" oops in __raw_spinlock <
+> > res_counter_uncharge_until < mem_cgroup_uncharge_end < release_pages <
+> > free_pages_and_swap_cache < tlb_flush_mmu_free < tlb_finish_mmu <
+> > unmap_region < do_munmap (or from exit_mmap < mmput < do_exit).
+> > 
+> > I do have CONFIG_MEMCG_SWAP=y, and I think 0x180 corresponds to the
+> > memsw res_counter spinlock, if memcg is NULL.  I don't understand why
+> > usually the PowerPC: I did see something like it once on this x86 laptop,
+> > maybe having lockdep in on this slows things down enough not to hit that.
+> > 
+> > I've stopped those crashes with patch below: the memcg_batch uncharging
+> > was never designed for use from interrupts.  But I bet it needs more work:
+> > to disable interrupts, or do something clever with atomics, or... over to
+> > you again.
+> 
+> I was convinced I had tested these changes with lockdep enabled, but
+> it must have been at an earlier stage while developing the series.
+> Otherwise, I should have gotten the same splat as you report.
 
-Well, it will worsen IRQ latencies and it's all more code for us to
-maintain.  I think I'd like to see a better story about the end-user
-benefits before proceeding.
+Turns out this was because the soft limit was not set in my tests, and
+without soft limit excess that spinlock is never acquired.  I could
+reproduce it now.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Thanks for the report, I hope to have something useful ASAP.
+
+Could you give the following patch a spin?  I put it in the mmots
+stack on top of mm-memcontrol-rewrite-charge-api-fix-shmem_unuse-fix.
+
+Thanks!
+
+---
