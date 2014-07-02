@@ -1,60 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B0C86B0031
-	for <linux-mm@kvack.org>; Wed,  2 Jul 2014 01:46:46 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id et14so11827991pad.41
-        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 22:46:46 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id yu2si29173787pac.156.2014.07.01.22.46.45
-        for <linux-mm@kvack.org>;
-        Tue, 01 Jul 2014 22:46:45 -0700 (PDT)
-Date: Tue, 1 Jul 2014 22:46:21 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC] CMA page migration failure due to buffers on bh_lru
-Message-Id: <20140701224621.bb6a5157.akpm@linux-foundation.org>
-In-Reply-To: <53B216C5.8020503@codeaurora.org>
-References: <53A8D092.4040801@lge.com>
-	<xa1td2dvmznq.fsf@mina86.com>
-	<53ACAB82.6020201@lge.com>
-	<53B06DD0.8030106@codeaurora.org>
-	<53B209BA.8010106@lge.com>
-	<53B216C5.8020503@codeaurora.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with ESMTP id 928B16B0031
+	for <linux-mm@kvack.org>; Wed,  2 Jul 2014 02:48:53 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id et14so12060126pad.27
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 23:48:53 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id aw13si29383027pac.24.2014.07.01.23.48.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 01 Jul 2014 23:48:52 -0700 (PDT)
+Message-ID: <53B3AB3B.1050809@huawei.com>
+Date: Wed, 2 Jul 2014 14:48:27 +0800
+From: Zhang Zhen <zhenzhang.zhang@huawei.com>
+MIME-Version: 1.0
+Subject: Re: How to boot up an ARM board enabled CONFIG_SPARSEMEM
+References: <53B26229.5030504@huawei.com> <53B26364.1040606@huawei.com> <CAE9FiQWpPOELEAOZxxZafpkYqYPurL_Fx_zJsS4XM+DmFCYbxg@mail.gmail.com>
+In-Reply-To: <CAE9FiQWpPOELEAOZxxZafpkYqYPurL_Fx_zJsS4XM+DmFCYbxg@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>
-Cc: Gioh Kim <gioh.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@suse.de>, =?UTF-8?Q?=EC=9D=B4=EA=B1=B4=ED=98=B8?= <gunho.lee@lge.com>, Hugh Dickins <hughd@google.com>
+To: Yinghai Lu <yinghai@kernel.org>
+Cc: Linux MM <linux-mm@kvack.org>, wangnan0@huawei.com
 
-On Mon, 30 Jun 2014 19:02:45 -0700 Laura Abbott <lauraa@codeaurora.org> wrote:
-
-> On 6/30/2014 6:07 PM, Gioh Kim wrote:
-> > Hi,Laura.
-> > 
-> > I have a question.
-> > 
-> > Does the __evict_bh_lru() not need bh_lru_lock()?
-> > The get_cpu_var() has already preenpt_disable() and can prevent other thread.
-> > But get_cpu_var cannot prevent IRQ context such like page-fault.
-> > I think if a page-fault occured and a file is read in IRQ context it can change cpu-lru.
-> > 
-> > Is my concern correct?
-> > 
-> > 
+On 2014/7/2 2:45, Yinghai Lu wrote:
+> On Tue, Jul 1, 2014 at 12:29 AM, Zhang Zhen <zhenzhang.zhang@huawei.com> wrote:
+>> Hi,
+>>
+>> Recently We are testing stable kernel 3.10 on an ARM board.
+>> It failed to boot if we enabled CONFIG_SPARSEMEM config.
 > 
-> __evict_bh_lru is called via on_each_cpu_cond which I believe will disable irqs.
-> I based the code on the existing invalidate_bh_lru which did not take the bh_lru_lock
-> either. It's possible I missed something though.
+> Arm support 2 sockets and numa now?
+> 
+ARM doesn't support numa until now. We have added memory hotplug feature on ARM arch.
+So we need to enable CONFIG_SPARSEMEM.
 
-I fear that running on_each_cpu() within try_to_free_buffers() is going
-to be horridly expensive in some cases.
+>> 1. In mem_init() and show_mem() compare pfn instead of page just like the patch in attachement.
+>> 2. Enable CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER when enabled CONFIG_SPARSEMEM.
+>>
+>> QUESTION:
+>>
+>> I want to know why CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER depends on x86_64 ?
+> 
+> That make memory allocation have less memory hole, from old bootmem bitmap
+> allocation stage.
+> 
+> Maybe we don't need that anymore as we have memblock allocation that is more
+> smarter with alignment handling.
+> 
+> Also allocating big size and use them block by block, could save some time on
+> searching on allocation function when memblock have lots of entries on
+> memory/reserved arrays.
+> 
+> Thanks
+> 
+> Yinghai
+> 
+Hi, Yinghai
 
-Maybe CMA can use invalidate_bh_lrus() to shoot down everything before
-trying the allocation attempt.  That should increase the success rate
-greatly and doesn't burden page reclaim.  The bh LRU isn't terribly
-important from a performance point of view, so emptying it occasionally
-won't hurt.
+Have you seen my patch ?
+If we enabled CONFIG_SPARSEMEM here in the patch need to enable CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER to
+guarantee the pages of different sections are continuous.
+
+So in my opinion, CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER doesn't need to depend on x86_64, which helps futher
+coding.
+
+If i'm wrong, please let me know !
+
+Thanks for your comments!
+
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
