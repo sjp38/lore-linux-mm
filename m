@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
-	by kanga.kvack.org (Postfix) with ESMTP id BAF136B0037
-	for <linux-mm@kvack.org>; Wed,  2 Jul 2014 12:50:58 -0400 (EDT)
-Received: by mail-we0-f171.google.com with SMTP id q58so11598370wes.2
-        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 09:50:55 -0700 (PDT)
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D1B86B0038
+	for <linux-mm@kvack.org>; Wed,  2 Jul 2014 12:51:32 -0400 (EDT)
+Received: by mail-wg0-f52.google.com with SMTP id x13so2613123wgg.11
+        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 09:51:31 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id bj1si20601603wib.51.2014.07.02.09.50.55
+        by mx.google.com with ESMTPS id m19si20577114wij.84.2014.07.02.09.51.30
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 02 Jul 2014 09:50:55 -0700 (PDT)
+        Wed, 02 Jul 2014 09:51:31 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 07/10] waitqueue: add nr wake parameter to __wake_up_locked_key
-Date: Wed,  2 Jul 2014 18:50:13 +0200
-Message-Id: <1404319816-30229-8-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 04/10] mm: rmap preparation for remap_anon_pages
+Date: Wed,  2 Jul 2014 18:50:10 +0200
+Message-Id: <1404319816-30229-5-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1404319816-30229-1-git-send-email-aarcange@redhat.com>
 References: <1404319816-30229-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,79 +20,122 @@ List-ID: <linux-mm.kvack.org>
 To: qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: "\\\"Dr. David Alan Gilbert\\\"" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, Keith Packard <keithp@keithp.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Isaku Yamahata <yamahata@valinux.co.jp>, Paolo Bonzini <pbonzini@redhat.com>, Anthony Liguori <anthony@codemonkey.ws>, Stefan Hajnoczi <stefanha@gmail.com>, Wenchao Xia <wenchaoqemu@gmail.com>, Andrew Jones <drjones@redhat.com>, Juan Quintela <quintela@redhat.com>, Mel Gorman <mgorman@suse.de>
 
-Userfaultfd needs to wake all waitqueues (pass 0 as nr parameter),
-instead of the current hardcoded 1 (that would wake just the first
-waitqueue in the head list).
+remap_anon_pages (unlike remap_file_pages) tries to be non intrusive
+in the rmap code.
+
+As far as the rmap code is concerned, rmap_anon_pages only alters the
+page->mapping and page->index. It does it while holding the page
+lock. However there are a few places that in presence of anon pages
+are allowed to do rmap walks without the page lock (split_huge_page
+and page_referenced_anon). Those places that are doing rmap walks
+without taking the page lock first, must be updated to re-check that
+the page->mapping didn't change after they obtained the anon_vma
+lock. remap_anon_pages takes the anon_vma lock for writing before
+altering the page->mapping, so if the page->mapping is still the same
+after obtaining the anon_vma lock (without the page lock), the rmap
+walks can go ahead safely (and remap_anon_pages will wait them to
+complete before proceeding).
+
+remap_anon_pages serializes against itself with the page lock.
+
+All other places taking the anon_vma lock while holding the mmap_sem
+for writing, don't need to check if the page->mapping has changed
+after taking the anon_vma lock, regardless of the page lock, because
+remap_anon_pages holds the mmap_sem for reading.
+
+Overall this looks a fairly small change to the rmap code, notably
+less intrusive than the nonlinear vmas created by remap_file_pages.
+
+There's one constraint enforced to allow this simplification: the
+source pages passed to remap_anon_pages must be mapped only in one
+vma, but this is not a limitation when used to handle userland page
+faults with MADV_USERFAULT. The source addresses passed to
+remap_anon_pages should be set as VM_DONTCOPY with MADV_DONTFORK to
+avoid any risk of the mapcount of the pages increasing, if fork runs
+in parallel in another thread, before or while remap_anon_pages runs.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- include/linux/wait.h | 5 +++--
- kernel/sched/wait.c  | 7 ++++---
- net/sunrpc/sched.c   | 2 +-
- 3 files changed, 8 insertions(+), 6 deletions(-)
+ mm/huge_memory.c | 24 ++++++++++++++++++++----
+ mm/rmap.c        |  9 +++++++++
+ 2 files changed, 29 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/wait.h b/include/linux/wait.h
-index bd68819..b28be5a 100644
---- a/include/linux/wait.h
-+++ b/include/linux/wait.h
-@@ -142,7 +142,8 @@ __remove_wait_queue(wait_queue_head_t *head, wait_queue_t *old)
- }
- 
- void __wake_up(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
--void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, void *key);
-+void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, int nr,
-+			  void *key);
- void __wake_up_sync_key(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
- void __wake_up_locked(wait_queue_head_t *q, unsigned int mode, int nr);
- void __wake_up_sync(wait_queue_head_t *q, unsigned int mode, int nr);
-@@ -173,7 +174,7 @@ wait_queue_head_t *bit_waitqueue(void *, int);
- #define wake_up_poll(x, m)						\
- 	__wake_up(x, TASK_NORMAL, 1, (void *) (m))
- #define wake_up_locked_poll(x, m)					\
--	__wake_up_locked_key((x), TASK_NORMAL, (void *) (m))
-+	__wake_up_locked_key((x), TASK_NORMAL, 1, (void *) (m))
- #define wake_up_interruptible_poll(x, m)				\
- 	__wake_up(x, TASK_INTERRUPTIBLE, 1, (void *) (m))
- #define wake_up_interruptible_sync_poll(x, m)				\
-diff --git a/kernel/sched/wait.c b/kernel/sched/wait.c
-index 0ffa20a..551007f 100644
---- a/kernel/sched/wait.c
-+++ b/kernel/sched/wait.c
-@@ -105,9 +105,10 @@ void __wake_up_locked(wait_queue_head_t *q, unsigned int mode, int nr)
- }
- EXPORT_SYMBOL_GPL(__wake_up_locked);
- 
--void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, void *key)
-+void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, int nr,
-+			  void *key)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 1928463..94c37ca 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1907,6 +1907,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
  {
--	__wake_up_common(q, mode, 1, 0, key);
-+	__wake_up_common(q, mode, nr, 0, key);
- }
- EXPORT_SYMBOL_GPL(__wake_up_locked_key);
+ 	struct anon_vma *anon_vma;
+ 	int ret = 1;
++	struct address_space *mapping;
  
-@@ -282,7 +283,7 @@ void abort_exclusive_wait(wait_queue_head_t *q, wait_queue_t *wait,
- 	if (!list_empty(&wait->task_list))
- 		list_del_init(&wait->task_list);
- 	else if (waitqueue_active(q))
--		__wake_up_locked_key(q, mode, key);
-+		__wake_up_locked_key(q, mode, 1, key);
- 	spin_unlock_irqrestore(&q->lock, flags);
- }
- EXPORT_SYMBOL(abort_exclusive_wait);
-diff --git a/net/sunrpc/sched.c b/net/sunrpc/sched.c
-index c0365c1..d4ffd68 100644
---- a/net/sunrpc/sched.c
-+++ b/net/sunrpc/sched.c
-@@ -297,7 +297,7 @@ static int rpc_complete_task(struct rpc_task *task)
- 	clear_bit(RPC_TASK_ACTIVE, &task->tk_runstate);
- 	ret = atomic_dec_and_test(&task->tk_count);
- 	if (waitqueue_active(wq))
--		__wake_up_locked_key(wq, TASK_NORMAL, &k);
-+		__wake_up_locked_key(wq, TASK_NORMAL, 1, &k);
- 	spin_unlock_irqrestore(&wq->lock, flags);
- 	return ret;
- }
+ 	BUG_ON(is_huge_zero_page(page));
+ 	BUG_ON(!PageAnon(page));
+@@ -1918,10 +1919,24 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 	 * page_lock_anon_vma_read except the write lock is taken to serialise
+ 	 * against parallel split or collapse operations.
+ 	 */
+-	anon_vma = page_get_anon_vma(page);
+-	if (!anon_vma)
+-		goto out;
+-	anon_vma_lock_write(anon_vma);
++	for (;;) {
++		mapping = ACCESS_ONCE(page->mapping);
++		anon_vma = page_get_anon_vma(page);
++		if (!anon_vma)
++			goto out;
++		anon_vma_lock_write(anon_vma);
++		/*
++		 * We don't hold the page lock here so
++		 * remap_anon_pages_huge_pmd can change the anon_vma
++		 * from under us until we obtain the anon_vma
++		 * lock. Verify that we obtained the anon_vma lock
++		 * before remap_anon_pages did.
++		 */
++		if (likely(mapping == ACCESS_ONCE(page->mapping)))
++			break;
++		anon_vma_unlock_write(anon_vma);
++		put_anon_vma(anon_vma);
++	}
+ 
+ 	ret = 0;
+ 	if (!PageCompound(page))
+@@ -2420,6 +2435,7 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 	 * Prevent all access to pagetables with the exception of
+ 	 * gup_fast later hanlded by the ptep_clear_flush and the VM
+ 	 * handled by the anon_vma lock + PG_lock.
++	 * remap_anon_pages is prevented to race as well by the mmap_sem.
+ 	 */
+ 	down_write(&mm->mmap_sem);
+ 	if (unlikely(khugepaged_test_exit(mm)))
+diff --git a/mm/rmap.c b/mm/rmap.c
+index b7e94eb..59a7e7d 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -450,6 +450,7 @@ struct anon_vma *page_lock_anon_vma_read(struct page *page)
+ 	struct anon_vma *root_anon_vma;
+ 	unsigned long anon_mapping;
+ 
++repeat:
+ 	rcu_read_lock();
+ 	anon_mapping = (unsigned long) ACCESS_ONCE(page->mapping);
+ 	if ((anon_mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)
+@@ -488,6 +489,14 @@ struct anon_vma *page_lock_anon_vma_read(struct page *page)
+ 	rcu_read_unlock();
+ 	anon_vma_lock_read(anon_vma);
+ 
++	/* check if remap_anon_pages changed the anon_vma */
++	if (unlikely((unsigned long) ACCESS_ONCE(page->mapping) != anon_mapping)) {
++		anon_vma_unlock_read(anon_vma);
++		put_anon_vma(anon_vma);
++		anon_vma = NULL;
++		goto repeat;
++	}
++
+ 	if (atomic_dec_and_test(&anon_vma->refcount)) {
+ 		/*
+ 		 * Oops, we held the last refcount, release the lock
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
