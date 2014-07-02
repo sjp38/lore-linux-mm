@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C7796B003C
-	for <linux-mm@kvack.org>; Wed,  2 Jul 2014 17:44:19 -0400 (EDT)
-Received: by mail-ie0-f171.google.com with SMTP id x19so9950640ier.2
-        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 14:44:19 -0700 (PDT)
-Received: from mail-ig0-x232.google.com (mail-ig0-x232.google.com [2607:f8b0:4001:c05::232])
-        by mx.google.com with ESMTPS id g10si40570314icm.99.2014.07.02.14.44.18
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A8346B0035
+	for <linux-mm@kvack.org>; Wed,  2 Jul 2014 17:45:57 -0400 (EDT)
+Received: by mail-ig0-f170.google.com with SMTP id h15so6951390igd.3
+        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 14:45:57 -0700 (PDT)
+Received: from mail-ie0-x234.google.com (mail-ie0-x234.google.com [2607:f8b0:4001:c03::234])
+        by mx.google.com with ESMTPS id ba9si40610351icb.10.2014.07.02.14.45.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 02 Jul 2014 14:44:18 -0700 (PDT)
-Received: by mail-ig0-f178.google.com with SMTP id hn18so782464igb.5
-        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 14:44:17 -0700 (PDT)
+        Wed, 02 Jul 2014 14:45:56 -0700 (PDT)
+Received: by mail-ie0-f180.google.com with SMTP id rp18so1898552iec.25
+        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 14:45:55 -0700 (PDT)
 From: Dan Streetman <ddstreet@ieee.org>
 Subject: [PATCHv5 0/4] mm/zpool: add common api for zswap to use zbud/zsmalloc
-Date: Wed,  2 Jul 2014 17:43:59 -0400
-Message-Id: <1404337439-10938-1-git-send-email-ddstreet@ieee.org>
+Date: Wed,  2 Jul 2014 17:45:32 -0400
+Message-Id: <1404337536-11037-1-git-send-email-ddstreet@ieee.org>
 In-Reply-To: <1401747586-11861-1-git-send-email-ddstreet@ieee.org>
 References: <1401747586-11861-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
