@@ -1,66 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id E727D6B0031
-	for <linux-mm@kvack.org>; Wed,  2 Jul 2014 15:07:40 -0400 (EDT)
-Received: by mail-wi0-f182.google.com with SMTP id bs8so1019118wib.15
-        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 12:07:40 -0700 (PDT)
-Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com [2a00:1450:400c:c05::231])
-        by mx.google.com with ESMTPS id hc6si32978331wjc.68.2014.07.02.12.07.40
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id B17056B0031
+	for <linux-mm@kvack.org>; Wed,  2 Jul 2014 15:11:12 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id fp1so12337915pdb.25
+        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 12:11:12 -0700 (PDT)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id au10si31057621pbd.14.2014.07.02.12.11.10
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 02 Jul 2014 12:07:40 -0700 (PDT)
-Received: by mail-wi0-f177.google.com with SMTP id r20so1068647wiv.10
-        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 12:07:40 -0700 (PDT)
+        Wed, 02 Jul 2014 12:11:11 -0700 (PDT)
+Received: by mail-pa0-f49.google.com with SMTP id lj1so13008646pab.36
+        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 12:11:10 -0700 (PDT)
+Date: Wed, 2 Jul 2014 12:09:40 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH 1/3] Revert "shmem: fix faulting into a hole while it's
+ punched"
+Message-ID: <alpine.LSU.2.11.1407021204180.12131@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <x49tx6ztx9d.fsf@segfault.boston.devel.redhat.com>
-References: <53B3D3AA.3000408@samsung.com>
-	<x49y4wbu54y.fsf@segfault.boston.devel.redhat.com>
-	<20140702184050.GA24583@infradead.org>
-	<x49tx6ztx9d.fsf@segfault.boston.devel.redhat.com>
-Date: Wed, 2 Jul 2014 22:07:38 +0300
-Message-ID: <CACE9dm-NZqC_qz8ip-9wUamwK7daOnKs_dTKQrT+zG4E2BJ=Jw@mail.gmail.com>
-Subject: Re: IMA: kernel reading files opened with O_DIRECT
-From: Dmitry Kasatkin <dmitry.kasatkin@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Dmitry Kasatkin <d.kasatkin@samsung.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, Al Viro <viro@zeniv.linux.org.uk>, Mimi Zohar <zohar@linux.vnet.ibm.com>, linux-security-module <linux-security-module@vger.kernel.org>, Greg KH <gregkh@linuxfoundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Vlastimil Babka <vbabka@suse.cz>, Konstantin Khlebnikov <koct9i@gmail.com>, Lukas Czerner <lczerner@redhat.com>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 2 July 2014 21:45, Jeff Moyer <jmoyer@redhat.com> wrote:
-> Christoph Hellwig <hch@infradead.org> writes:
->
->> On Wed, Jul 02, 2014 at 11:55:41AM -0400, Jeff Moyer wrote:
->>> It's acceptable.
->>
->> It's not because it will then also affect other reads going on at the
->> same time.
->
+This reverts commit f00cdc6df7d7cfcabb5b740911e6788cb0802bdb.
 
-> OK, that part I was fuzzy on.  I wasn't sure if they were preventing
-> other reads/writes to the same file somehow.  I should have mentioned
-> that.
->
-> Cheers,
-> Jeff
+(a) It was buggy: Sasha sent a lockdep report to remind us that grabbing
+i_mutex in the fault path is a no-no (write syscall may already hold
+i_mutex while faulting user buffer), no matter that the patch took care
+to drop mmap_sem first.
 
+(b) It may be thought too elaborate: see the diffstat.
 
-What Christoph says is not very correct.
+(c) Vlastimil proposed a preferred approach, better for backporting to
+v3.1..v3.4, which had madvise hole-punch support before the fallocate
+infrastructure used in that commit - backporting being required once
+the issue fixed was tagged with CVE-2014-4171.
 
-At open there cannot be any reads going on at the same time. IMA
-reading is guarded by mutex. Following opens do not perform any IMA
-readings and do not do what he says...
+(d) Hugh noticed a further pessimization fix needed in the same area.
 
-If file was modified with direct-io, VFS code itself always invalidate
-pages before and after any write. It is basically what Christoph says.
-But that is not IMA problem but direct-io itself. As it is stupid
-interface. I would be more looking to kind of fadvise interface to
-control amount of page caching...
+Signed-off-by: Hugh Dickins <hughd@google.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Lukas Czerner <lczerner@redhat.com>
+Cc: Dave Jones <davej@redhat.com>
+---
 
-So I think what Jeff suggest suites well to IMA.
+ mm/shmem.c |   56 +++------------------------------------------------
+ 1 file changed, 4 insertions(+), 52 deletions(-)
 
--- 
-Thanks,
-Dmitry
+--- 3.16-rc3/mm/shmem.c	2014-06-29 15:22:10.592003936 -0700
++++ linux/mm/shmem.c	2014-07-02 03:31:12.956546569 -0700
+@@ -80,12 +80,11 @@ static struct vfsmount *shm_mnt;
+ #define SHORT_SYMLINK_LEN 128
+ 
+ /*
+- * shmem_fallocate communicates with shmem_fault or shmem_writepage via
+- * inode->i_private (with i_mutex making sure that it has only one user at
+- * a time): we would prefer not to enlarge the shmem inode just for that.
++ * shmem_fallocate and shmem_writepage communicate via inode->i_private
++ * (with i_mutex making sure that it has only one user at a time):
++ * we would prefer not to enlarge the shmem inode just for that.
+  */
+ struct shmem_falloc {
+-	int	mode;		/* FALLOC_FL mode currently operating */
+ 	pgoff_t start;		/* start of range currently being fallocated */
+ 	pgoff_t next;		/* the next page offset to be fallocated */
+ 	pgoff_t nr_falloced;	/* how many new pages have been fallocated */
+@@ -760,7 +759,6 @@ static int shmem_writepage(struct page *
+ 			spin_lock(&inode->i_lock);
+ 			shmem_falloc = inode->i_private;
+ 			if (shmem_falloc &&
+-			    !shmem_falloc->mode &&
+ 			    index >= shmem_falloc->start &&
+ 			    index < shmem_falloc->next)
+ 				shmem_falloc->nr_unswapped++;
+@@ -1235,44 +1233,6 @@ static int shmem_fault(struct vm_area_st
+ 	int error;
+ 	int ret = VM_FAULT_LOCKED;
+ 
+-	/*
+-	 * Trinity finds that probing a hole which tmpfs is punching can
+-	 * prevent the hole-punch from ever completing: which in turn
+-	 * locks writers out with its hold on i_mutex.  So refrain from
+-	 * faulting pages into the hole while it's being punched, and
+-	 * wait on i_mutex to be released if vmf->flags permits.
+-	 */
+-	if (unlikely(inode->i_private)) {
+-		struct shmem_falloc *shmem_falloc;
+-
+-		spin_lock(&inode->i_lock);
+-		shmem_falloc = inode->i_private;
+-		if (!shmem_falloc ||
+-		    shmem_falloc->mode != FALLOC_FL_PUNCH_HOLE ||
+-		    vmf->pgoff < shmem_falloc->start ||
+-		    vmf->pgoff >= shmem_falloc->next)
+-			shmem_falloc = NULL;
+-		spin_unlock(&inode->i_lock);
+-		/*
+-		 * i_lock has protected us from taking shmem_falloc seriously
+-		 * once return from shmem_fallocate() went back up that stack.
+-		 * i_lock does not serialize with i_mutex at all, but it does
+-		 * not matter if sometimes we wait unnecessarily, or sometimes
+-		 * miss out on waiting: we just need to make those cases rare.
+-		 */
+-		if (shmem_falloc) {
+-			if ((vmf->flags & FAULT_FLAG_ALLOW_RETRY) &&
+-			   !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT)) {
+-				up_read(&vma->vm_mm->mmap_sem);
+-				mutex_lock(&inode->i_mutex);
+-				mutex_unlock(&inode->i_mutex);
+-				return VM_FAULT_RETRY;
+-			}
+-			/* cond_resched? Leave that to GUP or return to user */
+-			return VM_FAULT_NOPAGE;
+-		}
+-	}
+-
+ 	error = shmem_getpage(inode, vmf->pgoff, &vmf->page, SGP_CACHE, &ret);
+ 	if (error)
+ 		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
+@@ -1769,26 +1729,18 @@ static long shmem_fallocate(struct file
+ 
+ 	mutex_lock(&inode->i_mutex);
+ 
+-	shmem_falloc.mode = mode & ~FALLOC_FL_KEEP_SIZE;
+-
+ 	if (mode & FALLOC_FL_PUNCH_HOLE) {
+ 		struct address_space *mapping = file->f_mapping;
+ 		loff_t unmap_start = round_up(offset, PAGE_SIZE);
+ 		loff_t unmap_end = round_down(offset + len, PAGE_SIZE) - 1;
+ 
+-		shmem_falloc.start = unmap_start >> PAGE_SHIFT;
+-		shmem_falloc.next = (unmap_end + 1) >> PAGE_SHIFT;
+-		spin_lock(&inode->i_lock);
+-		inode->i_private = &shmem_falloc;
+-		spin_unlock(&inode->i_lock);
+-
+ 		if ((u64)unmap_end > (u64)unmap_start)
+ 			unmap_mapping_range(mapping, unmap_start,
+ 					    1 + unmap_end - unmap_start, 0);
+ 		shmem_truncate_range(inode, offset, offset + len - 1);
+ 		/* No need to unmap again: hole-punching leaves COWed pages */
+ 		error = 0;
+-		goto undone;
++		goto out;
+ 	}
+ 
+ 	/* We need to check rlimit even when FALLOC_FL_KEEP_SIZE */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
