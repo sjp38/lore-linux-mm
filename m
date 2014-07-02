@@ -1,67 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id B39546B0031
+Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
+	by kanga.kvack.org (Postfix) with ESMTP id D2EF16B0037
 	for <linux-mm@kvack.org>; Tue,  1 Jul 2014 20:12:34 -0400 (EDT)
-Received: by mail-lb0-f177.google.com with SMTP id u10so7279639lbd.8
-        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 17:12:33 -0700 (PDT)
+Received: by mail-la0-f45.google.com with SMTP id hr17so6453996lab.18
+        for <linux-mm@kvack.org>; Tue, 01 Jul 2014 17:12:34 -0700 (PDT)
 Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id p6si42141638lbw.8.2014.07.01.17.12.31
+        by mx.google.com with ESMTP id ax9si42095121lbc.59.2014.07.01.17.12.31
         for <linux-mm@kvack.org>;
-        Tue, 01 Jul 2014 17:12:32 -0700 (PDT)
+        Tue, 01 Jul 2014 17:12:33 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v3 0/3] free reclaimed pages by paging out instantly
-Date: Wed,  2 Jul 2014 09:13:46 +0900
-Message-Id: <1404260029-11525-1-git-send-email-minchan@kernel.org>
+Subject: [PATCH v3 1/3] mm: Don't hide spin_lock in swap_info_get internal
+Date: Wed,  2 Jul 2014 09:13:47 +0900
+Message-Id: <1404260029-11525-2-git-send-email-minchan@kernel.org>
+In-Reply-To: <1404260029-11525-1-git-send-email-minchan@kernel.org>
+References: <1404260029-11525-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan@kernel.org>
 
-Normally, I/O completed pages for reclaim would be rotated into
-inactive LRU tail without freeing. The why it works is we can't free
-page from atomic context(ie, end_page_writeback) due to vaious locks
-isn't aware of atomic context.
+Now, swap_info_get hides lock holding by doing it internally
+but releasing the lock so caller should release the lock.
+Normally, it's not a good pattern and I need to handle lock
+from caller in next patchset.
 
-So for reclaiming the I/O completed pages, we need one more iteration
-of reclaim and it could make unnecessary aging as well as CPU overhead.
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/swapfile.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
 
-Long time ago, at the first trial, most concern was memcg locking
-but recently, Johnannes tried amazing effort to make memcg lock simple
-and got merged into mmotm so I coded up based on mmotm tree.
-(Kudos to Johannes)
-
-On 1G, 12 CPU kvm guest, build kernel 5 times and result was
-
-allocstall
-vanilla: records: 5 avg: 4733.80 std: 913.55(19.30%) max: 6442.00 min: 3719.00
-improve: records: 5 avg: 1514.20 std: 441.69(29.17%) max: 1974.00 min: 863.00
-
-pgrotated
-vanilla: records: 5 avg: 873313.80 std: 40999.20(4.69%) max: 954722.00 min: 845903.00
-improve: records: 5 avg: 28406.40 std: 3296.02(11.60%) max: 34552.00 min: 25047.00
-
-Most of field in vmstat are not changed too much but things I can notice
-is allocstall and pgrotated. We could save allocstall(ie, direct relcaim)
-and pgrotated very much.
-
-Welcome testing, review and any feedback!
-
-* from v2 - 2014.06.20
-  * Rebased on v3.16-rc2-mmotm-2014-06-25-16-44
-  * Remove RFC tag
-
-Minchan Kim (3):
-  mm: Don't hide spin_lock in swap_info_get internal
-  mm: Introduce atomic_remove_mapping
-  mm: Free reclaimed pages indepdent of next reclaim
-
- include/linux/swap.h |  4 ++++
- mm/filemap.c         | 17 +++++++++-----
- mm/swap.c            | 21 ++++++++++++++++++
- mm/swapfile.c        | 17 ++++++++++++--
- mm/vmscan.c          | 63 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 114 insertions(+), 8 deletions(-)
-
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 8798b2e0ac59..ec2ce926ea5f 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -740,7 +740,6 @@ static struct swap_info_struct *swap_info_get(swp_entry_t entry)
+ 		goto bad_offset;
+ 	if (!p->swap_map[offset])
+ 		goto bad_free;
+-	spin_lock(&p->lock);
+ 	return p;
+ 
+ bad_free:
+@@ -835,6 +834,7 @@ void swap_free(swp_entry_t entry)
+ 
+ 	p = swap_info_get(entry);
+ 	if (p) {
++		spin_lock(&p->lock);
+ 		swap_entry_free(p, entry, 1);
+ 		spin_unlock(&p->lock);
+ 	}
+@@ -849,6 +849,7 @@ void swapcache_free(swp_entry_t entry)
+ 
+ 	p = swap_info_get(entry);
+ 	if (p) {
++		spin_lock(&p->lock);
+ 		swap_entry_free(p, entry, SWAP_HAS_CACHE);
+ 		spin_unlock(&p->lock);
+ 	}
+@@ -868,6 +869,7 @@ int page_swapcount(struct page *page)
+ 	entry.val = page_private(page);
+ 	p = swap_info_get(entry);
+ 	if (p) {
++		spin_lock(&p->lock);
+ 		count = swap_count(p->swap_map[swp_offset(entry)]);
+ 		spin_unlock(&p->lock);
+ 	}
+@@ -950,6 +952,7 @@ int free_swap_and_cache(swp_entry_t entry)
+ 
+ 	p = swap_info_get(entry);
+ 	if (p) {
++		spin_lock(&p->lock);
+ 		if (swap_entry_free(p, entry, 1) == SWAP_HAS_CACHE) {
+ 			page = find_get_page(swap_address_space(entry),
+ 						entry.val);
+@@ -2763,6 +2766,7 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
+ 		goto outer;
+ 	}
+ 
++	spin_lock(&si->lock);
+ 	offset = swp_offset(entry);
+ 	count = si->swap_map[offset] & ~SWAP_HAS_CACHE;
+ 
 -- 
 2.0.0
 
