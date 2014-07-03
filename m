@@ -1,84 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 499B86B0035
-	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 07:42:06 -0400 (EDT)
-Received: by mail-we0-f181.google.com with SMTP id q59so92630wes.26
-        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 04:42:05 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.200])
-        by mx.google.com with ESMTP id gh11si23694099wic.86.2014.07.03.04.41.56
-        for <linux-mm@kvack.org>;
-        Thu, 03 Jul 2014 04:41:56 -0700 (PDT)
-Date: Thu, 3 Jul 2014 14:41:00 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] rmap: fix pgoff calculation to handle hugepage correctly
-Message-ID: <20140703114100.GA27140@node.dhcp.inet.fi>
-References: <1404225982-22739-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20140701180739.GA4985@node.dhcp.inet.fi>
- <20140701185021.GA10356@nhori.bos.redhat.com>
- <20140701201540.GA5953@node.dhcp.inet.fi>
- <20140702043057.GA19813@nhori.redhat.com>
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 9328A6B0035
+	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 08:35:23 -0400 (EDT)
+Received: by mail-wg0-f52.google.com with SMTP id b13so158540wgh.23
+        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 05:35:22 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c11si35343613wjs.107.2014.07.03.05.35.04
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Jul 2014 05:35:04 -0700 (PDT)
+Date: Thu, 3 Jul 2014 08:34:54 -0400
+From: Vivek Goyal <vgoyal@redhat.com>
+Subject: Re: [mmotm:master 289/396] undefined reference to
+ `crypto_alloc_shash'
+Message-ID: <20140703123454.GB21156@redhat.com>
+References: <53b49bda.Alc8D1c/m4kIm3gZ%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140702043057.GA19813@nhori.redhat.com>
+In-Reply-To: <53b49bda.Alc8D1c/m4kIm3gZ%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
 
-On Wed, Jul 02, 2014 at 12:30:57AM -0400, Naoya Horiguchi wrote:
-> On Tue, Jul 01, 2014 at 11:15:40PM +0300, Kirill A. Shutemov wrote:
-> > On Tue, Jul 01, 2014 at 02:50:21PM -0400, Naoya Horiguchi wrote:
-> > > On Tue, Jul 01, 2014 at 09:07:39PM +0300, Kirill A. Shutemov wrote:
-> > > > Why do we need this special case for hugetlb page ->index? Why not use
-> > > > PAGE_SIZE units there too? Or I miss something?
-> > > 
-> > > hugetlb pages are never split, so we use larger page cache size for
-> > > hugetlbfs file (to avoid large sparse page cache tree.)
-> > 
-> > For transparent huge page cache I would like to have native support in
-> > page cache radix-tree: since huge pages are always naturally aligned we
-> > can create a leaf node for it several (RADIX_TREE_MAP_SHIFT -
-> > HPAGE_PMD_ORDER) levels up by tree, which would cover all indexes in the
-> > range the huge page represents. This approach should fit hugetlb too. And
-> > -1 special case for hugetlb.
-> > But I'm not sure when I'll get time to play with this...
+On Thu, Jul 03, 2014 at 07:55:06AM +0800, kbuild test robot wrote:
+> tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> head:   82b56f797fa200a5e9feac3a93cb6496909b9670
+> commit: 025d75374c9c08274f60da5802381a8ef7490388 [289/396] kexec: load and relocate purgatory at kernel load time
+> config: make ARCH=s390 allnoconfig
 > 
-> So I'm OK that hugetlb page should have ->index in PAGE_CACHE_SIZE
-> when transparent huge page is merged. I may try to write patches
-> on top of your tree after I've done a few series in my work queue.
+> All error/warnings:
 > 
-> In order to fix the current problem, I suggest a page_to_pgoff() as a
-> short-term workaround. I found a few other call sites which can call
-> on hugepage, so this function help us track such callers.
-> The similar function seems to be introduced in your transparent huge
-> page cache tree (page_cache_index()). So this function will be finally
-> overwritten with it.
-> 
-> Thanks,
-> Naoya Horiguchi
-> ---
-> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Date: Tue, 1 Jul 2014 21:38:22 -0400
-> Subject: [PATCH v2] rmap: fix pgoff calculation to handle hugepage correctly
-> 
-> I triggered VM_BUG_ON() in vma_address() when I try to migrate an anonymous
-> hugepage with mbind() in the kernel v3.16-rc3. This is because pgoff's
-> calculation in rmap_walk_anon() fails to consider compound_order() only to
-> have an incorrect value.
-> 
-> This patch introduces page_to_pgoff(), which gets the page's offset in
-> PAGE_CACHE_SIZE. Kirill pointed out that page cache tree should natively
-> handle hugepages, and in order to make hugetlbfs fit it, page->index of
-> hugetlbfs page should be in PAGE_CACHE_SIZE. This is beyond this patch,
-> but page_to_pgoff() contains the point to be fixed in a single function.
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+>    kernel/built-in.o: In function `sys_kexec_file_load':
+>    (.text+0x32314): undefined reference to `crypto_shash_final'
+>    kernel/built-in.o: In function `sys_kexec_file_load':
+>    (.text+0x32328): undefined reference to `crypto_shash_update'
+>    kernel/built-in.o: In function `sys_kexec_file_load':
+> >> (.text+0x32338): undefined reference to `crypto_alloc_shash'
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Hi,
 
--- 
- Kirill A. Shutemov
+Now generic kexec implementation requires CRYPTO and CRYPTI_SHA256. Hence
+I select these in arch/x86/Kconfig.
+
+config KEXEC
+        bool "kexec system call"
+        select BUILD_BIN2C
+        select CRYPTO
+        select CRYPTO_SHA256
+
+But I realize that I did not do it for other arches which have KEXEC
+defined. And that will lead to failure on other arches.
+
+I will write a patch now and create this additional dependency in
+all other arch Kconfig files which support KEXEC.
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
