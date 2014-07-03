@@ -1,147 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EAF56B0035
-	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 02:13:43 -0400 (EDT)
-Received: by mail-ig0-f170.google.com with SMTP id h15so7276698igd.5
-        for <linux-mm@kvack.org>; Wed, 02 Jul 2014 23:13:43 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0047.hostedemail.com. [216.40.44.47])
-        by mx.google.com with ESMTP id wl19si41655574icb.28.2014.07.02.23.13.41
+Received: from mail-la0-f46.google.com (mail-la0-f46.google.com [209.85.215.46])
+	by kanga.kvack.org (Postfix) with ESMTP id AE66A6B0035
+	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 03:28:34 -0400 (EDT)
+Received: by mail-la0-f46.google.com with SMTP id el20so7769838lab.19
+        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 00:28:33 -0700 (PDT)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id ja7si47503787lbc.28.2014.07.03.00.28.31
         for <linux-mm@kvack.org>;
-        Wed, 02 Jul 2014 23:13:42 -0700 (PDT)
-Message-ID: <1404368018.14741.31.camel@joe-AO725>
-Subject: Re: [mmotm:master 298/396] kernel/kexec.c:2181: undefined reference
- to `crypto_alloc_shash'
-From: Joe Perches <joe@perches.com>
-Date: Wed, 02 Jul 2014 23:13:38 -0700
-In-Reply-To: <53b4f07a.xCByfd0BkPuAXJCu%fengguang.wu@intel.com>
-References: <53b4f07a.xCByfd0BkPuAXJCu%fengguang.wu@intel.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Thu, 03 Jul 2014 00:28:32 -0700 (PDT)
+Date: Thu, 3 Jul 2014 16:29:54 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v9] mm: support madvise(MADV_FREE)
+Message-ID: <20140703072954.GC2939@bbox>
+References: <1404174975-22019-1-git-send-email-minchan@kernel.org>
+ <20140701145058.GA2084@node.dhcp.inet.fi>
+ <20140703010318.GA2939@bbox>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20140703010318.GA2939@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>, Vivek Goyal <vgoyal@redhat.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux390@de.ibm.com, Gerald Schaefer <gerald.schaefer@de.ibm.com>
 
-On Thu, 2014-07-03 at 13:56 +0800, kbuild test robot wrote:
-> Hi Joe,
+Hello,
 
-Hi Fengguang.
+On Thu, Jul 03, 2014 at 10:03:19AM +0900, Minchan Kim wrote:
+> Hello,
+> 
+> On Tue, Jul 01, 2014 at 05:50:58PM +0300, Kirill A. Shutemov wrote:
+> > On Tue, Jul 01, 2014 at 09:36:15AM +0900, Minchan Kim wrote:
+> > > +	do {
+> > > +		/*
+> > > +		 * XXX: We can optimize with supporting Hugepage free
+> > > +		 * if the range covers.
+> > > +		 */
+> > > +		next = pmd_addr_end(addr, end);
+> > > +		if (pmd_trans_huge(*pmd))
+> > > +			split_huge_page_pmd(vma, addr, pmd);
+> > 
+> > Could you implement proper THP support before upstreaming the feature?
+> > It shouldn't be a big deal.
+> 
+> Okay, Hope to review.
+> 
+> Thanks for the feedback!
+> 
 
-> It's probably a bug fix that unveils the link errors.
+I tried to implement it but had a issue.
 
-I don't understand how the typedef removal matters here.
-Is this some sort of bisect false positive?
+I need pmd_mkold, pmd_mkclean for MADV_FREE operation and pmd_dirty for
+page_referenced. When I investigate all of arches supported THP,
+it's not a big deal but s390 is not sure to me who has no idea of
+soft tracking of s390 by storage key instead of page table information.
+Cced s390 maintainer. Hope to help.
 
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   82b56f797fa200a5e9feac3a93cb6496909b9670
-> commit: f192fb3c695b607044d4476c822783a8ae10ce75 [298/396] sysctl-remove-now-unused-typedef-ctl_table-fix
-> config: make ARCH=arm prima2_defconfig
-> 
-> All error/warnings:
-> 
->    kernel/built-in.o: In function `kexec_calculate_store_digests':
-> >> kernel/kexec.c:2181: undefined reference to `crypto_alloc_shash'
-> >> kernel/kexec.c:2223: undefined reference to `crypto_shash_update'
-> >> kernel/kexec.c:2238: undefined reference to `crypto_shash_update'
-> >> kernel/kexec.c:2253: undefined reference to `crypto_shash_final'
-> 
-> vim +2181 kernel/kexec.c
-> 
-> 025d7537 Vivek Goyal 2014-07-02  2175  	struct kexec_sha_region *sha_regions;
-> 025d7537 Vivek Goyal 2014-07-02  2176  	struct purgatory_info *pi = &image->purgatory_info;
-> 025d7537 Vivek Goyal 2014-07-02  2177  
-> 025d7537 Vivek Goyal 2014-07-02  2178  	zero_buf = __va(page_to_pfn(ZERO_PAGE(0)) << PAGE_SHIFT);
-> 025d7537 Vivek Goyal 2014-07-02  2179  	zero_buf_sz = PAGE_SIZE;
-> 025d7537 Vivek Goyal 2014-07-02  2180  
-> 025d7537 Vivek Goyal 2014-07-02 @2181  	tfm = crypto_alloc_shash("sha256", 0, 0);
-> 025d7537 Vivek Goyal 2014-07-02  2182  	if (IS_ERR(tfm)) {
-> 025d7537 Vivek Goyal 2014-07-02  2183  		ret = PTR_ERR(tfm);
-> 025d7537 Vivek Goyal 2014-07-02  2184  		goto out;
-> 025d7537 Vivek Goyal 2014-07-02  2185  	}
-> 025d7537 Vivek Goyal 2014-07-02  2186  
-> 025d7537 Vivek Goyal 2014-07-02  2187  	desc_size = crypto_shash_descsize(tfm) + sizeof(*desc);
-> 025d7537 Vivek Goyal 2014-07-02  2188  	desc = kzalloc(desc_size, GFP_KERNEL);
-> 025d7537 Vivek Goyal 2014-07-02  2189  	if (!desc) {
-> 025d7537 Vivek Goyal 2014-07-02  2190  		ret = -ENOMEM;
-> 025d7537 Vivek Goyal 2014-07-02  2191  		goto out_free_tfm;
-> 025d7537 Vivek Goyal 2014-07-02  2192  	}
-> 025d7537 Vivek Goyal 2014-07-02  2193  
-> 025d7537 Vivek Goyal 2014-07-02  2194  	sha_region_sz = KEXEC_SEGMENT_MAX * sizeof(struct kexec_sha_region);
-> 025d7537 Vivek Goyal 2014-07-02  2195  	sha_regions = vzalloc(sha_region_sz);
-> 025d7537 Vivek Goyal 2014-07-02  2196  	if (!sha_regions)
-> 025d7537 Vivek Goyal 2014-07-02  2197  		goto out_free_desc;
-> 025d7537 Vivek Goyal 2014-07-02  2198  
-> 025d7537 Vivek Goyal 2014-07-02  2199  	desc->tfm   = tfm;
-> 025d7537 Vivek Goyal 2014-07-02  2200  	desc->flags = 0;
-> 025d7537 Vivek Goyal 2014-07-02  2201  
-> 025d7537 Vivek Goyal 2014-07-02  2202  	ret = crypto_shash_init(desc);
-> 025d7537 Vivek Goyal 2014-07-02  2203  	if (ret < 0)
-> 025d7537 Vivek Goyal 2014-07-02  2204  		goto out_free_sha_regions;
-> 025d7537 Vivek Goyal 2014-07-02  2205  
-> 025d7537 Vivek Goyal 2014-07-02  2206  	digest = kzalloc(SHA256_DIGEST_SIZE, GFP_KERNEL);
-> 025d7537 Vivek Goyal 2014-07-02  2207  	if (!digest) {
-> 025d7537 Vivek Goyal 2014-07-02  2208  		ret = -ENOMEM;
-> 025d7537 Vivek Goyal 2014-07-02  2209  		goto out_free_sha_regions;
-> 025d7537 Vivek Goyal 2014-07-02  2210  	}
-> 025d7537 Vivek Goyal 2014-07-02  2211  
-> 025d7537 Vivek Goyal 2014-07-02  2212  	for (j = i = 0; i < image->nr_segments; i++) {
-> 025d7537 Vivek Goyal 2014-07-02  2213  		struct kexec_segment *ksegment;
-> 025d7537 Vivek Goyal 2014-07-02  2214  
-> 025d7537 Vivek Goyal 2014-07-02  2215  		ksegment = &image->segment[i];
-> 025d7537 Vivek Goyal 2014-07-02  2216  		/*
-> 025d7537 Vivek Goyal 2014-07-02  2217  		 * Skip purgatory as it will be modified once we put digest
-> 025d7537 Vivek Goyal 2014-07-02  2218  		 * info in purgatory.
-> 025d7537 Vivek Goyal 2014-07-02  2219  		 */
-> 025d7537 Vivek Goyal 2014-07-02  2220  		if (ksegment->kbuf == pi->purgatory_buf)
-> 025d7537 Vivek Goyal 2014-07-02  2221  			continue;
-> 025d7537 Vivek Goyal 2014-07-02  2222  
-> 025d7537 Vivek Goyal 2014-07-02 @2223  		ret = crypto_shash_update(desc, ksegment->kbuf,
-> 025d7537 Vivek Goyal 2014-07-02  2224  					  ksegment->bufsz);
-> 025d7537 Vivek Goyal 2014-07-02  2225  		if (ret)
-> 025d7537 Vivek Goyal 2014-07-02  2226  			break;
-> 025d7537 Vivek Goyal 2014-07-02  2227  
-> 025d7537 Vivek Goyal 2014-07-02  2228  		/*
-> 025d7537 Vivek Goyal 2014-07-02  2229  		 * Assume rest of the buffer is filled with zero and
-> 025d7537 Vivek Goyal 2014-07-02  2230  		 * update digest accordingly.
-> 025d7537 Vivek Goyal 2014-07-02  2231  		 */
-> 025d7537 Vivek Goyal 2014-07-02  2232  		nullsz = ksegment->memsz - ksegment->bufsz;
-> 025d7537 Vivek Goyal 2014-07-02  2233  		while (nullsz) {
-> 025d7537 Vivek Goyal 2014-07-02  2234  			unsigned long bytes = nullsz;
-> 025d7537 Vivek Goyal 2014-07-02  2235  
-> 025d7537 Vivek Goyal 2014-07-02  2236  			if (bytes > zero_buf_sz)
-> 025d7537 Vivek Goyal 2014-07-02  2237  				bytes = zero_buf_sz;
-> 025d7537 Vivek Goyal 2014-07-02 @2238  			ret = crypto_shash_update(desc, zero_buf, bytes);
-> 025d7537 Vivek Goyal 2014-07-02  2239  			if (ret)
-> 025d7537 Vivek Goyal 2014-07-02  2240  				break;
-> 025d7537 Vivek Goyal 2014-07-02  2241  			nullsz -= bytes;
-> 025d7537 Vivek Goyal 2014-07-02  2242  		}
-> 025d7537 Vivek Goyal 2014-07-02  2243  
-> 025d7537 Vivek Goyal 2014-07-02  2244  		if (ret)
-> 025d7537 Vivek Goyal 2014-07-02  2245  			break;
-> 025d7537 Vivek Goyal 2014-07-02  2246  
-> 025d7537 Vivek Goyal 2014-07-02  2247  		sha_regions[j].start = ksegment->mem;
-> 025d7537 Vivek Goyal 2014-07-02  2248  		sha_regions[j].len = ksegment->memsz;
-> 025d7537 Vivek Goyal 2014-07-02  2249  		j++;
-> 025d7537 Vivek Goyal 2014-07-02  2250  	}
-> 025d7537 Vivek Goyal 2014-07-02  2251  
-> 025d7537 Vivek Goyal 2014-07-02  2252  	if (!ret) {
-> 025d7537 Vivek Goyal 2014-07-02 @2253  		ret = crypto_shash_final(desc, digest);
-> 025d7537 Vivek Goyal 2014-07-02  2254  		if (ret)
-> 025d7537 Vivek Goyal 2014-07-02  2255  			goto out_free_digest;
-> 025d7537 Vivek Goyal 2014-07-02  2256  		ret = kexec_purgatory_get_set_symbol(image, "sha_regions",
-> 
-> :::::: The code at line 2181 was first introduced by commit
-> :::::: 025d75374c9c08274f60da5802381a8ef7490388 kexec: load and relocate purgatory at kernel load time
-> 
-> :::::: TO: Vivek Goyal <vgoyal@redhat.com>
-> :::::: CC: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> ---
-> 0-DAY kernel build testing backend              Open Source Technology Center
-> http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+So, if there isn't any help from s390, I should introduce
+HAVE_ARCH_THP_MADVFREE to disable MADV_FREE support of THP in s390 but
+not want to introduce such new config.
 
+At least, jemalloc case, it's hard to play with THP because it has
+some metadata in the head of chunk so normally it doesn't free 2M
+entirely. I guess other allocator works with similar approach
+so not sure it's worth in this stage.
 
+Do you have any workload to use MADV_FREE with THP?
+so do you really want to support THP MADV_FREE now?
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
