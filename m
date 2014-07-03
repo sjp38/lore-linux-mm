@@ -1,51 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A0946B0031
-	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 10:24:51 -0400 (EDT)
-Received: by mail-wg0-f43.google.com with SMTP id b13so322621wgh.26
-        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 07:24:50 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 804F96B0031
+	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 10:29:51 -0400 (EDT)
+Received: by mail-wi0-f182.google.com with SMTP id bs8so2419689wib.9
+        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 07:29:50 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id wd7si26512418wjc.60.2014.07.03.07.24.49
+        by mx.google.com with ESMTPS id z2si35663922wjz.98.2014.07.03.07.29.41
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Jul 2014 07:24:50 -0700 (PDT)
-Date: Thu, 3 Jul 2014 10:24:42 -0400
+        Thu, 03 Jul 2014 07:29:43 -0700 (PDT)
+Date: Thu, 3 Jul 2014 10:29:29 -0400
 From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [mmotm:master 289/396] undefined reference to
- `crypto_alloc_shash'
-Message-ID: <20140703142442.GC21156@redhat.com>
-References: <53b49bda.Alc8D1c/m4kIm3gZ%fengguang.wu@intel.com>
+Subject: Re: [mmotm:master 298/396] kernel/kexec.c:2181: undefined reference
+ to `crypto_alloc_shash'
+Message-ID: <20140703142929.GD21156@redhat.com>
+References: <53b4f07a.xCByfd0BkPuAXJCu%fengguang.wu@intel.com>
+ <1404368018.14741.31.camel@joe-AO725>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <53b49bda.Alc8D1c/m4kIm3gZ%fengguang.wu@intel.com>
+In-Reply-To: <1404368018.14741.31.camel@joe-AO725>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: Joe Perches <joe@perches.com>
+Cc: kbuild test robot <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
 
-On Thu, Jul 03, 2014 at 07:55:06AM +0800, kbuild test robot wrote:
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   82b56f797fa200a5e9feac3a93cb6496909b9670
-> commit: 025d75374c9c08274f60da5802381a8ef7490388 [289/396] kexec: load and relocate purgatory at kernel load time
-> config: make ARCH=s390 allnoconfig
+On Wed, Jul 02, 2014 at 11:13:38PM -0700, Joe Perches wrote:
+> On Thu, 2014-07-03 at 13:56 +0800, kbuild test robot wrote:
+> > Hi Joe,
 > 
-> All error/warnings:
+> Hi Fengguang.
 > 
->    kernel/built-in.o: In function `sys_kexec_file_load':
->    (.text+0x32314): undefined reference to `crypto_shash_final'
->    kernel/built-in.o: In function `sys_kexec_file_load':
->    (.text+0x32328): undefined reference to `crypto_shash_update'
->    kernel/built-in.o: In function `sys_kexec_file_load':
-> >> (.text+0x32338): undefined reference to `crypto_alloc_shash'
+> > It's probably a bug fix that unveils the link errors.
 > 
+> I don't understand how the typedef removal matters here.
+> Is this some sort of bisect false positive?
+> 
+> > tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> > head:   82b56f797fa200a5e9feac3a93cb6496909b9670
+> > commit: f192fb3c695b607044d4476c822783a8ae10ce75 [298/396] sysctl-remove-now-unused-typedef-ctl_table-fix
+> > config: make ARCH=arm prima2_defconfig
+> > 
+> > All error/warnings:
+> > 
+> >    kernel/built-in.o: In function `kexec_calculate_store_digests':
+> > >> kernel/kexec.c:2181: undefined reference to `crypto_alloc_shash'
+> > >> kernel/kexec.c:2223: undefined reference to `crypto_shash_update'
+> > >> kernel/kexec.c:2238: undefined reference to `crypto_shash_update'
+> > >> kernel/kexec.c:2253: undefined reference to `crypto_shash_final'
 
-Hi,
+I think these errors are happening because of kexe changes. Now kexec
+requires CRYPTO and CRYPTO_SHA256. I did the change for x86 but not
+for other arches supporting kexec. Just now I sent a patch to fix
+these errors.
 
-I think following patch should fix this issue.
-
-Thanks
-Vivek
+Inlining same patch here again for reference. I think this patch
+should fix it.
 
 Subject: kexec: set CRYPTO=y and CRYPTO_SHA256=y for all arch supporting kexec
 
@@ -182,6 +192,9 @@ Index: linux-2.6/arch/tile/Kconfig
  	---help---
  	  kexec is a system call that implements the ability to shutdown your
  	  current kernel, and to start another kernel.  It is like a reboot
+
+Thanks
+Vivek
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
