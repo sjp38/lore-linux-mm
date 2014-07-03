@@ -1,61 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
-	by kanga.kvack.org (Postfix) with ESMTP id B0F936B0035
-	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 15:43:37 -0400 (EDT)
-Received: by mail-la0-f50.google.com with SMTP id pv20so523825lab.9
-        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 12:43:36 -0700 (PDT)
-Received: from mycroft.westnet.com (Mycroft.westnet.com. [216.187.52.7])
-        by mx.google.com with ESMTPS id eo1si25191895lac.130.2014.07.03.12.43.34
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 9701A6B0035
+	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 15:56:46 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id r10so733603pdi.4
+        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 12:56:46 -0700 (PDT)
+Received: from mail-pd0-x235.google.com (mail-pd0-x235.google.com [2607:f8b0:400e:c02::235])
+        by mx.google.com with ESMTPS id td3si33631295pab.128.2014.07.03.12.56.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 03 Jul 2014 12:43:35 -0700 (PDT)
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 03 Jul 2014 12:56:45 -0700 (PDT)
+Received: by mail-pd0-f181.google.com with SMTP id v10so722172pde.26
+        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 12:56:44 -0700 (PDT)
+Date: Thu, 3 Jul 2014 12:54:36 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: mm: memcontrol: rewrite uncharge API: problems
+In-Reply-To: <alpine.LSU.2.11.1407021518120.8299@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1407031219500.1370@eggly.anvils>
+References: <alpine.LSU.2.11.1406301558090.4572@eggly.anvils> <20140701174612.GC1369@cmpxchg.org> <20140702212004.GF1369@cmpxchg.org> <alpine.LSU.2.11.1407021518120.8299@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <21429.45664.255694.85431@quad.stoffel.home>
-Date: Thu, 3 Jul 2014 15:43:28 -0400
-From: "John Stoffel" <john@stoffel.org>
-Subject: Re: [PATCH] mm readahead: Fix sys_readahead breakage by reverting 2MB
- limit (bug 79111)
-In-Reply-To: <CA+55aFwwSCrH5QDvrzzyHhRU5R849Mo8A3NdRMwm9OTeWH9diQ@mail.gmail.com>
-References: <1404392547-11648-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
-	<CA+55aFxOTqUAqEF7+83s890Q18qCHSQqDOxWqWHNjG_25hVhXg@mail.gmail.com>
-	<53B59CB5.9060004@linux.vnet.ibm.com>
-	<CA+55aFyRgYW6Y8paYKGfqE205enhiPsZ1C8wrKpFavVXq7ZAtA@mail.gmail.com>
-	<CA+55aFwwSCrH5QDvrzzyHhRU5R849Mo8A3NdRMwm9OTeWH9diQ@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, David Rientjes <rientjes@google.com>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
->>>>> "Linus" == Linus Torvalds <torvalds@linux-foundation.org> writes:
+On Wed, 2 Jul 2014, Hugh Dickins wrote:
+> On Wed, 2 Jul 2014, Johannes Weiner wrote:
+> > 
+> > Could you give the following patch a spin?  I put it in the mmots
+> > stack on top of mm-memcontrol-rewrite-charge-api-fix-shmem_unuse-fix.
+> 
+> I'm just with the laptop until this evening.  I slapped it on top of
+> my 3.16-rc2-mm1 plus fixes (but obviously minus my memcg_batch one
+> - which incidentally continues to run without crashing on the G5),
+> and it quickly gave me this lockdep splat, which doesn't look very
+> different from the one before.
+> 
+> I see there's now an -rc3-mm1, I'll try it out on that in half an
+> hour... but unless I send word otherwise, assume that's the same.
 
-Linus> On Thu, Jul 3, 2014 at 11:22 AM, Linus Torvalds
-Linus> <torvalds@linux-foundation.org> wrote:
->> 
->> So the bugzilla entry worries me a bit - we definitely do not want to
->> regress in case somebody really relied on timing - but without more
->> specific information I still think the real bug is just in the
->> man-page.
+Yes, I get that lockdep report each time on -rc3-mm1 + your patch.
 
-Linus> Side note: the 2MB limit may be too small. 2M is peanuts on modern
-Linus> machines, even for fairly slow IO, and there are lots of files (like
-Linus> glibc etc) that people might want to read-ahead during boot. We
-Linus> already do bigger read-ahead if people just do "read()" system calls.
-Linus> So I could certainly imagine that we should increase it.
+I also twice got a flurry of res_counter.c:28 underflow warnings.
+Hmm, 62 of them each time (I was checking for a number near 512,
+which would suggest a THP/4k confusion, but no).  The majority
+of them coming from mem_cgroup_reparent_charges.
 
-Linus> I do *not* think we should bow down to insane man-pages that have
-Linus> always been wrong, though, and I don't think we should increase it to
-Linus> "let's just read-ahead a whole ISO image" kind of sizes..
+But the laptop stayed up fine (for two hours before I had to stop
+it), and the G5 has run fine with that load for 16 hours now, no
+problems with release_pages, and not even a res_counter.c:28 (but
+I don't use lockdep on it).
 
-This is one of those perenial questions of how to tune this.  I agree
-we should increase the number, but shouldn't it be based on both the
-amount of memory in the machine, number of devices (or is it all just
-one big pool?) and the speed of the actual device doing readahead?
-Doesn't make sense to do 32mb of readahead on a USB 1.1 thumb drive or
-even a CDROM.  But maybe it does for USB3 thumb drives?  
+The x86 workstation ran fine for 4.5 hours, then hit some deadlock
+which I doubt had any connection to your changes: looked more like
+a jbd2 transaction was failing to complete (which, with me trying
+ext4 on loop on tmpfs, might be more my problem than anyone else's).
 
-John
+Oh, but nearly forgot, I did an earlier run on the laptop last night,
+which crashed within minutes on
+
+VM_BUG_ON_PAGE(!(pc->flags & PCG_MEM))
+mm/memcontrol.c:6680!
+page had count 1 mapcount 0 mapping anon index 0x196
+flags locked uptodate reclaim swapbacked, pcflags 1, memcg not root
+mem_cgroup_migrate < move_to_new_page < migrate_pages < compact_zone <
+compact_zone_order < try_to_compact_pages < __alloc_pages_direct_compact <
+__alloc_pages_nodemask < alloc_pages_vma < do_huge_pmd_anonymous_page <
+handle_mm_fault < __do_page_fault
+
+I was expecting to reproduce that quite easily on the laptop or
+workstation, and investigate more closely then; but in fact have
+not seen it since.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
