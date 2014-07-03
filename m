@@ -1,122 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id DA7316B0031
-	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 11:37:34 -0400 (EDT)
-Received: by mail-we0-f174.google.com with SMTP id u57so445735wes.19
-        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 08:37:34 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u10si35917337wjz.0.2014.07.03.08.37.33
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 03 Jul 2014 08:37:33 -0700 (PDT)
-Message-ID: <53B578BC.4050300@suse.cz>
-Date: Thu, 03 Jul 2014 17:37:32 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 340756B0031
+	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 11:41:39 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id hz1so414208pad.38
+        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 08:41:38 -0700 (PDT)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id fi4si33193179pbb.193.2014.07.03.08.41.35
+        for <linux-mm@kvack.org>;
+        Thu, 03 Jul 2014 08:41:37 -0700 (PDT)
+Message-ID: <53B579AD.1010201@sr71.net>
+Date: Thu, 03 Jul 2014 08:41:33 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] shmem: fix faulting into a hole while it's punched,
- take 2
-References: <alpine.LSU.2.11.1407021204180.12131@eggly.anvils> <alpine.LSU.2.11.1407021209570.12131@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1407021209570.12131@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 00/10] RFC: userfault
+References: <1404319816-30229-1-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1404319816-30229-1-git-send-email-aarcange@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Lukas Czerner <lczerner@redhat.com>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: "\"Dr. David Alan Gilbert\"" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, Keith Packard <keithp@keithp.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Isaku Yamahata <yamahata@valinux.co.jp>, Paolo Bonzini <pbonzini@redhat.com>, Anthony Liguori <anthony@codemonkey.ws>, Stefan Hajnoczi <stefanha@gmail.com>, Wenchao Xia <wenchaoqemu@gmail.com>, Andrew Jones <drjones@redhat.com>, Juan Quintela <quintela@redhat.com>, Mel Gorman <mgorman@suse.de>
 
-On 07/02/2014 09:11 PM, Hugh Dickins wrote:
-> Trinity finds that mmap access to a hole while it's punched from shmem
-> can prevent the madvise(MADV_REMOVE) or fallocate(FALLOC_FL_PUNCH_HOLE)
-> from completing, until the (killable) reader stops; with the puncher's
-> hold on i_mutex locking out all other writers until it can complete.
-> This issue was tagged with CVE-2014-4171.
->
-> It appears that the tmpfs fault path is too light in comparison with its
-> hole-punching path, lacking an i_data_sem to obstruct it; but we don't
-> want to slow down the common case.  It is not a problem in truncation,
-> because there the SIGBUS beyond i_size stops pages from being appended.
->
-> The origin of this problem is my v3.1 commit d0823576bf4b ("mm: pincer
-> in truncate_inode_pages_range"), once it was duplicated into shmem.c.
-> It seemed like a nice idea at the time, to ensure (barring RCU lookup
-> fuzziness) that there's an instant when the entire hole is empty; but
-> the indefinitely repeated scans to ensure that make it vulnerable.
->
-> Revert that "enhancement" to hole-punch from shmem_undo_range(), but
-> retain the unproblematic rescanning when it's truncating; add a couple
-> of comments there.
->
-> Remove the "indices[0] >= end" test: that is now handled satisfactorily
-> by the inner loop, and mem_cgroup_uncharge_start()/end() are too light
-> to be worth avoiding here.
->
-> But if we do not always loop indefinitely, we do need to handle the
-> case of swap swizzled back to page before shmem_free_swap() gets it:
-> add a retry for that case, as suggested by Konstantin Khlebnikov.
->
-> Reported-by: Sasha Levin <sasha.levin@oracle.com>
-> Suggested-and-Tested-by: Vlastimil Babka <vbabka@suse.cz>
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> Cc: Konstantin Khlebnikov <koct9i@gmail.com>
-> Cc: Lukas Czerner <lczerner@redhat.com>
-> Cc: Dave Jones <davej@redhat.com>
-> Cc: stable@vger.kernel.org # v3.1+
-> ---
->
->   mm/shmem.c |   19 ++++++++++---------
->   1 file changed, 10 insertions(+), 9 deletions(-)
->
-> --- 3.16-rc3+/mm/shmem.c	2014-07-02 03:31:12.956546569 -0700
-> +++ linux/mm/shmem.c	2014-07-02 03:34:13.172550852 -0700
-> @@ -467,23 +467,20 @@ static void shmem_undo_range(struct inod
->   		return;
->
->   	index = start;
-> -	for ( ; ; ) {
-> +	while (index < end) {
->   		cond_resched();
->
->   		pvec.nr = find_get_entries(mapping, index,
->   				min(end - index, (pgoff_t)PAGEVEC_SIZE),
->   				pvec.pages, indices);
->   		if (!pvec.nr) {
-> -			if (index == start || unfalloc)
-> +			/* If all gone or hole-punch or unfalloc, we're done */
-> +			if (index == start || end != -1)
->   				break;
-> +			/* But if truncating, restart to make sure all gone */
->   			index = start;
->   			continue;
->   		}
-> -		if ((index == start || unfalloc) && indices[0] >= end) {
-> -			pagevec_remove_exceptionals(&pvec);
-> -			pagevec_release(&pvec);
-> -			break;
-> -		}
->   		mem_cgroup_uncharge_start();
->   		for (i = 0; i < pagevec_count(&pvec); i++) {
->   			struct page *page = pvec.pages[i];
-> @@ -495,8 +492,12 @@ static void shmem_undo_range(struct inod
->   			if (radix_tree_exceptional_entry(page)) {
->   				if (unfalloc)
->   					continue;
-> -				nr_swaps_freed += !shmem_free_swap(mapping,
-> -								index, page);
-> +				if (shmem_free_swap(mapping, index, page)) {
-> +					/* Swap was replaced by page: retry */
-> +					index--;
-> +					break;
-> +				}
-> +				nr_swaps_freed++;
->   				continue;
+On 07/02/2014 09:50 AM, Andrea Arcangeli wrote:
+> The MADV_USERFAULT feature should be generic enough that it can
+> provide the userfaults to the Android volatile range feature too, on
+> access of reclaimed volatile pages.
 
-Ugh, a warning to anyone trying to backport this. This hunk can match 
-both instances of the same code in the function, and I've just seen 
-patch picking the wrong one.
+Maybe.
 
->   			}
->
->
+I certainly can't keep track of all the versions of the variations of
+the volatile ranges patches.  But, I don't think it's a given that this
+can be reused.  First of all, volatile ranges is trying to replace
+ashmem and is going to require _some_ form of sharing.  This mechanism,
+being tightly coupled to anonymous memory at the moment, is not a close
+fit for that.
+
+It's also important to call out that this is a VMA-based mechanism.  I
+certainly can't predict what we'll merge for volatile ranges, but not
+all of them are VMA-based.  We'd also need a mechanism on top of this to
+differentiate plain not-present pages from not-present-because-purged pages.
+
+That said, I _think_ this might fit well in to what the Mozilla guys
+wanted out of volatile ranges.  I'm not confident about it, though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
