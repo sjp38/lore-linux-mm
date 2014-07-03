@@ -1,256 +1,346 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E7FC6B0035
-	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 09:20:11 -0400 (EDT)
-Received: by mail-wg0-f43.google.com with SMTP id b13so224497wgh.26
-        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 06:20:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id fu18si35460800wjc.113.2014.07.03.06.20.01
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FDED6B0035
+	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 09:45:15 -0400 (EDT)
+Received: by mail-ig0-f172.google.com with SMTP id hn18so7895874igb.5
+        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 06:45:15 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id ve15si25093827igb.57.2014.07.03.06.45.13
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Jul 2014 06:20:01 -0700 (PDT)
-Date: Thu, 3 Jul 2014 15:19:08 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 08/10] userfaultfd: add new syscall to provide memory
- externalization
-Message-ID: <20140703131908.GD21667@redhat.com>
-References: <1404319816-30229-1-git-send-email-aarcange@redhat.com>
- <1404319816-30229-9-git-send-email-aarcange@redhat.com>
- <53B4B833.9010508@mit.edu>
+        Thu, 03 Jul 2014 06:45:13 -0700 (PDT)
+Message-ID: <53B55E63.7080309@codeaurora.org>
+Date: Thu, 03 Jul 2014 09:45:07 -0400
+From: Christopher Covington <cov@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <53B4B833.9010508@mit.edu>
+Subject: Re: [Qemu-devel] [PATCH 00/10] RFC: userfault
+References: <1404319816-30229-1-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1404319816-30229-1-git-send-email-aarcange@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "\"Dr. David Alan Gilbert\"" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, Keith Packard <keithp@keithp.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Isaku Yamahata <yamahata@valinux.co.jp>, Linux API <linux-api@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Robert Love <rlove@google.com>, Dave Hansen <dave@sr71.net>, Jan Kara <jack@suse.cz>, Neil Brown <neilb@suse.de>, Stefan Hajnoczi <stefanha@gmail.com>, Andrew Jones <drjones@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Taras Glek <tglek@mozilla.com>, Juan Quintela <quintela@redhat.com>, Hugh Dickins <hughd@google.com>, Isaku Yamahata <yamahata@valinux.co.jp>, Mel Gorman <mgorman@suse.de>, Android Kernel Team <kernel-team@android.com>, Mel Gorman <mel@csn.ul.ie>, "Dr. David Alan Gilbert" <dgilbert@redhat.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Anthony Liguori <anthony@codemonkey.ws>, Mike Hommey <mh@glandium.org>, Keith Packard <keithp@keithp.com>, Wenchao Xia <wenchaoqemu@gmail.com>, Minchan Kim <minchan@kernel.org>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, crml <criu@openvz.org>
 
-Hi Andy,
+Hi Andrea,
 
-thanks for CC'ing linux-api.
-
-On Wed, Jul 02, 2014 at 06:56:03PM -0700, Andy Lutomirski wrote:
-> On 07/02/2014 09:50 AM, Andrea Arcangeli wrote:
-> > Once an userfaultfd is created MADV_USERFAULT regions talks through
-> > the userfaultfd protocol with the thread responsible for doing the
-> > memory externalization of the process.
-> > 
-> > The protocol starts by userland writing the requested/preferred
-> > USERFAULT_PROTOCOL version into the userfault fd (64bit write), if
-> > kernel knows it, it will ack it by allowing userland to read 64bit
-> > from the userfault fd that will contain the same 64bit
-> > USERFAULT_PROTOCOL version that userland asked. Otherwise userfault
-> > will read __u64 value -1ULL (aka USERFAULTFD_UNKNOWN_PROTOCOL) and it
-> > will have to try again by writing an older protocol version if
-> > suitable for its usage too, and read it back again until it stops
-> > reading -1ULL. After that the userfaultfd protocol starts.
-> > 
-> > The protocol consists in the userfault fd reads 64bit in size
-> > providing userland the fault addresses. After a userfault address has
-> > been read and the fault is resolved by userland, the application must
-> > write back 128bits in the form of [ start, end ] range (64bit each)
-> > that will tell the kernel such a range has been mapped. Multiple read
-> > userfaults can be resolved in a single range write. poll() can be used
-> > to know when there are new userfaults to read (POLLIN) and when there
-> > are threads waiting a wakeup through a range write (POLLOUT).
-> > 
-> > Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+On 07/02/2014 12:50 PM, Andrea Arcangeli wrote:
+> Hello everyone,
 > 
-> > +#ifdef CONFIG_PROC_FS
-> > +static int userfaultfd_show_fdinfo(struct seq_file *m, struct file *f)
-> > +{
-> > +	struct userfaultfd_ctx *ctx = f->private_data;
-> > +	int ret;
-> > +	wait_queue_t *wq;
-> > +	struct userfaultfd_wait_queue *uwq;
-> > +	unsigned long pending = 0, total = 0;
-> > +
-> > +	spin_lock(&ctx->fault_wqh.lock);
-> > +	list_for_each_entry(wq, &ctx->fault_wqh.task_list, task_list) {
-> > +		uwq = container_of(wq, struct userfaultfd_wait_queue, wq);
-> > +		if (uwq->pending)
-> > +			pending++;
-> > +		total++;
-> > +	}
-> > +	spin_unlock(&ctx->fault_wqh.lock);
-> > +
-> > +	ret = seq_printf(m, "pending:\t%lu\ntotal:\t%lu\n", pending, total);
+> There's a large CC list for this RFC because this adds two new
+> syscalls (userfaultfd and remap_anon_pages) and
+> MADV_USERFAULT/MADV_NOUSERFAULT, so suggestions on changes to the API
+> or on a completely different API if somebody has better ideas are
+> welcome now.
 > 
-> This should show the protocol version, too.
-
-Ok, does the below look ok?
-
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index 388553e..f9d3e9f 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -493,7 +493,13 @@ static int userfaultfd_show_fdinfo(struct seq_file *m, struct file *f)
- 	}
- 	spin_unlock(&ctx->fault_wqh.lock);
- 
--	ret = seq_printf(m, "pending:\t%lu\ntotal:\t%lu\n", pending, total);
-+	/*
-+	 * If more protocols will be added, there will be all shown
-+	 * separated by a space. Like this:
-+	 *	protocols: 0xaa 0xbb
-+	 */
-+	ret = seq_printf(m, "pending:\t%lu\ntotal:\t%lu\nprotocols:\t%Lx\n",
-+			 pending, total, USERFAULTFD_PROTOCOL);
- 
- 	return ret;
- }
-
-
-> > +
-> > +SYSCALL_DEFINE1(userfaultfd, int, flags)
-> > +{
-> > +	int fd, error;
-> > +	struct file *file;
+> The combination of these features are what I would propose to
+> implement postcopy live migration in qemu, and in general demand
+> paging of remote memory, hosted in different cloud nodes.
 > 
-> This looks like it can't be used more than once in a process.  That will
+> The MADV_USERFAULT feature should be generic enough that it can
+> provide the userfaults to the Android volatile range feature too, on
+> access of reclaimed volatile pages.
+> 
+> If the access could ever happen in kernel context through syscalls
+> (not not just from userland context), then userfaultfd has to be used
+> to make the userfault unnoticeable to the syscall (no error will be
+> returned). This latter feature is more advanced than what volatile
+> ranges alone could do with SIGBUS so far (but it's optional, if the
+> process doesn't call userfaultfd, the regular SIGBUS will fire, if the
+> fd is closed SIGBUS will also fire for any blocked userfault that was
+> waiting a userfaultfd_write ack).
+> 
+> userfaultfd is also a generic enough feature, that it allows KVM to
+> implement postcopy live migration without having to modify a single
+> line of KVM kernel code. Guest async page faults, FOLL_NOWAIT and all
+> other GUP features works just fine in combination with userfaults
+> (userfaults trigger async page faults in the guest scheduler so those
+> guest processes that aren't waiting for userfaults can keep running in
+> the guest vcpus).
+> 
+> remap_anon_pages is the syscall to use to resolve the userfaults (it's
+> not mandatory, vmsplice will likely still be used in the case of local
+> postcopy live migration just to upgrade the qemu binary, but
+> remap_anon_pages is faster and ideal for transferring memory across
+> the network, it's zerocopy and doesn't touch the vma: it only holds
+> the mmap_sem for reading).
+> 
+> The current behavior of remap_anon_pages is very strict to avoid any
+> chance of memory corruption going unnoticed. mremap is not strict like
+> that: if there's a synchronization bug it would drop the destination
+> range silently resulting in subtle memory corruption for
+> example. remap_anon_pages would return -EEXIST in that case. If there
+> are holes in the source range remap_anon_pages will return -ENOENT.
+> 
+> If remap_anon_pages is used always with 2M naturally aligned
+> addresses, transparent hugepages will not be splitted. In there could
+> be 4k (or any size) holes in the 2M (or any size) source range,
+> remap_anon_pages should be used with the RAP_ALLOW_SRC_HOLES flag to
+> relax some of its strict checks (-ENOENT won't be returned if
+> RAP_ALLOW_SRC_HOLES is set, remap_anon_pages then will just behave as
+> a noop on any hole in the source range). This flag is generally useful
+> when implementing userfaults with THP granularity, but it shouldn't be
+> set if doing the userfaults with PAGE_SIZE granularity if the
+> developer wants to benefit from the strict -ENOENT behavior.
+> 
+> The remap_anon_pages syscall API is not vectored, as I expect it to be
+> used mainly for demand paging (where there can be just one faulting
+> range per userfault) or for large ranges (with the THP model as an
+> alternative to zapping re-dirtied pages with MADV_DONTNEED with 4k
+> granularity before starting the guest in the destination node) where
+> vectoring isn't going to provide much performance advantages (thanks
+> to the THP coarser granularity).
+> 
+> On the rmap side remap_anon_pages doesn't add much complexity: there's
+> no need of nonlinear anon vmas to support it because I added the
+> constraint that it will fail if the mapcount is more than 1. So in
+> general the source range of remap_anon_pages should be marked
+> MADV_DONTFORK to prevent any risk of failure if the process ever
+> forks (like qemu can in some case).
+> 
+> One part that hasn't been tested is the poll() syscall on the
+> userfaultfd because the postcopy migration thread currently is more
+> efficient waiting on blocking read()s (I'll write some code to test
+> poll() too). I also appended below a patch to trinity to exercise
+> remap_anon_pages and userfaultfd and it completes trinity
+> successfully.
+> 
+> The code can be found here:
+> 
+> git clone --reference linux git://git.kernel.org/pub/scm/linux/kernel/git/andrea/aa.git -b userfault 
+> 
+> The branch is rebased so you can get updates for example with:
+> 
+> git fetch && git checkout -f origin/userfault
+> 
+> Comments welcome, thanks!
 
-It can't be used more than once, correct.
+CRIU uses the soft dirty bit in /proc/pid/clear_refs and /proc/pid/pagemap to
+implement its pre-copy memory migration.
 
-	file = ERR_PTR(-EBUSY);
-	if (get_mm_slot(current->mm))
-		goto out_free_unlock;
+http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/Documentation/vm/soft-dirty.txt
 
-If a userfaultfd is already registered for the current mm the second
-one gets -EBUSY.
+Would it make sense to use a similar interaction model of peeking and poking
+at /proc/pid/ files for post-copy memory migration facilities?
 
-> be unfortunate for libraries.  Would it be feasible to either have
+Christopher
 
-So you envision two userfaultfd memory managers for the same process?
-I assume each one would claim separate ranges of memory?
+> From cbe940e13b4cead41e0f862b3abfa3814f235ec3 Mon Sep 17 00:00:00 2001
+> From: Andrea Arcangeli <aarcange@redhat.com>
+> Date: Wed, 2 Jul 2014 18:32:35 +0200
+> Subject: [PATCH] add remap_anon_pages and userfaultfd
+> 
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  include/syscalls-x86_64.h   |   2 +
+>  syscalls/remap_anon_pages.c | 100 ++++++++++++++++++++++++++++++++++++++++++++
+>  syscalls/syscalls.h         |   2 +
+>  syscalls/userfaultfd.c      |  12 ++++++
+>  4 files changed, 116 insertions(+)
+>  create mode 100644 syscalls/remap_anon_pages.c
+>  create mode 100644 syscalls/userfaultfd.c
+> 
+> diff --git a/include/syscalls-x86_64.h b/include/syscalls-x86_64.h
+> index e09df43..a5b3a88 100644
+> --- a/include/syscalls-x86_64.h
+> +++ b/include/syscalls-x86_64.h
+> @@ -324,4 +324,6 @@ struct syscalltable syscalls_x86_64[] = {
+>  	{ .entry = &syscall_sched_setattr },
+>  	{ .entry = &syscall_sched_getattr },
+>  	{ .entry = &syscall_renameat2 },
+> +	{ .entry = &syscall_remap_anon_pages },
+> +	{ .entry = &syscall_userfaultfd },
+>  };
+> diff --git a/syscalls/remap_anon_pages.c b/syscalls/remap_anon_pages.c
+> new file mode 100644
+> index 0000000..b1e9d3c
+> --- /dev/null
+> +++ b/syscalls/remap_anon_pages.c
+> @@ -0,0 +1,100 @@
+> +/*
+> + * SYSCALL_DEFINE3(remap_anon_pages,
+> +		unsigned long, dst_start, unsigned long, src_start,
+> +		unsigned long, len)
+> + */
+> +#include <stdlib.h>
+> +#include <asm/mman.h>
+> +#include <assert.h>
+> +#include "arch.h"
+> +#include "maps.h"
+> +#include "random.h"
+> +#include "sanitise.h"
+> +#include "shm.h"
+> +#include "syscall.h"
+> +#include "tables.h"
+> +#include "trinity.h"
+> +#include "utils.h"
+> +
+> +static const unsigned long alignments[] = {
+> +	1 * MB, 2 * MB, 4 * MB, 8 * MB,
+> +	10 * MB, 100 * MB,
+> +};
+> +
+> +static unsigned char *g_src, *g_dst;
+> +static unsigned long g_size;
+> +static int g_check;
+> +
+> +#define RAP_ALLOW_SRC_HOLES (1UL<<0)
+> +
+> +static void sanitise_remap_anon_pages(struct syscallrecord *rec)
+> +{
+> +	unsigned long size = alignments[rand() % ARRAY_SIZE(alignments)];
+> +	unsigned long max_rand;
+> +	if (rand_bool()) {
+> +		g_src = mmap(NULL, size, PROT_READ|PROT_WRITE,
+> +			     MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+> +	} else
+> +		g_src = MAP_FAILED;
+> +	if (rand_bool()) {
+> +		g_dst = mmap(NULL, size, PROT_READ|PROT_WRITE,
+> +			     MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+> +	} else
+> +		g_dst = MAP_FAILED;
+> +	g_size = size;
+> +	g_check = 1;
+> +
+> +	rec->a1 = (unsigned long) g_dst;
+> +	rec->a2 = (unsigned long) g_src;
+> +	rec->a3 = g_size;
+> +	rec->a4 = 0;
+> +
+> +	if (rand_bool())
+> +		max_rand = -1UL;
+> +	else
+> +		max_rand = g_size << 1;
+> +	if (rand_bool()) {
+> +		rec->a3 += (rand() % max_rand) - g_size;
+> +		g_check = 0;
+> +	}
+> +	if (rand_bool()) {
+> +		rec->a1 += (rand() % max_rand) - g_size;
+> +		g_check = 0;
+> +	}
+> +	if (rand_bool()) {
+> +		rec->a2 += (rand() % max_rand) - g_size;
+> +		g_check = 0;
+> +	}
+> +	if (rand_bool()) {
+> +		if (rand_bool()) {
+> +			rec->a4 = rand();
+> +		} else
+> +			rec->a4 = RAP_ALLOW_SRC_HOLES;
+> +	}
+> +	if (g_src != MAP_FAILED)
+> +		memset(g_src, 0xaa, size);
+> +}
+> +
+> +static void post_remap_anon_pages(struct syscallrecord *rec)
+> +{
+> +	if (g_check && !rec->retval) {
+> +		unsigned long size = g_size;
+> +		unsigned char *dst = g_dst;
+> +		while (size--)
+> +			assert(dst[size] == 0xaaU);
+> +	}
+> +	munmap(g_src, g_size);
+> +	munmap(g_dst, g_size);
+> +}
+> +
+> +struct syscallentry syscall_remap_anon_pages = {
+> +	.name = "remap_anon_pages",
+> +	.num_args = 4,
+> +	.arg1name = "dst_start",
+> +	.arg2name = "src_start",
+> +	.arg3name = "len",
+> +	.arg4name = "flags",
+> +	.group = GROUP_VM,
+> +	.sanitise = sanitise_remap_anon_pages,
+> +	.post = post_remap_anon_pages,
+> +};
+> diff --git a/syscalls/syscalls.h b/syscalls/syscalls.h
+> index 114500c..b8eaa63 100644
+> --- a/syscalls/syscalls.h
+> +++ b/syscalls/syscalls.h
+> @@ -370,3 +370,5 @@ extern struct syscallentry syscall_sched_setattr;
+>  extern struct syscallentry syscall_sched_getattr;
+>  extern struct syscallentry syscall_renameat2;
+>  extern struct syscallentry syscall_kern_features;
+> +extern struct syscallentry syscall_remap_anon_pages;
+> +extern struct syscallentry syscall_userfaultfd;
+> diff --git a/syscalls/userfaultfd.c b/syscalls/userfaultfd.c
+> new file mode 100644
+> index 0000000..769fe78
+> --- /dev/null
+> +++ b/syscalls/userfaultfd.c
+> @@ -0,0 +1,12 @@
+> +/*
+> + * SYSCALL_DEFINE1(userfaultfd, int, flags)
+> + */
+> +#include "sanitise.h"
+> +
+> +struct syscallentry syscall_userfaultfd = {
+> +	.name = "userfaultfd",
+> +	.num_args = 1,
+> +	.arg1name = "flags",
+> +	.arg1type = ARG_LEN,
+> +	.rettype = RET_FD,
+> +};
+> 
+> 
+> Andrea Arcangeli (10):
+>   mm: madvise MADV_USERFAULT: prepare vm_flags to allow more than 32bits
+>   mm: madvise MADV_USERFAULT
+>   mm: PT lock: export double_pt_lock/unlock
+>   mm: rmap preparation for remap_anon_pages
+>   mm: swp_entry_swapcount
+>   mm: sys_remap_anon_pages
+>   waitqueue: add nr wake parameter to __wake_up_locked_key
+>   userfaultfd: add new syscall to provide memory externalization
+>   userfaultfd: make userfaultfd_write non blocking
+>   userfaultfd: use VM_FAULT_RETRY in handle_userfault()
+> 
+>  arch/alpha/include/uapi/asm/mman.h     |   3 +
+>  arch/mips/include/uapi/asm/mman.h      |   3 +
+>  arch/parisc/include/uapi/asm/mman.h    |   3 +
+>  arch/x86/syscalls/syscall_32.tbl       |   2 +
+>  arch/x86/syscalls/syscall_64.tbl       |   2 +
+>  arch/xtensa/include/uapi/asm/mman.h    |   3 +
+>  fs/Makefile                            |   1 +
+>  fs/proc/task_mmu.c                     |   5 +-
+>  fs/userfaultfd.c                       | 593 +++++++++++++++++++++++++++++++++
+>  include/linux/huge_mm.h                |  11 +-
+>  include/linux/ksm.h                    |   4 +-
+>  include/linux/mm.h                     |   5 +
+>  include/linux/mm_types.h               |   2 +-
+>  include/linux/swap.h                   |   6 +
+>  include/linux/syscalls.h               |   5 +
+>  include/linux/userfaultfd.h            |  42 +++
+>  include/linux/wait.h                   |   5 +-
+>  include/uapi/asm-generic/mman-common.h |   3 +
+>  init/Kconfig                           |  10 +
+>  kernel/sched/wait.c                    |   7 +-
+>  kernel/sys_ni.c                        |   2 +
+>  mm/fremap.c                            | 506 ++++++++++++++++++++++++++++
+>  mm/huge_memory.c                       | 209 ++++++++++--
+>  mm/ksm.c                               |   2 +-
+>  mm/madvise.c                           |  19 +-
+>  mm/memory.c                            |  14 +
+>  mm/mremap.c                            |   2 +-
+>  mm/rmap.c                              |   9 +
+>  mm/swapfile.c                          |  13 +
+>  net/sunrpc/sched.c                     |   2 +-
+>  30 files changed, 1447 insertions(+), 46 deletions(-)
+>  create mode 100644 fs/userfaultfd.c
+>  create mode 100644 include/linux/userfaultfd.h
+> 
+> 
 
-For that case the demultiplexing of userfaults can be entirely managed
-by userland.
 
-One libuserfault library can actually register the userfaultfd, and
-then the two libs can register into libuserfault and claim their own
-ranges. It could run the code of the two libs in the thread context
-that waits on the userfaultfd with zero overhead, or message passing
-across threads can be used to run both libs in parallel in their own
-thread. The demultiplexing code wouldn't be CPU intensive. The
-downside are two schedule event required if they want to run their lib
-code in a separate thread. If we'd claim the two different ranges in
-the kernel for two different userfaultfd, the kernel would be speaking
-directly with each library thread. That'd be the only advantage if
-they don't want to run in the context of the thread that waits on the
-userfaultfd.
-
-To increase SMP scalability in the future we could also add a
-UFFD_LOAD_BALANCE to distribute userfaults to different userfaultfd,
-that if used could relax the -EBUSY (but it wouldn't be two different
-claimed ranges for two different libs).
-
-If passing UFFD_LOAD_BALANCE to the current code sys_userfaultfd would
-return -EINVAL. I haven't implemented it because I'm not sure if such
-thing would ever be needed. Compared to distributing the userfaults in
-userland to different threads that would only save two context
-switches per event. I don't see a problem in adding this later if a
-need emerges though.
-
-I think the best model for two libs claiming different userfault
-ranges, is to run the userfault code of each lib in the context of the
-thread that waits on the userfaultfd, and if there's a need to scale
-in SMP we'd add UFFD_LOAD_BALANCE so multiple threads can wait on
-different userfaultfd and scale optimally in SMP without any need of
-spurious context switches.
-
-With the volatile pages current code, the SIGBUS event would also be
-mm-wide and require demultiplexing inside the sigbus handler if two
-different libs wants to claim different ranges. Furthermore the sigbus
-would run in the context of the faulting thread so it would still need
-to context switch to scale (with userfaultfd we let the current thread
-continue by triggering a schedule in the guest, if FOLL_NOWAIT fails
-and we spawn a kworker thread doing the async page fault, then the
-kworker kernel thread stops in the userfault and the migration thread
-waiting on the userfaultfd is woken up to resolve the userfault).
-
-Programs like qemu are unlikely to ever need more than one
-userfaultfd, so it wouldn't need to use the demultiplexing
-library. Currently we don't feel a need for UFFD_LOAD_BALANCE either.
-
-However I'd rather implement UFFD_LOAD_BALANCE now, than claiming
-different ranges in kernel that would require to build a lookup
-structure that lives on top of the vmas and it wouldn't be less
-efficient to write such a thing in userland inside a libuserfaultfd
-(that qemu would likely never need).
-
-In short I see no benefit in claiming different ranges for the same mm
-in the kernel API (that can be done equally efficient in userland),
-but I could see a benefit in a load balancing feature to scale the
-load to multiple userfaultfd if passing UFFD_LOAD_BALANCE (it could
-also be done by default by just removing the -EBUSY failure and
-without new flags, but it sounds safer to keep -EBUSY if
-UFFD_LOAD_BALANCE is not passed to userfaultfd through the flags).
-
-> userfaultfd claim a range of addresses or for a vma to be explicitly
-> associated with a userfaultfd?  (In the latter case, giant PROT_NONE
-> MAP_NORESERVE mappings could be used.)
-
-To claim ranges MADV_USERFAULT is used and the vmas are
-mm-wide. Instead of creating another range lookup on top the vmas, I
-used the vma itself to tell which ranges are claimed for userfaultfd
-(or SIGBUS behavior if userfaultfd isn't open).
-
-This API model with MADV_USERFAULT to claim the userfaultfd ranges is
-want fundamentally prevents you to claim different ranges for two
-different userfaultfd.
-
-About PROT_NONE, note that if you set the mapping as MADV_USERFAULT
-there's no point in setting PROT_NONE too, MAP_NORESERVE instead
-should already work just fine and it's orthogonal.
-
-PROT_NONE is kind of an alternative to userfaults without
-MADV_USERFAULT. Problem is that PROT_NONE requires to split VMAs (and
-take the mmap_sem for writing and mangle and allocate vmas), until you
-actually run out of vmas and you get -ENOMEM and the app crashes. The
-whole point of postcopy live migration is that it will work with
-massively large guests so we cannot risk running out of vmas.
-
-With MADV_USERFAULT you never mangle the vma and you work with a
-single gigantic vma that never gets split. You don't need to mremap
-over the PROT_NONE to handle the fault.
-
-Even without userfaultfd and just with MADV_USERFAULT+remap_anon_pages
-using SIGBUS is a much more efficient and more reliable alternative
-than PROT_NONE.
-
-With userfaultfd + remap_anon_pages things are even more efficient
-because there are no signals involved at all, and syscalls won't
-return weird errors to userland like it would happen with SIGBUS and
-without userfaultfd. With userfaultfd the thread stopping in the
-userfault won't even exit the kernel, it'll wait a wakeup within the
-kernel. And remap_anon_pages that resolves the fault, just updates the
-ptes or hugepmds without touching the vma (plus remap_anon_pages is
-very strict so the chance of memory corruption going unnoticed is next
-to nil, unlike mremap).
-
-Other things that people should comment on is that currently you
-cannot set MADV_USERFAULT on filebacked vmas, that sounds like an
-issue for volatile pages that should be fixed. Currently -EINVAL is
-returned if MADV_USERFAULT is run on non anonymous vmas. I don't think
-it's a problem to add it. The do_linear_fault would just trigger an
-userfault too. Then it's up to userland how it resolves it before
-sending the wakeup to the stopped thread with userfaultfd_write. As
-long as it doesn't fault in do_linear_fault again it'll just work.
-
-How you solve the fault before acking it with userfaultfd_write
-(remap_file_pages, remap_anon_pages, mremap, mmap, anything) is
-entirely up to userland. The only faults the userfault tracks are the
-pte_none/pmd_none kind (same as PROT_NONE). As long as you put
-something in the pte/pmd and it's not none anymore you can
-userfaultfd_write and it'll just work. Clearing VM_USERFAULT would
-also work to resolve the fault of course (and then it'd pagein from
-disk if it was filebacked or it'd map a zero page if it was an
-anonymous vma) but clearing VM_USERFAULT (with MADV_NOUSERFAULT)
-would split the vma so it's not recommended...
-
-Thanks,
-Andrea
+-- 
+Employee of Qualcomm Innovation Center, Inc.
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+hosted by the Linux Foundation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
