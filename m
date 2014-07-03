@@ -1,48 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 340756B0031
-	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 11:41:39 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id hz1so414208pad.38
-        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 08:41:38 -0700 (PDT)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id fi4si33193179pbb.193.2014.07.03.08.41.35
-        for <linux-mm@kvack.org>;
-        Thu, 03 Jul 2014 08:41:37 -0700 (PDT)
-Message-ID: <53B579AD.1010201@sr71.net>
-Date: Thu, 03 Jul 2014 08:41:33 -0700
-From: Dave Hansen <dave@sr71.net>
+Received: from mail-ve0-f170.google.com (mail-ve0-f170.google.com [209.85.128.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 80A5F6B0036
+	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 11:42:00 -0400 (EDT)
+Received: by mail-ve0-f170.google.com with SMTP id i13so428831veh.1
+        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 08:42:00 -0700 (PDT)
+Received: from mail-vc0-x232.google.com (mail-vc0-x232.google.com [2607:f8b0:400c:c03::232])
+        by mx.google.com with ESMTPS id c2si14355234vcn.74.2014.07.03.08.41.59
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 03 Jul 2014 08:41:59 -0700 (PDT)
+Received: by mail-vc0-f178.google.com with SMTP id ij19so411999vcb.9
+        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 08:41:59 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/10] RFC: userfault
-References: <1404319816-30229-1-git-send-email-aarcange@redhat.com>
-In-Reply-To: <1404319816-30229-1-git-send-email-aarcange@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1404392547-11648-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
+References: <1404392547-11648-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
+Date: Thu, 3 Jul 2014 08:41:58 -0700
+Message-ID: <CA+55aFxOTqUAqEF7+83s890Q18qCHSQqDOxWqWHNjG_25hVhXg@mail.gmail.com>
+Subject: Re: [PATCH] mm readahead: Fix sys_readahead breakage by reverting 2MB
+ limit (bug 79111)
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: "\"Dr. David Alan Gilbert\"" <dgilbert@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, Keith Packard <keithp@keithp.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Isaku Yamahata <yamahata@valinux.co.jp>, Paolo Bonzini <pbonzini@redhat.com>, Anthony Liguori <anthony@codemonkey.ws>, Stefan Hajnoczi <stefanha@gmail.com>, Wenchao Xia <wenchaoqemu@gmail.com>, Andrew Jones <drjones@redhat.com>, Juan Quintela <quintela@redhat.com>, Mel Gorman <mgorman@suse.de>
+To: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, David Rientjes <rientjes@google.com>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 07/02/2014 09:50 AM, Andrea Arcangeli wrote:
-> The MADV_USERFAULT feature should be generic enough that it can
-> provide the userfaults to the Android volatile range feature too, on
-> access of reclaimed volatile pages.
+On Thu, Jul 3, 2014 at 6:02 AM, Raghavendra K T
+<raghavendra.kt@linux.vnet.ibm.com> wrote:
+>
+> However it broke sys_readahead semantics: 'readahead() blocks until the specified
+> data has been read'
 
-Maybe.
+What? Where did you find that insane sentence? And where did you find
+an application that depends on that totally insane semantics that sure
+as hell was never intentional.
 
-I certainly can't keep track of all the versions of the variations of
-the volatile ranges patches.  But, I don't think it's a given that this
-can be reused.  First of all, volatile ranges is trying to replace
-ashmem and is going to require _some_ form of sharing.  This mechanism,
-being tightly coupled to anonymous memory at the moment, is not a close
-fit for that.
+If this comes from some man-page, then the man-page is just full of
+sh*t, and is being crazy. The whole and *only* point of readahead() is
+that it does *not* block, and you can do it across multiple files.
 
-It's also important to call out that this is a VMA-based mechanism.  I
-certainly can't predict what we'll merge for volatile ranges, but not
-all of them are VMA-based.  We'd also need a mechanism on top of this to
-differentiate plain not-present pages from not-present-because-purged pages.
+So NAK NAK NAK. This is insane and completely wrong. And the bugzilla
+is crazy too. Why would anybody think that readahead() is the same as
+read()?
 
-That said, I _think_ this might fit well in to what the Mozilla guys
-wanted out of volatile ranges.  I'm not confident about it, though.
+             Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
