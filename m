@@ -1,74 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 69F486B003C
-	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 09:05:53 -0400 (EDT)
-Received: by mail-la0-f49.google.com with SMTP id gf5so135934lab.8
-        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 06:05:52 -0700 (PDT)
-Received: from mail-la0-x22d.google.com (mail-la0-x22d.google.com [2a00:1450:4010:c03::22d])
-        by mx.google.com with ESMTPS id ad3si48825565lbc.1.2014.07.03.06.05.52
+Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 844BA6B003B
+	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 09:17:33 -0400 (EDT)
+Received: by mail-lb0-f171.google.com with SMTP id s7so151084lbd.2
+        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 06:17:32 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id ax9si48826325lbc.59.2014.07.03.06.17.31
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 03 Jul 2014 06:05:52 -0700 (PDT)
-Received: by mail-la0-f45.google.com with SMTP id hr17so139687lab.18
-        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 06:05:52 -0700 (PDT)
-From: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-Subject: [PATCH] mm readahead: Fix sys_readahead breakage by reverting 2MB limit (bug 79111)
-Date: Thu,  3 Jul 2014 18:32:27 +0530
-Message-Id: <1404392547-11648-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 03 Jul 2014 06:17:32 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH TRIVIAL -mm] fork: make mm_init_owner static
+Date: Thu, 3 Jul 2014 17:17:23 +0400
+Message-ID: <1404393443-14453-1-git-send-email-vdavydov@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, rientjes@google.com, Linus <torvalds@linux-foundation.org>, nacc@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-commit 6d2be915 (mm/readahead.c: fix readahead failure for memoryless NUMA nodes
-and limit readahead pages) imposed 2MB limits to readahed that yielded good
-performance since it avoided unnecessay page caching.
+It's only used in fork.c:mm_init().
 
-However it broke sys_readahead semantics: 'readahead() blocks until the specified
-data has been read'
-
-This patch still retains the fix for memoryless nodes which used to return zero
-and limits its readahead to 2MB to avoid unnecessary page cache thrashing but
-reverts to old sanitized readahead for cpu with memory nodes.
-
-link: https://bugzilla.kernel.org/show_bug.cgi?id=79111
-
-Signed-off-by: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- mm/readahead.c | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+ include/linux/sched.h |    5 -----
+ kernel/fork.c         |   14 +++++++-------
+ 2 files changed, 7 insertions(+), 12 deletions(-)
 
-diff --git a/mm/readahead.c b/mm/readahead.c
-index 0ca36a7..4514cf6 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -239,6 +239,24 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
-  */
- unsigned long max_sane_readahead(unsigned long nr)
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 322d4fc8976c..c1d6d46ce941 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -2959,15 +2959,10 @@ static inline void inc_syscw(struct task_struct *tsk)
+ 
+ #ifdef CONFIG_MEMCG
+ extern void mm_update_next_owner(struct mm_struct *mm);
+-extern void mm_init_owner(struct mm_struct *mm, struct task_struct *p);
+ #else
+ static inline void mm_update_next_owner(struct mm_struct *mm)
  {
-+	unsigned long local_free_page;
-+	int nid;
-+
-+	nid = numa_node_id();
-+	if (node_present_pages(nid)) {
-+		/*
-+		 * We sanitize readahead size depending on free memory in
-+		 * the local node.
-+		 */
-+		local_free_page = node_page_state(nid, NR_INACTIVE_FILE)
-+				 + node_page_state(nid, NR_FREE_PAGES);
-+		return min(nr, local_free_page / 2);
-+	}
-+	/*
-+	 * Readahead onto remote memory is better than no readahead when local
-+	 * numa node does not have memory. We limit the readahead to 2MB to
-+	 * avoid trashing page cache.
-+	 */
- 	return min(nr, MAX_READAHEAD);
+ }
+-
+-static inline void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
+-{
+-}
+ #endif /* CONFIG_MEMCG */
+ 
+ static inline unsigned long task_rlimit(const struct task_struct *tsk,
+diff --git a/kernel/fork.c b/kernel/fork.c
+index c3117443f42e..371cb7cc4f80 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -526,6 +526,13 @@ static void mm_init_aio(struct mm_struct *mm)
+ #endif
  }
  
++static void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
++{
++#ifdef CONFIG_MEMCG
++	mm->owner = p;
++#endif
++}
++
+ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
+ {
+ 	mm->mmap = NULL;
+@@ -1098,13 +1105,6 @@ static void rt_mutex_init_task(struct task_struct *p)
+ #endif
+ }
+ 
+-#ifdef CONFIG_MEMCG
+-void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
+-{
+-	mm->owner = p;
+-}
+-#endif /* CONFIG_MEMCG */
+-
+ /*
+  * Initialize POSIX timer handling for a single task.
+  */
 -- 
-1.7.11.7
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
