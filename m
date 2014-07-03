@@ -1,95 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id CF0616B0035
-	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 15:16:03 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id fp1so690175pdb.2
-        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 12:16:03 -0700 (PDT)
-Received: from mail-pd0-x22d.google.com (mail-pd0-x22d.google.com [2607:f8b0:400e:c02::22d])
-        by mx.google.com with ESMTPS id ek4si33640490pbc.5.2014.07.03.12.16.01
+Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id B0F936B0035
+	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 15:43:37 -0400 (EDT)
+Received: by mail-la0-f50.google.com with SMTP id pv20so523825lab.9
+        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 12:43:36 -0700 (PDT)
+Received: from mycroft.westnet.com (Mycroft.westnet.com. [216.187.52.7])
+        by mx.google.com with ESMTPS id eo1si25191895lac.130.2014.07.03.12.43.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 03 Jul 2014 12:16:02 -0700 (PDT)
-Received: by mail-pd0-f173.google.com with SMTP id r10so684990pdi.32
-        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 12:16:01 -0700 (PDT)
-Date: Thu, 3 Jul 2014 12:14:31 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 2/3] shmem: fix faulting into a hole while it's punched,
- take 2
-In-Reply-To: <53B578BC.4050300@suse.cz>
-Message-ID: <alpine.LSU.2.11.1407031202340.1370@eggly.anvils>
-References: <alpine.LSU.2.11.1407021204180.12131@eggly.anvils> <alpine.LSU.2.11.1407021209570.12131@eggly.anvils> <53B578BC.4050300@suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 03 Jul 2014 12:43:35 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <21429.45664.255694.85431@quad.stoffel.home>
+Date: Thu, 3 Jul 2014 15:43:28 -0400
+From: "John Stoffel" <john@stoffel.org>
+Subject: Re: [PATCH] mm readahead: Fix sys_readahead breakage by reverting 2MB
+ limit (bug 79111)
+In-Reply-To: <CA+55aFwwSCrH5QDvrzzyHhRU5R849Mo8A3NdRMwm9OTeWH9diQ@mail.gmail.com>
+References: <1404392547-11648-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
+	<CA+55aFxOTqUAqEF7+83s890Q18qCHSQqDOxWqWHNjG_25hVhXg@mail.gmail.com>
+	<53B59CB5.9060004@linux.vnet.ibm.com>
+	<CA+55aFyRgYW6Y8paYKGfqE205enhiPsZ1C8wrKpFavVXq7ZAtA@mail.gmail.com>
+	<CA+55aFwwSCrH5QDvrzzyHhRU5R849Mo8A3NdRMwm9OTeWH9diQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Lukas Czerner <lczerner@redhat.com>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, David Rientjes <rientjes@google.com>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Thu, 3 Jul 2014, Vlastimil Babka wrote:
-> On 07/02/2014 09:11 PM, Hugh Dickins wrote:
-> > 
-> > --- 3.16-rc3+/mm/shmem.c	2014-07-02 03:31:12.956546569 -0700
-> > +++ linux/mm/shmem.c	2014-07-02 03:34:13.172550852 -0700
-> > @@ -467,23 +467,20 @@ static void shmem_undo_range(struct inod
-> >   		return;
-> > 
-> >   	index = start;
-> > -	for ( ; ; ) {
-> > +	while (index < end) {
-> >   		cond_resched();
-> > 
-> >   		pvec.nr = find_get_entries(mapping, index,
-> >   				min(end - index, (pgoff_t)PAGEVEC_SIZE),
-> >   				pvec.pages, indices);
-> >   		if (!pvec.nr) {
-> > -			if (index == start || unfalloc)
-> > +			/* If all gone or hole-punch or unfalloc, we're done
-> > */
-> > +			if (index == start || end != -1)
-> >   				break;
-> > +			/* But if truncating, restart to make sure all gone
-> > */
-> >   			index = start;
-> >   			continue;
-> >   		}
-> > -		if ((index == start || unfalloc) && indices[0] >= end) {
-> > -			pagevec_remove_exceptionals(&pvec);
-> > -			pagevec_release(&pvec);
-> > -			break;
-> > -		}
-> >   		mem_cgroup_uncharge_start();
-> >   		for (i = 0; i < pagevec_count(&pvec); i++) {
-> >   			struct page *page = pvec.pages[i];
-> > @@ -495,8 +492,12 @@ static void shmem_undo_range(struct inod
-> >   			if (radix_tree_exceptional_entry(page)) {
-> >   				if (unfalloc)
-> >   					continue;
-> > -				nr_swaps_freed += !shmem_free_swap(mapping,
-> > -								index, page);
-> > +				if (shmem_free_swap(mapping, index, page)) {
-> > +					/* Swap was replaced by page: retry
-> > */
-> > +					index--;
-> > +					break;
-> > +				}
-> > +				nr_swaps_freed++;
-> >   				continue;
-> 
-> Ugh, a warning to anyone trying to backport this. This hunk can match both
-> instances of the same code in the function, and I've just seen patch picking
-> the wrong one.
+>>>>> "Linus" == Linus Torvalds <torvalds@linux-foundation.org> writes:
 
-Thanks for the warning.
+Linus> On Thu, Jul 3, 2014 at 11:22 AM, Linus Torvalds
+Linus> <torvalds@linux-foundation.org> wrote:
+>> 
+>> So the bugzilla entry worries me a bit - we definitely do not want to
+>> regress in case somebody really relied on timing - but without more
+>> specific information I still think the real bug is just in the
+>> man-page.
 
-Yes, as it ends up, there are only two hunks: so if the first fails
-to apply (and down the releases there may be various trivial reasons
-why it would fail to apply cleanly, although easily edited by hand),
-patch might very well choose the first match to apply the second hunk.
+Linus> Side note: the 2MB limit may be too small. 2M is peanuts on modern
+Linus> machines, even for fairly slow IO, and there are lots of files (like
+Linus> glibc etc) that people might want to read-ahead during boot. We
+Linus> already do bigger read-ahead if people just do "read()" system calls.
+Linus> So I could certainly imagine that we should increase it.
 
-I'm expecting to have to do (or at least to check) each -stable by
-hand as it comes by.  I did just check mmotm, and it came out fine.
+Linus> I do *not* think we should bow down to insane man-pages that have
+Linus> always been wrong, though, and I don't think we should increase it to
+Linus> "let's just read-ahead a whole ISO image" kind of sizes..
 
-Hugh
+This is one of those perenial questions of how to tune this.  I agree
+we should increase the number, but shouldn't it be based on both the
+amount of memory in the machine, number of devices (or is it all just
+one big pool?) and the speed of the actual device doing readahead?
+Doesn't make sense to do 32mb of readahead on a USB 1.1 thumb drive or
+even a CDROM.  But maybe it does for USB3 thumb drives?  
+
+John
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
