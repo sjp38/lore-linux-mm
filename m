@@ -1,224 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A1466B0031
-	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 11:50:31 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id y13so424704pdi.13
-        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 08:50:31 -0700 (PDT)
-Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com [2607:f8b0:400e:c02::22a])
-        by mx.google.com with ESMTPS id cl4si33227549pbb.175.2014.07.03.08.50.29
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 6ECFC6B0031
+	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 12:01:10 -0400 (EDT)
+Received: by mail-wg0-f46.google.com with SMTP id y10so468804wgg.5
+        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 09:01:08 -0700 (PDT)
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com. [195.75.94.110])
+        by mx.google.com with ESMTPS id i1si27774160wix.2.2014.07.03.09.01.07
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 03 Jul 2014 08:50:30 -0700 (PDT)
-Received: by mail-pd0-f170.google.com with SMTP id z10so420217pdj.29
-        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 08:50:29 -0700 (PDT)
-From: Chen Yucong <slaoub@gmail.com>
-Subject: [PATCH] mm: vmscan: report the number of file/anon pages respectively
-Date: Thu,  3 Jul 2014 23:50:23 +0800
-Message-Id: <1404402623-6705-1-git-send-email-slaoub@gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 03 Jul 2014 09:01:08 -0700 (PDT)
+Received: from /spool/local
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
+	Thu, 3 Jul 2014 17:01:07 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 8099C17D8056
+	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 17:02:34 +0100 (BST)
+Received: from d06av07.portsmouth.uk.ibm.com (d06av07.portsmouth.uk.ibm.com [9.149.37.248])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s63G13FJ19202150
+	for <linux-mm@kvack.org>; Thu, 3 Jul 2014 16:01:03 GMT
+Received: from d06av07.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av07.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s63G12kl008084
+	for <linux-mm@kvack.org>; Thu, 3 Jul 2014 12:01:03 -0400
+Date: Thu, 3 Jul 2014 18:01:00 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: Re: [PATCH v9] mm: support madvise(MADV_FREE)
+Message-ID: <20140703180100.5f24a139@mschwide>
+In-Reply-To: <20140703083729.GE2939@bbox>
+References: <1404174975-22019-1-git-send-email-minchan@kernel.org>
+	<20140701145058.GA2084@node.dhcp.inet.fi>
+	<20140703010318.GA2939@bbox>
+	<20140703072954.GC2939@bbox>
+	<20140703102901.322bfdb0@mschwide>
+	<20140703083729.GE2939@bbox>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mgorman@suse.de
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Yucong <slaoub@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux390@de.ibm.com, Gerald Schaefer <gerald.schaefer@de.ibm.com>
 
-Until now, the message reported by trace-vmscan-postprocess.pl is not much fine.
-So we can not directly use this script for checking the file/anon ratio of scanning.
-This patch aims to report respectively the number of file/anon pages which were
-scanned/reclaimed by kswapd or direct-reclaim. Sample output is usually something
-like the following.
+On Thu, 3 Jul 2014 17:37:29 +0900
+Minchan Kim <minchan@kernel.org> wrote:
 
-Summary
-Direct reclaims:     			8823
-Direct reclaim pages scanned:		2438797
-Direct reclaim file pages scanned:	1315200
-Direct reclaim anon pages scanned:	1123597
-Direct reclaim pages reclaimed:		446139
-Direct reclaim file pages reclaimed:	378668
-Direct reclaim anon pages reclaimed:	67471
-Direct reclaim write file sync I/O:	0
-Direct reclaim write anon sync I/O:	0
-Direct reclaim write file async I/O:	0
-Direct reclaim write anon async I/O:	4240
-Wake kswapd requests:			122310
-Time stalled direct reclaim: 		13.78 seconds
+> Hello,
+> 
+> On Thu, Jul 03, 2014 at 10:29:01AM +0200, Martin Schwidefsky wrote:
+> > On Thu, 3 Jul 2014 16:29:54 +0900
+> > Minchan Kim <minchan@kernel.org> wrote:
+> > 
+> > > Hello,
+> > > 
+> > > On Thu, Jul 03, 2014 at 10:03:19AM +0900, Minchan Kim wrote:
+> > > > Hello,
+> > > > 
+> > > > On Tue, Jul 01, 2014 at 05:50:58PM +0300, Kirill A. Shutemov wrote:
+> > > > > On Tue, Jul 01, 2014 at 09:36:15AM +0900, Minchan Kim wrote:
+> > > > > > +	do {
+> > > > > > +		/*
+> > > > > > +		 * XXX: We can optimize with supporting Hugepage free
+> > > > > > +		 * if the range covers.
+> > > > > > +		 */
+> > > > > > +		next = pmd_addr_end(addr, end);
+> > > > > > +		if (pmd_trans_huge(*pmd))
+> > > > > > +			split_huge_page_pmd(vma, addr, pmd);
+> > > > > 
+> > > > > Could you implement proper THP support before upstreaming the feature?
+> > > > > It shouldn't be a big deal.
+> > > > 
+> > > > Okay, Hope to review.
+> > > > 
+> > > > Thanks for the feedback!
+> > > > 
+> > > 
+> > > I tried to implement it but had a issue.
+> > > 
+> > > I need pmd_mkold, pmd_mkclean for MADV_FREE operation and pmd_dirty for
+> > > page_referenced. When I investigate all of arches supported THP,
+> > > it's not a big deal but s390 is not sure to me who has no idea of
+> > > soft tracking of s390 by storage key instead of page table information.
+> > > Cced s390 maintainer. Hope to help.
+> > 
+> > Storage key for dirty and referenced tracking is a thing of the past.
+> > The current code for s390 uses software tracking for dirty and referenced.
+> > There is one catch though, for ptes the software implementation covers
+> > dirty and referenced bit but for pmds only referenced bit is available.
+> > The reason is that there is no free bit left in the pmd entry for the
+> > software dirty bit.
+> 
+> Thanks for the quick reply.
+> 
+> >  
+> > > So, if there isn't any help from s390, I should introduce
+> > > HAVE_ARCH_THP_MADVFREE to disable MADV_FREE support of THP in s390 but
+> > > not want to introduce such new config.
+> > 
+> > Why is the dirty bit for pmds needed for the MADV_FREE implementation?
+> 
+> MADV_FREE semantic want it.
+> 
+> When madvise syscall is called, VM clears dirty bit of ptes of
+> the range. If memory pressure happens, VM checks dirty bit of
+> page table and if it found still "clean", it means it's a
+> "lazyfree pages" so VM could discard the page instead of swapping out.
+> Once there was store operation for the page before VM peek a page
+> to reclaim, dirty bit is set so VM can swap out the page instead of
+> discarding to keep up-to-date contents.
+> 
+> If it's hard on s390, maybe we could use just reference bit
+> instead of dirty bit to check recent access but it might change
+> semantic a bit with other OSes. :(
 
-Kswapd wakeups:				25817
-Kswapd pages scanned:			170779115
-Kswapd file pages scanned:		162725123
-Kswapd anon pages scanned:		8053992
-Kswapd pages reclaimed:			129065738
-Kswapd file pages reclaimed:		128500930
-Kswapd anon pages reclaimed:		564808
-Kswapd reclaim write file sync I/O:	0
-Kswapd reclaim write anon sync I/O:	0
-Kswapd reclaim write file async I/O:	36
-Kswapd reclaim write anon async I/O:	730730
-Time kswapd awake:			1015.50 seconds
+Just discussed this with Gerald and we found a trick how we can add
+a dirty bit to the pmd entries. That will be a non-trivial patch but
+we can do it. Until that time you could just define pmd_dirty to 
+always return true and the code should "work" in the sense that it
+does not break anything.
 
-Signed-off-by: Chen Yucong <slaoub@gmail.com>
----
- .../trace/postprocess/trace-vmscan-postprocess.pl  |   53 ++++++++++++++++++++
- 1 file changed, 53 insertions(+)
-
-diff --git a/Documentation/trace/postprocess/trace-vmscan-postprocess.pl b/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
-index 78c9a7b..8f961ef 100644
---- a/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
-+++ b/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
-@@ -47,6 +47,10 @@ use constant HIGH_KSWAPD_REWAKEUP		=> 21;
- use constant HIGH_NR_SCANNED			=> 22;
- use constant HIGH_NR_TAKEN			=> 23;
- use constant HIGH_NR_RECLAIMED			=> 24;
-+use constant HIGH_NR_FILE_SCANNED		=> 25;
-+use constant HIGH_NR_ANON_SCANNED		=> 26;
-+use constant HIGH_NR_FILE_RECLAIMED		=> 27;
-+use constant HIGH_NR_ANON_RECLAIMED		=> 28;
- 
- my %perprocesspid;
- my %perprocess;
-@@ -56,14 +60,18 @@ my $opt_read_procstat;
- 
- my $total_wakeup_kswapd;
- my ($total_direct_reclaim, $total_direct_nr_scanned);
-+my ($total_direct_nr_file_scanned, $total_direct_nr_anon_scanned);
- my ($total_direct_latency, $total_kswapd_latency);
- my ($total_direct_nr_reclaimed);
-+my ($total_direct_nr_file_reclaimed, $total_direct_nr_anon_reclaimed);
- my ($total_direct_writepage_file_sync, $total_direct_writepage_file_async);
- my ($total_direct_writepage_anon_sync, $total_direct_writepage_anon_async);
- my ($total_kswapd_nr_scanned, $total_kswapd_wake);
-+my ($total_kswapd_nr_file_scanned, $total_kswapd_nr_anon_scanned);
- my ($total_kswapd_writepage_file_sync, $total_kswapd_writepage_file_async);
- my ($total_kswapd_writepage_anon_sync, $total_kswapd_writepage_anon_async);
- my ($total_kswapd_nr_reclaimed);
-+my ($total_kswapd_nr_file_reclaimed, $total_kswapd_nr_anon_reclaimed);
- 
- # Catch sigint and exit on request
- my $sigint_report = 0;
-@@ -374,6 +382,7 @@ EVENT_PROCESS:
- 			}
- 			my $isolate_mode = $1;
- 			my $nr_scanned = $4;
-+			my $file = $6;
- 
- 			# To closer match vmstat scanning statistics, only count isolate_both
- 			# and isolate_inactive as scanning. isolate_active is rotation
-@@ -382,6 +391,11 @@ EVENT_PROCESS:
- 			# isolate_both     == 3
- 			if ($isolate_mode != 2) {
- 				$perprocesspid{$process_pid}->{HIGH_NR_SCANNED} += $nr_scanned;
-+				if ($file == 1) {
-+					$perprocesspid{$process_pid}->{HIGH_NR_FILE_SCANNED} += $nr_scanned;
-+				} else {
-+					$perprocesspid{$process_pid}->{HIGH_NR_ANON_SCANNED} += $nr_scanned;
-+				}
- 			}
- 		} elsif ($tracepoint eq "mm_vmscan_lru_shrink_inactive") {
- 			$details = $6;
-@@ -391,8 +405,19 @@ EVENT_PROCESS:
- 				print "         $regex_lru_shrink_inactive/o\n";
- 				next;
- 			}
-+
- 			my $nr_reclaimed = $4;
-+			my $flags = $6;
-+			my $file = 0;
-+			if ($flags =~ /RECLAIM_WB_FILE/) {
-+				$file = 1;
-+			}
- 			$perprocesspid{$process_pid}->{HIGH_NR_RECLAIMED} += $nr_reclaimed;
-+			if ($file) {
-+				$perprocesspid{$process_pid}->{HIGH_NR_FILE_RECLAIMED} += $nr_reclaimed;
-+			} else {
-+				$perprocesspid{$process_pid}->{HIGH_NR_ANON_RECLAIMED} += $nr_reclaimed;
-+			}
- 		} elsif ($tracepoint eq "mm_vmscan_writepage") {
- 			$details = $6;
- 			if ($details !~ /$regex_writepage/o) {
-@@ -493,7 +518,11 @@ sub dump_stats {
- 		$total_direct_reclaim += $stats{$process_pid}->{MM_VMSCAN_DIRECT_RECLAIM_BEGIN};
- 		$total_wakeup_kswapd += $stats{$process_pid}->{MM_VMSCAN_WAKEUP_KSWAPD};
- 		$total_direct_nr_scanned += $stats{$process_pid}->{HIGH_NR_SCANNED};
-+		$total_direct_nr_file_scanned += $stats{$process_pid}->{HIGH_NR_FILE_SCANNED};
-+		$total_direct_nr_anon_scanned += $stats{$process_pid}->{HIGH_NR_ANON_SCANNED};
- 		$total_direct_nr_reclaimed += $stats{$process_pid}->{HIGH_NR_RECLAIMED};
-+		$total_direct_nr_file_reclaimed += $stats{$process_pid}->{HIGH_NR_FILE_RECLAIMED};
-+		$total_direct_nr_anon_reclaimed += $stats{$process_pid}->{HIGH_NR_ANON_RECLAIMED};
- 		$total_direct_writepage_file_sync += $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_SYNC};
- 		$total_direct_writepage_anon_sync += $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_ANON_SYNC};
- 		$total_direct_writepage_file_async += $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_ASYNC};
-@@ -513,7 +542,11 @@ sub dump_stats {
- 			$stats{$process_pid}->{MM_VMSCAN_DIRECT_RECLAIM_BEGIN},
- 			$stats{$process_pid}->{MM_VMSCAN_WAKEUP_KSWAPD},
- 			$stats{$process_pid}->{HIGH_NR_SCANNED},
-+			$stats{$process_pid}->{HIGH_NR_FILE_SCANNED},
-+			$stats{$process_pid}->{HIGH_NR_ANON_SCANNED},
- 			$stats{$process_pid}->{HIGH_NR_RECLAIMED},
-+			$stats{$process_pid}->{HIGH_NR_FILE_RECLAIMED},
-+			$stats{$process_pid}->{HIGH_NR_ANON_RECLAIMED},
- 			$stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_SYNC} + $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_ANON_SYNC},
- 			$stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_ASYNC} + $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_ANON_ASYNC},
- 			$this_reclaim_delay / 1000);
-@@ -552,7 +585,11 @@ sub dump_stats {
- 
- 		$total_kswapd_wake += $stats{$process_pid}->{MM_VMSCAN_KSWAPD_WAKE};
- 		$total_kswapd_nr_scanned += $stats{$process_pid}->{HIGH_NR_SCANNED};
-+		$total_kswapd_nr_file_scanned += $stats{$process_pid}->{HIGH_NR_FILE_SCANNED};
-+		$total_kswapd_nr_anon_scanned += $stats{$process_pid}->{HIGH_NR_ANON_SCANNED};
- 		$total_kswapd_nr_reclaimed += $stats{$process_pid}->{HIGH_NR_RECLAIMED};
-+		$total_kswapd_nr_file_reclaimed += $stats{$process_pid}->{HIGH_NR_FILE_RECLAIMED};
-+		$total_kswapd_nr_anon_reclaimed += $stats{$process_pid}->{HIGH_NR_ANON_RECLAIMED};
- 		$total_kswapd_writepage_file_sync += $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_SYNC};
- 		$total_kswapd_writepage_anon_sync += $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_ANON_SYNC};
- 		$total_kswapd_writepage_file_async += $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_ASYNC};
-@@ -563,7 +600,11 @@ sub dump_stats {
- 			$stats{$process_pid}->{MM_VMSCAN_KSWAPD_WAKE},
- 			$stats{$process_pid}->{HIGH_KSWAPD_REWAKEUP},
- 			$stats{$process_pid}->{HIGH_NR_SCANNED},
-+			$stats{$process_pid}->{HIGH_NR_FILE_SCANNED},
-+			$stats{$process_pid}->{HIGH_NR_ANON_SCANNED},
- 			$stats{$process_pid}->{HIGH_NR_RECLAIMED},
-+			$stats{$process_pid}->{HIGH_NR_FILE_RECLAIMED},
-+			$stats{$process_pid}->{HIGH_NR_ANON_RECLAIMED},
- 			$stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_SYNC} + $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_ANON_SYNC},
- 			$stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_ASYNC} + $stats{$process_pid}->{MM_VMSCAN_WRITEPAGE_ANON_ASYNC});
- 
-@@ -594,7 +635,11 @@ sub dump_stats {
- 	print "\nSummary\n";
- 	print "Direct reclaims:     			$total_direct_reclaim\n";
- 	print "Direct reclaim pages scanned:		$total_direct_nr_scanned\n";
-+	print "Direct reclaim file pages scanned:	$total_direct_nr_file_scanned\n";
-+	print "Direct reclaim anon pages scanned:	$total_direct_nr_anon_scanned\n";
- 	print "Direct reclaim pages reclaimed:		$total_direct_nr_reclaimed\n";
-+	print "Direct reclaim file pages reclaimed:	$total_direct_nr_file_reclaimed\n";
-+	print "Direct reclaim anon pages reclaimed:	$total_direct_nr_anon_reclaimed\n";
- 	print "Direct reclaim write file sync I/O:	$total_direct_writepage_file_sync\n";
- 	print "Direct reclaim write anon sync I/O:	$total_direct_writepage_anon_sync\n";
- 	print "Direct reclaim write file async I/O:	$total_direct_writepage_file_async\n";
-@@ -604,7 +649,11 @@ sub dump_stats {
- 	print "\n";
- 	print "Kswapd wakeups:				$total_kswapd_wake\n";
- 	print "Kswapd pages scanned:			$total_kswapd_nr_scanned\n";
-+	print "Kswapd file pages scanned:		$total_kswapd_nr_file_scanned\n";
-+	print "Kswapd anon pages scanned:		$total_kswapd_nr_anon_scanned\n";
- 	print "Kswapd pages reclaimed:			$total_kswapd_nr_reclaimed\n";
-+	print "Kswapd file pages reclaimed:		$total_kswapd_nr_file_reclaimed\n";
-+	print "Kswapd anon pages reclaimed:		$total_kswapd_nr_anon_reclaimed\n";
- 	print "Kswapd reclaim write file sync I/O:	$total_kswapd_writepage_file_sync\n";
- 	print "Kswapd reclaim write anon sync I/O:	$total_kswapd_writepage_anon_sync\n";
- 	print "Kswapd reclaim write file async I/O:	$total_kswapd_writepage_file_async\n";
-@@ -629,7 +678,11 @@ sub aggregate_perprocesspid() {
- 		$perprocess{$process}->{MM_VMSCAN_WAKEUP_KSWAPD} += $perprocesspid{$process_pid}->{MM_VMSCAN_WAKEUP_KSWAPD};
- 		$perprocess{$process}->{HIGH_KSWAPD_REWAKEUP} += $perprocesspid{$process_pid}->{HIGH_KSWAPD_REWAKEUP};
- 		$perprocess{$process}->{HIGH_NR_SCANNED} += $perprocesspid{$process_pid}->{HIGH_NR_SCANNED};
-+		$perprocess{$process}->{HIGH_NR_FILE_SCANNED} += $perprocesspid{$process_pid}->{HIGH_NR_FILE_SCANNED};
-+		$perprocess{$process}->{HIGH_NR_ANON_SCANNED} += $perprocesspid{$process_pid}->{HIGH_NR_ANON_SCANNED};
- 		$perprocess{$process}->{HIGH_NR_RECLAIMED} += $perprocesspid{$process_pid}->{HIGH_NR_RECLAIMED};
-+		$perprocess{$process}->{HIGH_NR_FILE_RECLAIMED} += $perprocesspid{$process_pid}->{HIGH_NR_FILE_RECLAIMED};
-+		$perprocess{$process}->{HIGH_NR_ANON_RECLAIMED} += $perprocesspid{$process_pid}->{HIGH_NR_ANON_RECLAIMED};
- 		$perprocess{$process}->{MM_VMSCAN_WRITEPAGE_FILE_SYNC} += $perprocesspid{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_SYNC};
- 		$perprocess{$process}->{MM_VMSCAN_WRITEPAGE_ANON_SYNC} += $perprocesspid{$process_pid}->{MM_VMSCAN_WRITEPAGE_ANON_SYNC};
- 		$perprocess{$process}->{MM_VMSCAN_WRITEPAGE_FILE_ASYNC} += $perprocesspid{$process_pid}->{MM_VMSCAN_WRITEPAGE_FILE_ASYNC};
 -- 
-1.7.10.4
+blue skies,
+   Martin.
+
+"Reality continues to ruin my life." - Calvin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
