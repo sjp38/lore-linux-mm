@@ -1,192 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
-	by kanga.kvack.org (Postfix) with ESMTP id A8C466B0031
-	for <linux-mm@kvack.org>; Fri,  4 Jul 2014 11:33:36 -0400 (EDT)
-Received: by mail-we0-f176.google.com with SMTP id u56so1827429wes.21
-        for <linux-mm@kvack.org>; Fri, 04 Jul 2014 08:33:36 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u4si39546895wjy.175.2014.07.04.08.33.34
+Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
+	by kanga.kvack.org (Postfix) with ESMTP id A27686B0031
+	for <linux-mm@kvack.org>; Fri,  4 Jul 2014 11:39:17 -0400 (EDT)
+Received: by mail-la0-f52.google.com with SMTP id ty20so1247793lab.25
+        for <linux-mm@kvack.org>; Fri, 04 Jul 2014 08:39:16 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id z2si27166475lae.17.2014.07.04.08.39.15
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 04 Jul 2014 08:33:34 -0700 (PDT)
-Message-ID: <53B6C947.1070603@suse.cz>
-Date: Fri, 04 Jul 2014 17:33:27 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Jul 2014 08:39:15 -0700 (PDT)
+Date: Fri, 4 Jul 2014 19:38:53 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH RFC 0/5] Virtual Memory Resource Controller for cgroups
+Message-ID: <20140704153853.GA369@esperanza>
+References: <cover.1404383187.git.vdavydov@parallels.com>
+ <20140704121621.GE12466@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 00/10] fix freepage count problems due to memory isolation
-References: <1404460675-24456-1-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1404460675-24456-1-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=ISO-8859-2
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20140704121621.GE12466@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tejun
+ Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Balbir Singh <bsingharora@gmail.com>
 
-On 07/04/2014 09:57 AM, Joonsoo Kim wrote:
-> Hello,
+Hi Michal,
 
-Hi Joonsoo,
+On Fri, Jul 04, 2014 at 02:16:21PM +0200, Michal Hocko wrote:
+> On Thu 03-07-14 16:48:16, Vladimir Davydov wrote:
+> > Hi,
+> > 
+> > Typically, when a process calls mmap, it isn't given all the memory pages it
+> > requested immediately. Instead, only its address space is grown, while the
+> > memory pages will be actually allocated on the first use. If the system fails
+> > to allocate a page, it will have no choice except invoking the OOM killer,
+> > which may kill this or any other process. Obviously, it isn't the best way of
+> > telling the user that the system is unable to handle his request. It would be
+> > much better to fail mmap with ENOMEM instead.
+> > 
+> > That's why Linux has the memory overcommit control feature, which accounts and
+> > limits VM size that may contribute to mem+swap, i.e. private writable mappings
+> > and shared memory areas. However, currently it's only available system-wide,
+> > and there's no way of avoiding OOM in cgroups.
+> >
+> > This patch set is an attempt to fill the gap. It implements the resource
+> > controller for cgroups that accounts and limits address space allocations that
+> > may contribute to mem+swap.
+> 
+> Well, I am not really sure how helpful is this. Could you be more
+> specific about real use cases? If the only problem is that memcg OOM can
+> trigger to easily then I do not think this is the right approach to
+> handle it.
 
-please CC me on further updates, this is relevant to me.
+The problem is that an application inside a container is currently given
+no hints on how much memory it may actually consume. It can mmap a huge
+area and eventually find itself killed or swapped out after using
+several percent of it. This can be painful sometimes. Let me give an
+example.
 
-> This patchset aims at fixing problems due to memory isolation found by
-> testing my patchset [1].
-> 
-> These are really subtle problems so I can be wrong. If you find what I am
-> missing, please let me know.
-> 
-> Before describing bugs itself, I first explain definition of freepage.
-> 
-> 1. pages on buddy list are counted as freepage.
-> 2. pages on isolate migratetype buddy list are *not* counted as freepage.
+Suppose a user wants to run some computational workload, which may take
+several days. He doesn't exactly know how much memory it will consume,
+so he decides to start with buying a 1G container for it. He then starts
+the workload in the container and sees it's working fine for some time.
+So he decides he guessed the container size right and now only has to
+wait for a day or two. Suppose the workload actually wants 10G. Or it
+can consume up to 100G and has some weird logic to determine how much
+memory the system may give it, e.g. trying to mmap as much as possible.
+Suppose the server the container is running on has 1000G. The workload
+won't fail immediately then. It will be allowed to consume 1G, which may
+take quite long, but finally it will either fail with OOM or become
+really sluggish due to swap out. The user will probably be frustrated to
+see his workload failed when he comes back in a day or two, because it
+will cost him money and time. This wouldn't happen if there were the VM
+limit, which stopped the application immediately at start giving the
+user a hint that something is going wrong and he needs to either tune
+his application (e.g. setting -Xmsn for java) or buy a bigger container.
 
-I think the second point is causing us a lot of trouble. And I wonder if it's really
-justified! We already have some is_migrate_isolate() checks in the fast path and now you
-would add more, mostly just to keep this accounting correct.
+You can argue that the container may have a kind of meminfo
+virtualization and any sane application must go and check it, but (1)
+not all applications do that (some may try mmap-until-failure
+heuristic), (2) there may be several unrelated processes inside CT, each
+checking that there are pretty of free mem according to meminfo, mmaping
+it and failing later, (3) it may be an application container, which
+doesn't have proc mounted.
 
-So the question is, does it have to be correct? And (admiteddly not after a completely
-exhaustive analysis) I think the answer is, surprisingly, that it doesn't :)
+I guess that's why most distributions have overcommit limited by default
+(vm.overcommit_memory!=2).
 
-Well I of course don't mean that the freepage accounts could go random completely, but
-what if we allowed them to drift a bit, limiting both the max error and the timeframe
-where errors are possible? After all, watermarks checking is already racy so I don't think
-it would be hurt that much.
+> Strict no-overcommit is basically unusable for many workloads.
+> Especially those which try to do their own memory usage optimization
+> in a much larger address space.
 
-Now if we look at what both CMA and memory hot-remove does is:
+Sure, 'no-overcommit' is definitely unusable, but we can set it to e.g.
+twice memcg limit. This will allow to overcommit memory to some extent,
+but fail for really large allocations that can never be served.
 
-1. Mark a MAX_ORDER-aligned buch of pageblocks as MIGRATE_ISOLATE through
-start_isolate_page_range(). As part of this, all free pages in that area are
-moved on the isolate freelist through move_freepages_block().
+> Once I get from internal things (which will happen soon hopefully) I
+> will post a series with a new sets of memcg limits. One of them is
+> high_limit which can be used as a trigger for memcg reclaim. Unlike
+> hard_limit there won't be any OOM if the reclaim fails at this stage. So
+> if the high_limit is configured properly the admin will have enough time
+> to make additional steps before OOM happens.
 
-2. Try to migrate away all non-free pages in the range. Also drain pcplists and lru_add
-caches.
+High/low limits that start reclaim on internal/external pressure are
+definitely a very nice feature (may be even more useful that strict
+limits). However, they won't help us against overcommit inside a
+container. AFAIC,
 
-3. Check if everything was successfully isolated by test_pages_isolated(). Restart and/or
-undo pageblock isolation if not.
+ - low limit will allow the container to consume as much as he wants
+   until it triggers global memory pressure, then it will be shrunk back
+   to its limit aggressively;
 
-So my idea is to throw away all special-casing of is_migrate_isolate() in the buddy
-allocator, which would therefore account free pages on the isolate freelist as normal free
-pages.
-The accounting of isolated pages would be instead done only on the top level of CMA/hot
-remove in the three steps outlined above, which would be modified as follows:
+ - high limit means allow to breach the limit, but trigger reclaim
+   asynchronously (a kind of kswapd) or synchronously when it happens.
 
-1. Calculate N as the target number of pages to be isolated. Perform the actions of step 1
-as usual. Calculate X as the number of pages that move_freepages_block() has moved.
-Subtract X from freepages (this is the same as it is done now), but also *remember the
-value of X*
+Right?
 
-2. Migrate and drain pcplists as usual. The new free pages will either end up correctly on
-isolate freelist, or not. We don't care, they will be accounted as freepages either way.
-This is where some inaccuracy in accounted freepages would build up.
+Considering the example I've given above, both of these won't help if
+the system has other active CTs: the container will be forcefully kept
+around its high/low limit and, since it's definitely not enough for it,
+it will be finally killed crossing out the computations it's spent so
+much time on. High limit won't be good for the container even if there's
+no other load on the node - it will be constantly swapping out anon
+memory and evicting file caches. The application won't die quickly then,
+but it will get a heavy slowdown, which is no better than killing I
+guess.
 
-3. If test_pages_isolated() checks pass, subtract (N - X) from freepages. The result is
-that we have a isolated range of N pages that nobody can steal now as everything is on
-isolate freelist and is MAX_ORDER aligned. And we have in total subtracted N pages (first
-X, then N-X). So the accounting matches reality.
+Also, I guess it'd be beneficial to have
 
-If we have to undo, we undo the isolation and as part of this, we use
-move_freepages_block() to move pages from isolate freelist to the normal ones. But we
-don't care how many pages were moved. We simply add the remembered value of X to the
-number of freepages, undoing the change from step 1. Again, the accounting matches reality.
+ - mlocked pages accounting per cgroup, because they affect memory
+   reclaim, and how low/high limits work, so it'd be nice to have them
+   limited to a sane value;
 
+ - shmem areas accounting per cgroup, because the total amount of shmem
+   on the system is limited, and it'll be no good if malicious
+   containers eat it all.
 
-The final point is that if we do this per MAX_ORDER blocks, the error in accounting cannot
-be ever larger than 4MB and will be visible only during time a single MAX_ORDER block is
-handled.
+IMO It wouldn't be a good idea to overwhelm memcg with those limits, the
+VM controller suits much better.
 
-As a possible improvement, we can assume during phase 2 that every page freed by migration
-will end up correctly on isolate free list. So we create M free pages by migration, and
-subtract M from freepage account. Then in phase 3 we either subtract (N - X - M), or add X
-+ M in the undo case. (Ideally, if we succeed, X + M should be equal to N, but due to
-pages on pcplists and the possible races it will be less). I think with this improvement,
-any error would be negligible.
-
-Thoughts?
-
-> 3. pages on cma buddy list are counted as CMA freepage, too.
-> 4. pages for guard are *not* counted as freepage.
-> 
-> Now, I describe problems and related patch.
-> 
-> 1. Patch 2: If guard page are cleared and merged into isolate buddy list,
-> we should not add freepage count.
-> 
-> 2. Patch 3: When the page return back from pcp to buddy, we should
-> account it to freepage counter. In this case, we should check the
-> pageblock migratetype of the page and should insert the page into
-> appropriate buddy list. Although we checked it in current code, we
-> didn't insert the page into appropriate buddy list so that freepage
-> counting can be wrong.
-> 
-> 3. Patch 4: There is race condition so that some freepages could be
-> on isolate buddy list. If so, we can't use this page until next isolation
-> attempt on this pageblock.
-> 
-> 4. Patch 5: There is race condition that page on isolate pageblock
-> can go into non-isolate buddy list. If so, buddy allocator would
-> merge pages on non-isolate buddy list and isolate buddy list, respectively,
-> and freepage count will be wrong.
-> 
-> 5. Patch 9: move_freepages(_block) returns *not* number of moved pages.
-> Instead, it returns number of pages linked in that migratetype buddy list.
-> So accouting with this return value makes freepage count wrong.
-> 
-> 6. Patch 10: buddy allocator would merge pages on non-isolate buddy list
-> and isolate buddy list, respectively. This leads to freepage counting
-> problem so fix it by stopping merging in this case.
-> 
-> Without patchset [1], above problem doesn't happens on my CMA allocation
-> test, because CMA reserved pages aren't used at all. So there is no
-> chance for above race.
-> 
-> With patchset [1], I did simple CMA allocation test and get below result.
-> 
-> - Virtual machine, 4 cpus, 1024 MB memory, 256 MB CMA reservation
-> - run kernel build (make -j16) on background
-> - 30 times CMA allocation(8MB * 30 = 240MB) attempts in 5 sec interval
-> - Result: more than 5000 freepage count are missed
-> 
-> With patchset [1] and this patchset, I found that no freepage count are
-> missed so that I conclude that problems are solved.
-> 
-> These problems can be possible on memory hot remove users, although
-> I didn't check it further.
-> 
-> Other patches are either for the base to fix these problems or for
-> simple clean-up. Please see individual patches for more information.
-> 
-> This patchset is based on linux-next-20140703.
-> 
-> Thanks.
-> 
-> [1]: Aggressively allocate the pages on cma reserved memory
->      https://lkml.org/lkml/2014/5/30/291
-> 
-> 
-> Joonsoo Kim (10):
->   mm/page_alloc: remove unlikely macro on free_one_page()
->   mm/page_alloc: correct to clear guard attribute in DEBUG_PAGEALLOC
->   mm/page_alloc: handle page on pcp correctly if it's pageblock is
->     isolated
->   mm/page_alloc: carefully free the page on isolate pageblock
->   mm/page_alloc: optimize and unify pageblock migratetype check in free
->     path
->   mm/page_alloc: separate freepage migratetype interface
->   mm/page_alloc: store migratetype of the buddy list into freepage
->     correctly
->   mm/page_alloc: use get_onbuddy_migratetype() to get buddy list type
->   mm/page_alloc: fix possible wrongly calculated freepage counter
->   mm/page_alloc: Stop merging pages on non-isolate and isolate buddy
->     list
-> 
->  include/linux/mm.h             |   30 +++++++--
->  include/linux/mmzone.h         |    5 ++
->  include/linux/page-isolation.h |    8 +++
->  mm/page_alloc.c                |  138 +++++++++++++++++++++++++++++-----------
->  mm/page_isolation.c            |   18 ++----
->  5 files changed, 147 insertions(+), 52 deletions(-)
-> 
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
