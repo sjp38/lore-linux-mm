@@ -1,91 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D01EC6B0035
-	for <linux-mm@kvack.org>; Fri,  4 Jul 2014 01:48:31 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id hz1so1440045pad.38
-        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 22:48:31 -0700 (PDT)
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 85EC46B0037
+	for <linux-mm@kvack.org>; Fri,  4 Jul 2014 02:39:37 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id ft15so1480137pdb.21
+        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 23:39:37 -0700 (PDT)
 Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id so9si33533953pac.191.2014.07.03.22.48.29
+        by mx.google.com with ESMTP id tn5si34604527pac.145.2014.07.03.23.39.34
         for <linux-mm@kvack.org>;
-        Thu, 03 Jul 2014 22:48:30 -0700 (PDT)
-Date: Fri, 4 Jul 2014 14:49:57 +0900
+        Thu, 03 Jul 2014 23:39:36 -0700 (PDT)
+Date: Fri, 4 Jul 2014 15:41:02 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: zsmalloc failure issue in low memory conditions
-Message-ID: <20140704054957.GG2939@bbox>
-References: <77956EDC1B917843AC9B7965A3BD78B06ACB34DB39@SC-VEXCH2.marvell.com>
- <53B61E6B.1030406@vflare.org>
+Subject: Re: [PATCH v9] mm: support madvise(MADV_FREE)
+Message-ID: <20140704064102.GH2939@bbox>
+References: <1404174975-22019-1-git-send-email-minchan@kernel.org>
+ <20140701145058.GA2084@node.dhcp.inet.fi>
+ <20140703010318.GA2939@bbox>
+ <20140703072954.GC2939@bbox>
+ <20140703102901.322bfdb0@mschwide>
+ <20140703083729.GE2939@bbox>
+ <20140703180100.5f24a139@mschwide>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <53B61E6B.1030406@vflare.org>
+In-Reply-To: <20140703180100.5f24a139@mschwide>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nitin Gupta <ngupta@vflare.org>
-Cc: Yonghai Huang <huangyh@marvell.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux390@de.ibm.com, Gerald Schaefer <gerald.schaefer@de.ibm.com>
 
-On Thu, Jul 03, 2014 at 08:24:27PM -0700, Nitin Gupta wrote:
-> Hi Yonghai,
+Hello,
+
+On Thu, Jul 03, 2014 at 06:01:00PM +0200, Martin Schwidefsky wrote:
+> On Thu, 3 Jul 2014 17:37:29 +0900
+> Minchan Kim <minchan@kernel.org> wrote:
 > 
-> CC'ing the current maintainer, Minchan Kim.
+> > Hello,
+> > 
+> > On Thu, Jul 03, 2014 at 10:29:01AM +0200, Martin Schwidefsky wrote:
+> > > On Thu, 3 Jul 2014 16:29:54 +0900
+> > > Minchan Kim <minchan@kernel.org> wrote:
+> > > 
+> > > > Hello,
+> > > > 
+> > > > On Thu, Jul 03, 2014 at 10:03:19AM +0900, Minchan Kim wrote:
+> > > > > Hello,
+> > > > > 
+> > > > > On Tue, Jul 01, 2014 at 05:50:58PM +0300, Kirill A. Shutemov wrote:
+> > > > > > On Tue, Jul 01, 2014 at 09:36:15AM +0900, Minchan Kim wrote:
+> > > > > > > +	do {
+> > > > > > > +		/*
+> > > > > > > +		 * XXX: We can optimize with supporting Hugepage free
+> > > > > > > +		 * if the range covers.
+> > > > > > > +		 */
+> > > > > > > +		next = pmd_addr_end(addr, end);
+> > > > > > > +		if (pmd_trans_huge(*pmd))
+> > > > > > > +			split_huge_page_pmd(vma, addr, pmd);
+> > > > > > 
+> > > > > > Could you implement proper THP support before upstreaming the feature?
+> > > > > > It shouldn't be a big deal.
+> > > > > 
+> > > > > Okay, Hope to review.
+> > > > > 
+> > > > > Thanks for the feedback!
+> > > > > 
+> > > > 
+> > > > I tried to implement it but had a issue.
+> > > > 
+> > > > I need pmd_mkold, pmd_mkclean for MADV_FREE operation and pmd_dirty for
+> > > > page_referenced. When I investigate all of arches supported THP,
+> > > > it's not a big deal but s390 is not sure to me who has no idea of
+> > > > soft tracking of s390 by storage key instead of page table information.
+> > > > Cced s390 maintainer. Hope to help.
+> > > 
+> > > Storage key for dirty and referenced tracking is a thing of the past.
+> > > The current code for s390 uses software tracking for dirty and referenced.
+> > > There is one catch though, for ptes the software implementation covers
+> > > dirty and referenced bit but for pmds only referenced bit is available.
+> > > The reason is that there is no free bit left in the pmd entry for the
+> > > software dirty bit.
+> > 
+> > Thanks for the quick reply.
+> > 
+> > >  
+> > > > So, if there isn't any help from s390, I should introduce
+> > > > HAVE_ARCH_THP_MADVFREE to disable MADV_FREE support of THP in s390 but
+> > > > not want to introduce such new config.
+> > > 
+> > > Why is the dirty bit for pmds needed for the MADV_FREE implementation?
+> > 
+> > MADV_FREE semantic want it.
+> > 
+> > When madvise syscall is called, VM clears dirty bit of ptes of
+> > the range. If memory pressure happens, VM checks dirty bit of
+> > page table and if it found still "clean", it means it's a
+> > "lazyfree pages" so VM could discard the page instead of swapping out.
+> > Once there was store operation for the page before VM peek a page
+> > to reclaim, dirty bit is set so VM can swap out the page instead of
+> > discarding to keep up-to-date contents.
+> > 
+> > If it's hard on s390, maybe we could use just reference bit
+> > instead of dirty bit to check recent access but it might change
+> > semantic a bit with other OSes. :(
+> 
+> Just discussed this with Gerald and we found a trick how we can add
+> a dirty bit to the pmd entries. That will be a non-trivial patch but
+> we can do it. Until that time you could just define pmd_dirty to 
+> always return true and the code should "work" in the sense that it
+> does not break anything.
 
-Thanks for Ccing me, Nitin.
+Will work.
+I will post a patch when I finish the work.
+Hope to review.
+Thanks for your advise!
 
 > 
-> Thanks,
-> Nitin
+> -- 
+> blue skies,
+>    Martin.
 > 
-> On 7/3/14, 5:03 PM, Yonghai Huang wrote:
-> >
-> >Hi, nugpta and all:
-> >
-> >Sorry to distribute you, now I met zsmalloc failure issue in very
-> >low memory conditions, and i found someone already have met such
-> >issue, and have had discussions, but looks like no final patch for
-> >it, i don't know whether there are patches to fix it. could you
-> >give some advice on it?
-> >
-> >Below is discussion link for it:
-> >
-> >
-> >  http://linux-kernel.2935.n7.nabble.com/zram-zsmalloc-issues-in-very-low-memory-conditions-td742009.html
-> >
-
-At that time, I didn't have a time to look at it by biz trip but
-reported twice until now so I'd like to bring up the issue.
-
-zRAM works with reserved memory(ex, zone->low - zone->min) so
-if you increased min_free_kbytes, maybe the problem would be gone
-but it's not a proper fix, I think because if some of other(ex,
-proprietary driver) deplete the reserved memory with __GFP_MEMALLOC
-or PF_MEMALLOC, zsmalloc could be failed although it's rare
-in current mainline but VM can reclaim file-backed pages still
-so system can go without OOM kill while swap layer can emit lots
-of warning message about failing write. :(
-
-For me, ideal solution is to need to feedback loop from zram block
-driver to VM via congestion control(Currently, reclaim of VM doesn't
-consider swap backend's congestion state but not too hard to fix)
-as Olav suggested but it has another issue to update uncongestion
-state from zram side but finally we could find a solution, I believe. :)
-
-But before diving into the implementation, I need to reproduce
-the problem and maybe it would be helpful if you says your enviroment.
-
-1. CPU
-2. RAM size
-3. zram disksize
-4. /proc/sys/vm/page-cluster
-5. /sys/block/zram0/max_comp_streams
-6. what workload do you have?
-7. /proc/zoneinfo
-8. What kinds of file system do you use?
-9. What kinds of workload do you have when the problem happens?
-10. It would be really helpful if you can get /proc/vmstat when the problem happened.
-
-Anyway, I will have a time to reproduce/investigate the problem next week
-and get back to you.
-
-Thanks for the report!
+> "Reality continues to ruin my life." - Calvin.
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Kind regards,
