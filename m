@@ -1,89 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 967B66B0035
-	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 20:03:58 -0400 (EDT)
-Received: by mail-qg0-f42.google.com with SMTP id e89so887690qgf.29
-        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 17:03:58 -0700 (PDT)
-Received: from mail-qc0-x235.google.com (mail-qc0-x235.google.com [2607:f8b0:400d:c01::235])
-        by mx.google.com with ESMTPS id r76si11569299qgr.35.2014.07.03.17.03.57
+Received: from mail-ve0-f180.google.com (mail-ve0-f180.google.com [209.85.128.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 958436B0036
+	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 20:04:09 -0400 (EDT)
+Received: by mail-ve0-f180.google.com with SMTP id jw12so961132veb.25
+        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 17:04:09 -0700 (PDT)
+Received: from mx0a-0016f401.pphosted.com (mx0a-0016f401.pphosted.com. [67.231.148.174])
+        by mx.google.com with ESMTPS id ga2si14794018vdc.81.2014.07.03.17.04.07
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 03 Jul 2014 17:03:57 -0700 (PDT)
-Received: by mail-qc0-f181.google.com with SMTP id x13so906804qcv.40
-        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 17:03:57 -0700 (PDT)
-Date: Thu, 3 Jul 2014 20:03:49 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [PATCH 1/6] mmput: use notifier chain to call subsystem exit
- handler.
-Message-ID: <20140704000347.GA2442@gmail.com>
-References: <20140630181623.GE26537@8bytes.org>
- <20140630183556.GB3280@gmail.com>
- <20140701091535.GF26537@8bytes.org>
- <019CCE693E457142B37B791721487FD91806DD8B@storexdag01.amd.com>
- <20140701110018.GH26537@8bytes.org>
- <20140701193343.GB3322@gmail.com>
- <20140701210620.GL26537@8bytes.org>
- <20140701213208.GC3322@gmail.com>
- <20140703183024.GA3306@gmail.com>
- <20140703231541.GR26537@8bytes.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 03 Jul 2014 17:04:08 -0700 (PDT)
+From: Yonghai Huang <huangyh@marvell.com>
+Date: Thu, 3 Jul 2014 17:03:58 -0700
+Subject: zsmalloc failure issue in low memory conditions
+Message-ID: <77956EDC1B917843AC9B7965A3BD78B06ACB34DB39@SC-VEXCH2.marvell.com>
+Content-Language: en-US
+Content-Type: multipart/alternative;
+	boundary="_000_77956EDC1B917843AC9B7965A3BD78B06ACB34DB39SCVEXCH2marve_"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20140703231541.GR26537@8bytes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>
-Cc: "Gabbay, Oded" <Oded.Gabbay@amd.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Lewycky, Andrew" <Andrew.Lewycky@amd.com>, "Cornwall, Jay" <Jay.Cornwall@amd.com>, "Bridgman, John" <John.Bridgman@amd.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mgorman@suse.de" <mgorman@suse.de>, "hpa@zytor.com" <hpa@zytor.com>, peterz@infradead.org, "aarcange@redhat.com" <aarcange@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, Mark Hairgrove <mhairgrove@nvidia.com>, Jatin Kumar <jakumar@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>
+To: "ngupta@vflare.org" <ngupta@vflare.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, Jul 04, 2014 at 01:15:41AM +0200, Joerg Roedel wrote:
-> Hi Jerome,
-> 
-> On Thu, Jul 03, 2014 at 02:30:26PM -0400, Jerome Glisse wrote:
-> > Joerg do you still object to this patch ?
-> 
-> Yes.
-> 
-> > Again the natural place to call this is from mmput and the fact that many
-> > other subsystem already call in from there to cleanup there own per mm data
-> > structure is a testimony that this is a valid use case and valid design.
-> 
-> Device drivers are something different than subsystems. I think the
-> point that the mmu_notifier struct can not be freed in the .release
-> call-back is a weak reason for introducing a new notifier. In the end
-> every user of mmu_notifiers has to call mmu_notifier_register somewhere
-> (file-open/ioctl path or somewhere else where the mm<->device binding is
->  set up) and can call mmu_notifier_unregister in a similar path which
-> destroys the binding.
-> 
-> > You pointed out that the cleanup should be done from the device driver file
-> > close call. But as i stressed some of the new user will not necessarily have
-> > a device file open hence no way for them to free the associated structure
-> > except with hackish delayed job.
-> 
-> Please tell me more about these 'new users', how does mm<->device binding
-> is set up there if no fd is used?
+--_000_77956EDC1B917843AC9B7965A3BD78B06ACB34DB39SCVEXCH2marve_
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-It could be setup on behalf of another process through others means like
-local socket. Thought main use case i am thinking about is you open device
-fd you setup your gpu queue and then you close the fd but you keep using
-the gpu and the gpu keep accessing the address space.
+Hi, nugpta and all:
+Sorry to distribute you, now I met zsmalloc failure issue in very low memor=
+y conditions, and i found someone already have met such issue, and have had=
+ discussions, but looks like no final patch for it, i don't know whether th=
+ere are patches to fix it. could you give some advice on it?
+Below is discussion link for it:
+http://linux-kernel.2935.n7.nabble.com/zram-zsmalloc-issues-in-very-low-mem=
+ory-conditions-td742009.html
 
-Further done the lane we might even see gpu code as directly executable
-thought that seems yet unreleasistic at this time.
+With kind regards,
+Yonghai
 
-Anyway whole point is that no matter how you turn the matter anything that
-mirror a process address is linked to the lifetime of the mm_struct so in
-order to have some logic there it is far best to have destruction match
-the destruction of mm. This also make things like fork lot cleaner, as on
-work the device file descriptor is duplicated inside the child process
-but nothing setup child process to keep using the gpu. Thus you might
-end up with way delayed file closure compare to parent process mm
-destruction.
+--_000_77956EDC1B917843AC9B7965A3BD78B06ACB34DB39SCVEXCH2marve_
+Content-Type: text/html; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 
-Cheers,
-Jerome
+<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
+osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns:m=3D"http://schemas.microsoft.com/office/2004/12/omml" xmlns=3D"http:=
+//www.w3.org/TR/REC-html40"><head><meta http-equiv=3DContent-Type content=
+=3D"text/html; charset=3Dus-ascii"><meta name=3DGenerator content=3D"Micros=
+oft Word 12 (filtered medium)"><style><!--
+/* Font Definitions */
+@font-face
+	{font-family:SimSun;
+	panose-1:2 1 6 0 3 1 1 1 1 1;}
+@font-face
+	{font-family:"Cambria Math";
+	panose-1:2 4 5 3 5 4 6 3 2 4;}
+@font-face
+	{font-family:Calibri;
+	panose-1:2 15 5 2 2 2 4 3 2 4;}
+@font-face
+	{font-family:SimSun;
+	panose-1:2 1 6 0 3 1 1 1 1 1;}
+/* Style Definitions */
+p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-margin-top-alt:auto;
+	margin-right:0in;
+	mso-margin-bottom-alt:auto;
+	margin-left:0in;
+	font-size:11.0pt;
+	font-family:"Calibri","sans-serif";}
+h1
+	{mso-style-priority:9;
+	mso-style-link:"Heading 1 Char";
+	mso-margin-top-alt:auto;
+	margin-right:0in;
+	mso-margin-bottom-alt:auto;
+	margin-left:0in;
+	font-size:24.0pt;
+	font-family:"Times New Roman","serif";}
+a:link, span.MsoHyperlink
+	{mso-style-priority:99;
+	color:blue;
+	text-decoration:underline;}
+a:visited, span.MsoHyperlinkFollowed
+	{mso-style-priority:99;
+	color:purple;
+	text-decoration:underline;}
+span.EmailStyle17
+	{mso-style-type:personal-compose;
+	font-family:"Calibri","sans-serif";
+	color:#1F497D;
+	font-weight:normal;
+	font-style:normal;
+	text-decoration:none none;}
+span.Heading1Char
+	{mso-style-name:"Heading 1 Char";
+	mso-style-priority:9;
+	mso-style-link:"Heading 1";
+	font-family:"Times New Roman","serif";
+	font-weight:bold;}
+.MsoChpDefault
+	{mso-style-type:export-only;}
+.MsoPapDefault
+	{mso-style-type:export-only;
+	mso-margin-top-alt:auto;
+	mso-margin-bottom-alt:auto;}
+@page WordSection1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.25in 1.0in 1.25in;}
+div.WordSection1
+	{page:WordSection1;}
+--></style><!--[if gte mso 9]><xml>
+<o:shapedefaults v:ext=3D"edit" spidmax=3D"1026" />
+</xml><![endif]--><!--[if gte mso 9]><xml>
+<o:shapelayout v:ext=3D"edit">
+<o:idmap v:ext=3D"edit" data=3D"1" />
+</o:shapelayout></xml><![endif]--></head><body lang=3DEN-US link=3Dblue vli=
+nk=3Dpurple><div class=3DWordSection1><p class=3DMsoNormal><span style=3D'f=
+ont-size:10.5pt;font-family:"Arial","sans-serif";color:#222222;background:w=
+hite'>Hi, nugpta and all:</span><o:p></o:p></p><p class=3DMsoNormal style=
+=3D'text-indent:.5in;background:white'><span style=3D'font-size:10.5pt;font=
+-family:"Arial","sans-serif";color:#222222'>Sorry to distribute you, now I =
+met zsmalloc failure issue in very low memory conditions, and i found someo=
+ne already have met such issue, and have had discussions, but looks like no=
+ final patch for it, i don't know whether there are patches to fix it. coul=
+d you give some advice on it?<o:p></o:p></span></p><p class=3DMsoNormal sty=
+le=3D'background:white'><span style=3D'font-size:10.5pt;font-family:"Arial"=
+,"sans-serif";color:#222222'>Below is discussion link for it:<o:p></o:p></s=
+pan></p><h1 style=3D'mso-margin-top-alt:3.0pt;margin-right:0in;margin-botto=
+m:9.6pt;margin-left:0in;background:white'><span style=3D'font-size:17.5pt;f=
+ont-family:"Arial","sans-serif";color:#465FBC'><a href=3D"http://linux-kern=
+el.2935.n7.nabble.com/zram-zsmalloc-issues-in-very-low-memory-conditions-td=
+742009.html" target=3D"_blank"><span style=3D'color:#1155CC'>http://linux-k=
+ernel.2935.n7.nabble.com/zram-zsmalloc-issues-in-very-low-memory-conditions=
+-td742009.html</span></a></span><span style=3D'font-family:"Arial","sans-se=
+rif";color:#222222'><o:p></o:p></span></h1><p class=3DMsoNormal style=3D'ma=
+rgin:0in;margin-bottom:.0001pt'><b><i><span style=3D'font-size:10.0pt;color=
+:#1F497D'><o:p>&nbsp;</o:p></span></i></b></p><p class=3DMsoNormal style=3D=
+'margin:0in;margin-bottom:.0001pt'><b><i><span style=3D'font-size:10.0pt;co=
+lor:#1F497D'>With kind regards,</span></i></b><span style=3D'font-size:12.0=
+pt;font-family:SimSun;color:#1F497D'><o:p></o:p></span></p><p class=3DMsoNo=
+rmal><b><i><span style=3D'font-size:10.0pt;color:#1F497D'>Yonghai</span></i=
+></b><o:p></o:p></p></div></body></html>=
 
+--_000_77956EDC1B917843AC9B7965A3BD78B06ACB34DB39SCVEXCH2marve_--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
