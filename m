@@ -1,132 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 70AAD6B0035
-	for <linux-mm@kvack.org>; Fri,  4 Jul 2014 09:43:01 -0400 (EDT)
-Received: by mail-we0-f171.google.com with SMTP id q58so1717033wes.16
-        for <linux-mm@kvack.org>; Fri, 04 Jul 2014 06:43:00 -0700 (PDT)
-Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com [2a00:1450:400c:c05::22c])
-        by mx.google.com with ESMTPS id i5si17075242wie.61.2014.07.04.06.43.00
+Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B6116B0031
+	for <linux-mm@kvack.org>; Fri,  4 Jul 2014 11:16:30 -0400 (EDT)
+Received: by mail-we0-f176.google.com with SMTP id u56so1802021wes.35
+        for <linux-mm@kvack.org>; Fri, 04 Jul 2014 08:16:30 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.131])
+        by mx.google.com with ESMTPS id cm10si12186046wjb.100.2014.07.04.08.16.29
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 04 Jul 2014 06:43:00 -0700 (PDT)
-Received: by mail-wi0-f172.google.com with SMTP id hi2so13096287wib.17
-        for <linux-mm@kvack.org>; Fri, 04 Jul 2014 06:43:00 -0700 (PDT)
-Date: Fri, 4 Jul 2014 15:42:57 +0200
-From: Thierry Reding <thierry.reding@gmail.com>
-Subject: Re: [PATCHv4 4/5] arm: use genalloc for the atomic pool
-Message-ID: <20140704134254.GA4142@ulmo>
-References: <1404324218-4743-1-git-send-email-lauraa@codeaurora.org>
- <1404324218-4743-5-git-send-email-lauraa@codeaurora.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Jul 2014 08:16:29 -0700 (PDT)
+From: =?ISO-8859-1?Q?C=E9dric?= Villemain <cedric@2ndquadrant.com>
+Reply-To: cedric@2ndquadrant.com
+Subject: Re: [PATCH v2 2/4] mm: introduce fincore()
+Date: Fri, 04 Jul 2014 17:15:59 +0200
+Message-ID: <5816450.BPnLjGgtl5@obelix>
+In-Reply-To: <20140704101230.GA24688@infradead.org>
+References: <1404424335-30128-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1404424335-30128-3-git-send-email-n-horiguchi@ah.jp.nec.com> <20140704101230.GA24688@infradead.org>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="ew6BAiZeqk4r7MaW"
-Content-Disposition: inline
-In-Reply-To: <1404324218-4743-5-git-send-email-lauraa@codeaurora.org>
+Content-Type: multipart/signed; boundary="nextPart8084549.9xpDVVycgD"; micalg="pgp-sha1"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>
-Cc: Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, David Riley <davidriley@chromium.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ritesh Harjain <ritesh.harjani@gmail.com>, linux-arm-kernel@lists.infradead.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, David Miller <davem@davemloft.net>, Andres Freund <andres@2ndquadrant.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
 
---ew6BAiZeqk4r7MaW
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+--nextPart8084549.9xpDVVycgD
 Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="iso-8859-1"
 
-On Wed, Jul 02, 2014 at 11:03:37AM -0700, Laura Abbott wrote:
-[...]
-> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-[...]
-> index f5190ac..02a1939 100644
-> --- a/arch/arm/mm/dma-mapping.c
-> +++ b/arch/arm/mm/dma-mapping.c
-> @@ -26,6 +26,7 @@
->  #include <linux/io.h>
->  #include <linux/vmalloc.h>
->  #include <linux/sizes.h>
-> +#include <linux/genalloc.h>
+Le vendredi 4 juillet 2014 03:12:30 Christoph Hellwig a =E9crit :
+> On Thu, Jul 03, 2014 at 05:52:13PM -0400, Naoya Horiguchi wrote:
+> > This patch provides a new system call fincore(2), which provides
+> > mincore()- like information, i.e. page residency of a given file.
+> > But unlike mincore(), fincore() has a mode flag which allows us to
+> > extract detailed information about page cache like pfn and page
+> > flag. This kind of information is very helpful, for example when
+> > applications want to know the file cache status to control the IO
+> > on their own way.
+>=20
+> It's still a nasty multiplexer for multiple different reporting
+> formats in a single system call.  How about your really just do a
+> fincore that mirrors mincore instead of piggybacking exports of
+> various internal flags (tags and page flags onto it.
 
-Includes should be sorted alphabetically. I realize that's not the case
-for this particular file, but the downside of that is that your patch no
-longer applies cleanly on top of linux-next because some other patch did
-add linux/cma.h at the same location.
+The fincore =E0 la mincore got some arguments against it too. It seems =
+this=20
+implementations try (I've not tested nor have a close look yet) to=20
+answer both concerns : have details and also possible to have=20
+aggregation function not too expansive.
 
->  static int __init early_coherent_pool(char *p)
->  {
-> -	atomic_pool.size =3D memparse(p, &p);
-> +	atomic_pool_size =3D memparse(p, &p);
->  	return 0;
->  }
->  early_param("coherent_pool", early_coherent_pool);
-> =20
-> +
-
-There's a gratuituous blank line her.
-
-I also need the below hunk on top of you patch to make this compile on
-ARM.
-
-Thierry
-
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index b323032f0850..460aaf965a87 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -1250,11 +1250,13 @@ static int __iommu_remove_mapping(struct device *de=
-v, dma_addr_t iova, size_t si
-=20
- static struct page **__atomic_get_pages(void *addr)
- {
--	struct dma_pool *pool =3D &atomic_pool;
--	struct page **pages =3D pool->pages;
--	int offs =3D (addr - pool->vaddr) >> PAGE_SHIFT;
-+	struct page *page;
-+	phys_addr_t phys;
-+
-+	phys =3D gen_pool_virt_to_phys(atomic_pool, (unsigned long)addr);
-+	page =3D phys_to_page(phys);
-=20
--	return pages + offs;
-+	return (struct page **)page;
- }
-=20
- static struct page **__iommu_get_pages(void *cpu_addr, struct dma_attrs *a=
-ttrs)
-diff --git a/arch/arm64/mm/dma-mapping.c b/arch/arm64/mm/dma-mapping.c
-index a2487f12b2fc..764f53565958 100644
---- a/arch/arm64/mm/dma-mapping.c
-+++ b/arch/arm64/mm/dma-mapping.c
-@@ -441,7 +441,6 @@ remove_mapping:
- 	dma_common_free_remap(addr, atomic_pool_size, VM_USERMAP);
- destroy_genpool:
- 	gen_pool_destroy(atomic_pool);
--	atomic_pool =3D=3D NULL;
- free_page:
- 	if (!dma_release_from_contiguous(NULL, page, nr_pages))
- 		__free_pages(page, get_order(atomic_pool_size));
-
---ew6BAiZeqk4r7MaW
-Content-Type: application/pgp-signature
+=2D-=20
+C=E9dric Villemain +33 (0)6 20 30 22 52
+http://2ndQuadrant.fr/
+PostgreSQL: Support 24x7 - D=E9veloppement, Expertise et Formation
+--nextPart8084549.9xpDVVycgD
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part.
+Content-Transfer-Encoding: 7Bit
 
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v2
 
-iQIcBAEBAgAGBQJTtq9eAAoJEN0jrNd/PrOhpXMQAL0++4Vz+tGUrju08/GKR5AN
-vqM3c6pBzLxlwwBEfaSdzTy+xyy6exaYMp3vo67stXvIwLzaGvnn8GYKyAurpXtK
-ssiL2nW5EkV0GiYWZJcXbrKmOdZcBMEuhimKjdwKBSA8jnCNEWdLxEmldemjvJGj
-S9NM1i3MVTFlEoVd+EcYy5aURy51rrlNG4Kb4IY4Qcpjykax24gjFNMt37NihSE0
-a75MQgyjMFveYpn8XPtQoPmjzu3NycRp9UbfD+/Z3+Y3zVuN+hsmkU75inTYA/44
-+R01xMBxygFL6xTJtfqgW5obH3TkAyIWOkgBFuNM5o38F+7o0/nxp++Pd+2UGaYe
-GIPjZnibpei/PT+q7Z21J7BG4hf5Z/RpNzWWzAFq29B4Yw9wVPVKeBMIET9q+8s0
-6HZV9wESozFawqLTH/qUnJG7iPGQzInwjKQjFmqT2xn/BHyg+wyZdqoGSTFAEm0B
-EqTM3iuGQKqdlTBoOwwLvdeZZpUB1mrULndi+Dq0tILiS3HS8VFaOzd745lb+6Nu
-BcQzxi4s7YwlhhMe5NXjwH/OB+rOM9aQk0GCwRv9iLBFV3xfTAZbri9UiqxfmjCc
-bfc5Cic2g739npdrQ2uuvfi42XVSTBK0mPLfs/6NTPCIUdcyK30uNOTmigs17tt+
-ABfo1C2Wknj2COhzhGAu
-=bc4p
+iQEcBAABAgAGBQJTtsUyAAoJENsgH0yzVBebWBoIAJhFEeV28nzkW/C4Wi3s8YXZ
+CgfL6Kpu1jvhMQC/5ni4RquqQoZtRtHU1/qBuW5e1njazdflWhTRxsf3zff3mOMD
+owZbKbi8s8UT9m/uEB9Yv9vXFmiWhpXL+yqcniQWW5WUNCIP/X3F/fMVzlaydrCb
+vUQlXvJ1p0sUrtualRry3sQpPk/OxT0Fa1n3HdiC4X9wfv0EX8OSXjekZqtUS0NC
+OUsXEfnaB/KmbiqRLGBgxoofynMby2089Cgi13+MHFvS32YzRA+x0/dbKUJmpN2I
+j0FCbJEc982/BIK2vpSPZk+/0ZZkWjYDx5RNHGuwYc1FimvN4UdgR4AHnp9DWo8=
+=AC/X
 -----END PGP SIGNATURE-----
 
---ew6BAiZeqk4r7MaW--
+--nextPart8084549.9xpDVVycgD--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
