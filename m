@@ -1,65 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 3137C6B0036
-	for <linux-mm@kvack.org>; Fri,  4 Jul 2014 08:16:23 -0400 (EDT)
-Received: by mail-we0-f174.google.com with SMTP id u57so1598847wes.19
-        for <linux-mm@kvack.org>; Fri, 04 Jul 2014 05:16:22 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e17si16610896wjx.19.2014.07.04.05.16.22
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id CBDB96B0035
+	for <linux-mm@kvack.org>; Fri,  4 Jul 2014 08:52:13 -0400 (EDT)
+Received: by mail-wi0-f175.google.com with SMTP id r20so12997941wiv.2
+        for <linux-mm@kvack.org>; Fri, 04 Jul 2014 05:52:13 -0700 (PDT)
+Received: from mail-we0-x229.google.com (mail-we0-x229.google.com [2a00:1450:400c:c03::229])
+        by mx.google.com with ESMTPS id ca17si28368652wib.45.2014.07.04.05.52.10
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 04 Jul 2014 05:16:22 -0700 (PDT)
-Date: Fri, 4 Jul 2014 14:16:21 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH RFC 0/5] Virtual Memory Resource Controller for cgroups
-Message-ID: <20140704121621.GE12466@dhcp22.suse.cz>
-References: <cover.1404383187.git.vdavydov@parallels.com>
+        Fri, 04 Jul 2014 05:52:10 -0700 (PDT)
+Received: by mail-we0-f169.google.com with SMTP id t60so1646877wes.28
+        for <linux-mm@kvack.org>; Fri, 04 Jul 2014 05:52:10 -0700 (PDT)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH 01/10] mm/page_alloc: remove unlikely macro on free_one_page()
+In-Reply-To: <1404460675-24456-2-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1404460675-24456-1-git-send-email-iamjoonsoo.kim@lge.com> <1404460675-24456-2-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Fri, 04 Jul 2014 14:52:06 +0200
+Message-ID: <xa1t38ehqoax.fsf@mina86.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <cover.1404383187.git.vdavydov@parallels.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Balbir Singh <bsingharora@gmail.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 03-07-14 16:48:16, Vladimir Davydov wrote:
-> Hi,
-> 
-> Typically, when a process calls mmap, it isn't given all the memory pages it
-> requested immediately. Instead, only its address space is grown, while the
-> memory pages will be actually allocated on the first use. If the system fails
-> to allocate a page, it will have no choice except invoking the OOM killer,
-> which may kill this or any other process. Obviously, it isn't the best way of
-> telling the user that the system is unable to handle his request. It would be
-> much better to fail mmap with ENOMEM instead.
-> 
-> That's why Linux has the memory overcommit control feature, which accounts and
-> limits VM size that may contribute to mem+swap, i.e. private writable mappings
-> and shared memory areas. However, currently it's only available system-wide,
-> and there's no way of avoiding OOM in cgroups.
+On Fri, Jul 04 2014, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> Isolation is really rare case so !is_migrate_isolate() is
+> likely case. Remove unlikely macro.
 >
-> This patch set is an attempt to fill the gap. It implements the resource
-> controller for cgroups that accounts and limits address space allocations that
-> may contribute to mem+swap.
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Well, I am not really sure how helpful is this. Could you be more
-specific about real use cases? If the only problem is that memcg OOM can
-trigger to easily then I do not think this is the right approach to
-handle it. Strict no-overcommit is basically unusable for many
-workloads. Especially those which try to do their own memory usage
-optimization in a much larger address space.
 
-Once I get from internal things (which will happen soon hopefully) I
-will post a series with a new sets of memcg limits. One of them is
-high_limit which can be used as a trigger for memcg reclaim. Unlike
-hard_limit there won't be any OOM if the reclaim fails at this stage. So
-if the high_limit is configured properly the admin will have enough time
-to make additional steps before OOM happens.
-[...]
--- 
-Michal Hocko
-SUSE Labs
+
+> ---
+>  mm/page_alloc.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 8dac0f0..0d4cf7a 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -735,7 +735,7 @@ static void free_one_page(struct zone *zone,
+>  	zone->pages_scanned =3D 0;
+>=20=20
+>  	__free_one_page(page, pfn, zone, order, migratetype);
+> -	if (unlikely(!is_migrate_isolate(migratetype)))
+> +	if (!is_migrate_isolate(migratetype))
+>  		__mod_zone_freepage_state(zone, 1 << order, migratetype);
+>  	spin_unlock(&zone->lock);
+>  }
+> --=20
+> 1.7.9.5
+>
+
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
