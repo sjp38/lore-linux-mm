@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id CBDB96B0035
-	for <linux-mm@kvack.org>; Fri,  4 Jul 2014 08:52:13 -0400 (EDT)
-Received: by mail-wi0-f175.google.com with SMTP id r20so12997941wiv.2
-        for <linux-mm@kvack.org>; Fri, 04 Jul 2014 05:52:13 -0700 (PDT)
-Received: from mail-we0-x229.google.com (mail-we0-x229.google.com [2a00:1450:400c:c03::229])
-        by mx.google.com with ESMTPS id ca17si28368652wib.45.2014.07.04.05.52.10
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id B55E26B0036
+	for <linux-mm@kvack.org>; Fri,  4 Jul 2014 08:53:10 -0400 (EDT)
+Received: by mail-wg0-f47.google.com with SMTP id l18so1616257wgh.6
+        for <linux-mm@kvack.org>; Fri, 04 Jul 2014 05:53:10 -0700 (PDT)
+Received: from mail-we0-x235.google.com (mail-we0-x235.google.com [2a00:1450:400c:c03::235])
+        by mx.google.com with ESMTPS id ez14si28317744wid.92.2014.07.04.05.53.09
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 04 Jul 2014 05:52:10 -0700 (PDT)
-Received: by mail-we0-f169.google.com with SMTP id t60so1646877wes.28
-        for <linux-mm@kvack.org>; Fri, 04 Jul 2014 05:52:10 -0700 (PDT)
+        Fri, 04 Jul 2014 05:53:09 -0700 (PDT)
+Received: by mail-we0-f181.google.com with SMTP id q59so1656349wes.12
+        for <linux-mm@kvack.org>; Fri, 04 Jul 2014 05:53:09 -0700 (PDT)
 From: Michal Nazarewicz <mina86@mina86.com>
 Subject: Re: [PATCH 01/10] mm/page_alloc: remove unlikely macro on free_one_page()
 In-Reply-To: <1404460675-24456-2-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1404460675-24456-1-git-send-email-iamjoonsoo.kim@lge.com> <1404460675-24456-2-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Fri, 04 Jul 2014 14:52:06 +0200
-Message-ID: <xa1t38ehqoax.fsf@mina86.com>
+Date: Fri, 04 Jul 2014 14:53:05 +0200
+Message-ID: <xa1t1tu1qo9a.fsf@mina86.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
@@ -31,7 +31,7 @@ On Fri, Jul 04 2014, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 >
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
 
 > ---
 >  mm/page_alloc.c |    2 +-
@@ -50,9 +50,6 @@ On Fri, Jul 04 2014, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 >  		__mod_zone_freepage_state(zone, 1 << order, migratetype);
 >  	spin_unlock(&zone->lock);
 >  }
-> --=20
-> 1.7.9.5
->
 
 --=20
 Best regards,                                         _     _
