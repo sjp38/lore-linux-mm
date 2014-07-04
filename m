@@ -1,247 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 3984A6B0031
-	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 18:10:44 -0400 (EDT)
-Received: by mail-wi0-f180.google.com with SMTP id hi2so2948568wib.13
-        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 15:10:43 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id fr9si20834950wib.79.2014.07.03.15.10.42
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 967B66B0035
+	for <linux-mm@kvack.org>; Thu,  3 Jul 2014 20:03:58 -0400 (EDT)
+Received: by mail-qg0-f42.google.com with SMTP id e89so887690qgf.29
+        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 17:03:58 -0700 (PDT)
+Received: from mail-qc0-x235.google.com (mail-qc0-x235.google.com [2607:f8b0:400d:c01::235])
+        by mx.google.com with ESMTPS id r76si11569299qgr.35.2014.07.03.17.03.57
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 03 Jul 2014 15:10:43 -0700 (PDT)
-Date: Thu, 3 Jul 2014 18:10:11 -0400
-From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: [PATCH v2] x86: numa: setup_node_data(): drop dead code and rename
- function
-Message-ID: <20140703181011.75cb7cc0@redhat.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 03 Jul 2014 17:03:57 -0700 (PDT)
+Received: by mail-qc0-f181.google.com with SMTP id x13so906804qcv.40
+        for <linux-mm@kvack.org>; Thu, 03 Jul 2014 17:03:57 -0700 (PDT)
+Date: Thu, 3 Jul 2014 20:03:49 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [PATCH 1/6] mmput: use notifier chain to call subsystem exit
+ handler.
+Message-ID: <20140704000347.GA2442@gmail.com>
+References: <20140630181623.GE26537@8bytes.org>
+ <20140630183556.GB3280@gmail.com>
+ <20140701091535.GF26537@8bytes.org>
+ <019CCE693E457142B37B791721487FD91806DD8B@storexdag01.amd.com>
+ <20140701110018.GH26537@8bytes.org>
+ <20140701193343.GB3322@gmail.com>
+ <20140701210620.GL26537@8bytes.org>
+ <20140701213208.GC3322@gmail.com>
+ <20140703183024.GA3306@gmail.com>
+ <20140703231541.GR26537@8bytes.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20140703231541.GR26537@8bytes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, riel@redhat.com, andi@firstfloor.org, rientjes@google.com
+To: Joerg Roedel <joro@8bytes.org>
+Cc: "Gabbay, Oded" <Oded.Gabbay@amd.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Lewycky, Andrew" <Andrew.Lewycky@amd.com>, "Cornwall, Jay" <Jay.Cornwall@amd.com>, "Bridgman, John" <John.Bridgman@amd.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "mgorman@suse.de" <mgorman@suse.de>, "hpa@zytor.com" <hpa@zytor.com>, peterz@infradead.org, "aarcange@redhat.com" <aarcange@redhat.com>, "riel@redhat.com" <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, Mark Hairgrove <mhairgrove@nvidia.com>, Jatin Kumar <jakumar@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Duncan Poole <dpoole@nvidia.com>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>
 
-The setup_node_data() function allocates a pg_data_t object, inserts it
-into the node_data[] array and initializes the following fields:
-node_id, node_start_pfn and node_spanned_pages.
+On Fri, Jul 04, 2014 at 01:15:41AM +0200, Joerg Roedel wrote:
+> Hi Jerome,
+> 
+> On Thu, Jul 03, 2014 at 02:30:26PM -0400, Jerome Glisse wrote:
+> > Joerg do you still object to this patch ?
+> 
+> Yes.
+> 
+> > Again the natural place to call this is from mmput and the fact that many
+> > other subsystem already call in from there to cleanup there own per mm data
+> > structure is a testimony that this is a valid use case and valid design.
+> 
+> Device drivers are something different than subsystems. I think the
+> point that the mmu_notifier struct can not be freed in the .release
+> call-back is a weak reason for introducing a new notifier. In the end
+> every user of mmu_notifiers has to call mmu_notifier_register somewhere
+> (file-open/ioctl path or somewhere else where the mm<->device binding is
+>  set up) and can call mmu_notifier_unregister in a similar path which
+> destroys the binding.
+> 
+> > You pointed out that the cleanup should be done from the device driver file
+> > close call. But as i stressed some of the new user will not necessarily have
+> > a device file open hence no way for them to free the associated structure
+> > except with hackish delayed job.
+> 
+> Please tell me more about these 'new users', how does mm<->device binding
+> is set up there if no fd is used?
 
-However, a few function calls later during the kernel boot,
-free_area_init_node() re-initializes those fields, possibly with
-different values. This means that the initialization done by
-setup_node_data() is not used.
+It could be setup on behalf of another process through others means like
+local socket. Thought main use case i am thinking about is you open device
+fd you setup your gpu queue and then you close the fd but you keep using
+the gpu and the gpu keep accessing the address space.
 
-This causes a small glitch when running Linux as a hyperv numa guest:
+Further done the lane we might even see gpu code as directly executable
+thought that seems yet unreleasistic at this time.
 
-[    0.000000] SRAT: PXM 0 -> APIC 0x00 -> Node 0
-[    0.000000] SRAT: PXM 0 -> APIC 0x01 -> Node 0
-[    0.000000] SRAT: PXM 1 -> APIC 0x02 -> Node 1
-[    0.000000] SRAT: PXM 1 -> APIC 0x03 -> Node 1
-[    0.000000] SRAT: Node 0 PXM 0 [mem 0x00000000-0x7fffffff]
-[    0.000000] SRAT: Node 1 PXM 1 [mem 0x80200000-0xf7ffffff]
-[    0.000000] SRAT: Node 1 PXM 1 [mem 0x100000000-0x1081fffff]
-[    0.000000] NUMA: Node 1 [mem 0x80200000-0xf7ffffff] + [mem 0x100000000-0x1081fffff] -> [mem 0x80200000-0x1081fffff]
-[    0.000000] Initmem setup node 0 [mem 0x00000000-0x7fffffff]
-[    0.000000]   NODE_DATA [mem 0x7ffdc000-0x7ffeffff]
-[    0.000000] Initmem setup node 1 [mem 0x80800000-0x1081fffff]
-[    0.000000]   NODE_DATA [mem 0x1081ea000-0x1081fdfff]
-[    0.000000] crashkernel: memory value expected
-[    0.000000]  [ffffea0000000000-ffffea0001ffffff] PMD -> [ffff88007de00000-ffff88007fdfffff] on node 0
-[    0.000000]  [ffffea0002000000-ffffea00043fffff] PMD -> [ffff880105600000-ffff8801077fffff] on node 1
-[    0.000000] Zone ranges:
-[    0.000000]   DMA      [mem 0x00001000-0x00ffffff]
-[    0.000000]   DMA32    [mem 0x01000000-0xffffffff]
-[    0.000000]   Normal   [mem 0x100000000-0x1081fffff]
-[    0.000000] Movable zone start for each node
-[    0.000000] Early memory node ranges
-[    0.000000]   node   0: [mem 0x00001000-0x0009efff]
-[    0.000000]   node   0: [mem 0x00100000-0x7ffeffff]
-[    0.000000]   node   1: [mem 0x80200000-0xf7ffffff]
-[    0.000000]   node   1: [mem 0x100000000-0x1081fffff]
-[    0.000000] On node 0 totalpages: 524174
-[    0.000000]   DMA zone: 64 pages used for memmap
-[    0.000000]   DMA zone: 21 pages reserved
-[    0.000000]   DMA zone: 3998 pages, LIFO batch:0
-[    0.000000]   DMA32 zone: 8128 pages used for memmap
-[    0.000000]   DMA32 zone: 520176 pages, LIFO batch:31
-[    0.000000] On node 1 totalpages: 524288
-[    0.000000]   DMA32 zone: 7672 pages used for memmap
-[    0.000000]   DMA32 zone: 491008 pages, LIFO batch:31
-[    0.000000]   Normal zone: 520 pages used for memmap
-[    0.000000]   Normal zone: 33280 pages, LIFO batch:7
+Anyway whole point is that no matter how you turn the matter anything that
+mirror a process address is linked to the lifetime of the mm_struct so in
+order to have some logic there it is far best to have destruction match
+the destruction of mm. This also make things like fork lot cleaner, as on
+work the device file descriptor is duplicated inside the child process
+but nothing setup child process to keep using the gpu. Thus you might
+end up with way delayed file closure compare to parent process mm
+destruction.
 
-In this dmesg, the SRAT table reports that the memory range for node 1
-starts at 0x80200000. However, the line starting with "Initmem" reports
-that node 1 memory range starts at 0x80800000. The "Initmem" line is
-reported by setup_node_data() and is wrong, because the kernel ends up
-using the range as reported in the SRAT table.
+Cheers,
+Jerome
 
-This commit drops all that dead code from setup_node_data(), renames it
-to alloc_node_data() and adds a printk() to free_area_init_node() so
-that we report a node's memory range accurately.
-
-Here's the same dmesg section with this patch applied:
-
-[    0.000000] SRAT: PXM 0 -> APIC 0x00 -> Node 0
-[    0.000000] SRAT: PXM 0 -> APIC 0x01 -> Node 0
-[    0.000000] SRAT: PXM 1 -> APIC 0x02 -> Node 1
-[    0.000000] SRAT: PXM 1 -> APIC 0x03 -> Node 1
-[    0.000000] SRAT: Node 0 PXM 0 [mem 0x00000000-0x7fffffff]
-[    0.000000] SRAT: Node 1 PXM 1 [mem 0x80200000-0xf7ffffff]
-[    0.000000] SRAT: Node 1 PXM 1 [mem 0x100000000-0x1081fffff]
-[    0.000000] NUMA: Node 1 [mem 0x80200000-0xf7ffffff] + [mem 0x100000000-0x1081fffff] -> [mem 0x80200000-0x1081fffff]
-[    0.000000] NODE_DATA(0) allocated [mem 0x7ffdc000-0x7ffeffff]
-[    0.000000] NODE_DATA(1) allocated [mem 0x1081ea000-0x1081fdfff]
-[    0.000000] crashkernel: memory value expected
-[    0.000000]  [ffffea0000000000-ffffea0001ffffff] PMD -> [ffff88007de00000-ffff88007fdfffff] on node 0
-[    0.000000]  [ffffea0002000000-ffffea00043fffff] PMD -> [ffff880105600000-ffff8801077fffff] on node 1
-[    0.000000] Zone ranges:
-[    0.000000]   DMA      [mem 0x00001000-0x00ffffff]
-[    0.000000]   DMA32    [mem 0x01000000-0xffffffff]
-[    0.000000]   Normal   [mem 0x100000000-0x1081fffff]
-[    0.000000] Movable zone start for each node
-[    0.000000] Early memory node ranges
-[    0.000000]   node   0: [mem 0x00001000-0x0009efff]
-[    0.000000]   node   0: [mem 0x00100000-0x7ffeffff]
-[    0.000000]   node   1: [mem 0x80200000-0xf7ffffff]
-[    0.000000]   node   1: [mem 0x100000000-0x1081fffff]
-[    0.000000] Initmem setup node 0 [mem 0x00001000-0x7ffeffff]
-[    0.000000] On node 0 totalpages: 524174
-[    0.000000]   DMA zone: 64 pages used for memmap
-[    0.000000]   DMA zone: 21 pages reserved
-[    0.000000]   DMA zone: 3998 pages, LIFO batch:0
-[    0.000000]   DMA32 zone: 8128 pages used for memmap
-[    0.000000]   DMA32 zone: 520176 pages, LIFO batch:31
-[    0.000000] Initmem setup node 1 [mem 0x80200000-0x1081fffff]
-[    0.000000] On node 1 totalpages: 524288
-[    0.000000]   DMA32 zone: 7672 pages used for memmap
-[    0.000000]   DMA32 zone: 491008 pages, LIFO batch:31
-[    0.000000]   Normal zone: 520 pages used for memmap
-[    0.000000]   Normal zone: 33280 pages, LIFO batch:7
-
-This commit was tested on a two node bare-metal NUMA machine and Linux
-as a numa guest on hyperv and qemu/kvm.
-
-PS: The wrong memory range reported by setup_node_data() seems to be
-    harmless in the current kernel because it's just not used. However,
-    that bad range is used in kernel 2.6.32 to initialize the old boot
-    memory allocator, which causes a crash during boot.
-
-Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
----
-
-v2
-
- - Restore Initmem text when reporting the memory range in dmesg [David]
-
-o David, Andrew: I'm sending v2 instead of sending an incremental patch
-  because I had to update the commit log.
-
- arch/x86/include/asm/numa.h |  1 -
- arch/x86/mm/numa.c          | 34 ++++++++++++++--------------------
- mm/page_alloc.c             |  2 ++
- 3 files changed, 16 insertions(+), 21 deletions(-)
-
-diff --git a/arch/x86/include/asm/numa.h b/arch/x86/include/asm/numa.h
-index 4064aca..01b493e 100644
---- a/arch/x86/include/asm/numa.h
-+++ b/arch/x86/include/asm/numa.h
-@@ -9,7 +9,6 @@
- #ifdef CONFIG_NUMA
- 
- #define NR_NODE_MEMBLKS		(MAX_NUMNODES*2)
--#define ZONE_ALIGN (1UL << (MAX_ORDER+PAGE_SHIFT))
- 
- /*
-  * Too small node sizes may confuse the VM badly. Usually they
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index a32b706..d221374 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -185,8 +185,8 @@ int __init numa_add_memblk(int nid, u64 start, u64 end)
- 	return numa_add_memblk_to(nid, start, end, &numa_meminfo);
- }
- 
--/* Initialize NODE_DATA for a node on the local memory */
--static void __init setup_node_data(int nid, u64 start, u64 end)
-+/* Allocate NODE_DATA for a node on the local memory */
-+static void __init alloc_node_data(int nid)
- {
- 	const size_t nd_size = roundup(sizeof(pg_data_t), PAGE_SIZE);
- 	u64 nd_pa;
-@@ -194,18 +194,6 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
- 	int tnid;
- 
- 	/*
--	 * Don't confuse VM with a node that doesn't have the
--	 * minimum amount of memory:
--	 */
--	if (end && (end - start) < NODE_MIN_SIZE)
--		return;
--
--	start = roundup(start, ZONE_ALIGN);
--
--	printk(KERN_INFO "Initmem setup node %d [mem %#010Lx-%#010Lx]\n",
--	       nid, start, end - 1);
--
--	/*
- 	 * Allocate node data.  Try node-local memory and then any node.
- 	 * Never allocate in DMA zone.
- 	 */
-@@ -222,7 +210,7 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
- 	nd = __va(nd_pa);
- 
- 	/* report and initialize */
--	printk(KERN_INFO "  NODE_DATA [mem %#010Lx-%#010Lx]\n",
-+	printk(KERN_INFO "NODE_DATA(%d) allocated [mem %#010Lx-%#010Lx]\n", nid,
- 	       nd_pa, nd_pa + nd_size - 1);
- 	tnid = early_pfn_to_nid(nd_pa >> PAGE_SHIFT);
- 	if (tnid != nid)
-@@ -230,9 +218,6 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
- 
- 	node_data[nid] = nd;
- 	memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
--	NODE_DATA(nid)->node_id = nid;
--	NODE_DATA(nid)->node_start_pfn = start >> PAGE_SHIFT;
--	NODE_DATA(nid)->node_spanned_pages = (end - start) >> PAGE_SHIFT;
- 
- 	node_set_online(nid);
- }
-@@ -523,8 +508,17 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
- 			end = max(mi->blk[i].end, end);
- 		}
- 
--		if (start < end)
--			setup_node_data(nid, start, end);
-+		if (start >= end)
-+			continue;
-+
-+		/*
-+		 * Don't confuse VM with a node that doesn't have the
-+		 * minimum amount of memory:
-+		 */
-+		if (end && (end - start) < NODE_MIN_SIZE)
-+			continue;
-+
-+		alloc_node_data(nid);
- 	}
- 
- 	/* Dump memblock with node info and return. */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 20d17f8..9c699e7 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4957,6 +4957,8 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
- 	pgdat->node_start_pfn = node_start_pfn;
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
-+	printk(KERN_INFO "Initmem setup node %d [mem %#010Lx-%#010Lx]\n", nid,
-+			(u64) start_pfn << PAGE_SHIFT, (u64) (end_pfn << PAGE_SHIFT) - 1);
- #endif
- 	calculate_node_totalpages(pgdat, start_pfn, end_pfn,
- 				  zones_size, zholes_size);
--- 
-1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
