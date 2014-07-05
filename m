@@ -1,146 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B3436B0035
-	for <linux-mm@kvack.org>; Fri,  4 Jul 2014 22:13:39 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id rd3so2613343pab.4
-        for <linux-mm@kvack.org>; Fri, 04 Jul 2014 19:13:39 -0700 (PDT)
-Received: from mail-pd0-x233.google.com (mail-pd0-x233.google.com [2607:f8b0:400e:c02::233])
-        by mx.google.com with ESMTPS id bf15si2492124pdb.65.2014.07.04.19.13.37
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id ACE716B0035
+	for <linux-mm@kvack.org>; Sat,  5 Jul 2014 04:13:39 -0400 (EDT)
+Received: by mail-ig0-f169.google.com with SMTP id c1so8996945igq.2
+        for <linux-mm@kvack.org>; Sat, 05 Jul 2014 01:13:39 -0700 (PDT)
+Received: from mx0b-0016f401.pphosted.com (mx0b-0016f401.pphosted.com. [67.231.156.173])
+        by mx.google.com with ESMTPS id f1si33121826igq.54.2014.07.05.01.13.38
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 04 Jul 2014 19:13:38 -0700 (PDT)
-Received: by mail-pd0-f179.google.com with SMTP id w10so2584344pde.10
-        for <linux-mm@kvack.org>; Fri, 04 Jul 2014 19:13:37 -0700 (PDT)
-Date: Fri, 4 Jul 2014 19:12:04 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: mm: memcontrol: rewrite uncharge API: problems
-In-Reply-To: <20140704004104.GG1369@cmpxchg.org>
-Message-ID: <alpine.LSU.2.11.1407041833510.1114@eggly.anvils>
-References: <alpine.LSU.2.11.1406301558090.4572@eggly.anvils> <20140701174612.GC1369@cmpxchg.org> <20140702212004.GF1369@cmpxchg.org> <alpine.LSU.2.11.1407021518120.8299@eggly.anvils> <alpine.LSU.2.11.1407031219500.1370@eggly.anvils>
- <20140704004104.GG1369@cmpxchg.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sat, 05 Jul 2014 01:13:38 -0700 (PDT)
+Received: from pps.filterd (m0045851.ppops.net [127.0.0.1])
+	by mx0b-0016f401.pphosted.com (8.14.5/8.14.5) with SMTP id s658Dbs6012706
+	for <linux-mm@kvack.org>; Sat, 5 Jul 2014 01:13:37 -0700
+Received: from sc-owa01.marvell.com ([199.233.58.136])
+	by mx0b-0016f401.pphosted.com with ESMTP id 1mwtmx9y8q-1
+	(version=TLSv1/SSLv3 cipher=RC4-MD5 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Sat, 05 Jul 2014 01:13:37 -0700
+From: Lisa Du <cldu@marvell.com>
+Date: Sat, 5 Jul 2014 01:13:17 -0700
+Subject: NR_FREE_CMA_PAGES larger than total CMA size
+Message-ID: <89813612683626448B837EE5A0B6A7CB455AEB75CF@SC-VEXCH4.marvell.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, 3 Jul 2014, Johannes Weiner wrote:
-> On Thu, Jul 03, 2014 at 12:54:36PM -0700, Hugh Dickins wrote:
-> > On Wed, 2 Jul 2014, Hugh Dickins wrote:
-> > > On Wed, 2 Jul 2014, Johannes Weiner wrote:
-> > > > 
-> > > > Could you give the following patch a spin?  I put it in the mmots
-> > > > stack on top of mm-memcontrol-rewrite-charge-api-fix-shmem_unuse-fix.
-> > > 
-> > > I'm just with the laptop until this evening.  I slapped it on top of
-> > > my 3.16-rc2-mm1 plus fixes (but obviously minus my memcg_batch one
-> > > - which incidentally continues to run without crashing on the G5),
-> > > and it quickly gave me this lockdep splat, which doesn't look very
-> > > different from the one before.
-> > > 
-> > > I see there's now an -rc3-mm1, I'll try it out on that in half an
-> > > hour... but unless I send word otherwise, assume that's the same.
-> > 
-> > Yes, I get that lockdep report each time on -rc3-mm1 + your patch.
-> 
-> There are two instances where I missed to make &rtpz->lock IRQ-safe:
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 91b621846e10..bbaa3f4cf4db 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3919,7 +3919,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
->  						    gfp_mask, &nr_scanned);
->  		nr_reclaimed += reclaimed;
->  		*total_scanned += nr_scanned;
-> -		spin_lock(&mctz->lock);
-> +		spin_lock_irq(&mctz->lock);
->  
->  		/*
->  		 * If we failed to reclaim anything from this memory cgroup
-> @@ -3959,7 +3959,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
->  		 */
->  		/* If excess == 0, no tree ops */
->  		__mem_cgroup_insert_exceeded(mz, mctz, excess);
-> -		spin_unlock(&mctz->lock);
-> +		spin_unlock_irq(&mctz->lock);
->  		css_put(&mz->memcg->css);
->  		loop++;
->  		/*
+Dear Sir
+Recently I met one issue that after system run for a long time, free cma pa=
+ges recorded
+in vm_stat[NR_FREE_CMA_PAGES] are larger than total CMA size declared.
+For example, I declared 64MB CMA size, but found free cma was 70MB.
 
-Thanks, that fixes my lockdep reports.
+I added some trace to track how it happen, and found the reason maybe like =
+below:
+1) alloc_contig_range() want to allocate a range [start, end], for example =
+[0x1e040, 0x1e050];
 
-> 
-> That should make it complete - but the IRQ toggling costs are fairly
-> high so I'm rewriting the batching code to use the page lists that
-> most uncharges have anyway, and then batch the no-IRQ sections.
+2) start_isolate_page_range() will isolate the range [pfn_max_align_down(st=
+art),
+  pfn_max_align_up(end)]; for this example it's [0x1e000, 0x1e400] (MAX_ORD=
+ER is 11);
 
-Sounds good.
+3) drain_all_pages() would be called as follows, if there's some pages belo=
+ng to the range
+  [0x1e000, 0x1e400] was freed from the pcp_list, also if the page was MIGR=
+ATE_CMA,
+  then vm_stat[NR_FREE_CMA_PAGES] would increase and also NR_FREE_PAGES;
 
-> 
-> > I also twice got a flurry of res_counter.c:28 underflow warnings.
-> > Hmm, 62 of them each time (I was checking for a number near 512,
-> > which would suggest a THP/4k confusion, but no).  The majority
-> > of them coming from mem_cgroup_reparent_charges.
-> 
-> I haven't seen these yet.  But the location makes sense: if there are
-> any imbalances they'll be noticed during a group's final uncharges.
+4) if the freed pages in #3 was not the range of [start, end], then at last=
+ undo_isolate_page_range()
+  will be called, and the pages would be calculated again as free pages in =
+unset_migratetype_isolate(),
+  and __mod_zone_freepage_state() will increased again for these pages for =
+both NR_FREE_CMA_PAGES
+  and NR_FREE_PAGES.=20
+  The function calling flow as below, the free pages in move_freepages() wa=
+s calculated again.
+  undo_isolate_page_range()
+	--> unset_migratetype_isolate()
+		--> move_freepages_block()
+			--> move_freepages()
+	--> __mod_zone_freepage_state()
 
-I haven't seen any since adding your patch above, though I don't see
-how it could affect them.  Of course I'll let you know if they reappear.
+Shall we add some check in move_freepages() if the page was already in CMA =
+free list,=20
+then exclude it from the pages_moved?
 
-> 
-> > But the laptop stayed up fine (for two hours before I had to stop
-> > it), and the G5 has run fine with that load for 16 hours now, no
-> > problems with release_pages, and not even a res_counter.c:28 (but
-> > I don't use lockdep on it).
-> 
-> Great!
-> 
-> > The x86 workstation ran fine for 4.5 hours, then hit some deadlock
-> > which I doubt had any connection to your changes: looked more like
-> > a jbd2 transaction was failing to complete (which, with me trying
-> > ext4 on loop on tmpfs, might be more my problem than anyone else's).
-> > 
-> > Oh, but nearly forgot, I did an earlier run on the laptop last night,
-> > which crashed within minutes on
-> > 
-> > VM_BUG_ON_PAGE(!(pc->flags & PCG_MEM))
-> > mm/memcontrol.c:6680!
-> > page had count 1 mapcount 0 mapping anon index 0x196
-> > flags locked uptodate reclaim swapbacked, pcflags 1, memcg not root
-> > mem_cgroup_migrate < move_to_new_page < migrate_pages < compact_zone <
-> > compact_zone_order < try_to_compact_pages < __alloc_pages_direct_compact <
-> > __alloc_pages_nodemask < alloc_pages_vma < do_huge_pmd_anonymous_page <
-> > handle_mm_fault < __do_page_fault
+I found this issue in kernel v3.4, but seems there's no fix in latest kerne=
+l code base.
+Not sure if anyone else has met such issue? Anyone would help to comment? T=
+hanks a lot!
 
-I got it again on the laptop, after 7 hours.
+Thanks!
 
-> 
-> Haven't seen that one yet, either.  The only way I can see this happen
-> is when the same page gets selected for migration twice in a row.
-> Maybe a race with putback, where it gets added to the LRU but isolated
-> by compaction before putback drops the refcount - will verify that.
-
-Yes.  This is one of those cases where I read a mail too quickly,
-misunderstand it, set it aside, plough through the source files,
-pace around thinking, finally come up with a hypothesis, go back to
-answer the mail, and find I've arrived at the same conclusion as you.
-
-Not verified in any way, but yes, mem_cgroup_migrate() looks anomalous
-to me, in clearing PCG_MEM and PGC_MEMSW but leaving PCG_USED.  Once
-that old page is put back on LRU for freeing, it could get isolated
-by another migrator, who discovers the anomalous state in its own
-mem_cgroup_migrate().
-
-mem_cgroup_migrate() should just set pc->flags = 0, shouldn't it?
-
-But is there any point to PCG_USED now?  Couldn't PageCgroupUsed
-(or better, PageCgroupCharged) just test PCG_MEM and PCG_MEMSW?
-Which should be low bits of pc->mem_cgroup, halving the array.
-
-Hugh
+Best Regards
+Lisa Du
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
