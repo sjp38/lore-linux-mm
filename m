@@ -1,42 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F6BF900002
-	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 13:14:21 -0400 (EDT)
-Received: by mail-la0-f44.google.com with SMTP id ty20so3147562lab.31
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 10:14:20 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id no1si70210918lbb.27.2014.07.07.10.14.19
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Jul 2014 10:14:19 -0700 (PDT)
-Message-ID: <53BAD567.8060506@parallels.com>
-Date: Mon, 7 Jul 2014 21:14:15 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 9098F6B0036
+	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 13:43:43 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id w10so5753845pde.3
+        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 10:43:43 -0700 (PDT)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id bc15si5094522pdb.17.2014.07.07.10.43.38
+        for <linux-mm@kvack.org>;
+        Mon, 07 Jul 2014 10:43:39 -0700 (PDT)
+Message-ID: <53BADC49.6000600@sr71.net>
+Date: Mon, 07 Jul 2014 10:43:37 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH -mm 0/8] memcg: reparent kmem on css offline
-References: <cover.1404733720.git.vdavydov@parallels.com> <20140707142506.GB1149@cmpxchg.org>
-In-Reply-To: <20140707142506.GB1149@cmpxchg.org>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Subject: Re: [PATCH 5/6] x86: mm: new tunable for single vs full TLB flush
+References: <20140421182418.81CF7519@viggo.jf.intel.com> <20140421182426.D6DD1E8F@viggo.jf.intel.com> <20140424103727.GT23991@suse.de>
+In-Reply-To: <20140424103727.GT23991@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: akpm@linux-foundation.org, mhocko@suse.cz, cl@linux.com, glommer@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, ak@linux.intel.com, riel@redhat.com, alex.shi@linaro.org, dave.hansen@linux.intel.com, "H. Peter Anvin" <hpa@zytor.com>
 
-07.07.2014 18:25, Johannes Weiner:
-> In addition, Tejun made offlined css iterable and split css_tryget()
-> and css_tryget_online(), which would allow memcg to pin the css until
-> the last charge is gone while continuing to iterate and reclaim it on
-> hierarchical pressure, even after it was offlined.
+On 04/24/2014 03:37 AM, Mel Gorman wrote:
+>> +Despite the fact that a single individual flush on x86 is
+>> > +guaranteed to flush a full 2MB, hugetlbfs always uses the full
+>> > +flushes.  THP is treated exactly the same as normal memory.
+>> > +
+> You are the second person that told me this and I felt the manual was
+> unclear on this subject. I was told that it might be a documentation bug
+> but because this discussion was in a bar I completely failed to follow up
+> on it. 
 
-One more question.
+For the record...  There's a new version of the Intel SDM out, and it
+contains some clarifications.  They're the easiest to find in this
+document which highlights the deltas from the last version:
 
-With reparenting enabled, the number of cgroups (lruvecs) that must be
-iterated on global reclaim is bound by the number of live containers,
-while w/o reparenting it's practically unbound, isn't it? Won't it be
-the source of latency spikes?
+> http://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developers-manual.pdf
 
-Thanks.
+The documentation for invlpg itself has a new footnote, and there's also
+a little bit of new text in section "4.10.2.3 Details of TLB Use".
+
+The footnotes say:
+
+	If the paging structures map the linear address using a page
+	larger than 4 KBytes and there are multiple TLB entries for
+	that page (see Section 4.10.2.3), the instruction (invlpg)
+	invalidates all of them
+
+I hope that clears up some of the ambiguity over invlpg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
