@@ -1,68 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id B705B6B003D
-	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 11:31:53 -0400 (EDT)
-Received: by mail-wi0-f173.google.com with SMTP id cc10so16063570wib.6
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 08:31:50 -0700 (PDT)
-Received: from e06smtp16.uk.ibm.com (e06smtp16.uk.ibm.com. [195.75.94.112])
-        by mx.google.com with ESMTPS id x16si41774024wiv.50.2014.07.07.08.31.49
+Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DF186B003D
+	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 11:40:20 -0400 (EDT)
+Received: by mail-la0-f45.google.com with SMTP id hr17so3028357lab.18
+        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 08:40:19 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id iq1si645173lac.22.2014.07.07.08.40.18
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 07 Jul 2014 08:31:49 -0700 (PDT)
-Received: from /spool/local
-	by e06smtp16.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Mon, 7 Jul 2014 16:31:49 +0100
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 9A5C517D805A
-	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 16:33:19 +0100 (BST)
-Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s67FVkmg30867524
-	for <linux-mm@kvack.org>; Mon, 7 Jul 2014 15:31:46 GMT
-Received: from d06av03.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s67FVifE018634
-	for <linux-mm@kvack.org>; Mon, 7 Jul 2014 09:31:46 -0600
-Date: Mon, 7 Jul 2014 17:31:43 +0200
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: Re: [PATCH v10 5/7] s390: add pmd_[dirty|mkclean] for THP
-Message-ID: <20140707173143.271bbd52@thinkpad>
-In-Reply-To: <1404694438-10272-6-git-send-email-minchan@kernel.org>
-References: <1404694438-10272-1-git-send-email-minchan@kernel.org>
-	<1404694438-10272-6-git-send-email-minchan@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Jul 2014 08:40:19 -0700 (PDT)
+Date: Mon, 7 Jul 2014 19:40:08 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -mm 0/8] memcg: reparent kmem on css offline
+Message-ID: <20140707154008.GH13827@esperanza>
+References: <cover.1404733720.git.vdavydov@parallels.com>
+ <20140707142506.GB1149@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20140707142506.GB1149@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill
- A. Shutemov" <kirill@shutemov.name>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Dominik Dingel <dingel@linux.vnet.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>, linux-s390@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: akpm@linux-foundation.org, mhocko@suse.cz, cl@linux.com, glommer@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon,  7 Jul 2014 09:53:56 +0900
-Minchan Kim <minchan@kernel.org> wrote:
+Hi Johannes,
 
-> MADV_FREE needs pmd_dirty and pmd_mkclean for detecting recent
-> overwrite of the contents since MADV_FREE syscall is called for
-> THP page but for s390 pmds only referenced bit is available
-> because there is no free bit left in the pmd entry for the
-> software dirty bit so this patch adds dumb pmd_dirty which
-> returns always true by suggesting by Martin.
+On Mon, Jul 07, 2014 at 10:25:06AM -0400, Johannes Weiner wrote:
+> Hi Vladimir,
 > 
-> They finally find a solution in future.
-> http://marc.info/?l=linux-api&m=140440328820808&w=2
+> On Mon, Jul 07, 2014 at 04:00:05PM +0400, Vladimir Davydov wrote:
+> > Hi,
+> > 
+> > This patch set introduces re-parenting of kmem charges on memcg css
+> > offline. The idea lying behind it is very simple - instead of pointing
+> > from kmem objects (kmem caches, non-slab kmem pages) directly to the
+> > memcg which they are charged against, we make them point to a proxy
+> > object, mem_cgroup_kmem_context, which, in turn, points to the memcg
+> > which it belongs to. As a result on memcg offline, it's enough to only
+> > re-parent the memcg's mem_cgroup_kmem_context.
 > 
-> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-> Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-> Cc: Dominik Dingel <dingel@linux.vnet.ibm.com>
-> Cc: Christian Borntraeger <borntraeger@de.ibm.com>
-> Cc: linux-s390@vger.kernel.org
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  arch/s390/include/asm/pgtable.h | 12 ++++++++++++
->  1 file changed, 12 insertions(+)
+> The motivation for this was to clear out all references to a memcg by
+> the time it's offlined, so that the unreachable css can be freed soon.
+> 
+> However, recent cgroup core changes further disconnected the css from
+> the cgroup object itself, so it's no longer as urgent to free the css.
+> 
+> In addition, Tejun made offlined css iterable and split css_tryget()
+> and css_tryget_online(), which would allow memcg to pin the css until
+> the last charge is gone while continuing to iterate and reclaim it on
+> hierarchical pressure, even after it was offlined.
+> 
+> This would obviate the need for reparenting as a whole, not just kmem
+> pages, but even remaining page cache.  Michal already obsoleted the
+> force_empty knob that reparents as a fallback, and whether the cache
+> pages are in the parent or in a ghost css after cgroup deletion does
+> not make a real difference from a user point of view, they still get
+> reclaimed when the parent experiences pressure.
 
-Acked-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+So, that means there's no need in a proxy object between kmem objects
+and the memcg which they are charged against (mem_cgroup_kmem_context in
+this patch set), because now it's OK to pin css from kmem allocations.
+Furthermore there will be no need to reparent per memcg list_lrus when
+they are introduced. That's nice!
+
+> You could then reap dead slab caches as part of the regular per-memcg
+> slab scanning in reclaim, without having to resort to auxiliary lists,
+> vmpressure events etc.
+
+Do you mean adding a per memcg shrinker that will call kmem_cache_shrink
+for all memcg caches on memcg/global pressure?
+
+Actually I recently made dead caches self-destructive at the cost of
+slowing down kfrees to dead caches (see
+https://www.lwn.net/Articles/602330/, it's already in the mmotm tree) so
+no dead cache reaping is necessary. Do you think if we need it now?
+
+> I think it would save us a lot of code and complexity.  You want
+> per-memcg slab scanning *anyway*, all we'd have to change in the
+> existing code would be to pin the css until the LRUs and kmem caches
+> are truly empty, and switch mem_cgroup_iter() to css_tryget().
+> 
+> Would this make sense to you?
+
+Hmm, interesting. Thank you for such a thorough explanation.
+
+One question. Do we still need to free mem_cgroup->kmemcg_id on css
+offline so that it can be reused by new kmem-active cgroups (currently
+we don't)?
+
+If we won't free it the root_cache->memcg_params->memcg_arrays may
+become really huge due to lots of dead css holding the id.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
