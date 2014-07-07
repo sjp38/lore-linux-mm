@@ -1,65 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 760FA6B0038
-	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 19:05:01 -0400 (EDT)
-Received: by mail-wg0-f49.google.com with SMTP id a1so1746697wgh.32
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 16:05:00 -0700 (PDT)
-Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
-        by mx.google.com with ESMTPS id n9si43195429wiz.23.2014.07.07.16.05.00
+Received: from mail-ve0-f174.google.com (mail-ve0-f174.google.com [209.85.128.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 76B716B0039
+	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 19:52:37 -0400 (EDT)
+Received: by mail-ve0-f174.google.com with SMTP id jx11so4872686veb.19
+        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 16:52:37 -0700 (PDT)
+Received: from mail-vc0-x234.google.com (mail-vc0-x234.google.com [2607:f8b0:400c:c03::234])
+        by mx.google.com with ESMTPS id yr5si19393172vdb.14.2014.07.07.16.52.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 07 Jul 2014 16:05:00 -0700 (PDT)
-Date: Tue, 8 Jul 2014 01:04:59 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: fallout of 16K stacks
-Message-ID: <20140707230459.GF18735@two.firstfloor.org>
-References: <20140707223001.GD18735@two.firstfloor.org>
- <53BB240C.30400@zytor.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 07 Jul 2014 16:52:36 -0700 (PDT)
+Received: by mail-vc0-f180.google.com with SMTP id im17so4763056vcb.11
+        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 16:52:35 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <53BB240C.30400@zytor.com>
+In-Reply-To: <20140707230459.GF18735@two.firstfloor.org>
+References: <20140707223001.GD18735@two.firstfloor.org>
+	<53BB240C.30400@zytor.com>
+	<20140707230459.GF18735@two.firstfloor.org>
+Date: Mon, 7 Jul 2014 16:52:35 -0700
+Message-ID: <CA+55aFxD4akfr3sc_y=F17Ak_9NqEHOu=vBz5x2kR75TkG8znA@mail.gmail.com>
+Subject: Re: fallout of 16K stacks
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andi Kleen <andi@firstfloor.org>, torvalds@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Mon, Jul 07, 2014 at 03:49:48PM -0700, H. Peter Anvin wrote:
-> On 07/07/2014 03:30 PM, Andi Kleen wrote:
-> > 
-> > Since the 16K stack change I noticed a number of problems with
-> > my usual stress tests. They have a tendency to bomb out
-> > because something cannot fork.
-> 
-> As in ENOMEM or does something worse happen?
+On Mon, Jul 7, 2014 at 4:04 PM, Andi Kleen <andi@firstfloor.org> wrote:
+>>
+>> As in ENOMEM or does something worse happen?
+>
+> EAGAIN, then the workload stops. For an overnight stress
+> test that's pretty catastrophic. It may have killed some stuff
+> with the OOM killer too.
 
-EAGAIN, then the workload stops. For an overnight stress
-test that's pretty catastrophic. It may have killed some stuff
-with the OOM killer too.
+I don't think it's OOM.
 
-> > - AIM7 on a dual socket socket system now cannot reliably run 
-> >> 1000 parallel jobs.
-> 
-> ... with how much RAM?
+We have long had the rule that order <= PAGE_ALLOC_COSTLY_ORDER (which
+is 3) allocations imply __GFP_RETRY unless you explicitly ask it not
+to.
 
-This system has 32G
+And THREAD_SIZE_ORDER is still smaller than that.
 
-> > - LTP stress + memhog stress in parallel to something else
-> > usually doesn't survive the night.
-> > 
-> > Do we need to strengthen the memory allocator to try
-> > harder for 16K?
-> 
-> Can we even?  The probability of success goes down exponentially in the
-> order requested.  Movable pages can help, of course, but still, there is
-> a very real cost to this :(
+Sure, if the system makes no progress at all, it will still oom for
+allocations like that, but that's *not* going to happen for something
+like a 32GB machine afaik.
 
-I hope so. In the worst case just try longer.
+And if it was the actual dup_task_struct() that failed (due to
+alloc_thread_info_node() now failing), it should have returned ENOMEM
+anyway.
 
--Andi
+So EAGAIN is due to something else.
 
--- 
-ak@linux.intel.com -- Speaking for myself only.
+The only cases for fork() returning EAGAIN I can find are the
+RLIMIT_NPROC and max_threads checks.
+
+And the thing is, the default value for RLIMIT_NPROC is actually
+initialized based on THREAD_SIZE (which doubled), so maybe it's really
+just that rlimit check that now triggers.
+
+Hmm?
+
+          Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
