@@ -1,167 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F0056B0037
-	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 04:33:04 -0400 (EDT)
-Received: by mail-we0-f172.google.com with SMTP id u57so4043828wes.31
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 01:33:04 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j2si32395193wje.76.2014.07.07.01.33.03
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Jul 2014 01:33:03 -0700 (PDT)
-From: WANG Chao <chaowang@redhat.com>
-Subject: [PATCH] mm/vmalloc.c: clean up map_vm_area third argument
-Date: Mon,  7 Jul 2014 16:32:23 +0800
-Message-Id: <1404721943-6506-1-git-send-email-chaowang@redhat.com>
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 60EBC6B0037
+	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 05:13:02 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id ey11so5136984pad.12
+        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 02:13:02 -0700 (PDT)
+Received: from cam-admin0.cambridge.arm.com (cam-admin0.cambridge.arm.com. [217.140.96.50])
+        by mx.google.com with ESMTP id bh2si40608529pbb.204.2014.07.07.02.12.59
+        for <linux-mm@kvack.org>;
+        Mon, 07 Jul 2014 02:13:01 -0700 (PDT)
+Date: Mon, 7 Jul 2014 10:12:24 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v10 6/7] ARM: add pmd_[dirty|mkclean] for THP
+Message-ID: <20140707091223.GC3145@arm.com>
+References: <1404694438-10272-1-git-send-email-minchan@kernel.org>
+ <1404694438-10272-7-git-send-email-minchan@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1404694438-10272-7-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Rusty Russell <rusty@rustcorp.com.au>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Catalin Marinas <Catalin.Marinas@arm.com>, Steve Capper <steve.capper@linaro.org>, Russell King <linux@arm.linux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-Currently map_vm_area() takes (struct page *** pages) as third argument,
-and after mapping, it moves (*pages) to point to (*pages + nr_mappped_pages).
+On Mon, Jul 07, 2014 at 01:53:57AM +0100, Minchan Kim wrote:
+> MADV_FREE needs pmd_dirty and pmd_mkclean for detecting recent
+> overwrite of the contents since MADV_FREE syscall is called for
+> THP page.
+> 
+> This patch adds pmd_dirty and pmd_mkclean for THP page MADV_FREE
+> support.
 
-It looks like this kind of increment is useless to its caller these
-days. The callers don't care about the increments and actually they're
-trying to avoid this by passing another copy to map_vm_area().
+Looks fine to me, but it would be good if Steve can take a look too.
 
-The caller can always guarantee all the pages can be mapped into
-vm_area as specified in first argument and the caller only cares about
-whether map_vm_area() fails or not.
+BTW: the subject of the patch says 'ARM:' but this only affects arm64. Is
+there a corresponding patch for arch/arm/ too?
 
-This patch cleans up the pointer movement in map_vm_area() and updates
-its callers accordingly.
-
-Signed-off-by: WANG Chao <chaowang@redhat.com>
----
- drivers/lguest/core.c            |  7 ++-----
- drivers/staging/android/binder.c |  4 +---
- include/linux/vmalloc.h          |  2 +-
- mm/vmalloc.c                     | 14 +++++---------
- mm/zsmalloc.c                    |  2 +-
- 5 files changed, 10 insertions(+), 19 deletions(-)
-
-diff --git a/drivers/lguest/core.c b/drivers/lguest/core.c
-index 0bf1e4e..6590558 100644
---- a/drivers/lguest/core.c
-+++ b/drivers/lguest/core.c
-@@ -42,7 +42,6 @@ DEFINE_MUTEX(lguest_lock);
- static __init int map_switcher(void)
- {
- 	int i, err;
--	struct page **pagep;
- 
- 	/*
- 	 * Map the Switcher in to high memory.
-@@ -110,11 +109,9 @@ static __init int map_switcher(void)
- 	 * This code actually sets up the pages we've allocated to appear at
- 	 * switcher_addr.  map_vm_area() takes the vma we allocated above, the
- 	 * kind of pages we're mapping (kernel pages), and a pointer to our
--	 * array of struct pages.  It increments that pointer, but we don't
--	 * care.
-+	 * array of struct pages.
- 	 */
--	pagep = lg_switcher_pages;
--	err = map_vm_area(switcher_vma, PAGE_KERNEL_EXEC, &pagep);
-+	err = map_vm_area(switcher_vma, PAGE_KERNEL_EXEC, lg_switcher_pages);
- 	if (err) {
- 		printk("lguest: map_vm_area failed: %i\n", err);
- 		goto free_vma;
-diff --git a/drivers/staging/android/binder.c b/drivers/staging/android/binder.c
-index a741da7..0ca9785 100644
---- a/drivers/staging/android/binder.c
-+++ b/drivers/staging/android/binder.c
-@@ -586,7 +586,6 @@ static int binder_update_page_range(struct binder_proc *proc, int allocate,
- 
- 	for (page_addr = start; page_addr < end; page_addr += PAGE_SIZE) {
- 		int ret;
--		struct page **page_array_ptr;
- 
- 		page = &proc->pages[(page_addr - proc->buffer) / PAGE_SIZE];
- 
-@@ -599,8 +598,7 @@ static int binder_update_page_range(struct binder_proc *proc, int allocate,
- 		}
- 		tmp_area.addr = page_addr;
- 		tmp_area.size = PAGE_SIZE + PAGE_SIZE /* guard page? */;
--		page_array_ptr = page;
--		ret = map_vm_area(&tmp_area, PAGE_KERNEL, &page_array_ptr);
-+		ret = map_vm_area(&tmp_area, PAGE_KERNEL, page);
- 		if (ret) {
- 			pr_err("%d: binder_alloc_buf failed to map page at %p in kernel\n",
- 			       proc->pid, page_addr);
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 4b8a891..b87696f 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -113,7 +113,7 @@ extern struct vm_struct *remove_vm_area(const void *addr);
- extern struct vm_struct *find_vm_area(const void *addr);
- 
- extern int map_vm_area(struct vm_struct *area, pgprot_t prot,
--			struct page ***pages);
-+			struct page **pages);
- #ifdef CONFIG_MMU
- extern int map_kernel_range_noflush(unsigned long start, unsigned long size,
- 				    pgprot_t prot, struct page **pages);
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index f64632b..c36547f 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1270,19 +1270,15 @@ void unmap_kernel_range(unsigned long addr, unsigned long size)
- }
- EXPORT_SYMBOL_GPL(unmap_kernel_range);
- 
--int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page ***pages)
-+int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page **pages)
- {
- 	unsigned long addr = (unsigned long)area->addr;
- 	unsigned long end = addr + get_vm_area_size(area);
- 	int err;
- 
--	err = vmap_page_range(addr, end, prot, *pages);
--	if (err > 0) {
--		*pages += err;
--		err = 0;
--	}
-+	err = vmap_page_range(addr, end, prot, pages);
- 
--	return err;
-+	return err > 0 ? 0 : err;
- }
- EXPORT_SYMBOL_GPL(map_vm_area);
- 
-@@ -1548,7 +1544,7 @@ void *vmap(struct page **pages, unsigned int count,
- 	if (!area)
- 		return NULL;
- 
--	if (map_vm_area(area, prot, &pages)) {
-+	if (map_vm_area(area, prot, pages)) {
- 		vunmap(area->addr);
- 		return NULL;
- 	}
-@@ -1604,7 +1600,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
- 		area->pages[i] = page;
- 	}
- 
--	if (map_vm_area(area, prot, &pages))
-+	if (map_vm_area(area, prot, pages))
- 		goto fail;
- 	return area->addr;
- 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index fe78189..bb62a4a 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -690,7 +690,7 @@ static inline void __zs_cpu_down(struct mapping_area *area)
- static inline void *__zs_map_object(struct mapping_area *area,
- 				struct page *pages[2], int off, int size)
- {
--	BUG_ON(map_vm_area(area->vm, PAGE_KERNEL, &pages));
-+	BUG_ON(map_vm_area(area->vm, PAGE_KERNEL, pages));
- 	area->vm_addr = area->vm->addr;
- 	return area->vm_addr + off;
- }
--- 
-1.9.3
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
