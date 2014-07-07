@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id CD08C6B003B
-	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 19:54:26 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id et14so6250840pad.21
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 16:54:26 -0700 (PDT)
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id A2C436B003C
+	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 19:55:00 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id z10so6138479pdj.15
+        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 16:55:00 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id bg5si5384557pdb.468.2014.07.07.16.54.24
+        by mx.google.com with ESMTPS id gp6si42090118pac.215.2014.07.07.16.54.58
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Jul 2014 16:54:25 -0700 (PDT)
+        Mon, 07 Jul 2014 16:54:59 -0700 (PDT)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 3.15 122/122] mm/numa: Remove BUG_ON() in __handle_mm_fault()
-Date: Mon,  7 Jul 2014 16:58:04 -0700
-Message-Id: <20140707235737.894790405@linuxfoundation.org>
-In-Reply-To: <20140707235734.234226883@linuxfoundation.org>
-References: <20140707235734.234226883@linuxfoundation.org>
+Subject: [PATCH 3.14 92/94] mm/numa: Remove BUG_ON() in __handle_mm_fault()
+Date: Mon,  7 Jul 2014 16:58:22 -0700
+Message-Id: <20140707235759.476341140@linuxfoundation.org>
+In-Reply-To: <20140707235756.780319003@linuxfoundation.org>
+References: <20140707235756.780319003@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -22,7 +22,7 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Sunil Pandey <sunil.k.pandey@intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, lwoodman@redhat.com, dave.hansen@intel.com, Ingo Molnar <mingo@kernel.org>
 
-3.15-stable review patch.  If anyone has any objections, please let me know.
+3.14-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
@@ -62,7 +62,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -3920,9 +3920,6 @@ static int __handle_mm_fault(struct mm_s
+@@ -3756,9 +3756,6 @@ static int __handle_mm_fault(struct mm_s
  		}
  	}
  
