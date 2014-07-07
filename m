@@ -1,20 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DB386B003D
+Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
+	by kanga.kvack.org (Postfix) with ESMTP id D8A37900003
 	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 08:00:29 -0400 (EDT)
-Received: by mail-lb0-f179.google.com with SMTP id z11so2727438lbi.24
+Received: by mail-la0-f42.google.com with SMTP id pn19so2801908lab.15
         for <linux-mm@kvack.org>; Mon, 07 Jul 2014 05:00:28 -0700 (PDT)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id we7si2441192lbb.13.2014.07.07.05.00.27
+        by mx.google.com with ESMTPS id ed4si68645008lbc.43.2014.07.07.05.00.27
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 07 Jul 2014 05:00:27 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm 1/8] memcg: add pointer from memcg_cache_params to owner cache
-Date: Mon, 7 Jul 2014 16:00:06 +0400
-Message-ID: <d7ce0402c30388339dd508891db0b19efcef9640.1404733720.git.vdavydov@parallels.com>
-In-Reply-To: <cover.1404733720.git.vdavydov@parallels.com>
-References: <cover.1404733720.git.vdavydov@parallels.com>
+Subject: [PATCH -mm 0/8] memcg: reparent kmem on css offline
+Date: Mon, 7 Jul 2014 16:00:05 +0400
+Message-ID: <cover.1404733720.git.vdavydov@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -22,119 +20,44 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: mhocko@suse.cz, hannes@cmpxchg.org, cl@linux.com, glommer@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-We don't keep a pointer to the owner kmem cache in the
-memcg_cache_params struct, because we can always get the cache by
-reading the slot corresponding to the owner memcg in the root cache's
-memcg_caches array (see memcg_params_to_cache). However, this won't work
-when kmem cache re-parenting is introduced, because the slot in the root
-cache's arrays must be cleared on css offline then.
+Hi,
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
----
- include/linux/slab.h |    2 ++
- mm/memcontrol.c      |   25 +++++--------------------
- 2 files changed, 7 insertions(+), 20 deletions(-)
+This patch set introduces re-parenting of kmem charges on memcg css
+offline. The idea lying behind it is very simple - instead of pointing
+from kmem objects (kmem caches, non-slab kmem pages) directly to the
+memcg which they are charged against, we make them point to a proxy
+object, mem_cgroup_kmem_context, which, in turn, points to the memcg
+which it belongs to. As a result on memcg offline, it's enough to only
+re-parent the memcg's mem_cgroup_kmem_context.
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 68b1feaba9d6..8bc62d5ef903 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -523,6 +523,7 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
-  *
-  * Child caches will hold extra metadata needed for its operation. Fields are:
-  *
-+ * @cachep: cache which this struct is for
-  * @memcg: pointer to the memcg this cache belongs to
-  * @list: list_head for the list of all caches in this memcg
-  * @root_cache: pointer to the global, root cache, this cache was derived from
-@@ -536,6 +537,7 @@ struct memcg_cache_params {
- 	union {
- 		struct kmem_cache *memcg_caches[0];
- 		struct {
-+			struct kmem_cache *cachep;
- 			struct mem_cgroup *memcg;
- 			struct list_head list;
- 			struct kmem_cache *root_cache;
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index d1b311687769..98b43a8125b9 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2781,19 +2781,6 @@ static inline bool memcg_can_account_kmem(struct mem_cgroup *memcg)
- 		memcg_kmem_is_active(memcg);
- }
- 
--/*
-- * This is a bit cumbersome, but it is rarely used and avoids a backpointer
-- * in the memcg_cache_params struct.
-- */
--static struct kmem_cache *memcg_params_to_cache(struct memcg_cache_params *p)
--{
--	struct kmem_cache *cachep;
--
--	VM_BUG_ON(p->is_root_cache);
--	cachep = p->root_cache;
--	return cache_from_memcg_idx(cachep, memcg_cache_id(p->memcg));
--}
--
- #ifdef CONFIG_SLABINFO
- static int mem_cgroup_slabinfo_read(struct seq_file *m, void *v)
- {
-@@ -2807,7 +2794,7 @@ static int mem_cgroup_slabinfo_read(struct seq_file *m, void *v)
- 
- 	mutex_lock(&memcg_slab_mutex);
- 	list_for_each_entry(params, &memcg->memcg_slab_caches, list)
--		cache_show(memcg_params_to_cache(params), m);
-+		cache_show(params->cachep, m);
- 	mutex_unlock(&memcg_slab_mutex);
- 
- 	return 0;
-@@ -2982,6 +2969,7 @@ int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
- 		return -ENOMEM;
- 
- 	if (memcg) {
-+		s->memcg_params->cachep = s;
- 		s->memcg_params->memcg = memcg;
- 		s->memcg_params->root_cache = root_cache;
- 		atomic_long_set(&s->memcg_params->refcnt, 1);
-@@ -3072,10 +3060,9 @@ static void memcg_unregister_cache_func(struct work_struct *work)
- {
- 	struct memcg_cache_params *params =
- 		container_of(work, struct memcg_cache_params, unregister_work);
--	struct kmem_cache *cachep = memcg_params_to_cache(params);
- 
- 	mutex_lock(&memcg_slab_mutex);
--	memcg_unregister_cache(cachep);
-+	memcg_unregister_cache(params->cachep);
- 	mutex_unlock(&memcg_slab_mutex);
- }
- 
-@@ -3140,7 +3127,6 @@ int __memcg_cleanup_cache_params(struct kmem_cache *s)
- 
- static void memcg_unregister_all_caches(struct mem_cgroup *memcg)
- {
--	struct kmem_cache *cachep;
- 	struct memcg_cache_params *params, *tmp;
- 	LIST_HEAD(empty_caches);
- 
-@@ -3149,7 +3135,7 @@ static void memcg_unregister_all_caches(struct mem_cgroup *memcg)
- 
- 	mutex_lock(&memcg_slab_mutex);
- 	list_for_each_entry_safe(params, tmp, &memcg->memcg_slab_caches, list) {
--		cachep = memcg_params_to_cache(params);
-+		struct kmem_cache *cachep = params->cachep;
- 
- 		memcg_cache_mark_dead(cachep);
- 		kmem_cache_shrink(cachep);
-@@ -3173,8 +3159,7 @@ static void memcg_unregister_all_caches(struct mem_cgroup *memcg)
- 	while (!list_empty(&empty_caches)) {
- 		params = list_first_entry(&empty_caches,
- 					  struct memcg_cache_params, list);
--		cachep = memcg_params_to_cache(params);
--		memcg_unregister_cache(cachep);
-+		memcg_unregister_cache(params->cachep);
- 	}
- 	mutex_unlock(&memcg_slab_mutex);
- }
+Note, reparented kmem contexts will hang around until there is at least
+one object accounted to them, but since they are small (especially
+comparing to struct mem_cgroup), it's no big deal.
+
+Reviews are appreciated.
+
+Thanks,
+
+Vladimir Davydov (8):
+  memcg: add pointer from memcg_cache_params to owner cache
+  memcg: keep all children of each root cache on a list
+  slab: guarantee unique kmem cache naming
+  slub: remove kmemcg id from create_unique_id
+  memcg: rework non-slab kmem pages charge path
+  memcg: introduce kmem context
+  memcg: move some kmem definitions upper
+  memcg: reparent kmem context on memcg offline
+
+ include/linux/memcontrol.h |   88 ++++-----
+ include/linux/mm_types.h   |    6 +
+ include/linux/slab.h       |   17 +-
+ mm/memcontrol.c            |  468 +++++++++++++++++++++-----------------------
+ mm/page_alloc.c            |   22 ++-
+ mm/slab.c                  |   40 ++--
+ mm/slab_common.c           |   64 ++++--
+ mm/slub.c                  |   45 ++---
+ 8 files changed, 382 insertions(+), 368 deletions(-)
+
 -- 
 1.7.10.4
 
