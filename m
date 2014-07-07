@@ -1,48 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 66CB5900003
-	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 15:04:17 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id rd3so5927149pab.32
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 12:04:17 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id n8si5164150pdr.498.2014.07.07.12.04.15
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Jul 2014 12:04:16 -0700 (PDT)
-Date: Mon, 7 Jul 2014 12:04:14 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [next:master 284/380] cpu_pm.c:undefined reference to
- `crypto_alloc_shash'
-Message-Id: <20140707120414.2cb6c1da2b71a91c24ced4aa@linux-foundation.org>
-In-Reply-To: <53b516e4.rgxkJyIm0d6ktGNY%fengguang.wu@intel.com>
-References: <53b516e4.rgxkJyIm0d6ktGNY%fengguang.wu@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B47F900003
+	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 15:08:38 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id fp1so5827394pdb.11
+        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 12:08:38 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id ex14si41735020pac.42.2014.07.07.12.08.36
+        for <linux-mm@kvack.org>;
+        Mon, 07 Jul 2014 12:08:37 -0700 (PDT)
+Message-ID: <53BAF01C.8010700@intel.com>
+Date: Mon, 07 Jul 2014 12:08:12 -0700
+From: Dave Hansen <dave.hansen@intel.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v3 3/3] man2/fincore.2: document general description about
+ fincore(2)
+References: <1404756006-23794-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1404756006-23794-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1404756006-23794-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: Vivek Goyal <vgoyal@redhat.com>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, David Miller <davem@davemloft.net>, Andres Freund <andres@2ndquadrant.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Thu, 03 Jul 2014 16:40:04 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+On 07/07/2014 11:00 AM, Naoya Horiguchi wrote:
+> +.SH RETURN VALUE
+> +On success,
+> +.BR fincore ()
+> +returns 0.
+> +On error, \-1 is returned, and
+> +.I errno
+> +is set appropriately.
 
-> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> head:   0e9ce823ad7bc6b85c279223ae6638d47089461e
-> commit: ba0dc4038c9fec5fa2f94756065f02b8011f270b [284/380] kexec: load and relocate purgatory at kernel load time
-> config: make ARCH=arm nuc950_defconfig
-> 
-> All error/warnings:
-> 
->    kernel/built-in.o: In function `sys_kexec_file_load':
-> >> cpu_pm.c:(.text+0x4a580): undefined reference to `crypto_alloc_shash'
-> >> cpu_pm.c:(.text+0x4a654): undefined reference to `crypto_shash_update'
-> >> cpu_pm.c:(.text+0x4a698): undefined reference to `crypto_shash_update'
-> >> cpu_pm.c:(.text+0x4a778): undefined reference to `crypto_shash_final'
+Is this accurate?  From reading the syscall itself, it looked like it
+did this:
 
-yup, kexec now requires crypto but the patch only fixes x86's Kconfig.
+> + * Return value is the number of pages whose data is stored in fc->buffer.
+> + */
+> +static long do_fincore(struct fincore_control *fc, int nr_pages)
 
-Was selecting crypto the correct decision?  Is there no case for using
-kexec without this signing capability?
+and:
+
+> +SYSCALL_DEFINE6(fincore, int, fd, loff_t, start, long, nr_pages,
+...
+> +	while (fc.nr_pages > 0) {
+> +		memset(fc.buffer, 0, fc.buffer_size);
+> +		ret = do_fincore(&fc, min(step, fc.nr_pages));
+> +		/* Reached the end of the file */
+> +		if (ret == 0)
+> +			break;
+> +		if (ret < 0)
+> +			break;
+...
+> +	}
+...
+> +	return ret;
+> +}
+
+Which seems that for a given loop of do_fincore(), you might end up
+returning the result of that *single* iteration of do_fincore() instead
+of the aggregate of the entire syscall.
+
+So, it can return <0 on failure, 0 on success, or also an essentially
+random >0 number on success too.
+
+Why not just use the return value for something useful instead of
+hacking in the extras->nr_entries stuff?  Oh, and what if that
+
+> +	if (extra)
+> +		__put_user(nr, &extra->nr_entries);
+
+fails?  It seems like we might silently forget to tell userspace how
+many entries we filled.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
