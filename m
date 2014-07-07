@@ -1,97 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 37E4E6B003D
-	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 11:19:58 -0400 (EDT)
-Received: by mail-wg0-f51.google.com with SMTP id x12so4412656wgg.10
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 08:19:56 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id om6si50316240wjc.30.2014.07.07.08.19.54
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 07 Jul 2014 08:19:54 -0700 (PDT)
-Message-ID: <53BABA94.4040107@suse.cz>
-Date: Mon, 07 Jul 2014 17:19:48 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
-MIME-Version: 1.0
-Subject: Re: [PATCH 03/10] mm/page_alloc: handle page on pcp correctly if
- it's pageblock is isolated
-References: <1404460675-24456-1-git-send-email-iamjoonsoo.kim@lge.com> <1404460675-24456-4-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1404460675-24456-4-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
+	by kanga.kvack.org (Postfix) with ESMTP id AFFD66B003D
+	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 11:24:39 -0400 (EDT)
+Received: by mail-qg0-f46.google.com with SMTP id q107so3721927qgd.33
+        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 08:24:39 -0700 (PDT)
+Received: from qmta07.emeryville.ca.mail.comcast.net (qmta07.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:64])
+        by mx.google.com with ESMTP id z6si23531266qgz.98.2014.07.07.08.24.38
+        for <linux-mm@kvack.org>;
+        Mon, 07 Jul 2014 08:24:38 -0700 (PDT)
+Date: Mon, 7 Jul 2014 10:24:35 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: [PATCH -mm 2/8] memcg: keep all children of each root cache on
+ a list
+In-Reply-To: <e58c0491eebc594f6e80a91dc0ed6905d65050bd.1404733720.git.vdavydov@parallels.com>
+Message-ID: <alpine.DEB.2.11.1407071022200.22121@gentwo.org>
+References: <cover.1404733720.git.vdavydov@parallels.com> <e58c0491eebc594f6e80a91dc0ed6905d65050bd.1404733720.git.vdavydov@parallels.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.cz, hannes@cmpxchg.org, glommer@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 07/04/2014 09:57 AM, Joonsoo Kim wrote:
-> If pageblock of page on pcp are isolated now, we should free it to isolate
-> buddy list to prevent future allocation on it. But current code doesn't
-> do this.
+On Mon, 7 Jul 2014, Vladimir Davydov wrote:
+
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index d31c4bacc6a2..95a8f772b0d1 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -294,8 +294,12 @@ struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
+>  	if (IS_ERR(s)) {
+>  		kfree(cache_name);
+>  		s = NULL;
+> +		goto out_unlock;
+>  	}
 >
-> Moreover, there is a freepage counting problem on current code. Although
-> pageblock of page on pcp are isolated now, it could go normal buddy list,
-> because get_onpcp_migratetype() will return non-isolate migratetype.
-
-get_onpcp_migratetype() is only introduced in later patch.
-
-> In this case, we should do either adding freepage count or changing
-> migratetype to MIGRATE_ISOLATE, but, current code do neither.
-
-I wouldn't say it "do neither". It already limits the freepage counting 
-to !MIGRATE_ISOLATE case (and it's not converted to 
-__mod_zone_freepage_state for some reason). So there's accounting 
-mismatch in addition to buddy list misplacement.
-
-> This patch fixes these two problems by handling pageblock migratetype
-> before calling __free_one_page(). And, if we find the page on isolated
-> pageblock, change migratetype to MIGRATE_ISOLATE to prevent future
-> allocation of this page and freepage counting problem.
-
-So although this is not an addition of a new pageblock migratetype check 
-to the fast path (the check is already there), I would prefer removing 
-the check :) With the approach of pcplists draining outlined in my reply 
-to 00/10, we would allow a misplacement to happen (and the page 
-accounted as freepage) immediately followed by move_frepages_block which 
-would place the page onto isolate freelist with the rest. Anything newly 
-freed will get isolate_migratetype determined in free_hot_cold_page or 
-__free_pages_ok (where it would need moving the migratepage check under 
-the disabled irq part) and be placed and buddy-merged properly.
-
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
->   mm/page_alloc.c |   14 ++++++++------
->   1 file changed, 8 insertions(+), 6 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index aeb51d1..99c05f7 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -719,15 +719,17 @@ static void free_pcppages_bulk(struct zone *zone, int count,
->   			page = list_entry(list->prev, struct page, lru);
->   			/* must delete as __free_one_page list manipulates */
->   			list_del(&page->lru);
-> -			mt = get_freepage_migratetype(page);
+> +	list_add(&s->memcg_params->siblings,
+> +		 &root_cache->memcg_params->children);
 > +
-> +			if (unlikely(is_migrate_isolate_page(page))) {
-> +				mt = MIGRATE_ISOLATE;
-> +			} else {
-> +				mt = get_freepage_migratetype(page);
-> +				__mod_zone_freepage_state(zone, 1, mt);
-> +			}
-> +
->   			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
->   			__free_one_page(page, page_to_pfn(page), zone, 0, mt);
->   			trace_mm_page_pcpu_drain(page, 0, mt);
-> -			if (likely(!is_migrate_isolate_page(page))) {
-> -				__mod_zone_page_state(zone, NR_FREE_PAGES, 1);
-> -				if (is_migrate_cma(mt))
-> -					__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, 1);
-> -			}
->   		} while (--to_free && --batch_free && !list_empty(list));
->   	}
->   	spin_unlock(&zone->lock);
+>  out_unlock:
+>  	mutex_unlock(&slab_mutex);
 >
+
+If there is an error then s is set to NULL. And then
+the list_add is done dereferencing s?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
