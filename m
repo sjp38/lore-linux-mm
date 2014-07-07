@@ -1,67 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f174.google.com (mail-ve0-f174.google.com [209.85.128.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 76B716B0039
-	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 19:52:37 -0400 (EDT)
-Received: by mail-ve0-f174.google.com with SMTP id jx11so4872686veb.19
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 16:52:37 -0700 (PDT)
-Received: from mail-vc0-x234.google.com (mail-vc0-x234.google.com [2607:f8b0:400c:c03::234])
-        by mx.google.com with ESMTPS id yr5si19393172vdb.14.2014.07.07.16.52.36
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id CD08C6B003B
+	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 19:54:26 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id et14so6250840pad.21
+        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 16:54:26 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id bg5si5384557pdb.468.2014.07.07.16.54.24
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 07 Jul 2014 16:52:36 -0700 (PDT)
-Received: by mail-vc0-f180.google.com with SMTP id im17so4763056vcb.11
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 16:52:35 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Jul 2014 16:54:25 -0700 (PDT)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 3.15 122/122] mm/numa: Remove BUG_ON() in __handle_mm_fault()
+Date: Mon,  7 Jul 2014 16:58:04 -0700
+Message-Id: <20140707235737.894790405@linuxfoundation.org>
+In-Reply-To: <20140707235734.234226883@linuxfoundation.org>
+References: <20140707235734.234226883@linuxfoundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20140707230459.GF18735@two.firstfloor.org>
-References: <20140707223001.GD18735@two.firstfloor.org>
-	<53BB240C.30400@zytor.com>
-	<20140707230459.GF18735@two.firstfloor.org>
-Date: Mon, 7 Jul 2014 16:52:35 -0700
-Message-ID: <CA+55aFxD4akfr3sc_y=F17Ak_9NqEHOu=vBz5x2kR75TkG8znA@mail.gmail.com>
-Subject: Re: fallout of 16K stacks
-From: Linus Torvalds <torvalds@linux-foundation.org>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Sunil Pandey <sunil.k.pandey@intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, lwoodman@redhat.com, dave.hansen@intel.com, Ingo Molnar <mingo@kernel.org>
 
-On Mon, Jul 7, 2014 at 4:04 PM, Andi Kleen <andi@firstfloor.org> wrote:
->>
->> As in ENOMEM or does something worse happen?
->
-> EAGAIN, then the workload stops. For an overnight stress
-> test that's pretty catastrophic. It may have killed some stuff
-> with the OOM killer too.
+3.15-stable review patch.  If anyone has any objections, please let me know.
 
-I don't think it's OOM.
+------------------
 
-We have long had the rule that order <= PAGE_ALLOC_COSTLY_ORDER (which
-is 3) allocations imply __GFP_RETRY unless you explicitly ask it not
-to.
+From: Rik van Riel <riel@redhat.com>
 
-And THREAD_SIZE_ORDER is still smaller than that.
+commit 107437febd495a50e2cd09c81bbaa84d30e57b07 upstream.
 
-Sure, if the system makes no progress at all, it will still oom for
-allocations like that, but that's *not* going to happen for something
-like a 32GB machine afaik.
+Changing PTEs and PMDs to pte_numa & pmd_numa is done with the
+mmap_sem held for reading, which means a pmd can be instantiated
+and turned into a numa one while __handle_mm_fault() is examining
+the value of old_pmd.
 
-And if it was the actual dup_task_struct() that failed (due to
-alloc_thread_info_node() now failing), it should have returned ENOMEM
-anyway.
+If that happens, __handle_mm_fault() should just return and let
+the page fault retry, instead of throwing an oops. This is
+handled by the test for pmd_trans_huge(*pmd) below.
 
-So EAGAIN is due to something else.
+Signed-off-by: Rik van Riel <riel@redhat.com>
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Reported-by: Sunil Pandey <sunil.k.pandey@intel.com>
+Signed-off-by: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org
+Cc: lwoodman@redhat.com
+Cc: dave.hansen@intel.com
+Link: http://lkml.kernel.org/r/20140429153615.2d72098e@annuminas.surriel.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Patrick McLean <chutzpah@gentoo.org>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-The only cases for fork() returning EAGAIN I can find are the
-RLIMIT_NPROC and max_threads checks.
+---
+ mm/memory.c |    3 ---
+ 1 file changed, 3 deletions(-)
 
-And the thing is, the default value for RLIMIT_NPROC is actually
-initialized based on THREAD_SIZE (which doubled), so maybe it's really
-just that rlimit check that now triggers.
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3920,9 +3920,6 @@ static int __handle_mm_fault(struct mm_s
+ 		}
+ 	}
+ 
+-	/* THP should already have been handled */
+-	BUG_ON(pmd_numa(*pmd));
+-
+ 	/*
+ 	 * Use __pte_alloc instead of pte_alloc_map, because we can't
+ 	 * run pte_offset_map on the pmd, if an huge pmd could
 
-Hmm?
-
-          Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
