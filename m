@@ -1,83 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
-	by kanga.kvack.org (Postfix) with ESMTP id B4F806B003A
-	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 06:43:50 -0400 (EDT)
-Received: by mail-qa0-f48.google.com with SMTP id x12so3308252qac.7
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 03:43:50 -0700 (PDT)
-Received: from na01-bn1-obe.outbound.protection.outlook.com (mail-bn1blp0189.outbound.protection.outlook.com. [207.46.163.189])
-        by mx.google.com with ESMTPS id p4si50931015qab.8.2014.07.07.03.43.49
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 07 Jul 2014 03:43:49 -0700 (PDT)
-Message-ID: <1404729783.31606.1.camel@tlv-gabbay-ws.amd.com>
-Subject: Re: [PATCH 1/6] mmput: use notifier chain to call subsystem exit
- handler.
-From: Oded Gabbay <oded.gabbay@amd.com>
-Date: Mon, 7 Jul 2014 13:43:03 +0300
-In-Reply-To: <20140707101158.GD1958@8bytes.org>
-References: <20140630183556.GB3280@gmail.com>
-	 <20140701091535.GF26537@8bytes.org>
-	 <019CCE693E457142B37B791721487FD91806DD8B@storexdag01.amd.com>
-	 <20140701110018.GH26537@8bytes.org> <20140701193343.GB3322@gmail.com>
-	 <20140701210620.GL26537@8bytes.org> <20140701213208.GC3322@gmail.com>
-	 <20140703183024.GA3306@gmail.com> <20140703231541.GR26537@8bytes.org>
-	 <019CCE693E457142B37B791721487FD918085329@storexdag01.amd.com>
-	 <20140707101158.GD1958@8bytes.org>
-Content-Type: text/plain; charset="UTF-8"
+Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
+	by kanga.kvack.org (Postfix) with ESMTP id D2EE26B003B
+	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 06:44:23 -0400 (EDT)
+Received: by mail-la0-f41.google.com with SMTP id hz20so2724201lab.14
+        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 03:44:22 -0700 (PDT)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.231])
+        by mx.google.com with ESMTP id 8si20006380law.13.2014.07.07.03.44.22
+        for <linux-mm@kvack.org>;
+        Mon, 07 Jul 2014 03:44:22 -0700 (PDT)
+Date: Mon, 7 Jul 2014 13:44:07 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v10 2/7] x86: add pmd_[dirty|mkclean] for THP
+Message-ID: <20140707104407.GB23150@node.dhcp.inet.fi>
+References: <1404694438-10272-1-git-send-email-minchan@kernel.org>
+ <1404694438-10272-3-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1404694438-10272-3-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "joro@8bytes.org" <joro@8bytes.org>
-Cc: "dpoole@nvidia.com" <dpoole@nvidia.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "jweiner@redhat.com" <jweiner@redhat.com>, "mhairgrove@nvidia.com" <mhairgrove@nvidia.com>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "j.glisse@gmail.com" <j.glisse@gmail.com>, "Bridgman, John" <John.Bridgman@amd.com>, "Deucher,
- Alexander" <Alexander.Deucher@amd.com>, "Lewycky, Andrew" <Andrew.Lewycky@amd.com>, "sgutti@nvidia.com" <sgutti@nvidia.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "riel@redhat.com" <riel@redhat.com>, "arvindg@nvidia.com" <arvindg@nvidia.com>, "SCheung@nvidia.com" <SCheung@nvidia.com>, "jakumar@nvidia.com" <jakumar@nvidia.com>, "jhubbard@nvidia.com" <jhubbard@nvidia.com>, "Cornwall, Jay" <Jay.Cornwall@amd.com>, "mgorman@suse.de" <mgorman@suse.de>, "cabuschardt@nvidia.com" <cabuschardt@nvidia.com>, "ldunning@nvidia.com" <ldunning@nvidia.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org
 
-
-On Mon, 2014-07-07 at 12:11 +0200, joro@8bytes.org wrote:
-> On Sun, Jul 06, 2014 at 07:25:18PM +0000, Gabbay, Oded wrote:
-> > Once we can agree on that, than I think we can agree that kfd and hmm
-> > can and should be bounded to mm struct and not file descriptors.
+On Mon, Jul 07, 2014 at 09:53:53AM +0900, Minchan Kim wrote:
+> MADV_FREE needs pmd_dirty and pmd_mkclean for detecting recent
+> overwrite of the contents since MADV_FREE syscall is called for
+> THP page.
 > 
-> The file descriptor concept is the way it works in the rest of the
-> kernel. It works for numerous drivers and subsystems (KVM, VFIO, UIO,
-> ...), when you close a file descriptor handed out from any of those
-> drivers (already in the kernel) all related resources will be freed. I
-> don't see a reason why HSA drivers should break these expectations and
-> be different.
+> This patch adds pmd_dirty and pmd_mkclean for THP page MADV_FREE
+> support.
 > 
-> 
-> 	Joerg
-> 
-> 
-As Jerome pointed out, there are a couple of subsystems/drivers who
-don't rely on file descriptors but on the tear-down of mm struct, e.g.
-aio, ksm, uprobes, khugepaged
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Cc: x86@kernel.org
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-So, based on this fact, I don't think that the argument of "The file
-descriptor concept is the way it works in the rest of the kernel" and
-only HSA/HMM now wants to change the rules, is a valid argument.
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-Jerome and I are saying that HMM and HSA, respectively, are additional
-use cases of binding to mm struct. If you don't agree with that, than I
-would like to hear why, but you can't say that no one else in the kernel
-needs notification of mm struct tear-down.
-
-As for the reasons why HSA drivers should follow aio,ksm,etc. and not
-other drivers, I will repeat that our ioctls operate on a process
-context and not on a device context. Moreover, the calling process
-actually is sometimes not aware on which device it runs! 
-
-A prime example of why HSA is not a regular device-driver, and operates
-in context of a process and not a specific device is the fact that in
-the near future (3-4 months), kfd_open() will actually bind a process
-address space to a *set* of devices, each of which could have its *own*
-device driver (eg radeon for the CI device, other amd drivers for future
-devices). I Assume HMM can be considered in the same way. 
-
-	Oded
-
-
-
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
