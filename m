@@ -1,65 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id C3A1C900003
-	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 15:13:49 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id fp1so5824943pdb.2
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 12:13:49 -0700 (PDT)
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id B35C66B0038
+	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 15:39:27 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id z10so5891806pdj.1
+        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 12:39:27 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id rp15si41655988pab.235.2014.07.07.12.13.47
+        by mx.google.com with ESMTPS id ex14si41783363pac.42.2014.07.07.12.39.25
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Jul 2014 12:13:48 -0700 (PDT)
-Date: Mon, 7 Jul 2014 12:13:46 -0700
+        Mon, 07 Jul 2014 12:39:26 -0700 (PDT)
+Date: Mon, 7 Jul 2014 12:39:23 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 0/3] free reclaimed pages by paging out instantly
-Message-Id: <20140707121346.1487c20e2a9365325e3a81a6@linux-foundation.org>
-In-Reply-To: <20140703005949.GC21751@bbox>
-References: <1404260029-11525-1-git-send-email-minchan@kernel.org>
-	<20140702134215.2bf830dcb904c34bd2e2b9e8@linux-foundation.org>
-	<20140703005949.GC21751@bbox>
+Subject: Re: [PATCH] rmap: fix pgoff calculation to handle hugepage
+ correctly
+Message-Id: <20140707123923.5e42983d6123ebfd79c8cf4c@linux-foundation.org>
+In-Reply-To: <20140702043057.GA19813@nhori.redhat.com>
+References: <1404225982-22739-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<20140701180739.GA4985@node.dhcp.inet.fi>
+	<20140701185021.GA10356@nhori.bos.redhat.com>
+	<20140701201540.GA5953@node.dhcp.inet.fi>
+	<20140702043057.GA19813@nhori.redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Thu, 3 Jul 2014 09:59:49 +0900 Minchan Kim <minchan@kernel.org> wrote:
+On Wed, 2 Jul 2014 00:30:57 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-> > > Most of field in vmstat are not changed too much but things I can notice
-> > > is allocstall and pgrotated. We could save allocstall(ie, direct relcaim)
-> > > and pgrotated very much.
-> > > 
-> > > Welcome testing, review and any feedback!
-> > 
-> > Well, it will worsen IRQ latencies and it's all more code for us to
-> > maintain.  I think I'd like to see a better story about the end-user
-> > benefits before proceeding.
+> Subject: [PATCH v2] rmap: fix pgoff calculation to handle hugepage correctly
 > 
-> The motivation was from per-process reclaim(which was internal feature
-> yet and and I will repost it soon).
-> It's a feature for us to manage memory from platform so that we could
-> avoid reclaim.
+> I triggered VM_BUG_ON() in vma_address() when I try to migrate an anonymous
+> hugepage with mbind() in the kernel v3.16-rc3. This is because pgoff's
+> calculation in rmap_walk_anon() fails to consider compound_order() only to
+> have an incorrect value.
 > 
-> Anyway, userspace expect they could see increased free pages in vmstat
-> after they have done per-process reclaim so the logic of userspace
-> will control their next action depending on the number of current
-> free page but it doesn't work with existing rotation logic, expecially
-> anon swap write pages.
+> This patch introduces page_to_pgoff(), which gets the page's offset in
+> PAGE_CACHE_SIZE. Kirill pointed out that page cache tree should natively
+> handle hugepages, and in order to make hugetlbfs fit it, page->index of
+> hugetlbfs page should be in PAGE_CACHE_SIZE. This is beyond this patch,
+> but page_to_pgoff() contains the point to be fixed in a single function.
 > 
-> When I posted this patchset firstly, Rik was positive and I thought
-> this feature is useful for everyone as well as per-process reclaim
-> and don't want to make noise this patchset with perpcoess reclaim.
-> 
-> https://lkml.org/lkml/2013/5/12/174
-> https://lkml.org/lkml/2013/5/14/484
-> 
-> Could you tell me what should I do to proceed?
+> ...
+>
+> --- a/include/linux/pagemap.h
+> +++ b/include/linux/pagemap.h
+> @@ -399,6 +399,18 @@ static inline struct page *read_mapping_page(struct address_space *mapping,
+>  }
+>  
+>  /*
+> + * Get the offset in PAGE_SIZE.
+> + * (TODO: hugepage should have ->index in PAGE_SIZE)
+> + */
+> +static inline pgoff_t page_to_pgoff(struct page *page)
+> +{
+> +	if (unlikely(PageHeadHuge(page)))
+> +		return page->index << compound_order(page);
+> +	else
+> +		return page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+> +}
+> +
 
-Quantify the gains, quantify the losses then demonstrate that the
-benefits of the gains exceeds the cost of the losses plus the cost of
-ongoing maintenance!
+This is all a bit of a mess.
+
+We have page_offset() which only works for regular pagecache pages and
+not for huge pages.
+
+We have page_file_offset() which works for regular pagecache as well
+as swapcache but not for huge pages.
+
+We have page_index() and page_file_index() which differ in undocumented
+ways which I cannot be bothered working out.  The latter calls
+__page_file_index() which is grossly misnamed.
+
+Now we get a new page_to_pgoff() which in inconsistently named but has
+a similarly crappy level of documentation and which works for hugepages
+and regular pagecache pages but not for swapcache pages.
+
+
+Sigh.
+
+I'll merge this patch because it's a bugfix but could someone please
+drive a truck through all this stuff and see if we can come up with
+something tasteful and sane?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
