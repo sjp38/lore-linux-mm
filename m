@@ -1,82 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 739D96B0037
-	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 05:23:03 -0400 (EDT)
-Received: by mail-wg0-f51.google.com with SMTP id x12so3982414wgg.22
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 02:22:58 -0700 (PDT)
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-        by mx.google.com with ESMTPS id cu10si40293871wib.82.2014.07.07.02.22.58
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 07 Jul 2014 02:22:58 -0700 (PDT)
-Received: by mail-wg0-f46.google.com with SMTP id l18so680173wgh.5
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 02:22:58 -0700 (PDT)
-Date: Mon, 7 Jul 2014 10:22:48 +0100
-From: Steve Capper <steve.capper@linaro.org>
-Subject: Re: [PATCH v10 6/7] ARM: add pmd_[dirty|mkclean] for THP
-Message-ID: <20140707092247.GA15168@linaro.org>
-References: <1404694438-10272-1-git-send-email-minchan@kernel.org>
- <1404694438-10272-7-git-send-email-minchan@kernel.org>
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E7BB6B0037
+	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 06:12:04 -0400 (EDT)
+Received: by mail-wi0-f169.google.com with SMTP id hi2so14459825wib.0
+        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 03:12:02 -0700 (PDT)
+Received: from mail.8bytes.org (8bytes.org. [2a01:238:4242:f000:64f:6c43:3523:e535])
+        by mx.google.com with ESMTP id n9si40501418wiz.23.2014.07.07.03.12.01
+        for <linux-mm@kvack.org>;
+        Mon, 07 Jul 2014 03:12:01 -0700 (PDT)
+Received: from localhost (localhost [127.0.0.1])
+	by mail.8bytes.org (Postfix) with SMTP id 2383C12B1A2
+	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 12:12:01 +0200 (CEST)
+Date: Mon, 7 Jul 2014 12:11:59 +0200
+From: "joro@8bytes.org" <joro@8bytes.org>
+Subject: Re: [PATCH 1/6] mmput: use notifier chain to call subsystem exit
+ handler.
+Message-ID: <20140707101158.GD1958@8bytes.org>
+References: <20140630183556.GB3280@gmail.com>
+ <20140701091535.GF26537@8bytes.org>
+ <019CCE693E457142B37B791721487FD91806DD8B@storexdag01.amd.com>
+ <20140701110018.GH26537@8bytes.org>
+ <20140701193343.GB3322@gmail.com>
+ <20140701210620.GL26537@8bytes.org>
+ <20140701213208.GC3322@gmail.com>
+ <20140703183024.GA3306@gmail.com>
+ <20140703231541.GR26537@8bytes.org>
+ <019CCE693E457142B37B791721487FD918085329@storexdag01.amd.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1404694438-10272-7-git-send-email-minchan@kernel.org>
+In-Reply-To: <019CCE693E457142B37B791721487FD918085329@storexdag01.amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org
+To: "Gabbay, Oded" <Oded.Gabbay@amd.com>
+Cc: "dpoole@nvidia.com" <dpoole@nvidia.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "jweiner@redhat.com" <jweiner@redhat.com>, "mhairgrove@nvidia.com" <mhairgrove@nvidia.com>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "j.glisse@gmail.com" <j.glisse@gmail.com>, "Bridgman, John" <John.Bridgman@amd.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Lewycky, Andrew" <Andrew.Lewycky@amd.com>, "sgutti@nvidia.com" <sgutti@nvidia.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "riel@redhat.com" <riel@redhat.com>, "arvindg@nvidia.com" <arvindg@nvidia.com>, "SCheung@nvidia.com" <SCheung@nvidia.com>, "jakumar@nvidia.com" <jakumar@nvidia.com>, "jhubbard@nvidia.com" <jhubbard@nvidia.com>, "Cornwall, Jay" <Jay.Cornwall@amd.com>, "mgorman@suse.de" <mgorman@suse.de>, "cabuschardt@nvidia.com" <cabuschardt@nvidia.com>, "ldunning@nvidia.com" <ldunning@nvidia.com>
 
-On Mon, Jul 07, 2014 at 09:53:57AM +0900, Minchan Kim wrote:
-> MADV_FREE needs pmd_dirty and pmd_mkclean for detecting recent
-> overwrite of the contents since MADV_FREE syscall is called for
-> THP page.
-> 
-> This patch adds pmd_dirty and pmd_mkclean for THP page MADV_FREE
-> support.
-> 
-> Cc: Catalin Marinas <catalin.marinas@arm.com>
-> Cc: Will Deacon <will.deacon@arm.com>
-> Cc: Steve Capper <steve.capper@linaro.org>
-> Cc: Russell King <linux@arm.linux.org.uk>
-> Cc: linux-arm-kernel@lists.infradead.org
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  arch/arm64/include/asm/pgtable.h | 2 ++
->  1 file changed, 2 insertions(+)
-> 
-> diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-> index 579702086488..f3ec01cef04f 100644
-> --- a/arch/arm64/include/asm/pgtable.h
-> +++ b/arch/arm64/include/asm/pgtable.h
-> @@ -240,10 +240,12 @@ static inline pmd_t pte_pmd(pte_t pte)
->  #endif
->  
->  #define pmd_young(pmd)		pte_young(pmd_pte(pmd))
-> +#define pmd_dirty(pmd)		pte_dirty(pmd_pte(pmd))
->  #define pmd_wrprotect(pmd)	pte_pmd(pte_wrprotect(pmd_pte(pmd)))
->  #define pmd_mksplitting(pmd)	pte_pmd(pte_mkspecial(pmd_pte(pmd)))
->  #define pmd_mkold(pmd)		pte_pmd(pte_mkold(pmd_pte(pmd)))
->  #define pmd_mkwrite(pmd)	pte_pmd(pte_mkwrite(pmd_pte(pmd)))
-> +#define pmd_mkclean(pmd)	pte_pmd(pte_mkclean(pmd_pte(pmd)))
->  #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
->  #define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
->  #define pmd_mknotpresent(pmd)	(__pmd(pmd_val(pmd) & ~PMD_TYPE_MASK))
-> -- 
-> 2.0.0
->
+On Sun, Jul 06, 2014 at 07:25:18PM +0000, Gabbay, Oded wrote:
+> Once we can agree on that, than I think we can agree that kfd and hmm
+> can and should be bounded to mm struct and not file descriptors.
 
-Hi Minchan,
+The file descriptor concept is the way it works in the rest of the
+kernel. It works for numerous drivers and subsystems (KVM, VFIO, UIO,
+...), when you close a file descriptor handed out from any of those
+drivers (already in the kernel) all related resources will be freed. I
+don't see a reason why HSA drivers should break these expectations and
+be different.
 
-This looks good to me too.
-As Will said this applies to arm64, we will also need a version for:
-arch/arm/include/asm/pgtable-3level.h.
 
-Is there a testcase we can run to check that this patch set is working
-well for arm/arm64?
+	Joerg
 
-Cheers,
--- 
-Steve 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
