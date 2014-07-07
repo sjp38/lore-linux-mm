@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 26F476B003A
-	for <linux-mm@kvack.org>; Sun,  6 Jul 2014 20:52:32 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id ey11so4467342pad.40
-        for <linux-mm@kvack.org>; Sun, 06 Jul 2014 17:52:31 -0700 (PDT)
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F12E6B003B
+	for <linux-mm@kvack.org>; Sun,  6 Jul 2014 20:52:33 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id y10so4425076pdj.33
+        for <linux-mm@kvack.org>; Sun, 06 Jul 2014 17:52:33 -0700 (PDT)
 Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id az6si4236451pdb.103.2014.07.06.17.52.28
+        by mx.google.com with ESMTP id qn15si39798206pab.176.2014.07.06.17.52.30
         for <linux-mm@kvack.org>;
-        Sun, 06 Jul 2014 17:52:30 -0700 (PDT)
+        Sun, 06 Jul 2014 17:52:32 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v10 3/7] sparc: add pmd_[dirty|mkclean] for THP
-Date: Mon,  7 Jul 2014 09:53:54 +0900
-Message-Id: <1404694438-10272-4-git-send-email-minchan@kernel.org>
+Subject: [PATCH v10 4/7] powerpc: add pmd_[dirty|mkclean] for THP
+Date: Mon,  7 Jul 2014 09:53:55 +0900
+Message-Id: <1404694438-10272-5-git-send-email-minchan@kernel.org>
 In-Reply-To: <1404694438-10272-1-git-send-email-minchan@kernel.org>
 References: <1404694438-10272-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Minchan Kim <minchan@kernel.org>, "David S. Miller" <davem@davemloft.net>, sparclinux@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Minchan Kim <minchan@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linuxppc-dev@lists.ozlabs.org
 
 MADV_FREE needs pmd_dirty and pmd_mkclean for detecting recent
 overwrite of the contents since MADV_FREE syscall is called for
@@ -26,47 +26,31 @@ THP page.
 This patch adds pmd_dirty and pmd_mkclean for THP page MADV_FREE
 support.
 
-Cc: "David S. Miller" <davem@davemloft.net>
-Cc: sparclinux@vger.kernel.org
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- arch/sparc/include/asm/pgtable_64.h | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ arch/powerpc/include/asm/pgtable-ppc64.h | 2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
-index 3770bf5c6e1b..0a3e5fdfead2 100644
---- a/arch/sparc/include/asm/pgtable_64.h
-+++ b/arch/sparc/include/asm/pgtable_64.h
-@@ -666,6 +666,13 @@ static inline unsigned long pmd_young(pmd_t pmd)
- 	return pte_young(pte);
- }
+diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
+index eb9261024f51..c9a4bbe8e179 100644
+--- a/arch/powerpc/include/asm/pgtable-ppc64.h
++++ b/arch/powerpc/include/asm/pgtable-ppc64.h
+@@ -468,9 +468,11 @@ static inline pte_t *pmdp_ptep(pmd_t *pmd)
  
-+static inline int pmd_dirty(pmd_t pmd)
-+{
-+	pte_t pte = __pte(pmd_val(pmd));
-+
-+	return pte_dirty(pte);
-+}
-+
- static inline unsigned long pmd_write(pmd_t pmd)
- {
- 	pte_t pte = __pte(pmd_val(pmd));
-@@ -723,6 +730,15 @@ static inline pmd_t pmd_mkdirty(pmd_t pmd)
- 	return __pmd(pte_val(pte));
- }
+ #define pmd_pfn(pmd)		pte_pfn(pmd_pte(pmd))
+ #define pmd_young(pmd)		pte_young(pmd_pte(pmd))
++#define pmd_dirty(pmd)		pte_dirty(pmd_pte(pmd))
+ #define pmd_mkold(pmd)		pte_pmd(pte_mkold(pmd_pte(pmd)))
+ #define pmd_wrprotect(pmd)	pte_pmd(pte_wrprotect(pmd_pte(pmd)))
+ #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
++#define pmd_mkclean(pmd)	pte_pmd(pte_mkclean(pmd_pte(pmd)))
+ #define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
+ #define pmd_mkwrite(pmd)	pte_pmd(pte_mkwrite(pmd_pte(pmd)))
  
-+static inline pmd_mkclean(pmd_t pmd)
-+{
-+	pte_t pte = __pte(pmd_val(pmd));
-+
-+	pte = pte_mkclean(pte);
-+
-+	return __pmd(pte_val(pte));
-+}
-+
- static inline pmd_t pmd_mkyoung(pmd_t pmd)
- {
- 	pte_t pte = __pte(pmd_val(pmd));
 -- 
 2.0.0
 
