@@ -1,86 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 516056B0031
-	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 14:39:49 -0400 (EDT)
-Received: by mail-ie0-f177.google.com with SMTP id tr6so683442ieb.36
-        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 11:39:49 -0700 (PDT)
-Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com [2607:f8b0:4001:c05::229])
-        by mx.google.com with ESMTPS id k4si4178197igx.63.2014.07.08.11.39.47
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 63AF56B0037
+	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 15:05:08 -0400 (EDT)
+Received: by mail-wg0-f47.google.com with SMTP id y10so1031166wgg.6
+        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 12:05:07 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r8si4280092wix.70.2014.07.08.12.05.06
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 08 Jul 2014 11:39:48 -0700 (PDT)
-Received: by mail-ig0-f169.google.com with SMTP id r10so1073509igi.0
-        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 11:39:47 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Jul 2014 12:05:07 -0700 (PDT)
+Date: Tue, 8 Jul 2014 15:03:26 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v3 1/3] mm: introduce fincore()
+Message-ID: <20140708190326.GA28595@nhori>
+References: <1404756006-23794-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1404756006-23794-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <53BAEE95.50807@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CAKgNAkgMA39AfoSoA5Pe1r9N+ZzfYQNvNPvcRN7tOvRb8+v06Q@mail.gmail.com>
-References: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com>
-	<1402655819-14325-4-git-send-email-dh.herrmann@gmail.com>
-	<CAKgNAkgnnWjrbE+2KAETsmiyrnrMQu0h7-MrYLvkiwj--_nxcQ@mail.gmail.com>
-	<CANq1E4R2K+eq9AxtFewp4YUL2cujg+dg+sN19Anvf-zWuvgyWw@mail.gmail.com>
-	<CAKgNAkgMA39AfoSoA5Pe1r9N+ZzfYQNvNPvcRN7tOvRb8+v06Q@mail.gmail.com>
-Date: Tue, 8 Jul 2014 20:39:47 +0200
-Message-ID: <CANq1E4RYWb9WbXD+Vj0SYDAZqym4mc4u6+HQJbjDeS+wQeG2Uw@mail.gmail.com>
-Subject: Re: [PATCH v3 3/7] shm: add memfd_create() syscall
-From: David Herrmann <dh.herrmann@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53BAEE95.50807@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk-manpages <mtk.manpages@gmail.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Greg Kroah-Hartman <greg@kroah.com>, John Stultz <john.stultz@linaro.org>, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>, Hugh Dickins <hughd@google.com>, Tony Battersby <tonyb@cybernetics.com>, Andy Lutomirski <luto@amacapital.net>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, David Miller <davem@davemloft.net>, Andres Freund <andres@2ndquadrant.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>, Kees Cook <kees@outflux.net>
 
-Hi
+On Mon, Jul 07, 2014 at 12:01:41PM -0700, Dave Hansen wrote:
+> > +/*
+> > + * You can control how the buffer in userspace is filled with this mode
+> > + * parameters:
+> 
+> I agree that we don't have any good mechanisms for looking at the page
+> cache from userspace.  I've hacked some things up using mincore() and
+> they weren't pretty, so I welcome _something_ like this.
+> 
+> But, is this trying to do too many things at once?  Do we have solid use
+> cases spelled out for each of these modes?  Have we thought out how they
+> will be used in practice?
+> 
+> The biggest question for me, though, is whether we want to start
+> designing these per-page interfaces to consider different page sizes, or
+> whether we're going to just continue to pretend that the entire world is
+> 4k pages.  Using FINCORE_BMAP on 1GB hugetlbfs files would be a bit
+> silly, for instance.
 
-On Fri, Jun 13, 2014 at 4:20 PM, Michael Kerrisk (man-pages)
-<mtk.manpages@gmail.com> wrote:
-> Hi David,
->
-> On Fri, Jun 13, 2014 at 2:41 PM, David Herrmann <dh.herrmann@gmail.com> wrote:
->> Hi
->>
->> On Fri, Jun 13, 2014 at 2:27 PM, Michael Kerrisk (man-pages)
->> <mtk.manpages@gmail.com> wrote:
->>> Hi David,
->>>
->>> On Fri, Jun 13, 2014 at 12:36 PM, David Herrmann <dh.herrmann@gmail.com> wrote:
->>>> memfd_create() is similar to mmap(MAP_ANON), but returns a file-descriptor
->>>> that you can pass to mmap(). It can support sealing and avoids any
->>>> connection to user-visible mount-points. Thus, it's not subject to quotas
->>>> on mounted file-systems, but can be used like malloc()'ed memory, but
->>>> with a file-descriptor to it.
->>>>
->>>> memfd_create() returns the raw shmem file, so calls like ftruncate() can
->>>> be used to modify the underlying inode. Also calls like fstat()
->>>> will return proper information and mark the file as regular file. If you
->>>> want sealing, you can specify MFD_ALLOW_SEALING. Otherwise, sealing is not
->>>> supported (like on all other regular files).
->>>>
->>>> Compared to O_TMPFILE, it does not require a tmpfs mount-point and is not
->>>> subject to quotas and alike. It is still properly accounted to memcg
->>>> limits, though.
->>>
->>> Where do I find / is there detailed documentation (ideally, a man
->>> page) for this new system call?
->>
->> I did write a man-page proposal for memfd_create() and a patch for
->> fcntl() for v1,
->
-> Ahh -- that's why I had a recollection of such a page ;-).
->
->> however, the API changed several times so I didn't
->> keep them up to date (the man-page patches are on LKML). However, I
->> wrote a short introduction to memfd+sealing v3, that I recommend
->> reading first:
->>   http://dvdhrm.wordpress.com/2014/06/10/memfd_create2/
->
-> Yes, I saw it already. (It's good, but I want more.)
+I didn't answer this question, sorry.
 
-Sorry, totally forgot about that one. I now pushed the man-pages out.
-They're available here:
+In my option, hugetlbfs pages should be handled as one hugepage (not as
+many 4kB pages) to avoid lots of meaningless data transfer, as you pointed
+out. And the current patch already works like that.
 
-http://cgit.freedesktop.org/~dvdhrm/man-pages/log/?h=memfd
-
-Thanks!
-David
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
