@@ -1,72 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 77A1B6B0031
-	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 16:27:30 -0400 (EDT)
-Received: by mail-wi0-f169.google.com with SMTP id hi2so1753586wib.2
-        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 13:27:29 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z2si55460668wjz.98.2014.07.08.13.27.29
+Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 12D4F6B0031
+	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 16:40:19 -0400 (EDT)
+Received: by mail-la0-f54.google.com with SMTP id mc6so4322447lab.41
+        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 13:40:19 -0700 (PDT)
+Received: from mail-lb0-x22f.google.com (mail-lb0-x22f.google.com [2a00:1450:4010:c04::22f])
+        by mx.google.com with ESMTPS id ll12si26691236lac.83.2014.07.08.13.40.18
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Jul 2014 13:27:29 -0700 (PDT)
-Date: Tue, 8 Jul 2014 16:27:23 -0400
-From: Vivek Goyal <vgoyal@redhat.com>
-Subject: Re: [next:master 284/380] cpu_pm.c:undefined reference to
- `crypto_alloc_shash'
-Message-ID: <20140708202723.GB18382@redhat.com>
-References: <53b516e4.rgxkJyIm0d6ktGNY%fengguang.wu@intel.com>
- <20140707120414.2cb6c1da2b71a91c24ced4aa@linux-foundation.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 08 Jul 2014 13:40:18 -0700 (PDT)
+Received: by mail-lb0-f175.google.com with SMTP id n15so4318137lbi.20
+        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 13:40:18 -0700 (PDT)
+Date: Wed, 9 Jul 2014 00:40:17 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH] mm: Don't forget to set softdirty on file mapped fault
+Message-ID: <20140708204017.GG17860@moon.sw.swsoft.com>
+References: <20140708192151.GD17860@moon.sw.swsoft.com>
+ <20140708131920.2a857d573e8cc89780c9fa1c@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140707120414.2cb6c1da2b71a91c24ced4aa@linux-foundation.org>
+In-Reply-To: <20140708131920.2a857d573e8cc89780c9fa1c@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Pavel Emelyanov <xemul@parallels.com>
 
-On Mon, Jul 07, 2014 at 12:04:14PM -0700, Andrew Morton wrote:
-> On Thu, 03 Jul 2014 16:40:04 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+On Tue, Jul 08, 2014 at 01:19:20PM -0700, Andrew Morton wrote:
+> On Tue, 8 Jul 2014 23:21:51 +0400 Cyrill Gorcunov <gorcunov@gmail.com> wrote:
 > 
-> > tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> > head:   0e9ce823ad7bc6b85c279223ae6638d47089461e
-> > commit: ba0dc4038c9fec5fa2f94756065f02b8011f270b [284/380] kexec: load and relocate purgatory at kernel load time
-> > config: make ARCH=arm nuc950_defconfig
-> > 
-> > All error/warnings:
-> > 
-> >    kernel/built-in.o: In function `sys_kexec_file_load':
-> > >> cpu_pm.c:(.text+0x4a580): undefined reference to `crypto_alloc_shash'
-> > >> cpu_pm.c:(.text+0x4a654): undefined reference to `crypto_shash_update'
-> > >> cpu_pm.c:(.text+0x4a698): undefined reference to `crypto_shash_update'
-> > >> cpu_pm.c:(.text+0x4a778): undefined reference to `crypto_shash_final'
+> > Otherwise we may not notice that pte was softdirty because pte_mksoft_dirty
+> > helper _returns_ new pte but not modifies argument.
 > 
-> yup, kexec now requires crypto but the patch only fixes x86's Kconfig.
+> When fixing a bug, please describe the end-user visible effects of that
+> bug.
 > 
-> Was selecting crypto the correct decision?  Is there no case for using
-> kexec without this signing capability?
+> [for the 12,000th time :(]
 
-Hi Andrew,
+"we may not notice that pte was softdirty" I thought it's enough, because
+that's the effect user sees -- pte is not dirtified where it should.
 
-CRYPTO is required even without signing capability. kexec caculates the
-sha256 hashes of loaded segments and just before jumping to next kernel
-is recalculates the digests and matches with the stored ones to make
-sure there is no data corruption.
-
-So far user space used to do it and now we have moved that functionality in
-kernel space hence kexec functionality becomes dependent on crypto.
-
-Admittedly that this dependency is required only for new syscall and not
-the old one. I did not create a config option for new syscall. So as a 
-side affect old syscall also becomes dependent on crypto.
-
-Creating more config option soon becomes cumbersome and anyway plan is
-that in long term old syscall will give way to new syscall. So I felt it
-is better not to create a config option for new syscall (until and unless
-it becomes clear that a separate config option is a good idea).
-
-Thanks
-Vivek
+Really sorry Andrew if I were not clear enough. What about: In case if page
+fault happend on dirty filemapping the newly created pte may not
+notice if old one were already softdirtified because pte_mksoft_dirty
+doesn't modify its argument but rather returns new pte value.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
