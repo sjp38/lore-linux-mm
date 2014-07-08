@@ -1,219 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id CCD1D6B0037
-	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 21:30:39 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id w10so6285341pde.10
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 18:30:39 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id bp9si5449414pdb.91.2014.07.07.18.30.37
-        for <linux-mm@kvack.org>;
-        Mon, 07 Jul 2014 18:30:38 -0700 (PDT)
-Date: Tue, 8 Jul 2014 10:30:38 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v10 7/7] mm: Don't split THP page when syscall is called
-Message-ID: <20140708013038.GD6076@bbox>
-References: <1404694438-10272-1-git-send-email-minchan@kernel.org>
- <1404694438-10272-8-git-send-email-minchan@kernel.org>
- <20140707111303.GC23150@node.dhcp.inet.fi>
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id B9E9F6B0037
+	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 21:34:39 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id r10so6235988pdi.4
+        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 18:34:39 -0700 (PDT)
+Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com. [202.81.31.147])
+        by mx.google.com with ESMTPS id aw13si42336872pac.24.2014.07.07.18.34.36
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 07 Jul 2014 18:34:38 -0700 (PDT)
+Received: from /spool/local
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <weiyang@linux.vnet.ibm.com>;
+	Tue, 8 Jul 2014 11:34:34 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 358E02CE8066
+	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 11:34:30 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s681HpL829884618
+	for <linux-mm@kvack.org>; Tue, 8 Jul 2014 11:17:52 +1000
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s681YSTo030031
+	for <linux-mm@kvack.org>; Tue, 8 Jul 2014 11:34:28 +1000
+Date: Tue, 8 Jul 2014 09:34:26 +0800
+From: Wei Yang <weiyang@linux.vnet.ibm.com>
+Subject: Re: mm: slub: invalid memory access in setup_object
+Message-ID: <20140708013426.GA18392@richard>
+Reply-To: Wei Yang <weiyang@linux.vnet.ibm.com>
+References: <53AAFDF7.2010607@oracle.com>
+ <alpine.DEB.2.11.1406251228130.29216@gentwo.org>
+ <alpine.DEB.2.02.1406301500410.13545@chino.kir.corp.google.com>
+ <alpine.DEB.2.11.1407010956470.5353@gentwo.org>
+ <20140702020454.GA6961@richard>
+ <alpine.DEB.2.11.1407020918130.17773@gentwo.org>
+ <20140703124015.GA17431@richard>
+ <alpine.DEB.2.11.1407070850510.21323@gentwo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140707111303.GC23150@node.dhcp.inet.fi>
+In-Reply-To: <alpine.DEB.2.11.1407070850510.21323@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Christoph Lameter <cl@gentwo.org>
+Cc: Wei Yang <weiyang@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Sasha Levin <sasha.levin@oracle.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
 
-On Mon, Jul 07, 2014 at 02:13:03PM +0300, Kirill A. Shutemov wrote:
-> On Mon, Jul 07, 2014 at 09:53:58AM +0900, Minchan Kim wrote:
-> > We don't need to split THP page when MADV_FREE syscall is
-> > called. It could be done when VM decide really frees it so
-> > we could reduce the number of THP split.
-> > 
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > ---
-> >  include/linux/huge_mm.h |  3 +++
-> >  mm/huge_memory.c        | 25 +++++++++++++++++++++++++
-> >  mm/madvise.c            | 19 +++++++++++++++++--
-> >  mm/rmap.c               |  4 ++++
-> >  mm/vmscan.c             | 24 ++++++++++++++++--------
-> >  5 files changed, 65 insertions(+), 10 deletions(-)
-> > 
-> > diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> > index 63579cb8d3dc..f0d37238cf8f 100644
-> > --- a/include/linux/huge_mm.h
-> > +++ b/include/linux/huge_mm.h
-> > @@ -19,6 +19,9 @@ extern struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
-> >  					  unsigned long addr,
-> >  					  pmd_t *pmd,
-> >  					  unsigned int flags);
-> > +extern int madvise_free_pmd(struct mmu_gather *tlb,
-> > +			struct vm_area_struct *vma,
-> > +			pmd_t *pmd, unsigned long addr);
-> >  extern int zap_huge_pmd(struct mmu_gather *tlb,
-> >  			struct vm_area_struct *vma,
-> >  			pmd_t *pmd, unsigned long addr);
-> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > index 5d562a9fe931..2a70069dcfc0 100644
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -1384,6 +1384,31 @@ out:
-> >  	return 0;
-> >  }
-> >  
-> > +int madvise_free_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
-> > +		 pmd_t *pmd, unsigned long addr)
-> > +{
-> > +	spinlock_t *ptl;
-> > +	int ret = 0;
-> > +
-> > +	if (__pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
-> > +		pmd_t orig_pmd;
-> > +		struct mm_struct *mm = vma->vm_mm;
-> > +
-> > +		/* No hugepage in swapcache */
-> > +		VM_BUG_ON(PageSwapCache(pmd_page(orig_pmd)));
-> 
-> VM_BUG_ON_PAGE() ?
+On Mon, Jul 07, 2014 at 08:51:08AM -0500, Christoph Lameter wrote:
+>On Thu, 3 Jul 2014, Wei Yang wrote:
+>
+>> Here is my refined version, hope this is more friendly to the audience.
+>
+>Acked-by: Christoph Lameter <cl@linux.com>
 
-NP.
-
-> 
-> > +
-> > +		orig_pmd = pmdp_get_and_clear(tlb->mm, addr, pmd);
-> > +		orig_pmd = pmd_mkold(orig_pmd);
-> > +		orig_pmd = pmd_mkclean(orig_pmd);
-> > +
-> > +		set_pmd_at(mm, addr, pmd, orig_pmd);
-> > +		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
-> > +		spin_unlock(ptl);
-> > +		ret = 1;
-> > +	}
-> > +	return ret;
-> > +}
-> > +
-> >  int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
-> >  		 pmd_t *pmd, unsigned long addr)
-> >  {
-> > diff --git a/mm/madvise.c b/mm/madvise.c
-> > index 372a25a8ea82..3c99919ee094 100644
-> > --- a/mm/madvise.c
-> > +++ b/mm/madvise.c
-> > @@ -320,8 +320,23 @@ static inline unsigned long madvise_free_pmd_range(struct mmu_gather *tlb,
-> >  		 * if the range covers.
-> >  		 */
-> >  		next = pmd_addr_end(addr, end);
-> > -		if (pmd_trans_huge(*pmd))
-> > -			split_huge_page_pmd(vma, addr, pmd);
-> > +		if (pmd_trans_huge(*pmd)) {
-> > +			if (next - addr != HPAGE_PMD_SIZE) {
-> > +#ifdef CONFIG_DEBUG_VM
-> > +				if (!rwsem_is_locked(&tlb->mm->mmap_sem)) {
-> > +					pr_err("%s: mmap_sem is unlocked! addr=0x%lx end=0x%lx vma->vm_start=0x%lx vma->vm_end=0x%lx\n",
-> > +						__func__, addr, end,
-> > +						vma->vm_start,
-> > +						vma->vm_end);
-> > +					BUG();
-> > +				}
-> > +#endif
-> > +				split_huge_page_pmd(vma, addr, pmd);
-> > +			} else if (madvise_free_pmd(tlb, vma, pmd, addr))
-> > +				goto next;
-> > +			/* fall through */
-> > +		}
-> > +
-> >  		/*
-> >  		 * Here there can be other concurrent MADV_DONTNEED or
-> >  		 * trans huge page faults running, and if the pmd is
-> > diff --git a/mm/rmap.c b/mm/rmap.c
-> > index ee495d84c8b3..3c415eb8b6f0 100644
-> > --- a/mm/rmap.c
-> > +++ b/mm/rmap.c
-> > @@ -702,6 +702,10 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
-> >  		/* go ahead even if the pmd is pmd_trans_splitting() */
-> >  		if (pmdp_clear_flush_young_notify(vma, address, pmd))
-> >  			referenced++;
-> > +
-> > +		if (pmd_dirty(*pmd))
-> > +			dirty++;
-> > +
-> >  		spin_unlock(ptl);
-> >  	} else {
-> >  		pte_t *pte;
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index f7a45600846f..4e15babf4414 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -971,15 +971,23 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> >  		 * Anonymous process memory has backing store?
-> >  		 * Try to allocate it some swap space here.
-> >  		 */
-> > -		if (PageAnon(page) && !PageSwapCache(page) && !freeable) {
-> > -			if (!(sc->gfp_mask & __GFP_IO))
-> > -				goto keep_locked;
-> > -			if (!add_to_swap(page, page_list))
-> > -				goto activate_locked;
-> > -			may_enter_fs = 1;
-> > +		if (PageAnon(page) && !PageSwapCache(page)) {
-> > +			if (!freeable) {
-> > +				if (!(sc->gfp_mask & __GFP_IO))
-> > +					goto keep_locked;
-> > +				if (!add_to_swap(page, page_list))
-> > +					goto activate_locked;
-> > +				may_enter_fs = 1;
-> >  
-> > -			/* Adding to swap updated mapping */
-> > -			mapping = page_mapping(page);
-> > +				/* Adding to swap updated mapping */
-> > +				mapping = page_mapping(page);
-> > +			} else {
-> > +				if (unlikely(PageTransHuge(page))) {
-> > +					if (unlikely(split_huge_page_to_list(
-> > +						page, page_list)))
-> > +						goto keep_locked;
-> 
-> Hm. It would be better to free the huge page without splitting. 
-> It shouldn't be a big deal: walk over rmap and zap all pmds.
-> Or I miss something?
-
-Actually, I did but found no problem except CONFIG_DEBUG_VM but rollback
-after peeking [1].
-When I read the description in detail by your review, I think we can remove
-BUG_ON(PageTransHuge(page)) in try_to_unmap and go with no split for lazyfree
-page because they are not in swapcache any more so the assumption of [1] is
-not valid. Will do it in next revision.
-
-Thanks for the review, Kirill!
-
-[1] thp: split_huge_page paging, 3f04f62f9
-
-
-> 
-> > +				}
-> > +			}
-> >  		}
-> >  
-> >  		/*
-> > -- 
-> > 2.0.0
-> > 
-> > --
-> > To unsubscribe from this list: send the line "unsubscribe linux-api" in
-> > the body of a message to majordomo@vger.kernel.org
-> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> 
-> -- 
->  Kirill A. Shutemov
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thanks. I am glad to work with you.
 
 -- 
-Kind regards,
-Minchan Kim
+Richard Yang
+Help you, Help me
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
