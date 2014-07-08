@@ -1,56 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id A7AB86B0031
-	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 01:45:18 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id eu11so6634046pac.25
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 22:45:18 -0700 (PDT)
-Received: from mail-pd0-x229.google.com (mail-pd0-x229.google.com [2607:f8b0:400e:c02::229])
-        by mx.google.com with ESMTPS id fs16si5656890pdb.338.2014.07.07.22.45.16
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 07 Jul 2014 22:45:17 -0700 (PDT)
-Received: by mail-pd0-f169.google.com with SMTP id g10so6597497pdj.14
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 22:45:16 -0700 (PDT)
-Message-ID: <53BB8553.10508@gmail.com>
-Date: Tue, 08 Jul 2014 13:44:51 +0800
-From: Wang Sheng-Hui <shhuiw@gmail.com>
-MIME-Version: 1.0
-Subject: [PATCH] mm: update the description for vm_total_pages
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 97DF56B0031
+	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 02:03:46 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so6757867pab.32
+        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 23:03:46 -0700 (PDT)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id qo1si5666137pdb.254.2014.07.07.23.03.43
+        for <linux-mm@kvack.org>;
+        Mon, 07 Jul 2014 23:03:45 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH v11 0/7] MADV_FREE support
+Date: Tue,  8 Jul 2014 15:03:37 +0900
+Message-Id: <1404799424-1120-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Minchan Kim <minchan@kernel.org>
 
+This patch enable MADV_FREE hint for madvise syscall, which have
+been supported by other OSes. [PATCH 1] includes the details.
 
-vm_total_pages is calculated by nr_free_pagecache_pages(), which counts
-the number of pages which are beyond the high watermark within all zones.
-So vm_total_pages is not equal to total number of pages which the VM controls.
+[1] support MADVISE_FREE for !THP page so if VM encounter
+THP page in syscall context, it splits THP page.
+[2-6] is to preparing to call madvise syscall without THP plitting
+[7] enable THP page support for MADV_FREE.
 
-Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
----
- mm/vmscan.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+* From v10
+ * Add Acked-by from arch stuff(x86, s390)
+ * Pagewalker based pagetable working - Kirill
+ * Fix try_to_unmap_one broken with hwpoison - Kirill
+ * Use VM_BUG_ON_PAGE in madvise_free_pmd - Kirill
+ * Fix pgtable-3level.h for arm - Steve
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 0f16ffe..8c7a559 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -136,7 +136,11 @@ struct scan_control {
-  * From 0 .. 100.  Higher means more swappy.
-  */
- int vm_swappiness = 60;
--unsigned long vm_total_pages;  /* The total number of pages which the VM controls */
-+/*
-+ * The total number of pages which are beyond the high watermark
-+ * within all zones.
-+ */
-+unsigned long vm_total_pages;
+* From v9
+ * Add Acked-by - Rik
+ * Add THP page support - Kirill
+ * Rebased-on v3.16-rc3-mmotm-2014-07-02-15-07
 
- static LIST_HEAD(shrinker_list);
- static DECLARE_RWSEM(shrinker_rwsem);
+* From v8
+ * Rebased-on v3.16-rc2-mmotm-2014-06-25-16-44
+
+* From v7
+ * Rebased-on next-20140613
+ 
+* From v6
+ * Remove page from swapcache in syscal time
+ * Move utility functions from memory.c to madvise.c - Johannes
+ * Rename untilify functtions - Johannes
+ * Remove unnecessary checks from vmscan.c - Johannes
+ * Rebased-on v3.15-rc5-mmotm-2014-05-16-16-56
+ * Drop Reviewe-by because there was some changes since then.
+
+* From v5
+ * Fix PPC problem which don't flush TLB - Rik
+ * Remove unnecessary lazyfree_range stub function - Rik
+ * Rebased on v3.15-rc5
+
+* From v4
+ * Add Reviewed-by: Zhang Yanfei
+ * Rebase on v3.15-rc1-mmotm-2014-04-15-16-14
+
+* From v3
+ * Add "how to work part" in description - Zhang
+ * Add page_discardable utility function - Zhang
+ * Clean up
+
+* From v2
+ * Remove forceful dirty marking of swap-readed page - Johannes
+ * Remove deactivation logic of lazyfreed page
+ * Rebased on 3.14
+ * Remove RFC tag
+
+* From v1
+ * Use custom page table walker for madvise_free - Johannes
+ * Remove PG_lazypage flag - Johannes
+ * Do madvise_dontneed instead of madvise_freein swapless system
+
+Minchan Kim (7):
+  [1] mm: support madvise(MADV_FREE)
+  [2] x86: add pmd_[dirty|mkclean] for THP
+  [3] sparc: add pmd_[dirty|mkclean] for THP
+  [4] powerpc: add pmd_[dirty|mkclean] for THP
+  [5] s390: add pmd_[dirty|mkclean] for THP
+  [6] ARM: add pmd_[dirty|mkclean] for THP
+  [7] mm: Don't split THP page when syscall is called
+
+ arch/arm/include/asm/pgtable-3level.h    |   3 +
+ arch/arm64/include/asm/pgtable.h         |   2 +
+ arch/powerpc/include/asm/pgtable-ppc64.h |   2 +
+ arch/s390/include/asm/pgtable.h          |  12 +++
+ arch/sparc/include/asm/pgtable_64.h      |  16 ++++
+ arch/x86/include/asm/pgtable.h           |  10 ++
+ include/linux/rmap.h                     |   9 +-
+ include/linux/vm_event_item.h            |   1 +
+ include/uapi/asm-generic/mman-common.h   |   1 +
+ mm/madvise.c                             | 153 +++++++++++++++++++++++++++++++
+ mm/rmap.c                                |  41 ++++++++-
+ mm/vmscan.c                              |  64 +++++++++----
+ mm/vmstat.c                              |   1 +
+ 13 files changed, 295 insertions(+), 20 deletions(-)
+
 -- 
-1.8.3.2
+2.0.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
