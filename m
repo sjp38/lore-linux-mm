@@ -1,57 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 63AF56B0037
-	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 15:05:08 -0400 (EDT)
-Received: by mail-wg0-f47.google.com with SMTP id y10so1031166wgg.6
-        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 12:05:07 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r8si4280092wix.70.2014.07.08.12.05.06
+Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
+	by kanga.kvack.org (Postfix) with ESMTP id BB1D36B0031
+	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 15:21:54 -0400 (EDT)
+Received: by mail-lb0-f169.google.com with SMTP id l4so4361675lbv.28
+        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 12:21:53 -0700 (PDT)
+Received: from mail-la0-x22f.google.com (mail-la0-x22f.google.com [2a00:1450:4010:c03::22f])
+        by mx.google.com with ESMTPS id qf3si76477187lbb.64.2014.07.08.12.21.53
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Jul 2014 12:05:07 -0700 (PDT)
-Date: Tue, 8 Jul 2014 15:03:26 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v3 1/3] mm: introduce fincore()
-Message-ID: <20140708190326.GA28595@nhori>
-References: <1404756006-23794-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1404756006-23794-2-git-send-email-n-horiguchi@ah.jp.nec.com>
- <53BAEE95.50807@intel.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 08 Jul 2014 12:21:53 -0700 (PDT)
+Received: by mail-la0-f47.google.com with SMTP id s18so4270929lam.20
+        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 12:21:53 -0700 (PDT)
+Date: Tue, 8 Jul 2014 23:21:51 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: [PATCH] mm: Don't forget to set softdirty on file mapped fault
+Message-ID: <20140708192151.GD17860@moon.sw.swsoft.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <53BAEE95.50807@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, David Miller <davem@davemloft.net>, Andres Freund <andres@2ndquadrant.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>, Kees Cook <kees@outflux.net>
+To: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+Cc: Pavel Emelyanov <xemul@parallels.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Jul 07, 2014 at 12:01:41PM -0700, Dave Hansen wrote:
-> > +/*
-> > + * You can control how the buffer in userspace is filled with this mode
-> > + * parameters:
-> 
-> I agree that we don't have any good mechanisms for looking at the page
-> cache from userspace.  I've hacked some things up using mincore() and
-> they weren't pretty, so I welcome _something_ like this.
-> 
-> But, is this trying to do too many things at once?  Do we have solid use
-> cases spelled out for each of these modes?  Have we thought out how they
-> will be used in practice?
-> 
-> The biggest question for me, though, is whether we want to start
-> designing these per-page interfaces to consider different page sizes, or
-> whether we're going to just continue to pretend that the entire world is
-> 4k pages.  Using FINCORE_BMAP on 1GB hugetlbfs files would be a bit
-> silly, for instance.
+Otherwise we may not notice that pte was softdirty because pte_mksoft_dirty
+helper _returns_ new pte but not modifies argument.
 
-I didn't answer this question, sorry.
+CC: Pavel Emelyanov <xemul@parallels.com>
+CC: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
+---
+ mm/memory.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-In my option, hugetlbfs pages should be handled as one hugepage (not as
-many 4kB pages) to avoid lots of meaningless data transfer, as you pointed
-out. And the current patch already works like that.
-
-Thanks,
-Naoya Horiguchi
+Index: linux-2.6.git/mm/memory.c
+===================================================================
+--- linux-2.6.git.orig/mm/memory.c
++++ linux-2.6.git/mm/memory.c
+@@ -2744,7 +2744,7 @@ void do_set_pte(struct vm_area_struct *v
+ 	if (write)
+ 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
+ 	else if (pte_file(*pte) && pte_file_soft_dirty(*pte))
+-		pte_mksoft_dirty(entry);
++		entry = pte_mksoft_dirty(entry);
+ 	if (anon) {
+ 		inc_mm_counter_fast(vma->vm_mm, MM_ANONPAGES);
+ 		page_add_new_anon_rmap(page, vma, address);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
