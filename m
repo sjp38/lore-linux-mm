@@ -1,87 +1,329 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id C17B26B0031
-	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 03:23:15 -0400 (EDT)
-Received: by mail-wi0-f176.google.com with SMTP id n3so408762wiv.15
-        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 00:23:15 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id do8si1327270wib.62.2014.07.08.00.23.14
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 08 Jul 2014 00:23:14 -0700 (PDT)
-Message-ID: <53BB9C61.8040902@suse.cz>
-Date: Tue, 08 Jul 2014 09:23:13 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
+	by kanga.kvack.org (Postfix) with ESMTP id D09216B0031
+	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 05:41:36 -0400 (EDT)
+Received: by mail-la0-f45.google.com with SMTP id hr17so3748786lab.4
+        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 02:41:35 -0700 (PDT)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.199])
+        by mx.google.com with ESMTP id p10si36798616lap.92.2014.07.08.02.41.35
+        for <linux-mm@kvack.org>;
+        Tue, 08 Jul 2014 02:41:35 -0700 (PDT)
+Date: Tue, 8 Jul 2014 12:41:14 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v11 1/7] mm: support madvise(MADV_FREE)
+Message-ID: <20140708094114.GA3490@node.dhcp.inet.fi>
+References: <1404799424-1120-1-git-send-email-minchan@kernel.org>
+ <1404799424-1120-2-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 08/10] mm/page_alloc: use get_onbuddy_migratetype() to
- get buddy list type
-References: <1404460675-24456-1-git-send-email-iamjoonsoo.kim@lge.com> <1404460675-24456-9-git-send-email-iamjoonsoo.kim@lge.com> <53BAC37D.3060703@suse.cz> <53BB42E3.4060005@lge.com>
-In-Reply-To: <53BB42E3.4060005@lge.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1404799424-1120-2-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gioh Kim <gioh.kim@lge.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On 07/08/2014 03:01 AM, Gioh Kim wrote:
->
->
-> 2014-07-08 i??i ? 12:57, Vlastimil Babka i?' e,?:
->> On 07/04/2014 09:57 AM, Joonsoo Kim wrote:
->>> When isolating free page, what we want to know is which list
->>> the page is linked. If it is linked in isolate migratetype buddy list,
->>> we can skip watermark check and freepage counting. And if it is linked
->>> in CMA migratetype buddy list, we need to fixup freepage counting. For
->>> this purpose, get_onbuddy_migratetype() is more fit and cheap than
->>> get_pageblock_migratetype(). So use it.
->>
->> Hm but you made get_onbuddy_migratetype() work only with CONFIG_MEMORY_ISOLATION. And __isolate_free_page is (despite the name) not at all limited to CONFIG_MEMORY_ISOLATION.
->>
->
-> Current __isolate_free_page is called by only split_free_page, and split_free_page by isolate_freepages_block.
-> split_free_page is called only for isolated pages now but It can be changed someday.
+On Tue, Jul 08, 2014 at 03:03:38PM +0900, Minchan Kim wrote:
+> Linux doesn't have an ability to free pages lazy while other OS
+> already have been supported that named by madvise(MADV_FREE).
+> 
+> The gain is clear that kernel can discard freed pages rather than
+> swapping out or OOM if memory pressure happens.
+> 
+> Without memory pressure, freed pages would be reused by userspace
+> without another additional overhead(ex, page fault + allocation
+> + zeroing).
+> 
+> How to work is following as.
+> 
+> When madvise syscall is called, VM clears dirty bit of ptes of
+> the range. If memory pressure happens, VM checks dirty bit of
+> page table and if it found still "clean", it means it's a
+> "lazyfree pages" so VM could discard the page instead of swapping out.
+> Once there was store operation for the page before VM peek a page
+> to reclaim, dirty bit is set so VM can swap out the page instead of
+> discarding.
+> 
+> Firstly, heavy users would be general allocators(ex, jemalloc,
+> tcmalloc and hope glibc supports it) and jemalloc/tcmalloc already
+> have supported the feature for other OS(ex, FreeBSD)
+> 
+> barrios@blaptop:~/benchmark/ebizzy$ lscpu
+> Architecture:          x86_64
+> CPU op-mode(s):        32-bit, 64-bit
+> Byte Order:            Little Endian
+> CPU(s):                4
+> On-line CPU(s) list:   0-3
+> Thread(s) per core:    2
+> Core(s) per socket:    2
+> Socket(s):             1
+> NUMA node(s):          1
+> Vendor ID:             GenuineIntel
+> CPU family:            6
+> Model:                 42
+> Stepping:              7
+> CPU MHz:               2801.000
+> BogoMIPS:              5581.64
+> Virtualization:        VT-x
+> L1d cache:             32K
+> L1i cache:             32K
+> L2 cache:              256K
+> L3 cache:              4096K
+> NUMA node0 CPU(s):     0-3
+> 
+> ebizzy benchmark(./ebizzy -S 10 -n 512)
+> 
+>  vanilla-jemalloc		MADV_free-jemalloc
+> 
+> 1 thread
+> records:  10              records:  10
+> avg:      7682.10         avg:      15306.10
+> std:      62.35(0.81%)    std:      347.99(2.27%)
+> max:      7770.00         max:      15622.00
+> min:      7598.00         min:      14772.00
+> 
+> 2 thread
+> records:  10              records:  10
+> avg:      12747.50        avg:      24171.00
+> std:      792.06(6.21%)   std:      895.18(3.70%)
+> max:      13337.00        max:      26023.00
+> min:      10535.00        min:      23152.00
+> 
+> 4 thread
+> records:  10              records:  10
+> avg:      16474.60        avg:      33717.90
+> std:      1496.45(9.08%)  std:      2008.97(5.96%)
+> max:      17877.00        max:      35958.00
+> min:      12224.00        min:      29565.00
+> 
+> 8 thread
+> records:  10              records:  10
+> avg:      16778.50        avg:      33308.10
+> std:      825.53(4.92%)   std:      1668.30(5.01%)
+> max:      17543.00        max:      36010.00
+> min:      14576.00        min:      29577.00
+> 
+> 16 thread
+> records:  10              records:  10
+> avg:      20614.40        avg:      35516.30
+> std:      602.95(2.92%)   std:      1283.65(3.61%)
+> max:      21753.00        max:      37178.00
+> min:      19605.00        min:      33217.00
+> 
+> 32 thread
+> records:  10              records:  10
+> avg:      22771.70        avg:      36018.50
+> std:      598.94(2.63%)   std:      1046.76(2.91%)
+> max:      24035.00        max:      37266.00
+> min:      22108.00        min:      34149.00
+> 
+> In summary, MADV_FREE is about 2 time faster than MADV_DONTNEED.
+> 
+> Cc: Michael Kerrisk <mtk.manpages@gmail.com>
+> Cc: Linux API <linux-api@vger.kernel.org>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Jason Evans <je@fb.com>
+> Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+> Acked-by: Rik van Riel <riel@redhat.com>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  include/linux/rmap.h                   |   9 ++-
+>  include/linux/vm_event_item.h          |   1 +
+>  include/uapi/asm-generic/mman-common.h |   1 +
+>  mm/madvise.c                           | 135 +++++++++++++++++++++++++++++++++
+>  mm/rmap.c                              |  42 +++++++++-
+>  mm/vmscan.c                            |  40 ++++++++--
+>  mm/vmstat.c                            |   1 +
+>  7 files changed, 217 insertions(+), 12 deletions(-)
+> 
 
-Yeah, but isolate_freepages_block is also not part of 
-CONFIG_MEMORY_ISOLATION. Unfortunately, there are two distinct concepts 
-of memory isolation and LRU isolation, that are not distinguished in 
-function names.
+...
 
-> I think get_onbuddy_migratetype should work with any situation.
->
-> And I think the name of get_onbuddy_migratetype is confused.
-> Because of _onbuddy_, it might look like that the pages are buddy pages.
-> I think the original name _freepage_ is proper one.
->
->
->>> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->>> ---
->>>    mm/page_alloc.c |    2 +-
->>>    1 file changed, 1 insertion(+), 1 deletion(-)
->>>
->>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>> index e1c4c3e..d9fb8bb 100644
->>> --- a/mm/page_alloc.c
->>> +++ b/mm/page_alloc.c
->>> @@ -1597,7 +1597,7 @@ static int __isolate_free_page(struct page *page, unsigned int order)
->>>        BUG_ON(!PageBuddy(page));
->>>
->>>        zone = page_zone(page);
->>> -    mt = get_pageblock_migratetype(page);
->>> +    mt = get_onbuddy_migratetype(page);
->>>
->>>        if (!is_migrate_isolate(mt)) {
->>>            /* Obey watermarks as if the page was being allocated */
->>>
->>
->>
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+> @@ -251,6 +260,124 @@ static long madvise_willneed(struct vm_area_struct *vma,
+>  	return 0;
+>  }
+>  
+> +static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+> +				unsigned long end, struct mm_walk *walk)
+> +
+> +{
+> +	struct madvise_free_private *fp = walk->private;
+> +	struct mmu_gather *tlb = fp->tlb;
+> +	struct mm_struct *mm = tlb->mm;
+> +	struct vm_area_struct *vma = fp->vma;
+> +	spinlock_t *ptl;
+> +	pte_t *pte, ptent;
+> +	struct page *page;
+> +
+> +	split_huge_page_pmd(vma, addr, pmd);
+> +	if (pmd_trans_unstable(pmd))
+> +		return 0;
+> +
+> +	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+> +	arch_enter_lazy_mmu_mode();
+> +	for (; addr != end; pte++, addr += PAGE_SIZE) {
+> +		ptent = *pte;
+> +
+> +		if (pte_none(ptent))
+> +			continue;
+
+The check is redundant: all pte_none() entries are also !pte_present().
+
+> +
+> +		if (!pte_present(ptent))
+> +			continue;
+> +
+> +		page = vm_normal_page(vma, addr, ptent);
+> +		if (page && PageSwapCache(page)) {
+> +			if (trylock_page(page)) {
+> +				if (try_to_free_swap(page))
+> +					ClearPageDirty(page);
+> +				unlock_page(page);
+> +			} else
+> +				continue;
+> +		}
+
+Is it safe to touch non-vm_normal entries? I would suggest to put
+  if (!page)
+	  continue;
+instead.
+
+> +		/*
+> +		 * Some of architecture(ex, PPC) don't update TLB
+> +		 * with set_pte_at and tlb_remove_tlb_entry so for
+> +		 * the portability, remap the pte with old|clean
+> +		 * after pte clearing.
+> +		 */
+> +		ptent = ptep_get_and_clear_full(mm, addr, pte,
+> +						tlb->fullmm);
+> +		ptent = pte_mkold(ptent);
+> +		ptent = pte_mkclean(ptent);
+> +		set_pte_at(mm, addr, pte, ptent);
+> +		tlb_remove_tlb_entry(tlb, pte, addr);
+> +	}
+> +	arch_leave_lazy_mmu_mode();
+> +	pte_unmap_unlock(pte - 1, ptl);
+> +	cond_resched();
+> +	return 0;
+> +}
+> +
+> +static void madvise_free_page_range(struct mmu_gather *tlb,
+> +			     struct vm_area_struct *vma,
+> +			     unsigned long addr, unsigned long end)
+> +{
+> +	struct madvise_free_private fp = {
+> +		.vma = vma,
+> +		.tlb = tlb,
+> +	};
+> +
+> +	struct mm_walk free_walk = {
+> +		.pmd_entry = madvise_free_pte_range,
+> +		.mm = vma->vm_mm,
+> +		.private = &fp,
+> +	};
+> +
+> +	BUG_ON(addr >= end);
+> +	tlb_start_vma(tlb, vma);
+> +	walk_page_range(addr, end, &free_walk);
+> +	tlb_end_vma(tlb, vma);
+> +}
+> +
+> +static int madvise_free_single_vma(struct vm_area_struct *vma,
+> +			unsigned long start_addr, unsigned long end_addr)
+> +{
+> +	unsigned long start, end;
+> +	struct mm_struct *mm = vma->vm_mm;
+> +	struct mmu_gather tlb;
+> +
+> +	if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
+> +		return -EINVAL;
+
+VM_MIXEDMAP? VM_IO? Should it be whitelist instead?
+
+> +
+> +	/* MADV_FREE works for only anon vma at the moment */
+> +	if (vma->vm_file)
+> +		return -EINVAL;
+> +
+> +	start = max(vma->vm_start, start_addr);
+> +	if (start >= vma->vm_end)
+> +		return -EINVAL;
+> +	end = min(vma->vm_end, end_addr);
+> +	if (end <= vma->vm_start)
+> +		return -EINVAL;
+> +
+> +	lru_add_drain();
+> +	tlb_gather_mmu(&tlb, mm, start, end);
+> +	update_hiwater_rss(mm);
+> +
+> +	mmu_notifier_invalidate_range_start(mm, start, end);
+> +	madvise_free_page_range(&tlb, vma, start, end);
+> +	mmu_notifier_invalidate_range_end(mm, start, end);
+> +	tlb_finish_mmu(&tlb, start, end);
+> +
+> +	return 0;
+> +}
+> +
+> +static long madvise_free(struct vm_area_struct *vma,
+> +			     struct vm_area_struct **prev,
+> +			     unsigned long start, unsigned long end)
+> +{
+> +	*prev = vma;
+> +	return madvise_free_single_vma(vma, start, end);
+> +}
+> +
+>  /*
+>   * Application no longer needs these pages.  If the pages are dirty,
+>   * it's OK to just throw them away.  The app will be more careful about
+> @@ -381,6 +508,13 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
+>  		return madvise_remove(vma, prev, start, end);
+>  	case MADV_WILLNEED:
+>  		return madvise_willneed(vma, prev, start, end);
+> +	case MADV_FREE:
+> +		/*
+> +		 * XXX: In this implementation, MADV_FREE works like
+> +		 * MADV_DONTNEED on swapless system or full swap.
+> +		 */
+> +		if (get_nr_swap_pages() > 0)
+> +			return madvise_free(vma, prev, start, end);
+
+/* passthough */
+
+>  	case MADV_DONTNEED:
+>  		return madvise_dontneed(vma, prev, start, end);
+>  	default:
+
+...
+
+> @@ -1186,6 +1210,19 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>  		swp_entry_t entry = { .val = page_private(page) };
+>  		pte_t swp_pte;
+>  
+> +		if (flags & TTU_FREE) {
+> +			VM_BUG_ON_PAGE(PageSwapCache(page), page);
+> +			if (dirty || PageDirty(page)) {
+> +				set_pte_at(mm, address, pte, pteval);
+> +				ret = SWAP_FAIL;
+> +				goto out_unmap;
+
+Hm. Again: do we really want stop here if caller asks for
+TTU_FREE|TTU_UNMAP or should proceed?
+
+> +			} else {
+> +				/* It's a freeable page by MADV_FREE */
+> +				dec_mm_counter(mm, MM_ANONPAGES);
+> +				goto discard;
+> +			}
+> +		}
+> +
+>  		if (PageSwapCache(page)) {
+>  			/*
+>  			 * Store the swap location in the pte.
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
