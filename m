@@ -1,59 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 03F646B0031
-	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 18:32:45 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id v10so7799013pde.6
-        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 15:32:45 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id ir1si44522134pbb.43.2014.07.08.15.32.44
-        for <linux-mm@kvack.org>;
-        Tue, 08 Jul 2014 15:32:44 -0700 (PDT)
-Message-ID: <53BC717E.6020705@intel.com>
-Date: Tue, 08 Jul 2014 15:32:30 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F0546B0031
+	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 19:44:22 -0400 (EDT)
+Received: by mail-ig0-f172.google.com with SMTP id hn18so1274899igb.5
+        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 16:44:22 -0700 (PDT)
+Received: from nm31.bullet.mail.ne1.yahoo.com (nm31.bullet.mail.ne1.yahoo.com. [98.138.229.24])
+        by mx.google.com with ESMTPS id v8si68652915icb.3.2014.07.08.16.44.20
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 08 Jul 2014 16:44:21 -0700 (PDT)
+Message-ID: <1404862900.76779.YahooMailNeo@web160102.mail.bf1.yahoo.com>
+Date: Tue, 8 Jul 2014 16:41:40 -0700
+From: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Reply-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Subject: [linux-3.10.17] Could not allocate memory from free CMA areas
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 1/3] mm: introduce fincore()
-References: <1404756006-23794-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1404756006-23794-2-git-send-email-n-horiguchi@ah.jp.nec.com> <53BAEE95.50807@intel.com> <20140708190326.GA28595@nhori> <53BC49C2.8090409@intel.com> <20140708204132.GA16195@nhori.redhat.com>
-In-Reply-To: <20140708204132.GA16195@nhori.redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, David Miller <davem@davemloft.net>, Andres Freund <andres@2ndquadrant.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>
+Cc: "pintu.k@outlook.com" <pintu.k@outlook.com>, "pintu.k@samsung.com" <pintu.k@samsung.com>, "vishu_1385@yahoo.com" <vishu_1385@yahoo.com>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "mina86@mina86.com" <mina86@mina86.com>, "ngupta@vflare.org" <ngupta@vflare.org>, "iqbalblr@gmail.com" <iqbalblr@gmail.com>
 
-On 07/08/2014 01:41 PM, Naoya Horiguchi wrote:
->> >  It would only set the first two bytes of a
->> > 256k BMAP buffer since only two pages were encountered in the radix tree.
-> Hmm, this example shows me a problem, thanks.
-> 
-> If the user knows the fd is for 1GB hugetlbfs file, it just prepares
-> the 2 bytes buffer, so no problem.
-> But if the user doesn't know whether the fd is from hugetlbfs file,
-> the user must prepare the large buffer, though only first few bytes
-> are used. And the more problematic is that the user could interpret
-> the data in buffer differently:
->   1. only the first two 4kB-pages are loaded in the 2GB range,
->   2. two 1GB-pages are loaded.
-> So for such callers, fincore() must notify the relevant page size
-> in some way on return.
-> Returning it via fincore_extra is my first thought but I'm not sure
-> if it's elegant enough.
-
-That does limit the interface to being used on a single page size per
-call, which doesn't sound too bad since we don't mix page sizes in a
-single file.  But, you mentioned using this interface along with
-/proc/$pid/mem.  How would this deal with a process which had two sizes
-of pages mapped?
-
-Another option would be to have userspace pass in its desired
-granularity.  Such an interface could be used to find holes in a file
-fairly easily.  But, introduces a whole new set of issues, like what
-BMAP means if only a part of the granule is in-core, and do you need a
-new option to differentiate BMAP_AND vs. BMAP_OR operations.
-
-I honestly think we need to take a step back and enumerate what you're
-trying to do here before going any further.
+Hi,=0A=0AWe are facing one problem on linux 3.10 when we try to use CMA as =
+large as 56MB for 256MB RAM device.=0AWe found that after certain point of =
+time (during boot), min watermark check is failing when "free_pages" and "f=
+ree_cma_pages" are almost equal and falls below the min level.=0A=0Asystem =
+details:=0AARM embedded device: RAM: 256MB=0AKernel version: 3.10.17=0AFixe=
+d Reserved memory: ~40MB=0AAvailable memory: 217MB=0ACMA reserved 1 : 56MB=
+=0AZRAM configured: 128MB or 64MB=0Amin_free_kbytes: 1625 (default)=0AMemor=
+y controller group enabled (MEMCG)=0A=0A=0AAfter boot-up the "free -tm" com=
+mand shows free memory as: ~50MB=0ACMA is used for all UI display purposes.=
+ CMA used during bootup is close to ~6MB.=0AThus most of the free memory is=
+ in the form of CMA free memory.=0AZRAM getting uses was around ~5MB.=0A=0A=
+=0ADuring boot-up itself we observe that the following conditions are met.=
+=0A=0A=0Aif (free_pages - free_cma <=3D min + lowmem_reserve) {=0A=A0=A0=A0=
+ printk"[PINTU]: __zone_watermark_ok: failed !\n");=0A=0A=A0=A0=A0 return f=
+alse;=0A}=0AHere: free_pages was: 12940, free_cma was: 12380, min: 566, low=
+mem: 0=0A=0A=0AThus is condition is met most of the time.=0AAnd because of =
+this watermark failure, Kswapd is waking up frequently.=0AThe /proc/pagetyp=
+einfo reports that most of the higher order pages are from CMA regions.=0A=
+=0A=0AWe also observed that ZRAM is trying to allocate memory from CMA regi=
+on and failing.=0A=0AWe also tried by decreasing the CMA region to 20MB. Wi=
+th this the watermark failure is not happening in boot time. But if we laun=
+ch more than 3 apps {Browser, music-player etc}, again the watermark starte=
+d failing.=0A=0AAlso we tried decreasing the min_free_kbytes=3D256, and wit=
+h this also watermark is passed.=0A=0AOur observation is that ZRAM/zsmalloc=
+ trying to allocate memory from CMA areas and failed.=0A=0A=0APlease let us=
+ know if anybody have come across the same problem and how to resolve this =
+issue.=0A=0A=0A=0A=0A=0AThank You!=0ARegards,=0APintu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
