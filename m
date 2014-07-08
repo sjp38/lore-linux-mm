@@ -1,95 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 712BA6B0031
-	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 12:54:58 -0400 (EDT)
-Received: by mail-ie0-f181.google.com with SMTP id y20so5187648ier.12
-        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 09:54:58 -0700 (PDT)
-Received: from mail-ie0-x22a.google.com (mail-ie0-x22a.google.com [2607:f8b0:4001:c03::22a])
-        by mx.google.com with ESMTPS id yx8si17527326icb.42.2014.07.08.09.54.56
+Received: from mail-vc0-f180.google.com (mail-vc0-f180.google.com [209.85.220.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 522316B0036
+	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 13:04:06 -0400 (EDT)
+Received: by mail-vc0-f180.google.com with SMTP id im17so5818624vcb.11
+        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 10:04:06 -0700 (PDT)
+Received: from mail-qc0-x233.google.com (mail-qc0-x233.google.com [2607:f8b0:400d:c01::233])
+        by mx.google.com with ESMTPS id w7si19899613veu.73.2014.07.08.10.04.04
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 08 Jul 2014 09:54:57 -0700 (PDT)
-Received: by mail-ie0-f170.google.com with SMTP id lx4so4271073iec.1
-        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 09:54:56 -0700 (PDT)
+        Tue, 08 Jul 2014 10:04:05 -0700 (PDT)
+Received: by mail-qc0-f179.google.com with SMTP id x3so5611087qcv.10
+        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 10:04:04 -0700 (PDT)
+Date: Tue, 8 Jul 2014 13:03:56 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [PATCH 1/6] mmput: use notifier chain to call subsystem exit
+ handler.
+Message-ID: <20140708170355.GA2469@gmail.com>
+References: <20140701110018.GH26537@8bytes.org>
+ <20140701193343.GB3322@gmail.com>
+ <20140701210620.GL26537@8bytes.org>
+ <20140701213208.GC3322@gmail.com>
+ <20140703183024.GA3306@gmail.com>
+ <20140703231541.GR26537@8bytes.org>
+ <019CCE693E457142B37B791721487FD918085329@storexdag01.amd.com>
+ <20140707101158.GD1958@8bytes.org>
+ <1404729783.31606.1.camel@tlv-gabbay-ws.amd.com>
+ <20140708080059.GF1958@8bytes.org>
 MIME-Version: 1.0
-In-Reply-To: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com>
-References: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com>
-Date: Tue, 8 Jul 2014 18:54:56 +0200
-Message-ID: <CANq1E4QZ95RmJ7i=6TzEP4e+WREzKtXmmjjDrvz4BgAhVHoeuQ@mail.gmail.com>
-Subject: Re: [PATCH v3 0/7] File Sealing & memfd_create()
-From: David Herrmann <dh.herrmann@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20140708080059.GF1958@8bytes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Greg Kroah-Hartman <greg@kroah.com>, John Stultz <john.stultz@linaro.org>, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>, Tony Battersby <tonyb@cybernetics.com>, Andy Lutomirski <luto@amacapital.net>, David Herrmann <dh.herrmann@gmail.com>
+To: "joro@8bytes.org" <joro@8bytes.org>
+Cc: Oded Gabbay <oded.gabbay@amd.com>, "dpoole@nvidia.com" <dpoole@nvidia.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "jweiner@redhat.com" <jweiner@redhat.com>, "mhairgrove@nvidia.com" <mhairgrove@nvidia.com>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Bridgman, John" <John.Bridgman@amd.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Lewycky, Andrew" <Andrew.Lewycky@amd.com>, "sgutti@nvidia.com" <sgutti@nvidia.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "hpa@zytor.com" <hpa@zytor.com>, "aarcange@redhat.com" <aarcange@redhat.com>, "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "riel@redhat.com" <riel@redhat.com>, "arvindg@nvidia.com" <arvindg@nvidia.com>, "SCheung@nvidia.com" <SCheung@nvidia.com>, "jakumar@nvidia.com" <jakumar@nvidia.com>, "jhubbard@nvidia.com" <jhubbard@nvidia.com>, "Cornwall, Jay" <Jay.Cornwall@amd.com>, "mgorman@suse.de" <mgorman@suse.de>, "cabuschardt@nvidia.com" <cabuschardt@nvidia.com>, "ldunning@nvidia.com" <ldunning@nvidia.com>
 
-Hi
+On Tue, Jul 08, 2014 at 10:00:59AM +0200, joro@8bytes.org wrote:
+> On Mon, Jul 07, 2014 at 01:43:03PM +0300, Oded Gabbay wrote:
+> > As Jerome pointed out, there are a couple of subsystems/drivers who
+> > don't rely on file descriptors but on the tear-down of mm struct, e.g.
+> > aio, ksm, uprobes, khugepaged
+> 
+> What you name here is completly different from what HSA offers. AIO,
+> KSM, uProbes and THP are not drivers or subsystems of their own but
+> extend existing subsystems. KSM and THP also work in the background and
+> do not need a fd to setup things (in some cases only new flags to
+> existing system calls).
+> 
+> What HSA does is offering a new service to userspace applications.  This
+> either requires new system calls or, as currently implemented, a device
+> file which can be opened to use the services.  In this regard it is much
+> more similar to VFIO or KVM, which also offers a new service and which
+> use file descriptors as their interface to userspace and tear everything
+> down when the fd is closed.
 
-On Fri, Jun 13, 2014 at 12:36 PM, David Herrmann <dh.herrmann@gmail.com> wrote:
-> Hi
->
-> This is v3 of the File-Sealing and memfd_create() patches. You can find v1 with
-> a longer introduction at gmane:
->   http://thread.gmane.org/gmane.comp.video.dri.devel/102241
-> An LWN article about memfd+sealing is available, too:
->   https://lwn.net/Articles/593918/
-> v2 with some more discussions can be found here:
->   http://thread.gmane.org/gmane.linux.kernel.mm/115713
->
-> This series introduces two new APIs:
->   memfd_create(): Think of this syscall as malloc() but it returns a
->                   file-descriptor instead of a pointer. That file-descriptor is
->                   backed by anon-memory and can be memory-mapped for access.
->   sealing: The sealing API can be used to prevent a specific set of operations
->            on a file-descriptor. You 'seal' the file and give thus the
->            guarantee, that it cannot be modified in the specific ways.
->
-> A short high-level introduction is also available here:
->   http://dvdhrm.wordpress.com/2014/06/10/memfd_create2/
->
->
-> Changed in v3:
->  - fcntl() now returns EINVAL if the FD does not support sealing. We used to
->    return EBADF like pipe_fcntl() does, but that is really weird and I don't
->    like repeating that.
->  - seals are now saved as "unsigned int" instead of "u32".
->  - i_mmap_writable is now an atomic so we can deny writable mappings just like
->    i_writecount does.
->  - SHMEM_ALLOW_SEALING is dropped. We initialize all objects with F_SEAL_SEAL
->    and only unset it for memfds that shall support sealing.
->  - memfd_create() no longer has a size argument. It was redundant, use
->    ftruncate() or fallocate().
->  - memfd_create() flags are "unsigned int" now, instead of "u64".
->  - NAME_MAX off-by-one fix
->  - several cosmetic changes
->  - Added AIO/Direct-IO page-pinning protection
->
-> The last point is the most important change in this version: We now bail out if
-> any page-refcount is elevated while setting SEAL_WRITE. This prevents parallel
-> GUP users from writing to sealed files _after_ they were sealed. There is also a
-> new FUSE-based test-case to trigger such situations.
->
-> The last 2 patches try to improve the page-pinning handling. I included both in
-> this series, but obviously only one of them is needed (or we could stack them):
->  - 6/7: This waits for up to 150ms for pages to be unpinned
->  - 7/7: This isolates pinned pages and replaces them with a fresh copy
->
-> Hugh, patch 6 is basically your code. In case that gets merged, can I put your
-> Signed-off-by on it?
+Thing is we are closer to AIO than to KVM. Unlike kvm, hmm stores a pointer
+to its structure inside mm_struct and those we already add ourself to the
+mm_init function ie we do have the same lifespan as the mm_struct not the
+same lifespan as a file.
 
-Hugh, any comments on patch 5, 6 and 7? Those are the last outstanding
-issues with memfd+sealing. Patch 7 (isolating pages) is still my
-favorite and has been running just fine on my machine for the last
-months. I think it'd be nice if we could give it a try in -next. We
-can always fall back to Patch 5 or Patch 5+6. Those will detect any
-racing AIO and just fail or wait for the IO to finish for a short
-period.
+Now regarding the device side, if we were to cleanup inside the file release
+callback than we would be broken in front of fork. Imagine the following :
+  - process A open device file and mirror its address space (hmm or kfd)
+    through a device file.
+  - process A forks itself (child is B) while having the device file open.
+  - process A quits
 
-Are there any other blockers for this?
+Now the file release will not be call until child B exit which might infinite.
+Thus we would be leaking memory. As we already pointed out we can not free the
+resources from the mmu_notifier >release callback.
 
-Thanks
-David
+One hacky way to do it would be to schedule some delayed job from >release
+callback but then again we would have no way to properly synchronize ourself
+with other mm destruction code ie the delayed job could run concurently with
+other mm destruction code and interfer badly.
+
+So as i am desperatly trying to show you, there is no other clean way to free
+resources associated with hmm and same apply to kfd. Only way is by adding a
+callback inside mmput.
+
+
+Another thing you must understand, the kfd or hmm can be share among different
+devices each of them having their own device file. So one and one hmm per mm
+struct but several device using that hmm structure. Obviously the lifetime of
+this hmm structure has first tie to mm struct, all ties to device file are
+secondary and i can foresee situation where their would be absolutely no device
+file open but still an hmm for mm struct (think another process is using the
+process address through a device driver because it provide some api for that).
+
+
+I genuinely fails to see how to do it properly using file device as i said
+the file lifespan is not tie to an mm struct while the struct we want to
+cleanup are tie to the mm struct.
+
+Again hmm or kfd is like aio. Not like kvm.
+
+Cheers,
+Jerome
+
+> 
+> > Jerome and I are saying that HMM and HSA, respectively, are additional
+> > use cases of binding to mm struct. If you don't agree with that, than I
+> > would like to hear why, but you can't say that no one else in the kernel
+> > needs notification of mm struct tear-down.
+> 
+> In the first place HSA is a service that allows applications to send
+> compute jobs to peripheral devices (usually GPUs) and read back the
+> results. That the peripheral device can access the process address space
+> is a feature of that service that is handled in the driver.
+> 
+> > As for the reasons why HSA drivers should follow aio,ksm,etc. and not
+> > other drivers, I will repeat that our ioctls operate on a process
+> > context and not on a device context. Moreover, the calling process
+> > actually is sometimes not aware on which device it runs!
+> 
+> KFD can very well hide the fact that there are multiple devices as the
+> IOMMU drivers usually also hide the details about how many IOMMUs are in
+> the system.
+> 
+> 
+> 	Joerg
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
