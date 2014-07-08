@@ -1,57 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f48.google.com (mail-la0-f48.google.com [209.85.215.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 00FB56B0037
-	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 15:28:32 -0400 (EDT)
-Received: by mail-la0-f48.google.com with SMTP id el20so4281246lab.21
-        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 12:28:32 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id bm6si76537988lbb.30.2014.07.08.12.28.31
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Jul 2014 12:28:31 -0700 (PDT)
-Message-ID: <53BC465D.7030205@parallels.com>
-Date: Tue, 8 Jul 2014 23:28:29 +0400
-From: Pavel Emelyanov <xemul@parallels.com>
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id B85026B0031
+	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 15:43:00 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id v10so7670113pde.20
+        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 12:43:00 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id cb2si6435440pdb.235.2014.07.08.12.42.58
+        for <linux-mm@kvack.org>;
+        Tue, 08 Jul 2014 12:42:59 -0700 (PDT)
+Message-ID: <53BC49C2.8090409@intel.com>
+Date: Tue, 08 Jul 2014 12:42:58 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: Don't forget to set softdirty on file mapped fault
-References: <20140708192151.GD17860@moon.sw.swsoft.com>
-In-Reply-To: <20140708192151.GD17860@moon.sw.swsoft.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCH v3 1/3] mm: introduce fincore()
+References: <1404756006-23794-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1404756006-23794-2-git-send-email-n-horiguchi@ah.jp.nec.com> <53BAEE95.50807@intel.com> <20140708190326.GA28595@nhori>
+In-Reply-To: <20140708190326.GA28595@nhori>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, David Miller <davem@davemloft.net>, Andres Freund <andres@2ndquadrant.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Naoya Horiguchi <nao.horiguchi@gmail.com>, Kees Cook <kees@outflux.net>
 
-On 07/08/2014 11:21 PM, Cyrill Gorcunov wrote:
-> Otherwise we may not notice that pte was softdirty because pte_mksoft_dirty
-> helper _returns_ new pte but not modifies argument.
+On 07/08/2014 12:03 PM, Naoya Horiguchi wrote:
+>> > The biggest question for me, though, is whether we want to start
+>> > designing these per-page interfaces to consider different page sizes, or
+>> > whether we're going to just continue to pretend that the entire world is
+>> > 4k pages.  Using FINCORE_BMAP on 1GB hugetlbfs files would be a bit
+>> > silly, for instance.
+> I didn't answer this question, sorry.
 > 
-> CC: Pavel Emelyanov <xemul@parallels.com>
-> CC: Andrew Morton <akpm@linux-foundation.org>
-> Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
+> In my option, hugetlbfs pages should be handled as one hugepage (not as
+> many 4kB pages) to avoid lots of meaningless data transfer, as you pointed
+> out. And the current patch already works like that.
 
-Acked-by: Pavel Emelyanov <xemul@parallels.com>
+Just reading the code, I don't see any way that pc_shift gets passed
+down in to the do_fincore() loop.  I don't see it getting reflected in
+to 'nr' or 'nr_pages' in there, and I can't see how:
 
-> ---
->  mm/memory.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> Index: linux-2.6.git/mm/memory.c
-> ===================================================================
-> --- linux-2.6.git.orig/mm/memory.c
-> +++ linux-2.6.git/mm/memory.c
-> @@ -2744,7 +2744,7 @@ void do_set_pte(struct vm_area_struct *v
->  	if (write)
->  		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
->  	else if (pte_file(*pte) && pte_file_soft_dirty(*pte))
-> -		pte_mksoft_dirty(entry);
-> +		entry = pte_mksoft_dirty(entry);
->  	if (anon) {
->  		inc_mm_counter_fast(vma->vm_mm, MM_ANONPAGES);
->  		page_add_new_anon_rmap(page, vma, address);
-> .
-> 
+	jump = iter.index - fc->pgstart - nr;
+
+can possibly be right since iter.index is being kept against the offset
+in the userspace buffer (4k pages) and 'nr' and fc->pgstart are
+essentially done in the huge page size.
+
+If you had a 2-page 1GB-hpage_size() hugetlbfs file, you would only have
+two pages in the radix tree, and only two iterations of
+radix_tree_for_each_slot().  It would only set the first two bytes of a
+256k BMAP buffer since only two pages were encountered in the radix tree.
+
+Or am I reading your code wrong again?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
