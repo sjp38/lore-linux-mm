@@ -1,124 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 570446B003B
-	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 02:04:04 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id et14so6738448pad.35
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 23:04:04 -0700 (PDT)
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id CE8BF6B003C
+	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 02:04:07 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id z10so6663931pdj.29
+        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 23:04:07 -0700 (PDT)
 Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id hs4si9602404pac.33.2014.07.07.23.04.01
+        by mx.google.com with ESMTP id j6si5673945pdk.331.2014.07.07.23.04.05
         for <linux-mm@kvack.org>;
-        Mon, 07 Jul 2014 23:04:02 -0700 (PDT)
+        Mon, 07 Jul 2014 23:04:06 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v11 7/7] mm: Don't split THP page when syscall is called
-Date: Tue,  8 Jul 2014 15:03:44 +0900
-Message-Id: <1404799424-1120-8-git-send-email-minchan@kernel.org>
+Subject: [PATCH v11 4/7] powerpc: add pmd_[dirty|mkclean] for THP
+Date: Tue,  8 Jul 2014 15:03:41 +0900
+Message-Id: <1404799424-1120-5-git-send-email-minchan@kernel.org>
 In-Reply-To: <1404799424-1120-1-git-send-email-minchan@kernel.org>
 References: <1404799424-1120-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Minchan Kim <minchan@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linuxppc-dev@lists.ozlabs.org
 
-We don't need to split THP page when MADV_FREE syscall is
-called. It could be done when VM decide really frees it so
-we could avoid unnecessary THP split.
+MADV_FREE needs pmd_dirty and pmd_mkclean for detecting recent
+overwrite of the contents since MADV_FREE syscall is called for
+THP page.
 
+This patch adds pmd_dirty and pmd_mkclean for THP page MADV_FREE
+support.
+
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- mm/madvise.c | 20 +++++++++++++++++++-
- mm/rmap.c    |  7 +++----
- mm/vmscan.c  | 28 ++++++++++++++++++----------
- 3 files changed, 40 insertions(+), 15 deletions(-)
+ arch/powerpc/include/asm/pgtable-ppc64.h | 2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/mm/madvise.c b/mm/madvise.c
-index a6aa7d4c4e02..77f13a99584c 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -272,7 +272,25 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
- 	pte_t *pte, ptent;
- 	struct page *page;
+diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
+index eb9261024f51..c9a4bbe8e179 100644
+--- a/arch/powerpc/include/asm/pgtable-ppc64.h
++++ b/arch/powerpc/include/asm/pgtable-ppc64.h
+@@ -468,9 +468,11 @@ static inline pte_t *pmdp_ptep(pmd_t *pmd)
  
--	split_huge_page_pmd(vma, addr, pmd);
-+	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
-+		struct page *page;
-+		pmd_t orig_pmd;
-+
-+		orig_pmd = pmdp_get_and_clear(mm, addr, pmd);
-+
-+		/* No hugepage in swapcache */
-+		page = pmd_page(orig_pmd);
-+		VM_BUG_ON_PAGE(PageSwapCache(page), page);
-+
-+		orig_pmd = pmd_mkold(orig_pmd);
-+		orig_pmd = pmd_mkclean(orig_pmd);
-+
-+		set_pmd_at(mm, addr, pmd, orig_pmd);
-+		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
-+		spin_unlock(ptl);
-+		return 0;
-+	}
-+
- 	if (pmd_trans_unstable(pmd))
- 		return 0;
+ #define pmd_pfn(pmd)		pte_pfn(pmd_pte(pmd))
+ #define pmd_young(pmd)		pte_young(pmd_pte(pmd))
++#define pmd_dirty(pmd)		pte_dirty(pmd_pte(pmd))
+ #define pmd_mkold(pmd)		pte_pmd(pte_mkold(pmd_pte(pmd)))
+ #define pmd_wrprotect(pmd)	pte_pmd(pte_wrprotect(pmd_pte(pmd)))
+ #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
++#define pmd_mkclean(pmd)	pte_pmd(pte_mkclean(pmd_pte(pmd)))
+ #define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
+ #define pmd_mkwrite(pmd)	pte_pmd(pte_mkwrite(pmd_pte(pmd)))
  
-diff --git a/mm/rmap.c b/mm/rmap.c
-index a8e34596dc97..67e1c1859c1d 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -703,10 +703,9 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
- 		if (pmdp_clear_flush_young_notify(vma, address, pmd))
- 			referenced++;
- 
--		/*
--		 * In this implmentation, MADV_FREE doesn't support THP free
--		 */
--		dirty++;
-+		if (pmd_dirty(*pmd))
-+			dirty++;
-+
- 		spin_unlock(ptl);
- 	} else {
- 		pte_t *pte;
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d88413ccadcc..6557f0b36321 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -971,17 +971,25 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		 * Anonymous process memory has backing store?
- 		 * Try to allocate it some swap space here.
- 		 */
--		if (PageAnon(page) && !PageSwapCache(page) && !freeable) {
--			if (!(sc->gfp_mask & __GFP_IO))
--				goto keep_locked;
--			if (!add_to_swap(page, page_list))
--				goto activate_locked;
--			may_enter_fs = 1;
--
--			/* Adding to swap updated mapping */
--			mapping = page_mapping(page);
-+		if (PageAnon(page) && !PageSwapCache(page)) {
-+			if (!freeable) {
-+				if (!(sc->gfp_mask & __GFP_IO))
-+					goto keep_locked;
-+				if (!add_to_swap(page, page_list))
-+					goto activate_locked;
-+				may_enter_fs = 1;
-+				/* Adding to swap updated mapping */
-+				mapping = page_mapping(page);
-+			} else {
-+				if (likely(!PageTransHuge(page)))
-+					goto unmap;
-+				/* try_to_unmap isn't aware of THP page */
-+				if (unlikely(split_huge_page_to_list(page,
-+								page_list)))
-+					goto keep_locked;
-+			}
- 		}
--
-+unmap:
- 		/*
- 		 * The page is mapped into the page tables of one or more
- 		 * processes. Try to unmap it here.
 -- 
 2.0.0
 
