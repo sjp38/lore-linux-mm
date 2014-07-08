@@ -1,122 +1,209 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A8C06B0037
-	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 21:09:40 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id ft15so6232729pdb.35
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 18:09:40 -0700 (PDT)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id df8si5437770pdb.68.2014.07.07.18.09.37
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id CCD1D6B0037
+	for <linux-mm@kvack.org>; Mon,  7 Jul 2014 21:30:39 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id w10so6285341pde.10
+        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 18:30:39 -0700 (PDT)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id bp9si5449414pdb.91.2014.07.07.18.30.37
         for <linux-mm@kvack.org>;
-        Mon, 07 Jul 2014 18:09:39 -0700 (PDT)
-Date: Tue, 8 Jul 2014 10:09:36 +0900
+        Mon, 07 Jul 2014 18:30:38 -0700 (PDT)
+Date: Tue, 8 Jul 2014 10:30:38 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v10 6/7] ARM: add pmd_[dirty|mkclean] for THP
-Message-ID: <20140708010936.GC6076@bbox>
+Subject: Re: [PATCH v10 7/7] mm: Don't split THP page when syscall is called
+Message-ID: <20140708013038.GD6076@bbox>
 References: <1404694438-10272-1-git-send-email-minchan@kernel.org>
- <1404694438-10272-7-git-send-email-minchan@kernel.org>
- <20140707092247.GA15168@linaro.org>
+ <1404694438-10272-8-git-send-email-minchan@kernel.org>
+ <20140707111303.GC23150@node.dhcp.inet.fi>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="oyUTqETQ0mS9luUI"
-Content-Disposition: inline
-In-Reply-To: <20140707092247.GA15168@linaro.org>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Steve Capper <steve.capper@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org
-
-
---oyUTqETQ0mS9luUI
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
+In-Reply-To: <20140707111303.GC23150@node.dhcp.inet.fi>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On Mon, Jul 07, 2014 at 10:22:48AM +0100, Steve Capper wrote:
-> On Mon, Jul 07, 2014 at 09:53:57AM +0900, Minchan Kim wrote:
-> > MADV_FREE needs pmd_dirty and pmd_mkclean for detecting recent
-> > overwrite of the contents since MADV_FREE syscall is called for
-> > THP page.
+On Mon, Jul 07, 2014 at 02:13:03PM +0300, Kirill A. Shutemov wrote:
+> On Mon, Jul 07, 2014 at 09:53:58AM +0900, Minchan Kim wrote:
+> > We don't need to split THP page when MADV_FREE syscall is
+> > called. It could be done when VM decide really frees it so
+> > we could reduce the number of THP split.
 > > 
-> > This patch adds pmd_dirty and pmd_mkclean for THP page MADV_FREE
-> > support.
-> > 
-> > Cc: Catalin Marinas <catalin.marinas@arm.com>
-> > Cc: Will Deacon <will.deacon@arm.com>
-> > Cc: Steve Capper <steve.capper@linaro.org>
-> > Cc: Russell King <linux@arm.linux.org.uk>
-> > Cc: linux-arm-kernel@lists.infradead.org
 > > Signed-off-by: Minchan Kim <minchan@kernel.org>
 > > ---
-> >  arch/arm64/include/asm/pgtable.h | 2 ++
-> >  1 file changed, 2 insertions(+)
+> >  include/linux/huge_mm.h |  3 +++
+> >  mm/huge_memory.c        | 25 +++++++++++++++++++++++++
+> >  mm/madvise.c            | 19 +++++++++++++++++--
+> >  mm/rmap.c               |  4 ++++
+> >  mm/vmscan.c             | 24 ++++++++++++++++--------
+> >  5 files changed, 65 insertions(+), 10 deletions(-)
 > > 
-> > diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-> > index 579702086488..f3ec01cef04f 100644
-> > --- a/arch/arm64/include/asm/pgtable.h
-> > +++ b/arch/arm64/include/asm/pgtable.h
-> > @@ -240,10 +240,12 @@ static inline pmd_t pte_pmd(pte_t pte)
-> >  #endif
+> > diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+> > index 63579cb8d3dc..f0d37238cf8f 100644
+> > --- a/include/linux/huge_mm.h
+> > +++ b/include/linux/huge_mm.h
+> > @@ -19,6 +19,9 @@ extern struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
+> >  					  unsigned long addr,
+> >  					  pmd_t *pmd,
+> >  					  unsigned int flags);
+> > +extern int madvise_free_pmd(struct mmu_gather *tlb,
+> > +			struct vm_area_struct *vma,
+> > +			pmd_t *pmd, unsigned long addr);
+> >  extern int zap_huge_pmd(struct mmu_gather *tlb,
+> >  			struct vm_area_struct *vma,
+> >  			pmd_t *pmd, unsigned long addr);
+> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > index 5d562a9fe931..2a70069dcfc0 100644
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -1384,6 +1384,31 @@ out:
+> >  	return 0;
+> >  }
 > >  
-> >  #define pmd_young(pmd)		pte_young(pmd_pte(pmd))
-> > +#define pmd_dirty(pmd)		pte_dirty(pmd_pte(pmd))
-> >  #define pmd_wrprotect(pmd)	pte_pmd(pte_wrprotect(pmd_pte(pmd)))
-> >  #define pmd_mksplitting(pmd)	pte_pmd(pte_mkspecial(pmd_pte(pmd)))
-> >  #define pmd_mkold(pmd)		pte_pmd(pte_mkold(pmd_pte(pmd)))
-> >  #define pmd_mkwrite(pmd)	pte_pmd(pte_mkwrite(pmd_pte(pmd)))
-> > +#define pmd_mkclean(pmd)	pte_pmd(pte_mkclean(pmd_pte(pmd)))
-> >  #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
-> >  #define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
-> >  #define pmd_mknotpresent(pmd)	(__pmd(pmd_val(pmd) & ~PMD_TYPE_MASK))
+> > +int madvise_free_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+> > +		 pmd_t *pmd, unsigned long addr)
+> > +{
+> > +	spinlock_t *ptl;
+> > +	int ret = 0;
+> > +
+> > +	if (__pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
+> > +		pmd_t orig_pmd;
+> > +		struct mm_struct *mm = vma->vm_mm;
+> > +
+> > +		/* No hugepage in swapcache */
+> > +		VM_BUG_ON(PageSwapCache(pmd_page(orig_pmd)));
+> 
+> VM_BUG_ON_PAGE() ?
+
+NP.
+
+> 
+> > +
+> > +		orig_pmd = pmdp_get_and_clear(tlb->mm, addr, pmd);
+> > +		orig_pmd = pmd_mkold(orig_pmd);
+> > +		orig_pmd = pmd_mkclean(orig_pmd);
+> > +
+> > +		set_pmd_at(mm, addr, pmd, orig_pmd);
+> > +		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
+> > +		spin_unlock(ptl);
+> > +		ret = 1;
+> > +	}
+> > +	return ret;
+> > +}
+> > +
+> >  int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+> >  		 pmd_t *pmd, unsigned long addr)
+> >  {
+> > diff --git a/mm/madvise.c b/mm/madvise.c
+> > index 372a25a8ea82..3c99919ee094 100644
+> > --- a/mm/madvise.c
+> > +++ b/mm/madvise.c
+> > @@ -320,8 +320,23 @@ static inline unsigned long madvise_free_pmd_range(struct mmu_gather *tlb,
+> >  		 * if the range covers.
+> >  		 */
+> >  		next = pmd_addr_end(addr, end);
+> > -		if (pmd_trans_huge(*pmd))
+> > -			split_huge_page_pmd(vma, addr, pmd);
+> > +		if (pmd_trans_huge(*pmd)) {
+> > +			if (next - addr != HPAGE_PMD_SIZE) {
+> > +#ifdef CONFIG_DEBUG_VM
+> > +				if (!rwsem_is_locked(&tlb->mm->mmap_sem)) {
+> > +					pr_err("%s: mmap_sem is unlocked! addr=0x%lx end=0x%lx vma->vm_start=0x%lx vma->vm_end=0x%lx\n",
+> > +						__func__, addr, end,
+> > +						vma->vm_start,
+> > +						vma->vm_end);
+> > +					BUG();
+> > +				}
+> > +#endif
+> > +				split_huge_page_pmd(vma, addr, pmd);
+> > +			} else if (madvise_free_pmd(tlb, vma, pmd, addr))
+> > +				goto next;
+> > +			/* fall through */
+> > +		}
+> > +
+> >  		/*
+> >  		 * Here there can be other concurrent MADV_DONTNEED or
+> >  		 * trans huge page faults running, and if the pmd is
+> > diff --git a/mm/rmap.c b/mm/rmap.c
+> > index ee495d84c8b3..3c415eb8b6f0 100644
+> > --- a/mm/rmap.c
+> > +++ b/mm/rmap.c
+> > @@ -702,6 +702,10 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+> >  		/* go ahead even if the pmd is pmd_trans_splitting() */
+> >  		if (pmdp_clear_flush_young_notify(vma, address, pmd))
+> >  			referenced++;
+> > +
+> > +		if (pmd_dirty(*pmd))
+> > +			dirty++;
+> > +
+> >  		spin_unlock(ptl);
+> >  	} else {
+> >  		pte_t *pte;
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index f7a45600846f..4e15babf4414 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -971,15 +971,23 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+> >  		 * Anonymous process memory has backing store?
+> >  		 * Try to allocate it some swap space here.
+> >  		 */
+> > -		if (PageAnon(page) && !PageSwapCache(page) && !freeable) {
+> > -			if (!(sc->gfp_mask & __GFP_IO))
+> > -				goto keep_locked;
+> > -			if (!add_to_swap(page, page_list))
+> > -				goto activate_locked;
+> > -			may_enter_fs = 1;
+> > +		if (PageAnon(page) && !PageSwapCache(page)) {
+> > +			if (!freeable) {
+> > +				if (!(sc->gfp_mask & __GFP_IO))
+> > +					goto keep_locked;
+> > +				if (!add_to_swap(page, page_list))
+> > +					goto activate_locked;
+> > +				may_enter_fs = 1;
+> >  
+> > -			/* Adding to swap updated mapping */
+> > -			mapping = page_mapping(page);
+> > +				/* Adding to swap updated mapping */
+> > +				mapping = page_mapping(page);
+> > +			} else {
+> > +				if (unlikely(PageTransHuge(page))) {
+> > +					if (unlikely(split_huge_page_to_list(
+> > +						page, page_list)))
+> > +						goto keep_locked;
+> 
+> Hm. It would be better to free the huge page without splitting. 
+> It shouldn't be a big deal: walk over rmap and zap all pmds.
+> Or I miss something?
+
+Actually, I did but found no problem except CONFIG_DEBUG_VM but rollback
+after peeking [1].
+When I read the description in detail by your review, I think we can remove
+BUG_ON(PageTransHuge(page)) in try_to_unmap and go with no split for lazyfree
+page because they are not in swapcache any more so the assumption of [1] is
+not valid. Will do it in next revision.
+
+Thanks for the review, Kirill!
+
+[1] thp: split_huge_page paging, 3f04f62f9
+
+
+> 
+> > +				}
+> > +			}
+> >  		}
+> >  
+> >  		/*
 > > -- 
 > > 2.0.0
-> >
+> > 
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-api" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
 > 
-> Hi Minchan,
-
-Hello Steve and Will,
-
-> 
-> This looks good to me too.
-> As Will said this applies to arm64, we will also need a version for:
-> arch/arm/include/asm/pgtable-3level.h.
-
-Does it work?
-
-diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
-index 85c60adc8b60..3a7bb8dc7d05 100644
---- a/arch/arm/include/asm/pgtable-3level.h
-+++ b/arch/arm/include/asm/pgtable-3level.h
-@@ -220,6 +220,8 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
- #define pmd_trans_splitting(pmd) (pmd_val(pmd) & PMD_SECT_SPLITTING)
- #endif
- 
-+#define pmd_dirty	(pmd_val(pmd) & PMD_SECT_DIRTY)
-+
- #define PMD_BIT_FUNC(fn,op) \
- static inline pmd_t pmd_##fn(pmd_t pmd) { pmd_val(pmd) op; return pmd; }
- 
-@@ -228,6 +230,7 @@ PMD_BIT_FUNC(mkold,	&= ~PMD_SECT_AF);
- PMD_BIT_FUNC(mksplitting, |= PMD_SECT_SPLITTING);
- PMD_BIT_FUNC(mkwrite,   &= ~PMD_SECT_RDONLY);
- PMD_BIT_FUNC(mkdirty,   |= PMD_SECT_DIRTY);
-+PMD_BIT_FUNC(mkclean,   &= ~PMD_SECT_DIRTY);
- PMD_BIT_FUNC(mkyoung,   |= PMD_SECT_AF);
- 
- #define pmd_mkhuge(pmd)		(__pmd(pmd_val(pmd) & ~PMD_TABLE_BIT))
--- 
-2.0.0
-
-> 
-> Is there a testcase we can run to check that this patch set is working
-> well for arm/arm64?
-
-I just run several instance of attached simple stress with heavy kernel
-build in parallel on 1G RAM machine.
-
-Thanks for the review!
-
-> 
-> Cheers,
 > -- 
-> Steve 
+>  Kirill A. Shutemov
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
@@ -127,95 +214,6 @@ Thanks for the review!
 -- 
 Kind regards,
 Minchan Kim
-
---oyUTqETQ0mS9luUI
-Content-Type: text/x-csrc; charset=utf-8
-Content-Disposition: attachment; filename="thp_alloc.c"
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <string.h>
-#include <pthread.h>
-
-#define CHUNK_SIZE (20<<20)
-#define SLEEP_TIME_SEC 	2
-#define NUM_THREAD	12
-#define QUIT		1000
-
-int quit;
-
-void alloc_thp()
-{
-	int i;
-	int ret;
-	char *ptr;
-
-	/* should be aligned with 2M which is THP page size */
-	ret = posix_memalign((void**)&ptr, 2<<20, CHUNK_SIZE);
-	if (ret) {
-		fprintf(stderr, "fail to allocate\n");
-		return;
-	}
-		
-	memset(ptr, 'a', CHUNK_SIZE);
-	ret = madvise(ptr, CHUNK_SIZE, 5);
-	if (ret) {
-		perror("fail to madvise");
-		return;
-	}
-
-	sleep(SLEEP_TIME_SEC);
-
-	memset(ptr, 'b', CHUNK_SIZE);
-	sleep(SLEEP_TIME_SEC);
-
-	for (i = 0; i < CHUNK_SIZE; i++) {
-		if (ptr[i] != 'b') {
-			fprintf(stderr, "fail to verify\n");
-			fprintf(stderr, "Something wrong\n");
-			return;
-		}
-	}
-
-	free(ptr);
-}
-
-void *thread_alloc(void *priv)
-{
-	int n = 0;
-
-	while(!quit) {
-		alloc_thp();
-		if (!(n++ % 5))
-			printf("I'm working\n");
-		if (n == QUIT)
-			return;
-	}
-}
-
-int main()
-{
-	int i, ret;
-	pthread_t thread[NUM_THREAD];
-
-	for (i = 0; i < NUM_THREAD; i++) {
-		ret = pthread_create(&thread[i], NULL, thread_alloc, NULL);
-		if (ret) {
-			perror("fail to create thread\n");
-			return 1;
-		}
-	}
-
-	scanf("%d", &quit);
-	for (i = 0; i < NUM_THREAD; i++)
-		pthread_join(thread[i], NULL);
-
-	printf("Test Done\n");	
-	return 0;
-}
-
---oyUTqETQ0mS9luUI--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
