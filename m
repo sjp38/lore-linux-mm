@@ -1,105 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 97DF56B0031
-	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 02:03:46 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id rd3so6757867pab.32
-        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 23:03:46 -0700 (PDT)
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D7CE6B0036
+	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 02:03:48 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id r10so6538718pdi.23
+        for <linux-mm@kvack.org>; Mon, 07 Jul 2014 23:03:48 -0700 (PDT)
 Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id qo1si5666137pdb.254.2014.07.07.23.03.43
+        by mx.google.com with ESMTP id bf15si5671061pdb.323.2014.07.07.23.03.45
         for <linux-mm@kvack.org>;
-        Mon, 07 Jul 2014 23:03:45 -0700 (PDT)
+        Mon, 07 Jul 2014 23:03:47 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v11 0/7] MADV_FREE support
-Date: Tue,  8 Jul 2014 15:03:37 +0900
-Message-Id: <1404799424-1120-1-git-send-email-minchan@kernel.org>
+Subject: [PATCH v11 5/7] s390: add pmd_[dirty|mkclean] for THP
+Date: Tue,  8 Jul 2014 15:03:42 +0900
+Message-Id: <1404799424-1120-6-git-send-email-minchan@kernel.org>
+In-Reply-To: <1404799424-1120-1-git-send-email-minchan@kernel.org>
+References: <1404799424-1120-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Minchan Kim <minchan@kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Dominik Dingel <dingel@linux.vnet.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>, linux-s390@vger.kernel.org
 
-This patch enable MADV_FREE hint for madvise syscall, which have
-been supported by other OSes. [PATCH 1] includes the details.
+MADV_FREE needs pmd_dirty and pmd_mkclean for detecting recent
+overwrite of the contents since MADV_FREE syscall is called for
+THP page but for s390 pmds only referenced bit is available
+because there is no free bit left in the pmd entry for the
+software dirty bit so this patch adds dumb pmd_dirty which
+returns always true by suggesting by Martin.
 
-[1] support MADVISE_FREE for !THP page so if VM encounter
-THP page in syscall context, it splits THP page.
-[2-6] is to preparing to call madvise syscall without THP plitting
-[7] enable THP page support for MADV_FREE.
+They finally find a solution in future.
+http://marc.info/?l=linux-api&m=140440328820808&w=2
 
-* From v10
- * Add Acked-by from arch stuff(x86, s390)
- * Pagewalker based pagetable working - Kirill
- * Fix try_to_unmap_one broken with hwpoison - Kirill
- * Use VM_BUG_ON_PAGE in madvise_free_pmd - Kirill
- * Fix pgtable-3level.h for arm - Steve
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Dominik Dingel <dingel@linux.vnet.ibm.com>
+Cc: Christian Borntraeger <borntraeger@de.ibm.com>
+Cc: linux-s390@vger.kernel.org
+Acked-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ arch/s390/include/asm/pgtable.h | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
 
-* From v9
- * Add Acked-by - Rik
- * Add THP page support - Kirill
- * Rebased-on v3.16-rc3-mmotm-2014-07-02-15-07
-
-* From v8
- * Rebased-on v3.16-rc2-mmotm-2014-06-25-16-44
-
-* From v7
- * Rebased-on next-20140613
+diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
+index fcba5e03839f..9862fcb0592b 100644
+--- a/arch/s390/include/asm/pgtable.h
++++ b/arch/s390/include/asm/pgtable.h
+@@ -1586,6 +1586,18 @@ static inline pmd_t pmd_mkdirty(pmd_t pmd)
+ 	return pmd;
+ }
  
-* From v6
- * Remove page from swapcache in syscal time
- * Move utility functions from memory.c to madvise.c - Johannes
- * Rename untilify functtions - Johannes
- * Remove unnecessary checks from vmscan.c - Johannes
- * Rebased-on v3.15-rc5-mmotm-2014-05-16-16-56
- * Drop Reviewe-by because there was some changes since then.
-
-* From v5
- * Fix PPC problem which don't flush TLB - Rik
- * Remove unnecessary lazyfree_range stub function - Rik
- * Rebased on v3.15-rc5
-
-* From v4
- * Add Reviewed-by: Zhang Yanfei
- * Rebase on v3.15-rc1-mmotm-2014-04-15-16-14
-
-* From v3
- * Add "how to work part" in description - Zhang
- * Add page_discardable utility function - Zhang
- * Clean up
-
-* From v2
- * Remove forceful dirty marking of swap-readed page - Johannes
- * Remove deactivation logic of lazyfreed page
- * Rebased on 3.14
- * Remove RFC tag
-
-* From v1
- * Use custom page table walker for madvise_free - Johannes
- * Remove PG_lazypage flag - Johannes
- * Do madvise_dontneed instead of madvise_freein swapless system
-
-Minchan Kim (7):
-  [1] mm: support madvise(MADV_FREE)
-  [2] x86: add pmd_[dirty|mkclean] for THP
-  [3] sparc: add pmd_[dirty|mkclean] for THP
-  [4] powerpc: add pmd_[dirty|mkclean] for THP
-  [5] s390: add pmd_[dirty|mkclean] for THP
-  [6] ARM: add pmd_[dirty|mkclean] for THP
-  [7] mm: Don't split THP page when syscall is called
-
- arch/arm/include/asm/pgtable-3level.h    |   3 +
- arch/arm64/include/asm/pgtable.h         |   2 +
- arch/powerpc/include/asm/pgtable-ppc64.h |   2 +
- arch/s390/include/asm/pgtable.h          |  12 +++
- arch/sparc/include/asm/pgtable_64.h      |  16 ++++
- arch/x86/include/asm/pgtable.h           |  10 ++
- include/linux/rmap.h                     |   9 +-
- include/linux/vm_event_item.h            |   1 +
- include/uapi/asm-generic/mman-common.h   |   1 +
- mm/madvise.c                             | 153 +++++++++++++++++++++++++++++++
- mm/rmap.c                                |  41 ++++++++-
- mm/vmscan.c                              |  64 +++++++++----
- mm/vmstat.c                              |   1 +
- 13 files changed, 295 insertions(+), 20 deletions(-)
-
++static inline int pmd_dirty(pmd_t pmd)
++{
++	/* No dirty bit in the segment table entry */
++	return 1;
++}
++
++static inline pmd_t pmd_mkclean(pmd_t pmd)
++{
++	/* No dirty bit in the segment table entry */
++	return pmd;
++}
++
+ #define __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
+ static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
+ 					    unsigned long address, pmd_t *pmdp)
 -- 
 2.0.0
 
