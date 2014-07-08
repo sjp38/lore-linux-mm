@@ -1,49 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 12D4F6B0031
-	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 16:40:19 -0400 (EDT)
-Received: by mail-la0-f54.google.com with SMTP id mc6so4322447lab.41
-        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 13:40:19 -0700 (PDT)
-Received: from mail-lb0-x22f.google.com (mail-lb0-x22f.google.com [2a00:1450:4010:c04::22f])
-        by mx.google.com with ESMTPS id ll12si26691236lac.83.2014.07.08.13.40.18
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id CD45A6B0031
+	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 16:41:39 -0400 (EDT)
+Received: by mail-ig0-f177.google.com with SMTP id r10so1118147igi.10
+        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 13:41:39 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id cf10si33268699icc.76.2014.07.08.13.41.38
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 08 Jul 2014 13:40:18 -0700 (PDT)
-Received: by mail-lb0-f175.google.com with SMTP id n15so4318137lbi.20
-        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 13:40:18 -0700 (PDT)
-Date: Wed, 9 Jul 2014 00:40:17 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [PATCH] mm: Don't forget to set softdirty on file mapped fault
-Message-ID: <20140708204017.GG17860@moon.sw.swsoft.com>
-References: <20140708192151.GD17860@moon.sw.swsoft.com>
- <20140708131920.2a857d573e8cc89780c9fa1c@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140708131920.2a857d573e8cc89780c9fa1c@linux-foundation.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Jul 2014 13:41:38 -0700 (PDT)
+Date: Tue, 8 Jul 2014 13:41:36 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: update the description for vm_total_pages
+Message-Id: <20140708134136.597fbd11309d1e376eeb241c@linux-foundation.org>
+In-Reply-To: <53BB8553.10508@gmail.com>
+References: <53BB8553.10508@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Pavel Emelyanov <xemul@parallels.com>
+To: Wang Sheng-Hui <shhuiw@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, Glauber Costa <glommer@openvz.org>, Dave Chinner <dchinner@redhat.com>, linux-mm@kvack.org
 
-On Tue, Jul 08, 2014 at 01:19:20PM -0700, Andrew Morton wrote:
-> On Tue, 8 Jul 2014 23:21:51 +0400 Cyrill Gorcunov <gorcunov@gmail.com> wrote:
-> 
-> > Otherwise we may not notice that pte was softdirty because pte_mksoft_dirty
-> > helper _returns_ new pte but not modifies argument.
-> 
-> When fixing a bug, please describe the end-user visible effects of that
-> bug.
-> 
-> [for the 12,000th time :(]
+On Tue, 08 Jul 2014 13:44:51 +0800 Wang Sheng-Hui <shhuiw@gmail.com> wrote:
 
-"we may not notice that pte was softdirty" I thought it's enough, because
-that's the effect user sees -- pte is not dirtified where it should.
+> 
+> vm_total_pages is calculated by nr_free_pagecache_pages(), which counts
+> the number of pages which are beyond the high watermark within all zones.
+> So vm_total_pages is not equal to total number of pages which the VM controls.
+> 
+> ...
+>
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -136,7 +136,11 @@ struct scan_control {
+>   * From 0 .. 100.  Higher means more swappy.
+>   */
+>  int vm_swappiness = 60;
+> -unsigned long vm_total_pages;  /* The total number of pages which the VM controls */
+> +/*
+> + * The total number of pages which are beyond the high watermark
+> + * within all zones.
+> + */
+> +unsigned long vm_total_pages;
+> 
+>  static LIST_HEAD(shrinker_list);
+>  static DECLARE_RWSEM(shrinker_rwsem);
 
-Really sorry Andrew if I were not clear enough. What about: In case if page
-fault happend on dirty filemapping the newly created pte may not
-notice if old one were already softdirtified because pte_mksoft_dirty
-doesn't modify its argument but rather returns new pte value.
+Nice patch!  It's good to document these little things as one discovers
+them.
+
+However vm_total_pages is only ever used in build_all_zonelists() and
+could be made a local within that function.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
