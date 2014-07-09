@@ -1,60 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f170.google.com (mail-lb0-f170.google.com [209.85.217.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 92F7A6B0037
-	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 20:15:23 -0400 (EDT)
-Received: by mail-lb0-f170.google.com with SMTP id 10so4521719lbg.1
-        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 17:15:22 -0700 (PDT)
-Received: from mail-lb0-x233.google.com (mail-lb0-x233.google.com [2a00:1450:4010:c04::233])
-        by mx.google.com with ESMTPS id tt9si77511176lbb.5.2014.07.08.17.15.22
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AF9C6B0031
+	for <linux-mm@kvack.org>; Tue,  8 Jul 2014 21:43:41 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id et14so8345218pad.13
+        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 18:43:40 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id x7si6725414pdj.176.2014.07.08.18.43.39
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 08 Jul 2014 17:15:22 -0700 (PDT)
-Received: by mail-lb0-f179.google.com with SMTP id z11so4411337lbi.24
-        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 17:15:22 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 08 Jul 2014 18:43:39 -0700 (PDT)
+Message-ID: <53BC9E48.7040809@codeaurora.org>
+Date: Tue, 08 Jul 2014 18:43:36 -0700
+From: Laura Abbott <lauraa@codeaurora.org>
 MIME-Version: 1.0
-From: Lucas Tanure <tanure@linux.com>
-Date: Tue, 8 Jul 2014 21:15:06 -0300
-Message-ID: <CAJyon0sdzot-JW+geChX7MoLF4PGrcbjRZVm+6=9wn1MxU32dg@mail.gmail.com>
-Subject: Newbie start
-Content-Type: multipart/alternative; boundary=001a1133678aa17d9804fdb79a71
+Subject: arm64 flushing 255GB of vmalloc space takes too long
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-
---001a1133678aa17d9804fdb79a71
-Content-Type: text/plain; charset=UTF-8
+To: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux Memory Management List <linux-mm@kvack.org>
 
 Hi,
 
-I am new to this mailing list, and I would like to participate on MM
-subsystem.
-So, there any start task for newbies, or someone needing help ?
+I have an arm64 target which has been observed hanging in __purge_vmap_area_lazy
+in vmalloc.c The root cause of this 'hang' is that flush_tlb_kernel_range is
+attempting to flush 255GB of virtual address space. This takes ~2 seconds and
+preemption is disabled at this time thanks to the purge lock. Disabling
+preemption for that time is long enough to trigger a watchdog we have setup.
 
-Arch Linux user. On task 06 of Eudyptula challenge.
-Linkedin : http://www.linkedin.com/in/lucastanure
+Triggering this is fairly easy:
+1) Early in bootup, vmalloc > lazy_max_pages. This gives an address near the
+start of the vmalloc range.
+2) load a module
+3) vfree the vmalloc region from step 1
+4) unload the module
 
-Kind Regards,
-Thanks
+The arm64 virtual address layout looks like
+vmalloc : 0xffffff8000000000 - 0xffffffbbffff0000   (245759 MB)
+vmemmap : 0xffffffbc02400000 - 0xffffffbc03600000   (    18 MB)
+modules : 0xffffffbffc000000 - 0xffffffc000000000   (    64 MB)
 
---
-Lucas Tanure
-+55 (19) 988176559
+and the algorithm in __purge_vmap_area_lazy flushes between the lowest address.
+Essentially, if we are using a reasonable amount of vmalloc space and a module
+unload triggers a vmalloc purge, we will end up triggering our watchdog.
 
---001a1133678aa17d9804fdb79a71
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+A couple of options I thought of:
+1) Increase the timeout of our watchdog to allow the flush to occur. Nobody
+I suggested this to likes the idea as the watchdog firing generally catches
+behavior that results in poor system performance and disabling preemption
+for that long does seem like a problem.
+2) Change __purge_vmap_area_lazy to do less work under a spinlock. This would
+certainly have a performance impact and I don't even know if it is plausible.
+3) Allow module unloading to trigger a vmalloc purge beforehand to help avoid
+this case. This would still be racy if another vfree came in during the time
+between the purge and the vfree but it might be good enough.
+4) Add 'if size > threshold flush entire tlb' (I haven't profiled this yet)
 
-<div dir=3D"ltr">Hi,<br><br>I am new to this mailing list, and I would like=
- to participate on MM subsystem.<br>So, there any start task for newbies, o=
-r someone needing help ?<div><br></div><div>Arch Linux user. On task 06 of =
-Eudyptula challenge.=C2=A0</div>
 
-<div>Linkedin :=C2=A0<a href=3D"http://www.linkedin.com/in/lucastanure">htt=
-p://www.linkedin.com/in/lucastanure</a><br><br>Kind Regards,<div>Thanks<br>=
-<br>--<br>Lucas Tanure <br>+55 (19) 988176559
-</div></div></div>
+Any other thoughts?
 
---001a1133678aa17d9804fdb79a71--
+Thanks,
+Laura
+-- 
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
