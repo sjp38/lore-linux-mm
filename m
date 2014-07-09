@@ -1,80 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 495BD6B0031
-	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 12:36:55 -0400 (EDT)
-Received: by mail-la0-f44.google.com with SMTP id ty20so5292336lab.31
-        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 09:36:54 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id y8si29763454lal.87.2014.07.09.09.36.53
+Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 38F066B0035
+	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 12:53:48 -0400 (EDT)
+Received: by mail-ob0-f172.google.com with SMTP id uy5so8486879obc.31
+        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 09:53:47 -0700 (PDT)
+Received: from mail-ob0-x235.google.com (mail-ob0-x235.google.com [2607:f8b0:4003:c01::235])
+        by mx.google.com with ESMTPS id pz3si64456388oec.16.2014.07.09.09.53.46
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jul 2014 09:36:53 -0700 (PDT)
-Date: Wed, 9 Jul 2014 20:36:31 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH RFC 0/5] Virtual Memory Resource Controller for cgroups
-Message-ID: <20140709163631.GG6685@esperanza>
-References: <cover.1404383187.git.vdavydov@parallels.com>
- <20140709075252.GB31067@esperanza>
- <CAAAKZwsRDb6a062SFZYv-1SDYyD12uTzVMpdZt0CtdDjoddNVg@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 09 Jul 2014 09:53:47 -0700 (PDT)
+Received: by mail-ob0-f181.google.com with SMTP id wp4so8535234obc.12
+        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 09:53:46 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <CAAAKZwsRDb6a062SFZYv-1SDYyD12uTzVMpdZt0CtdDjoddNVg@mail.gmail.com>
+From: Eric Miao <eric.y.miao@gmail.com>
+Date: Wed, 9 Jul 2014 09:53:26 -0700
+Message-ID: <CAMPhdO-j5SfHexP8hafB2EQVs91TOqp_k_SLwWmo9OHVEvNWiQ@mail.gmail.com>
+Subject: Re: arm64 flushing 255GB of vmalloc space takes too long
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Hockin <thockin@hockin.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Balbir Singh <bsingharora@gmail.com>
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux Memory Management List <linux-mm@kvack.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Russell King <linux@arm.linux.org.uk>
 
-Hi Tim,
+On Tue, Jul 8, 2014 at 6:43 PM, Laura Abbott <lauraa@codeaurora.org> wrote:
+>
+> Hi,
+>
+> I have an arm64 target which has been observed hanging in __purge_vmap_area_lazy
+> in vmalloc.c The root cause of this 'hang' is that flush_tlb_kernel_range is
+> attempting to flush 255GB of virtual address space. This takes ~2 seconds and
+> preemption is disabled at this time thanks to the purge lock. Disabling
+> preemption for that time is long enough to trigger a watchdog we have setup.
+>
+> Triggering this is fairly easy:
+> 1) Early in bootup, vmalloc > lazy_max_pages. This gives an address near the
+> start of the vmalloc range.
+> 2) load a module
+> 3) vfree the vmalloc region from step 1
+> 4) unload the module
+>
+> The arm64 virtual address layout looks like
+> vmalloc : 0xffffff8000000000 - 0xffffffbbffff0000   (245759 MB)
+> vmemmap : 0xffffffbc02400000 - 0xffffffbc03600000   (    18 MB)
+> modules : 0xffffffbffc000000 - 0xffffffc000000000   (    64 MB)
+>
+> and the algorithm in __purge_vmap_area_lazy flushes between the lowest address.
+> Essentially, if we are using a reasonable amount of vmalloc space and a module
+> unload triggers a vmalloc purge, we will end up triggering our watchdog.
+>
+> A couple of options I thought of:
+> 1) Increase the timeout of our watchdog to allow the flush to occur. Nobody
+> I suggested this to likes the idea as the watchdog firing generally catches
+> behavior that results in poor system performance and disabling preemption
+> for that long does seem like a problem.
+> 2) Change __purge_vmap_area_lazy to do less work under a spinlock. This would
+> certainly have a performance impact and I don't even know if it is plausible.
+> 3) Allow module unloading to trigger a vmalloc purge beforehand to help avoid
+> this case. This would still be racy if another vfree came in during the time
+> between the purge and the vfree but it might be good enough.
+> 4) Add 'if size > threshold flush entire tlb' (I haven't profiled this yet)
 
-On Wed, Jul 09, 2014 at 08:08:07AM -0700, Tim Hockin wrote:
-> How is this different from RLIMIT_AS?  You specifically mentioned it
-> earlier but you don't explain how this is different.
+We have the same problem. I'd agree with point 2 and point 4, point 1/3 do not
+actually fix this issue. purge_vmap_area_lazy() could be called in other
+cases.
 
-The main difference is that RLIMIT_AS is per process while this
-controller is per cgroup. RLIMIT_AS doesn't allow us to limit VSIZE for
-a group of unrelated or cooperating through shmem processes.
+w.r.t the threshold to flush entire tlb instead of doing that page-by-page, that
+could be different from platform to platform. And considering the cost of tlb
+flush on x86, I wonder why this isn't an issue on x86.
 
-Also RLIMIT_AS accounts for total VM usage (including file mappings),
-while this only charges private writable and shared mappings, whose
-faulted-in pages always occupy mem+swap and therefore cannot be just
-synced and dropped like file pages. In other words, this controller
-works exactly as the global overcommit control.
+The whole __purge_vmap_area_lazy() is protected by a single spinlock, I
+see no reason why a mutex cannot be used there, this allows preemption
+during this likely lengthy process.
 
-> From my perspective, this is pointless.  There's plenty of perfectly
-> correct software that mmaps files without concern for VSIZE, because
-> they never fault most of those pages in.
+The rbtree removal seems to be heavy too - worst case would be to call
+__free_vmap_area() for lazy_max_pages times. And they are all protected
+by a single spinlock for the whole traversal, which is not necessary.
 
-But there's also software that correctly handles ENOMEM returned by
-mmap. For example, mongodb keeps growing its buffers until mmap fails.
-Therefore, if there's no overcommit control, it will be OOM-killed
-sooner or later, which may be pretty annoying. And we did have customers
-complaining about that.
+CC+ Russell, Catalin, Will.
 
-> From my observations it is not generally possible to predict an
-> average VSIZE limit that would satisfy your concerns *and* not kill
-> lots of valid apps.
+We have a patch as below:
 
-Yes, it's difficult. Actually, we can only guess. Nevertheless, we
-predict and set the VSIZE limit system-wide by default.
-
-> It sounds like what you want is to limit or even disable swap usage.
-
-I want to avoid OOM kill if it's possible to return ENOMEM. OOM can be
-painful. It can kill lots of innocent processes. Of course, the user can
-protect some processes by setting oom_score_adj, but this is difficult
-and requires time and expertise, so an average user won't do that.
-
-> Given your example, your hypothetical user would probably be better of
-> getting an OOM kill early so she can fix her job spec to request more
-> memory.
-
-In my example the user won't get OOM kill *early*...
-
-Thanks.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+============================ >8 =========================
