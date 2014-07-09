@@ -1,101 +1,295 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BF946B0035
-	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 14:05:01 -0400 (EDT)
-Received: by mail-ob0-f176.google.com with SMTP id wo20so777782obc.35
-        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 11:05:00 -0700 (PDT)
-Received: from mail-ob0-x22e.google.com (mail-ob0-x22e.google.com [2607:f8b0:4003:c01::22e])
-        by mx.google.com with ESMTPS id ik8si64686365obc.39.2014.07.09.11.04.59
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 09 Jul 2014 11:05:00 -0700 (PDT)
-Received: by mail-ob0-f174.google.com with SMTP id va2so8456553obc.19
-        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 11:04:59 -0700 (PDT)
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id DBA7B6B0035
+	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 15:30:20 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id y13so9406880pdi.41
+        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 12:30:20 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id sg10si46685870pbb.249.2014.07.09.12.30.18
+        for <linux-mm@kvack.org>;
+        Wed, 09 Jul 2014 12:30:19 -0700 (PDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [RFC/PATCH RESEND -next 01/21] Add kernel address sanitizer infrastructure.
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+	<1404905415-9046-2-git-send-email-a.ryabinin@samsung.com>
+Date: Wed, 09 Jul 2014 12:29:26 -0700
+In-Reply-To: <1404905415-9046-2-git-send-email-a.ryabinin@samsung.com> (Andrey
+	Ryabinin's message of "Wed, 09 Jul 2014 15:29:55 +0400")
+Message-ID: <87pphenxex.fsf@tassilo.jf.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20140709174055.GC2814@arm.com>
-References: <CAMPhdO-j5SfHexP8hafB2EQVs91TOqp_k_SLwWmo9OHVEvNWiQ@mail.gmail.com>
- <20140709174055.GC2814@arm.com>
-From: Eric Miao <eric.y.miao@gmail.com>
-Date: Wed, 9 Jul 2014 11:04:39 -0700
-Message-ID: <CAMPhdO_XqAL4oXcuJkp2PTQ-J07sGG4Nm5HjHO=yGqS+KuWQzg@mail.gmail.com>
-Subject: Re: arm64 flushing 255GB of vmalloc space takes too long
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Laura Abbott <lauraa@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux Memory Management List <linux-mm@kvack.org>, Will Deacon <Will.Deacon@arm.com>, Russell King <linux@arm.linux.org.uk>
+To: Andrey Ryabinin <a.ryabinin@samsung.com>
+Cc: linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Alexey Preobrazhensky <preobr@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Russell King <linux@arm.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kbuild@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, linux-mm@kvack.org
 
-On Wed, Jul 9, 2014 at 10:40 AM, Catalin Marinas
-<catalin.marinas@arm.com> wrote:
-> On Wed, Jul 09, 2014 at 05:53:26PM +0100, Eric Miao wrote:
->> On Tue, Jul 8, 2014 at 6:43 PM, Laura Abbott <lauraa@codeaurora.org> wrote:
->> > I have an arm64 target which has been observed hanging in __purge_vmap_area_lazy
->> > in vmalloc.c The root cause of this 'hang' is that flush_tlb_kernel_range is
->> > attempting to flush 255GB of virtual address space. This takes ~2 seconds and
->> > preemption is disabled at this time thanks to the purge lock. Disabling
->> > preemption for that time is long enough to trigger a watchdog we have setup.
->
-> That's definitely not good.
->
->> > A couple of options I thought of:
->> > 1) Increase the timeout of our watchdog to allow the flush to occur. Nobody
->> > I suggested this to likes the idea as the watchdog firing generally catches
->> > behavior that results in poor system performance and disabling preemption
->> > for that long does seem like a problem.
->> > 2) Change __purge_vmap_area_lazy to do less work under a spinlock. This would
->> > certainly have a performance impact and I don't even know if it is plausible.
->> > 3) Allow module unloading to trigger a vmalloc purge beforehand to help avoid
->> > this case. This would still be racy if another vfree came in during the time
->> > between the purge and the vfree but it might be good enough.
->> > 4) Add 'if size > threshold flush entire tlb' (I haven't profiled this yet)
->>
->> We have the same problem. I'd agree with point 2 and point 4, point 1/3 do not
->> actually fix this issue. purge_vmap_area_lazy() could be called in other
->> cases.
->
-> I would also discard point 2 as it still takes ~2 seconds, only that not
-> under a spinlock.
->
+Andrey Ryabinin <a.ryabinin@samsung.com> writes:
 
-Point is - we could still end up a good amount of time in that function,
-giving the default value of lazy_vfree_pages to be 32MB * log(ncpu),
-worst case of all vmap areas being only one page, tlb flush page by
-page, and traversal of the list, calling __free_vmap_area() that many
-times won't likely to reduce the execution time to microsecond level.
+Seems like a useful facility. Thanks for working on it. Overall the code
+looks fairly good. Some comments below.
 
-If it's something inevitable - we do it in a bit cleaner way.
 
->> w.r.t the threshold to flush entire tlb instead of doing that page-by-page, that
->> could be different from platform to platform. And considering the cost of tlb
->> flush on x86, I wonder why this isn't an issue on x86.
->
-> The current __purge_vmap_area_lazy() was done as an optimisation (commit
-> db64fe02258f1) to avoid IPIs. So flush_tlb_kernel_range() would only be
-> IPI'ed once.
->
-> IIUC, the problem is how start/end are computed in
-> __purge_vmap_area_lazy(), so even if you have only two vmap areas, if
-> they are 255GB apart you've got this problem.
+> +
+> +Address sanitizer for kernel (KASAN) is a dynamic memory error detector. It provides
+> +fast and comprehensive solution for finding use-after-free and out-of-bounds bugs.
+> +
+> +KASAN is better than all of CONFIG_DEBUG_PAGEALLOC, because it:
+> + - is based on compiler instrumentation (fast),
+> + - detects OOB for both writes and reads,
+> + - provides UAF detection,
 
-Indeed.
+Please expand the acronym.
 
->
-> One temporary option is to limit the vmalloc space on arm64 to something
-> like 2 x RAM-size (haven't looked at this yet). But if you get a
-> platform with lots of RAM, you hit this problem again.
->
-> Which leaves us with point (4) but finding the threshold is indeed
-> platform dependent. Another way could be a check for latency - so if it
-> took certain usecs, we break the loop and flush the whole TLB.
+> +
+> +|--------|        |--------|
+> +| Memory |----    | Memory |
+> +|--------|    \   |--------|
+> +| Shadow |--   -->| Shadow |
+> +|--------|  \     |--------|
+> +|   Bad  |   ---->|  Bad   |
+> +|--------|  /     |--------|
+> +| Shadow |--   -->| Shadow |
+> +|--------|    /   |--------|
+> +| Memory |----    | Memory |
+> +|--------|        |--------|
 
-Or we end up having platform specific tlb flush implementation just as we
-did for cache ops. I would expect only few platforms will have their own
-thresholds. A simple heuristic guess of the threshold based on number of
-tlb entries would be good to go?
+I guess this implies it's incompatible with memory hotplug, as the 
+shadow couldn't be extended?
 
->
-> --
-> Catalin
+That's fine, but you should exclude that in Kconfig.
+
+There are likely more exclude dependencies for Kconfig too.
+Neds dependencies on the right sparse mem options?
+Does it work with kmemcheck? If not exclude.
+
+Perhaps try to boot it with all other debug options and see which ones break.
+
+> diff --git a/Makefile b/Makefile
+> index 64ab7b3..08a07f2 100644
+> --- a/Makefile
+> +++ b/Makefile
+> @@ -384,6 +384,12 @@ LDFLAGS_MODULE  =
+>  CFLAGS_KERNEL	=
+>  AFLAGS_KERNEL	=
+>  CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
+> +CFLAGS_KASAN	= -fsanitize=address --param asan-stack=0 \
+> +			--param asan-use-after-return=0 \
+> +			--param asan-globals=0 \
+> +			--param asan-memintrin=0 \
+> +			--param asan-instrumentation-with-call-threshold=0 \
+
+Hardcoding --param is not very nice. They can change from compiler
+to compiler version. Need some version checking?
+
+Also you should probably have some check that the compiler supports it
+(and print some warning if not)
+Otherwise randconfig builds will be broken if the compiler doesn't.
+
+Also does the kernel really build/work without the other patches?
+If not please move this patchkit to the end of the series, to keep
+the patchkit bisectable (this may need moving parts of the includes
+into a separate patch)
+
+> diff --git a/commit b/commit
+> new file mode 100644
+> index 0000000..134f4dd
+> --- /dev/null
+> +++ b/commit
+> @@ -0,0 +1,3 @@
+> +
+> +I'm working on address sanitizer for kernel.
+> +fuck this bloody.
+> \ No newline at end of file
+
+Heh. Please remove.
+
+> diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
+> new file mode 100644
+> index 0000000..2bfff78
+> --- /dev/null
+> +++ b/lib/Kconfig.kasan
+> @@ -0,0 +1,20 @@
+> +config HAVE_ARCH_KASAN
+> +	bool
+> +
+> +if HAVE_ARCH_KASAN
+> +
+> +config KASAN
+> +	bool "AddressSanitizer: dynamic memory error detector"
+> +	default n
+> +	help
+> +	  Enables AddressSanitizer - dynamic memory error detector,
+> +	  that finds out-of-bounds and use-after-free bugs.
+
+Needs much more description.
+
+> +
+> +config KASAN_SANITIZE_ALL
+> +	bool "Instrument entire kernel"
+> +	depends on KASAN
+> +	default y
+> +	help
+> +	  This enables compiler intrumentation for entire kernel
+> +
+
+Same.
+
+
+> diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+> new file mode 100644
+> index 0000000..e2cd345
+> --- /dev/null
+> +++ b/mm/kasan/kasan.c
+> @@ -0,0 +1,292 @@
+> +/*
+> + *
+
+Add one line here what the file does. Same for other files.
+
+> + * Copyright (c) 2014 Samsung Electronics Co., Ltd.
+> + * Author: Andrey Ryabinin <a.ryabinin@samsung.com>
+> + *
+> + * This program is free software; you can redistribute it and/or modify
+> + * it under the terms of the GNU General Public License version 2 as
+> + * published by the Free Software Foundation.
+> +#include "kasan.h"
+> +#include "../slab.h"
+
+That's ugly, but ok.
+
+> +
+> +static bool __read_mostly kasan_initialized;
+
+It would be better to use a static_key, but I guess your initialization
+is too early?
+
+Of course the proposal to move it into start_kernel and get rid of the
+flag would be best.
+
+> +
+> +unsigned long kasan_shadow_start;
+> +unsigned long kasan_shadow_end;
+> +
+> +/* equals to (kasan_shadow_start - PAGE_OFFSET/KASAN_SHADOW_SCALE_SIZE) */
+> +unsigned long __read_mostly kasan_shadow_offset; /* it's not a very good name for this variable */
+
+Do these all need to be global?
+
+> +
+> +
+> +static inline bool addr_is_in_mem(unsigned long addr)
+> +{
+> +	return likely(addr >= PAGE_OFFSET && addr < (unsigned long)high_memory);
+> +}
+
+Of course there are lots of cases where this doesn't work (like large
+holes), but I assume this has been checked elsewhere?
+
+
+> +
+> +void kasan_enable_local(void)
+> +{
+> +	if (likely(kasan_initialized))
+> +		current->kasan_depth--;
+> +}
+> +
+> +void kasan_disable_local(void)
+> +{
+> +	if (likely(kasan_initialized))
+> +		current->kasan_depth++;
+> +}
+
+Couldn't this be done without checking the flag?
+
+
+> +		return;
+> +
+> +	if (unlikely(addr < TASK_SIZE)) {
+> +		info.access_addr = addr;
+> +		info.access_size = size;
+> +		info.is_write = write;
+> +		info.ip = _RET_IP_;
+> +		kasan_report_user_access(&info);
+> +		return;
+> +	}
+
+How about vsyscall pages here?
+
+> +
+> +	if (!addr_is_in_mem(addr))
+> +		return;
+> +
+> +	access_addr = memory_is_poisoned(addr, size);
+> +	if (likely(access_addr == 0))
+> +		return;
+> +
+> +	info.access_addr = access_addr;
+> +	info.access_size = size;
+> +	info.is_write = write;
+> +	info.ip = _RET_IP_;
+> +	kasan_report_error(&info);
+> +}
+> +
+> +void __init kasan_alloc_shadow(void)
+> +{
+> +	unsigned long lowmem_size = (unsigned long)high_memory - PAGE_OFFSET;
+> +	unsigned long shadow_size;
+> +	phys_addr_t shadow_phys_start;
+> +
+> +	shadow_size = lowmem_size >> KASAN_SHADOW_SCALE_SHIFT;
+> +
+> +	shadow_phys_start = memblock_alloc(shadow_size, PAGE_SIZE);
+> +	if (!shadow_phys_start) {
+> +		pr_err("Unable to reserve shadow memory\n");
+> +		return;
+
+Wouldn't this crash&burn later? panic?
+
+> +void *kasan_memcpy(void *dst, const void *src, size_t len)
+> +{
+> +	if (unlikely(len == 0))
+> +		return dst;
+> +
+> +	check_memory_region((unsigned long)src, len, false);
+> +	check_memory_region((unsigned long)dst, len, true);
+
+I assume this handles negative len?
+Also check for overlaps?
+
+> +
+> +static inline void *virt_to_obj(struct kmem_cache *s, void *slab_start, void *x)
+> +{
+> +	return x - ((x - slab_start) % s->size);
+> +}
+
+This should be in the respective slab headers, not hard coded.
+
+> +void kasan_report_error(struct access_info *info)
+> +{
+> +	kasan_disable_local();
+> +	pr_err("================================="
+> +		"=================================\n");
+> +	print_error_description(info);
+> +	print_address_description(info);
+> +	print_shadow_for_address(info->access_addr);
+> +	pr_err("================================="
+> +		"=================================\n");
+> +	kasan_enable_local();
+> +}
+> +
+> +void kasan_report_user_access(struct access_info *info)
+> +{
+> +	kasan_disable_local();
+
+Should print the same prefix oopses use, a lot of log grep tools
+look for that. 
+
+Also you may want some lock to prevent multiple
+reports mixing. 
+
+-Andi
+-- 
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
