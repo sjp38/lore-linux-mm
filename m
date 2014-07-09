@@ -1,23 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 216636B0036
-	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 04:56:42 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id kq14so8879859pab.34
-        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 01:56:41 -0700 (PDT)
-Received: from mail-pd0-x235.google.com (mail-pd0-x235.google.com [2607:f8b0:400e:c02::235])
-        by mx.google.com with ESMTPS id ql4si38037828pac.71.2014.07.09.01.56.40
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 385C96B0036
+	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 04:59:23 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id rd3so8909850pab.3
+        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 01:59:22 -0700 (PDT)
+Received: from mail-pd0-x22d.google.com (mail-pd0-x22d.google.com [2607:f8b0:400e:c02::22d])
+        by mx.google.com with ESMTPS id gp6si45506606pac.215.2014.07.09.01.59.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 09 Jul 2014 01:56:40 -0700 (PDT)
-Received: by mail-pd0-f181.google.com with SMTP id v10so8653321pde.40
-        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 01:56:40 -0700 (PDT)
-Date: Wed, 9 Jul 2014 01:55:06 -0700 (PDT)
+        Wed, 09 Jul 2014 01:59:21 -0700 (PDT)
+Received: by mail-pd0-f173.google.com with SMTP id r10so8633611pdi.4
+        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 01:59:21 -0700 (PDT)
+Date: Wed, 9 Jul 2014 01:57:48 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v3 1/7] mm: allow drivers to prevent new writable
- mappings
-In-Reply-To: <1402655819-14325-2-git-send-email-dh.herrmann@gmail.com>
-Message-ID: <alpine.LSU.2.11.1407090154070.7841@eggly.anvils>
-References: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com> <1402655819-14325-2-git-send-email-dh.herrmann@gmail.com>
+Subject: Re: [RFC v3 7/7] shm: isolate pinned pages when sealing files
+In-Reply-To: <1402655819-14325-8-git-send-email-dh.herrmann@gmail.com>
+Message-ID: <alpine.LSU.2.11.1407090155250.7841@eggly.anvils>
+References: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com> <1402655819-14325-8-git-send-email-dh.herrmann@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -27,255 +26,316 @@ Cc: linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Ryan
 
 On Fri, 13 Jun 2014, David Herrmann wrote:
 
-> The i_mmap_writable field counts existing writable mappings of an
-> address_space. To allow drivers to prevent new writable mappings, make
-> this counter signed and prevent new writable mappings if it is negative.
-> This is modelled after i_writecount and DENYWRITE.
+> When setting SEAL_WRITE, we must make sure nobody has a writable reference
+> to the pages (via GUP or similar). We currently check references and wait
+> some time for them to be dropped. This, however, might fail for several
+> reasons, including:
+>  - the page is pinned for longer than we wait
+>  - while we wait, someone takes an already pinned page for read-access
 > 
-> This will be required by the shmem-sealing infrastructure to prevent any
-> new writable mappings after the WRITE seal has been set. In case there
-> exists a writable mapping, this operation will fail with EBUSY.
-> 
-> Note that we rely on the fact that iff you already own a writable mapping,
-> you can increase the counter without using the helpers. This is the same
-> that we do for i_writecount.
+> Therefore, this patch introduces page-isolation. When sealing a file with
+> SEAL_WRITE, we copy all pages that have an elevated ref-count. The newpage
+> is put in place atomically, the old page is detached and left alone. It
+> will get reclaimed once the last external user dropped it.
 > 
 > Signed-off-by: David Herrmann <dh.herrmann@gmail.com>
 
-I'm very pleased with the way you chose to do this in the end, following
-the way VM_DENYWRITE does it: it works out nicer than I had imagined.
+I've not checked it line by line, but this seems to be very good work;
+and I'm glad you have posted it, where we can refer back to it in future.
 
-I do have some comments below, but the only one where I end up asking
-for a change is to remove the void "return "; but please read through
-in case any of my wonderings lead you to change your mind on something.
+However, I'm NAKing this patch, at least for now.
 
-I am very tempted to suggest that you add VM_WRITE into those VM_SHARED
-tests, and put the then necessary additional tests into mprotect.c: so
-that you would no longer have the odd case that a VM_SHARED !VM_WRITE
-area has to be unmapped before sealing the fd.
+The reason is simple and twofold.
 
-But that would involve an audit of flush_dcache_page() architectures,
-and perhaps some mods to keep them safe across the mprotect(): let's
-put it down as a desirable future enhancement, just to remove an odd
-restriction.
+I absolutely do not want to be maintaining an alternative form of
+page migration in mm/shmem.c.  Shmem has its own peculiar problems
+(mostly because of swap): adding a new dimension of very rarely
+exercised complication, and dependence on the rest mm, is not wise.
 
-With the "return " gone,
-Acked-by: Hugh Dickins <hughd@google.com>
+And sealing just does not need this.  It is clearly technically
+superior to, and more satisfying than, the "wait-a-while-then-give-up"
+technique which it would replace.  But in practice, the wait-a-while
+technique is quite good enough (and much better self-contained than this). 
+
+I've heard no requirement to support sealing of objects pinned for I/O,
+and the sealer just would not have given the object out for that; the
+requirement is to give the recipient of a sealed object confidence
+that it cannot be susceptible to modification in that way.
+
+I doubt there will ever be an actual need for sealing to use this
+migration technique; but I can imagine us referring back to your work in
+future, when/if implementing revoke on regular files.  And integrating
+this into mm/migrate.c's unmap_and_move() as an extra-force mode
+(proceed even when the page count is raised).
+
+I think the concerns I had, when Tony first proposed this migration copy
+technique, were in fact unfounded - I was worried by the new inverse COW.
+On reflection, I don't think this introduces any new risks, which are
+not already present in page migration, truncation and orphaned pages.
+
+I didn't begin to test it at all, but the only defects that stood out
+in your code were in the areas of memcg and mlock.  I think that if we
+go down the road of duplicating pinned pages, then we do have to make
+a memcg charge on the new page in addition to the old page.  And if
+any pages happen to be mlock'ed into an address space, then we ought
+to map in the replacement pages afterwards (as page migration does,
+whether mlock'ed or not).
+
+(You were perfectly correct to use unmap_mapping_range(), rather than
+try_to_unmap() as page migration does: because unmap_mapping_range()
+manages the VM_NONLINEAR case.  But our intention, under way, is to
+scrap all VM_NONLINEAR code, and just emulate it with multiple vmas,
+in which case try_to_unmap() should do.)
+
+Hugh
 
 > ---
->  fs/inode.c         |  1 +
->  include/linux/fs.h | 29 +++++++++++++++++++++++++++--
->  kernel/fork.c      |  2 +-
->  mm/mmap.c          | 24 ++++++++++++++++++------
->  mm/swap_state.c    |  1 +
->  5 files changed, 48 insertions(+), 9 deletions(-)
+>  mm/shmem.c | 218 +++++++++++++++++++++++++++++--------------------------------
+>  1 file changed, 105 insertions(+), 113 deletions(-)
 > 
-> diff --git a/fs/inode.c b/fs/inode.c
-> index 6eecb7f..9945b11 100644
-> --- a/fs/inode.c
-> +++ b/fs/inode.c
-> @@ -165,6 +165,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
->  	mapping->a_ops = &empty_aops;
->  	mapping->host = inode;
->  	mapping->flags = 0;
-> +	atomic_set(&mapping->i_mmap_writable, 0);
->  	mapping_set_gfp_mask(mapping, GFP_HIGHUSER_MOVABLE);
->  	mapping->private_data = NULL;
->  	mapping->backing_dev_info = &default_backing_dev_info;
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index 338e6f7..71d17c9 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -387,7 +387,7 @@ struct address_space {
->  	struct inode		*host;		/* owner: inode, block_device */
->  	struct radix_tree_root	page_tree;	/* radix tree of all pages */
->  	spinlock_t		tree_lock;	/* and lock protecting it */
-> -	unsigned int		i_mmap_writable;/* count VM_SHARED mappings */
-> +	atomic_t		i_mmap_writable;/* count VM_SHARED mappings */
->  	struct rb_root		i_mmap;		/* tree of private and shared mappings */
->  	struct list_head	i_mmap_nonlinear;/*list VM_NONLINEAR mappings */
->  	struct mutex		i_mmap_mutex;	/* protect tree, count, list */
-> @@ -470,10 +470,35 @@ static inline int mapping_mapped(struct address_space *mapping)
->   * Note that i_mmap_writable counts all VM_SHARED vmas: do_mmap_pgoff
->   * marks vma as VM_SHARED if it is shared, and the file was opened for
->   * writing i.e. vma may be mprotected writable even if now readonly.
-> + *
-> + * If i_mmap_writable is negative, no new writable mappings are allowed. You
-> + * can only deny writable mappings, if none exists right now.
->   */
->  static inline int mapping_writably_mapped(struct address_space *mapping)
->  {
-> -	return mapping->i_mmap_writable != 0;
-> +	return atomic_read(&mapping->i_mmap_writable) > 0;
-
-I have a slight anxiety that you're halving the writable range here:
-but I think that if we can overflow with this change, we could overflow
-before; and there are int counts elsewhere which would overflow easier.
-
-> +}
-> +
-> +static inline int mapping_map_writable(struct address_space *mapping)
-> +{
-> +	return atomic_inc_unless_negative(&mapping->i_mmap_writable) ?
-> +		0 : -EPERM;
-> +}
-> +
-> +static inline void mapping_unmap_writable(struct address_space *mapping)
-> +{
-> +	return atomic_dec(&mapping->i_mmap_writable);
-
-Better just
-
-	atomic_dec(&mapping->i_mmap_writable);
-
-I didn't realize before that the compiler allows you to return a void
-function from a void function without warning, but better not rely on that.
-
-> +}
-> +
-> +static inline int mapping_deny_writable(struct address_space *mapping)
-> +{
-> +	return atomic_dec_unless_positive(&mapping->i_mmap_writable) ?
-> +		0 : -EBUSY;
-> +}
-> +
-> +static inline void mapping_allow_writable(struct address_space *mapping)
-> +{
-> +	atomic_inc(&mapping->i_mmap_writable);
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index ddc3998..34b14fb 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -1237,6 +1237,110 @@ unlock:
+>  	return error;
 >  }
 >  
->  /*
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index d2799d1..f1f127e 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -421,7 +421,7 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
->  				atomic_dec(&inode->i_writecount);
->  			mutex_lock(&mapping->i_mmap_mutex);
->  			if (tmp->vm_flags & VM_SHARED)
-> -				mapping->i_mmap_writable++;
-> +				atomic_inc(&mapping->i_mmap_writable);
->  			flush_dcache_mmap_lock(mapping);
->  			/* insert tmp into the share list, just after mpnt */
->  			if (unlikely(tmp->vm_flags & VM_NONLINEAR))
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 129b847..19b6562 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -216,7 +216,7 @@ static void __remove_shared_vm_struct(struct vm_area_struct *vma,
->  	if (vma->vm_flags & VM_DENYWRITE)
->  		atomic_inc(&file_inode(file)->i_writecount);
->  	if (vma->vm_flags & VM_SHARED)
-> -		mapping->i_mmap_writable--;
-> +		mapping_unmap_writable(mapping);
-
-Okay.  I waste ridiculous time trying to decide whether it's better to say
-
-		mapping_unmap_writable(mapping)
-or
-		atomic_dec(&mapping->i_mmap_writable);
-
-here: there are consistency arguments both ways.  I usually solve this
-problem by not giving wrapper names to such operations, but in this case
-I think the answer is just to accept whatever you decided was best.
-
->  
->  	flush_dcache_mmap_lock(mapping);
->  	if (unlikely(vma->vm_flags & VM_NONLINEAR))
-> @@ -617,7 +617,7 @@ static void __vma_link_file(struct vm_area_struct *vma)
->  		if (vma->vm_flags & VM_DENYWRITE)
->  			atomic_dec(&file_inode(file)->i_writecount);
->  		if (vma->vm_flags & VM_SHARED)
-> -			mapping->i_mmap_writable++;
-> +			atomic_inc(&mapping->i_mmap_writable);
->  
->  		flush_dcache_mmap_lock(mapping);
->  		if (unlikely(vma->vm_flags & VM_NONLINEAR))
-> @@ -1572,6 +1572,11 @@ munmap_back:
->  			if (error)
->  				goto free_vma;
->  		}
-> +		if (vm_flags & VM_SHARED) {
-> +			error = mapping_map_writable(file->f_mapping);
-> +			if (error)
-> +				goto allow_write_and_free_vma;
-> +		}
->  		vma->vm_file = get_file(file);
->  		error = file->f_op->mmap(file, vma);
->  		if (error)
-> @@ -1611,8 +1616,12 @@ munmap_back:
->  
->  	vma_link(mm, vma, prev, rb_link, rb_parent);
->  	/* Once vma denies write, undo our temporary denial count */
-> -	if (vm_flags & VM_DENYWRITE)
-> -		allow_write_access(file);
-> +	if (file) {
-> +		if (vm_flags & VM_SHARED)
-> +			mapping_unmap_writable(file->f_mapping);
-> +		if (vm_flags & VM_DENYWRITE)
-> +			allow_write_access(file);
+> +static int shmem_isolate_page(struct inode *inode, struct page *oldpage)
+> +{
+> +	struct address_space *mapping = inode->i_mapping;
+> +	struct shmem_inode_info *info = SHMEM_I(inode);
+> +	struct page *newpage;
+> +	int error;
+> +
+> +	if (oldpage->mapping != mapping)
+> +		return 0;
+> +	if (page_count(oldpage) - page_mapcount(oldpage) <= 2)
+> +		return 0;
+> +
+> +	if (page_mapped(oldpage))
+> +		unmap_mapping_range(mapping,
+> +				    (loff_t)oldpage->index << PAGE_CACHE_SHIFT,
+> +				    PAGE_CACHE_SIZE, 0);
+> +
+> +	VM_BUG_ON_PAGE(PageWriteback(oldpage), oldpage);
+> +	VM_BUG_ON_PAGE(page_has_private(oldpage), oldpage);
+> +
+> +	newpage = shmem_alloc_page(mapping_gfp_mask(mapping), info,
+> +				   oldpage->index);
+> +	if (!newpage)
+> +		return -ENOMEM;
+> +
+> +	__set_page_locked(newpage);
+> +	copy_highpage(newpage, oldpage);
+> +	flush_dcache_page(newpage);
+> +
+> +	page_cache_get(newpage);
+> +	SetPageUptodate(newpage);
+> +	SetPageSwapBacked(newpage);
+> +	newpage->mapping = mapping;
+> +	newpage->index = oldpage->index;
+> +
+> +	cancel_dirty_page(oldpage, PAGE_CACHE_SIZE);
+> +
+> +	spin_lock_irq(&mapping->tree_lock);
+> +	error = shmem_radix_tree_replace(mapping, oldpage->index,
+> +					 oldpage, newpage);
+> +	if (!error) {
+> +		__inc_zone_page_state(newpage, NR_FILE_PAGES);
+> +		__dec_zone_page_state(oldpage, NR_FILE_PAGES);
 > +	}
->  	file = vma->vm_file;
-
-Very good.  A bit subtle, and for a while I was preparing to warn you
-of the odd shmem_zero_setup() case (which materializes a file when
-none came in), and the danger of the count going wrong on that.
-
-But you have it handled, with the "if (file)" block immediately before
-the new assignment of file, which should force anyone to think about it.
-And the ordering here, with respect to file and error exits, has always
-been tricky - I don't think you are making it any worse.
-
-Oh, more subtle than I realized above: I've just gone through a last
-minute "hey, it's wrong; oh, no, it's okay" waver here, remembering
-how mmap /dev/zero (and some others, I suppose) gives you a new file.
-
-That is okay: we don't even have to assume that sealing is limited
-to your memfd_create(): it's safe to assume that any device which
-forks you a new file, is safe to assert mapping_map_writable() upon
-temporarily; and the new file given could never come already sealed.
-
-But maybe a brief comment to reassure us in future?
-
->  out:
->  	perf_event_mmap(vma);
-> @@ -1641,14 +1650,17 @@ out:
->  	return addr;
+> +	spin_unlock_irq(&mapping->tree_lock);
+> +
+> +	if (error) {
+> +		newpage->mapping = NULL;
+> +		unlock_page(newpage);
+> +		page_cache_release(newpage);
+> +		page_cache_release(newpage);
+> +		return error;
+> +	}
+> +
+> +	mem_cgroup_replace_page_cache(oldpage, newpage);
+> +	lru_cache_add_anon(newpage);
+> +
+> +	oldpage->mapping = NULL;
+> +	page_cache_release(oldpage);
+> +	unlock_page(newpage);
+> +	page_cache_release(newpage);
+> +
+> +	return 1;
+> +}
+> +
+> +static int shmem_isolate_pins(struct inode *inode)
+> +{
+> +	struct address_space *mapping = inode->i_mapping;
+> +	struct pagevec pvec;
+> +	pgoff_t indices[PAGEVEC_SIZE];
+> +	pgoff_t index;
+> +	int i, ret, error;
+> +
+> +	pagevec_init(&pvec, 0);
+> +	index = 0;
+> +	error = 0;
+> +	while ((pvec.nr = find_get_entries(mapping, index, PAGEVEC_SIZE,
+> +					   pvec.pages, indices))) {
+> +		for (i = 0; i < pagevec_count(&pvec); i++) {
+> +			struct page *page = pvec.pages[i];
+> +
+> +			index = indices[i];
+> +			if (radix_tree_exceptional_entry(page))
+> +				continue;
+> +			if (page->mapping != mapping)
+> +				continue;
+> +			if (page_count(page) - page_mapcount(page) <= 2)
+> +				continue;
+> +
+> +			lock_page(page);
+> +			ret = shmem_isolate_page(inode, page);
+> +			if (ret < 0)
+> +				error = ret;
+> +			unlock_page(page);
+> +		}
+> +		pagevec_remove_exceptionals(&pvec);
+> +		pagevec_release(&pvec);
+> +		cond_resched();
+> +		index++;
+> +	}
+> +
+> +	return error;
+> +}
+> +
+>  static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+>  {
+>  	struct inode *inode = file_inode(vma->vm_file);
+> @@ -1734,118 +1838,6 @@ static loff_t shmem_file_llseek(struct file *file, loff_t offset, int whence)
+>  	return offset;
+>  }
 >  
->  unmap_and_free_vma:
-> -	if (vm_flags & VM_DENYWRITE)
-> -		allow_write_access(file);
->  	vma->vm_file = NULL;
->  	fput(file);
+> -/*
+> - * We need a tag: a new tag would expand every radix_tree_node by 8 bytes,
+> - * so reuse a tag which we firmly believe is never set or cleared on shmem.
+> - */
+> -#define SHMEM_TAG_PINNED        PAGECACHE_TAG_TOWRITE
+> -#define LAST_SCAN               4       /* about 150ms max */
+> -
+> -static void shmem_tag_pins(struct address_space *mapping)
+> -{
+> -	struct radix_tree_iter iter;
+> -	void **slot;
+> -	pgoff_t start;
+> -	struct page *page;
+> -
+> -	start = 0;
+> -	rcu_read_lock();
+> -
+> -restart:
+> -	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
+> -		page = radix_tree_deref_slot(slot);
+> -		if (!page || radix_tree_exception(page)) {
+> -			if (radix_tree_deref_retry(page))
+> -				goto restart;
+> -		} else if (page_count(page) - page_mapcount(page) > 1) {
+> -			spin_lock_irq(&mapping->tree_lock);
+> -			radix_tree_tag_set(&mapping->page_tree, iter.index,
+> -					   SHMEM_TAG_PINNED);
+> -			spin_unlock_irq(&mapping->tree_lock);
+> -		}
+> -
+> -		if (need_resched()) {
+> -			cond_resched_rcu();
+> -			start = iter.index + 1;
+> -			goto restart;
+> -		}
+> -	}
+> -	rcu_read_unlock();
+> -}
+> -
+> -/*
+> - * Setting SEAL_WRITE requires us to verify there's no pending writer. However,
+> - * via get_user_pages(), drivers might have some pending I/O without any active
+> - * user-space mappings (eg., direct-IO, AIO). Therefore, we look at all pages
+> - * and see whether it has an elevated ref-count. If so, we tag them and wait for
+> - * them to be dropped.
+> - * The caller must guarantee that no new user will acquire writable references
+> - * to those pages to avoid races.
+> - */
+> -static int shmem_wait_for_pins(struct address_space *mapping)
+> -{
+> -	struct radix_tree_iter iter;
+> -	void **slot;
+> -	pgoff_t start;
+> -	struct page *page;
+> -	int error, scan;
+> -
+> -	shmem_tag_pins(mapping);
+> -
+> -	error = 0;
+> -	for (scan = 0; scan <= LAST_SCAN; scan++) {
+> -		if (!radix_tree_tagged(&mapping->page_tree, SHMEM_TAG_PINNED))
+> -			break;
+> -
+> -		if (!scan)
+> -			lru_add_drain_all();
+> -		else if (schedule_timeout_killable((HZ << scan) / 200))
+> -			scan = LAST_SCAN;
+> -
+> -		start = 0;
+> -		rcu_read_lock();
+> -restart:
+> -		radix_tree_for_each_tagged(slot, &mapping->page_tree, &iter,
+> -					   start, SHMEM_TAG_PINNED) {
+> -
+> -			page = radix_tree_deref_slot(slot);
+> -			if (radix_tree_exception(page)) {
+> -				if (radix_tree_deref_retry(page))
+> -					goto restart;
+> -
+> -				page = NULL;
+> -			}
+> -
+> -			if (page &&
+> -			    page_count(page) - page_mapcount(page) != 1) {
+> -				if (scan < LAST_SCAN)
+> -					goto continue_resched;
+> -
+> -				/*
+> -				 * On the last scan, we clean up all those tags
+> -				 * we inserted; but make a note that we still
+> -				 * found pages pinned.
+> -				 */
+> -				error = -EBUSY;
+> -			}
+> -
+> -			spin_lock_irq(&mapping->tree_lock);
+> -			radix_tree_tag_clear(&mapping->page_tree,
+> -					     iter.index, SHMEM_TAG_PINNED);
+> -			spin_unlock_irq(&mapping->tree_lock);
+> -continue_resched:
+> -			if (need_resched()) {
+> -				cond_resched_rcu();
+> -				start = iter.index + 1;
+> -				goto restart;
+> -			}
+> -		}
+> -		rcu_read_unlock();
+> -	}
+> -
+> -	return error;
+> -}
+> -
+>  #define F_ALL_SEALS (F_SEAL_SEAL | \
+>  		     F_SEAL_SHRINK | \
+>  		     F_SEAL_GROW | \
+> @@ -1907,7 +1899,7 @@ int shmem_add_seals(struct file *file, unsigned int seals)
+>  		if (error)
+>  			goto unlock;
 >  
->  	/* Undo any partial mapping done by a device driver. */
->  	unmap_region(mm, vma, prev, vma->vm_start, vma->vm_end);
->  	charged = 0;
-> +	if (vm_flags & VM_SHARED)
-> +		mapping_unmap_writable(file->f_mapping);
-> +allow_write_and_free_vma:
-> +	if (vm_flags & VM_DENYWRITE)
-> +		allow_write_access(file);
-
-Okay.  I don't enjoy that rearrangement, such that those two uses of
-file come after the fput(file); but I believe there are good reasons
-why it can never be the final fput(file), so I think you're okay.
-
->  free_vma:
->  	kmem_cache_free(vm_area_cachep, vma);
->  unacct_error:
-> diff --git a/mm/swap_state.c b/mm/swap_state.c
-> index 2972eee..31321fa 100644
-> --- a/mm/swap_state.c
-> +++ b/mm/swap_state.c
-> @@ -39,6 +39,7 @@ static struct backing_dev_info swap_backing_dev_info = {
->  struct address_space swapper_spaces[MAX_SWAPFILES] = {
->  	[0 ... MAX_SWAPFILES - 1] = {
->  		.page_tree	= RADIX_TREE_INIT(GFP_ATOMIC|__GFP_NOWARN),
-> +		.i_mmap_writable = ATOMIC_INIT(0),
->  		.a_ops		= &swap_aops,
->  		.backing_dev_info = &swap_backing_dev_info,
->  	}
+> -		error = shmem_wait_for_pins(file->f_mapping);
+> +		error = shmem_isolate_pins(inode);
+>  		if (error) {
+>  			mapping_allow_writable(file->f_mapping);
+>  			goto unlock;
 > -- 
 > 2.0.0
 
