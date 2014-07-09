@@ -1,42 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id CDCAE6B0031
-	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 07:14:20 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id eu11so9095234pac.33
-        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 04:14:20 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id w11si7219275pdj.269.2014.07.09.04.14.18
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id BC19E6B0036
+	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 07:15:12 -0400 (EDT)
+Received: by mail-wg0-f52.google.com with SMTP id b13so7120943wgh.23
+        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 04:15:12 -0700 (PDT)
+Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
+        by mx.google.com with ESMTP id z17si7521370wiv.4.2014.07.09.04.15.11
         for <linux-mm@kvack.org>;
-        Wed, 09 Jul 2014 04:14:19 -0700 (PDT)
-Date: Wed, 09 Jul 2014 19:13:41 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [next:master 284/379] :undefined reference to
- `crypto_alloc_shash'
-Message-ID: <53bd23e5.Zuv44zZmJKnR/Dh5%fengguang.wu@intel.com>
+        Wed, 09 Jul 2014 04:15:11 -0700 (PDT)
+Date: Wed, 9 Jul 2014 12:14:47 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH v12 7/8] arm64: add pmd_[dirty|mkclean] for THP
+Message-ID: <20140709111446.GE27270@arm.com>
+References: <1404886949-17695-1-git-send-email-minchan@kernel.org>
+ <1404886949-17695-8-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <1404886949-17695-8-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vivek Goyal <vgoyal@redhat.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Will Deacon <Will.Deacon@arm.com>, Steve Capper <steve.capper@linaro.org>, Russell King <linux@arm.linux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-head:   35fcf5dd2a7d038c0fcbc161e353d73497350b86
-commit: ba0dc4038c9fec5fa2f94756065f02b8011f270b [284/379] kexec: load and relocate purgatory at kernel load time
-config: make ARCH=arm nuc950_defconfig
+On Wed, Jul 09, 2014 at 07:22:28AM +0100, Minchan Kim wrote:
+> MADV_FREE needs pmd_dirty and pmd_mkclean for detecting recent
+> overwrite of the contents since MADV_FREE syscall is called for
+> THP page.
+> 
+> This patch adds pmd_dirty and pmd_mkclean for THP page MADV_FREE
+> support.
+> 
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: Steve Capper <steve.capper@linaro.org>
+> Cc: Russell King <linux@arm.linux.org.uk>
+> Cc: linux-arm-kernel@lists.infradead.org
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-All error/warnings:
-
-   kernel/built-in.o: In function `sys_kexec_file_load':
->> :(.text+0x4c808): undefined reference to `crypto_alloc_shash'
->> :(.text+0x4c8d4): undefined reference to `crypto_shash_update'
->> :(.text+0x4c918): undefined reference to `crypto_shash_update'
->> :(.text+0x4c9f4): undefined reference to `crypto_shash_final'
-
----
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
