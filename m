@@ -1,64 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id D52346B0035
-	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 13:07:15 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id ey11so9505126pad.40
-        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 10:07:15 -0700 (PDT)
-Received: from mail-pd0-x22d.google.com (mail-pd0-x22d.google.com [2607:f8b0:400e:c02::22d])
-        by mx.google.com with ESMTPS id ux4si46466825pac.207.2014.07.09.10.07.13
+Received: from mail-vc0-f180.google.com (mail-vc0-f180.google.com [209.85.220.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DCBC6B0035
+	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 13:15:51 -0400 (EDT)
+Received: by mail-vc0-f180.google.com with SMTP id im17so7485982vcb.39
+        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 10:15:51 -0700 (PDT)
+Received: from mail-vc0-x22d.google.com (mail-vc0-x22d.google.com [2607:f8b0:400c:c03::22d])
+        by mx.google.com with ESMTPS id ne10si21872974veb.55.2014.07.09.10.15.49
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 09 Jul 2014 10:07:14 -0700 (PDT)
-Received: by mail-pd0-f173.google.com with SMTP id r10so9344622pdi.32
-        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 10:07:13 -0700 (PDT)
-Date: Wed, 9 Jul 2014 10:05:35 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: + shmem-fix-faulting-into-a-hole-while-its-punched-take-2.patch
- added to -mm tree
-In-Reply-To: <53BD6F4E.6030003@suse.cz>
-Message-ID: <alpine.LSU.2.11.1407091000410.11705@eggly.anvils>
-References: <53b45c9b.2rlA0uGYBLzlXEeS%akpm@linux-foundation.org> <53BCBF1F.1000506@oracle.com> <alpine.LSU.2.11.1407082309040.7374@eggly.anvils> <53BD1053.5020401@suse.cz> <53BD39FC.7040205@oracle.com> <53BD67DC.9040700@oracle.com>
- <53BD6F4E.6030003@suse.cz>
+        Wed, 09 Jul 2014 10:15:50 -0700 (PDT)
+Received: by mail-vc0-f173.google.com with SMTP id lf12so7565705vcb.32
+        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 10:15:49 -0700 (PDT)
+Date: Wed, 9 Jul 2014 13:16:04 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [PATCH 3/8] mmu_notifier: add event information to address
+ invalidation v3
+Message-ID: <20140709171603.GB4249@gmail.com>
+References: <1404856801-11702-1-git-send-email-j.glisse@gmail.com>
+ <1404856801-11702-4-git-send-email-j.glisse@gmail.com>
+ <20140709163208.GP1958@8bytes.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20140709163208.GP1958@8bytes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, akpm@linux-foundation.org, davej@redhat.com, koct9i@gmail.com, lczerner@redhat.com, stable@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Joerg Roedel <joro@8bytes.org>
+Cc: akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 9 Jul 2014, Vlastimil Babka wrote:
-> On 07/09/2014 06:03 PM, Sasha Levin wrote:
+On Wed, Jul 09, 2014 at 06:32:08PM +0200, Joerg Roedel wrote:
+> On Tue, Jul 08, 2014 at 06:00:00PM -0400, j.glisse@gmail.com wrote:
+> > From: Jerome Glisse <jglisse@redhat.com>
 > > 
-> > We can see that it's not blocked since it's in the middle of a spinlock
-> > unlock
-> > call, and we can guess it's been in that function for a while because of
-> > the hung
-> > task timer, and other processes waiting on that i_mmap_mutex:
+> > The event information will be usefull for new user of mmu_notifier API.
+> > The event argument differentiate between a vma disappearing, a page
+> > being write protected or simply a page being unmaped. This allow new
+> > user to take different path for different event for instance on unmap
+> > the resource used to track a vma are still valid and should stay around.
+> > While if the event is saying that a vma is being destroy it means that any
+> > resources used to track this vma can be free.
+> > 
+> > Changed since v1:
+> >   - renamed action into event (updated commit message too).
+> >   - simplified the event names and clarified their intented usage
+> >     also documenting what exceptation the listener can have in
+> >     respect to each event.
+> > 
+> > Changed since v2:
+> >   - Avoid crazy name.
+> >   - Do not move code that do not need to move.
 > 
-> Hm, zap_pte_range has potentially an endless loop due to the 'goto again'
-> path. Could it be a somewhat similar situation to the fallocate problem, but
-> where parallel faulters on shared memory are preventing a process from
-> exiting? Although they don't fault the pages into the same address space,
-> they could maybe somehow interact through the TLB flushing code? And only
-> after fixing the original problem we can observe this one?
+> Okay, I can actually see use-cases for something like this. Given the
+> number of invalidate_range_start/end call-sites and the semantics of
+> these call-backs it would allow certain optimizations to know details of
+> whats going on between these calls.
+> 
+> But why do you need this event information for all the other
+> mmu_notifier call-backs? In change_pte for example you already get the
+> address and the new pte value, isn't that enough to find out whats going
+> on?
+> 
 
-That's a good thought.  It ought to make forward progress nonetheless,
-but I believe (please check, I'm rushing) that there's an off-by-one in
-that path which could leave us hanging - but only when __tlb_remove_page()
-repeatedly fails, which would only happen if exceptionally low on memory??
+For hmm no, because hmm do not know the old pte value. Thus have no idea.
+But right as i am not going to further use change_pte i do not mind much
+about it so i can drop it for change_pte. But other user might still find
+that useful as it avoids them to lookup the old pte and do a comparison.
 
-Does this patch look good, and does it make any difference to the hang?
-
---- mmotm/mm/memory.c	2014-07-02 15:32:22.212311544 -0700
-+++ linux/mm/memory.c	2014-07-09 09:56:33.724159443 -0700
-@@ -1145,6 +1145,7 @@ again:
- 			if (unlikely(page_mapcount(page) < 0))
- 				print_bad_pte(vma, addr, ptent, page);
- 			if (unlikely(!__tlb_remove_page(tlb, page))) {
-+				addr += PAGE_SIZE;
- 				force_flush = 1;
- 				break;
- 			}
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
