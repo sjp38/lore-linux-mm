@@ -1,215 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 155A6900003
-	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 02:22:51 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id et14so8639167pad.35
-        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 23:22:50 -0700 (PDT)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id ot3si1170230pdb.222.2014.07.08.23.22.48
-        for <linux-mm@kvack.org>;
-        Tue, 08 Jul 2014 23:22:49 -0700 (PDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v12 8/8] mm: Don't split THP page when syscall is called
-Date: Wed,  9 Jul 2014 15:22:29 +0900
-Message-Id: <1404886949-17695-9-git-send-email-minchan@kernel.org>
-In-Reply-To: <1404886949-17695-1-git-send-email-minchan@kernel.org>
-References: <1404886949-17695-1-git-send-email-minchan@kernel.org>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 52634900003
+	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 02:37:12 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fb1so8684467pad.28
+        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 23:37:12 -0700 (PDT)
+Received: from mail-pd0-x234.google.com (mail-pd0-x234.google.com [2607:f8b0:400e:c02::234])
+        by mx.google.com with ESMTPS id zo4si45225120pbc.242.2014.07.08.23.37.10
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 08 Jul 2014 23:37:10 -0700 (PDT)
+Received: by mail-pd0-f180.google.com with SMTP id fp1so8483183pdb.39
+        for <linux-mm@kvack.org>; Tue, 08 Jul 2014 23:37:10 -0700 (PDT)
+Date: Tue, 8 Jul 2014 23:35:32 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: + shmem-fix-faulting-into-a-hole-while-its-punched-take-2.patch
+ added to -mm tree
+In-Reply-To: <53BCBF1F.1000506@oracle.com>
+Message-ID: <alpine.LSU.2.11.1407082309040.7374@eggly.anvils>
+References: <53b45c9b.2rlA0uGYBLzlXEeS%akpm@linux-foundation.org> <53BCBF1F.1000506@oracle.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Minchan Kim <minchan@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: akpm@linux-foundation.org, hughd@google.com, davej@redhat.com, koct9i@gmail.com, lczerner@redhat.com, stable@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-We don't need to split THP page when MADV_FREE syscall is
-called. It could be done when VM decide really frees it so
-we could avoid unnecessary THP split.
+On Wed, 9 Jul 2014, Sasha Levin wrote:
+> On 07/02/2014 03:25 PM, akpm@linux-foundation.org wrote:
+> > From: Hugh Dickins <hughd@google.com>
+> > Subject: shmem: fix faulting into a hole while it's punched, take 2
+> 
+> I suspect there's something off with this patch, as the shmem_fallocate
+> hangs are back... Pretty much same as before:
 
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- include/linux/huge_mm.h |  4 ++++
- mm/huge_memory.c        | 35 +++++++++++++++++++++++++++++++++++
- mm/madvise.c            | 21 ++++++++++++++++++++-
- mm/rmap.c               |  8 ++++++--
- mm/vmscan.c             | 28 ++++++++++++++++++----------
- 5 files changed, 83 insertions(+), 13 deletions(-)
+Thank you for reporting, but that is depressing news.
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 63579cb8d3dc..25a961256d9f 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -19,6 +19,9 @@ extern struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
- 					  unsigned long addr,
- 					  pmd_t *pmd,
- 					  unsigned int flags);
-+extern int madvise_free_huge_pmd(struct mmu_gather *tlb,
-+			struct vm_area_struct *vma,
-+			pmd_t *pmd, unsigned long addr);
- extern int zap_huge_pmd(struct mmu_gather *tlb,
- 			struct vm_area_struct *vma,
- 			pmd_t *pmd, unsigned long addr);
-@@ -56,6 +59,7 @@ extern pmd_t *page_check_address_pmd(struct page *page,
- 				     unsigned long address,
- 				     enum page_check_address_pmd_flag flag,
- 				     spinlock_t **ptl);
-+extern int pmd_freeable(pmd_t pmd);
- 
- #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
- #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 5d562a9fe931..919c780015b8 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1384,6 +1384,36 @@ out:
- 	return 0;
- }
- 
-+int madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
-+		 pmd_t *pmd, unsigned long addr)
-+
-+{
-+	spinlock_t *ptl;
-+	struct mm_struct *mm = tlb->mm;
-+	int ret = 1;
-+
-+	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
-+		struct page *page;
-+		pmd_t orig_pmd;
-+
-+		orig_pmd = pmdp_get_and_clear(mm, addr, pmd);
-+
-+		/* No hugepage in swapcache */
-+		page = pmd_page(orig_pmd);
-+		VM_BUG_ON_PAGE(PageSwapCache(page), page);
-+
-+		orig_pmd = pmd_mkold(orig_pmd);
-+		orig_pmd = pmd_mkclean(orig_pmd);
-+
-+		set_pmd_at(mm, addr, pmd, orig_pmd);
-+		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
-+		spin_unlock(ptl);
-+		ret = 0;
-+	}
-+
-+	return ret;
-+}
-+
- int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 		 pmd_t *pmd, unsigned long addr)
- {
-@@ -1620,6 +1650,11 @@ unlock:
- 	return NULL;
- }
- 
-+int pmd_freeable(pmd_t pmd)
-+{
-+	return !pmd_dirty(pmd);
-+}
-+
- static int __split_huge_page_splitting(struct page *page,
- 				       struct vm_area_struct *vma,
- 				       unsigned long address)
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 55b42e5e32a3..0927eba6d858 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -271,8 +271,26 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
- 	spinlock_t *ptl;
- 	pte_t *pte, ptent;
- 	struct page *page;
-+	unsigned long next;
-+
-+	next = pmd_addr_end(addr, end);
-+	if (pmd_trans_huge(*pmd)) {
-+		if (next - addr != HPAGE_PMD_SIZE) {
-+#ifdef CONFIG_DEBUG_VM
-+			if (!rwsem_is_locked(&mm->mmap_sem)) {
-+				pr_err("%s: mmap_sem is unlocked! addr=0x%lx end=0x%lx vma->vm_start=0x%lx vma->vm_end=0x%lx\n",
-+					__func__, addr, end,
-+					vma->vm_start,
-+					vma->vm_end);
-+				BUG();
-+			}
-+#endif
-+			split_huge_page_pmd(vma, addr, pmd);
-+		} else if (!madvise_free_huge_pmd(tlb, vma, pmd, addr))
-+			goto next;
-+		/* fall through */
-+	}
- 
--	split_huge_page_pmd(vma, addr, pmd);
- 	if (pmd_trans_unstable(pmd))
- 		return 0;
- 
-@@ -312,6 +330,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
- 	}
- 	arch_leave_lazy_mmu_mode();
- 	pte_unmap_unlock(pte - 1, ptl);
-+next:
- 	cond_resched();
- 	return 0;
- }
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 7ac6e059aba7..5a0cca9bc263 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -704,9 +704,13 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
- 			referenced++;
- 
- 		/*
--		 * In this implmentation, MADV_FREE doesn't support THP free
-+		 * Use pmd_freeable instead of raw pmd_dirty because in some
-+		 * of architecture, pmd_dirty is not defined unless
-+		 * CONFIG_TRANSPARNTE_HUGE is enabled
- 		 */
--		dirty++;
-+		if (!pmd_freeable(*pmd))
-+			dirty++;
-+
- 		spin_unlock(ptl);
- 	} else {
- 		pte_t *pte;
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 914815a43362..995b28e3aee7 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -971,17 +971,25 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		 * Anonymous process memory has backing store?
- 		 * Try to allocate it some swap space here.
- 		 */
--		if (PageAnon(page) && !PageSwapCache(page) && !freeable) {
--			if (!(sc->gfp_mask & __GFP_IO))
--				goto keep_locked;
--			if (!add_to_swap(page, page_list))
--				goto activate_locked;
--			may_enter_fs = 1;
--
--			/* Adding to swap updated mapping */
--			mapping = page_mapping(page);
-+		if (PageAnon(page) && !PageSwapCache(page)) {
-+			if (!freeable) {
-+				if (!(sc->gfp_mask & __GFP_IO))
-+					goto keep_locked;
-+				if (!add_to_swap(page, page_list))
-+					goto activate_locked;
-+				may_enter_fs = 1;
-+				/* Adding to swap updated mapping */
-+				mapping = page_mapping(page);
-+			} else {
-+				if (likely(!PageTransHuge(page)))
-+					goto unmap;
-+				/* try_to_unmap isn't aware of THP page */
-+				if (unlikely(split_huge_page_to_list(page,
-+								page_list)))
-+					goto keep_locked;
-+			}
- 		}
--
-+unmap:
- 		/*
- 		 * The page is mapped into the page tables of one or more
- 		 * processes. Try to unmap it here.
--- 
-2.0.0
+I don't see what's wrong with this (take 2) patch,
+and I don't see that it's been garbled in any way in next-20140708.
+
+> 
+> [  363.600969] INFO: task trinity-c327:9203 blocked for more than 120 seconds.
+> [  363.605359]       Not tainted 3.16.0-rc4-next-20140708-sasha-00022-g94c7290-dirty #772
+> [  363.609730] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+> [  363.615861] trinity-c327    D 000000000000000b 13496  9203   8559 0x10000004
+> [  363.620284]  ffff8800b857bce8 0000000000000002 ffffffff9dc11b10 0000000000000001
+> [  363.624468]  ffff880104860000 ffff8800b857bfd8 00000000001d7740 00000000001d7740
+> [  363.629118]  ffff880104863000 ffff880104860000 ffff8800b857bcd8 ffff8801eaed8868
+> [  363.633879] Call Trace:
+> [  363.635442]  [<ffffffff9a4dc535>] schedule+0x65/0x70
+> [  363.638638]  [<ffffffff9a4dc948>] schedule_preempt_disabled+0x18/0x30
+> [  363.642833]  [<ffffffff9a4df0a5>] mutex_lock_nested+0x2e5/0x550
+> [  363.646599]  [<ffffffff972a4d7c>] ? shmem_fallocate+0x6c/0x350
+> [  363.651319]  [<ffffffff9719b721>] ? get_parent_ip+0x11/0x50
+> [  363.654683]  [<ffffffff972a4d7c>] ? shmem_fallocate+0x6c/0x350
+> [  363.658264]  [<ffffffff972a4d7c>] shmem_fallocate+0x6c/0x350
+
+So it's trying to acquire i_mutex at shmem_fallocate+0x6c...
+
+> [  363.662010]  [<ffffffff971bd96e>] ? put_lock_stats.isra.12+0xe/0x30
+> [  363.665866]  [<ffffffff9730c043>] do_fallocate+0x153/0x1d0
+> [  363.669381]  [<ffffffff972b472f>] SyS_madvise+0x33f/0x970
+> [  363.672906]  [<ffffffff9a4e3f13>] tracesys+0xe1/0xe6
+> [  363.682900] 2 locks held by trinity-c327/9203:
+> [  363.684928]  #0:  (sb_writers#12){.+.+.+}, at: [<ffffffff9730c02d>] do_fallocate+0x13d/0x1d0
+> [  363.715102]  #1:  (&sb->s_type->i_mutex_key#16){+.+.+.}, at: [<ffffffff972a4d7c>] shmem_fallocate+0x6c/0x350
+
+...but it already holds i_mutex, acquired at shmem_fallocate+0x6c.
+Am I reading that correctly?
+
+In my source for next-20140708, the only return from shmem_fallocate()
+which omits to mutex_unlock(&inode->i_mutex) is the "return -EOPNOTSUPP"
+at the top, just before the mutex_lock(&inode->i_mutex).  And inode
+doesn't get reassigned in the middle.
+
+Does 3.16.0-rc4-next-20140708-sasha-00022-g94c7290-dirty look different?
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
