@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id CC4B76B0031
-	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 10:26:09 -0400 (EDT)
-Received: by mail-qg0-f45.google.com with SMTP id a108so6362501qge.32
-        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 07:26:09 -0700 (PDT)
-Received: from qmta10.emeryville.ca.mail.comcast.net (qmta10.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:17])
-        by mx.google.com with ESMTP id d1si38007601qcd.28.2014.07.09.07.26.08
+Received: from mail-qc0-f176.google.com (mail-qc0-f176.google.com [209.85.216.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 35C636B0031
+	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 10:29:27 -0400 (EDT)
+Received: by mail-qc0-f176.google.com with SMTP id w7so6897547qcr.35
+        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 07:29:26 -0700 (PDT)
+Received: from qmta15.emeryville.ca.mail.comcast.net (qmta15.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:228])
+        by mx.google.com with ESMTP id i53si47836959qge.31.2014.07.09.07.29.25
         for <linux-mm@kvack.org>;
-        Wed, 09 Jul 2014 07:26:08 -0700 (PDT)
-Date: Wed, 9 Jul 2014 09:26:03 -0500 (CDT)
+        Wed, 09 Jul 2014 07:29:26 -0700 (PDT)
+Date: Wed, 9 Jul 2014 09:29:22 -0500 (CDT)
 From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: [RFC/PATCH RESEND -next 01/21] Add kernel address sanitizer
- infrastructure.
-In-Reply-To: <1404905415-9046-2-git-send-email-a.ryabinin@samsung.com>
-Message-ID: <alpine.DEB.2.11.1407090924030.1384@gentwo.org>
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com> <1404905415-9046-2-git-send-email-a.ryabinin@samsung.com>
+Subject: Re: [RFC/PATCH RESEND -next 11/21] mm: slub: share slab_err and
+ object_err functions
+In-Reply-To: <1404905415-9046-12-git-send-email-a.ryabinin@samsung.com>
+Message-ID: <alpine.DEB.2.11.1407090928530.1384@gentwo.org>
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com> <1404905415-9046-12-git-send-email-a.ryabinin@samsung.com>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -23,16 +23,56 @@ Cc: linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Konstantin
 
 On Wed, 9 Jul 2014, Andrey Ryabinin wrote:
 
-> +
-> +Markers of unaccessible bytes could be found in mm/kasan/kasan.h header:
-> +
-> +#define KASAN_FREE_PAGE         0xFF  /* page was freed */
-> +#define KASAN_PAGE_REDZONE      0xFE  /* redzone for kmalloc_large allocations */
-> +#define KASAN_SLAB_REDZONE      0xFD  /* Slab page redzone, does not belong to any slub object */
+> Remove static and add function declarations to mm/slab.h so they
+> could be used by kernel address sanitizer.
 
-We call these zones "PADDING". Redzones are associated with an object.
-Padding is there because bytes are left over, unusable or necessary for
-alignment.
+Hmmm... This is allocator specific. At some future point it would be good
+to move error reporting to slab_common.c and use those from all
+allocators.
+
+> Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
+> ---
+>  mm/slab.h | 5 +++++
+>  mm/slub.c | 4 ++--
+>  2 files changed, 7 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/slab.h b/mm/slab.h
+> index 1257ade..912af7f 100644
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -339,5 +339,10 @@ static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
+>
+>  void *slab_next(struct seq_file *m, void *p, loff_t *pos);
+>  void slab_stop(struct seq_file *m, void *p);
+> +void slab_err(struct kmem_cache *s, struct page *page,
+> +		const char *fmt, ...);
+> +void object_err(struct kmem_cache *s, struct page *page,
+> +		u8 *object, char *reason);
+> +
+>
+>  #endif /* MM_SLAB_H */
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 6641a8f..3bdd9ac 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -635,14 +635,14 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
+>  	dump_stack();
+>  }
+>
+> -static void object_err(struct kmem_cache *s, struct page *page,
+> +void object_err(struct kmem_cache *s, struct page *page,
+>  			u8 *object, char *reason)
+>  {
+>  	slab_bug(s, "%s", reason);
+>  	print_trailer(s, page, object);
+>  }
+>
+> -static void slab_err(struct kmem_cache *s, struct page *page,
+> +void slab_err(struct kmem_cache *s, struct page *page,
+>  			const char *fmt, ...)
+>  {
+>  	va_list args;
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
