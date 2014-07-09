@@ -1,90 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f176.google.com (mail-vc0-f176.google.com [209.85.220.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 96F036B0035
-	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 13:33:15 -0400 (EDT)
-Received: by mail-vc0-f176.google.com with SMTP id ik5so7518456vcb.7
-        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 10:33:15 -0700 (PDT)
-Received: from mail-vc0-x22b.google.com (mail-vc0-x22b.google.com [2607:f8b0:400c:c03::22b])
-        by mx.google.com with ESMTPS id sa4si21823080vdc.98.2014.07.09.10.33.14
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 09 Jul 2014 10:33:14 -0700 (PDT)
-Received: by mail-vc0-f171.google.com with SMTP id id10so7724314vcb.30
-        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 10:33:14 -0700 (PDT)
-Date: Wed, 9 Jul 2014 13:33:26 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [PATCH 1/8] mmput: use notifier chain to call subsystem exit
- handler.
-Message-ID: <20140709173325.GE4249@gmail.com>
-References: <1404856801-11702-1-git-send-email-j.glisse@gmail.com>
- <1404856801-11702-2-git-send-email-j.glisse@gmail.com>
- <20140709162123.GN1958@8bytes.org>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CE276B0035
+	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 13:41:16 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so9562574pab.18
+        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 10:41:16 -0700 (PDT)
+Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
+        by mx.google.com with ESMTP id dl5si7597358pdb.97.2014.07.09.10.41.14
+        for <linux-mm@kvack.org>;
+        Wed, 09 Jul 2014 10:41:15 -0700 (PDT)
+Date: Wed, 9 Jul 2014 18:40:55 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: arm64 flushing 255GB of vmalloc space takes too long
+Message-ID: <20140709174055.GC2814@arm.com>
+References: <CAMPhdO-j5SfHexP8hafB2EQVs91TOqp_k_SLwWmo9OHVEvNWiQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20140709162123.GN1958@8bytes.org>
+In-Reply-To: <CAMPhdO-j5SfHexP8hafB2EQVs91TOqp_k_SLwWmo9OHVEvNWiQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>
-Cc: akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Eric Miao <eric.y.miao@gmail.com>
+Cc: Laura Abbott <lauraa@codeaurora.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux Memory Management List <linux-mm@kvack.org>, Will Deacon <Will.Deacon@arm.com>, Russell King <linux@arm.linux.org.uk>
 
-On Wed, Jul 09, 2014 at 06:21:24PM +0200, Joerg Roedel wrote:
-> On Tue, Jul 08, 2014 at 05:59:58PM -0400, j.glisse@gmail.com wrote:
-> > +int mmput_register_notifier(struct notifier_block *nb)
-> > +{
-> > +	return blocking_notifier_chain_register(&mmput_notifier, nb);
-> > +}
-> > +EXPORT_SYMBOL_GPL(mmput_register_notifier);
-> > +
-> > +int mmput_unregister_notifier(struct notifier_block *nb)
-> > +{
-> > +	return blocking_notifier_chain_unregister(&mmput_notifier, nb);
-> > +}
-> > +EXPORT_SYMBOL_GPL(mmput_unregister_notifier);
+On Wed, Jul 09, 2014 at 05:53:26PM +0100, Eric Miao wrote:
+> On Tue, Jul 8, 2014 at 6:43 PM, Laura Abbott <lauraa@codeaurora.org> wrote:
+> > I have an arm64 target which has been observed hanging in __purge_vmap_area_lazy
+> > in vmalloc.c The root cause of this 'hang' is that flush_tlb_kernel_range is
+> > attempting to flush 255GB of virtual address space. This takes ~2 seconds and
+> > preemption is disabled at this time thanks to the purge lock. Disabling
+> > preemption for that time is long enough to trigger a watchdog we have setup.
+
+That's definitely not good.
+
+> > A couple of options I thought of:
+> > 1) Increase the timeout of our watchdog to allow the flush to occur. Nobody
+> > I suggested this to likes the idea as the watchdog firing generally catches
+> > behavior that results in poor system performance and disabling preemption
+> > for that long does seem like a problem.
+> > 2) Change __purge_vmap_area_lazy to do less work under a spinlock. This would
+> > certainly have a performance impact and I don't even know if it is plausible.
+> > 3) Allow module unloading to trigger a vmalloc purge beforehand to help avoid
+> > this case. This would still be racy if another vfree came in during the time
+> > between the purge and the vfree but it might be good enough.
+> > 4) Add 'if size > threshold flush entire tlb' (I haven't profiled this yet)
 > 
-> I am still not convinced that this is required. For core code that needs
-> to hook into mmput (like aio or uprobes) it really improves code
-> readability if their teardown functions are called explicitly in mmput.
-> 
-> And drivers that deal with the mm can use the already existing
-> mmu_notifers. That works at least for the AMD-IOMMUv2 and KFD drivers.
-> 
-> Maybe HMM is different here, but then you should explain why and how it
-> is different and why you can't add an explicit teardown function for
-> HMM.
+> We have the same problem. I'd agree with point 2 and point 4, point 1/3 do not
+> actually fix this issue. purge_vmap_area_lazy() could be called in other
+> cases.
 
-My first patchset added a call to hmm in mmput but Andrew asked me to
-instead add a notifier chain as he foresee more user for that. Hence
-why i did this patch.
+I would also discard point 2 as it still takes ~2 seconds, only that not
+under a spinlock.
 
-On why hmm need to cleanup here it is simple :
-  - hmm is tie to mm_struct (add a pointer to mm_struct)
-  - hmm pointer of mm_struct is clear on fork
-  - hmm object lifespan should be the same as mm_struct
-  - device file descriptor can outlive the mm_struct into which they
-    were open and thus an hmm structure that was allocated on behalf
-    of a device driver would stay allocated for as long as children
-    that have no use for it leaves (ie until they close the device
-    file).
+> w.r.t the threshold to flush entire tlb instead of doing that page-by-page, that
+> could be different from platform to platform. And considering the cost of tlb
+> flush on x86, I wonder why this isn't an issue on x86.
 
-So again, hmm is tie to mm_struct life span. We want to free hmm and
-its resources when mm is destroyed. We can not do that in file >release
-callback because it might happen long after the mm struct is free.
+The current __purge_vmap_area_lazy() was done as an optimisation (commit
+db64fe02258f1) to avoid IPIs. So flush_tlb_kernel_range() would only be
+IPI'ed once.
 
-We can not do that from mmu_notifier release callback because this
-would lead to use after free.
+IIUC, the problem is how start/end are computed in
+__purge_vmap_area_lazy(), so even if you have only two vmap areas, if
+they are 255GB apart you've got this problem.
 
-We could add a delayed job from mmu_notifier callback but this would
-be hacky as we would have no way to synchronize ourself with the mm
-destruction without complex rules and crazy code.
+One temporary option is to limit the vmalloc space on arm64 to something
+like 2 x RAM-size (haven't looked at this yet). But if you get a
+platform with lots of RAM, you hit this problem again.
 
-So again i do not see any alternative to hmm interfacing them and i
-genuinely belive iommuv2 is in the same situation as us thus justifying
-even more the notifier chain idea.
+Which leaves us with point (4) but finding the threshold is indeed
+platform dependent. Another way could be a check for latency - so if it
+took certain usecs, we break the loop and flush the whole TLB.
 
-Cheers,
-Jerome
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
