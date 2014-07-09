@@ -1,82 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f169.google.com (mail-vc0-f169.google.com [209.85.220.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 721916B0035
-	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 13:04:44 -0400 (EDT)
-Received: by mail-vc0-f169.google.com with SMTP id la4so7487880vcb.14
-        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 10:04:44 -0700 (PDT)
-Received: from mail-vc0-x22d.google.com (mail-vc0-x22d.google.com [2607:f8b0:400c:c03::22d])
-        by mx.google.com with ESMTPS id wv1si21797533vdb.80.2014.07.09.10.04.42
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id D52346B0035
+	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 13:07:15 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id ey11so9505126pad.40
+        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 10:07:15 -0700 (PDT)
+Received: from mail-pd0-x22d.google.com (mail-pd0-x22d.google.com [2607:f8b0:400e:c02::22d])
+        by mx.google.com with ESMTPS id ux4si46466825pac.207.2014.07.09.10.07.13
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 09 Jul 2014 10:04:43 -0700 (PDT)
-Received: by mail-vc0-f173.google.com with SMTP id lf12so7511479vcb.32
-        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 10:04:42 -0700 (PDT)
+        Wed, 09 Jul 2014 10:07:14 -0700 (PDT)
+Received: by mail-pd0-f173.google.com with SMTP id r10so9344622pdi.32
+        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 10:07:13 -0700 (PDT)
+Date: Wed, 9 Jul 2014 10:05:35 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: + shmem-fix-faulting-into-a-hole-while-its-punched-take-2.patch
+ added to -mm tree
+In-Reply-To: <53BD6F4E.6030003@suse.cz>
+Message-ID: <alpine.LSU.2.11.1407091000410.11705@eggly.anvils>
+References: <53b45c9b.2rlA0uGYBLzlXEeS%akpm@linux-foundation.org> <53BCBF1F.1000506@oracle.com> <alpine.LSU.2.11.1407082309040.7374@eggly.anvils> <53BD1053.5020401@suse.cz> <53BD39FC.7040205@oracle.com> <53BD67DC.9040700@oracle.com>
+ <53BD6F4E.6030003@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20140709163631.GG6685@esperanza>
-References: <cover.1404383187.git.vdavydov@parallels.com> <20140709075252.GB31067@esperanza>
- <CAAAKZwsRDb6a062SFZYv-1SDYyD12uTzVMpdZt0CtdDjoddNVg@mail.gmail.com> <20140709163631.GG6685@esperanza>
-From: Greg Thelen <gthelen@google.com>
-Date: Wed, 9 Jul 2014 10:04:21 -0700
-Message-ID: <CAHH2K0Y2OH9scJ8FGkL3M124RSfoUFiELNhGNTHJEsaCEm+hiQ@mail.gmail.com>
-Subject: Re: [PATCH RFC 0/5] Virtual Memory Resource Controller for cgroups
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Tim Hockin <thockin@hockin.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Balbir Singh <bsingharora@gmail.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, akpm@linux-foundation.org, davej@redhat.com, koct9i@gmail.com, lczerner@redhat.com, stable@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jul 9, 2014 at 9:36 AM, Vladimir Davydov <vdavydov@parallels.com> wrote:
-> Hi Tim,
->
-> On Wed, Jul 09, 2014 at 08:08:07AM -0700, Tim Hockin wrote:
->> How is this different from RLIMIT_AS?  You specifically mentioned it
->> earlier but you don't explain how this is different.
->
-> The main difference is that RLIMIT_AS is per process while this
-> controller is per cgroup. RLIMIT_AS doesn't allow us to limit VSIZE for
-> a group of unrelated or cooperating through shmem processes.
->
-> Also RLIMIT_AS accounts for total VM usage (including file mappings),
-> while this only charges private writable and shared mappings, whose
-> faulted-in pages always occupy mem+swap and therefore cannot be just
-> synced and dropped like file pages. In other words, this controller
-> works exactly as the global overcommit control.
->
->> From my perspective, this is pointless.  There's plenty of perfectly
->> correct software that mmaps files without concern for VSIZE, because
->> they never fault most of those pages in.
->
-> But there's also software that correctly handles ENOMEM returned by
-> mmap. For example, mongodb keeps growing its buffers until mmap fails.
-> Therefore, if there's no overcommit control, it will be OOM-killed
-> sooner or later, which may be pretty annoying. And we did have customers
-> complaining about that.
+On Wed, 9 Jul 2014, Vlastimil Babka wrote:
+> On 07/09/2014 06:03 PM, Sasha Levin wrote:
+> > 
+> > We can see that it's not blocked since it's in the middle of a spinlock
+> > unlock
+> > call, and we can guess it's been in that function for a while because of
+> > the hung
+> > task timer, and other processes waiting on that i_mmap_mutex:
+> 
+> Hm, zap_pte_range has potentially an endless loop due to the 'goto again'
+> path. Could it be a somewhat similar situation to the fallocate problem, but
+> where parallel faulters on shared memory are preventing a process from
+> exiting? Although they don't fault the pages into the same address space,
+> they could maybe somehow interact through the TLB flushing code? And only
+> after fixing the original problem we can observe this one?
 
-Is mongodb's buffer growth causing the oom kills?
+That's a good thought.  It ought to make forward progress nonetheless,
+but I believe (please check, I'm rushing) that there's an off-by-one in
+that path which could leave us hanging - but only when __tlb_remove_page()
+repeatedly fails, which would only happen if exceptionally low on memory??
 
-If yes, I wonder if apps, like mongodb, that want ENOMEM should (1)
-use MAP_POPULATE and (2) we change vm_map_pgoff() to propagate
-mm_populate() ENOMEM failures back to mmap()?
+Does this patch look good, and does it make any difference to the hang?
 
->> From my observations it is not generally possible to predict an
->> average VSIZE limit that would satisfy your concerns *and* not kill
->> lots of valid apps.
->
-> Yes, it's difficult. Actually, we can only guess. Nevertheless, we
-> predict and set the VSIZE limit system-wide by default.
->
->> It sounds like what you want is to limit or even disable swap usage.
->
-> I want to avoid OOM kill if it's possible to return ENOMEM. OOM can be
-> painful. It can kill lots of innocent processes. Of course, the user can
-> protect some processes by setting oom_score_adj, but this is difficult
-> and requires time and expertise, so an average user won't do that.
->
->> Given your example, your hypothetical user would probably be better of
->> getting an OOM kill early so she can fix her job spec to request more
->> memory.
->
-> In my example the user won't get OOM kill *early*...
+--- mmotm/mm/memory.c	2014-07-02 15:32:22.212311544 -0700
++++ linux/mm/memory.c	2014-07-09 09:56:33.724159443 -0700
+@@ -1145,6 +1145,7 @@ again:
+ 			if (unlikely(page_mapcount(page) < 0))
+ 				print_bad_pte(vma, addr, ptent, page);
+ 			if (unlikely(!__tlb_remove_page(tlb, page))) {
++				addr += PAGE_SIZE;
+ 				force_flush = 1;
+ 				break;
+ 			}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
