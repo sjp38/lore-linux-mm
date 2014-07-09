@@ -1,62 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 23BF96B0031
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D2BC900002
 	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 04:13:12 -0400 (EDT)
-Received: by mail-we0-f169.google.com with SMTP id t60so7122318wes.0
-        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 01:13:11 -0700 (PDT)
+Received: by mail-we0-f182.google.com with SMTP id q59so7110976wes.27
+        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 01:13:12 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m9si29942215wjr.7.2014.07.09.01.13.11
+        by mx.google.com with ESMTPS id l7si6808843wif.79.2014.07.09.01.13.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Wed, 09 Jul 2014 01:13:11 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 0/5] Reduce sequential read overhead
-Date: Wed,  9 Jul 2014 09:13:02 +0100
-Message-Id: <1404893588-21371-1-git-send-email-mgorman@suse.de>
+Subject: [PATCH 1/6] mm: pagemap: Avoid unnecessary overhead when tracepoints are deactivated
+Date: Wed,  9 Jul 2014 09:13:03 +0100
+Message-Id: <1404893588-21371-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1404893588-21371-1-git-send-email-mgorman@suse.de>
+References: <1404893588-21371-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
 
-This was formerly the series "Improve sequential read throughput" which
-noted some major differences in performance of tiobench since 3.0. While
-there are a number of factors, two that dominated were the introduction
-of the fair zone allocation policy and changes to CFQ.
+The LRU insertion and activate tracepoints take PFN as a parameter forcing
+the overhead to the caller.  Move the overhead to the tracepoint fast-assign
+method to ensure the cost is only incurred when the tracepoint is active.
 
-The behaviour of fair zone allocation policy makes more sense than tiobench
-as a benchmark and CFQ defaults were not changed due to insufficient
-benchmarking.
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ include/trace/events/pagemap.h | 16 +++++++---------
+ mm/swap.c                      |  4 ++--
+ 2 files changed, 9 insertions(+), 11 deletions(-)
 
-This series is what's left. It's one functional fix to the fair zone
-allocation policy when used on NUMA machines and a reduction of overhead
-in general. tiobench was used for the comparison despite its flaws as an
-IO benchmark as in this case we are primarily interested in the overhead
-of page allocator and page reclaim activity.
-
-On UMA, it makes little difference to overhead
-
-          3.16.0-rc3   3.16.0-rc3
-             vanilla lowercost-v5
-User          383.61      386.77
-System        403.83      401.74
-Elapsed      5411.50     5413.11
-
-On a 4-socket NUMA machine it's a bit more noticable
-
-          3.16.0-rc3   3.16.0-rc3
-             vanilla lowercost-v5
-User          746.94      802.00
-System      65336.22    40852.33
-Elapsed     27553.52    27368.46
-
- include/linux/mmzone.h         | 217 ++++++++++++++++++++++-------------------
- include/trace/events/pagemap.h |  16 ++-
- mm/page_alloc.c                | 122 ++++++++++++-----------
- mm/swap.c                      |   4 +-
- mm/vmscan.c                    |   7 +-
- mm/vmstat.c                    |   9 +-
- 6 files changed, 198 insertions(+), 177 deletions(-)
-
+diff --git a/include/trace/events/pagemap.h b/include/trace/events/pagemap.h
+index 1c9fabd..ce0803b 100644
+--- a/include/trace/events/pagemap.h
++++ b/include/trace/events/pagemap.h
+@@ -28,12 +28,10 @@ TRACE_EVENT(mm_lru_insertion,
+ 
+ 	TP_PROTO(
+ 		struct page *page,
+-		unsigned long pfn,
+-		int lru,
+-		unsigned long flags
++		int lru
+ 	),
+ 
+-	TP_ARGS(page, pfn, lru, flags),
++	TP_ARGS(page, lru),
+ 
+ 	TP_STRUCT__entry(
+ 		__field(struct page *,	page	)
+@@ -44,9 +42,9 @@ TRACE_EVENT(mm_lru_insertion,
+ 
+ 	TP_fast_assign(
+ 		__entry->page	= page;
+-		__entry->pfn	= pfn;
++		__entry->pfn	= page_to_pfn(page);
+ 		__entry->lru	= lru;
+-		__entry->flags	= flags;
++		__entry->flags	= trace_pagemap_flags(page);
+ 	),
+ 
+ 	/* Flag format is based on page-types.c formatting for pagemap */
+@@ -64,9 +62,9 @@ TRACE_EVENT(mm_lru_insertion,
+ 
+ TRACE_EVENT(mm_lru_activate,
+ 
+-	TP_PROTO(struct page *page, unsigned long pfn),
++	TP_PROTO(struct page *page),
+ 
+-	TP_ARGS(page, pfn),
++	TP_ARGS(page),
+ 
+ 	TP_STRUCT__entry(
+ 		__field(struct page *,	page	)
+@@ -75,7 +73,7 @@ TRACE_EVENT(mm_lru_activate,
+ 
+ 	TP_fast_assign(
+ 		__entry->page	= page;
+-		__entry->pfn	= pfn;
++		__entry->pfn	= page_to_pfn(page);
+ 	),
+ 
+ 	/* Flag format is based on page-types.c formatting for pagemap */
+diff --git a/mm/swap.c b/mm/swap.c
+index 9e8e347..d10be45 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -501,7 +501,7 @@ static void __activate_page(struct page *page, struct lruvec *lruvec,
+ 		SetPageActive(page);
+ 		lru += LRU_ACTIVE;
+ 		add_page_to_lru_list(page, lruvec, lru);
+-		trace_mm_lru_activate(page, page_to_pfn(page));
++		trace_mm_lru_activate(page);
+ 
+ 		__count_vm_event(PGACTIVATE);
+ 		update_page_reclaim_stat(lruvec, file, 1);
+@@ -996,7 +996,7 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
+ 	SetPageLRU(page);
+ 	add_page_to_lru_list(page, lruvec, lru);
+ 	update_page_reclaim_stat(lruvec, file, active);
+-	trace_mm_lru_insertion(page, page_to_pfn(page), lru, trace_pagemap_flags(page));
++	trace_mm_lru_insertion(page, lru);
+ }
+ 
+ /*
 -- 
 1.8.4.5
 
