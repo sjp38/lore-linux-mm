@@ -1,46 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 261256B0031
-	for <linux-mm@kvack.org>; Thu, 10 Jul 2014 08:47:16 -0400 (EDT)
-Received: by mail-ob0-f180.google.com with SMTP id vb8so9768895obc.11
-        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 05:47:15 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id sz9si67768466obc.33.2014.07.10.05.47.14
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FD546B0031
+	for <linux-mm@kvack.org>; Thu, 10 Jul 2014 09:06:54 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id et14so11061577pad.21
+        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 06:06:53 -0700 (PDT)
+Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
+        by mx.google.com with ESMTPS id x10si48529751pas.51.2014.07.10.06.06.52
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 10 Jul 2014 05:47:15 -0700 (PDT)
-Message-ID: <53BE8B1B.3000808@oracle.com>
-Date: Thu, 10 Jul 2014 08:46:19 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
-MIME-Version: 1.0
-Subject: Re: + shmem-fix-faulting-into-a-hole-while-its-punched-take-2.patch
- added to -mm tree
-References: <53b45c9b.2rlA0uGYBLzlXEeS%akpm@linux-foundation.org> <53BCBF1F.1000506@oracle.com> <alpine.LSU.2.11.1407082309040.7374@eggly.anvils> <53BD1053.5020401@suse.cz> <53BD39FC.7040205@oracle.com> <53BD67DC.9040700@oracle.com> <alpine.LSU.2.11.1407092358090.18131@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1407092358090.18131@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Thu, 10 Jul 2014 06:06:52 -0700 (PDT)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout1.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0N8H000PRZ39T940@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 10 Jul 2014 14:06:45 +0100 (BST)
+Message-id: <53BE8EA5.2030402@samsung.com>
+Date: Thu, 10 Jul 2014 17:01:25 +0400
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+MIME-version: 1.0
+Subject: Re: [RFC/PATCH RESEND -next 01/21] Add kernel address sanitizer
+ infrastructure.
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+ <1404905415-9046-2-git-send-email-a.ryabinin@samsung.com>
+ <53BE7F29.20304@oracle.com>
+In-reply-to: <53BE7F29.20304@oracle.com>
+Content-type: text/plain; charset=ISO-8859-1
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, davej@redhat.com, koct9i@gmail.com, lczerner@redhat.com, stable@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org
+Cc: Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Alexey Preobrazhensky <preobr@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Michal Marek <mmarek@suse.cz>, Russell King <linux@arm.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kbuild@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>
 
-On 07/10/2014 03:37 AM, Hugh Dickins wrote:
-> I do think that the most useful thing you could do at the moment,
-> is to switch away from running trinity on -next temporarily, and
-> run it instead on Linus's current git or on 3.16-rc4, but with
-> f00cdc6df7d7 reverted and my "take 2" inserted in its place.
+On 07/10/14 15:55, Sasha Levin wrote:
+> On 07/09/2014 07:29 AM, Andrey Ryabinin wrote:
+>> Address sanitizer for kernel (kasan) is a dynamic memory error detector.
+>>
+>> The main features of kasan is:
+>>  - is based on compiler instrumentation (fast),
+>>  - detects out of bounds for both writes and reads,
+>>  - provides use after free detection,
+>>
+>> This patch only adds infrastructure for kernel address sanitizer. It's not
+>> available for use yet. The idea and some code was borrowed from [1].
+>>
+>> This feature requires pretty fresh GCC (revision r211699 from 2014-06-16 or
+>> latter).
+>>
+>> Implementation details:
+>> The main idea of KASAN is to use shadow memory to record whether each byte of memory
+>> is safe to access or not, and use compiler's instrumentation to check the shadow memory
+>> on each memory access.
+>>
+>> Address sanitizer dedicates 1/8 of the low memory to the shadow memory and uses direct
+>> mapping with a scale and offset to translate a memory address to its corresponding
+>> shadow address.
+>>
+>> Here is function to translate address to corresponding shadow address:
+>>
+>>      unsigned long kasan_mem_to_shadow(unsigned long addr)
+>>      {
+>>                 return ((addr - PAGE_OFFSET) >> KASAN_SHADOW_SCALE_SHIFT)
+>>                              + kasan_shadow_start;
+>>      }
+>>
+>> where KASAN_SHADOW_SCALE_SHIFT = 3.
+>>
+>> So for every 8 bytes of lowmemory there is one corresponding byte of shadow memory.
+>> The following encoding used for each shadow byte: 0 means that all 8 bytes of the
+>> corresponding memory region are valid for access; k (1 <= k <= 7) means that
+>> the first k bytes are valid for access, and other (8 - k) bytes are not;
+>> Any negative value indicates that the entire 8-bytes are unaccessible.
+>> Different negative values used to distinguish between different kinds of
+>> unaccessible memory (redzones, freed memory) (see mm/kasan/kasan.h).
+>>
+>> To be able to detect accesses to bad memory we need a special compiler.
+>> Such compiler inserts a specific function calls (__asan_load*(addr), __asan_store*(addr))
+>> before each memory access of size 1, 2, 4, 8 or 16.
+>>
+>> These functions check whether memory region is valid to access or not by checking
+>> corresponding shadow memory. If access is not valid an error printed.
+>>
+>> [1] https://code.google.com/p/address-sanitizer/wiki/AddressSanitizerForKernel
+>>
+>> Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
 > 
-> That tree would also include Heiko's seq_buf_alloc() patch, which
-> trinity on -next has cast similar doubt upon: at present, we do
-> not know if Heiko's patch and my patch are bad in themselves,
-> or exposing other bugs in 3.16-rc, or exposing bugs in -next.
+> I gave it a spin, and it seems that it fails for what you might call a "regular"
+> memory size these days, in my case it was 18G:
+> 
+> [    0.000000] Kernel panic - not syncing: ERROR: Failed to allocate 0xe0c00000 bytes below 0x0.
+> [    0.000000]
+> [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 3.16.0-rc4-next-20140710-sasha-00044-gb7b0579-dirty #784
+> [    0.000000]  ffffffffb9c2d3c8 cd9ce91adea4379a 0000000000000000 ffffffffb9c2d3c8
+> [    0.000000]  ffffffffb9c2d330 ffffffffb7fe89b7 ffffffffb93c8c28 ffffffffb9c2d3b8
+> [    0.000000]  ffffffffb7fcff1d 0000000000000018 ffffffffb9c2d3c8 ffffffffb9c2d360
+> [    0.000000] Call Trace:
+> [    0.000000] <UNK> dump_stack (lib/dump_stack.c:52)
+> [    0.000000] panic (kernel/panic.c:119)
+> [    0.000000] memblock_alloc_base (mm/memblock.c:1092)
+> [    0.000000] memblock_alloc (mm/memblock.c:1097)
+> [    0.000000] kasan_alloc_shadow (mm/kasan/kasan.c:151)
+> [    0.000000] zone_sizes_init (arch/x86/mm/init.c:684)
+> [    0.000000] paging_init (arch/x86/mm/init_64.c:677)
+> [    0.000000] setup_arch (arch/x86/kernel/setup.c:1168)
+> [    0.000000] ? printk (kernel/printk/printk.c:1839)
+> [    0.000000] start_kernel (include/linux/mm_types.h:462 init/main.c:533)
+> [    0.000000] ? early_idt_handlers (arch/x86/kernel/head_64.S:344)
+> [    0.000000] x86_64_start_reservations (arch/x86/kernel/head64.c:194)
+> [    0.000000] x86_64_start_kernel (arch/x86/kernel/head64.c:183)
+> 
+> It got better when I reduced memory to 1GB, but then my system just failed to boot
+> at all because that's not enough to bring everything up.
+> 
 
-Funny enough, Linus's tree doesn't even boot properly here. It's
-going to take longer than I expected...
+Thanks.
+I think memory size is not a problem here. I tested on my desktop with 16G.
+Seems it's a problem with memory holes cited by Dave.
+kasan tries to allocate ~3.5G. It means that lowmemsize is 28G in your case.
 
 
-Thanks,
-Sasha
+> 
+> Thanks,
+> Sasha
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
