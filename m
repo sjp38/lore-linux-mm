@@ -1,60 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 618DF6B0031
-	for <linux-mm@kvack.org>; Thu, 10 Jul 2014 08:44:12 -0400 (EDT)
-Received: by mail-wg0-f45.google.com with SMTP id x12so1056421wgg.16
-        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 05:44:11 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ft19si12497979wic.27.2014.07.10.05.44.11
+Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 261256B0031
+	for <linux-mm@kvack.org>; Thu, 10 Jul 2014 08:47:16 -0400 (EDT)
+Received: by mail-ob0-f180.google.com with SMTP id vb8so9768895obc.11
+        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 05:47:15 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id sz9si67768466obc.33.2014.07.10.05.47.14
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 10 Jul 2014 05:44:11 -0700 (PDT)
-Date: Thu, 10 Jul 2014 13:44:07 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 5/6] mm: page_alloc: Abort fair zone allocation policy
- when remotes nodes are encountered
-Message-ID: <20140710124407.GH10819@suse.de>
-References: <1404893588-21371-1-git-send-email-mgorman@suse.de>
- <1404893588-21371-6-git-send-email-mgorman@suse.de>
- <20140710121419.GM29639@cmpxchg.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 10 Jul 2014 05:47:15 -0700 (PDT)
+Message-ID: <53BE8B1B.3000808@oracle.com>
+Date: Thu, 10 Jul 2014 08:46:19 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20140710121419.GM29639@cmpxchg.org>
+Subject: Re: + shmem-fix-faulting-into-a-hole-while-its-punched-take-2.patch
+ added to -mm tree
+References: <53b45c9b.2rlA0uGYBLzlXEeS%akpm@linux-foundation.org> <53BCBF1F.1000506@oracle.com> <alpine.LSU.2.11.1407082309040.7374@eggly.anvils> <53BD1053.5020401@suse.cz> <53BD39FC.7040205@oracle.com> <53BD67DC.9040700@oracle.com> <alpine.LSU.2.11.1407092358090.18131@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1407092358090.18131@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, davej@redhat.com, koct9i@gmail.com, lczerner@redhat.com, stable@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jul 10, 2014 at 08:14:19AM -0400, Johannes Weiner wrote:
-> On Wed, Jul 09, 2014 at 09:13:07AM +0100, Mel Gorman wrote:
-> > The purpose of numa_zonelist_order=zone is to preserve lower zones
-> > for use with 32-bit devices. If locality is preferred then the
-> > numa_zonelist_order=node policy should be used. Unfortunately, the fair
-> > zone allocation policy overrides this by skipping zones on remote nodes
-> > until the lower one is found. While this makes sense from a page aging
-> > and performance perspective, it breaks the expected zonelist policy. This
-> > patch restores the expected behaviour for zone-list ordering.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+On 07/10/2014 03:37 AM, Hugh Dickins wrote:
+> I do think that the most useful thing you could do at the moment,
+> is to switch away from running trinity on -next temporarily, and
+> run it instead on Linus's current git or on 3.16-rc4, but with
+> f00cdc6df7d7 reverted and my "take 2" inserted in its place.
 > 
-> 32-bit NUMA? :-)
+> That tree would also include Heiko's seq_buf_alloc() patch, which
+> trinity on -next has cast similar doubt upon: at present, we do
+> not know if Heiko's patch and my patch are bad in themselves,
+> or exposing other bugs in 3.16-rc, or exposing bugs in -next.
 
-I'm tempted to just say "it can go on fire" but realistically speaking
-they should be configured to use node ordering. I was very tempted to
-always force node ordering but I didn't have good data on how often lowmem
-allocations are required on NUMA machines.
+Funny enough, Linus's tree doesn't even boot properly here. It's
+going to take longer than I expected...
 
-> Anyway, this change also cuts down the fair pass
-> overhead on bigger NUMA machines, so I'm all for it.
-> 
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Thanks for the reviews!
-
--- 
-Mel Gorman
-SUSE Labs
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
