@@ -1,114 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
-	by kanga.kvack.org (Postfix) with ESMTP id BA1026B0031
-	for <linux-mm@kvack.org>; Thu, 10 Jul 2014 07:11:58 -0400 (EDT)
-Received: by mail-qa0-f46.google.com with SMTP id v10so2402830qac.5
-        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 04:11:58 -0700 (PDT)
-Received: from mail-qc0-x22c.google.com (mail-qc0-x22c.google.com [2607:f8b0:400d:c01::22c])
-        by mx.google.com with ESMTPS id t6si3097182qak.29.2014.07.10.04.11.57
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 10 Jul 2014 04:11:57 -0700 (PDT)
-Received: by mail-qc0-f172.google.com with SMTP id l6so571866qcy.17
-        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 04:11:57 -0700 (PDT)
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A9336B0031
+	for <linux-mm@kvack.org>; Thu, 10 Jul 2014 07:32:33 -0400 (EDT)
+Received: by mail-wg0-f44.google.com with SMTP id m15so310913wgh.3
+        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 04:32:32 -0700 (PDT)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.198])
+        by mx.google.com with ESMTP id wr4si32622662wjb.15.2014.07.10.04.32.32
+        for <linux-mm@kvack.org>;
+        Thu, 10 Jul 2014 04:32:32 -0700 (PDT)
+Date: Thu, 10 Jul 2014 14:32:19 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v4 05/13] clear_refs: remove clear_refs_private->vma and
+ introduce clear_refs_test_walk()
+Message-ID: <20140710113219.GA30954@node.dhcp.inet.fi>
+References: <1404234451-21695-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1404234451-21695-6-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-In-Reply-To: <20140710093101.21765.96636.stgit@localhost.localdomain>
-References: <20140710093101.21765.96636.stgit@localhost.localdomain>
-Date: Thu, 10 Jul 2014 13:11:56 +0200
-Message-ID: <CAJfpegutNSn-z2P754L-C_K1Ly_19ERw6ccpPpepAYRtANX9_w@mail.gmail.com>
-Subject: Re: [PATCH] fuse: remove WARN_ON writeback on dead inode
-From: Miklos Szeredi <miklos@szeredi.hu>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1404234451-21695-6-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maxim Patlasov <MPatlasov@parallels.com>
-Cc: fuse-devel <fuse-devel@lists.sourceforge.net>, Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux-Fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Thu, Jul 10, 2014 at 11:32 AM, Maxim Patlasov
-<MPatlasov@parallels.com> wrote:
-> FUSE has an architectural peculiarity: it cannot write to an inode, unless it
-> has an associated file open for write. Since the beginning (Apr 30 2008, commit
-> 3be5a52b), FUSE BUG_ON (later WARN_ON) the case when it has to process
-> writeback, but all associated files are closed. The latest relevant commit is
-> 72523425:
->
->>   Don't bug if there's no writable files found for page writeback.  If ever
->>   this is triggered, a WARN_ON helps debugging it much better then a BUG_ON.
->>
->>   Signed-off-by: Miklos Szeredi <mszeredi@suse.cz>
->
-> But that situation can happen in quite a legal way: for example, let's mmap a
-> file, then issue O_DIRECT read to mmapped region and immediately close file
-> and munmap. O_DIRECT will pin some pages, execute IO to them and then mark
-> pages dirty. Here we are.
+On Tue, Jul 01, 2014 at 01:07:23PM -0400, Naoya Horiguchi wrote:
+> @@ -822,38 +844,14 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+>  		};
+>  		struct mm_walk clear_refs_walk = {
+>  			.pmd_entry = clear_refs_pte_range,
+> +			.test_walk = clear_refs_test_walk,
+>  			.mm = mm,
+>  			.private = &cp,
+>  		};
+>  		down_read(&mm->mmap_sem);
+>  		if (type == CLEAR_REFS_SOFT_DIRTY)
+>  			mmu_notifier_invalidate_range_start(mm, 0, -1);
+> -		for (vma = mm->mmap; vma; vma = vma->vm_next) {
+> -			cp.vma = vma;
+> -			if (is_vm_hugetlb_page(vma))
+> -				continue;
+> -			/*
+> -			 * Writing 1 to /proc/pid/clear_refs affects all pages.
+> -			 *
+> -			 * Writing 2 to /proc/pid/clear_refs only affects
+> -			 * Anonymous pages.
+> -			 *
+> -			 * Writing 3 to /proc/pid/clear_refs only affects file
+> -			 * mapped pages.
+> -			 *
+> -			 * Writing 4 to /proc/pid/clear_refs affects all pages.
+> -			 */
+> -			if (type == CLEAR_REFS_ANON && vma->vm_file)
+> -				continue;
+> -			if (type == CLEAR_REFS_MAPPED && !vma->vm_file)
+> -				continue;
+> -			if (type == CLEAR_REFS_SOFT_DIRTY) {
+> -				if (vma->vm_flags & VM_SOFTDIRTY)
+> -					vma->vm_flags &= ~VM_SOFTDIRTY;
+> -			}
+> -			walk_page_range(vma->vm_start, vma->vm_end,
+> -					&clear_refs_walk);
+> -		}
+> +		walk_page_range(0, ~0UL, &clear_refs_walk);
 
-Something's not right. Fuse assumes that the file can only be modified
-if there's at least one open file for read-write, otherwise  the page
-can't be written back, resulting in fs corruption.
+'vma' variable is now unused in the clear_refs_write().
 
-The VFS also assumes in the read-only remount code that if no files
-are open for write then the filesystem can safely be remounted
-read-only and no modifications can occur after that.
-
-The situation you describe above contradict those assumptions.
-
-Removing the warning only makes the problem worse, since now the
-corruption will happen silently.
-
-CC-ing linux-fsdevel and linux-mm.  Anyone has a better insight into this?
-
-Thanks,
-Miklos
-
-
-
-
->
-> Signed-off-by: Maxim Patlasov <mpatlasov@parallels.com>
-> ---
->  fs/fuse/file.c |   14 +++-----------
->  1 file changed, 3 insertions(+), 11 deletions(-)
->
-> diff --git a/fs/fuse/file.c b/fs/fuse/file.c
-> index 6e16dad..3a47aa2 100644
-> --- a/fs/fuse/file.c
-> +++ b/fs/fuse/file.c
-> @@ -1624,8 +1624,8 @@ static void fuse_writepage_end(struct fuse_conn *fc, struct fuse_req *req)
->         fuse_writepage_free(fc, req);
->  }
->
-> -static struct fuse_file *__fuse_write_file_get(struct fuse_conn *fc,
-> -                                              struct fuse_inode *fi)
-> +static struct fuse_file *fuse_write_file_get(struct fuse_conn *fc,
-> +                                            struct fuse_inode *fi)
->  {
->         struct fuse_file *ff = NULL;
->
-> @@ -1640,14 +1640,6 @@ static struct fuse_file *__fuse_write_file_get(struct fuse_conn *fc,
->         return ff;
->  }
->
-> -static struct fuse_file *fuse_write_file_get(struct fuse_conn *fc,
-> -                                            struct fuse_inode *fi)
-> -{
-> -       struct fuse_file *ff = __fuse_write_file_get(fc, fi);
-> -       WARN_ON(!ff);
-> -       return ff;
-> -}
-> -
->  int fuse_write_inode(struct inode *inode, struct writeback_control *wbc)
->  {
->         struct fuse_conn *fc = get_fuse_conn(inode);
-> @@ -1655,7 +1647,7 @@ int fuse_write_inode(struct inode *inode, struct writeback_control *wbc)
->         struct fuse_file *ff;
->         int err;
->
-> -       ff = __fuse_write_file_get(fc, fi);
-> +       ff = fuse_write_file_get(fc, fi);
->         err = fuse_flush_times(inode, ff);
->         if (ff)
->                 fuse_file_put(ff, 0);
->
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
