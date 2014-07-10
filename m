@@ -1,177 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f181.google.com (mail-vc0-f181.google.com [209.85.220.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 230076B0036
-	for <linux-mm@kvack.org>; Thu, 10 Jul 2014 12:36:11 -0400 (EDT)
-Received: by mail-vc0-f181.google.com with SMTP id il7so11141300vcb.12
-        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 09:36:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id dx8si23151864vdb.24.2014.07.10.09.36.09
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id CF9886B0035
+	for <linux-mm@kvack.org>; Thu, 10 Jul 2014 13:27:16 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id kq14so11319475pab.6
+        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 10:27:16 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id tk10si49004120pab.212.2014.07.10.10.27.14
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 10 Jul 2014 09:36:10 -0700 (PDT)
-Date: Thu, 10 Jul 2014 12:35:55 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH v4 13/13] mincore: apply page table walker on do_mincore()
-Message-ID: <20140710163555.GB12391@nhori>
-References: <1404234451-21695-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1404234451-21695-14-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20140709133436.GA18391@node.dhcp.inet.fi>
- <20140709213624.GC24698@nhori>
- <20140710100600.GA30360@node.dhcp.inet.fi>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 10 Jul 2014 10:27:15 -0700 (PDT)
+Message-ID: <53BECBA4.3010508@oracle.com>
+Date: Thu, 10 Jul 2014 13:21:40 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140710100600.GA30360@node.dhcp.inet.fi>
+Subject: Re: + shmem-fix-faulting-into-a-hole-while-its-punched-take-2.patch
+ added to -mm tree
+References: <53b45c9b.2rlA0uGYBLzlXEeS%akpm@linux-foundation.org> <53BCBF1F.1000506@oracle.com> <alpine.LSU.2.11.1407082309040.7374@eggly.anvils> <53BD1053.5020401@suse.cz> <53BD39FC.7040205@oracle.com> <53BD67DC.9040700@oracle.com> <alpine.LSU.2.11.1407092358090.18131@eggly.anvils> <53BE8B1B.3000808@oracle.com>
+In-Reply-To: <53BE8B1B.3000808@oracle.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, davej@redhat.com, koct9i@gmail.com, lczerner@redhat.com, stable@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jul 10, 2014 at 01:06:00PM +0300, Kirill A. Shutemov wrote:
-> On Wed, Jul 09, 2014 at 05:36:24PM -0400, Naoya Horiguchi wrote:
-> > On Wed, Jul 09, 2014 at 04:34:36PM +0300, Kirill A. Shutemov wrote:
-> > > On Tue, Jul 01, 2014 at 01:07:31PM -0400, Naoya Horiguchi wrote:
-> > > > This patch makes do_mincore() use walk_page_vma(), which reduces many lines
-> > > > of code by using common page table walk code.
-> > > > 
-> > > > ChangeLog v4:
-> > > > - remove redundant vma
-> > > > 
-> > > > ChangeLog v3:
-> > > > - add NULL vma check in mincore_unmapped_range()
-> > > > - don't use pte_entry()
-> > > > 
-> > > > ChangeLog v2:
-> > > > - change type of args of callbacks to void *
-> > > > - move definition of mincore_walk to the start of the function to fix compiler
-> > > >   warning
-> > > > 
-> > > > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > > 
-> > > Trinity crases this implementation of mincore pretty easily:
-> > > 
-> > > [   42.775369] BUG: unable to handle kernel paging request at ffff88007bb61000
-> > > [   42.776656] IP: [<ffffffff81126f8f>] mincore_unmapped_range+0xdf/0x100
-> > 
-> > Thanks for your testing/reporting.
-> > 
-> > ...
-> > > 
-> > > Looks like 'vec' overflow. I don't see what could prevent do_mincore() to
-> > > write more than PAGE_SIZE to 'vec'.
-> > 
-> > I found the miscalculation of walk->private (vec) on thp and hugetlbfs.
-> > I confirmed that the reported problem is fixed (I checked that trinity
-> > never triggers the reported BUG) with the following changes on this patch.
-> 
-> With the changes:
-> 
-> [   26.850945] BUG: unable to handle kernel paging request at ffff880852d8c000
-> [   26.852718] IP: [<ffffffff81126de7>] mincore_hugetlb+0x27/0x50
-> [   26.853527] PGD 2ef6067 PUD 2ef9067 PMD 87fd4a067 PTE 8000000852d8c060
-> [   26.854462] Oops: 0002 [#1] SMP DEBUG_PAGEALLOC
-> [   26.854752] Modules linked in:
-> [   26.854752] CPU: 5 PID: 170 Comm: trinity-c5 Not tainted 3.16.0-rc4-next-20140709-00013-g28e4629f71a8-dirty #1453
-> [   26.854752] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
-> [   26.854752] task: ffff880852d22890 ti: ffff880852d24000 task.ti: ffff880852d24000
-> [   26.854752] RIP: 0010:[<ffffffff81126de7>]  [<ffffffff81126de7>] mincore_hugetlb+0x27/0x50
-> [   26.854752] RSP: 0018:ffff880852d27e28  EFLAGS: 00010206
-> [   26.854752] RAX: ffff880852d8c000 RBX: 00007f9fb2200000 RCX: 00007f9fb2200000
-> [   26.854752] RDX: 00007f9fb2001000 RSI: ffffffffffe00000 RDI: ffff88084f3edc80
-> [   26.854752] RBP: ffff880852d27e28 R08: ffff880852d27f10 R09: ffffffff81126dc0
-> [   26.854752] R10: 0000000000000000 R11: 0000000000000001 R12: 00007f9fde000000
-> [   26.854752] R13: ffffffff82e32580 R14: 00007f9fb2000000 R15: ffff880852d27f10
-> [   26.854752] FS:  00007f9fe1bde700(0000) GS:ffff88085a000000(0000) knlGS:0000000000000000
-> [   26.854752] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [   26.854752] CR2: ffff880852d8c000 CR3: 0000000852d12000 CR4: 00000000000006e0
-> [   26.854752] Stack:
-> [   26.854752]  ffff880852d27eb8 ffffffff81135e24 ffff880852ce01d8 0000000000000282
-> [   26.854752]  ffff880852ce01d8 ffff880852d22890 00007f9fde000000 ffff880852d27eb0
-> [   26.854752]  0000000000000282 0000000000000000 ffffffff81127399 0000000000000282
-> [   26.854752] Call Trace:
-> [   26.854752]  [<ffffffff81135e24>] __walk_page_range+0x3f4/0x450
-> [   26.854752]  [<ffffffff81127399>] ? SyS_mincore+0x179/0x270
-> [   26.854752]  [<ffffffff81136031>] walk_page_vma+0x71/0x90
-> [   26.854752]  [<ffffffff811273fe>] SyS_mincore+0x1de/0x270
-> [   26.854752]  [<ffffffff81126fb0>] ? mincore_unmapped_range+0x100/0x100
-> [   26.854752]  [<ffffffff81126eb0>] ? mincore_page+0xa0/0xa0
-> [   26.854752]  [<ffffffff81126dc0>] ? handle_mm_fault+0xd30/0xd30
-> [   26.854752]  [<ffffffff81746b12>] system_call_fastpath+0x16/0x1b
-> [   26.854752] Code: 0f 1f 40 00 55 48 85 ff 49 8b 40 38 48 89 e5 74 33 48 83 3f 00 40 0f 95 c6 48 39 ca 74 19 66 0f 1f 44 00 00 48 81 c2 00 10 00 00 <40> 88 30 48 83 c0 01 48 39 d1 75 ed 49 89 40 38 31 c0 5d c3 0f 
-> [   26.854752] RIP  [<ffffffff81126de7>] mincore_hugetlb+0x27/0x50
-> [   26.854752]  RSP <ffff880852d27e28>
-> [   26.854752] CR2: ffff880852d8c000
-> [   26.854752] ---[ end trace 536bbdef8c6d5b03 ]---
-> 
-> Could you explain to me how you protect 'vec' from being overflowed? I don't
-> any code for that.
+On 07/10/2014 08:46 AM, Sasha Levin wrote:
+> On 07/10/2014 03:37 AM, Hugh Dickins wrote:
+>> > I do think that the most useful thing you could do at the moment,
+>> > is to switch away from running trinity on -next temporarily, and
+>> > run it instead on Linus's current git or on 3.16-rc4, but with
+>> > f00cdc6df7d7 reverted and my "take 2" inserted in its place.
+>> > 
+>> > That tree would also include Heiko's seq_buf_alloc() patch, which
+>> > trinity on -next has cast similar doubt upon: at present, we do
+>> > not know if Heiko's patch and my patch are bad in themselves,
+>> > or exposing other bugs in 3.16-rc, or exposing bugs in -next.
+> Funny enough, Linus's tree doesn't even boot properly here. It's
+> going to take longer than I expected...
 
-I don't do it explicitly, so adding it is one solution.
-But I think the problem comes from using walk_page_range() instead of
-walk_page_vma() which forcibly sets the walk range from vm->vm_start to
-vm->vm_end.
-As the original code does, limiting the range to [addr, addr + pages <<
-PAGE_SHIFT) is fine because it implicitly prevents buffer overflow.
+While I'm failing to reproduce the mountinfo issue on Linus's tree,
+the shmem_fallocate one reproduces rather easily.
 
-Here is the revised fix for this patch. Please remove the one I replied
-yesterday because it was wrong.
+I've reverted your original fix and applied the "take 2" one as you
+suggested, there are no other significant changes on top on Linus's
+tree in this case (just Heiko's test patch and some improvements to
+what gets printed on hung tasks plus an assortment on unrelated fixes
+that are present in next).
+
+The same structure of locks that was analysed in -next exists here
+as well:
+
+Triggered here:
+
+[  364.601210] INFO: task trinity-c214:9083 blocked for more than 120 seconds.
+[  364.605498]       Not tainted 3.16.0-rc4-sasha-00069-g615ded7-dirty #793
+[  364.609705] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+[  364.614939] trinity-c214    D 0000000000000002 13528  9083   8490 0x00000000
+[  364.619414]  ffff880018757ce8 0000000000000002 ffffffff91a01d70 0000000000000001
+[  364.624540]  ffff880018757fd8 00000000001d7740 00000000001d7740 00000000001d7740
+[  364.629378]  ffff880006428000 ffff880018758000 ffff880018757cd8 ffff880031fdc210
+[  364.650601] Call Trace:
+[  364.652252] schedule (kernel/sched/core.c:2832)
+[  364.655337] schedule_preempt_disabled (kernel/sched/core.c:2859)
+[  364.659287] mutex_lock_nested (kernel/locking/mutex.c:535 kernel/locking/mutex.c:587)
+[  364.663131] ? shmem_fallocate (mm/shmem.c:1738)
+[  364.666616] ? get_parent_ip (kernel/sched/core.c:2546)
+[  364.670454] ? shmem_fallocate (mm/shmem.c:1738)
+[  364.674159] shmem_fallocate (mm/shmem.c:1738)
+[  364.676589] ? SyS_madvise (mm/madvise.c:334 mm/madvise.c:384 mm/madvise.c:534 mm/madvise.c:465)
+[  364.678415] ? put_lock_stats.isra.12 (./arch/x86/include/asm/preempt.h:98 kernel/locking/lockdep.c:254)
+[  364.680806] ? SyS_madvise (mm/madvise.c:334 mm/madvise.c:384 mm/madvise.c:534 mm/madvise.c:465)
+[  364.684206] do_fallocate (include/linux/fs.h:1281 fs/open.c:299)
+[  364.687313] SyS_madvise (mm/madvise.c:335 mm/madvise.c:384 mm/madvise.c:534 mm/madvise.c:465)
+[  364.690343] ? context_tracking_user_exit (./arch/x86/include/asm/paravirt.h:809 (discriminator 2) kernel/context_tracking.c:184 (discriminator 2))
+[  364.692913] ? trace_hardirqs_on (kernel/locking/lockdep.c:2607)
+[  364.694450] tracesys (arch/x86/kernel/entry_64.S:543)
+[  364.696034] 2 locks held by trinity-c214/9083:
+[  364.697222] #0: (sb_writers#9){.+.+.+}, at: do_fallocate (fs/open.c:298)
+[  364.700686] #1: (&sb->s_type->i_mutex_key#16){+.+.+.}, at: shmem_fallocate (mm/shmem.c:1738)
+
+Holding i_mutex and blocking on i_mmap_mutex:
+
+[  367.615992] trinity-c100    R  running task    13048  8967   8490 0x00000006
+[  367.616039]  ffff88001b903978 0000000000000002 0000000000000006 ffff880404666fd8
+[  367.616075]  ffff88001b903fd8 00000000001d7740 00000000001d7740 00000000001d7740
+[  367.616113]  ffff880007a40000 ffff88001b8f8000 ffff88001b903968 ffff88001b903fd8
+[  367.616152] Call Trace:
+[  367.616165] preempt_schedule_irq (./arch/x86/include/asm/paravirt.h:814 kernel/sched/core.c:2912)
+[  367.616182] retint_kernel (arch/x86/kernel/entry_64.S:937)
+[  367.616198] ? unmap_single_vma (mm/memory.c:1230 mm/memory.c:1277 mm/memory.c:1302 mm/memory.c:1348)
+[  367.616213] ? unmap_single_vma (mm/memory.c:1297 mm/memory.c:1348)
+[  367.616226] zap_page_range_single (include/linux/mmu_notifier.h:234 mm/memory.c:1429)
+[  367.616240] ? get_parent_ip (kernel/sched/core.c:2546)
+[  367.616260] ? unmap_mapping_range (mm/memory.c:2391)
+[  367.616267] unmap_mapping_range (mm/memory.c:2316 mm/memory.c:2392)
+[  367.616271] truncate_inode_page (mm/truncate.c:136 mm/truncate.c:180)
+[  367.616281] shmem_undo_range (mm/shmem.c:429)
+[  367.616289] shmem_truncate_range (mm/shmem.c:528)
+[  367.616296] shmem_fallocate (mm/shmem.c:1749)
+[  367.616301] ? SyS_madvise (mm/madvise.c:334 mm/madvise.c:384 mm/madvise.c:534 mm/madvise.c:465)
+[  367.616307] ? put_lock_stats.isra.12 (./arch/x86/include/asm/preempt.h:98 kernel/locking/lockdep.c:254)
+[  367.616314] ? SyS_madvise (mm/madvise.c:334 mm/madvise.c:384 mm/madvise.c:534 mm/madvise.c:465)
+[  367.616320] do_fallocate (include/linux/fs.h:1281 fs/open.c:299)
+[  367.616326] SyS_madvise (mm/madvise.c:335 mm/madvise.c:384 mm/madvise.c:534 mm/madvise.c:465)
+[  367.616333] ? context_tracking_user_exit (./arch/x86/include/asm/paravirt.h:809 (discriminator 2) kernel/context_tracking.c:184 (discriminator 2))
+[  367.616340] ? trace_hardirqs_on (kernel/locking/lockdep.c:2607)
+[  367.616345] tracesys (arch/x86/kernel/entry_64.S:543)
+
+And finally, (not) holding the i_mmap_mutex:
+
+[  367.638911] trinity-c190    R  running task    12680  9059   8490 0x00000004
+[  367.638928]  ffff8800193db828 0000000000000002 0000000000000030 0000000000000000
+[  367.638937]  ffff8800193dbfd8 00000000001d7740 00000000001d7740 00000000001d7740
+[  367.638943]  ffff8800048eb000 ffff8800193d0000 ffff8800193db818 ffff8800193dbfd8
+[  367.638950] Call Trace:
+[  367.638952]  [<ffffffff8e5170f4>] preempt_schedule_irq+0x84/0x100
+[  367.638956]  [<ffffffff8e51ec50>] retint_kernel+0x20/0x30
+[  367.638960]  [<ffffffff8b290c36>] ? free_hot_cold_page+0x1c6/0x1f0
+[  367.638962]  [<ffffffff8b291566>] free_hot_cold_page_list+0x126/0x1a0
+[  367.638974]  [<ffffffff8b29702e>] release_pages+0x21e/0x250
+[  367.638989]  [<ffffffff8b2cf0c5>] free_pages_and_swap_cache+0x55/0xc0
+[  367.638999]  [<ffffffff8b2b68ac>] tlb_flush_mmu_free+0x4c/0x60
+[  367.639012]  [<ffffffff8b2b8dd1>] zap_pte_range+0x491/0x4f0
+[  367.639019]  [<ffffffff8b2b92ce>] unmap_single_vma+0x49e/0x4c0
+[  367.639025]  [<ffffffff8b2b9675>] unmap_vmas+0x65/0x90
+[  367.639029]  [<ffffffff8b2c3344>] exit_mmap+0xd4/0x180
+[  367.639032]  [<ffffffff8b15c4ab>] mmput+0x5b/0xf0
+[  367.639038]  [<ffffffff8b163043>] do_exit+0x3a3/0xc80
+[  367.639041]  [<ffffffff8bb46d37>] ? debug_smp_processor_id+0x17/0x20
+[  367.639044]  [<ffffffff8b1c2fae>] ? put_lock_stats.isra.12+0xe/0x30
+[  367.639047]  [<ffffffff8e51d100>] ? _raw_spin_unlock_irq+0x30/0x70
+[  367.639051]  [<ffffffff8b1639f4>] do_group_exit+0x84/0xd0
+[  367.639055]  [<ffffffff8b177657>] get_signal_to_deliver+0x807/0x910
+[  367.639059]  [<ffffffff8b1a6eb8>] ? vtime_account_user+0x98/0xb0
+[  367.639063]  [<ffffffff8b0706c7>] do_signal+0x57/0x9a0
+[  367.639066]  [<ffffffff8b1a6eb8>] ? vtime_account_user+0x98/0xb0
+[  367.639070]  [<ffffffff8b19f228>] ? preempt_count_sub+0xd8/0x130
+[  367.639072]  [<ffffffff8b2848d5>] ? context_tracking_user_exit+0x1b5/0x260
+[  367.639078]  [<ffffffff8bb46d13>] ? __this_cpu_preempt_check+0x13/0x20
+[  367.639081]  [<ffffffff8b1c5df4>] ? trace_hardirqs_on_caller+0x1f4/0x290
+[  367.639087]  [<ffffffff8b07104a>] do_notify_resume+0x3a/0xb0
+[  367.639089]  [<ffffffff8e51e02a>] int_signal+0x12/0x17
+
 
 Thanks,
-Naoya Horiguchi
----
-diff --git a/mm/mincore.c b/mm/mincore.c
-index 3c64dcbcb3e2..0e548fbce19e 100644
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -34,7 +34,7 @@ static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
- 	present = pte && !huge_pte_none(huge_ptep_get(pte));
- 	for (; addr != end; vec++, addr += PAGE_SIZE)
- 		*vec = present;
--	walk->private += (end - addr) >> PAGE_SHIFT;
-+	walk->private = vec;
- #else
- 	BUG();
- #endif
-@@ -118,8 +118,10 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- 		return 0;
- 	}
- 
--	if (pmd_trans_unstable(pmd))
-+	if (pmd_trans_unstable(pmd)) {
-+		mincore_unmapped_range(addr, end, walk);
- 		return 0;
-+	}
- 
- 	ptep = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
- 	for (; addr != end; ptep++, addr += PAGE_SIZE) {
-@@ -168,6 +170,7 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
- static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *vec)
- {
- 	struct vm_area_struct *vma;
-+	unsigned long end;
- 	int err;
- 	struct mm_walk mincore_walk = {
- 		.pmd_entry = mincore_pte_range,
-@@ -180,16 +183,11 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
- 	if (!vma || addr < vma->vm_start)
- 		return -ENOMEM;
- 	mincore_walk.mm = vma->vm_mm;
--
--	err = walk_page_vma(vma, &mincore_walk);
-+	end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
-+	err = walk_page_range(addr, end, &mincore_walk);
- 	if (err < 0)
- 		return err;
--	else {
--		unsigned long end;
--
--		end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
--		return (end - addr) >> PAGE_SHIFT;
--	}
-+	return (end - addr) >> PAGE_SHIFT;
- }
- 
- /*
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
