@@ -1,119 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 83B0282965
-	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 20:53:18 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id ft15so3074778pdb.28
-        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 17:53:18 -0700 (PDT)
-Received: from mail-pd0-x22c.google.com (mail-pd0-x22c.google.com [2607:f8b0:400e:c02::22c])
-        by mx.google.com with ESMTPS id v1si7943039pdn.13.2014.07.09.17.53.16
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 34C9C82965
+	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 20:55:09 -0400 (EDT)
+Received: by mail-ig0-f182.google.com with SMTP id c1so2516797igq.15
+        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 17:55:08 -0700 (PDT)
+Received: from mx0a-0016f401.pphosted.com (mx0a-0016f401.pphosted.com. [67.231.148.174])
+        by mx.google.com with ESMTPS id hb2si72894806icc.34.2014.07.09.17.55.07
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 09 Jul 2014 17:53:17 -0700 (PDT)
-Received: by mail-pd0-f172.google.com with SMTP id w10so9917331pde.3
-        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 17:53:16 -0700 (PDT)
-Date: Wed, 9 Jul 2014 17:51:38 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: mm: shm: hang in shmem_fallocate
-In-Reply-To: <alpine.LSU.2.11.1407091518530.13001@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1407091732300.13483@eggly.anvils>
-References: <52AE7B10.2080201@oracle.com> <52F6898A.50101@oracle.com> <alpine.LSU.2.11.1402081841160.26825@eggly.anvils> <52F82E62.2010709@oracle.com> <539A0FC8.8090504@oracle.com> <alpine.LSU.2.11.1406151921070.2850@eggly.anvils> <53A9A7D8.2020703@suse.cz>
- <alpine.LSU.2.11.1406251152450.1580@eggly.anvils> <53ABE479.3080508@suse.cz> <alpine.LSU.2.11.1406262108390.27670@eggly.anvils> <20140709215906.GA27323@cmpxchg.org> <alpine.LSU.2.11.1407091518530.13001@eggly.anvils>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 09 Jul 2014 17:55:08 -0700 (PDT)
+From: Lisa Du <cldu@marvell.com>
+Date: Wed, 9 Jul 2014 17:55:04 -0700
+Subject: RE: NR_FREE_CMA_PAGES larger than total CMA size
+Message-ID: <89813612683626448B837EE5A0B6A7CB455AEB7EFB@SC-VEXCH4.marvell.com>
+References: <89813612683626448B837EE5A0B6A7CB455AEB75CF@SC-VEXCH4.marvell.com>
+ <20140707045349.GB29236@js1304-P5Q-DELUXE>
+In-Reply-To: <20140707045349.GB29236@js1304-P5Q-DELUXE>
+Content-Language: en-US
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, 9 Jul 2014, Hugh Dickins wrote:
-> On Wed, 9 Jul 2014, Johannes Weiner wrote:
-> > On Thu, Jun 26, 2014 at 10:36:20PM -0700, Hugh Dickins wrote:
-> > > Hannes, a question for you please, I just could not make up my mind.
-> > > In mm/truncate.c truncate_inode_pages_range(), what should be done
-> > > with a failed clear_exceptional_entry() in the case of hole-punch?
-> > > Is that case currently depending on the rescan loop (that I'm about
-> > > to revert) to remove a new page, so I would need to add a retry for
-> > > that rather like the shmem_free_swap() one?  Or is it irrelevant,
-> > > and can stay unchanged as below?  I've veered back and forth,
-> > > thinking first one and then the other.
-> > 
-> > I realize you have given up on changing truncate.c in the meantime,
-> > but I'm still asking myself about the swap retry case: why retry for
-> > swap-to-page changes, yet not for page-to-page changes?
-> > 
-> > In case faults are disabled through i_size, concurrent swapin could
-> > still turn swap entries into pages, so I can see the need to retry.
-> > There is no equivalent for shadow entries, though, and they can only
-> > be turned through page faults, so no retry necessary in that case.
-> > 
-> > However, you explicitely mentioned the hole-punch case above: if that
-> > can't guarantee the hole will be reliably cleared under concurrent
-> > faults, I'm not sure why it would put in more effort to free it of
-> > swap (or shadow) entries than to free it of pages.
-> > 
-> > What am I missing?
-> 
-> In dropping the pincer effect, I am conceding that data written (via
-> mmap) racily into the hole, behind the punching cursor, between the
-> starting and the ending of the punch operation, may be allowed to
-> remain.  It will not often happen (given the two loops), but it might.
-> 
-> But I insist that all data in the hole at the starting of the punch
-> operation must be removed by the ending of the punch operation (though
-> of course, given the paragraph above, identical data might be written
-> in its place concurrently, via mmap, if the application chooses).
-> 
-> I think you probably agree with both of those propositions.
-> 
-> As the punching cursor moves along the radix_tree, it gathers page
-> pointers and swap entries (the emply slots are already skipped at
-> the level below; and tmpfs takes care that there is no instant in
-> switching between page and swap when the slot appears empty).
-> 
-> Dealing with the page pointers is easy: a reference is already held,
-> then shmem_undo_range takes the page lock which prevents swizzling
-> to swap, then truncates that page out of the tree.
-> 
-> But dealing with swap entries is slippery: there is no reference
-> held, and no lock to prevent swizzling to page (outside of the
-> tree_lock taken in shmem_free_swap).
-> 
-> So, as I see it, the page lock ensures that any pages present at
-> the starting of the punch operation will be removed, without any
-> need to go back and retry.  But a swap entry present at the starting
-> of the punch operation might be swizzled back to page (and, if we
-> imagine massive preemption, even back to swap again, and to page
-> again, etc) at the wrong moment: so for swap we do need to retry.
-> 
-> (What I said there is not quite correct: that swap would actually
-> have to be a locked page at the time when the first loop meets it.)
-> 
-> Does that make sense?
-
-Allow me to disagree with myself: no, I now think you were right
-to press me on this, and we need also the patch below.  Do you
-agree, or do you see something more is needed?
-
-Note to onlookers: this would have no bearing on the shmem_fallocate
-hang which Sasha reported seeing on -next yesterday (in another thread),
-but is nonetheless a correction to the patch we have there - I think.
-
-Hugh
-
---- 3.16-rc3-mm1/mm/shmem.c	2014-07-02 15:32:22.220311543 -0700
-+++ linux/mm/shmem.c	2014-07-09 17:38:49.972818635 -0700
-@@ -516,6 +516,11 @@ static void shmem_undo_range(struct inod
- 				if (page->mapping == mapping) {
- 					VM_BUG_ON_PAGE(PageWriteback(page), page);
- 					truncate_inode_page(mapping, page);
-+				} else {
-+					/* Page was replaced by swap: retry */
-+					unlock_page(page);
-+					index--;
-+					break;
- 				}
- 			}
- 			unlock_page(page);
+Pi0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQo+RnJvbTogSm9vbnNvbyBLaW0gW21haWx0bzpp
+YW1qb29uc29vLmtpbUBsZ2UuY29tXQ0KPlNlbnQ6IDIwMTTE6jfUwjfI1SAxMjo1NA0KPlRvOiBM
+aXNhIER1DQo+Q2M6IGxpbnV4LW1tQGt2YWNrLm9yZw0KPlN1YmplY3Q6IFJlOiBOUl9GUkVFX0NN
+QV9QQUdFUyBsYXJnZXIgdGhhbiB0b3RhbCBDTUEgc2l6ZQ0KPg0KPk9uIFNhdCwgSnVsIDA1LCAy
+MDE0IGF0IDAxOjEzOjE3QU0gLTA3MDAsIExpc2EgRHUgd3JvdGU6DQo+PiBEZWFyIFNpcg0KPj4g
+UmVjZW50bHkgSSBtZXQgb25lIGlzc3VlIHRoYXQgYWZ0ZXIgc3lzdGVtIHJ1biBmb3IgYSBsb25n
+IHRpbWUsIGZyZWUNCj4+IGNtYSBwYWdlcyByZWNvcmRlZCBpbiB2bV9zdGF0W05SX0ZSRUVfQ01B
+X1BBR0VTXSBhcmUgbGFyZ2VyIHRoYW4gdG90YWwgQ01BIHNpemUgZGVjbGFyZWQuDQo+PiBGb3Ig
+ZXhhbXBsZSwgSSBkZWNsYXJlZCA2NE1CIENNQSBzaXplLCBidXQgZm91bmQgZnJlZSBjbWEgd2Fz
+IDcwTUIuDQo+Pg0KPj4gSSBhZGRlZCBzb21lIHRyYWNlIHRvIHRyYWNrIGhvdyBpdCBoYXBwZW4s
+IGFuZCBmb3VuZCB0aGUgcmVhc29uIG1heWJlIGxpa2UgYmVsb3c6DQo+PiAxKSBhbGxvY19jb250
+aWdfcmFuZ2UoKSB3YW50IHRvIGFsbG9jYXRlIGEgcmFuZ2UgW3N0YXJ0LCBlbmRdLCBmb3INCj4+
+IGV4YW1wbGUgWzB4MWUwNDAsIDB4MWUwNTBdOw0KPj4NCj4+IDIpIHN0YXJ0X2lzb2xhdGVfcGFn
+ZV9yYW5nZSgpIHdpbGwgaXNvbGF0ZSB0aGUgcmFuZ2UgW3Bmbl9tYXhfYWxpZ25fZG93bihzdGFy
+dCksDQo+PiAgIHBmbl9tYXhfYWxpZ25fdXAoZW5kKV07IGZvciB0aGlzIGV4YW1wbGUgaXQncyBb
+MHgxZTAwMCwgMHgxZTQwMF0NCj4+IChNQVhfT1JERVIgaXMgMTEpOw0KPj4NCj4+IDMpIGRyYWlu
+X2FsbF9wYWdlcygpIHdvdWxkIGJlIGNhbGxlZCBhcyBmb2xsb3dzLCBpZiB0aGVyZSdzIHNvbWUg
+cGFnZXMgYmVsb25nIHRvIHRoZSByYW5nZQ0KPj4gICBbMHgxZTAwMCwgMHgxZTQwMF0gd2FzIGZy
+ZWVkIGZyb20gdGhlIHBjcF9saXN0LCBhbHNvIGlmIHRoZSBwYWdlIHdhcyBNSUdSQVRFX0NNQSwN
+Cj4+ICAgdGhlbiB2bV9zdGF0W05SX0ZSRUVfQ01BX1BBR0VTXSB3b3VsZCBpbmNyZWFzZSBhbmQg
+YWxzbw0KPj4gTlJfRlJFRV9QQUdFUzsNCj4+DQo+PiA0KSBpZiB0aGUgZnJlZWQgcGFnZXMgaW4g
+IzMgd2FzIG5vdCB0aGUgcmFuZ2Ugb2YgW3N0YXJ0LCBlbmRdLCB0aGVuIGF0IGxhc3QgdW5kb19p
+c29sYXRlX3BhZ2VfcmFuZ2UoKQ0KPj4gICB3aWxsIGJlIGNhbGxlZCwgYW5kIHRoZSBwYWdlcyB3
+b3VsZCBiZSBjYWxjdWxhdGVkIGFnYWluIGFzIGZyZWUgcGFnZXMgaW4gdW5zZXRfbWlncmF0ZXR5
+cGVfaXNvbGF0ZSgpLA0KPj4gICBhbmQgX19tb2Rfem9uZV9mcmVlcGFnZV9zdGF0ZSgpIHdpbGwg
+aW5jcmVhc2VkIGFnYWluIGZvciB0aGVzZSBwYWdlcyBmb3IgYm90aCBOUl9GUkVFX0NNQV9QQUdF
+Uw0KPj4gICBhbmQgTlJfRlJFRV9QQUdFUy4NCj4+ICAgVGhlIGZ1bmN0aW9uIGNhbGxpbmcgZmxv
+dyBhcyBiZWxvdywgdGhlIGZyZWUgcGFnZXMgaW4gbW92ZV9mcmVlcGFnZXMoKSB3YXMgY2FsY3Vs
+YXRlZCBhZ2Fpbi4NCj4+ICAgdW5kb19pc29sYXRlX3BhZ2VfcmFuZ2UoKQ0KPj4gCS0tPiB1bnNl
+dF9taWdyYXRldHlwZV9pc29sYXRlKCkNCj4+IAkJLS0+IG1vdmVfZnJlZXBhZ2VzX2Jsb2NrKCkN
+Cj4+IAkJCS0tPiBtb3ZlX2ZyZWVwYWdlcygpDQo+PiAJLS0+IF9fbW9kX3pvbmVfZnJlZXBhZ2Vf
+c3RhdGUoKQ0KPj4NCj4+IFNoYWxsIHdlIGFkZCBzb21lIGNoZWNrIGluIG1vdmVfZnJlZXBhZ2Vz
+KCkgaWYgdGhlIHBhZ2Ugd2FzIGFscmVhZHkgaW4NCj4+IENNQSBmcmVlIGxpc3QsIHRoZW4gZXhj
+bHVkZSBpdCBmcm9tIHRoZSBwYWdlc19tb3ZlZD8NCj4+DQo+PiBJIGZvdW5kIHRoaXMgaXNzdWUg
+aW4ga2VybmVsIHYzLjQsIGJ1dCBzZWVtcyB0aGVyZSdzIG5vIGZpeCBpbiBsYXRlc3Qga2VybmVs
+IGNvZGUgYmFzZS4NCj4+IE5vdCBzdXJlIGlmIGFueW9uZSBlbHNlIGhhcyBtZXQgc3VjaCBpc3N1
+ZT8gQW55b25lIHdvdWxkIGhlbHAgdG8gY29tbWVudD8gVGhhbmtzIGEgbG90IQ0KPg0KPkhlbGxv
+LA0KPg0KPk1heWJlIHRoaXMgYnVnIGlzIHJlbGV2YW50IGZvciBteSByZWNlbnQgcGF0Y2hzZXQu
+DQo+SSBkb24ndCBoYXZlIG11Y2ggdGltZSB0byBpbnZlc3RpZ2F0ZSB5b3VyIHByb2JsZW0sIHNv
+IGlmIHlvdSBoYXZlIGludGVyZXN0IG9uIG15IHBhdGNoc2V0LCBwbGVhc2UgbG9vayBhdCBpdCBv
+biBiZWxvdyBsaW5rDQo+DQo+aHR0cHM6Ly9sa21sLm9yZy9sa21sLzIwMTQvNy80Lzc5DQo+DQo+
+SWYgdGhleSB3b3JrIGZvciB5b3UsIHBsZWFzZSBsZXQgbWUga25vdy4gOikNCkJlbG93IHBhdGNo
+ZXMgd29ya3MgZm9yIG1lLCB0aGFua3MgYSBsb3QhDQogIG1tL3BhZ2VfYWxsb2M6IGhhbmRsZSBw
+YWdlIG9uIHBjcCBjb3JyZWN0bHkgaWYgaXQncyBwYWdlYmxvY2sgaXMgaXNvbGF0ZWQNCiAgbW0v
+cGFnZV9hbGxvYzogY2FyZWZ1bGx5IGZyZWUgdGhlIHBhZ2Ugb24gaXNvbGF0ZSBwYWdlYmxvY2sN
+Cj4NCj5UaGFua3MuDQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
