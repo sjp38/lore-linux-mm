@@ -1,60 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id DEE2D6B0035
-	for <linux-mm@kvack.org>; Thu, 10 Jul 2014 11:58:16 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fb1so11414343pad.0
-        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 08:58:16 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id zy5si48866082pbc.35.2014.07.10.08.58.12
-        for <linux-mm@kvack.org>;
-        Thu, 10 Jul 2014 08:58:13 -0700 (PDT)
-Message-ID: <53BEB77A.6020003@intel.com>
-Date: Thu, 10 Jul 2014 08:55:38 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id B9C226B0035
+	for <linux-mm@kvack.org>; Thu, 10 Jul 2014 12:36:10 -0400 (EDT)
+Received: by mail-la0-f47.google.com with SMTP id s18so6332031lam.20
+        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 09:36:09 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id ov6si78709986lbb.52.2014.07.10.09.36.08
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Jul 2014 09:36:09 -0700 (PDT)
+Date: Thu, 10 Jul 2014 20:35:45 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH RFC 0/5] Virtual Memory Resource Controller for cgroups
+Message-ID: <20140710163545.GA835@esperanza>
+References: <cover.1404383187.git.vdavydov@parallels.com>
+ <20140709075252.GB31067@esperanza>
+ <CAAAKZwsRDb6a062SFZYv-1SDYyD12uTzVMpdZt0CtdDjoddNVg@mail.gmail.com>
+ <20140709163631.GG6685@esperanza>
+ <CAHH2K0Y2OH9scJ8FGkL3M124RSfoUFiELNhGNTHJEsaCEm+hiQ@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC/PATCH RESEND -next 01/21] Add kernel address sanitizer infrastructure.
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com> <1404905415-9046-2-git-send-email-a.ryabinin@samsung.com> <53BDA568.5030607@intel.com> <53BE8333.6060404@samsung.com>
-In-Reply-To: <53BE8333.6060404@samsung.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <CAHH2K0Y2OH9scJ8FGkL3M124RSfoUFiELNhGNTHJEsaCEm+hiQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>, linux-kernel@vger.kernel.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Alexey Preobrazhensky <preobr@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Russell King <linux@arm.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kbuild@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, linux-mm@kvack.org
+To: Greg Thelen <gthelen@google.com>
+Cc: Tim Hockin <thockin@hockin.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Cgroups <cgroups@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Balbir Singh <bsingharora@gmail.com>
 
-On 07/10/2014 05:12 AM, Andrey Ryabinin wrote:
-> On 07/10/14 00:26, Dave Hansen wrote:
->> On 07/09/2014 04:29 AM, Andrey Ryabinin wrote:
->>> Address sanitizer dedicates 1/8 of the low memory to the shadow memory and uses direct
->>> mapping with a scale and offset to translate a memory address to its corresponding
->>> shadow address.
->>>
->>> Here is function to translate address to corresponding shadow address:
->>>
->>>      unsigned long kasan_mem_to_shadow(unsigned long addr)
->>>      {
->>>                 return ((addr - PAGE_OFFSET) >> KASAN_SHADOW_SCALE_SHIFT)
->>>                              + kasan_shadow_start;
->>>      }
->>
->> How does this interact with vmalloc() addresses or those from a kmap()?
->> 
-> It's used only for lowmem:
+Hi Greg,
+
+On Wed, Jul 09, 2014 at 10:04:21AM -0700, Greg Thelen wrote:
+> On Wed, Jul 9, 2014 at 9:36 AM, Vladimir Davydov <vdavydov@parallels.com> wrote:
+> > Hi Tim,
+> >
+> > On Wed, Jul 09, 2014 at 08:08:07AM -0700, Tim Hockin wrote:
+> >> How is this different from RLIMIT_AS?  You specifically mentioned it
+> >> earlier but you don't explain how this is different.
+> >
+> > The main difference is that RLIMIT_AS is per process while this
+> > controller is per cgroup. RLIMIT_AS doesn't allow us to limit VSIZE for
+> > a group of unrelated or cooperating through shmem processes.
+> >
+> > Also RLIMIT_AS accounts for total VM usage (including file mappings),
+> > while this only charges private writable and shared mappings, whose
+> > faulted-in pages always occupy mem+swap and therefore cannot be just
+> > synced and dropped like file pages. In other words, this controller
+> > works exactly as the global overcommit control.
+> >
+> >> From my perspective, this is pointless.  There's plenty of perfectly
+> >> correct software that mmaps files without concern for VSIZE, because
+> >> they never fault most of those pages in.
+> >
+> > But there's also software that correctly handles ENOMEM returned by
+> > mmap. For example, mongodb keeps growing its buffers until mmap fails.
+> > Therefore, if there's no overcommit control, it will be OOM-killed
+> > sooner or later, which may be pretty annoying. And we did have customers
+> > complaining about that.
 > 
-> static inline bool addr_is_in_mem(unsigned long addr)
-> {
-> 	return likely(addr >= PAGE_OFFSET && addr < (unsigned long)high_memory);
-> }
+> Is mongodb's buffer growth causing the oom kills?
 
-That's fine, and definitely covers the common cases.  Could you make
-sure to call this out explicitly?  Also, there's nothing to _keep_ this
-approach working for things out of the direct map, right?  It would just
-be a matter of updating the shadow memory to have entries for the other
-virtual address ranges.
+We saw this happened on our customer's node some time ago. A container
+running mongodb and several other services got OOM-kills from time to
+time, which made the customer unhappy. Limiting overcommit helped then.
 
-addr_is_in_mem() is a pretty bad name for what it's doing. :)
+> If yes, I wonder if apps, like mongodb, that want ENOMEM should (1)
+> use MAP_POPULATE and (2) we change vm_map_pgoff() to propagate
+> mm_populate() ENOMEM failures back to mmap()?
 
-I'd probably call it something like kasan_tracks_vaddr().
+This way we may fault-in lots of pages, evicting someone's working set
+along the way, only to get ENOMEM eventually. This doesn't look optimal.
+Also, this requires modifications of userspace apps, which isn't always
+possible.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
