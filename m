@@ -1,76 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 34C9C82965
-	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 20:55:09 -0400 (EDT)
-Received: by mail-ig0-f182.google.com with SMTP id c1so2516797igq.15
-        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 17:55:08 -0700 (PDT)
-Received: from mx0a-0016f401.pphosted.com (mx0a-0016f401.pphosted.com. [67.231.148.174])
-        by mx.google.com with ESMTPS id hb2si72894806icc.34.2014.07.09.17.55.07
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 1086482965
+	for <linux-mm@kvack.org>; Wed,  9 Jul 2014 21:06:32 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so10142164pab.32
+        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 18:06:31 -0700 (PDT)
+Received: from mail-pd0-x235.google.com (mail-pd0-x235.google.com [2607:f8b0:400e:c02::235])
+        by mx.google.com with ESMTPS id d10si7955873pdp.26.2014.07.09.18.06.30
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 09 Jul 2014 17:55:08 -0700 (PDT)
-From: Lisa Du <cldu@marvell.com>
-Date: Wed, 9 Jul 2014 17:55:04 -0700
-Subject: RE: NR_FREE_CMA_PAGES larger than total CMA size
-Message-ID: <89813612683626448B837EE5A0B6A7CB455AEB7EFB@SC-VEXCH4.marvell.com>
-References: <89813612683626448B837EE5A0B6A7CB455AEB75CF@SC-VEXCH4.marvell.com>
- <20140707045349.GB29236@js1304-P5Q-DELUXE>
-In-Reply-To: <20140707045349.GB29236@js1304-P5Q-DELUXE>
-Content-Language: en-US
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 09 Jul 2014 18:06:30 -0700 (PDT)
+Received: by mail-pd0-f181.google.com with SMTP id v10so9752069pde.26
+        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 18:06:30 -0700 (PDT)
+Date: Wed, 9 Jul 2014 18:04:51 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: + shmem-fix-faulting-into-a-hole-while-its-punched-take-2.patch
+ added to -mm tree
+In-Reply-To: <alpine.LSU.2.11.1407091000410.11705@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1407091801160.16410@eggly.anvils>
+References: <53b45c9b.2rlA0uGYBLzlXEeS%akpm@linux-foundation.org> <53BCBF1F.1000506@oracle.com> <alpine.LSU.2.11.1407082309040.7374@eggly.anvils> <53BD1053.5020401@suse.cz> <53BD39FC.7040205@oracle.com> <53BD67DC.9040700@oracle.com> <53BD6F4E.6030003@suse.cz>
+ <alpine.LSU.2.11.1407091000410.11705@eggly.anvils>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Sasha Levin <sasha.levin@oracle.com>, akpm@linux-foundation.org, davej@redhat.com, koct9i@gmail.com, lczerner@redhat.com, stable@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Pi0tLS0tT3JpZ2luYWwgTWVzc2FnZS0tLS0tDQo+RnJvbTogSm9vbnNvbyBLaW0gW21haWx0bzpp
-YW1qb29uc29vLmtpbUBsZ2UuY29tXQ0KPlNlbnQ6IDIwMTTE6jfUwjfI1SAxMjo1NA0KPlRvOiBM
-aXNhIER1DQo+Q2M6IGxpbnV4LW1tQGt2YWNrLm9yZw0KPlN1YmplY3Q6IFJlOiBOUl9GUkVFX0NN
-QV9QQUdFUyBsYXJnZXIgdGhhbiB0b3RhbCBDTUEgc2l6ZQ0KPg0KPk9uIFNhdCwgSnVsIDA1LCAy
-MDE0IGF0IDAxOjEzOjE3QU0gLTA3MDAsIExpc2EgRHUgd3JvdGU6DQo+PiBEZWFyIFNpcg0KPj4g
-UmVjZW50bHkgSSBtZXQgb25lIGlzc3VlIHRoYXQgYWZ0ZXIgc3lzdGVtIHJ1biBmb3IgYSBsb25n
-IHRpbWUsIGZyZWUNCj4+IGNtYSBwYWdlcyByZWNvcmRlZCBpbiB2bV9zdGF0W05SX0ZSRUVfQ01B
-X1BBR0VTXSBhcmUgbGFyZ2VyIHRoYW4gdG90YWwgQ01BIHNpemUgZGVjbGFyZWQuDQo+PiBGb3Ig
-ZXhhbXBsZSwgSSBkZWNsYXJlZCA2NE1CIENNQSBzaXplLCBidXQgZm91bmQgZnJlZSBjbWEgd2Fz
-IDcwTUIuDQo+Pg0KPj4gSSBhZGRlZCBzb21lIHRyYWNlIHRvIHRyYWNrIGhvdyBpdCBoYXBwZW4s
-IGFuZCBmb3VuZCB0aGUgcmVhc29uIG1heWJlIGxpa2UgYmVsb3c6DQo+PiAxKSBhbGxvY19jb250
-aWdfcmFuZ2UoKSB3YW50IHRvIGFsbG9jYXRlIGEgcmFuZ2UgW3N0YXJ0LCBlbmRdLCBmb3INCj4+
-IGV4YW1wbGUgWzB4MWUwNDAsIDB4MWUwNTBdOw0KPj4NCj4+IDIpIHN0YXJ0X2lzb2xhdGVfcGFn
-ZV9yYW5nZSgpIHdpbGwgaXNvbGF0ZSB0aGUgcmFuZ2UgW3Bmbl9tYXhfYWxpZ25fZG93bihzdGFy
-dCksDQo+PiAgIHBmbl9tYXhfYWxpZ25fdXAoZW5kKV07IGZvciB0aGlzIGV4YW1wbGUgaXQncyBb
-MHgxZTAwMCwgMHgxZTQwMF0NCj4+IChNQVhfT1JERVIgaXMgMTEpOw0KPj4NCj4+IDMpIGRyYWlu
-X2FsbF9wYWdlcygpIHdvdWxkIGJlIGNhbGxlZCBhcyBmb2xsb3dzLCBpZiB0aGVyZSdzIHNvbWUg
-cGFnZXMgYmVsb25nIHRvIHRoZSByYW5nZQ0KPj4gICBbMHgxZTAwMCwgMHgxZTQwMF0gd2FzIGZy
-ZWVkIGZyb20gdGhlIHBjcF9saXN0LCBhbHNvIGlmIHRoZSBwYWdlIHdhcyBNSUdSQVRFX0NNQSwN
-Cj4+ICAgdGhlbiB2bV9zdGF0W05SX0ZSRUVfQ01BX1BBR0VTXSB3b3VsZCBpbmNyZWFzZSBhbmQg
-YWxzbw0KPj4gTlJfRlJFRV9QQUdFUzsNCj4+DQo+PiA0KSBpZiB0aGUgZnJlZWQgcGFnZXMgaW4g
-IzMgd2FzIG5vdCB0aGUgcmFuZ2Ugb2YgW3N0YXJ0LCBlbmRdLCB0aGVuIGF0IGxhc3QgdW5kb19p
-c29sYXRlX3BhZ2VfcmFuZ2UoKQ0KPj4gICB3aWxsIGJlIGNhbGxlZCwgYW5kIHRoZSBwYWdlcyB3
-b3VsZCBiZSBjYWxjdWxhdGVkIGFnYWluIGFzIGZyZWUgcGFnZXMgaW4gdW5zZXRfbWlncmF0ZXR5
-cGVfaXNvbGF0ZSgpLA0KPj4gICBhbmQgX19tb2Rfem9uZV9mcmVlcGFnZV9zdGF0ZSgpIHdpbGwg
-aW5jcmVhc2VkIGFnYWluIGZvciB0aGVzZSBwYWdlcyBmb3IgYm90aCBOUl9GUkVFX0NNQV9QQUdF
-Uw0KPj4gICBhbmQgTlJfRlJFRV9QQUdFUy4NCj4+ICAgVGhlIGZ1bmN0aW9uIGNhbGxpbmcgZmxv
-dyBhcyBiZWxvdywgdGhlIGZyZWUgcGFnZXMgaW4gbW92ZV9mcmVlcGFnZXMoKSB3YXMgY2FsY3Vs
-YXRlZCBhZ2Fpbi4NCj4+ICAgdW5kb19pc29sYXRlX3BhZ2VfcmFuZ2UoKQ0KPj4gCS0tPiB1bnNl
-dF9taWdyYXRldHlwZV9pc29sYXRlKCkNCj4+IAkJLS0+IG1vdmVfZnJlZXBhZ2VzX2Jsb2NrKCkN
-Cj4+IAkJCS0tPiBtb3ZlX2ZyZWVwYWdlcygpDQo+PiAJLS0+IF9fbW9kX3pvbmVfZnJlZXBhZ2Vf
-c3RhdGUoKQ0KPj4NCj4+IFNoYWxsIHdlIGFkZCBzb21lIGNoZWNrIGluIG1vdmVfZnJlZXBhZ2Vz
-KCkgaWYgdGhlIHBhZ2Ugd2FzIGFscmVhZHkgaW4NCj4+IENNQSBmcmVlIGxpc3QsIHRoZW4gZXhj
-bHVkZSBpdCBmcm9tIHRoZSBwYWdlc19tb3ZlZD8NCj4+DQo+PiBJIGZvdW5kIHRoaXMgaXNzdWUg
-aW4ga2VybmVsIHYzLjQsIGJ1dCBzZWVtcyB0aGVyZSdzIG5vIGZpeCBpbiBsYXRlc3Qga2VybmVs
-IGNvZGUgYmFzZS4NCj4+IE5vdCBzdXJlIGlmIGFueW9uZSBlbHNlIGhhcyBtZXQgc3VjaCBpc3N1
-ZT8gQW55b25lIHdvdWxkIGhlbHAgdG8gY29tbWVudD8gVGhhbmtzIGEgbG90IQ0KPg0KPkhlbGxv
-LA0KPg0KPk1heWJlIHRoaXMgYnVnIGlzIHJlbGV2YW50IGZvciBteSByZWNlbnQgcGF0Y2hzZXQu
-DQo+SSBkb24ndCBoYXZlIG11Y2ggdGltZSB0byBpbnZlc3RpZ2F0ZSB5b3VyIHByb2JsZW0sIHNv
-IGlmIHlvdSBoYXZlIGludGVyZXN0IG9uIG15IHBhdGNoc2V0LCBwbGVhc2UgbG9vayBhdCBpdCBv
-biBiZWxvdyBsaW5rDQo+DQo+aHR0cHM6Ly9sa21sLm9yZy9sa21sLzIwMTQvNy80Lzc5DQo+DQo+
-SWYgdGhleSB3b3JrIGZvciB5b3UsIHBsZWFzZSBsZXQgbWUga25vdy4gOikNCkJlbG93IHBhdGNo
-ZXMgd29ya3MgZm9yIG1lLCB0aGFua3MgYSBsb3QhDQogIG1tL3BhZ2VfYWxsb2M6IGhhbmRsZSBw
-YWdlIG9uIHBjcCBjb3JyZWN0bHkgaWYgaXQncyBwYWdlYmxvY2sgaXMgaXNvbGF0ZWQNCiAgbW0v
-cGFnZV9hbGxvYzogY2FyZWZ1bGx5IGZyZWUgdGhlIHBhZ2Ugb24gaXNvbGF0ZSBwYWdlYmxvY2sN
-Cj4NCj5UaGFua3MuDQo=
+On Wed, 9 Jul 2014, Hugh Dickins wrote:
+> On Wed, 9 Jul 2014, Vlastimil Babka wrote:
+> > On 07/09/2014 06:03 PM, Sasha Levin wrote:
+> > > 
+> > > We can see that it's not blocked since it's in the middle of a spinlock
+> > > unlock
+> > > call, and we can guess it's been in that function for a while because of
+> > > the hung
+> > > task timer, and other processes waiting on that i_mmap_mutex:
+> > 
+> > Hm, zap_pte_range has potentially an endless loop due to the 'goto again'
+> > path. Could it be a somewhat similar situation to the fallocate problem, but
+> > where parallel faulters on shared memory are preventing a process from
+> > exiting? Although they don't fault the pages into the same address space,
+> > they could maybe somehow interact through the TLB flushing code? And only
+> > after fixing the original problem we can observe this one?
+> 
+> That's a good thought.  It ought to make forward progress nonetheless,
+> but I believe (please check, I'm rushing) that there's an off-by-one in
+> that path which could leave us hanging - but only when __tlb_remove_page()
+> repeatedly fails, which would only happen if exceptionally low on memory??
+> 
+> Does this patch look good, and does it make any difference to the hang?
+
+I should add that I think that this patch is correct in itself, but
+won't actually make any difference to anything.  I'm still looking
+through Sasha's log for clues (but shall have to give up soon).
+
+Hugh
+
+> 
+> --- mmotm/mm/memory.c	2014-07-02 15:32:22.212311544 -0700
+> +++ linux/mm/memory.c	2014-07-09 09:56:33.724159443 -0700
+> @@ -1145,6 +1145,7 @@ again:
+>  			if (unlikely(page_mapcount(page) < 0))
+>  				print_bad_pte(vma, addr, ptent, page);
+>  			if (unlikely(!__tlb_remove_page(tlb, page))) {
+> +				addr += PAGE_SIZE;
+>  				force_flush = 1;
+>  				break;
+>  			}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
