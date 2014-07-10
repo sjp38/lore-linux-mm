@@ -1,90 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f178.google.com (mail-vc0-f178.google.com [209.85.220.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 4618E6B0035
-	for <linux-mm@kvack.org>; Thu, 10 Jul 2014 15:48:47 -0400 (EDT)
-Received: by mail-vc0-f178.google.com with SMTP id ij19so148458vcb.23
-        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 12:48:46 -0700 (PDT)
-Received: from mail-vc0-x22b.google.com (mail-vc0-x22b.google.com [2607:f8b0:400c:c03::22b])
-        by mx.google.com with ESMTPS id b5si94511vdj.25.2014.07.10.12.48.45
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 706266B0035
+	for <linux-mm@kvack.org>; Thu, 10 Jul 2014 15:58:03 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id et14so80782pad.41
+        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 12:58:03 -0700 (PDT)
+Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com [2607:f8b0:400e:c02::236])
+        by mx.google.com with ESMTPS id bs7si53721pdb.248.2014.07.10.12.58.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 10 Jul 2014 12:48:46 -0700 (PDT)
-Received: by mail-vc0-f171.google.com with SMTP id id10so161235vcb.2
-        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 12:48:45 -0700 (PDT)
+        Thu, 10 Jul 2014 12:58:02 -0700 (PDT)
+Received: by mail-pd0-f182.google.com with SMTP id y13so84725pdi.13
+        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 12:58:01 -0700 (PDT)
+Date: Thu, 10 Jul 2014 12:56:21 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: + shmem-fix-faulting-into-a-hole-while-its-punched-take-2.patch
+ added to -mm tree
+In-Reply-To: <53BEE4D5.2030909@oracle.com>
+Message-ID: <alpine.LSU.2.11.1407101247300.20668@eggly.anvils>
+References: <53b45c9b.2rlA0uGYBLzlXEeS%akpm@linux-foundation.org> <53BCBF1F.1000506@oracle.com> <alpine.LSU.2.11.1407082309040.7374@eggly.anvils> <53BD1053.5020401@suse.cz> <53BD39FC.7040205@oracle.com> <53BD67DC.9040700@oracle.com>
+ <alpine.LSU.2.11.1407092358090.18131@eggly.anvils> <53BE8B1B.3000808@oracle.com> <53BECBA4.3010508@oracle.com> <alpine.LSU.2.11.1407101033280.18934@eggly.anvils> <53BED7F6.4090502@oracle.com> <alpine.LSU.2.11.1407101131310.19154@eggly.anvils>
+ <53BEE345.4090203@oracle.com> <alpine.LSU.2.11.1407101203130.19396@eggly.anvils> <53BEE4D5.2030909@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <53BEB77A.6020003@intel.com>
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
-	<1404905415-9046-2-git-send-email-a.ryabinin@samsung.com>
-	<53BDA568.5030607@intel.com>
-	<53BE8333.6060404@samsung.com>
-	<53BEB77A.6020003@intel.com>
-Date: Thu, 10 Jul 2014 23:48:45 +0400
-Message-ID: <CAPAsAGwYZ9AVUoOMipZEe8jdmJfd=aULR+yoVH5FqzW1Qa75AQ@mail.gmail.com>
-Subject: Re: [RFC/PATCH RESEND -next 01/21] Add kernel address sanitizer infrastructure.
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Alexey Preobrazhensky <preobr@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Russell King <linux@arm.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kbuild@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, linux-mm@kvack.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Hugh Dickins <hughd@google.com>, Peter Zijlstra <peterz@infradead.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, davej@redhat.com, koct9i@gmail.com, lczerner@redhat.com, stable@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-2014-07-10 19:55 GMT+04:00 Dave Hansen <dave.hansen@intel.com>:
-> On 07/10/2014 05:12 AM, Andrey Ryabinin wrote:
->> On 07/10/14 00:26, Dave Hansen wrote:
->>> On 07/09/2014 04:29 AM, Andrey Ryabinin wrote:
->>>> Address sanitizer dedicates 1/8 of the low memory to the shadow memory and uses direct
->>>> mapping with a scale and offset to translate a memory address to its corresponding
->>>> shadow address.
->>>>
->>>> Here is function to translate address to corresponding shadow address:
->>>>
->>>>      unsigned long kasan_mem_to_shadow(unsigned long addr)
->>>>      {
->>>>                 return ((addr - PAGE_OFFSET) >> KASAN_SHADOW_SCALE_SHIFT)
->>>>                              + kasan_shadow_start;
->>>>      }
->>>
->>> How does this interact with vmalloc() addresses or those from a kmap()?
->>>
->> It's used only for lowmem:
->>
->> static inline bool addr_is_in_mem(unsigned long addr)
->> {
->>       return likely(addr >= PAGE_OFFSET && addr < (unsigned long)high_memory);
->> }
->
-> That's fine, and definitely covers the common cases.  Could you make
-> sure to call this out explicitly?  Also, there's nothing to _keep_ this
-> approach working for things out of the direct map, right?  It would just
-> be a matter of updating the shadow memory to have entries for the other
-> virtual address ranges.
+On Thu, 10 Jul 2014, Sasha Levin wrote:
+> On 07/10/2014 03:06 PM, Hugh Dickins wrote:
+> > On Thu, 10 Jul 2014, Sasha Levin wrote:
+> >> > On 07/10/2014 02:52 PM, Hugh Dickins wrote:
+> >>> > > On Thu, 10 Jul 2014, Sasha Levin wrote:
+> >>>>> > >> > On 07/10/2014 01:55 PM, Hugh Dickins wrote:
+> >>>>>>>>> > >>>> > >> And finally, (not) holding the i_mmap_mutex:
+> >>>>>>> > >>> > > I don't understand what prompts you to show this particular task.
+> >>>>>>> > >>> > > I imagine the dump shows lots of other tasks which are waiting to get an
+> >>>>>>> > >>> > > i_mmap_mutex, and quite a lot of other tasks which are neither waiting
+> >>>>>>> > >>> > > for nor holding an i_mmap_mutex.
+> >>>>>>> > >>> > > 
+> >>>>>>> > >>> > > Why are you showing this one in particular?  Because it looks like the
+> >>>>>>> > >>> > > one you fingered yesterday?  But I didn't see a good reason to finger
+> >>>>>>> > >>> > > that one either.
+> >>>>> > >> > 
+> >>>>> > >> > There are a few more tasks like this one, my criteria was tasks that lockdep
+> >>>>> > >> > claims were holding i_mmap_mutex, but are actually not.
+> >>> > > You and Vlastimil enlightened me yesterday that lockdep shows tasks as
+> >>> > > holding i_mmap_mutex when they are actually waiting to get i_mmap_mutex.
+> >>> > > Hundreds of those in yesterday's log, hundreds of them in today's.
+> >> > 
+> >> > What if we move lockdep's acquisition point to after it actually got the
+> >> > lock?
+> >> > 
+> >> > We'd miss deadlocks, but we don't care about them right now. Anyways, doesn't
+> >> > lockdep have anything built in to allow us to separate between locks which
+> >> > we attempt to acquire and locks that are actually acquired?
+> >> > 
+> >> > (cc PeterZ)
+> >> > 
+> >> > We can treat locks that are in the process of being acquired the same as
+> >> > acquired locks to avoid races, but when we print something out it would
+> >> > be nice to have annotation of the read state of the lock.
+> > I certainly hope someone can work on improving that.  I imagine it would
+> > be easy, and well worth doing.  But won't be looking into it myself.
+> 
+> I'd be happy to work on that, just want Peter to confirm that there's no reason
+> that this is missing right now.
 
-Why do you want shadow for things out of the direct map?
-If you want to catch use-after-free in vmalloc than DEBUG_PAGEALLOC
-will be enough.
-If you want catch out-of-bounds in vmalloc you don't need anything,
-because vmalloc
-allocates guarding hole in the end.
-Or do you want something else?
+Great, thanks.  And for this bug (and many others?) it would also be very
+helpful if those waiting on a mutex show the current mutex owner's pid.
 
->
-> addr_is_in_mem() is a pretty bad name for what it's doing. :)
->
-> I'd probably call it something like kasan_tracks_vaddr().
->
-Agree
+Don't worry about getting a final mergeable patch, covering all lock types:
+just something hacked up to show that i_mmap_mutex owner would help a lot.
 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+But be careful, maybe owner is corrupted, or contains a now-invalid
+address, or points to something no longer a task_struct.
 
-
-
--- 
-Best regards,
-Andrey Ryabinin
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
