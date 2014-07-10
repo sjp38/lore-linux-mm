@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 753806B0036
-	for <linux-mm@kvack.org>; Thu, 10 Jul 2014 09:44:48 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id kq14so11144731pab.34
-        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 06:44:48 -0700 (PDT)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id g4si8600348pde.327.2014.07.10.06.44.46
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id C343E6B0031
+	for <linux-mm@kvack.org>; Thu, 10 Jul 2014 09:56:04 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id y13so10937386pdi.13
+        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 06:56:04 -0700 (PDT)
+Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
+        by mx.google.com with ESMTPS id ce14si8611402pdb.1.2014.07.10.06.56.02
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Thu, 10 Jul 2014 06:44:47 -0700 (PDT)
+        Thu, 10 Jul 2014 06:56:03 -0700 (PDT)
 Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout2.w1.samsung.com
+ by mailout3.w1.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0N8I00ISZ0U3BO50@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 10 Jul 2014 14:44:27 +0100 (BST)
-Message-id: <53BE9786.4060700@samsung.com>
-Date: Thu, 10 Jul 2014 17:39:18 +0400
+ 17 2011)) with ESMTP id <0N8I00HU81DCJQ50@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 10 Jul 2014 14:56:00 +0100 (BST)
+Message-id: <53BE9A2B.5090104@samsung.com>
+Date: Thu, 10 Jul 2014 17:50:35 +0400
 From: Andrey Ryabinin <a.ryabinin@samsung.com>
 MIME-version: 1.0
 Subject: Re: [RFC/PATCH RESEND -next 01/21] Add kernel address sanitizer
@@ -124,16 +124,11 @@ On 07/10/14 17:31, Sasha Levin wrote:
 > However, I'm a bit confused here, I thought highmem/lowmem split was a 32bit
 > thing, so I'm not sure how it applies here.
 > 
-Right. By lowmemsize here I mean size of direct
-mapping of all phys. memory (which usually called as lowmem on 32bit systems).
-
-
-
 > Anyways, the machine won't boot with more than 1GB of RAM, is there a solution to
 > get KASAN running on my machine?
 > 
-Could you share you .config? I'll try to boot it by myself. It could be that some options conflicting with kasan.
-Also boot cmdline might help.
+
+It's not boot with the same Failed to allocate error?
 
 > 
 > Thanks,
