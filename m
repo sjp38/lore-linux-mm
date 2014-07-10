@@ -1,185 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f177.google.com (mail-vc0-f177.google.com [209.85.220.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 1182C6B0031
-	for <linux-mm@kvack.org>; Thu, 10 Jul 2014 00:26:27 -0400 (EDT)
-Received: by mail-vc0-f177.google.com with SMTP id ij19so9300375vcb.22
-        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 21:26:26 -0700 (PDT)
+Received: from mail-vc0-f172.google.com (mail-vc0-f172.google.com [209.85.220.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 9548C6B0031
+	for <linux-mm@kvack.org>; Thu, 10 Jul 2014 00:36:46 -0400 (EDT)
+Received: by mail-vc0-f172.google.com with SMTP id hy10so9554290vcb.3
+        for <linux-mm@kvack.org>; Wed, 09 Jul 2014 21:36:46 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id jp10si4921024vdb.9.2014.07.09.21.26.25
+        by mx.google.com with ESMTPS id qe9si22481708vcb.79.2014.07.09.21.36.44
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 09 Jul 2014 21:26:25 -0700 (PDT)
+        Wed, 09 Jul 2014 21:36:45 -0700 (PDT)
+Date: Thu, 10 Jul 2014 12:36:33 +0800
 From: WANG Chao <chaowang@redhat.com>
-Subject: [PATCH v2] mm/vmalloc.c: clean up map_vm_area third argument
-Date: Thu, 10 Jul 2014 12:26:07 +0800
-Message-Id: <1404966367-7599-1-git-send-email-chaowang@redhat.com>
-In-Reply-To: <1404721943-6506-1-git-send-email-chaowang@redhat.com>
-References: <1404721943-6506-1-git-send-email-chaowang@redhat.com>
+Subject: Re: [mmotm:master 162/459] arch/tile/kernel/module.c:61:2: warning:
+ passing argument 3 of 'map_vm_area' from incompatible pointer type
+Message-ID: <20140710043633.GG28832@dhcp-17-89.nay.redhat.com>
+References: <53bdfd79.GpSuQIBmMpW63HEg%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53bdfd79.GpSuQIBmMpW63HEg%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Rusty Russell <rusty@rustcorp.com.au>, Chris Metcalf <cmetcalf@tilera.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Chris Metcalf <cmetcalf@tilera.com>, kbuild-all@01.org
 
-Currently map_vm_area() takes (struct page *** pages) as third argument,
-and after mapping, it moves (*pages) to point to (*pages + nr_mappped_pages).
+[Adding tile maintainer Chris in CC]
 
-It looks like this kind of increment is useless to its caller these
-days. The callers don't care about the increments and actually they're
-trying to avoid this by passing another copy to map_vm_area().
+On 07/10/14 at 10:42am, kbuild test robot wrote:
+> tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> head:   aee1e06c30707e3a0d8098b9ad9346d9b6f7b310
+> commit: ab6110cb6a940952f7941d0b0aab4fa9bfd6131c [162/459] mm/vmalloc.c: clean up map_vm_area third argument
+> config: make ARCH=tile tilegx_defconfig
+> 
+> All warnings:
+> 
+>    arch/tile/kernel/module.c: In function 'module_alloc':
+> >> arch/tile/kernel/module.c:61:2: warning: passing argument 3 of 'map_vm_area' from incompatible pointer type [enabled by default]
+>    include/linux/vmalloc.h:115:12: note: expected 'struct page **' but argument is of type 'struct page ***'
+> 
+> vim +/map_vm_area +61 arch/tile/kernel/module.c
+> 
+> 867e359b Chris Metcalf 2010-05-28  45  	npages = (size + PAGE_SIZE - 1) / PAGE_SIZE;
+> 867e359b Chris Metcalf 2010-05-28  46  	pages = kmalloc(npages * sizeof(struct page *), GFP_KERNEL);
+> 867e359b Chris Metcalf 2010-05-28  47  	if (pages == NULL)
+> 867e359b Chris Metcalf 2010-05-28  48  		return NULL;
+> 867e359b Chris Metcalf 2010-05-28  49  	for (; i < npages; ++i) {
+> 867e359b Chris Metcalf 2010-05-28  50  		pages[i] = alloc_page(GFP_KERNEL | __GFP_HIGHMEM);
+> 867e359b Chris Metcalf 2010-05-28  51  		if (!pages[i])
+> 867e359b Chris Metcalf 2010-05-28  52  			goto error;
+> 867e359b Chris Metcalf 2010-05-28  53  	}
+> 867e359b Chris Metcalf 2010-05-28  54  
+> 867e359b Chris Metcalf 2010-05-28  55  	area = __get_vm_area(size, VM_ALLOC, MEM_MODULE_START, MEM_MODULE_END);
+> 867e359b Chris Metcalf 2010-05-28  56  	if (!area)
+> 867e359b Chris Metcalf 2010-05-28  57  		goto error;
+> 5f220704 Chris Metcalf 2012-03-29  58  	area->nr_pages = npages;
+> 5f220704 Chris Metcalf 2012-03-29  59  	area->pages = pages;
+> 867e359b Chris Metcalf 2010-05-28  60  
+> 867e359b Chris Metcalf 2010-05-28 @61  	if (map_vm_area(area, prot_rwx, &pages)) {
+> 867e359b Chris Metcalf 2010-05-28  62  		vunmap(area->addr);
+> 867e359b Chris Metcalf 2010-05-28  63  		goto error;
+> 867e359b Chris Metcalf 2010-05-28  64  	}
+> 867e359b Chris Metcalf 2010-05-28  65  
+> 867e359b Chris Metcalf 2010-05-28  66  	return area->addr;
+> 867e359b Chris Metcalf 2010-05-28  67  
+> 867e359b Chris Metcalf 2010-05-28  68  error:
+> 867e359b Chris Metcalf 2010-05-28  69  	while (--i >= 0)
 
-The caller can always guarantee all the pages can be mapped into
-vm_area as specified in first argument and the caller only cares about
-whether map_vm_area() fails or not.
+Hi, Andrew
 
-This patch cleans up the pointer movement in map_vm_area() and updates
-its callers accordingly.
+I just send an update patch to address this. Please find below in your
+inbox:
 
-v2: Fix arch/tile/kernel/module.c::module_alloc().
+[PATCH v2] mm/vmalloc.c: clean up map_vm_area third argument
 
-Signed-off-by: WANG Chao <chaowang@redhat.com>
----
- arch/tile/kernel/module.c        |  2 +-
- drivers/lguest/core.c            |  7 ++-----
- drivers/staging/android/binder.c |  4 +---
- include/linux/vmalloc.h          |  2 +-
- mm/vmalloc.c                     | 14 +++++---------
- mm/zsmalloc.c                    |  2 +-
- 6 files changed, 11 insertions(+), 20 deletions(-)
+Hi Chris,
 
-diff --git a/arch/tile/kernel/module.c b/arch/tile/kernel/module.c
-index 4918d91..d19b13e 100644
---- a/arch/tile/kernel/module.c
-+++ b/arch/tile/kernel/module.c
-@@ -58,7 +58,7 @@ void *module_alloc(unsigned long size)
- 	area->nr_pages = npages;
- 	area->pages = pages;
- 
--	if (map_vm_area(area, prot_rwx, &pages)) {
-+	if (map_vm_area(area, prot_rwx, pages)) {
- 		vunmap(area->addr);
- 		goto error;
- 	}
-diff --git a/drivers/lguest/core.c b/drivers/lguest/core.c
-index 0bf1e4e..6590558 100644
---- a/drivers/lguest/core.c
-+++ b/drivers/lguest/core.c
-@@ -42,7 +42,6 @@ DEFINE_MUTEX(lguest_lock);
- static __init int map_switcher(void)
- {
- 	int i, err;
--	struct page **pagep;
- 
- 	/*
- 	 * Map the Switcher in to high memory.
-@@ -110,11 +109,9 @@ static __init int map_switcher(void)
- 	 * This code actually sets up the pages we've allocated to appear at
- 	 * switcher_addr.  map_vm_area() takes the vma we allocated above, the
- 	 * kind of pages we're mapping (kernel pages), and a pointer to our
--	 * array of struct pages.  It increments that pointer, but we don't
--	 * care.
-+	 * array of struct pages.
- 	 */
--	pagep = lg_switcher_pages;
--	err = map_vm_area(switcher_vma, PAGE_KERNEL_EXEC, &pagep);
-+	err = map_vm_area(switcher_vma, PAGE_KERNEL_EXEC, lg_switcher_pages);
- 	if (err) {
- 		printk("lguest: map_vm_area failed: %i\n", err);
- 		goto free_vma;
-diff --git a/drivers/staging/android/binder.c b/drivers/staging/android/binder.c
-index a741da7..0ca9785 100644
---- a/drivers/staging/android/binder.c
-+++ b/drivers/staging/android/binder.c
-@@ -586,7 +586,6 @@ static int binder_update_page_range(struct binder_proc *proc, int allocate,
- 
- 	for (page_addr = start; page_addr < end; page_addr += PAGE_SIZE) {
- 		int ret;
--		struct page **page_array_ptr;
- 
- 		page = &proc->pages[(page_addr - proc->buffer) / PAGE_SIZE];
- 
-@@ -599,8 +598,7 @@ static int binder_update_page_range(struct binder_proc *proc, int allocate,
- 		}
- 		tmp_area.addr = page_addr;
- 		tmp_area.size = PAGE_SIZE + PAGE_SIZE /* guard page? */;
--		page_array_ptr = page;
--		ret = map_vm_area(&tmp_area, PAGE_KERNEL, &page_array_ptr);
-+		ret = map_vm_area(&tmp_area, PAGE_KERNEL, page);
- 		if (ret) {
- 			pr_err("%d: binder_alloc_buf failed to map page at %p in kernel\n",
- 			       proc->pid, page_addr);
-diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-index 4b8a891..b87696f 100644
---- a/include/linux/vmalloc.h
-+++ b/include/linux/vmalloc.h
-@@ -113,7 +113,7 @@ extern struct vm_struct *remove_vm_area(const void *addr);
- extern struct vm_struct *find_vm_area(const void *addr);
- 
- extern int map_vm_area(struct vm_struct *area, pgprot_t prot,
--			struct page ***pages);
-+			struct page **pages);
- #ifdef CONFIG_MMU
- extern int map_kernel_range_noflush(unsigned long start, unsigned long size,
- 				    pgprot_t prot, struct page **pages);
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index f64632b..c36547f 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1270,19 +1270,15 @@ void unmap_kernel_range(unsigned long addr, unsigned long size)
- }
- EXPORT_SYMBOL_GPL(unmap_kernel_range);
- 
--int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page ***pages)
-+int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page **pages)
- {
- 	unsigned long addr = (unsigned long)area->addr;
- 	unsigned long end = addr + get_vm_area_size(area);
- 	int err;
- 
--	err = vmap_page_range(addr, end, prot, *pages);
--	if (err > 0) {
--		*pages += err;
--		err = 0;
--	}
-+	err = vmap_page_range(addr, end, prot, pages);
- 
--	return err;
-+	return err > 0 ? 0 : err;
- }
- EXPORT_SYMBOL_GPL(map_vm_area);
- 
-@@ -1548,7 +1544,7 @@ void *vmap(struct page **pages, unsigned int count,
- 	if (!area)
- 		return NULL;
- 
--	if (map_vm_area(area, prot, &pages)) {
-+	if (map_vm_area(area, prot, pages)) {
- 		vunmap(area->addr);
- 		return NULL;
- 	}
-@@ -1604,7 +1600,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
- 		area->pages[i] = page;
- 	}
- 
--	if (map_vm_area(area, prot, &pages))
-+	if (map_vm_area(area, prot, pages))
- 		goto fail;
- 	return area->addr;
- 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index fe78189..bb62a4a 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -690,7 +690,7 @@ static inline void __zs_cpu_down(struct mapping_area *area)
- static inline void *__zs_map_object(struct mapping_area *area,
- 				struct page *pages[2], int off, int size)
- {
--	BUG_ON(map_vm_area(area->vm, PAGE_KERNEL, &pages));
-+	BUG_ON(map_vm_area(area->vm, PAGE_KERNEL, pages));
- 	area->vm_addr = area->vm->addr;
- 	return area->vm_addr + off;
- }
--- 
-1.9.3
+it seems like arch/tile/kernel/module.c::module_alloc() uses
+map_vm_area wrong. You didn't take the pointer (struct page **pages)
+increments into account. I fixed this along with the patch I
+mentioned above (CCed you). Please let me know if I was wrong.
+
+Thanks
+WANG Chao
+
+> 
+> :::::: The code at line 61 was first introduced by commit
+> :::::: 867e359b97c970a60626d5d76bbe2a8fadbf38fb arch/tile: core support for Tilera 32-bit chips.
+> 
+> :::::: TO: Chris Metcalf <cmetcalf@tilera.com>
+> :::::: CC: Chris Metcalf <cmetcalf@tilera.com>
+> 
+> ---
+> 0-DAY kernel build testing backend              Open Source Technology Center
+> http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
