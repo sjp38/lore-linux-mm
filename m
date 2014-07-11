@@ -1,64 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F2796B0035
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 14:28:20 -0400 (EDT)
-Received: by mail-qg0-f46.google.com with SMTP id q107so1273718qgd.33
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 11:28:19 -0700 (PDT)
-Received: from mail-qa0-x22c.google.com (mail-qa0-x22c.google.com [2607:f8b0:400d:c00::22c])
-        by mx.google.com with ESMTPS id 33si4681791qgj.49.2014.07.11.11.28.17
+Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
+	by kanga.kvack.org (Postfix) with ESMTP id E35476B0037
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 14:36:12 -0400 (EDT)
+Received: by mail-qg0-f43.google.com with SMTP id a108so1180170qge.2
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 11:36:12 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r18si4646759qag.92.2014.07.11.11.36.11
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 11 Jul 2014 11:28:18 -0700 (PDT)
-Received: by mail-qa0-f44.google.com with SMTP id f12so1078522qad.17
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 11:28:17 -0700 (PDT)
-Date: Fri, 11 Jul 2014 14:28:14 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC Patch V1 07/30] mm: Use cpu_to_mem()/numa_mem_id() to
- support memoryless node
-Message-ID: <20140711182814.GE30865@htj.dyndns.org>
-References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
- <1405064267-11678-8-git-send-email-jiang.liu@linux.intel.com>
- <20140711144205.GA27706@htj.dyndns.org>
- <alpine.DEB.2.11.1407111012210.25527@gentwo.org>
- <20140711152156.GB29137@htj.dyndns.org>
- <alpine.DEB.2.11.1407111056060.27349@gentwo.org>
- <20140711160152.GC30865@htj.dyndns.org>
- <alpine.DEB.2.11.1407111117560.27592@gentwo.org>
- <20140711162451.GD30865@htj.dyndns.org>
- <alpine.DEB.2.11.1407111220410.4511@gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1407111220410.4511@gentwo.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Jul 2014 11:36:11 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH -mm v5 07/13] numa_maps: fix typo in gather_hugetbl_stats
+Date: Fri, 11 Jul 2014 14:35:43 -0400
+Message-Id: <1405103749-23506-8-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1405103749-23506-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1405103749-23506-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: Jiang Liu <jiang.liu@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Vladimir Davydov <vdavydov@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Catalin Marinas <catalin.marinas@arm.com>, Jianyu Zhan <nasa4836@gmail.com>, malc <av1474@comtv.ru>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Fabian Frederick <fabf@skynet.be>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-Hello,
+Just doing s/gather_hugetbl_stats/gather_hugetlb_stats/g, this makes code
+grep-friendly.
 
-On Fri, Jul 11, 2014 at 12:29:30PM -0500, Christoph Lameter wrote:
-> GFP_THISNODE is mostly used by allocators that need memory from specific
-> nodes. The use of numa_mem_id() there is useful because one will not
-> get any memory at all when attempting to allocate from a memoryless
-> node using GFP_THISNODE.
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ fs/proc/task_mmu.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-As long as it's in allocator proper, it doesn't matter all that much
-but the changes are clearly not contained, are they?
-
-Also, unless this is done where the falling back is actually
-happening, numa_mem_id() seems like the wrong interface because you
-end up losing information of the originating node.  Given that this
-isn't a wide spread use case, maybe we can do with something like
-numa_mem_id() as a compromise but if we're doing that let's at least
-make it clear that it's something ugly (give it an ugly name, not
-something as generic as numa_mem_id()) and not expose it outside
-allocators.
-
-Thanks.
-
+diff --git mmotm-2014-07-09-17-08.orig/fs/proc/task_mmu.c mmotm-2014-07-09-17-08/fs/proc/task_mmu.c
+index e4c6cdb9647b..8b1eb1617445 100644
+--- mmotm-2014-07-09-17-08.orig/fs/proc/task_mmu.c
++++ mmotm-2014-07-09-17-08/fs/proc/task_mmu.c
+@@ -1340,7 +1340,7 @@ static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
+ 	return 0;
+ }
+ #ifdef CONFIG_HUGETLB_PAGE
+-static int gather_hugetbl_stats(pte_t *pte, unsigned long hmask,
++static int gather_hugetlb_stats(pte_t *pte, unsigned long hmask,
+ 		unsigned long addr, unsigned long end, struct mm_walk *walk)
+ {
+ 	struct numa_maps *md;
+@@ -1359,7 +1359,7 @@ static int gather_hugetbl_stats(pte_t *pte, unsigned long hmask,
+ }
+ 
+ #else
+-static int gather_hugetbl_stats(pte_t *pte, unsigned long hmask,
++static int gather_hugetlb_stats(pte_t *pte, unsigned long hmask,
+ 		unsigned long addr, unsigned long end, struct mm_walk *walk)
+ {
+ 	return 0;
+@@ -1391,7 +1391,7 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
+ 
+ 	md->vma = vma;
+ 
+-	walk.hugetlb_entry = gather_hugetbl_stats;
++	walk.hugetlb_entry = gather_hugetlb_stats;
+ 	walk.pmd_entry = gather_pte_stats;
+ 	walk.private = md;
+ 	walk.mm = mm;
 -- 
-tejun
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
