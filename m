@@ -1,68 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 791E46B0035
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 12:00:04 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id bj1so1717082pad.9
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 09:00:04 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [198.137.202.9])
-        by mx.google.com with ESMTPS id d10si1442201pdp.284.2014.07.11.09.00.02
+Received: from mail-vc0-f179.google.com (mail-vc0-f179.google.com [209.85.220.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DCB06B0035
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 12:01:57 -0400 (EDT)
+Received: by mail-vc0-f179.google.com with SMTP id id10so2421095vcb.24
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 09:01:56 -0700 (PDT)
+Received: from mail-qa0-x234.google.com (mail-qa0-x234.google.com [2607:f8b0:400d:c00::234])
+        by mx.google.com with ESMTPS id pw10si1907243vec.96.2014.07.11.09.01.55
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jul 2014 09:00:03 -0700 (PDT)
-Date: Fri, 11 Jul 2014 17:59:58 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: + shmem-fix-faulting-into-a-hole-while-its-punched-take-2.patch
- added to -mm tree
-Message-ID: <20140711155958.GR20603@laptop.programming.kicks-ass.net>
-References: <alpine.LSU.2.11.1407092358090.18131@eggly.anvils>
- <53BE8B1B.3000808@oracle.com>
- <53BECBA4.3010508@oracle.com>
- <alpine.LSU.2.11.1407101033280.18934@eggly.anvils>
- <53BED7F6.4090502@oracle.com>
- <alpine.LSU.2.11.1407101131310.19154@eggly.anvils>
- <53BEE345.4090203@oracle.com>
- <20140711082500.GB20603@laptop.programming.kicks-ass.net>
- <53BFD708.1040305@oracle.com>
- <alpine.LSU.2.11.1407110745430.2054@eggly.anvils>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 11 Jul 2014 09:01:56 -0700 (PDT)
+Received: by mail-qa0-f52.google.com with SMTP id j15so1039728qaq.39
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 09:01:55 -0700 (PDT)
+Date: Fri, 11 Jul 2014 12:01:52 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC Patch V1 07/30] mm: Use cpu_to_mem()/numa_mem_id() to
+ support memoryless node
+Message-ID: <20140711160152.GC30865@htj.dyndns.org>
+References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
+ <1405064267-11678-8-git-send-email-jiang.liu@linux.intel.com>
+ <20140711144205.GA27706@htj.dyndns.org>
+ <alpine.DEB.2.11.1407111012210.25527@gentwo.org>
+ <20140711152156.GB29137@htj.dyndns.org>
+ <alpine.DEB.2.11.1407111056060.27349@gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1407110745430.2054@eggly.anvils>
+In-Reply-To: <alpine.DEB.2.11.1407111056060.27349@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, davej@redhat.com, koct9i@gmail.com, lczerner@redhat.com, stable@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@gentwo.org>
+Cc: Jiang Liu <jiang.liu@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Vladimir Davydov <vdavydov@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Catalin Marinas <catalin.marinas@arm.com>, Jianyu Zhan <nasa4836@gmail.com>, malc <av1474@comtv.ru>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Fabian Frederick <fabf@skynet.be>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, Jul 11, 2014 at 07:55:50AM -0700, Hugh Dickins wrote:
-> On Fri, 11 Jul 2014, Sasha Levin wrote:
-> > 
-> > There's no easy way to see whether a given task is actually holding a lock or
-> > is just blocking on it without going through all those tasks one by one and
-> > looking at their trace.
-> > 
-> > I agree with you that "The call trace is very clear on it that its not", but
-> > when you have 500 call traces you really want something better than going
-> > through it one call trace at a time.
+On Fri, Jul 11, 2014 at 10:58:52AM -0500, Christoph Lameter wrote:
+> > But, GFP_THISNODE + numa_mem_id() is identical to numa_node_id() +
+> > nearest node with memory fallback.  Is there any case where the user
+> > would actually want to always fail if it's on the memless node?
 > 
-> Points well made, and I strongly agree with Vlastimil and Sasha.
-> There is a world of difference between a lock wanted and a lock held,
-> and for the display of locks "held" to conceal that difference is unhelpful.
-> It just needs one greppable word to distinguish the cases.
+> GFP_THISNODE allocatios must fail if there is no memory available on
+> the node. No fallback allowed.
 
-So for the actual locking scenario it doesn't make a difference one way
-or another. These threads all can/could/will acquire the lock
-(eventually), so all their locking chains should be considered.
+I don't know.  The intention is that the caller wants something on
+this node or the caller will fail or fallback ourselves, right?  For
+most use cases just considering the nearest memory node as "local" for
+memless nodes should work and serve the intentions of the users close
+enough.  Whether that'd be better or we'd be better off with something
+else depends on the details for sure.
 
-I realize that 500+ single lock 'chains' can be tedious, otoh they're
-easy to dismiss, since singe lock 'chains' are trivial and usually not
-interesting in their own right.
+Thanks.
 
-> (Though I didn't find "The call trace is very clear on it that its not",
-> I thought it too was telling me that the lock was already held somehow.)
-
-The trace is in the middle of the mutex op, if it were really fully
-acquired it would not be, it would be doing something else -- while
-holding the mutex.
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
