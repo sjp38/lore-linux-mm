@@ -1,282 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id BC5FC6B0035
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 08:09:23 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id p10so973575pdj.27
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 05:09:23 -0700 (PDT)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id od9si1136496pdb.296.2014.07.11.05.09.21
+Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 6571C6B0035
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 08:23:15 -0400 (EDT)
+Received: by mail-yk0-f174.google.com with SMTP id 19so357582ykq.19
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 05:23:15 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id a64si4292379yhb.117.2014.07.11.05.23.13
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Fri, 11 Jul 2014 05:09:22 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0N8J00GHLR33U6A0@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 11 Jul 2014 13:09:03 +0100 (BST)
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-Subject: [PATCH] mm: move slab related stuff from util.c to slab_common.c
-Date: Fri, 11 Jul 2014 16:03:44 +0400
-Message-id: <1405080224-26608-1-git-send-email-a.ryabinin@samsung.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 11 Jul 2014 05:23:14 -0700 (PDT)
+Message-ID: <53BFD708.1040305@oracle.com>
+Date: Fri, 11 Jul 2014 08:22:32 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
+MIME-Version: 1.0
+Subject: Re: + shmem-fix-faulting-into-a-hole-while-its-punched-take-2.patch
+ added to -mm tree
+References: <53BD1053.5020401@suse.cz> <53BD39FC.7040205@oracle.com> <53BD67DC.9040700@oracle.com> <alpine.LSU.2.11.1407092358090.18131@eggly.anvils> <53BE8B1B.3000808@oracle.com> <53BECBA4.3010508@oracle.com> <alpine.LSU.2.11.1407101033280.18934@eggly.anvils> <53BED7F6.4090502@oracle.com> <alpine.LSU.2.11.1407101131310.19154@eggly.anvils> <53BEE345.4090203@oracle.com> <20140711082500.GB20603@laptop.programming.kicks-ass.net>
+In-Reply-To: <20140711082500.GB20603@laptop.programming.kicks-ass.net>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrey Ryabinin <a.ryabinin@samsung.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Hugh Dickins <hughd@google.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, davej@redhat.com, koct9i@gmail.com, lczerner@redhat.com, stable@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Functions krealloc(), __krealloc(), kzfree() belongs to slab API,
-so should be placed in slab_common.c
-Also move slab allocator's tracepoints defenitions to slab_common.c
-No functional changes here.
+On 07/11/2014 04:25 AM, Peter Zijlstra wrote:
+> On Thu, Jul 10, 2014 at 03:02:29PM -0400, Sasha Levin wrote:
+>> What if we move lockdep's acquisition point to after it actually got the
+>> lock?
+> 
+> NAK, you want to do deadlock detection _before_ you're stuck in a
+> deadlock.
 
-Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
-Acked-by: Christoph Lameter <cl@linux.com>
----
- mm/slab_common.c | 101 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- mm/util.c        | 102 -------------------------------------------------------
- 2 files changed, 101 insertions(+), 102 deletions(-)
+I didn't suggest to do it in the general case, but just for debugging the issue
+we have here.
 
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 735e01a..33ed42e 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -19,6 +19,8 @@
- #include <asm/tlbflush.h>
- #include <asm/page.h>
- #include <linux/memcontrol.h>
-+
-+#define CREATE_TRACE_POINTS
- #include <trace/events/kmem.h>
- 
- #include "slab.h"
-@@ -787,3 +789,102 @@ static int __init slab_proc_init(void)
- }
- module_init(slab_proc_init);
- #endif /* CONFIG_SLABINFO */
-+
-+static __always_inline void *__do_krealloc(const void *p, size_t new_size,
-+					   gfp_t flags)
-+{
-+	void *ret;
-+	size_t ks = 0;
-+
-+	if (p)
-+		ks = ksize(p);
-+
-+	if (ks >= new_size)
-+		return (void *)p;
-+
-+	ret = kmalloc_track_caller(new_size, flags);
-+	if (ret && p)
-+		memcpy(ret, p, ks);
-+
-+	return ret;
-+}
-+
-+/**
-+ * __krealloc - like krealloc() but don't free @p.
-+ * @p: object to reallocate memory for.
-+ * @new_size: how many bytes of memory are required.
-+ * @flags: the type of memory to allocate.
-+ *
-+ * This function is like krealloc() except it never frees the originally
-+ * allocated buffer. Use this if you don't want to free the buffer immediately
-+ * like, for example, with RCU.
-+ */
-+void *__krealloc(const void *p, size_t new_size, gfp_t flags)
-+{
-+	if (unlikely(!new_size))
-+		return ZERO_SIZE_PTR;
-+
-+	return __do_krealloc(p, new_size, flags);
-+
-+}
-+EXPORT_SYMBOL(__krealloc);
-+
-+/**
-+ * krealloc - reallocate memory. The contents will remain unchanged.
-+ * @p: object to reallocate memory for.
-+ * @new_size: how many bytes of memory are required.
-+ * @flags: the type of memory to allocate.
-+ *
-+ * The contents of the object pointed to are preserved up to the
-+ * lesser of the new and old sizes.  If @p is %NULL, krealloc()
-+ * behaves exactly like kmalloc().  If @new_size is 0 and @p is not a
-+ * %NULL pointer, the object pointed to is freed.
-+ */
-+void *krealloc(const void *p, size_t new_size, gfp_t flags)
-+{
-+	void *ret;
-+
-+	if (unlikely(!new_size)) {
-+		kfree(p);
-+		return ZERO_SIZE_PTR;
-+	}
-+
-+	ret = __do_krealloc(p, new_size, flags);
-+	if (ret && p != ret)
-+		kfree(p);
-+
-+	return ret;
-+}
-+EXPORT_SYMBOL(krealloc);
-+
-+/**
-+ * kzfree - like kfree but zero memory
-+ * @p: object to free memory of
-+ *
-+ * The memory of the object @p points to is zeroed before freed.
-+ * If @p is %NULL, kzfree() does nothing.
-+ *
-+ * Note: this function zeroes the whole allocated buffer which can be a good
-+ * deal bigger than the requested buffer size passed to kmalloc(). So be
-+ * careful when using this function in performance sensitive code.
-+ */
-+void kzfree(const void *p)
-+{
-+	size_t ks;
-+	void *mem = (void *)p;
-+
-+	if (unlikely(ZERO_OR_NULL_PTR(mem)))
-+		return;
-+	ks = ksize(mem);
-+	memset(mem, 0, ks);
-+	kfree(mem);
-+}
-+EXPORT_SYMBOL(kzfree);
-+
-+/* Tracepoints definitions. */
-+EXPORT_TRACEPOINT_SYMBOL(kmalloc);
-+EXPORT_TRACEPOINT_SYMBOL(kmem_cache_alloc);
-+EXPORT_TRACEPOINT_SYMBOL(kmalloc_node);
-+EXPORT_TRACEPOINT_SYMBOL(kmem_cache_alloc_node);
-+EXPORT_TRACEPOINT_SYMBOL(kfree);
-+EXPORT_TRACEPOINT_SYMBOL(kmem_cache_free);
-diff --git a/mm/util.c b/mm/util.c
-index d5ea733..7b6608d 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -16,9 +16,6 @@
- 
- #include "internal.h"
- 
--#define CREATE_TRACE_POINTS
--#include <trace/events/kmem.h>
--
- /**
-  * kstrdup - allocate space for and copy an existing string
-  * @s: the string to duplicate
-@@ -112,97 +109,6 @@ void *memdup_user(const void __user *src, size_t len)
- }
- EXPORT_SYMBOL(memdup_user);
- 
--static __always_inline void *__do_krealloc(const void *p, size_t new_size,
--					   gfp_t flags)
--{
--	void *ret;
--	size_t ks = 0;
--
--	if (p)
--		ks = ksize(p);
--
--	if (ks >= new_size)
--		return (void *)p;
--
--	ret = kmalloc_track_caller(new_size, flags);
--	if (ret && p)
--		memcpy(ret, p, ks);
--
--	return ret;
--}
--
--/**
-- * __krealloc - like krealloc() but don't free @p.
-- * @p: object to reallocate memory for.
-- * @new_size: how many bytes of memory are required.
-- * @flags: the type of memory to allocate.
-- *
-- * This function is like krealloc() except it never frees the originally
-- * allocated buffer. Use this if you don't want to free the buffer immediately
-- * like, for example, with RCU.
-- */
--void *__krealloc(const void *p, size_t new_size, gfp_t flags)
--{
--	if (unlikely(!new_size))
--		return ZERO_SIZE_PTR;
--
--	return __do_krealloc(p, new_size, flags);
--
--}
--EXPORT_SYMBOL(__krealloc);
--
--/**
-- * krealloc - reallocate memory. The contents will remain unchanged.
-- * @p: object to reallocate memory for.
-- * @new_size: how many bytes of memory are required.
-- * @flags: the type of memory to allocate.
-- *
-- * The contents of the object pointed to are preserved up to the
-- * lesser of the new and old sizes.  If @p is %NULL, krealloc()
-- * behaves exactly like kmalloc().  If @new_size is 0 and @p is not a
-- * %NULL pointer, the object pointed to is freed.
-- */
--void *krealloc(const void *p, size_t new_size, gfp_t flags)
--{
--	void *ret;
--
--	if (unlikely(!new_size)) {
--		kfree(p);
--		return ZERO_SIZE_PTR;
--	}
--
--	ret = __do_krealloc(p, new_size, flags);
--	if (ret && p != ret)
--		kfree(p);
--
--	return ret;
--}
--EXPORT_SYMBOL(krealloc);
--
--/**
-- * kzfree - like kfree but zero memory
-- * @p: object to free memory of
-- *
-- * The memory of the object @p points to is zeroed before freed.
-- * If @p is %NULL, kzfree() does nothing.
-- *
-- * Note: this function zeroes the whole allocated buffer which can be a good
-- * deal bigger than the requested buffer size passed to kmalloc(). So be
-- * careful when using this function in performance sensitive code.
-- */
--void kzfree(const void *p)
--{
--	size_t ks;
--	void *mem = (void *)p;
--
--	if (unlikely(ZERO_OR_NULL_PTR(mem)))
--		return;
--	ks = ksize(mem);
--	memset(mem, 0, ks);
--	kfree(mem);
--}
--EXPORT_SYMBOL(kzfree);
--
- /*
-  * strndup_user - duplicate an existing string from user space
-  * @s: The string to duplicate
-@@ -504,11 +410,3 @@ out_mm:
- out:
- 	return res;
- }
--
--/* Tracepoints definitions. */
--EXPORT_TRACEPOINT_SYMBOL(kmalloc);
--EXPORT_TRACEPOINT_SYMBOL(kmem_cache_alloc);
--EXPORT_TRACEPOINT_SYMBOL(kmalloc_node);
--EXPORT_TRACEPOINT_SYMBOL(kmem_cache_alloc_node);
--EXPORT_TRACEPOINT_SYMBOL(kfree);
--EXPORT_TRACEPOINT_SYMBOL(kmem_cache_free);
--- 
-1.8.5.5
+>> We'd miss deadlocks, but we don't care about them right now. Anyways, doesn't
+>> lockdep have anything built in to allow us to separate between locks which
+>> we attempt to acquire and locks that are actually acquired?
+>>
+>> (cc PeterZ)
+>>
+>> We can treat locks that are in the process of being acquired the same as
+>> acquired locks to avoid races, but when we print something out it would
+>> be nice to have annotation of the read state of the lock.
+> 
+> I'm missing the problem here I think.
+
+The problem here is that lockdep reports tasks waiting on lock as ones that
+already have the lock. So we have a list of about 500 different tasks looking
+like this:
+
+[  367.805809] 2 locks held by trinity-c214/9083:
+[  367.805811] #0: (sb_writers#9){.+.+.+}, at: do_fallocate (fs/open.c:298)
+[  367.805824] #1: (&sb->s_type->i_mutex_key#16){+.+.+.}, at: shmem_fallocate (mm/shmem.c:1738)
+
+While they haven't actually acquired i_mutex, but are merely blocking on it:
+
+[  367.644150] trinity-c214    D 0000000000000002 13528  9083   8490 0x00000000
+[  367.644171]  ffff880018757ce8 0000000000000002 ffffffff91a01d70 0000000000000001
+[  367.644178]  ffff880018757fd8 00000000001d7740 00000000001d7740 00000000001d7740
+[  367.644188]  ffff880006428000 ffff880018758000 ffff880018757cd8 ffff880031fdc210
+[  367.644213] Call Trace:
+[  367.644218] schedule (kernel/sched/core.c:2832)
+[  367.644229] schedule_preempt_disabled (kernel/sched/core.c:2859)
+[  367.644237] mutex_lock_nested (kernel/locking/mutex.c:535 kernel/locking/mutex.c:587)
+[  367.644240] ? shmem_fallocate (mm/shmem.c:1738)
+[  367.644248] ? get_parent_ip (kernel/sched/core.c:2546)
+[  367.644255] ? shmem_fallocate (mm/shmem.c:1738)
+[  367.644264] shmem_fallocate (mm/shmem.c:1738)
+[  367.644268] ? SyS_madvise (mm/madvise.c:334 mm/madvise.c:384 mm/madvise.c:534 mm/madvise.c:465)
+[  367.644280] ? put_lock_stats.isra.12 (./arch/x86/include/asm/preempt.h:98 kernel/locking/lockdep.c:254)
+[  367.644291] ? SyS_madvise (mm/madvise.c:334 mm/madvise.c:384 mm/madvise.c:534 mm/madvise.c:465)
+[  367.644298] do_fallocate (include/linux/fs.h:1281 fs/open.c:299)
+[  367.644303] SyS_madvise (mm/madvise.c:335 mm/madvise.c:384 mm/madvise.c:534 mm/madvise.c:465)
+[  367.644309] ? context_tracking_user_exit (./arch/x86/include/asm/paravirt.h:809 (discriminator 2) kernel/context_tracking.c:184 (discriminator 2))
+[  367.644315] ? trace_hardirqs_on (kernel/locking/lockdep.c:2607)
+[  367.644321] tracesys (arch/x86/kernel/entry_64.S:543)
+
+There's no easy way to see whether a given task is actually holding a lock or
+is just blocking on it without going through all those tasks one by one and
+looking at their trace.
+
+I agree with you that "The call trace is very clear on it that its not", but
+when you have 500 call traces you really want something better than going
+through it one call trace at a time.
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
