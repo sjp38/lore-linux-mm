@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id D610882A8B
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:36:41 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y10so944806pdj.19
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:36:41 -0700 (PDT)
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 0580E82A8B
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:36:43 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id v10so949660pde.12
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:36:43 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id cf5si1579350pbc.10.2014.07.11.00.36.40
+        by mx.google.com with ESMTP id cf5si1579350pbc.10.2014.07.11.00.36.42
         for <linux-mm@kvack.org>;
-        Fri, 11 Jul 2014 00:36:40 -0700 (PDT)
+        Fri, 11 Jul 2014 00:36:42 -0700 (PDT)
 From: Jiang Liu <jiang.liu@linux.intel.com>
-Subject: [RFC Patch V1 18/30] mm, bnx2fc: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-Date: Fri, 11 Jul 2014 15:37:35 +0800
-Message-Id: <1405064267-11678-19-git-send-email-jiang.liu@linux.intel.com>
+Subject: [RFC Patch V1 19/30] mm, bnx2i: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+Date: Fri, 11 Jul 2014 15:37:36 +0800
+Message-Id: <1405064267-11678-20-git-send-email-jiang.liu@linux.intel.com>
 In-Reply-To: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
 References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -30,20 +30,20 @@ is the same as cpu_to_node()/numa_node_id().
 
 Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
 ---
- drivers/scsi/bnx2fc/bnx2fc_fcoe.c |    2 +-
+ drivers/scsi/bnx2i/bnx2i_init.c |    2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/scsi/bnx2fc/bnx2fc_fcoe.c b/drivers/scsi/bnx2fc/bnx2fc_fcoe.c
-index 785d0d71781e..144534a51cbb 100644
---- a/drivers/scsi/bnx2fc/bnx2fc_fcoe.c
-+++ b/drivers/scsi/bnx2fc/bnx2fc_fcoe.c
-@@ -2453,7 +2453,7 @@ static void bnx2fc_percpu_thread_create(unsigned int cpu)
- 	p = &per_cpu(bnx2fc_percpu, cpu);
+diff --git a/drivers/scsi/bnx2i/bnx2i_init.c b/drivers/scsi/bnx2i/bnx2i_init.c
+index 80c03b452d61..f67a5a63134e 100644
+--- a/drivers/scsi/bnx2i/bnx2i_init.c
++++ b/drivers/scsi/bnx2i/bnx2i_init.c
+@@ -423,7 +423,7 @@ static void bnx2i_percpu_thread_create(unsigned int cpu)
+ 	p = &per_cpu(bnx2i_percpu, cpu);
  
- 	thread = kthread_create_on_node(bnx2fc_percpu_io_thread,
--					(void *)p, cpu_to_node(cpu),
-+					(void *)p, cpu_to_mem(cpu),
- 					"bnx2fc_thread/%d", cpu);
+ 	thread = kthread_create_on_node(bnx2i_percpu_io_thread, (void *)p,
+-					cpu_to_node(cpu),
++					cpu_to_mem(cpu),
+ 					"bnx2i_thread/%d", cpu);
  	/* bind thread to the cpu */
  	if (likely(!IS_ERR(thread))) {
 -- 
