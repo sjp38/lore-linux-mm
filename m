@@ -1,193 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CEF46B0031
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:35:15 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lj1so1003530pab.1
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:35:14 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id nu1si1519312pbb.216.2014.07.11.00.35.13
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 74E846B0031
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:35:21 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id y10so930125pdj.8
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:35:21 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id qo1si773757pdb.254.2014.07.11.00.35.19
         for <linux-mm@kvack.org>;
-        Fri, 11 Jul 2014 00:35:13 -0700 (PDT)
+        Fri, 11 Jul 2014 00:35:20 -0700 (PDT)
 From: Jiang Liu <jiang.liu@linux.intel.com>
-Subject: [RFC Patch V1 00/30] Enable memoryless node on x86 platforms
-Date: Fri, 11 Jul 2014 15:37:17 +0800
-Message-Id: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
+Subject: [RFC Patch V1 01/30] mm, kernel: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+Date: Fri, 11 Jul 2014 15:37:18 +0800
+Message-Id: <1405064267-11678-2-git-send-email-jiang.liu@linux.intel.com>
+In-Reply-To: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
+References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Dipankar Sarma <dipankar@in.ibm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Jens Axboe <axboe@kernel.dk>, Frederic Weisbecker <fweisbec@gmail.com>, Jan Kara <jack@suse.cz>, Ingo Molnar <mingo@kernel.org>, Christoph Hellwig <hch@infradead.org>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Xie XiuQi <xiexiuqi@huawei.com>
 Cc: Jiang Liu <jiang.liu@linux.intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Previously we have posted a patch fix a memory crash issue caused by
-memoryless node on x86 platforms, please refer to
-http://comments.gmane.org/gmane.linux.kernel/1687425
+When CONFIG_HAVE_MEMORYLESS_NODES is enabled, cpu_to_node()/numa_node_id()
+may return a node without memory, and later cause system failure/panic
+when calling kmalloc_node() and friends with returned node id.
+So use cpu_to_mem()/numa_mem_id() instead to get the nearest node with
+memory for the/current cpu.
 
-As suggested by David Rientjes, the most suitable fix for the issue
-should be to use cpu_to_mem() rather than cpu_to_node() in the caller.
-So this is the patchset according to David's suggestion.
+If CONFIG_HAVE_MEMORYLESS_NODES is disabled, cpu_to_mem()/numa_mem_id()
+is the same as cpu_to_node()/numa_node_id().
 
-Patch 1-26 prepare for enabling memoryless node on x86 platforms by
-replacing cpu_to_node()/numa_node_id() with cpu_to_mem()/numa_mem_id().
-Patch 27-29 enable support of memoryless node on x86 platforms.
-Patch 30 tunes order to online NUMA node when doing CPU hot-addition.
+Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
+---
+ kernel/rcu/rcutorture.c |    2 +-
+ kernel/smp.c            |    2 +-
+ kernel/smpboot.c        |    2 +-
+ kernel/taskstats.c      |    2 +-
+ kernel/timer.c          |    2 +-
+ 5 files changed, 5 insertions(+), 5 deletions(-)
 
-This patchset fixes the issue mentioned by Mike Galbraith that CPUs
-are associated with wrong node after adding memory to a memoryless
-node.
-
-With support of memoryless node enabled, it will correctly report system
-hardware topology for nodes without memory installed.
-root@bkd01sdp:~# numactl --hardware
-available: 4 nodes (0-3)
-node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74
-node 0 size: 15725 MB
-node 0 free: 15129 MB
-node 1 cpus: 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89
-node 1 size: 15862 MB
-node 1 free: 15627 MB
-node 2 cpus: 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104
-node 2 size: 0 MB
-node 2 free: 0 MB
-node 3 cpus: 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119
-node 3 size: 0 MB
-node 3 free: 0 MB
-node distances:
-node   0   1   2   3
-  0:  10  21  21  21
-  1:  21  10  21  21
-  2:  21  21  10  21
-  3:  21  21  21  10
-
-With memoryless node enabled, CPUs are correctly associated with node 2
-after memory hot-addition to node 2.
-root@bkd01sdp:/sys/devices/system/node/node2# numactl --hardware
-available: 4 nodes (0-3)
-node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74
-node 0 size: 15725 MB
-node 0 free: 14872 MB
-node 1 cpus: 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89
-node 1 size: 15862 MB
-node 1 free: 15641 MB
-node 2 cpus: 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104
-node 2 size: 128 MB
-node 2 free: 127 MB
-node 3 cpus: 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119
-node 3 size: 0 MB
-node 3 free: 0 MB
-node distances:
-node   0   1   2   3
-  0:  10  21  21  21
-  1:  21  10  21  21
-  2:  21  21  10  21
-  3:  21  21  21  10
-
-The patchset is based on the latest mainstream kernel and has been
-tested on a 4-socket Intel platform with CPU/memory hot-addition
-capability.
-
-Any comments are welcomed!
-
-Jiang Liu (30):
-  mm, kernel: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-  mm, sched: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-  mm, net: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-  mm, netfilter: Use cpu_to_mem()/numa_mem_id() to support memoryless
-    node
-  mm, perf: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-  mm, tracing: Use cpu_to_mem()/numa_mem_id() to support memoryless
-    node
-  mm: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-  mm, thp: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-  mm, memcg: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-  mm, xfrm: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-  mm, char/mspec.c: Use cpu_to_mem()/numa_mem_id() to support
-    memoryless node
-  mm, IB/qib: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-  mm, i40e: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-  mm, i40evf: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-  mm, igb: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-  mm, ixgbe: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-  mm, intel_powerclamp: Use cpu_to_mem()/numa_mem_id() to support
-    memoryless node
-  mm, bnx2fc: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-  mm, bnx2i: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-  mm, fcoe: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-  mm, irqchip: Use cpu_to_mem()/numa_mem_id() to support memoryless
-    node
-  mm, of: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-  mm, x86: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-  mm, x86/platform/uv: Use cpu_to_mem()/numa_mem_id() to support
-    memoryless node
-  mm, x86, kvm: Use cpu_to_mem()/numa_mem_id() to support memoryless
-    node
-  mm, x86, perf: Use cpu_to_mem()/numa_mem_id() to support memoryless
-    node
-  x86, numa: Kill useless code to improve code readability
-  mm: Update _mem_id_[] for every possible CPU when memory
-    configuration changes
-  mm, x86: Enable memoryless node support to better support CPU/memory
-    hotplug
-  x86, NUMA: Online node earlier when doing CPU hot-addition
-
- arch/x86/Kconfig                              |    3 ++
- arch/x86/kernel/acpi/boot.c                   |    6 ++-
- arch/x86/kernel/apic/io_apic.c                |   10 ++---
- arch/x86/kernel/cpu/perf_event_amd.c          |    2 +-
- arch/x86/kernel/cpu/perf_event_amd_uncore.c   |    2 +-
- arch/x86/kernel/cpu/perf_event_intel.c        |    2 +-
- arch/x86/kernel/cpu/perf_event_intel_ds.c     |    6 +--
- arch/x86/kernel/cpu/perf_event_intel_rapl.c   |    2 +-
- arch/x86/kernel/cpu/perf_event_intel_uncore.c |    2 +-
- arch/x86/kernel/devicetree.c                  |    2 +-
- arch/x86/kernel/irq_32.c                      |    4 +-
- arch/x86/kernel/smpboot.c                     |    2 +
- arch/x86/kvm/vmx.c                            |    2 +-
- arch/x86/mm/numa.c                            |   52 +++++++++++++++++--------
- arch/x86/platform/uv/tlb_uv.c                 |    2 +-
- arch/x86/platform/uv/uv_nmi.c                 |    3 +-
- arch/x86/platform/uv/uv_time.c                |    2 +-
- drivers/char/mspec.c                          |    2 +-
- drivers/infiniband/hw/qib/qib_file_ops.c      |    4 +-
- drivers/infiniband/hw/qib/qib_init.c          |    2 +-
- drivers/irqchip/irq-clps711x.c                |    2 +-
- drivers/irqchip/irq-gic.c                     |    2 +-
- drivers/net/ethernet/intel/i40e/i40e_txrx.c   |    2 +-
- drivers/net/ethernet/intel/i40evf/i40e_txrx.c |    2 +-
- drivers/net/ethernet/intel/igb/igb_main.c     |    4 +-
- drivers/net/ethernet/intel/ixgbe/ixgbe_main.c |    4 +-
- drivers/of/base.c                             |    2 +-
- drivers/scsi/bnx2fc/bnx2fc_fcoe.c             |    2 +-
- drivers/scsi/bnx2i/bnx2i_init.c               |    2 +-
- drivers/scsi/fcoe/fcoe.c                      |    2 +-
- drivers/thermal/intel_powerclamp.c            |    4 +-
- include/linux/gfp.h                           |    6 +--
- kernel/events/callchain.c                     |    2 +-
- kernel/events/core.c                          |    2 +-
- kernel/events/ring_buffer.c                   |    2 +-
- kernel/rcu/rcutorture.c                       |    2 +-
- kernel/sched/core.c                           |    8 ++--
- kernel/sched/deadline.c                       |    2 +-
- kernel/sched/fair.c                           |    4 +-
- kernel/sched/rt.c                             |    6 +--
- kernel/smp.c                                  |    2 +-
- kernel/smpboot.c                              |    2 +-
- kernel/taskstats.c                            |    2 +-
- kernel/timer.c                                |    2 +-
- kernel/trace/ring_buffer.c                    |   12 +++---
- kernel/trace/trace_uprobe.c                   |    2 +-
- mm/huge_memory.c                              |    6 +--
- mm/memcontrol.c                               |    2 +-
- mm/memory.c                                   |    2 +-
- mm/page_alloc.c                               |   10 ++---
- mm/percpu-vm.c                                |    2 +-
- mm/vmalloc.c                                  |    2 +-
- net/core/dev.c                                |    6 +--
- net/core/flow.c                               |    2 +-
- net/core/pktgen.c                             |   10 ++---
- net/core/sysctl_net_core.c                    |    2 +-
- net/netfilter/x_tables.c                      |    8 ++--
- net/xfrm/xfrm_ipcomp.c                        |    2 +-
- 58 files changed, 139 insertions(+), 111 deletions(-)
-
+diff --git a/kernel/rcu/rcutorture.c b/kernel/rcu/rcutorture.c
+index 7fa34f86e5ba..f593762d3214 100644
+--- a/kernel/rcu/rcutorture.c
++++ b/kernel/rcu/rcutorture.c
+@@ -1209,7 +1209,7 @@ static int rcutorture_booster_init(int cpu)
+ 	mutex_lock(&boost_mutex);
+ 	VERBOSE_TOROUT_STRING("Creating rcu_torture_boost task");
+ 	boost_tasks[cpu] = kthread_create_on_node(rcu_torture_boost, NULL,
+-						  cpu_to_node(cpu),
++						  cpu_to_mem(cpu),
+ 						  "rcu_torture_boost");
+ 	if (IS_ERR(boost_tasks[cpu])) {
+ 		retval = PTR_ERR(boost_tasks[cpu]);
+diff --git a/kernel/smp.c b/kernel/smp.c
+index 80c33f8de14f..2f3b84aef159 100644
+--- a/kernel/smp.c
++++ b/kernel/smp.c
+@@ -41,7 +41,7 @@ hotplug_cfd(struct notifier_block *nfb, unsigned long action, void *hcpu)
+ 	case CPU_UP_PREPARE:
+ 	case CPU_UP_PREPARE_FROZEN:
+ 		if (!zalloc_cpumask_var_node(&cfd->cpumask, GFP_KERNEL,
+-				cpu_to_node(cpu)))
++				cpu_to_mem(cpu)))
+ 			return notifier_from_errno(-ENOMEM);
+ 		cfd->csd = alloc_percpu(struct call_single_data);
+ 		if (!cfd->csd) {
+diff --git a/kernel/smpboot.c b/kernel/smpboot.c
+index eb89e1807408..9c08e68e48a9 100644
+--- a/kernel/smpboot.c
++++ b/kernel/smpboot.c
+@@ -171,7 +171,7 @@ __smpboot_create_thread(struct smp_hotplug_thread *ht, unsigned int cpu)
+ 	if (tsk)
+ 		return 0;
+ 
+-	td = kzalloc_node(sizeof(*td), GFP_KERNEL, cpu_to_node(cpu));
++	td = kzalloc_node(sizeof(*td), GFP_KERNEL, cpu_to_mem(cpu));
+ 	if (!td)
+ 		return -ENOMEM;
+ 	td->cpu = cpu;
+diff --git a/kernel/taskstats.c b/kernel/taskstats.c
+index 13d2f7cd65db..cf5cba1e7fbe 100644
+--- a/kernel/taskstats.c
++++ b/kernel/taskstats.c
+@@ -304,7 +304,7 @@ static int add_del_listener(pid_t pid, const struct cpumask *mask, int isadd)
+ 	if (isadd == REGISTER) {
+ 		for_each_cpu(cpu, mask) {
+ 			s = kmalloc_node(sizeof(struct listener),
+-					GFP_KERNEL, cpu_to_node(cpu));
++					GFP_KERNEL, cpu_to_mem(cpu));
+ 			if (!s) {
+ 				ret = -ENOMEM;
+ 				goto cleanup;
+diff --git a/kernel/timer.c b/kernel/timer.c
+index 3bb01a323b2a..5831a38b5681 100644
+--- a/kernel/timer.c
++++ b/kernel/timer.c
+@@ -1546,7 +1546,7 @@ static int init_timers_cpu(int cpu)
+ 			 * The APs use this path later in boot
+ 			 */
+ 			base = kzalloc_node(sizeof(*base), GFP_KERNEL,
+-					    cpu_to_node(cpu));
++					    cpu_to_mem(cpu));
+ 			if (!base)
+ 				return -ENOMEM;
+ 
 -- 
 1.7.10.4
 
