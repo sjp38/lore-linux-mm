@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 35ED882A8B
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:35:51 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id bj1so993591pad.23
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:35:50 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id ka9si1543122pad.137.2014.07.11.00.35.49
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id A6F8382A8B
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:35:58 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id lf10so596947pab.30
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:35:58 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id cf5si1579350pbc.10.2014.07.11.00.35.56
         for <linux-mm@kvack.org>;
-        Fri, 11 Jul 2014 00:35:50 -0700 (PDT)
+        Fri, 11 Jul 2014 00:35:57 -0700 (PDT)
 From: Jiang Liu <jiang.liu@linux.intel.com>
-Subject: [RFC Patch V1 07/30] mm: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-Date: Fri, 11 Jul 2014 15:37:24 +0800
-Message-Id: <1405064267-11678-8-git-send-email-jiang.liu@linux.intel.com>
+Subject: [RFC Patch V1 08/30] mm, thp: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+Date: Fri, 11 Jul 2014 15:37:25 +0800
+Message-Id: <1405064267-11678-9-git-send-email-jiang.liu@linux.intel.com>
 In-Reply-To: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
 References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, Jiang Liu <jiang.liu@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Catalin Marinas <catalin.marinas@arm.com>, Jianyu Zhan <nasa4836@gmail.com>, malc <av1474@comtv.ru>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Fabian Frederick <fabf@skynet.be>
-Cc: Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>, Bob Liu <lliubbo@gmail.com>
+Cc: Jiang Liu <jiang.liu@linux.intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org
 
 When CONFIG_HAVE_MEMORYLESS_NODES is enabled, cpu_to_node()/numa_node_id()
 may return a node without memory, and later cause system failure/panic
@@ -30,80 +30,40 @@ is the same as cpu_to_node()/numa_node_id().
 
 Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
 ---
- include/linux/gfp.h |    6 +++---
- mm/memory.c         |    2 +-
- mm/percpu-vm.c      |    2 +-
- mm/vmalloc.c        |    2 +-
- 4 files changed, 6 insertions(+), 6 deletions(-)
+ mm/huge_memory.c |    6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 6eb1fb37de9a..56dd2043f510 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -314,7 +314,7 @@ static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
- {
- 	/* Unknown node is current node */
- 	if (nid < 0)
--		nid = numa_node_id();
-+		nid = numa_mem_id();
- 
- 	return __alloc_pages(gfp_mask, order, node_zonelist(nid, gfp_mask));
- }
-@@ -340,13 +340,13 @@ extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
- 			int node);
- #else
- #define alloc_pages(gfp_mask, order) \
--		alloc_pages_node(numa_node_id(), gfp_mask, order)
-+		alloc_pages_node(numa_mem_id(), gfp_mask, order)
- #define alloc_pages_vma(gfp_mask, order, vma, addr, node)	\
- 	alloc_pages(gfp_mask, order)
- #endif
- #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
- #define alloc_page_vma(gfp_mask, vma, addr)			\
--	alloc_pages_vma(gfp_mask, 0, vma, addr, numa_node_id())
-+	alloc_pages_vma(gfp_mask, 0, vma, addr, numa_mem_id())
- #define alloc_page_vma_node(gfp_mask, vma, addr, node)		\
- 	alloc_pages_vma(gfp_mask, 0, vma, addr, node)
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index d67fd9fcf1f2..f434d2692f70 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3074,7 +3074,7 @@ static int numa_migrate_prep(struct page *page, struct vm_area_struct *vma,
- 	get_page(page);
- 
- 	count_vm_numa_event(NUMA_HINT_FAULTS);
--	if (page_nid == numa_node_id()) {
-+	if (page_nid == numa_mem_id()) {
- 		count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
- 		*flags |= TNF_FAULT_LOCAL;
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 33514d88fef9..3307dd840873 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -822,7 +822,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		return 0;
  	}
-diff --git a/mm/percpu-vm.c b/mm/percpu-vm.c
-index 3707c71ae4cd..a20b8f7d0dd0 100644
---- a/mm/percpu-vm.c
-+++ b/mm/percpu-vm.c
-@@ -115,7 +115,7 @@ static int pcpu_alloc_pages(struct pcpu_chunk *chunk,
- 		for (i = page_start; i < page_end; i++) {
- 			struct page **pagep = &pages[pcpu_page_idx(cpu, i)];
+ 	page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+-			vma, haddr, numa_node_id(), 0);
++			vma, haddr, numa_mem_id(), 0);
+ 	if (unlikely(!page)) {
+ 		count_vm_event(THP_FAULT_FALLBACK);
+ 		return VM_FAULT_FALLBACK;
+@@ -1111,7 +1111,7 @@ alloc:
+ 	if (transparent_hugepage_enabled(vma) &&
+ 	    !transparent_hugepage_debug_cow())
+ 		new_page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+-					      vma, haddr, numa_node_id(), 0);
++					      vma, haddr, numa_mem_id(), 0);
+ 	else
+ 		new_page = NULL;
  
--			*pagep = alloc_pages_node(cpu_to_node(cpu), gfp, 0);
-+			*pagep = alloc_pages_node(cpu_to_mem(cpu), gfp, 0);
- 			if (!*pagep) {
- 				pcpu_free_pages(chunk, pages, populated,
- 						page_start, page_end);
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index f64632b67196..c06f90641916 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -800,7 +800,7 @@ static struct vmap_block *new_vmap_block(gfp_t gfp_mask)
- 	unsigned long vb_idx;
- 	int node, err;
- 
--	node = numa_node_id();
-+	node = numa_mem_id();
- 
- 	vb = kmalloc_node(sizeof(struct vmap_block),
- 			gfp_mask & GFP_RECLAIM_MASK, node);
+@@ -1255,7 +1255,7 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	struct anon_vma *anon_vma = NULL;
+ 	struct page *page;
+ 	unsigned long haddr = addr & HPAGE_PMD_MASK;
+-	int page_nid = -1, this_nid = numa_node_id();
++	int page_nid = -1, this_nid = numa_mem_id();
+ 	int target_nid, last_cpupid = -1;
+ 	bool page_locked;
+ 	bool migrated = false;
 -- 
 1.7.10.4
 
