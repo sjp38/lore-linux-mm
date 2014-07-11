@@ -1,59 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id EB4D16B0037
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 10:51:13 -0400 (EDT)
-Received: by mail-wg0-f48.google.com with SMTP id x13so1180131wgg.31
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 07:51:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id lh10si4442699wic.54.2014.07.11.07.50.29
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 77CD96B0039
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 10:57:32 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fb1so1618852pad.28
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 07:57:32 -0700 (PDT)
+Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com [2607:f8b0:400e:c02::236])
+        by mx.google.com with ESMTPS id gg2si2654525pbb.253.2014.07.11.07.57.30
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jul 2014 07:50:29 -0700 (PDT)
-Message-ID: <53BFF995.5020602@redhat.com>
-Date: Fri, 11 Jul 2014 10:49:57 -0400
-From: Rik van Riel <riel@redhat.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 11 Jul 2014 07:57:31 -0700 (PDT)
+Received: by mail-pd0-f182.google.com with SMTP id p10so1199696pdj.27
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 07:57:30 -0700 (PDT)
+Date: Fri, 11 Jul 2014 07:55:50 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: + shmem-fix-faulting-into-a-hole-while-its-punched-take-2.patch
+ added to -mm tree
+In-Reply-To: <53BFD708.1040305@oracle.com>
+Message-ID: <alpine.LSU.2.11.1407110745430.2054@eggly.anvils>
+References: <53BD1053.5020401@suse.cz> <53BD39FC.7040205@oracle.com> <53BD67DC.9040700@oracle.com> <alpine.LSU.2.11.1407092358090.18131@eggly.anvils> <53BE8B1B.3000808@oracle.com> <53BECBA4.3010508@oracle.com> <alpine.LSU.2.11.1407101033280.18934@eggly.anvils>
+ <53BED7F6.4090502@oracle.com> <alpine.LSU.2.11.1407101131310.19154@eggly.anvils> <53BEE345.4090203@oracle.com> <20140711082500.GB20603@laptop.programming.kicks-ass.net> <53BFD708.1040305@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/page-writeback.c: fix divide by zero in bdi_dirty_limits
-References: <20140711081656.15654.19946.stgit@localhost.localdomain>
-In-Reply-To: <20140711081656.15654.19946.stgit@localhost.localdomain>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maxim Patlasov <MPatlasov@parallels.com>, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, mhocko@suse.cz, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, fengguang.wu@intel.com, jweiner@redhat.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, davej@redhat.com, koct9i@gmail.com, lczerner@redhat.com, stable@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
-
-On 07/11/2014 04:18 AM, Maxim Patlasov wrote:
-> Under memory pressure, it is possible for dirty_thresh, calculated
-> by global_dirty_limits() in balance_dirty_pages(), to equal zero.
-> Then, if strictlimit is true, bdi_dirty_limits() tries to resolve
-> the proportion:
+On Fri, 11 Jul 2014, Sasha Levin wrote:
 > 
-> bdi_bg_thresh : bdi_thresh = background_thresh : dirty_thresh
+> There's no easy way to see whether a given task is actually holding a lock or
+> is just blocking on it without going through all those tasks one by one and
+> looking at their trace.
 > 
-> by dividing by zero.
-> 
-> Signed-off-by: Maxim Patlasov <mpatlasov@parallels.com>
+> I agree with you that "The call trace is very clear on it that its not", but
+> when you have 500 call traces you really want something better than going
+> through it one call trace at a time.
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Points well made, and I strongly agree with Vlastimil and Sasha.
+There is a world of difference between a lock wanted and a lock held,
+and for the display of locks "held" to conceal that difference is unhelpful.
+It just needs one greppable word to distinguish the cases.
 
-- -- 
-All rights reversed
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
+(Though I didn't find "The call trace is very clear on it that its not",
+I thought it too was telling me that the lock was already held somehow.)
 
-iQEcBAEBAgAGBQJTv/mVAAoJEM553pKExN6Dw8UH/1KgQrLYDTVQIzvaXNxPwxOv
-xXqrWAnFf+mOflA/Tu/TqOwPUV20YSWTAuJU/NbyLSR0Ak15beCjH4ObifpgZgR+
-k9lvJNHEk6XUQH0nERsHcwbNZMGtLBAvyw1oRCVXm6V1IVpbpp0IckP29KP5Ibs4
-FChNNna/h7zOTpgysTtuKDO6JGuPy+sCjK5aNVH0jSTd4ENtTD1HtfkgtU/OZVyS
-m8afzJ0sp/A1sQGy+41ZorR3I0dAmtX3Qtx335QjrZQAy8bT3jCLBLjEHW9xQhCh
-afuZhfHdrXHiNh8RZnLgeFWiVzYHDc6ytoD7aZQsxaFZIlyccVRzc7SvarrT4ys=
-=jTrs
------END PGP SIGNATURE-----
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
