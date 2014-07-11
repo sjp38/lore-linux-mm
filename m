@@ -1,73 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id A8D5A6B0035
-	for <linux-mm@kvack.org>; Thu, 10 Jul 2014 18:36:11 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lj1so296925pab.1
-        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 15:36:11 -0700 (PDT)
-Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com [2607:f8b0:400e:c02::22e])
-        by mx.google.com with ESMTPS id w11si221475pdj.140.2014.07.10.15.36.09
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 12BC66B0035
+	for <linux-mm@kvack.org>; Thu, 10 Jul 2014 21:26:52 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id v10so467353pde.40
+        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 18:26:51 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id pt9si736681pbb.240.2014.07.10.18.26.49
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 10 Jul 2014 15:36:10 -0700 (PDT)
-Received: by mail-pd0-f174.google.com with SMTP id y10so275784pdj.19
-        for <linux-mm@kvack.org>; Thu, 10 Jul 2014 15:36:09 -0700 (PDT)
-Date: Thu, 10 Jul 2014 15:34:29 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 28/83] mm: Change timing of notification to IOMMUs about
- a page to be invalidated
-In-Reply-To: <20140710222200.GZ1958@8bytes.org>
-Message-ID: <alpine.LSU.2.11.1407101523130.22274@eggly.anvils>
-References: <1405029208-6703-1-git-send-email-oded.gabbay@amd.com> <20140710222200.GZ1958@8bytes.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Jul 2014 18:26:50 -0700 (PDT)
+Message-ID: <53BF3D58.2010900@codeaurora.org>
+Date: Thu, 10 Jul 2014 18:26:48 -0700
+From: Laura Abbott <lauraa@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: arm64 flushing 255GB of vmalloc space takes too long
+References: <CAMPhdO-j5SfHexP8hafB2EQVs91TOqp_k_SLwWmo9OHVEvNWiQ@mail.gmail.com> <20140709174055.GC2814@arm.com> <CAMPhdO_XqAL4oXcuJkp2PTQ-J07sGG4Nm5HjHO=yGqS+KuWQzg@mail.gmail.com>
+In-Reply-To: <CAMPhdO_XqAL4oXcuJkp2PTQ-J07sGG4Nm5HjHO=yGqS+KuWQzg@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>
-Cc: Oded Gabbay <oded.gabbay@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, David Airlie <airlied@linux.ie>, Alex Deucher <alexander.deucher@amd.com>, Jerome Glisse <j.glisse@gmail.com>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, John Bridgman <John.Bridgman@amd.com>, Andrew Lewycky <Andrew.Lewycky@amd.com>, linux-mm <linux-mm@kvack.org>, Oded Gabbay <oded.gabbay@amd.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Jerome Glisse <jglisse@redhat.com>, Jianyu Zhan <nasa4836@gmail.com>
+To: Eric Miao <eric.y.miao@gmail.com>, Catalin Marinas <catalin.marinas@arm.com>, Mark Salter <msalter@redhat.com>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux Memory Management List <linux-mm@kvack.org>, Will Deacon <Will.Deacon@arm.com>, Russell King <linux@arm.linux.org.uk>
 
-On Fri, 11 Jul 2014, Joerg Roedel wrote:
-> On Fri, Jul 11, 2014 at 12:53:26AM +0300, Oded Gabbay wrote:
-> >  mm/rmap.c | 8 ++++++--
-> >  1 file changed, 6 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/mm/rmap.c b/mm/rmap.c
-> > index 196cd0c..73d4c3d 100644
-> > --- a/mm/rmap.c
-> > +++ b/mm/rmap.c
-> > @@ -1231,13 +1231,17 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
-> >  	} else
-> >  		dec_mm_counter(mm, MM_FILEPAGES);
-> >  
-> > +	pte_unmap_unlock(pte, ptl);
-> > +
-> > +	mmu_notifier_invalidate_page(vma, address, event);
-> > +
-> >  	page_remove_rmap(page);
-> >  	page_cache_release(page);
-> >  
-> > +	return ret;
-> > +
-> >  out_unmap:
-> >  	pte_unmap_unlock(pte, ptl);
-> > -	if (ret != SWAP_FAIL && !(flags & TTU_MUNLOCK))
-> > -		mmu_notifier_invalidate_page(vma, address, event);
-> >  out:
-> >  	return ret;
+On 7/9/2014 11:04 AM, Eric Miao wrote:
+> On Wed, Jul 9, 2014 at 10:40 AM, Catalin Marinas
+> <catalin.marinas@arm.com> wrote:
+>> On Wed, Jul 09, 2014 at 05:53:26PM +0100, Eric Miao wrote:
+>>> On Tue, Jul 8, 2014 at 6:43 PM, Laura Abbott <lauraa@codeaurora.org> wrote:
+>>>> I have an arm64 target which has been observed hanging in __purge_vmap_area_lazy
+>>>> in vmalloc.c The root cause of this 'hang' is that flush_tlb_kernel_range is
+>>>> attempting to flush 255GB of virtual address space. This takes ~2 seconds and
+>>>> preemption is disabled at this time thanks to the purge lock. Disabling
+>>>> preemption for that time is long enough to trigger a watchdog we have setup.
+>>
+>> That's definitely not good.
+>>
+>>>> A couple of options I thought of:
+>>>> 1) Increase the timeout of our watchdog to allow the flush to occur. Nobody
+>>>> I suggested this to likes the idea as the watchdog firing generally catches
+>>>> behavior that results in poor system performance and disabling preemption
+>>>> for that long does seem like a problem.
+>>>> 2) Change __purge_vmap_area_lazy to do less work under a spinlock. This would
+>>>> certainly have a performance impact and I don't even know if it is plausible.
+>>>> 3) Allow module unloading to trigger a vmalloc purge beforehand to help avoid
+>>>> this case. This would still be racy if another vfree came in during the time
+>>>> between the purge and the vfree but it might be good enough.
+>>>> 4) Add 'if size > threshold flush entire tlb' (I haven't profiled this yet)
+>>>
+>>> We have the same problem. I'd agree with point 2 and point 4, point 1/3 do not
+>>> actually fix this issue. purge_vmap_area_lazy() could be called in other
+>>> cases.
+>>
+>> I would also discard point 2 as it still takes ~2 seconds, only that not
+>> under a spinlock.
+>>
 > 
-> I think there is no bug. In that function the page is just unmapped,
-> removed from the rmap (page_remove_rmap), and the LRU list
-> (page_cache_release). The page itself is not released in this function,
-> so the call mmu_notifier_invalidate_page() at the end is fine.
+> Point is - we could still end up a good amount of time in that function,
+> giving the default value of lazy_vfree_pages to be 32MB * log(ncpu),
+> worst case of all vmap areas being only one page, tlb flush page by
+> page, and traversal of the list, calling __free_vmap_area() that many
+> times won't likely to reduce the execution time to microsecond level.
+> 
+> If it's something inevitable - we do it in a bit cleaner way.
+> 
+>>> w.r.t the threshold to flush entire tlb instead of doing that page-by-page, that
+>>> could be different from platform to platform. And considering the cost of tlb
+>>> flush on x86, I wonder why this isn't an issue on x86.
+>>
+>> The current __purge_vmap_area_lazy() was done as an optimisation (commit
+>> db64fe02258f1) to avoid IPIs. So flush_tlb_kernel_range() would only be
+>> IPI'ed once.
+>>
+>> IIUC, the problem is how start/end are computed in
+>> __purge_vmap_area_lazy(), so even if you have only two vmap areas, if
+>> they are 255GB apart you've got this problem.
+> 
+> Indeed.
+> 
+>>
+>> One temporary option is to limit the vmalloc space on arm64 to something
+>> like 2 x RAM-size (haven't looked at this yet). But if you get a
+>> platform with lots of RAM, you hit this problem again.
+>>
+>> Which leaves us with point (4) but finding the threshold is indeed
+>> platform dependent. Another way could be a check for latency - so if it
+>> took certain usecs, we break the loop and flush the whole TLB.
+> 
+> Or we end up having platform specific tlb flush implementation just as we
+> did for cache ops. I would expect only few platforms will have their own
+> thresholds. A simple heuristic guess of the threshold based on number of
+> tlb entries would be good to go?
+> 
 
-Agreed, nothing to fix here: the try_to_unmap() callers must hold
-their own reference to the page.  If they did not, how could they
-be sure that this is a page which is appropriate to unmap?
+Mark Salter actually proposed a fix to this back in May 
 
-(Nit: we don't actually take a separate reference for the LRU list:
-the page_cache_release above corresponds to the reference in the
-pte which has just been removed.)
+https://lkml.org/lkml/2014/5/2/311
 
-Hugh
+I never saw any further comments on it though. It also matches what x86
+does with their TLB flushing. It fixes the problem for me and the threshold
+seems to be the best we can do unless we want to introduce options per
+platform. It will need to be rebased to the latest tree though.
+
+Thanks,
+Laura
+
+-- 
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
