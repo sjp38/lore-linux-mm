@@ -1,62 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 55B186B0035
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 18:22:06 -0400 (EDT)
-Received: by mail-wi0-f171.google.com with SMTP id f8so355293wiw.16
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 15:22:05 -0700 (PDT)
-Received: from mail-we0-x234.google.com (mail-we0-x234.google.com [2a00:1450:400c:c03::234])
-        by mx.google.com with ESMTPS id p8si6486065wjb.170.2014.07.11.15.22.05
+Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id B505E6B0035
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 18:27:35 -0400 (EDT)
+Received: by mail-ie0-f181.google.com with SMTP id rp18so1390375iec.26
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 15:27:35 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id i4si5945279igj.19.2014.07.11.15.27.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 11 Jul 2014 15:22:05 -0700 (PDT)
-Received: by mail-we0-f180.google.com with SMTP id k48so782691wev.39
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 15:22:05 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20140711201054.GB18033@amd.pavel.ucw.cz>
-References: <53B3D3AA.3000408@samsung.com>
-	<x49y4wbu54y.fsf@segfault.boston.devel.redhat.com>
-	<20140702184050.GA24583@infradead.org>
-	<20140711201054.GB18033@amd.pavel.ucw.cz>
-Date: Sat, 12 Jul 2014 01:22:04 +0300
-Message-ID: <CACE9dm8TW1+7bq6hJiOmoAw+w+ZD8Ma=Sf6a5ZM2HZ5X1Lcifw@mail.gmail.com>
-Subject: Re: IMA: kernel reading files opened with O_DIRECT
-From: Dmitry Kasatkin <dmitry.kasatkin@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Jul 2014 15:27:34 -0700 (PDT)
+Date: Fri, 11 Jul 2014 15:27:32 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/page-writeback.c: fix divide by zero in
+ bdi_dirty_limits
+Message-Id: <20140711152732.de78603744cd861497eca5dc@linux-foundation.org>
+In-Reply-To: <20140711081656.15654.19946.stgit@localhost.localdomain>
+References: <20140711081656.15654.19946.stgit@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Christoph Hellwig <hch@infradead.org>, Jeff Moyer <jmoyer@redhat.com>, Dmitry Kasatkin <d.kasatkin@samsung.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, Al Viro <viro@zeniv.linux.org.uk>, Mimi Zohar <zohar@linux.vnet.ibm.com>, linux-security-module <linux-security-module@vger.kernel.org>, Greg KH <gregkh@linuxfoundation.org>
+To: Maxim Patlasov <MPatlasov@parallels.com>
+Cc: riel@redhat.com, linux-kernel@vger.kernel.org, mhocko@suse.cz, linux-mm@kvack.org, kosaki.motohiro@jp.fujitsu.com, fengguang.wu@intel.com, jweiner@redhat.com
 
-On 11 July 2014 23:10, Pavel Machek <pavel@ucw.cz> wrote:
-> On Wed 2014-07-02 11:40:50, Christoph Hellwig wrote:
->> On Wed, Jul 02, 2014 at 11:55:41AM -0400, Jeff Moyer wrote:
->> > It's acceptable.
->>
->> It's not because it will then also affect other reads going on at the
->> same time.
->>
->> The whole concept of ima is just broken, and if you want to do these
->> sort of verification they need to happen inside the filesystem and not
->> above it.
+On Fri, 11 Jul 2014 12:18:27 +0400 Maxim Patlasov <MPatlasov@parallels.com> wrote:
+
+> Under memory pressure, it is possible for dirty_thresh, calculated by
+> global_dirty_limits() in balance_dirty_pages(), to equal zero.
+
+Under what circumstances?  Really small values of vm_dirty_bytes?
+
+> Then, if
+> strictlimit is true, bdi_dirty_limits() tries to resolve the proportion:
+> 
+>   bdi_bg_thresh : bdi_thresh = background_thresh : dirty_thresh
+> 
+> by dividing by zero.
+> 
+> ...
 >
-> ...and doing it at filesystem layer would also permit verification of
-> per-block (64KB? 1MB?) hashes.
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -1306,9 +1306,9 @@ static inline void bdi_dirty_limits(struct backing_dev_info *bdi,
+>  	*bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
+>  
+>  	if (bdi_bg_thresh)
+> -		*bdi_bg_thresh = div_u64((u64)*bdi_thresh *
+> -					 background_thresh,
+> -					 dirty_thresh);
+> +		*bdi_bg_thresh = dirty_thresh ? div_u64((u64)*bdi_thresh *
+> +							background_thresh,
+> +							dirty_thresh) : 0;
 
-Please design one single and the best universal filesystem which does it.
+This introduces a peculiar discontinuity:
 
-> Reading entire iso image when I run
-> "file foo.iso" is anti-social..
->                                                                         Pavel
+if dirty_thresh==3, treat it as 3
+if dirty_thresh==2, treat it as 2
+if dirty_thresh==1, treat it as 1
+if dirty_thresh==0, treat it as infinity
 
-Please make the policy which does not make anti-social.
+Would it not make more sense to change global_dirty_limits() to convert
+0 to 1?  With an appropriate comment, obviously.
 
-It is all about use-case.
 
-- Dmitry
-
-> --
-> (english) http://www.livejournal.com/~pavelmachek
-> (cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+Or maybe the fix lies elsewhere.  Please do tell us how this zero comes
+about.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
