@@ -1,55 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
-	by kanga.kvack.org (Postfix) with ESMTP id D4D3F6B0036
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 11:59:10 -0400 (EDT)
-Received: by mail-qc0-f171.google.com with SMTP id w7so1156704qcr.2
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 08:59:10 -0700 (PDT)
-Received: from qmta13.emeryville.ca.mail.comcast.net (qmta13.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:243])
-        by mx.google.com with ESMTP id x9si3907130qax.121.2014.07.11.08.59.09
-        for <linux-mm@kvack.org>;
-        Fri, 11 Jul 2014 08:59:10 -0700 (PDT)
-Date: Fri, 11 Jul 2014 10:58:52 -0500 (CDT)
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: [RFC Patch V1 07/30] mm: Use cpu_to_mem()/numa_mem_id() to
- support memoryless node
-In-Reply-To: <20140711152156.GB29137@htj.dyndns.org>
-Message-ID: <alpine.DEB.2.11.1407111056060.27349@gentwo.org>
-References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com> <1405064267-11678-8-git-send-email-jiang.liu@linux.intel.com> <20140711144205.GA27706@htj.dyndns.org> <alpine.DEB.2.11.1407111012210.25527@gentwo.org>
- <20140711152156.GB29137@htj.dyndns.org>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 791E46B0035
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 12:00:04 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id bj1so1717082pad.9
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 09:00:04 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [198.137.202.9])
+        by mx.google.com with ESMTPS id d10si1442201pdp.284.2014.07.11.09.00.02
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Jul 2014 09:00:03 -0700 (PDT)
+Date: Fri, 11 Jul 2014 17:59:58 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: + shmem-fix-faulting-into-a-hole-while-its-punched-take-2.patch
+ added to -mm tree
+Message-ID: <20140711155958.GR20603@laptop.programming.kicks-ass.net>
+References: <alpine.LSU.2.11.1407092358090.18131@eggly.anvils>
+ <53BE8B1B.3000808@oracle.com>
+ <53BECBA4.3010508@oracle.com>
+ <alpine.LSU.2.11.1407101033280.18934@eggly.anvils>
+ <53BED7F6.4090502@oracle.com>
+ <alpine.LSU.2.11.1407101131310.19154@eggly.anvils>
+ <53BEE345.4090203@oracle.com>
+ <20140711082500.GB20603@laptop.programming.kicks-ass.net>
+ <53BFD708.1040305@oracle.com>
+ <alpine.LSU.2.11.1407110745430.2054@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1407110745430.2054@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Jiang Liu <jiang.liu@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Vladimir Davydov <vdavydov@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Catalin Marinas <catalin.marinas@arm.com>, Jianyu Zhan <nasa4836@gmail.com>, malc <av1474@comtv.ru>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Fabian Frederick <fabf@skynet.be>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, davej@redhat.com, koct9i@gmail.com, lczerner@redhat.com, stable@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 11 Jul 2014, Tejun Heo wrote:
+On Fri, Jul 11, 2014 at 07:55:50AM -0700, Hugh Dickins wrote:
+> On Fri, 11 Jul 2014, Sasha Levin wrote:
+> > 
+> > There's no easy way to see whether a given task is actually holding a lock or
+> > is just blocking on it without going through all those tasks one by one and
+> > looking at their trace.
+> > 
+> > I agree with you that "The call trace is very clear on it that its not", but
+> > when you have 500 call traces you really want something better than going
+> > through it one call trace at a time.
+> 
+> Points well made, and I strongly agree with Vlastimil and Sasha.
+> There is a world of difference between a lock wanted and a lock held,
+> and for the display of locks "held" to conceal that difference is unhelpful.
+> It just needs one greppable word to distinguish the cases.
 
-> Hello,
->
-> On Fri, Jul 11, 2014 at 10:13:57AM -0500, Christoph Lameter wrote:
-> > Allocators typically fall back but they wont in some cases if you say
-> > that you want memory from a particular node. A GFP_THISNODE would force a
-> > failure of the alloc. In other cases it should fall back. I am not sure
-> > that all allocations obey these conventions though.
->
-> But, GFP_THISNODE + numa_mem_id() is identical to numa_node_id() +
-> nearest node with memory fallback.  Is there any case where the user
-> would actually want to always fail if it's on the memless node?
+So for the actual locking scenario it doesn't make a difference one way
+or another. These threads all can/could/will acquire the lock
+(eventually), so all their locking chains should be considered.
 
-GFP_THISNODE allocatios must fail if there is no memory available on
-the node. No fallback allowed.
+I realize that 500+ single lock 'chains' can be tedious, otoh they're
+easy to dismiss, since singe lock 'chains' are trivial and usually not
+interesting in their own right.
 
-If the allocator performs caching for a particular node (like SLAB) then
-the allocator *cannnot* accept memory from another node and the alloc via
-the page allocator  must fail so that the allocator can then pick another
-node for keeping track of the allocations.
+> (Though I didn't find "The call trace is very clear on it that its not",
+> I thought it too was telling me that the lock was already held somehow.)
 
-> Even if that's the case, there's no reason to burden everyone with
-> this distinction.  Most users just wanna say "I'm on this node.
-> Please allocate considering that".  There's nothing wrong with using
-> numa_node_id() for that.
-
-Well yes that speaks for this patch.
+The trace is in the middle of the mutex op, if it were really fully
+acquired it would not be, it would be doing something else -- while
+holding the mutex.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
