@@ -1,39 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 968CC900002
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 11:33:36 -0400 (EDT)
-Received: by mail-ie0-f181.google.com with SMTP id rp18so1022171iec.40
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 08:33:36 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id d9si5521556icx.23.2014.07.11.08.33.35
+Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 855E5900002
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 11:42:39 -0400 (EDT)
+Received: by mail-qc0-f182.google.com with SMTP id r5so323423qcx.13
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 08:42:39 -0700 (PDT)
+Received: from mail-qa0-x22d.google.com (mail-qa0-x22d.google.com [2607:f8b0:400d:c00::22d])
+        by mx.google.com with ESMTPS id q45si3976130qga.96.2014.07.11.08.42.37
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jul 2014 08:33:35 -0700 (PDT)
-Date: Fri, 11 Jul 2014 08:33:14 -0700
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [RFC Patch V1 00/30] Enable memoryless node on x86 platforms
-Message-ID: <20140711153314.GA6155@kroah.com>
-References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
- <20140711082956.GC20603@laptop.programming.kicks-ass.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 11 Jul 2014 08:42:38 -0700 (PDT)
+Received: by mail-qa0-f45.google.com with SMTP id s7so1015394qap.4
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 08:42:37 -0700 (PDT)
+Date: Fri, 11 Jul 2014 11:42:32 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [PATCH 01/83] mm: Add kfd_process pointer to mm_struct
+Message-ID: <20140711154231.GB1870@gmail.com>
+References: <1405028848-5660-1-git-send-email-oded.gabbay@amd.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20140711082956.GC20603@laptop.programming.kicks-ass.net>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1405028848-5660-1-git-send-email-oded.gabbay@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <jiang.liu@linux.intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Oded Gabbay <oded.gabbay@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Airlie <airlied@linux.ie>, Alex Deucher <alexander.deucher@amd.com>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, John Bridgman <John.Bridgman@amd.com>, Andrew Lewycky <Andrew.Lewycky@amd.com>, Joerg Roedel <joro@8bytes.org>, linux-mm <linux-mm@kvack.org>, Oded Gabbay <oded.gabbay@amd.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Michel Lespinasse <walken@google.com>
 
-On Fri, Jul 11, 2014 at 10:29:56AM +0200, Peter Zijlstra wrote:
-> On Fri, Jul 11, 2014 at 03:37:17PM +0800, Jiang Liu wrote:
-> > Any comments are welcomed!
+On Fri, Jul 11, 2014 at 12:47:26AM +0300, Oded Gabbay wrote:
+> This patch enables the KFD to retrieve the kfd_process
+> object from the process's mm_struct. This is needed because kfd_process
+> lifespan is bound to the process's mm_struct lifespan.
 > 
-> Why would anybody _ever_ have a memoryless node? That's ridiculous.
+> When KFD is notified about an mm_struct tear-down, it checks if the
+> kfd_process pointer is valid. If so, it releases the kfd_process object
+> and all relevant resources.
+> 
+> Signed-off-by: Oded Gabbay <oded.gabbay@amd.com>
+> ---
+>  include/linux/mm_types.h | 14 ++++++++++++++
+>  1 file changed, 14 insertions(+)
+> 
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index 678097c..6179107 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -20,6 +20,10 @@
+>  struct hmm;
+>  #endif
+>  
+> +#ifdef CONFIG_HSA_RADEON
+> +struct kfd_process;
+> +#endif
+> +
+>  #ifndef AT_VECTOR_SIZE_ARCH
+>  #define AT_VECTOR_SIZE_ARCH 0
+>  #endif
+> @@ -439,6 +443,16 @@ struct mm_struct {
+>  	 */
+>  	struct hmm *hmm;
+>  #endif
+> +#if defined(CONFIG_HSA_RADEON) || defined(CONFIG_HSA_RADEON_MODULE)
+> +	/*
+> +	 * kfd always register an mmu_notifier we rely on mmu notifier to keep
+> +	 * refcount on mm struct as well as forbiding registering kfd on a
+> +	 * dying mm
+> +	 *
+> +	 * This field is set with mmap_sem old in write mode.
+> +	 */
+> +	struct kfd_process *kfd_process;
+> +#endif
 
-I'm with Peter here, why would this be a situation that we should even
-support?  Are there machines out there shipping like this?
+I understand the need to bind kfd to mm life time but this is wrong
+on several level. First we do not want per driver define flag here.
+Second this should be a IOMMU/PASID pointer of some sort, i am sure
+that Intel will want to add itself too to mm_struct so instead of
+having each IOMMU add a pointer here, i would rather see a generic
+pointer to a generic IOMMU struct and have this use generic IOMMU
+code that can then call specific user dispatch function.
 
-greg k-h
+I know this add a layer but this is not a critical code path and
+should never be.
+
+I am adding Jesse as he might have thought on that.
+
+So this one is NAK
+
+Cheers,
+Jerome
+
+>  #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
+>  	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
+>  #endif
+> -- 
+> 1.9.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
