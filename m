@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DC6782A8B
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:36:18 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id w10so949844pde.10
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:36:18 -0700 (PDT)
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 90D8582A8B
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:36:23 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id kq14so991033pab.34
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:36:23 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id cf5si1579350pbc.10.2014.07.11.00.36.16
+        by mx.google.com with ESMTP id cf5si1579350pbc.10.2014.07.11.00.36.21
         for <linux-mm@kvack.org>;
-        Fri, 11 Jul 2014 00:36:17 -0700 (PDT)
+        Fri, 11 Jul 2014 00:36:22 -0700 (PDT)
 From: Jiang Liu <jiang.liu@linux.intel.com>
-Subject: [RFC Patch V1 13/30] mm, i40e: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-Date: Fri, 11 Jul 2014 15:37:30 +0800
-Message-Id: <1405064267-11678-14-git-send-email-jiang.liu@linux.intel.com>
+Subject: [RFC Patch V1 14/30] mm, i40evf: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+Date: Fri, 11 Jul 2014 15:37:31 +0800
+Message-Id: <1405064267-11678-15-git-send-email-jiang.liu@linux.intel.com>
 In-Reply-To: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
 References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -30,14 +30,14 @@ is the same as cpu_to_node()/numa_node_id().
 
 Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
 ---
- drivers/net/ethernet/intel/i40e/i40e_txrx.c |    2 +-
+ drivers/net/ethernet/intel/i40evf/i40e_txrx.c |    2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/drivers/net/ethernet/intel/i40e/i40e_txrx.c b/drivers/net/ethernet/intel/i40e/i40e_txrx.c
-index e49f31dbd5d8..e9f6f9efd944 100644
---- a/drivers/net/ethernet/intel/i40e/i40e_txrx.c
-+++ b/drivers/net/ethernet/intel/i40e/i40e_txrx.c
-@@ -1342,7 +1342,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
+diff --git a/drivers/net/ethernet/intel/i40evf/i40e_txrx.c b/drivers/net/ethernet/intel/i40evf/i40e_txrx.c
+index 48ebb6cd69f2..5c057ae21c22 100644
+--- a/drivers/net/ethernet/intel/i40evf/i40e_txrx.c
++++ b/drivers/net/ethernet/intel/i40evf/i40e_txrx.c
+@@ -877,7 +877,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
  	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
  	u16 rx_packet_len, rx_header_len, rx_sph, rx_hbo;
  	u16 cleaned_count = I40E_DESC_UNUSED(rx_ring);
