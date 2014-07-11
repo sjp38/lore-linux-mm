@@ -1,63 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F80A6B0035
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 17:58:44 -0400 (EDT)
-Received: by mail-we0-f169.google.com with SMTP id t60so1677787wes.0
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 14:58:42 -0700 (PDT)
-Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
-        by mx.google.com with ESMTPS id vq2si6450853wjc.89.2014.07.11.14.58.40
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 55B186B0035
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 18:22:06 -0400 (EDT)
+Received: by mail-wi0-f171.google.com with SMTP id f8so355293wiw.16
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 15:22:05 -0700 (PDT)
+Received: from mail-we0-x234.google.com (mail-we0-x234.google.com [2a00:1450:400c:c03::234])
+        by mx.google.com with ESMTPS id p8si6486065wjb.170.2014.07.11.15.22.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 11 Jul 2014 14:58:40 -0700 (PDT)
-Date: Fri, 11 Jul 2014 23:58:37 +0200
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [RFC Patch V1 00/30] Enable memoryless node on x86 platforms
-Message-ID: <20140711215837.GU18735@two.firstfloor.org>
-References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
- <20140711082956.GC20603@laptop.programming.kicks-ass.net>
- <20140711153314.GA6155@kroah.com>
- <8761j3ve8s.fsf@tassilo.jf.intel.com>
- <20140711205106.GB20603@laptop.programming.kicks-ass.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 11 Jul 2014 15:22:05 -0700 (PDT)
+Received: by mail-we0-f180.google.com with SMTP id k48so782691wev.39
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 15:22:05 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140711205106.GB20603@laptop.programming.kicks-ass.net>
+In-Reply-To: <20140711201054.GB18033@amd.pavel.ucw.cz>
+References: <53B3D3AA.3000408@samsung.com>
+	<x49y4wbu54y.fsf@segfault.boston.devel.redhat.com>
+	<20140702184050.GA24583@infradead.org>
+	<20140711201054.GB18033@amd.pavel.ucw.cz>
+Date: Sat, 12 Jul 2014 01:22:04 +0300
+Message-ID: <CACE9dm8TW1+7bq6hJiOmoAw+w+ZD8Ma=Sf6a5ZM2HZ5X1Lcifw@mail.gmail.com>
+Subject: Re: IMA: kernel reading files opened with O_DIRECT
+From: Dmitry Kasatkin <dmitry.kasatkin@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Greg KH <gregkh@linuxfoundation.org>, Jiang Liu <jiang.liu@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Christoph Hellwig <hch@infradead.org>, Jeff Moyer <jmoyer@redhat.com>, Dmitry Kasatkin <d.kasatkin@samsung.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, Al Viro <viro@zeniv.linux.org.uk>, Mimi Zohar <zohar@linux.vnet.ibm.com>, linux-security-module <linux-security-module@vger.kernel.org>, Greg KH <gregkh@linuxfoundation.org>
 
-On Fri, Jul 11, 2014 at 10:51:06PM +0200, Peter Zijlstra wrote:
-> On Fri, Jul 11, 2014 at 01:20:51PM -0700, Andi Kleen wrote:
-> > Greg KH <gregkh@linuxfoundation.org> writes:
-> > 
-> > > On Fri, Jul 11, 2014 at 10:29:56AM +0200, Peter Zijlstra wrote:
-> > >> On Fri, Jul 11, 2014 at 03:37:17PM +0800, Jiang Liu wrote:
-> > >> > Any comments are welcomed!
-> > >> 
-> > >> Why would anybody _ever_ have a memoryless node? That's ridiculous.
-> > >
-> > > I'm with Peter here, why would this be a situation that we should even
-> > > support?  Are there machines out there shipping like this?
-> > 
-> > We've always had memory nodes.
-> > 
-> > A classic case in the old days was a two socket system where someone
-> > didn't populate any DIMMs on the second socket.
-> 
-> That's a obvious; don't do that then case. Its silly.
+On 11 July 2014 23:10, Pavel Machek <pavel@ucw.cz> wrote:
+> On Wed 2014-07-02 11:40:50, Christoph Hellwig wrote:
+>> On Wed, Jul 02, 2014 at 11:55:41AM -0400, Jeff Moyer wrote:
+>> > It's acceptable.
+>>
+>> It's not because it will then also affect other reads going on at the
+>> same time.
+>>
+>> The whole concept of ima is just broken, and if you want to do these
+>> sort of verification they need to happen inside the filesystem and not
+>> above it.
+>
+> ...and doing it at filesystem layer would also permit verification of
+> per-block (64KB? 1MB?) hashes.
 
-True. We should recommend that anyone running Linux will email you
-for approval of their configuration first.
+Please design one single and the best universal filesystem which does it.
 
+> Reading entire iso image when I run
+> "file foo.iso" is anti-social..
+>                                                                         Pavel
 
-> > There are other cases too.
-> 
-> Are there any sane ones
+Please make the policy which does not make anti-social.
 
-Yes.
+It is all about use-case.
 
--Andi
+- Dmitry
+
+> --
+> (english) http://www.livejournal.com/~pavelmachek
+> (cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
