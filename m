@@ -1,94 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 6571C6B0035
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 08:23:15 -0400 (EDT)
-Received: by mail-yk0-f174.google.com with SMTP id 19so357582ykq.19
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 05:23:15 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id a64si4292379yhb.117.2014.07.11.05.23.13
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 11 Jul 2014 05:23:14 -0700 (PDT)
-Message-ID: <53BFD708.1040305@oracle.com>
-Date: Fri, 11 Jul 2014 08:22:32 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id A41886B0035
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 08:46:14 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id p10so1008725pdj.41
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 05:46:14 -0700 (PDT)
+Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
+        by mx.google.com with ESMTP id ih9si2394361pbc.11.2014.07.11.05.46.12
+        for <linux-mm@kvack.org>;
+        Fri, 11 Jul 2014 05:46:13 -0700 (PDT)
+Date: Fri, 11 Jul 2014 13:45:53 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: arm64 flushing 255GB of vmalloc space takes too long
+Message-ID: <20140711124553.GG11473@arm.com>
+References: <CAMPhdO-j5SfHexP8hafB2EQVs91TOqp_k_SLwWmo9OHVEvNWiQ@mail.gmail.com>
+ <20140709174055.GC2814@arm.com>
+ <CAMPhdO_XqAL4oXcuJkp2PTQ-J07sGG4Nm5HjHO=yGqS+KuWQzg@mail.gmail.com>
+ <53BF3D58.2010900@codeaurora.org>
 MIME-Version: 1.0
-Subject: Re: + shmem-fix-faulting-into-a-hole-while-its-punched-take-2.patch
- added to -mm tree
-References: <53BD1053.5020401@suse.cz> <53BD39FC.7040205@oracle.com> <53BD67DC.9040700@oracle.com> <alpine.LSU.2.11.1407092358090.18131@eggly.anvils> <53BE8B1B.3000808@oracle.com> <53BECBA4.3010508@oracle.com> <alpine.LSU.2.11.1407101033280.18934@eggly.anvils> <53BED7F6.4090502@oracle.com> <alpine.LSU.2.11.1407101131310.19154@eggly.anvils> <53BEE345.4090203@oracle.com> <20140711082500.GB20603@laptop.programming.kicks-ass.net>
-In-Reply-To: <20140711082500.GB20603@laptop.programming.kicks-ass.net>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53BF3D58.2010900@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Hugh Dickins <hughd@google.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, davej@redhat.com, koct9i@gmail.com, lczerner@redhat.com, stable@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: Eric Miao <eric.y.miao@gmail.com>, "msalter@redhat.com" <msalter@redhat.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux Memory Management List <linux-mm@kvack.org>, Will Deacon <Will.Deacon@arm.com>, Russell King <linux@arm.linux.org.uk>
 
-On 07/11/2014 04:25 AM, Peter Zijlstra wrote:
-> On Thu, Jul 10, 2014 at 03:02:29PM -0400, Sasha Levin wrote:
->> What if we move lockdep's acquisition point to after it actually got the
->> lock?
+On Fri, Jul 11, 2014 at 02:26:48AM +0100, Laura Abbott wrote:
+> On 7/9/2014 11:04 AM, Eric Miao wrote:
+> > On Wed, Jul 9, 2014 at 10:40 AM, Catalin Marinas
+> > <catalin.marinas@arm.com> wrote:
+> >> On Wed, Jul 09, 2014 at 05:53:26PM +0100, Eric Miao wrote:
+> >>> On Tue, Jul 8, 2014 at 6:43 PM, Laura Abbott <lauraa@codeaurora.org> wrote:
+> >>>> I have an arm64 target which has been observed hanging in __purge_vmap_area_lazy
+> >>>> in vmalloc.c The root cause of this 'hang' is that flush_tlb_kernel_range is
+> >>>> attempting to flush 255GB of virtual address space. This takes ~2 seconds and
+> >>>> preemption is disabled at this time thanks to the purge lock. Disabling
+> >>>> preemption for that time is long enough to trigger a watchdog we have setup.
+> >>
+> >> That's definitely not good.
+> >>
+> >>>> A couple of options I thought of:
+> >>>> 1) Increase the timeout of our watchdog to allow the flush to occur. Nobody
+> >>>> I suggested this to likes the idea as the watchdog firing generally catches
+> >>>> behavior that results in poor system performance and disabling preemption
+> >>>> for that long does seem like a problem.
+> >>>> 2) Change __purge_vmap_area_lazy to do less work under a spinlock. This would
+> >>>> certainly have a performance impact and I don't even know if it is plausible.
+> >>>> 3) Allow module unloading to trigger a vmalloc purge beforehand to help avoid
+> >>>> this case. This would still be racy if another vfree came in during the time
+> >>>> between the purge and the vfree but it might be good enough.
+> >>>> 4) Add 'if size > threshold flush entire tlb' (I haven't profiled this yet)
+> >>>
+> >>> We have the same problem. I'd agree with point 2 and point 4, point 1/3 do not
+> >>> actually fix this issue. purge_vmap_area_lazy() could be called in other
+> >>> cases.
+> >>
+> >> I would also discard point 2 as it still takes ~2 seconds, only that not
+> >> under a spinlock.
+> > 
+> > Point is - we could still end up a good amount of time in that function,
+> > giving the default value of lazy_vfree_pages to be 32MB * log(ncpu),
+> > worst case of all vmap areas being only one page, tlb flush page by
+> > page, and traversal of the list, calling __free_vmap_area() that many
+> > times won't likely to reduce the execution time to microsecond level.
+> > 
+> > If it's something inevitable - we do it in a bit cleaner way.
+
+In general I think it makes sense to add a mutex instead of a spinlock
+here if slowdown is caused by other things as well. That's independent
+of the TLB invalidation optimisation for arm64.
+
+> > Or we end up having platform specific tlb flush implementation just as we
+> > did for cache ops. I would expect only few platforms will have their own
+> > thresholds. A simple heuristic guess of the threshold based on number of
+> > tlb entries would be good to go?
 > 
-> NAK, you want to do deadlock detection _before_ you're stuck in a
-> deadlock.
-
-I didn't suggest to do it in the general case, but just for debugging the issue
-we have here.
-
->> We'd miss deadlocks, but we don't care about them right now. Anyways, doesn't
->> lockdep have anything built in to allow us to separate between locks which
->> we attempt to acquire and locks that are actually acquired?
->>
->> (cc PeterZ)
->>
->> We can treat locks that are in the process of being acquired the same as
->> acquired locks to avoid races, but when we print something out it would
->> be nice to have annotation of the read state of the lock.
+> Mark Salter actually proposed a fix to this back in May 
 > 
-> I'm missing the problem here I think.
+> https://lkml.org/lkml/2014/5/2/311
+> 
+> I never saw any further comments on it though. It also matches what x86
+> does with their TLB flushing. It fixes the problem for me and the threshold
+> seems to be the best we can do unless we want to introduce options per
+> platform. It will need to be rebased to the latest tree though.
 
-The problem here is that lockdep reports tasks waiting on lock as ones that
-already have the lock. So we have a list of about 500 different tasks looking
-like this:
+There were other patches in this area and I forgot about this. The
+problem is that the ARM architecture does not define the actual
+micro-architectural implementation of the TLBs (and it shouldn't), so
+there is no way to guess how many TLB entries there are. It's not an
+easy figure to get either since there are multiple levels of caching for
+the TLBs.
 
-[  367.805809] 2 locks held by trinity-c214/9083:
-[  367.805811] #0: (sb_writers#9){.+.+.+}, at: do_fallocate (fs/open.c:298)
-[  367.805824] #1: (&sb->s_type->i_mutex_key#16){+.+.+.}, at: shmem_fallocate (mm/shmem.c:1738)
+So we either guess some value here (we may not always be optimal) or we
+put some time bound (e.g. based on sched_clock()) on how long to loop.
+The latter is not optimal either, the only aim being to avoid
+soft-lockups.
 
-While they haven't actually acquired i_mutex, but are merely blocking on it:
-
-[  367.644150] trinity-c214    D 0000000000000002 13528  9083   8490 0x00000000
-[  367.644171]  ffff880018757ce8 0000000000000002 ffffffff91a01d70 0000000000000001
-[  367.644178]  ffff880018757fd8 00000000001d7740 00000000001d7740 00000000001d7740
-[  367.644188]  ffff880006428000 ffff880018758000 ffff880018757cd8 ffff880031fdc210
-[  367.644213] Call Trace:
-[  367.644218] schedule (kernel/sched/core.c:2832)
-[  367.644229] schedule_preempt_disabled (kernel/sched/core.c:2859)
-[  367.644237] mutex_lock_nested (kernel/locking/mutex.c:535 kernel/locking/mutex.c:587)
-[  367.644240] ? shmem_fallocate (mm/shmem.c:1738)
-[  367.644248] ? get_parent_ip (kernel/sched/core.c:2546)
-[  367.644255] ? shmem_fallocate (mm/shmem.c:1738)
-[  367.644264] shmem_fallocate (mm/shmem.c:1738)
-[  367.644268] ? SyS_madvise (mm/madvise.c:334 mm/madvise.c:384 mm/madvise.c:534 mm/madvise.c:465)
-[  367.644280] ? put_lock_stats.isra.12 (./arch/x86/include/asm/preempt.h:98 kernel/locking/lockdep.c:254)
-[  367.644291] ? SyS_madvise (mm/madvise.c:334 mm/madvise.c:384 mm/madvise.c:534 mm/madvise.c:465)
-[  367.644298] do_fallocate (include/linux/fs.h:1281 fs/open.c:299)
-[  367.644303] SyS_madvise (mm/madvise.c:335 mm/madvise.c:384 mm/madvise.c:534 mm/madvise.c:465)
-[  367.644309] ? context_tracking_user_exit (./arch/x86/include/asm/paravirt.h:809 (discriminator 2) kernel/context_tracking.c:184 (discriminator 2))
-[  367.644315] ? trace_hardirqs_on (kernel/locking/lockdep.c:2607)
-[  367.644321] tracesys (arch/x86/kernel/entry_64.S:543)
-
-There's no easy way to see whether a given task is actually holding a lock or
-is just blocking on it without going through all those tasks one by one and
-looking at their trace.
-
-I agree with you that "The call trace is very clear on it that its not", but
-when you have 500 call traces you really want something better than going
-through it one call trace at a time.
-
-
-Thanks,
-Sasha
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
