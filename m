@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id EEAB382A8B
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:36:33 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id p10so610935pdj.13
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:36:33 -0700 (PDT)
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C4A282A8B
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:36:37 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id v10so949515pde.12
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:36:36 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id cf5si1579350pbc.10.2014.07.11.00.36.32
+        by mx.google.com with ESMTP id cf5si1579350pbc.10.2014.07.11.00.36.35
         for <linux-mm@kvack.org>;
-        Fri, 11 Jul 2014 00:36:32 -0700 (PDT)
+        Fri, 11 Jul 2014 00:36:36 -0700 (PDT)
 From: Jiang Liu <jiang.liu@linux.intel.com>
-Subject: [RFC Patch V1 16/30] mm, ixgbe: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-Date: Fri, 11 Jul 2014 15:37:33 +0800
-Message-Id: <1405064267-11678-17-git-send-email-jiang.liu@linux.intel.com>
+Subject: [RFC Patch V1 17/30] mm, intel_powerclamp: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+Date: Fri, 11 Jul 2014 15:37:34 +0800
+Message-Id: <1405064267-11678-18-git-send-email-jiang.liu@linux.intel.com>
 In-Reply-To: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
 References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Jeff Kirsher <jeffrey.t.kirsher@intel.com>, Jesse Brandeburg <jesse.brandeburg@intel.com>, Bruce Allan <bruce.w.allan@intel.com>, Carolyn Wyborny <carolyn.wyborny@intel.com>, Don Skidmore <donald.c.skidmore@intel.com>, Greg Rose <gregory.v.rose@intel.com>, Alex Duyck <alexander.h.duyck@intel.com>, John Ronciak <john.ronciak@intel.com>, Mitch Williams <mitch.a.williams@intel.com>, Linux NICS <linux.nics@intel.com>
-Cc: Jiang Liu <jiang.liu@linux.intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org, e1000-devel@lists.sourceforge.net, netdev@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Zhang Rui <rui.zhang@intel.com>, Eduardo Valentin <edubezval@gmail.com>
+Cc: Jiang Liu <jiang.liu@linux.intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org
 
 When CONFIG_HAVE_MEMORYLESS_NODES is enabled, cpu_to_node()/numa_node_id()
 may return a node without memory, and later cause system failure/panic
@@ -30,31 +30,31 @@ is the same as cpu_to_node()/numa_node_id().
 
 Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
 ---
- drivers/net/ethernet/intel/ixgbe/ixgbe_main.c |    4 ++--
+ drivers/thermal/intel_powerclamp.c |    4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c b/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
-index f5aa3311ea28..46dc083573ea 100644
---- a/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
-+++ b/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
-@@ -1962,7 +1962,7 @@ static bool ixgbe_add_rx_frag(struct ixgbe_ring *rx_ring,
- 		memcpy(__skb_put(skb, size), va, ALIGN(size, sizeof(long)));
+diff --git a/drivers/thermal/intel_powerclamp.c b/drivers/thermal/intel_powerclamp.c
+index 95cb7fc20e17..9d9be8cd1b50 100644
+--- a/drivers/thermal/intel_powerclamp.c
++++ b/drivers/thermal/intel_powerclamp.c
+@@ -531,7 +531,7 @@ static int start_power_clamp(void)
  
- 		/* we can reuse buffer as-is, just make sure it is local */
--		if (likely(page_to_nid(page) == numa_node_id()))
-+		if (likely(page_to_nid(page) == numa_mem_id()))
- 			return true;
- 
- 		/* this page cannot be reused so discard it */
-@@ -1974,7 +1974,7 @@ static bool ixgbe_add_rx_frag(struct ixgbe_ring *rx_ring,
- 			rx_buffer->page_offset, size, truesize);
- 
- 	/* avoid re-using remote pages */
--	if (unlikely(page_to_nid(page) != numa_node_id()))
-+	if (unlikely(page_to_nid(page) != numa_mem_id()))
- 		return false;
- 
- #if (PAGE_SIZE < 8192)
+ 		thread = kthread_create_on_node(clamp_thread,
+ 						(void *) cpu,
+-						cpu_to_node(cpu),
++						cpu_to_mem(cpu),
+ 						"kidle_inject/%ld", cpu);
+ 		/* bind to cpu here */
+ 		if (likely(!IS_ERR(thread))) {
+@@ -582,7 +582,7 @@ static int powerclamp_cpu_callback(struct notifier_block *nfb,
+ 	case CPU_ONLINE:
+ 		thread = kthread_create_on_node(clamp_thread,
+ 						(void *) cpu,
+-						cpu_to_node(cpu),
++						cpu_to_mem(cpu),
+ 						"kidle_inject/%lu", cpu);
+ 		if (likely(!IS_ERR(thread))) {
+ 			kthread_bind(thread, cpu);
 -- 
 1.7.10.4
 
