@@ -1,99 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 855E5900002
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 11:42:39 -0400 (EDT)
-Received: by mail-qc0-f182.google.com with SMTP id r5so323423qcx.13
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 08:42:39 -0700 (PDT)
-Received: from mail-qa0-x22d.google.com (mail-qa0-x22d.google.com [2607:f8b0:400d:c00::22d])
-        by mx.google.com with ESMTPS id q45si3976130qga.96.2014.07.11.08.42.37
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 11 Jul 2014 08:42:38 -0700 (PDT)
-Received: by mail-qa0-f45.google.com with SMTP id s7so1015394qap.4
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 08:42:37 -0700 (PDT)
-Date: Fri, 11 Jul 2014 11:42:32 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [PATCH 01/83] mm: Add kfd_process pointer to mm_struct
-Message-ID: <20140711154231.GB1870@gmail.com>
-References: <1405028848-5660-1-git-send-email-oded.gabbay@amd.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1405028848-5660-1-git-send-email-oded.gabbay@amd.com>
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 3979E6B0035
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 11:56:14 -0400 (EDT)
+Received: by mail-qc0-f180.google.com with SMTP id l6so888872qcy.39
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 08:56:14 -0700 (PDT)
+Received: from qmta02.emeryville.ca.mail.comcast.net (qmta02.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:24])
+        by mx.google.com with ESMTP id d5si3928466qar.108.2014.07.11.08.56.12
+        for <linux-mm@kvack.org>;
+        Fri, 11 Jul 2014 08:56:13 -0700 (PDT)
+Date: Fri, 11 Jul 2014 10:55:59 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: [RFC Patch V1 07/30] mm: Use cpu_to_mem()/numa_mem_id() to
+ support memoryless node
+In-Reply-To: <20140711153302.GA30865@htj.dyndns.org>
+Message-ID: <alpine.DEB.2.11.1407111054190.27349@gentwo.org>
+References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com> <1405064267-11678-8-git-send-email-jiang.liu@linux.intel.com> <20140711144205.GA27706@htj.dyndns.org> <alpine.DEB.2.11.1407111012210.25527@gentwo.org> <20140711152156.GB29137@htj.dyndns.org>
+ <20140711153302.GA30865@htj.dyndns.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oded Gabbay <oded.gabbay@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Airlie <airlied@linux.ie>, Alex Deucher <alexander.deucher@amd.com>, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, John Bridgman <John.Bridgman@amd.com>, Andrew Lewycky <Andrew.Lewycky@amd.com>, Joerg Roedel <joro@8bytes.org>, linux-mm <linux-mm@kvack.org>, Oded Gabbay <oded.gabbay@amd.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Michel Lespinasse <walken@google.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Jiang Liu <jiang.liu@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Vladimir Davydov <vdavydov@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Catalin Marinas <catalin.marinas@arm.com>, Jianyu Zhan <nasa4836@gmail.com>, malc <av1474@comtv.ru>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Fabian Frederick <fabf@skynet.be>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, Jul 11, 2014 at 12:47:26AM +0300, Oded Gabbay wrote:
-> This patch enables the KFD to retrieve the kfd_process
-> object from the process's mm_struct. This is needed because kfd_process
-> lifespan is bound to the process's mm_struct lifespan.
-> 
-> When KFD is notified about an mm_struct tear-down, it checks if the
-> kfd_process pointer is valid. If so, it releases the kfd_process object
-> and all relevant resources.
-> 
-> Signed-off-by: Oded Gabbay <oded.gabbay@amd.com>
-> ---
->  include/linux/mm_types.h | 14 ++++++++++++++
->  1 file changed, 14 insertions(+)
-> 
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 678097c..6179107 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -20,6 +20,10 @@
->  struct hmm;
->  #endif
->  
-> +#ifdef CONFIG_HSA_RADEON
-> +struct kfd_process;
-> +#endif
-> +
->  #ifndef AT_VECTOR_SIZE_ARCH
->  #define AT_VECTOR_SIZE_ARCH 0
->  #endif
-> @@ -439,6 +443,16 @@ struct mm_struct {
->  	 */
->  	struct hmm *hmm;
->  #endif
-> +#if defined(CONFIG_HSA_RADEON) || defined(CONFIG_HSA_RADEON_MODULE)
-> +	/*
-> +	 * kfd always register an mmu_notifier we rely on mmu notifier to keep
-> +	 * refcount on mm struct as well as forbiding registering kfd on a
-> +	 * dying mm
-> +	 *
-> +	 * This field is set with mmap_sem old in write mode.
-> +	 */
-> +	struct kfd_process *kfd_process;
-> +#endif
+On Fri, 11 Jul 2014, Tejun Heo wrote:
 
-I understand the need to bind kfd to mm life time but this is wrong
-on several level. First we do not want per driver define flag here.
-Second this should be a IOMMU/PASID pointer of some sort, i am sure
-that Intel will want to add itself too to mm_struct so instead of
-having each IOMMU add a pointer here, i would rather see a generic
-pointer to a generic IOMMU struct and have this use generic IOMMU
-code that can then call specific user dispatch function.
+> On Fri, Jul 11, 2014 at 11:21:56AM -0400, Tejun Heo wrote:
+> > Even if that's the case, there's no reason to burden everyone with
+> > this distinction.  Most users just wanna say "I'm on this node.
+> > Please allocate considering that".  There's nothing wrong with using
+> > numa_node_id() for that.
+>
+> Also, this is minor but don't we also lose fallback information by
+> doing this from the caller?  Please consider the following topology
+> where each hop is the same distance.
+>
+>    A - B - X - C - D
+>
+> Where X is the memless node.  num_mem_id() on X would return either B
+> or C, right?  If B or C can't satisfy the allocation, the allocator
+> would fallback to A from B and D for C, both of which aren't optimal.
+> It should first fall back to C or B respectively, which the allocator
+> can't do anymoe because the information is lost when the caller side
+> performs numa_mem_id().
 
-I know this add a layer but this is not a critical code path and
-should never be.
+True but the advantage is that the numa_mem_id() allows the use of a
+consitent sort of "local" node which increases allocator performance due
+to the abillity to cache objects from that node.
 
-I am adding Jesse as he might have thought on that.
+> Seems pretty misguided to me.
 
-So this one is NAK
-
-Cheers,
-Jerome
-
->  #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
->  	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
->  #endif
-> -- 
-> 1.9.1
-> 
+IMHO the whole concept of a memoryless node looks pretty misguided to me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
