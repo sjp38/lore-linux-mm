@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 266476B003A
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 14:36:31 -0400 (EDT)
-Received: by mail-wi0-f179.google.com with SMTP id cc10so139404wib.0
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 11:36:28 -0700 (PDT)
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id C89696B003B
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 14:36:36 -0400 (EDT)
+Received: by mail-wi0-f180.google.com with SMTP id n3so139037wiv.1
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 11:36:35 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id lk16si5784496wic.65.2014.07.11.11.36.14
+        by mx.google.com with ESMTPS id bq14si5767398wib.85.2014.07.11.11.36.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jul 2014 11:36:15 -0700 (PDT)
+        Fri, 11 Jul 2014 11:36:21 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH -mm v5 01/13] mm/pagewalk: remove pgd_entry() and pud_entry()
-Date: Fri, 11 Jul 2014 14:35:37 -0400
-Message-Id: <1405103749-23506-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH -mm v5 06/13] pagemap: use walk->vma instead of calling find_vma()
+Date: Fri, 11 Jul 2014 14:35:42 -0400
+Message-Id: <1405103749-23506-7-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1405103749-23506-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1405103749-23506-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,68 +20,41 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-Currently no user of page table walker sets ->pgd_entry() or ->pud_entry(),
-so checking their existence in each loop is just wasting CPU cycle.
-So let's remove it to reduce overhead.
+Page table walker has the information of the current vma in mm_walk, so
+we don't have to call find_vma() in each pagemap_hugetlb_range() call.
+
+NULL-vma check is omitted because we assume that we never run hugetlb_entry()
+callback on the address without vma. And even if it were broken, null pointer
+dereference would be detected, so we can get enough information for debugging.
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/mm.h | 6 ------
- mm/pagewalk.c      | 9 ++-------
- 2 files changed, 2 insertions(+), 13 deletions(-)
+ fs/proc/task_mmu.c | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
 
-diff --git mmotm-2014-07-09-17-08.orig/include/linux/mm.h mmotm-2014-07-09-17-08/include/linux/mm.h
-index 368600628d14..4d5bca99a33d 100644
---- mmotm-2014-07-09-17-08.orig/include/linux/mm.h
-+++ mmotm-2014-07-09-17-08/include/linux/mm.h
-@@ -1094,8 +1094,6 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+diff --git mmotm-2014-07-09-17-08.orig/fs/proc/task_mmu.c mmotm-2014-07-09-17-08/fs/proc/task_mmu.c
+index 4baf34230191..e4c6cdb9647b 100644
+--- mmotm-2014-07-09-17-08.orig/fs/proc/task_mmu.c
++++ mmotm-2014-07-09-17-08/fs/proc/task_mmu.c
+@@ -1073,15 +1073,12 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
+ 				 struct mm_walk *walk)
+ {
+ 	struct pagemapread *pm = walk->private;
+-	struct vm_area_struct *vma;
++	struct vm_area_struct *vma = walk->vma;
+ 	int err = 0;
+ 	int flags2;
+ 	pagemap_entry_t pme;
  
- /**
-  * mm_walk - callbacks for walk_page_range
-- * @pgd_entry: if set, called for each non-empty PGD (top-level) entry
-- * @pud_entry: if set, called for each non-empty PUD (2nd-level) entry
-  * @pmd_entry: if set, called for each non-empty PMD (3rd-level) entry
-  *	       this handler is required to be able to handle
-  *	       pmd_trans_huge() pmds.  They may simply choose to
-@@ -1109,10 +1107,6 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
-  * (see walk_page_range for more details)
-  */
- struct mm_walk {
--	int (*pgd_entry)(pgd_t *pgd, unsigned long addr,
--			 unsigned long next, struct mm_walk *walk);
--	int (*pud_entry)(pud_t *pud, unsigned long addr,
--	                 unsigned long next, struct mm_walk *walk);
- 	int (*pmd_entry)(pmd_t *pmd, unsigned long addr,
- 			 unsigned long next, struct mm_walk *walk);
- 	int (*pte_entry)(pte_t *pte, unsigned long addr,
-diff --git mmotm-2014-07-09-17-08.orig/mm/pagewalk.c mmotm-2014-07-09-17-08/mm/pagewalk.c
-index 2beeabf502c5..335690650b12 100644
---- mmotm-2014-07-09-17-08.orig/mm/pagewalk.c
-+++ mmotm-2014-07-09-17-08/mm/pagewalk.c
-@@ -86,9 +86,7 @@ static int walk_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end,
- 				break;
- 			continue;
- 		}
--		if (walk->pud_entry)
--			err = walk->pud_entry(pud, addr, next, walk);
--		if (!err && (walk->pmd_entry || walk->pte_entry))
-+		if (walk->pmd_entry || walk->pte_entry)
- 			err = walk_pmd_range(pud, addr, next, walk);
- 		if (err)
- 			break;
-@@ -234,10 +232,7 @@ int walk_page_range(unsigned long addr, unsigned long end,
- 			pgd++;
- 			continue;
- 		}
--		if (walk->pgd_entry)
--			err = walk->pgd_entry(pgd, addr, next, walk);
--		if (!err &&
--		    (walk->pud_entry || walk->pmd_entry || walk->pte_entry))
-+		if (walk->pmd_entry || walk->pte_entry)
- 			err = walk_pud_range(pgd, addr, next, walk);
- 		if (err)
- 			break;
+-	vma = find_vma(walk->mm, addr);
+-	WARN_ON_ONCE(!vma);
+-
+-	if (vma && (vma->vm_flags & VM_SOFTDIRTY))
++	if (vma->vm_flags & VM_SOFTDIRTY)
+ 		flags2 = __PM_SOFT_DIRTY;
+ 	else
+ 		flags2 = 0;
 -- 
 1.9.3
 
