@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E11E6B0035
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 12:04:24 -0400 (EDT)
-Received: by mail-qg0-f42.google.com with SMTP id e89so1134100qgf.15
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 09:04:24 -0700 (PDT)
-Received: from qmta13.emeryville.ca.mail.comcast.net (qmta13.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:243])
-        by mx.google.com with ESMTP id s8si4030924qam.56.2014.07.11.09.04.22
+Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
+	by kanga.kvack.org (Postfix) with ESMTP id D29F76B0035
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 12:19:20 -0400 (EDT)
+Received: by mail-qc0-f182.google.com with SMTP id r5so372221qcx.13
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 09:19:20 -0700 (PDT)
+Received: from qmta14.emeryville.ca.mail.comcast.net (qmta14.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:212])
+        by mx.google.com with ESMTP id x9si3892898qax.121.2014.07.11.09.19.18
         for <linux-mm@kvack.org>;
-        Fri, 11 Jul 2014 09:04:23 -0700 (PDT)
-Date: Fri, 11 Jul 2014 11:04:05 -0500 (CDT)
+        Fri, 11 Jul 2014 09:19:19 -0700 (PDT)
+Date: Fri, 11 Jul 2014 11:19:14 -0500 (CDT)
 From: Christoph Lameter <cl@gentwo.org>
 Subject: Re: [RFC Patch V1 07/30] mm: Use cpu_to_mem()/numa_mem_id() to
  support memoryless node
-In-Reply-To: <20140711155838.GB30865@htj.dyndns.org>
-Message-ID: <alpine.DEB.2.11.1407111101070.27434@gentwo.org>
+In-Reply-To: <20140711160152.GC30865@htj.dyndns.org>
+Message-ID: <alpine.DEB.2.11.1407111117560.27592@gentwo.org>
 References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com> <1405064267-11678-8-git-send-email-jiang.liu@linux.intel.com> <20140711144205.GA27706@htj.dyndns.org> <alpine.DEB.2.11.1407111012210.25527@gentwo.org> <20140711152156.GB29137@htj.dyndns.org>
- <20140711153302.GA30865@htj.dyndns.org> <alpine.DEB.2.11.1407111054190.27349@gentwo.org> <20140711155838.GB30865@htj.dyndns.org>
+ <alpine.DEB.2.11.1407111056060.27349@gentwo.org> <20140711160152.GC30865@htj.dyndns.org>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -24,27 +24,25 @@ Cc: Jiang Liu <jiang.liu@linux.intel.com>, Andrew Morton <akpm@linux-foundation.
 
 On Fri, 11 Jul 2014, Tejun Heo wrote:
 
-> On Fri, Jul 11, 2014 at 10:55:59AM -0500, Christoph Lameter wrote:
-> > > Where X is the memless node.  num_mem_id() on X would return either B
-> > > or C, right?  If B or C can't satisfy the allocation, the allocator
-> > > would fallback to A from B and D for C, both of which aren't optimal.
-> > > It should first fall back to C or B respectively, which the allocator
-> > > can't do anymoe because the information is lost when the caller side
-> > > performs numa_mem_id().
+> On Fri, Jul 11, 2014 at 10:58:52AM -0500, Christoph Lameter wrote:
+> > > But, GFP_THISNODE + numa_mem_id() is identical to numa_node_id() +
+> > > nearest node with memory fallback.  Is there any case where the user
+> > > would actually want to always fail if it's on the memless node?
 > >
-> > True but the advantage is that the numa_mem_id() allows the use of a
-> > consitent sort of "local" node which increases allocator performance due
-> > to the abillity to cache objects from that node.
+> > GFP_THISNODE allocatios must fail if there is no memory available on
+> > the node. No fallback allowed.
 >
-> But the allocator can do the mapping the same.  I really don't see why
-> we'd push the distinction to the individual users.
+> I don't know.  The intention is that the caller wants something on
+> this node or the caller will fail or fallback ourselves, right?  For
+> most use cases just considering the nearest memory node as "local" for
+> memless nodes should work and serve the intentions of the users close
+> enough.  Whether that'd be better or we'd be better off with something
+> else depends on the details for sure.
 
-The "users" (I guess you mean general kernel code/drivers) can use various
-memory allocators which will do the right thing internally regarding
-GFP_THISNODE. They do not need to worry too much about this unless there
-are reasons beyond optimizing NUMA placement to need memory from a
-particuylar node (f.e. a device that requires memory from a numa node that
-is local to the PCI bus where the hardware resides).
+Yes that works. But if we want a consistent node to allocate from (and
+avoid the fallbacks) then we need this patch. I think this is up to those
+needing memoryless nodes to figure out what semantics they need.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
