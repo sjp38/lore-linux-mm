@@ -1,80 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C4F8482A8B
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:38:07 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id hz1so1004512pad.10
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:38:07 -0700 (PDT)
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id C072882A8B
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:38:08 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id z10so947154pdj.15
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:38:08 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id bc4si1566498pbb.71.2014.07.11.00.38.05
+        by mx.google.com with ESMTP id cc10si761592pdb.488.2014.07.11.00.38.06
         for <linux-mm@kvack.org>;
-        Fri, 11 Jul 2014 00:38:06 -0700 (PDT)
+        Fri, 11 Jul 2014 00:38:07 -0700 (PDT)
 From: Jiang Liu <jiang.liu@linux.intel.com>
-Subject: [RFC Patch V1 24/30] mm, x86/platform/uv: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-Date: Fri, 11 Jul 2014 15:37:41 +0800
-Message-Id: <1405064267-11678-25-git-send-email-jiang.liu@linux.intel.com>
+Subject: [RFC Patch V1 27/30] x86, numa: Kill useless code to improve code readability
+Date: Fri, 11 Jul 2014 15:37:44 +0800
+Message-Id: <1405064267-11678-28-git-send-email-jiang.liu@linux.intel.com>
 In-Reply-To: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
 References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, cpw <cpw@sgi.com>, Hedi Berriche <hedi@sgi.com>, Mike Travis <travis@sgi.com>, Dimitri Sivanich <sivanich@sgi.com>
-Cc: Jiang Liu <jiang.liu@linux.intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Tang Chen <tangchen@cn.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Jiang Liu <jiang.liu@linux.intel.com>, Lans Zhang <jia.zhang@windriver.com>, Paul Gortmaker <paul.gortmaker@windriver.com>
+Cc: Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@linux.intel.com>
 
-When CONFIG_HAVE_MEMORYLESS_NODES is enabled, cpu_to_node()/numa_node_id()
-may return a node without memory, and later cause system failure/panic
-when calling kmalloc_node() and friends with returned node id.
-So use cpu_to_mem()/numa_mem_id() instead to get the nearest node with
-memory for the/current cpu.
+According to x86 boot sequence, early_cpu_to_node() always returns
+NUMA_NO_NODE when called from numa_init(). So kill useless code
+to improve code readability.
 
-If CONFIG_HAVE_MEMORYLESS_NODES is disabled, cpu_to_mem()/numa_mem_id()
-is the same as cpu_to_node()/numa_node_id().
+Related code sequence as below:
+x86_cpu_to_node_map is set until step 2, so it is still the default
+value (NUMA_NO_NODE) when accessed at step 1.
+
+start_kernel()
+	setup_arch()
+		initmem_init()
+			x86_numa_init()
+				numa_init()
+					early_cpu_to_node()
+1)						return early_per_cpu_ptr(x86_cpu_to_node_map)[cpu];
+		acpi_boot_init();
+		sfi_init()
+		x86_dtb_init()
+			generic_processor_info()
+				early_per_cpu(x86_cpu_to_apicid, cpu) = apicid;
+		init_cpu_to_node()
+			numa_set_node(cpu, node);
+2)				per_cpu(x86_cpu_to_node_map, cpu) = node;
+
+	rest_init()
+		kernel_init()
+			smp_init()
+				native_cpu_up()
+					start_secondary()
+						numa_set_node()
+							per_cpu(x86_cpu_to_node_map, cpu) = node;
 
 Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
 ---
- arch/x86/platform/uv/tlb_uv.c  |    2 +-
- arch/x86/platform/uv/uv_nmi.c  |    3 ++-
- arch/x86/platform/uv/uv_time.c |    2 +-
- 3 files changed, 4 insertions(+), 3 deletions(-)
+ arch/x86/mm/numa.c |   10 ----------
+ 1 file changed, 10 deletions(-)
 
-diff --git a/arch/x86/platform/uv/tlb_uv.c b/arch/x86/platform/uv/tlb_uv.c
-index dfe605ac1bcd..4612b4396004 100644
---- a/arch/x86/platform/uv/tlb_uv.c
-+++ b/arch/x86/platform/uv/tlb_uv.c
-@@ -2116,7 +2116,7 @@ static int __init uv_bau_init(void)
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index a32b706c401a..eec4f6c322bb 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -545,8 +545,6 @@ static void __init numa_init_array(void)
  
- 	for_each_possible_cpu(cur_cpu) {
- 		mask = &per_cpu(uv_flush_tlb_mask, cur_cpu);
--		zalloc_cpumask_var_node(mask, GFP_KERNEL, cpu_to_node(cur_cpu));
-+		zalloc_cpumask_var_node(mask, GFP_KERNEL, cpu_to_mem(cur_cpu));
- 	}
+ 	rr = first_node(node_online_map);
+ 	for (i = 0; i < nr_cpu_ids; i++) {
+-		if (early_cpu_to_node(i) != NUMA_NO_NODE)
+-			continue;
+ 		numa_set_node(i, rr);
+ 		rr = next_node(rr, node_online_map);
+ 		if (rr == MAX_NUMNODES)
+@@ -633,14 +631,6 @@ static int __init numa_init(int (*init_func)(void))
+ 	if (ret < 0)
+ 		return ret;
  
- 	nuvhubs = uv_num_possible_blades();
-diff --git a/arch/x86/platform/uv/uv_nmi.c b/arch/x86/platform/uv/uv_nmi.c
-index c89c93320c12..d17758215a61 100644
---- a/arch/x86/platform/uv/uv_nmi.c
-+++ b/arch/x86/platform/uv/uv_nmi.c
-@@ -715,7 +715,8 @@ void uv_nmi_setup(void)
- 		nid = cpu_to_node(cpu);
- 		if (uv_hub_nmi_list[nid] == NULL) {
- 			uv_hub_nmi_list[nid] = kzalloc_node(size,
--							    GFP_KERNEL, nid);
-+							    GFP_KERNEL,
-+							    cpu_to_mem(cpu));
- 			BUG_ON(!uv_hub_nmi_list[nid]);
- 			raw_spin_lock_init(&(uv_hub_nmi_list[nid]->nmi_lock));
- 			atomic_set(&uv_hub_nmi_list[nid]->cpu_owner, -1);
-diff --git a/arch/x86/platform/uv/uv_time.c b/arch/x86/platform/uv/uv_time.c
-index 5c86786bbfd2..c369fb2eb7d3 100644
---- a/arch/x86/platform/uv/uv_time.c
-+++ b/arch/x86/platform/uv/uv_time.c
-@@ -164,7 +164,7 @@ static __init int uv_rtc_allocate_timers(void)
- 		return -ENOMEM;
+-	for (i = 0; i < nr_cpu_ids; i++) {
+-		int nid = early_cpu_to_node(i);
+-
+-		if (nid == NUMA_NO_NODE)
+-			continue;
+-		if (!node_online(nid))
+-			numa_clear_node(i);
+-	}
+ 	numa_init_array();
  
- 	for_each_present_cpu(cpu) {
--		int nid = cpu_to_node(cpu);
-+		int nid = cpu_to_mem(cpu);
- 		int bid = uv_cpu_to_blade_id(cpu);
- 		int bcpu = uv_cpu_hub_info(cpu)->blade_processor_id;
- 		struct uv_rtc_timer_head *head = blade_info[bid];
+ 	/*
 -- 
 1.7.10.4
 
