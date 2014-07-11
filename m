@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 74E846B0031
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:35:21 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id y10so930125pdj.8
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:35:21 -0700 (PDT)
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A4B46B0036
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:35:22 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id rd3so1003837pab.3
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:35:22 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id qo1si773757pdb.254.2014.07.11.00.35.19
+        by mx.google.com with ESMTP id qo1si773757pdb.254.2014.07.11.00.35.20
         for <linux-mm@kvack.org>;
-        Fri, 11 Jul 2014 00:35:20 -0700 (PDT)
+        Fri, 11 Jul 2014 00:35:21 -0700 (PDT)
 From: Jiang Liu <jiang.liu@linux.intel.com>
-Subject: [RFC Patch V1 01/30] mm, kernel: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-Date: Fri, 11 Jul 2014 15:37:18 +0800
-Message-Id: <1405064267-11678-2-git-send-email-jiang.liu@linux.intel.com>
+Subject: [RFC Patch V1 02/30] mm, sched: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+Date: Fri, 11 Jul 2014 15:37:19 +0800
+Message-Id: <1405064267-11678-3-git-send-email-jiang.liu@linux.intel.com>
 In-Reply-To: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
 References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Dipankar Sarma <dipankar@in.ibm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Jens Axboe <axboe@kernel.dk>, Frederic Weisbecker <fweisbec@gmail.com>, Jan Kara <jack@suse.cz>, Ingo Molnar <mingo@kernel.org>, Christoph Hellwig <hch@infradead.org>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Xie XiuQi <xiexiuqi@huawei.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Ingo Molnar <mingo@redhat.com>
 Cc: Jiang Liu <jiang.liu@linux.intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org
 
 When CONFIG_HAVE_MEMORYLESS_NODES is enabled, cpu_to_node()/numa_node_id()
@@ -30,78 +30,111 @@ is the same as cpu_to_node()/numa_node_id().
 
 Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
 ---
- kernel/rcu/rcutorture.c |    2 +-
- kernel/smp.c            |    2 +-
- kernel/smpboot.c        |    2 +-
- kernel/taskstats.c      |    2 +-
- kernel/timer.c          |    2 +-
- 5 files changed, 5 insertions(+), 5 deletions(-)
+ kernel/sched/core.c     |    8 ++++----
+ kernel/sched/deadline.c |    2 +-
+ kernel/sched/fair.c     |    4 ++--
+ kernel/sched/rt.c       |    6 +++---
+ 4 files changed, 10 insertions(+), 10 deletions(-)
 
-diff --git a/kernel/rcu/rcutorture.c b/kernel/rcu/rcutorture.c
-index 7fa34f86e5ba..f593762d3214 100644
---- a/kernel/rcu/rcutorture.c
-+++ b/kernel/rcu/rcutorture.c
-@@ -1209,7 +1209,7 @@ static int rcutorture_booster_init(int cpu)
- 	mutex_lock(&boost_mutex);
- 	VERBOSE_TOROUT_STRING("Creating rcu_torture_boost task");
- 	boost_tasks[cpu] = kthread_create_on_node(rcu_torture_boost, NULL,
--						  cpu_to_node(cpu),
-+						  cpu_to_mem(cpu),
- 						  "rcu_torture_boost");
- 	if (IS_ERR(boost_tasks[cpu])) {
- 		retval = PTR_ERR(boost_tasks[cpu]);
-diff --git a/kernel/smp.c b/kernel/smp.c
-index 80c33f8de14f..2f3b84aef159 100644
---- a/kernel/smp.c
-+++ b/kernel/smp.c
-@@ -41,7 +41,7 @@ hotplug_cfd(struct notifier_block *nfb, unsigned long action, void *hcpu)
- 	case CPU_UP_PREPARE:
- 	case CPU_UP_PREPARE_FROZEN:
- 		if (!zalloc_cpumask_var_node(&cfd->cpumask, GFP_KERNEL,
--				cpu_to_node(cpu)))
-+				cpu_to_mem(cpu)))
- 			return notifier_from_errno(-ENOMEM);
- 		cfd->csd = alloc_percpu(struct call_single_data);
- 		if (!cfd->csd) {
-diff --git a/kernel/smpboot.c b/kernel/smpboot.c
-index eb89e1807408..9c08e68e48a9 100644
---- a/kernel/smpboot.c
-+++ b/kernel/smpboot.c
-@@ -171,7 +171,7 @@ __smpboot_create_thread(struct smp_hotplug_thread *ht, unsigned int cpu)
- 	if (tsk)
- 		return 0;
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index 3bdf01b494fe..27e3af246310 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -5743,7 +5743,7 @@ build_overlap_sched_groups(struct sched_domain *sd, int cpu)
+ 			continue;
  
--	td = kzalloc_node(sizeof(*td), GFP_KERNEL, cpu_to_node(cpu));
-+	td = kzalloc_node(sizeof(*td), GFP_KERNEL, cpu_to_mem(cpu));
- 	if (!td)
- 		return -ENOMEM;
- 	td->cpu = cpu;
-diff --git a/kernel/taskstats.c b/kernel/taskstats.c
-index 13d2f7cd65db..cf5cba1e7fbe 100644
---- a/kernel/taskstats.c
-+++ b/kernel/taskstats.c
-@@ -304,7 +304,7 @@ static int add_del_listener(pid_t pid, const struct cpumask *mask, int isadd)
- 	if (isadd == REGISTER) {
- 		for_each_cpu(cpu, mask) {
- 			s = kmalloc_node(sizeof(struct listener),
--					GFP_KERNEL, cpu_to_node(cpu));
-+					GFP_KERNEL, cpu_to_mem(cpu));
- 			if (!s) {
- 				ret = -ENOMEM;
- 				goto cleanup;
-diff --git a/kernel/timer.c b/kernel/timer.c
-index 3bb01a323b2a..5831a38b5681 100644
---- a/kernel/timer.c
-+++ b/kernel/timer.c
-@@ -1546,7 +1546,7 @@ static int init_timers_cpu(int cpu)
- 			 * The APs use this path later in boot
- 			 */
- 			base = kzalloc_node(sizeof(*base), GFP_KERNEL,
--					    cpu_to_node(cpu));
-+					    cpu_to_mem(cpu));
- 			if (!base)
+ 		sg = kzalloc_node(sizeof(struct sched_group) + cpumask_size(),
+-				GFP_KERNEL, cpu_to_node(cpu));
++				GFP_KERNEL, cpu_to_mem(cpu));
+ 
+ 		if (!sg)
+ 			goto fail;
+@@ -6397,14 +6397,14 @@ static int __sdt_alloc(const struct cpumask *cpu_map)
+ 			struct sched_group_capacity *sgc;
+ 
+ 		       	sd = kzalloc_node(sizeof(struct sched_domain) + cpumask_size(),
+-					GFP_KERNEL, cpu_to_node(j));
++					GFP_KERNEL, cpu_to_mem(j));
+ 			if (!sd)
  				return -ENOMEM;
  
+ 			*per_cpu_ptr(sdd->sd, j) = sd;
+ 
+ 			sg = kzalloc_node(sizeof(struct sched_group) + cpumask_size(),
+-					GFP_KERNEL, cpu_to_node(j));
++					GFP_KERNEL, cpu_to_mem(j));
+ 			if (!sg)
+ 				return -ENOMEM;
+ 
+@@ -6413,7 +6413,7 @@ static int __sdt_alloc(const struct cpumask *cpu_map)
+ 			*per_cpu_ptr(sdd->sg, j) = sg;
+ 
+ 			sgc = kzalloc_node(sizeof(struct sched_group_capacity) + cpumask_size(),
+-					GFP_KERNEL, cpu_to_node(j));
++					GFP_KERNEL, cpu_to_mem(j));
+ 			if (!sgc)
+ 				return -ENOMEM;
+ 
+diff --git a/kernel/sched/deadline.c b/kernel/sched/deadline.c
+index fc4f98b1258f..95104d363a8c 100644
+--- a/kernel/sched/deadline.c
++++ b/kernel/sched/deadline.c
+@@ -1559,7 +1559,7 @@ void init_sched_dl_class(void)
+ 
+ 	for_each_possible_cpu(i)
+ 		zalloc_cpumask_var_node(&per_cpu(local_cpu_mask_dl, i),
+-					GFP_KERNEL, cpu_to_node(i));
++					GFP_KERNEL, cpu_to_mem(i));
+ }
+ 
+ #endif /* CONFIG_SMP */
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index fea7d3335e1f..26e75b8a52e6 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -7611,12 +7611,12 @@ int alloc_fair_sched_group(struct task_group *tg, struct task_group *parent)
+ 
+ 	for_each_possible_cpu(i) {
+ 		cfs_rq = kzalloc_node(sizeof(struct cfs_rq),
+-				      GFP_KERNEL, cpu_to_node(i));
++				      GFP_KERNEL, cpu_to_mem(i));
+ 		if (!cfs_rq)
+ 			goto err;
+ 
+ 		se = kzalloc_node(sizeof(struct sched_entity),
+-				  GFP_KERNEL, cpu_to_node(i));
++				  GFP_KERNEL, cpu_to_mem(i));
+ 		if (!se)
+ 			goto err_free_rq;
+ 
+diff --git a/kernel/sched/rt.c b/kernel/sched/rt.c
+index a49083192c64..88d1315c6223 100644
+--- a/kernel/sched/rt.c
++++ b/kernel/sched/rt.c
+@@ -184,12 +184,12 @@ int alloc_rt_sched_group(struct task_group *tg, struct task_group *parent)
+ 
+ 	for_each_possible_cpu(i) {
+ 		rt_rq = kzalloc_node(sizeof(struct rt_rq),
+-				     GFP_KERNEL, cpu_to_node(i));
++				     GFP_KERNEL, cpu_to_mem(i));
+ 		if (!rt_rq)
+ 			goto err;
+ 
+ 		rt_se = kzalloc_node(sizeof(struct sched_rt_entity),
+-				     GFP_KERNEL, cpu_to_node(i));
++				     GFP_KERNEL, cpu_to_mem(i));
+ 		if (!rt_se)
+ 			goto err_free_rq;
+ 
+@@ -1945,7 +1945,7 @@ void __init init_sched_rt_class(void)
+ 
+ 	for_each_possible_cpu(i) {
+ 		zalloc_cpumask_var_node(&per_cpu(local_cpu_mask, i),
+-					GFP_KERNEL, cpu_to_node(i));
++					GFP_KERNEL, cpu_to_mem(i));
+ 	}
+ }
+ #endif /* CONFIG_SMP */
 -- 
 1.7.10.4
 
