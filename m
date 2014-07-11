@@ -1,89 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id C072882A8B
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:38:08 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id z10so947154pdj.15
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:38:08 -0700 (PDT)
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id A189582A8B
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:38:09 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id rd3so1001284pab.17
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:38:09 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id cc10si761592pdb.488.2014.07.11.00.38.06
+        by mx.google.com with ESMTP id bc4si1566498pbb.71.2014.07.11.00.38.06
         for <linux-mm@kvack.org>;
         Fri, 11 Jul 2014 00:38:07 -0700 (PDT)
 From: Jiang Liu <jiang.liu@linux.intel.com>
-Subject: [RFC Patch V1 27/30] x86, numa: Kill useless code to improve code readability
-Date: Fri, 11 Jul 2014 15:37:44 +0800
-Message-Id: <1405064267-11678-28-git-send-email-jiang.liu@linux.intel.com>
+Subject: [RFC Patch V1 28/30] mm: Update _mem_id_[] for every possible CPU when memory configuration changes
+Date: Fri, 11 Jul 2014 15:37:45 +0800
+Message-Id: <1405064267-11678-29-git-send-email-jiang.liu@linux.intel.com>
 In-Reply-To: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
 References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Tang Chen <tangchen@cn.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Jiang Liu <jiang.liu@linux.intel.com>, Lans Zhang <jia.zhang@windriver.com>, Paul Gortmaker <paul.gortmaker@windriver.com>
-Cc: Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org, "H. Peter Anvin" <hpa@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Jiang Liu <jiang.liu@linux.intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org
 
-According to x86 boot sequence, early_cpu_to_node() always returns
-NUMA_NO_NODE when called from numa_init(). So kill useless code
-to improve code readability.
+Current kernel only updates _mem_id_[cpu] for onlined CPUs when memory
+configuration changes. So kernel may allocate memory from remote node
+for a CPU if the CPU is still in absent or offline state even if the
+node associated with the CPU has already been onlined. This patch tries
+to improve performance by updating _mem_id_[cpu] for each possible CPU
+when memory configuration changes, thus kernel could always allocate
+from local node once the node is onlined.
 
-Related code sequence as below:
-x86_cpu_to_node_map is set until step 2, so it is still the default
-value (NUMA_NO_NODE) when accessed at step 1.
-
-start_kernel()
-	setup_arch()
-		initmem_init()
-			x86_numa_init()
-				numa_init()
-					early_cpu_to_node()
-1)						return early_per_cpu_ptr(x86_cpu_to_node_map)[cpu];
-		acpi_boot_init();
-		sfi_init()
-		x86_dtb_init()
-			generic_processor_info()
-				early_per_cpu(x86_cpu_to_apicid, cpu) = apicid;
-		init_cpu_to_node()
-			numa_set_node(cpu, node);
-2)				per_cpu(x86_cpu_to_node_map, cpu) = node;
-
-	rest_init()
-		kernel_init()
-			smp_init()
-				native_cpu_up()
-					start_secondary()
-						numa_set_node()
-							per_cpu(x86_cpu_to_node_map, cpu) = node;
+We check node_online(cpu_to_node(cpu)) because:
+1) local_memory_node(nid) needs to access NODE_DATA(nid)
+2) try_offline_node(nid) just zeroes out NODE_DATA(nid) instead of free it
 
 Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
 ---
- arch/x86/mm/numa.c |   10 ----------
- 1 file changed, 10 deletions(-)
+ mm/page_alloc.c |   10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index a32b706c401a..eec4f6c322bb 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -545,8 +545,6 @@ static void __init numa_init_array(void)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 0ea758b898fd..de86e941ed57 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3844,13 +3844,13 @@ static int __build_all_zonelists(void *data)
+ 		/*
+ 		 * We now know the "local memory node" for each node--
+ 		 * i.e., the node of the first zone in the generic zonelist.
+-		 * Set up numa_mem percpu variable for on-line cpus.  During
+-		 * boot, only the boot cpu should be on-line;  we'll init the
+-		 * secondary cpus' numa_mem as they come on-line.  During
+-		 * node/memory hotplug, we'll fixup all on-line cpus.
++		 * Set up numa_mem percpu variable for all possible cpus
++		 * if associated node has been onlined.
+ 		 */
+-		if (cpu_online(cpu))
++		if (node_online(cpu_to_node(cpu)))
+ 			set_cpu_numa_mem(cpu, local_memory_node(cpu_to_node(cpu)));
++		else
++			set_cpu_numa_mem(cpu, NUMA_NO_NODE);
+ #endif
+ 	}
  
- 	rr = first_node(node_online_map);
- 	for (i = 0; i < nr_cpu_ids; i++) {
--		if (early_cpu_to_node(i) != NUMA_NO_NODE)
--			continue;
- 		numa_set_node(i, rr);
- 		rr = next_node(rr, node_online_map);
- 		if (rr == MAX_NUMNODES)
-@@ -633,14 +631,6 @@ static int __init numa_init(int (*init_func)(void))
- 	if (ret < 0)
- 		return ret;
- 
--	for (i = 0; i < nr_cpu_ids; i++) {
--		int nid = early_cpu_to_node(i);
--
--		if (nid == NUMA_NO_NODE)
--			continue;
--		if (!node_online(nid))
--			numa_clear_node(i);
--	}
- 	numa_init_array();
- 
- 	/*
 -- 
 1.7.10.4
 
