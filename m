@@ -1,315 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FBE5900004
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 14:37:12 -0400 (EDT)
-Received: by mail-we0-f180.google.com with SMTP id k48so574682wev.39
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 11:37:11 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z17si5833794wiv.4.2014.07.11.11.36.37
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jul 2014 11:36:37 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH -mm v5 13/13] mincore: apply page table walker on do_mincore()
-Date: Fri, 11 Jul 2014 14:35:49 -0400
-Message-Id: <1405103749-23506-14-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1405103749-23506-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1405103749-23506-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 096126B0036
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 15:11:08 -0400 (EDT)
+Received: by mail-qc0-f169.google.com with SMTP id i17so1446906qcy.28
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 12:11:07 -0700 (PDT)
+Received: from qmta06.emeryville.ca.mail.comcast.net (qmta06.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:56])
+        by mx.google.com with ESMTP id m7si4780354qay.57.2014.07.11.12.11.06
+        for <linux-mm@kvack.org>;
+        Fri, 11 Jul 2014 12:11:06 -0700 (PDT)
+Date: Fri, 11 Jul 2014 14:11:02 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: [RFC Patch V1 07/30] mm: Use cpu_to_mem()/numa_mem_id() to
+ support memoryless node
+In-Reply-To: <20140711182814.GE30865@htj.dyndns.org>
+Message-ID: <alpine.DEB.2.11.1407111405280.5070@gentwo.org>
+References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com> <1405064267-11678-8-git-send-email-jiang.liu@linux.intel.com> <20140711144205.GA27706@htj.dyndns.org> <alpine.DEB.2.11.1407111012210.25527@gentwo.org> <20140711152156.GB29137@htj.dyndns.org>
+ <alpine.DEB.2.11.1407111056060.27349@gentwo.org> <20140711160152.GC30865@htj.dyndns.org> <alpine.DEB.2.11.1407111117560.27592@gentwo.org> <20140711162451.GD30865@htj.dyndns.org> <alpine.DEB.2.11.1407111220410.4511@gentwo.org>
+ <20140711182814.GE30865@htj.dyndns.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: Jiang Liu <jiang.liu@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Vladimir Davydov <vdavydov@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Catalin Marinas <catalin.marinas@arm.com>, Jianyu Zhan <nasa4836@gmail.com>, malc <av1474@comtv.ru>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Fabian Frederick <fabf@skynet.be>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org
 
-This patch makes do_mincore() use walk_page_vma(), which reduces many lines
-of code by using common page table walk code.
+On Fri, 11 Jul 2014, Tejun Heo wrote:
 
-ChangeLog v5:
-- fix buffer overflow
+> On Fri, Jul 11, 2014 at 12:29:30PM -0500, Christoph Lameter wrote:
+> > GFP_THISNODE is mostly used by allocators that need memory from specific
+> > nodes. The use of numa_mem_id() there is useful because one will not
+> > get any memory at all when attempting to allocate from a memoryless
+> > node using GFP_THISNODE.
+>
+> As long as it's in allocator proper, it doesn't matter all that much
+> but the changes are clearly not contained, are they?
 
-ChangeLog v4:
-- remove redundant vma
-
-ChangeLog v3:
-- add NULL vma check in mincore_unmapped_range()
-- don't use pte_entry()
-
-ChangeLog v2:
-- change type of args of callbacks to void *
-- move definition of mincore_walk to the start of the function to fix compiler
-  warning
-
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- mm/huge_memory.c |  20 -------
- mm/mincore.c     | 169 +++++++++++++++++++------------------------------------
- 2 files changed, 59 insertions(+), 130 deletions(-)
-
-diff --git mmotm-2014-07-09-17-08.orig/mm/huge_memory.c mmotm-2014-07-09-17-08/mm/huge_memory.c
-index 0f1f57358b9f..25c0eb8b7b83 100644
---- mmotm-2014-07-09-17-08.orig/mm/huge_memory.c
-+++ mmotm-2014-07-09-17-08/mm/huge_memory.c
-@@ -1423,26 +1423,6 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 	return ret;
- }
- 
--int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
--		unsigned long addr, unsigned long end,
--		unsigned char *vec)
--{
--	spinlock_t *ptl;
--	int ret = 0;
--
--	if (__pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
--		/*
--		 * All logical pages in the range are present
--		 * if backed by a huge page.
--		 */
--		spin_unlock(ptl);
--		memset(vec, 1, (end - addr) >> PAGE_SHIFT);
--		ret = 1;
--	}
--
--	return ret;
--}
--
- int move_huge_pmd(struct vm_area_struct *vma, struct vm_area_struct *new_vma,
- 		  unsigned long old_addr,
- 		  unsigned long new_addr, unsigned long old_end,
-diff --git mmotm-2014-07-09-17-08.orig/mm/mincore.c mmotm-2014-07-09-17-08/mm/mincore.c
-index 725c80961048..0e548fbce19e 100644
---- mmotm-2014-07-09-17-08.orig/mm/mincore.c
-+++ mmotm-2014-07-09-17-08/mm/mincore.c
-@@ -19,38 +19,26 @@
- #include <asm/uaccess.h>
- #include <asm/pgtable.h>
- 
--static void mincore_hugetlb_page_range(struct vm_area_struct *vma,
--				unsigned long addr, unsigned long end,
--				unsigned char *vec)
-+static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,
-+			unsigned long end, struct mm_walk *walk)
- {
-+	int err = 0;
- #ifdef CONFIG_HUGETLB_PAGE
--	struct hstate *h;
-+	unsigned char present;
-+	unsigned char *vec = walk->private;
- 
--	h = hstate_vma(vma);
--	while (1) {
--		unsigned char present;
--		pte_t *ptep;
--		/*
--		 * Huge pages are always in RAM for now, but
--		 * theoretically it needs to be checked.
--		 */
--		ptep = huge_pte_offset(current->mm,
--				       addr & huge_page_mask(h));
--		present = ptep && !huge_pte_none(huge_ptep_get(ptep));
--		while (1) {
--			*vec = present;
--			vec++;
--			addr += PAGE_SIZE;
--			if (addr == end)
--				return;
--			/* check hugepage border */
--			if (!(addr & ~huge_page_mask(h)))
--				break;
--		}
--	}
-+	/*
-+	 * Hugepages under user process are always in RAM and never
-+	 * swapped out, but theoretically it needs to be checked.
-+	 */
-+	present = pte && !huge_pte_none(huge_ptep_get(pte));
-+	for (; addr != end; vec++, addr += PAGE_SIZE)
-+		*vec = present;
-+	walk->private = vec;
- #else
- 	BUG();
- #endif
-+	return err;
- }
- 
- /*
-@@ -94,14 +82,15 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
- 	return present;
- }
- 
--static void mincore_unmapped_range(struct vm_area_struct *vma,
--				unsigned long addr, unsigned long end,
--				unsigned char *vec)
-+static int mincore_unmapped_range(unsigned long addr, unsigned long end,
-+				   struct mm_walk *walk)
- {
-+	struct vm_area_struct *vma = walk->vma;
-+	unsigned char *vec = walk->private;
- 	unsigned long nr = (end - addr) >> PAGE_SHIFT;
- 	int i;
- 
--	if (vma->vm_file) {
-+	if (vma && vma->vm_file) {
- 		pgoff_t pgoff;
- 
- 		pgoff = linear_page_index(vma, addr);
-@@ -111,25 +100,40 @@ static void mincore_unmapped_range(struct vm_area_struct *vma,
- 		for (i = 0; i < nr; i++)
- 			vec[i] = 0;
- 	}
-+	walk->private += nr;
-+	return 0;
- }
- 
--static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
--			unsigned long addr, unsigned long end,
--			unsigned char *vec)
-+static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
-+			struct mm_walk *walk)
- {
--	unsigned long next;
- 	spinlock_t *ptl;
-+	struct vm_area_struct *vma = walk->vma;
- 	pte_t *ptep;
- 
--	ptep = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
--	do {
-+	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
-+		memset(walk->private, 1, (end - addr) >> PAGE_SHIFT);
-+		walk->private += (end - addr) >> PAGE_SHIFT;
-+		spin_unlock(ptl);
-+		return 0;
-+	}
-+
-+	if (pmd_trans_unstable(pmd)) {
-+		mincore_unmapped_range(addr, end, walk);
-+		return 0;
-+	}
-+
-+	ptep = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
-+	for (; addr != end; ptep++, addr += PAGE_SIZE) {
- 		pte_t pte = *ptep;
- 		pgoff_t pgoff;
-+		unsigned char *vec = walk->private;
- 
--		next = addr + PAGE_SIZE;
--		if (pte_none(pte))
--			mincore_unmapped_range(vma, addr, next, vec);
--		else if (pte_present(pte))
-+		if (pte_none(pte)) {
-+			mincore_unmapped_range(addr, addr + PAGE_SIZE, walk);
-+			continue;
-+		}
-+		if (pte_present(pte))
- 			*vec = 1;
- 		else if (pte_file(pte)) {
- 			pgoff = pte_to_pgoff(pte);
-@@ -151,70 +155,11 @@ static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- #endif
- 			}
- 		}
--		vec++;
--	} while (ptep++, addr = next, addr != end);
-+		walk->private++;
-+	}
- 	pte_unmap_unlock(ptep - 1, ptl);
--}
--
--static void mincore_pmd_range(struct vm_area_struct *vma, pud_t *pud,
--			unsigned long addr, unsigned long end,
--			unsigned char *vec)
--{
--	unsigned long next;
--	pmd_t *pmd;
--
--	pmd = pmd_offset(pud, addr);
--	do {
--		next = pmd_addr_end(addr, end);
--		if (pmd_trans_huge(*pmd)) {
--			if (mincore_huge_pmd(vma, pmd, addr, next, vec)) {
--				vec += (next - addr) >> PAGE_SHIFT;
--				continue;
--			}
--			/* fall through */
--		}
--		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
--			mincore_unmapped_range(vma, addr, next, vec);
--		else
--			mincore_pte_range(vma, pmd, addr, next, vec);
--		vec += (next - addr) >> PAGE_SHIFT;
--	} while (pmd++, addr = next, addr != end);
--}
--
--static void mincore_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
--			unsigned long addr, unsigned long end,
--			unsigned char *vec)
--{
--	unsigned long next;
--	pud_t *pud;
--
--	pud = pud_offset(pgd, addr);
--	do {
--		next = pud_addr_end(addr, end);
--		if (pud_none_or_clear_bad(pud))
--			mincore_unmapped_range(vma, addr, next, vec);
--		else
--			mincore_pmd_range(vma, pud, addr, next, vec);
--		vec += (next - addr) >> PAGE_SHIFT;
--	} while (pud++, addr = next, addr != end);
--}
--
--static void mincore_page_range(struct vm_area_struct *vma,
--			unsigned long addr, unsigned long end,
--			unsigned char *vec)
--{
--	unsigned long next;
--	pgd_t *pgd;
--
--	pgd = pgd_offset(vma->vm_mm, addr);
--	do {
--		next = pgd_addr_end(addr, end);
--		if (pgd_none_or_clear_bad(pgd))
--			mincore_unmapped_range(vma, addr, next, vec);
--		else
--			mincore_pud_range(vma, pgd, addr, next, vec);
--		vec += (next - addr) >> PAGE_SHIFT;
--	} while (pgd++, addr = next, addr != end);
-+	cond_resched();
-+	return 0;
- }
- 
- /*
-@@ -226,18 +171,22 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
- {
- 	struct vm_area_struct *vma;
- 	unsigned long end;
-+	int err;
-+	struct mm_walk mincore_walk = {
-+		.pmd_entry = mincore_pte_range,
-+		.pte_hole = mincore_unmapped_range,
-+		.hugetlb_entry = mincore_hugetlb,
-+		.private = vec,
-+	};
- 
- 	vma = find_vma(current->mm, addr);
- 	if (!vma || addr < vma->vm_start)
- 		return -ENOMEM;
--
-+	mincore_walk.mm = vma->vm_mm;
- 	end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
--
--	if (is_vm_hugetlb_page(vma))
--		mincore_hugetlb_page_range(vma, addr, end, vec);
--	else
--		mincore_page_range(vma, addr, end, vec);
--
-+	err = walk_page_range(addr, end, &mincore_walk);
-+	if (err < 0)
-+		return err;
- 	return (end - addr) >> PAGE_SHIFT;
- }
- 
--- 
-1.9.3
+Well there is a proliferation of memory allocators recently. NUMA is often
+a second thought in those.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
