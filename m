@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id DF97482A8B
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:36:28 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id et14so985954pad.41
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:36:28 -0700 (PDT)
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id EEAB382A8B
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:36:33 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id p10so610935pdj.13
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:36:33 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id cf5si1579350pbc.10.2014.07.11.00.36.27
+        by mx.google.com with ESMTP id cf5si1579350pbc.10.2014.07.11.00.36.32
         for <linux-mm@kvack.org>;
-        Fri, 11 Jul 2014 00:36:27 -0700 (PDT)
+        Fri, 11 Jul 2014 00:36:32 -0700 (PDT)
 From: Jiang Liu <jiang.liu@linux.intel.com>
-Subject: [RFC Patch V1 15/30] mm, igb: Use cpu_to_mem()/numa_mem_id() to support memoryless node
-Date: Fri, 11 Jul 2014 15:37:32 +0800
-Message-Id: <1405064267-11678-16-git-send-email-jiang.liu@linux.intel.com>
+Subject: [RFC Patch V1 16/30] mm, ixgbe: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+Date: Fri, 11 Jul 2014 15:37:33 +0800
+Message-Id: <1405064267-11678-17-git-send-email-jiang.liu@linux.intel.com>
 In-Reply-To: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
 References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -30,23 +30,14 @@ is the same as cpu_to_node()/numa_node_id().
 
 Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
 ---
- drivers/net/ethernet/intel/igb/igb_main.c |    4 ++--
+ drivers/net/ethernet/intel/ixgbe/ixgbe_main.c |    4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/net/ethernet/intel/igb/igb_main.c b/drivers/net/ethernet/intel/igb/igb_main.c
-index f145adbb55ac..2b74bffa5648 100644
---- a/drivers/net/ethernet/intel/igb/igb_main.c
-+++ b/drivers/net/ethernet/intel/igb/igb_main.c
-@@ -6518,7 +6518,7 @@ static bool igb_can_reuse_rx_page(struct igb_rx_buffer *rx_buffer,
- 				  unsigned int truesize)
- {
- 	/* avoid re-using remote pages */
--	if (unlikely(page_to_nid(page) != numa_node_id()))
-+	if (unlikely(page_to_nid(page) != numa_mem_id()))
- 		return false;
- 
- #if (PAGE_SIZE < 8192)
-@@ -6588,7 +6588,7 @@ static bool igb_add_rx_frag(struct igb_ring *rx_ring,
+diff --git a/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c b/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
+index f5aa3311ea28..46dc083573ea 100644
+--- a/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
++++ b/drivers/net/ethernet/intel/ixgbe/ixgbe_main.c
+@@ -1962,7 +1962,7 @@ static bool ixgbe_add_rx_frag(struct ixgbe_ring *rx_ring,
  		memcpy(__skb_put(skb, size), va, ALIGN(size, sizeof(long)));
  
  		/* we can reuse buffer as-is, just make sure it is local */
@@ -55,6 +46,15 @@ index f145adbb55ac..2b74bffa5648 100644
  			return true;
  
  		/* this page cannot be reused so discard it */
+@@ -1974,7 +1974,7 @@ static bool ixgbe_add_rx_frag(struct ixgbe_ring *rx_ring,
+ 			rx_buffer->page_offset, size, truesize);
+ 
+ 	/* avoid re-using remote pages */
+-	if (unlikely(page_to_nid(page) != numa_node_id()))
++	if (unlikely(page_to_nid(page) != numa_mem_id()))
+ 		return false;
+ 
+ #if (PAGE_SIZE < 8192)
 -- 
 1.7.10.4
 
