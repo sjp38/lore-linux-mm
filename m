@@ -1,78 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 6752E6B003C
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 14:36:42 -0400 (EDT)
-Received: by mail-wg0-f46.google.com with SMTP id m15so1468933wgh.5
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 11:36:40 -0700 (PDT)
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 302196B0044
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 14:36:45 -0400 (EDT)
+Received: by mail-wg0-f50.google.com with SMTP id n12so1463644wgh.21
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 11:36:44 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id vb9si5593690wjc.101.2014.07.11.11.36.19
+        by mx.google.com with ESMTPS id cm10si5593697wjb.100.2014.07.11.11.36.18
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 11 Jul 2014 11:36:19 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH -mm v5 03/13] pagewalk: add walk_page_vma()
-Date: Fri, 11 Jul 2014 14:35:39 -0400
-Message-Id: <1405103749-23506-4-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1405103749-23506-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1405103749-23506-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH -mm v5 00/13] pagewalk: improve vma handling, apply to new users
+Date: Fri, 11 Jul 2014 14:35:36 -0400
+Message-Id: <1405103749-23506-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-Introduces walk_page_vma(), which is useful for the callers which want to
-walk over a given vma.  It's used by later patches.
+This series is ver.5 of page table walker patchset.
+I fixed the buffer overflow problem in mincore().
+And I rebased this onto mmotm-2014-07-09-17-08.
+Trinity shows no bug at least in my environment.
 
-ChangeLog v3:
-- check walk_page_test's return value instead of walk->skip
+Thanks,
+Naoya Horiguchi
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Tree: git@github.com:Naoya-Horiguchi/linux.git
+Branch: mmotm-2014-07-09-17-08/page_table_walker.ver5
 ---
- include/linux/mm.h |  1 +
- mm/pagewalk.c      | 18 ++++++++++++++++++
- 2 files changed, 19 insertions(+)
+Summary:
 
-diff --git mmotm-2014-07-09-17-08.orig/include/linux/mm.h mmotm-2014-07-09-17-08/include/linux/mm.h
-index 1640cf740837..84b2a6cf45f6 100644
---- mmotm-2014-07-09-17-08.orig/include/linux/mm.h
-+++ mmotm-2014-07-09-17-08/include/linux/mm.h
-@@ -1131,6 +1131,7 @@ struct mm_walk {
- 
- int walk_page_range(unsigned long addr, unsigned long end,
- 		struct mm_walk *walk);
-+int walk_page_vma(struct vm_area_struct *vma, struct mm_walk *walk);
- void free_pgd_range(struct mmu_gather *tlb, unsigned long addr,
- 		unsigned long end, unsigned long floor, unsigned long ceiling);
- int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
-diff --git mmotm-2014-07-09-17-08.orig/mm/pagewalk.c mmotm-2014-07-09-17-08/mm/pagewalk.c
-index 91810ba875ea..65fb68df3aa2 100644
---- mmotm-2014-07-09-17-08.orig/mm/pagewalk.c
-+++ mmotm-2014-07-09-17-08/mm/pagewalk.c
-@@ -272,3 +272,21 @@ int walk_page_range(unsigned long start, unsigned long end,
- 	} while (start = next, start < end);
- 	return err;
- }
-+
-+int walk_page_vma(struct vm_area_struct *vma, struct mm_walk *walk)
-+{
-+	int err;
-+
-+	if (!walk->mm)
-+		return -EINVAL;
-+
-+	VM_BUG_ON(!rwsem_is_locked(&walk->mm->mmap_sem));
-+	VM_BUG_ON(!vma);
-+	walk->vma = vma;
-+	err = walk_page_test(vma->vm_start, vma->vm_end, walk);
-+	if (err > 0)
-+		return 0;
-+	if (err < 0)
-+		return err;
-+	return __walk_page_range(vma->vm_start, vma->vm_end, walk);
-+}
--- 
-1.9.3
+Kirill A. Shutemov (1):
+      mm: /proc/pid/clear_refs: avoid split_huge_page()
+
+Naoya Horiguchi (12):
+      mm/pagewalk: remove pgd_entry() and pud_entry()
+      pagewalk: improve vma handling
+      pagewalk: add walk_page_vma()
+      smaps: remove mem_size_stats->vma and use walk_page_vma()
+      clear_refs: remove clear_refs_private->vma and introduce clear_refs_test_walk()
+      pagemap: use walk->vma instead of calling find_vma()
+      numa_maps: fix typo in gather_hugetbl_stats
+      numa_maps: remove numa_maps->vma
+      memcg: cleanup preparation for page table walk
+      arch/powerpc/mm/subpage-prot.c: use walk->vma and walk_page_vma()
+      mempolicy: apply page table walker on queue_pages_range()
+      mincore: apply page table walker on do_mincore()
+
+ arch/powerpc/mm/subpage-prot.c |   6 +-
+ fs/proc/task_mmu.c             | 151 ++++++++++++++++-----------
+ include/linux/mm.h             |  22 ++--
+ mm/huge_memory.c               |  20 ----
+ mm/memcontrol.c                |  49 +++------
+ mm/mempolicy.c                 | 224 ++++++++++++++++------------------------
+ mm/mincore.c                   | 169 +++++++++++-------------------
+ mm/pagewalk.c                  | 228 ++++++++++++++++++++++++-----------------
+ 8 files changed, 406 insertions(+), 463 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
