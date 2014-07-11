@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 185186B0055
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 14:36:51 -0400 (EDT)
-Received: by mail-wi0-f177.google.com with SMTP id ho1so126406wib.16
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 11:36:49 -0700 (PDT)
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E1C26B005C
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 14:36:57 -0400 (EDT)
+Received: by mail-wg0-f41.google.com with SMTP id z12so1465264wgg.0
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 11:36:57 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f10si5606010wjb.84.2014.07.11.11.36.26
+        by mx.google.com with ESMTPS id df7si5800138wib.45.2014.07.11.11.36.31
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Jul 2014 11:36:27 -0700 (PDT)
+        Fri, 11 Jul 2014 11:36:32 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH -mm v5 11/13] mempolicy: apply page table walker on queue_pages_range()
-Date: Fri, 11 Jul 2014 14:35:47 -0400
-Message-Id: <1405103749-23506-12-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH -mm v5 02/13] pagewalk: improve vma handling
+Date: Fri, 11 Jul 2014 14:35:38 -0400
+Message-Id: <1405103749-23506-3-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1405103749-23506-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1405103749-23506-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,316 +20,342 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-queue_pages_range() does page table walking in its own way now, but there
-is some code duplicate. This patch applies page table walker to reduce
-lines of code.
+Current implementation of page table walker has a fundamental problem
+in vma handling, which started when we tried to handle vma(VM_HUGETLB).
+Because it's done in pgd loop, considering vma boundary makes code
+complicated and bug-prone.
 
-queue_pages_range() has to do some precheck to determine whether we really
-walk over the vma or just skip it. Now we have test_walk() callback in
-mm_walk for this purpose, so we can do this replacement cleanly.
-queue_pages_test_walk() depends on not only the current vma but also the
-previous one, so queue_pages->prev is introduced to remember it.
+>From the users viewpoint, some user checks some vma-related condition to
+determine whether the user really does page walk over the vma.
+
+In order to solve these, this patch moves vma check outside pgd loop and
+introduce a new callback ->test_walk().
 
 ChangeLog v4:
-- rebase to v3.16-rc3, where the return value of queue_pages_range()
-  becomes 0 in success instead of the first found vma, and use -EFAILT
-  instead of ERR_PTR() in failure.
+- avoid walking over the regions where vma is NULL if pte_hole() is
+  undefined
+- use vma->vm_next instead of repeating find_vma()
+- use min() in walk_page_range "outside vma" branch
+- fix return value of walk_hugetlb_range()
+
+ChangeLog v3:
+- drop walk->skip control
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/mempolicy.c | 224 +++++++++++++++++++++++----------------------------------
- 1 file changed, 90 insertions(+), 134 deletions(-)
+ include/linux/mm.h |  15 +++-
+ mm/pagewalk.c      | 203 ++++++++++++++++++++++++++++++-----------------------
+ 2 files changed, 129 insertions(+), 89 deletions(-)
 
-diff --git mmotm-2014-07-09-17-08.orig/mm/mempolicy.c mmotm-2014-07-09-17-08/mm/mempolicy.c
-index eb58de19f815..47a6fa913b83 100644
---- mmotm-2014-07-09-17-08.orig/mm/mempolicy.c
-+++ mmotm-2014-07-09-17-08/mm/mempolicy.c
-@@ -479,24 +479,34 @@ static const struct mempolicy_operations mpol_ops[MPOL_MAX] = {
- static void migrate_page_add(struct page *page, struct list_head *pagelist,
- 				unsigned long flags);
- 
-+struct queue_pages {
-+	struct list_head *pagelist;
-+	unsigned long flags;
-+	nodemask_t *nmask;
-+	struct vm_area_struct *prev;
-+};
-+
- /*
-  * Scan through pages checking if pages follow certain conditions,
-  * and move them to the pagelist if they do.
+diff --git mmotm-2014-07-09-17-08.orig/include/linux/mm.h mmotm-2014-07-09-17-08/include/linux/mm.h
+index 4d5bca99a33d..1640cf740837 100644
+--- mmotm-2014-07-09-17-08.orig/include/linux/mm.h
++++ mmotm-2014-07-09-17-08/include/linux/mm.h
+@@ -1101,10 +1101,16 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+  * @pte_entry: if set, called for each non-empty PTE (4th-level) entry
+  * @pte_hole: if set, called for each hole at all levels
+  * @hugetlb_entry: if set, called for each hugetlb entry
+- *		   *Caution*: The caller must hold mmap_sem() if @hugetlb_entry
+- * 			      is used.
++ * @test_walk: caller specific callback function to determine whether
++ *             we walk over the current vma or not. A positive returned
++ *             value means "do page table walk over the current vma,"
++ *             and a negative one means "abort current page table walk
++ *             right now." 0 means "skip the current vma."
++ * @mm:        mm_struct representing the target process of page table walk
++ * @vma:       vma currently walked (NULL if walking outside vmas)
++ * @private:   private data for callbacks' usage
+  *
+- * (see walk_page_range for more details)
++ * (see the comment on walk_page_range() for more details)
   */
--static int queue_pages_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
--		unsigned long addr, unsigned long end,
--		const nodemask_t *nodes, unsigned long flags,
--		void *private)
-+static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
-+			unsigned long end, struct mm_walk *walk)
- {
--	pte_t *orig_pte;
-+	struct vm_area_struct *vma = walk->vma;
-+	struct page *page;
-+	struct queue_pages *qp = walk->private;
-+	unsigned long flags = qp->flags;
-+	int nid;
- 	pte_t *pte;
- 	spinlock_t *ptl;
+ struct mm_walk {
+ 	int (*pmd_entry)(pmd_t *pmd, unsigned long addr,
+@@ -1116,7 +1122,10 @@ struct mm_walk {
+ 	int (*hugetlb_entry)(pte_t *pte, unsigned long hmask,
+ 			     unsigned long addr, unsigned long next,
+ 			     struct mm_walk *walk);
++	int (*test_walk)(unsigned long addr, unsigned long next,
++			struct mm_walk *walk);
+ 	struct mm_struct *mm;
++	struct vm_area_struct *vma;
+ 	void *private;
+ };
  
--	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
--	do {
--		struct page *page;
--		int nid;
-+	split_huge_page_pmd(vma, addr, pmd);
-+	if (pmd_trans_unstable(pmd))
-+		return 0;
- 
-+	pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
-+	for (; addr != end; pte++, addr += PAGE_SIZE) {
- 		if (!pte_present(*pte))
- 			continue;
- 		page = vm_normal_page(vma, addr, *pte);
-@@ -509,114 +519,46 @@ static int queue_pages_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 		if (PageReserved(page))
- 			continue;
- 		nid = page_to_nid(page);
--		if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
-+		if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
+diff --git mmotm-2014-07-09-17-08.orig/mm/pagewalk.c mmotm-2014-07-09-17-08/mm/pagewalk.c
+index 335690650b12..91810ba875ea 100644
+--- mmotm-2014-07-09-17-08.orig/mm/pagewalk.c
++++ mmotm-2014-07-09-17-08/mm/pagewalk.c
+@@ -59,7 +59,7 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
  			continue;
  
- 		if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
--			migrate_page_add(page, private, flags);
--		else
--			break;
--	} while (pte++, addr += PAGE_SIZE, addr != end);
--	pte_unmap_unlock(orig_pte, ptl);
--	return addr != end;
-+			migrate_page_add(page, qp->pagelist, flags);
-+	}
-+	pte_unmap_unlock(pte - 1, ptl);
-+	cond_resched();
-+	return 0;
- }
- 
--static void queue_pages_hugetlb_pmd_range(struct vm_area_struct *vma,
--		pmd_t *pmd, const nodemask_t *nodes, unsigned long flags,
--				    void *private)
-+static int queue_pages_hugetlb(pte_t *pte, unsigned long hmask,
-+			       unsigned long addr, unsigned long end,
-+			       struct mm_walk *walk)
- {
- #ifdef CONFIG_HUGETLB_PAGE
-+	struct queue_pages *qp = walk->private;
-+	unsigned long flags = qp->flags;
- 	int nid;
- 	struct page *page;
- 	spinlock_t *ptl;
- 	pte_t entry;
- 
--	ptl = huge_pte_lock(hstate_vma(vma), vma->vm_mm, (pte_t *)pmd);
--	entry = huge_ptep_get((pte_t *)pmd);
-+	ptl = huge_pte_lock(hstate_vma(walk->vma), walk->mm, pte);
-+	entry = huge_ptep_get(pte);
- 	if (!pte_present(entry))
- 		goto unlock;
- 	page = pte_page(entry);
- 	nid = page_to_nid(page);
--	if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
-+	if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
- 		goto unlock;
- 	/* With MPOL_MF_MOVE, we migrate only unshared hugepage. */
- 	if (flags & (MPOL_MF_MOVE_ALL) ||
- 	    (flags & MPOL_MF_MOVE && page_mapcount(page) == 1))
--		isolate_huge_page(page, private);
-+		isolate_huge_page(page, qp->pagelist);
- unlock:
- 	spin_unlock(ptl);
- #else
- 	BUG();
- #endif
--}
--
--static inline int queue_pages_pmd_range(struct vm_area_struct *vma, pud_t *pud,
--		unsigned long addr, unsigned long end,
--		const nodemask_t *nodes, unsigned long flags,
--		void *private)
--{
--	pmd_t *pmd;
--	unsigned long next;
--
--	pmd = pmd_offset(pud, addr);
--	do {
--		next = pmd_addr_end(addr, end);
--		if (!pmd_present(*pmd))
--			continue;
--		if (pmd_huge(*pmd) && is_vm_hugetlb_page(vma)) {
--			queue_pages_hugetlb_pmd_range(vma, pmd, nodes,
--						flags, private);
--			continue;
--		}
--		split_huge_page_pmd(vma, addr, pmd);
+ 		split_huge_page_pmd_mm(walk->mm, addr, pmd);
 -		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
--			continue;
--		if (queue_pages_pte_range(vma, pmd, addr, next, nodes,
--				    flags, private))
--			return -EIO;
--	} while (pmd++, addr = next, addr != end);
--	return 0;
--}
--
--static inline int queue_pages_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
--		unsigned long addr, unsigned long end,
--		const nodemask_t *nodes, unsigned long flags,
--		void *private)
--{
--	pud_t *pud;
--	unsigned long next;
--
--	pud = pud_offset(pgd, addr);
--	do {
--		next = pud_addr_end(addr, end);
--		if (pud_huge(*pud) && is_vm_hugetlb_page(vma))
--			continue;
--		if (pud_none_or_clear_bad(pud))
--			continue;
--		if (queue_pages_pmd_range(vma, pud, addr, next, nodes,
--				    flags, private))
--			return -EIO;
--	} while (pud++, addr = next, addr != end);
--	return 0;
--}
--
--static inline int queue_pages_pgd_range(struct vm_area_struct *vma,
--		unsigned long addr, unsigned long end,
--		const nodemask_t *nodes, unsigned long flags,
--		void *private)
--{
--	pgd_t *pgd;
--	unsigned long next;
--
--	pgd = pgd_offset(vma->vm_mm, addr);
--	do {
--		next = pgd_addr_end(addr, end);
--		if (pgd_none_or_clear_bad(pgd))
--			continue;
--		if (queue_pages_pud_range(vma, pgd, addr, next, nodes,
--				    flags, private))
--			return -EIO;
--	} while (pgd++, addr = next, addr != end);
- 	return 0;
++		if (pmd_trans_unstable(pmd))
+ 			goto again;
+ 		err = walk_pte_range(pmd, addr, next, walk);
+ 		if (err)
+@@ -95,6 +95,32 @@ static int walk_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end,
+ 	return err;
  }
  
-@@ -649,6 +591,44 @@ static unsigned long change_prot_numa(struct vm_area_struct *vma,
- }
- #endif /* CONFIG_NUMA_BALANCING */
- 
-+static int queue_pages_test_walk(unsigned long start, unsigned long end,
-+				struct mm_walk *walk)
++static int walk_pgd_range(unsigned long addr, unsigned long end,
++			  struct mm_walk *walk)
 +{
-+	struct vm_area_struct *vma = walk->vma;
-+	struct queue_pages *qp = walk->private;
-+	unsigned long endvma = vma->vm_end;
-+	unsigned long flags = qp->flags;
++	pgd_t *pgd;
++	unsigned long next;
++	int err = 0;
 +
-+	if (endvma > end)
-+		endvma = end;
-+	if (vma->vm_start > start)
-+		start = vma->vm_start;
++	pgd = pgd_offset(walk->mm, addr);
++	do {
++		next = pgd_addr_end(addr, end);
++		if (pgd_none_or_clear_bad(pgd)) {
++			if (walk->pte_hole)
++				err = walk->pte_hole(addr, next, walk);
++			if (err)
++				break;
++			continue;
++		}
++		if (walk->pmd_entry || walk->pte_entry)
++			err = walk_pud_range(pgd, addr, next, walk);
++		if (err)
++			break;
++	} while (pgd++, addr = next, addr != end);
 +
-+	if (!(flags & MPOL_MF_DISCONTIG_OK)) {
-+		if (!vma->vm_next && vma->vm_end < end)
-+			return -EFAULT;
-+		if (qp->prev && qp->prev->vm_end < vma->vm_start)
-+			return -EFAULT;
-+	}
-+
-+	qp->prev = vma;
-+
-+	if (vma->vm_flags & VM_PFNMAP)
-+		return 1;
-+
-+	if (flags & MPOL_MF_LAZY) {
-+		change_prot_numa(vma, start, endvma);
-+		return 1;
-+	}
-+
-+	if ((flags & MPOL_MF_STRICT) ||
-+	    ((flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) &&
-+	     vma_migratable(vma)))
-+		/* queue pages from current vma */
-+		return 0;
-+	return 1;
++	return err;
 +}
 +
- /*
-  * Walk through page tables and collect pages to be migrated.
-  *
-@@ -658,48 +638,24 @@ static unsigned long change_prot_numa(struct vm_area_struct *vma,
-  */
- static int
- queue_pages_range(struct mm_struct *mm, unsigned long start, unsigned long end,
--		const nodemask_t *nodes, unsigned long flags, void *private)
--{
--	int err = 0;
--	struct vm_area_struct *vma, *prev;
--
--	vma = find_vma(mm, start);
--	if (!vma)
--		return -EFAULT;
--	prev = NULL;
--	for (; vma && vma->vm_start < end; vma = vma->vm_next) {
--		unsigned long endvma = vma->vm_end;
--
--		if (endvma > end)
--			endvma = end;
--		if (vma->vm_start > start)
--			start = vma->vm_start;
--
--		if (!(flags & MPOL_MF_DISCONTIG_OK)) {
--			if (!vma->vm_next && vma->vm_end < end)
--				return -EFAULT;
--			if (prev && prev->vm_end < vma->vm_start)
--				return -EFAULT;
--		}
--
--		if (flags & MPOL_MF_LAZY) {
--			change_prot_numa(vma, start, endvma);
--			goto next;
--		}
--
--		if ((flags & MPOL_MF_STRICT) ||
--		     ((flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) &&
--		      vma_migratable(vma))) {
--
--			err = queue_pages_pgd_range(vma, start, endvma, nodes,
--						flags, private);
--			if (err)
--				break;
--		}
--next:
--		prev = vma;
--	}
--	return err;
-+		nodemask_t *nodes, unsigned long flags,
-+		struct list_head *pagelist)
-+{
-+	struct queue_pages qp = {
-+		.pagelist = pagelist,
-+		.flags = flags,
-+		.nmask = nodes,
-+		.prev = NULL,
-+	};
-+	struct mm_walk queue_pages_walk = {
-+		.hugetlb_entry = queue_pages_hugetlb,
-+		.pmd_entry = queue_pages_pte_range,
-+		.test_walk = queue_pages_test_walk,
-+		.mm = mm,
-+		.private = &qp,
-+	};
-+
-+	return walk_page_range(start, end, &queue_pages_walk);
+ #ifdef CONFIG_HUGETLB_PAGE
+ static unsigned long hugetlb_entry_end(struct hstate *h, unsigned long addr,
+ 				       unsigned long end)
+@@ -103,10 +129,10 @@ static unsigned long hugetlb_entry_end(struct hstate *h, unsigned long addr,
+ 	return boundary < end ? boundary : end;
  }
  
- /*
+-static int walk_hugetlb_range(struct vm_area_struct *vma,
+-			      unsigned long addr, unsigned long end,
++static int walk_hugetlb_range(unsigned long addr, unsigned long end,
+ 			      struct mm_walk *walk)
+ {
++	struct vm_area_struct *vma = walk->vma;
+ 	struct hstate *h = hstate_vma(vma);
+ 	unsigned long next;
+ 	unsigned long hmask = huge_page_mask(h);
+@@ -119,15 +145,14 @@ static int walk_hugetlb_range(struct vm_area_struct *vma,
+ 		if (pte && walk->hugetlb_entry)
+ 			err = walk->hugetlb_entry(pte, hmask, addr, next, walk);
+ 		if (err)
+-			return err;
++			break;
+ 	} while (addr = next, addr != end);
+ 
+-	return 0;
++	return err;
+ }
+ 
+ #else /* CONFIG_HUGETLB_PAGE */
+-static int walk_hugetlb_range(struct vm_area_struct *vma,
+-			      unsigned long addr, unsigned long end,
++static int walk_hugetlb_range(unsigned long addr, unsigned long end,
+ 			      struct mm_walk *walk)
+ {
+ 	return 0;
+@@ -135,109 +160,115 @@ static int walk_hugetlb_range(struct vm_area_struct *vma,
+ 
+ #endif /* CONFIG_HUGETLB_PAGE */
+ 
++/*
++ * Decide whether we really walk over the current vma on [@start, @end)
++ * or skip it via the returned value. Return 0 if we do walk over the
++ * current vma, and return 1 if we skip the vma. Negative values means
++ * error, where we abort the current walk.
++ *
++ * Default check (only VM_PFNMAP check for now) is used when the caller
++ * doesn't define test_walk() callback.
++ */
++static int walk_page_test(unsigned long start, unsigned long end,
++			struct mm_walk *walk)
++{
++	struct vm_area_struct *vma = walk->vma;
+ 
++	if (walk->test_walk)
++		return walk->test_walk(start, end, walk);
++
++	/*
++	 * Do not walk over vma(VM_PFNMAP), because we have no valid struct
++	 * page backing a VM_PFNMAP range. See also commit a9ff785e4437.
++	 */
++	if (vma->vm_flags & VM_PFNMAP)
++		return 1;
++	return 0;
++}
++
++static int __walk_page_range(unsigned long start, unsigned long end,
++			struct mm_walk *walk)
++{
++	int err = 0;
++	struct vm_area_struct *vma = walk->vma;
++
++	if (vma && is_vm_hugetlb_page(vma)) {
++		if (walk->hugetlb_entry)
++			err = walk_hugetlb_range(start, end, walk);
++	} else
++		err = walk_pgd_range(start, end, walk);
++
++	return err;
++}
+ 
+ /**
+- * walk_page_range - walk a memory map's page tables with a callback
+- * @addr: starting address
+- * @end: ending address
+- * @walk: set of callbacks to invoke for each level of the tree
+- *
+- * Recursively walk the page table for the memory area in a VMA,
+- * calling supplied callbacks. Callbacks are called in-order (first
+- * PGD, first PUD, first PMD, first PTE, second PTE... second PMD,
+- * etc.). If lower-level callbacks are omitted, walking depth is reduced.
++ * walk_page_range - walk page table with caller specific callbacks
+  *
+- * Each callback receives an entry pointer and the start and end of the
+- * associated range, and a copy of the original mm_walk for access to
+- * the ->private or ->mm fields.
++ * Recursively walk the page table tree of the process represented by @walk->mm
++ * within the virtual address range [@start, @end). During walking, we can do
++ * some caller-specific works for each entry, by setting up pmd_entry(),
++ * pte_entry(), and/or hugetlb_entry(). If you don't set up for some of these
++ * callbacks, the associated entries/pages are just ignored.
++ * The return values of these callbacks are commonly defined like below:
++ *  - 0  : succeeded to handle the current entry, and if you don't reach the
++ *         end address yet, continue to walk.
++ *  - >0 : succeeded to handle the current entry, and return to the caller
++ *         with caller specific value.
++ *  - <0 : failed to handle the current entry, and return to the caller
++ *         with error code.
+  *
+- * Usually no locks are taken, but splitting transparent huge page may
+- * take page table lock. And the bottom level iterator will map PTE
+- * directories from highmem if necessary.
++ * Before starting to walk page table, some callers want to check whether
++ * they really want to walk over the current vma, typically by checking
++ * its vm_flags. walk_page_test() and @walk->test_walk() are used for this
++ * purpose.
+  *
+- * If any callback returns a non-zero value, the walk is aborted and
+- * the return value is propagated back to the caller. Otherwise 0 is returned.
++ * struct mm_walk keeps current values of some common data like vma and pmd,
++ * which are useful for the access from callbacks. If you want to pass some
++ * caller-specific data to callbacks, @walk->private should be helpful.
+  *
+- * walk->mm->mmap_sem must be held for at least read if walk->hugetlb_entry
+- * is !NULL.
++ * Locking:
++ *   Callers of walk_page_range() and walk_page_vma() should hold
++ *   @walk->mm->mmap_sem, because these function traverse vma list and/or
++ *   access to vma's data.
+  */
+-int walk_page_range(unsigned long addr, unsigned long end,
++int walk_page_range(unsigned long start, unsigned long end,
+ 		    struct mm_walk *walk)
+ {
+-	pgd_t *pgd;
+-	unsigned long next;
+ 	int err = 0;
++	unsigned long next;
++	struct vm_area_struct *vma;
+ 
+-	if (addr >= end)
+-		return err;
++	if (start >= end)
++		return -EINVAL;
+ 
+ 	if (!walk->mm)
+ 		return -EINVAL;
+ 
+ 	VM_BUG_ON(!rwsem_is_locked(&walk->mm->mmap_sem));
+ 
+-	pgd = pgd_offset(walk->mm, addr);
++	vma = find_vma(walk->mm, start);
+ 	do {
+-		struct vm_area_struct *vma = NULL;
++		if (!vma) { /* after the last vma */
++			walk->vma = NULL;
++			next = end;
++		} else if (start < vma->vm_start) { /* outside vma */
++			walk->vma = NULL;
++			next = min(end, vma->vm_start);
++		} else { /* inside vma */
++			walk->vma = vma;
++			next = min(end, vma->vm_end);
++			vma = vma->vm_next;
+ 
+-		next = pgd_addr_end(addr, end);
+-
+-		/*
+-		 * This function was not intended to be vma based.
+-		 * But there are vma special cases to be handled:
+-		 * - hugetlb vma's
+-		 * - VM_PFNMAP vma's
+-		 */
+-		vma = find_vma(walk->mm, addr);
+-		if (vma) {
+-			/*
+-			 * There are no page structures backing a VM_PFNMAP
+-			 * range, so do not allow split_huge_page_pmd().
+-			 */
+-			if ((vma->vm_start <= addr) &&
+-			    (vma->vm_flags & VM_PFNMAP)) {
+-				next = vma->vm_end;
+-				pgd = pgd_offset(walk->mm, next);
++			err = walk_page_test(start, next, walk);
++			if (err > 0)
+ 				continue;
+-			}
+-			/*
+-			 * Handle hugetlb vma individually because pagetable
+-			 * walk for the hugetlb page is dependent on the
+-			 * architecture and we can't handled it in the same
+-			 * manner as non-huge pages.
+-			 */
+-			if (walk->hugetlb_entry && (vma->vm_start <= addr) &&
+-			    is_vm_hugetlb_page(vma)) {
+-				if (vma->vm_end < next)
+-					next = vma->vm_end;
+-				/*
+-				 * Hugepage is very tightly coupled with vma,
+-				 * so walk through hugetlb entries within a
+-				 * given vma.
+-				 */
+-				err = walk_hugetlb_range(vma, addr, next, walk);
+-				if (err)
+-					break;
+-				pgd = pgd_offset(walk->mm, next);
+-				continue;
+-			}
+-		}
+-
+-		if (pgd_none_or_clear_bad(pgd)) {
+-			if (walk->pte_hole)
+-				err = walk->pte_hole(addr, next, walk);
+-			if (err)
++			if (err < 0)
+ 				break;
+-			pgd++;
+-			continue;
+ 		}
+-		if (walk->pmd_entry || walk->pte_entry)
+-			err = walk_pud_range(pgd, addr, next, walk);
++		if (walk->vma || walk->pte_hole)
++			err = __walk_page_range(start, next, walk);
+ 		if (err)
+ 			break;
+-		pgd++;
+-	} while (addr = next, addr < end);
+-
++	} while (start = next, start < end);
+ 	return err;
+ }
 -- 
 1.9.3
 
