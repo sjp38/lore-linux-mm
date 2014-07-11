@@ -1,200 +1,195 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FDA16B0031
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:00:54 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id w10so885486pde.38
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:00:54 -0700 (PDT)
-Received: from mail-pd0-x22c.google.com (mail-pd0-x22c.google.com [2607:f8b0:400e:c02::22c])
-        by mx.google.com with ESMTPS id n2si731625pdi.294.2014.07.11.00.00.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 11 Jul 2014 00:00:53 -0700 (PDT)
-Received: by mail-pd0-f172.google.com with SMTP id w10so900601pde.3
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:00:53 -0700 (PDT)
-Date: Thu, 10 Jul 2014 23:59:13 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: + shmem-fix-faulting-into-a-hole-while-its-punched-take-2.patch
- added to -mm tree
-In-Reply-To: <alpine.LSU.2.11.1407101131310.19154@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1407102253380.1252@eggly.anvils>
-References: <53b45c9b.2rlA0uGYBLzlXEeS%akpm@linux-foundation.org> <53BCBF1F.1000506@oracle.com> <alpine.LSU.2.11.1407082309040.7374@eggly.anvils> <53BD1053.5020401@suse.cz> <53BD39FC.7040205@oracle.com> <53BD67DC.9040700@oracle.com>
- <alpine.LSU.2.11.1407092358090.18131@eggly.anvils> <53BE8B1B.3000808@oracle.com> <53BECBA4.3010508@oracle.com> <alpine.LSU.2.11.1407101033280.18934@eggly.anvils> <53BED7F6.4090502@oracle.com> <alpine.LSU.2.11.1407101131310.19154@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CEF46B0031
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 03:35:15 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so1003530pab.1
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 00:35:14 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id nu1si1519312pbb.216.2014.07.11.00.35.13
+        for <linux-mm@kvack.org>;
+        Fri, 11 Jul 2014 00:35:13 -0700 (PDT)
+From: Jiang Liu <jiang.liu@linux.intel.com>
+Subject: [RFC Patch V1 00/30] Enable memoryless node on x86 platforms
+Date: Fri, 11 Jul 2014 15:37:17 +0800
+Message-Id: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, davej@redhat.com, koct9i@gmail.com, lczerner@redhat.com, stable@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>
+Cc: Jiang Liu <jiang.liu@linux.intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, 10 Jul 2014, Hugh Dickins wrote:
-> On Thu, 10 Jul 2014, Sasha Levin wrote:
-> > On 07/10/2014 01:55 PM, Hugh Dickins wrote:
-> > >> And finally, (not) holding the i_mmap_mutex:
-> > > I don't understand what prompts you to show this particular task.
-> > > I imagine the dump shows lots of other tasks which are waiting to get an
-> > > i_mmap_mutex, and quite a lot of other tasks which are neither waiting
-> > > for nor holding an i_mmap_mutex.
-> > > 
-> > > Why are you showing this one in particular?  Because it looks like the
-> > > one you fingered yesterday?  But I didn't see a good reason to finger
-> > > that one either.
-> > 
-> > There are a few more tasks like this one, my criteria was tasks that lockdep
-> > claims were holding i_mmap_mutex, but are actually not.
-> 
-> You and Vlastimil enlightened me yesterday that lockdep shows tasks as
-> holding i_mmap_mutex when they are actually waiting to get i_mmap_mutex.
-> Hundreds of those in yesterday's log, hundreds of them in today's.
-> 
-> The full log you've sent (thanks) is for a different run from the one
-> you showed in today's mail.  No problem with that, except when I assert
-> that trinity-c190 in today's mail is just like trinity-c402 in yesterday's,
-> a task caught at one stage of exit_mmap in the stack dumps, then a later
-> stage of exit_mmap in the locks held dumps, I'm guessing rather than
-> confirming from the log.
-> 
-> There's nothing(?) interesting about those tasks, they're just tasks we
-> have been lucky to catch a moment before they reach the i_mmap_mutex
-> hang affecting the majority.
-> 
-> > 
-> > One new thing that I did notice is that since trinity spins a lot of new children
-> > to test out things like execve() which would kill said children, there tends to
-> > be a rather large amount of new tasks created and killed constantly.
-> > 
-> > So if you look at the bottom of the new log (attached), you'll see that there
-> > are quite a few "trinity-subchild" processes trying to die, unsuccessfully.
-> 
-> Lots of those in yesterday's log too: waiting to get i_mmap_mutex.
-> 
-> I'll pore over the new log.  It does help to know that its base kernel
-> is more stable: thanks so much.  But whether I can work out any more...
+Previously we have posted a patch fix a memory crash issue caused by
+memoryless node on x86 platforms, please refer to
+http://comments.gmane.org/gmane.linux.kernel/1687425
 
-In fact Thursday's log was good enough, and no need for the improved
-lockdep messaging we talked about, not for this bug at least.
+As suggested by David Rientjes, the most suitable fix for the issue
+should be to use cpu_to_mem() rather than cpu_to_node() in the caller.
+So this is the patchset according to David's suggestion.
 
-Not that I properly understand it yet, but at least I identified the
-task holding the i_mmap_mutex in Wednesday's and in Thursday's log.
-So very obvious that I'm embarrassed even to pass on the info: I
-pretty much said which the task was, without realizing it myself.
+Patch 1-26 prepare for enabling memoryless node on x86 platforms by
+replacing cpu_to_node()/numa_node_id() with cpu_to_mem()/numa_mem_id().
+Patch 27-29 enable support of memoryless node on x86 platforms.
+Patch 30 tunes order to online NUMA node when doing CPU hot-addition.
 
-In each log there was only one task down below unmap_mapping_range().
+This patchset fixes the issue mentioned by Mike Galbraith that CPUs
+are associated with wrong node after adding memory to a memoryless
+node.
 
-Wednesday on linux-next-based 3.16.0-rc4-next-20140709-sasha-00024-gd22103d-dirty #775
+With support of memoryless node enabled, it will correctly report system
+hardware topology for nodes without memory installed.
+root@bkd01sdp:~# numactl --hardware
+available: 4 nodes (0-3)
+node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74
+node 0 size: 15725 MB
+node 0 free: 15129 MB
+node 1 cpus: 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89
+node 1 size: 15862 MB
+node 1 free: 15627 MB
+node 2 cpus: 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104
+node 2 size: 0 MB
+node 2 free: 0 MB
+node 3 cpus: 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119
+node 3 size: 0 MB
+node 3 free: 0 MB
+node distances:
+node   0   1   2   3
+  0:  10  21  21  21
+  1:  21  10  21  21
+  2:  21  21  10  21
+  3:  21  21  21  10
 
-trinity-c235    R  running task    12216  9169   8558 0x10000002
- ffff8800bbf978a8 0000000000000002 ffff88010cfe3290 0000000000000282
- ffff8800bbf97fd8 00000000001e2740 00000000001e2740 00000000001e2740
- ffff8800bdb03000 ffff8800bbf2b000 ffff8800bbf978a8 ffff8800bbf97fd8
-Call Trace:
-preempt_schedule (./arch/x86/include/asm/preempt.h:80 kernel/sched/core.c:2889)  (that's the __preempt_count_sub line after __schedule, I believe)
-___preempt_schedule (arch/x86/kernel/preempt.S:11)
-? zap_pte_range (mm/memory.c:1218)
-? _raw_spin_unlock (./arch/x86/include/asm/preempt.h:98 include/linux/spinlock_api_smp.h:152 kernel/locking/spinlock.c:183)
-? _raw_spin_unlock (include/linux/spinlock_api_smp.h:152 kernel/locking/spinlock.c:183)
-zap_pte_range (mm/memory.c:1218)
-unmap_single_vma (mm/memory.c:1256 mm/memory.c:1277 mm/memory.c:1301 mm/memory.c:1346)
-zap_page_range_single (include/linux/mmu_notifier.h:234 mm/memory.c:1427)
-? unmap_mapping_range (mm/memory.c:2392)
-? _raw_spin_unlock_irq (./arch/x86/include/asm/paravirt.h:819 include/linux/spinlock_api_smp.h:168 kernel/locking/spinlock.c:199)
-unmap_mapping_range (mm/memory.c:2317 mm/memory.c:2393)
-truncate_inode_page (mm/truncate.c:136 mm/truncate.c:180)
-shmem_undo_range (mm/shmem.c:441)
-shmem_truncate_range (mm/shmem.c:537)
-shmem_fallocate (mm/shmem.c:1771)
-? put_lock_stats.isra.12 (./arch/x86/include/asm/preempt.h:98 kernel/locking/lockdep.c:254)
-do_fallocate (include/linux/fs.h:1281 fs/open.c:299)
-SyS_madvise (mm/madvise.c:332 mm/madvise.c:381 mm/madvise.c:531 mm/madvise.c:462)
-tracesys (arch/x86/kernel/entry_64.S:542)
+With memoryless node enabled, CPUs are correctly associated with node 2
+after memory hot-addition to node 2.
+root@bkd01sdp:/sys/devices/system/node/node2# numactl --hardware
+available: 4 nodes (0-3)
+node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74
+node 0 size: 15725 MB
+node 0 free: 14872 MB
+node 1 cpus: 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89
+node 1 size: 15862 MB
+node 1 free: 15641 MB
+node 2 cpus: 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104
+node 2 size: 128 MB
+node 2 free: 127 MB
+node 3 cpus: 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119
+node 3 size: 0 MB
+node 3 free: 0 MB
+node distances:
+node   0   1   2   3
+  0:  10  21  21  21
+  1:  21  10  21  21
+  2:  21  21  10  21
+  3:  21  21  21  10
 
-Thursday on Linus-based 3.16.0-rc4-sasha-00069-g615ded7-dirty #793
+The patchset is based on the latest mainstream kernel and has been
+tested on a 4-socket Intel platform with CPU/memory hot-addition
+capability.
 
-trinity-c100    R  running task    13048  8967   8490 0x00000006
- ffff88001b903978 0000000000000002 0000000000000006 ffff880404666fd8
- ffff88001b903fd8 00000000001d7740 00000000001d7740 00000000001d7740
- ffff880007a40000 ffff88001b8f8000 ffff88001b903968 ffff88001b903fd8
-Call Trace:
-preempt_schedule_irq (./arch/x86/include/asm/paravirt.h:814 kernel/sched/core.c:2912) (that's the local_irq_disable line after __schedule, I believe)
-retint_kernel (arch/x86/kernel/entry_64.S:937)
-? unmap_single_vma (mm/memory.c:1230 mm/memory.c:1277 mm/memory.c:1302 mm/memory.c:1348)
-? unmap_single_vma (mm/memory.c:1297 mm/memory.c:1348)
-zap_page_range_single (include/linux/mmu_notifier.h:234 mm/memory.c:1429)
-? get_parent_ip (kernel/sched/core.c:2546)
-? unmap_mapping_range (mm/memory.c:2391)
-unmap_mapping_range (mm/memory.c:2316 mm/memory.c:2392)
-truncate_inode_page (mm/truncate.c:136 mm/truncate.c:180)
-shmem_undo_range (mm/shmem.c:429)
-shmem_truncate_range (mm/shmem.c:528)
-shmem_fallocate (mm/shmem.c:1749)
-? SyS_madvise (mm/madvise.c:334 mm/madvise.c:384 mm/madvise.c:534 mm/madvise.c:465)
-? put_lock_stats.isra.12 (./arch/x86/include/asm/preempt.h:98 kernel/locking/lockdep.c:254)
-? SyS_madvise (mm/madvise.c:334 mm/madvise.c:384 mm/madvise.c:534 mm/madvise.c:465)
-do_fallocate (include/linux/fs.h:1281 fs/open.c:299)
-SyS_madvise (mm/madvise.c:335 mm/madvise.c:384 mm/madvise.c:534 mm/madvise.c:465)
-? context_tracking_user_exit (./arch/x86/include/asm/paravirt.h:809 (discriminator 2) kernel/context_tracking.c:184 (discriminator 2))
-? trace_hardirqs_on (kernel/locking/lockdep.c:2607)
-tracesys (arch/x86/kernel/entry_64.S:543)
+Any comments are welcomed!
 
-At first I thought the preempt_schedule[_irq] lines were exciting,
-but seeing them in other traces, I now suppose they're nothing but
-an artifact of how your watchdog gets the traces of running tasks.
-(I wonder why so many tasks are shown as "running" when they're not,
-but I don't think that has any bearing on the issue at hand.)
+Jiang Liu (30):
+  mm, kernel: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+  mm, sched: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+  mm, net: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+  mm, netfilter: Use cpu_to_mem()/numa_mem_id() to support memoryless
+    node
+  mm, perf: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+  mm, tracing: Use cpu_to_mem()/numa_mem_id() to support memoryless
+    node
+  mm: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+  mm, thp: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+  mm, memcg: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+  mm, xfrm: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+  mm, char/mspec.c: Use cpu_to_mem()/numa_mem_id() to support
+    memoryless node
+  mm, IB/qib: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+  mm, i40e: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+  mm, i40evf: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+  mm, igb: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+  mm, ixgbe: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+  mm, intel_powerclamp: Use cpu_to_mem()/numa_mem_id() to support
+    memoryless node
+  mm, bnx2fc: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+  mm, bnx2i: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+  mm, fcoe: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+  mm, irqchip: Use cpu_to_mem()/numa_mem_id() to support memoryless
+    node
+  mm, of: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+  mm, x86: Use cpu_to_mem()/numa_mem_id() to support memoryless node
+  mm, x86/platform/uv: Use cpu_to_mem()/numa_mem_id() to support
+    memoryless node
+  mm, x86, kvm: Use cpu_to_mem()/numa_mem_id() to support memoryless
+    node
+  mm, x86, perf: Use cpu_to_mem()/numa_mem_id() to support memoryless
+    node
+  x86, numa: Kill useless code to improve code readability
+  mm: Update _mem_id_[] for every possible CPU when memory
+    configuration changes
+  mm, x86: Enable memoryless node support to better support CPU/memory
+    hotplug
+  x86, NUMA: Online node earlier when doing CPU hot-addition
 
-So, in each case we have a task which _appears_ to be stuck in the
-i_mmap tree, holding i_mmap_mutex inside i_mutex.
+ arch/x86/Kconfig                              |    3 ++
+ arch/x86/kernel/acpi/boot.c                   |    6 ++-
+ arch/x86/kernel/apic/io_apic.c                |   10 ++---
+ arch/x86/kernel/cpu/perf_event_amd.c          |    2 +-
+ arch/x86/kernel/cpu/perf_event_amd_uncore.c   |    2 +-
+ arch/x86/kernel/cpu/perf_event_intel.c        |    2 +-
+ arch/x86/kernel/cpu/perf_event_intel_ds.c     |    6 +--
+ arch/x86/kernel/cpu/perf_event_intel_rapl.c   |    2 +-
+ arch/x86/kernel/cpu/perf_event_intel_uncore.c |    2 +-
+ arch/x86/kernel/devicetree.c                  |    2 +-
+ arch/x86/kernel/irq_32.c                      |    4 +-
+ arch/x86/kernel/smpboot.c                     |    2 +
+ arch/x86/kvm/vmx.c                            |    2 +-
+ arch/x86/mm/numa.c                            |   52 +++++++++++++++++--------
+ arch/x86/platform/uv/tlb_uv.c                 |    2 +-
+ arch/x86/platform/uv/uv_nmi.c                 |    3 +-
+ arch/x86/platform/uv/uv_time.c                |    2 +-
+ drivers/char/mspec.c                          |    2 +-
+ drivers/infiniband/hw/qib/qib_file_ops.c      |    4 +-
+ drivers/infiniband/hw/qib/qib_init.c          |    2 +-
+ drivers/irqchip/irq-clps711x.c                |    2 +-
+ drivers/irqchip/irq-gic.c                     |    2 +-
+ drivers/net/ethernet/intel/i40e/i40e_txrx.c   |    2 +-
+ drivers/net/ethernet/intel/i40evf/i40e_txrx.c |    2 +-
+ drivers/net/ethernet/intel/igb/igb_main.c     |    4 +-
+ drivers/net/ethernet/intel/ixgbe/ixgbe_main.c |    4 +-
+ drivers/of/base.c                             |    2 +-
+ drivers/scsi/bnx2fc/bnx2fc_fcoe.c             |    2 +-
+ drivers/scsi/bnx2i/bnx2i_init.c               |    2 +-
+ drivers/scsi/fcoe/fcoe.c                      |    2 +-
+ drivers/thermal/intel_powerclamp.c            |    4 +-
+ include/linux/gfp.h                           |    6 +--
+ kernel/events/callchain.c                     |    2 +-
+ kernel/events/core.c                          |    2 +-
+ kernel/events/ring_buffer.c                   |    2 +-
+ kernel/rcu/rcutorture.c                       |    2 +-
+ kernel/sched/core.c                           |    8 ++--
+ kernel/sched/deadline.c                       |    2 +-
+ kernel/sched/fair.c                           |    4 +-
+ kernel/sched/rt.c                             |    6 +--
+ kernel/smp.c                                  |    2 +-
+ kernel/smpboot.c                              |    2 +-
+ kernel/taskstats.c                            |    2 +-
+ kernel/timer.c                                |    2 +-
+ kernel/trace/ring_buffer.c                    |   12 +++---
+ kernel/trace/trace_uprobe.c                   |    2 +-
+ mm/huge_memory.c                              |    6 +--
+ mm/memcontrol.c                               |    2 +-
+ mm/memory.c                                   |    2 +-
+ mm/page_alloc.c                               |   10 ++---
+ mm/percpu-vm.c                                |    2 +-
+ mm/vmalloc.c                                  |    2 +-
+ net/core/dev.c                                |    6 +--
+ net/core/flow.c                               |    2 +-
+ net/core/pktgen.c                             |   10 ++---
+ net/core/sysctl_net_core.c                    |    2 +-
+ net/netfilter/x_tables.c                      |    8 ++--
+ net/xfrm/xfrm_ipcomp.c                        |    2 +-
+ 58 files changed, 139 insertions(+), 111 deletions(-)
 
-I wondered if there were some interval tree corruption or bug, that
-gets it stuck in a cycle.  But it seems unlikely that such a bug
-would manifest always here and never under other conditions.
-
-I've looked back at your original December and February reports in
-the "mm: shm: hang in shmem_fallocate" thread.  I think "chastening"
-is the word for how similar those traces are to what I show above.
-I feel I have come full circle and made exactly 0 progress since then.
-
-And I notice your remark from back then: "To me it seems like a series
-of calls to shmem_truncate_range() takes so long that one of the tasks
-triggers a hung task.  We don't actually hang in any specific
-shmem_truncate_range() for too long though."
-
-I think I'm coming around to that view: that trinity's forks drive
-the i_mmap tree big enough, that the work to remove a single page
-from that tree (while holding both i_mmap_mutex and i_mutex) takes
-so long that as soon as i_mmap_mutex is dropped, a large number of
-forks and exits waiting for that i_mmap_mutex come in, and if another
-page gets mapped and has to be removed, our hole-punch will have to
-wait a long time behind them to get the i_mmap_mutex again, all the
-while holding i_mutex to make matters even worse for the other
-waiting hole-punchers.
-
-Or that's the picture I'm currently playing with, anyway.  And what
-to do about it?  Dunno yet: maybe something much closer to the patch
-that's already in Linus's tree (but buggy because of grabbing i_mutex
-itself).  I'll mull over it.  But maybe this picture is rubbish:
-I've made enough mistakes already, no surprise if this is wrong too.
-
-And as soon as I write that, I remember something else to check,
-and it does seem interesting, leading off in another direction.
-
-Your Wednesday log took 5 advancing snapshots of the same hang,
-across 4 seconds.  Above I've shown trinity-c235 from the first
-of them.  But the following 4 are identical apart from timestamps.
-Identical, when I'd expect it to be caught at different places in
-its loop, not every time in zap_pte_range at mm/memory.c:1218
-(which is the closing brace of zap_pte_range in my tree: your
-line numbering is sometimes helpful, but sometimes puzzling:
-I might prefer zap_pte_range+0xXXX/0xYYY in this case).
-
-Or, thinking again on those preempt_schedule()s, maybe it's just an
-artifact: that the major work in the loop is done under ptl spinlock,
-so if you have to preempt to gather the trace, the most likely place
-to be preempted is immediately after dropping the spinlock.
-
-Yes, that's probably why those five are identical.
-I'll go back to mulling over the starvation theory.
-
-Hugh
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
