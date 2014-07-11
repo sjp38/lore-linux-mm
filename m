@@ -1,47 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id A99986B0035
-	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 16:11:22 -0400 (EDT)
-Received: by mail-wg0-f52.google.com with SMTP id a1so825837wgh.11
-        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 13:11:19 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTP id l3si5982522wjx.149.2014.07.11.13.11.04
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id A6E266B0035
+	for <linux-mm@kvack.org>; Fri, 11 Jul 2014 16:21:24 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id p10so1615974pdj.13
+        for <linux-mm@kvack.org>; Fri, 11 Jul 2014 13:21:24 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id j4si1760435pdb.273.2014.07.11.13.21.21
         for <linux-mm@kvack.org>;
-        Fri, 11 Jul 2014 13:11:05 -0700 (PDT)
-Date: Fri, 11 Jul 2014 22:10:54 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: IMA: kernel reading files opened with O_DIRECT
-Message-ID: <20140711201054.GB18033@amd.pavel.ucw.cz>
-References: <53B3D3AA.3000408@samsung.com>
- <x49y4wbu54y.fsf@segfault.boston.devel.redhat.com>
- <20140702184050.GA24583@infradead.org>
+        Fri, 11 Jul 2014 13:21:22 -0700 (PDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [RFC Patch V1 00/30] Enable memoryless node on x86 platforms
+References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
+	<20140711082956.GC20603@laptop.programming.kicks-ass.net>
+	<20140711153314.GA6155@kroah.com>
+Date: Fri, 11 Jul 2014 13:20:51 -0700
+In-Reply-To: <20140711153314.GA6155@kroah.com> (Greg KH's message of "Fri, 11
+	Jul 2014 08:33:14 -0700")
+Message-ID: <8761j3ve8s.fsf@tassilo.jf.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140702184050.GA24583@infradead.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Jeff Moyer <jmoyer@redhat.com>, Dmitry Kasatkin <d.kasatkin@samsung.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, viro@ZenIV.linux.org.uk, Mimi Zohar <zohar@linux.vnet.ibm.com>, linux-security-module <linux-security-module@vger.kernel.org>, Greg KH <gregkh@linuxfoundation.org>, Dmitry Kasatkin <dmitry.kasatkin@gmail.com>
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: Jiang Liu <jiang.liu@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed 2014-07-02 11:40:50, Christoph Hellwig wrote:
-> On Wed, Jul 02, 2014 at 11:55:41AM -0400, Jeff Moyer wrote:
-> > It's acceptable.
-> 
-> It's not because it will then also affect other reads going on at the
-> same time.
-> 
-> The whole concept of ima is just broken, and if you want to do these
-> sort of verification they need to happen inside the filesystem and not
-> above it.
+Greg KH <gregkh@linuxfoundation.org> writes:
 
-...and doing it at filesystem layer would also permit verification of
-per-block (64KB? 1MB?) hashes. Reading entire iso image when I run
-"file foo.iso" is anti-social..
-									Pavel
+> On Fri, Jul 11, 2014 at 10:29:56AM +0200, Peter Zijlstra wrote:
+>> On Fri, Jul 11, 2014 at 03:37:17PM +0800, Jiang Liu wrote:
+>> > Any comments are welcomed!
+>> 
+>> Why would anybody _ever_ have a memoryless node? That's ridiculous.
+>
+> I'm with Peter here, why would this be a situation that we should even
+> support?  Are there machines out there shipping like this?
+
+We've always had memory nodes.
+
+A classic case in the old days was a two socket system where someone
+didn't populate any DIMMs on the second socket.
+
+There are other cases too.
+
+-Andi
+
 -- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
