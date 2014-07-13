@@ -1,165 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f46.google.com (mail-oa0-f46.google.com [209.85.219.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 545CC6B0037
-	for <linux-mm@kvack.org>; Sat, 12 Jul 2014 15:33:58 -0400 (EDT)
-Received: by mail-oa0-f46.google.com with SMTP id m1so2663280oag.5
-        for <linux-mm@kvack.org>; Sat, 12 Jul 2014 12:33:58 -0700 (PDT)
-Received: from e36.co.us.ibm.com (e36.co.us.ibm.com. [32.97.110.154])
-        by mx.google.com with ESMTPS id pa2si10729703obb.49.2014.07.12.12.33.56
+Received: from mail-vc0-f175.google.com (mail-vc0-f175.google.com [209.85.220.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F4F06B0035
+	for <linux-mm@kvack.org>; Sun, 13 Jul 2014 06:39:23 -0400 (EDT)
+Received: by mail-vc0-f175.google.com with SMTP id hu12so106596vcb.34
+        for <linux-mm@kvack.org>; Sun, 13 Jul 2014 03:39:22 -0700 (PDT)
+Received: from mail-vc0-x231.google.com (mail-vc0-x231.google.com [2607:f8b0:400c:c03::231])
+        by mx.google.com with ESMTPS id te2si4319784vcb.101.2014.07.13.03.39.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 12 Jul 2014 12:33:57 -0700 (PDT)
-Received: from /spool/local
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Sat, 12 Jul 2014 13:33:55 -0600
-Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 345CE19D8026
-	for <linux-mm@kvack.org>; Sat, 12 Jul 2014 13:33:43 -0600 (MDT)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by b03cxnp08025.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s6CJXq674653526
-	for <linux-mm@kvack.org>; Sat, 12 Jul 2014 21:33:52 +0200
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id s6CJbv8x022019
-	for <linux-mm@kvack.org>; Sat, 12 Jul 2014 13:37:57 -0600
-Date: Sat, 12 Jul 2014 12:33:49 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: slub/debugobjects: lockup when freeing memory
-Message-ID: <20140712193349.GD16041@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20140619165247.GA4904@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1406192127100.5170@nanos>
- <20140619202928.GG4904@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1406192230390.5170@nanos>
- <20140619205307.GL4904@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1406192331250.5170@nanos>
- <20140619220449.GT4904@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1406201015440.5170@nanos>
- <20140620154014.GC4904@linux.vnet.ibm.com>
- <53C1788D.9080800@oracle.com>
+        Sun, 13 Jul 2014 03:39:22 -0700 (PDT)
+Received: by mail-vc0-f177.google.com with SMTP id ij19so5137303vcb.22
+        for <linux-mm@kvack.org>; Sun, 13 Jul 2014 03:39:21 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <53C1788D.9080800@oracle.com>
+In-Reply-To: <53C08876.10209@zytor.com>
+References: <1404903678-8257-1-git-send-email-a.ryabinin@samsung.com>
+	<53C08876.10209@zytor.com>
+Date: Sun, 13 Jul 2014 14:39:21 +0400
+Message-ID: <CAPAsAGwb2sLmu0o_o-pFP5pXhMs-1sZSJbA3ji=W+JPOZRepgg@mail.gmail.com>
+Subject: Re: [RFC/PATCH -next 00/21] Address sanitizer for kernel (kasan) -
+ dynamic memory error detector.
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Christoph Lameter <cl@gentwo.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Alexey Preobrazhensky <preobr@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Russell King <linux@arm.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kbuild@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, linux-mm@kvack.org
 
-On Sat, Jul 12, 2014 at 02:03:57PM -0400, Sasha Levin wrote:
-> On 06/20/2014 11:40 AM, Paul E. McKenney wrote:
-> > rcu: Export debug_init_rcu_head() and and debug_init_rcu_head()
-> > 
-> > Currently, call_rcu() relies on implicit allocation and initialization
-> > for the debug-objects handling of RCU callbacks.  If you hammer the
-> > kernel hard enough with Sasha's modified version of trinity, you can end
-> > up with the sl*b allocators recursing into themselves via this implicit
-> > call_rcu() allocation.
-> > 
-> > This commit therefore exports the debug_init_rcu_head() and
-> > debug_rcu_head_free() functions, which permits the allocators to allocated
-> > and pre-initialize the debug-objects information, so that there no longer
-> > any need for call_rcu() to do that initialization, which in turn prevents
-> > the recursion into the memory allocators.
-> > 
-> > Reported-by: Sasha Levin <sasha.levin@oracle.com>
-> > Suggested-by: Thomas Gleixner <tglx@linutronix.de>
-> > Signed-off-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-> > Acked-by: Thomas Gleixner <tglx@linutronix.de>
-> 
-> Hi Paul,
-> 
-> Oddly enough, I still see the issue in -next (I made sure that this patch
-> was in the tree):
+2014-07-12 4:59 GMT+04:00 H. Peter Anvin <hpa@zytor.com>:
+> On 07/09/2014 04:00 AM, Andrey Ryabinin wrote:
+>>
+>> Address sanitizer dedicates 1/8 of the low memory to the shadow memory and uses direct
+>> mapping with a scale and offset to translate a memory address to its corresponding
+>> shadow address.
+>>
+>> Here is function to translate address to corresponding shadow address:
+>>
+>>      unsigned long kasan_mem_to_shadow(unsigned long addr)
+>>      {
+>>               return ((addr) >> KASAN_SHADOW_SCALE_SHIFT)
+>>                            + kasan_shadow_start - (PAGE_OFFSET >> KASAN_SHADOW_SCALE_SHIFT);
+>>      }
+>>
+>> where KASAN_SHADOW_SCALE_SHIFT = 3.
+>>
+>
+> How does that work when memory is sparsely populated?
+>
 
-Hello, Sasha,
+Sparsemem configurations currently may not work with kasan.
+I suppose I will have to move shadow area to vmalloc address space and
+make it (shadow) sparse too if needed.
 
-This commit is only part of the solution.  The allocators need to change
-to make use of it.
+>         -hpa
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-							Thanx, Paul
 
-> [  393.810123] =============================================
-> [  393.810123] [ INFO: possible recursive locking detected ]
-> [  393.810123] 3.16.0-rc4-next-20140711-sasha-00046-g07d3099-dirty #813 Not tainted
-> [  393.810123] ---------------------------------------------
-> [  393.810123] trinity-c32/9762 is trying to acquire lock:
-> [  393.810123] (&(&n->list_lock)->rlock){-.-...}, at: get_partial_node.isra.39 (mm/slub.c:1628)
-> [  393.810123]
-> [  393.810123] but task is already holding lock:
-> [  393.810123] (&(&n->list_lock)->rlock){-.-...}, at: __kmem_cache_shutdown (mm/slub.c:3210 mm/slub.c:3233 mm/slub.c:3244)
-> [  393.810123]
-> [  393.810123] other info that might help us debug this:
-> [  393.810123]  Possible unsafe locking scenario:
-> [  393.810123]
-> [  393.810123]        CPU0
-> [  393.810123]        ----
-> [  393.810123]   lock(&(&n->list_lock)->rlock);
-> [  393.810123]   lock(&(&n->list_lock)->rlock);
-> [  393.810123]
-> [  393.810123]  *** DEADLOCK ***
-> [  393.810123]
-> [  393.810123]  May be due to missing lock nesting notation
-> [  393.810123]
-> [  393.810123] 5 locks held by trinity-c32/9762:
-> [  393.810123] #0: (net_mutex){+.+.+.}, at: copy_net_ns (net/core/net_namespace.c:254)
-> [  393.810123] #1: (cpu_hotplug.lock){++++++}, at: get_online_cpus (kernel/cpu.c:90)
-> [  393.810123] #2: (mem_hotplug.lock){.+.+.+}, at: get_online_mems (mm/memory_hotplug.c:83)
-> [  393.810123] #3: (slab_mutex){+.+.+.}, at: kmem_cache_destroy (mm/slab_common.c:344)
-> [  393.810123] #4: (&(&n->list_lock)->rlock){-.-...}, at: __kmem_cache_shutdown (mm/slub.c:3210 mm/slub.c:3233 mm/slub.c:3244)
-> [  393.810123]
-> [  393.810123] stack backtrace:
-> [  393.810123] CPU: 32 PID: 9762 Comm: trinity-c32 Not tainted 3.16.0-rc4-next-20140711-sasha-00046-g07d3099-dirty #813
-> [  393.843284]  ffff880bc26730e0 0000000000000000 ffffffffb4ae7ff0 ffff880bc26a3848
-> [  393.843284]  ffffffffb0e47068 ffffffffb4ae7ff0 ffff880bc26a38f0 ffffffffac258586
-> [  393.843284]  ffff880bc2673e30 000000050000000a ffffffffb444dee0 ffff880bc2673e48
-> [  393.843284] Call Trace:
-> [  393.843284] dump_stack (lib/dump_stack.c:52)
-> [  393.843284] __lock_acquire (kernel/locking/lockdep.c:1739 kernel/locking/lockdep.c:1783 kernel/locking/lockdep.c:2115 kernel/locking/lockdep.c:3182)
-> [  393.843284] lock_acquire (kernel/locking/lockdep.c:3602)
-> [  393.843284] ? get_partial_node.isra.39 (mm/slub.c:1628)
-> [  393.843284] _raw_spin_lock (include/linux/spinlock_api_smp.h:143 kernel/locking/spinlock.c:151)
-> [  393.843284] ? get_partial_node.isra.39 (mm/slub.c:1628)
-> [  393.843284] get_partial_node.isra.39 (mm/slub.c:1628)
-> [  393.843284] ? check_irq_usage (kernel/locking/lockdep.c:1638)
-> [  393.843284] ? __slab_alloc (mm/slub.c:2307)
-> [  393.843284] ? __this_cpu_preempt_check (lib/smp_processor_id.c:63)
-> [  393.843284] __slab_alloc (mm/slub.c:1730 mm/slub.c:2208 mm/slub.c:2372)
-> [  393.843284] ? __debug_object_init (lib/debugobjects.c:100 lib/debugobjects.c:312)
-> [  393.843284] ? kvm_clock_read (./arch/x86/include/asm/preempt.h:90 arch/x86/kernel/kvmclock.c:86)
-> [  393.843284] ? sched_clock (./arch/x86/include/asm/paravirt.h:192 arch/x86/kernel/tsc.c:304)
-> [  393.843284] kmem_cache_alloc (mm/slub.c:2445 mm/slub.c:2487 mm/slub.c:2492)
-> [  393.843284] ? debug_smp_processor_id (lib/smp_processor_id.c:57)
-> [  393.843284] ? __debug_object_init (lib/debugobjects.c:100 lib/debugobjects.c:312)
-> [  393.843284] ? check_chain_key (kernel/locking/lockdep.c:2188)
-> [  393.843284] __debug_object_init (lib/debugobjects.c:100 lib/debugobjects.c:312)
-> [  393.843284] ? _raw_spin_unlock_irqrestore (include/linux/spinlock_api_smp.h:160 kernel/locking/spinlock.c:191)
-> [  393.843284] ? __this_cpu_preempt_check (lib/smp_processor_id.c:63)
-> [  393.843284] debug_object_init (lib/debugobjects.c:365)
-> [  393.843284] rcuhead_fixup_activate (kernel/rcu/update.c:260)
-> [  393.843284] debug_object_activate (lib/debugobjects.c:280 lib/debugobjects.c:439)
-> [  393.843284] ? preempt_count_sub (kernel/sched/core.c:2600)
-> [  393.843284] ? slab_cpuup_callback (mm/slub.c:1484)
-> [  393.843284] __call_rcu (kernel/rcu/rcu.h:76 (discriminator 8) kernel/rcu/tree.c:2665 (discriminator 8))
-> [  393.843284] ? __kmem_cache_shutdown (mm/slub.c:3210 mm/slub.c:3233 mm/slub.c:3244)
-> [  393.843284] call_rcu (kernel/rcu/tree_plugin.h:679)
-> [  393.843284] discard_slab (mm/slub.c:1522)
-> [  393.843284] __kmem_cache_shutdown (mm/slub.c:3210 mm/slub.c:3233 mm/slub.c:3244)
-> [  393.843284] kmem_cache_destroy (mm/slab_common.c:350)
-> [  393.843284] nf_conntrack_cleanup_net_list (net/netfilter/nf_conntrack_core.c:1569 (discriminator 3))
-> [  393.843284] nf_conntrack_pernet_exit (net/netfilter/nf_conntrack_standalone.c:558)
-> [  393.843284] ops_exit_list.isra.1 (net/core/net_namespace.c:135)
-> [  393.843284] setup_net (net/core/net_namespace.c:180 (discriminator 3))
-> [  393.843284] copy_net_ns (net/core/net_namespace.c:255)
-> [  393.843284] create_new_namespaces (kernel/nsproxy.c:95)
-> [  393.843284] unshare_nsproxy_namespaces (kernel/nsproxy.c:190 (discriminator 4))
-> [  393.843284] SyS_unshare (kernel/fork.c:1865 kernel/fork.c:1814)
-> [  393.843284] tracesys (arch/x86/kernel/entry_64.S:542)
-> 
-> 
-> Thanks,
-> Sasha
-> 
+
+-- 
+Best regards,
+Andrey Ryabinin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
