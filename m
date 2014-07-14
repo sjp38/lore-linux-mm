@@ -1,104 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 933826B003B
-	for <linux-mm@kvack.org>; Mon, 14 Jul 2014 14:11:04 -0400 (EDT)
-Received: by mail-we0-f172.google.com with SMTP id x48so2734228wes.17
-        for <linux-mm@kvack.org>; Mon, 14 Jul 2014 11:11:04 -0700 (PDT)
-Received: from mail-wi0-x234.google.com (mail-wi0-x234.google.com [2a00:1450:400c:c05::234])
-        by mx.google.com with ESMTPS id cn2si5905788wib.24.2014.07.14.11.11.02
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id E7A7B6B003B
+	for <linux-mm@kvack.org>; Mon, 14 Jul 2014 14:43:06 -0400 (EDT)
+Received: by mail-wg0-f50.google.com with SMTP id n12so4542745wgh.9
+        for <linux-mm@kvack.org>; Mon, 14 Jul 2014 11:43:06 -0700 (PDT)
+Received: from mail-we0-x22b.google.com (mail-we0-x22b.google.com [2a00:1450:400c:c03::22b])
+        by mx.google.com with ESMTPS id c9si16866262wja.128.2014.07.14.11.43.04
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 14 Jul 2014 11:11:03 -0700 (PDT)
-Received: by mail-wi0-f180.google.com with SMTP id n3so3037968wiv.1
-        for <linux-mm@kvack.org>; Mon, 14 Jul 2014 11:11:02 -0700 (PDT)
+        Mon, 14 Jul 2014 11:43:05 -0700 (PDT)
+Received: by mail-we0-f171.google.com with SMTP id p10so1911322wes.30
+        for <linux-mm@kvack.org>; Mon, 14 Jul 2014 11:43:04 -0700 (PDT)
+Date: Mon, 14 Jul 2014 20:43:02 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 12/13] mm: memcontrol: rewrite charge API
+Message-ID: <20140714184302.GA2094@dhcp22.suse.cz>
+References: <1403124045-24361-1-git-send-email-hannes@cmpxchg.org>
+ <1403124045-24361-13-git-send-email-hannes@cmpxchg.org>
+ <20140714150446.GD30713@dhcp22.suse.cz>
+ <20140714171324.GQ29639@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <1404337536-11037-1-git-send-email-ddstreet@ieee.org>
-References: <1401747586-11861-1-git-send-email-ddstreet@ieee.org> <1404337536-11037-1-git-send-email-ddstreet@ieee.org>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Mon, 14 Jul 2014 14:10:42 -0400
-Message-ID: <CALZtONBYwm5t39z8wiEkTrFw-g=Be+ypaZo2nuFo0ob5pRXSAw@mail.gmail.com>
-Subject: Re: [PATCHv5 0/4] mm/zpool: add common api for zswap to use zbud/zsmalloc
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140714171324.GQ29639@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Dan Streetman <ddstreet@ieee.org>, Bob Liu <bob.liu@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Andrew, any thoughts on this latest version of the patch set?  Let me
-know if I missed anything or you have any other suggestions.
+On Mon 14-07-14 13:13:24, Johannes Weiner wrote:
+> On Mon, Jul 14, 2014 at 05:04:46PM +0200, Michal Hocko wrote:
+> > Hi,
+> > I've finally manage to untagle myself from internal stuff...
+> > 
+> > On Wed 18-06-14 16:40:44, Johannes Weiner wrote:
+> > > The memcg charge API charges pages before they are rmapped - i.e. have
+> > > an actual "type" - and so every callsite needs its own set of charge
+> > > and uncharge functions to know what type is being operated on.  Worse,
+> > > uncharge has to happen from a context that is still type-specific,
+> > > rather than at the end of the page's lifetime with exclusive access,
+> > > and so requires a lot of synchronization.
+> > > 
+> > > Rewrite the charge API to provide a generic set of try_charge(),
+> > > commit_charge() and cancel_charge() transaction operations, much like
+> > > what's currently done for swap-in:
+> > > 
+> > >   mem_cgroup_try_charge() attempts to reserve a charge, reclaiming
+> > >   pages from the memcg if necessary.
+> > > 
+> > >   mem_cgroup_commit_charge() commits the page to the charge once it
+> > >   has a valid page->mapping and PageAnon() reliably tells the type.
+> > > 
+> > >   mem_cgroup_cancel_charge() aborts the transaction.
+> > > 
+> > > This reduces the charge API and enables subsequent patches to
+> > > drastically simplify uncharging.
+> > > 
+> > > As pages need to be committed after rmap is established but before
+> > > they are added to the LRU, page_add_new_anon_rmap() must stop doing
+> > > LRU additions again.  Revive lru_cache_add_active_or_unevictable().
+> > 
+> > I think it would make more sense to do
+> > lru_cache_add_active_or_unevictable in a separate patch for easier
+> > review. Too late, though...
+> > 
+> > Few comments bellow
+> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > 
+> > The patch looks correct but the code is quite tricky so I hope I didn't
+> > miss anything.
+> > 
+> > Acked-by: Michal Hocko <mhocko@suse.cz>
+> 
+> Thanks!
+> 
+> > > @@ -54,28 +54,11 @@ struct mem_cgroup_reclaim_cookie {
+> > >  };
+> > >  
+> > >  #ifdef CONFIG_MEMCG
+> > > -/*
+> > > - * All "charge" functions with gfp_mask should use GFP_KERNEL or
+> > > - * (gfp_mask & GFP_RECLAIM_MASK). In current implementatin, memcg doesn't
+> > > - * alloc memory but reclaims memory from all available zones. So, "where I want
+> > > - * memory from" bits of gfp_mask has no meaning. So any bits of that field is
+> > > - * available but adding a rule is better. charge functions' gfp_mask should
+> > > - * be set to GFP_KERNEL or gfp_mask & GFP_RECLAIM_MASK for avoiding ambiguous
+> > > - * codes.
+> > > - * (Of course, if memcg does memory allocation in future, GFP_KERNEL is sane.)
+> > > - */
+> > 
+> > I think we should slightly modify the comment but the primary idea
+> > should stay there. What about the following?
+> > /*
+> >  * Although memcg charge functions do not allocate any memory they are
+> >  * still getting GFP mask to control the reclaim process (therefore
+> >  * gfp_mask & GFP_RECLAIM_MASK is expected).
+> >  * GFP_KERNEL should be used for the general charge path without any
+> >  * constraints for the reclaim
+> >  * __GFP_WAIT should be cleared for atomic contexts
+> >  * __GFP_NORETRY should be set for charges which might fail rather than
+> >  * spend too much time reclaiming
+> >  * __GFP_NOFAIL should be set for charges which cannot fail.
+> >  */
+> 
+> What *is* the primary idea here?
+> 
+> Taking any kind of gfp mask and interpreting the bits that pertain to
+> you is done in a lot of places already, and there really is no need to
+> duplicate the documentation and risk it getting stale and misleading.
 
-Seth, did you get a chance to review this and/or test it out?
+The idea was to document which flags do we care about as not all of them
+are implemented. On the other hand I do agree that stale doc is worse
+than no doc.
 
-
-
-On Wed, Jul 2, 2014 at 5:45 PM, Dan Streetman <ddstreet@ieee.org> wrote:
-> In order to allow zswap users to choose between zbud and zsmalloc for
-> the compressed storage pool, this patch set adds a new api "zpool" that
-> provides an interface to both zbud and zsmalloc.  This does not include
-> implementing shrinking in zsmalloc, which will be sent separately.
->
-> I believe Seth originally was using zsmalloc for swap, but there were
-> concerns about how significant the impact of shrinking zsmalloc would
-> be when zswap had to start reclaiming pages.  That still may be an
-> issue, but this at least allows users to choose themselves whether
-> they want a lower-density or higher-density compressed storage medium.
-> At least for situations where zswap reclaim is never or rarely reached,
-> it probably makes sense to use the higher density of zsmalloc.
->
-> Note this patch set does not change zram to use zpool, although that
-> change should be possible as well.
->
-> ---
-> Changes since v4 : https://lkml.org/lkml/2014/6/2/711
->   -omit first patch, that removed gfp_t param from zpool_malloc()
->   -move function doc from zpool.h to zpool.c
->   -move module usage refcounting into patch that adds zpool
->   -add extra refcounting to prevent driver unregister if in use
->   -add doc clarifying concurrency usage
->   -make zbud/zsmalloc zpool functions static
->   -typo corrections
->
-> Changes since v3 : https://lkml.org/lkml/2014/5/24/130
->   -In zpool_shrink() use # pages instead of # bytes
->   -Add reclaimed param to zpool_shrink() to indicate to caller
->    # pages actually reclaimed
->   -move module usage counting to zpool, from zbud/zsmalloc
->   -update zbud_zpool_shrink() to call zbud_reclaim_page() in a
->    loop until requested # pages have been reclaimed (or error)
->
-> Changes since v2 : https://lkml.org/lkml/2014/5/7/927
->   -Change zpool to use driver registration instead of hardcoding
->    implementations
->   -Add module use counting in zbud/zsmalloc
->
-> Changes since v1 https://lkml.org/lkml/2014/4/19/97
->  -remove zsmalloc shrinking
->  -change zbud size param type from unsigned int to size_t
->  -remove zpool fallback creation
->  -zswap manually falls back to zbud if specified type fails
->
->
-> Dan Streetman (4):
->   mm/zbud: change zbud_alloc size type to size_t
->   mm/zpool: implement common zpool api to zbud/zsmalloc
->   mm/zpool: zbud/zsmalloc implement zpool
->   mm/zpool: update zswap to use zpool
->
->  include/linux/zbud.h  |   2 +-
->  include/linux/zpool.h | 106 +++++++++++++++
->  mm/Kconfig            |  43 +++---
->  mm/Makefile           |   1 +
->  mm/zbud.c             |  98 +++++++++++++-
->  mm/zpool.c            | 364 ++++++++++++++++++++++++++++++++++++++++++++++++++
->  mm/zsmalloc.c         |  84 ++++++++++++
->  mm/zswap.c            |  75 ++++++-----
->  8 files changed, 722 insertions(+), 51 deletions(-)
->  create mode 100644 include/linux/zpool.h
->  create mode 100644 mm/zpool.c
->
-> --
-> 1.8.3.1
->
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
