@@ -1,203 +1,418 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 548BF6B0035
-	for <linux-mm@kvack.org>; Mon, 14 Jul 2014 08:58:33 -0400 (EDT)
-Received: by mail-we0-f172.google.com with SMTP id x48so2289734wes.17
-        for <linux-mm@kvack.org>; Mon, 14 Jul 2014 05:58:32 -0700 (PDT)
-Received: from unimail.uni-dortmund.de (mx1.HRZ.Uni-Dortmund.DE. [129.217.128.51])
-        by mx.google.com with ESMTP id r10si10691312wiz.104.2014.07.14.05.58.30
-        for <linux-mm@kvack.org>;
-        Mon, 14 Jul 2014 05:58:31 -0700 (PDT)
-Message-ID: <748020aaaf5c5c2924a16232313e0175.squirrel@webmail.tu-dortmund.de>
-Date: Mon, 14 Jul 2014 14:58:28 +0200
-Subject: PROBLEM: repeated remap_file_pages on tmpfs triggers bug on process
- exit
-From: "Ingo Korb" <ingo.korb@tu-dortmund.de>
-MIME-Version: 1.0
-Content-Type: multipart/mixed;boundary="----=_20140714145828_76456"
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 50E366B0035
+	for <linux-mm@kvack.org>; Mon, 14 Jul 2014 09:21:06 -0400 (EDT)
+Received: by mail-we0-f182.google.com with SMTP id q59so4103503wes.27
+        for <linux-mm@kvack.org>; Mon, 14 Jul 2014 06:21:05 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id gm1si4601021wib.20.2014.07.14.06.21.04
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 14 Jul 2014 06:21:04 -0700 (PDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch 3/3] mm: vmscan: clean up struct scan_control
+Date: Mon, 14 Jul 2014 09:20:49 -0400
+Message-Id: <1405344049-19868-4-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1405344049-19868-1-git-send-email-hannes@cmpxchg.org>
+References: <1405344049-19868-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-------=_20140714145828_76456
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: 8bit
+Reorder the members by input and output, then turn the individual
+integers for may_writepage, may_unmap, may_swap, compaction_ready,
+hibernation_mode into flags that fit into a single integer.
 
-Hi,
+Stack delta: +72/-296 -224                   old     new   delta
+kswapd                                       104     176     +72
+try_to_free_pages                             80      56     -24
+try_to_free_mem_cgroup_pages                  80      56     -24
+shrink_all_memory                             88      64     -24
+reclaim_clean_pages_from_list                168     144     -24
+mem_cgroup_shrink_node_zone                  104      80     -24
+__zone_reclaim                               176     152     -24
+balance_pgdat                                152       -    -152
 
-repeated mapping of the same file on tmpfs using remap_file_pages
-sometimes triggers a "BUG at mm/filemap.c:202" when the process exits, log
-message below. The system is an x86_64 VirtualBox machine with 2GB of RAM
-running Debian, but it could also be reproduced on a non-virtualized
-laptop.
+   text    data     bss     dec     hex filename
+  38151    5641      16   43808    ab20 mm/vmscan.o.old
+  38047    5641      16   43704    aab8 mm/vmscan.o
 
-The bug can be triggered in Linux 3.16-rc5, bisecting has located d7c17551
-as the first failing commit (mm: implement ->map_pages for shmem/tmpfs).
+Suggested-by: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/vmscan.c | 158 ++++++++++++++++++++++++++++++------------------------------
+ 1 file changed, 78 insertions(+), 80 deletions(-)
 
-A test program for this has been attached (I don't trust this webmailer to
-not mangle it). With the parameters set in the source code, the BUG
-message should be triggered within a small number of tries (usually the
-first or second). Changing the size of the memory map sometimes delays the
-bug ("while true; do ./remap-demo; done" should still trigger it within a
-few seconds) or avoids it completely - I don't see any patterns yet. Using
-(at least) two different mappings for the file, each of which has been
-remapped seem to be a requirement for triggering it.
-
-Implementing the same mappings using mmap() does not appear to cause any
-problems, but I assume that someone might care about this problem while
-remap_file_pages() is still in the kernel.
-
--ik
-
-
-------------[ cut here ]------------
-kernel BUG at mm/filemap.c:202!
-invalid opcode: 0000 [#1] SMP
-Modules linked in: uinput nfsd auth_rpcgss oid_registry nfs_acl nfs lockd
-fscache sunrpc ext3 jbd loop joydev hid_generic usbhid hid psmouse
-parport_pc ohci_pci ohci_hcd ehci_hcd usbcore ac i2c_piix4 pcspkr
-serio_raw evdev parport battery button processor i2c_core usb_common
-microcode thermal_sys ext4 crc16 jbd2 mbcache sr_mod cdrom sg sd_mod
-crc_t10dif crct10dif_common ata_generic e1000 ahci libahci ata_piix libata
-scsi_mod
-CPU: 3 PID: 2992 Comm: test Not tainted 3.16.0-rc5ik1 #37
-Hardware name: innotek GmbH VirtualBox, BIOS VirtualBox 12/01/2006 task:
-ffff88005a9363d0 ti: ffff880037968000 task.ti: ffff880037968000 RIP:
-0010:[<ffffffff810db4d3>]  [<ffffffff810db4d3>]
-__delete_from_page_cache+0x16f/0x1f6
-RSP: 0018:ffff88003796bba8  EFLAGS: 00010046
-RAX: 0000000000000000 RBX: ffffea00012ee220 RCX: 00000000ffffffe2
-RDX: 0000000000000018 RSI: 0000000000000018 RDI: ffff88005dbeb700
-RBP: ffff8800378d1c10 R08: ffff88005dbeb700 R09: 0000000000000013
-R10: 0000000000000013 R11: 0000000000000000 R12: 0000000000000000
-R13: 0000000000000003 R14: ffff8800378d1c18 R15: 000000000000000f
-FS:  0000000000000000(0000) GS:ffff88005d980000(0000)
-knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 00007f69ad38fa30 CR3: 0000000001611000 CR4: 00000000000006e0
-Stack:
- 0000000000000002 000000000000000f ffff880059899008 ffff8800598990a8
-ffff8800378d1c10 ffffea00012ee220 ffff8800378d1c28 0000000000000000
-ffff8800378d1ac0 ffff8800374d0600 0000000000000001 ffffffff810db65b
-Call Trace:
- [<ffffffff810db65b>] ? delete_from_page_cache+0x32/0x56
- [<ffffffff810e621d>] ? truncate_inode_page+0x62/0x69
- [<ffffffff810edf29>] ? shmem_undo_range+0x13f/0x3f3
- [<ffffffff810df855>] ? get_pfnblock_flags_mask+0x1d/0x4d
- [<ffffffff810e0bcb>] ? free_hot_cold_page+0x76/0x134
- [<ffffffff810e528a>] ? release_pages+0x171/0x180
- [<ffffffff810e4aa2>] ? hpage_nr_pages+0x1b/0x1b
- [<ffffffff811418df>] ? __inode_wait_for_writeback+0x67/0xae
- [<ffffffff810ee1e8>] ? shmem_truncate_range+0xb/0x25
- [<ffffffff810ee76d>] ? shmem_evict_inode+0x4f/0xed
- [<ffffffff810ee71e>] ? shmem_file_setup+0x7/0x7
- [<ffffffff81136947>] ? evict+0xa3/0x147
- [<ffffffff81133576>] ? __dentry_kill+0x103/0x173
- [<ffffffff81133983>] ? dput+0x133/0x150
- [<ffffffff8112489d>] ? __fput+0x163/0x184
- [<ffffffff8105f10c>] ? task_work_run+0x7b/0x8f
- [<ffffffff81049c69>] ? do_exit+0x3f6/0x904
- [<ffffffff8104a282>] ? do_group_exit+0x68/0x9a
- [<ffffffff8104a2c4>] ? SyS_exit_group+0x10/0x10
- [<ffffffff8138fb69>] ? system_call_fastpath+0x16/0x1b
-Code: be 0a 00 00 00 48 89 df e8 96 5b 01 00 48 8b 03 a9 00 00 08 00 74 0d
-be 18 00 00 00 48 89 df e8 7f 5b 01 00 8b 43 18 85 c0 78 02 <0f> 0b 48 8b
-03 a8 10 74 6f 48 8b 85 88 00 00 00 f6 40 20 01 75
-RIP  [<ffffffff810db4d3>] __delete_from_page_cache+0x16f/0x1f6
- RSP <ffff88003796bba8>
----[ end trace 79ae5bd27fcedca9 ]---
-Fixing recursive fault but reboot is needed!
-BUG: Bad rss-counter state mm:ffff88005aae60c0 idx:0 val:1
-
-
-
-
-------=_20140714145828_76456
-Content-Type: text/x-csrc; name="remap-demo.c"
-Content-Transfer-Encoding: 8bit
-Content-Disposition: attachment; filename="remap-demo.c"
-
-#define _GNU_SOURCE
-#include <sys/mman.h>
-#include <sys/resource.h>
-#include <errno.h>
-#include <limits.h>
-#include <malloc.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-
-#define PAGE_SIZE 4096
-// NOTE: DATA=MAP2=16 seems to trigger in the first few tries
-// NOTE: 9/9 needs a loop and a few seconds to trigger
-// NOTE: DATA=9, MAP2=8 does not trigger
-#define DATA_SIZE 16
-#define MAP2_SIZE 16
-
-int shmfd;
-char shmpath[] = "/dev/shm/mmaptest-XXXXXX";
-unsigned char *map1, *map2;
-unsigned int i;
-
-int main(int argc, char *argv[]) {
-  /* create a data file on tmpfs */
-  shmfd = mkstemp(shmpath);
-  if (shmfd < 0) {
-    perror("mkstemp");
-    exit(2);
-  }
-
-  if (unlink(shmpath)) {
-    perror("unlink");
-    exit(2);
-  }
-
-  if (ftruncate(shmfd, DATA_SIZE * PAGE_SIZE)) {
-    perror("ftruncate");
-    exit(2);
-  }
-
-  /* map a single page from the file */
-  map1 = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shmfd, 0);
-  if (map1 == MAP_FAILED) {
-    perror("mmap 1");
-    exit(2);
-  }
-
-  /* remap it to another page in the file */
-  // NOTE: Does not trigger without remapping
-  // NOTE: Does not trigger for 7, but does trigger for 8 if both sizes are 16
-  //  (DATA_SIZE-2 is sufficiently generic here)
-  if (remap_file_pages(map1, PAGE_SIZE, 0, DATA_SIZE - 2, MAP_SHARED)) {
-    perror("remap_file_pages 1");
-    exit(2);
-  }
-
-  /* create a second mapping */
-  map2 = mmap(NULL, MAP2_SIZE * PAGE_SIZE, PROT_READ | PROT_WRITE,
-              MAP_SHARED, shmfd, 0);
-  if (map2 == MAP_FAILED) {
-    perror("mmap 2");
-    exit(2);
-  }
-
-  /* map all of its pages to page 0 */
-  // NOTE: Remapping only the last page does not trigger
-  for (i = 0; i < MAP2_SIZE; i++) {
-    if (remap_file_pages(map2 + PAGE_SIZE * i, PAGE_SIZE, 0, 0, MAP_SHARED)) {
-      perror("remap_file_pages 3");
-      exit(2);
-    }
-  }
-
-  close(shmfd);
-
-  exit(0);
-}
-------=_20140714145828_76456--
-
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index c28b8981e56a..73d8e69ff3eb 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -58,36 +58,28 @@
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/vmscan.h>
+ 
+-struct scan_control {
+-	/* Incremented by the number of inactive pages that were scanned */
+-	unsigned long nr_scanned;
+-
+-	/* Number of pages freed so far during a call to shrink_zones() */
+-	unsigned long nr_reclaimed;
+-
+-	/* One of the zones is ready for compaction */
+-	int compaction_ready;
++/* Scan control flags */
++#define MAY_WRITEPAGE		0x1
++#define MAY_UNMAP		0x2
++#define MAY_SWAP		0x4
++#define MAY_SKIP_CONGESTION	0x8
++#define COMPACTION_READY	0x10
+ 
++struct scan_control {
+ 	/* How many pages shrink_list() should reclaim */
+ 	unsigned long nr_to_reclaim;
+ 
+-	unsigned long hibernation_mode;
+-
+ 	/* This context's GFP mask */
+ 	gfp_t gfp_mask;
+ 
+-	int may_writepage;
+-
+-	/* Can mapped pages be reclaimed? */
+-	int may_unmap;
+-
+-	/* Can pages be swapped as part of reclaim? */
+-	int may_swap;
+-
++	/* Allocation order */
+ 	int order;
+ 
+-	/* Scan (total_size >> priority) pages at once */
+-	int priority;
++	/*
++	 * Nodemask of nodes allowed by the caller. If NULL, all nodes
++	 * are scanned.
++	 */
++	nodemask_t	*nodemask;
+ 
+ 	/*
+ 	 * The memory cgroup that hit its limit and as a result is the
+@@ -95,11 +87,17 @@ struct scan_control {
+ 	 */
+ 	struct mem_cgroup *target_mem_cgroup;
+ 
+-	/*
+-	 * Nodemask of nodes allowed by the caller. If NULL, all nodes
+-	 * are scanned.
+-	 */
+-	nodemask_t	*nodemask;
++	/* Scan (total_size >> priority) pages at once */
++	int priority;
++
++	/* Scan control flags; see above */
++	unsigned int flags;
++
++	/* Incremented by the number of inactive pages that were scanned */
++	unsigned long nr_scanned;
++
++	/* Number of pages freed so far during a call to shrink_zones() */
++	unsigned long nr_reclaimed;
+ };
+ 
+ #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
+@@ -840,7 +838,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		if (unlikely(!page_evictable(page)))
+ 			goto cull_mlocked;
+ 
+-		if (!sc->may_unmap && page_mapped(page))
++		if (!(sc->flags & MAY_UNMAP) && page_mapped(page))
+ 			goto keep_locked;
+ 
+ 		/* Double the slab pressure for mapped and swapcache pages */
+@@ -1014,7 +1012,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 				goto keep_locked;
+ 			if (!may_enter_fs)
+ 				goto keep_locked;
+-			if (!sc->may_writepage)
++			if (!(sc->flags & MAY_WRITEPAGE))
+ 				goto keep_locked;
+ 
+ 			/* Page is dirty, try to write it out here */
+@@ -1146,7 +1144,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+ 	struct scan_control sc = {
+ 		.gfp_mask = GFP_KERNEL,
+ 		.priority = DEF_PRIORITY,
+-		.may_unmap = 1,
++		.flags = MAY_UNMAP,
+ 	};
+ 	unsigned long ret, dummy1, dummy2, dummy3, dummy4, dummy5;
+ 	struct page *page, *next;
+@@ -1489,9 +1487,9 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 
+ 	lru_add_drain();
+ 
+-	if (!sc->may_unmap)
++	if (!(sc->flags & MAY_UNMAP))
+ 		isolate_mode |= ISOLATE_UNMAPPED;
+-	if (!sc->may_writepage)
++	if (!(sc->flags & MAY_WRITEPAGE))
+ 		isolate_mode |= ISOLATE_CLEAN;
+ 
+ 	spin_lock_irq(&zone->lru_lock);
+@@ -1593,7 +1591,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 	 * is congested. Allow kswapd to continue until it starts encountering
+ 	 * unqueued dirty pages or cycling through the LRU too quickly.
+ 	 */
+-	if (!sc->hibernation_mode && !current_is_kswapd() &&
++	if (!(sc->flags & MAY_SKIP_CONGESTION) && !current_is_kswapd() &&
+ 	    current_may_throttle())
+ 		wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
+ 
+@@ -1683,9 +1681,9 @@ static void shrink_active_list(unsigned long nr_to_scan,
+ 
+ 	lru_add_drain();
+ 
+-	if (!sc->may_unmap)
++	if (!(sc->flags & MAY_UNMAP))
+ 		isolate_mode |= ISOLATE_UNMAPPED;
+-	if (!sc->may_writepage)
++	if (!(sc->flags & MAY_WRITEPAGE))
+ 		isolate_mode |= ISOLATE_CLEAN;
+ 
+ 	spin_lock_irq(&zone->lru_lock);
+@@ -1897,7 +1895,7 @@ static void get_scan_count(struct lruvec *lruvec, int swappiness,
+ 		force_scan = true;
+ 
+ 	/* If we have no swap space, do not bother scanning anon pages. */
+-	if (!sc->may_swap || (get_nr_swap_pages() <= 0)) {
++	if (!(sc->flags & MAY_SWAP) || (get_nr_swap_pages() <= 0)) {
+ 		scan_balance = SCAN_FILE;
+ 		goto out;
+ 	}
+@@ -2406,7 +2404,7 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+ 			    sc->order > PAGE_ALLOC_COSTLY_ORDER &&
+ 			    zonelist_zone_idx(z) <= requested_highidx &&
+ 			    compaction_ready(zone, sc->order)) {
+-				sc->compaction_ready = true;
++				sc->flags |= COMPACTION_READY;
+ 				continue;
+ 			}
+ 
+@@ -2496,7 +2494,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 		if (sc->nr_reclaimed >= sc->nr_to_reclaim)
+ 			break;
+ 
+-		if (sc->compaction_ready)
++		if (sc->flags & COMPACTION_READY)
+ 			break;
+ 
+ 		/*
+@@ -2504,7 +2502,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 		 * writepage even in laptop mode.
+ 		 */
+ 		if (sc->priority < DEF_PRIORITY - 2)
+-			sc->may_writepage = 1;
++			sc->flags |= MAY_WRITEPAGE;
+ 
+ 		/*
+ 		 * Try to write back as many pages as we just scanned.  This
+@@ -2517,7 +2515,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 		if (total_scanned > writeback_threshold) {
+ 			wakeup_flusher_threads(laptop_mode ? 0 : total_scanned,
+ 						WB_REASON_TRY_TO_FREE_PAGES);
+-			sc->may_writepage = 1;
++			sc->flags |= MAY_WRITEPAGE;
+ 		}
+ 	} while (--sc->priority >= 0);
+ 
+@@ -2527,7 +2525,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 		return sc->nr_reclaimed;
+ 
+ 	/* Aborted reclaim to try compaction? don't OOM, then */
+-	if (sc->compaction_ready)
++	if (sc->flags & COMPACTION_READY)
+ 		return 1;
+ 
+ 	/* Any of the zones still reclaimable?  Don't OOM. */
+@@ -2668,17 +2666,17 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ {
+ 	unsigned long nr_reclaimed;
+ 	struct scan_control sc = {
+-		.gfp_mask = (gfp_mask = memalloc_noio_flags(gfp_mask)),
+-		.may_writepage = !laptop_mode,
+ 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+-		.may_unmap = 1,
+-		.may_swap = 1,
++		.gfp_mask = (gfp_mask = memalloc_noio_flags(gfp_mask)),
+ 		.order = order,
+-		.priority = DEF_PRIORITY,
+-		.target_mem_cgroup = NULL,
+ 		.nodemask = nodemask,
++		.priority = DEF_PRIORITY,
++		.flags = MAY_UNMAP | MAY_SWAP,
+ 	};
+ 
++	if (!laptop_mode)
++		sc.flags |= MAY_WRITEPAGE;
++
+ 	/*
+ 	 * Do not enter reclaim if fatal signal was delivered while throttled.
+ 	 * 1 is returned so that the page allocator does not OOM kill at this
+@@ -2688,7 +2686,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 		return 1;
+ 
+ 	trace_mm_vmscan_direct_reclaim_begin(order,
+-				sc.may_writepage,
++				sc.flags & MAY_WRITEPAGE,
+ 				gfp_mask);
+ 
+ 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
+@@ -2706,23 +2704,22 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *memcg,
+ 						unsigned long *nr_scanned)
+ {
+ 	struct scan_control sc = {
+-		.nr_scanned = 0,
+ 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+-		.may_writepage = !laptop_mode,
+-		.may_unmap = 1,
+-		.may_swap = !noswap,
+-		.order = 0,
+-		.priority = 0,
++		.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
++		            (GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK),
+ 		.target_mem_cgroup = memcg,
++		.flags = MAY_UNMAP,
+ 	};
+ 	struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone, memcg);
+ 	int swappiness = mem_cgroup_swappiness(memcg);
+ 
+-	sc.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+-			(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK);
++	if (!laptop_mode)
++		sc.flags |= MAY_WRITEPAGE;
++	if (!noswap)
++		sc.flags |= MAY_SWAP;
+ 
+ 	trace_mm_vmscan_memcg_softlimit_reclaim_begin(sc.order,
+-						      sc.may_writepage,
++						      sc.flags & MAY_WRITEPAGE,
+ 						      sc.gfp_mask);
+ 
+ 	/*
+@@ -2748,18 +2745,19 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 	unsigned long nr_reclaimed;
+ 	int nid;
+ 	struct scan_control sc = {
+-		.may_writepage = !laptop_mode,
+-		.may_unmap = 1,
+-		.may_swap = !noswap,
+ 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+-		.order = 0,
+-		.priority = DEF_PRIORITY,
+-		.target_mem_cgroup = memcg,
+-		.nodemask = NULL, /* we don't care the placement */
+ 		.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
+-				(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK),
++		            (GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK),
++		.target_mem_cgroup = memcg,
++		.priority = DEF_PRIORITY,
++		.flags = MAY_UNMAP,
+ 	};
+ 
++	if (!laptop_mode)
++		sc.flags |= MAY_WRITEPAGE;
++	if (!noswap)
++		sc.flags |= MAY_SWAP;
++
+ 	/*
+ 	 * Unlike direct reclaim via alloc_pages(), memcg's reclaim doesn't
+ 	 * take care of from where we get pages. So the node where we start the
+@@ -2770,7 +2768,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 	zonelist = NODE_DATA(nid)->node_zonelists;
+ 
+ 	trace_mm_vmscan_memcg_reclaim_begin(0,
+-					    sc.may_writepage,
++					    sc.flags & MAY_WRITEPAGE,
+ 					    sc.gfp_mask);
+ 
+ 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
+@@ -3015,15 +3013,15 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 	unsigned long nr_soft_scanned;
+ 	struct scan_control sc = {
+ 		.gfp_mask = GFP_KERNEL,
+-		.priority = DEF_PRIORITY,
+-		.may_unmap = 1,
+-		.may_swap = 1,
+-		.may_writepage = !laptop_mode,
+ 		.order = order,
+-		.target_mem_cgroup = NULL,
++		.priority = DEF_PRIORITY,
++		.flags = MAY_UNMAP | MAY_SWAP,
+ 	};
+ 	count_vm_event(PAGEOUTRUN);
+ 
++	if (!laptop_mode)
++		sc.flags |= MAY_WRITEPAGE;
++
+ 	do {
+ 		unsigned long lru_pages = 0;
+ 		unsigned long nr_attempted = 0;
+@@ -3104,7 +3102,7 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
+ 		 * even in laptop mode.
+ 		 */
+ 		if (sc.priority < DEF_PRIORITY - 2)
+-			sc.may_writepage = 1;
++			sc.flags |= MAY_WRITEPAGE;
+ 
+ 		/*
+ 		 * Now scan the zone in the dma->highmem direction, stopping
+@@ -3401,14 +3399,11 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
+ {
+ 	struct reclaim_state reclaim_state;
+ 	struct scan_control sc = {
+-		.gfp_mask = GFP_HIGHUSER_MOVABLE,
+-		.may_swap = 1,
+-		.may_unmap = 1,
+-		.may_writepage = 1,
+ 		.nr_to_reclaim = nr_to_reclaim,
+-		.hibernation_mode = 1,
+-		.order = 0,
++		.gfp_mask = GFP_HIGHUSER_MOVABLE,
+ 		.priority = DEF_PRIORITY,
++		.flags = MAY_WRITEPAGE | MAY_UNMAP | MAY_SWAP |
++		         MAY_SKIP_CONGESTION,
+ 	};
+ 	struct zonelist *zonelist = node_zonelist(numa_node_id(), sc.gfp_mask);
+ 	struct task_struct *p = current;
+@@ -3588,19 +3583,22 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 	struct task_struct *p = current;
+ 	struct reclaim_state reclaim_state;
+ 	struct scan_control sc = {
+-		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
+-		.may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+-		.may_swap = 1,
+ 		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
+ 		.gfp_mask = (gfp_mask = memalloc_noio_flags(gfp_mask)),
+ 		.order = order,
+ 		.priority = ZONE_RECLAIM_PRIORITY,
++		.flags = MAY_SWAP,
+ 	};
+ 	struct shrink_control shrink = {
+ 		.gfp_mask = sc.gfp_mask,
+ 	};
+ 	unsigned long nr_slab_pages0, nr_slab_pages1;
+ 
++	if (zone_reclaim_mode & RECLAIM_WRITE)
++		sc.flags |= MAY_WRITEPAGE;
++	if (zone_reclaim_mode & RECLAIM_SWAP)
++		sc.flags |= MAY_UNMAP;
++
+ 	cond_resched();
+ 	/*
+ 	 * We need to be able to allocate from the reserves for RECLAIM_SWAP
+-- 
+2.0.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
