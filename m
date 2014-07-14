@@ -1,41 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f45.google.com (mail-qa0-f45.google.com [209.85.216.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 14BB06B0035
-	for <linux-mm@kvack.org>; Mon, 14 Jul 2014 16:51:14 -0400 (EDT)
-Received: by mail-qa0-f45.google.com with SMTP id cm18so2318325qab.18
-        for <linux-mm@kvack.org>; Mon, 14 Jul 2014 13:51:13 -0700 (PDT)
-Received: from qmta12.emeryville.ca.mail.comcast.net (qmta12.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:227])
-        by mx.google.com with ESMTP id v7si17184308qgv.4.2014.07.14.13.51.13
-        for <linux-mm@kvack.org>;
-        Mon, 14 Jul 2014 13:51:13 -0700 (PDT)
-Date: Mon, 14 Jul 2014 15:51:08 -0500 (CDT)
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: vmstat: On demand vmstat workers V8
-In-Reply-To: <alpine.LSU.2.11.1407141306150.17828@eggly.anvils>
-Message-ID: <alpine.DEB.2.11.1407141550500.29438@gentwo.org>
-References: <alpine.DEB.2.11.1407100903130.12483@gentwo.org> <20140711132032.GB26045@localhost.localdomain> <alpine.DEB.2.11.1407110855030.25432@gentwo.org> <20140711135854.GD26045@localhost.localdomain> <alpine.DEB.2.11.1407111016040.26485@gentwo.org>
- <20140711151935.GE26045@localhost.localdomain> <alpine.DEB.2.11.1407111022320.26485@gentwo.org> <alpine.LSU.2.11.1407141306150.17828@eggly.anvils>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id A48DE6B0035
+	for <linux-mm@kvack.org>; Mon, 14 Jul 2014 19:50:46 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id y10so1692167pdj.14
+        for <linux-mm@kvack.org>; Mon, 14 Jul 2014 16:50:46 -0700 (PDT)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id dv3si5163276pdb.238.2014.07.14.16.50.45
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 14 Jul 2014 16:50:45 -0700 (PDT)
+Received: by mail-pa0-f54.google.com with SMTP id fa1so2814777pad.13
+        for <linux-mm@kvack.org>; Mon, 14 Jul 2014 16:50:45 -0700 (PDT)
+Message-ID: <53C46CBE.60605@gmail.com>
+Date: Tue, 15 Jul 2014 07:50:22 +0800
+From: Wang Sheng-Hui <shhuiw@gmail.com>
+MIME-Version: 1.0
+Subject: [PATCH] mm: remove the unused gfp arg to shmem_add_to_page_cache
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Frederic Weisbecker <fweisbec@gmail.com>, akpm@linux-foundation.org, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org, peterz@infradead.org
+To: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-On Mon, 14 Jul 2014, Hugh Dickins wrote:
 
-> On Fri, 11 Jul 2014, Christoph Lameter wrote:
-> > On Fri, 11 Jul 2014, Frederic Weisbecker wrote:
-> >
-> > > Maybe just merge both? The whole looks good.
-> >
-> > I hope so. Andrew?
->
-> I hope so, too: I know there are idle feckless^Htickless people
-> eager for it.  I did take the briefest of looks, but couldn't
-> really find any mm change to ack or otherwise: if Frederic is
-> happy with it now, seems good to go.
+The gfp arg is not used in shmem_add_to_page_cache.
+Remove this unused arg.
 
-No its all self containted in mm/vmstat.c now.
+Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
+---
+ mm/shmem.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 1140f49..63cc6af 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -280,7 +280,7 @@ static bool shmem_confirm_swap(struct address_space *mapping,
+  */
+ static int shmem_add_to_page_cache(struct page *page,
+                                   struct address_space *mapping,
+-                                  pgoff_t index, gfp_t gfp, void *expected)
++                                  pgoff_t index, void *expected)
+ {
+        int error;
+
+@@ -643,7 +643,7 @@ static int shmem_unuse_inode(struct shmem_inode_info *info,
+         */
+        if (!error)
+                error = shmem_add_to_page_cache(*pagep, mapping, index,
+-                                               GFP_NOWAIT, radswap);
++                                               radswap);
+        if (error != -ENOMEM) {
+                /*
+                 * Truncation and eviction use free_swap_and_cache(), which
+@@ -1089,7 +1089,7 @@ repeat:
+                                                gfp & GFP_RECLAIM_MASK);
+                if (!error) {
+                        error = shmem_add_to_page_cache(page, mapping, index,
+-                                               gfp, swp_to_radix_entry(swap));
++                                               swp_to_radix_entry(swap));
+                        /*
+                         * We already confirmed swap under page lock, and make
+                         * no memory allocation here, so usually no possibility
+@@ -1152,7 +1152,7 @@ repeat:
+                error = radix_tree_maybe_preload(gfp & GFP_RECLAIM_MASK);
+                if (!error) {
+                        error = shmem_add_to_page_cache(page, mapping, index,
+-                                                       gfp, NULL);
++                                                       NULL);
+                        radix_tree_preload_end();
+                }
+                if (error) {
+-- 
+1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
