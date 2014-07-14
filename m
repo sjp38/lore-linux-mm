@@ -1,162 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id F2F936B0035
-	for <linux-mm@kvack.org>; Mon, 14 Jul 2014 07:01:43 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id bj1so1762469pad.21
-        for <linux-mm@kvack.org>; Mon, 14 Jul 2014 04:01:43 -0700 (PDT)
-Received: from fgwmail6.fujitsu.co.jp (fgwmail6.fujitsu.co.jp. [192.51.44.36])
-        by mx.google.com with ESMTPS id ko1si8902890pbd.115.2014.07.14.04.01.42
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 14 Jul 2014 04:01:42 -0700 (PDT)
-Received: from kw-mxauth.gw.nic.fujitsu.com (unknown [10.0.237.134])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 6DE8F3EE0BD
-	for <linux-mm@kvack.org>; Mon, 14 Jul 2014 20:01:41 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.nic.fujitsu.com [10.0.50.94])
-	by kw-mxauth.gw.nic.fujitsu.com (Postfix) with ESMTP id 811BDAC042A
-	for <linux-mm@kvack.org>; Mon, 14 Jul 2014 20:01:40 +0900 (JST)
-Received: from g01jpfmpwyt01.exch.g01.fujitsu.local (g01jpfmpwyt01.exch.g01.fujitsu.local [10.128.193.38])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 29AE41DB8032
-	for <linux-mm@kvack.org>; Mon, 14 Jul 2014 20:01:40 +0900 (JST)
-Message-ID: <53C3B867.2020005@jp.fujitsu.com>
-Date: Mon, 14 Jul 2014 20:00:55 +0900
-From: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 548BF6B0035
+	for <linux-mm@kvack.org>; Mon, 14 Jul 2014 08:58:33 -0400 (EDT)
+Received: by mail-we0-f172.google.com with SMTP id x48so2289734wes.17
+        for <linux-mm@kvack.org>; Mon, 14 Jul 2014 05:58:32 -0700 (PDT)
+Received: from unimail.uni-dortmund.de (mx1.HRZ.Uni-Dortmund.DE. [129.217.128.51])
+        by mx.google.com with ESMTP id r10si10691312wiz.104.2014.07.14.05.58.30
+        for <linux-mm@kvack.org>;
+        Mon, 14 Jul 2014 05:58:31 -0700 (PDT)
+Message-ID: <748020aaaf5c5c2924a16232313e0175.squirrel@webmail.tu-dortmund.de>
+Date: Mon, 14 Jul 2014 14:58:28 +0200
+Subject: PROBLEM: repeated remap_file_pages on tmpfs triggers bug on process
+ exit
+From: "Ingo Korb" <ingo.korb@tu-dortmund.de>
 MIME-Version: 1.0
-Subject: Re: xfs: two deadlock problems occur when kswapd writebacks XFS pages.
-References: <53A0013A.1010100@jp.fujitsu.com> <20140617132609.GI9508@dastard>	<53A15DC7.50001@jp.fujitsu.com> <53A7D6CC.1040605@jp.fujitsu.com> <20140624220530.GD1976@devil.localdomain>
-In-Reply-To: <20140624220530.GD1976@devil.localdomain>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed;boundary="----=_20140714145828_76456"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: david@fromorbit.com
-Cc: linux-mm@kvack.org, xfs@oss.sgi.com
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 
-Hi Dave,
+------=_20140714145828_76456
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: 8bit
 
-Thank you for your comment! and I apologize for my delayed response.
+Hi,
 
-As your comment, I have investigated again the RHEL7 crash dump
-why the processes which doing direct memory reclaim are stuck
-at shrink_inactive_list(). Then, I found the reason that the processes
-and kswapd are trying to free page caches from a zone despite
-the number of inactive file pages is very very small (40 pages).
-kswapd moved inactive file pages to isolate file pages to free the
-pages at shrink_inactive_list(). As the result, NR_INACTIVE_FILE
-was 0 and NR_ISOLATED_FILE was 40.
-Therefore, no one can increase NR_INACTIVE_FILE or decrease
-NR_ISOLATED_FILE, so the system hangs up.
-In such situation, we should not try to free inactive file
-pages because kswapd and direct memory reclaimer can move inactive
-file pages to isolate file pages up to 32 pages.
+repeated mapping of the same file on tmpfs using remap_file_pages
+sometimes triggers a "BUG at mm/filemap.c:202" when the process exits, log
+message below. The system is an x86_64 VirtualBox machine with 2GB of RAM
+running Debian, but it could also be reproduced on a non-virtualized
+laptop.
 
-And, I found why the problems did not happen on the upstream kernel.
-The problems did not happen because of the following commit.
----
-commit 623762517e2370be3b3f95f4fe08d6c063a49b06
-Author: Johannes Weiner <hannes@cmpxchg.org>
-Date:   Tue May 6 12:50:07 2014 -0700
+The bug can be triggered in Linux 3.16-rc5, bisecting has located d7c17551
+as the first failing commit (mm: implement ->map_pages for shmem/tmpfs).
 
-     revert "mm: vmscan: do not swap anon pages just because free+file 
-is low"
----
+A test program for this has been attached (I don't trust this webmailer to
+not mangle it). With the parameters set in the source code, the BUG
+message should be triggered within a small number of tries (usually the
+first or second). Changing the size of the memory map sometimes delays the
+bug ("while true; do ./remap-demo; done" should still trigger it within a
+few seconds) or avoids it completely - I don't see any patterns yet. Using
+(at least) two different mappings for the file, each of which has been
+remapped seem to be a requirement for triggering it.
 
-Thank you so much!
+Implementing the same mappings using mmap() does not appear to cause any
+problems, but I assume that someone might care about this problem while
+remap_file_pages() is still in the kernel.
 
-Masayoshi Mizuma
-On Wed, 25 Jun 2014 08:05:30 +1000 Dave Chinner wrote:
-> On Mon, Jun 23, 2014 at 04:27:08PM +0900, Masayoshi Mizuma wrote:
->> Hi Dave,
->>
->> (I removed CCing xfs and linux-mm. And I changed your email address
->>   to @redhat.com because this email includes RHEL7 kernel stack traces.)
->
-> Please don't do that. There's nothing wrong with posting RHEL7 stack
-> traces to public lists (though I'd prefer you to reproduce this
-> problem on a 3.15 or 3.16-rc kernel), and breaking the thread of
-> discussion makes it impossible to involve the people necessary to
-> solve this problem.
->
-> I've re-added xfs and linux-mm to the cc list, and taken my redhat
-> address off it...
->
-> <snip the 3 process back traces>
->
-> [looks at sysrq-w output]
->
-> kswapd0 is blocked in shrink_inactive_list/congestion_wait().
->
-> kswapd1 is blocked waiting for log space from
-> shrink_inactive_list().
->
-> kthreadd is blocked in shrink_inactive_list/congestion_wait trying
-> to fork another process.
->
-> xfsaild is in uninterruptible sleep, indicating that there is still
-> metadata to be written to push the log tail to it's required target,
-> and it will retry again in less than 20ms.
->
-> xfslogd is not blocked, indicating the log has not deadlocked
-> due to lack of space.
->
-> there are lots of timestamp updates waiting for log space.
->
-> There is one kworker stuck in data IO completion on an inode lock.
->
-> There are several threads blocked on an AGF lock trying to free
-> extents.
->
-> The bdi writeback thread is blocked waiting for allocation.
->
-> A single xfs_alloc_wq kworker is blocked in
-> shrink_inactive_list/congestion_wait while trying to read in btree
-> blocks for transactional modification. Indicative of memory pressure
-> trashing the working set of cached metadata. waiting for memory
-> reclaim
-> 	- holds agf lock, blocks unlinks
->
-> There are 113 (!) blocked sadc processes - why are there so many
-> stats gathering processes running? If you stop gathering stats, does
-> the problem go away?
->
-> There are 54 mktemp processes blocked - what is generating them?
-> what filesystem are they actually running on? i.e. which XFS
-> filesystem in the system is having log space shortages? And what is
-> the xfs_info output of that filesystem i.e. have you simply
-> oversubscribed a tiny log and so it crawls along at a very slow
-> pace?
->
-> All of the blocked processes are on CPUs 0-3 i.e. on node 0, which
-> is handled by kswapd0, which is not blocked waiting for log
-> space. Hmmm - what is the value of /proc/sys/vm/zone_reclaim_mode?
-> If it is not zero, does setting it to zero make the problem go away?
->
-> Interestingly enough, for a system under extreme memory pressure,
-> don't see any processes blocked waiting for swap space or swap IO.
-> Do you have any swap space configured on this machine?  If you
-> don't, does the problem go away when you add a swap device?
->
-> Overall, I can't see anything that indicates that the filesystem has
-> actually hung. I can see it having trouble allocating the memory it
-> needs to make forwards progress, but the system itself is not
-> deadlocked. Is there any IO being issued when the system is in this
-> state? If there is Io being issued, then progress is being made and
-> the system is merely slow because of the extreme memory pressure
-> generated by the stress test.
->
-> If there is not IO being issued, does the system start making
-> progress again if you kill one of the memory hogs? i.e. does the
-> equivalent of triggering an OOM-kill make the system responsive
-> again? If it does, then the filesystem is not hung and the problem
-> is that there isn't enough free memory to allow the filesystem to do
-> IO and hence allow memory reclaim to make progress. In which case,
-> does increasing /proc/sys/vm/min_free_kbytes make the problem go
-> away?
->
-> Cheers,
->
-> Dave.
->
+-ik
+
+
+------------[ cut here ]------------
+kernel BUG at mm/filemap.c:202!
+invalid opcode: 0000 [#1] SMP
+Modules linked in: uinput nfsd auth_rpcgss oid_registry nfs_acl nfs lockd
+fscache sunrpc ext3 jbd loop joydev hid_generic usbhid hid psmouse
+parport_pc ohci_pci ohci_hcd ehci_hcd usbcore ac i2c_piix4 pcspkr
+serio_raw evdev parport battery button processor i2c_core usb_common
+microcode thermal_sys ext4 crc16 jbd2 mbcache sr_mod cdrom sg sd_mod
+crc_t10dif crct10dif_common ata_generic e1000 ahci libahci ata_piix libata
+scsi_mod
+CPU: 3 PID: 2992 Comm: test Not tainted 3.16.0-rc5ik1 #37
+Hardware name: innotek GmbH VirtualBox, BIOS VirtualBox 12/01/2006 task:
+ffff88005a9363d0 ti: ffff880037968000 task.ti: ffff880037968000 RIP:
+0010:[<ffffffff810db4d3>]  [<ffffffff810db4d3>]
+__delete_from_page_cache+0x16f/0x1f6
+RSP: 0018:ffff88003796bba8  EFLAGS: 00010046
+RAX: 0000000000000000 RBX: ffffea00012ee220 RCX: 00000000ffffffe2
+RDX: 0000000000000018 RSI: 0000000000000018 RDI: ffff88005dbeb700
+RBP: ffff8800378d1c10 R08: ffff88005dbeb700 R09: 0000000000000013
+R10: 0000000000000013 R11: 0000000000000000 R12: 0000000000000000
+R13: 0000000000000003 R14: ffff8800378d1c18 R15: 000000000000000f
+FS:  0000000000000000(0000) GS:ffff88005d980000(0000)
+knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 00007f69ad38fa30 CR3: 0000000001611000 CR4: 00000000000006e0
+Stack:
+ 0000000000000002 000000000000000f ffff880059899008 ffff8800598990a8
+ffff8800378d1c10 ffffea00012ee220 ffff8800378d1c28 0000000000000000
+ffff8800378d1ac0 ffff8800374d0600 0000000000000001 ffffffff810db65b
+Call Trace:
+ [<ffffffff810db65b>] ? delete_from_page_cache+0x32/0x56
+ [<ffffffff810e621d>] ? truncate_inode_page+0x62/0x69
+ [<ffffffff810edf29>] ? shmem_undo_range+0x13f/0x3f3
+ [<ffffffff810df855>] ? get_pfnblock_flags_mask+0x1d/0x4d
+ [<ffffffff810e0bcb>] ? free_hot_cold_page+0x76/0x134
+ [<ffffffff810e528a>] ? release_pages+0x171/0x180
+ [<ffffffff810e4aa2>] ? hpage_nr_pages+0x1b/0x1b
+ [<ffffffff811418df>] ? __inode_wait_for_writeback+0x67/0xae
+ [<ffffffff810ee1e8>] ? shmem_truncate_range+0xb/0x25
+ [<ffffffff810ee76d>] ? shmem_evict_inode+0x4f/0xed
+ [<ffffffff810ee71e>] ? shmem_file_setup+0x7/0x7
+ [<ffffffff81136947>] ? evict+0xa3/0x147
+ [<ffffffff81133576>] ? __dentry_kill+0x103/0x173
+ [<ffffffff81133983>] ? dput+0x133/0x150
+ [<ffffffff8112489d>] ? __fput+0x163/0x184
+ [<ffffffff8105f10c>] ? task_work_run+0x7b/0x8f
+ [<ffffffff81049c69>] ? do_exit+0x3f6/0x904
+ [<ffffffff8104a282>] ? do_group_exit+0x68/0x9a
+ [<ffffffff8104a2c4>] ? SyS_exit_group+0x10/0x10
+ [<ffffffff8138fb69>] ? system_call_fastpath+0x16/0x1b
+Code: be 0a 00 00 00 48 89 df e8 96 5b 01 00 48 8b 03 a9 00 00 08 00 74 0d
+be 18 00 00 00 48 89 df e8 7f 5b 01 00 8b 43 18 85 c0 78 02 <0f> 0b 48 8b
+03 a8 10 74 6f 48 8b 85 88 00 00 00 f6 40 20 01 75
+RIP  [<ffffffff810db4d3>] __delete_from_page_cache+0x16f/0x1f6
+ RSP <ffff88003796bba8>
+---[ end trace 79ae5bd27fcedca9 ]---
+Fixing recursive fault but reboot is needed!
+BUG: Bad rss-counter state mm:ffff88005aae60c0 idx:0 val:1
+
+
+
+
+------=_20140714145828_76456
+Content-Type: text/x-csrc; name="remap-demo.c"
+Content-Transfer-Encoding: 8bit
+Content-Disposition: attachment; filename="remap-demo.c"
+
+#define _GNU_SOURCE
+#include <sys/mman.h>
+#include <sys/resource.h>
+#include <errno.h>
+#include <limits.h>
+#include <malloc.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#define PAGE_SIZE 4096
+// NOTE: DATA=MAP2=16 seems to trigger in the first few tries
+// NOTE: 9/9 needs a loop and a few seconds to trigger
+// NOTE: DATA=9, MAP2=8 does not trigger
+#define DATA_SIZE 16
+#define MAP2_SIZE 16
+
+int shmfd;
+char shmpath[] = "/dev/shm/mmaptest-XXXXXX";
+unsigned char *map1, *map2;
+unsigned int i;
+
+int main(int argc, char *argv[]) {
+  /* create a data file on tmpfs */
+  shmfd = mkstemp(shmpath);
+  if (shmfd < 0) {
+    perror("mkstemp");
+    exit(2);
+  }
+
+  if (unlink(shmpath)) {
+    perror("unlink");
+    exit(2);
+  }
+
+  if (ftruncate(shmfd, DATA_SIZE * PAGE_SIZE)) {
+    perror("ftruncate");
+    exit(2);
+  }
+
+  /* map a single page from the file */
+  map1 = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shmfd, 0);
+  if (map1 == MAP_FAILED) {
+    perror("mmap 1");
+    exit(2);
+  }
+
+  /* remap it to another page in the file */
+  // NOTE: Does not trigger without remapping
+  // NOTE: Does not trigger for 7, but does trigger for 8 if both sizes are 16
+  //  (DATA_SIZE-2 is sufficiently generic here)
+  if (remap_file_pages(map1, PAGE_SIZE, 0, DATA_SIZE - 2, MAP_SHARED)) {
+    perror("remap_file_pages 1");
+    exit(2);
+  }
+
+  /* create a second mapping */
+  map2 = mmap(NULL, MAP2_SIZE * PAGE_SIZE, PROT_READ | PROT_WRITE,
+              MAP_SHARED, shmfd, 0);
+  if (map2 == MAP_FAILED) {
+    perror("mmap 2");
+    exit(2);
+  }
+
+  /* map all of its pages to page 0 */
+  // NOTE: Remapping only the last page does not trigger
+  for (i = 0; i < MAP2_SIZE; i++) {
+    if (remap_file_pages(map2 + PAGE_SIZE * i, PAGE_SIZE, 0, 0, MAP_SHARED)) {
+      perror("remap_file_pages 3");
+      exit(2);
+    }
+  }
+
+  close(shmfd);
+
+  exit(0);
+}
+------=_20140714145828_76456--
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
