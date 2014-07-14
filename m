@@ -1,22 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
-	by kanga.kvack.org (Postfix) with ESMTP id EEBED6B0035
-	for <linux-mm@kvack.org>; Mon, 14 Jul 2014 10:09:36 -0400 (EDT)
-Received: by mail-qa0-f49.google.com with SMTP id dc16so3229164qab.8
-        for <linux-mm@kvack.org>; Mon, 14 Jul 2014 07:09:36 -0700 (PDT)
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id D4A1F6B0036
+	for <linux-mm@kvack.org>; Mon, 14 Jul 2014 10:10:22 -0400 (EDT)
+Received: by mail-wi0-f179.google.com with SMTP id f8so1677811wiw.0
+        for <linux-mm@kvack.org>; Mon, 14 Jul 2014 07:10:19 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t14si15481894qac.66.2014.07.14.07.09.35
+        by mx.google.com with ESMTPS id fw9si16017570wjb.82.2014.07.14.07.10.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 14 Jul 2014 07:09:36 -0700 (PDT)
-Message-ID: <53C3E494.90909@redhat.com>
-Date: Mon, 14 Jul 2014 10:09:24 -0400
+        Mon, 14 Jul 2014 07:10:18 -0700 (PDT)
+Message-ID: <53C3E4BE.2010505@redhat.com>
+Date: Mon, 14 Jul 2014 10:10:06 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [patch 1/3] mm: vmscan: rework compaction-ready signaling in
- direct reclaim fix
-References: <1405344049-19868-1-git-send-email-hannes@cmpxchg.org> <1405344049-19868-2-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1405344049-19868-2-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [patch 2/3] mm: vmscan: remove all_unreclaimable() fix
+References: <1405344049-19868-1-git-send-email-hannes@cmpxchg.org> <1405344049-19868-3-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1405344049-19868-3-git-send-email-hannes@cmpxchg.org>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -28,11 +27,13 @@ Cc: Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <mi
 Hash: SHA1
 
 On 07/14/2014 09:20 AM, Johannes Weiner wrote:
-> As per Mel, replace out label with breaks from the loop.
+> As per Mel, use bool for reclaimability throughout and simplify
+> the reclaimability tracking in shrink_zones().
 > 
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
 Acked-by: Rik van Riel <riel@redhat.com>
+
 
 - -- 
 All rights reversed
@@ -40,13 +41,13 @@ All rights reversed
 Version: GnuPG v1
 Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
 
-iQEcBAEBAgAGBQJTw+SUAAoJEM553pKExN6Dj4wH/imfBq+85Kpjrw4NQltD+uUt
-0pAzt/SX9IfiUcowi/1i1jWUKhMAfrY4SCG14g3ErKnIprMT8oa9ujRGCpnnZud2
-eqLDFIHM8BlLNfIOV6a96+i1JpFDLbNL8WBjlew6X7ZDZamUG6j+0XxBOtwVemn6
-Yj+cubH6mgPtovGRHdEDnyb4JOw5eue4/vIpumdTak3mnKghRpAxdN5tq7h13e1a
-w/tweAWFspYHBkUj6FjeGiXrttNF7ToOy0cJeypZJZJfZFRwHBYStTe81iLa7jld
-eNmfr48eLjnHrvZAN+lFm/DPuqU4ISuoCnL9N67OCudLrj8YbBzw8tOYNvff7fw=
-=bbE9
+iQEcBAEBAgAGBQJTw+S+AAoJEM553pKExN6DtvYH/RXaEx/lWC9UR5eRQ8nQy2L4
+V87wVoWPXauuIeJrGurTV28cvqUW/JXNAmnONuGdRI//9jE2vMZmVi2X5V4CnGv2
+zpMsM2MhIn7tzBKW7AlBLHBC9nUEIHpo+OA3IvCvQsgG5qWNkdWOTUv1xkiqTuuQ
+Nu7pxiNH360Dp+g2VCuFU2+nrjcKKSolsMBqEvGGP+Dh3/G5EQpQ/lQJ0/a/4q1y
+/ew0HCYRfH2/kCMKxixTtUXR7QcMw4L4AkD0fHoisRoyuVAws4QwYA4zB1FKpxgr
+XIsVPLftQc8f+++Djone+RvPaPmUOvXrf8UdbxTG5wrfBJ9aPB5AuecWqOOO22g=
+=3M3e
 -----END PGP SIGNATURE-----
 
 --
