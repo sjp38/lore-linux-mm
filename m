@@ -1,99 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EDA16B0037
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 17:07:19 -0400 (EDT)
-Received: by mail-ig0-f172.google.com with SMTP id h15so3392576igd.17
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 14:07:19 -0700 (PDT)
-Received: from mail-ig0-x236.google.com (mail-ig0-x236.google.com [2607:f8b0:4001:c05::236])
-        by mx.google.com with ESMTPS id t6si19895565igr.26.2014.07.15.14.07.18
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id E43466B0031
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 17:33:09 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id et14so11382pad.7
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 14:33:09 -0700 (PDT)
+Received: from g2t2354.austin.hp.com (g2t2354.austin.hp.com. [15.217.128.53])
+        by mx.google.com with ESMTPS id i5si6358894pdj.393.2014.07.15.14.33.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 15 Jul 2014 14:07:18 -0700 (PDT)
-Received: by mail-ig0-f182.google.com with SMTP id c1so114172igq.15
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 14:07:18 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20140715134206.5d4964569fe0c64e39873416@linux-foundation.org>
-References: <CALYGNiM9Fu9-i7hXMQNTUP69RfydN+2NqO29wZYd+4Gn25GbCQ@mail.gmail.com>
-	<20140715115832.18997.90349.stgit@buzz>
-	<20140715134206.5d4964569fe0c64e39873416@linux-foundation.org>
-Date: Wed, 16 Jul 2014 01:07:18 +0400
-Message-ID: <CALYGNiPaRduVSEEWT-0H84ukNhM7WC5aeWHjKW+u+YqNMp5w2g@mail.gmail.com>
-Subject: Re: [PATCH] mm: do not call do_fault_around for non-linear fault
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 15 Jul 2014 14:33:08 -0700 (PDT)
+Message-ID: <1405459404.28702.17.camel@misato.fc.hp.com>
+Subject: Re: [RFC PATCH 0/11] Support Write-Through mapping on x86
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Tue, 15 Jul 2014 15:23:24 -0600
+In-Reply-To: <53C58A69.3070207@zytor.com>
+References: <1405452884-25688-1-git-send-email-toshi.kani@hp.com>
+	 <53C58A69.3070207@zytor.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Konstantin Khlebnikov <k.khlebnikov@samsung.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Sasha Levin <sasha.levin@oracle.com>, Ingo Korb <ingo.korb@tu-dortmund.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Jones <davej@redhat.com>, Ning Qu <quning@google.com>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, konrad.wilk@oracle.com, plagnioj@jcrosoft.com, tomi.valkeinen@ti.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, airlied@gmail.com, bp@alien8.de
 
-On Wed, Jul 16, 2014 at 12:42 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Tue, 15 Jul 2014 15:58:32 +0400 Konstantin Khlebnikov <k.khlebnikov@samsung.com> wrote:
->
->> From: Konstantin Khlebnikov <koct9i@gmail.com>
->>
->> Faulting around non-linear page-fault has no sense and
->> breaks logic in do_fault_around because pgoff is shifted.
->>
->
-> Please be a lot more careful with the changelogs?  This one failed to
-> describe the effects of the bug, failed to adequately describe the bug
-> itself, failed to describe the offending commits and failed to identify
-> which kernel versions need the patch.
+On Tue, 2014-07-15 at 13:09 -0700, H. Peter Anvin wrote:
+> On 07/15/2014 12:34 PM, Toshi Kani wrote:
+> > This RFC patchset is aimed to seek comments/suggestions for the design
+> > and changes to support of Write-Through (WT) mapping.  The study below
+> > shows that using WT mapping may be useful for non-volatile memory.
+> > 
+> >   http://www.hpl.hp.com/techreports/2012/HPL-2012-236.pdf
+> > 
+> > There were idea & patches to support WT in the past, which stimulated
+> > very valuable discussions on this topic.
+> > 
+> >   https://lkml.org/lkml/2013/4/24/424
+> >   https://lkml.org/lkml/2013/10/27/70
+> >   https://lkml.org/lkml/2013/11/3/72
+> > 
+> > This RFC patchset tries to address the issues raised by taking the
+> > following design approach:
+> > 
+> >  - Keep the MTRR interface
+> >  - Keep the WB, WC, and UC- slots in the PAT MSR
+> >  - Keep the PAT bit unused
+> >  - Reassign the UC slot to WT in the PAT MSR
+> > 
+> > There are 4 usable slots in the PAT MSR, which are currently assigned to:
+> > 
+> >   PA0/4: WB, PA1/5: WC, PA2/6: UC-, PA3/7: UC
+> > 
+> > The PAT bit is unused since it shares the same bit as the PSE bit and
+> > there was a bug in older processors.  Among the 4 slots, the uncached
+> > memory type consumes 2 slots, UC- and UC.  They are functionally
+> > equivalent, but UC- allows MTRRs to overwrite it with WC.  All interfaces
+> > that set the uncached memory type use UC- in order to work with MTRRs.
+> > The PA3/7 slot is effectively unused today.  Therefore, this patchset
+> > reassigns the PA3/7 slot to WT.  If MTRRs get deprecated in future,
+> > UC- can be reassigned to UC, and there is still no need to consume
+> > 2 slots for the uncached memory type.
+> 
+> Not going to happen any time in the forseeable future.
+> 
+> Furthermore, I don't think it is a big deal if on some old, buggy
+> processors we take the performance hit of cache type demotion, as long
+> as we don't actively lose data.
+> 
+> > This patchset is consist of two parts.  The 1st part, patch [1/11] to
+> > [6/11], enables WT mapping and adds new interfaces for setting WT mapping.
+> > The 2nd part, patch [7/11] to [11/11], cleans up the code that has
+> > internal knowledge of the PAT slot assignment.  This keeps the kernel
+> > code independent from the PAT slot assignment.
+> 
+> I have given this piece of feedback at least three times now, possibly
+> to different people, and I'm getting a bit grumpy about it:
+> 
+> We already have an issue with Xen, because Xen assigned mappings
+> differently and it is incompatible with the use of PAT in Linux.  As a
+> result we get requests for hacks to work around this, which is something
+> I really don't want to see.  I would like to see a design involving a
+> "reverse PAT" table where the kernel can hold the mapping between memory
+> types and page table encodings (including the two different ones for
+> small and large pages.)
 
-Sorry for that. I thought I had already lost that bug-fixing race.
+Thanks for pointing this out! (And sorry for making you repeat it three
+time...)  I was not aware of the issue with Xen.  I will look into the
+email archive to see what the Xen issue is, and how it can be addressed.
 
->
-> Sigh.  I went back and assembled the necessary information, below.
-> Please check it.
->
->
->
-> From: Konstantin Khlebnikov <koct9i@gmail.com>
-> Subject: mm: do not call do_fault_around for non-linear fault
->
-> Ingo Korb reported that "repeated mapping of the same file on tmpfs using
-> remap_file_pages sometimes triggers a BUG at mm/filemap.c:202 when the
-> process exits".  He bisected the bug to d7c1755179b82d ("mm: implement
-> ->map_pages for shmem/tmpfs"), although the bug was actually added by
-> 8c6e50b0290c4 ("mm: introduce vm_ops->map_pages()").
->
-> Problem is caused by calling do_fault_around for _non-linear_ faiult.  In
-> this case pgoff is shifted and might become negative during calculation.
->
-> Faulting around non-linear page-fault has no sense and breaks logic in
-> do_fault_around because pgoff is shifted.
->
-> Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
-> Reported-by: "Ingo Korb" <ingo.korb@tu-dortmund.de>
-> Tested-by: "Ingo Korb" <ingo.korb@tu-dortmund.de>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Sasha Levin <sasha.levin@oracle.com>
-> Cc: Dave Jones <davej@redhat.com>
-> Cc: Ning Qu <quning@google.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: <stable@vger.kernel.org>    [3.15.x]
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
->
->  mm/memory.c |    3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
->
-> diff -puN mm/memory.c~mm-do-not-call-do_fault_around-for-non-linear-fault mm/memory.c
-> --- a/mm/memory.c~mm-do-not-call-do_fault_around-for-non-linear-fault
-> +++ a/mm/memory.c
-> @@ -2882,7 +2882,8 @@ static int do_read_fault(struct mm_struc
->          * if page by the offset is not ready to be mapped (cold cache or
->          * something).
->          */
-> -       if (vma->vm_ops->map_pages && fault_around_pages() > 1) {
-> +       if (vma->vm_ops->map_pages && !(flags & FAULT_FLAG_NONLINEAR) &&
-> +           fault_around_pages() > 1) {
->                 pte = pte_offset_map_lock(mm, pmd, address, &ptl);
->                 do_fault_around(vma, address, pte, pgoff, flags);
->                 if (!pte_same(*pte, orig_pte))
-> _
->
+Thanks,
+-Toshi
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
