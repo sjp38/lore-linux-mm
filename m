@@ -1,50 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id B4A2E6B0037
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 10:47:48 -0400 (EDT)
-Received: by mail-la0-f49.google.com with SMTP id gf5so4197625lab.8
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 07:47:47 -0700 (PDT)
-Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
-        by mx.google.com with ESMTPS id u16si14689502laz.86.2014.07.15.07.47.46
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id B7BD46B0037
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 11:08:32 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id kq14so4501221pab.26
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 08:08:32 -0700 (PDT)
+Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
+        by mx.google.com with ESMTPS id no12si5973367pdb.457.2014.07.15.08.08.31
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 15 Jul 2014 07:47:46 -0700 (PDT)
-Received: by mail-la0-f43.google.com with SMTP id hr17so3848544lab.16
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 07:47:46 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <70f331f59e620dc4e66bd3fa095e6f6b744b532b.1405281639.git.luto@amacapital.net>
-References: <70f331f59e620dc4e66bd3fa095e6f6b744b532b.1405281639.git.luto@amacapital.net>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 15 Jul 2014 07:47:26 -0700
-Message-ID: <CALCETrXG6nL4K=Er+kv5-CXBDVa0TLg9yR6iePnMyE2ufXgKkw@mail.gmail.com>
-Subject: Re: [PATCH v3] arm64,ia64,ppc,s390,sh,tile,um,x86,mm: Remove default
- gate area
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Tue, 15 Jul 2014 08:08:31 -0700 (PDT)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout3.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0N8R00M8TE24NF60@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 15 Jul 2014 16:08:28 +0100 (BST)
+Message-id: <53C542A0.5050107@samsung.com>
+Date: Tue, 15 Jul 2014 19:02:56 +0400
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+MIME-version: 1.0
+Subject: Re: [RFC/PATCH RESEND -next 14/21] mm: slub: kasan: disable kasan when
+ touching unaccessible memory
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+ <1404905415-9046-15-git-send-email-a.ryabinin@samsung.com>
+ <20140715060405.GI11317@js1304-P5Q-DELUXE> <53C4DA54.3010502@samsung.com>
+ <20140715081852.GL11317@js1304-P5Q-DELUXE>
+ <alpine.DEB.2.11.1407150924320.10593@gentwo.org>
+In-reply-to: <alpine.DEB.2.11.1407150924320.10593@gentwo.org>
+Content-type: text/plain; charset=ISO-8859-1
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux390@de.ibm.com, Chris Metcalf <cmetcalf@tilera.com>, Jeff Dike <jdike@addtoit.com>, Richard Weinberger <richard@nod.at>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Nathan Lynch <Nathan_Lynch@mentor.com>, X86 ML <x86@kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org, linux-sh@vger.kernel.org, user-mode-linux-devel@lists.sourceforge.net, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Christoph Lameter <cl@gentwo.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Alexey Preobrazhensky <preobr@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Russell King <linux@arm.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kbuild@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, linux-mm@kvack.org
 
-On Sun, Jul 13, 2014 at 1:01 PM, Andy Lutomirski <luto@amacapital.net> wrote:
-> The core mm code will provide a default gate area based on
-> FIXADDR_USER_START and FIXADDR_USER_END if
-> !defined(__HAVE_ARCH_GATE_AREA) && defined(AT_SYSINFO_EHDR).
->
-> This default is only useful for ia64.  arm64, ppc, s390, sh, tile,
-> 64-bit UML, and x86_32 have their own code just to disable it.  arm,
-> 32-bit UML, and x86_64 have gate areas, but they have their own
-> implementations.
->
-> This gets rid of the default and moves the code into ia64.
->
-> This should save some code on architectures without a gate area: it's
-> now possible to inline the gate_area functions in the default case.
+On 07/15/14 18:26, Christoph Lameter wrote:
+> On Tue, 15 Jul 2014, Joonsoo Kim wrote:
+> 
+>>> I think putting disable/enable only where we strictly need them might be a problem for future maintenance of slub.
+>>> If someone is going to add a new function call somewhere, he must ensure that it this call won't be a problem
+>>> for kasan.
+>>
+>> I don't agree with this.
+>>
+>> If someone is going to add a slab_pad_check() in other places in
+>> slub.c, we should disable/enable kasan there, too. This looks same
+>> maintenance problem to me. Putting disable/enable only where we
+>> strictly need at least ensures that we don't need to care when using
+>> slub internal functions.
+>>
+>> And, if memchr_inv() is problem, I think that you also need to add hook
+>> into validate_slab_cache().
+>>
+>> validate_slab_cache() -> validate_slab_slab() -> validate_slab() ->
+>> check_object() -> check_bytes_and_report() -> memchr_inv()
+> 
+> I think adding disable/enable is good because it separates the payload
+> access from metadata accesses. This may be useful for future checkers.
+> Maybe call it something different so that this is more generic.
+> 
+> metadata_access_enable()
+> 
+> metadata_access_disable()
+> 
+> ?
+> 
+It sounds like a good idea to me. However in this patch, besides from protecting metadata accesses,
+this calls also used in setup_objects for wrapping ctor call. It used there because all pages in allocate_slab
+are poisoned, so at the time when ctors are called all object's memory marked as poisoned.
 
-Can one of you pull this somewhere?  Otherwise I can put it somewhere
-stable and ask for -next inclusion, but that seems like overkill for a
-single patch.
+I think this could be solved by removing kasan_alloc_slab_pages() hook form allocate_slab() and adding
+kasan_slab_free() hook after ctor call.
+But I guess in that case padding at the end of slab will be unpoisoined.
 
---Andy
+> Maybe someone else has a better idea?
+> 
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
