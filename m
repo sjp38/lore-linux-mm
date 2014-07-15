@@ -1,75 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 720376B0031
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 19:17:34 -0400 (EDT)
-Received: by mail-ig0-f180.google.com with SMTP id l13so234690iga.1
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 16:17:34 -0700 (PDT)
-Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com [2607:f8b0:4001:c05::231])
-        by mx.google.com with ESMTPS id eg4si631239igb.9.2014.07.15.16.17.33
+Received: from mail-yh0-f47.google.com (mail-yh0-f47.google.com [209.85.213.47])
+	by kanga.kvack.org (Postfix) with ESMTP id EA1536B0031
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 19:19:41 -0400 (EDT)
+Received: by mail-yh0-f47.google.com with SMTP id f10so62795yha.34
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 16:19:41 -0700 (PDT)
+Received: from g6t1525.atlanta.hp.com (g6t1525.atlanta.hp.com. [15.193.200.68])
+        by mx.google.com with ESMTPS id r30si26844918yhm.123.2014.07.15.16.19.41
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 15 Jul 2014 16:17:33 -0700 (PDT)
-Received: by mail-ig0-f177.google.com with SMTP id hn18so229334igb.4
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 16:17:33 -0700 (PDT)
-Date: Tue, 15 Jul 2014 16:17:31 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, thp: only collapse hugepages to nodes with
- affinity
-In-Reply-To: <53C4B251.5000505@intel.com>
-Message-ID: <alpine.DEB.2.02.1407151609120.32274@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1407141807030.8808@chino.kir.corp.google.com> <53C4B251.5000505@intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 15 Jul 2014 16:19:41 -0700 (PDT)
+Message-ID: <1405465801.28702.34.camel@misato.fc.hp.com>
+Subject: Re: [RFC PATCH 3/11] x86, mm, pat: Change reserve_memtype() to
+ handle WT type
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Tue, 15 Jul 2014 17:10:01 -0600
+In-Reply-To: <CALCETrUPpP1Lo1gB_eTm6V3pJ3Fam-1gPZGKfksOXXGgtNGsEQ@mail.gmail.com>
+References: <1405452884-25688-1-git-send-email-toshi.kani@hp.com>
+	 <1405452884-25688-4-git-send-email-toshi.kani@hp.com>
+	 <CALCETrUPpP1Lo1gB_eTm6V3pJ3Fam-1gPZGKfksOXXGgtNGsEQ@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Bob Liu <bob.liu@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, plagnioj@jcrosoft.com, tomi.valkeinen@ti.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Dave Airlie <airlied@gmail.com>, Borislav Petkov <bp@alien8.de>
 
-On Mon, 14 Jul 2014, Dave Hansen wrote:
-
-> > +		if (node == NUMA_NO_NODE) {
-> > +			node = page_to_nid(page);
-> > +		} else {
-> > +			int distance = node_distance(page_to_nid(page), node);
-> > +
-> > +			/*
-> > +			 * Do not migrate to memory that would not be reclaimed
-> > +			 * from.
-> > +			 */
-> > +			if (distance > RECLAIM_DISTANCE)
-> > +				goto out_unmap;
-> > +		}
+On Tue, 2014-07-15 at 12:56 -0700, Andy Lutomirski wrote:
+> On Tue, Jul 15, 2014 at 12:34 PM, Toshi Kani <toshi.kani@hp.com> wrote:
+> > This patch changes reserve_memtype() to handle the new WT type.
+> > When (!pat_enabled && new_type), it continues to set either WB
+> > or UC- to *new_type.  When pat_enabled, it can reserve a given
+> > non-RAM range for WT.  At this point, it may not reserve a RAM
+> > range for WT since reserve_ram_pages_type() uses the page flags
+> > limited to three memory types, WB, WC and UC.
 > 
-> Isn't the reclaim behavior based on zone_reclaim_mode and not
-> RECLAIM_DISTANCE directly?  And isn't that reclaim behavior disabled by
-> default?
-> 
+> FWIW, last time I looked at this, it seemed like all the fancy
+> reserve_ram_pages stuff was unnecessary: shouldn't the RAM type be
+> easy to track in the direct map page tables?
 
-Seems that RECLAIM_DISTANCE has taken on a life of its own independent of 
-zone_reclaim_mode as a heuristic, such as its use in creating sched 
-domains which would be unrelated.
+Are you referring the direct map page tables as the kernel page
+directory tables (pgd/pud/..)?
 
-> I think you should at least be consulting zone_reclaim_mode.
-> 
+I think it needs to be able to keep track of the memory type per a
+physical memory range, not per a translation, in order to prevent
+aliasing of the memory type.
 
-Good point, and it matches what the comment is saying about whether we'd 
-actually reclaim from the remote node to allocate thp on fault or not.  
-I'll add it.
-
-After this change, we'll also need to consider the behavior of thp at 
-fault and whether remote HPAGE_PMD_SIZE memory when local memory is 
-low/fragmented is better than local PAGE_SIZE memory.  In my page fault 
-latency testing on true NUMA machines it's convincing that it's not.
-
-This makes me believe that, somewhat similar to this patch, when we 
-allocate thp memory at fault and zone_reclaim_mode is non-zero that we 
-should set only nodes with numa_node_id() <= RECLAIM_DISTANCE and then 
-otherwise fallback to the PAGE_SIZE fault path.
-
-I've been hesitant to make that exact change, though, because it's a 
-systemwide setting and I really hope to avoid a prctl() that controls 
-zone reclaim for a particular process.  Perhaps the NUMA balancing work 
-makes this more dependable.
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
