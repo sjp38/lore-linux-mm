@@ -1,94 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 8108B6B0031
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 08:49:35 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so823183pab.5
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 05:49:35 -0700 (PDT)
-Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
-        by mx.google.com with ESMTPS id zm2si11665475pbc.119.2014.07.15.05.49.33
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Tue, 15 Jul 2014 05:49:34 -0700 (PDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout1.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0N8R008Y77M5JO20@mailout1.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 15 Jul 2014 13:49:17 +0100 (BST)
-Message-id: <53C52350.6020109@samsung.com>
-Date: Tue, 15 Jul 2014 14:49:20 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-MIME-version: 1.0
-Subject: Re: [linux-3.10.17] Could not allocate memory from free CMA areas
-References: <1404862900.76779.YahooMailNeo@web160102.mail.bf1.yahoo.com>
-In-reply-to: <1404862900.76779.YahooMailNeo@web160102.mail.bf1.yahoo.com>
-Content-type: text/plain; charset=UTF-8; format=flowed
-Content-transfer-encoding: 7bit
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 915236B0031
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 09:03:11 -0400 (EDT)
+Received: by mail-wi0-f179.google.com with SMTP id f8so3318681wiw.0
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 06:03:11 -0700 (PDT)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTP id xm18si15620533wib.3.2014.07.15.06.03.09
+        for <linux-mm@kvack.org>;
+        Tue, 15 Jul 2014 06:03:09 -0700 (PDT)
+Date: Tue, 15 Jul 2014 15:03:08 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: IMA: kernel reading files opened with O_DIRECT
+Message-ID: <20140715130308.GA4109@amd.pavel.ucw.cz>
+References: <53B3D3AA.3000408@samsung.com>
+ <x49y4wbu54y.fsf@segfault.boston.devel.redhat.com>
+ <20140702184050.GA24583@infradead.org>
+ <20140711201054.GB18033@amd.pavel.ucw.cz>
+ <CACE9dm8TW1+7bq6hJiOmoAw+w+ZD8Ma=Sf6a5ZM2HZ5X1Lcifw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACE9dm8TW1+7bq6hJiOmoAw+w+ZD8Ma=Sf6a5ZM2HZ5X1Lcifw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: PINTU KUMAR <pintu_agarwal@yahoo.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>
-Cc: "pintu.k@outlook.com" <pintu.k@outlook.com>, "pintu.k@samsung.com" <pintu.k@samsung.com>, "vishu_1385@yahoo.com" <vishu_1385@yahoo.com>, "mina86@mina86.com" <mina86@mina86.com>, "ngupta@vflare.org" <ngupta@vflare.org>, "iqbalblr@gmail.com" <iqbalblr@gmail.com>
+To: Dmitry Kasatkin <dmitry.kasatkin@gmail.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Jeff Moyer <jmoyer@redhat.com>, Dmitry Kasatkin <d.kasatkin@samsung.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, Al Viro <viro@zeniv.linux.org.uk>, Mimi Zohar <zohar@linux.vnet.ibm.com>, linux-security-module <linux-security-module@vger.kernel.org>, Greg KH <gregkh@linuxfoundation.org>
 
-Hello,
+On Sat 2014-07-12 01:22:04, Dmitry Kasatkin wrote:
+> On 11 July 2014 23:10, Pavel Machek <pavel@ucw.cz> wrote:
+> > On Wed 2014-07-02 11:40:50, Christoph Hellwig wrote:
+> >> On Wed, Jul 02, 2014 at 11:55:41AM -0400, Jeff Moyer wrote:
+> >> > It's acceptable.
+> >>
+> >> It's not because it will then also affect other reads going on at the
+> >> same time.
+> >>
+> >> The whole concept of ima is just broken, and if you want to do these
+> >> sort of verification they need to happen inside the filesystem and not
+> >> above it.
+> >
+> > ...and doing it at filesystem layer would also permit verification of
+> > per-block (64KB? 1MB?) hashes.
+> 
+> Please design one single and the best universal filesystem which
+> does it.
 
-On 2014-07-09 01:41, PINTU KUMAR wrote:
-> Hi,
->
-> We are facing one problem on linux 3.10 when we try to use CMA as large as 56MB for 256MB RAM device.
-> We found that after certain point of time (during boot), min watermark check is failing when "free_pages" and "free_cma_pages" are almost equal and falls below the min level.
->
-> system details:
-> ARM embedded device: RAM: 256MB
-> Kernel version: 3.10.17
-> Fixed Reserved memory: ~40MB
-> Available memory: 217MB
-> CMA reserved 1 : 56MB
-> ZRAM configured: 128MB or 64MB
-> min_free_kbytes: 1625 (default)
-> Memory controller group enabled (MEMCG)
->
->
-> After boot-up the "free -tm" command shows free memory as: ~50MB
-> CMA is used for all UI display purposes. CMA used during bootup is close to ~6MB.
-> Thus most of the free memory is in the form of CMA free memory.
-> ZRAM getting uses was around ~5MB.
->
->
-> During boot-up itself we observe that the following conditions are met.
->
->
-> if (free_pages - free_cma <= min + lowmem_reserve) {
->      printk"[PINTU]: __zone_watermark_ok: failed !\n");
->
->      return false;
-> }
-> Here: free_pages was: 12940, free_cma was: 12380, min: 566, lowmem: 0
->
->
-> Thus is condition is met most of the time.
-> And because of this watermark failure, Kswapd is waking up frequently.
-> The /proc/pagetypeinfo reports that most of the higher order pages are from CMA regions.
->
->
-> We also observed that ZRAM is trying to allocate memory from CMA region and failing.
->
-> We also tried by decreasing the CMA region to 20MB. With this the watermark failure is not happening in boot time. But if we launch more than 3 apps {Browser, music-player etc}, again the watermark started failing.
->
-> Also we tried decreasing the min_free_kbytes=256, and with this also watermark is passed.
->
-> Our observation is that ZRAM/zsmalloc trying to allocate memory from CMA areas and failed.
->
->
-> Please let us know if anybody have come across the same problem and how to resolve this issue.
+Given the overhead whole-file hashing has, you don't need single best
+operating system. All you need it either ext4 or btrfs.. depending on
+when you want it in production.
 
-Frankly I really have no idea what is going on. ZRAM/zsmalloc should not 
-try to alloc memory from CMA. I don't have access you the mentioned 
-source code. What flags are passed to alloc_pages() in zram/zsmalloc? It 
-should get pages from non-movable pool.
+									Pavel
 
-Best regards
 -- 
-Marek Szyprowski, PhD
-Samsung R&D Institute Poland
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
