@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f52.google.com (mail-oa0-f52.google.com [209.85.219.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 299D06B0031
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 15:44:52 -0400 (EDT)
-Received: by mail-oa0-f52.google.com with SMTP id o6so4418463oag.25
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 12:44:51 -0700 (PDT)
-Received: from g5t1626.atlanta.hp.com (g5t1626.atlanta.hp.com. [15.192.137.9])
-        by mx.google.com with ESMTPS id wl1si24113446oeb.31.2014.07.15.12.44.51
+Received: from mail-qa0-f44.google.com (mail-qa0-f44.google.com [209.85.216.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 241846B0037
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 15:44:54 -0400 (EDT)
+Received: by mail-qa0-f44.google.com with SMTP id f12so4907332qad.31
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 12:44:53 -0700 (PDT)
+Received: from g6t1526.atlanta.hp.com (g6t1526.atlanta.hp.com. [15.193.200.69])
+        by mx.google.com with ESMTPS id h94si26008065yhq.179.2014.07.15.12.44.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 15 Jul 2014 12:44:51 -0700 (PDT)
+        Tue, 15 Jul 2014 12:44:53 -0700 (PDT)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [RFC PATCH 1/11] x86, mm, pat: Redefine _PAGE_CACHE_UC as UC_MINUS
-Date: Tue, 15 Jul 2014 13:34:34 -0600
-Message-Id: <1405452884-25688-2-git-send-email-toshi.kani@hp.com>
+Subject: [RFC PATCH 2/11] x86, mm, pat: Define _PAGE_CACHE_WT for PA3/7 of PAT
+Date: Tue, 15 Jul 2014 13:34:35 -0600
+Message-Id: <1405452884-25688-3-git-send-email-toshi.kani@hp.com>
 In-Reply-To: <1405452884-25688-1-git-send-email-toshi.kani@hp.com>
 References: <1405452884-25688-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,147 +20,87 @@ List-ID: <linux-mm.kvack.org>
 To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, konrad.wilk@oracle.com, plagnioj@jcrosoft.com, tomi.valkeinen@ti.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, airlied@gmail.com, bp@alien8.de, Toshi Kani <toshi.kani@hp.com>
 
-ioremap_nocache() and other interfaces that set the uncached memory
-type use _PAGE_CACHE_UC_MINUS in order to support legacy graphics
-drivers using MTRRs to overwrite it to WC.  _PAGE_CACHE_UC is defined,
-but is unused on the systems with the PAT feature.
-
-This patch redefines _PAGE_CACHE_UC to _PAGE_CACHE_UC_MINUS, and
-and frees up the PA3/7 slot in the PAT MSR that was used for
-_PAGE_CACHE_UC.  This keeps _PAGE_CACHE_UC defined in case out-of-tree
-drivers refer it.
-
-Note: The legacy code in phys_mem_access_prot_allowed() that sets
-_PAGE_CACHE_UC for Pentiums and earlier processors is changed to
-set the PCD & PWT bits in order to avoid any change.  They do not
-support PAT and MTRRs.
+This patch defines _PAGE_CACHE_WT and its relevant macros, which
+now use the PA3/7 slot in the PAT MSR.  pat_init() is also changed
+to set the WT memory type to the PA3/7 slot in the PAT MSR.
 
 Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 ---
- arch/x86/include/asm/pgtable_types.h |   10 +++++-----
- arch/x86/mm/ioremap.c                |   14 +++++---------
- arch/x86/mm/pat.c                    |    9 +--------
- arch/x86/mm/pat_internal.h           |    1 -
- 4 files changed, 11 insertions(+), 23 deletions(-)
+ arch/x86/include/asm/pgtable_types.h |    5 +++++
+ arch/x86/mm/pat.c                    |    8 ++++----
+ 2 files changed, 9 insertions(+), 4 deletions(-)
 
 diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-index f216963..03d40da 100644
+index 03d40da..7b905cb 100644
 --- a/arch/x86/include/asm/pgtable_types.h
 +++ b/arch/x86/include/asm/pgtable_types.h
-@@ -133,7 +133,7 @@
+@@ -132,6 +132,7 @@
+ #define _PAGE_CACHE_MASK	(_PAGE_PCD | _PAGE_PWT)
  #define _PAGE_CACHE_WB		(0)
  #define _PAGE_CACHE_WC		(_PAGE_PWT)
++#define _PAGE_CACHE_WT		(_PAGE_PCD | _PAGE_PWT)
  #define _PAGE_CACHE_UC_MINUS	(_PAGE_PCD)
--#define _PAGE_CACHE_UC		(_PAGE_PCD | _PAGE_PWT)
-+#define _PAGE_CACHE_UC		(_PAGE_CACHE_UC_MINUS)
+ #define _PAGE_CACHE_UC		(_PAGE_CACHE_UC_MINUS)
  
- #define PAGE_NONE	__pgprot(_PAGE_PROTNONE | _PAGE_ACCESSED)
- #define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | \
-@@ -157,13 +157,13 @@
- 
- #define __PAGE_KERNEL_RO		(__PAGE_KERNEL & ~_PAGE_RW)
+@@ -159,6 +160,7 @@
  #define __PAGE_KERNEL_RX		(__PAGE_KERNEL_EXEC & ~_PAGE_RW)
--#define __PAGE_KERNEL_EXEC_NOCACHE	(__PAGE_KERNEL_EXEC | _PAGE_PCD | _PAGE_PWT)
-+#define __PAGE_KERNEL_EXEC_NOCACHE	(__PAGE_KERNEL_EXEC | _PAGE_CACHE_UC)
+ #define __PAGE_KERNEL_EXEC_NOCACHE	(__PAGE_KERNEL_EXEC | _PAGE_CACHE_UC)
  #define __PAGE_KERNEL_WC		(__PAGE_KERNEL | _PAGE_CACHE_WC)
--#define __PAGE_KERNEL_NOCACHE		(__PAGE_KERNEL | _PAGE_PCD | _PAGE_PWT)
--#define __PAGE_KERNEL_UC_MINUS		(__PAGE_KERNEL | _PAGE_PCD)
-+#define __PAGE_KERNEL_NOCACHE		(__PAGE_KERNEL | _PAGE_CACHE_UC)
-+#define __PAGE_KERNEL_UC_MINUS		(__PAGE_KERNEL | _PAGE_CACHE_UC_MINUS)
++#define __PAGE_KERNEL_WT		(__PAGE_KERNEL | _PAGE_CACHE_WT)
+ #define __PAGE_KERNEL_NOCACHE		(__PAGE_KERNEL | _PAGE_CACHE_UC)
+ #define __PAGE_KERNEL_UC_MINUS		(__PAGE_KERNEL | _PAGE_CACHE_UC_MINUS)
  #define __PAGE_KERNEL_VSYSCALL		(__PAGE_KERNEL_RX | _PAGE_USER)
- #define __PAGE_KERNEL_VVAR		(__PAGE_KERNEL_RO | _PAGE_USER)
--#define __PAGE_KERNEL_VVAR_NOCACHE	(__PAGE_KERNEL_VVAR | _PAGE_PCD | _PAGE_PWT)
-+#define __PAGE_KERNEL_VVAR_NOCACHE	(__PAGE_KERNEL_VVAR | _PAGE_CACHE_UC)
- #define __PAGE_KERNEL_LARGE		(__PAGE_KERNEL | _PAGE_PSE)
- #define __PAGE_KERNEL_LARGE_NOCACHE	(__PAGE_KERNEL | _PAGE_CACHE_UC | _PAGE_PSE)
- #define __PAGE_KERNEL_LARGE_EXEC	(__PAGE_KERNEL_EXEC | _PAGE_PSE)
-diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
-index baff1da..282829f 100644
---- a/arch/x86/mm/ioremap.c
-+++ b/arch/x86/mm/ioremap.c
-@@ -35,7 +35,7 @@ int ioremap_change_attr(unsigned long vaddr, unsigned long size,
- 	int err;
+@@ -172,12 +174,14 @@
+ #define __PAGE_KERNEL_IO_NOCACHE	(__PAGE_KERNEL_NOCACHE | _PAGE_IOMAP)
+ #define __PAGE_KERNEL_IO_UC_MINUS	(__PAGE_KERNEL_UC_MINUS | _PAGE_IOMAP)
+ #define __PAGE_KERNEL_IO_WC		(__PAGE_KERNEL_WC | _PAGE_IOMAP)
++#define __PAGE_KERNEL_IO_WT		(__PAGE_KERNEL_WT | _PAGE_IOMAP)
  
- 	switch (prot_val) {
--	case _PAGE_CACHE_UC:
-+	case _PAGE_CACHE_UC_MINUS:
- 	default:
- 		err = _set_memory_uc(vaddr, nrpages);
- 		break;
-@@ -142,11 +142,8 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
- 	}
+ #define PAGE_KERNEL			__pgprot(__PAGE_KERNEL)
+ #define PAGE_KERNEL_RO			__pgprot(__PAGE_KERNEL_RO)
+ #define PAGE_KERNEL_EXEC		__pgprot(__PAGE_KERNEL_EXEC)
+ #define PAGE_KERNEL_RX			__pgprot(__PAGE_KERNEL_RX)
+ #define PAGE_KERNEL_WC			__pgprot(__PAGE_KERNEL_WC)
++#define PAGE_KERNEL_WT			__pgprot(__PAGE_KERNEL_WT)
+ #define PAGE_KERNEL_NOCACHE		__pgprot(__PAGE_KERNEL_NOCACHE)
+ #define PAGE_KERNEL_UC_MINUS		__pgprot(__PAGE_KERNEL_UC_MINUS)
+ #define PAGE_KERNEL_EXEC_NOCACHE	__pgprot(__PAGE_KERNEL_EXEC_NOCACHE)
+@@ -192,6 +196,7 @@
+ #define PAGE_KERNEL_IO_NOCACHE		__pgprot(__PAGE_KERNEL_IO_NOCACHE)
+ #define PAGE_KERNEL_IO_UC_MINUS		__pgprot(__PAGE_KERNEL_IO_UC_MINUS)
+ #define PAGE_KERNEL_IO_WC		__pgprot(__PAGE_KERNEL_IO_WC)
++#define PAGE_KERNEL_IO_WT		__pgprot(__PAGE_KERNEL_IO_WT)
  
- 	switch (prot_val) {
--	case _PAGE_CACHE_UC:
--	default:
--		prot = PAGE_KERNEL_IO_NOCACHE;
--		break;
- 	case _PAGE_CACHE_UC_MINUS:
-+	default:
- 		prot = PAGE_KERNEL_IO_UC_MINUS;
- 		break;
- 	case _PAGE_CACHE_WC:
-@@ -218,11 +215,10 @@ void __iomem *ioremap_nocache(resource_size_t phys_addr, unsigned long size)
- 	 *	pat_enabled ? _PAGE_CACHE_UC : _PAGE_CACHE_UC_MINUS;
- 	 *
- 	 * Till we fix all X drivers to use ioremap_wc(), we will use
--	 * UC MINUS.
-+	 * UC MINUS. _PAGE_CACHE_UC is also defined as _PAGE_CACHE_UC_MINUS
-+	 * in pgtable_types.h.
- 	 */
--	unsigned long val = _PAGE_CACHE_UC_MINUS;
--
--	return __ioremap_caller(phys_addr, size, val,
-+	return __ioremap_caller(phys_addr, size, _PAGE_CACHE_UC_MINUS,
- 				__builtin_return_address(0));
- }
- EXPORT_SYMBOL(ioremap_nocache);
+ /*         xwr */
+ #define __P000	PAGE_NONE
 diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-index 6574388..c3567a5 100644
+index c3567a5..176d4d6 100644
 --- a/arch/x86/mm/pat.c
 +++ b/arch/x86/mm/pat.c
-@@ -213,12 +213,6 @@ static int reserve_ram_pages_type(u64 start, u64 end, unsigned long req_type,
- 	struct page *page;
- 	u64 pfn;
- 
--	if (req_type == _PAGE_CACHE_UC) {
--		/* We do not support strong UC */
--		WARN_ON_ONCE(1);
--		req_type = _PAGE_CACHE_UC_MINUS;
--	}
--
- 	for (pfn = (start >> PAGE_SHIFT); pfn < (end >> PAGE_SHIFT); ++pfn) {
- 		unsigned long type;
- 
-@@ -261,7 +255,6 @@ static int free_ram_pages_type(u64 start, u64 end)
-  * - _PAGE_CACHE_WB
-  * - _PAGE_CACHE_WC
-  * - _PAGE_CACHE_UC_MINUS
-- * - _PAGE_CACHE_UC
-  *
-  * If new_type is NULL, function will return an error if it cannot reserve the
-  * region with req_type. If new_type is non-NULL, function will return
-@@ -543,7 +536,7 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
- 	      boot_cpu_has(X86_FEATURE_CYRIX_ARR) ||
- 	      boot_cpu_has(X86_FEATURE_CENTAUR_MCR)) &&
- 	    (pfn << PAGE_SHIFT) >= __pa(high_memory)) {
--		flags = _PAGE_CACHE_UC;
-+		flags = _PAGE_PCD | _PAGE_PWT;	/* UC w/o PAT */
+@@ -101,7 +101,7 @@ void pat_init(void)
+ 		}
  	}
- #endif
  
-diff --git a/arch/x86/mm/pat_internal.h b/arch/x86/mm/pat_internal.h
-index 77e5ba1..2593d40 100644
---- a/arch/x86/mm/pat_internal.h
-+++ b/arch/x86/mm/pat_internal.h
-@@ -17,7 +17,6 @@ struct memtype {
- static inline char *cattr_name(unsigned long flags)
- {
- 	switch (flags & _PAGE_CACHE_MASK) {
--	case _PAGE_CACHE_UC:		return "uncached";
- 	case _PAGE_CACHE_UC_MINUS:	return "uncached-minus";
- 	case _PAGE_CACHE_WB:		return "write-back";
- 	case _PAGE_CACHE_WC:		return "write-combining";
+-	/* Set PWT to Write-Combining. All other bits stay the same */
++	/* Set PWT to Write-Combining, and PCD|PWT to Write-Through. */
+ 	/*
+ 	 * PTE encoding used in Linux:
+ 	 *      PAT
+@@ -111,11 +111,11 @@ void pat_init(void)
+ 	 *      000 WB		_PAGE_CACHE_WB
+ 	 *      001 WC		_PAGE_CACHE_WC
+ 	 *      010 UC-		_PAGE_CACHE_UC_MINUS
+-	 *      011 UC		_PAGE_CACHE_UC
++	 *      011 WT		_PAGE_CACHE_WT
+ 	 * PAT bit unused
+ 	 */
+-	pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
+-	      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
++	pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, WT) |
++	      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, WT);
+ 
+ 	/* Boot CPU check */
+ 	if (!boot_pat_state)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
