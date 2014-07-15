@@ -1,103 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BB6F6B0035
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 05:50:13 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id kx10so5616894pab.6
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 02:50:13 -0700 (PDT)
-Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
-        by mx.google.com with ESMTPS id os6si11298645pbb.212.2014.07.15.02.50.12
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 325346B0037
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 05:56:03 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id fp1so3449697pdb.5
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 02:56:02 -0700 (PDT)
+Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
+        by mx.google.com with ESMTPS id qn15si11352809pab.176.2014.07.15.02.56.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Tue, 15 Jul 2014 02:50:12 -0700 (PDT)
+        Tue, 15 Jul 2014 02:56:02 -0700 (PDT)
 Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout3.w1.samsung.com
+ by mailout4.w1.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0N8Q00EQ6YUSQK90@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 15 Jul 2014 10:40:04 +0100 (BST)
-Message-id: <53C4F5A9.6030202@samsung.com>
-Date: Tue, 15 Jul 2014 13:34:33 +0400
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
+ 17 2011)) with ESMTP id <0N8Q00HOZZKY2290@mailout4.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 15 Jul 2014 10:55:46 +0100 (BST)
+Subject: [PATCH] mm: fix faulting range in do_fault_around
+From: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
+Date: Tue, 15 Jul 2014 13:55:39 +0400
+Message-id: <20140715095539.2086.44482.stgit@buzz>
+In-reply-to: 
+ <CALYGNiM9Fu9-i7hXMQNTUP69RfydN+2NqO29wZYd+4Gn25GbCQ@mail.gmail.com>
+References: <CALYGNiM9Fu9-i7hXMQNTUP69RfydN+2NqO29wZYd+4Gn25GbCQ@mail.gmail.com>
 MIME-version: 1.0
-Subject: Re: [RFC/PATCH RESEND -next 20/21] fs: dcache: manually unpoison dname
- after allocation to shut up kasan's reports
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
- <1404905415-9046-21-git-send-email-a.ryabinin@samsung.com>
- <20140715061219.GK11317@js1304-P5Q-DELUXE>
-In-reply-to: <20140715061219.GK11317@js1304-P5Q-DELUXE>
-Content-type: text/plain; charset=ISO-8859-1
+Content-type: text/plain; charset=utf-8
 Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Alexey Preobrazhensky <preobr@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Russell King <linux@arm.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kbuild@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, Sasha Levin <sasha.levin@oracle.com>
+Cc: Ingo Korb <ingo.korb@tu-dortmund.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ning Qu <quning@google.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-On 07/15/14 10:12, Joonsoo Kim wrote:
-> On Wed, Jul 09, 2014 at 03:30:14PM +0400, Andrey Ryabinin wrote:
->> We need to manually unpoison rounded up allocation size for dname
->> to avoid kasan's reports in __d_lookup_rcu.
->> __d_lookup_rcu may validly read a little beyound allocated size.
-> 
-> If it read a little beyond allocated size, IMHO, it is better to
-> allocate correct size.
-> 
-> kmalloc(name->len + 1, GFP_KERNEL); -->
-> kmalloc(roundup(name->len + 1, sizeof(unsigned long ), GFP_KERNEL);
-> 
-> Isn't it?
-> 
+From: Konstantin Khlebnikov <koct9i@gmail.com>
 
-It's not needed here because kmalloc always roundup allocation size.
+do_fault_around shoudn't cross pmd boundaries.
 
-This out of bound access happens in dentry_string_cmp() if CONFIG_DCACHE_WORD_ACCESS=y.
-dentry_string_cmp() relays on fact that kmalloc always round up allocation size,
-in other words it's by design.
+This patch does calculation in terms of addresses rather than pgoff.
+It looks much cleaner in this way. Probably it's worth to replace
+vmf->max_pgoff with vmf->end_address as well.
 
-That was discussed some time ago here - https://lkml.org/lkml/2013/10/3/493.
-Since filesystem's maintainer don't want to add needless round up here, I'm not going to do it.
+Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
+Reported-by: "Ingo Korb" <ingo.korb@tu-dortmund.de>
+---
+ mm/memory.c |   26 +++++++++++---------------
+ 1 file changed, 11 insertions(+), 15 deletions(-)
 
-I think this patch needs only more detailed description why we not simply allocate more.
-Also I think it would be better to rename unpoisoin_shadow to something like kasan_mark_allocated().
-
-
-> Thanks.
-> 
->>
->> Reported-by: Dmitry Vyukov <dvyukov@google.com>
->> Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
->> ---
->>  fs/dcache.c | 3 +++
->>  1 file changed, 3 insertions(+)
->>
->> diff --git a/fs/dcache.c b/fs/dcache.c
->> index b7e8b20..dff64f2 100644
->> --- a/fs/dcache.c
->> +++ b/fs/dcache.c
->> @@ -38,6 +38,7 @@
->>  #include <linux/prefetch.h>
->>  #include <linux/ratelimit.h>
->>  #include <linux/list_lru.h>
->> +#include <linux/kasan.h>
->>  #include "internal.h"
->>  #include "mount.h"
->>  
->> @@ -1412,6 +1413,8 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
->>  			kmem_cache_free(dentry_cache, dentry); 
->>  			return NULL;
->>  		}
->> +		unpoison_shadow(dname,
->> +				roundup(name->len + 1, sizeof(unsigned long)));
->>  	} else  {
->>  		dname = dentry->d_iname;
->>  	}	
->> -- 
->> 1.8.5.5
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+diff --git a/mm/memory.c b/mm/memory.c
+index d67fd9f..f27638a 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2831,33 +2831,29 @@ late_initcall(fault_around_debugfs);
+ static void do_fault_around(struct vm_area_struct *vma, unsigned long address,
+ 		pte_t *pte, pgoff_t pgoff, unsigned int flags)
+ {
+-	unsigned long start_addr;
++	unsigned long start_addr, end_addr;
+ 	pgoff_t max_pgoff;
+ 	struct vm_fault vmf;
+ 	int off;
+ 
+-	start_addr = max(address & fault_around_mask(), vma->vm_start);
+-	off = ((address - start_addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1);
++	start_addr = max3(vma->vm_start, address & PMD_MASK,
++			  address & fault_around_mask());
++
++	end_addr = min3(vma->vm_end, ALIGN(address, PMD_SIZE),
++			start_addr + PAGE_ALIGN(fault_around_bytes));
++
++	off = (address - start_addr) >> PAGE_SHIFT;
+ 	pte -= off;
+ 	pgoff -= off;
+-
+-	/*
+-	 *  max_pgoff is either end of page table or end of vma
+-	 *  or fault_around_pages() from pgoff, depending what is nearest.
+-	 */
+-	max_pgoff = pgoff - ((start_addr >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)) +
+-		PTRS_PER_PTE - 1;
+-	max_pgoff = min3(max_pgoff, vma_pages(vma) + vma->vm_pgoff - 1,
+-			pgoff + fault_around_pages() - 1);
++	max_pgoff = pgoff + ((end_addr - start_addr) >> PAGE_SHIFT) - 1;
+ 
+ 	/* Check if it makes any sense to call ->map_pages */
+ 	while (!pte_none(*pte)) {
+-		if (++pgoff > max_pgoff)
+-			return;
+ 		start_addr += PAGE_SIZE;
+-		if (start_addr >= vma->vm_end)
++		if (start_addr >= end_addr)
+ 			return;
+ 		pte++;
++		pgoff++;
+ 	}
+ 
+ 	vmf.virtual_address = (void __user *) start_addr;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
