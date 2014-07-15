@@ -1,66 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 626E46B0031
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 10:38:04 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id rd3so7461314pab.31
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 07:38:04 -0700 (PDT)
-Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
-        by mx.google.com with ESMTPS id qj6si11931901pac.52.2014.07.15.07.38.02
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 661246B0031
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 10:45:47 -0400 (EDT)
+Received: by mail-wg0-f49.google.com with SMTP id k14so5103345wgh.32
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 07:45:46 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id k8si3127960wib.17.2014.07.15.07.45.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Tue, 15 Jul 2014 07:38:03 -0700 (PDT)
-MIME-version: 1.0
-Content-type: text/plain; charset=UTF-8
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout3.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0N8R00JT3CN7QP50@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 15 Jul 2014 15:37:55 +0100 (BST)
-Content-transfer-encoding: 8BIT
-Message-id: <53C53B77.3080000@samsung.com>
-Date: Tue, 15 Jul 2014 18:32:23 +0400
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-Subject: Re: [RFC/PATCH -next 00/21] Address sanitizer for kernel (kasan) -
- dynamic memory error detector.
-References: <1404903678-8257-1-git-send-email-a.ryabinin@samsung.com>
- <53C08876.10209@zytor.com>
- <CAPAsAGwb2sLmu0o_o-pFP5pXhMs-1sZSJbA3ji=W+JPOZRepgg@mail.gmail.com>
- <alpine.DEB.2.11.1407141012520.25405@gentwo.org>
-In-reply-to: <alpine.DEB.2.11.1407141012520.25405@gentwo.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 15 Jul 2014 07:45:45 -0700 (PDT)
+Date: Tue, 15 Jul 2014 10:45:39 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 2/3] mm: memcontrol: rewrite uncharge API fix - double
+ migration
+Message-ID: <20140715144539.GR29639@cmpxchg.org>
+References: <1404759133-29218-1-git-send-email-hannes@cmpxchg.org>
+ <1404759133-29218-3-git-send-email-hannes@cmpxchg.org>
+ <alpine.LSU.2.11.1407141246340.17669@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1407141246340.17669@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Alexey Preobrazhensky <preobr@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Russell King <linux@arm.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kbuild@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 07/14/14 19:13, Christoph Lameter wrote:
-> On Sun, 13 Jul 2014, Andrey Ryabinin wrote:
+Hi Hugh,
+
+On Mon, Jul 14, 2014 at 12:57:33PM -0700, Hugh Dickins wrote:
+> On Mon, 7 Jul 2014, Johannes Weiner wrote:
 > 
->>> How does that work when memory is sparsely populated?
->>>
->>
->> Sparsemem configurations currently may not work with kasan.
->> I suppose I will have to move shadow area to vmalloc address space and
->> make it (shadow) sparse too if needed.
+> > Hugh reports:
+> > 
+> > VM_BUG_ON_PAGE(!(pc->flags & PCG_MEM))
+> > mm/memcontrol.c:6680!
+> > page had count 1 mapcount 0 mapping anon index 0x196
+> > flags locked uptodate reclaim swapbacked, pcflags 1, memcg not root
+> > mem_cgroup_migrate < move_to_new_page < migrate_pages < compact_zone <
+> > compact_zone_order < try_to_compact_pages < __alloc_pages_direct_compact <
+> > __alloc_pages_nodemask < alloc_pages_vma < do_huge_pmd_anonymous_page <
+> > handle_mm_fault < __do_page_fault
+> > 
+> > mem_cgroup_migrate() assumes that a page is only migrated once and
+> > then freed immediately after.
+> > 
+> > However, putting the page back on the LRU list and dropping the
+> > isolation refcount is not done atomically.  This allows a PFN-based
+> > migrator like compaction to isolate the page, see the expected
+> > anonymous page refcount of 1, and migrate the page once more.
+> > 
+> > Catch pages that have already been migrated and abort migration
+> > gracefully.
+> > 
+> > Reported-by: Hugh Dickins <hughd@google.com>
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > ---
+> >  mm/memcontrol.c | 5 ++++-
+> >  1 file changed, 4 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 1e3b27f8dc2f..e4afdbdda0a7 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -6653,7 +6653,10 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
+> >  	if (!PageCgroupUsed(pc))
+> >  		return;
+> >  
+> > -	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEM), oldpage);
+> > +	/* Already migrated */
+> > +	if (!(pc->flags & PCG_MEM))
+> > +		return;
+> > +
 > 
-> Well it seems to work with sparsemem / vmemmap? So non vmmemmapped configs
-> of sparsemem only. vmemmmap can also handle holes in memory.
+> I am curious why you chose to fix the BUG in this way, instead of
+> -	pc->flags &= ~(PCG_MEM | PCG_MEMSW);
+> +	pc->flags = 0;
+> a few lines further down.
 > 
+> The page that gets left behind with just PCG_USED is anomalous (for an
+> LRU page, maybe not for a kmem page), isn'it it?  And liable to cause
+> other problems.
 > 
+> For example, won't it go the wrong way in the "Surreptitiously" test
+> in mem_cgroup_page_lruvec(): the page no longer has a hold on any
+> memcg, so is in a danger of being placed on a gone-memcg's LRU?
 
-Not sure. This sparsemem/vmemmap thing is kinda new to me, so I need to dig some more
-to understand how it iN?teracts with kasan.
+I was worried about unusing the page before we have exclusive access
+to it (migration_entry_to_page() can still work at this point, though
+the current situation seems safe).
 
-As far as I understand the main problem with sparsemem & kasan is shadow allocation:
+But you are right, with the charge belonging to the new page, the old
+page no longer pins the memcg and we have to prevent use-after-free.
 
-	unsigned long lowmem_size = (unsigned long)high_memory - PAGE_OFFSET;
-	shadow_size = lowmem_size >> KASAN_SHADOW_SCALE_SHIFT;
+How about this as a drop-in replacement?
 
-	shadow_phys_start = memblock_alloc(shadow_size, PAGE_SIZE);
-
-If we don't have one big enough physically contiguous block for shadow it will fail.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+---
