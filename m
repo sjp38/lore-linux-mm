@@ -1,79 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
-	by kanga.kvack.org (Postfix) with ESMTP id B79766B0055
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 15:45:09 -0400 (EDT)
-Received: by mail-ob0-f180.google.com with SMTP id uy5so6181568obc.11
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 12:45:09 -0700 (PDT)
-Received: from g5t1626.atlanta.hp.com (g5t1626.atlanta.hp.com. [15.192.137.9])
-        by mx.google.com with ESMTPS id q6si24123303oel.22.2014.07.15.12.45.09
+Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
+	by kanga.kvack.org (Postfix) with ESMTP id EB9F86B0031
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 15:53:52 -0400 (EDT)
+Received: by mail-la0-f44.google.com with SMTP id e16so3186197lan.17
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 12:53:52 -0700 (PDT)
+Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
+        by mx.google.com with ESMTPS id om4si16389674lbb.69.2014.07.15.12.53.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 15 Jul 2014 12:45:09 -0700 (PDT)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [RFC PATCH 11/11] x86, fbdev: Cleanup PWT/PCD bit manipulation in fbdev
-Date: Tue, 15 Jul 2014 13:34:44 -0600
-Message-Id: <1405452884-25688-12-git-send-email-toshi.kani@hp.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 15 Jul 2014 12:53:51 -0700 (PDT)
+Received: by mail-la0-f52.google.com with SMTP id e16so3151848lan.39
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 12:53:50 -0700 (PDT)
+MIME-Version: 1.0
 In-Reply-To: <1405452884-25688-1-git-send-email-toshi.kani@hp.com>
 References: <1405452884-25688-1-git-send-email-toshi.kani@hp.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Tue, 15 Jul 2014 12:53:30 -0700
+Message-ID: <CALCETrVfqBpJaTJCnDH8pZf4-6x6oojv+8Vvm3XudJfhbstdOQ@mail.gmail.com>
+Subject: Re: [RFC PATCH 0/11] Support Write-Through mapping on x86
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, konrad.wilk@oracle.com, plagnioj@jcrosoft.com, tomi.valkeinen@ti.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, airlied@gmail.com, bp@alien8.de, Toshi Kani <toshi.kani@hp.com>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, plagnioj@jcrosoft.com, tomi.valkeinen@ti.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Dave Airlie <airlied@gmail.com>, Borislav Petkov <bp@alien8.de>
 
-This patch cleans up the PWT & PCD bit manipulation in fbdev,
-and uses _PAGE_CACHE_<type> macros, instead.  This keeps the
-fbdev code independent from the PAT slot assignment.
+On Tue, Jul 15, 2014 at 12:34 PM, Toshi Kani <toshi.kani@hp.com> wrote:
+> This RFC patchset is aimed to seek comments/suggestions for the design
+> and changes to support of Write-Through (WT) mapping.  The study below
+> shows that using WT mapping may be useful for non-volatile memory.
+>
+>   http://www.hpl.hp.com/techreports/2012/HPL-2012-236.pdf
+>
+> There were idea & patches to support WT in the past, which stimulated
+> very valuable discussions on this topic.
+>
+>   https://lkml.org/lkml/2013/4/24/424
+>   https://lkml.org/lkml/2013/10/27/70
+>   https://lkml.org/lkml/2013/11/3/72
+>
+> This RFC patchset tries to address the issues raised by taking the
+> following design approach:
+>
+>  - Keep the MTRR interface
+>  - Keep the WB, WC, and UC- slots in the PAT MSR
+>  - Keep the PAT bit unused
+>  - Reassign the UC slot to WT in the PAT MSR
+>
+> There are 4 usable slots in the PAT MSR, which are currently assigned to:
+>
+>   PA0/4: WB, PA1/5: WC, PA2/6: UC-, PA3/7: UC
+>
+> The PAT bit is unused since it shares the same bit as the PSE bit and
+> there was a bug in older processors.  Among the 4 slots, the uncached
+> memory type consumes 2 slots, UC- and UC.  They are functionally
+> equivalent, but UC- allows MTRRs to overwrite it with WC.  All interfaces
+> that set the uncached memory type use UC- in order to work with MTRRs.
+> The PA3/7 slot is effectively unused today.  Therefore, this patchset
+> reassigns the PA3/7 slot to WT.  If MTRRs get deprecated in future,
+> UC- can be reassigned to UC, and there is still no need to consume
+> 2 slots for the uncached memory type.
 
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
----
- arch/x86/include/asm/fb.h                 |    3 ++-
- drivers/video/fbdev/gbefb.c               |    3 ++-
- drivers/video/fbdev/vermilion/vermilion.c |    4 ++--
- 3 files changed, 6 insertions(+), 4 deletions(-)
+Note that MTRRs are already partially deprecated: all drivers *should*
+be using arch_phys_wc_add, not mtrr_add, and arch_phys_wc_add is a
+no-op on systems with working PAT.
 
-diff --git a/arch/x86/include/asm/fb.h b/arch/x86/include/asm/fb.h
-index 2519d06..05fa937 100644
---- a/arch/x86/include/asm/fb.h
-+++ b/arch/x86/include/asm/fb.h
-@@ -9,7 +9,8 @@ static inline void fb_pgprotect(struct file *file, struct vm_area_struct *vma,
- 				unsigned long off)
- {
- 	if (boot_cpu_data.x86 > 3)
--		pgprot_val(vma->vm_page_prot) |= _PAGE_PCD;
-+		vma->vm_page_prot = pgprot_set_cache(vma->vm_page_prot,
-+						     _PAGE_CACHE_UC_MINUS);
- }
- 
- extern int fb_is_primary_device(struct fb_info *info);
-diff --git a/drivers/video/fbdev/gbefb.c b/drivers/video/fbdev/gbefb.c
-index 4aa56ba..4af9ec7 100644
---- a/drivers/video/fbdev/gbefb.c
-+++ b/drivers/video/fbdev/gbefb.c
-@@ -54,7 +54,8 @@ struct gbefb_par {
- #endif
- #endif
- #ifdef CONFIG_X86
--#define pgprot_fb(_prot) ((_prot) | _PAGE_PCD)
-+/* NOTE: use _PAGE_CACHE_WT if desired */
-+#define pgprot_fb(_prot) (((_prot) & ~_PAGE_CACHE_MASK) | _PAGE_CACHE_UC_MINUS)
- #endif
- 
- /*
-diff --git a/drivers/video/fbdev/vermilion/vermilion.c b/drivers/video/fbdev/vermilion/vermilion.c
-index 048a666..6a7c744 100644
---- a/drivers/video/fbdev/vermilion/vermilion.c
-+++ b/drivers/video/fbdev/vermilion/vermilion.c
-@@ -1009,8 +1009,8 @@ static int vmlfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
- 	if (ret)
- 		return -EINVAL;
- 
--	pgprot_val(vma->vm_page_prot) |= _PAGE_PCD;
--	pgprot_val(vma->vm_page_prot) &= ~_PAGE_PWT;
-+	vma->vm_page_prot = pgprot_set_cache(vma->vm_page_prot,
-+					     _PAGE_CACHE_UC_MINUS);
- 
- 	return vm_iomap_memory(vma, vinfo->vram_start,
- 			vinfo->vram_contig_size);
+Unfortunately, I never finished excising mtrr_add.  Finishing the job
+wouldn't be very hard.
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
