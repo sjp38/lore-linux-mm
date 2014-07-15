@@ -1,175 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id A2A526B0031
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 18:16:25 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fb1so60233pad.28
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 15:16:25 -0700 (PDT)
-Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com [2607:f8b0:400e:c02::232])
-        by mx.google.com with ESMTPS id bg5si6389177pdb.468.2014.07.15.15.16.24
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 720376B0031
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 19:17:34 -0400 (EDT)
+Received: by mail-ig0-f180.google.com with SMTP id l13so234690iga.1
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 16:17:34 -0700 (PDT)
+Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com [2607:f8b0:4001:c05::231])
+        by mx.google.com with ESMTPS id eg4si631239igb.9.2014.07.15.16.17.33
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 15 Jul 2014 15:16:24 -0700 (PDT)
-Received: by mail-pd0-f178.google.com with SMTP id w10so65233pde.9
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 15:16:24 -0700 (PDT)
-Date: Tue, 15 Jul 2014 15:14:42 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [patch 2/3] mm: memcontrol: rewrite uncharge API fix - double
- migration
-In-Reply-To: <20140715144539.GR29639@cmpxchg.org>
-Message-ID: <alpine.LSU.2.11.1407151509130.5059@eggly.anvils>
-References: <1404759133-29218-1-git-send-email-hannes@cmpxchg.org> <1404759133-29218-3-git-send-email-hannes@cmpxchg.org> <alpine.LSU.2.11.1407141246340.17669@eggly.anvils> <20140715144539.GR29639@cmpxchg.org>
+        Tue, 15 Jul 2014 16:17:33 -0700 (PDT)
+Received: by mail-ig0-f177.google.com with SMTP id hn18so229334igb.4
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 16:17:33 -0700 (PDT)
+Date: Tue, 15 Jul 2014 16:17:31 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm, thp: only collapse hugepages to nodes with
+ affinity
+In-Reply-To: <53C4B251.5000505@intel.com>
+Message-ID: <alpine.DEB.2.02.1407151609120.32274@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1407141807030.8808@chino.kir.corp.google.com> <53C4B251.5000505@intel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Bob Liu <bob.liu@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 15 Jul 2014, Johannes Weiner wrote:
-> On Mon, Jul 14, 2014 at 12:57:33PM -0700, Hugh Dickins wrote:
-> > On Mon, 7 Jul 2014, Johannes Weiner wrote:
-> > 
-> > > Hugh reports:
-> > > 
-> > > VM_BUG_ON_PAGE(!(pc->flags & PCG_MEM))
-> > > mm/memcontrol.c:6680!
-> > > page had count 1 mapcount 0 mapping anon index 0x196
-> > > flags locked uptodate reclaim swapbacked, pcflags 1, memcg not root
-> > > mem_cgroup_migrate < move_to_new_page < migrate_pages < compact_zone <
-> > > compact_zone_order < try_to_compact_pages < __alloc_pages_direct_compact <
-> > > __alloc_pages_nodemask < alloc_pages_vma < do_huge_pmd_anonymous_page <
-> > > handle_mm_fault < __do_page_fault
-> > > 
-> > > mem_cgroup_migrate() assumes that a page is only migrated once and
-> > > then freed immediately after.
-> > > 
-> > > However, putting the page back on the LRU list and dropping the
-> > > isolation refcount is not done atomically.  This allows a PFN-based
-> > > migrator like compaction to isolate the page, see the expected
-> > > anonymous page refcount of 1, and migrate the page once more.
-> > > 
-> > > Catch pages that have already been migrated and abort migration
-> > > gracefully.
-> > > 
-> > > Reported-by: Hugh Dickins <hughd@google.com>
-> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > > ---
-> > >  mm/memcontrol.c | 5 ++++-
-> > >  1 file changed, 4 insertions(+), 1 deletion(-)
-> > > 
-> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > index 1e3b27f8dc2f..e4afdbdda0a7 100644
-> > > --- a/mm/memcontrol.c
-> > > +++ b/mm/memcontrol.c
-> > > @@ -6653,7 +6653,10 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
-> > >  	if (!PageCgroupUsed(pc))
-> > >  		return;
-> > >  
-> > > -	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEM), oldpage);
-> > > +	/* Already migrated */
-> > > +	if (!(pc->flags & PCG_MEM))
-> > > +		return;
-> > > +
-> > 
-> > I am curious why you chose to fix the BUG in this way, instead of
-> > -	pc->flags &= ~(PCG_MEM | PCG_MEMSW);
-> > +	pc->flags = 0;
-> > a few lines further down.
-> > 
-> > The page that gets left behind with just PCG_USED is anomalous (for an
-> > LRU page, maybe not for a kmem page), isn'it it?  And liable to cause
-> > other problems.
-> > 
-> > For example, won't it go the wrong way in the "Surreptitiously" test
-> > in mem_cgroup_page_lruvec(): the page no longer has a hold on any
-> > memcg, so is in a danger of being placed on a gone-memcg's LRU?
-> 
-> I was worried about unusing the page before we have exclusive access
-> to it (migration_entry_to_page() can still work at this point, though
-> the current situation seems safe).
-> 
-> But you are right, with the charge belonging to the new page, the old
-> page no longer pins the memcg and we have to prevent use-after-free.
-> 
-> How about this as a drop-in replacement?
+On Mon, 14 Jul 2014, Dave Hansen wrote:
 
-Yes, that looks much better to me, thanks.  I had not realized that the
-mem_cgroup_charge_statistics()/memcg_check_events() would also be needed,
-but yes, that looks necessary to complement the commit_charge() on the
-new page.  I _think_ it should all add up now, but I've certainly not
-reviewed thoroughly.
+> > +		if (node == NUMA_NO_NODE) {
+> > +			node = page_to_nid(page);
+> > +		} else {
+> > +			int distance = node_distance(page_to_nid(page), node);
+> > +
+> > +			/*
+> > +			 * Do not migrate to memory that would not be reclaimed
+> > +			 * from.
+> > +			 */
+> > +			if (distance > RECLAIM_DISTANCE)
+> > +				goto out_unmap;
+> > +		}
+> 
+> Isn't the reclaim behavior based on zone_reclaim_mode and not
+> RECLAIM_DISTANCE directly?  And isn't that reclaim behavior disabled by
+> default?
+> 
 
-Hugh
+Seems that RECLAIM_DISTANCE has taken on a life of its own independent of 
+zone_reclaim_mode as a heuristic, such as its use in creating sched 
+domains which would be unrelated.
 
+> I think you should at least be consulting zone_reclaim_mode.
 > 
-> ---
-> From 274b94ad83b38fe7dc1707a8eb4015b3ab1673c5 Mon Sep 17 00:00:00 2001
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Date: Thu, 10 Jul 2014 01:02:11 +0000
-> Subject: [patch] mm: memcontrol: rewrite uncharge API fix - double migration
-> 
-> Hugh reports:
-> 
-> VM_BUG_ON_PAGE(!(pc->flags & PCG_MEM))
-> mm/memcontrol.c:6680!
-> page had count 1 mapcount 0 mapping anon index 0x196
-> flags locked uptodate reclaim swapbacked, pcflags 1, memcg not root
-> mem_cgroup_migrate < move_to_new_page < migrate_pages < compact_zone <
-> compact_zone_order < try_to_compact_pages < __alloc_pages_direct_compact <
-> __alloc_pages_nodemask < alloc_pages_vma < do_huge_pmd_anonymous_page <
-> handle_mm_fault < __do_page_fault
-> 
-> mem_cgroup_migrate() assumes that a page is only migrated once and
-> then freed immediately after.
-> 
-> However, putting the page back on the LRU list and dropping the
-> isolation refcount is not done atomically.  This allows a PFN-based
-> migrator like compaction to isolate the page, see the expected
-> anonymous page refcount of 1, and migrate the page once more.
-> 
-> Furthermore, once the charges are transferred to the new page, the old
-> page no longer has a pin on the memcg, which might get released before
-> the page itself now.  pc->mem_cgroup is invalid at this point, but
-> PCG_USED suggests otherwise, provoking use-after-free.
-> 
-> Properly uncharge the page after it's been migrated, including the
-> clearing of PCG_USED, so that a subsequent charge migration attempt
-> will be able to detect it and bail out.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Reported-by: Hugh Dickins <hughd@google.com>
-> ---
->  mm/memcontrol.c | 8 +++++++-
->  1 file changed, 7 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 1e3b27f8dc2f..1439537fe7c9 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -6655,7 +6655,6 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
->  
->  	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEM), oldpage);
->  	VM_BUG_ON_PAGE(do_swap_account && !(pc->flags & PCG_MEMSW), oldpage);
-> -	pc->flags &= ~(PCG_MEM | PCG_MEMSW);
->  
->  	if (PageTransHuge(oldpage)) {
->  		nr_pages <<= compound_order(oldpage);
-> @@ -6663,6 +6662,13 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
->  		VM_BUG_ON_PAGE(!PageTransHuge(newpage), newpage);
->  	}
->  
-> +	pc->flags = 0;
-> +
-> +	local_irq_disable();
-> +	mem_cgroup_charge_statistics(pc->mem_cgroup, oldpage, -nr_pages);
-> +	memcg_check_events(pc->mem_cgroup, oldpage);
-> +	local_irq_enable();
-> +
->  	commit_charge(newpage, pc->mem_cgroup, nr_pages, lrucare);
->  }
->  
-> -- 
-> 2.0.0
+
+Good point, and it matches what the comment is saying about whether we'd 
+actually reclaim from the remote node to allocate thp on fault or not.  
+I'll add it.
+
+After this change, we'll also need to consider the behavior of thp at 
+fault and whether remote HPAGE_PMD_SIZE memory when local memory is 
+low/fragmented is better than local PAGE_SIZE memory.  In my page fault 
+latency testing on true NUMA machines it's convincing that it's not.
+
+This makes me believe that, somewhat similar to this patch, when we 
+allocate thp memory at fault and zone_reclaim_mode is non-zero that we 
+should set only nodes with numa_node_id() <= RECLAIM_DISTANCE and then 
+otherwise fallback to the PAGE_SIZE fault path.
+
+I've been hesitant to make that exact change, though, because it's a 
+systemwide setting and I really hope to avoid a prctl() that controls 
+zone reclaim for a particular process.  Perhaps the NUMA balancing work 
+makes this more dependable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
