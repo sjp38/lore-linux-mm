@@ -1,94 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 122CD6B0031
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 08:19:40 -0400 (EDT)
-Received: by mail-we0-f176.google.com with SMTP id q58so2101992wes.35
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 05:19:40 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cc6si15410774wib.63.2014.07.15.05.19.38
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 8108B6B0031
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 08:49:35 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id lj1so823183pab.5
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 05:49:35 -0700 (PDT)
+Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
+        by mx.google.com with ESMTPS id zm2si11665475pbc.119.2014.07.15.05.49.33
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 15 Jul 2014 05:19:38 -0700 (PDT)
-Date: Tue, 15 Jul 2014 14:19:35 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 13/13] mm: memcontrol: rewrite uncharge API
-Message-ID: <20140715121935.GB9366@dhcp22.suse.cz>
-References: <1403124045-24361-1-git-send-email-hannes@cmpxchg.org>
- <1403124045-24361-14-git-send-email-hannes@cmpxchg.org>
- <20140715082545.GA9366@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140715082545.GA9366@dhcp22.suse.cz>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Tue, 15 Jul 2014 05:49:34 -0700 (PDT)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout1.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0N8R008Y77M5JO20@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 15 Jul 2014 13:49:17 +0100 (BST)
+Message-id: <53C52350.6020109@samsung.com>
+Date: Tue, 15 Jul 2014 14:49:20 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+MIME-version: 1.0
+Subject: Re: [linux-3.10.17] Could not allocate memory from free CMA areas
+References: <1404862900.76779.YahooMailNeo@web160102.mail.bf1.yahoo.com>
+In-reply-to: <1404862900.76779.YahooMailNeo@web160102.mail.bf1.yahoo.com>
+Content-type: text/plain; charset=UTF-8; format=flowed
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: PINTU KUMAR <pintu_agarwal@yahoo.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>
+Cc: "pintu.k@outlook.com" <pintu.k@outlook.com>, "pintu.k@samsung.com" <pintu.k@samsung.com>, "vishu_1385@yahoo.com" <vishu_1385@yahoo.com>, "mina86@mina86.com" <mina86@mina86.com>, "ngupta@vflare.org" <ngupta@vflare.org>, "iqbalblr@gmail.com" <iqbalblr@gmail.com>
 
-[...]
-> +/**
-> + * mem_cgroup_migrate - migrate a charge to another page
-> + * @oldpage: currently charged page
-> + * @newpage: page to transfer the charge to
-> + * @lrucare: page might be on LRU already
+Hello,
 
-which one? I guess the newpage?
+On 2014-07-09 01:41, PINTU KUMAR wrote:
+> Hi,
+>
+> We are facing one problem on linux 3.10 when we try to use CMA as large as 56MB for 256MB RAM device.
+> We found that after certain point of time (during boot), min watermark check is failing when "free_pages" and "free_cma_pages" are almost equal and falls below the min level.
+>
+> system details:
+> ARM embedded device: RAM: 256MB
+> Kernel version: 3.10.17
+> Fixed Reserved memory: ~40MB
+> Available memory: 217MB
+> CMA reserved 1 : 56MB
+> ZRAM configured: 128MB or 64MB
+> min_free_kbytes: 1625 (default)
+> Memory controller group enabled (MEMCG)
+>
+>
+> After boot-up the "free -tm" command shows free memory as: ~50MB
+> CMA is used for all UI display purposes. CMA used during bootup is close to ~6MB.
+> Thus most of the free memory is in the form of CMA free memory.
+> ZRAM getting uses was around ~5MB.
+>
+>
+> During boot-up itself we observe that the following conditions are met.
+>
+>
+> if (free_pages - free_cma <= min + lowmem_reserve) {
+>      printk"[PINTU]: __zone_watermark_ok: failed !\n");
+>
+>      return false;
+> }
+> Here: free_pages was: 12940, free_cma was: 12380, min: 566, lowmem: 0
+>
+>
+> Thus is condition is met most of the time.
+> And because of this watermark failure, Kswapd is waking up frequently.
+> The /proc/pagetypeinfo reports that most of the higher order pages are from CMA regions.
+>
+>
+> We also observed that ZRAM is trying to allocate memory from CMA region and failing.
+>
+> We also tried by decreasing the CMA region to 20MB. With this the watermark failure is not happening in boot time. But if we launch more than 3 apps {Browser, music-player etc}, again the watermark started failing.
+>
+> Also we tried decreasing the min_free_kbytes=256, and with this also watermark is passed.
+>
+> Our observation is that ZRAM/zsmalloc trying to allocate memory from CMA areas and failed.
+>
+>
+> Please let us know if anybody have come across the same problem and how to resolve this issue.
 
-> + *
-> + * Migrate the charge from @oldpage to @newpage.
-> + *
-> + * Both pages must be locked, @newpage->mapping must be set up.
-> + */
-> +void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
-> +			bool lrucare)
-> +{
-> +	unsigned int nr_pages = 1;
-> +	struct page_cgroup *pc;
-> +
-> +	VM_BUG_ON_PAGE(!PageLocked(oldpage), oldpage);
-> +	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
-> +	VM_BUG_ON_PAGE(PageLRU(oldpage), oldpage);
-> +	VM_BUG_ON_PAGE(PageLRU(newpage), newpage);
+Frankly I really have no idea what is going on. ZRAM/zsmalloc should not 
+try to alloc memory from CMA. I don't have access you the mentioned 
+source code. What flags are passed to alloc_pages() in zram/zsmalloc? It 
+should get pages from non-movable pool.
 
-	VM_BUG_ON_PAGE(PageLRU(newpage) && !lruvec, newpage);
-
-> +	VM_BUG_ON_PAGE(PageAnon(oldpage) != PageAnon(newpage), newpage);
-> +
-> +	if (mem_cgroup_disabled())
-> +		return;
-> +
-> +	pc = lookup_page_cgroup(oldpage);
-> +	if (!PageCgroupUsed(pc))
-> +		return;
-> +
-> +	/* Already migrated */
-> +	if (!(pc->flags & PCG_MEM))
-> +		return;
-> +
-> +	VM_BUG_ON_PAGE(do_swap_account && !(pc->flags & PCG_MEMSW), oldpage);
-> +	pc->flags &= ~(PCG_MEM | PCG_MEMSW);
-
-What about PCG_USED?
-Wouldn't we uncharge the currently transfered charge when oldpage does
-its last put_page when the migration is done?
-
-On a not directly related note. I was quite surprised to see that
-__unmap_and_move calls putback_lru_page on oldpage even when migration
-succeeded. So it goes through mem_cgroup_page_lruvec which checks
-PCG_USED and resets pc->mem_cgroup to root for !PCG_USED.
-
-> +
-> +	if (PageTransHuge(oldpage)) {
-> +		nr_pages <<= compound_order(oldpage);
-> +		VM_BUG_ON_PAGE(!PageTransHuge(oldpage), oldpage);
-> +		VM_BUG_ON_PAGE(!PageTransHuge(newpage), newpage);
-> +	}
-> +
-> +	commit_charge(newpage, pc->mem_cgroup, nr_pages, lrucare);
-> +}
+Best regards
 -- 
-Michal Hocko
-SUSE Labs
+Marek Szyprowski, PhD
+Samsung R&D Institute Poland
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
