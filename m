@@ -1,97 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 325346B0037
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 05:56:03 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id fp1so3449697pdb.5
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 02:56:02 -0700 (PDT)
-Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
-        by mx.google.com with ESMTPS id qn15si11352809pab.176.2014.07.15.02.56.01
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 549326B0037
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 05:57:12 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id v10so6826254pde.40
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 02:57:12 -0700 (PDT)
+Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
+        by mx.google.com with ESMTPS id kj6si11344679pbc.109.2014.07.15.02.57.10
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Tue, 15 Jul 2014 02:56:02 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout4.w1.samsung.com
+        Tue, 15 Jul 2014 02:57:11 -0700 (PDT)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout3.w1.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0N8Q00HOZZKY2290@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 15 Jul 2014 10:55:46 +0100 (BST)
-Subject: [PATCH] mm: fix faulting range in do_fault_around
-From: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
-Date: Tue, 15 Jul 2014 13:55:39 +0400
-Message-id: <20140715095539.2086.44482.stgit@buzz>
-In-reply-to: 
- <CALYGNiM9Fu9-i7hXMQNTUP69RfydN+2NqO29wZYd+4Gn25GbCQ@mail.gmail.com>
-References: <CALYGNiM9Fu9-i7hXMQNTUP69RfydN+2NqO29wZYd+4Gn25GbCQ@mail.gmail.com>
+ 17 2011)) with ESMTP id <0N8Q00AACZMYL0A0@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 15 Jul 2014 10:56:58 +0100 (BST)
+Message-id: <53C4F99B.5010007@samsung.com>
+Date: Tue, 15 Jul 2014 13:51:23 +0400
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
 MIME-version: 1.0
-Content-type: text/plain; charset=utf-8
+Subject: Re: [RFC/PATCH RESEND -next 14/21] mm: slub: kasan: disable kasan when
+ touching unaccessible memory
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+ <1404905415-9046-15-git-send-email-a.ryabinin@samsung.com>
+ <20140715060405.GI11317@js1304-P5Q-DELUXE> <53C4DA54.3010502@samsung.com>
+ <20140715081852.GL11317@js1304-P5Q-DELUXE>
+In-reply-to: <20140715081852.GL11317@js1304-P5Q-DELUXE>
+Content-type: text/plain; charset=ISO-8859-1
 Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, Sasha Levin <sasha.levin@oracle.com>
-Cc: Ingo Korb <ingo.korb@tu-dortmund.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ning Qu <quning@google.com>, Konstantin Khlebnikov <koct9i@gmail.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Alexey Preobrazhensky <preobr@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Russell King <linux@arm.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kbuild@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, linux-mm@kvack.org
 
-From: Konstantin Khlebnikov <koct9i@gmail.com>
+On 07/15/14 12:18, Joonsoo Kim wrote:
+> On Tue, Jul 15, 2014 at 11:37:56AM +0400, Andrey Ryabinin wrote:
+>> On 07/15/14 10:04, Joonsoo Kim wrote:
+>>> On Wed, Jul 09, 2014 at 03:30:08PM +0400, Andrey Ryabinin wrote:
+>>>> Some code in slub could validly touch memory marked by kasan as unaccessible.
+>>>> Even though slub.c doesn't instrumented, functions called in it are instrumented,
+>>>> so to avoid false positive reports such places are protected by
+>>>> kasan_disable_local()/kasan_enable_local() calls.
+>>>>
+>>>> Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
+>>>> ---
+>>>>  mm/slub.c | 21 +++++++++++++++++++--
+>>>>  1 file changed, 19 insertions(+), 2 deletions(-)
+>>>>
+>>>> diff --git a/mm/slub.c b/mm/slub.c
+>>>> index 6ddedf9..c8dbea7 100644
+>>>> --- a/mm/slub.c
+>>>> +++ b/mm/slub.c
+>>>> @@ -560,8 +560,10 @@ static void print_tracking(struct kmem_cache *s, void *object)
+>>>>  	if (!(s->flags & SLAB_STORE_USER))
+>>>>  		return;
+>>>>  
+>>>> +	kasan_disable_local();
+>>>>  	print_track("Allocated", get_track(s, object, TRACK_ALLOC));
+>>>>  	print_track("Freed", get_track(s, object, TRACK_FREE));
+>>>> +	kasan_enable_local();
+>>>
+>>> I don't think that this is needed since print_track() doesn't call
+>>> external function with object pointer. print_track() call pr_err(), but,
+>>> before calling, it retrieve t->addrs[i] so memory access only occurs
+>>> in slub.c.
+>>>
+>> Agree.
+>>
+>>>>  }
+>>>>  
+>>>>  static void print_page_info(struct page *page)
+>>>> @@ -604,6 +606,8 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
+>>>>  	unsigned int off;	/* Offset of last byte */
+>>>>  	u8 *addr = page_address(page);
+>>>>  
+>>>> +	kasan_disable_local();
+>>>> +
+>>>>  	print_tracking(s, p);
+>>>>  
+>>>>  	print_page_info(page);
+>>>> @@ -632,6 +636,8 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
+>>>>  		/* Beginning of the filler is the free pointer */
+>>>>  		print_section("Padding ", p + off, s->size - off);
+>>>>  
+>>>> +	kasan_enable_local();
+>>>> +
+>>>>  	dump_stack();
+>>>>  }
+>>>
+>>> And, I recommend that you put this hook on right place.
+>>> At a glance, the problematic function is print_section() which have
+>>> external function call, print_hex_dump(), with object pointer.
+>>> If you disable kasan in print_section, all the below thing won't be
+>>> needed, I guess.
+>>>
+>>
+>> Nope, at least memchr_inv() call in slab_pad_check will be a problem.
+>>
+>> I think putting disable/enable only where we strictly need them might be a problem for future maintenance of slub.
+>> If someone is going to add a new function call somewhere, he must ensure that it this call won't be a problem
+>> for kasan.
+> 
+> I don't agree with this.
+> 
+> If someone is going to add a slab_pad_check() in other places in
+> slub.c, we should disable/enable kasan there, too. This looks same
+> maintenance problem to me. Putting disable/enable only where we
+> strictly need at least ensures that we don't need to care when using
+> slub internal functions.
+> 
+> And, if memchr_inv() is problem, I think that you also need to add hook
+> into validate_slab_cache().
+> 
+> validate_slab_cache() -> validate_slab_slab() -> validate_slab() ->
+> check_object() -> check_bytes_and_report() -> memchr_inv()
+> 
+> Thanks.
+> 
 
-do_fault_around shoudn't cross pmd boundaries.
+Ok, you convinced me. I'll do it.
 
-This patch does calculation in terms of addresses rather than pgoff.
-It looks much cleaner in this way. Probably it's worth to replace
-vmf->max_pgoff with vmf->end_address as well.
-
-Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
-Reported-by: "Ingo Korb" <ingo.korb@tu-dortmund.de>
----
- mm/memory.c |   26 +++++++++++---------------
- 1 file changed, 11 insertions(+), 15 deletions(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index d67fd9f..f27638a 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2831,33 +2831,29 @@ late_initcall(fault_around_debugfs);
- static void do_fault_around(struct vm_area_struct *vma, unsigned long address,
- 		pte_t *pte, pgoff_t pgoff, unsigned int flags)
- {
--	unsigned long start_addr;
-+	unsigned long start_addr, end_addr;
- 	pgoff_t max_pgoff;
- 	struct vm_fault vmf;
- 	int off;
- 
--	start_addr = max(address & fault_around_mask(), vma->vm_start);
--	off = ((address - start_addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1);
-+	start_addr = max3(vma->vm_start, address & PMD_MASK,
-+			  address & fault_around_mask());
-+
-+	end_addr = min3(vma->vm_end, ALIGN(address, PMD_SIZE),
-+			start_addr + PAGE_ALIGN(fault_around_bytes));
-+
-+	off = (address - start_addr) >> PAGE_SHIFT;
- 	pte -= off;
- 	pgoff -= off;
--
--	/*
--	 *  max_pgoff is either end of page table or end of vma
--	 *  or fault_around_pages() from pgoff, depending what is nearest.
--	 */
--	max_pgoff = pgoff - ((start_addr >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)) +
--		PTRS_PER_PTE - 1;
--	max_pgoff = min3(max_pgoff, vma_pages(vma) + vma->vm_pgoff - 1,
--			pgoff + fault_around_pages() - 1);
-+	max_pgoff = pgoff + ((end_addr - start_addr) >> PAGE_SHIFT) - 1;
- 
- 	/* Check if it makes any sense to call ->map_pages */
- 	while (!pte_none(*pte)) {
--		if (++pgoff > max_pgoff)
--			return;
- 		start_addr += PAGE_SIZE;
--		if (start_addr >= vma->vm_end)
-+		if (start_addr >= end_addr)
- 			return;
- 		pte++;
-+		pgoff++;
- 	}
- 
- 	vmf.virtual_address = (void __user *) start_addr;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
