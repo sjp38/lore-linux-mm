@@ -1,96 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id E43466B0031
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 17:33:09 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id et14so11382pad.7
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 14:33:09 -0700 (PDT)
-Received: from g2t2354.austin.hp.com (g2t2354.austin.hp.com. [15.217.128.53])
-        by mx.google.com with ESMTPS id i5si6358894pdj.393.2014.07.15.14.33.08
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id BB71F6B0031
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 17:48:58 -0400 (EDT)
+Received: by mail-wg0-f49.google.com with SMTP id k14so24959wgh.8
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 14:48:57 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id am6si21363747wjc.146.2014.07.15.14.48.56
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 15 Jul 2014 14:33:08 -0700 (PDT)
-Message-ID: <1405459404.28702.17.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH 0/11] Support Write-Through mapping on x86
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Tue, 15 Jul 2014 15:23:24 -0600
-In-Reply-To: <53C58A69.3070207@zytor.com>
-References: <1405452884-25688-1-git-send-email-toshi.kani@hp.com>
-	 <53C58A69.3070207@zytor.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Tue, 15 Jul 2014 14:48:56 -0700 (PDT)
+Date: Tue, 15 Jul 2014 17:48:43 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 13/13] mm: memcontrol: rewrite uncharge API
+Message-ID: <20140715214843.GX29639@cmpxchg.org>
+References: <1403124045-24361-1-git-send-email-hannes@cmpxchg.org>
+ <1403124045-24361-14-git-send-email-hannes@cmpxchg.org>
+ <20140715155537.GA19454@nhori.bos.redhat.com>
+ <20140715160735.GB29269@dhcp22.suse.cz>
+ <20140715173439.GU29639@cmpxchg.org>
+ <20140715184358.GA31550@nhori.bos.redhat.com>
+ <20140715190454.GW29639@cmpxchg.org>
+ <20140715204953.GA21016@nhori.bos.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140715204953.GA21016@nhori.bos.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, konrad.wilk@oracle.com, plagnioj@jcrosoft.com, tomi.valkeinen@ti.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, airlied@gmail.com, bp@alien8.de
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, 2014-07-15 at 13:09 -0700, H. Peter Anvin wrote:
-> On 07/15/2014 12:34 PM, Toshi Kani wrote:
-> > This RFC patchset is aimed to seek comments/suggestions for the design
-> > and changes to support of Write-Through (WT) mapping.  The study below
-> > shows that using WT mapping may be useful for non-volatile memory.
-> > 
-> >   http://www.hpl.hp.com/techreports/2012/HPL-2012-236.pdf
-> > 
-> > There were idea & patches to support WT in the past, which stimulated
-> > very valuable discussions on this topic.
-> > 
-> >   https://lkml.org/lkml/2013/4/24/424
-> >   https://lkml.org/lkml/2013/10/27/70
-> >   https://lkml.org/lkml/2013/11/3/72
-> > 
-> > This RFC patchset tries to address the issues raised by taking the
-> > following design approach:
-> > 
-> >  - Keep the MTRR interface
-> >  - Keep the WB, WC, and UC- slots in the PAT MSR
-> >  - Keep the PAT bit unused
-> >  - Reassign the UC slot to WT in the PAT MSR
-> > 
-> > There are 4 usable slots in the PAT MSR, which are currently assigned to:
-> > 
-> >   PA0/4: WB, PA1/5: WC, PA2/6: UC-, PA3/7: UC
-> > 
-> > The PAT bit is unused since it shares the same bit as the PSE bit and
-> > there was a bug in older processors.  Among the 4 slots, the uncached
-> > memory type consumes 2 slots, UC- and UC.  They are functionally
-> > equivalent, but UC- allows MTRRs to overwrite it with WC.  All interfaces
-> > that set the uncached memory type use UC- in order to work with MTRRs.
-> > The PA3/7 slot is effectively unused today.  Therefore, this patchset
-> > reassigns the PA3/7 slot to WT.  If MTRRs get deprecated in future,
-> > UC- can be reassigned to UC, and there is still no need to consume
-> > 2 slots for the uncached memory type.
-> 
-> Not going to happen any time in the forseeable future.
-> 
-> Furthermore, I don't think it is a big deal if on some old, buggy
-> processors we take the performance hit of cache type demotion, as long
-> as we don't actively lose data.
-> 
-> > This patchset is consist of two parts.  The 1st part, patch [1/11] to
-> > [6/11], enables WT mapping and adds new interfaces for setting WT mapping.
-> > The 2nd part, patch [7/11] to [11/11], cleans up the code that has
-> > internal knowledge of the PAT slot assignment.  This keeps the kernel
-> > code independent from the PAT slot assignment.
-> 
-> I have given this piece of feedback at least three times now, possibly
-> to different people, and I'm getting a bit grumpy about it:
-> 
-> We already have an issue with Xen, because Xen assigned mappings
-> differently and it is incompatible with the use of PAT in Linux.  As a
-> result we get requests for hacks to work around this, which is something
-> I really don't want to see.  I would like to see a design involving a
-> "reverse PAT" table where the kernel can hold the mapping between memory
-> types and page table encodings (including the two different ones for
-> small and large pages.)
+On Tue, Jul 15, 2014 at 04:49:53PM -0400, Naoya Horiguchi wrote:
+> I feel that these 2 messages have the same cause (just appear differently).
+> __add_to_page_cache_locked() (and mem_cgroup_try_charge()) can be called
+> for hugetlb, while we avoid calling mem_cgroup_migrate()/mem_cgroup_uncharge()
+> for hugetlb. This seems to make page_cgroup of the hugepage inconsistent,
+> and results in the bad page bug ("page dumped because: cgroup check failed").
+> So maybe some more PageHuge check is necessary around the charging code.
 
-Thanks for pointing this out! (And sorry for making you repeat it three
-time...)  I was not aware of the issue with Xen.  I will look into the
-email archive to see what the Xen issue is, and how it can be addressed.
+This struck me as odd because I don't remember removing a PageHuge()
+call in the charge path and wondered how it worked before my changes:
+apparently it just checked PageCompound() in mem_cgroup_charge_file().
 
-Thanks,
--Toshi
+So it's not fallout of the new uncharge batching code, but was already
+broken during the rewrite of the charge API because then hugetlb pages
+entered the charging code.
 
+Anyway, we don't have file-specific charging code anymore, and the
+PageCompound() check would have required changing anyway for THP
+cache.  So I guess the solution is checking PageHuge() in charge,
+uncharge, and migrate for now.  Oh well.
+
+How about this?
+
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 9c99d6868a5e..b61194273b56 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -564,9 +564,12 @@ static int __add_to_page_cache_locked(struct page *page,
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 	VM_BUG_ON_PAGE(PageSwapBacked(page), page);
+ 
+-	error = mem_cgroup_try_charge(page, current->mm, gfp_mask, &memcg);
+-	if (error)
+-		return error;
++	if (!PageHuge(page)) {
++		error = mem_cgroup_try_charge(page, current->mm,
++					      gfp_mask, &memcg);
++		if (error)
++			return error;
++	}
+ 
+ 	error = radix_tree_maybe_preload(gfp_mask & ~__GFP_HIGHMEM);
+ 	if (error) {
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 7f5a42403fae..dabed2f08609 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -781,7 +781,8 @@ static int move_to_new_page(struct page *newpage, struct page *page,
+ 		if (!PageAnon(newpage))
+ 			newpage->mapping = NULL;
+ 	} else {
+-		mem_cgroup_migrate(page, newpage, false);
++		if (!PageHuge(page))
++			mem_cgroup_migrate(page, newpage, false);
+ 		if (remap_swapcache)
+ 			remove_migration_ptes(page, newpage);
+ 		if (!PageAnon(page))
+diff --git a/mm/swap.c b/mm/swap.c
+index 3461f2f5be20..97b6ec132398 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -62,12 +62,12 @@ static void __page_cache_release(struct page *page)
+ 		del_page_from_lru_list(page, lruvec, page_off_lru(page));
+ 		spin_unlock_irqrestore(&zone->lru_lock, flags);
+ 	}
+-	mem_cgroup_uncharge(page);
+ }
+ 
+ static void __put_single_page(struct page *page)
+ {
+ 	__page_cache_release(page);
++	mem_cgroup_uncharge_page(page);
+ 	free_hot_cold_page(page, false);
+ }
+ 
+@@ -75,7 +75,10 @@ static void __put_compound_page(struct page *page)
+ {
+ 	compound_page_dtor *dtor;
+ 
+-	__page_cache_release(page);
++	if (!PageHuge(page)) {
++		__page_cache_release(page);
++		mem_cgroup_uncharge_page(page);
++	}
+ 	dtor = get_compound_page_dtor(page);
+ 	(*dtor)(page);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
