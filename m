@@ -1,69 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id A9B4E6B0037
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 06:00:36 -0400 (EDT)
-Received: by mail-wg0-f50.google.com with SMTP id n12so5255927wgh.33
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 03:00:36 -0700 (PDT)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id na8si14912857wic.48.2014.07.15.03.00.34
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CB4D6B0035
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 06:30:39 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id fp1so3551926pdb.33
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 03:30:38 -0700 (PDT)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id az6si5732162pdb.103.2014.07.15.03.30.37
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Jul 2014 03:00:35 -0700 (PDT)
-Date: Tue, 15 Jul 2014 12:00:13 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 00/10] fix freepage count problems due to memory isolation
-Message-ID: <20140715100013.GX9918@twins.programming.kicks-ass.net>
-References: <1404460675-24456-1-git-send-email-iamjoonsoo.kim@lge.com>
- <53B6C947.1070603@suse.cz>
- <20140707044932.GA29236@js1304-P5Q-DELUXE>
- <53BAAFA5.9070403@suse.cz>
- <20140714062222.GA11317@js1304-P5Q-DELUXE>
- <53C3A7A5.9060005@suse.cz>
- <20140715082828.GM11317@js1304-P5Q-DELUXE>
- <53C4E813.7020108@suse.cz>
- <CAAmzW4PgQSt3xXti9Y5oy9eNqKz8Gq3fv8rB=A0Gt7NtUSZ35w@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 15 Jul 2014 03:30:37 -0700 (PDT)
+Received: by mail-pa0-f47.google.com with SMTP id kx10so5738897pab.20
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 03:30:37 -0700 (PDT)
+Date: Tue, 15 Jul 2014 03:28:53 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH 0/2] shmem: fix faulting into a hole while it's punched, take
+ 3
+Message-ID: <alpine.LSU.2.11.1407150247540.2584@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="MgQdU7jr+b9ajvaw"
-Content-Disposition: inline
-In-Reply-To: <CAAmzW4PgQSt3xXti9Y5oy9eNqKz8Gq3fv8rB=A0Gt7NtUSZ35w@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, Lisa Du <cldu@marvell.com>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Vlastimil Babka <vbabka@suse.cz>, Konstantin Khlebnikov <koct9i@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Lukas Czerner <lczerner@redhat.com>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
+Hi Andrew,
 
---MgQdU7jr+b9ajvaw
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Here's my latest and hopefully last stab at fixing the trinity
+hole-punch starvation issue that became known as CVE-2014-4171.
 
-On Tue, Jul 15, 2014 at 06:39:20PM +0900, Joonsoo Kim wrote:
-> >>>>>>>>
+You may prefer to hear a testing update from Sasha and Vlastimil before
+paying any attention to these, or you may prefer to add them into mmotm
+for wider testing now: whichever you think appropriate.
 
-tl;dr, if you want me to read your emails, trim them.
+Please throw away mmotm's
+revert-shmem-fix-faulting-into-a-hole-while-its-punched.patch
+and replace it by 1/2, which fixes that commit instead of reverting it.
 
---MgQdU7jr+b9ajvaw
-Content-Type: application/pgp-signature
+Please throw away mmotm's
+shmem-fix-faulting-into-a-hole-while-its-punched-take-2.patch
+and replace it by 2/2, which reworks the commit message and adds a fix.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
+Please keep the 3/3 I sent last time in mmotm
+mm-fs-fix-pessimization-in-hole-punching-pagecache.patch
+which remains valid.
 
-iQIcBAEBAgAGBQJTxPutAAoJEHZH4aRLwOS6aBAP/36zkUCz6utHIPHFkW+lSQWh
-EkwTRjEhoM69z+9CRU105XEWvSpIiQ4WaNX5OSxUXTpQADUPkRiVli1sTHCa7/UQ
-9NuYnXEsIBmiWcXmy2l5v6u5k54NKqpcaiIqDhe8Zsv4ZhM/mSJPHWrZEu539oX6
-S2o3S6QZBqOpAwaQTJTFYOmffTkhntY0eb+gZoYWwbwRRZfPFTTrPUnquP7F4Q7X
-gHTcV6f9Z6zsRKP0hIW++sqQTh4e2exHvs9vduTB7VpNLJFcv0MJLjr+S4PuLOiQ
-nmdjCVIXK23axePvqFAlp+9I0Kqho12yFFKmPU3+qXAfXvxhh+SMETsEs/3Zv+h1
-sLENOlkrSqiLdjQ98fTDpOK7Uc38ifxp7ITq/JGZpH1ZxxMICfiWtFa37Mac82pY
-V2tsKjbyzDz6+dtwnzb8dSE1jEHJT3YGiXox1TsDqEiUMwzKza/nk6suy2mPDFNx
-n/ZwpVGfGZgAjySi62ogQyl5pKFwbn6vJR4KortpavVRyXZrJq/Uy44a/4mB3NAU
-FUbe63Y+K/3/Ak0liiR9TF7+FcbCPlh5ri4jkFYeLW7N9uMsDnERiA6d8cgfaBd1
-njC6BqcD4SqMF3dBFf70m0qWMOWcIBc0/wV5X5dFb5dXsp5tQjfs3LSa0waaBg5Q
-ovfGVY2PHRFYB/m9A9rX
-=onnj
------END PGP SIGNATURE-----
+In the end I decided that we had better look at it as two problems,
+the trinity faulting starvation, and the indefinite punching loop,
+so 1/2 and 2/2 present both solutions: belt and braces.
 
---MgQdU7jr+b9ajvaw--
+Which may be the best for fixing, but the worst for ease of backporting.
+Vlastimil, I have prepared (and lightly tested) a 3.2.61-based version
+of the combination of f00cdc6df7d7 and 1/2 and 2/2 (basically, I moved
+vmtruncate_range from mm/truncate.c to mm/shmem.c, since nothing but
+shmem ever implemented the truncate_range method).  It should give a
+good hint for backports earlier and later: I'll send it privately to
+you now, but keep in mind that it may need to be revised if today's
+patches for 3.16 get revised again (I'll send it to Ben Hutchings
+only when that's settled).
+
+Thanks,
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
