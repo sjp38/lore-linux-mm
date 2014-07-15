@@ -1,83 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id A12906B0036
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 11:56:05 -0400 (EDT)
-Received: by mail-wg0-f45.google.com with SMTP id x12so5888043wgg.16
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 08:56:05 -0700 (PDT)
-Received: from mail-wi0-x234.google.com (mail-wi0-x234.google.com [2a00:1450:400c:c05::234])
-        by mx.google.com with ESMTPS id ft4si16213606wic.90.2014.07.15.08.56.03
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C40F6B0031
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 12:07:07 -0400 (EDT)
+Received: by mail-we0-f177.google.com with SMTP id w62so2403756wes.22
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 09:07:07 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id eu4si20438813wjd.51.2014.07.15.09.07.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 15 Jul 2014 08:56:04 -0700 (PDT)
-Received: by mail-wi0-f180.google.com with SMTP id n3so4594684wiv.1
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 08:56:03 -0700 (PDT)
-Date: Tue, 15 Jul 2014 17:56:00 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 13/13] mm: memcontrol: rewrite uncharge API
-Message-ID: <20140715155600.GA29269@dhcp22.suse.cz>
-References: <1403124045-24361-1-git-send-email-hannes@cmpxchg.org>
- <1403124045-24361-14-git-send-email-hannes@cmpxchg.org>
- <20140715082545.GA9366@dhcp22.suse.cz>
- <20140715142350.GD9366@dhcp22.suse.cz>
- <20140715150937.GS29639@cmpxchg.org>
- <20140715151818.GE9366@dhcp22.suse.cz>
- <20140715154643.GT29639@cmpxchg.org>
+        Tue, 15 Jul 2014 09:07:06 -0700 (PDT)
+Message-ID: <53C551A8.2040400@suse.cz>
+Date: Tue, 15 Jul 2014 18:07:04 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140715154643.GT29639@cmpxchg.org>
+Subject: Re: [PATCH 1/2] shmem: fix faulting into a hole, not taking i_mutex
+References: <alpine.LSU.2.11.1407150247540.2584@eggly.anvils> <alpine.LSU.2.11.1407150329250.2584@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1407150329250.2584@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Lukas Czerner <lczerner@redhat.com>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue 15-07-14 11:46:43, Johannes Weiner wrote:
-> On Tue, Jul 15, 2014 at 05:18:18PM +0200, Michal Hocko wrote:
-> > On Tue 15-07-14 11:09:37, Johannes Weiner wrote:
-> > > On Tue, Jul 15, 2014 at 04:23:50PM +0200, Michal Hocko wrote:
-> > > > On Tue 15-07-14 10:25:45, Michal Hocko wrote:
-> > [...]
-> > > > > @@ -2760,15 +2752,15 @@ static void commit_charge(struct page *page, struct mem_cgroup *memcg,
-> > > > >  		spin_unlock_irq(&zone->lru_lock);
-> > > > >  	}
-> > > > >  
-> > > > > -	mem_cgroup_charge_statistics(memcg, page, anon, nr_pages);
-> > > > > -	unlock_page_cgroup(pc);
-> > > > > -
-> > > > > +	local_irq_disable();
-> > > > > +	mem_cgroup_charge_statistics(memcg, page, nr_pages);
-> > > > >  	/*
-> > > > >  	 * "charge_statistics" updated event counter. Then, check it.
-> > > > >  	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
-> > > > >  	 * if they exceeds softlimit.
-> > > > >  	 */
-> > > > >  	memcg_check_events(memcg, page);
-> > > > > +	local_irq_enable();
-> > > > 
-> > > > preempt_{enable,disbale} should be sufficient for
-> > > > mem_cgroup_charge_statistics and memcg_check_events no?
-> > > > The first one is about per-cpu accounting (and that should be atomic
-> > > > wrt. IRQ on the same CPU) and the later one uses IRQ safe locks down in
-> > > > mem_cgroup_update_tree.
-> > > 
-> > > How could it be atomic wrt. IRQ on the local CPU when IRQs that modify
-> > > the counters can fire on the local CPU?
-> > 
-> > I meant that __this_atomic_add and __this_cpu_inc should be atomic wrt. IRQ.
-> > We do not care that an IRQ might jump in between two per-cpu operations.
-> > This is racy from other CPUs anyway.
-> 
-> It's really about a single RMW (+=) being interrupted by an IRQ.
-> this_cpu_ guarantees IRQ-atomicity, but __this_cpu_ does not.
+On 07/15/2014 12:31 PM, Hugh Dickins wrote:
+> f00cdc6df7d7 ("shmem: fix faulting into a hole while it's punched") was
+> buggy: Sasha sent a lockdep report to remind us that grabbing i_mutex in
+> the fault path is a no-no (write syscall may already hold i_mutex while
+> faulting user buffer).
+>
+> We tried a completely different approach (see following patch) but that
+> proved inadequate: good enough for a rational workload, but not good
+> enough against trinity - which forks off so many mappings of the object
+> that contention on i_mmap_mutex while hole-puncher holds i_mutex builds
+> into serious starvation when concurrent faults force the puncher to fall
+> back to single-page unmap_mapping_range() searches of the i_mmap tree.
+>
+> So return to the original umbrella approach, but keep away from i_mutex
+> this time.  We really don't want to bloat every shmem inode with a new
+> mutex or completion, just to protect this unlikely case from trinity.
+> So extend the original with wait_queue_head on stack at the hole-punch
+> end, and wait_queue item on the stack at the fault end.
 
-Yes, you are right. I was too x86 centric where both add and inc are
-really a single instruction. Generic implementation already shows I was
-wrong.
+Hi, thanks a lot, I will definitely test it soon, although my reproducer 
+is rather limited - it already works fine with the current kernel. 
+Trinity will be more useful here. But there's something that caught my 
+eye so I though I would raise the concern now.
 
-Sorry for the noise!
--- 
-Michal Hocko
-SUSE Labs
+> @@ -760,7 +760,7 @@ static int shmem_writepage(struct page *
+>   			spin_lock(&inode->i_lock);
+>   			shmem_falloc = inode->i_private;
+
+Without ACCESS_ONCE, can shmem_falloc potentially become an alias on 
+inode->i_private and later become re-read outside of the lock?
+
+>   			if (shmem_falloc &&
+> -			    !shmem_falloc->mode &&
+> +			    !shmem_falloc->waitq &&
+>   			    index >= shmem_falloc->start &&
+>   			    index < shmem_falloc->next)
+>   				shmem_falloc->nr_unswapped++;
+> @@ -1248,38 +1248,58 @@ static int shmem_fault(struct vm_area_st
+>   	 * Trinity finds that probing a hole which tmpfs is punching can
+>   	 * prevent the hole-punch from ever completing: which in turn
+>   	 * locks writers out with its hold on i_mutex.  So refrain from
+> -	 * faulting pages into the hole while it's being punched, and
+> -	 * wait on i_mutex to be released if vmf->flags permits.
+> +	 * faulting pages into the hole while it's being punched.  Although
+> +	 * shmem_undo_range() does remove the additions, it may be unable to
+> +	 * keep up, as each new page needs its own unmap_mapping_range() call,
+> +	 * and the i_mmap tree grows ever slower to scan if new vmas are added.
+> +	 *
+> +	 * It does not matter if we sometimes reach this check just before the
+> +	 * hole-punch begins, so that one fault then races with the punch:
+> +	 * we just need to make racing faults a rare case.
+> +	 *
+> +	 * The implementation below would be much simpler if we just used a
+> +	 * standard mutex or completion: but we cannot take i_mutex in fault,
+> +	 * and bloating every shmem inode for this unlikely case would be sad.
+>   	 */
+>   	if (unlikely(inode->i_private)) {
+>   		struct shmem_falloc *shmem_falloc;
+>
+>   		spin_lock(&inode->i_lock);
+>   		shmem_falloc = inode->i_private;
+
+Same here.
+
+> -		if (!shmem_falloc ||
+> -		    shmem_falloc->mode != FALLOC_FL_PUNCH_HOLE ||
+> -		    vmf->pgoff < shmem_falloc->start ||
+> -		    vmf->pgoff >= shmem_falloc->next)
+> -			shmem_falloc = NULL;
+> -		spin_unlock(&inode->i_lock);
+> -		/*
+> -		 * i_lock has protected us from taking shmem_falloc seriously
+> -		 * once return from shmem_fallocate() went back up that stack.
+> -		 * i_lock does not serialize with i_mutex at all, but it does
+> -		 * not matter if sometimes we wait unnecessarily, or sometimes
+> -		 * miss out on waiting: we just need to make those cases rare.
+> -		 */
+> -		if (shmem_falloc) {
+> +		if (shmem_falloc &&
+> +		    shmem_falloc->waitq &&
+
+Here it's operating outside of lock.
+
+> +		    vmf->pgoff >= shmem_falloc->start &&
+> +		    vmf->pgoff < shmem_falloc->next) {
+> +			wait_queue_head_t *shmem_falloc_waitq;
+> +			DEFINE_WAIT(shmem_fault_wait);
+> +
+> +			ret = VM_FAULT_NOPAGE;
+>   			if ((vmf->flags & FAULT_FLAG_ALLOW_RETRY) &&
+>   			   !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT)) {
+> +				/* It's polite to up mmap_sem if we can */
+>   				up_read(&vma->vm_mm->mmap_sem);
+> -				mutex_lock(&inode->i_mutex);
+> -				mutex_unlock(&inode->i_mutex);
+> -				return VM_FAULT_RETRY;
+> +				ret = VM_FAULT_RETRY;
+>   			}
+> -			/* cond_resched? Leave that to GUP or return to user */
+> -			return VM_FAULT_NOPAGE;
+> +
+> +			shmem_falloc_waitq = shmem_falloc->waitq;
+> +			prepare_to_wait(shmem_falloc_waitq, &shmem_fault_wait,
+> +					TASK_KILLABLE);
+> +			spin_unlock(&inode->i_lock);
+> +			schedule();
+> +
+> +			/*
+> +			 * shmem_falloc_waitq points into the shmem_fallocate()
+> +			 * stack of the hole-punching task: shmem_falloc_waitq
+> +			 * is usually invalid by the time we reach here, but
+> +			 * finish_wait() does not dereference it in that case;
+> +			 * though i_lock needed lest racing with wake_up_all().
+> +			 */
+> +			spin_lock(&inode->i_lock);
+> +			finish_wait(shmem_falloc_waitq, &shmem_fault_wait);
+> +			spin_unlock(&inode->i_lock);
+> +			return ret;
+>   		}
+> +		spin_unlock(&inode->i_lock);
+>   	}
+>
+>   	error = shmem_getpage(inode, vmf->pgoff, &vmf->page, SGP_CACHE, &ret);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
