@@ -1,111 +1,270 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BFB06B0035
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 04:12:55 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id fa1so3434476pad.41
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 01:12:54 -0700 (PDT)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id sf3si11136951pbb.149.2014.07.15.01.12.53
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 68C486B0035
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 04:22:31 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id g10so4506586pdj.15
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 01:22:31 -0700 (PDT)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id of2si11150244pbb.156.2014.07.15.01.22.28
         for <linux-mm@kvack.org>;
-        Tue, 15 Jul 2014 01:12:54 -0700 (PDT)
-Date: Tue, 15 Jul 2014 17:18:52 +0900
+        Tue, 15 Jul 2014 01:22:30 -0700 (PDT)
+Date: Tue, 15 Jul 2014 17:28:28 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC/PATCH RESEND -next 14/21] mm: slub: kasan: disable kasan
- when touching unaccessible memory
-Message-ID: <20140715081852.GL11317@js1304-P5Q-DELUXE>
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
- <1404905415-9046-15-git-send-email-a.ryabinin@samsung.com>
- <20140715060405.GI11317@js1304-P5Q-DELUXE>
- <53C4DA54.3010502@samsung.com>
+Subject: Re: [PATCH 00/10] fix freepage count problems due to memory isolation
+Message-ID: <20140715082828.GM11317@js1304-P5Q-DELUXE>
+References: <1404460675-24456-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <53B6C947.1070603@suse.cz>
+ <20140707044932.GA29236@js1304-P5Q-DELUXE>
+ <53BAAFA5.9070403@suse.cz>
+ <20140714062222.GA11317@js1304-P5Q-DELUXE>
+ <53C3A7A5.9060005@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <53C4DA54.3010502@samsung.com>
+In-Reply-To: <53C3A7A5.9060005@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>
-Cc: linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Alexey Preobrazhensky <preobr@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Russell King <linux@arm.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kbuild@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, Lisa Du <cldu@marvell.com>, linux-kernel@vger.kernel.org
 
-On Tue, Jul 15, 2014 at 11:37:56AM +0400, Andrey Ryabinin wrote:
-> On 07/15/14 10:04, Joonsoo Kim wrote:
-> > On Wed, Jul 09, 2014 at 03:30:08PM +0400, Andrey Ryabinin wrote:
-> >> Some code in slub could validly touch memory marked by kasan as unaccessible.
-> >> Even though slub.c doesn't instrumented, functions called in it are instrumented,
-> >> so to avoid false positive reports such places are protected by
-> >> kasan_disable_local()/kasan_enable_local() calls.
+On Mon, Jul 14, 2014 at 11:49:25AM +0200, Vlastimil Babka wrote:
+> On 07/14/2014 08:22 AM, Joonsoo Kim wrote:
+> >On Mon, Jul 07, 2014 at 04:33:09PM +0200, Vlastimil Babka wrote:
+> >>On 07/07/2014 06:49 AM, Joonsoo Kim wrote:
+> >>>Ccing Lisa, because there was bug report it may be related this
+> >>>topic last Saturday.
+> >>>
+> >>>http://www.spinics.net/lists/linux-mm/msg75741.html
+> >>>
+> >>>On Fri, Jul 04, 2014 at 05:33:27PM +0200, Vlastimil Babka wrote:
+> >>>>On 07/04/2014 09:57 AM, Joonsoo Kim wrote:
+> >>>>>Hello,
+> >>>>
+> >>>>Hi Joonsoo,
+> >>>>
+> >>>>please CC me on further updates, this is relevant to me.
+> >>>
+> >>>Hello, Vlastimil.
+> >>>
+> >>>Sorry for missing you. :)
+> >>>
+> >>>>
+> >>>>>This patchset aims at fixing problems due to memory isolation found by
+> >>>>>testing my patchset [1].
+> >>>>>
+> >>>>>These are really subtle problems so I can be wrong. If you find what I am
+> >>>>>missing, please let me know.
+> >>>>>
+> >>>>>Before describing bugs itself, I first explain definition of freepage.
+> >>>>>
+> >>>>>1. pages on buddy list are counted as freepage.
+> >>>>>2. pages on isolate migratetype buddy list are *not* counted as freepage.
+> >>>>
+> >>>>I think the second point is causing us a lot of trouble. And I wonder if it's really
+> >>>>justified! We already have some is_migrate_isolate() checks in the fast path and now you
+> >>>>would add more, mostly just to keep this accounting correct.
+> >>>
+> >>>It's not just for keeping accouting correct. There is another
+> >>>purpose for is_migrate_isolate(). It forces freed pages to go into
+> >>>isolate buddy list. Without it, freed pages would go into other
+> >>>buddy list and will be used soon. So memory isolation can't work well
+> >>>without is_migrate_isolate() checks and success rate could decrease.
 > >>
-> >> Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
-> >> ---
-> >>  mm/slub.c | 21 +++++++++++++++++++--
-> >>  1 file changed, 19 insertions(+), 2 deletions(-)
+> >>Well I think that could be solved also by doing a lru/pcplists drain
+> >>right after marking pageblock as MIGRATETYPE_ISOLATE. After that
+> >>moment, anything newly put on pcplists should observe the new
+> >>migratetype and go to the correct pcplists. As putting stuff on
+> >>pcplists is done with disabled interrupts, and draining is done by
+> >>IPI, I think it should work correctly if we put the migratetype
+> >>determination under the disabled irq part in free_hot_cold_page().
+> >
+> >Hello, sorry for late.
+> >
+> >Yes, this can close the race on migratetype buddy list, but, there is
+> >a problem. See the below.
+> >
 > >>
-> >> diff --git a/mm/slub.c b/mm/slub.c
-> >> index 6ddedf9..c8dbea7 100644
-> >> --- a/mm/slub.c
-> >> +++ b/mm/slub.c
-> >> @@ -560,8 +560,10 @@ static void print_tracking(struct kmem_cache *s, void *object)
-> >>  	if (!(s->flags & SLAB_STORE_USER))
-> >>  		return;
-> >>  
-> >> +	kasan_disable_local();
-> >>  	print_track("Allocated", get_track(s, object, TRACK_ALLOC));
-> >>  	print_track("Freed", get_track(s, object, TRACK_FREE));
-> >> +	kasan_enable_local();
-> > 
-> > I don't think that this is needed since print_track() doesn't call
-> > external function with object pointer. print_track() call pr_err(), but,
-> > before calling, it retrieve t->addrs[i] so memory access only occurs
-> > in slub.c.
-> > 
-> Agree.
+> >>>And, I just added three more is_migrate_isolate() in the fast
+> >>>path, but, two checks are in same *unlikely* branch and I can remove
+> >>>another one easily. Therefore it's not quite problem I guess. (It even
+> >>>does no-op if MEMORY_ISOLATION is disabled.)
+> >>>Moreover, I removed one unconditional get_pageblock_migratetype() in
+> >>>free_pcppages_bulk() so, in performance point or view, freepath would
+> >>>be improved.
+> >>
+> >>I haven't checked the individual patches yet, but I'll try.
+> >>
+> >>>>
+> >>>>So the question is, does it have to be correct? And (admiteddly not after a completely
+> >>>>exhaustive analysis) I think the answer is, surprisingly, that it doesn't :)
+> >>>>
+> >>>>Well I of course don't mean that the freepage accounts could go random completely, but
+> >>>>what if we allowed them to drift a bit, limiting both the max error and the timeframe
+> >>>>where errors are possible? After all, watermarks checking is already racy so I don't think
+> >>>>it would be hurt that much.
+> >>>
+> >>>I understand your suggestion. I once thought like as you, but give up
+> >>>that idea. Watermark checking is already racy, but, it's *only*
+> >>>protection to prevent memory allocation. After passing that check,
+> >>>there is no mean to prevent us from allocating memory. So it should
+> >>>be accurate as much as possible. If we allow someone to get the
+> >>>memory without considering memory isolation, free memory could be in
+> >>>really low state and system could be broken occasionally.
+> >>
+> >>It would definitely require more thorough review, but I think with
+> >>the pcplists draining changes outlined above, there shouldn't be any
+> >>more inaccuracy happening.
+> >>
+> >>>>
+> >>>>Now if we look at what both CMA and memory hot-remove does is:
+> >>>>
+> >>>>1. Mark a MAX_ORDER-aligned buch of pageblocks as MIGRATE_ISOLATE through
+> >>>>start_isolate_page_range(). As part of this, all free pages in that area are
+> >>>>moved on the isolate freelist through move_freepages_block().
+> >>>>
+> >>>>2. Try to migrate away all non-free pages in the range. Also drain pcplists and lru_add
+> >>>>caches.
+> >>>>
+> >>>>3. Check if everything was successfully isolated by test_pages_isolated(). Restart and/or
+> >>>>undo pageblock isolation if not.
+> >>>>
+> >>>>So my idea is to throw away all special-casing of is_migrate_isolate() in the buddy
+> >>>>allocator, which would therefore account free pages on the isolate freelist as normal free
+> >>>>pages.
+> >>>>The accounting of isolated pages would be instead done only on the top level of CMA/hot
+> >>>>remove in the three steps outlined above, which would be modified as follows:
+> >>>>
+> >>>>1. Calculate N as the target number of pages to be isolated. Perform the actions of step 1
+> >>>>as usual. Calculate X as the number of pages that move_freepages_block() has moved.
+> >>>>Subtract X from freepages (this is the same as it is done now), but also *remember the
+> >>>>value of X*
+> >>>>
+> >>>>2. Migrate and drain pcplists as usual. The new free pages will either end up correctly on
+> >>>>isolate freelist, or not. We don't care, they will be accounted as freepages either way.
+> >>>>This is where some inaccuracy in accounted freepages would build up.
+> >>>>
+> >>>>3. If test_pages_isolated() checks pass, subtract (N - X) from freepages. The result is
+> >>>>that we have a isolated range of N pages that nobody can steal now as everything is on
+> >>>>isolate freelist and is MAX_ORDER aligned. And we have in total subtracted N pages (first
+> >>>>X, then N-X). So the accounting matches reality.
+> >>>>
+> >>>>If we have to undo, we undo the isolation and as part of this, we use
+> >>>>move_freepages_block() to move pages from isolate freelist to the normal ones. But we
+> >>>>don't care how many pages were moved. We simply add the remembered value of X to the
+> >>>>number of freepages, undoing the change from step 1. Again, the accounting matches reality.
+> >>>>
+> >>>>
+> >>>>The final point is that if we do this per MAX_ORDER blocks, the error in accounting cannot
+> >>>>be ever larger than 4MB and will be visible only during time a single MAX_ORDER block is
+> >>>>handled.
+> >>>
+> >>>The 4MB error in accounting looks serious for me. min_free_kbytes is
+> >>>4MB in 1GB system. So this 4MB error would makes all things broken in
+> >>>such systems. Moreover, there are some ARCH having larger
+> >>>pageblock_order than MAX_ORDER. In this case, the error will be larger
+> >>>than 4MB.
+> >>>
+> >>>In addition, I have a plan to extend CMA to work in parallel. It means
+> >>>that there could be parallel memory isolation users rather than just
+> >>>one user at the same time, so, we cannot easily bound the error under
+> >>>some degree.
+> >>
+> >>OK. I had thought that the error would be much smaller in practice,
+> >>but probably due to how buddy merging works, it would be enough if
+> >>just the very last freed page in the MAX_ORDER block was misplaced,
+> >>and that would trigger a cascading merge that will end with single
+> >>page at MAX_ORDER size becoming misplaced. So let's probably forget
+> >>this approach.
+> >>
+> >>>>As a possible improvement, we can assume during phase 2 that every page freed by migration
+> >>>>will end up correctly on isolate free list. So we create M free pages by migration, and
+> >>>>subtract M from freepage account. Then in phase 3 we either subtract (N - X - M), or add X
+> >>>>+ M in the undo case. (Ideally, if we succeed, X + M should be equal to N, but due to
+> >>>>pages on pcplists and the possible races it will be less). I think with this improvement,
+> >>>>any error would be negligible.
+> >>>>
+> >>>>Thoughts?
+> >>>
+> >>>Thanks for suggestion. :)
+> >>>It is really good topic to think deeply.
+> >>>
+> >>>For now, I'd like to fix these problems without side-effect as you
+> >>>suggested. Your suggestion changes the meaning of freepage that
+> >>>isolated pages are included in nr_freepage and there could be possible
+> >>>regression in success rate of memory hotplug and CMA. Possibly, it
+> >>>is the way we have to go, but, IMHO, it isn't the time to go. Before
+> >>>going that way, we should fix current implementation first so that
+> >>>fixes can be backported to old kernel if someone needs.
+> >>
+> >>Adding the extra pcplist drains and reordering
+> >>get_pageblock_migratetype() under disabled IRQ's should be small
+> >>enough to be backportable and not bring any regressions to success
+> >>rates. There will be some cost for the extra drains, but paid only
+> >>when the memory isolation actually happens. Extending the scope of
+> >>disabled irq's would affect fast path somewhat, but I guess less
+> >>than extra checks?
+> >
+> >Your approach would close the race on migratetype buddy list. But,
+> >I'm not sure how we can count number of freepages correctly. IIUC,
+> >unlike my approach, this approach allows merging between isolate buddy
+> >list and normal buddy list and it would results in miscounting number of
+> >freepages. You probably think that move_freepages_block() could fixup
+> >all the situation, but, I don't think so.
 > 
-> >>  }
-> >>  
-> >>  static void print_page_info(struct page *page)
-> >> @@ -604,6 +606,8 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
-> >>  	unsigned int off;	/* Offset of last byte */
-> >>  	u8 *addr = page_address(page);
-> >>  
-> >> +	kasan_disable_local();
-> >> +
-> >>  	print_tracking(s, p);
-> >>  
-> >>  	print_page_info(page);
-> >> @@ -632,6 +636,8 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
-> >>  		/* Beginning of the filler is the free pointer */
-> >>  		print_section("Padding ", p + off, s->size - off);
-> >>  
-> >> +	kasan_enable_local();
-> >> +
-> >>  	dump_stack();
-> >>  }
-> > 
-> > And, I recommend that you put this hook on right place.
-> > At a glance, the problematic function is print_section() which have
-> > external function call, print_hex_dump(), with object pointer.
-> > If you disable kasan in print_section, all the below thing won't be
-> > needed, I guess.
-> > 
+> No, I didn't think that, I simply overlooked this scenario. Good catch.
 > 
-> Nope, at least memchr_inv() call in slab_pad_check will be a problem.
+> >After applying your approach,
+> >
+> >CPU1                                    CPU2
+> >set_migratetype_isolate()               - free_one_page()
+> >   - lock
+> >   - set_pageblock_migratetype()
+> >   - unlock
+> >   - drain...
+> >                                         - lock
+> >                                         - __free_one_page() with MIGRATE_ISOLATE
+> >                                         - merged with normal page and linked with
+> >                                         isolate buddy list
+> >                                         - skip to count freepage, because of
+> >                                         MIGRATE_ISOLATE
+> >                                         - unlock
+> >   - lock
+> >   - move_freepages_block()
+> >     try to fixup freepages count
+> >   - unlock
+> >
+> >We want to fixup counting in move_freepages_block(), but, we can't
+> >because we don't have enough information whether this page is already
+> >accounted on number of freepage or not. Could you help me to find out
+> >the whole mechanism of your approach?
 > 
-> I think putting disable/enable only where we strictly need them might be a problem for future maintenance of slub.
-> If someone is going to add a new function call somewhere, he must ensure that it this call won't be a problem
-> for kasan.
+> I can't think of an easy fix to this situation.
+> 
+> A non-trivial fix that comes to mind (and I might have overlooked
+> something) is something like:
+> 
+> - distinguish MIGRATETYPE_ISOLATING and MIGRATETYPE_ISOLATED
+> - CPU1 first sets MIGRATETYPE_ISOLATING before the drain
+> - when CPU2 sees MIGRATETYPE_ISOLATING, it just puts the page on
+> special unbounded pcplist and that's it
+> - CPU1 does the drain as usual, potentially misplacing some pages
+> that move_freepages_block() will then fix. But no wrong merging can
+> occur.
+> - after move_freepages_block(), CPU1 changes MIGRATETYPE_ISOLATING
+> to MIGRATETYPE_ISOLATED
+> - CPU2 can then start freeing directly on isolate buddy list. There
+> might be some pages still on the special pcplist of CPU2/CPUx but
+> that means they won't merge yet.
+> - CPU1 executes on all CPU's a new operation that flushes the
+> special pcplist on isolate buddy list and merge as needed.
+> 
 
-I don't agree with this.
+Really thanks for sharing idea.
 
-If someone is going to add a slab_pad_check() in other places in
-slub.c, we should disable/enable kasan there, too. This looks same
-maintenance problem to me. Putting disable/enable only where we
-strictly need at least ensures that we don't need to care when using
-slub internal functions.
-
-And, if memchr_inv() is problem, I think that you also need to add hook
-into validate_slab_cache().
-
-validate_slab_cache() -> validate_slab_slab() -> validate_slab() ->
-check_object() -> check_bytes_and_report() -> memchr_inv()
+It looks possible but I guess that it needs more branches related to
+pageblock isolation. Now I have a quick thought to prevent merging,
+but, I'm not sure that it is better than current patchset. After more
+thinking, I will post rough idea here.
 
 Thanks.
 
