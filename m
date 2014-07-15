@@ -1,113 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 440AA6B0031
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 15:05:11 -0400 (EDT)
-Received: by mail-wg0-f44.google.com with SMTP id m15so5908575wgh.3
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 12:05:09 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id k8si4099870wib.17.2014.07.15.12.05.08
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id DF0EB6B0031
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 15:28:27 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id hz1so3845145pad.8
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 12:28:27 -0700 (PDT)
+Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com [2607:f8b0:400e:c02::236])
+        by mx.google.com with ESMTPS id c4si512103pdk.312.2014.07.15.12.28.26
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 15 Jul 2014 12:05:08 -0700 (PDT)
-Date: Tue, 15 Jul 2014 15:04:54 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 13/13] mm: memcontrol: rewrite uncharge API
-Message-ID: <20140715190454.GW29639@cmpxchg.org>
-References: <1403124045-24361-1-git-send-email-hannes@cmpxchg.org>
- <1403124045-24361-14-git-send-email-hannes@cmpxchg.org>
- <20140715155537.GA19454@nhori.bos.redhat.com>
- <20140715160735.GB29269@dhcp22.suse.cz>
- <20140715173439.GU29639@cmpxchg.org>
- <20140715184358.GA31550@nhori.bos.redhat.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 15 Jul 2014 12:28:27 -0700 (PDT)
+Received: by mail-pd0-f182.google.com with SMTP id fp1so4791596pdb.27
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 12:28:26 -0700 (PDT)
+Date: Tue, 15 Jul 2014 12:26:37 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 1/2] shmem: fix faulting into a hole, not taking
+ i_mutex
+In-Reply-To: <53C551A8.2040400@suse.cz>
+Message-ID: <alpine.LSU.2.11.1407151156110.3571@eggly.anvils>
+References: <alpine.LSU.2.11.1407150247540.2584@eggly.anvils> <alpine.LSU.2.11.1407150329250.2584@eggly.anvils> <53C551A8.2040400@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140715184358.GA31550@nhori.bos.redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Lukas Czerner <lczerner@redhat.com>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Jul 15, 2014 at 02:43:58PM -0400, Naoya Horiguchi wrote:
-> On Tue, Jul 15, 2014 at 01:34:39PM -0400, Johannes Weiner wrote:
-> > On Tue, Jul 15, 2014 at 06:07:35PM +0200, Michal Hocko wrote:
-> > > On Tue 15-07-14 11:55:37, Naoya Horiguchi wrote:
-> > > > On Wed, Jun 18, 2014 at 04:40:45PM -0400, Johannes Weiner wrote:
-> > > > ...
-> > > > > diff --git a/mm/swap.c b/mm/swap.c
-> > > > > index a98f48626359..3074210f245d 100644
-> > > > > --- a/mm/swap.c
-> > > > > +++ b/mm/swap.c
-> > > > > @@ -62,6 +62,7 @@ static void __page_cache_release(struct page *page)
-> > > > >  		del_page_from_lru_list(page, lruvec, page_off_lru(page));
-> > > > >  		spin_unlock_irqrestore(&zone->lru_lock, flags);
-> > > > >  	}
-> > > > > +	mem_cgroup_uncharge(page);
-> > > > >  }
-> > > > >  
-> > > > >  static void __put_single_page(struct page *page)
-> > > > 
-> > > > This seems to cause a list breakage in hstate->hugepage_activelist
-> > > > when freeing a hugetlbfs page.
-> > > 
-> > > This looks like a fall out from
-> > > http://marc.info/?l=linux-mm&m=140475936311294&w=2
-> > > 
-> > > I didn't get to review this one but the easiest fix seems to be check
-> > > HugePage and do not call uncharge.
+On Tue, 15 Jul 2014, Vlastimil Babka wrote:
+> On 07/15/2014 12:31 PM, Hugh Dickins wrote:
+> > f00cdc6df7d7 ("shmem: fix faulting into a hole while it's punched") was
+> > buggy: Sasha sent a lockdep report to remind us that grabbing i_mutex in
+> > the fault path is a no-no (write syscall may already hold i_mutex while
+> > faulting user buffer).
 > > 
-> > Yes, that makes sense.  I'm also moving the uncharge call into
-> > __put_single_page() and __put_compound_page() so that PageHuge(), a
-> > function call, only needs to be checked for compound pages.
+> > We tried a completely different approach (see following patch) but that
+> > proved inadequate: good enough for a rational workload, but not good
+> > enough against trinity - which forks off so many mappings of the object
+> > that contention on i_mmap_mutex while hole-puncher holds i_mutex builds
+> > into serious starvation when concurrent faults force the puncher to fall
+> > back to single-page unmap_mapping_range() searches of the i_mmap tree.
 > > 
-> > > > For hugetlbfs, we uncharge in free_huge_page() which is called after
-> > > > __page_cache_release(), so I think that we don't have to uncharge here.
-> > > > 
-> > > > In my testing, moving mem_cgroup_uncharge() inside if (PageLRU) block
-> > > > fixed the problem, so if that works for you, could you fold the change
-> > > > into your patch?
-> > 
-> > Memcg pages that *do* need uncharging might not necessarily be on the
-> > LRU list.
+> > So return to the original umbrella approach, but keep away from i_mutex
+> > this time.  We really don't want to bloat every shmem inode with a new
+> > mutex or completion, just to protect this unlikely case from trinity.
+> > So extend the original with wait_queue_head on stack at the hole-punch
+> > end, and wait_queue item on the stack at the fault end.
 > 
-> OK.
-> 
-> > Does the following work for you?
-> 
-> Unfortunately, with this change I saw the following bug message when
-> stressing with hugepage migration.
-> move_to_new_page() is called by unmap_and_move_huge_page() too, so
-> we need some hugetlb related code around mem_cgroup_migrate().
+> Hi, thanks a lot, I will definitely test it soon, although my reproducer is
+> rather limited - it already works fine with the current kernel. Trinity will
+> be more useful here.
 
-Can we just move hugetlb_cgroup_migrate() into move_to_new_page()?  It
-doesn't seem to be dependent of any page-specific state.
+Yes, 2/2 (minus the page->swap addition) already proved good enough for
+your (more realistic than trinity) testcase, and for mine.  And 1/2 (minus
+the new waiting) already proved good enough for you too, just more awkward
+to backport way back.  I agree that it's trinity we most need, to check
+that I didn't mess up 1/2 - though your testing welcome too, thanks.
 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 7f5a42403fae..219da52d2f43 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -781,7 +781,10 @@ static int move_to_new_page(struct page *newpage, struct page *page,
- 		if (!PageAnon(newpage))
- 			newpage->mapping = NULL;
- 	} else {
--		mem_cgroup_migrate(page, newpage, false);
-+		if (PageHuge(page))
-+			hugetlb_cgroup_migrate(hpage, new_hpage);
-+		else
-+			mem_cgroup_migrate(page, newpage, false);
- 		if (remap_swapcache)
- 			remove_migration_ptes(page, newpage);
- 		if (!PageAnon(page))
-@@ -1064,9 +1067,6 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
- 	if (anon_vma)
- 		put_anon_vma(anon_vma);
- 
--	if (rc == MIGRATEPAGE_SUCCESS)
--		hugetlb_cgroup_migrate(hpage, new_hpage);
--
- 	unlock_page(hpage);
- out:
- 	if (rc != -EAGAIN)
+> But there's something that caught my eye so I though I
+> would raise the concern now.
+
+Thank you.
+
+> 
+> > @@ -760,7 +760,7 @@ static int shmem_writepage(struct page *
+> >   			spin_lock(&inode->i_lock);
+> >   			shmem_falloc = inode->i_private;
+> 
+> Without ACCESS_ONCE, can shmem_falloc potentially become an alias on
+> inode->i_private and later become re-read outside of the lock?
+
+No, it could be re-read inside the locked section (which is okay since
+the locking ensures the same value would be re-read each time), but it
+cannot be re-read after the unlock.  The unlock guarantees that (whereas
+an assignment after the unlock might be moved up before the unlock).
+
+I searched for a simple example (preferably not in code written by me!)
+to convince you.  I thought it would be easy to find an example of
+
+	spin_lock(&lock);
+	thing_to_free = whatever;
+	spin_unlock(&lock);
+	if (thing_to_free)
+		free(thing_to_free);
+
+but everything I hit upon was actually a little more complicated than
+than that (e.g. involving whatever(), or setting whatever = NULL after),
+and therefore less convincing.  Please hunt around to convince yourself.
+
+> 
+> >   			if (shmem_falloc &&
+> > -			    !shmem_falloc->mode &&
+> > +			    !shmem_falloc->waitq &&
+> >   			    index >= shmem_falloc->start &&
+> >   			    index < shmem_falloc->next)
+> >   				shmem_falloc->nr_unswapped++;
+...
+> >   	if (unlikely(inode->i_private)) {
+> >   		struct shmem_falloc *shmem_falloc;
+> > 
+> >   		spin_lock(&inode->i_lock);
+> >   		shmem_falloc = inode->i_private;
+> 
+> Same here.
+
+Same here :)
+
+> 
+> > -		if (!shmem_falloc ||
+> > -		    shmem_falloc->mode != FALLOC_FL_PUNCH_HOLE ||
+> > -		    vmf->pgoff < shmem_falloc->start ||
+> > -		    vmf->pgoff >= shmem_falloc->next)
+> > -			shmem_falloc = NULL;
+> > -		spin_unlock(&inode->i_lock);
+> > -		/*
+> > -		 * i_lock has protected us from taking shmem_falloc seriously
+> > -		 * once return from shmem_fallocate() went back up that
+> > stack.
+> > -		 * i_lock does not serialize with i_mutex at all, but it does
+> > -		 * not matter if sometimes we wait unnecessarily, or
+> > sometimes
+> > -		 * miss out on waiting: we just need to make those cases
+> > rare.
+> > -		 */
+> > -		if (shmem_falloc) {
+> > +		if (shmem_falloc &&
+> > +		    shmem_falloc->waitq &&
+> 
+> Here it's operating outside of lock.
+
+No, it's inside the lock: just easier to see from the patched source
+than from the patch itself.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
