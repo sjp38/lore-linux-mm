@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f44.google.com (mail-qa0-f44.google.com [209.85.216.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 241846B0037
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 15:44:54 -0400 (EDT)
-Received: by mail-qa0-f44.google.com with SMTP id f12so4907332qad.31
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 12:44:53 -0700 (PDT)
-Received: from g6t1526.atlanta.hp.com (g6t1526.atlanta.hp.com. [15.193.200.69])
-        by mx.google.com with ESMTPS id h94si26008065yhq.179.2014.07.15.12.44.53
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BB4A6B0038
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 15:44:56 -0400 (EDT)
+Received: by mail-ob0-f170.google.com with SMTP id wp4so4374594obc.29
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 12:44:55 -0700 (PDT)
+Received: from g5t1626.atlanta.hp.com (g5t1626.atlanta.hp.com. [15.192.137.9])
+        by mx.google.com with ESMTPS id cw6si291483obd.107.2014.07.15.12.44.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 15 Jul 2014 12:44:53 -0700 (PDT)
+        Tue, 15 Jul 2014 12:44:55 -0700 (PDT)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [RFC PATCH 2/11] x86, mm, pat: Define _PAGE_CACHE_WT for PA3/7 of PAT
-Date: Tue, 15 Jul 2014 13:34:35 -0600
-Message-Id: <1405452884-25688-3-git-send-email-toshi.kani@hp.com>
+Subject: [RFC PATCH 3/11] x86, mm, pat: Change reserve_memtype() to handle WT type
+Date: Tue, 15 Jul 2014 13:34:36 -0600
+Message-Id: <1405452884-25688-4-git-send-email-toshi.kani@hp.com>
 In-Reply-To: <1405452884-25688-1-git-send-email-toshi.kani@hp.com>
 References: <1405452884-25688-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,87 +20,90 @@ List-ID: <linux-mm.kvack.org>
 To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, konrad.wilk@oracle.com, plagnioj@jcrosoft.com, tomi.valkeinen@ti.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, airlied@gmail.com, bp@alien8.de, Toshi Kani <toshi.kani@hp.com>
 
-This patch defines _PAGE_CACHE_WT and its relevant macros, which
-now use the PA3/7 slot in the PAT MSR.  pat_init() is also changed
-to set the WT memory type to the PA3/7 slot in the PAT MSR.
+This patch changes reserve_memtype() to handle the new WT type.
+When (!pat_enabled && new_type), it continues to set either WB
+or UC- to *new_type.  When pat_enabled, it can reserve a given
+non-RAM range for WT.  At this point, it may not reserve a RAM
+range for WT since reserve_ram_pages_type() uses the page flags
+limited to three memory types, WB, WC and UC.
 
 Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 ---
- arch/x86/include/asm/pgtable_types.h |    5 +++++
- arch/x86/mm/pat.c                    |    8 ++++----
- 2 files changed, 9 insertions(+), 4 deletions(-)
+ arch/x86/include/asm/cacheflush.h |    2 ++
+ arch/x86/mm/pat.c                 |   12 +++++++++---
+ arch/x86/mm/pat_internal.h        |    1 +
+ 3 files changed, 12 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-index 03d40da..7b905cb 100644
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -132,6 +132,7 @@
- #define _PAGE_CACHE_MASK	(_PAGE_PCD | _PAGE_PWT)
- #define _PAGE_CACHE_WB		(0)
- #define _PAGE_CACHE_WC		(_PAGE_PWT)
-+#define _PAGE_CACHE_WT		(_PAGE_PCD | _PAGE_PWT)
- #define _PAGE_CACHE_UC_MINUS	(_PAGE_PCD)
- #define _PAGE_CACHE_UC		(_PAGE_CACHE_UC_MINUS)
+diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
+index 9863ee3..c80a3a1 100644
+--- a/arch/x86/include/asm/cacheflush.h
++++ b/arch/x86/include/asm/cacheflush.h
+@@ -42,6 +42,8 @@ static inline void set_page_memtype(struct page *pg, unsigned long memtype)
+ 	unsigned long old_flags;
+ 	unsigned long new_flags;
  
-@@ -159,6 +160,7 @@
- #define __PAGE_KERNEL_RX		(__PAGE_KERNEL_EXEC & ~_PAGE_RW)
- #define __PAGE_KERNEL_EXEC_NOCACHE	(__PAGE_KERNEL_EXEC | _PAGE_CACHE_UC)
- #define __PAGE_KERNEL_WC		(__PAGE_KERNEL | _PAGE_CACHE_WC)
-+#define __PAGE_KERNEL_WT		(__PAGE_KERNEL | _PAGE_CACHE_WT)
- #define __PAGE_KERNEL_NOCACHE		(__PAGE_KERNEL | _PAGE_CACHE_UC)
- #define __PAGE_KERNEL_UC_MINUS		(__PAGE_KERNEL | _PAGE_CACHE_UC_MINUS)
- #define __PAGE_KERNEL_VSYSCALL		(__PAGE_KERNEL_RX | _PAGE_USER)
-@@ -172,12 +174,14 @@
- #define __PAGE_KERNEL_IO_NOCACHE	(__PAGE_KERNEL_NOCACHE | _PAGE_IOMAP)
- #define __PAGE_KERNEL_IO_UC_MINUS	(__PAGE_KERNEL_UC_MINUS | _PAGE_IOMAP)
- #define __PAGE_KERNEL_IO_WC		(__PAGE_KERNEL_WC | _PAGE_IOMAP)
-+#define __PAGE_KERNEL_IO_WT		(__PAGE_KERNEL_WT | _PAGE_IOMAP)
- 
- #define PAGE_KERNEL			__pgprot(__PAGE_KERNEL)
- #define PAGE_KERNEL_RO			__pgprot(__PAGE_KERNEL_RO)
- #define PAGE_KERNEL_EXEC		__pgprot(__PAGE_KERNEL_EXEC)
- #define PAGE_KERNEL_RX			__pgprot(__PAGE_KERNEL_RX)
- #define PAGE_KERNEL_WC			__pgprot(__PAGE_KERNEL_WC)
-+#define PAGE_KERNEL_WT			__pgprot(__PAGE_KERNEL_WT)
- #define PAGE_KERNEL_NOCACHE		__pgprot(__PAGE_KERNEL_NOCACHE)
- #define PAGE_KERNEL_UC_MINUS		__pgprot(__PAGE_KERNEL_UC_MINUS)
- #define PAGE_KERNEL_EXEC_NOCACHE	__pgprot(__PAGE_KERNEL_EXEC_NOCACHE)
-@@ -192,6 +196,7 @@
- #define PAGE_KERNEL_IO_NOCACHE		__pgprot(__PAGE_KERNEL_IO_NOCACHE)
- #define PAGE_KERNEL_IO_UC_MINUS		__pgprot(__PAGE_KERNEL_IO_UC_MINUS)
- #define PAGE_KERNEL_IO_WC		__pgprot(__PAGE_KERNEL_IO_WC)
-+#define PAGE_KERNEL_IO_WT		__pgprot(__PAGE_KERNEL_IO_WT)
- 
- /*         xwr */
- #define __P000	PAGE_NONE
++	BUG_ON(memtype == _PAGE_CACHE_WT);
++
+ 	switch (memtype) {
+ 	case _PAGE_CACHE_WC:
+ 		memtype_flags = _PGMT_WC;
 diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-index c3567a5..176d4d6 100644
+index 176d4d6..8a8be17 100644
 --- a/arch/x86/mm/pat.c
 +++ b/arch/x86/mm/pat.c
-@@ -101,7 +101,7 @@ void pat_init(void)
+@@ -203,6 +203,8 @@ static int pat_pagerange_is_ram(resource_size_t start, resource_size_t end)
+ 
+ /*
+  * For RAM pages, we use page flags to mark the pages with appropriate type.
++ * The page flags are currently limited to three types, WB, WC and UC. Hence,
++ * any request to WT will fail with -EINVAL.
+  * Here we do two pass:
+  * - Find the memtype of all the pages in the range, look for any conflicts
+  * - In case of no conflicts, set the new memtype for pages in the range
+@@ -213,6 +215,9 @@ static int reserve_ram_pages_type(u64 start, u64 end, unsigned long req_type,
+ 	struct page *page;
+ 	u64 pfn;
+ 
++	if (req_type == _PAGE_CACHE_WT)
++		return -EINVAL;
++
+ 	for (pfn = (start >> PAGE_SHIFT); pfn < (end >> PAGE_SHIFT); ++pfn) {
+ 		unsigned long type;
+ 
+@@ -254,6 +259,7 @@ static int free_ram_pages_type(u64 start, u64 end)
+  * req_type typically has one of the:
+  * - _PAGE_CACHE_WB
+  * - _PAGE_CACHE_WC
++ * - _PAGE_CACHE_WT
+  * - _PAGE_CACHE_UC_MINUS
+  *
+  * If new_type is NULL, function will return an error if it cannot reserve the
+@@ -274,10 +280,10 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
+ 	if (!pat_enabled) {
+ 		/* This is identical to page table setting without PAT */
+ 		if (new_type) {
+-			if (req_type == _PAGE_CACHE_WC)
+-				*new_type = _PAGE_CACHE_UC_MINUS;
++			if (req_type == _PAGE_CACHE_WB)
++				*new_type = _PAGE_CACHE_WB;
+ 			else
+-				*new_type = req_type & _PAGE_CACHE_MASK;
++				*new_type = _PAGE_CACHE_UC_MINUS;
  		}
+ 		return 0;
  	}
- 
--	/* Set PWT to Write-Combining. All other bits stay the same */
-+	/* Set PWT to Write-Combining, and PCD|PWT to Write-Through. */
- 	/*
- 	 * PTE encoding used in Linux:
- 	 *      PAT
-@@ -111,11 +111,11 @@ void pat_init(void)
- 	 *      000 WB		_PAGE_CACHE_WB
- 	 *      001 WC		_PAGE_CACHE_WC
- 	 *      010 UC-		_PAGE_CACHE_UC_MINUS
--	 *      011 UC		_PAGE_CACHE_UC
-+	 *      011 WT		_PAGE_CACHE_WT
- 	 * PAT bit unused
- 	 */
--	pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
--	      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
-+	pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, WT) |
-+	      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, WT);
- 
- 	/* Boot CPU check */
- 	if (!boot_pat_state)
+diff --git a/arch/x86/mm/pat_internal.h b/arch/x86/mm/pat_internal.h
+index 2593d40..7ae6b37 100644
+--- a/arch/x86/mm/pat_internal.h
++++ b/arch/x86/mm/pat_internal.h
+@@ -20,6 +20,7 @@ static inline char *cattr_name(unsigned long flags)
+ 	case _PAGE_CACHE_UC_MINUS:	return "uncached-minus";
+ 	case _PAGE_CACHE_WB:		return "write-back";
+ 	case _PAGE_CACHE_WC:		return "write-combining";
++	case _PAGE_CACHE_WT:		return "write-through";
+ 	default:			return "broken";
+ 	}
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
