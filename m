@@ -1,81 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id B7BD46B0037
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 11:08:32 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id kq14so4501221pab.26
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 08:08:32 -0700 (PDT)
-Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
-        by mx.google.com with ESMTPS id no12si5973367pdb.457.2014.07.15.08.08.31
+Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 0667E6B0031
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 11:09:48 -0400 (EDT)
+Received: by mail-we0-f175.google.com with SMTP id k48so5646081wev.6
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 08:09:48 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id vn7si20249893wjc.45.2014.07.15.08.09.46
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Tue, 15 Jul 2014 08:08:31 -0700 (PDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout3.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0N8R00M8TE24NF60@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 15 Jul 2014 16:08:28 +0100 (BST)
-Message-id: <53C542A0.5050107@samsung.com>
-Date: Tue, 15 Jul 2014 19:02:56 +0400
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-MIME-version: 1.0
-Subject: Re: [RFC/PATCH RESEND -next 14/21] mm: slub: kasan: disable kasan when
- touching unaccessible memory
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
- <1404905415-9046-15-git-send-email-a.ryabinin@samsung.com>
- <20140715060405.GI11317@js1304-P5Q-DELUXE> <53C4DA54.3010502@samsung.com>
- <20140715081852.GL11317@js1304-P5Q-DELUXE>
- <alpine.DEB.2.11.1407150924320.10593@gentwo.org>
-In-reply-to: <alpine.DEB.2.11.1407150924320.10593@gentwo.org>
-Content-type: text/plain; charset=ISO-8859-1
-Content-transfer-encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 15 Jul 2014 08:09:47 -0700 (PDT)
+Date: Tue, 15 Jul 2014 11:09:37 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 13/13] mm: memcontrol: rewrite uncharge API
+Message-ID: <20140715150937.GS29639@cmpxchg.org>
+References: <1403124045-24361-1-git-send-email-hannes@cmpxchg.org>
+ <1403124045-24361-14-git-send-email-hannes@cmpxchg.org>
+ <20140715082545.GA9366@dhcp22.suse.cz>
+ <20140715142350.GD9366@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140715142350.GD9366@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: linux-kernel@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Alexey Preobrazhensky <preobr@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Russell King <linux@arm.linux.org.uk>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kbuild@vger.kernel.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 07/15/14 18:26, Christoph Lameter wrote:
-> On Tue, 15 Jul 2014, Joonsoo Kim wrote:
+On Tue, Jul 15, 2014 at 04:23:50PM +0200, Michal Hocko wrote:
+> On Tue 15-07-14 10:25:45, Michal Hocko wrote:
+> [...]
+> > diff --git a/Documentation/cgroups/memcg_test.txt b/Documentation/cgroups/memcg_test.txt
+> > index bcf750d3cecd..8870b0212150 100644
+> > --- a/Documentation/cgroups/memcg_test.txt
+> > +++ b/Documentation/cgroups/memcg_test.txt
+> [...]
+> >  6. Shmem(tmpfs) Page Cache
+> > -	Memcg's charge/uncharge have special handlers of shmem. The best way
+> > -	to understand shmem's page state transition is to read mm/shmem.c.
+> > +	The best way to understand shmem's page state transition is to read
+> > +	mm/shmem.c.
 > 
->>> I think putting disable/enable only where we strictly need them might be a problem for future maintenance of slub.
->>> If someone is going to add a new function call somewhere, he must ensure that it this call won't be a problem
->>> for kasan.
->>
->> I don't agree with this.
->>
->> If someone is going to add a slab_pad_check() in other places in
->> slub.c, we should disable/enable kasan there, too. This looks same
->> maintenance problem to me. Putting disable/enable only where we
->> strictly need at least ensures that we don't need to care when using
->> slub internal functions.
->>
->> And, if memchr_inv() is problem, I think that you also need to add hook
->> into validate_slab_cache().
->>
->> validate_slab_cache() -> validate_slab_slab() -> validate_slab() ->
->> check_object() -> check_bytes_and_report() -> memchr_inv()
+> :D
 > 
-> I think adding disable/enable is good because it separates the payload
-> access from metadata accesses. This may be useful for future checkers.
-> Maybe call it something different so that this is more generic.
+> [...]
+> >  7. Page Migration
+> > -   	One of the most complicated functions is page-migration-handler.
+> > -	Memcg has 2 routines. Assume that we are migrating a page's contents
+> > -	from OLDPAGE to NEWPAGE.
+> > -
+> > -	Usual migration logic is..
+> > -	(a) remove the page from LRU.
+> > -	(b) allocate NEWPAGE (migration target)
+> > -	(c) lock by lock_page().
+> > -	(d) unmap all mappings.
+> > -	(e-1) If necessary, replace entry in radix-tree.
+> > -	(e-2) move contents of a page.
+> > -	(f) map all mappings again.
+> > -	(g) pushback the page to LRU.
+> > -	(-) OLDPAGE will be freed.
+> > -
+> > -	Before (g), memcg should complete all necessary charge/uncharge to
+> > -	NEWPAGE/OLDPAGE.
+> > -
+> > -	The point is....
+> > -	- If OLDPAGE is anonymous, all charges will be dropped at (d) because
+> > -          try_to_unmap() drops all mapcount and the page will not be
+> > -	  SwapCache.
+> > -
+> > -	- If OLDPAGE is SwapCache, charges will be kept at (g) because
+> > -	  __delete_from_swap_cache() isn't called at (e-1)
+> > -
+> > -	- If OLDPAGE is page-cache, charges will be kept at (g) because
+> > -	  remove_from_swap_cache() isn't called at (e-1)
+> > -
+> > -	memcg provides following hooks.
+> > -
+> > -	- mem_cgroup_prepare_migration(OLDPAGE)
+> > -	  Called after (b) to account a charge (usage += PAGE_SIZE) against
+> > -	  memcg which OLDPAGE belongs to.
+> > -
+> > -        - mem_cgroup_end_migration(OLDPAGE, NEWPAGE)
+> > -	  Called after (f) before (g).
+> > -	  If OLDPAGE is used, commit OLDPAGE again. If OLDPAGE is already
+> > -	  charged, a charge by prepare_migration() is automatically canceled.
+> > -	  If NEWPAGE is used, commit NEWPAGE and uncharge OLDPAGE.
+> > -
+> > -	  But zap_pte() (by exit or munmap) can be called while migration,
+> > -	  we have to check if OLDPAGE/NEWPAGE is a valid page after commit().
+> > +
+> > +	mem_cgroup_migrate()
 > 
-> metadata_access_enable()
-> 
-> metadata_access_disable()
-> 
-> ?
-> 
-It sounds like a good idea to me. However in this patch, besides from protecting metadata accesses,
-this calls also used in setup_objects for wrapping ctor call. It used there because all pages in allocate_slab
-are poisoned, so at the time when ctors are called all object's memory marked as poisoned.
+> This doesn't tell us anything abouta the page migration. On the other
+> hand I am not entirely sure the documentation here is very much helpful.
+> There is some outdated information. I wouldn't be opposed to remove
+> everything up to "9. Typical Tests." section which should be the primary
+> target of the file anyway.
 
-I think this could be solved by removing kasan_alloc_slab_pages() hook form allocate_slab() and adding
-kasan_slab_free() hook after ctor call.
-But I guess in that case padding at the end of slab will be unpoisoined.
+Yeah, documentation of the implementation should be directly in the
+source code and this file is kind of pointless.  So all I did there
+was remove things that were wrong after my changes.  But I agree it
+can probably be removed completely.
 
-> Maybe someone else has a better idea?
+> > @@ -382,9 +382,13 @@ static inline int mem_cgroup_swappiness(struct mem_cgroup *mem)
+> >  }
+> >  #endif
+> >  #ifdef CONFIG_MEMCG_SWAP
+> > -extern void mem_cgroup_uncharge_swap(swp_entry_t ent);
+> > +extern void mem_cgroup_swapout(struct page *page, swp_entry_t entry);
+> > +extern void mem_cgroup_uncharge_swap(swp_entry_t entry);
 > 
+> Wouldn't it be nicer to have those two with symmetric names?
+> mem_cgroup_{un}charge_swap?
+
+I thought about that when I wrote them, but their operation is not
+actually symmetrical.  The first one migrates a memsw charge from a
+page to a swap entry when the page gets reclaimed - rather than when
+the swap entry is allocated, the second one uncharges the swap entry
+once the swap entry is released.
+
+> > @@ -2760,15 +2752,15 @@ static void commit_charge(struct page *page, struct mem_cgroup *memcg,
+> >  		spin_unlock_irq(&zone->lru_lock);
+> >  	}
+> >  
+> > -	mem_cgroup_charge_statistics(memcg, page, anon, nr_pages);
+> > -	unlock_page_cgroup(pc);
+> > -
+> > +	local_irq_disable();
+> > +	mem_cgroup_charge_statistics(memcg, page, nr_pages);
+> >  	/*
+> >  	 * "charge_statistics" updated event counter. Then, check it.
+> >  	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
+> >  	 * if they exceeds softlimit.
+> >  	 */
+> >  	memcg_check_events(memcg, page);
+> > +	local_irq_enable();
 > 
+> preempt_{enable,disbale} should be sufficient for
+> mem_cgroup_charge_statistics and memcg_check_events no?
+> The first one is about per-cpu accounting (and that should be atomic
+> wrt. IRQ on the same CPU) and the later one uses IRQ safe locks down in
+> mem_cgroup_update_tree.
+
+How could it be atomic wrt. IRQ on the local CPU when IRQs that modify
+the counters can fire on the local CPU?
+
+> > @@ -780,11 +780,14 @@ static int move_to_new_page(struct page *newpage, struct page *page,
+> >  		rc = fallback_migrate_page(mapping, newpage, page, mode);
+> >  
+> >  	if (rc != MIGRATEPAGE_SUCCESS) {
+> > -		newpage->mapping = NULL;
+> > +		if (!PageAnon(newpage))
+> > +			newpage->mapping = NULL;
 > 
+> OK, I am probably washed out from looking into this for too long but I
+> cannot figure why have you done this...
+
+mem_cgroup_uncharge() relies on PageAnon() working.  Usually, anon
+pages retain their page->mapping until they hit the page allocator,
+the exception was old migration pages.
+
+> >  	} else {
+> > +		mem_cgroup_migrate(page, newpage, false);
+> >  		if (remap_swapcache)
+> >  			remove_migration_ptes(page, newpage);
+> > -		page->mapping = NULL;
+> > +		if (!PageAnon(page))
+> > +			page->mapping = NULL;
+> >  	}
+> >  
+> >  	unlock_page(newpage);
+> 
+> [...]
+> 
+> The semantic is much cleaner now. I have to digest details about the
+> patch because it is really huge. But nothing really jumped at me during
+> the review (except for few minor things mentioned here and one mentioned
+> in other email regarding USED flag).
+> 
+> Good work! 
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
