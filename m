@@ -1,37 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
-	by kanga.kvack.org (Postfix) with ESMTP id AAB9F6B0035
-	for <linux-mm@kvack.org>; Mon, 14 Jul 2014 21:19:58 -0400 (EDT)
-Received: by mail-ig0-f172.google.com with SMTP id h15so2385742igd.11
-        for <linux-mm@kvack.org>; Mon, 14 Jul 2014 18:19:58 -0700 (PDT)
-Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com [2607:f8b0:4001:c05::229])
-        by mx.google.com with ESMTPS id m18si14257528igk.36.2014.07.14.18.19.57
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 40F9E6B0035
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 00:05:05 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id et14so1079309pad.35
+        for <linux-mm@kvack.org>; Mon, 14 Jul 2014 21:05:04 -0700 (PDT)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id df3si10714052pbc.99.2014.07.14.21.05.03
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 14 Jul 2014 18:19:58 -0700 (PDT)
-Received: by mail-ig0-f169.google.com with SMTP id r2so2256015igi.2
-        for <linux-mm@kvack.org>; Mon, 14 Jul 2014 18:19:57 -0700 (PDT)
-Date: Mon, 14 Jul 2014 18:19:55 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC Patch V1 00/30] Enable memoryless node on x86 platforms
-In-Reply-To: <alpine.LRH.2.00.1407120039120.17906@twin.jikos.cz>
-Message-ID: <alpine.DEB.2.02.1407141818590.8808@chino.kir.corp.google.com>
-References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com> <20140711082956.GC20603@laptop.programming.kicks-ass.net> <20140711153314.GA6155@kroah.com> <alpine.LRH.2.00.1407120039120.17906@twin.jikos.cz>
+        Mon, 14 Jul 2014 21:05:04 -0700 (PDT)
+Received: by mail-pa0-f47.google.com with SMTP id kx10so5201113pab.20
+        for <linux-mm@kvack.org>; Mon, 14 Jul 2014 21:05:03 -0700 (PDT)
+Date: Mon, 14 Jul 2014 21:03:21 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: remove the unused gfp arg to
+ shmem_add_to_page_cache
+In-Reply-To: <53C46CBE.60605@gmail.com>
+Message-ID: <alpine.LSU.2.11.1407142047390.983@eggly.anvils>
+References: <53C46CBE.60605@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Kosina <jkosina@suse.cz>
-Cc: Greg KH <gregkh@linuxfoundation.org>, Jiang Liu <jiang.liu@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Mike Galbraith <umgwanakikbuti@gmail.com>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Tony Luck <tony.luck@intel.com>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Wang Sheng-Hui <shhuiw@gmail.com>
+Cc: linux-mm@kvack.org
 
-On Sat, 12 Jul 2014, Jiri Kosina wrote:
-
-> I am pretty sure I've seen ppc64 machine with memoryless NUMA node.
+On Tue, 15 Jul 2014, Wang Sheng-Hui wrote:
 > 
+> The gfp arg is not used in shmem_add_to_page_cache.
+> Remove this unused arg.
+> 
+> Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
 
-Yes, Nishanth Aravamudan (now cc'd) has been working diligently on the 
-problems that have been encountered, including problems in generic kernel 
-code, on powerpc with memoryless nodes.
+Looks right, but checkpatch.pl has some complaints about the spaces:
+please fix those.  Maybe you started off with tabs, and gmail turned
+them into spaces.  gmail is an outstandingly excellent mailer (;)
+but unhelpful on patches.  See Documentation/email-clients.txt or
+Documentation/zh_CN/email-clients.txt.  Maybe "git send-email" will
+get around it for you.
+
+Thanks,
+Hugh
+
+> ---
+>  mm/shmem.c | 8 ++++----
+>  1 file changed, 4 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 1140f49..63cc6af 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -280,7 +280,7 @@ static bool shmem_confirm_swap(struct address_space *mapping,
+>   */
+>  static int shmem_add_to_page_cache(struct page *page,
+>                                    struct address_space *mapping,
+> -                                  pgoff_t index, gfp_t gfp, void *expected)
+> +                                  pgoff_t index, void *expected)
+>  {
+>         int error;
+> 
+> @@ -643,7 +643,7 @@ static int shmem_unuse_inode(struct shmem_inode_info *info,
+>          */
+>         if (!error)
+>                 error = shmem_add_to_page_cache(*pagep, mapping, index,
+> -                                               GFP_NOWAIT, radswap);
+> +                                               radswap);
+>         if (error != -ENOMEM) {
+>                 /*
+>                  * Truncation and eviction use free_swap_and_cache(), which
+> @@ -1089,7 +1089,7 @@ repeat:
+>                                                 gfp & GFP_RECLAIM_MASK);
+>                 if (!error) {
+>                         error = shmem_add_to_page_cache(page, mapping, index,
+> -                                               gfp, swp_to_radix_entry(swap));
+> +                                               swp_to_radix_entry(swap));
+>                         /*
+>                          * We already confirmed swap under page lock, and make
+>                          * no memory allocation here, so usually no possibility
+> @@ -1152,7 +1152,7 @@ repeat:
+>                 error = radix_tree_maybe_preload(gfp & GFP_RECLAIM_MASK);
+>                 if (!error) {
+>                         error = shmem_add_to_page_cache(page, mapping, index,
+> -                                                       gfp, NULL);
+> +                                                       NULL);
+>                         radix_tree_preload_end();
+>                 }
+>                 if (error) {
+> -- 
+> 1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
