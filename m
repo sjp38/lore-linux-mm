@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f181.google.com (mail-yk0-f181.google.com [209.85.160.181])
-	by kanga.kvack.org (Postfix) with ESMTP id A12C76B003D
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 15:45:02 -0400 (EDT)
-Received: by mail-yk0-f181.google.com with SMTP id 9so2718687ykp.40
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 12:45:02 -0700 (PDT)
-Received: from g5t1625.atlanta.hp.com (g5t1625.atlanta.hp.com. [15.192.137.8])
-        by mx.google.com with ESMTPS id i46si26060298yhf.104.2014.07.15.12.45.02
+Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
+	by kanga.kvack.org (Postfix) with ESMTP id D49466B003D
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 15:45:04 -0400 (EDT)
+Received: by mail-qc0-f182.google.com with SMTP id r5so4690866qcx.13
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 12:45:04 -0700 (PDT)
+Received: from g5t1627.atlanta.hp.com (g5t1627.atlanta.hp.com. [15.192.137.10])
+        by mx.google.com with ESMTPS id x33si22091262yhi.24.2014.07.15.12.45.04
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 15 Jul 2014 12:45:02 -0700 (PDT)
+        Tue, 15 Jul 2014 12:45:04 -0700 (PDT)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [RFC PATCH 7/11] x86, mm: Keep _set_memory_<type>() slot-independent
-Date: Tue, 15 Jul 2014 13:34:40 -0600
-Message-Id: <1405452884-25688-8-git-send-email-toshi.kani@hp.com>
+Subject: [RFC PATCH 8/11] x86, mm, pat: Keep pgprot_<type>() slot-independent
+Date: Tue, 15 Jul 2014 13:34:41 -0600
+Message-Id: <1405452884-25688-9-git-send-email-toshi.kani@hp.com>
 In-Reply-To: <1405452884-25688-1-git-send-email-toshi.kani@hp.com>
 References: <1405452884-25688-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,105 +20,71 @@ List-ID: <linux-mm.kvack.org>
 To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, konrad.wilk@oracle.com, plagnioj@jcrosoft.com, tomi.valkeinen@ti.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, airlied@gmail.com, bp@alien8.de, Toshi Kani <toshi.kani@hp.com>
 
-The _set_memory_<type>() interfaces assume how each memory type is
-assigned to PAT slots in the PAT MSTR.  For instance, _set_memory_wb()
-assumes that WB is assigned to the PA0/4 slot by calling
-change_page_attr_clear().
+The pgrot_<type>() interfaces only set the _PAGE_PCD and/or
+_PAGE_PWT bits by assuming that a given pgprot_t value is always
+set to the PA0 slot.
 
-This patch changes the _set_memory_<type>() interfaces to call
-change_page_attr_set_clr() directly for all memory types, and keep
-them independent from the PAT slot assignment.
-
-It also introduces pgprot_set_cache() for setting a specified page
-cache value to a pgprot_t value.
+This patch changes the pgrot_<type>() interfaces to assure that
+a requested memory type is set to the given pgprot_t regardless
+of the original pgprot_t value.
 
 Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 ---
- arch/x86/mm/pageattr.c |   36 ++++++++++++++++++++++++------------
- 1 file changed, 24 insertions(+), 12 deletions(-)
+ arch/x86/include/asm/pgtable.h       |    2 +-
+ arch/x86/include/asm/pgtable_types.h |    4 ++++
+ arch/x86/mm/pat.c                    |    4 ++--
+ 3 files changed, 7 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index a2a1e70..da597d0 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -1444,8 +1444,10 @@ int _set_memory_uc(unsigned long addr, int numpages)
- 	/*
- 	 * for now UC MINUS. see comments in ioremap_nocache()
- 	 */
--	return change_page_attr_set(&addr, numpages,
--				    __pgprot(_PAGE_CACHE_UC_MINUS), 0);
-+	return change_page_attr_set_clr(&addr, numpages,
-+					__pgprot(_PAGE_CACHE_UC_MINUS),
-+					__pgprot(_PAGE_CACHE_MASK),
-+					0, 0, NULL);
- }
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 0ec0560..df18b14 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -11,7 +11,7 @@
+  */
+ #define pgprot_noncached(prot)					\
+ 	((boot_cpu_data.x86 > 3)				\
+-	 ? (__pgprot(pgprot_val(prot) | _PAGE_CACHE_UC_MINUS))	\
++	 ? pgprot_set_cache(prot, _PAGE_CACHE_UC_MINUS)		\
+ 	 : (prot))
  
- int set_memory_uc(unsigned long addr, int numpages)
-@@ -1489,8 +1491,10 @@ static int _set_memory_array(unsigned long *addr, int addrinarray,
- 			goto out_free;
- 	}
+ #ifndef __ASSEMBLY__
+diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+index 1fe8af7..81a3859 100644
+--- a/arch/x86/include/asm/pgtable_types.h
++++ b/arch/x86/include/asm/pgtable_types.h
+@@ -136,6 +136,10 @@
+ #define _PAGE_CACHE_UC_MINUS	(_PAGE_PCD)
+ #define _PAGE_CACHE_UC		(_PAGE_CACHE_UC_MINUS)
  
--	ret = change_page_attr_set(addr, addrinarray,
--				    __pgprot(_PAGE_CACHE_UC_MINUS), 1);
-+	ret = change_page_attr_set_clr(addr, addrinarray,
-+				       __pgprot(_PAGE_CACHE_UC_MINUS),
-+				       __pgprot(_PAGE_CACHE_MASK),
-+				       0, CPA_ARRAY, NULL);
- 
- 	if (!ret && new_type == _PAGE_CACHE_WC)
- 		ret = change_page_attr_set_clr(addr, addrinarray,
-@@ -1526,8 +1530,10 @@ int _set_memory_wc(unsigned long addr, int numpages)
- 	int ret;
- 	unsigned long addr_copy = addr;
- 
--	ret = change_page_attr_set(&addr, numpages,
--				    __pgprot(_PAGE_CACHE_UC_MINUS), 0);
-+	ret = change_page_attr_set_clr(&addr, numpages,
-+				       __pgprot(_PAGE_CACHE_UC_MINUS),
-+				       __pgprot(_PAGE_CACHE_MASK),
-+				       0, 0, NULL);
- 	if (!ret) {
- 		ret = change_page_attr_set_clr(&addr_copy, numpages,
- 					       __pgprot(_PAGE_CACHE_WC),
-@@ -1570,8 +1576,10 @@ EXPORT_SYMBOL(set_memory_array_wt);
- 
- int _set_memory_wt(unsigned long addr, int numpages)
++/* Macro to set a page cache value */
++#define pgprot_set_cache(_prot, _type)					\
++	__pgprot((pgprot_val(_prot) & ~_PAGE_CACHE_MASK) | (_type))
++
+ #define PAGE_NONE	__pgprot(_PAGE_PROTNONE | _PAGE_ACCESSED)
+ #define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | \
+ 				 _PAGE_ACCESSED | _PAGE_NX)
+diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
+index a987071..0be7ebd 100644
+--- a/arch/x86/mm/pat.c
++++ b/arch/x86/mm/pat.c
+@@ -790,7 +790,7 @@ void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
+ pgprot_t pgprot_writecombine(pgprot_t prot)
  {
--	return change_page_attr_set(&addr, numpages,
--				    __pgprot(_PAGE_CACHE_WT), 0);
-+	return change_page_attr_set_clr(&addr, numpages,
-+					__pgprot(_PAGE_CACHE_WT),
-+					__pgprot(_PAGE_CACHE_MASK),
-+					0, 0, NULL);
+ 	if (pat_enabled)
+-		return __pgprot(pgprot_val(prot) | _PAGE_CACHE_WC);
++		return pgprot_set_cache(prot, _PAGE_CACHE_WC);
+ 	else
+ 		return pgprot_noncached(prot);
  }
- 
- int set_memory_wt(unsigned long addr, int numpages)
-@@ -1601,8 +1609,10 @@ EXPORT_SYMBOL(set_memory_wt);
- 
- int _set_memory_wb(unsigned long addr, int numpages)
+@@ -799,7 +799,7 @@ EXPORT_SYMBOL_GPL(pgprot_writecombine);
+ pgprot_t pgprot_writethrough(pgprot_t prot)
  {
--	return change_page_attr_clear(&addr, numpages,
--				      __pgprot(_PAGE_CACHE_MASK), 0);
-+	return change_page_attr_set_clr(&addr, numpages,
-+					__pgprot(_PAGE_CACHE_WB),
-+					__pgprot(_PAGE_CACHE_MASK),
-+					0, 0, NULL);
+ 	if (pat_enabled)
+-		return __pgprot(pgprot_val(prot) | _PAGE_CACHE_WT);
++		return pgprot_set_cache(prot, _PAGE_CACHE_WT);
+ 	else
+ 		return pgprot_noncached(prot);
  }
- 
- int set_memory_wb(unsigned long addr, int numpages)
-@@ -1623,8 +1633,10 @@ int set_memory_array_wb(unsigned long *addr, int addrinarray)
- 	int i;
- 	int ret;
- 
--	ret = change_page_attr_clear(addr, addrinarray,
--				      __pgprot(_PAGE_CACHE_MASK), 1);
-+	ret = change_page_attr_set_clr(addr, addrinarray,
-+				       __pgprot(_PAGE_CACHE_WB),
-+				       __pgprot(_PAGE_CACHE_MASK),
-+				       0, CPA_ARRAY, NULL);
- 	if (ret)
- 		return ret;
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
