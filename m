@@ -1,196 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 602CA6B0099
-	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 17:38:32 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id w10so1896325pde.37
-        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 14:38:32 -0700 (PDT)
-Received: from g2t2353.austin.hp.com (g2t2353.austin.hp.com. [15.217.128.52])
-        by mx.google.com with ESMTPS id bp9si207389pdb.478.2014.07.16.14.38.30
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 640616B009B
+	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 18:00:50 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id y10so1948804pdj.0
+        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 15:00:50 -0700 (PDT)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id dl2si482225pbc.108.2014.07.16.15.00.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 16 Jul 2014 14:38:31 -0700 (PDT)
-Message-ID: <1405546127.28702.85.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH 0/11] Support Write-Through mapping on x86
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 16 Jul 2014 15:28:47 -0600
-In-Reply-To: <03d059f5-b564-4530-9184-f91ca9d5c016@email.android.com>
-References: <1405452884-25688-1-git-send-email-toshi.kani@hp.com>
-	 <53C58A69.3070207@zytor.com> <1405459404.28702.17.camel@misato.fc.hp.com>
-	 <03d059f5-b564-4530-9184-f91ca9d5c016@email.android.com>
-Content-Type: multipart/mixed; boundary="=-IRMYuC7+I97Sy30JB6yN"
-Mime-Version: 1.0
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 16 Jul 2014 15:00:49 -0700 (PDT)
+Received: by mail-pa0-f53.google.com with SMTP id kq14so2059609pab.12
+        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 15:00:48 -0700 (PDT)
+Received: from mail (104-54-201-27.lightspeed.austtx.sbcglobal.net. [104.54.201.27])
+        by mx.google.com with ESMTPSA id oy12sm383373pbb.27.2014.07.16.15.00.46
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 16 Jul 2014 15:00:47 -0700 (PDT)
+Date: Wed, 16 Jul 2014 17:00:40 -0500
+From: Seth Jennings <sjennings@variantweb.net>
+Subject: Re: [PATCHv5 0/4] mm/zpool: add common api for zswap to use
+ zbud/zsmalloc
+Message-ID: <20140716220040.GA16681@cerebellum.variantweb.net>
+References: <1401747586-11861-1-git-send-email-ddstreet@ieee.org>
+ <1404337536-11037-1-git-send-email-ddstreet@ieee.org>
+ <CALZtONBYwm5t39z8wiEkTrFw-g=Be+ypaZo2nuFo0ob5pRXSAw@mail.gmail.com>
+ <20140716205907.GA13058@cerebellum.variantweb.net>
+ <CALZtONB0k_Vw6OwV6u3FA=Hu7FO+nY7bhTUQ+sb+hx3fwYDXyA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALZtONB0k_Vw6OwV6u3FA=Hu7FO+nY7bhTUQ+sb+hx3fwYDXyA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, plagnioj@jcrosoft.com, tomi.valkeinen@ti.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, airlied@gmail.com, bp@alien8.de
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-
---=-IRMYuC7+I97Sy30JB6yN
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-
-On Tue, 2014-07-15 at 20:40 -0400, Konrad Rzeszutek Wilk wrote:
-> On July 15, 2014 5:23:24 PM EDT, Toshi Kani <toshi.kani@hp.com> wrote:
-> >On Tue, 2014-07-15 at 13:09 -0700, H. Peter Anvin wrote:
-> >> On 07/15/2014 12:34 PM, Toshi Kani wrote:
- :
-> >> 
-> >> I have given this piece of feedback at least three times now,
-> >possibly
-> >> to different people, and I'm getting a bit grumpy about it:
-> >> 
-> >> We already have an issue with Xen, because Xen assigned mappings
-> >> differently and it is incompatible with the use of PAT in Linux.  As
-> >a
-> >> result we get requests for hacks to work around this, which is
-> >something
-> >> I really don't want to see.  I would like to see a design involving a
-> >> "reverse PAT" table where the kernel can hold the mapping between
-> >memory
-> >> types and page table encodings (including the two different ones for
-> >> small and large pages.)
+On Wed, Jul 16, 2014 at 05:05:45PM -0400, Dan Streetman wrote:
+> On Wed, Jul 16, 2014 at 4:59 PM, Seth Jennings <sjennings@variantweb.net> wrote:
+> > On Mon, Jul 14, 2014 at 02:10:42PM -0400, Dan Streetman wrote:
+> >> Andrew, any thoughts on this latest version of the patch set?  Let me
+> >> know if I missed anything or you have any other suggestions.
+> >>
+> >> Seth, did you get a chance to review this and/or test it out?
 > >
-> >Thanks for pointing this out! (And sorry for making you repeat it three
-> >time...)  I was not aware of the issue with Xen.  I will look into the
-> >email archive to see what the Xen issue is, and how it can be
-> >addressed.
+> > I did have a chance to test it out quickly and didn't run into any
+> > issues.  Your patchset is already in linux-next so I'll test more from
+> > there.
 > 
-> https://lkml.org/lkml/2011/11/8/406
+> This latest version has a few changes that Andrew requested, which
+> presumably will replace the patches that are currently in -mm and
+> -next; can you test with these patches instead of (or in addition to)
+> what's in -next?
 
-Thanks Konrad for the pointer!
-
-Since [__]change_page_attr_set_clr() and __change_page_attr() have no
-knowledge about PAT and simply work with specified PTE flags, they do
-not seem to fit well with additional PAT abstraction table...
-
-I think the root of this issue is that the kernel ignores the PAT bit.
-Since __change_page_attr() only supports 4K pages, set_memory_<type>()
-can set the PAT bit into the clear mask.
-
-Attached is a patch with this approach (apply on top of this series -
-not tested).  The kernel still does not support the PAT bit, but it
-behaves slightly better.
+Looks like Andrew just did the legwork for me to get the new patches
+into mmotm.  When the hit there (tomorrow?), I'll put it down and test
+with that.
 
 Thanks,
--Toshi
+Seth
 
-
-
---=-IRMYuC7+I97Sy30JB6yN
-Content-Disposition: attachment; filename="page-ext-mask.patch"
-Content-Type: text/x-patch; name="page-ext-mask.patch"; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-
-From: Toshi Kani <toshi.kani@hp.com>
-
----
- arch/x86/include/asm/pgtable_types.h |    1 +
- arch/x86/mm/pageattr.c               |   20 ++++++++++----------
- 2 files changed, 11 insertions(+), 10 deletions(-)
-
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-index 81a3859..a392b09 100644
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -130,6 +130,7 @@
- #define _HPAGE_CHG_MASK (_PAGE_CHG_MASK | _PAGE_PSE | _PAGE_NUMA)
- 
- #define _PAGE_CACHE_MASK	(_PAGE_PCD | _PAGE_PWT)
-+#define _PAGE_CACHE_EXT_MASK	(_PAGE_CACHE_MASK | _PAGE_PAT)
- #define _PAGE_CACHE_WB		(0)
- #define _PAGE_CACHE_WC		(_PAGE_PWT)
- #define _PAGE_CACHE_WT		(_PAGE_PCD | _PAGE_PWT)
-diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-index da597d0..348f206 100644
---- a/arch/x86/mm/pageattr.c
-+++ b/arch/x86/mm/pageattr.c
-@@ -1446,7 +1446,7 @@ int _set_memory_uc(unsigned long addr, int numpages)
- 	 */
- 	return change_page_attr_set_clr(&addr, numpages,
- 					__pgprot(_PAGE_CACHE_UC_MINUS),
--					__pgprot(_PAGE_CACHE_MASK),
-+					__pgprot(_PAGE_CACHE_EXT_MASK),
- 					0, 0, NULL);
- }
- 
-@@ -1493,13 +1493,13 @@ static int _set_memory_array(unsigned long *addr, int addrinarray,
- 
- 	ret = change_page_attr_set_clr(addr, addrinarray,
- 				       __pgprot(_PAGE_CACHE_UC_MINUS),
--				       __pgprot(_PAGE_CACHE_MASK),
-+				       __pgprot(_PAGE_CACHE_EXT_MASK),
- 				       0, CPA_ARRAY, NULL);
- 
- 	if (!ret && new_type == _PAGE_CACHE_WC)
- 		ret = change_page_attr_set_clr(addr, addrinarray,
- 					       __pgprot(_PAGE_CACHE_WC),
--					       __pgprot(_PAGE_CACHE_MASK),
-+					       __pgprot(_PAGE_CACHE_EXT_MASK),
- 					       0, CPA_ARRAY, NULL);
- 	if (ret)
- 		goto out_free;
-@@ -1532,12 +1532,12 @@ int _set_memory_wc(unsigned long addr, int numpages)
- 
- 	ret = change_page_attr_set_clr(&addr, numpages,
- 				       __pgprot(_PAGE_CACHE_UC_MINUS),
--				       __pgprot(_PAGE_CACHE_MASK),
-+				       __pgprot(_PAGE_CACHE_EXT_MASK),
- 				       0, 0, NULL);
- 	if (!ret) {
- 		ret = change_page_attr_set_clr(&addr_copy, numpages,
- 					       __pgprot(_PAGE_CACHE_WC),
--					       __pgprot(_PAGE_CACHE_MASK),
-+					       __pgprot(_PAGE_CACHE_EXT_MASK),
- 					       0, 0, NULL);
- 	}
- 	return ret;
-@@ -1578,7 +1578,7 @@ int _set_memory_wt(unsigned long addr, int numpages)
- {
- 	return change_page_attr_set_clr(&addr, numpages,
- 					__pgprot(_PAGE_CACHE_WT),
--					__pgprot(_PAGE_CACHE_MASK),
-+					__pgprot(_PAGE_CACHE_EXT_MASK),
- 					0, 0, NULL);
- }
- 
-@@ -1611,7 +1611,7 @@ int _set_memory_wb(unsigned long addr, int numpages)
- {
- 	return change_page_attr_set_clr(&addr, numpages,
- 					__pgprot(_PAGE_CACHE_WB),
--					__pgprot(_PAGE_CACHE_MASK),
-+					__pgprot(_PAGE_CACHE_EXT_MASK),
- 					0, 0, NULL);
- }
- 
-@@ -1635,7 +1635,7 @@ int set_memory_array_wb(unsigned long *addr, int addrinarray)
- 
- 	ret = change_page_attr_set_clr(addr, addrinarray,
- 				       __pgprot(_PAGE_CACHE_WB),
--				       __pgprot(_PAGE_CACHE_MASK),
-+				       __pgprot(_PAGE_CACHE_EXT_MASK),
- 				       0, CPA_ARRAY, NULL);
- 	if (ret)
- 		return ret;
-@@ -1719,7 +1719,7 @@ static int _set_pages_array(struct page **pages, int addrinarray,
- 	if (!ret && new_type == _PAGE_CACHE_WC)
- 		ret = change_page_attr_set_clr(NULL, addrinarray,
- 					       __pgprot(_PAGE_CACHE_WC),
--					       __pgprot(_PAGE_CACHE_MASK),
-+					       __pgprot(_PAGE_CACHE_EXT_MASK),
- 					       0, CPA_PAGES_ARRAY, pages);
- 	if (ret)
- 		goto err_out;
-@@ -1770,7 +1770,7 @@ int set_pages_array_wb(struct page **pages, int addrinarray)
- 	int i;
- 
- 	retval = cpa_clear_pages_array(pages, addrinarray,
--			__pgprot(_PAGE_CACHE_MASK));
-+			__pgprot(_PAGE_CACHE_EXT_MASK));
- 	if (retval)
- 		return retval;
- 
-
---=-IRMYuC7+I97Sy30JB6yN--
+> 
+> >
+> > Seth
+> >
+> >>
+> >>
+> >>
+> >> On Wed, Jul 2, 2014 at 5:45 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+> >> > In order to allow zswap users to choose between zbud and zsmalloc for
+> >> > the compressed storage pool, this patch set adds a new api "zpool" that
+> >> > provides an interface to both zbud and zsmalloc.  This does not include
+> >> > implementing shrinking in zsmalloc, which will be sent separately.
+> >> >
+> >> > I believe Seth originally was using zsmalloc for swap, but there were
+> >> > concerns about how significant the impact of shrinking zsmalloc would
+> >> > be when zswap had to start reclaiming pages.  That still may be an
+> >> > issue, but this at least allows users to choose themselves whether
+> >> > they want a lower-density or higher-density compressed storage medium.
+> >> > At least for situations where zswap reclaim is never or rarely reached,
+> >> > it probably makes sense to use the higher density of zsmalloc.
+> >> >
+> >> > Note this patch set does not change zram to use zpool, although that
+> >> > change should be possible as well.
+> >> >
+> >> > ---
+> >> > Changes since v4 : https://lkml.org/lkml/2014/6/2/711
+> >> >   -omit first patch, that removed gfp_t param from zpool_malloc()
+> >> >   -move function doc from zpool.h to zpool.c
+> >> >   -move module usage refcounting into patch that adds zpool
+> >> >   -add extra refcounting to prevent driver unregister if in use
+> >> >   -add doc clarifying concurrency usage
+> >> >   -make zbud/zsmalloc zpool functions static
+> >> >   -typo corrections
+> >> >
+> >> > Changes since v3 : https://lkml.org/lkml/2014/5/24/130
+> >> >   -In zpool_shrink() use # pages instead of # bytes
+> >> >   -Add reclaimed param to zpool_shrink() to indicate to caller
+> >> >    # pages actually reclaimed
+> >> >   -move module usage counting to zpool, from zbud/zsmalloc
+> >> >   -update zbud_zpool_shrink() to call zbud_reclaim_page() in a
+> >> >    loop until requested # pages have been reclaimed (or error)
+> >> >
+> >> > Changes since v2 : https://lkml.org/lkml/2014/5/7/927
+> >> >   -Change zpool to use driver registration instead of hardcoding
+> >> >    implementations
+> >> >   -Add module use counting in zbud/zsmalloc
+> >> >
+> >> > Changes since v1 https://lkml.org/lkml/2014/4/19/97
+> >> >  -remove zsmalloc shrinking
+> >> >  -change zbud size param type from unsigned int to size_t
+> >> >  -remove zpool fallback creation
+> >> >  -zswap manually falls back to zbud if specified type fails
+> >> >
+> >> >
+> >> > Dan Streetman (4):
+> >> >   mm/zbud: change zbud_alloc size type to size_t
+> >> >   mm/zpool: implement common zpool api to zbud/zsmalloc
+> >> >   mm/zpool: zbud/zsmalloc implement zpool
+> >> >   mm/zpool: update zswap to use zpool
+> >> >
+> >> >  include/linux/zbud.h  |   2 +-
+> >> >  include/linux/zpool.h | 106 +++++++++++++++
+> >> >  mm/Kconfig            |  43 +++---
+> >> >  mm/Makefile           |   1 +
+> >> >  mm/zbud.c             |  98 +++++++++++++-
+> >> >  mm/zpool.c            | 364 ++++++++++++++++++++++++++++++++++++++++++++++++++
+> >> >  mm/zsmalloc.c         |  84 ++++++++++++
+> >> >  mm/zswap.c            |  75 ++++++-----
+> >> >  8 files changed, 722 insertions(+), 51 deletions(-)
+> >> >  create mode 100644 include/linux/zpool.h
+> >> >  create mode 100644 mm/zpool.c
+> >> >
+> >> > --
+> >> > 1.8.3.1
+> >> >
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
