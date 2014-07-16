@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DB356B005A
-	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 06:08:39 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id lf10so1051720pab.16
-        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 03:08:38 -0700 (PDT)
-Received: from mail-pd0-x235.google.com (mail-pd0-x235.google.com [2607:f8b0:400e:c02::235])
-        by mx.google.com with ESMTPS id il2si14075421pbc.87.2014.07.16.03.08.38
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 09AD76B0062
+	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 06:09:15 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id y10so991685pdj.28
+        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 03:09:15 -0700 (PDT)
+Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com [2607:f8b0:400e:c03::230])
+        by mx.google.com with ESMTPS id qi10si14055738pbc.198.2014.07.16.03.09.14
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 16 Jul 2014 03:08:38 -0700 (PDT)
-Received: by mail-pd0-f181.google.com with SMTP id v10so974931pde.26
-        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 03:08:37 -0700 (PDT)
-Date: Wed, 16 Jul 2014 03:07:00 -0700 (PDT)
+        Wed, 16 Jul 2014 03:09:14 -0700 (PDT)
+Received: by mail-pa0-f48.google.com with SMTP id et14so1045416pad.21
+        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 03:09:14 -0700 (PDT)
+Date: Wed, 16 Jul 2014 03:07:37 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v3 3/7] shm: add memfd_create() syscall
-In-Reply-To: <1402655819-14325-4-git-send-email-dh.herrmann@gmail.com>
-Message-ID: <alpine.LSU.2.11.1407160306420.1775@eggly.anvils>
-References: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com> <1402655819-14325-4-git-send-email-dh.herrmann@gmail.com>
+Subject: Re: [PATCH v3 4/7] selftests: add memfd_create() + sealing tests
+In-Reply-To: <1402655819-14325-5-git-send-email-dh.herrmann@gmail.com>
+Message-ID: <alpine.LSU.2.11.1407160307160.1775@eggly.anvils>
+References: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com> <1402655819-14325-5-git-send-email-dh.herrmann@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -26,223 +26,15 @@ Cc: linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Ryan
 
 On Fri, 13 Jun 2014, David Herrmann wrote:
 
-> memfd_create() is similar to mmap(MAP_ANON), but returns a file-descriptor
-> that you can pass to mmap(). It can support sealing and avoids any
-> connection to user-visible mount-points. Thus, it's not subject to quotas
-> on mounted file-systems, but can be used like malloc()'ed memory, but
-> with a file-descriptor to it.
-> 
-> memfd_create() returns the raw shmem file, so calls like ftruncate() can
-> be used to modify the underlying inode. Also calls like fstat()
-> will return proper information and mark the file as regular file. If you
-> want sealing, you can specify MFD_ALLOW_SEALING. Otherwise, sealing is not
-> supported (like on all other regular files).
-> 
-> Compared to O_TMPFILE, it does not require a tmpfs mount-point and is not
-> subject to quotas and alike. It is still properly accounted to memcg
-> limits, though.
-
-It's an important point, but unclear quite what "quotas and alike" means.
-There's never been any quota support in shmem/tmpfs, but filesystem size
-can be limited.  Maybe say "and is not subject to a filesystem size limit.
-It is still properly accounted to memcg limits, though, and to the same
-overcommit or no-overcommit accounting as all user memory."
-
+> Some basic tests to verify sealing on memfds works as expected and
+> guarantees the advertised semantics.
 > 
 > Signed-off-by: David Herrmann <dh.herrmann@gmail.com>
 
-A comment or two below, but this is okay by me.  I'm not wildly excited
-to be getting a new system call in mm/shmem.c.  I do like it much better
-now that you've dropped the size arg, thank you, but I still find it an
-odd system call: if it were not for the name, that you want so much for
-debugging, I think we would just implement this with a /dev/sealable
-alongside /dev/zero, which gave you your own object on opening (in the
-way that /dev/zero gives you your own object on mmap'ing).
+Thanks for whatever the fix was, I didn't hit any problem running
+this version repeatedly, on 64-bit and on 32-bit.
 
-I haven't checked the manpage, I hope it's made very clear that
-there's no uniqueness imposed on the name, that it's merely a tag
-attached to the object.
-
-But from a shmem point of view this seems fine: if everyone else
-is happy with memfd_create(), it's fine by me.
-
-> ---
->  arch/x86/syscalls/syscall_32.tbl |  1 +
->  arch/x86/syscalls/syscall_64.tbl |  1 +
->  include/linux/syscalls.h         |  1 +
->  include/uapi/linux/memfd.h       |  8 +++++
->  kernel/sys_ni.c                  |  1 +
->  mm/shmem.c                       | 72 ++++++++++++++++++++++++++++++++++++++++
->  6 files changed, 84 insertions(+)
->  create mode 100644 include/uapi/linux/memfd.h
-> 
-> diff --git a/arch/x86/syscalls/syscall_32.tbl b/arch/x86/syscalls/syscall_32.tbl
-> index d6b8679..e7495b4 100644
-> --- a/arch/x86/syscalls/syscall_32.tbl
-> +++ b/arch/x86/syscalls/syscall_32.tbl
-> @@ -360,3 +360,4 @@
->  351	i386	sched_setattr		sys_sched_setattr
->  352	i386	sched_getattr		sys_sched_getattr
->  353	i386	renameat2		sys_renameat2
-> +354	i386	memfd_create		sys_memfd_create
-> diff --git a/arch/x86/syscalls/syscall_64.tbl b/arch/x86/syscalls/syscall_64.tbl
-> index ec255a1..28be0e1 100644
-> --- a/arch/x86/syscalls/syscall_64.tbl
-> +++ b/arch/x86/syscalls/syscall_64.tbl
-> @@ -323,6 +323,7 @@
->  314	common	sched_setattr		sys_sched_setattr
->  315	common	sched_getattr		sys_sched_getattr
->  316	common	renameat2		sys_renameat2
-> +317	common	memfd_create		sys_memfd_create
->  
->  #
->  # x32-specific system call numbers start at 512 to avoid cache impact
-> diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
-> index b0881a0..0be5d4d 100644
-> --- a/include/linux/syscalls.h
-> +++ b/include/linux/syscalls.h
-> @@ -802,6 +802,7 @@ asmlinkage long sys_timerfd_settime(int ufd, int flags,
->  asmlinkage long sys_timerfd_gettime(int ufd, struct itimerspec __user *otmr);
->  asmlinkage long sys_eventfd(unsigned int count);
->  asmlinkage long sys_eventfd2(unsigned int count, int flags);
-> +asmlinkage long sys_memfd_create(const char *uname_ptr, unsigned int flags);
->  asmlinkage long sys_fallocate(int fd, int mode, loff_t offset, loff_t len);
->  asmlinkage long sys_old_readdir(unsigned int, struct old_linux_dirent __user *, unsigned int);
->  asmlinkage long sys_pselect6(int, fd_set __user *, fd_set __user *,
-> diff --git a/include/uapi/linux/memfd.h b/include/uapi/linux/memfd.h
-> new file mode 100644
-> index 0000000..534e364
-> --- /dev/null
-> +++ b/include/uapi/linux/memfd.h
-> @@ -0,0 +1,8 @@
-> +#ifndef _UAPI_LINUX_MEMFD_H
-> +#define _UAPI_LINUX_MEMFD_H
-> +
-> +/* flags for memfd_create(2) (unsigned int) */
-> +#define MFD_CLOEXEC		0x0001U
-> +#define MFD_ALLOW_SEALING	0x0002U
-> +
-> +#endif /* _UAPI_LINUX_MEMFD_H */
-> diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
-> index 36441b5..489a4e6 100644
-> --- a/kernel/sys_ni.c
-> +++ b/kernel/sys_ni.c
-> @@ -197,6 +197,7 @@ cond_syscall(compat_sys_timerfd_settime);
->  cond_syscall(compat_sys_timerfd_gettime);
->  cond_syscall(sys_eventfd);
->  cond_syscall(sys_eventfd2);
-> +cond_syscall(sys_memfd_create);
->  
->  /* performance counters: */
->  cond_syscall(sys_perf_event_open);
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 1438b3e..e7c5fe1 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -66,7 +66,9 @@ static struct vfsmount *shm_mnt;
->  #include <linux/highmem.h>
->  #include <linux/seq_file.h>
->  #include <linux/magic.h>
-> +#include <linux/syscalls.h>
->  #include <linux/fcntl.h>
-> +#include <uapi/linux/memfd.h>
->  
->  #include <asm/uaccess.h>
->  #include <asm/pgtable.h>
-> @@ -2662,6 +2664,76 @@ static int shmem_show_options(struct seq_file *seq, struct dentry *root)
->  	shmem_show_mpol(seq, sbinfo->mpol);
->  	return 0;
->  }
-> +
-> +#define MFD_NAME_PREFIX "memfd:"
-> +#define MFD_NAME_PREFIX_LEN (sizeof(MFD_NAME_PREFIX) - 1)
-> +#define MFD_NAME_MAX_LEN (NAME_MAX - MFD_NAME_PREFIX_LEN)
-> +
-> +#define MFD_ALL_FLAGS (MFD_CLOEXEC | MFD_ALLOW_SEALING)
-> +
-> +SYSCALL_DEFINE2(memfd_create,
-> +		const char*, uname,
-
-Jann Horn suggested "const char __user *" rather than "const char *",
-here and in syscalls.h, I think that's right (for sparse: compare
-with sys_open, for example).
-
-> +		unsigned int, flags)
-> +{
-> +	struct shmem_inode_info *info;
-> +	struct file *file;
-> +	int fd, error;
-> +	char *name;
-> +	long len;
-> +
-> +	if (flags & ~(unsigned int)MFD_ALL_FLAGS)
-> +		return -EINVAL;
-> +
-> +	/* length includes terminating zero */
-> +	len = strnlen_user(uname, MFD_NAME_MAX_LEN + 1);
-> +	if (len <= 0)
-> +		return -EFAULT;
-> +	if (len > MFD_NAME_MAX_LEN + 1)
-> +		return -EINVAL;
-> +
-> +	name = kmalloc(len + MFD_NAME_PREFIX_LEN, GFP_TEMPORARY);
-> +	if (!name)
-> +		return -ENOMEM;
-> +
-> +	strcpy(name, MFD_NAME_PREFIX);
-> +	if (copy_from_user(&name[MFD_NAME_PREFIX_LEN], uname, len)) {
-> +		error = -EFAULT;
-> +		goto err_name;
-> +	}
-> +
-> +	/* terminating-zero may have changed after strnlen_user() returned */
-> +	if (name[len + MFD_NAME_PREFIX_LEN - 1]) {
-> +		error = -EFAULT;
-> +		goto err_name;
-> +	}
-> +
-> +	fd = get_unused_fd_flags((flags & MFD_CLOEXEC) ? O_CLOEXEC : 0);
-
-Perhaps we should throw O_LARGEFILE in there too?  So 32-bit is not
-surprised when it accesses beyond MAX_NON_LFS.  I guess it's almost
-a non-issue, since the file is in memory, so not expected to be very
-large; but I seem to recall being caught out by a missing O_LARGEFILE
-in the past, and a new interface like this might do better to force it.
-
-But I'm not very sure of my ground here: please ask around, an fsdevel
-person will have a better idea than me, whether it's best included.
-
-> +	if (fd < 0) {
-> +		error = fd;
-> +		goto err_name;
-> +	}
-> +
-> +	file = shmem_file_setup(name, 0, VM_NORESERVE);
-> +	if (IS_ERR(file)) {
-> +		error = PTR_ERR(file);
-> +		goto err_fd;
-> +	}
-> +	info = SHMEM_I(file_inode(file));
-> +	file->f_mode |= FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE;
-> +	if (flags & MFD_ALLOW_SEALING)
-> +		info->seals &= ~F_SEAL_SEAL;
-> +
-> +	fd_install(fd, file);
-> +	kfree(name);
-> +	return fd;
-> +
-> +err_fd:
-> +	put_unused_fd(fd);
-> +err_name:
-> +	kfree(name);
-> +	return error;
-> +}
-> +
->  #endif /* CONFIG_TMPFS */
->  
->  static void shmem_put_super(struct super_block *sb)
-> -- 
-> 2.0.0
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
