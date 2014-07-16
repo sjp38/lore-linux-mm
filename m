@@ -1,52 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F6536B00AE
-	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 10:45:16 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id lf10so1433166pab.2
-        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 07:45:15 -0700 (PDT)
-Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
-        by mx.google.com with ESMTPS id i5si7336656pdj.393.2014.07.16.07.45.14
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id BB1436B00B0
+	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 10:58:17 -0400 (EDT)
+Received: by mail-wi0-f182.google.com with SMTP id d1so1452104wiv.3
+        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 07:58:12 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id hc6si24301586wjc.68.2014.07.16.07.58.07
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 16 Jul 2014 07:45:15 -0700 (PDT)
-Message-ID: <1405521331.28702.57.camel@misato.fc.hp.com>
-Subject: Re: [RFC PATCH 3/11] x86, mm, pat: Change reserve_memtype() to
- handle WT type
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 16 Jul 2014 08:35:31 -0600
-In-Reply-To: <CALCETrXMYmVkcpzwGEo=aUia6S9aOaODFR__Z54YUQAZ4rRhRA@mail.gmail.com>
-References: <1405452884-25688-1-git-send-email-toshi.kani@hp.com>
-	 <1405452884-25688-4-git-send-email-toshi.kani@hp.com>
-	 <CALCETrUPpP1Lo1gB_eTm6V3pJ3Fam-1gPZGKfksOXXGgtNGsEQ@mail.gmail.com>
-	 <1405465801.28702.34.camel@misato.fc.hp.com>
-	 <CALCETrUx+HkzBmTZo-BtOcOz7rs=oNcavJ9Go536Fcn2ugdobg@mail.gmail.com>
-	 <1405468387.28702.53.camel@misato.fc.hp.com>
-	 <CALCETrXMYmVkcpzwGEo=aUia6S9aOaODFR__Z54YUQAZ4rRhRA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 16 Jul 2014 07:58:08 -0700 (PDT)
+Date: Wed, 16 Jul 2014 10:57:36 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [patch 13/13] mm: memcontrol: rewrite uncharge API
+Message-ID: <20140716145736.GA9794@nhori.redhat.com>
+References: <1403124045-24361-14-git-send-email-hannes@cmpxchg.org>
+ <20140715155537.GA19454@nhori.bos.redhat.com>
+ <20140715160735.GB29269@dhcp22.suse.cz>
+ <20140715173439.GU29639@cmpxchg.org>
+ <20140715184358.GA31550@nhori.bos.redhat.com>
+ <20140715190454.GW29639@cmpxchg.org>
+ <20140715204953.GA21016@nhori.bos.redhat.com>
+ <20140715214843.GX29639@cmpxchg.org>
+ <20140716133050.GA4644@nhori.redhat.com>
+ <20140716141447.GY29639@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140716141447.GY29639@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, plagnioj@jcrosoft.com, tomi.valkeinen@ti.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Dave Airlie <airlied@gmail.com>, Borislav Petkov <bp@alien8.de>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, 2014-07-15 at 17:28 -0700, Andy Lutomirski wrote:
-> On Tue, Jul 15, 2014 at 4:53 PM, Toshi Kani <toshi.kani@hp.com> wrote:
- :
-> > In this patch, I left using reserve_ram_pages_type() since I do not see
-> > much reason to use WT for RAM, either.
+On Wed, Jul 16, 2014 at 10:14:47AM -0400, Johannes Weiner wrote:
+...
+> > >  	free_hot_cold_page(page, false);
+> > >  }
+> > >  
+> > > @@ -75,7 +75,10 @@ static void __put_compound_page(struct page *page)
+> > >  {
+> > >  	compound_page_dtor *dtor;
+> > >  
+> > > -	__page_cache_release(page);
+> > > +	if (!PageHuge(page)) {
+> > > +		__page_cache_release(page);
+> > > +		mem_cgroup_uncharge_page(page);
 > 
-> I hereby predict that someone, some day, will build a system with
-> nonvolatile "RAM", and someone will want this feature.  Just saying :)
+> I reverted all these mm/swap.c changes again as well.  Instead,
+> mem_cgroup_uncharge() now does a preliminary check if the page is
+> charged before it touches page->lru.
 > 
-> More realistically, someone might want to write a silly driver that
-> lets programs mmap some WT memory for testing.
+> That should be much more robust: now the vetting whether a page is
+> valid for memcg happens at charge time only, all other operations
+> check first if a page is charged before doing anything else to it.
+> 
+> These two places should be the only ones that need fixing then:
 
-Agreed.  This limitation needs to be addressed.  I meant to say that
-this could be a separate effort.
+This change also passed my testing, so the problem should be fixed.
 
 Thanks,
--Toshi
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
