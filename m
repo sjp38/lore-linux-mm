@@ -1,85 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 1766C6B0075
-	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 15:32:34 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id z10so1749262pdj.30
-        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 12:32:33 -0700 (PDT)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id il1si213436pbb.73.2014.07.16.12.32.32
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 49E536B007D
+	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 15:38:49 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id ey11so1883481pad.10
+        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 12:38:49 -0700 (PDT)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id j15si104738pdm.313.2014.07.16.12.38.48
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 16 Jul 2014 12:32:33 -0700 (PDT)
-Received: by mail-pa0-f53.google.com with SMTP id kq14so1854917pab.40
-        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 12:32:32 -0700 (PDT)
-Date: Wed, 16 Jul 2014 12:30:43 -0700 (PDT)
+        Wed, 16 Jul 2014 12:38:48 -0700 (PDT)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so1345145pab.0
+        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 12:38:48 -0700 (PDT)
+Date: Wed, 16 Jul 2014 12:37:04 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] mm: remove the unused gfp arg to shmem_add_to_page_cache
-In-Reply-To: <1405475324-13567-1-git-send-email-shhuiw@gmail.com>
-Message-ID: <alpine.LSU.2.11.1407161224100.3872@eggly.anvils>
-References: <1405475324-13567-1-git-send-email-shhuiw@gmail.com>
+Subject: Re: [patch v2] mm, tmp: only collapse hugepages to nodes with affinity
+ for zone_reclaim_mode
+In-Reply-To: <53C69E92.70608@suse.cz>
+Message-ID: <alpine.LSU.2.11.1407161234160.3956@eggly.anvils>
+References: <alpine.DEB.2.02.1407141807030.8808@chino.kir.corp.google.com> <alpine.DEB.2.02.1407151712520.12279@chino.kir.corp.google.com> <53C5D3D2.8080000@oracle.com> <53C69E92.70608@suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wang Sheng-Hui <shhuiw@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Bob Liu <bob.liu@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Wang Sheng-Hui <shhuiw@gmail.com>
+I shall worry less if you change the Subject from "mm, tmp:" to "mm, thp:"
 
-The gfp arg is not used in shmem_add_to_page_cache.
-Remove this unused arg.
-
-Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
-Yes, this version was fine: thank you.
-Andrew, please add to mmotm (no hurry) - thank you.
-
- mm/shmem.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
-
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 1140f49..63cc6af 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -280,7 +280,7 @@ static bool shmem_confirm_swap(struct address_space *mapping,
-  */
- static int shmem_add_to_page_cache(struct page *page,
- 				   struct address_space *mapping,
--				   pgoff_t index, gfp_t gfp, void *expected)
-+				   pgoff_t index, void *expected)
- {
- 	int error;
- 
-@@ -643,7 +643,7 @@ static int shmem_unuse_inode(struct shmem_inode_info *info,
- 	 */
- 	if (!error)
- 		error = shmem_add_to_page_cache(*pagep, mapping, index,
--						GFP_NOWAIT, radswap);
-+						radswap);
- 	if (error != -ENOMEM) {
- 		/*
- 		 * Truncation and eviction use free_swap_and_cache(), which
-@@ -1089,7 +1089,7 @@ repeat:
- 						gfp & GFP_RECLAIM_MASK);
- 		if (!error) {
- 			error = shmem_add_to_page_cache(page, mapping, index,
--						gfp, swp_to_radix_entry(swap));
-+						swp_to_radix_entry(swap));
- 			/*
- 			 * We already confirmed swap under page lock, and make
- 			 * no memory allocation here, so usually no possibility
-@@ -1152,7 +1152,7 @@ repeat:
- 		error = radix_tree_maybe_preload(gfp & GFP_RECLAIM_MASK);
- 		if (!error) {
- 			error = shmem_add_to_page_cache(page, mapping, index,
--							gfp, NULL);
-+							NULL);
- 			radix_tree_preload_end();
- 		}
- 		if (error) {
--- 
-1.8.3.2
+Hugh :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
