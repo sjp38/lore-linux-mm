@@ -1,75 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f178.google.com (mail-we0-f178.google.com [74.125.82.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 8652B6B00A1
-	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 09:49:07 -0400 (EDT)
-Received: by mail-we0-f178.google.com with SMTP id w61so971964wes.9
-        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 06:49:07 -0700 (PDT)
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 547866B00A1
+	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 09:49:17 -0400 (EDT)
+Received: by mail-wg0-f42.google.com with SMTP id l18so949397wgh.25
+        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 06:49:16 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id pg3si24048883wjb.99.2014.07.16.06.48.58
+        by mx.google.com with ESMTPS id r4si3474910wic.58.2014.07.16.06.49.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 16 Jul 2014 06:48:58 -0700 (PDT)
+        Wed, 16 Jul 2014 06:49:05 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH V4 02/15] mm, compaction: defer each zone individually instead of preferred zone
-Date: Wed, 16 Jul 2014 15:48:10 +0200
-Message-Id: <1405518503-27687-3-git-send-email-vbabka@suse.cz>
+Subject: [PATCH V4 05/15] mm, compaction: move pageblock checks up from isolate_migratepages_range()
+Date: Wed, 16 Jul 2014 15:48:13 +0200
+Message-Id: <1405518503-27687-6-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1405518503-27687-1-git-send-email-vbabka@suse.cz>
 References: <1405518503-27687-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-When direct sync compaction is often unsuccessful, it may become deferred for
-some time to avoid further useless attempts, both sync and async. Successful
-high-order allocations un-defer compaction, while further unsuccessful
-compaction attempts prolong the copmaction deferred period.
+isolate_migratepages_range() is the main function of the compaction scanner,
+called either on a single pageblock by isolate_migratepages() during regular
+compaction, or on an arbitrary range by CMA's __alloc_contig_migrate_range().
+It currently perfoms two pageblock-wide compaction suitability checks, and
+because of the CMA callpath, it tracks if it crossed a pageblock boundary in
+order to repeat those checks.
 
-Currently the checking and setting deferred status is performed only on the
-preferred zone of the allocation that invoked direct compaction. But compaction
-itself is attempted on all eligible zones in the zonelist, so the behavior is
-suboptimal and may lead both to scenarios where 1) compaction is attempted
-uselessly, or 2) where it's not attempted despite good chances of succeeding,
-as shown on the examples below:
+However, closer inspection shows that those checks are always true for CMA:
+- isolation_suitable() is true because CMA sets cc->ignore_skip_hint to true
+- migrate_async_suitable() check is skipped because CMA uses sync compaction
 
-1) A direct compaction with Normal preferred zone failed and set deferred
-   compaction for the Normal zone. Another unrelated direct compaction with
-   DMA32 as preferred zone will attempt to compact DMA32 zone even though
-   the first compaction attempt also included DMA32 zone.
+We can therefore move the compaction-specific checks to isolate_migratepages()
+and simplify isolate_migratepages_range(). Furthermore, we can mimic the
+freepage scanner family of functions, which has isolate_freepages_block()
+function called both by compaction from isolate_freepages() and by CMA from
+isolate_freepages_range(), where each use-case adds own specific glue code.
+This allows further code simplification.
 
-   In another scenario, compaction with Normal preferred zone failed to compact
-   Normal zone, but succeeded in the DMA32 zone, so it will not defer
-   compaction. In the next attempt, it will try Normal zone which will fail
-   again, instead of skipping Normal zone and trying DMA32 directly.
+Therefore, we rename isolate_migratepages_range() to isolate_freepages_block()
+and limit its functionality to a single pageblock (or its subset). For CMA,
+a new different isolate_migratepages_range() is created as a CMA-specific
+wrapper for the _block() function. The checks specific to compaction are moved
+to isolate_migratepages(). As part of the unification of these two families of
+functions, we remove the redundant zone parameter where applicable, since zone
+pointer is already passed in cc->zone.
 
-2) Kswapd will balance DMA32 zone and reset defer status based on watermarks
-   looking good. A direct compaction with preferred Normal zone will skip
-   compaction of all zones including DMA32 because Normal was still deferred.
-   The allocation might have succeeded in DMA32, but won't.
-
-This patch makes compaction deferring work on individual zone basis instead of
-preferred zone. For each zone, it checks compaction_deferred() to decide if the
-zone should be skipped. If watermarks fail after compacting the zone,
-defer_compaction() is called. The zone where watermarks passed can still be
-deferred when the allocation attempt is unsuccessful. When allocation is
-successful, compaction_defer_reset() is called for the zone containing the
-allocated page. This approach should approximate calling defer_compaction()
-only on zones where compaction was attempted and did not yield allocated page.
-There might be corner cases but that is inevitable as long as the decision
-to stop compacting dues not guarantee that a page will be allocated.
-
-During testing on a two-node machine with a single very small Normal zone on
-node 1, this patch has improved success rates in stress-highalloc mmtests
-benchmark. The success here were previously made worse by commit 3a025760fc
-("mm: page_alloc: spill to remote nodes before waking kswapd") as kswapd was
-no longer resetting often enough the deferred compaction for the Normal zone,
-and DMA32 zones on both nodes were thus not considered for compaction.
-On different machine, success rates were improved with __GFP_NO_KSWAPD
-allocations.
+Furthermore, going back to compact_zone() and compact_finished() when pageblock
+is found unsuitable (now by isolate_migratepages()) is wasteful - the checks
+are meant to skip pageblocks quickly. The patch therefore also introduces a
+simple loop into isolate_migratepages() so that it does not return immediately
+on failed pageblock checks, but keeps going until isolate_migratepages_range()
+gets called once. Similarily to isolate_freepages(), the function periodically
+checks if it needs to reschedule or abort async compaction.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Minchan Kim <minchan@kernel.org>
-Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Cc: Minchan Kim <minchan@kernel.org>
 Cc: Mel Gorman <mgorman@suse.de>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Michal Nazarewicz <mina86@mina86.com>
@@ -78,205 +64,416 @@ Cc: Christoph Lameter <cl@linux.com>
 Cc: Rik van Riel <riel@redhat.com>
 Cc: David Rientjes <rientjes@google.com>
 ---
- include/linux/compaction.h | 16 ++++++++++------
- mm/compaction.c            | 30 ++++++++++++++++++++++++------
- mm/page_alloc.c            | 39 +++++++++++++++++++++++----------------
- 3 files changed, 57 insertions(+), 28 deletions(-)
+ mm/compaction.c | 234 +++++++++++++++++++++++++++++++++-----------------------
+ mm/internal.h   |   4 +-
+ mm/page_alloc.c |   3 +-
+ 3 files changed, 140 insertions(+), 101 deletions(-)
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index 01e3132..b2e4c92 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -2,14 +2,16 @@
- #define _LINUX_COMPACTION_H
- 
- /* Return values for compact_zone() and try_to_compact_pages() */
-+/* compaction didn't start as it was deferred due to past failures */
-+#define COMPACT_DEFERRED	0
- /* compaction didn't start as it was not possible or direct reclaim was more suitable */
--#define COMPACT_SKIPPED		0
-+#define COMPACT_SKIPPED		1
- /* compaction should continue to another pageblock */
--#define COMPACT_CONTINUE	1
-+#define COMPACT_CONTINUE	2
- /* direct compaction partially compacted a zone and there are suitable pages */
--#define COMPACT_PARTIAL		2
-+#define COMPACT_PARTIAL		3
- /* The full zone was compacted */
--#define COMPACT_COMPLETE	3
-+#define COMPACT_COMPLETE	4
- 
- #ifdef CONFIG_COMPACTION
- extern int sysctl_compact_memory;
-@@ -22,7 +24,8 @@ extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
- extern int fragmentation_index(struct zone *zone, unsigned int order);
- extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *mask,
--			enum migrate_mode mode, bool *contended);
-+			enum migrate_mode mode, bool *contended,
-+			struct zone **candidate_zone);
- extern void compact_pgdat(pg_data_t *pgdat, int order);
- extern void reset_isolation_suitable(pg_data_t *pgdat);
- extern unsigned long compaction_suitable(struct zone *zone, int order);
-@@ -91,7 +94,8 @@ static inline bool compaction_restarting(struct zone *zone, int order)
- #else
- static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *nodemask,
--			enum migrate_mode mode, bool *contended)
-+			enum migrate_mode mode, bool *contended,
-+			struct zone **candidate_zone)
- {
- 	return COMPACT_CONTINUE;
- }
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 5175019..f3ae2ec 100644
+index 0a871e5..28e48ea 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -1122,28 +1122,27 @@ int sysctl_extfrag_threshold = 500;
-  * @nodemask: The allowed nodes to allocate from
-  * @mode: The migration mode for async, sync light, or sync migration
-  * @contended: Return value that is true if compaction was aborted due to lock contention
-- * @page: Optionally capture a free page of the requested order during compaction
-+ * @candidate_zone: Return the zone where we think allocation should succeed
-  *
-  * This is the main entry point for direct page compaction.
+@@ -132,7 +132,7 @@ void reset_isolation_suitable(pg_data_t *pgdat)
   */
- unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *nodemask,
--			enum migrate_mode mode, bool *contended)
-+			enum migrate_mode mode, bool *contended,
-+			struct zone **candidate_zone)
+ static void update_pageblock_skip(struct compact_control *cc,
+ 			struct page *page, unsigned long nr_isolated,
+-			bool set_unsuitable, bool migrate_scanner)
++			bool migrate_scanner)
  {
- 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
- 	int may_enter_fs = gfp_mask & __GFP_FS;
- 	int may_perform_io = gfp_mask & __GFP_IO;
- 	struct zoneref *z;
- 	struct zone *zone;
--	int rc = COMPACT_SKIPPED;
-+	int rc = COMPACT_DEFERRED;
- 	int alloc_flags = 0;
+ 	struct zone *zone = cc->zone;
+ 	unsigned long pfn;
+@@ -146,12 +146,7 @@ static void update_pageblock_skip(struct compact_control *cc,
+ 	if (nr_isolated)
+ 		return;
  
- 	/* Check if the GFP flags allow compaction */
- 	if (!order || !may_enter_fs || !may_perform_io)
- 		return rc;
+-	/*
+-	 * Only skip pageblocks when all forms of compaction will be known to
+-	 * fail in the near future.
+-	 */
+-	if (set_unsuitable)
+-		set_pageblock_skip(page);
++	set_pageblock_skip(page);
  
--	count_compact_event(COMPACTSTALL);
--
- #ifdef CONFIG_CMA
- 	if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
- 		alloc_flags |= ALLOC_CMA;
-@@ -1153,14 +1152,33 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 								nodemask) {
- 		int status;
+ 	pfn = page_to_pfn(page);
  
-+		if (compaction_deferred(zone, order))
-+			continue;
-+
- 		status = compact_zone_order(zone, order, gfp_mask, mode,
- 						contended);
- 		rc = max(status, rc);
+@@ -180,7 +175,7 @@ static inline bool isolation_suitable(struct compact_control *cc,
  
- 		/* If a normal allocation would succeed, stop compacting */
- 		if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0,
--				      alloc_flags))
-+				      alloc_flags)) {
-+			*candidate_zone = zone;
-+			/*
-+			 * We think the allocation will succeed in this zone,
-+			 * but it is not certain, hence the false. The caller
-+			 * will repeat this with true if allocation indeed
-+			 * succeeds in this zone.
-+			 */
-+			compaction_defer_reset(zone, order, false);
- 			break;
-+		} else if (mode != MIGRATE_ASYNC) {
-+			/*
-+			 * We think that allocation won't succeed in this zone
-+			 * so we defer compaction there. If it ends up
-+			 * succeeding after all, it will be reset.
-+			 */
-+			defer_compaction(zone, order);
-+		}
- 	}
- 
- 	return rc;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f1e462e..963dacd 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2250,21 +2250,24 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 	bool *contended_compaction, bool *deferred_compaction,
- 	unsigned long *did_some_progress)
+ static void update_pageblock_skip(struct compact_control *cc,
+ 			struct page *page, unsigned long nr_isolated,
+-			bool set_unsuitable, bool migrate_scanner)
++			bool migrate_scanner)
  {
--	if (!order)
--		return NULL;
-+	struct zone *last_compact_zone = NULL;
+ }
+ #endif /* CONFIG_COMPACTION */
+@@ -345,8 +340,7 @@ isolate_fail:
  
--	if (compaction_deferred(preferred_zone, order)) {
--		*deferred_compaction = true;
-+	if (!order)
- 		return NULL;
--	}
+ 	/* Update the pageblock-skip if the whole pageblock was scanned */
+ 	if (blockpfn == end_pfn)
+-		update_pageblock_skip(cc, valid_page, total_isolated, true,
+-				      false);
++		update_pageblock_skip(cc, valid_page, total_isolated, false);
  
- 	current->flags |= PF_MEMALLOC;
- 	*did_some_progress = try_to_compact_pages(zonelist, order, gfp_mask,
- 						nodemask, mode,
--						contended_compaction);
-+						contended_compaction,
-+						&last_compact_zone);
- 	current->flags &= ~PF_MEMALLOC;
+ 	count_compact_events(COMPACTFREE_SCANNED, nr_scanned);
+ 	if (total_isolated)
+@@ -451,40 +445,34 @@ static bool too_many_isolated(struct zone *zone)
+ }
  
--	if (*did_some_progress != COMPACT_SKIPPED) {
-+	if (*did_some_progress > COMPACT_DEFERRED)
-+		count_vm_event(COMPACTSTALL);
-+	else
-+		*deferred_compaction = true;
-+
-+	if (*did_some_progress > COMPACT_SKIPPED) {
- 		struct page *page;
+ /**
+- * isolate_migratepages_range() - isolate all migrate-able pages in range.
+- * @zone:	Zone pages are in.
++ * isolate_migratepages_block() - isolate all migrate-able pages within
++ *				  a single pageblock
+  * @cc:		Compaction control structure.
+- * @low_pfn:	The first PFN of the range.
+- * @end_pfn:	The one-past-the-last PFN of the range.
+- * @unevictable: true if it allows to isolate unevictable pages
++ * @low_pfn:	The first PFN to isolate
++ * @end_pfn:	The one-past-the-last PFN to isolate, within same pageblock
++ * @isolate_mode: Isolation mode to be used.
+  *
+  * Isolate all pages that can be migrated from the range specified by
+- * [low_pfn, end_pfn).  Returns zero if there is a fatal signal
+- * pending), otherwise PFN of the first page that was not scanned
+- * (which may be both less, equal to or more then end_pfn).
+- *
+- * Assumes that cc->migratepages is empty and cc->nr_migratepages is
+- * zero.
++ * [low_pfn, end_pfn). The range is expected to be within same pageblock.
++ * Returns zero if there is a fatal signal pending, otherwise PFN of the
++ * first page that was not scanned (which may be both less, equal to or more
++ * than end_pfn).
+  *
+- * Apart from cc->migratepages and cc->nr_migratetypes this function
+- * does not modify any cc's fields, in particular it does not modify
+- * (or read for that matter) cc->migrate_pfn.
++ * The pages are isolated on cc->migratepages list (not required to be empty),
++ * and cc->nr_migratepages is updated accordingly. The cc->migrate_pfn field
++ * is neither read nor updated.
+  */
+-unsigned long
+-isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+-		unsigned long low_pfn, unsigned long end_pfn, bool unevictable)
++static unsigned long
++isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
++			unsigned long end_pfn, isolate_mode_t isolate_mode)
+ {
+-	unsigned long last_pageblock_nr = 0, pageblock_nr;
++	struct zone *zone = cc->zone;
+ 	unsigned long nr_scanned = 0, nr_isolated = 0;
+ 	struct list_head *migratelist = &cc->migratepages;
+ 	struct lruvec *lruvec;
+ 	unsigned long flags;
+ 	bool locked = false;
+ 	struct page *page = NULL, *valid_page = NULL;
+-	bool set_unsuitable = true;
+-	const isolate_mode_t mode = (cc->mode == MIGRATE_ASYNC ?
+-					ISOLATE_ASYNC_MIGRATE : 0) |
+-				    (unevictable ? ISOLATE_UNEVICTABLE : 0);
  
- 		/* Page migration frees to the PCP lists but we want merging */
-@@ -2275,27 +2278,31 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 				order, zonelist, high_zoneidx,
- 				alloc_flags & ~ALLOC_NO_WATERMARKS,
- 				preferred_zone, classzone_idx, migratetype);
-+
- 		if (page) {
--			preferred_zone->compact_blockskip_flush = false;
--			compaction_defer_reset(preferred_zone, order, true);
-+			struct zone *zone = page_zone(page);
-+
-+			zone->compact_blockskip_flush = false;
-+			compaction_defer_reset(zone, order, true);
- 			count_vm_event(COMPACTSUCCESS);
- 			return page;
+ 	/*
+ 	 * Ensure that there are not too many pages isolated from the LRU
+@@ -515,19 +503,6 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+ 			}
  		}
  
- 		/*
-+		 * last_compact_zone is where try_to_compact_pages thought
-+		 * allocation should succeed, so it did not defer compaction.
-+		 * But now we know that it didn't succeed, so we do the defer.
-+		 */
-+		if (last_compact_zone && mode != MIGRATE_ASYNC)
-+			defer_compaction(last_compact_zone, order);
-+
-+		/*
- 		 * It's bad if compaction run occurs and fails.
- 		 * The most likely reason is that pages exist,
- 		 * but not enough to satisfy watermarks.
- 		 */
- 		count_vm_event(COMPACTFAIL);
- 
 -		/*
--		 * As async compaction considers a subset of pageblocks, only
--		 * defer if the failure was a sync compaction failure.
+-		 * migrate_pfn does not necessarily start aligned to a
+-		 * pageblock. Ensure that pfn_valid is called when moving
+-		 * into a new MAX_ORDER_NR_PAGES range in case of large
+-		 * memory holes within the zone
 -		 */
--		if (mode != MIGRATE_ASYNC)
--			defer_compaction(preferred_zone, order);
+-		if ((low_pfn & (MAX_ORDER_NR_PAGES - 1)) == 0) {
+-			if (!pfn_valid(low_pfn)) {
+-				low_pfn += MAX_ORDER_NR_PAGES - 1;
+-				continue;
+-			}
+-		}
 -
- 		cond_resched();
+ 		if (!pfn_valid_within(low_pfn))
+ 			continue;
+ 		nr_scanned++;
+@@ -545,28 +520,6 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+ 		if (!valid_page)
+ 			valid_page = page;
+ 
+-		/* If isolation recently failed, do not retry */
+-		pageblock_nr = low_pfn >> pageblock_order;
+-		if (last_pageblock_nr != pageblock_nr) {
+-			int mt;
+-
+-			last_pageblock_nr = pageblock_nr;
+-			if (!isolation_suitable(cc, page))
+-				goto next_pageblock;
+-
+-			/*
+-			 * For async migration, also only scan in MOVABLE
+-			 * blocks. Async migration is optimistic to see if
+-			 * the minimum amount of work satisfies the allocation
+-			 */
+-			mt = get_pageblock_migratetype(page);
+-			if (cc->mode == MIGRATE_ASYNC &&
+-			    !migrate_async_suitable(mt)) {
+-				set_unsuitable = false;
+-				goto next_pageblock;
+-			}
+-		}
+-
+ 		/*
+ 		 * Skip if free. page_order cannot be used without zone->lock
+ 		 * as nothing prevents parallel allocations or buddy merging.
+@@ -601,8 +554,11 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+ 		 */
+ 		if (PageTransHuge(page)) {
+ 			if (!locked)
+-				goto next_pageblock;
+-			low_pfn += (1 << compound_order(page)) - 1;
++				low_pfn = ALIGN(low_pfn + 1,
++						pageblock_nr_pages) - 1;
++			else
++				low_pfn += (1 << compound_order(page)) - 1;
++
+ 			continue;
+ 		}
+ 
+@@ -632,7 +588,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+ 		lruvec = mem_cgroup_page_lruvec(page, zone);
+ 
+ 		/* Try isolate the page */
+-		if (__isolate_lru_page(page, mode) != 0)
++		if (__isolate_lru_page(page, isolate_mode) != 0)
+ 			continue;
+ 
+ 		VM_BUG_ON_PAGE(PageTransCompound(page), page);
+@@ -651,11 +607,6 @@ isolate_success:
+ 			++low_pfn;
+ 			break;
+ 		}
+-
+-		continue;
+-
+-next_pageblock:
+-		low_pfn = ALIGN(low_pfn + 1, pageblock_nr_pages) - 1;
  	}
  
+ 	acct_isolated(zone, locked, cc);
+@@ -668,8 +619,7 @@ next_pageblock:
+ 	 * if the whole pageblock was scanned without isolating any page.
+ 	 */
+ 	if (low_pfn == end_pfn)
+-		update_pageblock_skip(cc, valid_page, nr_isolated,
+-				      set_unsuitable, true);
++		update_pageblock_skip(cc, valid_page, nr_isolated, true);
+ 
+ 	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
+ 
+@@ -680,15 +630,61 @@ next_pageblock:
+ 	return low_pfn;
+ }
+ 
++/**
++ * isolate_migratepages_range() - isolate migrate-able pages in a PFN range
++ * @start_pfn: The first PFN to start isolating.
++ * @end_pfn:   The one-past-last PFN.
++ *
++ * Returns zero if isolation fails fatally due to e.g. pending signal.
++ * Otherwise, function returns one-past-the-last PFN of isolated page
++ * (which may be greater than end_pfn if end fell in a middle of a THP page).
++ */
++unsigned long
++isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
++							unsigned long end_pfn)
++{
++	unsigned long pfn, block_end_pfn;
++
++	/* Scan block by block. First and last block may be incomplete */
++	pfn = start_pfn;
++	block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
++
++	for (; pfn < end_pfn; pfn = block_end_pfn,
++				block_end_pfn += pageblock_nr_pages) {
++
++		block_end_pfn = min(block_end_pfn, end_pfn);
++
++		/* Skip whole pageblock in case of a memory hole */
++		if (!pfn_valid(pfn))
++			continue;
++
++		pfn = isolate_migratepages_block(cc, pfn, block_end_pfn,
++							ISOLATE_UNEVICTABLE);
++
++		/*
++		 * In case of fatal failure, release everything that might
++		 * have been isolated in the previous iteration, and signal
++		 * the failure back to caller.
++                 */
++		if (!pfn) {
++			putback_movable_pages(&cc->migratepages);
++			cc->nr_migratepages = 0;
++			break;
++		}
++	}
++
++	return pfn;
++}
++
+ #endif /* CONFIG_COMPACTION || CONFIG_CMA */
+ #ifdef CONFIG_COMPACTION
+ /*
+  * Based on information in the current compact_control, find blocks
+  * suitable for isolating free pages from and then isolate them.
+  */
+-static void isolate_freepages(struct zone *zone,
+-				struct compact_control *cc)
++static void isolate_freepages(struct compact_control *cc)
+ {
++	struct zone *zone = cc->zone;
+ 	struct page *page;
+ 	unsigned long block_start_pfn;	/* start of current pageblock */
+ 	unsigned long block_end_pfn;	/* end of current pageblock */
+@@ -806,7 +802,7 @@ static struct page *compaction_alloc(struct page *migratepage,
+ 	 */
+ 	if (list_empty(&cc->freepages)) {
+ 		if (!cc->contended)
+-			isolate_freepages(cc->zone, cc);
++			isolate_freepages(cc);
+ 
+ 		if (list_empty(&cc->freepages))
+ 			return NULL;
+@@ -840,34 +836,81 @@ typedef enum {
+ } isolate_migrate_t;
+ 
+ /*
+- * Isolate all pages that can be migrated from the block pointed to by
+- * the migrate scanner within compact_control.
++ * Isolate all pages that can be migrated from the first suitable block,
++ * starting at the block pointed to by the migrate scanner pfn within
++ * compact_control.
+  */
+ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 					struct compact_control *cc)
+ {
+ 	unsigned long low_pfn, end_pfn;
++	struct page *page;
++	const isolate_mode_t isolate_mode =
++		(cc->mode == MIGRATE_ASYNC ? ISOLATE_ASYNC_MIGRATE : 0);
+ 
+-	/* Do not scan outside zone boundaries */
+-	low_pfn = max(cc->migrate_pfn, zone->zone_start_pfn);
++	/*
++	 * Start at where we last stopped, or beginning of the zone as
++	 * initialized by compact_zone()
++	 */
++	low_pfn = cc->migrate_pfn;
+ 
+ 	/* Only scan within a pageblock boundary */
+ 	end_pfn = ALIGN(low_pfn + 1, pageblock_nr_pages);
+ 
+-	/* Do not cross the free scanner or scan within a memory hole */
+-	if (end_pfn > cc->free_pfn || !pfn_valid(low_pfn)) {
+-		cc->migrate_pfn = end_pfn;
+-		return ISOLATE_NONE;
+-	}
++	/*
++	 * Iterate over whole pageblocks until we find the first suitable.
++	 * Do not cross the free scanner.
++	 */
++	for (; end_pfn <= cc->free_pfn;
++			low_pfn = end_pfn, end_pfn += pageblock_nr_pages) {
++
++		/*
++		 * This can potentially iterate a massively long zone with
++		 * many pageblocks unsuitable, so periodically check if we
++		 * need to schedule, or even abort async compaction.
++		 */
++		if (!(low_pfn % (SWAP_CLUSTER_MAX * pageblock_nr_pages))
++						&& compact_should_abort(cc))
++			break;
++
++		/* Skip whole pageblock in case of a memory hole */
++		if (!pfn_valid(low_pfn))
++			continue;
++
++		page = pfn_to_page(low_pfn);
++
++		/* If isolation recently failed, do not retry */
++		if (!isolation_suitable(cc, page))
++			continue;
++
++		/*
++		 * For async compaction, also only scan in MOVABLE blocks.
++		 * Async compaction is optimistic to see if the minimum amount
++		 * of work satisfies the allocation.
++		 */
++		if (cc->mode == MIGRATE_ASYNC &&
++		    !migrate_async_suitable(get_pageblock_migratetype(page)))
++			continue;
++
++		/* Perform the isolation */
++		low_pfn = isolate_migratepages_block(cc, low_pfn, end_pfn,
++								isolate_mode);
++
++		if (!low_pfn || cc->contended)
++			return ISOLATE_ABORT;
+ 
+-	/* Perform the isolation */
+-	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn, false);
+-	if (!low_pfn || cc->contended)
+-		return ISOLATE_ABORT;
++		/*
++		 * Either we isolated something and proceed with migration. Or
++		 * we failed and compact_zone should decide if we should
++		 * continue or not.
++		 */
++		break;
++	}
+ 
++	/* Record where migration scanner will be restarted */
+ 	cc->migrate_pfn = low_pfn;
+ 
+-	return ISOLATE_SUCCESS;
++	return cc->nr_migratepages ? ISOLATE_SUCCESS : ISOLATE_NONE;
+ }
+ 
+ static int compact_finished(struct zone *zone,
+@@ -1040,9 +1083,6 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 			;
+ 		}
+ 
+-		if (!cc->nr_migratepages)
+-			continue;
+-
+ 		err = migrate_pages(&cc->migratepages, compaction_alloc,
+ 				compaction_free, (unsigned long)cc, cc->mode,
+ 				MR_COMPACTION);
+diff --git a/mm/internal.h b/mm/internal.h
+index a1b651b..5a0738f 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -154,8 +154,8 @@ unsigned long
+ isolate_freepages_range(struct compact_control *cc,
+ 			unsigned long start_pfn, unsigned long end_pfn);
+ unsigned long
+-isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+-	unsigned long low_pfn, unsigned long end_pfn, bool unevictable);
++isolate_migratepages_range(struct compact_control *cc,
++			   unsigned long low_pfn, unsigned long end_pfn);
+ 
+ #endif
+ 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 69a14b7..f16aa37 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6282,8 +6282,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
+ 
+ 		if (list_empty(&cc->migratepages)) {
+ 			cc->nr_migratepages = 0;
+-			pfn = isolate_migratepages_range(cc->zone, cc,
+-							 pfn, end, true);
++			pfn = isolate_migratepages_range(cc, pfn, end);
+ 			if (!pfn) {
+ 				ret = -EINTR;
+ 				break;
 -- 
 1.8.4.5
 
