@@ -1,209 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 38B5F6B008A
-	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 09:49:02 -0400 (EDT)
-Received: by mail-we0-f176.google.com with SMTP id q58so967231wes.35
-        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 06:49:01 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A3616B0093
+	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 09:49:03 -0400 (EDT)
+Received: by mail-wi0-f181.google.com with SMTP id bs8so1369488wib.8
+        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 06:49:02 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id wo8si24085964wjc.35.2014.07.16.06.48.56
+        by mx.google.com with ESMTPS id gr3si3482144wib.47.2014.07.16.06.48.56
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 16 Jul 2014 06:48:56 -0700 (PDT)
+        Wed, 16 Jul 2014 06:48:57 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH V4 06/15] mm, compaction: reduce zone checking frequency in the migration scanner
-Date: Wed, 16 Jul 2014 15:48:14 +0200
-Message-Id: <1405518503-27687-7-git-send-email-vbabka@suse.cz>
+Subject: [PATCH V4 10/15] mm, compaction: remember position within pageblock in free pages scanner
+Date: Wed, 16 Jul 2014 15:48:18 +0200
+Message-Id: <1405518503-27687-11-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1405518503-27687-1-git-send-email-vbabka@suse.cz>
 References: <1405518503-27687-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Minchan Kim <minchan@kernel.org>
 
-The unification of the migrate and free scanner families of function has
-highlighted a difference in how the scanners ensure they only isolate pages
-of the intended zone. This is important for taking zone lock or lru lock of
-the correct zone. Due to nodes overlapping, it is however possible to
-encounter a different zone within the range of the zone being compacted.
+Unlike the migration scanner, the free scanner remembers the beginning of the
+last scanned pageblock in cc->free_pfn. It might be therefore rescanning pages
+uselessly when called several times during single compaction. This might have
+been useful when pages were returned to the buddy allocator after a failed
+migration, but this is no longer the case.
 
-The free scanner, since its inception by commit 748446bb6b ("mm: compaction:
-memory compaction core"), has been checking the zone of the first valid page
-in a pageblock, and skipping the whole pageblock if the zone does not match.
+This patch changes the meaning of cc->free_pfn so that if it points to a
+middle of a pageblock, that pageblock is scanned only from cc->free_pfn to the
+end. isolate_freepages_block() will record the pfn of the last page it looked
+at, which is then used to update cc->free_pfn.
 
-This checking was completely missing from the migration scanner at first, and
-later added by commit dc9086004b ("mm: compaction: check for overlapping
-nodes during isolation for migration") in a reaction to a bug report.
-But the zone comparison in migration scanner is done once per a single scanned
-page, which is more defensive and thus more costly than a check per pageblock.
+In the mmtests stress-highalloc benchmark, this has resulted in lowering the
+ratio between pages scanned by both scanners, from 2.5 free pages per migrate
+page, to 2.25 free pages per migrate page, without affecting success rates.
 
-This patch unifies the checking done in both scanners to once per pageblock,
-through a new pageblock_within_zone() function, which also includes pfn_valid()
-checks. It is more defensive than the current free scanner checks, as it checks
-both the first and last page of the pageblock, but less defensive by the
-migration scanner per-page checks. It assumes that node overlapping may result
-(on some architecture) in a boundary between two nodes falling into the middle
-of a pageblock, but that there cannot be a node0 node1 node0 interleaving
-within a single pageblock.
+With __GFP_NO_KSWAPD allocations, this appears to result in a worse ratio (2.1
+instead of 1.8), but page migration successes increased by 10%, so this could
+mean that more useful work can be done until need_resched() aborts this kind
+of compaction.
 
-The result is more code being shared and a bit less per-page CPU cost in the
-migration scanner.
-
-Reported-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Minchan Kim <minchan@kernel.org>
+Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Acked-by: David Rientjes <rientjes@google.com>
+Acked-by: Minchan Kim <minchan@kernel.org>
 Cc: Mel Gorman <mgorman@suse.de>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Michal Nazarewicz <mina86@mina86.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: Christoph Lameter <cl@linux.com>
 Cc: Rik van Riel <riel@redhat.com>
-Cc: David Rientjes <rientjes@google.com>
+Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 ---
- mm/compaction.c | 91 ++++++++++++++++++++++++++++++++++++---------------------
- 1 file changed, 57 insertions(+), 34 deletions(-)
+ mm/compaction.c | 42 ++++++++++++++++++++++++++++++------------
+ 1 file changed, 30 insertions(+), 12 deletions(-)
 
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 28e48ea..9cff804 100644
+index 2b42397..d256c14 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -67,6 +67,49 @@ static inline bool migrate_async_suitable(int migratetype)
- 	return is_migrate_cma(migratetype) || migratetype == MIGRATE_MOVABLE;
- }
+@@ -330,7 +330,7 @@ static bool suitable_migration_target(struct page *page)
+  * (even though it may still end up isolating some pages).
+  */
+ static unsigned long isolate_freepages_block(struct compact_control *cc,
+-				unsigned long blockpfn,
++				unsigned long *start_pfn,
+ 				unsigned long end_pfn,
+ 				struct list_head *freelist,
+ 				bool strict)
+@@ -339,6 +339,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+ 	struct page *cursor, *valid_page = NULL;
+ 	unsigned long flags;
+ 	bool locked = false;
++	unsigned long blockpfn = *start_pfn;
  
-+/*
-+ * Check that the whole (or subset of) a pageblock given by the interval of
-+ * [start_pfn, end_pfn) is valid and within the same zone, before scanning it
-+ * with the migration of free compaction scanner. The scanners then need to
-+ * use only pfn_valid_within() check for arches that allow holes within
-+ * pageblocks.
-+ *
-+ * Return struct page pointer of start_pfn, or NULL if checks were not passed.
-+ *
-+ * It's possible on some configurations to have a setup like node0 node1 node0
-+ * i.e. it's possible that all pages within a zones range of pages do not
-+ * belong to a single zone. We assume that a border between node0 and node1
-+ * can occur within a single pageblock, but not a node0 node1 node0
-+ * interleaving within a single pageblock. It is therefore sufficient to check
-+ * the first and last page of a pageblock and avoid checking each individual
-+ * page in a pageblock.
-+ */
-+static struct page * pageblock_within_zone(unsigned long start_pfn,
-+				unsigned long end_pfn, struct zone *zone)
-+{
-+	struct page *start_page;
-+	struct page *end_page;
-+
-+	/* end_pfn is one past the range we are checking */
-+	end_pfn--;
-+
-+	if (!pfn_valid(start_pfn) || !pfn_valid(end_pfn))
-+		return NULL;
-+
-+	start_page = pfn_to_page(start_pfn);
-+
-+	if (page_zone(start_page) != zone)
-+		return NULL;
-+
-+	end_page = pfn_to_page(end_pfn);
-+
-+	/* This gives a shorter code than deriving page_zone(end_page) */
-+	if (page_zone_id(start_page) != page_zone_id(end_page))
-+		return NULL;
-+
-+	return start_page;
-+}
-+
- #ifdef CONFIG_COMPACTION
- /* Returns true if the pageblock should be scanned for pages to isolate. */
- static inline bool isolation_suitable(struct compact_control *cc,
-@@ -368,17 +411,17 @@ isolate_freepages_range(struct compact_control *cc,
- 	unsigned long isolated, pfn, block_end_pfn;
- 	LIST_HEAD(freelist);
+ 	cursor = pfn_to_page(blockpfn);
  
--	for (pfn = start_pfn; pfn < end_pfn; pfn += isolated) {
--		if (!pfn_valid(pfn) || cc->zone != page_zone(pfn_to_page(pfn)))
+@@ -412,6 +413,9 @@ isolate_fail:
+ 			break;
+ 	}
+ 
++	/* Record how far we have got within the block */
++	*start_pfn = blockpfn;
++
+ 	trace_mm_compaction_isolate_freepages(nr_scanned, total_isolated);
+ 
+ 	/*
+@@ -460,14 +464,13 @@ isolate_freepages_range(struct compact_control *cc,
+ 
+ 	for (; pfn < end_pfn; pfn += isolated,
+ 				block_end_pfn += pageblock_nr_pages) {
++		/* Protect pfn from changing by isolate_freepages_block */
++		unsigned long isolate_start_pfn = pfn;
+ 
+ 		block_end_pfn = min(block_end_pfn, end_pfn);
+ 
+-		if (!pageblock_within_zone(pfn, block_end_pfn, cc->zone))
 -			break;
-+	pfn = start_pfn;
-+	block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
-+
-+	for (; pfn < end_pfn; pfn += isolated,
-+				block_end_pfn += pageblock_nr_pages) {
- 
--		/*
--		 * On subsequent iterations ALIGN() is actually not needed,
--		 * but we keep it that we not to complicate the code.
--		 */
--		block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
- 		block_end_pfn = min(block_end_pfn, end_pfn);
- 
-+		if (!pageblock_within_zone(pfn, block_end_pfn, cc->zone))
-+			break;
-+
- 		isolated = isolate_freepages_block(cc, pfn, block_end_pfn,
- 						   &freelist, true);
- 
-@@ -507,15 +550,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 			continue;
- 		nr_scanned++;
- 
--		/*
--		 * Get the page and ensure the page is within the same zone.
--		 * See the comment in isolate_freepages about overlapping
--		 * nodes. It is deliberate that the new zone lock is not taken
--		 * as memory compaction should not move pages between nodes.
--		 */
- 		page = pfn_to_page(low_pfn);
--		if (page_zone(page) != zone)
--			continue;
- 
- 		if (!valid_page)
- 			valid_page = page;
-@@ -654,8 +689,7 @@ isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
- 
- 		block_end_pfn = min(block_end_pfn, end_pfn);
- 
--		/* Skip whole pageblock in case of a memory hole */
--		if (!pfn_valid(pfn))
-+		if (!pageblock_within_zone(pfn, block_end_pfn, cc->zone))
- 			continue;
- 
- 		pfn = isolate_migratepages_block(cc, pfn, block_end_pfn,
-@@ -727,18 +761,9 @@ static void isolate_freepages(struct compact_control *cc)
- 						&& compact_should_abort(cc))
- 			break;
- 
--		if (!pfn_valid(block_start_pfn))
--			continue;
 -
--		/*
--		 * Check for overlapping nodes/zones. It's possible on some
--		 * configurations to have a setup like
--		 * node0 node1 node0
--		 * i.e. it's possible that all pages within a zones range of
--		 * pages do not belong to a single zone.
--		 */
--		page = pfn_to_page(block_start_pfn);
--		if (page_zone(page) != zone)
-+		page = pageblock_within_zone(block_start_pfn, block_end_pfn,
-+									zone);
-+		if (!page)
- 			continue;
+-		isolated = isolate_freepages_block(cc, pfn, block_end_pfn,
+-						   &freelist, true);
++		isolated = isolate_freepages_block(cc, &isolate_start_pfn,
++						block_end_pfn, &freelist, true);
  
- 		/* Check the block is suitable for migration */
-@@ -873,12 +898,10 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 						&& compact_should_abort(cc))
- 			break;
+ 		/*
+ 		 * In strict mode, isolate_freepages_block() returns 0 if
+@@ -769,6 +772,7 @@ static void isolate_freepages(struct compact_control *cc)
+ 	struct zone *zone = cc->zone;
+ 	struct page *page;
+ 	unsigned long block_start_pfn;	/* start of current pageblock */
++	unsigned long isolate_start_pfn; /* exact pfn we start at */
+ 	unsigned long block_end_pfn;	/* end of current pageblock */
+ 	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
+ 	int nr_freepages = cc->nr_freepages;
+@@ -777,14 +781,15 @@ static void isolate_freepages(struct compact_control *cc)
+ 	/*
+ 	 * Initialise the free scanner. The starting point is where we last
+ 	 * successfully isolated from, zone-cached value, or the end of the
+-	 * zone when isolating for the first time. We need this aligned to
+-	 * the pageblock boundary, because we do
++	 * zone when isolating for the first time. For looping we also need
++	 * this pfn aligned down to the pageblock boundary, because we do
+ 	 * block_start_pfn -= pageblock_nr_pages in the for loop.
+ 	 * For ending point, take care when isolating in last pageblock of a
+ 	 * a zone which ends in the middle of a pageblock.
+ 	 * The low boundary is the end of the pageblock the migration scanner
+ 	 * is using.
+ 	 */
++	isolate_start_pfn = cc->free_pfn;
+ 	block_start_pfn = cc->free_pfn & ~(pageblock_nr_pages-1);
+ 	block_end_pfn = min(block_start_pfn + pageblock_nr_pages,
+ 						zone_end_pfn(zone));
+@@ -797,7 +802,8 @@ static void isolate_freepages(struct compact_control *cc)
+ 	 */
+ 	for (; block_start_pfn >= low_pfn && cc->nr_migratepages > nr_freepages;
+ 				block_end_pfn = block_start_pfn,
+-				block_start_pfn -= pageblock_nr_pages) {
++				block_start_pfn -= pageblock_nr_pages,
++				isolate_start_pfn = block_start_pfn) {
+ 		unsigned long isolated;
  
--		/* Skip whole pageblock in case of a memory hole */
--		if (!pfn_valid(low_pfn))
-+		page = pageblock_within_zone(low_pfn, end_pfn, zone);
-+		if (!page)
- 			continue;
- 
--		page = pfn_to_page(low_pfn);
--
- 		/* If isolation recently failed, do not retry */
+ 		/*
+@@ -822,13 +828,25 @@ static void isolate_freepages(struct compact_control *cc)
  		if (!isolation_suitable(cc, page))
  			continue;
+ 
+-		/* Found a block suitable for isolating free pages from */
+-		cc->free_pfn = block_start_pfn;
+-		isolated = isolate_freepages_block(cc, block_start_pfn,
++		/* Found a block suitable for isolating free pages from. */
++		isolated = isolate_freepages_block(cc, &isolate_start_pfn,
+ 					block_end_pfn, freelist, false);
+ 		nr_freepages += isolated;
+ 
+ 		/*
++		 * Remember where the free scanner should restart next time,
++		 * which is where isolate_freepages_block() left off.
++		 * But if it scanned the whole pageblock, isolate_start_pfn
++		 * now points at block_end_pfn, which is the start of the next
++		 * pageblock.
++		 * In that case we will however want to restart at the start
++		 * of the previous pageblock.
++		 */
++		cc->free_pfn = (isolate_start_pfn < block_end_pfn) ?
++				isolate_start_pfn :
++				block_start_pfn - pageblock_nr_pages;
++
++		/*
+ 		 * Set a flag that we successfully isolated in this pageblock.
+ 		 * In the next loop iteration, zone->compact_cached_free_pfn
+ 		 * will not be updated and thus it will effectively contain the
 -- 
 1.8.4.5
 
