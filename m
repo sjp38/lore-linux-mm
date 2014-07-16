@@ -1,61 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 967866B006E
-	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 06:11:37 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id p10so982967pdj.22
-        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 03:11:37 -0700 (PDT)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id b12si7043336pdk.444.2014.07.16.03.11.36
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 980736B0071
+	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 07:14:34 -0400 (EDT)
+Received: by mail-wi0-f177.google.com with SMTP id ho1so1111881wib.4
+        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 04:14:33 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id et2si20052059wib.13.2014.07.16.04.14.32
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 16 Jul 2014 03:11:36 -0700 (PDT)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so523401pab.28
-        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 03:11:36 -0700 (PDT)
-Date: Wed, 16 Jul 2014 03:09:58 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [RFC v3 6/7] shm: wait for pins to be released when sealing
-In-Reply-To: <1402655819-14325-7-git-send-email-dh.herrmann@gmail.com>
-Message-ID: <alpine.LSU.2.11.1407160308550.1775@eggly.anvils>
-References: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com> <1402655819-14325-7-git-send-email-dh.herrmann@gmail.com>
+        Wed, 16 Jul 2014 04:14:33 -0700 (PDT)
+Message-ID: <53C65E92.2000606@suse.cz>
+Date: Wed, 16 Jul 2014 13:14:26 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 00/10] fix freepage count problems due to memory isolation
+References: <1404460675-24456-1-git-send-email-iamjoonsoo.kim@lge.com> <53B6C947.1070603@suse.cz> <20140707044932.GA29236@js1304-P5Q-DELUXE> <53BAAFA5.9070403@suse.cz> <20140714062222.GA11317@js1304-P5Q-DELUXE> <53C3A7A5.9060005@suse.cz> <20140715082828.GM11317@js1304-P5Q-DELUXE> <53C4E813.7020108@suse.cz> <20140716084333.GA20359@js1304-P5Q-DELUXE>
+In-Reply-To: <20140716084333.GA20359@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Herrmann <dh.herrmann@gmail.com>
-Cc: linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, Greg Kroah-Hartman <greg@kroah.com>, john.stultz@linaro.org, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>, Hugh Dickins <hughd@google.com>, Tony Battersby <tonyb@cybernetics.com>, Andy Lutomirski <luto@amacapital.net>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, Lisa Du <cldu@marvell.com>, linux-kernel@vger.kernel.org
 
-On Fri, 13 Jun 2014, David Herrmann wrote:
-
-> We currently fail setting SEAL_WRITE in case there're pending page
-> references. This patch extends the pin-tests to wait up to 150ms for all
-> references to be dropped. This is still not perfect in that it doesn't
-> account for harmless read-only pins, but it's much better than a hard
-> failure.
+On 07/16/2014 10:43 AM, Joonsoo Kim wrote:
+>> I think your plan of multiple parallel CMA allocations (and thus
+>> multiple parallel isolations) is also possible. The isolate pcplists
+>> can be shared by pages coming from multiple parallel isolations. But
+>> the flush operation needs a pfn start/end parameters to only flush
+>> pages belonging to the given isolation. That might mean a bit of
+>> inefficient list traversing, but I don't think it's a problem.
 > 
-> Signed-off-by: David Herrmann <dh.herrmann@gmail.com>
+> I think that special pcplist would cause a problem if we should check
+> pfn range. If there are too many pages on this pcplist, move pages from
+> this pcplist to isolate freelist takes too long time in irq context and
+> system could be broken. This operation cannot be easily stopped because
+> it is initiated by IPI on other cpu and starter of this IPI expect that
+> all pages on other cpus' pcplist are moved properly when returning
+> from on_each_cpu().
+> 
+> And, if there are so many pages, serious lock contention would happen
+> in this case.
 
-Right, I didn't look through the patch itself, just compared the result
-with what I sent.  Okay, you prefer to separate out shmem_tag_pins().
+Hm I see. So what if it wasn't a special pcplist, but a special "free list"
+where the pages would be just linked together as on pcplist, regardless of
+order, and would not merge until the CPU that drives the memory isolation
+process decides it is safe to flush them away. That would remove the need for
+IPI's and provide the same guarantees I think.
 
-Yes, it looks fine.  There's just one change I'd like at this stage,
-something I realized shortly after sending the code fragment: please
-add a call to lru_add_drain() at the head of shmem_tag_pins().  The
-reason being that lru_add_drain() is local to the cpu, so cheap, and
-in many cases will bring down all the raised refcounts right then.
+> Anyway, my idea's key point is using PageIsolated() to distinguish
+> isolated page, instead of using PageBuddy(). If page is PageIsolated(),
 
-Whereas lru_add_drain_all() in the first scan of shmem_wait_for_pins()
-is much more expensive, involving inter-processor interrupts to do
-that on all cpus: it is appropriate to call it at that point, but we
-really ought to try the cheaper lru_add_drain() at the earlier stage.
+Is PageIsolated a completely new page flag? Those are a limited resource so I
+would expect some resistance to such approach. Or a new special page->_mapcount
+value? That could maybe work.
 
-I would also like never to embark on this scan of the radix_tree
-and wait for pins, if the pages were never given out in a VM_SHARED
-mapping - or is that unrealistic, because every memfd is read-write,
-and typical initialization expected to be by mmap() rather than write()?
-But anyway, you're quite right not to get into that at this stage:
-it's best left as an optimization once the basics are safely in.
+> it isn't handled as freepage although it is in buddy allocator. During free,
+> page with MIGRATETYPE_ISOLATE will be marked as PageIsolated() and
+> won't be merged and counted for freepage.
 
-Hugh
+OK. Preventing wrong merging is the key point and this should work.
+
+> When we move pages from normal buddy list to isolate buddy
+> list, we check PageBuddy() and subtract number of PageBuddy() pages
+
+Do we really need to check PageBuddy()? Could a page get marked as PageIsolate()
+but still go to normal list instead of isolate list?
+
+> from number of freepage. And, change page from PageBuddy() to PageIsolated()
+> since it is handled as isolated page at this point. In this way, freepage
+> count will be correct.
+> 
+> Unisolation can be done by similar approach.
+> 
+> I made prototype of this approach and it isn't intrusive to core
+> allocator compared to my previous patchset.
+> 
+> Make sense?
+
+I think so :)
+
+> Thanks.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
