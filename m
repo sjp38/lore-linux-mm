@@ -1,233 +1,257 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 5118B6B00AA
-	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 10:15:21 -0400 (EDT)
-Received: by mail-wi0-f182.google.com with SMTP id d1so1378463wiv.3
-        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 07:15:18 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id pk8si24196865wjc.2.2014.07.16.07.15.15
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id AC9C36B00AB
+	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 10:40:00 -0400 (EDT)
+Received: by mail-wg0-f50.google.com with SMTP id n12so999846wgh.33
+        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 07:40:00 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cg8si3708975wib.8.2014.07.16.07.39.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 16 Jul 2014 07:15:16 -0700 (PDT)
-Date: Wed, 16 Jul 2014 10:14:47 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 13/13] mm: memcontrol: rewrite uncharge API
-Message-ID: <20140716141447.GY29639@cmpxchg.org>
-References: <1403124045-24361-1-git-send-email-hannes@cmpxchg.org>
- <1403124045-24361-14-git-send-email-hannes@cmpxchg.org>
- <20140715155537.GA19454@nhori.bos.redhat.com>
- <20140715160735.GB29269@dhcp22.suse.cz>
- <20140715173439.GU29639@cmpxchg.org>
- <20140715184358.GA31550@nhori.bos.redhat.com>
- <20140715190454.GW29639@cmpxchg.org>
- <20140715204953.GA21016@nhori.bos.redhat.com>
- <20140715214843.GX29639@cmpxchg.org>
- <20140716133050.GA4644@nhori.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140716133050.GA4644@nhori.redhat.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 16 Jul 2014 07:39:58 -0700 (PDT)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [RFC PATCH] memcg: export knobs for the defaul cgroup hierarchy
+Date: Wed, 16 Jul 2014 16:39:38 +0200
+Message-Id: <1405521578-19988-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: LKML <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Wed, Jul 16, 2014 at 09:30:50AM -0400, Naoya Horiguchi wrote:
-> On Tue, Jul 15, 2014 at 05:48:43PM -0400, Johannes Weiner wrote:
-> > On Tue, Jul 15, 2014 at 04:49:53PM -0400, Naoya Horiguchi wrote:
-> > > I feel that these 2 messages have the same cause (just appear differently).
-> > > __add_to_page_cache_locked() (and mem_cgroup_try_charge()) can be called
-> > > for hugetlb, while we avoid calling mem_cgroup_migrate()/mem_cgroup_uncharge()
-> > > for hugetlb. This seems to make page_cgroup of the hugepage inconsistent,
-> > > and results in the bad page bug ("page dumped because: cgroup check failed").
-> > > So maybe some more PageHuge check is necessary around the charging code.
-> > 
-> > This struck me as odd because I don't remember removing a PageHuge()
-> > call in the charge path and wondered how it worked before my changes:
-> > apparently it just checked PageCompound() in mem_cgroup_charge_file().
-> > 
-> > So it's not fallout of the new uncharge batching code, but was already
-> > broken during the rewrite of the charge API because then hugetlb pages
-> > entered the charging code.
-> > 
-> > Anyway, we don't have file-specific charging code anymore, and the
-> > PageCompound() check would have required changing anyway for THP
-> > cache.  So I guess the solution is checking PageHuge() in charge,
-> > uncharge, and migrate for now.  Oh well.
-> > 
-> > How about this?
-> 
-> With tweaking a bit, this patch solved the problem, thanks!
-> 
-> > diff --git a/mm/filemap.c b/mm/filemap.c
-> > index 9c99d6868a5e..b61194273b56 100644
-> > --- a/mm/filemap.c
-> > +++ b/mm/filemap.c
-> > @@ -564,9 +564,12 @@ static int __add_to_page_cache_locked(struct page *page,
-> >  	VM_BUG_ON_PAGE(!PageLocked(page), page);
-> >  	VM_BUG_ON_PAGE(PageSwapBacked(page), page);
-> >  
-> > -	error = mem_cgroup_try_charge(page, current->mm, gfp_mask, &memcg);
-> > -	if (error)
-> > -		return error;
-> > +	if (!PageHuge(page)) {
-> > +		error = mem_cgroup_try_charge(page, current->mm,
-> > +					      gfp_mask, &memcg);
-> > +		if (error)
-> > +			return error;
-> > +	}
-> >  
-> >  	error = radix_tree_maybe_preload(gfp_mask & ~__GFP_HIGHMEM);
-> >  	if (error) {
-> 
-> We have mem_cgroup_commit_charge() later in __add_to_page_cache_locked(),
-> so adding "if (!PageHuge(page))" for it is necessary too.
+Starting with 8f9ac36d2cbb (cgroup: distinguish the default and legacy
+hierarchies when handling cftypes) memory cgroup controller doesn't
+export any knobs because all of them are marked as legacy. The idea is
+that only selected knobs are exported for the new cgroup API.
 
-You are right.  Annotated them all now.
+This patch exports the core knobs for the memory controller. The
+following knobs are not and won't be available in the default (aka
+unified) hierarchy:
+- use_hierarchy - was one of the biggest mistakes when memory controller
+  was introduced. It allows for creating hierarchical cgroups structure
+  which doesn't have any hierarchical accounting. This leads to really
+  strange configurations where other co-mounted controllers behave
+  hierarchically while memory controller doesn't.
+  All controllers have to be hierarchical with the new cgroups API so
+  this knob doesn't make any sense here.
+- force_empty - has been introduced primarily to drop memory before it
+  gets reparented on the group removal.  This alone doesn't sound
+  fully justified because reparented pages which are not in use can be
+  reclaimed also later when there is a memory pressure on the parent
+  level.
+  Another use-case would be something like per-memcg /proc/sys/vm/drop_caches
+  which doesn't sound like a great idea either. We are trying to get
+  away from using it on the global level so we shouldn't allow that on
+  per-memcg level as well.
+- soft_limit_in_bytes - has been originally introduced to help to
+  recover from the overcommit situations where the overall hard limits
+  on the system are higher than the available memory. A group which has
+  the largest excess on the soft limit is reclaimed to help to reduce
+  memory pressure during the global memory pressure.
+  The primary problem with this tunable is that every memcg is soft
+  unlimited by default which is reverse to what would be expected from
+  such a knob.
+  Another problem is that soft limit is considered only during the
+  global memory pressure rather than on an external memory pressure in
+  general (e.g. triggered by the limit hit on a parent up the
+  hierarchy).
+  There are other issues which are tight to the implementation (e.g.
+  priority-0 reclaim used for the soft limit reclaim etc.) which are
+  really hard to fix without breaking potential users.
+  There will be a replacement for the soft limit in the unified
+  hierarchy and users will be encouraged to switch their configuration
+  to the new scheme. Until this is available users are suggested to stay
+  with the legacy cgroup API.
 
-> > diff --git a/mm/migrate.c b/mm/migrate.c
-> > index 7f5a42403fae..dabed2f08609 100644
-> > --- a/mm/migrate.c
-> > +++ b/mm/migrate.c
-> > @@ -781,7 +781,8 @@ static int move_to_new_page(struct page *newpage, struct page *page,
-> >  		if (!PageAnon(newpage))
-> >  			newpage->mapping = NULL;
-> >  	} else {
-> > -		mem_cgroup_migrate(page, newpage, false);
-> > +		if (!PageHuge(page))
-> > +			mem_cgroup_migrate(page, newpage, false);
+TCP kmem sub-controller is not exported at this stage because this one has
+seen basically no traction since it was merged and it is not entirely
+clear why kmem controller cannot be used for the same purpose. Having 2
+controllers for tracking kernel memory allocations sounds like too much.
+If there are use-cases and reasons for not merging it into kmem then we
+can reconsider and allow it for the new cgroups API later.
 
-I deleted this again as it was a followup fix to hugepages getting
-wrongfully charged as file cache.  They shouldn't be, and
-mem_cgroup_migrate() checks whether the page is charged.
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+---
+ Documentation/cgroups/memory.txt |  19 ++++---
+ mm/memcontrol.c                  | 105 ++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 115 insertions(+), 9 deletions(-)
 
-> >  		if (remap_swapcache)
-> >  			remove_migration_ptes(page, newpage);
-> >  		if (!PageAnon(page))
-> > diff --git a/mm/swap.c b/mm/swap.c
-> > index 3461f2f5be20..97b6ec132398 100644
-> > --- a/mm/swap.c
-> > +++ b/mm/swap.c
-> > @@ -62,12 +62,12 @@ static void __page_cache_release(struct page *page)
-> >  		del_page_from_lru_list(page, lruvec, page_off_lru(page));
-> >  		spin_unlock_irqrestore(&zone->lru_lock, flags);
-> >  	}
-> > -	mem_cgroup_uncharge(page);
-> >  }
-> >  
-> >  static void __put_single_page(struct page *page)
-> >  {
-> >  	__page_cache_release(page);
-> > +	mem_cgroup_uncharge_page(page);
-> 
-> My kernel is based on mmotm-2014-07-09-17-08, where mem_cgroup_uncharge_page()
-> does not exist any more. Maybe mem_cgroup_uncharge(page) seems correct.
-
-Sorry, I should have build tested.  The name is still reflex...
-
-> >  	free_hot_cold_page(page, false);
-> >  }
-> >  
-> > @@ -75,7 +75,10 @@ static void __put_compound_page(struct page *page)
-> >  {
-> >  	compound_page_dtor *dtor;
-> >  
-> > -	__page_cache_release(page);
-> > +	if (!PageHuge(page)) {
-> > +		__page_cache_release(page);
-> > +		mem_cgroup_uncharge_page(page);
-
-I reverted all these mm/swap.c changes again as well.  Instead,
-mem_cgroup_uncharge() now does a preliminary check if the page is
-charged before it touches page->lru.
-
-That should be much more robust: now the vetting whether a page is
-valid for memcg happens at charge time only, all other operations
-check first if a page is charged before doing anything else to it.
-
-These two places should be the only ones that need fixing then:
-
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 9c99d6868a5e..bfe0745a704d 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -31,6 +31,7 @@
- #include <linux/security.h>
- #include <linux/cpuset.h>
- #include <linux/hardirq.h> /* for BUG_ON(!in_atomic()) only */
-+#include <linux/hugetlb.h>
- #include <linux/memcontrol.h>
- #include <linux/cleancache.h>
- #include <linux/rmap.h>
-@@ -558,19 +559,24 @@ static int __add_to_page_cache_locked(struct page *page,
- 				      pgoff_t offset, gfp_t gfp_mask,
- 				      void **shadowp)
- {
-+	int huge = PageHuge(page);
- 	struct mem_cgroup *memcg;
- 	int error;
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index 02ab997a1ed2..a8f01497c5de 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -62,10 +62,10 @@ Brief summary of control files.
+  memory.memsw.failcnt		 # show the number of memory+Swap hits limits
+  memory.max_usage_in_bytes	 # show max memory usage recorded
+  memory.memsw.max_usage_in_bytes # show max memory+Swap usage recorded
+- memory.soft_limit_in_bytes	 # set/show soft limit of memory usage
++[D] memory.soft_limit_in_bytes	 # set/show soft limit of memory usage
+  memory.stat			 # show various statistics
+- memory.use_hierarchy		 # set/show hierarchical account enabled
+- memory.force_empty		 # trigger forced move charge to parent
++[D] memory.use_hierarchy		 # set/show hierarchical account enabled
++[D] memory.force_empty		 # trigger forced move charge to parent
+  memory.pressure_level		 # set memory pressure notifications
+  memory.swappiness		 # set/show swappiness parameter of vmscan
+ 				 (See sysctl's vm.swappiness)
+@@ -78,10 +78,15 @@ Brief summary of control files.
+  memory.kmem.failcnt             # show the number of kernel memory usage hits limits
+  memory.kmem.max_usage_in_bytes  # show max kernel memory usage recorded
  
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	VM_BUG_ON_PAGE(PageSwapBacked(page), page);
+- memory.kmem.tcp.limit_in_bytes  # set/show hard limit for tcp buf memory
+- memory.kmem.tcp.usage_in_bytes  # show current tcp buf memory allocation
+- memory.kmem.tcp.failcnt            # show the number of tcp buf memory usage hits limits
+- memory.kmem.tcp.max_usage_in_bytes # show max tcp buf memory usage recorded
++[D] memory.kmem.tcp.limit_in_bytes  # set/show hard limit for tcp buf memory
++[D] memory.kmem.tcp.usage_in_bytes  # show current tcp buf memory allocation
++[D] memory.kmem.tcp.failcnt            # show the number of tcp buf memory usage hits limits
++[D] memory.kmem.tcp.max_usage_in_bytes # show max tcp buf memory usage recorded
++
++Knobs marked as [D] are considered deprecated and they won't be available in
++the new cgroup Unified hierarchy API (see
++Documentation/cgroups/unified-hierarchy.txt for more information). They are
++still available with the legacy hierarchy though.
  
--	error = mem_cgroup_try_charge(page, current->mm, gfp_mask, &memcg);
--	if (error)
--		return error;
-+	if (!huge) {
-+		error = mem_cgroup_try_charge(page, current->mm,
-+					      gfp_mask, &memcg);
-+		if (error)
-+			return error;
-+	}
+ 1. History
  
- 	error = radix_tree_maybe_preload(gfp_mask & ~__GFP_HIGHMEM);
- 	if (error) {
--		mem_cgroup_cancel_charge(page, memcg);
-+		if (!huge)
-+			mem_cgroup_cancel_charge(page, memcg);
- 		return error;
- 	}
- 
-@@ -585,14 +591,16 @@ static int __add_to_page_cache_locked(struct page *page,
- 		goto err_insert;
- 	__inc_zone_page_state(page, NR_FILE_PAGES);
- 	spin_unlock_irq(&mapping->tree_lock);
--	mem_cgroup_commit_charge(page, memcg, false);
-+	if (!huge)
-+		mem_cgroup_commit_charge(page, memcg, false);
- 	trace_mm_filemap_add_to_page_cache(page);
- 	return 0;
- err_insert:
- 	page->mapping = NULL;
- 	/* Leave page->index set: truncation relies upon it */
- 	spin_unlock_irq(&mapping->tree_lock);
--	mem_cgroup_cancel_charge(page, memcg);
-+	if (!huge)
-+		mem_cgroup_cancel_charge(page, memcg);
- 	page_cache_release(page);
- 	return error;
- }
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 063080e35459..b5de5deddbfb 100644
+index fa99a3e2e427..9ed40a045d27 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -6635,9 +6635,16 @@ static void uncharge_list(struct list_head *page_list)
-  */
- void mem_cgroup_uncharge(struct page *page)
- {
-+	struct page_cgroup *pc;
-+
- 	if (mem_cgroup_disabled())
- 		return;
- 
-+	/* Don't touch page->lru of any random page, pre-check: */
-+	pc = lookup_page_cgroup(page);
-+	if (!PageCgroupUsed(pc))
-+		return;
-+
- 	INIT_LIST_HEAD(&page->lru);
- 	uncharge_list(&page->lru);
+@@ -5226,7 +5226,11 @@ out_kfree:
+ 	return ret;
  }
+ 
+-static struct cftype mem_cgroup_files[] = {
++/*
++ * memcg knobs for the legacy cgroup API. No new files should be
++ * added here.
++ */
++static struct cftype legacy_mem_cgroup_files[] = {
+ 	{
+ 		.name = "usage_in_bytes",
+ 		.private = MEMFILE_PRIVATE(_MEM, RES_USAGE),
+@@ -5334,6 +5338,100 @@ static struct cftype mem_cgroup_files[] = {
+ 	{ },	/* terminate */
+ };
+ 
++/* memcg knobs for new cgroups API (default aka unified hierarchy) */
++static struct cftype dfl_mem_cgroup_files[] = {
++	{
++		.name = "usage_in_bytes",
++		.private = MEMFILE_PRIVATE(_MEM, RES_USAGE),
++		.read_u64 = mem_cgroup_read_u64,
++	},
++	{
++		.name = "max_usage_in_bytes",
++		.private = MEMFILE_PRIVATE(_MEM, RES_MAX_USAGE),
++		.write = mem_cgroup_reset,
++		.read_u64 = mem_cgroup_read_u64,
++	},
++	{
++		.name = "limit_in_bytes",
++		.private = MEMFILE_PRIVATE(_MEM, RES_LIMIT),
++		.write = mem_cgroup_write,
++		.read_u64 = mem_cgroup_read_u64,
++	},
++	{
++		.name = "failcnt",
++		.private = MEMFILE_PRIVATE(_MEM, RES_FAILCNT),
++		.write = mem_cgroup_reset,
++		.read_u64 = mem_cgroup_read_u64,
++	},
++	{
++		.name = "stat",
++		.seq_show = memcg_stat_show,
++	},
++	{
++		.name = "cgroup.event_control",		/* XXX: for compat */
++		.write = memcg_write_event_control,
++		.flags = CFTYPE_NO_PREFIX,
++		.mode = S_IWUGO,
++	},
++	{
++		.name = "swappiness",
++		.read_u64 = mem_cgroup_swappiness_read,
++		.write_u64 = mem_cgroup_swappiness_write,
++	},
++	{
++		.name = "move_charge_at_immigrate",
++		.read_u64 = mem_cgroup_move_charge_read,
++		.write_u64 = mem_cgroup_move_charge_write,
++	},
++	{
++		.name = "oom_control",
++		.seq_show = mem_cgroup_oom_control_read,
++		.write_u64 = mem_cgroup_oom_control_write,
++		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
++	},
++	{
++		.name = "pressure_level",
++	},
++#ifdef CONFIG_NUMA
++	{
++		.name = "numa_stat",
++		.seq_show = memcg_numa_stat_show,
++	},
++#endif
++#ifdef CONFIG_MEMCG_KMEM
++	{
++		.name = "kmem.limit_in_bytes",
++		.private = MEMFILE_PRIVATE(_KMEM, RES_LIMIT),
++		.write = mem_cgroup_write,
++		.read_u64 = mem_cgroup_read_u64,
++	},
++	{
++		.name = "kmem.max_usage_in_bytes",
++		.private = MEMFILE_PRIVATE(_KMEM, RES_MAX_USAGE),
++		.write = mem_cgroup_reset,
++		.read_u64 = mem_cgroup_read_u64,
++	},
++	{
++		.name = "kmem.usage_in_bytes",
++		.private = MEMFILE_PRIVATE(_KMEM, RES_USAGE),
++		.read_u64 = mem_cgroup_read_u64,
++	},
++	{
++		.name = "kmem.failcnt",
++		.private = MEMFILE_PRIVATE(_KMEM, RES_FAILCNT),
++		.write = mem_cgroup_reset,
++		.read_u64 = mem_cgroup_read_u64,
++	},
++#ifdef CONFIG_SLABINFO
++	{
++		.name = "kmem.slabinfo",
++		.seq_show = mem_cgroup_slabinfo_read,
++	},
++#endif
++#endif
++	{ },	/* terminate */
++};
++
+ #ifdef CONFIG_MEMCG_SWAP
+ static struct cftype memsw_cgroup_files[] = {
+ 	{
+@@ -6266,7 +6364,8 @@ struct cgroup_subsys memory_cgrp_subsys = {
+ 	.cancel_attach = mem_cgroup_cancel_attach,
+ 	.attach = mem_cgroup_move_task,
+ 	.bind = mem_cgroup_bind,
+-	.legacy_cftypes = mem_cgroup_files,
++	.legacy_cftypes = legacy_mem_cgroup_files,
++	.dfl_cftypes = dfl_mem_cgroup_files,
+ 	.early_init = 0,
+ };
+ 
+@@ -6285,6 +6384,8 @@ static void __init memsw_file_init(void)
+ {
+ 	WARN_ON(cgroup_add_legacy_cftypes(&memory_cgrp_subsys,
+ 					  memsw_cgroup_files));
++	WARN_ON(cgroup_add_dfl_cftypes(&memory_cgrp_subsys,
++					  memsw_cgroup_files));
+ }
+ 
+ static void __init enable_swap_cgroup(void)
+-- 
+2.0.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
