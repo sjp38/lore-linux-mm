@@ -1,88 +1,267 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F4496B0087
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 814CA6B0089
 	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 09:49:01 -0400 (EDT)
-Received: by mail-wi0-f182.google.com with SMTP id d1so1332457wiv.3
-        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 06:48:57 -0700 (PDT)
+Received: by mail-wi0-f170.google.com with SMTP id f8so4902685wiw.3
+        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 06:49:00 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bd5si1522843wib.19.2014.07.16.06.48.55
+        by mx.google.com with ESMTPS id lr2si24046710wjb.97.2014.07.16.06.48.56
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 16 Jul 2014 06:48:55 -0700 (PDT)
+        Wed, 16 Jul 2014 06:48:57 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH V4 01/15] mm, THP: don't hold mmap_sem in khugepaged when allocating THP
-Date: Wed, 16 Jul 2014 15:48:09 +0200
-Message-Id: <1405518503-27687-2-git-send-email-vbabka@suse.cz>
+Subject: [PATCH V4 08/15] mm, compaction: periodically drop lock and restore IRQs in scanners
+Date: Wed, 16 Jul 2014 15:48:16 +0200
+Message-Id: <1405518503-27687-9-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1405518503-27687-1-git-send-email-vbabka@suse.cz>
 References: <1405518503-27687-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-When allocating huge page for collapsing, khugepaged currently holds mmap_sem
-for reading on the mm where collapsing occurs. Afterwards the read lock is
-dropped before write lock is taken on the same mmap_sem.
+Compaction scanners regularly check for lock contention and need_resched()
+through the compact_checklock_irqsave() function. However, if there is no
+contention, the lock can be held and IRQ disabled for potentially long time.
 
-Holding mmap_sem during whole huge page allocation is therefore useless, the
-vma needs to be rechecked after taking the write lock anyway. Furthemore, huge
-page allocation might involve a rather long sync compaction, and thus block
-any mmap_sem writers and i.e. affect workloads that perform frequent m(un)map
-or mprotect oterations.
+This has been addressed by commit b2eef8c0d0 ("mm: compaction: minimise the
+time IRQs are disabled while isolating pages for migration") for the migration
+scanner. However, the refactoring done by commit 2a1402aa04 ("mm: compaction:
+acquire the zone->lru_lock as late as possible") has changed the conditions so
+that the lock is dropped only when there's contention on the lock or
+need_resched() is true. Also, need_resched() is checked only when the lock is
+already held. The comment "give a chance to irqs before checking need_resched"
+is therefore misleading, as IRQs remain disabled when the check is done.
 
-This patch simply releases the read lock before allocating a huge page. It
-also deletes an outdated comment that assumed vma must be stable, as it was
-using alloc_hugepage_vma(). This is no longer true since commit 9f1b868a13
-("mm: thp: khugepaged: add policy for finding target node").
+This patch restores the behavior intended by commit b2eef8c0d0 and also tries
+to better balance and make more deterministic the time spent by checking for
+contention vs the time the scanners might run between the checks. It also
+avoids situations where checking has not been done often enough before. The
+result should be avoiding both too frequent and too infrequent contention
+checking, and especially the potentially long-running scans with IRQs disabled
+and no checking of need_resched() or for fatal signal pending, which can happen
+when many consecutive pages or pageblocks fail the preliminary tests and do not
+reach the later call site to compact_checklock_irqsave(), as explained below.
+
+Before the patch:
+
+In the migration scanner, compact_checklock_irqsave() was called each loop, if
+reached. If not reached, some lower-frequency checking could still be done if
+the lock was already held, but this would not result in aborting contended
+async compaction until reaching compact_checklock_irqsave() or end of
+pageblock. In the free scanner, it was similar but completely without the
+periodical checking, so lock can be potentially held until reaching the end of
+pageblock.
+
+After the patch, in both scanners:
+
+The periodical check is done as the first thing in the loop on each
+SWAP_CLUSTER_MAX aligned pfn, using the new compact_unlock_should_abort()
+function, which always unlocks the lock (if locked) and aborts async compaction
+if scheduling is needed. It also aborts any type of compaction when a fatal
+signal is pending.
+
+The compact_checklock_irqsave() function is replaced with a slightly different
+compact_trylock_irqsave(). The biggest difference is that the function is not
+called at all if the lock is already held. The periodical need_resched()
+checking is left solely to compact_unlock_should_abort(). The lock contention
+avoidance for async compaction is achieved by the periodical unlock by
+compact_unlock_should_abort() and by using trylock in compact_trylock_irqsave()
+and aborting when trylock fails. Sync compaction does not use trylock.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Minchan Kim <minchan@kernel.org>
+Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Acked-by: Minchan Kim <minchan@kernel.org>
 Cc: Mel Gorman <mgorman@suse.de>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Michal Nazarewicz <mina86@mina86.com>
 Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: Christoph Lameter <cl@linux.com>
 Cc: Rik van Riel <riel@redhat.com>
 Cc: David Rientjes <rientjes@google.com>
 ---
- mm/huge_memory.c | 20 +++++++-------------
- 1 file changed, 7 insertions(+), 13 deletions(-)
+ mm/compaction.c | 121 ++++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 73 insertions(+), 48 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 02559ef..107da28 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2295,23 +2295,17 @@ static struct page
- 		       int node)
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 22648cc..b213e0ba 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -223,61 +223,72 @@ static void update_pageblock_skip(struct compact_control *cc,
+ }
+ #endif /* CONFIG_COMPACTION */
+ 
+-static int should_release_lock(spinlock_t *lock)
++/*
++ * Compaction requires the taking of some coarse locks that are potentially
++ * very heavily contended. For async compaction, back out if the lock cannot
++ * be taken immediately. For sync compaction, spin on the lock if needed.
++ *
++ * Returns true if the lock is held
++ * Returns false if the lock is not held and compaction should abort
++ */
++static bool compact_trylock_irqsave(spinlock_t *lock, unsigned long *flags,
++						struct compact_control *cc)
  {
- 	VM_BUG_ON_PAGE(*hpage, *hpage);
-+
- 	/*
--	 * Allocate the page while the vma is still valid and under
--	 * the mmap_sem read mode so there is no memory allocation
--	 * later when we take the mmap_sem in write mode. This is more
--	 * friendly behavior (OTOH it may actually hide bugs) to
--	 * filesystems in userland with daemons allocating memory in
--	 * the userland I/O paths.  Allocating memory with the
--	 * mmap_sem in read mode is good idea also to allow greater
--	 * scalability.
-+	 * Before allocating the hugepage, release the mmap_sem read lock.
-+	 * The allocation can take potentially a long time if it involves
-+	 * sync compaction, and we do not need to hold the mmap_sem during
-+	 * that. We will recheck the vma after taking it again in write mode.
- 	 */
-+	up_read(&mm->mmap_sem);
-+
- 	*hpage = alloc_pages_exact_node(node, alloc_hugepage_gfpmask(
- 		khugepaged_defrag(), __GFP_OTHER_NODE), HPAGE_PMD_ORDER);
 -	/*
--	 * After allocating the hugepage, release the mmap_sem read lock in
--	 * preparation for taking it in write mode.
+-	 * Sched contention has higher priority here as we may potentially
+-	 * have to abort whole compaction ASAP. Returning with lock contention
+-	 * means we will try another zone, and further decisions are
+-	 * influenced only when all zones are lock contended. That means
+-	 * potentially missing a lock contention is less critical.
 -	 */
--	up_read(&mm->mmap_sem);
- 	if (unlikely(!*hpage)) {
- 		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
- 		*hpage = ERR_PTR(-ENOMEM);
+-	if (need_resched())
+-		return COMPACT_CONTENDED_SCHED;
+-	else if (spin_is_contended(lock))
+-		return COMPACT_CONTENDED_LOCK;
+-	else
+-		return COMPACT_CONTENDED_NONE;
++	if (cc->mode == MIGRATE_ASYNC) {
++		if (!spin_trylock_irqsave(lock, *flags)) {
++			cc->contended = COMPACT_CONTENDED_LOCK;
++			return false;
++		}
++	} else {
++		spin_lock_irqsave(lock, *flags);
++	}
++
++	return true;
+ }
+ 
+ /*
+  * Compaction requires the taking of some coarse locks that are potentially
+- * very heavily contended. Check if the process needs to be scheduled or
+- * if the lock is contended. For async compaction, back out in the event
+- * if contention is severe. For sync compaction, schedule.
++ * very heavily contended. The lock should be periodically unlocked to avoid
++ * having disabled IRQs for a long time, even when there is nobody waiting on
++ * the lock. It might also be that allowing the IRQs will result in
++ * need_resched() becoming true. If scheduling is needed, async compaction
++ * aborts. Sync compaction schedules.
++ * Either compaction type will also abort if a fatal signal is pending.
++ * In either case if the lock was locked, it is dropped and not regained.
+  *
+- * Returns true if the lock is held.
+- * Returns false if the lock is released and compaction should abort
++ * Returns true if compaction should abort due to fatal signal pending, or
++ *		async compaction due to need_resched()
++ * Returns false when compaction can continue (sync compaction might have
++ *		scheduled)
+  */
+-static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
+-				      bool locked, struct compact_control *cc)
++static bool compact_unlock_should_abort(spinlock_t *lock,
++		unsigned long flags, bool *locked, struct compact_control *cc)
+ {
+-	int contended = should_release_lock(lock);
++	if (*locked) {
++		spin_unlock_irqrestore(lock, flags);
++		*locked = false;
++	}
+ 
+-	if (contended) {
+-		if (locked) {
+-			spin_unlock_irqrestore(lock, *flags);
+-			locked = false;
+-		}
++	if (fatal_signal_pending(current)) {
++		cc->contended = COMPACT_CONTENDED_SCHED;
++		return true;
++	}
+ 
+-		/* async aborts if taking too long or contended */
++	if (need_resched()) {
+ 		if (cc->mode == MIGRATE_ASYNC) {
+-			cc->contended = contended;
+-			return false;
++			cc->contended = COMPACT_CONTENDED_SCHED;
++			return true;
+ 		}
+-
+ 		cond_resched();
+ 	}
+ 
+-	if (!locked)
+-		spin_lock_irqsave(lock, *flags);
+-	return true;
++	return false;
+ }
+ 
+ /*
+  * Aside from avoiding lock contention, compaction also periodically checks
+  * need_resched() and either schedules in sync compaction or aborts async
+- * compaction. This is similar to what compact_checklock_irqsave() does, but
++ * compaction. This is similar to what compact_unlock_should_abort() does, but
+  * is used where no lock is concerned.
+  *
+  * Returns false when no scheduling was needed, or sync compaction scheduled.
+@@ -336,6 +347,16 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+ 		int isolated, i;
+ 		struct page *page = cursor;
+ 
++		/*
++		 * Periodically drop the lock (if held) regardless of its
++		 * contention, to give chance to IRQs. Abort async compaction
++		 * if contended.
++		 */
++		if (!(blockpfn % SWAP_CLUSTER_MAX)
++		    && compact_unlock_should_abort(&cc->zone->lock, flags,
++								&locked, cc))
++			break;
++
+ 		nr_scanned++;
+ 		if (!pfn_valid_within(blockpfn))
+ 			goto isolate_fail;
+@@ -353,8 +374,9 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+ 		 * spin on the lock and we acquire the lock as late as
+ 		 * possible.
+ 		 */
+-		locked = compact_checklock_irqsave(&cc->zone->lock, &flags,
+-								locked, cc);
++		if (!locked)
++			locked = compact_trylock_irqsave(&cc->zone->lock,
++								&flags, cc);
+ 		if (!locked)
+ 			break;
+ 
+@@ -552,13 +574,15 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 
+ 	/* Time to isolate some pages for migration */
+ 	for (; low_pfn < end_pfn; low_pfn++) {
+-		/* give a chance to irqs before checking need_resched() */
+-		if (locked && !(low_pfn % SWAP_CLUSTER_MAX)) {
+-			if (should_release_lock(&zone->lru_lock)) {
+-				spin_unlock_irqrestore(&zone->lru_lock, flags);
+-				locked = false;
+-			}
+-		}
++		/*
++		 * Periodically drop the lock (if held) regardless of its
++		 * contention, to give chance to IRQs. Abort async compaction
++		 * if contended.
++		 */
++		if (!(low_pfn % SWAP_CLUSTER_MAX)
++		    && compact_unlock_should_abort(&zone->lru_lock, flags,
++								&locked, cc))
++			break;
+ 
+ 		if (!pfn_valid_within(low_pfn))
+ 			continue;
+@@ -620,10 +644,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 		    page_count(page) > page_mapcount(page))
+ 			continue;
+ 
+-		/* Check if it is ok to still hold the lock */
+-		locked = compact_checklock_irqsave(&zone->lru_lock, &flags,
+-								locked, cc);
+-		if (!locked || fatal_signal_pending(current))
++		/* If the lock is not held, try to take it */
++		if (!locked)
++			locked = compact_trylock_irqsave(&zone->lru_lock,
++								&flags, cc);
++		if (!locked)
+ 			break;
+ 
+ 		/* Recheck PageLRU and PageTransHuge under lock */
 -- 
 1.8.4.5
 
