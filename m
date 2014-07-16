@@ -1,89 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 44B356B0031
-	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 03:18:51 -0400 (EDT)
-Received: by mail-wi0-f174.google.com with SMTP id d1so5626716wiv.1
-        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 00:18:50 -0700 (PDT)
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 653686B0031
+	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 03:55:32 -0400 (EDT)
+Received: by mail-wg0-f49.google.com with SMTP id k14so486926wgh.8
+        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 00:55:31 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id se11si19157993wic.40.2014.07.16.00.18.49
+        by mx.google.com with ESMTPS id f10si22929428wjb.84.2014.07.16.00.55.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 16 Jul 2014 00:18:49 -0700 (PDT)
-Message-ID: <53C62757.9080501@suse.cz>
-Date: Wed, 16 Jul 2014 09:18:47 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        Wed, 16 Jul 2014 00:55:30 -0700 (PDT)
+Date: Wed, 16 Jul 2014 09:55:28 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 13/13] mm: memcontrol: rewrite uncharge API
+Message-ID: <20140716075528.GB7121@dhcp22.suse.cz>
+References: <1403124045-24361-1-git-send-email-hannes@cmpxchg.org>
+ <1403124045-24361-14-git-send-email-hannes@cmpxchg.org>
+ <20140715155537.GA19454@nhori.bos.redhat.com>
+ <20140715160735.GB29269@dhcp22.suse.cz>
+ <20140715173439.GU29639@cmpxchg.org>
+ <20140715184358.GA31550@nhori.bos.redhat.com>
+ <20140715190454.GW29639@cmpxchg.org>
+ <20140715204953.GA21016@nhori.bos.redhat.com>
+ <20140715214843.GX29639@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] shmem: fix faulting into a hole, not taking i_mutex
-References: <alpine.LSU.2.11.1407150247540.2584@eggly.anvils> <alpine.LSU.2.11.1407150329250.2584@eggly.anvils> <53C551A8.2040400@suse.cz> <alpine.LSU.2.11.1407151156110.3571@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1407151156110.3571@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140715214843.GX29639@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Lukas Czerner <lczerner@redhat.com>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 07/15/2014 09:26 PM, Hugh Dickins wrote:
->> 
->> > @@ -760,7 +760,7 @@ static int shmem_writepage(struct page *
->> >   			spin_lock(&inode->i_lock);
->> >   			shmem_falloc = inode->i_private;
->> 
->> Without ACCESS_ONCE, can shmem_falloc potentially become an alias on
->> inode->i_private and later become re-read outside of the lock?
+On Tue 15-07-14 17:48:43, Johannes Weiner wrote:
+> On Tue, Jul 15, 2014 at 04:49:53PM -0400, Naoya Horiguchi wrote:
+> > I feel that these 2 messages have the same cause (just appear differently).
+> > __add_to_page_cache_locked() (and mem_cgroup_try_charge()) can be called
+> > for hugetlb, while we avoid calling mem_cgroup_migrate()/mem_cgroup_uncharge()
+> > for hugetlb. This seems to make page_cgroup of the hugepage inconsistent,
+> > and results in the bad page bug ("page dumped because: cgroup check failed").
+> > So maybe some more PageHuge check is necessary around the charging code.
 > 
-> No, it could be re-read inside the locked section (which is okay since
-> the locking ensures the same value would be re-read each time), but it
-> cannot be re-read after the unlock.  The unlock guarantees that (whereas
-> an assignment after the unlock might be moved up before the unlock).
-> 
-> I searched for a simple example (preferably not in code written by me!)
-> to convince you.  I thought it would be easy to find an example of
-> 
-> 	spin_lock(&lock);
-> 	thing_to_free = whatever;
-> 	spin_unlock(&lock);
-> 	if (thing_to_free)
-> 		free(thing_to_free);
-> 
-> but everything I hit upon was actually a little more complicated than
-> than that (e.g. involving whatever(), or setting whatever = NULL after),
-> and therefore less convincing.  Please hunt around to convince yourself.
+> This struck me as odd because I don't remember removing a PageHuge()
+> call in the charge path and wondered how it worked before my changes:
+> apparently it just checked PageCompound() in mem_cgroup_charge_file().
 
-Yeah, I thought myself on the way home that this is probably the case. I guess
-some recent bugs made me too paranoid. Sorry for the noise and time you spent
-explaining this :/
+I have noticed the PageCompound check during review which made me look
+into history but 52d4b9ac0b98 (memcg: allocate all page_cgroup at boot)
+didn't mention why it added it so I considered it hack-at-the-time which
+is not actual anymore. Sorry I should have been more careful.
 
->> 
->> > -		if (!shmem_falloc ||
->> > -		    shmem_falloc->mode != FALLOC_FL_PUNCH_HOLE ||
->> > -		    vmf->pgoff < shmem_falloc->start ||
->> > -		    vmf->pgoff >= shmem_falloc->next)
->> > -			shmem_falloc = NULL;
->> > -		spin_unlock(&inode->i_lock);
->> > -		/*
->> > -		 * i_lock has protected us from taking shmem_falloc seriously
->> > -		 * once return from shmem_fallocate() went back up that
->> > stack.
->> > -		 * i_lock does not serialize with i_mutex at all, but it does
->> > -		 * not matter if sometimes we wait unnecessarily, or
->> > sometimes
->> > -		 * miss out on waiting: we just need to make those cases
->> > rare.
->> > -		 */
->> > -		if (shmem_falloc) {
->> > +		if (shmem_falloc &&
->> > +		    shmem_falloc->waitq &&
->> 
->> Here it's operating outside of lock.
+> So it's not fallout of the new uncharge batching code, but was already
+> broken during the rewrite of the charge API because then hugetlb pages
+> entered the charging code.
 > 
-> No, it's inside the lock: just easier to see from the patched source
-> than from the patch itself.
-
-Ah, right :/
-
-> Hugh
+> Anyway, we don't have file-specific charging code anymore, and the
+> PageCompound() check would have required changing anyway for THP
+> cache.  So I guess the solution is checking PageHuge() in charge,
+> uncharge, and migrate for now.  Oh well.
 > 
+> How about this?
+
+Looks good to me. I do not know why you have moved the charge function
+out of __page_cache_release (the function would deserve a better name
+btw. - lru_page_release would sound little bit better to me and it would
+be quite natural place for the uncharge as well) when you already check
+PageHuge in __put_compound_page. But that is just a minor thing.
+
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 9c99d6868a5e..b61194273b56 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -564,9 +564,12 @@ static int __add_to_page_cache_locked(struct page *page,
+>  	VM_BUG_ON_PAGE(!PageLocked(page), page);
+>  	VM_BUG_ON_PAGE(PageSwapBacked(page), page);
+>  
+> -	error = mem_cgroup_try_charge(page, current->mm, gfp_mask, &memcg);
+> -	if (error)
+> -		return error;
+> +	if (!PageHuge(page)) {
+> +		error = mem_cgroup_try_charge(page, current->mm,
+> +					      gfp_mask, &memcg);
+> +		if (error)
+> +			return error;
+> +	}
+>  
+>  	error = radix_tree_maybe_preload(gfp_mask & ~__GFP_HIGHMEM);
+>  	if (error) {
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 7f5a42403fae..dabed2f08609 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -781,7 +781,8 @@ static int move_to_new_page(struct page *newpage, struct page *page,
+>  		if (!PageAnon(newpage))
+>  			newpage->mapping = NULL;
+>  	} else {
+> -		mem_cgroup_migrate(page, newpage, false);
+> +		if (!PageHuge(page))
+> +			mem_cgroup_migrate(page, newpage, false);
+>  		if (remap_swapcache)
+>  			remove_migration_ptes(page, newpage);
+>  		if (!PageAnon(page))
+> diff --git a/mm/swap.c b/mm/swap.c
+> index 3461f2f5be20..97b6ec132398 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -62,12 +62,12 @@ static void __page_cache_release(struct page *page)
+>  		del_page_from_lru_list(page, lruvec, page_off_lru(page));
+>  		spin_unlock_irqrestore(&zone->lru_lock, flags);
+>  	}
+> -	mem_cgroup_uncharge(page);
+>  }
+>  
+>  static void __put_single_page(struct page *page)
+>  {
+>  	__page_cache_release(page);
+> +	mem_cgroup_uncharge_page(page);
+>  	free_hot_cold_page(page, false);
+>  }
+>  
+> @@ -75,7 +75,10 @@ static void __put_compound_page(struct page *page)
+>  {
+>  	compound_page_dtor *dtor;
+>  
+> -	__page_cache_release(page);
+> +	if (!PageHuge(page)) {
+> +		__page_cache_release(page);
+> +		mem_cgroup_uncharge_page(page);
+> +	}
+>  	dtor = get_compound_page_dtor(page);
+>  	(*dtor)(page);
+>  }
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
