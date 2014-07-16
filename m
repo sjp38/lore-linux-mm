@@ -1,117 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 879856B0037
-	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 04:35:02 -0400 (EDT)
-Received: by mail-wg0-f47.google.com with SMTP id b13so518946wgh.18
-        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 01:34:59 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id et2si19443856wib.13.2014.07.16.01.34.57
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 16 Jul 2014 01:34:58 -0700 (PDT)
-Date: Wed, 16 Jul 2014 10:34:56 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 2/3] mm: memcontrol: rewrite uncharge API fix - double
- migration
-Message-ID: <20140716083456.GC7121@dhcp22.suse.cz>
-References: <1404759133-29218-1-git-send-email-hannes@cmpxchg.org>
- <1404759133-29218-3-git-send-email-hannes@cmpxchg.org>
- <alpine.LSU.2.11.1407141246340.17669@eggly.anvils>
- <20140715144539.GR29639@cmpxchg.org>
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E8346B0039
+	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 04:37:42 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id w10so855611pde.37
+        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 01:37:41 -0700 (PDT)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id a16si1086367pdj.274.2014.07.16.01.37.40
+        for <linux-mm@kvack.org>;
+        Wed, 16 Jul 2014 01:37:41 -0700 (PDT)
+Date: Wed, 16 Jul 2014 17:43:33 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 00/10] fix freepage count problems due to memory isolation
+Message-ID: <20140716084333.GA20359@js1304-P5Q-DELUXE>
+References: <1404460675-24456-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <53B6C947.1070603@suse.cz>
+ <20140707044932.GA29236@js1304-P5Q-DELUXE>
+ <53BAAFA5.9070403@suse.cz>
+ <20140714062222.GA11317@js1304-P5Q-DELUXE>
+ <53C3A7A5.9060005@suse.cz>
+ <20140715082828.GM11317@js1304-P5Q-DELUXE>
+ <53C4E813.7020108@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140715144539.GR29639@cmpxchg.org>
+In-Reply-To: <53C4E813.7020108@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, Lisa Du <cldu@marvell.com>, linux-kernel@vger.kernel.org
 
-[Sorry I have missed this thread]
+On Tue, Jul 15, 2014 at 10:36:35AM +0200, Vlastimil Babka wrote:
+> >>A non-trivial fix that comes to mind (and I might have overlooked
+> >>something) is something like:
+> >>
+> >>- distinguish MIGRATETYPE_ISOLATING and MIGRATETYPE_ISOLATED
+> >>- CPU1 first sets MIGRATETYPE_ISOLATING before the drain
+> >>- when CPU2 sees MIGRATETYPE_ISOLATING, it just puts the page on
+> >>special unbounded pcplist and that's it
+> >>- CPU1 does the drain as usual, potentially misplacing some pages
+> >>that move_freepages_block() will then fix. But no wrong merging can
+> >>occur.
+> >>- after move_freepages_block(), CPU1 changes MIGRATETYPE_ISOLATING
+> >>to MIGRATETYPE_ISOLATED
+> >>- CPU2 can then start freeing directly on isolate buddy list. There
+> >>might be some pages still on the special pcplist of CPU2/CPUx but
+> >>that means they won't merge yet.
+> >>- CPU1 executes on all CPU's a new operation that flushes the
+> >>special pcplist on isolate buddy list and merge as needed.
+> >>
+> >
+> >Really thanks for sharing idea.
+> 
+> Ah, you didn't find a hole yet, good sign :D
+> 
+> >It looks possible but I guess that it needs more branches related to
+> >pageblock isolation. Now I have a quick thought to prevent merging,
+> >but, I'm not sure that it is better than current patchset. After more
+> >thinking, I will post rough idea here.
+> 
+> I was thinking about it more and maybe it wouldn't need a new
+> migratetype after all. But it would always need to free isolate
+> pages on the special pcplist. That means this pcplist would be used
+> not only during the call to start_isolate_page_range, but all the
+> way until undo_isolate_page_range(). I don't think it's a problem
+> and it simplifies things. The only way to move to isolate freelist
+> is through the new isolate pcplist flush operation initiated by a
+> single CPU at well defined time.
+> 
+> The undo would look like:
+> - (migratetype is still set to MIGRATETYPE_ISOLATE, CPU2 frees
+> affected pages to the special freelist)
+> - CPU1 does move_freepages_block() to put pages back from isolate
+> freelist to e.g. MOVABLE or CMA. At this point, nobody will put new
+> pages on isolate freelist.
+> - CPU1 changes migratetype of the pageblock to e.g. MOVABLE. CPU2
+> and others start freeing normally. Merging can occur only on the
+> MOVABLE freelist, as isolate freelist is empty and nobody puts pages
+> there.
+> - CPU1 flushes the isolate pcplists of all CPU's on the MOVABLE
+> freelist. Merging is again correct.
+> 
+> I think your plan of multiple parallel CMA allocations (and thus
+> multiple parallel isolations) is also possible. The isolate pcplists
+> can be shared by pages coming from multiple parallel isolations. But
+> the flush operation needs a pfn start/end parameters to only flush
+> pages belonging to the given isolation. That might mean a bit of
+> inefficient list traversing, but I don't think it's a problem.
 
-On Tue 15-07-14 10:45:39, Johannes Weiner wrote:
-[...]
-> From 274b94ad83b38fe7dc1707a8eb4015b3ab1673c5 Mon Sep 17 00:00:00 2001
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Date: Thu, 10 Jul 2014 01:02:11 +0000
-> Subject: [patch] mm: memcontrol: rewrite uncharge API fix - double migration
-> 
-> Hugh reports:
-> 
-> VM_BUG_ON_PAGE(!(pc->flags & PCG_MEM))
-> mm/memcontrol.c:6680!
-> page had count 1 mapcount 0 mapping anon index 0x196
-> flags locked uptodate reclaim swapbacked, pcflags 1, memcg not root
-> mem_cgroup_migrate < move_to_new_page < migrate_pages < compact_zone <
-> compact_zone_order < try_to_compact_pages < __alloc_pages_direct_compact <
-> __alloc_pages_nodemask < alloc_pages_vma < do_huge_pmd_anonymous_page <
-> handle_mm_fault < __do_page_fault
-> 
-> mem_cgroup_migrate() assumes that a page is only migrated once and
-> then freed immediately after.
-> 
-> However, putting the page back on the LRU list and dropping the
-> isolation refcount is not done atomically.  This allows a PFN-based
-> migrator like compaction to isolate the page, see the expected
-> anonymous page refcount of 1, and migrate the page once more.
-> 
-> Furthermore, once the charges are transferred to the new page, the old
-> page no longer has a pin on the memcg, which might get released before
-> the page itself now.  pc->mem_cgroup is invalid at this point, but
-> PCG_USED suggests otherwise, provoking use-after-free.
+I think that special pcplist would cause a problem if we should check
+pfn range. If there are too many pages on this pcplist, move pages from
+this pcplist to isolate freelist takes too long time in irq context and
+system could be broken. This operation cannot be easily stopped because
+it is initiated by IPI on other cpu and starter of this IPI expect that
+all pages on other cpus' pcplist are moved properly when returning
+from on_each_cpu().
 
-The same applies to to the new page because we are transferring only
-statistics. The old page with PCG_USED would uncharge the res_counter
-and so the new page is not backed by any and so memcg can go away.
-This sounds like a more probable scenario to me because old page should
-go away quite early after successful migration.
+And, if there are so many pages, serious lock contention would happen
+in this case.
 
-> Properly uncharge the page after it's been migrated, including the
-> clearing of PCG_USED, so that a subsequent charge migration attempt
-> will be able to detect it and bail out.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Reported-by: Hugh Dickins <hughd@google.com>
-> ---
->  mm/memcontrol.c | 8 +++++++-
->  1 file changed, 7 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 1e3b27f8dc2f..1439537fe7c9 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -6655,7 +6655,6 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
->  
->  	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEM), oldpage);
->  	VM_BUG_ON_PAGE(do_swap_account && !(pc->flags & PCG_MEMSW), oldpage);
-> -	pc->flags &= ~(PCG_MEM | PCG_MEMSW);
->  
->  	if (PageTransHuge(oldpage)) {
->  		nr_pages <<= compound_order(oldpage);
-> @@ -6663,6 +6662,13 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
->  		VM_BUG_ON_PAGE(!PageTransHuge(newpage), newpage);
->  	}
->  
-> +	pc->flags = 0;
-> +
-> +	local_irq_disable();
-> +	mem_cgroup_charge_statistics(pc->mem_cgroup, oldpage, -nr_pages);
-> +	memcg_check_events(pc->mem_cgroup, oldpage);
-> +	local_irq_enable();
-> +
->  	commit_charge(newpage, pc->mem_cgroup, nr_pages, lrucare);
->  }
+Anyway, my idea's key point is using PageIsolated() to distinguish
+isolated page, instead of using PageBuddy(). If page is PageIsolated(),
+it isn't handled as freepage although it is in buddy allocator. During free,
+page with MIGRATETYPE_ISOLATE will be marked as PageIsolated() and
+won't be merged and counted for freepage.
 
-Looks good to me. I am just wondering whether we should really
-fiddle with stats and events when actually nothing changed during
-the transition. I would simply extract core of commit_charge into
-__commit_charge which would be called from here.
+When we move pages from normal buddy list to isolate buddy
+list, we check PageBuddy() and subtract number of PageBuddy() pages
+from number of freepage. And, change page from PageBuddy() to PageIsolated()
+since it is handled as isolated page at this point. In this way, freepage
+count will be correct.
 
-The impact is minimal because events are rate limited and stats are
-per-cpu so it is not a big deal it just looks ugly to me.
--- 
-Michal Hocko
-SUSE Labs
+Unisolation can be done by similar approach.
+
+I made prototype of this approach and it isn't intrusive to core
+allocator compared to my previous patchset.
+
+Make sense?
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
