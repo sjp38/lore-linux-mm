@@ -1,47 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F0426B0036
-	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 20:05:59 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id bj1so197153pad.11
-        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 17:05:59 -0700 (PDT)
-Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id kg4si12950051pad.239.2014.07.15.17.05.58
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 259086B0036
+	for <linux-mm@kvack.org>; Tue, 15 Jul 2014 20:14:01 -0400 (EDT)
+Received: by mail-ie0-f182.google.com with SMTP id y20so137696ier.41
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 17:14:00 -0700 (PDT)
+Received: from mail-ig0-x236.google.com (mail-ig0-x236.google.com [2607:f8b0:4001:c05::236])
+        by mx.google.com with ESMTPS id n1si797646igy.8.2014.07.15.17.14.00
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 15 Jul 2014 17:05:58 -0700 (PDT)
-Message-ID: <53C5C1C9.6070100@zytor.com>
-Date: Tue, 15 Jul 2014 17:05:29 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 15 Jul 2014 17:14:00 -0700 (PDT)
+Received: by mail-ig0-f182.google.com with SMTP id c1so267723igq.9
+        for <linux-mm@kvack.org>; Tue, 15 Jul 2014 17:14:00 -0700 (PDT)
+Date: Tue, 15 Jul 2014 17:13:57 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch v2] mm, tmp: only collapse hugepages to nodes with affinity
+ for zone_reclaim_mode
+In-Reply-To: <alpine.DEB.2.02.1407141807030.8808@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.02.1407151712520.12279@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1407141807030.8808@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 3/11] x86, mm, pat: Change reserve_memtype() to handle
- WT type
-References: <1405452884-25688-1-git-send-email-toshi.kani@hp.com>	 <1405452884-25688-4-git-send-email-toshi.kani@hp.com>	 <CALCETrUPpP1Lo1gB_eTm6V3pJ3Fam-1gPZGKfksOXXGgtNGsEQ@mail.gmail.com>	 <1405465801.28702.34.camel@misato.fc.hp.com>	 <CALCETrUx+HkzBmTZo-BtOcOz7rs=oNcavJ9Go536Fcn2ugdobg@mail.gmail.com> <1405468387.28702.53.camel@misato.fc.hp.com>
-In-Reply-To: <1405468387.28702.53.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>, Andy Lutomirski <luto@amacapital.net>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, plagnioj@jcrosoft.com, tomi.valkeinen@ti.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Bader <stefan.bader@canonical.com>, Dave Airlie <airlied@gmail.com>, Borislav Petkov <bp@alien8.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Bob Liu <bob.liu@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 07/15/2014 04:53 PM, Toshi Kani wrote:
-> 
-> Right.
-> 
-> I think using struct page table for the RAM ranges is a good way for
-> saving memory, but I wonder how often the RAM ranges are mapped other
-> than WB...  If not often, reserve_memtype() could simply call
-> rbt_memtype_check_insert() for all ranges, including RAM.
-> 
-> In this patch, I left using reserve_ram_pages_type() since I do not see
-> much reason to use WT for RAM, either.
-> 
+Commit 9f1b868a13ac ("mm: thp: khugepaged: add policy for finding target 
+node") improved the previous khugepaged logic which allocated a 
+transparent hugepages from the node of the first page being collapsed.
 
-They get flipped to WC or WT or even UC for some I/O devices, but
-ultimately the number of ranges is pretty small.
+However, it is still possible to collapse pages to remote memory which may 
+suffer from additional access latency.  With the current policy, it is 
+possible that 255 pages (with PAGE_SHIFT == 12) will be collapsed remotely 
+if the majority are allocated from that node.
 
-	-hpa
+When zone_reclaim_mode is enabled, it means the VM should make every attempt
+to allocate locally to prevent NUMA performance degradation.  In this case,
+we do not want to collapse hugepages to remote nodes that would suffer from
+increased access latency.  Thus, when zone_reclaim_mode is enabled, only
+allow collapsing to nodes with RECLAIM_DISTANCE or less.
 
+There is no functional change for systems that disable zone_reclaim_mode.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ v2: only change behavior for zone_reclaim_mode per Dave Hansen
+
+ mm/huge_memory.c | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2234,6 +2234,26 @@ static void khugepaged_alloc_sleep(void)
+ static int khugepaged_node_load[MAX_NUMNODES];
+ 
+ #ifdef CONFIG_NUMA
++static bool khugepaged_scan_abort(int nid)
++{
++	int i;
++
++	/*
++	 * If zone_reclaim_mode is disabled, then no extra effort is made to
++	 * allocate memory locally.
++	 */
++	if (!zone_reclaim_mode)
++		return false;
++
++	for (i = 0; i < MAX_NUMNODES; i++) {
++		if (!khugepaged_node_load[i])
++			continue;
++		if (node_distance(nid, i) > RECLAIM_DISTANCE)
++			return true;
++	}
++	return false;
++}
++
+ static int khugepaged_find_target_node(void)
+ {
+ 	static int last_khugepaged_target_node = NUMA_NO_NODE;
+@@ -2309,6 +2329,11 @@ static struct page
+ 	return *hpage;
+ }
+ #else
++static bool khugepaged_scan_abort(int nid)
++{
++	return false;
++}
++
+ static int khugepaged_find_target_node(void)
+ {
+ 	return 0;
+@@ -2515,6 +2540,7 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+ 	unsigned long _address;
+ 	spinlock_t *ptl;
+ 	int node = NUMA_NO_NODE;
++	int last_node = node;
+ 
+ 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
+ 
+@@ -2545,6 +2571,11 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+ 		 * hit record.
+ 		 */
+ 		node = page_to_nid(page);
++		if (node != last_node) {
++			if (khugepaged_scan_abort(node))
++				goto out_unmap;
++			last_node = node;
++		}
+ 		khugepaged_node_load[node]++;
+ 		VM_BUG_ON_PAGE(PageCompound(page), page);
+ 		if (!PageLRU(page) || PageLocked(page) || !PageAnon(page))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
