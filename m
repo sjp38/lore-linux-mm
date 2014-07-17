@@ -1,77 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
-	by kanga.kvack.org (Postfix) with ESMTP id EE6CE6B0081
-	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 12:36:46 -0400 (EDT)
-Received: by mail-qc0-f170.google.com with SMTP id c9so2331260qcz.15
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 09:36:46 -0700 (PDT)
-Received: from qmta14.emeryville.ca.mail.comcast.net (qmta14.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:212])
-        by mx.google.com with ESMTP id l4si5703118qat.125.2014.07.17.09.36.45
-        for <linux-mm@kvack.org>;
-        Thu, 17 Jul 2014 09:36:46 -0700 (PDT)
-Date: Thu, 17 Jul 2014 11:36:43 -0500 (CDT)
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: [mmotm:master 181/478] mm/vmstat.c:1248:16: sparse: symbol
- 'cpu_stat_off' was not declared. Should it be static?
-In-Reply-To: <53c744e8.YPShDCfuB/HYtMKP%fengguang.wu@intel.com>
-Message-ID: <alpine.DEB.2.11.1407171136260.18203@gentwo.org>
-References: <53c744e8.YPShDCfuB/HYtMKP%fengguang.wu@intel.com>
-Content-Type: MULTIPART/Mixed; BOUNDARY="=_53c744e8.LJ/LM/I9CL4h5EIWUZwYF8d+eRRpjCYcQ5ScvQKg2YQgwsBD"
-Content-ID: <alpine.DEB.2.11.1407171136261.18203@gentwo.org>
+Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
+	by kanga.kvack.org (Postfix) with ESMTP id ED4356B0035
+	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 13:03:27 -0400 (EDT)
+Received: by mail-lb0-f177.google.com with SMTP id s7so1958071lbd.36
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 10:03:26 -0700 (PDT)
+Received: from mail-la0-x235.google.com (mail-la0-x235.google.com [2a00:1450:4010:c03::235])
+        by mx.google.com with ESMTPS id di1si4266156lac.65.2014.07.17.10.03.25
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 17 Jul 2014 10:03:26 -0700 (PDT)
+Received: by mail-la0-f53.google.com with SMTP id gl10so1924232lab.40
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 10:03:25 -0700 (PDT)
+From: Max Filippov <jcmvbkbc@gmail.com>
+Subject: [PATCH v2] mm/highmem: make kmap cache coloring aware
+Date: Thu, 17 Jul 2014 21:03:18 +0400
+Message-Id: <1405616598-14798-1-git-send-email-jcmvbkbc@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: linux-mm@kvack.org
+Cc: linux-arch@vger.kernel.org, linux-mips@linux-mips.org, linux-xtensa@linux-xtensa.org, linux-kernel@vger.kernel.org, Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>, Max Filippov <jcmvbkbc@gmail.com>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+From: Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>
 
---=_53c744e8.LJ/LM/I9CL4h5EIWUZwYF8d+eRRpjCYcQ5ScvQKg2YQgwsBD
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
-Content-ID: <alpine.DEB.2.11.1407171136262.18203@gentwo.org>
-Content-Disposition: INLINE
+Provide hooks that allow architectures with aliasing cache to align
+mapping address of high pages according to their color. Such architectures
+may enforce similar coloring of low- and high-memory page mappings and
+reuse existing cache management functions to support highmem.
 
-On Thu, 17 Jul 2014, kbuild test robot wrote:
-
-> >> mm/vmstat.c:1248:16: sparse: symbol 'cpu_stat_off' was not declared. Should it be static?
->
-> Please consider folding the attached diff :-)
-
-Acked-by: Christoph Lameter <cl@linux.com>
---=_53c744e8.LJ/LM/I9CL4h5EIWUZwYF8d+eRRpjCYcQ5ScvQKg2YQgwsBD
-Content-Type: TEXT/X-DIFF; CHARSET=us-ascii
-Content-ID: <alpine.DEB.2.11.1407171136263.18203@gentwo.org>
-Content-Description: 
-Content-Disposition: ATTACHMENT; FILENAME=make-it-static-28ed3dd4a9b9f990a4131631ec2ff74233e2ebbc.diff
-
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [PATCH mmotm] vmstat: cpu_stat_off can be static
-TO: Christoph Lameter <cl@linux-foundation.org>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-CC: linux-mm@kvack.org 
-CC: linux-kernel@vger.kernel.org 
-
-CC: Christoph Lameter <cl@linux-foundation.org>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+Signed-off-by: Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>
+[ Max: extract architecture-independent part of the original patch, clean
+  up checkpatch and build warnings. ]
+Signed-off-by: Max Filippov <jcmvbkbc@gmail.com>
 ---
- vmstat.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Changes v1->v2:
+- fix description
 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index ababac7..a3a5cce 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1245,7 +1245,7 @@ static const struct file_operations proc_vmstat_file_operations = {
- #ifdef CONFIG_SMP
- static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
- int sysctl_stat_interval __read_mostly = HZ;
--struct cpumask *cpu_stat_off;
-+static struct cpumask *cpu_stat_off;
+ mm/highmem.c | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/mm/highmem.c b/mm/highmem.c
+index b32b70c..6898a8b 100644
+--- a/mm/highmem.c
++++ b/mm/highmem.c
+@@ -44,6 +44,14 @@ DEFINE_PER_CPU(int, __kmap_atomic_idx);
+  */
+ #ifdef CONFIG_HIGHMEM
  
- static void vmstat_update(struct work_struct *w)
++#ifndef ARCH_PKMAP_COLORING
++#define set_pkmap_color(pg, cl)		/* */
++#define get_last_pkmap_nr(p, cl)	(p)
++#define get_next_pkmap_nr(p, cl)	(((p) + 1) & LAST_PKMAP_MASK)
++#define is_no_more_pkmaps(p, cl)	(!(p))
++#define get_next_pkmap_counter(c, cl)	((c) - 1)
++#endif
++
+ unsigned long totalhigh_pages __read_mostly;
+ EXPORT_SYMBOL(totalhigh_pages);
+ 
+@@ -161,19 +169,24 @@ static inline unsigned long map_new_virtual(struct page *page)
  {
-
---=_53c744e8.LJ/LM/I9CL4h5EIWUZwYF8d+eRRpjCYcQ5ScvQKg2YQgwsBD--
+ 	unsigned long vaddr;
+ 	int count;
++	int color __maybe_unused;
++
++	set_pkmap_color(page, color);
++	last_pkmap_nr = get_last_pkmap_nr(last_pkmap_nr, color);
+ 
+ start:
+ 	count = LAST_PKMAP;
+ 	/* Find an empty entry */
+ 	for (;;) {
+-		last_pkmap_nr = (last_pkmap_nr + 1) & LAST_PKMAP_MASK;
+-		if (!last_pkmap_nr) {
++		last_pkmap_nr = get_next_pkmap_nr(last_pkmap_nr, color);
++		if (is_no_more_pkmaps(last_pkmap_nr, color)) {
+ 			flush_all_zero_pkmaps();
+ 			count = LAST_PKMAP;
+ 		}
+ 		if (!pkmap_count[last_pkmap_nr])
+ 			break;	/* Found a usable entry */
+-		if (--count)
++		count = get_next_pkmap_counter(count, color);
++		if (count > 0)
+ 			continue;
+ 
+ 		/*
+-- 
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
