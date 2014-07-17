@@ -1,59 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E9D96B0035
-	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 05:36:21 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id eu11so3039690pac.32
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 02:36:21 -0700 (PDT)
-Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
-        by mx.google.com with ESMTPS id vv8si1785617pab.117.2014.07.17.02.36.19
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Thu, 17 Jul 2014 02:36:20 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout1.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0N8U006HWO0CXS40@mailout1.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 17 Jul 2014 10:36:12 +0100 (BST)
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-Subject: [PATCH] CMA: generalize CMA reserved area management functionality
- (fixup)
-Date: Thu, 17 Jul 2014 11:36:07 +0200
-Message-id: <1405589767-17513-1-git-send-email-m.szyprowski@samsung.com>
-In-reply-to: <53C78ED7.7030002@samsung.com>
-References: <53C78ED7.7030002@samsung.com>
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id D059E6B0035
+	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 07:18:21 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id g10so1489310pdj.26
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 04:18:21 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
+        by mx.google.com with ESMTP id xc3si2033562pab.114.2014.07.17.04.18.20
+        for <linux-mm@kvack.org>;
+        Thu, 17 Jul 2014 04:18:20 -0700 (PDT)
+Date: Thu, 17 Jul 2014 19:17:51 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [next:master 6807/7059] fs/proc/vmcore.c:343:5: sparse: symbol
+ 'remap_oldmem_pfn_checked' was not declared. Should it be static?
+Message-ID: <53c7b0df.yqSb/wPd+JtR6bKk%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed;
+ boundary="=_53c7b0df.DuHCEbMEAif6gynJV86n/Im2j1OAqMzy3HcnRWizr6jDSH1c"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org
 
-MAX_CMA_AREAS is used by other subsystems (i.e. arch/arm/mm/dma-mapping.c),
-so we need to provide correct definition even if CMA is disabled.
-This patch fixes this issue.
+This is a multi-part message in MIME format.
 
-Reported-by: Sylwester Nawrocki <s.nawrocki@samsung.com>
-Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+--=_53c7b0df.DuHCEbMEAif6gynJV86n/Im2j1OAqMzy3HcnRWizr6jDSH1c
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+
+tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+head:   b395397b3a268e96061feca8dbed5e70f777e9a2
+commit: 456979f56a5872619f70f7ab5ceaa65f1b0cc3dc [6807/7059] mmap_vmcore-skip-non-ram-pages-reported-by-hypervisors-v4
+reproduce: make C=1 CF=-D__CHECK_ENDIAN__
+
+
+sparse warnings: (new ones prefixed by >>)
+
+>> fs/proc/vmcore.c:343:5: sparse: symbol 'remap_oldmem_pfn_checked' was not declared. Should it be static?
+>> fs/proc/vmcore.c:394:5: sparse: symbol 'vmcore_remap_oldmem_pfn' was not declared. Should it be static?
+
+Please consider folding the attached diff :-)
+
 ---
- include/linux/cma.h | 4 ++++
- 1 file changed, 4 insertions(+)
+0-DAY kernel build testing backend              Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
-diff --git a/include/linux/cma.h b/include/linux/cma.h
-index 9a18a2b1934c..c077635cad76 100644
---- a/include/linux/cma.h
-+++ b/include/linux/cma.h
-@@ -5,7 +5,11 @@
-  * There is always at least global CMA area and a few optional
-  * areas configured in kernel .config.
+--=_53c7b0df.DuHCEbMEAif6gynJV86n/Im2j1OAqMzy3HcnRWizr6jDSH1c
+Content-Type: text/x-diff;
+ charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename="make-it-static-456979f56a5872619f70f7ab5ceaa65f1b0cc3dc.diff"
+
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [PATCH next] remap_oldmem_pfn_checked() can be static
+TO: Vitaly Kuznetsov <vkuznets@redhat.com>
+CC: linux-kernel@vger.kernel.org 
+
+CC: Vitaly Kuznetsov <vkuznets@redhat.com>
+Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+---
+ vmcore.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/fs/proc/vmcore.c b/fs/proc/vmcore.c
+index 405a409..566e6f0 100644
+--- a/fs/proc/vmcore.c
++++ b/fs/proc/vmcore.c
+@@ -340,7 +340,7 @@ static inline char *alloc_elfnotes_buf(size_t notes_sz)
+  *
+  * Returns zero on success, -EAGAIN on failure.
   */
-+#ifdef CONFIG_CMA
- #define MAX_CMA_AREAS	(1 + CONFIG_CMA_AREAS)
-+#else
-+#define MAX_CMA_AREAS	(0)
-+#endif
+-int remap_oldmem_pfn_checked(struct vm_area_struct *vma, unsigned long from,
++static int remap_oldmem_pfn_checked(struct vm_area_struct *vma, unsigned long from,
+ 			     unsigned long pfn, unsigned long size,
+ 			     pgprot_t prot)
+ {
+@@ -391,7 +391,7 @@ fail:
+ 	return -EAGAIN;
+ }
  
- struct cma;
- 
--- 
-1.9.2
+-int vmcore_remap_oldmem_pfn(struct vm_area_struct *vma,
++static int vmcore_remap_oldmem_pfn(struct vm_area_struct *vma,
+ 			    unsigned long from, unsigned long pfn,
+ 			    unsigned long size, pgprot_t prot)
+ {
+
+--=_53c7b0df.DuHCEbMEAif6gynJV86n/Im2j1OAqMzy3HcnRWizr6jDSH1c--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
