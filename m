@@ -1,100 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A2D66B0035
-	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 18:06:18 -0400 (EDT)
-Received: by mail-ie0-f177.google.com with SMTP id at20so3778536iec.36
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 15:06:18 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id x4si16143559icp.40.2014.07.17.15.06.17
+Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 038136B0035
+	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 18:38:29 -0400 (EDT)
+Received: by mail-qa0-f42.google.com with SMTP id j15so2488531qaq.1
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 15:38:29 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q15si7450815qay.78.2014.07.17.15.38.29
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Jul 2014 15:06:17 -0700 (PDT)
-Date: Thu, 17 Jul 2014 15:06:15 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] CMA: generalize CMA reserved area management
- functionality (fixup)
-Message-Id: <20140717150615.32c48786b6bdbc880bdc5ed4@linux-foundation.org>
-In-Reply-To: <1405589767-17513-1-git-send-email-m.szyprowski@samsung.com>
-References: <53C78ED7.7030002@samsung.com>
-	<1405589767-17513-1-git-send-email-m.szyprowski@samsung.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 17 Jul 2014 15:38:29 -0700 (PDT)
+Date: Thu, 17 Jul 2014 18:38:24 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH] mm: hugetlb: fix copy_hugetlb_page_range() (Re: [BUG] new
+ copy_hugetlb_page_range() causing crashes)
+Message-ID: <20140717223824.GA828@nhori.bos.redhat.com>
+References: <019768ac467043a4aaea3e455cb74db7@BPXC18GP.gisp.nec.co.jp>
+ <FC3CA273EA98D94B96901B237F5F506BB61DC0@irvmail101.necam.prv>
+ <20140717201203.GA23591@bender.morinfr.org>
+ <20140717213332.GA20284@nhori.bos.redhat.com>
+ <20140717215936.GA28949@bender.morinfr.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140717215936.GA28949@bender.morinfr.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Guillaume Morin <guillaume@morinfr.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>, linux-mm@kvack.org
 
-On Thu, 17 Jul 2014 11:36:07 +0200 Marek Szyprowski <m.szyprowski@samsung.com> wrote:
+# CCed Andrew, and linux-mm 
 
-> MAX_CMA_AREAS is used by other subsystems (i.e. arch/arm/mm/dma-mapping.c),
-> so we need to provide correct definition even if CMA is disabled.
-> This patch fixes this issue.
+On Thu, Jul 17, 2014 at 11:59:36PM +0200, Guillaume Morin wrote:
+> On 17 Jul 17:33, Naoya Horiguchi wrote:
+...
+> > And it seems that this also happens on v3.16-rc5.
+> > So it might be an upstream bug, not a stable-specific matter.
 > 
-> Reported-by: Sylwester Nawrocki <s.nawrocki@samsung.com>
-> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> ---
->  include/linux/cma.h | 4 ++++
->  1 file changed, 4 insertions(+)
+> That's my understanding as well. I just reported it for 3.4 and 3.14
+> since these were the kernels I could easily try my original test with.
+
+OK. I've checked the fix you suggested below on mainline, and
+it passed our test program.
+
+> > It looks strange to me that the problem is gone by removing the commit
+> > 4a705fef98 (although I confirmed it is,) because the kernel's behavior
+> > shouldn't change unless (is_hugetlb_entry_migration(entry) ||
+> > is_hugetlb_entry_hwpoisoned(entry)) is true. And I checked with systemtap
+> > that both these check returned false in the above test program.
+> > So I'm wondering why the commit makes difference for this test program.
 > 
-> diff --git a/include/linux/cma.h b/include/linux/cma.h
-> index 9a18a2b1934c..c077635cad76 100644
-> --- a/include/linux/cma.h
-> +++ b/include/linux/cma.h
-> @@ -5,7 +5,11 @@
->   * There is always at least global CMA area and a few optional
->   * areas configured in kernel .config.
->   */
-> +#ifdef CONFIG_CMA
->  #define MAX_CMA_AREAS	(1 + CONFIG_CMA_AREAS)
-> +#else
-> +#define MAX_CMA_AREAS	(0)
-> +#endif
->  
->  struct cma;
+> I don't know why I am just thinking about that now.  Isn't this the fact
+> that your patch moved the huge_ptep_get() before
+> huge_ptep_set_wrprotect() in the pte_present() cow case?
 
-Joonsoo already fixed this up, a bit differently:
-http://ozlabs.org/~akpm/mmots/broken-out/cma-generalize-cma-reserved-area-management-functionality-fix.patch
+Ah, right. I was really blind :(
 
-Which approach makes more sense?
+> 
+> Actually, I've just tried to re-add the huge_ptep_get call for that
+> case and it's fixing the problem for me...
+> 
+> Hmm, want a patch?
 
+Thanks, but it's just a oneliner, so I wrote the one.
 
-
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: CMA: fix ARM build failure related to MAX_CMA_AREAS definition
-
-If CMA is disabled, CONFIG_CMA_AREAS isn't defined so compile error
-happens. To fix it, define MAX_CMA_AREAS if CONFIG_CMA_AREAS
-isn't defined.
-
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Reported-by: Stephen Rothwell <sfr@canb.auug.org.au>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Naoya Horiguchi
 ---
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Date: Thu, 17 Jul 2014 18:11:22 -0400
+Subject: [PATCH] mm: hugetlb: fix copy_hugetlb_page_range()
 
- include/linux/cma.h |    6 ++++++
- 1 file changed, 6 insertions(+)
+commit 4a705fef98 ("hugetlb: fix copy_hugetlb_page_range() to handle
+migration/hwpoisoned entry") changed the order of huge_ptep_set_wrprotect()
+and huge_ptep_get(), which leads to break some workload like hugepage-backed
+heap allocation via libhugetlbfs. This patch fixes it.
 
-diff -puN include/linux/cma.h~cma-generalize-cma-reserved-area-management-functionality-fix include/linux/cma.h
---- a/include/linux/cma.h~cma-generalize-cma-reserved-area-management-functionality-fix
-+++ a/include/linux/cma.h
-@@ -5,8 +5,14 @@
-  * There is always at least global CMA area and a few optional
-  * areas configured in kernel .config.
-  */
-+#ifdef CONFIG_CMA_AREAS
- #define MAX_CMA_AREAS	(1 + CONFIG_CMA_AREAS)
- 
-+#else
-+#define MAX_CMA_AREAS	(0)
-+
-+#endif
-+
- struct cma;
- 
- extern phys_addr_t cma_get_base(struct cma *cma);
-_
+The test program for the problem is shown below:
 
+  $ cat heap.c
+  #include <unistd.h>
+  #include <stdlib.h>
+  #include <string.h>
+
+  #define HPS 0x200000
+
+  int main() {
+  	int i;
+  	char *p = malloc(HPS);
+  	memset(p, '1', HPS);
+  	for (i = 0; i < 5; i++) {
+  		if (!fork()) {
+  			memset(p, '2', HPS);
+  			p = malloc(HPS);
+  			memset(p, '3', HPS);
+  			free(p);
+  			return 0;
+  		}
+  	}
+  	sleep(1);
+  	free(p);
+  	return 0;
+  }
+
+  $ export HUGETLB_MORECORE=yes ; export HUGETLB_NO_PREFAULT= ; hugectl --heap ./heap
+
+Reported-by: Guillaume Morin <guillaume@morinfr.org>
+Suggested-by: Guillaume Morin <guillaume@morinfr.org>
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: stable@vger.kernel.org
+---
+ mm/hugetlb.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index a8d4155eb019..7263c770e9b3 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -2597,6 +2597,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 		} else {
+ 			if (cow)
+ 				huge_ptep_set_wrprotect(src, addr, src_pte);
++			entry = huge_ptep_get(src_pte);
+ 			ptepage = pte_page(entry);
+ 			get_page(ptepage);
+ 			page_dup_rmap(ptepage);
+-- 
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
