@@ -1,61 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 9345D6B0035
-	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 20:36:52 -0400 (EDT)
-Received: by mail-ig0-f173.google.com with SMTP id h18so5090511igc.12
-        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 17:36:52 -0700 (PDT)
-Received: from mail-ig0-x230.google.com (mail-ig0-x230.google.com [2607:f8b0:4001:c05::230])
-        by mx.google.com with ESMTPS id s11si2336512ich.19.2014.07.16.17.36.51
+Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DD1F6B0035
+	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 20:49:40 -0400 (EDT)
+Received: by mail-ie0-f178.google.com with SMTP id tp5so1825363ieb.9
+        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 17:49:40 -0700 (PDT)
+Received: from mail-ig0-x22a.google.com (mail-ig0-x22a.google.com [2607:f8b0:4001:c05::22a])
+        by mx.google.com with ESMTPS id x10si27953819igg.53.2014.07.16.17.49.39
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 16 Jul 2014 17:36:51 -0700 (PDT)
-Received: by mail-ig0-f176.google.com with SMTP id hn18so5041809igb.9
-        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 17:36:51 -0700 (PDT)
-Date: Wed, 16 Jul 2014 17:36:49 -0700 (PDT)
+        Wed, 16 Jul 2014 17:49:39 -0700 (PDT)
+Received: by mail-ig0-f170.google.com with SMTP id h3so4888327igd.5
+        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 17:49:39 -0700 (PDT)
+Date: Wed, 16 Jul 2014 17:49:37 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, writeback: prevent race when calculating dirty limits
-Message-ID: <alpine.DEB.2.02.1407161733200.23892@chino.kir.corp.google.com>
+Subject: Re: [patch v2] mm, tmp: only collapse hugepages to nodes with affinity
+ for zone_reclaim_mode
+In-Reply-To: <53C69E92.70608@suse.cz>
+Message-ID: <alpine.DEB.2.02.1407161748400.23892@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1407141807030.8808@chino.kir.corp.google.com> <alpine.DEB.2.02.1407151712520.12279@chino.kir.corp.google.com> <53C5D3D2.8080000@oracle.com> <53C69E92.70608@suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, stable@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Bob Liu <bob.liu@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Setting vm_dirty_bytes and dirty_background_bytes is not protected by any 
-serialization.
+On Wed, 16 Jul 2014, Vlastimil Babka wrote:
 
-Therefore, it's possible for either variable to change value after the 
-test in global_dirty_limits() to determine whether available_memory needs 
-to be initialized or not.
+> >> @@ -2545,6 +2571,11 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
+> >>  		 * hit record.
+> >>  		 */
+> >>  		node = page_to_nid(page);
+> >> +		if (node != last_node) {
+> >> +			if (khugepaged_scan_abort(node))
+> >> +				goto out_unmap;
+> > 
+> > Nitpick: How about not break the loop but only reset the related
+> > khugepaged_node_load[] to zero. E.g. modify khugepaged_scan_abort() like
+> > this:
+> > if (node_distance(nid, i) > RECLAIM_DISTANCE)
+> >    khugepaged_node_load[i] = 0;
+> > 
+> > By this way, we may have a chance to find a more suitable node.
+> 
+> Hm theoretically there might be a suitable node, but this approach wouldn't
+> work. By resetting it to zero you forget that there ever was node 'i'. If there
+> is no more base page from node 'i', the load remains zero and the next call with
+> 'nid' will think that 'nid' is OK.
+> 
 
-Always ensure that available_memory is properly initialized.
-
-Cc: stable@vger.kernel.org
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/page-writeback.c | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
-
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -261,14 +261,11 @@ static unsigned long global_dirtyable_memory(void)
-  */
- void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
- {
-+	const unsigned long available_memory = global_dirtyable_memory();
- 	unsigned long background;
- 	unsigned long dirty;
--	unsigned long uninitialized_var(available_memory);
- 	struct task_struct *tsk;
- 
--	if (!vm_dirty_bytes || !dirty_background_bytes)
--		available_memory = global_dirtyable_memory();
--
- 	if (vm_dirty_bytes)
- 		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
- 	else
+Right, the suggestion is wrong because we do not want to ever collapse to 
+a node when the distance from the source page is > RECLAIM_DISTANCE, 
+that's the entire point of the patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
