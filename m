@@ -1,46 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id E1E306B0073
-	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 12:13:34 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id et14so3683266pad.9
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 09:13:34 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id gn1si2835226pbd.162.2014.07.17.09.13.33
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 293E76B0075
+	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 12:21:02 -0400 (EDT)
+Received: by mail-lb0-f172.google.com with SMTP id z11so1952029lbi.3
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 09:21:01 -0700 (PDT)
+Received: from mail-lb0-x22f.google.com (mail-lb0-x22f.google.com [2a00:1450:4010:c04::22f])
+        by mx.google.com with ESMTPS id r4si4077428lah.26.2014.07.17.09.20.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 17 Jul 2014 09:13:34 -0700 (PDT)
-Message-ID: <53C7F5FF.7010006@oracle.com>
-Date: Thu, 17 Jul 2014 12:12:47 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] shmem: fix faulting into a hole while it's punched,
- take 3
-References: <alpine.LSU.2.11.1407150247540.2584@eggly.anvils> <53C7F55B.8030307@suse.cz>
-In-Reply-To: <53C7F55B.8030307@suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 17 Jul 2014 09:21:00 -0700 (PDT)
+Received: by mail-lb0-f175.google.com with SMTP id n15so1877905lbi.20
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 09:20:59 -0700 (PDT)
+From: Max Filippov <jcmvbkbc@gmail.com>
+Subject: [PATCH] mm/highmem.c: make kmap cache coloring aware
+Date: Thu, 17 Jul 2014 20:20:35 +0400
+Message-Id: <1405614035-11413-1-git-send-email-jcmvbkbc@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Lukas Czerner <lczerner@redhat.com>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-arch@vger.kernel.org, linux-mips@linux-mips.org, linux-xtensa@linux-xtensa.org, linux-kernel@vger.kernel.org, Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>, Max Filippov <jcmvbkbc@gmail.com>
 
-On 07/17/2014 12:10 PM, Vlastimil Babka wrote:
-> On 07/15/2014 12:28 PM, Hugh Dickins wrote:
->> In the end I decided that we had better look at it as two problems,
->> the trinity faulting starvation, and the indefinite punching loop,
->> so 1/2 and 2/2 present both solutions: belt and braces.
-> 
-> I tested that with my reproducer and it was OK, but as I already said, it's not trinity so I didn't observe the new problems in the first place.
+From: Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>
 
-I've started seeing a new hang in the lru code, but I'm not sure if
-it's related to this patch or not (the locks are the same ones, but
-the location is very different).
+Provide hooks that allow architectures with aliasing cache to align
+mapping address of high pages according to their color.
 
-I'm looking into that.
+Signed-off-by: Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>
+[ Max: extract architecture-independent part of the original patch, clean
+  up checkpatch and build warnings. ]
+Signed-off-by: Max Filippov <jcmvbkbc@gmail.com>
+---
+ mm/highmem.c | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)
 
-
-Thanks,
-Sasha
+diff --git a/mm/highmem.c b/mm/highmem.c
+index b32b70c..6898a8b 100644
+--- a/mm/highmem.c
++++ b/mm/highmem.c
+@@ -44,6 +44,14 @@ DEFINE_PER_CPU(int, __kmap_atomic_idx);
+  */
+ #ifdef CONFIG_HIGHMEM
+ 
++#ifndef ARCH_PKMAP_COLORING
++#define set_pkmap_color(pg, cl)		/* */
++#define get_last_pkmap_nr(p, cl)	(p)
++#define get_next_pkmap_nr(p, cl)	(((p) + 1) & LAST_PKMAP_MASK)
++#define is_no_more_pkmaps(p, cl)	(!(p))
++#define get_next_pkmap_counter(c, cl)	((c) - 1)
++#endif
++
+ unsigned long totalhigh_pages __read_mostly;
+ EXPORT_SYMBOL(totalhigh_pages);
+ 
+@@ -161,19 +169,24 @@ static inline unsigned long map_new_virtual(struct page *page)
+ {
+ 	unsigned long vaddr;
+ 	int count;
++	int color __maybe_unused;
++
++	set_pkmap_color(page, color);
++	last_pkmap_nr = get_last_pkmap_nr(last_pkmap_nr, color);
+ 
+ start:
+ 	count = LAST_PKMAP;
+ 	/* Find an empty entry */
+ 	for (;;) {
+-		last_pkmap_nr = (last_pkmap_nr + 1) & LAST_PKMAP_MASK;
+-		if (!last_pkmap_nr) {
++		last_pkmap_nr = get_next_pkmap_nr(last_pkmap_nr, color);
++		if (is_no_more_pkmaps(last_pkmap_nr, color)) {
+ 			flush_all_zero_pkmaps();
+ 			count = LAST_PKMAP;
+ 		}
+ 		if (!pkmap_count[last_pkmap_nr])
+ 			break;	/* Found a usable entry */
+-		if (--count)
++		count = get_next_pkmap_counter(count, color);
++		if (count > 0)
+ 			continue;
+ 
+ 		/*
+-- 
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
