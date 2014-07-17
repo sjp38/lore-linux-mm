@@ -1,95 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id DA5D16B0062
-	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 10:20:10 -0400 (EDT)
-Received: by mail-we0-f180.google.com with SMTP id w61so3176098wes.25
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 07:20:10 -0700 (PDT)
-Received: from mail-wi0-x230.google.com (mail-wi0-x230.google.com [2a00:1450:400c:c05::230])
-        by mx.google.com with ESMTPS id fu18si4533661wjc.113.2014.07.17.07.20.05
+Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
+	by kanga.kvack.org (Postfix) with ESMTP id BB4FB6B0069
+	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 10:30:29 -0400 (EDT)
+Received: by mail-we0-f174.google.com with SMTP id x48so3167598wes.19
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 07:30:28 -0700 (PDT)
+Received: from mail-wg0-x22a.google.com (mail-wg0-x22a.google.com [2a00:1450:400c:c00::22a])
+        by mx.google.com with ESMTPS id dz2si8234442wib.44.2014.07.17.07.30.24
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 17 Jul 2014 07:20:05 -0700 (PDT)
-Received: by mail-wi0-f176.google.com with SMTP id bs8so7800480wib.3
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 07:20:05 -0700 (PDT)
-Date: Thu, 17 Jul 2014 16:20:03 +0200
+        Thu, 17 Jul 2014 07:30:24 -0700 (PDT)
+Received: by mail-wg0-f42.google.com with SMTP id l18so2123337wgh.25
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 07:30:24 -0700 (PDT)
+Date: Thu, 17 Jul 2014 16:30:21 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch v2] mm: memcontrol: rewrite uncharge API fix - double
- migration
-Message-ID: <20140717142003.GD8011@dhcp22.suse.cz>
-References: <1405527596-7267-1-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [patch] mm: memcontrol: rewrite charge API fix - hugetlb charging
+Message-ID: <20140717143021.GE8011@dhcp22.suse.cz>
+References: <1405528080-2975-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1405527596-7267-1-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1405528080-2975-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 16-07-14 12:19:56, Johannes Weiner wrote:
-> Hugh reports:
+On Wed 16-07-14 12:28:00, Johannes Weiner wrote:
+> Naoya-san reports that hugetlb pages now get charged as file cache,
+> which wreaks all kinds of havoc during migration, uncharge etc.
 > 
-> VM_BUG_ON_PAGE(!(pc->flags & PCG_MEM))
-> mm/memcontrol.c:6680!
-> page had count 1 mapcount 0 mapping anon index 0x196
-> flags locked uptodate reclaim swapbacked, pcflags 1, memcg not root
-> mem_cgroup_migrate < move_to_new_page < migrate_pages < compact_zone <
-> compact_zone_order < try_to_compact_pages < __alloc_pages_direct_compact <
-> __alloc_pages_nodemask < alloc_pages_vma < do_huge_pmd_anonymous_page <
-> handle_mm_fault < __do_page_fault
+> The file-specific charge path used to filter PageCompound(), but it
+> wasn't commented and so it got lost when unifying the charge paths.
 > 
-> mem_cgroup_migrate() assumes that a page is only migrated once and
-> then freed immediately after.
-> 
-> However, putting the page back on the LRU list and dropping the
-> isolation refcount is not done atomically.  This allows a PFN-based
-> migrator like compaction to isolate the page, see the expected
-> anonymous page refcount of 1, and migrate the page once more.
-> 
-> Properly uncharge the page after it's been migrated, including the
-> clearing of PCG_USED, so that a subsequent charge migration attempt
-> will be able to detect it and bail out.
-> 
+> We can't add PageCompound() back into a unified charge path because of
+> THP, so filter huge pages directly in add_to_page_cache().
+
+This looks a bit fragile to me but I understand your motivation to not
+punish all the code paths with PageHuge check.
+
+> Reported-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Reported-by: Hugh Dickins <hughd@google.com>
 
 Acked-by: Michal Hocko <mhocko@suse.cz>
 
 > ---
->  mm/memcontrol.c | 8 +++++++-
->  1 file changed, 7 insertions(+), 1 deletion(-)
+>  mm/filemap.c | 20 ++++++++++++++------
+>  1 file changed, 14 insertions(+), 6 deletions(-)
 > 
-> Andrew, this replaces the patch of the same name in -mm.  As Hugh
-> points out, we really have to clear PCG_USED of migrated pages, as
-> they are no longer pinning the memcg and so their pc->mem_cgroup can
-> no longer be trusted.
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 1e3b27f8dc2f..1439537fe7c9 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -6655,7 +6655,6 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 114cd89c1cc2..c088ac01e856 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -31,6 +31,7 @@
+>  #include <linux/security.h>
+>  #include <linux/cpuset.h>
+>  #include <linux/hardirq.h> /* for BUG_ON(!in_atomic()) only */
+> +#include <linux/hugetlb.h>
+>  #include <linux/memcontrol.h>
+>  #include <linux/cleancache.h>
+>  #include <linux/rmap.h>
+> @@ -560,19 +561,24 @@ static int __add_to_page_cache_locked(struct page *page,
+>  				      pgoff_t offset, gfp_t gfp_mask,
+>  				      void **shadowp)
+>  {
+> +	int huge = PageHuge(page);
+>  	struct mem_cgroup *memcg;
+>  	int error;
 >  
->  	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEM), oldpage);
->  	VM_BUG_ON_PAGE(do_swap_account && !(pc->flags & PCG_MEMSW), oldpage);
-> -	pc->flags &= ~(PCG_MEM | PCG_MEMSW);
+>  	VM_BUG_ON_PAGE(!PageLocked(page), page);
+>  	VM_BUG_ON_PAGE(PageSwapBacked(page), page);
 >  
->  	if (PageTransHuge(oldpage)) {
->  		nr_pages <<= compound_order(oldpage);
-> @@ -6663,6 +6662,13 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
->  		VM_BUG_ON_PAGE(!PageTransHuge(newpage), newpage);
+> -	error = mem_cgroup_try_charge(page, current->mm, gfp_mask, &memcg);
+> -	if (error)
+> -		return error;
+> +	if (!huge) {
+> +		error = mem_cgroup_try_charge(page, current->mm,
+> +					      gfp_mask, &memcg);
+> +		if (error)
+> +			return error;
+> +	}
+>  
+>  	error = radix_tree_maybe_preload(gfp_mask & ~__GFP_HIGHMEM);
+>  	if (error) {
+> -		mem_cgroup_cancel_charge(page, memcg);
+> +		if (!huge)
+> +			mem_cgroup_cancel_charge(page, memcg);
+>  		return error;
 >  	}
 >  
-> +	pc->flags = 0;
-> +
-> +	local_irq_disable();
-> +	mem_cgroup_charge_statistics(pc->mem_cgroup, oldpage, -nr_pages);
-> +	memcg_check_events(pc->mem_cgroup, oldpage);
-> +	local_irq_enable();
-> +
->  	commit_charge(newpage, pc->mem_cgroup, nr_pages, lrucare);
+> @@ -587,14 +593,16 @@ static int __add_to_page_cache_locked(struct page *page,
+>  		goto err_insert;
+>  	__inc_zone_page_state(page, NR_FILE_PAGES);
+>  	spin_unlock_irq(&mapping->tree_lock);
+> -	mem_cgroup_commit_charge(page, memcg, false);
+> +	if (!huge)
+> +		mem_cgroup_commit_charge(page, memcg, false);
+>  	trace_mm_filemap_add_to_page_cache(page);
+>  	return 0;
+>  err_insert:
+>  	page->mapping = NULL;
+>  	/* Leave page->index set: truncation relies upon it */
+>  	spin_unlock_irq(&mapping->tree_lock);
+> -	mem_cgroup_cancel_charge(page, memcg);
+> +	if (!huge)
+> +		mem_cgroup_cancel_charge(page, memcg);
+>  	page_cache_release(page);
+>  	return error;
 >  }
->  
 > -- 
 > 2.0.0
 > 
