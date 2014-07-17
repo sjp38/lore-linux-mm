@@ -1,101 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E7BA6B0035
-	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 17:48:10 -0400 (EDT)
-Received: by mail-ig0-f171.google.com with SMTP id l13so6955149iga.16
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 14:48:10 -0700 (PDT)
-Received: from mail-ie0-x233.google.com (mail-ie0-x233.google.com [2607:f8b0:4001:c03::233])
-        by mx.google.com with ESMTPS id p10si35672908igj.57.2014.07.17.14.48.09
+Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A2D66B0035
+	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 18:06:18 -0400 (EDT)
+Received: by mail-ie0-f177.google.com with SMTP id at20so3778536iec.36
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 15:06:18 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id x4si16143559icp.40.2014.07.17.15.06.17
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 17 Jul 2014 14:48:09 -0700 (PDT)
-Received: by mail-ie0-f179.google.com with SMTP id rl12so3787264iec.38
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 14:48:09 -0700 (PDT)
-Date: Thu, 17 Jul 2014 14:48:07 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch v4] mm, thp: only collapse hugepages to nodes with affinity
- for zone_reclaim_mode
-In-Reply-To: <53C7F9AC.1080007@intel.com>
-Message-ID: <alpine.DEB.2.02.1407171447310.9717@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1407141807030.8808@chino.kir.corp.google.com> <alpine.DEB.2.02.1407151712520.12279@chino.kir.corp.google.com> <53C69C7B.1010709@suse.cz> <alpine.DEB.2.02.1407161754000.23892@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1407161757500.23892@chino.kir.corp.google.com> <53C7F9AC.1080007@intel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Jul 2014 15:06:17 -0700 (PDT)
+Date: Thu, 17 Jul 2014 15:06:15 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] CMA: generalize CMA reserved area management
+ functionality (fixup)
+Message-Id: <20140717150615.32c48786b6bdbc880bdc5ed4@linux-foundation.org>
+In-Reply-To: <1405589767-17513-1-git-send-email-m.szyprowski@samsung.com>
+References: <53C78ED7.7030002@samsung.com>
+	<1405589767-17513-1-git-send-email-m.szyprowski@samsung.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Bob Liu <bob.liu@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-Commit 9f1b868a13ac ("mm: thp: khugepaged: add policy for finding target 
-node") improved the previous khugepaged logic which allocated a 
-transparent hugepages from the node of the first page being collapsed.
+On Thu, 17 Jul 2014 11:36:07 +0200 Marek Szyprowski <m.szyprowski@samsung.com> wrote:
 
-However, it is still possible to collapse pages to remote memory which may 
-suffer from additional access latency.  With the current policy, it is 
-possible that 255 pages (with PAGE_SHIFT == 12) will be collapsed remotely 
-if the majority are allocated from that node.
+> MAX_CMA_AREAS is used by other subsystems (i.e. arch/arm/mm/dma-mapping.c),
+> so we need to provide correct definition even if CMA is disabled.
+> This patch fixes this issue.
+> 
+> Reported-by: Sylwester Nawrocki <s.nawrocki@samsung.com>
+> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+> ---
+>  include/linux/cma.h | 4 ++++
+>  1 file changed, 4 insertions(+)
+> 
+> diff --git a/include/linux/cma.h b/include/linux/cma.h
+> index 9a18a2b1934c..c077635cad76 100644
+> --- a/include/linux/cma.h
+> +++ b/include/linux/cma.h
+> @@ -5,7 +5,11 @@
+>   * There is always at least global CMA area and a few optional
+>   * areas configured in kernel .config.
+>   */
+> +#ifdef CONFIG_CMA
+>  #define MAX_CMA_AREAS	(1 + CONFIG_CMA_AREAS)
+> +#else
+> +#define MAX_CMA_AREAS	(0)
+> +#endif
+>  
+>  struct cma;
 
-When zone_reclaim_mode is enabled, it means the VM should make every attempt
-to allocate locally to prevent NUMA performance degradation.  In this case,
-we do not want to collapse hugepages to remote nodes that would suffer from
-increased access latency.  Thus, when zone_reclaim_mode is enabled, only
-allow collapsing to nodes with RECLAIM_DISTANCE or less.
+Joonsoo already fixed this up, a bit differently:
+http://ozlabs.org/~akpm/mmots/broken-out/cma-generalize-cma-reserved-area-management-functionality-fix.patch
 
-There is no functional change for systems that disable zone_reclaim_mode.
+Which approach makes more sense?
 
-Signed-off-by: David Rientjes <rientjes@google.com>
+
+
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: CMA: fix ARM build failure related to MAX_CMA_AREAS definition
+
+If CMA is disabled, CONFIG_CMA_AREAS isn't defined so compile error
+happens. To fix it, define MAX_CMA_AREAS if CONFIG_CMA_AREAS
+isn't defined.
+
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Reported-by: Stephen Rothwell <sfr@canb.auug.org.au>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- v2: only change behavior for zone_reclaim_mode per Dave Hansen
- v3: optimization based on previous node counts per Vlastimil Babka
- v4: unconditionally define khugepaged_scan_abort per Dave Hansen
-     no increase in .text size for CONFIG_NUMA=n
 
- mm/huge_memory.c | 26 ++++++++++++++++++++++++++
- 1 file changed, 26 insertions(+)
+ include/linux/cma.h |    6 ++++++
+ 1 file changed, 6 insertions(+)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2233,6 +2233,30 @@ static void khugepaged_alloc_sleep(void)
+diff -puN include/linux/cma.h~cma-generalize-cma-reserved-area-management-functionality-fix include/linux/cma.h
+--- a/include/linux/cma.h~cma-generalize-cma-reserved-area-management-functionality-fix
++++ a/include/linux/cma.h
+@@ -5,8 +5,14 @@
+  * There is always at least global CMA area and a few optional
+  * areas configured in kernel .config.
+  */
++#ifdef CONFIG_CMA_AREAS
+ #define MAX_CMA_AREAS	(1 + CONFIG_CMA_AREAS)
  
- static int khugepaged_node_load[MAX_NUMNODES];
++#else
++#define MAX_CMA_AREAS	(0)
++
++#endif
++
+ struct cma;
  
-+static bool khugepaged_scan_abort(int nid)
-+{
-+	int i;
-+
-+	/*
-+	 * If zone_reclaim_mode is disabled, then no extra effort is made to
-+	 * allocate memory locally.
-+	 */
-+	if (!zone_reclaim_mode)
-+		return false;
-+
-+	/* If there is a count for this node already, it must be acceptable */
-+	if (khugepaged_node_load[nid])
-+		return false;
-+
-+	for (i = 0; i < MAX_NUMNODES; i++) {
-+		if (!khugepaged_node_load[i])
-+			continue;
-+		if (node_distance(nid, i) > RECLAIM_DISTANCE)
-+			return true;
-+	}
-+	return false;
-+}
-+
- #ifdef CONFIG_NUMA
- static int khugepaged_find_target_node(void)
- {
-@@ -2545,6 +2569,8 @@ static int khugepaged_scan_pmd(struct mm_struct *mm,
- 		 * hit record.
- 		 */
- 		node = page_to_nid(page);
-+		if (khugepaged_scan_abort(node))
-+			goto out_unmap;
- 		khugepaged_node_load[node]++;
- 		VM_BUG_ON_PAGE(PageCompound(page), page);
- 		if (!PageLRU(page) || PageLocked(page) || !PageAnon(page))
+ extern phys_addr_t cma_get_base(struct cma *cma);
+_
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
