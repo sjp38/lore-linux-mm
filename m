@@ -1,118 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A0DE6B005A
-	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 10:16:00 -0400 (EDT)
-Received: by mail-qc0-f181.google.com with SMTP id w7so2100050qcr.26
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 07:16:00 -0700 (PDT)
-Received: from na01-bn1-obe.outbound.protection.outlook.com (mail-bn1lp0141.outbound.protection.outlook.com. [207.46.163.141])
-        by mx.google.com with ESMTPS id e11si4633276qga.5.2014.07.17.07.15.59
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+	by kanga.kvack.org (Postfix) with ESMTP id DA5D16B0062
+	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 10:20:10 -0400 (EDT)
+Received: by mail-we0-f180.google.com with SMTP id w61so3176098wes.25
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 07:20:10 -0700 (PDT)
+Received: from mail-wi0-x230.google.com (mail-wi0-x230.google.com [2a00:1450:400c:c05::230])
+        by mx.google.com with ESMTPS id fu18si4533661wjc.113.2014.07.17.07.20.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 17 Jul 2014 07:15:59 -0700 (PDT)
-Message-ID: <53C7DA82.7000502@amd.com>
-Date: Thu, 17 Jul 2014 17:15:30 +0300
-From: Oded Gabbay <oded.gabbay@amd.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 17 Jul 2014 07:20:05 -0700 (PDT)
+Received: by mail-wi0-f176.google.com with SMTP id bs8so7800480wib.3
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 07:20:05 -0700 (PDT)
+Date: Thu, 17 Jul 2014 16:20:03 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch v2] mm: memcontrol: rewrite uncharge API fix - double
+ migration
+Message-ID: <20140717142003.GD8011@dhcp22.suse.cz>
+References: <1405527596-7267-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 01/25] mm: Add kfd_process pointer to mm_struct
-References: <1405603773-32688-1-git-send-email-oded.gabbay@amd.com>
- <53C7D666.6000405@amd.com> <20140717141216.GA1963@gmail.com>
-In-Reply-To: <20140717141216.GA1963@gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1405527596-7267-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>
-Cc: David Airlie <airlied@linux.ie>, Alex Deucher <alexdeucher@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, John Bridgman <John.Bridgman@amd.com>, Joerg Roedel <joro@8bytes.org>, Andrew Lewycky <Andrew.Lewycky@amd.com>, =?ISO-8859-1?Q?Christian_K=F6nig?= <deathsimple@vodafone.de>, =?ISO-8859-1?Q?Michel_D=E4nzer?= <michel.daenzer@amd.com>, Ben Goz <Ben.Goz@amd.com>, Alexey Skidanov <Alexey.Skidanov@amd.com>, Evgeny Pinchuk <Evgeny.Pinchuk@amd.com>, "Kirill
- A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, =?ISO-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 17/07/14 17:12, Jerome Glisse wrote:
-> On Thu, Jul 17, 2014 at 04:57:58PM +0300, Oded Gabbay wrote:
->> Forgot to add mm mailing list. Sorry.
->>
->> This patch enables the amdkfd driver to retrieve the kfd_process
->> object from the process's mm_struct. This is needed because kfd_proces=
-s
->> lifespan is bound to the process's mm_struct lifespan.
->>
->> When amdkfd is notified about an mm_struct tear-down, it checks if the
->> kfd_process pointer is valid. If so, it releases the kfd_process objec=
-t
->> and all relevant resources.
->>
->> In v3 of the patchset I will update the binding to match the final dis=
-cussions
->> on [PATCH 1/8] mmput: use notifier chain to call subsystem exit handle=
-r.
->> In the meantime, I'm going to try and see if I can drop the kfd_proces=
-s
->> in mm_struct and remove the use of the new notification chain in mmput=
-.
->> Instead, I will try to use the mmu release notifier.
->
-> So the mmput notifier chain will not happen. I did a patch with call_sr=
-cu
-> and adding couple more helper to mmu_notifier. I will send that today f=
-or
-> review.
->
-> That being said, adding a device driver specific to mm_struct will most
-> likely be a big no. I am myself gonna remove hmm from mm_struct as peop=
-le
-> are reluctant to see such change.
->
-> Cheers,
-> J=E9r=F4me
->
-Yes, I followed that email thread and you can see that in the commit mess=
-age I=20
-referred to it (saying that in v3 of the patchset I'm also going to use=20
-mmu_notifier). I will take your patch once you publish it and use it to c=
-hange=20
-amdkfd behavior.
+On Wed 16-07-14 12:19:56, Johannes Weiner wrote:
+> Hugh reports:
+> 
+> VM_BUG_ON_PAGE(!(pc->flags & PCG_MEM))
+> mm/memcontrol.c:6680!
+> page had count 1 mapcount 0 mapping anon index 0x196
+> flags locked uptodate reclaim swapbacked, pcflags 1, memcg not root
+> mem_cgroup_migrate < move_to_new_page < migrate_pages < compact_zone <
+> compact_zone_order < try_to_compact_pages < __alloc_pages_direct_compact <
+> __alloc_pages_nodemask < alloc_pages_vma < do_huge_pmd_anonymous_page <
+> handle_mm_fault < __do_page_fault
+> 
+> mem_cgroup_migrate() assumes that a page is only migrated once and
+> then freed immediately after.
+> 
+> However, putting the page back on the LRU list and dropping the
+> isolation refcount is not done atomically.  This allows a PFN-based
+> migrator like compaction to isolate the page, see the expected
+> anonymous page refcount of 1, and migrate the page once more.
+> 
+> Properly uncharge the page after it's been migrated, including the
+> clearing of PCG_USED, so that a subsequent charge migration attempt
+> will be able to detect it and bail out.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Reported-by: Hugh Dickins <hughd@google.com>
 
-	Oded
->
->>
->> Signed-off-by: Oded Gabbay <oded.gabbay@amd.com>
->> ---
->>   include/linux/mm_types.h | 14 ++++++++++++++
->>   1 file changed, 14 insertions(+)
->>
->> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
->> index 678097c..ff71496 100644
->> --- a/include/linux/mm_types.h
->> +++ b/include/linux/mm_types.h
->> @@ -20,6 +20,10 @@
->>   struct hmm;
->>   #endif
->>   +#if defined(CONFIG_HSA_RADEON) || defined(CONFIG_HSA_RADEON_MODULE)
->> +struct kfd_process;
->> +#endif
->> +
->>   #ifndef AT_VECTOR_SIZE_ARCH
->>   #define AT_VECTOR_SIZE_ARCH 0
->>   #endif
->> @@ -439,6 +443,16 @@ struct mm_struct {
->>   	 */
->>   	struct hmm *hmm;
->>   #endif
->> +#if defined(CONFIG_HSA_RADEON) || defined(CONFIG_HSA_RADEON_MODULE)
->> +	/*
->> +	 * kfd always register an mmu_notifier we rely on mmu notifier to ke=
-ep
->> +	 * refcount on mm struct as well as forbiding registering kfd on a
->> +	 * dying mm
->> +	 *
->> +	 * This field is set with mmap_sem old in write mode.
->> +	 */
->> +	struct kfd_process *kfd_process;
->> +#endif
->>   #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
->>   	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
->>   #endif
->> --
->> 1.9.1
->>
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  mm/memcontrol.c | 8 +++++++-
+>  1 file changed, 7 insertions(+), 1 deletion(-)
+> 
+> Andrew, this replaces the patch of the same name in -mm.  As Hugh
+> points out, we really have to clear PCG_USED of migrated pages, as
+> they are no longer pinning the memcg and so their pc->mem_cgroup can
+> no longer be trusted.
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 1e3b27f8dc2f..1439537fe7c9 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -6655,7 +6655,6 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
+>  
+>  	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEM), oldpage);
+>  	VM_BUG_ON_PAGE(do_swap_account && !(pc->flags & PCG_MEMSW), oldpage);
+> -	pc->flags &= ~(PCG_MEM | PCG_MEMSW);
+>  
+>  	if (PageTransHuge(oldpage)) {
+>  		nr_pages <<= compound_order(oldpage);
+> @@ -6663,6 +6662,13 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
+>  		VM_BUG_ON_PAGE(!PageTransHuge(newpage), newpage);
+>  	}
+>  
+> +	pc->flags = 0;
+> +
+> +	local_irq_disable();
+> +	mem_cgroup_charge_statistics(pc->mem_cgroup, oldpage, -nr_pages);
+> +	memcg_check_events(pc->mem_cgroup, oldpage);
+> +	local_irq_enable();
+> +
+>  	commit_charge(newpage, pc->mem_cgroup, nr_pages, lrucare);
+>  }
+>  
+> -- 
+> 2.0.0
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
