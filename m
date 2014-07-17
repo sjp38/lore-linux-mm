@@ -1,258 +1,267 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 25D586B0039
-	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 09:57:27 -0400 (EDT)
-Received: by mail-we0-f172.google.com with SMTP id x48so3179170wes.3
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 06:57:25 -0700 (PDT)
-Received: from mail-we0-x22f.google.com (mail-we0-x22f.google.com [2a00:1450:400c:c03::22f])
-        by mx.google.com with ESMTPS id z7si9067938wiu.91.2014.07.17.06.57.24
+Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C5546B003A
+	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 09:57:44 -0400 (EDT)
+Received: by mail-qg0-f52.google.com with SMTP id f51so1964025qge.25
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 06:57:44 -0700 (PDT)
+Received: from na01-bn1-obe.outbound.protection.outlook.com (mail-bn1blp0181.outbound.protection.outlook.com. [207.46.163.181])
+        by mx.google.com with ESMTPS id n11si2542398qgd.126.2014.07.17.06.57.43
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 17 Jul 2014 06:57:24 -0700 (PDT)
-Received: by mail-we0-f175.google.com with SMTP id t60so3153428wes.34
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 06:57:23 -0700 (PDT)
-Date: Thu, 17 Jul 2014 15:57:21 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 3/3] mm: vmscan: clean up struct scan_control
-Message-ID: <20140717135721.GC8011@dhcp22.suse.cz>
-References: <1405344049-19868-1-git-send-email-hannes@cmpxchg.org>
- <1405344049-19868-4-git-send-email-hannes@cmpxchg.org>
- <alpine.LSU.2.11.1407141240200.17669@eggly.anvils>
- <20140717132604.GF29639@cmpxchg.org>
+        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 17 Jul 2014 06:57:44 -0700 (PDT)
+Message-ID: <53C7D645.3070607@amd.com>
+Date: Thu, 17 Jul 2014 16:57:25 +0300
+From: Oded Gabbay <oded.gabbay@amd.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140717132604.GF29639@cmpxchg.org>
+Subject: [PATCH v2 00/25] AMDKFD kernel driver
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Airlie <airlied@linux.ie>, Jerome Glisse <j.glisse@gmail.com>, Alex
+ Deucher <alexdeucher@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: John Bridgman <John.Bridgman@amd.com>, Joerg Roedel <joro@8bytes.org>, Andrew Lewycky <Andrew.Lewycky@amd.com>, =?UTF-8?B?Q2hyaXN0aWFuIEvDtm5pZw==?= <deathsimple@vodafone.de>, =?UTF-8?B?TWljaGVsIETDpG56ZXI=?= <michel.daenzer@amd.com>, Ben Goz <Ben.Goz@amd.com>, Alexey Skidanov <Alexey.Skidanov@amd.com>, Evgeny Pinchuk <Evgeny.Pinchuk@amd.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-mm <linux-mm@kvack.org>
 
-On Thu 17-07-14 09:26:04, Johannes Weiner wrote:
-> From bbe8c1645c77297a96ecd5d64d659ddcd6984d03 Mon Sep 17 00:00:00 2001
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Date: Mon, 14 Jul 2014 08:51:54 -0400
-> Subject: [patch] mm: vmscan: clean up struct scan_control
-> 
-> Reorder the members by input and output, then turn the individual
-> integers for may_writepage, may_unmap, may_swap, compaction_ready,
-> hibernation_mode into bit fields to save stack space:
-> 
-> +72/-296 -224
-> kswapd                                       104     176     +72
-> try_to_free_pages                             80      56     -24
-> try_to_free_mem_cgroup_pages                  80      56     -24
-> shrink_all_memory                             88      64     -24
-> reclaim_clean_pages_from_list                168     144     -24
-> mem_cgroup_shrink_node_zone                  104      80     -24
-> __zone_reclaim                               176     152     -24
-> balance_pgdat                                152       -    -152
-> 
-> Suggested-by: Mel Gorman <mgorman@suse.de>
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Forgot to cc mailing list on cover letter. Sorry.
 
-Looks nice to me.
-Acked-by: Michal Hocko <mhocko@suse.cz>
+As a continuation to the existing discussion, here is a v2 patch series 
+restructured with a cleaner history and no totally-different-early-versions of 
+the code.
 
-> ---
->  mm/vmscan.c | 99 ++++++++++++++++++++++++++++---------------------------------
->  1 file changed, 46 insertions(+), 53 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index c28b8981e56a..81dd858b9d17 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -59,35 +59,20 @@
->  #include <trace/events/vmscan.h>
->  
->  struct scan_control {
-> -	/* Incremented by the number of inactive pages that were scanned */
-> -	unsigned long nr_scanned;
-> -
-> -	/* Number of pages freed so far during a call to shrink_zones() */
-> -	unsigned long nr_reclaimed;
-> -
-> -	/* One of the zones is ready for compaction */
-> -	int compaction_ready;
-> -
->  	/* How many pages shrink_list() should reclaim */
->  	unsigned long nr_to_reclaim;
->  
-> -	unsigned long hibernation_mode;
-> -
->  	/* This context's GFP mask */
->  	gfp_t gfp_mask;
->  
-> -	int may_writepage;
-> -
-> -	/* Can mapped pages be reclaimed? */
-> -	int may_unmap;
-> -
-> -	/* Can pages be swapped as part of reclaim? */
-> -	int may_swap;
-> -
-> +	/* Allocation order */
->  	int order;
->  
-> -	/* Scan (total_size >> priority) pages at once */
-> -	int priority;
-> +	/*
-> +	 * Nodemask of nodes allowed by the caller. If NULL, all nodes
-> +	 * are scanned.
-> +	 */
-> +	nodemask_t	*nodemask;
->  
->  	/*
->  	 * The memory cgroup that hit its limit and as a result is the
-> @@ -95,11 +80,27 @@ struct scan_control {
->  	 */
->  	struct mem_cgroup *target_mem_cgroup;
->  
-> -	/*
-> -	 * Nodemask of nodes allowed by the caller. If NULL, all nodes
-> -	 * are scanned.
-> -	 */
-> -	nodemask_t	*nodemask;
-> +	/* Scan (total_size >> priority) pages at once */
-> +	int priority;
-> +
-> +	unsigned int may_writepage:1;
-> +
-> +	/* Can mapped pages be reclaimed? */
-> +	unsigned int may_unmap:1;
-> +
-> +	/* Can pages be swapped as part of reclaim? */
-> +	unsigned int may_swap:1;
-> +
-> +	unsigned int hibernation_mode:1;
-> +
-> +	/* One of the zones is ready for compaction */
-> +	unsigned int compaction_ready:1;
-> +
-> +	/* Incremented by the number of inactive pages that were scanned */
-> +	unsigned long nr_scanned;
-> +
-> +	/* Number of pages freed so far during a call to shrink_zones() */
-> +	unsigned long nr_reclaimed;
->  };
->  
->  #define lru_to_page(_head) (list_entry((_head)->prev, struct page, lru))
-> @@ -2668,15 +2669,14 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
->  {
->  	unsigned long nr_reclaimed;
->  	struct scan_control sc = {
-> +		.nr_to_reclaim = SWAP_CLUSTER_MAX,
->  		.gfp_mask = (gfp_mask = memalloc_noio_flags(gfp_mask)),
-> +		.order = order,
-> +		.nodemask = nodemask,
-> +		.priority = DEF_PRIORITY,
->  		.may_writepage = !laptop_mode,
-> -		.nr_to_reclaim = SWAP_CLUSTER_MAX,
->  		.may_unmap = 1,
->  		.may_swap = 1,
-> -		.order = order,
-> -		.priority = DEF_PRIORITY,
-> -		.target_mem_cgroup = NULL,
-> -		.nodemask = nodemask,
->  	};
->  
->  	/*
-> @@ -2706,14 +2706,11 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *memcg,
->  						unsigned long *nr_scanned)
->  {
->  	struct scan_control sc = {
-> -		.nr_scanned = 0,
->  		.nr_to_reclaim = SWAP_CLUSTER_MAX,
-> +		.target_mem_cgroup = memcg,
->  		.may_writepage = !laptop_mode,
->  		.may_unmap = 1,
->  		.may_swap = !noswap,
-> -		.order = 0,
-> -		.priority = 0,
-> -		.target_mem_cgroup = memcg,
->  	};
->  	struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone, memcg);
->  	int swappiness = mem_cgroup_swappiness(memcg);
-> @@ -2748,16 +2745,14 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
->  	unsigned long nr_reclaimed;
->  	int nid;
->  	struct scan_control sc = {
-> -		.may_writepage = !laptop_mode,
-> -		.may_unmap = 1,
-> -		.may_swap = !noswap,
->  		.nr_to_reclaim = SWAP_CLUSTER_MAX,
-> -		.order = 0,
-> -		.priority = DEF_PRIORITY,
-> -		.target_mem_cgroup = memcg,
-> -		.nodemask = NULL, /* we don't care the placement */
->  		.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
->  				(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK),
-> +		.target_mem_cgroup = memcg,
-> +		.priority = DEF_PRIORITY,
-> +		.may_writepage = !laptop_mode,
-> +		.may_unmap = 1,
-> +		.may_swap = !noswap,
->  	};
->  
->  	/*
-> @@ -3015,12 +3010,11 @@ static unsigned long balance_pgdat(pg_data_t *pgdat, int order,
->  	unsigned long nr_soft_scanned;
->  	struct scan_control sc = {
->  		.gfp_mask = GFP_KERNEL,
-> +		.order = order,
->  		.priority = DEF_PRIORITY,
-> +		.may_writepage = !laptop_mode,
->  		.may_unmap = 1,
->  		.may_swap = 1,
-> -		.may_writepage = !laptop_mode,
-> -		.order = order,
-> -		.target_mem_cgroup = NULL,
->  	};
->  	count_vm_event(PAGEOUTRUN);
->  
-> @@ -3401,14 +3395,13 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
->  {
->  	struct reclaim_state reclaim_state;
->  	struct scan_control sc = {
-> +		.nr_to_reclaim = nr_to_reclaim,
->  		.gfp_mask = GFP_HIGHUSER_MOVABLE,
-> -		.may_swap = 1,
-> -		.may_unmap = 1,
-> +		.priority = DEF_PRIORITY,
->  		.may_writepage = 1,
-> -		.nr_to_reclaim = nr_to_reclaim,
-> +		.may_unmap = 1,
-> +		.may_swap = 1,
->  		.hibernation_mode = 1,
-> -		.order = 0,
-> -		.priority = DEF_PRIORITY,
->  	};
->  	struct zonelist *zonelist = node_zonelist(numa_node_id(), sc.gfp_mask);
->  	struct task_struct *p = current;
-> @@ -3588,13 +3581,13 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
->  	struct task_struct *p = current;
->  	struct reclaim_state reclaim_state;
->  	struct scan_control sc = {
-> -		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
-> -		.may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
-> -		.may_swap = 1,
->  		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
->  		.gfp_mask = (gfp_mask = memalloc_noio_flags(gfp_mask)),
->  		.order = order,
->  		.priority = ZONE_RECLAIM_PRIORITY,
-> +		.may_writepage = !!(zone_reclaim_mode & RECLAIM_WRITE),
-> +		.may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
-> +		.may_swap = 1,
->  	};
->  	struct shrink_control shrink = {
->  		.gfp_mask = sc.gfp_mask,
-> -- 
-> 2.0.0
-> 
+Instead of 83 patches, there are now a total of 25 patches, where 5 of them
+are modifications to radeon driver and 18 of them include only amdkfd code.
+There is no code going away or even modified between patches, only added.
+
+The driver was renamed from radeon_kfd to amdkfd and moved to reside under
+drm/radeon/amdkfd. This move was done to emphasize the fact that this driver is 
+an AMD-only driver at this point. Having said that, we do foresee a generic hsa 
+framework being implemented in the future and in that case, we will adjust 
+amdkfd to work within that framework.
+
+As the amdkfd driver should support multiple AMD gfx drivers, we want to keep it 
+as a seperate driver from radeon. Therefore, the amdkfd code is contained in its 
+own folder. The amdkfd folder was put under the radeon folder because the only 
+AMD gfx driver in the Linux kernel at this point
+is the radeon driver. Having said that, we will probably need to move it (maybe 
+to be directly under drm) after we integrate with additional AMD gfx drivers.
+
+For people who like to review using git, the v2 patch set is located at:
+http://cgit.freedesktop.org/~gabbayo/linux/log/?h=kfd-next-3.17-v2
+
+Written by Oded Gabbayh <oded.gabbay@amd.com>
+
+Original Cover Letter:
+
+This patch set implements a Heterogeneous System Architecture (HSA) driver for 
+radeon-family GPUs.
+HSA allows different processor types (CPUs, DSPs, GPUs, etc..) to share system 
+resources more effectively via HW features including shared pageable memory, 
+userspace-accessible work queues, and platform-level atomics. In addition to the 
+memory protection mechanisms in GPUVM and IOMMUv2, the Sea Islands family of 
+GPUs also performs HW-level validation of commands passed in through the queues 
+(aka rings).
+
+The code in this patch set is intended to serve both as a sample driver for 
+other HSA-compatible hardware devices and as a production driver for 
+radeon-family processors. The code is architected to support multiple CPUs each 
+with connected GPUs, although the current implementation focuses on a single 
+Kaveri/Berlin APU, and works alongside the existing radeon kernel graphics 
+driver (kgd).
+AMD GPUs designed for use with HSA (Sea Islands and up) share some hardware 
+functionality between HSA compute and regular gfx/compute (memory, interrupts, 
+registers), while other functionality has been added specifically for HSA 
+compute  (hw scheduler for virtualized compute rings). All shared hardware is 
+owned by the radeon graphics driver, and an interface between kfd and kgd allows 
+the kfd to make use of those shared resources, while HSA-specific functionality 
+is managed directly by kfd by submitting packets into an HSA-specific command 
+queue (the "HIQ").
+
+During kfd module initialization a char device node (/dev/kfd) is created 
+(surviving until module exit), with ioctls for queue creation & management, and 
+data structures are initialized for managing HSA device topology.
+The rest of the initialization is driven by calls from the radeon kgd at the 
+following points :
+
+- radeon_init (kfd_init)
+- radeon_exit (kfd_fini)
+- radeon_driver_load_kms (kfd_device_probe, kfd_device_init)
+- radeon_driver_unload_kms (kfd_device_fini)
+
+During the probe and init processing per-device data structures are established 
+which connect to the associated graphics kernel driver. This information is 
+exposed to userspace via sysfs, along with a version number allowing userspace 
+to determine if a topology change has occurred while it was reading from sysfs.
+The interface between kfd and kgd also allows the kfd to request buffer 
+management services from kgd, and allows kgd to route interrupt requests to kfd 
+code since the interrupt block is shared between regular graphics/compute and 
+HSA compute subsystems in the GPU.
+
+The kfd code works with an open source usermode library ("libhsakmt") which is 
+in the final stages of IP review and should be published in a separate repo over 
+the next few days.
+The code operates in one of three modes, selectable via the sched_policy module 
+parameter :
+
+- sched_policy=0 uses a hardware scheduler running in the MEC block within CP, 
+and allows oversubscription (more queues than HW slots)
+- sched_policy=1 also uses HW scheduling but does not allow oversubscription, so 
+create_queue requests fail when we run out of HW slots
+- sched_policy=2 does not use HW scheduling, so the driver manually assigns 
+queues to HW slots by programming registers
+
+The "no HW scheduling" option is for debug & new hardware bringup only, so has 
+less test coverage than the other options. Default in the current code is "HW 
+scheduling without oversubscription" since that is where we have the most test 
+coverage but we expect to change the default to "HW scheduling with 
+oversubscription" after further testing. This effectively removes the HW limit 
+on the number of work queues available to applications.
+
+Programs running on the GPU are associated with an address space through the 
+VMID field, which is translated to a unique PASID at access time via a set of 16 
+VMID-to-PASID mapping registers. The available VMIDs (currently 16) are 
+partitioned (under control of the radeon kgd) between current gfx/compute and 
+HSA compute, with each getting 8 in the current code. The VMID-to-PASID mapping 
+registers are updated by the HW scheduler when used, and by driver code if HW 
+scheduling is not being used.
+The Sea Islands compute queues use a new "doorbell" mechanism instead of the 
+earlier kernel-managed write pointer registers. Doorbells use a separate BAR 
+dedicated for this purpose, and pages within the doorbell aperture are mapped to 
+userspace (each page mapped to only one user address space). Writes to the 
+doorbell aperture are intercepted by GPU hardware, allowing userspace code to 
+safely manage work queues (rings) without requiring a kernel call for every ring 
+update.
+First step for an application process is to open the kfd device. Calls to open 
+create a kfd "process" structure only for the first thread of the process. 
+Subsequent open calls are checked to see if they are from processes using the 
+same mm_struct and, if so, don't do anything. The kfd per-process data lives as 
+long as the mm_struct exists. Each mm_struct is associated with a unique PASID, 
+allowing the IOMMUv2 to make userspace process memory accessible to the GPU.
+Next step is for the application to collect topology information via sysfs. This 
+gives userspace enough information to be able to identify specific nodes 
+(processors) in subsequent queue management calls. Application processes can 
+create queues on multiple processors, and processors support queues from 
+multiple processes.
+At this point the application can create work queues in userspace memory and 
+pass them through the usermode library to kfd to have them mapped onto HW queue 
+slots so that commands written to the queues can be executed by the GPU. Queue 
+operations specify a processor node, and so the bulk of this code is 
+device-specific.
+Written by John Bridgman <John.Bridgman@amd.com>
+
+
+Alexey Skidanov (1):
+   amdkfd: Implement the Get Process Aperture IOCTL
+
+Andrew Lewycky (3):
+   amdkfd: Add basic modules to amdkfd
+   amdkfd: Add interrupt handling module
+   amdkfd: Implement the Set Memory Policy IOCTL
+
+Ben Goz (8):
+   amdkfd: Add queue module
+   amdkfd: Add mqd_manager module
+   amdkfd: Add kernel queue module
+   amdkfd: Add module parameter of scheduling policy
+   amdkfd: Add packet manager module
+   amdkfd: Add process queue manager module
+   amdkfd: Add device queue manager module
+   amdkfd: Implement the create/destroy/update queue IOCTLs
+
+Evgeny Pinchuk (3):
+   amdkfd: Add topology module to amdkfd
+   amdkfd: Implement the Get Clock Counters IOCTL
+   amdkfd: Implement the PMC Acquire/Release IOCTLs
+
+Oded Gabbay (10):
+   mm: Add kfd_process pointer to mm_struct
+   drm/radeon: reduce number of free VMIDs and pipes in KV
+   drm/radeon/cik: Don't touch int of pipes 1-7
+   drm/radeon: Report doorbell configuration to amdkfd
+   drm/radeon: adding synchronization for GRBM GFX
+   drm/radeon: Add radeon <--> amdkfd interface
+   Update MAINTAINERS and CREDITS files with amdkfd info
+   amdkfd: Add IOCTL set definitions of amdkfd
+   amdkfd: Add amdkfd skeleton driver
+   amdkfd: Add binding/unbinding calls to amd_iommu driver
+
+  CREDITS                                            |    7 +
+  MAINTAINERS                                        |   10 +
+  drivers/gpu/drm/radeon/Kconfig                     |    2 +
+  drivers/gpu/drm/radeon/Makefile                    |    3 +
+  drivers/gpu/drm/radeon/amdkfd/Kconfig              |   10 +
+  drivers/gpu/drm/radeon/amdkfd/Makefile             |   14 +
+  drivers/gpu/drm/radeon/amdkfd/cik_mqds.h           |  185 +++
+  drivers/gpu/drm/radeon/amdkfd/cik_regs.h           |  220 ++++
+  drivers/gpu/drm/radeon/amdkfd/kfd_aperture.c       |  123 ++
+  drivers/gpu/drm/radeon/amdkfd/kfd_chardev.c        |  518 +++++++++
+  drivers/gpu/drm/radeon/amdkfd/kfd_crat.h           |  294 +++++
+  drivers/gpu/drm/radeon/amdkfd/kfd_device.c         |  254 ++++
+  .../drm/radeon/amdkfd/kfd_device_queue_manager.c   |  985 ++++++++++++++++
+  .../drm/radeon/amdkfd/kfd_device_queue_manager.h   |  101 ++
+  drivers/gpu/drm/radeon/amdkfd/kfd_doorbell.c       |  264 +++++
+  drivers/gpu/drm/radeon/amdkfd/kfd_interrupt.c      |  161 +++
+  drivers/gpu/drm/radeon/amdkfd/kfd_kernel_queue.c   |  305 +++++
+  drivers/gpu/drm/radeon/amdkfd/kfd_kernel_queue.h   |   66 ++
+  drivers/gpu/drm/radeon/amdkfd/kfd_module.c         |  131 +++
+  drivers/gpu/drm/radeon/amdkfd/kfd_mqd_manager.c    |  291 +++++
+  drivers/gpu/drm/radeon/amdkfd/kfd_mqd_manager.h    |   54 +
+  drivers/gpu/drm/radeon/amdkfd/kfd_packet_manager.c |  488 ++++++++
+  drivers/gpu/drm/radeon/amdkfd/kfd_pasid.c          |   97 ++
+  drivers/gpu/drm/radeon/amdkfd/kfd_pm4_headers.h    |  682 +++++++++++
+  drivers/gpu/drm/radeon/amdkfd/kfd_pm4_opcodes.h    |  107 ++
+  drivers/gpu/drm/radeon/amdkfd/kfd_priv.h           |  466 ++++++++
+  drivers/gpu/drm/radeon/amdkfd/kfd_process.c        |  405 +++++++
+  .../drm/radeon/amdkfd/kfd_process_queue_manager.c  |  343 ++++++
+  drivers/gpu/drm/radeon/amdkfd/kfd_queue.c          |  109 ++
+  drivers/gpu/drm/radeon/amdkfd/kfd_topology.c       | 1207 ++++++++++++++++++++
+  drivers/gpu/drm/radeon/amdkfd/kfd_topology.h       |  168 +++
+  drivers/gpu/drm/radeon/amdkfd/kfd_vidmem.c         |   96 ++
+  drivers/gpu/drm/radeon/cik.c                       |  154 +--
+  drivers/gpu/drm/radeon/cik_reg.h                   |   65 ++
+  drivers/gpu/drm/radeon/cikd.h                      |   51 +-
+  drivers/gpu/drm/radeon/radeon.h                    |    9 +
+  drivers/gpu/drm/radeon/radeon_device.c             |   32 +
+  drivers/gpu/drm/radeon/radeon_drv.c                |    5 +
+  drivers/gpu/drm/radeon/radeon_kfd.c                |  566 +++++++++
+  drivers/gpu/drm/radeon/radeon_kfd.h                |  119 ++
+  drivers/gpu/drm/radeon/radeon_kms.c                |    7 +
+  include/linux/mm_types.h                           |   14 +
+  include/uapi/linux/kfd_ioctl.h                     |  133 +++
+  43 files changed, 9226 insertions(+), 95 deletions(-)
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/Kconfig
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/Makefile
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/cik_mqds.h
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/cik_regs.h
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_aperture.c
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_chardev.c
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_crat.h
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_device.c
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_device_queue_manager.c
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_device_queue_manager.h
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_doorbell.c
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_interrupt.c
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_kernel_queue.c
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_kernel_queue.h
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_module.c
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_mqd_manager.c
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_mqd_manager.h
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_packet_manager.c
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_pasid.c
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_pm4_headers.h
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_pm4_opcodes.h
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_priv.h
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_process.c
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_process_queue_manager.c
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_queue.c
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_topology.c
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_topology.h
+  create mode 100644 drivers/gpu/drm/radeon/amdkfd/kfd_vidmem.c
+  create mode 100644 drivers/gpu/drm/radeon/radeon_kfd.c
+  create mode 100644 drivers/gpu/drm/radeon/radeon_kfd.h
+  create mode 100644 include/uapi/linux/kfd_ioctl.h
 
 -- 
-Michal Hocko
-SUSE Labs
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
