@@ -1,85 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id D970C6B0035
-	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 23:38:00 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id eu11so2482120pac.18
-        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 20:38:00 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
-        by mx.google.com with ESMTP id pm6si1033267pac.140.2014.07.16.20.37.59
-        for <linux-mm@kvack.org>;
-        Wed, 16 Jul 2014 20:37:59 -0700 (PDT)
-Date: Thu, 17 Jul 2014 11:37:12 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 181/478] mm/vmstat.c:1248:16: sparse: symbol
- 'cpu_stat_off' was not declared. Should it be static?
-Message-ID: <53c744e8.YPShDCfuB/HYtMKP%fengguang.wu@intel.com>
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 8095A6B0035
+	for <linux-mm@kvack.org>; Wed, 16 Jul 2014 23:57:50 -0400 (EDT)
+Received: by mail-wg0-f42.google.com with SMTP id l18so1766739wgh.13
+        for <linux-mm@kvack.org>; Wed, 16 Jul 2014 20:57:49 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id er6si23727898wib.22.2014.07.16.20.57.48
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 16 Jul 2014 20:57:49 -0700 (PDT)
+Date: Wed, 16 Jul 2014 23:57:40 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch] mm, writeback: prevent race when calculating dirty limits
+Message-ID: <20140717035740.GE29639@cmpxchg.org>
+References: <alpine.DEB.2.02.1407161733200.23892@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed;
- boundary="=_53c744e8.LJ/LM/I9CL4h5EIWUZwYF8d+eRRpjCYcQ5ScvQKg2YQgwsBD"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1407161733200.23892@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, stable@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-This is a multi-part message in MIME format.
+On Wed, Jul 16, 2014 at 05:36:49PM -0700, David Rientjes wrote:
+> Setting vm_dirty_bytes and dirty_background_bytes is not protected by any 
+> serialization.
+> 
+> Therefore, it's possible for either variable to change value after the 
+> test in global_dirty_limits() to determine whether available_memory needs 
+> to be initialized or not.
+> 
+> Always ensure that available_memory is properly initialized.
+> 
+> Cc: stable@vger.kernel.org
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
---=_53c744e8.LJ/LM/I9CL4h5EIWUZwYF8d+eRRpjCYcQ5ScvQKg2YQgwsBD
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Any such race should be barely noticable to the user, so I assume you
+realized this while looking at the code?  The patch looks good, but I
+don't see that it's stable material.
 
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   233caf2762158b2e2a7c03ba1d17e57a87f0670c
-commit: 28ed3dd4a9b9f990a4131631ec2ff74233e2ebbc [181/478] vmstat: On demand vmstat workers V8
-reproduce: make C=1 CF=-D__CHECK_ENDIAN__
-
-
-sparse warnings: (new ones prefixed by >>)
-
->> mm/vmstat.c:1248:16: sparse: symbol 'cpu_stat_off' was not declared. Should it be static?
-
-Please consider folding the attached diff :-)
-
----
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
-
---=_53c744e8.LJ/LM/I9CL4h5EIWUZwYF8d+eRRpjCYcQ5ScvQKg2YQgwsBD
-Content-Type: text/x-diff;
- charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
- filename="make-it-static-28ed3dd4a9b9f990a4131631ec2ff74233e2ebbc.diff"
-
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [PATCH mmotm] vmstat: cpu_stat_off can be static
-TO: Christoph Lameter <cl@linux-foundation.org>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-CC: linux-mm@kvack.org 
-CC: linux-kernel@vger.kernel.org 
-
-CC: Christoph Lameter <cl@linux-foundation.org>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
----
- vmstat.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index ababac7..a3a5cce 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1245,7 +1245,7 @@ static const struct file_operations proc_vmstat_file_operations = {
- #ifdef CONFIG_SMP
- static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
- int sysctl_stat_interval __read_mostly = HZ;
--struct cpumask *cpu_stat_off;
-+static struct cpumask *cpu_stat_off;
- 
- static void vmstat_update(struct work_struct *w)
- {
-
---=_53c744e8.LJ/LM/I9CL4h5EIWUZwYF8d+eRRpjCYcQ5ScvQKg2YQgwsBD--
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
