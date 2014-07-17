@@ -1,127 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A6DE6B003D
-	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 11:29:41 -0400 (EDT)
-Received: by mail-wg0-f43.google.com with SMTP id l18so2205993wgh.26
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 08:29:40 -0700 (PDT)
-Received: from mail-wg0-x230.google.com (mail-wg0-x230.google.com [2a00:1450:400c:c00::230])
-        by mx.google.com with ESMTPS id ei7si26746387wid.32.2014.07.17.08.29.39
+Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 69C1E6B0071
+	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 12:10:08 -0400 (EDT)
+Received: by mail-we0-f175.google.com with SMTP id t60so3281615wes.6
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 09:10:07 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j4si5099383wja.141.2014.07.17.09.10.06
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 17 Jul 2014 08:29:39 -0700 (PDT)
-Received: by mail-wg0-f48.google.com with SMTP id x13so2212936wgg.19
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 08:29:38 -0700 (PDT)
-Date: Thu, 17 Jul 2014 17:29:36 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm: memcontrol: use page lists for uncharge batching
-Message-ID: <20140717152936.GF8011@dhcp22.suse.cz>
-References: <1404759358-29331-1-git-send-email-hannes@cmpxchg.org>
+        Thu, 17 Jul 2014 09:10:07 -0700 (PDT)
+Message-ID: <53C7F55B.8030307@suse.cz>
+Date: Thu, 17 Jul 2014 18:10:03 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1404759358-29331-1-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [PATCH 0/2] shmem: fix faulting into a hole while it's punched,
+ take 3
+References: <alpine.LSU.2.11.1407150247540.2584@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1407150247540.2584@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Lukas Czerner <lczerner@redhat.com>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon 07-07-14 14:55:58, Johannes Weiner wrote:
-> Pages are now uncharged at release time, and all sources of batched
-> uncharges operate on lists of pages.  Directly use those lists, and
-> get rid of the per-task batching state.
-> 
-> This also batches statistics accounting, in addition to the res
-> counter charges, to reduce IRQ-disabling and re-enabling.
+On 07/15/2014 12:28 PM, Hugh Dickins wrote:
+> In the end I decided that we had better look at it as two problems,
+> the trinity faulting starvation, and the indefinite punching loop,
+> so 1/2 and 2/2 present both solutions: belt and braces.
 
-It is probably worth noticing that there is a higher chance of missing
-threshold events now when we can accumulate huge number of uncharges
-during munmaps. I do not think this is earth shattering and the overall
-improvement is worth it but changelog should mention it.
+I tested that with my reproducer and it was OK, but as I already said, 
+it's not trinity so I didn't observe the new problems in the first place.
 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Which may be the best for fixing, but the worst for ease of backporting.
+> Vlastimil, I have prepared (and lightly tested) a 3.2.61-based version
+> of the combination of f00cdc6df7d7 and 1/2 and 2/2 (basically, I moved
+> vmtruncate_range from mm/truncate.c to mm/shmem.c, since nothing but
+> shmem ever implemented the truncate_range method).  It should give a
 
-With the follow up fix from
-http://marc.info/?l=linux-mm&m=140552814228135&w=2
+I don't know how much stable kernel updates are supposed to care about 
+out-of-tree modules, but doesn't the change mean that an out-of-tree FS 
+supporting truncate_range (if such thing exists) would effectively stop 
+supporting madvise(MADV_REMOVE) after this change? But hey it's still 
+madvise so maybe we don't need to care. And I suppose kernels where 
+FALLOC_FL_PUNCH_HOLE is supported, can be backported normally.
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-one nit below.
-
-[...]
-> +static void uncharge_list(struct list_head *page_list)
-> +{
-> +	struct mem_cgroup *memcg = NULL;
-> +	unsigned long nr_memsw = 0;
-> +	unsigned long nr_anon = 0;
-> +	unsigned long nr_file = 0;
-> +	unsigned long nr_huge = 0;
-> +	unsigned long pgpgout = 0;
-> +	unsigned long nr_mem = 0;
-> +	struct list_head *next;
-> +	struct page *page;
-> +
-> +	next = page_list->next;
-> +	do {
-
-I would use list_for_each_entry here which would also save list_empty
-check in mem_cgroup_uncharge_list
-
-> +		unsigned int nr_pages = 1;
-> +		struct page_cgroup *pc;
-> +
-> +		page = list_entry(next, struct page, lru);
-> +		next = page->lru.next;
-> +
-> +		VM_BUG_ON_PAGE(PageLRU(page), page);
-> +		VM_BUG_ON_PAGE(page_count(page), page);
-> +
-> +		pc = lookup_page_cgroup(page);
-> +		if (!PageCgroupUsed(pc))
-> +			continue;
-> +
-> +		/*
-> +		 * Nobody should be changing or seriously looking at
-> +		 * pc->mem_cgroup and pc->flags at this point, we have
-> +		 * fully exclusive access to the page.
-> +		 */
-> +
-> +		if (memcg != pc->mem_cgroup) {
-> +			if (memcg) {
-> +				uncharge_batch(memcg, pgpgout, nr_mem, nr_memsw,
-> +					       nr_anon, nr_file, nr_huge, page);
-> +				pgpgout = nr_mem = nr_memsw = 0;
-> +				nr_anon = nr_file = nr_huge = 0;
-> +			}
-> +			memcg = pc->mem_cgroup;
-> +		}
-> +
-> +		if (PageTransHuge(page)) {
-> +			nr_pages <<= compound_order(page);
-> +			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
-> +			nr_huge += nr_pages;
-> +		}
-> +
-> +		if (PageAnon(page))
-> +			nr_anon += nr_pages;
-> +		else
-> +			nr_file += nr_pages;
-> +
-> +		if (pc->flags & PCG_MEM)
-> +			nr_mem += nr_pages;
-> +		if (pc->flags & PCG_MEMSW)
-> +			nr_memsw += nr_pages;
-> +		pc->flags = 0;
-> +
-> +		pgpgout++;
-> +	} while (next != page_list);
-> +
-> +	if (memcg)
-> +		uncharge_batch(memcg, pgpgout, nr_mem, nr_memsw,
-> +			       nr_anon, nr_file, nr_huge, page);
-> +}
--- 
-Michal Hocko
-SUSE Labs
+> good hint for backports earlier and later: I'll send it privately to
+> you now, but keep in mind that it may need to be revised if today's
+> patches for 3.16 get revised again (I'll send it to Ben Hutchings
+> only when that's settled).
+>
+> Thanks,
+> Hugh
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
