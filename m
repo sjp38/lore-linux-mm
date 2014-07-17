@@ -1,92 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id ED4356B0035
-	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 13:03:27 -0400 (EDT)
-Received: by mail-lb0-f177.google.com with SMTP id s7so1958071lbd.36
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 10:03:26 -0700 (PDT)
-Received: from mail-la0-x235.google.com (mail-la0-x235.google.com [2a00:1450:4010:c03::235])
-        by mx.google.com with ESMTPS id di1si4266156lac.65.2014.07.17.10.03.25
+Received: from mail-qa0-f45.google.com (mail-qa0-f45.google.com [209.85.216.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 68B1E6B0035
+	for <linux-mm@kvack.org>; Thu, 17 Jul 2014 14:47:14 -0400 (EDT)
+Received: by mail-qa0-f45.google.com with SMTP id cm18so2165641qab.4
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 11:47:14 -0700 (PDT)
+Received: from mail-qa0-x22d.google.com (mail-qa0-x22d.google.com [2607:f8b0:400d:c00::22d])
+        by mx.google.com with ESMTPS id a6si6454130qam.0.2014.07.17.11.47.13
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 17 Jul 2014 10:03:26 -0700 (PDT)
-Received: by mail-la0-f53.google.com with SMTP id gl10so1924232lab.40
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 10:03:25 -0700 (PDT)
-From: Max Filippov <jcmvbkbc@gmail.com>
-Subject: [PATCH v2] mm/highmem: make kmap cache coloring aware
-Date: Thu, 17 Jul 2014 21:03:18 +0400
-Message-Id: <1405616598-14798-1-git-send-email-jcmvbkbc@gmail.com>
+        Thu, 17 Jul 2014 11:47:13 -0700 (PDT)
+Received: by mail-qa0-f45.google.com with SMTP id cm18so2182447qab.18
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 11:47:13 -0700 (PDT)
+From: j.glisse@gmail.com
+Subject: mmu_notifier: preparatory patches for hmm and or iommuv2 v6
+Date: Thu, 17 Jul 2014 14:46:46 -0400
+Message-Id: <1405622809-3797-1-git-send-email-j.glisse@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-arch@vger.kernel.org, linux-mips@linux-mips.org, linux-xtensa@linux-xtensa.org, linux-kernel@vger.kernel.org, Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>, Max Filippov <jcmvbkbc@gmail.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>
 
-From: Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>
+Nutshell few patches to improve mmu_notifier :
+ - patch 1/3 allow to free resources when mm_struct is destroy.
+ - patch 2/3 provide context informations to mmu_notifier listener.
+ - patch 3/3 pass vma to range_start/range_end to avoid duplicate
+   vma lookup inside the listener.
 
-Provide hooks that allow architectures with aliasing cache to align
-mapping address of high pages according to their color. Such architectures
-may enforce similar coloring of low- and high-memory page mappings and
-reuse existing cache management functions to support highmem.
+I restricted myself to set of less controversial patches and i believe
+i have addressed all comments that were previously made. Thanks again
+for all feedback, i hope this version is the good one.
 
-Signed-off-by: Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>
-[ Max: extract architecture-independent part of the original patch, clean
-  up checkpatch and build warnings. ]
-Signed-off-by: Max Filippov <jcmvbkbc@gmail.com>
----
-Changes v1->v2:
-- fix description
+This is somewhat of a v5 but i do not include core hmm with those
+patches. So previous discussion thread :
+v1 http://www.spinics.net/lists/linux-mm/msg72501.html
+v2 http://www.spinics.net/lists/linux-mm/msg74532.html
+v3 http://www.spinics.net/lists/linux-mm/msg74656.html
+v4 http://www.spinics.net/lists/linux-mm/msg75401.html
+v5 http://www.spinics.net/lists/linux-mm/msg75875.html
 
- mm/highmem.c | 19 ++++++++++++++++---
- 1 file changed, 16 insertions(+), 3 deletions(-)
+Cheers,
+JA(C)rA'me Glisse
 
-diff --git a/mm/highmem.c b/mm/highmem.c
-index b32b70c..6898a8b 100644
---- a/mm/highmem.c
-+++ b/mm/highmem.c
-@@ -44,6 +44,14 @@ DEFINE_PER_CPU(int, __kmap_atomic_idx);
-  */
- #ifdef CONFIG_HIGHMEM
- 
-+#ifndef ARCH_PKMAP_COLORING
-+#define set_pkmap_color(pg, cl)		/* */
-+#define get_last_pkmap_nr(p, cl)	(p)
-+#define get_next_pkmap_nr(p, cl)	(((p) + 1) & LAST_PKMAP_MASK)
-+#define is_no_more_pkmaps(p, cl)	(!(p))
-+#define get_next_pkmap_counter(c, cl)	((c) - 1)
-+#endif
-+
- unsigned long totalhigh_pages __read_mostly;
- EXPORT_SYMBOL(totalhigh_pages);
- 
-@@ -161,19 +169,24 @@ static inline unsigned long map_new_virtual(struct page *page)
- {
- 	unsigned long vaddr;
- 	int count;
-+	int color __maybe_unused;
-+
-+	set_pkmap_color(page, color);
-+	last_pkmap_nr = get_last_pkmap_nr(last_pkmap_nr, color);
- 
- start:
- 	count = LAST_PKMAP;
- 	/* Find an empty entry */
- 	for (;;) {
--		last_pkmap_nr = (last_pkmap_nr + 1) & LAST_PKMAP_MASK;
--		if (!last_pkmap_nr) {
-+		last_pkmap_nr = get_next_pkmap_nr(last_pkmap_nr, color);
-+		if (is_no_more_pkmaps(last_pkmap_nr, color)) {
- 			flush_all_zero_pkmaps();
- 			count = LAST_PKMAP;
- 		}
- 		if (!pkmap_count[last_pkmap_nr])
- 			break;	/* Found a usable entry */
--		if (--count)
-+		count = get_next_pkmap_counter(count, color);
-+		if (count > 0)
- 			continue;
- 
- 		/*
--- 
-1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
