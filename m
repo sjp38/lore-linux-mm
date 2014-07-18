@@ -1,120 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 28DF66B0035
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 13:54:33 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id et14so5904938pad.9
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 10:54:32 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id os6si6683526pbb.212.2014.07.18.10.54.31
+Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
+	by kanga.kvack.org (Postfix) with ESMTP id E17146B0035
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 14:00:13 -0400 (EDT)
+Received: by mail-qa0-f41.google.com with SMTP id j7so3323666qaq.14
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:00:13 -0700 (PDT)
+Received: from mail-qg0-x231.google.com (mail-qg0-x231.google.com [2607:f8b0:400d:c04::231])
+        by mx.google.com with ESMTPS id b7si9907013qgd.124.2014.07.18.11.00.13
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Jul 2014 10:54:31 -0700 (PDT)
-Message-ID: <53C95F55.3010608@codeaurora.org>
-Date: Fri, 18 Jul 2014 10:54:29 -0700
-From: Laura Abbott <lauraa@codeaurora.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 18 Jul 2014 11:00:13 -0700 (PDT)
+Received: by mail-qg0-f49.google.com with SMTP id j107so3342034qga.36
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:00:12 -0700 (PDT)
+Date: Fri, 18 Jul 2014 14:00:08 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC 0/2] Memoryless nodes and kworker
+Message-ID: <20140718180008.GC13012@htj.dyndns.org>
+References: <20140717230923.GA32660@linux.vnet.ibm.com>
+ <20140718112039.GA8383@htj.dyndns.org>
+ <CAOhV88PyBK3WxDjG1H0hUbRhRYzPOzV8eim5DuOcgObe-FtFYg@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] CMA/HOTPLUG: clear buffer-head lru before page migration
-References: <53C8C290.90503@lge.com>
-In-Reply-To: <53C8C290.90503@lge.com>
-Content-Type: text/plain; charset=EUC-KR
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAOhV88PyBK3WxDjG1H0hUbRhRYzPOzV8eim5DuOcgObe-FtFYg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gioh Kim <gioh.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, =?EUC-KR?B?J7Howdi89ic=?= <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>
-Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?EUC-KR?B?wMywx8ij?= <gunho.lee@lge.com>, 'Chanho Min' <chanho.min@lge.com>
+To: Nish Aravamudan <nish.aravamudan@gmail.com>
+Cc: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Jiang Liu <jiang.liu@linux.intel.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, linux-ia64@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On 7/17/2014 11:45 PM, Gioh Kim wrote:
-> 
-> Hi,
-> 
-> For page migration of CMA, buffer-heads of lru should be dropped.
-> Please refer to https://lkml.org/lkml/2014/7/4/101 for the history.
-> 
-> I have two solution to drop bhs.
-> One is invalidating entire lru.
-> Another is searching the lru and dropping only one bh that Laura proposed
-> at https://lkml.org/lkml/2012/8/31/313.
-> 
-> I'm not sure which has better performance.
-> So I did performance test on my cortex-a7 platform with Lmbench
-> that has "File & VM system latencies" test.
-> I am attaching the results.
-> The first line is of invalidating entire lru and the second is dropping selected bh.
-> 
-> File & VM system latencies in microseconds - smaller is better
-> -------------------------------------------------------------------------------
-> Host                 OS   0K File      10K File     Mmap    Prot   Page   100fd
->                         Create Delete Create Delete Latency Fault  Fault  selct
-> --------- ------------- ------ ------ ------ ------ ------- ----- ------- -----
-> 10.178.33 Linux 3.10.19   25.1   19.6   32.6   19.7  5098.0 0.666 3.45880 6.506
-> 10.178.33 Linux 3.10.19   24.9   19.5   32.3   19.4  5059.0 0.563 3.46380 6.521
-> 
-> 
-> I tried several times but the result tells that they are the same under 1% gap
-> except Protection Fault.
-> But the latency of Protection Fault is very small and I think it has little effect.
-> 
-> Therefore we can choose anything but I choose invalidating entire lru.
-> The try_to_free_buffers() which is calling drop_buffers() is called by many filesystem code.
-> So I think inserting codes in drop_buffers() can affect the system.
-> And also we cannot distinguish migration type in drop_buffers().
-> 
-> In alloc_contig_range() we can distinguish migration type and invalidate lru if it needs.
-> I think alloc_contig_range() is proper to deal with bh like following patch.
-> 
-> Laura, can I have you name on Acked-by line?
-> Please let me represent my thanks.
-> 
-> Thanks for any feedback.
-> 
-> ------------------------------- 8< ----------------------------------
-> 
-> From 33c894b1bab9bc26486716f0c62c452d3a04d35d Mon Sep 17 00:00:00 2001
-> From: Gioh Kim <gioh.kim@lge.com>
-> Date: Fri, 18 Jul 2014 13:40:01 +0900
-> Subject: [PATCH] CMA/HOTPLUG: clear buffer-head lru before page migration
-> 
-> The bh must be free to migrate a page at which bh is mapped.
-> The reference count of bh is increased when it is installed
-> into lru so that the bh of lru must be freed before migrating the page.
-> 
-> This frees every bh of lru. We could free only bh of migrating page.
-> But searching lru costs more than invalidating entire lru.
-> 
-> Signed-off-by: Gioh Kim <gioh.kim@lge.com>
-> Acked-by: Laura Abbott <lauraa@codeaurora.org>\
+Hello,
 
-I'd prefer if you would remove my Acked-by line until I've actually
-given it :)
+On Fri, Jul 18, 2014 at 10:42:29AM -0700, Nish Aravamudan wrote:
+> So, to be clear, this is not *necessarily* about memoryless nodes. It's
+> about the semantics intended. The workqueue code currently calls
+> cpu_to_node() in a few places, and passes that node into the core MM as a
+> hint about where the memory should come from. However, when memoryless
+> nodes are present, that hint is guaranteed to be wrong, as it's the nearest
+> NUMA node to the CPU (which happens to be the one its on), not the nearest
+> NUMA node with memory. The hint is correctly specified as cpu_to_mem(),
 
-> ---
->  mm/page_alloc.c |    3 +++
->  1 file changed, 3 insertions(+)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index b99643d4..3b474e0 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6369,6 +6369,9 @@ int alloc_contig_range(unsigned long start, unsigned long end,
->         if (ret)
->                 return ret;
-> 
-> +       if (migratetype == MIGRATE_CMA || migratetype == MIGRATE_MOVABLE)
-> +               invalidate_bh_lrus();
-> +
->         ret = __alloc_contig_migrate_range(&cc, start, end);
->         if (ret)
->                 goto done;
+It's telling the allocator the node the CPU is on.  Choosing and
+falling back the actual allocation is the allocator's job.
 
-I agree with the others that the if (...) check doesn't actually help
-anything here and should probably be removed.
+> which does the right thing in the presence or absence of memoryless nodes.
+> And I think encapsulates the hint's semantics correctly -- please give me
+> memory from where I expect it, which is the closest NUMA node.
 
-Thanks,
-Laura
+I don't think it does.  It loses information at too high a layer.
+Workqueue here doesn't care how memory subsystem is structured, it's
+just telling the allocator where it's at and expecting it to do the
+right thing.  Please consider the following scenario.
+
+	A - B - C - D - E
+
+Let's say C is a memory-less node.  If we map from C to either B or D
+from individual users and that node can't serve that memory request,
+the allocator would fall back to A or E respectively when the right
+thing to do would be falling back to D or B respectively, right?
+
+This isn't a huge issue but it shows that this is the wrong layer to
+deal with this issue.  Let the allocators express where they are.
+Choosing and falling back belong to the memory allocator.  That's the
+only place which has all the information that's necessary and those
+details must be contained there.  Please don't leak it to memory
+allocator users.
+
+Thanks.
 
 -- 
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-hosted by The Linux Foundation
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
