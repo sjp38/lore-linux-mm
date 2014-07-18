@@ -1,66 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A9E06B0035
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 02:45:45 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id eu11so4823390pac.17
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 23:45:44 -0700 (PDT)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id rb5si4782102pab.143.2014.07.17.23.45.42
+	by kanga.kvack.org (Postfix) with ESMTP id 1E9016B0037
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 02:52:37 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id eu11so4834524pac.17
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 23:52:36 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id bd17si2412405pdb.190.2014.07.17.23.52.34
         for <linux-mm@kvack.org>;
-        Thu, 17 Jul 2014 23:45:44 -0700 (PDT)
-Message-ID: <53C8C290.90503@lge.com>
-Date: Fri, 18 Jul 2014 15:45:36 +0900
-From: Gioh Kim <gioh.kim@lge.com>
-MIME-Version: 1.0
-Subject: [PATCH] CMA/HOTPLUG: clear buffer-head lru before page migration
-Content-Type: text/plain; charset=EUC-KR
-Content-Transfer-Encoding: 7bit
+        Thu, 17 Jul 2014 23:52:35 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH v13 0/8] MADV_FREE support
+Date: Fri, 18 Jul 2014 15:52:58 +0900
+Message-Id: <1405666386-15095-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, =?EUC-KR?B?J7Howdi89ic=?= <iamjoonsoo.kim@lge.com>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>
-Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?EUC-KR?B?wMywx8ij?= <gunho.lee@lge.com>, 'Chanho Min' <chanho.min@lge.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Minchan Kim <minchan@kernel.org>
 
+This patch enable MADV_FREE hint for madvise syscall, which have
+been supported by other OSes. [PATCH 1] includes the details.
 
-Hi,
+[1] support MADVISE_FREE for !THP page so if VM encounter
+THP page in syscall context, it splits THP page.
+[2-7] is to preparing to call madvise syscall without THP plitting
+[8] enable THP page support for MADV_FREE.
 
-For page migration of CMA, buffer-heads of lru should be dropped.
-Please refer to https://lkml.org/lkml/2014/7/4/101 for the history.
+* from v12
+ * Fix - skip to mark free pte on try_to_free_swap failed page - Kirill
+ * Add more Acked-by from arch maintainers and Kirill
 
-I have two solution to drop bhs.
-One is invalidating entire lru.
-Another is searching the lru and dropping only one bh that Laura proposed
-at https://lkml.org/lkml/2012/8/31/313.
+* From v11
+ * Fix arm build - Steve
+ * Separate patch for arm and arm64 - Steve
+ * Remove unnecessary check - Kirill
+ * Skip non-vm_normal page - Kirill
+ * Add Acked-by - Zhang
+ * Sparc64 build fix
+ * Pagetable walker THP handling fix
 
-I'm not sure which has better performance.
-So I did performance test on my cortex-a7 platform with Lmbench
-that has "File & VM system latencies" test.
-I am attaching the results.
-The first line is of invalidating entire lru and the second is dropping selected bh.
+* From v10
+ * Add Acked-by from arch stuff(x86, s390)
+ * Pagewalker based pagetable working - Kirill
+ * Fix try_to_unmap_one broken with hwpoison - Kirill
+ * Use VM_BUG_ON_PAGE in madvise_free_pmd - Kirill
+ * Fix pgtable-3level.h for arm - Steve
 
-File & VM system latencies in microseconds - smaller is better
--------------------------------------------------------------------------------
-Host                 OS   0K File      10K File     Mmap    Prot   Page   100fd
-                        Create Delete Create Delete Latency Fault  Fault  selct
---------- ------------- ------ ------ ------ ------ ------- ----- ------- -----
-10.178.33 Linux 3.10.19   25.1   19.6   32.6   19.7  5098.0 0.666 3.45880 6.506
-10.178.33 Linux 3.10.19   24.9   19.5   32.3   19.4  5059.0 0.563 3.46380 6.521
+* From v9
+ * Add Acked-by - Rik
+ * Add THP page support - Kirill
 
+* From v8
+ * Rebased-on v3.16-rc2-mmotm-2014-06-25-16-44
 
-I tried several times but the result tells that they are the same under 1% gap
-except Protection Fault.
-But the latency of Protection Fault is very small and I think it has little effect.
+* From v7
+ * Rebased-on next-20140613
 
-Therefore we can choose anything but I choose invalidating entire lru.
-The try_to_free_buffers() which is calling drop_buffers() is called by many filesystem code.
-So I think inserting codes in drop_buffers() can affect the system.
-And also we cannot distinguish migration type in drop_buffers().
+* From v6
+ * Remove page from swapcache in syscal time
+ * Move utility functions from memory.c to madvise.c - Johannes
+ * Rename untilify functtions - Johannes
+ * Remove unnecessary checks from vmscan.c - Johannes
+ * Rebased-on v3.15-rc5-mmotm-2014-05-16-16-56
+ * Drop Reviewe-by because there was some changes since then.
 
-In alloc_contig_range() we can distinguish migration type and invalidate lru if it needs.
-I think alloc_contig_range() is proper to deal with bh like following patch.
+* From v5
+ * Fix PPC problem which don't flush TLB - Rik
+ * Remove unnecessary lazyfree_range stub function - Rik
+ * Rebased on v3.15-rc5
 
-Laura, can I have you name on Acked-by line?
-Please let me represent my thanks.
+* From v4
+ * Add Reviewed-by: Zhang Yanfei
+ * Rebase on v3.15-rc1-mmotm-2014-04-15-16-14
 
-Thanks for any feedback.
+* From v3
+ * Add "how to work part" in description - Zhang
+ * Add page_discardable utility function - Zhang
+ * Clean up
 
-------------------------------- 8< ----------------------------------
+* From v2
+ * Remove forceful dirty marking of swap-readed page - Johannes
+ * Remove deactivation logic of lazyfreed page
+ * Rebased on 3.14
+ * Remove RFC tag
+
+* From v1
+ * Use custom page table walker for madvise_free - Johannes
+ * Remove PG_lazypage flag - Johannes
+ * Do madvise_dontneed instead of madvise_freein swapless system
+
+Minchan Kim (8):
+  [1] mm: support madvise(MADV_FREE)
+  [2] x86: add pmd_[dirty|mkclean] for THP
+  [3] sparc: add pmd_[dirty|mkclean] for THP
+  [4] powerpc: add pmd_[dirty|mkclean] for THP
+  [5] s390: add pmd_[dirty|mkclean] for THP
+  [6] arm: add pmd_[dirty|mkclean] for THP
+  [7] arm64: add pmd_[dirty|mkclean] for THP
+  [8] mm: Don't split THP page when syscall is called
+
+ arch/arm/include/asm/pgtable-3level.h    |   3 +
+ arch/arm64/include/asm/pgtable.h         |   2 +
+ arch/powerpc/include/asm/pgtable-ppc64.h |   2 +
+ arch/s390/include/asm/pgtable.h          |  12 +++
+ arch/sparc/include/asm/pgtable_64.h      |  16 ++++
+ arch/x86/include/asm/pgtable.h           |  10 ++
+ include/linux/huge_mm.h                  |   4 +
+ include/linux/rmap.h                     |   9 +-
+ include/linux/vm_event_item.h            |   1 +
+ include/uapi/asm-generic/mman-common.h   |   1 +
+ mm/huge_memory.c                         |  35 +++++++
+ mm/madvise.c                             | 159 +++++++++++++++++++++++++++++++
+ mm/rmap.c                                |  46 ++++++++-
+ mm/vmscan.c                              |  64 +++++++++----
+ mm/vmstat.c                              |   1 +
+ 15 files changed, 345 insertions(+), 20 deletions(-)
+
+-- 
+2.0.0
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
