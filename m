@@ -1,97 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 585B86B0036
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 04:05:12 -0400 (EDT)
-Received: by mail-wg0-f42.google.com with SMTP id l18so3027541wgh.1
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 01:05:11 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id mw6si1882142wib.99.2014.07.18.01.05.09
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 18 Jul 2014 01:05:09 -0700 (PDT)
-Message-ID: <53C8D532.70305@suse.cz>
-Date: Fri, 18 Jul 2014 10:05:06 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id E3EA06B0036
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 04:10:15 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id w10so4628143pde.32
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 01:10:15 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id 1si2523325pdf.153.2014.07.18.01.10.14
+        for <linux-mm@kvack.org>;
+        Fri, 18 Jul 2014 01:10:14 -0700 (PDT)
+Message-ID: <53C8D6A8.3040400@cn.fujitsu.com>
+Date: Fri, 18 Jul 2014 16:11:20 +0800
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] shmem: fix faulting into a hole while it's punched,
- take 3
-References: <alpine.LSU.2.11.1407150247540.2584@eggly.anvils> <53C7F55B.8030307@suse.cz> <alpine.LSU.2.11.1407171602370.2544@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1407171602370.2544@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [RFC 1/2] workqueue: use the nearest NUMA node, not the local
+ one
+References: <20140717230923.GA32660@linux.vnet.ibm.com> <20140717230958.GB32660@linux.vnet.ibm.com>
+In-Reply-To: <20140717230958.GB32660@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Lukas Czerner <lczerner@redhat.com>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: benh@kernel.crashing.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Jiang Liu <jiang.liu@linux.intel.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, linux-ia64@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>
 
-On 07/18/2014 01:34 AM, Hugh Dickins wrote:
-> On Thu, 17 Jul 2014, Vlastimil Babka wrote:
->> On 07/15/2014 12:28 PM, Hugh Dickins wrote:
->> > In the end I decided that we had better look at it as two problems,
->> > the trinity faulting starvation, and the indefinite punching loop,
->> > so 1/2 and 2/2 present both solutions: belt and braces.
->> 
->> I tested that with my reproducer and it was OK, but as I already said, it's
->> not trinity so I didn't observe the new problems in the first place.
+Hi,
+
+I'm curious about what will it happen when alloc_pages_node(memoryless_node).
+
+If the memory is allocated from the most preferable node for the @memoryless_node,
+why we need to bother and use cpu_to_mem() in the caller site?
+
+If not, why the memory allocation subsystem refuses to find a preferable node
+for @memoryless_node in this case? Does it intend on some purpose or
+it can't find in some cases?
+
+Thanks,
+Lai
+
+Added CC to Tejun (workqueue maintainer).
+
+On 07/18/2014 07:09 AM, Nishanth Aravamudan wrote:
+> In the presence of memoryless nodes, the workqueue code incorrectly uses
+> cpu_to_node() to determine what node to prefer memory allocations come
+> from. cpu_to_mem() should be used instead, which will use the nearest
+> NUMA node with memory.
 > 
-> Yes, but thanks for doing so anyway.
-
-Now also tested vanilla 3.2.61, also OK.
-
->> 
->> > Which may be the best for fixing, but the worst for ease of backporting.
->> > Vlastimil, I have prepared (and lightly tested) a 3.2.61-based version
->> > of the combination of f00cdc6df7d7 and 1/2 and 2/2 (basically, I moved
->> > vmtruncate_range from mm/truncate.c to mm/shmem.c, since nothing but
->> > shmem ever implemented the truncate_range method).  It should give a
->> 
->> I don't know how much stable kernel updates are supposed to care about
->> out-of-tree modules,
+> Signed-off-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
 > 
-> I suggest that stable kernel updates do not need to care about
-> out-of-tree modules: for so long as they are out of tree, they have
-> to look after their own compatibility from one version to another.
-> I have no desire to break them gratuitously, but it's not for me
-> to spend more time accommodating them.
-
-Fair enough.
-
-> Now, SLES and RHEL and other distros may have different priorities
-> from that: if they distribute additional filesystems, which happen to
-> support the ->truncate_range() method, or work with partners who supply
-> such filesystems, then they may want to rework the shmem-specific
-> vmtruncate_range() to allow for those - that's up to them.
-
-Sure, it wasn't my intention to raise any enterprise kernel specific concerns here.
-
->> but doesn't the change mean that an out-of-tree FS
->> supporting truncate_range (if such thing exists) would effectively stop
->> supporting madvise(MADV_REMOVE) after this change?
+> diff --git a/kernel/workqueue.c b/kernel/workqueue.c
+> index 35974ac..0bba022 100644
+> --- a/kernel/workqueue.c
+> +++ b/kernel/workqueue.c
+> @@ -3547,7 +3547,12 @@ static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs)
+>  		for_each_node(node) {
+>  			if (cpumask_subset(pool->attrs->cpumask,
+>  					   wq_numa_possible_cpumask[node])) {
+> -				pool->node = node;
+> +				/*
+> +				 * We could use local_memory_node(node) here,
+> +				 * but it is expensive and the following caches
+> +				 * the same value.
+> +				 */
+> +				pool->node = cpu_to_mem(cpumask_first(pool->attrs->cpumask));
+>  				break;
+>  			}
+>  		}
+> @@ -4921,7 +4926,7 @@ static int __init init_workqueues(void)
+>  			pool->cpu = cpu;
+>  			cpumask_copy(pool->attrs->cpumask, cpumask_of(cpu));
+>  			pool->attrs->nice = std_nice[i++];
+> -			pool->node = cpu_to_node(cpu);
+> +			pool->node = cpu_to_mem(cpu);
+>  
+>  			/* alloc pool ID */
+>  			mutex_lock(&wq_pool_mutex);
 > 
-> Yes, it would need to be reworked a little for them: I've not thought
-> through what more would need to be done.  But it seems odd to me that
-> an out-of-tree driver would support it, when it got no take up at all
-> from in-tree filesystems, even from those which went on to support
-> hole-punching in fallocate() (until the tmpfs series brought them in).
-> 
-> Or perhaps MADV_REMOVE-support is their secret sauce :-?  In that case
-> I would expect them to support FALLOC_FL_PUNCH_HOLE already, and prefer
-> a backport of v3.5's merging of the madvise and fallocate routes.
-> 
->> But hey it's still madvise so maybe we don't need to care.
-> 
-> That's an argument I would not use, not in Linus's kernel anyway:
-> users may have come to rely upon the behaviour of madvise(MADV_REMOVE):
-> never mind that it says "advise", I would not be happy to break them.
-
-Right.
-
->> And I suppose kernels where
->> FALLOC_FL_PUNCH_HOLE is supported, can be backported normally.
-> 
-> Yes.
-> 
-> Hugh
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 > 
 
 --
