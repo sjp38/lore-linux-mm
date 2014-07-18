@@ -1,175 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f179.google.com (mail-vc0-f179.google.com [209.85.220.179])
-	by kanga.kvack.org (Postfix) with ESMTP id A6ED46B0037
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 14:12:02 -0400 (EDT)
-Received: by mail-vc0-f179.google.com with SMTP id hq11so6419849vcb.38
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:12:02 -0700 (PDT)
-Received: from mail-vc0-x22a.google.com (mail-vc0-x22a.google.com [2607:f8b0:400c:c03::22a])
-        by mx.google.com with ESMTPS id z8si6636562ven.51.2014.07.18.11.12.02
+Received: from mail-vc0-f175.google.com (mail-vc0-f175.google.com [209.85.220.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 563396B0037
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 14:19:51 -0400 (EDT)
+Received: by mail-vc0-f175.google.com with SMTP id hu12so7937747vcb.34
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:19:51 -0700 (PDT)
+Received: from mail-qc0-x22b.google.com (mail-qc0-x22b.google.com [2607:f8b0:400d:c01::22b])
+        by mx.google.com with ESMTPS id ce2si11737750qcb.7.2014.07.18.11.19.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 18 Jul 2014 11:12:02 -0700 (PDT)
-Received: by mail-vc0-f170.google.com with SMTP id lf12so8103008vcb.1
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:12:02 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20140718180008.GC13012@htj.dyndns.org>
-References: <20140717230923.GA32660@linux.vnet.ibm.com>
-	<20140718112039.GA8383@htj.dyndns.org>
-	<CAOhV88PyBK3WxDjG1H0hUbRhRYzPOzV8eim5DuOcgObe-FtFYg@mail.gmail.com>
-	<20140718180008.GC13012@htj.dyndns.org>
-Date: Fri, 18 Jul 2014 11:12:01 -0700
-Message-ID: <CAOhV88O03zCsv_3eadEKNv1D1RoBmjWRFNhPjEHawF9s71U0JA@mail.gmail.com>
+        Fri, 18 Jul 2014 11:19:50 -0700 (PDT)
+Received: by mail-qc0-f171.google.com with SMTP id i17so3721513qcy.30
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:19:50 -0700 (PDT)
+Date: Fri, 18 Jul 2014 14:19:47 -0400
+From: Tejun Heo <tj@kernel.org>
 Subject: Re: [RFC 0/2] Memoryless nodes and kworker
-From: Nish Aravamudan <nish.aravamudan@gmail.com>
-Content-Type: multipart/alternative; boundary=001a11c3bc7aa94e1004fe7bb104
+Message-ID: <20140718181947.GE13012@htj.dyndns.org>
+References: <20140717230923.GA32660@linux.vnet.ibm.com>
+ <20140718112039.GA8383@htj.dyndns.org>
+ <CAOhV88PyBK3WxDjG1H0hUbRhRYzPOzV8eim5DuOcgObe-FtFYg@mail.gmail.com>
+ <20140718180008.GC13012@htj.dyndns.org>
+ <CAOhV88O03zCsv_3eadEKNv1D1RoBmjWRFNhPjEHawF9s71U0JA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAOhV88O03zCsv_3eadEKNv1D1RoBmjWRFNhPjEHawF9s71U0JA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
+To: Nish Aravamudan <nish.aravamudan@gmail.com>
 Cc: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Jiang Liu <jiang.liu@linux.intel.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, linux-ia64@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
---001a11c3bc7aa94e1004fe7bb104
-Content-Type: text/plain; charset=UTF-8
+Hello,
 
-Hi Tejun,
+On Fri, Jul 18, 2014 at 11:12:01AM -0700, Nish Aravamudan wrote:
+> why aren't these callers using kthread_create_on_cpu()? That API was
 
-[I found the other thread where you made these points, thanks you for
-expressing them so clearly again!]
+It is using that.  There just are other data structures too.
 
-On Fri, Jul 18, 2014 at 11:00 AM, Tejun Heo <tj@kernel.org> wrote:
->
-> Hello,
->
-> On Fri, Jul 18, 2014 at 10:42:29AM -0700, Nish Aravamudan wrote:
-> > So, to be clear, this is not *necessarily* about memoryless nodes. It's
-> > about the semantics intended. The workqueue code currently calls
-> > cpu_to_node() in a few places, and passes that node into the core MM as
-a
-> > hint about where the memory should come from. However, when memoryless
-> > nodes are present, that hint is guaranteed to be wrong, as it's the
-nearest
-> > NUMA node to the CPU (which happens to be the one its on), not the
-nearest
-> > NUMA node with memory. The hint is correctly specified as cpu_to_mem(),
->
-> It's telling the allocator the node the CPU is on.  Choosing and
-> falling back the actual allocation is the allocator's job.
+> already change to use cpu_to_mem() [so one change, rather than of all over
+> the kernel source]. We could change it back to cpu_to_node and push down
+> the knowledge about the fallback.
 
-Ok, I agree with you then, if that's all the semantic is supposed to be.
+And once it's properly solved, please convert back kthread to use
+cpu_to_node() too.  We really shouldn't be sprinkling the new subtly
+different variant across the kernel.  It's wrong and confusing.
 
-But looking at the comment for kthread_create_on_node:
+> Yes, this is a good point. But honestly, we're not really even to the point
+> of talking about fallback here, at least in my testing, going off-node at
+> all causes SLUB-configured slabs to deactivate, which then leads to an
+> explosion in the unreclaimable slab.
 
- * If thread is going to be bound on a particular cpu, give its node
- * in @node, to get NUMA affinity for kthread stack, or else give -1.
+I don't think moving the logic inside allocator proper is a huge
+amount of work and this isn't the first spillage of this subtlety out
+of allocator proper.  Fortunately, it hasn't spread too much yet.
+Let's please stop it here.  I'm not saying you shouldn't or can't fix
+the off-node allocation.
 
-so the API interprets it as a suggestion for the affinity itself, *not* the
-node the kthread should be on. Piddly, yes, but actually I have another
-thought altogether, and in reviewing Jiang's patches this seems like the
-right approach:
+Thanks.
 
-why aren't these callers using kthread_create_on_cpu()? That API was
-already change to use cpu_to_mem() [so one change, rather than of all over
-the kernel source]. We could change it back to cpu_to_node and push down
-the knowledge about the fallback.
-
-> > which does the right thing in the presence or absence of memoryless
-nodes.
-> > And I think encapsulates the hint's semantics correctly -- please give
-me
-> > memory from where I expect it, which is the closest NUMA node.
->
-> I don't think it does.  It loses information at too high a layer.
-> Workqueue here doesn't care how memory subsystem is structured, it's
-> just telling the allocator where it's at and expecting it to do the
-> right thing.  Please consider the following scenario.
->
->         A - B - C - D - E
->
-> Let's say C is a memory-less node.  If we map from C to either B or D
-> from individual users and that node can't serve that memory request,
-> the allocator would fall back to A or E respectively when the right
-> thing to do would be falling back to D or B respectively, right?
-
-Yes, this is a good point. But honestly, we're not really even to the point
-of talking about fallback here, at least in my testing, going off-node at
-all causes SLUB-configured slabs to deactivate, which then leads to an
-explosion in the unreclaimable slab.
-
-> This isn't a huge issue but it shows that this is the wrong layer to
-> deal with this issue.  Let the allocators express where they are.
-> Choosing and falling back belong to the memory allocator.  That's the
-> only place which has all the information that's necessary and those
-> details must be contained there.  Please don't leak it to memory
-> allocator users.
-
-Ok, I will continue to work at that level of abstraction.
-
-Thanks,
-Nish
-
---001a11c3bc7aa94e1004fe7bb104
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><div>Hi Tejun,<br><br></div>[I found the other thread wher=
-e you made these points, thanks you for expressing them so clearly again!]<=
-br><div><div><div><br>On Fri, Jul 18, 2014 at 11:00 AM, Tejun Heo &lt;<a hr=
-ef=3D"mailto:tj@kernel.org">tj@kernel.org</a>&gt; wrote:<br>
-&gt;<br>&gt; Hello,<br>&gt;<br>&gt; On Fri, Jul 18, 2014 at 10:42:29AM -070=
-0, Nish Aravamudan wrote:<br>&gt; &gt; So, to be clear, this is not *necess=
-arily* about memoryless nodes. It&#39;s<br>&gt; &gt; about the semantics in=
-tended. The workqueue code currently calls<br>
-&gt; &gt; cpu_to_node() in a few places, and passes that node into the core=
- MM as a<br>&gt; &gt; hint about where the memory should come from. However=
-, when memoryless<br>&gt; &gt; nodes are present, that hint is guaranteed t=
-o be wrong, as it&#39;s the nearest<br>
-&gt; &gt; NUMA node to the CPU (which happens to be the one its on), not th=
-e nearest<br>&gt; &gt; NUMA node with memory. The hint is correctly specifi=
-ed as cpu_to_mem(),<br>&gt;<br>&gt; It&#39;s telling the allocator the node=
- the CPU is on. =C2=A0Choosing and<br>
-&gt; falling back the actual allocation is the allocator&#39;s job.<br><br>=
-</div><div>Ok, I agree with you then, if that&#39;s all the semantic is sup=
-posed to be.<br></div><div><br>But looking at the comment for kthread_creat=
-e_on_node:<br>
-<br>=C2=A0* If thread is going to be bound on a particular cpu, give its no=
-de<br>=C2=A0* in @node, to get NUMA affinity for kthread stack, or else giv=
-e -1.<br><br></div><div>so the API interprets it as a suggestion for the af=
-finity itself, *not* the node the kthread should be on. Piddly, yes, but ac=
-tually I have another thought altogether, and in reviewing Jiang&#39;s patc=
-hes this seems like the right approach:<br>
-<br></div><div>why aren&#39;t these callers using kthread_create_on_cpu()? =
-That API was already change to use cpu_to_mem() [so one change, rather than=
- of all over the kernel source]. We could change it back to cpu_to_node and=
- push down the knowledge about the fallback.<br>
-</div><div><br>&gt; &gt; which does the right thing in the presence or abse=
-nce of memoryless nodes.<br>&gt; &gt; And I think encapsulates the hint&#39=
-;s semantics correctly -- please give me<br>&gt; &gt; memory from where I e=
-xpect it, which is the closest NUMA node.<br>
-&gt;<br>&gt; I don&#39;t think it does. =C2=A0It loses information at too h=
-igh a layer.<br>&gt; Workqueue here doesn&#39;t care how memory subsystem i=
-s structured, it&#39;s<br>&gt; just telling the allocator where it&#39;s at=
- and expecting it to do the<br>
-&gt; right thing. =C2=A0Please consider the following scenario.<br>&gt;<br>=
-&gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 A - B - C - D - E<br>&gt;<br>&gt; Let&#39;=
-s say C is a memory-less node. =C2=A0If we map from C to either B or D<br>&=
-gt; from individual users and that node can&#39;t serve that memory request=
-,<br>
-&gt; the allocator would fall back to A or E respectively when the right<br=
->&gt; thing to do would be falling back to D or B respectively, right?<br><=
-br></div><div>Yes, this is a good point. But honestly, we&#39;re not really=
- even to the point of talking about fallback here, at least in my testing, =
-going off-node at all causes SLUB-configured slabs to deactivate, which the=
-n leads to an explosion in the unreclaimable slab.<br>
-</div><div><br>&gt; This isn&#39;t a huge issue but it shows that this is t=
-he wrong layer to<br>&gt; deal with this issue. =C2=A0Let the allocators ex=
-press where they are.<br>&gt; Choosing and falling back belong to the memor=
-y allocator. =C2=A0That&#39;s the<br>
-&gt; only place which has all the information that&#39;s necessary and thos=
-e<br>&gt; details must be contained there. =C2=A0Please don&#39;t leak it t=
-o memory<br>&gt; allocator users.<br><br></div><div>Ok, I will continue to =
-work at that level of abstraction.<br>
-<br>Thanks,<br>Nish<br></div></div></div></div>
-
---001a11c3bc7aa94e1004fe7bb104--
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
