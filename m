@@ -1,69 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 16A046B0037
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 02:54:47 -0400 (EDT)
-Received: by mail-wi0-f171.google.com with SMTP id hi2so303872wib.10
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 23:54:47 -0700 (PDT)
-Received: from mail-wg0-x22d.google.com (mail-wg0-x22d.google.com [2a00:1450:400c:c00::22d])
-        by mx.google.com with ESMTPS id o2si9022684wje.108.2014.07.17.23.54.46
+	by kanga.kvack.org (Postfix) with ESMTP id 5E81E6B0037
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 03:12:50 -0400 (EDT)
+Received: by mail-wi0-f171.google.com with SMTP id hi2so325979wib.10
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 00:12:49 -0700 (PDT)
+Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com [2a00:1450:400c:c05::22c])
+        by mx.google.com with ESMTPS id u19si9109560wjw.95.2014.07.18.00.12.48
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 17 Jul 2014 23:54:46 -0700 (PDT)
-Received: by mail-wg0-f45.google.com with SMTP id x12so3100413wgg.16
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 23:54:46 -0700 (PDT)
-Date: Fri, 18 Jul 2014 08:54:44 +0200
+        Fri, 18 Jul 2014 00:12:48 -0700 (PDT)
+Received: by mail-wi0-f172.google.com with SMTP id n3so322089wiv.17
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 00:12:48 -0700 (PDT)
+Date: Fri, 18 Jul 2014 09:12:46 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm, writeback: prevent race when calculating dirty limits
-Message-ID: <20140718065444.GA21453@dhcp22.suse.cz>
-References: <alpine.DEB.2.02.1407161733200.23892@chino.kir.corp.google.com>
+Subject: Re: [patch 13/13] mm: memcontrol: rewrite uncharge API
+Message-ID: <20140718071246.GA21565@dhcp22.suse.cz>
+References: <1403124045-24361-1-git-send-email-hannes@cmpxchg.org>
+ <1403124045-24361-14-git-send-email-hannes@cmpxchg.org>
+ <20140715082545.GA9366@dhcp22.suse.cz>
+ <20140715121935.GB9366@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1407161733200.23892@chino.kir.corp.google.com>
+In-Reply-To: <20140715121935.GB9366@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, stable@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed 16-07-14 17:36:49, David Rientjes wrote:
-> Setting vm_dirty_bytes and dirty_background_bytes is not protected by any 
-> serialization.
+On Tue 15-07-14 14:19:35, Michal Hocko wrote:
+> [...]
+> > +/**
+> > + * mem_cgroup_migrate - migrate a charge to another page
+> > + * @oldpage: currently charged page
+> > + * @newpage: page to transfer the charge to
+> > + * @lrucare: page might be on LRU already
 > 
-> Therefore, it's possible for either variable to change value after the 
-> test in global_dirty_limits() to determine whether available_memory needs 
-> to be initialized or not.
+> which one? I guess the newpage?
 > 
-> Always ensure that available_memory is properly initialized.
+> > + *
+> > + * Migrate the charge from @oldpage to @newpage.
+> > + *
+> > + * Both pages must be locked, @newpage->mapping must be set up.
+> > + */
+> > +void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
+> > +			bool lrucare)
+> > +{
+> > +	unsigned int nr_pages = 1;
+> > +	struct page_cgroup *pc;
+> > +
+> > +	VM_BUG_ON_PAGE(!PageLocked(oldpage), oldpage);
+> > +	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
+> > +	VM_BUG_ON_PAGE(PageLRU(oldpage), oldpage);
+> > +	VM_BUG_ON_PAGE(PageLRU(newpage), newpage);
 > 
-> Cc: stable@vger.kernel.org
-> Signed-off-by: David Rientjes <rientjes@google.com>
+> 	VM_BUG_ON_PAGE(PageLRU(newpage) && !lruvec, newpage);
 
-Makes sense to me
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-> ---
->  mm/page-writeback.c | 5 +----
->  1 file changed, 1 insertion(+), 4 deletions(-)
-> 
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -261,14 +261,11 @@ static unsigned long global_dirtyable_memory(void)
->   */
->  void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
->  {
-> +	const unsigned long available_memory = global_dirtyable_memory();
->  	unsigned long background;
->  	unsigned long dirty;
-> -	unsigned long uninitialized_var(available_memory);
->  	struct task_struct *tsk;
->  
-> -	if (!vm_dirty_bytes || !dirty_background_bytes)
-> -		available_memory = global_dirtyable_memory();
-> -
->  	if (vm_dirty_bytes)
->  		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
->  	else
+I guess everything except these two notes got addressed.
 
 -- 
 Michal Hocko
