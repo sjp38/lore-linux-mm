@@ -1,67 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 568876B0036
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 04:35:27 -0400 (EDT)
-Received: by mail-we0-f182.google.com with SMTP id k48so3027763wev.27
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 01:35:26 -0700 (PDT)
-Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id hg18si2053183wib.93.2014.07.18.01.35.23
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 18 Jul 2014 01:35:24 -0700 (PDT)
-From: Wang Nan <wangnan0@huawei.com>
-Subject: [PATCH 4/5] memory-hotplug: sh: suitable memory should go to ZONE_MOVABLE
-Date: Fri, 18 Jul 2014 15:56:02 +0800
-Message-ID: <1405670163-53747-5-git-send-email-wangnan0@huawei.com>
-In-Reply-To: <1405670163-53747-1-git-send-email-wangnan0@huawei.com>
-References: <1405670163-53747-1-git-send-email-wangnan0@huawei.com>
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id C16AE6B0035
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 04:49:29 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id fp1so4635733pdb.5
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 01:49:29 -0700 (PDT)
+Received: from cam-admin0.cambridge.arm.com (cam-admin0.cambridge.arm.com. [217.140.96.50])
+        by mx.google.com with ESMTP id v3si2558152pdp.514.2014.07.18.01.49.28
+        for <linux-mm@kvack.org>;
+        Fri, 18 Jul 2014 01:49:28 -0700 (PDT)
+Date: Fri, 18 Jul 2014 09:48:47 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v13 6/8] arm: add pmd_[dirty|mkclean] for THP
+Message-ID: <20140718084847.GC9548@arm.com>
+References: <1405666386-15095-1-git-send-email-minchan@kernel.org>
+ <1405666386-15095-7-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1405666386-15095-7-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@redhat.com>, Yinghai Lu <yinghai@kernel.org>, Mel
- Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Pei Feiyue <peifeiyue@huawei.com>, linux-mm@kvack.org, x86@kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Catalin Marinas <Catalin.Marinas@arm.com>, Steve Capper <steve.capper@linaro.org>, Russell King <linux@arm.linux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-This patch add new memory to ZONE_MOVABLE if movable zone is setup
-and lower than newly added memory for sh.
+On Fri, Jul 18, 2014 at 07:53:04AM +0100, Minchan Kim wrote:
+> MADV_FREE needs pmd_dirty and pmd_mkclean for detecting recent
+> overwrite of the contents since MADV_FREE syscall is called for
+> THP page.
+> 
+> This patch adds pmd_dirty and pmd_mkclean for THP page MADV_FREE
+> support.
+> 
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: Steve Capper <steve.capper@linaro.org>
+> Cc: Russell King <linux@arm.linux.org.uk>
+> Cc: linux-arm-kernel@lists.infradead.org
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  arch/arm/include/asm/pgtable-3level.h | 3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
+> index 85c60adc8b60..830f84f2d277 100644
+> --- a/arch/arm/include/asm/pgtable-3level.h
+> +++ b/arch/arm/include/asm/pgtable-3level.h
+> @@ -220,6 +220,8 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
+>  #define pmd_trans_splitting(pmd) (pmd_val(pmd) & PMD_SECT_SPLITTING)
+>  #endif
+>  
+> +#define pmd_dirty(pmd)		(pmd_val(pmd) & PMD_SECT_DIRTY)
+> +
+>  #define PMD_BIT_FUNC(fn,op) \
+>  static inline pmd_t pmd_##fn(pmd_t pmd) { pmd_val(pmd) op; return pmd; }
+>  
+> @@ -228,6 +230,7 @@ PMD_BIT_FUNC(mkold,	&= ~PMD_SECT_AF);
+>  PMD_BIT_FUNC(mksplitting, |= PMD_SECT_SPLITTING);
+>  PMD_BIT_FUNC(mkwrite,   &= ~PMD_SECT_RDONLY);
+>  PMD_BIT_FUNC(mkdirty,   |= PMD_SECT_DIRTY);
+> +PMD_BIT_FUNC(mkclean,   &= ~PMD_SECT_DIRTY);
+>  PMD_BIT_FUNC(mkyoung,   |= PMD_SECT_AF);
+>  
+>  #define pmd_mkhuge(pmd)		(__pmd(pmd_val(pmd) & ~PMD_TABLE_BIT))
 
-Signed-off-by: Wang Nan <wangnan0@huawei.com>
----
- arch/sh/mm/init.c | 13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+Looks fine to me, but again, it would be great if Steve can take a look too.
 
-diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
-index 2d089fe..ff9decc 100644
---- a/arch/sh/mm/init.c
-+++ b/arch/sh/mm/init.c
-@@ -487,16 +487,19 @@ void free_initrd_mem(unsigned long start, unsigned long end)
- #ifdef CONFIG_MEMORY_HOTPLUG
- int arch_add_memory(int nid, u64 start, u64 size)
- {
--	pg_data_t *pgdat;
-+	pg_data_t *pgdat = NODE_DATA(nid);
- 	unsigned long start_pfn = start >> PAGE_SHIFT;
- 	unsigned long nr_pages = size >> PAGE_SHIFT;
-+	struct zone *zone = pgdat->node_zones + ZONE_NORMAL;
-+	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
- 	int ret;
- 
--	pgdat = NODE_DATA(nid);
-+	if (!zone_is_empty(movable_zone))
-+		if (zone_spans_pfn(movable_zone, start_pfn) ||
-+				(zone_end_pfn(movable_zone) <= start_pfn))
-+			zone = movable_zone;
- 
--	/* We only have ZONE_NORMAL, so this is easy.. */
--	ret = __add_pages(nid, pgdat->node_zones + ZONE_NORMAL,
--				start_pfn, nr_pages);
-+	ret = __add_pages(nid, zone, start_pfn, nr_pages);
- 	if (unlikely(ret))
- 		printk("%s: Failed, __add_pages() == %d\n", __func__, ret);
- 
--- 
-1.8.4
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
