@@ -1,82 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D1336B0035
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:07:26 -0400 (EDT)
-Received: by mail-we0-f181.google.com with SMTP id k48so3574920wev.40
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 08:07:25 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id hl12si4282198wib.101.2014.07.18.08.07.24
+Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 78B6C6B0035
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:12:56 -0400 (EDT)
+Received: by mail-qa0-f54.google.com with SMTP id k15so3131018qaq.27
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 08:12:56 -0700 (PDT)
+Received: from mail-qa0-x22d.google.com (mail-qa0-x22d.google.com [2607:f8b0:400d:c00::22d])
+        by mx.google.com with ESMTPS id w8si11940311qad.60.2014.07.18.08.12.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 18 Jul 2014 08:07:24 -0700 (PDT)
-Date: Fri, 18 Jul 2014 11:07:19 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm: memcontrol: use page lists for uncharge batching
-Message-ID: <20140718150719.GH29639@cmpxchg.org>
-References: <1404759358-29331-1-git-send-email-hannes@cmpxchg.org>
- <20140717152936.GF8011@dhcp22.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 18 Jul 2014 08:12:55 -0700 (PDT)
+Received: by mail-qa0-f45.google.com with SMTP id cm18so3080931qab.32
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 08:12:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140717152936.GF8011@dhcp22.suse.cz>
+In-Reply-To: <20140718144554.GG29639@cmpxchg.org>
+References: <1403124045-24361-1-git-send-email-hannes@cmpxchg.org>
+	<1403124045-24361-14-git-send-email-hannes@cmpxchg.org>
+	<20140715082545.GA9366@dhcp22.suse.cz>
+	<20140715121935.GB9366@dhcp22.suse.cz>
+	<20140718071246.GA21565@dhcp22.suse.cz>
+	<20140718144554.GG29639@cmpxchg.org>
+Date: Fri, 18 Jul 2014 17:12:54 +0200
+Message-ID: <CAJfpegt9k+YULet3vhmG3br7zSiHy-DRL+MiEE=HRzcs+mLzbw@mail.gmail.com>
+Subject: Re: [patch 13/13] mm: memcontrol: rewrite uncharge API
+From: Miklos Szeredi <miklos@szeredi.hu>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Thu, Jul 17, 2014 at 05:29:36PM +0200, Michal Hocko wrote:
-> On Mon 07-07-14 14:55:58, Johannes Weiner wrote:
-> > Pages are now uncharged at release time, and all sources of batched
-> > uncharges operate on lists of pages.  Directly use those lists, and
-> > get rid of the per-task batching state.
-> > 
-> > This also batches statistics accounting, in addition to the res
-> > counter charges, to reduce IRQ-disabling and re-enabling.
-> 
-> It is probably worth noticing that there is a higher chance of missing
-> threshold events now when we can accumulate huge number of uncharges
-> during munmaps. I do not think this is earth shattering and the overall
-> improvement is worth it but changelog should mention it.
+On Fri, Jul 18, 2014 at 4:45 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
 
-Does this actually matter, though?  We might deliver events a few
-pages later than before, but as I read the threshold code, once
-invoked it catches up from the last delivered threshold to the new
-usage.  So we shouldn't *miss* any events.
+> I assumed the source page would always be new, according to this part
+> in fuse_try_move_page():
+>
+>         /*
+>          * This is a new and locked page, it shouldn't be mapped or
+>          * have any special flags on it
+>          */
+>         if (WARN_ON(page_mapped(oldpage)))
+>                 goto out_fallback_unlock;
+>         if (WARN_ON(page_has_private(oldpage)))
+>                 goto out_fallback_unlock;
+>         if (WARN_ON(PageDirty(oldpage) || PageWriteback(oldpage)))
+>                 goto out_fallback_unlock;
+>         if (WARN_ON(PageMlocked(oldpage)))
+>                 goto out_fallback_unlock;
+>
+> However, it's in the page cache and I can't really convince myself
+> that it's not also on the LRU.  Miklos, I have trouble pinpointing
+> where oldpage is instantiated exactly and what state it might be in -
+> can it already be on the LRU?
 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> With the follow up fix from
-> http://marc.info/?l=linux-mm&m=140552814228135&w=2
-> 
-> Acked-by: Michal Hocko <mhocko@suse.cz>
+oldpage comes from ->readpages() (*NOT* ->readpage()), i.e. readahead.
 
-Thanks!
+AFAICS it is added to the LRU in read_cache_pages(), so it looks like
+it is definitely on the LRU at that point.
 
-> > +static void uncharge_list(struct list_head *page_list)
-> > +{
-> > +	struct mem_cgroup *memcg = NULL;
-> > +	unsigned long nr_memsw = 0;
-> > +	unsigned long nr_anon = 0;
-> > +	unsigned long nr_file = 0;
-> > +	unsigned long nr_huge = 0;
-> > +	unsigned long pgpgout = 0;
-> > +	unsigned long nr_mem = 0;
-> > +	struct list_head *next;
-> > +	struct page *page;
-> > +
-> > +	next = page_list->next;
-> > +	do {
-> 
-> I would use list_for_each_entry here which would also save list_empty
-> check in mem_cgroup_uncharge_list
-
-list_for_each_entry() wouldn't work for the singleton list where we
-pass in page->lru.  That's why it's a do-while that always does the
-first page before checking whether it looped back to the list head.
-
-Do we need a comment for that?  I'm not convinced, there are only two
-callsites, and the one that passes the singleton page->lru is right
-below this function.
+Thanks,
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
