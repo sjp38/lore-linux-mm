@@ -1,68 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 54E776B0036
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:14:51 -0400 (EDT)
-Received: by mail-wi0-f172.google.com with SMTP id n3so1049588wiv.5
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 08:14:50 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id cd10si11893349wjc.14.2014.07.18.08.14.48
+Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CCF56B0035
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:45:06 -0400 (EDT)
+Received: by mail-lb0-f182.google.com with SMTP id z11so3022783lbi.27
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 08:45:05 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id g1si9899331lab.32.2014.07.18.08.45.03
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 18 Jul 2014 08:14:49 -0700 (PDT)
-Date: Fri, 18 Jul 2014 11:14:46 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: About refault distance
-Message-ID: <20140718151446.GI29639@cmpxchg.org>
-References: <BA6F50564D52C24884F9840E07E32DEC17D58E35@CDSMSX102.ccr.corp.intel.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 18 Jul 2014 08:45:04 -0700 (PDT)
+Date: Fri, 18 Jul 2014 19:44:43 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [RFC PATCH] memcg: export knobs for the defaul cgroup hierarchy
+Message-ID: <20140718154443.GM27940@esperanza>
+References: <1405521578-19988-1-git-send-email-mhocko@suse.cz>
+ <20140716155814.GZ29639@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <BA6F50564D52C24884F9840E07E32DEC17D58E35@CDSMSX102.ccr.corp.intel.com>
+In-Reply-To: <20140716155814.GZ29639@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Zhang, Tianfei" <tianfei.zhang@intel.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Wed, Jul 16, 2014 at 01:53:55AM +0000, Zhang, Tianfei wrote:
-> Hi Johannes,
+On Wed, Jul 16, 2014 at 11:58:14AM -0400, Johannes Weiner wrote:
+> On Wed, Jul 16, 2014 at 04:39:38PM +0200, Michal Hocko wrote:
+> > +#ifdef CONFIG_MEMCG_KMEM
+> > +	{
+> > +		.name = "kmem.limit_in_bytes",
+> > +		.private = MEMFILE_PRIVATE(_KMEM, RES_LIMIT),
+> > +		.write = mem_cgroup_write,
+> > +		.read_u64 = mem_cgroup_read_u64,
+> > +	},
 > 
-> May I ask you a question about refault distance?
+> Does it really make sense to have a separate limit for kmem only?
+> IIRC, the reason we introduced this was that this memory is not
+> reclaimable and so we need to limit it.
 > 
-> Is it supposed the distance of the first and second time to access the a faulted page cache is the same? In reality how about the
-> ratio will be the same?
+> But the opposite effect happened: because it's not reclaimable, the
+> separate kmem limit is actually unusable for any values smaller than
+> the overall memory limit: because there is no reclaim mechanism for
+> that limit, once you hit it, it's over, there is nothing you can do
+> anymore.  The problem isn't so much unreclaimable memory, the problem
+> is unreclaimable limits.
 > 
->             Refault Distance1 = Refault Distance2
-> 
-> On the first refault, We supposed that:
->             Refault Distance = A
->             NR_INACTIVE_FILE = B
->             NR_ACTIVE_FILE = C
-> 
-> *                  fault page add to inactive list tail
->                     The Refault Distance  = A
->                           |
->  *                   B     |        |            C
-> *              +--------------+   |            +-------------+
-> *   reclaim <- |   inactive   | <-+-- demotion |    active   | <--+
-> *              +--------------+                +-------------+    |
-> *                     |                                           |
-> *                     +-------------- promotion ------------------+
-> 
-> 
-> Why we use A <= C to add faulted page to ACTIVE LIST?
-> 
-> Your patch is want to solve "A workload is thrashing when its pages are frequently used
-> but they are evicted from the inactive list every time before another access would have
-> promoted them to the active list." ?
-> 
-> so when a First Refault page add to INACTIVE LIST, it is a Distance B before eviction.
-> So I am confuse the condition on workingset_refault().
+> If the global case produces memory pressure through kernel memory
+> allocations, we reclaim page cache, anonymous pages, inodes, dentries
+> etc.  I think the same should happen for kmem: kmem should just be
+> accounted and limited in the overall memory limit of a group, and when
+> pressure arises, we go after anything that's reclaimable.
 
-The reuse distance of a page is B + A.  B + C is the available memory
-overall.  When a page refaults, we want to compare its reuse distance
-to overall memory to see if it is eligible for activation (= accessed
-twice while in memory).  That check would be A + B <= B + C.  But we
-can simply drop B on both sides and get A <= C.
+Personally, I don't think there's much sense in having a separate knob
+for kmem limit either. Until we have a user with a sane use case for it,
+let's not propagate it to the new interface.
+
+Furthermore, even when we introduce kmem shrinking, the kmem-only limit
+alone won't be very useful, because there are plenty of GFP_NOFS kmem
+allocations, which make most of slab shrinkers useless. To avoid
+ENOMEM's in such situation, we would have to introduce either a soft
+kmem limit (watermark) or a kind of kmem precharges. This means if we
+decided to introduce kmem-only limit, we'd eventually have to add more
+knobs and write more code to make it usable w/o even knowing if anyone
+would really benefit from it.
+
+However, there might be users that only want user memory limiting and
+don't want to pay the price of kmem accounting, which is pretty
+expensive. Even if we implement percpu stocks for kmem, there still will
+be noticeable overhead due to touching more cache lines on
+kmalloc/kfree.
+
+So I guess there should be a tunable, which will allow to toggle memcg
+features. May be, a bitmask for future extensibility.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
