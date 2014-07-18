@@ -1,127 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 389796B0036
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 03:50:38 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id fp1so4566534pdb.19
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 00:50:37 -0700 (PDT)
-Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
-        by mx.google.com with ESMTPS id hr7si4968705pac.109.2014.07.18.00.50.36
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 585B86B0036
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 04:05:12 -0400 (EDT)
+Received: by mail-wg0-f42.google.com with SMTP id l18so3027541wgh.1
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 01:05:11 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id mw6si1882142wib.99.2014.07.18.01.05.09
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Fri, 18 Jul 2014 00:50:36 -0700 (PDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout4.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0N8W00IWKDS1CN70@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 18 Jul 2014 08:50:25 +0100 (BST)
-Message-id: <53C8D1CA.9070102@samsung.com>
-Date: Fri, 18 Jul 2014 09:50:34 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-MIME-version: 1.0
-Subject: Re: [PATCH] CMA/HOTPLUG: clear buffer-head lru before page migration
-References: <53C8C290.90503@lge.com>
-In-reply-to: <53C8C290.90503@lge.com>
-Content-type: text/plain; charset=UTF-8; format=flowed
-Content-transfer-encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 18 Jul 2014 01:05:09 -0700 (PDT)
+Message-ID: <53C8D532.70305@suse.cz>
+Date: Fri, 18 Jul 2014 10:05:06 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/2] shmem: fix faulting into a hole while it's punched,
+ take 3
+References: <alpine.LSU.2.11.1407150247540.2584@eggly.anvils> <53C7F55B.8030307@suse.cz> <alpine.LSU.2.11.1407171602370.2544@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1407171602370.2544@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gioh Kim <gioh.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?B?J+q5gOykgOyImCc=?= <iamjoonsoo.kim@lge.com>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>
-Cc: Michal Nazarewicz <mina86@mina86.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?UTF-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>, 'Chanho Min' <chanho.min@lge.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Lukas Czerner <lczerner@redhat.com>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hello,
+On 07/18/2014 01:34 AM, Hugh Dickins wrote:
+> On Thu, 17 Jul 2014, Vlastimil Babka wrote:
+>> On 07/15/2014 12:28 PM, Hugh Dickins wrote:
+>> > In the end I decided that we had better look at it as two problems,
+>> > the trinity faulting starvation, and the indefinite punching loop,
+>> > so 1/2 and 2/2 present both solutions: belt and braces.
+>> 
+>> I tested that with my reproducer and it was OK, but as I already said, it's
+>> not trinity so I didn't observe the new problems in the first place.
+> 
+> Yes, but thanks for doing so anyway.
 
-On 2014-07-18 08:45, Gioh Kim wrote:
-> For page migration of CMA, buffer-heads of lru should be dropped.
-> Please refer to https://lkml.org/lkml/2014/7/4/101 for the history.
->
-> I have two solution to drop bhs.
-> One is invalidating entire lru.
-> Another is searching the lru and dropping only one bh that Laura proposed
-> at https://lkml.org/lkml/2012/8/31/313.
->
-> I'm not sure which has better performance.
-> So I did performance test on my cortex-a7 platform with Lmbench
-> that has "File & VM system latencies" test.
-> I am attaching the results.
-> The first line is of invalidating entire lru and the second is dropping selected bh.
->
-> File & VM system latencies in microseconds - smaller is better
-> -------------------------------------------------------------------------------
-> Host                 OS   0K File      10K File     Mmap    Prot   Page   100fd
->                          Create Delete Create Delete Latency Fault  Fault  selct
-> --------- ------------- ------ ------ ------ ------ ------- ----- ------- -----
-> 10.178.33 Linux 3.10.19   25.1   19.6   32.6   19.7  5098.0 0.666 3.45880 6.506
-> 10.178.33 Linux 3.10.19   24.9   19.5   32.3   19.4  5059.0 0.563 3.46380 6.521
->
->
-> I tried several times but the result tells that they are the same under 1% gap
-> except Protection Fault.
-> But the latency of Protection Fault is very small and I think it has little effect.
->
-> Therefore we can choose anything but I choose invalidating entire lru.
-> The try_to_free_buffers() which is calling drop_buffers() is called by many filesystem code.
-> So I think inserting codes in drop_buffers() can affect the system.
-> And also we cannot distinguish migration type in drop_buffers().
->
-> In alloc_contig_range() we can distinguish migration type and invalidate lru if it needs.
-> I think alloc_contig_range() is proper to deal with bh like following patch.
->
-> Laura, can I have you name on Acked-by line?
-> Please let me represent my thanks.
->
-> Thanks for any feedback.
->
-> ------------------------------- 8< ----------------------------------
->
-> >From 33c894b1bab9bc26486716f0c62c452d3a04d35d Mon Sep 17 00:00:00 2001
-> From: Gioh Kim <gioh.kim@lge.com>
-> Date: Fri, 18 Jul 2014 13:40:01 +0900
-> Subject: [PATCH] CMA/HOTPLUG: clear buffer-head lru before page migration
->
-> The bh must be free to migrate a page at which bh is mapped.
-> The reference count of bh is increased when it is installed
-> into lru so that the bh of lru must be freed before migrating the page.
->
-> This frees every bh of lru. We could free only bh of migrating page.
-> But searching lru costs more than invalidating entire lru.
->
-> Signed-off-by: Gioh Kim <gioh.kim@lge.com>
-> Acked-by: Laura Abbott <lauraa@codeaurora.org>
-> ---
->   mm/page_alloc.c |    3 +++
->   1 file changed, 3 insertions(+)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index b99643d4..3b474e0 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6369,6 +6369,9 @@ int alloc_contig_range(unsigned long start, unsigned long end,
->          if (ret)
->                  return ret;
->
-> +       if (migratetype == MIGRATE_CMA || migratetype == MIGRATE_MOVABLE)
+Now also tested vanilla 3.2.61, also OK.
 
-I'm not sure if it really makes sense to check the migratetype here. 
-This check
-doesn't add any new information to the code and make false impression 
-that this
-function can be called for other migratetypes than CMA or MOVABLE. Even 
-if so,
-then invalidating bh_lrus unconditionally will make more sense, IMHO.
+>> 
+>> > Which may be the best for fixing, but the worst for ease of backporting.
+>> > Vlastimil, I have prepared (and lightly tested) a 3.2.61-based version
+>> > of the combination of f00cdc6df7d7 and 1/2 and 2/2 (basically, I moved
+>> > vmtruncate_range from mm/truncate.c to mm/shmem.c, since nothing but
+>> > shmem ever implemented the truncate_range method).  It should give a
+>> 
+>> I don't know how much stable kernel updates are supposed to care about
+>> out-of-tree modules,
+> 
+> I suggest that stable kernel updates do not need to care about
+> out-of-tree modules: for so long as they are out of tree, they have
+> to look after their own compatibility from one version to another.
+> I have no desire to break them gratuitously, but it's not for me
+> to spend more time accommodating them.
 
-> +               invalidate_bh_lrus();
-> +
->          ret = __alloc_contig_migrate_range(&cc, start, end);
->          if (ret)
->                  goto done;
-> --
-> 1.7.9.5
->
+Fair enough.
 
-Best regards
--- 
-Marek Szyprowski, PhD
-Samsung R&D Institute Poland
+> Now, SLES and RHEL and other distros may have different priorities
+> from that: if they distribute additional filesystems, which happen to
+> support the ->truncate_range() method, or work with partners who supply
+> such filesystems, then they may want to rework the shmem-specific
+> vmtruncate_range() to allow for those - that's up to them.
+
+Sure, it wasn't my intention to raise any enterprise kernel specific concerns here.
+
+>> but doesn't the change mean that an out-of-tree FS
+>> supporting truncate_range (if such thing exists) would effectively stop
+>> supporting madvise(MADV_REMOVE) after this change?
+> 
+> Yes, it would need to be reworked a little for them: I've not thought
+> through what more would need to be done.  But it seems odd to me that
+> an out-of-tree driver would support it, when it got no take up at all
+> from in-tree filesystems, even from those which went on to support
+> hole-punching in fallocate() (until the tmpfs series brought them in).
+> 
+> Or perhaps MADV_REMOVE-support is their secret sauce :-?  In that case
+> I would expect them to support FALLOC_FL_PUNCH_HOLE already, and prefer
+> a backport of v3.5's merging of the madvise and fallocate routes.
+> 
+>> But hey it's still madvise so maybe we don't need to care.
+> 
+> That's an argument I would not use, not in Linus's kernel anyway:
+> users may have come to rely upon the behaviour of madvise(MADV_REMOVE):
+> never mind that it says "advise", I would not be happy to break them.
+
+Right.
+
+>> And I suppose kernels where
+>> FALLOC_FL_PUNCH_HOLE is supported, can be backported normally.
+> 
+> Yes.
+> 
+> Hugh
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
