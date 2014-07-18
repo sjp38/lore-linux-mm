@@ -1,64 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 78B6C6B0035
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:12:56 -0400 (EDT)
-Received: by mail-qa0-f54.google.com with SMTP id k15so3131018qaq.27
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 08:12:56 -0700 (PDT)
-Received: from mail-qa0-x22d.google.com (mail-qa0-x22d.google.com [2607:f8b0:400d:c00::22d])
-        by mx.google.com with ESMTPS id w8si11940311qad.60.2014.07.18.08.12.55
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 54E776B0036
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:14:51 -0400 (EDT)
+Received: by mail-wi0-f172.google.com with SMTP id n3so1049588wiv.5
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 08:14:50 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id cd10si11893349wjc.14.2014.07.18.08.14.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 18 Jul 2014 08:12:55 -0700 (PDT)
-Received: by mail-qa0-f45.google.com with SMTP id cm18so3080931qab.32
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 08:12:55 -0700 (PDT)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 18 Jul 2014 08:14:49 -0700 (PDT)
+Date: Fri, 18 Jul 2014 11:14:46 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: About refault distance
+Message-ID: <20140718151446.GI29639@cmpxchg.org>
+References: <BA6F50564D52C24884F9840E07E32DEC17D58E35@CDSMSX102.ccr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20140718144554.GG29639@cmpxchg.org>
-References: <1403124045-24361-1-git-send-email-hannes@cmpxchg.org>
-	<1403124045-24361-14-git-send-email-hannes@cmpxchg.org>
-	<20140715082545.GA9366@dhcp22.suse.cz>
-	<20140715121935.GB9366@dhcp22.suse.cz>
-	<20140718071246.GA21565@dhcp22.suse.cz>
-	<20140718144554.GG29639@cmpxchg.org>
-Date: Fri, 18 Jul 2014 17:12:54 +0200
-Message-ID: <CAJfpegt9k+YULet3vhmG3br7zSiHy-DRL+MiEE=HRzcs+mLzbw@mail.gmail.com>
-Subject: Re: [patch 13/13] mm: memcontrol: rewrite uncharge API
-From: Miklos Szeredi <miklos@szeredi.hu>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <BA6F50564D52C24884F9840E07E32DEC17D58E35@CDSMSX102.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: "Zhang, Tianfei" <tianfei.zhang@intel.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, Jul 18, 2014 at 4:45 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Wed, Jul 16, 2014 at 01:53:55AM +0000, Zhang, Tianfei wrote:
+> Hi Johannes,
+> 
+> May I ask you a question about refault distance?
+> 
+> Is it supposed the distance of the first and second time to access the a faulted page cache is the same? In reality how about the
+> ratio will be the same?
+> 
+>             Refault Distance1 = Refault Distance2
+> 
+> On the first refault, We supposed that:
+>             Refault Distance = A
+>             NR_INACTIVE_FILE = B
+>             NR_ACTIVE_FILE = C
+> 
+> *                  fault page add to inactive list tail
+>                     The Refault Distance  = A
+>                           |
+>  *                   B     |        |            C
+> *              +--------------+   |            +-------------+
+> *   reclaim <- |   inactive   | <-+-- demotion |    active   | <--+
+> *              +--------------+                +-------------+    |
+> *                     |                                           |
+> *                     +-------------- promotion ------------------+
+> 
+> 
+> Why we use A <= C to add faulted page to ACTIVE LIST?
+> 
+> Your patch is want to solve "A workload is thrashing when its pages are frequently used
+> but they are evicted from the inactive list every time before another access would have
+> promoted them to the active list." ?
+> 
+> so when a First Refault page add to INACTIVE LIST, it is a Distance B before eviction.
+> So I am confuse the condition on workingset_refault().
 
-> I assumed the source page would always be new, according to this part
-> in fuse_try_move_page():
->
->         /*
->          * This is a new and locked page, it shouldn't be mapped or
->          * have any special flags on it
->          */
->         if (WARN_ON(page_mapped(oldpage)))
->                 goto out_fallback_unlock;
->         if (WARN_ON(page_has_private(oldpage)))
->                 goto out_fallback_unlock;
->         if (WARN_ON(PageDirty(oldpage) || PageWriteback(oldpage)))
->                 goto out_fallback_unlock;
->         if (WARN_ON(PageMlocked(oldpage)))
->                 goto out_fallback_unlock;
->
-> However, it's in the page cache and I can't really convince myself
-> that it's not also on the LRU.  Miklos, I have trouble pinpointing
-> where oldpage is instantiated exactly and what state it might be in -
-> can it already be on the LRU?
-
-oldpage comes from ->readpages() (*NOT* ->readpage()), i.e. readahead.
-
-AFAICS it is added to the LRU in read_cache_pages(), so it looks like
-it is definitely on the LRU at that point.
-
-Thanks,
-Miklos
+The reuse distance of a page is B + A.  B + C is the available memory
+overall.  When a page refaults, we want to compare its reuse distance
+to overall memory to see if it is eligible for activation (= accessed
+twice while in memory).  That check would be A + B <= B + C.  But we
+can simply drop B on both sides and get A <= C.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
