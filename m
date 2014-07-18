@@ -1,216 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id D648E6B0055
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 02:52:57 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lf10so4878333pab.1
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 23:52:57 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id pm6si4800775pac.140.2014.07.17.23.52.55
-        for <linux-mm@kvack.org>;
-        Thu, 17 Jul 2014 23:52:56 -0700 (PDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v13 8/8] mm: Don't split THP page when syscall is called
-Date: Fri, 18 Jul 2014 15:53:06 +0900
-Message-Id: <1405666386-15095-9-git-send-email-minchan@kernel.org>
-In-Reply-To: <1405666386-15095-1-git-send-email-minchan@kernel.org>
-References: <1405666386-15095-1-git-send-email-minchan@kernel.org>
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 16A046B0037
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 02:54:47 -0400 (EDT)
+Received: by mail-wi0-f171.google.com with SMTP id hi2so303872wib.10
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 23:54:47 -0700 (PDT)
+Received: from mail-wg0-x22d.google.com (mail-wg0-x22d.google.com [2a00:1450:400c:c00::22d])
+        by mx.google.com with ESMTPS id o2si9022684wje.108.2014.07.17.23.54.46
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 17 Jul 2014 23:54:46 -0700 (PDT)
+Received: by mail-wg0-f45.google.com with SMTP id x12so3100413wgg.16
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 23:54:46 -0700 (PDT)
+Date: Fri, 18 Jul 2014 08:54:44 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch] mm, writeback: prevent race when calculating dirty limits
+Message-ID: <20140718065444.GA21453@dhcp22.suse.cz>
+References: <alpine.DEB.2.02.1407161733200.23892@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1407161733200.23892@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Minchan Kim <minchan@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, stable@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-We don't need to split THP page when MADV_FREE syscall is
-called. It could be done when VM decide really frees it so
-we could avoid unnecessary THP split.
+On Wed 16-07-14 17:36:49, David Rientjes wrote:
+> Setting vm_dirty_bytes and dirty_background_bytes is not protected by any 
+> serialization.
+> 
+> Therefore, it's possible for either variable to change value after the 
+> test in global_dirty_limits() to determine whether available_memory needs 
+> to be initialized or not.
+> 
+> Always ensure that available_memory is properly initialized.
+> 
+> Cc: stable@vger.kernel.org
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- include/linux/huge_mm.h |  4 ++++
- mm/huge_memory.c        | 35 +++++++++++++++++++++++++++++++++++
- mm/madvise.c            | 21 ++++++++++++++++++++-
- mm/rmap.c               |  8 ++++++--
- mm/vmscan.c             | 28 ++++++++++++++++++----------
- 5 files changed, 83 insertions(+), 13 deletions(-)
+Makes sense to me
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 63579cb8d3dc..25a961256d9f 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -19,6 +19,9 @@ extern struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
- 					  unsigned long addr,
- 					  pmd_t *pmd,
- 					  unsigned int flags);
-+extern int madvise_free_huge_pmd(struct mmu_gather *tlb,
-+			struct vm_area_struct *vma,
-+			pmd_t *pmd, unsigned long addr);
- extern int zap_huge_pmd(struct mmu_gather *tlb,
- 			struct vm_area_struct *vma,
- 			pmd_t *pmd, unsigned long addr);
-@@ -56,6 +59,7 @@ extern pmd_t *page_check_address_pmd(struct page *page,
- 				     unsigned long address,
- 				     enum page_check_address_pmd_flag flag,
- 				     spinlock_t **ptl);
-+extern int pmd_freeable(pmd_t pmd);
- 
- #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
- #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 02559efd9827..c238a19a648f 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1384,6 +1384,36 @@ out:
- 	return 0;
- }
- 
-+int madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
-+		 pmd_t *pmd, unsigned long addr)
-+
-+{
-+	spinlock_t *ptl;
-+	struct mm_struct *mm = tlb->mm;
-+	int ret = 1;
-+
-+	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
-+		struct page *page;
-+		pmd_t orig_pmd;
-+
-+		orig_pmd = pmdp_get_and_clear(mm, addr, pmd);
-+
-+		/* No hugepage in swapcache */
-+		page = pmd_page(orig_pmd);
-+		VM_BUG_ON_PAGE(PageSwapCache(page), page);
-+
-+		orig_pmd = pmd_mkold(orig_pmd);
-+		orig_pmd = pmd_mkclean(orig_pmd);
-+
-+		set_pmd_at(mm, addr, pmd, orig_pmd);
-+		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
-+		spin_unlock(ptl);
-+		ret = 0;
-+	}
-+
-+	return ret;
-+}
-+
- int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 		 pmd_t *pmd, unsigned long addr)
- {
-@@ -1620,6 +1650,11 @@ unlock:
- 	return NULL;
- }
- 
-+int pmd_freeable(pmd_t pmd)
-+{
-+	return !pmd_dirty(pmd);
-+}
-+
- static int __split_huge_page_splitting(struct page *page,
- 				       struct vm_area_struct *vma,
- 				       unsigned long address)
-diff --git a/mm/madvise.c b/mm/madvise.c
-index a21584235bb6..84badee5f46d 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -271,8 +271,26 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
- 	spinlock_t *ptl;
- 	pte_t *pte, ptent;
- 	struct page *page;
-+	unsigned long next;
-+
-+	next = pmd_addr_end(addr, end);
-+	if (pmd_trans_huge(*pmd)) {
-+		if (next - addr != HPAGE_PMD_SIZE) {
-+#ifdef CONFIG_DEBUG_VM
-+			if (!rwsem_is_locked(&mm->mmap_sem)) {
-+				pr_err("%s: mmap_sem is unlocked! addr=0x%lx end=0x%lx vma->vm_start=0x%lx vma->vm_end=0x%lx\n",
-+					__func__, addr, end,
-+					vma->vm_start,
-+					vma->vm_end);
-+				BUG();
-+			}
-+#endif
-+			split_huge_page_pmd(vma, addr, pmd);
-+		} else if (!madvise_free_huge_pmd(tlb, vma, pmd, addr))
-+			goto next;
-+		/* fall through */
-+	}
- 
--	split_huge_page_pmd(vma, addr, pmd);
- 	if (pmd_trans_unstable(pmd))
- 		return 0;
- 
-@@ -316,6 +334,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
- 	}
- 	arch_leave_lazy_mmu_mode();
- 	pte_unmap_unlock(pte - 1, ptl);
-+next:
- 	cond_resched();
- 	return 0;
- }
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 04c181133890..9c407576ff8e 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -704,9 +704,13 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
- 			referenced++;
- 
- 		/*
--		 * In this implmentation, MADV_FREE doesn't support THP free
-+		 * Use pmd_freeable instead of raw pmd_dirty because in some
-+		 * of architecture, pmd_dirty is not defined unless
-+		 * CONFIG_TRANSPARNTE_HUGE is enabled
- 		 */
--		dirty++;
-+		if (!pmd_freeable(*pmd))
-+			dirty++;
-+
- 		spin_unlock(ptl);
- 	} else {
- 		pte_t *pte;
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 598e2ade21f7..b1428bdad88e 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -973,17 +973,25 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		 * Anonymous process memory has backing store?
- 		 * Try to allocate it some swap space here.
- 		 */
--		if (PageAnon(page) && !PageSwapCache(page) && !freeable) {
--			if (!(sc->gfp_mask & __GFP_IO))
--				goto keep_locked;
--			if (!add_to_swap(page, page_list))
--				goto activate_locked;
--			may_enter_fs = 1;
--
--			/* Adding to swap updated mapping */
--			mapping = page_mapping(page);
-+		if (PageAnon(page) && !PageSwapCache(page)) {
-+			if (!freeable) {
-+				if (!(sc->gfp_mask & __GFP_IO))
-+					goto keep_locked;
-+				if (!add_to_swap(page, page_list))
-+					goto activate_locked;
-+				may_enter_fs = 1;
-+				/* Adding to swap updated mapping */
-+				mapping = page_mapping(page);
-+			} else {
-+				if (likely(!PageTransHuge(page)))
-+					goto unmap;
-+				/* try_to_unmap isn't aware of THP page */
-+				if (unlikely(split_huge_page_to_list(page,
-+								page_list)))
-+					goto keep_locked;
-+			}
- 		}
--
-+unmap:
- 		/*
- 		 * The page is mapped into the page tables of one or more
- 		 * processes. Try to unmap it here.
+> ---
+>  mm/page-writeback.c | 5 +----
+>  1 file changed, 1 insertion(+), 4 deletions(-)
+> 
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -261,14 +261,11 @@ static unsigned long global_dirtyable_memory(void)
+>   */
+>  void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
+>  {
+> +	const unsigned long available_memory = global_dirtyable_memory();
+>  	unsigned long background;
+>  	unsigned long dirty;
+> -	unsigned long uninitialized_var(available_memory);
+>  	struct task_struct *tsk;
+>  
+> -	if (!vm_dirty_bytes || !dirty_background_bytes)
+> -		available_memory = global_dirtyable_memory();
+> -
+>  	if (vm_dirty_bytes)
+>  		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
+>  	else
+
 -- 
-2.0.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
