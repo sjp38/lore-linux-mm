@@ -1,71 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id C16AE6B0035
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 04:49:29 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id fp1so4635733pdb.5
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 01:49:29 -0700 (PDT)
-Received: from cam-admin0.cambridge.arm.com (cam-admin0.cambridge.arm.com. [217.140.96.50])
-        by mx.google.com with ESMTP id v3si2558152pdp.514.2014.07.18.01.49.28
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B5306B0035
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 05:17:46 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id et14so5121447pad.9
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 02:17:46 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id en4si5202244pbb.195.2014.07.18.02.17.44
         for <linux-mm@kvack.org>;
-        Fri, 18 Jul 2014 01:49:28 -0700 (PDT)
-Date: Fri, 18 Jul 2014 09:48:47 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v13 6/8] arm: add pmd_[dirty|mkclean] for THP
-Message-ID: <20140718084847.GC9548@arm.com>
-References: <1405666386-15095-1-git-send-email-minchan@kernel.org>
- <1405666386-15095-7-git-send-email-minchan@kernel.org>
+        Fri, 18 Jul 2014 02:17:45 -0700 (PDT)
+Message-ID: <53C8E602.1060301@cn.fujitsu.com>
+Date: Fri, 18 Jul 2014 17:16:50 +0800
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1405666386-15095-7-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH 0/5] memory-hotplug: suitable memory should go to ZONE_MOVABLE
+References: <1405670163-53747-1-git-send-email-wangnan0@huawei.com>
+In-Reply-To: <1405670163-53747-1-git-send-email-wangnan0@huawei.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Catalin Marinas <Catalin.Marinas@arm.com>, Steve Capper <steve.capper@linaro.org>, Russell King <linux@arm.linux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Wang Nan <wangnan0@huawei.com>
+Cc: Ingo Molnar <mingo@redhat.com>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Pei Feiyue <peifeiyue@huawei.com>, linux-mm@kvack.org, x86@kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, Jul 18, 2014 at 07:53:04AM +0100, Minchan Kim wrote:
-> MADV_FREE needs pmd_dirty and pmd_mkclean for detecting recent
-> overwrite of the contents since MADV_FREE syscall is called for
-> THP page.
-> 
-> This patch adds pmd_dirty and pmd_mkclean for THP page MADV_FREE
-> support.
-> 
-> Cc: Catalin Marinas <catalin.marinas@arm.com>
-> Cc: Will Deacon <will.deacon@arm.com>
-> Cc: Steve Capper <steve.capper@linaro.org>
-> Cc: Russell King <linux@arm.linux.org.uk>
-> Cc: linux-arm-kernel@lists.infradead.org
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  arch/arm/include/asm/pgtable-3level.h | 3 +++
->  1 file changed, 3 insertions(+)
-> 
-> diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
-> index 85c60adc8b60..830f84f2d277 100644
-> --- a/arch/arm/include/asm/pgtable-3level.h
-> +++ b/arch/arm/include/asm/pgtable-3level.h
-> @@ -220,6 +220,8 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
->  #define pmd_trans_splitting(pmd) (pmd_val(pmd) & PMD_SECT_SPLITTING)
->  #endif
->  
-> +#define pmd_dirty(pmd)		(pmd_val(pmd) & PMD_SECT_DIRTY)
-> +
->  #define PMD_BIT_FUNC(fn,op) \
->  static inline pmd_t pmd_##fn(pmd_t pmd) { pmd_val(pmd) op; return pmd; }
->  
-> @@ -228,6 +230,7 @@ PMD_BIT_FUNC(mkold,	&= ~PMD_SECT_AF);
->  PMD_BIT_FUNC(mksplitting, |= PMD_SECT_SPLITTING);
->  PMD_BIT_FUNC(mkwrite,   &= ~PMD_SECT_RDONLY);
->  PMD_BIT_FUNC(mkdirty,   |= PMD_SECT_DIRTY);
-> +PMD_BIT_FUNC(mkclean,   &= ~PMD_SECT_DIRTY);
->  PMD_BIT_FUNC(mkyoung,   |= PMD_SECT_AF);
->  
->  #define pmd_mkhuge(pmd)		(__pmd(pmd_val(pmd) & ~PMD_TABLE_BIT))
+Hello,
 
-Looks fine to me, but again, it would be great if Steve can take a look too.
+On 07/18/2014 03:55 PM, Wang Nan wrote:
+> This series of patches fix a problem when adding memory in bad manner.
+> For example: for a x86_64 machine booted with "mem=400M" and with 2GiB
+> memory installed, following commands cause problem:
+> 
+>  # echo 0x40000000 > /sys/devices/system/memory/probe
+> [   28.613895] init_memory_mapping: [mem 0x40000000-0x47ffffff]
+>  # echo 0x48000000 > /sys/devices/system/memory/probe
+> [   28.693675] init_memory_mapping: [mem 0x48000000-0x4fffffff]
+>  # echo online_movable > /sys/devices/system/memory/memory9/state
+>  # echo 0x50000000 > /sys/devices/system/memory/probe 
+> [   29.084090] init_memory_mapping: [mem 0x50000000-0x57ffffff]
+>  # echo 0x58000000 > /sys/devices/system/memory/probe 
+> [   29.151880] init_memory_mapping: [mem 0x58000000-0x5fffffff]
+>  # echo online_movable > /sys/devices/system/memory/memory11/state
+>  # echo online> /sys/devices/system/memory/memory8/state
+>  # echo online> /sys/devices/system/memory/memory10/state
+>  # echo offline> /sys/devices/system/memory/memory9/state
+> [   30.558819] Offlined Pages 32768
+>  # free
+>              total       used       free     shared    buffers     cached
+> Mem:        780588 18014398509432020     830552          0          0      51180
+> -/+ buffers/cache: 18014398509380840     881732
+> Swap:            0          0          0
+> 
+> This is because the above commands probe higher memory after online a
+> section with online_movable, which causes ZONE_HIGHMEM (or ZONE_NORMAL
+> for systems without ZONE_HIGHMEM) overlaps ZONE_MOVABLE.
 
-Will
+Yeah, this is rare in reality but can happen. Could you please also
+include the free result and zoneinfo after applying your patch?
+
+Thanks.
+
+> 
+> After the second online_movable, the problem can be observed from
+> zoneinfo:
+> 
+>  # cat /proc/zoneinfo
+> ...
+> Node 0, zone  Movable
+>   pages free     65491
+>         min      250
+>         low      312
+>         high     375
+>         scanned  0
+>         spanned  18446744073709518848
+>         present  65536
+>         managed  65536
+> ...
+> 
+> This series of patches solve the problem by checking ZONE_MOVABLE when
+> choosing zone for new memory. If new memory is inside or higher than
+> ZONE_MOVABLE, makes it go there instead.
+> 
+> 
+> Wang Nan (5):
+>   memory-hotplug: x86_64: suitable memory should go to ZONE_MOVABLE
+>   memory-hotplug: x86_32: suitable memory should go to ZONE_MOVABLE
+>   memory-hotplug: ia64: suitable memory should go to ZONE_MOVABLE
+>   memory-hotplug: sh: suitable memory should go to ZONE_MOVABLE
+>   memory-hotplug: powerpc: suitable memory should go to ZONE_MOVABLE
+> 
+>  arch/ia64/mm/init.c   |  7 +++++++
+>  arch/powerpc/mm/mem.c |  6 ++++++
+>  arch/sh/mm/init.c     | 13 ++++++++-----
+>  arch/x86/mm/init_32.c |  6 ++++++
+>  arch/x86/mm/init_64.c | 10 ++++++++--
+>  5 files changed, 35 insertions(+), 7 deletions(-)
+> 
+
+
+-- 
+Thanks.
+Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
