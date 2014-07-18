@@ -1,63 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AADE6B0035
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 06:20:31 -0400 (EDT)
-Received: by mail-wg0-f49.google.com with SMTP id k14so3349603wgh.32
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 03:20:30 -0700 (PDT)
-Received: from radon.swed.at (a.ns.miles-group.at. [95.130.255.143])
-        by mx.google.com with ESMTPS id gp3si2668575wib.52.2014.07.18.03.20.27
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 06E386B0037
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 06:47:19 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id fa1so5166899pad.27
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 03:47:16 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id xi3si5493040pab.111.2014.07.18.03.47.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 18 Jul 2014 03:20:27 -0700 (PDT)
-Message-ID: <53C8F4DF.8020103@nod.at>
-Date: Fri, 18 Jul 2014 12:20:15 +0200
-From: Richard Weinberger <richard@nod.at>
+        Fri, 18 Jul 2014 03:47:16 -0700 (PDT)
+Message-ID: <53C8FAA6.9050908@oracle.com>
+Date: Fri, 18 Jul 2014 06:44:54 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3] arm64,ia64,ppc,s390,sh,tile,um,x86,mm: Remove default
- gate area
-References: <70f331f59e620dc4e66bd3fa095e6f6b744b532b.1405281639.git.luto@amacapital.net> <CALCETrXG6nL4K=Er+kv5-CXBDVa0TLg9yR6iePnMyE2ufXgKkw@mail.gmail.com> <20140718101416.GB1818@arm.com>
-In-Reply-To: <20140718101416.GB1818@arm.com>
+Subject: Re: [PATCH 0/2] shmem: fix faulting into a hole while it's punched,
+ take 3
+References: <alpine.LSU.2.11.1407150247540.2584@eggly.anvils> <53C7F55B.8030307@suse.cz> <53C7F5FF.7010006@oracle.com>
+In-Reply-To: <53C7F5FF.7010006@oracle.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>, Andy Lutomirski <luto@amacapital.net>
-Cc: Catalin Marinas <Catalin.Marinas@arm.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "linux390@de.ibm.com" <linux390@de.ibm.com>, Chris Metcalf <cmetcalf@tilera.com>, Jeff Dike <jdike@addtoit.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Nathan Lynch <Nathan_Lynch@mentor.com>, X86 ML <x86@kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, "user-mode-linux-devel@lists.sourceforge.net" <user-mode-linux-devel@lists.sourceforge.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michel Lespinasse <walken@google.com>, Lukas Czerner <lczerner@redhat.com>, Dave Jones <davej@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Am 18.07.2014 12:14, schrieb Will Deacon:
-> On Tue, Jul 15, 2014 at 03:47:26PM +0100, Andy Lutomirski wrote:
->> On Sun, Jul 13, 2014 at 1:01 PM, Andy Lutomirski <luto@amacapital.net> wrote:
->>> The core mm code will provide a default gate area based on
->>> FIXADDR_USER_START and FIXADDR_USER_END if
->>> !defined(__HAVE_ARCH_GATE_AREA) && defined(AT_SYSINFO_EHDR).
->>>
->>> This default is only useful for ia64.  arm64, ppc, s390, sh, tile,
->>> 64-bit UML, and x86_32 have their own code just to disable it.  arm,
->>> 32-bit UML, and x86_64 have gate areas, but they have their own
->>> implementations.
->>>
->>> This gets rid of the default and moves the code into ia64.
->>>
->>> This should save some code on architectures without a gate area: it's
->>> now possible to inline the gate_area functions in the default case.
->>
->> Can one of you pull this somewhere?  Otherwise I can put it somewhere
->> stable and ask for -next inclusion, but that seems like overkill for a
->> single patch.
-
-For the um bits:
-Acked-by: Richard Weinberger <richard@nod.at>
-
-> I'd be happy to take the arm64 part, but it doesn't feel right for mm/*
-> changes (or changes to other archs) to go via our tree.
+On 07/17/2014 12:12 PM, Sasha Levin wrote:
+> On 07/17/2014 12:10 PM, Vlastimil Babka wrote:
+>> > On 07/15/2014 12:28 PM, Hugh Dickins wrote:
+>>> >> In the end I decided that we had better look at it as two problems,
+>>> >> the trinity faulting starvation, and the indefinite punching loop,
+>>> >> so 1/2 and 2/2 present both solutions: belt and braces.
+>> > 
+>> > I tested that with my reproducer and it was OK, but as I already said, it's not trinity so I didn't observe the new problems in the first place.
+> I've started seeing a new hang in the lru code, but I'm not sure if
+> it's related to this patch or not (the locks are the same ones, but
+> the location is very different).
 > 
-> I'm not sure what the best approach is if you want to send this via a single
-> tree. Maybe you could ask akpm nicely?
+> I'm looking into that.
 
-Going though Andrew's tree sounds sane to me.
+Hi Hugh,
+
+The new hang I'm seeing is much simpler to analyse (compared to shmem_fallocate) and
+doesn't seem to be related. I'll send a separate mail and Cc you just in case, but
+I don't think that this patchset has anything to do with it.
+
+Otherwise, I've been unable to reproduce the shmem_fallocate hang.
+
 
 Thanks,
-//richard
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
