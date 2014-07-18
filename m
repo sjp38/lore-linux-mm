@@ -1,68 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CBF16B003D
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 02:52:50 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id fp1so4480320pdb.19
-        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 23:52:50 -0700 (PDT)
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 93B5C6B0044
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 02:52:52 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id hz1so4772986pad.8
+        for <linux-mm@kvack.org>; Thu, 17 Jul 2014 23:52:52 -0700 (PDT)
 Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id pu2si4823473pbb.53.2014.07.17.23.52.47
+        by mx.google.com with ESMTP id oy7si2394925pdb.499.2014.07.17.23.52.50
         for <linux-mm@kvack.org>;
-        Thu, 17 Jul 2014 23:52:49 -0700 (PDT)
+        Thu, 17 Jul 2014 23:52:51 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v13 5/8] s390: add pmd_[dirty|mkclean] for THP
-Date: Fri, 18 Jul 2014 15:53:03 +0900
-Message-Id: <1405666386-15095-6-git-send-email-minchan@kernel.org>
+Subject: [PATCH v13 6/8] arm: add pmd_[dirty|mkclean] for THP
+Date: Fri, 18 Jul 2014 15:53:04 +0900
+Message-Id: <1405666386-15095-7-git-send-email-minchan@kernel.org>
 In-Reply-To: <1405666386-15095-1-git-send-email-minchan@kernel.org>
 References: <1405666386-15095-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Minchan Kim <minchan@kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Dominik Dingel <dingel@linux.vnet.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>, linux-s390@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Minchan Kim <minchan@kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Steve Capper <steve.capper@linaro.org>, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org
 
 MADV_FREE needs pmd_dirty and pmd_mkclean for detecting recent
 overwrite of the contents since MADV_FREE syscall is called for
-THP page but for s390 pmds only referenced bit is available
-because there is no free bit left in the pmd entry for the
-software dirty bit so this patch adds dumb pmd_dirty which
-returns always true by suggesting by Martin.
+THP page.
 
-They finally find a solution in future.
-http://marc.info/?l=linux-api&m=140440328820808&w=2
+This patch adds pmd_dirty and pmd_mkclean for THP page MADV_FREE
+support.
 
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Dominik Dingel <dingel@linux.vnet.ibm.com>
-Cc: Christian Borntraeger <borntraeger@de.ibm.com>
-Cc: linux-s390@vger.kernel.org
-Acked-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: Steve Capper <steve.capper@linaro.org>
+Cc: Russell King <linux@arm.linux.org.uk>
+Cc: linux-arm-kernel@lists.infradead.org
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- arch/s390/include/asm/pgtable.h | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ arch/arm/include/asm/pgtable-3level.h | 3 +++
+ 1 file changed, 3 insertions(+)
 
-diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-index fcba5e03839f..9862fcb0592b 100644
---- a/arch/s390/include/asm/pgtable.h
-+++ b/arch/s390/include/asm/pgtable.h
-@@ -1586,6 +1586,18 @@ static inline pmd_t pmd_mkdirty(pmd_t pmd)
- 	return pmd;
- }
+diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
+index 85c60adc8b60..830f84f2d277 100644
+--- a/arch/arm/include/asm/pgtable-3level.h
++++ b/arch/arm/include/asm/pgtable-3level.h
+@@ -220,6 +220,8 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
+ #define pmd_trans_splitting(pmd) (pmd_val(pmd) & PMD_SECT_SPLITTING)
+ #endif
  
-+static inline int pmd_dirty(pmd_t pmd)
-+{
-+	/* No dirty bit in the segment table entry */
-+	return 1;
-+}
++#define pmd_dirty(pmd)		(pmd_val(pmd) & PMD_SECT_DIRTY)
 +
-+static inline pmd_t pmd_mkclean(pmd_t pmd)
-+{
-+	/* No dirty bit in the segment table entry */
-+	return pmd;
-+}
-+
- #define __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
- static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
- 					    unsigned long address, pmd_t *pmdp)
+ #define PMD_BIT_FUNC(fn,op) \
+ static inline pmd_t pmd_##fn(pmd_t pmd) { pmd_val(pmd) op; return pmd; }
+ 
+@@ -228,6 +230,7 @@ PMD_BIT_FUNC(mkold,	&= ~PMD_SECT_AF);
+ PMD_BIT_FUNC(mksplitting, |= PMD_SECT_SPLITTING);
+ PMD_BIT_FUNC(mkwrite,   &= ~PMD_SECT_RDONLY);
+ PMD_BIT_FUNC(mkdirty,   |= PMD_SECT_DIRTY);
++PMD_BIT_FUNC(mkclean,   &= ~PMD_SECT_DIRTY);
+ PMD_BIT_FUNC(mkyoung,   |= PMD_SECT_AF);
+ 
+ #define pmd_mkhuge(pmd)		(__pmd(pmd_val(pmd) & ~PMD_TABLE_BIT))
 -- 
 2.0.0
 
