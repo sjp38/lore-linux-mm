@@ -1,102 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B5306B0035
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 05:17:46 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id et14so5121447pad.9
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 02:17:46 -0700 (PDT)
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F3656B0035
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 05:32:17 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id bj1so5115117pad.39
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 02:32:17 -0700 (PDT)
 Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id en4si5202244pbb.195.2014.07.18.02.17.44
+        by mx.google.com with ESMTP id ck17si2652659pdb.34.2014.07.18.02.32.15
         for <linux-mm@kvack.org>;
-        Fri, 18 Jul 2014 02:17:45 -0700 (PDT)
-Message-ID: <53C8E602.1060301@cn.fujitsu.com>
-Date: Fri, 18 Jul 2014 17:16:50 +0800
+        Fri, 18 Jul 2014 02:32:16 -0700 (PDT)
+Message-ID: <53C8E92F.1010805@cn.fujitsu.com>
+Date: Fri, 18 Jul 2014 17:30:23 +0800
 From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/5] memory-hotplug: suitable memory should go to ZONE_MOVABLE
-References: <1405670163-53747-1-git-send-email-wangnan0@huawei.com>
-In-Reply-To: <1405670163-53747-1-git-send-email-wangnan0@huawei.com>
+Subject: Re: [PATCH] CMA/HOTPLUG: clear buffer-head lru before page migration
+References: <53C8C290.90503@lge.com> <53C8D1CA.9070102@samsung.com> <53C8D970.4000908@lge.com>
+In-Reply-To: <53C8D970.4000908@lge.com>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wang Nan <wangnan0@huawei.com>
-Cc: Ingo Molnar <mingo@redhat.com>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Pei Feiyue <peifeiyue@huawei.com>, linux-mm@kvack.org, x86@kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Gioh Kim <gioh.kim@lge.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?B?J+q5gOykgOyImCc=?= <iamjoonsoo.kim@lge.com>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?UTF-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>, 'Chanho Min' <chanho.min@lge.com>
 
 Hello,
 
-On 07/18/2014 03:55 PM, Wang Nan wrote:
-> This series of patches fix a problem when adding memory in bad manner.
-> For example: for a x86_64 machine booted with "mem=400M" and with 2GiB
-> memory installed, following commands cause problem:
-> 
->  # echo 0x40000000 > /sys/devices/system/memory/probe
-> [   28.613895] init_memory_mapping: [mem 0x40000000-0x47ffffff]
->  # echo 0x48000000 > /sys/devices/system/memory/probe
-> [   28.693675] init_memory_mapping: [mem 0x48000000-0x4fffffff]
->  # echo online_movable > /sys/devices/system/memory/memory9/state
->  # echo 0x50000000 > /sys/devices/system/memory/probe 
-> [   29.084090] init_memory_mapping: [mem 0x50000000-0x57ffffff]
->  # echo 0x58000000 > /sys/devices/system/memory/probe 
-> [   29.151880] init_memory_mapping: [mem 0x58000000-0x5fffffff]
->  # echo online_movable > /sys/devices/system/memory/memory11/state
->  # echo online> /sys/devices/system/memory/memory8/state
->  # echo online> /sys/devices/system/memory/memory10/state
->  # echo offline> /sys/devices/system/memory/memory9/state
-> [   30.558819] Offlined Pages 32768
->  # free
->              total       used       free     shared    buffers     cached
-> Mem:        780588 18014398509432020     830552          0          0      51180
-> -/+ buffers/cache: 18014398509380840     881732
-> Swap:            0          0          0
-> 
-> This is because the above commands probe higher memory after online a
-> section with online_movable, which causes ZONE_HIGHMEM (or ZONE_NORMAL
-> for systems without ZONE_HIGHMEM) overlaps ZONE_MOVABLE.
+On 07/18/2014 04:23 PM, Gioh Kim wrote:
+>=20
+>=20
+> 2014-07-18 =EC=98=A4=ED=9B=84 4:50, Marek Szyprowski =EC=93=B4 =EA=B8=80:
+>> Hello,
+>>
+>> On 2014-07-18 08:45, Gioh Kim wrote:
+>>> For page migration of CMA, buffer-heads of lru should be dropped.
+>>> Please refer to https://lkml.org/lkml/2014/7/4/101 for the history.
+>>>
+>>> I have two solution to drop bhs.
+>>> One is invalidating entire lru.
+>>> Another is searching the lru and dropping only one bh that Laura propos=
+ed
+>>> at https://lkml.org/lkml/2012/8/31/313.
+>>>
+>>> I'm not sure which has better performance.
+>>> So I did performance test on my cortex-a7 platform with Lmbench
+>>> that has "File & VM system latencies" test.
+>>> I am attaching the results.
+>>> The first line is of invalidating entire lru and the second is dropping=
+ selected bh.
+>>>
+>>> File & VM system latencies in microseconds - smaller is better
+>>> -----------------------------------------------------------------------=
+--------
+>>> Host                 OS   0K File      10K File     Mmap    Prot   Page=
+   100fd
+>>>                          Create Delete Create Delete Latency Fault  Fau=
+lt  selct
+>>> --------- ------------- ------ ------ ------ ------ ------- ----- -----=
+-- -----
+>>> 10.178.33 Linux 3.10.19   25.1   19.6   32.6   19.7  5098.0 0.666 3.458=
+80 6.506
+>>> 10.178.33 Linux 3.10.19   24.9   19.5   32.3   19.4  5059.0 0.563 3.463=
+80 6.521
+>>>
+>>>
+>>> I tried several times but the result tells that they are the same under=
+ 1% gap
+>>> except Protection Fault.
+>>> But the latency of Protection Fault is very small and I think it has li=
+ttle effect.
+>>>
+>>> Therefore we can choose anything but I choose invalidating entire lru.
+>>> The try_to_free_buffers() which is calling drop_buffers() is called by =
+many filesystem code.
+>>> So I think inserting codes in drop_buffers() can affect the system.
+>>> And also we cannot distinguish migration type in drop_buffers().
+>>>
+>>> In alloc_contig_range() we can distinguish migration type and invalidat=
+e lru if it needs.
+>>> I think alloc_contig_range() is proper to deal with bh like following p=
+atch.
+>>>
+>>> Laura, can I have you name on Acked-by line?
+>>> Please let me represent my thanks.
+>>>
+>>> Thanks for any feedback.
+>>>
+>>> ------------------------------- 8< ----------------------------------
+>>>
+>>> >From 33c894b1bab9bc26486716f0c62c452d3a04d35d Mon Sep 17 00:00:00 2001
+>>> From: Gioh Kim <gioh.kim@lge.com>
+>>> Date: Fri, 18 Jul 2014 13:40:01 +0900
+>>> Subject: [PATCH] CMA/HOTPLUG: clear buffer-head lru before page migrati=
+on
+>>>
+>>> The bh must be free to migrate a page at which bh is mapped.
+>>> The reference count of bh is increased when it is installed
+>>> into lru so that the bh of lru must be freed before migrating the page.
+>>>
+>>> This frees every bh of lru. We could free only bh of migrating page.
+>>> But searching lru costs more than invalidating entire lru.
+>>>
+>>> Signed-off-by: Gioh Kim <gioh.kim@lge.com>
+>>> Acked-by: Laura Abbott <lauraa@codeaurora.org>
+>>> ---
+>>>   mm/page_alloc.c |    3 +++
+>>>   1 file changed, 3 insertions(+)
+>>>
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index b99643d4..3b474e0 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -6369,6 +6369,9 @@ int alloc_contig_range(unsigned long start, unsig=
+ned long end,
+>>>          if (ret)
+>>>                  return ret;
+>>>
+>>> +       if (migratetype =3D=3D MIGRATE_CMA || migratetype =3D=3D MIGRAT=
+E_MOVABLE)
+>>
+>> I'm not sure if it really makes sense to check the migratetype here. Thi=
+s check
+>> doesn't add any new information to the code and make false impression th=
+at this
+>> function can be called for other migratetypes than CMA or MOVABLE. Even =
+if so,
+>> then invalidating bh_lrus unconditionally will make more sense, IMHO.
+>=20
+> I agree. I cannot understand why alloc_contig_range has an argument of mi=
+gratetype.
+> Can the alloc_contig_range is called for other migrate type than CMA/MOVA=
+BLE?
+>=20
+> What do you think about removing the argument of migratetype and
+> checking migratetype (if (migratetype =3D=3D MIGRATE_CMA || migratetype =
+=3D=3D MIGRATE_MOVABLE))?
+>=20
 
-Yeah, this is rare in reality but can happen. Could you please also
-include the free result and zoneinfo after applying your patch?
+Remove the checking only. Because gigantic page allocation used for hugetlb=
+ is
+using alloc_contig_range(...... MIGRATE_MOVABLE).
 
 Thanks.
 
-> 
-> After the second online_movable, the problem can be observed from
-> zoneinfo:
-> 
->  # cat /proc/zoneinfo
-> ...
-> Node 0, zone  Movable
->   pages free     65491
->         min      250
->         low      312
->         high     375
->         scanned  0
->         spanned  18446744073709518848
->         present  65536
->         managed  65536
-> ...
-> 
-> This series of patches solve the problem by checking ZONE_MOVABLE when
-> choosing zone for new memory. If new memory is inside or higher than
-> ZONE_MOVABLE, makes it go there instead.
-> 
-> 
-> Wang Nan (5):
->   memory-hotplug: x86_64: suitable memory should go to ZONE_MOVABLE
->   memory-hotplug: x86_32: suitable memory should go to ZONE_MOVABLE
->   memory-hotplug: ia64: suitable memory should go to ZONE_MOVABLE
->   memory-hotplug: sh: suitable memory should go to ZONE_MOVABLE
->   memory-hotplug: powerpc: suitable memory should go to ZONE_MOVABLE
-> 
->  arch/ia64/mm/init.c   |  7 +++++++
->  arch/powerpc/mm/mem.c |  6 ++++++
->  arch/sh/mm/init.c     | 13 ++++++++-----
->  arch/x86/mm/init_32.c |  6 ++++++
->  arch/x86/mm/init_64.c | 10 ++++++++--
->  5 files changed, 35 insertions(+), 7 deletions(-)
-> 
-
-
--- 
+--=20
 Thanks.
 Zhang Yanfei
 
