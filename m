@@ -1,149 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F3656B0035
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 05:32:17 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id bj1so5115117pad.39
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 02:32:17 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id ck17si2652659pdb.34.2014.07.18.02.32.15
-        for <linux-mm@kvack.org>;
-        Fri, 18 Jul 2014 02:32:16 -0700 (PDT)
-Message-ID: <53C8E92F.1010805@cn.fujitsu.com>
-Date: Fri, 18 Jul 2014 17:30:23 +0800
-From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 12DE56B0035
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 05:53:50 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id fp1so4774369pdb.33
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 02:53:49 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id wu6si4226638pab.61.2014.07.18.02.53.47
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 18 Jul 2014 02:53:49 -0700 (PDT)
+Message-ID: <53C8EE4C.1000204@huawei.com>
+Date: Fri, 18 Jul 2014 17:52:12 +0800
+From: Wang Nan <wangnan0@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] CMA/HOTPLUG: clear buffer-head lru before page migration
-References: <53C8C290.90503@lge.com> <53C8D1CA.9070102@samsung.com> <53C8D970.4000908@lge.com>
-In-Reply-To: <53C8D970.4000908@lge.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Subject: Re: [PATCH 2/5] memory-hotplug: x86_32: suitable memory should go
+ to ZONE_MOVABLE
+References: <1405670163-53747-1-git-send-email-wangnan0@huawei.com> <1405670163-53747-3-git-send-email-wangnan0@huawei.com>
+In-Reply-To: <1405670163-53747-3-git-send-email-wangnan0@huawei.com>
+Content-Type: text/plain; charset="GB2312"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gioh Kim <gioh.kim@lge.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?B?J+q5gOykgOyImCc=?= <iamjoonsoo.kim@lge.com>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Michal Nazarewicz <mina86@mina86.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?UTF-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>, 'Chanho Min' <chanho.min@lge.com>
+To: Ingo Molnar <mingo@redhat.com>, Yinghai Lu <yinghai@kernel.org>, Mel
+ Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Pei Feiyue <peifeiyue@huawei.com>, linux-mm@kvack.org, x86@kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hello,
+On 2014/7/18 15:56, Wang Nan wrote:
+> This patch add new memory to ZONE_MOVABLE if movable zone is setup
+> and lower than newly added memory for x86_32.
+> 
+> Signed-off-by: Wang Nan <wangnan0@huawei.com>
+> ---
+>  arch/x86/mm/init_32.c | 6 ++++++
+>  1 file changed, 6 insertions(+)
+> 
+> diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
+> index e395048..dd69833 100644
+> --- a/arch/x86/mm/init_32.c
+> +++ b/arch/x86/mm/init_32.c
+> @@ -826,9 +826,15 @@ int arch_add_memory(int nid, u64 start, u64 size)
+>  {
+>  	struct pglist_data *pgdata = NODE_DATA(nid);
+>  	struct zone *zone = pgdata->node_zones + ZONE_HIGHMEM;
+> +	struct zone *movable_zone = pgdat->node_zones + ZONE_MOVABLE;
 
-On 07/18/2014 04:23 PM, Gioh Kim wrote:
->=20
->=20
-> 2014-07-18 =EC=98=A4=ED=9B=84 4:50, Marek Szyprowski =EC=93=B4 =EA=B8=80:
->> Hello,
->>
->> On 2014-07-18 08:45, Gioh Kim wrote:
->>> For page migration of CMA, buffer-heads of lru should be dropped.
->>> Please refer to https://lkml.org/lkml/2014/7/4/101 for the history.
->>>
->>> I have two solution to drop bhs.
->>> One is invalidating entire lru.
->>> Another is searching the lru and dropping only one bh that Laura propos=
-ed
->>> at https://lkml.org/lkml/2012/8/31/313.
->>>
->>> I'm not sure which has better performance.
->>> So I did performance test on my cortex-a7 platform with Lmbench
->>> that has "File & VM system latencies" test.
->>> I am attaching the results.
->>> The first line is of invalidating entire lru and the second is dropping=
- selected bh.
->>>
->>> File & VM system latencies in microseconds - smaller is better
->>> -----------------------------------------------------------------------=
---------
->>> Host                 OS   0K File      10K File     Mmap    Prot   Page=
-   100fd
->>>                          Create Delete Create Delete Latency Fault  Fau=
-lt  selct
->>> --------- ------------- ------ ------ ------ ------ ------- ----- -----=
--- -----
->>> 10.178.33 Linux 3.10.19   25.1   19.6   32.6   19.7  5098.0 0.666 3.458=
-80 6.506
->>> 10.178.33 Linux 3.10.19   24.9   19.5   32.3   19.4  5059.0 0.563 3.463=
-80 6.521
->>>
->>>
->>> I tried several times but the result tells that they are the same under=
- 1% gap
->>> except Protection Fault.
->>> But the latency of Protection Fault is very small and I think it has li=
-ttle effect.
->>>
->>> Therefore we can choose anything but I choose invalidating entire lru.
->>> The try_to_free_buffers() which is calling drop_buffers() is called by =
-many filesystem code.
->>> So I think inserting codes in drop_buffers() can affect the system.
->>> And also we cannot distinguish migration type in drop_buffers().
->>>
->>> In alloc_contig_range() we can distinguish migration type and invalidat=
-e lru if it needs.
->>> I think alloc_contig_range() is proper to deal with bh like following p=
-atch.
->>>
->>> Laura, can I have you name on Acked-by line?
->>> Please let me represent my thanks.
->>>
->>> Thanks for any feedback.
->>>
->>> ------------------------------- 8< ----------------------------------
->>>
->>> >From 33c894b1bab9bc26486716f0c62c452d3a04d35d Mon Sep 17 00:00:00 2001
->>> From: Gioh Kim <gioh.kim@lge.com>
->>> Date: Fri, 18 Jul 2014 13:40:01 +0900
->>> Subject: [PATCH] CMA/HOTPLUG: clear buffer-head lru before page migrati=
-on
->>>
->>> The bh must be free to migrate a page at which bh is mapped.
->>> The reference count of bh is increased when it is installed
->>> into lru so that the bh of lru must be freed before migrating the page.
->>>
->>> This frees every bh of lru. We could free only bh of migrating page.
->>> But searching lru costs more than invalidating entire lru.
->>>
->>> Signed-off-by: Gioh Kim <gioh.kim@lge.com>
->>> Acked-by: Laura Abbott <lauraa@codeaurora.org>
->>> ---
->>>   mm/page_alloc.c |    3 +++
->>>   1 file changed, 3 insertions(+)
->>>
->>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->>> index b99643d4..3b474e0 100644
->>> --- a/mm/page_alloc.c
->>> +++ b/mm/page_alloc.c
->>> @@ -6369,6 +6369,9 @@ int alloc_contig_range(unsigned long start, unsig=
-ned long end,
->>>          if (ret)
->>>                  return ret;
->>>
->>> +       if (migratetype =3D=3D MIGRATE_CMA || migratetype =3D=3D MIGRAT=
-E_MOVABLE)
->>
->> I'm not sure if it really makes sense to check the migratetype here. Thi=
-s check
->> doesn't add any new information to the code and make false impression th=
-at this
->> function can be called for other migratetypes than CMA or MOVABLE. Even =
-if so,
->> then invalidating bh_lrus unconditionally will make more sense, IMHO.
->=20
-> I agree. I cannot understand why alloc_contig_range has an argument of mi=
-gratetype.
-> Can the alloc_contig_range is called for other migrate type than CMA/MOVA=
-BLE?
->=20
-> What do you think about removing the argument of migratetype and
-> checking migratetype (if (migratetype =3D=3D MIGRATE_CMA || migratetype =
-=3D=3D MIGRATE_MOVABLE))?
->=20
+Sorry. pgdat should be pgdata.
 
-Remove the checking only. Because gigantic page allocation used for hugetlb=
- is
-using alloc_contig_range(...... MIGRATE_MOVABLE).
+>  	unsigned long start_pfn = start >> PAGE_SHIFT;
+>  	unsigned long nr_pages = size >> PAGE_SHIFT;
+>  
+> +	if (!zone_is_empty(movable_zone))
+> +		if (zone_spans_pfn(movable_zone, start_pfn) ||
+> +				(zone_end_pfn(movable_zone) <= start_pfn))
+> +			zone = movable_zone;
+> +
+>  	return __add_pages(nid, zone, start_pfn, nr_pages);
+>  }
+>  
+> 
 
-Thanks.
-
---=20
-Thanks.
-Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
