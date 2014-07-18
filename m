@@ -1,66 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E81E6B0037
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 03:12:50 -0400 (EDT)
-Received: by mail-wi0-f171.google.com with SMTP id hi2so325979wib.10
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 00:12:49 -0700 (PDT)
-Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com [2a00:1450:400c:c05::22c])
-        by mx.google.com with ESMTPS id u19si9109560wjw.95.2014.07.18.00.12.48
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F7696B0035
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 03:33:21 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id w10so4561423pde.37
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 00:33:21 -0700 (PDT)
+Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
+        by mx.google.com with ESMTPS id gy1si4883629pbd.242.2014.07.18.00.33.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 18 Jul 2014 00:12:48 -0700 (PDT)
-Received: by mail-wi0-f172.google.com with SMTP id n3so322089wiv.17
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 00:12:48 -0700 (PDT)
-Date: Fri, 18 Jul 2014 09:12:46 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 13/13] mm: memcontrol: rewrite uncharge API
-Message-ID: <20140718071246.GA21565@dhcp22.suse.cz>
-References: <1403124045-24361-1-git-send-email-hannes@cmpxchg.org>
- <1403124045-24361-14-git-send-email-hannes@cmpxchg.org>
- <20140715082545.GA9366@dhcp22.suse.cz>
- <20140715121935.GB9366@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140715121935.GB9366@dhcp22.suse.cz>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Fri, 18 Jul 2014 00:33:20 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout3.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0N8W00AU6CZGGU70@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 18 Jul 2014 08:33:16 +0100 (BST)
+Message-id: <53C8CDBC.3030600@samsung.com>
+Date: Fri, 18 Jul 2014 09:33:16 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH] CMA: generalize CMA reserved area management functionality
+ (fixup)
+References: <53C78ED7.7030002@samsung.com>
+ <1405589767-17513-1-git-send-email-m.szyprowski@samsung.com>
+ <20140717150615.32c48786b6bdbc880bdc5ed4@linux-foundation.org>
+In-reply-to: <20140717150615.32c48786b6bdbc880bdc5ed4@linux-foundation.org>
+Content-type: text/plain; charset=UTF-8; format=flowed
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On Tue 15-07-14 14:19:35, Michal Hocko wrote:
-> [...]
-> > +/**
-> > + * mem_cgroup_migrate - migrate a charge to another page
-> > + * @oldpage: currently charged page
-> > + * @newpage: page to transfer the charge to
-> > + * @lrucare: page might be on LRU already
-> 
-> which one? I guess the newpage?
-> 
-> > + *
-> > + * Migrate the charge from @oldpage to @newpage.
-> > + *
-> > + * Both pages must be locked, @newpage->mapping must be set up.
-> > + */
-> > +void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
-> > +			bool lrucare)
-> > +{
-> > +	unsigned int nr_pages = 1;
-> > +	struct page_cgroup *pc;
-> > +
-> > +	VM_BUG_ON_PAGE(!PageLocked(oldpage), oldpage);
-> > +	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
-> > +	VM_BUG_ON_PAGE(PageLRU(oldpage), oldpage);
-> > +	VM_BUG_ON_PAGE(PageLRU(newpage), newpage);
-> 
-> 	VM_BUG_ON_PAGE(PageLRU(newpage) && !lruvec, newpage);
+Hello,
 
-I guess everything except these two notes got addressed.
+On 2014-07-18 00:06, Andrew Morton wrote:
+> On Thu, 17 Jul 2014 11:36:07 +0200 Marek Szyprowski <m.szyprowski@samsung.com> wrote:
+>
+>> MAX_CMA_AREAS is used by other subsystems (i.e. arch/arm/mm/dma-mapping.c),
+>> so we need to provide correct definition even if CMA is disabled.
+>> This patch fixes this issue.
+>>
+>> Reported-by: Sylwester Nawrocki <s.nawrocki@samsung.com>
+>> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+>> ---
+>>   include/linux/cma.h | 4 ++++
+>>   1 file changed, 4 insertions(+)
+>>
+>> diff --git a/include/linux/cma.h b/include/linux/cma.h
+>> index 9a18a2b1934c..c077635cad76 100644
+>> --- a/include/linux/cma.h
+>> +++ b/include/linux/cma.h
+>> @@ -5,7 +5,11 @@
+>>    * There is always at least global CMA area and a few optional
+>>    * areas configured in kernel .config.
+>>    */
+>> +#ifdef CONFIG_CMA
+>>   #define MAX_CMA_AREAS	(1 + CONFIG_CMA_AREAS)
+>> +#else
+>> +#define MAX_CMA_AREAS	(0)
+>> +#endif
+>>   
+>>   struct cma;
+> Joonsoo already fixed this up, a bit differently:
+> http://ozlabs.org/~akpm/mmots/broken-out/cma-generalize-cma-reserved-area-management-functionality-fix.patch
+>
+> Which approach makes more sense?
 
+CMA_AREAS depends on CMA being enabled, so both approaches works exactly
+the same way. Please keep Joonsoo's patch and just ignore mine to avoid
+confusing others by disappearing patches. I'm sorry that I've missed it
+before sending mine.
+
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Subject: CMA: fix ARM build failure related to MAX_CMA_AREAS definition
+>
+> If CMA is disabled, CONFIG_CMA_AREAS isn't defined so compile error
+> happens. To fix it, define MAX_CMA_AREAS if CONFIG_CMA_AREAS
+> isn't defined.
+>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Reported-by: Stephen Rothwell <sfr@canb.auug.org.au>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>
+>   include/linux/cma.h |    6 ++++++
+>   1 file changed, 6 insertions(+)
+>
+> diff -puN include/linux/cma.h~cma-generalize-cma-reserved-area-management-functionality-fix include/linux/cma.h
+> --- a/include/linux/cma.h~cma-generalize-cma-reserved-area-management-functionality-fix
+> +++ a/include/linux/cma.h
+> @@ -5,8 +5,14 @@
+>    * There is always at least global CMA area and a few optional
+>    * areas configured in kernel .config.
+>    */
+> +#ifdef CONFIG_CMA_AREAS
+>   #define MAX_CMA_AREAS	(1 + CONFIG_CMA_AREAS)
+>   
+> +#else
+> +#define MAX_CMA_AREAS	(0)
+> +
+> +#endif
+> +
+>   struct cma;
+>   
+>   extern phys_addr_t cma_get_base(struct cma *cma);
+> _
+
+Best regards
 -- 
-Michal Hocko
-SUSE Labs
+Marek Szyprowski, PhD
+Samsung R&D Institute Poland
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
