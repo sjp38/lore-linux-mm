@@ -1,101 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 729666B0035
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 14:52:04 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id w10so5495250pde.18
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:52:04 -0700 (PDT)
-Received: from smtp.gentoo.org (smtp.gentoo.org. [140.211.166.183])
-        by mx.google.com with ESMTPS id bo7si3429545pdb.350.2014.07.18.11.52.03
+Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 645636B0035
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 14:58:38 -0400 (EDT)
+Received: by mail-qc0-f177.google.com with SMTP id o8so3677711qcw.8
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:58:36 -0700 (PDT)
+Received: from mail-qc0-x22a.google.com (mail-qc0-x22a.google.com [2607:f8b0:400d:c01::22a])
+        by mx.google.com with ESMTPS id eb3si11925576qcb.17.2014.07.18.11.58.34
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Jul 2014 11:52:03 -0700 (PDT)
-Message-ID: <53C96CBF.4040705@gentoo.org>
-Date: Fri, 18 Jul 2014 14:51:43 -0400
-From: Richard Yao <ryao@gentoo.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 18 Jul 2014 11:58:34 -0700 (PDT)
+Received: by mail-qc0-f170.google.com with SMTP id c9so3763800qcz.1
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:58:33 -0700 (PDT)
+Date: Fri, 18 Jul 2014 14:58:29 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC 0/2] Memoryless nodes and kworker
+Message-ID: <20140718185829.GF13012@htj.dyndns.org>
+References: <20140717230923.GA32660@linux.vnet.ibm.com>
+ <20140718112039.GA8383@htj.dyndns.org>
+ <CAOhV88PyBK3WxDjG1H0hUbRhRYzPOzV8eim5DuOcgObe-FtFYg@mail.gmail.com>
+ <20140718180008.GC13012@htj.dyndns.org>
+ <CAOhV88O03zCsv_3eadEKNv1D1RoBmjWRFNhPjEHawF9s71U0JA@mail.gmail.com>
+ <20140718181947.GE13012@htj.dyndns.org>
+ <CAOhV88Mby_vrLPtRsRNO724-_ABEL06Fc1mMwjgq7LWw-uxeAw@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: vmscan: unlock_page page when forcing reclaim
-References: <1405698484-25803-1-git-send-email-ryao@gentoo.org> <20140718163843.GK29639@cmpxchg.org>
-In-Reply-To: <20140718163843.GK29639@cmpxchg.org>
-Content-Type: multipart/signed; micalg=pgp-sha1;
- protocol="application/pgp-signature";
- boundary="jjTcQp912hMWAdKmHvq9iRFEEFl61uANL"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAOhV88Mby_vrLPtRsRNO724-_ABEL06Fc1mMwjgq7LWw-uxeAw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-kernel@vger.kernel.org, mthode@mthode.org, kernel@gentoo.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Glauber Costa <glommer@openvz.org>, Rik van Riel <riel@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Dave Chinner <dchinner@redhat.com>, open@kvack.org, list@kvack.org, MEMORY MANAGEMENT <linux-mm@kvack.org>
+To: Nish Aravamudan <nish.aravamudan@gmail.com>
+Cc: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Jiang Liu <jiang.liu@linux.intel.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, linux-ia64@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---jjTcQp912hMWAdKmHvq9iRFEEFl61uANL
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+Hello,
 
-On 07/18/2014 12:38 PM, Johannes Weiner wrote:
-> I don't really understand how the scenario you describe can happen.
->=20
-> Successfully reclaiming a page means that __remove_mapping() was able
-> to freeze a page count of 2 (page cache and LRU isolation), but
-> filemap_fault() increases the refcount on the page before trying to
-> lock the page.  If __remove_mapping() wins, find_get_page() does not
-> work and the fault does not lock the page.  If find_get_page() wins,
-> __remove_mapping() does not work and the reclaimer aborts and does a
-> regular unlock_page().
->=20
-> page_check_references() is purely about reclaim strategy, it should
-> not be essential for correctness.
->=20
+On Fri, Jul 18, 2014 at 11:47:08AM -0700, Nish Aravamudan wrote:
+> Why are any callers of the format kthread_create_on_node(...,
+> cpu_to_node(cpu), ...) not using kthread_create_on_cpu(..., cpu, ...)?
 
-You are right that something else is happened here. I had not spotted
-the cmpxchg being done in __remove_mapping(). If I spot something that
-looks like it could be what went wrong doing this, I will propose a new
-fix to the list for review. Thanks for your time.
+Ah, okay, that's because unbound workers are NUMA node affine, not
+CPU.
 
-P.S. The system had ECC RAM, so this was not a bit flip. My current
-method for debugging this involves using cscope to construct possible
-call paths under a couple of assumptions:
+> It seems like an additional reasonable approach would be to provide a
+> suitable _cpu() API for the allocators. I'm not sure why saying that
+> callers should know about NUMA (in order to call cpu_to_node() in every
+> caller) is any better than saying that callers should know about memoryless
+> nodes (in order to call cpu_to_mem() in every caller instead) -- when at
 
-1. Something set PG_locked without calling unlock_page().
-2. The only ways of doing #1 that I see in the code are calling
-__clear_page_locked() or failing to clear the bit. I do not believe that
-a patch was accepted that did the latter, so I assume the former.
+It is better because that's what they want to express - "I'm on this
+memory node, please allocate memory on or close to this one".  That's
+what the caller cares about.  Calling with cpu could be an option but
+you'll eventually run into cases where you end up having to map back
+NUMA node id to a CPU on it, which will probably feel at least a bit
+silly.  There are things which really are per-NUMA node.
 
-I have root access to the system, so each time I do a lookup using
-cscope, I go through the list to logically eliminate possibilities by
-inspecting the system where the problem occurred. When I cannot
-eliminate a possibility, I recurse. This is prone to fail positives
-should I miss a subtle piece of code that prevents a problem and it is
-very tedious, but I do not see a better way of debugging based on what I
-have at my disposal. If anyone has any suggestions, I would appreciate th=
-em.
+So, let's please express what needs to be expressed.  Massaging around
+it can be useful at times but that doesn't seem to be the case here.
 
-P.P.S. I *really* wish that I had used kdump when this issue happened,
-but sadly, the system is not setup for kdump.
+Thanks.
 
-
---jjTcQp912hMWAdKmHvq9iRFEEFl61uANL
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.22 (GNU/Linux)
-Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
-
-iQIcBAEBAgAGBQJTyWzFAAoJECDuEZm+6Exk/8sQAIYPMg5bpwXGy+/RUpna+4LB
-/AbRawUJ3PHLWqHIHhtiYPjTZQVMzuQwR17aGwMf0MwqDmsIpZWH21HO8PS37+Mr
-PYCedqeB/fJJA0JXjUu0CIKYTz2Nq+v3+lQQ8xguNlPeUiGEAO+zCftWcn1pAY0c
-GguXEBiyCmzHO5Qy7hh3RIUqqN8sUEXiOqoJejE1aJnJW6XI+xHJo2nIzvtVawcP
-nWwjEE0QGh7ESILcw5SUddP1eGNZHiAzkHT3mBb4I5Yb38Rw4Vo0ETsaH4BKtL/A
-TNuaH4aZTlEW9dXs473ABnmTLcBoWjP51C7v2JMCFYidjP0TcDRNq7SJZne7ZL41
-fSAu/0Fw1ntP3Ls6dGL1waKm0LCNtitcTqHaz+gnIsGkwcg5db3Vc2pHk37fuYqk
-bM37yQSJvXbp5GTJWjii8WoArswsxqzr6X40iHkFgSn534VjK2WHPjWK2wtQ0k1J
-VVQrHarENMxjIDPw2uwe1iKw4Nu/dWKcwK+AoFT73s5U780hTcUEPHGz2m0CBMP4
-lu1x69VCEuVj5mvKbpICt0sHEJWi50pfJ7oRpPK9voEempMr0Yx3e0Zhgq5Hx9ZV
-oLQfVE6KRFYPyrhyOyE/QDzBjbv1jYir9xIo7uyCYf2075RxU6SBHmrtA+RIxyqV
-rrcQ75trtZ31MjcbNF7b
-=WAN3
------END PGP SIGNATURE-----
-
---jjTcQp912hMWAdKmHvq9iRFEEFl61uANL--
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
