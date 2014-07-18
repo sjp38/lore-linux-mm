@@ -1,56 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id A9DD26B0035
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 08:40:45 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id et14so5415256pad.9
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 05:40:45 -0700 (PDT)
-Received: from mho-02-ewr.mailhop.org (mho-02-ewr.mailhop.org. [204.13.248.72])
-        by mx.google.com with ESMTPS id n107si10283533qgn.45.2014.07.18.05.40.44
+Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
+	by kanga.kvack.org (Postfix) with ESMTP id BBDE56B0035
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 08:50:43 -0400 (EDT)
+Received: by mail-we0-f170.google.com with SMTP id w62so4500918wes.1
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 05:50:41 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a3si3504243wib.72.2014.07.18.05.50.31
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 18 Jul 2014 05:40:44 -0700 (PDT)
-Date: Fri, 18 Jul 2014 08:40:38 -0400
-From: Jason Cooper <jason@lakedaemon.net>
-Subject: Re: [RFC Patch V1 21/30] mm, irqchip: Use
- cpu_to_mem()/numa_mem_id() to support memoryless node
-Message-ID: <20140718124038.GE24496@titan.lakedaemon.net>
-References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
- <1405064267-11678-22-git-send-email-jiang.liu@linux.intel.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 18 Jul 2014 05:50:32 -0700 (PDT)
+Date: Fri, 18 Jul 2014 13:50:18 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch 1/3] mm: vmscan: rework compaction-ready signaling in
+ direct reclaim fix
+Message-ID: <20140718125018.GO10819@suse.de>
+References: <1405344049-19868-1-git-send-email-hannes@cmpxchg.org>
+ <1405344049-19868-2-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1405064267-11678-22-git-send-email-jiang.liu@linux.intel.com>
+In-Reply-To: <1405344049-19868-2-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <jiang.liu@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Alexander Shiyan <shc_work@mail.ru>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Minchan Kim <minchan.kim@gmail.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jul 11, 2014 at 03:37:38PM +0800, Jiang Liu wrote:
-> When CONFIG_HAVE_MEMORYLESS_NODES is enabled, cpu_to_node()/numa_node_id()
-> may return a node without memory, and later cause system failure/panic
-> when calling kmalloc_node() and friends with returned node id.
-> So use cpu_to_mem()/numa_mem_id() instead to get the nearest node with
-> memory for the/current cpu.
+On Mon, Jul 14, 2014 at 09:20:47AM -0400, Johannes Weiner wrote:
+> As per Mel, replace out label with breaks from the loop.
 > 
-> If CONFIG_HAVE_MEMORYLESS_NODES is disabled, cpu_to_mem()/numa_mem_id()
-> is the same as cpu_to_node()/numa_node_id().
-> 
-> Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
-> ---
->  drivers/irqchip/irq-clps711x.c |    2 +-
->  drivers/irqchip/irq-gic.c      |    2 +-
->  2 files changed, 2 insertions(+), 2 deletions(-)
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Do you have anything depending on this?  Can apply it to irqchip?  If
-you need to keep it with other changes,
+Acked-by: Mel Gorman <mgorman@suse.de>
 
-Acked-by: Jason Cooper <jason@lakedaemon.net>
-
-But please do let me know if I can take it.
-
-thx,
-
-Jason.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
