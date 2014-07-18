@@ -1,115 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F7696B0035
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 03:33:21 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id w10so4561423pde.37
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 00:33:21 -0700 (PDT)
-Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
-        by mx.google.com with ESMTPS id gy1si4883629pbd.242.2014.07.18.00.33.19
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 9999B6B0035
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 03:36:19 -0400 (EDT)
+Received: by mail-we0-f181.google.com with SMTP id k48so3005756wev.40
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 00:36:19 -0700 (PDT)
+Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com [2a00:1450:400c:c05::22f])
+        by mx.google.com with ESMTPS id n17si248711wij.84.2014.07.18.00.36.17
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Fri, 18 Jul 2014 00:33:20 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout3.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0N8W00AU6CZGGU70@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 18 Jul 2014 08:33:16 +0100 (BST)
-Message-id: <53C8CDBC.3030600@samsung.com>
-Date: Fri, 18 Jul 2014 09:33:16 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-MIME-version: 1.0
-Subject: Re: [PATCH] CMA: generalize CMA reserved area management functionality
- (fixup)
-References: <53C78ED7.7030002@samsung.com>
- <1405589767-17513-1-git-send-email-m.szyprowski@samsung.com>
- <20140717150615.32c48786b6bdbc880bdc5ed4@linux-foundation.org>
-In-reply-to: <20140717150615.32c48786b6bdbc880bdc5ed4@linux-foundation.org>
-Content-type: text/plain; charset=UTF-8; format=flowed
-Content-transfer-encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 18 Jul 2014 00:36:17 -0700 (PDT)
+Received: by mail-wi0-f175.google.com with SMTP id ho1so358251wib.2
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 00:36:17 -0700 (PDT)
+Date: Fri, 18 Jul 2014 09:36:14 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC Patch V1 09/30] mm, memcg: Use cpu_to_mem()/numa_mem_id()
+ to support memoryless node
+Message-ID: <20140718073614.GC21453@dhcp22.suse.cz>
+References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
+ <1405064267-11678-10-git-send-email-jiang.liu@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1405064267-11678-10-git-send-email-jiang.liu@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: Jiang Liu <jiang.liu@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org
 
-Hello,
+On Fri 11-07-14 15:37:26, Jiang Liu wrote:
+> When CONFIG_HAVE_MEMORYLESS_NODES is enabled, cpu_to_node()/numa_node_id()
+> may return a node without memory, and later cause system failure/panic
+> when calling kmalloc_node() and friends with returned node id.
+> So use cpu_to_mem()/numa_mem_id() instead to get the nearest node with
+> memory for the/current cpu.
+> 
+> If CONFIG_HAVE_MEMORYLESS_NODES is disabled, cpu_to_mem()/numa_mem_id()
+> is the same as cpu_to_node()/numa_node_id().
 
-On 2014-07-18 00:06, Andrew Morton wrote:
-> On Thu, 17 Jul 2014 11:36:07 +0200 Marek Szyprowski <m.szyprowski@samsung.com> wrote:
->
->> MAX_CMA_AREAS is used by other subsystems (i.e. arch/arm/mm/dma-mapping.c),
->> so we need to provide correct definition even if CMA is disabled.
->> This patch fixes this issue.
->>
->> Reported-by: Sylwester Nawrocki <s.nawrocki@samsung.com>
->> Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
->> ---
->>   include/linux/cma.h | 4 ++++
->>   1 file changed, 4 insertions(+)
->>
->> diff --git a/include/linux/cma.h b/include/linux/cma.h
->> index 9a18a2b1934c..c077635cad76 100644
->> --- a/include/linux/cma.h
->> +++ b/include/linux/cma.h
->> @@ -5,7 +5,11 @@
->>    * There is always at least global CMA area and a few optional
->>    * areas configured in kernel .config.
->>    */
->> +#ifdef CONFIG_CMA
->>   #define MAX_CMA_AREAS	(1 + CONFIG_CMA_AREAS)
->> +#else
->> +#define MAX_CMA_AREAS	(0)
->> +#endif
->>   
->>   struct cma;
-> Joonsoo already fixed this up, a bit differently:
-> http://ozlabs.org/~akpm/mmots/broken-out/cma-generalize-cma-reserved-area-management-functionality-fix.patch
->
-> Which approach makes more sense?
+The change makes difference only for really tiny memcgs. If we really
+have all pages on unevictable list or anon with no swap allowed and that
+is the reason why no node is set in scan_nodes mask then reclaiming
+memoryless node or any arbitrary close one doesn't make any difference.
+The current memcg might not have any memory on that node at all.
 
-CMA_AREAS depends on CMA being enabled, so both approaches works exactly
-the same way. Please keep Joonsoo's patch and just ignore mine to avoid
-confusing others by disappearing patches. I'm sorry that I've missed it
-before sending mine.
+So the change doesn't make any practical difference and the changelog is
+misleading.
 
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Subject: CMA: fix ARM build failure related to MAX_CMA_AREAS definition
->
-> If CMA is disabled, CONFIG_CMA_AREAS isn't defined so compile error
-> happens. To fix it, define MAX_CMA_AREAS if CONFIG_CMA_AREAS
-> isn't defined.
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Reported-by: Stephen Rothwell <sfr@canb.auug.org.au>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
 > ---
->
->   include/linux/cma.h |    6 ++++++
->   1 file changed, 6 insertions(+)
->
-> diff -puN include/linux/cma.h~cma-generalize-cma-reserved-area-management-functionality-fix include/linux/cma.h
-> --- a/include/linux/cma.h~cma-generalize-cma-reserved-area-management-functionality-fix
-> +++ a/include/linux/cma.h
-> @@ -5,8 +5,14 @@
->    * There is always at least global CMA area and a few optional
->    * areas configured in kernel .config.
->    */
-> +#ifdef CONFIG_CMA_AREAS
->   #define MAX_CMA_AREAS	(1 + CONFIG_CMA_AREAS)
->   
-> +#else
-> +#define MAX_CMA_AREAS	(0)
-> +
-> +#endif
-> +
->   struct cma;
->   
->   extern phys_addr_t cma_get_base(struct cma *cma);
-> _
+>  mm/memcontrol.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index a2c7bcb0e6eb..d6c4b7255ca9 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1933,7 +1933,7 @@ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg)
+>  	 * we use curret node.
+>  	 */
+>  	if (unlikely(node == MAX_NUMNODES))
+> -		node = numa_node_id();
+> +		node = numa_mem_id();
+>  
+>  	memcg->last_scanned_node = node;
+>  	return node;
+> -- 
+> 1.7.10.4
+> 
 
-Best regards
 -- 
-Marek Szyprowski, PhD
-Samsung R&D Institute Poland
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
