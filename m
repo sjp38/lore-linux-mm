@@ -1,43 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id E92656B0035
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 14:37:42 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id y10so5497558pdj.28
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:37:42 -0700 (PDT)
-Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id ta1si6852172pac.50.2014.07.18.11.37.41
+Received: from mail-vc0-f170.google.com (mail-vc0-f170.google.com [209.85.220.170])
+	by kanga.kvack.org (Postfix) with ESMTP id E37256B0035
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 14:47:09 -0400 (EDT)
+Received: by mail-vc0-f170.google.com with SMTP id lf12so8007508vcb.29
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:47:09 -0700 (PDT)
+Received: from mail-vc0-x236.google.com (mail-vc0-x236.google.com [2607:f8b0:400c:c03::236])
+        by mx.google.com with ESMTPS id hq3si5684159veb.59.2014.07.18.11.47.09
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Jul 2014 11:37:41 -0700 (PDT)
-Message-ID: <53C96946.4090304@zytor.com>
-Date: Fri, 18 Jul 2014 11:36:54 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 18 Jul 2014 11:47:09 -0700 (PDT)
+Received: by mail-vc0-f182.google.com with SMTP id hy4so8338702vcb.27
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:47:09 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v3] arm64,ia64,ppc,s390,sh,tile,um,x86,mm: Remove default
- gate area
-References: <70f331f59e620dc4e66bd3fa095e6f6b744b532b.1405281639.git.luto@amacapital.net> <CALCETrXG6nL4K=Er+kv5-CXBDVa0TLg9yR6iePnMyE2ufXgKkw@mail.gmail.com> <20140718101416.GB1818@arm.com> <53C8F4DF.8020103@nod.at> <CALCETrXve-=N5yzqDw2YQee4BmC6sb8GYWYJcV2780V38OuJiQ@mail.gmail.com>
-In-Reply-To: <CALCETrXve-=N5yzqDw2YQee4BmC6sb8GYWYJcV2780V38OuJiQ@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20140718181947.GE13012@htj.dyndns.org>
+References: <20140717230923.GA32660@linux.vnet.ibm.com>
+	<20140718112039.GA8383@htj.dyndns.org>
+	<CAOhV88PyBK3WxDjG1H0hUbRhRYzPOzV8eim5DuOcgObe-FtFYg@mail.gmail.com>
+	<20140718180008.GC13012@htj.dyndns.org>
+	<CAOhV88O03zCsv_3eadEKNv1D1RoBmjWRFNhPjEHawF9s71U0JA@mail.gmail.com>
+	<20140718181947.GE13012@htj.dyndns.org>
+Date: Fri, 18 Jul 2014 11:47:08 -0700
+Message-ID: <CAOhV88Mby_vrLPtRsRNO724-_ABEL06Fc1mMwjgq7LWw-uxeAw@mail.gmail.com>
+Subject: Re: [RFC 0/2] Memoryless nodes and kworker
+From: Nish Aravamudan <nish.aravamudan@gmail.com>
+Content-Type: multipart/alternative; boundary=001a11c22fb441517f04fe7c2f4f
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, Richard Weinberger <richard@nod.at>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org, Fenghua Yu <fenghua.yu@intel.com>, X86 ML <x86@kernel.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Ingo Molnar <mingo@redhat.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-arch <linux-arch@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Tony Luck <tony.luck@intel.com>, "linux-sh@vger.kernel.org" <linux-sh@vger.kernel.org>, Nathan Lynch <Nathan_Lynch@mentor.com>, "linux390@de.ibm.com" <linux390@de.ibm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Chris Metcalf <cmetcalf@tilera.com>, Will Deacon <will.deacon@arm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>, Paul Mackerras <paulus@samba.org>, Jeff Dike <jdike@addtoit.com>, "user-mode-linux-devel@lists.sourceforge.net" <user-mode-linux-devel@lists.sourceforge.net>
+To: Tejun Heo <tj@kernel.org>
+Cc: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Jiang Liu <jiang.liu@linux.intel.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, linux-ia64@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On 07/18/2014 09:53 AM, Andy Lutomirski wrote:
-> 
-> Splitting this will be annoying: I'd probably have to add a flag asking for
-> the new behavior, update all the arches, then remove the flag.  The chance
-> of screwing up bisectability in the process seems pretty high.  This seems
-> like overkill for a patch that mostly deletes code.
-> 
-> Akpm, can you take this?
-> 
+--001a11c22fb441517f04fe7c2f4f
+Content-Type: text/plain; charset=UTF-8
 
-I'm fine with it as-is.
+On Fri, Jul 18, 2014 at 11:19 AM, Tejun Heo <tj@kernel.org> wrote:
+>
+> Hello,
+>
+> On Fri, Jul 18, 2014 at 11:12:01AM -0700, Nish Aravamudan wrote:
+> > why aren't these callers using kthread_create_on_cpu()? That API was
+>
+> It is using that.  There just are other data structures too.
 
-Acked-by: H. Peter Anvin <hpa@linux.intel.com>
+Sorry, I might not have been clear.
 
+Why are any callers of the format kthread_create_on_node(...,
+cpu_to_node(cpu), ...) not using kthread_create_on_cpu(..., cpu, ...)?
+
+In total in Linus' tree, there are only two APIs that use
+kthread_create_on_cpu() -- smpboot_create_threads() and
+smpboot_register_percpu_thread(). Neither of those seem to be used by the
+workqueue code that I can see as of yet.
+
+> > already change to use cpu_to_mem() [so one change, rather than of all
+over
+> > the kernel source]. We could change it back to cpu_to_node and push down
+> > the knowledge about the fallback.
+>
+> And once it's properly solved, please convert back kthread to use
+> cpu_to_node() too.  We really shouldn't be sprinkling the new subtly
+> different variant across the kernel.  It's wrong and confusing.
+
+I understand what you mean, but it's equally wrong for the kernel to be
+wasting GBs of slab. Different kinds of wrongness :)
+
+> > Yes, this is a good point. But honestly, we're not really even to the
+point
+> > of talking about fallback here, at least in my testing, going off-node
+at
+> > all causes SLUB-configured slabs to deactivate, which then leads to an
+> > explosion in the unreclaimable slab.
+>
+> I don't think moving the logic inside allocator proper is a huge
+> amount of work and this isn't the first spillage of this subtlety out
+> of allocator proper.  Fortunately, it hasn't spread too much yet.
+> Let's please stop it here.  I'm not saying you shouldn't or can't fix
+> the off-node allocation.
+
+It seems like an additional reasonable approach would be to provide a
+suitable _cpu() API for the allocators. I'm not sure why saying that
+callers should know about NUMA (in order to call cpu_to_node() in every
+caller) is any better than saying that callers should know about memoryless
+nodes (in order to call cpu_to_mem() in every caller instead) -- when at
+least in several cases that I've seen the relevant data is what CPU we're
+expecting to run or are running on. Seems like the _cpu API would specify
+-- please allocate memory local to this CPU, wherever it is?
+
+Thanks,
+Nish
+
+--001a11c22fb441517f04fe7c2f4f
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div><div>On Fri, Jul 18, 2014 at 11:19 AM, Tejun Heo &lt;=
+<a href=3D"mailto:tj@kernel.org">tj@kernel.org</a>&gt; wrote:<br>&gt;<br>&g=
+t; Hello,<br>&gt;<br>&gt; On Fri, Jul 18, 2014 at 11:12:01AM -0700, Nish Ar=
+avamudan wrote:<br>
+&gt; &gt; why aren&#39;t these callers using kthread_create_on_cpu()? That =
+API was<br>&gt;<br>&gt; It is using that. =C2=A0There just are other data s=
+tructures too.<br><br></div>Sorry, I might not have been clear.<br><br>Why =
+are any callers of the format kthread_create_on_node(..., cpu_to_node(cpu),=
+ ...) not using kthread_create_on_cpu(..., cpu, ...)?<br>
+<br></div>In total in Linus&#39; tree, there are only two APIs that use kth=
+read_create_on_cpu() -- smpboot_create_threads() and smpboot_register_percp=
+u_thread(). Neither of those seem to be used by the workqueue code that I c=
+an see as of yet.<br>
+<div><div><div><br>&gt; &gt; already change to use cpu_to_mem() [so one cha=
+nge, rather than of all over<br>&gt; &gt; the kernel source]. We could chan=
+ge it back to cpu_to_node and push down<br>&gt; &gt; the knowledge about th=
+e fallback.<br>
+&gt;<br>&gt; And once it&#39;s properly solved, please convert back kthread=
+ to use<br>&gt; cpu_to_node() too. =C2=A0We really shouldn&#39;t be sprinkl=
+ing the new subtly<br>&gt; different variant across the kernel. =C2=A0It&#3=
+9;s wrong and confusing.<br>
+<br></div><div>I understand what you mean, but it&#39;s equally wrong for t=
+he kernel to be wasting GBs of slab. Different kinds of wrongness :)<br></d=
+iv><div><br>&gt; &gt; Yes, this is a good point. But honestly, we&#39;re no=
+t really even to the point<br>
+&gt; &gt; of talking about fallback here, at least in my testing, going off=
+-node at<br>&gt; &gt; all causes SLUB-configured slabs to deactivate, which=
+ then leads to an<br>&gt; &gt; explosion in the unreclaimable slab.<br>
+&gt;<br>&gt; I don&#39;t think moving the logic inside allocator proper is =
+a huge<br>&gt; amount of work and this isn&#39;t the first spillage of this=
+ subtlety out<br>&gt; of allocator proper. =C2=A0Fortunately, it hasn&#39;t=
+ spread too much yet.<br>
+&gt; Let&#39;s please stop it here. =C2=A0I&#39;m not saying you shouldn&#3=
+9;t or can&#39;t fix<br>&gt; the off-node allocation.<br><br></div><div>It =
+seems like an additional reasonable approach would be to provide a suitable=
+ _cpu() API for the allocators. I&#39;m not sure why saying that callers sh=
+ould know about NUMA (in order to call cpu_to_node() in every caller) is an=
+y better than saying that callers should know about memoryless nodes (in or=
+der to call cpu_to_mem() in every caller instead) -- when at least in sever=
+al cases that I&#39;ve seen the relevant data is what CPU we&#39;re expecti=
+ng to run or are running on. Seems like the _cpu API would specify -- pleas=
+e allocate memory local to this CPU, wherever it is?<br>
+<br></div><div>Thanks,<br></div><div>Nish<br></div></div></div></div>
+
+--001a11c22fb441517f04fe7c2f4f--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
