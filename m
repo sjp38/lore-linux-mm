@@ -1,103 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f180.google.com (mail-vc0-f180.google.com [209.85.220.180])
-	by kanga.kvack.org (Postfix) with ESMTP id E4A346B0039
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 13:48:05 -0400 (EDT)
-Received: by mail-vc0-f180.google.com with SMTP id ij19so8055763vcb.39
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 10:48:05 -0700 (PDT)
-Received: from mail-vc0-x230.google.com (mail-vc0-x230.google.com [2607:f8b0:400c:c03::230])
-        by mx.google.com with ESMTPS id ak16si6549950vdc.93.2014.07.18.10.48.04
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 28DF66B0035
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 13:54:33 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id et14so5904938pad.9
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 10:54:32 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id os6si6683526pbb.212.2014.07.18.10.54.31
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 18 Jul 2014 10:48:05 -0700 (PDT)
-Received: by mail-vc0-f176.google.com with SMTP id id10so3336873vcb.7
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 10:48:04 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 18 Jul 2014 10:54:31 -0700 (PDT)
+Message-ID: <53C95F55.3010608@codeaurora.org>
+Date: Fri, 18 Jul 2014 10:54:29 -0700
+From: Laura Abbott <lauraa@codeaurora.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.02.1407141818590.8808@chino.kir.corp.google.com>
-References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
-	<20140711082956.GC20603@laptop.programming.kicks-ass.net>
-	<20140711153314.GA6155@kroah.com>
-	<alpine.LRH.2.00.1407120039120.17906@twin.jikos.cz>
-	<alpine.DEB.2.02.1407141818590.8808@chino.kir.corp.google.com>
-Date: Fri, 18 Jul 2014 10:48:04 -0700
-Message-ID: <CAOhV88O9TnucGqmW_MbTwhBMmr8dwCfkFQDSP=GD3QSdeqF6Dw@mail.gmail.com>
-Subject: Re: [RFC Patch V1 00/30] Enable memoryless node on x86 platforms
-From: Nish Aravamudan <nish.aravamudan@gmail.com>
-Content-Type: multipart/alternative; boundary=001a11c22fb401c56804fe7b5c75
+Subject: Re: [PATCH] CMA/HOTPLUG: clear buffer-head lru before page migration
+References: <53C8C290.90503@lge.com>
+In-Reply-To: <53C8C290.90503@lge.com>
+Content-Type: text/plain; charset=EUC-KR
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Jiri Kosina <jkosina@suse.cz>, Greg KH <gregkh@linuxfoundation.org>, Jiang Liu <jiang.liu@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Mike Galbraith <umgwanakikbuti@gmail.com>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Tony Luck <tony.luck@intel.com>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-hotplug@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Gioh Kim <gioh.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, =?EUC-KR?B?J7Howdi89ic=?= <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>
+Cc: Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mel@csn.ul.ie>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, =?EUC-KR?B?wMywx8ij?= <gunho.lee@lge.com>, 'Chanho Min' <chanho.min@lge.com>
 
---001a11c22fb401c56804fe7b5c75
-Content-Type: text/plain; charset=UTF-8
+On 7/17/2014 11:45 PM, Gioh Kim wrote:
+> 
+> Hi,
+> 
+> For page migration of CMA, buffer-heads of lru should be dropped.
+> Please refer to https://lkml.org/lkml/2014/7/4/101 for the history.
+> 
+> I have two solution to drop bhs.
+> One is invalidating entire lru.
+> Another is searching the lru and dropping only one bh that Laura proposed
+> at https://lkml.org/lkml/2012/8/31/313.
+> 
+> I'm not sure which has better performance.
+> So I did performance test on my cortex-a7 platform with Lmbench
+> that has "File & VM system latencies" test.
+> I am attaching the results.
+> The first line is of invalidating entire lru and the second is dropping selected bh.
+> 
+> File & VM system latencies in microseconds - smaller is better
+> -------------------------------------------------------------------------------
+> Host                 OS   0K File      10K File     Mmap    Prot   Page   100fd
+>                         Create Delete Create Delete Latency Fault  Fault  selct
+> --------- ------------- ------ ------ ------ ------ ------- ----- ------- -----
+> 10.178.33 Linux 3.10.19   25.1   19.6   32.6   19.7  5098.0 0.666 3.45880 6.506
+> 10.178.33 Linux 3.10.19   24.9   19.5   32.3   19.4  5059.0 0.563 3.46380 6.521
+> 
+> 
+> I tried several times but the result tells that they are the same under 1% gap
+> except Protection Fault.
+> But the latency of Protection Fault is very small and I think it has little effect.
+> 
+> Therefore we can choose anything but I choose invalidating entire lru.
+> The try_to_free_buffers() which is calling drop_buffers() is called by many filesystem code.
+> So I think inserting codes in drop_buffers() can affect the system.
+> And also we cannot distinguish migration type in drop_buffers().
+> 
+> In alloc_contig_range() we can distinguish migration type and invalidate lru if it needs.
+> I think alloc_contig_range() is proper to deal with bh like following patch.
+> 
+> Laura, can I have you name on Acked-by line?
+> Please let me represent my thanks.
+> 
+> Thanks for any feedback.
+> 
+> ------------------------------- 8< ----------------------------------
+> 
+> From 33c894b1bab9bc26486716f0c62c452d3a04d35d Mon Sep 17 00:00:00 2001
+> From: Gioh Kim <gioh.kim@lge.com>
+> Date: Fri, 18 Jul 2014 13:40:01 +0900
+> Subject: [PATCH] CMA/HOTPLUG: clear buffer-head lru before page migration
+> 
+> The bh must be free to migrate a page at which bh is mapped.
+> The reference count of bh is increased when it is installed
+> into lru so that the bh of lru must be freed before migrating the page.
+> 
+> This frees every bh of lru. We could free only bh of migrating page.
+> But searching lru costs more than invalidating entire lru.
+> 
+> Signed-off-by: Gioh Kim <gioh.kim@lge.com>
+> Acked-by: Laura Abbott <lauraa@codeaurora.org>\
 
-Hi David,
+I'd prefer if you would remove my Acked-by line until I've actually
+given it :)
 
-On Mon, Jul 14, 2014 at 6:19 PM, David Rientjes <rientjes@google.com> wrote:
->
-> On Sat, 12 Jul 2014, Jiri Kosina wrote:
->
-> > I am pretty sure I've seen ppc64 machine with memoryless NUMA node.
-> >
->
-> Yes, Nishanth Aravamudan (now cc'd) has been working diligently on the
-> problems that have been encountered, including problems in generic kernel
-> code, on powerpc with memoryless nodes.
+> ---
+>  mm/page_alloc.c |    3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index b99643d4..3b474e0 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -6369,6 +6369,9 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+>         if (ret)
+>                 return ret;
+> 
+> +       if (migratetype == MIGRATE_CMA || migratetype == MIGRATE_MOVABLE)
+> +               invalidate_bh_lrus();
+> +
+>         ret = __alloc_contig_migrate_range(&cc, start, end);
+>         if (ret)
+>                 goto done;
 
-Thanks for Cc'ing me on this discussion. I'm going to review Jiang's
-patchset now, as best I can, but yes I can confirm we see memoryless nodes
-somewhat frequently on powerpc under PowerVM, due to presumably hypervisor
-fragmentation (the reason isn't clear to an LPAR, as it's just given a
-topology).
-
-I agree with Dave Hansen that this seems like a "good thing" to try and
-figure out, unless KVM decides it's going to hide the underlying topology
-of a guest's memory from the guest -- which I think could lead (eventually)
-to confusing performance results.
-
-I believe I have also seen them in hardware on ia64 (cpu-only and
-memory-only drawers), but not sure if those specific models are in
-production still.
-
-Finally, I will say that in working on supporting memoryless nodes, I've
-come across what look like bugs in the NUMA code. Or more accurately,
-assumptions which aren't always true. So it's a useful exercise for that
-reason to.
+I agree with the others that the if (...) check doesn't actually help
+anything here and should probably be removed.
 
 Thanks,
-Nish
+Laura
 
---001a11c22fb401c56804fe7b5c75
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr">Hi David,<br><br>On Mon, Jul 14, 2014 at 6:19 PM, David Ri=
-entjes &lt;<a href=3D"mailto:rientjes@google.com">rientjes@google.com</a>&g=
-t; wrote:<br>&gt;<br>&gt; On Sat, 12 Jul 2014, Jiri Kosina wrote:<br>&gt;<b=
-r>
-&gt; &gt; I am pretty sure I&#39;ve seen ppc64 machine with memoryless NUMA=
- node.<br>&gt; &gt;<br>&gt;<br>&gt; Yes, Nishanth Aravamudan (now cc&#39;d)=
- has been working diligently on the<br>&gt; problems that have been encount=
-ered, including problems in generic kernel<br>
-&gt; code, on powerpc with memoryless nodes.<br><br>Thanks for Cc&#39;ing m=
-e on this discussion. I&#39;m going to review Jiang&#39;s patchset now, as =
-best I can, but yes I can confirm we see memoryless nodes somewhat frequent=
-ly on powerpc under PowerVM, due to presumably hypervisor fragmentation (th=
-e reason isn&#39;t clear to an LPAR, as it&#39;s just given a topology).<br=
->
-<br>I agree with Dave Hansen that this seems like a &quot;good thing&quot; =
-to try and figure out, unless KVM decides it&#39;s going to hide the underl=
-ying topology of a guest&#39;s memory from the guest -- which I think could=
- lead (eventually) to confusing performance results.<br>
-<br>I believe I have also seen them in hardware on ia64 (cpu-only and memor=
-y-only drawers), but not sure if those specific models are in production st=
-ill.<br><br>Finally, I will say that in working on supporting memoryless no=
-des, I&#39;ve come across what look like bugs in the NUMA code. Or more acc=
-urately, assumptions which aren&#39;t always true. So it&#39;s a useful exe=
-rcise for that reason to.<br>
-<br>Thanks,<br>Nish</div>
-
---001a11c22fb401c56804fe7b5c75--
+-- 
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
