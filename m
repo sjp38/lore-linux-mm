@@ -1,96 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id C65D86B0035
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 10:46:08 -0400 (EDT)
-Received: by mail-wi0-f170.google.com with SMTP id f8so1282324wiw.5
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 07:46:08 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id k10si4205782wiy.40.2014.07.18.07.46.06
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E7C26B0035
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 10:54:36 -0400 (EDT)
+Received: by mail-we0-f181.google.com with SMTP id k48so3592493wev.12
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 07:54:35 -0700 (PDT)
+Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
+        by mx.google.com with ESMTPS id gm1si4263648wib.20.2014.07.18.07.54.29
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 18 Jul 2014 07:46:07 -0700 (PDT)
-Date: Fri, 18 Jul 2014 10:45:54 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 13/13] mm: memcontrol: rewrite uncharge API
-Message-ID: <20140718144554.GG29639@cmpxchg.org>
-References: <1403124045-24361-1-git-send-email-hannes@cmpxchg.org>
- <1403124045-24361-14-git-send-email-hannes@cmpxchg.org>
- <20140715082545.GA9366@dhcp22.suse.cz>
- <20140715121935.GB9366@dhcp22.suse.cz>
- <20140718071246.GA21565@dhcp22.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 18 Jul 2014 07:54:30 -0700 (PDT)
+Received: by mail-we0-f170.google.com with SMTP id w62so4745436wes.29
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 07:54:29 -0700 (PDT)
+Date: Fri, 18 Jul 2014 15:54:22 +0100
+From: Steve Capper <steve.capper@linaro.org>
+Subject: Re: [PATCH v13 6/8] arm: add pmd_[dirty|mkclean] for THP
+Message-ID: <20140718145421.GA18569@linaro.org>
+References: <1405666386-15095-1-git-send-email-minchan@kernel.org>
+ <1405666386-15095-7-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140718071246.GA21565@dhcp22.suse.cz>
+In-Reply-To: <1405666386-15095-7-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, Miklos Szeredi <miklos@szeredi.hu>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org
 
-Hi Michal,
-
-[cc'ing Miklos for fuse's use of replace_page_cache()]
-
-On Fri, Jul 18, 2014 at 09:12:46AM +0200, Michal Hocko wrote:
-> On Tue 15-07-14 14:19:35, Michal Hocko wrote:
-> > [...]
-> > > +/**
-> > > + * mem_cgroup_migrate - migrate a charge to another page
-> > > + * @oldpage: currently charged page
-> > > + * @newpage: page to transfer the charge to
-> > > + * @lrucare: page might be on LRU already
-> > 
-> > which one? I guess the newpage?
-> > 
-> > > + *
-> > > + * Migrate the charge from @oldpage to @newpage.
-> > > + *
-> > > + * Both pages must be locked, @newpage->mapping must be set up.
-> > > + */
-> > > +void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
-> > > +			bool lrucare)
-> > > +{
-> > > +	unsigned int nr_pages = 1;
-> > > +	struct page_cgroup *pc;
-> > > +
-> > > +	VM_BUG_ON_PAGE(!PageLocked(oldpage), oldpage);
-> > > +	VM_BUG_ON_PAGE(!PageLocked(newpage), newpage);
-> > > +	VM_BUG_ON_PAGE(PageLRU(oldpage), oldpage);
-> > > +	VM_BUG_ON_PAGE(PageLRU(newpage), newpage);
-> > 
-> > 	VM_BUG_ON_PAGE(PageLRU(newpage) && !lruvec, newpage);
+On Fri, Jul 18, 2014 at 03:53:04PM +0900, Minchan Kim wrote:
+> MADV_FREE needs pmd_dirty and pmd_mkclean for detecting recent
+> overwrite of the contents since MADV_FREE syscall is called for
+> THP page.
 > 
-> I guess everything except these two notes got addressed.
+> This patch adds pmd_dirty and pmd_mkclean for THP page MADV_FREE
+> support.
+> 
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: Steve Capper <steve.capper@linaro.org>
+> Cc: Russell King <linux@arm.linux.org.uk>
+> Cc: linux-arm-kernel@lists.infradead.org
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-Sorry, they fell through the cracks.
+This patch looks good to me:
+Acked-by: Steve Capper <steve.capper@linaro.org>
 
-Yes, @newpage can already be on the LRU, and it's what @lrucare is
-for.  However, you got me thinking about the source page, and so I
-went back to replace_page_cache(); and fuse code, which is the only
-user of it.
+There is another patch that introduces a helper function to test for
+pmd bits, please see below.
 
-I assumed the source page would always be new, according to this part
-in fuse_try_move_page():
+> ---
+>  arch/arm/include/asm/pgtable-3level.h | 3 +++
+>  1 file changed, 3 insertions(+)
+> 
+> diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
+> index 85c60adc8b60..830f84f2d277 100644
+> --- a/arch/arm/include/asm/pgtable-3level.h
+> +++ b/arch/arm/include/asm/pgtable-3level.h
+> @@ -220,6 +220,8 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
+>  #define pmd_trans_splitting(pmd) (pmd_val(pmd) & PMD_SECT_SPLITTING)
+>  #endif
+>  
+> +#define pmd_dirty(pmd)		(pmd_val(pmd) & PMD_SECT_DIRTY)
 
-	/*
-	 * This is a new and locked page, it shouldn't be mapped or
-	 * have any special flags on it
-	 */
-	if (WARN_ON(page_mapped(oldpage)))
-		goto out_fallback_unlock;
-	if (WARN_ON(page_has_private(oldpage)))
-		goto out_fallback_unlock;
-	if (WARN_ON(PageDirty(oldpage) || PageWriteback(oldpage)))
-		goto out_fallback_unlock;
-	if (WARN_ON(PageMlocked(oldpage)))
-		goto out_fallback_unlock;
+Russell,
+Should this be folded into my {pte|pmd}_isset patch?
+http://lists.infradead.org/pipermail/linux-arm-kernel/2014-July/268979.html
 
-However, it's in the page cache and I can't really convince myself
-that it's not also on the LRU.  Miklos, I have trouble pinpointing
-where oldpage is instantiated exactly and what state it might be in -
-can it already be on the LRU?
+Cheers,
+-- 
+Steve
 
-If it can, we need to make sure we don't change pc->mem_cgroup while
-mem_cgroup_migrate() is looking at it:
 
----
+> +
+>  #define PMD_BIT_FUNC(fn,op) \
+>  static inline pmd_t pmd_##fn(pmd_t pmd) { pmd_val(pmd) op; return pmd; }
+>  
+> @@ -228,6 +230,7 @@ PMD_BIT_FUNC(mkold,	&= ~PMD_SECT_AF);
+>  PMD_BIT_FUNC(mksplitting, |= PMD_SECT_SPLITTING);
+>  PMD_BIT_FUNC(mkwrite,   &= ~PMD_SECT_RDONLY);
+>  PMD_BIT_FUNC(mkdirty,   |= PMD_SECT_DIRTY);
+> +PMD_BIT_FUNC(mkclean,   &= ~PMD_SECT_DIRTY);
+>  PMD_BIT_FUNC(mkyoung,   |= PMD_SECT_AF);
+>  
+>  #define pmd_mkhuge(pmd)		(__pmd(pmd_val(pmd) & ~PMD_TABLE_BIT))
+> -- 
+> 2.0.0
+> 
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
