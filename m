@@ -1,77 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CCF56B0035
-	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:45:06 -0400 (EDT)
-Received: by mail-lb0-f182.google.com with SMTP id z11so3022783lbi.27
-        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 08:45:05 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id g1si9899331lab.32.2014.07.18.08.45.03
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id E5C1F6B0035
+	for <linux-mm@kvack.org>; Fri, 18 Jul 2014 11:48:33 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id ft15so5251446pdb.38
+        for <linux-mm@kvack.org>; Fri, 18 Jul 2014 08:48:33 -0700 (PDT)
+Received: from smtp.gentoo.org (smtp.gentoo.org. [140.211.166.183])
+        by mx.google.com with ESMTPS id nl15si3201185pdb.117.2014.07.18.08.48.32
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Jul 2014 08:45:04 -0700 (PDT)
-Date: Fri, 18 Jul 2014 19:44:43 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [RFC PATCH] memcg: export knobs for the defaul cgroup hierarchy
-Message-ID: <20140718154443.GM27940@esperanza>
-References: <1405521578-19988-1-git-send-email-mhocko@suse.cz>
- <20140716155814.GZ29639@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20140716155814.GZ29639@cmpxchg.org>
+        Fri, 18 Jul 2014 08:48:32 -0700 (PDT)
+From: Richard Yao <ryao@gentoo.org>
+Subject: [PATCH] mm: vmscan: unlock_page page when forcing reclaim
+Date: Fri, 18 Jul 2014 11:48:02 -0400
+Message-Id: <1405698484-25803-1-git-send-email-ryao@gentoo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: linux-kernel@vger.kernel.org
+Cc: mthode@mthode.org, kernel@gentoo.org, Richard Yao <ryao@gentoo.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Glauber Costa <glommer@openvz.org>, Rik van Riel <riel@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <dchinner@redhat.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-On Wed, Jul 16, 2014 at 11:58:14AM -0400, Johannes Weiner wrote:
-> On Wed, Jul 16, 2014 at 04:39:38PM +0200, Michal Hocko wrote:
-> > +#ifdef CONFIG_MEMCG_KMEM
-> > +	{
-> > +		.name = "kmem.limit_in_bytes",
-> > +		.private = MEMFILE_PRIVATE(_KMEM, RES_LIMIT),
-> > +		.write = mem_cgroup_write,
-> > +		.read_u64 = mem_cgroup_read_u64,
-> > +	},
-> 
-> Does it really make sense to have a separate limit for kmem only?
-> IIRC, the reason we introduced this was that this memory is not
-> reclaimable and so we need to limit it.
-> 
-> But the opposite effect happened: because it's not reclaimable, the
-> separate kmem limit is actually unusable for any values smaller than
-> the overall memory limit: because there is no reclaim mechanism for
-> that limit, once you hit it, it's over, there is nothing you can do
-> anymore.  The problem isn't so much unreclaimable memory, the problem
-> is unreclaimable limits.
-> 
-> If the global case produces memory pressure through kernel memory
-> allocations, we reclaim page cache, anonymous pages, inodes, dentries
-> etc.  I think the same should happen for kmem: kmem should just be
-> accounted and limited in the overall memory limit of a group, and when
-> pressure arises, we go after anything that's reclaimable.
+A small userland program I wrote to assist me in drive forensic
+operations soft deadlocked on Linux 3.14.4. The stack trace from /proc
+was:
 
-Personally, I don't think there's much sense in having a separate knob
-for kmem limit either. Until we have a user with a sane use case for it,
-let's not propagate it to the new interface.
+[<ffffffff8112968e>] sleep_on_page_killable+0xe/0x40
+[<ffffffff81129829>] wait_on_page_bit_killable+0x79/0x80
+[<ffffffff811299a5>] __lock_page_or_retry+0x95/0xc0
+[<ffffffff8112a95b>] filemap_fault+0x21b/0x420
+[<ffffffff8115685e>] __do_fault+0x6e/0x520
+[<ffffffff81156de3>] handle_pte_fault+0xd3/0x1f0
+[<ffffffff81157073>] __handle_mm_fault+0x173/0x290
+[<ffffffff811571d2>] handle_mm_fault+0x42/0xb0
+[<ffffffff81587a11>] __do_page_fault+0x191/0x490
+[<ffffffff81587dec>] do_page_fault+0xc/0x10
+[<ffffffff81584622>] page_fault+0x22/0x30
+[<ffffffffffffffff>] 0xffffffffffffffff
 
-Furthermore, even when we introduce kmem shrinking, the kmem-only limit
-alone won't be very useful, because there are plenty of GFP_NOFS kmem
-allocations, which make most of slab shrinkers useless. To avoid
-ENOMEM's in such situation, we would have to introduce either a soft
-kmem limit (watermark) or a kind of kmem precharges. This means if we
-decided to introduce kmem-only limit, we'd eventually have to add more
-knobs and write more code to make it usable w/o even knowing if anyone
-would really benefit from it.
+The program used mmap() to do a linear scan of the device on 64-bit
+hardware. The block device in question was 200GB in size and the system
+had only 8GB of RAM. All IO operations stopped following pageout.
 
-However, there might be users that only want user memory limiting and
-don't want to pay the price of kmem accounting, which is pretty
-expensive. Even if we implement percpu stocks for kmem, there still will
-be noticeable overhead due to touching more cache lines on
-kmalloc/kfree.
+shrink_page_list() seemed to have raced with filemap_fault() by evicting
+a page when we had an active fault handler. This is possible only
+because 02c6de8d757cb32c0829a45d81c3dfcbcafd998b altered the behavior of
+shrink_page_list() to ignore references. Consequently, we must call
+unlock_page() instead of __clear_page_locked() when doing this so that
+waiters are notified. unlock_page() here will cause active page fault
+handlers to retry (depending on the architecture), which avoids the soft
+deadlock.
 
-So I guess there should be a tunable, which will allow to toggle memcg
-features. May be, a bitmask for future extensibility.
+Signed-off-by: Richard Yao <ryao@gentoo.org>
+---
+ mm/vmscan.c | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 3f56c8d..c07c635 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1083,13 +1083,16 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 			goto keep_locked;
+ 
+ 		/*
+-		 * At this point, we have no other references and there is
+-		 * no way to pick any more up (removed from LRU, removed
+-		 * from pagecache). Can use non-atomic bitops now (and
++		 * Unless we force reclaim, we have no other references and
++		 * there is no way to pick any more up (removed from LRU,
++		 * removed from pagecache). Can use non-atomic bitops now (and
+ 		 * we obviously don't have to worry about waking up a process
+ 		 * waiting on the page lock, because there are no references.
+ 		 */
+-		__clear_page_locked(page);
++		if (force_reclaim)
++			unlock_page(page);
++		else
++			__clear_page_locked(page);
+ free_it:
+ 		nr_reclaimed++;
+ 
+-- 
+1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
