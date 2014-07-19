@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E2706B0035
-	for <linux-mm@kvack.org>; Sat, 19 Jul 2014 12:36:35 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id tp5so5670616ieb.28
-        for <linux-mm@kvack.org>; Sat, 19 Jul 2014 09:36:35 -0700 (PDT)
-Received: from mail-ig0-x22e.google.com (mail-ig0-x22e.google.com [2607:f8b0:4001:c05::22e])
-        by mx.google.com with ESMTPS id fk1si14091287igb.14.2014.07.19.09.36.34
+Received: from mail-vc0-f180.google.com (mail-vc0-f180.google.com [209.85.220.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 1ED496B0035
+	for <linux-mm@kvack.org>; Sat, 19 Jul 2014 12:40:48 -0400 (EDT)
+Received: by mail-vc0-f180.google.com with SMTP id ij19so9640900vcb.39
+        for <linux-mm@kvack.org>; Sat, 19 Jul 2014 09:40:47 -0700 (PDT)
+Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com [2607:f8b0:4001:c05::22b])
+        by mx.google.com with ESMTPS id cf10si30675286icc.76.2014.07.19.09.40.47
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 19 Jul 2014 09:36:34 -0700 (PDT)
-Received: by mail-ig0-f174.google.com with SMTP id c1so1600245igq.1
-        for <linux-mm@kvack.org>; Sat, 19 Jul 2014 09:36:34 -0700 (PDT)
+        Sat, 19 Jul 2014 09:40:47 -0700 (PDT)
+Received: by mail-ig0-f171.google.com with SMTP id l13so1595421iga.16
+        for <linux-mm@kvack.org>; Sat, 19 Jul 2014 09:40:47 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1407160308550.1775@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1407090155250.7841@eggly.anvils>
 References: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com>
-	<1402655819-14325-7-git-send-email-dh.herrmann@gmail.com>
-	<alpine.LSU.2.11.1407160308550.1775@eggly.anvils>
-Date: Sat, 19 Jul 2014 18:36:34 +0200
-Message-ID: <CANq1E4SMTcTyWJ5ngbq1c-cu0YWn84vjNZsx6C82EAxYeyh2Dg@mail.gmail.com>
-Subject: Re: [RFC v3 6/7] shm: wait for pins to be released when sealing
+	<1402655819-14325-8-git-send-email-dh.herrmann@gmail.com>
+	<alpine.LSU.2.11.1407090155250.7841@eggly.anvils>
+Date: Sat, 19 Jul 2014 18:40:47 +0200
+Message-ID: <CANq1E4S=QUv_T0mYZM2qx70Bgp1eoZeORYZUFTtVmV4iFcooig@mail.gmail.com>
+Subject: Re: [RFC v3 7/7] shm: isolate pinned pages when sealing files
 From: David Herrmann <dh.herrmann@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -28,48 +28,80 @@ Cc: linux-kernel <linux-kernel@vger.kernel.org>, Michael Kerrisk <mtk.manpages@g
 
 Hi
 
-On Wed, Jul 16, 2014 at 12:09 PM, Hugh Dickins <hughd@google.com> wrote:
+On Wed, Jul 9, 2014 at 10:57 AM, Hugh Dickins <hughd@google.com> wrote:
 > On Fri, 13 Jun 2014, David Herrmann wrote:
 >
->> We currently fail setting SEAL_WRITE in case there're pending page
->> references. This patch extends the pin-tests to wait up to 150ms for all
->> references to be dropped. This is still not perfect in that it doesn't
->> account for harmless read-only pins, but it's much better than a hard
->> failure.
+>> When setting SEAL_WRITE, we must make sure nobody has a writable reference
+>> to the pages (via GUP or similar). We currently check references and wait
+>> some time for them to be dropped. This, however, might fail for several
+>> reasons, including:
+>>  - the page is pinned for longer than we wait
+>>  - while we wait, someone takes an already pinned page for read-access
+>>
+>> Therefore, this patch introduces page-isolation. When sealing a file with
+>> SEAL_WRITE, we copy all pages that have an elevated ref-count. The newpage
+>> is put in place atomically, the old page is detached and left alone. It
+>> will get reclaimed once the last external user dropped it.
 >>
 >> Signed-off-by: David Herrmann <dh.herrmann@gmail.com>
 >
-> Right, I didn't look through the patch itself, just compared the result
-> with what I sent.  Okay, you prefer to separate out shmem_tag_pins().
-
-The main reason why I split both is to avoid goto-label "restart" and
-"restart2".
-
-> Yes, it looks fine.  There's just one change I'd like at this stage,
-> something I realized shortly after sending the code fragment: please
-> add a call to lru_add_drain() at the head of shmem_tag_pins().  The
-> reason being that lru_add_drain() is local to the cpu, so cheap, and
-> in many cases will bring down all the raised refcounts right then.
+> I've not checked it line by line, but this seems to be very good work;
+> and I'm glad you have posted it, where we can refer back to it in future.
 >
-> Whereas lru_add_drain_all() in the first scan of shmem_wait_for_pins()
-> is much more expensive, involving inter-processor interrupts to do
-> that on all cpus: it is appropriate to call it at that point, but we
-> really ought to try the cheaper lru_add_drain() at the earlier stage.
+> However, I'm NAKing this patch, at least for now.
+>
+> The reason is simple and twofold.
+>
+> I absolutely do not want to be maintaining an alternative form of
+> page migration in mm/shmem.c.  Shmem has its own peculiar problems
+> (mostly because of swap): adding a new dimension of very rarely
+> exercised complication, and dependence on the rest mm, is not wise.
+>
+> And sealing just does not need this.  It is clearly technically
+> superior to, and more satisfying than, the "wait-a-while-then-give-up"
+> technique which it would replace.  But in practice, the wait-a-while
+> technique is quite good enough (and much better self-contained than this).
+>
+> I've heard no requirement to support sealing of objects pinned for I/O,
+> and the sealer just would not have given the object out for that; the
+> requirement is to give the recipient of a sealed object confidence
+> that it cannot be susceptible to modification in that way.
+>
+> I doubt there will ever be an actual need for sealing to use this
+> migration technique; but I can imagine us referring back to your work in
+> future, when/if implementing revoke on regular files.  And integrating
+> this into mm/migrate.c's unmap_and_move() as an extra-force mode
+> (proceed even when the page count is raised).
+>
+> I think the concerns I had, when Tony first proposed this migration copy
+> technique, were in fact unfounded - I was worried by the new inverse COW.
+> On reflection, I don't think this introduces any new risks, which are
+> not already present in page migration, truncation and orphaned pages.
+>
+> I didn't begin to test it at all, but the only defects that stood out
+> in your code were in the areas of memcg and mlock.  I think that if we
+> go down the road of duplicating pinned pages, then we do have to make
+> a memcg charge on the new page in addition to the old page.  And if
+> any pages happen to be mlock'ed into an address space, then we ought
+> to map in the replacement pages afterwards (as page migration does,
+> whether mlock'ed or not).
+>
+> (You were perfectly correct to use unmap_mapping_range(), rather than
+> try_to_unmap() as page migration does: because unmap_mapping_range()
+> manages the VM_NONLINEAR case.  But our intention, under way, is to
+> scrap all VM_NONLINEAR code, and just emulate it with multiple vmas,
+> in which case try_to_unmap() should do.)
 
-I added an lru_add_drain_all() to my shmem_test_pins() function in
-Patch 2/7. This patch dropped it again as your wait_for_pins() already
-included it and it's quite expensive. But yes, the local
-lru_add_drain() makes perfect sense. Fixed!
+Dropping VM_NONLINEAR would make a lot of stuff so much easier.
 
-Thanks
+I'm fine with dropping this patch again. The mlock and memcg issues
+you raised are valid and should get fixed. And indeed, my testing
+never triggered any real evelated page-refs except if I pinned them
+via FUSE. Therefore, the wait-for-pins function should be sufficient,
+indeed.
+
+Thanks for the reviews! I will send v4 shortly.
 David
-
-> I would also like never to embark on this scan of the radix_tree
-> and wait for pins, if the pages were never given out in a VM_SHARED
-> mapping - or is that unrealistic, because every memfd is read-write,
-> and typical initialization expected to be by mmap() rather than write()?
-> But anyway, you're quite right not to get into that at this stage:
-> it's best left as an optimization once the basics are safely in.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
