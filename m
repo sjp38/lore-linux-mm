@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 449F16B003A
-	for <linux-mm@kvack.org>; Sun, 20 Jul 2014 13:35:36 -0400 (EDT)
-Received: by mail-wi0-f176.google.com with SMTP id bs8so3037265wib.9
-        for <linux-mm@kvack.org>; Sun, 20 Jul 2014 10:35:35 -0700 (PDT)
-Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com [2a00:1450:400c:c05::231])
-        by mx.google.com with ESMTPS id gt8si15512281wib.65.2014.07.20.10.35.34
+Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
+	by kanga.kvack.org (Postfix) with ESMTP id C34826B003B
+	for <linux-mm@kvack.org>; Sun, 20 Jul 2014 13:35:38 -0400 (EDT)
+Received: by mail-we0-f174.google.com with SMTP id x48so6573154wes.19
+        for <linux-mm@kvack.org>; Sun, 20 Jul 2014 10:35:38 -0700 (PDT)
+Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com [2a00:1450:400c:c05::22f])
+        by mx.google.com with ESMTPS id bg6si15521909wib.53.2014.07.20.10.35.36
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 20 Jul 2014 10:35:34 -0700 (PDT)
-Received: by mail-wi0-f177.google.com with SMTP id ho1so2986901wib.10
-        for <linux-mm@kvack.org>; Sun, 20 Jul 2014 10:35:34 -0700 (PDT)
+        Sun, 20 Jul 2014 10:35:37 -0700 (PDT)
+Received: by mail-wi0-f175.google.com with SMTP id ho1so3014124wib.14
+        for <linux-mm@kvack.org>; Sun, 20 Jul 2014 10:35:36 -0700 (PDT)
 From: David Herrmann <dh.herrmann@gmail.com>
-Subject: [PATCH v4 4/6] selftests: add memfd_create() + sealing tests
-Date: Sun, 20 Jul 2014 19:34:38 +0200
-Message-Id: <1405877680-999-5-git-send-email-dh.herrmann@gmail.com>
+Subject: [PATCH v4 5/6] selftests: add memfd/sealing page-pinning tests
+Date: Sun, 20 Jul 2014 19:34:39 +0200
+Message-Id: <1405877680-999-6-git-send-email-dh.herrmann@gmail.com>
 In-Reply-To: <1405877680-999-1-git-send-email-dh.herrmann@gmail.com>
 References: <1405877680-999-1-git-send-email-dh.herrmann@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,81 +22,199 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, Greg Kroah-Hartman <greg@kroah.com>, john.stultz@linaro.org, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>, Hugh Dickins <hughd@google.com>, Andy Lutomirski <luto@amacapital.net>, Alexander Viro <viro@zeniv.linux.org.uk>, David Herrmann <dh.herrmann@gmail.com>
 
-Some basic tests to verify sealing on memfds works as expected and
-guarantees the advertised semantics.
+Setting SEAL_WRITE is not possible if there're pending GUP users. This
+commit adds selftests for memfd+sealing that use FUSE to create pending
+page-references. FUSE is very helpful here in that it allows us to delay
+direct-IO operations for an arbitrary amount of time. This way, we can
+force the kernel to pin pages and then run our normal selftests.
 
 Signed-off-by: David Herrmann <dh.herrmann@gmail.com>
 ---
- tools/testing/selftests/Makefile           |   1 +
- tools/testing/selftests/memfd/.gitignore   |   2 +
- tools/testing/selftests/memfd/Makefile     |  29 +
- tools/testing/selftests/memfd/memfd_test.c | 913 +++++++++++++++++++++++++++++
- 4 files changed, 945 insertions(+)
- create mode 100644 tools/testing/selftests/memfd/.gitignore
- create mode 100644 tools/testing/selftests/memfd/Makefile
- create mode 100644 tools/testing/selftests/memfd/memfd_test.c
+ tools/testing/selftests/memfd/.gitignore       |   2 +
+ tools/testing/selftests/memfd/Makefile         |  14 +-
+ tools/testing/selftests/memfd/fuse_mnt.c       | 110 +++++++++
+ tools/testing/selftests/memfd/fuse_test.c      | 311 +++++++++++++++++++++++++
+ tools/testing/selftests/memfd/run_fuse_test.sh |  14 ++
+ 5 files changed, 450 insertions(+), 1 deletion(-)
+ create mode 100755 tools/testing/selftests/memfd/fuse_mnt.c
+ create mode 100644 tools/testing/selftests/memfd/fuse_test.c
+ create mode 100755 tools/testing/selftests/memfd/run_fuse_test.sh
 
-diff --git a/tools/testing/selftests/Makefile b/tools/testing/selftests/Makefile
-index e66e710..5ef80cb 100644
---- a/tools/testing/selftests/Makefile
-+++ b/tools/testing/selftests/Makefile
-@@ -2,6 +2,7 @@ TARGETS = breakpoints
- TARGETS += cpu-hotplug
- TARGETS += efivarfs
- TARGETS += kcmp
-+TARGETS += memfd
- TARGETS += memory-hotplug
- TARGETS += mqueue
- TARGETS += net
 diff --git a/tools/testing/selftests/memfd/.gitignore b/tools/testing/selftests/memfd/.gitignore
-new file mode 100644
-index 0000000..bcc8ee2
---- /dev/null
+index bcc8ee2..afe87c4 100644
+--- a/tools/testing/selftests/memfd/.gitignore
 +++ b/tools/testing/selftests/memfd/.gitignore
-@@ -0,0 +1,2 @@
-+memfd_test
-+memfd-test-file
+@@ -1,2 +1,4 @@
++fuse_mnt
++fuse_test
+ memfd_test
+ memfd-test-file
 diff --git a/tools/testing/selftests/memfd/Makefile b/tools/testing/selftests/memfd/Makefile
-new file mode 100644
-index 0000000..36653b9
---- /dev/null
+index 36653b9..6816c49 100644
+--- a/tools/testing/selftests/memfd/Makefile
 +++ b/tools/testing/selftests/memfd/Makefile
-@@ -0,0 +1,29 @@
-+uname_M := $(shell uname -m 2>/dev/null || echo not)
-+ARCH ?= $(shell echo $(uname_M) | sed -e s/i.86/i386/)
-+ifeq ($(ARCH),i386)
-+	ARCH := X86
-+endif
-+ifeq ($(ARCH),x86_64)
-+	ARCH := X86
-+endif
-+
-+CFLAGS += -I../../../../arch/x86/include/generated/uapi/
-+CFLAGS += -I../../../../arch/x86/include/uapi/
-+CFLAGS += -I../../../../include/uapi/
-+CFLAGS += -I../../../../include/
-+
-+all:
+@@ -7,6 +7,7 @@ ifeq ($(ARCH),x86_64)
+ 	ARCH := X86
+ endif
+ 
++CFLAGS += -D_FILE_OFFSET_BITS=64
+ CFLAGS += -I../../../../arch/x86/include/generated/uapi/
+ CFLAGS += -I../../../../arch/x86/include/uapi/
+ CFLAGS += -I../../../../include/uapi/
+@@ -25,5 +26,16 @@ ifeq ($(ARCH),X86)
+ endif
+ 	@./memfd_test || echo "memfd_test: [FAIL]"
+ 
++build_fuse:
 +ifeq ($(ARCH),X86)
-+	gcc $(CFLAGS) memfd_test.c -o memfd_test
++	gcc $(CFLAGS) fuse_mnt.c `pkg-config fuse --cflags --libs` -o fuse_mnt
++	gcc $(CFLAGS) fuse_test.c -o fuse_test
 +else
 +	echo "Not an x86 target, can't build memfd selftest"
 +endif
 +
-+run_tests: all
-+ifeq ($(ARCH),X86)
-+	gcc $(CFLAGS) memfd_test.c -o memfd_test
-+endif
-+	@./memfd_test || echo "memfd_test: [FAIL]"
++run_fuse: build_fuse
++	@./run_fuse_test.sh || echo "fuse_test: [FAIL]"
 +
-+clean:
-+	$(RM) memfd_test
-diff --git a/tools/testing/selftests/memfd/memfd_test.c b/tools/testing/selftests/memfd/memfd_test.c
-new file mode 100644
-index 0000000..3634c90
+ clean:
+-	$(RM) memfd_test
++	$(RM) memfd_test fuse_test
+diff --git a/tools/testing/selftests/memfd/fuse_mnt.c b/tools/testing/selftests/memfd/fuse_mnt.c
+new file mode 100755
+index 0000000..feacf12
 --- /dev/null
-+++ b/tools/testing/selftests/memfd/memfd_test.c
-@@ -0,0 +1,913 @@
++++ b/tools/testing/selftests/memfd/fuse_mnt.c
+@@ -0,0 +1,110 @@
++/*
++ * memfd test file-system
++ * This file uses FUSE to create a dummy file-system with only one file /memfd.
++ * This file is read-only and takes 1s per read.
++ *
++ * This file-system is used by the memfd test-cases to force the kernel to pin
++ * pages during reads(). Due to the 1s delay of this file-system, this is a
++ * nice way to test race-conditions against get_user_pages() in the kernel.
++ *
++ * We use direct_io==1 to force the kernel to use direct-IO for this
++ * file-system.
++ */
++
++#define FUSE_USE_VERSION 26
++
++#include <fuse.h>
++#include <stdio.h>
++#include <string.h>
++#include <errno.h>
++#include <fcntl.h>
++#include <unistd.h>
++
++static const char memfd_content[] = "memfd-example-content";
++static const char memfd_path[] = "/memfd";
++
++static int memfd_getattr(const char *path, struct stat *st)
++{
++	memset(st, 0, sizeof(*st));
++
++	if (!strcmp(path, "/")) {
++		st->st_mode = S_IFDIR | 0755;
++		st->st_nlink = 2;
++	} else if (!strcmp(path, memfd_path)) {
++		st->st_mode = S_IFREG | 0444;
++		st->st_nlink = 1;
++		st->st_size = strlen(memfd_content);
++	} else {
++		return -ENOENT;
++	}
++
++	return 0;
++}
++
++static int memfd_readdir(const char *path,
++			 void *buf,
++			 fuse_fill_dir_t filler,
++			 off_t offset,
++			 struct fuse_file_info *fi)
++{
++	if (strcmp(path, "/"))
++		return -ENOENT;
++
++	filler(buf, ".", NULL, 0);
++	filler(buf, "..", NULL, 0);
++	filler(buf, memfd_path + 1, NULL, 0);
++
++	return 0;
++}
++
++static int memfd_open(const char *path, struct fuse_file_info *fi)
++{
++	if (strcmp(path, memfd_path))
++		return -ENOENT;
++
++	if ((fi->flags & 3) != O_RDONLY)
++		return -EACCES;
++
++	/* force direct-IO */
++	fi->direct_io = 1;
++
++	return 0;
++}
++
++static int memfd_read(const char *path,
++		      char *buf,
++		      size_t size,
++		      off_t offset,
++		      struct fuse_file_info *fi)
++{
++	size_t len;
++
++	if (strcmp(path, memfd_path) != 0)
++		return -ENOENT;
++
++	sleep(1);
++
++	len = strlen(memfd_content);
++	if (offset < len) {
++		if (offset + size > len)
++			size = len - offset;
++
++		memcpy(buf, memfd_content + offset, size);
++	} else {
++		size = 0;
++	}
++
++	return size;
++}
++
++static struct fuse_operations memfd_ops = {
++	.getattr	= memfd_getattr,
++	.readdir	= memfd_readdir,
++	.open		= memfd_open,
++	.read		= memfd_read,
++};
++
++int main(int argc, char *argv[])
++{
++	return fuse_main(argc, argv, &memfd_ops, NULL);
++}
+diff --git a/tools/testing/selftests/memfd/fuse_test.c b/tools/testing/selftests/memfd/fuse_test.c
+new file mode 100644
+index 0000000..67908b1
+--- /dev/null
++++ b/tools/testing/selftests/memfd/fuse_test.c
+@@ -0,0 +1,311 @@
++/*
++ * memfd GUP test-case
++ * This tests memfd interactions with get_user_pages(). We require the
++ * fuse_mnt.c program to provide a fake direct-IO FUSE mount-point for us. This
++ * file-system delays _all_ reads by 1s and forces direct-IO. This means, any
++ * read() on files in that file-system will pin the receive-buffer pages for at
++ * least 1s via get_user_pages().
++ *
++ * We use this trick to race ADD_SEALS against a write on a memfd object. The
++ * ADD_SEALS must fail if the memfd pages are still pinned. Note that we use
++ * the read() syscall with our memory-mapped memfd object as receive buffer to
++ * force the kernel to write into our memfd object.
++ */
++
 +#define _GNU_SOURCE
 +#define __EXPORTED_HEADERS__
 +
@@ -114,6 +232,7 @@ index 0000000..3634c90
 +#include <sys/mman.h>
 +#include <sys/stat.h>
 +#include <sys/syscall.h>
++#include <sys/wait.h>
 +#include <unistd.h>
 +
 +#define MFD_DEF_SIZE 8192
@@ -143,19 +262,6 @@ index 0000000..3634c90
 +	}
 +
 +	return fd;
-+}
-+
-+static void mfd_fail_new(const char *name, unsigned int flags)
-+{
-+	int r;
-+
-+	r = sys_memfd_create(name, flags);
-+	if (r >= 0) {
-+		printf("memfd_create(\"%s\", %u) succeeded, but failure expected\n",
-+		       name, flags);
-+		close(r);
-+		abort();
-+	}
 +}
 +
 +static __u64 mfd_assert_get_seals(int fd)
@@ -197,7 +303,7 @@ index 0000000..3634c90
 +	}
 +}
 +
-+static void mfd_fail_add_seals(int fd, __u64 seals)
++static int mfd_busy_add_seals(int fd, __u64 seals)
 +{
 +	long r;
 +	__u64 s;
@@ -209,36 +315,9 @@ index 0000000..3634c90
 +		s = r;
 +
 +	r = fcntl(fd, F_ADD_SEALS, seals);
-+	if (r >= 0) {
-+		printf("ADD_SEALS(%d, %llu -> %llu) didn't fail as expected\n",
++	if (r < 0 && errno != EBUSY) {
++		printf("ADD_SEALS(%d, %llu -> %llu) didn't fail as expected with EBUSY: %m\n",
 +		       fd, (unsigned long long)s, (unsigned long long)seals);
-+		abort();
-+	}
-+}
-+
-+static void mfd_assert_size(int fd, size_t size)
-+{
-+	struct stat st;
-+	int r;
-+
-+	r = fstat(fd, &st);
-+	if (r < 0) {
-+		printf("fstat(%d) failed: %m\n", fd);
-+		abort();
-+	} else if (st.st_size != size) {
-+		printf("wrong file size %lld, but expected %lld\n",
-+		       (long long)st.st_size, (long long)size);
-+		abort();
-+	}
-+}
-+
-+static int mfd_assert_dup(int fd)
-+{
-+	int r;
-+
-+	r = dup(fd);
-+	if (r < 0) {
-+		printf("dup(%d) failed: %m\n", fd);
 +		abort();
 +	}
 +
@@ -269,7 +348,7 @@ index 0000000..3634c90
 +
 +	p = mmap(NULL,
 +		 MFD_DEF_SIZE,
-+		 PROT_READ,
++		 PROT_READ | PROT_WRITE,
 +		 MAP_PRIVATE,
 +		 fd,
 +		 0);
@@ -281,330 +360,47 @@ index 0000000..3634c90
 +	return p;
 +}
 +
-+static int mfd_assert_open(int fd, int flags, mode_t mode)
++static int global_mfd = -1;
++static void *global_p = NULL;
++
++static int sealing_thread_fn(void *arg)
 +{
-+	char buf[512];
-+	int r;
++	int sig, r;
 +
-+	sprintf(buf, "/proc/self/fd/%d", fd);
-+	r = open(buf, flags, mode);
-+	if (r < 0) {
-+		printf("open(%s) failed: %m\n", buf);
-+		abort();
-+	}
++	/*
++	 * This thread first waits 200ms so any pending operation in the parent
++	 * is correctly started. After that, it tries to seal @global_mfd as
++	 * SEAL_WRITE. This _must_ fail as the parent thread has a read() into
++	 * that memory mapped object still ongoing.
++	 * We then wait one more second and try sealing again. This time it
++	 * must succeed as there shouldn't be anyone else pinning the pages.
++	 */
 +
-+	return r;
-+}
++	/* wait 200ms for FUSE-request to be active */
++	usleep(200000);
 +
-+static void mfd_fail_open(int fd, int flags, mode_t mode)
-+{
-+	char buf[512];
-+	int r;
++	/* unmount mapping before sealing to avoid i_mmap_writable failures */
++	munmap(global_p, MFD_DEF_SIZE);
 +
-+	sprintf(buf, "/proc/self/fd/%d", fd);
-+	r = open(buf, flags, mode);
++	/* Try sealing the global file; expect EBUSY or success. Current
++	 * kernels will never succeed, but in the future, kernels might
++	 * implement page-replacements or other fancy ways to avoid racing
++	 * writes. */
++	r = mfd_busy_add_seals(global_mfd, F_SEAL_WRITE);
 +	if (r >= 0) {
-+		printf("open(%s) didn't fail as expected\n");
-+		abort();
++		printf("HURRAY! This kernel fixed GUP races!\n");
++	} else {
++		/* wait 1s more so the FUSE-request is done */
++		sleep(1);
++
++		/* try sealing the global file again */
++		mfd_assert_add_seals(global_mfd, F_SEAL_WRITE);
 +	}
-+}
-+
-+static void mfd_assert_read(int fd)
-+{
-+	char buf[16];
-+	void *p;
-+	ssize_t l;
-+
-+	l = read(fd, buf, sizeof(buf));
-+	if (l != sizeof(buf)) {
-+		printf("read() failed: %m\n");
-+		abort();
-+	}
-+
-+	/* verify PROT_READ *is* allowed */
-+	p = mmap(NULL,
-+		 MFD_DEF_SIZE,
-+		 PROT_READ,
-+		 MAP_PRIVATE,
-+		 fd,
-+		 0);
-+	if (p == MAP_FAILED) {
-+		printf("mmap() failed: %m\n");
-+		abort();
-+	}
-+	munmap(p, MFD_DEF_SIZE);
-+
-+	/* verify MAP_PRIVATE is *always* allowed (even writable) */
-+	p = mmap(NULL,
-+		 MFD_DEF_SIZE,
-+		 PROT_READ | PROT_WRITE,
-+		 MAP_PRIVATE,
-+		 fd,
-+		 0);
-+	if (p == MAP_FAILED) {
-+		printf("mmap() failed: %m\n");
-+		abort();
-+	}
-+	munmap(p, MFD_DEF_SIZE);
-+}
-+
-+static void mfd_assert_write(int fd)
-+{
-+	ssize_t l;
-+	void *p;
-+	int r;
-+
-+	/* verify write() succeeds */
-+	l = write(fd, "\0\0\0\0", 4);
-+	if (l != 4) {
-+		printf("write() failed: %m\n");
-+		abort();
-+	}
-+
-+	/* verify PROT_READ | PROT_WRITE is allowed */
-+	p = mmap(NULL,
-+		 MFD_DEF_SIZE,
-+		 PROT_READ | PROT_WRITE,
-+		 MAP_SHARED,
-+		 fd,
-+		 0);
-+	if (p == MAP_FAILED) {
-+		printf("mmap() failed: %m\n");
-+		abort();
-+	}
-+	*(char *)p = 0;
-+	munmap(p, MFD_DEF_SIZE);
-+
-+	/* verify PROT_WRITE is allowed */
-+	p = mmap(NULL,
-+		 MFD_DEF_SIZE,
-+		 PROT_WRITE,
-+		 MAP_SHARED,
-+		 fd,
-+		 0);
-+	if (p == MAP_FAILED) {
-+		printf("mmap() failed: %m\n");
-+		abort();
-+	}
-+	*(char *)p = 0;
-+	munmap(p, MFD_DEF_SIZE);
-+
-+	/* verify PROT_READ with MAP_SHARED is allowed and a following
-+	 * mprotect(PROT_WRITE) allows writing */
-+	p = mmap(NULL,
-+		 MFD_DEF_SIZE,
-+		 PROT_READ,
-+		 MAP_SHARED,
-+		 fd,
-+		 0);
-+	if (p == MAP_FAILED) {
-+		printf("mmap() failed: %m\n");
-+		abort();
-+	}
-+
-+	r = mprotect(p, MFD_DEF_SIZE, PROT_READ | PROT_WRITE);
-+	if (r < 0) {
-+		printf("mprotect() failed: %m\n");
-+		abort();
-+	}
-+
-+	*(char *)p = 0;
-+	munmap(p, MFD_DEF_SIZE);
-+
-+	/* verify PUNCH_HOLE works */
-+	r = fallocate(fd,
-+		      FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-+		      0,
-+		      MFD_DEF_SIZE);
-+	if (r < 0) {
-+		printf("fallocate(PUNCH_HOLE) failed: %m\n");
-+		abort();
-+	}
-+}
-+
-+static void mfd_fail_write(int fd)
-+{
-+	ssize_t l;
-+	void *p;
-+	int r;
-+
-+	/* verify write() fails */
-+	l = write(fd, "data", 4);
-+	if (l != -EPERM) {
-+		printf("expected EPERM on write(), but got %d: %m\n", (int)l);
-+		abort();
-+	}
-+
-+	/* verify PROT_READ | PROT_WRITE is not allowed */
-+	p = mmap(NULL,
-+		 MFD_DEF_SIZE,
-+		 PROT_READ | PROT_WRITE,
-+		 MAP_SHARED,
-+		 fd,
-+		 0);
-+	if (p != MAP_FAILED) {
-+		printf("mmap() didn't fail as expected\n");
-+		abort();
-+	}
-+
-+	/* verify PROT_WRITE is not allowed */
-+	p = mmap(NULL,
-+		 MFD_DEF_SIZE,
-+		 PROT_WRITE,
-+		 MAP_SHARED,
-+		 fd,
-+		 0);
-+	if (p != MAP_FAILED) {
-+		printf("mmap() didn't fail as expected\n");
-+		abort();
-+	}
-+
-+	/* Verify PROT_READ with MAP_SHARED with a following mprotect is not
-+	 * allowed. Note that for r/w the kernel already prevents the mmap. */
-+	p = mmap(NULL,
-+		 MFD_DEF_SIZE,
-+		 PROT_READ,
-+		 MAP_SHARED,
-+		 fd,
-+		 0);
-+	if (p != MAP_FAILED) {
-+		r = mprotect(p, MFD_DEF_SIZE, PROT_READ | PROT_WRITE);
-+		if (r >= 0) {
-+			printf("mmap()+mprotect() didn't fail as expected\n");
-+			abort();
-+		}
-+	}
-+
-+	/* verify PUNCH_HOLE fails */
-+	r = fallocate(fd,
-+		      FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-+		      0,
-+		      MFD_DEF_SIZE);
-+	if (r >= 0) {
-+		printf("fallocate(PUNCH_HOLE) didn't fail as expected\n");
-+		abort();
-+	}
-+}
-+
-+static void mfd_assert_shrink(int fd)
-+{
-+	int r, fd2;
-+
-+	r = ftruncate(fd, MFD_DEF_SIZE / 2);
-+	if (r < 0) {
-+		printf("ftruncate(SHRINK) failed: %m\n");
-+		abort();
-+	}
-+
-+	mfd_assert_size(fd, MFD_DEF_SIZE / 2);
-+
-+	fd2 = mfd_assert_open(fd,
-+			      O_RDWR | O_CREAT | O_TRUNC,
-+			      S_IRUSR | S_IWUSR);
-+	close(fd2);
-+
-+	mfd_assert_size(fd, 0);
-+}
-+
-+static void mfd_fail_shrink(int fd)
-+{
-+	int r;
-+
-+	r = ftruncate(fd, MFD_DEF_SIZE / 2);
-+	if (r >= 0) {
-+		printf("ftruncate(SHRINK) didn't fail as expected\n");
-+		abort();
-+	}
-+
-+	mfd_fail_open(fd,
-+		      O_RDWR | O_CREAT | O_TRUNC,
-+		      S_IRUSR | S_IWUSR);
-+}
-+
-+static void mfd_assert_grow(int fd)
-+{
-+	int r;
-+
-+	r = ftruncate(fd, MFD_DEF_SIZE * 2);
-+	if (r < 0) {
-+		printf("ftruncate(GROW) failed: %m\n");
-+		abort();
-+	}
-+
-+	mfd_assert_size(fd, MFD_DEF_SIZE * 2);
-+
-+	r = fallocate(fd,
-+		      0,
-+		      0,
-+		      MFD_DEF_SIZE * 4);
-+	if (r < 0) {
-+		printf("fallocate(ALLOC) failed: %m\n");
-+		abort();
-+	}
-+
-+	mfd_assert_size(fd, MFD_DEF_SIZE * 4);
-+}
-+
-+static void mfd_fail_grow(int fd)
-+{
-+	int r;
-+
-+	r = ftruncate(fd, MFD_DEF_SIZE * 2);
-+	if (r >= 0) {
-+		printf("ftruncate(GROW) didn't fail as expected\n");
-+		abort();
-+	}
-+
-+	r = fallocate(fd,
-+		      0,
-+		      0,
-+		      MFD_DEF_SIZE * 4);
-+	if (r >= 0) {
-+		printf("fallocate(ALLOC) didn't fail as expected\n");
-+		abort();
-+	}
-+}
-+
-+static void mfd_assert_grow_write(int fd)
-+{
-+	static char buf[MFD_DEF_SIZE * 8];
-+	ssize_t l;
-+
-+	l = pwrite(fd, buf, sizeof(buf), 0);
-+	if (l != sizeof(buf)) {
-+		printf("pwrite() failed: %m\n");
-+		abort();
-+	}
-+
-+	mfd_assert_size(fd, MFD_DEF_SIZE * 8);
-+}
-+
-+static void mfd_fail_grow_write(int fd)
-+{
-+	static char buf[MFD_DEF_SIZE * 8];
-+	ssize_t l;
-+
-+	l = pwrite(fd, buf, sizeof(buf), 0);
-+	if (l == sizeof(buf)) {
-+		printf("pwrite() didn't fail as expected\n");
-+		abort();
-+	}
-+}
-+
-+static int idle_thread_fn(void *arg)
-+{
-+	sigset_t set;
-+	int sig;
-+
-+	/* dummy waiter; SIGTERM terminates us anyway */
-+	sigemptyset(&set);
-+	sigaddset(&set, SIGTERM);
-+	sigwait(&set, &sig);
 +
 +	return 0;
 +}
 +
-+static pid_t spawn_idle_thread(unsigned int flags)
++static pid_t spawn_sealing_thread(void)
 +{
 +	uint8_t *stack;
 +	pid_t pid;
@@ -615,9 +411,9 @@ index 0000000..3634c90
 +		abort();
 +	}
 +
-+	pid = clone(idle_thread_fn,
++	pid = clone(sealing_thread_fn,
 +		    stack + STACK_SIZE,
-+		    SIGCHLD | flags,
++		    SIGCHLD | CLONE_FILES | CLONE_FS | CLONE_VM,
 +		    NULL);
 +	if (pid < 0) {
 +		printf("clone() failed: %m\n");
@@ -627,389 +423,115 @@ index 0000000..3634c90
 +	return pid;
 +}
 +
-+static void join_idle_thread(pid_t pid)
++static void join_sealing_thread(pid_t pid)
 +{
-+	kill(pid, SIGTERM);
 +	waitpid(pid, NULL, 0);
-+}
-+
-+/*
-+ * Test memfd_create() syscall
-+ * Verify syscall-argument validation, including name checks, flag validation
-+ * and more.
-+ */
-+static void test_create(void)
-+{
-+	char buf[2048];
-+	int fd;
-+
-+	/* test NULL name */
-+	mfd_fail_new(NULL, 0);
-+
-+	/* test over-long name (not zero-terminated) */
-+	memset(buf, 0xff, sizeof(buf));
-+	mfd_fail_new(buf, 0);
-+
-+	/* test over-long zero-terminated name */
-+	memset(buf, 0xff, sizeof(buf));
-+	buf[sizeof(buf) - 1] = 0;
-+	mfd_fail_new(buf, 0);
-+
-+	/* verify "" is a valid name */
-+	fd = mfd_assert_new("", 0, 0);
-+	close(fd);
-+
-+	/* verify invalid O_* open flags */
-+	mfd_fail_new("", 0x0100);
-+	mfd_fail_new("", ~MFD_CLOEXEC);
-+	mfd_fail_new("", ~MFD_ALLOW_SEALING);
-+	mfd_fail_new("", ~0);
-+	mfd_fail_new("", 0x80000000U);
-+
-+	/* verify MFD_CLOEXEC is allowed */
-+	fd = mfd_assert_new("", 0, MFD_CLOEXEC);
-+	close(fd);
-+
-+	/* verify MFD_ALLOW_SEALING is allowed */
-+	fd = mfd_assert_new("", 0, MFD_ALLOW_SEALING);
-+	close(fd);
-+
-+	/* verify MFD_ALLOW_SEALING | MFD_CLOEXEC is allowed */
-+	fd = mfd_assert_new("", 0, MFD_ALLOW_SEALING | MFD_CLOEXEC);
-+	close(fd);
-+}
-+
-+/*
-+ * Test basic sealing
-+ * A very basic sealing test to see whether setting/retrieving seals works.
-+ */
-+static void test_basic(void)
-+{
-+	int fd;
-+
-+	fd = mfd_assert_new("kern_memfd_basic",
-+			    MFD_DEF_SIZE,
-+			    MFD_CLOEXEC | MFD_ALLOW_SEALING);
-+
-+	/* add basic seals */
-+	mfd_assert_has_seals(fd, 0);
-+	mfd_assert_add_seals(fd, F_SEAL_SHRINK |
-+				 F_SEAL_WRITE);
-+	mfd_assert_has_seals(fd, F_SEAL_SHRINK |
-+				 F_SEAL_WRITE);
-+
-+	/* add them again */
-+	mfd_assert_add_seals(fd, F_SEAL_SHRINK |
-+				 F_SEAL_WRITE);
-+	mfd_assert_has_seals(fd, F_SEAL_SHRINK |
-+				 F_SEAL_WRITE);
-+
-+	/* add more seals and seal against sealing */
-+	mfd_assert_add_seals(fd, F_SEAL_GROW | F_SEAL_SEAL);
-+	mfd_assert_has_seals(fd, F_SEAL_SHRINK |
-+				 F_SEAL_GROW |
-+				 F_SEAL_WRITE |
-+				 F_SEAL_SEAL);
-+
-+	/* verify that sealing no longer works */
-+	mfd_fail_add_seals(fd, F_SEAL_GROW);
-+	mfd_fail_add_seals(fd, 0);
-+
-+	close(fd);
-+
-+	/* verify sealing does not work without MFD_ALLOW_SEALING */
-+	fd = mfd_assert_new("kern_memfd_basic",
-+			    MFD_DEF_SIZE,
-+			    MFD_CLOEXEC);
-+	mfd_assert_has_seals(fd, F_SEAL_SEAL);
-+	mfd_fail_add_seals(fd, F_SEAL_SHRINK |
-+			       F_SEAL_GROW |
-+			       F_SEAL_WRITE);
-+	mfd_assert_has_seals(fd, F_SEAL_SEAL);
-+	close(fd);
-+}
-+
-+/*
-+ * Test SEAL_WRITE
-+ * Test whether SEAL_WRITE actually prevents modifications.
-+ */
-+static void test_seal_write(void)
-+{
-+	int fd;
-+
-+	fd = mfd_assert_new("kern_memfd_seal_write",
-+			    MFD_DEF_SIZE,
-+			    MFD_CLOEXEC | MFD_ALLOW_SEALING);
-+	mfd_assert_has_seals(fd, 0);
-+	mfd_assert_add_seals(fd, F_SEAL_WRITE);
-+	mfd_assert_has_seals(fd, F_SEAL_WRITE);
-+
-+	mfd_assert_read(fd);
-+	mfd_fail_write(fd);
-+	mfd_assert_shrink(fd);
-+	mfd_assert_grow(fd);
-+	mfd_fail_grow_write(fd);
-+
-+	close(fd);
-+}
-+
-+/*
-+ * Test SEAL_SHRINK
-+ * Test whether SEAL_SHRINK actually prevents shrinking
-+ */
-+static void test_seal_shrink(void)
-+{
-+	int fd;
-+
-+	fd = mfd_assert_new("kern_memfd_seal_shrink",
-+			    MFD_DEF_SIZE,
-+			    MFD_CLOEXEC | MFD_ALLOW_SEALING);
-+	mfd_assert_has_seals(fd, 0);
-+	mfd_assert_add_seals(fd, F_SEAL_SHRINK);
-+	mfd_assert_has_seals(fd, F_SEAL_SHRINK);
-+
-+	mfd_assert_read(fd);
-+	mfd_assert_write(fd);
-+	mfd_fail_shrink(fd);
-+	mfd_assert_grow(fd);
-+	mfd_assert_grow_write(fd);
-+
-+	close(fd);
-+}
-+
-+/*
-+ * Test SEAL_GROW
-+ * Test whether SEAL_GROW actually prevents growing
-+ */
-+static void test_seal_grow(void)
-+{
-+	int fd;
-+
-+	fd = mfd_assert_new("kern_memfd_seal_grow",
-+			    MFD_DEF_SIZE,
-+			    MFD_CLOEXEC | MFD_ALLOW_SEALING);
-+	mfd_assert_has_seals(fd, 0);
-+	mfd_assert_add_seals(fd, F_SEAL_GROW);
-+	mfd_assert_has_seals(fd, F_SEAL_GROW);
-+
-+	mfd_assert_read(fd);
-+	mfd_assert_write(fd);
-+	mfd_assert_shrink(fd);
-+	mfd_fail_grow(fd);
-+	mfd_fail_grow_write(fd);
-+
-+	close(fd);
-+}
-+
-+/*
-+ * Test SEAL_SHRINK | SEAL_GROW
-+ * Test whether SEAL_SHRINK | SEAL_GROW actually prevents resizing
-+ */
-+static void test_seal_resize(void)
-+{
-+	int fd;
-+
-+	fd = mfd_assert_new("kern_memfd_seal_resize",
-+			    MFD_DEF_SIZE,
-+			    MFD_CLOEXEC | MFD_ALLOW_SEALING);
-+	mfd_assert_has_seals(fd, 0);
-+	mfd_assert_add_seals(fd, F_SEAL_SHRINK | F_SEAL_GROW);
-+	mfd_assert_has_seals(fd, F_SEAL_SHRINK | F_SEAL_GROW);
-+
-+	mfd_assert_read(fd);
-+	mfd_assert_write(fd);
-+	mfd_fail_shrink(fd);
-+	mfd_fail_grow(fd);
-+	mfd_fail_grow_write(fd);
-+
-+	close(fd);
-+}
-+
-+/*
-+ * Test sharing via dup()
-+ * Test that seals are shared between dupped FDs and they're all equal.
-+ */
-+static void test_share_dup(void)
-+{
-+	int fd, fd2;
-+
-+	fd = mfd_assert_new("kern_memfd_share_dup",
-+			    MFD_DEF_SIZE,
-+			    MFD_CLOEXEC | MFD_ALLOW_SEALING);
-+	mfd_assert_has_seals(fd, 0);
-+
-+	fd2 = mfd_assert_dup(fd);
-+	mfd_assert_has_seals(fd2, 0);
-+
-+	mfd_assert_add_seals(fd, F_SEAL_WRITE);
-+	mfd_assert_has_seals(fd, F_SEAL_WRITE);
-+	mfd_assert_has_seals(fd2, F_SEAL_WRITE);
-+
-+	mfd_assert_add_seals(fd2, F_SEAL_SHRINK);
-+	mfd_assert_has_seals(fd, F_SEAL_WRITE | F_SEAL_SHRINK);
-+	mfd_assert_has_seals(fd2, F_SEAL_WRITE | F_SEAL_SHRINK);
-+
-+	mfd_assert_add_seals(fd, F_SEAL_SEAL);
-+	mfd_assert_has_seals(fd, F_SEAL_WRITE | F_SEAL_SHRINK | F_SEAL_SEAL);
-+	mfd_assert_has_seals(fd2, F_SEAL_WRITE | F_SEAL_SHRINK | F_SEAL_SEAL);
-+
-+	mfd_fail_add_seals(fd, F_SEAL_GROW);
-+	mfd_fail_add_seals(fd2, F_SEAL_GROW);
-+	mfd_fail_add_seals(fd, F_SEAL_SEAL);
-+	mfd_fail_add_seals(fd2, F_SEAL_SEAL);
-+
-+	close(fd2);
-+
-+	mfd_fail_add_seals(fd, F_SEAL_GROW);
-+	close(fd);
-+}
-+
-+/*
-+ * Test sealing with active mmap()s
-+ * Modifying seals is only allowed if no other mmap() refs exist.
-+ */
-+static void test_share_mmap(void)
-+{
-+	int fd;
-+	void *p;
-+
-+	fd = mfd_assert_new("kern_memfd_share_mmap",
-+			    MFD_DEF_SIZE,
-+			    MFD_CLOEXEC | MFD_ALLOW_SEALING);
-+	mfd_assert_has_seals(fd, 0);
-+
-+	/* shared/writable ref prevents sealing WRITE, but allows others */
-+	p = mfd_assert_mmap_shared(fd);
-+	mfd_fail_add_seals(fd, F_SEAL_WRITE);
-+	mfd_assert_has_seals(fd, 0);
-+	mfd_assert_add_seals(fd, F_SEAL_SHRINK);
-+	mfd_assert_has_seals(fd, F_SEAL_SHRINK);
-+	munmap(p, MFD_DEF_SIZE);
-+
-+	/* readable ref allows sealing */
-+	p = mfd_assert_mmap_private(fd);
-+	mfd_assert_add_seals(fd, F_SEAL_WRITE);
-+	mfd_assert_has_seals(fd, F_SEAL_WRITE | F_SEAL_SHRINK);
-+	munmap(p, MFD_DEF_SIZE);
-+
-+	close(fd);
-+}
-+
-+/*
-+ * Test sealing with open(/proc/self/fd/%d)
-+ * Via /proc we can get access to a separate file-context for the same memfd.
-+ * This is *not* like dup(), but like a real separate open(). Make sure the
-+ * semantics are as expected and we correctly check for RDONLY / WRONLY / RDWR.
-+ */
-+static void test_share_open(void)
-+{
-+	int fd, fd2;
-+
-+	fd = mfd_assert_new("kern_memfd_share_open",
-+			    MFD_DEF_SIZE,
-+			    MFD_CLOEXEC | MFD_ALLOW_SEALING);
-+	mfd_assert_has_seals(fd, 0);
-+
-+	fd2 = mfd_assert_open(fd, O_RDWR, 0);
-+	mfd_assert_add_seals(fd, F_SEAL_WRITE);
-+	mfd_assert_has_seals(fd, F_SEAL_WRITE);
-+	mfd_assert_has_seals(fd2, F_SEAL_WRITE);
-+
-+	mfd_assert_add_seals(fd2, F_SEAL_SHRINK);
-+	mfd_assert_has_seals(fd, F_SEAL_WRITE | F_SEAL_SHRINK);
-+	mfd_assert_has_seals(fd2, F_SEAL_WRITE | F_SEAL_SHRINK);
-+
-+	close(fd);
-+	fd = mfd_assert_open(fd2, O_RDONLY, 0);
-+
-+	mfd_fail_add_seals(fd, F_SEAL_SEAL);
-+	mfd_assert_has_seals(fd, F_SEAL_WRITE | F_SEAL_SHRINK);
-+	mfd_assert_has_seals(fd2, F_SEAL_WRITE | F_SEAL_SHRINK);
-+
-+	close(fd2);
-+	fd2 = mfd_assert_open(fd, O_RDWR, 0);
-+
-+	mfd_assert_add_seals(fd2, F_SEAL_SEAL);
-+	mfd_assert_has_seals(fd, F_SEAL_WRITE | F_SEAL_SHRINK | F_SEAL_SEAL);
-+	mfd_assert_has_seals(fd2, F_SEAL_WRITE | F_SEAL_SHRINK | F_SEAL_SEAL);
-+
-+	close(fd2);
-+	close(fd);
-+}
-+
-+/*
-+ * Test sharing via fork()
-+ * Test whether seal-modifications work as expected with forked childs.
-+ */
-+static void test_share_fork(void)
-+{
-+	int fd;
-+	pid_t pid;
-+
-+	fd = mfd_assert_new("kern_memfd_share_fork",
-+			    MFD_DEF_SIZE,
-+			    MFD_CLOEXEC | MFD_ALLOW_SEALING);
-+	mfd_assert_has_seals(fd, 0);
-+
-+	pid = spawn_idle_thread(0);
-+	mfd_assert_add_seals(fd, F_SEAL_SEAL);
-+	mfd_assert_has_seals(fd, F_SEAL_SEAL);
-+
-+	mfd_fail_add_seals(fd, F_SEAL_WRITE);
-+	mfd_assert_has_seals(fd, F_SEAL_SEAL);
-+
-+	join_idle_thread(pid);
-+
-+	mfd_fail_add_seals(fd, F_SEAL_WRITE);
-+	mfd_assert_has_seals(fd, F_SEAL_SEAL);
-+
-+	close(fd);
 +}
 +
 +int main(int argc, char **argv)
 +{
++	static const char zero[MFD_DEF_SIZE];
++	int fd, mfd, r;
++	void *p;
++	int was_sealed;
 +	pid_t pid;
 +
-+	printf("memfd: CREATE\n");
-+	test_create();
-+	printf("memfd: BASIC\n");
-+	test_basic();
++	if (argc < 2) {
++		printf("error: please pass path to file in fuse_mnt mount-point\n");
++		abort();
++	}
 +
-+	printf("memfd: SEAL-WRITE\n");
-+	test_seal_write();
-+	printf("memfd: SEAL-SHRINK\n");
-+	test_seal_shrink();
-+	printf("memfd: SEAL-GROW\n");
-+	test_seal_grow();
-+	printf("memfd: SEAL-RESIZE\n");
-+	test_seal_resize();
++	/* open FUSE memfd file for GUP testing */
++	printf("opening: %s\n", argv[1]);
++	fd = open(argv[1], O_RDONLY | O_CLOEXEC);
++	if (fd < 0) {
++		printf("cannot open(\"%s\"): %m\n", argv[1]);
++		abort();
++	}
 +
-+	printf("memfd: SHARE-DUP\n");
-+	test_share_dup();
-+	printf("memfd: SHARE-MMAP\n");
-+	test_share_mmap();
-+	printf("memfd: SHARE-OPEN\n");
-+	test_share_open();
-+	printf("memfd: SHARE-FORK\n");
-+	test_share_fork();
++	/* create new memfd-object */
++	mfd = mfd_assert_new("kern_memfd_fuse",
++			     MFD_DEF_SIZE,
++			     MFD_CLOEXEC | MFD_ALLOW_SEALING);
 +
-+	/* Run test-suite in a multi-threaded environment with a shared
-+	 * file-table. */
-+	pid = spawn_idle_thread(CLONE_FILES | CLONE_FS | CLONE_VM);
-+	printf("memfd: SHARE-DUP (shared file-table)\n");
-+	test_share_dup();
-+	printf("memfd: SHARE-MMAP (shared file-table)\n");
-+	test_share_mmap();
-+	printf("memfd: SHARE-OPEN (shared file-table)\n");
-+	test_share_open();
-+	printf("memfd: SHARE-FORK (shared file-table)\n");
-+	test_share_fork();
-+	join_idle_thread(pid);
++	/* mmap memfd-object for writing */
++	p = mfd_assert_mmap_shared(mfd);
 +
-+	printf("memfd: DONE\n");
++	/* pass mfd+mapping to a separate sealing-thread which tries to seal
++	 * the memfd objects with SEAL_WRITE while we write into it */
++	global_mfd = mfd;
++	global_p = p;
++	pid = spawn_sealing_thread();
++
++	/* Use read() on the FUSE file to read into our memory-mapped memfd
++	 * object. This races the other thread which tries to seal the
++	 * memfd-object.
++	 * If @fd is on the memfd-fake-FUSE-FS, the read() is delayed by 1s.
++	 * This guarantees that the receive-buffer is pinned for 1s until the
++	 * data is written into it. The racing ADD_SEALS should thus fail as
++	 * the pages are still pinned. */
++	r = read(fd, p, MFD_DEF_SIZE);
++	if (r < 0) {
++		printf("read() failed: %m\n");
++		abort();
++	} else if (!r) {
++		printf("unexpected EOF on read()\n");
++		abort();
++	}
++
++	was_sealed = mfd_assert_get_seals(mfd) & F_SEAL_WRITE;
++
++	/* Wait for sealing-thread to finish and verify that it
++	 * successfully sealed the file after the second try. */
++	join_sealing_thread(pid);
++	mfd_assert_has_seals(mfd, F_SEAL_WRITE);
++
++	/* *IF* the memfd-object was sealed at the time our read() returned,
++	 * then the kernel did a page-replacement or canceled the read() (or
++	 * whatever magic it did..). In that case, the memfd object is still
++	 * all zero.
++	 * In case the memfd-object was *not* sealed, the read() was successfull
++	 * and the memfd object must *not* be all zero.
++	 * Note that in real scenarios, there might be a mixture of both, but
++	 * in this test-cases, we have explicit 200ms delays which should be
++	 * enough to avoid any in-flight writes. */
++
++	p = mfd_assert_mmap_private(mfd);
++	if (was_sealed && memcmp(p, zero, MFD_DEF_SIZE)) {
++		printf("memfd sealed during read() but data not discarded\n");
++		abort();
++	} else if (!was_sealed && !memcmp(p, zero, MFD_DEF_SIZE)) {
++		printf("memfd sealed after read() but data discarded\n");
++		abort();
++	}
++
++	close(mfd);
++	close(fd);
++
++	printf("fuse: DONE\n");
 +
 +	return 0;
 +}
+diff --git a/tools/testing/selftests/memfd/run_fuse_test.sh b/tools/testing/selftests/memfd/run_fuse_test.sh
+new file mode 100755
+index 0000000..69b930e
+--- /dev/null
++++ b/tools/testing/selftests/memfd/run_fuse_test.sh
+@@ -0,0 +1,14 @@
++#!/bin/sh
++
++if test -d "./mnt" ; then
++	fusermount -u ./mnt
++	rmdir ./mnt
++fi
++
++set -e
++
++mkdir mnt
++./fuse_mnt ./mnt
++./fuse_test ./mnt/memfd
++fusermount -u ./mnt
++rmdir ./mnt
 -- 
 2.0.2
 
