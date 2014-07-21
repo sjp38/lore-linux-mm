@@ -1,74 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D3EA6B0036
-	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 05:07:29 -0400 (EDT)
-Received: by mail-we0-f174.google.com with SMTP id x48so7211783wes.19
-        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 02:07:28 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id wr4si26724802wjb.15.2014.07.21.02.07.27
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id CFCB76B0036
+	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 05:34:59 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id p10so8754525pdj.8
+        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 02:34:59 -0700 (PDT)
+Received: from na01-bl2-obe.outbound.protection.outlook.com (mail-bl2lp0208.outbound.protection.outlook.com. [207.46.163.208])
+        by mx.google.com with ESMTPS id 11si6834406pdj.160.2014.07.21.02.34.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 21 Jul 2014 02:07:27 -0700 (PDT)
-Date: Mon, 21 Jul 2014 11:07:24 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC PATCH] memcg: export knobs for the defaul cgroup hierarchy
-Message-ID: <20140721090724.GA8393@dhcp22.suse.cz>
-References: <1405521578-19988-1-git-send-email-mhocko@suse.cz>
- <20140716155814.GZ29639@cmpxchg.org>
- <20140718154443.GM27940@esperanza>
+        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 21 Jul 2014 02:34:56 -0700 (PDT)
+Message-ID: <53CCDEB2.4020809@amd.com>
+Date: Mon, 21 Jul 2014 11:34:42 +0200
+From: =?ISO-8859-1?Q?Christian_K=F6nig?= <christian.koenig@amd.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140718154443.GM27940@esperanza>
+Subject: Re: [PATCH v2 00/25] AMDKFD kernel driver
+References: <53C7D645.3070607@amd.com> <20140720174652.GE3068@gmail.com>
+ <20140721070128.GU15237@phenom.ffwll.local>
+In-Reply-To: <20140721070128.GU15237@phenom.ffwll.local>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Jerome Glisse <j.glisse@gmail.com>, Oded Gabbay <oded.gabbay@amd.com>, David Airlie <airlied@linux.ie>, Alex Deucher <alexdeucher@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, John Bridgman <John.Bridgman@amd.com>, Joerg Roedel <joro@8bytes.org>, Andrew Lewycky <Andrew.Lewycky@amd.com>, =?ISO-8859-1?Q?Michel_D=E4nzer?= <michel.daenzer@amd.com>, Ben Goz <Ben.Goz@amd.com>, Alexey Skidanov <Alexey.Skidanov@amd.com>, Evgeny Pinchuk <Evgeny.Pinchuk@amd.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-mm <linux-mm@kvack.org>
 
-On Fri 18-07-14 19:44:43, Vladimir Davydov wrote:
-> On Wed, Jul 16, 2014 at 11:58:14AM -0400, Johannes Weiner wrote:
-> > On Wed, Jul 16, 2014 at 04:39:38PM +0200, Michal Hocko wrote:
-> > > +#ifdef CONFIG_MEMCG_KMEM
-> > > +	{
-> > > +		.name = "kmem.limit_in_bytes",
-> > > +		.private = MEMFILE_PRIVATE(_KMEM, RES_LIMIT),
-> > > +		.write = mem_cgroup_write,
-> > > +		.read_u64 = mem_cgroup_read_u64,
-> > > +	},
-> > 
-> > Does it really make sense to have a separate limit for kmem only?
-> > IIRC, the reason we introduced this was that this memory is not
-> > reclaimable and so we need to limit it.
-> > 
-> > But the opposite effect happened: because it's not reclaimable, the
-> > separate kmem limit is actually unusable for any values smaller than
-> > the overall memory limit: because there is no reclaim mechanism for
-> > that limit, once you hit it, it's over, there is nothing you can do
-> > anymore.  The problem isn't so much unreclaimable memory, the problem
-> > is unreclaimable limits.
-> > 
-> > If the global case produces memory pressure through kernel memory
-> > allocations, we reclaim page cache, anonymous pages, inodes, dentries
-> > etc.  I think the same should happen for kmem: kmem should just be
-> > accounted and limited in the overall memory limit of a group, and when
-> > pressure arises, we go after anything that's reclaimable.
-> 
-> Personally, I don't think there's much sense in having a separate knob
-> for kmem limit either. Until we have a user with a sane use case for it,
-> let's not propagate it to the new interface.
+Am 21.07.2014 09:01, schrieb Daniel Vetter:
+> On Sun, Jul 20, 2014 at 01:46:53PM -0400, Jerome Glisse wrote:
+>> On Thu, Jul 17, 2014 at 04:57:25PM +0300, Oded Gabbay wrote:
+>>> Forgot to cc mailing list on cover letter. Sorry.
+>>>
+>>> As a continuation to the existing discussion, here is a v2 patch series
+>>> restructured with a cleaner history and no totally-different-early-versions
+>>> of the code.
+>>>
+>>> Instead of 83 patches, there are now a total of 25 patches, where 5 of them
+>>> are modifications to radeon driver and 18 of them include only amdkfd code.
+>>> There is no code going away or even modified between patches, only added.
+>>>
+>>> The driver was renamed from radeon_kfd to amdkfd and moved to reside under
+>>> drm/radeon/amdkfd. This move was done to emphasize the fact that this driver
+>>> is an AMD-only driver at this point. Having said that, we do foresee a
+>>> generic hsa framework being implemented in the future and in that case, we
+>>> will adjust amdkfd to work within that framework.
+>>>
+>>> As the amdkfd driver should support multiple AMD gfx drivers, we want to
+>>> keep it as a seperate driver from radeon. Therefore, the amdkfd code is
+>>> contained in its own folder. The amdkfd folder was put under the radeon
+>>> folder because the only AMD gfx driver in the Linux kernel at this point
+>>> is the radeon driver. Having said that, we will probably need to move it
+>>> (maybe to be directly under drm) after we integrate with additional AMD gfx
+>>> drivers.
+>>>
+>>> For people who like to review using git, the v2 patch set is located at:
+>>> http://cgit.freedesktop.org/~gabbayo/linux/log/?h=kfd-next-3.17-v2
+>>>
+>>> Written by Oded Gabbayh <oded.gabbay@amd.com>
+>> So quick comments before i finish going over all patches. There is many
+>> things that need more documentation espacialy as of right now there is
+>> no userspace i can go look at.
+>>
+>> There few show stopper, biggest one is gpu memory pinning this is a big
+>> no, that would need serious arguments for any hope of convincing me on
+>> that side.
+>>
+>> It might be better to add a drivers/gpu/drm/amd directory and add common
+>> stuff there.
+>>
+>> Given that this is not intended to be final HSA api AFAICT then i would
+>> say this far better to avoid the whole kfd module and add ioctl to radeon.
+>> This would avoid crazy communication btw radeon and kfd.
+>>
+>> The whole aperture business needs some serious explanation. Especialy as
+>> you want to use userspace address there is nothing to prevent userspace
+>> program from allocating things at address you reserve for lds, scratch,
+>> ... only sane way would be to move those lds, scratch inside the virtual
+>> address reserved for kernel (see kernel memory map).
+>>
+>> The whole business of locking performance counter for exclusive per process
+>> access is a big NO. Which leads me to the questionable usefullness of user
+>> space command ring. I only see issues with that. First and foremost i would
+>> need to see solid figures that kernel ioctl or syscall has a higher an
+>> overhead that is measurable in any meaning full way against a simple
+>> function call. I know the userspace command ring is a big marketing features
+>> that please ignorant userspace programmer. But really this only brings issues
+>> and for absolutely not upside afaict.
+>>
+>> So i would rather see a very simple ioctl that write the doorbell and might
+>> do more than that in case of ring/queue overcommit where it would first have
+>> to wait for a free ring/queue to schedule stuff. This would also allow sane
+>> implementation of things like performance counter that could be acquire by
+>> kernel for duration of a job submitted by userspace. While still not optimal
+>> this would be better that userspace locking.
+> Quick aside and mostly off the record: In i915 we plan to have the first
+> implementation exactly as Jerome suggests here:
+> - New flag at context creationg for svm/seamless-gpgpu contexts.
+> - New ioctl in i915 for submitting stuff to the hw (through doorbell or
+>    whatever else we want to do). The ring in the ctx would be under the
+>    kernel's control.
 
-What about fork-bomb forks protection? I thought that was the primary usecase
-for K < U? Or how can we handle that use case with a single limit? A
-special gfp flag to not trigger OOM path when called from some kmem
-charge paths?
+And looking at the existing Radeon code, that's exactly what we are 
+already doing with the compute queues on CIK as well. We just use the 
+existing command submission interface, cause when you use an IOCTL 
+anyway it's not beneficial any more to do all the complex scheduling and 
+other stuff directly on the hardware.
 
-What about task_count or what was the name of the controller which was
-dropped and suggested to be replaced by kmem accounting? I can imagine
-that to be implemented by a separate K limit which would be roughtly
-stack_size * task_count + pillow for slab.
--- 
-Michal Hocko
-SUSE Labs
+What's mostly missing in the existing module is proper support for 
+accessing the CPU address space through IOMMUv2.
+
+Christian.
+
+> Of course there's lots of GEM stuff we don't need at all for such
+> contexts, but there's still lots of shared code. Imo creating a 2nd driver
+> has too much interface surface and so is a maintainence hell.
+>
+> And the ioctl submission gives us flexibility in case the hw doesn't quite
+> live up to promise (e.g. scheduling, cmd parsing, ...).
+> -Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
