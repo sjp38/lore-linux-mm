@@ -1,138 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 85C8C6B0035
-	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 20:14:57 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id p10so9946981pdj.22
-        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 17:14:57 -0700 (PDT)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id ag4si15827499pac.77.2014.07.21.17.14.54
+	by kanga.kvack.org (Postfix) with ESMTP id CA89A6B0035
+	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 20:20:05 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id p10so9953899pdj.22
+        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 17:20:05 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id 11si7920490pdj.31.2014.07.21.17.20.04
         for <linux-mm@kvack.org>;
-        Mon, 21 Jul 2014 17:14:55 -0700 (PDT)
-Date: Tue, 22 Jul 2014 09:15:45 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] CMA/HOTPLUG: clear buffer-head lru before page migration
-Message-ID: <20140722001545.GC15912@bbox>
-References: <53C8C290.90503@lge.com>
- <20140721025047.GA7707@bbox>
- <53CCB02A.7070301@lge.com>
- <20140721073651.GA15912@bbox>
- <20140721130146.GO10544@csn.ul.ie>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20140721130146.GO10544@csn.ul.ie>
+        Mon, 21 Jul 2014 17:20:04 -0700 (PDT)
+Message-Id: <f6ee27db104e769822437234b3fee199d51b5177.1405982894.git.tony.luck@intel.com>
+In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F32871435@ORSMSX114.amr.corp.intel.com>
+From: Tony Luck <tony.luck@intel.com>
+Date: Mon, 21 Jul 2014 15:44:06 -0700
+Subject: RE: [RFC PATCH 2/3] x86, MCE: Avoid potential deadlock in MCE
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Gioh Kim <gioh.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, '?????????' <iamjoonsoo.kim@lge.com>, Laura Abbott <lauraa@codeaurora.org>, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ????????? <gunho.lee@lge.com>, 'Chanho Min' <chanho.min@lge.com>, linux-fsdevel@vger.kernel.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: "Chen, Gong" <gong.chen@linux.jf.intel.com>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>
 
-Hello Mel,
 
-On Mon, Jul 21, 2014 at 02:01:46PM +0100, Mel Gorman wrote:
-> On Mon, Jul 21, 2014 at 04:36:51PM +0900, Minchan Kim wrote:
-> 
-> I'm not reviewing this in detail at all, didn't even look at the patch
-> but two things popped out at me during the discussion.
-> 
-> > > >Anyway, why cannot CMA have the cost without affecting other subsystem?
-> > > >I mean it's okay for CMA to consume more time to shoot out the bh
-> > > >instead of simple all bh_lru invalidation because big order allocation is
-> > > >kinds of slow thing in the VM and everybody already know that and even
-> > > >sometime get failed so it's okay to add more code that extremly slow path.
-> > > 
-> > > There are 2 reasons to invalidate entire bh_lru.
-> > > 
-> > > 1. I think CMA allocation is very rare so that invalidaing bh_lru affects the system little.
-> > > How do you think about it? My platform does not call CMA allocation often.
-> > > Is the CMA allocation or Memory-Hotplug called often?
-> > 
-> > It depends on usecase and you couldn't assume anyting because we couldn't
-> > ask every people in the world. "Please ask to us whenever you try to use CMA".
-> > 
-> > The key point is how the patch is maintainable.
-> > If it's too complicate to maintain, maybe we could go with simple solution
-> > but if it's not too complicate, we can go with more smart thing to consider
-> > other cases in future. Why not?
-> > 
-> > Another point is that how user can detect where the regression is from.
-> > If we cannot notice the regression, it's not a good idea to go with simple
-> > version.
-> > 
-> 
-> The buffer LRU avoids a lookup of a radix tree. If the LRU hit rate is
-> low then the performance penalty of repeated radix tree lookups is
-> severe but the cost of missing one hot lookup because CMA invalidate it
-> is not.
-> 
-> The real cost to be concerned with is the cost of performing the
-> invalidation not the fact a lookup in the LRU was missed. It's because
-> the cost of invalidation is high that this is being pushed to CMA because
-> for CMA an allocation failure can be a functional failure and not just a
-> performance problem.
-> 
-> > > 
-> > > 2. Adding code in drop_buffers() can affect the system more that adding code in alloc_contig_range()
-> > > because the drop_buffers does not have a way to distinguish migrate type.
-> > > Even-though the lmbech results that it has almost the same performance.
-> > > But I am afraid that it can be changed.
-> > > As you said if bh_lru size can be changed it affects more than now.
-> > > SO I do not want to touch non-CMA related code.
-> > 
-> > I'm not saying to add hook in drop_buffers.
-> > What I suggest is to handle failure by bh_lrus in migrate_pages
-> > because it's not a problem only in CMA.
-> 
-> No, please do not insert a global IPI to invalidate buffer heads in the
-> general migration case. It's too expensive for either THP allocations or
-> automatic NUMA migrates. The global IPI cost is justified for rare events
-> where it causes functional problems if it fails to migreate -- CMA, memory
-> hot-remove, memory poisoning etc.
+This is how much cleaner things could be with a couple of task_struct
+fields instead of the mce_info silliness ... untested.
 
-I didn't want to add that flushing in migrate_pages *unconditionlly*.
-Please, look at this patch. It fixes only CMA although it's an issue
-for others. Even, it depends on retry logic of upper layer of
-alloc_contig_range but even cma_alloc(ie, upper layer of alloc_contig_range)
-doesn't have retry logic. :(
-That's why I suggested it in migrate_pages.
+---
+ arch/x86/kernel/cpu/mcheck/mce.c | 58 ++++------------------------------------
+ include/linux/sched.h            |  4 +++
+ 2 files changed, 9 insertions(+), 53 deletions(-)
 
-Actually, I'd like to go with making migrate_pages's user blind on pcp
-draining stuff by squeezing that inside migrate_pages.
-IOW, current users of migrate pages don't need to be aware of per-cpu
-draining. What they should know is just they should use MIGRATE_SYNC
-for best effort but costly opeartion.
-
-For implemenation, we could use retry logic in migrate_pages.
-
-int migrate_pages(xxx)
-{
-        for (pass = 0; pass < 10 && retry; pass++)
-                if (retry && pass > 2 && mode == MIGRATE_SYNC)
-                        flush_all_of_percpu_stuff();
-}
-
-migrate_page has migrate_mode and retry logic with 'pass', even
-reason if we want ot filter out MR_CMA|MEMORY_HOTPLUG|MR_MEMORY_FAILURE.
-so that we could handle all of things inside migrate_pages.
-
-Normally, MIGRATE_SYNC would be expensive operation and mostly
-it is used for CMA, memory-hotplug, memory-poisoning so THP and
-automatic NUMA cannot affect so I believe adding IPI to that is not
-a big problem in such trouble condition(ie, retry && pass > 2).
-
-> 
-> -- 
-> Mel Gorman
-> SUSE Labs
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+diff --git a/arch/x86/kernel/cpu/mcheck/mce.c b/arch/x86/kernel/cpu/mcheck/mce.c
+index bb92f38153b2..b08398e69b5c 100644
+--- a/arch/x86/kernel/cpu/mcheck/mce.c
++++ b/arch/x86/kernel/cpu/mcheck/mce.c
+@@ -956,51 +956,6 @@ static void mce_clear_state(unsigned long *toclear)
+ }
+ 
+ /*
+- * Need to save faulting physical address associated with a process
+- * in the machine check handler some place where we can grab it back
+- * later in mce_notify_process()
+- */
+-#define	MCE_INFO_MAX	16
+-
+-struct mce_info {
+-	atomic_t		inuse;
+-	struct task_struct	*t;
+-	__u64			paddr;
+-	int			restartable;
+-} mce_info[MCE_INFO_MAX];
+-
+-static void mce_save_info(__u64 addr, int c)
+-{
+-	struct mce_info *mi;
+-
+-	for (mi = mce_info; mi < &mce_info[MCE_INFO_MAX]; mi++) {
+-		if (atomic_cmpxchg(&mi->inuse, 0, 1) == 0) {
+-			mi->t = current;
+-			mi->paddr = addr;
+-			mi->restartable = c;
+-			return;
+-		}
+-	}
+-
+-	mce_panic("Too many concurrent recoverable errors", NULL, NULL);
+-}
+-
+-static struct mce_info *mce_find_info(void)
+-{
+-	struct mce_info *mi;
+-
+-	for (mi = mce_info; mi < &mce_info[MCE_INFO_MAX]; mi++)
+-		if (atomic_read(&mi->inuse) && mi->t == current)
+-			return mi;
+-	return NULL;
+-}
+-
+-static void mce_clear_info(struct mce_info *mi)
+-{
+-	atomic_set(&mi->inuse, 0);
+-}
+-
+-/*
+  * The actual machine check handler. This only handles real
+  * exceptions when something got corrupted coming in through int 18.
+  *
+@@ -1156,7 +1111,8 @@ void do_machine_check(struct pt_regs *regs, long error_code)
+ 			mce_panic("Fatal machine check on current CPU", &m, msg);
+ 		if (worst == MCE_AR_SEVERITY) {
+ 			/* schedule action before return to userland */
+-			mce_save_info(m.addr, m.mcgstatus & MCG_STATUS_RIPV);
++			current->paddr = m.addr;
++			current->restartable = m.mcgstatus & MCG_STATUS_RIPV;
+ 			set_thread_flag(TIF_MCE_NOTIFY);
+ 		} else if (kill_it) {
+ 			force_sig(SIGBUS, current);
+@@ -1195,29 +1151,25 @@ int memory_failure(unsigned long pfn, int vector, int flags)
+ void mce_notify_process(void)
+ {
+ 	unsigned long pfn;
+-	struct mce_info *mi = mce_find_info();
+ 	int flags = MF_ACTION_REQUIRED;
+ 
+-	if (!mi)
+-		mce_panic("Lost physical address for unconsumed uncorrectable error", NULL, NULL);
+-	pfn = mi->paddr >> PAGE_SHIFT;
++	pfn = current->paddr >> PAGE_SHIFT;
+ 
+ 	clear_thread_flag(TIF_MCE_NOTIFY);
+ 
+ 	pr_err("Uncorrected hardware memory error in user-access at %llx",
+-		 mi->paddr);
++		 current->paddr);
+ 	/*
+ 	 * We must call memory_failure() here even if the current process is
+ 	 * doomed. We still need to mark the page as poisoned and alert any
+ 	 * other users of the page.
+ 	 */
+-	if (!mi->restartable)
++	if (!current->restartable)
+ 		flags |= MF_MUST_KILL;
+ 	if (memory_failure(pfn, MCE_VECTOR, flags) < 0) {
+ 		pr_err("Memory error not recovered");
+ 		force_sig(SIGBUS, current);
+ 	}
+-	mce_clear_info(mi);
+ }
+ 
+ /*
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 0376b054a0d0..91db69a4acd7 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1655,6 +1655,10 @@ struct task_struct {
+ 	unsigned int	sequential_io;
+ 	unsigned int	sequential_io_avg;
+ #endif
++#ifdef CONFIG_MEMORY_FAILURE
++	__u64	paddr;
++	int	restartable;
++#endif
+ };
+ 
+ /* Future-safe accessor for struct task_struct's cpus_allowed. */
 -- 
-Kind regards,
-Minchan Kim
+1.8.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
