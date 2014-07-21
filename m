@@ -1,34 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 570D46B003D
-	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 08:04:10 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so9551513pab.19
-        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 05:04:07 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id tf1si14047921pbc.15.2014.07.21.05.04.06
+Received: from mail-we0-f178.google.com (mail-we0-f178.google.com [74.125.82.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C0A76B003D
+	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 08:09:42 -0400 (EDT)
+Received: by mail-we0-f178.google.com with SMTP id w61so7509666wes.9
+        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 05:09:41 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fg5si20162204wic.21.2014.07.21.05.09.40
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jul 2014 05:04:07 -0700 (PDT)
-Date: Mon, 21 Jul 2014 16:03:32 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 21 Jul 2014 05:09:40 -0700 (PDT)
+Date: Mon, 21 Jul 2014 14:09:38 +0200
+From: Michal Hocko <mhocko@suse.cz>
 Subject: Re: [RFC PATCH] memcg: export knobs for the defaul cgroup hierarchy
-Message-ID: <20140721120332.GB11848@esperanza>
+Message-ID: <20140721120938.GC8393@dhcp22.suse.cz>
 References: <1405521578-19988-1-git-send-email-mhocko@suse.cz>
  <20140716155814.GZ29639@cmpxchg.org>
  <20140718154443.GM27940@esperanza>
  <20140721090724.GA8393@dhcp22.suse.cz>
- <20140721114655.GB8393@dhcp22.suse.cz>
+ <20140721114839.GA11848@esperanza>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140721114655.GB8393@dhcp22.suse.cz>
+In-Reply-To: <20140721114839.GA11848@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
+To: Vladimir Davydov <vdavydov@parallels.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Mon, Jul 21, 2014 at 01:46:55PM +0200, Michal Hocko wrote:
-> On Mon 21-07-14 11:07:24, Michal Hocko wrote:
+On Mon 21-07-14 15:48:39, Vladimir Davydov wrote:
+> On Mon, Jul 21, 2014 at 11:07:24AM +0200, Michal Hocko wrote:
 > > On Fri 18-07-14 19:44:43, Vladimir Davydov wrote:
 > > > On Wed, Jul 16, 2014 at 11:58:14AM -0400, Johannes Weiner wrote:
 > > > > On Wed, Jul 16, 2014 at 04:39:38PM +0200, Michal Hocko wrote:
@@ -66,22 +66,44 @@ On Mon, Jul 21, 2014 at 01:46:55PM +0200, Michal Hocko wrote:
 > > special gfp flag to not trigger OOM path when called from some kmem
 > > charge paths?
 > 
-> Even then, I do not see how would this fork-bomb prevention work without
-> causing OOMs and killing other processes within the group. The danger
-> would be still contained in the group and prevent from the system wide
-> disruption. Do we really want only such a narrow usecase?
+> Hmm, for a moment I thought that putting a fork-bomb inside a memory
+> cgroup with kmem accounting enabled and K=U will isolate it from the
+> rest of the system and therefore there's no need in K<U, but now I
+> realize it's not quite right.
+> 
+> In contrast to user memory, thread stack allocations have costly order,
+> they cannot be swapped out, and on 32-bit systems they will consume a
+> limited resource of low mem. Although the latter two doesn't look like
+> being of much concern, costly order of stack pages certainly does I
+> think.
+> 
+> Is this what you mean by saying we have to disable OOM from some kmem
+> charge paths? To prevent OOM on the global level that might trigger due
+> to lack of high order pages for task stack?
 
-I think it's all about how we're going to use memory cgroups. If we're
-going to use them for application containers, there's simply no such
-problem, because we only want to isolate a potentially dangerous process
-group from the rest of the system. If we want to start a fully
-virtualized OS inside a container, then we certainly need a kind of
-numproc and/or kmem limiter to prevent processes inside a cgroup from
-being OOM killed by a fork-bomb. IMHO, the latter will always be better
-done by VMs, so it isn't a must-have for cgroups. I may be mistaken
-though.
+No, I meant it for a different reason. If you simply cause OOM from e.g.
+stack charge then you simply DoS your cgroup before you start
+effectively stopping fork-bomb because the fork-bomb will usually have
+much smaller RSS than anything else in the group. So this is a case
+where you really want to fail the allocation.
 
-Thanks.
+Maybe I just didn't understand what a single-limit proposal meant...
+
+> > What about task_count or what was the name of the controller which was
+> > dropped and suggested to be replaced by kmem accounting? I can imagine
+> > that to be implemented by a separate K limit which would be roughtly
+> > stack_size * task_count + pillow for slab.
+> 
+> I wonder how big this pillow for slab should be...
+
+Well, it obviously depends on the load running in the group. It depends
+on the amount of unreclaimable slab + reclaimable_and_still_not_trashing
+amount of slab. So the pillow should be quite large but that shouldn't
+be a big deal as the kernel allocations usually are a small part of the
+U.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
