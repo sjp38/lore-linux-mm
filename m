@@ -1,82 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 79B7F6B0036
-	for <linux-mm@kvack.org>; Sun, 20 Jul 2014 23:27:53 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id g10so8410618pdj.1
-        for <linux-mm@kvack.org>; Sun, 20 Jul 2014 20:27:53 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id bs8si12820355pad.157.2014.07.20.20.27.52
-        for <linux-mm@kvack.org>;
-        Sun, 20 Jul 2014 20:27:52 -0700 (PDT)
-From: "Zhang, Tianfei" <tianfei.zhang@intel.com>
-Subject: RE: About refault distance
-Date: Mon, 21 Jul 2014 03:27:49 +0000
-Message-ID: <BA6F50564D52C24884F9840E07E32DEC17D5DAE1@CDSMSX102.ccr.corp.intel.com>
-References: <BA6F50564D52C24884F9840E07E32DEC17D58E35@CDSMSX102.ccr.corp.intel.com>
- <20140718151446.GI29639@cmpxchg.org>
-In-Reply-To: <20140718151446.GI29639@cmpxchg.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
+	by kanga.kvack.org (Postfix) with ESMTP id D16CF6B0036
+	for <linux-mm@kvack.org>; Sun, 20 Jul 2014 23:57:17 -0400 (EDT)
+Received: by mail-oi0-f43.google.com with SMTP id u20so3081542oif.2
+        for <linux-mm@kvack.org>; Sun, 20 Jul 2014 20:57:17 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id wm5si33390525oeb.58.2014.07.20.20.57.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 20 Jul 2014 20:57:17 -0700 (PDT)
+From: Wang Nan <wangnan0@huawei.com>
+Subject: [PATCH v2 6/7] memory-hotplug: sh: suitable memory should go to ZONE_MOVABLE
+Date: Mon, 21 Jul 2014 11:46:41 +0800
+Message-ID: <1405914402-66212-7-git-send-email-wangnan0@huawei.com>
+In-Reply-To: <1405914402-66212-1-git-send-email-wangnan0@huawei.com>
+References: <1405914402-66212-1-git-send-email-wangnan0@huawei.com>
 MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Ingo Molnar <mingo@redhat.com>, Yinghai Lu <yinghai@kernel.org>, Mel
+ Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Dave
+ Hansen <dave.hansen@intel.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Cc: peifeiyue@huawei.com, linux-mm@kvack.org, x86@kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, linux-kernel@vger.kernel.org, wangnan0@huawei.com
 
->=20
-> On Wed, Jul 16, 2014 at 01:53:55AM +0000, Zhang, Tianfei wrote:
-> > Hi Johannes,
-> >
-> > May I ask you a question about refault distance?
-> >
-> > Is it supposed the distance of the first and second time to access the
-> > a faulted page cache is the same? In reality how about the ratio will b=
-e the
-> same?
-> >
-> >             Refault Distance1 =3D Refault Distance2
-> >
-> > On the first refault, We supposed that:
-> >             Refault Distance =3D A
-> >             NR_INACTIVE_FILE =3D B
-> >             NR_ACTIVE_FILE =3D C
-> >
-> > *                  fault page add to inactive list tail
-> >                     The Refault Distance  =3D A
-> >                           |
-> >  *                   B     |        |            C
-> > *              +--------------+   |            +-------------+
-> > *   reclaim <- |   inactive   | <-+-- demotion |    active   | <--+
-> > *              +--------------+                +-------------+    |
-> > *                     |
-> |
-> > *                     +-------------- promotion ------------------+
-> >
-> >
-> > Why we use A <=3D C to add faulted page to ACTIVE LIST?
-> >
-> > Your patch is want to solve "A workload is thrashing when its pages
-> > are frequently used but they are evicted from the inactive list every
-> > time before another access would have promoted them to the active list.=
-" ?
-> >
-> > so when a First Refault page add to INACTIVE LIST, it is a Distance B b=
-efore
-> eviction.
-> > So I am confuse the condition on workingset_refault().
->=20
-> The reuse distance of a page is B + A.  B + C is the available memory ove=
-rall.
-> When a page refaults, we want to compare its reuse distance to overall
-> memory to see if it is eligible for activation (=3D accessed twice while =
-in memory).
-> That check would be A + B <=3D B + C.  But we can simply drop B on both s=
-ides
-> and get A <=3D C.
+This patch introduces zone_for_memory() to arch_add_memory() on sh to
+ensure new, higher memory added into ZONE_MOVABLE if movable zone has
+already setup.
 
-Thank you very much, it is more clear explanation than comments of code (wo=
-rkingset.c).
+Signed-off-by: Wang Nan <wangnan0@huawei.com>
+Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+---
+ arch/sh/mm/init.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
+index 2d089fe..2790b6a 100644
+--- a/arch/sh/mm/init.c
++++ b/arch/sh/mm/init.c
+@@ -495,8 +495,9 @@ int arch_add_memory(int nid, u64 start, u64 size)
+ 	pgdat = NODE_DATA(nid);
+ 
+ 	/* We only have ZONE_NORMAL, so this is easy.. */
+-	ret = __add_pages(nid, pgdat->node_zones + ZONE_NORMAL,
+-				start_pfn, nr_pages);
++	ret = __add_pages(nid, pgdat->node_zones +
++			zone_for_memory(nid, start, size, ZONE_NORMAL),
++			start_pfn, nr_pages);
+ 	if (unlikely(ret))
+ 		printk("%s: Failed, __add_pages() == %d\n", __func__, ret);
+ 
+-- 
+1.8.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
