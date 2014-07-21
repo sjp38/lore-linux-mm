@@ -1,51 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f178.google.com (mail-we0-f178.google.com [74.125.82.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 9581E6B0038
-	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 16:06:33 -0400 (EDT)
-Received: by mail-we0-f178.google.com with SMTP id w61so8076227wes.23
-        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 13:06:33 -0700 (PDT)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id ef9si30233292wjd.148.2014.07.21.13.06.31
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id E86036B0038
+	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 16:23:34 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id et14so10328001pad.21
+        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 13:23:34 -0700 (PDT)
+Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
+        by mx.google.com with ESMTPS id c2si7213843pdp.191.2014.07.21.13.23.33
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jul 2014 13:06:32 -0700 (PDT)
-Date: Mon, 21 Jul 2014 22:06:25 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC Patch V1 00/30] Enable memoryless node on x86 platforms
-Message-ID: <20140721200625.GR3935@laptop>
-References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
- <20140721172331.GB4156@linux.vnet.ibm.com>
- <CA+8MBbK+ZdisT_yXh_jkWSd4hWEMisG614s4s0EyNV3j-7YOow@mail.gmail.com>
+        Mon, 21 Jul 2014 13:23:33 -0700 (PDT)
+Message-ID: <53CD7694.9010008@zytor.com>
+Date: Mon, 21 Jul 2014 13:22:44 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+8MBbK+ZdisT_yXh_jkWSd4hWEMisG614s4s0EyNV3j-7YOow@mail.gmail.com>
+Subject: Re: [RFC PATCH 0/11] Support Write-Through mapping on x86
+References: <1405452884-25688-1-git-send-email-toshi.kani@hp.com> <53C58A69.3070207@zytor.com> <1405459404.28702.17.camel@misato.fc.hp.com> <03d059f5-b564-4530-9184-f91ca9d5c016@email.android.com> <1405546127.28702.85.camel@misato.fc.hp.com> <1405960298.30151.10.camel@misato.fc.hp.com> <53CD443A.6050804@zytor.com> <1405962993.30151.35.camel@misato.fc.hp.com> <53CD4EB2.5020709@zytor.com> <20140721183331.GB13420@laptop.dumpdata.com>
+In-Reply-To: <20140721183331.GB13420@laptop.dumpdata.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@gmail.com>
-Cc: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Jiang Liu <jiang.liu@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-hotplug@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Toshi Kani <toshi.kani@hp.com>, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, plagnioj@jcrosoft.com, tomi.valkeinen@ti.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, airlied@gmail.com, bp@alien8.de
 
-On Mon, Jul 21, 2014 at 10:41:59AM -0700, Tony Luck wrote:
-> On Mon, Jul 21, 2014 at 10:23 AM, Nishanth Aravamudan
-> <nacc@linux.vnet.ibm.com> wrote:
-> > It seems like the issue is the order of onlining of resources on a
-> > specific x86 platform?
+On 07/21/2014 11:33 AM, Konrad Rzeszutek Wilk wrote:
+>>
+>> First of all, paravirt functions are the root of all evil, and we want
 > 
-> Yes. When we online a node the BIOS hits us with some ACPI hotplug events:
+> Here I was thinking to actually put an entry in the MAINTAINERS
+> file for me to become the owner of it - as the folks listed there
+> are busy with other things.
 > 
-> First: Here are some new cpus
-> Next: Here is some new memory
-> Last; Here are some new I/O things (PCIe root ports, PCIe devices,
-> IOAPICs, IOMMUs, ...)
+> The Maintainer of 'All Evil' has an interesting ring to it :-)
 > 
-> So there is a period where the node is memoryless - although that will generally
-> be resolved when the memory hot plug event arrives ... that isn't guaranteed to
-> occur (there might not be any memory on the node, or what memory there is
-> may have failed self-test and been disabled).
 
-Right, but we could 'easily' capture that in arch code and make it look
-like it was done in a 'sane' order. No need to wreck the rest of the
-kernel to support this particular BIOS fuckup.
+Then you can legitimately title yourself Lord of All Evil.  :)
+
+	-hpa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
