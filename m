@@ -1,124 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F1236B0035
-	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 18:00:55 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lf10so10682531pab.1
-        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 15:00:54 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id ro10si7789816pbc.207.2014.07.21.15.00.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jul 2014 15:00:54 -0700 (PDT)
-Message-ID: <53CD8D94.9060207@codeaurora.org>
-Date: Mon, 21 Jul 2014 15:00:52 -0700
-From: Laura Abbott <lauraa@codeaurora.org>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 65BD96B0035
+	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 18:03:13 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so10106253pab.28
+        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 15:03:13 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id wj5si15560147pbc.22.2014.07.21.15.03.12
+        for <linux-mm@kvack.org>;
+        Mon, 21 Jul 2014 15:03:12 -0700 (PDT)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: RE: [RFC PATCH 2/3] x86, MCE: Avoid potential deadlock in MCE
+ context
+Date: Mon, 21 Jul 2014 22:03:04 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F32871435@ORSMSX114.amr.corp.intel.com>
+References: <1405478082-30757-1-git-send-email-gong.chen@linux.intel.com>
+ <1405478082-30757-3-git-send-email-gong.chen@linux.intel.com>
+ <20140721084737.GA10016@pd.tnic>
+ <3908561D78D1C84285E8C5FCA982C28F32870C55@ORSMSX114.amr.corp.intel.com>
+ <20140721214116.GC11555@pd.tnic>
+In-Reply-To: <20140721214116.GC11555@pd.tnic>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Subject: Re: [PATCHv4 5/5] arm64: Add atomic pool for non-coherent and CMA
- allocations.
-References: <1404324218-4743-1-git-send-email-lauraa@codeaurora.org> <1404324218-4743-6-git-send-email-lauraa@codeaurora.org> <20140704133517.GA9860@ulmo>
-In-Reply-To: <20140704133517.GA9860@ulmo>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thierry Reding <thierry.reding@gmail.com>
-Cc: Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, David Riley <davidriley@chromium.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ritesh Harjain <ritesh.harjani@gmail.com>, linux-arm-kernel@lists.infradead.org
+To: Borislav Petkov <bp@alien8.de>
+Cc: "Chen, Gong" <gong.chen@linux.intel.com>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>
 
-On 7/4/2014 6:35 AM, Thierry Reding wrote:
-> On Wed, Jul 02, 2014 at 11:03:38AM -0700, Laura Abbott wrote:
-> [...]
->> diff --git a/arch/arm64/mm/dma-mapping.c b/arch/arm64/mm/dma-mapping.c
-> [...]
->> +static struct gen_pool *atomic_pool;
->> +
->> +#define DEFAULT_DMA_COHERENT_POOL_SIZE  SZ_256K
->> +static size_t atomic_pool_size = DEFAULT_DMA_COHERENT_POOL_SIZE;
-> 
-> There doesn't seem to be much use for this since it can't be overridden
-> via init_dma_coherent_pool_size like on ARM.
-> 
-
-There is still the command line option coherent_pool=<size> though
-
-[...]
->> +	if (page) {
->> +		int ret;
->> +
->> +		atomic_pool = gen_pool_create(PAGE_SHIFT, -1);
->> +		if (!atomic_pool)
->> +			goto free_page;
->> +
->> +		addr = dma_common_contiguous_remap(page, atomic_pool_size,
->> +					VM_USERMAP, prot, atomic_pool_init);
->> +
->> +		if (!addr)
->> +			goto destroy_genpool;
->> +
->> +		memset(addr, 0, atomic_pool_size);
->> +		__dma_flush_range(addr, addr + atomic_pool_size);
->> +
->> +		ret = gen_pool_add_virt(atomic_pool, (unsigned long)addr,
->> +					page_to_phys(page),
->> +					atomic_pool_size, -1);
->> +		if (ret)
->> +			goto remove_mapping;
->> +
->> +		gen_pool_set_algo(atomic_pool,
->> +				  gen_pool_first_fit_order_align, NULL);
->> +
->> +		pr_info("DMA: preallocated %zd KiB pool for atomic allocations\n",
-> 
-> I think this should be "%zu" because atomic_pool_size is a size_t, not a
-> ssize_t.
-> 
-
-Yes, will fix.
-
->> +			atomic_pool_size / 1024);
->> +		return 0;
->> +	}
->> +	goto out;
->> +
->> +remove_mapping:
->> +	dma_common_free_remap(addr, atomic_pool_size, VM_USERMAP);
->> +destroy_genpool:
->> +	gen_pool_destroy(atomic_pool);
->> +	atomic_pool == NULL;
-> 
-> This probably doesn't belong here.
-> 
-
-Dastardly typo.
-
->> +free_page:
->> +	if (!dma_release_from_contiguous(NULL, page, nr_pages))
->> +		__free_pages(page, get_order(atomic_pool_size));
-> 
-> You use get_order(atomic_pool_size) a lot, perhaps it should be a
-> temporary variable?
-> 
-
-Yes, three usages is probably enough.
-
->> +out:
->> +	pr_err("DMA: failed to allocate %zx KiB pool for atomic coherent allocation\n",
->> +		atomic_pool_size / 1024);
-> 
-> Print in decimal rather than hexadecimal?
-> 
-
-I actually prefer hexadecimal but I should at least be consistent between
-error and non-error paths.
-
-> Thierry
-> 
-
-Thanks,
-Laura
-
--- 
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-hosted by The Linux Foundation
+PiBBbmQgZHJvcCBhbGwgdGhlIGhvbWVncm93biBvdGhlciBzdHVmZiBsaWtlIG1jZV9yaW5nIGFu
+ZCBhbGw/DQoNCm1jZV9yaW5nIHNob3VsZCBiZSBlYXN5IC4uLiB0aGUgIm1jZSIgc3RydWN0dXJl
+IGhhcyB0aGUgYWRkcmVzcw0KZnJvbSB3aGljaCB3ZSBjYW4gZWFzaWx5IGdldCB0aGUgcGZuIHRv
+IHBhc3MgaW50byB0aGUgYWN0aW9uLW9wdGlvbmFsDQpyZWNvdmVyeSBwYXRoLiAgT25seSB0aGlu
+ZyBtaXNzaW5nIGlzIGEgZGlyZWN0IGluZGljYXRpb24gdGhhdCB0aGlzIG1jZQ0KZG9lcyBjb250
+YWluIGFuIEFPIGVycm9yIHRoYXQgbmVlZHMgdG8gYmUgcHJvY2Vzc2VkLiBXZSBjb3VsZA0KcmUt
+aW52b2tlIG1jZV9zZXZlcml0eSgpIHRvIGZpZ3VyZSBpdCBvdXQgYWdhaW4gLSBvciBqdXN0IGFk
+ZCBhIGZsYWcNCnNvbWV3aGVyZS4NCg0KTm90IHNvIHN1cmUgYWJvdXQgbWNlX2luZm8uIFRoaXMg
+b25lIHBhc3NlcyBmcm9tIHRoZQ0KTUNFIGNvbnRleHQgdG8gdGhlIHNhbWUgdGFzayB3aGVuIHdl
+IGNhdGNoIGl0IGluIHByb2Nlc3MNCmNvbnRleHQgKHNldF90aHJlYWRfZmxhZyhNQ0VfTk9USUZZ
+KSkuICBCYWNrIHdoZW4gSSB3YXMgcHVzaGluZw0KdGhpcyBjb2RlIGl0LCBJIHJlYWxseSB3YW50
+ZWQgdG8ganVzdCBhZGQgYSBmaWVsZCB0byB0aGUgdGhyZWFkX2luZm8NCnN0cnVjdHVyZSB0byBo
+b2xkIHRoZSBhZGRyZXNzIC4uLiBiZWNhdXNlIHRoaXMgcmVhbGx5IGlzIHNvbWUNCmluZm9ybWF0
+aW9uIHRoYXQgYmVsb25ncyB0byB0aGUgdGhyZWFkLiBCdXQgSSB3YXMgdW5hYmxlIHRvDQpjb252
+aW5jZSBwZW9wbGUgYmFjayB0aGVuLiAgV2UgbXVzdCBiZSBhYmxlIHRvIGZpbmQgdGhlDQpwYWdl
+IGZyYW1lIHdoZW4gd2UgYXJyaXZlIGluIG1jZV9ub3RpZnlfcHJvY2VzcygpLiBTbyB3ZQ0KY2Fu
+J3Qgc3Rhc2ggaXQgaW4gc29tZSBsaW1pdGVkIHNpemUgcG9vbCBvZiAibWNlIiBzdHJ1Y3R1cmVz
+IHRoYXQNCm1pZ2h0IGRlY2lkZSB0byBqdXN0IGRyb3AgdGhpcyBvbmUuDQoNCi1Ub255DQoNCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
