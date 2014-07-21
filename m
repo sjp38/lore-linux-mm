@@ -1,71 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id EB6256B005C
-	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 13:23:40 -0400 (EDT)
-Received: by mail-ig0-f176.google.com with SMTP id hn18so3062210igb.9
-        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 10:23:40 -0700 (PDT)
-Received: from e33.co.us.ibm.com (e33.co.us.ibm.com. [32.97.110.151])
-        by mx.google.com with ESMTPS id f20si47314141icc.101.2014.07.21.10.23.39
+Received: from mail-oa0-f41.google.com (mail-oa0-f41.google.com [209.85.219.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FBCB6B0068
+	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 13:26:22 -0400 (EDT)
+Received: by mail-oa0-f41.google.com with SMTP id j17so7894383oag.28
+        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 10:26:21 -0700 (PDT)
+Received: from g2t2354.austin.hp.com (g2t2354.austin.hp.com. [15.217.128.53])
+        by mx.google.com with ESMTPS id fi9si39269189obc.41.2014.07.21.10.26.21
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 21 Jul 2014 10:23:40 -0700 (PDT)
-Received: from /spool/local
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Mon, 21 Jul 2014 11:23:39 -0600
-Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 9764119D8040
-	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 11:23:25 -0600 (MDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by b03cxnp07028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s6LHM1xs1049008
-	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 19:22:01 +0200
-Received: from d03av03.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s6LHNYkT006798
-	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 11:23:35 -0600
-Date: Mon, 21 Jul 2014 10:23:31 -0700
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: [RFC Patch V1 00/30] Enable memoryless node on x86 platforms
-Message-ID: <20140721172331.GB4156@linux.vnet.ibm.com>
-References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 21 Jul 2014 10:26:21 -0700 (PDT)
+Message-ID: <1405962993.30151.35.camel@misato.fc.hp.com>
+Subject: Re: [RFC PATCH 0/11] Support Write-Through mapping on x86
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Mon, 21 Jul 2014 11:16:33 -0600
+In-Reply-To: <53CD443A.6050804@zytor.com>
+References: <1405452884-25688-1-git-send-email-toshi.kani@hp.com>
+		 <53C58A69.3070207@zytor.com> <1405459404.28702.17.camel@misato.fc.hp.com>
+		 <03d059f5-b564-4530-9184-f91ca9d5c016@email.android.com>
+		 <1405546127.28702.85.camel@misato.fc.hp.com>
+	 <1405960298.30151.10.camel@misato.fc.hp.com> <53CD443A.6050804@zytor.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <jiang.liu@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, plagnioj@jcrosoft.com, tomi.valkeinen@ti.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, airlied@gmail.com, bp@alien8.de
 
-Hi Jiang,
-
-On 11.07.2014 [15:37:17 +0800], Jiang Liu wrote:
-> Previously we have posted a patch fix a memory crash issue caused by
-> memoryless node on x86 platforms, please refer to
-> http://comments.gmane.org/gmane.linux.kernel/1687425
+On Mon, 2014-07-21 at 09:47 -0700, H. Peter Anvin wrote:
+> On 07/21/2014 09:31 AM, Toshi Kani wrote:
+> > Do you have any comments / suggestions for this approach?
 > 
-> As suggested by David Rientjes, the most suitable fix for the issue
-> should be to use cpu_to_mem() rather than cpu_to_node() in the caller.
-> So this is the patchset according to David's suggestion.
+> Approach to what, specifically?
+>
+> Keep in mind the PAT bit is different for large pages.  This needs to be
+> dealt with.  
 
-Hrm, that is initially what David said, but then later on in the thread,
-he specifically says he doesn't think memoryless nodes are the problem.
-It seems like the issue is the order of onlining of resources on a
-specifix x86 platform?
+You are right.  I was under a wrong impression that
+__change_page_attr() always splits a large pages into 4KB pages, but I
+overlooked the fact that it can handle a large page as well.  So, this
+approach does not work...
 
-memoryless nodes in and of themselves don't cause the kernel to crash.
-powerpc boots with them (both previously without
-CONFIG_HAVE_MEMORYLESS_NODES and now with it) and is functional,
-although it does lead to some performance issues I'm hoping to resolve.
-In fact, David specifically says that the kernel crash you triggered
-makes sense as cpu_to_node() points to an offline node?
+> I would also like a systematic way to deal with the fact
+> that Xen (sigh) is stuck with a separate mapping system.
+>
+> I guess Linux could adopt the Xen mappings if that makes it easier, as
+> long as that doesn't have a negative impact on native hardware -- we can
+> possibly deal with some older chips not being optimal.  
 
-In any case, a blind s/cpu_to_node/cpu_to_mem/ is not always correct.
-There is a semantic difference and in some cases the allocator already
-do the right thing under covers (falls back to nearest node) and in some
-cases it doesn't.
+I see.  I agree that supporting the PAT bit is the right direction, but
+I do not know how much effort we need.  I will study on this.
+
+> However, my thinking has been to have a "reverse PAT" table in memory of memory
+> types to encodings, both for regular and large pages.
+
+I am not clear about your idea of the "reverse PAT" table.  Would you
+care to elaborate?  How is it different from using pte_val() being a
+paravirt function on Xen?
 
 Thanks,
-Nish
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
