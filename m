@@ -1,168 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 9836F6B0035
-	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 11:01:51 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id fa1so9899125pad.27
-        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 08:01:48 -0700 (PDT)
-Received: from na01-bl2-obe.outbound.protection.outlook.com (mail-bl2lp0204.outbound.protection.outlook.com. [207.46.163.204])
-        by mx.google.com with ESMTPS id i5si4607422pdj.299.2014.07.21.08.01.47
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 838CF6B0035
+	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 11:25:10 -0400 (EDT)
+Received: by mail-wi0-f176.google.com with SMTP id bs8so4361773wib.9
+        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 08:25:08 -0700 (PDT)
+Received: from mail-wg0-x229.google.com (mail-wg0-x229.google.com [2a00:1450:400c:c00::229])
+        by mx.google.com with ESMTPS id ch2si28742318wjc.43.2014.07.21.08.25.03
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 21 Jul 2014 08:01:47 -0700 (PDT)
-Message-ID: <53CD2B43.3090405@amd.com>
-Date: Mon, 21 Jul 2014 18:01:23 +0300
-From: Oded Gabbay <oded.gabbay@amd.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 21 Jul 2014 08:25:03 -0700 (PDT)
+Received: by mail-wg0-f41.google.com with SMTP id z12so6573751wgg.12
+        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 08:25:03 -0700 (PDT)
+Date: Mon, 21 Jul 2014 17:25:11 +0200
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [PATCH v2 00/25] AMDKFD kernel driver
+Message-ID: <20140721152511.GW15237@phenom.ffwll.local>
+References: <53C7D645.3070607@amd.com>
+ <20140720174652.GE3068@gmail.com>
+ <53CD0961.4070505@amd.com>
+ <53CD17FD.3000908@vodafone.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/7] mmu_notifier: add call_srcu and sync function for
- listener to delay call and sync.
-References: <1405622809-3797-1-git-send-email-j.glisse@gmail.com>
- <1405622809-3797-2-git-send-email-j.glisse@gmail.com>
-In-Reply-To: <1405622809-3797-2-git-send-email-j.glisse@gmail.com>
-Content-Type: text/plain; charset="UTF-8"; format=flowed
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <53CD17FD.3000908@vodafone.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: j.glisse@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel
- Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes
- Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van
- Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron
- Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul
- Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, =?UTF-8?B?SsOpcsO0bWUgR2xp?= =?UTF-8?B?c3Nl?= <jglisse@redhat.com>
+To: Christian =?iso-8859-1?Q?K=F6nig?= <deathsimple@vodafone.de>
+Cc: Oded Gabbay <oded.gabbay@amd.com>, Jerome Glisse <j.glisse@gmail.com>, David Airlie <airlied@linux.ie>, Alex Deucher <alexdeucher@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, John Bridgman <John.Bridgman@amd.com>, Joerg Roedel <joro@8bytes.org>, Andrew Lewycky <Andrew.Lewycky@amd.com>, Michel =?iso-8859-1?Q?D=E4nzer?= <michel.daenzer@amd.com>, Ben Goz <Ben.Goz@amd.com>, Alexey Skidanov <Alexey.Skidanov@amd.com>, Evgeny Pinchuk <Evgeny.Pinchuk@amd.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-mm <linux-mm@kvack.org>
 
-On 17/07/14 21:46, j.glisse@gmail.com wrote:
-> From: Peter Zijlstra <peterz@infradead.org>
->
-> New mmu_notifier listener are eager to cleanup there structure after th=
-e
-> mmu_notifier::release callback. In order to allow this the patch provid=
-e
-> a function that allows to add a delayed call to the mmu_notifier srcu. =
-It
-> also add a function that will call barrier_srcu so those listener can s=
-ync
-> with mmu_notifier.
+On Mon, Jul 21, 2014 at 03:39:09PM +0200, Christian Konig wrote:
+> Am 21.07.2014 14:36, schrieb Oded Gabbay:
+> >On 20/07/14 20:46, Jerome Glisse wrote:
+> >>On Thu, Jul 17, 2014 at 04:57:25PM +0300, Oded Gabbay wrote:
+> >>>Forgot to cc mailing list on cover letter. Sorry.
+> >>>
+> >>>As a continuation to the existing discussion, here is a v2 patch series
+> >>>restructured with a cleaner history and no
+> >>>totally-different-early-versions
+> >>>of the code.
+> >>>
+> >>>Instead of 83 patches, there are now a total of 25 patches, where 5 of
+> >>>them
+> >>>are modifications to radeon driver and 18 of them include only amdkfd
+> >>>code.
+> >>>There is no code going away or even modified between patches, only
+> >>>added.
+> >>>
+> >>>The driver was renamed from radeon_kfd to amdkfd and moved to reside
+> >>>under
+> >>>drm/radeon/amdkfd. This move was done to emphasize the fact that this
+> >>>driver
+> >>>is an AMD-only driver at this point. Having said that, we do foresee a
+> >>>generic hsa framework being implemented in the future and in that
+> >>>case, we
+> >>>will adjust amdkfd to work within that framework.
+> >>>
+> >>>As the amdkfd driver should support multiple AMD gfx drivers, we want
+> >>>to
+> >>>keep it as a seperate driver from radeon. Therefore, the amdkfd code is
+> >>>contained in its own folder. The amdkfd folder was put under the radeon
+> >>>folder because the only AMD gfx driver in the Linux kernel at this
+> >>>point
+> >>>is the radeon driver. Having said that, we will probably need to move
+> >>>it
+> >>>(maybe to be directly under drm) after we integrate with additional
+> >>>AMD gfx
+> >>>drivers.
+> >>>
+> >>>For people who like to review using git, the v2 patch set is located
+> >>>at:
+> >>>http://cgit.freedesktop.org/~gabbayo/linux/log/?h=kfd-next-3.17-v2
+> >>>
+> >>>Written by Oded Gabbayh <oded.gabbay@amd.com>
+> >>
+> >>So quick comments before i finish going over all patches. There is many
+> >>things that need more documentation espacialy as of right now there is
+> >>no userspace i can go look at.
+> >So quick comments on some of your questions but first of all, thanks for
+> >the time you dedicated to review the code.
+> >>
+> >>There few show stopper, biggest one is gpu memory pinning this is a big
+> >>no, that would need serious arguments for any hope of convincing me on
+> >>that side.
+> >We only do gpu memory pinning for kernel objects. There are no userspace
+> >objects that are pinned on the gpu memory in our driver. If that is the
+> >case, is it still a show stopper ?
+> >
+> >The kernel objects are:
+> >- pipelines (4 per device)
+> >- mqd per hiq (only 1 per device)
+> >- mqd per userspace queue. On KV, we support up to 1K queues per process,
+> >for a total of 512K queues. Each mqd is 151 bytes, but the allocation is
+> >done in 256 alignment. So total *possible* memory is 128MB
+> >- kernel queue (only 1 per device)
+> >- fence address for kernel queue
+> >- runlists for the CP (1 or 2 per device)
+> 
+> The main questions here are if it's avoid able to pin down the memory and if
+> the memory is pinned down at driver load, by request from userspace or by
+> anything else.
+> 
+> As far as I can see only the "mqd per userspace queue" might be a bit
+> questionable, everything else sounds reasonable.
 
-Tested with amdkfd and iommuv2 driver
-So,
-Tested-by: Oded Gabbay <oded.gabbay@amd.com>
->
-> Signed-off-by: Peter Zijlstra <peterz@infradead.org>
-> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> ---
->   include/linux/mmu_notifier.h |  6 ++++++
->   mm/mmu_notifier.c            | 40 +++++++++++++++++++++++++++++++++++=
-++++-
->   2 files changed, 45 insertions(+), 1 deletion(-)
->
-> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.=
-h
-> index deca874..2728869 100644
-> --- a/include/linux/mmu_notifier.h
-> +++ b/include/linux/mmu_notifier.h
-> @@ -170,6 +170,8 @@ extern int __mmu_notifier_register(struct mmu_notif=
-ier *mn,
->   				   struct mm_struct *mm);
->   extern void mmu_notifier_unregister(struct mmu_notifier *mn,
->   				    struct mm_struct *mm);
-> +extern void mmu_notifier_unregister_no_release(struct mmu_notifier *mn=
-,
-> +					       struct mm_struct *mm);
->   extern void __mmu_notifier_mm_destroy(struct mm_struct *mm);
->   extern void __mmu_notifier_release(struct mm_struct *mm);
->   extern int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
-> @@ -288,6 +290,10 @@ static inline void mmu_notifier_mm_destroy(struct =
-mm_struct *mm)
->   	set_pte_at(___mm, ___address, __ptep, ___pte);			\
->   })
->
-> +extern void mmu_notifier_call_srcu(struct rcu_head *rcu,
-> +				   void (*func)(struct rcu_head *rcu));
-> +extern void mmu_notifier_synchronize(void);
-> +
->   #else /* CONFIG_MMU_NOTIFIER */
->
->   static inline void mmu_notifier_release(struct mm_struct *mm)
-> diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-> index 41cefdf..950813b 100644
-> --- a/mm/mmu_notifier.c
-> +++ b/mm/mmu_notifier.c
-> @@ -23,6 +23,25 @@
->   static struct srcu_struct srcu;
->
->   /*
-> + * This function allows mmu_notifier::release callback to delay a call=
- to
-> + * a function that will free appropriate resources. The function must =
-be
-> + * quick and must not block.
-> + */
-> +void mmu_notifier_call_srcu(struct rcu_head *rcu,
-> +			    void (*func)(struct rcu_head *rcu))
-> +{
-> +	call_srcu(&srcu, rcu, func);
-> +}
-> +EXPORT_SYMBOL_GPL(mmu_notifier_call_srcu);
-> +
-> +void mmu_notifier_synchronize(void)
-> +{
-> +	/* Wait for any running method to finish. */
-> +	srcu_barrier(&srcu);
-> +}
-> +EXPORT_SYMBOL_GPL(mmu_notifier_synchronize);
-> +
-> +/*
->    * This function can't run concurrently against mmu_notifier_register
->    * because mm->mm_users > 0 during mmu_notifier_register and exit_mma=
-p
->    * runs with mm_users =3D=3D 0. Other tasks may still invoke mmu noti=
-fiers
-> @@ -53,7 +72,6 @@ void __mmu_notifier_release(struct mm_struct *mm)
->   		 */
->   		if (mn->ops->release)
->   			mn->ops->release(mn, mm);
-> -	srcu_read_unlock(&srcu, id);
->
->   	spin_lock(&mm->mmu_notifier_mm->lock);
->   	while (unlikely(!hlist_empty(&mm->mmu_notifier_mm->list))) {
-> @@ -69,6 +87,7 @@ void __mmu_notifier_release(struct mm_struct *mm)
->   		hlist_del_init_rcu(&mn->hlist);
->   	}
->   	spin_unlock(&mm->mmu_notifier_mm->lock);
-> +	srcu_read_unlock(&srcu, id);
->
->   	/*
->   	 * synchronize_srcu here prevents mmu_notifier_release from returnin=
-g to
-> @@ -325,6 +344,25 @@ void mmu_notifier_unregister(struct mmu_notifier *=
-mn, struct mm_struct *mm)
->   }
->   EXPORT_SYMBOL_GPL(mmu_notifier_unregister);
->
-> +/*
-> + * Same as mmu_notifier_unregister but no callback and no srcu synchro=
-nization.
-> + */
-> +void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
-> +					struct mm_struct *mm)
-> +{
-> +	spin_lock(&mm->mmu_notifier_mm->lock);
-> +	/*
-> +	 * Can not use list_del_rcu() since __mmu_notifier_release
-> +	 * can delete it before we hold the lock.
-> +	 */
-> +	hlist_del_init_rcu(&mn->hlist);
-> +	spin_unlock(&mm->mmu_notifier_mm->lock);
-> +
-> +	BUG_ON(atomic_read(&mm->mm_count) <=3D 0);
-> +	mmdrop(mm);
-> +}
-> +EXPORT_SYMBOL_GPL(mmu_notifier_unregister_no_release);
-> +
->   static int __init mmu_notifier_init(void)
->   {
->   	return init_srcu_struct(&srcu);
->
+Aside, i915 perspective again (i.e. how we solved this): When scheduling
+away from contexts we unpin them and put them into the lru. And in the
+shrinker we have a last-ditch callback to switch to a default context
+(since you can't ever have no context once you've started) which means we
+can evict any context object if it's getting in the way.
+
+We must do that since the contexts have to be in global gtt, which is
+shared for scanouts. So fragmenting that badly with lots of context
+objects and other stuff is a no-go, since that means we'll start to fail
+pageflips.
+
+I don't know whether ttm has a ready-made concept for such
+opportunistically pinned stuff. I guess you could wire up the "switch to
+dflt context" action to the evict/move function if ttm wants to get rid of
+the currently used hw context.
+
+Oh and: This is another reason for letting the kernel schedule contexts,
+since you can't do this defrag trick if the gpu does all the scheduling
+itself.
+-Daniel
+-- 
+Daniel Vetter
+Software Engineer, Intel Corporation
++41 (0) 79 365 57 48 - http://blog.ffwll.ch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
