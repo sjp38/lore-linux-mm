@@ -1,67 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CC756B0037
-	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 13:33:07 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id ey11so10291419pad.10
-        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 10:33:06 -0700 (PDT)
-Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id 1si7455033pdf.411.2014.07.21.10.33.05
+Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id A28BA6B0071
+	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 13:33:48 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id tp5so7120435ieb.14
+        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 10:33:48 -0700 (PDT)
+Received: from e39.co.us.ibm.com (e39.co.us.ibm.com. [32.97.110.160])
+        by mx.google.com with ESMTPS id d9si30854812igo.13.2014.07.21.10.33.47
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jul 2014 10:33:06 -0700 (PDT)
-Message-ID: <53CD4EB2.5020709@zytor.com>
-Date: Mon, 21 Jul 2014 10:32:34 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 21 Jul 2014 10:33:48 -0700 (PDT)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Mon, 21 Jul 2014 11:33:46 -0600
+Received: from b03cxnp08026.gho.boulder.ibm.com (b03cxnp08026.gho.boulder.ibm.com [9.17.130.18])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 2B98619D8052
+	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 11:33:35 -0600 (MDT)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by b03cxnp08026.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s6LHWVsJ5505304
+	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 19:32:31 +0200
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id s6LHbpDx010352
+	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 11:37:53 -0600
+Date: Mon, 21 Jul 2014 10:33:42 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [RFC Patch V1 01/30] mm, kernel: Use cpu_to_mem()/numa_mem_id()
+ to support memoryless node
+Message-ID: <20140721173342.GB8690@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
+ <1405064267-11678-2-git-send-email-jiang.liu@linux.intel.com>
+ <20140711151405.GK16041@linux.vnet.ibm.com>
+ <20140721171527.GA4156@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/11] Support Write-Through mapping on x86
-References: <1405452884-25688-1-git-send-email-toshi.kani@hp.com>		 <53C58A69.3070207@zytor.com> <1405459404.28702.17.camel@misato.fc.hp.com>		 <03d059f5-b564-4530-9184-f91ca9d5c016@email.android.com>		 <1405546127.28702.85.camel@misato.fc.hp.com>	 <1405960298.30151.10.camel@misato.fc.hp.com> <53CD443A.6050804@zytor.com> <1405962993.30151.35.camel@misato.fc.hp.com>
-In-Reply-To: <1405962993.30151.35.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140721171527.GA4156@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, plagnioj@jcrosoft.com, tomi.valkeinen@ti.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, airlied@gmail.com, bp@alien8.de
+To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: Jiang Liu <jiang.liu@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Dipankar Sarma <dipankar@in.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Jens Axboe <axboe@kernel.dk>, Frederic Weisbecker <fweisbec@gmail.com>, Jan Kara <jack@suse.cz>, Ingo Molnar <mingo@kernel.org>, Christoph Hellwig <hch@infradead.org>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Roman Gushchin <klamm@yandex-team.ru>, Xie XiuQi <xiexiuqi@huawei.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 07/21/2014 10:16 AM, Toshi Kani wrote:
+On Mon, Jul 21, 2014 at 10:15:27AM -0700, Nishanth Aravamudan wrote:
+> Hi Paul,
 > 
-> You are right.  I was under a wrong impression that
-> __change_page_attr() always splits a large pages into 4KB pages, but I
-> overlooked the fact that it can handle a large page as well.  So, this
-> approach does not work...
+> On 11.07.2014 [08:14:05 -0700], Paul E. McKenney wrote:
+> > On Fri, Jul 11, 2014 at 03:37:18PM +0800, Jiang Liu wrote:
+> > > When CONFIG_HAVE_MEMORYLESS_NODES is enabled, cpu_to_node()/numa_node_id()
+> > > may return a node without memory, and later cause system failure/panic
+> > > when calling kmalloc_node() and friends with returned node id.
+> > > So use cpu_to_mem()/numa_mem_id() instead to get the nearest node with
+> > > memory for the/current cpu.
+> > > 
+> > > If CONFIG_HAVE_MEMORYLESS_NODES is disabled, cpu_to_mem()/numa_mem_id()
+> > > is the same as cpu_to_node()/numa_node_id().
+> > > 
+> > > Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
+> > 
+> > For the rcutorture piece:
+> > 
+> > Acked-by: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+> > 
+> > Or if you separate the kernel/rcu/rcutorture.c portion into a separate
+> > patch, I will queue it separately.
 > 
+> Just FYI, based upon a separate discussion with Tejun and others, it
+> seems to be preferred to avoid the proliferation of cpu_to_mem
+> throughout the kernel blindly. For kthread_create_on_node(), I'm going
+> to try and fix the underlying issue and so you, as the caller, should
+> still specify the NUMA node you are running the kthread on
+> (cpu_to_node), not where you expect the memory to come from
+> (cpu_to_mem).
 
-If it did it would be a major fail.
+Even better!!!  ;-)
 
->> I would also like a systematic way to deal with the fact
->> that Xen (sigh) is stuck with a separate mapping system.
->>
->> I guess Linux could adopt the Xen mappings if that makes it easier, as
->> long as that doesn't have a negative impact on native hardware -- we can
->> possibly deal with some older chips not being optimal.  
-> 
-> I see.  I agree that supporting the PAT bit is the right direction, but
-> I do not know how much effort we need.  I will study on this.
-> 
->> However, my thinking has been to have a "reverse PAT" table in memory of memory
->> types to encodings, both for regular and large pages.
-> 
-> I am not clear about your idea of the "reverse PAT" table.  Would you
-> care to elaborate?  How is it different from using pte_val() being a
-> paravirt function on Xen?
-
-First of all, paravirt functions are the root of all evil, and we want
-to reduce and eliminate them to the utmost level possible.  But yes, we
-could plumb that up that way if we really need to.
-
-What I'm thinking of is a table which can deal with both the moving PTE
-bit, Xen, and the scattered encodings by having a small table from types
-to encodings, and not use the encodings directly until fairly late it
-the pipe.  I suspect, but I'm not sure, that we would also need the
-inverse operation.
-
-	-hpa
-
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
