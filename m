@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id F411B6B003A
-	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 07:47:34 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id fp1so8963307pdb.5
-        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 04:47:34 -0700 (PDT)
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B5FA6B003D
+	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 07:47:37 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id w10so9041418pde.18
+        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 04:47:37 -0700 (PDT)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ba2si2767714pdb.0.2014.07.21.04.47.32
+        by mx.google.com with ESMTPS id bp3si13965107pbb.173.2014.07.21.04.47.35
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Jul 2014 04:47:32 -0700 (PDT)
+        Mon, 21 Jul 2014 04:47:35 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm 3/6] memcg: make memcg_cache_id static
-Date: Mon, 21 Jul 2014 15:47:13 +0400
-Message-ID: <32eff8a3e8db2b6084942cf07f3203c27c7c7751.1405941342.git.vdavydov@parallels.com>
+Subject: [PATCH -mm 4/6] memcg: add pointer to owner cache to memcg_cache_params
+Date: Mon, 21 Jul 2014 15:47:14 +0400
+Message-ID: <86f8969053a7abf5ae35286a8980896d3175ea65.1405941342.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1405941342.git.vdavydov@parallels.com>
 References: <cover.1405941342.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,77 +22,103 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: mhocko@suse.cz, hannes@cmpxchg.org, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-It's not used anywhere outside mm/memcontrol.c.
+We don't keep a pointer to the owner kmem cache in the
+memcg_cache_params struct, because we can always get the cache by
+reading the slot corresponding to the owner memcg in the root cache's
+memcg_caches array (see memcg_params_to_cache).
+
+However, this means that offline css's, which can be zombieing around
+for quite a long time, will occupy slots in memcg_caches arrays, making
+them grow larger and larger, which doesn't sound good. Therefore I'm
+going to make memcg release the slots on offline, which will render
+memcg_params_to_cache invalid. So I'm removing it and adding a back
+pointer to memcg_cache_params instead.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- include/linux/memcontrol.h |    7 -------
- mm/memcontrol.c            |   20 ++++++++++----------
- 2 files changed, 10 insertions(+), 17 deletions(-)
+ include/linux/slab.h |    2 ++
+ mm/memcontrol.c      |   20 ++++----------------
+ 2 files changed, 6 insertions(+), 16 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index e0752d204d9e..4b4a26725cbb 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -438,8 +438,6 @@ void __memcg_kmem_commit_charge(struct page *page,
- 				       struct mem_cgroup *memcg, int order);
- void __memcg_kmem_uncharge_pages(struct page *page, int order);
- 
--int memcg_cache_id(struct mem_cgroup *memcg);
--
- int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
- 			     struct kmem_cache *root_cache);
- void memcg_free_cache_params(struct kmem_cache *s);
-@@ -569,11 +567,6 @@ memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg, int order)
- {
- }
- 
--static inline int memcg_cache_id(struct mem_cgroup *memcg)
--{
--	return -1;
--}
--
- static inline int memcg_alloc_cache_params(struct mem_cgroup *memcg,
- 		struct kmem_cache *s, struct kmem_cache *root_cache)
- {
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 14888328e96b..e6e6ddb769c7 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -523,6 +523,7 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+  *
+  * Child caches will hold extra metadata needed for its operation. Fields are:
+  *
++ * @cachep: cache which this struct is for
+  * @memcg: pointer to the memcg this cache belongs to
+  * @list: list_head for the list of all caches in this memcg
+  * @root_cache: pointer to the global, root cache, this cache was derived from
+@@ -536,6 +537,7 @@ struct memcg_cache_params {
+ 			struct kmem_cache *memcg_caches[0];
+ 		};
+ 		struct {
++			struct kmem_cache *cachep;
+ 			struct mem_cgroup *memcg;
+ 			struct list_head list;
+ 			struct kmem_cache *root_cache;
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 7d5c4a5e4c74..cc1064a504cc 100644
+index cc1064a504cc..aa3111ac3b7e 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2781,6 +2781,16 @@ static inline bool memcg_can_account_kmem(struct mem_cgroup *memcg)
- }
- 
- /*
-+ * helper for acessing a memcg's index. It will be used as an index in the
-+ * child cache array in kmem_cache, and also to derive its name. This function
-+ * will return -1 when this is not a kmem-limited memcg.
-+ */
-+static inline int memcg_cache_id(struct mem_cgroup *memcg)
-+{
-+	return memcg ? memcg->kmemcg_id : -1;
-+}
-+
-+/*
-  * This is a bit cumbersome, but it is rarely used and avoids a backpointer
-  * in the memcg_cache_params struct.
-  */
-@@ -2872,16 +2882,6 @@ static void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size)
- 		css_put(&memcg->css);
+@@ -2790,19 +2790,6 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
+ 	return memcg ? memcg->kmemcg_id : -1;
  }
  
 -/*
-- * helper for acessing a memcg's index. It will be used as an index in the
-- * child cache array in kmem_cache, and also to derive its name. This function
-- * will return -1 when this is not a kmem-limited memcg.
+- * This is a bit cumbersome, but it is rarely used and avoids a backpointer
+- * in the memcg_cache_params struct.
 - */
--int memcg_cache_id(struct mem_cgroup *memcg)
+-static struct kmem_cache *memcg_params_to_cache(struct memcg_cache_params *p)
 -{
--	return memcg ? memcg->kmemcg_id : -1;
+-	struct kmem_cache *cachep;
+-
+-	VM_BUG_ON(p->is_root_cache);
+-	cachep = p->root_cache;
+-	return cache_from_memcg_idx(cachep, memcg_cache_id(p->memcg));
 -}
 -
- static size_t memcg_caches_array_size(int num_groups)
+ #ifdef CONFIG_SLABINFO
+ static int mem_cgroup_slabinfo_read(struct seq_file *m, void *v)
  {
- 	ssize_t size;
+@@ -2816,7 +2803,7 @@ static int mem_cgroup_slabinfo_read(struct seq_file *m, void *v)
+ 
+ 	mutex_lock(&memcg_slab_mutex);
+ 	list_for_each_entry(params, &memcg->memcg_slab_caches, list)
+-		cache_show(memcg_params_to_cache(params), m);
++		cache_show(params->cachep, m);
+ 	mutex_unlock(&memcg_slab_mutex);
+ 
+ 	return 0;
+@@ -2979,6 +2966,7 @@ int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
+ 		return -ENOMEM;
+ 
+ 	if (memcg) {
++		s->memcg_params->cachep = s;
+ 		s->memcg_params->memcg = memcg;
+ 		s->memcg_params->root_cache = root_cache;
+ 		css_get(&memcg->css);
+@@ -3124,7 +3112,6 @@ int __memcg_cleanup_cache_params(struct kmem_cache *s)
+ 
+ static void memcg_unregister_all_caches(struct mem_cgroup *memcg)
+ {
+-	struct kmem_cache *cachep;
+ 	struct memcg_cache_params *params, *tmp;
+ 
+ 	if (!memcg_kmem_is_active(memcg))
+@@ -3132,7 +3119,8 @@ static void memcg_unregister_all_caches(struct mem_cgroup *memcg)
+ 
+ 	mutex_lock(&memcg_slab_mutex);
+ 	list_for_each_entry_safe(params, tmp, &memcg->memcg_slab_caches, list) {
+-		cachep = memcg_params_to_cache(params);
++		struct kmem_cache *cachep = params->cachep;
++
+ 		kmem_cache_shrink(cachep);
+ 		if (atomic_read(&cachep->memcg_params->nr_pages) == 0)
+ 			memcg_unregister_cache(cachep);
 -- 
 1.7.10.4
 
