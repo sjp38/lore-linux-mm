@@ -1,51 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 65BD96B0035
-	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 18:03:13 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so10106253pab.28
-        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 15:03:13 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id wj5si15560147pbc.22.2014.07.21.15.03.12
-        for <linux-mm@kvack.org>;
-        Mon, 21 Jul 2014 15:03:12 -0700 (PDT)
-From: "Luck, Tony" <tony.luck@intel.com>
-Subject: RE: [RFC PATCH 2/3] x86, MCE: Avoid potential deadlock in MCE
- context
-Date: Mon, 21 Jul 2014 22:03:04 +0000
-Message-ID: <3908561D78D1C84285E8C5FCA982C28F32871435@ORSMSX114.amr.corp.intel.com>
-References: <1405478082-30757-1-git-send-email-gong.chen@linux.intel.com>
- <1405478082-30757-3-git-send-email-gong.chen@linux.intel.com>
- <20140721084737.GA10016@pd.tnic>
- <3908561D78D1C84285E8C5FCA982C28F32870C55@ORSMSX114.amr.corp.intel.com>
- <20140721214116.GC11555@pd.tnic>
-In-Reply-To: <20140721214116.GC11555@pd.tnic>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 571546B0035
+	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 18:36:53 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id et14so10553389pad.7
+        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 15:36:52 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id p8si6071225pdo.159.2014.07.21.15.36.51
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 21 Jul 2014 15:36:51 -0700 (PDT)
+Message-ID: <53CD9601.5070001@codeaurora.org>
+Date: Mon, 21 Jul 2014 15:36:49 -0700
+From: Laura Abbott <lauraa@codeaurora.org>
 MIME-Version: 1.0
+Subject: Re: [PATCHv4 5/5] arm64: Add atomic pool for non-coherent and CMA
+ allocations.
+References: <1404324218-4743-1-git-send-email-lauraa@codeaurora.org> <1404324218-4743-6-git-send-email-lauraa@codeaurora.org> <20140718134343.GA4608@arm.com>
+In-Reply-To: <20140718134343.GA4608@arm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: "Chen, Gong" <gong.chen@linux.intel.com>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Will Deacon <Will.Deacon@arm.com>, David Riley <davidriley@chromium.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Ritesh Harjain <ritesh.harjani@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-PiBBbmQgZHJvcCBhbGwgdGhlIGhvbWVncm93biBvdGhlciBzdHVmZiBsaWtlIG1jZV9yaW5nIGFu
-ZCBhbGw/DQoNCm1jZV9yaW5nIHNob3VsZCBiZSBlYXN5IC4uLiB0aGUgIm1jZSIgc3RydWN0dXJl
-IGhhcyB0aGUgYWRkcmVzcw0KZnJvbSB3aGljaCB3ZSBjYW4gZWFzaWx5IGdldCB0aGUgcGZuIHRv
-IHBhc3MgaW50byB0aGUgYWN0aW9uLW9wdGlvbmFsDQpyZWNvdmVyeSBwYXRoLiAgT25seSB0aGlu
-ZyBtaXNzaW5nIGlzIGEgZGlyZWN0IGluZGljYXRpb24gdGhhdCB0aGlzIG1jZQ0KZG9lcyBjb250
-YWluIGFuIEFPIGVycm9yIHRoYXQgbmVlZHMgdG8gYmUgcHJvY2Vzc2VkLiBXZSBjb3VsZA0KcmUt
-aW52b2tlIG1jZV9zZXZlcml0eSgpIHRvIGZpZ3VyZSBpdCBvdXQgYWdhaW4gLSBvciBqdXN0IGFk
-ZCBhIGZsYWcNCnNvbWV3aGVyZS4NCg0KTm90IHNvIHN1cmUgYWJvdXQgbWNlX2luZm8uIFRoaXMg
-b25lIHBhc3NlcyBmcm9tIHRoZQ0KTUNFIGNvbnRleHQgdG8gdGhlIHNhbWUgdGFzayB3aGVuIHdl
-IGNhdGNoIGl0IGluIHByb2Nlc3MNCmNvbnRleHQgKHNldF90aHJlYWRfZmxhZyhNQ0VfTk9USUZZ
-KSkuICBCYWNrIHdoZW4gSSB3YXMgcHVzaGluZw0KdGhpcyBjb2RlIGl0LCBJIHJlYWxseSB3YW50
-ZWQgdG8ganVzdCBhZGQgYSBmaWVsZCB0byB0aGUgdGhyZWFkX2luZm8NCnN0cnVjdHVyZSB0byBo
-b2xkIHRoZSBhZGRyZXNzIC4uLiBiZWNhdXNlIHRoaXMgcmVhbGx5IGlzIHNvbWUNCmluZm9ybWF0
-aW9uIHRoYXQgYmVsb25ncyB0byB0aGUgdGhyZWFkLiBCdXQgSSB3YXMgdW5hYmxlIHRvDQpjb252
-aW5jZSBwZW9wbGUgYmFjayB0aGVuLiAgV2UgbXVzdCBiZSBhYmxlIHRvIGZpbmQgdGhlDQpwYWdl
-IGZyYW1lIHdoZW4gd2UgYXJyaXZlIGluIG1jZV9ub3RpZnlfcHJvY2VzcygpLiBTbyB3ZQ0KY2Fu
-J3Qgc3Rhc2ggaXQgaW4gc29tZSBsaW1pdGVkIHNpemUgcG9vbCBvZiAibWNlIiBzdHJ1Y3R1cmVz
-IHRoYXQNCm1pZ2h0IGRlY2lkZSB0byBqdXN0IGRyb3AgdGhpcyBvbmUuDQoNCi1Ub255DQoNCg==
+On 7/18/2014 6:43 AM, Catalin Marinas wrote:
+> On Wed, Jul 02, 2014 at 07:03:38PM +0100, Laura Abbott wrote:
+>> diff --git a/arch/arm64/mm/dma-mapping.c b/arch/arm64/mm/dma-mapping.c
+>> index 4164c5a..a2487f1 100644
+>> --- a/arch/arm64/mm/dma-mapping.c
+>> +++ b/arch/arm64/mm/dma-mapping.c
+> [...]
+>>  static void *__dma_alloc_coherent(struct device *dev, size_t size,
+>>  				  dma_addr_t *dma_handle, gfp_t flags,
+>>  				  struct dma_attrs *attrs)
+>> @@ -53,7 +103,8 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
+>>  	if (IS_ENABLED(CONFIG_ZONE_DMA) &&
+>>  	    dev->coherent_dma_mask <= DMA_BIT_MASK(32))
+>>  		flags |= GFP_DMA;
+>> -	if (IS_ENABLED(CONFIG_DMA_CMA)) {
+>> +
+>> +	if (!(flags & __GFP_WAIT) && IS_ENABLED(CONFIG_DMA_CMA)) {
+>>  		struct page *page;
+>>  
+>>  		size = PAGE_ALIGN(size);
+> 
+> I think that's the wrong condition here. You want to use CMA if
+> (flags & __GFP_WAIT). CMA does not support atomic allocations so it can
+> fall back to swiotlb_alloc_coherent().
+> 
+>> @@ -73,50 +124,56 @@ static void __dma_free_coherent(struct device *dev, size_t size,
+>>  				void *vaddr, dma_addr_t dma_handle,
+>>  				struct dma_attrs *attrs)
+>>  {
+>> +	bool freed;
+>> +	phys_addr_t paddr = dma_to_phys(dev, dma_handle);
+>> +
+>>  	if (dev == NULL) {
+>>  		WARN_ONCE(1, "Use an actual device structure for DMA allocation\n");
+>>  		return;
+>>  	}
+>>  
+>> -	if (IS_ENABLED(CONFIG_DMA_CMA)) {
+>> -		phys_addr_t paddr = dma_to_phys(dev, dma_handle);
+>>  
+>> -		dma_release_from_contiguous(dev,
+>> +	freed = dma_release_from_contiguous(dev,
+>>  					phys_to_page(paddr),
+>>  					size >> PAGE_SHIFT);
+>> -	} else {
+>> +	if (!freed)
+>>  		swiotlb_free_coherent(dev, size, vaddr, dma_handle);
+>> -	}
+>>  }
+> 
+> Is __dma_free_coherent() ever called in atomic context? If yes, the
+> dma_release_from_contiguous() may not like it since it tries to acquire
+> a mutex. But since we don't have the gfp flags here, we don't have an
+> easy way to know what to call.
+> 
+> So the initial idea of always calling __alloc_from_pool() for both
+> coherent/non-coherent cases would work better (but still with a single
+> shared pool, see below).
+> 
+
+We should be okay
+
+__dma_free_coherent -> dma_release_from_contiguous -> cma_release which
+bounds checks the CMA region before taking any mutexes unless I missed
+something.
+
+The existing behavior on arm is to not allow non-atomic allocations to be
+freed atomic context when CMA is enabled so we'd be giving arm64 more
+leeway there.  Is being able to free non-atomic allocations in atomic
+context really necessary?
+
+>>  static void *__dma_alloc_noncoherent(struct device *dev, size_t size,
+>>  				     dma_addr_t *dma_handle, gfp_t flags,
+>>  				     struct dma_attrs *attrs)
+>>  {
+>> -	struct page *page, **map;
+>> +	struct page *page;
+>>  	void *ptr, *coherent_ptr;
+>> -	int order, i;
+>>  
+>>  	size = PAGE_ALIGN(size);
+>> -	order = get_order(size);
+>> +
+>> +	if (!(flags & __GFP_WAIT)) {
+>> +		struct page *page = NULL;
+>> +		void *addr = __alloc_from_pool(size, &page);
+>> +
+>> +		if (addr)
+>> +			*dma_handle = phys_to_dma(dev, page_to_phys(page));
+>> +
+>> +		return addr;
+>> +
+>> +	}
+> 
+> If we do the above for the __dma_alloc_coherent() case, we could use the
+> same pool but instead of returning addr it could just return
+> page_address(page). The downside of sharing the pool is that you need
+> cache flushing for every allocation (which we already do for the
+> non-atomic case).
+> 
+>> @@ -332,6 +391,67 @@ static struct notifier_block amba_bus_nb = {
+>>  
+>>  extern int swiotlb_late_init_with_default_size(size_t default_size);
+>>  
+>> +static int __init atomic_pool_init(void)
+>> +{
+>> +	pgprot_t prot = __pgprot(PROT_NORMAL_NC);
+>> +	unsigned long nr_pages = atomic_pool_size >> PAGE_SHIFT;
+>> +	struct page *page;
+>> +	void *addr;
+>> +
+>> +
+>> +	if (dev_get_cma_area(NULL))
+> 
+> Is it worth using this condition for other places where we check
+> IS_ENABLED(CONFIG_DMA_CMA) (maybe as a separate patch).
+> 
+
+Yes, it would be good to match arm in that respect.
+
+>> +		page = dma_alloc_from_contiguous(NULL, nr_pages,
+>> +					get_order(atomic_pool_size));
+>> +	else
+>> +		page = alloc_pages(GFP_KERNEL, get_order(atomic_pool_size));
+> 
+> One problem here is that the atomic pool wouldn't be able to honour
+> GFP_DMA (in the latest kernel, CMA is by default in ZONE_DMA). You
+> should probably pass GFP_KERNEL|GFP_DMA here. You could also use the
+> swiotlb_alloc_coherent() which, with a NULL dev, assumes 32-bit DMA mask
+> but it still expects GFP_DMA to be passed.
+> 
+
+I think I missed updating this to GFP_DMA. The only advantage I would see
+to using swiotlb_alloc_coherent vs. alloc_pages directly would be to
+allow the fallback to using a bounce buffer if __get_free_pages failed.
+I'll keep this as alloc_pages for now; it can be changed later if there
+is a particular need for swiotlb behavior.
+
+>> +	if (page) {
+>> +		int ret;
+>> +
+>> +		atomic_pool = gen_pool_create(PAGE_SHIFT, -1);
+>> +		if (!atomic_pool)
+>> +			goto free_page;
+>> +
+>> +		addr = dma_common_contiguous_remap(page, atomic_pool_size,
+>> +					VM_USERMAP, prot, atomic_pool_init);
+>> +
+>> +		if (!addr)
+>> +			goto destroy_genpool;
+>> +
+>> +		memset(addr, 0, atomic_pool_size);
+>> +		__dma_flush_range(addr, addr + atomic_pool_size);
+> 
+> If you add the flushing in the __dma_alloc_noncoherent(), it won't be
+> needed here (of course, more efficient here but it would not work if we
+> share the pool).
+> 
+>> +postcore_initcall(atomic_pool_init);
+> 
+> Why not arch_initcall? Or even better, we could have a common DMA init
+> function that calls swiotlb_late_init() and atomic_pool_init() (in this
+> order if you decide to use swiotlb allocation above).
+> 
+
+Good point. I'll combine the two.
+
+Thanks,
+Laura
+
+-- 
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
