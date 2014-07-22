@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id C3DDC6B0055
-	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 15:48:44 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id r10so161297pdi.34
-        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 12:48:44 -0700 (PDT)
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 783446B0055
+	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 15:48:45 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id ey11so166844pad.38
+        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 12:48:45 -0700 (PDT)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id rq15si52299pac.50.2014.07.22.12.48.43
+        by mx.google.com with ESMTP id rq15si52299pac.50.2014.07.22.12.48.44
         for <linux-mm@kvack.org>;
-        Tue, 22 Jul 2014 12:48:43 -0700 (PDT)
+        Tue, 22 Jul 2014 12:48:44 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v8 01/22] Fix XIP fault vs truncate race
-Date: Tue, 22 Jul 2014 15:47:49 -0400
-Message-Id: <78c38d32aa62db1bb86315cf3e287b24be900c5e.1406058387.git.matthew.r.wilcox@intel.com>
+Subject: [PATCH v8 07/22] Add copy_to_iter(), copy_from_iter() and iov_iter_zero()
+Date: Tue, 22 Jul 2014 15:47:55 -0400
+Message-Id: <02a76f478c739ad87d7d5354b0e63818ebea8541.1406058387.git.matthew.r.wilcox@intel.com>
 In-Reply-To: <cover.1406058387.git.matthew.r.wilcox@intel.com>
 References: <cover.1406058387.git.matthew.r.wilcox@intel.com>
 In-Reply-To: <cover.1406058387.git.matthew.r.wilcox@intel.com>
@@ -19,80 +19,358 @@ References: <cover.1406058387.git.matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, willy@linux.intel.com
+Cc: Matthew Wilcox <willy@linux.intel.com>
 
-Pagecache faults recheck i_size after taking the page lock to ensure that
-the fault didn't race against a truncate.  We don't have a page to lock
-in the XIP case, so use the i_mmap_mutex instead.  It is locked in the
-truncate path in unmap_mapping_range() after updating i_size.  So while
-we hold it in the fault path, we are guaranteed that either i_size has
-already been updated in the truncate path, or that the truncate will
-subsequently call zap_page_range_single() and so remove the mapping we
-have just inserted.
+From: Matthew Wilcox <willy@linux.intel.com>
 
-There is a window of time in which i_size has been reduced and the
-thread has a mapping to a page which will be removed from the file,
-but this is harmless as the page will not be allocated to a different
-purpose before the thread's access to it is revoked.
+For DAX, we want to be able to copy between iovecs and kernel addresses
+that don't necessarily have a struct page.  This is a fairly simple
+rearrangement for bvec iters to kmap the pages outside and pass them in,
+but for user iovecs it gets more complicated because we might try various
+different ways to kmap the memory.  Duplicating the existing logic works
+out best in this case.
 
-Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Reviewed-by: Jan Kara <jack@suse.cz>
+We need to be able to write zeroes to an iovec for reads from unwritten
+ranges in a file.  This is performed by the new iov_iter_zero() function,
+again patterned after the existing code that handles iovec iterators.
+
+Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 ---
- mm/filemap_xip.c | 24 ++++++++++++++++++++++--
- 1 file changed, 22 insertions(+), 2 deletions(-)
+ include/linux/uio.h |   3 +
+ mm/iov_iter.c       | 237 ++++++++++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 226 insertions(+), 14 deletions(-)
 
-diff --git a/mm/filemap_xip.c b/mm/filemap_xip.c
-index d8d9fe3..c8d23e9 100644
---- a/mm/filemap_xip.c
-+++ b/mm/filemap_xip.c
-@@ -260,8 +260,17 @@ again:
- 		__xip_unmap(mapping, vmf->pgoff);
+diff --git a/include/linux/uio.h b/include/linux/uio.h
+index 09a7cff..86fb3e9 100644
+--- a/include/linux/uio.h
++++ b/include/linux/uio.h
+@@ -80,6 +80,9 @@ size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
+ 			 struct iov_iter *i);
+ size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
+ 			 struct iov_iter *i);
++size_t copy_to_iter(void *addr, size_t bytes, struct iov_iter *i);
++size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i);
++size_t iov_iter_zero(size_t bytes, struct iov_iter *);
+ unsigned long iov_iter_alignment(const struct iov_iter *i);
+ void iov_iter_init(struct iov_iter *i, int direction, const struct iovec *iov,
+ 			unsigned long nr_segs, size_t count);
+diff --git a/mm/iov_iter.c b/mm/iov_iter.c
+index 7b5dbd1..e95ed80 100644
+--- a/mm/iov_iter.c
++++ b/mm/iov_iter.c
+@@ -4,6 +4,96 @@
+ #include <linux/slab.h>
+ #include <linux/vmalloc.h>
  
- found:
-+		/* We must recheck i_size under i_mmap_mutex */
-+		mutex_lock(&mapping->i_mmap_mutex);
-+		size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
-+							PAGE_CACHE_SHIFT;
-+		if (unlikely(vmf->pgoff >= size)) {
-+			mutex_unlock(&mapping->i_mmap_mutex);
-+			return VM_FAULT_SIGBUS;
-+		}
- 		err = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
- 							xip_pfn);
-+		mutex_unlock(&mapping->i_mmap_mutex);
- 		if (err == -ENOMEM)
- 			return VM_FAULT_OOM;
- 		/*
-@@ -285,16 +294,27 @@ found:
- 		}
- 		if (error != -ENODATA)
- 			goto out;
++static size_t copy_to_iter_iovec(void *from, size_t bytes, struct iov_iter *i)
++{
++	size_t skip, copy, left, wanted;
++	const struct iovec *iov;
++	char __user *buf;
 +
-+		/* We must recheck i_size under i_mmap_mutex */
-+		mutex_lock(&mapping->i_mmap_mutex);
-+		size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
-+							PAGE_CACHE_SHIFT;
-+		if (unlikely(vmf->pgoff >= size)) {
-+			ret = VM_FAULT_SIGBUS;
-+			goto unlock;
-+		}
- 		/* not shared and writable, use xip_sparse_page() */
- 		page = xip_sparse_page();
- 		if (!page)
--			goto out;
-+			goto unlock;
- 		err = vm_insert_page(vma, (unsigned long)vmf->virtual_address,
- 							page);
- 		if (err == -ENOMEM)
--			goto out;
-+			goto unlock;
++	if (unlikely(bytes > i->count))
++		bytes = i->count;
++
++	if (unlikely(!bytes))
++		return 0;
++
++	wanted = bytes;
++	iov = i->iov;
++	skip = i->iov_offset;
++	buf = iov->iov_base + skip;
++	copy = min(bytes, iov->iov_len - skip);
++
++	left = __copy_to_user(buf, from, copy);
++	copy -= left;
++	skip += copy;
++	from += copy;
++	bytes -= copy;
++	while (unlikely(!left && bytes)) {
++		iov++;
++		buf = iov->iov_base;
++		copy = min(bytes, iov->iov_len);
++		left = __copy_to_user(buf, from, copy);
++		copy -= left;
++		skip = copy;
++		from += copy;
++		bytes -= copy;
++	}
++
++	if (skip == iov->iov_len) {
++		iov++;
++		skip = 0;
++	}
++	i->count -= wanted - bytes;
++	i->nr_segs -= iov - i->iov;
++	i->iov = iov;
++	i->iov_offset = skip;
++	return wanted - bytes;
++}
++
++static size_t copy_from_iter_iovec(void *to, size_t bytes, struct iov_iter *i)
++{
++	size_t skip, copy, left, wanted;
++	const struct iovec *iov;
++	char __user *buf;
++
++	if (unlikely(bytes > i->count))
++		bytes = i->count;
++
++	if (unlikely(!bytes))
++		return 0;
++
++	wanted = bytes;
++	iov = i->iov;
++	skip = i->iov_offset;
++	buf = iov->iov_base + skip;
++	copy = min(bytes, iov->iov_len - skip);
++
++	left = __copy_from_user(to, buf, copy);
++	copy -= left;
++	skip += copy;
++	to += copy;
++	bytes -= copy;
++	while (unlikely(!left && bytes)) {
++		iov++;
++		buf = iov->iov_base;
++		copy = min(bytes, iov->iov_len);
++		left = __copy_from_user(to, buf, copy);
++		copy -= left;
++		skip = copy;
++		to += copy;
++		bytes -= copy;
++	}
++
++	if (skip == iov->iov_len) {
++		iov++;
++		skip = 0;
++	}
++	i->count -= wanted - bytes;
++	i->nr_segs -= iov - i->iov;
++	i->iov = iov;
++	i->iov_offset = skip;
++	return wanted - bytes;
++}
++
+ static size_t copy_page_to_iter_iovec(struct page *page, size_t offset, size_t bytes,
+ 			 struct iov_iter *i)
+ {
+@@ -166,6 +256,50 @@ done:
+ 	return wanted - bytes;
+ }
  
- 		ret = VM_FAULT_NOPAGE;
-+unlock:
-+		mutex_unlock(&mapping->i_mmap_mutex);
- out:
- 		write_seqcount_end(&xip_sparse_seq);
- 		mutex_unlock(&xip_sparse_mutex);
++static size_t zero_iovec(size_t bytes, struct iov_iter *i)
++{
++	size_t skip, copy, left, wanted;
++	const struct iovec *iov;
++	char __user *buf;
++
++	if (unlikely(bytes > i->count))
++		bytes = i->count;
++
++	if (unlikely(!bytes))
++		return 0;
++
++	wanted = bytes;
++	iov = i->iov;
++	skip = i->iov_offset;
++	buf = iov->iov_base + skip;
++	copy = min(bytes, iov->iov_len - skip);
++
++	left = __clear_user(buf, copy);
++	copy -= left;
++	skip += copy;
++	bytes -= copy;
++
++	while (unlikely(!left && bytes)) {
++		iov++;
++		buf = iov->iov_base;
++		copy = min(bytes, iov->iov_len);
++		left = __clear_user(buf, copy);
++		copy -= left;
++		skip = copy;
++		bytes -= copy;
++	}
++
++	if (skip == iov->iov_len) {
++		iov++;
++		skip = 0;
++	}
++	i->count -= wanted - bytes;
++	i->nr_segs -= iov - i->iov;
++	i->iov = iov;
++	i->iov_offset = skip;
++	return wanted - bytes;
++}
++
+ static size_t __iovec_copy_from_user_inatomic(char *vaddr,
+ 			const struct iovec *iov, size_t base, size_t bytes)
+ {
+@@ -412,12 +546,17 @@ static void memcpy_to_page(struct page *page, size_t offset, char *from, size_t
+ 	kunmap_atomic(to);
+ }
+ 
+-static size_t copy_page_to_iter_bvec(struct page *page, size_t offset, size_t bytes,
+-			 struct iov_iter *i)
++static void memzero_page(struct page *page, size_t offset, size_t len)
++{
++	char *addr = kmap_atomic(page);
++	memset(addr + offset, 0, len);
++	kunmap_atomic(addr);
++}
++
++static size_t copy_to_iter_bvec(void *from, size_t bytes, struct iov_iter *i)
+ {
+ 	size_t skip, copy, wanted;
+ 	const struct bio_vec *bvec;
+-	void *kaddr, *from;
+ 
+ 	if (unlikely(bytes > i->count))
+ 		bytes = i->count;
+@@ -430,8 +569,6 @@ static size_t copy_page_to_iter_bvec(struct page *page, size_t offset, size_t by
+ 	skip = i->iov_offset;
+ 	copy = min_t(size_t, bytes, bvec->bv_len - skip);
+ 
+-	kaddr = kmap_atomic(page);
+-	from = kaddr + offset;
+ 	memcpy_to_page(bvec->bv_page, skip + bvec->bv_offset, from, copy);
+ 	skip += copy;
+ 	from += copy;
+@@ -444,7 +581,6 @@ static size_t copy_page_to_iter_bvec(struct page *page, size_t offset, size_t by
+ 		from += copy;
+ 		bytes -= copy;
+ 	}
+-	kunmap_atomic(kaddr);
+ 	if (skip == bvec->bv_len) {
+ 		bvec++;
+ 		skip = 0;
+@@ -456,12 +592,10 @@ static size_t copy_page_to_iter_bvec(struct page *page, size_t offset, size_t by
+ 	return wanted - bytes;
+ }
+ 
+-static size_t copy_page_from_iter_bvec(struct page *page, size_t offset, size_t bytes,
+-			 struct iov_iter *i)
++static size_t copy_from_iter_bvec(void *to, size_t bytes, struct iov_iter *i)
+ {
+ 	size_t skip, copy, wanted;
+ 	const struct bio_vec *bvec;
+-	void *kaddr, *to;
+ 
+ 	if (unlikely(bytes > i->count))
+ 		bytes = i->count;
+@@ -473,10 +607,6 @@ static size_t copy_page_from_iter_bvec(struct page *page, size_t offset, size_t
+ 	bvec = i->bvec;
+ 	skip = i->iov_offset;
+ 
+-	kaddr = kmap_atomic(page);
+-
+-	to = kaddr + offset;
+-
+ 	copy = min(bytes, bvec->bv_len - skip);
+ 
+ 	memcpy_from_page(to, bvec->bv_page, bvec->bv_offset + skip, copy);
+@@ -493,7 +623,6 @@ static size_t copy_page_from_iter_bvec(struct page *page, size_t offset, size_t
+ 		to += copy;
+ 		bytes -= copy;
+ 	}
+-	kunmap_atomic(kaddr);
+ 	if (skip == bvec->bv_len) {
+ 		bvec++;
+ 		skip = 0;
+@@ -505,6 +634,61 @@ static size_t copy_page_from_iter_bvec(struct page *page, size_t offset, size_t
+ 	return wanted;
+ }
+ 
++static size_t copy_page_to_iter_bvec(struct page *page, size_t offset,
++					size_t bytes, struct iov_iter *i)
++{
++	void *kaddr = kmap_atomic(page);
++	size_t wanted = copy_to_iter_bvec(kaddr + offset, bytes, i);
++	kunmap_atomic(kaddr);
++	return wanted;
++}
++
++static size_t copy_page_from_iter_bvec(struct page *page, size_t offset,
++					size_t bytes, struct iov_iter *i)
++{
++	void *kaddr = kmap_atomic(page);
++	size_t wanted = copy_from_iter_bvec(kaddr + offset, bytes, i);
++	kunmap_atomic(kaddr);
++	return wanted;
++}
++
++static size_t zero_bvec(size_t bytes, struct iov_iter *i)
++{
++	size_t skip, copy, wanted;
++	const struct bio_vec *bvec;
++
++	if (unlikely(bytes > i->count))
++		bytes = i->count;
++
++	if (unlikely(!bytes))
++		return 0;
++
++	wanted = bytes;
++	bvec = i->bvec;
++	skip = i->iov_offset;
++	copy = min_t(size_t, bytes, bvec->bv_len - skip);
++
++	memzero_page(bvec->bv_page, skip + bvec->bv_offset, copy);
++	skip += copy;
++	bytes -= copy;
++	while (bytes) {
++		bvec++;
++		copy = min(bytes, (size_t)bvec->bv_len);
++		memzero_page(bvec->bv_page, bvec->bv_offset, copy);
++		skip = copy;
++		bytes -= copy;
++	}
++	if (skip == bvec->bv_len) {
++		bvec++;
++		skip = 0;
++	}
++	i->count -= wanted - bytes;
++	i->nr_segs -= bvec - i->bvec;
++	i->bvec = bvec;
++	i->iov_offset = skip;
++	return wanted - bytes;
++}
++
+ static size_t copy_from_user_bvec(struct page *page,
+ 		struct iov_iter *i, unsigned long offset, size_t bytes)
+ {
+@@ -669,6 +853,31 @@ size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
+ }
+ EXPORT_SYMBOL(copy_page_from_iter);
+ 
++size_t copy_to_iter(void *addr, size_t bytes, struct iov_iter *i)
++{
++	if (i->type & ITER_BVEC)
++		return copy_to_iter_bvec(addr, bytes, i);
++	else
++		return copy_to_iter_iovec(addr, bytes, i);
++}
++
++size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
++{
++	if (i->type & ITER_BVEC)
++		return copy_from_iter_bvec(addr, bytes, i);
++	else
++		return copy_from_iter_iovec(addr, bytes, i);
++}
++
++size_t iov_iter_zero(size_t bytes, struct iov_iter *i)
++{
++	if (i->type & ITER_BVEC) {
++		return zero_bvec(bytes, i);
++	} else {
++		return zero_iovec(bytes, i);
++	}
++}
++
+ size_t iov_iter_copy_from_user_atomic(struct page *page,
+ 		struct iov_iter *i, unsigned long offset, size_t bytes)
+ {
 -- 
 2.0.0
 
