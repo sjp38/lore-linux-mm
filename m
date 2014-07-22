@@ -1,115 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id ECC696B0036
-	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 19:47:37 -0400 (EDT)
-Received: by mail-ie0-f181.google.com with SMTP id rp18so345645iec.12
-        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 16:47:37 -0700 (PDT)
-Received: from e37.co.us.ibm.com (e37.co.us.ibm.com. [32.97.110.158])
-        by mx.google.com with ESMTPS id x18si1301523icx.7.2014.07.22.16.47.36
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C5D76B0036
+	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 19:51:08 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id fp1so464234pdb.33
+        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 16:51:08 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id u2si515970pbz.202.2014.07.22.16.51.07
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Jul 2014 16:47:36 -0700 (PDT)
-Received: from /spool/local
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Tue, 22 Jul 2014 17:47:35 -0600
-Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 306D51FF003F
-	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 17:47:31 -0600 (MDT)
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by b03cxnp08025.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s6MNlVsH9437452
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 01:47:31 +0200
-Received: from d03av03.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s6MNlVN9004733
-	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 17:47:31 -0600
-Date: Tue, 22 Jul 2014 16:47:26 -0700
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for
- determining the fallback node
-Message-ID: <20140722234726.GO4156@linux.vnet.ibm.com>
-References: <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com>
- <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com>
- <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com>
- <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com>
- <20140207054819.GC28952@lge.com>
- <alpine.DEB.2.02.1402080154140.9668@chino.kir.corp.google.com>
- <20140210010936.GA12574@lge.com>
- <20140722010305.GJ4156@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1407211809140.9778@chino.kir.corp.google.com>
- <20140722214311.GM4156@linux.vnet.ibm.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Jul 2014 16:51:07 -0700 (PDT)
+Message-ID: <53CEF8E8.3080607@codeaurora.org>
+Date: Tue, 22 Jul 2014 16:51:04 -0700
+From: Laura Abbott <lauraa@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140722214311.GM4156@linux.vnet.ibm.com>
+Subject: Re: [PATCHv4 5/5] arm64: Add atomic pool for non-coherent and CMA
+ allocations.
+References: <1404324218-4743-1-git-send-email-lauraa@codeaurora.org> <1404324218-4743-6-git-send-email-lauraa@codeaurora.org> <201407222006.44666.arnd@arndb.de> <20140722210352.GA10604@arm.com>
+In-Reply-To: <20140722210352.GA10604@arm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>
+To: Catalin Marinas <catalin.marinas@arm.com>, Arnd Bergmann <arnd@arndb.de>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Will Deacon <Will.Deacon@arm.com>, David Riley <davidriley@chromium.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ritesh Harjain <ritesh.harjani@gmail.com>
 
-On 22.07.2014 [14:43:11 -0700], Nishanth Aravamudan wrote:
-> Hi David,
-
-<snip>
-
-> on powerpc now, things look really good. On a KVM instance with the
-> following topology:
+On 7/22/2014 2:03 PM, Catalin Marinas wrote:
+> On Tue, Jul 22, 2014 at 07:06:44PM +0100, Arnd Bergmann wrote:
+[...]
+>>> +               if (!addr)
+>>> +                       goto destroy_genpool;
+>>> +
+>>> +               memset(addr, 0, atomic_pool_size);
+>>> +               __dma_flush_range(addr, addr + atomic_pool_size);
+>>
+>> It also seems weird to flush the cache on a virtual address of
+>> an uncacheable mapping. Is that well-defined?
 > 
-> available: 2 nodes (0-1)
-> node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49
-> node 0 size: 0 MB
-> node 0 free: 0 MB
-> node 1 cpus: 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99
-> node 1 size: 16336 MB
-> node 1 free: 14274 MB
-> node distances:
-> node   0   1 
->   0:  10  40 
->   1:  40  10 
+> Yes. According to D5.8.1 (Data and unified caches), "if cache
+> maintenance is performed on a memory location, the effect of that cache
+> maintenance is visible to all aliases of that physical memory location.
+> These properties are consistent with implementing all caches that can
+> handle data accesses as Physically-indexed, physically-tagged (PIPT)
+> caches".
 > 
-> 3.16.0-rc6 gives:
+
+This was actually unintentional on my part. I'm going to clean this up
+to flush via the existing cached mapping to make it clearer what's going
+on.
+
+>> In the CMA case, the
+>> original mapping should already be uncached here, so you don't need
+>> to flush it.
 > 
->         Slab:            1039744 kB
-> 	SReclaimable:      38976 kB
-> 	SUnreclaim:      1000768 kB
-
-<snip>
-
-> Adding my patch on top of Joonsoo's and the revert, I get:
+> I don't think it is non-cacheable already, at least not for arm64 (CMA
+> can be used on coherent architectures as well).
 > 
-> 	Slab:             411776 kB
-> 	SReclaimable:      40960 kB
-> 	SUnreclaim:       370816 kB
+
+Memory allocated via dma_alloc_from_contiguous is not guaranteed to be
+uncached. On arm, we allocate the page of memory and the remap it as
+appropriate.
+
+>> In the alloc_pages() case, I think you need to unmap
+>> the pages from the linear mapping instead.
 > 
-> So CONFIG_SLUB still uses about 3x as much slab memory, but it's not so
-> much that we are close to OOM with small VM/LPAR sizes.
+> Even if unmapped, it would not remove dirty cache lines (which are
+> associated with physical addresses anyway). But we don't need to worry
+> about unmapping anyway, see above (that's unless we find some
+> architecture implementation where having such cacheable/non-cacheable
+> aliases is not efficient enough, the efficiency is not guaranteed by the
+> ARM ARM, just the correct behaviour).
+> 
 
-Just to clarify/add one more datapoint, with a balanced topology:
-
-available: 2 nodes (0-1)
-node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49
-node 0 size: 8154 MB
-node 0 free: 8075 MB
-node 1 cpus: 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99
-node 1 size: 8181 MB
-node 1 free: 7776 MB
-node distances:
-node   0   1 
-  0:  10  40 
-  1:  40  10
-
-I see the following for my patch + Joonsoo's + the revert:
-
-Slab:             495872 kB
-SReclaimable:      46528 kB
-SUnreclaim:       449344 kB
-
-(Although these numbers fluctuate quite a bit between 250M and 500M),
-which indicates that the memoryless node slab consumption is now on-par
-with a populated topology. And both are still more than CONFIG_SLAB
-requires.
+Let's hope that never happens.
 
 Thanks,
-Nish
+Laura
+
+-- 
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
