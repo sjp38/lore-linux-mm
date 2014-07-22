@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 25D716B0062
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id D1CBA6B0068
 	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 15:48:46 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id y10so168927pdj.0
-        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 12:48:45 -0700 (PDT)
+Received: by mail-pa0-f45.google.com with SMTP id eu11so168511pac.32
+        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 12:48:46 -0700 (PDT)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
         by mx.google.com with ESMTP id rq15si52299pac.50.2014.07.22.12.48.44
         for <linux-mm@kvack.org>;
-        Tue, 22 Jul 2014 12:48:44 -0700 (PDT)
+        Tue, 22 Jul 2014 12:48:45 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v8 02/22] Allow page fault handlers to perform the COW
-Date: Tue, 22 Jul 2014 15:47:50 -0400
-Message-Id: <b765e16e66c9422c896294a11fe624ecb7e44384.1406058387.git.matthew.r.wilcox@intel.com>
+Subject: [PATCH v8 14/22] ext2: Remove ext2_xip_verify_sb()
+Date: Tue, 22 Jul 2014 15:48:02 -0400
+Message-Id: <9d8d4cff164d1da10fd3e212725b5b8bd5a8e64b.1406058387.git.matthew.r.wilcox@intel.com>
 In-Reply-To: <cover.1406058387.git.matthew.r.wilcox@intel.com>
 References: <cover.1406058387.git.matthew.r.wilcox@intel.com>
 In-Reply-To: <cover.1406058387.git.matthew.r.wilcox@intel.com>
@@ -21,88 +21,128 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, willy@linux.intel.com
 
-Currently COW of an XIP file is done by first bringing in a read-only
-mapping, then retrying the fault and copying the page.  It is much more
-efficient to tell the fault handler that a COW is being attempted (by
-passing in the pre-allocated page in the vm_fault structure), and allow
-the handler to perform the COW operation itself.
+Jan Kara pointed out that calling ext2_xip_verify_sb() in ext2_remount()
+doesn't make sense, since changing the XIP option on remount isn't
+allowed.  It also doesn't make sense to re-check whether blocksize is
+supported since it can't change between mounts.
+
+Replace the call to ext2_xip_verify_sb() in ext2_fill_super() with the
+equivalent check and delete the definition.
 
 Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Reviewed-by: Jan Kara <jack@suse.cz>
 ---
- include/linux/mm.h |  1 +
- mm/memory.c        | 11 +++++++----
- 2 files changed, 8 insertions(+), 4 deletions(-)
+ fs/ext2/super.c | 33 ++++++++++++---------------------
+ fs/ext2/xip.c   | 12 ------------
+ fs/ext2/xip.h   |  2 --
+ 3 files changed, 12 insertions(+), 35 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index e03dd29..e04f531 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -208,6 +208,7 @@ struct vm_fault {
- 	pgoff_t pgoff;			/* Logical page offset based on vma */
- 	void __user *virtual_address;	/* Faulting virtual address */
+diff --git a/fs/ext2/super.c b/fs/ext2/super.c
+index 3750031..3ac6555 100644
+--- a/fs/ext2/super.c
++++ b/fs/ext2/super.c
+@@ -868,9 +868,6 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
+ 		((EXT2_SB(sb)->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ?
+ 		 MS_POSIXACL : 0);
  
-+	struct page *cow_page;		/* Handler may choose to COW */
- 	struct page *page;		/* ->fault handlers should return a
- 					 * page here, unless VM_FAULT_NOPAGE
- 					 * is set (which is also implied by
-diff --git a/mm/memory.c b/mm/memory.c
-index d67fd9f..42bf429 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2003,6 +2003,7 @@ static int do_page_mkwrite(struct vm_area_struct *vma, struct page *page,
- 	vmf.pgoff = page->index;
- 	vmf.flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
- 	vmf.page = page;
-+	vmf.cow_page = NULL;
+-	ext2_xip_verify_sb(sb); /* see if bdev supports xip, unset
+-				    EXT2_MOUNT_XIP if not */
+-
+ 	if (le32_to_cpu(es->s_rev_level) == EXT2_GOOD_OLD_REV &&
+ 	    (EXT2_HAS_COMPAT_FEATURE(sb, ~0U) ||
+ 	     EXT2_HAS_RO_COMPAT_FEATURE(sb, ~0U) ||
+@@ -900,11 +897,17 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
  
- 	ret = vma->vm_ops->page_mkwrite(vma, &vmf);
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
-@@ -2689,7 +2690,8 @@ oom:
- }
+ 	blocksize = BLOCK_SIZE << le32_to_cpu(sbi->s_es->s_log_block_size);
  
- static int __do_fault(struct vm_area_struct *vma, unsigned long address,
--		pgoff_t pgoff, unsigned int flags, struct page **page)
-+			pgoff_t pgoff, unsigned int flags,
-+			struct page *cow_page, struct page **page)
+-	if (ext2_use_xip(sb) && blocksize != PAGE_SIZE) {
+-		if (!silent)
++	if (sbi->s_mount_opt & EXT2_MOUNT_XIP) {
++		if (blocksize != PAGE_SIZE) {
+ 			ext2_msg(sb, KERN_ERR,
+-				"error: unsupported blocksize for xip");
+-		goto failed_mount;
++					"error: unsupported blocksize for xip");
++			goto failed_mount;
++		}
++		if (!sb->s_bdev->bd_disk->fops->direct_access) {
++			ext2_msg(sb, KERN_ERR,
++					"error: device does not support xip");
++			goto failed_mount;
++		}
+ 	}
+ 
+ 	/* If the blocksize doesn't match, re-read the thing.. */
+@@ -1249,7 +1252,6 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
  {
- 	struct vm_fault vmf;
- 	int ret;
-@@ -2698,6 +2700,7 @@ static int __do_fault(struct vm_area_struct *vma, unsigned long address,
- 	vmf.pgoff = pgoff;
- 	vmf.flags = flags;
- 	vmf.page = NULL;
-+	vmf.cow_page = cow_page;
+ 	struct ext2_sb_info * sbi = EXT2_SB(sb);
+ 	struct ext2_super_block * es;
+-	unsigned long old_mount_opt = sbi->s_mount_opt;
+ 	struct ext2_mount_options old_opts;
+ 	unsigned long old_sb_flags;
+ 	int err;
+@@ -1274,22 +1276,11 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
+ 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
+ 		((sbi->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ? MS_POSIXACL : 0);
  
- 	ret = vma->vm_ops->fault(vma, &vmf);
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
-@@ -2890,7 +2893,7 @@ static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		pte_unmap_unlock(pte, ptl);
+-	ext2_xip_verify_sb(sb); /* see if bdev supports xip, unset
+-				    EXT2_MOUNT_XIP if not */
+-
+-	if ((ext2_use_xip(sb)) && (sb->s_blocksize != PAGE_SIZE)) {
+-		ext2_msg(sb, KERN_WARNING,
+-			"warning: unsupported blocksize for xip");
+-		err = -EINVAL;
+-		goto restore_opts;
+-	}
+-
+ 	es = sbi->s_es;
+-	if ((sbi->s_mount_opt ^ old_mount_opt) & EXT2_MOUNT_XIP) {
++	if ((sbi->s_mount_opt ^ old_opts.s_mount_opt) & EXT2_MOUNT_XIP) {
+ 		ext2_msg(sb, KERN_WARNING, "warning: refusing change of "
+ 			 "xip flag with busy inodes while remounting");
+-		sbi->s_mount_opt &= ~EXT2_MOUNT_XIP;
+-		sbi->s_mount_opt |= old_mount_opt & EXT2_MOUNT_XIP;
++		sbi->s_mount_opt ^= EXT2_MOUNT_XIP;
  	}
+ 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
+ 		spin_unlock(&sbi->s_lock);
+diff --git a/fs/ext2/xip.c b/fs/ext2/xip.c
+index 132d4da..66ca113 100644
+--- a/fs/ext2/xip.c
++++ b/fs/ext2/xip.c
+@@ -13,15 +13,3 @@
+ #include "ext2.h"
+ #include "xip.h"
  
--	ret = __do_fault(vma, address, pgoff, flags, &fault_page);
-+	ret = __do_fault(vma, address, pgoff, flags, NULL, &fault_page);
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
- 		return ret;
+-void ext2_xip_verify_sb(struct super_block *sb)
+-{
+-	struct ext2_sb_info *sbi = EXT2_SB(sb);
+-
+-	if ((sbi->s_mount_opt & EXT2_MOUNT_XIP) &&
+-	    !sb->s_bdev->bd_disk->fops->direct_access) {
+-		sbi->s_mount_opt &= (~EXT2_MOUNT_XIP);
+-		ext2_msg(sb, KERN_WARNING,
+-			     "warning: ignoring xip option - "
+-			     "not supported by bdev");
+-	}
+-}
+diff --git a/fs/ext2/xip.h b/fs/ext2/xip.h
+index e7b9f0a..87eeb04 100644
+--- a/fs/ext2/xip.h
++++ b/fs/ext2/xip.h
+@@ -6,13 +6,11 @@
+  */
  
-@@ -2929,7 +2932,7 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		return VM_FAULT_OOM;
- 	}
- 
--	ret = __do_fault(vma, address, pgoff, flags, &fault_page);
-+	ret = __do_fault(vma, address, pgoff, flags, new_page, &fault_page);
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
- 		goto uncharge_out;
- 
-@@ -2965,7 +2968,7 @@ static int do_shared_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	int dirtied = 0;
- 	int ret, tmp;
- 
--	ret = __do_fault(vma, address, pgoff, flags, &fault_page);
-+	ret = __do_fault(vma, address, pgoff, flags, NULL, &fault_page);
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
- 		return ret;
- 
+ #ifdef CONFIG_EXT2_FS_XIP
+-extern void ext2_xip_verify_sb (struct super_block *);
+ static inline int ext2_use_xip (struct super_block *sb)
+ {
+ 	struct ext2_sb_info *sbi = EXT2_SB(sb);
+ 	return (sbi->s_mount_opt & EXT2_MOUNT_XIP);
+ }
+ #else
+-#define ext2_xip_verify_sb(sb)			do { } while (0)
+ #define ext2_use_xip(sb)			0
+ #endif
 -- 
 2.0.0
 
