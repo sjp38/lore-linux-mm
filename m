@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
-	by kanga.kvack.org (Postfix) with ESMTP id C802A6B0039
-	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 09:44:53 -0400 (EDT)
-Received: by mail-qa0-f52.google.com with SMTP id j15so6322852qaq.25
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A0D86B003B
+	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 09:44:54 -0400 (EDT)
+Received: by mail-qg0-f42.google.com with SMTP id j5so6997341qga.15
         for <linux-mm@kvack.org>; Tue, 22 Jul 2014 06:44:53 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a50si915720qgf.6.2014.07.22.06.44.52
+        by mx.google.com with ESMTPS id 33si857089qgh.70.2014.07.22.06.44.52
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 22 Jul 2014 06:44:52 -0700 (PDT)
 From: "Jerome Marchand" <jmarchan@redhat.com>
-Subject: [PATCH 3/5] mm, shmem: Add shmem_vma() helper
-Date: Tue, 22 Jul 2014 15:43:50 +0200
-Message-Id: <1406036632-26552-4-git-send-email-jmarchan@redhat.com>
+Subject: [PATCH 4/5] mm, shmem: Add shmem swap memory accounting
+Date: Tue, 22 Jul 2014 15:43:51 +0200
+Message-Id: <1406036632-26552-5-git-send-email-jmarchan@redhat.com>
 In-Reply-To: <1406036632-26552-1-git-send-email-jmarchan@redhat.com>
 References: <1406036632-26552-1-git-send-email-jmarchan@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,55 +20,157 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, linux-doc@vger.kernel.org, Hugh Dickins <hughd@google.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Ingo Molnar <mingo@redhat.com>, Paul Mackerras <paulus@samba.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux390@de.ibm.com, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Randy Dunlap <rdunlap@infradead.org>
 
-Add a simple helper to check if a vm area belongs to shmem.
+Adds get_mm_shswap() which compute the size of swaped out shmem. It
+does so by pagewalking the mm and using the new shmem_locate() function
+to get the physical location of shmem pages.
+The result is displayed in the new VmShSw line of /proc/<pid>/status.
+Use mm_walk an shmem_locate() to account paged out shmem pages.
+
+It significantly slows down /proc/<pid>/status acccess speed when
+there is a big shmem mapping. If that is an issue, we can drop this
+patch and only display this counter in the inherently slower
+/proc/<pid>/smaps file (cf. next patch).
 
 Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
 ---
- include/linux/mm.h | 6 ++++++
- mm/shmem.c         | 8 ++++++++
- 2 files changed, 14 insertions(+)
+ Documentation/filesystems/proc.txt |  2 +
+ fs/proc/task_mmu.c                 | 80 ++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 79 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 34099fa..04a58d1 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1074,11 +1074,17 @@ int shmem_zero_setup(struct vm_area_struct *);
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index 1c49957..1a15c56 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -172,6 +172,7 @@ read the file /proc/PID/status:
+   VmPTE:        20 kb
+   VmSwap:        0 kB
+   VmShm:         0 kB
++  VmShSw:        0 kB
+   Threads:        1
+   SigQ:   0/28578
+   SigPnd: 0000000000000000
+@@ -230,6 +231,7 @@ Table 1-2: Contents of the status files (as of 2.6.30-rc7)
+  VmPTE                       size of page table entries
+  VmSwap                      size of swap usage (the number of referred swapents)
+  VmShm	                      size of resident shmem memory
++ VmShSw                      size of paged out shmem memory
+  Threads                     number of threads
+  SigQ                        number of signals queued/max. number for queue
+  SigPnd                      bitmap of pending signals for the thread
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 4e60751..73f0ce4 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -19,9 +19,80 @@
+ #include <asm/tlbflush.h>
+ #include "internal.h"
  
- extern int shmem_locate(struct vm_area_struct *vma, pgoff_t pgoff, int *count);
- bool shmem_mapping(struct address_space *mapping);
-+bool shmem_vma(struct vm_area_struct *vma);
++struct shswap_stats {
++	struct vm_area_struct *vma;
++	unsigned long shswap;
++};
 +
- #else
- static inline bool shmem_mapping(struct address_space *mapping)
++#ifdef CONFIG_SHMEM
++static int shswap_pte(pte_t *pte, unsigned long addr, unsigned long end,
++		       struct mm_walk *walk)
++{
++	struct shswap_stats *shss = walk->private;
++	struct vm_area_struct *vma = shss->vma;
++	pgoff_t pgoff = linear_page_index(vma, addr);
++	pte_t ptent = *pte;
++
++	if (pte_none(ptent) &&
++	    shmem_locate(vma, pgoff, NULL) == SHMEM_SWAP)
++		shss->shswap += end - addr;
++
++	return 0;
++}
++
++static int shswap_pte_hole(unsigned long addr, unsigned long end,
++			   struct mm_walk *walk)
++{
++	struct shswap_stats *shss = walk->private;
++	struct vm_area_struct *vma = shss->vma;
++	pgoff_t pgoff;
++
++	for (; addr != end; addr += PAGE_SIZE) {
++		pgoff = linear_page_index(vma, addr);
++
++		if (shmem_locate(vma, pgoff, NULL) == SHMEM_SWAP)
++			shss->shswap += PAGE_SIZE;
++	}
++
++	return 0;
++}
++
++static unsigned long get_mm_shswap(struct mm_struct *mm)
++{
++	struct vm_area_struct *vma;
++	struct shswap_stats shss;
++	struct mm_walk shswap_walk = {
++		.pte_entry = shswap_pte,
++		.pte_hole = shswap_pte_hole,
++		.mm = mm,
++		.private = &shss,
++	};
++
++	memset(&shss, 0, sizeof(shss));
++
++	down_read(&mm->mmap_sem);
++	for (vma = mm->mmap; vma; vma = vma->vm_next)
++		if (shmem_vma(vma)) {
++			shss.vma = vma;
++			walk_page_range(vma->vm_start, vma->vm_end,
++					&shswap_walk);
++		}
++	up_read(&mm->mmap_sem);
++
++	return shss.shswap;
++}
++
++#else
++
++static unsigned long get_mm_shswap(struct mm_struct *mm)
++{
++	return 0;
++}
++#endif
++
+ void task_mem(struct seq_file *m, struct mm_struct *mm)
  {
- 	return false;
- }
-+static inline bool shmem_vma(struct vm_area_struct *vma)
-+{
-+	return false;
-+}
- #endif
+-	unsigned long data, text, lib, swap, shmem;
++	unsigned long data, text, lib, swap, shmem, shswap;
+ 	unsigned long hiwater_vm, total_vm, hiwater_rss, total_rss;
  
- extern int can_do_mlock(void);
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 8aa4892..7d16227 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1483,6 +1483,14 @@ bool shmem_mapping(struct address_space *mapping)
- 	return mapping->backing_dev_info == &shmem_backing_dev_info;
+ 	/*
+@@ -43,6 +114,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ 	lib = (mm->exec_vm << (PAGE_SHIFT-10)) - text;
+ 	swap = get_mm_counter(mm, MM_SWAPENTS);
+ 	shmem = get_mm_counter(mm, MM_SHMEMPAGES);
++	shswap = get_mm_shswap(mm);
+ 	seq_printf(m,
+ 		"VmPeak:\t%8lu kB\n"
+ 		"VmSize:\t%8lu kB\n"
+@@ -56,7 +128,8 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ 		"VmLib:\t%8lu kB\n"
+ 		"VmPTE:\t%8lu kB\n"
+ 		"VmSwap:\t%8lu kB\n"
+-		"VmShm:\t%8lu kB\n",
++		"VmShm:\t%8lu kB\n"
++		"VmShSw:\t%8lu kB\n",
+ 		hiwater_vm << (PAGE_SHIFT-10),
+ 		total_vm << (PAGE_SHIFT-10),
+ 		mm->locked_vm << (PAGE_SHIFT-10),
+@@ -68,7 +141,8 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ 		(PTRS_PER_PTE * sizeof(pte_t) *
+ 		 atomic_long_read(&mm->nr_ptes)) >> 10,
+ 		swap << (PAGE_SHIFT-10),
+-		shmem << (PAGE_SHIFT-10));
++		shmem << (PAGE_SHIFT-10),
++		shswap >> 10);
  }
  
-+bool shmem_vma(struct vm_area_struct *vma)
-+{
-+	return (vma->vm_file &&
-+		vma->vm_file->f_dentry->d_inode->i_mapping->backing_dev_info
-+		== &shmem_backing_dev_info);
-+
-+}
-+
- #ifdef CONFIG_TMPFS
- static const struct inode_operations shmem_symlink_inode_operations;
- static const struct inode_operations shmem_short_symlink_operations;
+ unsigned long task_vsize(struct mm_struct *mm)
 -- 
 1.9.3
 
