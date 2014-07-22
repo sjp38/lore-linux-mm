@@ -1,148 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id D1CBA6B0068
-	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 15:48:46 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id eu11so168511pac.32
-        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 12:48:46 -0700 (PDT)
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 84D586B0062
+	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 15:48:47 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id ft15so169858pdb.3
+        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 12:48:47 -0700 (PDT)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id rq15si52299pac.50.2014.07.22.12.48.44
+        by mx.google.com with ESMTP id rq15si52299pac.50.2014.07.22.12.48.45
         for <linux-mm@kvack.org>;
         Tue, 22 Jul 2014 12:48:45 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v8 14/22] ext2: Remove ext2_xip_verify_sb()
-Date: Tue, 22 Jul 2014 15:48:02 -0400
-Message-Id: <9d8d4cff164d1da10fd3e212725b5b8bd5a8e64b.1406058387.git.matthew.r.wilcox@intel.com>
-In-Reply-To: <cover.1406058387.git.matthew.r.wilcox@intel.com>
-References: <cover.1406058387.git.matthew.r.wilcox@intel.com>
-In-Reply-To: <cover.1406058387.git.matthew.r.wilcox@intel.com>
-References: <cover.1406058387.git.matthew.r.wilcox@intel.com>
+Subject: [PATCH v8 00/22] Support ext4 on NV-DIMMs
+Date: Tue, 22 Jul 2014 15:47:48 -0400
+Message-Id: <cover.1406058387.git.matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, willy@linux.intel.com
 
-Jan Kara pointed out that calling ext2_xip_verify_sb() in ext2_remount()
-doesn't make sense, since changing the XIP option on remount isn't
-allowed.  It also doesn't make sense to re-check whether blocksize is
-supported since it can't change between mounts.
+One of the primary uses for NV-DIMMs is to expose them as a block device
+and use a filesystem to store files on the NV-DIMM.  While that works,
+it currently wastes memory and CPU time buffering the files in the page
+cache.  We have support in ext2 for bypassing the page cache, but it
+has some races which are unfixable in the current design.  This series
+of patches rewrite the underlying support, and add support for direct
+access to ext4.
 
-Replace the call to ext2_xip_verify_sb() in ext2_fill_super() with the
-equivalent check and delete the definition.
+I would particularly welcome feedback from mm people on patch 5 ("Add
+vm_replace_mixed()") and from fs people on patch 7 ("Add copy_to_iter(),
+copy_from_iter() and iov_iter_zero()").
 
-Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
----
- fs/ext2/super.c | 33 ++++++++++++---------------------
- fs/ext2/xip.c   | 12 ------------
- fs/ext2/xip.h   |  2 --
- 3 files changed, 12 insertions(+), 35 deletions(-)
+This iteration of the patchset rebases to 3.16-rc6 and makes substantial
+changes based on Jan Kara's feedback:
 
-diff --git a/fs/ext2/super.c b/fs/ext2/super.c
-index 3750031..3ac6555 100644
---- a/fs/ext2/super.c
-+++ b/fs/ext2/super.c
-@@ -868,9 +868,6 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
- 		((EXT2_SB(sb)->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ?
- 		 MS_POSIXACL : 0);
- 
--	ext2_xip_verify_sb(sb); /* see if bdev supports xip, unset
--				    EXT2_MOUNT_XIP if not */
--
- 	if (le32_to_cpu(es->s_rev_level) == EXT2_GOOD_OLD_REV &&
- 	    (EXT2_HAS_COMPAT_FEATURE(sb, ~0U) ||
- 	     EXT2_HAS_RO_COMPAT_FEATURE(sb, ~0U) ||
-@@ -900,11 +897,17 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
- 
- 	blocksize = BLOCK_SIZE << le32_to_cpu(sbi->s_es->s_log_block_size);
- 
--	if (ext2_use_xip(sb) && blocksize != PAGE_SIZE) {
--		if (!silent)
-+	if (sbi->s_mount_opt & EXT2_MOUNT_XIP) {
-+		if (blocksize != PAGE_SIZE) {
- 			ext2_msg(sb, KERN_ERR,
--				"error: unsupported blocksize for xip");
--		goto failed_mount;
-+					"error: unsupported blocksize for xip");
-+			goto failed_mount;
-+		}
-+		if (!sb->s_bdev->bd_disk->fops->direct_access) {
-+			ext2_msg(sb, KERN_ERR,
-+					"error: device does not support xip");
-+			goto failed_mount;
-+		}
- 	}
- 
- 	/* If the blocksize doesn't match, re-read the thing.. */
-@@ -1249,7 +1252,6 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
- {
- 	struct ext2_sb_info * sbi = EXT2_SB(sb);
- 	struct ext2_super_block * es;
--	unsigned long old_mount_opt = sbi->s_mount_opt;
- 	struct ext2_mount_options old_opts;
- 	unsigned long old_sb_flags;
- 	int err;
-@@ -1274,22 +1276,11 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
- 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
- 		((sbi->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ? MS_POSIXACL : 0);
- 
--	ext2_xip_verify_sb(sb); /* see if bdev supports xip, unset
--				    EXT2_MOUNT_XIP if not */
--
--	if ((ext2_use_xip(sb)) && (sb->s_blocksize != PAGE_SIZE)) {
--		ext2_msg(sb, KERN_WARNING,
--			"warning: unsupported blocksize for xip");
--		err = -EINVAL;
--		goto restore_opts;
--	}
--
- 	es = sbi->s_es;
--	if ((sbi->s_mount_opt ^ old_mount_opt) & EXT2_MOUNT_XIP) {
-+	if ((sbi->s_mount_opt ^ old_opts.s_mount_opt) & EXT2_MOUNT_XIP) {
- 		ext2_msg(sb, KERN_WARNING, "warning: refusing change of "
- 			 "xip flag with busy inodes while remounting");
--		sbi->s_mount_opt &= ~EXT2_MOUNT_XIP;
--		sbi->s_mount_opt |= old_mount_opt & EXT2_MOUNT_XIP;
-+		sbi->s_mount_opt ^= EXT2_MOUNT_XIP;
- 	}
- 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
- 		spin_unlock(&sbi->s_lock);
-diff --git a/fs/ext2/xip.c b/fs/ext2/xip.c
-index 132d4da..66ca113 100644
---- a/fs/ext2/xip.c
-+++ b/fs/ext2/xip.c
-@@ -13,15 +13,3 @@
- #include "ext2.h"
- #include "xip.h"
- 
--void ext2_xip_verify_sb(struct super_block *sb)
--{
--	struct ext2_sb_info *sbi = EXT2_SB(sb);
--
--	if ((sbi->s_mount_opt & EXT2_MOUNT_XIP) &&
--	    !sb->s_bdev->bd_disk->fops->direct_access) {
--		sbi->s_mount_opt &= (~EXT2_MOUNT_XIP);
--		ext2_msg(sb, KERN_WARNING,
--			     "warning: ignoring xip option - "
--			     "not supported by bdev");
--	}
--}
-diff --git a/fs/ext2/xip.h b/fs/ext2/xip.h
-index e7b9f0a..87eeb04 100644
---- a/fs/ext2/xip.h
-+++ b/fs/ext2/xip.h
-@@ -6,13 +6,11 @@
-  */
- 
- #ifdef CONFIG_EXT2_FS_XIP
--extern void ext2_xip_verify_sb (struct super_block *);
- static inline int ext2_use_xip (struct super_block *sb)
- {
- 	struct ext2_sb_info *sbi = EXT2_SB(sb);
- 	return (sbi->s_mount_opt & EXT2_MOUNT_XIP);
- }
- #else
--#define ext2_xip_verify_sb(sb)			do { } while (0)
- #define ext2_use_xip(sb)			0
- #endif
+ - Handles errors in copy_user_bh()
+ - Changes calling convention for dax_get_addr() / dax_get_pfn() to take a
+   blkbits argument instead of an inode argument
+ - Cache inode->i_blkbits in a local variable
+ - Rename file offset to 'pos' to fit the rest of the VFS
+ - Added a FIXME to fall back to buffered I/O if the filesystem doesn't
+   support filling a hole from within the direct I/O path.  Mysterious
+   and complex are the ways of get_block implementations.
+ - Moved the call to inode_dio_done() to after end_io() to fix a race
+ - Added a comment about why we have to recheck i_size under the page lock
+ - Use vm_insert_page() in the COW path instead of returning VM_FAULT_COWED
+ - Handle errors coming back from dax_get_pfn() correctly in do_dax_fault()
+ - Removes zero pages from the process' address space before trying to
+   replace them with the PFN of the newly allocated block
+ - Factor out bdev_direct_access() to support partitioning properly
+ - Rework the i_mmap_mutex locking to remove an inversion vs the page lock
+ - Make the ext2 rename of -o xip to -o dax more graceful
+ - Only update file mtime/ctime on a write fault, not a read fault
+
+
+Matthew Wilcox (21):
+  Fix XIP fault vs truncate race
+  Allow page fault handlers to perform the COW
+  axonram: Fix bug in direct_access
+  Change direct_access calling convention
+  Add vm_replace_mixed()
+  Introduce IS_DAX(inode)
+  Add copy_to_iter(), copy_from_iter() and iov_iter_zero()
+  Replace XIP read and write with DAX I/O
+  Replace ext2_clear_xip_target with dax_clear_blocks
+  Replace the XIP page fault handler with the DAX page fault handler
+  Replace xip_truncate_page with dax_truncate_page
+  Replace XIP documentation with DAX documentation
+  Remove get_xip_mem
+  ext2: Remove ext2_xip_verify_sb()
+  ext2: Remove ext2_use_xip
+  ext2: Remove xip.c and xip.h
+  Remove CONFIG_EXT2_FS_XIP and rename CONFIG_FS_XIP to CONFIG_FS_DAX
+  ext2: Remove ext2_aops_xip
+  Get rid of most mentions of XIP in ext2
+  xip: Add xip_zero_page_range
+  brd: Rename XIP to DAX
+
+Ross Zwisler (1):
+  ext4: Add DAX functionality
+
+ Documentation/filesystems/Locking  |   3 -
+ Documentation/filesystems/dax.txt  |  91 +++++++
+ Documentation/filesystems/ext4.txt |   2 +
+ Documentation/filesystems/xip.txt  |  68 -----
+ arch/powerpc/sysdev/axonram.c      |  14 +-
+ drivers/block/Kconfig              |  13 +-
+ drivers/block/brd.c                |  22 +-
+ drivers/s390/block/dcssblk.c       |  19 +-
+ fs/Kconfig                         |  21 +-
+ fs/Makefile                        |   1 +
+ fs/block_dev.c                     |  28 +++
+ fs/dax.c                           | 503 +++++++++++++++++++++++++++++++++++++
+ fs/exofs/inode.c                   |   1 -
+ fs/ext2/Kconfig                    |  11 -
+ fs/ext2/Makefile                   |   1 -
+ fs/ext2/ext2.h                     |  10 +-
+ fs/ext2/file.c                     |  45 +++-
+ fs/ext2/inode.c                    |  38 +--
+ fs/ext2/namei.c                    |  13 +-
+ fs/ext2/super.c                    |  53 ++--
+ fs/ext2/xip.c                      |  91 -------
+ fs/ext2/xip.h                      |  26 --
+ fs/ext4/ext4.h                     |   6 +
+ fs/ext4/file.c                     |  53 +++-
+ fs/ext4/indirect.c                 |  18 +-
+ fs/ext4/inode.c                    |  51 ++--
+ fs/ext4/namei.c                    |  10 +-
+ fs/ext4/super.c                    |  39 ++-
+ fs/open.c                          |   5 +-
+ include/linux/blkdev.h             |   6 +-
+ include/linux/fs.h                 |  49 +++-
+ include/linux/mm.h                 |   9 +-
+ include/linux/uio.h                |   3 +
+ mm/Makefile                        |   1 -
+ mm/fadvise.c                       |   6 +-
+ mm/filemap.c                       |   6 +-
+ mm/filemap_xip.c                   | 483 -----------------------------------
+ mm/iov_iter.c                      | 237 +++++++++++++++--
+ mm/madvise.c                       |   2 +-
+ mm/memory.c                        |  45 ++--
+ 40 files changed, 1228 insertions(+), 875 deletions(-)
+ create mode 100644 Documentation/filesystems/dax.txt
+ delete mode 100644 Documentation/filesystems/xip.txt
+ create mode 100644 fs/dax.c
+ delete mode 100644 fs/ext2/xip.c
+ delete mode 100644 fs/ext2/xip.h
+ delete mode 100644 mm/filemap_xip.c
+
 -- 
 2.0.0
 
