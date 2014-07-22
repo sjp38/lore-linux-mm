@@ -1,152 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B2696B0035
-	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 21:04:42 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lf10so10868424pab.15
-        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 18:04:42 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id c9si7950749pds.453.2014.07.21.18.04.40
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 585346B0035
+	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 21:14:48 -0400 (EDT)
+Received: by mail-wi0-f169.google.com with SMTP id n3so5077469wiv.2
+        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 18:14:47 -0700 (PDT)
+Received: from mailapp01.imgtec.com (mailapp01.imgtec.com. [195.59.15.196])
+        by mx.google.com with ESMTP id w12si25970947wiv.0.2014.07.21.18.14.46
         for <linux-mm@kvack.org>;
-        Mon, 21 Jul 2014 18:04:41 -0700 (PDT)
-Message-ID: <53CDB8A6.80801@lge.com>
-Date: Tue, 22 Jul 2014 10:04:38 +0900
-From: Gioh Kim <gioh.kim@lge.com>
+        Mon, 21 Jul 2014 18:14:47 -0700 (PDT)
+Message-ID: <53CDBB01.7040007@imgtec.com>
+Date: Mon, 21 Jul 2014 18:14:41 -0700
+From: Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] CMA/HOTPLUG: clear buffer-head lru before page migration
-References: <53C8C290.90503@lge.com> <20140721025047.GA7707@bbox> <53CCB02A.7070301@lge.com> <20140721073651.GA15912@bbox> <20140721130146.GO10544@csn.ul.ie> <20140722001545.GC15912@bbox>
-In-Reply-To: <20140722001545.GC15912@bbox>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH v2] mm/highmem: make kmap cache coloring aware
+References: <1405616598-14798-1-git-send-email-jcmvbkbc@gmail.com> <alpine.DEB.2.02.1407211754350.7042@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1407211754350.7042@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, '?????????' <iamjoonsoo.kim@lge.com>, Laura Abbott <lauraa@codeaurora.org>, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ????????? <gunho.lee@lge.com>, 'Chanho Min' <chanho.min@lge.com>, linux-fsdevel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Max Filippov <jcmvbkbc@gmail.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-mips@linux-mips.org, linux-xtensa@linux-xtensa.org, linux-kernel@vger.kernel.org
 
-
-
-2014-07-22 i??i ? 9:15, Minchan Kim i?' e,?:
-> Hello Mel,
+On 07/21/2014 05:58 PM, David Rientjes wrote:
+> On Thu, 17 Jul 2014, Max Filippov wrote:
 >
-> On Mon, Jul 21, 2014 at 02:01:46PM +0100, Mel Gorman wrote:
->> On Mon, Jul 21, 2014 at 04:36:51PM +0900, Minchan Kim wrote:
+>> From: Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>
 >>
->> I'm not reviewing this in detail at all, didn't even look at the patch
->> but two things popped out at me during the discussion.
+>> Provide hooks that allow architectures with aliasing cache to align
+>> mapping address of high pages according to their color. Such architectures
+>> may enforce similar coloring of low- and high-memory page mappings and
+>> reuse existing cache management functions to support highmem.
 >>
->>>>> Anyway, why cannot CMA have the cost without affecting other subsystem?
->>>>> I mean it's okay for CMA to consume more time to shoot out the bh
->>>>> instead of simple all bh_lru invalidation because big order allocation is
->>>>> kinds of slow thing in the VM and everybody already know that and even
->>>>> sometime get failed so it's okay to add more code that extremly slow path.
->>>>
->>>> There are 2 reasons to invalidate entire bh_lru.
->>>>
->>>> 1. I think CMA allocation is very rare so that invalidaing bh_lru affects the system little.
->>>> How do you think about it? My platform does not call CMA allocation often.
->>>> Is the CMA allocation or Memory-Hotplug called often?
->>>
->>> It depends on usecase and you couldn't assume anyting because we couldn't
->>> ask every people in the world. "Please ask to us whenever you try to use CMA".
->>>
->>> The key point is how the patch is maintainable.
->>> If it's too complicate to maintain, maybe we could go with simple solution
->>> but if it's not too complicate, we can go with more smart thing to consider
->>> other cases in future. Why not?
->>>
->>> Another point is that how user can detect where the regression is from.
->>> If we cannot notice the regression, it's not a good idea to go with simple
->>> version.
->>>
+> Typically a change like this would be proposed along with a change to an
+> architecture which would define this new ARCH_PKMAP_COLORING and have its
+> own overriding definitions.  Based on who you sent this patch to, it looks
+> like that would be mips and xtensa.  Now the only question is where are
+> those patches to add the alternate definitions for those platforms?
+Yes, there is one, at least for MIPS. This stuff can be a common ground 
+for both platforms (MIPS and XTENSA)
+
+>
+>> Signed-off-by: Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>
+>> [ Max: extract architecture-independent part of the original patch, clean
+>>    up checkpatch and build warnings. ]
+>> Signed-off-by: Max Filippov <jcmvbkbc@gmail.com>
+>> ---
+>> Changes v1->v2:
+>> - fix description
 >>
->> The buffer LRU avoids a lookup of a radix tree. If the LRU hit rate is
->> low then the performance penalty of repeated radix tree lookups is
->> severe but the cost of missing one hot lookup because CMA invalidate it
->> is not.
+>>   mm/highmem.c | 19 ++++++++++++++++---
+>>   1 file changed, 16 insertions(+), 3 deletions(-)
 >>
->> The real cost to be concerned with is the cost of performing the
->> invalidation not the fact a lookup in the LRU was missed. It's because
->> the cost of invalidation is high that this is being pushed to CMA because
->> for CMA an allocation failure can be a functional failure and not just a
->> performance problem.
->>
->>>>
->>>> 2. Adding code in drop_buffers() can affect the system more that adding code in alloc_contig_range()
->>>> because the drop_buffers does not have a way to distinguish migrate type.
->>>> Even-though the lmbech results that it has almost the same performance.
->>>> But I am afraid that it can be changed.
->>>> As you said if bh_lru size can be changed it affects more than now.
->>>> SO I do not want to touch non-CMA related code.
->>>
->>> I'm not saying to add hook in drop_buffers.
->>> What I suggest is to handle failure by bh_lrus in migrate_pages
->>> because it's not a problem only in CMA.
->>
->> No, please do not insert a global IPI to invalidate buffer heads in the
->> general migration case. It's too expensive for either THP allocations or
->> automatic NUMA migrates. The global IPI cost is justified for rare events
->> where it causes functional problems if it fails to migreate -- CMA, memory
->> hot-remove, memory poisoning etc.
+>> diff --git a/mm/highmem.c b/mm/highmem.c
+>> index b32b70c..6898a8b 100644
+>> --- a/mm/highmem.c
+>> +++ b/mm/highmem.c
+>> @@ -44,6 +44,14 @@ DEFINE_PER_CPU(int, __kmap_atomic_idx);
+>>    */
+>>   #ifdef CONFIG_HIGHMEM
+>>   
+>> +#ifndef ARCH_PKMAP_COLORING
+>> +#define set_pkmap_color(pg, cl)		/* */
+> This is typically done with do {} while (0).
 >
-> I didn't want to add that flushing in migrate_pages *unconditionlly*.
-> Please, look at this patch. It fixes only CMA although it's an issue
-> for others. Even, it depends on retry logic of upper layer of
-> alloc_contig_range but even cma_alloc(ie, upper layer of alloc_contig_range)
-> doesn't have retry logic. :(
-> That's why I suggested it in migrate_pages.
+>> +#define get_last_pkmap_nr(p, cl)	(p)
+>> +#define get_next_pkmap_nr(p, cl)	(((p) + 1) & LAST_PKMAP_MASK)
+>> +#define is_no_more_pkmaps(p, cl)	(!(p))
+> That's not gramatically proper.
 >
-> Actually, I'd like to go with making migrate_pages's user blind on pcp
-> draining stuff by squeezing that inside migrate_pages.
-> IOW, current users of migrate pages don't need to be aware of per-cpu
-> draining. What they should know is just they should use MIGRATE_SYNC
-> for best effort but costly opeartion.
->
-> For implemenation, we could use retry logic in migrate_pages.
->
-> int migrate_pages(xxx)
-> {
->          for (pass = 0; pass < 10 && retry; pass++)
->                  if (retry && pass > 2 && mode == MIGRATE_SYNC)
->                          flush_all_of_percpu_stuff();
-> }
->
-> migrate_page has migrate_mode and retry logic with 'pass', even
-> reason if we want ot filter out MR_CMA|MEMORY_HOTPLUG|MR_MEMORY_FAILURE.
-> so that we could handle all of things inside migrate_pages.
->
-> Normally, MIGRATE_SYNC would be expensive operation and mostly
-> it is used for CMA, memory-hotplug, memory-poisoning so THP and
-> automatic NUMA cannot affect so I believe adding IPI to that is not
-> a big problem in such trouble condition(ie, retry && pass > 2).
+>> +#define get_next_pkmap_counter(c, cl)	((c) - 1)
+>> +#endif
+>> +
+>>   unsigned long totalhigh_pages __read_mostly;
+>>   EXPORT_SYMBOL(totalhigh_pages);
+>>   
+>> @@ -161,19 +169,24 @@ static inline unsigned long map_new_virtual(struct page *page)
+>>   {
+>>   	unsigned long vaddr;
+>>   	int count;
+>> +	int color __maybe_unused;
+>> +
+>> +	set_pkmap_color(page, color);
+>> +	last_pkmap_nr = get_last_pkmap_nr(last_pkmap_nr, color);
+>>   
+>>   start:
+>>   	count = LAST_PKMAP;
+>>   	/* Find an empty entry */
+>>   	for (;;) {
+>> -		last_pkmap_nr = (last_pkmap_nr + 1) & LAST_PKMAP_MASK;
+>> -		if (!last_pkmap_nr) {
+>> +		last_pkmap_nr = get_next_pkmap_nr(last_pkmap_nr, color);
+>> +		if (is_no_more_pkmaps(last_pkmap_nr, color)) {
+>>   			flush_all_zero_pkmaps();
+>>   			count = LAST_PKMAP;
+>>   		}
+>>   		if (!pkmap_count[last_pkmap_nr])
+>>   			break;	/* Found a usable entry */
+>> -		if (--count)
+>> +		count = get_next_pkmap_counter(count, color);
+> And that's not equivalent at all, --count decrements the auto variable and
+> then tests it for being non-zero.  Your get_next_pkmap_counter() never
+> decrements count.
+David, the statements
 
+             count = get_next_pkmap_counter(count, color);
+             if (count > 0)
 
-I agree Minchan's point.
-I am not sure it is ok to touch the common code such as migrate_pages().
+are extended in STANDARD (non colored) case to
 
-If Mel agrees, I am going to report another patch of flush_all_of_percpu_stuff() like following:
+             count = (count - 1);
+             if (count > 0)
 
-flush_all_of_percpu_stuff()
-{
-	drop_only_bh_of_migrating_page();
-	lru_add_drain_all();
-	drain_all_pages();
-}
+which are perfect equivalent of
 
-And remove lru_add_drain_all() and drain_all_pages() in CMA/HOTPLUG codes.
-
-
+             if (--count)
 
 >
->>
->> --
->> Mel Gorman
->> SUSE Labs
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+>> +		if (count > 0)
+>>   			continue;
+>>   
+>>   		/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
