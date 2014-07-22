@@ -1,78 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id DE3F86B0037
-	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 04:11:20 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id eu11so11621062pac.3
-        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 01:11:20 -0700 (PDT)
-Received: from na01-bn1-obe.outbound.protection.outlook.com (mail-bn1lp0140.outbound.protection.outlook.com. [207.46.163.140])
-        by mx.google.com with ESMTPS id bv5si8453607pdb.201.2014.07.22.01.11.19
+Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E3236B0035
+	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 04:20:01 -0400 (EDT)
+Received: by mail-qg0-f52.google.com with SMTP id f51so6416756qge.25
+        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 01:20:01 -0700 (PDT)
+Received: from na01-bn1-obe.outbound.protection.outlook.com (mail-bn1blp0186.outbound.protection.outlook.com. [207.46.163.186])
+        by mx.google.com with ESMTPS id o11si33467881qay.79.2014.07.22.01.20.00
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 22 Jul 2014 01:11:19 -0700 (PDT)
-Message-ID: <53CE1C92.2070200@amd.com>
-Date: Tue, 22 Jul 2014 11:10:58 +0300
+        Tue, 22 Jul 2014 01:20:01 -0700 (PDT)
+Message-ID: <53CE1E9C.8020105@amd.com>
+Date: Tue, 22 Jul 2014 11:19:40 +0300
 From: Oded Gabbay <oded.gabbay@amd.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v2 00/25] AMDKFD kernel driver
 References: <20140720174652.GE3068@gmail.com> <53CD0961.4070505@amd.com>
- <53CD17FD.3000908@vodafone.de> <53CD1FB6.1000602@amd.com>
- <20140721155437.GA4519@gmail.com> <53CD5122.5040804@amd.com>
- <20140721181433.GA5196@gmail.com> <53CD5DBC.7010301@amd.com>
- <20140721185940.GA5278@gmail.com> <53CD68BF.4020308@amd.com>
- <20140722072337.GG15237@phenom.ffwll.local>
-In-Reply-To: <20140722072337.GG15237@phenom.ffwll.local>
+ <53CD17FD.3000908@vodafone.de> <20140721152511.GW15237@phenom.ffwll.local>
+ <20140721155851.GB4519@gmail.com> <20140721170546.GB15237@phenom.ffwll.local>
+ <53CD4DD2.10906@amd.com>
+ <CAKMK7uFhvGtxj_d6X=4OBdVSm6cT1-Z-DiTE-FTWMnFjY2uqMQ@mail.gmail.com>
+ <53CD5ED9.2040600@amd.com> <20140721190306.GB5278@gmail.com>
+ <20140722072851.GH15237@phenom.ffwll.local>
+In-Reply-To: <20140722072851.GH15237@phenom.ffwll.local>
 Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>, Andrew Lewycky <Andrew.Lewycky@amd.com>, =?ISO-8859-1?Q?Michel_D=E4nzer?= <michel.daenzer@amd.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-mm <linux-mm@kvack.org>, Alexey
- Skidanov <Alexey.Skidanov@amd.com>, Andrew Morton <akpm@linux-foundation.org>, "Bridgman, John" <John.Bridgman@amd.com>, Dave
- Airlie <airlied@redhat.com>, =?ISO-8859-1?Q?Christian_K=F6nig?= <christian.koenig@amd.com>, Joerg Roedel <joro@8bytes.org>, Daniel Vetter <daniel@ffwll.ch>, "Sellek, Tom" <Tom.Sellek@amd.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>
+To: Jerome Glisse <j.glisse@gmail.com>, =?ISO-8859-1?Q?Christian_K=F6ni?= =?ISO-8859-1?Q?g?= <deathsimple@vodafone.de>, David Airlie <airlied@linux.ie>, Alex Deucher <alexdeucher@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, John Bridgman <John.Bridgman@amd.com>, Joerg
+ Roedel <joro@8bytes.org>, Andrew Lewycky <Andrew.Lewycky@amd.com>, =?ISO-8859-1?Q?Michel_D=E4nzer?= <michel.daenzer@amd.com>, Ben Goz <Ben.Goz@amd.com>, Alexey Skidanov <Alexey.Skidanov@amd.com>, Evgeny Pinchuk <Evgeny.Pinchuk@amd.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-mm <linux-mm@kvack.org>
 
-On 22/07/14 10:23, Daniel Vetter wrote:
-> On Mon, Jul 21, 2014 at 10:23:43PM +0300, Oded Gabbay wrote:
->> But Jerome, the core problem still remains in effect, even with your
->> suggestion. If an application, either via userspace queue or via ioctl,
->> submits a long-running kernel, than the CPU in general can't stop the
->> GPU from running it. And if that kernel does while(1); than that's it,
->> game's over, and no matter how you submitted the work. So I don't really
->> see the big advantage in your proposal. Only in CZ we can stop this wave
->> (by CP H/W scheduling only). What are you saying is basically I won't
->> allow people to use compute on Linux KV system because it _may_ get the
->> system stuck.
+On 22/07/14 10:28, Daniel Vetter wrote:
+> On Mon, Jul 21, 2014 at 03:03:07PM -0400, Jerome Glisse wrote:
+>> On Mon, Jul 21, 2014 at 09:41:29PM +0300, Oded Gabbay wrote:
+>>> On 21/07/14 21:22, Daniel Vetter wrote:
+>>>> On Mon, Jul 21, 2014 at 7:28 PM, Oded Gabbay <oded.gabbay@amd.com> wrote:
+>>>>>> I'm not sure whether we can do the same trick with the hw scheduler. But
+>>>>>> then unpinning hw contexts will drain the pipeline anyway, so I guess we
+>>>>>> can just stop feeding the hw scheduler until it runs dry. And then unpin
+>>>>>> and evict.
+>>>>> So, I'm afraid but we can't do this for AMD Kaveri because:
+>>>>
+>>>> Well as long as you can drain the hw scheduler queue (and you can do
+>>>> that, worst case you have to unmap all the doorbells and other stuff
+>>>> to intercept further submission from userspace) you can evict stuff.
+>>>
+>>> I can't drain the hw scheduler queue, as I can't do mid-wave preemption.
+>>> Moreover, if I use the dequeue request register to preempt a queue
+>>> during a dispatch it may be that some waves (wave groups actually) of
+>>> the dispatch have not yet been created, and when I reactivate the mqd,
+>>> they should be created but are not. However, this works fine if you use
+>>> the HIQ. the CP ucode correctly saves and restores the state of an
+>>> outstanding dispatch. I don't think we have access to the state from
+>>> software at all, so it's not a bug, it is "as designed".
+>>>
 >>
->> So even if I really wanted to, and I may agree with you theoretically on
->> that, I can't fulfill your desire to make the "kernel being able to
->> preempt at any time and be able to decrease or increase user queue
->> priority so overall kernel is in charge of resources management and it
->> can handle rogue client in proper fashion". Not in KV, and I guess not
->> in CZ as well.
+>> I think here Daniel is suggesting to unmapp the doorbell page, and track
+>> each write made by userspace to it and while unmapped wait for the gpu to
+>> drain or use some kind of fence on a special queue. Once GPU is drain we
+>> can move pinned buffer, then remap the doorbell and update it to the last
+>> value written by userspace which will resume execution to the next job.
 >
-> At least on intel the execlist stuff which is used for preemption can be
-> used by both the cpu and the firmware scheduler. So we can actually
-> preempt when doing cpu scheduling.
->
-> It sounds like current amd hw doesn't have any preemption at all. And
-> without preemption I don't think we should ever consider to allow
-> userspace to directly submit stuff to the hw and overload. Imo the kernel
-> _must_ sit in between and reject clients that don't behave. Of course you
-> can only ever react (worst case with a gpu reset, there's code floating
-> around for that on intel-gfx), but at least you can do something.
->
-> If userspace has a direct submit path to the hw then this gets really
-> tricky, if not impossible.
-> -Daniel
->
+> Exactly, just prevent userspace from submitting more. And if you have
+> misbehaving userspace that submits too much, reset the gpu and tell it
+> that you're sorry but won't schedule any more work.
 
-Hi Daniel,
-See the email I just sent to Jerome regarding preemption. Bottom line, in KV, we 
-can preempt running queues, except from the case of a stuck gpu kernel. In CZ, 
-this was solved.
-
-So, in this regard, I don't think there is any difference between userspace 
-queues and ioctl.
+I'm not sure how you intend to know if a userspace misbehaves or not. Can you 
+elaborate ?
 
 	Oded
+>
+> We have this already in i915 (since like all other gpus we're not
+> preempting right now) and it works. There's some code floating around to
+> even restrict the reset to _just_ the offending submission context, with
+> nothing else getting corrupted.
+>
+> You can do all this with the doorbells and unmapping them, but it's a
+> pain. Much easier if you have a real ioctl, and I haven't seen anyone with
+> perf data indicating that an ioctl would be too much overhead on linux.
+> Neither in this thread nor internally here at intel.
+> -Daniel
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
