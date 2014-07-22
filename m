@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 376AB6B0069
-	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 15:48:48 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id et14so176631pad.7
-        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 12:48:47 -0700 (PDT)
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F62C6B0070
+	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 15:49:15 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id r10so166128pdi.20
+        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 12:49:14 -0700 (PDT)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id rq15si52299pac.50.2014.07.22.12.48.46
+        by mx.google.com with ESMTP id og1si32530pdb.37.2014.07.22.12.49.13
         for <linux-mm@kvack.org>;
-        Tue, 22 Jul 2014 12:48:46 -0700 (PDT)
+        Tue, 22 Jul 2014 12:49:14 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v8 11/22] Replace xip_truncate_page with dax_truncate_page
-Date: Tue, 22 Jul 2014 15:47:59 -0400
-Message-Id: <ca229b46f3e0903cd7aa1e9745af104c655cce8a.1406058387.git.matthew.r.wilcox@intel.com>
+Subject: [PATCH v8 22/22] brd: Rename XIP to DAX
+Date: Tue, 22 Jul 2014 15:48:10 -0400
+Message-Id: <f1a3237e1a5a8440675251bb07946076337bd7bf.1406058387.git.matthew.r.wilcox@intel.com>
 In-Reply-To: <cover.1406058387.git.matthew.r.wilcox@intel.com>
 References: <cover.1406058387.git.matthew.r.wilcox@intel.com>
 In-Reply-To: <cover.1406058387.git.matthew.r.wilcox@intel.com>
@@ -19,154 +19,118 @@ References: <cover.1406058387.git.matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, willy@linux.intel.com
+Cc: Matthew Wilcox <willy@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-It takes a get_block parameter just like nobh_truncate_page() and
-block_truncate_page()
+From: Matthew Wilcox <willy@linux.intel.com>
+
+Since this is relating to FS_XIP, not KERNEL_XIP, it should be called
+DAX instead of XIP.
 
 Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
 ---
- fs/dax.c           | 44 ++++++++++++++++++++++++++++++++++++++++++++
- fs/ext2/inode.c    |  2 +-
- include/linux/fs.h |  4 ++--
- mm/filemap_xip.c   | 40 ----------------------------------------
- 4 files changed, 47 insertions(+), 43 deletions(-)
+ drivers/block/Kconfig | 13 +++++++------
+ drivers/block/brd.c   | 14 +++++++-------
+ fs/Kconfig            |  4 ++--
+ 3 files changed, 16 insertions(+), 15 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 4ab4890..b9bc5e2 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -449,3 +449,47 @@ int dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
- 	return dax_fault(vma, vmf, get_block);
- }
- EXPORT_SYMBOL_GPL(dax_mkwrite);
-+
-+/**
-+ * dax_truncate_page - handle a partial page being truncated in a DAX file
-+ * @inode: The file being truncated
-+ * @from: The file offset that is being truncated to
-+ * @get_block: The filesystem method used to translate file offsets to blocks
-+ *
-+ * Similar to block_truncate_page(), this function can be called by a
-+ * filesystem when it is truncating an DAX file to handle the partial page.
-+ *
-+ * We work in terms of PAGE_CACHE_SIZE here for commonality with
-+ * block_truncate_page(), but we could go down to PAGE_SIZE if the filesystem
-+ * took care of disposing of the unnecessary blocks.  Even if the filesystem
-+ * block size is smaller than PAGE_SIZE, we have to zero the rest of the page
-+ * since the file might be mmaped.
-+ */
-+int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
-+{
-+	struct buffer_head bh;
-+	pgoff_t index = from >> PAGE_CACHE_SHIFT;
-+	unsigned offset = from & (PAGE_CACHE_SIZE-1);
-+	unsigned length = PAGE_CACHE_ALIGN(from) - from;
-+	int err;
-+
-+	/* Block boundary? Nothing to do */
-+	if (!length)
-+		return 0;
-+
-+	memset(&bh, 0, sizeof(bh));
-+	bh.b_size = PAGE_CACHE_SIZE;
-+	err = get_block(inode, index, &bh, 0);
-+	if (err < 0)
-+		return err;
-+	if (buffer_written(&bh)) {
-+		void *addr;
-+		err = dax_get_addr(&bh, &addr, inode->i_blkbits);
-+		if (err < 0)
-+			return err;
-+		memset(addr + offset, 0, length);
-+	}
-+
-+	return 0;
-+}
-+EXPORT_SYMBOL_GPL(dax_truncate_page);
-diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-index 52978b8..5ac0a34 100644
---- a/fs/ext2/inode.c
-+++ b/fs/ext2/inode.c
-@@ -1210,7 +1210,7 @@ static int ext2_setsize(struct inode *inode, loff_t newsize)
- 	inode_dio_wait(inode);
+diff --git a/drivers/block/Kconfig b/drivers/block/Kconfig
+index 014a1cf..1b8094d 100644
+--- a/drivers/block/Kconfig
++++ b/drivers/block/Kconfig
+@@ -393,14 +393,15 @@ config BLK_DEV_RAM_SIZE
+ 	  The default value is 4096 kilobytes. Only change this if you know
+ 	  what you are doing.
  
- 	if (IS_DAX(inode))
--		error = xip_truncate_page(inode->i_mapping, newsize);
-+		error = dax_truncate_page(inode, newsize, ext2_get_block);
- 	else if (test_opt(inode->i_sb, NOBH))
- 		error = nobh_truncate_page(inode->i_mapping,
- 				newsize, ext2_get_block);
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index d4259e1..29fafaf 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -2465,7 +2465,7 @@ extern int nonseekable_open(struct inode * inode, struct file * filp);
+-config BLK_DEV_XIP
+-	bool "Support XIP filesystems on RAM block device"
+-	depends on BLK_DEV_RAM
++config BLK_DEV_RAM_DAX
++	bool "Support Direct Access (DAX) to RAM block devices"
++	depends on BLK_DEV_RAM && FS_DAX
+ 	default n
+ 	help
+-	  Support XIP filesystems (such as ext2 with XIP support on) on
+-	  top of block ram device. This will slightly enlarge the kernel, and
+-	  will prevent RAM block device backing store memory from being
++	  Support filesystems using DAX to access RAM block devices.  This
++	  avoids double-buffering data in the page cache before copying it
++	  to the block device.  Answering Y will slightly enlarge the kernel,
++	  and will prevent RAM block device backing store memory from being
+ 	  allocated from highmem (only a problem for highmem systems).
  
- #ifdef CONFIG_FS_XIP
- int dax_clear_blocks(struct inode *, sector_t block, long size);
--extern int xip_truncate_page(struct address_space *mapping, loff_t from);
-+int dax_truncate_page(struct inode *, loff_t from, get_block_t);
- ssize_t dax_do_io(int rw, struct kiocb *, struct inode *, struct iov_iter *,
- 		loff_t, get_block_t, dio_iodone_t, int flags);
- int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t);
-@@ -2476,7 +2476,7 @@ static inline int dax_clear_blocks(struct inode *i, sector_t blk, long sz)
- 	return 0;
+ config CDROM_PKTCDVD
+diff --git a/drivers/block/brd.c b/drivers/block/brd.c
+index 96e4c96..33a39e7 100644
+--- a/drivers/block/brd.c
++++ b/drivers/block/brd.c
+@@ -97,13 +97,13 @@ static struct page *brd_insert_page(struct brd_device *brd, sector_t sector)
+ 	 * Must use NOIO because we don't want to recurse back into the
+ 	 * block or filesystem layers from page reclaim.
+ 	 *
+-	 * Cannot support XIP and highmem, because our ->direct_access
+-	 * routine for XIP must return memory that is always addressable.
+-	 * If XIP was reworked to use pfns and kmap throughout, this
++	 * Cannot support DAX and highmem, because our ->direct_access
++	 * routine for DAX must return memory that is always addressable.
++	 * If DAX was reworked to use pfns and kmap throughout, this
+ 	 * restriction might be able to be lifted.
+ 	 */
+ 	gfp_flags = GFP_NOIO | __GFP_ZERO;
+-#ifndef CONFIG_BLK_DEV_XIP
++#ifndef CONFIG_BLK_DEV_RAM_DAX
+ 	gfp_flags |= __GFP_HIGHMEM;
+ #endif
+ 	page = alloc_page(gfp_flags);
+@@ -369,7 +369,7 @@ static int brd_rw_page(struct block_device *bdev, sector_t sector,
+ 	return err;
  }
  
--static inline int xip_truncate_page(struct address_space *mapping, loff_t from)
-+static inline int dax_truncate_page(struct inode *i, loff_t frm, get_block_t gb)
+-#ifdef CONFIG_BLK_DEV_XIP
++#ifdef CONFIG_BLK_DEV_RAM_DAX
+ static long brd_direct_access(struct block_device *bdev, sector_t sector,
+ 			void **kaddr, unsigned long *pfn, long size)
  {
- 	return 0;
+@@ -392,6 +392,8 @@ static long brd_direct_access(struct block_device *bdev, sector_t sector,
+ 	 * file is mapped to the next page of physical RAM */
+ 	return min_t(long, PAGE_SIZE, size);
  }
-diff --git a/mm/filemap_xip.c b/mm/filemap_xip.c
-index 9dd45f3..6316578 100644
---- a/mm/filemap_xip.c
-+++ b/mm/filemap_xip.c
-@@ -21,43 +21,3 @@
- #include <asm/tlbflush.h>
- #include <asm/io.h>
++#else
++#define brd_direct_access NULL
+ #endif
  
--/*
-- * truncate a page used for execute in place
-- * functionality is analog to block_truncate_page but does use get_xip_mem
-- * to get the page instead of page cache
-- */
--int
--xip_truncate_page(struct address_space *mapping, loff_t from)
--{
--	pgoff_t index = from >> PAGE_CACHE_SHIFT;
--	unsigned offset = from & (PAGE_CACHE_SIZE-1);
--	unsigned blocksize;
--	unsigned length;
--	void *xip_mem;
--	unsigned long xip_pfn;
--	int err;
--
--	BUG_ON(!mapping->a_ops->get_xip_mem);
--
--	blocksize = 1 << mapping->host->i_blkbits;
--	length = offset & (blocksize - 1);
--
--	/* Block boundary? Nothing to do */
--	if (!length)
--		return 0;
--
--	length = blocksize - length;
--
--	err = mapping->a_ops->get_xip_mem(mapping, index, 0,
--						&xip_mem, &xip_pfn);
--	if (unlikely(err)) {
--		if (err == -ENODATA)
--			/* Hole? No need to truncate */
--			return 0;
--		else
--			return err;
--	}
--	memset(xip_mem + offset, 0, length);
--	return 0;
--}
--EXPORT_SYMBOL_GPL(xip_truncate_page);
+ static int brd_ioctl(struct block_device *bdev, fmode_t mode,
+@@ -432,9 +434,7 @@ static const struct block_device_operations brd_fops = {
+ 	.owner =		THIS_MODULE,
+ 	.rw_page =		brd_rw_page,
+ 	.ioctl =		brd_ioctl,
+-#ifdef CONFIG_BLK_DEV_XIP
+ 	.direct_access =	brd_direct_access,
+-#endif
+ };
+ 
+ /*
+diff --git a/fs/Kconfig b/fs/Kconfig
+index a9eb53d..117900f 100644
+--- a/fs/Kconfig
++++ b/fs/Kconfig
+@@ -34,7 +34,7 @@ source "fs/btrfs/Kconfig"
+ source "fs/nilfs2/Kconfig"
+ 
+ config FS_DAX
+-	bool "Direct Access support"
++	bool "Direct Access (DAX) support"
+ 	depends on MMU
+ 	help
+ 	  Direct Access (DAX) can be used on memory-backed block devices.
+@@ -45,7 +45,7 @@ config FS_DAX
+ 
+ 	  If you do not have a block device that is capable of using this,
+ 	  or if unsure, say N.  Saying Y will increase the size of the kernel
+-	  by about 2kB.
++	  by about 5kB.
+ 
+ endif # BLOCK
+ 
 -- 
 2.0.0
 
