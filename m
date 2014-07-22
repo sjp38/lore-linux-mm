@@ -1,94 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id CD7C36B0035
-	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 21:03:14 -0400 (EDT)
-Received: by mail-ie0-f178.google.com with SMTP id tp5so7528532ieb.37
-        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 18:03:14 -0700 (PDT)
-Received: from e34.co.us.ibm.com (e34.co.us.ibm.com. [32.97.110.152])
-        by mx.google.com with ESMTPS id dy5si32990723igb.58.2014.07.21.18.03.13
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 21 Jul 2014 18:03:14 -0700 (PDT)
-Received: from /spool/local
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Mon, 21 Jul 2014 19:03:13 -0600
-Received: from b03cxnp07029.gho.boulder.ibm.com (b03cxnp07029.gho.boulder.ibm.com [9.17.130.16])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 84D723E4003B
-	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 19:03:10 -0600 (MDT)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by b03cxnp07029.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s6LMxSn262259304
-	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 00:59:28 +0200
-Received: from d03av02.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s6M1390h006038
-	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 19:03:10 -0600
-Date: Mon, 21 Jul 2014 18:03:05 -0700
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for
- determining the fallback node
-Message-ID: <20140722010305.GJ4156@linux.vnet.ibm.com>
-References: <20140206020757.GC5433@linux.vnet.ibm.com>
- <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com>
- <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com>
- <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com>
- <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com>
- <20140207054819.GC28952@lge.com>
- <alpine.DEB.2.02.1402080154140.9668@chino.kir.corp.google.com>
- <20140210010936.GA12574@lge.com>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B2696B0035
+	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 21:04:42 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lf10so10868424pab.15
+        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 18:04:42 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id c9si7950749pds.453.2014.07.21.18.04.40
+        for <linux-mm@kvack.org>;
+        Mon, 21 Jul 2014 18:04:41 -0700 (PDT)
+Message-ID: <53CDB8A6.80801@lge.com>
+Date: Tue, 22 Jul 2014 10:04:38 +0900
+From: Gioh Kim <gioh.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140210010936.GA12574@lge.com>
+Subject: Re: [PATCH] CMA/HOTPLUG: clear buffer-head lru before page migration
+References: <53C8C290.90503@lge.com> <20140721025047.GA7707@bbox> <53CCB02A.7070301@lge.com> <20140721073651.GA15912@bbox> <20140721130146.GO10544@csn.ul.ie> <20140722001545.GC15912@bbox>
+In-Reply-To: <20140722001545.GC15912@bbox>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Minchan Kim <minchan@kernel.org>, Mel Gorman <mel@csn.ul.ie>
+Cc: Andrew Morton <akpm@linux-foundation.org>, '?????????' <iamjoonsoo.kim@lge.com>, Laura Abbott <lauraa@codeaurora.org>, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ????????? <gunho.lee@lge.com>, 'Chanho Min' <chanho.min@lge.com>, linux-fsdevel@vger.kernel.org
 
-On 10.02.2014 [10:09:36 +0900], Joonsoo Kim wrote:
-> On Sat, Feb 08, 2014 at 01:57:39AM -0800, David Rientjes wrote:
-> > On Fri, 7 Feb 2014, Joonsoo Kim wrote:
-> > 
-> > > > It seems like a better approach would be to do this when a node is brought 
-> > > > online and determine the fallback node based not on the zonelists as you 
-> > > > do here but rather on locality (such as through a SLIT if provided, see 
-> > > > node_distance()).
-> > > 
-> > > Hmm...
-> > > I guess that zonelist is base on locality. Zonelist is generated using
-> > > node_distance(), so I think that it reflects locality. But, I'm not expert
-> > > on NUMA, so please let me know what I am missing here :)
-> > > 
-> > 
-> > The zonelist is, yes, but I'm talking about memoryless and cpuless nodes.  
-> > If your solution is going to become the generic kernel API that determines 
-> > what node has local memory for a particular node, then it will have to 
-> > support all definitions of node.  That includes nodes that consist solely 
-> > of I/O, chipsets, networking, or storage devices.  These nodes may not 
-> > have memory or cpus, so doing it as part of onlining cpus isn't going to 
-> > be generic enough.  You want a node_to_mem_node() API for all possible 
-> > node types (the possible node types listed above are straight from the 
-> > ACPI spec).  For 99% of people, node_to_mem_node(X) is always going to be 
-> > X and we can optimize for that, but any solution that relies on cpu online 
-> > is probably shortsighted right now.
-> > 
-> > I think it would be much better to do this as a part of setting a node to 
-> > be online.
-> 
-> Okay. I got your point.
-> I will change it to rely on node online if this patch is really needed.
 
-Sorry for bringing up this old thread again, but I had a question for
-you, David. node_to_mem_node(), which does seem like a useful API,
-doesn't seem like it can just node_distance() solely, right? Because
-that just tells us the relative cost (or so I think about it) of using
-resources from that node. But we also need to know if that node itself
-has memory, etc. So using the zonelists is required no matter what? And
-upon memory hotplug (or unplug), the topology can change in a way that
-affects things, so node online time isn't right either?
 
-Thanks,
-Nish
+2014-07-22 i??i ? 9:15, Minchan Kim i?' e,?:
+> Hello Mel,
+>
+> On Mon, Jul 21, 2014 at 02:01:46PM +0100, Mel Gorman wrote:
+>> On Mon, Jul 21, 2014 at 04:36:51PM +0900, Minchan Kim wrote:
+>>
+>> I'm not reviewing this in detail at all, didn't even look at the patch
+>> but two things popped out at me during the discussion.
+>>
+>>>>> Anyway, why cannot CMA have the cost without affecting other subsystem?
+>>>>> I mean it's okay for CMA to consume more time to shoot out the bh
+>>>>> instead of simple all bh_lru invalidation because big order allocation is
+>>>>> kinds of slow thing in the VM and everybody already know that and even
+>>>>> sometime get failed so it's okay to add more code that extremly slow path.
+>>>>
+>>>> There are 2 reasons to invalidate entire bh_lru.
+>>>>
+>>>> 1. I think CMA allocation is very rare so that invalidaing bh_lru affects the system little.
+>>>> How do you think about it? My platform does not call CMA allocation often.
+>>>> Is the CMA allocation or Memory-Hotplug called often?
+>>>
+>>> It depends on usecase and you couldn't assume anyting because we couldn't
+>>> ask every people in the world. "Please ask to us whenever you try to use CMA".
+>>>
+>>> The key point is how the patch is maintainable.
+>>> If it's too complicate to maintain, maybe we could go with simple solution
+>>> but if it's not too complicate, we can go with more smart thing to consider
+>>> other cases in future. Why not?
+>>>
+>>> Another point is that how user can detect where the regression is from.
+>>> If we cannot notice the regression, it's not a good idea to go with simple
+>>> version.
+>>>
+>>
+>> The buffer LRU avoids a lookup of a radix tree. If the LRU hit rate is
+>> low then the performance penalty of repeated radix tree lookups is
+>> severe but the cost of missing one hot lookup because CMA invalidate it
+>> is not.
+>>
+>> The real cost to be concerned with is the cost of performing the
+>> invalidation not the fact a lookup in the LRU was missed. It's because
+>> the cost of invalidation is high that this is being pushed to CMA because
+>> for CMA an allocation failure can be a functional failure and not just a
+>> performance problem.
+>>
+>>>>
+>>>> 2. Adding code in drop_buffers() can affect the system more that adding code in alloc_contig_range()
+>>>> because the drop_buffers does not have a way to distinguish migrate type.
+>>>> Even-though the lmbech results that it has almost the same performance.
+>>>> But I am afraid that it can be changed.
+>>>> As you said if bh_lru size can be changed it affects more than now.
+>>>> SO I do not want to touch non-CMA related code.
+>>>
+>>> I'm not saying to add hook in drop_buffers.
+>>> What I suggest is to handle failure by bh_lrus in migrate_pages
+>>> because it's not a problem only in CMA.
+>>
+>> No, please do not insert a global IPI to invalidate buffer heads in the
+>> general migration case. It's too expensive for either THP allocations or
+>> automatic NUMA migrates. The global IPI cost is justified for rare events
+>> where it causes functional problems if it fails to migreate -- CMA, memory
+>> hot-remove, memory poisoning etc.
+>
+> I didn't want to add that flushing in migrate_pages *unconditionlly*.
+> Please, look at this patch. It fixes only CMA although it's an issue
+> for others. Even, it depends on retry logic of upper layer of
+> alloc_contig_range but even cma_alloc(ie, upper layer of alloc_contig_range)
+> doesn't have retry logic. :(
+> That's why I suggested it in migrate_pages.
+>
+> Actually, I'd like to go with making migrate_pages's user blind on pcp
+> draining stuff by squeezing that inside migrate_pages.
+> IOW, current users of migrate pages don't need to be aware of per-cpu
+> draining. What they should know is just they should use MIGRATE_SYNC
+> for best effort but costly opeartion.
+>
+> For implemenation, we could use retry logic in migrate_pages.
+>
+> int migrate_pages(xxx)
+> {
+>          for (pass = 0; pass < 10 && retry; pass++)
+>                  if (retry && pass > 2 && mode == MIGRATE_SYNC)
+>                          flush_all_of_percpu_stuff();
+> }
+>
+> migrate_page has migrate_mode and retry logic with 'pass', even
+> reason if we want ot filter out MR_CMA|MEMORY_HOTPLUG|MR_MEMORY_FAILURE.
+> so that we could handle all of things inside migrate_pages.
+>
+> Normally, MIGRATE_SYNC would be expensive operation and mostly
+> it is used for CMA, memory-hotplug, memory-poisoning so THP and
+> automatic NUMA cannot affect so I believe adding IPI to that is not
+> a big problem in such trouble condition(ie, retry && pass > 2).
+
+
+I agree Minchan's point.
+I am not sure it is ok to touch the common code such as migrate_pages().
+
+If Mel agrees, I am going to report another patch of flush_all_of_percpu_stuff() like following:
+
+flush_all_of_percpu_stuff()
+{
+	drop_only_bh_of_migrating_page();
+	lru_add_drain_all();
+	drain_all_pages();
+}
+
+And remove lru_add_drain_all() and drain_all_pages() in CMA/HOTPLUG codes.
+
+
+
+>
+>>
+>> --
+>> Mel Gorman
+>> SUSE Labs
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
