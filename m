@@ -1,126 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 585346B0035
-	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 21:14:48 -0400 (EDT)
-Received: by mail-wi0-f169.google.com with SMTP id n3so5077469wiv.2
-        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 18:14:47 -0700 (PDT)
-Received: from mailapp01.imgtec.com (mailapp01.imgtec.com. [195.59.15.196])
-        by mx.google.com with ESMTP id w12si25970947wiv.0.2014.07.21.18.14.46
-        for <linux-mm@kvack.org>;
-        Mon, 21 Jul 2014 18:14:47 -0700 (PDT)
-Message-ID: <53CDBB01.7040007@imgtec.com>
-Date: Mon, 21 Jul 2014 18:14:41 -0700
-From: Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>
+Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
+	by kanga.kvack.org (Postfix) with ESMTP id D7B346B0035
+	for <linux-mm@kvack.org>; Mon, 21 Jul 2014 21:17:01 -0400 (EDT)
+Received: by mail-ie0-f175.google.com with SMTP id x19so7574864ier.34
+        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 18:17:01 -0700 (PDT)
+Received: from mail-ie0-x229.google.com (mail-ie0-x229.google.com [2607:f8b0:4001:c03::229])
+        by mx.google.com with ESMTPS id ao2si33051748igc.44.2014.07.21.18.17.01
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 21 Jul 2014 18:17:01 -0700 (PDT)
+Received: by mail-ie0-f169.google.com with SMTP id tp5so7546421ieb.14
+        for <linux-mm@kvack.org>; Mon, 21 Jul 2014 18:17:01 -0700 (PDT)
+Date: Mon, 21 Jul 2014 18:16:58 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for determining
+ the fallback node
+In-Reply-To: <20140722010305.GJ4156@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.02.1407211809140.9778@chino.kir.corp.google.com>
+References: <20140206020757.GC5433@linux.vnet.ibm.com> <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com> <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com> <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com>
+ <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com> <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com> <20140207054819.GC28952@lge.com> <alpine.DEB.2.02.1402080154140.9668@chino.kir.corp.google.com> <20140210010936.GA12574@lge.com>
+ <20140722010305.GJ4156@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm/highmem: make kmap cache coloring aware
-References: <1405616598-14798-1-git-send-email-jcmvbkbc@gmail.com> <alpine.DEB.2.02.1407211754350.7042@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1407211754350.7042@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Max Filippov <jcmvbkbc@gmail.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-mips@linux-mips.org, linux-xtensa@linux-xtensa.org, linux-kernel@vger.kernel.org
+To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On 07/21/2014 05:58 PM, David Rientjes wrote:
-> On Thu, 17 Jul 2014, Max Filippov wrote:
->
->> From: Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>
->>
->> Provide hooks that allow architectures with aliasing cache to align
->> mapping address of high pages according to their color. Such architectures
->> may enforce similar coloring of low- and high-memory page mappings and
->> reuse existing cache management functions to support highmem.
->>
-> Typically a change like this would be proposed along with a change to an
-> architecture which would define this new ARCH_PKMAP_COLORING and have its
-> own overriding definitions.  Based on who you sent this patch to, it looks
-> like that would be mips and xtensa.  Now the only question is where are
-> those patches to add the alternate definitions for those platforms?
-Yes, there is one, at least for MIPS. This stuff can be a common ground 
-for both platforms (MIPS and XTENSA)
+On Mon, 21 Jul 2014, Nishanth Aravamudan wrote:
 
->
->> Signed-off-by: Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>
->> [ Max: extract architecture-independent part of the original patch, clean
->>    up checkpatch and build warnings. ]
->> Signed-off-by: Max Filippov <jcmvbkbc@gmail.com>
->> ---
->> Changes v1->v2:
->> - fix description
->>
->>   mm/highmem.c | 19 ++++++++++++++++---
->>   1 file changed, 16 insertions(+), 3 deletions(-)
->>
->> diff --git a/mm/highmem.c b/mm/highmem.c
->> index b32b70c..6898a8b 100644
->> --- a/mm/highmem.c
->> +++ b/mm/highmem.c
->> @@ -44,6 +44,14 @@ DEFINE_PER_CPU(int, __kmap_atomic_idx);
->>    */
->>   #ifdef CONFIG_HIGHMEM
->>   
->> +#ifndef ARCH_PKMAP_COLORING
->> +#define set_pkmap_color(pg, cl)		/* */
-> This is typically done with do {} while (0).
->
->> +#define get_last_pkmap_nr(p, cl)	(p)
->> +#define get_next_pkmap_nr(p, cl)	(((p) + 1) & LAST_PKMAP_MASK)
->> +#define is_no_more_pkmaps(p, cl)	(!(p))
-> That's not gramatically proper.
->
->> +#define get_next_pkmap_counter(c, cl)	((c) - 1)
->> +#endif
->> +
->>   unsigned long totalhigh_pages __read_mostly;
->>   EXPORT_SYMBOL(totalhigh_pages);
->>   
->> @@ -161,19 +169,24 @@ static inline unsigned long map_new_virtual(struct page *page)
->>   {
->>   	unsigned long vaddr;
->>   	int count;
->> +	int color __maybe_unused;
->> +
->> +	set_pkmap_color(page, color);
->> +	last_pkmap_nr = get_last_pkmap_nr(last_pkmap_nr, color);
->>   
->>   start:
->>   	count = LAST_PKMAP;
->>   	/* Find an empty entry */
->>   	for (;;) {
->> -		last_pkmap_nr = (last_pkmap_nr + 1) & LAST_PKMAP_MASK;
->> -		if (!last_pkmap_nr) {
->> +		last_pkmap_nr = get_next_pkmap_nr(last_pkmap_nr, color);
->> +		if (is_no_more_pkmaps(last_pkmap_nr, color)) {
->>   			flush_all_zero_pkmaps();
->>   			count = LAST_PKMAP;
->>   		}
->>   		if (!pkmap_count[last_pkmap_nr])
->>   			break;	/* Found a usable entry */
->> -		if (--count)
->> +		count = get_next_pkmap_counter(count, color);
-> And that's not equivalent at all, --count decrements the auto variable and
-> then tests it for being non-zero.  Your get_next_pkmap_counter() never
-> decrements count.
-David, the statements
+> Sorry for bringing up this old thread again, but I had a question for
+> you, David. node_to_mem_node(), which does seem like a useful API,
+> doesn't seem like it can just node_distance() solely, right? Because
+> that just tells us the relative cost (or so I think about it) of using
+> resources from that node. But we also need to know if that node itself
+> has memory, etc. So using the zonelists is required no matter what? And
+> upon memory hotplug (or unplug), the topology can change in a way that
+> affects things, so node online time isn't right either?
+> 
 
-             count = get_next_pkmap_counter(count, color);
-             if (count > 0)
+I think there's two use cases of interest:
 
-are extended in STANDARD (non colored) case to
+ - allocating from a memoryless node where numa_node_id() is memoryless, 
+   and
 
-             count = (count - 1);
-             if (count > 0)
+ - using node_to_mem_node() for a possibly-memoryless node for kmalloc().
 
-which are perfect equivalent of
+I believe the first should have its own node_zonelist[0], whether it's 
+memoryless or not, that points to a list of zones that start with those 
+with the smallest distance.  I think its own node_zonelist[1], for 
+__GFP_THISNODE allocations, should point to the node with present memory 
+that has the smallest distance.
 
-             if (--count)
-
->
->> +		if (count > 0)
->>   			continue;
->>   
->>   		/*
+For sure node_zonelist[0] cannot be NULL since things like 
+first_online_pgdat() would break and it should be unnecessary to do 
+node_to_mem_node() for all allocations when CONFIG_HAVE_MEMORYLESS_NODES 
+since the zonelists should already be defined properly.  All nodes, 
+regardless of whether they have memory or not, should probably end up 
+having a struct pglist_data unless there's a reason for another level of 
+indirection.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
