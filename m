@@ -1,74 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
-	by kanga.kvack.org (Postfix) with ESMTP id A55846B0038
-	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 18:58:03 -0400 (EDT)
-Received: by mail-ie0-f172.google.com with SMTP id lx4so305489iec.31
-        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 15:58:03 -0700 (PDT)
-Received: from mail-ig0-x230.google.com (mail-ig0-x230.google.com [2607:f8b0:4001:c05::230])
-        by mx.google.com with ESMTPS id ao2si5818125igc.44.2014.07.22.15.58.03
+Received: from mail-qa0-f47.google.com (mail-qa0-f47.google.com [209.85.216.47])
+	by kanga.kvack.org (Postfix) with ESMTP id C070F6B0039
+	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 18:58:56 -0400 (EDT)
+Received: by mail-qa0-f47.google.com with SMTP id i13so400946qae.20
+        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 15:58:56 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d4si937055qac.44.2014.07.22.15.58.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Jul 2014 15:58:03 -0700 (PDT)
-Received: by mail-ig0-f176.google.com with SMTP id hn18so4590779igb.15
-        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 15:58:03 -0700 (PDT)
-Date: Tue, 22 Jul 2014 15:58:01 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch 2/2] mm, slub: fix some indenting in cmpxchg_double_slab()
-In-Reply-To: <alpine.DEB.2.02.1407221550500.9885@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.02.1407221557040.9885@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1407221550500.9885@chino.kir.corp.google.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Jul 2014 15:58:56 -0700 (PDT)
+Date: Tue, 22 Jul 2014 18:58:41 -0400
+From: Mike Snitzer <snitzer@redhat.com>
+Subject: [git pull] stable mm/slab_common.c fix for 3.16-rc7
+Message-ID: <20140722225841.GA5379@redhat.com>
+References: <alpine.LRH.2.02.1403041711300.29476@file01.intranet.prod.int.rdu2.redhat.com>
+ <20140325170324.GC580@redhat.com>
+ <alpine.DEB.2.10.1403251306260.26471@nuc>
+ <20140523201632.GA16013@redhat.com>
+ <537FBD6F.1070009@iki.fi>
+ <20140722221421.GA11318@redhat.com>
+ <alpine.DEB.2.02.1407221539020.5814@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1407221539020.5814@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, Dan Carpenter <dan.carpenter@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@iki.fi>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, linux-kernel@vger.kernel.org, "Alasdair G. Kergon" <agk@redhat.com>, Mikulas Patocka <mpatocka@redhat.com>, Zdenek Kabelac <zkabelac@redhat.com>
 
-From: Dan Carpenter <dan.carpenter@oracle.com>
+Hi Linus,
 
-The return statement goes with the cmpxchg_double() condition so it
-needs to be indented another tab.
+Not sure you'll be OK with what I've done or not but I pulled in a
+1-liner "slab/urgent" fix that Pekka staged a couple months ago.  I've
+made it available through a signed tag in the linux-dm.git tree.  My
+reasoning on why this is OK is it regularly impacts DM and Pekka already
+Signed-off on it (as did other mm developers).  I'm pretty sure Pekka
+just forgot to follow through preparing a pull request for 3.15.
 
-Also these days the fashion is to line function parameters up, and it
-looks nicer that way because then the "freelist_new" is not at the same
-indent level as the "return 1;".
+If you'd rather take this direct from Pekka (or wait for Andrew to pick
+up the same patch which David just sent him) that is fine by me, I just
+want the issue fixed.
 
-Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
-Signed-off-by: Pekka Enberg <penberg@kernel.org>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/slub.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+The following changes since commit 048e5a07f282c57815b3901d4a68a77fa131ce0a:
 
-diff --git a/mm/slub.c b/mm/slub.c
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -382,9 +382,9 @@ static inline bool __cmpxchg_double_slab(struct kmem_cache *s, struct page *page
-     defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
- 	if (s->flags & __CMPXCHG_DOUBLE) {
- 		if (cmpxchg_double(&page->freelist, &page->counters,
--			freelist_old, counters_old,
--			freelist_new, counters_new))
--		return 1;
-+				   freelist_old, counters_old,
-+				   freelist_new, counters_new))
-+			return 1;
- 	} else
- #endif
- 	{
-@@ -418,9 +418,9 @@ static inline bool cmpxchg_double_slab(struct kmem_cache *s, struct page *page,
-     defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
- 	if (s->flags & __CMPXCHG_DOUBLE) {
- 		if (cmpxchg_double(&page->freelist, &page->counters,
--			freelist_old, counters_old,
--			freelist_new, counters_new))
--		return 1;
-+				   freelist_old, counters_old,
-+				   freelist_new, counters_new))
-+			return 1;
- 	} else
- #endif
- 	{
+  dm cache metadata: do not allow the data block size to change (2014-07-15 14:07:50 -0400)
+
+are available in the git repository at:
+
+  git://git.kernel.org/pub/scm/linux/kernel/git/device-mapper/linux-dm.git tags/urgent-slab-fix
+
+for you to fetch changes up to 45ccaf4764278f6544db412d38a1bae056ee3acc:
+
+  Merge branch 'slab/urgent' of git://git.kernel.org/pub/scm/linux/kernel/git/penberg/linux into for-3.16-rcX (2014-07-22 18:38:27 -0400)
+
+Please pull, thanks.
+Mike
+
+----------------------------------------------------------------
+
+This fixes the broken duplicate slab name check in
+kmem_cache_sanity_check() that has been repeatedly reported (as recently
+as today against Fedora rawhide).  Pekka seemed to have it staged for a
+late 3.15-rc in his 'slab/urgent' branch but never sent a pull request,
+see: https://lkml.org/lkml/2014/5/23/648
+
+----------------------------------------------------------------
+Mike Snitzer (1):
+      Merge branch 'slab/urgent' of git://git.kernel.org/.../penberg/linux into for-3.16-rcX
+
+Mikulas Patocka (1):
+      slab_common: fix the check for duplicate slab names
+
+ mm/slab_common.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
