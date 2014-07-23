@@ -1,99 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E57F6B0036
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 06:46:11 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id ft15so1406750pdb.31
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 03:46:10 -0700 (PDT)
-Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
-        by mx.google.com with ESMTP id gg2si2062724pbb.253.2014.07.23.03.46.09
-        for <linux-mm@kvack.org>;
-        Wed, 23 Jul 2014 03:46:10 -0700 (PDT)
-Date: Wed, 23 Jul 2014 11:45:54 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCHv4 3/5] common: dma-mapping: Introduce common remapping
- functions
-Message-ID: <20140723104554.GB1366@localhost>
-References: <1406079308-5232-1-git-send-email-lauraa@codeaurora.org>
- <1406079308-5232-4-git-send-email-lauraa@codeaurora.org>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 529B26B0036
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 06:53:23 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id lj1so1512488pab.33
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 03:53:22 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id nr10si1079100pdb.27.2014.07.23.03.53.22
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Jul 2014 03:53:22 -0700 (PDT)
+Date: Wed, 23 Jul 2014 14:53:12 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -mm 0/6] memcg: release memcg_cache_id on css offline
+Message-ID: <20140723105312.GC30850@esperanza>
+References: <cover.1405941342.git.vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1406079308-5232-4-git-send-email-lauraa@codeaurora.org>
+In-Reply-To: <cover.1405941342.git.vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>
-Cc: Will Deacon <Will.Deacon@arm.com>, David Riley <davidriley@chromium.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Ritesh Harjain <ritesh.harjani@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Russell King <linux@arm.linux.org.uk>, Thierry Reding <thierry.reding@gmail.com>, Arnd Bergmann <arnd@arndb.de>
+To: akpm@linux-foundation.org
+Cc: mhocko@suse.cz, hannes@cmpxchg.org, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jul 23, 2014 at 02:35:06AM +0100, Laura Abbott wrote:
-> --- a/arch/arm/mm/dma-mapping.c
-> +++ b/arch/arm/mm/dma-mapping.c
-> @@ -298,37 +298,19 @@ static void *
->  __dma_alloc_remap(struct page *page, size_t size, gfp_t gfp, pgprot_t prot,
->  	const void *caller)
->  {
-> -	struct vm_struct *area;
-> -	unsigned long addr;
-> -
->  	/*
->  	 * DMA allocation can be mapped to user space, so lets
->  	 * set VM_USERMAP flags too.
->  	 */
-> -	area = get_vm_area_caller(size, VM_ARM_DMA_CONSISTENT | VM_USERMAP,
-> -				  caller);
-> -	if (!area)
-> -		return NULL;
-> -	addr = (unsigned long)area->addr;
-> -	area->phys_addr = __pfn_to_phys(page_to_pfn(page));
-> -
-> -	if (ioremap_page_range(addr, addr + size, area->phys_addr, prot)) {
-> -		vunmap((void *)addr);
-> -		return NULL;
-> -	}
-> -	return (void *)addr;
-> +	return dma_common_contiguous_remap(page, size,
-> +			VM_ARM_DMA_CONSISTENT | VM_USERMAP,
-> +			prot, caller);
+On Mon, Jul 21, 2014 at 03:47:10PM +0400, Vladimir Davydov wrote:
+> This patch set makes memcg release memcg_cache_id on css offline. This
+> way the memcg_caches arrays size will be limited by the number of alive
+> kmem-active memory cgroups, which is much better.
 
-I think we still need at least a comment in the commit log since the arm
-code is moving from ioremap_page_range() to map_vm_area(). There is a
-slight performance penalty with the addition of a kmalloc() on this
-path.
+Hi Andrew,
 
-Or even better (IMO), see below.
+While preparing the per-memcg slab shrinkers patch set, I realized that
+releasing memcg_cache_id on css offline is incorrect, because after css
+offline there still can be elements on per-memcg list_lrus, which are
+indexed by memcg_cache_id. We could re-parent them, but this is what we
+decided to avoid in order to keep things clean and simple. So it seems
+there's nothing we can do except keeping memcg_cache_ids till css free.
 
-> --- a/drivers/base/dma-mapping.c
-> +++ b/drivers/base/dma-mapping.c
-[...]
-> +void *dma_common_contiguous_remap(struct page *page, size_t size,
-> +			unsigned long vm_flags,
-> +			pgprot_t prot, const void *caller)
-> +{
-> +	int i;
-> +	struct page **pages;
-> +	void *ptr;
-> +
-> +	pages = kmalloc(sizeof(struct page *) << get_order(size), GFP_KERNEL);
-> +	if (!pages)
-> +		return NULL;
-> +
-> +	for (i = 0; i < (size >> PAGE_SHIFT); i++)
-> +		pages[i] = page + i;
-> +
-> +	ptr = dma_common_pages_remap(pages, size, vm_flags, prot, caller);
-> +
-> +	kfree(pages);
-> +
-> +	return ptr;
-> +}
+I wonder if we could reclaim memory from per memcg arrays (per memcg
+list_lrus, kmem_caches) on memory pressure. May be, we could use
+flex_array to achieve that.
 
-You could avoid the dma_common_page_remap() here (and kmalloc) and
-simply use ioremap_page_range(). We know that
-dma_common_contiguous_remap() is only called with contiguous physical
-range, so ioremap_page_range() is suitable. It also makes it a
-non-functional change for arch/arm.
+Anyway, could you please drop the following patches from the mmotm tree
+(all this set except patch 1, which is a mere cleanup)?
 
--- 
-Catalin
+  memcg-release-memcg_cache_id-on-css-offline
+  memcg-keep-all-children-of-each-root-cache-on-a-list
+  memcg-add-pointer-to-owner-cache-to-memcg_cache_params
+  memcg-make-memcg_cache_id-static
+  slab-use-mem_cgroup_id-for-per-memcg-cache-naming
+
+Sorry about the noise.
+
+Thank you.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
