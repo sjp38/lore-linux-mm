@@ -1,78 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 511816B0036
-	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 20:43:42 -0400 (EDT)
-Received: by mail-ig0-f180.google.com with SMTP id l13so874300iga.1
-        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 17:43:42 -0700 (PDT)
-Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com [2607:f8b0:4001:c05::235])
-        by mx.google.com with ESMTPS id bj5si1463089icc.51.2014.07.22.17.43.41
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Jul 2014 17:43:41 -0700 (PDT)
-Received: by mail-ig0-f181.google.com with SMTP id h3so872682igd.14
-        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 17:43:41 -0700 (PDT)
-Date: Tue, 22 Jul 2014 17:43:39 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for determining
- the fallback node
-In-Reply-To: <20140722214311.GM4156@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.02.1407221726540.15657@chino.kir.corp.google.com>
-References: <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com> <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com> <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com> <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com>
- <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com> <20140207054819.GC28952@lge.com> <alpine.DEB.2.02.1402080154140.9668@chino.kir.corp.google.com> <20140210010936.GA12574@lge.com> <20140722010305.GJ4156@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1407211809140.9778@chino.kir.corp.google.com> <20140722214311.GM4156@linux.vnet.ibm.com>
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id B6A8D6B0036
+	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 21:02:13 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id ft15so557009pdb.38
+        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 18:02:13 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
+        by mx.google.com with ESMTP id m8si345904pdk.128.2014.07.22.18.02.12
+        for <linux-mm@kvack.org>;
+        Tue, 22 Jul 2014 18:02:12 -0700 (PDT)
+Date: Wed, 23 Jul 2014 09:02:07 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [mmotm:master 154/499] mm/memcontrol.c:2957:17: sparse: incorrect type in assignment (different address spaces)
+Message-ID: <53cf098f.6erIwAzrTaos8Miy%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
 
-On Tue, 22 Jul 2014, Nishanth Aravamudan wrote:
+tree:   git://git.cmpxchg.org/linux-mmotm.git master
+head:   bb46fa8ad844d29e9f74f6209777d955a42916f6
+commit: 1112ca072bdf33b4e2affa3e4087048333343a08 [154/499] memcg: add pointer to owner cache to memcg_cache_params
+reproduce: make C=1 CF=-D__CHECK_ENDIAN__
 
-> > I think there's two use cases of interest:
-> > 
-> >  - allocating from a memoryless node where numa_node_id() is memoryless, 
-> >    and
-> > 
-> >  - using node_to_mem_node() for a possibly-memoryless node for kmalloc().
-> > 
-> > I believe the first should have its own node_zonelist[0], whether it's 
-> > memoryless or not, that points to a list of zones that start with those 
-> > with the smallest distance.
-> 
-> Ok, and that would be used for falling back in the appropriate priority?
-> 
 
-There's no real fallback since there's never a case when you can allocate 
-on a memoryless node.  The zonelist defines the appropriate order in which 
-to try to allocate from zones, so it depends on things like the 
-numa_node_id() in alloc_pages_current() and whether the zonelist for a 
-memoryless node is properly initialized or whether this needs to be 
-numa_mem_id().  It depends on the intended behavior of calling 
-alloc_pages_{node,vma}() with a memoryless node, the complexity of 
-(re-)building the zonelists at bootstrap and for memory hotplug isn't a 
-hotpath.
+sparse warnings: (new ones prefixed by >>)
 
-This choice would also impact MPOL_PREFERRED mempolicies when MPOL_F_LOCAL 
-is set.
+>> mm/memcontrol.c:2957:17: sparse: incorrect type in assignment (different address spaces)
+   mm/memcontrol.c:2957:17:    expected struct memcg_cache_params *volatile <noident>
+   mm/memcontrol.c:2957:17:    got struct memcg_cache_params [noderef] <asn:4>*<noident>
+   mm/slab.h:162:18: sparse: incompatible types in comparison expression (different address spaces)
+   mm/slab.h:162:18: sparse: incompatible types in comparison expression (different address spaces)
+   mm/slab.h:162:18: sparse: incompatible types in comparison expression (different address spaces)
+   mm/slab.h:162:18: sparse: incompatible types in comparison expression (different address spaces)
+   mm/memcontrol.c:4575:21: sparse: incompatible types in comparison expression (different address spaces)
+   mm/memcontrol.c:4577:21: sparse: incompatible types in comparison expression (different address spaces)
+   mm/memcontrol.c:6014:31: sparse: incompatible types in comparison expression (different address spaces)
 
-> > I think its own node_zonelist[1], for __GFP_THISNODE allocations,
-> > should point to the node with present memory that has the smallest
-> > distance.
-> 
-> And so would this, but with the caveat that we can fail here and don't
-> go further? Semantically, __GFP_THISNODE then means "as close as
-> physically possible ignoring run-time memory constraints". I say that
-> because obviously we might get off-node memory without memoryless nodes,
-> but that shouldn't be used to satisfy __GPF_THISNODE allocations.
-> 
+vim +2957 mm/memcontrol.c
 
-alloc_pages_current() substitutes any existing mempolicy for the default 
-local policy when __GFP_THISNODE is set, and that would require local 
-allocation.  That, currently, is numa_node_id() and not numa_mem_id().
+55007d84 Glauber Costa    2012-12-18  2941  		for (i = 0; i < memcg_limited_groups_array_size; i++) {
+55007d84 Glauber Costa    2012-12-18  2942  			if (!cur_params->memcg_caches[i])
+55007d84 Glauber Costa    2012-12-18  2943  				continue;
+f8570263 Vladimir Davydov 2014-01-23  2944  			new_params->memcg_caches[i] =
+55007d84 Glauber Costa    2012-12-18  2945  						cur_params->memcg_caches[i];
+55007d84 Glauber Costa    2012-12-18  2946  		}
+55007d84 Glauber Costa    2012-12-18  2947  
+55007d84 Glauber Costa    2012-12-18  2948  		/*
+55007d84 Glauber Costa    2012-12-18  2949  		 * Ideally, we would wait until all caches succeed, and only
+55007d84 Glauber Costa    2012-12-18  2950  		 * then free the old one. But this is not worth the extra
+55007d84 Glauber Costa    2012-12-18  2951  		 * pointer per-cache we'd have to have for this.
+55007d84 Glauber Costa    2012-12-18  2952  		 *
+55007d84 Glauber Costa    2012-12-18  2953  		 * It is not a big deal if some caches are left with a size
+55007d84 Glauber Costa    2012-12-18  2954  		 * bigger than the others. And all updates will reset this
+55007d84 Glauber Costa    2012-12-18  2955  		 * anyway.
+55007d84 Glauber Costa    2012-12-18  2956  		 */
+f8570263 Vladimir Davydov 2014-01-23 @2957  		rcu_assign_pointer(s->memcg_params, new_params);
+f8570263 Vladimir Davydov 2014-01-23  2958  		if (cur_params)
+f8570263 Vladimir Davydov 2014-01-23  2959  			kfree_rcu(cur_params, rcu_head);
+55007d84 Glauber Costa    2012-12-18  2960  	}
+55007d84 Glauber Costa    2012-12-18  2961  	return 0;
+55007d84 Glauber Costa    2012-12-18  2962  }
+55007d84 Glauber Costa    2012-12-18  2963  
+363a044f Vladimir Davydov 2014-01-23  2964  int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
+363a044f Vladimir Davydov 2014-01-23  2965  			     struct kmem_cache *root_cache)
 
-The slab allocator already only uses __GFP_THISNODE for numa_mem_id() so 
-it will allocate remotely anyway.
+:::::: The code at line 2957 was first introduced by commit
+:::::: f8570263ee16eb1d5038b8e20d7db3a68bbb2b49 memcg, slab: RCU protect memcg_params for root caches
+
+:::::: TO: Vladimir Davydov <vdavydov@parallels.com>
+:::::: CC: Linus Torvalds <torvalds@linux-foundation.org>
+
+---
+0-DAY kernel build testing backend              Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
