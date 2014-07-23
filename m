@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D5406B0038
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 09A716B0039
 	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 21:35:16 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id z10so605043pdj.2
-        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 18:35:15 -0700 (PDT)
+Received: by mail-pd0-f169.google.com with SMTP id y10so609684pdj.14
+        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 18:35:16 -0700 (PDT)
 Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id tf1si769645pbc.15.2014.07.22.18.35.14
+        by mx.google.com with ESMTPS id xx3si738779pbc.124.2014.07.22.18.35.15
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Jul 2014 18:35:14 -0700 (PDT)
+        Tue, 22 Jul 2014 18:35:15 -0700 (PDT)
 From: Laura Abbott <lauraa@codeaurora.org>
-Subject: [PATCHv4 2/5] lib/genalloc.c: Add genpool range check function
-Date: Tue, 22 Jul 2014 18:35:05 -0700
-Message-Id: <1406079308-5232-3-git-send-email-lauraa@codeaurora.org>
+Subject: [PATCHv4 3/5] common: dma-mapping: Introduce common remapping functions
+Date: Tue, 22 Jul 2014 18:35:06 -0700
+Message-Id: <1406079308-5232-4-git-send-email-lauraa@codeaurora.org>
 In-Reply-To: <1406079308-5232-1-git-send-email-lauraa@codeaurora.org>
 References: <1406079308-5232-1-git-send-email-lauraa@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,74 +20,210 @@ List-ID: <linux-mm.kvack.org>
 To: Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>
 Cc: Laura Abbott <lauraa@codeaurora.org>, David Riley <davidriley@chromium.org>, linux-arm-kernel@lists.infradead.org, Ritesh Harjain <ritesh.harjani@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Thierry Reding <thierry.reding@gmail.com>, Arnd Bergmann <arnd@arndb.de>
 
-After allocating an address from a particular genpool,
-there is no good way to verify if that address actually
-belongs to a genpool. Introduce addr_in_gen_pool which
-will return if an address plus size falls completely
-within the genpool range.
+For architectures without coherent DMA, memory for DMA may
+need to be remapped with coherent attributes. Factor out
+the the remapping code from arm and put it in a
+common location to reduced code duplication.
 
-Acked-by: Will Deacon <will.deacon@arm.com>
-Reviewed-by: Olof Johansson <olof@lixom.net>
 Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
 ---
- include/linux/genalloc.h |  3 +++
- lib/genalloc.c           | 29 +++++++++++++++++++++++++++++
- 2 files changed, 32 insertions(+)
+ arch/arm/mm/dma-mapping.c                | 57 +++++----------------------
+ drivers/base/dma-mapping.c               | 67 ++++++++++++++++++++++++++++++++
+ include/asm-generic/dma-mapping-common.h |  9 +++++
+ 3 files changed, 85 insertions(+), 48 deletions(-)
 
-diff --git a/include/linux/genalloc.h b/include/linux/genalloc.h
-index 3cd0934..1ccaab4 100644
---- a/include/linux/genalloc.h
-+++ b/include/linux/genalloc.h
-@@ -121,6 +121,9 @@ extern struct gen_pool *devm_gen_pool_create(struct device *dev,
- 		int min_alloc_order, int nid);
- extern struct gen_pool *dev_get_gen_pool(struct device *dev);
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index 3116880..8c4c755 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -298,37 +298,19 @@ static void *
+ __dma_alloc_remap(struct page *page, size_t size, gfp_t gfp, pgprot_t prot,
+ 	const void *caller)
+ {
+-	struct vm_struct *area;
+-	unsigned long addr;
+-
+ 	/*
+ 	 * DMA allocation can be mapped to user space, so lets
+ 	 * set VM_USERMAP flags too.
+ 	 */
+-	area = get_vm_area_caller(size, VM_ARM_DMA_CONSISTENT | VM_USERMAP,
+-				  caller);
+-	if (!area)
+-		return NULL;
+-	addr = (unsigned long)area->addr;
+-	area->phys_addr = __pfn_to_phys(page_to_pfn(page));
+-
+-	if (ioremap_page_range(addr, addr + size, area->phys_addr, prot)) {
+-		vunmap((void *)addr);
+-		return NULL;
+-	}
+-	return (void *)addr;
++	return dma_common_contiguous_remap(page, size,
++			VM_ARM_DMA_CONSISTENT | VM_USERMAP,
++			prot, caller);
+ }
  
-+bool addr_in_gen_pool(struct gen_pool *pool, unsigned long start,
-+			size_t size);
+ static void __dma_free_remap(void *cpu_addr, size_t size)
+ {
+-	unsigned int flags = VM_ARM_DMA_CONSISTENT | VM_USERMAP;
+-	struct vm_struct *area = find_vm_area(cpu_addr);
+-	if (!area || (area->flags & flags) != flags) {
+-		WARN(1, "trying to free invalid coherent area: %p\n", cpu_addr);
+-		return;
+-	}
+-	unmap_kernel_range((unsigned long)cpu_addr, size);
+-	vunmap(cpu_addr);
++	dma_common_free_remap(cpu_addr, size,
++			VM_ARM_DMA_CONSISTENT | VM_USERMAP);
+ }
+ 
+ #define DEFAULT_DMA_COHERENT_POOL_SIZE	SZ_256K
+@@ -1262,29 +1244,8 @@ static void *
+ __iommu_alloc_remap(struct page **pages, size_t size, gfp_t gfp, pgprot_t prot,
+ 		    const void *caller)
+ {
+-	unsigned int i, nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
+-	struct vm_struct *area;
+-	unsigned long p;
+-
+-	area = get_vm_area_caller(size, VM_ARM_DMA_CONSISTENT | VM_USERMAP,
+-				  caller);
+-	if (!area)
+-		return NULL;
+-
+-	area->pages = pages;
+-	area->nr_pages = nr_pages;
+-	p = (unsigned long)area->addr;
+-
+-	for (i = 0; i < nr_pages; i++) {
+-		phys_addr_t phys = __pfn_to_phys(page_to_pfn(pages[i]));
+-		if (ioremap_page_range(p, p + PAGE_SIZE, phys, prot))
+-			goto err;
+-		p += PAGE_SIZE;
+-	}
+-	return area->addr;
+-err:
+-	unmap_kernel_range((unsigned long)area->addr, size);
+-	vunmap(area->addr);
++	return dma_common_pages_remap(pages, size,
++			VM_ARM_DMA_CONSISTENT | VM_USERMAP, prot, caller);
+ 	return NULL;
+ }
+ 
+@@ -1492,8 +1453,8 @@ void arm_iommu_free_attrs(struct device *dev, size_t size, void *cpu_addr,
+ 	}
+ 
+ 	if (!dma_get_attr(DMA_ATTR_NO_KERNEL_MAPPING, attrs)) {
+-		unmap_kernel_range((unsigned long)cpu_addr, size);
+-		vunmap(cpu_addr);
++		dma_common_free_remap(cpu_addr, size,
++			VM_ARM_DMA_CONSISTENT | VM_USERMAP);
+ 	}
+ 
+ 	__iommu_remove_mapping(dev, handle, size);
+diff --git a/drivers/base/dma-mapping.c b/drivers/base/dma-mapping.c
+index 6cd08e1..ddaad8d 100644
+--- a/drivers/base/dma-mapping.c
++++ b/drivers/base/dma-mapping.c
+@@ -10,6 +10,8 @@
+ #include <linux/dma-mapping.h>
+ #include <linux/export.h>
+ #include <linux/gfp.h>
++#include <linux/slab.h>
++#include <linux/vmalloc.h>
+ #include <asm-generic/dma-coherent.h>
+ 
+ /*
+@@ -267,3 +269,68 @@ int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
+ 	return ret;
+ }
+ EXPORT_SYMBOL(dma_common_mmap);
 +
- #ifdef CONFIG_OF
- extern struct gen_pool *of_get_named_gen_pool(struct device_node *np,
- 	const char *propname, int index);
-diff --git a/lib/genalloc.c b/lib/genalloc.c
-index 9758529..66edf93 100644
---- a/lib/genalloc.c
-+++ b/lib/genalloc.c
-@@ -403,6 +403,35 @@ void gen_pool_for_each_chunk(struct gen_pool *pool,
- EXPORT_SYMBOL(gen_pool_for_each_chunk);
- 
- /**
-+ * addr_in_gen_pool - checks if an address falls within the range of a pool
-+ * @pool:	the generic memory pool
-+ * @start:	start address
-+ * @size:	size of the region
-+ *
-+ * Check if the range of addresses falls within the specified pool. Takes
-+ * the rcu_read_lock for the duration of the check.
++/*
++ * remaps an allocated contiguous region into another vm_area.
++ * Cannot be used in non-sleeping contexts
 + */
-+bool addr_in_gen_pool(struct gen_pool *pool, unsigned long start,
-+			size_t size)
-+{
-+	bool found = false;
-+	unsigned long end = start + size;
-+	struct gen_pool_chunk *chunk;
 +
-+	rcu_read_lock();
-+	list_for_each_entry_rcu(chunk, &(pool)->chunks, next_chunk) {
-+		if (start >= chunk->start_addr && start <= chunk->end_addr) {
-+			if (end <= chunk->end_addr) {
-+				found = true;
-+				break;
-+			}
-+		}
-+	}
-+	rcu_read_unlock();
-+	return found;
++void *dma_common_contiguous_remap(struct page *page, size_t size,
++			unsigned long vm_flags,
++			pgprot_t prot, const void *caller)
++{
++	int i;
++	struct page **pages;
++	void *ptr;
++
++	pages = kmalloc(sizeof(struct page *) << get_order(size), GFP_KERNEL);
++	if (!pages)
++		return NULL;
++
++	for (i = 0; i < (size >> PAGE_SHIFT); i++)
++		pages[i] = page + i;
++
++	ptr = dma_common_pages_remap(pages, size, vm_flags, prot, caller);
++
++	kfree(pages);
++
++	return ptr;
 +}
 +
-+/**
-  * gen_pool_avail - get available free space of the pool
-  * @pool: pool to get available free space
-  *
++/*
++ * remaps an array of PAGE_SIZE pages into another vm_area
++ * Cannot be used in non-sleeping contexts
++ */
++void *dma_common_pages_remap(struct page **pages, size_t size,
++			unsigned long vm_flags, pgprot_t prot,
++			const void *caller)
++{
++	struct vm_struct *area;
++
++	area = get_vm_area_caller(size, vm_flags, caller);
++	if (!area)
++		return NULL;
++
++	if (map_vm_area(area, prot, pages)) {
++		vunmap(area->addr);
++		return NULL;
++	}
++
++	return area->addr;
++}
++
++/*
++ * unmaps a range previously mapped by dma_common_*_remap
++ */
++void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags)
++{
++	struct vm_struct *area = find_vm_area(cpu_addr);
++
++	if (!area || (area->flags & vm_flags) != vm_flags) {
++		WARN(1, "trying to free invalid coherent area: %p\n", cpu_addr);
++		return;
++	}
++
++	unmap_kernel_range((unsigned long)cpu_addr, size);
++	vunmap(cpu_addr);
++}
+diff --git a/include/asm-generic/dma-mapping-common.h b/include/asm-generic/dma-mapping-common.h
+index de8bf89..a9fd248 100644
+--- a/include/asm-generic/dma-mapping-common.h
++++ b/include/asm-generic/dma-mapping-common.h
+@@ -179,6 +179,15 @@ dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
+ extern int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
+ 			   void *cpu_addr, dma_addr_t dma_addr, size_t size);
+ 
++void *dma_common_contiguous_remap(struct page *page, size_t size,
++			unsigned long vm_flags,
++			pgprot_t prot, const void *caller);
++
++void *dma_common_pages_remap(struct page **pages, size_t size,
++			unsigned long vm_flags, pgprot_t prot,
++			const void *caller);
++void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags);
++
+ /**
+  * dma_mmap_attrs - map a coherent DMA allocation into user space
+  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
 -- 
 The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
 hosted by The Linux Foundation
