@@ -1,58 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 529B26B0036
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 06:53:23 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so1512488pab.33
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 03:53:22 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id nr10si1079100pdb.27.2014.07.23.03.53.22
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id D497E6B0036
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 07:13:06 -0400 (EDT)
+Received: by mail-wg0-f46.google.com with SMTP id m15so1003539wgh.5
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 04:13:06 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.13])
+        by mx.google.com with ESMTPS id eo10si4174519wib.91.2014.07.23.04.13.01
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jul 2014 03:53:22 -0700 (PDT)
-Date: Wed, 23 Jul 2014 14:53:12 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm 0/6] memcg: release memcg_cache_id on css offline
-Message-ID: <20140723105312.GC30850@esperanza>
-References: <cover.1405941342.git.vdavydov@parallels.com>
+        Wed, 23 Jul 2014 04:13:02 -0700 (PDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCHv4 5/5] arm64: Add atomic pool for non-coherent and CMA allocations.
+Date: Wed, 23 Jul 2014 13:12:45 +0200
+Message-ID: <7974618.dpxEl8UzaM@wuerfel>
+In-Reply-To: <20140722210352.GA10604@arm.com>
+References: <1404324218-4743-1-git-send-email-lauraa@codeaurora.org> <201407222006.44666.arnd@arndb.de> <20140722210352.GA10604@arm.com>
 MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
 Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <cover.1405941342.git.vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.cz, hannes@cmpxchg.org, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-arm-kernel@lists.infradead.org
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Laura Abbott <lauraa@codeaurora.org>, Will Deacon <Will.Deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ritesh Harjain <ritesh.harjani@gmail.com>, David Riley <davidriley@chromium.org>
 
-On Mon, Jul 21, 2014 at 03:47:10PM +0400, Vladimir Davydov wrote:
-> This patch set makes memcg release memcg_cache_id on css offline. This
-> way the memcg_caches arrays size will be limited by the number of alive
-> kmem-active memory cgroups, which is much better.
+On Tuesday 22 July 2014 22:03:52 Catalin Marinas wrote:
+> On Tue, Jul 22, 2014 at 07:06:44PM +0100, Arnd Bergmann wrote:
+> > On Wednesday 02 July 2014, Laura Abbott wrote:
+> > > +       pgprot_t prot = __pgprot(PROT_NORMAL_NC);
+> > > +       unsigned long nr_pages = atomic_pool_size >> PAGE_SHIFT;
+> > > +       struct page *page;
+> > > +       void *addr;
+> > > +
+> > > +
+> > > +       if (dev_get_cma_area(NULL))
+> > > +               page = dma_alloc_from_contiguous(NULL, nr_pages,
+> > > +                                       get_order(atomic_pool_size));
+> > > +       else
+> > > +               page = alloc_pages(GFP_KERNEL, get_order(atomic_pool_size));
+> > > +
+> > > +
+> > > +       if (page) {
+> > > +               int ret;
+> > > +
+> > > +               atomic_pool = gen_pool_create(PAGE_SHIFT, -1);
+> > > +               if (!atomic_pool)
+> > > +                       goto free_page;
+> > > +
+> > > +               addr = dma_common_contiguous_remap(page, atomic_pool_size,
+> > > +                                       VM_USERMAP, prot, atomic_pool_init);
+> > > +
+> > 
+> > I just stumbled over this thread and noticed the code here: When you do
+> > alloc_pages() above, you actually get pages that are already mapped into
+> > the linear kernel mapping as cacheable pages. Your new
+> > dma_common_contiguous_remap tries to map them as noncacheable. This
+> > seems broken because it allows the CPU to treat both mappings as
+> > cacheable, and that won't be coherent with device DMA.
+> 
+> It does *not* allow the CPU to treat both as cacheable. It treats the
+> non-cacheable mapping as non-cacheable (and the cacheable one as
+> cacheable). The only requirements the ARM ARM makes in this situation
+> (B2.9 point 5 in the ARMv8 ARM):
+> 
+> - Before writing to a location not using the Write-Back attribute,
+>   software must invalidate, or clean, a location from the caches if any
+>   agent might have written to the location with the Write-Back
+>   attribute. This avoids the possibility of overwriting the location
+>   with stale data.
+> - After writing to a location with the Write-Back attribute, software
+>   must clean the location from the caches, to make the write visible to
+>   external memory.
+> - Before reading the location with a cacheable attribute, software must
+>   invalidate the location from the caches, to ensure that any value held
+>   in the caches reflects the last value made visible in external memory.
+> 
+> So we as long as the CPU accesses such memory only via the non-cacheable
+> mapping, the only requirement is to flush the cache so that there are no
+> dirty lines that could be evicted.
 
-Hi Andrew,
+Ok, thanks for the explanation.
 
-While preparing the per-memcg slab shrinkers patch set, I realized that
-releasing memcg_cache_id on css offline is incorrect, because after css
-offline there still can be elements on per-memcg list_lrus, which are
-indexed by memcg_cache_id. We could re-parent them, but this is what we
-decided to avoid in order to keep things clean and simple. So it seems
-there's nothing we can do except keeping memcg_cache_ids till css free.
+> (if the mismatched attributes were for example Normal vs Device, the
+> Device guarantees would be lost but in the cacheable vs non-cacheable
+> it's not too bad; same for ARMv7).
 
-I wonder if we could reclaim memory from per memcg arrays (per memcg
-list_lrus, kmem_caches) on memory pressure. May be, we could use
-flex_array to achieve that.
+Right, that's probabably what I misremembered.
 
-Anyway, could you please drop the following patches from the mmotm tree
-(all this set except patch 1, which is a mere cleanup)?
+> > > +               if (!addr)
+> > > +                       goto destroy_genpool;
+> > > +
+> > > +               memset(addr, 0, atomic_pool_size);
+> > > +               __dma_flush_range(addr, addr + atomic_pool_size);
+> > 
+> > It also seems weird to flush the cache on a virtual address of
+> > an uncacheable mapping. Is that well-defined?
+> 
+> Yes. According to D5.8.1 (Data and unified caches), "if cache
+> maintenance is performed on a memory location, the effect of that cache
+> maintenance is visible to all aliases of that physical memory location.
+> These properties are consistent with implementing all caches that can
+> handle data accesses as Physically-indexed, physically-tagged (PIPT)
+> caches".
 
-  memcg-release-memcg_cache_id-on-css-offline
-  memcg-keep-all-children-of-each-root-cache-on-a-list
-  memcg-add-pointer-to-owner-cache-to-memcg_cache_params
-  memcg-make-memcg_cache_id-static
-  slab-use-mem_cgroup_id-for-per-memcg-cache-naming
+interesting.
 
-Sorry about the noise.
+> > In the CMA case, the
+> > original mapping should already be uncached here, so you don't need
+> > to flush it.
+> 
+> I don't think it is non-cacheable already, at least not for arm64 (CMA
+> can be used on coherent architectures as well).
 
-Thank you.
+Ok, I see it now.
+
+Sorry for all the confusion on my part.
+
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
