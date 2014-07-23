@@ -1,108 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EBAD6B0044
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 10:39:06 -0400 (EDT)
-Received: by mail-wi0-f169.google.com with SMTP id n3so7649480wiv.4
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 07:39:04 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cj1si5348073wib.56.2014.07.23.07.38.58
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B5266B0055
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 10:41:24 -0400 (EDT)
+Received: by mail-wg0-f42.google.com with SMTP id l18so1283813wgh.25
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 07:41:23 -0700 (PDT)
+Received: from mail-we0-x235.google.com (mail-we0-x235.google.com [2a00:1450:400c:c03::235])
+        by mx.google.com with ESMTPS id xs6si5340771wjb.80.2014.07.23.07.41.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 23 Jul 2014 07:38:59 -0700 (PDT)
-Date: Wed, 23 Jul 2014 16:38:47 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 13/13] mm: memcontrol: rewrite uncharge API
-Message-ID: <20140723143847.GB16721@dhcp22.suse.cz>
-References: <1403124045-24361-1-git-send-email-hannes@cmpxchg.org>
- <1403124045-24361-14-git-send-email-hannes@cmpxchg.org>
- <20140715082545.GA9366@dhcp22.suse.cz>
- <20140715121935.GB9366@dhcp22.suse.cz>
- <20140718071246.GA21565@dhcp22.suse.cz>
- <20140718144554.GG29639@cmpxchg.org>
- <CAJfpegt9k+YULet3vhmG3br7zSiHy-DRL+MiEE=HRzcs+mLzbw@mail.gmail.com>
- <20140719173911.GA1725@cmpxchg.org>
- <20140722150825.GA4517@dhcp22.suse.cz>
- <CAJfpegscT-ptQzq__uUV2TOn7Uvs6x4FdWGTQb9Fe9MEJr2KjA@mail.gmail.com>
+        Wed, 23 Jul 2014 07:41:22 -0700 (PDT)
+Received: by mail-we0-f181.google.com with SMTP id k48so1321160wev.40
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 07:41:21 -0700 (PDT)
+Date: Wed, 23 Jul 2014 16:41:31 +0200
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [PATCH v2 00/25] AMDKFD kernel driver
+Message-ID: <20140723144130.GV15237@phenom.ffwll.local>
+References: <53CD5ED9.2040600@amd.com>
+ <20140721190306.GB5278@gmail.com>
+ <20140722072851.GH15237@phenom.ffwll.local>
+ <53CE1E9C.8020105@amd.com>
+ <CAKMK7uH+okhn4YGOzrXZ1LM3S2myxdu=_63LGMduwV-WZn06CA@mail.gmail.com>
+ <53CE346B.1080601@amd.com>
+ <20140722111515.GJ15237@phenom.ffwll.local>
+ <53CF5B30.50209@amd.com>
+ <CAKMK7uFtSStEewVivbXAT1VC4t2Y+suTaEmQA4=UptK1UBLSmg@mail.gmail.com>
+ <D89D60253BB73A4E8C62F9FD18A939CA01066B1B@storexdag02.amd.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <CAJfpegscT-ptQzq__uUV2TOn7Uvs6x4FdWGTQb9Fe9MEJr2KjA@mail.gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <D89D60253BB73A4E8C62F9FD18A939CA01066B1B@storexdag02.amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: "Bridgman, John" <John.Bridgman@amd.com>
+Cc: Daniel Vetter <daniel.vetter@ffwll.ch>, "Gabbay, Oded" <Oded.Gabbay@amd.com>, Jerome Glisse <j.glisse@gmail.com>, Christian =?iso-8859-1?Q?K=F6nig?= <deathsimple@vodafone.de>, David Airlie <airlied@linux.ie>, Alex Deucher <alexdeucher@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Joerg Roedel <joro@8bytes.org>, "Lewycky, Andrew" <Andrew.Lewycky@amd.com>, "Daenzer, Michel" <Michel.Daenzer@amd.com>, "Goz, Ben" <Ben.Goz@amd.com>, "Skidanov, Alexey" <Alexey.Skidanov@amd.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-mm <linux-mm@kvack.org>, "Sellek, Tom" <Tom.Sellek@amd.com>
 
-On Tue 22-07-14 17:44:43, Miklos Szeredi wrote:
-> On Tue, Jul 22, 2014 at 5:08 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> > On Sat 19-07-14 13:39:11, Johannes Weiner wrote:
-> >> On Fri, Jul 18, 2014 at 05:12:54PM +0200, Miklos Szeredi wrote:
-> >> > On Fri, Jul 18, 2014 at 4:45 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> >> >
-> >> > > I assumed the source page would always be new, according to this part
-> >> > > in fuse_try_move_page():
-> >> > >
-> >> > >         /*
-> >> > >          * This is a new and locked page, it shouldn't be mapped or
-> >> > >          * have any special flags on it
-> >> > >          */
-> >> > >         if (WARN_ON(page_mapped(oldpage)))
-> >> > >                 goto out_fallback_unlock;
-> >> > >         if (WARN_ON(page_has_private(oldpage)))
-> >> > >                 goto out_fallback_unlock;
-> >> > >         if (WARN_ON(PageDirty(oldpage) || PageWriteback(oldpage)))
-> >> > >                 goto out_fallback_unlock;
-> >> > >         if (WARN_ON(PageMlocked(oldpage)))
-> >> > >                 goto out_fallback_unlock;
-> >> > >
-> >> > > However, it's in the page cache and I can't really convince myself
-> >> > > that it's not also on the LRU.  Miklos, I have trouble pinpointing
-> >> > > where oldpage is instantiated exactly and what state it might be in -
-> >> > > can it already be on the LRU?
-> >> >
-> >> > oldpage comes from ->readpages() (*NOT* ->readpage()), i.e. readahead.
-> >> >
-> >> > AFAICS it is added to the LRU in read_cache_pages(), so it looks like
-> >> > it is definitely on the LRU at that point.
+On Wed, Jul 23, 2014 at 01:33:24PM +0000, Bridgman, John wrote:
+> 
+> 
+> >-----Original Message-----
+> >From: Daniel Vetter [mailto:daniel.vetter@ffwll.ch]
+> >Sent: Wednesday, July 23, 2014 3:06 AM
+> >To: Gabbay, Oded
+> >Cc: Jerome Glisse; Christian Konig; David Airlie; Alex Deucher; Andrew
+> >Morton; Bridgman, John; Joerg Roedel; Lewycky, Andrew; Daenzer, Michel;
+> >Goz, Ben; Skidanov, Alexey; linux-kernel@vger.kernel.org; dri-
+> >devel@lists.freedesktop.org; linux-mm; Sellek, Tom
+> >Subject: Re: [PATCH v2 00/25] AMDKFD kernel driver
 > >
-> > OK, so my understanding of the code was wrong :/ and staring at it for
-> > quite a while didn't help much. The fuse code is so full of indirection
-> > it makes my head spin.
+> >On Wed, Jul 23, 2014 at 8:50 AM, Oded Gabbay <oded.gabbay@amd.com>
+> >wrote:
+> >> On 22/07/14 14:15, Daniel Vetter wrote:
+> >>>
+> >>> On Tue, Jul 22, 2014 at 12:52:43PM +0300, Oded Gabbay wrote:
+> >>>>
+> >>>> On 22/07/14 12:21, Daniel Vetter wrote:
+> >>>>>
+> >>>>> On Tue, Jul 22, 2014 at 10:19 AM, Oded Gabbay
+> ><oded.gabbay@amd.com>
+> >>>>> wrote:
+> >>>>>>>
+> >>>>>>> Exactly, just prevent userspace from submitting more. And if you
+> >>>>>>> have misbehaving userspace that submits too much, reset the gpu
+> >>>>>>> and tell it that you're sorry but won't schedule any more work.
+> >>>>>>
+> >>>>>>
+> >>>>>> I'm not sure how you intend to know if a userspace misbehaves or not.
+> >>>>>> Can
+> >>>>>> you elaborate ?
+> >>>>>
+> >>>>>
+> >>>>> Well that's mostly policy, currently in i915 we only have a check
+> >>>>> for hangs, and if userspace hangs a bit too often then we stop it.
+> >>>>> I guess you can do that with the queue unmapping you've describe in
+> >>>>> reply to Jerome's mail.
+> >>>>> -Daniel
+> >>>>>
+> >>>> What do you mean by hang ? Like the tdr mechanism in Windows (checks
+> >>>> if a gpu job takes more than 2 seconds, I think, and if so,
+> >>>> terminates the job).
+> >>>
+> >>>
+> >>> Essentially yes. But we also have some hw features to kill jobs
+> >>> quicker, e.g. for media workloads.
+> >>> -Daniel
+> >>>
+> >>
+> >> Yeah, so this is what I'm talking about when I say that you and Jerome
+> >> come from a graphics POV and amdkfd come from a compute POV, no
+> >offense intended.
+> >>
+> >> For compute jobs, we simply can't use this logic to terminate jobs.
+> >> Graphics are mostly Real-Time while compute jobs can take from a few
+> >> ms to a few hours!!! And I'm not talking about an entire application
+> >> runtime but on a single submission of jobs by the userspace app. We
+> >> have tests with jobs that take between 20-30 minutes to complete. In
+> >> theory, we can even imagine a compute job which takes 1 or 2 days (on
+> >larger APUs).
+> >>
+> >> Now, I understand the question of how do we prevent the compute job
+> >> from monopolizing the GPU, and internally here we have some ideas that
+> >> we will probably share in the next few days, but my point is that I
+> >> don't think we can terminate a compute job because it is running for more
+> >than x seconds.
+> >> It is like you would terminate a CPU process which runs more than x
+> >seconds.
+> >>
+> >> I think this is a *very* important discussion (detecting a misbehaved
+> >> compute process) and I would like to continue it, but I don't think
+> >> moving the job submission from userspace control to kernel control
+> >> will solve this core problem.
+> >
+> >Well graphics gets away with cooperative scheduling since usually people
+> >want to see stuff within a few frames, so we can legitimately kill jobs after a
+> >fairly short timeout. Imo if you want to allow userspace to submit compute
+> >jobs that are atomic and take a few minutes to hours with no break-up in
+> >between and no hw means to preempt then that design is screwed up. We
+> >really can't tell the core vm that "sorry we will hold onto these gobloads of
+> >memory you really need now for another few hours". Pinning memory like
+> >that essentially without a time limit is restricted to root.
 > 
-> Definitely needs a rewrite.  But forget the complexities for the
-> moment and just consider this single case:
+> Hi Daniel;
 > 
->  ->readpages() is called to do some readahead, pages are locked, added
-> to the page cache and, AFAICS, charged to a memcg (in
-> add_to_page_cache_lru()).
-> 
->  - fuse sends a READ request to userspace and it gets a reply with
-> splice(... SPLICE_F_MOVE).  What this means that a bunch of pages of
-> indefinite origin are to replace (if possible) the pages already in
-> the page cache.  If not possible, for some reason, it falls back to
-> copying the contents.  So, AFAICS, the oldpage and the newpage can be
-> charged to a different memcg.
+> I don't really understand the reference to "gobloads of memory". Unlike
+> radeon graphics, the userspace data for HSA applications is maintained
+> in pageable system memory and accessed via the IOMMUv2 (ATC/PRI). The
+> IOMMUv2 driver and mm subsystem takes care of faulting in memory pages
+> as needed, nothing is long-term pinned.
 
-OK, thanks for the clarification. I had this feeling but couldn't wrap
-my head around the indirection of the code.
-
-It seems that checkig PageCgroupUsed(new) and bail out early in
-mem_cgroup_migrate should just work, no?
-
-> > How should we test this code path, Miklos?
-> 
->   fusexmp_fh -osplice_write,splice_move /mnt/fuse
-> 
-> This will mirror / under /mnt/fuse and will use splice to move data
-> from the underlying filesystem to the fuse filesystem, hopefully.
-> 
-> It would be useful if it had some instrumentation telling us the
-> actual number of pages successfully moved, but it doesn't have that
-> yet.
-
-Thanks I will try to play with this tomorrow when I have more time.
+Yeah I've lost that part of the equation a bit since I've always thought
+that proper faulting support without preemption is not really possible. I
+guess those platforms completely stall on a fault until the ptes are all
+set up?
+-Daniel
 -- 
-Michal Hocko
-SUSE Labs
+Daniel Vetter
+Software Engineer, Intel Corporation
++41 (0) 79 365 57 48 - http://blog.ffwll.ch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
