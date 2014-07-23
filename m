@@ -1,51 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
-	by kanga.kvack.org (Postfix) with ESMTP id CA6816B0036
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 08:58:24 -0400 (EDT)
-Received: by mail-we0-f175.google.com with SMTP id t60so1160926wes.34
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 05:58:24 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v16si4796290wie.33.2014.07.23.05.58.22
+Received: from mail-vc0-f170.google.com (mail-vc0-f170.google.com [209.85.220.170])
+	by kanga.kvack.org (Postfix) with ESMTP id F021B6B0036
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 09:33:38 -0400 (EDT)
+Received: by mail-vc0-f170.google.com with SMTP id lf12so2180360vcb.1
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 06:33:38 -0700 (PDT)
+Received: from na01-bl2-obe.outbound.protection.outlook.com (mail-bl2lp0207.outbound.protection.outlook.com. [207.46.163.207])
+        by mx.google.com with ESMTPS id k8si1977067vdv.58.2014.07.23.06.33.37
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 23 Jul 2014 05:58:23 -0700 (PDT)
-Date: Wed, 23 Jul 2014 13:58:18 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 1/2] mm: Avoid full RCU lookup of memcg for statistics
- updates
-Message-ID: <20140723125818.GT10819@suse.de>
-References: <1406114656-16350-1-git-send-email-mgorman@suse.de>
- <1406114656-16350-2-git-send-email-mgorman@suse.de>
- <20140723114449.GE1725@cmpxchg.org>
+        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 23 Jul 2014 06:33:37 -0700 (PDT)
+From: "Bridgman, John" <John.Bridgman@amd.com>
+Subject: RE: [PATCH v2 00/25] AMDKFD kernel driver
+Date: Wed, 23 Jul 2014 13:33:24 +0000
+Message-ID: <D89D60253BB73A4E8C62F9FD18A939CA01066B1B@storexdag02.amd.com>
+References: <20140721155851.GB4519@gmail.com>
+	<20140721170546.GB15237@phenom.ffwll.local>	<53CD4DD2.10906@amd.com>
+	<CAKMK7uFhvGtxj_d6X=4OBdVSm6cT1-Z-DiTE-FTWMnFjY2uqMQ@mail.gmail.com>
+	<53CD5ED9.2040600@amd.com>	<20140721190306.GB5278@gmail.com>
+	<20140722072851.GH15237@phenom.ffwll.local>	<53CE1E9C.8020105@amd.com>
+	<CAKMK7uH+okhn4YGOzrXZ1LM3S2myxdu=_63LGMduwV-WZn06CA@mail.gmail.com>
+	<53CE346B.1080601@amd.com>	<20140722111515.GJ15237@phenom.ffwll.local>
+	<53CF5B30.50209@amd.com>
+ <CAKMK7uFtSStEewVivbXAT1VC4t2Y+suTaEmQA4=UptK1UBLSmg@mail.gmail.com>
+In-Reply-To: <CAKMK7uFtSStEewVivbXAT1VC4t2Y+suTaEmQA4=UptK1UBLSmg@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20140723114449.GE1725@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Daniel Vetter <daniel.vetter@ffwll.ch>, "Gabbay, Oded" <Oded.Gabbay@amd.com>
+Cc: Jerome Glisse <j.glisse@gmail.com>, =?utf-8?B?Q2hyaXN0aWFuIEvDtm5pZw==?= <deathsimple@vodafone.de>, David Airlie <airlied@linux.ie>, Alex Deucher <alexdeucher@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Joerg
+ Roedel <joro@8bytes.org>, "Lewycky, Andrew" <Andrew.Lewycky@amd.com>, "Daenzer, Michel" <Michel.Daenzer@amd.com>, "Goz, Ben" <Ben.Goz@amd.com>, "Skidanov, Alexey" <Alexey.Skidanov@amd.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-mm <linux-mm@kvack.org>, "Sellek,
+ Tom" <Tom.Sellek@amd.com>
 
-On Wed, Jul 23, 2014 at 07:44:49AM -0400, Johannes Weiner wrote:
-> On Wed, Jul 23, 2014 at 12:24:15PM +0100, Mel Gorman wrote:
-> > When updating memcg VM statistics like PGFAULT we take the rcu read
-> > lock and lookup the memcg. For statistic updates this is overkill
-> > when the process may not belong to a memcg. This patch adds a light
-> > check to check if a memcg potentially exists. It's race-prone in that
-> > some VM stats may be missed when a process first joins a memcg but
-> > that is not serious enough to justify a constant performance penalty.
-> 
-> Tasks always belong to a memcg, the root group per default.  There
-> isn't really any accounting that could be omitted.
-> 
-
-Crap, ok, I had not taken that into account. The lookup of that cannot
-really be avoided. It's a pity because the stats on the root memcg are
-not likely to be that interesting. Thanks for reviewing.
-
--- 
-Mel Gorman
-SUSE Labs
+DQoNCj4tLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KPkZyb206IERhbmllbCBWZXR0ZXIgW21h
+aWx0bzpkYW5pZWwudmV0dGVyQGZmd2xsLmNoXQ0KPlNlbnQ6IFdlZG5lc2RheSwgSnVseSAyMywg
+MjAxNCAzOjA2IEFNDQo+VG86IEdhYmJheSwgT2RlZA0KPkNjOiBKZXJvbWUgR2xpc3NlOyBDaHJp
+c3RpYW4gS8O2bmlnOyBEYXZpZCBBaXJsaWU7IEFsZXggRGV1Y2hlcjsgQW5kcmV3DQo+TW9ydG9u
+OyBCcmlkZ21hbiwgSm9objsgSm9lcmcgUm9lZGVsOyBMZXd5Y2t5LCBBbmRyZXc7IERhZW56ZXIs
+IE1pY2hlbDsNCj5Hb3osIEJlbjsgU2tpZGFub3YsIEFsZXhleTsgbGludXgta2VybmVsQHZnZXIu
+a2VybmVsLm9yZzsgZHJpLQ0KPmRldmVsQGxpc3RzLmZyZWVkZXNrdG9wLm9yZzsgbGludXgtbW07
+IFNlbGxlaywgVG9tDQo+U3ViamVjdDogUmU6IFtQQVRDSCB2MiAwMC8yNV0gQU1ES0ZEIGtlcm5l
+bCBkcml2ZXINCj4NCj5PbiBXZWQsIEp1bCAyMywgMjAxNCBhdCA4OjUwIEFNLCBPZGVkIEdhYmJh
+eSA8b2RlZC5nYWJiYXlAYW1kLmNvbT4NCj53cm90ZToNCj4+IE9uIDIyLzA3LzE0IDE0OjE1LCBE
+YW5pZWwgVmV0dGVyIHdyb3RlOg0KPj4+DQo+Pj4gT24gVHVlLCBKdWwgMjIsIDIwMTQgYXQgMTI6
+NTI6NDNQTSArMDMwMCwgT2RlZCBHYWJiYXkgd3JvdGU6DQo+Pj4+DQo+Pj4+IE9uIDIyLzA3LzE0
+IDEyOjIxLCBEYW5pZWwgVmV0dGVyIHdyb3RlOg0KPj4+Pj4NCj4+Pj4+IE9uIFR1ZSwgSnVsIDIy
+LCAyMDE0IGF0IDEwOjE5IEFNLCBPZGVkIEdhYmJheQ0KPjxvZGVkLmdhYmJheUBhbWQuY29tPg0K
+Pj4+Pj4gd3JvdGU6DQo+Pj4+Pj4+DQo+Pj4+Pj4+IEV4YWN0bHksIGp1c3QgcHJldmVudCB1c2Vy
+c3BhY2UgZnJvbSBzdWJtaXR0aW5nIG1vcmUuIEFuZCBpZiB5b3UNCj4+Pj4+Pj4gaGF2ZSBtaXNi
+ZWhhdmluZyB1c2Vyc3BhY2UgdGhhdCBzdWJtaXRzIHRvbyBtdWNoLCByZXNldCB0aGUgZ3B1DQo+
+Pj4+Pj4+IGFuZCB0ZWxsIGl0IHRoYXQgeW91J3JlIHNvcnJ5IGJ1dCB3b24ndCBzY2hlZHVsZSBh
+bnkgbW9yZSB3b3JrLg0KPj4+Pj4+DQo+Pj4+Pj4NCj4+Pj4+PiBJJ20gbm90IHN1cmUgaG93IHlv
+dSBpbnRlbmQgdG8ga25vdyBpZiBhIHVzZXJzcGFjZSBtaXNiZWhhdmVzIG9yIG5vdC4NCj4+Pj4+
+PiBDYW4NCj4+Pj4+PiB5b3UgZWxhYm9yYXRlID8NCj4+Pj4+DQo+Pj4+Pg0KPj4+Pj4gV2VsbCB0
+aGF0J3MgbW9zdGx5IHBvbGljeSwgY3VycmVudGx5IGluIGk5MTUgd2Ugb25seSBoYXZlIGEgY2hl
+Y2sNCj4+Pj4+IGZvciBoYW5ncywgYW5kIGlmIHVzZXJzcGFjZSBoYW5ncyBhIGJpdCB0b28gb2Z0
+ZW4gdGhlbiB3ZSBzdG9wIGl0Lg0KPj4+Pj4gSSBndWVzcyB5b3UgY2FuIGRvIHRoYXQgd2l0aCB0
+aGUgcXVldWUgdW5tYXBwaW5nIHlvdSd2ZSBkZXNjcmliZSBpbg0KPj4+Pj4gcmVwbHkgdG8gSmVy
+b21lJ3MgbWFpbC4NCj4+Pj4+IC1EYW5pZWwNCj4+Pj4+DQo+Pj4+IFdoYXQgZG8geW91IG1lYW4g
+YnkgaGFuZyA/IExpa2UgdGhlIHRkciBtZWNoYW5pc20gaW4gV2luZG93cyAoY2hlY2tzDQo+Pj4+
+IGlmIGEgZ3B1IGpvYiB0YWtlcyBtb3JlIHRoYW4gMiBzZWNvbmRzLCBJIHRoaW5rLCBhbmQgaWYg
+c28sDQo+Pj4+IHRlcm1pbmF0ZXMgdGhlIGpvYikuDQo+Pj4NCj4+Pg0KPj4+IEVzc2VudGlhbGx5
+IHllcy4gQnV0IHdlIGFsc28gaGF2ZSBzb21lIGh3IGZlYXR1cmVzIHRvIGtpbGwgam9icw0KPj4+
+IHF1aWNrZXIsIGUuZy4gZm9yIG1lZGlhIHdvcmtsb2Fkcy4NCj4+PiAtRGFuaWVsDQo+Pj4NCj4+
+DQo+PiBZZWFoLCBzbyB0aGlzIGlzIHdoYXQgSSdtIHRhbGtpbmcgYWJvdXQgd2hlbiBJIHNheSB0
+aGF0IHlvdSBhbmQgSmVyb21lDQo+PiBjb21lIGZyb20gYSBncmFwaGljcyBQT1YgYW5kIGFtZGtm
+ZCBjb21lIGZyb20gYSBjb21wdXRlIFBPViwgbm8NCj5vZmZlbnNlIGludGVuZGVkLg0KPj4NCj4+
+IEZvciBjb21wdXRlIGpvYnMsIHdlIHNpbXBseSBjYW4ndCB1c2UgdGhpcyBsb2dpYyB0byB0ZXJt
+aW5hdGUgam9icy4NCj4+IEdyYXBoaWNzIGFyZSBtb3N0bHkgUmVhbC1UaW1lIHdoaWxlIGNvbXB1
+dGUgam9icyBjYW4gdGFrZSBmcm9tIGEgZmV3DQo+PiBtcyB0byBhIGZldyBob3VycyEhISBBbmQg
+SSdtIG5vdCB0YWxraW5nIGFib3V0IGFuIGVudGlyZSBhcHBsaWNhdGlvbg0KPj4gcnVudGltZSBi
+dXQgb24gYSBzaW5nbGUgc3VibWlzc2lvbiBvZiBqb2JzIGJ5IHRoZSB1c2Vyc3BhY2UgYXBwLiBX
+ZQ0KPj4gaGF2ZSB0ZXN0cyB3aXRoIGpvYnMgdGhhdCB0YWtlIGJldHdlZW4gMjAtMzAgbWludXRl
+cyB0byBjb21wbGV0ZS4gSW4NCj4+IHRoZW9yeSwgd2UgY2FuIGV2ZW4gaW1hZ2luZSBhIGNvbXB1
+dGUgam9iIHdoaWNoIHRha2VzIDEgb3IgMiBkYXlzIChvbg0KPmxhcmdlciBBUFVzKS4NCj4+DQo+
+PiBOb3csIEkgdW5kZXJzdGFuZCB0aGUgcXVlc3Rpb24gb2YgaG93IGRvIHdlIHByZXZlbnQgdGhl
+IGNvbXB1dGUgam9iDQo+PiBmcm9tIG1vbm9wb2xpemluZyB0aGUgR1BVLCBhbmQgaW50ZXJuYWxs
+eSBoZXJlIHdlIGhhdmUgc29tZSBpZGVhcyB0aGF0DQo+PiB3ZSB3aWxsIHByb2JhYmx5IHNoYXJl
+IGluIHRoZSBuZXh0IGZldyBkYXlzLCBidXQgbXkgcG9pbnQgaXMgdGhhdCBJDQo+PiBkb24ndCB0
+aGluayB3ZSBjYW4gdGVybWluYXRlIGEgY29tcHV0ZSBqb2IgYmVjYXVzZSBpdCBpcyBydW5uaW5n
+IGZvciBtb3JlDQo+dGhhbiB4IHNlY29uZHMuDQo+PiBJdCBpcyBsaWtlIHlvdSB3b3VsZCB0ZXJt
+aW5hdGUgYSBDUFUgcHJvY2VzcyB3aGljaCBydW5zIG1vcmUgdGhhbiB4DQo+c2Vjb25kcy4NCj4+
+DQo+PiBJIHRoaW5rIHRoaXMgaXMgYSAqdmVyeSogaW1wb3J0YW50IGRpc2N1c3Npb24gKGRldGVj
+dGluZyBhIG1pc2JlaGF2ZWQNCj4+IGNvbXB1dGUgcHJvY2VzcykgYW5kIEkgd291bGQgbGlrZSB0
+byBjb250aW51ZSBpdCwgYnV0IEkgZG9uJ3QgdGhpbmsNCj4+IG1vdmluZyB0aGUgam9iIHN1Ym1p
+c3Npb24gZnJvbSB1c2Vyc3BhY2UgY29udHJvbCB0byBrZXJuZWwgY29udHJvbA0KPj4gd2lsbCBz
+b2x2ZSB0aGlzIGNvcmUgcHJvYmxlbS4NCj4NCj5XZWxsIGdyYXBoaWNzIGdldHMgYXdheSB3aXRo
+IGNvb3BlcmF0aXZlIHNjaGVkdWxpbmcgc2luY2UgdXN1YWxseSBwZW9wbGUNCj53YW50IHRvIHNl
+ZSBzdHVmZiB3aXRoaW4gYSBmZXcgZnJhbWVzLCBzbyB3ZSBjYW4gbGVnaXRpbWF0ZWx5IGtpbGwg
+am9icyBhZnRlciBhDQo+ZmFpcmx5IHNob3J0IHRpbWVvdXQuIEltbyBpZiB5b3Ugd2FudCB0byBh
+bGxvdyB1c2Vyc3BhY2UgdG8gc3VibWl0IGNvbXB1dGUNCj5qb2JzIHRoYXQgYXJlIGF0b21pYyBh
+bmQgdGFrZSBhIGZldyBtaW51dGVzIHRvIGhvdXJzIHdpdGggbm8gYnJlYWstdXAgaW4NCj5iZXR3
+ZWVuIGFuZCBubyBodyBtZWFucyB0byBwcmVlbXB0IHRoZW4gdGhhdCBkZXNpZ24gaXMgc2NyZXdl
+ZCB1cC4gV2UNCj5yZWFsbHkgY2FuJ3QgdGVsbCB0aGUgY29yZSB2bSB0aGF0ICJzb3JyeSB3ZSB3
+aWxsIGhvbGQgb250byB0aGVzZSBnb2Jsb2FkcyBvZg0KPm1lbW9yeSB5b3UgcmVhbGx5IG5lZWQg
+bm93IGZvciBhbm90aGVyIGZldyBob3VycyIuIFBpbm5pbmcgbWVtb3J5IGxpa2UNCj50aGF0IGVz
+c2VudGlhbGx5IHdpdGhvdXQgYSB0aW1lIGxpbWl0IGlzIHJlc3RyaWN0ZWQgdG8gcm9vdC4NCg0K
+SGkgRGFuaWVsOw0KDQpJIGRvbid0IHJlYWxseSB1bmRlcnN0YW5kIHRoZSByZWZlcmVuY2UgdG8g
+ImdvYmxvYWRzIG9mIG1lbW9yeSIuIFVubGlrZSByYWRlb24gZ3JhcGhpY3MsIHRoZSB1c2Vyc3Bh
+Y2UgZGF0YSBmb3IgSFNBIGFwcGxpY2F0aW9ucyBpcyBtYWludGFpbmVkIGluIHBhZ2VhYmxlIHN5
+c3RlbSBtZW1vcnkgYW5kIGFjY2Vzc2VkIHZpYSB0aGUgSU9NTVV2MiAoQVRDL1BSSSkuIFRoZSBJ
+T01NVXYyIGRyaXZlciBhbmQgbW0gc3Vic3lzdGVtIHRha2VzIGNhcmUgb2YgZmF1bHRpbmcgaW4g
+bWVtb3J5IHBhZ2VzIGFzIG5lZWRlZCwgbm90aGluZyBpcyBsb25nLXRlcm0gcGlubmVkLg0KDQpU
+aGUgb25seSBwaW5uZWQgbWVtb3J5IHdlIGFyZSB0YWxraW5nIGFib3V0IGhlcmUgaXMgcGVyLXF1
+ZXVlIGFuZCBwZXItcHJvY2VzcyBkYXRhIHN0cnVjdHVyZXMgaW4gdGhlIGRyaXZlciwgd2hpY2gg
+YXJlIHRpbnkgYnkgY29tcGFyaXNvbi4gT2RlZCBwcm92aWRlZCB0aGUgImhhcmR3YXJlIGxpbWl0
+cyIgKGllIGFuIGluc2FuZSBudW1iZXIgb2YgcHJvY2VzcyAmIHRocmVhZHMpIGZvciBjb250ZXh0
+LCBidXQgcmVhbC13b3JsZCBsaW1pdHMgd2lsbCBiZSBvbmUgb3IgdHdvIG9yZGVycyBvZiBtYWdu
+aXR1ZGUgbG93ZXIuIEFncmVlIHdlIHNob3VsZCBoYXZlIGluY2x1ZGVkIHRob3NlIGxpbWl0cyBp
+biB0aGUgaW5pdGlhbCBjb2RlLCB0aGF0IHdvdWxkIGhhdmUgbWFkZSB0aGUgInJlYWwgd29ybGQi
+IG1lbW9yeSBmb290cHJpbnQgbXVjaCBtb3JlIHZpc2libGUuIA0KDQpNYWtlIHNlbnNlID8NCg0K
+Pi1EYW5pZWwNCj4tLQ0KPkRhbmllbCBWZXR0ZXINCj5Tb2Z0d2FyZSBFbmdpbmVlciwgSW50ZWwg
+Q29ycG9yYXRpb24NCj4rNDEgKDApIDc5IDM2NSA1NyA0OCAtIGh0dHA6Ly9ibG9nLmZmd2xsLmNo
+DQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
