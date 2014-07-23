@@ -1,42 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E94A6B0035
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 19:13:56 -0400 (EDT)
-Received: by mail-ie0-f181.google.com with SMTP id rp18so1607363iec.40
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 16:13:56 -0700 (PDT)
-Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com [2607:f8b0:4001:c03::22b])
-        by mx.google.com with ESMTPS id e11si46441159igq.23.2014.07.23.16.13.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 23 Jul 2014 16:13:55 -0700 (PDT)
-Received: by mail-ie0-f171.google.com with SMTP id at1so1625303iec.30
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 16:13:55 -0700 (PDT)
-Date: Wed, 23 Jul 2014 16:13:53 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] slab: fix the alias count(via sysfs) of slab cache
-In-Reply-To: <1406087381-21400-1-git-send-email-guz.fnst@cn.fujitsu.com>
-Message-ID: <alpine.DEB.2.02.1407231612290.1389@chino.kir.corp.google.com>
-References: <1406087381-21400-1-git-send-email-guz.fnst@cn.fujitsu.com>
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id EF8E06B0035
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 19:20:07 -0400 (EDT)
+Received: by mail-wg0-f44.google.com with SMTP id m15so1878820wgh.3
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 16:20:07 -0700 (PDT)
+Received: from relay.sgi.com (relay3.sgi.com. [192.48.152.1])
+        by mx.google.com with ESMTP id eo10si8075828wib.91.2014.07.23.16.20.06
+        for <linux-mm@kvack.org>;
+        Wed, 23 Jul 2014 16:20:06 -0700 (PDT)
+Date: Wed, 23 Jul 2014 18:20:38 -0500
+From: Alex Thorlton <athorlton@sgi.com>
+Subject: Re: [patch] mm, thp: do not allow thp faults to avoid cpuset
+ restrictions
+Message-ID: <20140723232038.GV8578@sgi.com>
+References: <20140723220538.GT8578@sgi.com>
+ <alpine.DEB.2.02.1407231516570.23495@chino.kir.corp.google.com>
+ <alpine.DEB.2.02.1407231545520.1389@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1407231545520.1389@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gu Zheng <guz.fnst@cn.fujitsu.com>
-Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Alex Thorlton <athorlton@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, kirill.shutemov@linux.intel.com, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>, lliubbo@gmail.com, Johannes Weiner <hannes@cmpxchg.org>, srivatsa.bhat@linux.vnet.ibm.com, Dave Hansen <dave.hansen@linux.intel.com>, dfults@sgi.com, hedi@sgi.com
 
-On Wed, 23 Jul 2014, Gu Zheng wrote:
-
-> We mark some slabs(e.g. kmem_cache_node) as unmergeable via setting
-> refcount to -1, and their alias should be 0, not refcount-1, so correct
-> it here.
+On Wed, Jul 23, 2014 at 03:50:09PM -0700, David Rientjes wrote:
+> The page allocator relies on __GFP_WAIT to determine if ALLOC_CPUSET 
+> should be set in allocflags.  ALLOC_CPUSET controls if a page allocation 
+> should be restricted only to the set of allowed cpuset mems.
 > 
-> Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
+> Transparent hugepages clears __GFP_WAIT when defrag is disabled to prevent 
+> the fault path from using memory compaction or direct reclaim.  Thus, it 
+> is unfairly able to allocate outside of its cpuset mems restriction as a 
+> side-effect.
+> 
+> This patch ensures that ALLOC_CPUSET is only cleared when the gfp mask is 
+> truly GFP_ATOMIC by verifying it is also not a thp allocation.
 
-Acked-by: David Rientjes <rientjes@google.com>
+Tested.  Works as expected.
 
-s/slabs/slab caches/
-
-The two slab caches of interest are kmem_cache and kmem_cache_node.
+Tested-by: Alex Thorlton <athorlton@sgi.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
