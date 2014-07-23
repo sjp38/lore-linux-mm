@@ -1,85 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 04AF36B0036
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 04:16:20 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id y10so1195857pdj.14
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 01:16:20 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id rw8si588326pab.161.2014.07.23.01.16.19
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id C29E56B0036
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 04:19:45 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id w10so1184334pde.23
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 01:19:45 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id fx12si852363pdb.115.2014.07.23.01.19.44
         for <linux-mm@kvack.org>;
-        Wed, 23 Jul 2014 01:16:19 -0700 (PDT)
-Message-ID: <53CF6F4E.6030908@linux.intel.com>
-Date: Wed, 23 Jul 2014 16:16:14 +0800
-From: Jiang Liu <jiang.liu@linux.intel.com>
+        Wed, 23 Jul 2014 01:19:44 -0700 (PDT)
+Date: Wed, 23 Jul 2014 03:48:55 -0400
+From: "Chen, Gong" <gong.chen@linux.intel.com>
+Subject: Re: [RFC PATCH 2/3] x86, MCE: Avoid potential deadlock in MCE context
+Message-ID: <20140723074855.GA3925@gchen.bj.intel.com>
+References: <1405478082-30757-1-git-send-email-gong.chen@linux.intel.com>
+ <1405478082-30757-3-git-send-email-gong.chen@linux.intel.com>
+ <20140721084737.GA10016@pd.tnic>
+ <3908561D78D1C84285E8C5FCA982C28F32870C55@ORSMSX114.amr.corp.intel.com>
 MIME-Version: 1.0
-Subject: Re: [RFC Patch V1 28/30] mm: Update _mem_id_[] for every possible
- CPU when memory configuration changes
-References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com> <1405064267-11678-29-git-send-email-jiang.liu@linux.intel.com> <20140721174754.GE4156@linux.vnet.ibm.com>
-In-Reply-To: <20140721174754.GE4156@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="cNdxnHkX5QqsyA0e"
+Content-Disposition: inline
+In-Reply-To: <3908561D78D1C84285E8C5FCA982C28F32870C55@ORSMSX114.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@linux.intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "Luck, Tony" <tony.luck@intel.com>
+Cc: Borislav Petkov <bp@alien8.de>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "x86@kernel.org" <x86@kernel.org>
 
 
+--cNdxnHkX5QqsyA0e
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-On 2014/7/22 1:47, Nishanth Aravamudan wrote:
-> On 11.07.2014 [15:37:45 +0800], Jiang Liu wrote:
->> Current kernel only updates _mem_id_[cpu] for onlined CPUs when memory
->> configuration changes. So kernel may allocate memory from remote node
->> for a CPU if the CPU is still in absent or offline state even if the
->> node associated with the CPU has already been onlined.
-> 
-> This just sounds like the topology information is being updated at the
-> wrong place/time? That is, the memory is online, the CPU is being
-> brought online, but isn't associated with any node?
-Hi Nishanth,
-	Yes, that's the case.
+On Mon, Jul 21, 2014 at 05:14:06PM +0000, Luck, Tony wrote:
+> We've evolved a bunch of mechanisms:
+>=20
+> 1) mce_ring: to pass pfn for AO errors from MCE context to a work thread
+> 2) mce_info: to pass pfn for AR errors from MCE context to same process r=
+unning in process context
+> 3) mce_log: to pass entire "mce" structures from any context (MCE, CMCI, =
+or init-time) to /dev/mcelog
+>=20
+> I was actually wondering about going in the other direction. Make the
+> /dev/mcelog code register a notifier on x86_mce_decoder_chain (and
+> perhaps move all the /dev/mcelog functions out of mce.c into an actual
+> driver file).  Then use Chen Gong's NMI safe code to just unconditionally
+> make safe copies of anything that gets passed to mce_log() and run all
+> the notifiers from his do_mce_irqwork().
+>=20
+> -Tony
 
-> 
->> This patch tries to improve performance by updating _mem_id_[cpu] for
->> each possible CPU when memory configuration changes, thus kernel could
->> always allocate from local node once the node is onlined.
-> 
-> Ok, what is the impact? Do you actually see better performance?
-No real data to support this yet, just with code analysis.
-Regards!
-Gerry
-> 
->> We check node_online(cpu_to_node(cpu)) because:
->> 1) local_memory_node(nid) needs to access NODE_DATA(nid)
->> 2) try_offline_node(nid) just zeroes out NODE_DATA(nid) instead of free it
->>
->> Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
->> ---
->>  mm/page_alloc.c |   10 +++++-----
->>  1 file changed, 5 insertions(+), 5 deletions(-)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 0ea758b898fd..de86e941ed57 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -3844,13 +3844,13 @@ static int __build_all_zonelists(void *data)
->>  		/*
->>  		 * We now know the "local memory node" for each node--
->>  		 * i.e., the node of the first zone in the generic zonelist.
->> -		 * Set up numa_mem percpu variable for on-line cpus.  During
->> -		 * boot, only the boot cpu should be on-line;  we'll init the
->> -		 * secondary cpus' numa_mem as they come on-line.  During
->> -		 * node/memory hotplug, we'll fixup all on-line cpus.
->> +		 * Set up numa_mem percpu variable for all possible cpus
->> +		 * if associated node has been onlined.
->>  		 */
->> -		if (cpu_online(cpu))
->> +		if (node_online(cpu_to_node(cpu)))
->>  			set_cpu_numa_mem(cpu, local_memory_node(cpu_to_node(cpu)));
->> +		else
->> +			set_cpu_numa_mem(cpu, NUMA_NO_NODE);
->>  #endif
-> 
-> 
+OK, I can cook some patches based on Tony's suggestion:
+patch 1: add a generic lock-less memory pool to save error records
+patch 2: remove mce_info (Tony has done a draft)
+patch 3: remove mce_ring
+patch 4: remove mce log buffer
+patch 5: move all mce log related logic into a separate file lke mcelog.c
+         under the same directory with mce.c
+
+--cNdxnHkX5QqsyA0e
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIcBAEBAgAGBQJTz2jnAAoJEI01n1+kOSLHE5IQAJ35fzfqY2s5brre9TG2jg7+
+1H38RiNCsqPFRgC3LygGugN4C1FndHSuUC5HpE4tr9gmlUV+vswX8VSB5uACGGUG
+/CKog/xs3cdRgKpjdENaO6v/LsvT/Yfh1u/4YoQ1qyEFEFLy4a+EZ3yLZfUTN/8+
+tLFTH0N/rYQLxVn1vKhZXmfFVmXXfBGdlPXitLpwnnYpJLki2mzKgLMM/BzUja1B
+A1ryBCw+0UeFMJ7CVENb9kRPHUk5TCVf9O3WDmy6UFHiUjjlUHdUAVvihbkATllY
+JI4x4oQEvyeA/WQahwQMwEgsJ4HOKipl2BxoIHSOIUsHG9yVYS3qBHb2/8HJqN+d
+mvJqDGLyhPW1sNwXo0ludLj1HBxIeyziGy0yFaz6nmWI4RhW5482NloOXZAtBHiL
+6qOzIdr+RhsbVSbnHuC11WcCKIEBpm6fHRn02j1OPMT6jaZaPruOKD55h5gVpU4j
+/cdPw/IiujZmaZF67n2HncqFLgwW//c0gDzEH55go3HLQru7P/K6Qk31q5QiMqm3
+WGRi+i/xxlyKFPzEL9BewDO3qbERXmHRJvaG/rODU1wf3BbjaUXqwf+gaqIXFPjm
+/EuEIqXgMdDjhHqZydykGLqYkzzV9/DdN5pHhi/65QRPPn4RpNEBNoia8ymSR+N3
+5lXijpc0IFXLDWN1WHY7
+=tXI6
+-----END PGP SIGNATURE-----
+
+--cNdxnHkX5QqsyA0e--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
