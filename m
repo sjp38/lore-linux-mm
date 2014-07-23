@@ -1,112 +1,434 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f43.google.com (mail-qa0-f43.google.com [209.85.216.43])
-	by kanga.kvack.org (Postfix) with ESMTP id E21906B0035
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 17:25:52 -0400 (EDT)
-Received: by mail-qa0-f43.google.com with SMTP id w8so1968038qac.16
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 14:25:52 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j90si6974395qgf.62.2014.07.23.14.25.50
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id A2FA86B0035
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 17:39:21 -0400 (EDT)
+Received: by mail-ig0-f175.google.com with SMTP id uq10so5750188igb.14
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 14:39:21 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id p10si14163866igx.56.2014.07.23.14.39.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jul 2014 14:25:51 -0700 (PDT)
-Message-ID: <1406150734.12484.79.camel@deneb.redhat.com>
-Subject: Re: arm64 flushing 255GB of vmalloc space takes too long
-From: Mark Salter <msalter@redhat.com>
-Date: Wed, 23 Jul 2014 17:25:34 -0400
-In-Reply-To: <20140711124553.GG11473@arm.com>
-References: 
-	<CAMPhdO-j5SfHexP8hafB2EQVs91TOqp_k_SLwWmo9OHVEvNWiQ@mail.gmail.com>
-	 <20140709174055.GC2814@arm.com>
-	 <CAMPhdO_XqAL4oXcuJkp2PTQ-J07sGG4Nm5HjHO=yGqS+KuWQzg@mail.gmail.com>
-	 <53BF3D58.2010900@codeaurora.org> <20140711124553.GG11473@arm.com>
-Content-Type: text/plain; charset="UTF-8"
+        Wed, 23 Jul 2014 14:39:20 -0700 (PDT)
+Date: Wed, 23 Jul 2014 14:39:18 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -mm] mm: refactor page index/offset getters
+Message-Id: <20140723143918.8334558ccac8c29047c0058b@linux-foundation.org>
+In-Reply-To: <20140715164112.GA6055@nhori.bos.redhat.com>
+References: <1404225982-22739-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<20140701180739.GA4985@node.dhcp.inet.fi>
+	<20140701185021.GA10356@nhori.bos.redhat.com>
+	<20140701201540.GA5953@node.dhcp.inet.fi>
+	<20140702043057.GA19813@nhori.redhat.com>
+	<20140707123923.5e42983d6123ebfd79c8cf4c@linux-foundation.org>
+	<20140715164112.GA6055@nhori.bos.redhat.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Laura Abbott <lauraa@codeaurora.org>, Eric Miao <eric.y.miao@gmail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux Memory Management List <linux-mm@kvack.org>, Will Deacon <Will.Deacon@arm.com>, Russell King <linux@arm.linux.org.uk>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Fri, 2014-07-11 at 13:45 +0100, Catalin Marinas wrote:
-> On Fri, Jul 11, 2014 at 02:26:48AM +0100, Laura Abbott wrote:
-> > On 7/9/2014 11:04 AM, Eric Miao wrote:
-> > > On Wed, Jul 9, 2014 at 10:40 AM, Catalin Marinas
-> > > <catalin.marinas@arm.com> wrote:
-> > >> On Wed, Jul 09, 2014 at 05:53:26PM +0100, Eric Miao wrote:
-> > >>> On Tue, Jul 8, 2014 at 6:43 PM, Laura Abbott <lauraa@codeaurora.org> wrote:
-> > >>>> I have an arm64 target which has been observed hanging in __purge_vmap_area_lazy
-> > >>>> in vmalloc.c The root cause of this 'hang' is that flush_tlb_kernel_range is
-> > >>>> attempting to flush 255GB of virtual address space. This takes ~2 seconds and
-> > >>>> preemption is disabled at this time thanks to the purge lock. Disabling
-> > >>>> preemption for that time is long enough to trigger a watchdog we have setup.
-> > >>
-> > >> That's definitely not good.
-> > >>
-> > >>>> A couple of options I thought of:
-> > >>>> 1) Increase the timeout of our watchdog to allow the flush to occur. Nobody
-> > >>>> I suggested this to likes the idea as the watchdog firing generally catches
-> > >>>> behavior that results in poor system performance and disabling preemption
-> > >>>> for that long does seem like a problem.
-> > >>>> 2) Change __purge_vmap_area_lazy to do less work under a spinlock. This would
-> > >>>> certainly have a performance impact and I don't even know if it is plausible.
-> > >>>> 3) Allow module unloading to trigger a vmalloc purge beforehand to help avoid
-> > >>>> this case. This would still be racy if another vfree came in during the time
-> > >>>> between the purge and the vfree but it might be good enough.
-> > >>>> 4) Add 'if size > threshold flush entire tlb' (I haven't profiled this yet)
-> > >>>
-> > >>> We have the same problem. I'd agree with point 2 and point 4, point 1/3 do not
-> > >>> actually fix this issue. purge_vmap_area_lazy() could be called in other
-> > >>> cases.
-> > >>
-> > >> I would also discard point 2 as it still takes ~2 seconds, only that not
-> > >> under a spinlock.
-> > > 
-> > > Point is - we could still end up a good amount of time in that function,
-> > > giving the default value of lazy_vfree_pages to be 32MB * log(ncpu),
-> > > worst case of all vmap areas being only one page, tlb flush page by
-> > > page, and traversal of the list, calling __free_vmap_area() that many
-> > > times won't likely to reduce the execution time to microsecond level.
-> > > 
-> > > If it's something inevitable - we do it in a bit cleaner way.
-> 
-> In general I think it makes sense to add a mutex instead of a spinlock
-> here if slowdown is caused by other things as well. That's independent
-> of the TLB invalidation optimisation for arm64.
-> 
-> > > Or we end up having platform specific tlb flush implementation just as we
-> > > did for cache ops. I would expect only few platforms will have their own
-> > > thresholds. A simple heuristic guess of the threshold based on number of
-> > > tlb entries would be good to go?
-> > 
-> > Mark Salter actually proposed a fix to this back in May 
-> > 
-> > https://lkml.org/lkml/2014/5/2/311
-> > 
-> > I never saw any further comments on it though. It also matches what x86
-> > does with their TLB flushing. It fixes the problem for me and the threshold
-> > seems to be the best we can do unless we want to introduce options per
-> > platform. It will need to be rebased to the latest tree though.
-> 
-> There were other patches in this area and I forgot about this. The
-> problem is that the ARM architecture does not define the actual
-> micro-architectural implementation of the TLBs (and it shouldn't), so
-> there is no way to guess how many TLB entries there are. It's not an
-> easy figure to get either since there are multiple levels of caching for
-> the TLBs.
-> 
-> So we either guess some value here (we may not always be optimal) or we
-> put some time bound (e.g. based on sched_clock()) on how long to loop.
-> The latter is not optimal either, the only aim being to avoid
-> soft-lockups.
-> 
+On Tue, 15 Jul 2014 12:41:12 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-Sorry for the late reply...
+> There is a complaint about duplication around the fundamental routines
+> of page index/offset getters.
+> 
+> page_(index|offset) and page_file_(index|offset) provide the same
+> functionality, so we can merge them as page_(index|offset), respectively.
+> 
+> And this patch gives the clear meaning to the getters:
+>  - page_index(): get page cache index (offset in relevant page size)
+>  - page_pgoff(): get 4kB page offset
+>  - page_offset(): get byte offset
+> All these functions are aware of regular pages, swapcaches, and hugepages.
+> 
+> The definition of PageHuge is relocated to include/linux/mm.h, because
+> some users of page_pgoff() doesn't include include/linux/hugetlb.h.
+> 
+> __page_file_index() is not well named, because it's only for swap cache.
+> So let's rename it with __page_swap_index().
 
-So, what would you like to see wrt this, Catalin? A reworked patch based
-on time? IMO, something based on loop count or time seems better than
-the status quo of a CPU potentially wasting 10s of seconds flushing the
-tlb.
+Thanks, I guess that's better.  Could others please have a look-n-think?
 
+I did this:
+
+--- a/include/linux/pagemap.h~mm-refactor-page-index-offset-getters-fix
++++ a/include/linux/pagemap.h
+@@ -412,7 +412,7 @@ static inline pgoff_t page_pgoff(struct
+ }
+ 
+ /*
+- * Return the byte offset of the given page.
++ * Return the file offset of the given pagecache page, in bytes.
+  */
+ static inline loff_t page_offset(struct page *page)
+ {
+
+
+
+You had a random xfs_aops.c whitespace fix which I'll pretend I didn't
+notice ;)
+
+
+
+
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: mm: refactor page index/offset getters
+
+There is a complaint about duplication around the fundamental routines of
+page index/offset getters.
+
+page_(index|offset) and page_file_(index|offset) provide the same
+functionality, so we can merge them as page_(index|offset), respectively.
+
+And this patch gives the clear meaning to the getters:
+ - page_index(): get page cache index (offset in relevant page size)
+ - page_pgoff(): get 4kB page offset
+ - page_offset(): get byte offset
+All these functions are aware of regular pages, swapcaches, and hugepages.
+
+The definition of PageHuge is relocated to include/linux/mm.h, because
+some users of page_pgoff() doesn't include include/linux/hugetlb.h.
+
+__page_file_index() is not well named, because it's only for swap cache.
+So let's rename it with __page_swap_index().
+
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: David Rientjes <rientjes@google.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ fs/nfs/internal.h       |    6 +++---
+ fs/nfs/pagelist.c       |    2 +-
+ fs/nfs/read.c           |    2 +-
+ fs/nfs/write.c          |   10 +++++-----
+ fs/xfs/xfs_aops.c       |    2 +-
+ include/linux/hugetlb.h |    7 -------
+ include/linux/mm.h      |   26 ++++++++++----------------
+ include/linux/pagemap.h |   22 +++++++++-------------
+ mm/memory-failure.c     |    4 ++--
+ mm/page_io.c            |    6 +++---
+ mm/rmap.c               |    6 +++---
+ mm/swapfile.c           |    4 ++--
+ 12 files changed, 40 insertions(+), 57 deletions(-)
+
+diff -puN fs/nfs/internal.h~mm-refactor-page-index-offset-getters fs/nfs/internal.h
+--- a/fs/nfs/internal.h~mm-refactor-page-index-offset-getters
++++ a/fs/nfs/internal.h
+@@ -566,11 +566,11 @@ unsigned int nfs_page_length(struct page
+ 	loff_t i_size = i_size_read(page_file_mapping(page)->host);
+ 
+ 	if (i_size > 0) {
+-		pgoff_t page_index = page_file_index(page);
++		pgoff_t index = page_index(page);
+ 		pgoff_t end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
+-		if (page_index < end_index)
++		if (index < end_index)
+ 			return PAGE_CACHE_SIZE;
+-		if (page_index == end_index)
++		if (index == end_index)
+ 			return ((i_size - 1) & ~PAGE_CACHE_MASK) + 1;
+ 	}
+ 	return 0;
+diff -puN fs/nfs/pagelist.c~mm-refactor-page-index-offset-getters fs/nfs/pagelist.c
+--- a/fs/nfs/pagelist.c~mm-refactor-page-index-offset-getters
++++ a/fs/nfs/pagelist.c
+@@ -333,7 +333,7 @@ nfs_create_request(struct nfs_open_conte
+ 	 * long write-back delay. This will be adjusted in
+ 	 * update_nfs_request below if the region is not locked. */
+ 	req->wb_page    = page;
+-	req->wb_index	= page_file_index(page);
++	req->wb_index	= page_index(page);
+ 	page_cache_get(page);
+ 	req->wb_offset  = offset;
+ 	req->wb_pgbase	= offset;
+diff -puN fs/nfs/read.c~mm-refactor-page-index-offset-getters fs/nfs/read.c
+--- a/fs/nfs/read.c~mm-refactor-page-index-offset-getters
++++ a/fs/nfs/read.c
+@@ -271,7 +271,7 @@ int nfs_readpage(struct file *file, stru
+ 	int		error;
+ 
+ 	dprintk("NFS: nfs_readpage (%p %ld@%lu)\n",
+-		page, PAGE_CACHE_SIZE, page_file_index(page));
++		page, PAGE_CACHE_SIZE, page_index(page));
+ 	nfs_inc_stats(inode, NFSIOS_VFSREADPAGE);
+ 	nfs_add_stats(inode, NFSIOS_READPAGES, 1);
+ 
+diff -puN fs/nfs/write.c~mm-refactor-page-index-offset-getters fs/nfs/write.c
+--- a/fs/nfs/write.c~mm-refactor-page-index-offset-getters
++++ a/fs/nfs/write.c
+@@ -153,9 +153,9 @@ static void nfs_grow_file(struct page *p
+ 	spin_lock(&inode->i_lock);
+ 	i_size = i_size_read(inode);
+ 	end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
+-	if (i_size > 0 && page_file_index(page) < end_index)
++	if (i_size > 0 && page_index(page) < end_index)
+ 		goto out;
+-	end = page_file_offset(page) + ((loff_t)offset+count);
++	end = page_offset(page) + ((loff_t)offset+count);
+ 	if (i_size >= end)
+ 		goto out;
+ 	i_size_write(inode, end);
+@@ -569,7 +569,7 @@ static int nfs_do_writepage(struct page
+ 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGE);
+ 	nfs_add_stats(inode, NFSIOS_WRITEPAGES, 1);
+ 
+-	nfs_pageio_cond_complete(pgio, page_file_index(page));
++	nfs_pageio_cond_complete(pgio, page_index(page));
+ 	ret = nfs_page_async_flush(pgio, page, wbc->sync_mode == WB_SYNC_NONE);
+ 	if (ret == -EAGAIN) {
+ 		redirty_page_for_writepage(wbc, page);
+@@ -1212,7 +1212,7 @@ int nfs_updatepage(struct file *file, st
+ 	nfs_inc_stats(inode, NFSIOS_VFSUPDATEPAGE);
+ 
+ 	dprintk("NFS:       nfs_updatepage(%pD2 %d@%lld)\n",
+-		file, count, (long long)(page_file_offset(page) + offset));
++		file, count, (long long)(page_offset(page) + offset));
+ 
+ 	if (nfs_can_extend_write(file, page, inode)) {
+ 		count = max(count + offset, nfs_page_length(page));
+@@ -1827,7 +1827,7 @@ int nfs_wb_page_cancel(struct inode *ino
+  */
+ int nfs_wb_page(struct inode *inode, struct page *page)
+ {
+-	loff_t range_start = page_file_offset(page);
++	loff_t range_start = page_offset(page);
+ 	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
+ 	struct writeback_control wbc = {
+ 		.sync_mode = WB_SYNC_ALL,
+diff -puN fs/xfs/xfs_aops.c~mm-refactor-page-index-offset-getters fs/xfs/xfs_aops.c
+--- a/fs/xfs/xfs_aops.c~mm-refactor-page-index-offset-getters
++++ a/fs/xfs/xfs_aops.c
+@@ -695,7 +695,7 @@ xfs_convert_page(
+ 	unsigned int		type;
+ 	int			len, page_dirty;
+ 	int			count = 0, done = 0, uptodate = 1;
+- 	xfs_off_t		offset = page_offset(page);
++	xfs_off_t		offset = page_offset(page);
+ 
+ 	if (page->index != tindex)
+ 		goto fail;
+diff -puN include/linux/hugetlb.h~mm-refactor-page-index-offset-getters include/linux/hugetlb.h
+--- a/include/linux/hugetlb.h~mm-refactor-page-index-offset-getters
++++ a/include/linux/hugetlb.h
+@@ -41,8 +41,6 @@ extern int hugetlb_max_hstate __read_mos
+ struct hugepage_subpool *hugepage_new_subpool(long nr_blocks);
+ void hugepage_put_subpool(struct hugepage_subpool *spool);
+ 
+-int PageHuge(struct page *page);
+-
+ void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
+ int hugetlb_sysctl_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+ int hugetlb_overcommit_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
+@@ -108,11 +106,6 @@ unsigned long hugetlb_change_protection(
+ 
+ #else /* !CONFIG_HUGETLB_PAGE */
+ 
+-static inline int PageHuge(struct page *page)
+-{
+-	return 0;
+-}
+-
+ static inline void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
+ {
+ }
+diff -puN include/linux/mm.h~mm-refactor-page-index-offset-getters include/linux/mm.h
+--- a/include/linux/mm.h~mm-refactor-page-index-offset-getters
++++ a/include/linux/mm.h
+@@ -456,8 +456,13 @@ static inline int page_count(struct page
+ }
+ 
+ #ifdef CONFIG_HUGETLB_PAGE
++extern int PageHuge(struct page *page);
+ extern int PageHeadHuge(struct page *page_head);
+ #else /* CONFIG_HUGETLB_PAGE */
++static inline int PageHuge(struct page *page)
++{
++	return 0;
++}
+ static inline int PageHeadHuge(struct page *page_head)
+ {
+ 	return 0;
+@@ -986,27 +991,16 @@ static inline int PageAnon(struct page *
+ 	return ((unsigned long)page->mapping & PAGE_MAPPING_ANON) != 0;
+ }
+ 
+-/*
+- * Return the pagecache index of the passed page.  Regular pagecache pages
+- * use ->index whereas swapcache pages use ->private
+- */
+-static inline pgoff_t page_index(struct page *page)
+-{
+-	if (unlikely(PageSwapCache(page)))
+-		return page_private(page);
+-	return page->index;
+-}
+-
+-extern pgoff_t __page_file_index(struct page *page);
++extern pgoff_t __page_swap_index(struct page *page);
+ 
+ /*
+- * Return the file index of the page. Regular pagecache pages use ->index
+- * whereas swapcache pages use swp_offset(->private)
++ * Return the pagecache index of the passed page, which is the offset
++ * in the relevant page size.
+  */
+-static inline pgoff_t page_file_index(struct page *page)
++static inline pgoff_t page_index(struct page *page)
+ {
+ 	if (unlikely(PageSwapCache(page)))
+-		return __page_file_index(page);
++		return __page_swap_index(page);
+ 
+ 	return page->index;
+ }
+diff -puN include/linux/pagemap.h~mm-refactor-page-index-offset-getters include/linux/pagemap.h
+--- a/include/linux/pagemap.h~mm-refactor-page-index-offset-getters
++++ a/include/linux/pagemap.h
+@@ -399,28 +399,24 @@ static inline struct page *read_mapping_
+ }
+ 
+ /*
+- * Get the offset in PAGE_SIZE.
++ * Return the 4kB page offset of the given page.
+  * (TODO: hugepage should have ->index in PAGE_SIZE)
+  */
+-static inline pgoff_t page_to_pgoff(struct page *page)
++static inline pgoff_t page_pgoff(struct page *page)
+ {
+-	if (unlikely(PageHeadHuge(page)))
+-		return page->index << compound_order(page);
+-	else
+-		return page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
++	if (unlikely(PageHuge(page))) {
++		VM_BUG_ON_PAGE(PageTail(page), page);
++		return page_index(page) << compound_order(page);
++	} else
++		return page_index(page) << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+ }
+ 
+ /*
+- * Return byte-offset into filesystem object for page.
++ * Return the byte offset of the given page.
+  */
+ static inline loff_t page_offset(struct page *page)
+ {
+-	return ((loff_t)page->index) << PAGE_CACHE_SHIFT;
+-}
+-
+-static inline loff_t page_file_offset(struct page *page)
+-{
+-	return ((loff_t)page_file_index(page)) << PAGE_CACHE_SHIFT;
++	return ((loff_t)page_pgoff(page)) << PAGE_SHIFT;
+ }
+ 
+ extern pgoff_t linear_hugepage_index(struct vm_area_struct *vma,
+diff -puN mm/memory-failure.c~mm-refactor-page-index-offset-getters mm/memory-failure.c
+--- a/mm/memory-failure.c~mm-refactor-page-index-offset-getters
++++ a/mm/memory-failure.c
+@@ -435,7 +435,7 @@ static void collect_procs_anon(struct pa
+ 	if (av == NULL)	/* Not actually mapped anymore */
+ 		return;
+ 
+-	pgoff = page_to_pgoff(page);
++	pgoff = page_pgoff(page);
+ 	read_lock(&tasklist_lock);
+ 	for_each_process (tsk) {
+ 		struct anon_vma_chain *vmac;
+@@ -469,7 +469,7 @@ static void collect_procs_file(struct pa
+ 	mutex_lock(&mapping->i_mmap_mutex);
+ 	read_lock(&tasklist_lock);
+ 	for_each_process(tsk) {
+-		pgoff_t pgoff = page_to_pgoff(page);
++		pgoff_t pgoff = page_pgoff(page);
+ 		struct task_struct *t = task_early_kill(tsk, force_early);
+ 
+ 		if (!t)
+diff -puN mm/page_io.c~mm-refactor-page-index-offset-getters mm/page_io.c
+--- a/mm/page_io.c~mm-refactor-page-index-offset-getters
++++ a/mm/page_io.c
+@@ -250,7 +250,7 @@ out:
+ 
+ static sector_t swap_page_sector(struct page *page)
+ {
+-	return (sector_t)__page_file_index(page) << (PAGE_CACHE_SHIFT - 9);
++	return (sector_t)__page_swap_index(page) << (PAGE_CACHE_SHIFT - 9);
+ }
+ 
+ int __swap_writepage(struct page *page, struct writeback_control *wbc,
+@@ -278,7 +278,7 @@ int __swap_writepage(struct page *page,
+ 		from.bvec = &bv;	/* older gcc versions are broken */
+ 
+ 		init_sync_kiocb(&kiocb, swap_file);
+-		kiocb.ki_pos = page_file_offset(page);
++		kiocb.ki_pos = page_offset(page);
+ 		kiocb.ki_nbytes = PAGE_SIZE;
+ 
+ 		set_page_writeback(page);
+@@ -303,7 +303,7 @@ int __swap_writepage(struct page *page,
+ 			set_page_dirty(page);
+ 			ClearPageReclaim(page);
+ 			pr_err_ratelimited("Write error on dio swapfile (%Lu)\n",
+-				page_file_offset(page));
++				page_offset(page));
+ 		}
+ 		end_page_writeback(page);
+ 		return ret;
+diff -puN mm/rmap.c~mm-refactor-page-index-offset-getters mm/rmap.c
+--- a/mm/rmap.c~mm-refactor-page-index-offset-getters
++++ a/mm/rmap.c
+@@ -517,7 +517,7 @@ void page_unlock_anon_vma_read(struct an
+ static inline unsigned long
+ __vma_address(struct page *page, struct vm_area_struct *vma)
+ {
+-	pgoff_t pgoff = page_to_pgoff(page);
++	pgoff_t pgoff = page_pgoff(page);
+ 	return vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
+ }
+ 
+@@ -1615,7 +1615,7 @@ static struct anon_vma *rmap_walk_anon_l
+ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc)
+ {
+ 	struct anon_vma *anon_vma;
+-	pgoff_t pgoff = page_to_pgoff(page);
++	pgoff_t pgoff = page_pgoff(page);
+ 	struct anon_vma_chain *avc;
+ 	int ret = SWAP_AGAIN;
+ 
+@@ -1656,7 +1656,7 @@ static int rmap_walk_anon(struct page *p
+ static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc)
+ {
+ 	struct address_space *mapping = page->mapping;
+-	pgoff_t pgoff = page_to_pgoff(page);
++	pgoff_t pgoff = page_pgoff(page);
+ 	struct vm_area_struct *vma;
+ 	int ret = SWAP_AGAIN;
+ 
+diff -puN mm/swapfile.c~mm-refactor-page-index-offset-getters mm/swapfile.c
+--- a/mm/swapfile.c~mm-refactor-page-index-offset-getters
++++ a/mm/swapfile.c
+@@ -2715,13 +2715,13 @@ struct address_space *__page_file_mappin
+ }
+ EXPORT_SYMBOL_GPL(__page_file_mapping);
+ 
+-pgoff_t __page_file_index(struct page *page)
++pgoff_t __page_swap_index(struct page *page)
+ {
+ 	swp_entry_t swap = { .val = page_private(page) };
+ 	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
+ 	return swp_offset(swap);
+ }
+-EXPORT_SYMBOL_GPL(__page_file_index);
++EXPORT_SYMBOL_GPL(__page_swap_index);
+ 
+ /*
+  * add_swap_count_continuation - called when a swap count is duplicated
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
