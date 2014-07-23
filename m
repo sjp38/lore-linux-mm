@@ -1,293 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 721A86B003B
-	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 21:35:18 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id g10so603641pdj.15
-        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 18:35:18 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id ow8si365124pdb.334.2014.07.22.18.35.16
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Jul 2014 18:35:16 -0700 (PDT)
-From: Laura Abbott <lauraa@codeaurora.org>
-Subject: [PATCHv4 5/5] arm64: Add atomic pool for non-coherent and CMA allocations.
-Date: Tue, 22 Jul 2014 18:35:08 -0700
-Message-Id: <1406079308-5232-6-git-send-email-lauraa@codeaurora.org>
-In-Reply-To: <1406079308-5232-1-git-send-email-lauraa@codeaurora.org>
-References: <1406079308-5232-1-git-send-email-lauraa@codeaurora.org>
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E04A6B0036
+	for <linux-mm@kvack.org>; Tue, 22 Jul 2014 22:35:49 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id w10so689134pde.32
+        for <linux-mm@kvack.org>; Tue, 22 Jul 2014 19:35:48 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id c3si833368pat.223.2014.07.22.19.35.47
+        for <linux-mm@kvack.org>;
+        Tue, 22 Jul 2014 19:35:48 -0700 (PDT)
+From: "Ren, Qiaowei" <qiaowei.ren@intel.com>
+Subject: RE: [PATCH v7 03/10] x86, mpx: add macro cpu_has_mpx
+Date: Wed, 23 Jul 2014 02:35:42 +0000
+Message-ID: <9E0BE1322F2F2246BD820DA9FC397ADE0170079E@shsmsx102.ccr.corp.intel.com>
+References: <1405921124-4230-1-git-send-email-qiaowei.ren@intel.com>
+ <1405921124-4230-4-git-send-email-qiaowei.ren@intel.com>
+ <53CE8EEC.2090402@intel.com>
+In-Reply-To: <53CE8EEC.2090402@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>
-Cc: Laura Abbott <lauraa@codeaurora.org>, David Riley <davidriley@chromium.org>, linux-arm-kernel@lists.infradead.org, Ritesh Harjain <ritesh.harjani@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Russell King <linux@arm.linux.org.uk>, Thierry Reding <thierry.reding@gmail.com>, Arnd Bergmann <arnd@arndb.de>
+To: "Hansen, Dave" <dave.hansen@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
+Cc: "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Neither CMA nor noncoherent allocations support atomic allocations.
-Add a dedicated atomic pool to support this.
 
-Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
----
- arch/arm64/Kconfig          |   1 +
- arch/arm64/mm/dma-mapping.c | 164 +++++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 146 insertions(+), 19 deletions(-)
 
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 44deb53..d6c8603 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -18,6 +18,7 @@ config ARM64
- 	select COMMON_CLK
- 	select CPU_PM if (SUSPEND || CPU_IDLE)
- 	select DCACHE_WORD_ACCESS
-+	select GENERIC_ALLOCATOR
- 	select GENERIC_CLOCKEVENTS
- 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
- 	select GENERIC_CPU_AUTOPROBE
-diff --git a/arch/arm64/mm/dma-mapping.c b/arch/arm64/mm/dma-mapping.c
-index 4164c5a..90bb7b3 100644
---- a/arch/arm64/mm/dma-mapping.c
-+++ b/arch/arm64/mm/dma-mapping.c
-@@ -27,6 +27,7 @@
- #include <linux/vmalloc.h>
- #include <linux/swiotlb.h>
- #include <linux/amba/bus.h>
-+#include <linux/genalloc.h>
- 
- #include <asm/cacheflush.h>
- 
-@@ -41,6 +42,54 @@ static pgprot_t __get_dma_pgprot(struct dma_attrs *attrs, pgprot_t prot,
- 	return prot;
- }
- 
-+static struct gen_pool *atomic_pool;
-+
-+#define DEFAULT_DMA_COHERENT_POOL_SIZE  SZ_256K
-+static size_t atomic_pool_size = DEFAULT_DMA_COHERENT_POOL_SIZE;
-+
-+static int __init early_coherent_pool(char *p)
-+{
-+	atomic_pool_size = memparse(p, &p);
-+	return 0;
-+}
-+early_param("coherent_pool", early_coherent_pool);
-+
-+static void *__alloc_from_pool(size_t size, struct page **ret_page)
-+{
-+	unsigned long val;
-+	void *ptr = NULL;
-+
-+	if (!atomic_pool) {
-+		WARN(1, "coherent pool not initialised!\n");
-+		return NULL;
-+	}
-+
-+	val = gen_pool_alloc(atomic_pool, size);
-+	if (val) {
-+		phys_addr_t phys = gen_pool_virt_to_phys(atomic_pool, val);
-+
-+		*ret_page = phys_to_page(phys);
-+		ptr = (void *)val;
-+	}
-+
-+	return ptr;
-+}
-+
-+static bool __in_atomic_pool(void *start, size_t size)
-+{
-+	return addr_in_gen_pool(atomic_pool, (unsigned long)start, size);
-+}
-+
-+static int __free_from_pool(void *start, size_t size)
-+{
-+	if (!__in_atomic_pool(start, size))
-+		return 0;
-+
-+	gen_pool_free(atomic_pool, (unsigned long)start, size);
-+
-+	return 1;
-+}
-+
- static void *__dma_alloc_coherent(struct device *dev, size_t size,
- 				  dma_addr_t *dma_handle, gfp_t flags,
- 				  struct dma_attrs *attrs)
-@@ -53,7 +102,7 @@ static void *__dma_alloc_coherent(struct device *dev, size_t size,
- 	if (IS_ENABLED(CONFIG_ZONE_DMA) &&
- 	    dev->coherent_dma_mask <= DMA_BIT_MASK(32))
- 		flags |= GFP_DMA;
--	if (IS_ENABLED(CONFIG_DMA_CMA)) {
-+	if (IS_ENABLED(CONFIG_DMA_CMA) && (flags & __GFP_WAIT)) {
- 		struct page *page;
- 
- 		size = PAGE_ALIGN(size);
-@@ -73,50 +122,54 @@ static void __dma_free_coherent(struct device *dev, size_t size,
- 				void *vaddr, dma_addr_t dma_handle,
- 				struct dma_attrs *attrs)
- {
-+	bool freed;
-+	phys_addr_t paddr = dma_to_phys(dev, dma_handle);
-+
- 	if (dev == NULL) {
- 		WARN_ONCE(1, "Use an actual device structure for DMA allocation\n");
- 		return;
- 	}
- 
--	if (IS_ENABLED(CONFIG_DMA_CMA)) {
--		phys_addr_t paddr = dma_to_phys(dev, dma_handle);
--
--		dma_release_from_contiguous(dev,
-+	freed = dma_release_from_contiguous(dev,
- 					phys_to_page(paddr),
- 					size >> PAGE_SHIFT);
--	} else {
-+	if (!freed)
- 		swiotlb_free_coherent(dev, size, vaddr, dma_handle);
--	}
- }
- 
- static void *__dma_alloc_noncoherent(struct device *dev, size_t size,
- 				     dma_addr_t *dma_handle, gfp_t flags,
- 				     struct dma_attrs *attrs)
- {
--	struct page *page, **map;
-+	struct page *page;
- 	void *ptr, *coherent_ptr;
--	int order, i;
- 
- 	size = PAGE_ALIGN(size);
--	order = get_order(size);
-+
-+	if (!(flags & __GFP_WAIT)) {
-+		struct page *page = NULL;
-+		void *addr = __alloc_from_pool(size, &page);
-+
-+		if (addr)
-+			*dma_handle = phys_to_dma(dev, page_to_phys(page));
-+
-+		return addr;
-+
-+	}
- 
- 	ptr = __dma_alloc_coherent(dev, size, dma_handle, flags, attrs);
- 	if (!ptr)
- 		goto no_mem;
--	map = kmalloc(sizeof(struct page *) << order, flags & ~GFP_DMA);
--	if (!map)
--		goto no_map;
- 
- 	/* remove any dirty cache lines on the kernel alias */
- 	__dma_flush_range(ptr, ptr + size);
- 
- 	/* create a coherent mapping */
- 	page = virt_to_page(ptr);
--	for (i = 0; i < (size >> PAGE_SHIFT); i++)
--		map[i] = page + i;
--	coherent_ptr = vmap(map, size >> PAGE_SHIFT, VM_MAP,
--			    __get_dma_pgprot(attrs, __pgprot(PROT_NORMAL_NC), false));
--	kfree(map);
-+	coherent_ptr = dma_common_contiguous_remap(page, size, VM_USERMAP,
-+				__get_dma_pgprot(attrs,
-+					__pgprot(PROT_NORMAL_NC), false),
-+					NULL);
- 	if (!coherent_ptr)
- 		goto no_map;
- 
-@@ -135,6 +188,8 @@ static void __dma_free_noncoherent(struct device *dev, size_t size,
- {
- 	void *swiotlb_addr = phys_to_virt(dma_to_phys(dev, dma_handle));
- 
-+	if (__free_from_pool(vaddr, size))
-+		return;
- 	vunmap(vaddr);
- 	__dma_free_coherent(dev, size, swiotlb_addr, dma_handle, attrs);
- }
-@@ -332,6 +387,67 @@ static struct notifier_block amba_bus_nb = {
- 
- extern int swiotlb_late_init_with_default_size(size_t default_size);
- 
-+static int __init atomic_pool_init(void)
-+{
-+	pgprot_t prot = __pgprot(PROT_NORMAL_NC);
-+	unsigned long nr_pages = atomic_pool_size >> PAGE_SHIFT;
-+	struct page *page;
-+	void *addr;
-+	unsigned int pool_size_order = get_order(atomic_pool_size);
-+
-+	if (dev_get_cma_area(NULL))
-+		page = dma_alloc_from_contiguous(NULL, nr_pages,
-+							pool_size_order);
-+	else
-+		page = alloc_pages(GFP_DMA, pool_size_order);
-+
-+	if (page) {
-+		int ret;
-+		void *page_addr = page_address(page);
-+
-+		memset(page_addr, 0, atomic_pool_size);
-+		__dma_flush_range(page_addr, page_addr + atomic_pool_size);
-+
-+		atomic_pool = gen_pool_create(PAGE_SHIFT, -1);
-+		if (!atomic_pool)
-+			goto free_page;
-+
-+		addr = dma_common_contiguous_remap(page, atomic_pool_size,
-+					VM_USERMAP, prot, atomic_pool_init);
-+
-+		if (!addr)
-+			goto destroy_genpool;
-+
-+		ret = gen_pool_add_virt(atomic_pool, (unsigned long)addr,
-+					page_to_phys(page),
-+					atomic_pool_size, -1);
-+		if (ret)
-+			goto remove_mapping;
-+
-+		gen_pool_set_algo(atomic_pool,
-+				  gen_pool_first_fit_order_align,
-+				  (void *)PAGE_SHIFT);
-+
-+		pr_info("DMA: preallocated %zu KiB pool for atomic allocations\n",
-+			atomic_pool_size / 1024);
-+		return 0;
-+	}
-+	goto out;
-+
-+remove_mapping:
-+	dma_common_free_remap(addr, atomic_pool_size, VM_USERMAP);
-+destroy_genpool:
-+	gen_pool_destroy(atomic_pool);
-+	atomic_pool = NULL;
-+free_page:
-+	if (!dma_release_from_contiguous(NULL, page, nr_pages))
-+		__free_pages(page, pool_size_order);
-+out:
-+	pr_err("DMA: failed to allocate %zu KiB pool for atomic coherent allocation\n",
-+		atomic_pool_size / 1024);
-+	return -ENOMEM;
-+}
-+
- static int __init swiotlb_late_init(void)
- {
- 	size_t swiotlb_size = min(SZ_64M, MAX_ORDER_NR_PAGES << PAGE_SHIFT);
-@@ -346,7 +462,17 @@ static int __init swiotlb_late_init(void)
- 
- 	return swiotlb_late_init_with_default_size(swiotlb_size);
- }
--arch_initcall(swiotlb_late_init);
-+
-+static int __init arm64_dma_init(void)
-+{
-+	int ret = 0;
-+
-+	ret |= swiotlb_late_init();
-+	ret |= atomic_pool_init();
-+
-+	return ret;
-+}
-+arch_initcall(arm64_dma_init);
- 
- #define PREALLOC_DMA_DEBUG_ENTRIES	4096
- 
--- 
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
-hosted by The Linux Foundation
+On 2014-07-23, Hansen, Dave wrote:
+> On 07/20/2014 10:38 PM, Qiaowei Ren wrote:
+>> +#ifdef CONFIG_X86_INTEL_MPX
+>> +#define cpu_has_mpx boot_cpu_has(X86_FEATURE_MPX) #else #define
+>> +cpu_has_mpx 0 #endif /* CONFIG_X86_INTEL_MPX */
+>=20
+> Is this enough checking?  Looking at the extension reference, it says:
+>=20
+>> 9.3.3 Enabling of Intel MPX States An OS can enable Intel MPX states to
+>> support software operation using bounds registers with the following
+>> steps: * Verify the processor supports XSAVE/XRSTOR/XSETBV/XGETBV
+>> instructions and XCR0 by checking CPUID.1.ECX.XSAVE[bit 26]=3D1.
+>=20
+> That, I assume the xsave code is already doing.
+>=20
+>> * Verify the processor supports both Intel MPX states by checking
+> CPUID.(EAX=3D0x0D, ECX=3D0):EAX[4:3] is 11b.
+>=20
+> I see these bits _attempting_ to get set in pcntxt_mask via XCNTXT_MASK.
+>  But, I don't see us ever actually checking that they _do_ get set.
+> For instance, we do this for:
+>=20
+>>         if ((pcntxt_mask & XSTATE_FPSSE) !=3D XSTATE_FPSSE) {
+>>                 pr_err("FP/SSE not shown under xsave features
+> 0x%llx\n",
+>>                        pcntxt_mask);
+>>                 BUG();
+>>         }
+
+The checking about MPX feature should be as follow:
+
+        if (pcntxt_mask & XSTATE_EAGER) {
+                if (eagerfpu =3D=3D DISABLE) {
+                        pr_err("eagerfpu not present, disabling some xstate=
+ features: 0x%llx\n",
+                                        pcntxt_mask & XSTATE_EAGER);
+                        pcntxt_mask &=3D ~XSTATE_EAGER;
+                } else {
+                        eagerfpu =3D ENABLE;
+                }
+        }
+
+This patch was merged into kernel the ending of last year (https://git.kern=
+el.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=3De7d820a5e549b3=
+eb6c3f9467507566565646a669 )
+
+Thanks,
+Qiaowei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
