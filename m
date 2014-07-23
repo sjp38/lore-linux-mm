@@ -1,121 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id D497E6B0036
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 07:13:06 -0400 (EDT)
-Received: by mail-wg0-f46.google.com with SMTP id m15so1003539wgh.5
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 04:13:06 -0700 (PDT)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.13])
-        by mx.google.com with ESMTPS id eo10si4174519wib.91.2014.07.23.04.13.01
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jul 2014 04:13:02 -0700 (PDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: [PATCHv4 5/5] arm64: Add atomic pool for non-coherent and CMA allocations.
-Date: Wed, 23 Jul 2014 13:12:45 +0200
-Message-ID: <7974618.dpxEl8UzaM@wuerfel>
-In-Reply-To: <20140722210352.GA10604@arm.com>
-References: <1404324218-4743-1-git-send-email-lauraa@codeaurora.org> <201407222006.44666.arnd@arndb.de> <20140722210352.GA10604@arm.com>
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 15BE76B0036
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 07:16:20 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id bj1so1517270pad.25
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 04:16:19 -0700 (PDT)
+Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
+        by mx.google.com with ESMTP id oq8si2157273pab.231.2014.07.23.04.16.18
+        for <linux-mm@kvack.org>;
+        Wed, 23 Jul 2014 04:16:19 -0700 (PDT)
+Date: Wed, 23 Jul 2014 12:16:09 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCHv4 3/5] common: dma-mapping: Introduce common remapping
+ functions
+Message-ID: <20140723111608.GC1366@localhost>
+References: <1406079308-5232-1-git-send-email-lauraa@codeaurora.org>
+ <1406079308-5232-4-git-send-email-lauraa@codeaurora.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1406079308-5232-4-git-send-email-lauraa@codeaurora.org>
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Laura Abbott <lauraa@codeaurora.org>, Will Deacon <Will.Deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ritesh Harjain <ritesh.harjani@gmail.com>, David Riley <davidriley@chromium.org>
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: Will Deacon <Will.Deacon@arm.com>, David Riley <davidriley@chromium.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Ritesh Harjain <ritesh.harjani@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Russell King <linux@arm.linux.org.uk>, Thierry Reding <thierry.reding@gmail.com>, Arnd Bergmann <arnd@arndb.de>
 
-On Tuesday 22 July 2014 22:03:52 Catalin Marinas wrote:
-> On Tue, Jul 22, 2014 at 07:06:44PM +0100, Arnd Bergmann wrote:
-> > On Wednesday 02 July 2014, Laura Abbott wrote:
-> > > +       pgprot_t prot = __pgprot(PROT_NORMAL_NC);
-> > > +       unsigned long nr_pages = atomic_pool_size >> PAGE_SHIFT;
-> > > +       struct page *page;
-> > > +       void *addr;
-> > > +
-> > > +
-> > > +       if (dev_get_cma_area(NULL))
-> > > +               page = dma_alloc_from_contiguous(NULL, nr_pages,
-> > > +                                       get_order(atomic_pool_size));
-> > > +       else
-> > > +               page = alloc_pages(GFP_KERNEL, get_order(atomic_pool_size));
-> > > +
-> > > +
-> > > +       if (page) {
-> > > +               int ret;
-> > > +
-> > > +               atomic_pool = gen_pool_create(PAGE_SHIFT, -1);
-> > > +               if (!atomic_pool)
-> > > +                       goto free_page;
-> > > +
-> > > +               addr = dma_common_contiguous_remap(page, atomic_pool_size,
-> > > +                                       VM_USERMAP, prot, atomic_pool_init);
-> > > +
-> > 
-> > I just stumbled over this thread and noticed the code here: When you do
-> > alloc_pages() above, you actually get pages that are already mapped into
-> > the linear kernel mapping as cacheable pages. Your new
-> > dma_common_contiguous_remap tries to map them as noncacheable. This
-> > seems broken because it allows the CPU to treat both mappings as
-> > cacheable, and that won't be coherent with device DMA.
-> 
-> It does *not* allow the CPU to treat both as cacheable. It treats the
-> non-cacheable mapping as non-cacheable (and the cacheable one as
-> cacheable). The only requirements the ARM ARM makes in this situation
-> (B2.9 point 5 in the ARMv8 ARM):
-> 
-> - Before writing to a location not using the Write-Back attribute,
->   software must invalidate, or clean, a location from the caches if any
->   agent might have written to the location with the Write-Back
->   attribute. This avoids the possibility of overwriting the location
->   with stale data.
-> - After writing to a location with the Write-Back attribute, software
->   must clean the location from the caches, to make the write visible to
->   external memory.
-> - Before reading the location with a cacheable attribute, software must
->   invalidate the location from the caches, to ensure that any value held
->   in the caches reflects the last value made visible in external memory.
-> 
-> So we as long as the CPU accesses such memory only via the non-cacheable
-> mapping, the only requirement is to flush the cache so that there are no
-> dirty lines that could be evicted.
+On Wed, Jul 23, 2014 at 02:35:06AM +0100, Laura Abbott wrote:
+> +void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags)
+> +{
+> +	struct vm_struct *area = find_vm_area(cpu_addr);
+> +
+> +	if (!area || (area->flags & vm_flags) != vm_flags) {
+> +		WARN(1, "trying to free invalid coherent area: %p\n", cpu_addr);
+> +		return;
+> +	}
+> +
+> +	unmap_kernel_range((unsigned long)cpu_addr, size);
+> +	vunmap(cpu_addr);
+> +}
 
-Ok, thanks for the explanation.
+One more thing - is unmap_kernel_range() needed here? vunmap() ends up
+calling vunmap_page_range(), same as unmap_kernel_range(). I think one
+difference is that in the vunmap case, TLB flushing is done lazily.
 
-> (if the mismatched attributes were for example Normal vs Device, the
-> Device guarantees would be lost but in the cacheable vs non-cacheable
-> it's not too bad; same for ARMv7).
-
-Right, that's probabably what I misremembered.
-
-> > > +               if (!addr)
-> > > +                       goto destroy_genpool;
-> > > +
-> > > +               memset(addr, 0, atomic_pool_size);
-> > > +               __dma_flush_range(addr, addr + atomic_pool_size);
-> > 
-> > It also seems weird to flush the cache on a virtual address of
-> > an uncacheable mapping. Is that well-defined?
-> 
-> Yes. According to D5.8.1 (Data and unified caches), "if cache
-> maintenance is performed on a memory location, the effect of that cache
-> maintenance is visible to all aliases of that physical memory location.
-> These properties are consistent with implementing all caches that can
-> handle data accesses as Physically-indexed, physically-tagged (PIPT)
-> caches".
-
-interesting.
-
-> > In the CMA case, the
-> > original mapping should already be uncached here, so you don't need
-> > to flush it.
-> 
-> I don't think it is non-cacheable already, at least not for arm64 (CMA
-> can be used on coherent architectures as well).
-
-Ok, I see it now.
-
-Sorry for all the confusion on my part.
-
-	Arnd
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
