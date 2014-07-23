@@ -1,125 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 908896B0036
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 04:36:20 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id fp1so1224589pdb.13
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 01:36:20 -0700 (PDT)
-Received: from na01-by2-obe.outbound.protection.outlook.com (mail-by2lp0243.outbound.protection.outlook.com. [207.46.163.243])
-        by mx.google.com with ESMTPS id n7si856459pdl.401.2014.07.23.01.36.18
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id E6D776B0036
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 05:10:48 -0400 (EDT)
+Received: by mail-we0-f182.google.com with SMTP id k48so859757wev.13
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 02:10:46 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ee6si3572884wic.28.2014.07.23.02.10.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 23 Jul 2014 01:36:19 -0700 (PDT)
-Message-ID: <53CF73EF.5000506@amd.com>
-Date: Wed, 23 Jul 2014 11:35:59 +0300
-From: Oded Gabbay <oded.gabbay@amd.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 23 Jul 2014 02:10:45 -0700 (PDT)
+Date: Wed, 23 Jul 2014 11:10:40 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v8 05/22] Add vm_replace_mixed()
+Message-ID: <20140723091040.GC15688@quack.suse.cz>
+References: <cover.1406058387.git.matthew.r.wilcox@intel.com>
+ <b1052af08b49965fd0e6b87b6733b89294c8cc1e.1406058387.git.matthew.r.wilcox@intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 00/25] AMDKFD kernel driver
-References: <20140721155851.GB4519@gmail.com>
-	<20140721170546.GB15237@phenom.ffwll.local>	<53CD4DD2.10906@amd.com>
-	<CAKMK7uFhvGtxj_d6X=4OBdVSm6cT1-Z-DiTE-FTWMnFjY2uqMQ@mail.gmail.com>
-	<53CD5ED9.2040600@amd.com>	<20140721190306.GB5278@gmail.com>
-	<20140722072851.GH15237@phenom.ffwll.local>	<53CE1E9C.8020105@amd.com>
-	<CAKMK7uH+okhn4YGOzrXZ1LM3S2myxdu=_63LGMduwV-WZn06CA@mail.gmail.com>
-	<53CE346B.1080601@amd.com>	<20140722111515.GJ15237@phenom.ffwll.local>
-	<53CF5B30.50209@amd.com>
- <CAKMK7uFtSStEewVivbXAT1VC4t2Y+suTaEmQA4=UptK1UBLSmg@mail.gmail.com>
-In-Reply-To: <CAKMK7uFtSStEewVivbXAT1VC4t2Y+suTaEmQA4=UptK1UBLSmg@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b1052af08b49965fd0e6b87b6733b89294c8cc1e.1406058387.git.matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Vetter <daniel.vetter@ffwll.ch>
-Cc: Jerome Glisse <j.glisse@gmail.com>, =?UTF-8?B?Q2hyaXN0aWFuIEvDtm5pZw==?= <deathsimple@vodafone.de>, David Airlie <airlied@linux.ie>, Alex Deucher <alexdeucher@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, John
- Bridgman <John.Bridgman@amd.com>, Joerg Roedel <joro@8bytes.org>, Andrew
- Lewycky <Andrew.Lewycky@amd.com>, =?UTF-8?B?TWljaGVsIETDpG56ZXI=?= <michel.daenzer@amd.com>, Ben Goz <Ben.Goz@amd.com>, Alexey Skidanov <Alexey.Skidanov@amd.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-mm <linux-mm@kvack.org>, "Sellek,
- Tom" <Tom.Sellek@amd.com>
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>
 
-On 23/07/14 10:05, Daniel Vetter wrote:
-> On Wed, Jul 23, 2014 at 8:50 AM, Oded Gabbay <oded.gabbay@amd.com> wrote:
->> On 22/07/14 14:15, Daniel Vetter wrote:
->>>
->>> On Tue, Jul 22, 2014 at 12:52:43PM +0300, Oded Gabbay wrote:
->>>>
->>>> On 22/07/14 12:21, Daniel Vetter wrote:
->>>>>
->>>>> On Tue, Jul 22, 2014 at 10:19 AM, Oded Gabbay <oded.gabbay@amd.com>
->>>>> wrote:
->>>>>>>
->>>>>>> Exactly, just prevent userspace from submitting more. And if you have
->>>>>>> misbehaving userspace that submits too much, reset the gpu and tell it
->>>>>>> that you're sorry but won't schedule any more work.
->>>>>>
->>>>>>
->>>>>> I'm not sure how you intend to know if a userspace misbehaves or not.
->>>>>> Can
->>>>>> you elaborate ?
->>>>>
->>>>>
->>>>> Well that's mostly policy, currently in i915 we only have a check for
->>>>> hangs, and if userspace hangs a bit too often then we stop it. I guess
->>>>> you can do that with the queue unmapping you've describe in reply to
->>>>> Jerome's mail.
->>>>> -Daniel
->>>>>
->>>> What do you mean by hang ? Like the tdr mechanism in Windows (checks if a
->>>> gpu job takes more than 2 seconds, I think, and if so, terminates the
->>>> job).
->>>
->>>
->>> Essentially yes. But we also have some hw features to kill jobs quicker,
->>> e.g. for media workloads.
->>> -Daniel
->>>
->>
->> Yeah, so this is what I'm talking about when I say that you and Jerome come
->> from a graphics POV and amdkfd come from a compute POV, no offense intended.
->>
->> For compute jobs, we simply can't use this logic to terminate jobs. Graphics
->> are mostly Real-Time while compute jobs can take from a few ms to a few
->> hours!!! And I'm not talking about an entire application runtime but on a
->> single submission of jobs by the userspace app. We have tests with jobs that
->> take between 20-30 minutes to complete. In theory, we can even imagine a
->> compute job which takes 1 or 2 days (on larger APUs).
->>
->> Now, I understand the question of how do we prevent the compute job from
->> monopolizing the GPU, and internally here we have some ideas that we will
->> probably share in the next few days, but my point is that I don't think we
->> can terminate a compute job because it is running for more than x seconds.
->> It is like you would terminate a CPU process which runs more than x seconds.
->>
->> I think this is a *very* important discussion (detecting a misbehaved
->> compute process) and I would like to continue it, but I don't think moving
->> the job submission from userspace control to kernel control will solve this
->> core problem.
->
-> Well graphics gets away with cooperative scheduling since usually
-> people want to see stuff within a few frames, so we can legitimately
-> kill jobs after a fairly short timeout. Imo if you want to allow
-> userspace to submit compute jobs that are atomic and take a few
-> minutes to hours with no break-up in between and no hw means to
-> preempt then that design is screwed up. We really can't tell the core
-> vm that "sorry we will hold onto these gobloads of memory you really
-> need now for another few hours". Pinning memory like that essentially
-> without a time limit is restricted to root.
-> -Daniel
->
+On Tue 22-07-14 15:47:53, Matthew Wilcox wrote:
+> From: Matthew Wilcox <willy@linux.intel.com>
+> 
+> vm_insert_mixed() will fail if there is already a valid PTE at that
+> location.  The DAX code would rather replace the previous value with
+> the new PTE.
+> 
+> Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+  This looks good to me although I'm not an expert in this area. So just:
+Acked-by: Jan Kara <jack@suse.cz>
 
-First of all, I don't see the relation to memory pinning here. I already said on 
-this thread that amdkfd does NOT pin local memory. The only memory we allocate 
-is system memory, and we map it to the gart, and we can limit that memory by 
-limiting max # of queues and max # of process through kernel parameters. Most of 
-the memory used is allocated via regular means by the userspace, which is 
-usually pageable.
+								Honza
 
-Second, it is important to remember that this problem only exists in KV. In CZ, 
-the GPU can context switch between waves (by doing mid-wave preemption). So even 
-long running waves are getting switched on and off constantly and there is no 
-monopolizing of GPU resources.
-
-Third, even in KV, we can kill waves. The question is when and how to recognize 
-it. I think it would be sufficient for now if we expose this ability to the kernel.
-
-	Oded
+> ---
+>  include/linux/mm.h |  8 ++++++--
+>  mm/memory.c        | 34 +++++++++++++++++++++-------------
+>  2 files changed, 27 insertions(+), 15 deletions(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index e04f531..8d1194c 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1958,8 +1958,12 @@ int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
+>  int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
+>  int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+>  			unsigned long pfn);
+> -int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+> -			unsigned long pfn);
+> +int __vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+> +			unsigned long pfn, bool replace);
+> +#define vm_insert_mixed(vma, addr, pfn)	\
+> +	__vm_insert_mixed(vma, addr, pfn, false)
+> +#define vm_replace_mixed(vma, addr, pfn)	\
+> +	__vm_insert_mixed(vma, addr, pfn, true)
+>  int vm_iomap_memory(struct vm_area_struct *vma, phys_addr_t start, unsigned long len);
+>  
+>  
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 42bf429..cf06c97 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1476,7 +1476,7 @@ pte_t *__get_locked_pte(struct mm_struct *mm, unsigned long addr,
+>   * pages reserved for the old functions anyway.
+>   */
+>  static int insert_page(struct vm_area_struct *vma, unsigned long addr,
+> -			struct page *page, pgprot_t prot)
+> +			struct page *page, pgprot_t prot, bool replace)
+>  {
+>  	struct mm_struct *mm = vma->vm_mm;
+>  	int retval;
+> @@ -1492,8 +1492,12 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
+>  	if (!pte)
+>  		goto out;
+>  	retval = -EBUSY;
+> -	if (!pte_none(*pte))
+> -		goto out_unlock;
+> +	if (!pte_none(*pte)) {
+> +		if (!replace)
+> +			goto out_unlock;
+> +		VM_BUG_ON(!mutex_is_locked(&vma->vm_file->f_mapping->i_mmap_mutex));
+> +		zap_page_range_single(vma, addr, PAGE_SIZE, NULL);
+> +	}
+>  
+>  	/* Ok, finally just insert the thing.. */
+>  	get_page(page);
+> @@ -1549,12 +1553,12 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
+>  		BUG_ON(vma->vm_flags & VM_PFNMAP);
+>  		vma->vm_flags |= VM_MIXEDMAP;
+>  	}
+> -	return insert_page(vma, addr, page, vma->vm_page_prot);
+> +	return insert_page(vma, addr, page, vma->vm_page_prot, false);
+>  }
+>  EXPORT_SYMBOL(vm_insert_page);
+>  
+>  static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+> -			unsigned long pfn, pgprot_t prot)
+> +			unsigned long pfn, pgprot_t prot, bool replace)
+>  {
+>  	struct mm_struct *mm = vma->vm_mm;
+>  	int retval;
+> @@ -1566,8 +1570,12 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+>  	if (!pte)
+>  		goto out;
+>  	retval = -EBUSY;
+> -	if (!pte_none(*pte))
+> -		goto out_unlock;
+> +	if (!pte_none(*pte)) {
+> +		if (!replace)
+> +			goto out_unlock;
+> +		VM_BUG_ON(!mutex_is_locked(&vma->vm_file->f_mapping->i_mmap_mutex));
+> +		zap_page_range_single(vma, addr, PAGE_SIZE, NULL);
+> +	}
+>  
+>  	/* Ok, finally just insert the thing.. */
+>  	entry = pte_mkspecial(pfn_pte(pfn, prot));
+> @@ -1620,14 +1628,14 @@ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+>  	if (track_pfn_insert(vma, &pgprot, pfn))
+>  		return -EINVAL;
+>  
+> -	ret = insert_pfn(vma, addr, pfn, pgprot);
+> +	ret = insert_pfn(vma, addr, pfn, pgprot, false);
+>  
+>  	return ret;
+>  }
+>  EXPORT_SYMBOL(vm_insert_pfn);
+>  
+> -int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+> -			unsigned long pfn)
+> +int __vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+> +			unsigned long pfn, bool replace)
+>  {
+>  	BUG_ON(!(vma->vm_flags & VM_MIXEDMAP));
+>  
+> @@ -1645,11 +1653,11 @@ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+>  		struct page *page;
+>  
+>  		page = pfn_to_page(pfn);
+> -		return insert_page(vma, addr, page, vma->vm_page_prot);
+> +		return insert_page(vma, addr, page, vma->vm_page_prot, replace);
+>  	}
+> -	return insert_pfn(vma, addr, pfn, vma->vm_page_prot);
+> +	return insert_pfn(vma, addr, pfn, vma->vm_page_prot, replace);
+>  }
+> -EXPORT_SYMBOL(vm_insert_mixed);
+> +EXPORT_SYMBOL(__vm_insert_mixed);
+>  
+>  /*
+>   * maps a range of physical memory into the requested pages. the old
+> -- 
+> 2.0.0
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
