@@ -1,41 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
-	by kanga.kvack.org (Postfix) with ESMTP id CA70C6B0036
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 08:30:35 -0400 (EDT)
-Received: by mail-we0-f182.google.com with SMTP id k48so1110179wev.41
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 05:30:35 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.201])
-        by mx.google.com with ESMTP id xt4si4510077wjb.171.2014.07.23.05.30.33
-        for <linux-mm@kvack.org>;
-        Wed, 23 Jul 2014 05:30:34 -0700 (PDT)
-Date: Wed, 23 Jul 2014 15:30:28 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v8 00/22] Support ext4 on NV-DIMMs
-Message-ID: <20140723123028.GA11355@node.dhcp.inet.fi>
-References: <cover.1406058387.git.matthew.r.wilcox@intel.com>
+Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
+	by kanga.kvack.org (Postfix) with ESMTP id CA6816B0036
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 08:58:24 -0400 (EDT)
+Received: by mail-we0-f175.google.com with SMTP id t60so1160926wes.34
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 05:58:24 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v16si4796290wie.33.2014.07.23.05.58.22
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 23 Jul 2014 05:58:23 -0700 (PDT)
+Date: Wed, 23 Jul 2014 13:58:18 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/2] mm: Avoid full RCU lookup of memcg for statistics
+ updates
+Message-ID: <20140723125818.GT10819@suse.de>
+References: <1406114656-16350-1-git-send-email-mgorman@suse.de>
+ <1406114656-16350-2-git-send-email-mgorman@suse.de>
+ <20140723114449.GE1725@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <cover.1406058387.git.matthew.r.wilcox@intel.com>
+In-Reply-To: <20140723114449.GE1725@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, willy@linux.intel.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Tue, Jul 22, 2014 at 03:47:48PM -0400, Matthew Wilcox wrote:
-> One of the primary uses for NV-DIMMs is to expose them as a block device
-> and use a filesystem to store files on the NV-DIMM.  While that works,
-> it currently wastes memory and CPU time buffering the files in the page
-> cache.  We have support in ext2 for bypassing the page cache, but it
-> has some races which are unfixable in the current design.  This series
-> of patches rewrite the underlying support, and add support for direct
-> access to ext4.
+On Wed, Jul 23, 2014 at 07:44:49AM -0400, Johannes Weiner wrote:
+> On Wed, Jul 23, 2014 at 12:24:15PM +0100, Mel Gorman wrote:
+> > When updating memcg VM statistics like PGFAULT we take the rcu read
+> > lock and lookup the memcg. For statistic updates this is overkill
+> > when the process may not belong to a memcg. This patch adds a light
+> > check to check if a memcg potentially exists. It's race-prone in that
+> > some VM stats may be missed when a process first joins a memcg but
+> > that is not serious enough to justify a constant performance penalty.
+> 
+> Tasks always belong to a memcg, the root group per default.  There
+> isn't really any accounting that could be omitted.
+> 
 
-Matthew, as discussed before, your patchset make exessive use of
-i_mmap_mutex. Are you going to address this later? Or what's the plan?
+Crap, ok, I had not taken that into account. The lookup of that cannot
+really be avoided. It's a pity because the stats on the root memcg are
+not likely to be that interesting. Thanks for reviewing.
 
 -- 
- Kirill A. Shutemov
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
