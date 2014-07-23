@@ -1,167 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
-	by kanga.kvack.org (Postfix) with ESMTP id E6D776B0036
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 05:10:48 -0400 (EDT)
-Received: by mail-we0-f182.google.com with SMTP id k48so859757wev.13
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 02:10:46 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ee6si3572884wic.28.2014.07.23.02.10.44
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CC4A6B0037
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 05:11:55 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id lj1so1339576pab.5
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 02:11:54 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id cb9si1869885pad.6.2014.07.23.02.11.53
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 23 Jul 2014 02:10:45 -0700 (PDT)
-Date: Wed, 23 Jul 2014 11:10:40 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v8 05/22] Add vm_replace_mixed()
-Message-ID: <20140723091040.GC15688@quack.suse.cz>
-References: <cover.1406058387.git.matthew.r.wilcox@intel.com>
- <b1052af08b49965fd0e6b87b6733b89294c8cc1e.1406058387.git.matthew.r.wilcox@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b1052af08b49965fd0e6b87b6733b89294c8cc1e.1406058387.git.matthew.r.wilcox@intel.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Jul 2014 02:11:53 -0700 (PDT)
+From: Chintan Pandya <cpandya@codeaurora.org>
+Subject: [PATCH] ksm: Provide support to use deferred timers for scanner thread
+Date: Wed, 23 Jul 2014 14:41:32 +0530
+Message-Id: <1406106692-28590-1-git-send-email-cpandya@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>
+To: akpm@linux-foundation.org, hughd@google.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, lauraa@codeaurora.org, Chintan Pandya <cpandya@codeaurora.org>
 
-On Tue 22-07-14 15:47:53, Matthew Wilcox wrote:
-> From: Matthew Wilcox <willy@linux.intel.com>
-> 
-> vm_insert_mixed() will fail if there is already a valid PTE at that
-> location.  The DAX code would rather replace the previous value with
-> the new PTE.
-> 
-> Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
-  This looks good to me although I'm not an expert in this area. So just:
-Acked-by: Jan Kara <jack@suse.cz>
+KSM thread to scan pages is getting schedule on definite timeout.
+That wakes up CPU from idle state and hence may affect the power
+consumption. Provide an optional support to use deferred timer
+which suites low-power use-cases.
 
-								Honza
+To enable deferred timers,
+$ echo 1 > /sys/kernel/mm/ksm/deferred_timer
 
-> ---
->  include/linux/mm.h |  8 ++++++--
->  mm/memory.c        | 34 +++++++++++++++++++++-------------
->  2 files changed, 27 insertions(+), 15 deletions(-)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index e04f531..8d1194c 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1958,8 +1958,12 @@ int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
->  int vm_insert_page(struct vm_area_struct *, unsigned long addr, struct page *);
->  int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
->  			unsigned long pfn);
-> -int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
-> -			unsigned long pfn);
-> +int __vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
-> +			unsigned long pfn, bool replace);
-> +#define vm_insert_mixed(vma, addr, pfn)	\
-> +	__vm_insert_mixed(vma, addr, pfn, false)
-> +#define vm_replace_mixed(vma, addr, pfn)	\
-> +	__vm_insert_mixed(vma, addr, pfn, true)
->  int vm_iomap_memory(struct vm_area_struct *vma, phys_addr_t start, unsigned long len);
->  
->  
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 42bf429..cf06c97 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1476,7 +1476,7 @@ pte_t *__get_locked_pte(struct mm_struct *mm, unsigned long addr,
->   * pages reserved for the old functions anyway.
->   */
->  static int insert_page(struct vm_area_struct *vma, unsigned long addr,
-> -			struct page *page, pgprot_t prot)
-> +			struct page *page, pgprot_t prot, bool replace)
->  {
->  	struct mm_struct *mm = vma->vm_mm;
->  	int retval;
-> @@ -1492,8 +1492,12 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
->  	if (!pte)
->  		goto out;
->  	retval = -EBUSY;
-> -	if (!pte_none(*pte))
-> -		goto out_unlock;
-> +	if (!pte_none(*pte)) {
-> +		if (!replace)
-> +			goto out_unlock;
-> +		VM_BUG_ON(!mutex_is_locked(&vma->vm_file->f_mapping->i_mmap_mutex));
-> +		zap_page_range_single(vma, addr, PAGE_SIZE, NULL);
-> +	}
->  
->  	/* Ok, finally just insert the thing.. */
->  	get_page(page);
-> @@ -1549,12 +1553,12 @@ int vm_insert_page(struct vm_area_struct *vma, unsigned long addr,
->  		BUG_ON(vma->vm_flags & VM_PFNMAP);
->  		vma->vm_flags |= VM_MIXEDMAP;
->  	}
-> -	return insert_page(vma, addr, page, vma->vm_page_prot);
-> +	return insert_page(vma, addr, page, vma->vm_page_prot, false);
->  }
->  EXPORT_SYMBOL(vm_insert_page);
->  
->  static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
-> -			unsigned long pfn, pgprot_t prot)
-> +			unsigned long pfn, pgprot_t prot, bool replace)
->  {
->  	struct mm_struct *mm = vma->vm_mm;
->  	int retval;
-> @@ -1566,8 +1570,12 @@ static int insert_pfn(struct vm_area_struct *vma, unsigned long addr,
->  	if (!pte)
->  		goto out;
->  	retval = -EBUSY;
-> -	if (!pte_none(*pte))
-> -		goto out_unlock;
-> +	if (!pte_none(*pte)) {
-> +		if (!replace)
-> +			goto out_unlock;
-> +		VM_BUG_ON(!mutex_is_locked(&vma->vm_file->f_mapping->i_mmap_mutex));
-> +		zap_page_range_single(vma, addr, PAGE_SIZE, NULL);
-> +	}
->  
->  	/* Ok, finally just insert the thing.. */
->  	entry = pte_mkspecial(pfn_pte(pfn, prot));
-> @@ -1620,14 +1628,14 @@ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
->  	if (track_pfn_insert(vma, &pgprot, pfn))
->  		return -EINVAL;
->  
-> -	ret = insert_pfn(vma, addr, pfn, pgprot);
-> +	ret = insert_pfn(vma, addr, pfn, pgprot, false);
->  
->  	return ret;
->  }
->  EXPORT_SYMBOL(vm_insert_pfn);
->  
-> -int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
-> -			unsigned long pfn)
-> +int __vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
-> +			unsigned long pfn, bool replace)
->  {
->  	BUG_ON(!(vma->vm_flags & VM_MIXEDMAP));
->  
-> @@ -1645,11 +1653,11 @@ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
->  		struct page *page;
->  
->  		page = pfn_to_page(pfn);
-> -		return insert_page(vma, addr, page, vma->vm_page_prot);
-> +		return insert_page(vma, addr, page, vma->vm_page_prot, replace);
->  	}
-> -	return insert_pfn(vma, addr, pfn, vma->vm_page_prot);
-> +	return insert_pfn(vma, addr, pfn, vma->vm_page_prot, replace);
->  }
-> -EXPORT_SYMBOL(vm_insert_mixed);
-> +EXPORT_SYMBOL(__vm_insert_mixed);
->  
->  /*
->   * maps a range of physical memory into the requested pages. the old
-> -- 
-> 2.0.0
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Signed-off-by: Chintan Pandya <cpandya@codeaurora.org>
+---
+ Documentation/vm/ksm.txt |  7 ++++++
+ mm/ksm.c                 | 65 +++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 71 insertions(+), 1 deletion(-)
+
+diff --git a/Documentation/vm/ksm.txt b/Documentation/vm/ksm.txt
+index f34a8ee..f40b965 100644
+--- a/Documentation/vm/ksm.txt
++++ b/Documentation/vm/ksm.txt
+@@ -87,6 +87,13 @@ pages_sharing    - how many more sites are sharing them i.e. how much saved
+ pages_unshared   - how many pages unique but repeatedly checked for merging
+ pages_volatile   - how many pages changing too fast to be placed in a tree
+ full_scans       - how many times all mergeable areas have been scanned
++deferred_timer   - whether to use deferred timers or not
++                 e.g. "echo 1 > /sys/kernel/mm/ksm/deferred_timer"
++                 Default: 0 (means, we are not using deferred timers. Users
++		 might want to set deferred_timer option if they donot want
++		 ksm thread to wakeup CPU to carryout ksm activities thus
++		 gaining on battery while compromising slightly on memory
++		 that could have been saved.)
+ 
+ A high ratio of pages_sharing to pages_shared indicates good sharing, but
+ a high ratio of pages_unshared to pages_sharing indicates wasted effort.
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 346ddc9..e26ec3b 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -223,6 +223,9 @@ static unsigned int ksm_thread_pages_to_scan = 100;
+ /* Milliseconds ksmd should sleep between batches */
+ static unsigned int ksm_thread_sleep_millisecs = 20;
+ 
++/* Boolean to indicate whether to use deferred timer or not */
++static bool use_deferred_timer;
++
+ #ifdef CONFIG_NUMA
+ /* Zeroed when merging across nodes is not allowed */
+ static unsigned int ksm_merge_across_nodes = 1;
+@@ -1705,6 +1708,41 @@ static void ksm_do_scan(unsigned int scan_npages)
+ 	}
+ }
+ 
++static void process_timeout(unsigned long __data)
++{
++	wake_up_process((struct task_struct *)__data);
++}
++
++static signed long __sched deferred_schedule_timeout(signed long timeout)
++{
++	struct timer_list timer;
++	unsigned long expire;
++
++	__set_current_state(TASK_INTERRUPTIBLE);
++	if (timeout < 0) {
++		pr_err("schedule_timeout: wrong timeout value %lx\n",
++							timeout);
++		__set_current_state(TASK_RUNNING);
++		goto out;
++	}
++
++	expire = timeout + jiffies;
++
++	setup_deferrable_timer_on_stack(&timer, process_timeout,
++			(unsigned long)current);
++	mod_timer(&timer, expire);
++	schedule();
++	del_singleshot_timer_sync(&timer);
++
++	/* Remove the timer from the object tracker */
++	destroy_timer_on_stack(&timer);
++
++	timeout = expire - jiffies;
++
++out:
++	return timeout < 0 ? 0 : timeout;
++}
++
+ static int ksmd_should_run(void)
+ {
+ 	return (ksm_run & KSM_RUN_MERGE) && !list_empty(&ksm_mm_head.mm_list);
+@@ -1725,7 +1763,11 @@ static int ksm_scan_thread(void *nothing)
+ 		try_to_freeze();
+ 
+ 		if (ksmd_should_run()) {
+-			schedule_timeout_interruptible(
++			if (use_deferred_timer)
++				deferred_schedule_timeout(
++				msecs_to_jiffies(ksm_thread_sleep_millisecs));
++			else
++				schedule_timeout_interruptible(
+ 				msecs_to_jiffies(ksm_thread_sleep_millisecs));
+ 		} else {
+ 			wait_event_freezable(ksm_thread_wait,
+@@ -2181,6 +2223,26 @@ static ssize_t run_store(struct kobject *kobj, struct kobj_attribute *attr,
+ }
+ KSM_ATTR(run);
+ 
++static ssize_t deferred_timer_show(struct kobject *kobj,
++				    struct kobj_attribute *attr, char *buf)
++{
++	return snprintf(buf, 8, "%d\n", use_deferred_timer);
++}
++
++static ssize_t deferred_timer_store(struct kobject *kobj,
++				     struct kobj_attribute *attr,
++				     const char *buf, size_t count)
++{
++	unsigned long enable;
++	int err;
++
++	err = kstrtoul(buf, 10, &enable);
++	use_deferred_timer = enable;
++
++	return count;
++}
++KSM_ATTR(deferred_timer);
++
+ #ifdef CONFIG_NUMA
+ static ssize_t merge_across_nodes_show(struct kobject *kobj,
+ 				struct kobj_attribute *attr, char *buf)
+@@ -2293,6 +2355,7 @@ static struct attribute *ksm_attrs[] = {
+ 	&pages_unshared_attr.attr,
+ 	&pages_volatile_attr.attr,
+ 	&full_scans_attr.attr,
++	&deferred_timer_attr.attr,
+ #ifdef CONFIG_NUMA
+ 	&merge_across_nodes_attr.attr,
+ #endif
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+1.8.2.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
