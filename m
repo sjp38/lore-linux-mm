@@ -1,42 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 964A16B0036
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 07:23:55 -0400 (EDT)
-Received: by mail-we0-f176.google.com with SMTP id q58so996204wes.7
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 04:23:54 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.201])
-        by mx.google.com with ESMTP id be4si4152902wjc.162.2014.07.23.04.23.49
-        for <linux-mm@kvack.org>;
-        Wed, 23 Jul 2014 04:23:50 -0700 (PDT)
-Date: Wed, 23 Jul 2014 14:23:47 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v8 02/22] Allow page fault handlers to perform the COW
-Message-ID: <20140723112347.GB10317@node.dhcp.inet.fi>
-References: <cover.1406058387.git.matthew.r.wilcox@intel.com>
- <b765e16e66c9422c896294a11fe624ecb7e44384.1406058387.git.matthew.r.wilcox@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b765e16e66c9422c896294a11fe624ecb7e44384.1406058387.git.matthew.r.wilcox@intel.com>
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id C64FC6B0037
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 07:24:20 -0400 (EDT)
+Received: by mail-wi0-f172.google.com with SMTP id n3so7597159wiv.17
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 04:24:20 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gv8si4397192wib.98.2014.07.23.04.24.18
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 23 Jul 2014 04:24:18 -0700 (PDT)
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH 0/2] Avoid unnecessary overhead in fault paths due to memcg and rss stats
+Date: Wed, 23 Jul 2014 12:24:14 +0100
+Message-Id: <1406114656-16350-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, willy@linux.intel.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Tue, Jul 22, 2014 at 03:47:50PM -0400, Matthew Wilcox wrote:
-> Currently COW of an XIP file is done by first bringing in a read-only
-> mapping, then retrying the fault and copying the page.  It is much more
-> efficient to tell the fault handler that a COW is being attempted (by
-> passing in the pre-allocated page in the vm_fault structure), and allow
-> the handler to perform the COW operation itself.
-> 
-> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-> Reviewed-by: Jan Kara <jack@suse.cz>
+While looking for something else entirely I spotted two small issues in the
+page fault fast path. Enabling memcg takes the RCU read lock unnecessarily
+even when the task is not part of a memcg and we fiddle with RSS stats
+more than necessary. Details in the patches.
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+ include/linux/memcontrol.h |  8 ++++++++
+ include/linux/mm_types.h   |  1 -
+ mm/memory.c                | 32 +++++++++++++-------------------
+ 3 files changed, 21 insertions(+), 20 deletions(-)
 
 -- 
- Kirill A. Shutemov
+1.8.4.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
