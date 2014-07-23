@@ -1,79 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id A3AD66B0038
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 10:08:57 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id et14so1797047pad.7
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 07:08:57 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ds16si1352384pdb.90.2014.07.23.07.08.56
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jul 2014 07:08:56 -0700 (PDT)
-Date: Wed, 23 Jul 2014 18:08:37 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH RFC 0/5] Virtual Memory Resource Controller for cgroups
-Message-ID: <20140723140837.GE30850@esperanza>
-References: <cover.1404383187.git.vdavydov@parallels.com>
- <20140704121621.GE12466@dhcp22.suse.cz>
- <20140704153853.GA369@esperanza>
- <20140716120146.GI7121@dhcp22.suse.cz>
+Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
+	by kanga.kvack.org (Postfix) with ESMTP id A6E906B003A
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 10:21:41 -0400 (EDT)
+Received: by mail-we0-f175.google.com with SMTP id t60so1288931wes.34
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 07:21:41 -0700 (PDT)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.202])
+        by mx.google.com with ESMTP id p7si5253473wic.43.2014.07.23.07.21.06
+        for <linux-mm@kvack.org>;
+        Wed, 23 Jul 2014 07:21:07 -0700 (PDT)
+Date: Wed, 23 Jul 2014 17:20:48 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v8 05/22] Add vm_replace_mixed()
+Message-ID: <20140723142048.GA11963@node.dhcp.inet.fi>
+References: <cover.1406058387.git.matthew.r.wilcox@intel.com>
+ <b1052af08b49965fd0e6b87b6733b89294c8cc1e.1406058387.git.matthew.r.wilcox@intel.com>
+ <20140723114540.GD10317@node.dhcp.inet.fi>
+ <20140723135221.GA6754@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140716120146.GI7121@dhcp22.suse.cz>
+In-Reply-To: <20140723135221.GA6754@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, Pavel Emelyanov <xemul@parallels.com>, Balbir Singh <bsingharora@gmail.com>
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jul 16, 2014 at 02:01:47PM +0200, Michal Hocko wrote:
-> On Fri 04-07-14 19:38:53, Vladimir Davydov wrote:
-> > Considering the example I've given above, both of these won't help if
-> > the system has other active CTs: the container will be forcefully kept
-> > around its high/low limit and, since it's definitely not enough for it,
-> > it will be finally killed crossing out the computations it's spent so
-> > much time on. High limit won't be good for the container even if there's
-> > no other load on the node - it will be constantly swapping out anon
-> > memory and evicting file caches. The application won't die quickly then,
-> > but it will get a heavy slowdown, which is no better than killing I
-> > guess.
+On Wed, Jul 23, 2014 at 09:52:22AM -0400, Matthew Wilcox wrote:
+> On Wed, Jul 23, 2014 at 02:45:40PM +0300, Kirill A. Shutemov wrote:
+> > On Tue, Jul 22, 2014 at 03:47:53PM -0400, Matthew Wilcox wrote:
+> > > From: Matthew Wilcox <willy@linux.intel.com>
+> > > 
+> > > vm_insert_mixed() will fail if there is already a valid PTE at that
+> > > location.  The DAX code would rather replace the previous value with
+> > > the new PTE.
 > 
-> It will get vmpressure notifications though and can help to release
-> excessive buffers which were allocated optimistically.
-
-But the user will only get the notification *after* his application has
-touched the memory within the limit, which may take quite a long time.
-
-> > Also, I guess it'd be beneficial to have
+> > > @@ -1492,8 +1492,12 @@ static int insert_page(struct vm_area_struct *vma, unsigned long addr,
+> > >  	if (!pte)
+> > >  		goto out;
+> > >  	retval = -EBUSY;
+> > > -	if (!pte_none(*pte))
+> > > -		goto out_unlock;
+> > > +	if (!pte_none(*pte)) {
+> > > +		if (!replace)
+> > > +			goto out_unlock;
+> > > +		VM_BUG_ON(!mutex_is_locked(&vma->vm_file->f_mapping->i_mmap_mutex));
+> > > +		zap_page_range_single(vma, addr, PAGE_SIZE, NULL);
 > > 
-> >  - mlocked pages accounting per cgroup, because they affect memory
-> >    reclaim, and how low/high limits work, so it'd be nice to have them
-> >    limited to a sane value;
-> > 
-> >  - shmem areas accounting per cgroup, because the total amount of shmem
-> >    on the system is limited, and it'll be no good if malicious
-> >    containers eat it all.
-> > 
-> > IMO It wouldn't be a good idea to overwhelm memcg with those limits, the
-> > VM controller suits much better.
+> > zap_page_range_single() takes ptl by itself in zap_pte_range(). It's not
+> > going to work.
 > 
-> yeah, I do not think adding more to memcg is a good idea. I am still not
-> sure whether working around bad design decisions in applications is a
-> good rationale for a new controller.
+> I have a test program that exercises this path ... it seems to work!
+> Following the code, I don't understand why it does.  Maybe it's not
+> exercising this path after all?  I've attached the program (so that I
+> have an "oh, duh" moment about 5 seconds after sending the email).
 
-Where do you see "bad design decision" in the example I've given above?
-To recap, the user doesn't know how much memory his application is going
-to consume and he wants to be notified about a potential failure as soon
-as possible instead of waiting until it touches all the memory within
-the container limit.
+See below.
 
-Also, what's wrong if an application wants to eat a lot of shared
-memory, which is a limited resource? Suppose the user sets memsw.limit
-for his container to half of RAM hoping it's isolated and won't cause
-any troubles, but eventually he finds other workloads failing on the
-host due to the processes inside it has eaten all available shmem.
+> 
+> > And zap_page_range*() is pretty heavy weapon to shoot down one pte, which
+> > we already have pointer to. Why?
+> 
+> I'd love to use a lighter-weight weapon!  What would you recommend using,
+> zap_pte_range()?
 
-Thanks.
+The most straight-forward way: extract body of pte cycle from
+zap_pte_range() to separate function -- zap_pte() -- and use it.
+
+> #include <stdio.h>
+> #include <stdlib.h>
+> #include <string.h>
+> #include <sys/types.h>
+> #include <sys/mman.h>
+> #include <fcntl.h>
+> #include <unistd.h>
+> #include <errno.h>
+> 
+> int
+> main(int argc, char *argv[])
+> {
+> 	int fd;
+> 	void *addr;
+> 	char buf[4096];
+> 
+> 	if (argc != 2) {
+> 		fprintf(stderr, "usage: %s filename\n", argv[0]);
+> 		exit(1);
+> 	}
+> 
+> 	if ((fd = open(argv[1], O_CREAT|O_RDWR, 0666)) < 0) {
+> 		perror(argv[1]);
+> 		exit(1);
+> 	}
+> 
+> 	if (ftruncate(fd, 4096) < 0) {
+
+Shouldn't this be ftruncate(fd, 0)? Otherwise the memcpy() below will
+fault in page from backing storage, not hole and write will not replace
+anything.
+
+> 		perror("ftruncate");
+> 		exit(1);
+> 	}
+> 
+> 	if ((addr = mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_SHARED,
+> 					fd, 0)) == MAP_FAILED) {
+> 		perror("mmap");
+> 		exit(1);
+> 	}
+> 
+> 	close(fd);
+> 
+> 	/* first read */
+> 	memcpy(buf, addr, 4096);
+> 
+> 	/* now write a bit */
+> 	memcpy(addr, buf, 8);
+> 
+> 	printf("%s: test passed.\n", argv[0]);
+> 	exit(0);
+> }
+
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
