@@ -1,38 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D8816B0036
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 07:25:13 -0400 (EDT)
-Received: by mail-we0-f174.google.com with SMTP id x48so1021517wes.19
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 04:25:12 -0700 (PDT)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.201])
-        by mx.google.com with ESMTP id a1si4311019wje.8.2014.07.23.04.24.53
-        for <linux-mm@kvack.org>;
-        Wed, 23 Jul 2014 04:24:53 -0700 (PDT)
-Date: Wed, 23 Jul 2014 14:24:46 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v8 03/22] axonram: Fix bug in direct_access
-Message-ID: <20140723112446.GC10317@node.dhcp.inet.fi>
-References: <cover.1406058387.git.matthew.r.wilcox@intel.com>
- <eee43fe81080cb2b6eba77f84e2b48ea6bc07573.1406058387.git.matthew.r.wilcox@intel.com>
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id A955D6B0036
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 07:44:57 -0400 (EDT)
+Received: by mail-wi0-f179.google.com with SMTP id f8so2059775wiw.0
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 04:44:57 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id op3si4417574wjc.12.2014.07.23.04.44.55
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 23 Jul 2014 04:44:56 -0700 (PDT)
+Date: Wed, 23 Jul 2014 07:44:49 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/2] mm: Avoid full RCU lookup of memcg for statistics
+ updates
+Message-ID: <20140723114449.GE1725@cmpxchg.org>
+References: <1406114656-16350-1-git-send-email-mgorman@suse.de>
+ <1406114656-16350-2-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <eee43fe81080cb2b6eba77f84e2b48ea6bc07573.1406058387.git.matthew.r.wilcox@intel.com>
+In-Reply-To: <1406114656-16350-2-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, willy@linux.intel.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Tue, Jul 22, 2014 at 03:47:51PM -0400, Matthew Wilcox wrote:
-> The 'pfn' returned by axonram was completely bogus, and has been since
-> 2008.
+On Wed, Jul 23, 2014 at 12:24:15PM +0100, Mel Gorman wrote:
+> When updating memcg VM statistics like PGFAULT we take the rcu read
+> lock and lookup the memcg. For statistic updates this is overkill
+> when the process may not belong to a memcg. This patch adds a light
+> check to check if a memcg potentially exists. It's race-prone in that
+> some VM stats may be missed when a process first joins a memcg but
+> that is not serious enough to justify a constant performance penalty.
+
+Tasks always belong to a memcg, the root group per default.  There
+isn't really any accounting that could be omitted.
+
+> The exact impact of this is difficult to quantify because it's timing
+> sensitive, workload sensitive and sensitive to the RCU options set. However,
+> broadly speaking there should be less interference due to page fault
+> activity in both the number of RCU grace periods and their age.
 > 
-> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-> Reviewed-by: Jan Kara <jack@suse.cz>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> ---
+>  include/linux/memcontrol.h | 8 ++++++++
+>  1 file changed, 8 insertions(+)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index eb65d29..76fa97d 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -220,6 +220,14 @@ static inline void mem_cgroup_count_vm_event(struct mm_struct *mm,
+>  {
+>  	if (mem_cgroup_disabled())
+>  		return;
+> +	/*
+> +	 * For statistic updates it's overkill to take the RCU lock and do
+> +	 * a fully safe lookup of an associated memcg. Do a simple check
+> +	 * first. At worst, we miss a few stat updates when a process is
+> +	 * moved to a memcg for the first time.
+> +	 */
+> +	if (!rcu_access_pointer(mm->owner))
+> +		return;
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
--- 
- Kirill A. Shutemov
+mm->owner is set when the mm is first initialized, it's only NULL
+during race conditions on exit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
