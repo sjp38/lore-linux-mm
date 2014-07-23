@@ -1,111 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 64E0C6B0035
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 17:56:14 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id et14so2516271pad.37
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 14:56:14 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id ey6si3843395pab.138.2014.07.23.14.56.13
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Jul 2014 14:56:13 -0700 (PDT)
-Message-ID: <53D02F7B.5020309@codeaurora.org>
-Date: Wed, 23 Jul 2014 14:56:11 -0700
-From: Laura Abbott <lauraa@codeaurora.org>
+Received: from mail-yk0-f175.google.com (mail-yk0-f175.google.com [209.85.160.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 287696B0035
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 18:05:07 -0400 (EDT)
+Received: by mail-yk0-f175.google.com with SMTP id q200so1224089ykb.34
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 15:05:06 -0700 (PDT)
+Received: from relay.sgi.com (relay3.sgi.com. [192.48.152.1])
+        by mx.google.com with ESMTP id v35si12180777yhp.208.2014.07.23.15.05.06
+        for <linux-mm@kvack.org>;
+        Wed, 23 Jul 2014 15:05:06 -0700 (PDT)
+Date: Wed, 23 Jul 2014 17:05:38 -0500
+From: Alex Thorlton <athorlton@sgi.com>
+Subject: [BUG] THP allocations escape cpuset when defrag is off
+Message-ID: <20140723220538.GT8578@sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCHv4 3/5] common: dma-mapping: Introduce common remapping
- functions
-References: <1406079308-5232-1-git-send-email-lauraa@codeaurora.org> <1406079308-5232-4-git-send-email-lauraa@codeaurora.org> <20140723104554.GB1366@localhost>
-In-Reply-To: <20140723104554.GB1366@localhost>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <Will.Deacon@arm.com>, David Riley <davidriley@chromium.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Ritesh Harjain <ritesh.harjani@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Russell King <linux@arm.linux.org.uk>, Thierry Reding <thierry.reding@gmail.com>, Arnd Bergmann <arnd@arndb.de>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, mgorman@suse.de, riel@redhat.com, kirill.shutemov@linux.intel.com, mingo@kernel.org, hughd@google.com, lliubbo@gmail.com, hannes@cmpxchg.org, rientjes@google.com, srivatsa.bhat@linux.vnet.ibm.com, dave.hansen@linux.intel.com, dfults@sgi.com, hedi@sgi.com
 
-On 7/23/2014 3:45 AM, Catalin Marinas wrote:
-> On Wed, Jul 23, 2014 at 02:35:06AM +0100, Laura Abbott wrote:
->> --- a/arch/arm/mm/dma-mapping.c
->> +++ b/arch/arm/mm/dma-mapping.c
->> @@ -298,37 +298,19 @@ static void *
->>  __dma_alloc_remap(struct page *page, size_t size, gfp_t gfp, pgprot_t prot,
->>  	const void *caller)
->>  {
->> -	struct vm_struct *area;
->> -	unsigned long addr;
->> -
->>  	/*
->>  	 * DMA allocation can be mapped to user space, so lets
->>  	 * set VM_USERMAP flags too.
->>  	 */
->> -	area = get_vm_area_caller(size, VM_ARM_DMA_CONSISTENT | VM_USERMAP,
->> -				  caller);
->> -	if (!area)
->> -		return NULL;
->> -	addr = (unsigned long)area->addr;
->> -	area->phys_addr = __pfn_to_phys(page_to_pfn(page));
->> -
->> -	if (ioremap_page_range(addr, addr + size, area->phys_addr, prot)) {
->> -		vunmap((void *)addr);
->> -		return NULL;
->> -	}
->> -	return (void *)addr;
->> +	return dma_common_contiguous_remap(page, size,
->> +			VM_ARM_DMA_CONSISTENT | VM_USERMAP,
->> +			prot, caller);
-> 
-> I think we still need at least a comment in the commit log since the arm
-> code is moving from ioremap_page_range() to map_vm_area(). There is a
-> slight performance penalty with the addition of a kmalloc() on this
-> path.
-> 
-> Or even better (IMO), see below.
-> 
->> --- a/drivers/base/dma-mapping.c
->> +++ b/drivers/base/dma-mapping.c
-> [...]
->> +void *dma_common_contiguous_remap(struct page *page, size_t size,
->> +			unsigned long vm_flags,
->> +			pgprot_t prot, const void *caller)
->> +{
->> +	int i;
->> +	struct page **pages;
->> +	void *ptr;
->> +
->> +	pages = kmalloc(sizeof(struct page *) << get_order(size), GFP_KERNEL);
->> +	if (!pages)
->> +		return NULL;
->> +
->> +	for (i = 0; i < (size >> PAGE_SHIFT); i++)
->> +		pages[i] = page + i;
->> +
->> +	ptr = dma_common_pages_remap(pages, size, vm_flags, prot, caller);
->> +
->> +	kfree(pages);
->> +
->> +	return ptr;
->> +}
-> 
-> You could avoid the dma_common_page_remap() here (and kmalloc) and
-> simply use ioremap_page_range(). We know that
-> dma_common_contiguous_remap() is only called with contiguous physical
-> range, so ioremap_page_range() is suitable. It also makes it a
-> non-functional change for arch/arm.
-> 
+Hey everyone,
 
-My original thought with using map_vm_area vs. ioremap_page_range was
-that ioremap_page_range is really intended for mapping io devices and
-the like into the kernel virtual address space. map_vm_area is designed
-to handle pages of kernel managed memory. Perhaps it's too nit-picky
-a distinction though.
+We're hitting an interesting bug on systems with THP defrag turned off.
+It seems that we're able to make very large THP allocations outside of
+our cpuset.  Here's the test procedure I've been using:
 
-Thanks,
-Laura
+- Create a mem_exclusive/hardwall cpuset that is restricted to memory
+  on one node.
+- Turn off swap (swapoff -a).  This step is not explicitly necessary,
+  but it appears to speed up the reaction time of the OOM killer
+  considerably.
+- Turn off THP compaction/defrag.
+- Run memhog inside the cpuset.  Tell it to allocate far more memory
+  than should be available inside the cpuset.
 
--- 
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-hosted by The Linux Foundation
+Quick example:
+
+# cat /sys/kernel/mm/transparent_hugepage/enabled
+[always] madvise never
+# cat /sys/kernel/mm/transparent_hugepage/defrag
+always madvise [never]
+# grep "[0-9]" cpu* mem*         <-- from /dev/cpuset/test01
+cpu_exclusive:0
+cpus:8-15
+mem_exclusive:1
+mem_hardwall:1
+memory_migrate:0
+memory_pressure:0
+memory_spread_page:1
+memory_spread_slab:1
+mems:1                           <-- ~32g per node
+# cat /proc/self/cpuset
+/test01
+# memhog 80g > /dev/null
+(Runs to completion, which is the bug)
+
+Monitoring 'numactl --hardware' with watch, you can see memhog's
+allocations start spilling over onto the other nodes.  Take note that
+this can be somewhat intermittent.  Often when running this test
+immediately after a boot, the OOM killer will catch memhog and stop it
+immediately, but subsequent runs can either run to completion, or at
+least soak up good chunks of memory on nodes which they're not supposed
+to be permitted to allocate memory on, before being killed.  I'm not
+positive on all the factors that influence this timing yet.  It seems to
+reproduce very reliably if you toggle swap back and forth with each run:
+
+(Run before this was killed by OOM with swap off)
+# swapon -a
+# memhog 80g > /dev/null
+# swapoff -a
+# memhog 80g > /dev/null
+(Both of these ran to completion.  Again, a sign of the bug)
+
+After digging through the code quite a bit, I've managed to turn up
+something that I think could be the cause of the problem here.  In
+alloc_hugepage_vma we send a gfp_mask generated using
+alloc_hugepage_gfpmask, which removes the ___GFP_WAIT bit from the
+gfp_mask when defrag is off.
+
+Further down in pagefault code path, when we fall back to the slowpath
+for allocations (from my testing, this fallback appears to happen around
+the same time that we run out of memory on our cpuset's node), we see
+that, without the ___GFP_WAIT bit set, we will clear the ALLOC_CPUSET
+flag from alloc_flags, which in turn allows us to grab memory from
+any node. (See __alloc_pages_slowpath and gfp_to_alloc_flags to see
+where ALLOC_CPUSET gets wiped out).
+
+This simple patch seems to keep things inside our cpuset:
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 33514d8..7a05576 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -754,7 +754,7 @@ static int __do_huge_pmd_anonymous_page(struct
+mm_struct *mm,
+
+ static inline gfp_t alloc_hugepage_gfpmask(int defrag, gfp_t extra_gfp)
+ {
+-       return (GFP_TRANSHUGE & ~(defrag ? 0 : __GFP_WAIT)) | extra_gfp;
++       return GFP_TRANSHUGE | extra_gfp;
+ }
+
+My debug code shows that certain code paths are still allowing
+ALLOC_CPUSET to get pulled off the alloc_flags with the patch, but
+monitoring the memory usage shows that we're staying on node, aside from
+some very small allocations, which may be other types of allocations that
+are not necessarly confined to a cpuset.  Need a bit more research to
+confirm that.
+
+So, my question ends up being, why do we wipe out ___GFP_WAIT when
+defrag is off?  I'll trust that there is good reason to do that, but, if
+so, is the behavior that I'm seeing expected?
+
+Any input is greatly appreciated.  Thanks!
+
+- Alex
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
