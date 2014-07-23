@@ -1,79 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 918F36B0035
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 18:57:10 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id eu11so2615383pac.17
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 15:57:10 -0700 (PDT)
-Received: from relay.sgi.com (relay2.sgi.com. [192.48.180.65])
-        by mx.google.com with ESMTP id o15si1989326pdl.182.2014.07.23.15.57.09
-        for <linux-mm@kvack.org>;
-        Wed, 23 Jul 2014 15:57:09 -0700 (PDT)
-Date: Wed, 23 Jul 2014 17:57:42 -0500
-From: Alex Thorlton <athorlton@sgi.com>
+Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C0966B0035
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 19:05:40 -0400 (EDT)
+Received: by mail-ie0-f177.google.com with SMTP id at20so1535515iec.8
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 16:05:40 -0700 (PDT)
+Received: from mail-ie0-x22e.google.com (mail-ie0-x22e.google.com [2607:f8b0:4001:c03::22e])
+        by mx.google.com with ESMTPS id ms7si9777286icc.78.2014.07.23.16.05.39
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 23 Jul 2014 16:05:39 -0700 (PDT)
+Received: by mail-ie0-f174.google.com with SMTP id rp18so1613834iec.33
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 16:05:39 -0700 (PDT)
+Date: Wed, 23 Jul 2014 16:05:36 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [BUG] THP allocations escape cpuset when defrag is off
-Message-ID: <20140723225742.GU8578@sgi.com>
-References: <20140723220538.GT8578@sgi.com>
- <alpine.DEB.2.02.1407231516570.23495@chino.kir.corp.google.com>
+In-Reply-To: <20140723225742.GU8578@sgi.com>
+Message-ID: <alpine.DEB.2.02.1407231600110.1389@chino.kir.corp.google.com>
+References: <20140723220538.GT8578@sgi.com> <alpine.DEB.2.02.1407231516570.23495@chino.kir.corp.google.com> <20140723225742.GU8578@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1407231516570.23495@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Alex Thorlton <athorlton@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, riel@redhat.com, kirill.shutemov@linux.intel.com, mingo@kernel.org, hughd@google.com, lliubbo@gmail.com, hannes@cmpxchg.org, srivatsa.bhat@linux.vnet.ibm.com, dave.hansen@linux.intel.com, dfults@sgi.com, hedi@sgi.com
+To: Alex Thorlton <athorlton@sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mgorman@suse.de, riel@redhat.com, kirill.shutemov@linux.intel.com, mingo@kernel.org, hughd@google.com, lliubbo@gmail.com, hannes@cmpxchg.org, srivatsa.bhat@linux.vnet.ibm.com, dave.hansen@linux.intel.com, dfults@sgi.com, hedi@sgi.com
 
-On Wed, Jul 23, 2014 at 03:28:09PM -0700, David Rientjes wrote:
-> > My debug code shows that certain code paths are still allowing
-> > ALLOC_CPUSET to get pulled off the alloc_flags with the patch, but
-> > monitoring the memory usage shows that we're staying on node, aside from
-> > some very small allocations, which may be other types of allocations that
-> > are not necessarly confined to a cpuset.  Need a bit more research to
-> > confirm that.
-> > 
+On Wed, 23 Jul 2014, Alex Thorlton wrote:
+
+> > It's also been a long-standing issue that cpusets and mempolicies are 
+> > ignored by khugepaged that allows memory to be migrated remotely to nodes 
+> > that are not allowed by a cpuset's mems or a mempolicy's nodemask.  Even 
+> > with this issue fixed, you may find that some memory is migrated remotely, 
+> > although it may be negligible, by khugepaged.
 > 
-> ALLOC_CPUSET should get stripped for the cases outlined in 
-> __cpuset_node_allowed_softwall(), specifically for GFP_ATOMIC which does 
-> not have __GFP_WAIT set.
-
-Makes sense.  I knew my patch was probably the wrong way to fix this,
-but it did serve my purpose :)
-
-> > So, my question ends up being, why do we wipe out ___GFP_WAIT when
-> > defrag is off?  I'll trust that there is good reason to do that, but, if
-> > so, is the behavior that I'm seeing expected?
-> > 
+> A bit here and there is manageable.  There is, of course, some work to
+> be done there, but for now we're mainly concerned with a job that's
+> supposed to be confined to a cpuset spilling out and soaking up all the
+> memory on a machine.
 > 
-> The intention is to avoid memory compaction (and direct reclaim), 
-> obviously, which does not run when __GFP_WAIT is not set.  But you're 
-> exactly right that this abuses the allocflags conversion that allows 
-> ALLOC_CPUSET to get cleared because it is using the aforementioned 
-> GFP_ATOMIC exception for cpuset allocation.
->
-> We can't use PF_MEMALLOC or TIF_MEMDIE for hugepage allocation because it 
-> affects the allowed watermarks and nothing else prevents memory compaction 
-> or direct reclaim from running in the page allocator slowpath.
-> 
-> So it looks like a modification to the page allocator is needed, see 
-> below.
 
-Looks good to me.  Fixes the problem without affecting any of the other
-intended functionality.
+You may find my patch[*] in -mm to be helpful if you enable 
+zone_reclaim_mode.  It changes khugepaged so that it is not allowed to 
+migrate any memory to a remote node where the distance between the nodes 
+is greater than RECLAIM_DISTANCE.
 
-> It's also been a long-standing issue that cpusets and mempolicies are 
-> ignored by khugepaged that allows memory to be migrated remotely to nodes 
-> that are not allowed by a cpuset's mems or a mempolicy's nodemask.  Even 
-> with this issue fixed, you may find that some memory is migrated remotely, 
-> although it may be negligible, by khugepaged.
+These issues are still pending and we've encountered a couple of them in 
+the past weeks ourselves.  The definition of RECLAIM_DISTANCE, currently 
+at 30 for x86, is relying on the SLIT to define when remote access is 
+costly and there are cases where people need to alter the BIOS to 
+workaround this definition.
 
-A bit here and there is manageable.  There is, of course, some work to
-be done there, but for now we're mainly concerned with a job that's
-supposed to be confined to a cpuset spilling out and soaking up all the
-memory on a machine.
+We can hope that NUMA balancing will solve a lot of these problems for us, 
+but there's always a chance that the VM does something totally wrong which 
+you've undoubtedly encountered already.
 
-Thanks for the help, David.  Much appreciated!
-
-- Alex
+ [*] http://ozlabs.org/~akpm/mmots/broken-out/mm-thp-only-collapse-hugepages-to-nodes-with-affinity-for-zone_reclaim_mode.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
