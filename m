@@ -1,68 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id B6F8C6B0035
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 17:02:58 -0400 (EDT)
-Received: by mail-wg0-f52.google.com with SMTP id a1so1722378wgh.23
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 14:02:58 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id mw6si7462101wib.99.2014.07.23.14.02.53
+Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 020336B0035
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 17:17:24 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id rd18so1494364iec.14
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 14:17:24 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id gj19si9388202icb.4.2014.07.23.14.17.23
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 23 Jul 2014 14:02:53 -0700 (PDT)
-Date: Wed, 23 Jul 2014 17:02:41 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 13/13] mm: memcontrol: rewrite uncharge API
-Message-ID: <20140723210241.GH1725@cmpxchg.org>
-References: <20140715121935.GB9366@dhcp22.suse.cz>
- <20140718071246.GA21565@dhcp22.suse.cz>
- <20140718144554.GG29639@cmpxchg.org>
- <CAJfpegt9k+YULet3vhmG3br7zSiHy-DRL+MiEE=HRzcs+mLzbw@mail.gmail.com>
- <20140719173911.GA1725@cmpxchg.org>
- <20140722150825.GA4517@dhcp22.suse.cz>
- <CAJfpegscT-ptQzq__uUV2TOn7Uvs6x4FdWGTQb9Fe9MEJr2KjA@mail.gmail.com>
- <20140723143847.GB16721@dhcp22.suse.cz>
- <20140723150608.GF1725@cmpxchg.org>
- <CAJfpegs-k5QC+42SzLKUSaHrdPxWBaT_dF+SOPqoDvg8h5p_Tw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAJfpegs-k5QC+42SzLKUSaHrdPxWBaT_dF+SOPqoDvg8h5p_Tw@mail.gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Jul 2014 14:17:23 -0700 (PDT)
+Date: Wed, 23 Jul 2014 14:17:21 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm/highmem: make kmap cache coloring aware
+Message-Id: <20140723141721.d6a58555f124a7024d010067@linux-foundation.org>
+In-Reply-To: <1405616598-14798-1-git-send-email-jcmvbkbc@gmail.com>
+References: <1405616598-14798-1-git-send-email-jcmvbkbc@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Max Filippov <jcmvbkbc@gmail.com>
+Cc: linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-mips@linux-mips.org, linux-xtensa@linux-xtensa.org, linux-kernel@vger.kernel.org, Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>
 
-Hi Miklos,
+On Thu, 17 Jul 2014 21:03:18 +0400 Max Filippov <jcmvbkbc@gmail.com> wrote:
 
-On Wed, Jul 23, 2014 at 08:08:57PM +0200, Miklos Szeredi wrote:
-> On Wed, Jul 23, 2014 at 5:06 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > Can the new page be anything else than previous page cache?
+> From: Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>
 > 
-> It could be an ordinary pipe buffer too.  Stealable as well (see
-> generic_pipe_buf_steal()).
+> Provide hooks that allow architectures with aliasing cache to align
+> mapping address of high pages according to their color. Such architectures
+> may enforce similar coloring of low- and high-memory page mappings and
+> reuse existing cache management functions to support highmem.
+> 
+> ...
+>
+> --- a/mm/highmem.c
+> +++ b/mm/highmem.c
+> @@ -44,6 +44,14 @@ DEFINE_PER_CPU(int, __kmap_atomic_idx);
+>   */
+>  #ifdef CONFIG_HIGHMEM
+>  
+> +#ifndef ARCH_PKMAP_COLORING
+> +#define set_pkmap_color(pg, cl)		/* */
+> +#define get_last_pkmap_nr(p, cl)	(p)
+> +#define get_next_pkmap_nr(p, cl)	(((p) + 1) & LAST_PKMAP_MASK)
+> +#define is_no_more_pkmaps(p, cl)	(!(p))
+> +#define get_next_pkmap_counter(c, cl)	((c) - 1)
+> +#endif
 
-Okay, they need charging, so we can't get rid of mem_cgroup_migrate()
-in replace_page_cache().  With the fuse example mount you described I
-can trigger the current code to blow up, so below is a fix to check if
-the target page is already charged.
+This is the old-school way of doing things.  The new Linus-approved way is
 
-On an unrelated note, while playing around with the fuse example mount
-and heavy swapping workloads I get the following in dmesg (changed
-fuse_check_page() to use dump_page(), will send a patch later):
+#ifndef set_pkmap_color
+#define set_pkmap_color ...
+#define get_last_pkmap_nr ...
+#endif
 
-[  298.771921] page:ffffea000468cb80 count:1 mapcount:0 mapping:          (null) index:0x1e852f8
-[  298.780517] page flags: 0x5fffc000080029(locked|uptodate|lru|swapbacked)
-[  298.787385] page dumped because: fuse: trying to steal weird page
-[  298.793500] pc:ffff880215f232e0 pc->flags:7 pc->mem_cgroup:ffff880216c23000
+so we don't need to add yet another symbol and to avoid typos, etc.
 
-[  298.801031] page:ffffea0004662f00 count:1 mapcount:0 mapping:          (null) index:0x1e85324
-[  298.809689] page flags: 0x5fffc000080029(locked|uptodate|lru|swapbacked)
-[  298.816615] page dumped because: fuse: trying to steal weird page
-[  298.822791] pc:ffff880215f18bc0 pc->flags:7 pc->mem_cgroup:ffff880216c23000
+Secondly, please identify which per-arch header file is responsible for
+defining these symbols.  Document that here and make sure that
+mm/highmem.c is directly including that file.  Otherwise we end up with
+different architectures using different header files and it's all a big
+mess.
 
-etc.
+Thirdly, macros are nasty things.  It would be nicer to do
 
-Somehow the page stealing ends up taking out anonymous pages, but it
-must be a race condition as it happens rarely and irregularly.
+#ifndef set_pkmap_color
+static inline void set_pkmap_color(...)
+{
+	...
+}
+#define set_pkmap_color set_pkmap_color
 
----
+...
+
+#endif
+
+Fourthly, please document these proposed interfaces with code comments.
+
+Fifthly, it would be very useful to publish the performance testing
+results for at least one architecture so that we can determine the
+patchset's desirability.  And perhaps to motivate other architectures
+to implement this.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
