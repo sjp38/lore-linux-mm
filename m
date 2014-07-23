@@ -1,67 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id AAA366B0036
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 04:02:31 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id kq14so1238951pab.40
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 01:02:31 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id z8si1634939pas.117.2014.07.23.01.02.30
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 23 Jul 2014 01:02:30 -0700 (PDT)
-Date: Wed, 23 Jul 2014 11:02:25 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-Subject: [mmotm:master 155/499] mm/memcontrol.c:2946
- memcg_update_cache_size() error: we previously assumed 'cur_params' could be
- null (see line 2932)
-Message-ID: <20140723080225.GG13737@mwanda>
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 04AF36B0036
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 04:16:20 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id y10so1195857pdj.14
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 01:16:20 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id rw8si588326pab.161.2014.07.23.01.16.19
+        for <linux-mm@kvack.org>;
+        Wed, 23 Jul 2014 01:16:19 -0700 (PDT)
+Message-ID: <53CF6F4E.6030908@linux.intel.com>
+Date: Wed, 23 Jul 2014 16:16:14 +0800
+From: Jiang Liu <jiang.liu@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [RFC Patch V1 28/30] mm: Update _mem_id_[] for every possible
+ CPU when memory configuration changes
+References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com> <1405064267-11678-29-git-send-email-jiang.liu@linux.intel.com> <20140721174754.GE4156@linux.vnet.ibm.com>
+In-Reply-To: <20140721174754.GE4156@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild@01.org, Vladimir Davydov <vdavydov@parallels.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@linux.intel.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org
 
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   bb46fa8ad844d29e9f74f6209777d955a42916f6
-commit: dbc3484b1953f019f408b7c1ecaa3f5e0e8c24bb [155/499] memcg: keep all children of each root cache on a list
 
-mm/memcontrol.c:2946 memcg_update_cache_size() error: we previously assumed 'cur_params' could be null (see line 2932)
 
-git remote add mmotm git://git.cmpxchg.org/linux-mmotm.git
-git remote update mmotm
-git checkout dbc3484b1953f019f408b7c1ecaa3f5e0e8c24bb
-vim +/cur_params +2946 mm/memcontrol.c
+On 2014/7/22 1:47, Nishanth Aravamudan wrote:
+> On 11.07.2014 [15:37:45 +0800], Jiang Liu wrote:
+>> Current kernel only updates _mem_id_[cpu] for onlined CPUs when memory
+>> configuration changes. So kernel may allocate memory from remote node
+>> for a CPU if the CPU is still in absent or offline state even if the
+>> node associated with the CPU has already been onlined.
+> 
+> This just sounds like the topology information is being updated at the
+> wrong place/time? That is, the memory is online, the CPU is being
+> brought online, but isn't associated with any node?
+Hi Nishanth,
+	Yes, that's the case.
 
-f8570263 Vladimir Davydov 2014-01-23  2926  		new_params = kzalloc(size, GFP_KERNEL);
-f8570263 Vladimir Davydov 2014-01-23  2927  		if (!new_params)
-55007d84 Glauber Costa    2012-12-18  2928  			return -ENOMEM;
-55007d84 Glauber Costa    2012-12-18  2929  
-f8570263 Vladimir Davydov 2014-01-23  2930  		new_params->is_root_cache = true;
-dbc3484b Vladimir Davydov 2014-07-22  2931  		INIT_LIST_HEAD(&new_params->children);
-dbc3484b Vladimir Davydov 2014-07-22 @2932  		if (cur_params)
-dbc3484b Vladimir Davydov 2014-07-22  2933  			list_replace(&cur_params->children,
-dbc3484b Vladimir Davydov 2014-07-22  2934  				     &new_params->children);
-55007d84 Glauber Costa    2012-12-18  2935  
-55007d84 Glauber Costa    2012-12-18  2936  		/*
-55007d84 Glauber Costa    2012-12-18  2937  		 * There is the chance it will be bigger than
-55007d84 Glauber Costa    2012-12-18  2938  		 * memcg_limited_groups_array_size, if we failed an allocation
-55007d84 Glauber Costa    2012-12-18  2939  		 * in a cache, in which case all caches updated before it, will
-55007d84 Glauber Costa    2012-12-18  2940  		 * have a bigger array.
-55007d84 Glauber Costa    2012-12-18  2941  		 *
-55007d84 Glauber Costa    2012-12-18  2942  		 * But if that is the case, the data after
-55007d84 Glauber Costa    2012-12-18  2943  		 * memcg_limited_groups_array_size is certainly unused
-55007d84 Glauber Costa    2012-12-18  2944  		 */
-55007d84 Glauber Costa    2012-12-18  2945  		for (i = 0; i < memcg_limited_groups_array_size; i++) {
-55007d84 Glauber Costa    2012-12-18 @2946  			if (!cur_params->memcg_caches[i])
-55007d84 Glauber Costa    2012-12-18  2947  				continue;
-f8570263 Vladimir Davydov 2014-01-23  2948  			new_params->memcg_caches[i] =
-55007d84 Glauber Costa    2012-12-18  2949  						cur_params->memcg_caches[i];
-
----
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+> 
+>> This patch tries to improve performance by updating _mem_id_[cpu] for
+>> each possible CPU when memory configuration changes, thus kernel could
+>> always allocate from local node once the node is onlined.
+> 
+> Ok, what is the impact? Do you actually see better performance?
+No real data to support this yet, just with code analysis.
+Regards!
+Gerry
+> 
+>> We check node_online(cpu_to_node(cpu)) because:
+>> 1) local_memory_node(nid) needs to access NODE_DATA(nid)
+>> 2) try_offline_node(nid) just zeroes out NODE_DATA(nid) instead of free it
+>>
+>> Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
+>> ---
+>>  mm/page_alloc.c |   10 +++++-----
+>>  1 file changed, 5 insertions(+), 5 deletions(-)
+>>
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 0ea758b898fd..de86e941ed57 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -3844,13 +3844,13 @@ static int __build_all_zonelists(void *data)
+>>  		/*
+>>  		 * We now know the "local memory node" for each node--
+>>  		 * i.e., the node of the first zone in the generic zonelist.
+>> -		 * Set up numa_mem percpu variable for on-line cpus.  During
+>> -		 * boot, only the boot cpu should be on-line;  we'll init the
+>> -		 * secondary cpus' numa_mem as they come on-line.  During
+>> -		 * node/memory hotplug, we'll fixup all on-line cpus.
+>> +		 * Set up numa_mem percpu variable for all possible cpus
+>> +		 * if associated node has been onlined.
+>>  		 */
+>> -		if (cpu_online(cpu))
+>> +		if (node_online(cpu_to_node(cpu)))
+>>  			set_cpu_numa_mem(cpu, local_memory_node(cpu_to_node(cpu)));
+>> +		else
+>> +			set_cpu_numa_mem(cpu, NUMA_NO_NODE);
+>>  #endif
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
