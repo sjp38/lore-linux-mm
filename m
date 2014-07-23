@@ -1,185 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f45.google.com (mail-qa0-f45.google.com [209.85.216.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BB356B0035
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 16:26:02 -0400 (EDT)
-Received: by mail-qa0-f45.google.com with SMTP id cm18so1827437qab.4
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 13:26:01 -0700 (PDT)
-Received: from mail-qa0-x236.google.com (mail-qa0-x236.google.com [2607:f8b0:400d:c00::236])
-        by mx.google.com with ESMTPS id b30si6649824qgf.107.2014.07.23.13.26.01
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id B6F8C6B0035
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 17:02:58 -0400 (EDT)
+Received: by mail-wg0-f52.google.com with SMTP id a1so1722378wgh.23
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 14:02:58 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id mw6si7462101wib.99.2014.07.23.14.02.53
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 23 Jul 2014 13:26:01 -0700 (PDT)
-Received: by mail-qa0-f54.google.com with SMTP id k15so1888610qaq.13
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 13:26:01 -0700 (PDT)
-Date: Wed, 23 Jul 2014 16:25:54 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [PATCH v2 00/25] AMDKFD kernel driver
-Message-ID: <20140723202551.GA6519@gmail.com>
-References: <20140721190306.GB5278@gmail.com>
- <20140722072851.GH15237@phenom.ffwll.local>
- <53CE1E9C.8020105@amd.com>
- <CAKMK7uH+okhn4YGOzrXZ1LM3S2myxdu=_63LGMduwV-WZn06CA@mail.gmail.com>
- <53CE346B.1080601@amd.com>
- <20140722111515.GJ15237@phenom.ffwll.local>
- <53CF5B30.50209@amd.com>
- <53CF5E78.8070208@vodafone.de>
- <20140723145604.GA2956@gmail.com>
- <CADnq5_P9xWdJ22LViAFr1qMboc8UuP5PVAS0MFNJ0h_tr_n80g@mail.gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 23 Jul 2014 14:02:53 -0700 (PDT)
+Date: Wed, 23 Jul 2014 17:02:41 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 13/13] mm: memcontrol: rewrite uncharge API
+Message-ID: <20140723210241.GH1725@cmpxchg.org>
+References: <20140715121935.GB9366@dhcp22.suse.cz>
+ <20140718071246.GA21565@dhcp22.suse.cz>
+ <20140718144554.GG29639@cmpxchg.org>
+ <CAJfpegt9k+YULet3vhmG3br7zSiHy-DRL+MiEE=HRzcs+mLzbw@mail.gmail.com>
+ <20140719173911.GA1725@cmpxchg.org>
+ <20140722150825.GA4517@dhcp22.suse.cz>
+ <CAJfpegscT-ptQzq__uUV2TOn7Uvs6x4FdWGTQb9Fe9MEJr2KjA@mail.gmail.com>
+ <20140723143847.GB16721@dhcp22.suse.cz>
+ <20140723150608.GF1725@cmpxchg.org>
+ <CAJfpegs-k5QC+42SzLKUSaHrdPxWBaT_dF+SOPqoDvg8h5p_Tw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CADnq5_P9xWdJ22LViAFr1qMboc8UuP5PVAS0MFNJ0h_tr_n80g@mail.gmail.com>
+In-Reply-To: <CAJfpegs-k5QC+42SzLKUSaHrdPxWBaT_dF+SOPqoDvg8h5p_Tw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Deucher <alexdeucher@gmail.com>
-Cc: Christian =?iso-8859-1?Q?K=F6nig?= <deathsimple@vodafone.de>, Oded Gabbay <oded.gabbay@amd.com>, David Airlie <airlied@linux.ie>, Andrew Morton <akpm@linux-foundation.org>, John Bridgman <John.Bridgman@amd.com>, Joerg Roedel <joro@8bytes.org>, Andrew Lewycky <Andrew.Lewycky@amd.com>, Michel =?iso-8859-1?Q?D=E4nzer?= <michel.daenzer@amd.com>, Ben Goz <Ben.Goz@amd.com>, Alexey Skidanov <Alexey.Skidanov@amd.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-mm <linux-mm@kvack.org>, "Sellek, Tom" <Tom.Sellek@amd.com>
+To: Miklos Szeredi <miklos@szeredi.hu>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Wed, Jul 23, 2014 at 03:49:57PM -0400, Alex Deucher wrote:
-> On Wed, Jul 23, 2014 at 10:56 AM, Jerome Glisse <j.glisse@gmail.com> wrote:
-> > On Wed, Jul 23, 2014 at 09:04:24AM +0200, Christian Konig wrote:
-> >> Am 23.07.2014 08:50, schrieb Oded Gabbay:
-> >> >On 22/07/14 14:15, Daniel Vetter wrote:
-> >> >>On Tue, Jul 22, 2014 at 12:52:43PM +0300, Oded Gabbay wrote:
-> >> >>>On 22/07/14 12:21, Daniel Vetter wrote:
-> >> >>>>On Tue, Jul 22, 2014 at 10:19 AM, Oded Gabbay <oded.gabbay@amd.com>
-> >> >>>>wrote:
-> >> >>>>>>Exactly, just prevent userspace from submitting more. And if you
-> >> >>>>>>have
-> >> >>>>>>misbehaving userspace that submits too much, reset the gpu and
-> >> >>>>>>tell it
-> >> >>>>>>that you're sorry but won't schedule any more work.
-> >> >>>>>
-> >> >>>>>I'm not sure how you intend to know if a userspace misbehaves or
-> >> >>>>>not. Can
-> >> >>>>>you elaborate ?
-> >> >>>>
-> >> >>>>Well that's mostly policy, currently in i915 we only have a check for
-> >> >>>>hangs, and if userspace hangs a bit too often then we stop it. I guess
-> >> >>>>you can do that with the queue unmapping you've describe in reply to
-> >> >>>>Jerome's mail.
-> >> >>>>-Daniel
-> >> >>>>
-> >> >>>What do you mean by hang ? Like the tdr mechanism in Windows (checks
-> >> >>>if a
-> >> >>>gpu job takes more than 2 seconds, I think, and if so, terminates the
-> >> >>>job).
-> >> >>
-> >> >>Essentially yes. But we also have some hw features to kill jobs quicker,
-> >> >>e.g. for media workloads.
-> >> >>-Daniel
-> >> >>
-> >> >
-> >> >Yeah, so this is what I'm talking about when I say that you and Jerome
-> >> >come from a graphics POV and amdkfd come from a compute POV, no offense
-> >> >intended.
-> >> >
-> >> >For compute jobs, we simply can't use this logic to terminate jobs.
-> >> >Graphics are mostly Real-Time while compute jobs can take from a few ms to
-> >> >a few hours!!! And I'm not talking about an entire application runtime but
-> >> >on a single submission of jobs by the userspace app. We have tests with
-> >> >jobs that take between 20-30 minutes to complete. In theory, we can even
-> >> >imagine a compute job which takes 1 or 2 days (on larger APUs).
-> >> >
-> >> >Now, I understand the question of how do we prevent the compute job from
-> >> >monopolizing the GPU, and internally here we have some ideas that we will
-> >> >probably share in the next few days, but my point is that I don't think we
-> >> >can terminate a compute job because it is running for more than x seconds.
-> >> >It is like you would terminate a CPU process which runs more than x
-> >> >seconds.
-> >>
-> >> Yeah that's why one of the first things I've did was making the timeout
-> >> configurable in the radeon module.
-> >>
-> >> But it doesn't necessary needs be a timeout, we should also kill a running
-> >> job submission if the CPU process associated with the job is killed.
-> >>
-> >> >I think this is a *very* important discussion (detecting a misbehaved
-> >> >compute process) and I would like to continue it, but I don't think moving
-> >> >the job submission from userspace control to kernel control will solve
-> >> >this core problem.
-> >>
-> >> We need to get this topic solved, otherwise the driver won't make it
-> >> upstream. Allowing userpsace to monopolizing resources either memory, CPU or
-> >> GPU time or special things like counters etc... is a strict no go for a
-> >> kernel module.
-> >>
-> >> I agree that moving the job submission from userpsace to kernel wouldn't
-> >> solve this problem. As Daniel and I pointed out now multiple times it's
-> >> rather easily possible to prevent further job submissions from userspace, in
-> >> the worst case by unmapping the doorbell page.
-> >>
-> >> Moving it to an IOCTL would just make it a bit less complicated.
-> >>
-> >
-> > It is not only complexity, my main concern is not really the amount of memory
-> > pinned (well it would be if it was vram which by the way you need to remove
-> > the api that allow to allocate vram just so that it clearly shows that vram is
-> > not allowed).
-> >
-> > Issue is with GPU address space fragmentation, new process hsa queue might be
-> > allocated in middle of gtt space and stays there for so long that i will forbid
-> > any big buffer to be bind to gtt. Thought with virtual address space for graphics
-> > this is less of an issue and only the kernel suffer but still it might block the
-> > kernel from evicting some VRAM because i can not bind a system buffer big enough
-> > to GTT because some GTT space is taken by some HSA queue.
-> >
-> > To mitigate this at very least, you need to implement special memory allocation
-> > inside ttm and radeon to force this per queue to be allocate for instance from
-> > top of GTT space. Like reserve top 8M of GTT and have it grow/shrink depending
-> > on number of queue.
+Hi Miklos,
+
+On Wed, Jul 23, 2014 at 08:08:57PM +0200, Miklos Szeredi wrote:
+> On Wed, Jul 23, 2014 at 5:06 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > Can the new page be anything else than previous page cache?
 > 
-> This same sort of thing can already happen with gfx, although it's
-> less likely since the workloads are usually shorter.  That said, we
-> can issue compute jobs right today with the current CS ioctl and we
-> may end up with a buffer pinned in an inopportune spot.
+> It could be an ordinary pipe buffer too.  Stealable as well (see
+> generic_pipe_buf_steal()).
 
-I thought compute was using virtual address space (well on > cayman at least).
+Okay, they need charging, so we can't get rid of mem_cgroup_migrate()
+in replace_page_cache().  With the fuse example mount you described I
+can trigger the current code to blow up, so below is a fix to check if
+the target page is already charged.
 
-> I'm not sure
-> reserving a static pool at init really helps that much.  If you aren't
-> using any HSA apps, it just wastes gtt space.  So you have a trade
-> off: waste memory for a possibly unused MQD descriptor pool or
-> allocate MQD descriptors on the fly, but possibly end up with a long
-> running one stuck in a bad location.  Additionally, we already have a
-> ttm flag for whether we want to allocate from the top or bottom of the
-> pool.  We use it today for gfx depending on the buffer (e.g., buffers
-> smaller than 512k are allocated from the bottom and buffers larger
-> than 512 are allocated from the top).  So we can't really re-size a
-> static buffer easily as there may already be other buffers pinned up
-> there.
+On an unrelated note, while playing around with the fuse example mount
+and heavy swapping workloads I get the following in dmesg (changed
+fuse_check_page() to use dump_page(), will send a patch later):
 
-Again here iirc only kernel use the GTT space everything else (userspace)
-is using virtual address space or am i forgeting something ?
+[  298.771921] page:ffffea000468cb80 count:1 mapcount:0 mapping:          (null) index:0x1e852f8
+[  298.780517] page flags: 0x5fffc000080029(locked|uptodate|lru|swapbacked)
+[  298.787385] page dumped because: fuse: trying to steal weird page
+[  298.793500] pc:ffff880215f232e0 pc->flags:7 pc->mem_cgroup:ffff880216c23000
 
-My point was not so much to be static but to enforce doing it from one
-end of the address space and to have shrink/grow depending on usage forcing
-anything else out of that range.
+[  298.801031] page:ffffea0004662f00 count:1 mapcount:0 mapping:          (null) index:0x1e85324
+[  298.809689] page flags: 0x5fffc000080029(locked|uptodate|lru|swapbacked)
+[  298.816615] page dumped because: fuse: trying to steal weird page
+[  298.822791] pc:ffff880215f18bc0 pc->flags:7 pc->mem_cgroup:ffff880216c23000
 
-On VM GPU only thing left using the "global" GTT is the kernel, it uses it
-for ring and for moving buffer around. I would assume that pining ring buffers
-at begining of address space no matter what there size is would be a good idea
-as anyway those will not fragment ie there lifetime is the lifetime of the
-driver.
+etc.
 
-My point is that all the HSA queue buffer can have a lifetime way bigger than
-anything we have now, really now we can bind/unbind any buffer btw cs submission
-modulo OpenCL task.
+Somehow the page stealing ends up taking out anonymous pages, but it
+must be a race condition as it happens rarely and irregularly.
 
-> 
-> If we add sysfs controls to limit the amount of hsa processes, and
-> queues per process so you could use this to dynamically limit the max
-> amount gtt memory that would be in use for MQD descriptors.
-
-No this can not be set dynamicly, once a process has created its queue
-it has it and i see no channel to tell userspace: "sorry buddy but no
-more room for you"
-
-> 
-> Alex
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+---
