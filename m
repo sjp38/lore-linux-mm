@@ -1,184 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 94F2C6B0035
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 00:34:04 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id lf10so3098106pab.30
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 21:34:04 -0700 (PDT)
-Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com [2607:f8b0:400e:c02::236])
-        by mx.google.com with ESMTPS id gz4si4583208pac.233.2014.07.23.21.34.02
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 23 Jul 2014 21:34:03 -0700 (PDT)
-Received: by mail-pd0-f182.google.com with SMTP id fp1so2914832pdb.27
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 21:34:02 -0700 (PDT)
-Date: Wed, 23 Jul 2014 21:32:23 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v4 6/6] shm: wait for pins to be released when sealing
-In-Reply-To: <1405877680-999-7-git-send-email-dh.herrmann@gmail.com>
-Message-ID: <alpine.LSU.2.11.1407232129090.991@eggly.anvils>
-References: <1405877680-999-1-git-send-email-dh.herrmann@gmail.com> <1405877680-999-7-git-send-email-dh.herrmann@gmail.com>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id B9EC56B0035
+	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 00:46:32 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id eu11so3104992pac.18
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 21:46:32 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id ff3si4620953pbd.167.2014.07.23.21.46.31
+        for <linux-mm@kvack.org>;
+        Wed, 23 Jul 2014 21:46:31 -0700 (PDT)
+Message-ID: <53D08FA4.4030700@intel.com>
+Date: Wed, 23 Jul 2014 21:46:28 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH v7 03/10] x86, mpx: add macro cpu_has_mpx
+References: <1405921124-4230-1-git-send-email-qiaowei.ren@intel.com> <1405921124-4230-4-git-send-email-qiaowei.ren@intel.com> <53CE8EEC.2090402@intel.com> <9E0BE1322F2F2246BD820DA9FC397ADE0170079E@shsmsx102.ccr.corp.intel.com> <53CFDC79.8040804@intel.com> <9E0BE1322F2F2246BD820DA9FC397ADE01703028@shsmsx102.ccr.corp.intel.com>
+In-Reply-To: <9E0BE1322F2F2246BD820DA9FC397ADE01703028@shsmsx102.ccr.corp.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Herrmann <dh.herrmann@gmail.com>
-Cc: linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, Greg Kroah-Hartman <greg@kroah.com>, john.stultz@linaro.org, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>, Hugh Dickins <hughd@google.com>, Andy Lutomirski <luto@amacapital.net>, Alexander Viro <viro@zeniv.linux.org.uk>
+To: "Ren, Qiaowei" <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
+Cc: "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Sun, 20 Jul 2014, David Herrmann wrote:
+On 07/23/2014 05:56 PM, Ren, Qiaowei wrote:
+> On 2014-07-24, Hansen, Dave wrote:
+>> On 07/22/2014 07:35 PM, Ren, Qiaowei wrote:
+>>> The checking about MPX feature should be as follow:
+>>>
+>>>         if (pcntxt_mask & XSTATE_EAGER) {
+>>>                 if (eagerfpu == DISABLE) {
+>>>                         pr_err("eagerfpu not present, disabling some
+>> xstate features: 0x%llx\n",
+>>>                                         pcntxt_mask &
+>> XSTATE_EAGER);
+>>>                         pcntxt_mask &= ~XSTATE_EAGER; } else { eagerfpu
+>>>                         = ENABLE;
+>>>                 }
+>>>         }
+>>> This patch was merged into kernel the ending of last year
+>>> (https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/com
+>>> mi
+>>> t/?id=e7d820a5e549b3eb6c3f9467507566565646a669 )
+>>
+>> Should we be doing a clear_cpu_cap(X86_FEATURE_MPX) in here?
+>> 
+>> This isn't major, but I can't _ever_ imagine a user being able to 
+>> track down why MPX is not working from this message. Should we
+>> spruce it up somehow?
+> 
+> Maybe. If the error log "disabling some xstate features:" is changed
+> to "disabling MPX xstate features:", do you think it is OK?
 
-> If we set SEAL_WRITE on a file, we must make sure there cannot be any
-> ongoing write-operations on the file. For write() calls, we simply lock
-> the inode mutex, for mmap() we simply verify there're no writable
-> mappings. However, there might be pages pinned by AIO, Direct-IO and
-> similar operations via GUP. We must make sure those do not write to the
-> memfd file after we set SEAL_WRITE.
-> 
-> As there is no way to notify GUP users to drop pages or to wait for them
-> to be done, we implement the wait ourself: When setting SEAL_WRITE, we
-> check all pages for their ref-count. If it's bigger than 1, we know
-> there's some user of the page. We then mark the page and wait for up to
-> 150ms for those ref-counts to be dropped. If the ref-counts are not
-> dropped in time, we refuse the seal operation.
-> 
-> Signed-off-by: David Herrmann <dh.herrmann@gmail.com>
+That's better.  Is it really disabling MPX, though?
 
-Acked-by: Hugh Dickins <hughd@google.com>
-
-I'd have moved this one up before the testing ones - except changing
-the sequence in between postings can be confusing.  I'd be happy if
-akpm happened to move it up - but unconcerned if he did not.
-
-> ---
->  mm/shmem.c | 110 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
->  1 file changed, 109 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 770e072..df1aceb 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -1780,9 +1780,117 @@ static loff_t shmem_file_llseek(struct file *file, loff_t offset, int whence)
->  	return offset;
->  }
->  
-> +/*
-> + * We need a tag: a new tag would expand every radix_tree_node by 8 bytes,
-> + * so reuse a tag which we firmly believe is never set or cleared on shmem.
-> + */
-> +#define SHMEM_TAG_PINNED        PAGECACHE_TAG_TOWRITE
-> +#define LAST_SCAN               4       /* about 150ms max */
-> +
-> +static void shmem_tag_pins(struct address_space *mapping)
-> +{
-> +	struct radix_tree_iter iter;
-> +	void **slot;
-> +	pgoff_t start;
-> +	struct page *page;
-> +
-> +	lru_add_drain();
-> +	start = 0;
-> +	rcu_read_lock();
-> +
-> +restart:
-> +	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
-> +		page = radix_tree_deref_slot(slot);
-> +		if (!page || radix_tree_exception(page)) {
-> +			if (radix_tree_deref_retry(page))
-> +				goto restart;
-> +		} else if (page_count(page) - page_mapcount(page) > 1) {
-> +			spin_lock_irq(&mapping->tree_lock);
-> +			radix_tree_tag_set(&mapping->page_tree, iter.index,
-> +					   SHMEM_TAG_PINNED);
-> +			spin_unlock_irq(&mapping->tree_lock);
-> +		}
-> +
-> +		if (need_resched()) {
-> +			cond_resched_rcu();
-> +			start = iter.index + 1;
-> +			goto restart;
-> +		}
-> +	}
-> +	rcu_read_unlock();
-> +}
-> +
-> +/*
-> + * Setting SEAL_WRITE requires us to verify there's no pending writer. However,
-> + * via get_user_pages(), drivers might have some pending I/O without any active
-> + * user-space mappings (eg., direct-IO, AIO). Therefore, we look at all pages
-> + * and see whether it has an elevated ref-count. If so, we tag them and wait for
-> + * them to be dropped.
-> + * The caller must guarantee that no new user will acquire writable references
-> + * to those pages to avoid races.
-> + */
->  static int shmem_wait_for_pins(struct address_space *mapping)
->  {
-> -	return 0;
-> +	struct radix_tree_iter iter;
-> +	void **slot;
-> +	pgoff_t start;
-> +	struct page *page;
-> +	int error, scan;
-> +
-> +	shmem_tag_pins(mapping);
-> +
-> +	error = 0;
-> +	for (scan = 0; scan <= LAST_SCAN; scan++) {
-> +		if (!radix_tree_tagged(&mapping->page_tree, SHMEM_TAG_PINNED))
-> +			break;
-> +
-> +		if (!scan)
-> +			lru_add_drain_all();
-> +		else if (schedule_timeout_killable((HZ << scan) / 200))
-> +			scan = LAST_SCAN;
-> +
-> +		start = 0;
-> +		rcu_read_lock();
-> +restart:
-> +		radix_tree_for_each_tagged(slot, &mapping->page_tree, &iter,
-> +					   start, SHMEM_TAG_PINNED) {
-> +
-> +			page = radix_tree_deref_slot(slot);
-> +			if (radix_tree_exception(page)) {
-> +				if (radix_tree_deref_retry(page))
-> +					goto restart;
-> +
-> +				page = NULL;
-> +			}
-> +
-> +			if (page &&
-> +			    page_count(page) - page_mapcount(page) != 1) {
-> +				if (scan < LAST_SCAN)
-> +					goto continue_resched;
-> +
-> +				/*
-> +				 * On the last scan, we clean up all those tags
-> +				 * we inserted; but make a note that we still
-> +				 * found pages pinned.
-> +				 */
-> +				error = -EBUSY;
-> +			}
-> +
-> +			spin_lock_irq(&mapping->tree_lock);
-> +			radix_tree_tag_clear(&mapping->page_tree,
-> +					     iter.index, SHMEM_TAG_PINNED);
-> +			spin_unlock_irq(&mapping->tree_lock);
-> +continue_resched:
-> +			if (need_resched()) {
-> +				cond_resched_rcu();
-> +				start = iter.index + 1;
-> +				goto restart;
-> +			}
-> +		}
-> +		rcu_read_unlock();
-> +	}
-> +
-> +	return error;
->  }
->  
->  #define F_ALL_SEALS (F_SEAL_SEAL | \
-> -- 
-> 2.0.2
-> 
-> 
+And shouldn't we clear the cpu feature bit too?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
