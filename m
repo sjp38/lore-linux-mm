@@ -1,21 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 891E26B0035
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 20:49:48 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id y13so2598446pdi.39
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 17:49:48 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id os6si4137795pbb.212.2014.07.23.17.49.46
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id C99126B0035
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 20:57:09 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id bj1so2777538pad.11
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 17:57:09 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id ip4si4149753pbd.223.2014.07.23.17.57.08
         for <linux-mm@kvack.org>;
-        Wed, 23 Jul 2014 17:49:47 -0700 (PDT)
+        Wed, 23 Jul 2014 17:57:08 -0700 (PDT)
 From: "Ren, Qiaowei" <qiaowei.ren@intel.com>
-Subject: RE: [PATCH v7 09/10] x86, mpx: cleanup unused bound tables
-Date: Thu, 24 Jul 2014 00:49:43 +0000
-Message-ID: <9E0BE1322F2F2246BD820DA9FC397ADE01703006@shsmsx102.ccr.corp.intel.com>
+Subject: RE: [PATCH v7 03/10] x86, mpx: add macro cpu_has_mpx
+Date: Thu, 24 Jul 2014 00:56:36 +0000
+Message-ID: <9E0BE1322F2F2246BD820DA9FC397ADE01703028@shsmsx102.ccr.corp.intel.com>
 References: <1405921124-4230-1-git-send-email-qiaowei.ren@intel.com>
- <1405921124-4230-10-git-send-email-qiaowei.ren@intel.com>
- <53CFE4F9.3000701@intel.com>
-In-Reply-To: <53CFE4F9.3000701@intel.com>
+ <1405921124-4230-4-git-send-email-qiaowei.ren@intel.com>
+ <53CE8EEC.2090402@intel.com>
+ <9E0BE1322F2F2246BD820DA9FC397ADE0170079E@shsmsx102.ccr.corp.intel.com>
+ <53CFDC79.8040804@intel.com>
+In-Reply-To: <53CFDC79.8040804@intel.com>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
@@ -28,24 +30,33 @@ Cc: "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-ker
 
 
 On 2014-07-24, Hansen, Dave wrote:
-> On 07/20/2014 10:38 PM, Qiaowei Ren wrote:
->> Since the kernel allocated those tables on-demand without userspace
->> knowledge, it is also responsible for freeing them when the
->> associated mappings go away.
+> On 07/22/2014 07:35 PM, Ren, Qiaowei wrote:
+>> The checking about MPX feature should be as follow:
 >>=20
->> Here, the solution for this issue is to hook do_munmap() to check
->> whether one process is MPX enabled. If yes, those bounds tables
->> covered in the virtual address region which is being unmapped will
->> be freed
-> also.
+>>         if (pcntxt_mask & XSTATE_EAGER) {
+>>                 if (eagerfpu =3D=3D DISABLE) {
+>>                         pr_err("eagerfpu not present, disabling some
+> xstate features: 0x%llx\n",
+>>                                         pcntxt_mask &
+> XSTATE_EAGER);
+>>                         pcntxt_mask &=3D ~XSTATE_EAGER; } else { eagerfp=
+u
+>>                         =3D ENABLE;
+>>                 }
+>>         }
+>> This patch was merged into kernel the ending of last year
+>> (https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/com
+>> mi
+>> t/?id=3De7d820a5e549b3eb6c3f9467507566565646a669 )
 >=20
-> This is the part of the code that I'm the most concerned about.
+> Should we be doing a clear_cpu_cap(X86_FEATURE_MPX) in here?
 >=20
-> Could you elaborate on how you've tested this to make sure it works OK?
+> This isn't major, but I can't _ever_ imagine a user being able to
+> track down why MPX is not working from this message.  Should we spruce it=
+ up somehow?
 
-I can check a lot of debug information when one VMA and related bounds tabl=
-es are allocated and freed through adding a lot of print() like log into ke=
-rnel/runtime. Do you think this is enough?
+Maybe. If the error log "disabling some xstate features:" is changed to "di=
+sabling MPX xstate features:", do you think it is OK?
 
 Thanks,
 Qiaowei
