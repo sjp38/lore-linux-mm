@@ -1,145 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id ABEFD6B0035
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 08:22:09 -0400 (EDT)
-Received: by mail-we0-f180.google.com with SMTP id w61so2684120wes.39
-        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 05:22:09 -0700 (PDT)
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id C229B6B0035
+	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 08:35:03 -0400 (EDT)
+Received: by mail-wi0-f171.google.com with SMTP id hi2so9576157wib.4
+        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 05:35:03 -0700 (PDT)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id mb19si11535451wic.23.2014.07.24.05.22.07
+        by mx.google.com with ESMTPS id x7si11771626wib.25.2014.07.24.05.35.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 24 Jul 2014 05:22:08 -0700 (PDT)
-Date: Thu, 24 Jul 2014 08:21:43 -0400
+        Thu, 24 Jul 2014 05:35:02 -0700 (PDT)
+Date: Thu, 24 Jul 2014 08:34:56 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 1/2] mm, slub: fix false-positive lockdep warning in
- free_partial()
-Message-ID: <20140724122143.GI1725@cmpxchg.org>
-References: <alpine.DEB.2.02.1407221550500.9885@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1407221556330.9885@chino.kir.corp.google.com>
+Subject: Re: [Bug 80881] New: Memory cgroup OOM leads to BUG: unable to
+ handle kernel paging request at ffffffffffffffd8
+Message-ID: <20140724123456.GJ1725@cmpxchg.org>
+References: <bug-80881-27@https.bugzilla.kernel.org/>
+ <20140722130741.ca2f6c24d06fffc7d7549e95@linux-foundation.org>
+ <20140724120959.GC14578@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1407221556330.9885@chino.kir.corp.google.com>
+In-Reply-To: <20140724120959.GC14578@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Dan Carpenter <dan.carpenter@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Paul Furtado <paulfurtado91@gmail.com>
 
-On Tue, Jul 22, 2014 at 03:57:58PM -0700, David Rientjes wrote:
-> From: Vladimir Davydov <vdavydov@parallels.com>
-> 
-> Commit c65c1877bd68 ("slub: use lockdep_assert_held") requires
-> remove_partial() to be called with n->list_lock held, but free_partial()
-> called from kmem_cache_close() on cache destruction does not follow this
-> rule, leading to a warning:
-> 
->   WARNING: CPU: 0 PID: 2787 at mm/slub.c:1536 __kmem_cache_shutdown+0x1b2/0x1f0()
->   Modules linked in:
->   CPU: 0 PID: 2787 Comm: modprobe Tainted: G        W    3.14.0-rc1-mm1+ #1
->   Hardware name:
->    0000000000000600 ffff88003ae1dde8 ffffffff816d9583 0000000000000600
->    0000000000000000 ffff88003ae1de28 ffffffff8107c107 0000000000000000
->    ffff880037ab2b00 ffff88007c240d30 ffffea0001ee5280 ffffea0001ee52a0
->   Call Trace:
->    [<ffffffff816d9583>] dump_stack+0x51/0x6e
->    [<ffffffff8107c107>] warn_slowpath_common+0x87/0xb0
->    [<ffffffff8107c145>] warn_slowpath_null+0x15/0x20
->    [<ffffffff811c7fe2>] __kmem_cache_shutdown+0x1b2/0x1f0
->    [<ffffffff811908d3>] kmem_cache_destroy+0x43/0xf0
->    [<ffffffffa013a123>] xfs_destroy_zones+0x103/0x110 [xfs]
->    [<ffffffffa0192b54>] exit_xfs_fs+0x38/0x4e4 [xfs]
->    [<ffffffff811036fa>] SyS_delete_module+0x19a/0x1f0
->    [<ffffffff816dfcd8>] ? retint_swapgs+0x13/0x1b
->    [<ffffffff810d2125>] ? trace_hardirqs_on_caller+0x105/0x1d0
->    [<ffffffff81359efe>] ? trace_hardirqs_on_thunk+0x3a/0x3f
->    [<ffffffff816e8539>] system_call_fastpath+0x16/0x1b
-> 
-> Although this cannot actually result in a race, because on cache
-> destruction there should not be any concurrent frees or allocations from
-> the cache, let's add spin_lock/unlock to free_partial() just to keep
-> lockdep happy.
+Hi Michal,
 
-Please never add needless locking just to please lockdep.
+On Thu, Jul 24, 2014 at 02:09:59PM +0200, Michal Hocko wrote:
+> On Tue 22-07-14 13:07:41, Andrew Morton wrote:
+> [...]
+> > > The full log is attached, but here is the part I believe is relevant from the
+> > > 3.16.0-rc5 error:
+> > > [162005.262545] memory: usage 131072kB, limit 131072kB, failcnt 1314
+> > > [162005.262550] memory+swap: usage 0kB, limit 18014398509481983kB, failcnt 0
+> > > [162005.262554] kmem: usage 0kB, limit 18014398509481983kB, failcnt 0
+> > > [162005.262558] Memory cgroup stats for
+> > > /mesos/c206ce2a-9f11-4340-a3c9-c59b405690a7: cache:8KB rss:131064KB
+> > > rss_huge:0KB mapped_file:0KB writeback:0KB inactive_anon:0KB
+> > > active_anon:131064KB inactive_file:0KB active_file:0KB unevictable:0KB
+> > > [162005.262581] [ pid ]   uid  tgid total_vm      rss nr_ptes swapents
+> > > oom_score_adj name
+> > > [162005.262602] [ 3002]     0  3002   544153    22244     151        0         
+> > >    0 java7
+> > > [162005.262609] [ 3061]     0  3061   424397    20423      88        0         
+> > >    0 java
+> > > [162005.262615] Memory cgroup out of memory: Kill process 3002 (java7) score
+> > > 662 or sacrifice child
+> > > [162005.262623] Killed process 3002 (java7) total-vm:2176612kB,
+> > > anon-rss:60400kB, file-rss:28576kB
+> 
+> Nothing unusual here.
+> 
+> [fixed up line wraps]
+> > [162005.263453] general protection fault: 0000 [#1] SMP
+> > [162005.263463] Modules linked in: ipv6 dm_mod xen_netfront coretemp hwmon x86_pkg_temp_thermal crc32_pclmul crc32c_intel ghash_clmulni_intel aesni_intel ablk_helper cryptd lrw gf128mul glue_helper aes_x86_64 microcode pcspkr ext4 jbd2 mbcache raid0 xen_blkfront
+> > [162005.264060] CPU: 3 PID: 3062 Comm: java Not tainted 3.16.0-rc5 #1
+> > [162005.264060] task: ffff8801cfe8f170 ti: ffff8801d2ec4000 task.ti: ffff8801d2ec4000
+> > [162005.264060] RIP: e030:[<ffffffff811c0b80>]  [<ffffffff811c0b80>] mem_cgroup_oom_synchronize+0x140/0x240
+> > [162005.264060] RSP: e02b:ffff8801d2ec7d48  EFLAGS: 00010283
+> > [162005.264060] RAX: 0000000000000001 RBX: ffff88009d633800 RCX: 000000000000000e
+> > [162005.264060] RDX: fffffffffffffffe RSI: ffff88009d630200 RDI: ffff88009d630200
+> > [162005.264060] RBP: ffff8801d2ec7da8 R08: 0000000000000012 R09: 00000000fffffffe
+> > [162005.264060] R10: 0000000000000000 R11: 0000000000000000 R12: ffff88009d633800
+> > [162005.264060] R13: ffff8801d2ec7d48 R14: dead000000100100 R15: ffff88009d633a30
+> > [162005.264060] FS:  00007f1748bb4700(0000) GS:ffff8801def80000(0000) knlGS:0000000000000000
+> > [162005.264060] CS:  e033 DS: 0000 ES: 0000 CR0: 000000008005003b
+> > [162005.264060] CR2: 00007f4110300308 CR3: 00000000c05f7000 CR4: 0000000000002660
+> > [162005.264060] Stack:
+> > [162005.264060]  ffff88009d633800 0000000000000000 ffff8801cfe8f170 ffffffff811bae10
+> > [162005.264060]  ffffffff81ca73f8 ffffffff81ca73f8 ffff8801d2ec7dc8 0000000000000006
+> > [162005.264060]  00000000e3b30000 00000000e3b30000 ffff8801d2ec7f58 0000000000000001
+> > [162005.264060] Call Trace:
+> > [162005.264060]  [<ffffffff811bae10>] ? mem_cgroup_wait_acct_move+0x110/0x110
+> > [162005.264060]  [<ffffffff81159628>] pagefault_out_of_memory+0x18/0x90
+> > [162005.264060]  [<ffffffff8105cee9>] mm_fault_error+0xa9/0x1a0
+> > [162005.264060]  [<ffffffff8105d488>] __do_page_fault+0x478/0x4c0
+> > [162005.264060]  [<ffffffff81004f00>] ? xen_mc_flush+0xb0/0x1b0
+> > [162005.264060]  [<ffffffff81003ab3>] ? xen_write_msr_safe+0xa3/0xd0
+> > [162005.264060]  [<ffffffff81012a40>] ? __switch_to+0x2d0/0x600
+> > [162005.264060]  [<ffffffff8109e273>] ? finish_task_switch+0x53/0xf0
+> > [162005.264060]  [<ffffffff81643b0a>] ? __schedule+0x37a/0x6d0
+> > [162005.264060]  [<ffffffff8105d5dc>] do_page_fault+0x2c/0x40
+> > [162005.264060]  [<ffffffff81649858>] page_fault+0x28/0x30
+> > [162005.264060] Code: 44 00 00 48 89 df e8 40 ca ff ff 48 85 c0 49 89 c4 74 35 4c 8b b0 30 02 00 00 4c 8d b8 30 02 00 00 4d 39 fe 74 1b 0f 1f 44 00 00 <49> 8b 7e 10 be 01 00 00 00 e8 42 d2 04 00 4d 8b 36 4d 39 fe 75
+> > [162005.264060] RIP  [<ffffffff811c0b80>] mem_cgroup_oom_synchronize+0x140/0x240
+> > [162005.264060]  RSP <ffff8801d2ec7d48>
+> > [162005.458051] ---[ end trace 050b00c5503ce96a ]---
+> 
+> This decodes to:
+> [162005.264060] Code: 44 00 00 48 89 df e8 40 ca ff ff 48 85 c0 49 89 c4 74 35 4c 8b b0 30 02 00 00 4c 8d b8 30 02 00 00 4d 39 fe 74 1b 0f 1f 44 00 00 <49> 8b 7e 10 be 01 00 00 00 e8 42 d2 04 00 4d 8b 36 4d 39 fe 75
+> All code
+> ========
+>    0:   44 00 00                add    %r8b,(%rax)
+>    3:   48 89 df                mov    %rbx,%rdi
+>    6:   e8 40 ca ff ff          callq  0xffffffffffffca4b
+>    b:   48 85 c0                test   %rax,%rax
+>    e:   49 89 c4                mov    %rax,%r12
+>   11:   74 35                   je     0x48
+>   13:   4c 8b b0 30 02 00 00    mov    0x230(%rax),%r14
+>   1a:   4c 8d b8 30 02 00 00    lea    0x230(%rax),%r15
+>   21:   4d 39 fe                cmp    %r15,%r14
+>   24:   74 1b                   je     0x41
+>   26:   0f 1f 44 00 00          nopl   0x0(%rax,%rax,1)
+>   2b:*  49 8b 7e 10             mov    0x10(%r14),%rdi          <-- trapping instruction
+>   2f:   be 01 00 00 00          mov    $0x1,%esi
+>   34:   e8 42 d2 04 00          callq  0x4d27b
+>   39:   4d 8b 36                mov    (%r14),%r14
+>   3c:   4d 39 fe                cmp    %r15,%r14
+>   3f:   75                      .byte 0x75
+> 
+> R14 is dead000000100100 which is a poison value. If I am reading the
+> code correctly this should be somewhere in mem_cgroup_oom_notify_cb
+> where we stumble over event which has been removed from the notify chain.
+> 
+> And indeed there is nothing to protect the oom_notify chain in the oom
+> path.  {Un}Registration is protected by memcg_oom_lock and that one is
+> used in mem_cgroup_oom_trylock but it is taken only locally in that
+> function. The issue seems to be introduced by fb2a6fc56be6 (mm: memcg:
+> rework and document OOM waiting and wakeup) in 3.12.
+> 
+> The most simplistic fix would be simply using memcg_oom_lock inside
+> mem_cgroup_oom_notify_cb, but I cannot say I would like it much. Another
+> approach would be using RCU for mem_cgroup_eventfd_list deallocation and
+> {un}linking.
 
-> Acked-by: Christoph Lameter <cl@linux.com>
-> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-> Signed-off-by: Pekka Enberg <penberg@kernel.org>
-> Signed-off-by: David Rientjes <rientjes@google.com>
+Thanks a lot for looking into this.  Your analysis makes sense to me.
+
+Would it be better to move mem_cgroup_oom_notify() directly into the
+trylock function while the memcg_oom_lock is still held?
+
+> Let's go with simpler route for now as this is not a hot path, though.
 > ---
->  mm/slub.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
+> >From 2c2642dbfb3f7d8c9f20f7793850426daa770078 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Thu, 24 Jul 2014 14:00:39 +0200
+> Subject: [PATCH] memcg: oom_notify use-after-free fix
 > 
-> diff --git a/mm/slub.c b/mm/slub.c
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -3195,12 +3195,13 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
->  /*
->   * Attempt to free all partial slabs on a node.
->   * This is called from kmem_cache_close(). We must be the last thread
-> - * using the cache and therefore we do not need to lock anymore.
-> + * using the cache, but we still have to lock for lockdep's sake.
->   */
->  static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
->  {
->  	struct page *page, *h;
->  
-> +	spin_lock_irq(&n->list_lock);
->  	list_for_each_entry_safe(page, h, &n->partial, lru) {
->  		if (!page->inuse) {
->  			__remove_partial(n, page);
+> Paul Furtado has reported the following GPF:
+> general protection fault: 0000 [#1] SMP
+> Modules linked in: ipv6 dm_mod xen_netfront coretemp hwmon x86_pkg_temp_thermal crc32_pclmul crc32c_intel ghash_clmulni_intel aesni_intel ablk_helper cryptd lrw gf128mul glue_helper aes_x86_64 microcode pcspkr ext4 jbd2 mbcache raid0 xen_blkfront
+> CPU: 3 PID: 3062 Comm: java Not tainted 3.16.0-rc5 #1
+> task: ffff8801cfe8f170 ti: ffff8801d2ec4000 task.ti: ffff8801d2ec4000
+> RIP: e030:[<ffffffff811c0b80>]  [<ffffffff811c0b80>] mem_cgroup_oom_synchronize+0x140/0x240
+> RSP: e02b:ffff8801d2ec7d48  EFLAGS: 00010283
+> RAX: 0000000000000001 RBX: ffff88009d633800 RCX: 000000000000000e
+> RDX: fffffffffffffffe RSI: ffff88009d630200 RDI: ffff88009d630200
+> RBP: ffff8801d2ec7da8 R08: 0000000000000012 R09: 00000000fffffffe
+> R10: 0000000000000000 R11: 0000000000000000 R12: ffff88009d633800
+> R13: ffff8801d2ec7d48 R14: dead000000100100 R15: ffff88009d633a30
+> FS:  00007f1748bb4700(0000) GS:ffff8801def80000(0000) knlGS:0000000000000000
+> CS:  e033 DS: 0000 ES: 0000 CR0: 000000008005003b
+> CR2: 00007f4110300308 CR3: 00000000c05f7000 CR4: 0000000000002660
+> Stack:
+>  ffff88009d633800 0000000000000000 ffff8801cfe8f170 ffffffff811bae10
+>  ffffffff81ca73f8 ffffffff81ca73f8 ffff8801d2ec7dc8 0000000000000006
+>  00000000e3b30000 00000000e3b30000 ffff8801d2ec7f58 0000000000000001
+> Call Trace:
+>  [<ffffffff811bae10>] ? mem_cgroup_wait_acct_move+0x110/0x110
+>  [<ffffffff81159628>] pagefault_out_of_memory+0x18/0x90
+>  [<ffffffff8105cee9>] mm_fault_error+0xa9/0x1a0
+>  [<ffffffff8105d488>] __do_page_fault+0x478/0x4c0
+>  [<ffffffff81004f00>] ? xen_mc_flush+0xb0/0x1b0
+>  [<ffffffff81003ab3>] ? xen_write_msr_safe+0xa3/0xd0
+>  [<ffffffff81012a40>] ? __switch_to+0x2d0/0x600
+>  [<ffffffff8109e273>] ? finish_task_switch+0x53/0xf0
+>  [<ffffffff81643b0a>] ? __schedule+0x37a/0x6d0
+>  [<ffffffff8105d5dc>] do_page_fault+0x2c/0x40
+>  [<ffffffff81649858>] page_fault+0x28/0x30
+> Code: 44 00 00 48 89 df e8 40 ca ff ff 48 85 c0 49 89 c4 74 35 4c 8b b0 30 02 00 00 4c 8d b8 30 02 00 00 4d 39 fe 74 1b 0f 1f 44 00 00 <49> 8b 7e 10 be 01 00 00 00 e8 42 d2 04 00 4d 8b 36 4d 39 fe 75
+> RIP  [<ffffffff811c0b80>] mem_cgroup_oom_synchronize+0x140/0x240
+>  RSP <ffff8801d2ec7d48>
+> ---[ end trace 050b00c5503ce96a ]---
+> 
+> fb2a6fc56be6 (mm: memcg: rework and document OOM waiting and wakeup) has
+> moved mem_cgroup_oom_notify outside of memcg_oom_lock assuming it is
+> protected by the hierarchical OOM-lock. Although this is true for the
+> notification part the protection doesn't cover unregistration of event
+> which can happen in parallel now so mem_cgroup_oom_notify can see
+> already unlinked and/or freed mem_cgroup_eventfd_list.
+> 
+> Fix this by using memcg_oom_lock also in mem_cgroup_oom_notify.
+> 
+> Reported-by: Paul Furtado <paulfurtado91@gmail.com>
+> Fixes: fb2a6fc56be6 (mm: memcg: rework and document OOM waiting and wakeup)
+> Cc: stable@vger.kernel.org # 3.12+
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 
-This already uses __remove_partial(), which does not have the lockdep
-assertion.  You even acked the patch that made this change, why add
-the spinlock now?
-
-commit 1e4dd9461fabfbc780cdfaf103cec790f3a53325
-Author: Steven Rostedt <rostedt@goodmis.org>
-Date:   Mon Feb 10 14:25:46 2014 -0800
-
-    slub: do not assert not having lock in removing freed partial
-    
-    Vladimir reported the following issue:
-    
-    Commit c65c1877bd68 ("slub: use lockdep_assert_held") requires
-    remove_partial() to be called with n->list_lock held, but free_partial()
-    called from kmem_cache_close() on cache destruction does not follow this
-    rule, leading to a warning:
-    
-      WARNING: CPU: 0 PID: 2787 at mm/slub.c:1536 __kmem_cache_shutdown+0x1b2/0x1f0()
-      Modules linked in:
-      CPU: 0 PID: 2787 Comm: modprobe Tainted: G        W    3.14.0-rc1-mm1+ #1
-      Hardware name:
-       0000000000000600 ffff88003ae1dde8 ffffffff816d9583 0000000000000600
-       0000000000000000 ffff88003ae1de28 ffffffff8107c107 0000000000000000
-       ffff880037ab2b00 ffff88007c240d30 ffffea0001ee5280 ffffea0001ee52a0
-      Call Trace:
-        __kmem_cache_shutdown+0x1b2/0x1f0
-        kmem_cache_destroy+0x43/0xf0
-        xfs_destroy_zones+0x103/0x110 [xfs]
-        exit_xfs_fs+0x38/0x4e4 [xfs]
-        SyS_delete_module+0x19a/0x1f0
-        system_call_fastpath+0x16/0x1b
-    
-    His solution was to add a spinlock in order to quiet lockdep.  Although
-    there would be no contention to adding the lock, that lock also requires
-    disabling of interrupts which will have a larger impact on the system.
-    
-    Instead of adding a spinlock to a location where it is not needed for
-    lockdep, make a __remove_partial() function that does not test if the
-    list_lock is held, as no one should have it due to it being freed.
-    
-    Also added a __add_partial() function that does not do the lock
-    validation either, as it is not needed for the creation of the cache.
-    
-    Signed-off-by: Steven Rostedt <rostedt@goodmis.org>
-    Reported-by: Vladimir Davydov <vdavydov@parallels.com>
-    Suggested-by: David Rientjes <rientjes@google.com>
-    Acked-by: David Rientjes <rientjes@google.com>
-    Acked-by: Vladimir Davydov <vdavydov@parallels.com>
-    Acked-by: Christoph Lameter <cl@linux.com>
-    Cc: Pekka Enberg <penberg@kernel.org>
-    Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-    Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
