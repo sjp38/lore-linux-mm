@@ -1,98 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C6C56B003A
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 12:51:00 -0400 (EDT)
-Received: by mail-lb0-f182.google.com with SMTP id z11so2528249lbi.27
-        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 09:50:59 -0700 (PDT)
-Received: from mail-lb0-x234.google.com (mail-lb0-x234.google.com [2a00:1450:4010:c04::234])
-        by mx.google.com with ESMTPS id n10si13720645laj.126.2014.07.24.09.50.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 24 Jul 2014 09:50:56 -0700 (PDT)
-Received: by mail-lb0-f180.google.com with SMTP id v6so2528118lbi.11
-        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 09:50:55 -0700 (PDT)
-Message-Id: <20140724165047.520230859@openvz.org>
-Date: Thu, 24 Jul 2014 20:46:59 +0400
-From: Cyrill Gorcunov <gorcunov@openvz.org>
-Subject: [rfc 2/4] mm: Use may_adjust_brk helper
-References: <20140724164657.452106845@openvz.org>
-Content-Disposition: inline; filename=prctl-use-may_adjust_brk
+Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DA516B0037
+	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 13:47:41 -0400 (EDT)
+Received: by mail-qg0-f46.google.com with SMTP id z60so3676878qgd.5
+        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 10:47:41 -0700 (PDT)
+Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
+        by mx.google.com with ESMTP id g3si12169224qge.74.2014.07.24.10.47.40
+        for <linux-mm@kvack.org>;
+        Thu, 24 Jul 2014 10:47:40 -0700 (PDT)
+Date: Thu, 24 Jul 2014 18:47:15 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH] arm64: fix soft lockup due to large tlb flush range
+Message-ID: <20140724174714.GN13371@arm.com>
+References: <20140724142417.GE13371@arm.com>
+ <1406213775-28617-1-git-send-email-msalter@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1406213775-28617-1-git-send-email-msalter@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: gorcunov@openvz.org, keescook@chromium.org, tj@kernel.org, akpm@linux-foundation.org, avagin@openvz.org, ebiederm@xmission.com, hpa@zytor.com, serge.hallyn@canonical.com, xemul@parallels.com, segoon@openwall.com, kamezawa.hiroyu@jp.fujitsu.com, mtk.manpages@gmail.com, jln@google.com
+To: Mark Salter <msalter@redhat.com>
+Cc: Eric Miao <eric.y.miao@gmail.com>, Will Deacon <Will.Deacon@arm.com>, Laura Abbott <lauraa@codeaurora.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Russell King <linux@arm.linux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrew Vagin <avagin@openvz.org>
-Cc: Eric W. Biederman <ebiederm@xmission.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Serge Hallyn <serge.hallyn@canonical.com>
-Cc: Pavel Emelyanov <xemul@parallels.com>
-Cc: Vasiliy Kulikov <segoon@openwall.com>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: Julien Tinnes <jln@google.com>
----
- kernel/sys.c |   10 ++++------
- mm/mmap.c    |    7 +++----
- 2 files changed, 7 insertions(+), 10 deletions(-)
+On Thu, Jul 24, 2014 at 03:56:15PM +0100, Mark Salter wrote:
+> Under certain loads, this soft lockup has been observed:
+> 
+>    BUG: soft lockup - CPU#2 stuck for 22s! [ip6tables:1016]
+>    Modules linked in: ip6t_rpfilter ip6t_REJECT cfg80211 rfkill xt_conntrack ebtable_nat ebtable_broute bridge stp llc ebtable_filter ebtables ip6table_nat nf_conntrack_ipv6 nf_defrag_ipv6 nf_nat_ipv6 ip6table_mangle ip6table_security ip6table_raw ip6table_filter ip6_tables iptable_nat nf_conntrack_ipv4 nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack iptable_mangle iptable_security iptable_raw vfat fat efivarfs xfs libcrc32c
 
-Index: linux-2.6.git/kernel/sys.c
-===================================================================
---- linux-2.6.git.orig/kernel/sys.c
-+++ linux-2.6.git/kernel/sys.c
-@@ -1733,9 +1733,8 @@ static int prctl_set_mm(int opt, unsigne
- 		if (addr <= mm->end_data)
- 			goto out;
- 
--		if (rlim < RLIM_INFINITY &&
--		    (mm->brk - addr) +
--		    (mm->end_data - mm->start_data) > rlim)
-+		if (may_adjust_brk(rlim, mm->brk, addr,
-+				   mm->end_data, mm->start_data))
- 			goto out;
- 
- 		mm->start_brk = addr;
-@@ -1745,9 +1744,8 @@ static int prctl_set_mm(int opt, unsigne
- 		if (addr <= mm->end_data)
- 			goto out;
- 
--		if (rlim < RLIM_INFINITY &&
--		    (addr - mm->start_brk) +
--		    (mm->end_data - mm->start_data) > rlim)
-+		if (may_adjust_brk(rlim, addr, mm->start_brk,
-+				   mm->end_data, mm->start_data))
- 			goto out;
- 
- 		mm->brk = addr;
-Index: linux-2.6.git/mm/mmap.c
-===================================================================
---- linux-2.6.git.orig/mm/mmap.c
-+++ linux-2.6.git/mm/mmap.c
-@@ -263,7 +263,7 @@ static unsigned long do_brk(unsigned lon
- 
- SYSCALL_DEFINE1(brk, unsigned long, brk)
- {
--	unsigned long rlim, retval;
-+	unsigned long retval;
- 	unsigned long newbrk, oldbrk;
- 	struct mm_struct *mm = current->mm;
- 	unsigned long min_brk;
-@@ -293,9 +293,8 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
- 	 * segment grow beyond its set limit the in case where the limit is
- 	 * not page aligned -Ram Gupta
- 	 */
--	rlim = rlimit(RLIMIT_DATA);
--	if (rlim < RLIM_INFINITY && (brk - mm->start_brk) +
--			(mm->end_data - mm->start_data) > rlim)
-+	if (may_adjust_brk(rlimit(RLIMIT_DATA), brk, mm->start_brk,
-+			   mm->end_data, mm->start_data))
- 		goto out;
- 
- 	newbrk = PAGE_ALIGN(brk);
+Merged (with minor tweaks, comment added). Thanks.
+
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
