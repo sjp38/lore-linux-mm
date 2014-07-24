@@ -1,184 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 9013B6B0035
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 09:30:19 -0400 (EDT)
-Received: by mail-ie0-f176.google.com with SMTP id tr6so2185700ieb.7
-        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 06:30:19 -0700 (PDT)
-Received: from mail-ie0-x234.google.com (mail-ie0-x234.google.com [2607:f8b0:4001:c03::234])
-        by mx.google.com with ESMTPS id e3si54699353igx.4.2014.07.24.06.30.18
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 24 Jul 2014 06:30:18 -0700 (PDT)
-Received: by mail-ie0-f180.google.com with SMTP id at20so2299363iec.11
-        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 06:30:18 -0700 (PDT)
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 603BF6B0035
+	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 09:53:09 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so3973127pab.14
+        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 06:53:09 -0700 (PDT)
+Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
+        by mx.google.com with ESMTP id pk4si6033475pbc.252.2014.07.24.06.53.07
+        for <linux-mm@kvack.org>;
+        Thu, 24 Jul 2014 06:53:08 -0700 (PDT)
+Date: Thu, 24 Jul 2014 14:52:38 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCHv4 3/5] common: dma-mapping: Introduce common remapping
+ functions
+Message-ID: <20140724135238.GC13371@arm.com>
+References: <1406079308-5232-1-git-send-email-lauraa@codeaurora.org>
+ <1406079308-5232-4-git-send-email-lauraa@codeaurora.org>
+ <20140723104554.GB1366@localhost>
+ <53D02F7B.5020309@codeaurora.org>
 MIME-Version: 1.0
-In-Reply-To: <53D104A6.4050402@oracle.com>
-References: <1393530827-25450-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1393530827-25450-2-git-send-email-kirill.shutemov@linux.intel.com>
-	<53D07E96.5000006@oracle.com>
-	<53D104A6.4050402@oracle.com>
-Date: Thu, 24 Jul 2014 17:30:18 +0400
-Message-ID: <CALYGNiOgc4E7eaH-MErL05N16dgTk2dJVnqyY6K0+mO-tOUdTw@mail.gmail.com>
-Subject: Re: [PATCHv3 1/2] mm: introduce vm_ops->map_pages()
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53D02F7B.5020309@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, Ning Qu <quning@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>, Andrey Ryabinin <a.ryabinin@samsung.com>
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: Will Deacon <Will.Deacon@arm.com>, David Riley <davidriley@chromium.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Ritesh Harjain <ritesh.harjani@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Russell King <linux@arm.linux.org.uk>, Thierry Reding <thierry.reding@gmail.com>, Arnd Bergmann <arnd@arndb.de>
 
-On Thu, Jul 24, 2014 at 5:05 PM, Sasha Levin <sasha.levin@oracle.com> wrote:
-> On 07/23/2014 11:33 PM, Sasha Levin wrote:
->> On 02/27/2014 02:53 PM, Kirill A. Shutemov wrote:
->>> > The patch introduces new vm_ops callback ->map_pages() and uses it for
->>> > mapping easy accessible pages around fault address.
->>> >
->>> > On read page fault, if filesystem provides ->map_pages(), we try to map
->>> > up to FAULT_AROUND_PAGES pages around page fault address in hope to
->>> > reduce number of minor page faults.
->>> >
->>> > We call ->map_pages first and use ->fault() as fallback if page by the
->>> > offset is not ready to be mapped (cold page cache or something).
->>> >
->>> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->>> > ---
->> Hi all,
->>
->> This patch triggers use-after-free when fuzzing using trinity and the KASAN
->> patchset.
->
-> FWIW, if it helps, here's another KASAN report with the conventional BUG following it:
+On Wed, Jul 23, 2014 at 10:56:11PM +0100, Laura Abbott wrote:
+> On 7/23/2014 3:45 AM, Catalin Marinas wrote:
+> > On Wed, Jul 23, 2014 at 02:35:06AM +0100, Laura Abbott wrote:
+> >> --- a/drivers/base/dma-mapping.c
+> >> +++ b/drivers/base/dma-mapping.c
+> > [...]
+> >> +void *dma_common_contiguous_remap(struct page *page, size_t size,
+> >> +			unsigned long vm_flags,
+> >> +			pgprot_t prot, const void *caller)
+> >> +{
+> >> +	int i;
+> >> +	struct page **pages;
+> >> +	void *ptr;
+> >> +
+> >> +	pages = kmalloc(sizeof(struct page *) << get_order(size), GFP_KERNEL);
+> >> +	if (!pages)
+> >> +		return NULL;
+> >> +
+> >> +	for (i = 0; i < (size >> PAGE_SHIFT); i++)
+> >> +		pages[i] = page + i;
+> >> +
+> >> +	ptr = dma_common_pages_remap(pages, size, vm_flags, prot, caller);
+> >> +
+> >> +	kfree(pages);
+> >> +
+> >> +	return ptr;
+> >> +}
+> > 
+> > You could avoid the dma_common_page_remap() here (and kmalloc) and
+> > simply use ioremap_page_range(). We know that
+> > dma_common_contiguous_remap() is only called with contiguous physical
+> > range, so ioremap_page_range() is suitable. It also makes it a
+> > non-functional change for arch/arm.
+> 
+> My original thought with using map_vm_area vs. ioremap_page_range was
+> that ioremap_page_range is really intended for mapping io devices and
+> the like into the kernel virtual address space. map_vm_area is designed
+> to handle pages of kernel managed memory. Perhaps it's too nit-picky
+> a distinction though.
 
-I haven't looked into the code yet, but this patch has a potential to
-fix this bug.
-https://lkml.org/lkml/2014/7/15/159
+I think you are right. We had a discussion in the past about using
+ioremap on valid RAM addresses and decided not to allow this. This would
+be similar with the ioremap_page_range() here.
 
-This pgoff-mess still looks suspicious for me.
+>From my perspective, you can leave the code as is (wouldn't be any
+functional change for arm64 since it was using vmap() already). But
+please add a comment in the commit log about this change.
 
->
-> [  360.498001] ==================================================================
-> [  360.500896] AddressSanitizer: use after free in do_read_fault.isra.40+0x3c2/0x510 at addr ffff880581ee3fd0
-> [  360.504474] page:ffffea001607b8c0 count:0 mapcount:0 mapping:          (null) index:0x0
-> [  360.507264] page flags: 0xefffff80000000()
-> [  360.508655] page dumped because: kasan error
-> [  360.509489] CPU: 8 PID: 9251 Comm: trinity-c159 Not tainted 3.16.0-rc6-next-20140723-sasha-00047-g289342b-dirty #929
-> [  360.511717]  00000000000000ff 0000000000000000 ffffea001607b8c0 ffff8801ba8bbb98
-> [  360.513272]  ffffffff8fe40903 ffff8801ba8bbc68 ffff8801ba8bbc58 ffffffff8b42acfc
-> [  360.514729]  0000000000000001 ffff880592deaa48 ffff8801ba84b038 ffff8801ba8bbbd0
-> [  360.516156] Call Trace:
-> [  360.516622] dump_stack (lib/dump_stack.c:52)
-> [  360.517566] kasan_report_error (mm/kasan/report.c:98 mm/kasan/report.c:166)
-> [  360.518745] ? debug_smp_processor_id (lib/smp_processor_id.c:57)
-> [  360.519923] ? preempt_count_sub (kernel/sched/core.c:2606)
-> [  360.521124] ? put_lock_stats.isra.13 (./arch/x86/include/asm/preempt.h:98 kernel/locking/lockdep.c:254)
-> [  360.522431] ? do_read_fault.isra.40 (mm/memory.c:2784 mm/memory.c:2849 mm/memory.c:2898)
-> [  360.523651] __asan_load8 (mm/kasan/kasan.c:364)
-> [  360.524625] ? do_read_fault.isra.40 (mm/memory.c:2864 mm/memory.c:2898)
-> [  360.525887] do_read_fault.isra.40 (mm/memory.c:2864 mm/memory.c:2898)
-> [  360.527156] ? __rcu_read_unlock (kernel/rcu/update.c:101)
-> [  360.528251] handle_mm_fault (mm/memory.c:3092 mm/memory.c:3225 mm/memory.c:3345 mm/memory.c:3374)
-> [  360.529308] ? vmacache_update (mm/vmacache.c:61)
-> [  360.530505] ? find_vma (mm/mmap.c:2027)
-> [  360.531453] __do_page_fault (arch/x86/mm/fault.c:1231)
-> [  360.532503] ? context_tracking_user_exit (kernel/context_tracking.c:184)
-> [  360.533744] ? __this_cpu_preempt_check (lib/smp_processor_id.c:63)
-> [  360.535001] ? trace_hardirqs_off_caller (kernel/locking/lockdep.c:2639 (discriminator 8))
-> [  360.536262] ? trace_hardirqs_off (kernel/locking/lockdep.c:2645)
-> [  360.537360] trace_do_page_fault (arch/x86/mm/fault.c:1314 include/linux/jump_label.h:115 include/linux/context_tracking_state.h:27 include/linux/context_tracking.h:45 arch/x86/mm/fault.c:1315)
-> [  360.538493] do_async_page_fault (arch/x86/kernel/kvm.c:279)
-> [  360.539567] async_page_fault (arch/x86/kernel/entry_64.S:1321)
-> [  360.540668] Read of size 8 by thread T9251:
-> [  360.541485] Memory state around the buggy address:
-> [  360.542463]  ffff880581ee3d00: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
-> [  360.543816]  ffff880581ee3d80: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
-> [  360.545116]  ffff880581ee3e00: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
-> [  360.546476]  ffff880581ee3e80: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
-> [  360.547806]  ffff880581ee3f00: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
-> [  360.549112] >ffff880581ee3f80: ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff
-> [  360.550507]                                                  ^
-> [  360.551574]  ffff880581ee4000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-> [  360.552910]  ffff880581ee4080: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-> [  360.554207]  ffff880581ee4100: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-> [  360.555621]  ffff880581ee4180: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-> [  360.557035]  ffff880581ee4200: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-> [  360.558489] ==================================================================
-> [  360.559804] BUG: unable to handle kernel paging request at ffff880581ee3fd0
-> [  360.559817] IP: do_read_fault.isra.40 (mm/memory.c:2864 mm/memory.c:2898)
-> [  360.559827] PGD 147b9067 PUD 70353d067 PMD 70352d067 PTE 8000000581ee3060
-> [  360.559836] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-> [  360.559892] Dumping ftrace buffer:
-> [  360.560117]    (ftrace buffer empty)
-> [  360.560132] Modules linked in:
-> [  360.560145] CPU: 8 PID: 9251 Comm: trinity-c159 Not tainted 3.16.0-rc6-next-20140723-sasha-00047-g289342b-dirty #929
-> [  360.560154] task: ffff8801ba84b000 ti: ffff8801ba8b8000 task.ti: ffff8801ba8b8000
-> [  360.560172] RIP: do_read_fault.isra.40 (mm/memory.c:2864 mm/memory.c:2898)
-> [  360.560180] RSP: 0000:ffff8801ba8bbc98  EFLAGS: 00010296
-> [  360.560186] RAX: 0000000000000000 RBX: ffff8801ba8d5a00 RCX: 0000000000000006
-> [  360.560192] RDX: 0000000000000006 RSI: ffffffff912f5fd5 RDI: 0000000000000282
-> [  360.560199] RBP: ffff8801ba8bbd58 R08: 0000000000000001 R09: 0000000000000000
-> [  360.560206] R10: 0000000000000000 R11: 0000000000000000 R12: ffff8801ba8ad470
-> [  360.560213] R13: 00007f2411bfa000 R14: 0000000000000000 R15: ffff880581ee3fd0
-> [  360.560222] FS:  00007f2412de6700(0000) GS:ffff8801de000000(0000) knlGS:0000000000000000
-> [  360.560228] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [  360.560234] CR2: ffff880581ee3fd0 CR3: 00000001ba89b000 CR4: 00000000000006a0
-> [  360.560255] DR0: 00000000006ec000 DR1: 0000000000000000 DR2: 0000000000000000
-> [  360.560262] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 00000000000d0602
-> [  360.560264] Stack:
-> [  360.560278]  0000000000000001 0000000000000000 ffff880581ee4030 ffff880592deaa30
-> [  360.560290]  0000000000000005 00007f2411c07000 ffff8801ba8d5a90 ffff880592deaa30
-> [  360.560297]  0000000000000000 000000a8ba84b038 000000000000000c 00007f2411c06220
-> [  360.560299] Call Trace:
-> [  360.560317] ? __rcu_read_unlock (kernel/rcu/update.c:101)
-> [  360.560332] handle_mm_fault (mm/memory.c:3092 mm/memory.c:3225 mm/memory.c:3345 mm/memory.c:3374)
-> [  360.560345] ? vmacache_update (mm/vmacache.c:61)
-> [  360.560358] ? find_vma (mm/mmap.c:2027)
-> [  360.560370] __do_page_fault (arch/x86/mm/fault.c:1231)
-> [  360.560386] ? context_tracking_user_exit (kernel/context_tracking.c:184)
-> [  360.560400] ? __this_cpu_preempt_check (lib/smp_processor_id.c:63)
-> [  360.560413] ? trace_hardirqs_off_caller (kernel/locking/lockdep.c:2639 (discriminator 8))
-> [  360.560425] ? trace_hardirqs_off (kernel/locking/lockdep.c:2645)
-> [  360.560432] trace_do_page_fault (arch/x86/mm/fault.c:1314 include/linux/jump_label.h:115 include/linux/context_tracking_state.h:27 include/linux/context_tracking.h:45 arch/x86/mm/fault.c:1315)
-> [  360.560440] do_async_page_fault (arch/x86/kernel/kvm.c:279)
-> [  360.560447] async_page_fault (arch/x86/kernel/entry_64.S:1321)
-> [ 360.560458] Code: 47 f9 48 8b 8d 68 ff ff ff 48 29 f1 48 c1 e9 0c 49 8d 44 08 ff 48 39 c7 48 0f 46 c7 4c 89 ff 48 89 85 60 ff ff ff e8 3e 19 07 00 <49> 83 3f 00 0f 84 8f 00 00 00 49 83 c6 01 4c 39 b5 60 ff ff ff
-> All code
-> ========
->    0:   47 f9                   rex.RXB stc
->    2:   48 8b 8d 68 ff ff ff    mov    -0x98(%rbp),%rcx
->    9:   48 29 f1                sub    %rsi,%rcx
->    c:   48 c1 e9 0c             shr    $0xc,%rcx
->   10:   49 8d 44 08 ff          lea    -0x1(%r8,%rcx,1),%rax
->   15:   48 39 c7                cmp    %rax,%rdi
->   18:   48 0f 46 c7             cmovbe %rdi,%rax
->   1c:   4c 89 ff                mov    %r15,%rdi
->   1f:   48 89 85 60 ff ff ff    mov    %rax,-0xa0(%rbp)
->   26:   e8 3e 19 07 00          callq  0x71969
->   2b:*  49 83 3f 00             cmpq   $0x0,(%r15)              <-- trapping instruction
->   2f:   0f 84 8f 00 00 00       je     0xc4
->   35:   49 83 c6 01             add    $0x1,%r14
->   39:   4c 39 b5 60 ff ff ff    cmp    %r14,-0xa0(%rbp)
->         ...
->
-> Code starting with the faulting instruction
-> ===========================================
->    0:   49 83 3f 00             cmpq   $0x0,(%r15)
->    4:   0f 84 8f 00 00 00       je     0x99
->    a:   49 83 c6 01             add    $0x1,%r14
->    e:   4c 39 b5 60 ff ff ff    cmp    %r14,-0xa0(%rbp)
->         ...
-> [  360.560458] RIP do_read_fault.isra.40 (mm/memory.c:2864 mm/memory.c:2898)
-> [  360.560458]  RSP <ffff8801ba8bbc98>
-> [  360.560458] CR2: ffff880581ee3fd0
-> [  360.560458] ---[ end trace ccd7cee352be7945 ]---
->
-> Thanks,
-> Sasha
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
