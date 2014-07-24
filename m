@@ -1,46 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id EF8E06B0035
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 19:20:07 -0400 (EDT)
-Received: by mail-wg0-f44.google.com with SMTP id m15so1878820wgh.3
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 16:20:07 -0700 (PDT)
-Received: from relay.sgi.com (relay3.sgi.com. [192.48.152.1])
-        by mx.google.com with ESMTP id eo10si8075828wib.91.2014.07.23.16.20.06
-        for <linux-mm@kvack.org>;
-        Wed, 23 Jul 2014 16:20:06 -0700 (PDT)
-Date: Wed, 23 Jul 2014 18:20:38 -0500
-From: Alex Thorlton <athorlton@sgi.com>
-Subject: Re: [patch] mm, thp: do not allow thp faults to avoid cpuset
- restrictions
-Message-ID: <20140723232038.GV8578@sgi.com>
-References: <20140723220538.GT8578@sgi.com>
- <alpine.DEB.2.02.1407231516570.23495@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1407231545520.1389@chino.kir.corp.google.com>
+Received: from mail-oa0-f47.google.com (mail-oa0-f47.google.com [209.85.219.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FFA96B0035
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 20:38:02 -0400 (EDT)
+Received: by mail-oa0-f47.google.com with SMTP id g18so2719218oah.20
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 17:38:02 -0700 (PDT)
+Received: from mail-oa0-x235.google.com (mail-oa0-x235.google.com [2607:f8b0:4003:c02::235])
+        by mx.google.com with ESMTPS id g14si10488649oes.101.2014.07.23.17.38.01
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 23 Jul 2014 17:38:01 -0700 (PDT)
+Received: by mail-oa0-f53.google.com with SMTP id j17so2756369oag.12
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 17:38:01 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1407231545520.1389@chino.kir.corp.google.com>
+In-Reply-To: <20140723141721.d6a58555f124a7024d010067@linux-foundation.org>
+References: <1405616598-14798-1-git-send-email-jcmvbkbc@gmail.com>
+	<20140723141721.d6a58555f124a7024d010067@linux-foundation.org>
+Date: Thu, 24 Jul 2014 04:38:01 +0400
+Message-ID: <CAMo8BfJ0zC16ssBDGUxsLNwmVOpgnyk1PjikunB9u-C7x9uaOA@mail.gmail.com>
+Subject: Re: [PATCH v2] mm/highmem: make kmap cache coloring aware
+From: Max Filippov <jcmvbkbc@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Alex Thorlton <athorlton@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, kirill.shutemov@linux.intel.com, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>, lliubbo@gmail.com, Johannes Weiner <hannes@cmpxchg.org>, srivatsa.bhat@linux.vnet.ibm.com, Dave Hansen <dave.hansen@linux.intel.com>, dfults@sgi.com, hedi@sgi.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, Linux/MIPS Mailing List <linux-mips@linux-mips.org>, "linux-xtensa@linux-xtensa.org" <linux-xtensa@linux-xtensa.org>, LKML <linux-kernel@vger.kernel.org>, Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>, Chris Zankel <chris@zankel.net>, Marc Gauthier <marc@cadence.com>
 
-On Wed, Jul 23, 2014 at 03:50:09PM -0700, David Rientjes wrote:
-> The page allocator relies on __GFP_WAIT to determine if ALLOC_CPUSET 
-> should be set in allocflags.  ALLOC_CPUSET controls if a page allocation 
-> should be restricted only to the set of allowed cpuset mems.
-> 
-> Transparent hugepages clears __GFP_WAIT when defrag is disabled to prevent 
-> the fault path from using memory compaction or direct reclaim.  Thus, it 
-> is unfairly able to allocate outside of its cpuset mems restriction as a 
-> side-effect.
-> 
-> This patch ensures that ALLOC_CPUSET is only cleared when the gfp mask is 
-> truly GFP_ATOMIC by verifying it is also not a thp allocation.
+Hi Andrew,
 
-Tested.  Works as expected.
+thanks for your feedback, I'll address your points in the next version of this
+series.
 
-Tested-by: Alex Thorlton <athorlton@sgi.com>
+On Thu, Jul 24, 2014 at 1:17 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> Fifthly, it would be very useful to publish the performance testing
+> results for at least one architecture so that we can determine the
+> patchset's desirability.  And perhaps to motivate other architectures
+> to implement this.
+
+What sort of performance numbers would be relevant?
+For xtensa this patch enables highmem use for cores with aliasing cache,
+that is access to a gigabyte of memory (typical on KC705 FPGA board) vs.
+only 128MBytes of low memory, which is highly desirable. But performance
+comparison of these two configurations seems to make little sense.
+OTOH performance comparison of highmem variants with and without
+cache aliasing would show the quality of our cache flushing code.
+
+-- 
+Thanks.
+-- Max
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
