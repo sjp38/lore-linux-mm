@@ -1,53 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f47.google.com (mail-oa0-f47.google.com [209.85.219.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FFA96B0035
-	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 20:38:02 -0400 (EDT)
-Received: by mail-oa0-f47.google.com with SMTP id g18so2719218oah.20
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 17:38:02 -0700 (PDT)
-Received: from mail-oa0-x235.google.com (mail-oa0-x235.google.com [2607:f8b0:4003:c02::235])
-        by mx.google.com with ESMTPS id g14si10488649oes.101.2014.07.23.17.38.01
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 23 Jul 2014 17:38:01 -0700 (PDT)
-Received: by mail-oa0-f53.google.com with SMTP id j17so2756369oag.12
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 17:38:01 -0700 (PDT)
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 891E26B0035
+	for <linux-mm@kvack.org>; Wed, 23 Jul 2014 20:49:48 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id y13so2598446pdi.39
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 17:49:48 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id os6si4137795pbb.212.2014.07.23.17.49.46
+        for <linux-mm@kvack.org>;
+        Wed, 23 Jul 2014 17:49:47 -0700 (PDT)
+From: "Ren, Qiaowei" <qiaowei.ren@intel.com>
+Subject: RE: [PATCH v7 09/10] x86, mpx: cleanup unused bound tables
+Date: Thu, 24 Jul 2014 00:49:43 +0000
+Message-ID: <9E0BE1322F2F2246BD820DA9FC397ADE01703006@shsmsx102.ccr.corp.intel.com>
+References: <1405921124-4230-1-git-send-email-qiaowei.ren@intel.com>
+ <1405921124-4230-10-git-send-email-qiaowei.ren@intel.com>
+ <53CFE4F9.3000701@intel.com>
+In-Reply-To: <53CFE4F9.3000701@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20140723141721.d6a58555f124a7024d010067@linux-foundation.org>
-References: <1405616598-14798-1-git-send-email-jcmvbkbc@gmail.com>
-	<20140723141721.d6a58555f124a7024d010067@linux-foundation.org>
-Date: Thu, 24 Jul 2014 04:38:01 +0400
-Message-ID: <CAMo8BfJ0zC16ssBDGUxsLNwmVOpgnyk1PjikunB9u-C7x9uaOA@mail.gmail.com>
-Subject: Re: [PATCH v2] mm/highmem: make kmap cache coloring aware
-From: Max Filippov <jcmvbkbc@gmail.com>
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, Linux/MIPS Mailing List <linux-mips@linux-mips.org>, "linux-xtensa@linux-xtensa.org" <linux-xtensa@linux-xtensa.org>, LKML <linux-kernel@vger.kernel.org>, Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>, Chris Zankel <chris@zankel.net>, Marc Gauthier <marc@cadence.com>
+To: "Hansen, Dave" <dave.hansen@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
+Cc: "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hi Andrew,
 
-thanks for your feedback, I'll address your points in the next version of this
-series.
 
-On Thu, Jul 24, 2014 at 1:17 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> Fifthly, it would be very useful to publish the performance testing
-> results for at least one architecture so that we can determine the
-> patchset's desirability.  And perhaps to motivate other architectures
-> to implement this.
+On 2014-07-24, Hansen, Dave wrote:
+> On 07/20/2014 10:38 PM, Qiaowei Ren wrote:
+>> Since the kernel allocated those tables on-demand without userspace
+>> knowledge, it is also responsible for freeing them when the
+>> associated mappings go away.
+>>=20
+>> Here, the solution for this issue is to hook do_munmap() to check
+>> whether one process is MPX enabled. If yes, those bounds tables
+>> covered in the virtual address region which is being unmapped will
+>> be freed
+> also.
+>=20
+> This is the part of the code that I'm the most concerned about.
+>=20
+> Could you elaborate on how you've tested this to make sure it works OK?
 
-What sort of performance numbers would be relevant?
-For xtensa this patch enables highmem use for cores with aliasing cache,
-that is access to a gigabyte of memory (typical on KC705 FPGA board) vs.
-only 128MBytes of low memory, which is highly desirable. But performance
-comparison of these two configurations seems to make little sense.
-OTOH performance comparison of highmem variants with and without
-cache aliasing would show the quality of our cache flushing code.
+I can check a lot of debug information when one VMA and related bounds tabl=
+es are allocated and freed through adding a lot of print() like log into ke=
+rnel/runtime. Do you think this is enough?
 
--- 
-Thanks.
--- Max
+Thanks,
+Qiaowei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
