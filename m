@@ -1,59 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id D81826B008C
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 18:18:30 -0400 (EDT)
-Received: by mail-ig0-f180.google.com with SMTP id l13so40434iga.13
-        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 15:18:30 -0700 (PDT)
-Received: from mail-ig0-x234.google.com (mail-ig0-x234.google.com [2607:f8b0:4001:c05::234])
-        by mx.google.com with ESMTPS id i11si168801igf.37.2014.07.24.15.18.29
+Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 85E586B0093
+	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 18:21:36 -0400 (EDT)
+Received: by mail-ie0-f171.google.com with SMTP id at1so2926464iec.30
+        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 15:21:36 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id bt7si17876040icb.70.2014.07.24.15.21.35
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 24 Jul 2014 15:18:30 -0700 (PDT)
-Received: by mail-ig0-f180.google.com with SMTP id l13so45385iga.1
-        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 15:18:29 -0700 (PDT)
-Date: Thu, 24 Jul 2014 15:18:27 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/2] mm, slub: fix false-positive lockdep warning in
- free_partial()
-In-Reply-To: <20140724122143.GI1725@cmpxchg.org>
-Message-ID: <alpine.DEB.2.02.1407241517440.19906@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1407221550500.9885@chino.kir.corp.google.com> <alpine.DEB.2.02.1407221556330.9885@chino.kir.corp.google.com> <20140724122143.GI1725@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Jul 2014 15:21:35 -0700 (PDT)
+Date: Thu, 24 Jul 2014 15:21:33 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm/highmem: make kmap cache coloring aware
+Message-Id: <20140724152133.bd4556f632b9cbb506b168cf@linux-foundation.org>
+In-Reply-To: <CAMo8BfJ0zC16ssBDGUxsLNwmVOpgnyk1PjikunB9u-C7x9uaOA@mail.gmail.com>
+References: <1405616598-14798-1-git-send-email-jcmvbkbc@gmail.com>
+	<20140723141721.d6a58555f124a7024d010067@linux-foundation.org>
+	<CAMo8BfJ0zC16ssBDGUxsLNwmVOpgnyk1PjikunB9u-C7x9uaOA@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Dan Carpenter <dan.carpenter@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Max Filippov <jcmvbkbc@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, Linux/MIPS Mailing List <linux-mips@linux-mips.org>, "linux-xtensa@linux-xtensa.org" <linux-xtensa@linux-xtensa.org>, LKML <linux-kernel@vger.kernel.org>, Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>, Chris Zankel <chris@zankel.net>, Marc Gauthier <marc@cadence.com>
 
-On Thu, 24 Jul 2014, Johannes Weiner wrote:
+On Thu, 24 Jul 2014 04:38:01 +0400 Max Filippov <jcmvbkbc@gmail.com> wrote:
 
-> > diff --git a/mm/slub.c b/mm/slub.c
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -3195,12 +3195,13 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
-> >  /*
-> >   * Attempt to free all partial slabs on a node.
-> >   * This is called from kmem_cache_close(). We must be the last thread
-> > - * using the cache and therefore we do not need to lock anymore.
-> > + * using the cache, but we still have to lock for lockdep's sake.
-> >   */
-> >  static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
-> >  {
-> >  	struct page *page, *h;
-> >  
-> > +	spin_lock_irq(&n->list_lock);
-> >  	list_for_each_entry_safe(page, h, &n->partial, lru) {
-> >  		if (!page->inuse) {
-> >  			__remove_partial(n, page);
+> On Thu, Jul 24, 2014 at 1:17 AM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+> > Fifthly, it would be very useful to publish the performance testing
+> > results for at least one architecture so that we can determine the
+> > patchset's desirability.  And perhaps to motivate other architectures
+> > to implement this.
 > 
-> This already uses __remove_partial(), which does not have the lockdep
-> assertion.  You even acked the patch that made this change, why add
-> the spinlock now?
-> 
+> What sort of performance numbers would be relevant?
+> For xtensa this patch enables highmem use for cores with aliasing cache,
+> that is access to a gigabyte of memory (typical on KC705 FPGA board) vs.
+> only 128MBytes of low memory, which is highly desirable. But performance
+> comparison of these two configurations seems to make little sense.
+> OTOH performance comparison of highmem variants with and without
+> cache aliasing would show the quality of our cache flushing code.
 
-Yup, thanks.  This was sitting in Pekka's slab/next branch but isn't 
-actually needed after commit 1e4dd9461fab ("slub: do not assert not 
-having lock in removing freed partial").  Good catch!
+I'd assumed the patch was making cache coloring available as a
+performance tweak.  But you appear to be saying that the (high) memory
+is simply unavailable for such cores without this change.  I think.
+
+Please ensure that v3's changelog explains the full reason for the
+patch.  Assume you're talking to all-the-worlds-an-x86 dummies, OK?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
