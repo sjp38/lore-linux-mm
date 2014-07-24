@@ -1,133 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 426B96B0035
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 00:49:45 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so3120573pab.14
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 21:49:44 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id be2si4608153pbb.236.2014.07.23.21.49.43
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 23 Jul 2014 21:49:44 -0700 (PDT)
-Received: by mail-pa0-f51.google.com with SMTP id ey11so3119995pad.38
-        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 21:49:43 -0700 (PDT)
-Date: Wed, 23 Jul 2014 21:48:04 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v4 0/6] File Sealing & memfd_create()
-In-Reply-To: <1405877680-999-1-git-send-email-dh.herrmann@gmail.com>
-Message-ID: <alpine.LSU.2.11.1407232132330.991@eggly.anvils>
-References: <1405877680-999-1-git-send-email-dh.herrmann@gmail.com>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id BE5AB6B0035
+	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 01:23:59 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id kx10so3165033pab.34
+        for <linux-mm@kvack.org>; Wed, 23 Jul 2014 22:23:59 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
+        by mx.google.com with ESMTP id en5si4712085pbc.141.2014.07.23.22.23.58
+        for <linux-mm@kvack.org>;
+        Wed, 23 Jul 2014 22:23:58 -0700 (PDT)
+From: "Ren, Qiaowei" <qiaowei.ren@intel.com>
+Subject: RE: [PATCH v7 03/10] x86, mpx: add macro cpu_has_mpx
+Date: Thu, 24 Jul 2014 05:23:54 +0000
+Message-ID: <9E0BE1322F2F2246BD820DA9FC397ADE017042F5@shsmsx102.ccr.corp.intel.com>
+References: <1405921124-4230-1-git-send-email-qiaowei.ren@intel.com>
+ <1405921124-4230-4-git-send-email-qiaowei.ren@intel.com>
+ <53CE8EEC.2090402@intel.com>
+ <9E0BE1322F2F2246BD820DA9FC397ADE0170079E@shsmsx102.ccr.corp.intel.com>
+ <53CFDC79.8040804@intel.com>
+ <9E0BE1322F2F2246BD820DA9FC397ADE01703028@shsmsx102.ccr.corp.intel.com>
+ <53D08FA4.4030700@intel.com>
+In-Reply-To: <53D08FA4.4030700@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Herrmann <dh.herrmann@gmail.com>, linux-kernel@vger.kernel.org, Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, Greg Kroah-Hartman <greg@kroah.com>, john.stultz@linaro.org, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>, Hugh Dickins <hughd@google.com>, Andy Lutomirski <luto@amacapital.net>, Alexander Viro <viro@zeniv.linux.org.uk>
+To: "Hansen, Dave" <dave.hansen@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
+Cc: "x86@kernel.org" <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Sun, 20 Jul 2014, David Herrmann wrote:
 
-> Hi
-> 
-> This is v4 of the File-Sealing and memfd_create() patches. You can find v1 with
-> a longer introduction at gmane [1], there's also v2 [2] and v3 [3] available.
-> See also the article about sealing on LWN [4], and a high-level introduction on
-> the new API in my blog [5]. Last but not least, man-page proposals are
-> available in my private repository [6].
-> 
-> This series introduces two new APIs:
->   memfd_create(): Think of this syscall as malloc() but it returns a
->                   file-descriptor instead of a pointer. That file-descriptor is
->                   backed by anon-memory and can be memory-mapped for access.
->   sealing: The sealing API can be used to prevent a specific set of operations
->            on a file-descriptor. You 'seal' the file and give thus the
->            guarantee, that those operations will be rejected from now on.
-> 
-> This series adds the memfd_create(2) syscall only to x86 and x86-64. Patches for
-> most other architectures are available in my private repository [7]. Missing
-> architectures are:
->     alpha, avr32, blackfin, cris, frv, m32r, microblaze, mn10300, sh, sparc,
->     um, xtensa
-> These architectures lack several newer syscalls, so those should be added first
-> before adding memfd_create(2). I can provide patches for those, if required.
-> However, I think it should be kept separate from this series.
-> 
-> Changes in v4:
->   - drop page-isolation in favor of shmem_wait_for_pins()
->   - add unlikely(info->seals) to write_begin hot-path
->   - return EPERM for F_ADD_SEALS if file is not writable
->   - moved shmem_wait_for_pins() entirely into it's own commit
->   - make O_LARGEFILE mandatory part of memfd_create() ABI
->   - add lru_add_drain() to shmem_tag_pins() hot-path
->   - minor coding-style changes
-> 
-> Thanks
-> David
-> 
-> 
-> [1]    memfd v1: http://thread.gmane.org/gmane.comp.video.dri.devel/102241
-> [2]    memfd v2: http://thread.gmane.org/gmane.linux.kernel.mm/115713
-> [3]    memfd v3: http://thread.gmane.org/gmane.linux.kernel.mm/118721
-> [4] LWN article: https://lwn.net/Articles/593918/
-> [5]   API Intro: http://dvdhrm.wordpress.com/2014/06/10/memfd_create2/
-> [6]   Man-pages: http://cgit.freedesktop.org/~dvdhrm/man-pages/log/?h=memfd
-> [7]    Dev-repo: http://cgit.freedesktop.org/~dvdhrm/linux/log/?h=memfd
-> 
-> 
-> David Herrmann (6):
->   mm: allow drivers to prevent new writable mappings
->   shm: add sealing API
->   shm: add memfd_create() syscall
->   selftests: add memfd_create() + sealing tests
->   selftests: add memfd/sealing page-pinning tests
->   shm: wait for pins to be released when sealing
 
-Andrew, I've now given my Ack to all of these, and think they are
-ready for inclusion in mmotm, if you agree with the addition of
-this sealing feature and the memfd_create() syscall.
+On 2014-07-24, Hansen, Dave wrote:
+> On 07/23/2014 05:56 PM, Ren, Qiaowei wrote:
+>> On 2014-07-24, Hansen, Dave wrote:
+>>> On 07/22/2014 07:35 PM, Ren, Qiaowei wrote:
+>>>> The checking about MPX feature should be as follow:
+>>>>=20
+>>>>         if (pcntxt_mask & XSTATE_EAGER) {
+>>>>                 if (eagerfpu =3D=3D DISABLE) {
+>>>>                         pr_err("eagerfpu not present, disabling
+> some
+>>> xstate features: 0x%llx\n",
+>>>>                                         pcntxt_mask &
+>>> XSTATE_EAGER);
+>>>>                         pcntxt_mask &=3D ~XSTATE_EAGER; } else {
+>>>>                         eagerfpu =3D ENABLE;
+>>>>                 }
+>>>>         }
+>>>> This patch was merged into kernel the ending of last year
+>>>> (https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/c
+>>>> om
+>>>> mi
+>>>> t/?id=3De7d820a5e549b3eb6c3f9467507566565646a669 )
+>>>=20
+>>> Should we be doing a clear_cpu_cap(X86_FEATURE_MPX) in here?
+>>>=20
+>>> This isn't major, but I can't _ever_ imagine a user being able to
+>>> track down why MPX is not working from this message. Should we
+>>> spruce it up somehow?
+>>=20
+>> Maybe. If the error log "disabling some xstate features:" is changed
+>> to "disabling MPX xstate features:", do you think it is OK?
+>=20
+> That's better.  Is it really disabling MPX, though?
+>=20
+> And shouldn't we clear the cpu feature bit too?
 
-Andy Lutomirsky and I agree that it's somewhat unsatisfactory that a
-sealed sparse file could be passed, and inflate to something OOMing
-when read by the recipient; but I think we can live with that as a
-limitation of the initial implementation (the suspicious recipient
-can verify non-sparseness with lseek SEEK_HOLE), and it's my job
-to work on fixing that aspect - though probably not for 3.17.
+I am not sure. I am suspecting whether this checking should be moved before=
+ xstate_enable().
+
+Peter, what do you think of it?
 
 Thanks,
-Hugh
-
-> 
->  arch/x86/syscalls/syscall_32.tbl               |   1 +
->  arch/x86/syscalls/syscall_64.tbl               |   1 +
->  fs/fcntl.c                                     |   5 +
->  fs/inode.c                                     |   1 +
->  include/linux/fs.h                             |  29 +-
->  include/linux/shmem_fs.h                       |  17 +
->  include/linux/syscalls.h                       |   1 +
->  include/uapi/linux/fcntl.h                     |  15 +
->  include/uapi/linux/memfd.h                     |   8 +
->  kernel/fork.c                                  |   2 +-
->  kernel/sys_ni.c                                |   1 +
->  mm/mmap.c                                      |  30 +-
->  mm/shmem.c                                     | 324 +++++++++
->  mm/swap_state.c                                |   1 +
->  tools/testing/selftests/Makefile               |   1 +
->  tools/testing/selftests/memfd/.gitignore       |   4 +
->  tools/testing/selftests/memfd/Makefile         |  41 ++
->  tools/testing/selftests/memfd/fuse_mnt.c       | 110 +++
->  tools/testing/selftests/memfd/fuse_test.c      | 311 +++++++++
->  tools/testing/selftests/memfd/memfd_test.c     | 913 +++++++++++++++++++++++++
->  tools/testing/selftests/memfd/run_fuse_test.sh |  14 +
->  21 files changed, 1821 insertions(+), 9 deletions(-)
->  create mode 100644 include/uapi/linux/memfd.h
->  create mode 100644 tools/testing/selftests/memfd/.gitignore
->  create mode 100644 tools/testing/selftests/memfd/Makefile
->  create mode 100755 tools/testing/selftests/memfd/fuse_mnt.c
->  create mode 100644 tools/testing/selftests/memfd/fuse_test.c
->  create mode 100644 tools/testing/selftests/memfd/memfd_test.c
->  create mode 100755 tools/testing/selftests/memfd/run_fuse_test.sh
-> 
-> -- 
-> 2.0.2
+Qiaowei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
