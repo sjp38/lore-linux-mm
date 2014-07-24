@@ -1,52 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id B2DDC6B003C
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 13:59:53 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id kx10so4400215pab.20
-        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 10:59:53 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id qp1si6749890pac.31.2014.07.24.10.59.52
-        for <linux-mm@kvack.org>;
-        Thu, 24 Jul 2014 10:59:52 -0700 (PDT)
-Message-ID: <53D14997.7090106@intel.com>
-Date: Thu, 24 Jul 2014 10:59:51 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id C60FD6B0044
+	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 14:41:30 -0400 (EDT)
+Received: by mail-qg0-f42.google.com with SMTP id j5so3836716qga.29
+        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 11:41:30 -0700 (PDT)
+Received: from na01-bl2-obe.outbound.protection.outlook.com (mail-bl2lp0204.outbound.protection.outlook.com. [207.46.163.204])
+        by mx.google.com with ESMTPS id b38si12428608qge.71.2014.07.24.11.41.29
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 24 Jul 2014 11:41:30 -0700 (PDT)
+Message-ID: <53D15349.7030506@amd.com>
+Date: Thu, 24 Jul 2014 21:41:13 +0300
+From: Oded Gabbay <oded.gabbay@amd.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] memory-hotplug: add sysfs zone_index attribute
-References: <1406187138-27911-1-git-send-email-zhenzhang.zhang@huawei.com> <53D0B8B6.8040104@huawei.com>
-In-Reply-To: <53D0B8B6.8040104@huawei.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Subject: Re: mmu_notifier: preparatory patches for hmm and or iommuv2 v6
+References: <1405622809-3797-1-git-send-email-j.glisse@gmail.com>
+ <20140724154646.GB2951@gmail.com>
+In-Reply-To: <20140724154646.GB2951@gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Zhen <zhenzhang.zhang@huawei.com>, mingo@redhat.com, Yinghai Lu <yinghai@kernel.org>, mgorman@suse.de, akpm@linux-foundation.org, zhangyanfei@cn.fujitsu.com
-Cc: wangnan0@huawei.com, Linux MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Jerome Glisse <j.glisse@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel
+ Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes
+ Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van
+ Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron
+ Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul
+ Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>
 
-On 07/24/2014 12:41 AM, Zhang Zhen wrote:
-> Currently memory-hotplug has two limits:
-> 1. If the memory block is in ZONE_NORMAL, you can change it to
-> ZONE_MOVABLE, but this memory block must be adjacent to ZONE_MOVABLE.
-> 2. If the memory block is in ZONE_MOVABLE, you can change it to
-> ZONE_NORMAL, but this memory block must be adjacent to ZONE_NORMAL.
-> 
-> Without this patch, we don't know which zone a memory block is in.
-> So we don't know which memory block is adjacent to ZONE_MOVABLE or
-> ZONE_NORMAL.
-> 
-> On the other hand, with this patch, we can easy to know newly added
-> memory is added as ZONE_NORMAL (for powerpc, ZONE_DMA, for x86_32,
-> ZONE_HIGHMEM).
+On 24/07/14 18:46, Jerome Glisse wrote:
+> On Thu, Jul 17, 2014 at 02:46:46PM -0400, j.glisse@gmail.com wrote:
+>> Nutshell few patches to improve mmu_notifier :
+>>  - patch 1/3 allow to free resources when mm_struct is destroy.
+>>  - patch 2/3 provide context informations to mmu_notifier listener.
+>>  - patch 3/3 pass vma to range_start/range_end to avoid duplicate
+>>    vma lookup inside the listener.
+>>
+>> I restricted myself to set of less controversial patches and i believe
+>> i have addressed all comments that were previously made. Thanks again
+>> for all feedback, i hope this version is the good one.
+>>
+>> This is somewhat of a v5 but i do not include core hmm with those
+>> patches. So previous discussion thread :
+>> v1 http://www.spinics.net/lists/linux-mm/msg72501.html
+>> v2 http://www.spinics.net/lists/linux-mm/msg74532.html
+>> v3 http://www.spinics.net/lists/linux-mm/msg74656.html
+>> v4 http://www.spinics.net/lists/linux-mm/msg75401.html
+>> v5 http://www.spinics.net/lists/linux-mm/msg75875.html
+>>
+>=20
+> Anyone willing to review this ? Or is there no objection ? I would
+> really appreciate to know where i am standing on those 3 patches.
+>=20
+> Cheers,
+> J=C3=A9r=C3=B4me
+>=20
+I think I already wrote it but anyway, I reviewed and tested patch 1/3.
 
-A section can contain more than one zone.  This interface will lie about
-such sections, which is quite unfortunate.
-
-I'd really much rather see an interface that has a section itself
-enumerate to which zones it may be changed.  The way you have it now,
-any user has to know the rules that you've laid out above.  If the
-kernel changed those restrictions, we'd have to teach every application
-about the change in restrictions.
-
-
+	Oded
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
