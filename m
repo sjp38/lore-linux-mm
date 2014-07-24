@@ -1,74 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id BB34A6B0035
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 10:24:38 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id bj1so4033170pad.39
-        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 07:24:38 -0700 (PDT)
-Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
-        by mx.google.com with ESMTP id cb10si312267pdb.227.2014.07.24.07.24.36
-        for <linux-mm@kvack.org>;
-        Thu, 24 Jul 2014 07:24:37 -0700 (PDT)
-Date: Thu, 24 Jul 2014 15:24:17 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: arm64 flushing 255GB of vmalloc space takes too long
-Message-ID: <20140724142417.GE13371@arm.com>
-References: <CAMPhdO-j5SfHexP8hafB2EQVs91TOqp_k_SLwWmo9OHVEvNWiQ@mail.gmail.com>
- <20140709174055.GC2814@arm.com>
- <CAMPhdO_XqAL4oXcuJkp2PTQ-J07sGG4Nm5HjHO=yGqS+KuWQzg@mail.gmail.com>
- <53BF3D58.2010900@codeaurora.org>
- <20140711124553.GG11473@arm.com>
- <1406150734.12484.79.camel@deneb.redhat.com>
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 290D36B0036
+	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 10:45:30 -0400 (EDT)
+Received: by mail-qg0-f50.google.com with SMTP id q108so3390403qgd.9
+        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 07:45:29 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k12si11350423qav.129.2014.07.24.07.45.29
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Jul 2014 07:45:29 -0700 (PDT)
+Date: Thu, 24 Jul 2014 16:44:49 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 0/3] mmu_notifier: Allow to manage CPU external TLBs
+Message-ID: <20140724144449.GC27715@redhat.com>
+References: <1406212541-25975-1-git-send-email-joro@8bytes.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1406150734.12484.79.camel@deneb.redhat.com>
+In-Reply-To: <1406212541-25975-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mark Salter <msalter@redhat.com>
-Cc: Laura Abbott <lauraa@codeaurora.org>, Eric Miao <eric.y.miao@gmail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux Memory Management List <linux-mm@kvack.org>, Will Deacon <Will.Deacon@arm.com>, Russell King <linux@arm.linux.org.uk>
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Jerome Glisse <jglisse@redhat.com>, jroedel@suse.de, Jay.Cornwall@amd.com, Oded.Gabbay@amd.com, John.Bridgman@amd.com, Suravee.Suthikulpanit@amd.com, ben.sander@amd.com, Jesse Barnes <jbarnes@virtuousgeek.org>, David Woodhouse <dwmw2@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org
 
-On Wed, Jul 23, 2014 at 10:25:34PM +0100, Mark Salter wrote:
-> On Fri, 2014-07-11 at 13:45 +0100, Catalin Marinas wrote:
-> > On Fri, Jul 11, 2014 at 02:26:48AM +0100, Laura Abbott wrote:
-> > > Mark Salter actually proposed a fix to this back in May 
-> > > 
-> > > https://lkml.org/lkml/2014/5/2/311
-> > > 
-> > > I never saw any further comments on it though. It also matches what x86
-> > > does with their TLB flushing. It fixes the problem for me and the threshold
-> > > seems to be the best we can do unless we want to introduce options per
-> > > platform. It will need to be rebased to the latest tree though.
-> > 
-> > There were other patches in this area and I forgot about this. The
-> > problem is that the ARM architecture does not define the actual
-> > micro-architectural implementation of the TLBs (and it shouldn't), so
-> > there is no way to guess how many TLB entries there are. It's not an
-> > easy figure to get either since there are multiple levels of caching for
-> > the TLBs.
-> > 
-> > So we either guess some value here (we may not always be optimal) or we
-> > put some time bound (e.g. based on sched_clock()) on how long to loop.
-> > The latter is not optimal either, the only aim being to avoid
-> > soft-lockups.
+On Thu, Jul 24, 2014 at 04:35:38PM +0200, Joerg Roedel wrote:
+> To solve this situation I wrote a patch-set to introduce a
+> new notifier call-back: mmu_notifer_invalidate_range(). This
+> notifier lifts the strict requirements that no new
+> references are taken in the range between _start() and
+> _end(). When the subsystem can't guarantee that any new
+> references are taken is has to provide the
+> invalidate_range() call-back to clear any new references in
+> there.
 > 
-> Sorry for the late reply...
+> It is called between invalidate_range_start() and _end()
+> every time the VMM has to wipe out any references to a
+> couple of pages. This are usually the places where the CPU
+> TLBs are flushed too and where its important that this
+> happens before invalidate_range_end() is called.
 > 
-> So, what would you like to see wrt this, Catalin? A reworked patch based
-> on time? IMO, something based on loop count or time seems better than
-> the status quo of a CPU potentially wasting 10s of seconds flushing the
-> tlb.
+> Any comments and review appreciated!
 
-I think we could go with a loop for simplicity but with a larger number
-of iterations only to avoid the lock-up (e.g. 1024, this would be 4MB
-range). My concern is that for a few global mappings that may or may not
-be in the TLB we nuke both the L1 and L2 TLBs (the latter can have over
-1K entries). As for optimisation, I think we should look at the original
-code generating such big ranges.
-
-Would you mind posting a patch against the latest kernel?
-
--- 
-Catalin
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
