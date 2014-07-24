@@ -1,145 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B17EE6B0035
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 03:43:32 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id ey11so3399487pad.38
-        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 00:43:32 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id kw2si5050017pab.141.2014.07.24.00.43.29
+Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AA8F6B0035
+	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 04:46:50 -0400 (EDT)
+Received: by mail-we0-f169.google.com with SMTP id u56so2362224wes.14
+        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 01:46:49 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dd4si10393870wjb.26.2014.07.24.01.46.47
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 24 Jul 2014 00:43:31 -0700 (PDT)
-Message-ID: <53D0B8B6.8040104@huawei.com>
-Date: Thu, 24 Jul 2014 15:41:42 +0800
-From: Zhang Zhen <zhenzhang.zhang@huawei.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 24 Jul 2014 01:46:48 -0700 (PDT)
+Date: Thu, 24 Jul 2014 10:46:44 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 13/13] mm: memcontrol: rewrite uncharge API
+Message-ID: <20140724084644.GA14578@dhcp22.suse.cz>
+References: <20140718071246.GA21565@dhcp22.suse.cz>
+ <20140718144554.GG29639@cmpxchg.org>
+ <CAJfpegt9k+YULet3vhmG3br7zSiHy-DRL+MiEE=HRzcs+mLzbw@mail.gmail.com>
+ <20140719173911.GA1725@cmpxchg.org>
+ <20140722150825.GA4517@dhcp22.suse.cz>
+ <CAJfpegscT-ptQzq__uUV2TOn7Uvs6x4FdWGTQb9Fe9MEJr2KjA@mail.gmail.com>
+ <20140723143847.GB16721@dhcp22.suse.cz>
+ <20140723150608.GF1725@cmpxchg.org>
+ <CAJfpegs-k5QC+42SzLKUSaHrdPxWBaT_dF+SOPqoDvg8h5p_Tw@mail.gmail.com>
+ <20140723210241.GH1725@cmpxchg.org>
 MIME-Version: 1.0
-Subject: [PATCH] memory-hotplug: add sysfs zone_index attribute
-References: <1406187138-27911-1-git-send-email-zhenzhang.zhang@huawei.com>
-In-Reply-To: <1406187138-27911-1-git-send-email-zhenzhang.zhang@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140723210241.GH1725@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mingo@redhat.com, Yinghai Lu <yinghai@kernel.org>, mgorman@suse.de, akpm@linux-foundation.org, dave.hansen@intel.com, zhangyanfei@cn.fujitsu.com
-Cc: wangnan0@huawei.com, Linux MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Miklos Szeredi <miklos@szeredi.hu>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Currently memory-hotplug has two limits:
-1. If the memory block is in ZONE_NORMAL, you can change it to
-ZONE_MOVABLE, but this memory block must be adjacent to ZONE_MOVABLE.
-2. If the memory block is in ZONE_MOVABLE, you can change it to
-ZONE_NORMAL, but this memory block must be adjacent to ZONE_NORMAL.
+On Wed 23-07-14 17:02:41, Johannes Weiner wrote:
+[...]
+> From 2c3525cb556313936845a7c57f4c4adc655b6680 Mon Sep 17 00:00:00 2001
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Date: Wed, 23 Jul 2014 15:00:15 -0400
+> Subject: [patch] mm: memcontrol: rewrite uncharge API fix - page cache
+>  migration 2
+> 
+> In case of fuse page cache replacement the target page in migration
+> can already be charged when splice steals it from page cache.  That
+> triggers the !PageCgrouUsed() assertion during commit:
+> 
+> [  755.141095] page:ffffea00031f9b00 count:2 mapcount:0 mapping:ffff8800c84d1858 index:0x0
+> [  755.141097] page flags: 0x3fffc000000029(locked|uptodate|lru)
+> [  755.141098] page dumped because: VM_BUG_ON_PAGE(PageCgroupUsed(pc))
+> [  755.141098] pc:ffff880215cfe6c0 pc->flags:7 pc->mem_cgroup:ffff880216c23000
+> [  755.141113] ------------[ cut here ]------------
+> [  755.141113] kernel BUG at /home/hannes/src/linux/linux/mm/memcontrol.c:2736!
+> [  755.141115] invalid opcode: 0000 [#1] SMP
+> [  755.141117] CPU: 0 PID: 342 Comm: lt-fusexmp_fh Not tainted 3.16.0-rc5-mm1-00502-g5e5b90c20054 #367
+> [  755.141117] Hardware name: To Be Filled By O.E.M. To Be Filled By O.E.M./H61M-DGS, BIOS P1.30 05/10/2012
+> [  755.141118] task: ffff880213104580 ti: ffff8800c9204000 task.ti: ffff8800c9204000
+> [  755.141121] RIP: 0010:[<ffffffff81188497>]  [<ffffffff81188497>] commit_charge+0xa7/0xb0
+> [  755.141122] RSP: 0018:ffff8800c9207c18  EFLAGS: 00010286
+> [  755.141123] RAX: 000000000000003f RBX: ffffea00031f9b00 RCX: 0000000000004c4b
+> [  755.141123] RDX: 0000000000000001 RSI: 0000000000000001 RDI: ffff880213104580
+> [  755.141124] RBP: ffff8800c9207c40 R08: 0000000000000001 R09: 0000000000000000
+> [  755.141124] R10: 0000000000000000 R11: 0000000000000000 R12: ffff880216c23000
+> [  755.141125] R13: 0000000000000001 R14: ffff8800c84d1858 R15: 0000000000000000
+> [  755.141125] FS:  00007fc15f7fe700(0000) GS:ffff88021f200000(0000) knlGS:0000000000000000
+> [  755.141126] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [  755.141127] CR2: 00007f693db3b6b0 CR3: 0000000211d54000 CR4: 00000000000407f0
+> [  755.141127] Stack:
+> [  755.141128]  ffffea00031f8480 ffffea00031f9b00 ffffea00031f8480 ffffea00031f9b00
+> [  755.141129]  0000000000000000 ffff8800c9207c78 ffffffff8118e283 00000001c9207c60
+> [  755.141130]  ffff880215cfe120 00000001c9207c78 ffffea00031f9b00 ffffea00031f8480
+> [  755.141131] Call Trace:
+> [  755.141133]  [<ffffffff8118e283>] mem_cgroup_migrate+0xe3/0x210
+> [  755.141135]  [<ffffffff8111a086>] replace_page_cache_page+0xf6/0x1c0
+> [  755.141137]  [<ffffffff8127aceb>] fuse_copy_page+0x1bb/0x5f0
+> [  755.141138]  [<ffffffff8127b20f>] fuse_copy_args+0xef/0x140
+> [  755.141140]  [<ffffffff8127caba>] fuse_dev_do_write+0x7ba/0xd30
+> [  755.141143]  [<ffffffff8109518d>] ? trace_hardirqs_on_caller+0x15d/0x200
+> [  755.141146]  [<ffffffff816a83ea>] ? __mutex_unlock_slowpath+0xaa/0x180
+> [  755.141147]  [<ffffffff8109518d>] ? trace_hardirqs_on_caller+0x15d/0x200
+> [  755.141148]  [<ffffffff8109523d>] ? trace_hardirqs_on+0xd/0x10
+> [  755.141150]  [<ffffffff8127d2b2>] fuse_dev_splice_write+0x282/0x360
+> [  755.141152]  [<ffffffff811c4ce1>] SyS_splice+0x351/0x800
+> [  755.141153]  [<ffffffff8109518d>] ? trace_hardirqs_on_caller+0x15d/0x200
+> [  755.141155]  [<ffffffff816ab192>] system_call_fastpath+0x16/0x1b
+> [  755.141166] Code: 07 48 89 10 8b 75 e4 e8 f8 fd ff ff 48 83 c4 10 5b 41 5c 41 5d 5d c3 0f 1f 44 00 00 48 c7 c6 68 0b 9c 81 48 89 df e8 e9 a2 f9 ff <0f> 0b 0f 1f 80 00 00 00 00 66 66 66 66 90 48 39 f7 74 26 48 85
+> [  755.141167] RIP  [<ffffffff81188497>] commit_charge+0xa7/0xb0
+> [  755.141167]  RSP <ffff8800c9207c18>
+> [  755.141665] ---[ end trace 2d0ea36c8e3ded5b ]---
+> 
+> If the target page is already charged, just leave it as is and abort
+> the charge migration attempt.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Without this patch, we don't know which zone a memory block is in.
-So we don't know which memory block is adjacent to ZONE_MOVABLE or
-ZONE_NORMAL.
+We can reduce the lookup only to lruvec==true case, no?
 
-On the other hand, with this patch, we can easy to know newly added
-memory is added as ZONE_NORMAL (for powerpc, ZONE_DMA, for x86_32,
-ZONE_HIGHMEM).
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-Updated the related Documentation.
-
-Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
----
- Documentation/ABI/testing/sysfs-devices-memory |  9 +++++++++
- Documentation/memory-hotplug.txt               |  4 +++-
- drivers/base/memory.c                          | 15 ++++++++++++++-
- 3 files changed, 26 insertions(+), 2 deletions(-)
-
-diff --git a/Documentation/ABI/testing/sysfs-devices-memory b/Documentation/ABI/testing/sysfs-devices-memory
-index 7405de2..39d3423 100644
---- a/Documentation/ABI/testing/sysfs-devices-memory
-+++ b/Documentation/ABI/testing/sysfs-devices-memory
-@@ -61,6 +61,15 @@ Users:		hotplug memory remove tools
- 		http://www.ibm.com/developerworks/wikis/display/LinuxP/powerpc-utils
-
-
-+What:           /sys/devices/system/memory/memoryX/zone_index
-+Date:           July 2014
-+Contact:	Zhang Zhen <zhenzhang.zhang@huawei.com>
-+Description:
-+		The file /sys/devices/system/memory/memoryX/zone_index
-+		is read-only and is designed to show which zone this memory block is in.
-+Users:		hotplug memory remove tools
-+		http://www.ibm.com/developerworks/wikis/display/LinuxP/powerpc-utils			
-+
- What:		/sys/devices/system/memoryX/nodeY
- Date:		October 2009
- Contact:	Linux Memory Management list <linux-mm@kvack.org>
-diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
-index 45134dc..07019133 100644
---- a/Documentation/memory-hotplug.txt
-+++ b/Documentation/memory-hotplug.txt
-@@ -155,6 +155,7 @@ Under each memory block, you can see 4 files:
- /sys/devices/system/memory/memoryXXX/phys_device
- /sys/devices/system/memory/memoryXXX/state
- /sys/devices/system/memory/memoryXXX/removable
-+/sys/devices/system/memory/memoryXXX/zone_index
-
- 'phys_index'      : read-only and contains memory block id, same as XXX.
- 'state'           : read-write
-@@ -170,6 +171,8 @@ Under each memory block, you can see 4 files:
-                     block is removable and a value of 0 indicates that
-                     it is not removable. A memory block is removable only if
-                     every section in the block is removable.
-+'zone_index' 	  : read-only: designed to show which zone this memory block
-+		    is in.
-
- NOTE:
-   These directories/files appear after physical memory hotplug phase.
-@@ -408,7 +411,6 @@ node if necessary.
-   - allowing memory hot-add to ZONE_MOVABLE. maybe we need some switch like
-     sysctl or new control file.
-   - showing memory block and physical device relationship.
--  - showing memory block is under ZONE_MOVABLE or not
-   - test and make it better memory offlining.
-   - support HugeTLB page migration and offlining.
-   - memmap removing at memory offline.
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 89f752d..3434d97 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -373,11 +373,23 @@ static ssize_t show_phys_device(struct device *dev,
- 	return sprintf(buf, "%d\n", mem->phys_device);
- }
-
-+static ssize_t show_mem_zone_index(struct device *dev,
-+				struct device_attribute *attr, char *buf)
-+{
-+	struct memory_block *mem = to_memory_block(dev);
-+	struct page *first_page;
-+	struct zone *zone;
-+
-+	first_page = pfn_to_page(mem->start_section_nr << PFN_SECTION_SHIFT);
-+	zone = page_zone(first_page);
-+	return sprintf(buf, "%s\n", zone->name);
-+}
-+
- static DEVICE_ATTR(phys_index, 0444, show_mem_start_phys_index, NULL);
- static DEVICE_ATTR(state, 0644, show_mem_state, store_mem_state);
- static DEVICE_ATTR(phys_device, 0444, show_phys_device, NULL);
- static DEVICE_ATTR(removable, 0444, show_mem_removable, NULL);
--
-+static DEVICE_ATTR(zone_index, 0444, show_mem_zone_index, NULL);
- /*
-  * Block size attribute stuff
-  */
-@@ -521,6 +533,7 @@ static struct attribute *memory_memblk_attrs[] = {
- 	&dev_attr_state.attr,
- 	&dev_attr_phys_device.attr,
- 	&dev_attr_removable.attr,
-+	&dev_attr_zone_index.attr,
- 	NULL
- };
+> ---
+>  mm/memcontrol.c | 6 ++++++
+>  1 file changed, 6 insertions(+)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index b7c9a202dee9..3eaa6e83c168 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -6660,6 +6660,12 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
+>  	if (mem_cgroup_disabled())
+>  		return;
+>  
+> +	/* Page cache replacement: new page already charged? */
+> +	pc = lookup_page_cgroup(newpage);
+> +	if (PageCgroupUsed(pc))
+> +		return;
+> +
+> +	/* Re-entrant migration: old page already uncharged? */
+>  	pc = lookup_page_cgroup(oldpage);
+>  	if (!PageCgroupUsed(pc))
+>  		return;
+> -- 
+> 2.0.0
+> 
 
 -- 
-1.8.1.2
-
-
-.
-
-
-
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
