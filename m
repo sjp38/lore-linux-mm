@@ -1,139 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 37E196B0036
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 11:15:23 -0400 (EDT)
-Received: by mail-qa0-f51.google.com with SMTP id k15so3082680qaq.10
-        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 08:15:23 -0700 (PDT)
-Received: from nm31-vm8.bullet.mail.bf1.yahoo.com (nm31-vm8.bullet.mail.bf1.yahoo.com. [72.30.239.134])
-        by mx.google.com with ESMTPS id n7si11516771qag.73.2014.07.24.08.15.22
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id C110E6B0038
+	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 11:46:58 -0400 (EDT)
+Received: by mail-qg0-f42.google.com with SMTP id j5so3474194qga.15
+        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 08:46:58 -0700 (PDT)
+Received: from mail-qa0-x22d.google.com (mail-qa0-x22d.google.com [2607:f8b0:400d:c00::22d])
+        by mx.google.com with ESMTPS id o3si11611850qat.117.2014.07.24.08.46.53
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Jul 2014 08:15:22 -0700 (PDT)
-Date: Fri, 25 Jul 2014 00:15:13 +0900
-Subject: RE: [linux-3.10.17] Could not allocate memory from free CMA areas
-Message-ID: <dsqnq2i1mer1r7kpvuflt0k9.1406214301636@email.android.com>
-From: pintu_agarwal <pintu_agarwal@yahoo.com>
-Reply-To: pintu_agarwal <pintu_agarwal@yahoo.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 24 Jul 2014 08:46:53 -0700 (PDT)
+Received: by mail-qa0-f45.google.com with SMTP id cm18so3110417qab.18
+        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 08:46:53 -0700 (PDT)
+Date: Thu, 24 Jul 2014 11:46:48 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: mmu_notifier: preparatory patches for hmm and or iommuv2 v6
+Message-ID: <20140724154646.GB2951@gmail.com>
+References: <1405622809-3797-1-git-send-email-j.glisse@gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative; boundary="--_com.android.email_21592236314180"
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1405622809-3797-1-git-send-email-j.glisse@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: PINTU KUMAR <pintu_agarwal@yahoo.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, iamjoonsoo.kim@lge.com, ritesh.list@gmail.com
-Cc: "pintu.k@outlook.com" <pintu.k@outlook.com>, "pintu.k@samsung.com" <pintu.k@samsung.com>, "vishu_1385@yahoo.com" <vishu_1385@yahoo.com>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "mina86@mina86.com" <mina86@mina86.com>, "ngupta@vflare.org" <ngupta@vflare.org>, "iqbalblr@gmail.com" <iqbalblr@gmail.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>
 
-----_com.android.email_21592236314180
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: base64
+On Thu, Jul 17, 2014 at 02:46:46PM -0400, j.glisse@gmail.com wrote:
+> Nutshell few patches to improve mmu_notifier :
+>  - patch 1/3 allow to free resources when mm_struct is destroy.
+>  - patch 2/3 provide context informations to mmu_notifier listener.
+>  - patch 3/3 pass vma to range_start/range_end to avoid duplicate
+>    vma lookup inside the listener.
+> 
+> I restricted myself to set of less controversial patches and i believe
+> i have addressed all comments that were previously made. Thanks again
+> for all feedback, i hope this version is the good one.
+> 
+> This is somewhat of a v5 but i do not include core hmm with those
+> patches. So previous discussion thread :
+> v1 http://www.spinics.net/lists/linux-mm/msg72501.html
+> v2 http://www.spinics.net/lists/linux-mm/msg74532.html
+> v3 http://www.spinics.net/lists/linux-mm/msg74656.html
+> v4 http://www.spinics.net/lists/linux-mm/msg75401.html
+> v5 http://www.spinics.net/lists/linux-mm/msg75875.html
+> 
 
-RGVhciBqb29uc29vIGtpbSwKCkkgaGF2ZSB5b3VyIHBhdGNoZXMgZm9yOiBBZ2dyZXNzaXZlbHkg
-YWxsb2NhdGUgbWVtb3J5IGZyb20gY21hIC4uLi4KV2UgYXJlIGZhY2luZyBhbG1vc3Qgc2ltaWxh
-ciBwcm9ibGVtIGhlcmUuCklmIGFueSBvZiB5b3VyIHBhdGNoZXMgc3RpbGwgd29ya2luZyBmb3Ig
-eW91IHBsZWFzZSBsZXQgdXMga25vdyBoZXJlLgpJIHdvdWxkIGxpa2UgdG8gdHJ5IHRob3NlIGFw
-cHJvYWNoLgoKVGhhbmsgeW91CgoKU2VudCBmcm9tIFNhbXN1bmcgTW9iaWxlCgotLS0tLS0tLSBP
-cmlnaW5hbCBtZXNzYWdlIC0tLS0tLS0tCkZyb206IFBJTlRVIEtVTUFSIDxwaW50dV9hZ2Fyd2Fs
-QHlhaG9vLmNvbT4gCkRhdGU6IDA5LzA3LzIwMTQgIDg6NDEgQU0gIChHTVQrMDk6MDApIApUbzog
-bGludXgtbW1Aa3ZhY2sub3JnLGxpbnV4LW1tQGt2YWNrLm9yZyxsaW51eC1hcm0ta2VybmVsQGxp
-c3RzLmluZnJhZGVhZC5vcmcsbGluYXJvLW1tLXNpZ0BsaXN0cy5saW5hcm8ub3JnIApDYzogcGlu
-dHUua0BvdXRsb29rLmNvbSxwaW50dS5rQHNhbXN1bmcuY29tLHZpc2h1XzEzODVAeWFob28uY29t
-LG0uc3p5cHJvd3NraUBzYW1zdW5nLmNvbSxtaW5hODZAbWluYTg2LmNvbSxuZ3VwdGFAdmZsYXJl
-Lm9yZyxpcWJhbGJsckBnbWFpbC5jb20gClN1YmplY3Q6IFtsaW51eC0zLjEwLjE3XSBDb3VsZCBu
-b3QgYWxsb2NhdGUgbWVtb3J5IGZyb20gZnJlZSBDTUEgYXJlYXMgCiAKSGksCgpXZSBhcmUgZmFj
-aW5nIG9uZSBwcm9ibGVtIG9uIGxpbnV4IDMuMTAgd2hlbiB3ZSB0cnkgdG8gdXNlIENNQSBhcyBs
-YXJnZSBhcyA1Nk1CIGZvciAyNTZNQiBSQU0gZGV2aWNlLgpXZSBmb3VuZCB0aGF0IGFmdGVyIGNl
-cnRhaW4gcG9pbnQgb2YgdGltZSAoZHVyaW5nIGJvb3QpLCBtaW4gd2F0ZXJtYXJrIGNoZWNrIGlz
-IGZhaWxpbmcgd2hlbiAiZnJlZV9wYWdlcyIgYW5kICJmcmVlX2NtYV9wYWdlcyIgYXJlIGFsbW9z
-dCBlcXVhbCBhbmQgZmFsbHMgYmVsb3cgdGhlIG1pbiBsZXZlbC4KCnN5c3RlbSBkZXRhaWxzOgpB
-Uk0gZW1iZWRkZWQgZGV2aWNlOiBSQU06IDI1Nk1CCktlcm5lbCB2ZXJzaW9uOiAzLjEwLjE3CkZp
-eGVkIFJlc2VydmVkIG1lbW9yeTogfjQwTUIKQXZhaWxhYmxlIG1lbW9yeTogMjE3TUIKQ01BIHJl
-c2VydmVkIDEgOiA1Nk1CClpSQU0gY29uZmlndXJlZDogMTI4TUIgb3IgNjRNQgptaW5fZnJlZV9r
-Ynl0ZXM6IDE2MjUgKGRlZmF1bHQpCk1lbW9yeSBjb250cm9sbGVyIGdyb3VwIGVuYWJsZWQgKE1F
-TUNHKQoKCkFmdGVyIGJvb3QtdXAgdGhlICJmcmVlIC10bSIgY29tbWFuZCBzaG93cyBmcmVlIG1l
-bW9yeSBhczogfjUwTUIKQ01BIGlzIHVzZWQgZm9yIGFsbCBVSSBkaXNwbGF5IHB1cnBvc2VzLiBD
-TUEgdXNlZCBkdXJpbmcgYm9vdHVwIGlzIGNsb3NlIHRvIH42TUIuClRodXMgbW9zdCBvZiB0aGUg
-ZnJlZSBtZW1vcnkgaXMgaW4gdGhlIGZvcm0gb2YgQ01BIGZyZWUgbWVtb3J5LgpaUkFNIGdldHRp
-bmcgdXNlcyB3YXMgYXJvdW5kIH41TUIuCgoKRHVyaW5nIGJvb3QtdXAgaXRzZWxmIHdlIG9ic2Vy
-dmUgdGhhdCB0aGUgZm9sbG93aW5nIGNvbmRpdGlvbnMgYXJlIG1ldC4KCgppZiAoZnJlZV9wYWdl
-cyAtIGZyZWVfY21hIDw9IG1pbiArIGxvd21lbV9yZXNlcnZlKSB7CsKgwqDCoCBwcmludGsiW1BJ
-TlRVXTogX196b25lX3dhdGVybWFya19vazogZmFpbGVkICFcbiIpOwoKwqDCoMKgIHJldHVybiBm
-YWxzZTsKfQpIZXJlOiBmcmVlX3BhZ2VzIHdhczogMTI5NDAsIGZyZWVfY21hIHdhczogMTIzODAs
-IG1pbjogNTY2LCBsb3dtZW06IDAKCgpUaHVzIGlzIGNvbmRpdGlvbiBpcyBtZXQgbW9zdCBvZiB0
-aGUgdGltZS4KQW5kIGJlY2F1c2Ugb2YgdGhpcyB3YXRlcm1hcmsgZmFpbHVyZSwgS3N3YXBkIGlz
-IHdha2luZyB1cCBmcmVxdWVudGx5LgpUaGUgL3Byb2MvcGFnZXR5cGVpbmZvIHJlcG9ydHMgdGhh
-dCBtb3N0IG9mIHRoZSBoaWdoZXIgb3JkZXIgcGFnZXMgYXJlIGZyb20gQ01BIHJlZ2lvbnMuCgoK
-V2UgYWxzbyBvYnNlcnZlZCB0aGF0IFpSQU0gaXMgdHJ5aW5nIHRvIGFsbG9jYXRlIG1lbW9yeSBm
-cm9tIENNQSByZWdpb24gYW5kIGZhaWxpbmcuCgpXZSBhbHNvIHRyaWVkIGJ5IGRlY3JlYXNpbmcg
-dGhlIENNQSByZWdpb24gdG8gMjBNQi4gV2l0aCB0aGlzIHRoZSB3YXRlcm1hcmsgZmFpbHVyZSBp
-cyBub3QgaGFwcGVuaW5nIGluIGJvb3QgdGltZS4gQnV0IGlmIHdlIGxhdW5jaCBtb3JlIHRoYW4g
-MyBhcHBzIHtCcm93c2VyLCBtdXNpYy1wbGF5ZXIgZXRjfSwgYWdhaW4gdGhlIHdhdGVybWFyayBz
-dGFydGVkIGZhaWxpbmcuCgpBbHNvIHdlIHRyaWVkIGRlY3JlYXNpbmcgdGhlIG1pbl9mcmVlX2ti
-eXRlcz0yNTYsIGFuZCB3aXRoIHRoaXMgYWxzbyB3YXRlcm1hcmsgaXMgcGFzc2VkLgoKT3VyIG9i
-c2VydmF0aW9uIGlzIHRoYXQgWlJBTS96c21hbGxvYyB0cnlpbmcgdG8gYWxsb2NhdGUgbWVtb3J5
-IGZyb20gQ01BIGFyZWFzIGFuZCBmYWlsZWQuCgoKUGxlYXNlIGxldCB1cyBrbm93IGlmIGFueWJv
-ZHkgaGF2ZSBjb21lIGFjcm9zcyB0aGUgc2FtZSBwcm9ibGVtIGFuZCBob3cgdG8gcmVzb2x2ZSB0
-aGlzIGlzc3VlLgoKCgoKClRoYW5rIFlvdSEKUmVnYXJkcywKUGludHUK
+Anyone willing to review this ? Or is there no objection ? I would
+really appreciate to know where i am standing on those 3 patches.
 
-----_com.android.email_21592236314180
-Content-Type: text/html; charset=utf-8
-Content-Transfer-Encoding: base64
-
-PGh0bWw+PGhlYWQ+PG1ldGEgaHR0cC1lcXVpdj0iQ29udGVudC1UeXBlIiBjb250ZW50PSJ0ZXh0
-L2h0bWw7IGNoYXJzZXQ9VVRGLTgiPjwvaGVhZD48Ym9keSA+PGRpdj5EZWFyIGpvb25zb28ga2lt
-LDwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+SSBoYXZlIHlvdXIgcGF0Y2hlcyBmb3I6IEFnZ3Jl
-c3NpdmVseSBhbGxvY2F0ZSBtZW1vcnkgZnJvbSBjbWEgLi4uLjwvZGl2PjxkaXY+V2UgYXJlIGZh
-Y2luZyBhbG1vc3Qgc2ltaWxhciBwcm9ibGVtIGhlcmUuPC9kaXY+PGRpdj5JZiBhbnkgb2YgeW91
-ciBwYXRjaGVzIHN0aWxsIHdvcmtpbmcgZm9yIHlvdSBwbGVhc2UgbGV0IHVzIGtub3cgaGVyZS48
-L2Rpdj48ZGl2Pkkgd291bGQgbGlrZSB0byB0cnkgdGhvc2UgYXBwcm9hY2guPC9kaXY+PGRpdj48
-YnI+PC9kaXY+PGRpdj5UaGFuayB5b3U8L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2Pjxicj48L2Rp
-dj48ZGl2PjxkaXYgc3R5bGU9ImZvbnQtc2l6ZTo3NSU7Y29sb3I6IzU3NTc1NyI+U2VudCBmcm9t
-IFNhbXN1bmcgTW9iaWxlPC9kaXY+PC9kaXY+PGJyPjxicj48YnI+LS0tLS0tLS0gT3JpZ2luYWwg
-bWVzc2FnZSAtLS0tLS0tLTxicj5Gcm9tOiBQSU5UVSBLVU1BUiAmbHQ7cGludHVfYWdhcndhbEB5
-YWhvby5jb20mZ3Q7IDxicj5EYXRlOiAwOS8wNy8yMDE0ICA4OjQxIEFNICAoR01UKzA5OjAwKSA8
-YnI+VG86IGxpbnV4LW1tQGt2YWNrLm9yZyxsaW51eC1tbUBrdmFjay5vcmcsbGludXgtYXJtLWtl
-cm5lbEBsaXN0cy5pbmZyYWRlYWQub3JnLGxpbmFyby1tbS1zaWdAbGlzdHMubGluYXJvLm9yZyA8
-YnI+Q2M6IHBpbnR1LmtAb3V0bG9vay5jb20scGludHUua0BzYW1zdW5nLmNvbSx2aXNodV8xMzg1
-QHlhaG9vLmNvbSxtLnN6eXByb3dza2lAc2Ftc3VuZy5jb20sbWluYTg2QG1pbmE4Ni5jb20sbmd1
-cHRhQHZmbGFyZS5vcmcsaXFiYWxibHJAZ21haWwuY29tIDxicj5TdWJqZWN0OiBbbGludXgtMy4x
-MC4xN10gQ291bGQgbm90IGFsbG9jYXRlIG1lbW9yeSBmcm9tIGZyZWUgQ01BIGFyZWFzIDxicj4g
-PGJyPjxicj5IaSw8YnI+PGJyPldlIGFyZSBmYWNpbmcgb25lIHByb2JsZW0gb24gbGludXggMy4x
-MCB3aGVuIHdlIHRyeSB0byB1c2UgQ01BIGFzIGxhcmdlIGFzIDU2TUIgZm9yIDI1Nk1CIFJBTSBk
-ZXZpY2UuPGJyPldlIGZvdW5kIHRoYXQgYWZ0ZXIgY2VydGFpbiBwb2ludCBvZiB0aW1lIChkdXJp
-bmcgYm9vdCksIG1pbiB3YXRlcm1hcmsgY2hlY2sgaXMgZmFpbGluZyB3aGVuICJmcmVlX3BhZ2Vz
-IiBhbmQgImZyZWVfY21hX3BhZ2VzIiBhcmUgYWxtb3N0IGVxdWFsIGFuZCBmYWxscyBiZWxvdyB0
-aGUgbWluIGxldmVsLjxicj48YnI+c3lzdGVtIGRldGFpbHM6PGJyPkFSTSBlbWJlZGRlZCBkZXZp
-Y2U6IFJBTTogMjU2TUI8YnI+S2VybmVsIHZlcnNpb246IDMuMTAuMTc8YnI+Rml4ZWQgUmVzZXJ2
-ZWQgbWVtb3J5OiB+NDBNQjxicj5BdmFpbGFibGUgbWVtb3J5OiAyMTdNQjxicj5DTUEgcmVzZXJ2
-ZWQgMSA6IDU2TUI8YnI+WlJBTSBjb25maWd1cmVkOiAxMjhNQiBvciA2NE1CPGJyPm1pbl9mcmVl
-X2tieXRlczogMTYyNSAoZGVmYXVsdCk8YnI+TWVtb3J5IGNvbnRyb2xsZXIgZ3JvdXAgZW5hYmxl
-ZCAoTUVNQ0cpPGJyPjxicj48YnI+QWZ0ZXIgYm9vdC11cCB0aGUgImZyZWUgLXRtIiBjb21tYW5k
-IHNob3dzIGZyZWUgbWVtb3J5IGFzOiB+NTBNQjxicj5DTUEgaXMgdXNlZCBmb3IgYWxsIFVJIGRp
-c3BsYXkgcHVycG9zZXMuIENNQSB1c2VkIGR1cmluZyBib290dXAgaXMgY2xvc2UgdG8gfjZNQi48
-YnI+VGh1cyBtb3N0IG9mIHRoZSBmcmVlIG1lbW9yeSBpcyBpbiB0aGUgZm9ybSBvZiBDTUEgZnJl
-ZSBtZW1vcnkuPGJyPlpSQU0gZ2V0dGluZyB1c2VzIHdhcyBhcm91bmQgfjVNQi48YnI+PGJyPjxi
-cj5EdXJpbmcgYm9vdC11cCBpdHNlbGYgd2Ugb2JzZXJ2ZSB0aGF0IHRoZSBmb2xsb3dpbmcgY29u
-ZGl0aW9ucyBhcmUgbWV0Ljxicj48YnI+PGJyPmlmIChmcmVlX3BhZ2VzIC0gZnJlZV9jbWEgJmx0
-Oz0gbWluICsgbG93bWVtX3Jlc2VydmUpIHs8YnI+Jm5ic3A7Jm5ic3A7Jm5ic3A7IHByaW50ayJb
-UElOVFVdOiBfX3pvbmVfd2F0ZXJtYXJrX29rOiBmYWlsZWQgIVxuIik7PGJyPjxicj4mbmJzcDsm
-bmJzcDsmbmJzcDsgcmV0dXJuIGZhbHNlOzxicj59PGJyPkhlcmU6IGZyZWVfcGFnZXMgd2FzOiAx
-Mjk0MCwgZnJlZV9jbWEgd2FzOiAxMjM4MCwgbWluOiA1NjYsIGxvd21lbTogMDxicj48YnI+PGJy
-PlRodXMgaXMgY29uZGl0aW9uIGlzIG1ldCBtb3N0IG9mIHRoZSB0aW1lLjxicj5BbmQgYmVjYXVz
-ZSBvZiB0aGlzIHdhdGVybWFyayBmYWlsdXJlLCBLc3dhcGQgaXMgd2FraW5nIHVwIGZyZXF1ZW50
-bHkuPGJyPlRoZSAvcHJvYy9wYWdldHlwZWluZm8gcmVwb3J0cyB0aGF0IG1vc3Qgb2YgdGhlIGhp
-Z2hlciBvcmRlciBwYWdlcyBhcmUgZnJvbSBDTUEgcmVnaW9ucy48YnI+PGJyPjxicj5XZSBhbHNv
-IG9ic2VydmVkIHRoYXQgWlJBTSBpcyB0cnlpbmcgdG8gYWxsb2NhdGUgbWVtb3J5IGZyb20gQ01B
-IHJlZ2lvbiBhbmQgZmFpbGluZy48YnI+PGJyPldlIGFsc28gdHJpZWQgYnkgZGVjcmVhc2luZyB0
-aGUgQ01BIHJlZ2lvbiB0byAyME1CLiBXaXRoIHRoaXMgdGhlIHdhdGVybWFyayBmYWlsdXJlIGlz
-IG5vdCBoYXBwZW5pbmcgaW4gYm9vdCB0aW1lLiBCdXQgaWYgd2UgbGF1bmNoIG1vcmUgdGhhbiAz
-IGFwcHMge0Jyb3dzZXIsIG11c2ljLXBsYXllciBldGN9LCBhZ2FpbiB0aGUgd2F0ZXJtYXJrIHN0
-YXJ0ZWQgZmFpbGluZy48YnI+PGJyPkFsc28gd2UgdHJpZWQgZGVjcmVhc2luZyB0aGUgbWluX2Zy
-ZWVfa2J5dGVzPTI1NiwgYW5kIHdpdGggdGhpcyBhbHNvIHdhdGVybWFyayBpcyBwYXNzZWQuPGJy
-Pjxicj5PdXIgb2JzZXJ2YXRpb24gaXMgdGhhdCBaUkFNL3pzbWFsbG9jIHRyeWluZyB0byBhbGxv
-Y2F0ZSBtZW1vcnkgZnJvbSBDTUEgYXJlYXMgYW5kIGZhaWxlZC48YnI+PGJyPjxicj5QbGVhc2Ug
-bGV0IHVzIGtub3cgaWYgYW55Ym9keSBoYXZlIGNvbWUgYWNyb3NzIHRoZSBzYW1lIHByb2JsZW0g
-YW5kIGhvdyB0byByZXNvbHZlIHRoaXMgaXNzdWUuPGJyPjxicj48YnI+PGJyPjxicj48YnI+VGhh
-bmsgWW91ITxicj5SZWdhcmRzLDxicj5QaW50dTxicj48L2JvZHk+
-
-----_com.android.email_21592236314180--
-
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
