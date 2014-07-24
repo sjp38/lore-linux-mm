@@ -1,164 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id CB0256B0036
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 10:56:59 -0400 (EDT)
-Received: by mail-qg0-f49.google.com with SMTP id j107so3435311qga.36
-        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 07:56:59 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a13si11405754qge.120.2014.07.24.07.56.58
+Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 37E196B0036
+	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 11:15:23 -0400 (EDT)
+Received: by mail-qa0-f51.google.com with SMTP id k15so3082680qaq.10
+        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 08:15:23 -0700 (PDT)
+Received: from nm31-vm8.bullet.mail.bf1.yahoo.com (nm31-vm8.bullet.mail.bf1.yahoo.com. [72.30.239.134])
+        by mx.google.com with ESMTPS id n7si11516771qag.73.2014.07.24.08.15.22
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Jul 2014 07:56:59 -0700 (PDT)
-From: Mark Salter <msalter@redhat.com>
-Subject: [PATCH] arm64: fix soft lockup due to large tlb flush range
-Date: Thu, 24 Jul 2014 10:56:15 -0400
-Message-Id: <1406213775-28617-1-git-send-email-msalter@redhat.com>
-In-Reply-To: <20140724142417.GE13371@arm.com>
-References: <20140724142417.GE13371@arm.com>
+        Thu, 24 Jul 2014 08:15:22 -0700 (PDT)
+Date: Fri, 25 Jul 2014 00:15:13 +0900
+Subject: RE: [linux-3.10.17] Could not allocate memory from free CMA areas
+Message-ID: <dsqnq2i1mer1r7kpvuflt0k9.1406214301636@email.android.com>
+From: pintu_agarwal <pintu_agarwal@yahoo.com>
+Reply-To: pintu_agarwal <pintu_agarwal@yahoo.com>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="--_com.android.email_21592236314180"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Eric Miao <eric.y.miao@gmail.com>, Will Deacon <Will.Deacon@arm.com>, Laura Abbott <lauraa@codeaurora.org>, linux-mm@kvack.org, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org, Mark Salter <msalter@redhat.com>
+To: PINTU KUMAR <pintu_agarwal@yahoo.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, iamjoonsoo.kim@lge.com, ritesh.list@gmail.com
+Cc: "pintu.k@outlook.com" <pintu.k@outlook.com>, "pintu.k@samsung.com" <pintu.k@samsung.com>, "vishu_1385@yahoo.com" <vishu_1385@yahoo.com>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "mina86@mina86.com" <mina86@mina86.com>, "ngupta@vflare.org" <ngupta@vflare.org>, "iqbalblr@gmail.com" <iqbalblr@gmail.com>
 
-Under certain loads, this soft lockup has been observed:
+----_com.android.email_21592236314180
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: base64
 
-   BUG: soft lockup - CPU#2 stuck for 22s! [ip6tables:1016]
-   Modules linked in: ip6t_rpfilter ip6t_REJECT cfg80211 rfkill xt_conntrack ebtable_nat ebtable_broute bridge stp llc ebtable_filter ebtables ip6table_nat nf_conntrack_ipv6 nf_defrag_ipv6 nf_nat_ipv6 ip6table_mangle ip6table_security ip6table_raw ip6table_filter ip6_tables iptable_nat nf_conntrack_ipv4 nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack iptable_mangle iptable_security iptable_raw vfat fat efivarfs xfs libcrc32c
+RGVhciBqb29uc29vIGtpbSwKCkkgaGF2ZSB5b3VyIHBhdGNoZXMgZm9yOiBBZ2dyZXNzaXZlbHkg
+YWxsb2NhdGUgbWVtb3J5IGZyb20gY21hIC4uLi4KV2UgYXJlIGZhY2luZyBhbG1vc3Qgc2ltaWxh
+ciBwcm9ibGVtIGhlcmUuCklmIGFueSBvZiB5b3VyIHBhdGNoZXMgc3RpbGwgd29ya2luZyBmb3Ig
+eW91IHBsZWFzZSBsZXQgdXMga25vdyBoZXJlLgpJIHdvdWxkIGxpa2UgdG8gdHJ5IHRob3NlIGFw
+cHJvYWNoLgoKVGhhbmsgeW91CgoKU2VudCBmcm9tIFNhbXN1bmcgTW9iaWxlCgotLS0tLS0tLSBP
+cmlnaW5hbCBtZXNzYWdlIC0tLS0tLS0tCkZyb206IFBJTlRVIEtVTUFSIDxwaW50dV9hZ2Fyd2Fs
+QHlhaG9vLmNvbT4gCkRhdGU6IDA5LzA3LzIwMTQgIDg6NDEgQU0gIChHTVQrMDk6MDApIApUbzog
+bGludXgtbW1Aa3ZhY2sub3JnLGxpbnV4LW1tQGt2YWNrLm9yZyxsaW51eC1hcm0ta2VybmVsQGxp
+c3RzLmluZnJhZGVhZC5vcmcsbGluYXJvLW1tLXNpZ0BsaXN0cy5saW5hcm8ub3JnIApDYzogcGlu
+dHUua0BvdXRsb29rLmNvbSxwaW50dS5rQHNhbXN1bmcuY29tLHZpc2h1XzEzODVAeWFob28uY29t
+LG0uc3p5cHJvd3NraUBzYW1zdW5nLmNvbSxtaW5hODZAbWluYTg2LmNvbSxuZ3VwdGFAdmZsYXJl
+Lm9yZyxpcWJhbGJsckBnbWFpbC5jb20gClN1YmplY3Q6IFtsaW51eC0zLjEwLjE3XSBDb3VsZCBu
+b3QgYWxsb2NhdGUgbWVtb3J5IGZyb20gZnJlZSBDTUEgYXJlYXMgCiAKSGksCgpXZSBhcmUgZmFj
+aW5nIG9uZSBwcm9ibGVtIG9uIGxpbnV4IDMuMTAgd2hlbiB3ZSB0cnkgdG8gdXNlIENNQSBhcyBs
+YXJnZSBhcyA1Nk1CIGZvciAyNTZNQiBSQU0gZGV2aWNlLgpXZSBmb3VuZCB0aGF0IGFmdGVyIGNl
+cnRhaW4gcG9pbnQgb2YgdGltZSAoZHVyaW5nIGJvb3QpLCBtaW4gd2F0ZXJtYXJrIGNoZWNrIGlz
+IGZhaWxpbmcgd2hlbiAiZnJlZV9wYWdlcyIgYW5kICJmcmVlX2NtYV9wYWdlcyIgYXJlIGFsbW9z
+dCBlcXVhbCBhbmQgZmFsbHMgYmVsb3cgdGhlIG1pbiBsZXZlbC4KCnN5c3RlbSBkZXRhaWxzOgpB
+Uk0gZW1iZWRkZWQgZGV2aWNlOiBSQU06IDI1Nk1CCktlcm5lbCB2ZXJzaW9uOiAzLjEwLjE3CkZp
+eGVkIFJlc2VydmVkIG1lbW9yeTogfjQwTUIKQXZhaWxhYmxlIG1lbW9yeTogMjE3TUIKQ01BIHJl
+c2VydmVkIDEgOiA1Nk1CClpSQU0gY29uZmlndXJlZDogMTI4TUIgb3IgNjRNQgptaW5fZnJlZV9r
+Ynl0ZXM6IDE2MjUgKGRlZmF1bHQpCk1lbW9yeSBjb250cm9sbGVyIGdyb3VwIGVuYWJsZWQgKE1F
+TUNHKQoKCkFmdGVyIGJvb3QtdXAgdGhlICJmcmVlIC10bSIgY29tbWFuZCBzaG93cyBmcmVlIG1l
+bW9yeSBhczogfjUwTUIKQ01BIGlzIHVzZWQgZm9yIGFsbCBVSSBkaXNwbGF5IHB1cnBvc2VzLiBD
+TUEgdXNlZCBkdXJpbmcgYm9vdHVwIGlzIGNsb3NlIHRvIH42TUIuClRodXMgbW9zdCBvZiB0aGUg
+ZnJlZSBtZW1vcnkgaXMgaW4gdGhlIGZvcm0gb2YgQ01BIGZyZWUgbWVtb3J5LgpaUkFNIGdldHRp
+bmcgdXNlcyB3YXMgYXJvdW5kIH41TUIuCgoKRHVyaW5nIGJvb3QtdXAgaXRzZWxmIHdlIG9ic2Vy
+dmUgdGhhdCB0aGUgZm9sbG93aW5nIGNvbmRpdGlvbnMgYXJlIG1ldC4KCgppZiAoZnJlZV9wYWdl
+cyAtIGZyZWVfY21hIDw9IG1pbiArIGxvd21lbV9yZXNlcnZlKSB7CsKgwqDCoCBwcmludGsiW1BJ
+TlRVXTogX196b25lX3dhdGVybWFya19vazogZmFpbGVkICFcbiIpOwoKwqDCoMKgIHJldHVybiBm
+YWxzZTsKfQpIZXJlOiBmcmVlX3BhZ2VzIHdhczogMTI5NDAsIGZyZWVfY21hIHdhczogMTIzODAs
+IG1pbjogNTY2LCBsb3dtZW06IDAKCgpUaHVzIGlzIGNvbmRpdGlvbiBpcyBtZXQgbW9zdCBvZiB0
+aGUgdGltZS4KQW5kIGJlY2F1c2Ugb2YgdGhpcyB3YXRlcm1hcmsgZmFpbHVyZSwgS3N3YXBkIGlz
+IHdha2luZyB1cCBmcmVxdWVudGx5LgpUaGUgL3Byb2MvcGFnZXR5cGVpbmZvIHJlcG9ydHMgdGhh
+dCBtb3N0IG9mIHRoZSBoaWdoZXIgb3JkZXIgcGFnZXMgYXJlIGZyb20gQ01BIHJlZ2lvbnMuCgoK
+V2UgYWxzbyBvYnNlcnZlZCB0aGF0IFpSQU0gaXMgdHJ5aW5nIHRvIGFsbG9jYXRlIG1lbW9yeSBm
+cm9tIENNQSByZWdpb24gYW5kIGZhaWxpbmcuCgpXZSBhbHNvIHRyaWVkIGJ5IGRlY3JlYXNpbmcg
+dGhlIENNQSByZWdpb24gdG8gMjBNQi4gV2l0aCB0aGlzIHRoZSB3YXRlcm1hcmsgZmFpbHVyZSBp
+cyBub3QgaGFwcGVuaW5nIGluIGJvb3QgdGltZS4gQnV0IGlmIHdlIGxhdW5jaCBtb3JlIHRoYW4g
+MyBhcHBzIHtCcm93c2VyLCBtdXNpYy1wbGF5ZXIgZXRjfSwgYWdhaW4gdGhlIHdhdGVybWFyayBz
+dGFydGVkIGZhaWxpbmcuCgpBbHNvIHdlIHRyaWVkIGRlY3JlYXNpbmcgdGhlIG1pbl9mcmVlX2ti
+eXRlcz0yNTYsIGFuZCB3aXRoIHRoaXMgYWxzbyB3YXRlcm1hcmsgaXMgcGFzc2VkLgoKT3VyIG9i
+c2VydmF0aW9uIGlzIHRoYXQgWlJBTS96c21hbGxvYyB0cnlpbmcgdG8gYWxsb2NhdGUgbWVtb3J5
+IGZyb20gQ01BIGFyZWFzIGFuZCBmYWlsZWQuCgoKUGxlYXNlIGxldCB1cyBrbm93IGlmIGFueWJv
+ZHkgaGF2ZSBjb21lIGFjcm9zcyB0aGUgc2FtZSBwcm9ibGVtIGFuZCBob3cgdG8gcmVzb2x2ZSB0
+aGlzIGlzc3VlLgoKCgoKClRoYW5rIFlvdSEKUmVnYXJkcywKUGludHUK
 
-   CPU: 2 PID: 1016 Comm: ip6tables Not tainted 3.13.0-0.rc7.30.sa2.aarch64 #1
-   task: fffffe03e81d1400 ti: fffffe03f01f8000 task.ti: fffffe03f01f8000
-   PC is at __cpu_flush_kern_tlb_range+0xc/0x40
-   LR is at __purge_vmap_area_lazy+0x28c/0x3ac
-   pc : [<fffffe000009c5cc>] lr : [<fffffe0000182710>] pstate: 80000145
-   sp : fffffe03f01fbb70
-   x29: fffffe03f01fbb70 x28: fffffe03f01f8000
-   x27: fffffe0000b19000 x26: 00000000000000d0
-   x25: 000000000000001c x24: fffffe03f01fbc50
-   x23: fffffe03f01fbc58 x22: fffffe03f01fbc10
-   x21: fffffe0000b2a3f8 x20: 0000000000000802
-   x19: fffffe0000b2a3c8 x18: 000003fffdf52710
-   x17: 000003ff9d8bb910 x16: fffffe000050fbfc
-   x15: 0000000000005735 x14: 000003ff9d7e1a5c
-   x13: 0000000000000000 x12: 000003ff9d7e1a5c
-   x11: 0000000000000007 x10: fffffe0000c09af0
-   x9 : fffffe0000ad1000 x8 : 000000000000005c
-   x7 : fffffe03e8624000 x6 : 0000000000000000
-   x5 : 0000000000000000 x4 : 0000000000000000
-   x3 : fffffe0000c09cc8 x2 : 0000000000000000
-   x1 : 000fffffdfffca80 x0 : 000fffffcd742150
+----_com.android.email_21592236314180
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: base64
 
-The __cpu_flush_kern_tlb_range() function looks like:
+PGh0bWw+PGhlYWQ+PG1ldGEgaHR0cC1lcXVpdj0iQ29udGVudC1UeXBlIiBjb250ZW50PSJ0ZXh0
+L2h0bWw7IGNoYXJzZXQ9VVRGLTgiPjwvaGVhZD48Ym9keSA+PGRpdj5EZWFyIGpvb25zb28ga2lt
+LDwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+SSBoYXZlIHlvdXIgcGF0Y2hlcyBmb3I6IEFnZ3Jl
+c3NpdmVseSBhbGxvY2F0ZSBtZW1vcnkgZnJvbSBjbWEgLi4uLjwvZGl2PjxkaXY+V2UgYXJlIGZh
+Y2luZyBhbG1vc3Qgc2ltaWxhciBwcm9ibGVtIGhlcmUuPC9kaXY+PGRpdj5JZiBhbnkgb2YgeW91
+ciBwYXRjaGVzIHN0aWxsIHdvcmtpbmcgZm9yIHlvdSBwbGVhc2UgbGV0IHVzIGtub3cgaGVyZS48
+L2Rpdj48ZGl2Pkkgd291bGQgbGlrZSB0byB0cnkgdGhvc2UgYXBwcm9hY2guPC9kaXY+PGRpdj48
+YnI+PC9kaXY+PGRpdj5UaGFuayB5b3U8L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2Pjxicj48L2Rp
+dj48ZGl2PjxkaXYgc3R5bGU9ImZvbnQtc2l6ZTo3NSU7Y29sb3I6IzU3NTc1NyI+U2VudCBmcm9t
+IFNhbXN1bmcgTW9iaWxlPC9kaXY+PC9kaXY+PGJyPjxicj48YnI+LS0tLS0tLS0gT3JpZ2luYWwg
+bWVzc2FnZSAtLS0tLS0tLTxicj5Gcm9tOiBQSU5UVSBLVU1BUiAmbHQ7cGludHVfYWdhcndhbEB5
+YWhvby5jb20mZ3Q7IDxicj5EYXRlOiAwOS8wNy8yMDE0ICA4OjQxIEFNICAoR01UKzA5OjAwKSA8
+YnI+VG86IGxpbnV4LW1tQGt2YWNrLm9yZyxsaW51eC1tbUBrdmFjay5vcmcsbGludXgtYXJtLWtl
+cm5lbEBsaXN0cy5pbmZyYWRlYWQub3JnLGxpbmFyby1tbS1zaWdAbGlzdHMubGluYXJvLm9yZyA8
+YnI+Q2M6IHBpbnR1LmtAb3V0bG9vay5jb20scGludHUua0BzYW1zdW5nLmNvbSx2aXNodV8xMzg1
+QHlhaG9vLmNvbSxtLnN6eXByb3dza2lAc2Ftc3VuZy5jb20sbWluYTg2QG1pbmE4Ni5jb20sbmd1
+cHRhQHZmbGFyZS5vcmcsaXFiYWxibHJAZ21haWwuY29tIDxicj5TdWJqZWN0OiBbbGludXgtMy4x
+MC4xN10gQ291bGQgbm90IGFsbG9jYXRlIG1lbW9yeSBmcm9tIGZyZWUgQ01BIGFyZWFzIDxicj4g
+PGJyPjxicj5IaSw8YnI+PGJyPldlIGFyZSBmYWNpbmcgb25lIHByb2JsZW0gb24gbGludXggMy4x
+MCB3aGVuIHdlIHRyeSB0byB1c2UgQ01BIGFzIGxhcmdlIGFzIDU2TUIgZm9yIDI1Nk1CIFJBTSBk
+ZXZpY2UuPGJyPldlIGZvdW5kIHRoYXQgYWZ0ZXIgY2VydGFpbiBwb2ludCBvZiB0aW1lIChkdXJp
+bmcgYm9vdCksIG1pbiB3YXRlcm1hcmsgY2hlY2sgaXMgZmFpbGluZyB3aGVuICJmcmVlX3BhZ2Vz
+IiBhbmQgImZyZWVfY21hX3BhZ2VzIiBhcmUgYWxtb3N0IGVxdWFsIGFuZCBmYWxscyBiZWxvdyB0
+aGUgbWluIGxldmVsLjxicj48YnI+c3lzdGVtIGRldGFpbHM6PGJyPkFSTSBlbWJlZGRlZCBkZXZp
+Y2U6IFJBTTogMjU2TUI8YnI+S2VybmVsIHZlcnNpb246IDMuMTAuMTc8YnI+Rml4ZWQgUmVzZXJ2
+ZWQgbWVtb3J5OiB+NDBNQjxicj5BdmFpbGFibGUgbWVtb3J5OiAyMTdNQjxicj5DTUEgcmVzZXJ2
+ZWQgMSA6IDU2TUI8YnI+WlJBTSBjb25maWd1cmVkOiAxMjhNQiBvciA2NE1CPGJyPm1pbl9mcmVl
+X2tieXRlczogMTYyNSAoZGVmYXVsdCk8YnI+TWVtb3J5IGNvbnRyb2xsZXIgZ3JvdXAgZW5hYmxl
+ZCAoTUVNQ0cpPGJyPjxicj48YnI+QWZ0ZXIgYm9vdC11cCB0aGUgImZyZWUgLXRtIiBjb21tYW5k
+IHNob3dzIGZyZWUgbWVtb3J5IGFzOiB+NTBNQjxicj5DTUEgaXMgdXNlZCBmb3IgYWxsIFVJIGRp
+c3BsYXkgcHVycG9zZXMuIENNQSB1c2VkIGR1cmluZyBib290dXAgaXMgY2xvc2UgdG8gfjZNQi48
+YnI+VGh1cyBtb3N0IG9mIHRoZSBmcmVlIG1lbW9yeSBpcyBpbiB0aGUgZm9ybSBvZiBDTUEgZnJl
+ZSBtZW1vcnkuPGJyPlpSQU0gZ2V0dGluZyB1c2VzIHdhcyBhcm91bmQgfjVNQi48YnI+PGJyPjxi
+cj5EdXJpbmcgYm9vdC11cCBpdHNlbGYgd2Ugb2JzZXJ2ZSB0aGF0IHRoZSBmb2xsb3dpbmcgY29u
+ZGl0aW9ucyBhcmUgbWV0Ljxicj48YnI+PGJyPmlmIChmcmVlX3BhZ2VzIC0gZnJlZV9jbWEgJmx0
+Oz0gbWluICsgbG93bWVtX3Jlc2VydmUpIHs8YnI+Jm5ic3A7Jm5ic3A7Jm5ic3A7IHByaW50ayJb
+UElOVFVdOiBfX3pvbmVfd2F0ZXJtYXJrX29rOiBmYWlsZWQgIVxuIik7PGJyPjxicj4mbmJzcDsm
+bmJzcDsmbmJzcDsgcmV0dXJuIGZhbHNlOzxicj59PGJyPkhlcmU6IGZyZWVfcGFnZXMgd2FzOiAx
+Mjk0MCwgZnJlZV9jbWEgd2FzOiAxMjM4MCwgbWluOiA1NjYsIGxvd21lbTogMDxicj48YnI+PGJy
+PlRodXMgaXMgY29uZGl0aW9uIGlzIG1ldCBtb3N0IG9mIHRoZSB0aW1lLjxicj5BbmQgYmVjYXVz
+ZSBvZiB0aGlzIHdhdGVybWFyayBmYWlsdXJlLCBLc3dhcGQgaXMgd2FraW5nIHVwIGZyZXF1ZW50
+bHkuPGJyPlRoZSAvcHJvYy9wYWdldHlwZWluZm8gcmVwb3J0cyB0aGF0IG1vc3Qgb2YgdGhlIGhp
+Z2hlciBvcmRlciBwYWdlcyBhcmUgZnJvbSBDTUEgcmVnaW9ucy48YnI+PGJyPjxicj5XZSBhbHNv
+IG9ic2VydmVkIHRoYXQgWlJBTSBpcyB0cnlpbmcgdG8gYWxsb2NhdGUgbWVtb3J5IGZyb20gQ01B
+IHJlZ2lvbiBhbmQgZmFpbGluZy48YnI+PGJyPldlIGFsc28gdHJpZWQgYnkgZGVjcmVhc2luZyB0
+aGUgQ01BIHJlZ2lvbiB0byAyME1CLiBXaXRoIHRoaXMgdGhlIHdhdGVybWFyayBmYWlsdXJlIGlz
+IG5vdCBoYXBwZW5pbmcgaW4gYm9vdCB0aW1lLiBCdXQgaWYgd2UgbGF1bmNoIG1vcmUgdGhhbiAz
+IGFwcHMge0Jyb3dzZXIsIG11c2ljLXBsYXllciBldGN9LCBhZ2FpbiB0aGUgd2F0ZXJtYXJrIHN0
+YXJ0ZWQgZmFpbGluZy48YnI+PGJyPkFsc28gd2UgdHJpZWQgZGVjcmVhc2luZyB0aGUgbWluX2Zy
+ZWVfa2J5dGVzPTI1NiwgYW5kIHdpdGggdGhpcyBhbHNvIHdhdGVybWFyayBpcyBwYXNzZWQuPGJy
+Pjxicj5PdXIgb2JzZXJ2YXRpb24gaXMgdGhhdCBaUkFNL3pzbWFsbG9jIHRyeWluZyB0byBhbGxv
+Y2F0ZSBtZW1vcnkgZnJvbSBDTUEgYXJlYXMgYW5kIGZhaWxlZC48YnI+PGJyPjxicj5QbGVhc2Ug
+bGV0IHVzIGtub3cgaWYgYW55Ym9keSBoYXZlIGNvbWUgYWNyb3NzIHRoZSBzYW1lIHByb2JsZW0g
+YW5kIGhvdyB0byByZXNvbHZlIHRoaXMgaXNzdWUuPGJyPjxicj48YnI+PGJyPjxicj48YnI+VGhh
+bmsgWW91ITxicj5SZWdhcmRzLDxicj5QaW50dTxicj48L2JvZHk+
 
-  ENTRY(__cpu_flush_kern_tlb_range)
-	dsb	sy
-	lsr	x0, x0, #12
-	lsr	x1, x1, #12
-  1:	tlbi	vaae1is, x0
-	add	x0, x0, #1
-	cmp	x0, x1
-	b.lo	1b
-	dsb	sy
-	isb
-	ret
-  ENDPROC(__cpu_flush_kern_tlb_range)
+----_com.android.email_21592236314180--
 
-The above soft lockup shows the PC at tlbi insn with:
-
-  x0 = 0x000fffffcd742150
-  x1 = 0x000fffffdfffca80
-
-So __cpu_flush_kern_tlb_range has 0x128ba930 tlbi flushes left
-after it has already been looping for 23 seconds!.
-
-Looking up one frame at __purge_vmap_area_lazy(), there is:
-
-	...
-	list_for_each_entry_rcu(va, &vmap_area_list, list) {
-		if (va->flags & VM_LAZY_FREE) {
-			if (va->va_start < *start)
-				*start = va->va_start;
-			if (va->va_end > *end)
-				*end = va->va_end;
-			nr += (va->va_end - va->va_start) >> PAGE_SHIFT;
-			list_add_tail(&va->purge_list, &valist);
-			va->flags |= VM_LAZY_FREEING;
-			va->flags &= ~VM_LAZY_FREE;
-		}
-	}
-	...
-	if (nr || force_flush)
-		flush_tlb_kernel_range(*start, *end);
-
-So if two areas are being freed, the range passed to
-flush_tlb_kernel_range() may be as large as the vmalloc
-space. For arm64, this is ~240GB for 4k pagesize and ~2TB
-for 64kpage size.
-
-This patch works around this problem by adding a loop limit.
-If the range is larger than the limit, use flush_tlb_all()
-rather than flushing based on individual pages. The limit
-chosen is arbitrary and would be better if based on the
-actual size of the tlb. I looked through the ARM ARM but
-didn't see any easy way to get the actual tlb size, so for
-now the arbitrary limit is better than the soft lockup.
-
-Signed-off-by: Mark Salter <msalter@redhat.com>
----
- arch/arm64/include/asm/tlbflush.h | 25 ++++++++++++++++++++++---
- 1 file changed, 22 insertions(+), 3 deletions(-)
-
-diff --git a/arch/arm64/include/asm/tlbflush.h b/arch/arm64/include/asm/tlbflush.h
-index b9349c4..af3e572 100644
---- a/arch/arm64/include/asm/tlbflush.h
-+++ b/arch/arm64/include/asm/tlbflush.h
-@@ -98,8 +98,8 @@ static inline void flush_tlb_page(struct vm_area_struct *vma,
- 	dsb(ish);
- }
- 
--static inline void flush_tlb_range(struct vm_area_struct *vma,
--					unsigned long start, unsigned long end)
-+static inline void __flush_tlb_range(struct vm_area_struct *vma,
-+				     unsigned long start, unsigned long end)
- {
- 	unsigned long asid = (unsigned long)ASID(vma->vm_mm) << 48;
- 	unsigned long addr;
-@@ -112,7 +112,9 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
- 	dsb(ish);
- }
- 
--static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end)
-+#define MAX_TLB_LOOP 1024
-+
-+static inline void __flush_tlb_kernel_range(unsigned long start, unsigned long end)
- {
- 	unsigned long addr;
- 	start >>= 12;
-@@ -124,6 +126,23 @@ static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end
- 	dsb(ish);
- }
- 
-+static inline void flush_tlb_range(struct vm_area_struct *vma,
-+				   unsigned long start, unsigned long end)
-+{
-+	if (((end - start) >> PAGE_SHIFT) < MAX_TLB_LOOP)
-+		__flush_tlb_range(vma, start, end);
-+	else
-+		flush_tlb_mm(vma->vm_mm);
-+}
-+
-+static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end)
-+{
-+	if (((end - start) >> PAGE_SHIFT) < MAX_TLB_LOOP)
-+		__flush_tlb_kernel_range(start, end);
-+	else
-+		flush_tlb_all();
-+}
-+
- /*
-  * On AArch64, the cache coherency is handled via the set_pte_at() function.
-  */
--- 
-1.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
