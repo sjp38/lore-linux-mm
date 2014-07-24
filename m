@@ -1,83 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 7145C6B00A1
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 19:32:41 -0400 (EDT)
-Received: by mail-qg0-f42.google.com with SMTP id j5so4170941qga.15
-        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 16:32:41 -0700 (PDT)
-Received: from e7.ny.us.ibm.com (e7.ny.us.ibm.com. [32.97.182.137])
-        by mx.google.com with ESMTPS id c74si13608569qgd.54.2014.07.24.16.32.40
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 834C76B00A3
+	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 19:33:06 -0400 (EDT)
+Received: by mail-ig0-f173.google.com with SMTP id h18so98626igc.6
+        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 16:33:06 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id lr1si18137210icb.43.2014.07.24.16.33.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 24 Jul 2014 16:32:40 -0700 (PDT)
-Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Thu, 24 Jul 2014 19:32:40 -0400
-Received: from b01cxnp23032.gho.pok.ibm.com (b01cxnp23032.gho.pok.ibm.com [9.57.198.27])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 8B3A838C8026
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 19:32:38 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by b01cxnp23032.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s6ONWcE155181428
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 23:32:38 GMT
-Received: from d01av02.pok.ibm.com (localhost [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s6ONWbP3013249
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 19:32:38 -0400
-Date: Thu, 24 Jul 2014 16:32:30 -0700
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: [RFC Patch V1 00/30] Enable memoryless node on x86 platforms
-Message-ID: <20140724233230.GD24458@linux.vnet.ibm.com>
-References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
- <20140721172331.GB4156@linux.vnet.ibm.com>
- <CA+8MBbK+ZdisT_yXh_jkWSd4hWEMisG614s4s0EyNV3j-7YOow@mail.gmail.com>
- <20140721175736.GG4156@linux.vnet.ibm.com>
- <53CF7048.20302@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <53CF7048.20302@linux.intel.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 24 Jul 2014 16:33:05 -0700 (PDT)
+Date: Thu, 24 Jul 2014 16:33:03 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/3] mmu_notifier: Allow to manage CPU external TLBs
+Message-Id: <20140724163303.df34065a3c3b26c0a4b3bab1@linux-foundation.org>
+In-Reply-To: <1406212541-25975-1-git-send-email-joro@8bytes.org>
+References: <1406212541-25975-1-git-send-email-joro@8bytes.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiang Liu <jiang.liu@linux.intel.com>
-Cc: Tony Luck <tony.luck@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-hotplug@vger.kernel.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Joerg Roedel <joro@8bytes.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Jerome Glisse <jglisse@redhat.com>, jroedel@suse.de, Jay.Cornwall@amd.com, Oded.Gabbay@amd.com, John.Bridgman@amd.com, Suravee.Suthikulpanit@amd.com, ben.sander@amd.com, Jesse Barnes <jbarnes@virtuousgeek.org>, David Woodhouse <dwmw2@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org
 
-On 23.07.2014 [16:20:24 +0800], Jiang Liu wrote:
+On Thu, 24 Jul 2014 16:35:38 +0200 Joerg Roedel <joro@8bytes.org> wrote:
+
+> here is a patch-set to extend the mmu_notifiers in the Linux
+> kernel to allow managing CPU external TLBs. Those TLBs may
+> be implemented in IOMMUs or any other external device, e.g.
+> ATS/PRI capable PCI devices.
 > 
+> The problem with managing these TLBs are the semantics of
+> the invalidate_range_start/end call-backs currently
+> available. Currently the subsystem using mmu_notifiers has
+> to guarantee that no new TLB entries are established between
+> invalidate_range_start/end. Furthermore the
+> invalidate_range_start() function is called when all pages
+> are still mapped and invalidate_range_end() when the pages
+> are unmapped an already freed.
 > 
-> On 2014/7/22 1:57, Nishanth Aravamudan wrote:
-> > On 21.07.2014 [10:41:59 -0700], Tony Luck wrote:
-> >> On Mon, Jul 21, 2014 at 10:23 AM, Nishanth Aravamudan
-> >> <nacc@linux.vnet.ibm.com> wrote:
-> >>> It seems like the issue is the order of onlining of resources on a
-> >>> specific x86 platform?
-> >>
-> >> Yes. When we online a node the BIOS hits us with some ACPI hotplug events:
-> >>
-> >> First: Here are some new cpus
-> > 
-> > Ok, so during this period, you might get some remote allocations. Do you
-> > know the topology of these CPUs? That is they belong to a
-> > (soon-to-exist) NUMA node? Can you online that currently offline NUMA
-> > node at this point (so that NODE_DATA()) resolves, etc.)?
-> Hi Nishanth,
-> 	We have method to get the NUMA information about the CPU, and
-> patch "[RFC Patch V1 30/30] x86, NUMA: Online node earlier when doing
-> CPU hot-addition" tries to solve this issue by onlining NUMA node
-> as early as possible. Actually we are trying to enable memoryless node
-> as you have suggested.
+> So both call-backs can't be used to safely flush any non-CPU
+> TLB because _start() is called too early and _end() too
+> late.
+> 
+> In the AMD IOMMUv2 driver this is currently implemented by
+> assigning an empty page-table to the external device between
+> _start() and _end(). But as tests have shown this doesn't
+> work as external devices don't re-fault infinitly but enter
+> a failure state after some time.
+> 
+> Next problem with this solution is that it causes an
+> interrupt storm for IO page faults to be handled when an
+> empty page-table is assigned.
+> 
+> To solve this situation I wrote a patch-set to introduce a
+> new notifier call-back: mmu_notifer_invalidate_range(). This
+> notifier lifts the strict requirements that no new
+> references are taken in the range between _start() and
+> _end(). When the subsystem can't guarantee that any new
+> references are taken is has to provide the
+> invalidate_range() call-back to clear any new references in
+> there.
+> 
+> It is called between invalidate_range_start() and _end()
+> every time the VMM has to wipe out any references to a
+> couple of pages. This are usually the places where the CPU
+> TLBs are flushed too and where its important that this
+> happens before invalidate_range_end() is called.
+> 
+> Any comments and review appreciated!
 
-Ok, it seems like you have two sets of patches then? One is to fix the
-NUMA information timing (30/30 only). The rest of the patches are
-general discussions about where cpu_to_mem() might be used instead of
-cpu_to_node(). However, based upon Tejun's feedback, it seems like
-rather than force all callers to use cpu_to_mem(), we should be looking
-at the core VM to ensure fallback is occuring appropriately when
-memoryless nodes are present. 
+It looks pretty simple and harmless.
 
-Do you have a specific situation, once you've applied 30/30, where
-kmalloc_node() leads to an Oops?
-
-Thanks,
-Nish
+I assume the AMD IOMMUv2 driver actually uses this and it's all
+tested and good?  What is the status of that driver?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
