@@ -1,56 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
-	by kanga.kvack.org (Postfix) with ESMTP id C110E6B0038
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 11:46:58 -0400 (EDT)
-Received: by mail-qg0-f42.google.com with SMTP id j5so3474194qga.15
-        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 08:46:58 -0700 (PDT)
-Received: from mail-qa0-x22d.google.com (mail-qa0-x22d.google.com [2607:f8b0:400d:c00::22d])
-        by mx.google.com with ESMTPS id o3si11611850qat.117.2014.07.24.08.46.53
+Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B1426B0036
+	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 12:50:55 -0400 (EDT)
+Received: by mail-lb0-f171.google.com with SMTP id l4so2524694lbv.30
+        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 09:50:54 -0700 (PDT)
+Received: from mail-lb0-x234.google.com (mail-lb0-x234.google.com [2a00:1450:4010:c04::234])
+        by mx.google.com with ESMTPS id cr4si13733896lad.111.2014.07.24.09.50.52
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 24 Jul 2014 08:46:53 -0700 (PDT)
-Received: by mail-qa0-f45.google.com with SMTP id cm18so3110417qab.18
-        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 08:46:53 -0700 (PDT)
-Date: Thu, 24 Jul 2014 11:46:48 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: mmu_notifier: preparatory patches for hmm and or iommuv2 v6
-Message-ID: <20140724154646.GB2951@gmail.com>
-References: <1405622809-3797-1-git-send-email-j.glisse@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1405622809-3797-1-git-send-email-j.glisse@gmail.com>
+        Thu, 24 Jul 2014 09:50:53 -0700 (PDT)
+Received: by mail-lb0-f180.google.com with SMTP id v6so2528085lbi.11
+        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 09:50:52 -0700 (PDT)
+Message-Id: <20140724165047.437075575@openvz.org>
+Date: Thu, 24 Jul 2014 20:46:58 +0400
+From: Cyrill Gorcunov <gorcunov@openvz.org>
+Subject: [rfc 1/4] mm: Introduce may_adjust_brk helper
+References: <20140724164657.452106845@openvz.org>
+Content-Disposition: inline; filename=prctl-add-may_adjust_brk
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: gorcunov@openvz.org, keescook@chromium.org, tj@kernel.org, akpm@linux-foundation.org, avagin@openvz.org, ebiederm@xmission.com, hpa@zytor.com, serge.hallyn@canonical.com, xemul@parallels.com, segoon@openwall.com, kamezawa.hiroyu@jp.fujitsu.com, mtk.manpages@gmail.com, jln@google.com
 
-On Thu, Jul 17, 2014 at 02:46:46PM -0400, j.glisse@gmail.com wrote:
-> Nutshell few patches to improve mmu_notifier :
->  - patch 1/3 allow to free resources when mm_struct is destroy.
->  - patch 2/3 provide context informations to mmu_notifier listener.
->  - patch 3/3 pass vma to range_start/range_end to avoid duplicate
->    vma lookup inside the listener.
-> 
-> I restricted myself to set of less controversial patches and i believe
-> i have addressed all comments that were previously made. Thanks again
-> for all feedback, i hope this version is the good one.
-> 
-> This is somewhat of a v5 but i do not include core hmm with those
-> patches. So previous discussion thread :
-> v1 http://www.spinics.net/lists/linux-mm/msg72501.html
-> v2 http://www.spinics.net/lists/linux-mm/msg74532.html
-> v3 http://www.spinics.net/lists/linux-mm/msg74656.html
-> v4 http://www.spinics.net/lists/linux-mm/msg75401.html
-> v5 http://www.spinics.net/lists/linux-mm/msg75875.html
-> 
+To eliminate code duplication lets introduce may_adjust_brk
+helper which we will use in brk() and prctl() syscalls.
 
-Anyone willing to review this ? Or is there no objection ? I would
-really appreciate to know where i am standing on those 3 patches.
+Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
+Cc: Kees Cook <keescook@chromium.org>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrew Vagin <avagin@openvz.org>
+Cc: Eric W. Biederman <ebiederm@xmission.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Serge Hallyn <serge.hallyn@canonical.com>
+Cc: Pavel Emelyanov <xemul@parallels.com>
+Cc: Vasiliy Kulikov <segoon@openwall.com>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Michael Kerrisk <mtk.manpages@gmail.com>
+Cc: Julien Tinnes <jln@google.com>
+---
+ include/linux/mm.h |   14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
 
-Cheers,
-Jerome
+Index: linux-2.6.git/include/linux/mm.h
+===================================================================
+--- linux-2.6.git.orig/include/linux/mm.h
++++ linux-2.6.git/include/linux/mm.h
+@@ -18,6 +18,7 @@
+ #include <linux/pfn.h>
+ #include <linux/bit_spinlock.h>
+ #include <linux/shrinker.h>
++#include <linux/resource.h>
+ 
+ struct mempolicy;
+ struct anon_vma;
+@@ -1780,6 +1781,19 @@ extern struct vm_area_struct *copy_vma(s
+ 	bool *need_rmap_locks);
+ extern void exit_mmap(struct mm_struct *);
+ 
++static inline int may_adjust_brk(unsigned long rlim,
++				 unsigned long new_brk,
++				 unsigned long start_brk,
++				 unsigned long end_data,
++				 unsigned long start_data)
++{
++	if (rlim < RLIMIT_DATA) {
++		if (((new_brk - start_brk) + (end_data - start_data)) > rlim)
++			return -ENOSPC;
++	}
++	return 0;
++}
++
+ extern int mm_take_all_locks(struct mm_struct *mm);
+ extern void mm_drop_all_locks(struct mm_struct *mm);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
