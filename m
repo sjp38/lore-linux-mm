@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 174706B0037
-	for <linux-mm@kvack.org>; Fri, 25 Jul 2014 15:44:15 -0400 (EDT)
-Received: by mail-la0-f49.google.com with SMTP id hz20so3432595lab.36
-        for <linux-mm@kvack.org>; Fri, 25 Jul 2014 12:44:15 -0700 (PDT)
-Received: from mail-lb0-x22c.google.com (mail-lb0-x22c.google.com [2a00:1450:4010:c04::22c])
-        by mx.google.com with ESMTPS id 8si18736683lat.114.2014.07.25.12.44.14
+Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B33E6B0038
+	for <linux-mm@kvack.org>; Fri, 25 Jul 2014 15:44:17 -0400 (EDT)
+Received: by mail-la0-f42.google.com with SMTP id pv20so3450993lab.15
+        for <linux-mm@kvack.org>; Fri, 25 Jul 2014 12:44:17 -0700 (PDT)
+Received: from mail-la0-x22a.google.com (mail-la0-x22a.google.com [2a00:1450:4010:c03::22a])
+        by mx.google.com with ESMTPS id jb6si37629877lbc.32.2014.07.25.12.44.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 25 Jul 2014 12:44:14 -0700 (PDT)
-Received: by mail-lb0-f172.google.com with SMTP id z11so3753791lbi.17
-        for <linux-mm@kvack.org>; Fri, 25 Jul 2014 12:44:14 -0700 (PDT)
+        Fri, 25 Jul 2014 12:44:16 -0700 (PDT)
+Received: by mail-la0-f42.google.com with SMTP id pv20so3450973lab.15
+        for <linux-mm@kvack.org>; Fri, 25 Jul 2014 12:44:15 -0700 (PDT)
 From: Max Filippov <jcmvbkbc@gmail.com>
-Subject: [PATCH v3 1/2] mm/highmem: make kmap cache coloring aware
-Date: Fri, 25 Jul 2014 23:43:46 +0400
-Message-Id: <1406317427-10215-2-git-send-email-jcmvbkbc@gmail.com>
+Subject: [PATCH v3 2/2] xtensa: support aliasing cache in kmap
+Date: Fri, 25 Jul 2014 23:43:47 +0400
+Message-Id: <1406317427-10215-3-git-send-email-jcmvbkbc@gmail.com>
 In-Reply-To: <1406317427-10215-1-git-send-email-jcmvbkbc@gmail.com>
 References: <1406317427-10215-1-git-send-email-jcmvbkbc@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,217 +22,122 @@ List-ID: <linux-mm.kvack.org>
 To: linux-xtensa@linux-xtensa.org
 Cc: Chris Zankel <chris@zankel.net>, Marc Gauthier <marc@cadence.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-mips@linux-mips.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>, Steven Hill <Steven.Hill@imgtec.com>, Max Filippov <jcmvbkbc@gmail.com>
 
-VIPT cache with way size larger than MMU page size may suffer from
-aliasing problem: a single physical address accessed via different
-virtual addresses may end up in multiple locations in the cache.
-Virtual mappings of a physical address that always get cached in
-different cache locations are said to have different colors.
-L1 caching hardware usually doesn't handle this situation leaving it
-up to software. Software must avoid this situation as it leads to
-data corruption.
+Define ARCH_PKMAP_COLORING and provide corresponding macro definitions
+on cores with aliasing data cache.
 
-One way to handle this is to flush and invalidate data cache every time
-page mapping changes color. The other way is to always map physical page
-at a virtual address with the same color. Low memory pages already have
-this property. Giving architecture a way to control color of high memory
-page mapping allows reusing of existing low memory cache alias handling
-code.
-
-Provide hooks that allow architectures with aliasing cache to align
-mapping address of high pages according to their color. Such architectures
-may enforce similar coloring of low- and high-memory page mappings and
-reuse existing cache management functions to support highmem.
-
-This code is based on the implementation of similar feature for MIPS by
-Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>.
+Instead of single last_pkmap_nr maintain an array last_pkmap_nr_arr of
+pkmap counters for each page color. Make sure that kmap maps physical
+page at virtual address with color matching its physical address.
 
 Signed-off-by: Max Filippov <jcmvbkbc@gmail.com>
 ---
 Changes v2->v3:
-- drop ARCH_PKMAP_COLORING, check gif et_pkmap_color is defined instead;
-- add comment stating that arch should place definitions into
-  asm/highmem.h, include it directly to mm/highmem.c;
-- replace macros with inline functions, change set_pkmap_color to
-  get_pkmap_color which better fits inline function model;
-- drop get_last_pkmap_nr;
-- replace get_next_pkmap_counter with get_pkmap_entries_count, leave
-  original counting code;
-- introduce get_pkmap_wait_queue_head and make sleeping/waking dependent
-  on mapping color;
-- move file-scope static variables last_pkmap_nr and pkmap_map_wait into
-  get_next_pkmap_nr and get_pkmap_wait_queue_head respectively;
-- document new functions;
-- expand patch description and change authorship.
+- switch to new function names/prototypes;
+- implement get_pkmap_wait_queue_head, add kmap_waitqueues_init.
 
 Changes v1->v2:
-- define set_pkmap_color(pg, cl) as do { } while (0) instead of /* */;
-- rename is_no_more_pkmaps to no_more_pkmaps;
-- change 'if (count > 0)' to 'if (count)' to better match the original
-  code behavior;
+- new file.
 
- mm/highmem.c | 89 ++++++++++++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 78 insertions(+), 11 deletions(-)
+ arch/xtensa/include/asm/highmem.h | 40 +++++++++++++++++++++++++++++++++++++--
+ arch/xtensa/mm/highmem.c          | 18 ++++++++++++++++++
+ 2 files changed, 56 insertions(+), 2 deletions(-)
 
-diff --git a/mm/highmem.c b/mm/highmem.c
-index b32b70c..0d0cbbb 100644
---- a/mm/highmem.c
-+++ b/mm/highmem.c
-@@ -28,6 +28,9 @@
- #include <linux/highmem.h>
- #include <linux/kgdb.h>
- #include <asm/tlbflush.h>
-+#ifdef CONFIG_HIGHMEM
-+#include <asm/highmem.h>
-+#endif
+diff --git a/arch/xtensa/include/asm/highmem.h b/arch/xtensa/include/asm/highmem.h
+index 2653ef5..2c7901e 100644
+--- a/arch/xtensa/include/asm/highmem.h
++++ b/arch/xtensa/include/asm/highmem.h
+@@ -12,19 +12,55 @@
+ #ifndef _XTENSA_HIGHMEM_H
+ #define _XTENSA_HIGHMEM_H
  
++#include <linux/wait.h>
+ #include <asm/cacheflush.h>
+ #include <asm/fixmap.h>
+ #include <asm/kmap_types.h>
+ #include <asm/pgtable.h>
  
- #if defined(CONFIG_HIGHMEM) || defined(CONFIG_X86_32)
-@@ -44,6 +47,66 @@ DEFINE_PER_CPU(int, __kmap_atomic_idx);
-  */
- #ifdef CONFIG_HIGHMEM
+-#define PKMAP_BASE		(FIXADDR_START - PMD_SIZE)
+-#define LAST_PKMAP		PTRS_PER_PTE
++#define PKMAP_BASE		((FIXADDR_START - \
++				  (LAST_PKMAP + 1) * PAGE_SIZE) & PMD_MASK)
++#define LAST_PKMAP		(PTRS_PER_PTE * DCACHE_N_COLORS)
+ #define LAST_PKMAP_MASK		(LAST_PKMAP - 1)
+ #define PKMAP_NR(virt)		(((virt) - PKMAP_BASE) >> PAGE_SHIFT)
+ #define PKMAP_ADDR(nr)		(PKMAP_BASE + ((nr) << PAGE_SHIFT))
  
-+/*
-+ * Architecture with aliasing data cache may define the following family of
-+ * helper functions in its asm/highmem.h to control cache color of virtual
-+ * addresses where physical memory pages are mapped by kmap.
-+ */
-+#ifndef get_pkmap_color
-+
-+/*
-+ * Determine color of virtual address where the page should be mapped.
-+ */
-+static inline unsigned int get_pkmap_color(struct page *page)
-+{
-+	return 0;
-+}
+ #define kmap_prot		PAGE_KERNEL
+ 
++#if DCACHE_WAY_SIZE > PAGE_SIZE
 +#define get_pkmap_color get_pkmap_color
++static inline int get_pkmap_color(struct page *page)
++{
++	return DCACHE_ALIAS(page_to_phys(page));
++}
 +
-+/*
-+ * Get next index for mapping inside PKMAP region for page with given color.
-+ */
++extern unsigned int last_pkmap_nr_arr[];
++
 +static inline unsigned int get_next_pkmap_nr(unsigned int color)
 +{
-+	static unsigned int last_pkmap_nr;
-+
-+	last_pkmap_nr = (last_pkmap_nr + 1) & LAST_PKMAP_MASK;
-+	return last_pkmap_nr;
++	last_pkmap_nr_arr[color] =
++		(last_pkmap_nr_arr[color] + DCACHE_N_COLORS) & LAST_PKMAP_MASK;
++	return last_pkmap_nr_arr[color] + color;
 +}
 +
-+/*
-+ * Determine if page index inside PKMAP region (pkmap_nr) of given color
-+ * has wrapped around PKMAP region end. When this happens an attempt to
-+ * flush all unused PKMAP slots is made.
-+ */
 +static inline int no_more_pkmaps(unsigned int pkmap_nr, unsigned int color)
 +{
-+	return pkmap_nr == 0;
++	return pkmap_nr < DCACHE_N_COLORS;
 +}
 +
-+/*
-+ * Get the number of PKMAP entries of the given color. If no free slot is
-+ * found after checking that much entries, kmap will sleep waiting for
-+ * someone to call kunmap and free PKMAP slot.
-+ */
 +static inline int get_pkmap_entries_count(unsigned int color)
 +{
-+	return LAST_PKMAP;
++	return LAST_PKMAP / DCACHE_N_COLORS;
 +}
 +
-+/*
-+ * Get head of a wait queue for PKMAP entries of the given color.
-+ * Wait queues for different mapping colors should be independent to avoid
-+ * unnecessary wakeups caused by freeing of slots of other colors.
-+ */
++extern wait_queue_head_t pkmap_map_wait_arr[];
++
 +static inline wait_queue_head_t *get_pkmap_wait_queue_head(unsigned int color)
 +{
-+	static DECLARE_WAIT_QUEUE_HEAD(pkmap_map_wait);
-+
-+	return &pkmap_map_wait;
++	return pkmap_map_wait_arr + color;
 +}
 +#endif
 +
- unsigned long totalhigh_pages __read_mostly;
- EXPORT_SYMBOL(totalhigh_pages);
+ extern pte_t *pkmap_page_table;
  
-@@ -68,13 +131,10 @@ unsigned int nr_free_highpages (void)
- }
+ void *kmap_high(struct page *page);
+diff --git a/arch/xtensa/mm/highmem.c b/arch/xtensa/mm/highmem.c
+index 466abae..8cfb71e 100644
+--- a/arch/xtensa/mm/highmem.c
++++ b/arch/xtensa/mm/highmem.c
+@@ -14,6 +14,23 @@
  
- static int pkmap_count[LAST_PKMAP];
--static unsigned int last_pkmap_nr;
- static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(kmap_lock);
+ static pte_t *kmap_pte;
  
- pte_t * pkmap_page_table;
- 
--static DECLARE_WAIT_QUEUE_HEAD(pkmap_map_wait);
--
- /*
-  * Most architectures have no use for kmap_high_get(), so let's abstract
-  * the disabling of IRQ out of the locking in that case to save on a
-@@ -161,15 +221,17 @@ static inline unsigned long map_new_virtual(struct page *page)
++#if DCACHE_WAY_SIZE > PAGE_SIZE
++unsigned int last_pkmap_nr_arr[DCACHE_N_COLORS];
++wait_queue_head_t pkmap_map_wait_arr[DCACHE_N_COLORS];
++
++static void __init kmap_waitqueues_init(void)
++{
++	unsigned int i;
++
++	for (i = 0; i < ARRAY_SIZE(pkmap_map_wait_arr); ++i)
++		init_waitqueue_head(pkmap_map_wait_arr + i);
++}
++#else
++static inline void kmap_waitqueues_init(void)
++{
++}
++#endif
++
+ static inline enum fixed_addresses kmap_idx(int type, unsigned long color)
  {
- 	unsigned long vaddr;
- 	int count;
-+	unsigned int last_pkmap_nr;
-+	unsigned int color = get_pkmap_color(page);
- 
- start:
--	count = LAST_PKMAP;
-+	count = get_pkmap_entries_count(color);
- 	/* Find an empty entry */
- 	for (;;) {
--		last_pkmap_nr = (last_pkmap_nr + 1) & LAST_PKMAP_MASK;
--		if (!last_pkmap_nr) {
-+		last_pkmap_nr = get_next_pkmap_nr(color);
-+		if (no_more_pkmaps(last_pkmap_nr, color)) {
- 			flush_all_zero_pkmaps();
--			count = LAST_PKMAP;
-+			count = get_pkmap_entries_count(color);
- 		}
- 		if (!pkmap_count[last_pkmap_nr])
- 			break;	/* Found a usable entry */
-@@ -181,12 +243,14 @@ start:
- 		 */
- 		{
- 			DECLARE_WAITQUEUE(wait, current);
-+			wait_queue_head_t *pkmap_map_wait =
-+				get_pkmap_wait_queue_head(color);
- 
- 			__set_current_state(TASK_UNINTERRUPTIBLE);
--			add_wait_queue(&pkmap_map_wait, &wait);
-+			add_wait_queue(pkmap_map_wait, &wait);
- 			unlock_kmap();
- 			schedule();
--			remove_wait_queue(&pkmap_map_wait, &wait);
-+			remove_wait_queue(pkmap_map_wait, &wait);
- 			lock_kmap();
- 
- 			/* Somebody else might have mapped it while we slept */
-@@ -274,6 +338,8 @@ void kunmap_high(struct page *page)
- 	unsigned long nr;
- 	unsigned long flags;
- 	int need_wakeup;
-+	unsigned int color = get_pkmap_color(page);
-+	wait_queue_head_t *pkmap_map_wait;
- 
- 	lock_kmap_any(flags);
- 	vaddr = (unsigned long)page_address(page);
-@@ -299,13 +365,14 @@ void kunmap_high(struct page *page)
- 		 * no need for the wait-queue-head's lock.  Simply
- 		 * test if the queue is empty.
- 		 */
--		need_wakeup = waitqueue_active(&pkmap_map_wait);
-+		pkmap_map_wait = get_pkmap_wait_queue_head(color);
-+		need_wakeup = waitqueue_active(pkmap_map_wait);
- 	}
- 	unlock_kmap_any(flags);
- 
- 	/* do wake-up, if needed, race-free outside of the spin lock */
- 	if (need_wakeup)
--		wake_up(&pkmap_map_wait);
-+		wake_up(pkmap_map_wait);
+ 	return (type + KM_TYPE_NR * smp_processor_id()) * DCACHE_N_COLORS +
+@@ -72,4 +89,5 @@ void __init kmap_init(void)
+ 	/* cache the first kmap pte */
+ 	kmap_vstart = __fix_to_virt(FIX_KMAP_BEGIN);
+ 	kmap_pte = kmap_get_fixmap_pte(kmap_vstart);
++	kmap_waitqueues_init();
  }
- 
- EXPORT_SYMBOL(kunmap_high);
 -- 
 1.8.1.4
 
