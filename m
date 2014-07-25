@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 951486B0072
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 21:43:26 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id lf10so5087683pab.2
-        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 18:43:26 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id gx11si7637838pbd.66.2014.07.24.18.43.25
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 39AE66B0085
+	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 21:44:50 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id r10so4720138pdi.20
+        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 18:44:49 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id pm3si7637536pbb.64.2014.07.24.18.44.47
         for <linux-mm@kvack.org>;
-        Thu, 24 Jul 2014 18:43:25 -0700 (PDT)
-Message-ID: <53D1B634.4080902@linux.intel.com>
-Date: Fri, 25 Jul 2014 09:43:16 +0800
+        Thu, 24 Jul 2014 18:44:49 -0700 (PDT)
+Message-ID: <53D1B684.1010900@linux.intel.com>
+Date: Fri, 25 Jul 2014 09:44:36 +0800
 From: Jiang Liu <jiang.liu@linux.intel.com>
 MIME-Version: 1.0
 Subject: Re: [RFC Patch V1 30/30] x86, NUMA: Online node earlier when doing
@@ -90,8 +90,6 @@ On 2014/7/25 7:30, Nishanth Aravamudan wrote:
 > 
 > try_online_node() seems like it can fail? I assume it's a pretty rare
 > case, but should the return code be checked?
-Good suggestion, I should split out this patch to fix the crash.
-
 > 
 > If it does fail, it seems like there are pretty serious problems and we
 > shouldn't be onlining this CPU, etc.?
@@ -102,7 +100,7 @@ Good suggestion, I should split out this patch to fix the crash.
 > 
 > Which means you can remove this check presuming try_online_node()
 > returned 0.
-Yes, that's true.
+Good suggestion, will try to enhance the error handling path.
 
 > 
 > Thanks,
