@@ -1,47 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 292376B0035
-	for <linux-mm@kvack.org>; Fri, 25 Jul 2014 08:18:25 -0400 (EDT)
-Received: by mail-we0-f176.google.com with SMTP id q58so4173957wes.21
-        for <linux-mm@kvack.org>; Fri, 25 Jul 2014 05:18:24 -0700 (PDT)
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A02F6B0035
+	for <linux-mm@kvack.org>; Fri, 25 Jul 2014 08:20:32 -0400 (EDT)
+Received: by mail-wg0-f45.google.com with SMTP id x12so4111233wgg.28
+        for <linux-mm@kvack.org>; Fri, 25 Jul 2014 05:20:31 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m9si17640400wjr.7.2014.07.25.05.18.23
+        by mx.google.com with ESMTPS id fn15si17588334wjc.73.2014.07.25.05.20.28
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 25 Jul 2014 05:18:23 -0700 (PDT)
-Date: Fri, 25 Jul 2014 13:18:15 +0100
+        Fri, 25 Jul 2014 05:20:28 -0700 (PDT)
+Date: Fri, 25 Jul 2014 13:20:22 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH V4 01/15] mm, THP: don't hold mmap_sem in khugepaged when
- allocating THP
-Message-ID: <20140725121815.GV10819@suse.de>
+Subject: Re: [PATCH V4 02/15] mm, compaction: defer each zone individually
+ instead of preferred zone
+Message-ID: <20140725122022.GW10819@suse.de>
 References: <1405518503-27687-1-git-send-email-vbabka@suse.cz>
- <1405518503-27687-2-git-send-email-vbabka@suse.cz>
+ <1405518503-27687-3-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1405518503-27687-2-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1405518503-27687-3-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On Wed, Jul 16, 2014 at 03:48:09PM +0200, Vlastimil Babka wrote:
-> When allocating huge page for collapsing, khugepaged currently holds mmap_sem
-> for reading on the mm where collapsing occurs. Afterwards the read lock is
-> dropped before write lock is taken on the same mmap_sem.
+On Wed, Jul 16, 2014 at 03:48:10PM +0200, Vlastimil Babka wrote:
+> When direct sync compaction is often unsuccessful, it may become deferred for
+> some time to avoid further useless attempts, both sync and async. Successful
+> high-order allocations un-defer compaction, while further unsuccessful
+> compaction attempts prolong the copmaction deferred period.
 > 
-> Holding mmap_sem during whole huge page allocation is therefore useless, the
-> vma needs to be rechecked after taking the write lock anyway. Furthemore, huge
-> page allocation might involve a rather long sync compaction, and thus block
-> any mmap_sem writers and i.e. affect workloads that perform frequent m(un)map
-> or mprotect oterations.
+> Currently the checking and setting deferred status is performed only on the
+> preferred zone of the allocation that invoked direct compaction. But compaction
+> itself is attempted on all eligible zones in the zonelist, so the behavior is
+> suboptimal and may lead both to scenarios where 1) compaction is attempted
+> uselessly, or 2) where it's not attempted despite good chances of succeeding,
+> as shown on the examples below:
 > 
-> This patch simply releases the read lock before allocating a huge page. It
-> also deletes an outdated comment that assumed vma must be stable, as it was
-> using alloc_hugepage_vma(). This is no longer true since commit 9f1b868a13
-> ("mm: thp: khugepaged: add policy for finding target node").
+> 1) A direct compaction with Normal preferred zone failed and set deferred
+>    compaction for the Normal zone. Another unrelated direct compaction with
+>    DMA32 as preferred zone will attempt to compact DMA32 zone even though
+>    the first compaction attempt also included DMA32 zone.
+> 
+>    In another scenario, compaction with Normal preferred zone failed to compact
+>    Normal zone, but succeeded in the DMA32 zone, so it will not defer
+>    compaction. In the next attempt, it will try Normal zone which will fail
+>    again, instead of skipping Normal zone and trying DMA32 directly.
+> 
+> 2) Kswapd will balance DMA32 zone and reset defer status based on watermarks
+>    looking good. A direct compaction with preferred Normal zone will skip
+>    compaction of all zones including DMA32 because Normal was still deferred.
+>    The allocation might have succeeded in DMA32, but won't.
+> 
+> This patch makes compaction deferring work on individual zone basis instead of
+> preferred zone. For each zone, it checks compaction_deferred() to decide if the
+> zone should be skipped. If watermarks fail after compacting the zone,
+> defer_compaction() is called. The zone where watermarks passed can still be
+> deferred when the allocation attempt is unsuccessful. When allocation is
+> successful, compaction_defer_reset() is called for the zone containing the
+> allocated page. This approach should approximate calling defer_compaction()
+> only on zones where compaction was attempted and did not yield allocated page.
+> There might be corner cases but that is inevitable as long as the decision
+> to stop compacting dues not guarantee that a page will be allocated.
+> 
+> During testing on a two-node machine with a single very small Normal zone on
+> node 1, this patch has improved success rates in stress-highalloc mmtests
+> benchmark. The success here were previously made worse by commit 3a025760fc
+> ("mm: page_alloc: spill to remote nodes before waking kswapd") as kswapd was
+> no longer resetting often enough the deferred compaction for the Normal zone,
+> and DMA32 zones on both nodes were thus not considered for compaction.
+> On different machine, success rates were improved with __GFP_NO_KSWAPD
+> allocations.
 > 
 > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> Acked-by: Minchan Kim <minchan@kernel.org>
+> Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Michal Nazarewicz <mina86@mina86.com>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: David Rientjes <rientjes@google.com>
 
 Acked-by: Mel Gorman <mgorman@suse.de>
 
