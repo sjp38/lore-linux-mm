@@ -1,36 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 522596B0035
-	for <linux-mm@kvack.org>; Fri, 25 Jul 2014 17:42:15 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so6637396pab.5
-        for <linux-mm@kvack.org>; Fri, 25 Jul 2014 14:42:15 -0700 (PDT)
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-        by mx.google.com with ESMTPS id kb2si10418645pbc.123.2014.07.25.14.42.14
+Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
+	by kanga.kvack.org (Postfix) with ESMTP id C6B966B0035
+	for <linux-mm@kvack.org>; Fri, 25 Jul 2014 17:47:40 -0400 (EDT)
+Received: by mail-qa0-f46.google.com with SMTP id v10so5234188qac.19
+        for <linux-mm@kvack.org>; Fri, 25 Jul 2014 14:47:40 -0700 (PDT)
+Received: from mail-qg0-x22f.google.com (mail-qg0-x22f.google.com [2607:f8b0:400d:c04::22f])
+        by mx.google.com with ESMTPS id p2si18408102qai.113.2014.07.25.14.47.40
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 25 Jul 2014 14:42:14 -0700 (PDT)
-Received: by mail-pd0-f172.google.com with SMTP id ft15so6349341pdb.31
-        for <linux-mm@kvack.org>; Fri, 25 Jul 2014 14:42:14 -0700 (PDT)
-Date: Fri, 25 Jul 2014 14:42:13 -0700
-From: Jesse Barnes <jbarnes@virtuousgeek.org>
+        Fri, 25 Jul 2014 14:47:40 -0700 (PDT)
+Received: by mail-qg0-f47.google.com with SMTP id i50so5704977qgf.20
+        for <linux-mm@kvack.org>; Fri, 25 Jul 2014 14:47:40 -0700 (PDT)
+Date: Fri, 25 Jul 2014 17:47:35 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
 Subject: Re: [PATCH 1/3] mmu_notifier: Add mmu_notifier_invalidate_range()
-Message-ID: <20140725144213.773474e4@jbarnes-desktop>
-In-Reply-To: <20140725213806.GN14017@8bytes.org>
+Message-ID: <20140725214734.GB5478@gmail.com>
 References: <1406212541-25975-1-git-send-email-joro@8bytes.org>
-	<1406212541-25975-2-git-send-email-joro@8bytes.org>
-	<20140725131639.698f18ff@jbarnes-desktop>
-	<20140725213806.GN14017@8bytes.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <1406212541-25975-2-git-send-email-joro@8bytes.org>
+ <20140725131639.698f18ff@jbarnes-desktop>
+ <20140725213806.GN14017@8bytes.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20140725213806.GN14017@8bytes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joerg Roedel <joro@8bytes.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Jerome Glisse <jglisse@redhat.com>, jroedel@suse.de, Jay.Cornwall@amd.com, Oded.Gabbay@amd.com, John.Bridgman@amd.com, Suravee.Suthikulpanit@amd.com, ben.sander@amd.com, David Woodhouse <dwmw2@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org
+Cc: Jesse Barnes <jbarnes@virtuousgeek.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Jerome Glisse <jglisse@redhat.com>, jroedel@suse.de, Jay.Cornwall@amd.com, Oded.Gabbay@amd.com, John.Bridgman@amd.com, Suravee.Suthikulpanit@amd.com, ben.sander@amd.com, David Woodhouse <dwmw2@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org
 
-On Fri, 25 Jul 2014 23:38:06 +0200
-Joerg Roedel <joro@8bytes.org> wrote:
-
+On Fri, Jul 25, 2014 at 11:38:06PM +0200, Joerg Roedel wrote:
 > On Fri, Jul 25, 2014 at 01:16:39PM -0700, Jesse Barnes wrote:
 > > > To allow managing external TLBs the MMU-notifiers need to
 > > > catch the moment when pages are unmapped but not yet freed.
@@ -74,14 +73,14 @@ Joerg Roedel <joro@8bytes.org> wrote:
 > 
 > But probably targeting better usability with one of the other options is
 > a better choice? I am open for thoughts and suggestions on that.
+> 
 
-Making the _end callback just do another TLB flush is fine too, but it
-would be nice to have the consistency of (1).  I can live with either
-though, as long as the callbacks are well documented.
+I should add that for hmm it is crucial to exactly match call to start and
+end ie hmm needs to know when it can start again to do cpu page table look
+up and expect valid content.
 
-Thanks,
--- 
-Jesse Barnes, Intel Open Source Technology Center
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
