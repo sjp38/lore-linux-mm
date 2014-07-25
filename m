@@ -1,61 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id E1CF56B0035
-	for <linux-mm@kvack.org>; Fri, 25 Jul 2014 08:29:58 -0400 (EDT)
-Received: by mail-we0-f173.google.com with SMTP id q58so4247954wes.4
-        for <linux-mm@kvack.org>; Fri, 25 Jul 2014 05:29:58 -0700 (PDT)
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id AE0436B0035
+	for <linux-mm@kvack.org>; Fri, 25 Jul 2014 08:31:11 -0400 (EDT)
+Received: by mail-wi0-f177.google.com with SMTP id ho1so898953wib.16
+        for <linux-mm@kvack.org>; Fri, 25 Jul 2014 05:31:10 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gc3si2268221wib.74.2014.07.25.05.29.48
+        by mx.google.com with ESMTPS id pk8si17714544wjc.2.2014.07.25.05.31.09
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 25 Jul 2014 05:29:48 -0700 (PDT)
-Date: Fri, 25 Jul 2014 13:29:33 +0100
+        Fri, 25 Jul 2014 05:31:10 -0700 (PDT)
+Date: Fri, 25 Jul 2014 13:31:06 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH V4 06/15] mm, compaction: reduce zone checking frequency
- in the migration scanner
-Message-ID: <20140725122933.GA10819@suse.de>
+Subject: Re: [PATCH V4 07/15] mm, compaction: khugepaged should not give up
+ due to need_resched()
+Message-ID: <20140725123106.GB10819@suse.de>
 References: <1405518503-27687-1-git-send-email-vbabka@suse.cz>
- <1405518503-27687-7-git-send-email-vbabka@suse.cz>
+ <1405518503-27687-8-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1405518503-27687-7-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1405518503-27687-8-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On Wed, Jul 16, 2014 at 03:48:14PM +0200, Vlastimil Babka wrote:
-> The unification of the migrate and free scanner families of function has
-> highlighted a difference in how the scanners ensure they only isolate pages
-> of the intended zone. This is important for taking zone lock or lru lock of
-> the correct zone. Due to nodes overlapping, it is however possible to
-> encounter a different zone within the range of the zone being compacted.
+On Wed, Jul 16, 2014 at 03:48:15PM +0200, Vlastimil Babka wrote:
+> Async compaction aborts when it detects zone lock contention or need_resched()
+> is true. David Rientjes has reported that in practice, most direct async
+> compactions for THP allocation abort due to need_resched(). This means that a
+> second direct compaction is never attempted, which might be OK for a page
+> fault, but khugepaged is intended to attempt a sync compaction in such case and
+> in these cases it won't.
 > 
-> The free scanner, since its inception by commit 748446bb6b ("mm: compaction:
-> memory compaction core"), has been checking the zone of the first valid page
-> in a pageblock, and skipping the whole pageblock if the zone does not match.
+> This patch replaces "bool contended" in compact_control with an int that
+> distinguieshes between aborting due to need_resched() and aborting due to lock
+> contention. This allows propagating the abort through all compaction functions
+> as before, but passing the abort reason up to __alloc_pages_slowpath() which
+> decides when to continue with direct reclaim and another compaction attempt.
 > 
-> This checking was completely missing from the migration scanner at first, and
-> later added by commit dc9086004b ("mm: compaction: check for overlapping
-> nodes during isolation for migration") in a reaction to a bug report.
-> But the zone comparison in migration scanner is done once per a single scanned
-> page, which is more defensive and thus more costly than a check per pageblock.
+> Another problem is that try_to_compact_pages() did not act upon the reported
+> contention (both need_resched() or lock contention) immediately and would
+> proceed with another zone from the zonelist. When need_resched() is true, that
+> means initializing another zone compaction, only to check again need_resched()
+> in isolate_migratepages() and aborting. For zone lock contention, the
+> unintended consequence is that the lock contended status reported back to the
+> allocator is detrmined from the last zone where compaction was attempted, which
+> is rather arbitrary.
 > 
-> This patch unifies the checking done in both scanners to once per pageblock,
-> through a new pageblock_within_zone() function, which also includes pfn_valid()
-> checks. It is more defensive than the current free scanner checks, as it checks
-> both the first and last page of the pageblock, but less defensive by the
-> migration scanner per-page checks. It assumes that node overlapping may result
-> (on some architecture) in a boundary between two nodes falling into the middle
-> of a pageblock, but that there cannot be a node0 node1 node0 interleaving
-> within a single pageblock.
+> This patch fixes the problem in the following way:
+> - async compaction of a zone aborting due to need_resched() or fatal signal
+>   pending means that further zones should not be tried. We report
+>   COMPACT_CONTENDED_SCHED to the allocator.
+> - aborting zone compaction due to lock contention means we can still try
+>   another zone, since it has different set of locks. We report back
+>   COMPACT_CONTENDED_LOCK only if *all* zones where compaction was attempted,
+>   it was aborted due to lock contention.
 > 
-> The result is more code being shared and a bit less per-page CPU cost in the
-> migration scanner.
+> As a result of these fixes, khugepaged will proceed with second sync compaction
+> as intended, when the preceding async compaction aborted due to need_resched().
+> Page fault compactions aborting due to need_resched() will spare some cycles
+> previously wasted by initializing another zone compaction only to abort again.
+> Lock contention will be reported only when compaction in all zones aborted due
+> to lock contention, and therefore it's not a good idea to try again after
+> reclaim.
 > 
-> Reported-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Reported-by: David Rientjes <rientjes@google.com>
 > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Michal Nazarewicz <mina86@mina86.com>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Rik van Riel <riel@redhat.com>
 
 Acked-by: Mel Gorman <mgorman@suse.de>
 
