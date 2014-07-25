@@ -1,79 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 834C76B00A3
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 19:33:06 -0400 (EDT)
-Received: by mail-ig0-f173.google.com with SMTP id h18so98626igc.6
-        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 16:33:06 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id lr1si18137210icb.43.2014.07.24.16.33.05
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id B36DF6B00A5
+	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 20:51:32 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id fa1so5001831pad.13
+        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 17:51:32 -0700 (PDT)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id dv3si3763171pdb.496.2014.07.24.17.51.30
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 24 Jul 2014 16:33:05 -0700 (PDT)
-Date: Thu, 24 Jul 2014 16:33:03 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/3] mmu_notifier: Allow to manage CPU external TLBs
-Message-Id: <20140724163303.df34065a3c3b26c0a4b3bab1@linux-foundation.org>
-In-Reply-To: <1406212541-25975-1-git-send-email-joro@8bytes.org>
-References: <1406212541-25975-1-git-send-email-joro@8bytes.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 24 Jul 2014 17:51:31 -0700 (PDT)
+Received: by mail-pa0-f47.google.com with SMTP id kx10so4957961pab.6
+        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 17:51:30 -0700 (PDT)
+Message-ID: <53D1A9FC.7090202@gmail.com>
+Date: Fri, 25 Jul 2014 08:51:08 +0800
+From: Wang Sheng-Hui <shhuiw@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: trivial comment cleanup in slab.c
+References: <53CE11C1.1030306@gmail.com> <alpine.DEB.2.02.1407221457010.5814@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1407221457010.5814@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joerg Roedel <joro@8bytes.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>, Jerome Glisse <jglisse@redhat.com>, jroedel@suse.de, Jay.Cornwall@amd.com, Oded.Gabbay@amd.com, John.Bridgman@amd.com, Suravee.Suthikulpanit@amd.com, ben.sander@amd.com, Jesse Barnes <jbarnes@virtuousgeek.org>, David Woodhouse <dwmw2@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org
+To: David Rientjes <rientjes@google.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Thu, 24 Jul 2014 16:35:38 +0200 Joerg Roedel <joro@8bytes.org> wrote:
 
-> here is a patch-set to extend the mmu_notifiers in the Linux
-> kernel to allow managing CPU external TLBs. Those TLBs may
-> be implemented in IOMMUs or any other external device, e.g.
-> ATS/PRI capable PCI devices.
-> 
-> The problem with managing these TLBs are the semantics of
-> the invalidate_range_start/end call-backs currently
-> available. Currently the subsystem using mmu_notifiers has
-> to guarantee that no new TLB entries are established between
-> invalidate_range_start/end. Furthermore the
-> invalidate_range_start() function is called when all pages
-> are still mapped and invalidate_range_end() when the pages
-> are unmapped an already freed.
-> 
-> So both call-backs can't be used to safely flush any non-CPU
-> TLB because _start() is called too early and _end() too
-> late.
-> 
-> In the AMD IOMMUv2 driver this is currently implemented by
-> assigning an empty page-table to the external device between
-> _start() and _end(). But as tests have shown this doesn't
-> work as external devices don't re-fault infinitly but enter
-> a failure state after some time.
-> 
-> Next problem with this solution is that it causes an
-> interrupt storm for IO page faults to be handled when an
-> empty page-table is assigned.
-> 
-> To solve this situation I wrote a patch-set to introduce a
-> new notifier call-back: mmu_notifer_invalidate_range(). This
-> notifier lifts the strict requirements that no new
-> references are taken in the range between _start() and
-> _end(). When the subsystem can't guarantee that any new
-> references are taken is has to provide the
-> invalidate_range() call-back to clear any new references in
-> there.
-> 
-> It is called between invalidate_range_start() and _end()
-> every time the VMM has to wipe out any references to a
-> couple of pages. This are usually the places where the CPU
-> TLBs are flushed too and where its important that this
-> happens before invalidate_range_end() is called.
-> 
-> Any comments and review appreciated!
 
-It looks pretty simple and harmless.
+On 2014a1'07ae??23ae?JPY 05:57, David Rientjes wrote:
+> On Tue, 22 Jul 2014, Wang Sheng-Hui wrote:
+> 
+>>
+>> Current struct kmem_cache has no 'lock' field, and slab page is
+>> managed by struct kmem_cache_node, which has 'list_lock' field.
+>>
+>> Clean up the related comment.
+>>
+> 
+> I think this is fine, but not sure if the s/slab/slab page/ change makes 
+> anything clearer and is unmentioned in the changelog.
+> 
 
-I assume the AMD IOMMUv2 driver actually uses this and it's all
-tested and good?  What is the status of that driver?
+David,
+
+I used "slab page" to mention the pages used for slab.
+Hope that won't introduce any confusion/misunderstanding.
+
+Regards,
+Sheng-Hui
+
+
+>> Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
+>> ---
+>>  mm/slab.c | 9 +++++----
+>>  1 file changed, 5 insertions(+), 4 deletions(-)
+>>
+>> diff --git a/mm/slab.c b/mm/slab.c
+>> index 3070b92..8f7170f 100644
+>> --- a/mm/slab.c
+>> +++ b/mm/slab.c
+>> @@ -1724,7 +1724,8 @@ slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
+>>  }
+>>
+>>  /*
+>> - * Interface to system's page allocator. No need to hold the cache-lock.
+>> + * Interface to system's page allocator. No need to hold the
+>> + * kmem_cache_node ->list_lock.
+>>   *
+>>   * If we requested dmaable memory, we will get it. Even if we
+>>   * did not request dmaable memory, we might get it, but that
+>> @@ -2026,9 +2027,9 @@ static void slab_destroy_debugcheck(struct kmem_cache *cachep,
+>>   * @cachep: cache pointer being destroyed
+>>   * @page: page pointer being destroyed
+>>   *
+>> - * Destroy all the objs in a slab, and release the mem back to the system.
+>> - * Before calling the slab must have been unlinked from the cache.  The
+>> - * cache-lock is not held/needed.
+>> + * Destroy all the objs in a slab page, and release the mem back to the system.
+>> + * Before calling the slab page must have been unlinked from the cache. The
+>> + * kmem_cache_node ->list_lock is not held/needed.
+>>   */
+>>  static void slab_destroy(struct kmem_cache *cachep, struct page *page)
+>>  {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
