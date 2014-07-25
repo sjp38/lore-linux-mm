@@ -1,92 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 47E3C6B00AA
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 21:10:44 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id rd18so3077148iec.28
-        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 18:10:44 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
-        by mx.google.com with ESMTP id lk19si12208930wic.103.2014.07.24.07.36.05
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 292DC6B0071
+	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 21:41:54 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id ft15so4667829pdb.17
+        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 18:41:53 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id s1si3819659pdi.266.2014.07.24.18.41.52
         for <linux-mm@kvack.org>;
-        Thu, 24 Jul 2014 07:36:05 -0700 (PDT)
-From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 0/3] mmu_notifier: Allow to manage CPU external TLBs
-Date: Thu, 24 Jul 2014 16:35:38 +0200
-Message-Id: <1406212541-25975-1-git-send-email-joro@8bytes.org>
+        Thu, 24 Jul 2014 18:41:53 -0700 (PDT)
+Message-ID: <53D1B5C2.6020700@linux.intel.com>
+Date: Fri, 25 Jul 2014 09:41:22 +0800
+From: Jiang Liu <jiang.liu@linux.intel.com>
+MIME-Version: 1.0
+Subject: Re: [RFC Patch V1 29/30] mm, x86: Enable memoryless node support
+ to better support CPU/memory hotplug
+References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com> <1405064267-11678-30-git-send-email-jiang.liu@linux.intel.com> <20140724232605.GB24458@linux.vnet.ibm.com>
+In-Reply-To: <20140724232605.GB24458@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, jroedel@suse.de, Jay.Cornwall@amd.com, Oded.Gabbay@amd.com, John.Bridgman@amd.com, Suravee.Suthikulpanit@amd.com, ben.sander@amd.com, Jesse Barnes <jbarnes@virtuousgeek.org>, David Woodhouse <dwmw2@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Joerg Roedel <joro@8bytes.org>
+To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>, Len Brown <len.brown@intel.com>, Pavel Machek <pavel@ucw.cz>, Toshi Kani <toshi.kani@hp.com>, Igor Mammedov <imammedo@redhat.com>, Borislav Petkov <bp@alien8.de>, Paul Gortmaker <paul.gortmaker@windriver.com>, Tang Chen <tangchen@cn.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Lans Zhang <jia.zhang@windriver.com>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, linux-pm@vger.kernel.org
 
-Hi,
 
-here is a patch-set to extend the mmu_notifiers in the Linux
-kernel to allow managing CPU external TLBs. Those TLBs may
-be implemented in IOMMUs or any other external device, e.g.
-ATS/PRI capable PCI devices.
 
-The problem with managing these TLBs are the semantics of
-the invalidate_range_start/end call-backs currently
-available. Currently the subsystem using mmu_notifiers has
-to guarantee that no new TLB entries are established between
-invalidate_range_start/end. Furthermore the
-invalidate_range_start() function is called when all pages
-are still mapped and invalidate_range_end() when the pages
-are unmapped an already freed.
+On 2014/7/25 7:26, Nishanth Aravamudan wrote:
+> On 11.07.2014 [15:37:46 +0800], Jiang Liu wrote:
+>> With current implementation, all CPUs within a NUMA node will be
+>> assocaited with another NUMA node if the node has no memory installed.
+> 
+> <snip>
+> 
+>> ---
+>>  arch/x86/Kconfig            |    3 +++
+>>  arch/x86/kernel/acpi/boot.c |    5 ++++-
+>>  arch/x86/kernel/smpboot.c   |    2 ++
+>>  arch/x86/mm/numa.c          |   42 +++++++++++++++++++++++++++++++++++-------
+>>  4 files changed, 44 insertions(+), 8 deletions(-)
+>>
+>> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+>> index a8f749ef0fdc..f35b25b88625 100644
+>> --- a/arch/x86/Kconfig
+>> +++ b/arch/x86/Kconfig
+>> @@ -1887,6 +1887,9 @@ config USE_PERCPU_NUMA_NODE_ID
+>>  	def_bool y
+>>  	depends on NUMA
+>>
+>> +config HAVE_MEMORYLESS_NODES
+>> +	def_bool NUMA
+>> +
+>>  config ARCH_ENABLE_SPLIT_PMD_PTLOCK
+>>  	def_bool y
+>>  	depends on X86_64 || X86_PAE
+>> diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
+>> index 86281ffb96d6..3b5641703a49 100644
+>> --- a/arch/x86/kernel/acpi/boot.c
+>> +++ b/arch/x86/kernel/acpi/boot.c
+>> @@ -612,6 +612,8 @@ static void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+>>  	if (nid != -1) {
+>>  		set_apicid_to_node(physid, nid);
+>>  		numa_set_node(cpu, nid);
+>> +		if (node_online(nid))
+>> +			set_cpu_numa_mem(cpu, local_memory_node(nid));
+> 
+> How common is it for this method to be called for a CPU on an offline
+> node? Aren't you fixing this in the next patch (so maybe the order
+> should be changed?)?
+Hi Nishanth,
+	For physical CPU hot-addition instead of logical CPU online through
+sysfs, the node is always in offline state.
+	In v2, I have reordered the patch set so patch 30 goes first.
 
-So both call-backs can't be used to safely flush any non-CPU
-TLB because _start() is called too early and _end() too
-late.
+> 
+>>  	}
+>>  #endif
+>>  }
+>> @@ -644,9 +646,10 @@ int acpi_unmap_lsapic(int cpu)
+>>  {
+>>  #ifdef CONFIG_ACPI_NUMA
+>>  	set_apicid_to_node(per_cpu(x86_cpu_to_apicid, cpu), NUMA_NO_NODE);
+>> +	set_cpu_numa_mem(cpu, NUMA_NO_NODE);
+>>  #endif
+>>
+>> -	per_cpu(x86_cpu_to_apicid, cpu) = -1;
+>> +	per_cpu(x86_cpu_to_apicid, cpu) = BAD_APICID;
+> 
+> I think this is an unrelated change?
+Thanks for reminder, it's unrelated to support memoryless node.
 
-In the AMD IOMMUv2 driver this is currently implemented by
-assigning an empty page-table to the external device between
-_start() and _end(). But as tests have shown this doesn't
-work as external devices don't re-fault infinitly but enter
-a failure state after some time.
+> 
+>>  	set_cpu_present(cpu, false);
+>>  	num_processors--;
+>>
+>> diff --git a/arch/x86/kernel/smpboot.c b/arch/x86/kernel/smpboot.c
+>> index 5492798930ef..4a5437989ffe 100644
+>> --- a/arch/x86/kernel/smpboot.c
+>> +++ b/arch/x86/kernel/smpboot.c
+>> @@ -162,6 +162,8 @@ static void smp_callin(void)
+>>  		      __func__, cpuid);
+>>  	}
+>>
+>> +	set_numa_mem(local_memory_node(cpu_to_node(cpuid)));
+>> +
+> 
+> Note that you might hit the same issue I reported on powerpc, if
+> smp_callin() is part of smp_init(). The waitqueue initialization code
+> depends on cpu_to_node() [and eventually cpu_to_mem()] to be initialized
+> quite early.
+Thanks for reminder. Patch 29/30 together will setup cpu_to_mem() array
+when enumerating CPUs for hot-adding events, so it should be ready
+for use when onlining those CPUs.
 
-Next problem with this solution is that it causes an
-interrupt storm for IO page faults to be handled when an
-empty page-table is assigned.
-
-To solve this situation I wrote a patch-set to introduce a
-new notifier call-back: mmu_notifer_invalidate_range(). This
-notifier lifts the strict requirements that no new
-references are taken in the range between _start() and
-_end(). When the subsystem can't guarantee that any new
-references are taken is has to provide the
-invalidate_range() call-back to clear any new references in
-there.
-
-It is called between invalidate_range_start() and _end()
-every time the VMM has to wipe out any references to a
-couple of pages. This are usually the places where the CPU
-TLBs are flushed too and where its important that this
-happens before invalidate_range_end() is called.
-
-Any comments and review appreciated!
-
-Thanks,
-
-	Joerg
-
-Joerg Roedel (3):
-  mmu_notifier: Add mmu_notifier_invalidate_range()
-  mmu_notifier: Call mmu_notifier_invalidate_range() from VMM
-  mmu_notifier: Add the call-back for mmu_notifier_invalidate_range()
-
- include/linux/mmu_notifier.h | 66 ++++++++++++++++++++++++++++++++++++++++----
- kernel/events/uprobes.c      |  2 +-
- mm/fremap.c                  |  2 +-
- mm/huge_memory.c             |  9 +++---
- mm/hugetlb.c                 |  7 ++++-
- mm/ksm.c                     |  4 +--
- mm/memory.c                  |  3 +-
- mm/migrate.c                 |  3 +-
- mm/mmu_notifier.c            | 15 ++++++++++
- mm/rmap.c                    |  2 +-
- 10 files changed, 95 insertions(+), 18 deletions(-)
-
--- 
-1.9.1
+Regards!
+Gerry
+> 
+> Thanks,
+> Nish
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
