@@ -1,55 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D6C46B0035
-	for <linux-mm@kvack.org>; Fri, 25 Jul 2014 11:27:49 -0400 (EDT)
-Received: by mail-wi0-f180.google.com with SMTP id n3so1203478wiv.13
-        for <linux-mm@kvack.org>; Fri, 25 Jul 2014 08:27:48 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id s2si18509995wjs.118.2014.07.25.08.27.18
+Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
+	by kanga.kvack.org (Postfix) with ESMTP id E8D536B0035
+	for <linux-mm@kvack.org>; Fri, 25 Jul 2014 11:34:50 -0400 (EDT)
+Received: by mail-we0-f179.google.com with SMTP id u57so4453490wes.24
+        for <linux-mm@kvack.org>; Fri, 25 Jul 2014 08:34:49 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w12si3521646wiv.0.2014.07.25.08.34.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 25 Jul 2014 08:27:19 -0700 (PDT)
-Date: Fri, 25 Jul 2014 11:26:54 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 13/13] mm: memcontrol: rewrite uncharge API
-Message-ID: <20140725152654.GK1725@cmpxchg.org>
-References: <CAJfpegt9k+YULet3vhmG3br7zSiHy-DRL+MiEE=HRzcs+mLzbw@mail.gmail.com>
- <20140719173911.GA1725@cmpxchg.org>
- <20140722150825.GA4517@dhcp22.suse.cz>
- <CAJfpegscT-ptQzq__uUV2TOn7Uvs6x4FdWGTQb9Fe9MEJr2KjA@mail.gmail.com>
- <20140723143847.GB16721@dhcp22.suse.cz>
- <20140723150608.GF1725@cmpxchg.org>
- <CAJfpegs-k5QC+42SzLKUSaHrdPxWBaT_dF+SOPqoDvg8h5p_Tw@mail.gmail.com>
- <20140723210241.GH1725@cmpxchg.org>
- <20140724084644.GA14578@dhcp22.suse.cz>
- <20140724090257.GB14578@dhcp22.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 25 Jul 2014 08:34:35 -0700 (PDT)
+Date: Fri, 25 Jul 2014 16:34:14 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch v4] mm, thp: only collapse hugepages to nodes with
+ affinity for zone_reclaim_mode
+Message-ID: <20140725153414.GJ10819@suse.de>
+References: <alpine.DEB.2.02.1407141807030.8808@chino.kir.corp.google.com>
+ <alpine.DEB.2.02.1407151712520.12279@chino.kir.corp.google.com>
+ <53C69C7B.1010709@suse.cz>
+ <alpine.DEB.2.02.1407161754000.23892@chino.kir.corp.google.com>
+ <alpine.DEB.2.02.1407161757500.23892@chino.kir.corp.google.com>
+ <53C7F9AC.1080007@intel.com>
+ <alpine.DEB.2.02.1407171447310.9717@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20140724090257.GB14578@dhcp22.suse.cz>
+In-Reply-To: <alpine.DEB.2.02.1407171447310.9717@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Miklos Szeredi <miklos@szeredi.hu>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Bob Liu <bob.liu@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jul 24, 2014 at 11:02:57AM +0200, Michal Hocko wrote:
-> On Thu 24-07-14 10:46:44, Michal Hocko wrote:
-> > On Wed 23-07-14 17:02:41, Johannes Weiner wrote:
-> [...]
-> > We can reduce the lookup only to lruvec==true case, no?
+On Thu, Jul 17, 2014 at 02:48:07PM -0700, David Rientjes wrote:
+> Commit 9f1b868a13ac ("mm: thp: khugepaged: add policy for finding target 
+> node") improved the previous khugepaged logic which allocated a 
+> transparent hugepages from the node of the first page being collapsed.
 > 
-> Dohh
-> s@can@should@
+> However, it is still possible to collapse pages to remote memory which may 
+> suffer from additional access latency.  With the current policy, it is 
+> possible that 255 pages (with PAGE_SHIFT == 12) will be collapsed remotely 
+> if the majority are allocated from that node.
 > 
-> newpage shouldn't charged in all other cases and it would be bug.
-> Or am I missing something?
+> When zone_reclaim_mode is enabled, it means the VM should make every attempt
+> to allocate locally to prevent NUMA performance degradation.  In this case,
+> we do not want to collapse hugepages to remote nodes that would suffer from
+> increased access latency.  Thus, when zone_reclaim_mode is enabled, only
+> allow collapsing to nodes with RECLAIM_DISTANCE or less.
+> 
+> There is no functional change for systems that disable zone_reclaim_mode.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Yeah, but I'd hate to put that assumption onto the @lrucare parameter,
-it just coincides.
+The patch looks ok for what it is intended to do so
 
-> > Acked-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: Mel Gorman <mgorman@suse.de>
 
-Thanks!
+However, I would consider it likely that pages allocated on different nodes
+within a hugepage boundary indicates that multiple threads on different nodes
+are accessing those pages. I would be skeptical that reduced TLB misses
+offset remote access penalties. Should we simply refuse to collapse huge
+pages when the 4K pages are allocated from different nodes? If automatic
+NUMA balancing is enabled and the access are really coming from one node
+then the 4K pages will eventually be migrated to a local node and then
+khugepaged can collapse it.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
