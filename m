@@ -1,93 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
-	by kanga.kvack.org (Postfix) with ESMTP id C643B6B006C
-	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 22:12:08 -0400 (EDT)
-Received: by mail-we0-f171.google.com with SMTP id p10so3571525wes.16
-        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 19:12:08 -0700 (PDT)
-Received: from mailapp01.imgtec.com (mailapp01.imgtec.com. [195.59.15.196])
-        by mx.google.com with ESMTP id fa9si15224649wjd.121.2014.07.24.19.12.07
-        for <linux-mm@kvack.org>;
-        Thu, 24 Jul 2014 19:12:07 -0700 (PDT)
-Message-ID: <53D1BCF0.3080706@imgtec.com>
-Date: Thu, 24 Jul 2014 19:12:00 -0700
-From: Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 968666B0070
+	for <linux-mm@kvack.org>; Thu, 24 Jul 2014 22:41:13 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id y10so4833963pdj.0
+        for <linux-mm@kvack.org>; Thu, 24 Jul 2014 19:41:13 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id xi3si7736285pab.111.2014.07.24.19.41.10
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 24 Jul 2014 19:41:12 -0700 (PDT)
+Message-ID: <53D1C363.7010802@huawei.com>
+Date: Fri, 25 Jul 2014 10:39:31 +0800
+From: Zhang Zhen <zhenzhang.zhang@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm/highmem: make kmap cache coloring aware
-References: <1405616598-14798-1-git-send-email-jcmvbkbc@gmail.com> <20140723141721.d6a58555f124a7024d010067@linux-foundation.org> <CAMo8BfJ0zC16ssBDGUxsLNwmVOpgnyk1PjikunB9u-C7x9uaOA@mail.gmail.com> <20140724152133.bd4556f632b9cbb506b168cf@linux-foundation.org>
-In-Reply-To: <20140724152133.bd4556f632b9cbb506b168cf@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Subject: Re: [PATCH] memory-hotplug: add sysfs zone_index attribute
+References: <1406187138-27911-1-git-send-email-zhenzhang.zhang@huawei.com> <53D0B8B6.8040104@huawei.com> <53D14997.7090106@intel.com>
+In-Reply-To: <53D14997.7090106@intel.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Max Filippov <jcmvbkbc@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux-Arch <linux-arch@vger.kernel.org>, Linux/MIPS
- Mailing List <linux-mips@linux-mips.org>, "linux-xtensa@linux-xtensa.org" <linux-xtensa@linux-xtensa.org>, LKML <linux-kernel@vger.kernel.org>, Chris
- Zankel <chris@zankel.net>, Marc Gauthier <marc@cadence.com>, Steven Hill <Steven.Hill@imgtec.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: mingo@redhat.com, Yinghai Lu <yinghai@kernel.org>, mgorman@suse.de, akpm@linux-foundation.org, zhangyanfei@cn.fujitsu.com, wangnan0@huawei.com, Linux MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-On 07/24/2014 03:21 PM, Andrew Morton wrote:
-> On Thu, 24 Jul 2014 04:38:01 +0400 Max Filippov <jcmvbkbc@gmail.com> wrote:
->
->> On Thu, Jul 24, 2014 at 1:17 AM, Andrew Morton
->> <akpm@linux-foundation.org> wrote:
->>> Fifthly, it would be very useful to publish the performance testing
->>> results for at least one architecture so that we can determine the
->>> patchset's desirability.  And perhaps to motivate other architectures
->>> to implement this.
->> What sort of performance numbers would be relevant?
->> For xtensa this patch enables highmem use for cores with aliasing cache,
->> that is access to a gigabyte of memory (typical on KC705 FPGA board) vs.
->> only 128MBytes of low memory, which is highly desirable. But performance
->> comparison of these two configurations seems to make little sense.
->> OTOH performance comparison of highmem variants with and without
->> cache aliasing would show the quality of our cache flushing code.
-> I'd assumed the patch was making cache coloring available as a
-> performance tweak.  But you appear to be saying that the (high) memory
-> is simply unavailable for such cores without this change.  I think.
+On 2014/7/25 1:59, Dave Hansen wrote:
+> On 07/24/2014 12:41 AM, Zhang Zhen wrote:
+>> Currently memory-hotplug has two limits:
+>> 1. If the memory block is in ZONE_NORMAL, you can change it to
+>> ZONE_MOVABLE, but this memory block must be adjacent to ZONE_MOVABLE.
+>> 2. If the memory block is in ZONE_MOVABLE, you can change it to
+>> ZONE_NORMAL, but this memory block must be adjacent to ZONE_NORMAL.
+>>
+>> Without this patch, we don't know which zone a memory block is in.
+>> So we don't know which memory block is adjacent to ZONE_MOVABLE or
+>> ZONE_NORMAL.
+>>
+>> On the other hand, with this patch, we can easy to know newly added
+>> memory is added as ZONE_NORMAL (for powerpc, ZONE_DMA, for x86_32,
+>> ZONE_HIGHMEM).
+> 
+> A section can contain more than one zone.  This interface will lie about
+> such sections, which is quite unfortunate.
+> 
+1. In arch_add_memory(), x86_64 add the new pages of the new memory block default to
+ZONE_NORMAL (for powerpc, ZONE_DMA, for x86_32, ZONE_HIGHMEM).
 
->
-> Please ensure that v3's changelog explains the full reason for the
-> patch.  Assume you're talking to all-the-worlds-an-x86 dummies, OK?
->
+2. In __offline_pages(), test_pages_in_a_zone() guaranteed the pages of a memory block
+we try to offline are in the same zone. If a section contains more than one zone,
+the memory block can not be offlined.
 
-I am not sure that I will work on it again, we move to bigger pages and 
-non-aliasing cache, and I ask Steven Hill to help with MIPS variant.
-So, I try to summarise an expanation here:
+Based on the above two points, i think the pages of a memory block are in one zone, and the sections
+of a memory block are in one zone.
 
-If cache line of some page in MIPS (and XTENSA?) is accessed via 
-multiple page virtual addresses (kernel or/and user) then it may be 
-located twice or more times in L1 cache which is an obvious coherency 
-bug. It is a trade-off for simple L1 access hardware. Two virtual 
-addresses of page which hits the same location in L1 cache are named as 
-"in the same page colour". Usually, colours are numbered and sequential 
-page colours looks like 0,1,0,1 or 0,1,2,3,0,1,2,3... It is usually 
-least one-two-or-three bits of PFN.
+Could you please explain in detail what is the case a section can contain more than one zone ?
 
-One simple way to hit this problem is using current HIGHMEM remapping 
-service because it doesn't take care of "page colouring". To prevent 
-coherency failure a current HIGHMEM code attempts to flush page from L1 
-cache each time before changing it's virtual address: flush cache each 
-PKMAP recycle and at each kunmap_atomic(), see arch/arm/mm/highmem.c - 
-MIPS code even doesn't have a flush here (BUG!).
+Thanks for your comments!
 
-However, kunmap_atomic() should do it locally to CPU without kmap_lock 
-by definition of kmap_atomic() and can't prevent a situation then a 
-second CPU hyper-thread accesses the same page via kmap() right after 
-kmap_atomic() got a page and uses a different page colour (different 
-virtual address set). Also, setting the whole cycle 
-kmap_atomic()...page...access...kunmap_atomic() under kmap_lock is 
-impractical.
+> I'd really much rather see an interface that has a section itself
+> enumerate to which zones it may be changed.  The way you have it now,
+> any user has to know the rules that you've laid out above.  If the
+> kernel changed those restrictions, we'd have to teach every application
+> about the change in restrictions.
+> 
 
-This patch introduces some interface for architecture code to work with 
-coloured pages in PKMAP array which eliminates the kmap_atomic problem 
-and cancels cache flush requirements. It also can be consistent with 
-kmap_coherent() code which is required for some cache aliasing 
-architecture to handle aliasing between kernel virtual address and user 
-virtual address. The whole idea of this patch - force the same page 
-colour then page is assigned some PKMAP virtual address or kmap_atomic 
-address. Page colour is set by architecture code, usually it is a 
-physical address colour (which is usually == KVA colour).
+This interface is designed to show which zone a memory block is in. If the kernel changed those
+restrictions, this interface doesn't need to change.
+For a x86_64 machine booted with "mem=400M" and with 2GiB memory installed.
+Sample output of the sysfs files:
+# cat block_size_bytes
+8000000
+# cat memory0/zone_index
+DMA
+# cat memory1/zone_index
+DMA32
+# cat memory2/zone_index
+DMA32
+# cat memory3/zone_index
+DMA32
+# echo 0x20000000 > probe
+# cat memory4/zone_index
+Normal
+# echo online > memory4/state
+# cat memory4/zone_index
+Normal
 
-- Leonid.
+# echo offline > memory4/state
+# echo online_movable > memory4/state
+# cat memory4/zone_index
+Movable
+
+Thanks!
+
+Best regards!
+> 
+> 
+> 
+> .
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
