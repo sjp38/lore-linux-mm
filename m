@@ -1,68 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
-	by kanga.kvack.org (Postfix) with ESMTP id B33136B0035
-	for <linux-mm@kvack.org>; Sun, 27 Jul 2014 16:45:46 -0400 (EDT)
-Received: by mail-we0-f172.google.com with SMTP id x48so6588286wes.31
-        for <linux-mm@kvack.org>; Sun, 27 Jul 2014 13:45:45 -0700 (PDT)
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CFD16B0038
+	for <linux-mm@kvack.org>; Sun, 27 Jul 2014 17:15:42 -0400 (EDT)
+Received: by mail-wi0-f175.google.com with SMTP id ho1so3431810wib.2
+        for <linux-mm@kvack.org>; Sun, 27 Jul 2014 14:15:41 -0700 (PDT)
 Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id gk9si18124343wjd.35.2014.07.27.13.45.38
+        by mx.google.com with ESMTPS id l1si194005wif.13.2014.07.27.14.15.40
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 27 Jul 2014 13:45:39 -0700 (PDT)
-Message-ID: <53D564ED.1030906@infradead.org>
-Date: Sun, 27 Jul 2014 13:45:33 -0700
+        Sun, 27 Jul 2014 14:15:41 -0700 (PDT)
+Message-ID: <53D56BF5.5030002@infradead.org>
+Date: Sun, 27 Jul 2014 14:15:33 -0700
 From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-Subject: [PATCH] mm: fix filemap.c pagecache_get_page() kernel-doc warnings
+Subject: [PATCH] mm: fix page_alloc.c kernel-doc warnings
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux MM <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>
+To: Linux MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
 
 From: Randy Dunlap <rdunlap@infradead.org>
 
-Fix kernel-doc warnings in mm/filemap.c: pagecache_get_page():
+Fix kernel-doc warnings and function name in mm/page_alloc.c:
 
-Warning(..//mm/filemap.c:1054): No description found for parameter 'cache_gfp_mask'
-Warning(..//mm/filemap.c:1054): No description found for parameter 'radix_gfp_mask'
-Warning(..//mm/filemap.c:1054): Excess function parameter 'gfp_mask' description in 'pagecache_get_page'
-
-Fixes: 2457aec63745 "mm: non-atomically mark page accessed during
-	page cache allocation where possible"
+Warning(..//mm/page_alloc.c:6074): No description found for parameter 'pfn'
+Warning(..//mm/page_alloc.c:6074): No description found for parameter 'mask'
+Warning(..//mm/page_alloc.c:6074): Excess function parameter 'start_bitidx' description in 'get_pfnblock_flags_mask'
+Warning(..//mm/page_alloc.c:6102): No description found for parameter 'pfn'
+Warning(..//mm/page_alloc.c:6102): No description found for parameter 'mask'
+Warning(..//mm/page_alloc.c:6102): Excess function parameter 'start_bitidx' description in 'set_pfnblock_flags_mask'
 
 Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
 Cc: Mel Gorman <mgorman@suse.de>
 ---
- mm/filemap.c |    7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ mm/page_alloc.c |   15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)
 
-Index: lnx-316-rc7/mm/filemap.c
+Index: lnx-316-rc7/mm/page_alloc.c
 ===================================================================
---- lnx-316-rc7.orig/mm/filemap.c
-+++ lnx-316-rc7/mm/filemap.c
-@@ -1031,16 +1031,17 @@ EXPORT_SYMBOL(find_lock_entry);
-  * @mapping: the address_space to search
-  * @offset: the page index
-  * @fgp_flags: PCG flags
-- * @gfp_mask: gfp mask to use if a page is to be allocated
-+ * @cache_gfp_mask: gfp mask to use if a page is to be allocated
-+ * @radix_gfp_mask: gfp mask to use for page cache LRU allocation
-  *
-  * Looks up the page cache slot at @mapping & @offset.
-  *
-- * PCG flags modify how the page is returned
-+ * PCG flags modify how the page is returned.
-  *
-  * FGP_ACCESSED: the page will be marked accessed
-  * FGP_LOCK: Page is return locked
-  * FGP_CREAT: If page is not present then a new page is allocated using
-- *		@gfp_mask and added to the page cache and the VM's LRU
-+ *		@cache_gfp_mask and added to the page cache and the VM's LRU
-  *		list. The page is returned locked and with an increased
-  *		refcount. Otherwise, %NULL is returned.
-  *
+--- lnx-316-rc7.orig/mm/page_alloc.c
++++ lnx-316-rc7/mm/page_alloc.c
+@@ -6062,11 +6062,13 @@ static inline int pfn_to_bitidx(struct z
+ }
+ 
+ /**
+- * get_pageblock_flags_group - Return the requested group of flags for the pageblock_nr_pages block of pages
++ * get_pfnblock_flags_mask - Return the requested group of flags for the pageblock_nr_pages block of pages
+  * @page: The page within the block of interest
+- * @start_bitidx: The first bit of interest to retrieve
+- * @end_bitidx: The last bit of interest
+- * returns pageblock_bits flags
++ * @pfn: The target page frame number
++ * @end_bitidx: The last bit of interest to retrieve
++ * @mask: mask of bits that the caller is interested in
++ *
++ * Return: pageblock_bits flags
+  */
+ unsigned long get_pfnblock_flags_mask(struct page *page, unsigned long pfn,
+ 					unsigned long end_bitidx,
+@@ -6091,9 +6093,10 @@ unsigned long get_pfnblock_flags_mask(st
+ /**
+  * set_pfnblock_flags_mask - Set the requested group of flags for a pageblock_nr_pages block of pages
+  * @page: The page within the block of interest
+- * @start_bitidx: The first bit of interest
+- * @end_bitidx: The last bit of interest
+  * @flags: The flags to set
++ * @pfn: The target page frame number
++ * @end_bitidx: The last bit of interest
++ * @mask: mask of bits that the caller is interested in
+  */
+ void set_pfnblock_flags_mask(struct page *page, unsigned long flags,
+ 					unsigned long pfn,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
