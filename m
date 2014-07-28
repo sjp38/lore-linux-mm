@@ -1,96 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 8076C6B0036
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 19:12:23 -0400 (EDT)
-Received: by mail-ig0-f173.google.com with SMTP id h18so4516001igc.0
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 16:12:23 -0700 (PDT)
-Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com [2607:f8b0:4001:c05::22b])
-        by mx.google.com with ESMTPS id au4si20203410igc.59.2014.07.28.16.12.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 28 Jul 2014 16:12:22 -0700 (PDT)
-Received: by mail-ig0-f171.google.com with SMTP id l13so4500230iga.10
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 16:12:22 -0700 (PDT)
-Date: Mon, 28 Jul 2014 16:12:20 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] memory hotplug: update the variables after memory
- removed
-In-Reply-To: <53D6685C.1060509@intel.com>
-Message-ID: <alpine.DEB.2.02.1407281610340.8998@chino.kir.corp.google.com>
-References: <1406550617-19556-1-git-send-email-zhenzhang.zhang@huawei.com> <53D642E5.2010305@huawei.com> <53D6685C.1060509@intel.com>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 28D2F6B0036
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 19:24:16 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id et14so11304208pad.37
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 16:24:15 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id lm5si19282362pab.182.2014.07.28.16.24.14
+        for <linux-mm@kvack.org>;
+        Mon, 28 Jul 2014 16:24:15 -0700 (PDT)
+Message-ID: <53D6DB9C.7030109@intel.com>
+Date: Mon, 28 Jul 2014 16:24:12 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] memory hotplug: update the variables after memory removed
+References: <1406550617-19556-1-git-send-email-zhenzhang.zhang@huawei.com> <53D642E5.2010305@huawei.com> <53D6685C.1060509@intel.com> <alpine.DEB.2.02.1407281610340.8998@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1407281610340.8998@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
+To: David Rientjes <rientjes@google.com>
 Cc: Zhang Zhen <zhenzhang.zhang@huawei.com>, shaohui.zheng@intel.com, mgorman@suse.de, mingo@redhat.com, Linux MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, wangnan0@huawei.com, akpm@linux-foundation.org
 
-On Mon, 28 Jul 2014, Dave Hansen wrote:
-
-> On 07/28/2014 05:32 AM, Zhang Zhen wrote:
-> > -static void  update_end_of_memory_vars(u64 start, u64 size)
-> > +static void  update_end_of_memory_vars(u64 start, u64 size, bool flag)
-> >  {
-> > -	unsigned long end_pfn = PFN_UP(start + size);
-> > -
-> > -	if (end_pfn > max_pfn) {
-> > -		max_pfn = end_pfn;
-> > -		max_low_pfn = end_pfn;
-> > -		high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
-> > +	unsigned long end_pfn;
-> > +
-> > +	if (flag) {
-> > +		end_pfn = PFN_UP(start + size);
-> > +		if (end_pfn > max_pfn) {
-> > +			max_pfn = end_pfn;
-> > +			max_low_pfn = end_pfn;
-> > +			high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
-> > +		}
-> > +	} else {
-> > +		end_pfn = PFN_UP(start);
-> > +		if (end_pfn < max_pfn) {
-> > +			max_pfn = end_pfn;
-> > +			max_low_pfn = end_pfn;
-> > +			high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
-> > +		}
-> >  	}
-> >  }
+On 07/28/2014 04:12 PM, David Rientjes wrote:
+> I agree, but I'm not sure the suggestion is any better than the patch.  I 
+> think it would be better to just figure out whether anything needs to be 
+> updated in the caller and then call a generic function.
 > 
-> I would really prefer not to see code like this.
+> So in arch_add_memory(), do
 > 
-> This patch takes a small function that did one thing, copies-and-pastes
-> its code 100%, subtly changes it, and makes it do two things.  The only
-> thing to tell us what the difference between these two subtly different
-> things is a variable called 'flag'.  So the variable is useless in
-> trying to figure out what each version is supposed to do.
+> 	end_pfn = PFN_UP(start + size);
+> 	if (end_pfn > max_pfn)
+> 		update_end_of_memory_vars(end_pfn);
 > 
-> But, this fixes a pretty glaring deficiency in the memory remove code.
+> and in arch_remove_memory(),
 > 
-> I would suggest making two functions.  Make it clear that one is to be
-> used at remove time and the other at add time.  Maybe
+> 	end_pfn = PFN_UP(start);
+> 	if (end_pfn < max_pfn)
+> 		update_end_of_memory_vars(end_pfn);
 > 
-> 	move_end_of_memory_vars_down()
-> and
-> 	move_end_of_memory_vars_up()
-> 
+> and then update_end_of_memory_vars() becomes a three-liner.
 
-I agree, but I'm not sure the suggestion is any better than the patch.  I 
-think it would be better to just figure out whether anything needs to be 
-updated in the caller and then call a generic function.
+That does look better than my suggestion, generally.
 
-So in arch_add_memory(), do
+It is broken in the remove case, though.  In your example, the memory
+being removed is assumed to be coming from the end of memory, and that
+isn't always the case.  I think you need something like:
 
-	end_pfn = PFN_UP(start + size);
-	if (end_pfn > max_pfn)
-		update_end_of_memory_vars(end_pfn);
+	if ((max_pfn >= start_pfn) && (max_pfn < end_pfn)
+		update_end_of_memory_vars(start);
 
-and in arch_remove_memory(),
-
-	end_pfn = PFN_UP(start);
-	if (end_pfn < max_pfn)
-		update_end_of_memory_vars(end_pfn);
-
-and then update_end_of_memory_vars() becomes a three-liner.
+But, yeah, that's a lot better than new functions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
