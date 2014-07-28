@@ -1,96 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 15C846B0035
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 04:52:04 -0400 (EDT)
-Received: by mail-wi0-f173.google.com with SMTP id f8so4006620wiw.12
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 01:52:04 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ds3si12335906wib.51.2014.07.28.01.52.02
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id F037C6B0035
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 05:31:51 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id ft15so9625835pdb.31
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 02:31:51 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id vs9si7735730pab.7.2014.07.28.02.31.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 28 Jul 2014 01:52:02 -0700 (PDT)
-Message-ID: <53D60F31.4050504@suse.cz>
-Date: Mon, 28 Jul 2014 10:52:01 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Jul 2014 02:31:51 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH -mm 0/6] Per-memcg slab shrinkers
+Date: Mon, 28 Jul 2014 13:31:22 +0400
+Message-ID: <cover.1406536261.git.vdavydov@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [patch] mm, thp: restructure thp avoidance of light synchronous
- migration
-References: <alpine.DEB.2.02.1407241540190.22557@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1407241540190.22557@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, glommer@gmail.com, david@fromorbit.com, viro@zeniv.linux.org.uk, gthelen@google.com, mgorman@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 07/25/2014 12:41 AM, David Rientjes wrote:
-> __GFP_NO_KSWAPD, once the way to determine if an allocation was for thp or not,
-> has gained more users.  Their use is not necessarily wrong, they are trying to
-> do a memory allocation that can easily fail without disturbing kswapd, so the
-> bit has gained additional usecases.
->
-> This restructures the check to determine whether MIGRATE_SYNC_LIGHT should be
-> used for memory compaction in the page allocator.  Rather than testing solely
-> for __GFP_NO_KSWAPD, test for all bits that must be set for thp allocations.
->
-> This also moves the check to be done only after the page allocator is aborted
-> for deferred or contended memory compaction since setting migration_mode for
-> this case is pointless.
->
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->   mm/page_alloc.c | 17 +++++++++--------
->   1 file changed, 9 insertions(+), 8 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2616,14 +2616,6 @@ rebalance:
->   		goto got_pg;
->
->   	/*
-> -	 * It can become very expensive to allocate transparent hugepages at
-> -	 * fault, so use asynchronous memory compaction for THP unless it is
-> -	 * khugepaged trying to collapse.
-> -	 */
-> -	if (!(gfp_mask & __GFP_NO_KSWAPD) || (current->flags & PF_KTHREAD))
-> -		migration_mode = MIGRATE_SYNC_LIGHT;
-> -
-> -	/*
->   	 * If compaction is deferred for high-order allocations, it is because
->   	 * sync compaction recently failed. In this is the case and the caller
->   	 * requested a movable allocation that does not heavily disrupt the
-> @@ -2633,6 +2625,15 @@ rebalance:
->   						(gfp_mask & __GFP_NO_KSWAPD))
->   		goto nopage;
->
-> +	/*
-> +	 * It can become very expensive to allocate transparent hugepages at
-> +	 * fault, so use asynchronous memory compaction for THP unless it is
-> +	 * khugepaged trying to collapse.
-> +	 */
-> +	if ((gfp_mask & GFP_TRANSHUGE) != GFP_TRANSHUGE ||
-> +						(current->flags & PF_KTHREAD))
-> +		migration_mode = MIGRATE_SYNC_LIGHT;
-> +
+[ It's been a long time since I sent the last version of this set, so
+  I'm restarting the versioning. For those, who are interested in the
+  patch set history, see https://lkml.org/lkml/2014/2/5/358 ]
 
-Looks like kind of a shotgun approach to me. A single __GFP_NO_KSWAPD 
-bullet is no longer enough, so we use all the flags and hope for the 
-best. It seems THP has so many flags it should be unique for now, but I 
-wonder if there is a better way to say how much an allocation is willing 
-to wait.
+Hi,
 
->   	/* Try direct reclaim and then allocating */
->   	page = __alloc_pages_direct_reclaim(gfp_mask, order,
->   					zonelist, high_zoneidx,
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+This patch set introduces per-memcg slab shrinkers support and
+implements per-memcg fs (dcache, icache) shrinkers. It was initially
+proposed by Glauber Costa.
+
+The idea lying behind this is to make the list_lru structure per-memcg
+and put objects relating to a particular memcg to the corresponding
+list. This way, to turn a shrinker using list_lru for organizing
+reclaimable objects to memcg aware one it's enough to initialize its
+list_lru as memcg aware.
+
+Please, note that even with this set, current kmemcg implementation has
+serious flaws, which make it unusable in production:
+
+ - Kmem-only reclaim, which would trigger on hitting memory.kmem.limit,
+   is not implemented yet. This makes memory.kmem.limite < memory.limit
+   setups unusable. We are not quite sure if we really need a separate
+   knob for kmem.limit though (see the discussion at
+   https://lkml.org/lkml/2014/7/16/412).
+
+ - Since kmem cache self destruction patch set was withdrawn due to
+   performance reasons (https://lkml.org/lkml/2014/7/15/361), per memcg
+   kmem caches, which have objects on css offline, are still leaked. I'm
+   planning to introduce a shrinker for such caches.
+
+ - Per-memcg arrays of kmem_cache's and list_lru's can only grow and are
+   never shrunk. Since the number of offline memcg's hanging around is
+   practically unlimited, these arrays may become really huge and result
+   in various problems even if nobody uses cgroups right now. I'm
+   considering using flex_array's for those caches so that we could
+   reclaim their parts on memory pressure.
+
+That's why I still leave CONFIG_MEMCG_KMEM marked as "only for
+development/testing".
+
+The patch set is organized as follows:
+ - patches 1 and 2 make list_lru and fs-private shrinker interfaces
+   neater and suitable for extending towards per-memcg reclaim;
+ - patch 3 introduces per-memcg slab shrinker core;
+ - patch 4 makes list_lru memcg-aware and patch 5 marks dcache and
+   icache shrinkers as memcg aware.
+ - patch 6 extends memcg iterator to include offline css's to allow
+   kmem reclaim from dead css's.
+
+Thanks,
+
+Vladimir Davydov (6):
+  list_lru, shrinkers: introduce list_lru_shrink_{count,walk}
+  fs: consolidate {nr,free}_cached_objects args in shrink_control
+  vmscan: shrink slab on memcg pressure
+  list_lru: add per-memcg lists
+  fs: make shrinker memcg aware
+  memcg: iterator: do not skip offline css
+
+ fs/dcache.c                |   14 ++-
+ fs/gfs2/main.c             |    2 +-
+ fs/gfs2/quota.c            |    6 +-
+ fs/inode.c                 |    7 +-
+ fs/internal.h              |    7 +-
+ fs/super.c                 |   45 ++++----
+ fs/xfs/xfs_buf.c           |    9 +-
+ fs/xfs/xfs_qm.c            |    9 +-
+ fs/xfs/xfs_super.c         |    7 +-
+ include/linux/fs.h         |    6 +-
+ include/linux/list_lru.h   |   82 +++++++++-----
+ include/linux/memcontrol.h |   64 +++++++++++
+ include/linux/shrinker.h   |   10 +-
+ mm/list_lru.c              |  132 +++++++++++++++++++----
+ mm/memcontrol.c            |  258 ++++++++++++++++++++++++++++++++++++++++----
+ mm/vmscan.c                |   94 ++++++++++++----
+ mm/workingset.c            |    9 +-
+ 17 files changed, 615 insertions(+), 146 deletions(-)
+
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
