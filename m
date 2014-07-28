@@ -1,95 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
-	by kanga.kvack.org (Postfix) with ESMTP id F347B6B0036
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 10:49:26 -0400 (EDT)
-Received: by mail-qa0-f48.google.com with SMTP id m5so7947168qaj.35
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 07:49:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m9si32515629qge.84.2014.07.28.07.49.17
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jul 2014 07:49:26 -0700 (PDT)
-Date: Mon, 28 Jul 2014 10:48:55 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 1/2] APEI, GHES: Cleanup unnecessary function for
- lock-less list
-Message-ID: <20140728144855.GC27391@nhori.redhat.com>
-References: <1406530260-26078-1-git-send-email-gong.chen@linux.intel.com>
- <1406530260-26078-2-git-send-email-gong.chen@linux.intel.com>
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 89BFC6B0036
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 11:12:32 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id kq14so10673427pab.12
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 08:12:32 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id ha9si18189637pac.47.2014.07.28.08.12.31
+        for <linux-mm@kvack.org>;
+        Mon, 28 Jul 2014 08:12:31 -0700 (PDT)
+Message-ID: <53D6685C.1060509@intel.com>
+Date: Mon, 28 Jul 2014 08:12:28 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1406530260-26078-2-git-send-email-gong.chen@linux.intel.com>
+Subject: Re: [PATCH] memory hotplug: update the variables after memory removed
+References: <1406550617-19556-1-git-send-email-zhenzhang.zhang@huawei.com> <53D642E5.2010305@huawei.com>
+In-Reply-To: <53D642E5.2010305@huawei.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Chen, Gong" <gong.chen@linux.intel.com>
-Cc: tony.luck@intel.com, bp@alien8.de, linux-acpi@vger.kernel.org, linux-mm@kvack.org
+To: Zhang Zhen <zhenzhang.zhang@huawei.com>, shaohui.zheng@intel.com, mgorman@suse.de, mingo@redhat.com, Linux MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: wangnan0@huawei.com, akpm@linux-foundation.org
 
-On Mon, Jul 28, 2014 at 02:50:59AM -0400, Chen, Gong wrote:
-> We have provided a reverse function for lock-less list so delete
-> uncessary codes.
-> 
-> Signed-off-by: Chen, Gong <gong.chen@linux.intel.com>
-> Acked-by: Borislav Petkov <bp@suse.de>
-
-Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-
-> ---
->  drivers/acpi/apei/ghes.c | 18 ++----------------
->  1 file changed, 2 insertions(+), 16 deletions(-)
-> 
-> diff --git a/drivers/acpi/apei/ghes.c b/drivers/acpi/apei/ghes.c
-> index dab7cb7..1f9fba9 100644
-> --- a/drivers/acpi/apei/ghes.c
-> +++ b/drivers/acpi/apei/ghes.c
-> @@ -734,20 +734,6 @@ static int ghes_notify_sci(struct notifier_block *this,
->  	return ret;
->  }
->  
-> -static struct llist_node *llist_nodes_reverse(struct llist_node *llnode)
-> -{
-> -	struct llist_node *next, *tail = NULL;
-> -
-> -	while (llnode) {
-> -		next = llnode->next;
-> -		llnode->next = tail;
-> -		tail = llnode;
-> -		llnode = next;
-> -	}
-> -
-> -	return tail;
-> -}
-> -
->  static void ghes_proc_in_irq(struct irq_work *irq_work)
+On 07/28/2014 05:32 AM, Zhang Zhen wrote:
+> -static void  update_end_of_memory_vars(u64 start, u64 size)
+> +static void  update_end_of_memory_vars(u64 start, u64 size, bool flag)
 >  {
->  	struct llist_node *llnode, *next;
-> @@ -761,7 +747,7 @@ static void ghes_proc_in_irq(struct irq_work *irq_work)
->  	 * Because the time order of estatus in list is reversed,
->  	 * revert it back to proper order.
->  	 */
-> -	llnode = llist_nodes_reverse(llnode);
-> +	llnode = llist_reverse_order(llnode);
->  	while (llnode) {
->  		next = llnode->next;
->  		estatus_node = llist_entry(llnode, struct ghes_estatus_node,
-> @@ -794,7 +780,7 @@ static void ghes_print_queued_estatus(void)
->  	 * Because the time order of estatus in list is reversed,
->  	 * revert it back to proper order.
->  	 */
-> -	llnode = llist_nodes_reverse(llnode);
-> +	llnode = llist_reverse_order(llnode);
->  	while (llnode) {
->  		estatus_node = llist_entry(llnode, struct ghes_estatus_node,
->  					   llnode);
-> -- 
-> 2.0.0.rc2
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+> -	unsigned long end_pfn = PFN_UP(start + size);
+> -
+> -	if (end_pfn > max_pfn) {
+> -		max_pfn = end_pfn;
+> -		max_low_pfn = end_pfn;
+> -		high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
+> +	unsigned long end_pfn;
+> +
+> +	if (flag) {
+> +		end_pfn = PFN_UP(start + size);
+> +		if (end_pfn > max_pfn) {
+> +			max_pfn = end_pfn;
+> +			max_low_pfn = end_pfn;
+> +			high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
+> +		}
+> +	} else {
+> +		end_pfn = PFN_UP(start);
+> +		if (end_pfn < max_pfn) {
+> +			max_pfn = end_pfn;
+> +			max_low_pfn = end_pfn;
+> +			high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
+> +		}
+>  	}
+>  }
+
+I would really prefer not to see code like this.
+
+This patch takes a small function that did one thing, copies-and-pastes
+its code 100%, subtly changes it, and makes it do two things.  The only
+thing to tell us what the difference between these two subtly different
+things is a variable called 'flag'.  So the variable is useless in
+trying to figure out what each version is supposed to do.
+
+But, this fixes a pretty glaring deficiency in the memory remove code.
+
+I would suggest making two functions.  Make it clear that one is to be
+used at remove time and the other at add time.  Maybe
+
+	move_end_of_memory_vars_down()
+and
+	move_end_of_memory_vars_up()
+
+?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
