@@ -1,74 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 89BFC6B0036
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 11:12:32 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id kq14so10673427pab.12
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 08:12:32 -0700 (PDT)
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id B9D2B6B0036
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 11:26:46 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id r10so10068498pdi.20
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 08:26:46 -0700 (PDT)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id ha9si18189637pac.47.2014.07.28.08.12.31
+        by mx.google.com with ESMTP id dn2si9104431pdb.242.2014.07.28.08.26.45
         for <linux-mm@kvack.org>;
-        Mon, 28 Jul 2014 08:12:31 -0700 (PDT)
-Message-ID: <53D6685C.1060509@intel.com>
-Date: Mon, 28 Jul 2014 08:12:28 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+        Mon, 28 Jul 2014 08:26:45 -0700 (PDT)
+Message-ID: <53D66BB1.8080905@linux.intel.com>
+Date: Mon, 28 Jul 2014 08:26:41 -0700
+From: Dave Hansen <dave.hansen@linux.intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] memory hotplug: update the variables after memory removed
-References: <1406550617-19556-1-git-send-email-zhenzhang.zhang@huawei.com> <53D642E5.2010305@huawei.com>
-In-Reply-To: <53D642E5.2010305@huawei.com>
+Subject: Re: [PATCH] mm: don't allow fault_around_bytes to be 0
+References: <53D07E96.5000006@oracle.com> <1406533400-6361-1-git-send-email-a.ryabinin@samsung.com> <20140728093611.GA3975@node.dhcp.inet.fi>
+In-Reply-To: <20140728093611.GA3975@node.dhcp.inet.fi>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Zhen <zhenzhang.zhang@huawei.com>, shaohui.zheng@intel.com, mgorman@suse.de, mingo@redhat.com, Linux MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
-Cc: wangnan0@huawei.com, akpm@linux-foundation.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrey Ryabinin <a.ryabinin@samsung.com>, Sasha Levin <sasha.levin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, Ning Qu <quning@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Dave Jones <davej@redhat.com>, stable@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Hugh Dickins <hughd@google.com>
 
-On 07/28/2014 05:32 AM, Zhang Zhen wrote:
-> -static void  update_end_of_memory_vars(u64 start, u64 size)
-> +static void  update_end_of_memory_vars(u64 start, u64 size, bool flag)
+On 07/28/2014 02:36 AM, Kirill A. Shutemov wrote:
+> +++ b/mm/memory.c
+> @@ -2786,7 +2786,8 @@ static int fault_around_bytes_set(void *data, u64 val)
 >  {
-> -	unsigned long end_pfn = PFN_UP(start + size);
-> -
-> -	if (end_pfn > max_pfn) {
-> -		max_pfn = end_pfn;
-> -		max_low_pfn = end_pfn;
-> -		high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
-> +	unsigned long end_pfn;
-> +
-> +	if (flag) {
-> +		end_pfn = PFN_UP(start + size);
-> +		if (end_pfn > max_pfn) {
-> +			max_pfn = end_pfn;
-> +			max_low_pfn = end_pfn;
-> +			high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
-> +		}
-> +	} else {
-> +		end_pfn = PFN_UP(start);
-> +		if (end_pfn < max_pfn) {
-> +			max_pfn = end_pfn;
-> +			max_low_pfn = end_pfn;
-> +			high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
-> +		}
->  	}
+>  	if (val / PAGE_SIZE > PTRS_PER_PTE)
+>  		return -EINVAL;
+> -	fault_around_bytes = val;
+> +	/* rounddown_pow_of_two(0) is not defined */
+> +	fault_around_bytes = max(val, PAGE_SIZE);
+>  	return 0;
 >  }
 
-I would really prefer not to see code like this.
+It's also possible to race and have fault_around_bytes change between
+when fault_around_mask() and fault_around_pages() are called so that
+they don't match any more.  The min()/max() in do_fault_around() should
+keep this from doing anything _too_ nasty, but it's worth thinking about
+at least.
 
-This patch takes a small function that did one thing, copies-and-pastes
-its code 100%, subtly changes it, and makes it do two things.  The only
-thing to tell us what the difference between these two subtly different
-things is a variable called 'flag'.  So the variable is useless in
-trying to figure out what each version is supposed to do.
-
-But, this fixes a pretty glaring deficiency in the memory remove code.
-
-I would suggest making two functions.  Make it clear that one is to be
-used at remove time and the other at add time.  Maybe
-
-	move_end_of_memory_vars_down()
-and
-	move_end_of_memory_vars_up()
-
-?
+The safest thing to do might be to use an ACCESS_ONCE() at the beginning
+of do_fault_around() for fault_around_bytes and generate
+fault_around_mask() from the ACCESS_ONCE() result.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
