@@ -1,151 +1,415 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FB036B0035
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 06:53:28 -0400 (EDT)
-Received: by mail-wg0-f47.google.com with SMTP id b13so7065148wgh.18
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 03:53:25 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.232])
-        by mx.google.com with ESMTP id ei7si12910261wid.32.2014.07.28.03.53.19
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 883FB6B0035
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 08:28:10 -0400 (EDT)
+Received: by mail-we0-f182.google.com with SMTP id k48so7265105wev.13
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 05:28:09 -0700 (PDT)
+Received: from mellanox.co.il ([193.47.165.129])
+        by mx.google.com with ESMTP id cn2si13362203wib.24.2014.07.28.05.28.08
         for <linux-mm@kvack.org>;
-        Mon, 28 Jul 2014 03:53:19 -0700 (PDT)
-Date: Mon, 28 Jul 2014 13:52:32 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: don't allow fault_around_bytes to be 0
-Message-ID: <20140728105232.GA32057@node.dhcp.inet.fi>
-References: <53D07E96.5000006@oracle.com>
- <1406533400-6361-1-git-send-email-a.ryabinin@samsung.com>
- <20140728093611.GA3975@node.dhcp.inet.fi>
- <53D62599.6000605@samsung.com>
+        Mon, 28 Jul 2014 05:28:09 -0700 (PDT)
+Message-ID: <53D641A2.9050000@mellanox.com>
+Date: Mon, 28 Jul 2014 15:27:14 +0300
+From: Haggai Eran <haggaie@mellanox.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <53D62599.6000605@samsung.com>
+Subject: Re: [PATCH 4/5] hmm: heterogeneous memory management v3
+References: <1402706913-7432-1-git-send-email-j.glisse@gmail.com> <1402706913-7432-2-git-send-email-j.glisse@gmail.com> <1402706913-7432-3-git-send-email-j.glisse@gmail.com> <1402706913-7432-4-git-send-email-j.glisse@gmail.com> <1402706913-7432-5-git-send-email-j.glisse@gmail.com>
+In-Reply-To: <1402706913-7432-5-git-send-email-j.glisse@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, Ning Qu <quning@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Dave Jones <davej@redhat.com>, stable@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Hugh Dickins <hughd@google.com>
+To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <j.glisse@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: mgorman@suse.de, hpa@zytor.com, peterz@infraread.org, torvalds@linux-foundation.org, aarcange@redhat.com, riel@redhat.com, jweiner@redhat.com, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Jatin Kumar <jakumar@nvidia.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>
 
-On Mon, Jul 28, 2014 at 02:27:37PM +0400, Andrey Ryabinin wrote:
-> On 07/28/14 13:36, Kirill A. Shutemov wrote:
-> > On Mon, Jul 28, 2014 at 11:43:20AM +0400, Andrey Ryabinin wrote:
-> >> Sasha Levin triggered use-after-free when fuzzing using trinity and the KASAN
-> >> patchset:
-> >>
-> >> 	AddressSanitizer: use after free in do_read_fault.isra.40+0x3c2/0x510 at addr ffff88048a733110
-> >> 	page:ffffea001229ccc0 count:0 mapcount:0 mapping:          (null) index:0x0
-> >> 	page flags: 0xafffff80008000(tail)
-> >> 	page dumped because: kasan error
-> >> 	CPU: 6 PID: 9262 Comm: trinity-c104 Not tainted 3.16.0-rc6-next-20140723-sasha-00047-g289342b-dirty #929
-> >> 	 00000000000000fb 0000000000000000 ffffea001229ccc0 ffff88038ac0fb78
-> >> 	 ffffffffa5e40903 ffff88038ac0fc48 ffff88038ac0fc38 ffffffffa142acfc
-> >> 	 0000000000000001 ffff880509ff5aa8 ffff88038ac10038 ffff88038ac0fbb0
-> >> 	Call Trace:
-> >> 	dump_stack (lib/dump_stack.c:52)
-> >> 	kasan_report_error (mm/kasan/report.c:98 mm/kasan/report.c:166)
-> >> 	? debug_smp_processor_id (lib/smp_processor_id.c:57)
-> >> 	? preempt_count_sub (kernel/sched/core.c:2606)
-> >> 	? put_lock_stats.isra.13 (./arch/x86/include/asm/preempt.h:98 kernel/locking/lockdep.c:254)
-> >> 	? do_read_fault.isra.40 (mm/memory.c:2784 mm/memory.c:2849 mm/memory.c:2898)
-> >> 	__asan_load8 (mm/kasan/kasan.c:364)
-> >> 	? do_read_fault.isra.40 (mm/memory.c:2864 mm/memory.c:2898)
-> >> 	do_read_fault.isra.40 (mm/memory.c:2864 mm/memory.c:2898)
-> >> 	? _raw_spin_unlock (./arch/x86/include/asm/preempt.h:98 include/linux/spinlock_api_smp.h:152 kernel/locking/spinlock.c:183)
-> >> 	? __pte_alloc (mm/memory.c:598)
-> >> 	handle_mm_fault (mm/memory.c:3092 mm/memory.c:3225 mm/memory.c:3345 mm/memory.c:3374)
-> >> 	? pud_huge (./arch/x86/include/asm/paravirt.h:611 arch/x86/mm/hugetlbpage.c:76)
-> >> 	__get_user_pages (mm/gup.c:286 mm/gup.c:478)
-> >> 	__mlock_vma_pages_range (mm/mlock.c:262)
-> >> 	__mm_populate (mm/mlock.c:710)
-> >> 	SyS_remap_file_pages (mm/mmap.c:2653 mm/mmap.c:2593)
-> >> 	tracesys (arch/x86/kernel/entry_64.S:541)
-> >> 	Read of size 8 by thread T9262:
-> >> 	Memory state around the buggy address:
-> >> 	 ffff88048a732e80: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-> >> 	 ffff88048a732f00: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-> >> 	 ffff88048a732f80: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-> >> 	 ffff88048a733000: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-> >> 	 ffff88048a733080: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-> >> 	>ffff88048a733100: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-> >> 	                         ^
-> >> 	 ffff88048a733180: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-> >> 	 ffff88048a733200: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-> >> 	 ffff88048a733280: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-> >> 	 ffff88048a733300: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-> >> 	 ffff88048a733380: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-> >>
-> >>
-> >> It looks like that pte pointer is invalid in do_fault_around().
-> >> This could happen if fault_around_bytes is set to 0.
-> >> fault_around_pages() and fault_around_mask() calls rounddown_pow_of_to(fault_around_bytes)
-> >> The result of rounddown_pow_of_to is undefined if parameter == 0
-> >> (in my environment it returns 0x8000000000000000).
-> > 
-> > Ouch. Good catch!
-> > 
-> > Although, I'm not convinced that it caused the issue. Sasha, did you touch the
-> > debugfs handle?
-> > 
+On 14/06/2014 03:48, JA(C)rA'me Glisse wrote:> From: JA(C)rA'me Glisse <jglisse@redhat.com>
 > 
-> I suppose trinity could change it, no? I've got the very same spew after setting fault_around_bytes to 0.
+> Motivation:
 > 
-> >> One way to fix this would be to return 0 from fault_around_pages() if fault_around_bytes == 0,
-> >> however this would add extra code on fault path.
-> >>
-> >> So let's just forbid to set fault_around_bytes to zero.
-> >> Fault around is not used if fault_around_pages() <= 1, so if anyone doesn't want to use
-> >> it, fault_around_bytes could be set to any value in range [1, 2*PAGE_SIZE - 1]
-> >> instead of 0.
-> > 
-> >>From user point of view, 0 is perfectly fine. What about untested patch
-> > below?
-> > 
+> ...
 > 
-> In case if we are not going to get rid of debugfs interface I would better keep
-> faul_around_bytes always roundded down, like in following patch:
+> The aim of the heterogeneous memory management is to provide a common API that
+> can be use by any such devices in order to mirror process address. The hmm code
+> provide an unique entry point and interface itself with the core mm code of the
+> linux kernel avoiding duplicate implementation and shielding device driver code
+> from core mm code.
 > 
+> Moreover, hmm also intend to provide support for migrating memory to device
+> private memory, allowing device to work on its own fast local memory. The hmm
+> code would be responsible to intercept cpu page fault on migrated range of and
+> to migrate it back to system memory allowing cpu to resume its access to the
+> memory.
 > 
-> From f41b7777b29f06dc62f80526e5617cae82a38709 Mon Sep 17 00:00:00 2001
-> From: Andrey Ryabinin <a.ryabinin@samsung.com>
-> Date: Mon, 28 Jul 2014 13:46:10 +0400
-> Subject: [PATCH] mm: debugfs: move rounddown_pow_of_two() out from do_fault
->  path
+> Another feature hmm intend to provide is support for atomic operation for the
+> device even if the bus linking the device and the cpu do not have any such
+> capabilities.
 > 
-> do_fault_around expects fault_around_bytes rounded down to nearest
-> page order. Instead of calling rounddown_pow_of_two every time
-> in fault_around_pages()/fault_around_mask() we could do round down
-> when user changes fault_around_bytes via debugfs interface.
-> 
-> This also fixes bug when user set fault_around_bytes to 0.
-> Result of rounddown_pow_of_two(0) is not defined, therefore
-> fault_around_bytes == 0 doesn't work without this patch.
-> 
-> Let's set fault_around_bytes to PAGE_SIZE if user sets to something
-> less than PAGE_SIZE
-> 
-> Fixes: a9b0f861("mm: nominate faultaround area in bytes rather than page order")
-> Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
-> Cc: <stable@vger.kernel.org> # 3.15.x
-> ---
->  mm/memory.c | 19 +++++++++++--------
->  1 file changed, 11 insertions(+), 8 deletions(-)
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 7e8d820..e0c6fd6 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2758,20 +2758,16 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
->  	update_mmu_cache(vma, address, pte);
->  }
-> 
-> -static unsigned long fault_around_bytes = 65536;
-> +static unsigned long fault_around_bytes = rounddown_pow_of_two(65536);
+> We expect that graphic processing unit and network interface to be among the
+> first users of such api.
 
-This looks weird, but okay...
+Hi,
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Sorry I'm only now replying to this email. I'm hoping my feedback is still relevant :)
 
--- 
- Kirill A. Shutemov
+At Mellanox we are currently working on similar technology for avoiding
+pinning memory for RDMA [1]. We currently have our own MMU notifier code
+but once the HMM makes it into the kernel I hope we will be able to use it.
+
+I have a couple of questions below:
+
+> 
+> Hardware requirement:
+> 
+> Because hmm is intended to be use by device driver there are minimum features
+> requirement for the hardware mmu :
+>   - hardware have its own page table per process (can be share btw != devices)
+>   - hardware mmu support page fault and suspend execution until the page fault
+>     is serviced by hmm code. The page fault must also trigger some form of
+>     interrupt so that hmm code can be call by the device driver.
+>   - hardware must support at least read only mapping (otherwise it can not
+>     access read only range of the process address space).
+> 
+> For better memory management it is highly recommanded that the device also
+> support the following features :
+>   - hardware mmu set access bit in its page table on memory access (like cpu).
+>   - hardware page table can be updated from cpu or through a fast path.
+>   - hardware provide advanced statistic over which range of memory it access
+>     the most.
+>   - hardware differentiate atomic memory access from regular access allowing
+>     to support atomic operation even on platform that do not have atomic
+>     support with there bus link with the device.
+> 
+> Implementation:
+> 
+> ...
+
+> +
+> +/* struct hmm_event - used to serialize change to overlapping range of address.
+> + *
+> + * @list:       List of pending|in progress event.
+> + * @faddr:      First address (inclusive) for the range this event affect.
+> + * @laddr:      Last address (exclusive) for the range this event affect.
+> + * @iaddr:      First invalid address.
+> + * @fences:     List of device fences associated with this event.
+> + * @etype:      Event type (munmap, migrate, truncate, ...).
+> + * @backoff:    Should this event backoff ie a new event render it obsolete.
+> + */
+> +struct hmm_event {
+> +	struct list_head	list;
+> +	unsigned long		faddr;
+> +	unsigned long		laddr;
+> +	unsigned long		iaddr;
+> +	struct list_head	fences;
+> +	enum hmm_etype		etype;
+> +	bool			backoff;
+
+The backoff field is always being set to false in this patch, right? Is
+it intended to be used only for device page migration?
+
+> +};
+> +
+> +
+> +
+> +
+> +/* hmm_device - Each device driver must register one and only one hmm_device.
+> + *
+> + * The hmm_device is the link btw hmm and each device driver.
+> + */
+> +
+> +/* struct hmm_device_operations - hmm device operation callback
+> + */
+> +struct hmm_device_ops {
+> +	/* device_destroy - free hmm_device (call when refcount drop to 0).
+> +	 *
+> +	 * @device: The device hmm specific structure.
+> +	 */
+> +	void (*device_destroy)(struct hmm_device *device);
+> +
+> +	/* mirror_release() - device must stop using the address space.
+> +	 *
+> +	 * @mirror: The mirror that link process address space with the device.
+> +	 *
+> +	 * Called when as result of hmm_mirror_unregister or when mm is being
+> +	 * destroy.
+> +	 *
+> +	 * It's illegal for the device to call any hmm helper function after
+> +	 * this call back. The device driver must kill any pending device
+> +	 * thread and wait for completion of all of them.
+> +	 *
+> +	 * Note that even after this callback returns the device driver might
+> +	 * get call back from hmm. Callback will stop only once mirror_destroy
+> +	 * is call.
+> +	 */
+> +	void (*mirror_release)(struct hmm_mirror *hmm_mirror);
+> +
+> +	/* mirror_destroy - free hmm_mirror (call when refcount drop to 0).
+> +	 *
+> +	 * @mirror: The mirror that link process address space with the device.
+> +	 */
+> +	void (*mirror_destroy)(struct hmm_mirror *mirror);
+> +
+> +	/* fence_wait() - to wait on device driver fence.
+> +	 *
+> +	 * @fence:      The device driver fence struct.
+> +	 * Returns:     0 on success,-EIO on error, -EAGAIN to wait again.
+> +	 *
+> +	 * Called when hmm want to wait for all operations associated with a
+> +	 * fence to complete (including device cache flush if the event mandate
+> +	 * it).
+> +	 *
+> +	 * Device driver must free fence and associated resources if it returns
+> +	 * something else thant -EAGAIN. On -EAGAIN the fence must not be free
+> +	 * as hmm will call back again.
+> +	 *
+> +	 * Return error if scheduled operation failed or if need to wait again.
+> +	 * -EIO    Some input/output error with the device.
+> +	 * -EAGAIN The fence not yet signaled, hmm reschedule waiting thread.
+> +	 *
+> +	 * All other return value trigger warning and are transformed to -EIO.
+> +	 */
+> +	int (*fence_wait)(struct hmm_fence *fence);
+> +
+> +	/* fence_destroy() - destroy fence structure.
+> +	 *
+> +	 * @fence:  Fence structure to destroy.
+> +	 *
+> +	 * Called when all reference on a fence are gone.
+> +	 */
+> +	void (*fence_destroy)(struct hmm_fence *fence);
+> +
+> +	/* update() - update device mmu for a range of address.
+> +	 *
+> +	 * @mirror: The mirror that link process address space with the device.
+> +	 * @vma:    The vma into which the update is taking place.
+> +	 * @faddr:  First address in range (inclusive).
+> +	 * @laddr:  Last address in range (exclusive).
+> +	 * @etype:  The type of memory event (unmap, read only, ...).
+> +	 * Returns: Valid fence ptr or NULL on success otherwise ERR_PTR.
+> +	 *
+> +	 * Called to update device mmu permission/usage for a range of address.
+> +	 * The event type provide the nature of the update :
+> +	 *   - range is no longer valid (munmap).
+> +	 *   - range protection changes (mprotect, COW, ...).
+> +	 *   - range is unmapped (swap, reclaim, page migration, ...).
+> +	 *   - ...
+> +	 *
+> +	 * Any event that block further write to the memory must also trigger a
+> +	 * device cache flush and everything has to be flush to local memory by
+> +	 * the time the wait callback return (if this callback returned a fence
+> +	 * otherwise everything must be flush by the time the callback return).
+> +	 *
+> +	 * Device must properly call set_page_dirty on any page the device did
+> +	 * write to since last call to update.
+> +	 *
+> +	 * The driver should return a fence pointer or NULL on success. Device
+> +	 * driver should return fence and delay wait for the operation to the
+> +	 * febce wait callback. Returning a fence allow hmm to batch update to
+> +	 * several devices and delay wait on those once they all have scheduled
+> +	 * the update.
+> +	 *
+> +	 * Device driver must not fail lightly, any failure result in device
+> +	 * process being kill.
+> +	 *
+> +	 * Return fence or NULL on success, error value otherwise :
+> +	 * -ENOMEM Not enough memory for performing the operation.
+> +	 * -EIO    Some input/output error with the device.
+> +	 *
+> +	 * All other return value trigger warning and are transformed to -EIO.
+> +	 */
+> +	struct hmm_fence *(*update)(struct hmm_mirror *mirror,
+> +				    struct vm_area_struct *vma,
+> +				    unsigned long faddr,
+> +				    unsigned long laddr,
+> +				    enum hmm_etype etype);
+> +
+> +	/* fault() - fault range of address on the device mmu.
+> +	 *
+> +	 * @mirror: The mirror that link process address space with the device.
+> +	 * @faddr:  First address in range (inclusive).
+> +	 * @laddr:  Last address in range (exclusive).
+> +	 * @pfns:   Array of pfn for the range (each of the pfn is valid).
+> +	 * @fault:  The fault structure provided by device driver.
+> +	 * Returns: 0 on success, error value otherwise.
+> +	 *
+> +	 * Called to give the device driver each of the pfn backing a range of
+> +	 * address. It is only call as a result of a call to hmm_mirror_fault.
+> +	 *
+> +	 * Note that the pfns array content is only valid for the duration of
+> +	 * the callback. Once the device driver callback return further memory
+> +	 * activities might invalidate the value of the pfns array. The device
+> +	 * driver will be inform of such changes through the update callback.
+> +	 *
+> +	 * Allowed return value are :
+> +	 * -ENOMEM Not enough memory for performing the operation.
+> +	 * -EIO    Some input/output error with the device.
+> +	 *
+> +	 * Device driver must not fail lightly, any failure result in device
+> +	 * process being kill.
+> +	 *
+> +	 * Return error if scheduled operation failed. Valid value :
+> +	 * -ENOMEM Not enough memory for performing the operation.
+> +	 * -EIO    Some input/output error with the device.
+> +	 *
+> +	 * All other return value trigger warning and are transformed to -EIO.
+> +	 */
+> +	int (*fault)(struct hmm_mirror *mirror,
+> +		     unsigned long faddr,
+> +		     unsigned long laddr,
+> +		     pte_t *ptep,
+> +		     struct hmm_event *event);
+> +};
+
+I noticed that the device will receive PFNs as a result of a page fault.
+I assume most devices will also need to call dma_map_page on the
+physical address to get a bus address to use. Do you think it would make
+sense to handle mapping and unmapping pages inside HMM?
+
+> ...
+
+> +
+> +static void hmm_update_mirrors(struct hmm *hmm,
+> +			       struct vm_area_struct *vma,
+> +			       struct hmm_event *event)
+> +{
+> +	struct hmm_mirror *mirror;
+> +	struct hmm_fence *fence = NULL, *tmp;
+> +	int ticket;
+> +
+> +retry:
+> +	ticket = srcu_read_lock(&srcu);
+> +	/* Because of retry we might already have scheduled some mirror
+> +	 * skip those.
+> +	 */
+> +	mirror = list_first_entry(&hmm->mirrors,
+> +				  struct hmm_mirror,
+> +				  mlist);
+> +	mirror = fence ? fence->mirror : mirror;
+> +	list_for_each_entry_continue(mirror, &hmm->mirrors, mlist) {
+> +		struct hmm_device *device = mirror->device;
+> +
+> +		fence = device->ops->update(mirror, vma, event->faddr,
+> +					    event->laddr, event->etype);
+> +		if (fence) {
+> +			if (IS_ERR(fence)) {
+> +				srcu_read_unlock(&srcu, ticket);
+> +				hmm_mirror_cleanup(mirror);
+> +				goto retry;
+> +			}
+> +			kref_init(&fence->kref);
+> +			fence->mirror = mirror;
+> +			list_add_tail(&fence->list, &event->fences);
+> +		}
+> +	}
+> +	srcu_read_unlock(&srcu, ticket);
+> +
+> +	if (!fence)
+> +		/* Nothing to wait for. */
+> +		return;
+> +
+> +	io_schedule();
+> +	list_for_each_entry_safe(fence, tmp, &event->fences, list) {
+> +		struct hmm_device *device;
+> +		int r;
+> +
+> +		mirror = fence->mirror;
+> +		device = mirror->device;
+> +
+> +		r = hmm_device_fence_wait(device, fence);
+> +		if (r)
+> +			hmm_mirror_cleanup(mirror);
+> +	}
+> +}
+> +
+> +
+
+It seems like the code ignores any error the update operation may
+return, except for cleaning up the mirror. If I understand correctly,
+having an error here would mean that the device cannot invalidate the
+pages it has access to, and they cannot be released. Isn't that right?
+
+> ...
+
+> +
+> +/* hmm_mirror - per device mirroring functions.
+> + *
+> + * Each device that mirror a process has a uniq hmm_mirror struct. A process
+> + * can be mirror by several devices at the same time.
+> + *
+> + * Below are all the functions and there helpers use by device driver to mirror
+> + * the process address space. Those functions either deals with updating the
+> + * device page table (through hmm callback). Or provide helper functions use by
+> + * the device driver to fault in range of memory in the device page table.
+> + */
+> +
+> +static void hmm_mirror_cleanup(struct hmm_mirror *mirror)
+> +{
+> +	struct vm_area_struct *vma;
+> +	struct hmm_device *device = mirror->device;
+> +	struct hmm_event event;
+> +	struct hmm *hmm = mirror->hmm;
+> +
+> +	spin_lock(&hmm->lock);
+> +	if (mirror->dead) {
+> +		spin_unlock(&hmm->lock);
+> +		return;
+> +	}
+> +	mirror->dead = true;
+> +	list_del(&mirror->mlist);
+> +	spin_unlock(&hmm->lock);
+> +	synchronize_srcu(&srcu);
+> +	INIT_LIST_HEAD(&mirror->mlist);
+> +
+> +	event.etype = HMM_UNREGISTER;
+> +	event.faddr = 0UL;
+> +	event.laddr = -1L;
+> +	vma = find_vma_intersection(hmm->mm, event.faddr, event.laddr);
+> +	for (; vma; vma = vma->vm_next) {
+> +		struct hmm_fence *fence;
+> +
+> +		fence = device->ops->update(mirror, vma, vma->vm_start,
+> +					    vma->vm_end, event.etype);
+> +		if (fence && !IS_ERR(fence)) {
+> +			kref_init(&fence->kref);
+> +			fence->mirror = mirror;
+> +			INIT_LIST_HEAD(&fence->list);
+> +			hmm_device_fence_wait(device, fence);
+> +		}
+
+Here too the code ignores any error from update.
+
+> +	}
+> +
+> +	mutex_lock(&device->mutex);
+> +	list_del_init(&mirror->dlist);
+> +	mutex_unlock(&device->mutex);
+> +
+> +	mirror->hmm = hmm_unref(hmm);
+> +	hmm_mirror_unref(mirror);
+> +}
+> +
+> +static void hmm_mirror_destroy(struct kref *kref)
+> +{
+> +	struct hmm_mirror *mirror;
+> +	struct hmm_device *device;
+> +
+> +	mirror = container_of(kref, struct hmm_mirror, kref);
+> +	device = mirror->device;
+> +
+> +	BUG_ON(!list_empty(&mirror->mlist));
+> +	BUG_ON(!list_empty(&mirror->dlist));
+> +
+> +	device->ops->mirror_destroy(mirror);
+> +	hmm_device_unref(device);
+> +}
+> +
+
+Thanks,
+Haggai
+
+[1] [PATCH v1 for-next 00/16] On demand paging
+    http://permalink.gmane.org/gmane.linux.drivers.rdma/21032
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
