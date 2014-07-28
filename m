@@ -1,87 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id AFF5F6B0036
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 16:30:24 -0400 (EDT)
-Received: by mail-wi0-f169.google.com with SMTP id n3so4825280wiv.0
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 13:30:22 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id b6si36293719wjy.38.2014.07.28.13.30.19
+Received: from mail-oa0-f53.google.com (mail-oa0-f53.google.com [209.85.219.53])
+	by kanga.kvack.org (Postfix) with ESMTP id D3BF56B0036
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 16:40:57 -0400 (EDT)
+Received: by mail-oa0-f53.google.com with SMTP id j17so9403635oag.40
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 13:40:57 -0700 (PDT)
+Received: from mail-oi0-x22c.google.com (mail-oi0-x22c.google.com [2607:f8b0:4003:c06::22c])
+        by mx.google.com with ESMTPS id gi6si46085745obb.0.2014.07.28.13.40.56
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 28 Jul 2014 13:30:20 -0700 (PDT)
-Date: Mon, 28 Jul 2014 16:29:52 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH -mm] mm: refactor page index/offset getters
-Message-ID: <20140728202952.GP1725@cmpxchg.org>
-References: <1404225982-22739-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20140701180739.GA4985@node.dhcp.inet.fi>
- <20140701185021.GA10356@nhori.bos.redhat.com>
- <20140701201540.GA5953@node.dhcp.inet.fi>
- <20140702043057.GA19813@nhori.redhat.com>
- <20140707123923.5e42983d6123ebfd79c8cf4c@linux-foundation.org>
- <20140715164112.GA6055@nhori.bos.redhat.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 28 Jul 2014 13:40:56 -0700 (PDT)
+Received: by mail-oi0-f44.google.com with SMTP id x69so6547423oia.3
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 13:40:56 -0700 (PDT)
+Received: from mail (104-54-201-27.lightspeed.austtx.sbcglobal.net. [104.54.201.27])
+        by mx.google.com with ESMTPSA id fu14sm78892506oeb.9.2014.07.28.13.40.54
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Jul 2014 13:40:55 -0700 (PDT)
+Date: Mon, 28 Jul 2014 15:40:49 -0500
+From: Seth Jennings <sjennings@variantweb.net>
+Subject: Re: [PATCHv5 0/4] mm/zpool: add common api for zswap to use
+ zbud/zsmalloc
+Message-ID: <20140728204049.GA18500@cerebellum.variantweb.net>
+References: <1401747586-11861-1-git-send-email-ddstreet@ieee.org>
+ <1404337536-11037-1-git-send-email-ddstreet@ieee.org>
+ <CALZtONBYwm5t39z8wiEkTrFw-g=Be+ypaZo2nuFo0ob5pRXSAw@mail.gmail.com>
+ <20140716205907.GA13058@cerebellum.variantweb.net>
+ <CALZtONB0k_Vw6OwV6u3FA=Hu7FO+nY7bhTUQ+sb+hx3fwYDXyA@mail.gmail.com>
+ <20140716220040.GA16681@cerebellum.variantweb.net>
+ <CALZtONA-x0sSiCnjYTyaLb3EHWejH6Nm-oPaJyf0osepXQbo6A@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140715164112.GA6055@nhori.bos.redhat.com>
+In-Reply-To: <CALZtONA-x0sSiCnjYTyaLb3EHWejH6Nm-oPaJyf0osepXQbo6A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Tue, Jul 15, 2014 at 12:41:12PM -0400, Naoya Horiguchi wrote:
-> @@ -399,28 +399,24 @@ static inline struct page *read_mapping_page(struct address_space *mapping,
->  }
->  
->  /*
-> - * Get the offset in PAGE_SIZE.
-> + * Return the 4kB page offset of the given page.
->   * (TODO: hugepage should have ->index in PAGE_SIZE)
->   */
-> -static inline pgoff_t page_to_pgoff(struct page *page)
-> +static inline pgoff_t page_pgoff(struct page *page)
->  {
-> -	if (unlikely(PageHeadHuge(page)))
-> -		return page->index << compound_order(page);
-> -	else
-> -		return page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-> +	if (unlikely(PageHuge(page))) {
-> +		VM_BUG_ON_PAGE(PageTail(page), page);
-> +		return page_index(page) << compound_order(page);
-> +	} else
-> +		return page_index(page) << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
->  }
+On Fri, Jul 25, 2014 at 12:59:05PM -0400, Dan Streetman wrote:
+> Hey Seth,
+> 
+> have a chance to test yet?
 
-I just bisected the VM refusing to swap and triggering OOM kills to
-this patch, which is likely the same bug you reported a couple days
-back when you had this patch in your private tree.
+Sorry for the delay. Things have been crazy.
 
-Changing page->index to page_index() makes this function return the
-swap offset rather than the virtual PFN, but rmap uses this to index
-into virtual address space.  Thus, swapcache pages can no longer be
-found from try_to_unmap() and reclaim fails.
+Just pulled down -next and tested with a 8-thread kernel build on a
+machine restricted to 512MB of RAM.  Thrashed pretty well but completed
+without any problems. The compressed pool mitigating the swapping for
+the most part.  swapoff at the end and all the statistics were sane.
 
-We can't simply change it back to page->index, however, because the
-swapout path, which requires the swap offset, also uses this function
-through page_offset().  Virtual address space functions and page cache
-address space functions can't use the same helpers, and the helpers
-should likely be named distinctly so that they are not confused and
-it's clear what is being asked.  Plus, the patch forced every fs using
-page_offset() to suddenly check PageHuge(), which is a function call.
+Looks stable afaict.  Good work! :)
 
-How about
+Again sorry about dragging my feet on this.
 
-o page_offset() for use by filesystems, based on page->index
+Thanks,
+Seth
 
-o page_virt_pgoff() for use on virtual memory math, based on
-  page->index and respecting PageHuge()
-
-o page_mapping_pgoff() for use by swapping and when working on
-  mappings that could be swapper_space.
-
-o page_mapping_offset() likewise, just in bytes
-
-Hm?
+> 
+> On Wed, Jul 16, 2014 at 6:00 PM, Seth Jennings <sjennings@variantweb.net> wrote:
+> > On Wed, Jul 16, 2014 at 05:05:45PM -0400, Dan Streetman wrote:
+> >> On Wed, Jul 16, 2014 at 4:59 PM, Seth Jennings <sjennings@variantweb.net> wrote:
+> >> > On Mon, Jul 14, 2014 at 02:10:42PM -0400, Dan Streetman wrote:
+> >> >> Andrew, any thoughts on this latest version of the patch set?  Let me
+> >> >> know if I missed anything or you have any other suggestions.
+> >> >>
+> >> >> Seth, did you get a chance to review this and/or test it out?
+> >> >
+> >> > I did have a chance to test it out quickly and didn't run into any
+> >> > issues.  Your patchset is already in linux-next so I'll test more from
+> >> > there.
+> >>
+> >> This latest version has a few changes that Andrew requested, which
+> >> presumably will replace the patches that are currently in -mm and
+> >> -next; can you test with these patches instead of (or in addition to)
+> >> what's in -next?
+> >
+> > Looks like Andrew just did the legwork for me to get the new patches
+> > into mmotm.  When the hit there (tomorrow?), I'll put it down and test
+> > with that.
+> >
+> > Thanks,
+> > Seth
+> >
+> >>
+> >> >
+> >> > Seth
+> >> >
+> >> >>
+> >> >>
+> >> >>
+> >> >> On Wed, Jul 2, 2014 at 5:45 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+> >> >> > In order to allow zswap users to choose between zbud and zsmalloc for
+> >> >> > the compressed storage pool, this patch set adds a new api "zpool" that
+> >> >> > provides an interface to both zbud and zsmalloc.  This does not include
+> >> >> > implementing shrinking in zsmalloc, which will be sent separately.
+> >> >> >
+> >> >> > I believe Seth originally was using zsmalloc for swap, but there were
+> >> >> > concerns about how significant the impact of shrinking zsmalloc would
+> >> >> > be when zswap had to start reclaiming pages.  That still may be an
+> >> >> > issue, but this at least allows users to choose themselves whether
+> >> >> > they want a lower-density or higher-density compressed storage medium.
+> >> >> > At least for situations where zswap reclaim is never or rarely reached,
+> >> >> > it probably makes sense to use the higher density of zsmalloc.
+> >> >> >
+> >> >> > Note this patch set does not change zram to use zpool, although that
+> >> >> > change should be possible as well.
+> >> >> >
+> >> >> > ---
+> >> >> > Changes since v4 : https://lkml.org/lkml/2014/6/2/711
+> >> >> >   -omit first patch, that removed gfp_t param from zpool_malloc()
+> >> >> >   -move function doc from zpool.h to zpool.c
+> >> >> >   -move module usage refcounting into patch that adds zpool
+> >> >> >   -add extra refcounting to prevent driver unregister if in use
+> >> >> >   -add doc clarifying concurrency usage
+> >> >> >   -make zbud/zsmalloc zpool functions static
+> >> >> >   -typo corrections
+> >> >> >
+> >> >> > Changes since v3 : https://lkml.org/lkml/2014/5/24/130
+> >> >> >   -In zpool_shrink() use # pages instead of # bytes
+> >> >> >   -Add reclaimed param to zpool_shrink() to indicate to caller
+> >> >> >    # pages actually reclaimed
+> >> >> >   -move module usage counting to zpool, from zbud/zsmalloc
+> >> >> >   -update zbud_zpool_shrink() to call zbud_reclaim_page() in a
+> >> >> >    loop until requested # pages have been reclaimed (or error)
+> >> >> >
+> >> >> > Changes since v2 : https://lkml.org/lkml/2014/5/7/927
+> >> >> >   -Change zpool to use driver registration instead of hardcoding
+> >> >> >    implementations
+> >> >> >   -Add module use counting in zbud/zsmalloc
+> >> >> >
+> >> >> > Changes since v1 https://lkml.org/lkml/2014/4/19/97
+> >> >> >  -remove zsmalloc shrinking
+> >> >> >  -change zbud size param type from unsigned int to size_t
+> >> >> >  -remove zpool fallback creation
+> >> >> >  -zswap manually falls back to zbud if specified type fails
+> >> >> >
+> >> >> >
+> >> >> > Dan Streetman (4):
+> >> >> >   mm/zbud: change zbud_alloc size type to size_t
+> >> >> >   mm/zpool: implement common zpool api to zbud/zsmalloc
+> >> >> >   mm/zpool: zbud/zsmalloc implement zpool
+> >> >> >   mm/zpool: update zswap to use zpool
+> >> >> >
+> >> >> >  include/linux/zbud.h  |   2 +-
+> >> >> >  include/linux/zpool.h | 106 +++++++++++++++
+> >> >> >  mm/Kconfig            |  43 +++---
+> >> >> >  mm/Makefile           |   1 +
+> >> >> >  mm/zbud.c             |  98 +++++++++++++-
+> >> >> >  mm/zpool.c            | 364 ++++++++++++++++++++++++++++++++++++++++++++++++++
+> >> >> >  mm/zsmalloc.c         |  84 ++++++++++++
+> >> >> >  mm/zswap.c            |  75 ++++++-----
+> >> >> >  8 files changed, 722 insertions(+), 51 deletions(-)
+> >> >> >  create mode 100644 include/linux/zpool.h
+> >> >> >  create mode 100644 mm/zpool.c
+> >> >> >
+> >> >> > --
+> >> >> > 1.8.3.1
+> >> >> >
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
