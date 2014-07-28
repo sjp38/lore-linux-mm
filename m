@@ -1,48 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id B9D2B6B0036
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 11:26:46 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id r10so10068498pdi.20
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 08:26:46 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id dn2si9104431pdb.242.2014.07.28.08.26.45
-        for <linux-mm@kvack.org>;
-        Mon, 28 Jul 2014 08:26:45 -0700 (PDT)
-Message-ID: <53D66BB1.8080905@linux.intel.com>
-Date: Mon, 28 Jul 2014 08:26:41 -0700
-From: Dave Hansen <dave.hansen@linux.intel.com>
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id BFB3A6B0037
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 11:27:56 -0400 (EDT)
+Received: by mail-wg0-f47.google.com with SMTP id b13so7507802wgh.30
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 08:27:55 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id dw12si34700002wjb.138.2014.07.28.08.27.54
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Jul 2014 08:27:54 -0700 (PDT)
+Message-ID: <53D66BF4.1070200@infradead.org>
+Date: Mon, 28 Jul 2014 08:27:48 -0700
+From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: don't allow fault_around_bytes to be 0
-References: <53D07E96.5000006@oracle.com> <1406533400-6361-1-git-send-email-a.ryabinin@samsung.com> <20140728093611.GA3975@node.dhcp.inet.fi>
-In-Reply-To: <20140728093611.GA3975@node.dhcp.inet.fi>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] mm: fix filemap.c pagecache_get_page() kernel-doc warnings
+References: <53D564ED.1030906@infradead.org> <20140728093630.GM10819@suse.de>
+In-Reply-To: <20140728093630.GM10819@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Andrey Ryabinin <a.ryabinin@samsung.com>, Sasha Levin <sasha.levin@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, Ning Qu <quning@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Dave Jones <davej@redhat.com>, stable@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Hugh Dickins <hughd@google.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>
 
-On 07/28/2014 02:36 AM, Kirill A. Shutemov wrote:
-> +++ b/mm/memory.c
-> @@ -2786,7 +2786,8 @@ static int fault_around_bytes_set(void *data, u64 val)
->  {
->  	if (val / PAGE_SIZE > PTRS_PER_PTE)
->  		return -EINVAL;
-> -	fault_around_bytes = val;
-> +	/* rounddown_pow_of_two(0) is not defined */
-> +	fault_around_bytes = max(val, PAGE_SIZE);
->  	return 0;
->  }
+On 07/28/14 02:36, Mel Gorman wrote:
+> On Sun, Jul 27, 2014 at 01:45:33PM -0700, Randy Dunlap wrote:
+>> From: Randy Dunlap <rdunlap@infradead.org>
+>>
+>> Fix kernel-doc warnings in mm/filemap.c: pagecache_get_page():
+>>
+>> Warning(..//mm/filemap.c:1054): No description found for parameter 'cache_gfp_mask'
+>> Warning(..//mm/filemap.c:1054): No description found for parameter 'radix_gfp_mask'
+>> Warning(..//mm/filemap.c:1054): Excess function parameter 'gfp_mask' description in 'pagecache_get_page'
+>>
+>> Fixes: 2457aec63745 "mm: non-atomically mark page accessed during
+>> 	page cache allocation where possible"
+>>
+>> Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
+>> Cc: Mel Gorman <mgorman@suse.de>
+> 
+> Use this diff instead?
 
-It's also possible to race and have fault_around_bytes change between
-when fault_around_mask() and fault_around_pages() are called so that
-they don't match any more.  The min()/max() in do_fault_around() should
-keep this from doing anything _too_ nasty, but it's worth thinking about
-at least.
+Sure.  Acked-by: Randy Dunlap <rdunlap@infradead.org>
 
-The safest thing to do might be to use an ACCESS_ONCE() at the beginning
-of do_fault_around() for fault_around_bytes and generate
-fault_around_mask() from the ACCESS_ONCE() result.
+Thanks.
+
+Andrew?
+
+> 
+> ---8<---
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index dafb06f..a1021fa 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -1031,18 +1031,21 @@ EXPORT_SYMBOL(find_lock_entry);
+>   * @mapping: the address_space to search
+>   * @offset: the page index
+>   * @fgp_flags: PCG flags
+> - * @gfp_mask: gfp mask to use if a page is to be allocated
+> + * @cache_gfp_mask: gfp mask to use for the page cache data page allocation
+> + * @radix_gfp_mask: gfp mask to use for radix tree node allocation
+>   *
+>   * Looks up the page cache slot at @mapping & @offset.
+>   *
+> - * PCG flags modify how the page is returned
+> + * PCG flags modify how the page is returned.
+>   *
+>   * FGP_ACCESSED: the page will be marked accessed
+>   * FGP_LOCK: Page is return locked
+>   * FGP_CREAT: If page is not present then a new page is allocated using
+> - *		@gfp_mask and added to the page cache and the VM's LRU
+> - *		list. The page is returned locked and with an increased
+> - *		refcount. Otherwise, %NULL is returned.
+> + *		@cache_gfp_mask and added to the page cache and the VM's LRU
+> + *		list. If radix tree nodes are allocated during page cache
+> + *		insertion then @radix_gfp_mask is used. The page is returned
+> + * 		locked and with an increased refcount. Otherwise, %NULL is
+> + * 		returned.
+>   *
+>   * If FGP_LOCK or FGP_CREAT are specified then the function may sleep even
+>   * if the GFP flags specified for FGP_CREAT are atomic.
+> 
+
+
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
