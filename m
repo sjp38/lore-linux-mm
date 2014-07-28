@@ -1,41 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 708866B0036
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 18:24:26 -0400 (EDT)
-Received: by mail-ie0-f180.google.com with SMTP id at20so7236589iec.25
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 15:24:26 -0700 (PDT)
-Received: from mail-ie0-x235.google.com (mail-ie0-x235.google.com [2607:f8b0:4001:c03::235])
-        by mx.google.com with ESMTPS id o6si19338895igi.0.2014.07.28.15.24.25
+Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AB0A6B0036
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 18:43:30 -0400 (EDT)
+Received: by mail-ie0-f179.google.com with SMTP id rl12so7584962iec.10
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 15:43:30 -0700 (PDT)
+Received: from mail-ig0-x22a.google.com (mail-ig0-x22a.google.com [2607:f8b0:4001:c05::22a])
+        by mx.google.com with ESMTPS id nh10si21882015icc.92.2014.07.28.15.43.28
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 28 Jul 2014 15:24:25 -0700 (PDT)
-Received: by mail-ie0-f181.google.com with SMTP id rp18so7469275iec.40
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 15:24:25 -0700 (PDT)
-Date: Mon, 28 Jul 2014 15:24:22 -0700 (PDT)
+        Mon, 28 Jul 2014 15:43:29 -0700 (PDT)
+Received: by mail-ig0-f170.google.com with SMTP id h3so4385601igd.5
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 15:43:28 -0700 (PDT)
+Date: Mon, 28 Jul 2014 15:43:26 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, thp: restructure thp avoidance of light synchronous
- migration
-In-Reply-To: <53D60F31.4050504@suse.cz>
-Message-ID: <alpine.DEB.2.02.1407281523090.8998@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1407241540190.22557@chino.kir.corp.google.com> <53D60F31.4050504@suse.cz>
+Subject: Re: [PATCH] mm: don't allow fault_around_bytes to be 0
+In-Reply-To: <53D62599.6000605@samsung.com>
+Message-ID: <alpine.DEB.2.02.1407281542460.8998@chino.kir.corp.google.com>
+References: <53D07E96.5000006@oracle.com> <1406533400-6361-1-git-send-email-a.ryabinin@samsung.com> <20140728093611.GA3975@node.dhcp.inet.fi> <53D62599.6000605@samsung.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrey Ryabinin <a.ryabinin@samsung.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, Ning Qu <quning@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Dave Jones <davej@redhat.com>, stable@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Hugh Dickins <hughd@google.com>
 
-On Mon, 28 Jul 2014, Vlastimil Babka wrote:
+On Mon, 28 Jul 2014, Andrey Ryabinin wrote:
 
-> Looks like kind of a shotgun approach to me. A single __GFP_NO_KSWAPD bullet
-> is no longer enough, so we use all the flags and hope for the best. It seems
-> THP has so many flags it should be unique for now, but I wonder if there is a
-> better way to say how much an allocation is willing to wait.
+> do_fault_around expects fault_around_bytes rounded down to nearest
+> page order. Instead of calling rounddown_pow_of_two every time
+> in fault_around_pages()/fault_around_mask() we could do round down
+> when user changes fault_around_bytes via debugfs interface.
 > 
 
-We would have to introduce a new __GFP_FAULT bit to distinguish between 
-allocations at pagefault that should not use synchronous memory compaction 
-solely for this case, it's probably not worth it.
+If you're going to optimize this, it seems like fault_around_bytes would 
+benefit from being __read_mostly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
