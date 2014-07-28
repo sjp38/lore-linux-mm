@@ -1,91 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
-	by kanga.kvack.org (Postfix) with ESMTP id A31C46B0036
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 10:04:29 -0400 (EDT)
-Received: by mail-we0-f172.google.com with SMTP id x48so7452055wes.3
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 07:04:27 -0700 (PDT)
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 72C1C6B0036
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 10:24:10 -0400 (EDT)
+Received: by mail-wi0-f173.google.com with SMTP id f8so4540954wiw.12
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 07:24:09 -0700 (PDT)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id bz3si34363995wjc.41.2014.07.28.07.03.54
+        by mx.google.com with ESMTPS id fm4si13956992wib.2.2014.07.28.07.24.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 28 Jul 2014 07:03:55 -0700 (PDT)
-Date: Mon, 28 Jul 2014 10:01:57 -0400
+        Mon, 28 Jul 2014 07:24:08 -0700 (PDT)
+Date: Mon, 28 Jul 2014 10:23:13 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [PATCH] mm: fix direct reclaim writeback regression
-Message-ID: <20140728140157.GM1725@cmpxchg.org>
+Message-ID: <20140728142313.GN1725@cmpxchg.org>
 References: <alpine.LSU.2.11.1407261248140.13796@eggly.anvils>
+ <53D42F80.7000000@suse.cz>
+ <alpine.LSU.2.11.1407261600570.14577@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1407261248140.13796@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1407261600570.14577@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Dave Jones <davej@redhat.com>, Dave Chinner <david@fromorbit.com>, xfs@oss.sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Vlastimil Babka <vbabka@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Dave Jones <davej@redhat.com>, Dave Chinner <david@fromorbit.com>, xfs@oss.sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sat, Jul 26, 2014 at 12:58:23PM -0700, Hugh Dickins wrote:
-> Shortly before 3.16-rc1, Dave Jones reported:
+On Sat, Jul 26, 2014 at 04:15:25PM -0700, Hugh Dickins wrote:
+> On Sun, 27 Jul 2014, Vlastimil Babka wrote:
+> > On 07/26/2014 09:58 PM, Hugh Dickins wrote:
+> > > Yes, 3.16-rc1's 68711a746345 ("mm, migration: add destination page
+> > > freeing callback") has provided such a way to compaction: if migrating
+> > > a SwapBacked page fails, its newpage may be put back on the list for
+> > > later use with PageSwapBacked still set, and nothing will clear it.
+> > 
+> > Ugh good catch. So is this the only flag that can become "stray" like
+> > this? It seems so from quick check...
 > 
-> WARNING: CPU: 3 PID: 19721 at fs/xfs/xfs_aops.c:971
->          xfs_vm_writepage+0x5ce/0x630 [xfs]()
-> CPU: 3 PID: 19721 Comm: trinity-c61 Not tainted 3.15.0+ #3
-> Call Trace:
->  [<ffffffffc023068e>] xfs_vm_writepage+0x5ce/0x630 [xfs]
->  [<ffffffff8316f759>] shrink_page_list+0x8f9/0xb90
->  [<ffffffff83170123>] shrink_inactive_list+0x253/0x510
->  [<ffffffff83170c93>] shrink_lruvec+0x563/0x6c0
->  [<ffffffff83170e2b>] shrink_zone+0x3b/0x100
->  [<ffffffff831710e1>] shrink_zones+0x1f1/0x3c0
->  [<ffffffff83171414>] try_to_free_pages+0x164/0x380
->  [<ffffffff83163e52>] __alloc_pages_nodemask+0x822/0xc90
->  [<ffffffff831abeff>] alloc_pages_vma+0xaf/0x1c0
->  [<ffffffff8318a931>] handle_mm_fault+0xa31/0xc50
-> etc.
+> Yes, it seemed so to me too; but I would prefer a regime in which
+> we only mess with newpage once it's sure to be successful.
 > 
->  970   if (WARN_ON_ONCE((current->flags & (PF_MEMALLOC|PF_KSWAPD)) ==
->  971                   PF_MEMALLOC))
+> > > --- 3.16-rc6/mm/migrate.c	2014-06-29 15:22:10.584003935 -0700
+> > > +++ linux/mm/migrate.c	2014-07-26 11:28:34.488126591 -0700
+> > > @@ -988,9 +988,10 @@ out:
+> > >  	 * it.  Otherwise, putback_lru_page() will drop the reference grabbed
+> > >  	 * during isolation.
+> > >  	 */
+> > > -	if (rc != MIGRATEPAGE_SUCCESS && put_new_page)
+> > > +	if (rc != MIGRATEPAGE_SUCCESS && put_new_page) {
+> > > +		ClearPageSwapBacked(newpage);
+> > >  		put_new_page(newpage, private);
+> > > -	else
+> > > +	} else
+> > >  		putback_lru_page(newpage);
+> > >  
+> > >  	if (result) {
+> > 
+> > What about unmap_and_move_huge_page()? Seems to me it can also get the
+> > same stray flag. Although compaction, who is the only user so far of
+> > custom put_new_page, wouldn't of course migrate huge pages. But might
+> > bite us in the future, if a new user appears before a cleanup...
 > 
-> I did not respond at the time, because a glance at the PageDirty block
-> in shrink_page_list() quickly shows that this is impossible: we don't do
-> writeback on file pages (other than tmpfs) from direct reclaim nowadays.
-> Dave was hallucinating, but it would have been disrespectful to say so.
+> I think you're right, thanks for pointing it out.  We don't have an
+> actual bug there at present, so no need to rush back and fix up the
+> patch now in Linus's tree; but unmap_and_move_huge_page() gives
+> another reason why my choice was "probably the worst place to fix it".
 > 
-> However, my own /var/log/messages now shows similar complaints
-> WARNING: CPU: 1 PID: 28814 at fs/ext4/inode.c:1881 ext4_writepage+0xa7/0x38b()
-> WARNING: CPU: 0 PID: 27347 at fs/ext4/inode.c:1764 ext4_writepage+0xa7/0x38b()
-> from stressing some mmotm trees during July.
-> 
-> Could a dirty xfs or ext4 file page somehow get marked PageSwapBacked,
-> so fail shrink_page_list()'s page_is_file_cache() test, and so proceed
-> to mapping->a_ops->writepage()?
-> 
-> Yes, 3.16-rc1's 68711a746345 ("mm, migration: add destination page
-> freeing callback") has provided such a way to compaction: if migrating
-> a SwapBacked page fails, its newpage may be put back on the list for
-> later use with PageSwapBacked still set, and nothing will clear it.
->
-> Whether that can do anything worse than issue WARN_ON_ONCEs, and get
-> some statistics wrong, is unclear: easier to fix than to think through
-> the consequences.
-> 
-> Fixing it here, before the put_new_page(), addresses the bug directly,
-> but is probably the worst place to fix it.  Page migration is doing too
-> many parts of the job on too many levels: fixing it in move_to_new_page()
-> to complement its SetPageSwapBacked would be preferable, except why is it
-> (and newpage->mapping and newpage->index) done there, rather than down in
-> migrate_page_move_mapping(), once we are sure of success?  Not a cleanup
-> to get into right now, especially not with memcg cleanups coming in 3.17.
+> More reason for a cleanup, but not while the memcg interface is in flux.
+> In mmotm I'm a little anxious about the PageAnon case when newpage's
+> mapping is left set, I wonder if that might also be problematic: I
+> mailed Hannes privately to think about that - perhaps that will give
+> more impulse for a cleanup, though I've not noticed any bug from it.
 
-That needs verification that no ->migratepage() expects mapping
-(working PageAnon()) and index to be set up on newpage.
+I made that change for oldpage because uncharge in the final put_page
+relies on PageAnon() to work for statistics.
 
-The freelist putback looks quite fragile, we should probably add
-something like free_pages_prepare() / free_page_check() in there.
+The newpage case could have been left alone, but it looked like an
+anomaly to me - anonymous mappings are usually sticky and only cleared
+by the page allocator - so I was eager to make the cases symmetrical.
+I don't see a bug there because if the page is reused its mapping will
+be overwritten right away, and if freed the allocator will reset it.
 
-> Reported-by: Dave Jones <davej@redhat.com>
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+mem_cgroup_migrate() has since changed to fully uncharge the old page
+and not leave this task to the final put_page, so ->mapping does not
+need to be maintained past that point.  I'll send a revert of these
+conditional ->mapping resets to Andrew.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
