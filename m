@@ -1,67 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 36ED06B0037
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 03:22:17 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id et14so10067738pad.9
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 00:22:16 -0700 (PDT)
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F4936B0038
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 03:22:18 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id g10so9462957pdj.1
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 00:22:17 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id bc15si8454933pdb.146.2014.07.28.00.22.15
+        by mx.google.com with ESMTP id bc15si8454933pdb.146.2014.07.28.00.22.16
         for <linux-mm@kvack.org>;
-        Mon, 28 Jul 2014 00:22:16 -0700 (PDT)
+        Mon, 28 Jul 2014 00:22:17 -0700 (PDT)
 From: "Chen, Gong" <gong.chen@linux.intel.com>
-Subject: [PATCH 2/2] RAS, HWPOISON: Fix wrong error recovery status
-Date: Mon, 28 Jul 2014 02:51:00 -0400
-Message-Id: <1406530260-26078-3-git-send-email-gong.chen@linux.intel.com>
-In-Reply-To: <1406530260-26078-1-git-send-email-gong.chen@linux.intel.com>
-References: <1406530260-26078-1-git-send-email-gong.chen@linux.intel.com>
+Subject: two minor update patches for RAS
+Date: Mon, 28 Jul 2014 02:50:58 -0400
+Message-Id: <1406530260-26078-1-git-send-email-gong.chen@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: tony.luck@intel.com, n-horiguchi@ah.jp.nec.com, bp@alien8.de
-Cc: linux-acpi@vger.kernel.org, linux-mm@kvack.org, "Chen, Gong" <gong.chen@linux.intel.com>
+Cc: linux-acpi@vger.kernel.org, linux-mm@kvack.org
 
-When Uncorrected error happens, if the poisoned page is referenced
-by more than one user after error recovery, the recovery is not
-successful. But currently the display result is wrong.
-Before this patch:
+[PATCH 1/2] APEI, GHES: Cleanup unnecessary function for lock-less
+[PATCH 2/2] RAS, HWPOISON: Fix wrong error recovery status
 
-MCE 0x44e336: dirty mlocked LRU page recovery: Recovered
-MCE 0x44e336: dirty mlocked LRU page still referenced by 1 users
-mce: Memory error not recovered
-
-After this patch:
-
-MCE 0x44e336: dirty mlocked LRU page recovery: Failed
-MCE 0x44e336: dirty mlocked LRU page still referenced by 1 users
-mce: Memory error not recovered
-
-Signed-off-by: Chen, Gong <gong.chen@linux.intel.com>
-Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- mm/memory-failure.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index c6399e3..2985861 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -860,7 +860,6 @@ static int page_action(struct page_state *ps, struct page *p,
- 	int count;
- 
- 	result = ps->action(p, pfn);
--	action_result(pfn, ps->msg, result);
- 
- 	count = page_count(p) - 1;
- 	if (ps->action == me_swapcache_dirty && result == DELAYED)
-@@ -871,6 +870,7 @@ static int page_action(struct page_state *ps, struct page *p,
- 		       pfn, ps->msg, count);
- 		result = FAILED;
- 	}
-+	action_result(pfn, ps->msg, result);
- 
- 	/* Could do more checks here if page looks ok */
- 	/*
--- 
-2.0.0.rc2
+These two patches are trivial fixes for APEI and HWPOISON.
+Send them together to avoid fragments.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
