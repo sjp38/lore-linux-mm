@@ -1,162 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f53.google.com (mail-oa0-f53.google.com [209.85.219.53])
-	by kanga.kvack.org (Postfix) with ESMTP id D3BF56B0036
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 16:40:57 -0400 (EDT)
-Received: by mail-oa0-f53.google.com with SMTP id j17so9403635oag.40
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 13:40:57 -0700 (PDT)
-Received: from mail-oi0-x22c.google.com (mail-oi0-x22c.google.com [2607:f8b0:4003:c06::22c])
-        by mx.google.com with ESMTPS id gi6si46085745obb.0.2014.07.28.13.40.56
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 28 Jul 2014 13:40:56 -0700 (PDT)
-Received: by mail-oi0-f44.google.com with SMTP id x69so6547423oia.3
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 13:40:56 -0700 (PDT)
-Received: from mail (104-54-201-27.lightspeed.austtx.sbcglobal.net. [104.54.201.27])
-        by mx.google.com with ESMTPSA id fu14sm78892506oeb.9.2014.07.28.13.40.54
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jul 2014 13:40:55 -0700 (PDT)
-Date: Mon, 28 Jul 2014 15:40:49 -0500
-From: Seth Jennings <sjennings@variantweb.net>
-Subject: Re: [PATCHv5 0/4] mm/zpool: add common api for zswap to use
- zbud/zsmalloc
-Message-ID: <20140728204049.GA18500@cerebellum.variantweb.net>
-References: <1401747586-11861-1-git-send-email-ddstreet@ieee.org>
- <1404337536-11037-1-git-send-email-ddstreet@ieee.org>
- <CALZtONBYwm5t39z8wiEkTrFw-g=Be+ypaZo2nuFo0ob5pRXSAw@mail.gmail.com>
- <20140716205907.GA13058@cerebellum.variantweb.net>
- <CALZtONB0k_Vw6OwV6u3FA=Hu7FO+nY7bhTUQ+sb+hx3fwYDXyA@mail.gmail.com>
- <20140716220040.GA16681@cerebellum.variantweb.net>
- <CALZtONA-x0sSiCnjYTyaLb3EHWejH6Nm-oPaJyf0osepXQbo6A@mail.gmail.com>
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+	by kanga.kvack.org (Postfix) with ESMTP id D194E6B0036
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 17:09:42 -0400 (EDT)
+Received: by mail-we0-f180.google.com with SMTP id w61so7884905wes.11
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 14:09:42 -0700 (PDT)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.232])
+        by mx.google.com with ESMTP id v16si15944095wie.33.2014.07.28.14.09.40
+        for <linux-mm@kvack.org>;
+        Mon, 28 Jul 2014 14:09:41 -0700 (PDT)
+Date: Tue, 29 Jul 2014 00:09:33 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: + mm-dont-allow-fault_around_bytes-to-be-0.patch added to -mm
+ tree
+Message-ID: <20140728210933.GA5435@node.dhcp.inet.fi>
+References: <53d6b9fd.HnUUZ1qtTMuqFeIf%akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALZtONA-x0sSiCnjYTyaLb3EHWejH6Nm-oPaJyf0osepXQbo6A@mail.gmail.com>
+In-Reply-To: <53d6b9fd.HnUUZ1qtTMuqFeIf%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Nitin Gupta <ngupta@vflare.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: a.ryabinin@samsung.com, davej@redhat.com, hughd@google.com, kirill.shutemov@linux.intel.com, koct9i@gmail.com, mgorman@suse.de, riel@redhat.com, sasha.levin@oracle.com, linux-mm@kvack.org
 
-On Fri, Jul 25, 2014 at 12:59:05PM -0400, Dan Streetman wrote:
-> Hey Seth,
+On Mon, Jul 28, 2014 at 02:00:45PM -0700, akpm@linux-foundation.org wrote:
 > 
-> have a chance to test yet?
-
-Sorry for the delay. Things have been crazy.
-
-Just pulled down -next and tested with a 8-thread kernel build on a
-machine restricted to 512MB of RAM.  Thrashed pretty well but completed
-without any problems. The compressed pool mitigating the swapping for
-the most part.  swapoff at the end and all the statistics were sane.
-
-Looks stable afaict.  Good work! :)
-
-Again sorry about dragging my feet on this.
-
-Thanks,
-Seth
-
+> The patch titled
+>      Subject: mm: don't allow fault_around_bytes to be 0
+> has been added to the -mm tree.  Its filename is
+>      mm-dont-allow-fault_around_bytes-to-be-0.patch
 > 
-> On Wed, Jul 16, 2014 at 6:00 PM, Seth Jennings <sjennings@variantweb.net> wrote:
-> > On Wed, Jul 16, 2014 at 05:05:45PM -0400, Dan Streetman wrote:
-> >> On Wed, Jul 16, 2014 at 4:59 PM, Seth Jennings <sjennings@variantweb.net> wrote:
-> >> > On Mon, Jul 14, 2014 at 02:10:42PM -0400, Dan Streetman wrote:
-> >> >> Andrew, any thoughts on this latest version of the patch set?  Let me
-> >> >> know if I missed anything or you have any other suggestions.
-> >> >>
-> >> >> Seth, did you get a chance to review this and/or test it out?
-> >> >
-> >> > I did have a chance to test it out quickly and didn't run into any
-> >> > issues.  Your patchset is already in linux-next so I'll test more from
-> >> > there.
-> >>
-> >> This latest version has a few changes that Andrew requested, which
-> >> presumably will replace the patches that are currently in -mm and
-> >> -next; can you test with these patches instead of (or in addition to)
-> >> what's in -next?
-> >
-> > Looks like Andrew just did the legwork for me to get the new patches
-> > into mmotm.  When the hit there (tomorrow?), I'll put it down and test
-> > with that.
-> >
-> > Thanks,
-> > Seth
-> >
-> >>
-> >> >
-> >> > Seth
-> >> >
-> >> >>
-> >> >>
-> >> >>
-> >> >> On Wed, Jul 2, 2014 at 5:45 PM, Dan Streetman <ddstreet@ieee.org> wrote:
-> >> >> > In order to allow zswap users to choose between zbud and zsmalloc for
-> >> >> > the compressed storage pool, this patch set adds a new api "zpool" that
-> >> >> > provides an interface to both zbud and zsmalloc.  This does not include
-> >> >> > implementing shrinking in zsmalloc, which will be sent separately.
-> >> >> >
-> >> >> > I believe Seth originally was using zsmalloc for swap, but there were
-> >> >> > concerns about how significant the impact of shrinking zsmalloc would
-> >> >> > be when zswap had to start reclaiming pages.  That still may be an
-> >> >> > issue, but this at least allows users to choose themselves whether
-> >> >> > they want a lower-density or higher-density compressed storage medium.
-> >> >> > At least for situations where zswap reclaim is never or rarely reached,
-> >> >> > it probably makes sense to use the higher density of zsmalloc.
-> >> >> >
-> >> >> > Note this patch set does not change zram to use zpool, although that
-> >> >> > change should be possible as well.
-> >> >> >
-> >> >> > ---
-> >> >> > Changes since v4 : https://lkml.org/lkml/2014/6/2/711
-> >> >> >   -omit first patch, that removed gfp_t param from zpool_malloc()
-> >> >> >   -move function doc from zpool.h to zpool.c
-> >> >> >   -move module usage refcounting into patch that adds zpool
-> >> >> >   -add extra refcounting to prevent driver unregister if in use
-> >> >> >   -add doc clarifying concurrency usage
-> >> >> >   -make zbud/zsmalloc zpool functions static
-> >> >> >   -typo corrections
-> >> >> >
-> >> >> > Changes since v3 : https://lkml.org/lkml/2014/5/24/130
-> >> >> >   -In zpool_shrink() use # pages instead of # bytes
-> >> >> >   -Add reclaimed param to zpool_shrink() to indicate to caller
-> >> >> >    # pages actually reclaimed
-> >> >> >   -move module usage counting to zpool, from zbud/zsmalloc
-> >> >> >   -update zbud_zpool_shrink() to call zbud_reclaim_page() in a
-> >> >> >    loop until requested # pages have been reclaimed (or error)
-> >> >> >
-> >> >> > Changes since v2 : https://lkml.org/lkml/2014/5/7/927
-> >> >> >   -Change zpool to use driver registration instead of hardcoding
-> >> >> >    implementations
-> >> >> >   -Add module use counting in zbud/zsmalloc
-> >> >> >
-> >> >> > Changes since v1 https://lkml.org/lkml/2014/4/19/97
-> >> >> >  -remove zsmalloc shrinking
-> >> >> >  -change zbud size param type from unsigned int to size_t
-> >> >> >  -remove zpool fallback creation
-> >> >> >  -zswap manually falls back to zbud if specified type fails
-> >> >> >
-> >> >> >
-> >> >> > Dan Streetman (4):
-> >> >> >   mm/zbud: change zbud_alloc size type to size_t
-> >> >> >   mm/zpool: implement common zpool api to zbud/zsmalloc
-> >> >> >   mm/zpool: zbud/zsmalloc implement zpool
-> >> >> >   mm/zpool: update zswap to use zpool
-> >> >> >
-> >> >> >  include/linux/zbud.h  |   2 +-
-> >> >> >  include/linux/zpool.h | 106 +++++++++++++++
-> >> >> >  mm/Kconfig            |  43 +++---
-> >> >> >  mm/Makefile           |   1 +
-> >> >> >  mm/zbud.c             |  98 +++++++++++++-
-> >> >> >  mm/zpool.c            | 364 ++++++++++++++++++++++++++++++++++++++++++++++++++
-> >> >> >  mm/zsmalloc.c         |  84 ++++++++++++
-> >> >> >  mm/zswap.c            |  75 ++++++-----
-> >> >> >  8 files changed, 722 insertions(+), 51 deletions(-)
-> >> >> >  create mode 100644 include/linux/zpool.h
-> >> >> >  create mode 100644 mm/zpool.c
-> >> >> >
-> >> >> > --
-> >> >> > 1.8.3.1
-> >> >> >
+> This patch should soon appear at
+>     http://ozlabs.org/~akpm/mmots/broken-out/mm-dont-allow-fault_around_bytes-to-be-0.patch
+> and later at
+>     http://ozlabs.org/~akpm/mmotm/broken-out/mm-dont-allow-fault_around_bytes-to-be-0.patch
+> 
+> Before you just go and hit "reply", please:
+>    a) Consider who else should be cc'ed
+>    b) Prefer to cc a suitable mailing list as well
+>    c) Ideally: find the original patch on the mailing list and do a
+>       reply-to-all to that, adding suitable additional cc's
+> 
+> *** Remember to use Documentation/SubmitChecklist when testing your code ***
+> 
+> The -mm tree is included into linux-next and is updated
+> there every 3-4 working days
+> 
+> ------------------------------------------------------
+> From: Andrey Ryabinin <a.ryabinin@samsung.com>
+> Subject: mm: don't allow fault_around_bytes to be 0
+> 
+> Sasha Levin triggered use-after-free when fuzzing using trinity and the
+> KASAN patchset:
+> 
+> 	AddressSanitizer: use after free in do_read_fault.isra.40+0x3c2/0x510 at addr ffff88048a733110
+> 	page:ffffea001229ccc0 count:0 mapcount:0 mapping:          (null) index:0x0
+> 	page flags: 0xafffff80008000(tail)
+> 	page dumped because: kasan error
+> 	CPU: 6 PID: 9262 Comm: trinity-c104 Not tainted 3.16.0-rc6-next-20140723-sasha-00047-g289342b-dirty #929
+> 	 00000000000000fb 0000000000000000 ffffea001229ccc0 ffff88038ac0fb78
+> 	 ffffffffa5e40903 ffff88038ac0fc48 ffff88038ac0fc38 ffffffffa142acfc
+> 	 0000000000000001 ffff880509ff5aa8 ffff88038ac10038 ffff88038ac0fbb0
+> 	Call Trace:
+> 	dump_stack (lib/dump_stack.c:52)
+> 	kasan_report_error (mm/kasan/report.c:98 mm/kasan/report.c:166)
+> 	? debug_smp_processor_id (lib/smp_processor_id.c:57)
+> 	? preempt_count_sub (kernel/sched/core.c:2606)
+> 	? put_lock_stats.isra.13 (./arch/x86/include/asm/preempt.h:98 kernel/locking/lockdep.c:254)
+> 	? do_read_fault.isra.40 (mm/memory.c:2784 mm/memory.c:2849 mm/memory.c:2898)
+> 	__asan_load8 (mm/kasan/kasan.c:364)
+> 	? do_read_fault.isra.40 (mm/memory.c:2864 mm/memory.c:2898)
+> 	do_read_fault.isra.40 (mm/memory.c:2864 mm/memory.c:2898)
+> 	? _raw_spin_unlock (./arch/x86/include/asm/preempt.h:98 include/linux/spinlock_api_smp.h:152 kernel/locking/spinlock.c:183)
+> 	? __pte_alloc (mm/memory.c:598)
+> 	handle_mm_fault (mm/memory.c:3092 mm/memory.c:3225 mm/memory.c:3345 mm/memory.c:3374)
+> 	? pud_huge (./arch/x86/include/asm/paravirt.h:611 arch/x86/mm/hugetlbpage.c:76)
+> 	__get_user_pages (mm/gup.c:286 mm/gup.c:478)
+> 	__mlock_vma_pages_range (mm/mlock.c:262)
+> 	__mm_populate (mm/mlock.c:710)
+> 	SyS_remap_file_pages (mm/mmap.c:2653 mm/mmap.c:2593)
+> 	tracesys (arch/x86/kernel/entry_64.S:541)
+> 	Read of size 8 by thread T9262:
+> 	Memory state around the buggy address:
+> 	 ffff88048a732e80: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> 	 ffff88048a732f00: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> 	 ffff88048a732f80: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> 	 ffff88048a733000: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> 	 ffff88048a733080: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> 	>ffff88048a733100: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> 	                         ^
+> 	 ffff88048a733180: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> 	 ffff88048a733200: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> 	 ffff88048a733280: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> 	 ffff88048a733300: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> 	 ffff88048a733380: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> 
+> It looks like that pte pointer is invalid in do_fault_around().
+> This could happen if fault_around_bytes is set to 0.
+> fault_around_pages() and fault_around_mask() calls rounddown_pow_of_to(fault_around_bytes)
+> The result of rounddown_pow_of_to is undefined if parameter == 0
+> (in my environment it returns 0x8000000000000000).
+> 
+> One way to fix this would be to return 0 from fault_around_pages() if fault_around_bytes == 0,
+> however this would add extra code on fault path.
+> 
+> So let's just forbid to set fault_around_bytes to zero.
+> Fault around is not used if fault_around_pages() <= 1, so if anyone doesn't want to use
+> it, fault_around_bytes could be set to any value in range [1, 2*PAGE_SIZE - 1]
+> instead of 0.
+> 
+> Fixes: a9b0f861("mm: nominate faultaround area in bytes rather than page order")
+> Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
+> Reported-by: Sasha Levin <sasha.levin@oracle.com>
+> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Dave Jones <davej@redhat.com>
+> Cc: Konstantin Khlebnikov <koct9i@gmail.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: <stable@vger.kernel.org>	[3.15.x]
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  mm/memory.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff -puN mm/memory.c~mm-dont-allow-fault_around_bytes-to-be-0 mm/memory.c
+> --- a/mm/memory.c~mm-dont-allow-fault_around_bytes-to-be-0
+> +++ a/mm/memory.c
+> @@ -2784,7 +2784,7 @@ static int fault_around_bytes_get(void *
+>  
+>  static int fault_around_bytes_set(void *data, u64 val)
+>  {
+> -	if (val / PAGE_SIZE > PTRS_PER_PTE)
+> +	if (!val || val / PAGE_SIZE > PTRS_PER_PTE)
+>  		return -EINVAL;
+>  	fault_around_bytes = val;
+>  	return 0;
+
+Andrew, why did you decide to take this patch? Other patch by Andrey looks
+better.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
