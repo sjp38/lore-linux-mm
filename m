@@ -1,99 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id B5B506B0036
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 09:26:51 -0400 (EDT)
-Received: by mail-we0-f173.google.com with SMTP id q58so7439395wes.32
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 06:26:48 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.232])
-        by mx.google.com with ESMTP id g18si13589883wiv.106.2014.07.28.06.26.13
-        for <linux-mm@kvack.org>;
-        Mon, 28 Jul 2014 06:26:13 -0700 (PDT)
-Date: Mon, 28 Jul 2014 16:25:58 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v8 05/22] Add vm_replace_mixed()
-Message-ID: <20140728132558.GA967@node.dhcp.inet.fi>
-References: <cover.1406058387.git.matthew.r.wilcox@intel.com>
- <b1052af08b49965fd0e6b87b6733b89294c8cc1e.1406058387.git.matthew.r.wilcox@intel.com>
- <20140723114540.GD10317@node.dhcp.inet.fi>
- <20140723135221.GA6754@linux.intel.com>
- <20140723142048.GA11963@node.dhcp.inet.fi>
- <20140723142745.GD6754@linux.intel.com>
- <20140723155500.GA12790@node.dhcp.inet.fi>
- <20140725194450.GJ6754@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140725194450.GJ6754@linux.intel.com>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 35A6C6B0036
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 09:30:49 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id et14so10408448pad.23
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 06:30:48 -0700 (PDT)
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+        by mx.google.com with ESMTPS id ag4si17902214pac.77.2014.07.28.06.30.48
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 28 Jul 2014 06:30:48 -0700 (PDT)
+Received: by mail-pd0-f182.google.com with SMTP id fp1so9986045pdb.27
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 06:30:47 -0700 (PDT)
+From: Grant Likely <grant.likely@linaro.org>
+Subject: Re: [RFC Patch V1 22/30] mm, of: Use cpu_to_mem()/numa_mem_id() to
+ support memoryless node
+In-Reply-To: <20140721175241.GF4156@linux.vnet.ibm.com>
+References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
+	<1405064267-11678-23-git-send-email-jiang.liu@linux.intel.com>
+	<20140721175241.GF4156@linux.vnet.ibm.com>
+Date: Mon, 28 Jul 2014 07:30:40 -0600
+Message-Id: <20140728133040.854F5C4095E@trevor.secretlab.ca>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Jiang Liu <jiang.liu@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Rob Herring <robh+dt@kernel.org>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org, devicetree@vger.kernel.org
 
-On Fri, Jul 25, 2014 at 03:44:50PM -0400, Matthew Wilcox wrote:
-> On Wed, Jul 23, 2014 at 06:55:00PM +0300, Kirill A. Shutemov wrote:
-> > >         update_hiwater_rss(mm);
+On Mon, 21 Jul 2014 10:52:41 -0700, Nishanth Aravamudan <nacc@linux.vnet.ibm.com> wrote:
+> On 11.07.2014 [15:37:39 +0800], Jiang Liu wrote:
+> > When CONFIG_HAVE_MEMORYLESS_NODES is enabled, cpu_to_node()/numa_node_id()
+> > may return a node without memory, and later cause system failure/panic
+> > when calling kmalloc_node() and friends with returned node id.
+> > So use cpu_to_mem()/numa_mem_id() instead to get the nearest node with
+> > memory for the/current cpu.
 > > 
-> > No: you cannot end up with lower rss after replace, iiuc.
+> > If CONFIG_HAVE_MEMORYLESS_NODES is disabled, cpu_to_mem()/numa_mem_id()
+> > is the same as cpu_to_node()/numa_node_id().
+> > 
+> > Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
+> > ---
+> >  drivers/of/base.c |    2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > 
+> > diff --git a/drivers/of/base.c b/drivers/of/base.c
+> > index b9864806e9b8..40d4772973ad 100644
+> > --- a/drivers/of/base.c
+> > +++ b/drivers/of/base.c
+> > @@ -85,7 +85,7 @@ EXPORT_SYMBOL(of_n_size_cells);
+> >  #ifdef CONFIG_NUMA
+> >  int __weak of_node_to_nid(struct device_node *np)
+> >  {
+> > -	return numa_node_id();
+> > +	return numa_mem_id();
+> >  }
+> >  #endif
 > 
-> Actually, you can ... when we replace a real page with a PFN, our rss
-> decreases.
+> Um, NAK. of_node_to_nid() returns the NUMA node ID for a given device
+> tree node. The default should be the physically local NUMA node, not the
+> nearest memory-containing node.
 
-Okay.
+That description doesn't match the code. This patch only changes the
+default implementation of of_node_to_nid() which doesn't take the device
+node into account *at all* when returning a node ID. Just look at the
+diff.
 
-> > Do you mean you pointed to new file all the time? O_CREAT doesn't truncate
-> > file if it exists, iirc.
+I think this patch is correct, and it doesn't affect the override
+versions provided by powerpc and sparc.
+
+g.
+
 > 
-> It was pointing to a new file.  Still not sure why that one failed to trigger
-> the problem.  The slightly modified version attached triggered the problem
-> *just fine* :-)
+> I think the general direction of this patchset is good -- what NUMA
+> information do we actually are about at each callsite. But the execution
+> is blind and doesn't consider at all what the code is actually doing.
+> The changelogs are all identical and don't actually provide any
+> information about what errors this (or any) specific patch are
+> resolving.
 > 
-> I've attached all the patches in my tree so far.  For the v9 patch kit,
-> I'll keep patch 3 as a separate patch, but roll patches 1, 2 and 4 into
-> other patches.
+> Thanks,
+> Nish
 > 
-> I am seeing something odd though.  When I run double-map with debugging
-> printks inserted in strategic spots in the kernel, I see four calls to
-> do_dax_fault().  The first two, as expected, are the loads from the two
-> mapped addresses.  The third is via mkwrite, but then the fourth time
-> I get a regular page fault for write, and I don't understand why I get it.
-> 
-> Any ideas?
-
-unmap_mapping_range() clears pte you've just set by vm_replace_mixed() on
-third fault.
-
-And locking looks wrong: it seems you need to hold i_mmap_mutex while
-replacing hole page with pfn. Your VM_BUG_ON() in zap_pte_single()
-triggers on my setup.
-
-> +static void zap_pte_single(struct vm_area_struct *vma, pte_t *pte,
-> +				unsigned long addr)
-> +{
-> +	struct mm_struct *mm = vma->vm_mm;
-> +	int force_flush = 0;
-> +	int rss[NR_MM_COUNTERS];
-> +
-> +	VM_BUG_ON(!mutex_is_locked(&vma->vm_file->f_mapping->i_mmap_mutex));
-
-It's wrong place for VM_BUG_ON(): zap_pte_single() on anon mapping should
-work fine)
-
-> +
-> +	init_rss_vec(rss);
-
-Vector to commit single update to mm counters? What about inline counters
-update for rss == NULL case?
-
-> +	update_hiwater_rss(mm);
-> +	flush_cache_page(vma, addr, pte_pfn(*pte));
-> +	zap_pte(NULL, vma, pte, addr, NULL, rss, &force_flush);
-> +	flush_tlb_page(vma, addr);
-> +	add_mm_rss_vec(mm, rss);
-> +}
-> +
-
--- 
- Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
