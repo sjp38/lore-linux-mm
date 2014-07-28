@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
-	by kanga.kvack.org (Postfix) with ESMTP id A07066B0036
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 18:55:27 -0400 (EDT)
-Received: by mail-ig0-f174.google.com with SMTP id c1so4488795igq.1
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 15:55:27 -0700 (PDT)
-Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com [2607:f8b0:4001:c03::22b])
-        by mx.google.com with ESMTPS id zb10si42421469icb.82.2014.07.28.15.55.25
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id D52956B0036
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 19:02:34 -0400 (EDT)
+Received: by mail-ig0-f172.google.com with SMTP id h15so4496696igd.5
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 16:02:34 -0700 (PDT)
+Received: from mail-ig0-x230.google.com (mail-ig0-x230.google.com [2607:f8b0:4001:c05::230])
+        by mx.google.com with ESMTPS id jr8si44444790icc.62.2014.07.28.16.02.33
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 28 Jul 2014 15:55:25 -0700 (PDT)
-Received: by mail-ie0-f171.google.com with SMTP id at1so7514373iec.2
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 15:55:25 -0700 (PDT)
-Date: Mon, 28 Jul 2014 15:55:22 -0700 (PDT)
+        Mon, 28 Jul 2014 16:02:34 -0700 (PDT)
+Received: by mail-ig0-f176.google.com with SMTP id hn18so4490325igb.3
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 16:02:33 -0700 (PDT)
+Date: Mon, 28 Jul 2014 16:02:31 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 1/3] mm/hugetlb: replace parameters of
- follow_huge_pmd/pud()
-In-Reply-To: <1406570911-28133-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Message-ID: <alpine.DEB.2.02.1407281555100.8998@chino.kir.corp.google.com>
-References: <1406570911-28133-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 2/3] mm/hugetlb: take refcount under page table lock in
+ follow_huge_pmd()
+In-Reply-To: <1406570911-28133-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Message-ID: <alpine.DEB.2.02.1407281602050.8998@chino.kir.corp.google.com>
+References: <1406570911-28133-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1406570911-28133-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -27,13 +27,14 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, 
 
 On Mon, 28 Jul 2014, Naoya Horiguchi wrote:
 
-> Currently follow_huge_pmd() and follow_huge_pud() don't use the parameter
-> mm or write. So let's change these to vma and flags as a preparation for
-> the next patch. No behavioral change.
+> We have a race condition between move_pages() and freeing hugepages,
+> where move_pages() calls follow_page(FOLL_GET) for hugepages internally
+> and tries to get its refcount without preventing concurrent freeing.
+> This race crashes the kernel, so this patch fixes it by moving FOLL_GET
+> code for hugepages into follow_huge_pmd() with taking the page table lock.
 > 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Acked-by: David Rientjes <rientjes@google.com>
+What about CONFIG_ARCH_WANT_GENERAL_HUGETLB=n configs?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
