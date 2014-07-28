@@ -1,84 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 35A6C6B0036
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 09:30:49 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id et14so10408448pad.23
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 06:30:48 -0700 (PDT)
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-        by mx.google.com with ESMTPS id ag4si17902214pac.77.2014.07.28.06.30.48
+Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
+	by kanga.kvack.org (Postfix) with ESMTP id A31C46B0036
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 10:04:29 -0400 (EDT)
+Received: by mail-we0-f172.google.com with SMTP id x48so7452055wes.3
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 07:04:27 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id bz3si34363995wjc.41.2014.07.28.07.03.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 28 Jul 2014 06:30:48 -0700 (PDT)
-Received: by mail-pd0-f182.google.com with SMTP id fp1so9986045pdb.27
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 06:30:47 -0700 (PDT)
-From: Grant Likely <grant.likely@linaro.org>
-Subject: Re: [RFC Patch V1 22/30] mm, of: Use cpu_to_mem()/numa_mem_id() to
- support memoryless node
-In-Reply-To: <20140721175241.GF4156@linux.vnet.ibm.com>
-References: <1405064267-11678-1-git-send-email-jiang.liu@linux.intel.com>
-	<1405064267-11678-23-git-send-email-jiang.liu@linux.intel.com>
-	<20140721175241.GF4156@linux.vnet.ibm.com>
-Date: Mon, 28 Jul 2014 07:30:40 -0600
-Message-Id: <20140728133040.854F5C4095E@trevor.secretlab.ca>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 28 Jul 2014 07:03:55 -0700 (PDT)
+Date: Mon, 28 Jul 2014 10:01:57 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: fix direct reclaim writeback regression
+Message-ID: <20140728140157.GM1725@cmpxchg.org>
+References: <alpine.LSU.2.11.1407261248140.13796@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1407261248140.13796@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Jiang Liu <jiang.liu@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Mike Galbraith <umgwanakikbuti@gmail.com>, Peter Zijlstra <peterz@infradead.org>, "Rafael J . Wysocki" <rafael.j.wysocki@intel.com>, Rob Herring <robh+dt@kernel.org>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-hotplug@vger.kernel.org, linux-kernel@vger.kernel.org, devicetree@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Dave Jones <davej@redhat.com>, Dave Chinner <david@fromorbit.com>, xfs@oss.sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 21 Jul 2014 10:52:41 -0700, Nishanth Aravamudan <nacc@linux.vnet.ibm.com> wrote:
-> On 11.07.2014 [15:37:39 +0800], Jiang Liu wrote:
-> > When CONFIG_HAVE_MEMORYLESS_NODES is enabled, cpu_to_node()/numa_node_id()
-> > may return a node without memory, and later cause system failure/panic
-> > when calling kmalloc_node() and friends with returned node id.
-> > So use cpu_to_mem()/numa_mem_id() instead to get the nearest node with
-> > memory for the/current cpu.
-> > 
-> > If CONFIG_HAVE_MEMORYLESS_NODES is disabled, cpu_to_mem()/numa_mem_id()
-> > is the same as cpu_to_node()/numa_node_id().
-> > 
-> > Signed-off-by: Jiang Liu <jiang.liu@linux.intel.com>
-> > ---
-> >  drivers/of/base.c |    2 +-
-> >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > 
-> > diff --git a/drivers/of/base.c b/drivers/of/base.c
-> > index b9864806e9b8..40d4772973ad 100644
-> > --- a/drivers/of/base.c
-> > +++ b/drivers/of/base.c
-> > @@ -85,7 +85,7 @@ EXPORT_SYMBOL(of_n_size_cells);
-> >  #ifdef CONFIG_NUMA
-> >  int __weak of_node_to_nid(struct device_node *np)
-> >  {
-> > -	return numa_node_id();
-> > +	return numa_mem_id();
-> >  }
-> >  #endif
+On Sat, Jul 26, 2014 at 12:58:23PM -0700, Hugh Dickins wrote:
+> Shortly before 3.16-rc1, Dave Jones reported:
 > 
-> Um, NAK. of_node_to_nid() returns the NUMA node ID for a given device
-> tree node. The default should be the physically local NUMA node, not the
-> nearest memory-containing node.
-
-That description doesn't match the code. This patch only changes the
-default implementation of of_node_to_nid() which doesn't take the device
-node into account *at all* when returning a node ID. Just look at the
-diff.
-
-I think this patch is correct, and it doesn't affect the override
-versions provided by powerpc and sparc.
-
-g.
-
+> WARNING: CPU: 3 PID: 19721 at fs/xfs/xfs_aops.c:971
+>          xfs_vm_writepage+0x5ce/0x630 [xfs]()
+> CPU: 3 PID: 19721 Comm: trinity-c61 Not tainted 3.15.0+ #3
+> Call Trace:
+>  [<ffffffffc023068e>] xfs_vm_writepage+0x5ce/0x630 [xfs]
+>  [<ffffffff8316f759>] shrink_page_list+0x8f9/0xb90
+>  [<ffffffff83170123>] shrink_inactive_list+0x253/0x510
+>  [<ffffffff83170c93>] shrink_lruvec+0x563/0x6c0
+>  [<ffffffff83170e2b>] shrink_zone+0x3b/0x100
+>  [<ffffffff831710e1>] shrink_zones+0x1f1/0x3c0
+>  [<ffffffff83171414>] try_to_free_pages+0x164/0x380
+>  [<ffffffff83163e52>] __alloc_pages_nodemask+0x822/0xc90
+>  [<ffffffff831abeff>] alloc_pages_vma+0xaf/0x1c0
+>  [<ffffffff8318a931>] handle_mm_fault+0xa31/0xc50
+> etc.
 > 
-> I think the general direction of this patchset is good -- what NUMA
-> information do we actually are about at each callsite. But the execution
-> is blind and doesn't consider at all what the code is actually doing.
-> The changelogs are all identical and don't actually provide any
-> information about what errors this (or any) specific patch are
-> resolving.
+>  970   if (WARN_ON_ONCE((current->flags & (PF_MEMALLOC|PF_KSWAPD)) ==
+>  971                   PF_MEMALLOC))
 > 
-> Thanks,
-> Nish
+> I did not respond at the time, because a glance at the PageDirty block
+> in shrink_page_list() quickly shows that this is impossible: we don't do
+> writeback on file pages (other than tmpfs) from direct reclaim nowadays.
+> Dave was hallucinating, but it would have been disrespectful to say so.
 > 
+> However, my own /var/log/messages now shows similar complaints
+> WARNING: CPU: 1 PID: 28814 at fs/ext4/inode.c:1881 ext4_writepage+0xa7/0x38b()
+> WARNING: CPU: 0 PID: 27347 at fs/ext4/inode.c:1764 ext4_writepage+0xa7/0x38b()
+> from stressing some mmotm trees during July.
+> 
+> Could a dirty xfs or ext4 file page somehow get marked PageSwapBacked,
+> so fail shrink_page_list()'s page_is_file_cache() test, and so proceed
+> to mapping->a_ops->writepage()?
+> 
+> Yes, 3.16-rc1's 68711a746345 ("mm, migration: add destination page
+> freeing callback") has provided such a way to compaction: if migrating
+> a SwapBacked page fails, its newpage may be put back on the list for
+> later use with PageSwapBacked still set, and nothing will clear it.
+>
+> Whether that can do anything worse than issue WARN_ON_ONCEs, and get
+> some statistics wrong, is unclear: easier to fix than to think through
+> the consequences.
+> 
+> Fixing it here, before the put_new_page(), addresses the bug directly,
+> but is probably the worst place to fix it.  Page migration is doing too
+> many parts of the job on too many levels: fixing it in move_to_new_page()
+> to complement its SetPageSwapBacked would be preferable, except why is it
+> (and newpage->mapping and newpage->index) done there, rather than down in
+> migrate_page_move_mapping(), once we are sure of success?  Not a cleanup
+> to get into right now, especially not with memcg cleanups coming in 3.17.
+
+That needs verification that no ->migratepage() expects mapping
+(working PageAnon()) and index to be set up on newpage.
+
+The freelist putback looks quite fragile, we should probably add
+something like free_pages_prepare() / free_page_check() in there.
+
+> Reported-by: Dave Jones <davej@redhat.com>
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
