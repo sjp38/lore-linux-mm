@@ -1,48 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 690366B003B
-	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 07:33:54 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id eu11so12252056pac.32
-        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 04:33:54 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id py12si20888204pab.17.2014.07.29.04.33.53
-        for <linux-mm@kvack.org>;
-        Tue, 29 Jul 2014 04:33:53 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 2/2] mm: mark fault_around_bytes __read_mostly
-Date: Tue, 29 Jul 2014 14:33:29 +0300
-Message-Id: <1406633609-17586-3-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1406633609-17586-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1406633609-17586-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 70D426B0038
+	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 07:38:25 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id bj1so12277439pad.11
+        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 04:38:25 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id ty7si6598228pbc.77.2014.07.29.04.38.21
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 29 Jul 2014 04:38:24 -0700 (PDT)
+Message-ID: <53D786EE.3070800@huawei.com>
+Date: Tue, 29 Jul 2014 19:35:10 +0800
+From: Zhang Zhen <zhenzhang.zhang@huawei.com>
+MIME-Version: 1.0
+Subject: [PATCH v3] memory hotplug: update the variables after memory removed
+References: <1406633598-27910-1-git-send-email-zhenzhang.zhang@huawei.com>
+In-Reply-To: <1406633598-27910-1-git-send-email-zhenzhang.zhang@huawei.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, Andrey Ryabinin <a.ryabinin@samsung.com>, Sasha Levin <sasha.levin@oracle.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: tglx@linutronix.de, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>
+Cc: wangnan0@huawei.com, x86@kernel.org, linux-kernel@vger.kernel.org, Linux MM <linux-mm@kvack.org>
 
-fault_around_bytes can only be changed via debugfs. Let's mark it
-read-mostly.
+Commit ea0854170c95 ("memory hotplug: fix a bug on /dev/mem
+for 64-bit kernels") added a fuction update_end_of_memory_vars()
+to update high_memory, max_pfn and max_low_pfn.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Here we may access wrong memory via /dev/mem after memory remove
+without this patch.
+I modified the function and call it in arch_remove_memory() to update
+these variables too.
+
+Change v1->v2:
+- according to Dave Hansen and David Rientjes's suggestions modified
+  update_end_of_memory_vars().
+change v2->v3:
+- remove the extra space before the function identifier of
+  update_end_of_memory_vars().
+- remove the end_pfn and use start_pfn + nr_pages in the conditional.
+
+Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
 ---
- mm/memory.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ arch/x86/mm/init_64.c | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 2ce07dc9b52b..ed3073d6a0e0 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2768,7 +2768,8 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
- 	update_mmu_cache(vma, address, pte);
- }
- 
--static unsigned long fault_around_bytes = rounddown_pow_of_two(65536);
-+static unsigned long fault_around_bytes __read_mostly =
-+	rounddown_pow_of_two(65536);
- 
- static inline unsigned long fault_around_pages(void)
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index df1a992..d16368e 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -673,15 +673,11 @@ void __init paging_init(void)
+  * After memory hotplug the variables max_pfn, max_low_pfn and high_memory need
+  * updating.
+  */
+-static void  update_end_of_memory_vars(u64 start, u64 size)
++static void update_end_of_memory_vars(u64 end_pfn)
  {
+-	unsigned long end_pfn = PFN_UP(start + size);
+-
+-	if (end_pfn > max_pfn) {
+-		max_pfn = end_pfn;
+-		max_low_pfn = end_pfn;
+-		high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
+-	}
++	max_pfn = end_pfn;
++	max_low_pfn = end_pfn;
++	high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
+ }
+
+ /*
+@@ -694,6 +690,7 @@ int arch_add_memory(int nid, u64 start, u64 size)
+ 	struct zone *zone = pgdat->node_zones + ZONE_NORMAL;
+ 	unsigned long start_pfn = start >> PAGE_SHIFT;
+ 	unsigned long nr_pages = size >> PAGE_SHIFT;
++	unsigned long end_pfn;
+ 	int ret;
+
+ 	init_memory_mapping(start, start + size);
+@@ -702,7 +699,9 @@ int arch_add_memory(int nid, u64 start, u64 size)
+ 	WARN_ON_ONCE(ret);
+
+ 	/* update max_pfn, max_low_pfn and high_memory */
+-	update_end_of_memory_vars(start, size);
++	end_pfn = start_pfn + nr_pages;
++	if (end_pfn > max_pfn)
++		update_end_of_memory_vars(end_pfn);
+
+ 	return ret;
+ }
+@@ -1025,6 +1024,10 @@ int __ref arch_remove_memory(u64 start, u64 size)
+ 	ret = __remove_pages(zone, start_pfn, nr_pages);
+ 	WARN_ON_ONCE(ret);
+
++	/* update max_pfn, max_low_pfn and high_memory */
++	if ((max_pfn >= start_pfn) && (max_pfn < (start_pfn + nr_pages)))
++		update_end_of_memory_vars(start_pfn);
++
+ 	return ret;
+ }
+ #endif
 -- 
-2.0.1
+1.8.1.2
+
+
+.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
