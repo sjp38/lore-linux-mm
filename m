@@ -1,113 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 1842E6B0036
-	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 21:04:50 -0400 (EDT)
-Received: by mail-qg0-f46.google.com with SMTP id z60so9568737qgd.5
-        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 18:04:49 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l7si11471431qad.26.2014.07.28.18.04.48
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Jul 2014 18:04:49 -0700 (PDT)
-Date: Mon, 28 Jul 2014 20:42:46 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH -mm] mm: refactor page index/offset getters
-Message-ID: <20140729004246.GA5822@nhori.redhat.com>
-References: <1404225982-22739-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20140701180739.GA4985@node.dhcp.inet.fi>
- <20140701185021.GA10356@nhori.bos.redhat.com>
- <20140701201540.GA5953@node.dhcp.inet.fi>
- <20140702043057.GA19813@nhori.redhat.com>
- <20140707123923.5e42983d6123ebfd79c8cf4c@linux-foundation.org>
- <20140715164112.GA6055@nhori.bos.redhat.com>
- <20140728202952.GP1725@cmpxchg.org>
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id C9AA56B0036
+	for <linux-mm@kvack.org>; Mon, 28 Jul 2014 21:56:13 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id p10so10800195pdj.22
+        for <linux-mm@kvack.org>; Mon, 28 Jul 2014 18:56:13 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id nb9si9801075pdb.209.2014.07.28.18.56.12
+        for <linux-mm@kvack.org>;
+        Mon, 28 Jul 2014 18:56:12 -0700 (PDT)
+From: "Zhang, Tianfei" <tianfei.zhang@intel.com>
+Subject: RE: [PATCH v8 05/22] Add vm_replace_mixed()
+Date: Tue, 29 Jul 2014 01:55:17 +0000
+Message-ID: <BA6F50564D52C24884F9840E07E32DEC17D74A50@CDSMSX102.ccr.corp.intel.com>
+References: <cover.1406058387.git.matthew.r.wilcox@intel.com>
+ <b1052af08b49965fd0e6b87b6733b89294c8cc1e.1406058387.git.matthew.r.wilcox@intel.com>
+ <20140723114540.GD10317@node.dhcp.inet.fi>
+ <20140723135221.GA6754@linux.intel.com>
+ <20140723142048.GA11963@node.dhcp.inet.fi>
+ <20140723142745.GD6754@linux.intel.com>
+ <20140723155500.GA12790@node.dhcp.inet.fi>
+ <20140725194450.GJ6754@linux.intel.com>
+ <20140728132558.GA967@node.dhcp.inet.fi>
+In-Reply-To: <20140728132558.GA967@node.dhcp.inet.fi>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140728202952.GP1725@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill@shutemov.name>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Matthew Wilcox <willy@linux.intel.com>
+Cc: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Mon, Jul 28, 2014 at 04:29:52PM -0400, Johannes Weiner wrote:
-> On Tue, Jul 15, 2014 at 12:41:12PM -0400, Naoya Horiguchi wrote:
-> > @@ -399,28 +399,24 @@ static inline struct page *read_mapping_page(struct address_space *mapping,
-> >  }
-> >  
-> >  /*
-> > - * Get the offset in PAGE_SIZE.
-> > + * Return the 4kB page offset of the given page.
-> >   * (TODO: hugepage should have ->index in PAGE_SIZE)
-> >   */
-> > -static inline pgoff_t page_to_pgoff(struct page *page)
-> > +static inline pgoff_t page_pgoff(struct page *page)
-> >  {
-> > -	if (unlikely(PageHeadHuge(page)))
-> > -		return page->index << compound_order(page);
-> > -	else
-> > -		return page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-> > +	if (unlikely(PageHuge(page))) {
-> > +		VM_BUG_ON_PAGE(PageTail(page), page);
-> > +		return page_index(page) << compound_order(page);
-> > +	} else
-> > +		return page_index(page) << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-> >  }
-> 
-> I just bisected the VM refusing to swap and triggering OOM kills to
-> this patch, which is likely the same bug you reported a couple days
-> back when you had this patch in your private tree.
 
-Right, thanks.
-And sorry for taking your time for my poor testing.
 
-> Changing page->index to page_index() makes this function return the
-> swap offset rather than the virtual PFN, but rmap uses this to index
-> Into virtual address space.  Thus, swapcache pages can no longer be
-> found from try_to_unmap() and reclaim fails.
+> -----Original Message-----
+> From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On
+> Behalf Of Kirill A. Shutemov
+> Sent: Monday, July 28, 2014 9:26 PM
+> To: Matthew Wilcox
+> Cc: Wilcox, Matthew R; linux-fsdevel@vger.kernel.org; linux-mm@kvack.org;
+> linux-kernel@vger.kernel.org
+> Subject: Re: [PATCH v8 05/22] Add vm_replace_mixed()
+>=20
+> On Fri, Jul 25, 2014 at 03:44:50PM -0400, Matthew Wilcox wrote:
+> > On Wed, Jul 23, 2014 at 06:55:00PM +0300, Kirill A. Shutemov wrote:
+> > > >         update_hiwater_rss(mm);
+> > >
+> > > No: you cannot end up with lower rss after replace, iiuc.
+> >
+> > Actually, you can ... when we replace a real page with a PFN, our rss
+> > decreases.
+>=20
+> Okay.
+>=20
+> > > Do you mean you pointed to new file all the time? O_CREAT doesn't
+> > > truncate file if it exists, iirc.
+> >
+> > It was pointing to a new file.  Still not sure why that one failed to
+> > trigger the problem.  The slightly modified version attached triggered
+> > the problem *just fine* :-)
+> >
+> > I've attached all the patches in my tree so far.  For the v9 patch
+> > kit, I'll keep patch 3 as a separate patch, but roll patches 1, 2 and
+> > 4 into other patches.
+> >
+> > I am seeing something odd though.  When I run double-map with
+> > debugging printks inserted in strategic spots in the kernel, I see
+> > four calls to do_dax_fault().  The first two, as expected, are the
+> > loads from the two mapped addresses.  The third is via mkwrite, but
+> > then the fourth time I get a regular page fault for write, and I don't
+> understand why I get it.
+> >
+> > Any ideas?
+>=20
+> unmap_mapping_range() clears pte you've just set by vm_replace_mixed() on
+> third fault.
+>=20
+> And locking looks wrong: it seems you need to hold i_mmap_mutex while
+> replacing hole page with pfn. Your VM_BUG_ON() in zap_pte_single() trigge=
+rs
+> on my setup.
+>=20
+> > +static void zap_pte_single(struct vm_area_struct *vma, pte_t *pte,
+> > +				unsigned long addr)
+> > +{
+> > +	struct mm_struct *mm =3D vma->vm_mm;
+> > +	int force_flush =3D 0;
+> > +	int rss[NR_MM_COUNTERS];
+> > +
+> > +
+> 	VM_BUG_ON(!mutex_is_locked(&vma->vm_file->f_mapping->i_mmap_m
+> utex));
+>=20
+> It's wrong place for VM_BUG_ON(): zap_pte_single() on anon mapping should
+> work fine)
 
-I missed the fact that swap code needs both swap offset (stored in
-page->private) and virtual PFN (in page->index), so unifying offset
-getters to a single helper is completely wrong.
+Hi Shutemov:
+1. I am confuse that why insert_page() drop the PageAnon, insert_pfn() dono=
+t drop PageAnon?
 
-> We can't simply change it back to page->index, however, because the
-> swapout path, which requires the swap offset, also uses this function
-> through page_offset().  Virtual address space functions and page cache
-> address space functions can't use the same helpers, and the helpers
-> should likely be named distinctly so that they are not confused and
-> it's clear what is being asked.
+2.=20
+remap_vmalloc_range() -> vm_insert_page()->insert_page() -> inc_mm_counter_=
+fast(mm, MM_FILEPAGES);
 
-OK.
+so, in this scenario, this vmalloc page maybe not sure be a page cache, why=
+ increase the MM_FILEPAGES ?
 
->  Plus, the patch forced every fs using
-> page_offset() to suddenly check PageHuge(), which is a function call.
 
-OK, PageHuge() check should be done only in vm code.
-
-> How about
-> 
-> o page_offset() for use by filesystems, based on page->index
-
-And many drivers code and network code use this, so I shouldn't have
-touched this :(
-
-> o page_virt_pgoff() for use on virtual memory math, based on
->   page->index and respecting PageHuge()
-
-This is what current code does with page_to_pgoff().
-
-> 
-> o page_mapping_pgoff() for use by swapping and when working on
->   mappings that could be swapper_space.
-
-page_file_offset() does this.
-
-So it seems to me OK to just rename them with enough comments.
-
-Thanks,
-Naoya Horiguchi
-
-> o page_mapping_offset() likewise, just in bytes
+>=20
+> > +
+> > +	init_rss_vec(rss);
+>=20
+> Vector to commit single update to mm counters? What about inline counters
+> update for rss =3D=3D NULL case?
+>=20
+> > +	update_hiwater_rss(mm);
+> > +	flush_cache_page(vma, addr, pte_pfn(*pte));
+> > +	zap_pte(NULL, vma, pte, addr, NULL, rss, &force_flush);
+> > +	flush_tlb_page(vma, addr);
+> > +	add_mm_rss_vec(mm, rss);
+> > +}
+> > +
+>=20
+> --
+>  Kirill A. Shutemov
+>=20
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in the body to
+> majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
