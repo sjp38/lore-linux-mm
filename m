@@ -1,36 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 401C56B0036
-	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 13:29:24 -0400 (EDT)
-Received: by mail-wg0-f48.google.com with SMTP id x13so9314270wgg.19
-        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 10:29:22 -0700 (PDT)
-Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com [2a00:1450:400c:c05::229])
-        by mx.google.com with ESMTPS id ng20si21124858wic.7.2014.07.29.10.29.20
+Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id EF0A96B0036
+	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 16:48:07 -0400 (EDT)
+Received: by mail-ie0-f170.google.com with SMTP id rl12so239510iec.29
+        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 13:48:07 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id d7si953303icq.79.2014.07.29.13.48.06
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 29 Jul 2014 10:29:21 -0700 (PDT)
-Received: by mail-wi0-f169.google.com with SMTP id n3so5748503wiv.4
-        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 10:29:20 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1406530260-26078-1-git-send-email-gong.chen@linux.intel.com>
-References: <1406530260-26078-1-git-send-email-gong.chen@linux.intel.com>
-Date: Tue, 29 Jul 2014 10:29:19 -0700
-Message-ID: <CA+8MBbLmLOHKpnvCu2=SUAB8yTupaVxoBP3HNQLLTxOKSHj1xQ@mail.gmail.com>
-Subject: Re: two minor update patches for RAS
-From: Tony Luck <tony.luck@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Jul 2014 13:48:06 -0700 (PDT)
+Date: Tue, 29 Jul 2014 13:48:03 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/7] mmu_notifier: add call_srcu and sync function for
+ listener to delay call and sync.
+Message-Id: <20140729134803.8db34d88eda9209bda6069c7@linux-foundation.org>
+In-Reply-To: <53D7B800.6050700@amd.com>
+References: <1405622809-3797-1-git-send-email-j.glisse@gmail.com>
+	<1405622809-3797-2-git-send-email-j.glisse@gmail.com>
+	<53CD2B43.3090405@amd.com>
+	<53D7B800.6050700@amd.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Chen, Gong" <gong.chen@linux.intel.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Borislav Petkov <bp@alien8.de>, linux-acpi <linux-acpi@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Oded Gabbay <oded.gabbay@amd.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, j.glisse@gmail.com, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>
 
-On Sun, Jul 27, 2014 at 11:50 PM, Chen, Gong <gong.chen@linux.intel.com> wrote:
-> [PATCH 1/2] APEI, GHES: Cleanup unnecessary function for lock-less
-> [PATCH 2/2] RAS, HWPOISON: Fix wrong error recovery status
+On Tue, 29 Jul 2014 18:04:32 +0300 Oded Gabbay <oded.gabbay@amd.com> wrote:
 
-both parts:
+> On 21/07/14 18:01, Oded Gabbay wrote:
+> > On 17/07/14 21:46, j.glisse@gmail.com wrote:
+> >> From: Peter Zijlstra <peterz@infradead.org>
+> >>
+> >> New mmu_notifier listener are eager to cleanup there structure after the
+> >> mmu_notifier::release callback. In order to allow this the patch provide
+> >> a function that allows to add a delayed call to the mmu_notifier srcu. It
+> >> also add a function that will call barrier_srcu so those listener can sync
+> >> with mmu_notifier.
+> >
+> > Tested with amdkfd and iommuv2 driver
+> > So,
+> > Tested-by: Oded Gabbay <oded.gabbay@amd.com>
+> 
+> akpm, any chance that only this specific patch from Peter.Z will get in 3.17 ?
+> I must have it for amdkfd (HSA driver). Without it, I can't be in 3.17 either.
 
-Acked-by: Tony Luck <tony.luck@intel.com>
+I can send it in for 3.17-rc1.
+
+Can we get a better changelog please?  "eager to cleanup there
+structure after the mmu_notifier::release callback" is terribly vague
+and brief.  Fully describe the problem then describe the proposed
+solution.  Because others may be able to suggest alternative ways of
+solving that problem, but this text simply doesn't provide enough details for
+them to do so.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
