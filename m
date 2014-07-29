@@ -1,62 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f43.google.com (mail-qa0-f43.google.com [209.85.216.43])
-	by kanga.kvack.org (Postfix) with ESMTP id AC2476B003A
-	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 08:05:31 -0400 (EDT)
-Received: by mail-qa0-f43.google.com with SMTP id w8so9309453qac.30
-        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 05:05:31 -0700 (PDT)
-Received: from mail-qa0-x236.google.com (mail-qa0-x236.google.com [2607:f8b0:400d:c00::236])
-        by mx.google.com with ESMTPS id l74si37430383qgl.76.2014.07.29.05.05.29
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 29 Jul 2014 05:05:29 -0700 (PDT)
-Received: by mail-qa0-f54.google.com with SMTP id k15so9257603qaq.13
-        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 05:05:29 -0700 (PDT)
-Date: Tue, 29 Jul 2014 08:05:25 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: vmstat: On demand vmstat workers V8
-Message-ID: <20140729120525.GA28366@mtj.dyndns.org>
-References: <alpine.DEB.2.11.1407100903130.12483@gentwo.org>
- <53D31101.8000107@oracle.com>
- <alpine.DEB.2.11.1407281353450.15405@gentwo.org>
- <20140729075637.GA19379@twins.programming.kicks-ass.net>
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 14F326B003A
+	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 08:13:03 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id hz1so12257989pad.36
+        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 05:13:02 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
+        by mx.google.com with ESMTP id a1si10484630pdd.251.2014.07.29.05.13.01
+        for <linux-mm@kvack.org>;
+        Tue, 29 Jul 2014 05:13:02 -0700 (PDT)
+Date: Tue, 29 Jul 2014 08:12:59 -0400
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH v7 07/22] Replace the XIP page fault handler with the DAX
+ page fault handler
+Message-ID: <20140729121259.GL6754@linux.intel.com>
+References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
+ <c2e602f401a580c4fac54b9b8f4a6f8dd0ac1071.1395591795.git.matthew.r.wilcox@intel.com>
+ <20140409102758.GM32103@quack.suse.cz>
+ <20140409205111.GG5727@linux.intel.com>
+ <20140409214331.GQ32103@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140729075637.GA19379@twins.programming.kicks-ass.net>
+In-Reply-To: <20140409214331.GQ32103@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Christoph Lameter <cl@gentwo.org>, Sasha Levin <sasha.levin@oracle.com>, akpm@linux-foundation.org, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Jul 29, 2014 at 09:56:37AM +0200, Peter Zijlstra wrote:
-> On Mon, Jul 28, 2014 at 01:55:17PM -0500, Christoph Lameter wrote:
-> > On Fri, 25 Jul 2014, Sasha Levin wrote:
-> > 
-> > > This patch doesn't interact well with my fuzzing setup. I'm seeing
-> > > the following:
-> > >
-> > > [  490.446927] BUG: using __this_cpu_read() in preemptible [00000000] code: kworker/16:1/7368
-> > > [  490.447909] caller is __this_cpu_preempt_check+0x13/0x20
-> > 
-> > __this_cpu_read() from vmstat_update is only called from a kworker that
-> > is bound to a single cpu. A false positive?
+On Wed, Apr 09, 2014 at 11:43:31PM +0200, Jan Kara wrote:
+> So there are three places that can fail after we allocate the block:
+> 1) We race with truncate reducing i_size
+> 2) dax_get_pfn() fails
+> 3) vm_insert_mixed() fails
 > 
-> kworkers are never guaranteed to be so, its a 'feature' :/
+> I would guess that 2) can fail only if the HW has problems and leaking
+> block in that case could be acceptable (please correct me if I'm wrong).
+> 3) shouldn't fail because of ENOMEM because fault has already allocated all
+> the page tables and EBUSY should be handled as well. So the only failure we
+> have to care about is 1). And we could move ->get_block() call under
+> i_mmap_mutex after the i_size check.  Lock ordering should be fine because
+> i_mmap_mutex ranks above page lock under which we do block mapping in
+> standard ->page_mkwrite callbacks. The only (big) drawback is that
+> i_mmap_mutex will now be held for much longer time and thus the contention
+> would be much higher. But hopefully once we resolve our problems with
+> mmap_sem and introduce mapping range lock we could scale reasonably.
 
-It's because we don't distinguish work items which are per-cpu for
-optimization and per-cpu for correctness and can't automatically flush
-/ cancel / block per-cpu work items when a cpu goes down.  I like the
-idea of distingushing them but it's gonna take a lot of auditing.
+Lockdep barfs on holding i_mmap_mutex while calling ext4's ->get_block.
 
-Any work item usage which requires per-cpu for correctness should
-implement cpu down hook to flush in-flight work items and block
-further issuance.  This hasn't changed from the beginning and was
-necessary even before cmwq.
+Path 1:
 
-Thanks.
+ext4_fallocate ->
+ ext4_punch_hole ->
+  ext4_inode_attach_jinode() -> ... ->
+    lock_map_acquire(&handle->h_lockdep_map);
+  truncate_pagecache_range() ->
+   unmap_mapping_range() ->
+    mutex_lock(&mapping->i_mmap_mutex);
 
--- 
-tejun
+Path 2:
+do_dax_fault() ->
+ mutex_lock(&mapping->i_mmap_mutex);
+ ext4_get_block() -> ... ->
+  lock_map_acquire(&handle->h_lockdep_map);
+
+So that idea doesn't work.
+
+We can't exclude truncates by incrementing i_dio_count, because we can't
+take i_mutex in the fault path.
+
+I'm stumped.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
