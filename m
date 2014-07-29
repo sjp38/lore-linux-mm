@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 70D426B0038
-	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 07:38:25 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id bj1so12277439pad.11
-        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 04:38:25 -0700 (PDT)
+Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 06E6B6B0038
+	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 07:43:00 -0400 (EDT)
+Received: by mail-ie0-f174.google.com with SMTP id rp18so8436784iec.33
+        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 04:42:59 -0700 (PDT)
 Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id ty7si6598228pbc.77.2014.07.29.04.38.21
+        by mx.google.com with ESMTPS id wv10si50377011oeb.97.2014.07.29.04.42.52
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 29 Jul 2014 04:38:24 -0700 (PDT)
-Message-ID: <53D786EE.3070800@huawei.com>
-Date: Tue, 29 Jul 2014 19:35:10 +0800
+        Tue, 29 Jul 2014 04:42:59 -0700 (PDT)
+Message-ID: <53D78804.2070701@huawei.com>
+Date: Tue, 29 Jul 2014 19:39:48 +0800
 From: Zhang Zhen <zhenzhang.zhang@huawei.com>
 MIME-Version: 1.0
 Subject: [PATCH v3] memory hotplug: update the variables after memory removed
-References: <1406633598-27910-1-git-send-email-zhenzhang.zhang@huawei.com>
-In-Reply-To: <1406633598-27910-1-git-send-email-zhenzhang.zhang@huawei.com>
+References: <53D786EE.3070800@huawei.com>
+In-Reply-To: <53D786EE.3070800@huawei.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -41,6 +41,7 @@ change v2->v3:
 - remove the end_pfn and use start_pfn + nr_pages in the conditional.
 
 Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
+Acked-by: David Rientjes <rientjes@google.com>
 ---
  arch/x86/mm/init_64.c | 21 ++++++++++++---------
  1 file changed, 12 insertions(+), 9 deletions(-)
@@ -104,6 +105,8 @@ index df1a992..d16368e 100644
 
 
 .
+
+
 
 
 
