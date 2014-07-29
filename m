@@ -1,80 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id C412E6B0035
-	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 10:27:43 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id ft15so11807422pdb.3
-        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 07:27:43 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id f4si10672040pdk.150.2014.07.29.07.27.42
-        for <linux-mm@kvack.org>;
-        Tue, 29 Jul 2014 07:27:42 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <53D7A251.7010509@samsung.com>
-References: <1406633609-17586-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1406633609-17586-2-git-send-email-kirill.shutemov@linux.intel.com>
- <53D7A251.7010509@samsung.com>
-Subject: Re: [PATCH 1/2] mm: close race between do_fault_around() and
- fault_around_bytes_set()
-Content-Transfer-Encoding: 7bit
-Message-Id: <20140729142710.656A9E00A3@blue.fi.intel.com>
-Date: Tue, 29 Jul 2014 17:27:10 +0300 (EEST)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id BA52C6B0035
+	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 11:04:52 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id et14so12482745pad.21
+        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 08:04:52 -0700 (PDT)
+Received: from na01-bl2-obe.outbound.protection.outlook.com (mail-bl2lp0210.outbound.protection.outlook.com. [207.46.163.210])
+        by mx.google.com with ESMTPS id dl5si9837811pbb.173.2014.07.29.08.04.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 29 Jul 2014 08:04:51 -0700 (PDT)
+Message-ID: <53D7B800.6050700@amd.com>
+Date: Tue, 29 Jul 2014 18:04:32 +0300
+From: Oded Gabbay <oded.gabbay@amd.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/7] mmu_notifier: add call_srcu and sync function for
+ listener to delay call and sync.
+References: <1405622809-3797-1-git-send-email-j.glisse@gmail.com>
+ <1405622809-3797-2-git-send-email-j.glisse@gmail.com>
+ <53CD2B43.3090405@amd.com>
+In-Reply-To: <53CD2B43.3090405@amd.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Sasha Levin <sasha.levin@oracle.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: j.glisse@gmail.com, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind
+ Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John
+ Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, =?UTF-8?B?SsOpcsO0bWUgR2xp?= =?UTF-8?B?c3Nl?= <jglisse@redhat.com>
 
-Andrey Ryabinin wrote:
-> On 07/29/14 15:33, Kirill A. Shutemov wrote:
-> > Things can go wrong if fault_around_bytes will be changed under
-> > do_fault_around(): between fault_around_mask() and fault_around_pages().
-> > 
-> > Let's read fault_around_bytes only once during do_fault_around() and
-> > calculate mask based on the reading.
-> > 
-> > Note: fault_around_bytes can only be updated via debug interface. Also
-> > I've tried but was not able to trigger a bad behaviour without the
-> > patch. So I would not consider this patch as urgent.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> >  mm/memory.c | 17 +++++++++++------
-> >  1 file changed, 11 insertions(+), 6 deletions(-)
-> > 
-> > diff --git a/mm/memory.c b/mm/memory.c
-> > index 9d66bc66f338..2ce07dc9b52b 100644
-> > --- a/mm/memory.c
-> > +++ b/mm/memory.c
-> > @@ -2772,12 +2772,12 @@ static unsigned long fault_around_bytes = rounddown_pow_of_two(65536);
-> >  
-> >  static inline unsigned long fault_around_pages(void)
-> >  {
-> > -	return fault_around_bytes >> PAGE_SHIFT;
-> > +	return ACCESS_ONCE(fault_around_bytes) >> PAGE_SHIFT;
-> >  }
-> >  
-> > -static inline unsigned long fault_around_mask(void)
-> > +static inline unsigned long fault_around_mask(unsigned long nr_pages)
-> >  {
-> > -	return ~(fault_around_bytes - 1) & PAGE_MASK;
-> > +	return ~(nr_pages * PAGE_SIZE - 1) & PAGE_MASK;
-> >  }
-> >  
-> >  
-> > @@ -2844,12 +2844,17 @@ late_initcall(fault_around_debugfs);
-> >  static void do_fault_around(struct vm_area_struct *vma, unsigned long address,
-> >  		pte_t *pte, pgoff_t pgoff, unsigned int flags)
-> >  {
-> > -	unsigned long start_addr;
-> > +	unsigned long start_addr, nr_pages;
-> >  	pgoff_t max_pgoff;
-> >  	struct vm_fault vmf;
-> >  	int off;
-> >  
-> > -	start_addr = max(address & fault_around_mask(), vma->vm_start);
-> > +	nr_pages = fault_around_pages();
-> > +	/* race with fault_around_bytes_set() */
-> > +	if (nr_pages <= 1)
-> 
-> unlikely() ?
+On 21/07/14 18:01, Oded Gabbay wrote:
+> On 17/07/14 21:46, j.glisse@gmail.com wrote:
+>> From: Peter Zijlstra <peterz@infradead.org>
+>>
+>> New mmu_notifier listener are eager to cleanup there structure after t=
+he
+>> mmu_notifier::release callback. In order to allow this the patch provi=
+de
+>> a function that allows to add a delayed call to the mmu_notifier srcu.=
+ It
+>> also add a function that will call barrier_srcu so those listener can =
+sync
+>> with mmu_notifier.
+>
+> Tested with amdkfd and iommuv2 driver
+> So,
+> Tested-by: Oded Gabbay <oded.gabbay@amd.com>
 
-Yep.
+akpm, any chance that only this specific patch from Peter.Z will get in 3=
+.17 ?
+I must have it for amdkfd (HSA driver). Without it, I can't be in 3.17 ei=
+ther.
+
+	Oded
+
+>>
+>> Signed-off-by: Peter Zijlstra <peterz@infradead.org>
+>> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>> ---
+>>   include/linux/mmu_notifier.h |  6 ++++++
+>>   mm/mmu_notifier.c            | 40 ++++++++++++++++++++++++++++++++++=
++++++-
+>>   2 files changed, 45 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier=
+.h
+>> index deca874..2728869 100644
+>> --- a/include/linux/mmu_notifier.h
+>> +++ b/include/linux/mmu_notifier.h
+>> @@ -170,6 +170,8 @@ extern int __mmu_notifier_register(struct mmu_noti=
+fier *mn,
+>>                      struct mm_struct *mm);
+>>   extern void mmu_notifier_unregister(struct mmu_notifier *mn,
+>>                       struct mm_struct *mm);
+>> +extern void mmu_notifier_unregister_no_release(struct mmu_notifier *m=
+n,
+>> +                           struct mm_struct *mm);
+>>   extern void __mmu_notifier_mm_destroy(struct mm_struct *mm);
+>>   extern void __mmu_notifier_release(struct mm_struct *mm);
+>>   extern int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
+>> @@ -288,6 +290,10 @@ static inline void mmu_notifier_mm_destroy(struct
+>> mm_struct *mm)
+>>       set_pte_at(___mm, ___address, __ptep, ___pte);            \
+>>   })
+>>
+>> +extern void mmu_notifier_call_srcu(struct rcu_head *rcu,
+>> +                   void (*func)(struct rcu_head *rcu));
+>> +extern void mmu_notifier_synchronize(void);
+>> +
+>>   #else /* CONFIG_MMU_NOTIFIER */
+>>
+>>   static inline void mmu_notifier_release(struct mm_struct *mm)
+>> diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+>> index 41cefdf..950813b 100644
+>> --- a/mm/mmu_notifier.c
+>> +++ b/mm/mmu_notifier.c
+>> @@ -23,6 +23,25 @@
+>>   static struct srcu_struct srcu;
+>>
+>>   /*
+>> + * This function allows mmu_notifier::release callback to delay a cal=
+l to
+>> + * a function that will free appropriate resources. The function must=
+ be
+>> + * quick and must not block.
+>> + */
+>> +void mmu_notifier_call_srcu(struct rcu_head *rcu,
+>> +                void (*func)(struct rcu_head *rcu))
+>> +{
+>> +    call_srcu(&srcu, rcu, func);
+>> +}
+>> +EXPORT_SYMBOL_GPL(mmu_notifier_call_srcu);
+>> +
+>> +void mmu_notifier_synchronize(void)
+>> +{
+>> +    /* Wait for any running method to finish. */
+>> +    srcu_barrier(&srcu);
+>> +}
+>> +EXPORT_SYMBOL_GPL(mmu_notifier_synchronize);
+>> +
+>> +/*
+>>    * This function can't run concurrently against mmu_notifier_registe=
+r
+>>    * because mm->mm_users > 0 during mmu_notifier_register and exit_mm=
+ap
+>>    * runs with mm_users =3D=3D 0. Other tasks may still invoke mmu not=
+ifiers
+>> @@ -53,7 +72,6 @@ void __mmu_notifier_release(struct mm_struct *mm)
+>>            */
+>>           if (mn->ops->release)
+>>               mn->ops->release(mn, mm);
+>> -    srcu_read_unlock(&srcu, id);
+>>
+>>       spin_lock(&mm->mmu_notifier_mm->lock);
+>>       while (unlikely(!hlist_empty(&mm->mmu_notifier_mm->list))) {
+>> @@ -69,6 +87,7 @@ void __mmu_notifier_release(struct mm_struct *mm)
+>>           hlist_del_init_rcu(&mn->hlist);
+>>       }
+>>       spin_unlock(&mm->mmu_notifier_mm->lock);
+>> +    srcu_read_unlock(&srcu, id);
+>>
+>>       /*
+>>        * synchronize_srcu here prevents mmu_notifier_release from retu=
+rning to
+>> @@ -325,6 +344,25 @@ void mmu_notifier_unregister(struct mmu_notifier =
+*mn,
+>> struct mm_struct *mm)
+>>   }
+>>   EXPORT_SYMBOL_GPL(mmu_notifier_unregister);
+>>
+>> +/*
+>> + * Same as mmu_notifier_unregister but no callback and no srcu synchr=
+onization.
+>> + */
+>> +void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
+>> +                    struct mm_struct *mm)
+>> +{
+>> +    spin_lock(&mm->mmu_notifier_mm->lock);
+>> +    /*
+>> +     * Can not use list_del_rcu() since __mmu_notifier_release
+>> +     * can delete it before we hold the lock.
+>> +     */
+>> +    hlist_del_init_rcu(&mn->hlist);
+>> +    spin_unlock(&mm->mmu_notifier_mm->lock);
+>> +
+>> +    BUG_ON(atomic_read(&mm->mm_count) <=3D 0);
+>> +    mmdrop(mm);
+>> +}
+>> +EXPORT_SYMBOL_GPL(mmu_notifier_unregister_no_release);
+>> +
+>>   static int __init mmu_notifier_init(void)
+>>   {
+>>       return init_srcu_struct(&srcu);
+>>
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dilto:"dont@kvack.org"> email@kvack.org </a>
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
