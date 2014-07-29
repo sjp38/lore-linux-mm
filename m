@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 0917F6B0035
-	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 11:22:25 -0400 (EDT)
-Received: by mail-qg0-f43.google.com with SMTP id a108so10433912qge.16
-        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 08:22:24 -0700 (PDT)
-Received: from qmta10.emeryville.ca.mail.comcast.net (qmta10.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:17])
-        by mx.google.com with ESMTP id p18si38212636qga.38.2014.07.29.08.22.23
+Received: from mail-vc0-f182.google.com (mail-vc0-f182.google.com [209.85.220.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 3249F6B0035
+	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 11:26:26 -0400 (EDT)
+Received: by mail-vc0-f182.google.com with SMTP id hy4so13633568vcb.41
+        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 08:26:25 -0700 (PDT)
+Received: from qmta04.emeryville.ca.mail.comcast.net (qmta04.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:40])
+        by mx.google.com with ESMTP id cj3si3700150qcb.26.2014.07.29.08.26.25
         for <linux-mm@kvack.org>;
-        Tue, 29 Jul 2014 08:22:24 -0700 (PDT)
-Date: Tue, 29 Jul 2014 10:22:06 -0500 (CDT)
+        Tue, 29 Jul 2014 08:26:25 -0700 (PDT)
+Date: Tue, 29 Jul 2014 10:26:08 -0500 (CDT)
 From: Christoph Lameter <cl@gentwo.org>
 Subject: Re: vmstat: On demand vmstat workers V8
-In-Reply-To: <20140729131226.GS7462@htj.dyndns.org>
-Message-ID: <alpine.DEB.2.11.1407291020470.21102@gentwo.org>
+In-Reply-To: <20140729151415.GF4791@htj.dyndns.org>
+Message-ID: <alpine.DEB.2.11.1407291024300.21390@gentwo.org>
 References: <alpine.DEB.2.11.1407100903130.12483@gentwo.org> <53D31101.8000107@oracle.com> <alpine.DEB.2.11.1407281353450.15405@gentwo.org> <20140729075637.GA19379@twins.programming.kicks-ass.net> <20140729120525.GA28366@mtj.dyndns.org> <20140729122303.GA3935@laptop>
- <20140729131226.GS7462@htj.dyndns.org>
+ <20140729131226.GS7462@htj.dyndns.org> <alpine.DEB.2.11.1407291009320.21102@gentwo.org> <20140729151415.GF4791@htj.dyndns.org>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -23,38 +23,18 @@ Cc: Peter Zijlstra <peterz@infradead.org>, Sasha Levin <sasha.levin@oracle.com>,
 
 On Tue, 29 Jul 2014, Tejun Heo wrote:
 
-> I'm not sure that's a viable way forward.  It's not like we can
-> readily trigger the problematic cases which can lead to long pauses
-> during cpu down.  Besides, we need the distinction at the API level,
-> which is the whole point of this.  The best way probably is converting
-> all the correctness ones (these are the minorities) over to
-> queue_work_on() so that the per-cpu requirement is explicit.
+> > mm/vmstat.c already has cpu down hooks. See vmstat_cpuup_callback().
+>
+> Hmmm, well, then it's something else.  Either a bug in workqueue or in
+> the caller.  Given the track record, the latter is more likely.
+> e.g. it looks kinda suspicious that the work func is cleared after
+> cancel_delayed_work_sync() is called.  What happens if somebody tries
 
-Ok so we would need this fix to avoid the message:
+Ok we can clear it before then.
 
-
-Subject: vmstat: use schedule_delayed_work_on to avoid false positives
-
-It seems that schedule_delayed_work_on will check for preemption even
-though none can occur. schedule_delayed_work_on will not do that. So
-use that function to suppress false positives.
-
-Signed-off-by: Christoph Lameter <cl@linux.com>
-
-Index: linux/mm/vmstat.c
-===================================================================
---- linux.orig/mm/vmstat.c	2014-07-29 10:14:42.356988271 -0500
-+++ linux/mm/vmstat.c	2014-07-29 10:18:28.205920997 -0500
-@@ -1255,7 +1255,8 @@ static void vmstat_update(struct work_st
- 		 * to occur in the future. Keep on running the
- 		 * update worker thread.
- 		 */
--		schedule_delayed_work(this_cpu_ptr(&vmstat_work),
-+		schedule_delayed_work_on(smp_processor_id(),
-+			this_cpu_ptr(&vmstat_work),
- 			round_jiffies_relative(sysctl_stat_interval));
- 	else {
- 		/*
+Just looked at the current upstream code. It also does a __this_cpu_read()
+in refresh_cpu_stats() without triggering the preemption check. What
+changed in -next that made the test trigger now?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
