@@ -1,114 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id B4D156B0039
-	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 12:18:22 -0400 (EDT)
-Received: by mail-wi0-f177.google.com with SMTP id ho1so815337wib.4
-        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 09:18:22 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTP id hi1si41164320wjc.125.2014.07.29.09.18.17
-        for <linux-mm@kvack.org>;
-        Tue, 29 Jul 2014 09:18:17 -0700 (PDT)
-From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 0/3 v2] mmu_notifier: Allow to manage CPU external TLBs
-Date: Tue, 29 Jul 2014 18:18:10 +0200
-Message-Id: <1406650693-23315-1-git-send-email-joro@8bytes.org>
+Received: from mail-vc0-f181.google.com (mail-vc0-f181.google.com [209.85.220.181])
+	by kanga.kvack.org (Postfix) with ESMTP id C2AD66B0036
+	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 13:07:46 -0400 (EDT)
+Received: by mail-vc0-f181.google.com with SMTP id lf12so13752182vcb.40
+        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 10:07:46 -0700 (PDT)
+Received: from mail-vc0-x229.google.com (mail-vc0-x229.google.com [2607:f8b0:400c:c03::229])
+        by mx.google.com with ESMTPS id z4si4955390vei.17.2014.07.29.10.07.46
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 29 Jul 2014 10:07:46 -0700 (PDT)
+Received: by mail-vc0-f169.google.com with SMTP id le20so5281030vcb.0
+        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 10:07:46 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20140729142710.656A9E00A3@blue.fi.intel.com>
+References: <1406633609-17586-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<1406633609-17586-2-git-send-email-kirill.shutemov@linux.intel.com>
+	<53D7A251.7010509@samsung.com>
+	<20140729142710.656A9E00A3@blue.fi.intel.com>
+Date: Tue, 29 Jul 2014 21:07:45 +0400
+Message-ID: <CAPAsAGx_mpWcFXODjUBk9Pxr7xMWybH-0Uc9mFgB=ObV00g3Cw@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm: close race between do_fault_around() and fault_around_bytes_set()
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, jroedel@suse.de, Jay.Cornwall@amd.com, Oded.Gabbay@amd.com, John.Bridgman@amd.com, Suravee.Suthikulpanit@amd.com, ben.sander@amd.com, Jesse Barnes <jbarnes@virtuousgeek.org>, David Woodhouse <dwmw2@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Joerg Roedel <joro@8bytes.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Sasha Levin <sasha.levin@oracle.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 
-Changes V1->V2:
+2014-07-29 18:27 GMT+04:00 Kirill A. Shutemov <kirill.shutemov@linux.intel.com>:
+> Andrey Ryabinin wrote:
+>> On 07/29/14 15:33, Kirill A. Shutemov wrote:
+>> > Things can go wrong if fault_around_bytes will be changed under
+>> > do_fault_around(): between fault_around_mask() and fault_around_pages().
+>> >
+>> > Let's read fault_around_bytes only once during do_fault_around() and
+>> > calculate mask based on the reading.
+>> >
+>> > Note: fault_around_bytes can only be updated via debug interface. Also
+>> > I've tried but was not able to trigger a bad behaviour without the
+>> > patch. So I would not consider this patch as urgent.
+>> >
+>> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+>> > ---
+>> >  mm/memory.c | 17 +++++++++++------
+>> >  1 file changed, 11 insertions(+), 6 deletions(-)
+>> >
+>> > diff --git a/mm/memory.c b/mm/memory.c
+>> > index 9d66bc66f338..2ce07dc9b52b 100644
+>> > --- a/mm/memory.c
+>> > +++ b/mm/memory.c
+>> > @@ -2772,12 +2772,12 @@ static unsigned long fault_around_bytes = rounddown_pow_of_two(65536);
+>> >
+>> >  static inline unsigned long fault_around_pages(void)
+>> >  {
+>> > -   return fault_around_bytes >> PAGE_SHIFT;
+>> > +   return ACCESS_ONCE(fault_around_bytes) >> PAGE_SHIFT;
+>> >  }
+>> >
+>> > -static inline unsigned long fault_around_mask(void)
+>> > +static inline unsigned long fault_around_mask(unsigned long nr_pages)
+>> >  {
+>> > -   return ~(fault_around_bytes - 1) & PAGE_MASK;
+>> > +   return ~(nr_pages * PAGE_SIZE - 1) & PAGE_MASK;
+>> >  }
+>> >
+>> >
+>> > @@ -2844,12 +2844,17 @@ late_initcall(fault_around_debugfs);
+>> >  static void do_fault_around(struct vm_area_struct *vma, unsigned long address,
+>> >             pte_t *pte, pgoff_t pgoff, unsigned int flags)
+>> >  {
+>> > -   unsigned long start_addr;
+>> > +   unsigned long start_addr, nr_pages;
+>> >     pgoff_t max_pgoff;
+>> >     struct vm_fault vmf;
+>> >     int off;
+>> >
+>> > -   start_addr = max(address & fault_around_mask(), vma->vm_start);
+>> > +   nr_pages = fault_around_pages();
+>> > +   /* race with fault_around_bytes_set() */
+>> > +   if (nr_pages <= 1)
+>>
+>> unlikely() ?
+>
+> Yep.
+>
 
-* Rebase to v3.16-rc7
-* Added call of ->invalidate_range to
-  __mmu_notifier_invalidate_end() so that the subsystem
-  doesn't need to register an ->invalidate_end() call-back,
-  subsystems will likely either register
-  invalidate_range_start/end or invalidate_range, so that
-  should be fine.
-* Re-orded declarations a bit to reflect that
-  invalidate_range is not only called between
-  invalidate_range_start/end
-* Updated documentation to cover the case where
-  invalidate_range is called outside of
-  invalidate_range_start/end to flush page-table pages out
-  of the TLB
-
-Hi,
-
-here is a patch-set to extend the mmu_notifiers in the Linux
-kernel to allow managing CPU external TLBs. Those TLBs may
-be implemented in IOMMUs or any other external device, e.g.
-ATS/PRI capable PCI devices.
-
-The problem with managing these TLBs are the semantics of
-the invalidate_range_start/end call-backs currently
-available. Currently the subsystem using mmu_notifiers has
-to guarantee that no new TLB entries are established between
-invalidate_range_start/end. Furthermore the
-invalidate_range_start() function is called when all pages
-are still mapped and invalidate_range_end() when the pages
-are unmapped an already freed.
-
-So both call-backs can't be used to safely flush any non-CPU
-TLB because _start() is called too early and _end() too
-late.
-
-In the AMD IOMMUv2 driver this is currently implemented by
-assigning an empty page-table to the external device between
-_start() and _end(). But as tests have shown this doesn't
-work as external devices don't re-fault infinitly but enter
-a failure state after some time.
-
-Next problem with this solution is that it causes an
-interrupt storm for IO page faults to be handled when an
-empty page-table is assigned.
-
-Furthermore the _start()/end() notifiers only catch the
-moment when page mappings are released, but not page-table
-pages. But this is necessary for managing external TLBs when
-the page-table is shared with the CPU.
-
-To solve this situation I wrote a patch-set to introduce a
-new notifier call-back: mmu_notifer_invalidate_range(). This
-notifier lifts the strict requirements that no new
-references are taken in the range between _start() and
-_end(). When the subsystem can't guarantee that any new
-references are taken is has to provide the
-invalidate_range() call-back to clear any new references in
-there.
-
-It is called between invalidate_range_start() and _end()
-every time the VMM has to wipe out any references to a
-couple of pages. This are usually the places where the CPU
-TLBs are flushed too and where its important that this
-happens before invalidate_range_end() is called.
-
-Any comments and review appreciated!
-
-Thanks,
-
-	Joerg
-
-Joerg Roedel (3):
-  mmu_notifier: Add mmu_notifier_invalidate_range()
-  mmu_notifier: Call mmu_notifier_invalidate_range() from VMM
-  mmu_notifier: Add the call-back for mmu_notifier_invalidate_range()
-
- include/linux/mmu_notifier.h | 75 +++++++++++++++++++++++++++++++++++++++++---
- kernel/events/uprobes.c      |  2 +-
- mm/fremap.c                  |  2 +-
- mm/huge_memory.c             |  9 +++---
- mm/hugetlb.c                 |  7 ++++-
- mm/ksm.c                     |  4 +--
- mm/memory.c                  |  3 +-
- mm/migrate.c                 |  3 +-
- mm/mmu_notifier.c            | 25 +++++++++++++++
- mm/rmap.c                    |  2 +-
- 10 files changed, 115 insertions(+), 17 deletions(-)
-
--- 
-1.9.1
+Btw, do we need this check at all? nr_pages can't be 0, and code below
+seems able to handle nr_page == 1.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
