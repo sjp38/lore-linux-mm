@@ -1,80 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
-	by kanga.kvack.org (Postfix) with ESMTP id F00696B0036
-	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 09:12:31 -0400 (EDT)
-Received: by mail-qa0-f41.google.com with SMTP id j7so9258644qaq.0
-        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 06:12:31 -0700 (PDT)
-Received: from mail-qg0-x22c.google.com (mail-qg0-x22c.google.com [2607:f8b0:400d:c04::22c])
-        by mx.google.com with ESMTPS id b30si37668173qgf.107.2014.07.29.06.12.30
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id D53286B0035
+	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 09:37:50 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id hz1so12300814pad.22
+        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 06:37:50 -0700 (PDT)
+Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
+        by mx.google.com with ESMTPS id uv5si8589649pab.40.2014.07.29.06.37.49
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 29 Jul 2014 06:12:30 -0700 (PDT)
-Received: by mail-qg0-f44.google.com with SMTP id e89so10332504qgf.17
-        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 06:12:30 -0700 (PDT)
-Date: Tue, 29 Jul 2014 09:12:26 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: vmstat: On demand vmstat workers V8
-Message-ID: <20140729131226.GS7462@htj.dyndns.org>
-References: <alpine.DEB.2.11.1407100903130.12483@gentwo.org>
- <53D31101.8000107@oracle.com>
- <alpine.DEB.2.11.1407281353450.15405@gentwo.org>
- <20140729075637.GA19379@twins.programming.kicks-ass.net>
- <20140729120525.GA28366@mtj.dyndns.org>
- <20140729122303.GA3935@laptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140729122303.GA3935@laptop>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Tue, 29 Jul 2014 06:37:49 -0700 (PDT)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout3.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0N9H00FMB76ZFW80@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Tue, 29 Jul 2014 14:37:47 +0100 (BST)
+Message-id: <53D7A251.7010509@samsung.com>
+Date: Tue, 29 Jul 2014 17:32:01 +0400
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH 1/2] mm: close race between do_fault_around() and
+ fault_around_bytes_set()
+References: <1406633609-17586-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1406633609-17586-2-git-send-email-kirill.shutemov@linux.intel.com>
+In-reply-to: <1406633609-17586-2-git-send-email-kirill.shutemov@linux.intel.com>
+Content-type: text/plain; charset=UTF-8
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Christoph Lameter <cl@gentwo.org>, Sasha Levin <sasha.levin@oracle.com>, akpm@linux-foundation.org, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org, Lai Jiangshan <laijs@cn.fujitsu.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Sasha Levin <sasha.levin@oracle.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 
-(cc'ing Lai)
-
-Hello,
-
-On Tue, Jul 29, 2014 at 02:23:03PM +0200, Peter Zijlstra wrote:
-> > It's because we don't distinguish work items which are per-cpu for
-> > optimization and per-cpu for correctness and can't automatically flush
-> > / cancel / block per-cpu work items when a cpu goes down.  I like the
-> > idea of distingushing them but it's gonna take a lot of auditing.
+On 07/29/14 15:33, Kirill A. Shutemov wrote:
+> Things can go wrong if fault_around_bytes will be changed under
+> do_fault_around(): between fault_around_mask() and fault_around_pages().
 > 
-> Just force flush on unplug and fix those that complain. No auditing
-> needed for that.
-
-I'm not sure that's a viable way forward.  It's not like we can
-readily trigger the problematic cases which can lead to long pauses
-during cpu down.  Besides, we need the distinction at the API level,
-which is the whole point of this.  The best way probably is converting
-all the correctness ones (these are the minorities) over to
-queue_work_on() so that the per-cpu requirement is explicit.
-
-> > Any work item usage which requires per-cpu for correctness should
-> > implement cpu down hook to flush in-flight work items and block
-> > further issuance.  This hasn't changed from the beginning and was
-> > necessary even before cmwq.
+> Let's read fault_around_bytes only once during do_fault_around() and
+> calculate mask based on the reading.
 > 
-> I think before cmwq we'd run into the broken affinity warning in the
-> scheduler.
+> Note: fault_around_bytes can only be updated via debug interface. Also
+> I've tried but was not able to trigger a bad behaviour without the
+> patch. So I would not consider this patch as urgent.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  mm/memory.c | 17 +++++++++++------
+>  1 file changed, 11 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 9d66bc66f338..2ce07dc9b52b 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2772,12 +2772,12 @@ static unsigned long fault_around_bytes = rounddown_pow_of_two(65536);
+>  
+>  static inline unsigned long fault_around_pages(void)
+>  {
+> -	return fault_around_bytes >> PAGE_SHIFT;
+> +	return ACCESS_ONCE(fault_around_bytes) >> PAGE_SHIFT;
+>  }
+>  
+> -static inline unsigned long fault_around_mask(void)
+> +static inline unsigned long fault_around_mask(unsigned long nr_pages)
+>  {
+> -	return ~(fault_around_bytes - 1) & PAGE_MASK;
+> +	return ~(nr_pages * PAGE_SIZE - 1) & PAGE_MASK;
+>  }
+>  
+>  
+> @@ -2844,12 +2844,17 @@ late_initcall(fault_around_debugfs);
+>  static void do_fault_around(struct vm_area_struct *vma, unsigned long address,
+>  		pte_t *pte, pgoff_t pgoff, unsigned int flags)
+>  {
+> -	unsigned long start_addr;
+> +	unsigned long start_addr, nr_pages;
+>  	pgoff_t max_pgoff;
+>  	struct vm_fault vmf;
+>  	int off;
+>  
+> -	start_addr = max(address & fault_around_mask(), vma->vm_start);
+> +	nr_pages = fault_around_pages();
+> +	/* race with fault_around_bytes_set() */
+> +	if (nr_pages <= 1)
 
-That and work items silently not executed if queued on a downed cpu.
-IIRC, we also had quite a few broken ones which were per-cpu but w/o
-cpu down handling which just happened to work most of the time because
-queueing itself was per-cpu in most cases and we didn't do cpu
-on/offlining as often back then.  During cmwq conversion, I just
-allowed them as I didn't want to add cpu down hooks for all of the
-many per-cpu workqueue usages.  The lack of the distinction between
-the two sets has always been there.
+unlikely() ?
 
-I agree this can be improved, but at least for now, please add cpu
-down hooks.  We need them right now and they'll be helpful when later
-separating out the correctness ones.
-
-Thanks.
-
--- 
-tejun
+> +		return;
+> +
+> +	start_addr = max(address & fault_around_mask(nr_pages), vma->vm_start);
+>  	off = ((address - start_addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1);
+>  	pte -= off;
+>  	pgoff -= off;
+> @@ -2861,7 +2866,7 @@ static void do_fault_around(struct vm_area_struct *vma, unsigned long address,
+>  	max_pgoff = pgoff - ((start_addr >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)) +
+>  		PTRS_PER_PTE - 1;
+>  	max_pgoff = min3(max_pgoff, vma_pages(vma) + vma->vm_pgoff - 1,
+> -			pgoff + fault_around_pages() - 1);
+> +			pgoff + nr_pages - 1);
+>  
+>  	/* Check if it makes any sense to call ->map_pages */
+>  	while (!pte_none(*pte)) {
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
