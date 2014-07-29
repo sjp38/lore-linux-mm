@@ -1,72 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 02B8A6B0036
-	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 17:04:54 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id g10so241956pdj.26
-        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 14:04:54 -0700 (PDT)
-Received: from na01-by2-obe.outbound.protection.outlook.com (mail-by2lp0244.outbound.protection.outlook.com. [207.46.163.244])
-        by mx.google.com with ESMTPS id c4si47874pdk.312.2014.07.29.14.04.53
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 977386B0037
+	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 17:05:01 -0400 (EDT)
+Received: by mail-wg0-f47.google.com with SMTP id b13so236774wgh.30
+        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 14:05:01 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id av8si270214wjc.57.2014.07.29.14.04.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 29 Jul 2014 14:04:53 -0700 (PDT)
-Message-ID: <53D80C5A.4010605@amd.com>
-Date: Wed, 30 Jul 2014 00:04:26 +0300
-From: Oded Gabbay <oded.gabbay@amd.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 29 Jul 2014 14:04:59 -0700 (PDT)
+Date: Tue, 29 Jul 2014 23:04:57 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v7 07/22] Replace the XIP page fault handler with the DAX
+ page fault handler
+Message-ID: <20140729210457.GA17807@quack.suse.cz>
+References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
+ <c2e602f401a580c4fac54b9b8f4a6f8dd0ac1071.1395591795.git.matthew.r.wilcox@intel.com>
+ <20140409102758.GM32103@quack.suse.cz>
+ <20140409205111.GG5727@linux.intel.com>
+ <20140409214331.GQ32103@quack.suse.cz>
+ <20140729121259.GL6754@linux.intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/7] mmu_notifier: add call_srcu and sync function for
- listener to delay call and sync.
-References: <1405622809-3797-1-git-send-email-j.glisse@gmail.com>
-	<1405622809-3797-2-git-send-email-j.glisse@gmail.com>
-	<53CD2B43.3090405@amd.com>	<53D7B800.6050700@amd.com>
- <20140729134803.8db34d88eda9209bda6069c7@linux-foundation.org>
-In-Reply-To: <20140729134803.8db34d88eda9209bda6069c7@linux-foundation.org>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140729121259.GL6754@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, j.glisse@gmail.com, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind
- Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John
- Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, =?UTF-8?B?SsOpcsO0bWUgR2xp?= =?UTF-8?B?c3Nl?= <jglisse@redhat.com>
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: Jan Kara <jack@suse.cz>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 29/07/14 23:48, Andrew Morton wrote:
-> On Tue, 29 Jul 2014 18:04:32 +0300 Oded Gabbay <oded.gabbay@amd.com> wrote:
+On Tue 29-07-14 08:12:59, Matthew Wilcox wrote:
+> On Wed, Apr 09, 2014 at 11:43:31PM +0200, Jan Kara wrote:
+> > So there are three places that can fail after we allocate the block:
+> > 1) We race with truncate reducing i_size
+> > 2) dax_get_pfn() fails
+> > 3) vm_insert_mixed() fails
+> > 
+> > I would guess that 2) can fail only if the HW has problems and leaking
+> > block in that case could be acceptable (please correct me if I'm wrong).
+> > 3) shouldn't fail because of ENOMEM because fault has already allocated all
+> > the page tables and EBUSY should be handled as well. So the only failure we
+> > have to care about is 1). And we could move ->get_block() call under
+> > i_mmap_mutex after the i_size check.  Lock ordering should be fine because
+> > i_mmap_mutex ranks above page lock under which we do block mapping in
+> > standard ->page_mkwrite callbacks. The only (big) drawback is that
+> > i_mmap_mutex will now be held for much longer time and thus the contention
+> > would be much higher. But hopefully once we resolve our problems with
+> > mmap_sem and introduce mapping range lock we could scale reasonably.
 > 
->> On 21/07/14 18:01, Oded Gabbay wrote:
->>> On 17/07/14 21:46, j.glisse@gmail.com wrote:
->>>> From: Peter Zijlstra <peterz@infradead.org>
->>>>
->>>> New mmu_notifier listener are eager to cleanup there structure after the
->>>> mmu_notifier::release callback. In order to allow this the patch provide
->>>> a function that allows to add a delayed call to the mmu_notifier srcu. It
->>>> also add a function that will call barrier_srcu so those listener can sync
->>>> with mmu_notifier.
->>>
->>> Tested with amdkfd and iommuv2 driver
->>> So,
->>> Tested-by: Oded Gabbay <oded.gabbay@amd.com>
->>
->> akpm, any chance that only this specific patch from Peter.Z will get in 3.17 ?
->> I must have it for amdkfd (HSA driver). Without it, I can't be in 3.17 either.
+> Lockdep barfs on holding i_mmap_mutex while calling ext4's ->get_block.
 > 
-> I can send it in for 3.17-rc1.
+> Path 1:
 > 
-> Can we get a better changelog please?  "eager to cleanup there
-> structure after the mmu_notifier::release callback" is terribly vague
-> and brief.  Fully describe the problem then describe the proposed
-> solution.  Because others may be able to suggest alternative ways of
-> solving that problem, but this text simply doesn't provide enough details for
-> them to do so.
-> 
+> ext4_fallocate ->
+>  ext4_punch_hole ->
+>   ext4_inode_attach_jinode() -> ... ->
+>     lock_map_acquire(&handle->h_lockdep_map);
+>   truncate_pagecache_range() ->
+>    unmap_mapping_range() ->
+>     mutex_lock(&mapping->i_mmap_mutex);
+  This is strange. I don't see how ext4_inode_attach_jinode() can ever lead
+to lock_map_acquire(&handle->h_lockdep_map). Can you post a full trace for
+this?
 
-Thank you :)
+> Path 2:
+> do_dax_fault() ->
+>  mutex_lock(&mapping->i_mmap_mutex);
+>  ext4_get_block() -> ... ->
+>   lock_map_acquire(&handle->h_lockdep_map);
+  This is obviously correct.
 
-I will fix the commit msg and I will submit this patch as part of my v3
-patch set of amdkfd (this will be the first patch of the set). I'm going
-to publish it in a few days (I guess on Friday). You are also on the
-amdkfd patch set list, so you will get the v3 as well.
-
-	Oded
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
