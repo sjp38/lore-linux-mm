@@ -1,92 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f181.google.com (mail-vc0-f181.google.com [209.85.220.181])
-	by kanga.kvack.org (Postfix) with ESMTP id C2AD66B0036
-	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 13:07:46 -0400 (EDT)
-Received: by mail-vc0-f181.google.com with SMTP id lf12so13752182vcb.40
-        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 10:07:46 -0700 (PDT)
-Received: from mail-vc0-x229.google.com (mail-vc0-x229.google.com [2607:f8b0:400c:c03::229])
-        by mx.google.com with ESMTPS id z4si4955390vei.17.2014.07.29.10.07.46
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 401C56B0036
+	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 13:29:24 -0400 (EDT)
+Received: by mail-wg0-f48.google.com with SMTP id x13so9314270wgg.19
+        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 10:29:22 -0700 (PDT)
+Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com [2a00:1450:400c:c05::229])
+        by mx.google.com with ESMTPS id ng20si21124858wic.7.2014.07.29.10.29.20
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 29 Jul 2014 10:07:46 -0700 (PDT)
-Received: by mail-vc0-f169.google.com with SMTP id le20so5281030vcb.0
-        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 10:07:46 -0700 (PDT)
+        Tue, 29 Jul 2014 10:29:21 -0700 (PDT)
+Received: by mail-wi0-f169.google.com with SMTP id n3so5748503wiv.4
+        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 10:29:20 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20140729142710.656A9E00A3@blue.fi.intel.com>
-References: <1406633609-17586-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1406633609-17586-2-git-send-email-kirill.shutemov@linux.intel.com>
-	<53D7A251.7010509@samsung.com>
-	<20140729142710.656A9E00A3@blue.fi.intel.com>
-Date: Tue, 29 Jul 2014 21:07:45 +0400
-Message-ID: <CAPAsAGx_mpWcFXODjUBk9Pxr7xMWybH-0Uc9mFgB=ObV00g3Cw@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm: close race between do_fault_around() and fault_around_bytes_set()
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+In-Reply-To: <1406530260-26078-1-git-send-email-gong.chen@linux.intel.com>
+References: <1406530260-26078-1-git-send-email-gong.chen@linux.intel.com>
+Date: Tue, 29 Jul 2014 10:29:19 -0700
+Message-ID: <CA+8MBbLmLOHKpnvCu2=SUAB8yTupaVxoBP3HNQLLTxOKSHj1xQ@mail.gmail.com>
+Subject: Re: two minor update patches for RAS
+From: Tony Luck <tony.luck@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Sasha Levin <sasha.levin@oracle.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: "Chen, Gong" <gong.chen@linux.intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Borislav Petkov <bp@alien8.de>, linux-acpi <linux-acpi@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-2014-07-29 18:27 GMT+04:00 Kirill A. Shutemov <kirill.shutemov@linux.intel.com>:
-> Andrey Ryabinin wrote:
->> On 07/29/14 15:33, Kirill A. Shutemov wrote:
->> > Things can go wrong if fault_around_bytes will be changed under
->> > do_fault_around(): between fault_around_mask() and fault_around_pages().
->> >
->> > Let's read fault_around_bytes only once during do_fault_around() and
->> > calculate mask based on the reading.
->> >
->> > Note: fault_around_bytes can only be updated via debug interface. Also
->> > I've tried but was not able to trigger a bad behaviour without the
->> > patch. So I would not consider this patch as urgent.
->> >
->> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
->> > ---
->> >  mm/memory.c | 17 +++++++++++------
->> >  1 file changed, 11 insertions(+), 6 deletions(-)
->> >
->> > diff --git a/mm/memory.c b/mm/memory.c
->> > index 9d66bc66f338..2ce07dc9b52b 100644
->> > --- a/mm/memory.c
->> > +++ b/mm/memory.c
->> > @@ -2772,12 +2772,12 @@ static unsigned long fault_around_bytes = rounddown_pow_of_two(65536);
->> >
->> >  static inline unsigned long fault_around_pages(void)
->> >  {
->> > -   return fault_around_bytes >> PAGE_SHIFT;
->> > +   return ACCESS_ONCE(fault_around_bytes) >> PAGE_SHIFT;
->> >  }
->> >
->> > -static inline unsigned long fault_around_mask(void)
->> > +static inline unsigned long fault_around_mask(unsigned long nr_pages)
->> >  {
->> > -   return ~(fault_around_bytes - 1) & PAGE_MASK;
->> > +   return ~(nr_pages * PAGE_SIZE - 1) & PAGE_MASK;
->> >  }
->> >
->> >
->> > @@ -2844,12 +2844,17 @@ late_initcall(fault_around_debugfs);
->> >  static void do_fault_around(struct vm_area_struct *vma, unsigned long address,
->> >             pte_t *pte, pgoff_t pgoff, unsigned int flags)
->> >  {
->> > -   unsigned long start_addr;
->> > +   unsigned long start_addr, nr_pages;
->> >     pgoff_t max_pgoff;
->> >     struct vm_fault vmf;
->> >     int off;
->> >
->> > -   start_addr = max(address & fault_around_mask(), vma->vm_start);
->> > +   nr_pages = fault_around_pages();
->> > +   /* race with fault_around_bytes_set() */
->> > +   if (nr_pages <= 1)
->>
->> unlikely() ?
->
-> Yep.
->
+On Sun, Jul 27, 2014 at 11:50 PM, Chen, Gong <gong.chen@linux.intel.com> wrote:
+> [PATCH 1/2] APEI, GHES: Cleanup unnecessary function for lock-less
+> [PATCH 2/2] RAS, HWPOISON: Fix wrong error recovery status
 
-Btw, do we need this check at all? nr_pages can't be 0, and code below
-seems able to handle nr_page == 1.
+both parts:
+
+Acked-by: Tony Luck <tony.luck@intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
