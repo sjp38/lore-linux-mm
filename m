@@ -1,62 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f45.google.com (mail-qa0-f45.google.com [209.85.216.45])
-	by kanga.kvack.org (Postfix) with ESMTP id EF3FD6B0038
-	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 12:00:02 -0400 (EDT)
-Received: by mail-qa0-f45.google.com with SMTP id cm18so9534245qab.32
-        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 09:00:01 -0700 (PDT)
-Received: from qmta12.emeryville.ca.mail.comcast.net (qmta12.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:227])
-        by mx.google.com with ESMTPS id t73si38383961qge.118.2014.07.29.08.59.58
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 29 Jul 2014 08:59:58 -0700 (PDT)
-Date: Tue, 29 Jul 2014 10:59:46 -0500 (CDT)
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: vmstat: On demand vmstat workers V8
-In-Reply-To: <53D7C1F8.5040800@oracle.com>
-Message-ID: <alpine.DEB.2.11.1407291057410.21390@gentwo.org>
-References: <alpine.DEB.2.11.1407100903130.12483@gentwo.org> <53D31101.8000107@oracle.com> <alpine.DEB.2.11.1407281353450.15405@gentwo.org> <20140729075637.GA19379@twins.programming.kicks-ass.net> <20140729120525.GA28366@mtj.dyndns.org> <20140729122303.GA3935@laptop>
- <20140729131226.GS7462@htj.dyndns.org> <alpine.DEB.2.11.1407291009320.21102@gentwo.org> <20140729151415.GF4791@htj.dyndns.org> <alpine.DEB.2.11.1407291038160.21390@gentwo.org> <53D7C1F8.5040800@oracle.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 1358F6B0035
+	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 12:18:19 -0400 (EDT)
+Received: by mail-wi0-f171.google.com with SMTP id hi2so5962029wib.4
+        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 09:18:17 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [81.169.241.247])
+        by mx.google.com with ESMTP id k1si20674212wib.73.2014.07.29.09.18.15
+        for <linux-mm@kvack.org>;
+        Tue, 29 Jul 2014 09:18:16 -0700 (PDT)
+From: Joerg Roedel <joro@8bytes.org>
+Subject: [PATCH 1/3] mmu_notifier: Add mmu_notifier_invalidate_range()
+Date: Tue, 29 Jul 2014 18:18:11 +0200
+Message-Id: <1406650693-23315-2-git-send-email-joro@8bytes.org>
+In-Reply-To: <1406650693-23315-1-git-send-email-joro@8bytes.org>
+References: <1406650693-23315-1-git-send-email-joro@8bytes.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Tejun Heo <tj@kernel.org>, Peter Zijlstra <peterz@infradead.org>, akpm@linux-foundation.org, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org, Lai Jiangshan <laijs@cn.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, jroedel@suse.de, Jay.Cornwall@amd.com, Oded.Gabbay@amd.com, John.Bridgman@amd.com, Suravee.Suthikulpanit@amd.com, ben.sander@amd.com, Jesse Barnes <jbarnes@virtuousgeek.org>, David Woodhouse <dwmw2@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org
 
-On Tue, 29 Jul 2014, Sasha Levin wrote:
+From: Joerg Roedel <jroedel@suse.de>
 
-> > Index: linux/mm/vmstat.c
-> > ===================================================================
-> > --- linux.orig/mm/vmstat.c	2014-07-29 10:22:45.073884943 -0500
-> > +++ linux/mm/vmstat.c	2014-07-29 10:34:45.083369228 -0500
-> > @@ -1277,8 +1277,8 @@ static int vmstat_cpuup_callback(struct
-> >  		break;
-> >  	case CPU_DOWN_PREPARE:
-> >  	case CPU_DOWN_PREPARE_FROZEN:
-> > -		cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
-> >  		per_cpu(vmstat_work, cpu).work.func = NULL;
-> > +		cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
-> >  		break;
-> >  	case CPU_DOWN_FAILED:
-> >  	case CPU_DOWN_FAILED_FROZEN:
-> >
->
-> I'm slightly confused here. The on demand vmstat workers patch did this:
->
->         case CPU_DOWN_PREPARE_FROZEN:
-> -               cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
-> -               per_cpu(vmstat_work, cpu).work.func = NULL;
-> +               if (!cpumask_test_and_set_cpu(cpu, cpu_stat_off))
-> +                       cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
->
-> So your new patch doesn't apply on top of it, and doesn't make sense before it.
+This notifier closes two important gaps with the current
+invalidate_range_start()/end() notifiers. The _start() part
+is called when all pages are still mapped while the _end()
+notifier is called when all pages are potentially unmapped
+and already freed.
 
-Tejun was looking at upsteram and so I fixed upstream ;-)
+This does not allow to manage external (non-CPU) hardware
+TLBs with MMU-notifiers because there is no way to prevent
+that hardware will establish new TLB entries between the
+calls of these two functions. But this is a requirement to
+the subsytem that implements these existing notifiers.
 
-Is it really necessary to set the work.func to NULL? If so then the
-work.func will have to be initialized when a processor is brought online.
+To allow managing external TLBs the MMU-notifiers need to
+catch the moment when pages are unmapped but not yet freed.
+This new notifier catches that moment and notifies the
+interested subsytem when pages that were unmapped are about
+to be freed. The new notifier will be called between
+invalidate_range_start()/end() to catch the moment when
+pages are unmapped but not yet freed.
 
-Canceling the work should be enough to disable the execution of the
-function.
+For non-CPU TLBs it is also necessary to know when
+page-table pages are freed. This is the second gap in
+current mmu_notifiers. At those events the new notifier will
+also be called, without calling invalidate_range_start() and
+invalidate_range_end() around it.
+
+Signed-off-by: Joerg Roedel <jroedel@suse.de>
+---
+ include/linux/mmu_notifier.h | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+index deca874..1bac99c 100644
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -235,6 +235,11 @@ static inline void mmu_notifier_invalidate_range_end(struct mm_struct *mm,
+ 		__mmu_notifier_invalidate_range_end(mm, start, end);
+ }
+ 
++static inline void mmu_notifier_invalidate_range(struct mm_struct *mm,
++				  unsigned long start, unsigned long end)
++{
++}
++
+ static inline void mmu_notifier_mm_init(struct mm_struct *mm)
+ {
+ 	mm->mmu_notifier_mm = NULL;
+@@ -326,6 +331,11 @@ static inline void mmu_notifier_invalidate_range_end(struct mm_struct *mm,
+ {
+ }
+ 
++static inline void mmu_notifier_invalidate_range(struct mm_struct *mm,
++				  unsigned long start, unsigned long end)
++{
++}
++
+ static inline void mmu_notifier_mm_init(struct mm_struct *mm)
+ {
+ }
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
