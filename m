@@ -1,138 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 412C76B0036
-	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 03:53:44 -0400 (EDT)
-Received: by mail-ie0-f174.google.com with SMTP id rp18so8232112iec.19
-        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 00:53:44 -0700 (PDT)
-Received: from mail-ie0-x234.google.com (mail-ie0-x234.google.com [2607:f8b0:4001:c03::234])
-        by mx.google.com with ESMTPS id es17si46949975icb.12.2014.07.29.00.53.43
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 062866B0038
+	for <linux-mm@kvack.org>; Tue, 29 Jul 2014 03:56:52 -0400 (EDT)
+Received: by mail-wg0-f48.google.com with SMTP id x13so8339404wgg.7
+        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 00:56:52 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id fw8si12289338wib.38.2014.07.29.00.56.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 29 Jul 2014 00:53:43 -0700 (PDT)
-Received: by mail-ie0-f180.google.com with SMTP id at20so7880408iec.25
-        for <linux-mm@kvack.org>; Tue, 29 Jul 2014 00:53:43 -0700 (PDT)
-Date: Tue, 29 Jul 2014 00:53:41 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] memory hotplug: update the variables after memory
- removed
-In-Reply-To: <53D74EE5.1070308@huawei.com>
-Message-ID: <alpine.DEB.2.02.1407290046470.7998@chino.kir.corp.google.com>
-References: <1406619310-20555-1-git-send-email-zhenzhang.zhang@huawei.com> <53D74EE5.1070308@huawei.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 29 Jul 2014 00:56:51 -0700 (PDT)
+Date: Tue, 29 Jul 2014 09:56:37 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: vmstat: On demand vmstat workers V8
+Message-ID: <20140729075637.GA19379@twins.programming.kicks-ass.net>
+References: <alpine.DEB.2.11.1407100903130.12483@gentwo.org>
+ <53D31101.8000107@oracle.com>
+ <alpine.DEB.2.11.1407281353450.15405@gentwo.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="pEQDlUeuaD3XV+9x"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.11.1407281353450.15405@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Zhen <zhenzhang.zhang@huawei.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, mgorman@suse.de, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, wangnan0@huawei.com, Linux MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@gentwo.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>, akpm@linux-foundation.org, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org
 
-On Tue, 29 Jul 2014, Zhang Zhen wrote:
 
-> Commit ea0854170c95245a258b386c7a9314399c949fe0 added a fuction
+--pEQDlUeuaD3XV+9x
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-This would normally be written as
+On Mon, Jul 28, 2014 at 01:55:17PM -0500, Christoph Lameter wrote:
+> On Fri, 25 Jul 2014, Sasha Levin wrote:
+>=20
+> > This patch doesn't interact well with my fuzzing setup. I'm seeing
+> > the following:
+> >
+> > [  490.446927] BUG: using __this_cpu_read() in preemptible [00000000] c=
+ode: kworker/16:1/7368
+> > [  490.447909] caller is __this_cpu_preempt_check+0x13/0x20
+>=20
+> __this_cpu_read() from vmstat_update is only called from a kworker that
+> is bound to a single cpu. A false positive?
 
-Commit ea0854170c95 ("memory hotplug: fix a bug on /dev/mem for 64-bit 
-kernels") ...
+kworkers are never guaranteed to be so, its a 'feature' :/
 
-> update_end_of_memory_vars() to update high_memory, max_pfn and
-> max_low_pfn.
-> 
-> I modified the function according to Dave Hansen and David Rientjes's
-> suggestions.
-> And call it in arch_remove_memory() to update these variables too.
-> 
+--pEQDlUeuaD3XV+9x
+Content-Type: application/pgp-signature
 
-When the x86 maintainers merge this patch, they'll need to make a judgment 
-call on how urgent the fix is and that will guide them in whether they 
-want it backported to stable kernels as well.  It would be useful to 
-provide the rationale for the change; in other words, why is the change 
-needed and what breaks if we don't have it?
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
 
-> Change v1->v2:
-> - according to Dave Hansen and David Rientjes's suggestions modified
->   update_end_of_memory_vars().
-> Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
+iQIcBAEBAgAGBQJT11O1AAoJEHZH4aRLwOS61PUP/R/S+B40g7gd2IuLe4SbVCAs
+llPxoJDjdcT3bQyMf7kvUG8echjGZ+6EuQ7DcysUYwlE7Am8MsLH8zGaxNYN/ZIf
+gxKW0vP034O+7gD2igpXy27+/2WVQeZJvYoeDDo7lIAv4XFEdw35Ra+rqBHTdkmK
+ltfA40sYwAG5VSRhb3YEoglMYQ0reuIu+gUcpZAMqc3hCR4Dl9drPL1rnVhyCcEF
+3Kn05qR/gB5ktZN1ju/YO74Vp8rDK3V9U7kt8mvX2SuhrLcsmWB76lbOQWoMv4Bc
+lHaRh8PyzN/zQcFzyfcxwBYRVUQHc+KHYQzedFsJY5nkOugDbiCSLBp2b3IEoVZo
+r+PWD5yRcWiuAR6v2b2TcvYGYJ1cuEpOTgbSQCPMcI6GglYCnqJa3mh/SP3BHIkw
+H0zKRnYuq9jr25kIgd928avmrceJmayA+qEOokstJD1Llt1QueZ/xF3kOcglL9L0
+4FK5asoMJ28Hg62XUmMFDpRrdKIXuzi6D1qz6dMa9OTBf6BRjbuEk+Yx/ZxNA0xe
++LltXPobiehCuJgnCqf5RPP2M8HpYk6sZ45vuzMeRRiQwCgb1H8AJxhmkkqxlYVd
+BGBVvMkZ679d9Wb5IEDFEYhvjE5YqqMrzYYQ3cpoBQiGm/kieCaBr9QqJVzmMfuY
+VoVdEp3ISffIyo4pyy6C
+=GQuK
+-----END PGP SIGNATURE-----
 
-Acked-by: David Rientjes <rientjes@google.com>
-
-You'll want to email all the x86 maintainers who would handle this patch, 
-check the output of scripts/get_maintainer.pl when run on this diff.
-
-> ---
->  arch/x86/mm/init_64.c | 23 ++++++++++++++---------
->  1 file changed, 14 insertions(+), 9 deletions(-)
-> 
-> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-> index df1a992..fd7bd6b 100644
-> --- a/arch/x86/mm/init_64.c
-> +++ b/arch/x86/mm/init_64.c
-> @@ -673,15 +673,11 @@ void __init paging_init(void)
->   * After memory hotplug the variables max_pfn, max_low_pfn and high_memory need
->   * updating.
->   */
-> -static void  update_end_of_memory_vars(u64 start, u64 size)
-> +static void  update_end_of_memory_vars(u64 end_pfn)
-
-Extra space that can be removed here at the same time as a cleanup.
-
->  {
-> -	unsigned long end_pfn = PFN_UP(start + size);
-> -
-> -	if (end_pfn > max_pfn) {
-> -		max_pfn = end_pfn;
-> -		max_low_pfn = end_pfn;
-> -		high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
-> -	}
-> +	max_pfn = end_pfn;
-> +	max_low_pfn = end_pfn;
-> +	high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
->  }
-> 
->  /*
-> @@ -694,6 +690,7 @@ int arch_add_memory(int nid, u64 start, u64 size)
->  	struct zone *zone = pgdat->node_zones + ZONE_NORMAL;
->  	unsigned long start_pfn = start >> PAGE_SHIFT;
->  	unsigned long nr_pages = size >> PAGE_SHIFT;
-> +	unsigned long end_pfn;
->  	int ret;
-> 
->  	init_memory_mapping(start, start + size);
-> @@ -702,7 +699,9 @@ int arch_add_memory(int nid, u64 start, u64 size)
->  	WARN_ON_ONCE(ret);
-> 
->  	/* update max_pfn, max_low_pfn and high_memory */
-> -	update_end_of_memory_vars(start, size);
-> +	end_pfn = start_pfn + nr_pages;
-> +	if (end_pfn > max_pfn)
-> +		update_end_of_memory_vars(end_pfn);
-> 
->  	return ret;
->  }
-> @@ -1018,6 +1017,7 @@ int __ref arch_remove_memory(u64 start, u64 size)
->  	unsigned long start_pfn = start >> PAGE_SHIFT;
->  	unsigned long nr_pages = size >> PAGE_SHIFT;
->  	struct zone *zone;
-> +	unsigned long end_pfn;
->  	int ret;
-> 
->  	zone = page_zone(pfn_to_page(start_pfn));
-> @@ -1025,6 +1025,11 @@ int __ref arch_remove_memory(u64 start, u64 size)
->  	ret = __remove_pages(zone, start_pfn, nr_pages);
->  	WARN_ON_ONCE(ret);
-> 
-> +	/* update max_pfn, max_low_pfn and high_memory */
-> +	end_pfn = start_pfn + nr_pages;
-> +	if ((max_pfn >= start_pfn) && (max_pfn < end_pfn))
-> +		update_end_of_memory_vars(start_pfn);
-
-Not sure if we really need the new variable here; if you choose to 
-repropose this patch then you may want to consider just using 
-start_pfn + nr_pages in the conditional.
-
-> +
->  	return ret;
->  }
->  #endif
+--pEQDlUeuaD3XV+9x--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
