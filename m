@@ -1,166 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 20AE76B0036
-	for <linux-mm@kvack.org>; Wed, 30 Jul 2014 04:12:31 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id lf10so1099759pab.16
-        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 01:12:30 -0700 (PDT)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id ba2si773747pdb.0.2014.07.30.01.12.28
-        for <linux-mm@kvack.org>;
-        Wed, 30 Jul 2014 01:12:29 -0700 (PDT)
-Message-ID: <53D8A8EB.3090600@lge.com>
-Date: Wed, 30 Jul 2014 17:12:27 +0900
-From: Gioh Kim <gioh.kim@lge.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] CMA/HOTPLUG: clear buffer-head lru before page migration
-References: <53C8C290.90503@lge.com> <20140721025047.GA7707@bbox> <53CCB02A.7070301@lge.com> <20140721073651.GA15912@bbox> <20140721130146.GO10544@csn.ul.ie> <20140722001545.GC15912@bbox> <53CDB8A6.80801@lge.com>
-In-Reply-To: <53CDB8A6.80801@lge.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FD916B0036
+	for <linux-mm@kvack.org>; Wed, 30 Jul 2014 04:52:51 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lf10so1158079pab.15
+        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 01:52:51 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id zy5si1647797pbc.35.2014.07.30.01.52.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Jul 2014 01:52:50 -0700 (PDT)
+From: Chintan Pandya <cpandya@codeaurora.org>
+Subject: [PATCH] mm: BUG when __kmap_atomic_idx crosses boundary
+Date: Wed, 30 Jul 2014 14:22:35 +0530
+Message-Id: <1406710355-4360-1-git-send-email-cpandya@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Mel Gorman <mel@csn.ul.ie>
-Cc: Andrew Morton <akpm@linux-foundation.org>, '?????????' <iamjoonsoo.kim@lge.com>, Laura Abbott <lauraa@codeaurora.org>, Michal Nazarewicz <mina86@mina86.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ????????? <gunho.lee@lge.com>, 'Chanho Min' <chanho.min@lge.com>, linux-fsdevel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Chintan Pandya <cpandya@codeaurora.org>
 
+__kmap_atomic_idx >= KM_TYPE_NR or < ZERO is a bug.
+Report it even if CONFIG_DEBUG_HIGHMEM is not enabled.
+That saves much debugging efforts.
 
+Signed-off-by: Chintan Pandya <cpandya@codeaurora.org>
+---
+ include/linux/highmem.h | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
 
-2014-07-22 i??i ? 10:04, Gioh Kim i?' e,?:
->
->
-> 2014-07-22 i??i ? 9:15, Minchan Kim i?' e,?:
->> Hello Mel,
->>
->> On Mon, Jul 21, 2014 at 02:01:46PM +0100, Mel Gorman wrote:
->>> On Mon, Jul 21, 2014 at 04:36:51PM +0900, Minchan Kim wrote:
->>>
->>> I'm not reviewing this in detail at all, didn't even look at the patch
->>> but two things popped out at me during the discussion.
->>>
->>>>>> Anyway, why cannot CMA have the cost without affecting other subsystem?
->>>>>> I mean it's okay for CMA to consume more time to shoot out the bh
->>>>>> instead of simple all bh_lru invalidation because big order allocation is
->>>>>> kinds of slow thing in the VM and everybody already know that and even
->>>>>> sometime get failed so it's okay to add more code that extremly slow path.
->>>>>
->>>>> There are 2 reasons to invalidate entire bh_lru.
->>>>>
->>>>> 1. I think CMA allocation is very rare so that invalidaing bh_lru affects the system little.
->>>>> How do you think about it? My platform does not call CMA allocation often.
->>>>> Is the CMA allocation or Memory-Hotplug called often?
->>>>
->>>> It depends on usecase and you couldn't assume anyting because we couldn't
->>>> ask every people in the world. "Please ask to us whenever you try to use CMA".
->>>>
->>>> The key point is how the patch is maintainable.
->>>> If it's too complicate to maintain, maybe we could go with simple solution
->>>> but if it's not too complicate, we can go with more smart thing to consider
->>>> other cases in future. Why not?
->>>>
->>>> Another point is that how user can detect where the regression is from.
->>>> If we cannot notice the regression, it's not a good idea to go with simple
->>>> version.
->>>>
->>>
->>> The buffer LRU avoids a lookup of a radix tree. If the LRU hit rate is
->>> low then the performance penalty of repeated radix tree lookups is
->>> severe but the cost of missing one hot lookup because CMA invalidate it
->>> is not.
->>>
->>> The real cost to be concerned with is the cost of performing the
->>> invalidation not the fact a lookup in the LRU was missed. It's because
->>> the cost of invalidation is high that this is being pushed to CMA because
->>> for CMA an allocation failure can be a functional failure and not just a
->>> performance problem.
->>>
->>>>>
->>>>> 2. Adding code in drop_buffers() can affect the system more that adding code in alloc_contig_range()
->>>>> because the drop_buffers does not have a way to distinguish migrate type.
->>>>> Even-though the lmbech results that it has almost the same performance.
->>>>> But I am afraid that it can be changed.
->>>>> As you said if bh_lru size can be changed it affects more than now.
->>>>> SO I do not want to touch non-CMA related code.
->>>>
->>>> I'm not saying to add hook in drop_buffers.
->>>> What I suggest is to handle failure by bh_lrus in migrate_pages
->>>> because it's not a problem only in CMA.
->>>
->>> No, please do not insert a global IPI to invalidate buffer heads in the
->>> general migration case. It's too expensive for either THP allocations or
->>> automatic NUMA migrates. The global IPI cost is justified for rare events
->>> where it causes functional problems if it fails to migreate -- CMA, memory
->>> hot-remove, memory poisoning etc.
->>
->> I didn't want to add that flushing in migrate_pages *unconditionlly*.
->> Please, look at this patch. It fixes only CMA although it's an issue
->> for others. Even, it depends on retry logic of upper layer of
->> alloc_contig_range but even cma_alloc(ie, upper layer of alloc_contig_range)
->> doesn't have retry logic. :(
->> That's why I suggested it in migrate_pages.
->>
->> Actually, I'd like to go with making migrate_pages's user blind on pcp
->> draining stuff by squeezing that inside migrate_pages.
->> IOW, current users of migrate pages don't need to be aware of per-cpu
->> draining. What they should know is just they should use MIGRATE_SYNC
->> for best effort but costly opeartion.
->>
->> For implemenation, we could use retry logic in migrate_pages.
->>
->> int migrate_pages(xxx)
->> {
->>          for (pass = 0; pass < 10 && retry; pass++)
->>                  if (retry && pass > 2 && mode == MIGRATE_SYNC)
->>                          flush_all_of_percpu_stuff();
->> }
->>
->> migrate_page has migrate_mode and retry logic with 'pass', even
->> reason if we want ot filter out MR_CMA|MEMORY_HOTPLUG|MR_MEMORY_FAILURE.
->> so that we could handle all of things inside migrate_pages.
->>
->> Normally, MIGRATE_SYNC would be expensive operation and mostly
->> it is used for CMA, memory-hotplug, memory-poisoning so THP and
->> automatic NUMA cannot affect so I believe adding IPI to that is not
->> a big problem in such trouble condition(ie, retry && pass > 2).
->
->
-> I agree Minchan's point.
-> I am not sure it is ok to touch the common code such as migrate_pages().
->
-> If Mel agrees, I am going to report another patch of flush_all_of_percpu_stuff() like following:
->
-> flush_all_of_percpu_stuff()
-> {
->      drop_only_bh_of_migrating_page();
->      lru_add_drain_all();
->      drain_all_pages();
-> }
->
-> And remove lru_add_drain_all() and drain_all_pages() in CMA/HOTPLUG codes.
+diff --git a/include/linux/highmem.h b/include/linux/highmem.h
+index 7fb31da..f42cafd 100644
+--- a/include/linux/highmem.h
++++ b/include/linux/highmem.h
+@@ -93,8 +93,8 @@ static inline int kmap_atomic_idx_push(void)
+ 
+ #ifdef CONFIG_DEBUG_HIGHMEM
+ 	WARN_ON_ONCE(in_irq() && !irqs_disabled());
+-	BUG_ON(idx > KM_TYPE_NR);
+ #endif
++	BUG_ON(idx >= KM_TYPE_NR);
+ 	return idx;
+ }
+ 
+@@ -105,13 +105,9 @@ static inline int kmap_atomic_idx(void)
+ 
+ static inline void kmap_atomic_idx_pop(void)
+ {
+-#ifdef CONFIG_DEBUG_HIGHMEM
+ 	int idx = __this_cpu_dec_return(__kmap_atomic_idx);
+ 
+ 	BUG_ON(idx < 0);
+-#else
+-	__this_cpu_dec(__kmap_atomic_idx);
+-#endif
+ }
+ 
+ #endif
+-- 
+Chintan Pandya
 
-
-First things first.
-
-I think the first step is making CMA/HOTPLUG work.
-I'm going to make v2 patch that inserts invalidate_bh_lrus() in both of CMA and HOTPLUG.
-
-Minchan's idea can be applied later.
-
-
-
->
->
->
->>
->>>
->>> --
->>> Mel Gorman
->>> SUSE Labs
->>>
->>> --
->>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>> the body to majordomo@kvack.org.  For more info on Linux MM,
->>> see: http://www.linux-mm.org/ .
->>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>
+QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+member of the Code Aurora Forum, hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
