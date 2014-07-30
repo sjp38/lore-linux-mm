@@ -1,42 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BC4F6B0036
-	for <linux-mm@kvack.org>; Wed, 30 Jul 2014 05:03:56 -0400 (EDT)
-Received: by mail-ig0-f180.google.com with SMTP id l13so2532268iga.13
-        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 02:03:56 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id w5si4403335igl.55.2014.07.30.02.03.55
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 413296B0036
+	for <linux-mm@kvack.org>; Wed, 30 Jul 2014 05:28:18 -0400 (EDT)
+Received: by mail-wg0-f44.google.com with SMTP id m15so879895wgh.27
+        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 02:28:17 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ei7si25293745wid.32.2014.07.30.02.28.05
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Jul 2014 02:03:55 -0700 (PDT)
-Date: Wed, 30 Jul 2014 02:06:15 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: BUG when __kmap_atomic_idx crosses boundary
-Message-Id: <20140730020615.2f943cf7.akpm@linux-foundation.org>
-In-Reply-To: <1406710355-4360-1-git-send-email-cpandya@codeaurora.org>
-References: <1406710355-4360-1-git-send-email-cpandya@codeaurora.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 30 Jul 2014 02:28:06 -0700 (PDT)
+Message-ID: <53D8BA9A.8050008@suse.cz>
+Date: Wed, 30 Jul 2014 11:27:54 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
+MIME-Version: 1.0
+Subject: Re: [PATCH v5 05/14] mm, compaction: move pageblock checks up from
+ isolate_migratepages_range()
+References: <1406553101-29326-1-git-send-email-vbabka@suse.cz> <1406553101-29326-6-git-send-email-vbabka@suse.cz> <alpine.DEB.2.02.1407281709050.8998@chino.kir.corp.google.com> <53D7690D.5070307@suse.cz> <alpine.DEB.2.02.1407291559130.20991@chino.kir.corp.google.com> <20140729232142.GB17685@node.dhcp.inet.fi> <alpine.DEB.2.02.1407291646590.961@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1407291646590.961@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chintan Pandya <cpandya@codeaurora.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 
-On Wed, 30 Jul 2014 14:22:35 +0530 Chintan Pandya <cpandya@codeaurora.org> wrote:
+On 07/30/2014 01:51 AM, David Rientjes wrote:
+> On Wed, 30 Jul 2014, Kirill A. Shutemov wrote:
+>
+>>> Hmm, I'm confused at how that could be true, could you explain what
+>>> memory other than thp can return true for PageTransHuge()?
+>>
+>> PageTransHuge() will be true for any head of compound page if THP is
+>> enabled compile time: hugetlbfs, slab, whatever.
+>>
+>
+> I was meaning in the context of the patch :)  Since PageLRU is set, that
+> discounts slab so we're left with thp or hugetlbfs.  Logically, both
+> should have sizes that are >= the size of the pageblock itself so I'm not
+> sure why we don't unconditionally align up to pageblock_nr_pages here.  Is
+> there a legitimiate configuration where a pageblock will span multiple
+> pages of HPAGE_PMD_ORDER?
 
-> __kmap_atomic_idx >= KM_TYPE_NR or < ZERO is a bug.
-> Report it even if CONFIG_DEBUG_HIGHMEM is not enabled.
-> That saves much debugging efforts.
+I think Joonsoo mentioned in some previous iteration that some arches 
+may have this. But I have no idea.
+But perhaps we could use HPAGE_PMD_ORDER instead of compound_order()?
 
-Please take considerably more care when preparing patch changelogs.
+In the locked case we know that PageLRU could not change so it still has 
+to be a huge page so we know it's possible order.
 
-kmap_atomic() is a very commonly called function so we'll need much
-more detail than this to justify adding overhead to it.
-
-I don't think CONFIG_DEBUG_HIGHMEM really needs to exist.  We could do
-s/CONFIG_DEBUG_HIGHMEM/CONFIG_DEBUG_VM/g and perhaps your secret bug
-whatever it was would have been found more easily.
+In the !locked case, I'm now not even sure if the current code is safe 
+enough. What if we pass the PageLRU check, but before the PageTransHuge 
+check a compound page (THP or otherwise) materializes and we are at one 
+of the tail pages. Then in DEBUG_VM configuration, this could fire in 
+PageTransHuge() check: VM_BUG_ON_PAGE(PageTail(page), page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
