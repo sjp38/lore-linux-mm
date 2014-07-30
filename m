@@ -1,171 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 716FA6B0038
-	for <linux-mm@kvack.org>; Wed, 30 Jul 2014 05:52:35 -0400 (EDT)
-Received: by mail-wi0-f180.google.com with SMTP id n3so1972943wiv.1
-        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 02:52:33 -0700 (PDT)
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 09BCF6B0036
+	for <linux-mm@kvack.org>; Wed, 30 Jul 2014 06:11:49 -0400 (EDT)
+Received: by mail-wi0-f174.google.com with SMTP id d1so7208124wiv.7
+        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 03:11:48 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e5si25394805wib.78.2014.07.30.02.52.31
+        by mx.google.com with ESMTPS id es7si3491958wjd.100.2014.07.30.03.11.46
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 30 Jul 2014 02:52:32 -0700 (PDT)
-Date: Wed, 30 Jul 2014 11:52:29 +0200
+        Wed, 30 Jul 2014 03:11:47 -0700 (PDT)
+Date: Wed, 30 Jul 2014 12:11:43 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v7 07/22] Replace the XIP page fault handler with the DAX
- page fault handler
-Message-ID: <20140730095229.GA19205@quack.suse.cz>
-References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
- <c2e602f401a580c4fac54b9b8f4a6f8dd0ac1071.1395591795.git.matthew.r.wilcox@intel.com>
- <20140409102758.GM32103@quack.suse.cz>
- <20140409205111.GG5727@linux.intel.com>
- <20140409214331.GQ32103@quack.suse.cz>
- <20140729121259.GL6754@linux.intel.com>
- <20140729210457.GA17807@quack.suse.cz>
- <20140729212333.GO6754@linux.intel.com>
+Subject: Re: [PATCH 0/2] new API to allocate buffer-cache for superblock in
+ non-movable area
+Message-ID: <20140730101143.GB19205@quack.suse.cz>
+References: <53CDF437.4090306@lge.com>
+ <20140722073005.GT3935@laptop>
+ <20140722093838.GA22331@quack.suse.cz>
+ <53D8A258.7010904@lge.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="EeQfGwPcQSOJBaQU"
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20140729212333.GO6754@linux.intel.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <53D8A258.7010904@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Jan Kara <jack@suse.cz>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Gioh Kim <gioh.kim@lge.com>
+Cc: Jan Kara <jack@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>
 
-
---EeQfGwPcQSOJBaQU
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-
-On Tue 29-07-14 17:23:33, Matthew Wilcox wrote:
-> On Tue, Jul 29, 2014 at 11:04:57PM +0200, Jan Kara wrote:
-> > > Path 1:
-> > > 
-> > > ext4_fallocate ->
-> > >  ext4_punch_hole ->
-> > >   ext4_inode_attach_jinode() -> ... ->
-> > >     lock_map_acquire(&handle->h_lockdep_map);
-> > >   truncate_pagecache_range() ->
-> > >    unmap_mapping_range() ->
-> > >     mutex_lock(&mapping->i_mmap_mutex);
-> >   This is strange. I don't see how ext4_inode_attach_jinode() can ever lead
-> > to lock_map_acquire(&handle->h_lockdep_map). Can you post a full trace for
-> > this?
+On Wed 30-07-14 16:44:24, Gioh Kim wrote:
+> 2014-07-22 i??i?? 6:38, Jan Kara i?' e,?:
+> >On Tue 22-07-14 09:30:05, Peter Zijlstra wrote:
+> >>On Tue, Jul 22, 2014 at 02:18:47PM +0900, Gioh Kim wrote:
+> >>>Hello,
+> >>>
+> >>>This patch try to solve problem that a long-lasting page cache of
+> >>>ext4 superblock disturbs page migration.
+> >>>
+> >>>I've been testing CMA feature on my ARM-based platform
+> >>>and found some pages for page caches cannot be migrated.
+> >>>Some of them are page caches of superblock of ext4 filesystem.
+> >>>
+> >>>Current ext4 reads superblock with sb_bread(). sb_bread() allocates page
+> >>>from movable area. But the problem is that ext4 hold the page until
+> >>>it is unmounted. If root filesystem is ext4 the page cannot be migrated forever.
+> >>>
+> >>>I introduce a new API for allocating page from non-movable area.
+> >>>It is useful for ext4 and others that want to hold page cache for a long time.
+> >>
+> >>There's no word on why you can't teach ext4 to still migrate that page.
+> >>For all I know it might be impossible, but at least mention why.
 > 
-> Unfortunately, lockdep finds the inversion in the other order, so I
-> have the backtraces of this path hitting the i_mmap_mutex while already
-> holding jbd_mutex:
-  I see the problem now. How about an attached patch? Do you see other
-lockdep warnings with it?
+> I am very sorry for lacking of details.
+> 
+> In ext4_fill_super() the buffer-head of superblock is stored in sbi->s_sbh.
+> The page belongs to the buffer-head is allocated from movable area.
+> To migrate the page the buffer-head should be released via brelse().
+> But brelse() is not called until unmount.
+  Hum, I don't see where in the code do we check buffer_head use count. Can
+you please point me? Thanks.
+
+> >   It doesn't seem to be worth the effort to make that page movable to me
+> >(it's reasonably doable since superblock buffer isn't accessed in *that*
+> >many places but single movable page doesn't seem like a good tradeoff for
+> >the complexity).
+> >
+> >But this made me look into the migration code and it isn't completely clear
+> >to me what makes the migration code decide that sb buffer isn't movable? We
+> >seem to be locking the buffers before moving the underlying page but we
+> >don't do any reference or state checks on the buffers... That seems to be
+> >assuming that noone looks at bh->b_data without holding buffer lock. That
+> >is likely true for ordinary data but definitely not true for metadata
+> >buffers (i.e., buffers for pages from block device mappings).
+> 
+> The sb buffer is not movable because it is not released.
+> sb_bread increase the reference counter of buffer-head so that
+> the page of the buffer-head cannot be movable.
+> 
+> sb_bread allocates page from movable area but it is not movable until the
+> reference counter of the buffer-head becomes zero.
+> There is no lock for the buffer but the reference counter acts like lock.
+  OK, but why do you care about a single page (of at most handful if you
+have more filesystems) which isn't movable? That shouldn't make a big
+difference to compaction...
+
+> Actually it is strange that ext4 keeps buffer-head in superblock
+> structure until unmount (it can be long time) I thinks the buffer-head
+> should be released immediately like fat_fill_super() did.  I believe
+> there is a reason to keep buffer-head so that I suggest this patch.
+  We don't copy some data from the superblock to other structure so from
+time to time we need to look e.g. at feature bits within superblock buffer.
+Historically we were updating numbers of free blocks and inodes in the
+superblock with each allocation but we don't do that anymore because it
+scales poorly. So there is no fundamental reason for keeping sb buffer
+pinned anymore. Just someone would have to rewrite the code to copy some
+pieces of data from the buffer to some other structure and use it there.
 
 								Honza
-> 
->  ======================================================
->  [ INFO: possible circular locking dependency detected ]
->  3.16.0-rc6+ #91 Tainted: G        W    
->  -------------------------------------------------------
->  fstest/31836 is trying to acquire lock:
->   (jbd2_handle){+.+.+.}, at: [<ffffffffa00f5333>] start_this_handle+0x193/0x630 [jbd2]
->  
->  but task is already holding lock:
->   (&mapping->i_mmap_mutex){+.+...}, at: [<ffffffff8124c0a0>] do_dax_fault+0x4e0/0x640
->  
->  which lock already depends on the new lock.
->  
->  
->  the existing dependency chain (in reverse order) is:
->  
->  -> #1 (&mapping->i_mmap_mutex){+.+...}:
->         [<ffffffff810cfa22>] lock_acquire+0xb2/0x1f0
->         [<ffffffff815cad15>] mutex_lock_nested+0x75/0x420
->         [<ffffffff811acf4b>] unmap_mapping_range+0x6b/0x180
->         [<ffffffff811901ba>] truncate_pagecache_range+0x4a/0x60
->         [<ffffffffa020af41>] ext4_punch_hole+0x4d1/0x530 [ext4]
->         [<ffffffffa0235356>] ext4_fallocate+0x156/0xb70 [ext4]
->         [<ffffffff811f3c19>] do_fallocate+0x119/0x1b0
->         [<ffffffff811f3cf3>] SyS_fallocate+0x43/0x70
->         [<ffffffff815cf8a9>] system_call_fastpath+0x16/0x1b
->  
->  -> #0 (jbd2_handle){+.+.+.}:
->         [<ffffffff810ce9e1>] __lock_acquire+0x1d01/0x1eb0
->         [<ffffffff810cfa22>] lock_acquire+0xb2/0x1f0
->         [<ffffffffa00f538e>] start_this_handle+0x1ee/0x630 [jbd2]
->         [<ffffffffa00f5c04>] jbd2__journal_start+0xd4/0x260 [jbd2]
->         [<ffffffffa0235f6d>] __ext4_journal_start_sb+0x6d/0x190 [ext4]
->         [<ffffffffa0206fca>] _ext4_get_block+0x16a/0x1c0 [ext4]
->         [<ffffffffa0207036>] ext4_get_block+0x16/0x20 [ext4]
->         [<ffffffff8124c199>] do_dax_fault+0x5d9/0x640
->         [<ffffffff8124c23f>] dax_fault+0x3f/0x90
->         [<ffffffffa01ff975>] ext4_dax_fault+0x15/0x20 [ext4]
->         [<ffffffff811ab6d1>] __do_fault+0x41/0xd0
->         [<ffffffff811ae7f5>] do_shared_fault.isra.56+0x35/0x220
->         [<ffffffff811af983>] handle_mm_fault+0x303/0xf70
->         [<ffffffff81062d2c>] __do_page_fault+0x1ec/0x5b0
->         [<ffffffff81063112>] do_page_fault+0x22/0x30
->         [<ffffffff815d18b8>] page_fault+0x28/0x30
->  
->  other info that might help us debug this:
->  
->   Possible unsafe locking scenario:
->  
->         CPU0                    CPU1
->         ----                    ----
->    lock(&mapping->i_mmap_mutex);
->                                 lock(jbd2_handle);
->                                 lock(&mapping->i_mmap_mutex);
->    lock(jbd2_handle);
->  
->   *** DEADLOCK ***
->  
->  3 locks held by fstest/31836:
->   #0:  (&mm->mmap_sem){++++++}, at: [<ffffffff81062cc2>] __do_page_fault+0x182/0x5b0
->   #1:  (sb_pagefaults){++++..}, at: [<ffffffff8124c27a>] dax_fault+0x7a/0x90
->   #2:  (&mapping->i_mmap_mutex){+.+...}, at: [<ffffffff8124c0a0>] do_dax_fault+0x4e0/0x640
->  
->  stack backtrace:
->  CPU: 6 PID: 31836 Comm: fstest Tainted: G        W     3.16.0-rc6+ #91
->  Hardware name: Gigabyte Technology Co., Ltd. To be filled by O.E.M./Q87M-D2H, BIOS F6 08/03/2013
->   ffffffff825e63e0 ffff8800a0fc78c0 ffffffff815c6bc3 ffffffff825e63e0
->   ffff8800a0fc7900 ffffffff815c4e59 ffff8800a0fc7970 ffff8800a88f4a50
->   ffff8800a88f4af8 ffff8800a88f5280 0000000000000003 ffff8800a88f5248
->  Call Trace:
->   [<ffffffff815c6bc3>] dump_stack+0x4d/0x66
->   [<ffffffff815c4e59>] print_circular_bug+0x201/0x20f
->   [<ffffffff810ce9e1>] __lock_acquire+0x1d01/0x1eb0
->   [<ffffffff81023b00>] ? cyc2ns_read_end+0x20/0x20
->   [<ffffffff810cfa22>] lock_acquire+0xb2/0x1f0
->   [<ffffffffa00f5333>] ? start_this_handle+0x193/0x630 [jbd2]
->   [<ffffffffa00f538e>] start_this_handle+0x1ee/0x630 [jbd2]
->   [<ffffffffa00f5333>] ? start_this_handle+0x193/0x630 [jbd2]
->   [<ffffffffa00f5020>] ? new_handle+0x20/0x60 [jbd2]
->   [<ffffffffa00f5c04>] jbd2__journal_start+0xd4/0x260 [jbd2]
->   [<ffffffffa0206fca>] ? _ext4_get_block+0x16a/0x1c0 [ext4]
->   [<ffffffffa0235f6d>] __ext4_journal_start_sb+0x6d/0x190 [ext4]
->   [<ffffffffa0206fca>] _ext4_get_block+0x16a/0x1c0 [ext4]
->   [<ffffffffa0207036>] ext4_get_block+0x16/0x20 [ext4]
->   [<ffffffff8124c199>] do_dax_fault+0x5d9/0x640
->   [<ffffffffa0207020>] ? _ext4_get_block+0x1c0/0x1c0 [ext4]
->   [<ffffffffa0207020>] ? _ext4_get_block+0x1c0/0x1c0 [ext4]
->   [<ffffffff8124c23f>] dax_fault+0x3f/0x90
->   [<ffffffffa01ff975>] ext4_dax_fault+0x15/0x20 [ext4]
->   [<ffffffff811ab6d1>] __do_fault+0x41/0xd0
->   [<ffffffff811ae7f5>] do_shared_fault.isra.56+0x35/0x220
->   [<ffffffff811af983>] handle_mm_fault+0x303/0xf70
->   [<ffffffff810ca676>] ? __lock_is_held+0x56/0x80
->   [<ffffffff81062d2c>] __do_page_fault+0x1ec/0x5b0
->   [<ffffffff8119dc3c>] ? vm_mmap_pgoff+0x9c/0xc0
->   [<ffffffff810c80cf>] ? up_write+0x1f/0x40
->   [<ffffffff8119dc3c>] ? vm_mmap_pgoff+0x9c/0xc0
->   [<ffffffff8133e1ea>] ? trace_hardirqs_off_thunk+0x3a/0x3c
->   [<ffffffff81063112>] do_page_fault+0x22/0x30
->   [<ffffffff815d18b8>] page_fault+0x28/0x30
-> 
 -- 
 Jan Kara <jack@suse.cz>
 SUSE Labs, CR
 
---EeQfGwPcQSOJBaQU
-Content-Type: text/x-patch; charset=us-ascii
-Content-Disposition: attachment; filename="0001-ext4-Avoid-lock-inversion-between-i_mmap_mutex-and-t.patch"
-
-
---EeQfGwPcQSOJBaQU--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
