@@ -1,69 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 164636B0036
-	for <linux-mm@kvack.org>; Wed, 30 Jul 2014 08:48:14 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id eu11so1468727pac.17
-        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 05:48:13 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id sj7si2331929pbc.44.2014.07.30.05.48.12
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Jul 2014 05:48:13 -0700 (PDT)
-Date: Wed, 30 Jul 2014 14:47:48 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC PATCH] mm: Add helpers for locked_vm
-Message-ID: <20140730124748.GK19379@twins.programming.kicks-ass.net>
-References: <1406712493-9284-1-git-send-email-aik@ozlabs.ru>
- <1406716282.9336.16.camel@buesod1.americas.hpqcorp.net>
- <53D8E578.7060303@ozlabs.ru>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="H+pqIWPix3sfwaup"
-Content-Disposition: inline
-In-Reply-To: <53D8E578.7060303@ozlabs.ru>
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 97ED56B0035
+	for <linux-mm@kvack.org>; Wed, 30 Jul 2014 10:34:22 -0400 (EDT)
+Received: by mail-qg0-f48.google.com with SMTP id i50so1528802qgf.35
+        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 07:34:22 -0700 (PDT)
+Received: from qmta12.emeryville.ca.mail.comcast.net (qmta12.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:227])
+        by mx.google.com with ESMTP id i64si4186661qge.60.2014.07.30.07.34.20
+        for <linux-mm@kvack.org>;
+        Wed, 30 Jul 2014 07:34:21 -0700 (PDT)
+Date: Wed, 30 Jul 2014 09:34:16 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: vmstat: On demand vmstat workers V8
+In-Reply-To: <53D8626E.5060900@cn.fujitsu.com>
+Message-ID: <alpine.DEB.2.11.1407300933370.4608@gentwo.org>
+References: <alpine.DEB.2.11.1407100903130.12483@gentwo.org> <53D31101.8000107@oracle.com> <alpine.DEB.2.11.1407281353450.15405@gentwo.org> <20140729075637.GA19379@twins.programming.kicks-ass.net> <20140729120525.GA28366@mtj.dyndns.org> <20140729122303.GA3935@laptop>
+ <20140729131226.GS7462@htj.dyndns.org> <alpine.DEB.2.11.1407291009320.21102@gentwo.org> <20140729151415.GF4791@htj.dyndns.org> <alpine.DEB.2.11.1407291038160.21390@gentwo.org> <53D8626E.5060900@cn.fujitsu.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexey Kardashevskiy <aik@ozlabs.ru>
-Cc: Davidlohr Bueso <davidlohr@hp.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, "Jo\"rn Engel" <joern@logfs.org>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alex Williamson <alex.williamson@redhat.com>, Alexander Graf <agraf@suse.de>, Michael Ellerman <michael@ellerman.id.au>
+To: Lai Jiangshan <laijs@cn.fujitsu.com>
+Cc: Tejun Heo <tj@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Sasha Levin <sasha.levin@oracle.com>, akpm@linux-foundation.org, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org
 
+On Wed, 30 Jul 2014, Lai Jiangshan wrote:
 
---H+pqIWPix3sfwaup
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+> >
+> >
+> > Index: linux/mm/vmstat.c
+> > ===================================================================
+> > --- linux.orig/mm/vmstat.c	2014-07-29 10:22:45.073884943 -0500
+> > +++ linux/mm/vmstat.c	2014-07-29 10:34:45.083369228 -0500
+> > @@ -1277,8 +1277,8 @@ static int vmstat_cpuup_callback(struct
+> >  		break;
+> >  	case CPU_DOWN_PREPARE:
+> >  	case CPU_DOWN_PREPARE_FROZEN:
+> > -		cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
+> >  		per_cpu(vmstat_work, cpu).work.func = NULL;
+> > +		cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
+>
+> I think we should just remove "per_cpu(vmstat_work, cpu).work.func = NULL;"
 
-On Wed, Jul 30, 2014 at 10:30:48PM +1000, Alexey Kardashevskiy wrote:
->=20
-> No, this is not my intention here. Here I only want to increment the coun=
-ter.
-
-Full and hard nack on that. It should always be tied to actual pages, we
-should not detach this and make it 'a number'.
-
-
-
---H+pqIWPix3sfwaup
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBAgAGBQJT2OlnAAoJEHZH4aRLwOS6nFUP/2U1vEbRt92TDziwqtL2/HBZ
-Nm+eMGwPbUoDQOF/J+aXiD3QDX+7nsyK09bHShwKSv6GidCopO14prSIlPsT0LyN
-NYleSCoIbKrKXttHpxGFftUJNaw6Cos/IUSrDn+nRXdLSLpnUBMmciVKlJ3ebaVu
-PO2ieMWEW8hmHKINSxpVS5IMLf4AmSW3+pO93J+0lIGcLb/WMwS1sOqmuIyxM1Fm
-LqtsQax5uJZHHdbl3q38/Eq3B0FV3k6VUwRbBYtedW8uUjqe6fhRXLQNHZRcGTa5
-vr6EYAi7hFCKarodaxmujJNl/Pt17Bkes98UmZsod341wjhqedWs8kPNZOvS65dB
-jHmaa/x7oXS8B0UyNQdAtsqTAUYezF/sXrAsUYh8XARZvhmVwcaeATtSqXT4Y1SM
-IgxPiSel9YcQivUTs/jbn0qhzFhCALjC8yuxvMBxdPdVOWyQ9+npomYJayTjIHQX
-6zN0KnhcvpS9znk9maphhrx0LGE7tNfIwIcVUvb91joNsgD9hhmS2AIAiLln3g/1
-LoHz9UFLPpTqc0dFbOV0Ipm2gHRseSImcCPJ96bxMHgQrf6cCMzbHoImqtiXlJ1Z
-kBTHKWUPa4wxbIyL3D8Xj3E6nsIMgL9rixTFphRrbpf6OHq768yGhv+vSnwPPE0W
-OCfkD5HyZNCpquqj1CkO
-=+FSo
------END PGP SIGNATURE-----
-
---H+pqIWPix3sfwaup--
+It has been removed by the vmstat patch. The patch I posted is against
+upstream not against -next.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
