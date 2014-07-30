@@ -1,105 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 09BCF6B0036
-	for <linux-mm@kvack.org>; Wed, 30 Jul 2014 06:11:49 -0400 (EDT)
-Received: by mail-wi0-f174.google.com with SMTP id d1so7208124wiv.7
-        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 03:11:48 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id es7si3491958wjd.100.2014.07.30.03.11.46
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id B106D6B0038
+	for <linux-mm@kvack.org>; Wed, 30 Jul 2014 06:12:38 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id y10so1216693pdj.35
+        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 03:12:38 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id qo7si1846263pac.190.2014.07.30.03.12.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 30 Jul 2014 03:11:47 -0700 (PDT)
-Date: Wed, 30 Jul 2014 12:11:43 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 0/2] new API to allocate buffer-cache for superblock in
- non-movable area
-Message-ID: <20140730101143.GB19205@quack.suse.cz>
-References: <53CDF437.4090306@lge.com>
- <20140722073005.GT3935@laptop>
- <20140722093838.GA22331@quack.suse.cz>
- <53D8A258.7010904@lge.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Jul 2014 03:12:37 -0700 (PDT)
+Date: Wed, 30 Jul 2014 12:12:18 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC PATCH] mm: Add helpers for locked_vm
+Message-ID: <20140730101218.GG19379@twins.programming.kicks-ass.net>
+References: <1406712493-9284-1-git-send-email-aik@ozlabs.ru>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="YuRE/gUr1KgjPX1R"
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <53D8A258.7010904@lge.com>
+In-Reply-To: <1406712493-9284-1-git-send-email-aik@ozlabs.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gioh Kim <gioh.kim@lge.com>
-Cc: Jan Kara <jack@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>
+To: Alexey Kardashevskiy <aik@ozlabs.ru>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, =?iso-8859-1?Q?J=F6rn?= Engel <joern@logfs.org>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Davidlohr Bueso <davidlohr@hp.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alex Williamson <alex.williamson@redhat.com>, Alexander Graf <agraf@suse.de>, Michael Ellerman <michael@ellerman.id.au>
 
-On Wed 30-07-14 16:44:24, Gioh Kim wrote:
-> 2014-07-22 i??i?? 6:38, Jan Kara i?' e,?:
-> >On Tue 22-07-14 09:30:05, Peter Zijlstra wrote:
-> >>On Tue, Jul 22, 2014 at 02:18:47PM +0900, Gioh Kim wrote:
-> >>>Hello,
-> >>>
-> >>>This patch try to solve problem that a long-lasting page cache of
-> >>>ext4 superblock disturbs page migration.
-> >>>
-> >>>I've been testing CMA feature on my ARM-based platform
-> >>>and found some pages for page caches cannot be migrated.
-> >>>Some of them are page caches of superblock of ext4 filesystem.
-> >>>
-> >>>Current ext4 reads superblock with sb_bread(). sb_bread() allocates page
-> >>>from movable area. But the problem is that ext4 hold the page until
-> >>>it is unmounted. If root filesystem is ext4 the page cannot be migrated forever.
-> >>>
-> >>>I introduce a new API for allocating page from non-movable area.
-> >>>It is useful for ext4 and others that want to hold page cache for a long time.
-> >>
-> >>There's no word on why you can't teach ext4 to still migrate that page.
-> >>For all I know it might be impossible, but at least mention why.
-> 
-> I am very sorry for lacking of details.
-> 
-> In ext4_fill_super() the buffer-head of superblock is stored in sbi->s_sbh.
-> The page belongs to the buffer-head is allocated from movable area.
-> To migrate the page the buffer-head should be released via brelse().
-> But brelse() is not called until unmount.
-  Hum, I don't see where in the code do we check buffer_head use count. Can
-you please point me? Thanks.
 
-> >   It doesn't seem to be worth the effort to make that page movable to me
-> >(it's reasonably doable since superblock buffer isn't accessed in *that*
-> >many places but single movable page doesn't seem like a good tradeoff for
-> >the complexity).
-> >
-> >But this made me look into the migration code and it isn't completely clear
-> >to me what makes the migration code decide that sb buffer isn't movable? We
-> >seem to be locking the buffers before moving the underlying page but we
-> >don't do any reference or state checks on the buffers... That seems to be
-> >assuming that noone looks at bh->b_data without holding buffer lock. That
-> >is likely true for ordinary data but definitely not true for metadata
-> >buffers (i.e., buffers for pages from block device mappings).
-> 
-> The sb buffer is not movable because it is not released.
-> sb_bread increase the reference counter of buffer-head so that
-> the page of the buffer-head cannot be movable.
-> 
-> sb_bread allocates page from movable area but it is not movable until the
-> reference counter of the buffer-head becomes zero.
-> There is no lock for the buffer but the reference counter acts like lock.
-  OK, but why do you care about a single page (of at most handful if you
-have more filesystems) which isn't movable? That shouldn't make a big
-difference to compaction...
+--YuRE/gUr1KgjPX1R
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> Actually it is strange that ext4 keeps buffer-head in superblock
-> structure until unmount (it can be long time) I thinks the buffer-head
-> should be released immediately like fat_fill_super() did.  I believe
-> there is a reason to keep buffer-head so that I suggest this patch.
-  We don't copy some data from the superblock to other structure so from
-time to time we need to look e.g. at feature bits within superblock buffer.
-Historically we were updating numbers of free blocks and inodes in the
-superblock with each allocation but we don't do that anymore because it
-scales poorly. So there is no fundamental reason for keeping sb buffer
-pinned anymore. Just someone would have to rewrite the code to copy some
-pieces of data from the buffer to some other structure and use it there.
+On Wed, Jul 30, 2014 at 07:28:13PM +1000, Alexey Kardashevskiy wrote:
+> This adds 2 helpers to change the locked_vm counter:
+> - try_increase_locked_vm - may fail if new locked_vm value will be greater
+> than the RLIMIT_MEMLOCK limit;
+> - decrease_locked_vm.
+>=20
+> These will be used by drivers capable of locking memory by userspace
+> request. For example, VFIO can use it to check if it can lock DMA memory
+> or PPC-KVM can use it to check if it can lock memory for TCE tables.
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Urgh no.. have a look here:
+
+lkml.kernel.org/r/20140526145605.016140154@infradead.org
+
+Someone needs to go help with the IB stuff, I got properly lost in
+there.
+
+--YuRE/gUr1KgjPX1R
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBAgAGBQJT2MUCAAoJEHZH4aRLwOS6tgcP/irknQ9NQqFgjP6iEkuuxHin
+7HpyR+dr0RJnCyp6aqaneqfIX6MtyUnIVUsxPegu6OEGHwbYWE+D2XWZAbXHaMdW
+GC2J6wCMw6YVBuBoXaUIxlmgL/VVcXuDluMkww6b3roBmF4jW+0jjIVG8hkX6DUl
+YaG/cv6Kclu4vS4f+hXOMEd/rd+PJMl9O8Kk8yzcHGXfcBt2IOTqiiHwG/GX2XTw
+1h6QvPid6SWLQ6EbHVZZd95/jgAowkwuVJZddlBxUwd839mg4+i/ypMtu7YXz5dN
+x25Nvo6w+8sCQcq1G1GACaWcJTsKJhAjew90nF33EGU+PjqzgWJdwN07gBQa9zjV
+F5pVrc2aYAGJWsxGTtq4kDD6w3B3oh1AKlv2/SAYA6koX29OGFi9WN5hUWOm3MG8
+LIqwqhfuhL0tWFAbn9dP3IFHzeMjCyeyhpQMxIL2bqMFHicqk/+qz87ol9l69Qg1
+Bwip5wxihkTQ9nfzK7FcUBthI3Hy4a09gXZm3KdpxvPoa9ZdfXfxuNF/gSRcfoHy
+jzazCcWD+rZIMLPy509v49223MD9j4peSNjd3E64GlZFQqHHezDSUiNY6dl/jT39
+XUTpoBdWXvQAb1z3YOYVDRNDIoDQroXQdelggdcACPn2aqj+kyXnB73+K6L+OGAC
+tSxKdbkan5Zdl6BRbSx8
+=zcmc
+-----END PGP SIGNATURE-----
+
+--YuRE/gUr1KgjPX1R--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
