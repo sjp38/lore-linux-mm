@@ -1,65 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A32F6B0035
-	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 13:22:12 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id g10so3869692pdj.29
-        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 10:22:12 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id ku7si6644352pbc.107.2014.07.31.10.22.11
-        for <linux-mm@kvack.org>;
-        Thu, 31 Jul 2014 10:22:11 -0700 (PDT)
-Date: Thu, 31 Jul 2014 13:19:53 -0400
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v8 04/22] Change direct_access calling convention
-Message-ID: <20140731171953.GU6754@linux.intel.com>
-References: <cover.1406058387.git.matthew.r.wilcox@intel.com>
- <b78b33d94b669a5fbd02e06f2493b43dd5d77698.1406058387.git.matthew.r.wilcox@intel.com>
- <53D9174C.7040906@gmail.com>
- <20140730194503.GQ6754@linux.intel.com>
- <53DA165E.8040601@gmail.com>
- <20140731141315.GT6754@linux.intel.com>
- <53DA60A5.1030304@gmail.com>
+Received: from mail-vc0-f169.google.com (mail-vc0-f169.google.com [209.85.220.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 40E266B0035
+	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 13:29:39 -0400 (EDT)
+Received: by mail-vc0-f169.google.com with SMTP id le20so4683569vcb.0
+        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 10:29:33 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w10si10926329qag.27.2014.07.31.10.29.32
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 Jul 2014 10:29:33 -0700 (PDT)
+Date: Thu, 31 Jul 2014 12:35:46 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [dm-devel] [PATCH] dm bufio: fully initialize shrinker
+In-Reply-To: <1406822839-2423-1-git-send-email-gthelen@google.com>
+Message-ID: <alpine.LRH.2.02.1407311235130.1571@file01.intranet.prod.int.rdu2.redhat.com>
+References: <1406822839-2423-1-git-send-email-gthelen@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <53DA60A5.1030304@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <openosd@gmail.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: device-mapper development <dm-devel@redhat.com>
+Cc: Alasdair Kergon <agk@redhat.com>, Mike Snitzer <snitzer@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, linux-kernel@vger.kernel.org, linux-raid@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <dchinner@redhat.com>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Jul 31, 2014 at 06:28:37PM +0300, Boaz Harrosh wrote:
-> Matthew what is your opinion about this, do we need to push for removal
-> of the partition dead code which never worked for brd, or we need to push
-> for fixing and implementing new partition support for brd?
 
-Fixing the code gets my vote.  brd is useful for testing things ... and
-sometimes we need to test things that involve partitions.
+On Thu, 31 Jul 2014, Greg Thelen wrote:
 
-> Also another thing I saw is that if we leave the flag 
-> 	GENHD_FL_SUPPRESS_PARTITION_INFO
+> 1d3d4437eae1 ("vmscan: per-node deferred work") added a flags field to
+> struct shrinker assuming that all shrinkers were zero filled.  The dm
+> bufio shrinker is not zero filled, which leaves arbitrary kmalloc() data
+> in flags.  So far the only defined flags bit is SHRINKER_NUMA_AWARE.
+> But there are proposed patches which add other bits to shrinker.flags
+> (e.g. memcg awareness).
 > 
-> then mount -U UUID stops to work, regardless of partitions or not,
-> this is because Kernel will not put us on /proc/patitions.
-> I'll submit another patch to remove it.
+> Rather than simply initializing the shrinker, this patch uses kzalloc()
+> when allocating the dm_bufio_client to ensure that the embedded shrinker
+> and any other similar structures are zeroed.
+> 
+> This fixes theoretical over aggressive shrinking of dm bufio objects.
+> If the uninitialized dm_bufio_client.shrinker.flags contains
+> SHRINKER_NUMA_AWARE then shrink_slab() would call the dm shrinker for
+> each numa node rather than just once.  This has been broken since 3.12.
+> 
+> Signed-off-by: Greg Thelen <gthelen@google.com>
 
-Yes, we should probably fix that too.
+Acked-by: Mikulas Patocka <mpatocka@redhat.com>
+Cc: stable@vger.kernel.org	#v3.12
 
-> BTW I hit another funny bug where the partition beginning was not
-> 4K aligned apparently fdisk lets you do this if the total size is small
-> enough  (like 4096 which is default for brd) so I ended up with accessing
-> sec zero, the supper-block, failing because of the alignment check at
-> direct_access().
-
-That's why I added on the partition start before doing the alignment
-check :-)
-
-> Do you know of any API that brd/prd can do to not let fdisk do this?
-> I'm looking at it right now I just thought it is worth asking.
-
-I think it's enough to refuse the mount.  That feels like a patch to
-ext2/4 (or maybe ext2/4 has a way to start the filesystem on a different
-block boundary?)
+> ---
+>  drivers/md/dm-bufio.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/drivers/md/dm-bufio.c b/drivers/md/dm-bufio.c
+> index 4e84095833db..d724459860d9 100644
+> --- a/drivers/md/dm-bufio.c
+> +++ b/drivers/md/dm-bufio.c
+> @@ -1541,7 +1541,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
+>  	BUG_ON(block_size < 1 << SECTOR_SHIFT ||
+>  	       (block_size & (block_size - 1)));
+>  
+> -	c = kmalloc(sizeof(*c), GFP_KERNEL);
+> +	c = kzalloc(sizeof(*c), GFP_KERNEL);
+>  	if (!c) {
+>  		r = -ENOMEM;
+>  		goto bad_client;
+> -- 
+> 2.0.0.526.g5318336
+> 
+> --
+> dm-devel mailing list
+> dm-devel@redhat.com
+> https://www.redhat.com/mailman/listinfo/dm-devel
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
