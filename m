@@ -1,80 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AFD4D6B0035
-	for <linux-mm@kvack.org>; Wed, 30 Jul 2014 23:29:39 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id ey11so2770479pad.10
-        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 20:29:38 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id sz8si4341001pac.181.2014.07.30.20.29.36
-        for <linux-mm@kvack.org>;
-        Wed, 30 Jul 2014 20:29:37 -0700 (PDT)
-From: Lai Jiangshan <laijs@cn.fujitsu.com>
-Subject: [PATCH] swap: remove the struct cpumask has_work
-Date: Thu, 31 Jul 2014 11:30:19 +0800
-Message-ID: <1406777421-12830-3-git-send-email-laijs@cn.fujitsu.com>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 97AB56B0035
+	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 01:36:35 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id eu11so2917453pac.18
+        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 22:36:35 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id bq15si1753444pdb.257.2014.07.30.22.36.34
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 30 Jul 2014 22:36:34 -0700 (PDT)
+Message-ID: <53D9D5DD.6030603@codeaurora.org>
+Date: Thu, 31 Jul 2014 11:06:29 +0530
+From: Chintan Pandya <cpandya@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH] mm: BUG when __kmap_atomic_idx crosses boundary
+References: <1406710355-4360-1-git-send-email-cpandya@codeaurora.org> <20140730020615.2f943cf7.akpm@linux-foundation.org>
+In-Reply-To: <20140730020615.2f943cf7.akpm@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, akpm@linux-foundation.org, Chris Metcalf <cmetcalf@tilera.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@gentwo.org>, Frederic Weisbecker <fweisbec@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Jianyu Zhan <nasa4836@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Khalid Aziz <khalid.aziz@oracle.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-It is suggested that cpumask_var_t and alloc_cpumask_var() should be used
-instead of struct cpumask.  But I don't want to add this complicity nor
-leave this unwelcome "static struct cpumask has_work;", so I just remove
-it and use flush_work() to perform on all online drain_work.  flush_work()
-performs very quickly on initialized but unused work item, thus we don't
-need the struct cpumask has_work for performance.
+On 07/30/2014 02:36 PM, Andrew Morton wrote:
+> On Wed, 30 Jul 2014 14:22:35 +0530 Chintan Pandya<cpandya@codeaurora.org>  wrote:
+>
+>> __kmap_atomic_idx>= KM_TYPE_NR or<  ZERO is a bug.
+>> Report it even if CONFIG_DEBUG_HIGHMEM is not enabled.
+>> That saves much debugging efforts.
+>
+> Please take considerably more care when preparing patch changelogs.
+Okay. I will prepare new commit message.
+>
+> kmap_atomic() is a very commonly called function so we'll need much
+> more detail than this to justify adding overhead to it.
+>
+> I don't think CONFIG_DEBUG_HIGHMEM really needs to exist.  We could do
+> s/CONFIG_DEBUG_HIGHMEM/CONFIG_DEBUG_VM/g and perhaps your secret bug
+> whatever it was would have been found more easily.
+Um, we didn't get bug directly hitting here.
+>
 
-CC: akpm@linux-foundation.org
-CC: Chris Metcalf <cmetcalf@tilera.com>
-CC: Mel Gorman <mgorman@suse.de>
-CC: Tejun Heo <tj@kernel.org>
-CC: Christoph Lameter <cl@gentwo.org>
-CC: Frederic Weisbecker <fweisbec@gmail.com>
-Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
----
- mm/swap.c |   11 ++++-------
- 1 files changed, 4 insertions(+), 7 deletions(-)
+__kmap_atomic_idx should not be equal to KM_TYPE_NR anyway. So, at least 
+I will share that patch. For changing DEBUG_HIGHMEM to DEBUG_VM, I will 
+work on it.
 
-diff --git a/mm/swap.c b/mm/swap.c
-index 9e8e347..bb524ca 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -833,27 +833,24 @@ static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
- void lru_add_drain_all(void)
- {
- 	static DEFINE_MUTEX(lock);
--	static struct cpumask has_work;
- 	int cpu;
- 
- 	mutex_lock(&lock);
- 	get_online_cpus();
--	cpumask_clear(&has_work);
- 
- 	for_each_online_cpu(cpu) {
- 		struct work_struct *work = &per_cpu(lru_add_drain_work, cpu);
- 
-+		INIT_WORK(work, lru_add_drain_per_cpu);
-+
- 		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
- 		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
- 		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
--		    need_activate_page_drain(cpu)) {
--			INIT_WORK(work, lru_add_drain_per_cpu);
-+		    need_activate_page_drain(cpu))
- 			schedule_work_on(cpu, work);
--			cpumask_set_cpu(cpu, &has_work);
--		}
- 	}
- 
--	for_each_cpu(cpu, &has_work)
-+	for_each_online_cpu(cpu)
- 		flush_work(&per_cpu(lru_add_drain_work, cpu));
- 
- 	put_online_cpus();
 -- 
-1.7.4.4
+QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+member of the Code Aurora Forum, hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
