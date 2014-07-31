@@ -1,50 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 97AB56B0035
-	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 01:36:35 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id eu11so2917453pac.18
-        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 22:36:35 -0700 (PDT)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id DD8216B0035
+	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 01:37:50 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id et14so2915507pad.35
+        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 22:37:50 -0700 (PDT)
 Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id bq15si1753444pdb.257.2014.07.30.22.36.34
+        by mx.google.com with ESMTPS id ma10si2312489pdb.461.2014.07.30.22.37.49
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 30 Jul 2014 22:36:34 -0700 (PDT)
-Message-ID: <53D9D5DD.6030603@codeaurora.org>
-Date: Thu, 31 Jul 2014 11:06:29 +0530
+        Wed, 30 Jul 2014 22:37:50 -0700 (PDT)
+Message-ID: <53D9D628.5050800@codeaurora.org>
+Date: Thu, 31 Jul 2014 11:07:44 +0530
 From: Chintan Pandya <cpandya@codeaurora.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: BUG when __kmap_atomic_idx crosses boundary
-References: <1406710355-4360-1-git-send-email-cpandya@codeaurora.org> <20140730020615.2f943cf7.akpm@linux-foundation.org>
-In-Reply-To: <20140730020615.2f943cf7.akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 2/2] ksm: Provide support to use deferrable timers
+ for scanner thread
+References: <1406299698-6357-1-git-send-email-cpandya@codeaurora.org>	<1406299698-6357-2-git-send-email-cpandya@codeaurora.org> <20140730144752.8c931d9ed997324632d5f2fd@linux-foundation.org>
+In-Reply-To: <20140730144752.8c931d9ed997324632d5f2fd@linux-foundation.org>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: tglx@linutronix.de, john.stultz@linaro.org, peterz@infradead.org, mingo@redhat.com, hughd@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 07/30/2014 02:36 PM, Andrew Morton wrote:
-> On Wed, 30 Jul 2014 14:22:35 +0530 Chintan Pandya<cpandya@codeaurora.org>  wrote:
+On 07/31/2014 03:17 AM, Andrew Morton wrote:
+> On Fri, 25 Jul 2014 20:18:18 +0530 Chintan Pandya<cpandya@codeaurora.org>  wrote:
 >
->> __kmap_atomic_idx>= KM_TYPE_NR or<  ZERO is a bug.
->> Report it even if CONFIG_DEBUG_HIGHMEM is not enabled.
->> That saves much debugging efforts.
+>> KSM thread to scan pages is scheduled on definite timeout. That wakes
+>> up CPU from idle state and hence may affect the power consumption.
+>> Provide an optional support to use deferrable timer which suites
+>> low-power use-cases.
+>>
+>> Typically, on our setup we observed, 10% less power consumption with
+>> some use-cases in which CPU goes to power collapse frequently. For
+>> example, playing audio while typically CPU remains idle.
+>>
+>> To enable deferrable timers,
+>> $ echo 1>  /sys/kernel/mm/ksm/deferrable_timer
 >
-> Please take considerably more care when preparing patch changelogs.
-Okay. I will prepare new commit message.
+> This could not have been the version which you tested.  What's up?
+
+My bad :( I will be careful next time
 >
-> kmap_atomic() is a very commonly called function so we'll need much
-> more detail than this to justify adding overhead to it.
+> --- a/mm/ksm.c~ksm-provide-support-to-use-deferrable-timers-for-scanner-thread-fix-fix-2
+> +++ a/mm/ksm.c
+> @@ -1720,8 +1720,6 @@ static int ksmd_should_run(void)
 >
-> I don't think CONFIG_DEBUG_HIGHMEM really needs to exist.  We could do
-> s/CONFIG_DEBUG_HIGHMEM/CONFIG_DEBUG_VM/g and perhaps your secret bug
-> whatever it was would have been found more easily.
-Um, we didn't get bug directly hitting here.
+>   static int ksm_scan_thread(void *nothing)
+>   {
+> -	signed long to;
+> -
+>   	set_freezable();
+>   	set_user_nice(current, 5);
+>
+> @@ -1735,7 +1733,9 @@ static int ksm_scan_thread(void *nothing
+>   		try_to_freeze();
+>
+>   		if (ksmd_should_run()) {
+> -			timeout = msecs_to_jiffies(ksm_thread_sleep_millisecs);
+> +			signed long to;
+> +
+> +			to = msecs_to_jiffies(ksm_thread_sleep_millisecs);
+>   			if (use_deferrable_timer)
+>   				schedule_timeout_deferrable_interruptible(to);
+>   			else
+> _
 >
 
-__kmap_atomic_idx should not be equal to KM_TYPE_NR anyway. So, at least 
-I will share that patch. For changing DEBUG_HIGHMEM to DEBUG_VM, I will 
-work on it.
 
 -- 
 QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
