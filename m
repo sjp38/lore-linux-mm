@@ -1,96 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E1876B0035
-	for <linux-mm@kvack.org>; Wed, 30 Jul 2014 20:37:19 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id et14so2487108pad.21
-        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 17:37:18 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id ek12si1996449pdb.361.2014.07.30.17.37.16
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id CB4A56B0035
+	for <linux-mm@kvack.org>; Wed, 30 Jul 2014 20:51:03 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id z10so2404373pdj.30
+        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 17:51:03 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id wk8si4050863pab.59.2014.07.30.17.51.01
         for <linux-mm@kvack.org>;
-        Wed, 30 Jul 2014 17:37:18 -0700 (PDT)
-Message-ID: <53D98FBB.6060700@lge.com>
-Date: Thu, 31 Jul 2014 09:37:15 +0900
-From: Gioh Kim <gioh.kim@lge.com>
+        Wed, 30 Jul 2014 17:51:02 -0700 (PDT)
+Message-ID: <53D99346.2080001@cn.fujitsu.com>
+Date: Thu, 31 Jul 2014 08:52:22 +0800
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] new API to allocate buffer-cache for superblock in
- non-movable area
-References: <53CDF437.4090306@lge.com> <20140722073005.GT3935@laptop> <20140722093838.GA22331@quack.suse.cz> <53D8A258.7010904@lge.com> <20140730101143.GB19205@quack.suse.cz> <53D985C0.3070300@lge.com> <20140731000355.GB25362@quack.suse.cz>
-In-Reply-To: <20140731000355.GB25362@quack.suse.cz>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Subject: Re: vmstat: On demand vmstat workers V8
+References: <alpine.DEB.2.11.1407100903130.12483@gentwo.org> <53D85F20.7020206@cn.fujitsu.com> <alpine.DEB.2.11.1407300934410.4608@gentwo.org>
+In-Reply-To: <alpine.DEB.2.11.1407300934410.4608@gentwo.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>
+To: Christoph Lameter <cl@gentwo.org>
+Cc: akpm@linux-foundation.org, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Paul E.
+ McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org, peterz@infradead.org
 
+On 07/30/2014 10:45 PM, Christoph Lameter wrote:
+> On Wed, 30 Jul 2014, Lai Jiangshan wrote:
+> 
+>> I think the bug is here, it re-queues the per_cpu(vmstat_work, cpu) which is offline
+>> (after vmstat_cpuup_callback(CPU_DOWN_PREPARE).  And cpu_stat_off is accessed without
+>> proper lock.
+> 
+> Ok. I guess we need to make the preemption check output more information
+> so that it tells us that an operation was performed on a processor that is
+> down?
 
+If the cpu_allows of the percpu-kworker is changed, the specific processor of the kworker
+should have been down if workqueue is implemented correctly.
+(the preemption check checks the cpu_allows)
+> 
+>> I suggest to use get_cpu_online() or a new cpu_stat_off_mutex to protect it.
+> 
+> If a processor is downed then cpu_stat_off bit should be cleared but also
+> the worker thread should not run.
 
-2014-07-31 i??i ? 9:03, Jan Kara i?' e,?:
-> On Thu 31-07-14 08:54:40, Gioh Kim wrote:
->> 2014-07-30 i??i?? 7:11, Jan Kara i?' e,?:
->>> On Wed 30-07-14 16:44:24, Gioh Kim wrote:
->>>> 2014-07-22 i??i?? 6:38, Jan Kara i?' e,?:
->>>>> On Tue 22-07-14 09:30:05, Peter Zijlstra wrote:
->>>>>> On Tue, Jul 22, 2014 at 02:18:47PM +0900, Gioh Kim wrote:
->>>>>>> Hello,
->>>>>>>
->>>>>>> This patch try to solve problem that a long-lasting page cache of
->>>>>>> ext4 superblock disturbs page migration.
->>>>>>>
->>>>>>> I've been testing CMA feature on my ARM-based platform
->>>>>>> and found some pages for page caches cannot be migrated.
->>>>>>> Some of them are page caches of superblock of ext4 filesystem.
->>>>>>>
->>>>>>> Current ext4 reads superblock with sb_bread(). sb_bread() allocates page
->>>>>> >from movable area. But the problem is that ext4 hold the page until
->>>>>>> it is unmounted. If root filesystem is ext4 the page cannot be migrated forever.
->>>>>>>
->>>>>>> I introduce a new API for allocating page from non-movable area.
->>>>>>> It is useful for ext4 and others that want to hold page cache for a long time.
->>>>>>
->>>>>> There's no word on why you can't teach ext4 to still migrate that page.
->>>>>> For all I know it might be impossible, but at least mention why.
->>>>
->>>> I am very sorry for lacking of details.
->>>>
->>>> In ext4_fill_super() the buffer-head of superblock is stored in sbi->s_sbh.
->>>> The page belongs to the buffer-head is allocated from movable area.
->>>> To migrate the page the buffer-head should be released via brelse().
->>>> But brelse() is not called until unmount.
->>>    Hum, I don't see where in the code do we check buffer_head use count. Can
->>> you please point me? Thanks.
+The kworker need to run for some reasons after the processor is down.
+Peter and TJ were just discussing it.
+
+The root cause (TO ME only) here is vmstat queues work to offline (or offlining) CPU,
+so the kworker has to run it.  We may add some check for queuing on offline CPU,
+but we can't check for higher level user guarantees.  (Example, vmstat can't queue
+work to a CPU which is still online but after vmstat_cpuup_callback(CPU_DOWN_PREPARE)).
+
+> 
+>>>  	case CPU_DOWN_PREPARE:
+>>>  	case CPU_DOWN_PREPARE_FROZEN:
+>>> -		cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
+>>> -		per_cpu(vmstat_work, cpu).work.func = NULL;
+>>> +		if (!cpumask_test_and_set_cpu(cpu, cpu_stat_off))
+>>> +			cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
 >>
->> Filesystem code does not check buffer_head use count.  sb_bread() returns
->> the buffer_head that is included in bh_lru and has non-zero use count.
->> You can see the bh_lru code in buffer.c: __find_get_clock() and
->> lookup_bh_lru().  bh_lru_install() inserts the buffer_head into the
->> bh_lru().  It first calls get_bh() to increase the use count and insert
->> bh into the lru array.
->>
->> The buffer_head use count is non-zero until brelse() is called.
->    So I probably didn't phrase the question precisely enough. What I was
-> asking about is where exactly *migration* code checks buffer use count?
-> Because as I'm looking at buffer_migrate_page() we lock the buffers on a
-> migrated page but we don't look at buffer use counts... So it seems to me
-> that migration of a page with buffers should succeed even if buffer head
-> has an elevated use count. Now I think that it *should* check the buffer
-> use counts (it is dangerous to migrate buffers someone holds reference to)
-> but I just cannot find that place. Or does CMA use some other migration
-> function for buffer pages than buffer_migrate_page()?
+>> It is suggest that cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu)) should
+>> be called unconditionally.  And the cpu should be cleared from cpu_stat_off.
+>> (you set it, it is BUG according to vmstat_shepherd() and the semantics of the
+>> cpu_stat_off).
+> 
+> True.
+> 
+> Subject: vmstat ondemand: Fix online/offline races
+> 
+> Do not allow onlining/offlining while the shepherd task is checking
+> for vmstat threads.
+> 
+> On offlining a processor do the right thing cancelling the vmstat
+> worker thread if it exista and also exclude it from the shepherd
+> process checks.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
+> 
+> Index: linux/mm/vmstat.c
+> ===================================================================
+> --- linux.orig/mm/vmstat.c	2014-07-30 09:35:54.602662306 -0500
+> +++ linux/mm/vmstat.c	2014-07-30 09:43:07.109037043 -0500
+> @@ -1317,6 +1317,7 @@ static void vmstat_shepherd(struct work_
+>  {
+>  	int cpu;
+> 
+> +	get_online_cpus();
+>  	/* Check processors whose vmstat worker threads have been disabled */
+>  	for_each_cpu(cpu, cpu_stat_off)
+>  		if (need_update(cpu) &&
+> @@ -1325,6 +1326,7 @@ static void vmstat_shepherd(struct work_
+>  			schedule_delayed_work_on(cpu, &per_cpu(vmstat_work, cpu),
+>  				__round_jiffies_relative(sysctl_stat_interval, cpu));
+> 
+> +	put_online_cpus();
+> 
+>  	schedule_delayed_work(&shepherd,
+>  		round_jiffies_relative(sysctl_stat_interval));
+> @@ -1380,8 +1382,8 @@ static int vmstat_cpuup_callback(struct
+>  		break;
+>  	case CPU_DOWN_PREPARE:
+>  	case CPU_DOWN_PREPARE_FROZEN:
+> -		if (!cpumask_test_and_set_cpu(cpu, cpu_stat_off))
+> -			cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
+> +		cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
+> +		cpumask_clear_cpu(cpu, cpu_stat_off);
 
-CMA allocation function is cma_alloc().
-Function flow is alloc_contig_range() -> __alloc_contig_migrate_range() -> migrate_pages -> unmap_and_move
--> __unmap_and_move -> try_to_free_buffers -> drop_buffers -> buffer_busy.
+Sasha Levin's test result?
 
-The buffer_busy() is checking b_count.
-If buffer is busy buffer-cache cannot be removed.
-So the page that includes buffer_head and the page that is refered by buffer_head are not movable.
-
-Is this what you need?
-
->
-> 								Honza
->
+>  		break;
+>  	case CPU_DOWN_FAILED:
+>  	case CPU_DOWN_FAILED_FROZEN:
+> .
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
