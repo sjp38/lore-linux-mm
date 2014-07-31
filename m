@@ -1,60 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id E76EF6B0038
-	for <linux-mm@kvack.org>; Wed, 30 Jul 2014 22:05:57 -0400 (EDT)
-Received: by mail-ig0-f182.google.com with SMTP id c1so4065748igq.15
-        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 19:05:57 -0700 (PDT)
-Received: from mail-ie0-x22a.google.com (mail-ie0-x22a.google.com [2607:f8b0:4001:c03::22a])
-        by mx.google.com with ESMTPS id mv1si10321255icc.47.2014.07.30.19.05.57
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 30 Jul 2014 19:05:57 -0700 (PDT)
-Received: by mail-ie0-f170.google.com with SMTP id rl12so2782286iec.29
-        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 19:05:57 -0700 (PDT)
-Date: Wed, 30 Jul 2014 19:05:55 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch for-3.16] kexec: fix build error when hugetlbfs is disabled
-In-Reply-To: <alpine.DEB.2.02.1407301901250.12482@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.02.1407301905110.12482@chino.kir.corp.google.com>
-References: <53d98399.wRC4T5IRh+/QWqVO%fengguang.wu@intel.com> <alpine.DEB.2.02.1407301727300.12181@chino.kir.corp.google.com> <CAOesGMgFeg_HNJMfxSzso1e48L+nFPCMqXZAAYKhV02Z29jQBg@mail.gmail.com>
- <alpine.DEB.2.02.1407301901250.12482@chino.kir.corp.google.com>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A08B6B0038
+	for <linux-mm@kvack.org>; Wed, 30 Jul 2014 22:22:39 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lf10so2676603pab.1
+        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 19:22:38 -0700 (PDT)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id gk1si4222411pbd.79.2014.07.30.19.22.36
+        for <linux-mm@kvack.org>;
+        Wed, 30 Jul 2014 19:22:38 -0700 (PDT)
+Message-ID: <53D9A86B.20208@lge.com>
+Date: Thu, 31 Jul 2014 11:22:35 +0900
+From: Gioh Kim <gioh.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: [PATCHv2] CMA/HOTPLUG: clear buffer-head lru before page migration
+Content-Type: text/plain; charset=EUC-KR
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Olof Johansson <olof@lixom.net>, Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>, kbuild test robot <fengguang.wu@intel.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: Andrew Morton <akpm@linux-foundation.org>, =?EUC-KR?B?J7Howdi89ic=?= <iamjoonsoo.kim@lge.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Minchan Kim <minchan@kernel.org>
+Cc: Laura Abbott <lauraa@codeaurora.org>, Michal Nazarewicz <mina86@mina86.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ????????? <gunho.lee@lge.com>, 'Chanho Min' <chanho.min@lge.com>
 
-free_huge_page() is undefined without CONFIG_HUGETLBFS and there's no need
-to filter PageHuge() page is such a configuration either, so avoid exporting the
-symbol to fix a build error:
+The previous PATCH inserts invalidate_bh_lrus() only into CMA code.
+HOTPLUG needs also dropping bh of lru.
+So v2 inserts invalidate_bh_lrus() into both of CMA and HOTPLUG.
 
-   In file included from kernel/kexec.c:14:0:
-   kernel/kexec.c: In function 'crash_save_vmcoreinfo_init':
-   kernel/kexec.c:1623:20: error: 'free_huge_page' undeclared (first use in this function)
-     VMCOREINFO_SYMBOL(free_huge_page);
-                       ^
 
-Reported-by: kbuild test robot <fengguang.wu@intel.com>
-Acked-by: Olof Johansson <olof@lixom.net>
-Signed-off-by: David Rientjes <rientjes@google.com>
+---------------------------- 8< ----------------------------
+The bh must be free to migrate a page at which bh is mapped.
+The reference count of bh is increased when it is installed
+into lru so that the bh of lru must be freed before migrating the page.
+
+This frees every bh of lru. We could free only bh of migrating page.
+But searching lru sometimes costs more than invalidating entire lru.
+
+Signed-off-by: Gioh Kim <gioh.kim@lge.com>
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
 ---
- kernel/kexec.c | 2 ++
- 1 file changed, 2 insertions(+)
+ mm/memory_hotplug.c |    1 +
+ mm/page_alloc.c     |    2 ++
+ 2 files changed, 3 insertions(+)
 
-diff --git a/kernel/kexec.c b/kernel/kexec.c
---- a/kernel/kexec.c
-+++ b/kernel/kexec.c
-@@ -1620,7 +1620,9 @@ static int __init crash_save_vmcoreinfo_init(void)
- #endif
- 	VMCOREINFO_NUMBER(PG_head_mask);
- 	VMCOREINFO_NUMBER(PAGE_BUDDY_MAPCOUNT_VALUE);
-+#ifdef CONFIG_HUGETLBFS
- 	VMCOREINFO_SYMBOL(free_huge_page);
-+#endif
- 
- 	arch_crash_save_vmcoreinfo();
- 	update_vmcoreinfo_note();
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index a3797d3..1c5454f 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1672,6 +1672,7 @@ repeat:
+                lru_add_drain_all();
+                cond_resched();
+                drain_all_pages();
++               invalidate_bh_lrus();
+        }
+
+        pfn = scan_movable_pages(start_pfn, end_pfn);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b99643d4..c00dedf 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6369,6 +6369,8 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+        if (ret)
+                return ret;
+
++       invalidate_bh_lrus();
++
+        ret = __alloc_contig_migrate_range(&cc, start, end);
+        if (ret)
+                goto done;
+--
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
