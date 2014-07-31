@@ -1,57 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id CAA5C6B0035
-	for <linux-mm@kvack.org>; Wed, 30 Jul 2014 21:23:33 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id kx10so2564227pab.20
-        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 18:23:33 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
-        by mx.google.com with ESMTP id zi2si4081976pbb.138.2014.07.30.18.23.32
-        for <linux-mm@kvack.org>;
-        Wed, 30 Jul 2014 18:23:33 -0700 (PDT)
-Date: Thu, 31 Jul 2014 09:20:51 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 463/499] Warning(kernel/time/timer.c:1462): No
- description found for parameter 'flag'
-Message-ID: <53d999f3.YS6+PPaaBxjvzYie%fengguang.wu@intel.com>
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 90BAC6B0035
+	for <linux-mm@kvack.org>; Wed, 30 Jul 2014 22:01:40 -0400 (EDT)
+Received: by mail-ig0-f173.google.com with SMTP id h18so8473775igc.12
+        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 19:01:40 -0700 (PDT)
+Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com [2607:f8b0:4001:c05::231])
+        by mx.google.com with ESMTPS id c10si10290465icx.58.2014.07.30.19.01.39
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 30 Jul 2014 19:01:39 -0700 (PDT)
+Received: by mail-ig0-f177.google.com with SMTP id hn18so4054370igb.16
+        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 19:01:39 -0700 (PDT)
+Date: Wed, 30 Jul 2014 19:01:37 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] kexec: export free_huge_page to VMCOREINFO fix
+In-Reply-To: <CAOesGMgFeg_HNJMfxSzso1e48L+nFPCMqXZAAYKhV02Z29jQBg@mail.gmail.com>
+Message-ID: <alpine.DEB.2.02.1407301901250.12482@chino.kir.corp.google.com>
+References: <53d98399.wRC4T5IRh+/QWqVO%fengguang.wu@intel.com> <alpine.DEB.2.02.1407301727300.12181@chino.kir.corp.google.com> <CAOesGMgFeg_HNJMfxSzso1e48L+nFPCMqXZAAYKhV02Z29jQBg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chintan Pandya <cpandya@codeaurora.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: Olof Johansson <olof@lixom.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>, kbuild test robot <fengguang.wu@intel.com>, linux-mm <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   2ba830748173b6c82eda725571aa403997bcbf3a
-commit: 09a84737014b94cbb79d491c3aa8cc1d01379708 [463/499] timer: provide an api for deferrable timeout
-reproduce: make htmldocs
+On Wed, 30 Jul 2014, Olof Johansson wrote:
 
-All warnings:
+> >  To be folded into kexec-export-free_huge_page-to-vmcoreinfo.patch.
+> 
+> Looks to be a bit late for that, Linus just merged it. Will need to go
+> in as-is instead.
+> 
 
-   Warning(kernel/sched/fair.c:5906): No description found for parameter 'overload'
->> Warning(kernel/time/timer.c:1462): No description found for parameter 'flag'
-   Warning(kernel/sys.c): no structured comments found
-   Warning(drivers/base/dd.c:61): No description found for parameter 'work'
-   Warning(drivers/dma-buf/fence.c:38): cannot understand function prototype: 'atomic_t fence_context_counter = ATOMIC_INIT(0); '
-   Warning(drivers/dma-buf/seqno-fence.c): no structured comments found
-   Warning(include/linux/seqno-fence.h:99): No description found for parameter 'cond'
-   Warning(drivers/dma-buf/reservation.c): no structured comments found
-   Warning(include/linux/reservation.h): no structured comments found
-   Warning(drivers/message/fusion/mptbase.c:1411): Excess function parameter 'prod_name' description in 'mpt_get_product_name'
-   Warning(drivers/message/fusion/mptbase.c:1411): Excess function parameter 'prod_name' description in 'mpt_get_product_name'
-   Warning(include/linux/spi/spi.h:458): No description found for parameter 'can_dma'
-   Warning(include/linux/spi/spi.h:458): No description found for parameter 'cur_msg_mapped'
-   Warning(include/linux/spi/spi.h:458): No description found for parameter 'dma_tx'
-   Warning(include/linux/spi/spi.h:458): No description found for parameter 'dma_rx'
-   Warning(include/linux/spi/spi.h:458): No description found for parameter 'dummy_rx'
-   Warning(include/linux/spi/spi.h:458): No description found for parameter 'dummy_tx'
-   Warning(include/linux/spi/spi.h:686): No description found for parameter 'frame_length'
-   Warning(drivers/spi/spi.c:857): No description found for parameter 'master'
-   Warning(drivers/spi/spi.c:857): No description found for parameter 'master'
-
----
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+Eeek, that was fast.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
