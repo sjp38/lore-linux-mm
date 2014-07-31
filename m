@@ -1,66 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 032C96B0035
-	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 11:38:46 -0400 (EDT)
-Received: by mail-qa0-f51.google.com with SMTP id k15so2456426qaq.24
-        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 08:38:46 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f8si10317438qar.120.2014.07.31.08.38.46
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 31 Jul 2014 08:38:46 -0700 (PDT)
-Message-ID: <53DA62FB.7000108@redhat.com>
-Date: Thu, 31 Jul 2014 11:38:35 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] memcg, vmscan: Fix forced scan of anonymous pages
-References: <1406807385-5168-1-git-send-email-jmarchan@redhat.com> <1406807385-5168-3-git-send-email-jmarchan@redhat.com>
-In-Reply-To: <1406807385-5168-3-git-send-email-jmarchan@redhat.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D6A76B0035
+	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 11:40:56 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id et14so3831107pad.21
+        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 08:40:56 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
+        by mx.google.com with ESMTP id jc4si6369186pbb.80.2014.07.31.08.40.53
+        for <linux-mm@kvack.org>;
+        Thu, 31 Jul 2014 08:40:53 -0700 (PDT)
+Subject: [PATCH 0/7] [RESEND][v4] x86: rework tlb range flushing code
+From: Dave Hansen <dave@sr71.net>
+Date: Thu, 31 Jul 2014 08:40:52 -0700
+Message-Id: <20140731154052.C7E7FBC1@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
+To: hpa@zytor.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave@sr71.net>
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+x86 Maintainers,
 
-On 07/31/2014 07:49 AM, Jerome Marchand wrote:
-> When memory cgoups are enabled, the code that decides to force to
-> scan anonymous pages in get_scan_count() compares global values
-> (free, high_watermark) to a value that is restricted to a memory
-> cgroup (file). It make the code over-eager to force anon scan.
-> 
-> For instance, it will force anon scan when scanning a memcg that
-> is mainly populated by anonymous page, even when there is plenty of
-> file pages to get rid of in others memcgs, even when swappiness ==
-> 0. It breaks user's expectation about swappiness and hurts
-> performance.
-> 
-> This patch make sure that forced anon scan only happens when there
-> not enough file pages for the all zone, not just in one random
-> memcg.
-> 
-> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+I've sent this a couple of times and resolved all the feedback
+I've received.  It has sign-offs from Mel and Rik.  Could this
+get picked up in to the x86 tree, please?
 
-That fix is a lot smaller than I thought it would be. Nice.
+Changes from v3:
+ * Include the patch I was using to gather detailed statistics
+   about the length of the ranged TLB flushes
+ * Fix some documentation typos
+ * Add a patch to rework the remote tlb flush code to plumb the
+   tracepoints in easier, and add missing tracepoints
+ * use __print_symbolic() for the human-readable tracepoint
+   descriptions
+ * change an int to bool in patch 1
+ * Specifically call out that we removed itlb vs. dtlb logic
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Changes from v2:
+ * Added a brief comment above the ceiling tunable
+ * Updated the documentation to mention large pages and say
+   "individual flush" instead of invlpg in most cases.
 
-- -- 
-All rights reversed
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
+I've run this through a variety of systems in the LKP harness,
+as well as running it on my desktop for a few days.  I'm yet to
+see an to see if any perfmance regressions (or gains) show up.
 
-iQEcBAEBAgAGBQJT2mL7AAoJEM553pKExN6DbzsH/ArKqWXYFfz7/hjADJXz85aK
-ygWdjpK18MbFeUMW3nL324j2567TXWpC2G7SgxSPjYnF/qvKjpoQHJk7WvisymjE
-p+5jGQAxzXgjlq0usGoFRrWUnR6vkdjTx0K8r6MO/asMLbvDBjkXvaURHdcV6fx4
-nUbkF/GRXGAGcnHOEks294w+8j8R50bugnX+IfmKo73eteNcMWU7Ga+b93kUmz3p
-4EE2PRpRKFWtpTAhpFlFI46gfu+e7I1Ziu2pzNUlYOP3P7t9pRS8YOI5JNOnyDfi
-lrbOXzoSqs6sbIlDd//A/p7u6Pzr+HnpbaxCrf9UCdNaMMqvb0gDQWv7221gI24=
-=BfHz
------END PGP SIGNATURE-----
+ arch/x86/include/asm/mmu_context.h |    6 ++
+ arch/x86/include/asm/processor.h   |    1
+ arch/x86/kernel/cpu/amd.c          |    7 --
+ arch/x86/kernel/cpu/common.c       |   13 ----
+ arch/x86/kernel/cpu/intel.c        |   26 ---------
+ arch/x86/mm/tlb.c                  |  106 ++++++++++++++++++-------------------
+ include/linux/mm_types.h           |    8 ++
+ 7 files changed, 68 insertions(+), 99 deletions(-)
+
+--
+
+I originally went to look at this becuase I realized that newer
+CPUs were not present in the intel_tlb_flushall_shift_set() code.
+
+I went to try to figure out where to stick newer CPUs (do we
+consider them more like SandyBridge or IvyBridge), and was not
+able to repeat the original experiments.
+
+Instead, this set does:
+ 1. Rework the code a bit to ready it for tracepoints
+ 2. Add tracepoints
+ 3. Add a new tunable and set it to a sane value
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
