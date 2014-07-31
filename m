@@ -1,91 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id CEDF06B0035
-	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 06:01:13 -0400 (EDT)
-Received: by mail-we0-f173.google.com with SMTP id q58so2506604wes.4
-        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 03:01:12 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t5si10136461wja.153.2014.07.31.03.01.08
+	by kanga.kvack.org (Postfix) with ESMTP id 7B08E6B0038
+	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 06:11:48 -0400 (EDT)
+Received: by mail-we0-f173.google.com with SMTP id q58so2501497wes.18
+        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 03:11:46 -0700 (PDT)
+Received: from mail-wg0-x22e.google.com (mail-wg0-x22e.google.com [2a00:1450:400c:c00::22e])
+        by mx.google.com with ESMTPS id ew2si4342789wjd.41.2014.07.31.03.11.45
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 31 Jul 2014 03:01:08 -0700 (PDT)
-Date: Thu, 31 Jul 2014 12:01:00 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] kexec-export-free_huge_page-to-vmcoreinfo-fix (was: Re:
- mmotm 2014-07-30-15-57 uploaded)
-Message-ID: <20140731100100.GD13561@dhcp22.suse.cz>
-References: <53d978aa.dtIIGjOqrXXmAm4e%akpm@linux-foundation.org>
- <20140731092452.GB13561@dhcp22.suse.cz>
+        Thu, 31 Jul 2014 03:11:45 -0700 (PDT)
+Received: by mail-wg0-f46.google.com with SMTP id m15so2442292wgh.29
+        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 03:11:45 -0700 (PDT)
+Message-ID: <53DA165E.8040601@gmail.com>
+Date: Thu, 31 Jul 2014 13:11:42 +0300
+From: Boaz Harrosh <openosd@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20140731092452.GB13561@dhcp22.suse.cz>
+Subject: Re: [PATCH v8 04/22] Change direct_access calling convention
+References: <cover.1406058387.git.matthew.r.wilcox@intel.com> <b78b33d94b669a5fbd02e06f2493b43dd5d77698.1406058387.git.matthew.r.wilcox@intel.com> <53D9174C.7040906@gmail.com> <20140730194503.GQ6754@linux.intel.com>
+In-Reply-To: <20140730194503.GQ6754@linux.intel.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, Atsushi Kumagai <kumagai-atsushi@mxc.nes.nec.co.jp>, Baoquan He <bhe@redhat.com>, Vivek Goyal <vgoyal@redhat.com>
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 31-07-14 11:24:52, Michal Hocko wrote:
-> On Wed 30-07-14 15:58:50, Andrew Morton wrote:
-> > * kexec-export-free_huge_page-to-vmcoreinfo.patch
+On 07/30/2014 10:45 PM, Matthew Wilcox wrote:
+<>
+>> + 	if (sector & (PAGE_SECTORS-1))
+>> + 		return -EINVAL;
 > 
-> This one seems to be missing ifdef for CONFIG_HUGETLBFS
+> Mmm.  PAGE_SECTORS is private to brd (and also private to bcache!) at
+> this point.  We've got a real mess of defines of SECTOR_SIZE, SECTORSIZE,
+> SECTOR_SHIFT and so on, dotted throughout various random include files.
+> I am not the river to flush those Augean stables today.
+> 
+> I'll go with this, from the dcssblk driver:
+> 
+>         if (sector % (PAGE_SIZE / 512))
+>                 return -EINVAL;
+> 
 
-Ohh, David has already posted the fix
-http://marc.info/?l=linux-mm&m=140676663218869
+Sigh, right, sure I did not mean to make that fight. Works as well
 
-> ---
-> From bcccb6696b89c700712421858b05dd89ea0d1ec5 Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.cz>
-> Date: Thu, 31 Jul 2014 11:18:57 +0200
-> Subject: [PATCH] kexec-export-free_huge_page-to-vmcoreinfo-fix
-> MIME-Version: 1.0
-> Content-Type: text/plain; charset=UTF-8
-> Content-Transfer-Encoding: 8bit
+<>
+>> Style: Need a space between declaration and code (have you check-patch)
 > 
-> free_huge_page is not defined for !CONFIG_HUGETLBFS. Fix the following
-> compilation error:
+> That's a bullshit check.  I don't know why it's in checkpatch.
 > 
-> kernel/kexec.c: In function a??crash_save_vmcoreinfo_inita??:
-> kernel/kexec.c:1628:20: error: a??free_huge_pagea?? undeclared (first use in this function)
->   VMCOREINFO_SYMBOL(free_huge_page);
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> ---
->  kernel/kexec.c | 2 ++
->  1 file changed, 2 insertions(+)
-> 
-> diff --git a/kernel/kexec.c b/kernel/kexec.c
-> index a3ccf9d7174b..507614acf938 100644
-> --- a/kernel/kexec.c
-> +++ b/kernel/kexec.c
-> @@ -1625,7 +1625,9 @@ static int __init crash_save_vmcoreinfo_init(void)
->  #endif
->  	VMCOREINFO_NUMBER(PG_head_mask);
->  	VMCOREINFO_NUMBER(PAGE_BUDDY_MAPCOUNT_VALUE);
-> +#ifdef CONFIG_HUGETLBFS
->  	VMCOREINFO_SYMBOL(free_huge_page);
-> +#endif
->  
->  	arch_crash_save_vmcoreinfo();
->  	update_vmcoreinfo_note();
-> -- 
-> 2.0.1
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
--- 
-Michal Hocko
-SUSE Labs
+I did not invent the rules. But I do respect them. I think the merit
+of sticking to some common style is much higher then any particular
+style choice. Though this particular one I do like, because of the
+C rule that forces all declarations before code, so it makes it easier
+on the maintenance. In any way Maintainers are suppose to run checkpatch
+before submission, some do ;-)
+
+<>
+>>> +	if (size < 0)
+>>
+>> 	if(size < PAGE_SIZE), No?
+> 
+> No, absolutely not.  PAGE_SIZE is unsigned long, which (if I understand
+> my C integer promotions correctly) means that 'size' gets promoted to
+> an unsigned long, and we compare them unsigned, so errors will never be
+> caught by this check.
+
+Good point I agree that you need a cast ie.
+
+ 	if(size < (long)PAGE_SIZE)
+
+The reason I'm saying this is because of a bug I actually hit when
+playing with partitioning and fdisk, it came out that the last partition's
+size was not page aligned, and code that checked for (< 0) crashed because
+prd returned the last two sectors of the partition, since your API is sector
+based this can happen for you here, before you are memseting a PAGE_SIZE
+you need to test there is space, No? 
+
+> 
+> 
+
+Thanks
+Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
