@@ -1,65 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 09E756B0035
-	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 11:27:19 -0400 (EDT)
-Received: by mail-we0-f172.google.com with SMTP id x48so2985377wes.3
-        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 08:27:19 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id ft4si114540wic.90.2014.07.31.08.27.14
+Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FCA36B0035
+	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 11:28:43 -0400 (EDT)
+Received: by mail-we0-f173.google.com with SMTP id q58so2942809wes.18
+        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 08:28:42 -0700 (PDT)
+Received: from mail-wi0-x22b.google.com (mail-wi0-x22b.google.com [2a00:1450:400c:c05::22b])
+        by mx.google.com with ESMTPS id v3si34125577wix.58.2014.07.31.08.28.41
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 31 Jul 2014 08:27:14 -0700 (PDT)
-Date: Thu, 31 Jul 2014 11:26:59 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 2/3] mm, oom: remove unnecessary check for NULL zonelist
-Message-ID: <20140731152659.GB9952@cmpxchg.org>
-References: <alpine.DEB.2.02.1407231814110.22326@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1407231815090.22326@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 31 Jul 2014 08:28:42 -0700 (PDT)
+Received: by mail-wi0-f171.google.com with SMTP id hi2so9590098wib.10
+        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 08:28:40 -0700 (PDT)
+Message-ID: <53DA60A5.1030304@gmail.com>
+Date: Thu, 31 Jul 2014 18:28:37 +0300
+From: Boaz Harrosh <openosd@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1407231815090.22326@chino.kir.corp.google.com>
+Subject: Re: [PATCH v8 04/22] Change direct_access calling convention
+References: <cover.1406058387.git.matthew.r.wilcox@intel.com> <b78b33d94b669a5fbd02e06f2493b43dd5d77698.1406058387.git.matthew.r.wilcox@intel.com> <53D9174C.7040906@gmail.com> <20140730194503.GQ6754@linux.intel.com> <53DA165E.8040601@gmail.com> <20140731141315.GT6754@linux.intel.com>
+In-Reply-To: <20140731141315.GT6754@linux.intel.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jul 23, 2014 at 06:16:32PM -0700, David Rientjes wrote:
-> If the pagefault handler is modified to pass a non-NULL zonelist then an 
-> unnecessary check for a NULL zonelist in constrained_alloc() can be removed.
->
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->  mm/oom_kill.c | 4 +---
->  1 file changed, 1 insertion(+), 3 deletions(-)
+On 07/31/2014 05:13 PM, Matthew Wilcox wrote:
+> On Thu, Jul 31, 2014 at 01:11:42PM +0300, Boaz Harrosh wrote:
+>>>>> +	if (size < 0)
+>>>>
+>>>> 	if(size < PAGE_SIZE), No?
+>>>
+>>> No, absolutely not.  PAGE_SIZE is unsigned long, which (if I understand
+>>> my C integer promotions correctly) means that 'size' gets promoted to
+>>> an unsigned long, and we compare them unsigned, so errors will never be
+>>> caught by this check.
+>>
+>> Good point I agree that you need a cast ie.
+>>
+>>  	if(size < (long)PAGE_SIZE)
+>>
+>> The reason I'm saying this is because of a bug I actually hit when
+>> playing with partitioning and fdisk, it came out that the last partition's
+>> size was not page aligned, and code that checked for (< 0) crashed because
+>> prd returned the last two sectors of the partition, since your API is sector
+>> based this can happen for you here, before you are memseting a PAGE_SIZE
+>> you need to test there is space, No? 
 > 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -208,8 +208,6 @@ static enum oom_constraint constrained_alloc(struct zonelist *zonelist,
->  	/* Default to all available memory */
->  	*totalpages = totalram_pages + total_swap_pages;
->  
-> -	if (!zonelist)
-> -		return CONSTRAINT_NONE;
->  	/*
->  	 * Reach here only when __GFP_NOFAIL is used. So, we should avoid
->  	 * to kill current.We have to random task kill in this case.
-> @@ -696,7 +694,7 @@ void pagefault_out_of_memory(void)
->  
->  	zonelist = node_zonelist(first_memory_node, GFP_KERNEL);
->  	if (try_set_zonelist_oom(zonelist, GFP_KERNEL)) {
-> -		out_of_memory(NULL, 0, 0, NULL, false);
-> +		out_of_memory(zonelist, 0, 0, NULL, false);
+> Not in ext2/ext4.  It requires block size == PAGE_SIZE, so it's never
+> going to request the last partial block in a partition.
+> 
 
-out_of_memory() wants the zonelist that was used during allocation,
-not just the random first node's zonelist that's simply picked to
-serialize page fault OOM kills system-wide.
+OK cool. then.
 
-This would even change how panic_on_oom behaves for page fault OOMs
-(in a completely unpredictable way) if we get CONSTRAINED_CPUSET.
+Matthew what is your opinion about this, do we need to push for removal
+of the partition dead code which never worked for brd, or we need to push
+for fixing and implementing new partition support for brd?
 
-This change makes no sense to me.
+Also another thing I saw is that if we leave the flag 
+	GENHD_FL_SUPPRESS_PARTITION_INFO
+
+then mount -U UUID stops to work, regardless of partitions or not,
+this is because Kernel will not put us on /proc/patitions.
+I'll submit another patch to remove it.
+
+BTW I hit another funny bug where the partition beginning was not
+4K aligned apparently fdisk lets you do this if the total size is small
+enough  (like 4096 which is default for brd) so I ended up with accessing
+sec zero, the supper-block, failing because of the alignment check at
+direct_access().
+Do you know of any API that brd/prd can do to not let fdisk do this?
+I'm looking at it right now I just thought it is worth asking.
+
+Thanks for everything
+Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
