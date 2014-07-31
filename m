@@ -1,61 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 679A86B0035
-	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 12:07:26 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id eu11so3868556pac.17
-        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 09:07:24 -0700 (PDT)
-Received: from mail-qa0-x24a.google.com (mail-qa0-x24a.google.com [2607:f8b0:400d:c00::24a])
-        by mx.google.com with ESMTPS id v6si10515746qge.21.2014.07.31.09.07.23
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 3780F6B0035
+	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 12:09:22 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id w10so3728826pde.4
+        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 09:09:21 -0700 (PDT)
+Received: from USMAMAIL.TILERA.COM (usmamail.tilera.com. [12.216.194.151])
+        by mx.google.com with ESMTPS id ch3si6413245pbb.235.2014.07.31.09.09.20
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 31 Jul 2014 09:07:23 -0700 (PDT)
-Received: by mail-qa0-f74.google.com with SMTP id j15so282072qaq.3
-        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 09:07:23 -0700 (PDT)
-From: Greg Thelen <gthelen@google.com>
-Subject: [PATCH] dm bufio: fully initialize shrinker
-Date: Thu, 31 Jul 2014 09:07:19 -0700
-Message-Id: <1406822839-2423-1-git-send-email-gthelen@google.com>
+        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 31 Jul 2014 09:09:21 -0700 (PDT)
+Message-ID: <53DA6A2F.100@tilera.com>
+Date: Thu, 31 Jul 2014 12:09:19 -0400
+From: Chris Metcalf <cmetcalf@tilera.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] swap: remove the struct cpumask has_work
+References: <1406777421-12830-3-git-send-email-laijs@cn.fujitsu.com> <20140731115137.GA20244@dhcp22.suse.cz>
+In-Reply-To: <20140731115137.GA20244@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alasdair Kergon <agk@redhat.com>, Mike Snitzer <snitzer@redhat.com>, dm-devel@redhat.com
-Cc: Neil Brown <neilb@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Dave Chinner <dchinner@redhat.com>, linux-raid@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Greg Thelen <gthelen@google.com>
+To: Michal Hocko <mhocko@suse.cz>, Lai Jiangshan <laijs@cn.fujitsu.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@gentwo.org>, Frederic Weisbecker <fweisbec@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Jianyu Zhan <nasa4836@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Khalid Aziz <khalid.aziz@oracle.com>, linux-mm@kvack.org, Gilad Ben-Yossef <gilad@benyossef.com>
 
-1d3d4437eae1 ("vmscan: per-node deferred work") added a flags field to
-struct shrinker assuming that all shrinkers were zero filled.  The dm
-bufio shrinker is not zero filled, which leaves arbitrary kmalloc() data
-in flags.  So far the only defined flags bit is SHRINKER_NUMA_AWARE.
-But there are proposed patches which add other bits to shrinker.flags
-(e.g. memcg awareness).
+On 7/31/2014 7:51 AM, Michal Hocko wrote:
+> On Thu 31-07-14 11:30:19, Lai Jiangshan wrote:
+>> It is suggested that cpumask_var_t and alloc_cpumask_var() should be used
+>> instead of struct cpumask.  But I don't want to add this complicity nor
+>> leave this unwelcome "static struct cpumask has_work;", so I just remove
+>> it and use flush_work() to perform on all online drain_work.  flush_work()
+>> performs very quickly on initialized but unused work item, thus we don't
+>> need the struct cpumask has_work for performance.
+> Why? Just because there is general recommendation for using
+> cpumask_var_t rather than cpumask?
+>
+> In this particular case cpumask shouldn't matter much as it is static.
+> Your code will work as well, but I do not see any strong reason to
+> change it just to get rid of cpumask which is not on stack.
 
-Rather than simply initializing the shrinker, this patch uses kzalloc()
-when allocating the dm_bufio_client to ensure that the embedded shrinker
-and any other similar structures are zeroed.
+The code uses for_each_cpu with a cpumask to avoid waking cpus that don't
+need to do work.  This is important for the nohz_full type functionality,
+power efficiency, etc.  So, nack for this change.
 
-This fixes theoretical over aggressive shrinking of dm bufio objects.
-If the uninitialized dm_bufio_client.shrinker.flags contains
-SHRINKER_NUMA_AWARE then shrink_slab() would call the dm shrinker for
-each numa node rather than just once.  This has been broken since 3.12.
-
-Signed-off-by: Greg Thelen <gthelen@google.com>
----
- drivers/md/dm-bufio.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/drivers/md/dm-bufio.c b/drivers/md/dm-bufio.c
-index 4e84095833db..d724459860d9 100644
---- a/drivers/md/dm-bufio.c
-+++ b/drivers/md/dm-bufio.c
-@@ -1541,7 +1541,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
- 	BUG_ON(block_size < 1 << SECTOR_SHIFT ||
- 	       (block_size & (block_size - 1)));
- 
--	c = kmalloc(sizeof(*c), GFP_KERNEL);
-+	c = kzalloc(sizeof(*c), GFP_KERNEL);
- 	if (!c) {
- 		r = -ENOMEM;
- 		goto bad_client;
 -- 
-2.0.0.526.g5318336
+Chris Metcalf, Tilera Corp.
+http://www.tilera.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
