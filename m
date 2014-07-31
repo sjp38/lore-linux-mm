@@ -1,72 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A08B6B0038
-	for <linux-mm@kvack.org>; Wed, 30 Jul 2014 22:22:39 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lf10so2676603pab.1
-        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 19:22:38 -0700 (PDT)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id gk1si4222411pbd.79.2014.07.30.19.22.36
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id AFD4D6B0035
+	for <linux-mm@kvack.org>; Wed, 30 Jul 2014 23:29:39 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id ey11so2770479pad.10
+        for <linux-mm@kvack.org>; Wed, 30 Jul 2014 20:29:38 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id sz8si4341001pac.181.2014.07.30.20.29.36
         for <linux-mm@kvack.org>;
-        Wed, 30 Jul 2014 19:22:38 -0700 (PDT)
-Message-ID: <53D9A86B.20208@lge.com>
-Date: Thu, 31 Jul 2014 11:22:35 +0900
-From: Gioh Kim <gioh.kim@lge.com>
+        Wed, 30 Jul 2014 20:29:37 -0700 (PDT)
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
+Subject: [PATCH] swap: remove the struct cpumask has_work
+Date: Thu, 31 Jul 2014 11:30:19 +0800
+Message-ID: <1406777421-12830-3-git-send-email-laijs@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: [PATCHv2] CMA/HOTPLUG: clear buffer-head lru before page migration
-Content-Type: text/plain; charset=EUC-KR
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, =?EUC-KR?B?J7Howdi89ic=?= <iamjoonsoo.kim@lge.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Minchan Kim <minchan@kernel.org>
-Cc: Laura Abbott <lauraa@codeaurora.org>, Michal Nazarewicz <mina86@mina86.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ????????? <gunho.lee@lge.com>, 'Chanho Min' <chanho.min@lge.com>
+To: linux-kernel@vger.kernel.org
+Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, akpm@linux-foundation.org, Chris Metcalf <cmetcalf@tilera.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@gentwo.org>, Frederic Weisbecker <fweisbec@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Jianyu Zhan <nasa4836@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Khalid Aziz <khalid.aziz@oracle.com>, linux-mm@kvack.org
 
-The previous PATCH inserts invalidate_bh_lrus() only into CMA code.
-HOTPLUG needs also dropping bh of lru.
-So v2 inserts invalidate_bh_lrus() into both of CMA and HOTPLUG.
+It is suggested that cpumask_var_t and alloc_cpumask_var() should be used
+instead of struct cpumask.  But I don't want to add this complicity nor
+leave this unwelcome "static struct cpumask has_work;", so I just remove
+it and use flush_work() to perform on all online drain_work.  flush_work()
+performs very quickly on initialized but unused work item, thus we don't
+need the struct cpumask has_work for performance.
 
-
----------------------------- 8< ----------------------------
-The bh must be free to migrate a page at which bh is mapped.
-The reference count of bh is increased when it is installed
-into lru so that the bh of lru must be freed before migrating the page.
-
-This frees every bh of lru. We could free only bh of migrating page.
-But searching lru sometimes costs more than invalidating entire lru.
-
-Signed-off-by: Gioh Kim <gioh.kim@lge.com>
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+CC: akpm@linux-foundation.org
+CC: Chris Metcalf <cmetcalf@tilera.com>
+CC: Mel Gorman <mgorman@suse.de>
+CC: Tejun Heo <tj@kernel.org>
+CC: Christoph Lameter <cl@gentwo.org>
+CC: Frederic Weisbecker <fweisbec@gmail.com>
+Signed-off-by: Lai Jiangshan <laijs@cn.fujitsu.com>
 ---
- mm/memory_hotplug.c |    1 +
- mm/page_alloc.c     |    2 ++
- 2 files changed, 3 insertions(+)
+ mm/swap.c |   11 ++++-------
+ 1 files changed, 4 insertions(+), 7 deletions(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index a3797d3..1c5454f 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1672,6 +1672,7 @@ repeat:
-                lru_add_drain_all();
-                cond_resched();
-                drain_all_pages();
-+               invalidate_bh_lrus();
-        }
-
-        pfn = scan_movable_pages(start_pfn, end_pfn);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b99643d4..c00dedf 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6369,6 +6369,8 @@ int alloc_contig_range(unsigned long start, unsigned long end,
-        if (ret)
-                return ret;
-
-+       invalidate_bh_lrus();
+diff --git a/mm/swap.c b/mm/swap.c
+index 9e8e347..bb524ca 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -833,27 +833,24 @@ static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
+ void lru_add_drain_all(void)
+ {
+ 	static DEFINE_MUTEX(lock);
+-	static struct cpumask has_work;
+ 	int cpu;
+ 
+ 	mutex_lock(&lock);
+ 	get_online_cpus();
+-	cpumask_clear(&has_work);
+ 
+ 	for_each_online_cpu(cpu) {
+ 		struct work_struct *work = &per_cpu(lru_add_drain_work, cpu);
+ 
++		INIT_WORK(work, lru_add_drain_per_cpu);
 +
-        ret = __alloc_contig_migrate_range(&cc, start, end);
-        if (ret)
-                goto done;
---
-1.7.9.5
+ 		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
+ 		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
+ 		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
+-		    need_activate_page_drain(cpu)) {
+-			INIT_WORK(work, lru_add_drain_per_cpu);
++		    need_activate_page_drain(cpu))
+ 			schedule_work_on(cpu, work);
+-			cpumask_set_cpu(cpu, &has_work);
+-		}
+ 	}
+ 
+-	for_each_cpu(cpu, &has_work)
++	for_each_online_cpu(cpu)
+ 		flush_work(&per_cpu(lru_add_drain_work, cpu));
+ 
+ 	put_online_cpus();
+-- 
+1.7.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
