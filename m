@@ -1,79 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FCA36B0035
-	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 11:28:43 -0400 (EDT)
-Received: by mail-we0-f173.google.com with SMTP id q58so2942809wes.18
-        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 08:28:42 -0700 (PDT)
-Received: from mail-wi0-x22b.google.com (mail-wi0-x22b.google.com [2a00:1450:400c:c05::22b])
-        by mx.google.com with ESMTPS id v3si34125577wix.58.2014.07.31.08.28.41
+Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 032C96B0035
+	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 11:38:46 -0400 (EDT)
+Received: by mail-qa0-f51.google.com with SMTP id k15so2456426qaq.24
+        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 08:38:46 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f8si10317438qar.120.2014.07.31.08.38.46
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 31 Jul 2014 08:28:42 -0700 (PDT)
-Received: by mail-wi0-f171.google.com with SMTP id hi2so9590098wib.10
-        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 08:28:40 -0700 (PDT)
-Message-ID: <53DA60A5.1030304@gmail.com>
-Date: Thu, 31 Jul 2014 18:28:37 +0300
-From: Boaz Harrosh <openosd@gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 31 Jul 2014 08:38:46 -0700 (PDT)
+Message-ID: <53DA62FB.7000108@redhat.com>
+Date: Thu, 31 Jul 2014 11:38:35 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v8 04/22] Change direct_access calling convention
-References: <cover.1406058387.git.matthew.r.wilcox@intel.com> <b78b33d94b669a5fbd02e06f2493b43dd5d77698.1406058387.git.matthew.r.wilcox@intel.com> <53D9174C.7040906@gmail.com> <20140730194503.GQ6754@linux.intel.com> <53DA165E.8040601@gmail.com> <20140731141315.GT6754@linux.intel.com>
-In-Reply-To: <20140731141315.GT6754@linux.intel.com>
+Subject: Re: [PATCH 2/2] memcg, vmscan: Fix forced scan of anonymous pages
+References: <1406807385-5168-1-git-send-email-jmarchan@redhat.com> <1406807385-5168-3-git-send-email-jmarchan@redhat.com>
+In-Reply-To: <1406807385-5168-3-git-send-email-jmarchan@redhat.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jerome Marchand <jmarchan@redhat.com>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>
 
-On 07/31/2014 05:13 PM, Matthew Wilcox wrote:
-> On Thu, Jul 31, 2014 at 01:11:42PM +0300, Boaz Harrosh wrote:
->>>>> +	if (size < 0)
->>>>
->>>> 	if(size < PAGE_SIZE), No?
->>>
->>> No, absolutely not.  PAGE_SIZE is unsigned long, which (if I understand
->>> my C integer promotions correctly) means that 'size' gets promoted to
->>> an unsigned long, and we compare them unsigned, so errors will never be
->>> caught by this check.
->>
->> Good point I agree that you need a cast ie.
->>
->>  	if(size < (long)PAGE_SIZE)
->>
->> The reason I'm saying this is because of a bug I actually hit when
->> playing with partitioning and fdisk, it came out that the last partition's
->> size was not page aligned, and code that checked for (< 0) crashed because
->> prd returned the last two sectors of the partition, since your API is sector
->> based this can happen for you here, before you are memseting a PAGE_SIZE
->> you need to test there is space, No? 
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+On 07/31/2014 07:49 AM, Jerome Marchand wrote:
+> When memory cgoups are enabled, the code that decides to force to
+> scan anonymous pages in get_scan_count() compares global values
+> (free, high_watermark) to a value that is restricted to a memory
+> cgroup (file). It make the code over-eager to force anon scan.
 > 
-> Not in ext2/ext4.  It requires block size == PAGE_SIZE, so it's never
-> going to request the last partial block in a partition.
+> For instance, it will force anon scan when scanning a memcg that
+> is mainly populated by anonymous page, even when there is plenty of
+> file pages to get rid of in others memcgs, even when swappiness ==
+> 0. It breaks user's expectation about swappiness and hurts
+> performance.
 > 
+> This patch make sure that forced anon scan only happens when there
+> not enough file pages for the all zone, not just in one random
+> memcg.
+> 
+> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
 
-OK cool. then.
+That fix is a lot smaller than I thought it would be. Nice.
 
-Matthew what is your opinion about this, do we need to push for removal
-of the partition dead code which never worked for brd, or we need to push
-for fixing and implementing new partition support for brd?
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-Also another thing I saw is that if we leave the flag 
-	GENHD_FL_SUPPRESS_PARTITION_INFO
+- -- 
+All rights reversed
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
 
-then mount -U UUID stops to work, regardless of partitions or not,
-this is because Kernel will not put us on /proc/patitions.
-I'll submit another patch to remove it.
-
-BTW I hit another funny bug where the partition beginning was not
-4K aligned apparently fdisk lets you do this if the total size is small
-enough  (like 4096 which is default for brd) so I ended up with accessing
-sec zero, the supper-block, failing because of the alignment check at
-direct_access().
-Do you know of any API that brd/prd can do to not let fdisk do this?
-I'm looking at it right now I just thought it is worth asking.
-
-Thanks for everything
-Boaz
+iQEcBAEBAgAGBQJT2mL7AAoJEM553pKExN6DbzsH/ArKqWXYFfz7/hjADJXz85aK
+ygWdjpK18MbFeUMW3nL324j2567TXWpC2G7SgxSPjYnF/qvKjpoQHJk7WvisymjE
+p+5jGQAxzXgjlq0usGoFRrWUnR6vkdjTx0K8r6MO/asMLbvDBjkXvaURHdcV6fx4
+nUbkF/GRXGAGcnHOEks294w+8j8R50bugnX+IfmKo73eteNcMWU7Ga+b93kUmz3p
+4EE2PRpRKFWtpTAhpFlFI46gfu+e7I1Ziu2pzNUlYOP3P7t9pRS8YOI5JNOnyDfi
+lrbOXzoSqs6sbIlDd//A/p7u6Pzr+HnpbaxCrf9UCdNaMMqvb0gDQWv7221gI24=
+=BfHz
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
