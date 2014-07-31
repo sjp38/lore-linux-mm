@@ -1,55 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 839E06B0035
-	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 16:30:46 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id fp1so4110456pdb.41
-        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 13:30:46 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
-        by mx.google.com with ESMTP id rf10si7178585pab.76.2014.07.31.13.30.45
-        for <linux-mm@kvack.org>;
-        Thu, 31 Jul 2014 13:30:45 -0700 (PDT)
-From: "Zwisler, Ross" <ross.zwisler@intel.com>
-Subject: Re: [PATCH v8 04/22] Change direct_access calling convention
-Date: Thu, 31 Jul 2014 20:30:02 +0000
-Message-ID: <1406838602.14136.12.camel@rzwisler-mobl1.amr.corp.intel.com>
-References: <cover.1406058387.git.matthew.r.wilcox@intel.com>
-	 <b78b33d94b669a5fbd02e06f2493b43dd5d77698.1406058387.git.matthew.r.wilcox@intel.com>
-	 <53D9174C.7040906@gmail.com> <20140730194503.GQ6754@linux.intel.com>
-	 <53DA165E.8040601@gmail.com> <20140731141315.GT6754@linux.intel.com>
-	 <53DA60A5.1030304@gmail.com> <20140731171953.GU6754@linux.intel.com>
-	 <53DA8518.3090604@gmail.com>
-In-Reply-To: <53DA8518.3090604@gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <D7339778D56F9B42BA028B59A656DB6A@intel.com>
-Content-Transfer-Encoding: base64
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 90B3E6B0035
+	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 16:44:01 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id ft15so4143321pdb.17
+        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 13:44:01 -0700 (PDT)
+Received: from USMAMAIL.TILERA.COM (usmamail.tilera.com. [12.216.194.151])
+        by mx.google.com with ESMTPS id x1si7202008pad.96.2014.07.31.13.44.00
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 31 Jul 2014 13:44:00 -0700 (PDT)
+Message-ID: <53DAAA8E.6000007@tilera.com>
+Date: Thu, 31 Jul 2014 16:43:58 -0400
+From: Chris Metcalf <cmetcalf@tilera.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH v2 7/7] memory-hotplug: tile: suitable memory should go
+ to ZONE_MOVABLE
+References: <1405914402-66212-1-git-send-email-wangnan0@huawei.com> <1405914402-66212-8-git-send-email-wangnan0@huawei.com> <53CDD5EE.1030805@huawei.com>
+In-Reply-To: <53CDD5EE.1030805@huawei.com>
+Content-Type: text/plain; charset="GB2312"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "openosd@gmail.com" <openosd@gmail.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "willy@linux.intel.com" <willy@linux.intel.com>, "martin.petersen@oracle.com" <martin.petersen@oracle.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
+To: Wang Nan <wangnan0@huawei.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Ingo Molnar <mingo@redhat.com>, Yinghai Lu <yinghai@kernel.org>, Mel Gorman <mgorman@suse.de>, Dave Hansen <dave.hansen@intel.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, peifeiyue@huawei.com, linux-mm@kvack.org, x86@kernel.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-sh@vger.kernel.org, linux-kernel@vger.kernel.org
 
-T24gVGh1LCAyMDE0LTA3LTMxIGF0IDIxOjA0ICswMzAwLCBCb2F6IEhhcnJvc2ggd3JvdGU6DQo+
-IE9uIDA3LzMxLzIwMTQgMDg6MTkgUE0sIE1hdHRoZXcgV2lsY294IHdyb3RlOg0KPiA+IE9uIFRo
-dSwgSnVsIDMxLCAyMDE0IGF0IDA2OjI4OjM3UE0gKzAzMDAsIEJvYXogSGFycm9zaCB3cm90ZToN
-Cj4gPj4gTWF0dGhldyB3aGF0IGlzIHlvdXIgb3BpbmlvbiBhYm91dCB0aGlzLCBkbyB3ZSBuZWVk
-IHRvIHB1c2ggZm9yIHJlbW92YWwNCj4gPj4gb2YgdGhlIHBhcnRpdGlvbiBkZWFkIGNvZGUgd2hp
-Y2ggbmV2ZXIgd29ya2VkIGZvciBicmQsIG9yIHdlIG5lZWQgdG8gcHVzaA0KPiA+PiBmb3IgZml4
-aW5nIGFuZCBpbXBsZW1lbnRpbmcgbmV3IHBhcnRpdGlvbiBzdXBwb3J0IGZvciBicmQ/DQo+ID4g
-DQo+ID4gRml4aW5nIHRoZSBjb2RlIGdldHMgbXkgdm90ZS4gIGJyZCBpcyB1c2VmdWwgZm9yIHRl
-c3RpbmcgdGhpbmdzIC4uLiBhbmQNCj4gPiBzb21ldGltZXMgd2UgbmVlZCB0byB0ZXN0IHRoaW5n
-cyB0aGF0IGludm9sdmUgcGFydGl0aW9ucy4NCj4gPiANCj4gDQo+IE9LIEknbSBvbiBpdCwgaXRz
-IHdoYXQgSSdtIGRvaW5nIHRvZGF5Lg0KPiANCj4gcnJyIEkgbWFuZ2VkIHRvIGNvbXBsZXRlbHkg
-dHJhc2ggbXkgdm0gYnkgZG9pbmcgJ21ha2UgaW5zdGFsbCcgb2YNCj4gdXRpbC1saW51eCBhbmQg
-YWZ0ZXIgcmVib290IGl0IG5ldmVyIHJlY292ZXJlZCwgSSByZW1lbWJlciB0aGF0DQo+IG1vdW50
-IGNvbXBsYWluZWQgYWJvdXQgYSBub3cgbWlzc2luZyBsaWJyYXJ5IGFuZCBJIGZvcmdvdCBhbmQg
-cmVib290ZWQsDQo+IHRoYXQgd2FzIHRoZSBlbmQgb2YgdGhhdC4gQW55d2F5IEkgaW5zdGFsbGVk
-IGEgbmV3IGZjMjAgc3lzdGVtIHdhbnRlZA0KPiB0aGF0IGZvciBhIGxvbmcgdGltZSBvdmVyIG15
-IG9sZCBmYzE4DQoNCkFoLCBJJ20gYWxyZWFkeSB3b3JraW5nIG9uIHRoaXMgYXMgd2VsbC4gIDop
-ICBJZiB5b3Ugd2FudCB5b3UgY2FuIHdhaXQgZm9yIG15DQpwYXRjaGVzIHRvIEJSRCAmIHRlc3Qg
-LSB0aGV5IHNob3VsZCBiZSBvdXQgdGhpcyB3ZWVrLg0KDQpJJ20gcGxhbm5pbmcgb24gYWRkaW5n
-IGdldF9nZW8oKSBhbmQgZG9pbmcgZHluYW1pYyBtaW5vcnMgYXMgaXMgZG9uZSBpbiBOVk1lLg0K
-DQotIFJvc3MNCg0K
+On 7/21/2014 11:09 PM, Wang Nan wrote:
+> Hi Andrew,
+>
+> Please drop patch 7/7 from -mm tree and keep other 6 patches.
+>
+> arch_add_memory() in tile is different from others: no nid parameter.
+> Patch 7/7 will block compiling.
+>
+> I cc this mail to Chris Metcalf and hope he can look at this issue.
+>
+> Other 6 patches looks good.
+>
+> On 2014/7/21 11:46, Wang Nan wrote:
+>> This patch introduces zone_for_memory() to arch_add_memory() on tile to
+>> ensure new, higher memory added into ZONE_MOVABLE if movable zone has
+>> already setup.
+>>
+>> This patch also fix a problem: on tile, new memory should be added into
+>> ZONE_HIGHMEM by default, not MAX_NR_ZONES-1, which is ZONE_MOVABLE.
+>>
+>> Signed-off-by: Wang Nan <wangnan0@huawei.com>
+>> Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+>> Cc: Dave Hansen <dave.hansen@intel.com>
+>> ---
+>>  arch/tile/mm/init.c | 3 ++-
+>>  1 file changed, 2 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/arch/tile/mm/init.c b/arch/tile/mm/init.c
+>> index bfb3127..22ac6c1 100644
+>> --- a/arch/tile/mm/init.c
+>> +++ b/arch/tile/mm/init.c
+>> @@ -872,7 +872,8 @@ void __init mem_init(void)
+>>  int arch_add_memory(u64 start, u64 size)
+>>  {
+>>  	struct pglist_data *pgdata = &contig_page_data;
+>> -	struct zone *zone = pgdata->node_zones + MAX_NR_ZONES-1;
+>> +	struct zone *zone = pgdata->node_zones +
+>> +		zone_for_memory(nid, start, size, ZONE_HIGHMEM);
+>>  	unsigned long start_pfn = start >> PAGE_SHIFT;
+>>  	unsigned long nr_pages = size >> PAGE_SHIFT;
+>>  
+
+This code is entirely stale; it came from the initial port of Linux
+2.6.15 to Tilera.  Since we have always used DISCONTIGMEM unconditionally,
+which forces NEED_MULTIPLE_NODES to be true, this code never compiles.
+Note the completely irrelevant comment about x86 in this ifdef block, too :-)
+
+The cleanest thing to do is just remove those three functions in the
+ifdef block.  I'll do that to our internal tree and plan to push the
+change upstream later.
+
+-- 
+Chris Metcalf, Tilera Corp.
+http://www.tilera.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
