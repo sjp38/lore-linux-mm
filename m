@@ -1,80 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 702D96B0036
-	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 16:10:52 -0400 (EDT)
-Received: by mail-ig0-f182.google.com with SMTP id c1so2218129igq.3
-        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 13:10:52 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ge8si24883370icb.28.2014.08.01.13.10.51
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id AE8266B0036
+	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 16:19:09 -0400 (EDT)
+Received: by mail-qg0-f44.google.com with SMTP id e89so6403043qgf.17
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 13:19:09 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d7si17512501qam.9.2014.08.01.13.19.08
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Aug 2014 13:10:51 -0700 (PDT)
-Date: Fri, 1 Aug 2014 13:10:49 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 1/2] mm/highmem: make kmap cache coloring aware
-Message-Id: <20140801131049.e94e0e6daec0180ac0236f68@linux-foundation.org>
-In-Reply-To: <1406317427-10215-2-git-send-email-jcmvbkbc@gmail.com>
-References: <1406317427-10215-1-git-send-email-jcmvbkbc@gmail.com>
-	<1406317427-10215-2-git-send-email-jcmvbkbc@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 01 Aug 2014 13:19:09 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH -mm v6 07/13] numa_maps: fix typo in gather_hugetbl_stats
+Date: Fri,  1 Aug 2014 15:20:43 -0400
+Message-Id: <1406920849-25908-8-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1406920849-25908-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1406920849-25908-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Max Filippov <jcmvbkbc@gmail.com>
-Cc: linux-xtensa@linux-xtensa.org, Chris Zankel <chris@zankel.net>, Marc Gauthier <marc@cadence.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-mips@linux-mips.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>, Steven Hill <Steven.Hill@imgtec.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jerome Marchand <jmarchan@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Fri, 25 Jul 2014 23:43:46 +0400 Max Filippov <jcmvbkbc@gmail.com> wrote:
+Just doing s/gather_hugetbl_stats/gather_hugetlb_stats/g, this makes code
+grep-friendly.
 
-> VIPT cache with way size larger than MMU page size may suffer from
-> aliasing problem: a single physical address accessed via different
-> virtual addresses may end up in multiple locations in the cache.
-> Virtual mappings of a physical address that always get cached in
-> different cache locations are said to have different colors.
-> L1 caching hardware usually doesn't handle this situation leaving it
-> up to software. Software must avoid this situation as it leads to
-> data corruption.
-> 
-> One way to handle this is to flush and invalidate data cache every time
-> page mapping changes color. The other way is to always map physical page
-> at a virtual address with the same color. Low memory pages already have
-> this property. Giving architecture a way to control color of high memory
-> page mapping allows reusing of existing low memory cache alias handling
-> code.
-> 
-> Provide hooks that allow architectures with aliasing cache to align
-> mapping address of high pages according to their color. Such architectures
-> may enforce similar coloring of low- and high-memory page mappings and
-> reuse existing cache management functions to support highmem.
-> 
-> This code is based on the implementation of similar feature for MIPS by
-> Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>.
-> 
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ fs/proc/task_mmu.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-It's worth mentioning that xtensa needs this.
-
-What is (still) missing from these changelogs is a clear description of
-the end-user visible effects.  Does it fix some bug?  If so what?  Is
-it a performace optimisation?  If so how much?  This info is the
-top-line reason for the patchset and should be presented as such.
-
-> --- a/mm/highmem.c
-> +++ b/mm/highmem.c
-> @@ -28,6 +28,9 @@
->  #include <linux/highmem.h>
->  #include <linux/kgdb.h>
->  #include <asm/tlbflush.h>
-> +#ifdef CONFIG_HIGHMEM
-> +#include <asm/highmem.h>
-> +#endif
-
-Should be unneeded - the linux/highmem.h inclusion already did this.
-
-Apart from that it all looks OK to me.  I'm assuming this is 3.17-rc1
-material, but I am unsure because of the missing end-user-impact info. 
-If it's needed in earlier kernels then we can tag it for -stable
-backporting but again, the -stable team (ie: Greg) will want so see the
-justification for that backport.
+diff --git mmotm-2014-07-30-15-57.orig/fs/proc/task_mmu.c mmotm-2014-07-30-15-57/fs/proc/task_mmu.c
+index e4c6cdb9647b..8b1eb1617445 100644
+--- mmotm-2014-07-30-15-57.orig/fs/proc/task_mmu.c
++++ mmotm-2014-07-30-15-57/fs/proc/task_mmu.c
+@@ -1340,7 +1340,7 @@ static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
+ 	return 0;
+ }
+ #ifdef CONFIG_HUGETLB_PAGE
+-static int gather_hugetbl_stats(pte_t *pte, unsigned long hmask,
++static int gather_hugetlb_stats(pte_t *pte, unsigned long hmask,
+ 		unsigned long addr, unsigned long end, struct mm_walk *walk)
+ {
+ 	struct numa_maps *md;
+@@ -1359,7 +1359,7 @@ static int gather_hugetbl_stats(pte_t *pte, unsigned long hmask,
+ }
+ 
+ #else
+-static int gather_hugetbl_stats(pte_t *pte, unsigned long hmask,
++static int gather_hugetlb_stats(pte_t *pte, unsigned long hmask,
+ 		unsigned long addr, unsigned long end, struct mm_walk *walk)
+ {
+ 	return 0;
+@@ -1391,7 +1391,7 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
+ 
+ 	md->vma = vma;
+ 
+-	walk.hugetlb_entry = gather_hugetbl_stats;
++	walk.hugetlb_entry = gather_hugetlb_stats;
+ 	walk.pmd_entry = gather_pte_stats;
+ 	walk.private = md;
+ 	walk.mm = mm;
+-- 
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
