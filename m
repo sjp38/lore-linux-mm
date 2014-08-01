@@ -1,64 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 214DF6B0055
-	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 17:42:22 -0400 (EDT)
-Received: by mail-ig0-f172.google.com with SMTP id h15so2320539igd.5
-        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 14:42:21 -0700 (PDT)
-Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com [2607:f8b0:4001:c03::22b])
-        by mx.google.com with ESMTPS id fu3si25253240icb.49.2014.08.01.14.42.21
+Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 26FB16B005C
+	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 17:54:01 -0400 (EDT)
+Received: by mail-ie0-f174.google.com with SMTP id rp18so6788693iec.19
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 14:54:00 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id ie1si25314203icb.43.2014.08.01.14.54.00
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 01 Aug 2014 14:42:21 -0700 (PDT)
-Received: by mail-ie0-f171.google.com with SMTP id at1so6632277iec.2
-        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 14:42:21 -0700 (PDT)
-Date: Fri, 1 Aug 2014 14:42:19 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 2/3] mm, oom: remove unnecessary check for NULL
- zonelist
-In-Reply-To: <20140801133444.GH9952@cmpxchg.org>
-Message-ID: <alpine.DEB.2.02.1408011434330.11532@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1407231814110.22326@chino.kir.corp.google.com> <alpine.DEB.2.02.1407231815090.22326@chino.kir.corp.google.com> <20140731152659.GB9952@cmpxchg.org> <alpine.DEB.2.02.1408010159500.4061@chino.kir.corp.google.com>
- <20140801133444.GH9952@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 01 Aug 2014 14:54:00 -0700 (PDT)
+Date: Fri, 1 Aug 2014 14:53:58 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 1/3] mm/hugetlb: take refcount under page table lock
+ in follow_huge_pmd()
+Message-Id: <20140801145358.0d673fc05235d941ca9dec0e@linux-foundation.org>
+In-Reply-To: <1406914663-8631-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1406914663-8631-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Fri, 1 Aug 2014, Johannes Weiner wrote:
+On Fri,  1 Aug 2014 13:37:41 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-> > > out_of_memory() wants the zonelist that was used during allocation,
-> > > not just the random first node's zonelist that's simply picked to
-> > > serialize page fault OOM kills system-wide.
-> > > 
-> > > This would even change how panic_on_oom behaves for page fault OOMs
-> > > (in a completely unpredictable way) if we get CONSTRAINED_CPUSET.
-> > > 
-> > > This change makes no sense to me.
-> > > 
-> > 
-> > Allocations during fault will be constrained by the cpuset's mems, if we 
-> > are oom then why would we panic when panic_on_oom == 1?
+> We have a race condition between move_pages() and freeing hugepages,
+> where move_pages() calls follow_page(FOLL_GET) for hugepages internally
+> and tries to get its refcount without preventing concurrent freeing.
+> This race crashes the kernel, so this patch fixes it by moving FOLL_GET
+> code for hugepages into follow_huge_pmd() with taking the page table lock.
 > 
-> Can you please address the concerns I raised?
+> This patch passes the following test. And libhugetlbfs test shows no
+> regression.
 > 
+> ...
 
-I see one concern: that panic_on_oom == 1 will not trigger on pagefault 
-when constrained by cpusets.  To address that, I'll state that, since 
-cpuset-constrained allocations are the allocation context for pagefaults,
-panic_on_oom == 1 should not trigger on pagefault when constrained by 
-cpusets.
+How were these bugs discovered?  Are we missing some Reported-by's?
 
-> And please describe user-visible changes in the changelog.
-> 
+> --- mmotm-2014-07-22-15-58.orig/include/linux/hugetlb.h
+> +++ mmotm-2014-07-22-15-58/include/linux/hugetlb.h
+> @@ -101,6 +101,8 @@ struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+>  				pmd_t *pmd, int write);
+>  struct page *follow_huge_pud(struct mm_struct *mm, unsigned long address,
+>  				pud_t *pud, int write);
+> +struct page *follow_huge_pmd_lock(struct vm_area_struct *vma,
+> +				unsigned long address, pmd_t *pmd, int flags);
+>  int pmd_huge(pmd_t pmd);
+>  int pud_huge(pud_t pmd);
+>  unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
+>
+> ...
+>
+> --- mmotm-2014-07-22-15-58.orig/mm/hugetlb.c
+> +++ mmotm-2014-07-22-15-58/mm/hugetlb.c
+> @@ -3687,6 +3687,33 @@ follow_huge_pud(struct mm_struct *mm, unsigned long address,
+>  
+>  #endif /* CONFIG_ARCH_WANT_GENERAL_HUGETLB */
+>  
+> +struct page *follow_huge_pmd_lock(struct vm_area_struct *vma,
+> +				unsigned long address, pmd_t *pmd, int flags)
 
-Ok, Andrew please annotate the changelog for 
-mm-oom-remove-unnecessary-check-for-null-zonelist.patch by including:
+Some documentation here wouldn't hurt.  Why it exists, what it does. 
+And especially: any preconditions to calling it (ie: locking).
 
-This also causes panic_on_oom == 1 to not panic the machine when the 
-pagefault is constrained by the mems of current's cpuset.  That behavior 
-agrees with the semantics of the sysctl in Documentation/sysctl/vm.txt.
+> +{
+> +	struct page *page;
+> +	spinlock_t *ptl;
+> +
+> +	if (flags & FOLL_GET)
+> +		ptl = huge_pte_lock(hstate_vma(vma), vma->vm_mm, (pte_t *)pmd);
+> +
+> +	page = follow_huge_pmd(vma->vm_mm, address, pmd, flags & FOLL_WRITE);
+> +
+> +	if (flags & FOLL_GET) {
+> +		/*
+> +		 * Refcount on tail pages are not well-defined and
+> +		 * shouldn't be taken. The caller should handle a NULL
+> +		 * return when trying to follow tail pages.
+> +		 */
+> +		if (PageHead(page))
+> +			get_page(page);
+> +		else
+> +			page = NULL;
+> +		spin_unlock(ptl);
+> +	}
+> +
+> +	return page;
+> +}
+> +
+>  #ifdef CONFIG_MEMORY_FAILURE
+
+I can't find an implementation of follow_huge_pmd() which actually uses
+the fourth argument "write".  Zap?
+
+Ditto for follow_huge_pud().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
