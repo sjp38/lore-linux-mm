@@ -1,62 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
-	by kanga.kvack.org (Postfix) with ESMTP id C37346B0035
-	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 06:17:36 -0400 (EDT)
-Received: by mail-ie0-f179.google.com with SMTP id rl12so5620819iec.10
-        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 03:17:36 -0700 (PDT)
+Received: from mail-vc0-f177.google.com (mail-vc0-f177.google.com [209.85.220.177])
+	by kanga.kvack.org (Postfix) with ESMTP id C549E6B0035
+	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 07:05:19 -0400 (EDT)
+Received: by mail-vc0-f177.google.com with SMTP id hy4so6159808vcb.36
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 04:05:19 -0700 (PDT)
 Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id tr4si5290181igb.7.2014.08.01.03.17.35
+        by mx.google.com with ESMTPS id io2si6885835vcb.84.2014.08.01.04.05.17
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 01 Aug 2014 03:17:36 -0700 (PDT)
-Message-ID: <1406888211.4935.245.camel@pasglop>
-Subject: Re: [RFC][PATCH 0/5] VM_PINNED
+        Fri, 01 Aug 2014 04:05:17 -0700 (PDT)
+Message-ID: <1406887682.4935.239.camel@pasglop>
+Subject: Re: [RFC PATCH] mm: Add helpers for locked_vm
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Fri, 01 Aug 2014 20:16:51 +1000
-In-Reply-To: <20140526203232.GC5444@laptop.programming.kicks-ass.net>
-References: <20140526145605.016140154@infradead.org>
-	 <CALYGNiMG1NVBUS4TJrYJMr92yWGZHSdGUdCGtBJDHoUMMhE+Wg@mail.gmail.com>
-	 <20140526203232.GC5444@laptop.programming.kicks-ass.net>
+Date: Fri, 01 Aug 2014 20:08:02 +1000
+In-Reply-To: <20140730124748.GK19379@twins.programming.kicks-ass.net>
+References: <1406712493-9284-1-git-send-email-aik@ozlabs.ru>
+	 <1406716282.9336.16.camel@buesod1.americas.hpqcorp.net>
+	 <53D8E578.7060303@ozlabs.ru>
+	 <20140730124748.GK19379@twins.programming.kicks-ass.net>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Roland Dreier <roland@kernel.org>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <infinipath@intel.com>, Alex Williamson <alex.williamson@redhat.com>, Alexey Kardashevskiy <aik@au1.ibm.com>
+Cc: Alexey Kardashevskiy <aik@ozlabs.ru>, Davidlohr Bueso <davidlohr@hp.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A .
+ Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, "Jo\"rn Engel" <joern@logfs.org>, "Paul E
+ . McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alex Williamson <alex.williamson@redhat.com>, Alexander Graf <agraf@suse.de>, Michael Ellerman <michael@ellerman.id.au>
 
-On Mon, 2014-05-26 at 22:32 +0200, Peter Zijlstra wrote:
-
-> Not sure what you mean, the one bit is perfectly fine for what I want it
-> to do.
+On Wed, 2014-07-30 at 14:47 +0200, Peter Zijlstra wrote:
+> On Wed, Jul 30, 2014 at 10:30:48PM +1000, Alexey Kardashevskiy wrote:
+> > 
+> > No, this is not my intention here. Here I only want to increment the counter.
 > 
-> > This supposed to supports pinning only by one user and only in its own mm?
-> 
-> Pretty much, that's adequate for all users I'm aware of and mirrors the
-> mlock semantics.
+> Full and hard nack on that. It should always be tied to actual pages, we
+> should not detach this and make it 'a number'.
 
-Ok so I only just saw this. CC'ing Alex Williamson
+But this is the only way. We *cannot* go through the whole per-page
+locking logic every time the guest puts a translation into the IOMMU,
+this will completely kill guest performances for pass-through devices.
 
-There is definitely another potential user for that stuff which is KVM
-with passed-through devices.
+Worse, for performances, because populating the iommu is a hypercall,
+we want to do it in "real mode" (special MMU-off environment) where we
+cannot rely on most normal kernel services such as normal locks, vmalloc
+space isn't accessible etc...
 
-What vfio does today on x86 is "interesting":
+So we don't have a choice. Either we let guests randomly pin arbitrary
+amounts of system memory, or we have a way to predictively account for
+the maximum that *can* be mapped/pinned in the iommu table to enable
+the fast path.
 
-Look at drivers/vfio/vfio_iommu_type1.c and functions vfio_pin_pages()
+Another problem with the mlock logic is that it doesn't refcount how
+many time a page has been locked, while the guest can map a given page
+multiple time in the iommu.
 
-I especially like the racy "delayed" accounting ...
-
-The problem is that in the generic case of VFIO, we don't know in
-advance what needs to be pinned. The user might pin pages on demand and
-it has to be a reasonably fast path.
-
-Additionally, a given page can be mapped multiple times and we don't
-have a good place to keep a counter....
-
-So the one bit of state is definitely not enough.
-
-Cheers,
 Ben.
+
 
 
 --
