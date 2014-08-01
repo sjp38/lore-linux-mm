@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
-	by kanga.kvack.org (Postfix) with ESMTP id AA3AE6B003B
-	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 15:21:17 -0400 (EDT)
-Received: by mail-qa0-f52.google.com with SMTP id j15so4324364qaq.25
-        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 12:21:17 -0700 (PDT)
+Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 57EEF900002
+	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 15:21:18 -0400 (EDT)
+Received: by mail-qg0-f54.google.com with SMTP id z60so6331213qgd.13
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 12:21:16 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 17si17217711qgb.86.2014.08.01.12.21.16
+        by mx.google.com with ESMTPS id c77si17272836qge.0.2014.08.01.12.21.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Aug 2014 12:21:17 -0700 (PDT)
+        Fri, 01 Aug 2014 12:21:16 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH -mm v6 08/13] numa_maps: remove numa_maps->vma
-Date: Fri,  1 Aug 2014 15:20:44 -0400
-Message-Id: <1406920849-25908-9-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH -mm v6 01/13] mm/pagewalk: remove pgd_entry() and pud_entry()
+Date: Fri,  1 Aug 2014 15:20:37 -0400
+Message-Id: <1406920849-25908-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1406920849-25908-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1406920849-25908-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,101 +20,68 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jerome Marchand <jmarchan@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-pagewalk.c can handle vma in itself, so we don't have to pass vma via
-walk->private. And show_numa_map() walks pages on vma basis, so using
-walk_page_vma() is preferable.
-
-ChangeLog v4:
-- remove redundant vma
+Currently no user of page table walker sets ->pgd_entry() or ->pud_entry(),
+so checking their existence in each loop is just wasting CPU cycle.
+So let's remove it to reduce overhead.
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/proc/task_mmu.c | 29 +++++++++++++----------------
- 1 file changed, 13 insertions(+), 16 deletions(-)
+ include/linux/mm.h | 6 ------
+ mm/pagewalk.c      | 9 ++-------
+ 2 files changed, 2 insertions(+), 13 deletions(-)
 
-diff --git mmotm-2014-07-30-15-57.orig/fs/proc/task_mmu.c mmotm-2014-07-30-15-57/fs/proc/task_mmu.c
-index 8b1eb1617445..084d750f6177 100644
---- mmotm-2014-07-30-15-57.orig/fs/proc/task_mmu.c
-+++ mmotm-2014-07-30-15-57/fs/proc/task_mmu.c
-@@ -1238,7 +1238,6 @@ const struct file_operations proc_pagemap_operations = {
- #ifdef CONFIG_NUMA
+diff --git mmotm-2014-07-30-15-57.orig/include/linux/mm.h mmotm-2014-07-30-15-57/include/linux/mm.h
+index 368600628d14..4d5bca99a33d 100644
+--- mmotm-2014-07-30-15-57.orig/include/linux/mm.h
++++ mmotm-2014-07-30-15-57/include/linux/mm.h
+@@ -1094,8 +1094,6 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
  
- struct numa_maps {
--	struct vm_area_struct *vma;
- 	unsigned long pages;
- 	unsigned long anon;
- 	unsigned long active;
-@@ -1307,18 +1306,17 @@ static struct page *can_gather_numa_stats(pte_t pte, struct vm_area_struct *vma,
- static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
- 		unsigned long end, struct mm_walk *walk)
- {
--	struct numa_maps *md;
-+	struct numa_maps *md = walk->private;
-+	struct vm_area_struct *vma = walk->vma;
- 	spinlock_t *ptl;
- 	pte_t *orig_pte;
- 	pte_t *pte;
- 
--	md = walk->private;
--
--	if (pmd_trans_huge_lock(pmd, md->vma, &ptl) == 1) {
-+	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
- 		pte_t huge_pte = *(pte_t *)pmd;
- 		struct page *page;
- 
--		page = can_gather_numa_stats(huge_pte, md->vma, addr);
-+		page = can_gather_numa_stats(huge_pte, vma, addr);
- 		if (page)
- 			gather_stats(page, md, pte_dirty(huge_pte),
- 				     HPAGE_PMD_SIZE/PAGE_SIZE);
-@@ -1330,7 +1328,7 @@ static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
- 		return 0;
- 	orig_pte = pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
- 	do {
--		struct page *page = can_gather_numa_stats(*pte, md->vma, addr);
-+		struct page *page = can_gather_numa_stats(*pte, vma, addr);
- 		if (!page)
+ /**
+  * mm_walk - callbacks for walk_page_range
+- * @pgd_entry: if set, called for each non-empty PGD (top-level) entry
+- * @pud_entry: if set, called for each non-empty PUD (2nd-level) entry
+  * @pmd_entry: if set, called for each non-empty PMD (3rd-level) entry
+  *	       this handler is required to be able to handle
+  *	       pmd_trans_huge() pmds.  They may simply choose to
+@@ -1109,10 +1107,6 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+  * (see walk_page_range for more details)
+  */
+ struct mm_walk {
+-	int (*pgd_entry)(pgd_t *pgd, unsigned long addr,
+-			 unsigned long next, struct mm_walk *walk);
+-	int (*pud_entry)(pud_t *pud, unsigned long addr,
+-	                 unsigned long next, struct mm_walk *walk);
+ 	int (*pmd_entry)(pmd_t *pmd, unsigned long addr,
+ 			 unsigned long next, struct mm_walk *walk);
+ 	int (*pte_entry)(pte_t *pte, unsigned long addr,
+diff --git mmotm-2014-07-30-15-57.orig/mm/pagewalk.c mmotm-2014-07-30-15-57/mm/pagewalk.c
+index 2beeabf502c5..335690650b12 100644
+--- mmotm-2014-07-30-15-57.orig/mm/pagewalk.c
++++ mmotm-2014-07-30-15-57/mm/pagewalk.c
+@@ -86,9 +86,7 @@ static int walk_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end,
+ 				break;
  			continue;
- 		gather_stats(page, md, pte_dirty(*pte), 1);
-@@ -1378,7 +1376,12 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	struct file *file = vma->vm_file;
- 	struct task_struct *task = proc_priv->task;
- 	struct mm_struct *mm = vma->vm_mm;
--	struct mm_walk walk = {};
-+	struct mm_walk walk = {
-+		.hugetlb_entry = gather_hugetlb_stats,
-+		.pmd_entry = gather_pte_stats,
-+		.private = md,
-+		.mm = mm,
-+	};
- 	struct mempolicy *pol;
- 	char buffer[64];
- 	int nid;
-@@ -1389,13 +1392,6 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	/* Ensure we start with an empty set of numa_maps statistics. */
- 	memset(md, 0, sizeof(*md));
- 
--	md->vma = vma;
--
--	walk.hugetlb_entry = gather_hugetlb_stats;
--	walk.pmd_entry = gather_pte_stats;
--	walk.private = md;
--	walk.mm = mm;
--
- 	pol = get_vma_policy(task, vma, vma->vm_start);
- 	mpol_to_str(buffer, sizeof(buffer), pol);
- 	mpol_cond_put(pol);
-@@ -1425,7 +1421,8 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	if (is_vm_hugetlb_page(vma))
- 		seq_printf(m, " huge");
- 
--	walk_page_range(vma->vm_start, vma->vm_end, &walk);
-+	/* mmap_sem is held by m_start */
-+	walk_page_vma(vma, &walk);
- 
- 	if (!md->pages)
- 		goto out;
+ 		}
+-		if (walk->pud_entry)
+-			err = walk->pud_entry(pud, addr, next, walk);
+-		if (!err && (walk->pmd_entry || walk->pte_entry))
++		if (walk->pmd_entry || walk->pte_entry)
+ 			err = walk_pmd_range(pud, addr, next, walk);
+ 		if (err)
+ 			break;
+@@ -234,10 +232,7 @@ int walk_page_range(unsigned long addr, unsigned long end,
+ 			pgd++;
+ 			continue;
+ 		}
+-		if (walk->pgd_entry)
+-			err = walk->pgd_entry(pgd, addr, next, walk);
+-		if (!err &&
+-		    (walk->pud_entry || walk->pmd_entry || walk->pte_entry))
++		if (walk->pmd_entry || walk->pte_entry)
+ 			err = walk_pud_range(pgd, addr, next, walk);
+ 		if (err)
+ 			break;
 -- 
 1.9.3
 
