@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id B47976B0072
-	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 09:28:02 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lf10so5831212pab.29
-        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 06:28:02 -0700 (PDT)
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 632186B0075
+	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 09:28:03 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id w10so5547557pde.18
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 06:28:03 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id nm13si4905676pdb.227.2014.08.01.06.28.00
+        by mx.google.com with ESMTP id nm13si4905676pdb.227.2014.08.01.06.28.01
         for <linux-mm@kvack.org>;
         Fri, 01 Aug 2014 06:28:01 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v9 02/22] Change direct_access calling convention
-Date: Fri,  1 Aug 2014 09:27:18 -0400
-Message-Id: <9e981c95a30a469de3c5639b65941956bea0ac81.1406897885.git.willy@linux.intel.com>
+Subject: [PATCH v9 03/22] Fix XIP fault vs truncate race
+Date: Fri,  1 Aug 2014 09:27:19 -0400
+Message-Id: <da68d92f4b09353e3501ae1a343470551faeda4a.1406897885.git.willy@linux.intel.com>
 In-Reply-To: <cover.1406897885.git.willy@linux.intel.com>
 References: <cover.1406897885.git.willy@linux.intel.com>
 In-Reply-To: <cover.1406897885.git.willy@linux.intel.com>
@@ -21,304 +21,78 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, willy@linux.intel.com
 
-In order to support accesses to larger chunks of memory, pass in a
-'size' parameter (counted in bytes), and return the amount available at
-that address.
+Pagecache faults recheck i_size after taking the page lock to ensure that
+the fault didn't race against a truncate.  We don't have a page to lock
+in the XIP case, so use the i_mmap_mutex instead.  It is locked in the
+truncate path in unmap_mapping_range() after updating i_size.  So while
+we hold it in the fault path, we are guaranteed that either i_size has
+already been updated in the truncate path, or that the truncate will
+subsequently call zap_page_range_single() and so remove the mapping we
+have just inserted.
 
-Add a new helper function, bdev_direct_access(), to handle common
-functionality including partition handling, checking for the sector
-being page-aligned, and checking the length of the request does not
-pass the end of the partition.
+There is a window of time in which i_size has been reduced and the
+thread has a mapping to a page which will be removed from the file,
+but this is harmless as the page will not be allocated to a different
+purpose before the thread's access to it is revoked.
 
 Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
 Reviewed-by: Jan Kara <jack@suse.cz>
 ---
- Documentation/filesystems/xip.txt | 15 +++++++++------
- arch/powerpc/sysdev/axonram.c     | 17 ++++-------------
- drivers/block/brd.c               | 12 +++++-------
- drivers/s390/block/dcssblk.c      | 21 +++++++++------------
- fs/block_dev.c                    | 34 ++++++++++++++++++++++++++++++++++
- fs/ext2/xip.c                     | 31 +++++++++++++------------------
- include/linux/blkdev.h            |  6 ++++--
- 7 files changed, 78 insertions(+), 58 deletions(-)
+ mm/filemap_xip.c | 24 ++++++++++++++++++++++--
+ 1 file changed, 22 insertions(+), 2 deletions(-)
 
-diff --git a/Documentation/filesystems/xip.txt b/Documentation/filesystems/xip.txt
-index 0466ee5..b62eabf 100644
---- a/Documentation/filesystems/xip.txt
-+++ b/Documentation/filesystems/xip.txt
-@@ -28,12 +28,15 @@ Implementation
- Execute-in-place is implemented in three steps: block device operation,
- address space operation, and file operations.
+diff --git a/mm/filemap_xip.c b/mm/filemap_xip.c
+index d8d9fe3..c8d23e9 100644
+--- a/mm/filemap_xip.c
++++ b/mm/filemap_xip.c
+@@ -260,8 +260,17 @@ again:
+ 		__xip_unmap(mapping, vmf->pgoff);
  
--A block device operation named direct_access is used to retrieve a
--reference (pointer) to a block on-disk. The reference is supposed to be
--cpu-addressable, physical address and remain valid until the release operation
--is performed. A struct block_device reference is used to address the device,
--and a sector_t argument is used to identify the individual block. As an
--alternative, memory technology devices can be used for this.
-+A block device operation named direct_access is used to translate the
-+block device sector number to a page frame number (pfn) that identifies
-+the physical page for the memory.  It also returns a kernel virtual
-+address that can be used to access the memory.
+ found:
++		/* We must recheck i_size under i_mmap_mutex */
++		mutex_lock(&mapping->i_mmap_mutex);
++		size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
++							PAGE_CACHE_SHIFT;
++		if (unlikely(vmf->pgoff >= size)) {
++			mutex_unlock(&mapping->i_mmap_mutex);
++			return VM_FAULT_SIGBUS;
++		}
+ 		err = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
+ 							xip_pfn);
++		mutex_unlock(&mapping->i_mmap_mutex);
+ 		if (err == -ENOMEM)
+ 			return VM_FAULT_OOM;
+ 		/*
+@@ -285,16 +294,27 @@ found:
+ 		}
+ 		if (error != -ENODATA)
+ 			goto out;
 +
-+The direct_access method takes a 'size' parameter that indicates the
-+number of bytes being requested.  The function should return the number
-+of bytes that it can provide, although it must not exceed the number of
-+bytes requested.  It may also return a negative errno if an error occurs.
++		/* We must recheck i_size under i_mmap_mutex */
++		mutex_lock(&mapping->i_mmap_mutex);
++		size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
++							PAGE_CACHE_SHIFT;
++		if (unlikely(vmf->pgoff >= size)) {
++			ret = VM_FAULT_SIGBUS;
++			goto unlock;
++		}
+ 		/* not shared and writable, use xip_sparse_page() */
+ 		page = xip_sparse_page();
+ 		if (!page)
+-			goto out;
++			goto unlock;
+ 		err = vm_insert_page(vma, (unsigned long)vmf->virtual_address,
+ 							page);
+ 		if (err == -ENOMEM)
+-			goto out;
++			goto unlock;
  
- The block device operation is optional, these block devices support it as of
- today:
-diff --git a/arch/powerpc/sysdev/axonram.c b/arch/powerpc/sysdev/axonram.c
-index 830edc8..741293f 100644
---- a/arch/powerpc/sysdev/axonram.c
-+++ b/arch/powerpc/sysdev/axonram.c
-@@ -139,26 +139,17 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
-  * axon_ram_direct_access - direct_access() method for block device
-  * @device, @sector, @data: see block_device_operations method
-  */
--static int
-+static long
- axon_ram_direct_access(struct block_device *device, sector_t sector,
--		       void **kaddr, unsigned long *pfn)
-+		       void **kaddr, unsigned long *pfn, long size)
- {
- 	struct axon_ram_bank *bank = device->bd_disk->private_data;
--	loff_t offset;
--
--	offset = sector;
--	if (device->bd_part != NULL)
--		offset += device->bd_part->start_sect;
--	offset <<= AXON_RAM_SECTOR_SHIFT;
--	if (offset >= bank->size) {
--		dev_err(&bank->device->dev, "Access outside of address space\n");
--		return -ERANGE;
--	}
-+	loff_t offset = (loff_t)sector << AXON_RAM_SECTOR_SHIFT;
- 
- 	*kaddr = (void *)(bank->ph_addr + offset);
- 	*pfn = virt_to_phys(*kaddr) >> PAGE_SHIFT;
- 
--	return 0;
-+	return min_t(long, size, bank->size - offset);
- }
- 
- static const struct block_device_operations axon_ram_devops = {
-diff --git a/drivers/block/brd.c b/drivers/block/brd.c
-index c7d138e..a10a0a9 100644
---- a/drivers/block/brd.c
-+++ b/drivers/block/brd.c
-@@ -370,25 +370,23 @@ static int brd_rw_page(struct block_device *bdev, sector_t sector,
- }
- 
- #ifdef CONFIG_BLK_DEV_XIP
--static int brd_direct_access(struct block_device *bdev, sector_t sector,
--			void **kaddr, unsigned long *pfn)
-+static long brd_direct_access(struct block_device *bdev, sector_t sector,
-+			void **kaddr, unsigned long *pfn, long size)
- {
- 	struct brd_device *brd = bdev->bd_disk->private_data;
- 	struct page *page;
- 
- 	if (!brd)
- 		return -ENODEV;
--	if (sector & (PAGE_SECTORS-1))
--		return -EINVAL;
--	if (sector + PAGE_SECTORS > get_capacity(bdev->bd_disk))
--		return -ERANGE;
- 	page = brd_insert_page(brd, sector);
- 	if (!page)
- 		return -ENOSPC;
- 	*kaddr = page_address(page);
- 	*pfn = page_to_pfn(page);
- 
--	return 0;
-+	/* Could optimistically check to see if the next page in the
-+	 * file is mapped to the next page of physical RAM */
-+	return min_t(long, PAGE_SIZE, size);
- }
- #endif
- 
-diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
-index 0f47175..2ee5556 100644
---- a/drivers/s390/block/dcssblk.c
-+++ b/drivers/s390/block/dcssblk.c
-@@ -28,8 +28,8 @@
- static int dcssblk_open(struct block_device *bdev, fmode_t mode);
- static void dcssblk_release(struct gendisk *disk, fmode_t mode);
- static void dcssblk_make_request(struct request_queue *q, struct bio *bio);
--static int dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
--				 void **kaddr, unsigned long *pfn);
-+static long dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
-+				 void **kaddr, unsigned long *pfn, long size);
- 
- static char dcssblk_segments[DCSSBLK_PARM_LEN] = "\0";
- 
-@@ -866,25 +866,22 @@ fail:
- 	bio_io_error(bio);
- }
- 
--static int
-+static long
- dcssblk_direct_access (struct block_device *bdev, sector_t secnum,
--			void **kaddr, unsigned long *pfn)
-+			void **kaddr, unsigned long *pfn, long size)
- {
- 	struct dcssblk_dev_info *dev_info;
--	unsigned long pgoff;
-+	unsigned long offset, dev_sz;
- 
- 	dev_info = bdev->bd_disk->private_data;
- 	if (!dev_info)
- 		return -ENODEV;
--	if (secnum % (PAGE_SIZE/512))
--		return -EINVAL;
--	pgoff = secnum / (PAGE_SIZE / 512);
--	if ((pgoff+1)*PAGE_SIZE-1 > dev_info->end - dev_info->start)
--		return -ERANGE;
--	*kaddr = (void *) (dev_info->start+pgoff*PAGE_SIZE);
-+	dev_sz = dev_info->end - dev_info->start;
-+	offset = secnum * 512;
-+	*kaddr = (void *) (dev_info->start + offset);
- 	*pfn = virt_to_phys(*kaddr) >> PAGE_SHIFT;
- 
--	return 0;
-+	return min_t(long, size, dev_sz - offset);
- }
- 
- static void
-diff --git a/fs/block_dev.c b/fs/block_dev.c
-index 6d72746..93ebdd53 100644
---- a/fs/block_dev.c
-+++ b/fs/block_dev.c
-@@ -427,6 +427,40 @@ int bdev_write_page(struct block_device *bdev, sector_t sector,
- }
- EXPORT_SYMBOL_GPL(bdev_write_page);
- 
-+/**
-+ * bdev_direct_access() - Get the address for directly-accessibly memory
-+ * @bdev: The device containing the memory
-+ * @sector: The offset within the device
-+ * @addr: Where to put the address of the memory
-+ * @pfn: The Page Frame Number for the memory
-+ * @size: The number of bytes requested
-+ *
-+ * If a block device is made up of directly addressable memory, this function
-+ * will tell the caller the PFN and the address of the memory.  The address
-+ * may be directly dereferenced within the kernel without the need to call
-+ * ioremap(), kmap() or similar.  THe PFN is suitable for inserting into
-+ * page tables.
-+ *
-+ * Return: negative errno if an error occurs, otherwise the number of bytes
-+ * accessible at this address.
-+ */
-+long bdev_direct_access(struct block_device *bdev, sector_t sector,
-+			void **addr, unsigned long *pfn, long size)
-+{
-+	const struct block_device_operations *ops = bdev->bd_disk->fops;
-+	if (!ops->direct_access)
-+		return -EOPNOTSUPP;
-+	if ((sector + DIV_ROUND_UP(size, 512)) >
-+					part_nr_sects_read(bdev->bd_part))
-+		return -ERANGE;
-+	sector += get_start_sect(bdev);
-+	if (sector % (PAGE_SIZE / 512))
-+		return -EINVAL;
-+	size = ops->direct_access(bdev, sector, addr, pfn, size);
-+	return size ? size : -ERANGE;
-+}
-+EXPORT_SYMBOL_GPL(bdev_direct_access);
-+
- /*
-  * pseudo-fs
-  */
-diff --git a/fs/ext2/xip.c b/fs/ext2/xip.c
-index e98171a..bbc5fec 100644
---- a/fs/ext2/xip.c
-+++ b/fs/ext2/xip.c
-@@ -13,18 +13,12 @@
- #include "ext2.h"
- #include "xip.h"
- 
--static inline int
--__inode_direct_access(struct inode *inode, sector_t block,
--		      void **kaddr, unsigned long *pfn)
-+static inline long __inode_direct_access(struct inode *inode, sector_t block,
-+				void **kaddr, unsigned long *pfn, long size)
- {
- 	struct block_device *bdev = inode->i_sb->s_bdev;
--	const struct block_device_operations *ops = bdev->bd_disk->fops;
--	sector_t sector;
--
--	sector = block * (PAGE_SIZE / 512); /* ext2 block to bdev sector */
--
--	BUG_ON(!ops->direct_access);
--	return ops->direct_access(bdev, sector, kaddr, pfn);
-+	sector_t sector = block * (PAGE_SIZE / 512);
-+	return bdev_direct_access(bdev, sector, kaddr, pfn, size);
- }
- 
- static inline int
-@@ -53,12 +47,13 @@ ext2_clear_xip_target(struct inode *inode, sector_t block)
- {
- 	void *kaddr;
- 	unsigned long pfn;
--	int rc;
-+	long size;
- 
--	rc = __inode_direct_access(inode, block, &kaddr, &pfn);
--	if (!rc)
--		clear_page(kaddr);
--	return rc;
-+	size = __inode_direct_access(inode, block, &kaddr, &pfn, PAGE_SIZE);
-+	if (size < 0)
-+		return size;
-+	clear_page(kaddr);
-+	return 0;
- }
- 
- void ext2_xip_verify_sb(struct super_block *sb)
-@@ -77,7 +72,7 @@ void ext2_xip_verify_sb(struct super_block *sb)
- int ext2_get_xip_mem(struct address_space *mapping, pgoff_t pgoff, int create,
- 				void **kmem, unsigned long *pfn)
- {
--	int rc;
-+	long rc;
- 	sector_t block;
- 
- 	/* first, retrieve the sector number */
-@@ -86,6 +81,6 @@ int ext2_get_xip_mem(struct address_space *mapping, pgoff_t pgoff, int create,
- 		return rc;
- 
- 	/* retrieve address of the target data */
--	rc = __inode_direct_access(mapping->host, block, kmem, pfn);
--	return rc;
-+	rc = __inode_direct_access(mapping->host, block, kmem, pfn, PAGE_SIZE);
-+	return (rc < 0) ? rc : 0;
- }
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 8699bcf..bc5ea9e 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -1613,8 +1613,8 @@ struct block_device_operations {
- 	int (*rw_page)(struct block_device *, sector_t, struct page *, int rw);
- 	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
- 	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
--	int (*direct_access) (struct block_device *, sector_t,
--						void **, unsigned long *);
-+	long (*direct_access) (struct block_device *, sector_t,
-+					void **, unsigned long *pfn, long size);
- 	unsigned int (*check_events) (struct gendisk *disk,
- 				      unsigned int clearing);
- 	/* ->media_changed() is DEPRECATED, use ->check_events() instead */
-@@ -1632,6 +1632,8 @@ extern int __blkdev_driver_ioctl(struct block_device *, fmode_t, unsigned int,
- extern int bdev_read_page(struct block_device *, sector_t, struct page *);
- extern int bdev_write_page(struct block_device *, sector_t, struct page *,
- 						struct writeback_control *);
-+extern long bdev_direct_access(struct block_device *, sector_t, void **addr,
-+						unsigned long *pfn, long size);
- #else /* CONFIG_BLOCK */
- 
- struct block_device;
+ 		ret = VM_FAULT_NOPAGE;
++unlock:
++		mutex_unlock(&mapping->i_mmap_mutex);
+ out:
+ 		write_seqcount_end(&xip_sparse_seq);
+ 		mutex_unlock(&xip_sparse_mutex);
 -- 
 2.0.1
 
