@@ -1,125 +1,335 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
-	by kanga.kvack.org (Postfix) with ESMTP id F3687900002
-	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 15:21:27 -0400 (EDT)
-Received: by mail-qg0-f46.google.com with SMTP id z60so6293054qgd.19
-        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 12:21:27 -0700 (PDT)
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A560900002
+	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 15:21:35 -0400 (EDT)
+Received: by mail-qg0-f42.google.com with SMTP id j5so6409514qga.1
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 12:21:35 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j107si2132823qge.8.2014.08.01.12.21.27
+        by mx.google.com with ESMTPS id h7si17225178qcs.36.2014.08.01.12.21.34
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Aug 2014 12:21:27 -0700 (PDT)
+        Fri, 01 Aug 2014 12:21:34 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH -mm v6 12/13] mm: /proc/pid/clear_refs: avoid split_huge_page()
-Date: Fri,  1 Aug 2014 15:20:48 -0400
-Message-Id: <1406920849-25908-13-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH -mm v6 11/13] mempolicy: apply page table walker on queue_pages_range()
+Date: Fri,  1 Aug 2014 15:20:47 -0400
+Message-Id: <1406920849-25908-12-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1406920849-25908-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1406920849-25908-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jerome Marchand <jmarchan@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Pavel Emelyanov <xemul@parallels.com>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jerome Marchand <jmarchan@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+queue_pages_range() does page table walking in its own way now, but there
+is some code duplicate. This patch applies page table walker to reduce
+lines of code.
 
-Currently pagewalker splits all THP pages on any clear_refs request.  It's
-not necessary.  We can handle this on PMD level.
+queue_pages_range() has to do some precheck to determine whether we really
+walk over the vma or just skip it. Now we have test_walk() callback in
+mm_walk for this purpose, so we can do this replacement cleanly.
+queue_pages_test_walk() depends on not only the current vma but also the
+previous one, so queue_pages->prev is introduced to remember it.
 
-One side effect is that soft dirty will potentially see more dirty memory,
-since we will mark whole THP page dirty at once.
+ChangeLog v4:
+- rebase to v3.16-rc3, where the return value of queue_pages_range()
+  becomes 0 in success instead of the first found vma, and use -EFAILT
+  instead of ERR_PTR() in failure.
 
-Sanity checked with CRIU test suite. More testing is required.
-
-ChangeLog:
-- move code for thp to clear_refs_pte_range()
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Pavel Emelyanov <xemul@parallels.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Reviewed-by: Cyrill Gorcunov <gorcunov@openvz.org>
 ---
- fs/proc/task_mmu.c | 47 ++++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 44 insertions(+), 3 deletions(-)
+ mm/mempolicy.c | 224 +++++++++++++++++++++++----------------------------------
+ 1 file changed, 90 insertions(+), 134 deletions(-)
 
-diff --git mmotm-2014-07-30-15-57.orig/fs/proc/task_mmu.c mmotm-2014-07-30-15-57/fs/proc/task_mmu.c
-index 084d750f6177..5b71471b9647 100644
---- mmotm-2014-07-30-15-57.orig/fs/proc/task_mmu.c
-+++ mmotm-2014-07-30-15-57/fs/proc/task_mmu.c
-@@ -712,10 +712,10 @@ struct clear_refs_private {
- 	enum clear_refs_types type;
- };
+diff --git mmotm-2014-07-30-15-57.orig/mm/mempolicy.c mmotm-2014-07-30-15-57/mm/mempolicy.c
+index eb58de19f815..47a6fa913b83 100644
+--- mmotm-2014-07-30-15-57.orig/mm/mempolicy.c
++++ mmotm-2014-07-30-15-57/mm/mempolicy.c
+@@ -479,24 +479,34 @@ static const struct mempolicy_operations mpol_ops[MPOL_MAX] = {
+ static void migrate_page_add(struct page *page, struct list_head *pagelist,
+ 				unsigned long flags);
  
-+#ifdef CONFIG_MEM_SOFT_DIRTY
- static inline void clear_soft_dirty(struct vm_area_struct *vma,
- 		unsigned long addr, pte_t *pte)
++struct queue_pages {
++	struct list_head *pagelist;
++	unsigned long flags;
++	nodemask_t *nmask;
++	struct vm_area_struct *prev;
++};
++
+ /*
+  * Scan through pages checking if pages follow certain conditions,
+  * and move them to the pagelist if they do.
+  */
+-static int queue_pages_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
++static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
++			unsigned long end, struct mm_walk *walk)
  {
--#ifdef CONFIG_MEM_SOFT_DIRTY
- 	/*
- 	 * The soft-dirty tracker uses #PF-s to catch writes
- 	 * to pages, so write-protect the pte as well. See the
-@@ -734,9 +734,35 @@ static inline void clear_soft_dirty(struct vm_area_struct *vma,
- 	}
+-	pte_t *orig_pte;
++	struct vm_area_struct *vma = walk->vma;
++	struct page *page;
++	struct queue_pages *qp = walk->private;
++	unsigned long flags = qp->flags;
++	int nid;
+ 	pte_t *pte;
+ 	spinlock_t *ptl;
  
- 	set_pte_at(vma->vm_mm, addr, pte, ptent);
--#endif
+-	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+-	do {
+-		struct page *page;
+-		int nid;
++	split_huge_page_pmd(vma, addr, pmd);
++	if (pmd_trans_unstable(pmd))
++		return 0;
+ 
++	pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
++	for (; addr != end; pte++, addr += PAGE_SIZE) {
+ 		if (!pte_present(*pte))
+ 			continue;
+ 		page = vm_normal_page(vma, addr, *pte);
+@@ -509,114 +519,46 @@ static int queue_pages_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 		if (PageReserved(page))
+ 			continue;
+ 		nid = page_to_nid(page);
+-		if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
++		if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
+ 			continue;
+ 
+ 		if (flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL))
+-			migrate_page_add(page, private, flags);
+-		else
+-			break;
+-	} while (pte++, addr += PAGE_SIZE, addr != end);
+-	pte_unmap_unlock(orig_pte, ptl);
+-	return addr != end;
++			migrate_page_add(page, qp->pagelist, flags);
++	}
++	pte_unmap_unlock(pte - 1, ptl);
++	cond_resched();
++	return 0;
  }
  
-+static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
-+		unsigned long addr, pmd_t *pmdp)
-+{
-+	pmd_t pmd = *pmdp;
-+
-+	pmd = pmd_wrprotect(pmd);
-+	pmd = pmd_clear_flags(pmd, _PAGE_SOFT_DIRTY);
-+
-+	if (vma->vm_flags & VM_SOFTDIRTY)
-+		vma->vm_flags &= ~VM_SOFTDIRTY;
-+
-+	set_pmd_at(vma->vm_mm, addr, pmdp, pmd);
-+}
-+
-+#else
-+
-+static inline void clear_soft_dirty(struct vm_area_struct *vma,
-+		unsigned long addr, pte_t *pte)
-+{
-+}
-+
-+static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
-+		unsigned long addr, pmd_t *pmdp)
-+{
-+}
-+#endif
-+
- static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
- 				unsigned long end, struct mm_walk *walk)
+-static void queue_pages_hugetlb_pmd_range(struct vm_area_struct *vma,
+-		pmd_t *pmd, const nodemask_t *nodes, unsigned long flags,
+-				    void *private)
++static int queue_pages_hugetlb(pte_t *pte, unsigned long hmask,
++			       unsigned long addr, unsigned long end,
++			       struct mm_walk *walk)
  {
-@@ -746,7 +772,22 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
- 	spinlock_t *ptl;
+ #ifdef CONFIG_HUGETLB_PAGE
++	struct queue_pages *qp = walk->private;
++	unsigned long flags = qp->flags;
+ 	int nid;
  	struct page *page;
+ 	spinlock_t *ptl;
+ 	pte_t entry;
  
--	split_huge_page_pmd(vma, addr, pmd);
-+	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
-+		if (cp->type == CLEAR_REFS_SOFT_DIRTY) {
-+			clear_soft_dirty_pmd(vma, addr, pmd);
-+			goto out;
-+		}
+-	ptl = huge_pte_lock(hstate_vma(vma), vma->vm_mm, (pte_t *)pmd);
+-	entry = huge_ptep_get((pte_t *)pmd);
++	ptl = huge_pte_lock(hstate_vma(walk->vma), walk->mm, pte);
++	entry = huge_ptep_get(pte);
+ 	if (!pte_present(entry))
+ 		goto unlock;
+ 	page = pte_page(entry);
+ 	nid = page_to_nid(page);
+-	if (node_isset(nid, *nodes) == !!(flags & MPOL_MF_INVERT))
++	if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
+ 		goto unlock;
+ 	/* With MPOL_MF_MOVE, we migrate only unshared hugepage. */
+ 	if (flags & (MPOL_MF_MOVE_ALL) ||
+ 	    (flags & MPOL_MF_MOVE && page_mapcount(page) == 1))
+-		isolate_huge_page(page, private);
++		isolate_huge_page(page, qp->pagelist);
+ unlock:
+ 	spin_unlock(ptl);
+ #else
+ 	BUG();
+ #endif
+-}
+-
+-static inline int queue_pages_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
+-{
+-	pmd_t *pmd;
+-	unsigned long next;
+-
+-	pmd = pmd_offset(pud, addr);
+-	do {
+-		next = pmd_addr_end(addr, end);
+-		if (!pmd_present(*pmd))
+-			continue;
+-		if (pmd_huge(*pmd) && is_vm_hugetlb_page(vma)) {
+-			queue_pages_hugetlb_pmd_range(vma, pmd, nodes,
+-						flags, private);
+-			continue;
+-		}
+-		split_huge_page_pmd(vma, addr, pmd);
+-		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+-			continue;
+-		if (queue_pages_pte_range(vma, pmd, addr, next, nodes,
+-				    flags, private))
+-			return -EIO;
+-	} while (pmd++, addr = next, addr != end);
+-	return 0;
+-}
+-
+-static inline int queue_pages_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
+-{
+-	pud_t *pud;
+-	unsigned long next;
+-
+-	pud = pud_offset(pgd, addr);
+-	do {
+-		next = pud_addr_end(addr, end);
+-		if (pud_huge(*pud) && is_vm_hugetlb_page(vma))
+-			continue;
+-		if (pud_none_or_clear_bad(pud))
+-			continue;
+-		if (queue_pages_pmd_range(vma, pud, addr, next, nodes,
+-				    flags, private))
+-			return -EIO;
+-	} while (pud++, addr = next, addr != end);
+-	return 0;
+-}
+-
+-static inline int queue_pages_pgd_range(struct vm_area_struct *vma,
+-		unsigned long addr, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags,
+-		void *private)
+-{
+-	pgd_t *pgd;
+-	unsigned long next;
+-
+-	pgd = pgd_offset(vma->vm_mm, addr);
+-	do {
+-		next = pgd_addr_end(addr, end);
+-		if (pgd_none_or_clear_bad(pgd))
+-			continue;
+-		if (queue_pages_pud_range(vma, pgd, addr, next, nodes,
+-				    flags, private))
+-			return -EIO;
+-	} while (pgd++, addr = next, addr != end);
+ 	return 0;
+ }
+ 
+@@ -649,6 +591,44 @@ static unsigned long change_prot_numa(struct vm_area_struct *vma,
+ }
+ #endif /* CONFIG_NUMA_BALANCING */
+ 
++static int queue_pages_test_walk(unsigned long start, unsigned long end,
++				struct mm_walk *walk)
++{
++	struct vm_area_struct *vma = walk->vma;
++	struct queue_pages *qp = walk->private;
++	unsigned long endvma = vma->vm_end;
++	unsigned long flags = qp->flags;
 +
-+		page = pmd_page(*pmd);
++	if (endvma > end)
++		endvma = end;
++	if (vma->vm_start > start)
++		start = vma->vm_start;
 +
-+		/* Clear accessed and referenced bits. */
-+		pmdp_test_and_clear_young(vma, addr, pmd);
-+		ClearPageReferenced(page);
-+out:
-+		spin_unlock(ptl);
-+		return 0;
++	if (!(flags & MPOL_MF_DISCONTIG_OK)) {
++		if (!vma->vm_next && vma->vm_end < end)
++			return -EFAULT;
++		if (qp->prev && qp->prev->vm_end < vma->vm_start)
++			return -EFAULT;
 +	}
 +
- 	if (pmd_trans_unstable(pmd))
- 		return 0;
++	qp->prev = vma;
++
++	if (vma->vm_flags & VM_PFNMAP)
++		return 1;
++
++	if (flags & MPOL_MF_LAZY) {
++		change_prot_numa(vma, start, endvma);
++		return 1;
++	}
++
++	if ((flags & MPOL_MF_STRICT) ||
++	    ((flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) &&
++	     vma_migratable(vma)))
++		/* queue pages from current vma */
++		return 0;
++	return 1;
++}
++
+ /*
+  * Walk through page tables and collect pages to be migrated.
+  *
+@@ -658,48 +638,24 @@ static unsigned long change_prot_numa(struct vm_area_struct *vma,
+  */
+ static int
+ queue_pages_range(struct mm_struct *mm, unsigned long start, unsigned long end,
+-		const nodemask_t *nodes, unsigned long flags, void *private)
+-{
+-	int err = 0;
+-	struct vm_area_struct *vma, *prev;
+-
+-	vma = find_vma(mm, start);
+-	if (!vma)
+-		return -EFAULT;
+-	prev = NULL;
+-	for (; vma && vma->vm_start < end; vma = vma->vm_next) {
+-		unsigned long endvma = vma->vm_end;
+-
+-		if (endvma > end)
+-			endvma = end;
+-		if (vma->vm_start > start)
+-			start = vma->vm_start;
+-
+-		if (!(flags & MPOL_MF_DISCONTIG_OK)) {
+-			if (!vma->vm_next && vma->vm_end < end)
+-				return -EFAULT;
+-			if (prev && prev->vm_end < vma->vm_start)
+-				return -EFAULT;
+-		}
+-
+-		if (flags & MPOL_MF_LAZY) {
+-			change_prot_numa(vma, start, endvma);
+-			goto next;
+-		}
+-
+-		if ((flags & MPOL_MF_STRICT) ||
+-		     ((flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) &&
+-		      vma_migratable(vma))) {
+-
+-			err = queue_pages_pgd_range(vma, start, endvma, nodes,
+-						flags, private);
+-			if (err)
+-				break;
+-		}
+-next:
+-		prev = vma;
+-	}
+-	return err;
++		nodemask_t *nodes, unsigned long flags,
++		struct list_head *pagelist)
++{
++	struct queue_pages qp = {
++		.pagelist = pagelist,
++		.flags = flags,
++		.nmask = nodes,
++		.prev = NULL,
++	};
++	struct mm_walk queue_pages_walk = {
++		.hugetlb_entry = queue_pages_hugetlb,
++		.pmd_entry = queue_pages_pte_range,
++		.test_walk = queue_pages_test_walk,
++		.mm = mm,
++		.private = &qp,
++	};
++
++	return walk_page_range(start, end, &queue_pages_walk);
+ }
  
+ /*
 -- 
 1.9.3
 
