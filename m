@@ -1,147 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id B664B6B0035
-	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 01:07:57 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id hz1so5054008pad.36
-        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 22:07:57 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id qj6si8363748pac.52.2014.07.31.22.07.56
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A6136B0035
+	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 03:02:00 -0400 (EDT)
+Received: by mail-la0-f47.google.com with SMTP id mc6so2958712lab.34
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 00:01:59 -0700 (PDT)
+Received: from mail-la0-x22b.google.com (mail-la0-x22b.google.com [2a00:1450:4010:c03::22b])
+        by mx.google.com with ESMTPS id kr1si12124288lac.15.2014.08.01.00.01.58
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 31 Jul 2014 22:07:56 -0700 (PDT)
-Received: by mail-pa0-f51.google.com with SMTP id ey11so5095853pad.10
-        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 22:07:56 -0700 (PDT)
-Date: Thu, 31 Jul 2014 22:06:16 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 5/5] mm, shmem: Show location of non-resident shmem pages
- in smaps
-In-Reply-To: <1406036632-26552-6-git-send-email-jmarchan@redhat.com>
-Message-ID: <alpine.LSU.2.11.1407312205170.3912@eggly.anvils>
-References: <1406036632-26552-1-git-send-email-jmarchan@redhat.com> <1406036632-26552-6-git-send-email-jmarchan@redhat.com>
+        Fri, 01 Aug 2014 00:01:58 -0700 (PDT)
+Received: by mail-la0-f43.google.com with SMTP id hr17so2924632lab.30
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 00:01:58 -0700 (PDT)
+Date: Fri, 1 Aug 2014 11:01:56 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH] mm: softdirty: respect VM_SOFTDIRTY in PTE holes
+Message-ID: <20140801070156.GE17343@moon>
+References: <1406846605-12176-1-git-send-email-pfeiner@google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1406846605-12176-1-git-send-email-pfeiner@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, linux-doc@vger.kernel.org, Hugh Dickins <hughd@google.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Ingo Molnar <mingo@redhat.com>, Paul Mackerras <paulus@samba.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux390@de.ibm.com, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Randy Dunlap <rdunlap@infradead.org>
+To: Peter Feiner <pfeiner@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, 22 Jul 2014, Jerome Marchand wrote:
-
-> Adds ShmOther, ShmOrphan, ShmSwapCache and ShmSwap lines to
-> /proc/<pid>/smaps for shmem mappings.
+On Thu, Jul 31, 2014 at 06:43:25PM -0400, Peter Feiner wrote:
+> After a VMA is created with the VM_SOFTDIRTY flag set,
+> /proc/pid/pagemap should report that the VMA's virtual pages are
+> soft-dirty until VM_SOFTDIRTY is cleared (i.e., by the next write of
+> "4" to /proc/pid/clear_refs). However, pagemap ignores the
+> VM_SOFTDIRTY flag for virtual addresses that fall in PTE holes (i.e.,
+> virtual addresses that don't have a PMD, PUD, or PGD allocated yet).
 > 
-> ShmOther: amount of memory that is currently resident in memory, not
-> present in the page table of this process but present in the page
-> table of an other process.
-> ShmOrphan: amount of memory that is currently resident in memory but
-> not present in any process page table. This can happens when a process
-> unmaps a shared mapping it has accessed before or exits. Despite being
-> resident, this memory is not currently accounted to any process.
-> ShmSwapcache: amount of memory currently in swap cache
-> ShmSwap: amount of memory that is paged out on disk.
+> To observe this bug, use mmap to create a VMA large enough such that
+> there's a good chance that the VMA will occupy an unused PMD, then
+> test the soft-dirty bit on its pages. In practice, I found that a VMA
+> that covered a PMD's worth of address space was big enough.
 > 
-> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
-
-You will have to do a much better job of persuading me that these
-numbers are of any interest.  Okay, maybe not me, I'm not that keen
-on /proc/<pid>/smaps at the best of times.  But you will need to show
-plausible cases where having these numbers available would have made
-a real difference, and drum up support for their inclusion from
-/proc/<pid>/smaps devotees.
-
-Do you have a customer, who has underprovisioned with swap,
-and wants these numbers to work out how much more is needed?
-
-As it is, they appear to be numbers that you found you could provide,
-and so you're adding them into /proc/<pid>/smaps, but having great
-difficulty in finding good names to describe them - which is itself
-an indicator that they're probably not the most useful statistics
-a sysadmin is wanting.
-
-(Google is a /proc/<pid>/smaps user: let's take a look to see if
-we have been driven to add in stats of this kind: no, not at all.)
-
-The more numbers we add to /proc/<pid>/smaps, the longer it will take to
-print, the longer mmap_sem will be held, and the more it will interfere
-with proper system operation - that's the concern I more often see.
-
-> ---
->  Documentation/filesystems/proc.txt | 11 ++++++++
->  fs/proc/task_mmu.c                 | 56 +++++++++++++++++++++++++++++++++++++-
->  2 files changed, 66 insertions(+), 1 deletion(-)
+> This patch adds the necessary VMA lookup to the PTE hole callback in
+> /proc/pid/pagemap's page walk and sets soft-dirty according to the
+> VMAs' VM_SOFTDIRTY flag.
 > 
-> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-> index 1a15c56..a65ab59 100644
-> --- a/Documentation/filesystems/proc.txt
-> +++ b/Documentation/filesystems/proc.txt
-> @@ -422,6 +422,10 @@ Swap:                  0 kB
->  KernelPageSize:        4 kB
->  MMUPageSize:           4 kB
->  Locked:              374 kB
-> +ShmOther:            124 kB
-> +ShmOrphan:             0 kB
-> +ShmSwapCache:         12 kB
-> +ShmSwap:              36 kB
->  VmFlags: rd ex mr mw me de
->  
->  the first of these lines shows the same information as is displayed for the
-> @@ -437,6 +441,13 @@ a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
->  and a page is modified, the file page is replaced by a private anonymous copy.
->  "Swap" shows how much would-be-anonymous memory is also used, but out on
->  swap.
-> +The ShmXXX lines only appears for shmem mapping. They show the amount of memory
-> +from the mapping that is currently:
-> + - resident in RAM, not present in the page table of this process but present
-> + in the page table of an other process (ShmOther)
-
-We don't show that for files of any other filesystem, why for shmem?
-Perhaps you are too focussed on SysV SHM, and I am too focussed on tmpfs.
-
-It is a very specialized statistic, and therefore hard to name: I don't
-think ShmOther is a good name, but doubt any would do.  ShmOtherMapped?
-
-> + - resident in RAM but not present in the page table of any process (ShmOrphan)
-
-We don't show that for files of any other filesystem, why for shmem?
-
-Orphan?  We do use the word "orphan" to describe pages which have been
-truncated off a file, but somehow not yet removed from pagecache.  We
-don't use the the word "orphan" to describe pagecache pages which are
-not mapped into userspace - they are known as "pagecache pages which
-are not mapped into userspace".  ShmNotMapped?
-
-> + - in swap cache (ShmSwapCache)
-
-Is this interesting?  It's a transitional state: either memory pressure
-has forced the page to swapcache, but not yet freed it from memory; or
-swapin_readahead has brought this page back in when bringing in a nearby
-page of swap.
-
-I can understand that we might want better stats on the behaviour of
-swapin_readahead; better stats on shmem objects and swap; better stats
-on duplication between pagecache and swap; but I'm not convinced that
-/proc/<pid>/smaps is the right place for those.
-
-Against all that, of course, we do have mincore() showing these pages
-as incore, where /proc/<pid>/smaps does not.  But I think that is
-justified by mincore()'s mission to show what's incore.
-
-> + - paged out on swap (ShmSwap).
-
-This one has the best case for inclusion: we do show Swap for the anon
-pages which are out on swap, but not for the shmem areas, where swap
-entry does not go into page table.  But there is good reason for that:
-this is shared memory, files, objects commonly shared between
-processes, so it's a poor fit then to account them by processes.
-
-(We have "df" and "du" showing the occupancy of mounted tmpfs
-filesystems: it would be nice if we had something like those,
-which showed also the swap occupancy, and for the non-user-mounts.)
-
-I need much more convincing on this patch: I expect you will drop
-some of the numbers, and provide an argument for others.
-
-Hugh
+> Signed-off-by: Peter Feiner <pfeiner@google.com>
+Acked-by: Cyrill Gorcunov <gorcunov@openvz.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
