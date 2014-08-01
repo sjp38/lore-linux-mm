@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id D887F6B0072
-	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 09:28:01 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id y10so5564386pdj.14
-        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 06:28:01 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
-        by mx.google.com with ESMTP id sp6si9801987pac.150.2014.08.01.06.27.57
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id B47976B0072
+	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 09:28:02 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lf10so5831212pab.29
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 06:28:02 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id nm13si4905676pdb.227.2014.08.01.06.28.00
         for <linux-mm@kvack.org>;
-        Fri, 01 Aug 2014 06:27:57 -0700 (PDT)
+        Fri, 01 Aug 2014 06:28:01 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v9 18/22] Get rid of most mentions of XIP in ext2
-Date: Fri,  1 Aug 2014 09:27:34 -0400
-Message-Id: <1e85876650168318ca4715ac70126052a485ff1a.1406897885.git.willy@linux.intel.com>
+Subject: [PATCH v9 02/22] Change direct_access calling convention
+Date: Fri,  1 Aug 2014 09:27:18 -0400
+Message-Id: <9e981c95a30a469de3c5639b65941956bea0ac81.1406897885.git.willy@linux.intel.com>
 In-Reply-To: <cover.1406897885.git.willy@linux.intel.com>
 References: <cover.1406897885.git.willy@linux.intel.com>
 In-Reply-To: <cover.1406897885.git.willy@linux.intel.com>
@@ -21,197 +21,304 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, willy@linux.intel.com
 
-To help people transition, accept the 'xip' mount option (and report it
-in /proc/mounts), but print a message encouraging people to switch over
-to the 'dax' option.
----
- fs/ext2/ext2.h  | 13 +++++++------
- fs/ext2/file.c  |  2 +-
- fs/ext2/inode.c |  6 +++---
- fs/ext2/namei.c |  8 ++++----
- fs/ext2/super.c | 25 ++++++++++++++++---------
- 5 files changed, 31 insertions(+), 23 deletions(-)
+In order to support accesses to larger chunks of memory, pass in a
+'size' parameter (counted in bytes), and return the amount available at
+that address.
 
-diff --git a/fs/ext2/ext2.h b/fs/ext2/ext2.h
-index b8b1c11..46133a0 100644
---- a/fs/ext2/ext2.h
-+++ b/fs/ext2/ext2.h
-@@ -380,14 +380,15 @@ struct ext2_inode {
- #define EXT2_MOUNT_NO_UID32		0x000200  /* Disable 32-bit UIDs */
- #define EXT2_MOUNT_XATTR_USER		0x004000  /* Extended user attributes */
- #define EXT2_MOUNT_POSIX_ACL		0x008000  /* POSIX Access Control Lists */
--#ifdef CONFIG_FS_DAX
--#define EXT2_MOUNT_XIP			0x010000  /* Execute in place */
--#else
--#define EXT2_MOUNT_XIP			0
--#endif
-+#define EXT2_MOUNT_XIP			0x010000  /* Obsolete, use DAX */
- #define EXT2_MOUNT_USRQUOTA		0x020000  /* user quota */
- #define EXT2_MOUNT_GRPQUOTA		0x040000  /* group quota */
- #define EXT2_MOUNT_RESERVATION		0x080000  /* Preallocation */
-+#ifdef CONFIG_FS_DAX
-+#define EXT2_MOUNT_DAX			0x100000  /* Direct Access */
-+#else
-+#define EXT2_MOUNT_DAX			0
-+#endif
+Add a new helper function, bdev_direct_access(), to handle common
+functionality including partition handling, checking for the sector
+being page-aligned, and checking the length of the request does not
+pass the end of the partition.
+
+Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Reviewed-by: Jan Kara <jack@suse.cz>
+---
+ Documentation/filesystems/xip.txt | 15 +++++++++------
+ arch/powerpc/sysdev/axonram.c     | 17 ++++-------------
+ drivers/block/brd.c               | 12 +++++-------
+ drivers/s390/block/dcssblk.c      | 21 +++++++++------------
+ fs/block_dev.c                    | 34 ++++++++++++++++++++++++++++++++++
+ fs/ext2/xip.c                     | 31 +++++++++++++------------------
+ include/linux/blkdev.h            |  6 ++++--
+ 7 files changed, 78 insertions(+), 58 deletions(-)
+
+diff --git a/Documentation/filesystems/xip.txt b/Documentation/filesystems/xip.txt
+index 0466ee5..b62eabf 100644
+--- a/Documentation/filesystems/xip.txt
++++ b/Documentation/filesystems/xip.txt
+@@ -28,12 +28,15 @@ Implementation
+ Execute-in-place is implemented in three steps: block device operation,
+ address space operation, and file operations.
  
+-A block device operation named direct_access is used to retrieve a
+-reference (pointer) to a block on-disk. The reference is supposed to be
+-cpu-addressable, physical address and remain valid until the release operation
+-is performed. A struct block_device reference is used to address the device,
+-and a sector_t argument is used to identify the individual block. As an
+-alternative, memory technology devices can be used for this.
++A block device operation named direct_access is used to translate the
++block device sector number to a page frame number (pfn) that identifies
++the physical page for the memory.  It also returns a kernel virtual
++address that can be used to access the memory.
++
++The direct_access method takes a 'size' parameter that indicates the
++number of bytes being requested.  The function should return the number
++of bytes that it can provide, although it must not exceed the number of
++bytes requested.  It may also return a negative errno if an error occurs.
  
- #define clear_opt(o, opt)		o &= ~EXT2_MOUNT_##opt
-@@ -789,7 +790,7 @@ extern int ext2_fsync(struct file *file, loff_t start, loff_t end,
- 		      int datasync);
- extern const struct inode_operations ext2_file_inode_operations;
- extern const struct file_operations ext2_file_operations;
--extern const struct file_operations ext2_xip_file_operations;
-+extern const struct file_operations ext2_dax_file_operations;
+ The block device operation is optional, these block devices support it as of
+ today:
+diff --git a/arch/powerpc/sysdev/axonram.c b/arch/powerpc/sysdev/axonram.c
+index 830edc8..741293f 100644
+--- a/arch/powerpc/sysdev/axonram.c
++++ b/arch/powerpc/sysdev/axonram.c
+@@ -139,26 +139,17 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
+  * axon_ram_direct_access - direct_access() method for block device
+  * @device, @sector, @data: see block_device_operations method
+  */
+-static int
++static long
+ axon_ram_direct_access(struct block_device *device, sector_t sector,
+-		       void **kaddr, unsigned long *pfn)
++		       void **kaddr, unsigned long *pfn, long size)
+ {
+ 	struct axon_ram_bank *bank = device->bd_disk->private_data;
+-	loff_t offset;
+-
+-	offset = sector;
+-	if (device->bd_part != NULL)
+-		offset += device->bd_part->start_sect;
+-	offset <<= AXON_RAM_SECTOR_SHIFT;
+-	if (offset >= bank->size) {
+-		dev_err(&bank->device->dev, "Access outside of address space\n");
+-		return -ERANGE;
+-	}
++	loff_t offset = (loff_t)sector << AXON_RAM_SECTOR_SHIFT;
  
- /* inode.c */
- extern const struct address_space_operations ext2_aops;
-diff --git a/fs/ext2/file.c b/fs/ext2/file.c
-index 46b333d..5b8cab5 100644
---- a/fs/ext2/file.c
-+++ b/fs/ext2/file.c
-@@ -110,7 +110,7 @@ const struct file_operations ext2_file_operations = {
- };
+ 	*kaddr = (void *)(bank->ph_addr + offset);
+ 	*pfn = virt_to_phys(*kaddr) >> PAGE_SHIFT;
  
- #ifdef CONFIG_FS_DAX
--const struct file_operations ext2_xip_file_operations = {
-+const struct file_operations ext2_dax_file_operations = {
- 	.llseek		= generic_file_llseek,
- 	.read		= new_sync_read,
- 	.write		= new_sync_write,
-diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-index 034fd42..6434bc0 100644
---- a/fs/ext2/inode.c
-+++ b/fs/ext2/inode.c
-@@ -1286,7 +1286,7 @@ void ext2_set_inode_flags(struct inode *inode)
- 		inode->i_flags |= S_NOATIME;
- 	if (flags & EXT2_DIRSYNC_FL)
- 		inode->i_flags |= S_DIRSYNC;
--	if (test_opt(inode->i_sb, XIP))
-+	if (test_opt(inode->i_sb, DAX))
- 		inode->i_flags |= S_DAX;
+-	return 0;
++	return min_t(long, size, bank->size - offset);
  }
  
-@@ -1388,9 +1388,9 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
+ static const struct block_device_operations axon_ram_devops = {
+diff --git a/drivers/block/brd.c b/drivers/block/brd.c
+index c7d138e..a10a0a9 100644
+--- a/drivers/block/brd.c
++++ b/drivers/block/brd.c
+@@ -370,25 +370,23 @@ static int brd_rw_page(struct block_device *bdev, sector_t sector,
+ }
  
- 	if (S_ISREG(inode->i_mode)) {
- 		inode->i_op = &ext2_file_inode_operations;
--		if (test_opt(inode->i_sb, XIP)) {
-+		if (test_opt(inode->i_sb, DAX)) {
- 			inode->i_mapping->a_ops = &ext2_aops;
--			inode->i_fop = &ext2_xip_file_operations;
-+			inode->i_fop = &ext2_dax_file_operations;
- 		} else if (test_opt(inode->i_sb, NOBH)) {
- 			inode->i_mapping->a_ops = &ext2_nobh_aops;
- 			inode->i_fop = &ext2_file_operations;
-diff --git a/fs/ext2/namei.c b/fs/ext2/namei.c
-index 0db888c..148f6e3 100644
---- a/fs/ext2/namei.c
-+++ b/fs/ext2/namei.c
-@@ -104,9 +104,9 @@ static int ext2_create (struct inode * dir, struct dentry * dentry, umode_t mode
- 		return PTR_ERR(inode);
+ #ifdef CONFIG_BLK_DEV_XIP
+-static int brd_direct_access(struct block_device *bdev, sector_t sector,
+-			void **kaddr, unsigned long *pfn)
++static long brd_direct_access(struct block_device *bdev, sector_t sector,
++			void **kaddr, unsigned long *pfn, long size)
+ {
+ 	struct brd_device *brd = bdev->bd_disk->private_data;
+ 	struct page *page;
  
- 	inode->i_op = &ext2_file_inode_operations;
--	if (test_opt(inode->i_sb, XIP)) {
-+	if (test_opt(inode->i_sb, DAX)) {
- 		inode->i_mapping->a_ops = &ext2_aops;
--		inode->i_fop = &ext2_xip_file_operations;
-+		inode->i_fop = &ext2_dax_file_operations;
- 	} else if (test_opt(inode->i_sb, NOBH)) {
- 		inode->i_mapping->a_ops = &ext2_nobh_aops;
- 		inode->i_fop = &ext2_file_operations;
-@@ -125,9 +125,9 @@ static int ext2_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
- 		return PTR_ERR(inode);
+ 	if (!brd)
+ 		return -ENODEV;
+-	if (sector & (PAGE_SECTORS-1))
+-		return -EINVAL;
+-	if (sector + PAGE_SECTORS > get_capacity(bdev->bd_disk))
+-		return -ERANGE;
+ 	page = brd_insert_page(brd, sector);
+ 	if (!page)
+ 		return -ENOSPC;
+ 	*kaddr = page_address(page);
+ 	*pfn = page_to_pfn(page);
  
- 	inode->i_op = &ext2_file_inode_operations;
--	if (test_opt(inode->i_sb, XIP)) {
-+	if (test_opt(inode->i_sb, DAX)) {
- 		inode->i_mapping->a_ops = &ext2_aops;
--		inode->i_fop = &ext2_xip_file_operations;
-+		inode->i_fop = &ext2_dax_file_operations;
- 	} else if (test_opt(inode->i_sb, NOBH)) {
- 		inode->i_mapping->a_ops = &ext2_nobh_aops;
- 		inode->i_fop = &ext2_file_operations;
-diff --git a/fs/ext2/super.c b/fs/ext2/super.c
-index 2b58c48..29633627 100644
---- a/fs/ext2/super.c
-+++ b/fs/ext2/super.c
-@@ -290,6 +290,8 @@ static int ext2_show_options(struct seq_file *seq, struct dentry *root)
- #ifdef CONFIG_FS_DAX
- 	if (sbi->s_mount_opt & EXT2_MOUNT_XIP)
- 		seq_puts(seq, ",xip");
-+	if (sbi->s_mount_opt & EXT2_MOUNT_DAX)
-+		seq_puts(seq, ",dax");
+-	return 0;
++	/* Could optimistically check to see if the next page in the
++	 * file is mapped to the next page of physical RAM */
++	return min_t(long, PAGE_SIZE, size);
+ }
  #endif
  
- 	if (!test_opt(sb, RESERVATION))
-@@ -393,7 +395,7 @@ enum {
- 	Opt_resgid, Opt_resuid, Opt_sb, Opt_err_cont, Opt_err_panic,
- 	Opt_err_ro, Opt_nouid32, Opt_nocheck, Opt_debug,
- 	Opt_oldalloc, Opt_orlov, Opt_nobh, Opt_user_xattr, Opt_nouser_xattr,
--	Opt_acl, Opt_noacl, Opt_xip, Opt_ignore, Opt_err, Opt_quota,
-+	Opt_acl, Opt_noacl, Opt_xip, Opt_dax, Opt_ignore, Opt_err, Opt_quota,
- 	Opt_usrquota, Opt_grpquota, Opt_reservation, Opt_noreservation
- };
+diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
+index 0f47175..2ee5556 100644
+--- a/drivers/s390/block/dcssblk.c
++++ b/drivers/s390/block/dcssblk.c
+@@ -28,8 +28,8 @@
+ static int dcssblk_open(struct block_device *bdev, fmode_t mode);
+ static void dcssblk_release(struct gendisk *disk, fmode_t mode);
+ static void dcssblk_make_request(struct request_queue *q, struct bio *bio);
+-static int dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
+-				 void **kaddr, unsigned long *pfn);
++static long dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
++				 void **kaddr, unsigned long *pfn, long size);
  
-@@ -422,6 +424,7 @@ static const match_table_t tokens = {
- 	{Opt_acl, "acl"},
- 	{Opt_noacl, "noacl"},
- 	{Opt_xip, "xip"},
-+	{Opt_dax, "dax"},
- 	{Opt_grpquota, "grpquota"},
- 	{Opt_ignore, "noquota"},
- 	{Opt_quota, "quota"},
-@@ -549,10 +552,14 @@ static int parse_options(char *options, struct super_block *sb)
- 			break;
- #endif
- 		case Opt_xip:
-+			ext2_msg(sb, KERN_INFO, "use dax instead of xip");
-+			set_opt(sbi->s_mount_opt, XIP);
-+			/* Fall through */
-+		case Opt_dax:
- #ifdef CONFIG_FS_DAX
--			set_opt (sbi->s_mount_opt, XIP);
-+			set_opt(sbi->s_mount_opt, DAX);
- #else
--			ext2_msg(sb, KERN_INFO, "xip option not supported");
-+			ext2_msg(sb, KERN_INFO, "dax option not supported");
- #endif
- 			break;
+ static char dcssblk_segments[DCSSBLK_PARM_LEN] = "\0";
  
-@@ -896,15 +903,15 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
+@@ -866,25 +866,22 @@ fail:
+ 	bio_io_error(bio);
+ }
  
- 	blocksize = BLOCK_SIZE << le32_to_cpu(sbi->s_es->s_log_block_size);
+-static int
++static long
+ dcssblk_direct_access (struct block_device *bdev, sector_t secnum,
+-			void **kaddr, unsigned long *pfn)
++			void **kaddr, unsigned long *pfn, long size)
+ {
+ 	struct dcssblk_dev_info *dev_info;
+-	unsigned long pgoff;
++	unsigned long offset, dev_sz;
  
--	if (sbi->s_mount_opt & EXT2_MOUNT_XIP) {
-+	if (sbi->s_mount_opt & EXT2_MOUNT_DAX) {
- 		if (blocksize != PAGE_SIZE) {
- 			ext2_msg(sb, KERN_ERR,
--					"error: unsupported blocksize for xip");
-+					"error: unsupported blocksize for dax");
- 			goto failed_mount;
- 		}
- 		if (!sb->s_bdev->bd_disk->fops->direct_access) {
- 			ext2_msg(sb, KERN_ERR,
--					"error: device does not support xip");
-+					"error: device does not support dax");
- 			goto failed_mount;
- 		}
- 	}
-@@ -1276,10 +1283,10 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
- 		((sbi->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ? MS_POSIXACL : 0);
+ 	dev_info = bdev->bd_disk->private_data;
+ 	if (!dev_info)
+ 		return -ENODEV;
+-	if (secnum % (PAGE_SIZE/512))
+-		return -EINVAL;
+-	pgoff = secnum / (PAGE_SIZE / 512);
+-	if ((pgoff+1)*PAGE_SIZE-1 > dev_info->end - dev_info->start)
+-		return -ERANGE;
+-	*kaddr = (void *) (dev_info->start+pgoff*PAGE_SIZE);
++	dev_sz = dev_info->end - dev_info->start;
++	offset = secnum * 512;
++	*kaddr = (void *) (dev_info->start + offset);
+ 	*pfn = virt_to_phys(*kaddr) >> PAGE_SHIFT;
  
- 	es = sbi->s_es;
--	if ((sbi->s_mount_opt ^ old_opts.s_mount_opt) & EXT2_MOUNT_XIP) {
-+	if ((sbi->s_mount_opt ^ old_opts.s_mount_opt) & EXT2_MOUNT_DAX) {
- 		ext2_msg(sb, KERN_WARNING, "warning: refusing change of "
--			 "xip flag with busy inodes while remounting");
--		sbi->s_mount_opt ^= EXT2_MOUNT_XIP;
-+			 "dax flag with busy inodes while remounting");
-+		sbi->s_mount_opt ^= EXT2_MOUNT_DAX;
- 	}
- 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
- 		spin_unlock(&sbi->s_lock);
+-	return 0;
++	return min_t(long, size, dev_sz - offset);
+ }
+ 
+ static void
+diff --git a/fs/block_dev.c b/fs/block_dev.c
+index 6d72746..93ebdd53 100644
+--- a/fs/block_dev.c
++++ b/fs/block_dev.c
+@@ -427,6 +427,40 @@ int bdev_write_page(struct block_device *bdev, sector_t sector,
+ }
+ EXPORT_SYMBOL_GPL(bdev_write_page);
+ 
++/**
++ * bdev_direct_access() - Get the address for directly-accessibly memory
++ * @bdev: The device containing the memory
++ * @sector: The offset within the device
++ * @addr: Where to put the address of the memory
++ * @pfn: The Page Frame Number for the memory
++ * @size: The number of bytes requested
++ *
++ * If a block device is made up of directly addressable memory, this function
++ * will tell the caller the PFN and the address of the memory.  The address
++ * may be directly dereferenced within the kernel without the need to call
++ * ioremap(), kmap() or similar.  THe PFN is suitable for inserting into
++ * page tables.
++ *
++ * Return: negative errno if an error occurs, otherwise the number of bytes
++ * accessible at this address.
++ */
++long bdev_direct_access(struct block_device *bdev, sector_t sector,
++			void **addr, unsigned long *pfn, long size)
++{
++	const struct block_device_operations *ops = bdev->bd_disk->fops;
++	if (!ops->direct_access)
++		return -EOPNOTSUPP;
++	if ((sector + DIV_ROUND_UP(size, 512)) >
++					part_nr_sects_read(bdev->bd_part))
++		return -ERANGE;
++	sector += get_start_sect(bdev);
++	if (sector % (PAGE_SIZE / 512))
++		return -EINVAL;
++	size = ops->direct_access(bdev, sector, addr, pfn, size);
++	return size ? size : -ERANGE;
++}
++EXPORT_SYMBOL_GPL(bdev_direct_access);
++
+ /*
+  * pseudo-fs
+  */
+diff --git a/fs/ext2/xip.c b/fs/ext2/xip.c
+index e98171a..bbc5fec 100644
+--- a/fs/ext2/xip.c
++++ b/fs/ext2/xip.c
+@@ -13,18 +13,12 @@
+ #include "ext2.h"
+ #include "xip.h"
+ 
+-static inline int
+-__inode_direct_access(struct inode *inode, sector_t block,
+-		      void **kaddr, unsigned long *pfn)
++static inline long __inode_direct_access(struct inode *inode, sector_t block,
++				void **kaddr, unsigned long *pfn, long size)
+ {
+ 	struct block_device *bdev = inode->i_sb->s_bdev;
+-	const struct block_device_operations *ops = bdev->bd_disk->fops;
+-	sector_t sector;
+-
+-	sector = block * (PAGE_SIZE / 512); /* ext2 block to bdev sector */
+-
+-	BUG_ON(!ops->direct_access);
+-	return ops->direct_access(bdev, sector, kaddr, pfn);
++	sector_t sector = block * (PAGE_SIZE / 512);
++	return bdev_direct_access(bdev, sector, kaddr, pfn, size);
+ }
+ 
+ static inline int
+@@ -53,12 +47,13 @@ ext2_clear_xip_target(struct inode *inode, sector_t block)
+ {
+ 	void *kaddr;
+ 	unsigned long pfn;
+-	int rc;
++	long size;
+ 
+-	rc = __inode_direct_access(inode, block, &kaddr, &pfn);
+-	if (!rc)
+-		clear_page(kaddr);
+-	return rc;
++	size = __inode_direct_access(inode, block, &kaddr, &pfn, PAGE_SIZE);
++	if (size < 0)
++		return size;
++	clear_page(kaddr);
++	return 0;
+ }
+ 
+ void ext2_xip_verify_sb(struct super_block *sb)
+@@ -77,7 +72,7 @@ void ext2_xip_verify_sb(struct super_block *sb)
+ int ext2_get_xip_mem(struct address_space *mapping, pgoff_t pgoff, int create,
+ 				void **kmem, unsigned long *pfn)
+ {
+-	int rc;
++	long rc;
+ 	sector_t block;
+ 
+ 	/* first, retrieve the sector number */
+@@ -86,6 +81,6 @@ int ext2_get_xip_mem(struct address_space *mapping, pgoff_t pgoff, int create,
+ 		return rc;
+ 
+ 	/* retrieve address of the target data */
+-	rc = __inode_direct_access(mapping->host, block, kmem, pfn);
+-	return rc;
++	rc = __inode_direct_access(mapping->host, block, kmem, pfn, PAGE_SIZE);
++	return (rc < 0) ? rc : 0;
+ }
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index 8699bcf..bc5ea9e 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -1613,8 +1613,8 @@ struct block_device_operations {
+ 	int (*rw_page)(struct block_device *, sector_t, struct page *, int rw);
+ 	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+ 	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+-	int (*direct_access) (struct block_device *, sector_t,
+-						void **, unsigned long *);
++	long (*direct_access) (struct block_device *, sector_t,
++					void **, unsigned long *pfn, long size);
+ 	unsigned int (*check_events) (struct gendisk *disk,
+ 				      unsigned int clearing);
+ 	/* ->media_changed() is DEPRECATED, use ->check_events() instead */
+@@ -1632,6 +1632,8 @@ extern int __blkdev_driver_ioctl(struct block_device *, fmode_t, unsigned int,
+ extern int bdev_read_page(struct block_device *, sector_t, struct page *);
+ extern int bdev_write_page(struct block_device *, sector_t, struct page *,
+ 						struct writeback_control *);
++extern long bdev_direct_access(struct block_device *, sector_t, void **addr,
++						unsigned long *pfn, long size);
+ #else /* CONFIG_BLOCK */
+ 
+ struct block_device;
 -- 
 2.0.1
 
