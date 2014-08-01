@@ -1,62 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f177.google.com (mail-vc0-f177.google.com [209.85.220.177])
-	by kanga.kvack.org (Postfix) with ESMTP id C549E6B0035
-	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 07:05:19 -0400 (EDT)
-Received: by mail-vc0-f177.google.com with SMTP id hy4so6159808vcb.36
-        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 04:05:19 -0700 (PDT)
-Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id io2si6885835vcb.84.2014.08.01.04.05.17
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 01 Aug 2014 04:05:17 -0700 (PDT)
-Message-ID: <1406887682.4935.239.camel@pasglop>
-Subject: Re: [RFC PATCH] mm: Add helpers for locked_vm
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Fri, 01 Aug 2014 20:08:02 +1000
-In-Reply-To: <20140730124748.GK19379@twins.programming.kicks-ass.net>
-References: <1406712493-9284-1-git-send-email-aik@ozlabs.ru>
-	 <1406716282.9336.16.camel@buesod1.americas.hpqcorp.net>
-	 <53D8E578.7060303@ozlabs.ru>
-	 <20140730124748.GK19379@twins.programming.kicks-ass.net>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id D92096B0036
+	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 07:51:15 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id eu11so5664509pac.18
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 04:51:15 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id pj9si9470010pac.234.2014.08.01.04.51.14
+        for <linux-mm@kvack.org>;
+        Fri, 01 Aug 2014 04:51:14 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH 0/2] faultaround updates
+Date: Fri,  1 Aug 2014 14:51:07 +0300
+Message-Id: <1406893869-32739-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Alexey Kardashevskiy <aik@ozlabs.ru>, Davidlohr Bueso <davidlohr@hp.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A .
- Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli <aarcange@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, "Jo\"rn Engel" <joern@logfs.org>, "Paul E
- . McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alex Williamson <alex.williamson@redhat.com>, Alexander Graf <agraf@suse.de>, Michael Ellerman <michael@ellerman.id.au>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Andrey Ryabinin <a.ryabinin@samsung.com>, Sasha Levin <sasha.levin@oracle.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, 2014-07-30 at 14:47 +0200, Peter Zijlstra wrote:
-> On Wed, Jul 30, 2014 at 10:30:48PM +1000, Alexey Kardashevskiy wrote:
-> > 
-> > No, this is not my intention here. Here I only want to increment the counter.
-> 
-> Full and hard nack on that. It should always be tied to actual pages, we
-> should not detach this and make it 'a number'.
+One fix and one tweak for faultaround code.
 
-But this is the only way. We *cannot* go through the whole per-page
-locking logic every time the guest puts a translation into the IOMMU,
-this will completely kill guest performances for pass-through devices.
+As alternative, we could just drop debugfs interface and make
+fault_around_bytes constant.
 
-Worse, for performances, because populating the iommu is a hypercall,
-we want to do it in "real mode" (special MMU-off environment) where we
-cannot rely on most normal kernel services such as normal locks, vmalloc
-space isn't accessible etc...
+Kirill A. Shutemov (2):
+  mm: close race between do_fault_around() and fault_around_bytes_set()
+  mm: mark fault_around_bytes __read_mostly
 
-So we don't have a choice. Either we let guests randomly pin arbitrary
-amounts of system memory, or we have a way to predictively account for
-the maximum that *can* be mapped/pinned in the iommu table to enable
-the fast path.
+ mm/memory.c | 24 +++++++++---------------
+ 1 file changed, 9 insertions(+), 15 deletions(-)
 
-Another problem with the mlock logic is that it doesn't refcount how
-many time a page has been locked, while the guest can map a given page
-multiple time in the iommu.
-
-Ben.
-
-
+-- 
+2.0.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
