@@ -1,132 +1,363 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B4836B0036
-	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 14:52:57 -0400 (EDT)
-Received: by mail-wi0-f173.google.com with SMTP id f8so1891651wiw.6
-        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 11:52:56 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ck20si20565067wjb.112.2014.08.01.11.52.54
+Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
+	by kanga.kvack.org (Postfix) with ESMTP id AADF06B0036
+	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 15:21:07 -0400 (EDT)
+Received: by mail-qa0-f48.google.com with SMTP id m5so4314776qaj.7
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 12:21:07 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r1si17223295qcl.45.2014.08.01.12.21.06
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 01 Aug 2014 11:52:54 -0700 (PDT)
-Date: Fri, 1 Aug 2014 20:52:51 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/2] memcg, vmscan: Fix forced scan of anonymous pages
-Message-ID: <20140801185251.GA31417@dhcp22.suse.cz>
-References: <1406807385-5168-1-git-send-email-jmarchan@redhat.com>
- <1406807385-5168-3-git-send-email-jmarchan@redhat.com>
- <20140731123026.GE13561@dhcp22.suse.cz>
- <20140801184525.GK9952@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140801184525.GK9952@cmpxchg.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 01 Aug 2014 12:21:06 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH -mm v6 02/13] pagewalk: improve vma handling
+Date: Fri,  1 Aug 2014 15:20:38 -0400
+Message-Id: <1406920849-25908-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1406920849-25908-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1406920849-25908-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Jerome Marchand <jmarchan@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Jerome Marchand <jmarchan@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Fri 01-08-14 14:45:25, Johannes Weiner wrote:
-> On Thu, Jul 31, 2014 at 02:30:26PM +0200, Michal Hocko wrote:
-> > On Thu 31-07-14 13:49:45, Jerome Marchand wrote:
-> > > @@ -1950,8 +1950,11 @@ static void get_scan_count(struct lruvec *lruvec, int swappiness,
-> > >  	 */
-> > >  	if (global_reclaim(sc)) {
-> > >  		unsigned long free = zone_page_state(zone, NR_FREE_PAGES);
-> > > +		unsigned long zonefile =
-> > > +			zone_page_state(zone, NR_LRU_BASE + LRU_ACTIVE_FILE) +
-> > > +			zone_page_state(zone, NR_LRU_BASE + LRU_INACTIVE_FILE);
-> > >  
-> > > -		if (unlikely(file + free <= high_wmark_pages(zone))) {
-> > > +		if (unlikely(zonefile + free <= high_wmark_pages(zone))) {
-> > >  			scan_balance = SCAN_ANON;
-> > >  			goto out;
-> > >  		}
-> > 
-> > You could move file and anon further down when we actually use them.
-> 
-> Agreed with that.  Can we merge this into the original patch?
-> 
-> ---
-> From e49bef8d2751d9b27f1733e3e0eced325ffce700 Mon Sep 17 00:00:00 2001
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Date: Fri, 1 Aug 2014 10:48:26 -0400
-> Subject: [patch] memcg, vmscan: Fix forced scan of anonymous pages fix -
->  cleanups
-> 
-> o Use enum zone_stat_item symbols directly to select zone stats,
->   rather than NR_LRU_BASE plus LRU index
-> 
-> o scanned/rotated scaling is the only user of the lruvec anon/file
->   counters, so move the reads of those values to right before that
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Current implementation of page table walker has a fundamental problem
+in vma handling, which started when we tried to handle vma(VM_HUGETLB).
+Because it's done in pgd loop, considering vma boundary makes code
+complicated and bug-prone.
 
-Yes, please.
-Acked-by: Michal Hocko <mhocko@suse.cz>
+>From the users viewpoint, some user checks some vma-related condition to
+determine whether the user really does page walk over the vma.
 
-Thanks!
+In order to solve these, this patch moves vma check outside pgd loop and
+introduce a new callback ->test_walk().
 
-> ---
->  mm/vmscan.c | 23 +++++++++++++----------
->  1 file changed, 13 insertions(+), 10 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index b3f629bdf4fe..2836b5373b2e 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1934,11 +1934,6 @@ static void get_scan_count(struct lruvec *lruvec, int swappiness,
->  		goto out;
->  	}
->  
-> -	anon  = get_lru_size(lruvec, LRU_ACTIVE_ANON) +
-> -		get_lru_size(lruvec, LRU_INACTIVE_ANON);
-> -	file  = get_lru_size(lruvec, LRU_ACTIVE_FILE) +
-> -		get_lru_size(lruvec, LRU_INACTIVE_FILE);
-> -
->  	/*
->  	 * Prevent the reclaimer from falling into the cache trap: as
->  	 * cache pages start out inactive, every cache fault will tip
-> @@ -1949,12 +1944,14 @@ static void get_scan_count(struct lruvec *lruvec, int swappiness,
->  	 * anon pages.  Try to detect this based on file LRU size.
->  	 */
->  	if (global_reclaim(sc)) {
-> -		unsigned long free = zone_page_state(zone, NR_FREE_PAGES);
-> -		unsigned long zonefile =
-> -			zone_page_state(zone, NR_LRU_BASE + LRU_ACTIVE_FILE) +
-> -			zone_page_state(zone, NR_LRU_BASE + LRU_INACTIVE_FILE);
-> +		unsigned long zonefile;
-> +		unsigned long zonefree;
-> +
-> +		zonefree = zone_page_state(zone, NR_FREE_PAGES);
-> +		zonefile = zone_page_state(zone, NR_ACTIVE_FILE) +
-> +			   zone_page_state(zone, NR_INACTIVE_FILE);
->  
-> -		if (unlikely(zonefile + free <= high_wmark_pages(zone))) {
-> +		if (unlikely(zonefile + zonefree <= high_wmark_pages(zone))) {
->  			scan_balance = SCAN_ANON;
->  			goto out;
->  		}
-> @@ -1989,6 +1986,12 @@ static void get_scan_count(struct lruvec *lruvec, int swappiness,
->  	 *
->  	 * anon in [0], file in [1]
->  	 */
-> +
-> +	anon  = get_lru_size(lruvec, LRU_ACTIVE_ANON) +
-> +		get_lru_size(lruvec, LRU_INACTIVE_ANON);
-> +	file  = get_lru_size(lruvec, LRU_ACTIVE_FILE) +
-> +		get_lru_size(lruvec, LRU_INACTIVE_FILE);
-> +
->  	spin_lock_irq(&zone->lru_lock);
->  	if (unlikely(reclaim_stat->recent_scanned[0] > anon / 4)) {
->  		reclaim_stat->recent_scanned[0] /= 2;
-> -- 
-> 2.0.3
-> 
+ChangeLog v4:
+- avoid walking over the regions where vma is NULL if pte_hole() is
+  undefined
+- use vma->vm_next instead of repeating find_vma()
+- use min() in walk_page_range "outside vma" branch
+- fix return value of walk_hugetlb_range()
 
+ChangeLog v3:
+- drop walk->skip control
+
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ include/linux/mm.h |  15 +++-
+ mm/pagewalk.c      | 203 ++++++++++++++++++++++++++++++-----------------------
+ 2 files changed, 129 insertions(+), 89 deletions(-)
+
+diff --git mmotm-2014-07-30-15-57.orig/include/linux/mm.h mmotm-2014-07-30-15-57/include/linux/mm.h
+index 4d5bca99a33d..1640cf740837 100644
+--- mmotm-2014-07-30-15-57.orig/include/linux/mm.h
++++ mmotm-2014-07-30-15-57/include/linux/mm.h
+@@ -1101,10 +1101,16 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+  * @pte_entry: if set, called for each non-empty PTE (4th-level) entry
+  * @pte_hole: if set, called for each hole at all levels
+  * @hugetlb_entry: if set, called for each hugetlb entry
+- *		   *Caution*: The caller must hold mmap_sem() if @hugetlb_entry
+- * 			      is used.
++ * @test_walk: caller specific callback function to determine whether
++ *             we walk over the current vma or not. A positive returned
++ *             value means "do page table walk over the current vma,"
++ *             and a negative one means "abort current page table walk
++ *             right now." 0 means "skip the current vma."
++ * @mm:        mm_struct representing the target process of page table walk
++ * @vma:       vma currently walked (NULL if walking outside vmas)
++ * @private:   private data for callbacks' usage
+  *
+- * (see walk_page_range for more details)
++ * (see the comment on walk_page_range() for more details)
+  */
+ struct mm_walk {
+ 	int (*pmd_entry)(pmd_t *pmd, unsigned long addr,
+@@ -1116,7 +1122,10 @@ struct mm_walk {
+ 	int (*hugetlb_entry)(pte_t *pte, unsigned long hmask,
+ 			     unsigned long addr, unsigned long next,
+ 			     struct mm_walk *walk);
++	int (*test_walk)(unsigned long addr, unsigned long next,
++			struct mm_walk *walk);
+ 	struct mm_struct *mm;
++	struct vm_area_struct *vma;
+ 	void *private;
+ };
+ 
+diff --git mmotm-2014-07-30-15-57.orig/mm/pagewalk.c mmotm-2014-07-30-15-57/mm/pagewalk.c
+index 335690650b12..91810ba875ea 100644
+--- mmotm-2014-07-30-15-57.orig/mm/pagewalk.c
++++ mmotm-2014-07-30-15-57/mm/pagewalk.c
+@@ -59,7 +59,7 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
+ 			continue;
+ 
+ 		split_huge_page_pmd_mm(walk->mm, addr, pmd);
+-		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
++		if (pmd_trans_unstable(pmd))
+ 			goto again;
+ 		err = walk_pte_range(pmd, addr, next, walk);
+ 		if (err)
+@@ -95,6 +95,32 @@ static int walk_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end,
+ 	return err;
+ }
+ 
++static int walk_pgd_range(unsigned long addr, unsigned long end,
++			  struct mm_walk *walk)
++{
++	pgd_t *pgd;
++	unsigned long next;
++	int err = 0;
++
++	pgd = pgd_offset(walk->mm, addr);
++	do {
++		next = pgd_addr_end(addr, end);
++		if (pgd_none_or_clear_bad(pgd)) {
++			if (walk->pte_hole)
++				err = walk->pte_hole(addr, next, walk);
++			if (err)
++				break;
++			continue;
++		}
++		if (walk->pmd_entry || walk->pte_entry)
++			err = walk_pud_range(pgd, addr, next, walk);
++		if (err)
++			break;
++	} while (pgd++, addr = next, addr != end);
++
++	return err;
++}
++
+ #ifdef CONFIG_HUGETLB_PAGE
+ static unsigned long hugetlb_entry_end(struct hstate *h, unsigned long addr,
+ 				       unsigned long end)
+@@ -103,10 +129,10 @@ static unsigned long hugetlb_entry_end(struct hstate *h, unsigned long addr,
+ 	return boundary < end ? boundary : end;
+ }
+ 
+-static int walk_hugetlb_range(struct vm_area_struct *vma,
+-			      unsigned long addr, unsigned long end,
++static int walk_hugetlb_range(unsigned long addr, unsigned long end,
+ 			      struct mm_walk *walk)
+ {
++	struct vm_area_struct *vma = walk->vma;
+ 	struct hstate *h = hstate_vma(vma);
+ 	unsigned long next;
+ 	unsigned long hmask = huge_page_mask(h);
+@@ -119,15 +145,14 @@ static int walk_hugetlb_range(struct vm_area_struct *vma,
+ 		if (pte && walk->hugetlb_entry)
+ 			err = walk->hugetlb_entry(pte, hmask, addr, next, walk);
+ 		if (err)
+-			return err;
++			break;
+ 	} while (addr = next, addr != end);
+ 
+-	return 0;
++	return err;
+ }
+ 
+ #else /* CONFIG_HUGETLB_PAGE */
+-static int walk_hugetlb_range(struct vm_area_struct *vma,
+-			      unsigned long addr, unsigned long end,
++static int walk_hugetlb_range(unsigned long addr, unsigned long end,
+ 			      struct mm_walk *walk)
+ {
+ 	return 0;
+@@ -135,109 +160,115 @@ static int walk_hugetlb_range(struct vm_area_struct *vma,
+ 
+ #endif /* CONFIG_HUGETLB_PAGE */
+ 
++/*
++ * Decide whether we really walk over the current vma on [@start, @end)
++ * or skip it via the returned value. Return 0 if we do walk over the
++ * current vma, and return 1 if we skip the vma. Negative values means
++ * error, where we abort the current walk.
++ *
++ * Default check (only VM_PFNMAP check for now) is used when the caller
++ * doesn't define test_walk() callback.
++ */
++static int walk_page_test(unsigned long start, unsigned long end,
++			struct mm_walk *walk)
++{
++	struct vm_area_struct *vma = walk->vma;
+ 
++	if (walk->test_walk)
++		return walk->test_walk(start, end, walk);
++
++	/*
++	 * Do not walk over vma(VM_PFNMAP), because we have no valid struct
++	 * page backing a VM_PFNMAP range. See also commit a9ff785e4437.
++	 */
++	if (vma->vm_flags & VM_PFNMAP)
++		return 1;
++	return 0;
++}
++
++static int __walk_page_range(unsigned long start, unsigned long end,
++			struct mm_walk *walk)
++{
++	int err = 0;
++	struct vm_area_struct *vma = walk->vma;
++
++	if (vma && is_vm_hugetlb_page(vma)) {
++		if (walk->hugetlb_entry)
++			err = walk_hugetlb_range(start, end, walk);
++	} else
++		err = walk_pgd_range(start, end, walk);
++
++	return err;
++}
+ 
+ /**
+- * walk_page_range - walk a memory map's page tables with a callback
+- * @addr: starting address
+- * @end: ending address
+- * @walk: set of callbacks to invoke for each level of the tree
+- *
+- * Recursively walk the page table for the memory area in a VMA,
+- * calling supplied callbacks. Callbacks are called in-order (first
+- * PGD, first PUD, first PMD, first PTE, second PTE... second PMD,
+- * etc.). If lower-level callbacks are omitted, walking depth is reduced.
++ * walk_page_range - walk page table with caller specific callbacks
+  *
+- * Each callback receives an entry pointer and the start and end of the
+- * associated range, and a copy of the original mm_walk for access to
+- * the ->private or ->mm fields.
++ * Recursively walk the page table tree of the process represented by @walk->mm
++ * within the virtual address range [@start, @end). During walking, we can do
++ * some caller-specific works for each entry, by setting up pmd_entry(),
++ * pte_entry(), and/or hugetlb_entry(). If you don't set up for some of these
++ * callbacks, the associated entries/pages are just ignored.
++ * The return values of these callbacks are commonly defined like below:
++ *  - 0  : succeeded to handle the current entry, and if you don't reach the
++ *         end address yet, continue to walk.
++ *  - >0 : succeeded to handle the current entry, and return to the caller
++ *         with caller specific value.
++ *  - <0 : failed to handle the current entry, and return to the caller
++ *         with error code.
+  *
+- * Usually no locks are taken, but splitting transparent huge page may
+- * take page table lock. And the bottom level iterator will map PTE
+- * directories from highmem if necessary.
++ * Before starting to walk page table, some callers want to check whether
++ * they really want to walk over the current vma, typically by checking
++ * its vm_flags. walk_page_test() and @walk->test_walk() are used for this
++ * purpose.
+  *
+- * If any callback returns a non-zero value, the walk is aborted and
+- * the return value is propagated back to the caller. Otherwise 0 is returned.
++ * struct mm_walk keeps current values of some common data like vma and pmd,
++ * which are useful for the access from callbacks. If you want to pass some
++ * caller-specific data to callbacks, @walk->private should be helpful.
+  *
+- * walk->mm->mmap_sem must be held for at least read if walk->hugetlb_entry
+- * is !NULL.
++ * Locking:
++ *   Callers of walk_page_range() and walk_page_vma() should hold
++ *   @walk->mm->mmap_sem, because these function traverse vma list and/or
++ *   access to vma's data.
+  */
+-int walk_page_range(unsigned long addr, unsigned long end,
++int walk_page_range(unsigned long start, unsigned long end,
+ 		    struct mm_walk *walk)
+ {
+-	pgd_t *pgd;
+-	unsigned long next;
+ 	int err = 0;
++	unsigned long next;
++	struct vm_area_struct *vma;
+ 
+-	if (addr >= end)
+-		return err;
++	if (start >= end)
++		return -EINVAL;
+ 
+ 	if (!walk->mm)
+ 		return -EINVAL;
+ 
+ 	VM_BUG_ON(!rwsem_is_locked(&walk->mm->mmap_sem));
+ 
+-	pgd = pgd_offset(walk->mm, addr);
++	vma = find_vma(walk->mm, start);
+ 	do {
+-		struct vm_area_struct *vma = NULL;
++		if (!vma) { /* after the last vma */
++			walk->vma = NULL;
++			next = end;
++		} else if (start < vma->vm_start) { /* outside vma */
++			walk->vma = NULL;
++			next = min(end, vma->vm_start);
++		} else { /* inside vma */
++			walk->vma = vma;
++			next = min(end, vma->vm_end);
++			vma = vma->vm_next;
+ 
+-		next = pgd_addr_end(addr, end);
+-
+-		/*
+-		 * This function was not intended to be vma based.
+-		 * But there are vma special cases to be handled:
+-		 * - hugetlb vma's
+-		 * - VM_PFNMAP vma's
+-		 */
+-		vma = find_vma(walk->mm, addr);
+-		if (vma) {
+-			/*
+-			 * There are no page structures backing a VM_PFNMAP
+-			 * range, so do not allow split_huge_page_pmd().
+-			 */
+-			if ((vma->vm_start <= addr) &&
+-			    (vma->vm_flags & VM_PFNMAP)) {
+-				next = vma->vm_end;
+-				pgd = pgd_offset(walk->mm, next);
++			err = walk_page_test(start, next, walk);
++			if (err > 0)
+ 				continue;
+-			}
+-			/*
+-			 * Handle hugetlb vma individually because pagetable
+-			 * walk for the hugetlb page is dependent on the
+-			 * architecture and we can't handled it in the same
+-			 * manner as non-huge pages.
+-			 */
+-			if (walk->hugetlb_entry && (vma->vm_start <= addr) &&
+-			    is_vm_hugetlb_page(vma)) {
+-				if (vma->vm_end < next)
+-					next = vma->vm_end;
+-				/*
+-				 * Hugepage is very tightly coupled with vma,
+-				 * so walk through hugetlb entries within a
+-				 * given vma.
+-				 */
+-				err = walk_hugetlb_range(vma, addr, next, walk);
+-				if (err)
+-					break;
+-				pgd = pgd_offset(walk->mm, next);
+-				continue;
+-			}
+-		}
+-
+-		if (pgd_none_or_clear_bad(pgd)) {
+-			if (walk->pte_hole)
+-				err = walk->pte_hole(addr, next, walk);
+-			if (err)
++			if (err < 0)
+ 				break;
+-			pgd++;
+-			continue;
+ 		}
+-		if (walk->pmd_entry || walk->pte_entry)
+-			err = walk_pud_range(pgd, addr, next, walk);
++		if (walk->vma || walk->pte_hole)
++			err = __walk_page_range(start, next, walk);
+ 		if (err)
+ 			break;
+-		pgd++;
+-	} while (addr = next, addr < end);
+-
++	} while (start = next, start < end);
+ 	return err;
+ }
 -- 
-Michal Hocko
-SUSE Labs
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
