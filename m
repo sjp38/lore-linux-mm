@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 7620D6B0035
-	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 01:03:02 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id w10so4800352pde.32
-        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 22:03:02 -0700 (PDT)
-Received: from mail-pd0-x22d.google.com (mail-pd0-x22d.google.com [2607:f8b0:400e:c02::22d])
-        by mx.google.com with ESMTPS id sa10si8278970pbb.231.2014.07.31.22.03.01
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id F38216B0037
+	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 01:03:37 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id r10so4822854pdi.20
+        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 22:03:37 -0700 (PDT)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id qm2si25283pac.149.2014.07.31.22.03.36
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 31 Jul 2014 22:03:01 -0700 (PDT)
-Received: by mail-pd0-f173.google.com with SMTP id w10so4813722pde.18
-        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 22:03:01 -0700 (PDT)
-Date: Thu, 31 Jul 2014 22:01:14 -0700 (PDT)
+        Thu, 31 Jul 2014 22:03:37 -0700 (PDT)
+Received: by mail-pa0-f54.google.com with SMTP id fa1so5004790pad.41
+        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 22:03:36 -0700 (PDT)
+Date: Thu, 31 Jul 2014 22:01:56 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 1/5] mm, shmem: Add shmem resident memory accounting
-In-Reply-To: <1406036632-26552-2-git-send-email-jmarchan@redhat.com>
-Message-ID: <alpine.LSU.2.11.1407312159180.3912@eggly.anvils>
-References: <1406036632-26552-1-git-send-email-jmarchan@redhat.com> <1406036632-26552-2-git-send-email-jmarchan@redhat.com>
+Subject: Re: [PATCH 2/5] mm, shmem: Add shmem_locate function
+In-Reply-To: <1406036632-26552-3-git-send-email-jmarchan@redhat.com>
+Message-ID: <alpine.LSU.2.11.1407312201280.3912@eggly.anvils>
+References: <1406036632-26552-1-git-send-email-jmarchan@redhat.com> <1406036632-26552-3-git-send-email-jmarchan@redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -26,103 +26,79 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org
 
 On Tue, 22 Jul 2014, Jerome Marchand wrote:
 
-> Currently looking at /proc/<pid>/status or statm, there is no way to
-> distinguish shmem pages from pages mapped to a regular file (shmem
-> pages are mapped to /dev/zero), even though their implication in
-> actual memory use is quite different.
-> This patch adds MM_SHMEMPAGES counter to mm_rss_stat. It keeps track of
-> resident shmem memory size. Its value is exposed in the new VmShm line
-> of /proc/<pid>/status.
+> The shmem subsytem is kind of a black box: the generic mm code can't
 
-I like adding this info to /proc/<pid>/status - thank you -
-but I think you can make the patch much better in a couple of ways.
+I'm happier with that black box than you are :)
 
+> always know where a specific page physically is. This patch adds the
+> shmem_locate() function to find out the physical location of shmem
+> pages (resident, in swap or swapcache). If the optional argument count
+> isn't NULL and the page is resident, it also returns the mapcount value
+> of this page.
+> This is intended to allow finer accounting of shmem/tmpfs pages.
 > 
 > Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
 > ---
->  Documentation/filesystems/proc.txt |  2 ++
->  arch/s390/mm/pgtable.c             |  2 +-
->  fs/proc/task_mmu.c                 |  9 ++++++---
->  include/linux/mm.h                 |  7 +++++++
->  include/linux/mm_types.h           |  7 ++++---
->  kernel/events/uprobes.c            |  2 +-
->  mm/filemap_xip.c                   |  2 +-
->  mm/memory.c                        | 37 +++++++++++++++++++++++++++++++------
->  mm/rmap.c                          |  8 ++++----
->  9 files changed, 57 insertions(+), 19 deletions(-)
+>  include/linux/mm.h |  7 +++++++
+>  mm/shmem.c         | 29 +++++++++++++++++++++++++++++
+>  2 files changed, 36 insertions(+)
 > 
-> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-> index ddc531a..1c49957 100644
-> --- a/Documentation/filesystems/proc.txt
-> +++ b/Documentation/filesystems/proc.txt
-> @@ -171,6 +171,7 @@ read the file /proc/PID/status:
->    VmLib:      1412 kB
->    VmPTE:        20 kb
->    VmSwap:        0 kB
-> +  VmShm:         0 kB
->    Threads:        1
->    SigQ:   0/28578
->    SigPnd: 0000000000000000
-> @@ -228,6 +229,7 @@ Table 1-2: Contents of the status files (as of 2.6.30-rc7)
->   VmLib                       size of shared library code
->   VmPTE                       size of page table entries
->   VmSwap                      size of swap usage (the number of referred swapents)
-> + VmShm	                      size of resident shmem memory
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index e69ee9d..34099fa 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1066,6 +1066,13 @@ extern bool skip_free_areas_node(unsigned int flags, int nid);
+>  
+>  int shmem_zero_setup(struct vm_area_struct *);
+>  #ifdef CONFIG_SHMEM
+> +
+> +#define SHMEM_NOTPRESENT	1 /* page is not present in memory */
+> +#define SHMEM_RESIDENT		2 /* page is resident in RAM */
+> +#define SHMEM_SWAPCACHE		3 /* page is in swap cache */
+> +#define SHMEM_SWAP		4 /* page is paged out */
+> +
+> +extern int shmem_locate(struct vm_area_struct *vma, pgoff_t pgoff, int *count);
 
-Needs to say that includes mappings of tmpfs, and needs to say that
-it's a subset of VmRSS.  Better placed immediately after VmRSS...
+Please place these, or what's needed of them, in include/linux/shmem_fs.h,
+rather than in the very overloaded include/linux/mm.h.
+You will need a !CONFIG_SHMEM stub for shmem_locate(),
+or whatever it ends up being called.
 
-...but now that I look through what's in /proc/<pid>/status, it appears
-that we have to defer to /proc/<pid>/statm to see MM_FILEPAGES (third
-field) and MM_ANONPAGES (subtract third field from second field).
+>  bool shmem_mapping(struct address_space *mapping);
 
-That's not a very friendly interface.  If you're going to help by
-exposing MM_SHMPAGES separately, please help even more by exposing
-VmFile and VmAnon here in /proc/<pid>/status too.
+Oh, you're following a precedent, that's already bad placement.
+And it (but not its !CONFIG_SHMEM stub) is duplicated in shmem_fs.h.
+Perhaps because we were moving shmem_zero_setup() from mm.h to shmem_fs.h
+some time ago, but never got around to cleaning up the old location.
 
-VmRSS, VmAnon, VmShm, VmFile?  I'm not sure what's the best order:
-here I'm thinking that anon comes before file in /proc/meminfo, and
-shm should be halfway between anon and file.  You may have another idea.
+Well, please place the new ones in shmem_fs.h, and I ought to clean
+up the rest at a time which does not interfere with you.
 
-And of course the VmFile count here should exclude VmShm: I think it
-will work out least confusingly if you account MM_FILEPAGES separately
-from MM_SHMPAGES, but add them together where needed e.g. for statm.
+>  #else
+>  static inline bool shmem_mapping(struct address_space *mapping)
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index b16d3e7..8aa4892 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -1341,6 +1341,35 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+>  	return ret;
+>  }
+>  
+> +int shmem_locate(struct vm_area_struct *vma, pgoff_t pgoff, int *count)
 
->   Threads                     number of threads
->   SigQ                        number of signals queued/max. number for queue
->   SigPnd                      bitmap of pending signals for the thread
-> diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
-> index 37b8241..9fe31b0 100644
-> --- a/arch/s390/mm/pgtable.c
-> +++ b/arch/s390/mm/pgtable.c
-> @@ -612,7 +612,7 @@ static void gmap_zap_swap_entry(swp_entry_t entry, struct mm_struct *mm)
->  		if (PageAnon(page))
->  			dec_mm_counter(mm, MM_ANONPAGES);
->  		else
-> -			dec_mm_counter(mm, MM_FILEPAGES);
-> +			dec_mm_file_counters(mm, page);
->  	}
+I don't find that a helpful name; but in 5/5 I question the info you're
+gathering here - maybe a good name will be more obvious once we've cut
+down what it's gathering.
 
-That is a recurring pattern: please try putting
+I just noticed that in 5/5 you're using a walk->pte_hole across
+empty extents: perhaps I'm prematurely optimizing, but that feels very
+inefficient, maybe here you should use a radix_tree lookup of the extent.
 
-static inline int mm_counter(struct page *page)
-{
-	if (PageAnon(page))
-		return MM_ANONPAGES;
-	if (PageSwapBacked(page))
-		return MM_SHMPAGES;
-	return MM_FILEPAGES;
-}
+If all we had to look up were the number of swap entries, in the vast
+majority of cases shmem.c could just see info->swapped is 0 and spend
+no time on radix_tree lookups at all.
 
-in include/linux/mm.h.
-
-Then dec_mm_counter(mm, mm_counter(page)) here, and wherever you can,
-use mm_counter(page) to simplify the code throughout.
-
-I say "try" because I think factoring out mm_counter() will simplify
-the most code, given the profusion of different accessors, particularly
-in mm/memory.c.  But I'm not sure how much bloat having it as an inline
-function will add, versus how much overhead it would add if not inline.
+But what happens here depends on what really needs to be shown in 5/5.
 
 Hugh
 
