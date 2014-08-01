@@ -1,137 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id C1F376B0035
-	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 21:06:45 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id fa1so4746055pad.27
-        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 18:06:45 -0700 (PDT)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id sv10si7785347pab.201.2014.07.31.18.06.43
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id F36DE6B0035
+	for <linux-mm@kvack.org>; Thu, 31 Jul 2014 21:37:45 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id g10so4510928pdj.26
+        for <linux-mm@kvack.org>; Thu, 31 Jul 2014 18:37:45 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id bz3si3924269pdb.493.2014.07.31.18.37.44
         for <linux-mm@kvack.org>;
-        Thu, 31 Jul 2014 18:06:44 -0700 (PDT)
-Message-ID: <53DAE820.7050508@lge.com>
-Date: Fri, 01 Aug 2014 10:06:40 +0900
-From: Gioh Kim <gioh.kim@lge.com>
+        Thu, 31 Jul 2014 18:37:45 -0700 (PDT)
+Message-ID: <53DAEFB5.7060501@cn.fujitsu.com>
+Date: Fri, 1 Aug 2014 09:39:01 +0800
+From: Lai Jiangshan <laijs@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] new API to allocate buffer-cache for superblock in
- non-movable area
-References: <53CDF437.4090306@lge.com> <20140722073005.GT3935@laptop> <20140722093838.GA22331@quack.suse.cz> <53D8A258.7010904@lge.com> <20140730101143.GB19205@quack.suse.cz> <53D985C0.3070300@lge.com> <20140731000355.GB25362@quack.suse.cz> <53D98FBB.6060700@lge.com> <20140731122114.GA5240@quack.suse.cz> <53DADA2F.1020404@lge.com>
-In-Reply-To: <53DADA2F.1020404@lge.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH] swap: remove the struct cpumask has_work
+References: <1406777421-12830-3-git-send-email-laijs@cn.fujitsu.com> <20140731115137.GA20244@dhcp22.suse.cz> <53DA6A2F.100@tilera.com>
+In-Reply-To: <53DA6A2F.100@tilera.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>
+To: Chris Metcalf <cmetcalf@tilera.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@gentwo.org>, Frederic Weisbecker <fweisbec@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Jianyu Zhan <nasa4836@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Khalid Aziz <khalid.aziz@oracle.com>, linux-mm@kvack.org, Gilad Ben-Yossef <gilad@benyossef.com>
 
-
-
-2014-08-01 i??i ? 9:07, Gioh Kim i?' e,?:
->
->
-> 2014-07-31 i??i?? 9:21, Jan Kara i?' e,?:
->> On Thu 31-07-14 09:37:15, Gioh Kim wrote:
->>>
->>>
->>> 2014-07-31 i??i ? 9:03, Jan Kara i?' e,?:
->>>> On Thu 31-07-14 08:54:40, Gioh Kim wrote:
->>>>> 2014-07-30 i??i?? 7:11, Jan Kara i?' e,?:
->>>>>> On Wed 30-07-14 16:44:24, Gioh Kim wrote:
->>>>>>> 2014-07-22 i??i?? 6:38, Jan Kara i?' e,?:
->>>>>>>> On Tue 22-07-14 09:30:05, Peter Zijlstra wrote:
->>>>>>>>> On Tue, Jul 22, 2014 at 02:18:47PM +0900, Gioh Kim wrote:
->>>>>>>>>> Hello,
->>>>>>>>>>
->>>>>>>>>> This patch try to solve problem that a long-lasting page cache of
->>>>>>>>>> ext4 superblock disturbs page migration.
->>>>>>>>>>
->>>>>>>>>> I've been testing CMA feature on my ARM-based platform
->>>>>>>>>> and found some pages for page caches cannot be migrated.
->>>>>>>>>> Some of them are page caches of superblock of ext4 filesystem.
->>>>>>>>>>
->>>>>>>>>> Current ext4 reads superblock with sb_bread(). sb_bread() allocates page
->>>>>>>>> >from movable area. But the problem is that ext4 hold the page until
->>>>>>>>>> it is unmounted. If root filesystem is ext4 the page cannot be migrated forever.
->>>>>>>>>>
->>>>>>>>>> I introduce a new API for allocating page from non-movable area.
->>>>>>>>>> It is useful for ext4 and others that want to hold page cache for a long time.
->>>>>>>>>
->>>>>>>>> There's no word on why you can't teach ext4 to still migrate that page.
->>>>>>>>> For all I know it might be impossible, but at least mention why.
->>>>>>>
->>>>>>> I am very sorry for lacking of details.
->>>>>>>
->>>>>>> In ext4_fill_super() the buffer-head of superblock is stored in sbi->s_sbh.
->>>>>>> The page belongs to the buffer-head is allocated from movable area.
->>>>>>> To migrate the page the buffer-head should be released via brelse().
->>>>>>> But brelse() is not called until unmount.
->>>>>>    Hum, I don't see where in the code do we check buffer_head use count. Can
->>>>>> you please point me? Thanks.
->>>>>
->>>>> Filesystem code does not check buffer_head use count.  sb_bread() returns
->>>>> the buffer_head that is included in bh_lru and has non-zero use count.
->>>>> You can see the bh_lru code in buffer.c: __find_get_clock() and
->>>>> lookup_bh_lru().  bh_lru_install() inserts the buffer_head into the
->>>>> bh_lru().  It first calls get_bh() to increase the use count and insert
->>>>> bh into the lru array.
->>>>>
->>>>> The buffer_head use count is non-zero until brelse() is called.
->>>>    So I probably didn't phrase the question precisely enough. What I was
->>>> asking about is where exactly *migration* code checks buffer use count?
->>>> Because as I'm looking at buffer_migrate_page() we lock the buffers on a
->>>> migrated page but we don't look at buffer use counts... So it seems to me
->>>> that migration of a page with buffers should succeed even if buffer head
->>>> has an elevated use count. Now I think that it *should* check the buffer
->>>> use counts (it is dangerous to migrate buffers someone holds reference to)
->>>> but I just cannot find that place. Or does CMA use some other migration
->>>> function for buffer pages than buffer_migrate_page()?
->>>
->>> CMA allocation function is cma_alloc().
->>> Function flow is alloc_contig_range() -> __alloc_contig_migrate_range() -> migrate_pages -> unmap_and_move
->>> -> __unmap_and_move -> try_to_free_buffers -> drop_buffers -> buffer_busy.
->>>
->>> The buffer_busy() is checking b_count.
->>> If buffer is busy buffer-cache cannot be removed.
->>> So the page that includes buffer_head and the page that is refered by
->>> buffer_head are not movable.
->>>
->>> Is this what you need?
->>    Yes, this is what I was asking about. Thanks! But as I'm looking into
->> __unmap_and_move() it calls try_to_free_buffers() only if page->mapping ==
->> NULL. As the comment before that test states, this can happen only for swap
->> cache (not our case) or for pagecache pages that were truncated and not yet
->> fully cleaned up. But superblock page cannot really be truncated. So I
->> somewhat doubt you can hit the above path for a page holding superblock...
->
-> I printed the address of busy buffer_head in drop_buffers() that is called by try_to_free_buffers().
-> And I printed the address of sb buffer_head.
-> They were the same.
->
-> I'm going to check page->mapping.
-
-I'm very sorry. It's my fault.
-
-Function path is like followings:
-
-[   97.868304] [<8011a750>] (drop_buffers+0xfc/0x168) from [<8011bc64>] (try_to_free_buffers+0x50/0xbc)
-[   97.877457] [<8011bc64>] (try_to_free_buffers+0x50/0xbc) from [<80121e40>] (blkdev_releasepage+0x38/0x48)
-[   97.887093] [<80121e40>] (blkdev_releasepage+0x38/0x48) from [<800add8c>] (try_to_release_page+0x40/0x5c)
-[   97.896728] [<800add8c>] (try_to_release_page+0x40/0x5c) from [<800bd9bc>] (shrink_page_list+0x508/0x8a4)
-[   97.906334] [<800bd9bc>] (shrink_page_list+0x508/0x8a4) from [<800bde5c>] (reclaim_clean_pages_from_list+0x104/0x148)
-[   97.917017] [<800bde5c>] (reclaim_clean_pages_from_list+0x104/0x148) from [<800b5dec>] (alloc_contig_range+0x114/0x2dc)
-[   97.927856] [<800b5dec>] (alloc_contig_range+0x114/0x2dc) from [<802f6c04>] (dma_alloc_from_contiguous+0x8c/0x14c)
-[   97.938264] [<802f6c04>] (dma_alloc_from_contiguous+0x8c/0x14c) from [<80017b6c>] (__alloc_from_contiguous+0x34/0xc0)
-[   97.948926] [<80017b6c>] (__alloc_from_contiguous+0x34/0xc0) from [<80017d40>] (__dma_alloc+0xc4/0x2a0)
-[   97.958362] [<80017d40>] (__dma_alloc+0xc4/0x2a0) from [<8001803c>] (arm_dma_alloc+0x80/0x98)
-[   97.966916] [<8001803c>] (arm_dma_alloc+0x80/0x98) from [<7f6ea188>] (cma_test_probe+0xe0/0x1f0 [drv])
-
-
-
-
->
->
+On 08/01/2014 12:09 AM, Chris Metcalf wrote:
+> On 7/31/2014 7:51 AM, Michal Hocko wrote:
+>> On Thu 31-07-14 11:30:19, Lai Jiangshan wrote:
+>>> It is suggested that cpumask_var_t and alloc_cpumask_var() should be used
+>>> instead of struct cpumask.  But I don't want to add this complicity nor
+>>> leave this unwelcome "static struct cpumask has_work;", so I just remove
+>>> it and use flush_work() to perform on all online drain_work.  flush_work()
+>>> performs very quickly on initialized but unused work item, thus we don't
+>>> need the struct cpumask has_work for performance.
+>> Why? Just because there is general recommendation for using
+>> cpumask_var_t rather than cpumask?
 >>
->>                                 Honza
->>
+>> In this particular case cpumask shouldn't matter much as it is static.
+>> Your code will work as well, but I do not see any strong reason to
+>> change it just to get rid of cpumask which is not on stack.
+> 
+> The code uses for_each_cpu with a cpumask to avoid waking cpus that don't
+> need to do work.  This is important for the nohz_full type functionality,
+> power efficiency, etc.  So, nack for this change.
+> 
+
+flush_work() on initialized but unused work item just disables irq and
+fetches work->data to test and restores irq and return.
+
+the struct cpumask has_work is just premature optimization.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
