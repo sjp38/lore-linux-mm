@@ -1,98 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id AE1816B0039
-	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 10:38:37 -0400 (EDT)
-Received: by mail-qg0-f41.google.com with SMTP id q107so5964034qgd.28
-        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 07:38:37 -0700 (PDT)
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 8637F6B0036
+	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 10:45:31 -0400 (EDT)
+Received: by mail-qg0-f48.google.com with SMTP id i50so5810164qgf.7
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 07:45:29 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id hx2si15855275qcb.31.2014.08.01.07.38.36
+        by mx.google.com with ESMTPS id u10si15892980qge.63.2014.08.01.07.45.28
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Aug 2014 07:38:36 -0700 (PDT)
-Message-ID: <53DBA647.5050702@redhat.com>
-Date: Fri, 01 Aug 2014 16:37:59 +0200
+        Fri, 01 Aug 2014 07:45:29 -0700 (PDT)
+Message-ID: <53DBA7E3.6000803@redhat.com>
+Date: Fri, 01 Aug 2014 16:44:51 +0200
 From: Jerome Marchand <jmarchan@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/5] mm, shmem: Add shmem_vma() helper
-References: <1406036632-26552-1-git-send-email-jmarchan@redhat.com> <1406036632-26552-4-git-send-email-jmarchan@redhat.com> <alpine.LSU.2.11.1407312202040.3912@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1407312202040.3912@eggly.anvils>
+Subject: Re: [PATCH 4/5] mm, shmem: Add shmem swap memory accounting
+References: <1406036632-26552-1-git-send-email-jmarchan@redhat.com> <1406036632-26552-5-git-send-email-jmarchan@redhat.com> <alpine.LSU.2.11.1407312204000.3912@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1407312204000.3912@eggly.anvils>
 Content-Type: multipart/signed; micalg=pgp-sha1;
  protocol="application/pgp-signature";
- boundary="2cQbduG131xhmjaDiKFBGTpv3g0eo95pU"
+ boundary="eVTrdPo9xN7VOjmWB6FO4XAEKfD6WMhmU"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, linux-doc@vger.kernel.org, Arnaldo Carvalho de Melo <acme@kernel.org>, Ingo Molnar <mingo@redhat.com>, Paul Mackerras <paulus@samba.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux390@de.ibm.com, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Randy Dunlap <rdunlap@infradead.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, linux-doc@vger.kernel.org, Arnaldo Carvalho de Melo <acme@kernel.org>, Ingo Molnar <mingo@redhat.com>, Paul Mackerras <paulus@samba.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, linux390@de.ibm.com, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Randy Dunlap <rdunlap@infradead.org>
 
 This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---2cQbduG131xhmjaDiKFBGTpv3g0eo95pU
+--eVTrdPo9xN7VOjmWB6FO4XAEKfD6WMhmU
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: quoted-printable
 
-On 08/01/2014 07:03 AM, Hugh Dickins wrote:
+On 08/01/2014 07:05 AM, Hugh Dickins wrote:
 > On Tue, 22 Jul 2014, Jerome Marchand wrote:
 >=20
->> Add a simple helper to check if a vm area belongs to shmem.
+>> Adds get_mm_shswap() which compute the size of swaped out shmem. It
+>> does so by pagewalking the mm and using the new shmem_locate() functio=
+n
+>> to get the physical location of shmem pages.
+>> The result is displayed in the new VmShSw line of /proc/<pid>/status.
+>> Use mm_walk an shmem_locate() to account paged out shmem pages.
+>>
+>> It significantly slows down /proc/<pid>/status acccess speed when
+>> there is a big shmem mapping. If that is an issue, we can drop this
+>> patch and only display this counter in the inherently slower
+>> /proc/<pid>/smaps file (cf. next patch).
 >>
 >> Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
->> ---
->>  include/linux/mm.h | 6 ++++++
->>  mm/shmem.c         | 8 ++++++++
->>  2 files changed, 14 insertions(+)
->>
->> diff --git a/include/linux/mm.h b/include/linux/mm.h
->> index 34099fa..04a58d1 100644
->> --- a/include/linux/mm.h
->> +++ b/include/linux/mm.h
->> @@ -1074,11 +1074,17 @@ int shmem_zero_setup(struct vm_area_struct *);=
+>=20
+> Definite NAK to this one.  As you guessed yourself, it is always a
+> mistake to add one potentially very slow-to-gather number to a stats
+> file showing a group of quickly gathered numbers.
 
->> =20
->>  extern int shmem_locate(struct vm_area_struct *vma, pgoff_t pgoff, in=
-t *count);
->>  bool shmem_mapping(struct address_space *mapping);
->> +bool shmem_vma(struct vm_area_struct *vma);
->> +
->>  #else
->>  static inline bool shmem_mapping(struct address_space *mapping)
->>  {
->>  	return false;
->>  }
->> +static inline bool shmem_vma(struct vm_area_struct *vma)
->> +{
->> +	return false;
->> +}
->>  #endif
->=20
-> I would prefer include/linux/shmem_fs.h for this (and one of us clean
-> up where the declarations of shmem_zero_setup and shmem_mapping live).
->=20
-> But if 4/5 goes away, then there will only be one user of shmem_vma(),
-> so in that case better just declare it (using shmem_mapping()) there
-> in task_mmu.c in the smaps patch.
->=20
->> =20
->>  extern int can_do_mlock(void);
->> diff --git a/mm/shmem.c b/mm/shmem.c
->> index 8aa4892..7d16227 100644
->> --- a/mm/shmem.c
->> +++ b/mm/shmem.c
->> @@ -1483,6 +1483,14 @@ bool shmem_mapping(struct address_space *mappin=
-g)
->>  	return mapping->backing_dev_info =3D=3D &shmem_backing_dev_info;
->>  }
->> =20
->> +bool shmem_vma(struct vm_area_struct *vma)
->> +{
->> +	return (vma->vm_file &&
->> +		vma->vm_file->f_dentry->d_inode->i_mapping->backing_dev_info
->> +		=3D=3D &shmem_backing_dev_info);
->> +
->=20
-> I agree with Oleg,
-> 	vma->vm_file && shmem_mapping(file_inode(vma->vm_file)->i_mapping);
-> would be better,
+What I was going for, is to have a counter for  shared swap in the same
+way I did for VmShm, but I never found a way to do it. The reason I
+posted this patch is that I hope than someone will have a better idea.
 
-Will do.
+>=20
+> Is there anything you could do instead?  I don't know if it's worth
+> the (little) extra mm_struct storage and maintenance, but you could
+> add a VmShmSize, which shows that subset of VmSize (total_vm) which
+> is occupied by shmem mappings.
+>=20
+> It's ambiguous what to deduce when VmShm is less than VmShmSize:
+> the difference might be swapped out, it might be holes in the sparse
+> object, it might be instantiated in the object but never faulted
+> into the mapping: in general it will be a mix of all of those.
+> So, sometimes useful info, but easy to be misled by it.
+>=20
+> As I say, I don't know if VmShmSize would be worth adding, given its
+> deficiencies; and it could be worked out from /proc/<pid>/maps anyway.
+
+I don't think that would be very useful. Sparse mapping are quite common.=
+
 
 Jerome
 
@@ -102,7 +80,7 @@ Jerome
 
 
 
---2cQbduG131xhmjaDiKFBGTpv3g0eo95pU
+--eVTrdPo9xN7VOjmWB6FO4XAEKfD6WMhmU
 Content-Type: application/pgp-signature; name="signature.asc"
 Content-Description: OpenPGP digital signature
 Content-Disposition: attachment; filename="signature.asc"
@@ -111,16 +89,16 @@ Content-Disposition: attachment; filename="signature.asc"
 Version: GnuPG v1
 Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
 
-iQEcBAEBAgAGBQJT26ZHAAoJEHTzHJCtsuoCTC0IALkb4dhI485soQTr3b5iNHMQ
-9xW0ifj0MHPAF6EC0e/+ZUkYfY3ltXuHzJ/I9qkGNQHOpNS7qUOQ9LXrSH3phS72
-kpOiq6LameOjqbyHIFYLWtDgwCNB4CogzulaWIEGiuPDnxtl0jUxhzKpZ3T+s+31
-DVshjrbhJqorgz+NBqchYIcLNlMohzGP7n5ZUGYvozVK7QFfVhrVwT3nzP1612Ux
-D05tDL5cdRwMpCLf+wLbkZyHVfOTzwvkjymCl1LU/NNMuDGHWCB9FRhloHKTRHau
-FEuuP3WqH1sN3axr4wwrTdSxq5qF5Noy/UWoCdjOiIr8KzzJ0541K0RthN0FCzQ=
-=b1sL
+iQEcBAEBAgAGBQJT26fjAAoJEHTzHJCtsuoC+pUH/1O11EmBxfYoxEFZaFaQ8ISn
+axppvsKfJOmeceA1AKkFUdLrnPj2ZDfdlvbczKN6DR5HjsO6dRg8SExU+8SYVlr2
+io8QgEjwrrt6yFNNMhmaTob/xGySPCaepA9/YAEPXRewfueMGaCSsRoYfXiaFH/E
+QiPeb1/wWCDlvisiiz5vv2NBkPEE2C8/iVDyrE8KmefMvleD7+LovaZOzNhD7DV5
+cNQUj3WcVDgkMl6EcEiJS0Oriy/s3Xws31przHnfhyHGNuPhkuFptZZfApOcHn1m
+RTbr4LZvft7Kd08mJBIUhPSf+BNKJzHzk32GmiKAz/YAyXiFQp+KWonflCdnyYA=
+=6ENS
 -----END PGP SIGNATURE-----
 
---2cQbduG131xhmjaDiKFBGTpv3g0eo95pU--
+--eVTrdPo9xN7VOjmWB6FO4XAEKfD6WMhmU--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
