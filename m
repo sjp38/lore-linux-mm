@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 759716B0068
-	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 09:27:58 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id et14so5796173pad.35
+	by kanga.kvack.org (Postfix) with ESMTP id 24EA46B0069
+	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 09:27:59 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id et14so5796187pad.35
         for <linux-mm@kvack.org>; Fri, 01 Aug 2014 06:27:58 -0700 (PDT)
 Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
-        by mx.google.com with ESMTP id qe8si4906168pdb.213.2014.08.01.06.27.54
+        by mx.google.com with ESMTP id qe8si4906168pdb.213.2014.08.01.06.27.55
         for <linux-mm@kvack.org>;
-        Fri, 01 Aug 2014 06:27:54 -0700 (PDT)
+        Fri, 01 Aug 2014 06:27:55 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v9 06/22] Add copy_to_iter(), copy_from_iter() and iov_iter_zero()
-Date: Fri,  1 Aug 2014 09:27:22 -0400
-Message-Id: <7bdb1c7cbb0175a817f52864c1a306d4311290ea.1406897885.git.willy@linux.intel.com>
+Subject: [PATCH v9 08/22] Replace ext2_clear_xip_target with dax_clear_blocks
+Date: Fri,  1 Aug 2014 09:27:24 -0400
+Message-Id: <dd6ce36814c5b0ecae961e37a3708ea06adb51eb.1406897885.git.willy@linux.intel.com>
 In-Reply-To: <cover.1406897885.git.willy@linux.intel.com>
 References: <cover.1406897885.git.willy@linux.intel.com>
 In-Reply-To: <cover.1406897885.git.willy@linux.intel.com>
@@ -19,358 +19,160 @@ References: <cover.1406897885.git.willy@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Matthew Wilcox <willy@linux.intel.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, willy@linux.intel.com
 
-From: Matthew Wilcox <willy@linux.intel.com>
+This is practically generic code; other filesystems will want to call
+it from other places, but there's nothing ext2-specific about it.
 
-For DAX, we want to be able to copy between iovecs and kernel addresses
-that don't necessarily have a struct page.  This is a fairly simple
-rearrangement for bvec iters to kmap the pages outside and pass them in,
-but for user iovecs it gets more complicated because we might try various
-different ways to kmap the memory.  Duplicating the existing logic works
-out best in this case.
+Make it a little more generic by allowing it to take a count of the number
+of bytes to zero rather than fixing it to a single page.  Thanks to Dave
+Hansen for suggesting that I need to call cond_resched() if zeroing more
+than one page.
 
-We need to be able to write zeroes to an iovec for reads from unwritten
-ranges in a file.  This is performed by the new iov_iter_zero() function,
-again patterned after the existing code that handles iovec iterators.
-
-Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
 ---
- include/linux/uio.h |   3 +
- mm/iov_iter.c       | 237 ++++++++++++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 226 insertions(+), 14 deletions(-)
+ fs/dax.c           | 35 +++++++++++++++++++++++++++++++++++
+ fs/ext2/inode.c    |  8 +++++---
+ fs/ext2/xip.c      | 14 --------------
+ fs/ext2/xip.h      |  3 ---
+ include/linux/fs.h |  6 ++++++
+ 5 files changed, 46 insertions(+), 20 deletions(-)
 
-diff --git a/include/linux/uio.h b/include/linux/uio.h
-index 09a7cff..86fb3e9 100644
---- a/include/linux/uio.h
-+++ b/include/linux/uio.h
-@@ -80,6 +80,9 @@ size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
- 			 struct iov_iter *i);
- size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
- 			 struct iov_iter *i);
-+size_t copy_to_iter(void *addr, size_t bytes, struct iov_iter *i);
-+size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i);
-+size_t iov_iter_zero(size_t bytes, struct iov_iter *);
- unsigned long iov_iter_alignment(const struct iov_iter *i);
- void iov_iter_init(struct iov_iter *i, int direction, const struct iovec *iov,
- 			unsigned long nr_segs, size_t count);
-diff --git a/mm/iov_iter.c b/mm/iov_iter.c
-index 7b5dbd1..e95ed80 100644
---- a/mm/iov_iter.c
-+++ b/mm/iov_iter.c
-@@ -4,6 +4,96 @@
- #include <linux/slab.h>
- #include <linux/vmalloc.h>
+diff --git a/fs/dax.c b/fs/dax.c
+index 108c68e..02e226f 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -20,8 +20,43 @@
+ #include <linux/fs.h>
+ #include <linux/genhd.h>
+ #include <linux/mutex.h>
++#include <linux/sched.h>
+ #include <linux/uio.h>
  
-+static size_t copy_to_iter_iovec(void *from, size_t bytes, struct iov_iter *i)
++int dax_clear_blocks(struct inode *inode, sector_t block, long size)
 +{
-+	size_t skip, copy, left, wanted;
-+	const struct iovec *iov;
-+	char __user *buf;
++	struct block_device *bdev = inode->i_sb->s_bdev;
++	sector_t sector = block << (inode->i_blkbits - 9);
 +
-+	if (unlikely(bytes > i->count))
-+		bytes = i->count;
++	might_sleep();
++	do {
++		void *addr;
++		unsigned long pfn;
++		long count;
 +
-+	if (unlikely(!bytes))
-+		return 0;
++		count = bdev_direct_access(bdev, sector, &addr, &pfn, size);
++		if (count < 0)
++			return count;
++		while (count > 0) {
++			unsigned pgsz = PAGE_SIZE - offset_in_page(addr);
++			if (pgsz > count)
++				pgsz = count;
++			if (pgsz < PAGE_SIZE)
++				memset(addr, 0, pgsz);
++			else
++				clear_page(addr);
++			addr += pgsz;
++			size -= pgsz;
++			count -= pgsz;
++			sector += pgsz / 512;
++			cond_resched();
++		}
++	} while (size);
 +
-+	wanted = bytes;
-+	iov = i->iov;
-+	skip = i->iov_offset;
-+	buf = iov->iov_base + skip;
-+	copy = min(bytes, iov->iov_len - skip);
-+
-+	left = __copy_to_user(buf, from, copy);
-+	copy -= left;
-+	skip += copy;
-+	from += copy;
-+	bytes -= copy;
-+	while (unlikely(!left && bytes)) {
-+		iov++;
-+		buf = iov->iov_base;
-+		copy = min(bytes, iov->iov_len);
-+		left = __copy_to_user(buf, from, copy);
-+		copy -= left;
-+		skip = copy;
-+		from += copy;
-+		bytes -= copy;
-+	}
-+
-+	if (skip == iov->iov_len) {
-+		iov++;
-+		skip = 0;
-+	}
-+	i->count -= wanted - bytes;
-+	i->nr_segs -= iov - i->iov;
-+	i->iov = iov;
-+	i->iov_offset = skip;
-+	return wanted - bytes;
++	return 0;
 +}
++EXPORT_SYMBOL_GPL(dax_clear_blocks);
 +
-+static size_t copy_from_iter_iovec(void *to, size_t bytes, struct iov_iter *i)
-+{
-+	size_t skip, copy, left, wanted;
-+	const struct iovec *iov;
-+	char __user *buf;
-+
-+	if (unlikely(bytes > i->count))
-+		bytes = i->count;
-+
-+	if (unlikely(!bytes))
-+		return 0;
-+
-+	wanted = bytes;
-+	iov = i->iov;
-+	skip = i->iov_offset;
-+	buf = iov->iov_base + skip;
-+	copy = min(bytes, iov->iov_len - skip);
-+
-+	left = __copy_from_user(to, buf, copy);
-+	copy -= left;
-+	skip += copy;
-+	to += copy;
-+	bytes -= copy;
-+	while (unlikely(!left && bytes)) {
-+		iov++;
-+		buf = iov->iov_base;
-+		copy = min(bytes, iov->iov_len);
-+		left = __copy_from_user(to, buf, copy);
-+		copy -= left;
-+		skip = copy;
-+		to += copy;
-+		bytes -= copy;
-+	}
-+
-+	if (skip == iov->iov_len) {
-+		iov++;
-+		skip = 0;
-+	}
-+	i->count -= wanted - bytes;
-+	i->nr_segs -= iov - i->iov;
-+	i->iov = iov;
-+	i->iov_offset = skip;
-+	return wanted - bytes;
-+}
-+
- static size_t copy_page_to_iter_iovec(struct page *page, size_t offset, size_t bytes,
- 			 struct iov_iter *i)
+ static long dax_get_addr(struct buffer_head *bh, void **addr, unsigned blkbits)
  {
-@@ -166,6 +256,50 @@ done:
- 	return wanted - bytes;
+ 	unsigned long pfn;
+diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
+index 3ccd5fd..52978b8 100644
+--- a/fs/ext2/inode.c
++++ b/fs/ext2/inode.c
+@@ -733,10 +733,12 @@ static int ext2_get_blocks(struct inode *inode,
+ 
+ 	if (IS_DAX(inode)) {
+ 		/*
+-		 * we need to clear the block
++		 * block must be initialised before we put it in the tree
++		 * so that it's not found by another thread before it's
++		 * initialised
+ 		 */
+-		err = ext2_clear_xip_target (inode,
+-			le32_to_cpu(chain[depth-1].key));
++		err = dax_clear_blocks(inode, le32_to_cpu(chain[depth-1].key),
++						1 << inode->i_blkbits);
+ 		if (err) {
+ 			mutex_unlock(&ei->truncate_mutex);
+ 			goto cleanup;
+diff --git a/fs/ext2/xip.c b/fs/ext2/xip.c
+index bbc5fec..8cfca3a 100644
+--- a/fs/ext2/xip.c
++++ b/fs/ext2/xip.c
+@@ -42,20 +42,6 @@ __ext2_get_block(struct inode *inode, pgoff_t pgoff, int create,
+ 	return rc;
  }
  
-+static size_t zero_iovec(size_t bytes, struct iov_iter *i)
-+{
-+	size_t skip, copy, left, wanted;
-+	const struct iovec *iov;
-+	char __user *buf;
-+
-+	if (unlikely(bytes > i->count))
-+		bytes = i->count;
-+
-+	if (unlikely(!bytes))
-+		return 0;
-+
-+	wanted = bytes;
-+	iov = i->iov;
-+	skip = i->iov_offset;
-+	buf = iov->iov_base + skip;
-+	copy = min(bytes, iov->iov_len - skip);
-+
-+	left = __clear_user(buf, copy);
-+	copy -= left;
-+	skip += copy;
-+	bytes -= copy;
-+
-+	while (unlikely(!left && bytes)) {
-+		iov++;
-+		buf = iov->iov_base;
-+		copy = min(bytes, iov->iov_len);
-+		left = __clear_user(buf, copy);
-+		copy -= left;
-+		skip = copy;
-+		bytes -= copy;
-+	}
-+
-+	if (skip == iov->iov_len) {
-+		iov++;
-+		skip = 0;
-+	}
-+	i->count -= wanted - bytes;
-+	i->nr_segs -= iov - i->iov;
-+	i->iov = iov;
-+	i->iov_offset = skip;
-+	return wanted - bytes;
-+}
-+
- static size_t __iovec_copy_from_user_inatomic(char *vaddr,
- 			const struct iovec *iov, size_t base, size_t bytes)
- {
-@@ -412,12 +546,17 @@ static void memcpy_to_page(struct page *page, size_t offset, char *from, size_t
- 	kunmap_atomic(to);
- }
- 
--static size_t copy_page_to_iter_bvec(struct page *page, size_t offset, size_t bytes,
--			 struct iov_iter *i)
-+static void memzero_page(struct page *page, size_t offset, size_t len)
-+{
-+	char *addr = kmap_atomic(page);
-+	memset(addr + offset, 0, len);
-+	kunmap_atomic(addr);
-+}
-+
-+static size_t copy_to_iter_bvec(void *from, size_t bytes, struct iov_iter *i)
- {
- 	size_t skip, copy, wanted;
- 	const struct bio_vec *bvec;
--	void *kaddr, *from;
- 
- 	if (unlikely(bytes > i->count))
- 		bytes = i->count;
-@@ -430,8 +569,6 @@ static size_t copy_page_to_iter_bvec(struct page *page, size_t offset, size_t by
- 	skip = i->iov_offset;
- 	copy = min_t(size_t, bytes, bvec->bv_len - skip);
- 
--	kaddr = kmap_atomic(page);
--	from = kaddr + offset;
- 	memcpy_to_page(bvec->bv_page, skip + bvec->bv_offset, from, copy);
- 	skip += copy;
- 	from += copy;
-@@ -444,7 +581,6 @@ static size_t copy_page_to_iter_bvec(struct page *page, size_t offset, size_t by
- 		from += copy;
- 		bytes -= copy;
- 	}
--	kunmap_atomic(kaddr);
- 	if (skip == bvec->bv_len) {
- 		bvec++;
- 		skip = 0;
-@@ -456,12 +592,10 @@ static size_t copy_page_to_iter_bvec(struct page *page, size_t offset, size_t by
- 	return wanted - bytes;
- }
- 
--static size_t copy_page_from_iter_bvec(struct page *page, size_t offset, size_t bytes,
--			 struct iov_iter *i)
-+static size_t copy_from_iter_bvec(void *to, size_t bytes, struct iov_iter *i)
- {
- 	size_t skip, copy, wanted;
- 	const struct bio_vec *bvec;
--	void *kaddr, *to;
- 
- 	if (unlikely(bytes > i->count))
- 		bytes = i->count;
-@@ -473,10 +607,6 @@ static size_t copy_page_from_iter_bvec(struct page *page, size_t offset, size_t
- 	bvec = i->bvec;
- 	skip = i->iov_offset;
- 
--	kaddr = kmap_atomic(page);
+-int
+-ext2_clear_xip_target(struct inode *inode, sector_t block)
+-{
+-	void *kaddr;
+-	unsigned long pfn;
+-	long size;
 -
--	to = kaddr + offset;
+-	size = __inode_direct_access(inode, block, &kaddr, &pfn, PAGE_SIZE);
+-	if (size < 0)
+-		return size;
+-	clear_page(kaddr);
+-	return 0;
+-}
 -
- 	copy = min(bytes, bvec->bv_len - skip);
- 
- 	memcpy_from_page(to, bvec->bv_page, bvec->bv_offset + skip, copy);
-@@ -493,7 +623,6 @@ static size_t copy_page_from_iter_bvec(struct page *page, size_t offset, size_t
- 		to += copy;
- 		bytes -= copy;
- 	}
--	kunmap_atomic(kaddr);
- 	if (skip == bvec->bv_len) {
- 		bvec++;
- 		skip = 0;
-@@ -505,6 +634,61 @@ static size_t copy_page_from_iter_bvec(struct page *page, size_t offset, size_t
- 	return wanted;
- }
- 
-+static size_t copy_page_to_iter_bvec(struct page *page, size_t offset,
-+					size_t bytes, struct iov_iter *i)
-+{
-+	void *kaddr = kmap_atomic(page);
-+	size_t wanted = copy_to_iter_bvec(kaddr + offset, bytes, i);
-+	kunmap_atomic(kaddr);
-+	return wanted;
-+}
-+
-+static size_t copy_page_from_iter_bvec(struct page *page, size_t offset,
-+					size_t bytes, struct iov_iter *i)
-+{
-+	void *kaddr = kmap_atomic(page);
-+	size_t wanted = copy_from_iter_bvec(kaddr + offset, bytes, i);
-+	kunmap_atomic(kaddr);
-+	return wanted;
-+}
-+
-+static size_t zero_bvec(size_t bytes, struct iov_iter *i)
-+{
-+	size_t skip, copy, wanted;
-+	const struct bio_vec *bvec;
-+
-+	if (unlikely(bytes > i->count))
-+		bytes = i->count;
-+
-+	if (unlikely(!bytes))
-+		return 0;
-+
-+	wanted = bytes;
-+	bvec = i->bvec;
-+	skip = i->iov_offset;
-+	copy = min_t(size_t, bytes, bvec->bv_len - skip);
-+
-+	memzero_page(bvec->bv_page, skip + bvec->bv_offset, copy);
-+	skip += copy;
-+	bytes -= copy;
-+	while (bytes) {
-+		bvec++;
-+		copy = min(bytes, (size_t)bvec->bv_len);
-+		memzero_page(bvec->bv_page, bvec->bv_offset, copy);
-+		skip = copy;
-+		bytes -= copy;
-+	}
-+	if (skip == bvec->bv_len) {
-+		bvec++;
-+		skip = 0;
-+	}
-+	i->count -= wanted - bytes;
-+	i->nr_segs -= bvec - i->bvec;
-+	i->bvec = bvec;
-+	i->iov_offset = skip;
-+	return wanted - bytes;
-+}
-+
- static size_t copy_from_user_bvec(struct page *page,
- 		struct iov_iter *i, unsigned long offset, size_t bytes)
+ void ext2_xip_verify_sb(struct super_block *sb)
  {
-@@ -669,6 +853,31 @@ size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
- }
- EXPORT_SYMBOL(copy_page_from_iter);
+ 	struct ext2_sb_info *sbi = EXT2_SB(sb);
+diff --git a/fs/ext2/xip.h b/fs/ext2/xip.h
+index 29be737..b2592f2 100644
+--- a/fs/ext2/xip.h
++++ b/fs/ext2/xip.h
+@@ -7,8 +7,6 @@
  
-+size_t copy_to_iter(void *addr, size_t bytes, struct iov_iter *i)
-+{
-+	if (i->type & ITER_BVEC)
-+		return copy_to_iter_bvec(addr, bytes, i);
-+	else
-+		return copy_to_iter_iovec(addr, bytes, i);
-+}
-+
-+size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
-+{
-+	if (i->type & ITER_BVEC)
-+		return copy_from_iter_bvec(addr, bytes, i);
-+	else
-+		return copy_from_iter_iovec(addr, bytes, i);
-+}
-+
-+size_t iov_iter_zero(size_t bytes, struct iov_iter *i)
-+{
-+	if (i->type & ITER_BVEC) {
-+		return zero_bvec(bytes, i);
-+	} else {
-+		return zero_iovec(bytes, i);
-+	}
-+}
-+
- size_t iov_iter_copy_from_user_atomic(struct page *page,
- 		struct iov_iter *i, unsigned long offset, size_t bytes)
+ #ifdef CONFIG_EXT2_FS_XIP
+ extern void ext2_xip_verify_sb (struct super_block *);
+-extern int ext2_clear_xip_target (struct inode *, sector_t);
+-
+ static inline int ext2_use_xip (struct super_block *sb)
  {
+ 	struct ext2_sb_info *sbi = EXT2_SB(sb);
+@@ -19,6 +17,5 @@ int ext2_get_xip_mem(struct address_space *, pgoff_t, int,
+ #else
+ #define ext2_xip_verify_sb(sb)			do { } while (0)
+ #define ext2_use_xip(sb)			0
+-#define ext2_clear_xip_target(inode, chain)	0
+ #define ext2_get_xip_mem			NULL
+ #endif
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 87a135a..e38138b 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2463,11 +2463,17 @@ extern int generic_file_open(struct inode * inode, struct file * filp);
+ extern int nonseekable_open(struct inode * inode, struct file * filp);
+ 
+ #ifdef CONFIG_FS_XIP
++int dax_clear_blocks(struct inode *, sector_t block, long size);
+ extern int xip_file_mmap(struct file * file, struct vm_area_struct * vma);
+ extern int xip_truncate_page(struct address_space *mapping, loff_t from);
+ ssize_t dax_do_io(int rw, struct kiocb *, struct inode *, struct iov_iter *,
+ 		loff_t, get_block_t, dio_iodone_t, int flags);
+ #else
++static inline int dax_clear_blocks(struct inode *i, sector_t blk, long sz)
++{
++	return 0;
++}
++
+ static inline int xip_truncate_page(struct address_space *mapping, loff_t from)
+ {
+ 	return 0;
 -- 
 2.0.1
 
