@@ -1,118 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
-	by kanga.kvack.org (Postfix) with ESMTP id C18456B0044
-	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 17:37:01 -0400 (EDT)
-Received: by mail-qa0-f46.google.com with SMTP id v10so4535654qac.5
-        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 14:37:01 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j8si17720218qab.100.2014.08.01.14.37.00
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 214DF6B0055
+	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 17:42:22 -0400 (EDT)
+Received: by mail-ig0-f172.google.com with SMTP id h15so2320539igd.5
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 14:42:21 -0700 (PDT)
+Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com [2607:f8b0:4001:c03::22b])
+        by mx.google.com with ESMTPS id fu3si25253240icb.49.2014.08.01.14.42.21
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Aug 2014 14:37:01 -0700 (PDT)
-Date: Fri, 1 Aug 2014 17:36:54 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCHv2 1/2] mm: close race between do_fault_around() and
- fault_around_bytes_set()
-Message-ID: <20140801213654.GA8692@nhori.bos.redhat.com>
-References: <1406893869-32739-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1406893869-32739-2-git-send-email-kirill.shutemov@linux.intel.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 01 Aug 2014 14:42:21 -0700 (PDT)
+Received: by mail-ie0-f171.google.com with SMTP id at1so6632277iec.2
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 14:42:21 -0700 (PDT)
+Date: Fri, 1 Aug 2014 14:42:19 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 2/3] mm, oom: remove unnecessary check for NULL
+ zonelist
+In-Reply-To: <20140801133444.GH9952@cmpxchg.org>
+Message-ID: <alpine.DEB.2.02.1408011434330.11532@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1407231814110.22326@chino.kir.corp.google.com> <alpine.DEB.2.02.1407231815090.22326@chino.kir.corp.google.com> <20140731152659.GB9952@cmpxchg.org> <alpine.DEB.2.02.1408010159500.4061@chino.kir.corp.google.com>
+ <20140801133444.GH9952@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1406893869-32739-2-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andrey Ryabinin <a.ryabinin@samsung.com>, Sasha Levin <sasha.levin@oracle.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Aug 01, 2014 at 02:51:08PM +0300, Kirill A. Shutemov wrote:
-> Things can go wrong if fault_around_bytes will be changed under
-> do_fault_around(): between fault_around_mask() and fault_around_pages().
-> 
-> Let's read fault_around_bytes only once during do_fault_around() and
-> calculate mask based on the reading.
-> 
-> Note: fault_around_bytes can only be updated via debug interface. Also
-> I've tried but was not able to trigger a bad behaviour without the
-> patch. So I would not consider this patch as urgent.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  mm/memory.c | 21 +++++++--------------
->  1 file changed, 7 insertions(+), 14 deletions(-)
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 6ea15ed23ec4..be43fd9606db 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2770,16 +2770,6 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
->  
->  static unsigned long fault_around_bytes = rounddown_pow_of_two(65536);
->  
-> -static inline unsigned long fault_around_pages(void)
-> -{
-> -	return fault_around_bytes >> PAGE_SHIFT;
-> -}
-> -
-> -static inline unsigned long fault_around_mask(void)
-> -{
-> -	return ~(fault_around_bytes - 1) & PAGE_MASK;
-> -}
-> -
->  #ifdef CONFIG_DEBUG_FS
->  static int fault_around_bytes_get(void *data, u64 *val)
->  {
-> @@ -2844,12 +2834,15 @@ late_initcall(fault_around_debugfs);
->  static void do_fault_around(struct vm_area_struct *vma, unsigned long address,
->  		pte_t *pte, pgoff_t pgoff, unsigned int flags)
->  {
-> -	unsigned long start_addr;
-> +	unsigned long start_addr, nr_pages, mask;
->  	pgoff_t max_pgoff;
->  	struct vm_fault vmf;
->  	int off;
->  
-> -	start_addr = max(address & fault_around_mask(), vma->vm_start);
-> +	nr_pages = ACCESS_ONCE(fault_around_bytes) >> PAGE_SHIFT;
-> +	mask = ~(nr_pages * PAGE_SIZE - 1) & PAGE_MASK;
+On Fri, 1 Aug 2014, Johannes Weiner wrote:
 
-If nr_pages never becomes 0, don't we need to do (& PAGE_MASK) ?
-
-Thanks,
-Naoya Horiguchi
-
-> +
-> +	start_addr = max(address & mask, vma->vm_start);
->  	off = ((address - start_addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1);
->  	pte -= off;
->  	pgoff -= off;
-> @@ -2861,7 +2854,7 @@ static void do_fault_around(struct vm_area_struct *vma, unsigned long address,
->  	max_pgoff = pgoff - ((start_addr >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)) +
->  		PTRS_PER_PTE - 1;
->  	max_pgoff = min3(max_pgoff, vma_pages(vma) + vma->vm_pgoff - 1,
-> -			pgoff + fault_around_pages() - 1);
-> +			pgoff + nr_pages - 1);
->  
->  	/* Check if it makes any sense to call ->map_pages */
->  	while (!pte_none(*pte)) {
-> @@ -2896,7 +2889,7 @@ static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  	 * something).
->  	 */
->  	if (vma->vm_ops->map_pages && !(flags & FAULT_FLAG_NONLINEAR) &&
-> -	    fault_around_pages() > 1) {
-> +	    fault_around_bytes >> PAGE_SHIFT > 1) {
->  		pte = pte_offset_map_lock(mm, pmd, address, &ptl);
->  		do_fault_around(vma, address, pte, pgoff, flags);
->  		if (!pte_same(*pte, orig_pte))
-> -- 
-> 2.0.1
+> > > out_of_memory() wants the zonelist that was used during allocation,
+> > > not just the random first node's zonelist that's simply picked to
+> > > serialize page fault OOM kills system-wide.
+> > > 
+> > > This would even change how panic_on_oom behaves for page fault OOMs
+> > > (in a completely unpredictable way) if we get CONSTRAINED_CPUSET.
+> > > 
+> > > This change makes no sense to me.
+> > > 
+> > 
+> > Allocations during fault will be constrained by the cpuset's mems, if we 
+> > are oom then why would we panic when panic_on_oom == 1?
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Can you please address the concerns I raised?
 > 
+
+I see one concern: that panic_on_oom == 1 will not trigger on pagefault 
+when constrained by cpusets.  To address that, I'll state that, since 
+cpuset-constrained allocations are the allocation context for pagefaults,
+panic_on_oom == 1 should not trigger on pagefault when constrained by 
+cpusets.
+
+> And please describe user-visible changes in the changelog.
+> 
+
+Ok, Andrew please annotate the changelog for 
+mm-oom-remove-unnecessary-check-for-null-zonelist.patch by including:
+
+This also causes panic_on_oom == 1 to not panic the machine when the 
+pagefault is constrained by the mems of current's cpuset.  That behavior 
+agrees with the semantics of the sysctl in Documentation/sysctl/vm.txt.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
