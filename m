@@ -1,21 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 52D8C6B0035
-	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 05:15:46 -0400 (EDT)
-Received: by mail-wi0-f180.google.com with SMTP id n3so984548wiv.1
-        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 02:15:44 -0700 (PDT)
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id A853C6B0038
+	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 05:57:05 -0400 (EDT)
+Received: by mail-wg0-f41.google.com with SMTP id z12so4128300wgg.24
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 02:57:05 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z4si4245536wib.95.2014.08.01.02.15.42
+        by mx.google.com with ESMTPS id vv7si17337081wjc.156.2014.08.01.02.57.03
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 01 Aug 2014 02:15:43 -0700 (PDT)
-Date: Fri, 1 Aug 2014 11:15:39 +0200
+        Fri, 01 Aug 2014 02:57:03 -0700 (PDT)
+Date: Fri, 1 Aug 2014 11:57:00 +0200
 From: Jan Kara <jack@suse.cz>
 Subject: Re: [PATCH 0/2] new API to allocate buffer-cache for superblock in
  non-movable area
-Message-ID: <20140801091539.GA27281@quack.suse.cz>
-References: <53CDF437.4090306@lge.com>
- <20140722073005.GT3935@laptop>
+Message-ID: <20140801095700.GB27281@quack.suse.cz>
+References: <20140722073005.GT3935@laptop>
  <20140722093838.GA22331@quack.suse.cz>
  <53D8A258.7010904@lge.com>
  <20140730101143.GB19205@quack.suse.cz>
@@ -23,104 +22,55 @@ References: <53CDF437.4090306@lge.com>
  <20140731000355.GB25362@quack.suse.cz>
  <53D98FBB.6060700@lge.com>
  <20140731122114.GA5240@quack.suse.cz>
- <20140801083446.GA2613@js1304-P5Q-DELUXE>
+ <53DADA2F.1020404@lge.com>
+ <53DAE820.7050508@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20140801083446.GA2613@js1304-P5Q-DELUXE>
+In-Reply-To: <53DAE820.7050508@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Jan Kara <jack@suse.cz>, Gioh Kim <gioh.kim@lge.com>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>
+To: Gioh Kim <gioh.kim@lge.com>
+Cc: Jan Kara <jack@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>
 
-On Fri 01-08-14 17:34:46, Joonsoo Kim wrote:
-> On Thu, Jul 31, 2014 at 02:21:14PM +0200, Jan Kara wrote:
-> > On Thu 31-07-14 09:37:15, Gioh Kim wrote:
-> > > 
-> > > 
-> > > 2014-07-31 i??i ? 9:03, Jan Kara i?' e,?:
-> > > >On Thu 31-07-14 08:54:40, Gioh Kim wrote:
-> > > >>2014-07-30 i??i?? 7:11, Jan Kara i?' e,?:
-> > > >>>On Wed 30-07-14 16:44:24, Gioh Kim wrote:
-> > > >>>>2014-07-22 i??i?? 6:38, Jan Kara i?' e,?:
-> > > >>>>>On Tue 22-07-14 09:30:05, Peter Zijlstra wrote:
-> > > >>>>>>On Tue, Jul 22, 2014 at 02:18:47PM +0900, Gioh Kim wrote:
-> > > >>>>>>>Hello,
-> > > >>>>>>>
-> > > >>>>>>>This patch try to solve problem that a long-lasting page cache of
-> > > >>>>>>>ext4 superblock disturbs page migration.
-> > > >>>>>>>
-> > > >>>>>>>I've been testing CMA feature on my ARM-based platform
-> > > >>>>>>>and found some pages for page caches cannot be migrated.
-> > > >>>>>>>Some of them are page caches of superblock of ext4 filesystem.
-> > > >>>>>>>
-> > > >>>>>>>Current ext4 reads superblock with sb_bread(). sb_bread() allocates page
-> > > >>>>>>>from movable area. But the problem is that ext4 hold the page until
-> > > >>>>>>>it is unmounted. If root filesystem is ext4 the page cannot be migrated forever.
-> > > >>>>>>>
-> > > >>>>>>>I introduce a new API for allocating page from non-movable area.
-> > > >>>>>>>It is useful for ext4 and others that want to hold page cache for a long time.
-> > > >>>>>>
-> > > >>>>>>There's no word on why you can't teach ext4 to still migrate that page.
-> > > >>>>>>For all I know it might be impossible, but at least mention why.
-> > > >>>>
-> > > >>>>I am very sorry for lacking of details.
-> > > >>>>
-> > > >>>>In ext4_fill_super() the buffer-head of superblock is stored in sbi->s_sbh.
-> > > >>>>The page belongs to the buffer-head is allocated from movable area.
-> > > >>>>To migrate the page the buffer-head should be released via brelse().
-> > > >>>>But brelse() is not called until unmount.
-> > > >>>   Hum, I don't see where in the code do we check buffer_head use count. Can
-> > > >>>you please point me? Thanks.
-> > > >>
-> > > >>Filesystem code does not check buffer_head use count.  sb_bread() returns
-> > > >>the buffer_head that is included in bh_lru and has non-zero use count.
-> > > >>You can see the bh_lru code in buffer.c: __find_get_clock() and
-> > > >>lookup_bh_lru().  bh_lru_install() inserts the buffer_head into the
-> > > >>bh_lru().  It first calls get_bh() to increase the use count and insert
-> > > >>bh into the lru array.
-> > > >>
-> > > >>The buffer_head use count is non-zero until brelse() is called.
-> > > >   So I probably didn't phrase the question precisely enough. What I was
-> > > >asking about is where exactly *migration* code checks buffer use count?
-> > > >Because as I'm looking at buffer_migrate_page() we lock the buffers on a
-> > > >migrated page but we don't look at buffer use counts... So it seems to me
-> > > >that migration of a page with buffers should succeed even if buffer head
-> > > >has an elevated use count. Now I think that it *should* check the buffer
-> > > >use counts (it is dangerous to migrate buffers someone holds reference to)
-> > > >but I just cannot find that place. Or does CMA use some other migration
-> > > >function for buffer pages than buffer_migrate_page()?
-> > > 
-> > > CMA allocation function is cma_alloc().
-> > > Function flow is alloc_contig_range() -> __alloc_contig_migrate_range() -> migrate_pages -> unmap_and_move
-> > > -> __unmap_and_move -> try_to_free_buffers -> drop_buffers -> buffer_busy.
-> > > 
-> > > The buffer_busy() is checking b_count.
-> > > If buffer is busy buffer-cache cannot be removed.
-> > > So the page that includes buffer_head and the page that is refered by
-> > > buffer_head are not movable.
-> > > 
-> > > Is this what you need?
-> >   Yes, this is what I was asking about. Thanks! But as I'm looking into
-> > __unmap_and_move() it calls try_to_free_buffers() only if page->mapping ==
-> > NULL. As the comment before that test states, this can happen only for swap
-> > cache (not our case) or for pagecache pages that were truncated and not yet
-> > fully cleaned up. But superblock page cannot really be truncated. So I
-> > somewhat doubt you can hit the above path for a page holding superblock...
+On Fri 01-08-14 10:06:40, Gioh Kim wrote:
+> Function path is like followings:
 > 
-> Hello,
-> 
-> Although page->mapping != NULL, mapping->a_ops->migratepage could be
-> NULL. This is the case of block_device. See def_blk_aops in
-> fs/block_dev.c. In this case, fallback_migrate_page() is called and
-> then try_to_release_page() and try_to_free_buffers() would be called.
-  Aaah, right! Finally I understand what happens and why I couldn't see
-buffer_migrate_page() being called for blkdev buffers. I didn't realize
-blkdev mappings end up with NULL ->migratepage callback. Thanks a lot for
-clearing this up.
+> [   97.868304] [<8011a750>] (drop_buffers+0xfc/0x168) from [<8011bc64>] (try_to_free_buffers+0x50/0xbc)
+> [   97.877457] [<8011bc64>] (try_to_free_buffers+0x50/0xbc) from [<80121e40>] (blkdev_releasepage+0x38/0x48)
+> [   97.887093] [<80121e40>] (blkdev_releasepage+0x38/0x48) from [<800add8c>] (try_to_release_page+0x40/0x5c)
+> [   97.896728] [<800add8c>] (try_to_release_page+0x40/0x5c) from [<800bd9bc>] (shrink_page_list+0x508/0x8a4)
+> [   97.906334] [<800bd9bc>] (shrink_page_list+0x508/0x8a4) from [<800bde5c>] (reclaim_clean_pages_from_list+0x104/0x148)
+> [   97.917017] [<800bde5c>] (reclaim_clean_pages_from_list+0x104/0x148) from [<800b5dec>] (alloc_contig_range+0x114/0x2dc)
+> [   97.927856] [<800b5dec>] (alloc_contig_range+0x114/0x2dc) from [<802f6c04>] (dma_alloc_from_contiguous+0x8c/0x14c)
+> [   97.938264] [<802f6c04>] (dma_alloc_from_contiguous+0x8c/0x14c) from [<80017b6c>] (__alloc_from_contiguous+0x34/0xc0)
+> [   97.948926] [<80017b6c>] (__alloc_from_contiguous+0x34/0xc0) from [<80017d40>] (__dma_alloc+0xc4/0x2a0)
+> [   97.958362] [<80017d40>] (__dma_alloc+0xc4/0x2a0) from [<8001803c>] (arm_dma_alloc+0x80/0x98)
+> [   97.966916] [<8001803c>] (arm_dma_alloc+0x80/0x98) from [<7f6ea188>] (cma_test_probe+0xe0/0x1f0 [drv])
+  OK, this makes more sense to me. But also as Joonsoo Kim pointed out
+even if we go into the migration path, we will end up calling
+try_to_free_buffers() because blkdev pages are one of those which use
+fallback_migrate_page() as their ->migratepage callback.
+
+Now regarding your quest to make all pages in the movable zone really
+movable - you are going to have hard time to achieve that for blkdev pages.
+E.g. when a metadata buffer is part of a running transaction, it will be
+pinned in memory until that transaction commits which easily takes seconds.
+And for busy metadata buffer there's no guarantee that after that
+transaction commits the buffer isn't already part of the newly started
+transaction. So these buffers may be effectively unmovable while someone
+writes to the filesystem.
+
+So the quiestion really is how hard guarantee do you need that a page in
+movable zone is really movable. Or better in what timeframe should it be
+movable? It may be possible to make e.g. migratepage callback for ext4
+blkdev pages which will handle migration of pages that are just idly
+sitting in a journal waiting to be committed. That may be reasonably doable
+although it won't be perfect. Or we may just decide it's not worth the
+bother and allocate all blkdev pages from unmovable zone...
 
 								Honza
+
 -- 
 Jan Kara <jack@suse.cz>
 SUSE Labs, CR
