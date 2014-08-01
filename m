@@ -1,212 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
-	by kanga.kvack.org (Postfix) with ESMTP id DC8766B0037
-	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 14:31:46 -0400 (EDT)
-Received: by mail-qa0-f49.google.com with SMTP id dc16so4251974qab.8
-        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 11:31:46 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id jr8si16979983qcb.42.2014.08.01.11.31.45
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Aug 2014 11:31:46 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v2 1/3] mm/hugetlb: take refcount under page table lock in follow_huge_pmd()
-Date: Fri,  1 Aug 2014 13:37:41 -0400
-Message-Id: <1406914663-8631-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AC796B0036
+	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 14:45:24 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id eu11so6243481pac.17
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 11:45:24 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
+        by mx.google.com with ESMTP id ko9si10726099pab.125.2014.08.01.11.45.22
+        for <linux-mm@kvack.org>;
+        Fri, 01 Aug 2014 11:45:23 -0700 (PDT)
+From: "Zwisler, Ross" <ross.zwisler@intel.com>
+Subject: Re: [PATCH v8 04/22] Change direct_access calling convention
+Date: Fri, 1 Aug 2014 18:45:20 +0000
+Message-ID: <1406918720.3198.3.camel@rzwisler-mobl1.amr.corp.intel.com>
+References: <cover.1406058387.git.matthew.r.wilcox@intel.com>
+	 <b78b33d94b669a5fbd02e06f2493b43dd5d77698.1406058387.git.matthew.r.wilcox@intel.com>
+	 <53D9174C.7040906@gmail.com> <20140730194503.GQ6754@linux.intel.com>
+	 <53DA165E.8040601@gmail.com> <20140731141315.GT6754@linux.intel.com>
+	 <53DA60A5.1030304@gmail.com> <20140731171953.GU6754@linux.intel.com>
+	 <53DA8518.3090604@gmail.com>
+	 <1406838602.14136.12.camel@rzwisler-mobl1.amr.corp.intel.com>
+In-Reply-To: <1406838602.14136.12.camel@rzwisler-mobl1.amr.corp.intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <5CDAB0DF6035D34B987649760C33DA03@intel.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: "openosd@gmail.com" <openosd@gmail.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "willy@linux.intel.com" <willy@linux.intel.com>, "martin.petersen@oracle.com" <martin.petersen@oracle.com>, "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
 
-We have a race condition between move_pages() and freeing hugepages,
-where move_pages() calls follow_page(FOLL_GET) for hugepages internally
-and tries to get its refcount without preventing concurrent freeing.
-This race crashes the kernel, so this patch fixes it by moving FOLL_GET
-code for hugepages into follow_huge_pmd() with taking the page table lock.
-
-This patch passes the following test. And libhugetlbfs test shows no
-regression.
-
-  $ cat movepages.c
-  #include <stdio.h>
-  #include <stdlib.h>
-  #include <numaif.h>
-
-  #define ADDR_INPUT      0x700000000000UL
-  #define HPS             0x200000
-  #define PS              0x1000
-
-  int main(int argc, char *argv[]) {
-          int i;
-          int nr_hp = strtol(argv[1], NULL, 0);
-          int nr_p  = nr_hp * HPS / PS;
-          int ret;
-          void **addrs;
-          int *status;
-          int *nodes;
-          pid_t pid;
-
-          pid = strtol(argv[2], NULL, 0);
-          addrs  = malloc(sizeof(char *) * nr_p + 1);
-          status = malloc(sizeof(char *) * nr_p + 1);
-          nodes  = malloc(sizeof(char *) * nr_p + 1);
-
-          while (1) {
-                  for (i = 0; i < nr_p; i++) {
-                          addrs[i] = (void *)ADDR_INPUT + i * PS;
-                          nodes[i] = 1;
-                          status[i] = 0;
-                  }
-                  ret = numa_move_pages(pid, nr_p, addrs, nodes, status,
-                                        MPOL_MF_MOVE_ALL);
-                  if (ret == -1)
-                          err("move_pages");
-
-                  for (i = 0; i < nr_p; i++) {
-                          addrs[i] = (void *)ADDR_INPUT + i * PS;
-                          nodes[i] = 0;
-                          status[i] = 0;
-                  }
-                  ret = numa_move_pages(pid, nr_p, addrs, nodes, status,
-                                        MPOL_MF_MOVE_ALL);
-                  if (ret == -1)
-                          err("move_pages");
-          }
-          return 0;
-  }
-
-  $ cat hugepage.c
-  #include <stdio.h>
-  #include <sys/mman.h>
-  #include <string.h>
-
-  #define ADDR_INPUT      0x700000000000UL
-  #define HPS             0x200000
-
-  int main(int argc, char *argv[]) {
-          int nr_hp = strtol(argv[1], NULL, 0);
-          char *p;
-
-          while (1) {
-                  p = mmap((void *)ADDR_INPUT, nr_hp * HPS, PROT_READ | PROT_WRITE,
-                           MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
-                  if (p != (void *)ADDR_INPUT) {
-                          perror("mmap");
-                          break;
-                  }
-                  memset(p, 0, nr_hp * HPS);
-                  munmap(p, nr_hp * HPS);
-          }
-  }
-
-  $ sysctl vm.nr_hugepages=40
-  $ ./hugepage 10 &
-  $ ./movepages 10 $(pgrep -f hugepage)
-
-Note for stable inclusion:
-  This patch fixes e632a938d914 ("mm: migrate: add hugepage migration code
-  to move_pages()"), so is applicable to -stable kernels which includes it.
-
-ChangeLog v2:
-- introduce follow_huge_pmd_lock() to do locking in arch-independent code.
-
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: <stable@vger.kernel.org>  # [3.12+]
----
- include/linux/hugetlb.h |  3 +++
- mm/gup.c                | 17 ++---------------
- mm/hugetlb.c            | 27 +++++++++++++++++++++++++++
- 3 files changed, 32 insertions(+), 15 deletions(-)
-
-diff --git mmotm-2014-07-22-15-58.orig/include/linux/hugetlb.h mmotm-2014-07-22-15-58/include/linux/hugetlb.h
-index 41272bcf73f8..194834853d6f 100644
---- mmotm-2014-07-22-15-58.orig/include/linux/hugetlb.h
-+++ mmotm-2014-07-22-15-58/include/linux/hugetlb.h
-@@ -101,6 +101,8 @@ struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 				pmd_t *pmd, int write);
- struct page *follow_huge_pud(struct mm_struct *mm, unsigned long address,
- 				pud_t *pud, int write);
-+struct page *follow_huge_pmd_lock(struct vm_area_struct *vma,
-+				unsigned long address, pmd_t *pmd, int flags);
- int pmd_huge(pmd_t pmd);
- int pud_huge(pud_t pmd);
- unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
-@@ -134,6 +136,7 @@ static inline void hugetlb_show_meminfo(void)
- }
- #define follow_huge_pmd(mm, addr, pmd, write)	NULL
- #define follow_huge_pud(mm, addr, pud, write)	NULL
-+#define follow_huge_pmd_lock(vma, addr, pmd, flags)	NULL
- #define prepare_hugepage_range(file, addr, len)	(-EINVAL)
- #define pmd_huge(x)	0
- #define pud_huge(x)	0
-diff --git mmotm-2014-07-22-15-58.orig/mm/gup.c mmotm-2014-07-22-15-58/mm/gup.c
-index 91d044b1600d..e4bd59efe686 100644
---- mmotm-2014-07-22-15-58.orig/mm/gup.c
-+++ mmotm-2014-07-22-15-58/mm/gup.c
-@@ -174,21 +174,8 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
- 	pmd = pmd_offset(pud, address);
- 	if (pmd_none(*pmd))
- 		return no_page_table(vma, flags);
--	if (pmd_huge(*pmd) && vma->vm_flags & VM_HUGETLB) {
--		page = follow_huge_pmd(mm, address, pmd, flags & FOLL_WRITE);
--		if (flags & FOLL_GET) {
--			/*
--			 * Refcount on tail pages are not well-defined and
--			 * shouldn't be taken. The caller should handle a NULL
--			 * return when trying to follow tail pages.
--			 */
--			if (PageHead(page))
--				get_page(page);
--			else
--				page = NULL;
--		}
--		return page;
--	}
-+	if (pmd_huge(*pmd) && vma->vm_flags & VM_HUGETLB)
-+		return follow_huge_pmd_lock(vma, address, pmd, flags);
- 	if ((flags & FOLL_NUMA) && pmd_numa(*pmd))
- 		return no_page_table(vma, flags);
- 	if (pmd_trans_huge(*pmd)) {
-diff --git mmotm-2014-07-22-15-58.orig/mm/hugetlb.c mmotm-2014-07-22-15-58/mm/hugetlb.c
-index 7263c770e9b3..4437896cd6ed 100644
---- mmotm-2014-07-22-15-58.orig/mm/hugetlb.c
-+++ mmotm-2014-07-22-15-58/mm/hugetlb.c
-@@ -3687,6 +3687,33 @@ follow_huge_pud(struct mm_struct *mm, unsigned long address,
- 
- #endif /* CONFIG_ARCH_WANT_GENERAL_HUGETLB */
- 
-+struct page *follow_huge_pmd_lock(struct vm_area_struct *vma,
-+				unsigned long address, pmd_t *pmd, int flags)
-+{
-+	struct page *page;
-+	spinlock_t *ptl;
-+
-+	if (flags & FOLL_GET)
-+		ptl = huge_pte_lock(hstate_vma(vma), vma->vm_mm, (pte_t *)pmd);
-+
-+	page = follow_huge_pmd(vma->vm_mm, address, pmd, flags & FOLL_WRITE);
-+
-+	if (flags & FOLL_GET) {
-+		/*
-+		 * Refcount on tail pages are not well-defined and
-+		 * shouldn't be taken. The caller should handle a NULL
-+		 * return when trying to follow tail pages.
-+		 */
-+		if (PageHead(page))
-+			get_page(page);
-+		else
-+			page = NULL;
-+		spin_unlock(ptl);
-+	}
-+
-+	return page;
-+}
-+
- #ifdef CONFIG_MEMORY_FAILURE
- 
- /* Should be called in hugetlb_lock */
--- 
-1.9.3
+T24gVGh1LCAyMDE0LTA3LTMxIGF0IDE0OjMwIC0wNjAwLCBSb3NzIFp3aXNsZXIgd3JvdGU6DQo+
+IE9uIFRodSwgMjAxNC0wNy0zMSBhdCAyMTowNCArMDMwMCwgQm9heiBIYXJyb3NoIHdyb3RlOg0K
+PiA+IE9uIDA3LzMxLzIwMTQgMDg6MTkgUE0sIE1hdHRoZXcgV2lsY294IHdyb3RlOg0KPiA+ID4g
+T24gVGh1LCBKdWwgMzEsIDIwMTQgYXQgMDY6Mjg6MzdQTSArMDMwMCwgQm9heiBIYXJyb3NoIHdy
+b3RlOg0KPiA+ID4+IE1hdHRoZXcgd2hhdCBpcyB5b3VyIG9waW5pb24gYWJvdXQgdGhpcywgZG8g
+d2UgbmVlZCB0byBwdXNoIGZvciByZW1vdmFsDQo+ID4gPj4gb2YgdGhlIHBhcnRpdGlvbiBkZWFk
+IGNvZGUgd2hpY2ggbmV2ZXIgd29ya2VkIGZvciBicmQsIG9yIHdlIG5lZWQgdG8gcHVzaA0KPiA+
+ID4+IGZvciBmaXhpbmcgYW5kIGltcGxlbWVudGluZyBuZXcgcGFydGl0aW9uIHN1cHBvcnQgZm9y
+IGJyZD8NCj4gPiA+IA0KPiA+ID4gRml4aW5nIHRoZSBjb2RlIGdldHMgbXkgdm90ZS4gIGJyZCBp
+cyB1c2VmdWwgZm9yIHRlc3RpbmcgdGhpbmdzIC4uLiBhbmQNCj4gPiA+IHNvbWV0aW1lcyB3ZSBu
+ZWVkIHRvIHRlc3QgdGhpbmdzIHRoYXQgaW52b2x2ZSBwYXJ0aXRpb25zLg0KPiA+ID4gDQo+ID4g
+DQo+ID4gT0sgSSdtIG9uIGl0LCBpdHMgd2hhdCBJJ20gZG9pbmcgdG9kYXkuDQo+ID4gDQo+ID4g
+cnJyIEkgbWFuZ2VkIHRvIGNvbXBsZXRlbHkgdHJhc2ggbXkgdm0gYnkgZG9pbmcgJ21ha2UgaW5z
+dGFsbCcgb2YNCj4gPiB1dGlsLWxpbnV4IGFuZCBhZnRlciByZWJvb3QgaXQgbmV2ZXIgcmVjb3Zl
+cmVkLCBJIHJlbWVtYmVyIHRoYXQNCj4gPiBtb3VudCBjb21wbGFpbmVkIGFib3V0IGEgbm93IG1p
+c3NpbmcgbGlicmFyeSBhbmQgSSBmb3Jnb3QgYW5kIHJlYm9vdGVkLA0KPiA+IHRoYXQgd2FzIHRo
+ZSBlbmQgb2YgdGhhdC4gQW55d2F5IEkgaW5zdGFsbGVkIGEgbmV3IGZjMjAgc3lzdGVtIHdhbnRl
+ZA0KPiA+IHRoYXQgZm9yIGEgbG9uZyB0aW1lIG92ZXIgbXkgb2xkIGZjMTgNCj4gDQo+IEFoLCBJ
+J20gYWxyZWFkeSB3b3JraW5nIG9uIHRoaXMgYXMgd2VsbC4gIDopICBJZiB5b3Ugd2FudCB5b3Ug
+Y2FuIHdhaXQgZm9yIG15DQo+IHBhdGNoZXMgdG8gQlJEICYgdGVzdCAtIHRoZXkgc2hvdWxkIGJl
+IG91dCB0aGlzIHdlZWsuDQo+IA0KPiBJJ20gcGxhbm5pbmcgb24gYWRkaW5nIGdldF9nZW8oKSBh
+bmQgZG9pbmcgZHluYW1pYyBtaW5vcnMgYXMgaXMgZG9uZSBpbiBOVk1lLg0KDQpVZ2gsIGl0IHR1
+cm5zIG91dCB0aGF0IGlmIHlvdSByZW1vdmUgdGhlICIqcGFydCA9IDAiIGJpdCBmcm9tIGJyZF9w
+cm9iZSgpLA0KYXR0ZW1wdHMgdG8gY3JlYXRlIG5ldyBCUkQgZGV2aWNlcyB1c2luZyBta25vZCBo
+aXQgYSBkZWFkbG9jay4gIFJlbW92YWwgb2YNCnRoYXQgY29kZSwgaWU6DQoNCkBAIC01NTAsNyAr
+NTQ5LDYgQEAgc3RhdGljIHN0cnVjdCBrb2JqZWN0ICpicmRfcHJvYmUoZGV2X3QgZGV2LCBpbnQg
+KnBhcnQsIHZvaWQgKmRhdGEpDQogICAgICAgIGtvYmogPSBicmQgPyBnZXRfZGlzayhicmQtPmJy
+ZF9kaXNrKSA6IE5VTEw7DQogICAgICAgIG11dGV4X3VubG9jaygmYnJkX2RldmljZXNfbXV0ZXgp
+Ow0KDQotICAgICAgICpwYXJ0ID0gMDsNCiAgICAgICAgcmV0dXJuIGtvYmo7DQogfQ0KDQppcyBu
+ZWNlc3NhcnkgaWYgd2Ugd2FudCB0byBkbyBhbnkgc29ydCBvZiBwYXJ0aXRpb25pbmcuDQoNClRo
+aXMgaXNuJ3QgYSB1c2UgY2FzZSBmb3IgUFJELCBzbyBJJ2xsIG1vdmUgb3ZlciB0byB0aGF0IGFu
+ZCB0cnkgdG8gYWRkDQpkeW5hbWljIG1pbm9ycyB0aGVyZSBpbnN0ZWFkLiAgSWYgd2UgcmVhbGx5
+IGRvIHdhbnQgcGFydGl0aW9ucyB0byB3b3JrIGluIEJSRCwNCnRob3VnaCwgZXZlbnR1YWxseSB3
+ZSdsbCBoYXZlIHRvIGRlYnVnIHRoZSBkZWFkbG9jay4NCg0KLSBSb3NzDQoNCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
