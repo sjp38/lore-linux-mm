@@ -1,97 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id DF6B96B0036
-	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 12:04:52 -0400 (EDT)
-Received: by mail-wi0-f182.google.com with SMTP id d1so1613782wiv.15
-        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 09:04:52 -0700 (PDT)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id cw2si6735283wib.42.2014.08.01.09.04.44
+Received: from mail-qa0-f45.google.com (mail-qa0-f45.google.com [209.85.216.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 29F286B0036
+	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 13:16:58 -0400 (EDT)
+Received: by mail-qa0-f45.google.com with SMTP id cm18so4221082qab.32
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 10:16:57 -0700 (PDT)
+Received: from USMAMAIL.TILERA.COM (usmamail.tilera.com. [12.216.194.151])
+        by mx.google.com with ESMTPS id n5si16602402qco.32.2014.08.01.10.16.57
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Aug 2014 09:04:44 -0700 (PDT)
-Date: Fri, 1 Aug 2014 18:04:15 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 0/2] new API to allocate buffer-cache for superblock in
- non-movable area
-Message-ID: <20140801160415.GD9918@twins.programming.kicks-ass.net>
-References: <20140730101143.GB19205@quack.suse.cz>
- <53D985C0.3070300@lge.com>
- <20140731000355.GB25362@quack.suse.cz>
- <53D98FBB.6060700@lge.com>
- <20140731122114.GA5240@quack.suse.cz>
- <53DADA2F.1020404@lge.com>
- <53DAE820.7050508@lge.com>
- <20140801095700.GB27281@quack.suse.cz>
- <20140801133618.GJ19379@twins.programming.kicks-ass.net>
- <20140801152459.GA7525@quack.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 01 Aug 2014 10:16:57 -0700 (PDT)
+Message-ID: <53DBCB55.3050302@tilera.com>
+Date: Fri, 1 Aug 2014 13:16:05 -0400
+From: Chris Metcalf <cmetcalf@tilera.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="qqF1XwZUdAkx0x+N"
-Content-Disposition: inline
-In-Reply-To: <20140801152459.GA7525@quack.suse.cz>
+Subject: Re: [PATCH] swap: remove the struct cpumask has_work
+References: <1406777421-12830-3-git-send-email-laijs@cn.fujitsu.com> <20140731115137.GA20244@dhcp22.suse.cz> <53DA6A2F.100@tilera.com> <53DAEFB5.7060501@cn.fujitsu.com>
+In-Reply-To: <53DAEFB5.7060501@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Gioh Kim <gioh.kim@lge.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <js1304@gmail.com>
+To: Lai Jiangshan <laijs@cn.fujitsu.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@gentwo.org>, Frederic Weisbecker <fweisbec@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Jianyu Zhan <nasa4836@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Khalid Aziz <khalid.aziz@oracle.com>, linux-mm@kvack.org, Gilad Ben-Yossef <gilad@benyossef.com>
 
+On 7/31/2014 9:39 PM, Lai Jiangshan wrote:
+> On 08/01/2014 12:09 AM, Chris Metcalf wrote:
+>> On 7/31/2014 7:51 AM, Michal Hocko wrote:
+>>> On Thu 31-07-14 11:30:19, Lai Jiangshan wrote:
+>>>> It is suggested that cpumask_var_t and alloc_cpumask_var() should be used
+>>>> instead of struct cpumask.  But I don't want to add this complicity nor
+>>>> leave this unwelcome "static struct cpumask has_work;", so I just remove
+>>>> it and use flush_work() to perform on all online drain_work.  flush_work()
+>>>> performs very quickly on initialized but unused work item, thus we don't
+>>>> need the struct cpumask has_work for performance.
+>>> Why? Just because there is general recommendation for using
+>>> cpumask_var_t rather than cpumask?
+>>>
+>>> In this particular case cpumask shouldn't matter much as it is static.
+>>> Your code will work as well, but I do not see any strong reason to
+>>> change it just to get rid of cpumask which is not on stack.
+>> The code uses for_each_cpu with a cpumask to avoid waking cpus that don't
+>> need to do work.  This is important for the nohz_full type functionality,
+>> power efficiency, etc.  So, nack for this change.
+>>
+> flush_work() on initialized but unused work item just disables irq and
+> fetches work->data to test and restores irq and return.
+>
+> the struct cpumask has_work is just premature optimization.
 
---qqF1XwZUdAkx0x+N
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Yes, I see your point.  I was mistakenly thinking that your patch resulted
+in calling schedule_work() on all the online cpus.
 
-On Fri, Aug 01, 2014 at 05:24:59PM +0200, Jan Kara wrote:
+Given that, I think your suggestion is reasonable, though like Michal,
+I'm not sure it necessarily rises to the level of it being worth changing the
+code at this point.  Regardless, I withdraw my nack, and you can add my
+Reviewed-by: Chris Metcalf <cmetcalf@tilera.com> if the change is taken.
 
->   OK, makes sense. But then if there's heavy IO going on, anything that h=
-as
-> IO pending on it is pinned and IO completion can easily take something
-> close to a second or more. So meeting subsecond deadlines may be tough ev=
-en
-> for ordinary data pages under heavy load, even more so for metadata where
-> there are further constraints. OTOH phones aren't usually IO bound so in
-> practice it needn't be so bad ;).=20
-
-Yeah, typically phones are not IO bound :-)
-
-> So if it is sub-second unless someone
-> loads the storage, then that sounds doable even for metadata. But we'll
-> need to attach ->migratepage callback to blkdev pages and at least in ext4
-> case teach it how to move pages tracked by the journal.
-
-Right, making it possible at all if of course much prefered over not
-possible, regardless of timeliness :-)
-
-> > Sadly its not only mobile devices that excel in crappy hardware, there's
-> > plenty desktop stuff that could use this too, like some of the v4l
-> > devices iirc.
->   Yeah, but in such usecases the guarantees we can offer for completion of
-> migration are even more vague :(.
-
-Yeah, lets start by making it possible, after that we can maybe look at
-making it better, who knows.
-
---qqF1XwZUdAkx0x+N
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBAgAGBQJT27p/AAoJEHZH4aRLwOS6PNAP/iVWD5KPtksZmG02fnnp7cz1
-mMgKeKBIzYXGVSKIH2uRDnzsAYpTXpV1ZZNTrT55K83pDSEZpHRc3zhAh8UqyWnH
-7TP78reCgATaQdA6mO4hEt7I9UuFg3MCaxNFxAKkh4p6A+l9Dk4RcDJCFwFSWdAo
-S88SnAePEIiLa0W9MCmeq5SesAjXPgKYInUvSEV7xNL+QKVTY9CWIp8WPaTBGZPE
-bwq9P6EOsWUgLL2yz8kvvyNx9vQG1/JbDYDoNLeh+n6P7lFW01rX1HlApnKh2m7L
-UtEv6KA0RBDhefMbx1N0R5mjExAbVLeAWtM86RHYp+ttSKnluoXnmEwbRXx8cjzp
-SiMQzJFxduFhl5Qh2j2YfZzbAloqDVVQhDjn2zwIIq3eQ9XMywBHJpuDrMuj641p
-Mlnb60ZxrUBsIk0igucGPcWlHXu1Yngrw6sUYtoXlVU2WE9E367ZqXk0qcNQO3Ap
-fnqtaFzujt74tKG/UHcqU8iv+kLTTDE67U9oikFL3QzVp6HHG9bkhbzvL3h1bSKy
-y8wHEolW1gvzy56T1za7lfQLlQq+3a+lhsxN8S6hqCSxUVX27yWu8J7/CVsFey/3
-4ZKhg7gvO80zCn/mkou657Eud5KZcBPs5aoPDumhzMNZC2u8VLhfpp6lKIlt5Toq
-T5AdnrNclICuKWukhQjH
-=Pwjj
------END PGP SIGNATURE-----
-
---qqF1XwZUdAkx0x+N--
+-- 
+Chris Metcalf, Tilera Corp.
+http://www.tilera.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
