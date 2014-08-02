@@ -1,121 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A49C6B0081
-	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 22:55:43 -0400 (EDT)
-Received: by mail-ie0-f182.google.com with SMTP id y20so7033696ier.27
-        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 19:55:42 -0700 (PDT)
-Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com [2607:f8b0:4001:c03::22b])
-        by mx.google.com with ESMTPS id z4si10339990igf.20.2014.08.01.19.55.42
+Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 843456B0083
+	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 23:20:07 -0400 (EDT)
+Received: by mail-we0-f173.google.com with SMTP id q58so5096878wes.32
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 20:20:06 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bw8si22843986wjb.69.2014.08.01.20.20.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 01 Aug 2014 19:55:42 -0700 (PDT)
-Received: by mail-ie0-f171.google.com with SMTP id at1so6914995iec.2
-        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 19:55:42 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20140801212120.1ae0eb02@tlielax.poochiereds.net>
+        Fri, 01 Aug 2014 20:20:06 -0700 (PDT)
+Date: Sat, 2 Aug 2014 13:19:46 +1000
+From: NeilBrown <neilb@suse.de>
+Subject: Re: Killing process in D state on mount to dead NFS server. (when
+ process is in fsync)
+Message-ID: <20140802131946.207c597c@notabene.brown>
+In-Reply-To: <CAABAsM7eh-Faaqmb9yf_xCVwi3cGpnTeOT8A4-e1jhwuEMPKWQ@mail.gmail.com>
 References: <53DA8443.407@candelatech.com>
 	<20140801064217.01852788@notabene.brown>
 	<53DAB307.2000206@candelatech.com>
 	<20140801075053.2120cb33@notabene.brown>
 	<20140801212120.1ae0eb02@tlielax.poochiereds.net>
-Date: Fri, 1 Aug 2014 22:55:42 -0400
-Message-ID: <CAABAsM7eh-Faaqmb9yf_xCVwi3cGpnTeOT8A4-e1jhwuEMPKWQ@mail.gmail.com>
-Subject: Re: Killing process in D state on mount to dead NFS server. (when
- process is in fsync)
-From: Trond Myklebust <trondmy@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+	<CAABAsM7eh-Faaqmb9yf_xCVwi3cGpnTeOT8A4-e1jhwuEMPKWQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ boundary="Sig_/EEnww1=jFLDDwB=.9eVfr5p"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@poochiereds.net>
-Cc: NeilBrown <neilb@suse.de>, Ben Greear <greearb@candelatech.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-nfs@vger.kernel.org" <linux-nfs@vger.kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Trond Myklebust <trondmy@gmail.com>
+Cc: Jeff Layton <jlayton@poochiereds.net>, Ben Greear <greearb@candelatech.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-nfs@vger.kernel.org" <linux-nfs@vger.kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Fri, Aug 1, 2014 at 9:21 PM, Jeff Layton <jlayton@poochiereds.net> wrote:
-> On Fri, 1 Aug 2014 07:50:53 +1000
-> NeilBrown <neilb@suse.de> wrote:
->
->> On Thu, 31 Jul 2014 14:20:07 -0700 Ben Greear <greearb@candelatech.com> wrote:
->>
->> > -----BEGIN PGP SIGNED MESSAGE-----
->> > Hash: SHA1
->> >
->> > On 07/31/2014 01:42 PM, NeilBrown wrote:
->> > > On Thu, 31 Jul 2014 11:00:35 -0700 Ben Greear <greearb@candelatech.com> wrote:
->> > >
->> > >> So, this has been asked all over the interweb for years and years, but the best answer I can find is to reboot the system or create a fake NFS server
->> > >> somewhere with the same IP as the gone-away NFS server.
->> > >>
->> > >> The problem is:
->> > >>
->> > >> I have some mounts to an NFS server that no longer exists (crashed/powered down).
->> > >>
->> > >> I have some processes stuck trying to write to files open on these mounts.
->> > >>
->> > >> I want to kill the process and unmount.
->> > >>
->> > >> umount -l will make the mount go a way, sort of.  But process is still hung. umount -f complains: umount2:  Device or resource busy umount.nfs: /mnt/foo:
->> > >> device is busy
->> > >>
->> > >> kill -9 does not work on process.
->> > >
->> > > Kill -1 should work (since about 2.6.25 or so).
->> >
->> > That is -[ONE], right?  Assuming so, it did not work for me.
->>
->> No, it was "-9" .... sorry, I really shouldn't be let out without my proof
->> reader.
->>
->> However the 'stack' is sufficient to see what is going on.
->>
->> The problem is that it is blocked inside the "VM" well away from NFS and
->> there is no way for NFS to say "give up and go home".
->>
->> I'd suggest that is a bug.   I cannot see any justification for fsync to not
->> be killable.
->> It wouldn't be too hard to create a patch to make it so.
->> It would be a little harder to examine all call paths and create a
->> convincing case that the patch was safe.
->> It might be herculean task to convince others that it was the right thing
->> to do.... so let's start with that one.
->>
->> Hi Linux-mm and fs-devel people.  What do people think of making "fsync" and
->> variants "KILLABLE" ??
->>
->> I probably only need a little bit of encouragement to write a patch....
->>
->> Thanks,
->> NeilBrown
->>
->
->
-> It would be good to fix this in some fashion once and for all, and the
-> wait_on_page_writeback wait is a major source of pain for a lot of
-> people.
->
-> So to summarize...
->
-> The problem in a nutshell is that Ben has some cached writes to the
-> NFS server, but the server has gone away (presumably forever). The
-> question is -- how do we communicate to the kernel that that server
-> isn't coming back and that those dirty pages should be invalidated so
-> that we can umount the filesystem?
->
-> Allowing fsync/close to be killable sounds reasonable to me as at least
-> a partial solution. Both close(2) and fsync(2) are allowed to return
-> EINTR according to the POSIX spec. Allowing a kill -9 there seems
-> like it should be fine, and maybe we ought to even consider letting it
-> be susceptible to lesser signals.
->
-> That still leaves some open questions though...
->
-> Is that enough to fix it? You'd still have the dirty pages lingering
-> around, right? Would a umount -f presumably work at that point?
+--Sig_/EEnww1=jFLDDwB=.9eVfr5p
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-'umount -f' will kill any outstanding RPC calls that are causing the
-mount to hang, but doesn't do anything to change page states or NFS
-file/lock states.
+On Fri, 1 Aug 2014 22:55:42 -0400 Trond Myklebust <trondmy@gmail.com> wrote:
 
-Cheers
-  Trond
+> > That still leaves some open questions though...
+> >
+> > Is that enough to fix it? You'd still have the dirty pages lingering
+> > around, right? Would a umount -f presumably work at that point?
+>=20
+> 'umount -f' will kill any outstanding RPC calls that are causing the
+> mount to hang, but doesn't do anything to change page states or NFS
+> file/lock states.
+
+Should it though?
+
+       MNT_FORCE (since Linux 2.1.116)
+              Force  unmount  even  if busy.  This can cause data loss.  (O=
+nly
+              for NFS mounts.)
+
+Given that data loss is explicitly permitted, I suspect it should.
+
+Can we make MNT_FORCE on NFS not only abort outstanding RPC calls, but
+fail all subsequent RPC calls?  That might make it really useful.   You
+wouldn't even need to "kill -9" then.
+
+NeilBrown
+
+--Sig_/EEnww1=jFLDDwB=.9eVfr5p
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Disposition: attachment; filename=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.22 (GNU/Linux)
+
+iQIVAwUBU9xY2Tnsnt1WYoG5AQJ1XA/7B4djzTDFNSOEbZB1eY4ZHSD2yCrOGpwG
+0FBUJYDvy4bMpnDahcgVSabI6ov3hFPqHxWWF9oO4fNIZVXgWdHp2MqA3I0zaoWm
+2BDVl8CJE1DMfQ4sMasx5W+HroB+g7UIfCg6KtaqdxfsxYIMXmcecKNJTwS9YUiq
+jIQdXIk9PJFm5xzv9K4pk5If5m6VMfSzfg3xD0CAD3CpnvjZ45NVux6QQQ5EZTsd
+eSEv0wVNKEBLPeVoYVfJ3YtIbP9E+sC/boOFAzJtoU9Ftj8odz19qlPa27JrMHMd
+w4+Ttc2fWGkrDJ/IuI1MP3vYggiwN7OBDp8KJecQtSyWFolWjv59ZU1t2Vj57uhk
+wLAUV80FOH0EdVqNlYj/XXMtaJVSFdatTP3tBZnSvK/MIKYHP1NPOjBR4Cwreeg7
+PPjP5QzrXXi4bPQPh2RIlybKzlvh2dFnQrFu75w9LuuyKFtIa6nxqqJueIa8bHSg
+HXWOA96nSgsyJpaUDAcmmrH1p2fDOi6Z+wAU9rbOVzv52XITDg6gyqDtrZoTyELs
+OcS1SoNB6RQams3z3+cl4otK1jHTY7W04Eow2N2gnsuPBFOfiOOk/7B5qm9sl0Bg
+eyO1TaRDP1J5mES71+v/Oh5Q+oQmvGyzq8CyAr4FhzEdrfVhDCMMiqhv5RLWLvWy
+EmjIfQIXUhE=
+=NAMK
+-----END PGP SIGNATURE-----
+
+--Sig_/EEnww1=jFLDDwB=.9eVfr5p--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
