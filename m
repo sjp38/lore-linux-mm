@@ -1,151 +1,229 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
-	by kanga.kvack.org (Postfix) with ESMTP id A95BC6B0070
-	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 21:12:11 -0400 (EDT)
-Received: by mail-lb0-f169.google.com with SMTP id s7so3748776lbd.0
-        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 18:12:11 -0700 (PDT)
-Received: from mail-lb0-x236.google.com (mail-lb0-x236.google.com [2a00:1450:4010:c04::236])
-        by mx.google.com with ESMTPS id p3si17673268laj.113.2014.08.01.18.12.08
+Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EF6F6B0074
+	for <linux-mm@kvack.org>; Fri,  1 Aug 2014 21:21:28 -0400 (EDT)
+Received: by mail-qg0-f54.google.com with SMTP id z60so6687660qgd.13
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 18:21:27 -0700 (PDT)
+Received: from mail-qa0-f43.google.com (mail-qa0-f43.google.com [209.85.216.43])
+        by mx.google.com with ESMTPS id n63si18355890qge.1.2014.08.01.18.21.26
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 01 Aug 2014 18:12:09 -0700 (PDT)
-Received: by mail-lb0-f182.google.com with SMTP id z11so3634866lbi.41
-        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 18:12:08 -0700 (PDT)
-From: Max Filippov <jcmvbkbc@gmail.com>
-Subject: [PATCH v4 2/2] xtensa: support aliasing cache in kmap
-Date: Sat,  2 Aug 2014 05:11:39 +0400
-Message-Id: <1406941899-19932-3-git-send-email-jcmvbkbc@gmail.com>
-In-Reply-To: <1406941899-19932-1-git-send-email-jcmvbkbc@gmail.com>
-References: <1406941899-19932-1-git-send-email-jcmvbkbc@gmail.com>
+        Fri, 01 Aug 2014 18:21:26 -0700 (PDT)
+Received: by mail-qa0-f43.google.com with SMTP id w8so4699367qac.16
+        for <linux-mm@kvack.org>; Fri, 01 Aug 2014 18:21:26 -0700 (PDT)
+Date: Fri, 1 Aug 2014 21:21:20 -0400
+From: Jeff Layton <jlayton@poochiereds.net>
+Subject: Re: Killing process in D state on mount to dead NFS server. (when
+ process is in fsync)
+Message-ID: <20140801212120.1ae0eb02@tlielax.poochiereds.net>
+In-Reply-To: <20140801075053.2120cb33@notabene.brown>
+References: <53DA8443.407@candelatech.com>
+	<20140801064217.01852788@notabene.brown>
+	<53DAB307.2000206@candelatech.com>
+	<20140801075053.2120cb33@notabene.brown>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ boundary="Sig_/VicZwCLwZxCKNuVzo4gaa4F"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-xtensa@linux-xtensa.org
-Cc: Chris Zankel <chris@zankel.net>, Marc Gauthier <marc@cadence.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-mips@linux-mips.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>, Steven Hill <Steven.Hill@imgtec.com>, Max Filippov <jcmvbkbc@gmail.com>
+To: NeilBrown <neilb@suse.de>
+Cc: Ben Greear <greearb@candelatech.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-nfs@vger.kernel.org" <linux-nfs@vger.kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-Define ARCH_PKMAP_COLORING and provide corresponding macro definitions
-on cores with aliasing data cache.
+--Sig_/VicZwCLwZxCKNuVzo4gaa4F
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-Instead of single last_pkmap_nr maintain an array last_pkmap_nr_arr of
-pkmap counters for each page color. Make sure that kmap maps physical
-page at virtual address with color matching its physical address.
+On Fri, 1 Aug 2014 07:50:53 +1000
+NeilBrown <neilb@suse.de> wrote:
 
-Signed-off-by: Max Filippov <jcmvbkbc@gmail.com>
----
-This patch is only a demonstration of new interface usage, it depends
-on other patches from the xtensa tree. Please don't commit it.
+> On Thu, 31 Jul 2014 14:20:07 -0700 Ben Greear <greearb@candelatech.com> w=
+rote:
+>=20
+> > -----BEGIN PGP SIGNED MESSAGE-----
+> > Hash: SHA1
+> >=20
+> > On 07/31/2014 01:42 PM, NeilBrown wrote:
+> > > On Thu, 31 Jul 2014 11:00:35 -0700 Ben Greear <greearb@candelatech.co=
+m> wrote:
+> > >=20
+> > >> So, this has been asked all over the interweb for years and years, b=
+ut the best answer I can find is to reboot the system or create a fake NFS =
+server
+> > >> somewhere with the same IP as the gone-away NFS server.
+> > >>=20
+> > >> The problem is:
+> > >>=20
+> > >> I have some mounts to an NFS server that no longer exists (crashed/p=
+owered down).
+> > >>=20
+> > >> I have some processes stuck trying to write to files open on these m=
+ounts.
+> > >>=20
+> > >> I want to kill the process and unmount.
+> > >>=20
+> > >> umount -l will make the mount go a way, sort of.  But process is sti=
+ll hung. umount -f complains: umount2:  Device or resource busy umount.nfs:=
+ /mnt/foo:
+> > >> device is busy
+> > >>=20
+> > >> kill -9 does not work on process.
+> > >=20
+> > > Kill -1 should work (since about 2.6.25 or so).
+> >=20
+> > That is -[ONE], right?  Assuming so, it did not work for me.
+>=20
+> No, it was "-9" .... sorry, I really shouldn't be let out without my proof
+> reader.
+>=20
+> However the 'stack' is sufficient to see what is going on.
+>=20
+> The problem is that it is blocked inside the "VM" well away from NFS and
+> there is no way for NFS to say "give up and go home".
+>=20
+> I'd suggest that is a bug.   I cannot see any justification for fsync to =
+not
+> be killable.
+> It wouldn't be too hard to create a patch to make it so.
+> It would be a little harder to examine all call paths and create a
+> convincing case that the patch was safe.
+> It might be herculean task to convince others that it was the right thing
+> to do.... so let's start with that one.
+>=20
+> Hi Linux-mm and fs-devel people.  What do people think of making "fsync" =
+and
+> variants "KILLABLE" ??
+>=20
+> I probably only need a little bit of encouragement to write a patch....
+>=20
+> Thanks,
+> NeilBrown
+>=20
 
-Changes v3->v4:
-- none.
 
-Changes v2->v3:
-- switch to new function names/prototypes;
-- implement get_pkmap_wait_queue_head, add kmap_waitqueues_init.
+It would be good to fix this in some fashion once and for all, and the
+wait_on_page_writeback wait is a major source of pain for a lot of
+people.
 
-Changes v1->v2:
-- new file.
+So to summarize...
 
- arch/xtensa/include/asm/highmem.h | 40 +++++++++++++++++++++++++++++++++++++--
- arch/xtensa/mm/highmem.c          | 18 ++++++++++++++++++
- 2 files changed, 56 insertions(+), 2 deletions(-)
+The problem in a nutshell is that Ben has some cached writes to the
+NFS server, but the server has gone away (presumably forever). The
+question is -- how do we communicate to the kernel that that server
+isn't coming back and that those dirty pages should be invalidated so
+that we can umount the filesystem?
 
-diff --git a/arch/xtensa/include/asm/highmem.h b/arch/xtensa/include/asm/highmem.h
-index 2653ef5..2c7901e 100644
---- a/arch/xtensa/include/asm/highmem.h
-+++ b/arch/xtensa/include/asm/highmem.h
-@@ -12,19 +12,55 @@
- #ifndef _XTENSA_HIGHMEM_H
- #define _XTENSA_HIGHMEM_H
- 
-+#include <linux/wait.h>
- #include <asm/cacheflush.h>
- #include <asm/fixmap.h>
- #include <asm/kmap_types.h>
- #include <asm/pgtable.h>
- 
--#define PKMAP_BASE		(FIXADDR_START - PMD_SIZE)
--#define LAST_PKMAP		PTRS_PER_PTE
-+#define PKMAP_BASE		((FIXADDR_START - \
-+				  (LAST_PKMAP + 1) * PAGE_SIZE) & PMD_MASK)
-+#define LAST_PKMAP		(PTRS_PER_PTE * DCACHE_N_COLORS)
- #define LAST_PKMAP_MASK		(LAST_PKMAP - 1)
- #define PKMAP_NR(virt)		(((virt) - PKMAP_BASE) >> PAGE_SHIFT)
- #define PKMAP_ADDR(nr)		(PKMAP_BASE + ((nr) << PAGE_SHIFT))
- 
- #define kmap_prot		PAGE_KERNEL
- 
-+#if DCACHE_WAY_SIZE > PAGE_SIZE
-+#define get_pkmap_color get_pkmap_color
-+static inline int get_pkmap_color(struct page *page)
-+{
-+	return DCACHE_ALIAS(page_to_phys(page));
-+}
-+
-+extern unsigned int last_pkmap_nr_arr[];
-+
-+static inline unsigned int get_next_pkmap_nr(unsigned int color)
-+{
-+	last_pkmap_nr_arr[color] =
-+		(last_pkmap_nr_arr[color] + DCACHE_N_COLORS) & LAST_PKMAP_MASK;
-+	return last_pkmap_nr_arr[color] + color;
-+}
-+
-+static inline int no_more_pkmaps(unsigned int pkmap_nr, unsigned int color)
-+{
-+	return pkmap_nr < DCACHE_N_COLORS;
-+}
-+
-+static inline int get_pkmap_entries_count(unsigned int color)
-+{
-+	return LAST_PKMAP / DCACHE_N_COLORS;
-+}
-+
-+extern wait_queue_head_t pkmap_map_wait_arr[];
-+
-+static inline wait_queue_head_t *get_pkmap_wait_queue_head(unsigned int color)
-+{
-+	return pkmap_map_wait_arr + color;
-+}
-+#endif
-+
- extern pte_t *pkmap_page_table;
- 
- void *kmap_high(struct page *page);
-diff --git a/arch/xtensa/mm/highmem.c b/arch/xtensa/mm/highmem.c
-index 466abae..8cfb71e 100644
---- a/arch/xtensa/mm/highmem.c
-+++ b/arch/xtensa/mm/highmem.c
-@@ -14,6 +14,23 @@
- 
- static pte_t *kmap_pte;
- 
-+#if DCACHE_WAY_SIZE > PAGE_SIZE
-+unsigned int last_pkmap_nr_arr[DCACHE_N_COLORS];
-+wait_queue_head_t pkmap_map_wait_arr[DCACHE_N_COLORS];
-+
-+static void __init kmap_waitqueues_init(void)
-+{
-+	unsigned int i;
-+
-+	for (i = 0; i < ARRAY_SIZE(pkmap_map_wait_arr); ++i)
-+		init_waitqueue_head(pkmap_map_wait_arr + i);
-+}
-+#else
-+static inline void kmap_waitqueues_init(void)
-+{
-+}
-+#endif
-+
- static inline enum fixed_addresses kmap_idx(int type, unsigned long color)
- {
- 	return (type + KM_TYPE_NR * smp_processor_id()) * DCACHE_N_COLORS +
-@@ -72,4 +89,5 @@ void __init kmap_init(void)
- 	/* cache the first kmap pte */
- 	kmap_vstart = __fix_to_virt(FIX_KMAP_BEGIN);
- 	kmap_pte = kmap_get_fixmap_pte(kmap_vstart);
-+	kmap_waitqueues_init();
- }
--- 
-1.8.1.4
+Allowing fsync/close to be killable sounds reasonable to me as at least
+a partial solution. Both close(2) and fsync(2) are allowed to return
+EINTR according to the POSIX spec. Allowing a kill -9 there seems
+like it should be fine, and maybe we ought to even consider letting it
+be susceptible to lesser signals.
+
+That still leaves some open questions though...
+
+Is that enough to fix it? You'd still have the dirty pages lingering
+around, right? Would a umount -f presumably work at that point?
+
+> >=20
+> > Kernel is 3.14.4+, with some of extra patches, but probably nothing that
+> > influences this particular behaviour.
+> >=20
+> > [root@lf1005-14010010 ~]# cat /proc/3805/stack
+> > [<ffffffff811371ba>] sleep_on_page+0x9/0xd
+> > [<ffffffff8113738e>] wait_on_page_bit+0x71/0x78
+> > [<ffffffff8113769a>] filemap_fdatawait_range+0xa2/0x16d
+> > [<ffffffff8113780e>] filemap_write_and_wait_range+0x3b/0x77
+> > [<ffffffffa0f04734>] nfs_file_fsync+0x37/0x83 [nfs]
+> > [<ffffffff811a8d32>] vfs_fsync_range+0x19/0x1b
+> > [<ffffffff811a8d4b>] vfs_fsync+0x17/0x19
+> > [<ffffffffa0f05305>] nfs_file_flush+0x6b/0x6f [nfs]
+> > [<ffffffff81183e46>] filp_close+0x3f/0x71
+> > [<ffffffff8119c8ae>] __close_fd+0x80/0x98
+> > [<ffffffff81183de5>] SyS_close+0x1c/0x3e
+> > [<ffffffff815c55f9>] system_call_fastpath+0x16/0x1b
+> > [<ffffffffffffffff>] 0xffffffffffffffff
+> > [root@lf1005-14010010 ~]# kill -1 3805
+> > [root@lf1005-14010010 ~]# cat /proc/3805/stack
+> > [<ffffffff811371ba>] sleep_on_page+0x9/0xd
+> > [<ffffffff8113738e>] wait_on_page_bit+0x71/0x78
+> > [<ffffffff8113769a>] filemap_fdatawait_range+0xa2/0x16d
+> > [<ffffffff8113780e>] filemap_write_and_wait_range+0x3b/0x77
+> > [<ffffffffa0f04734>] nfs_file_fsync+0x37/0x83 [nfs]
+> > [<ffffffff811a8d32>] vfs_fsync_range+0x19/0x1b
+> > [<ffffffff811a8d4b>] vfs_fsync+0x17/0x19
+> > [<ffffffffa0f05305>] nfs_file_flush+0x6b/0x6f [nfs]
+> > [<ffffffff81183e46>] filp_close+0x3f/0x71
+> > [<ffffffff8119c8ae>] __close_fd+0x80/0x98
+> > [<ffffffff81183de5>] SyS_close+0x1c/0x3e
+> > [<ffffffff815c55f9>] system_call_fastpath+0x16/0x1b
+> > [<ffffffffffffffff>] 0xffffffffffffffff
+> >=20
+> > Thanks,
+> > Ben
+> >=20
+> > > If it doesn't please report the kernel version and cat /proc/$PID/sta=
+ck
+> > >=20
+> > > for some processes that cannot be killed.
+> > >=20
+> > > NeilBrown
+> > >=20
+> > >>=20
+> > >>=20
+> > >> Aside from bringing a fake NFS server back up on the same IP, is the=
+re any other way to get these mounts unmounted and the processes killed wit=
+hout=20
+> > >> rebooting?
+> > >>=20
+> > >> Thanks, Ben
+> > >>=20
+> > >=20
+> >=20
+> >=20
+> > - --=20
+> > Ben Greear <greearb@candelatech.com>
+> > Candela Technologies Inc  http://www.candelatech.com
+> >=20
+> > -----BEGIN PGP SIGNATURE-----
+> > Version: GnuPG v1.4.13 (GNU/Linux)
+> > Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
+> >=20
+> > iQEcBAEBAgAGBQJT2rLiAAoJELbHqkYeJT4OqPgH/0taKW6Be90c1mETZf9yeqZF
+> > YMLZk8XC2wloEd9nVz//mXREmiu18Hc+5p7Upd4Os21J2P4PBMGV6P/9DMxxehwH
+> > YX1HKha0EoAsbO5ILQhbLf83cRXAPEpvJPgYHrq6xjlKB8Q8OxxND37rY7kl19Zz
+> > sdAw6GiqHICF3Hq1ATa/jvixMluDnhER9Dln3wOdAGzmmuFYqpTsV4EwzbKKqInJ
+> > 6C15q+cq/9aYh6usN6z2qJhbHgqM9EWcPL6jOrCwX4PbC1XjKHekpFN0t9oKQClx
+> > qSPuweMQ7fP4IBd2Ke8L/QlyOVblAKSE7t+NdrjfzLmYPzyHTyfLABR/BI053to=3D
+> > =3D/9FJ
+> > -----END PGP SIGNATURE-----
+>=20
+
+
+--=20
+Jeff Layton <jlayton@poochiereds.net>
+
+--Sig_/VicZwCLwZxCKNuVzo4gaa4F
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Disposition: attachment; filename=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBAgAGBQJT3D0QAAoJEAAOaEEZVoIVmXkQAI6fWiPs6GBlOfVvnIANzVYy
+ch16DSrsvbEVUPHh+52KX2VX4f2MczXoMqDF9rZOGSJzgooqZkour3p3U0Yi4RmJ
+BA2MWGjOHpKK8IiufnAmjzj2dS87pfnf3+3YOrgOtK/aAwfrXbmLjpAja6lx4UKN
+c+ei0WggGLYoVPjgoTJiEiKNyuTdQc1tbe4sxm7itkyo/HCpuxRXZ9fh3eJZfezr
+eaLWcR26icDrixBLhaTB1EE/frJ1epC8CabIIIt1po40Sx+oixAwCYEo9B+DEx7g
+IjyKT4GNm/RLJB2NY/tcNDl+oZg1GmrmlTUjMB8akQImxlhTg4urTSWdfBtxkRZx
+QObB8xota4Z8QIDwlZqMzqkerNwf+G+ReNhPkm3WSvYXGO9Nr/aAmGhxO1eGo31l
+U1r3Z/+rOfuN8D+vm10aeIDOIpecHXFQN8Xl86bLJWCIRQZactcl6ooFmAMCjXE8
+JAiqp5Ik7oh/sRdIuUxP9DBeyb9c6ZDla8Sv1UCNKzTC5iBo0T9d2Q0BLmOIc46N
+/zF/meV11s016tskepLz0EPsjdDkrxkjK6X0r7vwM+oOjxBthLcjGGhuI++aGzCB
+AWl/jTjMhuz1pVntdOHSY0Ib715UbhoFtwCywmIxB/JIky5aVIpb376NG/WCQkBi
+W1jHrOGVgjsYigJqxBfa
+=TbQS
+-----END PGP SIGNATURE-----
+
+--Sig_/VicZwCLwZxCKNuVzo4gaa4F--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
