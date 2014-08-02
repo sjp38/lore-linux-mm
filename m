@@ -1,90 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id E0AA76B0036
-	for <linux-mm@kvack.org>; Sat,  2 Aug 2014 14:13:39 -0400 (EDT)
-Received: by mail-wg0-f49.google.com with SMTP id k14so5716934wgh.20
-        for <linux-mm@kvack.org>; Sat, 02 Aug 2014 11:13:39 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id je7si13204727wic.5.2014.08.02.11.13.37
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id C9F7E6B0036
+	for <linux-mm@kvack.org>; Sat,  2 Aug 2014 14:54:55 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id hz1so7668024pad.36
+        for <linux-mm@kvack.org>; Sat, 02 Aug 2014 11:54:55 -0700 (PDT)
+Received: from na01-bl2-obe.outbound.protection.outlook.com (mail-bl2lp0205.outbound.protection.outlook.com. [207.46.163.205])
+        by mx.google.com with ESMTPS id cn5si2345998pbb.28.2014.08.02.11.54.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 02 Aug 2014 11:13:37 -0700 (PDT)
-Date: Sat, 2 Aug 2014 14:13:27 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 2/3] mm, oom: remove unnecessary check for NULL zonelist
-Message-ID: <20140802181327.GL9952@cmpxchg.org>
-References: <alpine.DEB.2.02.1407231814110.22326@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1407231815090.22326@chino.kir.corp.google.com>
- <20140731152659.GB9952@cmpxchg.org>
- <alpine.DEB.2.02.1408010159500.4061@chino.kir.corp.google.com>
- <20140801133444.GH9952@cmpxchg.org>
- <alpine.DEB.2.02.1408011434330.11532@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sat, 02 Aug 2014 11:54:54 -0700 (PDT)
+Message-ID: <53DD33DE.7090401@amd.com>
+Date: Sat, 2 Aug 2014 21:54:22 +0300
+From: Oded Gabbay <oded.gabbay@amd.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1408011434330.11532@chino.kir.corp.google.com>
+Subject: Re: [PATCH 1/7] mmu_notifier: add call_srcu and sync function for
+ listener to delay call and sync.
+References: <1405622809-3797-1-git-send-email-j.glisse@gmail.com>
+	<1405622809-3797-2-git-send-email-j.glisse@gmail.com>
+	<53CD2B43.3090405@amd.com>	<53D7B800.6050700@amd.com>
+ <20140729134803.8db34d88eda9209bda6069c7@linux-foundation.org>
+In-Reply-To: <20140729134803.8db34d88eda9209bda6069c7@linux-foundation.org>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, j.glisse@gmail.com, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind
+ Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John
+ Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, =?UTF-8?B?SsOpcsO0bWUgR2xp?= =?UTF-8?B?c3Nl?= <jglisse@redhat.com>
 
-On Fri, Aug 01, 2014 at 02:42:19PM -0700, David Rientjes wrote:
-> On Fri, 1 Aug 2014, Johannes Weiner wrote:
+Hi Andrew,
+I re-submitted the patch today with a more detailed explanation about
+the problem and the proposed solution.
+I would like to add that I tested this solution with iommuv2 driver and
+with AMD's amdkfd driver (which we currently try to upstream).
+If you could merge it for 3.17-rc1 as you said, that would be great.
+
+	Oded
+
+On 29/07/14 23:48, Andrew Morton wrote:
+> On Tue, 29 Jul 2014 18:04:32 +0300 Oded Gabbay <oded.gabbay@amd.com> wrote:
 > 
-> > > > out_of_memory() wants the zonelist that was used during allocation,
-> > > > not just the random first node's zonelist that's simply picked to
-> > > > serialize page fault OOM kills system-wide.
-> > > > 
-> > > > This would even change how panic_on_oom behaves for page fault OOMs
-> > > > (in a completely unpredictable way) if we get CONSTRAINED_CPUSET.
-> > > > 
-> > > > This change makes no sense to me.
-> > > > 
-> > > 
-> > > Allocations during fault will be constrained by the cpuset's mems, if we 
-> > > are oom then why would we panic when panic_on_oom == 1?
-> > 
-> > Can you please address the concerns I raised?
-> > 
+>> On 21/07/14 18:01, Oded Gabbay wrote:
+>>> On 17/07/14 21:46, j.glisse@gmail.com wrote:
+>>>> From: Peter Zijlstra <peterz@infradead.org>
+>>>>
+>>>> New mmu_notifier listener are eager to cleanup there structure after the
+>>>> mmu_notifier::release callback. In order to allow this the patch provide
+>>>> a function that allows to add a delayed call to the mmu_notifier srcu. It
+>>>> also add a function that will call barrier_srcu so those listener can sync
+>>>> with mmu_notifier.
+>>>
+>>> Tested with amdkfd and iommuv2 driver
+>>> So,
+>>> Tested-by: Oded Gabbay <oded.gabbay@amd.com>
+>>
+>> akpm, any chance that only this specific patch from Peter.Z will get in 3.17 ?
+>> I must have it for amdkfd (HSA driver). Without it, I can't be in 3.17 either.
 > 
-> I see one concern: that panic_on_oom == 1 will not trigger on pagefault 
-> when constrained by cpusets.  To address that, I'll state that, since 
-> cpuset-constrained allocations are the allocation context for pagefaults,
-> panic_on_oom == 1 should not trigger on pagefault when constrained by 
-> cpusets.
-
-I expressed my concern pretty clearly above: out_of_memory() wants the
-zonelist that was used during the failed allocation, you are passing a
-non-sensical value in there that only happens to have the same type.
-
-We simply don't have the right information at the end of the page
-fault handler to respect constrained allocations.  Case in point:
-nodemask is unset from pagefault_out_of_memory(), so we still kill
-based on mempolicy even though check_panic_on_oom() says it wouldn't.
-
-The code change is not an adequate solution for the problem we have
-here and the changelog is an insult to everybody who wants to make
-sense of this from the git history later on.
-
-But the much bigger problem is that you continue to fail to address
-even basic feedback and instead consistently derail discussions with
-unrelated drivel and circular arguments.  As long as you continue to
-do that I don't think we should be merging any of your patches.
-
-> > And please describe user-visible changes in the changelog.
-> > 
+> I can send it in for 3.17-rc1.
 > 
-> Ok, Andrew please annotate the changelog for 
-> mm-oom-remove-unnecessary-check-for-null-zonelist.patch by including:
+> Can we get a better changelog please?  "eager to cleanup there
+> structure after the mmu_notifier::release callback" is terribly vague
+> and brief.  Fully describe the problem then describe the proposed
+> solution.  Because others may be able to suggest alternative ways of
+> solving that problem, but this text simply doesn't provide enough details for
+> them to do so.
 > 
-> This also causes panic_on_oom == 1 to not panic the machine when the 
-> pagefault is constrained by the mems of current's cpuset.  That behavior 
-> agrees with the semantics of the sysctl in Documentation/sysctl/vm.txt.
-
-Great, now we have a cleanup patch with the side-effect of changing
-user-visible behavior and introducing non-sensical code semantics.
-
-Nacked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
