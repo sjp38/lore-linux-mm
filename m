@@ -1,149 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 9265E6B0035
-	for <linux-mm@kvack.org>; Sun,  3 Aug 2014 11:24:26 -0400 (EDT)
-Received: by mail-qa0-f46.google.com with SMTP id v10so5855313qac.19
-        for <linux-mm@kvack.org>; Sun, 03 Aug 2014 08:24:26 -0700 (PDT)
-Received: from nm27-vm1.bullet.mail.bf1.yahoo.com (nm27-vm1.bullet.mail.bf1.yahoo.com. [98.139.213.148])
-        by mx.google.com with ESMTPS id n4si24644786qai.67.2014.08.03.08.24.25
+Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 70B2A6B0035
+	for <linux-mm@kvack.org>; Sun,  3 Aug 2014 11:59:24 -0400 (EDT)
+Received: by mail-la0-f53.google.com with SMTP id gl10so4541466lab.26
+        for <linux-mm@kvack.org>; Sun, 03 Aug 2014 08:59:23 -0700 (PDT)
+Received: from mail-la0-x236.google.com (mail-la0-x236.google.com [2a00:1450:4010:c03::236])
+        by mx.google.com with ESMTPS id f1si23429623lam.9.2014.08.03.08.59.21
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 03 Aug 2014 08:24:25 -0700 (PDT)
-Date: Mon, 04 Aug 2014 00:24:12 +0900
-Subject: RE: [linux-3.10.17] Could not allocate memory from free CMA areas
-Message-ID: <54sabdnxop04vxd7ewndc0qf.1407077745645@email.android.com>
-From: pintu_agarwal <pintu_agarwal@yahoo.com>
-Reply-To: pintu_agarwal <pintu_agarwal@yahoo.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 03 Aug 2014 08:59:22 -0700 (PDT)
+Received: by mail-la0-f54.google.com with SMTP id hz20so4655456lab.27
+        for <linux-mm@kvack.org>; Sun, 03 Aug 2014 08:59:21 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/alternative; boundary="--_com.android.email_107335871199190"
+From: Lucas Tanure <tanure@linux.com>
+Date: Sun, 3 Aug 2014 12:59:06 -0300
+Message-ID: <CAJyon0sfJ+_nBpR5u+jYxmnr+uTzard=_E+WeL-LVAkuQ3JnvQ@mail.gmail.com>
+Subject: Questions about Kernel Memory that I didn't find answers in Google -
+ Please Help
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-arm-kernel@lists.infradead.org, linaro-mm-sig@lists.linaro.org, ritesh.list@gmail.com
-Cc: pintu.k@outlook.com, "pintu.k@samsung.com" <pintu.k@samsung.com>, vishu_1385@yahoo.com, m.szyprowski@samsung.com, mina86@mina86.com, ngupta@vflare.org, iqbalblr@gmail.com
+To: "kernelnewbies@kernelnewbies.org" <kernelnewbies@kernelnewbies.org>, linux-mm@kvack.org, kernel-mentors@selenic.com
 
-----_com.android.email_107335871199190
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: base64
+Hi,
 
-RGVhciBKb29uc29vLAoKSSB0cmllZCB5b3VyIGNoYW5nZXMgd2hpY2ggYXJlIHByZXNlbnQgYXQg
-dGhlIGJlbG93IGxpbmsuwqAKaHR0cHM6Ly9naXRodWIuY29tL0pvb25zb29LaW0vbGludXgvdHJl
-ZS9jbWEtZml4LXVwLXYzLjAtbmV4dC0yMDE0MDYyNQpCdXQgdW5mb3J0dW5hdGVseSBmb3IgbWUg
-aXQgZGlkIG5vdCBoZWxwIG11Y2guwqAKQWZ0ZXIgcnVubmluZyB2YXJpb3VzIGFwcHMgdGhhdCB1
-c2VzIElPTiBub25tb3ZhYmxlIG1lbW9yeSwgaXQgZmFpbHMgdG8gYWxsb2NhdGUgbWVtb3J5IGFm
-dGVyIHNvbWUgdGltZS4gV2hlbiBJIHNlZSB0aGUgcGFnZXR5cGVpbmZvIHNob3dzIGxvdHMgb2Yg
-Q01BIHBhZ2VzIGF2YWlsYWJsZSBhbmQgbm9uLW1vdmFibGUgd2VyZSB2ZXJ5IGxlc3MgYW5kIHRo
-dXMgbm9ubW92YWJsZSBhbGxvY2F0aW9uIHdlcmUgZmFpbGluZy4KSG93ZXZlciBJIG5vdGljZWQg
-dGhlIGZhaWx1cmUgd2FzIGxpdHRsZSBkZWxheWVkLsKgCkFsc28gSSBub3RpY2VkIHRoYXQgdGhl
-IENNQSB1dGlsaXplZCBhbmQgdGhlIENNQSBmcmVlIGlzIG5vdCBtYXRjaGluZyB3aXRoIHRvdGFs
-IENNQSBzaXplLgoKSW4gbXkgc3lzdGVtIFJBTSBpcyAyNTZNQiBhbmQgQ01BIGNvbmZpZ3VyZWQg
-aXMgNTZNQi4KQW5kIGZyZWUgbWVtb3J5IHdhcyBoYW5naW5nIGFyb3VuZCAzMC00ME1CIGR1cmlu
-ZyBmYWlsdXJlLgoKQW0gSSBtaXNzaW5nIHNvbWV0aGluZz/CoApNeSBrZXJuZWwgdmVyc2lvbiBp
-cyAzLjEwIGFuZCBJIGFwcGxpZWQgdGhlIGNoYW5nZXMgbWFudWFsbHkuwqAKSWYgdGhlcmUgYXJl
-IG90aGVyIHNldHMgb2YgcGF0Y2hlcyB0aGF0IG5lZWRzIHRvIGJlIGFwcGxpZWQsIMKgcGxlYXNl
-IGxldCBtZSBrbm93LgpOb3RlLCBJIGRpZCBub3QgYXBwbHkgdGhlIEFMTE9DX0NNQSByZW1vdmFs
-IHBhdGNoZXMuwqAKCk5vdyBJIGFtIGV4cGVyaW1lbnRpbmcgbW9yZSBhbmQgd2lsbCBzaGFyZSBp
-ZiBJIGhhdmUgYW55IGZpbmRpbmdzLgoKVGhhbmsgeW91IQpQaW50dQoKU2VudCBmcm9tIFNhbXN1
-bmcgTW9iaWxlCgotLS0tLS0tLSBPcmlnaW5hbCBtZXNzYWdlIC0tLS0tLS0tCkZyb206IEpvb25z
-b28gS2ltIDxpYW1qb29uc29vLmtpbUBsZ2UuY29tPiAKRGF0ZTogMjkvMDcvMjAxNCAgNTowNiBQ
-TSAgKEdNVCswOTowMCkgClRvOiAncGludHVfYWdhcndhbCcgPHBpbnR1X2FnYXJ3YWxAeWFob28u
-Y29tPixsaW51eC1tbUBrdmFjay5vcmcsbGludXgtYXJtLWtlcm5lbEBsaXN0cy5pbmZyYWRlYWQu
-b3JnLGxpbmFyby1tbS1zaWdAbGlzdHMubGluYXJvLm9yZyxyaXRlc2gubGlzdEBnbWFpbC5jb20g
-CkNjOiBwaW50dS5rQG91dGxvb2suY29tLHBpbnR1LmtAc2Ftc3VuZy5jb20sdmlzaHVfMTM4NUB5
-YWhvby5jb20sbS5zenlwcm93c2tpQHNhbXN1bmcuY29tLG1pbmE4NkBtaW5hODYuY29tLG5ndXB0
-YUB2ZmxhcmUub3JnLGlxYmFsYmxyQGdtYWlsLmNvbSAKU3ViamVjdDogUkU6IFtsaW51eC0zLjEw
-LjE3XSBDb3VsZCBub3QgYWxsb2NhdGUgbWVtb3J5IGZyb20gZnJlZSBDTUEgYXJlYXMgCiAKCgpG
-cm9tOiBwaW50dV9hZ2Fyd2FsIFttYWlsdG86cGludHVfYWdhcndhbEB5YWhvby5jb21dIApTZW50
-OiBGcmlkYXksIEp1bHkgMjUsIDIwMTQgMTI6MTUgQU0KVG86IFBJTlRVIEtVTUFSOyBsaW51eC1t
-bUBrdmFjay5vcmc7IGxpbnV4LWFybS1rZXJuZWxAbGlzdHMuaW5mcmFkZWFkLm9yZzsgbGluYXJv
-LW1tLXNpZ0BsaXN0cy5saW5hcm8ub3JnOyBpYW1qb29uc29vLmtpbUBsZ2UuY29tOyByaXRlc2gu
-bGlzdEBnbWFpbC5jb20KQ2M6IHBpbnR1LmtAb3V0bG9vay5jb207IHBpbnR1LmtAc2Ftc3VuZy5j
-b207IHZpc2h1XzEzODVAeWFob28uY29tOyBtLnN6eXByb3dza2lAc2Ftc3VuZy5jb207IG1pbmE4
-NkBtaW5hODYuY29tOyBuZ3VwdGFAdmZsYXJlLm9yZzsgaXFiYWxibHJAZ21haWwuY29tClN1Ympl
-Y3Q6IFJFOiBbbGludXgtMy4xMC4xN10gQ291bGQgbm90IGFsbG9jYXRlIG1lbW9yeSBmcm9tIGZy
-ZWUgQ01BIGFyZWFzCgpEZWFyIGpvb25zb28ga2ltLAoKPiBJIGhhdmUgeW91ciBwYXRjaGVzIGZv
-cjogQWdncmVzc2l2ZWx5IGFsbG9jYXRlIG1lbW9yeSBmcm9tIGNtYSAuLi4uCj4gV2UgYXJlIGZh
-Y2luZyBhbG1vc3Qgc2ltaWxhciBwcm9ibGVtIGhlcmUuCj4gSWYgYW55IG9mIHlvdXIgcGF0Y2hl
-cyBzdGlsbCB3b3JraW5nIGZvciB5b3UgcGxlYXNlIGxldCB1cyBrbm93IGhlcmUuCj4gSSB3b3Vs
-ZCBsaWtlIHRvIHRyeSB0aG9zZSBhcHByb2FjaC4KCgpIZWxsbywKCkkgc3RvcHBlZCB0byBpbXBs
-ZW1lbnQgaXQsIGJlY2F1c2UgdGhlcmUgYXJlIG90aGVyIGJ1Z3Mgb24gQ01BIHJlbGF0ZWQgY29k
-ZXMuCkFsdGhvdWdoIGFnZ3Jlc3NpdmVseSBhbGxvY2F0ZS4uLiBkb2Vzbid0IGhhdmUgYnVncyBp
-dHNlbGYsIGl0IGVubGFyZ2VzCmV4aXN0aW5nIGZyZWVwYWdlIGNvdW50aW5nIGJ1Z3Mgc2lnbmlm
-aWNhbnRseSBzbyBJJ20gZmlyc3QgdHJ5aW5nIHRvIGZpeAp0aG9zZSBidWdzLiBTZWUgdGhlIGJl
-bG93IGxpbmsuCgpodHRwczovL2xrbWwub3JnL2xrbWwvMjAxNC83LzQvNzkKCkkgd2lsbCByZXN0
-YXJ0IHRvIGltcGxlbWVudCBhZ2dyZXNzaXZlbHkuLi4gYWZ0ZXIgZml4aW5nIHRoZXNlIGJ1Z3Mu
-CgpJZiB5b3UgaGF2ZSBpbnRlcmVzdCBvbiBuZXh0IHZlcnNpb24gb2YgYWdncmVzc2l2ZWx5IGFs
-bG9jYXRlLi4uLCBzZWUgdGhlCmZvbGxvd2luZyBsaW5rLgoKaHR0cHM6Ly9naXRodWIuY29tL0pv
-b25zb29LaW0vbGludXgvdHJlZS9jbWEtZml4LXVwLXYzLjAtbmV4dC0yMDE0MDYyNQoKVGhhbmtz
-LgoKCg==
+I'm looking for some site, pdf, book etc, that can answer this questions.
+For now I have :
+http://unix.stackexchange.com/questions/5124/what-does-the-virtual-kernel-memory-layout-in-dmesg-imply
 
-----_com.android.email_107335871199190
-Content-Type: text/html; charset=utf-8
-Content-Transfer-Encoding: base64
 
-PGh0bWw+PGhlYWQ+PG1ldGEgaHR0cC1lcXVpdj0iQ29udGVudC1UeXBlIiBjb250ZW50PSJ0ZXh0
-L2h0bWw7IGNoYXJzZXQ9VVRGLTgiPjwvaGVhZD48Ym9keSA+PGRpdj5EZWFyIEpvb25zb28sPC9k
-aXY+PGRpdj48YnI+PC9kaXY+PGRpdj5JIHRyaWVkIHlvdXIgY2hhbmdlcyB3aGljaCBhcmUgcHJl
-c2VudCBhdCB0aGUgYmVsb3cgbGluay4mbmJzcDs8L2Rpdj48ZGl2PjxhIGhyZWY9Imh0dHBzOi8v
-Z2l0aHViLmNvbS9Kb29uc29vS2ltL2xpbnV4L3RyZWUvY21hLWZpeC11cC12My4wLW5leHQtMjAx
-NDA2MjUiPmh0dHBzOi8vZ2l0aHViLmNvbS9Kb29uc29vS2ltL2xpbnV4L3RyZWUvY21hLWZpeC11
-cC12My4wLW5leHQtMjAxNDA2MjU8L2E+PC9kaXY+PGRpdj5CdXQgdW5mb3J0dW5hdGVseSBmb3Ig
-bWUgaXQgZGlkIG5vdCBoZWxwIG11Y2guJm5ic3A7PC9kaXY+PGRpdj5BZnRlciBydW5uaW5nIHZh
-cmlvdXMgYXBwcyB0aGF0IHVzZXMgSU9OIG5vbm1vdmFibGUgbWVtb3J5LCBpdCBmYWlscyB0byBh
-bGxvY2F0ZSBtZW1vcnkgYWZ0ZXIgc29tZSB0aW1lLiBXaGVuIEkgc2VlIHRoZSBwYWdldHlwZWlu
-Zm8gc2hvd3MgbG90cyBvZiBDTUEgcGFnZXMgYXZhaWxhYmxlIGFuZCBub24tbW92YWJsZSB3ZXJl
-IHZlcnkgbGVzcyBhbmQgdGh1cyBub25tb3ZhYmxlIGFsbG9jYXRpb24gd2VyZSBmYWlsaW5nLjwv
-ZGl2PjxkaXY+SG93ZXZlciBJIG5vdGljZWQgdGhlIGZhaWx1cmUgd2FzIGxpdHRsZSBkZWxheWVk
-LiZuYnNwOzwvZGl2PjxkaXY+QWxzbyBJIG5vdGljZWQgdGhhdCB0aGUgQ01BIHV0aWxpemVkIGFu
-ZCB0aGUgQ01BIGZyZWUgaXMgbm90IG1hdGNoaW5nIHdpdGggdG90YWwgQ01BIHNpemUuPC9kaXY+
-PGRpdj48YnI+PC9kaXY+PGRpdj5JbiBteSBzeXN0ZW0gUkFNIGlzIDI1Nk1CIGFuZCBDTUEgY29u
-ZmlndXJlZCBpcyA1Nk1CLjwvZGl2PjxkaXY+QW5kIGZyZWUgbWVtb3J5IHdhcyBoYW5naW5nIGFy
-b3VuZCAzMC00ME1CIGR1cmluZyBmYWlsdXJlLjwvZGl2PjxkaXY+PGJyPjwvZGl2PjxkaXY+QW0g
-SSBtaXNzaW5nIHNvbWV0aGluZz8mbmJzcDs8L2Rpdj48ZGl2Pk15IGtlcm5lbCB2ZXJzaW9uIGlz
-IDMuMTAgYW5kIEkgYXBwbGllZCB0aGUgY2hhbmdlcyBtYW51YWxseS4mbmJzcDs8L2Rpdj48ZGl2
-PklmIHRoZXJlIGFyZSBvdGhlciBzZXRzIG9mIHBhdGNoZXMgdGhhdCBuZWVkcyB0byBiZSBhcHBs
-aWVkLCAmbmJzcDtwbGVhc2UgbGV0IG1lIGtub3cuPC9kaXY+PGRpdj5Ob3RlLCBJIGRpZCBub3Qg
-YXBwbHkgdGhlIEFMTE9DX0NNQSByZW1vdmFsIHBhdGNoZXMuJm5ic3A7PC9kaXY+PGRpdj48YnI+
-PC9kaXY+PGRpdj5Ob3cgSSBhbSBleHBlcmltZW50aW5nIG1vcmUgYW5kIHdpbGwgc2hhcmUgaWYg
-SSBoYXZlIGFueSBmaW5kaW5ncy48L2Rpdj48ZGl2Pjxicj48L2Rpdj48ZGl2PlRoYW5rIHlvdSE8
-L2Rpdj48ZGl2PlBpbnR1PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRpdj48ZGl2IHN0eWxlPSJmb250
-LXNpemU6NzUlO2NvbG9yOiM1NzU3NTciPlNlbnQgZnJvbSBTYW1zdW5nIE1vYmlsZTwvZGl2Pjwv
-ZGl2Pjxicj48YnI+PGJyPi0tLS0tLS0tIE9yaWdpbmFsIG1lc3NhZ2UgLS0tLS0tLS08YnI+RnJv
-bTogSm9vbnNvbyBLaW0gJmx0O2lhbWpvb25zb28ua2ltQGxnZS5jb20mZ3Q7IDxicj5EYXRlOiAy
-OS8wNy8yMDE0ICA1OjA2IFBNICAoR01UKzA5OjAwKSA8YnI+VG86ICdwaW50dV9hZ2Fyd2FsJyAm
-bHQ7cGludHVfYWdhcndhbEB5YWhvby5jb20mZ3Q7LGxpbnV4LW1tQGt2YWNrLm9yZyxsaW51eC1h
-cm0ta2VybmVsQGxpc3RzLmluZnJhZGVhZC5vcmcsbGluYXJvLW1tLXNpZ0BsaXN0cy5saW5hcm8u
-b3JnLHJpdGVzaC5saXN0QGdtYWlsLmNvbSA8YnI+Q2M6IHBpbnR1LmtAb3V0bG9vay5jb20scGlu
-dHUua0BzYW1zdW5nLmNvbSx2aXNodV8xMzg1QHlhaG9vLmNvbSxtLnN6eXByb3dza2lAc2Ftc3Vu
-Zy5jb20sbWluYTg2QG1pbmE4Ni5jb20sbmd1cHRhQHZmbGFyZS5vcmcsaXFiYWxibHJAZ21haWwu
-Y29tIDxicj5TdWJqZWN0OiBSRTogW2xpbnV4LTMuMTAuMTddIENvdWxkIG5vdCBhbGxvY2F0ZSBt
-ZW1vcnkgZnJvbSBmcmVlIENNQSBhcmVhcyA8YnI+IDxicj48YnI+PGJyPjxicj5Gcm9tOiBwaW50
-dV9hZ2Fyd2FsIFttYWlsdG86cGludHVfYWdhcndhbEB5YWhvby5jb21dIDxicj5TZW50OiBGcmlk
-YXksIEp1bHkgMjUsIDIwMTQgMTI6MTUgQU08YnI+VG86IFBJTlRVIEtVTUFSOyBsaW51eC1tbUBr
-dmFjay5vcmc7IGxpbnV4LWFybS1rZXJuZWxAbGlzdHMuaW5mcmFkZWFkLm9yZzsgbGluYXJvLW1t
-LXNpZ0BsaXN0cy5saW5hcm8ub3JnOyBpYW1qb29uc29vLmtpbUBsZ2UuY29tOyByaXRlc2gubGlz
-dEBnbWFpbC5jb208YnI+Q2M6IHBpbnR1LmtAb3V0bG9vay5jb207IHBpbnR1LmtAc2Ftc3VuZy5j
-b207IHZpc2h1XzEzODVAeWFob28uY29tOyBtLnN6eXByb3dza2lAc2Ftc3VuZy5jb207IG1pbmE4
-NkBtaW5hODYuY29tOyBuZ3VwdGFAdmZsYXJlLm9yZzsgaXFiYWxibHJAZ21haWwuY29tPGJyPlN1
-YmplY3Q6IFJFOiBbbGludXgtMy4xMC4xN10gQ291bGQgbm90IGFsbG9jYXRlIG1lbW9yeSBmcm9t
-IGZyZWUgQ01BIGFyZWFzPGJyPjxicj5EZWFyIGpvb25zb28ga2ltLDxicj48YnI+Jmd0OyBJIGhh
-dmUgeW91ciBwYXRjaGVzIGZvcjogQWdncmVzc2l2ZWx5IGFsbG9jYXRlIG1lbW9yeSBmcm9tIGNt
-YSAuLi4uPGJyPiZndDsgV2UgYXJlIGZhY2luZyBhbG1vc3Qgc2ltaWxhciBwcm9ibGVtIGhlcmUu
-PGJyPiZndDsgSWYgYW55IG9mIHlvdXIgcGF0Y2hlcyBzdGlsbCB3b3JraW5nIGZvciB5b3UgcGxl
-YXNlIGxldCB1cyBrbm93IGhlcmUuPGJyPiZndDsgSSB3b3VsZCBsaWtlIHRvIHRyeSB0aG9zZSBh
-cHByb2FjaC48YnI+PGJyPjxicj5IZWxsbyw8YnI+PGJyPkkgc3RvcHBlZCB0byBpbXBsZW1lbnQg
-aXQsIGJlY2F1c2UgdGhlcmUgYXJlIG90aGVyIGJ1Z3Mgb24gQ01BIHJlbGF0ZWQgY29kZXMuPGJy
-PkFsdGhvdWdoIGFnZ3Jlc3NpdmVseSBhbGxvY2F0ZS4uLiBkb2Vzbid0IGhhdmUgYnVncyBpdHNl
-bGYsIGl0IGVubGFyZ2VzPGJyPmV4aXN0aW5nIGZyZWVwYWdlIGNvdW50aW5nIGJ1Z3Mgc2lnbmlm
-aWNhbnRseSBzbyBJJ20gZmlyc3QgdHJ5aW5nIHRvIGZpeDxicj50aG9zZSBidWdzLiBTZWUgdGhl
-IGJlbG93IGxpbmsuPGJyPjxicj5odHRwczovL2xrbWwub3JnL2xrbWwvMjAxNC83LzQvNzk8YnI+
-PGJyPkkgd2lsbCByZXN0YXJ0IHRvIGltcGxlbWVudCBhZ2dyZXNzaXZlbHkuLi4gYWZ0ZXIgZml4
-aW5nIHRoZXNlIGJ1Z3MuPGJyPjxicj5JZiB5b3UgaGF2ZSBpbnRlcmVzdCBvbiBuZXh0IHZlcnNp
-b24gb2YgYWdncmVzc2l2ZWx5IGFsbG9jYXRlLi4uLCBzZWUgdGhlPGJyPmZvbGxvd2luZyBsaW5r
-Ljxicj48YnI+aHR0cHM6Ly9naXRodWIuY29tL0pvb25zb29LaW0vbGludXgvdHJlZS9jbWEtZml4
-LXVwLXYzLjAtbmV4dC0yMDE0MDYyNTxicj48YnI+VGhhbmtzLjxicj48YnI+PGJyPjwvYm9keT4=
+I want to understand a few things about the memory and the execution
+of Linux kernel.
+Taking from a X86 and grub I have:
 
-----_com.android.email_107335871199190--
+1) Grub loads kernel and root file system in memory, and the vmlinux
+has the code to decompress it self, right ? linux
 
+2) The address of load kernel is always the same ? And It's at
+compilation time that is chosen ?
+
+2a) The kernel takes places in 3g-4g memory place, and user space from 0 to 3gb.
+But if the pc has only 256mb of memory ?
+And when pc has 16gb of memory, the user space will be split in two ?
+
+2b) And if kernel has soo many modules that needs more than 1gb to run ?
+
+2c) How we configure all of that memory configs ? make menuconfig and friends ?
+
+3) The function A will call functon B. B is at 0xGGGGGG in .text
+section, but kernel was loaded in address 0xJJJJJJJJJJ, how A will
+find B ?
+
+4) Please consider this:
+$ readelf -S -W vmlinux
+There are 37 section headers, starting at offset 0xe05718:
+
+Section Headers:
+  [Nr] Name                           Type              Address
+                Off             Size          ES Flg Lk Inf Al
+  [ 0]                                      NULL
+0000000000000000    000000      000000     00      0   0  0
+  [ 1] .text                             PROGBITS
+ffffffff81000000          200000     53129a      00  AX  0   0 4096
+  [ 2] .notes                          NOTE
+ffffffff8153129c          73129c     0001d8      00  AX  0   0  4
+  [ 3] __ex_table                   PROGBITS        ffffffff81531480
+       731480     002018      00   A  0   0  8
+  [ 4] .rodata                         PROGBITS
+ffffffff81600000          800000     1655ee     00   A  0   0 64
+  [ 5] __bug_table                 PROGBITS        ffffffff817655f0
+       9655f0      005424     00   A  0   0  1
+  [ 6] .pci_fixup                     PROGBITS        ffffffff8176aa18
+         96aa18     002f88      00   A  0   0  8
+  [ 7] .tracedata                    PROGBITS        ffffffff8176d9a0
+        96d9a0     00003c     00   A  0   0  1
+  [ 8] __ksymtab                   PROGBITS        ffffffff8176d9e0
+      96d9e0     00e710     00   A  0   0 16
+  [ 9] __ksymtab_gpl             PROGBITS        ffffffff8177c0f0
+    97c0f0      00a150      00   A  0   0 16
+  [10] __kcrctab                     PROGBITS        ffffffff81786240
+       986240     007388     00   A  0   0  8
+  [11] __kcrctab_gpl              PROGBITS        ffffffff8178d5c8
+     98d5c8     0050a8     00   A  0   0  8
+  [12] __ksymtab_strings      PROGBITS        ffffffff81792670
+ 992670     01cb42   00   A  0   0  1
+  [13] __init_rodata               PROGBITS        ffffffff817af1c0
+       9af1c0      0000e8   00   A  0   0 32
+  [14] __param                      PROGBITS        ffffffff817af2a8
+        9af2a8     000b00   00   A  0   0  8
+  [15] __modver                    PROGBITS        ffffffff817afda8
+       9afda8     000258   00   A  0   0  8
+  [16] .data                            PROGBITS
+ffffffff81800000          a00000     0e1180   00  WA  0   0 4096
+  [17] .vvar                            PROGBITS
+ffffffff818e2000          ae2000     001000   00  WA  0   0 16
+  [18] .data..percpu               PROGBITS        0000000000000000
+c00000     015300   00  WA  0   0 4096
+  [19] .init.text                       PROGBITS
+ffffffff818f9000           cf9000      0503ea   00  AX  0   0 16
+  [20] .init.data                      PROGBITS
+ffffffff8194a000           d4a000    09e4c8   00  WA  0   0 4096
+  [21] .x86_cpu_dev.init        PROGBITS        ffffffff819e84c8
+    de84c8    000018   00   A  0   0  8
+  [22] .parainstructions         PROGBITS        ffffffff819e84e0
+     de84e0    00bd3c   00   A  0   0  8
+  [23] .altinstructions            PROGBITS        ffffffff819f4220
+        df4220     005f40   00   A  0   0  1
+  [24] .altinstr_replacement  PROGBITS        ffffffff819fa160
+  dfa160     001a69   00  AX  0   0  1
+  [25] .iommu_table              PROGBITS        ffffffff819fbbd0
+     dfbbd0     0000f0   00   A  0   0  8
+  [26] .apicdrivers                 PROGBITS        ffffffff819fbcc0
+         dfbcc0     000020   00  WA  0   0  8
+  [27] .exit.text                     PROGBITS        ffffffff819fbce0
+           dfbce0     0009bc   00  AX  0   0  1
+  [28] .smp_locks                  PROGBITS        ffffffff819fd000
+        dfd000    005000   00   A  0   0  4
+  [29] .data_nosave              PROGBITS        ffffffff81a02000
+     e02000    001000   00  WA  0   0  4
+  [30] .bss                             NOBITS
+ffffffff81a03000            e03000    122000   00  WA  0   0 4096
+  [31] .brk                              NOBITS
+ffffffff81b25000           e03000    425000   00  WA  0   0  1
+  [32] .comment                   PROGBITS        0000000000000000
+e03000    000027   01  MS  0   0  1
+  [33] .debug_frame             PROGBITS        0000000000000000
+e03028    002560   00      0   0  8
+  [34] .shstrtab                     STRTAB
+0000000000000000     e05588    00018a 00      0   0  1
+  [35] .symtab                      SYMTAB            0000000000000000
+    e06058    1a29f8 18     36 43659  8
+  [36] .strtab                         STRTAB
+0000000000000000     fa8a50    180d92 00      0   0  1
+Key to Flags:
+  W (write), A (alloc), X (execute), M (merge), S (strings), l (large)
+  I (info), L (link order), G (group), T (TLS), E (exclude), x (unknown)
+  O (extra OS processing required) o (OS specific), p (processor specific)
+
+So the vmlinux is loaded in memory like a dd ?
+
+5) In my function A, inside the module that I wrote, a non-initialized
+variable will take place in non-initialized section that was loaded in
+memory ?
+Or my modules has a new sections for it's own use, and my module is
+loaded my memory like a process, with all his sections?
+So how another module or kernel code will fin my exported variable/function ?
+
+
+6) Let's suppose:
+I have a int variable, with 17 as content, and the address is 0xGGGGGG.
+If I stop the linux in this time, read my memory at address 0xGGGGGG I
+will got 17, right ?
+0xGGGGGGG will be bigger than 0xc0000000 always,  right ?
+
+
+7) Now take int from question and change for:
+struct mystruct * foo = (struct mystruct* ) kmalloc(sizeof(struct mystruct));
+
+I will be able to read at address 0xGGGGGG the struct that created,
+and it address will be greater than 0xc0000000, right ?
+But for this struct, the memory will be allocated for ever, until I
+free the pointer, right ?
+
+
+
+Well, this just a start. I really want to understand how kernel is
+run, loaded etc. Any help is appreciate, answering my questions, links
+to read, books to read.
+Actually, I didn't find any book with that kind of information .
+
+
+--
+Lucas Tanure
++55 (19) 988176559
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
