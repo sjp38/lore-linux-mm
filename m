@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 72B4C6B0039
-	for <linux-mm@kvack.org>; Mon,  4 Aug 2014 17:15:11 -0400 (EDT)
-Received: by mail-wg0-f49.google.com with SMTP id k14so17017wgh.20
-        for <linux-mm@kvack.org>; Mon, 04 Aug 2014 14:15:11 -0700 (PDT)
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id D4CD56B003A
+	for <linux-mm@kvack.org>; Mon,  4 Aug 2014 17:15:14 -0400 (EDT)
+Received: by mail-wg0-f48.google.com with SMTP id x13so20286wgg.7
+        for <linux-mm@kvack.org>; Mon, 04 Aug 2014 14:15:14 -0700 (PDT)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id kp1si36147311wjb.61.2014.08.04.14.15.09
+        by mx.google.com with ESMTPS id h3si450774wiy.57.2014.08.04.14.15.12
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 04 Aug 2014 14:15:09 -0700 (PDT)
+        Mon, 04 Aug 2014 14:15:13 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 3/4] mm: memcontrol: add memory.max to default hierarchy
-Date: Mon,  4 Aug 2014 17:14:56 -0400
-Message-Id: <1407186897-21048-4-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 4/4] mm: memcontrol: add memory.vmstat to default hierarchy
+Date: Mon,  4 Aug 2014 17:14:57 -0400
+Message-Id: <1407186897-21048-5-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1407186897-21048-1-git-send-email-hannes@cmpxchg.org>
 References: <1407186897-21048-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,87 +20,88 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-There are cases where a strict upper limit on a memcg is required, for
-example, when containers are rented out and interference between them
-can not be tolerated.
-
-Provide memory.max, a limit that can not be breached and will trigger
-group-internal OOM killing once page reclaim can no longer enforce it.
-
-This can be combined with the high limit, to create a window in which
-allocating tasks are throttled to approach the strict maximum limit
-gracefully and with opportunity for the user or admin to intervene.
+Provide basic per-memcg vmstat-style statistics on LRU sizes,
+allocated and freed pages, major and minor faults.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- Documentation/cgroups/unified-hierarchy.txt |  4 ++++
- mm/memcontrol.c                             | 35 +++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+)
+ Documentation/cgroups/unified-hierarchy.txt |  8 ++++++
+ mm/memcontrol.c                             | 40 +++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+)
 
 diff --git a/Documentation/cgroups/unified-hierarchy.txt b/Documentation/cgroups/unified-hierarchy.txt
-index fd4f7f6847f6..6c52c926810f 100644
+index 6c52c926810f..180b260c510a 100644
 --- a/Documentation/cgroups/unified-hierarchy.txt
 +++ b/Documentation/cgroups/unified-hierarchy.txt
-@@ -334,6 +334,10 @@ supported and the interface files "release_agent" and
- - memory.usage_in_bytes is renamed to memory.current to be in line
-   with the new naming scheme
+@@ -337,6 +337,14 @@ supported and the interface files "release_agent" and
+ - memory.max provides a hard upper limit as a last-resort backup to
+   memory.high for situations with aggressive isolation requirements.
  
-+- memory.max provides a hard upper limit as a last-resort backup to
-+  memory.high for situations with aggressive isolation requirements.
++- memory.stat has been replaced by memory.vmstat, which provides
++  page-based statistics in the style of /proc/vmstat.
 +
++  As cgroups are now always hierarchical and no longer allow tasks in
++  intermediate levels, the local state is irrelevant and all
++  statistics represent the state of the entire hierarchy rooted at the
++  given group.
 +
+ 
  5. Planned Changes
  
- 5-1. CAP for resource control
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 5a64fa96c08a..461834c86b94 100644
+index 461834c86b94..6502e1cfc0fc 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -6306,6 +6306,36 @@ static ssize_t memory_high_write(struct kernfs_open_file *of,
+@@ -6336,6 +6336,42 @@ static ssize_t memory_max_write(struct kernfs_open_file *of,
  	return nbytes;
  }
  
-+static u64 memory_max_read(struct cgroup_subsys_state *css,
-+			   struct cftype *cft)
++static u64 tree_events(struct mem_cgroup *memcg, int event)
 +{
-+	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
++	struct mem_cgroup *mi;
++	u64 val = 0;
 +
-+	return res_counter_read_u64(&memcg->res, RES_LIMIT);
++	for_each_mem_cgroup_tree(mi, memcg)
++		val += mem_cgroup_read_events(mi, event);
++	return val;
 +}
 +
-+static ssize_t memory_max_write(struct kernfs_open_file *of,
-+				char *buf, size_t nbytes, loff_t off)
++static int memory_vmstat_show(struct seq_file *m, void *v)
 +{
-+	struct mem_cgroup *memcg = mem_cgroup_from_css(of_css(of));
-+	u64 max;
-+	int ret;
++	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
++	struct mem_cgroup *mi;
++	int i;
 +
-+	if (mem_cgroup_is_root(memcg))
-+		return -EINVAL;
++	for (i = 0; i < NR_LRU_LISTS; i++) {
++		u64 val = 0;
 +
-+	buf = strim(buf);
-+	ret = res_counter_memparse_write_strategy(buf, &max);
-+	if (ret)
-+		return ret;
++		for_each_mem_cgroup_tree(mi, memcg)
++			val += mem_cgroup_nr_lru_pages(mi, BIT(i));
++		seq_printf(m, "%s %llu\n", vmstat_text[NR_LRU_BASE + i], val);
++	}
 +
-+	ret = mem_cgroup_resize_limit(memcg, max);
-+	if (ret)
-+		return ret;
++	seq_printf(m, "pgalloc %llu\n",
++		   tree_events(memcg, MEM_CGROUP_EVENTS_PGPGIN));
++	seq_printf(m, "pgfree %llu\n",
++		   tree_events(memcg, MEM_CGROUP_EVENTS_PGPGOUT));
++	seq_printf(m, "pgfault %llu\n",
++		   tree_events(memcg, MEM_CGROUP_EVENTS_PGFAULT));
++	seq_printf(m, "pgmajfault %llu\n",
++		   tree_events(memcg, MEM_CGROUP_EVENTS_PGMAJFAULT));
 +
-+	return nbytes;
++	return 0;
 +}
 +
  static struct cftype memory_files[] = {
  	{
  		.name = "current",
-@@ -6316,6 +6346,11 @@ static struct cftype memory_files[] = {
- 		.read_u64 = memory_high_read,
- 		.write = memory_high_write,
+@@ -6351,6 +6387,10 @@ static struct cftype memory_files[] = {
+ 		.read_u64 = memory_max_read,
+ 		.write = memory_max_write,
  	},
 +	{
-+		.name = "max",
-+		.read_u64 = memory_max_read,
-+		.write = memory_max_write,
++		.name = "vmstat",
++		.seq_show = memory_vmstat_show,
 +	},
  };
  
