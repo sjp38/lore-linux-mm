@@ -1,180 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id BFF1F6B0035
-	for <linux-mm@kvack.org>; Mon,  4 Aug 2014 05:26:49 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id ft15so9340068pdb.38
-        for <linux-mm@kvack.org>; Mon, 04 Aug 2014 02:26:49 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id be2si16936644pbb.236.2014.08.04.02.26.48
+Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FBE66B0035
+	for <linux-mm@kvack.org>; Mon,  4 Aug 2014 05:56:44 -0400 (EDT)
+Received: by mail-qg0-f49.google.com with SMTP id j107so8471125qga.22
+        for <linux-mm@kvack.org>; Mon, 04 Aug 2014 02:56:43 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f13si27697902qaa.110.2014.08.04.02.56.43
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Aug 2014 02:26:48 -0700 (PDT)
-Message-ID: <53DF51D2.4090002@codeaurora.org>
-Date: Mon, 04 Aug 2014 14:56:42 +0530
-From: Chintan Pandya <cpandya@codeaurora.org>
+        Mon, 04 Aug 2014 02:56:43 -0700 (PDT)
+Message-ID: <53DF58CA.5040807@redhat.com>
+Date: Mon, 04 Aug 2014 11:56:26 +0200
+From: Jerome Marchand <jmarchan@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 1/2] timer: provide an api for deferrable timeout
-References: <1406793591-26793-2-git-send-email-cpandya@codeaurora.org>
-In-Reply-To: <1406793591-26793-2-git-send-email-cpandya@codeaurora.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH 2/2] memcg, vmscan: Fix forced scan of anonymous pages
+References: <1406807385-5168-1-git-send-email-jmarchan@redhat.com> <1406807385-5168-3-git-send-email-jmarchan@redhat.com> <20140731123026.GE13561@dhcp22.suse.cz> <20140801184525.GK9952@cmpxchg.org> <20140801185251.GA31417@dhcp22.suse.cz>
+In-Reply-To: <20140801185251.GA31417@dhcp22.suse.cz>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ protocol="application/pgp-signature";
+ boundary="sWaQuwtFLxuSNcU7mRdWHsdRknOxaJgkM"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chintan Pandya <cpandya@codeaurora.org>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, John Stultz <john.stultz@linaro.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Hugh Dickins <hughd@google.com>
+To: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
 
-Ping !! Anything open for me to do here ?
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--sWaQuwtFLxuSNcU7mRdWHsdRknOxaJgkM
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-On 07/31/2014 01:29 PM, Chintan Pandya wrote:
-> schedule_timeout wakes up the CPU from IDLE state. For some use cases it
-> is not desirable, hence introduce a convenient API
-> (schedule_timeout_deferrable_interruptible) on similar pattern which uses
-> a deferrable timer.
->
-> Signed-off-by: Chintan Pandya<cpandya@codeaurora.org>
-> Cc: Thomas Gleixner<tglx@linutronix.de>
-> Cc: John Stultz<john.stultz@linaro.org>
-> Cc: Peter Zijlstra<peterz@infradead.org>
-> Cc: Ingo Molnar<mingo@redhat.com>
-> Cc: Hugh Dickins<hughd@google.com>
-> ---
-> Changes:
->
-> V2-->V3:
-> 	- Big comment moved from static function to exported function
-> 	- Using __setup_timer_on_stack for better readability
->
-> V2:
-> 	- this patch has been newly introduced in patch v2
->
->   include/linux/sched.h |  2 ++
->   kernel/time/timer.c   | 73 +++++++++++++++++++++++++++++++--------------------
->   2 files changed, 47 insertions(+), 28 deletions(-)
->
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index 89f531e..10b154e 100644
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -377,6 +377,8 @@ extern int in_sched_functions(unsigned long addr);
->   #define	MAX_SCHEDULE_TIMEOUT	LONG_MAX
->   extern signed long schedule_timeout(signed long timeout);
->   extern signed long schedule_timeout_interruptible(signed long timeout);
-> +extern signed long
-> +schedule_timeout_deferrable_interruptible(signed long timeout);
->   extern signed long schedule_timeout_killable(signed long timeout);
->   extern signed long schedule_timeout_uninterruptible(signed long timeout);
->   asmlinkage void schedule(void);
-> diff --git a/kernel/time/timer.c b/kernel/time/timer.c
-> index aca5dfe..f4c4082 100644
-> --- a/kernel/time/timer.c
-> +++ b/kernel/time/timer.c
-> @@ -1431,33 +1431,8 @@ static void process_timeout(unsigned long __data)
->   	wake_up_process((struct task_struct *)__data);
->   }
->
-> -/**
-> - * schedule_timeout - sleep until timeout
-> - * @timeout: timeout value in jiffies
-> - *
-> - * Make the current task sleep until @timeout jiffies have
-> - * elapsed. The routine will return immediately unless
-> - * the current task state has been set (see set_current_state()).
-> - *
-> - * You can set the task state as follows -
-> - *
-> - * %TASK_UNINTERRUPTIBLE - at least @timeout jiffies are guaranteed to
-> - * pass before the routine returns. The routine will return 0
-> - *
-> - * %TASK_INTERRUPTIBLE - the routine may return early if a signal is
-> - * delivered to the current task. In this case the remaining time
-> - * in jiffies will be returned, or 0 if the timer expired in time
-> - *
-> - * The current task state is guaranteed to be TASK_RUNNING when this
-> - * routine returns.
-> - *
-> - * Specifying a @timeout value of %MAX_SCHEDULE_TIMEOUT will schedule
-> - * the CPU away without a bound on the timeout. In this case the return
-> - * value will be %MAX_SCHEDULE_TIMEOUT.
-> - *
-> - * In all cases the return value is guaranteed to be non-negative.
-> - */
-> -signed long __sched schedule_timeout(signed long timeout)
-> +static signed long
-> +__sched __schedule_timeout(signed long timeout, unsigned long flag)
->   {
->   	struct timer_list timer;
->   	unsigned long expire;
-> @@ -1493,7 +1468,9 @@ signed long __sched schedule_timeout(signed long timeout)
->
->   	expire = timeout + jiffies;
->
-> -	setup_timer_on_stack(&timer, process_timeout, (unsigned long)current);
-> +	__setup_timer_on_stack(&timer, process_timeout, (unsigned long)current,
-> +				flag);
-> +
->   	__mod_timer(&timer, expire, false, TIMER_NOT_PINNED);
->   	schedule();
->   	del_singleshot_timer_sync(&timer);
-> @@ -1506,12 +1483,52 @@ signed long __sched schedule_timeout(signed long timeout)
->    out:
->   	return timeout<  0 ? 0 : timeout;
->   }
-> +
-> +/**
-> + * schedule_timeout - sleep until timeout
-> + * @timeout: timeout value in jiffies
-> + *
-> + * Make the current task sleep until @timeout jiffies have
-> + * elapsed. The routine will return immediately unless
-> + * the current task state has been set (see set_current_state()).
-> + *
-> + * You can set the task state as follows -
-> + *
-> + * %TASK_UNINTERRUPTIBLE - at least @timeout jiffies are guaranteed to
-> + * pass before the routine returns. The routine will return 0
-> + *
-> + * %TASK_INTERRUPTIBLE - the routine may return early if a signal is
-> + * delivered to the current task. In this case the remaining time
-> + * in jiffies will be returned, or 0 if the timer expired in time
-> + *
-> + * The current task state is guaranteed to be TASK_RUNNING when this
-> + * routine returns.
-> + *
-> + * Specifying a @timeout value of %MAX_SCHEDULE_TIMEOUT will schedule
-> + * the CPU away without a bound on the timeout. In this case the return
-> + * value will be %MAX_SCHEDULE_TIMEOUT.
-> + *
-> + * In all cases the return value is guaranteed to be non-negative.
-> + */
-> +signed long __sched schedule_timeout(signed long timeout)
-> +{
-> +	return __schedule_timeout(timeout, 0);
-> +}
->   EXPORT_SYMBOL(schedule_timeout);
->
->   /*
->    * We can use __set_current_state() here because schedule_timeout() calls
->    * schedule() unconditionally.
->    */
-> +
-> +signed long
-> +__sched schedule_timeout_deferrable_interruptible(signed long timeout)
-> +{
-> +	__set_current_state(TASK_INTERRUPTIBLE);
-> +	return __schedule_timeout(timeout, TIMER_DEFERRABLE);
-> +}
-> +EXPORT_SYMBOL(schedule_timeout_deferrable_interruptible);
-> +
->   signed long __sched schedule_timeout_interruptible(signed long timeout)
->   {
->   	__set_current_state(TASK_INTERRUPTIBLE);
+On 08/01/2014 08:52 PM, Michal Hocko wrote:
+> On Fri 01-08-14 14:45:25, Johannes Weiner wrote:
+>> On Thu, Jul 31, 2014 at 02:30:26PM +0200, Michal Hocko wrote:
+>>> On Thu 31-07-14 13:49:45, Jerome Marchand wrote:
+>>>> @@ -1950,8 +1950,11 @@ static void get_scan_count(struct lruvec *lru=
+vec, int swappiness,
+>>>>  	 */
+>>>>  	if (global_reclaim(sc)) {
+>>>>  		unsigned long free =3D zone_page_state(zone, NR_FREE_PAGES);
+>>>> +		unsigned long zonefile =3D
+>>>> +			zone_page_state(zone, NR_LRU_BASE + LRU_ACTIVE_FILE) +
+>>>> +			zone_page_state(zone, NR_LRU_BASE + LRU_INACTIVE_FILE);
+>>>> =20
+>>>> -		if (unlikely(file + free <=3D high_wmark_pages(zone))) {
+>>>> +		if (unlikely(zonefile + free <=3D high_wmark_pages(zone))) {
+>>>>  			scan_balance =3D SCAN_ANON;
+>>>>  			goto out;
+>>>>  		}
+>>>
+>>> You could move file and anon further down when we actually use them.
+
+I missed that comment. Thanks for the cleanup Johannes!
+
+>>
+>> Agreed with that.  Can we merge this into the original patch?
+>>
+>> ---
+>> From e49bef8d2751d9b27f1733e3e0eced325ffce700 Mon Sep 17 00:00:00 2001=
+
+>> From: Johannes Weiner <hannes@cmpxchg.org>
+>> Date: Fri, 1 Aug 2014 10:48:26 -0400
+>> Subject: [patch] memcg, vmscan: Fix forced scan of anonymous pages fix=
+ -
+>>  cleanups
+>>
+>> o Use enum zone_stat_item symbols directly to select zone stats,
+>>   rather than NR_LRU_BASE plus LRU index
+>>
+>> o scanned/rotated scaling is the only user of the lruvec anon/file
+>>   counters, so move the reads of those values to right before that
+>>
+>> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+>=20
+> Yes, please.
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+
+Acked-by: Jerome Marchand <jmarchan@redhat.com>
+
+>=20
+> Thanks!
+>=20
+>> ---
+>>  mm/vmscan.c | 23 +++++++++++++----------
+>>  1 file changed, 13 insertions(+), 10 deletions(-)
+>>
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index b3f629bdf4fe..2836b5373b2e 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -1934,11 +1934,6 @@ static void get_scan_count(struct lruvec *lruve=
+c, int swappiness,
+>>  		goto out;
+>>  	}
+>> =20
+>> -	anon  =3D get_lru_size(lruvec, LRU_ACTIVE_ANON) +
+>> -		get_lru_size(lruvec, LRU_INACTIVE_ANON);
+>> -	file  =3D get_lru_size(lruvec, LRU_ACTIVE_FILE) +
+>> -		get_lru_size(lruvec, LRU_INACTIVE_FILE);
+>> -
+>>  	/*
+>>  	 * Prevent the reclaimer from falling into the cache trap: as
+>>  	 * cache pages start out inactive, every cache fault will tip
+>> @@ -1949,12 +1944,14 @@ static void get_scan_count(struct lruvec *lruv=
+ec, int swappiness,
+>>  	 * anon pages.  Try to detect this based on file LRU size.
+>>  	 */
+>>  	if (global_reclaim(sc)) {
+>> -		unsigned long free =3D zone_page_state(zone, NR_FREE_PAGES);
+>> -		unsigned long zonefile =3D
+>> -			zone_page_state(zone, NR_LRU_BASE + LRU_ACTIVE_FILE) +
+>> -			zone_page_state(zone, NR_LRU_BASE + LRU_INACTIVE_FILE);
+>> +		unsigned long zonefile;
+>> +		unsigned long zonefree;
+>> +
+>> +		zonefree =3D zone_page_state(zone, NR_FREE_PAGES);
+>> +		zonefile =3D zone_page_state(zone, NR_ACTIVE_FILE) +
+>> +			   zone_page_state(zone, NR_INACTIVE_FILE);
+>> =20
+>> -		if (unlikely(zonefile + free <=3D high_wmark_pages(zone))) {
+>> +		if (unlikely(zonefile + zonefree <=3D high_wmark_pages(zone))) {
+>>  			scan_balance =3D SCAN_ANON;
+>>  			goto out;
+>>  		}
+>> @@ -1989,6 +1986,12 @@ static void get_scan_count(struct lruvec *lruve=
+c, int swappiness,
+>>  	 *
+>>  	 * anon in [0], file in [1]
+>>  	 */
+>> +
+>> +	anon  =3D get_lru_size(lruvec, LRU_ACTIVE_ANON) +
+>> +		get_lru_size(lruvec, LRU_INACTIVE_ANON);
+>> +	file  =3D get_lru_size(lruvec, LRU_ACTIVE_FILE) +
+>> +		get_lru_size(lruvec, LRU_INACTIVE_FILE);
+>> +
+>>  	spin_lock_irq(&zone->lru_lock);
+>>  	if (unlikely(reclaim_stat->recent_scanned[0] > anon / 4)) {
+>>  		reclaim_stat->recent_scanned[0] /=3D 2;
+>> --=20
+>> 2.0.3
+>>
+>=20
 
 
--- 
-Chintan Pandya
 
-QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
-member of the Code Aurora Forum, hosted by The Linux Foundation
+--sWaQuwtFLxuSNcU7mRdWHsdRknOxaJgkM
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
+
+iQEcBAEBAgAGBQJT31jKAAoJEHTzHJCtsuoCsLYH+wT9LBc/khDWN8S5zvWxMe56
+XCrJna3N7eTNJd6afBKmyUUoHlMWQsq+AYTTsVaniKDfW1a3BePFAkfQ2DT6N6Af
+TRcVdApQe6gwntZ0ryPcG34Fb/RIYJZaaV0rLs011kp2U0I19sBBuvsDR0HZ+Yyj
+rlL7PoJujkMP6LN62pKA368uaztjQDdY6USt5HcdLcod9dfDeSixlpZkW9tMhLp/
+f1ceZCYpprT1HgApWzsJuZXX5uGx1b9eKBNn85DpfVhm/JdqupclScyHOadQfNA/
+j2GtET4XDdcpJ8eHqigP9+8gMItO+RWEWXzpIgDuc6WKhGc3PznpjRLc1JF5ZvU=
+=H74y
+-----END PGP SIGNATURE-----
+
+--sWaQuwtFLxuSNcU7mRdWHsdRknOxaJgkM--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
