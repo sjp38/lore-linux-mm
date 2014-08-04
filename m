@@ -1,113 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D4CD56B003A
-	for <linux-mm@kvack.org>; Mon,  4 Aug 2014 17:15:14 -0400 (EDT)
-Received: by mail-wg0-f48.google.com with SMTP id x13so20286wgg.7
-        for <linux-mm@kvack.org>; Mon, 04 Aug 2014 14:15:14 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id h3si450774wiy.57.2014.08.04.14.15.12
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 44A436B0035
+	for <linux-mm@kvack.org>; Mon,  4 Aug 2014 17:38:45 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so53551pab.14
+        for <linux-mm@kvack.org>; Mon, 04 Aug 2014 14:38:44 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id pb6si9434905pdb.212.2014.08.04.14.38.43
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 04 Aug 2014 14:15:13 -0700 (PDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 4/4] mm: memcontrol: add memory.vmstat to default hierarchy
-Date: Mon,  4 Aug 2014 17:14:57 -0400
-Message-Id: <1407186897-21048-5-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1407186897-21048-1-git-send-email-hannes@cmpxchg.org>
-References: <1407186897-21048-1-git-send-email-hannes@cmpxchg.org>
+        Mon, 04 Aug 2014 14:38:44 -0700 (PDT)
+Message-ID: <53DFFD28.2030502@oracle.com>
+Date: Mon, 04 Aug 2014 17:37:44 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
+MIME-Version: 1.0
+Subject: Re: vmstat: On demand vmstat workers V8
+References: <alpine.DEB.2.11.1407100903130.12483@gentwo.org> <53D31101.8000107@oracle.com>
+In-Reply-To: <53D31101.8000107@oracle.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@gentwo.org>, akpm@linux-foundation.org
+Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org, peterz@infradead.org
 
-Provide basic per-memcg vmstat-style statistics on LRU sizes,
-allocated and freed pages, major and minor faults.
+On 07/25/2014 10:22 PM, Sasha Levin wrote:
+> On 07/10/2014 10:04 AM, Christoph Lameter wrote:
+>> > This patch creates a vmstat shepherd worker that monitors the
+>> > per cpu differentials on all processors. If there are differentials
+>> > on a processor then a vmstat worker local to the processors
+>> > with the differentials is created. That worker will then start
+>> > folding the diffs in regular intervals. Should the worker
+>> > find that there is no work to be done then it will make the shepherd
+>> > worker monitor the differentials again.
+> Hi Christoph, all,
+> 
+> This patch doesn't interact well with my fuzzing setup. I'm seeing
+> the following:
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- Documentation/cgroups/unified-hierarchy.txt |  8 ++++++
- mm/memcontrol.c                             | 40 +++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+)
+I think we got sidetracked here a bit, I've noticed that this issue
+is still happening in -next and discussions here died out.
 
-diff --git a/Documentation/cgroups/unified-hierarchy.txt b/Documentation/cgroups/unified-hierarchy.txt
-index 6c52c926810f..180b260c510a 100644
---- a/Documentation/cgroups/unified-hierarchy.txt
-+++ b/Documentation/cgroups/unified-hierarchy.txt
-@@ -337,6 +337,14 @@ supported and the interface files "release_agent" and
- - memory.max provides a hard upper limit as a last-resort backup to
-   memory.high for situations with aggressive isolation requirements.
- 
-+- memory.stat has been replaced by memory.vmstat, which provides
-+  page-based statistics in the style of /proc/vmstat.
-+
-+  As cgroups are now always hierarchical and no longer allow tasks in
-+  intermediate levels, the local state is irrelevant and all
-+  statistics represent the state of the entire hierarchy rooted at the
-+  given group.
-+
- 
- 5. Planned Changes
- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 461834c86b94..6502e1cfc0fc 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -6336,6 +6336,42 @@ static ssize_t memory_max_write(struct kernfs_open_file *of,
- 	return nbytes;
- }
- 
-+static u64 tree_events(struct mem_cgroup *memcg, int event)
-+{
-+	struct mem_cgroup *mi;
-+	u64 val = 0;
-+
-+	for_each_mem_cgroup_tree(mi, memcg)
-+		val += mem_cgroup_read_events(mi, event);
-+	return val;
-+}
-+
-+static int memory_vmstat_show(struct seq_file *m, void *v)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
-+	struct mem_cgroup *mi;
-+	int i;
-+
-+	for (i = 0; i < NR_LRU_LISTS; i++) {
-+		u64 val = 0;
-+
-+		for_each_mem_cgroup_tree(mi, memcg)
-+			val += mem_cgroup_nr_lru_pages(mi, BIT(i));
-+		seq_printf(m, "%s %llu\n", vmstat_text[NR_LRU_BASE + i], val);
-+	}
-+
-+	seq_printf(m, "pgalloc %llu\n",
-+		   tree_events(memcg, MEM_CGROUP_EVENTS_PGPGIN));
-+	seq_printf(m, "pgfree %llu\n",
-+		   tree_events(memcg, MEM_CGROUP_EVENTS_PGPGOUT));
-+	seq_printf(m, "pgfault %llu\n",
-+		   tree_events(memcg, MEM_CGROUP_EVENTS_PGFAULT));
-+	seq_printf(m, "pgmajfault %llu\n",
-+		   tree_events(memcg, MEM_CGROUP_EVENTS_PGMAJFAULT));
-+
-+	return 0;
-+}
-+
- static struct cftype memory_files[] = {
- 	{
- 		.name = "current",
-@@ -6351,6 +6387,10 @@ static struct cftype memory_files[] = {
- 		.read_u64 = memory_max_read,
- 		.write = memory_max_write,
- 	},
-+	{
-+		.name = "vmstat",
-+		.seq_show = memory_vmstat_show,
-+	},
- };
- 
- struct cgroup_subsys memory_cgrp_subsys = {
--- 
-2.0.3
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
