@@ -1,137 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B4336B0039
-	for <linux-mm@kvack.org>; Tue,  5 Aug 2014 04:01:41 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id ey11so940961pad.38
-        for <linux-mm@kvack.org>; Tue, 05 Aug 2014 01:01:41 -0700 (PDT)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id sz8si1002941pac.181.2014.08.05.01.01.36
-        for <linux-mm@kvack.org>;
-        Tue, 05 Aug 2014 01:01:38 -0700 (PDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [RFC 3/3] zram: limit memory size for zram
-Date: Tue,  5 Aug 2014 17:02:03 +0900
-Message-Id: <1407225723-23754-4-git-send-email-minchan@kernel.org>
-In-Reply-To: <1407225723-23754-1-git-send-email-minchan@kernel.org>
-References: <1407225723-23754-1-git-send-email-minchan@kernel.org>
+Received: from mail-qa0-f44.google.com (mail-qa0-f44.google.com [209.85.216.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AB9A6B0035
+	for <linux-mm@kvack.org>; Tue,  5 Aug 2014 04:33:18 -0400 (EDT)
+Received: by mail-qa0-f44.google.com with SMTP id f12so589871qad.17
+        for <linux-mm@kvack.org>; Tue, 05 Aug 2014 01:33:18 -0700 (PDT)
+Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
+        by mx.google.com with ESMTPS id g35si1581441qgf.104.2014.08.05.01.33.17
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 05 Aug 2014 01:33:17 -0700 (PDT)
+Received: by mail-qg0-f45.google.com with SMTP id f51so626393qge.32
+        for <linux-mm@kvack.org>; Tue, 05 Aug 2014 01:33:17 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20140804103025.478913141@infradead.org>
+References: <20140804103025.478913141@infradead.org>
+Date: Tue, 5 Aug 2014 12:33:16 +0400
+Message-ID: <CALFYKtBo2p5uNtkJZOy_rN7JbdFs1RbB1OfcF7TR+qDaMU0Kvg@mail.gmail.com>
+Subject: Re: [RFC][PATCH 0/7] nested sleeps, fixes and debug infra
+From: Ilya Dryomov <ilya.dryomov@inktank.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@kernel.org>, oleg@redhat.com, Linus Torvalds <torvalds@linux-foundation.org>, tglx@linutronix.de, Mike Galbraith <umgwanakikbuti@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, netdev@vger.kernel.org, linux-mm@kvack.org
 
-I have received a request several time from zram users.
-They want to limit memory size for zram because zram can consume
-lot of memory on system without limit so it makes memory management
-control hard.
+On Mon, Aug 4, 2014 at 2:30 PM, Peter Zijlstra <peterz@infradead.org> wrote:
+> Hi,
+>
+> Ilya recently tripped over a nested sleep which made Ingo suggest we should
+> have debug checks for that. So I did some, see patch 7. Of course that
+> triggered a whole bunch of fail the instant I tried to boot my machine.
+>
+> With this series I can boot my test box and build a kernel on it, I'm fairly
+> sure that's far too limited a test to have found all, but its a start.
 
-This patch adds new knob to limit memory of zram.
+FWIW, I'm getting a lot of these during light rbd testing.  CC'ed
+netdev and linux-mm.
 
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- Documentation/blockdev/zram.txt |  1 +
- drivers/block/zram/zram_drv.c   | 41 +++++++++++++++++++++++++++++++++++++++++
- drivers/block/zram/zram_drv.h   |  1 +
- 3 files changed, 43 insertions(+)
+WARNING: CPU: 2 PID: 1978 at kernel/sched/core.c:7094 __might_sleep+0x5b/0x1e0()
+do not call blocking ops when !TASK_RUNNING; state=1 set at
+[<ffffffff81070640>] prepare_to_wait+0x50/0xa0
+Modules linked in:
+CPU: 2 PID: 1978 Comm: ceph-osd Not tainted 3.16.0-vm+ #109
+Hardware name: Bochs Bochs, BIOS Bochs 01/01/2007
+ 0000000000001bb6 ffff8800126739e8 ffffffff8156ec1d 0000000000000000
+ ffff880012673a38 ffff880012673a28 ffffffff81032c27 ffff880012673a58
+ 0000000000000200 ffff8800150fa060 00000000000007ad ffffffff817ed352
+Call Trace:
+ [<ffffffff8156ec1d>] dump_stack+0x4f/0x7c
+ [<ffffffff81032c27>] warn_slowpath_common+0x87/0xb0
+ [<ffffffff81032cf1>] warn_slowpath_fmt+0x41/0x50
+ [<ffffffff814f23cf>] ? tcp_v4_do_rcv+0x10f/0x4a0
+ [<ffffffff81070640>] ? prepare_to_wait+0x50/0xa0
+ [<ffffffff81070640>] ? prepare_to_wait+0x50/0xa0
+ [<ffffffff8105b53b>] __might_sleep+0x5b/0x1e0
+ [<ffffffff8148d73d>] release_sock+0x13d/0x200
+ [<ffffffff81498223>] sk_stream_wait_memory+0x133/0x2d0
+ [<ffffffff810701d0>] ? woken_wake_function+0x10/0x10
+ [<ffffffff814dfdbf>] tcp_sendmsg+0xb6f/0xd70
+ [<ffffffff815096cf>] inet_sendmsg+0xdf/0x100
+ [<ffffffff815095f0>] ? inet_recvmsg+0x100/0x100
+ [<ffffffff814896d7>] sock_sendmsg+0x67/0x90
+ [<ffffffff810fd961>] ? might_fault+0x51/0xb0
+ [<ffffffff81489a22>] ___sys_sendmsg+0x2d2/0x2e0
+ [<ffffffff81095e58>] ? futex_wake+0x128/0x140
+ [<ffffffff81095d31>] ? futex_wake+0x1/0x140
+ [<ffffffff81141dd0>] ? do_dup2+0xd0/0xd0
+ [<ffffffff8105fa31>] ? get_parent_ip+0x11/0x50
+ [<ffffffff813cea27>] ? debug_smp_processor_id+0x17/0x20
+ [<ffffffff813c33c5>] ? delay_tsc+0x85/0xb0
+ [<ffffffff81141ead>] ? __fget+0xdd/0xf0
+ [<ffffffff81141dd0>] ? do_dup2+0xd0/0xd0
+ [<ffffffff81141f05>] ? __fget_light+0x45/0x60
+ [<ffffffff81141f2e>] ? __fdget+0xe/0x10
+ [<ffffffff8148a4e4>] __sys_sendmsg+0x44/0x70
+ [<ffffffff8148a519>] SyS_sendmsg+0x9/0x10
+ [<ffffffff81575b92>] system_call_fastpath+0x16/0x1b
 
-diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
-index d24534bee763..fcb0561dfe2e 100644
---- a/Documentation/blockdev/zram.txt
-+++ b/Documentation/blockdev/zram.txt
-@@ -96,6 +96,7 @@ size of the disk when not in use so a huge zram is wasteful.
- 		compr_data_size
- 		mem_used_total
- 		mem_used_max
-+		mem_limit
- 
- 7) Deactivate:
- 	swapoff /dev/zram0
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index a4d637b4db7d..47f68bbb2c44 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -137,6 +137,37 @@ static ssize_t max_comp_streams_show(struct device *dev,
- 	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
- }
- 
-+static ssize_t mem_limit_show(struct device *dev,
-+		struct device_attribute *attr, char *buf)
-+{
-+	u64 val;
-+	struct zram *zram = dev_to_zram(dev);
-+
-+	down_read(&zram->init_lock);
-+	val = zram->limit_bytes;
-+	up_read(&zram->init_lock);
-+
-+	return scnprintf(buf, PAGE_SIZE, "%llu\n", val);
-+}
-+
-+static ssize_t mem_limit_store(struct device *dev,
-+		struct device_attribute *attr, const char *buf, size_t len)
-+{
-+	u64 limit;
-+	struct zram *zram = dev_to_zram(dev);
-+	int ret;
-+
-+	ret = kstrtoull(buf, 0, &limit);
-+	if (ret < 0)
-+		return ret;
-+
-+	down_write(&zram->init_lock);
-+	zram->limit_bytes = limit;
-+	ret = len;
-+	up_write(&zram->init_lock);
-+	return ret;
-+}
-+
- static ssize_t max_comp_streams_store(struct device *dev,
- 		struct device_attribute *attr, const char *buf, size_t len)
- {
-@@ -511,6 +542,14 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
- 		ret = -ENOMEM;
- 		goto out;
- 	}
-+
-+	if (zram->limit_bytes &&
-+		zs_get_total_size_bytes(meta->mem_pool) >= zram->limit_bytes) {
-+		zs_free(meta->mem_pool, handle);
-+		ret = -ENOMEM;
-+		goto out;
-+	}
-+
- 	cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_WO);
- 
- 	if ((clen == PAGE_SIZE) && !is_partial_io(bvec)) {
-@@ -854,6 +893,7 @@ static DEVICE_ATTR(reset, S_IWUSR, NULL, reset_store);
- static DEVICE_ATTR(orig_data_size, S_IRUGO, orig_data_size_show, NULL);
- static DEVICE_ATTR(mem_used_total, S_IRUGO, mem_used_total_show, NULL);
- static DEVICE_ATTR(mem_used_max, S_IRUGO, mem_used_max_show, NULL);
-+static DEVICE_ATTR(mem_limit, S_IRUGO, mem_limit_show, mem_limit_store);
- static DEVICE_ATTR(max_comp_streams, S_IRUGO | S_IWUSR,
- 		max_comp_streams_show, max_comp_streams_store);
- static DEVICE_ATTR(comp_algorithm, S_IRUGO | S_IWUSR,
-@@ -883,6 +923,7 @@ static struct attribute *zram_disk_attrs[] = {
- 	&dev_attr_compr_data_size.attr,
- 	&dev_attr_mem_used_total.attr,
- 	&dev_attr_mem_used_max.attr,
-+	&dev_attr_mem_limit.attr,
- 	&dev_attr_max_comp_streams.attr,
- 	&dev_attr_comp_algorithm.attr,
- 	NULL,
-diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-index 7f21c145e317..c0d497ff6efc 100644
---- a/drivers/block/zram/zram_drv.h
-+++ b/drivers/block/zram/zram_drv.h
-@@ -99,6 +99,7 @@ struct zram {
- 	 * we can store in a disk.
- 	 */
- 	u64 disksize;	/* bytes */
-+	u64 limit_bytes;
- 	int max_comp_streams;
- 	struct zram_stats stats;
- 	char compressor[10];
--- 
-2.0.0
+WARNING: CPU: 0 PID: 380 at kernel/sched/core.c:7094 __might_sleep+0x5b/0x1e0()
+do not call blocking ops when !TASK_RUNNING; state=1 set at
+[<ffffffff81070640>] prepare_to_wait+0x50/0xa0
+Modules linked in:
+CPU: 0 PID: 380 Comm: kswapd0 Tainted: G        W     3.16.0-vm+ #109
+Hardware name: Bochs Bochs, BIOS Bochs 01/01/2007
+ 0000000000001bb6 ffff88007b64bc68 ffffffff8156ec1d 0000000000000000
+ ffff88007b64bcb8 ffff88007b64bca8 ffffffff81032c27 0000000000000000
+ 0000000000000000 ffff88007c062060 0000000000000065 ffffffff8179ca1f
+Call Trace:
+ [<ffffffff8156ec1d>] dump_stack+0x4f/0x7c
+ [<ffffffff81032c27>] warn_slowpath_common+0x87/0xb0
+ [<ffffffff81032cf1>] warn_slowpath_fmt+0x41/0x50
+ [<ffffffff81070640>] ? prepare_to_wait+0x50/0xa0
+ [<ffffffff81070640>] ? prepare_to_wait+0x50/0xa0
+ [<ffffffff8105b53b>] __might_sleep+0x5b/0x1e0
+ [<ffffffff810f7fd3>] __reset_isolation_suitable+0x83/0x140
+ [<ffffffff810f83f3>] reset_isolation_suitable+0x33/0x50
+ [<ffffffff810eb717>] kswapd+0x2e7/0x4d0
+ [<ffffffff810701d0>] ? woken_wake_function+0x10/0x10
+ [<ffffffff810eb430>] ? balance_pgdat+0x5b0/0x5b0
+ [<ffffffff810539ab>] kthread+0xfb/0x110
+ [<ffffffff810538b0>] ? flush_kthread_worker+0x130/0x130
+ [<ffffffff81575aec>] ret_from_fork+0x7c/0xb0
+ [<ffffffff810538b0>] ? flush_kthread_worker+0x130/0x130
+
+Thanks,
+
+                Ilya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
