@@ -1,193 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-	by kanga.kvack.org (Postfix) with ESMTP id CDDFD6B0035
-	for <linux-mm@kvack.org>; Tue,  5 Aug 2014 11:28:05 -0400 (EDT)
-Received: by mail-lb0-f174.google.com with SMTP id c11so866384lbj.19
-        for <linux-mm@kvack.org>; Tue, 05 Aug 2014 08:28:04 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dt6si5307529wib.73.2014.08.05.08.27.51
+Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DCA46B0035
+	for <linux-mm@kvack.org>; Tue,  5 Aug 2014 18:26:45 -0400 (EDT)
+Received: by mail-oi0-f43.google.com with SMTP id u20so1095950oif.30
+        for <linux-mm@kvack.org>; Tue, 05 Aug 2014 15:26:45 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id ei10si7270703oeb.91.2014.08.05.15.26.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 05 Aug 2014 08:27:52 -0700 (PDT)
-Date: Tue, 5 Aug 2014 17:27:40 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 0/4] mm: memcontrol: populate unified hierarchy interface
-Message-ID: <20140805152740.GI15908@dhcp22.suse.cz>
-References: <1407186897-21048-1-git-send-email-hannes@cmpxchg.org>
- <20140805124033.GF15908@dhcp22.suse.cz>
- <20140805135325.GB14734@cmpxchg.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 05 Aug 2014 15:26:44 -0700 (PDT)
+Message-ID: <53E159F6.7080603@oracle.com>
+Date: Tue, 05 Aug 2014 18:25:58 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140805135325.GB14734@cmpxchg.org>
+Subject: Re: vmstat: On demand vmstat workers V8
+References: <alpine.DEB.2.11.1407100903130.12483@gentwo.org> <53D31101.8000107@oracle.com> <53DFFD28.2030502@oracle.com> <alpine.DEB.2.11.1408050950390.16902@gentwo.org>
+In-Reply-To: <alpine.DEB.2.11.1408050950390.16902@gentwo.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@gentwo.org>
+Cc: akpm@linux-foundation.org, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org, peterz@infradead.org
 
-On Tue 05-08-14 09:53:25, Johannes Weiner wrote:
-> On Tue, Aug 05, 2014 at 02:40:33PM +0200, Michal Hocko wrote:
-> > On Mon 04-08-14 17:14:53, Johannes Weiner wrote:
-> > > Hi,
-> > > 
-> > > the ongoing versioning of the cgroup user interface gives us a chance
-> > > to clean up the memcg control interface and fix a lot of
-> > > inconsistencies and ugliness that crept in over time.
-> > 
-> > The first patch doesn't fit into the series and should be posted
-> > separately.
+On 08/05/2014 10:51 AM, Christoph Lameter wrote:
+> On Mon, 4 Aug 2014, Sasha Levin wrote:
 > 
-> It's a prerequisite for the high limit implementation.
-
-I do not think it is strictly needed. I am even not sure whether the
-patch is OK and have to think more about it. I think you can throttle
-high limit breachers by SWAP_CLUSTER_MAX for now.
-
-> > > This series adds a minimal set of control files to the new memcg
-> > > interface to get basic memcg functionality going in unified hierarchy:
-> > 
-> > Hmm, I have posted RFC for new knobs quite some time ago and the
-> > discussion died without some questions answered and now you are coming
-> > with a new one. I cannot say I would be happy about that.
+>> On 07/25/2014 10:22 PM, Sasha Levin wrote:
+>>> On 07/10/2014 10:04 AM, Christoph Lameter wrote:
+>>>>> This patch creates a vmstat shepherd worker that monitors the
+>>>>> per cpu differentials on all processors. If there are differentials
+>>>>> on a processor then a vmstat worker local to the processors
+>>>>> with the differentials is created. That worker will then start
+>>>>> folding the diffs in regular intervals. Should the worker
+>>>>> find that there is no work to be done then it will make the shepherd
+>>>>> worker monitor the differentials again.
+>>> Hi Christoph, all,
+>>>
+>>> This patch doesn't interact well with my fuzzing setup. I'm seeing
+>>> the following:
+>>
+>> I think we got sidetracked here a bit, I've noticed that this issue
+>> is still happening in -next and discussions here died out.
 > 
-> I remembered open questions mainly about other things like swappiness,
-> charge immigration, kmem limits.  My bad, I should have checked.  Here
-> are your concerns on these basic knobs from that email:
+> Ok I saw in another thread that this issue has gone away. Is there an
+> easy way to reproduce this on my system?
 > 
-> ---
-> 
-> On Thu, Jul 17, 2014 at 03:45:09PM +0200, Michal Hocko wrote:
-> > On Wed 16-07-14 11:58:14, Johannes Weiner wrote:
-> > > How about "memory.current"?
-> > 
-> > I wanted old users to change the minimum possible when moving to unified
-> > hierarchy so I didn't touch the old names.
-> > Why should we make the end users life harder? If there is general
-> > agreement I have no problem with renaming I just do not think it is
-> > really necessary because there is no real reason why configurations
-> > which do not use any of the deprecated or unified-hierarchy-only
-> > features shouldn't run in both unified and legacy hierarchies without
-> > any changes.
-> 
-> There is the rub, though: you can't *not* use new interfaces.  We are
-> getting rid of the hard limit as the default and we really want people
-> to rethink their configuration in the light of this.  And even if you
-> would just use the hard limit as before, there is no way we can leave
-> the name 'memory.limit_in_bytes' when we have in fact 4 different
-> limits.
 
-We could theoretically keep a single limit and turn other limits into
-watermarks. I am _not_ suggesting that now because I haven't thought
-that through but I just think we should discuss other possible ways
-before we go on.
+I don't see the VM_BUG_ON anymore, but the cpu warnings are still there.
 
-> So I don't see any way how we can stay 100% backward compatible even
-> with the most basic memcg functionality of setting an upper limit.
-> 
-> And once you acknowledge that current users don't get around *some*
-> adjustments, we really owe it to new users to present a clean and
-> consistent interface.
->
-> > I do realize that this is a _new_ API so we can do such radical changes
-> > but I am also aware that some people have to maintain their stacks on
-> > top of different kernels and it really sucks to maintain two different
-> > configurations. In such a case it would be easier for those users to
-> > stay with the legacy mode which is a fair option but I would much rather
-> > see them move to the new API sooner rather than later.
-> 
-> There is no way you can use the exact same scripts/configurations for
-> the old and new API at the same time when the most basic way of using
-> cgroups and memcg changed in v2.
+I can easily trigger it by cranking up the cpu hotplug code. Just try to
+frequently offline and online cpus, it should reproduce quickly.
 
-OK, this is a fair point. Cgroups configuration is probably a bigger
-problem. If a script rely on a tool/library to setup the hierarchy then
-that tool/library can probably do the mapping from old names to new as
-well otherwise it would need to be rewritten at least for cgroup part.
 
-I have no idea how tools (e.g. libcgroup, libvirt and others) will adapt
-to the new API and support of both APIs at the same time, though.
-
-> ---
-> 
-> > One of the concern was renaming knobs which represent the same
-> > functionality as before. I have posted some concerns but haven't heard
-> > back anything. This series doesn't give any rationale for renaming
-> > either.
-> > It is true we have a v2 but that doesn't necessarily mean we should put
-> > everything upside down.
-> 
-> I'm certainly not going out of my way to turn things upside down, but
-> the old interface is outrageous.  I'm sorry if you can't see that it
-> badly needs to be cleaned up and fixed.  This is the time to do that.
-
-Of course I can see many problems. But please let's think twice and even
-more times when doing radical changes. Many decisions sound reasonable
-at the time but then they turn out bad much later.
-
-> > > - memory.current: a read-only file that shows current memory usage.
-> > 
-> > Even if we go with renaming existing knobs I really hate this name. The
-> > old one was too long but this is not descriptive enough. Same applies to
-> > max and high. I would expect at least limit in the name.
-> 
-> Memory cgroups are about accounting and limiting memory usage.  That's
-> all they do.  In that context, current, min, low, high, max seem
-> perfectly descriptive to me, adding usage and limit seems redundant.
-
-Getting naming right is always pain and different people will always
-have different views. For example I really do not like memory.current
-and would prefer memory.usage much more. I am not a native speaker but
-`usage' sounds much less ambiguous to me. Whether shorter (without _limit
-suffix) names for limits are better I don't know. They certainly seem
-more descriptive with the suffix to me.
-
-> We name syscalls creat() and open() and stat() because, while you have
-> to look at the manpage once, they are easy to remember, easy to type,
-> and they keep the code using them readable.
-> 
-> memory.usage_in_bytes was the opposite approach: it tried to describe
-> all there is to this knob in the name itself, assuming tab completion
-> would help you type that long name.  But we are more and more moving
-> away from ad-hoc scripting of cgroups and I don't want to optimize for
-> that anymore at the cost of really unwieldy identifiers.
-
-I agree with you. _in_bytes is definitely excessive. It can be nicely
-demonstrated by the fact that different units are allowed when setting
-the value.
- 
-> Like with all user interfaces, we should provide a short and catchy
-> name and then provide the details in the documentation.
-> 
-> > > - memory.high: a file that allows setting a high limit on the memory
-> > >   usage.  This is an elastic limit, which is enforced via direct
-> > >   reclaim, so allocators are throttled once it's reached, but it can
-> > >   be exceeded and does not trigger OOM kills.  This should be a much
-> > >   more suitable default upper boundary for the majority of use cases
-> > >   that are better off with some elasticity than with sudden OOM kills.
-> > 
-> > I also thought you wanted to have all the new limits in the single
-> > series. My series is sitting idle until we finally come to conclusion
-> > which is the first set of exposed knobs. So I do not understand why are
-> > you coming with it right now.
-> 
-> I still would like to, but I'm not sure we can get the guarantees
-> working in time as unified hierarchy leaves its experimental status.
-
-That shouldn't happen sooner than in next (maybe in 2) devel cycle(s)
-(http://marc.info/?l=linux-kernel&m=140716172618366).
-
-> And I'm fairly confident that we know how the upper limits should
-> behave and that we are no longer going to change that, and that we
-> have a decent understanding on how the guarantees are going to work.
-
-I think we should first settle with the new knobs before we introduce
-new ones. I understand you would like to have high limit as a preferable
-way from the early beginning but I think that can wait while the new API
-is still in devel mode.
-
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
