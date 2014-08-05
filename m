@@ -1,111 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 674106B0035
-	for <linux-mm@kvack.org>; Tue,  5 Aug 2014 10:54:53 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lf10so1562669pab.29
-        for <linux-mm@kvack.org>; Tue, 05 Aug 2014 07:54:53 -0700 (PDT)
-Received: from BAY004-OMC4S6.hotmail.com (bay004-omc4s6.hotmail.com. [65.54.190.208])
-        by mx.google.com with ESMTPS id by7si1119154pdb.216.2014.08.05.07.54.51
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id CDDFD6B0035
+	for <linux-mm@kvack.org>; Tue,  5 Aug 2014 11:28:05 -0400 (EDT)
+Received: by mail-lb0-f174.google.com with SMTP id c11so866384lbj.19
+        for <linux-mm@kvack.org>; Tue, 05 Aug 2014 08:28:04 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dt6si5307529wib.73.2014.08.05.08.27.51
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 05 Aug 2014 07:54:52 -0700 (PDT)
-Message-ID: <BAY169-W348ADD9113F32C2B459631EFE30@phx.gbl>
-From: Pintu Kumar <pintu.k@outlook.com>
-Subject: RE: [linux-3.10.17] Could not allocate memory from free CMA areas
-Date: Tue, 5 Aug 2014 20:24:50 +0530
-In-Reply-To: <003201cfafb3$3fe43180$bfac9480$@lge.com>
-References: 
- <54sabdnxop04vxd7ewndc0qf.1407077745645@email.android.com>,<003201cfafb3$3fe43180$bfac9480$@lge.com>
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 05 Aug 2014 08:27:52 -0700 (PDT)
+Date: Tue, 5 Aug 2014 17:27:40 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 0/4] mm: memcontrol: populate unified hierarchy interface
+Message-ID: <20140805152740.GI15908@dhcp22.suse.cz>
+References: <1407186897-21048-1-git-send-email-hannes@cmpxchg.org>
+ <20140805124033.GF15908@dhcp22.suse.cz>
+ <20140805135325.GB14734@cmpxchg.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140805135325.GB14734@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, PINTU KUMAR <pintu_agarwal@yahoo.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "ritesh.list@gmail.com" <ritesh.list@gmail.com>, "mgorman@suse.de" <mgorman@suse.de>
-Cc: "pintu.k@samsung.com" <pintu.k@samsung.com>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "mina86@mina86.com" <mina86@mina86.com>, "ngupta@vflare.org" <ngupta@vflare.org>, "iqbalblr@gmail.com" <iqbalblr@gmail.com>, "rohit.kr@samsung.com" <rohit.kr@samsung.com>, "vishnu.ps@samsung.com" <vishnu.ps@samsung.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hello=2C=0A=
-=0A=
-> From: iamjoonsoo.kim@lge.com=0A=
-> To: pintu_agarwal@yahoo.com=3B linux-mm@kvack.org=3B linux-arm-kernel@lis=
-ts.infradead.org=3B linaro-mm-sig@lists.linaro.org=3B ritesh.list@gmail.com=
-=0A=
-> CC: pintu.k@outlook.com=3B pintu.k@samsung.com=3B vishu_1385@yahoo.com=3B=
- m.szyprowski@samsung.com=3B mina86@mina86.com=3B ngupta@vflare.org=3B iqba=
-lblr@gmail.com=0A=
-> Subject: RE: [linux-3.10.17] Could not allocate memory from free CMA area=
-s=0A=
-> Date: Mon=2C 4 Aug 2014 16:11:00 +0900=0A=
-> =0A=
->> Dear Joonsoo=2C=0A=
->> =0A=
->> I tried your changes which are present at the below link. =0A=
->> https://github.com/JoonsooKim/linux/tree/cma-fix-up-v3.0-next-20140625=
-=0A=
->> But unfortunately for me it did not help much. =0A=
->> After running various apps that uses ION nonmovable memory=2C it fails t=
-o allocate memory after some time. When I see the pagetypeinfo shows lots o=
-f CMA pages available and non-movable were very less and thus nonmovable al=
-location were failing.=0A=
-> =0A=
-> Okay. CMA pages cannot be used for nonmovable memory=2C so it can fail in=
- above case.=0A=
-> =0A=
->> However I noticed the failure was little delayed.=0A=
-> =0A=
-> It is good sign. I guess that there is movable/CMA ratio problem.=0A=
-> My patchset uses free CMA pages in certain ratio to free movable page con=
-sumption.=0A=
-> If your system doesn't use movable page sufficiently=2C free CMA pages ca=
-nnot=0A=
-> be used fully. Could you test with following workaround?=0A=
-> =0A=
-> +       if (normal> cma) {=0A=
-> +               zone->max_try_normal =3D pageblock_nr_pages=3B=0A=
-> +               zone->max_try_cma =3D pageblock_nr_pages=3B=0A=
-> +       } else {=0A=
-> +               zone->max_try_normal =3D pageblock_nr_pages=3B=0A=
-> +               zone->max_try_cma =3D pageblock_nr_pages=3B=0A=
-> +       }=0A=
-=0A=
-I applied these changes but still the allocations are failing because there=
- are no non-movable memory left in the system.=0A=
-With the changes I noticed that nr_cma_free sometimes becomes almost zero.=
-=0A=
-But in our case Display/Xorg needs to have atleast 8MB of CMA (contiguous) =
-memory of order-8 and order-4 type.=0A=
-CMA:56MB is shared across display=2Ccamera=2Cvideo etc.=0A=
-=0A=
-I think the previous changes are slightly better.=0A=
-=0A=
-My concern is that whether I am applying all you changes or missing some th=
-ing.=0A=
-I saw that your kernel version is based on next-20140625 but my kernel vers=
-ion is 3.10.17.=0A=
-And till now I applied only the below changes:=0A=
-https://github.com/JoonsooKim/linux/commit/33a0416b3ac1cd7c88e6b35ee61b4a81=
-a7a14afc =0A=
-=0A=
-But I haven't applied this:=0A=
-https://github.com/JoonsooKim/linux/commit/166b4186d101b190cf50195d841e2189=
-f2743649=0A=
-(CMA: always treat free cma pages as non-free on watermark checking)=0A=
-These changes have other dependencies which is not present in my kernel ver=
-sion.=0A=
-Like inclusion of ALLOC_FAIR and area->nr_cma_free.=0A=
-Please let me know if these changes are also important for "aggressive allo=
-c changes..."=0A=
-=0A=
-If possible please send me all the patches related to "aggressive cma.." so=
- that I can conclude on my experiment.=0A=
-=0A=
-Further I will share the experimental result from my side.=0A=
-=0A=
-=0A=
-> =0A=
-> Thanks.=0A=
-> =0A=
- 		 	   		  =
+On Tue 05-08-14 09:53:25, Johannes Weiner wrote:
+> On Tue, Aug 05, 2014 at 02:40:33PM +0200, Michal Hocko wrote:
+> > On Mon 04-08-14 17:14:53, Johannes Weiner wrote:
+> > > Hi,
+> > > 
+> > > the ongoing versioning of the cgroup user interface gives us a chance
+> > > to clean up the memcg control interface and fix a lot of
+> > > inconsistencies and ugliness that crept in over time.
+> > 
+> > The first patch doesn't fit into the series and should be posted
+> > separately.
+> 
+> It's a prerequisite for the high limit implementation.
+
+I do not think it is strictly needed. I am even not sure whether the
+patch is OK and have to think more about it. I think you can throttle
+high limit breachers by SWAP_CLUSTER_MAX for now.
+
+> > > This series adds a minimal set of control files to the new memcg
+> > > interface to get basic memcg functionality going in unified hierarchy:
+> > 
+> > Hmm, I have posted RFC for new knobs quite some time ago and the
+> > discussion died without some questions answered and now you are coming
+> > with a new one. I cannot say I would be happy about that.
+> 
+> I remembered open questions mainly about other things like swappiness,
+> charge immigration, kmem limits.  My bad, I should have checked.  Here
+> are your concerns on these basic knobs from that email:
+> 
+> ---
+> 
+> On Thu, Jul 17, 2014 at 03:45:09PM +0200, Michal Hocko wrote:
+> > On Wed 16-07-14 11:58:14, Johannes Weiner wrote:
+> > > How about "memory.current"?
+> > 
+> > I wanted old users to change the minimum possible when moving to unified
+> > hierarchy so I didn't touch the old names.
+> > Why should we make the end users life harder? If there is general
+> > agreement I have no problem with renaming I just do not think it is
+> > really necessary because there is no real reason why configurations
+> > which do not use any of the deprecated or unified-hierarchy-only
+> > features shouldn't run in both unified and legacy hierarchies without
+> > any changes.
+> 
+> There is the rub, though: you can't *not* use new interfaces.  We are
+> getting rid of the hard limit as the default and we really want people
+> to rethink their configuration in the light of this.  And even if you
+> would just use the hard limit as before, there is no way we can leave
+> the name 'memory.limit_in_bytes' when we have in fact 4 different
+> limits.
+
+We could theoretically keep a single limit and turn other limits into
+watermarks. I am _not_ suggesting that now because I haven't thought
+that through but I just think we should discuss other possible ways
+before we go on.
+
+> So I don't see any way how we can stay 100% backward compatible even
+> with the most basic memcg functionality of setting an upper limit.
+> 
+> And once you acknowledge that current users don't get around *some*
+> adjustments, we really owe it to new users to present a clean and
+> consistent interface.
+>
+> > I do realize that this is a _new_ API so we can do such radical changes
+> > but I am also aware that some people have to maintain their stacks on
+> > top of different kernels and it really sucks to maintain two different
+> > configurations. In such a case it would be easier for those users to
+> > stay with the legacy mode which is a fair option but I would much rather
+> > see them move to the new API sooner rather than later.
+> 
+> There is no way you can use the exact same scripts/configurations for
+> the old and new API at the same time when the most basic way of using
+> cgroups and memcg changed in v2.
+
+OK, this is a fair point. Cgroups configuration is probably a bigger
+problem. If a script rely on a tool/library to setup the hierarchy then
+that tool/library can probably do the mapping from old names to new as
+well otherwise it would need to be rewritten at least for cgroup part.
+
+I have no idea how tools (e.g. libcgroup, libvirt and others) will adapt
+to the new API and support of both APIs at the same time, though.
+
+> ---
+> 
+> > One of the concern was renaming knobs which represent the same
+> > functionality as before. I have posted some concerns but haven't heard
+> > back anything. This series doesn't give any rationale for renaming
+> > either.
+> > It is true we have a v2 but that doesn't necessarily mean we should put
+> > everything upside down.
+> 
+> I'm certainly not going out of my way to turn things upside down, but
+> the old interface is outrageous.  I'm sorry if you can't see that it
+> badly needs to be cleaned up and fixed.  This is the time to do that.
+
+Of course I can see many problems. But please let's think twice and even
+more times when doing radical changes. Many decisions sound reasonable
+at the time but then they turn out bad much later.
+
+> > > - memory.current: a read-only file that shows current memory usage.
+> > 
+> > Even if we go with renaming existing knobs I really hate this name. The
+> > old one was too long but this is not descriptive enough. Same applies to
+> > max and high. I would expect at least limit in the name.
+> 
+> Memory cgroups are about accounting and limiting memory usage.  That's
+> all they do.  In that context, current, min, low, high, max seem
+> perfectly descriptive to me, adding usage and limit seems redundant.
+
+Getting naming right is always pain and different people will always
+have different views. For example I really do not like memory.current
+and would prefer memory.usage much more. I am not a native speaker but
+`usage' sounds much less ambiguous to me. Whether shorter (without _limit
+suffix) names for limits are better I don't know. They certainly seem
+more descriptive with the suffix to me.
+
+> We name syscalls creat() and open() and stat() because, while you have
+> to look at the manpage once, they are easy to remember, easy to type,
+> and they keep the code using them readable.
+> 
+> memory.usage_in_bytes was the opposite approach: it tried to describe
+> all there is to this knob in the name itself, assuming tab completion
+> would help you type that long name.  But we are more and more moving
+> away from ad-hoc scripting of cgroups and I don't want to optimize for
+> that anymore at the cost of really unwieldy identifiers.
+
+I agree with you. _in_bytes is definitely excessive. It can be nicely
+demonstrated by the fact that different units are allowed when setting
+the value.
+ 
+> Like with all user interfaces, we should provide a short and catchy
+> name and then provide the details in the documentation.
+> 
+> > > - memory.high: a file that allows setting a high limit on the memory
+> > >   usage.  This is an elastic limit, which is enforced via direct
+> > >   reclaim, so allocators are throttled once it's reached, but it can
+> > >   be exceeded and does not trigger OOM kills.  This should be a much
+> > >   more suitable default upper boundary for the majority of use cases
+> > >   that are better off with some elasticity than with sudden OOM kills.
+> > 
+> > I also thought you wanted to have all the new limits in the single
+> > series. My series is sitting idle until we finally come to conclusion
+> > which is the first set of exposed knobs. So I do not understand why are
+> > you coming with it right now.
+> 
+> I still would like to, but I'm not sure we can get the guarantees
+> working in time as unified hierarchy leaves its experimental status.
+
+That shouldn't happen sooner than in next (maybe in 2) devel cycle(s)
+(http://marc.info/?l=linux-kernel&m=140716172618366).
+
+> And I'm fairly confident that we know how the upper limits should
+> behave and that we are no longer going to change that, and that we
+> have a decent understanding on how the guarantees are going to work.
+
+I think we should first settle with the new knobs before we introduce
+new ones. I understand you would like to have high limit as a preferable
+way from the early beginning but I think that can wait while the new API
+is still in devel mode.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
