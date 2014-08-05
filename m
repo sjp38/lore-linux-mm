@@ -1,77 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id E6BFC6B0035
-	for <linux-mm@kvack.org>; Mon,  4 Aug 2014 20:18:45 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id g10so236195pdj.40
-        for <linux-mm@kvack.org>; Mon, 04 Aug 2014 17:18:45 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id bq15si33061pdb.128.2014.08.04.17.18.44
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 04 Aug 2014 17:18:44 -0700 (PDT)
-Received: by mail-pa0-f51.google.com with SMTP id ey11so256549pad.10
-        for <linux-mm@kvack.org>; Mon, 04 Aug 2014 17:18:44 -0700 (PDT)
-Date: Mon, 4 Aug 2014 17:18:42 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 2/3] mm, oom: remove unnecessary check for NULL
- zonelist
-In-Reply-To: <20140802181327.GL9952@cmpxchg.org>
-Message-ID: <alpine.DEB.2.02.1408041710070.23228@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1407231814110.22326@chino.kir.corp.google.com> <alpine.DEB.2.02.1407231815090.22326@chino.kir.corp.google.com> <20140731152659.GB9952@cmpxchg.org> <alpine.DEB.2.02.1408010159500.4061@chino.kir.corp.google.com>
- <20140801133444.GH9952@cmpxchg.org> <alpine.DEB.2.02.1408011434330.11532@chino.kir.corp.google.com> <20140802181327.GL9952@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id D772D6B0035
+	for <linux-mm@kvack.org>; Tue,  5 Aug 2014 04:01:38 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id z10so902970pdj.2
+        for <linux-mm@kvack.org>; Tue, 05 Aug 2014 01:01:38 -0700 (PDT)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id id5si1061170pbc.69.2014.08.05.01.01.36
+        for <linux-mm@kvack.org>;
+        Tue, 05 Aug 2014 01:01:37 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [RFC 0/3] zram memory control enhance
+Date: Tue,  5 Aug 2014 17:02:00 +0900
+Message-Id: <1407225723-23754-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Minchan Kim <minchan@kernel.org>
 
-On Sat, 2 Aug 2014, Johannes Weiner wrote:
+Notice! It's RFC. I didn't test at all but wanted to hear opinion
+during merge window when it's really busy time for Andrew so we could
+use the slack time to discuss without hurting him. ;-)
 
-> > I see one concern: that panic_on_oom == 1 will not trigger on pagefault 
-> > when constrained by cpusets.  To address that, I'll state that, since 
-> > cpuset-constrained allocations are the allocation context for pagefaults,
-> > panic_on_oom == 1 should not trigger on pagefault when constrained by 
-> > cpusets.
-> 
-> I expressed my concern pretty clearly above: out_of_memory() wants the
-> zonelist that was used during the failed allocation, you are passing a
-> non-sensical value in there that only happens to have the same type.
-> 
+Patch 1 is to move pages_allocated in zsmalloc from size_class to zs_pool
+so zs_get_total_size_bytes of zsmalloc would be faster than old.
+zs_get_total_size_bytes could be used next patches frequently.
 
-It's certainly meaningful, the particular zonelist chosen isn't important 
-because we don't care about the ordering and pagefaults are not going to 
-be using __GFP_THISNODE.  In this context, we only need to pass a zonelist 
-that includes all zones because constrained_alloc() tests if the 
-allocation is cpuset-constrained based on the gfp flags.  We'll get 
-CONSTRAINT_CPUSET in that case.
+Patch 2 adds new feature which exports how many of bytes zsmalloc consumes
+during testing workload. Normally, before fixing the zram's disksize
+we have tested various workload and wanted to how many of bytes zram
+consumed.
+For it, we could poll mem_used_total of zram in userspace but the problem is
+when memory pressure is severe and heavy swap out happens suddenly then
+heavy swapin or exist while polling interval of user space is a few second,
+it could miss max memory size zram had consumed easily.
+With lack of information, user can set wrong disksize of zram so the result
+is OOM. So this patch adds max_mem_used for zram and zsmalloc supports it
 
-This is important because the behavior of panic_on_oom differs, as you 
-pointed out, depending on the constraint.  pagefault_out_of_memory(), with 
-my patch, will always get CONSTRAINT_CPUSET when needed and 
-check_panic_on_oom() will behave correctly now for cpusets.
+Patch 3 is to limit zram memory consumption. Now, zram has no bound for
+memory usage so it could consume up all of system memory. It makes system
+memory control for platform hard so I have heard the feature several time.
 
-> We simply don't have the right information at the end of the page
-> fault handler to respect constrained allocations.  Case in point:
-> nodemask is unset from pagefault_out_of_memory(), so we still kill
-> based on mempolicy even though check_panic_on_oom() says it wouldn't.
-> 
+Feedback is welcome!
 
-That is, in fact, the only last bit of information we need in the 
-pagefault handler to make correct decisions.  It's important, too, since 
-if the vma of the faulting address is constrained by a mempolicy, we want 
-to avoid needless killing a process that has a mempolicy with a disjoint 
-set of nodes.
+Minchan Kim (3):
+  zsmalloc: move pages_allocated to zs_pool
+  zsmalloc/zram: add zs_get_max_size_bytes and use it in zram
+  zram: limit memory size for zram
 
-> The code change is not an adequate solution for the problem we have
-> here and the changelog is an insult to everybody who wants to make
-> sense of this from the git history later on.
-> 
+ Documentation/blockdev/zram.txt |  2 ++
+ drivers/block/zram/zram_drv.c   | 58 +++++++++++++++++++++++++++++++++++++++++
+ drivers/block/zram/zram_drv.h   |  1 +
+ include/linux/zsmalloc.h        |  1 +
+ mm/zsmalloc.c                   | 50 +++++++++++++++++++++++++----------
+ 5 files changed, 98 insertions(+), 14 deletions(-)
 
-We can also address mempolicies by modifying the page fault handler and 
-passing the vma and faulting address to make the correct panic_on_oom 
-decisions but also filter processes that have mempolicies that consist 
-solely of a disjoint set of nodes.  I'll post that patch series as well.
+-- 
+2.0.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
