@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BB7B86B0037
-	for <linux-mm@kvack.org>; Wed,  6 Aug 2014 03:11:20 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id ey11so2923298pad.38
-        for <linux-mm@kvack.org>; Wed, 06 Aug 2014 00:11:20 -0700 (PDT)
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A0B56B0039
+	for <linux-mm@kvack.org>; Wed,  6 Aug 2014 03:11:21 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id lf10so2925776pab.2
+        for <linux-mm@kvack.org>; Wed, 06 Aug 2014 00:11:21 -0700 (PDT)
 Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id hj9si125747pac.36.2014.08.06.00.11.18
+        by mx.google.com with ESMTP id v4si59866pdc.139.2014.08.06.00.11.17
         for <linux-mm@kvack.org>;
         Wed, 06 Aug 2014 00:11:19 -0700 (PDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v2 2/8] mm/page_alloc: correct to clear guard attribute in DEBUG_PAGEALLOC
-Date: Wed,  6 Aug 2014 16:18:30 +0900
-Message-Id: <1407309517-3270-5-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 1/8] mm/page_alloc: fix pcp high, batch management
+Date: Wed,  6 Aug 2014 16:18:28 +0900
+Message-Id: <1407309517-3270-3-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1407309517-3270-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1407309517-3270-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,88 +19,231 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-In __free_one_page(), we check the buddy page if it is guard page.
-And, if so, we should clear guard attribute on the buddy page. But,
-currently, we clear original page's order rather than buddy one's.
-This doesn't have any problem, because resetting buddy's order
-is useless and the original page's order is re-assigned soon.
-But, it is better to correct code.
+per cpu pages structure, aka pcp, has high and batch values to control
+how many pages we perform caching. This values could be updated
+asynchronously and updater should ensure that this doesn't make any
+problem. For this purpose, pageset_update() is implemented and do some
+memory synchronization. But, it turns out to be wrong when I implemented
+new feature using this. There is no corresponding smp_rmb() in read-side
+so that it can't guarantee anything. Without correct updating, system
+could hang in free_pcppages_bulk() due to larger batch value than high.
+To properly update this values, we need to synchronization primitives on
+read-side, but, it hurts allocator's fastpath.
 
-Additionally, I change (set/clear)_page_guard_flag() to
-(set/clear)_page_guard() and makes these functions do all works
-needed for guard page. This may make code more understandable.
+There is another choice for synchronization, that is, sending IPI. This
+is somewhat expensive, but, this is really rare case so I guess it has
+no problem here. However, reducing IPI is very helpful here. Current
+logic handles each CPU's pcp update one by one. To reduce sending IPI,
+we need to re-ogranize the code to handle all CPU's pcp update at one go.
+This patch implement these requirements.
 
-One more thing, I did in this patch, is that fixing freepage accounting.
-If we clear guard page and link it onto isolate buddy list, we should
-not increase freepage count.
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/page_alloc.c |   29 ++++++++++++++++-------------
- 1 file changed, 16 insertions(+), 13 deletions(-)
+ mm/page_alloc.c |  139 ++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 80 insertions(+), 59 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 44672dc..3e1e344 100644
+index b99643d4..44672dc 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -441,18 +441,28 @@ static int __init debug_guardpage_minorder_setup(char *buf)
- }
- __setup("debug_guardpage_minorder=", debug_guardpage_minorder_setup);
+@@ -3797,7 +3797,7 @@ static void build_zonelist_cache(pg_data_t *pgdat)
+  * not check if the processor is online before following the pageset pointer.
+  * Other parts of the kernel may not check if the zone is available.
+  */
+-static void setup_pageset(struct per_cpu_pageset *p, unsigned long batch);
++static void setup_pageset(struct per_cpu_pageset __percpu *pcp);
+ static DEFINE_PER_CPU(struct per_cpu_pageset, boot_pageset);
+ static void setup_zone_pageset(struct zone *zone);
  
--static inline void set_page_guard_flag(struct page *page)
-+static inline void set_page_guard(struct zone *zone, struct page *page,
-+				unsigned int order, int migratetype)
+@@ -3843,9 +3843,9 @@ static int __build_all_zonelists(void *data)
+ 	 * needs the percpu allocator in order to allocate its pagesets
+ 	 * (a chicken-egg dilemma).
+ 	 */
+-	for_each_possible_cpu(cpu) {
+-		setup_pageset(&per_cpu(boot_pageset, cpu), 0);
++	setup_pageset(&boot_pageset);
+ 
++	for_each_possible_cpu(cpu) {
+ #ifdef CONFIG_HAVE_MEMORYLESS_NODES
+ 		/*
+ 		 * We now know the "local memory node" for each node--
+@@ -4227,24 +4227,59 @@ static int zone_batchsize(struct zone *zone)
+  * outside of boot time (or some other assurance that no concurrent updaters
+  * exist).
+  */
+-static void pageset_update(struct per_cpu_pages *pcp, unsigned long high,
+-		unsigned long batch)
++static void pageset_update(struct zone *zone, int high, int batch)
  {
- 	__set_bit(PAGE_DEBUG_FLAG_GUARD, &page->debug_flags);
-+	set_page_private(page, order);
-+	/* Guard pages are not available for any usage */
-+	__mod_zone_freepage_state(zone, -(1 << order), migratetype);
+-       /* start with a fail safe value for batch */
+-	pcp->batch = 1;
+-	smp_wmb();
++	int cpu;
++	struct per_cpu_pages *pcp;
++
++	/* start with a fail safe value for batch */
++	for_each_possible_cpu(cpu) {
++		pcp = &per_cpu_ptr(zone->pageset, cpu)->pcp;
++		pcp->batch = 1;
++	}
++	kick_all_cpus_sync();
++
++	/* Update high, then batch, in order */
++	for_each_possible_cpu(cpu) {
++		pcp = &per_cpu_ptr(zone->pageset, cpu)->pcp;
++		pcp->high = high;
++	}
++	kick_all_cpus_sync();
+ 
+-       /* Update high, then batch, in order */
+-	pcp->high = high;
+-	smp_wmb();
++	for_each_possible_cpu(cpu) {
++		pcp = &per_cpu_ptr(zone->pageset, cpu)->pcp;
++		pcp->batch = batch;
++	}
++}
++
++/*
++ * pageset_get_values_by_high() gets the high water mark for
++ * hot per_cpu_pagelist to the value high for the pageset p.
++ */
++static void pageset_get_values_by_high(int input_high,
++				int *output_high, int *output_batch)
++{
++	*output_batch = max(1, input_high / 4);
++	if ((input_high / 4) > (PAGE_SHIFT * 8))
++		*output_batch = PAGE_SHIFT * 8;
++}
+ 
+-	pcp->batch = batch;
++/* a companion to pageset_get_values_by_high() */
++static void pageset_get_values_by_batch(int input_batch,
++				int *output_high, int *output_batch)
++{
++	*output_high = 6 * input_batch;
++	*output_batch = max(1, 1 * input_batch);
  }
  
--static inline void clear_page_guard_flag(struct page *page)
-+static inline void clear_page_guard(struct zone *zone, struct page *page,
-+				unsigned int order, int migratetype)
+-/* a companion to pageset_set_high() */
+-static void pageset_set_batch(struct per_cpu_pageset *p, unsigned long batch)
++static void pageset_get_values(struct zone *zone, int *high, int *batch)
  {
- 	__clear_bit(PAGE_DEBUG_FLAG_GUARD, &page->debug_flags);
-+	set_page_private(page, 0);
-+	if (!is_migrate_isolate(migratetype))
-+		__mod_zone_freepage_state(zone, (1 << order), migratetype);
+-	pageset_update(&p->pcp, 6 * batch, max(1UL, 1 * batch));
++	if (percpu_pagelist_fraction) {
++		pageset_get_values_by_high(
++			(zone->managed_pages / percpu_pagelist_fraction),
++			high, batch);
++	} else
++		pageset_get_values_by_batch(zone_batchsize(zone), high, batch);
  }
- #else
--static inline void set_page_guard_flag(struct page *page) { }
--static inline void clear_page_guard_flag(struct page *page) { }
-+static inline void set_page_guard(struct zone *zone, struct page *page,
-+				unsigned int order, int migratetype) {}
-+static inline void clear_page_guard(struct zone *zone, struct page *page,
-+				unsigned int order, int migratetype) {}
- #endif
  
- static inline void set_page_order(struct page *page, unsigned int order)
-@@ -594,10 +604,7 @@ static inline void __free_one_page(struct page *page,
- 		 * merge with it and move up one order.
- 		 */
- 		if (page_is_guard(buddy)) {
--			clear_page_guard_flag(buddy);
--			set_page_private(page, 0);
--			__mod_zone_freepage_state(zone, 1 << order,
--						  migratetype);
-+			clear_page_guard(zone, buddy, order, migratetype);
- 		} else {
- 			list_del(&buddy->lru);
- 			zone->free_area[order].nr_free--;
-@@ -876,11 +883,7 @@ static inline void expand(struct zone *zone, struct page *page,
- 			 * pages will stay not present in virtual address space
- 			 */
- 			INIT_LIST_HEAD(&page[size].lru);
--			set_page_guard_flag(&page[size]);
--			set_page_private(&page[size], high);
--			/* Guard pages are not available for any usage */
--			__mod_zone_freepage_state(zone, -(1 << high),
--						  migratetype);
-+			set_page_guard(zone, &page[size], high, migratetype);
- 			continue;
- 		}
+ static void pageset_init(struct per_cpu_pageset *p)
+@@ -4260,51 +4295,38 @@ static void pageset_init(struct per_cpu_pageset *p)
+ 		INIT_LIST_HEAD(&pcp->lists[migratetype]);
+ }
+ 
+-static void setup_pageset(struct per_cpu_pageset *p, unsigned long batch)
++/* Use this only in boot time, because it doesn't do any synchronization */
++static void setup_pageset(struct per_cpu_pageset __percpu *pcp)
+ {
+-	pageset_init(p);
+-	pageset_set_batch(p, batch);
+-}
+-
+-/*
+- * pageset_set_high() sets the high water mark for hot per_cpu_pagelist
+- * to the value high for the pageset p.
+- */
+-static void pageset_set_high(struct per_cpu_pageset *p,
+-				unsigned long high)
+-{
+-	unsigned long batch = max(1UL, high / 4);
+-	if ((high / 4) > (PAGE_SHIFT * 8))
+-		batch = PAGE_SHIFT * 8;
+-
+-	pageset_update(&p->pcp, high, batch);
+-}
+-
+-static void pageset_set_high_and_batch(struct zone *zone,
+-				       struct per_cpu_pageset *pcp)
+-{
+-	if (percpu_pagelist_fraction)
+-		pageset_set_high(pcp,
+-			(zone->managed_pages /
+-				percpu_pagelist_fraction));
+-	else
+-		pageset_set_batch(pcp, zone_batchsize(zone));
+-}
++	int cpu;
++	int high, batch;
++	struct per_cpu_pageset *p;
+ 
+-static void __meminit zone_pageset_init(struct zone *zone, int cpu)
+-{
+-	struct per_cpu_pageset *pcp = per_cpu_ptr(zone->pageset, cpu);
++	pageset_get_values_by_batch(0, &high, &batch);
+ 
+-	pageset_init(pcp);
+-	pageset_set_high_and_batch(zone, pcp);
++	for_each_possible_cpu(cpu) {
++		p = per_cpu_ptr(pcp, cpu);
++		pageset_init(p);
++		p->pcp.high = high;
++		p->pcp.batch = batch;
++	}
+ }
+ 
+ static void __meminit setup_zone_pageset(struct zone *zone)
+ {
+ 	int cpu;
++	int high, batch;
++	struct per_cpu_pageset *p;
++
++	pageset_get_values(zone, &high, &batch);
++
+ 	zone->pageset = alloc_percpu(struct per_cpu_pageset);
+-	for_each_possible_cpu(cpu)
+-		zone_pageset_init(zone, cpu);
++	for_each_possible_cpu(cpu) {
++		p = per_cpu_ptr(zone->pageset, cpu);
++		pageset_init(p);
++		p->pcp.high = high;
++		p->pcp.batch = batch;
++	}
+ }
+ 
+ /*
+@@ -5925,11 +5947,10 @@ int percpu_pagelist_fraction_sysctl_handler(struct ctl_table *table, int write,
+ 		goto out;
+ 
+ 	for_each_populated_zone(zone) {
+-		unsigned int cpu;
++		int high, batch;
+ 
+-		for_each_possible_cpu(cpu)
+-			pageset_set_high_and_batch(zone,
+-					per_cpu_ptr(zone->pageset, cpu));
++		pageset_get_values(zone, &high, &batch);
++		pageset_update(zone, high, batch);
+ 	}
+ out:
+ 	mutex_unlock(&pcp_batch_high_lock);
+@@ -6452,11 +6473,11 @@ void free_contig_range(unsigned long pfn, unsigned nr_pages)
+  */
+ void __meminit zone_pcp_update(struct zone *zone)
+ {
+-	unsigned cpu;
++	int high, batch;
++
+ 	mutex_lock(&pcp_batch_high_lock);
+-	for_each_possible_cpu(cpu)
+-		pageset_set_high_and_batch(zone,
+-				per_cpu_ptr(zone->pageset, cpu));
++	pageset_get_values(zone, &high, &batch);
++	pageset_update(zone, high, batch);
+ 	mutex_unlock(&pcp_batch_high_lock);
+ }
  #endif
 -- 
 1.7.9.5
