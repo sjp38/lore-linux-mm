@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 159656B0035
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BB7B86B0037
 	for <linux-mm@kvack.org>; Wed,  6 Aug 2014 03:11:20 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id fa1so2908238pad.41
-        for <linux-mm@kvack.org>; Wed, 06 Aug 2014 00:11:19 -0700 (PDT)
+Received: by mail-pa0-f51.google.com with SMTP id ey11so2923298pad.38
+        for <linux-mm@kvack.org>; Wed, 06 Aug 2014 00:11:20 -0700 (PDT)
 Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id rn6si90463pab.179.2014.08.06.00.11.17
+        by mx.google.com with ESMTP id hj9si125747pac.36.2014.08.06.00.11.18
         for <linux-mm@kvack.org>;
         Wed, 06 Aug 2014 00:11:19 -0700 (PDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v2 1/8] mm/page_alloc: correct to clear guard attribute in DEBUG_PAGEALLOC
-Date: Wed,  6 Aug 2014 16:18:27 +0900
-Message-Id: <1407309517-3270-2-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 2/8] mm/page_alloc: correct to clear guard attribute in DEBUG_PAGEALLOC
+Date: Wed,  6 Aug 2014 16:18:30 +0900
+Message-Id: <1407309517-3270-5-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1407309517-3270-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1407309517-3270-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -41,7 +41,7 @@ Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
  1 file changed, 16 insertions(+), 13 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b99643d4..e6fee4b 100644
+index 44672dc..3e1e344 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -441,18 +441,28 @@ static int __init debug_guardpage_minorder_setup(char *buf)
