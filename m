@@ -1,90 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-	by kanga.kvack.org (Postfix) with ESMTP id C96486B007D
-	for <linux-mm@kvack.org>; Wed,  6 Aug 2014 03:51:31 -0400 (EDT)
-Received: by mail-qg0-f43.google.com with SMTP id a108so2267914qge.2
-        for <linux-mm@kvack.org>; Wed, 06 Aug 2014 00:51:31 -0700 (PDT)
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-        by mx.google.com with ESMTPS id o7si339569qah.89.2014.08.06.00.51.29
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 06 Aug 2014 00:51:30 -0700 (PDT)
-Received: by mail-qg0-f43.google.com with SMTP id a108so2321067qge.30
-        for <linux-mm@kvack.org>; Wed, 06 Aug 2014 00:51:29 -0700 (PDT)
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id D89DF6B0081
+	for <linux-mm@kvack.org>; Wed,  6 Aug 2014 03:52:26 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id fp1so2865470pdb.33
+        for <linux-mm@kvack.org>; Wed, 06 Aug 2014 00:52:26 -0700 (PDT)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id kc13si212157pad.41.2014.08.06.00.52.24
+        for <linux-mm@kvack.org>;
+        Wed, 06 Aug 2014 00:52:25 -0700 (PDT)
+Date: Wed, 6 Aug 2014 16:59:45 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [linux-3.10.17] Could not allocate memory from free CMA areas
+Message-ID: <20140806075945.GA3661@js1304-P5Q-DELUXE>
+References: <54sabdnxop04vxd7ewndc0qf.1407077745645@email.android.com>
+ <003201cfafb3$3fe43180$bfac9480$@lge.com>
+ <BAY169-W348ADD9113F32C2B459631EFE30@phx.gbl>
 MIME-Version: 1.0
-In-Reply-To: <20140805130646.GZ19379@twins.programming.kicks-ass.net>
-References: <20140804103025.478913141@infradead.org>
-	<CALFYKtBo2p5uNtkJZOy_rN7JbdFs1RbB1OfcF7TR+qDaMU0Kvg@mail.gmail.com>
-	<20140805130646.GZ19379@twins.programming.kicks-ass.net>
-Date: Wed, 6 Aug 2014 11:51:29 +0400
-Message-ID: <CALFYKtAVQ9Rgu_QWCqUkNHk4-wbiVK0FeiwLDttaxZC5bnnG5w@mail.gmail.com>
-Subject: Re: [RFC][PATCH 0/7] nested sleeps, fixes and debug infra
-From: Ilya Dryomov <ilya.dryomov@inktank.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <BAY169-W348ADD9113F32C2B459631EFE30@phx.gbl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@kernel.org>, oleg@redhat.com, Linus Torvalds <torvalds@linux-foundation.org>, tglx@linutronix.de, Mike Galbraith <umgwanakikbuti@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, netdev@vger.kernel.org, linux-mm@kvack.org
+To: Pintu Kumar <pintu.k@outlook.com>
+Cc: PINTU KUMAR <pintu_agarwal@yahoo.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "ritesh.list@gmail.com" <ritesh.list@gmail.com>, "mgorman@suse.de" <mgorman@suse.de>, "pintu.k@samsung.com" <pintu.k@samsung.com>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "mina86@mina86.com" <mina86@mina86.com>, "ngupta@vflare.org" <ngupta@vflare.org>, "iqbalblr@gmail.com" <iqbalblr@gmail.com>, "rohit.kr@samsung.com" <rohit.kr@samsung.com>, "vishnu.ps@samsung.com" <vishnu.ps@samsung.com>
 
-On Tue, Aug 5, 2014 at 5:06 PM, Peter Zijlstra <peterz@infradead.org> wrote:
-> On Tue, Aug 05, 2014 at 12:33:16PM +0400, Ilya Dryomov wrote:
->> On Mon, Aug 4, 2014 at 2:30 PM, Peter Zijlstra <peterz@infradead.org> wrote:
->> > Hi,
->> >
->> > Ilya recently tripped over a nested sleep which made Ingo suggest we should
->> > have debug checks for that. So I did some, see patch 7. Of course that
->> > triggered a whole bunch of fail the instant I tried to boot my machine.
->> >
->> > With this series I can boot my test box and build a kernel on it, I'm fairly
->> > sure that's far too limited a test to have found all, but its a start.
->>
->> FWIW, I'm getting a lot of these during light rbd testing.  CC'ed
->> netdev and linux-mm.
->
-> Both are cond_resched() calls, and that's not blocking as such, just a
-> preemption point, so lets exclude those.
+On Tue, Aug 05, 2014 at 08:24:50PM +0530, Pintu Kumar wrote:
+> Hello,
+> 
+> > From: iamjoonsoo.kim@lge.com
+> > To: pintu_agarwal@yahoo.com; linux-mm@kvack.org; linux-arm-kernel@lists.infradead.org; linaro-mm-sig@lists.linaro.org; ritesh.list@gmail.com
+> > CC: pintu.k@outlook.com; pintu.k@samsung.com; vishu_1385@yahoo.com; m.szyprowski@samsung.com; mina86@mina86.com; ngupta@vflare.org; iqbalblr@gmail.com
+> > Subject: RE: [linux-3.10.17] Could not allocate memory from free CMA areas
+> > Date: Mon, 4 Aug 2014 16:11:00 +0900
+> > 
+> >> Dear Joonsoo,
+> >> 
+> >> I tried your changes which are present at the below link. 
+> >> https://github.com/JoonsooKim/linux/tree/cma-fix-up-v3.0-next-20140625
+> >> But unfortunately for me it did not help much. 
+> >> After running various apps that uses ION nonmovable memory, it fails to allocate memory after some time. When I see the pagetypeinfo shows lots of CMA pages available and non-movable were very less and thus nonmovable allocation were failing.
+> > 
+> > Okay. CMA pages cannot be used for nonmovable memory, so it can fail in above case.
+> > 
+> >> However I noticed the failure was little delayed.
+> > 
+> > It is good sign. I guess that there is movable/CMA ratio problem.
+> > My patchset uses free CMA pages in certain ratio to free movable page consumption.
+> > If your system doesn't use movable page sufficiently, free CMA pages cannot
+> > be used fully. Could you test with following workaround?
+> > 
+> > +       if (normal> cma) {
+> > +               zone->max_try_normal = pageblock_nr_pages;
+> > +               zone->max_try_cma = pageblock_nr_pages;
+> > +       } else {
+> > +               zone->max_try_normal = pageblock_nr_pages;
+> > +               zone->max_try_cma = pageblock_nr_pages;
+> > +       }
+> 
+> I applied these changes but still the allocations are failing because there are no non-movable memory left in the system.
 
-OK, this one is a bit different.
+Hello,
 
-WARNING: CPU: 1 PID: 1744 at kernel/sched/core.c:7104 __might_sleep+0x58/0x90()
-do not call blocking ops when !TASK_RUNNING; state=1 set at
-[<ffffffff81070e10>] prepare_to_wait+0x50 /0xa0
-Modules linked in:
-CPU: 1 PID: 1744 Comm: lt-ceph_test_li Not tainted 3.16.0-vm+ #113
-Hardware name: Bochs Bochs, BIOS Bochs 01/01/2007
- 0000000000001bc0 ffff88006c4479d8 ffffffff8156f455 0000000000000000
- ffff88006c447a28 ffff88006c447a18 ffffffff81033357 0000000000000001
- 0000000000000000 0000000000000950 ffffffff817ee48a ffff88006dba6120
-Call Trace:
- [<ffffffff8156f455>] dump_stack+0x4f/0x7c
- [<ffffffff81033357>] warn_slowpath_common+0x87/0xb0
- [<ffffffff81033421>] warn_slowpath_fmt+0x41/0x50
- [<ffffffff81078bb2>] ? trace_hardirqs_on_caller+0x182/0x1f0
- [<ffffffff81070e10>] ? prepare_to_wait+0x50/0xa0
- [<ffffffff81070e10>] ? prepare_to_wait+0x50/0xa0
- [<ffffffff8105bc38>] __might_sleep+0x58/0x90
- [<ffffffff8148c671>] lock_sock_nested+0x31/0xb0
- [<ffffffff8148dfeb>] ? release_sock+0x1bb/0x200
- [<ffffffff81498aaa>] sk_stream_wait_memory+0x18a/0x2d0
- [<ffffffff810709a0>] ? woken_wake_function+0x10/0x10
- [<ffffffff814e058f>] tcp_sendmsg+0xb6f/0xd70
- [<ffffffff81509e9f>] inet_sendmsg+0xdf/0x100
- [<ffffffff81509dc0>] ? inet_recvmsg+0x100/0x100
- [<ffffffff81489f07>] sock_sendmsg+0x67/0x90
- [<ffffffff810fe391>] ? might_fault+0x51/0xb0
- [<ffffffff8148a252>] ___sys_sendmsg+0x2d2/0x2e0
- [<ffffffff811428a0>] ? do_dup2+0xd0/0xd0
- [<ffffffff811428a0>] ? do_dup2+0xd0/0xd0
- [<ffffffff8105bfe0>] ? finish_task_switch+0x50/0x100
- [<ffffffff811429d5>] ? __fget_light+0x45/0x60
- [<ffffffff811429fe>] ? __fdget+0xe/0x10
- [<ffffffff8148ad14>] __sys_sendmsg+0x44/0x70
- [<ffffffff8148ad49>] SyS_sendmsg+0x9/0x10
- [<ffffffff815764d2>] system_call_fastpath+0x16/0x1b
+kswapd doesn't work?
+Please let me know your problem in detail.
 
-Thanks,
+> With the changes I noticed that nr_cma_free sometimes becomes almost zero.
+> But in our case Display/Xorg needs to have atleast 8MB of CMA (contiguous) memory of order-8 and order-4 type.
+> CMA:56MB is shared across display,camera,video etc.
 
-                Ilya
+Used CMA pages will be released automatically when your Display/Xorg
+request them. So you don't need to worry about empty of free CMA pages.
+
+> 
+> I think the previous changes are slightly better.
+> 
+> My concern is that whether I am applying all you changes or missing some thing.
+> I saw that your kernel version is based on next-20140625 but my kernel version is 3.10.17.
+> And till now I applied only the below changes:
+> https://github.com/JoonsooKim/linux/commit/33a0416b3ac1cd7c88e6b35ee61b4a81a7a14afc 
+> 
+> But I haven't applied this:
+> https://github.com/JoonsooKim/linux/commit/166b4186d101b190cf50195d841e2189f2743649
+> (CMA: always treat free cma pages as non-free on watermark checking)
+
+This patch is somewhat related to your failure of non-movable memory
+allocation. It is simple so that you can easily backport.
+
+> These changes have other dependencies which is not present in my kernel version.
+> Like inclusion of ALLOC_FAIR and area->nr_cma_free.
+> Please let me know if these changes are also important for "aggressive alloc changes..."
+> 
+> If possible please send me all the patches related to "aggressive cma.." so that I can conclude on my experiment.
+
+Until now, that's all. :)
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
