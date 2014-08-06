@@ -1,27 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C8AF6B003A
-	for <linux-mm@kvack.org>; Wed,  6 Aug 2014 17:00:59 -0400 (EDT)
-Received: by mail-ie0-f180.google.com with SMTP id at20so3460444iec.25
-        for <linux-mm@kvack.org>; Wed, 06 Aug 2014 14:00:59 -0700 (PDT)
+Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 55A386B003A
+	for <linux-mm@kvack.org>; Wed,  6 Aug 2014 17:02:38 -0400 (EDT)
+Received: by mail-ie0-f171.google.com with SMTP id at1so3584943iec.2
+        for <linux-mm@kvack.org>; Wed, 06 Aug 2014 14:02:38 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id t1si6568660icu.50.2014.08.06.14.00.57
+        by mx.google.com with ESMTPS id av4si6598070igc.18.2014.08.06.14.02.36
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Aug 2014 14:00:57 -0700 (PDT)
-Date: Wed, 6 Aug 2014 14:00:55 -0700
+        Wed, 06 Aug 2014 14:02:37 -0700 (PDT)
+Date: Wed, 6 Aug 2014 14:02:35 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm: memcontrol: rewrite uncharge API
-Message-Id: <20140806140055.40a48055f8797e159a894a68@linux-foundation.org>
-In-Reply-To: <20140806140011.692985b45f8844706b17098e@linux-foundation.org>
+Subject: Re: mm: memcontrol: rewrite uncharge API
+Message-Id: <20140806140235.f8fb69e76454af2ce935dc5b@linux-foundation.org>
+In-Reply-To: <20140806140055.40a48055f8797e159a894a68@linux-foundation.org>
 References: <20140806135914.9fca00159f6e3298c24a4ab3@linux-foundation.org>
 	<20140806140011.692985b45f8844706b17098e@linux-foundation.org>
+	<20140806140055.40a48055f8797e159a894a68@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
+
+On Wed, 6 Aug 2014 14:00:55 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Subject: mm: memcontrol: rewrite uncharge API
+> 
+
+Nope, sorry, that was missing
+mm-memcontrol-rewrite-uncharge-api-fix-clear-page-mapping-in-migration.patch.
+
+This time:
 
 From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: mm: memcontrol: rewrite uncharge API
@@ -99,7 +111,7 @@ Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
  mm/filemap.c                         |    4 
  mm/memcontrol.c                      |  832 +++++++++----------------
  mm/memory.c                          |    2 
- mm/migrate.c                         |   44 -
+ mm/migrate.c                         |   38 -
  mm/rmap.c                            |    1 
  mm/shmem.c                           |    8 
  mm/swap.c                            |    6 
@@ -108,7 +120,7 @@ Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
  mm/truncate.c                        |    9 
  mm/vmscan.c                          |   12 
  mm/zswap.c                           |    2 
- 16 files changed, 394 insertions(+), 771 deletions(-)
+ 16 files changed, 390 insertions(+), 769 deletions(-)
 
 diff -puN Documentation/cgroups/memcg_test.txt~mm-memcontrol-rewrite-uncharge-api Documentation/cgroups/memcg_test.txt
 --- a/Documentation/cgroups/memcg_test.txt~mm-memcontrol-rewrite-uncharge-api
@@ -1639,24 +1651,15 @@ diff -puN mm/memory.c~mm-memcontrol-rewrite-uncharge-api mm/memory.c
 diff -puN mm/migrate.c~mm-memcontrol-rewrite-uncharge-api mm/migrate.c
 --- a/mm/migrate.c~mm-memcontrol-rewrite-uncharge-api
 +++ a/mm/migrate.c
-@@ -778,11 +778,14 @@ static int move_to_new_page(struct page
- 		rc = fallback_migrate_page(mapping, newpage, page, mode);
- 
+@@ -780,6 +780,7 @@ static int move_to_new_page(struct page
  	if (rc != MIGRATEPAGE_SUCCESS) {
--		newpage->mapping = NULL;
-+		if (!PageAnon(newpage))
-+			newpage->mapping = NULL;
+ 		newpage->mapping = NULL;
  	} else {
 +		mem_cgroup_migrate(page, newpage, false);
  		if (remap_swapcache)
  			remove_migration_ptes(page, newpage);
--		page->mapping = NULL;
-+		if (!PageAnon(page))
-+			page->mapping = NULL;
- 	}
- 
- 	unlock_page(newpage);
-@@ -795,7 +798,6 @@ static int __unmap_and_move(struct page
+ 		page->mapping = NULL;
+@@ -795,7 +796,6 @@ static int __unmap_and_move(struct page
  {
  	int rc = -EAGAIN;
  	int remap_swapcache = 1;
@@ -1664,7 +1667,7 @@ diff -puN mm/migrate.c~mm-memcontrol-rewrite-uncharge-api mm/migrate.c
  	struct anon_vma *anon_vma = NULL;
  
  	if (!trylock_page(page)) {
-@@ -821,9 +823,6 @@ static int __unmap_and_move(struct page
+@@ -821,9 +821,6 @@ static int __unmap_and_move(struct page
  		lock_page(page);
  	}
  
@@ -1674,7 +1677,7 @@ diff -puN mm/migrate.c~mm-memcontrol-rewrite-uncharge-api mm/migrate.c
  	if (PageWriteback(page)) {
  		/*
  		 * Only in the case of a full synchronous migration is it
-@@ -833,10 +832,10 @@ static int __unmap_and_move(struct page
+@@ -833,10 +830,10 @@ static int __unmap_and_move(struct page
  		 */
  		if (mode != MIGRATE_SYNC) {
  			rc = -EBUSY;
@@ -1687,7 +1690,7 @@ diff -puN mm/migrate.c~mm-memcontrol-rewrite-uncharge-api mm/migrate.c
  		wait_on_page_writeback(page);
  	}
  	/*
-@@ -872,7 +871,7 @@ static int __unmap_and_move(struct page
+@@ -872,7 +869,7 @@ static int __unmap_and_move(struct page
  			 */
  			remap_swapcache = 0;
  		} else {
@@ -1696,7 +1699,7 @@ diff -puN mm/migrate.c~mm-memcontrol-rewrite-uncharge-api mm/migrate.c
  		}
  	}
  
-@@ -885,7 +884,7 @@ static int __unmap_and_move(struct page
+@@ -885,7 +882,7 @@ static int __unmap_and_move(struct page
  		 * the page migration right away (proteced by page lock).
  		 */
  		rc = balloon_page_migrate(newpage, page, mode);
@@ -1705,7 +1708,7 @@ diff -puN mm/migrate.c~mm-memcontrol-rewrite-uncharge-api mm/migrate.c
  	}
  
  	/*
-@@ -904,7 +903,7 @@ static int __unmap_and_move(struct page
+@@ -904,7 +901,7 @@ static int __unmap_and_move(struct page
  		VM_BUG_ON_PAGE(PageAnon(page), page);
  		if (page_has_private(page)) {
  			try_to_free_buffers(page);
@@ -1714,7 +1717,7 @@ diff -puN mm/migrate.c~mm-memcontrol-rewrite-uncharge-api mm/migrate.c
  		}
  		goto skip_unmap;
  	}
-@@ -923,10 +922,7 @@ skip_unmap:
+@@ -923,10 +920,7 @@ skip_unmap:
  	if (anon_vma)
  		put_anon_vma(anon_vma);
  
@@ -1726,7 +1729,7 @@ diff -puN mm/migrate.c~mm-memcontrol-rewrite-uncharge-api mm/migrate.c
  	unlock_page(page);
  out:
  	return rc;
-@@ -1786,7 +1782,6 @@ int migrate_misplaced_transhuge_page(str
+@@ -1786,7 +1780,6 @@ int migrate_misplaced_transhuge_page(str
  	pg_data_t *pgdat = NODE_DATA(node);
  	int isolated = 0;
  	struct page *new_page = NULL;
@@ -1734,7 +1737,7 @@ diff -puN mm/migrate.c~mm-memcontrol-rewrite-uncharge-api mm/migrate.c
  	int page_lru = page_is_file_cache(page);
  	unsigned long mmun_start = address & HPAGE_PMD_MASK;
  	unsigned long mmun_end = mmun_start + HPAGE_PMD_SIZE;
-@@ -1852,15 +1847,6 @@ fail_putback:
+@@ -1852,15 +1845,6 @@ fail_putback:
  		goto out_unlock;
  	}
  
@@ -1750,7 +1753,7 @@ diff -puN mm/migrate.c~mm-memcontrol-rewrite-uncharge-api mm/migrate.c
  	orig_entry = *pmd;
  	entry = mk_pmd(new_page, vma->vm_page_prot);
  	entry = pmd_mkhuge(entry);
-@@ -1888,14 +1874,10 @@ fail_putback:
+@@ -1888,14 +1872,10 @@ fail_putback:
  		goto fail_putback;
  	}
  
