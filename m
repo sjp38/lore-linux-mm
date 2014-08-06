@@ -1,77 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C78E6B00A0
-	for <linux-mm@kvack.org>; Wed,  6 Aug 2014 10:12:46 -0400 (EDT)
-Received: by mail-qg0-f50.google.com with SMTP id q108so2696001qgd.37
-        for <linux-mm@kvack.org>; Wed, 06 Aug 2014 07:12:46 -0700 (PDT)
-Received: from qmta01.emeryville.ca.mail.comcast.net (qmta01.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:16])
-        by mx.google.com with ESMTP id hl16si1771727qcb.1.2014.08.06.07.12.45
-        for <linux-mm@kvack.org>;
-        Wed, 06 Aug 2014 07:12:45 -0700 (PDT)
-Date: Wed, 6 Aug 2014 09:12:39 -0500 (CDT)
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: vmstat: On demand vmstat workers V8
-In-Reply-To: <53E159F6.7080603@oracle.com>
-Message-ID: <alpine.DEB.2.11.1408060908580.4346@gentwo.org>
-References: <alpine.DEB.2.11.1407100903130.12483@gentwo.org> <53D31101.8000107@oracle.com> <53DFFD28.2030502@oracle.com> <alpine.DEB.2.11.1408050950390.16902@gentwo.org> <53E159F6.7080603@oracle.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 551436B00A1
+	for <linux-mm@kvack.org>; Wed,  6 Aug 2014 11:12:29 -0400 (EDT)
+Received: by mail-wi0-f169.google.com with SMTP id n3so9770419wiv.2
+        for <linux-mm@kvack.org>; Wed, 06 Aug 2014 08:12:28 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ck20si2206036wjb.112.2014.08.06.08.12.26
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 06 Aug 2014 08:12:27 -0700 (PDT)
+Message-ID: <53E245D4.9080506@suse.cz>
+Date: Wed, 06 Aug 2014 17:12:20 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 5/8] mm/isolation: change pageblock isolation logic
+ to fix freepage counting bugs
+References: <1407309517-3270-1-git-send-email-iamjoonsoo.kim@lge.com> <1407309517-3270-9-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1407309517-3270-9-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: akpm@linux-foundation.org, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org, peterz@infradead.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 5 Aug 2014, Sasha Levin wrote:
+On 08/06/2014 09:18 AM, Joonsoo Kim wrote:
+> Overall design of changed pageblock isolation logic is as following.
 
-> I can easily trigger it by cranking up the cpu hotplug code. Just try to
-> frequently offline and online cpus, it should reproduce quickly.
+I'll reply here since the overall design part is described in this patch 
+(would be worth to have it in cover letter as well IMHO).
 
-Thats what I thought.
+> 1. ISOLATION
+> - check pageblock is suitable for pageblock isolation.
+> - change migratetype of pageblock to MIGRATE_ISOLATE.
+> - disable pcp list.
 
-The test was done with this fix applied right?
+Is it needed to disable the pcp list? Shouldn't drain be enough? After 
+the drain you already are sure that future freeing will see 
+MIGRATE_ISOLATE and skip pcp list anyway, so why disable it completely?
 
+> - drain pcp list.
+> - pcp couldn't have any freepage at this point.
+> - synchronize all cpus to see correct migratetype.
 
-Subject: vmstat ondemand: Fix online/offline races
+This synchronization should already happen through the drain, no?
 
-Do not allow onlining/offlining while the shepherd task is checking
-for vmstat threads.
+> - freed pages on this pageblock will be handled specially and
+> not added to buddy list from here. With this way, there is no
+> possibility of merging pages on different buddy list.
+> - move freepages on normal buddy list to isolate buddy list.
 
-On offlining a processor do the right thing cancelling the vmstat
-worker thread if it exista and also exclude it from the shepherd
-process checks.
+Is there any advantage of moving the pages to isolate buddy list at this 
+point, when we already have the new PageIsolated marking? Maybe not 
+right now, but could this be later replaced by just splitting and 
+marking PageIsolated the pages from normal buddy list? I guess memory 
+hot-remove does not benefit from having buddy-merged pages and CMA 
+probably also doesn't?
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+> There is no page on isolate buddy list so move_freepages_block()
+> returns number of moved freepages correctly.
+> - enable pcp list.
+>
+> 2. TEST-ISOLATION
+> - activates freepages marked as PageIsolated() and add to isolate
+> buddy list.
+> - test if pageblock is properly isolated.
+>
+> 3. UNDO-ISOLATION
+> - move freepages from isolate buddy list to normal buddy list.
+> There is no page on normal buddy list so move_freepages_block()
+> return number of moved freepages correctly.
+> - change migratetype of pageblock to normal migratetype
+> - synchronize all cpus.
+> - activate isolated freepages and add to normal buddy list.
 
-Index: linux/mm/vmstat.c
-===================================================================
---- linux.orig/mm/vmstat.c	2014-07-30 09:35:54.602662306 -0500
-+++ linux/mm/vmstat.c	2014-07-30 09:43:07.109037043 -0500
-@@ -1317,6 +1317,7 @@ static void vmstat_shepherd(struct work_
- {
- 	int cpu;
+The lack of pcp list deactivation in the undo part IMHO suggests that it 
+is indeed not needed.
 
-+	get_online_cpus();
- 	/* Check processors whose vmstat worker threads have been disabled */
- 	for_each_cpu(cpu, cpu_stat_off)
- 		if (need_update(cpu) &&
-@@ -1325,6 +1326,7 @@ static void vmstat_shepherd(struct work_
- 			schedule_delayed_work_on(cpu, &per_cpu(vmstat_work, cpu),
- 				__round_jiffies_relative(sysctl_stat_interval, cpu));
+> With this patch, most of freepage counting bugs are solved and
+> exceptional handling for freepage count is done in pageblock isolation
+> logic rather than allocator.
 
-+	put_online_cpus();
-
- 	schedule_delayed_work(&shepherd,
- 		round_jiffies_relative(sysctl_stat_interval));
-@@ -1380,8 +1382,8 @@ static int vmstat_cpuup_callback(struct
- 		break;
- 	case CPU_DOWN_PREPARE:
- 	case CPU_DOWN_PREPARE_FROZEN:
--		if (!cpumask_test_and_set_cpu(cpu, cpu_stat_off))
--			cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
-+		cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
-+		cpumask_clear_cpu(cpu, cpu_stat_off);
- 		break;
- 	case CPU_DOWN_FAILED:
- 	case CPU_DOWN_FAILED_FROZEN:
+\o/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
