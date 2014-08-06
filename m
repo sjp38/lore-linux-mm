@@ -1,100 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id D89DF6B0081
-	for <linux-mm@kvack.org>; Wed,  6 Aug 2014 03:52:26 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id fp1so2865470pdb.33
-        for <linux-mm@kvack.org>; Wed, 06 Aug 2014 00:52:26 -0700 (PDT)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id kc13si212157pad.41.2014.08.06.00.52.24
-        for <linux-mm@kvack.org>;
-        Wed, 06 Aug 2014 00:52:25 -0700 (PDT)
-Date: Wed, 6 Aug 2014 16:59:45 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [linux-3.10.17] Could not allocate memory from free CMA areas
-Message-ID: <20140806075945.GA3661@js1304-P5Q-DELUXE>
-References: <54sabdnxop04vxd7ewndc0qf.1407077745645@email.android.com>
- <003201cfafb3$3fe43180$bfac9480$@lge.com>
- <BAY169-W348ADD9113F32C2B459631EFE30@phx.gbl>
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 971D16B0083
+	for <linux-mm@kvack.org>; Wed,  6 Aug 2014 04:31:50 -0400 (EDT)
+Received: by mail-wg0-f43.google.com with SMTP id l18so2163058wgh.26
+        for <linux-mm@kvack.org>; Wed, 06 Aug 2014 01:31:49 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id q14si9703248wie.61.2014.08.06.01.31.48
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Aug 2014 01:31:49 -0700 (PDT)
+Date: Wed, 6 Aug 2014 10:31:34 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC][PATCH 0/7] nested sleeps, fixes and debug infra
+Message-ID: <20140806083134.GQ9918@twins.programming.kicks-ass.net>
+References: <20140804103025.478913141@infradead.org>
+ <CALFYKtBo2p5uNtkJZOy_rN7JbdFs1RbB1OfcF7TR+qDaMU0Kvg@mail.gmail.com>
+ <20140805130646.GZ19379@twins.programming.kicks-ass.net>
+ <CALFYKtAVQ9Rgu_QWCqUkNHk4-wbiVK0FeiwLDttaxZC5bnnG5w@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="drkdbItNQN0oJM6x"
 Content-Disposition: inline
-In-Reply-To: <BAY169-W348ADD9113F32C2B459631EFE30@phx.gbl>
+In-Reply-To: <CALFYKtAVQ9Rgu_QWCqUkNHk4-wbiVK0FeiwLDttaxZC5bnnG5w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pintu Kumar <pintu.k@outlook.com>
-Cc: PINTU KUMAR <pintu_agarwal@yahoo.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "ritesh.list@gmail.com" <ritesh.list@gmail.com>, "mgorman@suse.de" <mgorman@suse.de>, "pintu.k@samsung.com" <pintu.k@samsung.com>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "mina86@mina86.com" <mina86@mina86.com>, "ngupta@vflare.org" <ngupta@vflare.org>, "iqbalblr@gmail.com" <iqbalblr@gmail.com>, "rohit.kr@samsung.com" <rohit.kr@samsung.com>, "vishnu.ps@samsung.com" <vishnu.ps@samsung.com>
+To: Ilya Dryomov <ilya.dryomov@inktank.com>
+Cc: Ingo Molnar <mingo@kernel.org>, oleg@redhat.com, Linus Torvalds <torvalds@linux-foundation.org>, tglx@linutronix.de, Mike Galbraith <umgwanakikbuti@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, netdev@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Aug 05, 2014 at 08:24:50PM +0530, Pintu Kumar wrote:
-> Hello,
-> 
-> > From: iamjoonsoo.kim@lge.com
-> > To: pintu_agarwal@yahoo.com; linux-mm@kvack.org; linux-arm-kernel@lists.infradead.org; linaro-mm-sig@lists.linaro.org; ritesh.list@gmail.com
-> > CC: pintu.k@outlook.com; pintu.k@samsung.com; vishu_1385@yahoo.com; m.szyprowski@samsung.com; mina86@mina86.com; ngupta@vflare.org; iqbalblr@gmail.com
-> > Subject: RE: [linux-3.10.17] Could not allocate memory from free CMA areas
-> > Date: Mon, 4 Aug 2014 16:11:00 +0900
-> > 
-> >> Dear Joonsoo,
-> >> 
-> >> I tried your changes which are present at the below link. 
-> >> https://github.com/JoonsooKim/linux/tree/cma-fix-up-v3.0-next-20140625
-> >> But unfortunately for me it did not help much. 
-> >> After running various apps that uses ION nonmovable memory, it fails to allocate memory after some time. When I see the pagetypeinfo shows lots of CMA pages available and non-movable were very less and thus nonmovable allocation were failing.
-> > 
-> > Okay. CMA pages cannot be used for nonmovable memory, so it can fail in above case.
-> > 
-> >> However I noticed the failure was little delayed.
-> > 
-> > It is good sign. I guess that there is movable/CMA ratio problem.
-> > My patchset uses free CMA pages in certain ratio to free movable page consumption.
-> > If your system doesn't use movable page sufficiently, free CMA pages cannot
-> > be used fully. Could you test with following workaround?
-> > 
-> > +       if (normal> cma) {
-> > +               zone->max_try_normal = pageblock_nr_pages;
-> > +               zone->max_try_cma = pageblock_nr_pages;
-> > +       } else {
-> > +               zone->max_try_normal = pageblock_nr_pages;
-> > +               zone->max_try_cma = pageblock_nr_pages;
-> > +       }
-> 
-> I applied these changes but still the allocations are failing because there are no non-movable memory left in the system.
 
-Hello,
+--drkdbItNQN0oJM6x
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-kswapd doesn't work?
-Please let me know your problem in detail.
+On Wed, Aug 06, 2014 at 11:51:29AM +0400, Ilya Dryomov wrote:
 
-> With the changes I noticed that nr_cma_free sometimes becomes almost zero.
-> But in our case Display/Xorg needs to have atleast 8MB of CMA (contiguous) memory of order-8 and order-4 type.
-> CMA:56MB is shared across display,camera,video etc.
+> OK, this one is a bit different.
+>=20
+> WARNING: CPU: 1 PID: 1744 at kernel/sched/core.c:7104 __might_sleep+0x58/=
+0x90()
+> do not call blocking ops when !TASK_RUNNING; state=3D1 set at [<ffffffff8=
+1070e10>] prepare_to_wait+0x50 /0xa0
 
-Used CMA pages will be released automatically when your Display/Xorg
-request them. So you don't need to worry about empty of free CMA pages.
+>  [<ffffffff8105bc38>] __might_sleep+0x58/0x90
+>  [<ffffffff8148c671>] lock_sock_nested+0x31/0xb0
+>  [<ffffffff81498aaa>] sk_stream_wait_memory+0x18a/0x2d0
 
-> 
-> I think the previous changes are slightly better.
-> 
-> My concern is that whether I am applying all you changes or missing some thing.
-> I saw that your kernel version is based on next-20140625 but my kernel version is 3.10.17.
-> And till now I applied only the below changes:
-> https://github.com/JoonsooKim/linux/commit/33a0416b3ac1cd7c88e6b35ee61b4a81a7a14afc 
-> 
-> But I haven't applied this:
-> https://github.com/JoonsooKim/linux/commit/166b4186d101b190cf50195d841e2189f2743649
-> (CMA: always treat free cma pages as non-free on watermark checking)
+Urgh, tedious. Its not an actual bug as is. Due to the condition check
+in sk_wait_event() we can call lock_sock() with ->state !=3D TASK_RUNNING.
 
-This patch is somewhat related to your failure of non-movable memory
-allocation. It is simple so that you can easily backport.
+I'm not entirely sure what the cleanest way is to make this go away.
+Possibly something like so:
 
-> These changes have other dependencies which is not present in my kernel version.
-> Like inclusion of ALLOC_FAIR and area->nr_cma_free.
-> Please let me know if these changes are also important for "aggressive alloc changes..."
-> 
-> If possible please send me all the patches related to "aggressive cma.." so that I can conclude on my experiment.
+---
+ include/net/sock.h | 1 +
+ 1 file changed, 1 insertion(+)
 
-Until now, that's all. :)
+diff --git a/include/net/sock.h b/include/net/sock.h
+index 156350745700..37902176c5ab 100644
+--- a/include/net/sock.h
++++ b/include/net/sock.h
+@@ -886,6 +886,7 @@ static inline void sock_rps_reset_rxhash(struct sock *s=
+k)
+ 		if (!__rc) {						\
+ 			*(__timeo) =3D schedule_timeout(*(__timeo));	\
+ 		}							\
++		__set_current_state(TASK_RUNNING);			\
+ 		lock_sock(__sk);					\
+ 		__rc =3D __condition;					\
+ 		__rc;							\
 
-Thanks.
+--drkdbItNQN0oJM6x
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBAgAGBQJT4efmAAoJEHZH4aRLwOS6I34P/1M9kv4XWsJQ1212C7VdvPNQ
+r1MiM7bAVrtPv7MWje2rwEna+VF1AqSKbr/zCFQsh/84aJuxr1VFyZP/GJVd68y2
+NDJeCv8E7fc8SsOOJTr765Y59R+ATVgLhqSldPJf1/vA+iCwtGa6qfIAsoebQpvL
+iFOIHAz05uy1zULn4QkOuSFVyC3o1QRls/xl/sPAd/7TaCrdp+rNKPzTYpwf5nZ2
+GBuxXo1QN8yw/OOjpI5kCd2f6cThxA+x4T7W4eB1Y0I8FzCLyRQSdIgvPYUw++q+
+oE1o847OigYu3ZXpf0Y1M0Di2K0KbZGAqqQD1KYJlgJ5F9Mvh9Smhlv9rhuMX+LW
+n5AyVbGqO3FOhv2qYbh8pu8HUGH2EkGJ5LXHs0HXsy0mugYPvECqExdDfc3CsCrc
+A3z0va5V3GnXxWwlyql0wyNafV2wt8V4uS5+IMOlM93iqIUKjkeXnfoI/bY81zNP
+/R/ZCo5Cxhw3lxuAD9Z7h3hdFerEamXzv9OwTHnRhIFaiUpgf80oJDYspjltzTQ0
+FhbQnwnrQrv5c6qAzgWbVquxsICVD1JGMgxHHKzo4RbAiUpeRuXhuyQulNsTW6iJ
+6CJXBzGddI+0GVOmoKL5LZ7x0ElXfpZK4VurUrMDhZzM/uo7T2G1jsvuRk0nCp/j
+0sAXGcA7RBRxqLig5KOc
+=FPkg
+-----END PGP SIGNATURE-----
+
+--drkdbItNQN0oJM6x--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
