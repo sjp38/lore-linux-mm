@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E7FB16B003A
-	for <linux-mm@kvack.org>; Wed,  6 Aug 2014 03:11:21 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so2939847pab.33
-        for <linux-mm@kvack.org>; Wed, 06 Aug 2014 00:11:21 -0700 (PDT)
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 884726B003B
+	for <linux-mm@kvack.org>; Wed,  6 Aug 2014 03:11:22 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id fa1so2941641pad.27
+        for <linux-mm@kvack.org>; Wed, 06 Aug 2014 00:11:22 -0700 (PDT)
 Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id rz4si89813pab.184.2014.08.06.00.11.18
+        by mx.google.com with ESMTP id ra8si119783pbb.56.2014.08.06.00.11.18
         for <linux-mm@kvack.org>;
         Wed, 06 Aug 2014 00:11:19 -0700 (PDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v2 3/8] mm/isolation: remove unstable check for isolated page
-Date: Wed,  6 Aug 2014 16:18:31 +0900
-Message-Id: <1407309517-3270-6-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 2/8] mm/isolation: remove unstable check for isolated page
+Date: Wed,  6 Aug 2014 16:18:29 +0900
+Message-Id: <1407309517-3270-4-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1407309517-3270-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1407309517-3270-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
