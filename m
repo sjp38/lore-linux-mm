@@ -1,83 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f51.google.com (mail-oi0-f51.google.com [209.85.218.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A55A96B0035
-	for <linux-mm@kvack.org>; Thu,  7 Aug 2014 09:03:10 -0400 (EDT)
-Received: by mail-oi0-f51.google.com with SMTP id g201so2605173oib.38
-        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 06:03:10 -0700 (PDT)
-Received: from mail-oi0-x234.google.com (mail-oi0-x234.google.com [2607:f8b0:4003:c06::234])
-        by mx.google.com with ESMTPS id rm3si7155154obc.59.2014.08.07.06.03.09
+Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
+	by kanga.kvack.org (Postfix) with ESMTP id C2C796B0035
+	for <linux-mm@kvack.org>; Thu,  7 Aug 2014 09:04:24 -0400 (EDT)
+Received: by mail-we0-f179.google.com with SMTP id u57so4158777wes.24
+        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 06:04:24 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ck1si8334470wib.31.2014.08.07.06.04.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 07 Aug 2014 06:03:09 -0700 (PDT)
-Received: by mail-oi0-f52.google.com with SMTP id h136so2650478oig.11
-        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 06:03:09 -0700 (PDT)
+        Thu, 07 Aug 2014 06:04:23 -0700 (PDT)
+Message-ID: <53E37953.4000506@suse.cz>
+Date: Thu, 07 Aug 2014 15:04:19 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CAMuHMdVC8aYwDEHnntshdVA24Nx3qAUXZfeRQNGqj=J6eExU-Q@mail.gmail.com>
-References: <CAMuHMdW2kb=EF-Nmem_gyUu=p7hFOTe+Q2ekHh41SaHHiWDGeg@mail.gmail.com>
-	<CAAmzW4MX2birtCOUxjDdQ7c3Y+RyVkBt383HEQ=XFgnhhOsQPw@mail.gmail.com>
-	<CAMuHMdVC8aYwDEHnntshdVA24Nx3qAUXZfeRQNGqj=J6eExU-Q@mail.gmail.com>
-Date: Thu, 7 Aug 2014 22:03:09 +0900
-Message-ID: <CAAmzW4NWnMeO+Z3CQ=9Z7rUFLaPmR-w0iMhxzjO+PVgVu7OMuQ@mail.gmail.com>
-Subject: Re: BUG: enable_cpucache failed for radix_tree_node, error 12 (was:
- Re: [PATCH v3 9/9] slab: remove BAD_ALIEN_MAGIC)
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH v2 5/8] mm/isolation: change pageblock isolation logic
+ to fix freepage counting bugs
+References: <1407309517-3270-1-git-send-email-iamjoonsoo.kim@lge.com>	<1407309517-3270-9-git-send-email-iamjoonsoo.kim@lge.com>	<53E245D4.9080506@suse.cz>	<20140807081945.GA2427@js1304-P5Q-DELUXE>	<53E33E6D.1080002@suse.cz> <CAAmzW4MoARz7Mp_Y1PUEQEJnMouKighgUOHaQH63B+6eKiA9nw@mail.gmail.com>
+In-Reply-To: <CAAmzW4MoARz7Mp_Y1PUEQEJnMouKighgUOHaQH63B+6eKiA9nw@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Vladimir Davydov <vdavydov@parallels.com>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-2014-08-07 21:53 GMT+09:00 Geert Uytterhoeven <geert@linux-m68k.org>:
-> Hi,
->
-> On Thu, Aug 7, 2014 at 2:36 PM, Joonsoo Kim <js1304@gmail.com> wrote:
->>> With latest mainline, I'm getting a crash during bootup on m68k/ARAnyM:
->>>
->>> enable_cpucache failed for radix_tree_node, error 12.
->>> kernel BUG at /scratch/geert/linux/linux-m68k/mm/slab.c:1522!
->
->>> I bisected it to commit a640616822b2c3a8009b0600f20c4a76ea8a0025
->>> Author: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->>> Date:   Wed Aug 6 16:04:38 2014 -0700
->>>
->>>     slab: remove BAD_ALIEN_MAGIC
->
->> This patch only works for !NUMA. And if num_possible_nodes() is 1,
->> then it doesn't have any effect, because alloc_alien_cache() call is always
->> skipped. Is it possible !NUMA and num_possible_nodes() != 1?
+On 08/07/2014 02:26 PM, Joonsoo Kim wrote:
+> 2014-08-07 17:53 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
+>> Ah, right. I thought that everything going to pcp lists would be through
+>> freeing which would already observe the isolate migratetype and skip
+>> pcplist. I forgot about the direct filling of pcplists from buddy list.
+>> You're right that we don't want extra hooks there.
 >>
->> Could you check your config for CONFIG_NUMA and
->> CONFIG_NODES_SHIFT?
+>> Still, couldn't this be solved in a simpler way via another pcplist drain
+>> after the pages are moved from normal to isolate buddy list? Should be even
+>> faster because instead of disable - drain - enable (5 all-cpu kicks, since
+>> each pageset_update does 2 kicks) you have drain - drain (2 kicks). While
+>> it's true that pageset_update is single-zone operation, I guess we would
+>> easily benefit from having a single-zone drain operation as well.
 >
-> $ grep CONFIG_NUMA .config
-> $ grep CONFIG_NODES_SHIFT .config
-> CONFIG_NODES_SHIFT=3
-> $
+> I hope so, but, it's not possible. Consider following situation.
 >
-> There are indeed multiple nodes:
+> Page A: on pcplist of CPU2 and it is on isolate pageblock.
 >
-> On node 0 totalpages: 3584
-> free_area_init_node: node 0, pgdat 003659a4, node_mem_map 00402000
->   DMA zone: 32 pages used for memmap
->   DMA zone: 0 pages reserved
->   DMA zone: 3584 pages, LIFO batch:0
-> On node 1 totalpages: 65536
-> free_area_init_node: node 1, pgdat 00366294, node_mem_map 00426090
->   DMA zone: 576 pages used for memmap
->   DMA zone: 0 pages reserved
->   DMA zone: 65536 pages, LIFO batch:15
+> CPU 1                   CPU 2
+> drain pcplist
+> wait IPI finished     move A to normal buddy list
+> finish IPI
+>                              A is moved to pcplist by allocation request
 >
->> And, could you check booting with boot param "noaliencache"?
+> move doesn't catch A,
+> because it is on pcplist.
 >
-> That fixes the boot, too.
+> drain pcplist
+> wait IPI finished     move A to normal buddy list
+> finish IPI
+>                              A is moved to pcplist by allocation request
+>
+> repeat!!
+>
+> It could happen infinitely, though, low possibility.
 
-Ah... I don't know it can be possible to be !CONFIG_NUMA and
-CONFIG_NODES_SHIFT > 0 until now. If so, I should revert this patch.
+Hm I see. Not a correctness issue, but still a failure to isolate. 
+Probably not impossible with enough CPU's and considering the fact that 
+after pcplists are drained, the next allocation request will try to 
+refill them. And during the drain, the pages are added to the beginning 
+of the free_list AFAICS, so they will be in the first refill batch.
 
-After some more investigation, I will revert this patch tomorrow and
-notify you.
+OK, another attempt for alternative solution proposal :) It's not that I 
+would think disabling pcp would be so bad, just want to be sure there is 
+no better alternative.
 
-Thanks for reporting!!! :)
+What if the drain operation had a flag telling it to recheck pageblock 
+migratetype and don't assume it's on the correct pcplist. Then the 
+problem would go away I think? Would it be possible to do without 
+affecting the normal drain-pcplist-when-full path? So that the cost is 
+only applied to isolation, but lower cost than pcplist disabling.
+
+Actually I look that free_pcppages_bulk() doesn't consider migratetype 
+of the pcplist, but uses get_freepage_migratetype(page). So the pcplist 
+drain could first scan the pcplists and rewrite the freepage_migratetype 
+according to pageblock_migratetype. Then the free_pcppages_bulk() 
+operation would be unchanged for normal operation.
+
+Or is this too clumsy? We could be also smart and have an alternative to 
+free_pcppages_bulk() which would omit the round-robin stuff (not needed 
+for this kind of drain), and have a pfn range to limit its operation to 
+pages that we are isolating.
+
+Hm I guess with this approach some pages might still escape us if they 
+were moving between normal buddy list and pcplist through rmqueue_bulk() 
+and free_pcppages_bulk() (and not through our drain) at the wrong 
+moments, but I guess that would require a really specific workload 
+(alternating between burst of allocations and deallocations) and 
+consistently unlucky timing.
+
+> Thanks.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
