@@ -1,239 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 423AB6B0035
-	for <linux-mm@kvack.org>; Thu,  7 Aug 2014 10:21:40 -0400 (EDT)
-Received: by mail-wg0-f45.google.com with SMTP id x12so4192866wgg.28
-        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 07:21:39 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id l1si16336460wif.13.2014.08.07.07.21.37
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 04A126B0035
+	for <linux-mm@kvack.org>; Thu,  7 Aug 2014 10:34:46 -0400 (EDT)
+Received: by mail-we0-f177.google.com with SMTP id w62so4337882wes.36
+        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 07:34:46 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id lj18si8645603wic.98.2014.08.07.07.34.45
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 07 Aug 2014 07:21:38 -0700 (PDT)
-Date: Thu, 7 Aug 2014 10:21:31 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 0/4] mm: memcontrol: populate unified hierarchy interface
-Message-ID: <20140807142131.GC14734@cmpxchg.org>
-References: <1407186897-21048-1-git-send-email-hannes@cmpxchg.org>
- <20140805124033.GF15908@dhcp22.suse.cz>
- <20140805135325.GB14734@cmpxchg.org>
- <20140805152740.GI15908@dhcp22.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 07 Aug 2014 07:34:45 -0700 (PDT)
+Message-ID: <53E38E81.3030301@suse.cz>
+Date: Thu, 07 Aug 2014 16:34:41 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140805152740.GI15908@dhcp22.suse.cz>
+Subject: Re: [PATCH v2 4/8] mm/isolation: close the two race problems related
+ to pageblock isolation
+References: <1407309517-3270-1-git-send-email-iamjoonsoo.kim@lge.com> <1407309517-3270-8-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1407309517-3270-8-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Aug 05, 2014 at 05:27:40PM +0200, Michal Hocko wrote:
-> On Tue 05-08-14 09:53:25, Johannes Weiner wrote:
-> > On Tue, Aug 05, 2014 at 02:40:33PM +0200, Michal Hocko wrote:
-> > > On Mon 04-08-14 17:14:53, Johannes Weiner wrote:
-> > > > Hi,
-> > > > 
-> > > > the ongoing versioning of the cgroup user interface gives us a chance
-> > > > to clean up the memcg control interface and fix a lot of
-> > > > inconsistencies and ugliness that crept in over time.
-> > > 
-> > > The first patch doesn't fit into the series and should be posted
-> > > separately.
-> > 
-> > It's a prerequisite for the high limit implementation.
-> 
-> I do not think it is strictly needed. I am even not sure whether the
-> patch is OK and have to think more about it. I think you can throttle
-> high limit breachers by SWAP_CLUSTER_MAX for now.
+On 08/06/2014 09:18 AM, Joonsoo Kim wrote:
+> We got migratetype of the freeing page without holding the zone lock so
+> it could be racy. There are two cases of this race.
+>
+> 1. pages are added to isolate buddy list after restoring original
+> migratetype.
+> 2. pages are added to normal buddy list while pageblock is isolated.
+>
+> If case 1 happens, we can't allocate freepages on isolate buddy list
+> until next pageblock isolation occurs.
+> In case of 2, pages could be merged with pages on isolate buddy list and
+> located on normal buddy list. This makes freepage counting incorrect
+> and break the property of pageblock isolation.
+>
+> One solution to this problem is checking pageblock migratetype with
+> holding zone lock in __free_one_page() and I posted it before, but,
+> it didn't get welcome since it needs the hook in zone lock critical
+> section on freepath.
+>
+> This is another solution to this problem and impose most overhead on
+> pageblock isolation logic. Following is how this solution works.
+>
+> 1. Extends irq disabled period on freepath to call
+> get_pfnblock_migratetype() with irq disabled. With this, we can be
+> sure that future freed pages will see modified pageblock migratetype
+> after certain synchronization point so we don't need to hold the zone
+> lock to get correct pageblock migratetype. Although it extends irq
+> disabled period on freepath, I guess it is marginal and better than
+> adding the hook in zone lock critical section.
+>
+> 2. #1 requires IPI for synchronization and we can't hold the zone lock
 
-It really doesn't work once you have higher order pages.  THP-heavy
-workloads overshoot the high limit by a lot if you reclaim 32 pages
-for every 512 charged.
+It would be better to explain here that the synchronization point is 
+pcplists draining.
 
-In my tests, with the change in question, even heavily swapping THP
-loads consistently stay around the high limit, whereas without it the
-memory consumption quickly overshoots.
+> during processing IPI. In this time, some pages could be moved from buddy
+> list to pcp list on page allocation path and later it could be moved again
+> from pcp list to buddy list. In this time, this page would be on isolate
 
-> > > > This series adds a minimal set of control files to the new memcg
-> > > > interface to get basic memcg functionality going in unified hierarchy:
-> > > 
-> > > Hmm, I have posted RFC for new knobs quite some time ago and the
-> > > discussion died without some questions answered and now you are coming
-> > > with a new one. I cannot say I would be happy about that.
-> > 
-> > I remembered open questions mainly about other things like swappiness,
-> > charge immigration, kmem limits.  My bad, I should have checked.  Here
-> > are your concerns on these basic knobs from that email:
-> > 
-> > ---
-> > 
-> > On Thu, Jul 17, 2014 at 03:45:09PM +0200, Michal Hocko wrote:
-> > > On Wed 16-07-14 11:58:14, Johannes Weiner wrote:
-> > > > How about "memory.current"?
-> > > 
-> > > I wanted old users to change the minimum possible when moving to unified
-> > > hierarchy so I didn't touch the old names.
-> > > Why should we make the end users life harder? If there is general
-> > > agreement I have no problem with renaming I just do not think it is
-> > > really necessary because there is no real reason why configurations
-> > > which do not use any of the deprecated or unified-hierarchy-only
-> > > features shouldn't run in both unified and legacy hierarchies without
-> > > any changes.
-> > 
-> > There is the rub, though: you can't *not* use new interfaces.  We are
-> > getting rid of the hard limit as the default and we really want people
-> > to rethink their configuration in the light of this.  And even if you
-> > would just use the hard limit as before, there is no way we can leave
-> > the name 'memory.limit_in_bytes' when we have in fact 4 different
-> > limits.
-> 
-> We could theoretically keep a single limit and turn other limits into
-> watermarks. I am _not_ suggesting that now because I haven't thought
-> that through but I just think we should discuss other possible ways
-> before we go on.
+It is difficult to understand the problem just by reading this. I guess 
+the timelines you included while explaining the problem to me, would 
+help here :)
 
-I am definitely open to discuss your alternative suggestions, but for
-that you have to actually propose them. :)
+> pageblock, so, the hook is required on free_pcppages_bulk() to prevent
 
-The reason why I want existing users to rethink the approach to memory
-limiting is that the current hard limit completely fails to partition
-and isolate in a practical manner, and we are changing the fundamental
-approach here.  Pretending to provide backward compatibility through
-the names of control knobs is specious, and will lead to more issues
-than it actually solves.
+More clearly, a recheck for pageblock's migratetype would be needed in 
+free_pcppages_bulk(), which would again impose overhead outside isolation.
 
-> > > One of the concern was renaming knobs which represent the same
-> > > functionality as before. I have posted some concerns but haven't heard
-> > > back anything. This series doesn't give any rationale for renaming
-> > > either.
-> > > It is true we have a v2 but that doesn't necessarily mean we should put
-> > > everything upside down.
-> > 
-> > I'm certainly not going out of my way to turn things upside down, but
-> > the old interface is outrageous.  I'm sorry if you can't see that it
-> > badly needs to be cleaned up and fixed.  This is the time to do that.
-> 
-> Of course I can see many problems. But please let's think twice and even
-> more times when doing radical changes. Many decisions sound reasonable
-> at the time but then they turn out bad much later.
+> misplacement. To remove this possibility, disabling and draining pcp
+> list is needed during isolation. It guaratees that there is no page on pcp
+> list on all cpus while isolation, so misplacement problem can't happen.
+>
+> Note that this doesn't fix freepage counting problem. To fix it,
+> we need more logic. Following patches will do it.
+>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ---
+>   mm/internal.h       |    2 ++
+>   mm/page_alloc.c     |   27 ++++++++++++++++++++-------
+>   mm/page_isolation.c |   45 +++++++++++++++++++++++++++++++++------------
+>   3 files changed, 55 insertions(+), 19 deletions(-)
+>
+> diff --git a/mm/internal.h b/mm/internal.h
+> index a1b651b..81b8884 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -108,6 +108,8 @@ extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
+>   /*
+>    * in mm/page_alloc.c
+>    */
+> +extern void zone_pcp_disable(struct zone *zone);
+> +extern void zone_pcp_enable(struct zone *zone);
+>   extern void __free_pages_bootmem(struct page *page, unsigned int order);
+>   extern void prep_compound_page(struct page *page, unsigned long order);
+>   #ifdef CONFIG_MEMORY_FAILURE
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 3e1e344..4517b1d 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -726,11 +726,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+>   			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
+>   			__free_one_page(page, page_to_pfn(page), zone, 0, mt);
+>   			trace_mm_page_pcpu_drain(page, 0, mt);
+> -			if (likely(!is_migrate_isolate_page(page))) {
+> -				__mod_zone_page_state(zone, NR_FREE_PAGES, 1);
+> -				if (is_migrate_cma(mt))
+> -					__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, 1);
+> -			}
+> +			__mod_zone_freepage_state(zone, 1, mt);
 
-These are radical changes, and I'm sorry that my justifications were
-very terse.  I've updated this patch to include the following in
-Documentation/cgroups/unified-hierarchy.txt:
+Could be worth mentioning that this can now be removed as it was an 
+incomplete attempt to fix freepage counting, but didn't address the 
+misplacement.
 
----
+>   		} while (--to_free && --batch_free && !list_empty(list));
+>   	}
+>   	spin_unlock(&zone->lock);
+> @@ -789,8 +785,8 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+>   	if (!free_pages_prepare(page, order))
+>   		return;
+>
+> -	migratetype = get_pfnblock_migratetype(page, pfn);
+>   	local_irq_save(flags);
+> +	migratetype = get_pfnblock_migratetype(page, pfn);
+>   	__count_vm_events(PGFREE, 1 << order);
+>   	set_freepage_migratetype(page, migratetype);
+>   	free_one_page(page_zone(page), page, pfn, order, migratetype);
+> @@ -1410,9 +1406,9 @@ void free_hot_cold_page(struct page *page, bool cold)
+>   	if (!free_pages_prepare(page, 0))
+>   		return;
+>
+> +	local_irq_save(flags);
+>   	migratetype = get_pfnblock_migratetype(page, pfn);
+>   	set_freepage_migratetype(page, migratetype);
+> -	local_irq_save(flags);
+>   	__count_vm_event(PGFREE);
 
-4-3-3. memory
+Maybe add comments to these two to make it clear that this cannot be 
+moved outside of the irq disabled part, in case anyone considers it 
+(again) in the future?
 
-Memory cgroups account and limit the memory consumption of cgroups,
-but the current limit semantics make the feature hard to use and
-creates problems in existing configurations.
+> @@ -55,20 +56,32 @@ int set_migratetype_isolate(struct page *page, bool skip_hwpoisoned_pages)
+>   	 */
+>
+>   out:
+> -	if (!ret) {
+> -		unsigned long nr_pages;
+> -		int migratetype = get_pageblock_migratetype(page);
+> +	if (ret) {
+> +		spin_unlock_irqrestore(&zone->lock, flags);
+> +		return ret;
+> +	}
+>   on pcplists
+> -		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
+> -		nr_pages = move_freepages_block(zone, page, MIGRATE_ISOLATE);
+> +	migratetype = get_pageblock_migratetype(page);
+> +	set_pageblock_migratetype(page, MIGRATE_ISOLATE);
+> +	spin_unlock_irqrestore(&zone->lock, flags);
+>
+> -		__mod_zone_freepage_state(zone, -nr_pages, migratetype);
+> -	}
+> +	zone_pcp_disable(zone);
+> +
+> +	/*
+> +	 * After this point, freed pages will see MIGRATE_ISOLATE as
+> +	 * their pageblock migratetype on all cpus. And pcp list has
+> +	 * no free page.
+> +	 */
+> +	on_each_cpu(drain_local_pages, NULL, 1);
 
-4.3.3.1 No more default hard limit
-
-'memory.limit_in_bytes' is the current upper limit that can not be
-exceeded under any circumstances.  If it can not be met by direct
-reclaim, the tasks in the cgroup are OOM killed.
-
-While this may look like a valid approach to partition the machine, in
-practice workloads expand and contract during runtime, and it's
-impossible to get the machine-wide configuration right: if users set
-this hard limit conservatively, they are plagued by cgroup-internal
-OOM kills while another group's memory might be idle.  If they set it
-too generously, precious resources are wasted.  As a result, many
-users overcommit such that the sum of all hard limits exceed the
-machine size, but this puts the actual burden of containment on global
-reclaim and OOM handling.  This led to further extremes, such as the
-demand for having global reclaim honor group-specific priorities and
-minimums, and the ability to handle global OOM situations from
-userspace using task-specific physical memory reserves.  All these
-outcomes and developments show the utter failure of hard limits to
-practically partition the machine for maximum resource utilization.
-
-In unified hierarchy, the primary means of limiting memory consumption
-is 'memory.high'.  It's enforced by direct reclaim but can be exceeded
-under severe memory pressure.  Memory pressure created by this limit
-still applies mainly to the group itself, but it prefers offloading
-the excess to the rest of the system in order to avoid OOM killing.
-Configurations can start out by setting this limit to a conservative
-estimate of the average workload size and then make upward adjustments
-based on monitoring high limit excess, workload performance, and the
-global memory situation.
-
-In untrusted environments, users may wish to limit the amount of such
-offloading in order to contain malicious workloads.  For that purpose,
-a hard upper limit can be set through 'memory.max'.
-
-'memory.pressure_level' was added for userspace to monitor memory
-pressure based on reclaim efficiency, but the window between initial
-memory pressure and an OOM kill is very short with hard limits.  By
-the time high pressure is reported to userspace it's often too late to
-still intervene before the group goes OOM, thus severely limiting the
-usefulness of this feature for anticipating looming OOM situations.
-
-This new approach to limiting allows packing workloads more densely
-based on their average workingset size.  Coinciding peaks of multiple
-groups are handled by throttling allocations within the groups rather
-than putting the full burden on global reclaim and OOM handling, and
-pressure situations build up gracefully and allow better monitoring.
-
----
-
-> > > > - memory.current: a read-only file that shows current memory usage.
-> > > 
-> > > Even if we go with renaming existing knobs I really hate this name. The
-> > > old one was too long but this is not descriptive enough. Same applies to
-> > > max and high. I would expect at least limit in the name.
-> > 
-> > Memory cgroups are about accounting and limiting memory usage.  That's
-> > all they do.  In that context, current, min, low, high, max seem
-> > perfectly descriptive to me, adding usage and limit seems redundant.
-> 
-> Getting naming right is always pain and different people will always
-> have different views. For example I really do not like memory.current
-> and would prefer memory.usage much more. I am not a native speaker but
-> `usage' sounds much less ambiguous to me. Whether shorter (without _limit
-> suffix) names for limits are better I don't know. They certainly seem
-> more descriptive with the suffix to me.
-
-These knobs control the most fundamental behavior of memory cgroups,
-which is accounting and then limiting memory consumption, so I think
-we can agree at least that we want something short and poignant here
-that stands out compared to secondary controls, feature toggles etc.
-
-The reason I went with memory.current over memory.usage is that it's
-more consistent with the limit names I chose, which is memory.high and
-memory.max.  Going with memory.usage begs the question what memory.max
-applies to, and now you need to add 'usage' or 'limit' to high/max as
-well (and 'guarantee' to min/low), which moves us away from short and
-poignant towards more specific niche control names.  memory.current,
-memory.high, memory.max all imply the same thing: memory consumption -
-what memory cgroups is fundamentally about.
-
-> > We name syscalls creat() and open() and stat() because, while you have
-> > to look at the manpage once, they are easy to remember, easy to type,
-> > and they keep the code using them readable.
-> >
-> > memory.usage_in_bytes was the opposite approach: it tried to describe
-> > all there is to this knob in the name itself, assuming tab completion
-> > would help you type that long name.  But we are more and more moving
-> > away from ad-hoc scripting of cgroups and I don't want to optimize for
-> > that anymore at the cost of really unwieldy identifiers.
-> 
-> I agree with you. _in_bytes is definitely excessive. It can be nicely
-> demonstrated by the fact that different units are allowed when setting
-> the value.
-
-It's maybe misleading for that reason, but that wasn't my main point.
-
-There are certain things we can imply in the name and either explain
-in the documentation or assume from the context, and _in_bytes is one
-such piece of information.  It's something that you need to know once
-and don't need to be reminded of everytime you type that control name.
-
-Likewise, I'm extending this argument that we don't need to include
-'usage' or 'limit' in any of these basic knobs, because that's *the*
-thing that memory cgroups do.  It's up to secondary controls to pick
-names that do not create ambiguity with those core controls.
+Is there any difference between drain_all_pages() and this, or why 
+didn't you use drain_all_pages()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
