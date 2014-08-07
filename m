@@ -1,90 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E5FD6B0035
-	for <linux-mm@kvack.org>; Thu,  7 Aug 2014 04:11:05 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id fp1so4810992pdb.13
-        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 01:11:05 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id kn11si2835351pbd.215.2014.08.07.01.11.03
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Aug 2014 01:11:04 -0700 (PDT)
-Date: Thu, 7 Aug 2014 10:10:47 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC][PATCH 0/7] nested sleeps, fixes and debug infra
-Message-ID: <20140807081047.GH19379@twins.programming.kicks-ass.net>
-References: <20140805130646.GZ19379@twins.programming.kicks-ass.net>
- <CALFYKtAVQ9Rgu_QWCqUkNHk4-wbiVK0FeiwLDttaxZC5bnnG5w@mail.gmail.com>
- <20140806083134.GQ9918@twins.programming.kicks-ass.net>
- <20140806.141603.1422005306896590750.davem@davemloft.net>
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CF256B0035
+	for <linux-mm@kvack.org>; Thu,  7 Aug 2014 04:19:49 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id w10so4820121pde.32
+        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 01:19:49 -0700 (PDT)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id ly10si2858844pab.211.2014.08.07.01.19.46
+        for <linux-mm@kvack.org>;
+        Thu, 07 Aug 2014 01:19:48 -0700 (PDT)
+Date: Thu, 7 Aug 2014 17:19:45 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 5/8] mm/isolation: change pageblock isolation logic to
+ fix freepage counting bugs
+Message-ID: <20140807081945.GA2427@js1304-P5Q-DELUXE>
+References: <1407309517-3270-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1407309517-3270-9-git-send-email-iamjoonsoo.kim@lge.com>
+ <53E245D4.9080506@suse.cz>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="nBPD9h0elHGaLLTu"
-Content-Disposition: inline
-In-Reply-To: <20140806.141603.1422005306896590750.davem@davemloft.net>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: ilya.dryomov@inktank.com, mingo@kernel.org, oleg@redhat.com, torvalds@linux-foundation.org, tglx@linutronix.de, umgwanakikbuti@gmail.com, linux-kernel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org
-
-
---nBPD9h0elHGaLLTu
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <53E245D4.9080506@suse.cz>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Aug 06, 2014 at 02:16:03PM -0700, David Miller wrote:
-> From: Peter Zijlstra <peterz@infradead.org>
-> Date: Wed, 6 Aug 2014 10:31:34 +0200
->=20
-> > On Wed, Aug 06, 2014 at 11:51:29AM +0400, Ilya Dryomov wrote:
-> >=20
-> >> OK, this one is a bit different.
-> >>=20
-> >> WARNING: CPU: 1 PID: 1744 at kernel/sched/core.c:7104 __might_sleep+0x=
-58/0x90()
-> >> do not call blocking ops when !TASK_RUNNING; state=3D1 set at [<ffffff=
-ff81070e10>] prepare_to_wait+0x50 /0xa0
-> >=20
-> >>  [<ffffffff8105bc38>] __might_sleep+0x58/0x90
-> >>  [<ffffffff8148c671>] lock_sock_nested+0x31/0xb0
-> >>  [<ffffffff81498aaa>] sk_stream_wait_memory+0x18a/0x2d0
-> >=20
-> > Urgh, tedious. Its not an actual bug as is. Due to the condition check
-> > in sk_wait_event() we can call lock_sock() with ->state !=3D TASK_RUNNI=
-NG.
-> >=20
-> > I'm not entirely sure what the cleanest way is to make this go away.
-> > Possibly something like so:
->=20
-> If you submit this formally to netdev with a signoff I'm willing to apply
-> this if it helps the debug infrastructure.
+On Wed, Aug 06, 2014 at 05:12:20PM +0200, Vlastimil Babka wrote:
+> On 08/06/2014 09:18 AM, Joonsoo Kim wrote:
+> >Overall design of changed pageblock isolation logic is as following.
+> 
+> I'll reply here since the overall design part is described in this
+> patch (would be worth to have it in cover letter as well IMHO).
+> 
+> >1. ISOLATION
+> >- check pageblock is suitable for pageblock isolation.
+> >- change migratetype of pageblock to MIGRATE_ISOLATE.
+> >- disable pcp list.
+> 
+> Is it needed to disable the pcp list? Shouldn't drain be enough?
+> After the drain you already are sure that future freeing will see
+> MIGRATE_ISOLATE and skip pcp list anyway, so why disable it
+> completely?
 
-Thanks, for now I'm just collecting things to see how far I can take
-this. But I'll certainly include you and netdev on a next posting.
+Yes, it is needed. Until we move freepages from normal buddy list
+to isolate buddy list, freepages could be allocated by others. In this
+case, they could be moved to pcp list. When it is flushed from pcp list
+to buddy list, we need to check whether it is on isolate migratetype
+pageblock or not. But, we don't want that hook in free_pcppages_bulk()
+because it is page allocator's normal freepath. To remove it, we shoule
+disable the pcp list here.
 
---nBPD9h0elHGaLLTu
-Content-Type: application/pgp-signature
+> 
+> >- drain pcp list.
+> >- pcp couldn't have any freepage at this point.
+> >- synchronize all cpus to see correct migratetype.
+> 
+> This synchronization should already happen through the drain, no?
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
+Yes, this line should be removed. Now synchronization is complete
+through the drain. It is leftover from not submitted implementation attempt.
 
-iQIcBAEBAgAGBQJT4zSCAAoJEHZH4aRLwOS6drwP/Rqu531RhKIbPZ9wf1O+ABhh
-5qdSyPXKToCclNZVU9EiFKiyiFA1il6jPUGssfT9/oxjs5Kr7u08OampiMlySr91
-2E+SH+Aep+vT78ZeVgWupUHkMk/mmwW0xCDlCs5Xi2bFrreNu12BKfaXtPA1BSdA
-vmWaLe5R4qVOEX+Jjt3dSPiLSlTwRooyXTvc5NangOubciIJ/XBsLIV+3yTy+2xj
-pe92fxcKCFC61SlpdP1T3po5UzEUK0Wb8Pfn7jDVTwhhBpWpgjOCYsbauYpvGgUC
-urQRk69LQzgy8090ldiATK6ITV/JNOlo+XQSfhNwWPb91P3Z2AtJG5oEZIDRYmux
-O8vMQdpe9k14KJwLkBDiUTat5nH30xjI0Dmyr8W19hV/X4AwiBUI+JdrCUBt21h4
-GvtrdTUu7MndUzfpjq+JMORzZY5NL6VbHfJxrOrHaJK5F3pE7kMZs/yTxm+Wu3HK
-96UjmZ/B9orJ9hIdGp+SWM5t/AfxpjRUxHNBG2FxMo0WSN7+qMC+hf8yf/YBKMrv
-/YWB3LfCBhr3ovHKBKKP0Z8W/Z5eeFKCdsqdNyeLr4hksKbLqFNP1wLs+uD98Zqq
-eQQSz7b6irtT7uSKbrp+wfzblXG4AkJUezgfLLKTuqy6yvVmfbCa9pKUD5+tC1FG
-A6pazvhVIT9BiSsahp9T
-=pnaO
------END PGP SIGNATURE-----
+> >- freed pages on this pageblock will be handled specially and
+> >not added to buddy list from here. With this way, there is no
+> >possibility of merging pages on different buddy list.
+> >- move freepages on normal buddy list to isolate buddy list.
+> 
+> Is there any advantage of moving the pages to isolate buddy list at
+> this point, when we already have the new PageIsolated marking? Maybe
+> not right now, but could this be later replaced by just splitting
+> and marking PageIsolated the pages from normal buddy list? I guess
+> memory hot-remove does not benefit from having buddy-merged pages
+> and CMA probably also doesn't?
 
---nBPD9h0elHGaLLTu--
+At least, we need to detach freepages on this pageblock from buddy
+list to prevent futher allocation of these pages. In this case, moving
+looks more simple approach to me.
+
+> >There is no page on isolate buddy list so move_freepages_block()
+> >returns number of moved freepages correctly.
+> >- enable pcp list.
+> >
+> >2. TEST-ISOLATION
+> >- activates freepages marked as PageIsolated() and add to isolate
+> >buddy list.
+> >- test if pageblock is properly isolated.
+> >
+> >3. UNDO-ISOLATION
+> >- move freepages from isolate buddy list to normal buddy list.
+> >There is no page on normal buddy list so move_freepages_block()
+> >return number of moved freepages correctly.
+> >- change migratetype of pageblock to normal migratetype
+> >- synchronize all cpus.
+> >- activate isolated freepages and add to normal buddy list.
+> 
+> The lack of pcp list deactivation in the undo part IMHO suggests
+> that it is indeed not needed.
+
+It is different situation. When UNDO, pages would be on isolate buddy
+list so moving from buddy list to pcp list couldn't be possible and
+then pcp list deactivation isn't needed.
+
+> >With this patch, most of freepage counting bugs are solved and
+> >exceptional handling for freepage count is done in pageblock isolation
+> >logic rather than allocator.
+> 
+> \o/
+
+:)
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
