@@ -1,47 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 828626B0035
-	for <linux-mm@kvack.org>; Thu,  7 Aug 2014 09:39:23 -0400 (EDT)
-Received: by mail-wi0-f170.google.com with SMTP id f8so1032170wiw.3
-        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 06:39:22 -0700 (PDT)
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D7B36B0035
+	for <linux-mm@kvack.org>; Thu,  7 Aug 2014 09:49:21 -0400 (EDT)
+Received: by mail-wi0-f178.google.com with SMTP id hi2so5059271wib.17
+        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 06:49:20 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bm8si6917134wjb.103.2014.08.07.06.39.21
+        by mx.google.com with ESMTPS id q14si16164958wie.61.2014.08.07.06.49.19
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 07 Aug 2014 06:39:21 -0700 (PDT)
-Date: Thu, 7 Aug 2014 15:39:20 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 2/4] mm: memcontrol: add memory.current and memory.high
- to default hierarchy
-Message-ID: <20140807133920.GD12730@dhcp22.suse.cz>
-References: <1407186897-21048-1-git-send-email-hannes@cmpxchg.org>
- <1407186897-21048-3-git-send-email-hannes@cmpxchg.org>
- <20140807133614.GC12730@dhcp22.suse.cz>
+        Thu, 07 Aug 2014 06:49:20 -0700 (PDT)
+Message-ID: <53E383DD.6090500@suse.cz>
+Date: Thu, 07 Aug 2014 15:49:17 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140807133614.GC12730@dhcp22.suse.cz>
+Subject: Re: [PATCH v2 2/8] mm/isolation: remove unstable check for isolated
+ page
+References: <1407309517-3270-1-git-send-email-iamjoonsoo.kim@lge.com> <1407309517-3270-4-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1407309517-3270-4-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 07-08-14 15:36:14, Michal Hocko wrote:
-> On Mon 04-08-14 17:14:55, Johannes Weiner wrote:
-> [...]
-> > @@ -132,6 +137,19 @@ u64 res_counter_uncharge(struct res_counter *counter, unsigned long val);
-> >  u64 res_counter_uncharge_until(struct res_counter *counter,
-> >  			       struct res_counter *top,
-> >  			       unsigned long val);
-> > +
-> > +static inline unsigned long long res_counter_high(struct res_counter *cnt)
-> 
-> soft limit used res_counter_soft_limit_excess which has quite a long
-> name but at least those two should be consistent.
-> I will post two helper patches which I have used to make this and other
-> operations on res counter easier as a reply to this.
+On 08/06/2014 09:18 AM, Joonsoo Kim wrote:
+> The check '!PageBuddy(page) && page_count(page) == 0 &&
+> migratetype == MIGRATE_ISOLATE' would mean the page on free processing.
 
-These two are sleeping in my queue for quite some time. I didn't get to
-post them yet but if you think they will make sense I can try to rebase
-them on the current tree and post.
----
+What is "the page on free processing"? I thought this test means the 
+page is on some CPU's pcplist?
+
+> Although it could go into buddy allocator within a short time,
+> futher operation such as isolate_freepages_range() in CMA, called after
+> test_page_isolated_in_pageblock(), could be failed due to this unstability
+
+By "unstability" you mean the page can be allocated again from the 
+pcplist instead of being freed to buddy list?
+
+> since it requires that the page is on buddy. I think that removing
+> this unstability is good thing.
+>
+> And, following patch makes isolated freepage has new status matched with
+> this condition and this check is the obstacle to that change. So remove
+> it.
+
+You could also say that pages from isolated pageblocks can no longer 
+appear on pcplists after the later patches.
+
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ---
+>   mm/page_isolation.c |    6 +-----
+>   1 file changed, 1 insertion(+), 5 deletions(-)
+>
+> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+> index d1473b2..3100f98 100644
+> --- a/mm/page_isolation.c
+> +++ b/mm/page_isolation.c
+> @@ -198,11 +198,7 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
+>   						MIGRATE_ISOLATE);
+>   			}
+>   			pfn += 1 << page_order(page);
+> -		}
+> -		else if (page_count(page) == 0 &&
+> -			get_freepage_migratetype(page) == MIGRATE_ISOLATE)
+> -			pfn += 1;
+> -		else if (skip_hwpoisoned_pages && PageHWPoison(page)) {
+> +		} else if (skip_hwpoisoned_pages && PageHWPoison(page)) {
+>   			/*
+>   			 * The HWPoisoned page may be not in buddy
+>   			 * system, and page_count() is not 0.
+>
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
