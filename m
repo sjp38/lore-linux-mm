@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 04A126B0035
-	for <linux-mm@kvack.org>; Thu,  7 Aug 2014 10:34:46 -0400 (EDT)
-Received: by mail-we0-f177.google.com with SMTP id w62so4337882wes.36
-        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 07:34:46 -0700 (PDT)
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F5CF6B0035
+	for <linux-mm@kvack.org>; Thu,  7 Aug 2014 11:15:24 -0400 (EDT)
+Received: by mail-wi0-f176.google.com with SMTP id bs8so10865239wib.15
+        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 08:15:23 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lj18si8645603wic.98.2014.08.07.07.34.45
+        by mx.google.com with ESMTPS id h6si13965671wij.48.2014.08.07.08.15.22
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 07 Aug 2014 07:34:45 -0700 (PDT)
-Message-ID: <53E38E81.3030301@suse.cz>
-Date: Thu, 07 Aug 2014 16:34:41 +0200
+        Thu, 07 Aug 2014 08:15:22 -0700 (PDT)
+Message-ID: <53E39805.4040503@suse.cz>
+Date: Thu, 07 Aug 2014 17:15:17 +0200
 From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 4/8] mm/isolation: close the two race problems related
- to pageblock isolation
-References: <1407309517-3270-1-git-send-email-iamjoonsoo.kim@lge.com> <1407309517-3270-8-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1407309517-3270-8-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 5/8] mm/isolation: change pageblock isolation logic
+ to fix freepage counting bugs
+References: <1407309517-3270-1-git-send-email-iamjoonsoo.kim@lge.com> <1407309517-3270-9-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1407309517-3270-9-git-send-email-iamjoonsoo.kim@lge.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -25,157 +25,118 @@ To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.o
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 On 08/06/2014 09:18 AM, Joonsoo Kim wrote:
-> We got migratetype of the freeing page without holding the zone lock so
-> it could be racy. There are two cases of this race.
->
-> 1. pages are added to isolate buddy list after restoring original
-> migratetype.
-> 2. pages are added to normal buddy list while pageblock is isolated.
->
-> If case 1 happens, we can't allocate freepages on isolate buddy list
-> until next pageblock isolation occurs.
-> In case of 2, pages could be merged with pages on isolate buddy list and
-> located on normal buddy list. This makes freepage counting incorrect
-> and break the property of pageblock isolation.
->
-> One solution to this problem is checking pageblock migratetype with
-> holding zone lock in __free_one_page() and I posted it before, but,
-> it didn't get welcome since it needs the hook in zone lock critical
-> section on freepath.
->
-> This is another solution to this problem and impose most overhead on
-> pageblock isolation logic. Following is how this solution works.
->
-> 1. Extends irq disabled period on freepath to call
-> get_pfnblock_migratetype() with irq disabled. With this, we can be
-> sure that future freed pages will see modified pageblock migratetype
-> after certain synchronization point so we don't need to hold the zone
-> lock to get correct pageblock migratetype. Although it extends irq
-> disabled period on freepath, I guess it is marginal and better than
-> adding the hook in zone lock critical section.
->
-> 2. #1 requires IPI for synchronization and we can't hold the zone lock
+> Current pageblock isolation logic has a problem that results in incorrect
+> freepage counting. move_freepages_block() doesn't return number of
+> moved pages so freepage count could be wrong if some pages are freed
+> inbetween set_pageblock_migratetype() and move_freepages_block(). Although
+> we fix move_freepages_block() to return number of moved pages, the problem
 
-It would be better to explain here that the synchronization point is 
-pcplists draining.
+     ^ could
 
-> during processing IPI. In this time, some pages could be moved from buddy
-> list to pcp list on page allocation path and later it could be moved again
-> from pcp list to buddy list. In this time, this page would be on isolate
+> wouldn't be fixed completely because buddy allocator doesn't care if merged
+> pages are on different buddy list or not. If some page on normal buddy list
+> is merged with isolated page and moved to isolate buddy list, freepage
+> count should be subtracted, but, it didn't and can't now.
 
-It is difficult to understand the problem just by reading this. I guess 
-the timelines you included while explaining the problem to me, would 
-help here :)
+... but it's not done now and doing that would impose unwanted overhead 
+on buddy merging.
 
-> pageblock, so, the hook is required on free_pcppages_bulk() to prevent
+Also the analogous problem exists when undoing isolation?
 
-More clearly, a recheck for pageblock's migratetype would be needed in 
-free_pcppages_bulk(), which would again impose overhead outside isolation.
-
-> misplacement. To remove this possibility, disabling and draining pcp
-> list is needed during isolation. It guaratees that there is no page on pcp
-> list on all cpus while isolation, so misplacement problem can't happen.
->
-> Note that this doesn't fix freepage counting problem. To fix it,
-> we need more logic. Following patches will do it.
->
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > ---
->   mm/internal.h       |    2 ++
->   mm/page_alloc.c     |   27 ++++++++++++++++++++-------
->   mm/page_isolation.c |   45 +++++++++++++++++++++++++++++++++------------
->   3 files changed, 55 insertions(+), 19 deletions(-)
+>   include/linux/page-isolation.h |    2 +
+>   mm/internal.h                  |    3 ++
+>   mm/page_alloc.c                |   28 ++++++-----
+>   mm/page_isolation.c            |  107 ++++++++++++++++++++++++++++++++++++----
+>   4 files changed, 118 insertions(+), 22 deletions(-)
 >
+> diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
+> index 3fff8e7..3dd39fe 100644
+> --- a/include/linux/page-isolation.h
+> +++ b/include/linux/page-isolation.h
+> @@ -21,6 +21,8 @@ static inline bool is_migrate_isolate(int migratetype)
+>   }
+>   #endif
+>
+> +void deactivate_isolated_page(struct zone *zone, struct page *page,
+> +				unsigned int order);
+>   bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
+>   			 bool skip_hwpoisoned_pages);
+>   void set_pageblock_migratetype(struct page *page, int migratetype);
 > diff --git a/mm/internal.h b/mm/internal.h
-> index a1b651b..81b8884 100644
+> index 81b8884..c70750a 100644
 > --- a/mm/internal.h
 > +++ b/mm/internal.h
-> @@ -108,6 +108,8 @@ extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
->   /*
->    * in mm/page_alloc.c
+> @@ -110,6 +110,9 @@ extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
 >    */
-> +extern void zone_pcp_disable(struct zone *zone);
-> +extern void zone_pcp_enable(struct zone *zone);
+>   extern void zone_pcp_disable(struct zone *zone);
+>   extern void zone_pcp_enable(struct zone *zone);
+> +extern void __free_one_page(struct page *page, unsigned long pfn,
+> +		struct zone *zone, unsigned int order,
+> +		int migratetype);
 >   extern void __free_pages_bootmem(struct page *page, unsigned int order);
 >   extern void prep_compound_page(struct page *page, unsigned long order);
 >   #ifdef CONFIG_MEMORY_FAILURE
 > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 3e1e344..4517b1d 100644
+> index 4517b1d..82da4a8 100644
 > --- a/mm/page_alloc.c
 > +++ b/mm/page_alloc.c
-> @@ -726,11 +726,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
->   			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
->   			__free_one_page(page, page_to_pfn(page), zone, 0, mt);
->   			trace_mm_page_pcpu_drain(page, 0, mt);
-> -			if (likely(!is_migrate_isolate_page(page))) {
-> -				__mod_zone_page_state(zone, NR_FREE_PAGES, 1);
-> -				if (is_migrate_cma(mt))
-> -					__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, 1);
-> -			}
-> +			__mod_zone_freepage_state(zone, 1, mt);
-
-Could be worth mentioning that this can now be removed as it was an 
-incomplete attempt to fix freepage counting, but didn't address the 
-misplacement.
-
->   		} while (--to_free && --batch_free && !list_empty(list));
->   	}
->   	spin_unlock(&zone->lock);
-> @@ -789,8 +785,8 @@ static void __free_pages_ok(struct page *page, unsigned int order)
->   	if (!free_pages_prepare(page, order))
->   		return;
+> @@ -571,7 +571,7 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
+>    * -- nyc
+>    */
 >
-> -	migratetype = get_pfnblock_migratetype(page, pfn);
->   	local_irq_save(flags);
-> +	migratetype = get_pfnblock_migratetype(page, pfn);
->   	__count_vm_events(PGFREE, 1 << order);
->   	set_freepage_migratetype(page, migratetype);
->   	free_one_page(page_zone(page), page, pfn, order, migratetype);
-> @@ -1410,9 +1406,9 @@ void free_hot_cold_page(struct page *page, bool cold)
->   	if (!free_pages_prepare(page, 0))
->   		return;
->
-> +	local_irq_save(flags);
->   	migratetype = get_pfnblock_migratetype(page, pfn);
->   	set_freepage_migratetype(page, migratetype);
-> -	local_irq_save(flags);
->   	__count_vm_event(PGFREE);
-
-Maybe add comments to these two to make it clear that this cannot be 
-moved outside of the irq disabled part, in case anyone considers it 
-(again) in the future?
-
-> @@ -55,20 +56,32 @@ int set_migratetype_isolate(struct page *page, bool skip_hwpoisoned_pages)
->   	 */
->
->   out:
-> -	if (!ret) {
-> -		unsigned long nr_pages;
-> -		int migratetype = get_pageblock_migratetype(page);
-> +	if (ret) {
-> +		spin_unlock_irqrestore(&zone->lock, flags);
-> +		return ret;
-> +	}
->   on pcplists
-> -		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
-> -		nr_pages = move_freepages_block(zone, page, MIGRATE_ISOLATE);
-> +	migratetype = get_pageblock_migratetype(page);
-> +	set_pageblock_migratetype(page, MIGRATE_ISOLATE);
-> +	spin_unlock_irqrestore(&zone->lock, flags);
->
-> -		__mod_zone_freepage_state(zone, -nr_pages, migratetype);
-> -	}
-> +	zone_pcp_disable(zone);
+> -static inline void __free_one_page(struct page *page,
+> +void __free_one_page(struct page *page,
+>   		unsigned long pfn,
+>   		struct zone *zone, unsigned int order,
+>   		int migratetype)
+> @@ -738,14 +738,19 @@ static void free_one_page(struct zone *zone,
+>   				int migratetype)
+>   {
+>   	unsigned long nr_scanned;
 > +
-> +	/*
-> +	 * After this point, freed pages will see MIGRATE_ISOLATE as
-> +	 * their pageblock migratetype on all cpus. And pcp list has
-> +	 * no free page.
-> +	 */
-> +	on_each_cpu(drain_local_pages, NULL, 1);
+> +	if (unlikely(is_migrate_isolate(migratetype))) {
+> +		deactivate_isolated_page(zone, page, order);
+> +		return;
+> +	}
+> +
 
-Is there any difference between drain_all_pages() and this, or why 
-didn't you use drain_all_pages()?
+This would be more effectively done in the callers, which is where 
+migratetype is determined - there are two:
+- free_hot_cold_page() already has this test, so just call deactivation
+   instead of free_one_page() - one test less in this path!
+- __free_pages_ok() could add the test to call deactivation, and since 
+you remove another test in the hunk below, the net result is the same in 
+this path.
+
+> --- a/mm/page_isolation.c
+> +++ b/mm/page_isolation.c
+> @@ -9,6 +9,75 @@
+>   #include <linux/hugetlb.h>
+>   #include "internal.h"
+>
+> +#define ISOLATED_PAGE_MAPCOUNT_VALUE (-64)
+> +
+> +static inline int PageIsolated(struct page *page)
+> +{
+> +	return atomic_read(&page->_mapcount) == ISOLATED_PAGE_MAPCOUNT_VALUE;
+> +}
+> +
+> +static inline void __SetPageIsolated(struct page *page)
+> +{
+> +	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
+> +	atomic_set(&page->_mapcount, ISOLATED_PAGE_MAPCOUNT_VALUE);
+> +}
+> +
+> +static inline void __ClearPageIsolated(struct page *page)
+> +{
+> +	VM_BUG_ON_PAGE(!PageIsolated(page), page);
+> +	atomic_set(&page->_mapcount, -1);
+> +}
+
+Hmm wasn't the convention for atomic updates to be without the __ prefix?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
