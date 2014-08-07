@@ -1,123 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f53.google.com (mail-oi0-f53.google.com [209.85.218.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 60F666B0035
-	for <linux-mm@kvack.org>; Thu,  7 Aug 2014 08:36:06 -0400 (EDT)
-Received: by mail-oi0-f53.google.com with SMTP id e131so2520900oig.26
-        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 05:36:06 -0700 (PDT)
-Received: from mail-oi0-x22a.google.com (mail-oi0-x22a.google.com [2607:f8b0:4003:c06::22a])
-        by mx.google.com with ESMTPS id oi9si7069120obc.21.2014.08.07.05.36.05
+Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
+	by kanga.kvack.org (Postfix) with ESMTP id E77636B0035
+	for <linux-mm@kvack.org>; Thu,  7 Aug 2014 08:53:56 -0400 (EDT)
+Received: by mail-lb0-f173.google.com with SMTP id u10so759882lbd.18
+        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 05:53:55 -0700 (PDT)
+Received: from mail-lb0-x22a.google.com (mail-lb0-x22a.google.com [2a00:1450:4010:c04::22a])
+        by mx.google.com with ESMTPS id h3si610340laf.105.2014.08.07.05.53.54
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 07 Aug 2014 05:36:05 -0700 (PDT)
-Received: by mail-oi0-f42.google.com with SMTP id a3so2590099oib.15
-        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 05:36:05 -0700 (PDT)
+        Thu, 07 Aug 2014 05:53:55 -0700 (PDT)
+Received: by mail-lb0-f170.google.com with SMTP id l4so772395lbv.29
+        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 05:53:54 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAMuHMdW2kb=EF-Nmem_gyUu=p7hFOTe+Q2ekHh41SaHHiWDGeg@mail.gmail.com>
+In-Reply-To: <CAAmzW4MX2birtCOUxjDdQ7c3Y+RyVkBt383HEQ=XFgnhhOsQPw@mail.gmail.com>
 References: <CAMuHMdW2kb=EF-Nmem_gyUu=p7hFOTe+Q2ekHh41SaHHiWDGeg@mail.gmail.com>
-Date: Thu, 7 Aug 2014 21:36:05 +0900
-Message-ID: <CAAmzW4MX2birtCOUxjDdQ7c3Y+RyVkBt383HEQ=XFgnhhOsQPw@mail.gmail.com>
+	<CAAmzW4MX2birtCOUxjDdQ7c3Y+RyVkBt383HEQ=XFgnhhOsQPw@mail.gmail.com>
+Date: Thu, 7 Aug 2014 14:53:54 +0200
+Message-ID: <CAMuHMdVC8aYwDEHnntshdVA24Nx3qAUXZfeRQNGqj=J6eExU-Q@mail.gmail.com>
 Subject: Re: BUG: enable_cpucache failed for radix_tree_node, error 12 (was:
  Re: [PATCH v3 9/9] slab: remove BAD_ALIEN_MAGIC)
-From: Joonsoo Kim <js1304@gmail.com>
+From: Geert Uytterhoeven <geert@linux-m68k.org>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>
+To: Joonsoo Kim <js1304@gmail.com>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Vladimir Davydov <vdavydov@parallels.com>
 
-2014-08-07 20:52 GMT+09:00 Geert Uytterhoeven <geert@linux-m68k.org>:
-> Hi Joonsoo,
->
-> On Tue, Jul 1, 2014 at 10:27 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
->> BAD_ALIEN_MAGIC value isn't used anymore. So remove it.
+Hi,
+
+On Thu, Aug 7, 2014 at 2:36 PM, Joonsoo Kim <js1304@gmail.com> wrote:
+>> With latest mainline, I'm getting a crash during bootup on m68k/ARAnyM:
 >>
->> Acked-by: Christoph Lameter <cl@linux.com>
->> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->> ---
->>  mm/slab.c |    4 +---
->>  1 file changed, 1 insertion(+), 3 deletions(-)
+>> enable_cpucache failed for radix_tree_node, error 12.
+>> kernel BUG at /scratch/geert/linux/linux-m68k/mm/slab.c:1522!
+
+>> I bisected it to commit a640616822b2c3a8009b0600f20c4a76ea8a0025
+>> Author: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> Date:   Wed Aug 6 16:04:38 2014 -0700
 >>
->> diff --git a/mm/slab.c b/mm/slab.c
->> index 7820a45..60c9e11 100644
->> --- a/mm/slab.c
->> +++ b/mm/slab.c
->> @@ -470,8 +470,6 @@ static struct kmem_cache kmem_cache_boot = {
->>         .name = "kmem_cache",
->>  };
->>
->> -#define BAD_ALIEN_MAGIC 0x01020304ul
->> -
->>  static DEFINE_PER_CPU(struct delayed_work, slab_reap_work);
->>
->>  static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
->> @@ -838,7 +836,7 @@ static int transfer_objects(struct array_cache *to,
->>  static inline struct alien_cache **alloc_alien_cache(int node,
->>                                                 int limit, gfp_t gfp)
->>  {
->> -       return (struct alien_cache **)BAD_ALIEN_MAGIC;
->> +       return NULL;
->>  }
->
-> With latest mainline, I'm getting a crash during bootup on m68k/ARAnyM:
->
-> enable_cpucache failed for radix_tree_node, error 12.
-> kernel BUG at /scratch/geert/linux/linux-m68k/mm/slab.c:1522!
-> *** TRAP #7 ***   FORMAT=0
-> Current process id is 0
-> BAD KERNEL TRAP: 00000000
-> Modules linked in:
-> PC: [<0039c92c>] kmem_cache_init_late+0x70/0x8c
-> SR: 2200  SP: 00345f90  a2: 0034c2e8
-> d0: 0000003d    d1: 00000000    d2: 00000000    d3: 003ac942
-> d4: 00000000    d5: 00000000    a0: 0034f686    a1: 0034f682
-> Process swapper (pid: 0, task=0034c2e8)
-> Frame format=0
-> Stack from 00345fc4:
->         002f69ef 002ff7e5 000005f2 000360fa 0017d806 003921d4 00000000 00000000
->         00000000 00000000 00000000 00000000 003ac942 00000000 003912d6
-> Call Trace: [<000360fa>] parse_args+0x0/0x2ca
->  [<0017d806>] strlen+0x0/0x1a
->  [<003921d4>] start_kernel+0x23c/0x428
->  [<003912d6>] _sinittext+0x2d6/0x95e
->
-> Code: f7e5 4879 002f 69ef 61ff ffca 462a 4e47 <4879> 0035 4b1c 61ff
-> fff0 0cc4 7005 23c0 0037 fd20 588f 265f 285f 4e75 48e7 301c
-> Disabling lock debugging due to kernel taint
-> Kernel panic - not syncing: Attempted to kill the idle task!
-> ---[ end Kernel panic - not syncing: Attempted to kill the idle task!
->
-> I bisected it to commit a640616822b2c3a8009b0600f20c4a76ea8a0025
-> Author: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Date:   Wed Aug 6 16:04:38 2014 -0700
->
->     slab: remove BAD_ALIEN_MAGIC
->
->     BAD_ALIEN_MAGIC value isn't used anymore. So remove it.
->
->     Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->     Acked-by: Christoph Lameter <cl@linux.com>
->     Cc: Pekka Enberg <penberg@kernel.org>
->     Cc: David Rientjes <rientjes@google.com>
->     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
->     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
->
-> Error 12 is ENOMEM, so I first thought it went out-of-memory, but just reverting
-> the above commit on mainline makes it work again.
+>>     slab: remove BAD_ALIEN_MAGIC
 
-Hello,
+> This patch only works for !NUMA. And if num_possible_nodes() is 1,
+> then it doesn't have any effect, because alloc_alien_cache() call is always
+> skipped. Is it possible !NUMA and num_possible_nodes() != 1?
+>
+> Could you check your config for CONFIG_NUMA and
+> CONFIG_NODES_SHIFT?
 
-Thanks for reporting.
+$ grep CONFIG_NUMA .config
+$ grep CONFIG_NODES_SHIFT .config
+CONFIG_NODES_SHIFT=3
+$
 
-This patch only works for !NUMA. And if num_possible_nodes() is 1,
-then it doesn't have any effect, because alloc_alien_cache() call is always
-skipped. Is it possible !NUMA and num_possible_nodes() != 1?
+There are indeed multiple nodes:
 
-Could you check your config for CONFIG_NUMA and
-CONFIG_NODES_SHIFT?
+On node 0 totalpages: 3584
+free_area_init_node: node 0, pgdat 003659a4, node_mem_map 00402000
+  DMA zone: 32 pages used for memmap
+  DMA zone: 0 pages reserved
+  DMA zone: 3584 pages, LIFO batch:0
+On node 1 totalpages: 65536
+free_area_init_node: node 1, pgdat 00366294, node_mem_map 00426090
+  DMA zone: 576 pages used for memmap
+  DMA zone: 0 pages reserved
+  DMA zone: 65536 pages, LIFO batch:15
 
-And, could you check booting with boot param "noaliencache"?
+> And, could you check booting with boot param "noaliencache"?
 
-Thanks.
+That fixes the boot, too.
+
+Thanks!
+
+Gr{oetje,eeting}s,
+
+                        Geert
+
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
