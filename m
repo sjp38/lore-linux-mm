@@ -1,146 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f47.google.com (mail-oi0-f47.google.com [209.85.218.47])
-	by kanga.kvack.org (Postfix) with ESMTP id A6DE26B0035
-	for <linux-mm@kvack.org>; Thu,  7 Aug 2014 09:35:30 -0400 (EDT)
-Received: by mail-oi0-f47.google.com with SMTP id x69so2642245oia.6
-        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 06:35:30 -0700 (PDT)
-Received: from mail-ob0-x231.google.com (mail-ob0-x231.google.com [2607:f8b0:4003:c01::231])
-        by mx.google.com with ESMTPS id de12si7323504oeb.14.2014.08.07.06.35.29
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 6397A6B0037
+	for <linux-mm@kvack.org>; Thu,  7 Aug 2014 09:36:17 -0400 (EDT)
+Received: by mail-wi0-f177.google.com with SMTP id ho1so5023779wib.16
+        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 06:36:16 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gc1si8460615wib.24.2014.08.07.06.36.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 07 Aug 2014 06:35:30 -0700 (PDT)
-Received: by mail-ob0-f177.google.com with SMTP id wp18so2831328obc.22
-        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 06:35:29 -0700 (PDT)
+        Thu, 07 Aug 2014 06:36:15 -0700 (PDT)
+Date: Thu, 7 Aug 2014 15:36:14 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 2/4] mm: memcontrol: add memory.current and memory.high
+ to default hierarchy
+Message-ID: <20140807133614.GC12730@dhcp22.suse.cz>
+References: <1407186897-21048-1-git-send-email-hannes@cmpxchg.org>
+ <1407186897-21048-3-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <53E37953.4000506@suse.cz>
-References: <1407309517-3270-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<1407309517-3270-9-git-send-email-iamjoonsoo.kim@lge.com>
-	<53E245D4.9080506@suse.cz>
-	<20140807081945.GA2427@js1304-P5Q-DELUXE>
-	<53E33E6D.1080002@suse.cz>
-	<CAAmzW4MoARz7Mp_Y1PUEQEJnMouKighgUOHaQH63B+6eKiA9nw@mail.gmail.com>
-	<53E37953.4000506@suse.cz>
-Date: Thu, 7 Aug 2014 22:35:29 +0900
-Message-ID: <CAAmzW4Mk+adD3WtK4q82w+MaunBdfENK7XQP+qOyPJ1yoeBYbQ@mail.gmail.com>
-Subject: Re: [PATCH v2 5/8] mm/isolation: change pageblock isolation logic to
- fix freepage counting bugs
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1407186897-21048-3-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-2014-08-07 22:04 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
-> On 08/07/2014 02:26 PM, Joonsoo Kim wrote:
->>
->> 2014-08-07 17:53 GMT+09:00 Vlastimil Babka <vbabka@suse.cz>:
->>>
->>> Ah, right. I thought that everything going to pcp lists would be through
->>>
->>> freeing which would already observe the isolate migratetype and skip
->>> pcplist. I forgot about the direct filling of pcplists from buddy list.
->>> You're right that we don't want extra hooks there.
->>>
->>> Still, couldn't this be solved in a simpler way via another pcplist drain
->>> after the pages are moved from normal to isolate buddy list? Should be
->>> even
->>> faster because instead of disable - drain - enable (5 all-cpu kicks,
->>> since
->>> each pageset_update does 2 kicks) you have drain - drain (2 kicks). While
->>> it's true that pageset_update is single-zone operation, I guess we would
->>> easily benefit from having a single-zone drain operation as well.
->>
->>
->> I hope so, but, it's not possible. Consider following situation.
->>
->> Page A: on pcplist of CPU2 and it is on isolate pageblock.
->>
->> CPU 1                   CPU 2
->> drain pcplist
->> wait IPI finished     move A to normal buddy list
->> finish IPI
->>                              A is moved to pcplist by allocation request
->>
->> move doesn't catch A,
->> because it is on pcplist.
->>
->> drain pcplist
->> wait IPI finished     move A to normal buddy list
->> finish IPI
->>                              A is moved to pcplist by allocation request
->>
->> repeat!!
->>
->> It could happen infinitely, though, low possibility.
->
->
-> Hm I see. Not a correctness issue, but still a failure to isolate. Probably
-> not impossible with enough CPU's and considering the fact that after
-> pcplists are drained, the next allocation request will try to refill them.
-> And during the drain, the pages are added to the beginning of the free_list
-> AFAICS, so they will be in the first refill batch.
+On Mon 04-08-14 17:14:55, Johannes Weiner wrote:
+[...]
+> @@ -132,6 +137,19 @@ u64 res_counter_uncharge(struct res_counter *counter, unsigned long val);
+>  u64 res_counter_uncharge_until(struct res_counter *counter,
+>  			       struct res_counter *top,
+>  			       unsigned long val);
+> +
+> +static inline unsigned long long res_counter_high(struct res_counter *cnt)
 
-I think that it is correctness issue. When page A is moved to normal buddy
-list, merge could happen and freepage counting would be incorrect.
+soft limit used res_counter_soft_limit_excess which has quite a long
+name but at least those two should be consistent.
+I will post two helper patches which I have used to make this and other
+operations on res counter easier as a reply to this.
 
-> OK, another attempt for alternative solution proposal :) It's not that I
-> would think disabling pcp would be so bad, just want to be sure there is no
-> better alternative.
+> +{
+> +	unsigned long long high = 0;
+> +	unsigned long flags;
+> +
+> +	spin_lock_irqsave(&cnt->lock, flags);
+> +	if (cnt->usage > cnt->high)
+> +		high = cnt->usage - cnt->high;
+> +	spin_unlock_irqrestore(&cnt->lock, flags);
+> +	return high;
+> +}
+> +
+>  /**
+>   * res_counter_margin - calculate chargeable space of a counter
+>   * @cnt: the counter
+> @@ -193,6 +211,17 @@ static inline void res_counter_reset_failcnt(struct res_counter *cnt)
+>  	spin_unlock_irqrestore(&cnt->lock, flags);
+>  }
+>  
+> +static inline int res_counter_set_high(struct res_counter *cnt,
+> +				       unsigned long long high)
+> +{
+> +	unsigned long flags;
+> +
+> +	spin_lock_irqsave(&cnt->lock, flags);
+> +	cnt->high = high;
+> +	spin_unlock_irqrestore(&cnt->lock, flags);
+> +	return 0;
+> +}
+> +
+[...]
+> @@ -2541,16 +2541,16 @@ retry:
+>  		goto done;
+>  
+>  	size = batch * PAGE_SIZE;
+> -	if (!res_counter_charge(&memcg->res, size, &fail_res)) {
+> +	if (!res_counter_charge(&memcg->res, size, &res)) {
+>  		if (!do_swap_account)
+>  			goto done_restock;
+> -		if (!res_counter_charge(&memcg->memsw, size, &fail_res))
+> +		if (!res_counter_charge(&memcg->memsw, size, &res))
+>  			goto done_restock;
+>  		res_counter_uncharge(&memcg->res, size);
+> -		mem_over_limit = mem_cgroup_from_res_counter(fail_res, memsw);
+> +		mem_over_limit = mem_cgroup_from_res_counter(res, memsw);
+>  		flags |= MEM_CGROUP_RECLAIM_NOSWAP;
+>  	} else
+> -		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
+> +		mem_over_limit = mem_cgroup_from_res_counter(res, res);
+>  
+>  	if (batch > nr_pages) {
+>  		batch = nr_pages;
+> @@ -2621,6 +2621,20 @@ bypass:
+>  done_restock:
+>  	if (batch > nr_pages)
+>  		refill_stock(memcg, batch - nr_pages);
+> +
+> +	res = &memcg->res;
+> +	while (res) {
+> +		unsigned long long high = res_counter_high(res);
+> +
+> +		if (high) {
+> +			unsigned long high_pages = high >> PAGE_SHIFT;
+> +			struct mem_cgroup *memcg;
+> +
+> +			memcg = mem_cgroup_from_res_counter(res, res);
+> +			mem_cgroup_reclaim(memcg, high_pages, gfp_mask, 0);
+> +		}
+> +		res = res->parent;
+> +	}
+>  done:
+>  	return ret;
+>  }
 
-Yeah, welcome any comment. :)
+Why haven't you followed what we do for hard limit here? In my
+implementation I have the following:
 
-> What if the drain operation had a flag telling it to recheck pageblock
-> migratetype and don't assume it's on the correct pcplist. Then the problem
-> would go away I think? Would it be possible to do without affecting the
-> normal drain-pcplist-when-full path? So that the cost is only applied to
-> isolation, but lower cost than pcplist disabling.
->
-> Actually I look that free_pcppages_bulk() doesn't consider migratetype of
-> the pcplist, but uses get_freepage_migratetype(page). So the pcplist drain
-> could first scan the pcplists and rewrite the freepage_migratetype according
-> to pageblock_migratetype. Then the free_pcppages_bulk() operation would be
-> unchanged for normal operation.
->
-> Or is this too clumsy? We could be also smart and have an alternative to
-> free_pcppages_bulk() which would omit the round-robin stuff (not needed for
-> this kind of drain), and have a pfn range to limit its operation to pages
-> that we are isolating.
-> Hm I guess with this approach some pages might still escape us if they were
-> moving between normal buddy list and pcplist through rmqueue_bulk() and
-> free_pcppages_bulk() (and not through our drain) at the wrong moments, but I
-> guess that would require a really specific workload (alternating between
-> burst of allocations and deallocations) and consistently unlucky timing.
->
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index a37465fcd8ae..6a797c740ea5 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2529,6 +2529,21 @@ static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
+ 	return NOTIFY_OK;
+ }
+ 
++static bool high_limit_excess(struct mem_cgroup *memcg,
++		struct mem_cgroup **memcg_over_limit)
++{
++	struct mem_cgroup *parent = memcg;
++
++	do {
++		if (res_counter_limit_excess(&parent->res, RES_HIGH_LIMIT)) {
++			*memcg_over_limit = parent;
++			return true;
++		}
++	} while ((parent = parent_mem_cgroup(parent)));
++
++	return false;
++}
++
+ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 		      unsigned int nr_pages)
+ {
+@@ -2623,6 +2638,10 @@ bypass:
+ 	goto retry;
+ 
+ done_restock:
++	/* Throttle charger a bit if it is above high limit. */
++	if (high_limit_excess(memcg, &mem_over_limit))
++		mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
++
+ 	if (batch > nr_pages)
+ 		refill_stock(memcg, batch - nr_pages);
+ done:
 
-Yes, it has similar problem as I mentioned above.
-
-Page A: on pcplist of CPU2 and it is on isolate pageblock.
-
-CPU 1                   CPU 2
-                            A is on normal buddy list
-drain pcplist
-wait IPI finished
-finish IPI
-                             A is moved to pcplist by allocation request
-move doesn't catch A,
-because it is on pcplist.
-                            move A to normal buddy list by free request
-
-drain pcplist
-wait IPI finished
-finish IPI
-                             A is moved to pcplist by allocation request
-move doesn't catch A,
-because it is on pcplist.
-                            move A to normal buddy list by free request
-
-repeat!!
-
-Although it is really corner case, I would like to choose error-free
-approach something like pcplist disable. :)
-
-Thanks.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
