@@ -1,61 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 562AA6B0035
-	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 08:06:19 -0400 (EDT)
-Received: by mail-lb0-f174.google.com with SMTP id c11so3709680lbj.5
-        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 05:06:18 -0700 (PDT)
-Received: from mail-lb0-x234.google.com (mail-lb0-x234.google.com [2a00:1450:4010:c04::234])
-        by mx.google.com with ESMTPS id l6si3270976lbr.4.2014.08.08.05.06.16
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 795B56B0035
+	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 08:33:03 -0400 (EDT)
+Received: by mail-wg0-f44.google.com with SMTP id m15so5452063wgh.3
+        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 05:33:03 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id xu8si11501455wjc.56.2014.08.08.05.33.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 08 Aug 2014 05:06:17 -0700 (PDT)
-Received: by mail-lb0-f180.google.com with SMTP id v6so3702909lbi.39
-        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 05:06:16 -0700 (PDT)
+        Fri, 08 Aug 2014 05:33:01 -0700 (PDT)
+Date: Fri, 8 Aug 2014 14:32:58 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 1/4] mm: memcontrol: reduce reclaim invocations for
+ higher order requests
+Message-ID: <20140808123258.GK4004@dhcp22.suse.cz>
+References: <1407186897-21048-1-git-send-email-hannes@cmpxchg.org>
+ <1407186897-21048-2-git-send-email-hannes@cmpxchg.org>
+ <20140807130822.GB12730@dhcp22.suse.cz>
+ <20140807153141.GD14734@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.11.1408080649430.14841@gentwo.org>
-References: <CAMuHMdW2kb=EF-Nmem_gyUu=p7hFOTe+Q2ekHh41SaHHiWDGeg@mail.gmail.com>
-	<CAAmzW4MX2birtCOUxjDdQ7c3Y+RyVkBt383HEQ=XFgnhhOsQPw@mail.gmail.com>
-	<CAMuHMdVC8aYwDEHnntshdVA24Nx3qAUXZfeRQNGqj=J6eExU-Q@mail.gmail.com>
-	<CAAmzW4NWnMeO+Z3CQ=9Z7rUFLaPmR-w0iMhxzjO+PVgVu7OMuQ@mail.gmail.com>
-	<20140808071903.GD6150@js1304-P5Q-DELUXE>
-	<CAMuHMdVHmmct=BC=WXFJWeizYp+S706WjvNi=powYsJkarKUhw@mail.gmail.com>
-	<alpine.DEB.2.11.1408080649430.14841@gentwo.org>
-Date: Fri, 8 Aug 2014 14:06:16 +0200
-Message-ID: <CAMuHMdWNNuPgDsjM1eM0uo2090-6OxAX8Kfw8Pcd2zo5G6zPkw@mail.gmail.com>
-Subject: Re: BUG: enable_cpucache failed for radix_tree_node, error 12 (was:
- Re: [PATCH v3 9/9] slab: remove BAD_ALIEN_MAGIC)
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140807153141.GD14734@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Vladimir Davydov <vdavydov@parallels.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hi Christoph,
+On Thu 07-08-14 11:31:41, Johannes Weiner wrote:
+> On Thu, Aug 07, 2014 at 03:08:22PM +0200, Michal Hocko wrote:
+> > On Mon 04-08-14 17:14:54, Johannes Weiner wrote:
+> > > Instead of passing the request size to direct reclaim, memcg just
+> > > manually loops around reclaiming SWAP_CLUSTER_MAX pages until the
+> > > charge can succeed.  That potentially wastes scan progress when huge
+> > > page allocations require multiple invocations, which always have to
+> > > restart from the default scan priority.
+> > > 
+> > > Pass the request size as a reclaim target to direct reclaim and leave
+> > > it to that code to reach the goal.
+> > 
+> > THP charge then will ask for 512 pages to be (direct) reclaimed. That
+> > is _a lot_ and I would expect long stalls to achieve this target. I
+> > would also expect quick priority drop down and potential over-reclaim
+> > for small and moderately sized memcgs (e.g. memcg with 1G worth of pages
+> > would need to drop down below DEF_PRIORITY-2 to have a chance to scan
+> > that many pages). All that done for a charge which can fallback to a
+> > single page charge.
+> > 
+> > The current code is quite hostile to THP when we are close to the limit
+> > but solving this by introducing long stalls instead doesn't sound like a
+> > proper approach to me.
+> 
+> THP latencies are actually the same when comparing high limit nr_pages
+> reclaim with the current hard limit SWAP_CLUSTER_MAX reclaim,
 
-On Fri, Aug 8, 2014 at 1:50 PM, Christoph Lameter <cl@linux.com> wrote:
-> On Fri, 8 Aug 2014, Geert Uytterhoeven wrote:
->> > Of possible, could you check whether page_to_nid(page) returns
->> > only 0 or not?
->>
->> It returns 0 or 1.
->
-> Ok this is broken on m68k. CONFIG_NUMA is required for this to work. If
-> the arch code does this despite !CONFIG_NUMA then lots of things should
-> break.
+Are you sure about this? I fail to see how they can be same as THP
+allocations/charges are __GFP_NORETRY so there is only one reclaim
+round for the hard limit reclaim followed by the charge failure if
+it is not successful.
 
-Can you please elaborate? We've been using for years...
+> although system time is reduced with the high limit.
+> High limit reclaim with SWAP_CLUSTER_MAX has better fault latency but
+> it doesn't actually contain the workload - with 1G high and a 4G load,
+> the consumption at the end of the run is 3.7G.
 
-Gr{oetje,eeting}s,
+Wouldn't it help to simply fail the charge and allow the charger to
+fallback for THP allocations if the usage is above high limit too
+much? The follow up single page charge fallback would be still
+throttled.
 
-                        Geert
+> So what I'm proposing works and is of equal quality from a THP POV.
+> This change is complicated enough when we stick to the facts, let's
+> not make up things based on gut feeling.
 
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+Agreed and I would expect those _facts_ to be part of the changelog.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
