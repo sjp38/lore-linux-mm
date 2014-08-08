@@ -1,94 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 49DE86B0035
-	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 03:00:43 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id eu11so6847714pac.3
-        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 00:00:42 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id db10si1764234pdb.238.2014.08.08.00.00.41
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 40E9F6B0035
+	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 03:19:06 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id p10so6489622pdj.8
+        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 00:19:05 -0700 (PDT)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id si3si5372543pac.158.2014.08.08.00.19.03
         for <linux-mm@kvack.org>;
-        Fri, 08 Aug 2014 00:00:42 -0700 (PDT)
+        Fri, 08 Aug 2014 00:19:05 -0700 (PDT)
+Date: Fri, 8 Aug 2014 16:19:03 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH for v3.17-rc1] Revert "slab: remove BAD_ALIEN_MAGIC"
-Date: Fri,  8 Aug 2014 16:00:39 +0900
-Message-Id: <1407481239-7572-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: BUG: enable_cpucache failed for radix_tree_node, error 12 (was:
+ Re: [PATCH v3 9/9] slab: remove BAD_ALIEN_MAGIC)
+Message-ID: <20140808071903.GD6150@js1304-P5Q-DELUXE>
+References: <CAMuHMdW2kb=EF-Nmem_gyUu=p7hFOTe+Q2ekHh41SaHHiWDGeg@mail.gmail.com>
+ <CAAmzW4MX2birtCOUxjDdQ7c3Y+RyVkBt383HEQ=XFgnhhOsQPw@mail.gmail.com>
+ <CAMuHMdVC8aYwDEHnntshdVA24Nx3qAUXZfeRQNGqj=J6eExU-Q@mail.gmail.com>
+ <CAAmzW4NWnMeO+Z3CQ=9Z7rUFLaPmR-w0iMhxzjO+PVgVu7OMuQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAAmzW4NWnMeO+Z3CQ=9Z7rUFLaPmR-w0iMhxzjO+PVgVu7OMuQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>, Vladimir Davydov <vdavydov@parallels.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Vladimir Davydov <vdavydov@parallels.com>
 
-This reverts commit a640616822b2 ("slab: remove BAD_ALIEN_MAGIC").
+On Thu, Aug 07, 2014 at 10:03:09PM +0900, Joonsoo Kim wrote:
+> 2014-08-07 21:53 GMT+09:00 Geert Uytterhoeven <geert@linux-m68k.org>:
+> > Hi,
+> >
+> > On Thu, Aug 7, 2014 at 2:36 PM, Joonsoo Kim <js1304@gmail.com> wrote:
+> >>> With latest mainline, I'm getting a crash during bootup on m68k/ARAnyM:
+> >>>
+> >>> enable_cpucache failed for radix_tree_node, error 12.
+> >>> kernel BUG at /scratch/geert/linux/linux-m68k/mm/slab.c:1522!
+> >
+> >>> I bisected it to commit a640616822b2c3a8009b0600f20c4a76ea8a0025
+> >>> Author: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >>> Date:   Wed Aug 6 16:04:38 2014 -0700
+> >>>
+> >>>     slab: remove BAD_ALIEN_MAGIC
+> >
+> >> This patch only works for !NUMA. And if num_possible_nodes() is 1,
+> >> then it doesn't have any effect, because alloc_alien_cache() call is always
+> >> skipped. Is it possible !NUMA and num_possible_nodes() != 1?
+> >>
+> >> Could you check your config for CONFIG_NUMA and
+> >> CONFIG_NODES_SHIFT?
+> >
+> > $ grep CONFIG_NUMA .config
+> > $ grep CONFIG_NODES_SHIFT .config
+> > CONFIG_NODES_SHIFT=3
+> > $
+> >
+> > There are indeed multiple nodes:
+> >
+> > On node 0 totalpages: 3584
+> > free_area_init_node: node 0, pgdat 003659a4, node_mem_map 00402000
+> >   DMA zone: 32 pages used for memmap
+> >   DMA zone: 0 pages reserved
+> >   DMA zone: 3584 pages, LIFO batch:0
+> > On node 1 totalpages: 65536
+> > free_area_init_node: node 1, pgdat 00366294, node_mem_map 00426090
+> >   DMA zone: 576 pages used for memmap
+> >   DMA zone: 0 pages reserved
+> >   DMA zone: 65536 pages, LIFO batch:15
+> >
+> >> And, could you check booting with boot param "noaliencache"?
+> >
+> > That fixes the boot, too.
+> 
+> Ah... I don't know it can be possible to be !CONFIG_NUMA and
+> CONFIG_NODES_SHIFT > 0 until now. If so, I should revert this patch.
+> 
+> After some more investigation, I will revert this patch tomorrow and
+> notify you.
+> 
+> Thanks for reporting!!! :)
 
-commit a640616822b2 ("slab: remove BAD_ALIEN_MAGIC") assumes that the
-system with !CONFIG_NUMA has only one memory node. But, it turns out to
-be false by the report from Geert. His system, m68k, has many memory nodes
-and is configured in !CONFIG_NUMA. So it couldn't boot with above change.
+Hello,
 
-Here goes his failure report.
+Just for curiosity.
 
-  With latest mainline, I'm getting a crash during bootup on m68k/ARAnyM:
+Could you show me your full dmesg on boot-up?
+What I want to know is nodes-cpus mapping.
 
-  enable_cpucache failed for radix_tree_node, error 12.
-  kernel BUG at /scratch/geert/linux/linux-m68k/mm/slab.c:1522!
-  *** TRAP #7 ***   FORMAT=0
-  Current process id is 0
-  BAD KERNEL TRAP: 00000000
-  Modules linked in:
-  PC: [<0039c92c>] kmem_cache_init_late+0x70/0x8c
-  SR: 2200  SP: 00345f90  a2: 0034c2e8
-  d0: 0000003d    d1: 00000000    d2: 00000000    d3: 003ac942
-  d4: 00000000    d5: 00000000    a0: 0034f686    a1: 0034f682
-  Process swapper (pid: 0, task=0034c2e8)
-  Frame format=0
-  Stack from 00345fc4:
-          002f69ef 002ff7e5 000005f2 000360fa 0017d806 003921d4 00000000
-          00000000 00000000 00000000 00000000 00000000 003ac942 00000000
-          003912d6
-  Call Trace: [<000360fa>] parse_args+0x0/0x2ca
-   [<0017d806>] strlen+0x0/0x1a
-   [<003921d4>] start_kernel+0x23c/0x428
-   [<003912d6>] _sinittext+0x2d6/0x95e
+I looked at SLAB code and found that SLAB works fine only if
+numa_mem_id() always returns 0. I guess that this is the case for
+!CONFIG_NUMA, so your system would work fine.
 
-  Code: f7e5 4879 002f 69ef 61ff ffca 462a 4e47 <4879> 0035 4b1c 61ff
-  fff0 0cc4 7005 23c0 0037 fd20 588f 265f 285f 4e75 48e7 301c
-  Disabling lock debugging due to kernel taint
-  Kernel panic - not syncing: Attempted to kill the idle task!
-  ---[ end Kernel panic - not syncing: Attempted to kill the idle task!
+And, I looked at SLUB code and found that SLUB works fine only if
+page_to_nid(page) always return 0 for this !CONFIG_NUMA and many nodes
+case. If not, some memory could be leak, I guess. 
 
-Although there is a alternative way to fix this issue such as disabling
-use of alien cache on !CONFIG_NUMA, but, reverting issued commit is better
-to me in this time.
+If possible, could you check whether page_to_nid(page) returns
+only 0 or not?
 
-Reported-by: Geert Uytterhoeven <geert@linux-m68k.org>
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- mm/slab.c |    4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
-
-diff --git a/mm/slab.c b/mm/slab.c
-index c727a16..0376429 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -470,6 +470,8 @@ static struct kmem_cache kmem_cache_boot = {
- 	.name = "kmem_cache",
- };
- 
-+#define BAD_ALIEN_MAGIC 0x01020304ul
-+
- static DEFINE_PER_CPU(struct delayed_work, slab_reap_work);
- 
- static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
-@@ -836,7 +838,7 @@ static int transfer_objects(struct array_cache *to,
- static inline struct alien_cache **alloc_alien_cache(int node,
- 						int limit, gfp_t gfp)
- {
--	return NULL;
-+	return (struct alien_cache **)BAD_ALIEN_MAGIC;
- }
- 
- static inline void free_alien_cache(struct alien_cache **ac_ptr)
--- 
-1.7.9.5
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
