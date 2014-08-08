@@ -1,75 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id E52176B0035
-	for <linux-mm@kvack.org>; Thu,  7 Aug 2014 19:18:32 -0400 (EDT)
-Received: by mail-wg0-f48.google.com with SMTP id x13so4813671wgg.31
-        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 16:18:32 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id t9si474269wiw.26.2014.08.07.16.18.30
+Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F7CF6B0035
+	for <linux-mm@kvack.org>; Thu,  7 Aug 2014 23:00:13 -0400 (EDT)
+Received: by mail-la0-f51.google.com with SMTP id pn19so4190079lab.10
+        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 20:00:12 -0700 (PDT)
+Received: from plane.gmane.org (plane.gmane.org. [80.91.229.3])
+        by mx.google.com with ESMTPS id bi4si1966338lbc.56.2014.08.07.20.00.10
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 07 Aug 2014 16:18:31 -0700 (PDT)
-Date: Thu, 7 Aug 2014 19:18:27 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: mm: memcontrol: rewrite uncharge API
-Message-ID: <20140807231827.GI14734@cmpxchg.org>
-References: <20140806135914.9fca00159f6e3298c24a4ab3@linux-foundation.org>
- <20140806140011.692985b45f8844706b17098e@linux-foundation.org>
- <20140806140055.40a48055f8797e159a894a68@linux-foundation.org>
- <20140806140235.f8fb69e76454af2ce935dc5b@linux-foundation.org>
- <20140807073825.GA12779@dhcp22.suse.cz>
- <20140807162507.GF14734@cmpxchg.org>
- <20140807154046.b8cce18325ade5b561475860@linux-foundation.org>
-MIME-Version: 1.0
+        Thu, 07 Aug 2014 20:00:11 -0700 (PDT)
+Received: from list by plane.gmane.org with local (Exim 4.69)
+	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
+	id 1XFaPU-0004Kw-7C
+	for linux-mm@kvack.org; Fri, 08 Aug 2014 05:00:04 +0200
+Received: from TOROON5037W-LP140-02-1279532811.dsl.bell.ca ([76.68.31.11])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 05:00:04 +0200
+Received: from ds2horner by TOROON5037W-LP140-02-1279532811.dsl.bell.ca with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 05:00:04 +0200
+From: David Horner <ds2horner@gmail.com>
+Subject: [RFC 2/3] zsmalloc/zram: add =?utf-8?b?enNfZ2V0X21heF9zaXplX2J5dGVz?= and use it in zram
+Date: Fri, 8 Aug 2014 02:56:24 +0000 (UTC)
+Message-ID: <loom.20140808T045014-594@post.gmane.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140807154046.b8cce18325ade5b561475860@linux-foundation.org>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 
-On Thu, Aug 07, 2014 at 03:40:46PM -0700, Andrew Morton wrote:
-> On Thu, 7 Aug 2014 12:25:07 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
-> 
-> > mem_cgroup_migrate() is suitable for replace_page_cache() as well,
-> > which gets rid of mem_cgroup_replace_page_cache().
-> > 
-> > Could you please update it to say:
-> > 
-> > mem_cgroup_migrate() is suitable for replace_page_cache() as well,
-> > which gets rid of mem_cgroup_replace_page_cache().  However, care
-> > needs to be taken because both the source and the target page can
-> > already be charged and on the LRU when fuse is splicing: grab the page
-> > lock on the charge moving side to prevent changing pc->mem_cgroup of a
-> > page under migration.  Also, the lruvecs of both pages change as we
-> > uncharge the old and charge the new during migration, and putback may
-> > race with us, so grab the lru lock and isolate the pages iff on LRU to
-> > prevent races and ensure the pages are on the right lruvec afterward.
-> 
-> OK thanks, I did that, separated out
-> mm-memcontrol-rewrite-uncharge-api-fix-page-cache-migration.patch again
-> and copied the [0/n] changelog text into mm-memcontrol-rewrite-charge-api.patch.
-> 
-> I'll get these (presently at http://ozlabs.org/~akpm/mmots/broken-out/)
-> 
-> mm-memcontrol-rewrite-charge-api.patch
-> mm-memcontrol-rewrite-uncharge-api.patch
-> mm-memcontrol-rewrite-uncharge-api-fix-page-cache-migration.patch
-> mm-memcontrol-use-page-lists-for-uncharge-batching.patch
-> #
-> page-cgroup-trivial-cleanup.patch
-> page-cgroup-get-rid-of-nr_pcg_flags.patch
-> #
-> #
-> memcg-remove-lookup_cgroup_page-prototype.patch
 
-mm-memcontrol-avoid-charge-statistics-churn-during-page-migration.patch
-came a bit later, but it's a small optimization directly relevant to
-the above changes, so you may want to send it along with them.
+ [2/3]
 
-Michal already acked it on the list:
-http://marc.info/?l=linux-mm&m=140724569618836&w=2
+
+ But why isn't mem_used_max writable? (save tearing down and rebuilding
+ device to reset max)
+
+ static DEVICE_ATTR(mem_used_max, S_IRUGO, mem_used_max_show, NULL);
+
+ static DEVICE_ATTR(mem_used_max, S_IRUGO | S_IWUSR, mem_used_max_show, NULL);
+
+   with a check in the store() that the new value is positive and less
+than current max?
+
+
+ I'm also a little puzzled why there is a new API zs_get_max_size_bytes if
+ the data is accessible through sysfs?
+ Especially if max limit will be (as you propose for [3/3]) through accessed
+ through zsmalloc and hence zram needn't access.
+
+
+
+  [3/3]
+ I concur that the zram limit is best implemented in zsmalloc.
+ I am looking forward to that revised code.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
