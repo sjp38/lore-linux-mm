@@ -1,153 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
-	by kanga.kvack.org (Postfix) with ESMTP id E55336B0035
-	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 07:50:43 -0400 (EDT)
-Received: by mail-qa0-f48.google.com with SMTP id m5so5346254qaj.21
-        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 04:50:43 -0700 (PDT)
-Received: from qmta14.emeryville.ca.mail.comcast.net (qmta14.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:212])
-        by mx.google.com with ESMTP id d61si9945123qge.34.2014.08.08.04.50.42
-        for <linux-mm@kvack.org>;
-        Fri, 08 Aug 2014 04:50:43 -0700 (PDT)
-Date: Fri, 8 Aug 2014 06:50:39 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 562AA6B0035
+	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 08:06:19 -0400 (EDT)
+Received: by mail-lb0-f174.google.com with SMTP id c11so3709680lbj.5
+        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 05:06:18 -0700 (PDT)
+Received: from mail-lb0-x234.google.com (mail-lb0-x234.google.com [2a00:1450:4010:c04::234])
+        by mx.google.com with ESMTPS id l6si3270976lbr.4.2014.08.08.05.06.16
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 08 Aug 2014 05:06:17 -0700 (PDT)
+Received: by mail-lb0-f180.google.com with SMTP id v6so3702909lbi.39
+        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 05:06:16 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.11.1408080649430.14841@gentwo.org>
+References: <CAMuHMdW2kb=EF-Nmem_gyUu=p7hFOTe+Q2ekHh41SaHHiWDGeg@mail.gmail.com>
+	<CAAmzW4MX2birtCOUxjDdQ7c3Y+RyVkBt383HEQ=XFgnhhOsQPw@mail.gmail.com>
+	<CAMuHMdVC8aYwDEHnntshdVA24Nx3qAUXZfeRQNGqj=J6eExU-Q@mail.gmail.com>
+	<CAAmzW4NWnMeO+Z3CQ=9Z7rUFLaPmR-w0iMhxzjO+PVgVu7OMuQ@mail.gmail.com>
+	<20140808071903.GD6150@js1304-P5Q-DELUXE>
+	<CAMuHMdVHmmct=BC=WXFJWeizYp+S706WjvNi=powYsJkarKUhw@mail.gmail.com>
+	<alpine.DEB.2.11.1408080649430.14841@gentwo.org>
+Date: Fri, 8 Aug 2014 14:06:16 +0200
+Message-ID: <CAMuHMdWNNuPgDsjM1eM0uo2090-6OxAX8Kfw8Pcd2zo5G6zPkw@mail.gmail.com>
 Subject: Re: BUG: enable_cpucache failed for radix_tree_node, error 12 (was:
  Re: [PATCH v3 9/9] slab: remove BAD_ALIEN_MAGIC)
-In-Reply-To: <CAMuHMdVHmmct=BC=WXFJWeizYp+S706WjvNi=powYsJkarKUhw@mail.gmail.com>
-Message-ID: <alpine.DEB.2.11.1408080649430.14841@gentwo.org>
-References: <CAMuHMdW2kb=EF-Nmem_gyUu=p7hFOTe+Q2ekHh41SaHHiWDGeg@mail.gmail.com> <CAAmzW4MX2birtCOUxjDdQ7c3Y+RyVkBt383HEQ=XFgnhhOsQPw@mail.gmail.com> <CAMuHMdVC8aYwDEHnntshdVA24Nx3qAUXZfeRQNGqj=J6eExU-Q@mail.gmail.com> <CAAmzW4NWnMeO+Z3CQ=9Z7rUFLaPmR-w0iMhxzjO+PVgVu7OMuQ@mail.gmail.com>
- <20140808071903.GD6150@js1304-P5Q-DELUXE> <CAMuHMdVHmmct=BC=WXFJWeizYp+S706WjvNi=powYsJkarKUhw@mail.gmail.com>
-Content-Type: MULTIPART/Mixed; BOUNDARY=001a11c3472a8b756d05001a603c
-Content-ID: <alpine.DEB.2.11.1408080649431.14841@gentwo.org>
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>
+To: Christoph Lameter <cl@linux.com>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Vladimir Davydov <vdavydov@parallels.com>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+Hi Christoph,
 
---001a11c3472a8b756d05001a603c
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
-Content-ID: <alpine.DEB.2.11.1408080649432.14841@gentwo.org>
-
-On Fri, 8 Aug 2014, Geert Uytterhoeven wrote:
-
+On Fri, Aug 8, 2014 at 1:50 PM, Christoph Lameter <cl@linux.com> wrote:
+> On Fri, 8 Aug 2014, Geert Uytterhoeven wrote:
+>> > Of possible, could you check whether page_to_nid(page) returns
+>> > only 0 or not?
+>>
+>> It returns 0 or 1.
 >
-> > Of possible, could you check whether page_to_nid(page) returns
-> > only 0 or not?
->
-> It returns 0 or 1.
+> Ok this is broken on m68k. CONFIG_NUMA is required for this to work. If
+> the arch code does this despite !CONFIG_NUMA then lots of things should
+> break.
 
-Ok this is broken on m68k. CONFIG_NUMA is required for this to work. If
-the arch code does this despite !CONFIG_NUMA then lots of things should
-break.
+Can you please elaborate? We've been using for years...
 
---001a11c3472a8b756d05001a603c
-Content-Type: APPLICATION/OCTET-STREAM; NAME=dmesg
-Content-Transfer-Encoding: BASE64
-Content-ID: <alpine.DEB.2.11.1408080649433.14841@gentwo.org>
-Content-Description: 
-Content-Disposition: ATTACHMENT; FILENAME=dmesg
+Gr{oetje,eeting}s,
 
-TGludXggdmVyc2lvbiAzLjE2LjAtYXRhcmktMDk2OTQtZ2VhZjQ4NDMzODVlMyAoZ2VlcnRAcmFt
-c2FuKSAoZ2NjIHZlcnNpb24gNC4xLjIgMjAwNjExMTUgKHByZXJlbGVhc2UpIChVYnVudHUgNC4x
-LjEtMjEpKSAjNTMgRnJpIEF1ZyA4IDA5OjQ0OjE0IENFU1QgMjAxNApTYXZpbmcgMTU0IGJ5dGVz
-IG9mIGJvb3RpbmZvCmNvbnNvbGUgW2RlYnVnMF0gZW5hYmxlZApBdGFyaSBoYXJkd2FyZSBmb3Vu
-ZDogVklERUwgU1RETUEtU0NTSSBTVF9NRlAgWU0yMTQ5IFBDTSBDT0RFQyBEU1A1NksgU0NDIEFO
-QUxPR19KT1kgQkxJVFRFUiBJREUgVFRfQ0xLIEZEQ19TUEVFRCAKKioqIG02OGtfbWVtb2Zmc2V0
-ID0gMHgwMDAwMDAwMAoqKiogbTY4a192aXJ0X3RvX25vZGVfc2hpZnQgPSAyMwptNjhrX3NldHVw
-X25vZGU6IG5vZGUgPSAwIChzdGFydCAweDAwMDAwMDAwIHNpemUgMHgwMGUwMDAwMCkKICAgIGkg
-PSAwLCBlbmQgPSAxCm02OGtfc2V0dXBfbm9kZTogbm9kZSA9IDEgKHN0YXJ0IDB4MDEwMDAwMDAg
-c2l6ZSAweDEwMDAwMDAwKQogICAgaSA9IDIsIGVuZCA9IDMzCk9uIG5vZGUgMCB0b3RhbHBhZ2Vz
-OiAzNTg0CmZyZWVfYXJlYV9pbml0X25vZGU6IG5vZGUgMCwgcGdkYXQgMDAzNmRhYzQsIG5vZGVf
-bWVtX21hcCAwMDQwYjAwMAogIERNQSB6b25lOiAzMiBwYWdlcyB1c2VkIGZvciBtZW1tYXAKICBE
-TUEgem9uZTogMCBwYWdlcyByZXNlcnZlZAogIERNQSB6b25lOiAzNTg0IHBhZ2VzLCBMSUZPIGJh
-dGNoOjAKT24gbm9kZSAxIHRvdGFscGFnZXM6IDY1NTM2CmZyZWVfYXJlYV9pbml0X25vZGU6IG5v
-ZGUgMSwgcGdkYXQgMDAzNmUzYjQsIG5vZGVfbWVtX21hcCAwMDQyZjA5MAogIERNQSB6b25lOiA1
-NzYgcGFnZXMgdXNlZCBmb3IgbWVtbWFwCiAgRE1BIHpvbmU6IDAgcGFnZXMgcmVzZXJ2ZWQKICBE
-TUEgem9uZTogNjU1MzYgcGFnZXMsIExJRk8gYmF0Y2g6MTUKTmF0RmVhdHMgZm91bmQgKEFSQW55
-TSwgMS4wKQpwY3B1LWFsbG9jOiBzMCByMCBkMzI3NjggdTMyNzY4IGFsbG9jPTEqMzI3NjgKcGNw
-dS1hbGxvYzogWzBdIDAgCkJ1aWx0IDIgem9uZWxpc3RzIGluIFpvbmUgb3JkZXIsIG1vYmlsaXR5
-IGdyb3VwaW5nIG9uLiAgVG90YWwgcGFnZXM6IDY4NTEyCktlcm5lbCBjb21tYW5kIGxpbmU6IHJv
-b3Q9L2Rldi9oZGExIHZpZGVvPWF0YWZiOnR0aGlnaCBkZWJ1Zz1wYXIgY29uc29sZT10dHkwIEJP
-T1RfSU1BR0U9dm1saW51eApQSUQgaGFzaCB0YWJsZSBlbnRyaWVzOiAyMDQ4IChvcmRlcjogMSwg
-ODE5MiBieXRlcykKRGVudHJ5IGNhY2hlIGhhc2ggdGFibGUgZW50cmllczogNjU1MzYgKG9yZGVy
-OiA2LCAyNjIxNDQgYnl0ZXMpCklub2RlLWNhY2hlIGhhc2ggdGFibGUgZW50cmllczogMzI3Njgg
-KG9yZGVyOiA1LCAxMzEwNzIgYnl0ZXMpClNvcnRpbmcgX19leF90YWJsZS4uLgpNZW1vcnk6IDI2
-ODQ0MEsvMjc2NDgwSyBhdmFpbGFibGUgKDI3MTBLIGtlcm5lbCBjb2RlLCAzMDdLIHJ3ZGF0YSwg
-NjQ0SyByb2RhdGEsIDE0OEsgaW5pdCwgMTY4SyBic3MsIDgwNDBLIHJlc2VydmVkKQpWaXJ0dWFs
-IGtlcm5lbCBtZW1vcnkgbGF5b3V0OgogICAgdmVjdG9yICA6IDB4MDAzNmQ1YjQgLSAweDAwMzZk
-OWI0ICAgKCAgIDEgS2lCKQogICAga21hcCAgICA6IDB4ZDAwMDAwMDAgLSAweGYwMDAwMDAwICAg
-KCA1MTIgTWlCKQogICAgdm1hbGxvYyA6IDB4MTE4MDAwMDAgLSAweGQwMDAwMDAwICAgKDMwNDgg
-TWlCKQogICAgbG93bWVtICA6IDB4MDAwMDAwMDAgLSAweDExMDAwMDAwICAgKCAyNzIgTWlCKQog
-ICAgICAuaW5pdCA6IDB4MDAzOTgwMDAgLSAweDAwM2JkMDAwICAgKCAxNDggS2lCKQogICAgICAu
-dGV4dCA6IDB4MDAwMDEwMDAgLSAweDAwMmE2OTFjICAgKDI3MTEgS2lCKQogICAgICAuZGF0YSA6
-IDB4MDAyYTk2MDAgLSAweDAwMzk3NTBjICAgKCA5NTIgS2lCKQogICAgICAuYnNzICA6IDB4MDAz
-NmQ0YzAgLSAweDAwMzk3NTBjICAgKCAxNjkgS2lCKQpOUl9JUlFTOjE0MQpDb25zb2xlOiBjb2xv
-dXIgZHVtbXkgZGV2aWNlIDgweDI1CmNvbnNvbGUgW3R0eTBdIGVuYWJsZWQKQ2FsaWJyYXRpbmcg
-ZGVsYXkgbG9vcC4uLiAxODguODIgQm9nb01JUFMgKGxwaj05NDQxMjgpCnBpZF9tYXg6IGRlZmF1
-bHQ6IDMyNzY4IG1pbmltdW06IDMwMQpNb3VudC1jYWNoZSBoYXNoIHRhYmxlIGVudHJpZXM6IDEw
-MjQgKG9yZGVyOiAwLCA0MDk2IGJ5dGVzKQpNb3VudHBvaW50LWNhY2hlIGhhc2ggdGFibGUgZW50
-cmllczogMTAyNCAob3JkZXI6IDAsIDQwOTYgYnl0ZXMpCmRldnRtcGZzOiBpbml0aWFsaXplZApO
-RVQ6IFJlZ2lzdGVyZWQgcHJvdG9jb2wgZmFtaWx5IDE2ClNDU0kgc3Vic3lzdGVtIGluaXRpYWxp
-emVkCk5FVDogUmVnaXN0ZXJlZCBwcm90b2NvbCBmYW1pbHkgMgpUQ1AgZXN0YWJsaXNoZWQgaGFz
-aCB0YWJsZSBlbnRyaWVzOiA0MDk2IChvcmRlcjogMiwgMTYzODQgYnl0ZXMpClRDUCBiaW5kIGhh
-c2ggdGFibGUgZW50cmllczogNDA5NiAob3JkZXI6IDIsIDE2Mzg0IGJ5dGVzKQpUQ1A6IEhhc2gg
-dGFibGVzIGNvbmZpZ3VyZWQgKGVzdGFibGlzaGVkIDQwOTYgYmluZCA0MDk2KQpUQ1A6IHJlbm8g
-cmVnaXN0ZXJlZApVRFAgaGFzaCB0YWJsZSBlbnRyaWVzOiAyNTYgKG9yZGVyOiAwLCA0MDk2IGJ5
-dGVzKQpVRFAtTGl0ZSBoYXNoIHRhYmxlIGVudHJpZXM6IDI1NiAob3JkZXI6IDAsIDQwOTYgYnl0
-ZXMpCk5FVDogUmVnaXN0ZXJlZCBwcm90b2NvbCBmYW1pbHkgMQpSUEM6IFJlZ2lzdGVyZWQgbmFt
-ZWQgVU5JWCBzb2NrZXQgdHJhbnNwb3J0IG1vZHVsZS4KUlBDOiBSZWdpc3RlcmVkIHVkcCB0cmFu
-c3BvcnQgbW9kdWxlLgpSUEM6IFJlZ2lzdGVyZWQgdGNwIHRyYW5zcG9ydCBtb2R1bGUuClJQQzog
-UmVnaXN0ZXJlZCB0Y3AgTkZTdjQuMSBiYWNrY2hhbm5lbCB0cmFuc3BvcnQgbW9kdWxlLgpuZmhk
-ODogZm91bmQgZGV2aWNlIHdpdGggMjExODgxNiBibG9ja3MgKDUxMiBieXRlcykKIG5maGQ4OiBB
-SERJIHAxIHAyCm5mZXRoOiBBUEkgNQpldGgwOiBuZmV0aCBhZGRyOjE5Mi4xNjguMC4xICgxOTIu
-MTY4LjAuMikgSFdhZGRyOjAwOjQxOjQ1OjU0OjQ4OjMwCmZ1dGV4IGhhc2ggdGFibGUgZW50cmll
-czogMjU2IChvcmRlcjogLTEsIDMwNzIgYnl0ZXMpClZGUzogRGlzayBxdW90YXMgZHF1b3RfNi41
-LjIKRHF1b3QtY2FjaGUgaGFzaCB0YWJsZSBlbnRyaWVzOiAxMDI0IChvcmRlciAwLCA0MDk2IGJ5
-dGVzKQptc2dtbmkgaGFzIGJlZW4gc2V0IHRvIDUyNApCbG9jayBsYXllciBTQ1NJIGdlbmVyaWMg
-KGJzZykgZHJpdmVyIHZlcnNpb24gMC40IGxvYWRlZCAobWFqb3IgMjUyKQppbyBzY2hlZHVsZXIg
-bm9vcCByZWdpc3RlcmVkCmlvIHNjaGVkdWxlciBjZnEgcmVnaXN0ZXJlZCAoZGVmYXVsdCkKYXRh
-ZmJfaW5pdDogc3RhcnQKYXRhZmJfaW5pdDogaW5pdGlhbGl6aW5nIEZhbGNvbiBodwphdGFmYjog
-c2NyZWVuX2Jhc2UgMDA2NzAwMDAgcGh5c19zY3JlZW5fYmFzZSA2NzAwMDAgc2NyZWVuX2xlbiAz
-MTEyOTYKRGV0ZXJtaW5lZCA2NDB4NDgwLCBkZXB0aCA0CiAgIHZpcnR1YWwgNjQweDk3MgpDb25z
-b2xlOiBzd2l0Y2hpbmcgdG8gY29sb3VyIGZyYW1lIGJ1ZmZlciBkZXZpY2UgODB4MzAKZmIwOiBm
-cmFtZSBidWZmZXIgZGV2aWNlLCB1c2luZyAzMDRLIG9mIHZpZGVvIG1lbW9yeQpOb24tdm9sYXRp
-bGUgbWVtb3J5IGRyaXZlciB2MS4zCkF0YXJpIGZsb3BweSBkcml2ZXI6IG1heC4gSEQsIHRyYWNr
-IGJ1ZmZlcmluZwpQcm9iaW5nIGZsb3BweSBkcml2ZShzKToKZmQwCmJyZDogbW9kdWxlIGxvYWRl
-ZApsb29wOiBtb2R1bGUgbG9hZGVkClVuaWZvcm0gTXVsdGktUGxhdGZvcm0gRS1JREUgZHJpdmVy
-CmlkZTogRmFsY29uIElERSBjb250cm9sbGVyClByb2JpbmcgSURFIGludGVyZmFjZSBpZGUwLi4u
-CmhkYTogU2FyZ2UgbTY4aywgQVRBIERJU0sgZHJpdmUKaWRlMCBhdCAweGZmZjAwMDAwIG9uIGly
-cSAxNSAoc2VyaWFsaXplZCkKaWRlLWdkIGRyaXZlciAxLjE4CmhkYTogbWF4IHJlcXVlc3Qgc2l6
-ZTogMTI4S2lCCmhkYTogMjExODgxNiBzZWN0b3JzICgxMDg0IE1CKSB3LzI1NktpQiBDYWNoZSwg
-Q0hTPTIxMDIvMTYvNjMKIGhkYTogQUhESSBoZGExIGhkYTIKaWRlLWNkIGRyaXZlciA1LjAwCnNj
-c2kwOiBvcHRpb25zIENBTl9RVUVVRT04IENNRF9QRVJfTFVOPTEgU0NBVC1HQVQ9MCBUQUdHRUQt
-UVVFVUlORz1ubyBIT1NUSUQ9NyBnZW5lcmljIG9wdGlvbnMgQVVUT1NFTlNFIFJFQUwgRE1BIFND
-U0ktMiBUQUdHRUQgUVVFVUlORyBnZW5lcmljIHJlbGVhc2U9NwpzY3NpIGhvc3QwOiBBdGFyaSBu
-YXRpdmUgU0NTSQpibGtfcXVldWVfbWF4X3NlZ21lbnRzOiBzZXQgdG8gbWluaW11bSAxCmJsa19x
-dWV1ZV9tYXhfc2VnbWVudHM6IHNldCB0byBtaW5pbXVtIDEKYmxrX3F1ZXVlX21heF9zZWdtZW50
-czogc2V0IHRvIG1pbmltdW0gMQpibGtfcXVldWVfbWF4X3NlZ21lbnRzOiBzZXQgdG8gbWluaW11
-bSAxCmJsa19xdWV1ZV9tYXhfc2VnbWVudHM6IHNldCB0byBtaW5pbXVtIDEKYmxrX3F1ZXVlX21h
-eF9zZWdtZW50czogc2V0IHRvIG1pbmltdW0gMQpibGtfcXVldWVfbWF4X3NlZ21lbnRzOiBzZXQg
-dG8gbWluaW11bSAxCm5lIG5lICh1bm5hbWVkIG5ldF9kZXZpY2UpICh1bmluaXRpYWxpemVkKTog
-TkUqMDAwIGV0aGVyY2FyZCBwcm9iZSBhdCAweDMwMDoKIG5vdCBmb3VuZCAobm8gcmVzZXQgYWNr
-KS4KbmUgbmUgKHVubmFtZWQgbmV0X2RldmljZSkgKHVuaW5pdGlhbGl6ZWQpOiBuZS5jOiBObyBO
-RSowMDAgY2FyZCBmb3VuZCBhdCBpL28gPSAweDMwMAptb3VzZWRldjogUFMvMiBtb3VzZSBkZXZp
-Y2UgY29tbW9uIGZvciBhbGwgbWljZQppbnB1dDogQXRhcmkgS2V5Ym9hcmQgYXMgL2RldmljZXMv
-dmlydHVhbC9pbnB1dC9pbnB1dDAKVENQOiBjdWJpYyByZWdpc3RlcmVkCk5FVDogUmVnaXN0ZXJl
-ZCBwcm90b2NvbCBmYW1pbHkgMTcKTkVUOiBSZWdpc3RlcmVkIHByb3RvY29sIGZhbWlseSAxNQpL
-ZXkgdHlwZSBkbnNfcmVzb2x2ZXIgcmVnaXN0ZXJlZAovc2NyYXRjaC9nZWVydC9saW51eC9saW51
-eC1tNjhrL2RyaXZlcnMvcnRjL2hjdG9zeXMuYzogdW5hYmxlIHRvIG9wZW4gcnRjIGRldmljZSAo
-cnRjMCkKRVhUNC1mcyAoaGRhMSk6IG1vdW50aW5nIGV4dDMgZmlsZSBzeXN0ZW0gdXNpbmcgdGhl
-IGV4dDQgc3Vic3lzdGVtCkVYVDQtZnMgKGhkYTEpOiBtb3VudGVkIGZpbGVzeXN0ZW0gd2l0aCBv
-cmRlcmVkIGRhdGEgbW9kZS4gT3B0czogKG51bGwpClZGUzogTW91bnRlZCByb290IChleHQzIGZp
-bGVzeXN0ZW0pIHJlYWRvbmx5IG9uIGRldmljZSAzOjEuCkZyZWVpbmcgdW51c2VkIGtlcm5lbCBt
-ZW1vcnk6IDE0OEsgKDAwMzk4MDAwIC0gMDAzYmQwMDApCnJhbmRvbTogbm9uYmxvY2tpbmcgcG9v
-bCBpcyBpbml0aWFsaXplZApBZGRpbmcgMTM3ODAwayBzd2FwIG9uIC9kZXYvaGRhMi4gIFByaW9y
-aXR5Oi0xIGV4dGVudHM6MSBhY3Jvc3M6MTM3ODAwayAKRVhUNC1mcyAoaGRhMSk6IHJlLW1vdW50
-ZWQuIE9wdHM6IApFWFQ0LWZzIChoZGExKTogcmUtbW91bnRlZC4gT3B0czogZXJyb3JzPXJlbW91
-bnQtcm8K
---001a11c3472a8b756d05001a603c--
+                        Geert
+
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
