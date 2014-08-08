@@ -1,59 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id D1C686B0039
-	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 18:07:56 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id g10so7690888pdj.15
-        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 15:07:56 -0700 (PDT)
-Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com [2607:f8b0:400e:c02::232])
-        by mx.google.com with ESMTPS id yj4si7048553pac.95.2014.08.08.15.07.55
+Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id D5B426B0038
+	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 18:36:38 -0400 (EDT)
+Received: by mail-ie0-f178.google.com with SMTP id rd18so6971941iec.23
+        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 15:36:38 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id om4si6084149igb.14.2014.08.08.15.36.37
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 08 Aug 2014 15:07:56 -0700 (PDT)
-Received: by mail-pd0-f178.google.com with SMTP id w10so7723765pde.9
-        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 15:07:55 -0700 (PDT)
-Date: Fri, 8 Aug 2014 15:07:53 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch v2] mm, hugetlb_cgroup: align hugetlb cgroup limit to hugepage
- size
-In-Reply-To: <alpine.DEB.2.02.1408071333001.1762@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.02.1408081507180.15603@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1408071333001.1762@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 08 Aug 2014 15:36:37 -0700 (PDT)
+Date: Fri, 8 Aug 2014 15:36:35 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCHv6 1/5] lib/genalloc.c: Add power aligned algorithm
+Message-Id: <20140808153635.36f27a4fbfbd8f715e51d15e@linux-foundation.org>
+In-Reply-To: <1407529397-6642-1-git-send-email-lauraa@codeaurora.org>
+References: <1407529397-6642-1-git-send-email-lauraa@codeaurora.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Russell King <linux@arm.linux.org.uk>, David Riley <davidriley@chromium.org>, linux-arm-kernel@lists.infradead.org, Ritesh Harjain <ritesh.harjani@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thierry Reding <thierry.reding@gmail.com>, Arnd Bergmann <arnd@arndb.de>
 
-Memcg aligns memory.limit_in_bytes to PAGE_SIZE as part of the resource counter
-since it makes no sense to allow a partial page to be charged.
+On Fri,  8 Aug 2014 13:23:13 -0700 Laura Abbott <lauraa@codeaurora.org> wrote:
 
-As a result of the hugetlb cgroup using the resource counter, it is also aligned
-to PAGE_SIZE but makes no sense unless aligned to the size of the hugepage being
-limited.
+> 
+> One of the more common algorithms used for allocation
+> is to align the start address of the allocation to
+> the order of size requested. Add this as an algorithm
+> option for genalloc.
+> 
+> --- a/lib/genalloc.c
+> +++ b/lib/genalloc.c
+> @@ -481,6 +481,27 @@ unsigned long gen_pool_first_fit(unsigned long *map, unsigned long size,
+>  EXPORT_SYMBOL(gen_pool_first_fit);
+>  
+>  /**
+> + * gen_pool_first_fit_order_align - find the first available region
+> + * of memory matching the size requirement. The region will be aligned
+> + * to the order of the size specified.
+> + * @map: The address to base the search on
+> + * @size: The bitmap size in bits
+> + * @start: The bitnumber to start searching at
+> + * @nr: The number of zeroed bits we're looking for
+> + * @data: additional data - unused
 
-Align hugetlb cgroup limit to hugepage size.
+`data' is used.
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- v2: use huge_page_order() per Aneesh
-     Sorry for not cc'ing you initially, get_maintainer.pl failed me
+> + */
+> +unsigned long gen_pool_first_fit_order_align(unsigned long *map,
+> +		unsigned long size, unsigned long start,
+> +		unsigned int nr, void *data)
+> +{
+> +	unsigned long order = (unsigned long) data;
 
- mm/hugetlb_cgroup.c | 1 +
- 1 file changed, 1 insertion(+)
+Why pass a void*?  Why not pass "unsigned order;"?
 
-diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
---- a/mm/hugetlb_cgroup.c
-+++ b/mm/hugetlb_cgroup.c
-@@ -275,6 +275,7 @@ static ssize_t hugetlb_cgroup_write(struct kernfs_open_file *of,
- 		ret = res_counter_memparse_write_strategy(buf, &val);
- 		if (ret)
- 			break;
-+		val = ALIGN(val, 1ULL << huge_page_shift(&hstates[idx]));
- 		ret = res_counter_set_limit(&h_cg->hugepage[idx], val);
- 		break;
- 	default:
+> +	unsigned long align_mask = (1 << get_order(nr << order)) - 1;
+> +
+> +	return bitmap_find_next_zero_area(map, size, start, nr, align_mask);
+> +}
+> +EXPORT_SYMBOL(gen_pool_first_fit_order_align);
+> +
+> +/**
+>   * gen_pool_best_fit - find the best fitting region of memory
+>   * macthing the size requirement (no alignment constraint)
+>   * @map: The address to base the search on
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
