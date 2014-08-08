@@ -1,113 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B3706B003A
-	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 17:38:31 -0400 (EDT)
-Received: by mail-wi0-f172.google.com with SMTP id n3so1672064wiv.11
-        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 14:38:29 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id dt6si5054285wib.73.2014.08.08.14.38.28
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 08 Aug 2014 14:38:29 -0700 (PDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 4/4] mm: memcontrol: add memory.vmstat to default hierarchy
-Date: Fri,  8 Aug 2014 17:38:14 -0400
-Message-Id: <1407533894-25845-5-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1407533894-25845-1-git-send-email-hannes@cmpxchg.org>
-References: <1407533894-25845-1-git-send-email-hannes@cmpxchg.org>
+Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 7423F6B0036
+	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 18:05:34 -0400 (EDT)
+Received: by mail-qa0-f54.google.com with SMTP id k15so6138624qaq.41
+        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 15:05:34 -0700 (PDT)
+Received: from relay.variantweb.net ([104.131.199.242])
+        by mx.google.com with ESMTP id 66si11829424qgg.117.2014.08.08.15.05.33
+        for <linux-mm@kvack.org>;
+        Fri, 08 Aug 2014 15:05:33 -0700 (PDT)
+Received: from mail (unknown [10.42.10.20])
+	by relay.variantweb.net (Postfix) with ESMTP id E1B72100ED7
+	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 18:05:30 -0400 (EDT)
+Date: Fri, 8 Aug 2014 17:05:28 -0500
+From: Seth Jennings <sjennings@variantweb.net>
+Subject: Re: [PATCH] mm/zpool: use prefixed module loading
+Message-ID: <20140808220528.GA32510@cerebellum.variantweb.net>
+References: <20140808075316.GA21919@www.outflux.net>
+ <CALZtONBNEg7kzUtwKihQuAU48MNh5NjhZcWoOxe-1-vgWqSLiw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALZtONBNEg7kzUtwKihQuAU48MNh5NjhZcWoOxe-1-vgWqSLiw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Kees Cook <keescook@chromium.org>, linux-kernel <linux-kernel@vger.kernel.org>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Carpenter <dan.carpenter@oracle.com>, Linux-MM <linux-mm@kvack.org>
 
-Provide basic per-memcg vmstat-style statistics on LRU sizes,
-allocated and freed pages, major and minor faults.
+On Fri, Aug 08, 2014 at 01:11:55PM -0400, Dan Streetman wrote:
+> On Fri, Aug 8, 2014 at 3:53 AM, Kees Cook <keescook@chromium.org> wrote:
+> > To avoid potential format string expansion via module parameters,
+> > do not use the zpool type directly in request_module() without a
+> > format string. Additionally, to avoid arbitrary modules being loaded
+> > via zpool API (e.g. via the zswap_zpool_type module parameter) add a
+> > "zpool-" prefix to the requested module, as well as module aliases for
+> > the existing zpool types (zbud and zsmalloc).
+> >
+> > Signed-off-by: Kees Cook <keescook@chromium.org>
+> > ---
+> >  mm/zbud.c     | 1 +
+> >  mm/zpool.c    | 2 +-
+> >  mm/zsmalloc.c | 1 +
+> >  3 files changed, 3 insertions(+), 1 deletion(-)
+> >
+> > diff --git a/mm/zbud.c b/mm/zbud.c
+> > index a05790b1915e..aa74f7addab1 100644
+> > --- a/mm/zbud.c
+> > +++ b/mm/zbud.c
+> > @@ -619,3 +619,4 @@ module_exit(exit_zbud);
+> >  MODULE_LICENSE("GPL");
+> >  MODULE_AUTHOR("Seth Jennings <sjenning@linux.vnet.ibm.com>");
+> >  MODULE_DESCRIPTION("Buddy Allocator for Compressed Pages");
+> > +MODULE_ALIAS("zpool-zbud");
+> 
+> If we keep this, I'd recommend putting this inside the #ifdef
+> CONFIG_ZPOOL section, to keep all the zpool stuff together in zbud and
+> zsmalloc.
+> 
+> > diff --git a/mm/zpool.c b/mm/zpool.c
+> > index e40612a1df00..739cdf0d183a 100644
+> > --- a/mm/zpool.c
+> > +++ b/mm/zpool.c
+> > @@ -150,7 +150,7 @@ struct zpool *zpool_create_pool(char *type, gfp_t gfp, struct zpool_ops *ops)
+> >         driver = zpool_get_driver(type);
+> >
+> >         if (!driver) {
+> > -               request_module(type);
+> > +               request_module("zpool-%s", type);
+> 
+> I agree with a change of (type) to ("%s", type), but what's the need
+> to prefix "zpool-"?  Anyone who has access to modify the
+> zswap_zpool_type parameter is already root and can just as easily load
+> any module they want.  Additionally, the zswap_compressor parameter
+> also runs through request_module() (in crypto/api.c) and could be used
+> to load any kernel module.
+> 
+> I'd prefer to leave out the "zpool-" prefix unless there is a specific
+> reason to include it.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- Documentation/cgroups/unified-hierarchy.txt |  8 ++++++
- mm/memcontrol.c                             | 40 +++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+)
+I think I agree with this.  Having the zpool- prefix makes it to where
+the would-be exploit couldn't load an arbitrary module; just those with a
+zpool- prefix.  But then again, the exploit would need root privileges
+to do any of this stuff and if it has that, it can just directly
+load module so... yeah.
 
-diff --git a/Documentation/cgroups/unified-hierarchy.txt b/Documentation/cgroups/unified-hierarchy.txt
-index ef1db728a035..512e9a2b2e06 100644
---- a/Documentation/cgroups/unified-hierarchy.txt
-+++ b/Documentation/cgroups/unified-hierarchy.txt
-@@ -384,6 +384,14 @@ that purpose, a hard upper limit can be set through 'memory.max'.
- - memory.usage_in_bytes is renamed to memory.current to be in line
-   with the new limit naming scheme
- 
-+- memory.stat has been replaced by memory.vmstat, which provides
-+  page-based statistics in the style of /proc/vmstat.
-+
-+  As cgroups are now always hierarchical and no longer allow tasks in
-+  intermediate levels, the local state is irrelevant and all
-+  statistics represent the state of the entire hierarchy rooted at the
-+  given group.
-+
- 
- 5. Planned Changes
- 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index a69ff21c8a9a..4959460fa170 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -6283,6 +6283,42 @@ static ssize_t memory_max_write(struct kernfs_open_file *of,
- 	return nbytes;
- }
- 
-+static u64 tree_events(struct mem_cgroup *memcg, int event)
-+{
-+	struct mem_cgroup *mi;
-+	u64 val = 0;
-+
-+	for_each_mem_cgroup_tree(mi, memcg)
-+		val += mem_cgroup_read_events(mi, event);
-+	return val;
-+}
-+
-+static int memory_vmstat_show(struct seq_file *m, void *v)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
-+	struct mem_cgroup *mi;
-+	int i;
-+
-+	for (i = 0; i < NR_LRU_LISTS; i++) {
-+		u64 val = 0;
-+
-+		for_each_mem_cgroup_tree(mi, memcg)
-+			val += mem_cgroup_nr_lru_pages(mi, BIT(i));
-+		seq_printf(m, "%s %llu\n", vmstat_text[NR_LRU_BASE + i], val);
-+	}
-+
-+	seq_printf(m, "pgalloc %llu\n",
-+		   tree_events(memcg, MEM_CGROUP_EVENTS_PGPGIN));
-+	seq_printf(m, "pgfree %llu\n",
-+		   tree_events(memcg, MEM_CGROUP_EVENTS_PGPGOUT));
-+	seq_printf(m, "pgfault %llu\n",
-+		   tree_events(memcg, MEM_CGROUP_EVENTS_PGFAULT));
-+	seq_printf(m, "pgmajfault %llu\n",
-+		   tree_events(memcg, MEM_CGROUP_EVENTS_PGMAJFAULT));
-+
-+	return 0;
-+}
-+
- static struct cftype memory_files[] = {
- 	{
- 		.name = "current",
-@@ -6298,6 +6334,10 @@ static struct cftype memory_files[] = {
- 		.read_u64 = memory_max_read,
- 		.write = memory_max_write,
- 	},
-+	{
-+		.name = "vmstat",
-+		.seq_show = memory_vmstat_show,
-+	},
- };
- 
- struct cgroup_subsys memory_cgrp_subsys = {
--- 
-2.0.3
+Seth
+
+> 
+> >                 driver = zpool_get_driver(type);
+> >         }
+> >
+> > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> > index 4e2fc83cb394..36af729eb3f6 100644
+> > --- a/mm/zsmalloc.c
+> > +++ b/mm/zsmalloc.c
+> > @@ -1199,3 +1199,4 @@ module_exit(zs_exit);
+> >
+> >  MODULE_LICENSE("Dual BSD/GPL");
+> >  MODULE_AUTHOR("Nitin Gupta <ngupta@vflare.org>");
+> > +MODULE_ALIAS("zpool-zsmalloc");
+> > --
+> > 1.9.1
+> >
+> >
+> > --
+> > Kees Cook
+> > Chrome OS Security
+> >
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
