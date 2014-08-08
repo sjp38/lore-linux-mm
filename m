@@ -1,162 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D9656B0035
-	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 07:42:54 -0400 (EDT)
-Received: by mail-we0-f177.google.com with SMTP id w62so5572930wes.36
-        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 04:42:53 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lk7si2800085wic.68.2014.08.08.04.42.51
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 08 Aug 2014 04:42:52 -0700 (PDT)
-Date: Fri, 8 Aug 2014 13:42:50 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: mm: memcontrol: rewrite uncharge API
-Message-ID: <20140808114250.GJ4004@dhcp22.suse.cz>
-References: <20140806135914.9fca00159f6e3298c24a4ab3@linux-foundation.org>
- <20140806140011.692985b45f8844706b17098e@linux-foundation.org>
- <20140806140055.40a48055f8797e159a894a68@linux-foundation.org>
- <20140806140235.f8fb69e76454af2ce935dc5b@linux-foundation.org>
- <20140807073825.GA12779@dhcp22.suse.cz>
- <20140807162507.GF14734@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140807162507.GF14734@cmpxchg.org>
+Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
+	by kanga.kvack.org (Postfix) with ESMTP id E55336B0035
+	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 07:50:43 -0400 (EDT)
+Received: by mail-qa0-f48.google.com with SMTP id m5so5346254qaj.21
+        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 04:50:43 -0700 (PDT)
+Received: from qmta14.emeryville.ca.mail.comcast.net (qmta14.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:212])
+        by mx.google.com with ESMTP id d61si9945123qge.34.2014.08.08.04.50.42
+        for <linux-mm@kvack.org>;
+        Fri, 08 Aug 2014 04:50:43 -0700 (PDT)
+Date: Fri, 8 Aug 2014 06:50:39 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: BUG: enable_cpucache failed for radix_tree_node, error 12 (was:
+ Re: [PATCH v3 9/9] slab: remove BAD_ALIEN_MAGIC)
+In-Reply-To: <CAMuHMdVHmmct=BC=WXFJWeizYp+S706WjvNi=powYsJkarKUhw@mail.gmail.com>
+Message-ID: <alpine.DEB.2.11.1408080649430.14841@gentwo.org>
+References: <CAMuHMdW2kb=EF-Nmem_gyUu=p7hFOTe+Q2ekHh41SaHHiWDGeg@mail.gmail.com> <CAAmzW4MX2birtCOUxjDdQ7c3Y+RyVkBt383HEQ=XFgnhhOsQPw@mail.gmail.com> <CAMuHMdVC8aYwDEHnntshdVA24Nx3qAUXZfeRQNGqj=J6eExU-Q@mail.gmail.com> <CAAmzW4NWnMeO+Z3CQ=9Z7rUFLaPmR-w0iMhxzjO+PVgVu7OMuQ@mail.gmail.com>
+ <20140808071903.GD6150@js1304-P5Q-DELUXE> <CAMuHMdVHmmct=BC=WXFJWeizYp+S706WjvNi=powYsJkarKUhw@mail.gmail.com>
+Content-Type: MULTIPART/Mixed; BOUNDARY=001a11c3472a8b756d05001a603c
+Content-ID: <alpine.DEB.2.11.1408080649431.14841@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Vladimir Davydov <vdavydov@parallels.com>
 
-On Thu 07-08-14 12:25:07, Johannes Weiner wrote:
-> On Thu, Aug 07, 2014 at 09:38:26AM +0200, Michal Hocko wrote:
-> > On Wed 06-08-14 14:02:35, Andrew Morton wrote:
-> > > On Wed, 6 Aug 2014 14:00:55 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
-> > > 
-> > > > From: Johannes Weiner <hannes@cmpxchg.org>
-> > > > Subject: mm: memcontrol: rewrite uncharge API
-> > > > 
-> > > 
-> > > Nope, sorry, that was missing
-> > > mm-memcontrol-rewrite-uncharge-api-fix-clear-page-mapping-in-migration.patch.
-> > > 
-> > > This time:
-> > > 
-> > > From: Johannes Weiner <hannes@cmpxchg.org>
-> > > Subject: mm: memcontrol: rewrite uncharge API
-> > > 
-> > > The memcg uncharging code that is involved towards the end of a page's
-> > > lifetime - truncation, reclaim, swapout, migration - is impressively
-> > > complicated and fragile.
-> > > 
-> > > Because anonymous and file pages were always charged before they had their
-> > > page->mapping established, uncharges had to happen when the page type
-> > > could still be known from the context; as in unmap for anonymous, page
-> > > cache removal for file and shmem pages, and swap cache truncation for swap
-> > > pages.  However, these operations happen well before the page is actually
-> > > freed, and so a lot of synchronization is necessary:
-> > > 
-> > > - Charging, uncharging, page migration, and charge migration all need
-> > >   to take a per-page bit spinlock as they could race with uncharging.
-> > > 
-> > > - Swap cache truncation happens during both swap-in and swap-out, and
-> > >   possibly repeatedly before the page is actually freed.  This means
-> > >   that the memcg swapout code is called from many contexts that make
-> > >   no sense and it has to figure out the direction from page state to
-> > >   make sure memory and memory+swap are always correctly charged.
-> > > 
-> > > - On page migration, the old page might be unmapped but then reused,
-> > >   so memcg code has to prevent untimely uncharging in that case.
-> > >   Because this code - which should be a simple charge transfer - is so
-> > >   special-cased, it is not reusable for replace_page_cache().
-> > > 
-> > > But now that charged pages always have a page->mapping, introduce
-> > > mem_cgroup_uncharge(), which is called after the final put_page(), when we
-> > > know for sure that nobody is looking at the page anymore.
-> > > 
-> > > For page migration, introduce mem_cgroup_migrate(), which is called after
-> > > the migration is successful and the new page is fully rmapped.  Because
-> > > the old page is no longer uncharged after migration, prevent double
-> > > charges by decoupling the page's memcg association (PCG_USED and
-> > > pc->mem_cgroup) from the page holding an actual charge.  The new bits
-> > > PCG_MEM and PCG_MEMSW represent the respective charges and are transferred
-> > > to the new page during migration.
-> > > 
-> > > mem_cgroup_migrate() is suitable for replace_page_cache() as well, which
-> > > gets rid of mem_cgroup_replace_page_cache().
-> > > 
-> > > Swap accounting is massively simplified: because the page is no longer
-> > > uncharged as early as swap cache deletion, a new mem_cgroup_swapout() can
-> > > transfer the page's memory+swap charge (PCG_MEMSW) to the swap entry
-> > > before the final put_page() in page reclaim.
-> > > 
-> > > Finally, page_cgroup changes are now protected by whatever protection the
-> > > page itself offers: anonymous pages are charged under the page table lock,
-> > > whereas page cache insertions, swapin, and migration hold the page lock. 
-> > > Uncharging happens under full exclusion with no outstanding references. 
-> > > Charging and uncharging also ensure that the page is off-LRU, which
-> > > serializes against charge migration.  Remove the very costly page_cgroup
-> > > lock and set pc->flags non-atomically.
-> > 
-> > I see some point in squashing all the fixups into the single patch but I
-> > am afraid we have lost some interesting details from fix ups this time.
-> > I think that at least
-> > mm-memcontrol-rewrite-uncharge-api-fix-page-cache-migration.patch and
-> > mm-memcontrol-rewrite-uncharge-api-fix-page-cache-migration-2.patch
-> > would be good to go on their own _or_ their changelogs added here. The
-> > whole page cache replace path is obscure and we should rather have that
-> > documented so we do not have to google for details or go through painful
-> > code inspection next time.
-> 
-> I agree, we would lose something there.  There is a paragraph in the
-> changelog that says:
-> 
-> mem_cgroup_migrate() is suitable for replace_page_cache() as well,
-> which gets rid of mem_cgroup_replace_page_cache().
-> 
-> Could you please update it to say:
-> 
-> mem_cgroup_migrate() is suitable for replace_page_cache() as well,
-> which gets rid of mem_cgroup_replace_page_cache().  However, care
-> needs to be taken because both the source and the target page can
-> already be charged and on the LRU when fuse is splicing: grab the page
-> lock on the charge moving side to prevent changing pc->mem_cgroup of a
-> page under migration.  Also, the lruvecs of both pages change as we
-> uncharge the old and charge the new during migration, and putback may
-> race with us, so grab the lru lock and isolate the pages iff on LRU to
-> prevent races and ensure the pages are on the right lruvec afterward.
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-Thanks! This is much better.
+--001a11c3472a8b756d05001a603c
+Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
+Content-ID: <alpine.DEB.2.11.1408080649432.14841@gentwo.org>
 
-> > > [vdavydov@parallels.com: fix flags definition]
-> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > > Cc: Hugh Dickins <hughd@google.com>
-> > > Cc: Tejun Heo <tj@kernel.org>
-> > > Cc: Vladimir Davydov <vdavydov@parallels.com>
-> > > Tested-by: Jet Chen <jet.chen@intel.com>
-> > > Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> > 
-> > If this comes from the above change then is should be probably removed.
-> > You can replace it by my Acked-by. I have acked all the follow up fixes
-> > but forgot to ack the initial patch.
-> 
-> Thanks!
-> 
-> > > Tested-by: Felipe Balbi <balbi@ti.com>
-> > 
-> > this tested-by came from the same preempt_{en,dis}able patch AFAICS.
-> 
-> Yeah it might be a bit overreaching to apply this to the full change.
-> 
-> On a different note, Michal, I just scrolled through the 2000 lines
-> that follow to see if you had any more comments, but there was only
-> your signature at the bottom.  Please think about the quote context
-> after you inserted your inline comments and then trim accordingly.
+On Fri, 8 Aug 2014, Geert Uytterhoeven wrote:
 
-Sure I usually trim emails a lot. Forgot this time, sorry about that!
--- 
-Michal Hocko
-SUSE Labs
+>
+> > Of possible, could you check whether page_to_nid(page) returns
+> > only 0 or not?
+>
+> It returns 0 or 1.
+
+Ok this is broken on m68k. CONFIG_NUMA is required for this to work. If
+the arch code does this despite !CONFIG_NUMA then lots of things should
+break.
+
+--001a11c3472a8b756d05001a603c
+Content-Type: APPLICATION/OCTET-STREAM; NAME=dmesg
+Content-Transfer-Encoding: BASE64
+Content-ID: <alpine.DEB.2.11.1408080649433.14841@gentwo.org>
+Content-Description: 
+Content-Disposition: ATTACHMENT; FILENAME=dmesg
+
+TGludXggdmVyc2lvbiAzLjE2LjAtYXRhcmktMDk2OTQtZ2VhZjQ4NDMzODVlMyAoZ2VlcnRAcmFt
+c2FuKSAoZ2NjIHZlcnNpb24gNC4xLjIgMjAwNjExMTUgKHByZXJlbGVhc2UpIChVYnVudHUgNC4x
+LjEtMjEpKSAjNTMgRnJpIEF1ZyA4IDA5OjQ0OjE0IENFU1QgMjAxNApTYXZpbmcgMTU0IGJ5dGVz
+IG9mIGJvb3RpbmZvCmNvbnNvbGUgW2RlYnVnMF0gZW5hYmxlZApBdGFyaSBoYXJkd2FyZSBmb3Vu
+ZDogVklERUwgU1RETUEtU0NTSSBTVF9NRlAgWU0yMTQ5IFBDTSBDT0RFQyBEU1A1NksgU0NDIEFO
+QUxPR19KT1kgQkxJVFRFUiBJREUgVFRfQ0xLIEZEQ19TUEVFRCAKKioqIG02OGtfbWVtb2Zmc2V0
+ID0gMHgwMDAwMDAwMAoqKiogbTY4a192aXJ0X3RvX25vZGVfc2hpZnQgPSAyMwptNjhrX3NldHVw
+X25vZGU6IG5vZGUgPSAwIChzdGFydCAweDAwMDAwMDAwIHNpemUgMHgwMGUwMDAwMCkKICAgIGkg
+PSAwLCBlbmQgPSAxCm02OGtfc2V0dXBfbm9kZTogbm9kZSA9IDEgKHN0YXJ0IDB4MDEwMDAwMDAg
+c2l6ZSAweDEwMDAwMDAwKQogICAgaSA9IDIsIGVuZCA9IDMzCk9uIG5vZGUgMCB0b3RhbHBhZ2Vz
+OiAzNTg0CmZyZWVfYXJlYV9pbml0X25vZGU6IG5vZGUgMCwgcGdkYXQgMDAzNmRhYzQsIG5vZGVf
+bWVtX21hcCAwMDQwYjAwMAogIERNQSB6b25lOiAzMiBwYWdlcyB1c2VkIGZvciBtZW1tYXAKICBE
+TUEgem9uZTogMCBwYWdlcyByZXNlcnZlZAogIERNQSB6b25lOiAzNTg0IHBhZ2VzLCBMSUZPIGJh
+dGNoOjAKT24gbm9kZSAxIHRvdGFscGFnZXM6IDY1NTM2CmZyZWVfYXJlYV9pbml0X25vZGU6IG5v
+ZGUgMSwgcGdkYXQgMDAzNmUzYjQsIG5vZGVfbWVtX21hcCAwMDQyZjA5MAogIERNQSB6b25lOiA1
+NzYgcGFnZXMgdXNlZCBmb3IgbWVtbWFwCiAgRE1BIHpvbmU6IDAgcGFnZXMgcmVzZXJ2ZWQKICBE
+TUEgem9uZTogNjU1MzYgcGFnZXMsIExJRk8gYmF0Y2g6MTUKTmF0RmVhdHMgZm91bmQgKEFSQW55
+TSwgMS4wKQpwY3B1LWFsbG9jOiBzMCByMCBkMzI3NjggdTMyNzY4IGFsbG9jPTEqMzI3NjgKcGNw
+dS1hbGxvYzogWzBdIDAgCkJ1aWx0IDIgem9uZWxpc3RzIGluIFpvbmUgb3JkZXIsIG1vYmlsaXR5
+IGdyb3VwaW5nIG9uLiAgVG90YWwgcGFnZXM6IDY4NTEyCktlcm5lbCBjb21tYW5kIGxpbmU6IHJv
+b3Q9L2Rldi9oZGExIHZpZGVvPWF0YWZiOnR0aGlnaCBkZWJ1Zz1wYXIgY29uc29sZT10dHkwIEJP
+T1RfSU1BR0U9dm1saW51eApQSUQgaGFzaCB0YWJsZSBlbnRyaWVzOiAyMDQ4IChvcmRlcjogMSwg
+ODE5MiBieXRlcykKRGVudHJ5IGNhY2hlIGhhc2ggdGFibGUgZW50cmllczogNjU1MzYgKG9yZGVy
+OiA2LCAyNjIxNDQgYnl0ZXMpCklub2RlLWNhY2hlIGhhc2ggdGFibGUgZW50cmllczogMzI3Njgg
+KG9yZGVyOiA1LCAxMzEwNzIgYnl0ZXMpClNvcnRpbmcgX19leF90YWJsZS4uLgpNZW1vcnk6IDI2
+ODQ0MEsvMjc2NDgwSyBhdmFpbGFibGUgKDI3MTBLIGtlcm5lbCBjb2RlLCAzMDdLIHJ3ZGF0YSwg
+NjQ0SyByb2RhdGEsIDE0OEsgaW5pdCwgMTY4SyBic3MsIDgwNDBLIHJlc2VydmVkKQpWaXJ0dWFs
+IGtlcm5lbCBtZW1vcnkgbGF5b3V0OgogICAgdmVjdG9yICA6IDB4MDAzNmQ1YjQgLSAweDAwMzZk
+OWI0ICAgKCAgIDEgS2lCKQogICAga21hcCAgICA6IDB4ZDAwMDAwMDAgLSAweGYwMDAwMDAwICAg
+KCA1MTIgTWlCKQogICAgdm1hbGxvYyA6IDB4MTE4MDAwMDAgLSAweGQwMDAwMDAwICAgKDMwNDgg
+TWlCKQogICAgbG93bWVtICA6IDB4MDAwMDAwMDAgLSAweDExMDAwMDAwICAgKCAyNzIgTWlCKQog
+ICAgICAuaW5pdCA6IDB4MDAzOTgwMDAgLSAweDAwM2JkMDAwICAgKCAxNDggS2lCKQogICAgICAu
+dGV4dCA6IDB4MDAwMDEwMDAgLSAweDAwMmE2OTFjICAgKDI3MTEgS2lCKQogICAgICAuZGF0YSA6
+IDB4MDAyYTk2MDAgLSAweDAwMzk3NTBjICAgKCA5NTIgS2lCKQogICAgICAuYnNzICA6IDB4MDAz
+NmQ0YzAgLSAweDAwMzk3NTBjICAgKCAxNjkgS2lCKQpOUl9JUlFTOjE0MQpDb25zb2xlOiBjb2xv
+dXIgZHVtbXkgZGV2aWNlIDgweDI1CmNvbnNvbGUgW3R0eTBdIGVuYWJsZWQKQ2FsaWJyYXRpbmcg
+ZGVsYXkgbG9vcC4uLiAxODguODIgQm9nb01JUFMgKGxwaj05NDQxMjgpCnBpZF9tYXg6IGRlZmF1
+bHQ6IDMyNzY4IG1pbmltdW06IDMwMQpNb3VudC1jYWNoZSBoYXNoIHRhYmxlIGVudHJpZXM6IDEw
+MjQgKG9yZGVyOiAwLCA0MDk2IGJ5dGVzKQpNb3VudHBvaW50LWNhY2hlIGhhc2ggdGFibGUgZW50
+cmllczogMTAyNCAob3JkZXI6IDAsIDQwOTYgYnl0ZXMpCmRldnRtcGZzOiBpbml0aWFsaXplZApO
+RVQ6IFJlZ2lzdGVyZWQgcHJvdG9jb2wgZmFtaWx5IDE2ClNDU0kgc3Vic3lzdGVtIGluaXRpYWxp
+emVkCk5FVDogUmVnaXN0ZXJlZCBwcm90b2NvbCBmYW1pbHkgMgpUQ1AgZXN0YWJsaXNoZWQgaGFz
+aCB0YWJsZSBlbnRyaWVzOiA0MDk2IChvcmRlcjogMiwgMTYzODQgYnl0ZXMpClRDUCBiaW5kIGhh
+c2ggdGFibGUgZW50cmllczogNDA5NiAob3JkZXI6IDIsIDE2Mzg0IGJ5dGVzKQpUQ1A6IEhhc2gg
+dGFibGVzIGNvbmZpZ3VyZWQgKGVzdGFibGlzaGVkIDQwOTYgYmluZCA0MDk2KQpUQ1A6IHJlbm8g
+cmVnaXN0ZXJlZApVRFAgaGFzaCB0YWJsZSBlbnRyaWVzOiAyNTYgKG9yZGVyOiAwLCA0MDk2IGJ5
+dGVzKQpVRFAtTGl0ZSBoYXNoIHRhYmxlIGVudHJpZXM6IDI1NiAob3JkZXI6IDAsIDQwOTYgYnl0
+ZXMpCk5FVDogUmVnaXN0ZXJlZCBwcm90b2NvbCBmYW1pbHkgMQpSUEM6IFJlZ2lzdGVyZWQgbmFt
+ZWQgVU5JWCBzb2NrZXQgdHJhbnNwb3J0IG1vZHVsZS4KUlBDOiBSZWdpc3RlcmVkIHVkcCB0cmFu
+c3BvcnQgbW9kdWxlLgpSUEM6IFJlZ2lzdGVyZWQgdGNwIHRyYW5zcG9ydCBtb2R1bGUuClJQQzog
+UmVnaXN0ZXJlZCB0Y3AgTkZTdjQuMSBiYWNrY2hhbm5lbCB0cmFuc3BvcnQgbW9kdWxlLgpuZmhk
+ODogZm91bmQgZGV2aWNlIHdpdGggMjExODgxNiBibG9ja3MgKDUxMiBieXRlcykKIG5maGQ4OiBB
+SERJIHAxIHAyCm5mZXRoOiBBUEkgNQpldGgwOiBuZmV0aCBhZGRyOjE5Mi4xNjguMC4xICgxOTIu
+MTY4LjAuMikgSFdhZGRyOjAwOjQxOjQ1OjU0OjQ4OjMwCmZ1dGV4IGhhc2ggdGFibGUgZW50cmll
+czogMjU2IChvcmRlcjogLTEsIDMwNzIgYnl0ZXMpClZGUzogRGlzayBxdW90YXMgZHF1b3RfNi41
+LjIKRHF1b3QtY2FjaGUgaGFzaCB0YWJsZSBlbnRyaWVzOiAxMDI0IChvcmRlciAwLCA0MDk2IGJ5
+dGVzKQptc2dtbmkgaGFzIGJlZW4gc2V0IHRvIDUyNApCbG9jayBsYXllciBTQ1NJIGdlbmVyaWMg
+KGJzZykgZHJpdmVyIHZlcnNpb24gMC40IGxvYWRlZCAobWFqb3IgMjUyKQppbyBzY2hlZHVsZXIg
+bm9vcCByZWdpc3RlcmVkCmlvIHNjaGVkdWxlciBjZnEgcmVnaXN0ZXJlZCAoZGVmYXVsdCkKYXRh
+ZmJfaW5pdDogc3RhcnQKYXRhZmJfaW5pdDogaW5pdGlhbGl6aW5nIEZhbGNvbiBodwphdGFmYjog
+c2NyZWVuX2Jhc2UgMDA2NzAwMDAgcGh5c19zY3JlZW5fYmFzZSA2NzAwMDAgc2NyZWVuX2xlbiAz
+MTEyOTYKRGV0ZXJtaW5lZCA2NDB4NDgwLCBkZXB0aCA0CiAgIHZpcnR1YWwgNjQweDk3MgpDb25z
+b2xlOiBzd2l0Y2hpbmcgdG8gY29sb3VyIGZyYW1lIGJ1ZmZlciBkZXZpY2UgODB4MzAKZmIwOiBm
+cmFtZSBidWZmZXIgZGV2aWNlLCB1c2luZyAzMDRLIG9mIHZpZGVvIG1lbW9yeQpOb24tdm9sYXRp
+bGUgbWVtb3J5IGRyaXZlciB2MS4zCkF0YXJpIGZsb3BweSBkcml2ZXI6IG1heC4gSEQsIHRyYWNr
+IGJ1ZmZlcmluZwpQcm9iaW5nIGZsb3BweSBkcml2ZShzKToKZmQwCmJyZDogbW9kdWxlIGxvYWRl
+ZApsb29wOiBtb2R1bGUgbG9hZGVkClVuaWZvcm0gTXVsdGktUGxhdGZvcm0gRS1JREUgZHJpdmVy
+CmlkZTogRmFsY29uIElERSBjb250cm9sbGVyClByb2JpbmcgSURFIGludGVyZmFjZSBpZGUwLi4u
+CmhkYTogU2FyZ2UgbTY4aywgQVRBIERJU0sgZHJpdmUKaWRlMCBhdCAweGZmZjAwMDAwIG9uIGly
+cSAxNSAoc2VyaWFsaXplZCkKaWRlLWdkIGRyaXZlciAxLjE4CmhkYTogbWF4IHJlcXVlc3Qgc2l6
+ZTogMTI4S2lCCmhkYTogMjExODgxNiBzZWN0b3JzICgxMDg0IE1CKSB3LzI1NktpQiBDYWNoZSwg
+Q0hTPTIxMDIvMTYvNjMKIGhkYTogQUhESSBoZGExIGhkYTIKaWRlLWNkIGRyaXZlciA1LjAwCnNj
+c2kwOiBvcHRpb25zIENBTl9RVUVVRT04IENNRF9QRVJfTFVOPTEgU0NBVC1HQVQ9MCBUQUdHRUQt
+UVVFVUlORz1ubyBIT1NUSUQ9NyBnZW5lcmljIG9wdGlvbnMgQVVUT1NFTlNFIFJFQUwgRE1BIFND
+U0ktMiBUQUdHRUQgUVVFVUlORyBnZW5lcmljIHJlbGVhc2U9NwpzY3NpIGhvc3QwOiBBdGFyaSBu
+YXRpdmUgU0NTSQpibGtfcXVldWVfbWF4X3NlZ21lbnRzOiBzZXQgdG8gbWluaW11bSAxCmJsa19x
+dWV1ZV9tYXhfc2VnbWVudHM6IHNldCB0byBtaW5pbXVtIDEKYmxrX3F1ZXVlX21heF9zZWdtZW50
+czogc2V0IHRvIG1pbmltdW0gMQpibGtfcXVldWVfbWF4X3NlZ21lbnRzOiBzZXQgdG8gbWluaW11
+bSAxCmJsa19xdWV1ZV9tYXhfc2VnbWVudHM6IHNldCB0byBtaW5pbXVtIDEKYmxrX3F1ZXVlX21h
+eF9zZWdtZW50czogc2V0IHRvIG1pbmltdW0gMQpibGtfcXVldWVfbWF4X3NlZ21lbnRzOiBzZXQg
+dG8gbWluaW11bSAxCm5lIG5lICh1bm5hbWVkIG5ldF9kZXZpY2UpICh1bmluaXRpYWxpemVkKTog
+TkUqMDAwIGV0aGVyY2FyZCBwcm9iZSBhdCAweDMwMDoKIG5vdCBmb3VuZCAobm8gcmVzZXQgYWNr
+KS4KbmUgbmUgKHVubmFtZWQgbmV0X2RldmljZSkgKHVuaW5pdGlhbGl6ZWQpOiBuZS5jOiBObyBO
+RSowMDAgY2FyZCBmb3VuZCBhdCBpL28gPSAweDMwMAptb3VzZWRldjogUFMvMiBtb3VzZSBkZXZp
+Y2UgY29tbW9uIGZvciBhbGwgbWljZQppbnB1dDogQXRhcmkgS2V5Ym9hcmQgYXMgL2RldmljZXMv
+dmlydHVhbC9pbnB1dC9pbnB1dDAKVENQOiBjdWJpYyByZWdpc3RlcmVkCk5FVDogUmVnaXN0ZXJl
+ZCBwcm90b2NvbCBmYW1pbHkgMTcKTkVUOiBSZWdpc3RlcmVkIHByb3RvY29sIGZhbWlseSAxNQpL
+ZXkgdHlwZSBkbnNfcmVzb2x2ZXIgcmVnaXN0ZXJlZAovc2NyYXRjaC9nZWVydC9saW51eC9saW51
+eC1tNjhrL2RyaXZlcnMvcnRjL2hjdG9zeXMuYzogdW5hYmxlIHRvIG9wZW4gcnRjIGRldmljZSAo
+cnRjMCkKRVhUNC1mcyAoaGRhMSk6IG1vdW50aW5nIGV4dDMgZmlsZSBzeXN0ZW0gdXNpbmcgdGhl
+IGV4dDQgc3Vic3lzdGVtCkVYVDQtZnMgKGhkYTEpOiBtb3VudGVkIGZpbGVzeXN0ZW0gd2l0aCBv
+cmRlcmVkIGRhdGEgbW9kZS4gT3B0czogKG51bGwpClZGUzogTW91bnRlZCByb290IChleHQzIGZp
+bGVzeXN0ZW0pIHJlYWRvbmx5IG9uIGRldmljZSAzOjEuCkZyZWVpbmcgdW51c2VkIGtlcm5lbCBt
+ZW1vcnk6IDE0OEsgKDAwMzk4MDAwIC0gMDAzYmQwMDApCnJhbmRvbTogbm9uYmxvY2tpbmcgcG9v
+bCBpcyBpbml0aWFsaXplZApBZGRpbmcgMTM3ODAwayBzd2FwIG9uIC9kZXYvaGRhMi4gIFByaW9y
+aXR5Oi0xIGV4dGVudHM6MSBhY3Jvc3M6MTM3ODAwayAKRVhUNC1mcyAoaGRhMSk6IHJlLW1vdW50
+ZWQuIE9wdHM6IApFWFQ0LWZzIChoZGExKTogcmUtbW91bnRlZC4gT3B0czogZXJyb3JzPXJlbW91
+bnQtcm8K
+--001a11c3472a8b756d05001a603c--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
