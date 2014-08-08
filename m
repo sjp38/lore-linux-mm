@@ -1,162 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FFC56B0035
-	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 02:45:47 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lf10so6841731pab.29
-        for <linux-mm@kvack.org>; Thu, 07 Aug 2014 23:45:47 -0700 (PDT)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id zw9si5314864pac.145.2014.08.07.23.45.45
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 49DE86B0035
+	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 03:00:43 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id eu11so6847714pac.3
+        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 00:00:42 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id db10si1764234pdb.238.2014.08.08.00.00.41
         for <linux-mm@kvack.org>;
-        Thu, 07 Aug 2014 23:45:46 -0700 (PDT)
-Date: Fri, 8 Aug 2014 15:45:44 +0900
+        Fri, 08 Aug 2014 00:00:42 -0700 (PDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 5/8] mm/isolation: change pageblock isolation logic to
- fix freepage counting bugs
-Message-ID: <20140808064544.GC6150@js1304-P5Q-DELUXE>
-References: <1407309517-3270-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1407309517-3270-9-git-send-email-iamjoonsoo.kim@lge.com>
- <53E39805.4040503@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <53E39805.4040503@suse.cz>
+Subject: [PATCH for v3.17-rc1] Revert "slab: remove BAD_ALIEN_MAGIC"
+Date: Fri,  8 Aug 2014 16:00:39 +0900
+Message-Id: <1407481239-7572-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>, Vladimir Davydov <vdavydov@parallels.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu, Aug 07, 2014 at 05:15:17PM +0200, Vlastimil Babka wrote:
-> On 08/06/2014 09:18 AM, Joonsoo Kim wrote:
-> >Current pageblock isolation logic has a problem that results in incorrect
-> >freepage counting. move_freepages_block() doesn't return number of
-> >moved pages so freepage count could be wrong if some pages are freed
-> >inbetween set_pageblock_migratetype() and move_freepages_block(). Although
-> >we fix move_freepages_block() to return number of moved pages, the problem
-> 
->     ^ could
+This reverts commit a640616822b2 ("slab: remove BAD_ALIEN_MAGIC").
 
-Yes, but fixing that is not needed because this patch changes
-isolation process and, after that, that behaviour have any problem.
+commit a640616822b2 ("slab: remove BAD_ALIEN_MAGIC") assumes that the
+system with !CONFIG_NUMA has only one memory node. But, it turns out to
+be false by the report from Geert. His system, m68k, has many memory nodes
+and is configured in !CONFIG_NUMA. So it couldn't boot with above change.
 
-> 
-> >wouldn't be fixed completely because buddy allocator doesn't care if merged
-> >pages are on different buddy list or not. If some page on normal buddy list
-> >is merged with isolated page and moved to isolate buddy list, freepage
-> >count should be subtracted, but, it didn't and can't now.
-> 
-> ... but it's not done now and doing that would impose unwanted
-> overhead on buddy merging.
+Here goes his failure report.
 
-Yes, we don't want more overhead on buddy merging so this patch
-introduces PageIsolated() in order to avoid merge problem.
+  With latest mainline, I'm getting a crash during bootup on m68k/ARAnyM:
 
-> Also the analogous problem exists when undoing isolation?
+  enable_cpucache failed for radix_tree_node, error 12.
+  kernel BUG at /scratch/geert/linux/linux-m68k/mm/slab.c:1522!
+  *** TRAP #7 ***   FORMAT=0
+  Current process id is 0
+  BAD KERNEL TRAP: 00000000
+  Modules linked in:
+  PC: [<0039c92c>] kmem_cache_init_late+0x70/0x8c
+  SR: 2200  SP: 00345f90  a2: 0034c2e8
+  d0: 0000003d    d1: 00000000    d2: 00000000    d3: 003ac942
+  d4: 00000000    d5: 00000000    a0: 0034f686    a1: 0034f682
+  Process swapper (pid: 0, task=0034c2e8)
+  Frame format=0
+  Stack from 00345fc4:
+          002f69ef 002ff7e5 000005f2 000360fa 0017d806 003921d4 00000000
+          00000000 00000000 00000000 00000000 00000000 003ac942 00000000
+          003912d6
+  Call Trace: [<000360fa>] parse_args+0x0/0x2ca
+   [<0017d806>] strlen+0x0/0x1a
+   [<003921d4>] start_kernel+0x23c/0x428
+   [<003912d6>] _sinittext+0x2d6/0x95e
 
-There is no merge problem in new (un)isolation process of this patch except
-for the page more than pageblock order. This case will be fixed in patch 7.
+  Code: f7e5 4879 002f 69ef 61ff ffca 462a 4e47 <4879> 0035 4b1c 61ff
+  fff0 0cc4 7005 23c0 0037 fd20 588f 265f 285f 4e75 48e7 301c
+  Disabling lock debugging due to kernel taint
+  Kernel panic - not syncing: Attempted to kill the idle task!
+  ---[ end Kernel panic - not syncing: Attempted to kill the idle task!
 
-> >Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> >---
-> >  include/linux/page-isolation.h |    2 +
-> >  mm/internal.h                  |    3 ++
-> >  mm/page_alloc.c                |   28 ++++++-----
-> >  mm/page_isolation.c            |  107 ++++++++++++++++++++++++++++++++++++----
-> >  4 files changed, 118 insertions(+), 22 deletions(-)
-> >
-> >diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-> >index 3fff8e7..3dd39fe 100644
-> >--- a/include/linux/page-isolation.h
-> >+++ b/include/linux/page-isolation.h
-> >@@ -21,6 +21,8 @@ static inline bool is_migrate_isolate(int migratetype)
-> >  }
-> >  #endif
-> >
-> >+void deactivate_isolated_page(struct zone *zone, struct page *page,
-> >+				unsigned int order);
-> >  bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
-> >  			 bool skip_hwpoisoned_pages);
-> >  void set_pageblock_migratetype(struct page *page, int migratetype);
-> >diff --git a/mm/internal.h b/mm/internal.h
-> >index 81b8884..c70750a 100644
-> >--- a/mm/internal.h
-> >+++ b/mm/internal.h
-> >@@ -110,6 +110,9 @@ extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
-> >   */
-> >  extern void zone_pcp_disable(struct zone *zone);
-> >  extern void zone_pcp_enable(struct zone *zone);
-> >+extern void __free_one_page(struct page *page, unsigned long pfn,
-> >+		struct zone *zone, unsigned int order,
-> >+		int migratetype);
-> >  extern void __free_pages_bootmem(struct page *page, unsigned int order);
-> >  extern void prep_compound_page(struct page *page, unsigned long order);
-> >  #ifdef CONFIG_MEMORY_FAILURE
-> >diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >index 4517b1d..82da4a8 100644
-> >--- a/mm/page_alloc.c
-> >+++ b/mm/page_alloc.c
-> >@@ -571,7 +571,7 @@ static inline int page_is_buddy(struct page *page, struct page *buddy,
-> >   * -- nyc
-> >   */
-> >
-> >-static inline void __free_one_page(struct page *page,
-> >+void __free_one_page(struct page *page,
-> >  		unsigned long pfn,
-> >  		struct zone *zone, unsigned int order,
-> >  		int migratetype)
-> >@@ -738,14 +738,19 @@ static void free_one_page(struct zone *zone,
-> >  				int migratetype)
-> >  {
-> >  	unsigned long nr_scanned;
-> >+
-> >+	if (unlikely(is_migrate_isolate(migratetype))) {
-> >+		deactivate_isolated_page(zone, page, order);
-> >+		return;
-> >+	}
-> >+
-> 
-> This would be more effectively done in the callers, which is where
-> migratetype is determined - there are two:
-> - free_hot_cold_page() already has this test, so just call deactivation
->   instead of free_one_page() - one test less in this path!
-> - __free_pages_ok() could add the test to call deactivation, and
-> since you remove another test in the hunk below, the net result is
-> the same in this path.
+Although there is a alternative way to fix this issue such as disabling
+use of alien cache on !CONFIG_NUMA, but, reverting issued commit is better
+to me in this time.
 
-Okay. Will do.
+Reported-by: Geert Uytterhoeven <geert@linux-m68k.org>
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
+ mm/slab.c |    4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-> >--- a/mm/page_isolation.c
-> >+++ b/mm/page_isolation.c
-> >@@ -9,6 +9,75 @@
-> >  #include <linux/hugetlb.h>
-> >  #include "internal.h"
-> >
-> >+#define ISOLATED_PAGE_MAPCOUNT_VALUE (-64)
-> >+
-> >+static inline int PageIsolated(struct page *page)
-> >+{
-> >+	return atomic_read(&page->_mapcount) == ISOLATED_PAGE_MAPCOUNT_VALUE;
-> >+}
-> >+
-> >+static inline void __SetPageIsolated(struct page *page)
-> >+{
-> >+	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
-> >+	atomic_set(&page->_mapcount, ISOLATED_PAGE_MAPCOUNT_VALUE);
-> >+}
-> >+
-> >+static inline void __ClearPageIsolated(struct page *page)
-> >+{
-> >+	VM_BUG_ON_PAGE(!PageIsolated(page), page);
-> >+	atomic_set(&page->_mapcount, -1);
-> >+}
-> 
-> Hmm wasn't the convention for atomic updates to be without the __ prefix?
-
-I copy-and_paste code for PageBuddy(). :)
-I guess that __ prefix here means that we should call it with holding
-the zone lock. atomic operation is used to satisfy type definition of
-page->_mapcount.
-
-Thanks.
+diff --git a/mm/slab.c b/mm/slab.c
+index c727a16..0376429 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -470,6 +470,8 @@ static struct kmem_cache kmem_cache_boot = {
+ 	.name = "kmem_cache",
+ };
+ 
++#define BAD_ALIEN_MAGIC 0x01020304ul
++
+ static DEFINE_PER_CPU(struct delayed_work, slab_reap_work);
+ 
+ static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
+@@ -836,7 +838,7 @@ static int transfer_objects(struct array_cache *to,
+ static inline struct alien_cache **alloc_alien_cache(int node,
+ 						int limit, gfp_t gfp)
+ {
+-	return NULL;
++	return (struct alien_cache **)BAD_ALIEN_MAGIC;
+ }
+ 
+ static inline void free_alien_cache(struct alien_cache **ac_ptr)
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
