@@ -1,219 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 60BA66B0035
-	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 05:16:11 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id g10so6780715pdj.1
-        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 02:16:11 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id az2si2024158pdb.198.2014.08.08.02.16.09
-        for <linux-mm@kvack.org>;
-        Fri, 08 Aug 2014 02:16:10 -0700 (PDT)
-From: "Sha, Ruibin" <ruibin.sha@intel.com>
-Subject: [PATCH]  export the function kmap_flush_unused.
-Date: Fri, 8 Aug 2014 09:16:03 +0000
-Message-ID: <3C85A229999D6B4A89FA64D4680BA6142C7DFA@SHSMSX101.ccr.corp.intel.com>
-Content-Language: en-US
-Content-Type: multipart/alternative;
-	boundary="_000_3C85A229999D6B4A89FA64D4680BA6142C7DFASHSMSX101ccrcorpi_"
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D9656B0035
+	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 07:42:54 -0400 (EDT)
+Received: by mail-we0-f177.google.com with SMTP id w62so5572930wes.36
+        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 04:42:53 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id lk7si2800085wic.68.2014.08.08.04.42.51
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 08 Aug 2014 04:42:52 -0700 (PDT)
+Date: Fri, 8 Aug 2014 13:42:50 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: mm: memcontrol: rewrite uncharge API
+Message-ID: <20140808114250.GJ4004@dhcp22.suse.cz>
+References: <20140806135914.9fca00159f6e3298c24a4ab3@linux-foundation.org>
+ <20140806140011.692985b45f8844706b17098e@linux-foundation.org>
+ <20140806140055.40a48055f8797e159a894a68@linux-foundation.org>
+ <20140806140235.f8fb69e76454af2ce935dc5b@linux-foundation.org>
+ <20140807073825.GA12779@dhcp22.suse.cz>
+ <20140807162507.GF14734@cmpxchg.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140807162507.GF14734@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "a.p.zijlstra@chello.nl" <a.p.zijlstra@chello.nl>, "mgorman@suse.de" <mgorman@suse.de>, "mingo@redhat.com" <mingo@redhat.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "He, Bo" <bo.he@intel.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
---_000_3C85A229999D6B4A89FA64D4680BA6142C7DFASHSMSX101ccrcorpi_
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+On Thu 07-08-14 12:25:07, Johannes Weiner wrote:
+> On Thu, Aug 07, 2014 at 09:38:26AM +0200, Michal Hocko wrote:
+> > On Wed 06-08-14 14:02:35, Andrew Morton wrote:
+> > > On Wed, 6 Aug 2014 14:00:55 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+> > > 
+> > > > From: Johannes Weiner <hannes@cmpxchg.org>
+> > > > Subject: mm: memcontrol: rewrite uncharge API
+> > > > 
+> > > 
+> > > Nope, sorry, that was missing
+> > > mm-memcontrol-rewrite-uncharge-api-fix-clear-page-mapping-in-migration.patch.
+> > > 
+> > > This time:
+> > > 
+> > > From: Johannes Weiner <hannes@cmpxchg.org>
+> > > Subject: mm: memcontrol: rewrite uncharge API
+> > > 
+> > > The memcg uncharging code that is involved towards the end of a page's
+> > > lifetime - truncation, reclaim, swapout, migration - is impressively
+> > > complicated and fragile.
+> > > 
+> > > Because anonymous and file pages were always charged before they had their
+> > > page->mapping established, uncharges had to happen when the page type
+> > > could still be known from the context; as in unmap for anonymous, page
+> > > cache removal for file and shmem pages, and swap cache truncation for swap
+> > > pages.  However, these operations happen well before the page is actually
+> > > freed, and so a lot of synchronization is necessary:
+> > > 
+> > > - Charging, uncharging, page migration, and charge migration all need
+> > >   to take a per-page bit spinlock as they could race with uncharging.
+> > > 
+> > > - Swap cache truncation happens during both swap-in and swap-out, and
+> > >   possibly repeatedly before the page is actually freed.  This means
+> > >   that the memcg swapout code is called from many contexts that make
+> > >   no sense and it has to figure out the direction from page state to
+> > >   make sure memory and memory+swap are always correctly charged.
+> > > 
+> > > - On page migration, the old page might be unmapped but then reused,
+> > >   so memcg code has to prevent untimely uncharging in that case.
+> > >   Because this code - which should be a simple charge transfer - is so
+> > >   special-cased, it is not reusable for replace_page_cache().
+> > > 
+> > > But now that charged pages always have a page->mapping, introduce
+> > > mem_cgroup_uncharge(), which is called after the final put_page(), when we
+> > > know for sure that nobody is looking at the page anymore.
+> > > 
+> > > For page migration, introduce mem_cgroup_migrate(), which is called after
+> > > the migration is successful and the new page is fully rmapped.  Because
+> > > the old page is no longer uncharged after migration, prevent double
+> > > charges by decoupling the page's memcg association (PCG_USED and
+> > > pc->mem_cgroup) from the page holding an actual charge.  The new bits
+> > > PCG_MEM and PCG_MEMSW represent the respective charges and are transferred
+> > > to the new page during migration.
+> > > 
+> > > mem_cgroup_migrate() is suitable for replace_page_cache() as well, which
+> > > gets rid of mem_cgroup_replace_page_cache().
+> > > 
+> > > Swap accounting is massively simplified: because the page is no longer
+> > > uncharged as early as swap cache deletion, a new mem_cgroup_swapout() can
+> > > transfer the page's memory+swap charge (PCG_MEMSW) to the swap entry
+> > > before the final put_page() in page reclaim.
+> > > 
+> > > Finally, page_cgroup changes are now protected by whatever protection the
+> > > page itself offers: anonymous pages are charged under the page table lock,
+> > > whereas page cache insertions, swapin, and migration hold the page lock. 
+> > > Uncharging happens under full exclusion with no outstanding references. 
+> > > Charging and uncharging also ensure that the page is off-LRU, which
+> > > serializes against charge migration.  Remove the very costly page_cgroup
+> > > lock and set pc->flags non-atomically.
+> > 
+> > I see some point in squashing all the fixups into the single patch but I
+> > am afraid we have lost some interesting details from fix ups this time.
+> > I think that at least
+> > mm-memcontrol-rewrite-uncharge-api-fix-page-cache-migration.patch and
+> > mm-memcontrol-rewrite-uncharge-api-fix-page-cache-migration-2.patch
+> > would be good to go on their own _or_ their changelogs added here. The
+> > whole page cache replace path is obscure and we should rather have that
+> > documented so we do not have to google for details or go through painful
+> > code inspection next time.
+> 
+> I agree, we would lose something there.  There is a paragraph in the
+> changelog that says:
+> 
+> mem_cgroup_migrate() is suitable for replace_page_cache() as well,
+> which gets rid of mem_cgroup_replace_page_cache().
+> 
+> Could you please update it to say:
+> 
+> mem_cgroup_migrate() is suitable for replace_page_cache() as well,
+> which gets rid of mem_cgroup_replace_page_cache().  However, care
+> needs to be taken because both the source and the target page can
+> already be charged and on the LRU when fuse is splicing: grab the page
+> lock on the charge moving side to prevent changing pc->mem_cgroup of a
+> page under migration.  Also, the lruvecs of both pages change as we
+> uncharge the old and charge the new during migration, and putback may
+> race with us, so grab the lru lock and isolate the pages iff on LRU to
+> prevent races and ensure the pages are on the right lruvec afterward.
 
-export the function kmap_flush_unused.
+Thanks! This is much better.
 
-Scenario:  When graphic driver need high memory spece, we use alloc_pages()
-         to allocate. But if the allocated page has just been
-         mapped in the KMAP space(like first kmap then kunmap) and
-         no flush page happened on PKMAP, the page virtual address is
-         not NULL.Then when we get that page and set page attribute like
-         set_memory_uc and set_memory_wc, we hit error.
+> > > [vdavydov@parallels.com: fix flags definition]
+> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > > Cc: Hugh Dickins <hughd@google.com>
+> > > Cc: Tejun Heo <tj@kernel.org>
+> > > Cc: Vladimir Davydov <vdavydov@parallels.com>
+> > > Tested-by: Jet Chen <jet.chen@intel.com>
+> > > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > 
+> > If this comes from the above change then is should be probably removed.
+> > You can replace it by my Acked-by. I have acked all the follow up fixes
+> > but forgot to ack the initial patch.
+> 
+> Thanks!
+> 
+> > > Tested-by: Felipe Balbi <balbi@ti.com>
+> > 
+> > this tested-by came from the same preempt_{en,dis}able patch AFAICS.
+> 
+> Yeah it might be a bit overreaching to apply this to the full change.
+> 
+> On a different note, Michal, I just scrolled through the 2000 lines
+> that follow to see if you had any more comments, but there was only
+> your signature at the bottom.  Please think about the quote context
+> after you inserted your inline comments and then trim accordingly.
 
-fix:       For that scenario,when we get the allocated page and its virtual
-           address is not NULL, we would like first flush that page.
-         So need export that function kmap_flush_unused.
-
-Signed-off-by: sha, ruibin <ruibin.sha@intel.com>
-
----
- mm/highmem.c |    1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/mm/highmem.c b/mm/highmem.c
-index b32b70c..511299b 100644
---- a/mm/highmem.c
-+++ b/mm/highmem.c
-@@ -156,6 +156,7 @@ void kmap_flush_unused(void)
-      flush_all_zero_pkmaps();
-      unlock_kmap();
- }
-+EXPORT_SYMBOL(kmap_flush_unused);
-
- static inline unsigned long map_new_virtual(struct page *page)
- {
---
-1.7.9.5
-
-
-
-
-Best Regards
----------------------------------------------------------------
-Sha, Rui bin ( Robin )
-+86 13817890945
-Android System Integration Shanghai
-
-
---_000_3C85A229999D6B4A89FA64D4680BA6142C7DFASHSMSX101ccrcorpi_
-Content-Type: text/html; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-
-<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
-osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
-xmlns:m=3D"http://schemas.microsoft.com/office/2004/12/omml" xmlns=3D"http:=
-//www.w3.org/TR/REC-html40">
-<head>
-<meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Dus-ascii"=
->
-<meta name=3D"Generator" content=3D"Microsoft Word 15 (filtered medium)">
-<style><!--
-/* Font Definitions */
-@font-face
-	{font-family:SimSun;
-	panose-1:2 1 6 0 3 1 1 1 1 1;}
-@font-face
-	{font-family:"Cambria Math";
-	panose-1:2 4 5 3 5 4 6 3 2 4;}
-@font-face
-	{font-family:Calibri;
-	panose-1:2 15 5 2 2 2 4 3 2 4;}
-@font-face
-	{font-family:Consolas;
-	panose-1:2 11 6 9 2 2 4 3 2 4;}
-@font-face
-	{font-family:"\@SimSun";
-	panose-1:2 1 6 0 3 1 1 1 1 1;}
-/* Style Definitions */
-p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{margin:0cm;
-	margin-bottom:.0001pt;
-	font-size:11.0pt;
-	font-family:"Calibri","sans-serif";}
-a:link, span.MsoHyperlink
-	{mso-style-priority:99;
-	color:#0563C1;
-	text-decoration:underline;}
-a:visited, span.MsoHyperlinkFollowed
-	{mso-style-priority:99;
-	color:#954F72;
-	text-decoration:underline;}
-p.MsoPlainText, li.MsoPlainText, div.MsoPlainText
-	{mso-style-priority:99;
-	mso-style-link:"Plain Text Char";
-	margin:0cm;
-	margin-bottom:.0001pt;
-	font-size:10.5pt;
-	font-family:Consolas;}
-span.EmailStyle17
-	{mso-style-type:personal-compose;
-	font-family:"Calibri","sans-serif";
-	color:windowtext;}
-span.PlainTextChar
-	{mso-style-name:"Plain Text Char";
-	mso-style-priority:99;
-	mso-style-link:"Plain Text";
-	font-family:Consolas;}
-.MsoChpDefault
-	{mso-style-type:export-only;
-	font-family:"Calibri","sans-serif";}
-@page WordSection1
-	{size:612.0pt 792.0pt;
-	margin:72.0pt 72.0pt 72.0pt 72.0pt;}
-div.WordSection1
-	{page:WordSection1;}
---></style><!--[if gte mso 9]><xml>
-<o:shapedefaults v:ext=3D"edit" spidmax=3D"1026" />
-</xml><![endif]--><!--[if gte mso 9]><xml>
-<o:shapelayout v:ext=3D"edit">
-<o:idmap v:ext=3D"edit" data=3D"1" />
-</o:shapelayout></xml><![endif]-->
-</head>
-<body lang=3D"EN-US" link=3D"#0563C1" vlink=3D"#954F72">
-<div class=3D"WordSection1">
-<p class=3D"MsoPlainText"><span style=3D"font-family:&quot;Courier New&quot=
-;">export the function kmap_flush_unused.<br>
-<br>
-Scenario:&nbsp; When graphic driver need high memory spece, we use alloc_pa=
-ges()<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; to allocate. But if the allocat=
-ed page has just been <br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; mapped in the KMAP space(like f=
-irst kmap then kunmap) and<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; no flush page happened on PKMAP=
-, the page virtual address is <br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; not NULL.Then when we get that =
-page and set page attribute like<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; set_memory_uc and set_memory_wc=
-, we hit error.<br>
-<br>
-fix:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; For that scenario,when we get the =
-allocated page and its virtual<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; address is not=
- NULL, we would like first flush that page.<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp; So need export that function km=
-ap_flush_unused.<br>
-<br>
-Signed-off-by: sha, ruibin &lt;ruibin.sha@intel.com&gt;<br>
-<br>
----<br>
-&nbsp;mm/highmem.c |&nbsp;&nbsp;&nbsp; 1 &#43;<br>
-&nbsp;1 file changed, 1 insertion(&#43;)<br>
-<br>
-diff --git a/mm/highmem.c b/mm/highmem.c<br>
-index b32b70c..511299b 100644<br>
---- a/mm/highmem.c<br>
-&#43;&#43;&#43; b/mm/highmem.c<br>
-@@ -156,6 &#43;156,7 @@ void kmap_flush_unused(void)<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; flush_all_zero_pkmaps();<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; unlock_kmap();<br>
-&nbsp;}<br>
-&#43;EXPORT_SYMBOL(kmap_flush_unused);<br>
-&nbsp;<br>
-&nbsp;static inline unsigned long map_new_virtual(struct page *page)<br>
-&nbsp;{<br>
--- <br>
-1.7.9.5<br>
-<br>
-<o:p>&nbsp;</o:p></span></p>
-<p class=3D"MsoNormal"><o:p>&nbsp;</o:p></p>
-<p class=3D"MsoNormal"><o:p>&nbsp;</o:p></p>
-<p class=3D"MsoNormal" style=3D"text-align:justify;text-justify:inter-ideog=
-raph"><span lang=3D"EN-GB" style=3D"font-size:10.5pt;color:#1F497D;mso-fare=
-ast-language:EN-GB">Best Regards<o:p></o:p></span></p>
-<p class=3D"MsoNormal" style=3D"text-align:justify;text-justify:inter-ideog=
-raph"><span lang=3D"EN-GB" style=3D"font-size:10.5pt;color:#1F497D;mso-fare=
-ast-language:EN-GB">-------------------------------------------------------=
---------<o:p></o:p></span></p>
-<p class=3D"MsoNormal" style=3D"text-align:justify;text-justify:inter-ideog=
-raph"><span lang=3D"EN-GB" style=3D"font-size:10.5pt;color:#1F497D">Sha, Ru=
-i bin ( Robin )<o:p></o:p></span></p>
-<p class=3D"MsoNormal" style=3D"text-align:justify;text-justify:inter-ideog=
-raph"><span lang=3D"EN-GB" style=3D"font-size:10.5pt;color:#1F497D">&#43;86=
- 13817890945<o:p></o:p></span></p>
-<p class=3D"MsoNormal" style=3D"text-align:justify;text-justify:inter-ideog=
-raph"><span lang=3D"EN-GB" style=3D"font-size:10.5pt;color:#1F497D">Android=
- System Integration Shanghai<o:p></o:p></span></p>
-<p class=3D"MsoNormal"><o:p>&nbsp;</o:p></p>
-</div>
-</body>
-</html>
-
---_000_3C85A229999D6B4A89FA64D4680BA6142C7DFASHSMSX101ccrcorpi_--
+Sure I usually trim emails a lot. Forgot this time, sorry about that!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
