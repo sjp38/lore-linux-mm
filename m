@@ -1,99 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 423D96B0036
-	for <linux-mm@kvack.org>; Sat,  9 Aug 2014 10:19:33 -0400 (EDT)
-Received: by mail-ig0-f177.google.com with SMTP id hn18so2330060igb.4
-        for <linux-mm@kvack.org>; Sat, 09 Aug 2014 07:19:32 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id pj8si9104030igb.30.2014.08.09.07.19.32
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id A754E6B0036
+	for <linux-mm@kvack.org>; Sat,  9 Aug 2014 17:34:49 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id rd3so9008791pab.40
+        for <linux-mm@kvack.org>; Sat, 09 Aug 2014 14:34:49 -0700 (PDT)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id cc11si5599972pdb.101.2014.08.09.14.34.48
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 09 Aug 2014 07:19:32 -0700 (PDT)
-Date: Sat, 9 Aug 2014 07:18:47 -0700
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH] mm/zpool: use prefixed module loading
-Message-ID: <20140809141847.GC21639@kroah.com>
-References: <20140808075316.GA21919@www.outflux.net>
- <CALZtONBNEg7kzUtwKihQuAU48MNh5NjhZcWoOxe-1-vgWqSLiw@mail.gmail.com>
- <CAGXu5jL3GjrqsixS6U+GYD1pxAOOcXsXbt5XOVC8KhZB+naXAA@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 09 Aug 2014 14:34:48 -0700 (PDT)
+Received: by mail-pa0-f53.google.com with SMTP id rd3so8920579pab.26
+        for <linux-mm@kvack.org>; Sat, 09 Aug 2014 14:34:48 -0700 (PDT)
+Date: Sat, 9 Aug 2014 14:34:46 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v2] mm, hugetlb_cgroup: align hugetlb cgroup limit to
+ hugepage size
+In-Reply-To: <87mwbem0zo.fsf@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.02.1408091434280.17896@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1408071333001.1762@chino.kir.corp.google.com> <alpine.DEB.2.02.1408081507180.15603@chino.kir.corp.google.com> <87mwbem0zo.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGXu5jL3GjrqsixS6U+GYD1pxAOOcXsXbt5XOVC8KhZB+naXAA@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Dan Streetman <ddstreet@ieee.org>, Herbert Xu <herbert@gondor.apana.org.au>, linux-kernel <linux-kernel@vger.kernel.org>, Seth Jennings <sjennings@variantweb.net>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Carpenter <dan.carpenter@oracle.com>, Linux-MM <linux-mm@kvack.org>, Vasiliy Kulikov <segoon@openwall.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Aug 08, 2014 at 05:06:41PM -0700, Kees Cook wrote:
-> On Fri, Aug 8, 2014 at 10:11 AM, Dan Streetman <ddstreet@ieee.org> wrote:
-> > On Fri, Aug 8, 2014 at 3:53 AM, Kees Cook <keescook@chromium.org> wrote:
-> >> To avoid potential format string expansion via module parameters,
-> >> do not use the zpool type directly in request_module() without a
-> >> format string. Additionally, to avoid arbitrary modules being loaded
-> >> via zpool API (e.g. via the zswap_zpool_type module parameter) add a
-> >> "zpool-" prefix to the requested module, as well as module aliases for
-> >> the existing zpool types (zbud and zsmalloc).
-> >>
-> >> Signed-off-by: Kees Cook <keescook@chromium.org>
-> >> ---
-> >>  mm/zbud.c     | 1 +
-> >>  mm/zpool.c    | 2 +-
-> >>  mm/zsmalloc.c | 1 +
-> >>  3 files changed, 3 insertions(+), 1 deletion(-)
-> >>
-> >> diff --git a/mm/zbud.c b/mm/zbud.c
-> >> index a05790b1915e..aa74f7addab1 100644
-> >> --- a/mm/zbud.c
-> >> +++ b/mm/zbud.c
-> >> @@ -619,3 +619,4 @@ module_exit(exit_zbud);
-> >>  MODULE_LICENSE("GPL");
-> >>  MODULE_AUTHOR("Seth Jennings <sjenning@linux.vnet.ibm.com>");
-> >>  MODULE_DESCRIPTION("Buddy Allocator for Compressed Pages");
-> >> +MODULE_ALIAS("zpool-zbud");
-> >
-> > If we keep this, I'd recommend putting this inside the #ifdef
-> > CONFIG_ZPOOL section, to keep all the zpool stuff together in zbud and
-> > zsmalloc.
-> >
-> >> diff --git a/mm/zpool.c b/mm/zpool.c
-> >> index e40612a1df00..739cdf0d183a 100644
-> >> --- a/mm/zpool.c
-> >> +++ b/mm/zpool.c
-> >> @@ -150,7 +150,7 @@ struct zpool *zpool_create_pool(char *type, gfp_t gfp, struct zpool_ops *ops)
-> >>         driver = zpool_get_driver(type);
-> >>
-> >>         if (!driver) {
-> >> -               request_module(type);
-> >> +               request_module("zpool-%s", type);
-> >
-> > I agree with a change of (type) to ("%s", type), but what's the need
-> > to prefix "zpool-"?  Anyone who has access to modify the
-> > zswap_zpool_type parameter is already root and can just as easily load
-> > any module they want.  Additionally, the zswap_compressor parameter
-> > also runs through request_module() (in crypto/api.c) and could be used
-> > to load any kernel module.
+On Sat, 9 Aug 2014, Aneesh Kumar K.V wrote:
+
+> > diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
+> > --- a/mm/hugetlb_cgroup.c
+> > +++ b/mm/hugetlb_cgroup.c
+> > @@ -275,6 +275,7 @@ static ssize_t hugetlb_cgroup_write(struct kernfs_open_file *of,
+> >  		ret = res_counter_memparse_write_strategy(buf, &val);
+> >  		if (ret)
+> >  			break;
+> > +		val = ALIGN(val, 1ULL << huge_page_shift(&hstates[idx]));
 > 
-> Yeah, the "%s" should be the absolute minimum. :)
+> Do we really need ULL ? max value should fit in unsigned long right ?
 > 
-> > I'd prefer to leave out the "zpool-" prefix unless there is a specific
-> > reason to include it.
+
+I usually just go for type agreement.
+
+> >  		ret = res_counter_set_limit(&h_cg->hugepage[idx], val);
+> >  		break;
+> >  	default:
 > 
-> The reason is that the CAP_SYS_MODULE capability is supposed to be
-> what controls the loading of arbitrary modules, and that's separate
-> permission than changing module parameters via sysfs
-> (/sys/modules/...). Which begs the question: maybe those parameters
-> shouldn't be writable without CAP_SYS_MODULE? Greg, any thoughts here?
-> kobjects don't seem to carry any capabilities checks.
-
-Some module parameters are ment to be set by anyone, without any
-capability permissions, that's why they have a file mode set on them by
-the module author.  Adding a CAP_SYS_MODULE check would probably not be
-a good idea.
-
-thanks,
-
-greg k-h
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
