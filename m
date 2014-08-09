@@ -1,61 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 388F56B0036
-	for <linux-mm@kvack.org>; Sat,  9 Aug 2014 07:00:03 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id fa1so8574017pad.41
-        for <linux-mm@kvack.org>; Sat, 09 Aug 2014 04:00:02 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id mu2si4611569pdb.43.2014.08.09.04.00.01
-        for <linux-mm@kvack.org>;
-        Sat, 09 Aug 2014 04:00:02 -0700 (PDT)
-Date: Sat, 9 Aug 2014 07:00:00 -0400
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v7 07/22] Replace the XIP page fault handler with the DAX
- page fault handler
-Message-ID: <20140809110000.GA32313@linux.intel.com>
-References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
- <c2e602f401a580c4fac54b9b8f4a6f8dd0ac1071.1395591795.git.matthew.r.wilcox@intel.com>
- <20140409102758.GM32103@quack.suse.cz>
- <20140409205111.GG5727@linux.intel.com>
- <20140409214331.GQ32103@quack.suse.cz>
- <20140729121259.GL6754@linux.intel.com>
- <20140729210457.GA17807@quack.suse.cz>
- <20140729212333.GO6754@linux.intel.com>
- <20140730095229.GA19205@quack.suse.cz>
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 8ED506B0036
+	for <linux-mm@kvack.org>; Sat,  9 Aug 2014 07:31:43 -0400 (EDT)
+Received: by mail-wi0-f170.google.com with SMTP id f8so3598406wiw.3
+        for <linux-mm@kvack.org>; Sat, 09 Aug 2014 04:31:42 -0700 (PDT)
+Received: from mail3-relais-sop.national.inria.fr (mail3-relais-sop.national.inria.fr. [192.134.164.104])
+        by mx.google.com with ESMTPS id gn8si7327449wib.23.2014.08.09.04.31.41
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sat, 09 Aug 2014 04:31:42 -0700 (PDT)
+Date: Sat, 9 Aug 2014 13:31:39 +0200 (CEST)
+From: Julia Lawall <julia.lawall@lip6.fr>
+Subject: Re: [next:master 9660/12021] mm/vmstat.c:1343:2-5: WARNING: Use
+ BUG_ON
+In-Reply-To: <53e5eeb3.j/1hw4T//eDPmwb+%fengguang.wu@intel.com>
+Message-ID: <alpine.DEB.2.02.1408091329530.2016@localhost6.localdomain6>
+References: <53e5eeb3.j/1hw4T//eDPmwb+%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140730095229.GA19205@quack.suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: kbuild@01.org, cl@linux-foundation.org, akpm@linux-foundation.org, linux-mm@kvack.org
 
-On Wed, Jul 30, 2014 at 11:52:29AM +0200, Jan Kara wrote:
->   I see the problem now. How about an attached patch? Do you see other
-> lockdep warnings with it?
+I suspect that using BUG_ON here is not a good idea, because the tested 
+called function looks pretty important.  But I have forwarded it on in 
+case someone thinks otherwise.
 
-Hit another one :-(  Same inversion between i_mmap_mutex and jbd2_handle:
+julia
 
- -> #1 (&mapping->i_mmap_mutex){+.+...}:
-        [<ffffffff810cfa12>] lock_acquire+0xb2/0x1f0
-        [<ffffffff815cb5e5>] mutex_lock_nested+0x75/0x420
-        [<ffffffff811bc0ff>] rmap_walk+0x6f/0x390
-        [<ffffffff811bc5a9>] page_mkclean+0x69/0x90
-        [<ffffffff81189c10>] clear_page_dirty_for_io+0x60/0x120
-        [<ffffffffa01d1017>] mpage_submit_page+0x47/0x80 [ext4]
-        [<ffffffffa01d1160>] mpage_process_page_bufs+0x110/0x120 [ext4]
-        [<ffffffffa01d16f0>] mpage_prepare_extent_to_map+0x1f0/0x2f0 [ext4]
-        [<ffffffffa01d6e57>] ext4_writepages+0x427/0x1060 [ext4]
-        [<ffffffff8118c211>] do_writepages+0x21/0x40
-        [<ffffffff8117e909>] __filemap_fdatawrite_range+0x59/0x60
-        [<ffffffff8117ea0d>] filemap_write_and_wait_range+0x2d/0x70
-        [<ffffffffa01cd7d8>] ext4_sync_file+0x118/0x490 [ext4]
-        [<ffffffff8122dd2b>] vfs_fsync_range+0x1b/0x30
-        [<ffffffff811b99ad>] SyS_msync+0x1ed/0x250
+On Sat, 9 Aug 2014, kbuild test robot wrote:
 
-(ext4_writepages starts a transaction before calling
-mpage_prepare_extent_to_map)
+> TO: Christoph Lameter <cl@linux-foundation.org>
+> CC: Andrew Morton <akpm@linux-foundation.org>
+> CC: Linux Memory Management List <linux-mm@kvack.org>
+> 
+> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> head:   6a062ecb62b37d6d36fa2e56052982565b0f5aac
+> commit: f9054025fb65d0802098f18b153e4d720acd126e [9660/12021] on demand vmstat: Do not open code alloc_cpumask_var
+> :::::: branch date: 27 hours ago
+> :::::: commit date: 9 days ago
+> 
+> >> mm/vmstat.c:1343:2-5: WARNING: Use BUG_ON
+> 
+> Please consider folding the attached diff :-)
+> 
+> ---
+> 0-DAY kernel build testing backend              Open Source Technology Center
+> http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
