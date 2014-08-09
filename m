@@ -1,47 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id A5EA76B0036
-	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 23:09:04 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so8223970pab.14
-        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 20:09:04 -0700 (PDT)
-Received: from helcar.apana.org.au (helcar.apana.org.au. [209.40.204.226])
-        by mx.google.com with ESMTPS id he1si7439679pbd.172.2014.08.08.20.09.02
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id C9D786B0036
+	for <linux-mm@kvack.org>; Sat,  9 Aug 2014 06:05:59 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id lf10so8592952pab.30
+        for <linux-mm@kvack.org>; Sat, 09 Aug 2014 03:05:59 -0700 (PDT)
+Received: from e28smtp01.in.ibm.com (e28smtp01.in.ibm.com. [122.248.162.1])
+        by mx.google.com with ESMTPS id qq1si5825504pbb.121.2014.08.09.03.05.57
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 08 Aug 2014 20:09:03 -0700 (PDT)
-Date: Sat, 9 Aug 2014 11:08:22 +0800
-From: Herbert Xu <herbert@gondor.apana.org.au>
-Subject: Re: [PATCH] mm/zpool: use prefixed module loading
-Message-ID: <20140809030822.GA9422@gondor.apana.org.au>
-References: <20140808075316.GA21919@www.outflux.net>
- <CALZtONBNEg7kzUtwKihQuAU48MNh5NjhZcWoOxe-1-vgWqSLiw@mail.gmail.com>
- <CAGXu5jL3GjrqsixS6U+GYD1pxAOOcXsXbt5XOVC8KhZB+naXAA@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 09 Aug 2014 03:05:58 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Sat, 9 Aug 2014 15:35:55 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id B6C191258018
+	for <linux-mm@kvack.org>; Sat,  9 Aug 2014 15:35:56 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s79A67ta56426522
+	for <linux-mm@kvack.org>; Sat, 9 Aug 2014 15:36:07 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s79A5nk9011282
+	for <linux-mm@kvack.org>; Sat, 9 Aug 2014 15:35:50 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [patch v2] mm, hugetlb_cgroup: align hugetlb cgroup limit to hugepage size
+In-Reply-To: <alpine.DEB.2.02.1408081507180.15603@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1408071333001.1762@chino.kir.corp.google.com> <alpine.DEB.2.02.1408081507180.15603@chino.kir.corp.google.com>
+Date: Sat, 09 Aug 2014 15:35:47 +0530
+Message-ID: <87mwbem0zo.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGXu5jL3GjrqsixS6U+GYD1pxAOOcXsXbt5XOVC8KhZB+naXAA@mail.gmail.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Dan Streetman <ddstreet@ieee.org>, Greg KH <gregkh@linuxfoundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Seth Jennings <sjennings@variantweb.net>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Carpenter <dan.carpenter@oracle.com>, Linux-MM <linux-mm@kvack.org>, Vasiliy Kulikov <segoon@openwall.com>
+To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Aug 08, 2014 at 05:06:41PM -0700, Kees Cook wrote:
+David Rientjes <rientjes@google.com> writes:
+
+> Memcg aligns memory.limit_in_bytes to PAGE_SIZE as part of the resource counter
+> since it makes no sense to allow a partial page to be charged.
 >
-> I think we need to fix zswap now before it gets too far, and likely
-> adjust the crypto API to use a module prefix as well. Perhaps we need
-> a "crypto-" prefix?
+> As a result of the hugetlb cgroup using the resource counter, it is also aligned
+> to PAGE_SIZE but makes no sense unless aligned to the size of the hugepage being
+> limited.
+>
+> Align hugetlb cgroup limit to hugepage size.
+>
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Yes I think a crypto- prefix would make sense.  Most crypto
-algorithms should be providing an alias already so it's mostly
-just changing the aliases.
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-Patches are welcome :)
+> ---
+>  v2: use huge_page_order() per Aneesh
+>      Sorry for not cc'ing you initially, get_maintainer.pl failed me
+>
+>  mm/hugetlb_cgroup.c | 1 +
+>  1 file changed, 1 insertion(+)
+>
+> diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
+> --- a/mm/hugetlb_cgroup.c
+> +++ b/mm/hugetlb_cgroup.c
+> @@ -275,6 +275,7 @@ static ssize_t hugetlb_cgroup_write(struct kernfs_open_file *of,
+>  		ret = res_counter_memparse_write_strategy(buf, &val);
+>  		if (ret)
+>  			break;
+> +		val = ALIGN(val, 1ULL << huge_page_shift(&hstates[idx]));
 
-Thanks,
--- 
-Email: Herbert Xu <herbert@gondor.apana.org.au>
-Home Page: http://gondor.apana.org.au/~herbert/
-PGP Key: http://gondor.apana.org.au/~herbert/pubkey.txt
+Do we really need ULL ? max value should fit in unsigned long right ?
+
+>  		ret = res_counter_set_limit(&h_cg->hugepage[idx], val);
+>  		break;
+>  	default:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
