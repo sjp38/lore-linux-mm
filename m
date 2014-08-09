@@ -1,77 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id C9D786B0036
-	for <linux-mm@kvack.org>; Sat,  9 Aug 2014 06:05:59 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id lf10so8592952pab.30
-        for <linux-mm@kvack.org>; Sat, 09 Aug 2014 03:05:59 -0700 (PDT)
-Received: from e28smtp01.in.ibm.com (e28smtp01.in.ibm.com. [122.248.162.1])
-        by mx.google.com with ESMTPS id qq1si5825504pbb.121.2014.08.09.03.05.57
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 09 Aug 2014 03:05:58 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Sat, 9 Aug 2014 15:35:55 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id B6C191258018
-	for <linux-mm@kvack.org>; Sat,  9 Aug 2014 15:35:56 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s79A67ta56426522
-	for <linux-mm@kvack.org>; Sat, 9 Aug 2014 15:36:07 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s79A5nk9011282
-	for <linux-mm@kvack.org>; Sat, 9 Aug 2014 15:35:50 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [patch v2] mm, hugetlb_cgroup: align hugetlb cgroup limit to hugepage size
-In-Reply-To: <alpine.DEB.2.02.1408081507180.15603@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1408071333001.1762@chino.kir.corp.google.com> <alpine.DEB.2.02.1408081507180.15603@chino.kir.corp.google.com>
-Date: Sat, 09 Aug 2014 15:35:47 +0530
-Message-ID: <87mwbem0zo.fsf@linux.vnet.ibm.com>
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 388F56B0036
+	for <linux-mm@kvack.org>; Sat,  9 Aug 2014 07:00:03 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id fa1so8574017pad.41
+        for <linux-mm@kvack.org>; Sat, 09 Aug 2014 04:00:02 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id mu2si4611569pdb.43.2014.08.09.04.00.01
+        for <linux-mm@kvack.org>;
+        Sat, 09 Aug 2014 04:00:02 -0700 (PDT)
+Date: Sat, 9 Aug 2014 07:00:00 -0400
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH v7 07/22] Replace the XIP page fault handler with the DAX
+ page fault handler
+Message-ID: <20140809110000.GA32313@linux.intel.com>
+References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
+ <c2e602f401a580c4fac54b9b8f4a6f8dd0ac1071.1395591795.git.matthew.r.wilcox@intel.com>
+ <20140409102758.GM32103@quack.suse.cz>
+ <20140409205111.GG5727@linux.intel.com>
+ <20140409214331.GQ32103@quack.suse.cz>
+ <20140729121259.GL6754@linux.intel.com>
+ <20140729210457.GA17807@quack.suse.cz>
+ <20140729212333.GO6754@linux.intel.com>
+ <20140730095229.GA19205@quack.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140730095229.GA19205@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-David Rientjes <rientjes@google.com> writes:
+On Wed, Jul 30, 2014 at 11:52:29AM +0200, Jan Kara wrote:
+>   I see the problem now. How about an attached patch? Do you see other
+> lockdep warnings with it?
 
-> Memcg aligns memory.limit_in_bytes to PAGE_SIZE as part of the resource counter
-> since it makes no sense to allow a partial page to be charged.
->
-> As a result of the hugetlb cgroup using the resource counter, it is also aligned
-> to PAGE_SIZE but makes no sense unless aligned to the size of the hugepage being
-> limited.
->
-> Align hugetlb cgroup limit to hugepage size.
->
-> Acked-by: Michal Hocko <mhocko@suse.cz>
-> Signed-off-by: David Rientjes <rientjes@google.com>
+Hit another one :-(  Same inversion between i_mmap_mutex and jbd2_handle:
 
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+ -> #1 (&mapping->i_mmap_mutex){+.+...}:
+        [<ffffffff810cfa12>] lock_acquire+0xb2/0x1f0
+        [<ffffffff815cb5e5>] mutex_lock_nested+0x75/0x420
+        [<ffffffff811bc0ff>] rmap_walk+0x6f/0x390
+        [<ffffffff811bc5a9>] page_mkclean+0x69/0x90
+        [<ffffffff81189c10>] clear_page_dirty_for_io+0x60/0x120
+        [<ffffffffa01d1017>] mpage_submit_page+0x47/0x80 [ext4]
+        [<ffffffffa01d1160>] mpage_process_page_bufs+0x110/0x120 [ext4]
+        [<ffffffffa01d16f0>] mpage_prepare_extent_to_map+0x1f0/0x2f0 [ext4]
+        [<ffffffffa01d6e57>] ext4_writepages+0x427/0x1060 [ext4]
+        [<ffffffff8118c211>] do_writepages+0x21/0x40
+        [<ffffffff8117e909>] __filemap_fdatawrite_range+0x59/0x60
+        [<ffffffff8117ea0d>] filemap_write_and_wait_range+0x2d/0x70
+        [<ffffffffa01cd7d8>] ext4_sync_file+0x118/0x490 [ext4]
+        [<ffffffff8122dd2b>] vfs_fsync_range+0x1b/0x30
+        [<ffffffff811b99ad>] SyS_msync+0x1ed/0x250
 
-> ---
->  v2: use huge_page_order() per Aneesh
->      Sorry for not cc'ing you initially, get_maintainer.pl failed me
->
->  mm/hugetlb_cgroup.c | 1 +
->  1 file changed, 1 insertion(+)
->
-> diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
-> --- a/mm/hugetlb_cgroup.c
-> +++ b/mm/hugetlb_cgroup.c
-> @@ -275,6 +275,7 @@ static ssize_t hugetlb_cgroup_write(struct kernfs_open_file *of,
->  		ret = res_counter_memparse_write_strategy(buf, &val);
->  		if (ret)
->  			break;
-> +		val = ALIGN(val, 1ULL << huge_page_shift(&hstates[idx]));
-
-Do we really need ULL ? max value should fit in unsigned long right ?
-
->  		ret = res_counter_set_limit(&h_cg->hugepage[idx], val);
->  		break;
->  	default:
+(ext4_writepages starts a transaction before calling
+mpage_prepare_extent_to_map)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
