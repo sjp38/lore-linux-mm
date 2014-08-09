@@ -1,86 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 45AAF6B0036
-	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 19:26:02 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id g10so7650570pdj.26
-        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 16:26:01 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id gp1si7134524pbd.145.2014.08.08.16.26.00
+Received: from mail-oi0-f42.google.com (mail-oi0-f42.google.com [209.85.218.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A7586B0036
+	for <linux-mm@kvack.org>; Fri,  8 Aug 2014 20:06:42 -0400 (EDT)
+Received: by mail-oi0-f42.google.com with SMTP id a3so4199131oib.1
+        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 17:06:42 -0700 (PDT)
+Received: from mail-oa0-x22a.google.com (mail-oa0-x22a.google.com [2607:f8b0:4003:c02::22a])
+        by mx.google.com with ESMTPS id iy5si14023049obb.101.2014.08.08.17.06.41
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Aug 2014 16:26:01 -0700 (PDT)
-Message-ID: <53E55C86.3040705@codeaurora.org>
-Date: Fri, 08 Aug 2014 16:25:58 -0700
-From: Laura Abbott <lauraa@codeaurora.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 08 Aug 2014 17:06:42 -0700 (PDT)
+Received: by mail-oa0-f42.google.com with SMTP id n16so4629195oag.1
+        for <linux-mm@kvack.org>; Fri, 08 Aug 2014 17:06:41 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCHv6 3/5] common: dma-mapping: Introduce common remapping
- functions
-References: <1407529397-6642-1-git-send-email-lauraa@codeaurora.org> <1407529397-6642-3-git-send-email-lauraa@codeaurora.org> <20140808154556.11c7bf68d1bcf2714c148e3b@linux-foundation.org>
-In-Reply-To: <20140808154556.11c7bf68d1bcf2714c148e3b@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CALZtONBNEg7kzUtwKihQuAU48MNh5NjhZcWoOxe-1-vgWqSLiw@mail.gmail.com>
+References: <20140808075316.GA21919@www.outflux.net>
+	<CALZtONBNEg7kzUtwKihQuAU48MNh5NjhZcWoOxe-1-vgWqSLiw@mail.gmail.com>
+Date: Fri, 8 Aug 2014 17:06:41 -0700
+Message-ID: <CAGXu5jL3GjrqsixS6U+GYD1pxAOOcXsXbt5XOVC8KhZB+naXAA@mail.gmail.com>
+Subject: Re: [PATCH] mm/zpool: use prefixed module loading
+From: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Riley <davidriley@chromium.org>, Arnd Bergmann <arnd@arndb.de>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Thierry Reding <thierry.reding@gmail.com>, Ritesh Harjain <ritesh.harjani@gmail.com>, Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org
+To: Dan Streetman <ddstreet@ieee.org>, Greg KH <gregkh@linuxfoundation.org>, Herbert Xu <herbert@gondor.apana.org.au>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, Seth Jennings <sjennings@variantweb.net>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Carpenter <dan.carpenter@oracle.com>, Linux-MM <linux-mm@kvack.org>, Vasiliy Kulikov <segoon@openwall.com>
 
-On 8/8/2014 3:45 PM, Andrew Morton wrote:
-> On Fri,  8 Aug 2014 13:23:15 -0700 Laura Abbott <lauraa@codeaurora.org> wrote:
-> 
+On Fri, Aug 8, 2014 at 10:11 AM, Dan Streetman <ddstreet@ieee.org> wrote:
+> On Fri, Aug 8, 2014 at 3:53 AM, Kees Cook <keescook@chromium.org> wrote:
+>> To avoid potential format string expansion via module parameters,
+>> do not use the zpool type directly in request_module() without a
+>> format string. Additionally, to avoid arbitrary modules being loaded
+>> via zpool API (e.g. via the zswap_zpool_type module parameter) add a
+>> "zpool-" prefix to the requested module, as well as module aliases for
+>> the existing zpool types (zbud and zsmalloc).
 >>
->> For architectures without coherent DMA, memory for DMA may
->> need to be remapped with coherent attributes. Factor out
->> the the remapping code from arm and put it in a
->> common location to reduce code duplication.
+>> Signed-off-by: Kees Cook <keescook@chromium.org>
+>> ---
+>>  mm/zbud.c     | 1 +
+>>  mm/zpool.c    | 2 +-
+>>  mm/zsmalloc.c | 1 +
+>>  3 files changed, 3 insertions(+), 1 deletion(-)
 >>
->> As part of this, the arm APIs are now migrated away from
->> ioremap_page_range to the common APIs which use map_vm_area for remapping.
->> This should be an equivalent change and using map_vm_area is more
->> correct as ioremap_page_range is intended to bring in io addresses
->> into the cpu space and not regular kernel managed memory.
+>> diff --git a/mm/zbud.c b/mm/zbud.c
+>> index a05790b1915e..aa74f7addab1 100644
+>> --- a/mm/zbud.c
+>> +++ b/mm/zbud.c
+>> @@ -619,3 +619,4 @@ module_exit(exit_zbud);
+>>  MODULE_LICENSE("GPL");
+>>  MODULE_AUTHOR("Seth Jennings <sjenning@linux.vnet.ibm.com>");
+>>  MODULE_DESCRIPTION("Buddy Allocator for Compressed Pages");
+>> +MODULE_ALIAS("zpool-zbud");
+>
+> If we keep this, I'd recommend putting this inside the #ifdef
+> CONFIG_ZPOOL section, to keep all the zpool stuff together in zbud and
+> zsmalloc.
+>
+>> diff --git a/mm/zpool.c b/mm/zpool.c
+>> index e40612a1df00..739cdf0d183a 100644
+>> --- a/mm/zpool.c
+>> +++ b/mm/zpool.c
+>> @@ -150,7 +150,7 @@ struct zpool *zpool_create_pool(char *type, gfp_t gfp, struct zpool_ops *ops)
+>>         driver = zpool_get_driver(type);
 >>
->> ...
->>
->> @@ -267,3 +269,68 @@ int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
->>  	return ret;
->>  }
->>  EXPORT_SYMBOL(dma_common_mmap);
->> +
->> +/*
->> + * remaps an allocated contiguous region into another vm_area.
->> + * Cannot be used in non-sleeping contexts
->> + */
->> +
->> +void *dma_common_contiguous_remap(struct page *page, size_t size,
->> +			unsigned long vm_flags,
->> +			pgprot_t prot, const void *caller)
->> +{
->> +	int i;
->> +	struct page **pages;
->> +	void *ptr;
->> +
->> +	pages = kmalloc(sizeof(struct page *) << get_order(size), GFP_KERNEL);
->> +	if (!pages)
->> +		return NULL;
->> +
->> +	for (i = 0; i < (size >> PAGE_SHIFT); i++)
->> +		pages[i] = page + i;
-> 
-> Assumes a single mem_map[] array.  That's not the case for sparsemem
-> (at least).
-> 
-> 
+>>         if (!driver) {
+>> -               request_module(type);
+>> +               request_module("zpool-%s", type);
+>
+> I agree with a change of (type) to ("%s", type), but what's the need
+> to prefix "zpool-"?  Anyone who has access to modify the
+> zswap_zpool_type parameter is already root and can just as easily load
+> any module they want.  Additionally, the zswap_compressor parameter
+> also runs through request_module() (in crypto/api.c) and could be used
+> to load any kernel module.
 
-Good point. I guess the best option is to increment via pfn and call
-pfn_to_page. Either that or go back to slightly abusing
-ioremap_page_range to remap normal memory.
+Yeah, the "%s" should be the absolute minimum. :)
 
-Thanks,
-Laura
+> I'd prefer to leave out the "zpool-" prefix unless there is a specific
+> reason to include it.
+
+The reason is that the CAP_SYS_MODULE capability is supposed to be
+what controls the loading of arbitrary modules, and that's separate
+permission than changing module parameters via sysfs
+(/sys/modules/...). Which begs the question: maybe those parameters
+shouldn't be writable without CAP_SYS_MODULE? Greg, any thoughts here?
+kobjects don't seem to carry any capabilities checks.
+
+This is certainly much less serious than letting a non-root user load
+an arbitrary module, but it would be great if we could have a clear
+path to making sure that arbitrary module loading isn't the default
+case here (given this new ability). In the past (netdev module
+loading), a CVE was assigned for a CAP_NET_ADMIN privilege being able
+to load arbitrary modules, so I don't see this as much different.
+
+Ugh, yes, I didn't see the call to crypto_has_comp. Other users of
+this routine use const char arrays, so there wasn't any danger here.
+This would be the first user of the crypto API to expose this via a
+userspace-controlled arbitrary string.
+
+Herbert, what do you think here? I'm concerned we're going to get into
+a situation like we had to deal with for netdev:
+
+http://git.kernel.org/linus/8909c9ad8ff03611c9c96c9a92656213e4bb495b
+
+I think we need to fix zswap now before it gets too far, and likely
+adjust the crypto API to use a module prefix as well. Perhaps we need
+a "crypto-" prefix?
+
+-Kees
+
+>
+>>                 driver = zpool_get_driver(type);
+>>         }
+>>
+>> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+>> index 4e2fc83cb394..36af729eb3f6 100644
+>> --- a/mm/zsmalloc.c
+>> +++ b/mm/zsmalloc.c
+>> @@ -1199,3 +1199,4 @@ module_exit(zs_exit);
+>>
+>>  MODULE_LICENSE("Dual BSD/GPL");
+>>  MODULE_AUTHOR("Nitin Gupta <ngupta@vflare.org>");
+>> +MODULE_ALIAS("zpool-zsmalloc");
+>> --
+>> 1.9.1
+>>
+>>
+>> --
+>> Kees Cook
+>> Chrome OS Security
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+
 
 -- 
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-hosted by The Linux Foundation
+Kees Cook
+Chrome OS Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
