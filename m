@@ -1,113 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B2926B0035
-	for <linux-mm@kvack.org>; Sun, 10 Aug 2014 23:33:09 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id w10so10039952pde.32
-        for <linux-mm@kvack.org>; Sun, 10 Aug 2014 20:33:08 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id kr10si8747986pdb.146.2014.08.10.20.33.07
-        for <linux-mm@kvack.org>;
-        Sun, 10 Aug 2014 20:33:08 -0700 (PDT)
-Message-ID: <53E83960.6020108@linux.intel.com>
-Date: Mon, 11 Aug 2014 11:32:48 +0800
-From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D1356B0035
+	for <linux-mm@kvack.org>; Mon, 11 Aug 2014 03:13:36 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id y10so10336384pdj.28
+        for <linux-mm@kvack.org>; Mon, 11 Aug 2014 00:13:35 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id ry5si12712697pab.217.2014.08.11.00.13.34
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Aug 2014 00:13:35 -0700 (PDT)
+Date: Mon, 11 Aug 2014 11:13:15 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -mm] slab: fix cpuset check in fallback_alloc
+Message-ID: <20140811071315.GA18709@esperanza>
+References: <1407692891-24312-1-git-send-email-vdavydov@parallels.com>
+ <alpine.DEB.2.02.1408101512500.706@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH]  export the function kmap_flush_unused.
-References: <3C85A229999D6B4A89FA64D4680BA6142C7DFA@SHSMSX101.ccr.corp.intel.com> <53E4D312.5000601@codeaurora.org> <3C85A229999D6B4A89FA64D4680BA6142CAFF3@SHSMSX101.ccr.corp.intel.com>
-In-Reply-To: <3C85A229999D6B4A89FA64D4680BA6142CAFF3@SHSMSX101.ccr.corp.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1408101512500.706@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Sha, Ruibin" <ruibin.sha@intel.com>, Chintan Pandya <cpandya@codeaurora.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "a.p.zijlstra@chello.nl" <a.p.zijlstra@chello.nl>, "mgorman@suse.de" <mgorman@suse.de>, "mingo@redhat.com" <mingo@redhat.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "He, Bo" <bo.he@intel.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
+On Sun, Aug 10, 2014 at 03:43:21PM -0700, David Rientjes wrote:
+> On Sun, 10 Aug 2014, Vladimir Davydov wrote:
+> 
+> > fallback_alloc is called on kmalloc if the preferred node doesn't have
+> > free or partial slabs and there's no pages on the node's free list
+> > (GFP_THISNODE allocations fail). Before invoking the reclaimer it tries
+> > to locate a free or partial slab on other allowed nodes' lists. While
+> > iterating over the preferred node's zonelist it skips those zones which
+> > cpuset_zone_allowed_hardwall returns false for. That means that for a
+> > task bound to a specific node using cpusets fallback_alloc will always
+> > ignore free slabs on other nodes and go directly to the reclaimer,
+> > which, however, may allocate from other nodes if cpuset.mem_hardwall is
+> > unset (default). As a result, we may get lists of free slabs grow
+> > without bounds on other nodes, which is bad, because inactive slabs are
+> > only evicted by cache_reap at a very slow rate and cannot be dropped
+> > forcefully.
+> > 
+> > To reproduce the issue, run a process that will walk over a directory
+> > tree with lots of files inside a cpuset bound to a node that constantly
+> > experiences memory pressure. Look at num_slabs vs active_slabs growth as
+> > reported by /proc/slabinfo.
+> > 
+> > We should use cpuset_zone_allowed_softwall in fallback_alloc. Since it
+> > can sleep, we only call it on __GFP_WAIT allocations. For atomic
+> > allocations we simply ignore cpusets, which is in agreement with the
+> > cpuset documenation (see the comment to __cpuset_node_allowed_softwall).
+> > 
+> 
+> If that rule were ever changed, nobody would think to modify the 
+> fallback_alloc() behavior in the slab allocator.  Why can't 
+> cpuset_zone_allowed_hardwall() just return 1 for !__GFP_WAIT?
+> 
+> I don't think this issue is restricted only to slab, it's for all callers 
+> of cpuset_zone_allowed_softwall() that could possibly be atomic.  I think 
+> it would be better to determine if cpuset_zone_allowed() should be 
+> hardwall or softwall depending on the gfp flags.
+> 
+> Let's add Li, the cpuset maintainer.  Any reason we can't do this?
+> ---
+[...]
+> diff --git a/mm/slab.c b/mm/slab.c
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -3047,16 +3047,19 @@ retry:
+>  	 * from existing per node queues.
+>  	 */
+>  	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+> -		nid = zone_to_nid(zone);
+> +		struct kmem_cache_node *n;
+>  
+> -		if (cpuset_zone_allowed_hardwall(zone, flags) &&
+> -			get_node(cache, nid) &&
+> -			get_node(cache, nid)->free_objects) {
+> -				obj = ____cache_alloc_node(cache,
+> -					flags | GFP_THISNODE, nid);
+> -				if (obj)
+> -					break;
+> -		}
+> +		nid = zone_to_nid(zone);
+> +		if (!cpuset_zone_allowed(zone, flags | __GFP_HARDWALL))
 
-On 2014/8/11 9:26, Sha, Ruibin wrote:
-> Hi Chintan,
-> Thank you very much for your timely and kindly response and comments.
->
-> Here is more detail about our Scenario:
->
->      We have a big driver on Android product. The driver allocates lots of
->      DDR pages. When applications mmap a file exported from the driver,
->      driver would mmap the pages to the application space, usually with
->      uncachable prot.
->      On ia32/x86_64 arch, we have to avoid page cache alias issue. When
->      driver allocates the pages, it would change page original mapping in
->      page table with uncachable prot. Sometimes, the allocated page was
->      used by kmap/kunmap. After kunmap, the page is still mapped in KMAP
->      space. The entries in KMAP page table are not cleaned up until a
->      kernel thread flushes the freed KMAP pages(usually it is woken up by kunmap).
->      It means the driver need  force to flush the KMAP page table entries before mapping pages to
->      application space to be used. Otherwise, there is a race to create
->      cache alias.
->
->      To resolve this issue, we need export function kmap_flush_unused as
->      the driver is compiled as module. Then, the driver calls
->      kmap_flush_unused if the allocated pages are in HIGHMEM and being
->      used by kmap.
->
-> Thanks again!
->
-> Best Regards
-> ---------------------------------------------------------------
-> Sha, Rui bin ( Robin )
-> +86 13817890945
-> Android System Integration Shanghai
->
-> -----Original Message-----
-> From: Chintan Pandya [mailto:cpandya@codeaurora.org]
-> Sent: Friday, August 8, 2014 9:40 PM
-> To: Sha, Ruibin
-> Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org; mel@csn.ul.ie; a.p.zijlstra@chello.nl; mgorman@suse.de; mingo@redhat.com; Zhang, Yanmin; He, Bo
-> Subject: Re: [PATCH] export the function kmap_flush_unused.
->
-> On 08/08/2014 02:46 PM, Sha, Ruibin wrote:
->> export the function kmap_flush_unused.
->>
->> Scenario: When graphic driver need high memory spece, we use
->> alloc_pages() to allocate. But if the allocated page has just been
->> mapped in the KMAP space(like first kmap then kunmap) and no flush
->> page happened on PKMAP, the page virtual address is not NULL.Then when
->> we get that page and set page attribute like set_memory_uc and
->> set_memory_wc, we hit error.
-> Could you explain your scenario with more details ? set_memory_* should be applied on mapped address. And in attempt to map your page (which was just kmap and kunmap'ed), it will overwrite the previous mappings.
->
-> Moreover, in my view, kmap_flush_unused is just helping us in keeping the cache clean for kmap virtual addresses if they are unmapped. Is it serving any more purpose here ?
+We must use softwall check here, otherwise we will proceed to
+alloc_pages even if there are lots of free slabs on other nodes.
+alloc_pages, in turn, may allocate from other nodes in case
+cpuset.mem_hardwall=0, because it uses softwall check, so it may add yet
+another free slab to another node's list even if it isn't empty. As a
+result, we may get free list bloating on other nodes. I've seen a
+machine with one of its nodes almost completely filled with inactive
+slabs for buffer_heads (dozens of GBs) w/o any chance to drop them. So,
+this is a bug that must be fixed.
 
-It depends on how to define 'clean' here. It resets pkmap_count[i] to 0,
-and cleans up page table entries used by PKMAP. Here, our scenario is
-caused by the late page table entry cleanup as driver need avoid page
-cache alias.
+Note, for SLUB using hardwall check in get_any_partial won't lead to
+such a problem, because once added a new slab is loaded to a per cpu
+list forcing any further user to allocate from it. Strictly speaking, we
+should use softwall check there either though.
 
->
->> fix: For that scenario,when we get the allocated page and its virtual
->> address is not NULL, we would like first flush that page.
->> So need export that function kmap_flush_unused.
->>
->> Signed-off-by: sha, ruibin <ruibin.sha@intel.com>
->>
->> ---
->> mm/highmem.c | 1 +
->> 1 file changed, 1 insertion(+)
->>
->> diff --git a/mm/highmem.c b/mm/highmem.c
->> index b32b70c..511299b 100644
->> --- a/mm/highmem.c
->> +++ b/mm/highmem.c
->> @@ -156,6 +156,7 @@ void kmap_flush_unused(void)
->> flush_all_zero_pkmaps();
->> unlock_kmap();
->> }
->> +EXPORT_SYMBOL(kmap_flush_unused);
-> This symbol is already extern'ed. Is it not sufficient for your case ?
-
-We want to call it in driver module. extern is not enough.
-
-Thanks,
-Yanmin
-
+> +			continue;
+> +		n = get_node(cache, nid);
+> +		if (!n)
+> +			continue;
+> +		if (!n->free_objects)
+> +			continue;
+> +		obj = ____cache_alloc_node(cache, flags | GFP_THISNODE, nid);
+> +		if (obj)
+> +			break;
+>  	}
+>  
+>  	if (!obj) {
+> diff --git a/mm/slub.c b/mm/slub.c
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1671,20 +1671,22 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
+>  			struct kmem_cache_node *n;
+>  
+>  			n = get_node(s, zone_to_nid(zone));
+> +			if (!n)
+> +				continue;
+> +			if (!cpuset_zone_allowed(zone, flags | __GFP_HARDWALL))
+> +				continue;
+> +			if (n->nr_parial <= s->min_partial)
+> +				continue;
+>  
+> -			if (n && cpuset_zone_allowed_hardwall(zone, flags) &&
+> -					n->nr_partial > s->min_partial) {
+> -				object = get_partial_node(s, n, c, flags);
+> -				if (object) {
+> -					/*
+> -					 * Don't check read_mems_allowed_retry()
+> -					 * here - if mems_allowed was updated in
+> -					 * parallel, that was a harmless race
+> -					 * between allocation and the cpuset
+> -					 * update
+> -					 */
+> -					return object;
+> -				}
+> +			object = get_partial_node(s, n, c, flags);
+> +			if (object) {
+> +				/*
+> +				 * Don't check read_mems_allowed_retry() here -
+> +				 * if mems_allowed was updated in parallel,
+> +				 * that was a harmless race between allocation
+> +				 * and the cpuset update.
+> +				 */
+> +				return object;
+>  			}
+>  		}
+>  	} while (read_mems_allowed_retry(cpuset_mems_cookie));
+[...]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
