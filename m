@@ -1,73 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B2C46B0035
-	for <linux-mm@kvack.org>; Mon, 11 Aug 2014 17:05:21 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id fa1so11688563pad.41
-        for <linux-mm@kvack.org>; Mon, 11 Aug 2014 14:05:21 -0700 (PDT)
-Received: from mail-pd0-x231.google.com (mail-pd0-x231.google.com [2607:f8b0:400e:c02::231])
-        by mx.google.com with ESMTPS id y10si4844358pdo.10.2014.08.11.14.05.20
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id A9A146B0035
+	for <linux-mm@kvack.org>; Mon, 11 Aug 2014 19:40:40 -0400 (EDT)
+Received: by mail-ig0-f180.google.com with SMTP id l13so5138423iga.1
+        for <linux-mm@kvack.org>; Mon, 11 Aug 2014 16:40:40 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id d9si21881574igl.41.2014.08.11.16.40.39
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 11 Aug 2014 14:05:20 -0700 (PDT)
-Received: by mail-pd0-f177.google.com with SMTP id p10so11365653pdj.36
-        for <linux-mm@kvack.org>; Mon, 11 Aug 2014 14:05:20 -0700 (PDT)
-Date: Mon, 11 Aug 2014 14:05:18 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH -mm] slab: fix cpuset check in fallback_alloc
-In-Reply-To: <20140811121739.GB18709@esperanza>
-Message-ID: <alpine.DEB.2.02.1408111354330.24240@chino.kir.corp.google.com>
-References: <1407692891-24312-1-git-send-email-vdavydov@parallels.com> <alpine.DEB.2.02.1408101512500.706@chino.kir.corp.google.com> <20140811071315.GA18709@esperanza> <alpine.DEB.2.02.1408110433140.15519@chino.kir.corp.google.com>
- <20140811121739.GB18709@esperanza>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Aug 2014 16:40:39 -0700 (PDT)
+From: Laura Abbott <lauraa@codeaurora.org>
+Subject: [PATCHv7 0/5] DMA Atomic pool for arm64
+Date: Mon, 11 Aug 2014 16:40:26 -0700
+Message-Id: <1407800431-21566-1-git-send-email-lauraa@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Russell King <linux@arm.linux.org.uk>
+Cc: Laura Abbott <lauraa@codeaurora.org>, David Riley <davidriley@chromium.org>, linux-arm-kernel@lists.infradead.org, Ritesh Harjain <ritesh.harjani@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thierry Reding <thierry.reding@gmail.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, 11 Aug 2014, Vladimir Davydov wrote:
+Hi,
 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1963,7 +1963,7 @@ zonelist_scan:
-> >  
-> >  	/*
-> >  	 * Scan zonelist, looking for a zone with enough free.
-> > -	 * See also __cpuset_node_allowed_softwall() comment in kernel/cpuset.c.
-> > +	 * See __cpuset_node_allowed() comment in kernel/cpuset.c.
-> >  	 */
-> >  	for_each_zone_zonelist_nodemask(zone, z, zonelist,
-> >  						high_zoneidx, nodemask) {
-> > @@ -1974,7 +1974,7 @@ zonelist_scan:
-> >  				continue;
-> >  		if (cpusets_enabled() &&
-> >  			(alloc_flags & ALLOC_CPUSET) &&
-> > -			!cpuset_zone_allowed_softwall(zone, gfp_mask))
-> > +			!cpuset_zone_allowed(zone, gfp_mask))
-> >  				continue;
-> 
-> So, this is get_page_from_freelist. It's called from
-> __alloc_pages_nodemask with alloc_flags always having ALLOC_CPUSET bit
-> set and from __alloc_pages_slowpath with alloc_flags having ALLOC_CPUSET
-> bit set only for __GFP_WAIT allocations. That said, w/o your patch we
-> try to respect cpusets for all allocations, including atomic, and only
-> ignore cpusets if tight on memory (freelist's empty) for !__GFP_WAIT
-> allocations, while with your patch we always ignore cpusets for
-> !__GFP_WAIT allocations. Not sure if it really matters though, because
-> usually one uses cpuset.mems in conjunction with cpuset.cpus and it
-> won't make any difference then. It also doesn't conflict with any cpuset
-> documentation.
-> 
+This is v7 of the series to add an atomic pool for arm64 and refactor some
+of the dma atomic code. You know the drill.
 
-Yeah, that's why I'm asking Li, the cpuset maintainer, if we can do this.  
-The only thing that we get by falling back to the page allocator slowpath 
-is that kswapd gets woken up before the allocation is attempted without 
-ALLOC_CPUSET.  It seems pointless to wakeup kswapd when the allocation can 
-succeed on any node.  Even with the patch, if the allocation fails because 
-all nodes are below their min watermark, then we still fallback to the 
-slowpath and wake up kswapd but there's nothing much else we can do 
-because it's !__GFP_WAIT.
+Thanks,
+Laura
+
+v7: Added correct power aligned algorithm patch. Addressed comments from
+Andrew.
+
+Laura Abbott (5):
+  lib/genalloc.c: Add power aligned algorithm
+  lib/genalloc.c: Add genpool range check function
+  common: dma-mapping: Introduce common remapping functions
+  arm: use genalloc for the atomic pool
+  arm64: Add atomic pool for non-coherent and CMA allocations.
+
+ arch/arm/Kconfig                         |   1 +
+ arch/arm/mm/dma-mapping.c                | 210 +++++++++----------------------
+ arch/arm64/Kconfig                       |   1 +
+ arch/arm64/mm/dma-mapping.c              | 164 +++++++++++++++++++++---
+ drivers/base/dma-mapping.c               |  68 ++++++++++
+ include/asm-generic/dma-mapping-common.h |   9 ++
+ include/linux/genalloc.h                 |   7 ++
+ lib/genalloc.c                           |  49 ++++++++
+ 8 files changed, 338 insertions(+), 171 deletions(-)
+
+-- 
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
