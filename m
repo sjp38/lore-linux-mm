@@ -1,79 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id BD2AD6B0035
-	for <linux-mm@kvack.org>; Sun, 10 Aug 2014 22:06:02 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id y10so9943421pdj.14
-        for <linux-mm@kvack.org>; Sun, 10 Aug 2014 19:06:02 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
-        by mx.google.com with ESMTPS id wv5si12104663pbc.248.2014.08.10.19.06.00
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 10 Aug 2014 19:06:01 -0700 (PDT)
-Message-ID: <53E82488.2030607@huawei.com>
-Date: Mon, 11 Aug 2014 10:03:52 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B2926B0035
+	for <linux-mm@kvack.org>; Sun, 10 Aug 2014 23:33:09 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id w10so10039952pde.32
+        for <linux-mm@kvack.org>; Sun, 10 Aug 2014 20:33:08 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id kr10si8747986pdb.146.2014.08.10.20.33.07
+        for <linux-mm@kvack.org>;
+        Sun, 10 Aug 2014 20:33:08 -0700 (PDT)
+Message-ID: <53E83960.6020108@linux.intel.com>
+Date: Mon, 11 Aug 2014 11:32:48 +0800
+From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] memblock, memhotplug: Fix wrong type in memblock_find_in_range_node().
-References: <1407651123-10994-1-git-send-email-tangchen@cn.fujitsu.com> <53E70DB4.4000606@cn.fujitsu.com>
-In-Reply-To: <53E70DB4.4000606@cn.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCH]  export the function kmap_flush_unused.
+References: <3C85A229999D6B4A89FA64D4680BA6142C7DFA@SHSMSX101.ccr.corp.intel.com> <53E4D312.5000601@codeaurora.org> <3C85A229999D6B4A89FA64D4680BA6142CAFF3@SHSMSX101.ccr.corp.intel.com>
+In-Reply-To: <3C85A229999D6B4A89FA64D4680BA6142CAFF3@SHSMSX101.ccr.corp.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tangchen <tangchen@cn.fujitsu.com>
-Cc: akpm@linux-foundation.org, santosh.shilimkar@ti.com, grygorii.strashko@ti.com, phacht@linux.vnet.ibm.com, yinghai@kernel.org, fabf@skynet.be, Emilian.Medve@freescale.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Sha, Ruibin" <ruibin.sha@intel.com>, Chintan Pandya <cpandya@codeaurora.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "a.p.zijlstra@chello.nl" <a.p.zijlstra@chello.nl>, "mgorman@suse.de" <mgorman@suse.de>, "mingo@redhat.com" <mingo@redhat.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "He, Bo" <bo.he@intel.com>
 
-On 2014/8/10 14:14, tangchen wrote:
 
-> Sorry, add Xishi Qiu <qiuxishi@huawei.com>
-> 
-> On 08/10/2014 02:12 PM, Tang Chen wrote:
->> In memblock_find_in_range_node(), we defeind ret as int. But it shoule
->> be phys_addr_t because it is used to store the return value from
->> __memblock_find_range_bottom_up().
+On 2014/8/11 9:26, Sha, Ruibin wrote:
+> Hi Chintan,
+> Thank you very much for your timely and kindly response and comments.
+>
+> Here is more detail about our Scenario:
+>
+>      We have a big driver on Android product. The driver allocates lots of
+>      DDR pages. When applications mmap a file exported from the driver,
+>      driver would mmap the pages to the application space, usually with
+>      uncachable prot.
+>      On ia32/x86_64 arch, we have to avoid page cache alias issue. When
+>      driver allocates the pages, it would change page original mapping in
+>      page table with uncachable prot. Sometimes, the allocated page was
+>      used by kmap/kunmap. After kunmap, the page is still mapped in KMAP
+>      space. The entries in KMAP page table are not cleaned up until a
+>      kernel thread flushes the freed KMAP pages(usually it is woken up by kunmap).
+>      It means the driver need  force to flush the KMAP page table entries before mapping pages to
+>      application space to be used. Otherwise, there is a race to create
+>      cache alias.
+>
+>      To resolve this issue, we need export function kmap_flush_unused as
+>      the driver is compiled as module. Then, the driver calls
+>      kmap_flush_unused if the allocated pages are in HIGHMEM and being
+>      used by kmap.
+>
+> Thanks again!
+>
+> Best Regards
+> ---------------------------------------------------------------
+> Sha, Rui bin ( Robin )
+> +86 13817890945
+> Android System Integration Shanghai
+>
+> -----Original Message-----
+> From: Chintan Pandya [mailto:cpandya@codeaurora.org]
+> Sent: Friday, August 8, 2014 9:40 PM
+> To: Sha, Ruibin
+> Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org; mel@csn.ul.ie; a.p.zijlstra@chello.nl; mgorman@suse.de; mingo@redhat.com; Zhang, Yanmin; He, Bo
+> Subject: Re: [PATCH] export the function kmap_flush_unused.
+>
+> On 08/08/2014 02:46 PM, Sha, Ruibin wrote:
+>> export the function kmap_flush_unused.
 >>
->> The bug has not been triggered because when allocating low memory near
->> the kernel end, the "int ret" won't turn out to be minus. When we started
->> to allocate memory on other nodes, and the "int ret" could be minus.
->> Then the kernel will panic.
+>> Scenario: When graphic driver need high memory spece, we use
+>> alloc_pages() to allocate. But if the allocated page has just been
+>> mapped in the KMAP space(like first kmap then kunmap) and no flush
+>> page happened on PKMAP, the page virtual address is not NULL.Then when
+>> we get that page and set page attribute like set_memory_uc and
+>> set_memory_wc, we hit error.
+> Could you explain your scenario with more details ? set_memory_* should be applied on mapped address. And in attempt to map your page (which was just kmap and kunmap'ed), it will overwrite the previous mappings.
+>
+> Moreover, in my view, kmap_flush_unused is just helping us in keeping the cache clean for kmap virtual addresses if they are unmapped. Is it serving any more purpose here ?
+
+It depends on how to define 'clean' here. It resets pkmap_count[i] to 0,
+and cleans up page table entries used by PKMAP. Here, our scenario is
+caused by the late page table entry cleanup as driver need avoid page
+cache alias.
+
+>
+>> fix: For that scenario,when we get the allocated page and its virtual
+>> address is not NULL, we would like first flush that page.
+>> So need export that function kmap_flush_unused.
 >>
->> A simple way to reproduce this: comment out the following code in numa_init(),
+>> Signed-off-by: sha, ruibin <ruibin.sha@intel.com>
 >>
->>          memblock_set_bottom_up(false);
->>
->> and the kernel won't boot.
->>
->> Reported-by: Xishi Qiu <qiuxishi@huawei.com>
->> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 >> ---
->>   mm/memblock.c | 3 +--
->>   1 file changed, 1 insertion(+), 2 deletions(-)
+>> mm/highmem.c | 1 +
+>> 1 file changed, 1 insertion(+)
 >>
->> diff --git a/mm/memblock.c b/mm/memblock.c
->> index 6d2f219..70fad0c 100644
->> --- a/mm/memblock.c
->> +++ b/mm/memblock.c
->> @@ -192,8 +192,7 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t size,
->>                       phys_addr_t align, phys_addr_t start,
->>                       phys_addr_t end, int nid)
->>   {
->> -    int ret;
->> -    phys_addr_t kernel_end;
->> +    phys_addr_t kernel_end, ret;
->>         /* pump up @end */
->>       if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
-> 
-> 
+>> diff --git a/mm/highmem.c b/mm/highmem.c
+>> index b32b70c..511299b 100644
+>> --- a/mm/highmem.c
+>> +++ b/mm/highmem.c
+>> @@ -156,6 +156,7 @@ void kmap_flush_unused(void)
+>> flush_all_zero_pkmaps();
+>> unlock_kmap();
+>> }
+>> +EXPORT_SYMBOL(kmap_flush_unused);
+> This symbol is already extern'ed. Is it not sufficient for your case ?
 
-Hi, Tang Chen
+We want to call it in driver module. extern is not enough.
 
-It is OK now.
-
-Tested-by: Xishi Qiu <qiuxishi@huawei.com>
-
-> .
-> 
-
+Thanks,
+Yanmin
 
 
 --
