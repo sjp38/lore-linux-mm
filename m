@@ -1,64 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
-	by kanga.kvack.org (Postfix) with ESMTP id D68506B0035
-	for <linux-mm@kvack.org>; Mon, 11 Aug 2014 08:34:07 -0400 (EDT)
-Received: by mail-we0-f171.google.com with SMTP id p10so8635428wes.2
-        for <linux-mm@kvack.org>; Mon, 11 Aug 2014 05:34:07 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gr10si17726199wib.21.2014.08.11.05.34.06
+Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
+	by kanga.kvack.org (Postfix) with ESMTP id E02176B0035
+	for <linux-mm@kvack.org>; Mon, 11 Aug 2014 09:34:08 -0400 (EDT)
+Received: by mail-ob0-f172.google.com with SMTP id wn1so6061020obc.31
+        for <linux-mm@kvack.org>; Mon, 11 Aug 2014 06:34:08 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id h1si25062206obf.69.2014.08.11.06.34.06
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 11 Aug 2014 05:34:06 -0700 (PDT)
-Message-ID: <53E8B83D.1070004@suse.cz>
-Date: Mon, 11 Aug 2014 14:34:05 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 11 Aug 2014 06:34:08 -0700 (PDT)
+Message-ID: <53E8C5AA.5040506@huawei.com>
+Date: Mon, 11 Aug 2014 21:31:22 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 6/6] mm: page_alloc: Reduce cost of the fair zone allocation
- policy
-References: <1404893588-21371-1-git-send-email-mgorman@suse.de> <1404893588-21371-7-git-send-email-mgorman@suse.de> <53E4EC53.1050904@suse.cz> <20140811121241.GD7970@suse.de>
-In-Reply-To: <20140811121241.GD7970@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Subject: [PATCH] mem-hotplug: let memblock skip the hotpluggable memory regions
+ in __next_mem_range()
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, tj@kernel.org, Wen Congyang <wency@cn.fujitsu.com>, "Rafael J. Wysocki" <rjw@sisk.pl>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Xishi Qiu <qiuxishi@huawei.com>
 
-On 08/11/2014 02:12 PM, Mel Gorman wrote:
-> On Fri, Aug 08, 2014 at 05:27:15PM +0200, Vlastimil Babka wrote:
->> On 07/09/2014 10:13 AM, Mel Gorman wrote:
->>> --- a/mm/page_alloc.c
->>> +++ b/mm/page_alloc.c
->>> @@ -1604,6 +1604,9 @@ again:
->>>   	}
->>>
->>>   	__mod_zone_page_state(zone, NR_ALLOC_BATCH, -(1 << order));
->>
->> This can underflow zero, right?
->>
->
-> Yes, because of per-cpu accounting drift.
+Let memblock skip the hotpluggable memory regions in __next_mem_range(),
+it is used to to prevent memblock from allocating hotpluggable memory 
+for the kernel at early time. The code is the same as __next_mem_range_rev().
 
-I meant mainly because of order > 0.
+Clear hotpluggable flag before releasing free pages to the buddy allocator.
 
->>> +	if (zone_page_state(zone, NR_ALLOC_BATCH) == 0 &&
->>
->> AFAICS, zone_page_state will correct negative values to zero only for
->> CONFIG_SMP. Won't this check be broken on !CONFIG_SMP?
->>
->
-> On !CONFIG_SMP how can there be per-cpu accounting drift that would make
-> that counter negative?
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+---
+ mm/memblock.c  |    4 ++++
+ mm/nobootmem.c |    2 ++
+ 2 files changed, 6 insertions(+), 0 deletions(-)
 
-Well original code used "if (zone_page_state(zone, NR_ALLOC_BATCH) <= 
-0)" elsewhere, that you are replacing with zone_is_fair_depleted check. 
-I assumed it's because it can get negative due to order > 0. I might 
-have not looked thoroughly enough but it seems to me there's nothing 
-that would prevent it, such as skipping a zone because its remaining 
-batch is lower than 1 << order.
-So I think the check should be "<= 0" to be safe.
-
-Vlastimil
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 6d2f219..5090050 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -817,6 +817,10 @@ void __init_memblock __next_mem_range(u64 *idx, int nid,
+ 		if (nid != NUMA_NO_NODE && nid != m_nid)
+ 			continue;
+ 
++		/* skip hotpluggable memory regions if needed */
++		if (movable_node_is_enabled() && memblock_is_hotpluggable(m))
++			continue;
++
+ 		if (!type_b) {
+ 			if (out_start)
+ 				*out_start = m_start;
+diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+index 7ed5860..03de286 100644
+--- a/mm/nobootmem.c
++++ b/mm/nobootmem.c
+@@ -119,6 +119,8 @@ static unsigned long __init free_low_memory_core_early(void)
+ 	phys_addr_t start, end;
+ 	u64 i;
+ 
++	memblock_clear_hotplug(0, ULLONG_MAX);
++
+ 	for_each_free_mem_range(i, NUMA_NO_NODE, &start, &end, NULL)
+ 		count += __free_memory_core(start, end);
+ 
+-- 
+1.7.1
 
 
 --
