@@ -1,84 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id D95AF6B0037
-	for <linux-mm@kvack.org>; Mon, 11 Aug 2014 14:06:10 -0400 (EDT)
-Received: by mail-wg0-f47.google.com with SMTP id b13so8697250wgh.6
-        for <linux-mm@kvack.org>; Mon, 11 Aug 2014 11:06:10 -0700 (PDT)
-Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
-        by mx.google.com with ESMTP id v11si27382311wjr.176.2014.08.11.11.06.09
-        for <linux-mm@kvack.org>;
-        Mon, 11 Aug 2014 11:06:09 -0700 (PDT)
-Date: Mon, 11 Aug 2014 19:05:42 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCHv6 3/5] common: dma-mapping: Introduce common remapping
- functions
-Message-ID: <20140811180542.GI13871@arm.com>
-References: <1407529397-6642-1-git-send-email-lauraa@codeaurora.org>
- <1407529397-6642-3-git-send-email-lauraa@codeaurora.org>
- <20140808154556.11c7bf68d1bcf2714c148e3b@linux-foundation.org>
- <53E55C86.3040705@codeaurora.org>
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B2C46B0035
+	for <linux-mm@kvack.org>; Mon, 11 Aug 2014 17:05:21 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id fa1so11688563pad.41
+        for <linux-mm@kvack.org>; Mon, 11 Aug 2014 14:05:21 -0700 (PDT)
+Received: from mail-pd0-x231.google.com (mail-pd0-x231.google.com [2607:f8b0:400e:c02::231])
+        by mx.google.com with ESMTPS id y10si4844358pdo.10.2014.08.11.14.05.20
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 11 Aug 2014 14:05:20 -0700 (PDT)
+Received: by mail-pd0-f177.google.com with SMTP id p10so11365653pdj.36
+        for <linux-mm@kvack.org>; Mon, 11 Aug 2014 14:05:20 -0700 (PDT)
+Date: Mon, 11 Aug 2014 14:05:18 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH -mm] slab: fix cpuset check in fallback_alloc
+In-Reply-To: <20140811121739.GB18709@esperanza>
+Message-ID: <alpine.DEB.2.02.1408111354330.24240@chino.kir.corp.google.com>
+References: <1407692891-24312-1-git-send-email-vdavydov@parallels.com> <alpine.DEB.2.02.1408101512500.706@chino.kir.corp.google.com> <20140811071315.GA18709@esperanza> <alpine.DEB.2.02.1408110433140.15519@chino.kir.corp.google.com>
+ <20140811121739.GB18709@esperanza>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <53E55C86.3040705@codeaurora.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Riley <davidriley@chromium.org>, Arnd Bergmann <arnd@arndb.de>, Will Deacon <Will.Deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thierry Reding <thierry.reding@gmail.com>, Ritesh Harjain <ritesh.harjani@gmail.com>, Russell King <linux@arm.linux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Sat, Aug 09, 2014 at 12:25:58AM +0100, Laura Abbott wrote:
-> On 8/8/2014 3:45 PM, Andrew Morton wrote:
-> > On Fri,  8 Aug 2014 13:23:15 -0700 Laura Abbott <lauraa@codeaurora.org> wrote:
-> >> For architectures without coherent DMA, memory for DMA may
-> >> need to be remapped with coherent attributes. Factor out
-> >> the the remapping code from arm and put it in a
-> >> common location to reduce code duplication.
-> >>
-> >> As part of this, the arm APIs are now migrated away from
-> >> ioremap_page_range to the common APIs which use map_vm_area for remapping.
-> >> This should be an equivalent change and using map_vm_area is more
-> >> correct as ioremap_page_range is intended to bring in io addresses
-> >> into the cpu space and not regular kernel managed memory.
-> >>
-> >> ...
-> >>
-> >> @@ -267,3 +269,68 @@ int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
-> >>  	return ret;
-> >>  }
-> >>  EXPORT_SYMBOL(dma_common_mmap);
-> >> +
-> >> +/*
-> >> + * remaps an allocated contiguous region into another vm_area.
-> >> + * Cannot be used in non-sleeping contexts
-> >> + */
-> >> +
-> >> +void *dma_common_contiguous_remap(struct page *page, size_t size,
-> >> +			unsigned long vm_flags,
-> >> +			pgprot_t prot, const void *caller)
-> >> +{
-> >> +	int i;
-> >> +	struct page **pages;
-> >> +	void *ptr;
-> >> +
-> >> +	pages = kmalloc(sizeof(struct page *) << get_order(size), GFP_KERNEL);
-> >> +	if (!pages)
-> >> +		return NULL;
-> >> +
-> >> +	for (i = 0; i < (size >> PAGE_SHIFT); i++)
-> >> +		pages[i] = page + i;
-> > 
-> > Assumes a single mem_map[] array.  That's not the case for sparsemem
-> > (at least).
+On Mon, 11 Aug 2014, Vladimir Davydov wrote:
+
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -1963,7 +1963,7 @@ zonelist_scan:
+> >  
+> >  	/*
+> >  	 * Scan zonelist, looking for a zone with enough free.
+> > -	 * See also __cpuset_node_allowed_softwall() comment in kernel/cpuset.c.
+> > +	 * See __cpuset_node_allowed() comment in kernel/cpuset.c.
+> >  	 */
+> >  	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+> >  						high_zoneidx, nodemask) {
+> > @@ -1974,7 +1974,7 @@ zonelist_scan:
+> >  				continue;
+> >  		if (cpusets_enabled() &&
+> >  			(alloc_flags & ALLOC_CPUSET) &&
+> > -			!cpuset_zone_allowed_softwall(zone, gfp_mask))
+> > +			!cpuset_zone_allowed(zone, gfp_mask))
+> >  				continue;
 > 
-> Good point. I guess the best option is to increment via pfn and call
-> pfn_to_page. Either that or go back to slightly abusing
-> ioremap_page_range to remap normal memory.
+> So, this is get_page_from_freelist. It's called from
+> __alloc_pages_nodemask with alloc_flags always having ALLOC_CPUSET bit
+> set and from __alloc_pages_slowpath with alloc_flags having ALLOC_CPUSET
+> bit set only for __GFP_WAIT allocations. That said, w/o your patch we
+> try to respect cpusets for all allocations, including atomic, and only
+> ignore cpusets if tight on memory (freelist's empty) for !__GFP_WAIT
+> allocations, while with your patch we always ignore cpusets for
+> !__GFP_WAIT allocations. Not sure if it really matters though, because
+> usually one uses cpuset.mems in conjunction with cpuset.cpus and it
+> won't make any difference then. It also doesn't conflict with any cpuset
+> documentation.
+> 
 
-I now noticed you suggested the pfn_to_page(). I think this should work
-and it's better than ioremap_page_range().
-
--- 
-Catalin
+Yeah, that's why I'm asking Li, the cpuset maintainer, if we can do this.  
+The only thing that we get by falling back to the page allocator slowpath 
+is that kswapd gets woken up before the allocation is attempted without 
+ALLOC_CPUSET.  It seems pointless to wakeup kswapd when the allocation can 
+succeed on any node.  Even with the patch, if the allocation fails because 
+all nodes are below their min watermark, then we still fallback to the 
+slowpath and wake up kswapd but there's nothing much else we can do 
+because it's !__GFP_WAIT.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
