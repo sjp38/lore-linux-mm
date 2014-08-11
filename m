@@ -1,51 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id A9A146B0035
-	for <linux-mm@kvack.org>; Mon, 11 Aug 2014 19:40:40 -0400 (EDT)
-Received: by mail-ig0-f180.google.com with SMTP id l13so5138423iga.1
-        for <linux-mm@kvack.org>; Mon, 11 Aug 2014 16:40:40 -0700 (PDT)
+Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 804D86B0037
+	for <linux-mm@kvack.org>; Mon, 11 Aug 2014 19:40:41 -0400 (EDT)
+Received: by mail-ie0-f171.google.com with SMTP id at1so10809125iec.16
+        for <linux-mm@kvack.org>; Mon, 11 Aug 2014 16:40:41 -0700 (PDT)
 Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id d9si21881574igl.41.2014.08.11.16.40.39
+        by mx.google.com with ESMTPS id md7si34674513icb.15.2014.08.11.16.40.40
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Aug 2014 16:40:39 -0700 (PDT)
+        Mon, 11 Aug 2014 16:40:40 -0700 (PDT)
 From: Laura Abbott <lauraa@codeaurora.org>
-Subject: [PATCHv7 0/5] DMA Atomic pool for arm64
-Date: Mon, 11 Aug 2014 16:40:26 -0700
-Message-Id: <1407800431-21566-1-git-send-email-lauraa@codeaurora.org>
+Subject: [PATCHv7 1/5] lib/genalloc.c: Add power aligned algorithm
+Date: Mon, 11 Aug 2014 16:40:27 -0700
+Message-Id: <1407800431-21566-2-git-send-email-lauraa@codeaurora.org>
+In-Reply-To: <1407800431-21566-1-git-send-email-lauraa@codeaurora.org>
+References: <1407800431-21566-1-git-send-email-lauraa@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Russell King <linux@arm.linux.org.uk>
-Cc: Laura Abbott <lauraa@codeaurora.org>, David Riley <davidriley@chromium.org>, linux-arm-kernel@lists.infradead.org, Ritesh Harjain <ritesh.harjani@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thierry Reding <thierry.reding@gmail.com>, Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>
+To: Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Russell King <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Laura Abbott <lauraa@codeaurora.org>, David Riley <davidriley@chromium.org>, linux-arm-kernel@lists.infradead.org, Ritesh Harjain <ritesh.harjani@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Thierry Reding <thierry.reding@gmail.com>, Arnd Bergmann <arnd@arndb.de>
 
-Hi,
 
-This is v7 of the series to add an atomic pool for arm64 and refactor some
-of the dma atomic code. You know the drill.
+One of the more common algorithms used for allocation
+is to align the start address of the allocation to
+the order of size requested. Add this as an algorithm
+option for genalloc.
 
-Thanks,
-Laura
+Acked-by: Will Deacon <will.deacon@arm.com>
+Acked-by: Olof Johansson <olof@lixom.net>
+Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
+---
+ include/linux/genalloc.h |  4 ++++
+ lib/genalloc.c           | 20 ++++++++++++++++++++
+ 2 files changed, 24 insertions(+)
 
-v7: Added correct power aligned algorithm patch. Addressed comments from
-Andrew.
-
-Laura Abbott (5):
-  lib/genalloc.c: Add power aligned algorithm
-  lib/genalloc.c: Add genpool range check function
-  common: dma-mapping: Introduce common remapping functions
-  arm: use genalloc for the atomic pool
-  arm64: Add atomic pool for non-coherent and CMA allocations.
-
- arch/arm/Kconfig                         |   1 +
- arch/arm/mm/dma-mapping.c                | 210 +++++++++----------------------
- arch/arm64/Kconfig                       |   1 +
- arch/arm64/mm/dma-mapping.c              | 164 +++++++++++++++++++++---
- drivers/base/dma-mapping.c               |  68 ++++++++++
- include/asm-generic/dma-mapping-common.h |   9 ++
- include/linux/genalloc.h                 |   7 ++
- lib/genalloc.c                           |  49 ++++++++
- 8 files changed, 338 insertions(+), 171 deletions(-)
-
+diff --git a/include/linux/genalloc.h b/include/linux/genalloc.h
+index 1c2fdaa..3cd0934 100644
+--- a/include/linux/genalloc.h
++++ b/include/linux/genalloc.h
+@@ -110,6 +110,10 @@ extern void gen_pool_set_algo(struct gen_pool *pool, genpool_algo_t algo,
+ extern unsigned long gen_pool_first_fit(unsigned long *map, unsigned long size,
+ 		unsigned long start, unsigned int nr, void *data);
+ 
++extern unsigned long gen_pool_first_fit_order_align(unsigned long *map,
++		unsigned long size, unsigned long start, unsigned int nr,
++		void *data);
++
+ extern unsigned long gen_pool_best_fit(unsigned long *map, unsigned long size,
+ 		unsigned long start, unsigned int nr, void *data);
+ 
+diff --git a/lib/genalloc.c b/lib/genalloc.c
+index bdb9a45..c2b3ad7 100644
+--- a/lib/genalloc.c
++++ b/lib/genalloc.c
+@@ -481,6 +481,26 @@ unsigned long gen_pool_first_fit(unsigned long *map, unsigned long size,
+ EXPORT_SYMBOL(gen_pool_first_fit);
+ 
+ /**
++ * gen_pool_first_fit_order_align - find the first available region
++ * of memory matching the size requirement. The region will be aligned
++ * to the order of the size specified.
++ * @map: The address to base the search on
++ * @size: The bitmap size in bits
++ * @start: The bitnumber to start searching at
++ * @nr: The number of zeroed bits we're looking for
++ * @data: additional data - unused
++ */
++unsigned long gen_pool_first_fit_order_align(unsigned long *map,
++		unsigned long size, unsigned long start,
++		unsigned int nr, void *data)
++{
++	unsigned long align_mask = roundup_pow_of_two(nr) - 1;
++
++	return bitmap_find_next_zero_area(map, size, start, nr, align_mask);
++}
++EXPORT_SYMBOL(gen_pool_first_fit_order_align);
++
++/**
+  * gen_pool_best_fit - find the best fitting region of memory
+  * macthing the size requirement (no alignment constraint)
+  * @map: The address to base the search on
 -- 
 The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
 hosted by The Linux Foundation
