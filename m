@@ -1,56 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id B6E7A6B0035
-	for <linux-mm@kvack.org>; Tue, 12 Aug 2014 08:28:54 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id z10so12539667pdj.16
-        for <linux-mm@kvack.org>; Tue, 12 Aug 2014 05:28:54 -0700 (PDT)
-Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com [2607:f8b0:400e:c03::231])
-        by mx.google.com with ESMTPS id rx7si15934796pac.128.2014.08.12.05.28.53
+Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 742E16B0035
+	for <linux-mm@kvack.org>; Tue, 12 Aug 2014 09:23:59 -0400 (EDT)
+Received: by mail-lb0-f180.google.com with SMTP id v6so6902279lbi.25
+        for <linux-mm@kvack.org>; Tue, 12 Aug 2014 06:23:58 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id lv11si23928356lac.51.2014.08.12.06.23.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 12 Aug 2014 05:28:53 -0700 (PDT)
-Received: by mail-pa0-f49.google.com with SMTP id hz1so12916951pad.36
-        for <linux-mm@kvack.org>; Tue, 12 Aug 2014 05:28:53 -0700 (PDT)
-Message-ID: <1407846532.10122.66.camel@edumazet-glaptop2.roam.corp.google.com>
-Subject: Re: x86: vmalloc and THP
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Date: Tue, 12 Aug 2014 05:28:52 -0700
-In-Reply-To: <20140812060745.GA7987@node.dhcp.inet.fi>
-References: <53E99F86.5020100@scalemp.com>
-	 <20140812060745.GA7987@node.dhcp.inet.fi>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+        Tue, 12 Aug 2014 06:23:57 -0700 (PDT)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH] hugetlb_cgroup: use lockdep_assert_held rather than spin_is_locked
+Date: Tue, 12 Aug 2014 15:23:50 +0200
+Message-Id: <1407849830-22500-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Oren Twaig <oren@scalemp.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "Shai Fultheim
-	(Shai@ScaleMP.com)" <Shai@scalemp.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Tue, 2014-08-12 at 09:07 +0300, Kirill A. Shutemov wrote:
-> On Tue, Aug 12, 2014 at 08:00:54AM +0300, Oren Twaig wrote:
+spin_lock may be an empty struct for !SMP configurations and so
+arch_spin_is_locked may return unconditional 0 and trigger the VM_BUG_ON
+even when the lock is held.
 
-> >Does memory allocated using vmalloc() will be mapped using huge
-> >pages either directly or later by THP ? 
-> 
-> No. It's neither aligned properly, nor physically contiguous.
-> 
-> >If not, is there any fast way to change this behavior ? Maybe by
-> >changing the granularity/alignment of such allocations to allow such
-> >mapping ?
-> 
-> What's the point to use vmalloc() in this case?
+Replace spin_is_locked by lockdep_assert_held. We will not BUG anymore
+but it is questionable whether crashing makes a lot of sense in the
+uncharge path. Uncharge happens after the last page reference was
+released so nobody should touch the page and the function doesn't update
+any shared state except for res counter which uses synchronization of
+its own.
 
-Look at various large hashes we have in the system, all using
-vmalloc() :
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+---
+ mm/hugetlb_cgroup.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-[    0.006856] Dentry cache hash table entries: 16777216 (order: 15, 134217728 bytes)
-[    0.033130] Inode-cache hash table entries: 8388608 (order: 14, 67108864 bytes)
-[    1.197621] TCP established hash table entries: 524288 (order: 11, 8388608 bytes)
-
-I would imagine a performance difference if we were using hugepages.
-
-
+diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
+index 9aae6f47433f..9edf189a5ef3 100644
+--- a/mm/hugetlb_cgroup.c
++++ b/mm/hugetlb_cgroup.c
+@@ -217,7 +217,7 @@ void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
+ 
+ 	if (hugetlb_cgroup_disabled())
+ 		return;
+-	VM_BUG_ON(!spin_is_locked(&hugetlb_lock));
++	lockdep_assert_held(&hugetlb_lock);
+ 	h_cg = hugetlb_cgroup_from_page(page);
+ 	if (unlikely(!h_cg))
+ 		return;
+-- 
+2.1.0.rc1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
