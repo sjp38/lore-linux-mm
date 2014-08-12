@@ -1,83 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id AB9536B0035
-	for <linux-mm@kvack.org>; Tue, 12 Aug 2014 15:06:36 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id z10so13134325pdj.30
-        for <linux-mm@kvack.org>; Tue, 12 Aug 2014 12:06:36 -0700 (PDT)
-Received: from smtp.outflux.net (smtp.outflux.net. [2001:19d0:2:6:c0de:0:736d:7470])
-        by mx.google.com with ESMTPS id uq2si16675985pbc.83.2014.08.12.12.06.34
+Received: from mail-oi0-f44.google.com (mail-oi0-f44.google.com [209.85.218.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 49E896B0038
+	for <linux-mm@kvack.org>; Tue, 12 Aug 2014 15:07:22 -0400 (EDT)
+Received: by mail-oi0-f44.google.com with SMTP id x69so6889740oia.3
+        for <linux-mm@kvack.org>; Tue, 12 Aug 2014 12:07:22 -0700 (PDT)
+Received: from mail-ob0-x233.google.com (mail-ob0-x233.google.com [2607:f8b0:4003:c01::233])
+        by mx.google.com with ESMTPS id ow18si31048740oeb.94.2014.08.12.12.07.21
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Aug 2014 12:06:34 -0700 (PDT)
-Date: Tue, 12 Aug 2014 12:06:29 -0700
-From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v2] mm/zpool: use prefixed module loading
-Message-ID: <20140812190629.GA7179@www.outflux.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 12 Aug 2014 12:07:21 -0700 (PDT)
+Received: by mail-ob0-f179.google.com with SMTP id wn1so7497820obc.38
+        for <linux-mm@kvack.org>; Tue, 12 Aug 2014 12:07:21 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <20140809030822.GA9422@gondor.apana.org.au>
+References: <20140808075316.GA21919@www.outflux.net>
+	<CALZtONBNEg7kzUtwKihQuAU48MNh5NjhZcWoOxe-1-vgWqSLiw@mail.gmail.com>
+	<CAGXu5jL3GjrqsixS6U+GYD1pxAOOcXsXbt5XOVC8KhZB+naXAA@mail.gmail.com>
+	<20140809030822.GA9422@gondor.apana.org.au>
+Date: Tue, 12 Aug 2014 12:07:21 -0700
+Message-ID: <CAGXu5jLMYKB3xmRd3qOZUSRoJwM7r-s3O+asECvLn4-vyjCKLA@mail.gmail.com>
+Subject: Re: [PATCH] mm/zpool: use prefixed module loading
+From: Kees Cook <keescook@chromium.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Seth Jennings <sjennings@variantweb.net>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>, linux-mm@kvack.org
+To: Herbert Xu <herbert@gondor.apana.org.au>
+Cc: Dan Streetman <ddstreet@ieee.org>, Greg KH <gregkh@linuxfoundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Seth Jennings <sjennings@variantweb.net>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Dan Carpenter <dan.carpenter@oracle.com>, Linux-MM <linux-mm@kvack.org>, Vasiliy Kulikov <segoon@openwall.com>
 
-To avoid potential format string expansion via module parameters,
-do not use the zpool type directly in request_module() without a
-format string. Additionally, to avoid arbitrary modules being loaded
-via zpool API (e.g. via the zswap_zpool_type module parameter) add a
-"zpool-" prefix to the requested module, as well as module aliases for
-the existing zpool types (zbud and zsmalloc).
+On Fri, Aug 8, 2014 at 8:08 PM, Herbert Xu <herbert@gondor.apana.org.au> wrote:
+> On Fri, Aug 08, 2014 at 05:06:41PM -0700, Kees Cook wrote:
+>>
+>> I think we need to fix zswap now before it gets too far, and likely
+>> adjust the crypto API to use a module prefix as well. Perhaps we need
+>> a "crypto-" prefix?
+>
+> Yes I think a crypto- prefix would make sense.  Most crypto
+> algorithms should be providing an alias already so it's mostly
+> just changing the aliases.
+>
+> Patches are welcome :)
 
-Signed-off-by: Kees Cook <keescook@chromium.org>
----
-v2:
-- moved module aliases into ifdefs (ddstreet)
----
- mm/zbud.c     | 1 +
- mm/zpool.c    | 2 +-
- mm/zsmalloc.c | 1 +
- 3 files changed, 3 insertions(+), 1 deletion(-)
+Okay, I'll see the zpool patch again with the aliases moved into the
+ZPOOL ifdef, and I'll start working on a crypto patch set to solve the
+prefix there too.
 
-diff --git a/mm/zbud.c b/mm/zbud.c
-index a05790b1915e..f26e7fcc7fa2 100644
---- a/mm/zbud.c
-+++ b/mm/zbud.c
-@@ -195,6 +195,7 @@ static struct zpool_driver zbud_zpool_driver = {
- 	.total_size =	zbud_zpool_total_size,
- };
- 
-+MODULE_ALIAS("zpool-zbud");
- #endif /* CONFIG_ZPOOL */
- 
- /*****************
-diff --git a/mm/zpool.c b/mm/zpool.c
-index e40612a1df00..739cdf0d183a 100644
---- a/mm/zpool.c
-+++ b/mm/zpool.c
-@@ -150,7 +150,7 @@ struct zpool *zpool_create_pool(char *type, gfp_t gfp, struct zpool_ops *ops)
- 	driver = zpool_get_driver(type);
- 
- 	if (!driver) {
--		request_module(type);
-+		request_module("zpool-%s", type);
- 		driver = zpool_get_driver(type);
- 	}
- 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 4e2fc83cb394..94f38fac5e81 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -315,6 +315,7 @@ static struct zpool_driver zs_zpool_driver = {
- 	.total_size =	zs_zpool_total_size,
- };
- 
-+MODULE_ALIAS("zpool-zsmalloc");
- #endif /* CONFIG_ZPOOL */
- 
- /* per-cpu VM mapping areas for zspage accesses that cross page boundaries */
--- 
-1.9.1
+Thanks!
 
+-Kees
 
 -- 
 Kees Cook
