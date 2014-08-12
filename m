@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f179.google.com (mail-yk0-f179.google.com [209.85.160.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F9BD6B0035
-	for <linux-mm@kvack.org>; Tue, 12 Aug 2014 19:30:02 -0400 (EDT)
-Received: by mail-yk0-f179.google.com with SMTP id 142so7745835ykq.38
-        for <linux-mm@kvack.org>; Tue, 12 Aug 2014 16:30:01 -0700 (PDT)
+Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F33D6B0035
+	for <linux-mm@kvack.org>; Tue, 12 Aug 2014 19:47:00 -0400 (EDT)
+Received: by mail-oi0-f52.google.com with SMTP id h136so7104561oig.39
+        for <linux-mm@kvack.org>; Tue, 12 Aug 2014 16:46:59 -0700 (PDT)
 Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
-        by mx.google.com with ESMTPS id x61si151680yhk.194.2014.08.12.16.30.01
+        by mx.google.com with ESMTPS id w8si213891obn.30.2014.08.12.16.46.59
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 12 Aug 2014 16:30:01 -0700 (PDT)
-Message-ID: <1407886188.2695.3.camel@buesod1.americas.hpqcorp.net>
+        Tue, 12 Aug 2014 16:46:59 -0700 (PDT)
+Message-ID: <1407887208.2695.9.camel@buesod1.americas.hpqcorp.net>
 Subject: Re: [PATCH] mm: introduce for_each_vma helpers
 From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Tue, 12 Aug 2014 16:29:48 -0700
+Date: Tue, 12 Aug 2014 16:46:48 -0700
 In-Reply-To: <20140812215213.GB17497@node.dhcp.inet.fi>
 References: <1407865523.2633.3.camel@buesod1.americas.hpqcorp.net>
 	 <20140812215213.GB17497@node.dhcp.inet.fi>
@@ -34,32 +34,22 @@ On Wed, 2014-08-13 at 00:52 +0300, Kirill A. Shutemov wrote:
 > 
 > Why does it need to be encapsulated?
 > Do you have problem with reading plain for()?
-
-No problem in particular. But encapsulation is always good to have, and
-we have a number of examples similar to what I'm proposing all
-throughout the kernel (just like at vma_interval_tree_foreach).
-
+> 
 > Your for_each_vma(vma) assumes "mm" from the scope. This can be confusing
 > for reader: whether it uses "mm" from the scope or "current->mm". This
 > will lead to very hard to find bug one day.
-> I don't like this.
-> 
-> > It also updates most of the callers, so its a pretty good start.
-> > 
-> > Similarly, we also have for_each_vma_start(vma, start) when the user
-> > does not want to start at the beginning of the list. And lastly the
-> > for_each_vma_start_inc(vma, start, inc) helper in introduced to allow
-> > users to create higher level special vma abstractions, such as with
-> > the case of ELF binaries.
-> 
-> for_each_vma_start_inc() is pretty much the plain for() but with
-> really_long_and_fancy_name(). Why?
 
-Because we can implement things like for_each_vma_gate() on top.
+I think its fairly obvious to see where the mm is coming from -- the
+helpers *do not* necessarily use current, it uses whatever mm was
+already there in the first place. I have not changed anything related to
+this from the callers. 
 
-Thanks,
-Davidlohr
+The only related change I can think of, is for some callers that do:
 
+for (vma = current->mm->mmap; vma != NULL; vma = vma->vm_next)
+
+So we just add a local mm from current->mm and replace the for() with
+for_each_vma(). I don't see anything particularly ambiguous with that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
