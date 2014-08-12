@@ -1,82 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 729876B0035
-	for <linux-mm@kvack.org>; Tue, 12 Aug 2014 03:13:59 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id v10so10452332pde.11
-        for <linux-mm@kvack.org>; Tue, 12 Aug 2014 00:13:59 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id ve8si15362620pbc.6.2014.08.12.00.13.57
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 12 Aug 2014 00:13:58 -0700 (PDT)
-Received: by mail-pa0-f42.google.com with SMTP id lf10so12593346pab.1
-        for <linux-mm@kvack.org>; Tue, 12 Aug 2014 00:13:57 -0700 (PDT)
-Date: Tue, 12 Aug 2014 07:18:30 +0000
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 2/3] zsmalloc/zram: add zs_get_max_size_bytes and use it in
- zram
-Message-ID: <20140812071830.GA23902@gmail.com>
-References: <loom.20140808T045014-594@post.gmane.org>
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 328676B0035
+	for <linux-mm@kvack.org>; Tue, 12 Aug 2014 03:24:46 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id p10so12134725pdj.36
+        for <linux-mm@kvack.org>; Tue, 12 Aug 2014 00:24:45 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id rb3si15344157pbc.190.2014.08.12.00.24.44
+        for <linux-mm@kvack.org>;
+        Tue, 12 Aug 2014 00:24:45 -0700 (PDT)
+Message-ID: <53E9C129.2020902@linux.intel.com>
+Date: Tue, 12 Aug 2014 15:24:25 +0800
+From: "Zhang, Yanmin" <yanmin_zhang@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <loom.20140808T045014-594@post.gmane.org>
+Subject: Re: [PATCH]  export the function kmap_flush_unused.
+References: <3C85A229999D6B4A89FA64D4680BA6142C7DFA@SHSMSX101.ccr.corp.intel.com> <53E4D312.5000601@codeaurora.org> <3C85A229999D6B4A89FA64D4680BA6142CAFF3@SHSMSX101.ccr.corp.intel.com> <20140811115431.GW9918@twins.programming.kicks-ass.net>
+In-Reply-To: <20140811115431.GW9918@twins.programming.kicks-ass.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Horner <ds2horner@gmail.com>
-Cc: linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>, "Sha, Ruibin" <ruibin.sha@intel.com>
+Cc: Chintan Pandya <cpandya@codeaurora.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mel@csn.ul.ie" <mel@csn.ul.ie>, "mgorman@suse.de" <mgorman@suse.de>, "mingo@redhat.com" <mingo@redhat.com>, "Zhang, Yanmin" <yanmin.zhang@intel.com>, "He, Bo" <bo.he@intel.com>
 
-Hello,
+On 2014/8/11 19:54, Peter Zijlstra wrote:
+> On Mon, Aug 11, 2014 at 01:26:45AM +0000, Sha, Ruibin wrote:
+>> Hi Chintan,
+>> Thank you very much for your timely and kindly response and comments.
+>>
+>> Here is more detail about our Scenario:
+>>
+>>      We have a big driver on Android product. The driver allocates lots of
+>>      DDR pages. When applications mmap a file exported from the driver,
+>>      driver would mmap the pages to the application space, usually with
+>>      uncachable prot.
+>>      On ia32/x86_64 arch, we have to avoid page cache alias issue. When
+>>      driver allocates the pages, it would change page original mapping in
+>>      page table with uncachable prot. Sometimes, the allocated page was
+>>      used by kmap/kunmap. After kunmap, the page is still mapped in KMAP
+>>      space. The entries in KMAP page table are not cleaned up until a
+>>      kernel thread flushes the freed KMAP pages(usually it is woken up by kunmap).
+>>      It means the driver need  force to flush the KMAP page table entries before mapping pages to
+>>      application space to be used. Otherwise, there is a race to create
+>>      cache alias.
+>>
+>>      To resolve this issue, we need export function kmap_flush_unused as
+>>      the driver is compiled as module. Then, the driver calls
+>>      kmap_flush_unused if the allocated pages are in HIGHMEM and being
+>>      used by kmap.
+> A: Because it messes up the order in which people normally read text.
+> Q: Why is top-posting such a bad thing?
+> A: Top-posting.
+> Q: What is the most annoying thing in e-mail?
 
-Sorry for the late response. I was on vacation and then was busy.
+Sorry, Peter. Ruibin is a new guy in LKML community. He uses outlook
+to send emails. He would improve that.
 
-On Fri, Aug 08, 2014 at 02:56:24AM +0000, David Horner wrote:
-> 
->  [2/3]
-> 
-> 
->  But why isn't mem_used_max writable? (save tearing down and rebuilding
->  device to reset max)
+>
+> That said, it sounds like you want set_memory_() to call
+> kmap_flush_unused(). Because this race it not at all specific to your
+> usage, it could happen to any set_memory_() site, right?
+No. set_memory_() assumes the memory is not in HIGHMEM.
+This scenario is driver allocates HIGHMEM pages, which are kmapped before.
+Kernel uses a lazy method when kunmap a HIGHMEM page.
+The pages are not unmapped from KMAP page table entries immediately.
+When next kmap calling uses the same entry, kernel would change pte.
+Or when change_page_attr_set_clr is called.
 
-I don't know what you mean but I will make it writable so user can
-reset it to zero when they want.
+Our big driver doesn't call change_page_attr_set_clr when mmap the
+pages with UNCACHABLE prot. It need call kmap_flush_unused directly after
+allocating HIGHMEM pages.
 
-> 
->  static DEVICE_ATTR(mem_used_max, S_IRUGO, mem_used_max_show, NULL);
-> 
->  static DEVICE_ATTR(mem_used_max, S_IRUGO | S_IWUSR, mem_used_max_show, NULL);
-> 
->    with a check in the store() that the new value is positive and less
-> than current max?
-> 
-> 
->  I'm also a little puzzled why there is a new API zs_get_max_size_bytes if
->  the data is accessible through sysfs?
->  Especially if max limit will be (as you propose for [3/3]) through accessed
->  through zsmalloc and hence zram needn't access.
+Thanks for the kind comments.
 
-I don't know why you meant.
-Anyway, I will resend revised version and Cc you.
-Please, comment on that. :)
-
-> 
-> 
-> 
->   [3/3]
->  I concur that the zram limit is best implemented in zsmalloc.
->  I am looking forward to that revised code.
-
-Thanks!
-
-> 
-> 
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Yanmin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
