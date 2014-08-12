@@ -1,69 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 221156B0035
-	for <linux-mm@kvack.org>; Tue, 12 Aug 2014 11:01:38 -0400 (EDT)
-Received: by mail-wi0-f178.google.com with SMTP id hi2so5930398wib.17
-        for <linux-mm@kvack.org>; Tue, 12 Aug 2014 08:01:37 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.194])
-        by mx.google.com with ESMTP id gf9si22695208wib.23.2014.08.12.08.01.35
-        for <linux-mm@kvack.org>;
-        Tue, 12 Aug 2014 08:01:36 -0700 (PDT)
-Date: Tue, 12 Aug 2014 18:01:31 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: x86: vmalloc and THP
-Message-ID: <20140812150131.GA12187@node.dhcp.inet.fi>
-References: <53E99F86.5020100@scalemp.com>
- <20140812060745.GA7987@node.dhcp.inet.fi>
- <1407846532.10122.66.camel@edumazet-glaptop2.roam.corp.google.com>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E9A16B0035
+	for <linux-mm@kvack.org>; Tue, 12 Aug 2014 11:43:59 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id et14so13182039pad.35
+        for <linux-mm@kvack.org>; Tue, 12 Aug 2014 08:43:59 -0700 (PDT)
+Received: from e28smtp02.in.ibm.com (e28smtp02.in.ibm.com. [122.248.162.2])
+        by mx.google.com with ESMTPS id pj8si12753029pdb.54.2014.08.12.08.43.57
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 12 Aug 2014 08:43:58 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 12 Aug 2014 21:13:55 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 4BAEEE0019
+	for <linux-mm@kvack.org>; Tue, 12 Aug 2014 21:15:49 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s7CFiCYK65339396
+	for <linux-mm@kvack.org>; Tue, 12 Aug 2014 21:14:13 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s7CFhnim025526
+	for <linux-mm@kvack.org>; Tue, 12 Aug 2014 21:13:49 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH] hugetlb_cgroup: use lockdep_assert_held rather than spin_is_locked
+In-Reply-To: <1407849830-22500-1-git-send-email-mhocko@suse.cz>
+References: <1407849830-22500-1-git-send-email-mhocko@suse.cz>
+Date: Tue, 12 Aug 2014 21:13:39 +0530
+Message-ID: <87r40l67dg.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1407846532.10122.66.camel@edumazet-glaptop2.roam.corp.google.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Oren Twaig <oren@scalemp.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "Shai Fultheim (Shai@ScaleMP.com)" <Shai@scalemp.com>
+To: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Aug 12, 2014 at 05:28:52AM -0700, Eric Dumazet wrote:
-> On Tue, 2014-08-12 at 09:07 +0300, Kirill A. Shutemov wrote:
-> > On Tue, Aug 12, 2014 at 08:00:54AM +0300, Oren Twaig wrote:
-> > >If not, is there any fast way to change this behavior ? Maybe by
-> > >changing the granularity/alignment of such allocations to allow such
-> > >mapping ?
-> > 
-> > What's the point to use vmalloc() in this case?
-> 
-> Look at various large hashes we have in the system, all using
-> vmalloc() :
-> 
-> [    0.006856] Dentry cache hash table entries: 16777216 (order: 15, 134217728 bytes)
-> [    0.033130] Inode-cache hash table entries: 8388608 (order: 14, 67108864 bytes)
-> [    1.197621] TCP established hash table entries: 524288 (order: 11, 8388608 bytes)
+Michal Hocko <mhocko@suse.cz> writes:
 
-I see lower-order allocation in upstream code. Is it some distribution
-tweak?
+> spin_lock may be an empty struct for !SMP configurations and so
+> arch_spin_is_locked may return unconditional 0 and trigger the VM_BUG_ON
+> even when the lock is held.
+>
+> Replace spin_is_locked by lockdep_assert_held. We will not BUG anymore
+> but it is questionable whether crashing makes a lot of sense in the
+> uncharge path. Uncharge happens after the last page reference was
+> released so nobody should touch the page and the function doesn't update
+> any shared state except for res counter which uses synchronization of
+> its own.
 
-> I would imagine a performance difference if we were using hugepages.
+We do update the hugepage's hugetlb cgroup details. But as you mentioned,
+this should not be an issue because we are in hugepage free.
 
-Okay, it's *probably* a valid point.
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-The hash tables are only allocated with vmalloc() on NUMA system, if
-hashdist=1 (default on NUMA).  It does it to distribute memory between
-nodes. vmalloc() in NUMA_NO_NODE case will allocate all memory with
-0-order page allocations: no physical contiguous memory for hugepage
-mappings.
-
-I guess we could teach vmalloc() to interleave between nodes on PMD_SIZE
-chunks rather then on PAGE_SIZE if caller asks for big memory allocations.
-Although, I'm not sure it it would fit all vmalloc() users.
-
-We also would need to allocate PMD_SIZE-aligned virtual address range
-to be able to mapped allocated memory with pmds.
-
-It's *potentially* interesting research project. Any volunteers?
-
--- 
- Kirill A. Shutemov
+>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> ---
+>  mm/hugetlb_cgroup.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
+> index 9aae6f47433f..9edf189a5ef3 100644
+> --- a/mm/hugetlb_cgroup.c
+> +++ b/mm/hugetlb_cgroup.c
+> @@ -217,7 +217,7 @@ void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
+>
+>  	if (hugetlb_cgroup_disabled())
+>  		return;
+> -	VM_BUG_ON(!spin_is_locked(&hugetlb_lock));
+> +	lockdep_assert_held(&hugetlb_lock);
+>  	h_cg = hugetlb_cgroup_from_page(page);
+>  	if (unlikely(!h_cg))
+>  		return;
+> -- 
+> 2.1.0.rc1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
