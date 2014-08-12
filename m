@@ -1,54 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 742E16B0035
-	for <linux-mm@kvack.org>; Tue, 12 Aug 2014 09:23:59 -0400 (EDT)
-Received: by mail-lb0-f180.google.com with SMTP id v6so6902279lbi.25
-        for <linux-mm@kvack.org>; Tue, 12 Aug 2014 06:23:58 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lv11si23928356lac.51.2014.08.12.06.23.57
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id A5B686B0035
+	for <linux-mm@kvack.org>; Tue, 12 Aug 2014 09:36:25 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id v10so6741027pde.10
+        for <linux-mm@kvack.org>; Tue, 12 Aug 2014 06:36:25 -0700 (PDT)
+Received: from mail-pd0-x233.google.com (mail-pd0-x233.google.com [2607:f8b0:400e:c02::233])
+        by mx.google.com with ESMTPS id ox2si12493598pdb.208.2014.08.12.06.36.24
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 12 Aug 2014 06:23:57 -0700 (PDT)
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH] hugetlb_cgroup: use lockdep_assert_held rather than spin_is_locked
-Date: Tue, 12 Aug 2014 15:23:50 +0200
-Message-Id: <1407849830-22500-1-git-send-email-mhocko@suse.cz>
+        Tue, 12 Aug 2014 06:36:25 -0700 (PDT)
+Received: by mail-pd0-f179.google.com with SMTP id v10so6741017pde.10
+        for <linux-mm@kvack.org>; Tue, 12 Aug 2014 06:36:24 -0700 (PDT)
+From: Honggang Li <enjoymindful@gmail.com>
+Subject: [linux-next PATCH] Free percpu allocation info for uniprocessor system
+Date: Tue, 12 Aug 2014 21:36:14 +0800
+Message-Id: <1407850575-18794-1-git-send-email-enjoymindful@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: tj@kernel.org, cl@linux-foundation.org, linux-mm@kvack.org, user-mode-linux-devel@lists.sourceforge.net
+Cc: linux-kernel@vger.kernel.org, Honggang Li <enjoymindful@gmail.com>
 
-spin_lock may be an empty struct for !SMP configurations and so
-arch_spin_is_locked may return unconditional 0 and trigger the VM_BUG_ON
-even when the lock is held.
+Uniprocessor system should free percpu allocation info after use as SMP system.
 
-Replace spin_is_locked by lockdep_assert_held. We will not BUG anymore
-but it is questionable whether crashing makes a lot of sense in the
-uncharge path. Uncharge happens after the last page reference was
-released so nobody should touch the page and the function doesn't update
-any shared state except for res counter which uses synchronization of
-its own.
+Following table is the bootmem allocation information of one x86 UML virtual
+machine with 256MB memory. The virtual machine is running linux-3.12.6. 
+Page (0x8c07000) is wasted.
+|------------------------------------------------------------------------------
+|0x8a02000 empty_zero_page                         size=4096,    align=4096
+|0x8a03000 empty_bad_page                          size=4096,    align=4096
+|0x8a04000 mem_map,contig_page_data->node_mem_map  size=2097152, align=32
+|0x8c04000 contig_page_data->pageblock_flags       size=24,      align=32
+|0x8c04020 contig_page_data->wait_table            size=2048,    align=32
+|0x8c05000 pte_t*                                  size=4096,    align=4096
+|0x8c06000 saved_command_line                      size=91,      align=32
+|0x8c06060 static_command_line                     size=91,      align=32
+|0x8c060c0 pcpu_alloc_info *ai                     size=4096,    align=32
+|0x8c08000 pcpu_base_addr                          size=32768,   align=4096
+|0x8c10000 pcpu_group_offsets                      size=4,       align=32
+|0x8c10020 pcpu_group_sizes                        size=4,       align=32
+|0x8c10040 pcpu_unit_map                           size=4,       align=32
+|0x8c10060 pcpu_unit_offsets                       size=4,       align=32
+|0x8c10080 pcpu_slot                               size=120,     align=32
+|0x8c10100 pcpu_first_chunk                        size=44,      align=32
+|0x8c10140 pid_hash                                size=4096,    align=32
+|0x8c11140 dentry_hashtable                        size=131072,  align=32
+|0x8c31140 inode_hashtable                         size=65536,   align=32
+|------------------------------------------------------------------------------
 
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
----
- mm/hugetlb_cgroup.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Recent UML is broken because of the commit:
+"resource: provide new functions to walk through resources"
 
-diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
-index 9aae6f47433f..9edf189a5ef3 100644
---- a/mm/hugetlb_cgroup.c
-+++ b/mm/hugetlb_cgroup.c
-@@ -217,7 +217,7 @@ void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
- 
- 	if (hugetlb_cgroup_disabled())
- 		return;
--	VM_BUG_ON(!spin_is_locked(&hugetlb_lock));
-+	lockdep_assert_held(&hugetlb_lock);
- 	h_cg = hugetlb_cgroup_from_page(page);
- 	if (unlikely(!h_cg))
- 		return;
+As a result, the patch had been tested on x86 and x86_64 UML virtual 
+machines based on linux-next-v3.16.
+
+Honggang Li (1):
+  Free percpu allocation info for uniprocessor system
+
+ mm/percpu.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
 -- 
-2.1.0.rc1
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
