@@ -1,55 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
-	by kanga.kvack.org (Postfix) with ESMTP id D2E636B0035
-	for <linux-mm@kvack.org>; Tue, 12 Aug 2014 17:52:37 -0400 (EDT)
-Received: by mail-we0-f172.google.com with SMTP id x48so10516945wes.17
-        for <linux-mm@kvack.org>; Tue, 12 Aug 2014 14:52:37 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.193])
-        by mx.google.com with ESMTP id lk10si32285976wjc.149.2014.08.12.14.52.36
-        for <linux-mm@kvack.org>;
-        Tue, 12 Aug 2014 14:52:36 -0700 (PDT)
-Date: Wed, 13 Aug 2014 00:52:13 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: introduce for_each_vma helpers
-Message-ID: <20140812215213.GB17497@node.dhcp.inet.fi>
-References: <1407865523.2633.3.camel@buesod1.americas.hpqcorp.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1407865523.2633.3.camel@buesod1.americas.hpqcorp.net>
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 36AF66B0035
+	for <linux-mm@kvack.org>; Tue, 12 Aug 2014 18:03:07 -0400 (EDT)
+Received: by mail-ig0-f171.google.com with SMTP id l13so8279665iga.16
+        for <linux-mm@kvack.org>; Tue, 12 Aug 2014 15:03:07 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id f13si514623igt.24.2014.08.12.15.03.06
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Aug 2014 15:03:06 -0700 (PDT)
+Date: Tue, 12 Aug 2014 15:03:04 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/1] memblock, memhotplug: Fix wrong type in
+ memblock_find_in_range_node().
+Message-Id: <20140812150304.74a7da3f2491f3d8f8a30107@linux-foundation.org>
+In-Reply-To: <1407651123-10994-1-git-send-email-tangchen@cn.fujitsu.com>
+References: <1407651123-10994-1-git-send-email-tangchen@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Robert Richter <rric@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, aswin@hp.com
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: santosh.shilimkar@ti.com, grygorii.strashko@ti.com, phacht@linux.vnet.ibm.com, yinghai@kernel.org, fabf@skynet.be, Emilian.Medve@freescale.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Aug 12, 2014 at 10:45:23AM -0700, Davidlohr Bueso wrote:
-> The most common way of iterating through the list of vmas, is via:
->     for (vma = mm->mmap; vma; vma = vma->vm_next)
+On Sun, 10 Aug 2014 14:12:03 +0800 Tang Chen <tangchen@cn.fujitsu.com> wrote:
+
+> In memblock_find_in_range_node(), we defeind ret as int. But it shoule
+> be phys_addr_t because it is used to store the return value from
+> __memblock_find_range_bottom_up().
 > 
-> This patch replaces this logic with a new for_each_vma(vma) helper,
-> which 1) encapsulates this logic, and 2) make it easier to read.
-
-Why does it need to be encapsulated?
-Do you have problem with reading plain for()?
-
-Your for_each_vma(vma) assumes "mm" from the scope. This can be confusing
-for reader: whether it uses "mm" from the scope or "current->mm". This
-will lead to very hard to find bug one day.
-I don't like this.
-
-> It also updates most of the callers, so its a pretty good start.
+> The bug has not been triggered because when allocating low memory near
+> the kernel end, the "int ret" won't turn out to be minus. When we started
+> to allocate memory on other nodes, and the "int ret" could be minus.
+> Then the kernel will panic.
 > 
-> Similarly, we also have for_each_vma_start(vma, start) when the user
-> does not want to start at the beginning of the list. And lastly the
-> for_each_vma_start_inc(vma, start, inc) helper in introduced to allow
-> users to create higher level special vma abstractions, such as with
-> the case of ELF binaries.
+> A simple way to reproduce this: comment out the following code in numa_init(),
+> 
+>         memblock_set_bottom_up(false);
+> 
+> and the kernel won't boot.
 
-for_each_vma_start_inc() is pretty much the plain for() but with
-really_long_and_fancy_name(). Why?
-
--- 
- Kirill A. Shutemov
+Which kernel versions need this fix?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
