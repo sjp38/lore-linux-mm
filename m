@@ -1,213 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 343496B0038
-	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 10:59:09 -0400 (EDT)
-Received: by mail-la0-f47.google.com with SMTP id mc6so9373773lab.34
-        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 07:59:08 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l13si3297771lbv.9.2014.08.13.07.59.06
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id B0B9C6B003A
+	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 11:15:06 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id hz1so14840437pad.8
+        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 08:15:06 -0700 (PDT)
+Received: from mail-pd0-x22b.google.com (mail-pd0-x22b.google.com [2607:f8b0:400e:c02::22b])
+        by mx.google.com with ESMTPS id hr10si1746499pac.24.2014.08.13.08.15.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 13 Aug 2014 07:59:07 -0700 (PDT)
-Date: Wed, 13 Aug 2014 16:59:04 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 1/4] mm: memcontrol: reduce reclaim invocations for
- higher order requests
-Message-ID: <20140813145904.GC2775@dhcp22.suse.cz>
-References: <1407186897-21048-1-git-send-email-hannes@cmpxchg.org>
- <1407186897-21048-2-git-send-email-hannes@cmpxchg.org>
- <20140807130822.GB12730@dhcp22.suse.cz>
- <20140807153141.GD14734@cmpxchg.org>
- <20140808123258.GK4004@dhcp22.suse.cz>
- <20140808132635.GJ14734@cmpxchg.org>
+        Wed, 13 Aug 2014 08:15:05 -0700 (PDT)
+Received: by mail-pd0-f171.google.com with SMTP id z10so14655932pdj.30
+        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 08:15:05 -0700 (PDT)
+Date: Thu, 14 Aug 2014 00:13:54 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [RFC 1/3] zsmalloc: move pages_allocated to zs_pool
+Message-ID: <20140813151354.GD1091@swordfish>
+References: <1407225723-23754-1-git-send-email-minchan@kernel.org>
+ <1407225723-23754-2-git-send-email-minchan@kernel.org>
+ <CALZtONDmvLDtceVW9AyiDwdSHQzPbay36JEts8iuZ4nvykWfeA@mail.gmail.com>
+ <20140813141413.GA1091@swordfish>
+ <CALZtONDgYRUwrsN_G7pds2QY6QTOr8G8jAHa6Zta2XDhDHV8_A@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140808132635.GJ14734@cmpxchg.org>
+In-Reply-To: <CALZtONDgYRUwrsN_G7pds2QY6QTOr8G8jAHa6Zta2XDhDHV8_A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>
 
-On Fri 08-08-14 09:26:35, Johannes Weiner wrote:
-> On Fri, Aug 08, 2014 at 02:32:58PM +0200, Michal Hocko wrote:
-> > On Thu 07-08-14 11:31:41, Johannes Weiner wrote:
-[...]
-> > > THP latencies are actually the same when comparing high limit nr_pages
-> > > reclaim with the current hard limit SWAP_CLUSTER_MAX reclaim,
-> > 
-> > Are you sure about this? I fail to see how they can be same as THP
-> > allocations/charges are __GFP_NORETRY so there is only one reclaim
-> > round for the hard limit reclaim followed by the charge failure if
-> > it is not successful.
+On (08/13/14 10:51), Dan Streetman wrote:
+> Date: Wed, 13 Aug 2014 10:51:40 -0400
+> From: Dan Streetman <ddstreet@ieee.org>
+> To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> Cc: Minchan Kim <minchan@kernel.org>, Linux-MM <linux-mm@kvack.org>,
+>  linux-kernel <linux-kernel@vger.kernel.org>, Jerome Marchand
+>  <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi
+>  Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>
+> Subject: Re: [RFC 1/3] zsmalloc: move pages_allocated to zs_pool
 > 
-> I use this test program that faults in anon pages, reports average and
-> max for every 512-page chunk (THP size), then reports the aggregate at
-> the end:
+> On Wed, Aug 13, 2014 at 10:14 AM, Sergey Senozhatsky
+> <sergey.senozhatsky@gmail.com> wrote:
+> > On (08/13/14 09:59), Dan Streetman wrote:
+> >> On Tue, Aug 5, 2014 at 4:02 AM, Minchan Kim <minchan@kernel.org> wrote:
+> >> > Pages_allocated has counted in size_class structure and when user
+> >> > want to see total_size_bytes, it gathers all of value from each
+> >> > size_class to report the sum.
+> >> >
+> >> > It's not bad if user don't see the value often but if user start
+> >> > to see the value frequently, it would be not a good deal for
+> >> > performance POV.
+> >> >
+> >> > This patch moves the variable from size_class to zs_pool so it would
+> >> > reduce memory footprint (from [255 * 8byte] to [sizeof(atomic_t)])
+> >> > but it adds new locking overhead but it wouldn't be severe because
+> >> > it's not a hot path in zs_malloc(ie, it is called only when new
+> >> > zspage is created, not a object).
+> >>
+> >> Would using an atomic64_t without locking be simpler?
+> >
+> > it would be racy.
 > 
-> memory.max:
+> oh.  atomic operations aren't smp safe?  is that because other
+> processors might use a stale value, and barriers must be added?  I
+> guess I don't quite understand the value of atomic then. :-/
+
+pool not only set the value, it also read it and make some decisions
+based on that value:
+
+	pages_allocated += X
+	if (pages_allocated >= max_pages_allocated)
+		return 0;
+
+	-ss
+
+> >>
+> >> >
+> >> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> >> > ---
+> >> >  mm/zsmalloc.c | 30 ++++++++++++++++--------------
+> >> >  1 file changed, 16 insertions(+), 14 deletions(-)
+> >> >
+> >> > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> >> > index fe78189624cf..a6089bd26621 100644
+> >> > --- a/mm/zsmalloc.c
+> >> > +++ b/mm/zsmalloc.c
+> >> > @@ -198,9 +198,6 @@ struct size_class {
+> >> >
+> >> >         spinlock_t lock;
+> >> >
+> >> > -       /* stats */
+> >> > -       u64 pages_allocated;
+> >> > -
+> >> >         struct page *fullness_list[_ZS_NR_FULLNESS_GROUPS];
+> >> >  };
+> >> >
+> >> > @@ -216,9 +213,12 @@ struct link_free {
+> >> >  };
+> >> >
+> >> >  struct zs_pool {
+> >> > +       spinlock_t stat_lock;
+> >> > +
+> >> >         struct size_class size_class[ZS_SIZE_CLASSES];
+> >> >
+> >> >         gfp_t flags;    /* allocation flags used when growing pool */
+> >> > +       unsigned long pages_allocated;
+> >> >  };
+> >> >
+> >> >  /*
+> >> > @@ -882,6 +882,7 @@ struct zs_pool *zs_create_pool(gfp_t flags)
+> >> >
+> >> >         }
+> >> >
+> >> > +       spin_lock_init(&pool->stat_lock);
+> >> >         pool->flags = flags;
+> >> >
+> >> >         return pool;
+> >> > @@ -943,8 +944,10 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+> >> >                         return 0;
+> >> >
+> >> >                 set_zspage_mapping(first_page, class->index, ZS_EMPTY);
+> >> > +               spin_lock(&pool->stat_lock);
+> >> > +               pool->pages_allocated += class->pages_per_zspage;
+> >> > +               spin_unlock(&pool->stat_lock);
+> >> >                 spin_lock(&class->lock);
+> >> > -               class->pages_allocated += class->pages_per_zspage;
+> >> >         }
+> >> >
+> >> >         obj = (unsigned long)first_page->freelist;
+> >> > @@ -997,14 +1000,14 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
+> >> >
+> >> >         first_page->inuse--;
+> >> >         fullness = fix_fullness_group(pool, first_page);
+> >> > -
+> >> > -       if (fullness == ZS_EMPTY)
+> >> > -               class->pages_allocated -= class->pages_per_zspage;
+> >> > -
+> >> >         spin_unlock(&class->lock);
+> >> >
+> >> > -       if (fullness == ZS_EMPTY)
+> >> > +       if (fullness == ZS_EMPTY) {
+> >> > +               spin_lock(&pool->stat_lock);
+> >> > +               pool->pages_allocated -= class->pages_per_zspage;
+> >> > +               spin_unlock(&pool->stat_lock);
+> >> >                 free_zspage(first_page);
+> >> > +       }
+> >> >  }
+> >> >  EXPORT_SYMBOL_GPL(zs_free);
+> >> >
+> >> > @@ -1100,12 +1103,11 @@ EXPORT_SYMBOL_GPL(zs_unmap_object);
+> >> >
+> >> >  u64 zs_get_total_size_bytes(struct zs_pool *pool)
+> >> >  {
+> >> > -       int i;
+> >> > -       u64 npages = 0;
+> >> > -
+> >> > -       for (i = 0; i < ZS_SIZE_CLASSES; i++)
+> >> > -               npages += pool->size_class[i].pages_allocated;
+> >> > +       u64 npages;
+> >> >
+> >> > +       spin_lock(&pool->stat_lock);
+> >> > +       npages = pool->pages_allocated;
+> >> > +       spin_unlock(&pool->stat_lock);
+> >> >         return npages << PAGE_SHIFT;
+> >> >  }
+> >> >  EXPORT_SYMBOL_GPL(zs_get_total_size_bytes);
+> >> > --
+> >> > 2.0.0
+> >> >
+> >> > --
+> >> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> >> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> >> > see: http://www.linux-mm.org/ .
+> >> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> >>
 > 
-> avg=18729us max=450625us
-> 
-> real    0m14.335s
-> user    0m0.157s
-> sys     0m6.307s
-> 
-> memory.high:
-> 
-> avg=18676us max=457499us
-> 
-> real    0m14.375s
-> user    0m0.046s
-> sys     0m4.294s
-
-I was playing with something like that as well. mmap 800MB anon mapping
-in 256MB memcg (kvm guest had 1G RAM and 2G swap so the global reclaim
-doesn't trigger and the host 2G free memory), start faulting in from
-THP aligned address and measured each fault. Then I was recording
-mm_vmscan_lru_shrink_inactive and mm_vmscan_memcg_reclaim_{begin,end}
-tracepoints to see how the reclaim went.
-
-I was testing two setups
-1) fault in every 4k page
-2) fault in only 2M aligned addresses.
-
-The first simulates the case where successful THP allocation saves
-follow up 511 fallback charges and so the excessive reclaim might
-pay off.
-The second one simulates potential time wasting when memory is used
-extremely sparsely and any latencies would be unwelcome.
-
-(new refers to nr_reclaim target, old to SWAP_CLUSTER_MAX, thponly
-faults only 2M aligned addresses, 4k pages are faulted otherwise)
-
-vmstat says:
-out.256m.new-thponly.vmstat.after:pswpin 44
-out.256m.new-thponly.vmstat.after:pswpout 154681
-out.256m.new-thponly.vmstat.after:thp_fault_alloc 399
-out.256m.new-thponly.vmstat.after:thp_fault_fallback 0
-out.256m.new-thponly.vmstat.after:thp_split 302
-
-out.256m.old-thponly.vmstat.after:pswpin 28
-out.256m.old-thponly.vmstat.after:pswpout 31271
-out.256m.old-thponly.vmstat.after:thp_fault_alloc 149
-out.256m.old-thponly.vmstat.after:thp_fault_fallback 250
-out.256m.old-thponly.vmstat.after:thp_split 61
-
-out.256m.new.vmstat.after:pswpin 48
-out.256m.new.vmstat.after:pswpout 169530
-out.256m.new.vmstat.after:thp_fault_alloc 399
-out.256m.new.vmstat.after:thp_fault_fallback 0
-out.256m.new.vmstat.after:thp_split 331
-
-out.256m.old.vmstat.after:pswpin 47
-out.256m.old.vmstat.after:pswpout 156514
-out.256m.old.vmstat.after:thp_fault_alloc 127
-out.256m.old.vmstat.after:thp_fault_fallback 272
-out.256m.old.vmstat.after:thp_split 127
-
-As expected new managed to fault in all requests as THP without a single
-fallback allocation while with the old reclaim we got to the limit and
-then most of the THP charges failed and fallen back to single page
-charge.
-
-Note the increased swapout activity for new. It is almost 5x more for
-thponly and +8% with per-page faults. This looks like a fallout from the
-over-reclaim in smaller priorities.
-
-Tracepoints will tell us the priority at which we ended up the reclaim
-round:
-- trace.new-thponly
-  Count Priority
-      1 3
-      2 5
-    159 6
-     24 7
-- trace.old-thponly
-    230 10
-      1 11
-      1 12
-      1 3
-     39 9
-
-Again expected that the priority is falling down for the new much more.
-
-- trace.new
-    229 0
-      3 12
-- trace.old
-    294 0
-      2 1
-     25 10
-      1 11
-      3 12
-      8 2
-      8 3
-     20 4
-     33 5
-     21 6
-     43 7
-   1286 8
-   1279 9
-
-And here as well, we have to reclaim much more because we do much more
-charges so the load benefits a bit from the high reclaim target.
-
-mm_vmscan_memcg_reclaim_end tracepoint tells us also how many pages were
-reclaimed during each run and the cummulative numbers are:
-- trace.new-thponly: 139029
-- trace.old-thponly: 11344
-- trace.new: 139687
-- trace.old: 139887
-
-time -v says:
-out.256m.new-thponly.time:      System time (seconds): 1.50
-out.256m.new-thponly.time:      Elapsed (wall clock) time (h:mm:ss or m:ss): 0:13.56
-out.256m.old-thponly.time:      System time (seconds): 0.45
-out.256m.old-thponly.time:      Elapsed (wall clock) time (h:mm:ss or m:ss): 0:03.76
-
-out.256m.new.time:      System time (seconds): 1.45
-out.256m.new.time:      Elapsed (wall clock) time (h:mm:ss or m:ss): 0:15.12
-out.256m.old.time:      System time (seconds): 2.08
-out.256m.old.time:      Elapsed (wall clock) time (h:mm:ss or m:ss): 0:15.26
-
-I guess this is expected as well. Sparse access doesn't amortize the
-costly reclaim for each charged THP. On the other hand it can help a bit
-if the whole mmap is populated.
-
-If we compare fault latencies then we get the following:
-- the worst latency [ms]:
-out.256m.new-thponly 1991
-out.256m.old-thponly 1838
-out.256m.new 6197
-out.256m.old 5538
-
-- top 5 worst latencies (sum in [ms]):
-out.256m.new-thponly 5694
-out.256m.old-thponly 3168
-out.256m.new 9498
-out.256m.old 8291
-
-- top 10
-out.256m.new-thponly 7139
-out.256m.old-thponly 3193
-out.256m.new 11786
-out.256m.old 9347
-
-- top 100
-out.256m.new-thponly 13035
-out.256m.old-thponly 3434
-out.256m.new 14634
-out.256m.old 12881
-
-I think this shows up that my concern about excessive reclaim and stalls
-is real and it is worse when the memory is used sparsely. It is true it
-might help when the whole THP section is used and so the additional cost
-is amortized but the more sparsely each THP section is used the higher
-overhead you are adding without userspace actually asking for it.
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
