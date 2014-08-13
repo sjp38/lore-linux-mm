@@ -1,72 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B5A46B0035
-	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 17:08:03 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so351888pab.33
-        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 14:08:03 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id uj2si2352484pbc.60.2014.08.13.14.08.02
+Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
+	by kanga.kvack.org (Postfix) with ESMTP id ACAB46B0035
+	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 17:18:40 -0400 (EDT)
+Received: by mail-la0-f54.google.com with SMTP id hz20so268045lab.41
+        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 14:18:39 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c2si4645886lac.0.2014.08.13.14.18.38
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Aug 2014 14:08:02 -0700 (PDT)
-Date: Wed, 13 Aug 2014 14:08:00 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: introduce for_each_vma helpers
-Message-Id: <20140813140800.df0310a05e5fad6ed6b55886@linux-foundation.org>
-In-Reply-To: <1407887208.2695.9.camel@buesod1.americas.hpqcorp.net>
-References: <1407865523.2633.3.camel@buesod1.americas.hpqcorp.net>
-	<20140812215213.GB17497@node.dhcp.inet.fi>
-	<1407887208.2695.9.camel@buesod1.americas.hpqcorp.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 13 Aug 2014 14:18:38 -0700 (PDT)
+Date: Wed, 13 Aug 2014 22:18:34 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: Actually clear pmd_numa before invalidating
+Message-ID: <20140813211834.GJ7970@suse.de>
+References: <1407943707-5547-1-git-send-email-matthew.r.wilcox@intel.com>
+ <20140813125951.7619f8e908eefb99c40827c4@linux-foundation.org>
+ <100D68C7BA14664A8938383216E40DE0407D0CA2@FMSMSX114.amr.corp.intel.com>
+ <20140813131241.3ced5ccaeec24fcd378a1ef6@linux-foundation.org>
+ <100D68C7BA14664A8938383216E40DE0407D0CE2@FMSMSX114.amr.corp.intel.com>
+ <20140813132333.92f2ade49867acbfb9ed696b@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140813132333.92f2ade49867acbfb9ed696b@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Robert Richter <rric@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, aswin@hp.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>
 
-On Tue, 12 Aug 2014 16:46:48 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
-
-> On Wed, 2014-08-13 at 00:52 +0300, Kirill A. Shutemov wrote:
-> > On Tue, Aug 12, 2014 at 10:45:23AM -0700, Davidlohr Bueso wrote:
-> > > The most common way of iterating through the list of vmas, is via:
-> > >     for (vma = mm->mmap; vma; vma = vma->vm_next)
-> > > 
-> > > This patch replaces this logic with a new for_each_vma(vma) helper,
-> > > which 1) encapsulates this logic, and 2) make it easier to read.
-> > 
-> > Why does it need to be encapsulated?
-> > Do you have problem with reading plain for()?
-> > 
-> > Your for_each_vma(vma) assumes "mm" from the scope. This can be confusing
-> > for reader: whether it uses "mm" from the scope or "current->mm". This
-> > will lead to very hard to find bug one day.
+On Wed, Aug 13, 2014 at 01:23:33PM -0700, Andrew Morton wrote:
+> On Wed, 13 Aug 2014 20:16:31 +0000 "Wilcox, Matthew R" <matthew.r.wilcox@intel.com> wrote:
 > 
-> I think its fairly obvious to see where the mm is coming from -- the
-> helpers *do not* necessarily use current, it uses whatever mm was
-> already there in the first place. I have not changed anything related to
-> this from the callers. 
-
-It is a bit of a hand-grenade for those (rare) situations where code is
-dealing with other-tasks-mm.  It's simple enough to add an `mm' arg?
-
-> The only related change I can think of, is for some callers that do:
+> > I am quite shockingly ignorant of the MM code.  While looking at this
+> > function to figure out how/whether to use it, I noticed the bug, and
+> > sent a patch.  I assumed the gibberish in the changelog meant something
+> > important to people who actually understand this part of the kernel :-)
 > 
-> for (vma = current->mm->mmap; vma != NULL; vma = vma->vm_next)
-> 
-> So we just add a local mm from current->mm and replace the for() with
-> for_each_vma(). I don't see anything particularly ambiguous with that.
+> Fair enough ;)  Mel?
 
-Adding a local to support a macro which secretly uses that local is
-pretty nasty.
+The issue was theoritical in nature. The patch was meant to guarantee
+the PTE was in a known state. As I cannot think of a way it could
+trigger a bug I wouldn't consider it -stable material but Matthew's
+patch is still doing the expected thing.
 
-
-Overall, I'm not really sure that
-
--	for (vma = mm->mmap; vma; vma = vma->vm_next) {
-+	for_each_vma(mm, vma) {
-
-is much of an improvement.  I'll wait to see what others think...
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
