@@ -1,266 +1,319 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AF256B0035
-	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 08:26:11 -0400 (EDT)
-Received: by mail-wi0-f178.google.com with SMTP id hi2so703328wib.5
-        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 05:26:11 -0700 (PDT)
-Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
-        by mx.google.com with ESMTPS id ga3si25903099wib.18.2014.08.13.05.26.09
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id DE19C6B0035
+	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 09:14:18 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id eu11so14949346pac.31
+        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 06:14:18 -0700 (PDT)
+Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com. [202.81.31.147])
+        by mx.google.com with ESMTPS id s4si1509872pdr.50.2014.08.13.06.14.16
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 13 Aug 2014 05:26:10 -0700 (PDT)
-Received: by mail-we0-f169.google.com with SMTP id u56so11234253wes.28
-        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 05:26:09 -0700 (PDT)
-Message-ID: <53EB5960.50200@plexistor.com>
-Date: Wed, 13 Aug 2014 15:26:08 +0300
-From: Boaz Harrosh <boaz@plexistor.com>
+        Wed, 13 Aug 2014 06:14:17 -0700 (PDT)
+Received: from /spool/local
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 13 Aug 2014 23:14:14 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id AFAF23578048
+	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 23:14:08 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s7DCukJJ61538492
+	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 22:56:47 +1000
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s7DDE6VJ032656
+	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 23:14:07 +1000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm: Remove misleading ARCH_USES_NUMA_PROT_NONE
+In-Reply-To: <20140812110806.GA17467@suse.de>
+References: <53DD5F20.8010507@oracle.com> <alpine.LSU.2.11.1408040418500.3406@eggly.anvils> <20140805144439.GW10819@suse.de> <alpine.LSU.2.11.1408051649330.6591@eggly.anvils> <53E17F06.30401@oracle.com> <53E989FB.5000904@oracle.com> <20140812104758.GE7970@suse.de> <20140812110806.GA17467@suse.de>
+Date: Wed, 13 Aug 2014 18:44:01 +0530
+Message-ID: <87k36c5y7a.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: [RFC 9/9] prd: Add support for page struct mapping
-References: <53EB5536.8020702@gmail.com>
-In-Reply-To: <53EB5536.8020702@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>, Sagi Manole <sagi@plexistor.com>, Yigal Korman <yigal@plexistor.com>
+To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Sasha Levin <sasha.levin@oracle.com>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Cyrill Gorcunov <gorcunov@gmail.com>
 
-From: Yigal Korman <yigal@plexistor.com>
+Mel Gorman <mgorman@suse.de> writes:
 
-One of the current short comings of the NVDIMM/PMEM
-support is that this memory does not have a page-struct(s)
-associated with its memory and therefor cannot be passed
-to a block-device or network or DMAed in any way through
-another device in the system.
+> ARCH_USES_NUMA_PROT_NONE was defined for architectures that implemented
+> _PAGE_NUMA using _PROT_NONE. This saved using an additional PTE bit and
+> relied on the fact that PROT_NONE vmas were skipped by the NUMA hinting
+> fault scanner. This was found to be conceptually confusing with a lot of
+> implicit assumptions and it was asked that an alternative be found.
+>
+> Commit c46a7c81 "x86: define _PAGE_NUMA by reusing software bits on the
+> PMD and PTE levels" redefined _PAGE_NUMA on x86 to be one of the swap
+> PTE bits and shrunk the maximum possible swap size but it did not go far
+> enough. There are no architectures that reuse _PROT_NONE as _PROT_NUMA
+> but the relics still exist.
+>
+> This patch removes ARCH_USES_NUMA_PROT_NONE and removes some unnecessary
+> duplication in powerpc vs the generic implementation by defining the types
+> the core NUMA helpers expected to exist from x86 with their ppc64 equivalent.
+> This necessitated that a PTE bit mask be created that identified the bits
+> that distinguish present from NUMA pte entries but it is expected this
+> will only differ between arches based on _PAGE_PROTNONE. The naming for
+> the generic helpers was taken from x86 originally but ppc64 has types that
+> are equivalent for the purposes of the helper so they are mapped instead
+> of duplicating code.
+>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-This simple patch fixes all this. After this patch an FS
-can do:
-	bdev_direct_access(,&pfn,);
-	page = pfn_to_page(pfn);
-And use that page for a lock_page(), set_page_dirty(), and/or
-anything else one might do with a page *.
-(Note that with brd one can already do this)
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-[pmem-pages-ref-count]
-pmem will serve it's pages with ref==0. Once an FS does
-an blkdev_get_XXX(,FMODE_EXCL,), that memory is own by the FS.
-The FS needs to manage its allocation, just as it already does
-for its disk blocks. The fs should set page->count = 2, before
-submission to any Kernel subsystem so when it returns it will
-never be released to the Kernel's page-allocators. (page_freeze)
-
-All is actually needed for this is to allocate page-sections
-and map them into kernel virtual memory. Note that these sections
-are not associated with any zone, because that would add them to
-the page_allocators.
-
-In order to reuse existing code, prd now depends on memory hotplug
-and sparse memory configuration options.
-
-If system has enabled MEMORY_HOTPLUG_SPARSE then a new config option
-BLK_DEV_PMEM_USE_PAGES is enabled (Yes by default)
-
-We will also need MEMORY_HOTREMOVE so if BLK_DEV_PMEM_USE_PAGES
-is on we will "select" MEMORY_HOTREMOVE. Most distro's have
-MEMORY_HOTPLUG_SPARSE on but not MEMORY_HOTREMOVE. For us here
-we must have both.
-
-Signed-off-by: Yigal Korman <yigal@plexistor.com>
-Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
----
- drivers/block/Kconfig |  13 +++++
- drivers/block/prd.c   | 137 ++++++++++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 145 insertions(+), 5 deletions(-)
-
-diff --git a/drivers/block/Kconfig b/drivers/block/Kconfig
-index 8f0c225..8aca1b7 100644
---- a/drivers/block/Kconfig
-+++ b/drivers/block/Kconfig
-@@ -416,6 +416,19 @@ config BLK_DEV_PMEM
- 	  Most normal users won't need this functionality, and can thus say N
- 	  here.
- 
-+config BLK_DEV_PMEM_USE_PAGES
-+	bool "Enable use of page struct pages with pmem"
-+	depends on BLK_DEV_PMEM
-+	depends on MEMORY_HOTPLUG_SPARSE
-+	select MEMORY_HOTREMOVE
-+	default y
-+	help
-+	  If a user of PMEM device needs "struct page" associated
-+	  with its memory, so this memory can be sent to other
-+	  block devices, or sent on the network, or be DMA transferred
-+	  to other devices in the system, then you must say "Yes" here.
-+	  If unsure leave as Yes.
-+
- config CDROM_PKTCDVD
- 	tristate "Packet writing on CD/DVD media"
- 	depends on !UML
-diff --git a/drivers/block/prd.c b/drivers/block/prd.c
-index 36b8fe4..6115553 100644
---- a/drivers/block/prd.c
-+++ b/drivers/block/prd.c
-@@ -241,6 +241,134 @@ MODULE_PARM_DESC(map,
- static LIST_HEAD(prd_devices);
- static DEFINE_MUTEX(prd_devices_mutex);
- 
-+#ifdef CONFIG_BLK_DEV_PMEM_USE_PAGES
-+static int prd_add_page_mapping(phys_addr_t phys_addr, size_t total_size,
-+				void **o_virt_addr)
-+{
-+	int nid = memory_add_physaddr_to_nid(phys_addr);
-+	unsigned long start_pfn = phys_addr >> PAGE_SHIFT;
-+	unsigned long nr_pages = total_size >> PAGE_SHIFT;
-+	unsigned int start_sec = pfn_to_section_nr(start_pfn);
-+	unsigned int end_sec = pfn_to_section_nr(start_pfn + nr_pages - 1);
-+	unsigned long phys_start_pfn;
-+	struct page **page_array, **mapped_page_array;
-+	unsigned long i;
-+	struct vm_struct *vm_area;
-+	void *virt_addr;
-+	int ret = 0;
-+
-+	for (i = start_sec; i <= end_sec; i++) {
-+		phys_start_pfn = i << PFN_SECTION_SHIFT;
-+
-+		if (pfn_valid(phys_start_pfn)) {
-+			pr_warn("prd: memory section %lu already exists.\n", i);
-+			continue;
-+		}
-+
-+		ret = sparse_add_one_section(nid, phys_start_pfn);
-+		if (unlikely(ret < 0)) {
-+			if (ret == -EEXIST) {
-+				ret = 0;
-+				continue;
-+			} else {
-+				pr_warn("prd: sparse_add_one_section => %d\n",
-+					ret);
-+				return ret;
-+			}
-+		}
-+	}
-+
-+	virt_addr = page_address(pfn_to_page(phys_addr >> PAGE_SHIFT));
-+
-+	page_array = vmalloc(sizeof(struct page *) * nr_pages);
-+	if (unlikely(!page_array)) {
-+		pr_warn("prd: failed to allocate nr_pages=0x%lx\n", nr_pages);
-+		return -ENOMEM;
-+	}
-+
-+	for (i = 0; i <  nr_pages; i++)
-+		page_array[i] = pfn_to_page(start_pfn + i);
-+
-+	/* __get_vm_area requires a range of addresses from which to allocate
-+	 * the vm_area. This range will include more pages that we need because
-+	 * it allocates one guard page in the end. Usually you give it a wide
-+	 * range from which to choose from, but we want exact addresses, so add
-+	 * the size of the guard page to the end of the range (otherwise, this
-+	 * will always fail)
-+	 */
-+	/* TODO this guard page may confuse users when asking for several pmem
-+	 * devices in adjacent areas (the start of the next pmem will be
-+	 * occupied by the guard page of the previous pmem)
-+	 */
-+	vm_area = __get_vm_area(total_size, VM_USERMAP, (ulong)virt_addr,
-+				(ulong)virt_addr + total_size + PAGE_SIZE);
-+	if (unlikely(!vm_area)) {
-+		pr_err("prd: failed to __get_vm_area.\n");
-+		ret = -ENOMEM;
-+		goto free_array;
-+	}
-+
-+	mapped_page_array = page_array;
-+	ret = map_vm_area(vm_area, PAGE_KERNEL, &mapped_page_array);
-+	if (unlikely(ret || mapped_page_array < (page_array + nr_pages))) {
-+		pr_err("prd: failed to map_vm_area => %d\n", ret);
-+		if (!ret) {
-+			free_vm_area(vm_area);
-+			ret = -ENOMEM;
-+		}
-+	}
-+	*o_virt_addr = virt_addr;
-+
-+free_array:
-+	vfree(page_array);
-+	return ret;
-+}
-+
-+static void prd_remove_page_mapping(phys_addr_t phys_addr, size_t total_size,
-+				    void *virt_addr)
-+{
-+	unsigned long start_pfn = phys_addr >> PAGE_SHIFT;
-+	unsigned long nr_pages = total_size >> PAGE_SHIFT;
-+	unsigned int start_sec = pfn_to_section_nr(start_pfn);
-+	unsigned int end_sec = pfn_to_section_nr(start_pfn + nr_pages - 1);
-+	unsigned int i;
-+
-+	for (i = start_sec; i <= end_sec; i++) {
-+		struct mem_section *ms = __nr_to_section(i);
-+		int nid = pfn_to_nid(i << PFN_SECTION_SHIFT);
-+
-+		if (!valid_section(ms)) {
-+			pr_warn("prd: memory section %d is missing.\n", i);
-+			continue;
-+		}
-+
-+		sparse_remove_one_section(nid, ms);
-+	}
-+	vunmap(virt_addr);
-+}
-+
-+#else /* !CONFIG_BLK_DEV_PMEM_USE_PAGES */
-+static int prd_add_page_mapping(phys_addr_t phys_addr, size_t total_size,
-+				void **o_virt_addr)
-+{
-+	void *virt_addr = ioremap_cache(phys_addr, total_size);
-+
-+	if (unlikely(!virt_addr))
-+		return -ENXIO;
-+
-+	*o_virt_addr = virt_addr;
-+	return 0;
-+}
-+
-+static void prd_remove_page_mapping(phys_addr_t phys_addr, size_t total_size,
-+				    void *virt_addr)
-+{
-+	iounmap(virt_addr);
-+}
-+#endif /* CONFIG_BLK_DEV_PMEM_USE_PAGES */
-+
-+
-+
- /* prd->phys_addr and prd->size need to be set.
-  * Will then set virt_addr if successful.
-  */
-@@ -257,11 +385,10 @@ int prd_mem_map(struct prd_device *prd)
- 		return -EINVAL;
- 	}
- 
--	prd->virt_addr = ioremap_cache(prd->phys_addr, prd->size);
--	if (unlikely(!prd->virt_addr)) {
--		err = -ENOMEM;
-+	err = prd_add_page_mapping(prd->phys_addr, prd->size, &prd->virt_addr);
-+	if (unlikely(err))
- 		goto out_release;
--	}
-+
- 	return 0;
- 
- out_release:
-@@ -274,7 +401,7 @@ void prd_mem_unmap(struct prd_device *prd)
- 	if (unlikely(!prd->virt_addr))
- 		return;
- 
--	iounmap(prd->virt_addr);
-+	prd_remove_page_mapping(prd->phys_addr, prd->size, prd->virt_addr);
- 	release_mem_region(prd->phys_addr, prd->size);
- 	prd->virt_addr = NULL;
- }
--- 
-1.9.3
-
+> ---
+>  arch/powerpc/include/asm/pgtable.h    | 57 ++++++++---------------------------
+>  arch/powerpc/include/asm/pte-common.h |  5 +++
+>  arch/x86/Kconfig                      |  1 -
+>  arch/x86/include/asm/pgtable_types.h  | 14 +++++++++
+>  include/asm-generic/pgtable.h         | 27 ++++++-----------
+>  init/Kconfig                          | 11 -------
+>  6 files changed, 40 insertions(+), 75 deletions(-)
+>
+> diff --git a/arch/powerpc/include/asm/pgtable.h b/arch/powerpc/include/asm/pgtable.h
+> index d98c1ec..f60d4ea 100644
+> --- a/arch/powerpc/include/asm/pgtable.h
+> +++ b/arch/powerpc/include/asm/pgtable.h
+> @@ -38,10 +38,9 @@ static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK)
+>  static inline pgprot_t pte_pgprot(pte_t pte)	{ return __pgprot(pte_val(pte) & PAGE_PROT_BITS); }
+>  
+>  #ifdef CONFIG_NUMA_BALANCING
+> -
+>  static inline int pte_present(pte_t pte)
+>  {
+> -	return pte_val(pte) & (_PAGE_PRESENT | _PAGE_NUMA);
+> +	return pte_val(pte) & _PAGE_NUMA_MASK;
+>  }
+>  
+>  #define pte_present_nonuma pte_present_nonuma
+> @@ -50,37 +49,6 @@ static inline int pte_present_nonuma(pte_t pte)
+>  	return pte_val(pte) & (_PAGE_PRESENT);
+>  }
+>  
+> -#define pte_numa pte_numa
+> -static inline int pte_numa(pte_t pte)
+> -{
+> -	return (pte_val(pte) &
+> -		(_PAGE_NUMA|_PAGE_PRESENT)) == _PAGE_NUMA;
+> -}
+> -
+> -#define pte_mknonnuma pte_mknonnuma
+> -static inline pte_t pte_mknonnuma(pte_t pte)
+> -{
+> -	pte_val(pte) &= ~_PAGE_NUMA;
+> -	pte_val(pte) |=  _PAGE_PRESENT | _PAGE_ACCESSED;
+> -	return pte;
+> -}
+> -
+> -#define pte_mknuma pte_mknuma
+> -static inline pte_t pte_mknuma(pte_t pte)
+> -{
+> -	/*
+> -	 * We should not set _PAGE_NUMA on non present ptes. Also clear the
+> -	 * present bit so that hash_page will return 1 and we collect this
+> -	 * as numa fault.
+> -	 */
+> -	if (pte_present(pte)) {
+> -		pte_val(pte) |= _PAGE_NUMA;
+> -		pte_val(pte) &= ~_PAGE_PRESENT;
+> -	} else
+> -		VM_BUG_ON(1);
+> -	return pte;
+> -}
+> -
+>  #define ptep_set_numa ptep_set_numa
+>  static inline void ptep_set_numa(struct mm_struct *mm, unsigned long addr,
+>  				 pte_t *ptep)
+> @@ -92,12 +60,6 @@ static inline void ptep_set_numa(struct mm_struct *mm, unsigned long addr,
+>  	return;
+>  }
+>  
+> -#define pmd_numa pmd_numa
+> -static inline int pmd_numa(pmd_t pmd)
+> -{
+> -	return pte_numa(pmd_pte(pmd));
+> -}
+> -
+>  #define pmdp_set_numa pmdp_set_numa
+>  static inline void pmdp_set_numa(struct mm_struct *mm, unsigned long addr,
+>  				 pmd_t *pmdp)
+> @@ -109,16 +71,21 @@ static inline void pmdp_set_numa(struct mm_struct *mm, unsigned long addr,
+>  	return;
+>  }
+>  
+> -#define pmd_mknonnuma pmd_mknonnuma
+> -static inline pmd_t pmd_mknonnuma(pmd_t pmd)
+> +/*
+> + * Generic NUMA pte helpers expect pteval_t and pmdval_t types to exist
+> + * which was inherited from x86. For the purposes of powerpc pte_basic_t and
+> + * pmd_t are equivalent
+> + */
+> +#define pteval_t pte_basic_t
+> +#define pmdval_t pmd_t
+> +static inline pteval_t ptenuma_flags(pte_t pte)
+>  {
+> -	return pte_pmd(pte_mknonnuma(pmd_pte(pmd)));
+> +	return pte_val(pte) & _PAGE_NUMA_MASK;
+>  }
+>  
+> -#define pmd_mknuma pmd_mknuma
+> -static inline pmd_t pmd_mknuma(pmd_t pmd)
+> +static inline pmdval_t pmdnuma_flags(pmd_t pmd)
+>  {
+> -	return pte_pmd(pte_mknuma(pmd_pte(pmd)));
+> +	return pmd_val(pmd) & _PAGE_NUMA_MASK;
+>  }
+>  
+>  # else
+> diff --git a/arch/powerpc/include/asm/pte-common.h b/arch/powerpc/include/asm/pte-common.h
+> index 8d1569c..e040c35 100644
+> --- a/arch/powerpc/include/asm/pte-common.h
+> +++ b/arch/powerpc/include/asm/pte-common.h
+> @@ -98,6 +98,11 @@ extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
+>  			 _PAGE_USER | _PAGE_ACCESSED | \
+>  			 _PAGE_RW | _PAGE_HWWRITE | _PAGE_DIRTY | _PAGE_EXEC)
+>  
+> +#ifdef CONFIG_NUMA_BALANCING
+> +/* Mask of bits that distinguish present and numa ptes */
+> +#define _PAGE_NUMA_MASK (_PAGE_NUMA|_PAGE_PRESENT)
+> +#endif
+> +
+>  /*
+>   * We define 2 sets of base prot bits, one for basic pages (ie,
+>   * cacheable kernel and user pages) and one for non cacheable
+> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+> index d24887b..0a3f32b 100644
+> --- a/arch/x86/Kconfig
+> +++ b/arch/x86/Kconfig
+> @@ -28,7 +28,6 @@ config X86
+>  	select HAVE_UNSTABLE_SCHED_CLOCK
+>  	select ARCH_SUPPORTS_NUMA_BALANCING if X86_64
+>  	select ARCH_SUPPORTS_INT128 if X86_64
+> -	select ARCH_WANTS_PROT_NUMA_PROT_NONE
+>  	select HAVE_IDE
+>  	select HAVE_OPROFILE
+>  	select HAVE_PCSPKR_PLATFORM
+> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+> index f216963..0f9724c 100644
+> --- a/arch/x86/include/asm/pgtable_types.h
+> +++ b/arch/x86/include/asm/pgtable_types.h
+> @@ -325,6 +325,20 @@ static inline pteval_t pte_flags(pte_t pte)
+>  	return native_pte_val(pte) & PTE_FLAGS_MASK;
+>  }
+>  
+> +#ifdef CONFIG_NUMA_BALANCING
+> +/* Set of bits that distinguishes present, prot_none and numa ptes */
+> +#define _PAGE_NUMA_MASK (_PAGE_NUMA|_PAGE_PROTNONE|_PAGE_PRESENT)
+> +static inline pteval_t ptenuma_flags(pte_t pte)
+> +{
+> +	return pte_flags(pte) & _PAGE_NUMA_MASK;
+> +}
+> +
+> +static inline pmdval_t pmdnuma_flags(pmd_t pmd)
+> +{
+> +	return pmd_flags(pmd) & _PAGE_NUMA_MASK;
+> +}
+> +#endif /* CONFIG_NUMA_BALANCING */
+> +
+>  #define pgprot_val(x)	((x).pgprot)
+>  #define __pgprot(x)	((pgprot_t) { (x) } )
+>  
+> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+> index 53b2acc..281870f 100644
+> --- a/include/asm-generic/pgtable.h
+> +++ b/include/asm-generic/pgtable.h
+> @@ -660,11 +660,12 @@ static inline int pmd_trans_unstable(pmd_t *pmd)
+>  }
+>  
+>  #ifdef CONFIG_NUMA_BALANCING
+> -#ifdef CONFIG_ARCH_USES_NUMA_PROT_NONE
+>  /*
+> - * _PAGE_NUMA works identical to _PAGE_PROTNONE (it's actually the
+> - * same bit too). It's set only when _PAGE_PRESET is not set and it's
+> - * never set if _PAGE_PRESENT is set.
+> + * _PAGE_NUMA distinguishes between an unmapped page table entry, an entry that
+> + * is protected for PROT_NONE and a NUMA hinting fault entry. If the
+> + * architecture defines __PAGE_PROTNONE then it should take that into account
+> + * but those that do not can rely on the fact that the NUMA hinting scanner
+> + * skips inaccessible VMAs.
+>   *
+>   * pte/pmd_present() returns true if pte/pmd_numa returns true. Page
+>   * fault triggers on those regions if pte/pmd_numa returns true
+> @@ -673,16 +674,14 @@ static inline int pmd_trans_unstable(pmd_t *pmd)
+>  #ifndef pte_numa
+>  static inline int pte_numa(pte_t pte)
+>  {
+> -	return (pte_flags(pte) &
+> -		(_PAGE_NUMA|_PAGE_PROTNONE|_PAGE_PRESENT)) == _PAGE_NUMA;
+> +	return ptenuma_flags(pte) == _PAGE_NUMA;
+>  }
+>  #endif
+>  
+>  #ifndef pmd_numa
+>  static inline int pmd_numa(pmd_t pmd)
+>  {
+> -	return (pmd_flags(pmd) &
+> -		(_PAGE_NUMA|_PAGE_PROTNONE|_PAGE_PRESENT)) == _PAGE_NUMA;
+> +	return pmdnuma_flags(pmd) == _PAGE_NUMA;
+>  }
+>  #endif
+>  
+> @@ -722,6 +721,8 @@ static inline pte_t pte_mknuma(pte_t pte)
+>  {
+>  	pteval_t val = pte_val(pte);
+>  
+> +	VM_BUG_ON(!(val & _PAGE_PRESENT));
+> +
+>  	val &= ~_PAGE_PRESENT;
+>  	val |= _PAGE_NUMA;
+>  
+> @@ -765,16 +766,6 @@ static inline void pmdp_set_numa(struct mm_struct *mm, unsigned long addr,
+>  }
+>  #endif
+>  #else
+> -extern int pte_numa(pte_t pte);
+> -extern int pmd_numa(pmd_t pmd);
+> -extern pte_t pte_mknonnuma(pte_t pte);
+> -extern pmd_t pmd_mknonnuma(pmd_t pmd);
+> -extern pte_t pte_mknuma(pte_t pte);
+> -extern pmd_t pmd_mknuma(pmd_t pmd);
+> -extern void ptep_set_numa(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
+> -extern void pmdp_set_numa(struct mm_struct *mm, unsigned long addr, pmd_t *pmdp);
+> -#endif /* CONFIG_ARCH_USES_NUMA_PROT_NONE */
+> -#else
+>  static inline int pmd_numa(pmd_t pmd)
+>  {
+>  	return 0;
+> diff --git a/init/Kconfig b/init/Kconfig
+> index 9d76b99..60fa415 100644
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -844,17 +844,6 @@ config ARCH_SUPPORTS_INT128
+>  config ARCH_WANT_NUMA_VARIABLE_LOCALITY
+>  	bool
+>  
+> -#
+> -# For architectures that are willing to define _PAGE_NUMA as _PAGE_PROTNONE
+> -config ARCH_WANTS_PROT_NUMA_PROT_NONE
+> -	bool
+> -
+> -config ARCH_USES_NUMA_PROT_NONE
+> -	bool
+> -	default y
+> -	depends on ARCH_WANTS_PROT_NUMA_PROT_NONE
+> -	depends on NUMA_BALANCING
+> -
+>  config NUMA_BALANCING_DEFAULT_ENABLED
+>  	bool "Automatically enable NUMA aware memory/task placement"
+>  	default y
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
