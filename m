@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D70716B0035
-	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 08:20:13 -0400 (EDT)
-Received: by mail-wg0-f48.google.com with SMTP id x13so11124901wgg.31
-        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 05:20:13 -0700 (PDT)
-Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
-        by mx.google.com with ESMTPS id ey16si2360222wid.15.2014.08.13.05.20.12
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 503436B0035
+	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 08:21:55 -0400 (EDT)
+Received: by mail-wg0-f50.google.com with SMTP id n12so10942863wgh.21
+        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 05:21:54 -0700 (PDT)
+Received: from mail-we0-f178.google.com (mail-we0-f178.google.com [74.125.82.178])
+        by mx.google.com with ESMTPS id m9si2335905wib.84.2014.08.13.05.21.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 13 Aug 2014 05:20:12 -0700 (PDT)
-Received: by mail-we0-f177.google.com with SMTP id w62so11211641wes.22
-        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 05:20:12 -0700 (PDT)
-Message-ID: <53EB57FA.3030705@plexistor.com>
-Date: Wed, 13 Aug 2014 15:20:10 +0300
+        Wed, 13 Aug 2014 05:21:54 -0700 (PDT)
+Received: by mail-we0-f178.google.com with SMTP id w61so11125634wes.23
+        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 05:21:53 -0700 (PDT)
+Message-ID: <53EB585F.3000005@plexistor.com>
+Date: Wed, 13 Aug 2014 15:21:51 +0300
 From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-Subject: [RFC 7/9] SQUASHME: prd: Support of multiple memory regions
+Subject: [RFC 8/9] mm: export sparse_add/remove_one_section
 References: <53EB5536.8020702@gmail.com>
 In-Reply-To: <53EB5536.8020702@gmail.com>
 Content-Type: text/plain; charset=UTF-8
@@ -24,187 +24,107 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>, Sagi Manole <sagi@plexistor.com>, Yigal Korman <yigal@plexistor.com>
 
-From: Boaz Harrosh <boaz@plexistor.com>
+From: Yigal Korman <yigal@plexistor.com>
 
-After the last patch this is easy.
+Export sparse_add_one_section & sparse_remove_one_section for use
+in modules that want private memory mappings (prd for example).
 
-The API to prd module is changed. We now have a single string
-parameter named "map" of the form:
-		 map=mapS[,mapS...]
+Also refactored the arguments to use node id instead of
+struct zone * - sparse memory has no direct connection to zones,
+all that was needed from zone was the node id.
 
-		 where mapS=nn[KMG]$ss[KMG],
-		 or    mapS=nn[KMG]@ss[KMG],
-
-		 nn=size, ss=offset
-
-Just like the Kernel command line map && memmap parameters,
-so anything you did at grub just copy/paste to here.
-
-The "@" form is exactly the same as the "$" form only that
-at bash prompt we need to escape the "$" with \$ so also
-support the '@' char for convenience.
-
-For each specified mapS there will be a device created.
-
-So needless to say that all the previous prd_XXX params are
-removed as well as the Kconfig defaults.
-
+Signed-off-by: Yigal Korman <yigal@plexistor.com>
 Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
 ---
- drivers/block/Kconfig | 28 -----------------------
- drivers/block/prd.c   | 62 ++++++++++++++++++++++++++++++++++-----------------
- 2 files changed, 41 insertions(+), 49 deletions(-)
+ include/linux/memory_hotplug.h |  4 ++--
+ mm/memory_hotplug.c            |  4 ++--
+ mm/sparse.c                    | 11 +++++++----
+ 3 files changed, 11 insertions(+), 8 deletions(-)
 
-diff --git a/drivers/block/Kconfig b/drivers/block/Kconfig
-index 463c45e..8f0c225 100644
---- a/drivers/block/Kconfig
-+++ b/drivers/block/Kconfig
-@@ -416,34 +416,6 @@ config BLK_DEV_PMEM
- 	  Most normal users won't need this functionality, and can thus say N
- 	  here.
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 010d125..91e0474 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -262,8 +262,8 @@ extern int arch_add_memory(int nid, u64 start, u64 size);
+ extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+ extern bool is_memblock_offlined(struct memory_block *mem);
+ extern void remove_memory(int nid, u64 start, u64 size);
+-extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn);
+-extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms);
++extern int sparse_add_one_section(int nid, unsigned long start_pfn);
++extern void sparse_remove_one_section(int nid, struct mem_section *ms);
+ extern struct page *sparse_decode_mem_map(unsigned long coded_mem_map,
+ 					  unsigned long pnum);
  
--config BLK_DEV_PMEM_START
--	int "Offset in GiB of where to start claiming space"
--	default "0"
--	depends on BLK_DEV_PMEM
--	help
--	  Starting offset in GiB that PRD should use when claiming memory.  This
--	  memory needs to be reserved from the OS at boot time using the
--	  "memmap" kernel parameter.
--
--	  If you provide PRD with volatile memory it will act as a volatile
--	  RAM disk and your data will not be persistent.
--
--config BLK_DEV_PMEM_COUNT
--	int "Default number of PMEM disks"
--	default "4"
--	depends on BLK_DEV_PMEM
--	help
--	  Number of equal sized block devices that PRD should create.
--
--config BLK_DEV_PMEM_SIZE
--	int "Size in GiB of space to claim"
--	depends on BLK_DEV_PMEM
--	default "0"
--	help
--	  Amount of memory in GiB that PRD should use when creating block
--	  devices.  This memory needs to be reserved from the OS at
--	  boot time using the "memmap" kernel parameter.
--
- config CDROM_PKTCDVD
- 	tristate "Packet writing on CD/DVD media"
- 	depends on !UML
-diff --git a/drivers/block/prd.c b/drivers/block/prd.c
-index 6d96e6c..36b8fe4 100644
---- a/drivers/block/prd.c
-+++ b/drivers/block/prd.c
-@@ -228,21 +228,15 @@ static const struct block_device_operations prd_fops = {
- };
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 469bbf5..0c87570 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -471,7 +471,7 @@ static int __meminit __add_section(int nid, struct zone *zone,
+ 	if (pfn_valid(phys_start_pfn))
+ 		return -EEXIST;
  
- /* Kernel module stuff */
--static int prd_start_gb = CONFIG_BLK_DEV_PMEM_START;
--module_param(prd_start_gb, int, S_IRUGO);
--MODULE_PARM_DESC(prd_start_gb, "Offset in GB of where to start claiming space");
--
--static int prd_size_gb = CONFIG_BLK_DEV_PMEM_SIZE;
--module_param(prd_size_gb,  int, S_IRUGO);
--MODULE_PARM_DESC(prd_size_gb,  "Total size in GB of space to claim for all disks");
--
- static int prd_major;
- module_param(prd_major, int, 0);
- MODULE_PARM_DESC(prd_major,  "Major number to request for this driver");
+-	ret = sparse_add_one_section(zone, phys_start_pfn);
++	ret = sparse_add_one_section(zone->zone_pgdat->node_id, phys_start_pfn);
  
--static int prd_count = CONFIG_BLK_DEV_PMEM_COUNT;
--module_param(prd_count, int, S_IRUGO);
--MODULE_PARM_DESC(prd_count, "Number of prd devices to evenly split allocated space");
-+static char *map;
-+module_param(map, charp, S_IRUGO);
-+MODULE_PARM_DESC(map,
-+	"pmem device mapping: map=mapS[,mapS...] where:\n"
-+	"mapS=nn[KMG]$ss[KMG] or mapS=nn[KMG]@ss[KMG], nn=size, ss=offset.");
+ 	if (ret < 0)
+ 		return ret;
+@@ -737,7 +737,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms)
+ 	start_pfn = section_nr_to_pfn(scn_nr);
+ 	__remove_zone(zone, start_pfn);
  
- static LIST_HEAD(prd_devices);
- static DEFINE_MUTEX(prd_devices_mutex);
-@@ -292,6 +286,13 @@ static struct prd_device *prd_alloc(phys_addr_t phys_addr, size_t disk_size,
- 	struct gendisk *disk;
- 	int err;
- 
-+	if (unlikely((phys_addr & ~PAGE_MASK) || (disk_size & ~PAGE_MASK))) {
-+		pr_err("phys_addr=0x%llx disk_size=0x%zx must be 4k aligned\n",
-+		       phys_addr, disk_size);
-+		err = -EINVAL;
-+		goto out;
-+	}
-+
- 	prd = kzalloc(sizeof(*prd), GFP_KERNEL);
- 	if (unlikely(!prd)) {
- 		err = -ENOMEM;
-@@ -388,22 +389,30 @@ out:
- 	return kobj;
+-	sparse_remove_one_section(zone, ms);
++	sparse_remove_one_section(zone->zone_pgdat->node_id, ms);
+ 	return 0;
  }
  
-+static int prd_parse_map_one(char *map, phys_addr_t *start, size_t *size)
-+{
-+	char *p = map;
-+
-+	*size = (phys_addr_t)memparse(p, &p);
-+	if ((p == map) || ((*p != '$') && (*p != '@')))
-+		return -EINVAL;
-+
-+	*start = (size_t)memparse(p + 1, &p);
-+
-+	return *p == '\0' ? 0 : -EINVAL;
-+}
-+
- static int __init prd_init(void)
+diff --git a/mm/sparse.c b/mm/sparse.c
+index d1b48b6..d97facd3 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -690,10 +690,10 @@ static void free_map_bootmem(struct page *memmap)
+  * set.  If this is <=0, then that means that the passed-in
+  * map was not consumed and must be freed.
+  */
+-int __meminit sparse_add_one_section(struct zone *zone, unsigned long start_pfn)
++int __meminit sparse_add_one_section(int nid, unsigned long start_pfn)
  {
- 	int result, i;
- 	struct prd_device *prd, *next;
--	phys_addr_t phys_addr;
--	size_t total_size, disk_size;
-+	char *p, *prd_map = map;
- 
--	if (unlikely(!prd_start_gb || !prd_size_gb || !prd_count)) {
--		pr_err("prd: prd_start_gb || prd_size_gb || prd_count are 0!!\n");
-+	if (!prd_map) {
-+		pr_err("prd: must specify map parameter.\n");
- 		return -EINVAL;
+ 	unsigned long section_nr = pfn_to_section_nr(start_pfn);
+-	struct pglist_data *pgdat = zone->zone_pgdat;
++	struct pglist_data *pgdat = NODE_DATA(nid);
+ 	struct mem_section *ms;
+ 	struct page *memmap;
+ 	unsigned long *usemap;
+@@ -738,6 +738,7 @@ out:
  	}
+ 	return ret;
+ }
++EXPORT_SYMBOL_GPL(sparse_add_one_section);
  
--	phys_addr = (phys_addr_t) prd_start_gb * 1024 * 1024 * 1024;
--	total_size = (size_t)	   prd_size_gb  * 1024 * 1024 * 1024;
--	disk_size = total_size / prd_count;
--
- 	result = register_blkdev(prd_major, "prd");
- 	if (result < 0) {
- 		result = -EIO;
-@@ -411,13 +420,24 @@ static int __init prd_init(void)
- 	} else if (result > 0)
- 		prd_major = result;
+ #ifdef CONFIG_MEMORY_HOTREMOVE
+ #ifdef CONFIG_MEMORY_FAILURE
+@@ -788,11 +789,11 @@ static void free_section_usemap(struct page *memmap, unsigned long *usemap)
+ 		free_map_bootmem(memmap);
+ }
  
--	for (i = 0; i < prd_count; i++) {
--		prd = prd_alloc(phys_addr + i * disk_size, disk_size, i);
-+	i = 0;
-+	while ((p = strsep(&prd_map, ",")) != NULL) {
-+		phys_addr_t phys_addr;
-+		size_t disk_size;
+-void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
++void sparse_remove_one_section(int nid, struct mem_section *ms)
+ {
+ 	struct page *memmap = NULL;
+ 	unsigned long *usemap = NULL, flags;
+-	struct pglist_data *pgdat = zone->zone_pgdat;
++	struct pglist_data *pgdat = NODE_DATA(nid);
+ 
+ 	pgdat_resize_lock(pgdat, &flags);
+ 	if (ms->section_mem_map) {
+@@ -807,5 +808,7 @@ void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
+ 	clear_hwpoisoned_pages(memmap, PAGES_PER_SECTION);
+ 	free_section_usemap(memmap, usemap);
+ }
++EXPORT_SYMBOL_GPL(sparse_remove_one_section);
 +
-+		if (!*p)
-+			continue;
-+		result = prd_parse_map_one(p, &phys_addr, &disk_size);
-+		if (result)
-+			goto out_free;
-+
-+		prd = prd_alloc(phys_addr, disk_size, i);
- 		if (IS_ERR(prd)) {
- 			result = PTR_ERR(prd);
- 			goto out_free;
- 		}
- 		list_add_tail(&prd->prd_list, &prd_devices);
-+		++i;
- 	}
- 
- 	list_for_each_entry(prd, &prd_devices, prd_list)
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ #endif /* CONFIG_MEMORY_HOTPLUG */
 -- 
 1.9.3
 
