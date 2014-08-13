@@ -1,313 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id DE19C6B0035
-	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 09:14:18 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id eu11so14949346pac.31
-        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 06:14:18 -0700 (PDT)
-Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com. [202.81.31.147])
-        by mx.google.com with ESMTPS id s4si1509872pdr.50.2014.08.13.06.14.16
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 184B26B0035
+	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 10:00:15 -0400 (EDT)
+Received: by mail-we0-f181.google.com with SMTP id k48so11345808wev.40
+        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 07:00:14 -0700 (PDT)
+Received: from mail-we0-x22e.google.com (mail-we0-x22e.google.com [2a00:1450:400c:c03::22e])
+        by mx.google.com with ESMTPS id z1si26133629wiw.106.2014.08.13.07.00.12
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 13 Aug 2014 06:14:17 -0700 (PDT)
-Received: from /spool/local
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 13 Aug 2014 23:14:14 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id AFAF23578048
-	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 23:14:08 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s7DCukJJ61538492
-	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 22:56:47 +1000
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s7DDE6VJ032656
-	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 23:14:07 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm: Remove misleading ARCH_USES_NUMA_PROT_NONE
-In-Reply-To: <20140812110806.GA17467@suse.de>
-References: <53DD5F20.8010507@oracle.com> <alpine.LSU.2.11.1408040418500.3406@eggly.anvils> <20140805144439.GW10819@suse.de> <alpine.LSU.2.11.1408051649330.6591@eggly.anvils> <53E17F06.30401@oracle.com> <53E989FB.5000904@oracle.com> <20140812104758.GE7970@suse.de> <20140812110806.GA17467@suse.de>
-Date: Wed, 13 Aug 2014 18:44:01 +0530
-Message-ID: <87k36c5y7a.fsf@linux.vnet.ibm.com>
+        Wed, 13 Aug 2014 07:00:13 -0700 (PDT)
+Received: by mail-we0-f174.google.com with SMTP id x48so11422854wes.33
+        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 07:00:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <1407225723-23754-2-git-send-email-minchan@kernel.org>
+References: <1407225723-23754-1-git-send-email-minchan@kernel.org> <1407225723-23754-2-git-send-email-minchan@kernel.org>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Wed, 13 Aug 2014 09:59:52 -0400
+Message-ID: <CALZtONDmvLDtceVW9AyiDwdSHQzPbay36JEts8iuZ4nvykWfeA@mail.gmail.com>
+Subject: Re: [RFC 1/3] zsmalloc: move pages_allocated to zs_pool
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Sasha Levin <sasha.levin@oracle.com>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Cyrill Gorcunov <gorcunov@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>
 
-Mel Gorman <mgorman@suse.de> writes:
-
-> ARCH_USES_NUMA_PROT_NONE was defined for architectures that implemented
-> _PAGE_NUMA using _PROT_NONE. This saved using an additional PTE bit and
-> relied on the fact that PROT_NONE vmas were skipped by the NUMA hinting
-> fault scanner. This was found to be conceptually confusing with a lot of
-> implicit assumptions and it was asked that an alternative be found.
+On Tue, Aug 5, 2014 at 4:02 AM, Minchan Kim <minchan@kernel.org> wrote:
+> Pages_allocated has counted in size_class structure and when user
+> want to see total_size_bytes, it gathers all of value from each
+> size_class to report the sum.
 >
-> Commit c46a7c81 "x86: define _PAGE_NUMA by reusing software bits on the
-> PMD and PTE levels" redefined _PAGE_NUMA on x86 to be one of the swap
-> PTE bits and shrunk the maximum possible swap size but it did not go far
-> enough. There are no architectures that reuse _PROT_NONE as _PROT_NUMA
-> but the relics still exist.
+> It's not bad if user don't see the value often but if user start
+> to see the value frequently, it would be not a good deal for
+> performance POV.
 >
-> This patch removes ARCH_USES_NUMA_PROT_NONE and removes some unnecessary
-> duplication in powerpc vs the generic implementation by defining the types
-> the core NUMA helpers expected to exist from x86 with their ppc64 equivalent.
-> This necessitated that a PTE bit mask be created that identified the bits
-> that distinguish present from NUMA pte entries but it is expected this
-> will only differ between arches based on _PAGE_PROTNONE. The naming for
-> the generic helpers was taken from x86 originally but ppc64 has types that
-> are equivalent for the purposes of the helper so they are mapped instead
-> of duplicating code.
+> This patch moves the variable from size_class to zs_pool so it would
+> reduce memory footprint (from [255 * 8byte] to [sizeof(atomic_t)])
+> but it adds new locking overhead but it wouldn't be severe because
+> it's not a hot path in zs_malloc(ie, it is called only when new
+> zspage is created, not a object).
+
+Would using an atomic64_t without locking be simpler?
+
 >
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 > ---
->  arch/powerpc/include/asm/pgtable.h    | 57 ++++++++---------------------------
->  arch/powerpc/include/asm/pte-common.h |  5 +++
->  arch/x86/Kconfig                      |  1 -
->  arch/x86/include/asm/pgtable_types.h  | 14 +++++++++
->  include/asm-generic/pgtable.h         | 27 ++++++-----------
->  init/Kconfig                          | 11 -------
->  6 files changed, 40 insertions(+), 75 deletions(-)
+>  mm/zsmalloc.c | 30 ++++++++++++++++--------------
+>  1 file changed, 16 insertions(+), 14 deletions(-)
 >
-> diff --git a/arch/powerpc/include/asm/pgtable.h b/arch/powerpc/include/asm/pgtable.h
-> index d98c1ec..f60d4ea 100644
-> --- a/arch/powerpc/include/asm/pgtable.h
-> +++ b/arch/powerpc/include/asm/pgtable.h
-> @@ -38,10 +38,9 @@ static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK)
->  static inline pgprot_t pte_pgprot(pte_t pte)	{ return __pgprot(pte_val(pte) & PAGE_PROT_BITS); }
->  
->  #ifdef CONFIG_NUMA_BALANCING
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index fe78189624cf..a6089bd26621 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -198,9 +198,6 @@ struct size_class {
+>
+>         spinlock_t lock;
+>
+> -       /* stats */
+> -       u64 pages_allocated;
 > -
->  static inline int pte_present(pte_t pte)
->  {
-> -	return pte_val(pte) & (_PAGE_PRESENT | _PAGE_NUMA);
-> +	return pte_val(pte) & _PAGE_NUMA_MASK;
->  }
->  
->  #define pte_present_nonuma pte_present_nonuma
-> @@ -50,37 +49,6 @@ static inline int pte_present_nonuma(pte_t pte)
->  	return pte_val(pte) & (_PAGE_PRESENT);
->  }
->  
-> -#define pte_numa pte_numa
-> -static inline int pte_numa(pte_t pte)
-> -{
-> -	return (pte_val(pte) &
-> -		(_PAGE_NUMA|_PAGE_PRESENT)) == _PAGE_NUMA;
-> -}
-> -
-> -#define pte_mknonnuma pte_mknonnuma
-> -static inline pte_t pte_mknonnuma(pte_t pte)
-> -{
-> -	pte_val(pte) &= ~_PAGE_NUMA;
-> -	pte_val(pte) |=  _PAGE_PRESENT | _PAGE_ACCESSED;
-> -	return pte;
-> -}
-> -
-> -#define pte_mknuma pte_mknuma
-> -static inline pte_t pte_mknuma(pte_t pte)
-> -{
-> -	/*
-> -	 * We should not set _PAGE_NUMA on non present ptes. Also clear the
-> -	 * present bit so that hash_page will return 1 and we collect this
-> -	 * as numa fault.
-> -	 */
-> -	if (pte_present(pte)) {
-> -		pte_val(pte) |= _PAGE_NUMA;
-> -		pte_val(pte) &= ~_PAGE_PRESENT;
-> -	} else
-> -		VM_BUG_ON(1);
-> -	return pte;
-> -}
-> -
->  #define ptep_set_numa ptep_set_numa
->  static inline void ptep_set_numa(struct mm_struct *mm, unsigned long addr,
->  				 pte_t *ptep)
-> @@ -92,12 +60,6 @@ static inline void ptep_set_numa(struct mm_struct *mm, unsigned long addr,
->  	return;
->  }
->  
-> -#define pmd_numa pmd_numa
-> -static inline int pmd_numa(pmd_t pmd)
-> -{
-> -	return pte_numa(pmd_pte(pmd));
-> -}
-> -
->  #define pmdp_set_numa pmdp_set_numa
->  static inline void pmdp_set_numa(struct mm_struct *mm, unsigned long addr,
->  				 pmd_t *pmdp)
-> @@ -109,16 +71,21 @@ static inline void pmdp_set_numa(struct mm_struct *mm, unsigned long addr,
->  	return;
->  }
->  
-> -#define pmd_mknonnuma pmd_mknonnuma
-> -static inline pmd_t pmd_mknonnuma(pmd_t pmd)
-> +/*
-> + * Generic NUMA pte helpers expect pteval_t and pmdval_t types to exist
-> + * which was inherited from x86. For the purposes of powerpc pte_basic_t and
-> + * pmd_t are equivalent
-> + */
-> +#define pteval_t pte_basic_t
-> +#define pmdval_t pmd_t
-> +static inline pteval_t ptenuma_flags(pte_t pte)
->  {
-> -	return pte_pmd(pte_mknonnuma(pmd_pte(pmd)));
-> +	return pte_val(pte) & _PAGE_NUMA_MASK;
->  }
->  
-> -#define pmd_mknuma pmd_mknuma
-> -static inline pmd_t pmd_mknuma(pmd_t pmd)
-> +static inline pmdval_t pmdnuma_flags(pmd_t pmd)
->  {
-> -	return pte_pmd(pte_mknuma(pmd_pte(pmd)));
-> +	return pmd_val(pmd) & _PAGE_NUMA_MASK;
->  }
->  
->  # else
-> diff --git a/arch/powerpc/include/asm/pte-common.h b/arch/powerpc/include/asm/pte-common.h
-> index 8d1569c..e040c35 100644
-> --- a/arch/powerpc/include/asm/pte-common.h
-> +++ b/arch/powerpc/include/asm/pte-common.h
-> @@ -98,6 +98,11 @@ extern unsigned long bad_call_to_PMD_PAGE_SIZE(void);
->  			 _PAGE_USER | _PAGE_ACCESSED | \
->  			 _PAGE_RW | _PAGE_HWWRITE | _PAGE_DIRTY | _PAGE_EXEC)
->  
-> +#ifdef CONFIG_NUMA_BALANCING
-> +/* Mask of bits that distinguish present and numa ptes */
-> +#define _PAGE_NUMA_MASK (_PAGE_NUMA|_PAGE_PRESENT)
-> +#endif
+>         struct page *fullness_list[_ZS_NR_FULLNESS_GROUPS];
+>  };
+>
+> @@ -216,9 +213,12 @@ struct link_free {
+>  };
+>
+>  struct zs_pool {
+> +       spinlock_t stat_lock;
 > +
+>         struct size_class size_class[ZS_SIZE_CLASSES];
+>
+>         gfp_t flags;    /* allocation flags used when growing pool */
+> +       unsigned long pages_allocated;
+>  };
+>
 >  /*
->   * We define 2 sets of base prot bits, one for basic pages (ie,
->   * cacheable kernel and user pages) and one for non cacheable
-> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> index d24887b..0a3f32b 100644
-> --- a/arch/x86/Kconfig
-> +++ b/arch/x86/Kconfig
-> @@ -28,7 +28,6 @@ config X86
->  	select HAVE_UNSTABLE_SCHED_CLOCK
->  	select ARCH_SUPPORTS_NUMA_BALANCING if X86_64
->  	select ARCH_SUPPORTS_INT128 if X86_64
-> -	select ARCH_WANTS_PROT_NUMA_PROT_NONE
->  	select HAVE_IDE
->  	select HAVE_OPROFILE
->  	select HAVE_PCSPKR_PLATFORM
-> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-> index f216963..0f9724c 100644
-> --- a/arch/x86/include/asm/pgtable_types.h
-> +++ b/arch/x86/include/asm/pgtable_types.h
-> @@ -325,6 +325,20 @@ static inline pteval_t pte_flags(pte_t pte)
->  	return native_pte_val(pte) & PTE_FLAGS_MASK;
->  }
->  
-> +#ifdef CONFIG_NUMA_BALANCING
-> +/* Set of bits that distinguishes present, prot_none and numa ptes */
-> +#define _PAGE_NUMA_MASK (_PAGE_NUMA|_PAGE_PROTNONE|_PAGE_PRESENT)
-> +static inline pteval_t ptenuma_flags(pte_t pte)
-> +{
-> +	return pte_flags(pte) & _PAGE_NUMA_MASK;
-> +}
-> +
-> +static inline pmdval_t pmdnuma_flags(pmd_t pmd)
-> +{
-> +	return pmd_flags(pmd) & _PAGE_NUMA_MASK;
-> +}
-> +#endif /* CONFIG_NUMA_BALANCING */
-> +
->  #define pgprot_val(x)	((x).pgprot)
->  #define __pgprot(x)	((pgprot_t) { (x) } )
->  
-> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-> index 53b2acc..281870f 100644
-> --- a/include/asm-generic/pgtable.h
-> +++ b/include/asm-generic/pgtable.h
-> @@ -660,11 +660,12 @@ static inline int pmd_trans_unstable(pmd_t *pmd)
->  }
->  
->  #ifdef CONFIG_NUMA_BALANCING
-> -#ifdef CONFIG_ARCH_USES_NUMA_PROT_NONE
->  /*
-> - * _PAGE_NUMA works identical to _PAGE_PROTNONE (it's actually the
-> - * same bit too). It's set only when _PAGE_PRESET is not set and it's
-> - * never set if _PAGE_PRESENT is set.
-> + * _PAGE_NUMA distinguishes between an unmapped page table entry, an entry that
-> + * is protected for PROT_NONE and a NUMA hinting fault entry. If the
-> + * architecture defines __PAGE_PROTNONE then it should take that into account
-> + * but those that do not can rely on the fact that the NUMA hinting scanner
-> + * skips inaccessible VMAs.
->   *
->   * pte/pmd_present() returns true if pte/pmd_numa returns true. Page
->   * fault triggers on those regions if pte/pmd_numa returns true
-> @@ -673,16 +674,14 @@ static inline int pmd_trans_unstable(pmd_t *pmd)
->  #ifndef pte_numa
->  static inline int pte_numa(pte_t pte)
->  {
-> -	return (pte_flags(pte) &
-> -		(_PAGE_NUMA|_PAGE_PROTNONE|_PAGE_PRESENT)) == _PAGE_NUMA;
-> +	return ptenuma_flags(pte) == _PAGE_NUMA;
->  }
->  #endif
->  
->  #ifndef pmd_numa
->  static inline int pmd_numa(pmd_t pmd)
->  {
-> -	return (pmd_flags(pmd) &
-> -		(_PAGE_NUMA|_PAGE_PROTNONE|_PAGE_PRESENT)) == _PAGE_NUMA;
-> +	return pmdnuma_flags(pmd) == _PAGE_NUMA;
->  }
->  #endif
->  
-> @@ -722,6 +721,8 @@ static inline pte_t pte_mknuma(pte_t pte)
->  {
->  	pteval_t val = pte_val(pte);
->  
-> +	VM_BUG_ON(!(val & _PAGE_PRESENT));
-> +
->  	val &= ~_PAGE_PRESENT;
->  	val |= _PAGE_NUMA;
->  
-> @@ -765,16 +766,6 @@ static inline void pmdp_set_numa(struct mm_struct *mm, unsigned long addr,
->  }
->  #endif
->  #else
-> -extern int pte_numa(pte_t pte);
-> -extern int pmd_numa(pmd_t pmd);
-> -extern pte_t pte_mknonnuma(pte_t pte);
-> -extern pmd_t pmd_mknonnuma(pmd_t pmd);
-> -extern pte_t pte_mknuma(pte_t pte);
-> -extern pmd_t pmd_mknuma(pmd_t pmd);
-> -extern void ptep_set_numa(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
-> -extern void pmdp_set_numa(struct mm_struct *mm, unsigned long addr, pmd_t *pmdp);
-> -#endif /* CONFIG_ARCH_USES_NUMA_PROT_NONE */
-> -#else
->  static inline int pmd_numa(pmd_t pmd)
->  {
->  	return 0;
-> diff --git a/init/Kconfig b/init/Kconfig
-> index 9d76b99..60fa415 100644
-> --- a/init/Kconfig
-> +++ b/init/Kconfig
-> @@ -844,17 +844,6 @@ config ARCH_SUPPORTS_INT128
->  config ARCH_WANT_NUMA_VARIABLE_LOCALITY
->  	bool
->  
-> -#
-> -# For architectures that are willing to define _PAGE_NUMA as _PAGE_PROTNONE
-> -config ARCH_WANTS_PROT_NUMA_PROT_NONE
-> -	bool
+> @@ -882,6 +882,7 @@ struct zs_pool *zs_create_pool(gfp_t flags)
+>
+>         }
+>
+> +       spin_lock_init(&pool->stat_lock);
+>         pool->flags = flags;
+>
+>         return pool;
+> @@ -943,8 +944,10 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+>                         return 0;
+>
+>                 set_zspage_mapping(first_page, class->index, ZS_EMPTY);
+> +               spin_lock(&pool->stat_lock);
+> +               pool->pages_allocated += class->pages_per_zspage;
+> +               spin_unlock(&pool->stat_lock);
+>                 spin_lock(&class->lock);
+> -               class->pages_allocated += class->pages_per_zspage;
+>         }
+>
+>         obj = (unsigned long)first_page->freelist;
+> @@ -997,14 +1000,14 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
+>
+>         first_page->inuse--;
+>         fullness = fix_fullness_group(pool, first_page);
 > -
-> -config ARCH_USES_NUMA_PROT_NONE
-> -	bool
-> -	default y
-> -	depends on ARCH_WANTS_PROT_NUMA_PROT_NONE
-> -	depends on NUMA_BALANCING
+> -       if (fullness == ZS_EMPTY)
+> -               class->pages_allocated -= class->pages_per_zspage;
 > -
->  config NUMA_BALANCING_DEFAULT_ENABLED
->  	bool "Automatically enable NUMA aware memory/task placement"
->  	default y
+>         spin_unlock(&class->lock);
+>
+> -       if (fullness == ZS_EMPTY)
+> +       if (fullness == ZS_EMPTY) {
+> +               spin_lock(&pool->stat_lock);
+> +               pool->pages_allocated -= class->pages_per_zspage;
+> +               spin_unlock(&pool->stat_lock);
+>                 free_zspage(first_page);
+> +       }
+>  }
+>  EXPORT_SYMBOL_GPL(zs_free);
+>
+> @@ -1100,12 +1103,11 @@ EXPORT_SYMBOL_GPL(zs_unmap_object);
+>
+>  u64 zs_get_total_size_bytes(struct zs_pool *pool)
+>  {
+> -       int i;
+> -       u64 npages = 0;
+> -
+> -       for (i = 0; i < ZS_SIZE_CLASSES; i++)
+> -               npages += pool->size_class[i].pages_allocated;
+> +       u64 npages;
+>
+> +       spin_lock(&pool->stat_lock);
+> +       npages = pool->pages_allocated;
+> +       spin_unlock(&pool->stat_lock);
+>         return npages << PAGE_SHIFT;
+>  }
+>  EXPORT_SYMBOL_GPL(zs_get_total_size_bytes);
+> --
+> 2.0.0
 >
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
