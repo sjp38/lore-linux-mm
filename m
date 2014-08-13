@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 94ACC6B0035
-	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 08:14:07 -0400 (EDT)
-Received: by mail-we0-f174.google.com with SMTP id x48so11288648wes.33
-        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 05:14:07 -0700 (PDT)
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-        by mx.google.com with ESMTPS id nd8si2323926wic.57.2014.08.13.05.14.05
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 65DDC6B0035
+	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 08:16:13 -0400 (EDT)
+Received: by mail-we0-f177.google.com with SMTP id w62so11207354wes.22
+        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 05:16:12 -0700 (PDT)
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+        by mx.google.com with ESMTPS id cy10si1990451wjb.45.2014.08.13.05.16.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 13 Aug 2014 05:14:06 -0700 (PDT)
-Received: by mail-wg0-f43.google.com with SMTP id l18so11011739wgh.26
-        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 05:14:05 -0700 (PDT)
-Message-ID: <53EB568B.2060006@plexistor.com>
-Date: Wed, 13 Aug 2014 15:14:03 +0300
+        Wed, 13 Aug 2014 05:16:12 -0700 (PDT)
+Received: by mail-wi0-f179.google.com with SMTP id f8so687762wiw.12
+        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 05:16:11 -0700 (PDT)
+Message-ID: <53EB5709.4090401@plexistor.com>
+Date: Wed, 13 Aug 2014 15:16:09 +0300
 From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-Subject: [RFC 4/9] SQUASHME: prd: Fixs to getgeo
+Subject: [RFC 5/9] SQUASHME: prd: Last fixes for partitions
 References: <53EB5536.8020702@gmail.com>
 In-Reply-To: <53EB5536.8020702@gmail.com>
 Content-Type: text/plain; charset=UTF-8
@@ -26,47 +26,119 @@ To: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vg
 
 From: Boaz Harrosh <boaz@plexistor.com>
 
-With current values fdisk does the wrong thing.
+This streamlines prd with the latest brd code.
 
-Setting all values to 1, will make everything nice and easy.
+In prd we do not allocate new devices dynamically on devnod
+access, because we need parameterization of each device. So
+the dynamic allocation in prd_init_one is removed.
 
-Note that current code had a BUG with anything bigger than
-64G because hd_geometry->cylinders is ushort and it would
-overflow at this value. Any way capacity is not calculated
-through getgeo so it does not matter what you put here.
+Therefor prd_init_one only called from prd_prob is moved
+there, now that it is small.
+
+And other small fixes regarding partitions
 
 Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
 ---
- drivers/block/prd.c | 16 ++++++++++++----
- 1 file changed, 12 insertions(+), 4 deletions(-)
+ drivers/block/prd.c | 47 ++++++++++++++++++++++++-----------------------
+ 1 file changed, 24 insertions(+), 23 deletions(-)
 
 diff --git a/drivers/block/prd.c b/drivers/block/prd.c
-index cc0aabf..62af81e 100644
+index 62af81e..c4aeba7 100644
 --- a/drivers/block/prd.c
 +++ b/drivers/block/prd.c
-@@ -55,10 +55,18 @@ struct prd_device {
- 
- static int prd_getgeo(struct block_device *bd, struct hd_geometry *geo)
+@@ -218,13 +218,13 @@ static long prd_direct_access(struct block_device *bdev, sector_t sector,
  {
--	/* some standard values */
--	geo->heads = 1 << 6;
--	geo->sectors = 1 << 5;
--	geo->cylinders = get_capacity(bd->bd_disk) >> 11;
-+	/* Just tell fdisk to get out of the way. The math here is so
-+	 * convoluted and does not make any sense at all. With all 1s
-+	 * The math just gets out of the way.
-+	 * NOTE: I was trying to get some values that will make fdisk
-+	 * Want to align first sector on 4K (like 8, 16, 20, ... sectors) but
-+	 * nothing worked, I searched the net the math is not your regular
-+	 * simple multiplication at all. If you managed to get these please
-+	 * fix here. For now we use 4k physical sectors for this
-+	 */
-+	geo->heads = 1;
-+	geo->sectors = 1;
-+	geo->cylinders = 1;
- 	return 0;
+ 	struct prd_device *prd = bdev->bd_disk->private_data;
+ 
+-	if (!prd)
++	if (unlikely(!prd))
+ 		return -ENODEV;
+ 
+ 	*kaddr = prd_lookup_pg_addr(prd, sector);
+ 	*pfn = prd_lookup_pfn(prd, sector);
+ 
+-	return size;
++	return min_t(long, size, prd->size);
  }
  
+ static const struct block_device_operations prd_fops = {
+@@ -279,6 +279,12 @@ static struct prd_device *prd_alloc(int i)
+ 	blk_queue_max_hw_sectors(prd->prd_queue, 1024);
+ 	blk_queue_bounce_limit(prd->prd_queue, BLK_BOUNCE_ANY);
+ 
++	/* This is so fdisk will align partitions on 4k, because of
++	 * direct_access API needing 4k alignment, returning a PFN
++	 */
++	blk_queue_physical_block_size(prd->prd_queue, PAGE_SIZE);
++	prd->prd_queue->limits.io_min = 512; /* Don't use the accessor */
++
+ 	disk = prd->prd_disk = alloc_disk(0);
+ 	if (!disk)
+ 		goto out_free_queue;
+@@ -308,24 +314,6 @@ static void prd_free(struct prd_device *prd)
+ 	kfree(prd);
+ }
+ 
+-static struct prd_device *prd_init_one(int i)
+-{
+-	struct prd_device *prd;
+-
+-	list_for_each_entry(prd, &prd_devices, prd_list) {
+-		if (prd->prd_number == i)
+-			goto out;
+-	}
+-
+-	prd = prd_alloc(i);
+-	if (prd) {
+-		add_disk(prd->prd_disk);
+-		list_add_tail(&prd->prd_list, &prd_devices);
+-	}
+-out:
+-	return prd;
+-}
+-
+ static void prd_del_one(struct prd_device *prd)
+ {
+ 	list_del(&prd->prd_list);
+@@ -333,16 +321,27 @@ static void prd_del_one(struct prd_device *prd)
+ 	prd_free(prd);
+ }
+ 
++/*FIXME: Actually in our driver prd_probe is never used. Can be removed */
+ static struct kobject *prd_probe(dev_t dev, int *part, void *data)
+ {
+ 	struct prd_device *prd;
+ 	struct kobject *kobj;
++	int number = MINOR(dev);
+ 
+ 	mutex_lock(&prd_devices_mutex);
+-	prd = prd_init_one(MINOR(dev));
+-	kobj = prd ? get_disk(prd->prd_disk) : NULL;
+-	mutex_unlock(&prd_devices_mutex);
+ 
++	list_for_each_entry(prd, &prd_devices, prd_list) {
++		if (prd->prd_number == number) {
++			kobj = get_disk(prd->prd_disk);
++			goto out;
++		}
++	}
++
++	pr_err("prd: prd_probe: Unexpected parameter=%d\n", number);
++	kobj = NULL;
++
++out:
++	mutex_unlock(&prd_devices_mutex);
+ 	return kobj;
+ }
+ 
+@@ -424,5 +423,7 @@ static void __exit prd_exit(void)
+ 
+ MODULE_AUTHOR("Ross Zwisler <ross.zwisler@linux.intel.com>");
+ MODULE_LICENSE("GPL");
++MODULE_ALIAS("pmem");
++
+ module_init(prd_init);
+ module_exit(prd_exit);
 -- 
 1.9.3
 
