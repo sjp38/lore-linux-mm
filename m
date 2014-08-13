@@ -1,224 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 576176B0035
-	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 04:29:47 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id r10so14064471pdi.20
-        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 01:29:47 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id ko9si973444pab.125.2014.08.13.01.29.45
-        for <linux-mm@kvack.org>;
-        Wed, 13 Aug 2014 01:29:46 -0700 (PDT)
-Date: Wed, 13 Aug 2014 17:29:41 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 4/8] mm/isolation: close the two race problems related
- to pageblock isolation
-Message-ID: <20140813082941.GE30451@js1304-P5Q-DELUXE>
-References: <1407309517-3270-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1407309517-3270-8-git-send-email-iamjoonsoo.kim@lge.com>
- <20140812051745.GC23418@gmail.com>
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 905D96B0035
+	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 08:08:27 -0400 (EDT)
+Received: by mail-wi0-f176.google.com with SMTP id bs8so7283996wib.15
+        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 05:08:26 -0700 (PDT)
+Received: from mail-we0-x236.google.com (mail-we0-x236.google.com [2a00:1450:400c:c03::236])
+        by mx.google.com with ESMTPS id v3si25828990wix.58.2014.08.13.05.08.25
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 13 Aug 2014 05:08:25 -0700 (PDT)
+Received: by mail-we0-f182.google.com with SMTP id k48so11206194wev.13
+        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 05:08:25 -0700 (PDT)
+Message-ID: <53EB5536.8020702@gmail.com>
+Date: Wed, 13 Aug 2014 15:08:22 +0300
+From: Boaz Harrosh <openosd@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140812051745.GC23418@gmail.com>
+Subject: [RFC 0/9] pmem: Support for "struct page" with Persistent Memory
+ storage
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>, Sagi Manole <sagi@plexistor.com>, Yigal Korman <yigal@plexistor.com>
 
-On Tue, Aug 12, 2014 at 05:17:45AM +0000, Minchan Kim wrote:
-> On Wed, Aug 06, 2014 at 04:18:33PM +0900, Joonsoo Kim wrote:
-> > 2. #1 requires IPI for synchronization and we can't hold the zone lock
-> > during processing IPI. In this time, some pages could be moved from buddy
-> > list to pcp list on page allocation path and later it could be moved again
-> > from pcp list to buddy list. In this time, this page would be on isolate
-> > pageblock, so, the hook is required on free_pcppages_bulk() to prevent
-> > misplacement. To remove this possibility, disabling and draining pcp
-> > list is needed during isolation. It guaratees that there is no page on pcp
-> > list on all cpus while isolation, so misplacement problem can't happen.
-> > 
-> > Note that this doesn't fix freepage counting problem. To fix it,
-> > we need more logic. Following patches will do it.
-> 
-> I hope to revise description in next spin. It's very hard to parse for
-> stupid me.
+Hi Folks
 
-Okay. I will do it.
+There are already NvDIMMs and other PMEM devices in the market, though very rare still.
+However in Linux we like to get ready for them before hand.
 
-> 
-> > 
-> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > ---
-> >  mm/internal.h       |    2 ++
-> >  mm/page_alloc.c     |   27 ++++++++++++++++++++-------
-> >  mm/page_isolation.c |   45 +++++++++++++++++++++++++++++++++------------
-> >  3 files changed, 55 insertions(+), 19 deletions(-)
-> > 
-> > diff --git a/mm/internal.h b/mm/internal.h
-> > index a1b651b..81b8884 100644
-> > --- a/mm/internal.h
-> > +++ b/mm/internal.h
-> > @@ -108,6 +108,8 @@ extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
-> >  /*
-> >   * in mm/page_alloc.c
-> >   */
-> > +extern void zone_pcp_disable(struct zone *zone);
-> > +extern void zone_pcp_enable(struct zone *zone);
-> 
-> Nit: Some of pcp functions has prefix zone but others don't.
-> Which is better? If function has param zone as first argument,
-> I think it's clear unless the function don't have prefix zone.
+Current stack is coming along very nice, and filesystems supporting and leveraging this
+technologies have been submitted for review in the DAX series by Matthew Wilcox.
 
-Okay.
+The PMEM industry has been speaking of re inventing the wheel of storage and providing
+an alternative API for storage in the form of persist_alloc(,UUID,...) for applications
+to use.
 
-> 
-> >  extern void __free_pages_bootmem(struct page *page, unsigned int order);
-> >  extern void prep_compound_page(struct page *page, unsigned long order);
-> >  #ifdef CONFIG_MEMORY_FAILURE
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 3e1e344..4517b1d 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -726,11 +726,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
-> >  			/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
-> >  			__free_one_page(page, page_to_pfn(page), zone, 0, mt);
-> >  			trace_mm_page_pcpu_drain(page, 0, mt);
-> > -			if (likely(!is_migrate_isolate_page(page))) {
-> > -				__mod_zone_page_state(zone, NR_FREE_PAGES, 1);
-> > -				if (is_migrate_cma(mt))
-> > -					__mod_zone_page_state(zone, NR_FREE_CMA_PAGES, 1);
-> > -			}
-> > +			__mod_zone_freepage_state(zone, 1, mt);
-> >  		} while (--to_free && --batch_free && !list_empty(list));
-> >  	}
-> >  	spin_unlock(&zone->lock);
-> > @@ -789,8 +785,8 @@ static void __free_pages_ok(struct page *page, unsigned int order)
-> >  	if (!free_pages_prepare(page, order))
-> >  		return;
-> >  
-> > -	migratetype = get_pfnblock_migratetype(page, pfn);
-> >  	local_irq_save(flags);
-> > +	migratetype = get_pfnblock_migratetype(page, pfn);
-> 
-> Could you add some comment about page-isolated locking rule in somewhere?
-> I think it's valuable to add it in code rather than description.
+But The general consensus by the Kernel flocks is that an FS like ext4 over a "direct_access"
+block device supplies that API perfectly with a user simple call sequence of:
+	fd = open(,"UUID_STR",);
+	mmap(fd,);
+And there, the wheel has already been invented.
 
-Will do.
+So the PMEM stack is the usual:
+	block-device
+	partition
+	file-system
+	application file
 
-> In addition, as your description, get_pfnblock_migratetype should be
-> protected by irq_disabled. Then, it would be better to add a comment or
-> VM_BUG_ON check with irq_disabled in get_pfnblock_migratetype but I think
-> get_pfnblock_migratetype might be called for other purpose in future.
-> In that case, it's not necessary to disable irq so we could introduce
-> "get_freeing_page_migratetype" with irq disabled check and use it.
+With extra care, see Matthew's DAX patches, to shorten the stack so at the application
+level when finally a store/load CPU operation is done on an mmaped pointer it will go
+directly to pmem. (OK after the call to msync to flush CPU caches), but certainly
+no extra copies are made anywhere in the stack.
 
-Okay.
+The only thing missing from current design is that this pmem memory region is very
+alien to the rest of the Kernel, application access to this memory is enabled but
+if we want to send this memory on the network or to a slower block device and/or to
+any device in the system. We are not able to do this. This is because of a missing
+struct page support for this memory.
+This shortcomings is easily fixable by this patchset. Actually by the last two
+patches. The other patches are just development stuff of the prd.ko (Persistent Ram Disk)
+that is destined to mange the pmem devices.
 
-> 
-> Question. soft_offline_page doesn't have any lock
-> for get_pageblock_migratetype. Is it okay?
+Ross hi, I have based a *prd* tree on my brd-partition branch which I hope will go into Kernel
+ASAP, even into 3.17. This tree includes all your patches, slightly re-orders you can
+see it here:
+	git://git.open-osd.org/linux-open-osd.git branch prd-3.16
+on web:
+	http://git.open-osd.org/gitweb.cgi?p=linux-open-osd.git;a=shortlog;h=refs/heads/prd-3.16
 
-Hmm... I think it is okay. But, I guess that it need to check
-return value of set_migratetype_isolate().
+This is what one will fine on the prd-3.16 branch:
+7a70a75 Boaz Harrosh        |  (prd-3.16) prd: Add support for page struct mapping 
+9a367c6 Yigal Korman        |  MM: export sparse_add_one_section/sparse_remove_one_section 
+62c96b7 Boaz Harrosh        |  SQUASHME: prd: Support of multiple memory regions 
+9290c1b Boaz Harrosh        |  SQUASHME: prd: Let each prd-device manage private memory region 
+bfefdbb Boaz Harrosh        |  SQUASHME: prd: Last fixes for partitions 
+0a7c7e4 Boaz Harrosh        |  SQUASHME: prd: Fixs to getgeo 
 
-> 
-> >  	__count_vm_events(PGFREE, 1 << order);
-> >  	set_freepage_migratetype(page, migratetype);
-> >  	free_one_page(page_zone(page), page, pfn, order, migratetype);
-> > @@ -1410,9 +1406,9 @@ void free_hot_cold_page(struct page *page, bool cold)
-> >  	if (!free_pages_prepare(page, 0))
-> >  		return;
-> >  
-> > +	local_irq_save(flags);
-> >  	migratetype = get_pfnblock_migratetype(page, pfn);
-> >  	set_freepage_migratetype(page, migratetype);
-> > -	local_irq_save(flags);
-> >  	__count_vm_event(PGFREE);
-> >  
-> >  	/*
-> > @@ -6469,6 +6465,23 @@ void free_contig_range(unsigned long pfn, unsigned nr_pages)
-> >  }
-> >  #endif
-> >  
-> > +#ifdef CONFIG_MEMORY_ISOLATION
-> > +void zone_pcp_disable(struct zone *zone)
-> > +{
-> > +	mutex_lock(&pcp_batch_high_lock);
-> > +	pageset_update(zone, 1, 1);
-> > +}
-> > +
-> > +void zone_pcp_enable(struct zone *zone)
-> > +{
-> > +	int high, batch;
-> > +
-> > +	pageset_get_values(zone, &high, &batch);
-> > +	pageset_update(zone, high, batch);
-> > +	mutex_unlock(&pcp_batch_high_lock);
-> > +}
-> > +#endif
-> 
-> Nit:
-> It is used for only page_isolation.c so how about moving to page_isolation.c?
+  From here on this is exactly Ross's prd tree, patches slight reordered.
 
-I'd like to leave pcp management code in page_alloc.c.
+709891f Ross Zwisler        |  prd: Add getgeo to block ops 
+3ce69f4fe Ross Zwisler      |  prd: add support for rw_page() 
+4fb0ac8 Ross Zwisler        |  SQUASHME: prd: Remove Kconfig default for PRD 
+8dafb03 Ross Zwisler        |  SQUASHME: prd: remove redundant checks in prd_direct_access 
+0373be8 Ross Zwisler        |  SQUASHME: prd: Updates to comments & whitespace 
+0ef8f82 Ross Zwisler        |  SQUASHME: prd: Improve wording in Kconfig 
+eb11421 Ross Zwisler        |  SQUASHME: prd: Dynamically allocate partition numbers 
+9021eae Ross Zwisler        |  SQUASHME: prd: Remove support for discard 
+4805046 Ross Zwisler        |  SQUASHME: prd: enable partitions and surface by default 
+9550836 Ross Zwisler        |  SQUASHME: prd: workaround to stop weird partition overlap 
+c9d84b3 Ross Zwisler        |  SQUASHME: prd: fix error handling in prd_init 
+252aaff Ross Zwisler        |  prd: Initial version of Persistent RAM Driver 
+a49772c Boaz Harrosh        |  (ooo/brd-partitions, brd-partitions) brd: Request from fdisk 4k alignment 
 
-> > +
-> >  #ifdef CONFIG_MEMORY_HOTPLUG
-> >  /*
-> >   * The zone indicated has a new number of managed_pages; batch sizes and percpu
-> > diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> > index 3100f98..439158d 100644
-> > --- a/mm/page_isolation.c
-> > +++ b/mm/page_isolation.c
-> > @@ -16,9 +16,10 @@ int set_migratetype_isolate(struct page *page, bool skip_hwpoisoned_pages)
-> >  	struct memory_isolate_notify arg;
-> >  	int notifier_ret;
-> >  	int ret = -EBUSY;
-> > +	unsigned long nr_pages;
-> > +	int migratetype;
-> >  
-> >  	zone = page_zone(page);
-> > -
-> 
-> Unnecessary change.
+[I have edited all the commit messages to add "SQUASHME" at start so to denote to user that
+ these will be incorporated into a previous patch before online submission.]
 
-Okay.
+For review and discussion here I am submitting the SQUASHed prd-initial-version for
+the reviewers to have a context on what we are talking about, then a set of my patches
+for prd. Finally two patches one to mm and the second to prd for page-struct support.
 
-> 
-> >  	spin_lock_irqsave(&zone->lock, flags);
-> >  
-> >  	pfn = page_to_pfn(page);
-> > @@ -55,20 +56,32 @@ int set_migratetype_isolate(struct page *page, bool skip_hwpoisoned_pages)
-> >  	 */
-> >  
-> >  out:
-> > -	if (!ret) {
-> > -		unsigned long nr_pages;
-> > -		int migratetype = get_pageblock_migratetype(page);
-> > +	if (ret) {
-> > +		spin_unlock_irqrestore(&zone->lock, flags);
-> > +		return ret;
-> > +	}
-> >  
-> > -		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
-> > -		nr_pages = move_freepages_block(zone, page, MIGRATE_ISOLATE);
-> > +	migratetype = get_pageblock_migratetype(page);
-> > +	set_pageblock_migratetype(page, MIGRATE_ISOLATE);
-> > +	spin_unlock_irqrestore(&zone->lock, flags);
-> >  
-> > -		__mod_zone_freepage_state(zone, -nr_pages, migratetype);
-> > -	}
-> > +	zone_pcp_disable(zone);
-> 
-> You pcp disable/enable per pageblock so that overhead would be severe.
-> I believe your remaining patches will solve it. Anyway, let's add "
-> XXX: should save pcp disable/enable" and you could remove the comment
-> when your further patches handles it so reviewer could be happy with
-> fact which author already know the problem and someone could solve
-> the issue even though your furhter patches might reject.
+List of patches:
+[RFC 1/9] prd: Initial version of Persistent RAM Driver
+[RFC 2/9] prd: add support for rw_page()
+[RFC 3/9] prd: Add getgeo to block ops
 
-Okay.
+	Up to here it is the latest code from Ross's prd tree
 
-Thanks.
+[RFC 4/9] SQUASHME: prd: Fixs to getgeo
+[RFC 5/9] SQUASHME: prd: Last fixes for partitions
+[RFC 6/9] SQUASHME: prd: Let each prd-device manage private memory
+[RFC 7/9] SQUASHME: prd: Support of multiple memory regions
+
+	These 4 are my fixes to the prd driver. Ross please review
+	and submit to your tree.
+
+[RFC 8/9] mm: export sparse_add/remove_one_section
+[RFC 9/9] prd: Add support for page struct mapping
+
+	These two are for the MM guys to comment, and for anyone
+	that is interested in the PMEM technology.
+	I wanted to post an example Kernel module that will demonstrate
+	the use of pages, on top of bdev_direct_access(). But its not
+	cleaned up and finished, I will send it later.
+
+These can be found here:
+	git://git.open-osd.org/linux-open-osd.git branch prd
+on web:
+	http://git.open-osd.org/gitweb.cgi?p=linux-open-osd.git;a=shortlog;h=refs/heads/prd
+
+And one last Rant if I may?
+I hate the prd name, why why? OK so a freak of bad luck forced us to invent a new name for
+/dev/ram because it would be weird to do an lsmod and see a ram.ko hanging there which is actually
+a block device driver. OK so a brd == /dev/ram. But why do we need to carry this punishment forever?
+Why an additional/different name in the namespace? /dev/foo should just be foo.ko in lsmod, No?
+So please, please, for my peace of mind can we call this driver pmem.ko?
+I know, I would hate it if I was inventing a name and people change it, so Ross it is your call, is
+it OK if we move back to just call it pmem everywhere?
+
+Thanks
+Boaz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
