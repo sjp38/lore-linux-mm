@@ -1,182 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id DAA8D6B0035
-	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 11:26:17 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id v10so8604595pde.24
-        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 08:26:17 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id pn7si1767505pbc.0.2014.08.13.08.26.16
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 13 Aug 2014 08:26:16 -0700 (PDT)
-Received: by mail-pa0-f51.google.com with SMTP id ey11so15098689pad.38
-        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 08:26:16 -0700 (PDT)
-Date: Thu, 14 Aug 2014 00:25:04 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [RFC 1/3] zsmalloc: move pages_allocated to zs_pool
-Message-ID: <20140813152504.GE1091@swordfish>
-References: <1407225723-23754-1-git-send-email-minchan@kernel.org>
- <1407225723-23754-2-git-send-email-minchan@kernel.org>
- <CALZtONDmvLDtceVW9AyiDwdSHQzPbay36JEts8iuZ4nvykWfeA@mail.gmail.com>
- <20140813141413.GA1091@swordfish>
- <CALZtONDgYRUwrsN_G7pds2QY6QTOr8G8jAHa6Zta2XDhDHV8_A@mail.gmail.com>
- <20140813151354.GD1091@swordfish>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140813151354.GD1091@swordfish>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 633016B0035
+	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 11:28:39 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lf10so15095313pab.15
+        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 08:28:39 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id pg3si1745301pdb.181.2014.08.13.08.28.38
+        for <linux-mm@kvack.org>;
+        Wed, 13 Aug 2014 08:28:38 -0700 (PDT)
+From: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Subject: [PATCH] mm: Actually clear pmd_numa before invalidating
+Date: Wed, 13 Aug 2014 11:28:27 -0400
+Message-Id: <1407943707-5547-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Minchan Kim <minchan@kernel.org>, Linux-MM <linux-mm@kvack.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>
+To: linux-mm@kvack.org
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, stable@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On (08/14/14 00:13), Sergey Senozhatsky wrote:
-> > On Wed, Aug 13, 2014 at 10:14 AM, Sergey Senozhatsky
-> > <sergey.senozhatsky@gmail.com> wrote:
-> > > On (08/13/14 09:59), Dan Streetman wrote:
-> > >> On Tue, Aug 5, 2014 at 4:02 AM, Minchan Kim <minchan@kernel.org> wrote:
-> > >> > Pages_allocated has counted in size_class structure and when user
-> > >> > want to see total_size_bytes, it gathers all of value from each
-> > >> > size_class to report the sum.
-> > >> >
-> > >> > It's not bad if user don't see the value often but if user start
-> > >> > to see the value frequently, it would be not a good deal for
-> > >> > performance POV.
-> > >> >
-> > >> > This patch moves the variable from size_class to zs_pool so it would
-> > >> > reduce memory footprint (from [255 * 8byte] to [sizeof(atomic_t)])
-> > >> > but it adds new locking overhead but it wouldn't be severe because
-> > >> > it's not a hot path in zs_malloc(ie, it is called only when new
-> > >> > zspage is created, not a object).
-> > >>
-> > >> Would using an atomic64_t without locking be simpler?
-> > >
-> > > it would be racy.
-> > 
-> > oh.  atomic operations aren't smp safe?  is that because other
-> > processors might use a stale value, and barriers must be added?  I
-> > guess I don't quite understand the value of atomic then. :-/
-> 
-> pool not only set the value, it also read it and make some decisions
-> based on that value:
-> 
-> 	pages_allocated += X
-> 	if (pages_allocated >= max_pages_allocated)
-> 		return 0;
+Commit 67f87463d3 cleared the NUMA bit in a copy of the PMD entry, but
+then wrote back the original
 
+Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: <stable@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+---
+ mm/pgtable-generic.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-I mean, suppose this happens on two CPUs
-
-max_pages_allocated is 10; current pages_allocated is 8. now you have 2 zs_malloc()
-happenning on two CPUs. each of them will do `pages_allocated += 1'. the problem is
-that both will see 10 at `if (pages_allocated >= max_pages_allocated)', so we will
-fail 2 operations, while we only were supposed to fail one.
-
-	-ss
-
-> 
-> > >>
-> > >> >
-> > >> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > >> > ---
-> > >> >  mm/zsmalloc.c | 30 ++++++++++++++++--------------
-> > >> >  1 file changed, 16 insertions(+), 14 deletions(-)
-> > >> >
-> > >> > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> > >> > index fe78189624cf..a6089bd26621 100644
-> > >> > --- a/mm/zsmalloc.c
-> > >> > +++ b/mm/zsmalloc.c
-> > >> > @@ -198,9 +198,6 @@ struct size_class {
-> > >> >
-> > >> >         spinlock_t lock;
-> > >> >
-> > >> > -       /* stats */
-> > >> > -       u64 pages_allocated;
-> > >> > -
-> > >> >         struct page *fullness_list[_ZS_NR_FULLNESS_GROUPS];
-> > >> >  };
-> > >> >
-> > >> > @@ -216,9 +213,12 @@ struct link_free {
-> > >> >  };
-> > >> >
-> > >> >  struct zs_pool {
-> > >> > +       spinlock_t stat_lock;
-> > >> > +
-> > >> >         struct size_class size_class[ZS_SIZE_CLASSES];
-> > >> >
-> > >> >         gfp_t flags;    /* allocation flags used when growing pool */
-> > >> > +       unsigned long pages_allocated;
-> > >> >  };
-> > >> >
-> > >> >  /*
-> > >> > @@ -882,6 +882,7 @@ struct zs_pool *zs_create_pool(gfp_t flags)
-> > >> >
-> > >> >         }
-> > >> >
-> > >> > +       spin_lock_init(&pool->stat_lock);
-> > >> >         pool->flags = flags;
-> > >> >
-> > >> >         return pool;
-> > >> > @@ -943,8 +944,10 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
-> > >> >                         return 0;
-> > >> >
-> > >> >                 set_zspage_mapping(first_page, class->index, ZS_EMPTY);
-> > >> > +               spin_lock(&pool->stat_lock);
-> > >> > +               pool->pages_allocated += class->pages_per_zspage;
-> > >> > +               spin_unlock(&pool->stat_lock);
-> > >> >                 spin_lock(&class->lock);
-> > >> > -               class->pages_allocated += class->pages_per_zspage;
-> > >> >         }
-> > >> >
-> > >> >         obj = (unsigned long)first_page->freelist;
-> > >> > @@ -997,14 +1000,14 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
-> > >> >
-> > >> >         first_page->inuse--;
-> > >> >         fullness = fix_fullness_group(pool, first_page);
-> > >> > -
-> > >> > -       if (fullness == ZS_EMPTY)
-> > >> > -               class->pages_allocated -= class->pages_per_zspage;
-> > >> > -
-> > >> >         spin_unlock(&class->lock);
-> > >> >
-> > >> > -       if (fullness == ZS_EMPTY)
-> > >> > +       if (fullness == ZS_EMPTY) {
-> > >> > +               spin_lock(&pool->stat_lock);
-> > >> > +               pool->pages_allocated -= class->pages_per_zspage;
-> > >> > +               spin_unlock(&pool->stat_lock);
-> > >> >                 free_zspage(first_page);
-> > >> > +       }
-> > >> >  }
-> > >> >  EXPORT_SYMBOL_GPL(zs_free);
-> > >> >
-> > >> > @@ -1100,12 +1103,11 @@ EXPORT_SYMBOL_GPL(zs_unmap_object);
-> > >> >
-> > >> >  u64 zs_get_total_size_bytes(struct zs_pool *pool)
-> > >> >  {
-> > >> > -       int i;
-> > >> > -       u64 npages = 0;
-> > >> > -
-> > >> > -       for (i = 0; i < ZS_SIZE_CLASSES; i++)
-> > >> > -               npages += pool->size_class[i].pages_allocated;
-> > >> > +       u64 npages;
-> > >> >
-> > >> > +       spin_lock(&pool->stat_lock);
-> > >> > +       npages = pool->pages_allocated;
-> > >> > +       spin_unlock(&pool->stat_lock);
-> > >> >         return npages << PAGE_SHIFT;
-> > >> >  }
-> > >> >  EXPORT_SYMBOL_GPL(zs_get_total_size_bytes);
-> > >> > --
-> > >> > 2.0.0
-> > >> >
-> > >> > --
-> > >> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > >> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > >> > see: http://www.linux-mm.org/ .
-> > >> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> > >>
-> > 
-> 
+diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c
+index a8b9199..dfb79e0 100644
+--- a/mm/pgtable-generic.c
++++ b/mm/pgtable-generic.c
+@@ -195,7 +195,7 @@ void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+ 	pmd_t entry = *pmdp;
+ 	if (pmd_numa(entry))
+ 		entry = pmd_mknonnuma(entry);
+-	set_pmd_at(vma->vm_mm, address, pmdp, pmd_mknotpresent(*pmdp));
++	set_pmd_at(vma->vm_mm, address, pmdp, pmd_mknotpresent(entry));
+ 	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+ }
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+-- 
+2.0.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
