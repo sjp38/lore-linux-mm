@@ -1,212 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id E40E06B0035
-	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 09:04:57 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id et14so1620159pad.9
-        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 06:04:57 -0700 (PDT)
-Received: from mail-pd0-x231.google.com (mail-pd0-x231.google.com [2607:f8b0:400e:c02::231])
-        by mx.google.com with ESMTPS id hw2si4167041pbb.92.2014.08.14.06.04.55
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 514AD6B0037
+	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 09:05:02 -0400 (EDT)
+Received: by mail-wi0-f178.google.com with SMTP id hi2so2257878wib.17
+        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 06:05:01 -0700 (PDT)
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+        by mx.google.com with ESMTPS id gm4si6692129wib.2.2014.08.14.06.04.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 14 Aug 2014 06:04:55 -0700 (PDT)
-Received: by mail-pd0-f177.google.com with SMTP id p10so1526373pdj.8
+        Thu, 14 Aug 2014 06:04:57 -0700 (PDT)
+Received: by mail-we0-f181.google.com with SMTP id k48so1055026wev.12
         for <linux-mm@kvack.org>; Thu, 14 Aug 2014 06:04:55 -0700 (PDT)
-Date: Thu, 14 Aug 2014 22:03:43 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [RFC 1/3] zsmalloc: move pages_allocated to zs_pool
-Message-ID: <20140814130343.GB966@swordfish>
-References: <1407225723-23754-1-git-send-email-minchan@kernel.org>
- <1407225723-23754-2-git-send-email-minchan@kernel.org>
- <CALZtONDmvLDtceVW9AyiDwdSHQzPbay36JEts8iuZ4nvykWfeA@mail.gmail.com>
- <20140813141413.GA1091@swordfish>
- <CALZtONDgYRUwrsN_G7pds2QY6QTOr8G8jAHa6Zta2XDhDHV8_A@mail.gmail.com>
- <20140813151354.GD1091@swordfish>
- <20140813152504.GE1091@swordfish>
- <CALZtONA9sJ3L8MxJ+gy_x5iktCxabStQK9BexF06XyOjRjoPNQ@mail.gmail.com>
+Message-ID: <53ECB3F5.9020001@plexistor.com>
+Date: Thu, 14 Aug 2014 16:04:53 +0300
+From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALZtONA9sJ3L8MxJ+gy_x5iktCxabStQK9BexF06XyOjRjoPNQ@mail.gmail.com>
+Subject: Re: [RFC 5/9] SQUASHME: prd: Last fixes for partitions
+References: <53EB5536.8020702@gmail.com> <53EB5709.4090401@plexistor.com>
+In-Reply-To: <53EB5709.4090401@plexistor.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>
+To: Boaz Harrosh <boaz@plexistor.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>, Sagi Manole <sagi@plexistor.com>, Yigal Korman <yigal@plexistor.com>
 
-On (08/13/14 12:11), Dan Streetman wrote:
-> >> > On Wed, Aug 13, 2014 at 10:14 AM, Sergey Senozhatsky
-> >> > <sergey.senozhatsky@gmail.com> wrote:
-> >> > > On (08/13/14 09:59), Dan Streetman wrote:
-> >> > >> On Tue, Aug 5, 2014 at 4:02 AM, Minchan Kim <minchan@kernel.org> wrote:
-> >> > >> > Pages_allocated has counted in size_class structure and when user
-> >> > >> > want to see total_size_bytes, it gathers all of value from each
-> >> > >> > size_class to report the sum.
-> >> > >> >
-> >> > >> > It's not bad if user don't see the value often but if user start
-> >> > >> > to see the value frequently, it would be not a good deal for
-> >> > >> > performance POV.
-> >> > >> >
-> >> > >> > This patch moves the variable from size_class to zs_pool so it would
-> >> > >> > reduce memory footprint (from [255 * 8byte] to [sizeof(atomic_t)])
-> >> > >> > but it adds new locking overhead but it wouldn't be severe because
-> >> > >> > it's not a hot path in zs_malloc(ie, it is called only when new
-> >> > >> > zspage is created, not a object).
-> >> > >>
-> >> > >> Would using an atomic64_t without locking be simpler?
-> >> > >
-> >> > > it would be racy.
-> >> >
-> >> > oh.  atomic operations aren't smp safe?  is that because other
-> >> > processors might use a stale value, and barriers must be added?  I
-> >> > guess I don't quite understand the value of atomic then. :-/
-> >>
-> >> pool not only set the value, it also read it and make some decisions
-> >> based on that value:
-> >>
-> >>       pages_allocated += X
-> >>       if (pages_allocated >= max_pages_allocated)
-> >>               return 0;
-> >
+On 08/13/2014 03:16 PM, Boaz Harrosh wrote:
+> From: Boaz Harrosh <boaz@plexistor.com>
 > 
-> I'm missing where that is?  I don't see that in this patch?
+> This streamlines prd with the latest brd code.
 > 
-> >
-> > I mean, suppose this happens on two CPUs
-> >
-> > max_pages_allocated is 10; current pages_allocated is 8. now you have 2 zs_malloc()
-> > happenning on two CPUs. each of them will do `pages_allocated += 1'. the problem is
-> > that both will see 10 at `if (pages_allocated >= max_pages_allocated)', so we will
-> > fail 2 operations, while we only were supposed to fail one.
+> In prd we do not allocate new devices dynamically on devnod
+> access, because we need parameterization of each device. So
+> the dynamic allocation in prd_init_one is removed.
 > 
-> Do you mean this from the 2/3 patch:
-
-yeah. sorry for being unclear, I was really sleepy.
-
-> @@ -946,6 +947,8 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
->                 set_zspage_mapping(first_page, class->index, ZS_EMPTY);
->                 spin_lock(&pool->stat_lock);
->                 pool->pages_allocated += class->pages_per_zspage;
-> +               if (pool->max_pages_allocated < pool->pages_allocated)
-> +                       pool->max_pages_allocated = pool->pages_allocated;
->                 spin_unlock(&pool->stat_lock);
->                 spin_lock(&class->lock);
->         }
+> Therefor prd_init_one only called from prd_prob is moved
+> there, now that it is small.
 > 
-> I see, yeah the max > allocated check before setting is easiest done
-> with a spinlock.  I think pages_allocated could still be done as
-> atomic, just using atomic_add_return() to grab the current value to
-> check against, but keeping them the same type and both protected by
-> the same spinlock I guess simplifies things.  Although, if they were
-> both atomic, then the *only* place that would need a spinlock would be
-> this check - reading the (atomic) max_pages_allocated wouldn't need a
-> spinlock, nor would clearing it to 0.
-
-makes sense.
-
-	-ss
-
-> >> > >>
-> >> > >> >
-> >> > >> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> >> > >> > ---
-> >> > >> >  mm/zsmalloc.c | 30 ++++++++++++++++--------------
-> >> > >> >  1 file changed, 16 insertions(+), 14 deletions(-)
-> >> > >> >
-> >> > >> > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> >> > >> > index fe78189624cf..a6089bd26621 100644
-> >> > >> > --- a/mm/zsmalloc.c
-> >> > >> > +++ b/mm/zsmalloc.c
-> >> > >> > @@ -198,9 +198,6 @@ struct size_class {
-> >> > >> >
-> >> > >> >         spinlock_t lock;
-> >> > >> >
-> >> > >> > -       /* stats */
-> >> > >> > -       u64 pages_allocated;
-> >> > >> > -
-> >> > >> >         struct page *fullness_list[_ZS_NR_FULLNESS_GROUPS];
-> >> > >> >  };
-> >> > >> >
-> >> > >> > @@ -216,9 +213,12 @@ struct link_free {
-> >> > >> >  };
-> >> > >> >
-> >> > >> >  struct zs_pool {
-> >> > >> > +       spinlock_t stat_lock;
-> >> > >> > +
-> >> > >> >         struct size_class size_class[ZS_SIZE_CLASSES];
-> >> > >> >
-> >> > >> >         gfp_t flags;    /* allocation flags used when growing pool */
-> >> > >> > +       unsigned long pages_allocated;
-> >> > >> >  };
-> >> > >> >
-> >> > >> >  /*
-> >> > >> > @@ -882,6 +882,7 @@ struct zs_pool *zs_create_pool(gfp_t flags)
-> >> > >> >
-> >> > >> >         }
-> >> > >> >
-> >> > >> > +       spin_lock_init(&pool->stat_lock);
-> >> > >> >         pool->flags = flags;
-> >> > >> >
-> >> > >> >         return pool;
-> >> > >> > @@ -943,8 +944,10 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
-> >> > >> >                         return 0;
-> >> > >> >
-> >> > >> >                 set_zspage_mapping(first_page, class->index, ZS_EMPTY);
-> >> > >> > +               spin_lock(&pool->stat_lock);
-> >> > >> > +               pool->pages_allocated += class->pages_per_zspage;
-> >> > >> > +               spin_unlock(&pool->stat_lock);
-> >> > >> >                 spin_lock(&class->lock);
-> >> > >> > -               class->pages_allocated += class->pages_per_zspage;
-> >> > >> >         }
-> >> > >> >
-> >> > >> >         obj = (unsigned long)first_page->freelist;
-> >> > >> > @@ -997,14 +1000,14 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
-> >> > >> >
-> >> > >> >         first_page->inuse--;
-> >> > >> >         fullness = fix_fullness_group(pool, first_page);
-> >> > >> > -
-> >> > >> > -       if (fullness == ZS_EMPTY)
-> >> > >> > -               class->pages_allocated -= class->pages_per_zspage;
-> >> > >> > -
-> >> > >> >         spin_unlock(&class->lock);
-> >> > >> >
-> >> > >> > -       if (fullness == ZS_EMPTY)
-> >> > >> > +       if (fullness == ZS_EMPTY) {
-> >> > >> > +               spin_lock(&pool->stat_lock);
-> >> > >> > +               pool->pages_allocated -= class->pages_per_zspage;
-> >> > >> > +               spin_unlock(&pool->stat_lock);
-> >> > >> >                 free_zspage(first_page);
-> >> > >> > +       }
-> >> > >> >  }
-> >> > >> >  EXPORT_SYMBOL_GPL(zs_free);
-> >> > >> >
-> >> > >> > @@ -1100,12 +1103,11 @@ EXPORT_SYMBOL_GPL(zs_unmap_object);
-> >> > >> >
-> >> > >> >  u64 zs_get_total_size_bytes(struct zs_pool *pool)
-> >> > >> >  {
-> >> > >> > -       int i;
-> >> > >> > -       u64 npages = 0;
-> >> > >> > -
-> >> > >> > -       for (i = 0; i < ZS_SIZE_CLASSES; i++)
-> >> > >> > -               npages += pool->size_class[i].pages_allocated;
-> >> > >> > +       u64 npages;
-> >> > >> >
-> >> > >> > +       spin_lock(&pool->stat_lock);
-> >> > >> > +       npages = pool->pages_allocated;
-> >> > >> > +       spin_unlock(&pool->stat_lock);
-> >> > >> >         return npages << PAGE_SHIFT;
-> >> > >> >  }
-> >> > >> >  EXPORT_SYMBOL_GPL(zs_get_total_size_bytes);
-> >> > >> > --
-> >> > >> > 2.0.0
-> >> > >> >
-> >> > >> > --
-> >> > >> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> >> > >> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> >> > >> > see: http://www.linux-mm.org/ .
-> >> > >> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> >> > >>
-> >> >
-> >>
+> And other small fixes regarding partitions
 > 
+> Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
+> ---
+>  drivers/block/prd.c | 47 ++++++++++++++++++++++++-----------------------
+>  1 file changed, 24 insertions(+), 23 deletions(-)
+> 
+> diff --git a/drivers/block/prd.c b/drivers/block/prd.c
+> index 62af81e..c4aeba7 100644
+> --- a/drivers/block/prd.c
+> +++ b/drivers/block/prd.c
+> @@ -218,13 +218,13 @@ static long prd_direct_access(struct block_device *bdev, sector_t sector,
+>  {
+>  	struct prd_device *prd = bdev->bd_disk->private_data;
+>  
+> -	if (!prd)
+> +	if (unlikely(!prd))
+>  		return -ENODEV;
+>  
+>  	*kaddr = prd_lookup_pg_addr(prd, sector);
+>  	*pfn = prd_lookup_pfn(prd, sector);
+>  
+> -	return size;
+> +	return min_t(long, size, prd->size);
+
+This is off course a BUG need to subtract offset, will send version 2
+
+Boaz
+<>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
