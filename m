@@ -1,181 +1,212 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 98E306B0035
-	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 06:29:19 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id ey11so1395778pad.38
-        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 03:29:19 -0700 (PDT)
-Received: from mail-pd0-x230.google.com (mail-pd0-x230.google.com [2607:f8b0:400e:c02::230])
-        by mx.google.com with ESMTPS id wx5si3809712pac.37.2014.08.14.03.29.18
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id E40E06B0035
+	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 09:04:57 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id et14so1620159pad.9
+        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 06:04:57 -0700 (PDT)
+Received: from mail-pd0-x231.google.com (mail-pd0-x231.google.com [2607:f8b0:400e:c02::231])
+        by mx.google.com with ESMTPS id hw2si4167041pbb.92.2014.08.14.06.04.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 14 Aug 2014 03:29:18 -0700 (PDT)
-Received: by mail-pd0-f176.google.com with SMTP id y10so1346811pdj.21
-        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 03:29:18 -0700 (PDT)
+        Thu, 14 Aug 2014 06:04:55 -0700 (PDT)
+Received: by mail-pd0-f177.google.com with SMTP id p10so1526373pdj.8
+        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 06:04:55 -0700 (PDT)
+Date: Thu, 14 Aug 2014 22:03:43 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [RFC 1/3] zsmalloc: move pages_allocated to zs_pool
+Message-ID: <20140814130343.GB966@swordfish>
+References: <1407225723-23754-1-git-send-email-minchan@kernel.org>
+ <1407225723-23754-2-git-send-email-minchan@kernel.org>
+ <CALZtONDmvLDtceVW9AyiDwdSHQzPbay36JEts8iuZ4nvykWfeA@mail.gmail.com>
+ <20140813141413.GA1091@swordfish>
+ <CALZtONDgYRUwrsN_G7pds2QY6QTOr8G8jAHa6Zta2XDhDHV8_A@mail.gmail.com>
+ <20140813151354.GD1091@swordfish>
+ <20140813152504.GE1091@swordfish>
+ <CALZtONA9sJ3L8MxJ+gy_x5iktCxabStQK9BexF06XyOjRjoPNQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1407978746-20587-3-git-send-email-minchan@kernel.org>
-References: <1407978746-20587-1-git-send-email-minchan@kernel.org>
-	<1407978746-20587-3-git-send-email-minchan@kernel.org>
-Date: Thu, 14 Aug 2014 06:29:17 -0400
-Message-ID: <CAFdhcLTHv9Jhc6Z40dYG7YQFgLURrh5CUyD+ZNkMSb+FXdZocw@mail.gmail.com>
-Subject: Re: [PATCH 3/3] zram: add mem_used_max via sysfs
-From: David Horner <ds2horner@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALZtONA9sJ3L8MxJ+gy_x5iktCxabStQK9BexF06XyOjRjoPNQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Minchan Kim <minchan@kernel.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>
 
-The introduction of a reset can cause the stale zero value to be
-retained in the show.
-Instead reset to current value.
+On (08/13/14 12:11), Dan Streetman wrote:
+> >> > On Wed, Aug 13, 2014 at 10:14 AM, Sergey Senozhatsky
+> >> > <sergey.senozhatsky@gmail.com> wrote:
+> >> > > On (08/13/14 09:59), Dan Streetman wrote:
+> >> > >> On Tue, Aug 5, 2014 at 4:02 AM, Minchan Kim <minchan@kernel.org> wrote:
+> >> > >> > Pages_allocated has counted in size_class structure and when user
+> >> > >> > want to see total_size_bytes, it gathers all of value from each
+> >> > >> > size_class to report the sum.
+> >> > >> >
+> >> > >> > It's not bad if user don't see the value often but if user start
+> >> > >> > to see the value frequently, it would be not a good deal for
+> >> > >> > performance POV.
+> >> > >> >
+> >> > >> > This patch moves the variable from size_class to zs_pool so it would
+> >> > >> > reduce memory footprint (from [255 * 8byte] to [sizeof(atomic_t)])
+> >> > >> > but it adds new locking overhead but it wouldn't be severe because
+> >> > >> > it's not a hot path in zs_malloc(ie, it is called only when new
+> >> > >> > zspage is created, not a object).
+> >> > >>
+> >> > >> Would using an atomic64_t without locking be simpler?
+> >> > >
+> >> > > it would be racy.
+> >> >
+> >> > oh.  atomic operations aren't smp safe?  is that because other
+> >> > processors might use a stale value, and barriers must be added?  I
+> >> > guess I don't quite understand the value of atomic then. :-/
+> >>
+> >> pool not only set the value, it also read it and make some decisions
+> >> based on that value:
+> >>
+> >>       pages_allocated += X
+> >>       if (pages_allocated >= max_pages_allocated)
+> >>               return 0;
+> >
+> 
+> I'm missing where that is?  I don't see that in this patch?
+> 
+> >
+> > I mean, suppose this happens on two CPUs
+> >
+> > max_pages_allocated is 10; current pages_allocated is 8. now you have 2 zs_malloc()
+> > happenning on two CPUs. each of them will do `pages_allocated += 1'. the problem is
+> > that both will see 10 at `if (pages_allocated >= max_pages_allocated)', so we will
+> > fail 2 operations, while we only were supposed to fail one.
+> 
+> Do you mean this from the 2/3 patch:
 
-On Wed, Aug 13, 2014 at 9:12 PM, Minchan Kim <minchan@kernel.org> wrote:
-> Normally, zram user can get maximum memory zsmalloc consumed via
-> polling mem_used_total with sysfs in userspace.
->
-> But it has a critical problem because user can miss peak memory
-> usage during update interval of polling. For avoiding that,
-> user should poll it frequently with mlocking to avoid delay
-> when memory pressure is heavy so it would be handy if the
-> kernel supports the function.
->
-> This patch adds mem_used_max via sysfs.
->
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  Documentation/blockdev/zram.txt |  1 +
->  drivers/block/zram/zram_drv.c   | 35 +++++++++++++++++++++++++++++++++--
->  drivers/block/zram/zram_drv.h   |  2 ++
->  3 files changed, 36 insertions(+), 2 deletions(-)
->
-> diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
-> index 9f239ff8c444..3b2247c2d4cf 100644
-> --- a/Documentation/blockdev/zram.txt
-> +++ b/Documentation/blockdev/zram.txt
-> @@ -107,6 +107,7 @@ size of the disk when not in use so a huge zram is wasteful.
->                 orig_data_size
->                 compr_data_size
->                 mem_used_total
-> +               mem_used_max
->
->  8) Deactivate:
->         swapoff /dev/zram0
-> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> index b48a3d0e9031..311699f18bd5 100644
-> --- a/drivers/block/zram/zram_drv.c
-> +++ b/drivers/block/zram/zram_drv.c
-> @@ -109,6 +109,30 @@ static ssize_t mem_used_total_show(struct device *dev,
->         return scnprintf(buf, PAGE_SIZE, "%llu\n", val);
->  }
->
-> +static ssize_t mem_used_max_reset(struct device *dev,
-> +               struct device_attribute *attr, const char *buf, size_t len)
+yeah. sorry for being unclear, I was really sleepy.
 
-perhaps these are local functions, but wouldn't the zs_ prefix still
-be appropriate?
-> +{
-> +       struct zram *zram = dev_to_zram(dev);
-> +
-> +       down_write(&zram->init_lock);
-> +       zram->max_used_bytes = 0;
-
-           zram->max_used_bytes = zs_get_total_size_bytes(meta->mem_pool);
-
-           (where meta is set up as below  (beyond my skill level at
-the moment)).
-
-> +       up_write(&zram->init_lock);
-> +       return len;
-> +}
-> +
-> +static ssize_t mem_used_max_show(struct device *dev,
-> +               struct device_attribute *attr, char *buf)
-> +{
-> +       u64 max_used_bytes;
-> +       struct zram *zram = dev_to_zram(dev);
-> +
-> +       down_read(&zram->init_lock);
-
-if these are atomic operations, why the (read and write) locks?
-
-> +       max_used_bytes = zram->max_used_bytes;
-> +       up_read(&zram->init_lock);
-> +
-> +       return scnprintf(buf, PAGE_SIZE, "%llu\n", max_used_bytes);
-> +}
-> +
->  static ssize_t max_comp_streams_show(struct device *dev,
->                 struct device_attribute *attr, char *buf)
->  {
-> @@ -474,6 +498,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
->         struct zram_meta *meta = zram->meta;
->         struct zcomp_strm *zstrm;
->         bool locked = false;
-> +       u64 total_bytes;
->
->         page = bvec->bv_page;
->         if (is_partial_io(bvec)) {
-> @@ -543,8 +568,8 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
->                 goto out;
+> @@ -946,6 +947,8 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+>                 set_zspage_mapping(first_page, class->index, ZS_EMPTY);
+>                 spin_lock(&pool->stat_lock);
+>                 pool->pages_allocated += class->pages_per_zspage;
+> +               if (pool->max_pages_allocated < pool->pages_allocated)
+> +                       pool->max_pages_allocated = pool->pages_allocated;
+>                 spin_unlock(&pool->stat_lock);
+>                 spin_lock(&class->lock);
 >         }
->
-> -       if (zram->limit_bytes &&
-> -               zs_get_total_size_bytes(meta->mem_pool) > zram->limit_bytes) {
-> +       total_bytes = zs_get_total_size_bytes(meta->mem_pool);
-> +       if (zram->limit_bytes && total_bytes > zram->limit_bytes) {
->                 zs_free(meta->mem_pool, handle);
->                 ret = -ENOMEM;
->                 goto out;
-> @@ -578,6 +603,8 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
->         /* Update stats */
->         atomic64_add(clen, &zram->stats.compr_data_size);
->         atomic64_inc(&zram->stats.pages_stored);
-> +
-> +       zram->max_used_bytes = max(zram->max_used_bytes, total_bytes);
->  out:
->         if (locked)
->                 zcomp_strm_release(zram->comp, zstrm);
-> @@ -656,6 +683,7 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
->         down_write(&zram->init_lock);
->
->         zram->limit_bytes = 0;
-> +       zram->max_used_bytes = 0;
->
->         if (!init_done(zram)) {
->                 up_write(&zram->init_lock);
-> @@ -897,6 +925,8 @@ static DEVICE_ATTR(initstate, S_IRUGO, initstate_show, NULL);
->  static DEVICE_ATTR(reset, S_IWUSR, NULL, reset_store);
->  static DEVICE_ATTR(orig_data_size, S_IRUGO, orig_data_size_show, NULL);
->  static DEVICE_ATTR(mem_used_total, S_IRUGO, mem_used_total_show, NULL);
-> +static DEVICE_ATTR(mem_used_max, S_IRUGO | S_IWUSR, mem_used_max_show,
-> +               mem_used_max_reset);
->  static DEVICE_ATTR(mem_limit, S_IRUGO | S_IWUSR, mem_limit_show,
->                 mem_limit_store);
->  static DEVICE_ATTR(max_comp_streams, S_IRUGO | S_IWUSR,
-> @@ -927,6 +957,7 @@ static struct attribute *zram_disk_attrs[] = {
->         &dev_attr_orig_data_size.attr,
->         &dev_attr_compr_data_size.attr,
->         &dev_attr_mem_used_total.attr,
-> +       &dev_attr_mem_used_max.attr,
->         &dev_attr_mem_limit.attr,
->         &dev_attr_max_comp_streams.attr,
->         &dev_attr_comp_algorithm.attr,
-> diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-> index 086c51782e75..aca09b18fcbd 100644
-> --- a/drivers/block/zram/zram_drv.h
-> +++ b/drivers/block/zram/zram_drv.h
-> @@ -111,6 +111,8 @@ struct zram {
->          */
->         u64 disksize;   /* bytes */
->         u64 limit_bytes;
-> +       u64 max_used_bytes;
-> +
->         int max_comp_streams;
->         struct zram_stats stats;
->         char compressor[10];
-> --
-> 2.0.0
->
+> 
+> I see, yeah the max > allocated check before setting is easiest done
+> with a spinlock.  I think pages_allocated could still be done as
+> atomic, just using atomic_add_return() to grab the current value to
+> check against, but keeping them the same type and both protected by
+> the same spinlock I guess simplifies things.  Although, if they were
+> both atomic, then the *only* place that would need a spinlock would be
+> this check - reading the (atomic) max_pages_allocated wouldn't need a
+> spinlock, nor would clearing it to 0.
+
+makes sense.
+
+	-ss
+
+> >> > >>
+> >> > >> >
+> >> > >> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> >> > >> > ---
+> >> > >> >  mm/zsmalloc.c | 30 ++++++++++++++++--------------
+> >> > >> >  1 file changed, 16 insertions(+), 14 deletions(-)
+> >> > >> >
+> >> > >> > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> >> > >> > index fe78189624cf..a6089bd26621 100644
+> >> > >> > --- a/mm/zsmalloc.c
+> >> > >> > +++ b/mm/zsmalloc.c
+> >> > >> > @@ -198,9 +198,6 @@ struct size_class {
+> >> > >> >
+> >> > >> >         spinlock_t lock;
+> >> > >> >
+> >> > >> > -       /* stats */
+> >> > >> > -       u64 pages_allocated;
+> >> > >> > -
+> >> > >> >         struct page *fullness_list[_ZS_NR_FULLNESS_GROUPS];
+> >> > >> >  };
+> >> > >> >
+> >> > >> > @@ -216,9 +213,12 @@ struct link_free {
+> >> > >> >  };
+> >> > >> >
+> >> > >> >  struct zs_pool {
+> >> > >> > +       spinlock_t stat_lock;
+> >> > >> > +
+> >> > >> >         struct size_class size_class[ZS_SIZE_CLASSES];
+> >> > >> >
+> >> > >> >         gfp_t flags;    /* allocation flags used when growing pool */
+> >> > >> > +       unsigned long pages_allocated;
+> >> > >> >  };
+> >> > >> >
+> >> > >> >  /*
+> >> > >> > @@ -882,6 +882,7 @@ struct zs_pool *zs_create_pool(gfp_t flags)
+> >> > >> >
+> >> > >> >         }
+> >> > >> >
+> >> > >> > +       spin_lock_init(&pool->stat_lock);
+> >> > >> >         pool->flags = flags;
+> >> > >> >
+> >> > >> >         return pool;
+> >> > >> > @@ -943,8 +944,10 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+> >> > >> >                         return 0;
+> >> > >> >
+> >> > >> >                 set_zspage_mapping(first_page, class->index, ZS_EMPTY);
+> >> > >> > +               spin_lock(&pool->stat_lock);
+> >> > >> > +               pool->pages_allocated += class->pages_per_zspage;
+> >> > >> > +               spin_unlock(&pool->stat_lock);
+> >> > >> >                 spin_lock(&class->lock);
+> >> > >> > -               class->pages_allocated += class->pages_per_zspage;
+> >> > >> >         }
+> >> > >> >
+> >> > >> >         obj = (unsigned long)first_page->freelist;
+> >> > >> > @@ -997,14 +1000,14 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
+> >> > >> >
+> >> > >> >         first_page->inuse--;
+> >> > >> >         fullness = fix_fullness_group(pool, first_page);
+> >> > >> > -
+> >> > >> > -       if (fullness == ZS_EMPTY)
+> >> > >> > -               class->pages_allocated -= class->pages_per_zspage;
+> >> > >> > -
+> >> > >> >         spin_unlock(&class->lock);
+> >> > >> >
+> >> > >> > -       if (fullness == ZS_EMPTY)
+> >> > >> > +       if (fullness == ZS_EMPTY) {
+> >> > >> > +               spin_lock(&pool->stat_lock);
+> >> > >> > +               pool->pages_allocated -= class->pages_per_zspage;
+> >> > >> > +               spin_unlock(&pool->stat_lock);
+> >> > >> >                 free_zspage(first_page);
+> >> > >> > +       }
+> >> > >> >  }
+> >> > >> >  EXPORT_SYMBOL_GPL(zs_free);
+> >> > >> >
+> >> > >> > @@ -1100,12 +1103,11 @@ EXPORT_SYMBOL_GPL(zs_unmap_object);
+> >> > >> >
+> >> > >> >  u64 zs_get_total_size_bytes(struct zs_pool *pool)
+> >> > >> >  {
+> >> > >> > -       int i;
+> >> > >> > -       u64 npages = 0;
+> >> > >> > -
+> >> > >> > -       for (i = 0; i < ZS_SIZE_CLASSES; i++)
+> >> > >> > -               npages += pool->size_class[i].pages_allocated;
+> >> > >> > +       u64 npages;
+> >> > >> >
+> >> > >> > +       spin_lock(&pool->stat_lock);
+> >> > >> > +       npages = pool->pages_allocated;
+> >> > >> > +       spin_unlock(&pool->stat_lock);
+> >> > >> >         return npages << PAGE_SHIFT;
+> >> > >> >  }
+> >> > >> >  EXPORT_SYMBOL_GPL(zs_get_total_size_bytes);
+> >> > >> > --
+> >> > >> > 2.0.0
+> >> > >> >
+> >> > >> > --
+> >> > >> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> >> > >> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> >> > >> > see: http://www.linux-mm.org/ .
+> >> > >> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> >> > >>
+> >> >
+> >>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
