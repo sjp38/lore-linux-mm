@@ -1,82 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 51D4B6B0035
-	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 20:13:13 -0400 (EDT)
-Received: by mail-qg0-f49.google.com with SMTP id j107so442930qga.36
-        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 17:13:13 -0700 (PDT)
-Received: from e7.ny.us.ibm.com (e7.ny.us.ibm.com. [32.97.182.137])
-        by mx.google.com with ESMTPS id u10si4678667qcc.6.2014.08.13.17.13.12
+Received: from mail-oa0-f45.google.com (mail-oa0-f45.google.com [209.85.219.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E0566B0035
+	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 20:14:34 -0400 (EDT)
+Received: by mail-oa0-f45.google.com with SMTP id i7so409537oag.18
+        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 17:14:33 -0700 (PDT)
+Received: from e37.co.us.ibm.com (e37.co.us.ibm.com. [32.97.110.158])
+        by mx.google.com with ESMTPS id os18si4842732oeb.23.2014.08.13.17.14.33
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 13 Aug 2014 17:13:12 -0700 (PDT)
+        Wed, 13 Aug 2014 17:14:33 -0700 (PDT)
 Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Wed, 13 Aug 2014 20:13:12 -0400
-Received: from b01cxnp23033.gho.pok.ibm.com (b01cxnp23033.gho.pok.ibm.com [9.57.198.28])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 0BB52C90026
-	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 20:13:01 -0400 (EDT)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by b01cxnp23033.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s7E0D8LC59834440
-	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 00:13:08 GMT
-Received: from d01av02.pok.ibm.com (localhost [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s7E0D7kq017470
-	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 20:13:08 -0400
-Date: Wed, 13 Aug 2014 17:13:01 -0700
+	Wed, 13 Aug 2014 18:14:32 -0600
+Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTPS id 4E33D19D8041
+	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 18:14:18 -0600 (MDT)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by b03cxnp08025.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s7E0ETKd23199858
+	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 02:14:29 +0200
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s7E0ESve010446
+	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 18:14:29 -0600
+Date: Wed, 13 Aug 2014 17:14:22 -0700
 From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: [RFC PATCH 0/4] Improve slab consumption with memoryless nodes
-Message-ID: <20140814001301.GI11121@linux.vnet.ibm.com>
+Subject: [RFC PATCH v3 1/4] topology: add support for node_to_mem_node() to
+ determine the fallback node
+Message-ID: <20140814001422.GJ11121@linux.vnet.ibm.com>
+References: <20140814001301.GI11121@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20140814001301.GI11121@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org
 
-Anton noticed (http://www.spinics.net/lists/linux-mm/msg67489.html) that
-on ppc LPARs with memoryless nodes, a large amount of memory was
-consumed by slabs and was marked unreclaimable. He tracked it down to
-slab deactivations in the SLUB core when we allocate remotely, leading
-to poor efficiency always when memoryless nodes are present.
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-After much discussion, Joonsoo provided a few patches that help
-significantly. They don't resolve the problem altogether:
+We need to determine the fallback node in slub allocator if the
+allocation target node is memoryless node. Without it, the SLUB wrongly
+select the node which has no memory and can't use a partial slab,
+because of node mismatch. Introduced function, node_to_mem_node(X), will
+return a node Y with memory that has the nearest distance. If X is
+memoryless node, it will return nearest distance node, but, if X is
+normal node, it will return itself.
 
- - memory hotplug still needs testing, that is when a memoryless node
-   becomes memory-ful, we want to dtrt
- - there are other reasons for going off-node than memoryless nodes,
-   e.g., fully exhausted local nodes
+We will use this function in following patch to determine the fallback
+node.
 
-Neither case is resolved with this series, but I don't think that should
-block their acceptance, as they can be explored/resolved with follow-on
-patches.
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Signed-off-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Han Pingtian <hanpt@linux.vnet.ibm.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: Anton Blanchard <anton@samba.org>
+Cc: Matt Mackall <mpm@selenic.com>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Linux Memory Management List <linux-mm@kvack.org>
+Cc: linuxppc-dev@lists.ozlabs.org
 
-The series consists of:
+---
+v2 -> v3 (Nishanth):
+  Fix declaration and definition of _node_numa_mem_.
+  s/node_numa_mem/node_to_mem_node/ as suggested by David Rientjes.
 
-[1/4] topology: add support for node_to_mem_node() to determine the fallback node
-[2/4] slub: fallback to node_to_mem_node() node if allocating on memoryless node
-
- - Joonsoo's patches to cache the nearest node with memory for each
-   NUMA node
-
-[3/4] Partial revert of 81c98869faa5 (""kthread: ensure locality of task_struct allocations")
-
- - At Tejun's request, keep the knowledge of memoryless node fallback to
-   the allocator core.
-
-[4/4] powerpc: reorder per-cpu NUMA information's initialization
-
- - Fix what appears to be a bug with when the NUMA topology information
-   is stored in the powerpc initialization code.
-
- arch/powerpc/kernel/smp.c | 12 ++++++------
- arch/powerpc/mm/numa.c    | 13 ++++++++++---
- include/linux/topology.h  | 17 +++++++++++++++++
- kernel/kthread.c          |  2 +-
- mm/page_alloc.c           |  1 +
- mm/slub.c                 | 24 ++++++++++++++++++------
- 6 files changed, 53 insertions(+), 16 deletions(-)
+diff --git a/include/linux/topology.h b/include/linux/topology.h
+index dda6ee521e74..909b6e43b694 100644
+--- a/include/linux/topology.h
++++ b/include/linux/topology.h
+@@ -119,11 +119,20 @@ static inline int numa_node_id(void)
+  * Use the accessor functions set_numa_mem(), numa_mem_id() and cpu_to_mem().
+  */
+ DECLARE_PER_CPU(int, _numa_mem_);
++extern int _node_numa_mem_[MAX_NUMNODES];
+ 
+ #ifndef set_numa_mem
+ static inline void set_numa_mem(int node)
+ {
+ 	this_cpu_write(_numa_mem_, node);
++	_node_numa_mem_[numa_node_id()] = node;
++}
++#endif
++
++#ifndef node_to_mem_node
++static inline int node_to_mem_node(int node)
++{
++	return _node_numa_mem_[node];
+ }
+ #endif
+ 
+@@ -146,6 +155,7 @@ static inline int cpu_to_mem(int cpu)
+ static inline void set_cpu_numa_mem(int cpu, int node)
+ {
+ 	per_cpu(_numa_mem_, cpu) = node;
++	_node_numa_mem_[cpu_to_node(cpu)] = node;
+ }
+ #endif
+ 
+@@ -159,6 +169,13 @@ static inline int numa_mem_id(void)
+ }
+ #endif
+ 
++#ifndef node_to_mem_node
++static inline int node_to_mem_node(int node)
++{
++	return node;
++}
++#endif
++
+ #ifndef cpu_to_mem
+ static inline int cpu_to_mem(int cpu)
+ {
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 18cee0d4c8a2..0883c42936d4 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -85,6 +85,7 @@ EXPORT_PER_CPU_SYMBOL(numa_node);
+  */
+ DEFINE_PER_CPU(int, _numa_mem_);		/* Kernel "local memory" node */
+ EXPORT_PER_CPU_SYMBOL(_numa_mem_);
++int _node_numa_mem_[MAX_NUMNODES];
+ #endif
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
