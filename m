@@ -1,91 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 95E496B0036
-	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 14:07:41 -0400 (EDT)
-Received: by mail-qc0-f172.google.com with SMTP id i8so1417891qcq.17
-        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 11:07:41 -0700 (PDT)
-Received: from mail-vc0-x235.google.com (mail-vc0-x235.google.com [2607:f8b0:400c:c03::235])
-        by mx.google.com with ESMTPS id f4si8298225qas.88.2014.08.14.11.07.41
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 275B26B0036
+	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 15:12:08 -0400 (EDT)
+Received: by mail-wg0-f50.google.com with SMTP id n12so1457310wgh.21
+        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 12:12:07 -0700 (PDT)
+Received: from mail-wi0-x236.google.com (mail-wi0-x236.google.com [2a00:1450:400c:c05::236])
+        by mx.google.com with ESMTPS id gd3si7976586wjb.50.2014.08.14.12.12.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 14 Aug 2014 11:07:41 -0700 (PDT)
-Received: by mail-vc0-f181.google.com with SMTP id lf12so1807461vcb.26
-        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 11:07:40 -0700 (PDT)
+        Thu, 14 Aug 2014 12:12:06 -0700 (PDT)
+Received: by mail-wi0-f182.google.com with SMTP id d1so2766213wiv.15
+        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 12:12:05 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20140814151329.GA22187@optiplex.redhat.com>
-References: <53E6CEAA.9020105@oracle.com>
-	<CAPAsAGxcC0+V1ZzR3LL=ASx=KXifPbw_cyvHCBBJT4mZ1grg+Q@mail.gmail.com>
-	<20140813153501.GE21041@optiplex.redhat.com>
-	<20140814151329.GA22187@optiplex.redhat.com>
-Date: Thu, 14 Aug 2014 22:07:40 +0400
-Message-ID: <CAPAsAGwk7kF6XtJNz6Y41zn0SHHzEt1Nwi_wC0gWgt0fpdp-ZQ@mail.gmail.com>
-Subject: Re: mm: compaction: buffer overflow in isolate_migratepages_range
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+In-Reply-To: <CAFdhcLQ2cU8APUP=qVQqQmWT8jouFvdSHPVsQ8RCXceaVWa4dQ@mail.gmail.com>
+References: <1407978746-20587-1-git-send-email-minchan@kernel.org>
+ <1407978746-20587-3-git-send-email-minchan@kernel.org> <CALZtONDB5q56f1TUHgqbiJ4ZaP6Yk=GcNQw9DhvLhNyExdfQ4w@mail.gmail.com>
+ <CAFdhcLQ11MnF7Py+X1wrJMiu0L15-JrV883oYGopdz1oag0njQ@mail.gmail.com> <CAFdhcLQ2cU8APUP=qVQqQmWT8jouFvdSHPVsQ8RCXceaVWa4dQ@mail.gmail.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Thu, 14 Aug 2014 15:11:45 -0400
+Message-ID: <CALZtONCSUZiNdZ12XJcSZPPOemGXyc27Fy=BKT6ZAFWwBFgu6w@mail.gmail.com>
+Subject: Re: [PATCH 3/3] zram: add mem_used_max via sysfs
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>, Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrey Ryabinin <a.ryabinin@samsung.com>
+To: David Horner <ds2horner@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>
 
-2014-08-14 19:13 GMT+04:00 Rafael Aquini <aquini@redhat.com>:
->> Yeah, it happens because I failed to anticipate a race window opening where
->> balloon_page_movable() can stumble across an anon page being released --
->> somewhere in the midway of __page_cache_release() & free_pages_prepare()
->> down on the put_page() codepath -- while isolate_migratepages_range() performs
->> its loop in the (lru) unlocked case.
+On Thu, Aug 14, 2014 at 12:23 PM, David Horner <ds2horner@gmail.com> wrote:
+> On Thu, Aug 14, 2014 at 11:32 AM, David Horner <ds2horner@gmail.com> wrote:
+>> On Thu, Aug 14, 2014 at 11:09 AM, Dan Streetman <ddstreet@ieee.org> wrote:
+>>> On Wed, Aug 13, 2014 at 9:12 PM, Minchan Kim <minchan@kernel.org> wrote:
+>>>> -       if (zram->limit_bytes &&
+>>>> -               zs_get_total_size_bytes(meta->mem_pool) > zram->limit_bytes) {
+>>>> +       total_bytes = zs_get_total_size_bytes(meta->mem_pool);
+>>>> +       if (zram->limit_bytes && total_bytes > zram->limit_bytes) {
+>>>
+>>> do you need to take the init_lock to read limit_bytes here?  It could
+>>> be getting changed between these checks...
 >>
+>> There is no real danger in freeing with an error.
+>> It is more timing than a race.
+> I probably should explain my reasoning.
 >
-> Giving it a second thought, I see my first analisys (above) isn't accurate,
-> as if we had raced against a page being released at the point I mentioned,
-> balloon_page_movable() would have bailed out while performing its
-> page_flags_cleared() checkpoint.
+> any changes between getting the total value and the limit test are not
+> problematic (From race perspective).
 >
-> But I now can see from where this occurrence is coming from, actually.
+> 1) If the actual total increases and the value returned under rates it, then
+> a) if this.total exceeds the limit - no problem it is rolled back as
+> it would if the actual total were used.
+> b) if this.total <= limit OK - as other process will be dinged (it
+> will see its own allocation)
 >
-> The real race window for this issue opens when balloon_page_movable()
-> checkpoint @ isolate_migratepages_range() stumbles across a (new)
-> page under migration at:
->
-> static int move_to_new_page(struct page *newpage, struct page *page, ...
-> {
->    ...
->    newpage->mapping = page->mapping;
->
->
-> At this point, *newpage points to a fresh page coming out from the allocator
-> (just as any other possible ballooned page), but it gets its ->mapping
-> pointer set, which can create the conditions to the access (for mapping flag
-> checking purposes only) KASAN is complaining about, if *page happens to
-> be pointing to an anon page.
->
->
->> Although harmless, IMO, as we only go for the isolation step if we hold the
->> lru lock (and the check is re-done under lock safety) this is an
->> annoying thing we have to get rid of to not defeat the purpose of having
->> the kasan in place.
->>
->
-> It still a harmless condition as before, but considering what goes above
-> I'm now convinced & confident the patch proposed by Andrey is the real fix
-> for such occurrences.
->
+> 2)  If the actual total decreases and the value returned overrates
+> rates it, then
+> a) if this.value <= limit then allocation great (actual has even more room)
+> b) if this.value > max it will be rolled back (as the other might be
+> as well) and process can compete again.
 
-I don't think that it's harmless, because we could cross page boundary here and
-try to read from a memory hole.
-And this code has more potential problems like use after free. Since
-we don't hold locks properly here,
-page->mapping could point to freed struct address_space.
+actually I wasn't thinking of total_bytes changing, i think it's ok to
+check the total at that specific point in time, for the reasons you
+point out above.
 
-We discussed this with Konstantin and he suggested a better solution for this.
-If I understood him correctly the main idea was to store bit
-identifying ballon page
-in struct page (special value in _mapcount), so we won't need to check
-mapping->flags.
+I was thinking about zram->limit_bytes changing, especially if it's
+possible to disable the limit (i.e. set it to 0), e.g.:
+
+assume currently total_bytes == 1G and limit_bytes == 2G, so there is
+not currently any danger of going over the limit.  Then:
 
 
--- 
-Best regards,
-Andrey Ryabinin
+thread 1 : if (zram->limit_bytes  ...this is true
+
+thread 2 : zram->limit_bytes = limit;    ...where limit == 0
+
+thread 1 : && total_bytes > zram->limit_bytes) {   ...this is now also true
+
+thread 1 : incorrectly return -ENOMEM failure
+
+It's very unlikely, and a single failure isn't a big deal here since
+the caller must be prepared to handle a failure.  And of course the
+compiler might reorder those checks.  And if it's not possible to
+disable the limit by setting it to 0 (besides a complete reset of the
+zram device, which wouldn't happen while this function is running),
+then there's not an issue here (although, I think being able to
+disable the limit without having to reset the zram device is useful).
+
+
+Also for setting the max_used_bytes, isn't non-atomically setting a
+u64 value dangerous (on <64 bit systems) when it's not synchronized
+between threads?
+
+That is, unless the entire zram_bvec_write() function or this section
+is already thread-safe, and i missed it (which i may have :-)
+
+
+>
+> Is there a denial of service possible if 2.b repeats indefinitely.
+> Yes, but how to set it up reliably? And it is no different than a
+> single user exhausting the limit before any other users.
+> Yes, it is potentially a live false limit exhaustion, with one process
+> requesting an amount exceeding the limit but able to be allocated.
+>  But this is no worse than the rollback load we already have at the limit.
+>
+> It would be better to check before the zs_malloc if the concern is
+> avoiding heavy processing in that function (as an optimization),  as
+> well as here.after allocation
+>
+> But I see no real race or danger doing this unlocked.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
