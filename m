@@ -1,107 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id BF6726B0035
-	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 20:57:52 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id r10so600836pdi.20
-        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 17:57:52 -0700 (PDT)
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 2913C6B0037
+	for <linux-mm@kvack.org>; Wed, 13 Aug 2014 20:57:54 -0400 (EDT)
+Received: by mail-wi0-f174.google.com with SMTP id d1so8204100wiv.7
+        for <linux-mm@kvack.org>; Wed, 13 Aug 2014 17:57:53 -0700 (PDT)
 Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id mv6si2678864pdb.235.2014.08.13.17.57.50
+        by mx.google.com with ESMTP id s4si4007286wjy.12.2014.08.13.17.57.51
         for <linux-mm@kvack.org>;
-        Wed, 13 Aug 2014 17:57:51 -0700 (PDT)
+        Wed, 13 Aug 2014 17:57:52 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH 1/2] zsmalloc: move pages_allocated to zs_pool
-Date: Thu, 14 Aug 2014 09:57:56 +0900
-Message-Id: <1407977877-18185-1-git-send-email-minchan@kernel.org>
+Subject: [PATCH 2/2] zram: limit memory size for zram
+Date: Thu, 14 Aug 2014 09:57:57 +0900
+Message-Id: <1407977877-18185-2-git-send-email-minchan@kernel.org>
+In-Reply-To: <1407977877-18185-1-git-send-email-minchan@kernel.org>
+References: <1407977877-18185-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Dan Streetman <ddstreet@ieee.org>, ds2horner@gmail.com, Minchan Kim <minchan@kernel.org>
 
-Pages_allocated has counted in size_class structure and when user
-want to see total_size_bytes, it gathers all of value from each
-size_class to report the sum.
+Since zram has no control feature to limit memory usage,
+it makes hard to manage system memrory.
 
-It's not bad if user don't see the value often but if user start
-to see the value frequently, it would be not a good deal for
-performance POV.
+This patch adds new knob "mem_limit" via sysfs to set up the
+limit.
 
-Even, this patch moves the variable from size_class to zs_pool
-so it reduces memory footprint (from [255 * 8byte] to
-[sizeof(atomic_t)]) but it introduce new atomic opearation
-but it's not a big deal because atomic operation is called on
-slow path of zsmalloc where it allocates/free zspage unit,
-not object.
+Note: I added the logic in zram, not zsmalloc because the limit
+is requirement of zram, not zsmalloc so I'd like to avoid
+unnecessary branch in zsmalloc.
 
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- mm/zsmalloc.c | 21 +++++++--------------
- 1 file changed, 7 insertions(+), 14 deletions(-)
+ Documentation/blockdev/zram.txt | 20 +++++++++++++++----
+ drivers/block/zram/zram_drv.c   | 43 +++++++++++++++++++++++++++++++++++++++++
+ drivers/block/zram/zram_drv.h   |  1 +
+ 3 files changed, 60 insertions(+), 4 deletions(-)
 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 4e2fc83cb394..2f21ea8921dc 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -199,9 +199,6 @@ struct size_class {
+diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
+index 0595c3f56ccf..9f239ff8c444 100644
+--- a/Documentation/blockdev/zram.txt
++++ b/Documentation/blockdev/zram.txt
+@@ -74,14 +74,26 @@ There is little point creating a zram of greater than twice the size of memory
+ since we expect a 2:1 compression ratio. Note that zram uses about 0.1% of the
+ size of the disk when not in use so a huge zram is wasteful.
  
- 	spinlock_t lock;
+-5) Activate:
++5) Set memory limit: Optional
++	Set memory limit by writing the value to sysfs node 'mem_limit'.
++	The value can be either in bytes or you can use mem suffixes.
++	Examples:
++	    # limit /dev/zram0 with 50MB memory
++	    echo $((50*1024*1024)) > /sys/block/zram0/mem_limit
++
++	    # Using mem suffixes
++	    echo 256K > /sys/block/zram0/mem_limit
++	    echo 512M > /sys/block/zram0/mem_limit
++	    echo 1G > /sys/block/zram0/mem_limit
++
++6) Activate:
+ 	mkswap /dev/zram0
+ 	swapon /dev/zram0
  
--	/* stats */
--	u64 pages_allocated;
--
- 	struct page *fullness_list[_ZS_NR_FULLNESS_GROUPS];
- };
+ 	mkfs.ext4 /dev/zram1
+ 	mount /dev/zram1 /tmp
  
-@@ -220,6 +217,7 @@ struct zs_pool {
- 	struct size_class size_class[ZS_SIZE_CLASSES];
+-6) Stats:
++7) Stats:
+ 	Per-device statistics are exported as various nodes under
+ 	/sys/block/zram<id>/
+ 		disksize
+@@ -96,11 +108,11 @@ size of the disk when not in use so a huge zram is wasteful.
+ 		compr_data_size
+ 		mem_used_total
  
- 	gfp_t flags;	/* allocation flags used when growing pool */
-+	atomic_t pages_allocated;
- };
+-7) Deactivate:
++8) Deactivate:
+ 	swapoff /dev/zram0
+ 	umount /dev/zram1
  
- /*
-@@ -1027,8 +1025,8 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
- 			return 0;
- 
- 		set_zspage_mapping(first_page, class->index, ZS_EMPTY);
-+		atomic_add(class->pages_per_zspage, &pool->pages_allocated);
- 		spin_lock(&class->lock);
--		class->pages_allocated += class->pages_per_zspage;
- 	}
- 
- 	obj = (unsigned long)first_page->freelist;
-@@ -1081,14 +1079,12 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
- 
- 	first_page->inuse--;
- 	fullness = fix_fullness_group(pool, first_page);
--
--	if (fullness == ZS_EMPTY)
--		class->pages_allocated -= class->pages_per_zspage;
--
- 	spin_unlock(&class->lock);
- 
--	if (fullness == ZS_EMPTY)
-+	if (fullness == ZS_EMPTY) {
-+		atomic_sub(class->pages_per_zspage, &pool->pages_allocated);
- 		free_zspage(first_page);
-+	}
+-8) Reset:
++9) Reset:
+ 	Write any positive value to 'reset' sysfs node
+ 	echo 1 > /sys/block/zram0/reset
+ 	echo 1 > /sys/block/zram1/reset
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index d00831c3d731..b48a3d0e9031 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -122,6 +122,35 @@ static ssize_t max_comp_streams_show(struct device *dev,
+ 	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
  }
- EXPORT_SYMBOL_GPL(zs_free);
  
-@@ -1184,12 +1180,9 @@ EXPORT_SYMBOL_GPL(zs_unmap_object);
- 
- u64 zs_get_total_size_bytes(struct zs_pool *pool)
++static ssize_t mem_limit_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	u64 val;
++	struct zram *zram = dev_to_zram(dev);
++
++	down_read(&zram->init_lock);
++	val = zram->limit_bytes;
++	up_read(&zram->init_lock);
++
++	return scnprintf(buf, PAGE_SIZE, "%llu\n", val);
++}
++
++static ssize_t mem_limit_store(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t len)
++{
++	u64 limit;
++	struct zram *zram = dev_to_zram(dev);
++
++	limit = memparse(buf, NULL);
++	if (!limit)
++		return -EINVAL;
++
++	down_write(&zram->init_lock);
++	zram->limit_bytes = limit;
++	up_write(&zram->init_lock);
++	return len;
++}
++
+ static ssize_t max_comp_streams_store(struct device *dev,
+ 		struct device_attribute *attr, const char *buf, size_t len)
  {
--	int i;
--	u64 npages = 0;
--
--	for (i = 0; i < ZS_SIZE_CLASSES; i++)
--		npages += pool->size_class[i].pages_allocated;
-+	u64 npages;
+@@ -513,6 +542,14 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+ 		ret = -ENOMEM;
+ 		goto out;
+ 	}
++
++	if (zram->limit_bytes &&
++		zs_get_total_size_bytes(meta->mem_pool) > zram->limit_bytes) {
++		zs_free(meta->mem_pool, handle);
++		ret = -ENOMEM;
++		goto out;
++	}
++
+ 	cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_WO);
  
-+	npages = atomic_read(&pool->pages_allocated);
- 	return npages << PAGE_SHIFT;
- }
- EXPORT_SYMBOL_GPL(zs_get_total_size_bytes);
+ 	if ((clen == PAGE_SIZE) && !is_partial_io(bvec)) {
+@@ -617,6 +654,9 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+ 	struct zram_meta *meta;
+ 
+ 	down_write(&zram->init_lock);
++
++	zram->limit_bytes = 0;
++
+ 	if (!init_done(zram)) {
+ 		up_write(&zram->init_lock);
+ 		return;
+@@ -857,6 +897,8 @@ static DEVICE_ATTR(initstate, S_IRUGO, initstate_show, NULL);
+ static DEVICE_ATTR(reset, S_IWUSR, NULL, reset_store);
+ static DEVICE_ATTR(orig_data_size, S_IRUGO, orig_data_size_show, NULL);
+ static DEVICE_ATTR(mem_used_total, S_IRUGO, mem_used_total_show, NULL);
++static DEVICE_ATTR(mem_limit, S_IRUGO | S_IWUSR, mem_limit_show,
++		mem_limit_store);
+ static DEVICE_ATTR(max_comp_streams, S_IRUGO | S_IWUSR,
+ 		max_comp_streams_show, max_comp_streams_store);
+ static DEVICE_ATTR(comp_algorithm, S_IRUGO | S_IWUSR,
+@@ -885,6 +927,7 @@ static struct attribute *zram_disk_attrs[] = {
+ 	&dev_attr_orig_data_size.attr,
+ 	&dev_attr_compr_data_size.attr,
+ 	&dev_attr_mem_used_total.attr,
++	&dev_attr_mem_limit.attr,
+ 	&dev_attr_max_comp_streams.attr,
+ 	&dev_attr_comp_algorithm.attr,
+ 	NULL,
+diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+index e0f725c87cc6..086c51782e75 100644
+--- a/drivers/block/zram/zram_drv.h
++++ b/drivers/block/zram/zram_drv.h
+@@ -110,6 +110,7 @@ struct zram {
+ 	 * we can store in a disk.
+ 	 */
+ 	u64 disksize;	/* bytes */
++	u64 limit_bytes;
+ 	int max_comp_streams;
+ 	struct zram_stats stats;
+ 	char compressor[10];
 -- 
 2.0.0
 
