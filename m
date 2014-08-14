@@ -1,147 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id F15906B0035
-	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 09:07:17 -0400 (EDT)
-Received: by mail-wi0-f180.google.com with SMTP id n3so2261970wiv.13
-        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 06:07:17 -0700 (PDT)
-Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
-        by mx.google.com with ESMTPS id hk5si6313175wjb.112.2014.08.14.06.07.15
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 14 Aug 2014 06:07:15 -0700 (PDT)
-Received: by mail-we0-f175.google.com with SMTP id t60so1071306wes.20
-        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 06:07:15 -0700 (PDT)
-Message-ID: <53ECB480.4060104@plexistor.com>
-Date: Thu, 14 Aug 2014 16:07:12 +0300
-From: Boaz Harrosh <boaz@plexistor.com>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id B1E396B0035
+	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 09:16:56 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lf10so1629733pab.29
+        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 06:16:56 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id gz9si4191605pbc.144.2014.08.14.06.16.55
+        for <linux-mm@kvack.org>;
+        Thu, 14 Aug 2014 06:16:55 -0700 (PDT)
+Date: Thu, 14 Aug 2014 09:16:32 -0400
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [RFC 5/9] SQUASHME: prd: Last fixes for partitions
+Message-ID: <20140814131632.GF6754@linux.intel.com>
+References: <53EB5536.8020702@gmail.com>
+ <53EB5709.4090401@plexistor.com>
+ <53ECB3F5.9020001@plexistor.com>
 MIME-Version: 1.0
-Subject: [PATCH 5/9 v2] SQUASHME: prd: Last fixes for partitions
-References: <53EB5536.8020702@gmail.com> <53EB5709.4090401@plexistor.com>
-In-Reply-To: <53EB5709.4090401@plexistor.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53ECB3F5.9020001@plexistor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>, Sagi Manole <sagi@plexistor.com>, Yigal Korman <yigal@plexistor.com>
+To: Boaz Harrosh <boaz@plexistor.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Sagi Manole <sagi@plexistor.com>, Yigal Korman <yigal@plexistor.com>
 
-From: Boaz Harrosh <boaz@plexistor.com>
+On Thu, Aug 14, 2014 at 04:04:53PM +0300, Boaz Harrosh wrote:
+> > @@ -218,13 +218,13 @@ static long prd_direct_access(struct block_device *bdev, sector_t sector,
+> >  {
+> >  	struct prd_device *prd = bdev->bd_disk->private_data;
+> >  
+> > -	if (!prd)
+> > +	if (unlikely(!prd))
+> >  		return -ENODEV;
+> >  
+> >  	*kaddr = prd_lookup_pg_addr(prd, sector);
+> >  	*pfn = prd_lookup_pfn(prd, sector);
+> >  
+> > -	return size;
+> > +	return min_t(long, size, prd->size);
+> 
+> This is off course a BUG need to subtract offset, will send version 2
 
-This streamlines prd with the latest brd code.
+I was wondering about simplifying the return value for the drivers
+a little.  Something like this:
 
-In prd we do not allocate new devices dynamically on devnod
-access, because we need parameterization of each device. So
-the dynamic allocation in prd_init_one is removed.
-
-Therefor prd_init_one only called from prd_prob is moved
-there, now that it is small.
-
-And other small fixes regarding partitions
-
-Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
----
- drivers/block/prd.c | 47 ++++++++++++++++++++++++-----------------------
- 1 file changed, 24 insertions(+), 23 deletions(-)
-
+diff --git a/arch/powerpc/sysdev/axonram.c b/arch/powerpc/sysdev/axonram.c
+index 741293f..8709b9f 100644
+--- a/arch/powerpc/sysdev/axonram.c
++++ b/arch/powerpc/sysdev/axonram.c
+@@ -149,7 +149,7 @@ axon_ram_direct_access(struct block_device *device, sector_t sector,
+ 	*kaddr = (void *)(bank->ph_addr + offset);
+ 	*pfn = virt_to_phys(*kaddr) >> PAGE_SHIFT;
+ 
+-	return min_t(long, size, bank->size - offset);
++	return bank->size - offset;
+ }
+ 
+ static const struct block_device_operations axon_ram_devops = {
+diff --git a/drivers/block/brd.c b/drivers/block/brd.c
+index 3483458..344681a 100644
+--- a/drivers/block/brd.c
++++ b/drivers/block/brd.c
+@@ -384,9 +384,9 @@ static long brd_direct_access(struct block_device *bdev, sector_t sector,
+ 	*kaddr = page_address(page);
+ 	*pfn = page_to_pfn(page);
+ 
+-	/* Could optimistically check to see if the next page in the
+-	 * file is mapped to the next page of physical RAM */
+-	return min_t(long, PAGE_SIZE, size);
++	/* If size > PAGE_SIZE, we could look to see if the next page in the
++	 * file happens to be mapped to the next page of physical RAM */
++	return PAGE_SIZE;
+ }
+ #else
+ #define brd_direct_access NULL
 diff --git a/drivers/block/prd.c b/drivers/block/prd.c
-index 62af81e..f117ca5 100644
+index cc0aabf..1cfbd5b 100644
 --- a/drivers/block/prd.c
 +++ b/drivers/block/prd.c
-@@ -218,13 +218,13 @@ static long prd_direct_access(struct block_device *bdev, sector_t sector,
- {
- 	struct prd_device *prd = bdev->bd_disk->private_data;
- 
--	if (!prd)
-+	if (unlikely(!prd))
- 		return -ENODEV;
- 
+@@ -216,7 +216,7 @@ static long prd_direct_access(struct block_device *bdev, sector_t sector,
  	*kaddr = prd_lookup_pg_addr(prd, sector);
  	*pfn = prd_lookup_pfn(prd, sector);
  
 -	return size;
-+	return min_t(long, size, prd->size - (sector << SECTOR_SHIFT));
++	return size - (sector * 512);
  }
  
  static const struct block_device_operations prd_fops = {
-@@ -279,6 +279,12 @@ static struct prd_device *prd_alloc(int i)
- 	blk_queue_max_hw_sectors(prd->prd_queue, 1024);
- 	blk_queue_bounce_limit(prd->prd_queue, BLK_BOUNCE_ANY);
+diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
+index 2ee5556..96bc411 100644
+--- a/drivers/s390/block/dcssblk.c
++++ b/drivers/s390/block/dcssblk.c
+@@ -881,7 +881,7 @@ dcssblk_direct_access (struct block_device *bdev, sector_t secnum,
+ 	*kaddr = (void *) (dev_info->start + offset);
+ 	*pfn = virt_to_phys(*kaddr) >> PAGE_SHIFT;
  
-+	/* This is so fdisk will align partitions on 4k, because of
-+	 * direct_access API needing 4k alignment, returning a PFN
-+	 */
-+	blk_queue_physical_block_size(prd->prd_queue, PAGE_SIZE);
-+	prd->prd_queue->limits.io_min = 512; /* Don't use the accessor */
-+
- 	disk = prd->prd_disk = alloc_disk(0);
- 	if (!disk)
- 		goto out_free_queue;
-@@ -308,24 +314,6 @@ static void prd_free(struct prd_device *prd)
- 	kfree(prd);
+-	return min_t(long, size, dev_sz - offset);
++	return dev_sz - offset;
  }
  
--static struct prd_device *prd_init_one(int i)
--{
--	struct prd_device *prd;
--
--	list_for_each_entry(prd, &prd_devices, prd_list) {
--		if (prd->prd_number == i)
--			goto out;
--	}
--
--	prd = prd_alloc(i);
--	if (prd) {
--		add_disk(prd->prd_disk);
--		list_add_tail(&prd->prd_list, &prd_devices);
--	}
--out:
--	return prd;
--}
--
- static void prd_del_one(struct prd_device *prd)
+ static void
+diff --git a/fs/block_dev.c b/fs/block_dev.c
+index 93ebdd53..ce3e69c 100644
+--- a/fs/block_dev.c
++++ b/fs/block_dev.c
+@@ -447,6 +447,7 @@ EXPORT_SYMBOL_GPL(bdev_write_page);
+ long bdev_direct_access(struct block_device *bdev, sector_t sector,
+ 			void **addr, unsigned long *pfn, long size)
  {
- 	list_del(&prd->prd_list);
-@@ -333,16 +321,27 @@ static void prd_del_one(struct prd_device *prd)
- 	prd_free(prd);
++	long max;
+ 	const struct block_device_operations *ops = bdev->bd_disk->fops;
+ 	if (!ops->direct_access)
+ 		return -EOPNOTSUPP;
+@@ -456,8 +457,10 @@ long bdev_direct_access(struct block_device *bdev, sector_t sector,
+ 	sector += get_start_sect(bdev);
+ 	if (sector % (PAGE_SIZE / 512))
+ 		return -EINVAL;
+-	size = ops->direct_access(bdev, sector, addr, pfn, size);
+-	return size ? size : -ERANGE;
++	max = ops->direct_access(bdev, sector, addr, pfn, size);
++	if (!max)
++		return -ERANGE;
++	return min(max, size);
  }
+ EXPORT_SYMBOL_GPL(bdev_direct_access);
  
-+/*FIXME: Actually in our driver prd_probe is never used. Can be removed */
- static struct kobject *prd_probe(dev_t dev, int *part, void *data)
- {
- 	struct prd_device *prd;
- 	struct kobject *kobj;
-+	int number = MINOR(dev);
- 
- 	mutex_lock(&prd_devices_mutex);
--	prd = prd_init_one(MINOR(dev));
--	kobj = prd ? get_disk(prd->prd_disk) : NULL;
--	mutex_unlock(&prd_devices_mutex);
- 
-+	list_for_each_entry(prd, &prd_devices, prd_list) {
-+		if (prd->prd_number == number) {
-+			kobj = get_disk(prd->prd_disk);
-+			goto out;
-+		}
-+	}
-+
-+	pr_err("prd: prd_probe: Unexpected parameter=%d\n", number);
-+	kobj = NULL;
-+
-+out:
-+	mutex_unlock(&prd_devices_mutex);
- 	return kobj;
- }
- 
-@@ -424,5 +423,7 @@ static void __exit prd_exit(void)
- 
- MODULE_AUTHOR("Ross Zwisler <ross.zwisler@linux.intel.com>");
- MODULE_LICENSE("GPL");
-+MODULE_ALIAS("pmem");
-+
- module_init(prd_init);
- module_exit(prd_exit);
--- 
-1.9.3
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
