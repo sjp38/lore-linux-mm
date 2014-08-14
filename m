@@ -1,140 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 9712F6B0039
-	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 16:07:40 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id y10so2146829pdj.14
-        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 13:07:40 -0700 (PDT)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id kb10si5226844pbc.5.2014.08.14.13.07.39
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id E18966B0038
+	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 16:13:01 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id fa1so2249347pad.13
+        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 13:13:01 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id yp8si5216063pac.193.2014.08.14.13.13.00
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 14 Aug 2014 13:07:39 -0700 (PDT)
-Received: by mail-pa0-f44.google.com with SMTP id eu11so2233844pac.31
-        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 13:07:39 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CALZtONCSUZiNdZ12XJcSZPPOemGXyc27Fy=BKT6ZAFWwBFgu6w@mail.gmail.com>
-References: <1407978746-20587-1-git-send-email-minchan@kernel.org>
-	<1407978746-20587-3-git-send-email-minchan@kernel.org>
-	<CALZtONDB5q56f1TUHgqbiJ4ZaP6Yk=GcNQw9DhvLhNyExdfQ4w@mail.gmail.com>
-	<CAFdhcLQ11MnF7Py+X1wrJMiu0L15-JrV883oYGopdz1oag0njQ@mail.gmail.com>
-	<CAFdhcLQ2cU8APUP=qVQqQmWT8jouFvdSHPVsQ8RCXceaVWa4dQ@mail.gmail.com>
-	<CALZtONCSUZiNdZ12XJcSZPPOemGXyc27Fy=BKT6ZAFWwBFgu6w@mail.gmail.com>
-Date: Thu, 14 Aug 2014 16:07:39 -0400
-Message-ID: <CAFdhcLQ+LrVyqeBeXf++sV2RddBn2Rn6w7ZRX1szU+XW8+SPXA@mail.gmail.com>
-Subject: Re: [PATCH 3/3] zram: add mem_used_max via sysfs
-From: David Horner <ds2horner@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Aug 2014 13:13:00 -0700 (PDT)
+Date: Thu, 14 Aug 2014 13:12:59 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: linux-next: Tree for Aug 14 (mm/memory_hotplug.c and
+ drivers/base/memory.c)
+Message-Id: <20140814131259.0e56829123ba1123bbe1685a@linux-foundation.org>
+In-Reply-To: <53ECCF7E.2090305@infradead.org>
+References: <20140814152749.24d43663@canb.auug.org.au>
+	<53ECCF7E.2090305@infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Linux MM <linux-mm@kvack.org>, Zhang Zhen <zhenzhang.zhang@huawei.com>
 
-On Thu, Aug 14, 2014 at 3:11 PM, Dan Streetman <ddstreet@ieee.org> wrote:
-> On Thu, Aug 14, 2014 at 12:23 PM, David Horner <ds2horner@gmail.com> wrote:
->> On Thu, Aug 14, 2014 at 11:32 AM, David Horner <ds2horner@gmail.com> wrote:
->>> On Thu, Aug 14, 2014 at 11:09 AM, Dan Streetman <ddstreet@ieee.org> wrote:
->>>> On Wed, Aug 13, 2014 at 9:12 PM, Minchan Kim <minchan@kernel.org> wrote:
->>>>> -       if (zram->limit_bytes &&
->>>>> -               zs_get_total_size_bytes(meta->mem_pool) > zram->limit_bytes) {
->>>>> +       total_bytes = zs_get_total_size_bytes(meta->mem_pool);
->>>>> +       if (zram->limit_bytes && total_bytes > zram->limit_bytes) {
->>>>
->>>> do you need to take the init_lock to read limit_bytes here?  It could
->>>> be getting changed between these checks...
->>>
->>> There is no real danger in freeing with an error.
->>> It is more timing than a race.
->> I probably should explain my reasoning.
->>
->> any changes between getting the total value and the limit test are not
->> problematic (From race perspective).
->>
->> 1) If the actual total increases and the value returned under rates it, then
->> a) if this.total exceeds the limit - no problem it is rolled back as
->> it would if the actual total were used.
->> b) if this.total <= limit OK - as other process will be dinged (it
->> will see its own allocation)
->>
->> 2)  If the actual total decreases and the value returned overrates
->> rates it, then
->> a) if this.value <= limit then allocation great (actual has even more room)
->> b) if this.value > max it will be rolled back (as the other might be
->> as well) and process can compete again.
->
+On Thu, 14 Aug 2014 08:02:22 -0700 Randy Dunlap <rdunlap@infradead.org> wrote:
 
-for completeness I should have mentioned the normal decrease case of
-deallocation
-and not roll back.
-(and of course it is also not a problem and does not race).
+> On 08/13/14 22:27, Stephen Rothwell wrote:
+> > Hi all,
+> > 
+> > Please do not add code intended for v3.18 until after v3.17-rc1 is
+> > released.
+> > 
+> > Changes since 20140813:
+> > 
+> 
+> on x86_64:
+> 
+> drivers/built-in.o: In function `show_zones_online_to':
+> memory.c:(.text+0x13f306): undefined reference to `test_pages_in_a_zone'
+> 
+> in drivers/base/memory.c
+> 
+> when CONFIG_MEMORY_HOTREMOVE is not enabled.
+> 
+> The function implementation in mm/memory_hotplug.c is only built if
+> CONFIG_MEMORY_HOTREMOVE is enabled.
 
-Are these typical situations in documentation folder
-(I know the related memory barriers is)
-It would be so much better to say scenario 23 is a potential problem
-rather than rewriting the essays.
+Thanks.   This way, I suppose.
 
-
-> actually I wasn't thinking of total_bytes changing, i think it's ok to
-> check the total at that specific point in time, for the reasons you
-> point out above.
->
-> I was thinking about zram->limit_bytes changing, especially if it's
-> possible to disable the limit (i.e. set it to 0), e.g.:
->
-> assume currently total_bytes == 1G and limit_bytes == 2G, so there is
-> not currently any danger of going over the limit.  Then:
->
->
-> thread 1 : if (zram->limit_bytes  ...this is true
->
-> thread 2 : zram->limit_bytes = limit;    ...where limit == 0
->
-> thread 1 : && total_bytes > zram->limit_bytes) {   ...this is now also true
->
-> thread 1 : incorrectly return -ENOMEM failure
->
-> It's very unlikely, and a single failure isn't a big deal here since
-> the caller must be prepared to handle a failure.  And of course the
-> compiler might reorder those checks.  And if it's not possible to
-> disable the limit by setting it to 0 (besides a complete reset of the
-> zram device, which wouldn't happen while this function is running),
-> then there's not an issue here (although, I think being able to
-> disable the limit without having to reset the zram device is useful).
-
-agreed on 7 of 8 assertions
- (not yet sure about reset not happening while function running).
-
-That issue then arises in [PATCH 2/2] zram: limit memory size for zram
-and as you mention reordering the zero check after the limit comparison
-in the if statement could be reordered by the compiler
-
-As I see it this is also a timing issue - as you explained, and not a race.
-
-Perhaps we name it scenario 24?
-
-And especially I agree with allowing zero limit reset without device reset.
-The equivalent is currently possible (for all practical purposes)
-anyway by setting
-the limit to max_u64.
-So allowing zero is cleaner.
-
-
->
->
-> Also for setting the max_used_bytes, isn't non-atomically setting a
-> u64 value dangerous (on <64 bit systems) when it's not synchronized
-> between threads?
-
-perhaps it needs an atomic function - I will think some more on it.
-
->
-> That is, unless the entire zram_bvec_write() function or this section
-> is already thread-safe, and i missed it (which i may have :-)
-
-nor have I.checked.(on the to do).
-
->
->
->>
+--- a/drivers/base/memory.c~memory-hotplug-add-sysfs-zones_online_to-attribute-fix-2
++++ a/drivers/base/memory.c
+@@ -373,6 +373,7 @@ static ssize_t show_phys_device(struct d
+ 	return sprintf(buf, "%d\n", mem->phys_device);
+ }
+ 
++#ifdef CONFIG_MEMORY_HOTREMOVE
+ static int __zones_online_to(unsigned long end_pfn,
+ 				struct page *first_page, unsigned long nr_pages)
+ {
+@@ -432,12 +433,13 @@ static ssize_t show_zones_online_to(stru
+ 
+ 	return sprintf(buf, "%s\n", zone->name);
+ }
++static DEVICE_ATTR(zones_online_to, 0444, show_zones_online_to, NULL);
++#endif
+ 
+ static DEVICE_ATTR(phys_index, 0444, show_mem_start_phys_index, NULL);
+ static DEVICE_ATTR(state, 0644, show_mem_state, store_mem_state);
+ static DEVICE_ATTR(phys_device, 0444, show_phys_device, NULL);
+ static DEVICE_ATTR(removable, 0444, show_mem_removable, NULL);
+-static DEVICE_ATTR(zones_online_to, 0444, show_zones_online_to, NULL);
+ 
+ /*
+  * Block size attribute stuff
+@@ -584,7 +586,9 @@ static struct attribute *memory_memblk_a
+ 	&dev_attr_state.attr,
+ 	&dev_attr_phys_device.attr,
+ 	&dev_attr_removable.attr,
++#ifdef CONFIG_MEMORY_HOTREMOVE
+ 	&dev_attr_zones_online_to.attr,
++#endif
+ 	NULL
+ };
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
