@@ -1,91 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
-	by kanga.kvack.org (Postfix) with ESMTP id BE3136B0072
-	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 12:12:47 -0400 (EDT)
-Received: by mail-la0-f52.google.com with SMTP id b17so1351193lan.39
-        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 09:12:46 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c2si8709165lac.0.2014.08.14.09.12.45
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 532D46B0036
+	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 12:23:25 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id fa1so1885596pad.41
+        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 09:23:24 -0700 (PDT)
+Received: from mail-pd0-x230.google.com (mail-pd0-x230.google.com [2607:f8b0:400e:c02::230])
+        by mx.google.com with ESMTPS id ne2si4683213pbc.71.2014.08.14.09.23.24
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 14 Aug 2014 09:12:46 -0700 (PDT)
-Date: Thu, 14 Aug 2014 18:12:44 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 1/4] mm: memcontrol: reduce reclaim invocations for
- higher order requests
-Message-ID: <20140814161244.GC19405@dhcp22.suse.cz>
-References: <1407186897-21048-1-git-send-email-hannes@cmpxchg.org>
- <1407186897-21048-2-git-send-email-hannes@cmpxchg.org>
- <20140807130822.GB12730@dhcp22.suse.cz>
- <20140807153141.GD14734@cmpxchg.org>
- <20140808123258.GK4004@dhcp22.suse.cz>
- <20140808132635.GJ14734@cmpxchg.org>
- <20140813145904.GC2775@dhcp22.suse.cz>
- <20140813204134.GA20932@cmpxchg.org>
+        Thu, 14 Aug 2014 09:23:24 -0700 (PDT)
+Received: by mail-pd0-f176.google.com with SMTP id y10so1830872pdj.35
+        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 09:23:23 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140813204134.GA20932@cmpxchg.org>
+In-Reply-To: <CAFdhcLQ11MnF7Py+X1wrJMiu0L15-JrV883oYGopdz1oag0njQ@mail.gmail.com>
+References: <1407978746-20587-1-git-send-email-minchan@kernel.org>
+	<1407978746-20587-3-git-send-email-minchan@kernel.org>
+	<CALZtONDB5q56f1TUHgqbiJ4ZaP6Yk=GcNQw9DhvLhNyExdfQ4w@mail.gmail.com>
+	<CAFdhcLQ11MnF7Py+X1wrJMiu0L15-JrV883oYGopdz1oag0njQ@mail.gmail.com>
+Date: Thu, 14 Aug 2014 12:23:23 -0400
+Message-ID: <CAFdhcLQ2cU8APUP=qVQqQmWT8jouFvdSHPVsQ8RCXceaVWa4dQ@mail.gmail.com>
+Subject: Re: [PATCH 3/3] zram: add mem_used_max via sysfs
+From: David Horner <ds2horner@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>
 
-On Wed 13-08-14 16:41:34, Johannes Weiner wrote:
-> On Wed, Aug 13, 2014 at 04:59:04PM +0200, Michal Hocko wrote:
-[...]
-> > I think this shows up that my concern about excessive reclaim and stalls
-> > is real and it is worse when the memory is used sparsely. It is true it
-> > might help when the whole THP section is used and so the additional cost
-> > is amortized but the more sparsely each THP section is used the higher
-> > overhead you are adding without userspace actually asking for it.
-> 
-> THP is expected to have some overhead in terms of initial fault cost
+On Thu, Aug 14, 2014 at 11:32 AM, David Horner <ds2horner@gmail.com> wrote:
+> On Thu, Aug 14, 2014 at 11:09 AM, Dan Streetman <ddstreet@ieee.org> wrote:
+>> On Wed, Aug 13, 2014 at 9:12 PM, Minchan Kim <minchan@kernel.org> wrote:
+>>> -       if (zram->limit_bytes &&
+>>> -               zs_get_total_size_bytes(meta->mem_pool) > zram->limit_bytes) {
+>>> +       total_bytes = zs_get_total_size_bytes(meta->mem_pool);
+>>> +       if (zram->limit_bytes && total_bytes > zram->limit_bytes) {
+>>
+>> do you need to take the init_lock to read limit_bytes here?  It could
+>> be getting changed between these checks...
+>
+> There is no real danger in freeing with an error.
+> It is more timing than a race.
+I probably should explain my reasoning.
 
-yes, but that overhead should be as small as possible. Direct reclaim
-with such a big target will lead to all types of problems.
+any changes between getting the total value and the limit test are not
+problematic (From race perspective).
 
-> and space efficiency, don't use it when you get little to no benefit
-> from it. 
+1) If the actual total increases and the value returned under rates it, then
+a) if this.total exceeds the limit - no problem it is rolled back as
+it would if the actual total were used.
+b) if this.total <= limit OK - as other process will be dinged (it
+will see its own allocation)
 
-Do you really expect that all such users will use MADV_NOHUGEPAGE just
-to prevent from reclaim stalls? This sounds unrealistic to me. Instead
-we will end up with THP disabled globally. The same way we have seen it
-when THP has been introduced and caused all kinds of reclaim issues.
+2)  If the actual total decreases and the value returned overrates
+rates it, then
+a) if this.value <= limit then allocation great (actual has even more room)
+b) if this.value > max it will be rolled back (as the other might be
+as well) and process can compete again.
 
-> It can be argued that my patch moves that breakeven point a
-> little bit, but the THP-positive end of the spectrum is much better
-> off: THP coverage goes from 37% to 100%, while reclaim efficiency is
-> significantly improved and system time significantly reduced.
+Is there a denial of service possible if 2.b repeats indefinitely.
+Yes, but how to set it up reliably? And it is no different than a
+single user exhausting the limit before any other users.
+Yes, it is potentially a live false limit exhaustion, with one process
+requesting an amount exceeding the limit but able to be allocated.
+ But this is no worse than the rollback load we already have at the limit.
 
-I didn't see significantly improved reclaim efficiency the only
-difference was that the reclaim happen less times.
-The system time is reduced but the elapsed time is less than 1% improved
-in the per-page walk but more than 3 times worse for the other extreme.
+It would be better to check before the zs_malloc if the concern is
+avoiding heavy processing in that function (as an optimization),  as
+well as here.after allocation
 
-> You demonstrated a THP-workload that really benefits from my change,
-> and another workload that shouldn't be using THP in the first place.
-
-I do not think that the presented test case is appropriate for any
-reclaim decision evaluation. Linear used-once walker usually benefits
-from excessive reclaim in general.
-The only point I wanted to raise is that the numbers look much worse
-when the memory is used sparsely and thponly is the obvious worst case.
-
-So if you want to increase THP charge success rate then back it by real
-numbers from real loads and prove that the potential regressions are
-unlikely and biased by the overall improvements. Until then NACK to this
-patch from me. The change is too risky.
-
-Besides that I do believe that you do not need this change for the high
-limit as it can fail the charge for excessive THP charges same like the
-hard limit. So you do not have the high limit escape problem.
-As mentioned in other email, reclaiming the whole high limit excess as a
-target is even more risky because heavy parallel load on many CPUs can
-cause large excess and direct reclaim much more than 512 pages.
--- 
-Michal Hocko
-SUSE Labs
+But I see no real race or danger doing this unlocked.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
