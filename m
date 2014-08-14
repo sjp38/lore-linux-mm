@@ -1,64 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 652A46B0038
-	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 16:07:10 -0400 (EDT)
-Received: by mail-ig0-f177.google.com with SMTP id hn18so6124293igb.4
-        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 13:07:10 -0700 (PDT)
-Received: from e32.co.us.ibm.com (e32.co.us.ibm.com. [32.97.110.150])
-        by mx.google.com with ESMTPS id l3si11774055igx.12.2014.08.14.13.07.09
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 9712F6B0039
+	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 16:07:40 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id y10so2146829pdj.14
+        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 13:07:40 -0700 (PDT)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id kb10si5226844pbc.5.2014.08.14.13.07.39
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 14 Aug 2014 13:07:09 -0700 (PDT)
-Received: from /spool/local
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Thu, 14 Aug 2014 14:07:08 -0600
-Received: from b03cxnp08028.gho.boulder.ibm.com (b03cxnp08028.gho.boulder.ibm.com [9.17.130.20])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 7755B19D8041
-	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 14:06:54 -0600 (MDT)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by b03cxnp08028.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s7EK75mi19005504
-	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 22:07:05 +0200
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s7EK74Bt013515
-	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 14:07:05 -0600
-Date: Thu, 14 Aug 2014 13:06:56 -0700
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH v3 1/4] topology: add support for node_to_mem_node()
- to determine the fallback node
-Message-ID: <20140814200656.GP11121@linux.vnet.ibm.com>
-References: <20140814001301.GI11121@linux.vnet.ibm.com>
- <20140814001422.GJ11121@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1408140934290.25902@gentwo.org>
+        Thu, 14 Aug 2014 13:07:39 -0700 (PDT)
+Received: by mail-pa0-f44.google.com with SMTP id eu11so2233844pac.31
+        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 13:07:39 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1408140934290.25902@gentwo.org>
+In-Reply-To: <CALZtONCSUZiNdZ12XJcSZPPOemGXyc27Fy=BKT6ZAFWwBFgu6w@mail.gmail.com>
+References: <1407978746-20587-1-git-send-email-minchan@kernel.org>
+	<1407978746-20587-3-git-send-email-minchan@kernel.org>
+	<CALZtONDB5q56f1TUHgqbiJ4ZaP6Yk=GcNQw9DhvLhNyExdfQ4w@mail.gmail.com>
+	<CAFdhcLQ11MnF7Py+X1wrJMiu0L15-JrV883oYGopdz1oag0njQ@mail.gmail.com>
+	<CAFdhcLQ2cU8APUP=qVQqQmWT8jouFvdSHPVsQ8RCXceaVWa4dQ@mail.gmail.com>
+	<CALZtONCSUZiNdZ12XJcSZPPOemGXyc27Fy=BKT6ZAFWwBFgu6w@mail.gmail.com>
+Date: Thu, 14 Aug 2014 16:07:39 -0400
+Message-ID: <CAFdhcLQ+LrVyqeBeXf++sV2RddBn2Rn6w7ZRX1szU+XW8+SPXA@mail.gmail.com>
+Subject: Re: [PATCH 3/3] zram: add mem_used_max via sysfs
+From: David Horner <ds2horner@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>
 
-On 14.08.2014 [09:35:37 -0500], Christoph Lameter wrote:
-> On Wed, 13 Aug 2014, Nishanth Aravamudan wrote:
-> 
-> > +++ b/include/linux/topology.h
-> > @@ -119,11 +119,20 @@ static inline int numa_node_id(void)
-> >   * Use the accessor functions set_numa_mem(), numa_mem_id() and cpu_to_mem().
-> >   */
-> >  DECLARE_PER_CPU(int, _numa_mem_);
-> > +extern int _node_numa_mem_[MAX_NUMNODES];
-> 
-> Why are these variables starting with an _ ?
-> Maybe _numa_mem was defined that way because it is typically not defined.
-> We dont do this in other situations.
+On Thu, Aug 14, 2014 at 3:11 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+> On Thu, Aug 14, 2014 at 12:23 PM, David Horner <ds2horner@gmail.com> wrote:
+>> On Thu, Aug 14, 2014 at 11:32 AM, David Horner <ds2horner@gmail.com> wrote:
+>>> On Thu, Aug 14, 2014 at 11:09 AM, Dan Streetman <ddstreet@ieee.org> wrote:
+>>>> On Wed, Aug 13, 2014 at 9:12 PM, Minchan Kim <minchan@kernel.org> wrote:
+>>>>> -       if (zram->limit_bytes &&
+>>>>> -               zs_get_total_size_bytes(meta->mem_pool) > zram->limit_bytes) {
+>>>>> +       total_bytes = zs_get_total_size_bytes(meta->mem_pool);
+>>>>> +       if (zram->limit_bytes && total_bytes > zram->limit_bytes) {
+>>>>
+>>>> do you need to take the init_lock to read limit_bytes here?  It could
+>>>> be getting changed between these checks...
+>>>
+>>> There is no real danger in freeing with an error.
+>>> It is more timing than a race.
+>> I probably should explain my reasoning.
+>>
+>> any changes between getting the total value and the limit test are not
+>> problematic (From race perspective).
+>>
+>> 1) If the actual total increases and the value returned under rates it, then
+>> a) if this.total exceeds the limit - no problem it is rolled back as
+>> it would if the actual total were used.
+>> b) if this.total <= limit OK - as other process will be dinged (it
+>> will see its own allocation)
+>>
+>> 2)  If the actual total decreases and the value returned overrates
+>> rates it, then
+>> a) if this.value <= limit then allocation great (actual has even more room)
+>> b) if this.value > max it will be rolled back (as the other might be
+>> as well) and process can compete again.
+>
 
-That's how it was in Joonsoo's patch and I was trying to minimize the
-changes from his version (beyond making it compile). I can of course
-update it to not have a prefixing _ if that's preferred.
+for completeness I should have mentioned the normal decrease case of
+deallocation
+and not roll back.
+(and of course it is also not a problem and does not race).
 
-Thanks,
-Nish
+Are these typical situations in documentation folder
+(I know the related memory barriers is)
+It would be so much better to say scenario 23 is a potential problem
+rather than rewriting the essays.
+
+
+> actually I wasn't thinking of total_bytes changing, i think it's ok to
+> check the total at that specific point in time, for the reasons you
+> point out above.
+>
+> I was thinking about zram->limit_bytes changing, especially if it's
+> possible to disable the limit (i.e. set it to 0), e.g.:
+>
+> assume currently total_bytes == 1G and limit_bytes == 2G, so there is
+> not currently any danger of going over the limit.  Then:
+>
+>
+> thread 1 : if (zram->limit_bytes  ...this is true
+>
+> thread 2 : zram->limit_bytes = limit;    ...where limit == 0
+>
+> thread 1 : && total_bytes > zram->limit_bytes) {   ...this is now also true
+>
+> thread 1 : incorrectly return -ENOMEM failure
+>
+> It's very unlikely, and a single failure isn't a big deal here since
+> the caller must be prepared to handle a failure.  And of course the
+> compiler might reorder those checks.  And if it's not possible to
+> disable the limit by setting it to 0 (besides a complete reset of the
+> zram device, which wouldn't happen while this function is running),
+> then there's not an issue here (although, I think being able to
+> disable the limit without having to reset the zram device is useful).
+
+agreed on 7 of 8 assertions
+ (not yet sure about reset not happening while function running).
+
+That issue then arises in [PATCH 2/2] zram: limit memory size for zram
+and as you mention reordering the zero check after the limit comparison
+in the if statement could be reordered by the compiler
+
+As I see it this is also a timing issue - as you explained, and not a race.
+
+Perhaps we name it scenario 24?
+
+And especially I agree with allowing zero limit reset without device reset.
+The equivalent is currently possible (for all practical purposes)
+anyway by setting
+the limit to max_u64.
+So allowing zero is cleaner.
+
+
+>
+>
+> Also for setting the max_used_bytes, isn't non-atomically setting a
+> u64 value dangerous (on <64 bit systems) when it's not synchronized
+> between threads?
+
+perhaps it needs an atomic function - I will think some more on it.
+
+>
+> That is, unless the entire zram_bvec_write() function or this section
+> is already thread-safe, and i missed it (which i may have :-)
+
+nor have I.checked.(on the to do).
+
+>
+>
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
