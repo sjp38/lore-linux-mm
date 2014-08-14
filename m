@@ -1,210 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DFCC6B0036
-	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 10:46:00 -0400 (EDT)
-Received: by mail-wi0-f173.google.com with SMTP id f8so9063561wiw.6
-        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 07:45:59 -0700 (PDT)
-Received: from mail-we0-x229.google.com (mail-we0-x229.google.com [2a00:1450:400c:c03::229])
-        by mx.google.com with ESMTPS id up7si3801312wjc.90.2014.08.14.07.45.58
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 052DA6B0036
+	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 11:02:27 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id et14so1774333pad.37
+        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 08:02:27 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id dh3si4481354pdb.125.2014.08.14.08.02.26
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 14 Aug 2014 07:45:59 -0700 (PDT)
-Received: by mail-we0-f169.google.com with SMTP id u56so1213203wes.0
-        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 07:45:58 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Aug 2014 08:02:26 -0700 (PDT)
+Message-ID: <53ECCF7E.2090305@infradead.org>
+Date: Thu, 14 Aug 2014 08:02:22 -0700
+From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20140813232719.GD9227@bbox>
-References: <1407225723-23754-1-git-send-email-minchan@kernel.org>
- <1407225723-23754-4-git-send-email-minchan@kernel.org> <20140805094859.GE27993@bbox>
- <20140805131615.GA961@swordfish> <20140813232719.GD9227@bbox>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Thu, 14 Aug 2014 10:45:37 -0400
-Message-ID: <CALZtONB-wLOp75fhv2_QoSrcg3CDkj_Zd_sRhfRiUH=czwbuog@mail.gmail.com>
-Subject: Re: [RFC 3/3] zram: limit memory size for zram
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: linux-next: Tree for Aug 14 (mm/memory_hotplug.c and drivers/base/memory.c)
+References: <20140814152749.24d43663@canb.auug.org.au>
+In-Reply-To: <20140814152749.24d43663@canb.auug.org.au>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Linux-MM <linux-mm@kvack.org>, Jerome Marchand <jmarchan@redhat.com>, linux-kernel <linux-kernel@vger.kernel.org>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>
+To: Stephen Rothwell <sfr@canb.auug.org.au>, linux-next@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Aug 13, 2014 at 7:27 PM, Minchan Kim <minchan@kernel.org> wrote:
-> Hey Sergey,
->
-> On Tue, Aug 05, 2014 at 10:16:15PM +0900, Sergey Senozhatsky wrote:
->> Hello,
->>
->> On (08/05/14 18:48), Minchan Kim wrote:
->> > Another idea: we could define void zs_limit_mem(unsinged long nr_pages)
->> > in zsmalloc and put the limit in zs_pool via new API from zram so that
->> > zs_malloc could be failed as soon as it exceeds the limit.
->> >
->> > In the end, zram doesn't need to call zs_get_total_size_bytes on every
->> > write. It's more clean and right layer, IMHO.
->>
->> yes, I think this one is better.
->
-> Although I suggested this new one, a few days ago I changed the decision
-> and was testing the new patchset.
->
-> If we add new API for zsmalloc, it adds unnecessary overhead for users who
-> doesn't care of limit. Although it's cheap, I'd like to avoid that.
->
-> The zsmalloc is just allocator so anybody can use it if they want.
-> But limitation is just requirement of zram who is a one of client
-> being able to use zsmalloc potentially so accouting should be on zram,
-> not zsmalloc.
->
-> If we might have more users of zsmalloc in future and they all want this
-> feature that limit of zsmalloc memory usage, we might move the feature
-> from client to zsmalloc core so everybody would be happy for performance
-> and readability but opposite would be painful.
->
-> In summary, let's keep the accounting logic in client side of zsmalloc(ie,
-> zram) at the moment but we could move it into zsmalloc core possibly
-> in future.
->
-> Any thoughts?
+On 08/13/14 22:27, Stephen Rothwell wrote:
+> Hi all,
+> 
+> Please do not add code intended for v3.18 until after v3.17-rc1 is
+> released.
+> 
+> Changes since 20140813:
+> 
 
-I agree - the limit is useful, and right now is better to put in zram.
+on x86_64:
 
-Moving it into zsmalloc (and zbud, and zpool) should be possible in
-the future, if it makes sense, although it may be more complicated
-since different users might want different ways of controlling it -
-e.g. zram may want a hard limit of Xmb, while zswap currently wants a
-% of total mem limit.
+drivers/built-in.o: In function `show_zones_online_to':
+memory.c:(.text+0x13f306): undefined reference to `test_pages_in_a_zone'
 
->
->>
->>       -ss
->>
->> > On Tue, Aug 05, 2014 at 05:02:03PM +0900, Minchan Kim wrote:
->> > > I have received a request several time from zram users.
->> > > They want to limit memory size for zram because zram can consume
->> > > lot of memory on system without limit so it makes memory management
->> > > control hard.
->> > >
->> > > This patch adds new knob to limit memory of zram.
->> > >
->> > > Signed-off-by: Minchan Kim <minchan@kernel.org>
->> > > ---
->> > >  Documentation/blockdev/zram.txt |  1 +
->> > >  drivers/block/zram/zram_drv.c   | 41 +++++++++++++++++++++++++++++++++++++++++
->> > >  drivers/block/zram/zram_drv.h   |  1 +
->> > >  3 files changed, 43 insertions(+)
->> > >
->> > > diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
->> > > index d24534bee763..fcb0561dfe2e 100644
->> > > --- a/Documentation/blockdev/zram.txt
->> > > +++ b/Documentation/blockdev/zram.txt
->> > > @@ -96,6 +96,7 @@ size of the disk when not in use so a huge zram is wasteful.
->> > >           compr_data_size
->> > >           mem_used_total
->> > >           mem_used_max
->> > > +         mem_limit
->> > >
->> > >  7) Deactivate:
->> > >   swapoff /dev/zram0
->> > > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
->> > > index a4d637b4db7d..47f68bbb2c44 100644
->> > > --- a/drivers/block/zram/zram_drv.c
->> > > +++ b/drivers/block/zram/zram_drv.c
->> > > @@ -137,6 +137,37 @@ static ssize_t max_comp_streams_show(struct device *dev,
->> > >   return scnprintf(buf, PAGE_SIZE, "%d\n", val);
->> > >  }
->> > >
->> > > +static ssize_t mem_limit_show(struct device *dev,
->> > > +         struct device_attribute *attr, char *buf)
->> > > +{
->> > > + u64 val;
->> > > + struct zram *zram = dev_to_zram(dev);
->> > > +
->> > > + down_read(&zram->init_lock);
->> > > + val = zram->limit_bytes;
->> > > + up_read(&zram->init_lock);
->> > > +
->> > > + return scnprintf(buf, PAGE_SIZE, "%llu\n", val);
->> > > +}
->> > > +
->> > > +static ssize_t mem_limit_store(struct device *dev,
->> > > +         struct device_attribute *attr, const char *buf, size_t len)
->> > > +{
->> > > + u64 limit;
->> > > + struct zram *zram = dev_to_zram(dev);
->> > > + int ret;
->> > > +
->> > > + ret = kstrtoull(buf, 0, &limit);
->> > > + if (ret < 0)
->> > > +         return ret;
->> > > +
->> > > + down_write(&zram->init_lock);
->> > > + zram->limit_bytes = limit;
->> > > + ret = len;
->> > > + up_write(&zram->init_lock);
->> > > + return ret;
->> > > +}
->> > > +
->> > >  static ssize_t max_comp_streams_store(struct device *dev,
->> > >           struct device_attribute *attr, const char *buf, size_t len)
->> > >  {
->> > > @@ -511,6 +542,14 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
->> > >           ret = -ENOMEM;
->> > >           goto out;
->> > >   }
->> > > +
->> > > + if (zram->limit_bytes &&
->> > > +         zs_get_total_size_bytes(meta->mem_pool) >= zram->limit_bytes) {
->> > > +         zs_free(meta->mem_pool, handle);
->> > > +         ret = -ENOMEM;
->> > > +         goto out;
->> > > + }
->> > > +
->> > >   cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_WO);
->> > >
->> > >   if ((clen == PAGE_SIZE) && !is_partial_io(bvec)) {
->> > > @@ -854,6 +893,7 @@ static DEVICE_ATTR(reset, S_IWUSR, NULL, reset_store);
->> > >  static DEVICE_ATTR(orig_data_size, S_IRUGO, orig_data_size_show, NULL);
->> > >  static DEVICE_ATTR(mem_used_total, S_IRUGO, mem_used_total_show, NULL);
->> > >  static DEVICE_ATTR(mem_used_max, S_IRUGO, mem_used_max_show, NULL);
->> > > +static DEVICE_ATTR(mem_limit, S_IRUGO, mem_limit_show, mem_limit_store);
->> > >  static DEVICE_ATTR(max_comp_streams, S_IRUGO | S_IWUSR,
->> > >           max_comp_streams_show, max_comp_streams_store);
->> > >  static DEVICE_ATTR(comp_algorithm, S_IRUGO | S_IWUSR,
->> > > @@ -883,6 +923,7 @@ static struct attribute *zram_disk_attrs[] = {
->> > >   &dev_attr_compr_data_size.attr,
->> > >   &dev_attr_mem_used_total.attr,
->> > >   &dev_attr_mem_used_max.attr,
->> > > + &dev_attr_mem_limit.attr,
->> > >   &dev_attr_max_comp_streams.attr,
->> > >   &dev_attr_comp_algorithm.attr,
->> > >   NULL,
->> > > diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
->> > > index 7f21c145e317..c0d497ff6efc 100644
->> > > --- a/drivers/block/zram/zram_drv.h
->> > > +++ b/drivers/block/zram/zram_drv.h
->> > > @@ -99,6 +99,7 @@ struct zram {
->> > >    * we can store in a disk.
->> > >    */
->> > >   u64 disksize;   /* bytes */
->> > > + u64 limit_bytes;
->> > >   int max_comp_streams;
->> > >   struct zram_stats stats;
->> > >   char compressor[10];
->> > > --
->> > > 2.0.0
->> >
->> > --
->> > Kind regards,
->> > Minchan Kim
->> >
->
-> --
-> Kind regards,
-> Minchan Kim
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+in drivers/base/memory.c
+
+when CONFIG_MEMORY_HOTREMOVE is not enabled.
+
+The function implementation in mm/memory_hotplug.c is only built if
+CONFIG_MEMORY_HOTREMOVE is enabled.
+
+
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
