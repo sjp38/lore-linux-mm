@@ -1,289 +1,411 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 737586B0036
-	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 18:53:05 -0400 (EDT)
-Received: by mail-qg0-f41.google.com with SMTP id q107so1651529qgd.0
-        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 15:53:05 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u1si9370519qaf.95.2014.08.14.15.53.03
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AA1C6B0036
+	for <linux-mm@kvack.org>; Thu, 14 Aug 2014 23:17:54 -0400 (EDT)
+Received: by mail-ob0-f169.google.com with SMTP id nu7so1641545obb.14
+        for <linux-mm@kvack.org>; Thu, 14 Aug 2014 20:17:54 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id si8si11075755obc.102.2014.08.14.20.17.51
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Aug 2014 15:53:04 -0700 (PDT)
-Date: Thu, 14 Aug 2014 19:07:05 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: mm: compaction: buffer overflow in isolate_migratepages_range
-Message-ID: <20140814220704.GB26367@optiplex.redhat.com>
-References: <CAPAsAGwk7kF6XtJNz6Y41zn0SHHzEt1Nwi_wC0gWgt0fpdp-ZQ@mail.gmail.com>
- <26c3333933769e4f9d1ed6226962a2f80719146b.1408050002.git.aquini@redhat.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 14 Aug 2014 20:17:53 -0700 (PDT)
+Message-ID: <53ED7AC1.502@huawei.com>
+Date: Fri, 15 Aug 2014 11:13:05 +0800
+From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <26c3333933769e4f9d1ed6226962a2f80719146b.1408050002.git.aquini@redhat.com>
+Subject: Re: [PATCH -mm] slab: fix cpuset check in fallback_alloc
+References: <1407692891-24312-1-git-send-email-vdavydov@parallels.com> <alpine.DEB.2.02.1408101512500.706@chino.kir.corp.google.com> <20140811071315.GA18709@esperanza> <alpine.DEB.2.02.1408110433140.15519@chino.kir.corp.google.com> <20140811121739.GB18709@esperanza> <alpine.DEB.2.02.1408111354330.24240@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1408111354330.24240@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ryabinin.a.a@gmail.com
-Cc: koct9i@gmail.com, sasha.levin@oracle.com, akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, mgorman@suse.de, iamjoonsoo.kim@lge.com, davej@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, a.ryabinin@samsung.com, lwoodman@redhat.com, riel@redhat.com, jweiner@redhat.com
+To: David Rientjes <rientjes@google.com>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu, Aug 14, 2014 at 06:43:50PM -0300, Rafael Aquini wrote:
-> On Thu, Aug 14, 2014 at 10:07:40PM +0400, Andrey Ryabinin wrote:
-> > We discussed this with Konstantin and he suggested a better solution for this.
-> > If I understood him correctly the main idea was to store bit
-> > identifying ballon page
-> > in struct page (special value in _mapcount), so we won't need to check
-> > mapping->flags.
-> >
+On 2014/8/12 5:05, David Rientjes wrote:
+> On Mon, 11 Aug 2014, Vladimir Davydov wrote:
 > 
-> Here goes what I thought doing, following that suggestion of Konstantin and yours. (I didn't tested it yet)
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -1963,7 +1963,7 @@ zonelist_scan:
+>>>  
+>>>  	/*
+>>>  	 * Scan zonelist, looking for a zone with enough free.
+>>> -	 * See also __cpuset_node_allowed_softwall() comment in kernel/cpuset.c.
+>>> +	 * See __cpuset_node_allowed() comment in kernel/cpuset.c.
+>>>  	 */
+>>>  	for_each_zone_zonelist_nodemask(zone, z, zonelist,
+>>>  						high_zoneidx, nodemask) {
+>>> @@ -1974,7 +1974,7 @@ zonelist_scan:
+>>>  				continue;
+>>>  		if (cpusets_enabled() &&
+>>>  			(alloc_flags & ALLOC_CPUSET) &&
+>>> -			!cpuset_zone_allowed_softwall(zone, gfp_mask))
+>>> +			!cpuset_zone_allowed(zone, gfp_mask))
+>>>  				continue;
+>>
+>> So, this is get_page_from_freelist. It's called from
+>> __alloc_pages_nodemask with alloc_flags always having ALLOC_CPUSET bit
+>> set and from __alloc_pages_slowpath with alloc_flags having ALLOC_CPUSET
+>> bit set only for __GFP_WAIT allocations. That said, w/o your patch we
+>> try to respect cpusets for all allocations, including atomic, and only
+>> ignore cpusets if tight on memory (freelist's empty) for !__GFP_WAIT
+>> allocations, while with your patch we always ignore cpusets for
+>> !__GFP_WAIT allocations. Not sure if it really matters though, because
+>> usually one uses cpuset.mems in conjunction with cpuset.cpus and it
+>> won't make any difference then. It also doesn't conflict with any cpuset
+>> documentation.
+>>
 > 
-> Comments are welcomed.
-> 
-> Cheers,
-> -- Rafael
-> 
-> ---- 8< ----
-> From: Rafael Aquini <aquini@redhat.com>
-> Subject: mm: balloon_compaction: enhance balloon_page_movable() checkpoint against races
-> 
-> While testing linux-next for the Kernel Address Sanitizer patchset (KASAN) 
-> Sasha Levin reported a buffer overflow warning triggered for 
-> isolate_migratepages_range(), which lated was discovered happening due to
-> a condition where balloon_page_movable() raced against move_to_new_page(),
-> while the later was copying the page->mapping of an anon page.
-> 
-> Because we can perform balloon_page_movable() in a lockless fashion at 
-> isolate_migratepages_range(), the dicovered race has unveiled the scheme 
-> actually used to spot ballooned pages among page blocks that checks for
-> page_flags_cleared() and dereference page->mapping to check its mapping flags
-> is weak and potentially prone to stumble across another similar conditions 
-> in the future.
-> 
-> Following Konstantin Khlebnikov's and Andrey Ryabinin's suggestions,
-> this patch replaces the old page->flags && mapping->flags checking scheme
-> with a more simple and strong page->_mapcount read and compare value test.
-> Similarly to what is done for PageBuddy() checks, BALLOON_PAGE_MAPCOUNT_VALUE
-> is introduced here to mark balloon pages. This allows balloon_page_movable()
-> to skip the proven troublesome dereference of page->mapping for flag checking
-> while it goes on isolate_migratepages_range() lockless rounds.
-> page->mapping dereference and flag-checking will be performed later, when
-> all locks are held properly.
-> 
-> ---
->  include/linux/balloon_compaction.h | 61 +++++++++++---------------------------
->  mm/balloon_compaction.c            | 53 +++++++++++++++++----------------
->  2 files changed, 45 insertions(+), 69 deletions(-)
-> 
-> diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
-> index 089743a..1409ccc 100644
-> --- a/include/linux/balloon_compaction.h
-> +++ b/include/linux/balloon_compaction.h
-> @@ -108,54 +108,29 @@ static inline void balloon_mapping_free(struct address_space *balloon_mapping)
->  }
->  
->  /*
-> - * page_flags_cleared - helper to perform balloon @page ->flags tests.
-> + * balloon_page_movable - identify balloon pages that can be moved by
-> + *			  compaction / migration.
->   *
-> - * As balloon pages are obtained from buddy and we do not play with page->flags
-> - * at driver level (exception made when we get the page lock for compaction),
-> - * we can safely identify a ballooned page by checking if the
-> - * PAGE_FLAGS_CHECK_AT_PREP page->flags are all cleared.  This approach also
-> - * helps us skip ballooned pages that are locked for compaction or release, thus
-> - * mitigating their racy check at balloon_page_movable()
-> + * BALLOON_PAGE_MAPCOUNT_VALUE must be <= -2 but better not too close to
-> + * -2 so that an underflow of the page_mapcount() won't be mistaken
-> + * for a genuine BALLOON_PAGE_MAPCOUNT_VALUE.
->   */
-> -static inline bool page_flags_cleared(struct page *page)
-> +#define BALLOON_PAGE_MAPCOUNT_VALUE (-256)
-> +static inline bool balloon_page_movable(struct page *page)
->  {
-> -	return !(page->flags & PAGE_FLAGS_CHECK_AT_PREP);
-> +	return atomic_read(&page->_mapcount) == BALLOON_PAGE_MAPCOUNT_VALUE;
->  }
->  
-> -/*
-> - * __is_movable_balloon_page - helper to perform @page mapping->flags tests
-> - */
-> -static inline bool __is_movable_balloon_page(struct page *page)
-> +static inline void __balloon_page_set(struct page *page)
->  {
-> -	struct address_space *mapping = page->mapping;
-> -	return mapping_balloon(mapping);
-> +	VM_BUG_ON_PAGE(!atomic_read(&page->_mapcount) != -1, page);
-> +	atomic_set(&page->_mapcount, BALLOON_PAGE_MAPCOUNT_VALUE);
->  }
->  
-> -/*
-> - * balloon_page_movable - test page->mapping->flags to identify balloon pages
-> - *			  that can be moved by compaction/migration.
-> - *
-> - * This function is used at core compaction's page isolation scheme, therefore
-> - * most pages exposed to it are not enlisted as balloon pages and so, to avoid
-> - * undesired side effects like racing against __free_pages(), we cannot afford
-> - * holding the page locked while testing page->mapping->flags here.
-> - *
-> - * As we might return false positives in the case of a balloon page being just
-> - * released under us, the page->mapping->flags need to be re-tested later,
-> - * under the proper page lock, at the functions that will be coping with the
-> - * balloon page case.
-> - */
-> -static inline bool balloon_page_movable(struct page *page)
-> +static inline void __balloon_page_clear(struct page *page)
->  {
-> -	/*
-> -	 * Before dereferencing and testing mapping->flags, let's make sure
-> -	 * this is not a page that uses ->mapping in a different way
-> -	 */
-> -	if (page_flags_cleared(page) && !page_mapped(page) &&
-> -	    page_count(page) == 1)
-> -		return __is_movable_balloon_page(page);
-> -
-> -	return false;
-> +	VM_BUG_ON_PAGE(!balloon_page_movable(page), page)
-> +	atomic_set(&page->_mapcount, -1);
->  }
->  
->  /*
-> @@ -170,10 +145,8 @@ static inline bool balloon_page_movable(struct page *page)
->   */
->  static inline bool isolated_balloon_page(struct page *page)
->  {
-> -	/* Already isolated balloon pages, by default, have a raised refcount */
-> -	if (page_flags_cleared(page) && !page_mapped(page) &&
-> -	    page_count(page) >= 2)
-> -		return __is_movable_balloon_page(page);
-> +	if (balloon_page_movable && page_count(page) > 1)
-> +		return true;
->  
->  	return false;
->  }
-> @@ -193,6 +166,7 @@ static inline void balloon_page_insert(struct page *page,
->  				       struct list_head *head)
->  {
->  	page->mapping = mapping;
-> +	__balloon_page_set(page);
->  	list_add(&page->lru, head);
->  }
->  
-> @@ -207,6 +181,7 @@ static inline void balloon_page_insert(struct page *page,
->  static inline void balloon_page_delete(struct page *page)
->  {
->  	page->mapping = NULL;
-> +	__balloon_page_clear(page);
->  	list_del(&page->lru);
->  }
->  
-> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
-> index 6e45a50..1cfb254 100644
-> --- a/mm/balloon_compaction.c
-> +++ b/mm/balloon_compaction.c
-> @@ -220,33 +220,32 @@ bool balloon_page_isolate(struct page *page)
->  	 * raise its refcount preventing __free_pages() from doing its job
->  	 * the put_page() at the end of this block will take care of
->  	 * release this page, thus avoiding a nasty leakage.
-> +	 *
-> +	 * As balloon pages are not isolated from LRU lists, concurrent
-> +	 * compaction threads can race against page migration functions
-> +	 * as well as race against the balloon driver releasing a page.
-> +	 * The aforementioned operations are done under the safety of
-> +	 * page lock, so lets be sure we hold it before proceeding the
-> +	 * isolations steps here.
->  	 */
-> -	if (likely(get_page_unless_zero(page))) {
-> +	if (get_page_unless_zero(page) && trylock_page(page)) {
-Oops, I need to change this one, as we can left behind pages with raised
-refcounts if get_page_unless_zero(page) but trylock_page(page) fails
-here.
+> Yeah, that's why I'm asking Li, the cpuset maintainer, if we can do this.  
 
+I'm not quite sure. That code has been there before I got involved in cpuset.
 
->  		/*
-> -		 * As balloon pages are not isolated from LRU lists, concurrent
-> -		 * compaction threads can race against page migration functions
-> -		 * as well as race against the balloon driver releasing a page.
-> -		 *
-> -		 * In order to avoid having an already isolated balloon page
-> -		 * being (wrongly) re-isolated while it is under migration,
-> -		 * or to avoid attempting to isolate pages being released by
-> -		 * the balloon driver, lets be sure we have the page lock
-> -		 * before proceeding with the balloon page isolation steps.
-> +		 * A ballooned page, by default, has just one refcount.
-> +		 * Prevent concurrent compaction threads from isolating
-> +		 * an already isolated balloon page by refcount check.
->  		 */
-> -		if (likely(trylock_page(page))) {
-> -			/*
-> -			 * A ballooned page, by default, has just one refcount.
-> -			 * Prevent concurrent compaction threads from isolating
-> -			 * an already isolated balloon page by refcount check.
-> -			 */
-> -			if (__is_movable_balloon_page(page) &&
-> -			    page_count(page) == 2) {
-> +		if (balloon_page_movable(page) && page_count(page) == 2) {
-> +			struct address_space *mapping = page_mapping(page);
-> +			if (likely(mapping_balloon(mapping))) {
->  				__isolate_balloon_page(page);
->  				unlock_page(page);
->  				return true;
-> +			} else {
-> +				dump_page(page, "not movable balloon page");
-> +				WARN_ON(1);
->  			}
-> -			unlock_page(page);
->  		}
-> +		unlock_page(page);
->  		put_page(page);
->  	}
->  	return false;
-> @@ -255,19 +254,21 @@ bool balloon_page_isolate(struct page *page)
->  /* putback_lru_page() counterpart for a ballooned page */
->  void balloon_page_putback(struct page *page)
->  {
-> +	struct address_space *mapping;
->  	/*
->  	 * 'lock_page()' stabilizes the page and prevents races against
->  	 * concurrent isolation threads attempting to re-isolate it.
->  	 */
->  	lock_page(page);
->  
-> -	if (__is_movable_balloon_page(page)) {
-> +	mapping = page_mapping(page);
-> +	if (balloon_page_movable(page) && mapping_balloon(mapping)) {
->  		__putback_balloon_page(page);
->  		/* drop the extra ref count taken for page isolation */
->  		put_page(page);
->  	} else {
-> -		WARN_ON(1);
->  		dump_page(page, "not movable balloon page");
-> +		WARN_ON(1);
->  	}
->  	unlock_page(page);
->  }
-> @@ -286,16 +287,16 @@ int balloon_page_migrate(struct page *newpage,
->  	 */
->  	BUG_ON(!trylock_page(newpage));
->  
-> -	if (WARN_ON(!__is_movable_balloon_page(page))) {
-> +	mapping = page_mapping(page);
-> +	if (!(balloon_page_movable(page) && mapping_balloon(mapping))) {
->  		dump_page(page, "not movable balloon page");
-> -		unlock_page(newpage);
-> -		return rc;
-> +		WARN_ON(1);
-> +		goto out;
->  	}
->  
-> -	mapping = page->mapping;
->  	if (mapping)
->  		rc = __migrate_balloon_page(mapping, newpage, page, mode);
-> -
-> +out:
->  	unlock_page(newpage);
->  	return rc;
->  }
-> -- 
-> 1.9.3
-> 
+> The only thing that we get by falling back to the page allocator slowpath 
+> is that kswapd gets woken up before the allocation is attempted without 
+> ALLOC_CPUSET.  It seems pointless to wakeup kswapd when the allocation can 
+> succeed on any node.  Even with the patch, if the allocation fails because 
+> all nodes are below their min watermark, then we still fallback to the 
+> slowpath and wake up kswapd but there's nothing much else we can do 
+> because it's !__GFP_WAIT.
+> .
+
+But I tend to agree with you. But if we want to do this, we should split this
+change from the cleanup.
+
+Regarding to the cleanup, I found there used to be a single cpuset_node_allowed(),
+and your cleanup is exactly a revert of that ancient commit:
+
+commit 02a0e53d8227aff5e62e0433f82c12c1c2805fd6
+Author: Paul Jackson <pj@sgi.com>
+Date:   Wed Dec 13 00:34:25 2006 -0800
+
+    [PATCH] cpuset: rework cpuset_zone_allowed api
+
+Seems the major intention was to avoid accident sleep-in-atomic bugs, because
+callback_mutex might be held.
+
+I don't see there's any reason callback_mutex can't be a spinlock. I thought
+about this when Gu Zhen fixed the bug that callback_mutex is nested inside
+rcu_read_lock().
+
+--
+ kernel/cpuset.c | 81 ++++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 49 insertions(+), 32 deletions(-)
+diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+index baa155c..9d9e239 100644
+--- a/kernel/cpuset.c
++++ b/kernel/cpuset.c
+@@ -284,7 +284,7 @@ static struct cpuset top_cpuset = {
+  */
+ 
+ static DEFINE_MUTEX(cpuset_mutex);
+-static DEFINE_MUTEX(callback_mutex);
++static DEFINE_SPINLOCK(callback_lock);
+ 
+ /*
+  * CPU / memory hotplug is handled asynchronously.
+@@ -848,6 +848,7 @@ static void update_tasks_cpumask(struct cpuset *cs)
+  */
+ static void update_cpumasks_hier(struct cpuset *cs, struct cpumask *new_cpus)
+ {
++	unsigned long flags;
+ 	struct cpuset *cp;
+ 	struct cgroup_subsys_state *pos_css;
+ 	bool need_rebuild_sched_domains = false;
+@@ -875,9 +876,9 @@ static void update_cpumasks_hier(struct cpuset *cs, struct cpumask *new_cpus)
+ 			continue;
+ 		rcu_read_unlock();
+ 
+-		mutex_lock(&callback_mutex);
++		spin_lock_irqsave(&callback_lock, flags);
+ 		cpumask_copy(cp->effective_cpus, new_cpus);
+-		mutex_unlock(&callback_mutex);
++		spin_unlock_irqrestore(&callback_lock, flags);
+ 
+ 		WARN_ON(!cgroup_on_dfl(cp->css.cgroup) &&
+ 			!cpumask_equal(cp->cpus_allowed, cp->effective_cpus));
+@@ -910,6 +911,7 @@ static void update_cpumasks_hier(struct cpuset *cs, struct cpumask *new_cpus)
+ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
+ 			  const char *buf)
+ {
++	unsigned long flags;
+ 	int retval;
+ 
+ 	/* top_cpuset.cpus_allowed tracks cpu_online_mask; it's read-only */
+@@ -942,9 +944,9 @@ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
+ 	if (retval < 0)
+ 		return retval;
+ 
+-	mutex_lock(&callback_mutex);
++	spin_lock_irqsave(&callback_lock, flags);
+ 	cpumask_copy(cs->cpus_allowed, trialcs->cpus_allowed);
+-	mutex_unlock(&callback_mutex);
++	spin_unlock_irqrestore(&callback_lock, flags);
+ 
+ 	/* use trialcs->cpus_allowed as a temp variable */
+ 	update_cpumasks_hier(cs, trialcs->cpus_allowed);
+@@ -1105,6 +1107,7 @@ static void update_tasks_nodemask(struct cpuset *cs)
+  */
+ static void update_nodemasks_hier(struct cpuset *cs, nodemask_t *new_mems)
+ {
++	unsigned long flags;
+ 	struct cpuset *cp;
+ 	struct cgroup_subsys_state *pos_css;
+ 
+@@ -1132,8 +1135,9 @@ static void update_nodemasks_hier(struct cpuset *cs, nodemask_t *new_mems)
+ 		rcu_read_unlock();
+ 
+ 		mutex_lock(&callback_mutex);
++		spin_lock_irqsave(&callback_lock, flags);
+ 		cp->effective_mems = *new_mems;
+-		mutex_unlock(&callback_mutex);
++		spin_unlock_irqrestore(&callback_lock, flags);
+ 
+ 		WARN_ON(!cgroup_on_dfl(cp->css.cgroup) &&
+ 			!nodes_equal(cp->mems_allowed, cp->effective_mems));
+@@ -1162,6 +1166,7 @@ static void update_nodemasks_hier(struct cpuset *cs, nodemask_t *new_mems)
+ static int update_nodemask(struct cpuset *cs, struct cpuset *trialcs,
+ 			   const char *buf)
+ {
++	unsigned long flags;
+ 	int retval;
+ 
+ 	/*
+@@ -1201,9 +1206,9 @@ static int update_nodemask(struct cpuset *cs, struct cpuset *trialcs,
+ 	if (retval < 0)
+ 		goto done;
+ 
+-	mutex_lock(&callback_mutex);
++	spin_lock_irqsave(&callback_lock, flags);
+ 	cs->mems_allowed = trialcs->mems_allowed;
+-	mutex_unlock(&callback_mutex);
++	spin_unlock_irqrestore(&callback_lock, flags);
+ 
+ 	/* use trialcs->mems_allowed as a temp variable */
+ 	update_nodemasks_hier(cs, &cs->mems_allowed);
+@@ -1264,6 +1269,7 @@ static void update_tasks_flags(struct cpuset *cs)
+ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs,
+ 		       int turning_on)
+ {
++	unsigned long flags;
+ 	struct cpuset *trialcs;
+ 	int balance_flag_changed;
+ 	int spread_flag_changed;
+@@ -1288,9 +1294,9 @@ static int update_flag(cpuset_flagbits_t bit, struct cpuset *cs,
+ 	spread_flag_changed = ((is_spread_slab(cs) != is_spread_slab(trialcs))
+ 			|| (is_spread_page(cs) != is_spread_page(trialcs)));
+ 
+-	mutex_lock(&callback_mutex);
++	spin_lock_irqsave(&callback_lock, flags);
+ 	cs->flags = trialcs->flags;
+-	mutex_unlock(&callback_mutex);
++	spin_unlock_irqrestore(&callback_lock, flags);
+ 
+ 	if (!cpumask_empty(trialcs->cpus_allowed) && balance_flag_changed)
+ 		rebuild_sched_domains_locked();
+@@ -1690,11 +1696,12 @@ static int cpuset_common_seq_show(struct seq_file *sf, void *v)
+ 	ssize_t count;
+ 	char *buf, *s;
+ 	int ret = 0;
++	unsigned long flags;
+ 
+ 	count = seq_get_buf(sf, &buf);
+ 	s = buf;
+ 
+-	mutex_lock(&callback_mutex);
++	spin_lock_irqsave(&callback_mutex, flags);
+ 
+ 	switch (type) {
+ 	case FILE_CPULIST:
+@@ -1721,7 +1728,7 @@ static int cpuset_common_seq_show(struct seq_file *sf, void *v)
+ 		seq_commit(sf, -1);
+ 	}
+ out_unlock:
+-	mutex_unlock(&callback_mutex);
++	spin_unlock_irqstore(&callback_lock, flags);
+ 	return ret;
+ }
+ 
+@@ -1924,6 +1931,7 @@ static int cpuset_css_online(struct cgroup_subsys_state *css)
+ 	struct cpuset *parent = parent_cs(cs);
+ 	struct cpuset *tmp_cs;
+ 	struct cgroup_subsys_state *pos_css;
++	unsigned long flags;
+ 
+ 	if (!parent)
+ 		return 0;
+@@ -1938,12 +1946,12 @@ static int cpuset_css_online(struct cgroup_subsys_state *css)
+ 
+ 	cpuset_inc();
+ 
+-	mutex_lock(&callback_mutex);
++	spin_lock_irqsave(&callback_lock, flags);
+ 	if (cgroup_on_dfl(cs->css.cgroup)) {
+ 		cpumask_copy(cs->effective_cpus, parent->effective_cpus);
+ 		cs->effective_mems = parent->effective_mems;
+ 	}
+-	mutex_unlock(&callback_mutex);
++	spin_unlock_irqrestore(&callback_lock, flags);
+ 
+ 	if (!test_bit(CGRP_CPUSET_CLONE_CHILDREN, &css->cgroup->flags))
+ 		goto out_unlock;
+@@ -1970,10 +1978,10 @@ static int cpuset_css_online(struct cgroup_subsys_state *css)
+ 	}
+ 	rcu_read_unlock();
+ 
+-	mutex_lock(&callback_mutex);
++	spin_lock_irqsave(&callback_lock, flags);
+ 	cs->mems_allowed = parent->mems_allowed;
+ 	cpumask_copy(cs->cpus_allowed, parent->cpus_allowed);
+-	mutex_unlock(&callback_mutex);
++	spin_lock_irqrestore(&callback_lock, flags);
+ out_unlock:
+ 	mutex_unlock(&cpuset_mutex);
+ 	return 0;
+@@ -2011,8 +2019,10 @@ static void cpuset_css_free(struct cgroup_subsys_state *css)
+ 
+ static void cpuset_bind(struct cgroup_subsys_state *root_css)
+ {
++	unsigned long flags;
++
+ 	mutex_lock(&cpuset_mutex);
+-	mutex_lock(&callback_mutex);
++	spin_lock_irqsave(&callback_lock, flags);
+ 
+ 	if (cgroup_on_dfl(root_css->cgroup)) {
+ 		cpumask_copy(top_cpuset.cpus_allowed, cpu_possible_mask);
+@@ -2023,7 +2033,7 @@ static void cpuset_bind(struct cgroup_subsys_state *root_css)
+ 		top_cpuset.mems_allowed = top_cpuset.effective_mems;
+ 	}
+ 
+-	mutex_unlock(&callback_mutex);
++	spin_unlock_irqrestore(&callback_lock, flags);
+ 	mutex_unlock(&cpuset_mutex);
+ }
+ 
+@@ -2107,13 +2117,14 @@ hotplug_update_tasks_legacy(struct cpuset *cs,
+ 			    bool cpus_updated, bool mems_updated)
+ {
+ 	bool is_empty;
++	unsigned long flags;
+ 
+-	mutex_lock(&callback_mutex);
++	spin_lock_irqsave(&callback_lock, flags);
+ 	cpumask_copy(cs->cpus_allowed, new_cpus);
+ 	cpumask_copy(cs->effective_cpus, new_cpus);
+ 	cs->mems_allowed = *new_mems;
+ 	cs->effective_mems = *new_mems;
+-	mutex_unlock(&callback_mutex);
++	spin_unlock_irqrestore(&callback_lock, flags);
+ 
+ 	/*
+ 	 * Don't call update_tasks_cpumask() if the cpuset becomes empty,
+@@ -2145,15 +2156,17 @@ hotplug_update_tasks(struct cpuset *cs,
+ 		     struct cpumask *new_cpus, nodemask_t *new_mems,
+ 		     bool cpus_updated, bool mems_updated)
+ {
++	unsigned long flags;
++
+ 	if (cpumask_empty(new_cpus))
+ 		cpumask_copy(new_cpus, parent_cs(cs)->effective_cpus);
+ 	if (nodes_empty(*new_mems))
+ 		*new_mems = parent_cs(cs)->effective_mems;
+ 
+-	mutex_lock(&callback_mutex);
++	spin_lock_irqsave(&callback_lock, flags);
+ 	cpumask_copy(cs->effective_cpus, new_cpus);
+ 	cs->effective_mems = *new_mems;
+-	mutex_unlock(&callback_mutex);
++	spin_unlock_irqrestore(&callback_lock, flags);
+ 
+ 	if (cpus_updated)
+ 		update_tasks_cpumask(cs);
+@@ -2227,6 +2240,7 @@ static void cpuset_hotplug_workfn(struct work_struct *work)
+ 	static nodemask_t new_mems;
+ 	bool cpus_updated, mems_updated;
+ 	bool on_dfl = cgroup_on_dfl(top_cpuset.css.cgroup);
++	unsigned long flags;
+ 
+ 	mutex_lock(&cpuset_mutex);
+ 
+@@ -2239,21 +2253,21 @@ static void cpuset_hotplug_workfn(struct work_struct *work)
+ 
+ 	/* synchronize cpus_allowed to cpu_active_mask */
+ 	if (cpus_updated) {
+-		mutex_lock(&callback_mutex);
++		spin_lock_irqsave(&callback_lock, flags);
+ 		if (!on_dfl)
+ 			cpumask_copy(top_cpuset.cpus_allowed, &new_cpus);
+ 		cpumask_copy(top_cpuset.effective_cpus, &new_cpus);
+-		mutex_unlock(&callback_mutex);
++		spin_unlock_irqrestore(&callback_lock, flags);
+ 		/* we don't mess with cpumasks of tasks in top_cpuset */
+ 	}
+ 
+ 	/* synchronize mems_allowed to N_MEMORY */
+ 	if (mems_updated) {
+-		mutex_lock(&callback_mutex);
++		spin_lock_irqsave(&callback_lock, flags);
+ 		if (!on_dfl)
+ 			top_cpuset.mems_allowed = new_mems;
+ 		top_cpuset.effective_mems = new_mems;
+-		mutex_unlock(&callback_mutex);
++		spin_unlock_irqrestore(&callback_lock, flags);
+ 		update_tasks_nodemask(&top_cpuset);
+ 	}
+ 
+@@ -2346,11 +2360,13 @@ void __init cpuset_init_smp(void)
+ 
+ void cpuset_cpus_allowed(struct task_struct *tsk, struct cpumask *pmask)
+ {
+-	mutex_lock(&callback_mutex);
++	unsigned long flags;
++
++	spin_lock_irqsave(&callback_lock, flags);
+ 	rcu_read_lock();
+ 	guarantee_online_cpus(task_cs(tsk), pmask);
+ 	rcu_read_unlock();
+-	mutex_unlock(&callback_mutex);
++	spin_unlock_irqrestore(&callback_lock, flags);
+ }
+ 
+ void cpuset_cpus_allowed_fallback(struct task_struct *tsk)
+@@ -2396,12 +2412,13 @@ void cpuset_init_current_mems_allowed(void)
+ nodemask_t cpuset_mems_allowed(struct task_struct *tsk)
+ {
+ 	nodemask_t mask;
++	unsigned long flags;
+ 
+-	mutex_lock(&callback_mutex);
++	spin_lock_irqsave(&callback_lock, flags);
+ 	rcu_read_lock();
+ 	guarantee_online_mems(task_cs(tsk), &mask);
+ 	rcu_read_unlock();
+-	mutex_unlock(&callback_mutex);
++	spin_unlock_irqrestore(&callback_lock, flags);
+ 
+ 	return mask;
+ }
+@@ -2514,14 +2531,14 @@ int __cpuset_node_allowed_softwall(int node, gfp_t gfp_mask)
+ 		return 1;
+ 
+ 	/* Not hardwall and node outside mems_allowed: scan up cpusets */
+-	mutex_lock(&callback_mutex);
++	spin_lock_irqsave(&callback_mutex, flags);
+ 
+ 	rcu_read_lock();
+ 	cs = nearest_hardwall_ancestor(task_cs(current));
+ 	allowed = node_isset(node, cs->mems_allowed);
+ 	rcu_read_unlock();
+ 
+-	mutex_unlock(&callback_mutex);
++	spin_unlock_irqrestore(&callback_lock, flags);
+ 	return allowed;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
