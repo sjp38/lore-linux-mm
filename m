@@ -1,49 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D1DFC6B0036
-	for <linux-mm@kvack.org>; Fri, 15 Aug 2014 14:11:06 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id ey11so3893539pad.38
-        for <linux-mm@kvack.org>; Fri, 15 Aug 2014 11:11:06 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id es5si9537769pbb.15.2014.08.15.11.11.04
-        for <linux-mm@kvack.org>;
-        Fri, 15 Aug 2014 11:11:05 -0700 (PDT)
-Message-ID: <53EE4D11.5020001@intel.com>
-Date: Fri, 15 Aug 2014 11:10:25 -0700
-From: Dave Hansen <dave.hansen@intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH V2 2/2] x86: add phys addr validity check for /dev/mem
- mmap
-References: <1408025927-16826-1-git-send-email-fhrbata@redhat.com> <1408103043-31015-1-git-send-email-fhrbata@redhat.com> <1408103043-31015-3-git-send-email-fhrbata@redhat.com>
-In-Reply-To: <1408103043-31015-3-git-send-email-fhrbata@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 07E9A6B0036
+	for <linux-mm@kvack.org>; Fri, 15 Aug 2014 16:38:54 -0400 (EDT)
+Received: by mail-yk0-f177.google.com with SMTP id 79so2501445ykr.36
+        for <linux-mm@kvack.org>; Fri, 15 Aug 2014 13:38:54 -0700 (PDT)
+Received: from g2t2352.austin.hp.com (g2t2352.austin.hp.com. [15.217.128.51])
+        by mx.google.com with ESMTPS id v61si14082521yhn.157.2014.08.15.13.38.53
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 15 Aug 2014 13:38:53 -0700 (PDT)
+Message-ID: <1408134524.26567.38.camel@misato.fc.hp.com>
+Subject: Re: [RFC 9/9] prd: Add support for page struct mapping
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Fri, 15 Aug 2014 14:28:44 -0600
+In-Reply-To: <53EB5960.50200@plexistor.com>
+References: <53EB5536.8020702@gmail.com> <53EB5960.50200@plexistor.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Frantisek Hrbata <fhrbata@redhat.com>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, oleg@redhat.com, kamaleshb@in.ibm.com, hechjie@cn.ibm.com, akpm@linux-foundation.org, dvlasenk@redhat.com, prarit@redhat.com, lwoodman@redhat.com, hannsj_uhl@de.ibm.com
+To: Boaz Harrosh <boaz@plexistor.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>, Sagi Manole <sagi@plexistor.com>, Yigal Korman <yigal@plexistor.com>
 
-On 08/15/2014 04:44 AM, Frantisek Hrbata wrote:
-> +int valid_phys_addr_range(phys_addr_t addr, size_t count)
-> +{
-> +	return addr + count <= __pa(high_memory);
-> +}
-> +
-> +int valid_mmap_phys_addr_range(unsigned long pfn, size_t count)
-> +{
-> +	return arch_pfn_possible(pfn + (count >> PAGE_SHIFT));
-> +}
+On Wed, 2014-08-13 at 15:26 +0300, Boaz Harrosh wrote:
+> From: Yigal Korman <yigal@plexistor.com>
+> 
+> One of the current short comings of the NVDIMM/PMEM
+> support is that this memory does not have a page-struct(s)
+> associated with its memory and therefor cannot be passed
+> to a block-device or network or DMAed in any way through
+> another device in the system.
+> 
+> This simple patch fixes all this. After this patch an FS
+> can do:
+> 	bdev_direct_access(,&pfn,);
+> 	page = pfn_to_page(pfn);
+> And use that page for a lock_page(), set_page_dirty(), and/or
+> anything else one might do with a page *.
+> (Note that with brd one can already do this)
+> 
+> [pmem-pages-ref-count]
+> pmem will serve it's pages with ref==0. Once an FS does
+> an blkdev_get_XXX(,FMODE_EXCL,), that memory is own by the FS.
+> The FS needs to manage its allocation, just as it already does
+> for its disk blocks. The fs should set page->count = 2, before
+> submission to any Kernel subsystem so when it returns it will
+> never be released to the Kernel's page-allocators. (page_freeze)
+> 
+> All is actually needed for this is to allocate page-sections
+> and map them into kernel virtual memory. Note that these sections
+> are not associated with any zone, because that would add them to
+> the page_allocators.
 
-It definitely fixes the issue as you described it.
+Can we just use memory hotplug and call add_memory(), instead of
+directly calling sparse_add_one_section()?  Memory hotplug adds memory
+as off-line state, and sets all pages reserved.  So, I do not think the
+page allocators will mess with them (unless you put them online).  It
+can also maps the pages with large page size.
 
-It's a bit unfortunate that the highmem check isn't tied in to the
-_existing_ /dev/mem limitations in some way, but it's not a deal breaker
-for me.
+Thanks,
+-Toshi
 
-The only other thing is to make sure this doesn't add some limitation to
-64-bit where we can't map things above the end of memory (end of memory
-== high_memory on 64-bit).  As long as you've done this, I can't see a
-downside.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
