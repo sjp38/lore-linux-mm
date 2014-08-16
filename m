@@ -1,69 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f52.google.com (mail-yh0-f52.google.com [209.85.213.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 269F06B0036
-	for <linux-mm@kvack.org>; Fri, 15 Aug 2014 17:47:39 -0400 (EDT)
-Received: by mail-yh0-f52.google.com with SMTP id t59so2725685yho.25
-        for <linux-mm@kvack.org>; Fri, 15 Aug 2014 14:47:38 -0700 (PDT)
-Received: from g5t1627.atlanta.hp.com (g5t1627.atlanta.hp.com. [15.192.137.10])
-        by mx.google.com with ESMTPS id y3si2731080yhy.14.2014.08.15.14.47.38
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E6576B0036
+	for <linux-mm@kvack.org>; Fri, 15 Aug 2014 21:30:03 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id y10so4178835pdj.7
+        for <linux-mm@kvack.org>; Fri, 15 Aug 2014 18:30:03 -0700 (PDT)
+Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com [2607:f8b0:400e:c02::22a])
+        by mx.google.com with ESMTPS id ao3si10880211pbc.108.2014.08.15.18.30.02
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 15 Aug 2014 14:47:38 -0700 (PDT)
-Message-ID: <1408138647.26567.42.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v2] memory-hotplug: add sysfs zones_online_to attribute
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Fri, 15 Aug 2014 15:37:27 -0600
-In-Reply-To: <53EAE534.8030303@huawei.com>
-References: <1407902811-4873-1-git-send-email-zhenzhang.zhang@huawei.com>
-	 <53EAE534.8030303@huawei.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 15 Aug 2014 18:30:02 -0700 (PDT)
+Received: by mail-pd0-f170.google.com with SMTP id g10so4160074pdj.15
+        for <linux-mm@kvack.org>; Fri, 15 Aug 2014 18:30:02 -0700 (PDT)
+Date: Fri, 15 Aug 2014 18:28:16 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: introduce for_each_vma helpers
+In-Reply-To: <20140813140800.df0310a05e5fad6ed6b55886@linux-foundation.org>
+Message-ID: <alpine.LSU.2.11.1408151818100.10115@eggly.anvils>
+References: <1407865523.2633.3.camel@buesod1.americas.hpqcorp.net> <20140812215213.GB17497@node.dhcp.inet.fi> <1407887208.2695.9.camel@buesod1.americas.hpqcorp.net> <20140813140800.df0310a05e5fad6ed6b55886@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Zhen <zhenzhang.zhang@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, isimatu.yasuaki@jp.fujitsu.com, n-horiguchi@ah.jp.nec.com, wangnan0@huawei.com, linux-kernel@vger.kernel.org, Linux MM <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Davidlohr Bueso <davidlohr@hp.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "James E.J. Bottomley" <jejb@parisc-linux.org>, Helge Deller <deller@gmx.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Robert Richter <rric@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, aswin@hp.com
 
-On Wed, 2014-08-13 at 12:10 +0800, Zhang Zhen wrote:
-> Currently memory-hotplug has two limits:
-> 1. If the memory block is in ZONE_NORMAL, you can change it to
-> ZONE_MOVABLE, but this memory block must be adjacent to ZONE_MOVABLE.
-> 2. If the memory block is in ZONE_MOVABLE, you can change it to
-> ZONE_NORMAL, but this memory block must be adjacent to ZONE_NORMAL.
+On Wed, 13 Aug 2014, Andrew Morton wrote:
+> On Tue, 12 Aug 2014 16:46:48 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
+> > On Wed, 2014-08-13 at 00:52 +0300, Kirill A. Shutemov wrote:
+> > > On Tue, Aug 12, 2014 at 10:45:23AM -0700, Davidlohr Bueso wrote:
+> > > > The most common way of iterating through the list of vmas, is via:
+> > > >     for (vma = mm->mmap; vma; vma = vma->vm_next)
+> > > > 
+> > > > This patch replaces this logic with a new for_each_vma(vma) helper,
+> > > > which 1) encapsulates this logic, and 2) make it easier to read.
+> > > 
+> > > Why does it need to be encapsulated?
+> > > Do you have problem with reading plain for()?
+> > > 
+> > > Your for_each_vma(vma) assumes "mm" from the scope. This can be confusing
+> > > for reader: whether it uses "mm" from the scope or "current->mm". This
+> > > will lead to very hard to find bug one day.
+> > 
+> > I think its fairly obvious to see where the mm is coming from -- the
+> > helpers *do not* necessarily use current, it uses whatever mm was
+> > already there in the first place. I have not changed anything related to
+> > this from the callers. 
 > 
-> With this patch, we can easy to know a memory block can be onlined to
-> which zone, and don't need to know the above two limits.
+> It is a bit of a hand-grenade for those (rare) situations where code is
+> dealing with other-tasks-mm.  It's simple enough to add an `mm' arg?
 > 
-> Updated the related Documentation.
+> > The only related change I can think of, is for some callers that do:
+> > 
+> > for (vma = current->mm->mmap; vma != NULL; vma = vma->vm_next)
+> > 
+> > So we just add a local mm from current->mm and replace the for() with
+> > for_each_vma(). I don't see anything particularly ambiguous with that.
 > 
-> Change v1 -> v2:
-> - optimize the implementation following Dave Hansen's suggestion
-> 
-> Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
-> ---
->  Documentation/ABI/testing/sysfs-devices-memory |  8 ++++
->  Documentation/memory-hotplug.txt               |  4 +-
->  drivers/base/memory.c                          | 62 ++++++++++++++++++++++++++
->  include/linux/memory_hotplug.h                 |  1 +
->  mm/memory_hotplug.c                            |  2 +-
->  5 files changed, 75 insertions(+), 2 deletions(-)
-> 
-> diff --git a/Documentation/ABI/testing/sysfs-devices-memory b/Documentation/ABI/testing/sysfs-devices-memory
-> index 7405de2..2b2a1d7 100644
-> --- a/Documentation/ABI/testing/sysfs-devices-memory
-> +++ b/Documentation/ABI/testing/sysfs-devices-memory
-> @@ -61,6 +61,14 @@ Users:		hotplug memory remove tools
->  		http://www.ibm.com/developerworks/wikis/display/LinuxP/powerpc-utils
+> Adding a local to support a macro which secretly uses that local is
+> pretty nasty.
 > 
 > 
-> +What:           /sys/devices/system/memory/memoryX/zones_online_to
+> Overall, I'm not really sure that
+> 
+> -	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+> +	for_each_vma(mm, vma) {
+> 
+> is much of an improvement.  I'll wait to see what others think...
 
-I think this name is a bit confusing.  How about "valid_online_types"?
+... I'm with Kirill: obscuring a simple for loop is unhelpful -
+unless it's a prelude to a grand enhancement under the hood?
 
-Thanks,
--Toshi
+As to the hidden mm argument: a momentary lapse of taste, I hope.
 
-
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
