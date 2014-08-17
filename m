@@ -1,40 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 911946B0036
-	for <linux-mm@kvack.org>; Sun, 17 Aug 2014 19:37:12 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id z10so6385300pdj.30
-        for <linux-mm@kvack.org>; Sun, 17 Aug 2014 16:37:12 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id hs10si18975196pdb.233.2014.08.17.16.37.09
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B5266B0038
+	for <linux-mm@kvack.org>; Sun, 17 Aug 2014 19:39:19 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id rd3so6598530pab.40
+        for <linux-mm@kvack.org>; Sun, 17 Aug 2014 16:39:18 -0700 (PDT)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id u10si18985040pds.179.2014.08.17.16.39.16
         for <linux-mm@kvack.org>;
-        Sun, 17 Aug 2014 16:37:11 -0700 (PDT)
-Date: Mon, 18 Aug 2014 08:37:32 +0900
+        Sun, 17 Aug 2014 16:39:18 -0700 (PDT)
+Date: Mon, 18 Aug 2014 08:39:40 +0900
 From: Minchan Kim <minchan@kernel.org>
 Subject: Re: [PATCH 3/3] zram: add mem_used_max via sysfs
-Message-ID: <20140817233732.GC11367@bbox>
+Message-ID: <20140817233940.GD11367@bbox>
 References: <1407978746-20587-1-git-send-email-minchan@kernel.org>
  <1407978746-20587-3-git-send-email-minchan@kernel.org>
- <CAFdhcLTHv9Jhc6Z40dYG7YQFgLURrh5CUyD+ZNkMSb+FXdZocw@mail.gmail.com>
+ <CALZtONDB5q56f1TUHgqbiJ4ZaP6Yk=GcNQw9DhvLhNyExdfQ4w@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <CAFdhcLTHv9Jhc6Z40dYG7YQFgLURrh5CUyD+ZNkMSb+FXdZocw@mail.gmail.com>
+In-Reply-To: <CALZtONDB5q56f1TUHgqbiJ4ZaP6Yk=GcNQw9DhvLhNyExdfQ4w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Horner <ds2horner@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, ds2horner@gmail.com
 
-Hi David,
+Hello Dan,
 
-On Thu, Aug 14, 2014 at 06:29:17AM -0400, David Horner wrote:
-> The introduction of a reset can cause the stale zero value to be
-> retained in the show.
-> Instead reset to current value.
-
-It's better. I will do.
-Thanks!
-
-> 
+On Thu, Aug 14, 2014 at 11:09:05AM -0400, Dan Streetman wrote:
 > On Wed, Aug 13, 2014 at 9:12 PM, Minchan Kim <minchan@kernel.org> wrote:
 > > Normally, zram user can get maximum memory zsmalloc consumed via
 > > polling mem_used_total with sysfs in userspace.
@@ -76,20 +68,11 @@ Thanks!
 > >
 > > +static ssize_t mem_used_max_reset(struct device *dev,
 > > +               struct device_attribute *attr, const char *buf, size_t len)
-> 
-> perhaps these are local functions, but wouldn't the zs_ prefix still
-> be appropriate?
 > > +{
 > > +       struct zram *zram = dev_to_zram(dev);
 > > +
 > > +       down_write(&zram->init_lock);
 > > +       zram->max_used_bytes = 0;
-> 
->            zram->max_used_bytes = zs_get_total_size_bytes(meta->mem_pool);
-> 
->            (where meta is set up as below  (beyond my skill level at
-> the moment)).
-> 
 > > +       up_write(&zram->init_lock);
 > > +       return len;
 > > +}
@@ -101,9 +84,6 @@ Thanks!
 > > +       struct zram *zram = dev_to_zram(dev);
 > > +
 > > +       down_read(&zram->init_lock);
-> 
-> if these are atomic operations, why the (read and write) locks?
-> 
 > > +       max_used_bytes = zram->max_used_bytes;
 > > +       up_read(&zram->init_lock);
 > > +
@@ -129,6 +109,14 @@ Thanks!
 > > -               zs_get_total_size_bytes(meta->mem_pool) > zram->limit_bytes) {
 > > +       total_bytes = zs_get_total_size_bytes(meta->mem_pool);
 > > +       if (zram->limit_bytes && total_bytes > zram->limit_bytes) {
+> 
+> do you need to take the init_lock to read limit_bytes here?  It could
+> be getting changed between these checks...
+
+The zram_bvec_write is protected by read-side init_lock while mem_limit_store
+is proteced by write-side init_lock.
+
+> 
 > >                 zs_free(meta->mem_pool, handle);
 > >                 ret = -ENOMEM;
 > >                 goto out;
@@ -138,6 +126,9 @@ Thanks!
 > >         atomic64_inc(&zram->stats.pages_stored);
 > > +
 > > +       zram->max_used_bytes = max(zram->max_used_bytes, total_bytes);
+> 
+> shouldn't max_used_bytes be atomic64_t?  Or take the init_lock here?
+> 
 > >  out:
 > >         if (locked)
 > >                 zcomp_strm_release(zram->comp, zstrm);
