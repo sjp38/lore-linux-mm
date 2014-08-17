@@ -1,52 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id C87186B0036
-	for <linux-mm@kvack.org>; Sat, 16 Aug 2014 17:14:54 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id fp1so5211743pdb.27
-        for <linux-mm@kvack.org>; Sat, 16 Aug 2014 14:14:54 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id c3si14543185pat.223.2014.08.16.14.14.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 16 Aug 2014 14:14:53 -0700 (PDT)
-Message-ID: <53EFC9CC.3060405@infradead.org>
-Date: Sat, 16 Aug 2014 14:14:52 -0700
-From: Randy Dunlap <rdunlap@infradead.org>
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 03C2B6B0036
+	for <linux-mm@kvack.org>; Sun, 17 Aug 2014 02:13:28 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id fp1so5525462pdb.5
+        for <linux-mm@kvack.org>; Sat, 16 Aug 2014 23:13:28 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id r12si15859848pdl.41.2014.08.16.23.13.27
+        for <linux-mm@kvack.org>;
+        Sat, 16 Aug 2014 23:13:28 -0700 (PDT)
+Date: Sun, 17 Aug 2014 14:13:09 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [next:master 12213/12458] drivers/base/memory.c:404: undefined
+ reference to `.test_pages_in_a_zone'
+Message-ID: <53f047f5.C5kYulglgZIQzqlN%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Subject: [PATCH] scripts/kernel-doc: recognize __meminit attribute
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Zhang Zhen <zhenzhang.zhang@huawei.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org
 
-From: Randy Dunlap <rdunlap@infradead.org>
+tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+head:   7bef919141fc53b780070a0aec3ddd893eeece8f
+commit: 42715491368cfb19c59b9dc9d7c3dda857c82291 [12213/12458] memory-hotplug: add sysfs zones_online_to attribute
+config: make ARCH=powerpc ps3_defconfig
 
-Fix scripts/kernel-doc to recognize __meminit in a function prototype
-and to stip it, as done with many other attributes.
+All error/warnings:
 
-Fixes this warning:
-Warning(..//mm/page_alloc.c:2973): cannot understand function prototype: 'void * __meminit alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask) '
+   drivers/built-in.o: In function `show_zones_online_to':
+>> drivers/base/memory.c:404: undefined reference to `.test_pages_in_a_zone'
 
-Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
+vim +404 drivers/base/memory.c
+
+   398	
+   399		start_pfn = section_nr_to_pfn(mem->start_section_nr);
+   400		end_pfn = start_pfn + nr_pages;
+   401		first_page = pfn_to_page(start_pfn);
+   402	
+   403		/*The block contains more than one zone can not be offlined.*/
+ > 404		if (!test_pages_in_a_zone(start_pfn, end_pfn))
+   405			return sprintf(buf, "none\n");
+   406	
+   407		zone = page_zone(first_page);
+
 ---
- scripts/kernel-doc |    1 +
- 1 file changed, 1 insertion(+)
-
-Added to my patch queue.
-
-Index: lnx-317-rc1/scripts/kernel-doc
-===================================================================
---- lnx-317-rc1.orig/scripts/kernel-doc
-+++ lnx-317-rc1/scripts/kernel-doc
-@@ -2085,6 +2085,7 @@ sub dump_function($$) {
-     $prototype =~ s/^noinline +//;
-     $prototype =~ s/__init +//;
-     $prototype =~ s/__init_or_module +//;
-+    $prototype =~ s/__meminit +//;
-     $prototype =~ s/__must_check +//;
-     $prototype =~ s/__weak +//;
-     my $define = $prototype =~ s/^#\s*define\s+//; #ak added
+0-DAY kernel build testing backend              Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
