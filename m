@@ -1,80 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
-	by kanga.kvack.org (Postfix) with ESMTP id CEFCF6B0036
-	for <linux-mm@kvack.org>; Mon, 18 Aug 2014 07:26:53 -0400 (EDT)
-Received: by mail-qa0-f42.google.com with SMTP id j15so4344173qaq.29
-        for <linux-mm@kvack.org>; Mon, 18 Aug 2014 04:26:53 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e1si23623861qci.27.2014.08.18.04.26.52
+Received: from mail-yh0-f46.google.com (mail-yh0-f46.google.com [209.85.213.46])
+	by kanga.kvack.org (Postfix) with ESMTP id E51536B0035
+	for <linux-mm@kvack.org>; Mon, 18 Aug 2014 09:13:05 -0400 (EDT)
+Received: by mail-yh0-f46.google.com with SMTP id a41so4398791yho.5
+        for <linux-mm@kvack.org>; Mon, 18 Aug 2014 06:13:05 -0700 (PDT)
+Received: from mail-yh0-x233.google.com (mail-yh0-x233.google.com [2607:f8b0:4002:c01::233])
+        by mx.google.com with ESMTPS id v64si20155447yhm.193.2014.08.18.06.13.05
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Aug 2014 04:26:53 -0700 (PDT)
-Date: Mon, 18 Aug 2014 13:26:35 +0200
-From: Frantisek Hrbata <fhrbata@redhat.com>
-Subject: Re: [PATCH V2 2/2] x86: add phys addr validity check for /dev/mem
- mmap
-Message-ID: <20140818112635.GA3223@localhost.localdomain>
-Reply-To: Frantisek Hrbata <fhrbata@redhat.com>
-References: <1408025927-16826-1-git-send-email-fhrbata@redhat.com>
- <1408103043-31015-1-git-send-email-fhrbata@redhat.com>
- <1408103043-31015-3-git-send-email-fhrbata@redhat.com>
- <53EE4D11.5020001@intel.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 18 Aug 2014 06:13:05 -0700 (PDT)
+Received: by mail-yh0-f51.google.com with SMTP id f73so4443231yha.10
+        for <linux-mm@kvack.org>; Mon, 18 Aug 2014 06:13:05 -0700 (PDT)
+Date: Mon, 18 Aug 2014 09:13:01 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] mem-hotplug: let memblock skip the hotpluggable memory
+ regions in __next_mem_range()
+Message-ID: <20140818131301.GA16425@mtj.dyndns.org>
+References: <53E8C5AA.5040506@huawei.com>
+ <20140816130456.GH9305@htj.dyndns.org>
+ <53EF6C79.3000603@huawei.com>
+ <20140817110821.GM9305@htj.dyndns.org>
+ <53F15330.5070606@cn.fujitsu.com>
+ <53F17068.5000005@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <53EE4D11.5020001@intel.com>
+In-Reply-To: <53F17068.5000005@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, oleg@redhat.com, kamaleshb@in.ibm.com, hechjie@cn.ibm.com, akpm@linux-foundation.org, dvlasenk@redhat.com, prarit@redhat.com, lwoodman@redhat.com, hannsj_uhl@de.ibm.com
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: tangchen <tangchen@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, "H. Peter Anvin" <hpa@zytor.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Aug 15, 2014 at 11:10:25AM -0700, Dave Hansen wrote:
-> On 08/15/2014 04:44 AM, Frantisek Hrbata wrote:
-> > +int valid_phys_addr_range(phys_addr_t addr, size_t count)
-> > +{
-> > +	return addr + count <= __pa(high_memory);
-> > +}
-> > +
-> > +int valid_mmap_phys_addr_range(unsigned long pfn, size_t count)
-> > +{
-> > +	return arch_pfn_possible(pfn + (count >> PAGE_SHIFT));
-> > +}
-> 
-> It definitely fixes the issue as you described it.
+Hello, Xishi, Tang.
 
-Hi Dave,
+On Mon, Aug 18, 2014 at 11:18:00AM +0800, Xishi Qiu wrote:
+> If all the nodes are marked hotpluggable flag, alloc node data will fail.
+> Because __next_mem_range_rev() will skip the hotpluggable memory regions.
+> numa_register_memblks()
+> 	setup_node_data()
+> 		memblock_find_in_range_node()
+> 			__memblock_find_range_top_down()
+> 				for_each_mem_range_rev()
+> 					__next_mem_range_rev()
 
-many thanks for your time and help with this!
+I'm not sure clearing hotplug flag for all memory is the best approach
+here.  The problem is that there are places where we want to be
+selectively ignoring the hotplug status and apparently we may want it
+back later.  Why not add an agument to memblock allocation / iteration
+functions so that hotplug area can be skipped selectively?
 
-> 
-> It's a bit unfortunate that the highmem check isn't tied in to the
-> _existing_ /dev/mem limitations in some way, but it's not a deal breaker
-> for me.
-
-Agreed, I will do some more testing with the "patch" I proposed earlier in our
-discussion. Meaning the one moving the high_memory check out of the
-valid_phys_addr_range() to the xlate_dev_mem_ptr() for x86. IMHO this should
-work fine and it should remove the high_memory limitation. But I for sure can be
-missing something. If the testing goes well I will post the patch.
-
-> 
-> The only other thing is to make sure this doesn't add some limitation to
-> 64-bit where we can't map things above the end of memory (end of memory
-> == high_memory on 64-bit).  As long as you've done this, I can't see a
-> downside.
-
-Yes, from what I have tested, this patch should not introduce any new
-limitation, except fixing the PTE problem. Also please note
-that this kind of check is already done in ioremap by calling the
-phys_addr_valid(). Again, I hope I haven't overlooked something.
-
-Peter and others: Could you please consider including this fix? Of course only
-if you do not have any other objections or problems with it.
-
-Many thanks!
+Thanks.
 
 -- 
-Frantisek Hrbata
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
