@@ -1,114 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 38A766B0036
-	for <linux-mm@kvack.org>; Sun, 17 Aug 2014 23:22:52 -0400 (EDT)
-Received: by mail-wg0-f48.google.com with SMTP id x13so4358901wgg.19
-        for <linux-mm@kvack.org>; Sun, 17 Aug 2014 20:22:51 -0700 (PDT)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id D00EE6B0036
+	for <linux-mm@kvack.org>; Sun, 17 Aug 2014 23:27:28 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id et14so6778916pad.21
+        for <linux-mm@kvack.org>; Sun, 17 Aug 2014 20:27:28 -0700 (PDT)
 Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id v1si14701883wiw.43.2014.08.17.20.22.43
+        by mx.google.com with ESMTPS id hl1si17704743pac.42.2014.08.17.20.27.26
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 17 Aug 2014 20:22:50 -0700 (PDT)
-Message-ID: <53F17068.5000005@huawei.com>
-Date: Mon, 18 Aug 2014 11:18:00 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        Sun, 17 Aug 2014 20:27:27 -0700 (PDT)
+Message-ID: <53F17230.5020409@huawei.com>
+Date: Mon, 18 Aug 2014 11:25:36 +0800
+From: Zhang Zhen <zhenzhang.zhang@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mem-hotplug: let memblock skip the hotpluggable memory
- regions in __next_mem_range()
-References: <53E8C5AA.5040506@huawei.com> <20140816130456.GH9305@htj.dyndns.org> <53EF6C79.3000603@huawei.com> <20140817110821.GM9305@htj.dyndns.org> <53F15330.5070606@cn.fujitsu.com>
-In-Reply-To: <53F15330.5070606@cn.fujitsu.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCH v2] memory-hotplug: add sysfs zones_online_to attribute
+References: <1407902811-4873-1-git-send-email-zhenzhang.zhang@huawei.com>  <53EAE534.8030303@huawei.com> <1408138647.26567.42.camel@misato.fc.hp.com>
+In-Reply-To: <1408138647.26567.42.camel@misato.fc.hp.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tangchen <tangchen@cn.fujitsu.com>
-Cc: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, "H. Peter Anvin" <hpa@zytor.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, isimatu.yasuaki@jp.fujitsu.com, n-horiguchi@ah.jp.nec.com, wangnan0@huawei.com, linux-kernel@vger.kernel.org, Linux MM <linux-mm@kvack.org>
 
-On 2014/8/18 9:13, tangchen wrote:
-
-> Hi tj,
-> 
-> On 08/17/2014 07:08 PM, Tejun Heo wrote:
->> Hello,
+On 2014/8/16 5:37, Toshi Kani wrote:
+> On Wed, 2014-08-13 at 12:10 +0800, Zhang Zhen wrote:
+>> Currently memory-hotplug has two limits:
+>> 1. If the memory block is in ZONE_NORMAL, you can change it to
+>> ZONE_MOVABLE, but this memory block must be adjacent to ZONE_MOVABLE.
+>> 2. If the memory block is in ZONE_MOVABLE, you can change it to
+>> ZONE_NORMAL, but this memory block must be adjacent to ZONE_NORMAL.
 >>
->> On Sat, Aug 16, 2014 at 10:36:41PM +0800, Xishi Qiu wrote:
->>> numa_clear_node_hotplug()? There is only numa_clear_kernel_node_hotplug().
->> Yeah, that one.
+>> With this patch, we can easy to know a memory block can be onlined to
+>> which zone, and don't need to know the above two limits.
 >>
->>> If we don't clear hotpluggable flag in free_low_memory_core_early(), the
->>> memory which marked hotpluggable flag will not free to buddy allocator.
->>> Because __next_mem_range() will skip them.
->>>
->>> free_low_memory_core_early
->>>     for_each_free_mem_range
->>>         for_each_mem_range
->>>             __next_mem_range       
->> Ah, okay, so the patch fixes __next_mem_range() and thus makes
->> free_low_memory_core_early() to skip hotpluggable regions unlike
->> before.  Please explain things like that in the changelog.  Also,
->> what's its relationship with numa_clear_kernel_node_hotplug()?  Do we
->> still need them?  If so, what are the different roles that these two
->> separate places serve?
+>> Updated the related Documentation.
+>>
+>> Change v1 -> v2:
+>> - optimize the implementation following Dave Hansen's suggestion
+>>
+>> Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
+>> ---
+>>  Documentation/ABI/testing/sysfs-devices-memory |  8 ++++
+>>  Documentation/memory-hotplug.txt               |  4 +-
+>>  drivers/base/memory.c                          | 62 ++++++++++++++++++++++++++
+>>  include/linux/memory_hotplug.h                 |  1 +
+>>  mm/memory_hotplug.c                            |  2 +-
+>>  5 files changed, 75 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/Documentation/ABI/testing/sysfs-devices-memory b/Documentation/ABI/testing/sysfs-devices-memory
+>> index 7405de2..2b2a1d7 100644
+>> --- a/Documentation/ABI/testing/sysfs-devices-memory
+>> +++ b/Documentation/ABI/testing/sysfs-devices-memory
+>> @@ -61,6 +61,14 @@ Users:		hotplug memory remove tools
+>>  		http://www.ibm.com/developerworks/wikis/display/LinuxP/powerpc-utils
+>>
+>>
+>> +What:           /sys/devices/system/memory/memoryX/zones_online_to
 > 
-> numa_clear_kernel_node_hotplug() only clears hotplug flags for the nodes
-> the kernel resides in, not for hotpluggable nodes. The reason why we did
-> this is to enable the kernel to allocate memory in case all the nodes are
-> hotpluggable.
+> I think this name is a bit confusing.  How about "valid_online_types"?
 > 
+Thanks for your suggestion.
 
-Hi TangChen,
+This patch has been added to -mm tree.
+If most people think so, i would like to modify the interface name.
+If not, let's leave it as it is.
 
-I find a problem in numa_init() (arch/x86/mm/numa.c)
-numa_init()
-	...
-	ret = init_func();  // this will mark hotpluggable flag from SRAT
-	...
-	memblock_set_bottom_up(false);
-	...
-	ret = numa_register_memblks(&numa_meminfo);  // this will alloc node data(pglist_data) 
-	...
-	numa_clear_kernel_node_hotplug();  // in case all the nodes are hotpluggable
-	...
-
-If all the nodes are marked hotpluggable flag, alloc node data will fail.
-Because __next_mem_range_rev() will skip the hotpluggable memory regions.
-numa_register_memblks()
-	setup_node_data()
-		memblock_find_in_range_node()
-			__memblock_find_range_top_down()
-				for_each_mem_range_rev()
-					__next_mem_range_rev()
-
-What do you think?
-How about move numa_clear_kernel_node_hotplug() into numa_register_memblks(),
-like this:
-
-numa_register_memblks()
-
-...
-                memblock_set_node(mb->start, mb->end - mb->start,
-                                  &memblock.reserved, mb->nid);
-        }
-
-+        numa_clear_kernel_node_hotplug();
-
-        /*
-         * If sections array is gonna be used for pfn -> nid mapping, check
-...
-
-Thanks,
-Xishi Qiu
-
-> And we clear hotplug flags for all the nodes in free_low_memory_core_early()
-> is because if we do not, all hotpluggable memory won't be able to be freed
-> to buddy after Qiu's patch.
-> 
-> Thanks.
+Best regards!
+> Thanks,
+> -Toshi
 > 
 > 
-> .
 > 
-
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> 
 
 
 --
