@@ -1,117 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
-	by kanga.kvack.org (Postfix) with ESMTP id A5BF56B0036
-	for <linux-mm@kvack.org>; Tue, 19 Aug 2014 12:59:32 -0400 (EDT)
-Received: by mail-ob0-f172.google.com with SMTP id wn1so5343048obc.17
-        for <linux-mm@kvack.org>; Tue, 19 Aug 2014 09:59:32 -0700 (PDT)
-Received: from g5t1626.atlanta.hp.com (g5t1626.atlanta.hp.com. [15.192.137.9])
-        by mx.google.com with ESMTPS id q2si26888885obf.53.2014.08.19.09.59.31
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 19 Aug 2014 09:59:31 -0700 (PDT)
-Message-ID: <1408466959.28990.23.camel@misato.fc.hp.com>
-Subject: Re: [RFC 9/9] prd: Add support for page struct mapping
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Tue, 19 Aug 2014 10:49:19 -0600
-In-Reply-To: <53F30D71.9010107@plexistor.com>
-References: <53EB5536.8020702@gmail.com> <53EB5960.50200@plexistor.com>
-		 <1408134524.26567.38.camel@misato.fc.hp.com> <53F07342.30006@gmail.com>
-	 <1408391280.26567.79.camel@misato.fc.hp.com>
-	 <53F30D71.9010107@plexistor.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BDCE6B0035
+	for <linux-mm@kvack.org>; Tue, 19 Aug 2014 17:26:28 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id et14so11010310pad.9
+        for <linux-mm@kvack.org>; Tue, 19 Aug 2014 14:26:28 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id gk1si28696467pbd.79.2014.08.19.14.26.23
+        for <linux-mm@kvack.org>;
+        Tue, 19 Aug 2014 14:26:24 -0700 (PDT)
+Subject: [PATCH] [RFC] TAINT_PERFORMANCE
+From: Dave Hansen <dave@sr71.net>
+Date: Tue, 19 Aug 2014 14:26:04 -0700
+Message-Id: <20140819212604.6C94DF09@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>
-Cc: Boaz Harrosh <openosd@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>, Yigal Korman <yigal@plexistor.com>
+To: linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com, peterz@infradead.org, mingo@redhat.com, ak@linux.intel.com, tim.c.chen@linux.intel.com, akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org, linux-mm@kvack.org
 
-On Tue, 2014-08-19 at 11:40 +0300, Boaz Harrosh wrote:
-> On 08/18/2014 10:48 PM, Toshi Kani wrote:
-> > On Sun, 2014-08-17 at 12:17 +0300, Boaz Harrosh wrote:
-> <>
-> >> "System RAM" it is not. 
-> > 
-> > I think add_memory() can be easily extended (or modified to provide a
-> > separate interface) for persistent memory, and avoid creating the sysfs
-> > interface and change the handling with firmware_map.  But I can also see
-> > your point that persistent memory should not be added to zone at all.
-> > 
-> 
-> Right
-> 
-> > Anyway, I am a bit concerned with the way to create direct mappings with
-> > map_vm_area() within the prd driver.  Can we use init_memory_mapping()
-> > as it's used by add_memory() and supports large page size?  The size of
-> > persistent memory will grow up quickly.
-> 
-> A bit about large page size. The principal reason of my effort here is
-> that at some stage I need to send pmem blocks to block-layer or network.
-> 
-> The PAGE == 4K is pasted all over the block stack. Do you know how those
-> can work together? will we need some kind of page_split thing how does
-> that work?
 
-I do not think there will be any problem. struct page's are still
-allocated for each 4KB. When you change cache attribute with
-set_memory_<type>(), it will split into 4K mappings if necessary.
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-> > Also, I'd prefer to have an mm
-> > interface that takes care of page allocations and mappings, and avoid a
-> > driver to deal with them.
-> > 
-> 
-> This is a great idea you mean that I define:
-> +	int mm_add_page_mapping(phys_addr_t phys_addr, size_t total_size,
-> +				void **o_virt_addr)
-> 
-> At the mm level. OK It needs a much better name.
-> 
-> I know of 2 more drivers that will need the use of the same interface
-> actually, so you are absolutely right. I didn't dare ask ;-)
+I have more than once myself been the victim of an accidentally-
+enabled kernel config option being mistaken for a true
+performance problem.
 
-I think the new interface should be analogous to add_memory(). Perhaps,
-the name can be something like add_persistent_memory().
+I'm sure I've also taken profiles or performance measurements
+and assumed they were real-world when really I was measuing the
+performance with an option that nobody turns on in production.
 
-> >> And also I think that for DDR4 NvDIMMs we will fail with:
-> >> 	ret = check_hotplug_memory_range(start, size);
-> >>
-> > 
-> > Can you elaborate why DDR4 will fail with the function above?
-> > 
-> 
-> I'm not at all familiar with the details, perhaps the Intel
-> guys that knows better can chip in, but from the little I
-> understood: Today with DDR3 these chips come up at the e820
-> controller, as type 12 memory and, each vendor has a driver
-> to drive proprietary enablement and persistence.
-> With DDR4 it will all be standardized, but it will not come
-> up through the e820 manager, but as a separate device on the
-> SMBus/ACPI.
-> So it is not clear to me that we want to plug this back into
-> the ARCH's memory controllers. check_hotplug_memory_range is
-> it per ARCH?
+A warning like this late in boot will help remind folks when
+these kinds of things are enabled.
 
-check_hotplug_memory_range() is a common function, but the section size
-is defined per architecture. On x86, the size is 128MB. I do not think
-the firmware interface is going to be a problem for this. Some NVDIMM
-may allow a window size to be smaller than 128MB, but the driver can
-manage to configure with a proper size. 
+As for the patch...
 
-> I will produce a new Patchset that introduces a new API
-> for drivers. And I will try to see about the use of
-> init_memory_mapping(), as long as it is not using
-> zones.
-> 
-> Do you think that the new code should sit in?
-> 	mm/memory_hotplug.c
-> 
+I originally wanted this for CONFIG_DEBUG_VM, but I think it also
+applies to things like lockdep and slab debugging.  See the patch
+for the list of offending config options.  I'm open to adding
+more, but this seemed like a good list to start.
 
-Great.  Yes, I agree that the new code should sit in
-mm/memory_hotplug.c.
+This could be done with Kconfig and an #ifdef to save us 8 bytes
+of text and the entry in the late_initcall() section.  Doing it
+this way lets us keep the list of these things in one spot, and
+also gives us a convenient way to dump out the name of the
+offending option.
 
-Thanks,
--Toshi
+The dump_stack() is really just to be loud.
+
+For anybody that *really* cares, I put the whole thing under
+#ifdef CONFIG_DEBUG_KERNEL.
+
+The messages look like this:
+
+[    2.534574] CONFIG_LOCKDEP enabled
+[    2.536392] Do not use this kernel for performance measurement.
+[    2.547189] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 3.16.0-10473-gc8d6637-dirty #800
+[    2.558075] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+[    2.564483]  0000000080000000 ffff88009c70be78 ffffffff817ce318 0000000000000000
+[    2.582505]  ffffffff81dca5b6 ffff88009c70be88 ffffffff81dca5e2 ffff88009c70bef8
+[    2.588589]  ffffffff81000377 0000000000000000 0007000700000142 ffffffff81b78968
+[    2.592638] Call Trace:
+[    2.593762]  [<ffffffff817ce318>] dump_stack+0x4e/0x68
+[    2.597742]  [<ffffffff81dca5b6>] ? oops_setup+0x2e/0x2e
+[    2.601247]  [<ffffffff81dca5e2>] performance_taint+0x2c/0x3c
+[    2.603498]  [<ffffffff81000377>] do_one_initcall+0xe7/0x290
+[    2.606556]  [<ffffffff81db3215>] kernel_init_freeable+0x106/0x19a
+[    2.609718]  [<ffffffff81db29e8>] ? do_early_param+0x86/0x86
+[    2.613772]  [<ffffffff817bcfc0>] ? rest_init+0x150/0x150
+[    2.617333]  [<ffffffff817bcfce>] kernel_init+0xe/0xf0
+[    2.620840]  [<ffffffff817dbc7c>] ret_from_fork+0x7c/0xb0
+[    2.624718]  [<ffffffff817bcfc0>] ? rest_init+0x150/0x150
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: ak@linux.intel.com
+Cc: tim.c.chen@linux.intel.com
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
+---
+
+ b/include/linux/kernel.h |    1 +
+ b/kernel/panic.c         |   40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)
+
+diff -puN include/linux/kernel.h~taint-performance include/linux/kernel.h
+--- a/include/linux/kernel.h~taint-performance	2014-08-19 11:38:07.424005355 -0700
++++ b/include/linux/kernel.h	2014-08-19 11:38:20.960615904 -0700
+@@ -471,6 +471,7 @@ extern enum system_states {
+ #define TAINT_OOT_MODULE		12
+ #define TAINT_UNSIGNED_MODULE		13
+ #define TAINT_SOFTLOCKUP		14
++#define TAINT_PERFORMANCE		15
+ 
+ extern const char hex_asc[];
+ #define hex_asc_lo(x)	hex_asc[((x) & 0x0f)]
+diff -puN kernel/panic.c~taint-performance kernel/panic.c
+--- a/kernel/panic.c~taint-performance	2014-08-19 11:38:28.928975233 -0700
++++ b/kernel/panic.c	2014-08-19 14:14:23.444983711 -0700
+@@ -225,6 +225,7 @@ static const struct tnt tnts[] = {
+ 	{ TAINT_OOT_MODULE,		'O', ' ' },
+ 	{ TAINT_UNSIGNED_MODULE,	'E', ' ' },
+ 	{ TAINT_SOFTLOCKUP,		'L', ' ' },
++	{ TAINT_PERFORMANCE,		'Q', ' ' },
+ };
+ 
+ /**
+@@ -501,3 +502,42 @@ static int __init oops_setup(char *s)
+ 	return 0;
+ }
+ early_param("oops", oops_setup);
++
++#ifdef CONFIG_DEBUG_KERNEL
++#define TAINT_PERF_IF(x) do {						\
++		if (IS_ENABLED(CONFIG_##x)) {				\
++			do_taint = 1;					\
++			pr_warn("CONFIG_%s enabled\n",	__stringify(x));\
++		}							\
++	} while (0)
++
++static int __init performance_taint(void)
++{
++	int do_taint = 0;
++
++	/*
++	 * This should list any kernel options that can substantially
++	 * affect performance.  This is intended to give a big, fat
++	 * warning during bootup so that folks have a fighting chance
++	 * of noticing these things.
++	 */
++	TAINT_PERF_IF(LOCKDEP);
++	TAINT_PERF_IF(LOCK_STAT);
++	TAINT_PERF_IF(DEBUG_VM);
++	TAINT_PERF_IF(DEBUG_VM_VMACACHE);
++	TAINT_PERF_IF(DEBUG_VM_RB);
++	TAINT_PERF_IF(DEBUG_SLAB);
++	TAINT_PERF_IF(DEBUG_OBJECTS_FREE);
++	TAINT_PERF_IF(DEBUG_KMEMLEAK);
++	TAINT_PERF_IF(SCHEDSTATS);
++
++	if (!do_taint)
++		return 0;
++
++	pr_warn("Do not use this kernel for performance measurement.");
++	dump_stack();
++	add_taint(TAINT_PERFORMANCE, LOCKDEP_STILL_OK);
++	return 0;
++}
++late_initcall(performance_taint);
++#endif
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
