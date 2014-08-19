@@ -1,53 +1,122 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id F369D6B0035
-	for <linux-mm@kvack.org>; Sun, 31 Aug 2014 21:36:16 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id y13so4886339pdi.30
-        for <linux-mm@kvack.org>; Sun, 31 Aug 2014 18:36:16 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id pk3si11383546pdb.182.2014.08.31.18.36.15
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 31 Aug 2014 18:36:15 -0700 (PDT)
-From: Sasha Levin <sasha.levin@oracle.com>
-Subject: [PATCH] mm: use pgprot_val to access vm_page_prot
-Date: Sun, 31 Aug 2014 21:35:56 -0400
-Message-Id: <1409535356-30323-1-git-send-email-sasha.levin@oracle.com>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: kirill.shutemov@linux.intel.com, khlebnikov@openvz.org, riel@redhat.com, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, mhocko@suse.cz, hughd@google.com, vbabka@suse.cz, walken@google.com, minchan@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sasha Levin <sasha.levin@oracle.com>
+From: Seth Jennings <sjennings@variantweb.net>
+Subject: Re: [PATCH v2 2/4] zsmalloc: change return value unit of
+ zs_get_total_size_bytes
+Date: Tue, 19 Aug 2014 09:46:28 -0500
+Message-ID: <20140819144628.GA26403@cerebellum.variantweb.net>
+References: <1408434887-16387-1-git-send-email-minchan@kernel.org>
+ <1408434887-16387-3-git-send-email-minchan@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Return-path: <linux-kernel-owner@vger.kernel.org>
+Content-Disposition: inline
+In-Reply-To: <1408434887-16387-3-git-send-email-minchan@kernel.org>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Dan Streetman <ddstreet@ieee.org>, ds2horner@gmail.com
+List-Id: linux-mm.kvack.org
 
-pgprot is defined differently in every arch, use the per-arch pgprot_val
-to access it.
+On Tue, Aug 19, 2014 at 04:54:45PM +0900, Minchan Kim wrote:
+> zs_get_total_size_bytes returns a amount of memory zsmalloc
+> consumed with *byte unit* but zsmalloc operates *page unit*
+> rather than byte unit so let's change the API so benefit
+> we could get is that reduce unnecessary overhead
+> (ie, change page unit with byte unit) in zsmalloc.
+> 
+> Now, zswap can rollback to zswap_pool_pages.
+> Over to zswap guys ;-)
 
-This fixes a build failure on various arches such as tile and powerpc
-caused by "mm: introduce dump_vma".
+I don't think that's how is it done :-/  Changing the API for a
+component that has two users, changing one, then saying "hope you guys
+change your newly broken stuff".
 
-Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
----
- mm/page_alloc.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+I know you would rather not move zram to the zpool API but doing so
+would avoid situations like this.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index add97b8..1e1bd9a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6734,7 +6734,8 @@ void dump_vma(const struct vm_area_struct *vma)
- 		"prot %lx anon_vma %p vm_ops %p\n"
- 		"pgoff %lx file %p private_data %p\n",
- 		vma, (void *)vma->vm_start, (void *)vma->vm_end, vma->vm_next,
--		vma->vm_prev, vma->vm_mm, vma->vm_page_prot.pgprot,
-+		vma->vm_prev, vma->vm_mm,
-+		(unsigned long)pgprot_val(vma->vm_page_prot),
- 		vma->anon_vma, vma->vm_ops, vma->vm_pgoff,
- 		vma->vm_file, vma->vm_private_data);
- 	dump_flags(vma->vm_flags, vmaflags_names, ARRAY_SIZE(vmaflags_names));
--- 
-1.7.10.4
+Anyway, this does break the zpool API and by extension zswap, and that
+needs to be addressed in this patch or we create a point in the commit
+history where it is broken.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Quick glance:
+- zpool_get_total_size() return type is u64 but this patch changes to
+unsigned long.  Now mismatches between zbud and zsmalloc.
+- zbud_zpool_total_size needs to return pages, not bytes
+- as you noted s/pool_total_size/pool_pages/g in zswap.c plus
+  modification to zswap_is_full()
+
+Thanks,
+Seth
+
+> 
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  drivers/block/zram/zram_drv.c |  4 ++--
+>  include/linux/zsmalloc.h      |  2 +-
+>  mm/zsmalloc.c                 | 10 +++++-----
+>  3 files changed, 8 insertions(+), 8 deletions(-)
+> 
+> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> index d00831c3d731..302dd37bcea3 100644
+> --- a/drivers/block/zram/zram_drv.c
+> +++ b/drivers/block/zram/zram_drv.c
+> @@ -103,10 +103,10 @@ static ssize_t mem_used_total_show(struct device *dev,
+>  
+>  	down_read(&zram->init_lock);
+>  	if (init_done(zram))
+> -		val = zs_get_total_size_bytes(meta->mem_pool);
+> +		val = zs_get_total_size(meta->mem_pool);
+>  	up_read(&zram->init_lock);
+>  
+> -	return scnprintf(buf, PAGE_SIZE, "%llu\n", val);
+> +	return scnprintf(buf, PAGE_SIZE, "%llu\n", val << PAGE_SHIFT);
+>  }
+>  
+>  static ssize_t max_comp_streams_show(struct device *dev,
+> diff --git a/include/linux/zsmalloc.h b/include/linux/zsmalloc.h
+> index e44d634e7fb7..105b56e45d23 100644
+> --- a/include/linux/zsmalloc.h
+> +++ b/include/linux/zsmalloc.h
+> @@ -46,6 +46,6 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
+>  			enum zs_mapmode mm);
+>  void zs_unmap_object(struct zs_pool *pool, unsigned long handle);
+>  
+> -u64 zs_get_total_size_bytes(struct zs_pool *pool);
+> +unsigned long zs_get_total_size(struct zs_pool *pool);
+>  
+>  #endif
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index a65924255763..80408a1da03a 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -299,7 +299,7 @@ static void zs_zpool_unmap(void *pool, unsigned long handle)
+>  
+>  static u64 zs_zpool_total_size(void *pool)
+>  {
+> -	return zs_get_total_size_bytes(pool);
+> +	return zs_get_total_size(pool) << PAGE_SHIFT;
+>  }
+>  
+>  static struct zpool_driver zs_zpool_driver = {
+> @@ -1186,16 +1186,16 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
+>  }
+>  EXPORT_SYMBOL_GPL(zs_unmap_object);
+>  
+> -u64 zs_get_total_size_bytes(struct zs_pool *pool)
+> +unsigned long zs_get_total_size(struct zs_pool *pool)
+>  {
+> -	u64 npages;
+> +	unsigned long npages;
+>  
+>  	spin_lock(&pool->stat_lock);
+>  	npages = pool->pages_allocated;
+>  	spin_unlock(&pool->stat_lock);
+> -	return npages << PAGE_SHIFT;
+> +	return npages;
+>  }
+> -EXPORT_SYMBOL_GPL(zs_get_total_size_bytes);
+> +EXPORT_SYMBOL_GPL(zs_get_total_size);
+>  
+>  module_init(zs_init);
+>  module_exit(zs_exit);
+> -- 
+> 2.0.0
+> 
