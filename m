@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 44CFB6B0037
-	for <linux-mm@kvack.org>; Tue, 19 Aug 2014 03:54:36 -0400 (EDT)
-Received: by mail-wi0-f170.google.com with SMTP id f8so4775457wiw.1
-        for <linux-mm@kvack.org>; Tue, 19 Aug 2014 00:54:35 -0700 (PDT)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id E10826B0039
+	for <linux-mm@kvack.org>; Tue, 19 Aug 2014 03:54:38 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id et14so9431429pad.7
+        for <linux-mm@kvack.org>; Tue, 19 Aug 2014 00:54:36 -0700 (PDT)
 Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id yp1si29455717wjc.168.2014.08.19.00.54.31
+        by mx.google.com with ESMTP id bb14si25566971pdb.239.2014.08.19.00.54.31
         for <linux-mm@kvack.org>;
-        Tue, 19 Aug 2014 00:54:33 -0700 (PDT)
+        Tue, 19 Aug 2014 00:54:32 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v2 2/4] zsmalloc: change return value unit of zs_get_total_size_bytes
-Date: Tue, 19 Aug 2014 16:54:45 +0900
-Message-Id: <1408434887-16387-3-git-send-email-minchan@kernel.org>
+Subject: [PATCH v2 4/4] zram: report maximum used memory
+Date: Tue, 19 Aug 2014 16:54:47 +0900
+Message-Id: <1408434887-16387-5-git-send-email-minchan@kernel.org>
 In-Reply-To: <1408434887-16387-1-git-send-email-minchan@kernel.org>
 References: <1408434887-16387-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -19,85 +19,171 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>, ds2horner@gmail.com, Minchan Kim <minchan@kernel.org>
 
-zs_get_total_size_bytes returns a amount of memory zsmalloc
-consumed with *byte unit* but zsmalloc operates *page unit*
-rather than byte unit so let's change the API so benefit
-we could get is that reduce unnecessary overhead
-(ie, change page unit with byte unit) in zsmalloc.
+Normally, zram user could get maximum memory usage zram consumed
+via polling mem_used_total with sysfs in userspace.
 
-Now, zswap can rollback to zswap_pool_pages.
-Over to zswap guys ;-)
+But it has a critical problem because user can miss peak memory
+usage during update inverval of polling. For avoiding that,
+user should poll it with shorter interval(ie, 0.0000000001s)
+with mlocking to avoid page fault delay when memory pressure
+is heavy. It would be troublesome.
+
+This patch adds new knob "mem_used_max" so user could see
+the maximum memory usage easily via reading the knob and reset
+it via "echo 0 > /sys/block/zram0/mem_used_max".
 
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- drivers/block/zram/zram_drv.c |  4 ++--
- include/linux/zsmalloc.h      |  2 +-
- mm/zsmalloc.c                 | 10 +++++-----
- 3 files changed, 8 insertions(+), 8 deletions(-)
+ Documentation/ABI/testing/sysfs-block-zram | 10 +++++
+ Documentation/blockdev/zram.txt            |  1 +
+ drivers/block/zram/zram_drv.c              | 60 +++++++++++++++++++++++++++++-
+ drivers/block/zram/zram_drv.h              |  1 +
+ 4 files changed, 70 insertions(+), 2 deletions(-)
 
+diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
+index 025331c19045..ffd1ea7443dd 100644
+--- a/Documentation/ABI/testing/sysfs-block-zram
++++ b/Documentation/ABI/testing/sysfs-block-zram
+@@ -120,6 +120,16 @@ Description:
+ 		statistic.
+ 		Unit: bytes
+ 
++What:		/sys/block/zram<id>/mem_used_max
++Date:		August 2014
++Contact:	Minchan Kim <minchan@kernel.org>
++Description:
++		The mem_used_max file is read/write and specifies the amount
++		of maximum memory zram have consumed to store compressed data.
++		For resetting the value, you should do "echo 0". Otherwise,
++		you could see -EINVAL.
++		Unit: bytes
++
+ What:		/sys/block/zram<id>/mem_limit
+ Date:		August 2014
+ Contact:	Minchan Kim <minchan@kernel.org>
+diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
+index 9f239ff8c444..3b2247c2d4cf 100644
+--- a/Documentation/blockdev/zram.txt
++++ b/Documentation/blockdev/zram.txt
+@@ -107,6 +107,7 @@ size of the disk when not in use so a huge zram is wasteful.
+ 		orig_data_size
+ 		compr_data_size
+ 		mem_used_total
++		mem_used_max
+ 
+ 8) Deactivate:
+ 	swapoff /dev/zram0
 diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index d00831c3d731..302dd37bcea3 100644
+index adc91c7ecaef..e4d44842a91d 100644
 --- a/drivers/block/zram/zram_drv.c
 +++ b/drivers/block/zram/zram_drv.c
-@@ -103,10 +103,10 @@ static ssize_t mem_used_total_show(struct device *dev,
+@@ -149,6 +149,40 @@ static ssize_t mem_limit_store(struct device *dev,
+ 	return len;
+ }
  
- 	down_read(&zram->init_lock);
- 	if (init_done(zram))
--		val = zs_get_total_size_bytes(meta->mem_pool);
-+		val = zs_get_total_size(meta->mem_pool);
- 	up_read(&zram->init_lock);
- 
--	return scnprintf(buf, PAGE_SIZE, "%llu\n", val);
++static ssize_t mem_used_max_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	u64 val = 0;
++	struct zram *zram = dev_to_zram(dev);
++
++	down_read(&zram->init_lock);
++	if (init_done(zram))
++		val = atomic64_read(&zram->stats.max_used_pages);
++	up_read(&zram->init_lock);
++
 +	return scnprintf(buf, PAGE_SIZE, "%llu\n", val << PAGE_SHIFT);
- }
- 
- static ssize_t max_comp_streams_show(struct device *dev,
-diff --git a/include/linux/zsmalloc.h b/include/linux/zsmalloc.h
-index e44d634e7fb7..105b56e45d23 100644
---- a/include/linux/zsmalloc.h
-+++ b/include/linux/zsmalloc.h
-@@ -46,6 +46,6 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
- 			enum zs_mapmode mm);
- void zs_unmap_object(struct zs_pool *pool, unsigned long handle);
- 
--u64 zs_get_total_size_bytes(struct zs_pool *pool);
-+unsigned long zs_get_total_size(struct zs_pool *pool);
- 
- #endif
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index a65924255763..80408a1da03a 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -299,7 +299,7 @@ static void zs_zpool_unmap(void *pool, unsigned long handle)
- 
- static u64 zs_zpool_total_size(void *pool)
++}
++
++static ssize_t mem_used_max_store(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t len)
++{
++	u64 limit;
++	struct zram *zram = dev_to_zram(dev);
++	struct zram_meta *meta = zram->meta;
++
++	limit = memparse(buf, NULL);
++	if (0 != limit)
++		return -EINVAL;
++
++	down_read(&zram->init_lock);
++	if (init_done(zram))
++		atomic64_set(&zram->stats.max_used_pages,
++				zs_get_total_size(meta->mem_pool));
++	up_read(&zram->init_lock);
++
++	return len;
++}
++
+ static ssize_t max_comp_streams_store(struct device *dev,
+ 		struct device_attribute *attr, const char *buf, size_t len)
  {
--	return zs_get_total_size_bytes(pool);
-+	return zs_get_total_size(pool) << PAGE_SHIFT;
+@@ -461,6 +495,26 @@ out_cleanup:
+ 	return ret;
  }
  
- static struct zpool_driver zs_zpool_driver = {
-@@ -1186,16 +1186,16 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
- }
- EXPORT_SYMBOL_GPL(zs_unmap_object);
- 
--u64 zs_get_total_size_bytes(struct zs_pool *pool)
-+unsigned long zs_get_total_size(struct zs_pool *pool)
++static bool check_limit(struct zram *zram)
++{
++	unsigned long alloced_pages;
++	u64 old_max, cur_max;
++	struct zram_meta *meta = zram->meta;
++
++	do {
++		alloced_pages = zs_get_total_size(meta->mem_pool);
++		if (zram->limit_pages && alloced_pages > zram->limit_pages)
++			return false;
++
++		old_max = cur_max = atomic64_read(&zram->stats.max_used_pages);
++		if (alloced_pages > cur_max)
++			old_max = atomic64_cmpxchg(&zram->stats.max_used_pages,
++					cur_max, alloced_pages);
++	} while (old_max != cur_max);
++
++	return true;
++}
++
+ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+ 			   int offset)
  {
--	u64 npages;
-+	unsigned long npages;
+@@ -541,8 +595,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+ 		goto out;
+ 	}
  
- 	spin_lock(&pool->stat_lock);
- 	npages = pool->pages_allocated;
- 	spin_unlock(&pool->stat_lock);
--	return npages << PAGE_SHIFT;
-+	return npages;
- }
--EXPORT_SYMBOL_GPL(zs_get_total_size_bytes);
-+EXPORT_SYMBOL_GPL(zs_get_total_size);
+-	if (zram->limit_pages &&
+-		zs_get_total_size(meta->mem_pool) > zram->limit_pages) {
++	if (!check_limit(zram)) {
+ 		zs_free(meta->mem_pool, handle);
+ 		ret = -ENOMEM;
+ 		goto out;
+@@ -897,6 +950,8 @@ static DEVICE_ATTR(orig_data_size, S_IRUGO, orig_data_size_show, NULL);
+ static DEVICE_ATTR(mem_used_total, S_IRUGO, mem_used_total_show, NULL);
+ static DEVICE_ATTR(mem_limit, S_IRUGO | S_IWUSR, mem_limit_show,
+ 		mem_limit_store);
++static DEVICE_ATTR(mem_used_max, S_IRUGO | S_IWUSR, mem_used_max_show,
++		mem_used_max_store);
+ static DEVICE_ATTR(max_comp_streams, S_IRUGO | S_IWUSR,
+ 		max_comp_streams_show, max_comp_streams_store);
+ static DEVICE_ATTR(comp_algorithm, S_IRUGO | S_IWUSR,
+@@ -926,6 +981,7 @@ static struct attribute *zram_disk_attrs[] = {
+ 	&dev_attr_compr_data_size.attr,
+ 	&dev_attr_mem_used_total.attr,
+ 	&dev_attr_mem_limit.attr,
++	&dev_attr_mem_used_max.attr,
+ 	&dev_attr_max_comp_streams.attr,
+ 	&dev_attr_comp_algorithm.attr,
+ 	NULL,
+diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+index b7aa9c21553f..29383312d543 100644
+--- a/drivers/block/zram/zram_drv.h
++++ b/drivers/block/zram/zram_drv.h
+@@ -90,6 +90,7 @@ struct zram_stats {
+ 	atomic64_t notify_free;	/* no. of swap slot free notifications */
+ 	atomic64_t zero_pages;		/* no. of zero filled pages */
+ 	atomic64_t pages_stored;	/* no. of pages currently stored */
++	atomic64_t max_used_pages;	/* no. of maximum pages stored */
+ };
  
- module_init(zs_init);
- module_exit(zs_exit);
+ struct zram_meta {
 -- 
 2.0.0
 
