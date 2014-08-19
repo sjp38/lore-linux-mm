@@ -1,180 +1,245 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id D5B1E6B0035
-	for <linux-mm@kvack.org>; Tue, 19 Aug 2014 02:19:38 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so9297958pab.5
-        for <linux-mm@kvack.org>; Mon, 18 Aug 2014 23:19:38 -0700 (PDT)
+Received: from mail-oa0-f54.google.com (mail-oa0-f54.google.com [209.85.219.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 957E26B0035
+	for <linux-mm@kvack.org>; Tue, 19 Aug 2014 03:37:48 -0400 (EDT)
+Received: by mail-oa0-f54.google.com with SMTP id n16so4971912oag.27
+        for <linux-mm@kvack.org>; Tue, 19 Aug 2014 00:37:48 -0700 (PDT)
 Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id du8si25234535pdb.189.2014.08.18.23.19.36
+        by mx.google.com with ESMTPS id q2si25363726obf.53.2014.08.19.00.37.45
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 18 Aug 2014 23:19:37 -0700 (PDT)
-Message-ID: <53F2EBCC.9020200@huawei.com>
-Date: Tue, 19 Aug 2014 14:16:44 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        Tue, 19 Aug 2014 00:37:47 -0700 (PDT)
+Message-ID: <53F2FE4C.7020700@huawei.com>
+Date: Tue, 19 Aug 2014 15:35:40 +0800
+From: Zhang Zhen <zhenzhang.zhang@huawei.com>
 MIME-Version: 1.0
-Subject: [PATCH] mem-hotplug: fix boot failed in case all the nodes are hotpluggable
+Subject: Re: [PATCH v2] memory-hotplug: add sysfs zones_online_to attribute
+References: <1407902811-4873-1-git-send-email-zhenzhang.zhang@huawei.com> <53EAE534.8030303@huawei.com> <53F19919.1070908@jp.fujitsu.com>
+In-Reply-To: <53F19919.1070908@jp.fujitsu.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: davej@redhat.com, Tang Chen <tangchen@cn.fujitsu.com>, guz.fnst@cn.fujitsu.com, Thomas Gleixner <tglx@linutronix.de>, Andrew
- Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, toshi.kani@hp.com, n-horiguchi@ah.jp.nec.com, wangnan0@huawei.com, linux-kernel@vger.kernel.org, Linux MM <linux-mm@kvack.org>
 
-If all the nodes are marked hotpluggable flag, alloc node data will fail.
-Because __next_mem_range_rev() will skip the hotpluggable memory regions.
-numa_clear_kernel_node_hotplug() is called after alloc node data.
+On 2014/8/18 14:11, Yasuaki Ishimatsu wrote:
+> (2014/08/13 13:10), Zhang Zhen wrote:
+>> Currently memory-hotplug has two limits:
+>> 1. If the memory block is in ZONE_NORMAL, you can change it to
+>> ZONE_MOVABLE, but this memory block must be adjacent to ZONE_MOVABLE.
+>> 2. If the memory block is in ZONE_MOVABLE, you can change it to
+>> ZONE_NORMAL, but this memory block must be adjacent to ZONE_NORMAL.
+>>
+>> With this patch, we can easy to know a memory block can be onlined to
+>> which zone, and don't need to know the above two limits.
+>>
+>> Updated the related Documentation.
+>>
+>> Change v1 -> v2:
+>> - optimize the implementation following Dave Hansen's suggestion
+>>
+>> Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
+>> ---
+>>   Documentation/ABI/testing/sysfs-devices-memory |  8 ++++
+>>   Documentation/memory-hotplug.txt               |  4 +-
+>>   drivers/base/memory.c                          | 62 ++++++++++++++++++++++++++
+>>   include/linux/memory_hotplug.h                 |  1 +
+>>   mm/memory_hotplug.c                            |  2 +-
+>>   5 files changed, 75 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/Documentation/ABI/testing/sysfs-devices-memory b/Documentation/ABI/testing/sysfs-devices-memory
+>> index 7405de2..2b2a1d7 100644
+>> --- a/Documentation/ABI/testing/sysfs-devices-memory
+>> +++ b/Documentation/ABI/testing/sysfs-devices-memory
+>> @@ -61,6 +61,14 @@ Users:        hotplug memory remove tools
+>>           http://www.ibm.com/developerworks/wikis/display/LinuxP/powerpc-utils
+>>
+>>
+>> +What:           /sys/devices/system/memory/memoryX/zones_online_to
+>> +Date:           July 2014
+>> +Contact:    Zhang Zhen <zhenzhang.zhang@huawei.com>
+>> +Description:
+>> +        The file /sys/devices/system/memory/memoryX/zones_online_to
+>> +        is read-only and is designed to show which zone this memory block can
+>> +        be onlined to.
+>> +
+>>   What:        /sys/devices/system/memoryX/nodeY
+>>   Date:        October 2009
+>>   Contact:    Linux Memory Management list <linux-mm@kvack.org>
+>> diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
+>> index 45134dc..5b34e33 100644
+>> --- a/Documentation/memory-hotplug.txt
+>> +++ b/Documentation/memory-hotplug.txt
+>> @@ -155,6 +155,7 @@ Under each memory block, you can see 4 files:
+>>   /sys/devices/system/memory/memoryXXX/phys_device
+>>   /sys/devices/system/memory/memoryXXX/state
+>>   /sys/devices/system/memory/memoryXXX/removable
+>> +/sys/devices/system/memory/memoryXXX/zones_online_to
+>>
+>>   'phys_index'      : read-only and contains memory block id, same as XXX.
+>>   'state'           : read-write
+>> @@ -170,6 +171,8 @@ Under each memory block, you can see 4 files:
+>>                       block is removable and a value of 0 indicates that
+>>                       it is not removable. A memory block is removable only if
+>>                       every section in the block is removable.
+>> +'zones_online_to' : read-only: designed to show which zone this memory block
+>> +            can be onlined to.
+>>
+>>   NOTE:
+>>     These directories/files appear after physical memory hotplug phase.
+>> @@ -408,7 +411,6 @@ node if necessary.
+>>     - allowing memory hot-add to ZONE_MOVABLE. maybe we need some switch like
+>>       sysctl or new control file.
+>>     - showing memory block and physical device relationship.
+>> -  - showing memory block is under ZONE_MOVABLE or not
+>>     - test and make it better memory offlining.
+>>     - support HugeTLB page migration and offlining.
+>>     - memmap removing at memory offline.
+>> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+>> index a2e13e2..b5d693f 100644
+>> --- a/drivers/base/memory.c
+>> +++ b/drivers/base/memory.c
+>> @@ -373,10 +373,71 @@ static ssize_t show_phys_device(struct device *dev,
+>>       return sprintf(buf, "%d\n", mem->phys_device);
+>>   }
+>>
+>> +static int __zones_online_to(unsigned long end_pfn,
+>> +                struct page *first_page, unsigned long nr_pages)
+>> +{
+>> +    struct zone *zone_next;
+>> +
+> 
+>> +    /*The mem block is the last block of memory.*/
+>> +    if (!pfn_valid(end_pfn + 1))
+>> +        return 1;
+> 
+> The check is not enough if memory has hole as follows:
+> 
+> PFN       0x00          0xd0          0xe0          0xf0
+>             +-------------+-------------+-------------+
+> zone type   |   Normal    |     hole    |   Normal    |
+>             +-------------+-------------+-------------+
+> 
+> In this case, 0xd1 is invalid pfn. But __zones_online_to should return 0
+> since 0xe0-0xf0 is Normal zone.
+> 
+> Thanks,
+> Yasuaki Ishimatsu
+> 
+You are right, it is not enough.
 
-numa_init()
-	...
-	ret = init_func();  // this will mark hotpluggable flag from SRAT
-	...
-	memblock_set_bottom_up(false);
-	...
-	ret = numa_register_memblks(&numa_meminfo);  // this will alloc node data(pglist_data) 
-	...
-	numa_clear_kernel_node_hotplug();  // in case all the nodes are hotpluggable
-	...
+Here we should make a check as follows.
+if ((end_pfn + 1) > zone_end_pfn(page_zone(first_page)))
+	return 1;
+I will send a patch to fix it.
 
-numa_register_memblks()
-	setup_node_data()
-		memblock_find_in_range_node()
-			__memblock_find_range_top_down()
-				for_each_mem_range_rev()
-					__next_mem_range_rev()
-
-This patch moves numa_clear_kernel_node_hotplug() into numa_register_memblks(),
-clear kernel node hotpluggable flag before alloc node data, then alloc node data
-won't fail even all the nodes are hotpluggable.
-
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
----
- arch/x86/mm/numa.c |   88 ++++++++++++++++++++++++++--------------------------
- 1 files changed, 44 insertions(+), 44 deletions(-)
-
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index a32b706..f7ebd97 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -478,6 +478,41 @@ static bool __init numa_meminfo_cover_memory(const struct numa_meminfo *mi)
- 	return true;
- }
- 
-+static void __init numa_clear_kernel_node_hotplug(void)
-+{
-+	int i, nid;
-+	nodemask_t numa_kernel_nodes = NODE_MASK_NONE;
-+	unsigned long start, end;
-+	struct memblock_region *r;
-+
-+	/*
-+	 * At this time, all memory regions reserved by memblock are
-+	 * used by the kernel. Set the nid in memblock.reserved will
-+	 * mark out all the nodes the kernel resides in.
-+	 */
-+	for (i = 0; i < numa_meminfo.nr_blks; i++) {
-+		struct numa_memblk *mb = &numa_meminfo.blk[i];
-+		memblock_set_node(mb->start, mb->end - mb->start,
-+				  &memblock.reserved, mb->nid);
-+	}
-+
-+	/* Mark all kernel nodes. */
-+	for_each_memblock(reserved, r)
-+		node_set(r->nid, numa_kernel_nodes);
-+
-+	/* Clear MEMBLOCK_HOTPLUG flag for memory in kernel nodes. */
-+	for (i = 0; i < numa_meminfo.nr_blks; i++) {
-+		nid = numa_meminfo.blk[i].nid;
-+		if (!node_isset(nid, numa_kernel_nodes))
-+			continue;
-+
-+		start = numa_meminfo.blk[i].start;
-+		end = numa_meminfo.blk[i].end;
-+
-+		memblock_clear_hotplug(start, end - start);
-+	}
-+}
-+
- static int __init numa_register_memblks(struct numa_meminfo *mi)
- {
- 	unsigned long uninitialized_var(pfn_align);
-@@ -496,6 +531,15 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
- 	}
- 
- 	/*
-+	 * At very early time, the kernel have to use some memory such as
-+	 * loading the kernel image. We cannot prevent this anyway. So any
-+	 * node the kernel resides in should be un-hotpluggable.
-+	 *
-+	 * And when we come here, alloc node data won't fail.
-+	 */
-+	numa_clear_kernel_node_hotplug();
-+
-+	/*
- 	 * If sections array is gonna be used for pfn -> nid mapping, check
- 	 * whether its granularity is fine enough.
- 	 */
-@@ -554,41 +598,6 @@ static void __init numa_init_array(void)
- 	}
- }
- 
--static void __init numa_clear_kernel_node_hotplug(void)
--{
--	int i, nid;
--	nodemask_t numa_kernel_nodes = NODE_MASK_NONE;
--	unsigned long start, end;
--	struct memblock_region *r;
--
--	/*
--	 * At this time, all memory regions reserved by memblock are
--	 * used by the kernel. Set the nid in memblock.reserved will
--	 * mark out all the nodes the kernel resides in.
--	 */
--	for (i = 0; i < numa_meminfo.nr_blks; i++) {
--		struct numa_memblk *mb = &numa_meminfo.blk[i];
--		memblock_set_node(mb->start, mb->end - mb->start,
--				  &memblock.reserved, mb->nid);
--	}
--
--	/* Mark all kernel nodes. */
--	for_each_memblock(reserved, r)
--		node_set(r->nid, numa_kernel_nodes);
--
--	/* Clear MEMBLOCK_HOTPLUG flag for memory in kernel nodes. */
--	for (i = 0; i < numa_meminfo.nr_blks; i++) {
--		nid = numa_meminfo.blk[i].nid;
--		if (!node_isset(nid, numa_kernel_nodes))
--			continue;
--
--		start = numa_meminfo.blk[i].start;
--		end = numa_meminfo.blk[i].end;
--
--		memblock_clear_hotplug(start, end - start);
--	}
--}
--
- static int __init numa_init(int (*init_func)(void))
- {
- 	int i;
-@@ -643,15 +652,6 @@ static int __init numa_init(int (*init_func)(void))
- 	}
- 	numa_init_array();
- 
--	/*
--	 * At very early time, the kernel have to use some memory such as
--	 * loading the kernel image. We cannot prevent this anyway. So any
--	 * node the kernel resides in should be un-hotpluggable.
--	 *
--	 * And when we come here, numa_init() won't fail.
--	 */
--	numa_clear_kernel_node_hotplug();
--
- 	return 0;
- }
- 
--- 
-1.7.1
+Thanks !
+> 
+>> +    zone_next = page_zone(first_page + nr_pages);
+>> +    if (zone_idx(zone_next) == ZONE_MOVABLE)
+>> +        return 1;
+>> +    return 0;
+>> +}
+>> +
+>> +static ssize_t show_zones_online_to(struct device *dev,
+>> +                struct device_attribute *attr, char *buf)
+>> +{
+>> +    struct memory_block *mem = to_memory_block(dev);
+>> +    unsigned long start_pfn, end_pfn;
+>> +    unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
+>> +    struct page *first_page;
+>> +    struct zone *zone, *zone_prev;
+>> +
+>> +    start_pfn = section_nr_to_pfn(mem->start_section_nr);
+>> +    end_pfn = start_pfn + nr_pages;
+>> +    first_page = pfn_to_page(start_pfn);
+>> +
+>> +    /*The block contains more than one zone can not be offlined.*/
+>> +    if (!test_pages_in_a_zone(start_pfn, end_pfn))
+>> +        return sprintf(buf, "none\n");
+>> +
+>> +    zone = page_zone(first_page);
+>> +
+>> +#ifdef CONFIG_HIGHMEM
+>> +    if (zone_idx(zone) == ZONE_HIGHMEM) {
+>> +        if (__zones_online_to(end_pfn, first_page, nr_pages))
+>> +            return sprintf(buf, "%s %s\n",
+>> +                    zone->name, (zone + 1)->name);
+>> +    }
+>> +#else
+>> +    if (zone_idx(zone) == ZONE_NORMAL) {
+>> +        if (__zones_online_to(end_pfn, first_page, nr_pages))
+>> +            return sprintf(buf, "%s %s\n",
+>> +                    zone->name, (zone + 1)->name);
+>> +    }
+>> +#endif
+>> +
+>> +    if (zone_idx(zone) == ZONE_MOVABLE) {
+>> +        if (!pfn_valid(start_pfn - nr_pages))
+>> +            return sprintf(buf, "%s %s\n",
+>> +                        zone->name, (zone - 1)->name);
+>> +        zone_prev = page_zone(first_page - nr_pages);
+>> +        if (zone_idx(zone_prev) != ZONE_MOVABLE)
+>> +            return sprintf(buf, "%s %s\n",
+>> +                        zone->name, (zone - 1)->name);
+>> +    }
+>> +
+>> +    return sprintf(buf, "%s\n", zone->name);
+>> +}
+>> +
+>>   static DEVICE_ATTR(phys_index, 0444, show_mem_start_phys_index, NULL);
+>>   static DEVICE_ATTR(state, 0644, show_mem_state, store_mem_state);
+>>   static DEVICE_ATTR(phys_device, 0444, show_phys_device, NULL);
+>>   static DEVICE_ATTR(removable, 0444, show_mem_removable, NULL);
+>> +static DEVICE_ATTR(zones_online_to, 0444, show_zones_online_to, NULL);
+>>
+>>   /*
+>>    * Block size attribute stuff
+>> @@ -523,6 +584,7 @@ static struct attribute *memory_memblk_attrs[] = {
+>>       &dev_attr_state.attr,
+>>       &dev_attr_phys_device.attr,
+>>       &dev_attr_removable.attr,
+>> +    &dev_attr_zones_online_to.attr,
+>>       NULL
+>>   };
+>>
+>> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+>> index d9524c4..8f1a419 100644
+>> --- a/include/linux/memory_hotplug.h
+>> +++ b/include/linux/memory_hotplug.h
+>> @@ -84,6 +84,7 @@ extern int zone_grow_waitqueues(struct zone *zone, unsigned long nr_pages);
+>>   extern int add_one_highpage(struct page *page, int pfn, int bad_ppro);
+>>   /* VM interface that may be used by firmware interface */
+>>   extern int online_pages(unsigned long, unsigned long, int);
+>> +extern int test_pages_in_a_zone(unsigned long, unsigned long);
+>>   extern void __offline_isolated_pages(unsigned long, unsigned long);
+>>
+>>   typedef void (*online_page_callback_t)(struct page *page);
+>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>> index 2ff8c23..29d8693 100644
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -1307,7 +1307,7 @@ int is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
+>>   /*
+>>    * Confirm all pages in a range [start, end) is belongs to the same zone.
+>>    */
+>> -static int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
+>> +int test_pages_in_a_zone(unsigned long start_pfn, unsigned long end_pfn)
+>>   {
+>>       unsigned long pfn;
+>>       struct zone *zone = NULL;
+>>
+> 
+> 
+> -- 
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> .
+> 
 
 
 --
