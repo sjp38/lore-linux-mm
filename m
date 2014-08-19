@@ -1,205 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 474086B0035
-	for <linux-mm@kvack.org>; Mon, 18 Aug 2014 23:58:35 -0400 (EDT)
-Received: by mail-ig0-f174.google.com with SMTP id c1so9408968igq.7
-        for <linux-mm@kvack.org>; Mon, 18 Aug 2014 20:58:35 -0700 (PDT)
-Received: from e35.co.us.ibm.com (e35.co.us.ibm.com. [32.97.110.153])
-        by mx.google.com with ESMTPS id t8si10544744igs.16.2014.08.18.20.58.34
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 3718C6B0035
+	for <linux-mm@kvack.org>; Tue, 19 Aug 2014 01:46:31 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id r10so8775440pdi.20
+        for <linux-mm@kvack.org>; Mon, 18 Aug 2014 22:46:30 -0700 (PDT)
+Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
+        by mx.google.com with ESMTPS id gl10si25064283pbd.139.2014.08.18.22.46.29
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 18 Aug 2014 20:58:34 -0700 (PDT)
-Received: from /spool/local
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Mon, 18 Aug 2014 21:58:33 -0600
-Received: from b03cxnp07029.gho.boulder.ibm.com (b03cxnp07029.gho.boulder.ibm.com [9.17.130.16])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id E826E19D8039
-	for <linux-mm@kvack.org>; Mon, 18 Aug 2014 21:58:18 -0600 (MDT)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by b03cxnp07029.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s7J1sbec3473744
-	for <linux-mm@kvack.org>; Tue, 19 Aug 2014 03:54:37 +0200
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id s7J42no1013731
-	for <linux-mm@kvack.org>; Mon, 18 Aug 2014 22:02:49 -0600
-Date: Mon, 18 Aug 2014 20:58:28 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: slub/debugobjects: lockup when freeing memory
-Message-ID: <20140819035828.GI4752@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <53A2F406.4010109@oracle.com>
- <alpine.DEB.2.11.1406191001090.2785@gentwo.org>
- <20140619165247.GA4904@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1406192127100.5170@nanos>
- <alpine.DEB.2.11.1406191519090.4002@gentwo.org>
- <20140818163757.GA30742@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1408182147400.28727@gentwo.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1408182147400.28727@gentwo.org>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Mon, 18 Aug 2014 22:46:30 -0700 (PDT)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NAJ000SNHDEBU60@mailout1.samsung.com> for
+ linux-mm@kvack.org; Tue, 19 Aug 2014 14:46:26 +0900 (KST)
+From: Chao Yu <chao2.yu@samsung.com>
+References: <001201cfb838$fb0ac4a0$f1204de0$@samsung.com>
+ <20140815061138.GA940@swordfish>
+In-reply-to: <20140815061138.GA940@swordfish>
+Subject: RE: [PATCH] zram: add num_discards for discarded pages stat
+Date: Tue, 19 Aug 2014 13:45:25 +0800
+Message-id: <002d01cfbb70$ea7410c0$bf5c3240$@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=US-ASCII
+Content-transfer-encoding: 7bit
+Content-language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Sasha Levin <sasha.levin@oracle.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>
+Cc: minchan@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, 'Jerome Marchand' <jmarchan@redhat.com>, 'Andrew Morton' <akpm@linux-foundation.org>
 
-On Mon, Aug 18, 2014 at 10:44:34PM -0500, Christoph Lameter wrote:
-> On Mon, 18 Aug 2014, Paul E. McKenney wrote:
+> -----Original Message-----
+> From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On Behalf Of Sergey
+> Senozhatsky
+> Sent: Friday, August 15, 2014 2:12 PM
+> To: Chao Yu
+> Cc: minchan@kernel.org; linux-kernel@vger.kernel.org; linux-mm@kvack.org; ngupta@vflare.org;
+> 'Jerome Marchand'; 'Sergey Senozhatsky'; 'Andrew Morton'
+> Subject: Re: [PATCH] zram: add num_discards for discarded pages stat
 > 
-> > > > So call rcu activates the object, but the object has no reference in
-> > > > the debug objects code so the fixup code is called which inits the
-> > > > object and allocates a reference ....
-> > >
-> > > So we need to init the object in the page struct before the __call_rcu?
+> On (08/15/14 11:27), Chao Yu wrote:
+> > Now we have supported handling discard request which is sended by filesystem,
+> > but no interface could be used to show information of discard.
+> > This patch adds num_discards to stat discarded pages, then export it to sysfs
+> > for displaying.
 > >
-> > And the needed APIs are now in mainline:
+> 
+> a side question: we account discarded pages via slot free notify in
+> notify_free and via req_discard in num_discards. how about accounting
+> both of them in num_discards? because, after all, they account a number
+> of discarded pages (zram_free_page()). or there any particular reason we
+> want to distinguish.
+
+Yeah, I agree with you as I have no such reason unless there are our users'
+explicitly requirement for showing notify_free/num_discards separately later.
+
+How do you think of sending another patch to merge these two counts?
+
+One more thing is that I am missing to update document of zram, sorry about
+that, let me update it in v2.
+
+Thanks,
+Yu
+
+> 
+> 	-ss
+> 
+> > Signed-off-by: Chao Yu <chao2.yu@samsung.com>
+> > ---
+> >  Documentation/ABI/testing/sysfs-block-zram | 10 ++++++++++
+> >  drivers/block/zram/zram_drv.c              |  3 +++
+> >  drivers/block/zram/zram_drv.h              |  1 +
+> >  3 files changed, 14 insertions(+)
 > >
-> > 	void init_rcu_head(struct rcu_head *head);
-> > 	void destroy_rcu_head(struct rcu_head *head);
+> > diff --git a/Documentation/ABI/testing/sysfs-block-zram
+> b/Documentation/ABI/testing/sysfs-block-zram
+> > index 70ec992..fa8936e 100644
+> > --- a/Documentation/ABI/testing/sysfs-block-zram
+> > +++ b/Documentation/ABI/testing/sysfs-block-zram
+> > @@ -57,6 +57,16 @@ Description:
+> >  		The failed_writes file is read-only and specifies the number of
+> >  		failed writes happened on this device.
 > >
-> > Over to you, Christoph!  ;-)
+> > +
+> > +What:		/sys/block/zram<id>/num_discards
+> > +Date:		August 2014
+> > +Contact:	Chao Yu <chao2.yu@samsung.com>
+> > +Description:
+> > +		The num_discards file is read-only and specifies the number of
+> > +		physical blocks which are discarded by this device. These blocks
+> > +		are included in discard request which is sended by filesystem as
+> > +		the blocks are no longer used.
+> > +
+> >  What:		/sys/block/zram<id>/max_comp_streams
+> >  Date:		February 2014
+> >  Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> > index d00831c..904e7a5 100644
+> > --- a/drivers/block/zram/zram_drv.c
+> > +++ b/drivers/block/zram/zram_drv.c
+> > @@ -606,6 +606,7 @@ static void zram_bio_discard(struct zram *zram, u32 index,
+> >  		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
+> >  		zram_free_page(zram, index);
+> >  		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+> > +		atomic64_inc(&zram->stats.num_discards);
+> >  		index++;
+> >  		n -= PAGE_SIZE;
+> >  	}
+> > @@ -866,6 +867,7 @@ ZRAM_ATTR_RO(num_reads);
+> >  ZRAM_ATTR_RO(num_writes);
+> >  ZRAM_ATTR_RO(failed_reads);
+> >  ZRAM_ATTR_RO(failed_writes);
+> > +ZRAM_ATTR_RO(num_discards);
+> >  ZRAM_ATTR_RO(invalid_io);
+> >  ZRAM_ATTR_RO(notify_free);
+> >  ZRAM_ATTR_RO(zero_pages);
+> > @@ -879,6 +881,7 @@ static struct attribute *zram_disk_attrs[] = {
+> >  	&dev_attr_num_writes.attr,
+> >  	&dev_attr_failed_reads.attr,
+> >  	&dev_attr_failed_writes.attr,
+> > +	&dev_attr_num_discards.attr,
+> >  	&dev_attr_invalid_io.attr,
+> >  	&dev_attr_notify_free.attr,
+> >  	&dev_attr_zero_pages.attr,
+> > diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+> > index e0f725c..2994aaf 100644
+> > --- a/drivers/block/zram/zram_drv.h
+> > +++ b/drivers/block/zram/zram_drv.h
+> > @@ -86,6 +86,7 @@ struct zram_stats {
+> >  	atomic64_t num_writes;	/* --do-- */
+> >  	atomic64_t failed_reads;	/* can happen when memory is too low */
+> >  	atomic64_t failed_writes;	/* can happen when memory is too low */
+> > +	atomic64_t num_discards;	/* no. of discarded pages */
+> >  	atomic64_t invalid_io;	/* non-page-aligned I/O requests */
+> >  	atomic64_t notify_free;	/* no. of swap slot free notifications */
+> >  	atomic64_t zero_pages;		/* no. of zero filled pages */
+> > --
+> > 2.0.1.474.g72c7794
+> >
+> >
 > 
-> The field we are using for the rcu head serves other purposes before
-> the free action. We cannot init the field at slab creation as we
-> thought since it is used for the queueing of slabs on the partial, free
-> and full lists. The kmem_cache information is not available when doing
-> the freeing so we must force the allocation of reserve fields and the
-> use of the reserved areas for rcu on all kmem_caches.
-
-Yow!  I am glad I didn't try doing this myself!
-
-> I made this conditional on CONFIG_RCU_XYZ. This needs to be the actual
-> Debug options that will require allocations when initializing rcu heads.
-> 
-> Also note that the allocations in the rcu head initialization must be
-> restricted to non RCU slabs otherwise the recursion may not terminate.
-> 
-> 
-> Subject RFC: Allow allocations on initializing rcu fields in slub.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
-> 
-> Index: linux/mm/slub.c
-> ===================================================================
-> --- linux.orig/mm/slub.c
-> +++ linux/mm/slub.c
-> @@ -1308,6 +1308,41 @@ static inline struct page *alloc_slab_pa
->  	return page;
->  }
-> 
-> +#ifdef CONFIG_RCU_DEBUG_XYZ
-
-If you make CONFIG_RCU_DEBUG_XYZ instead be CONFIG_DEBUG_OBJECTS_RCU_HEAD,
-then it will automatically show up when it needs to.
-
-The rest looks plausible, for whatever that is worth.
-
-							Thanx, Paul
-
-> +/*
-> + * We may have to do alloations during the initialization of the
-> + * debug portion of the rcu structure for a slab. It must therefore
-> + * be separately allocated and initized on allocation.
-> + * We cannot overload the lru field in the page struct at all.
-> + */
-> +#define need_reserve_slab_rcu 1
-> +#else
-> +/*
-> + * Overload the lru field in struct page if it fits.
-> + * Should struct rcu_head grow due to debugging fields etc then
-> + * additional space will be allocated from the end of the slab to
-> + * store the rcu_head.
-> + */
-> +#define need_reserve_slab_rcu						\
-> +	(sizeof(((struct page *)NULL)->lru) < sizeof(struct rcu_head))
-> +#endif
-> +
-> +static struct rcu_head *get_rcu_head(struct kmem_cache *s, struct page *page)
-> +{
-> +	if (need_reserve_slab_rcu) {
-> +		int order = compound_order(page);
-> +		int offset = (PAGE_SIZE << order) - s->reserved;
-> +
-> +		VM_BUG_ON(s->reserved != sizeof(struct rcu_head));
-> +		return page_address(page) + offset;
-> +	} else {
-> +		/*
-> +		 * RCU free overloads the RCU head over the LRU
-> +		 */
-> +		return (void *)&page->lru;
-> +	}
-> +}
-> +
->  static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
->  {
->  	struct page *page;
-> @@ -1357,6 +1392,21 @@ static struct page *allocate_slab(struct
->  			kmemcheck_mark_unallocated_pages(page, pages);
->  	}
-> 
-> +#ifdef CONFIG_RCU_DEBUG_XYZ
-> +	if (unlikely(s->flags & SLAB_DESTROY_BY_RCU) && page)
-> +		/*
-> +		 * Initialize rcu_head and potentially do other
-> +		 * allocations. Note that this is still a recursive
-> +		 * call into the allocator which may recurse endlessly
-> +		 * if the same kmem_cache is used for allocation here.
-> +		 *
-> +		 * So in order to be safe the slab caches used
-> +		 * in init_rcu_head must be restricted to be of the
-> +		 * non rcu kind only.
-> +		 */
-> +		init_rcu_head(get_rcu_head(s, page));
-> +#endif
-> +
->  	if (flags & __GFP_WAIT)
->  		local_irq_disable();
->  	if (!page)
-> @@ -1452,13 +1502,13 @@ static void __free_slab(struct kmem_cach
->  	memcg_uncharge_slab(s, order);
->  }
-> 
-> -#define need_reserve_slab_rcu						\
-> -	(sizeof(((struct page *)NULL)->lru) < sizeof(struct rcu_head))
-> -
->  static void rcu_free_slab(struct rcu_head *h)
->  {
->  	struct page *page;
-> 
-> +#ifdef CONFIG_RCU_DEBUG_XYZ
-> +	destroy_rcu_head(h);
-> +#endif
->  	if (need_reserve_slab_rcu)
->  		page = virt_to_head_page(h);
->  	else
-> @@ -1469,24 +1519,9 @@ static void rcu_free_slab(struct rcu_hea
-> 
->  static void free_slab(struct kmem_cache *s, struct page *page)
->  {
-> -	if (unlikely(s->flags & SLAB_DESTROY_BY_RCU)) {
-> -		struct rcu_head *head;
-> -
-> -		if (need_reserve_slab_rcu) {
-> -			int order = compound_order(page);
-> -			int offset = (PAGE_SIZE << order) - s->reserved;
-> -
-> -			VM_BUG_ON(s->reserved != sizeof(*head));
-> -			head = page_address(page) + offset;
-> -		} else {
-> -			/*
-> -			 * RCU free overloads the RCU head over the LRU
-> -			 */
-> -			head = (void *)&page->lru;
-> -		}
-> -
-> -		call_rcu(head, rcu_free_slab);
-> -	} else
-> +	if (unlikely(s->flags & SLAB_DESTROY_BY_RCU))
-> +		call_rcu(get_rcu_head(s, page), rcu_free_slab);
-> +	else
->  		__free_slab(s, page);
->  }
-> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
