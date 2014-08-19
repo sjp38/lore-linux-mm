@@ -1,150 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 3718C6B0035
-	for <linux-mm@kvack.org>; Tue, 19 Aug 2014 01:46:31 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id r10so8775440pdi.20
-        for <linux-mm@kvack.org>; Mon, 18 Aug 2014 22:46:30 -0700 (PDT)
-Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
-        by mx.google.com with ESMTPS id gl10si25064283pbd.139.2014.08.18.22.46.29
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id D5B1E6B0035
+	for <linux-mm@kvack.org>; Tue, 19 Aug 2014 02:19:38 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id lj1so9297958pab.5
+        for <linux-mm@kvack.org>; Mon, 18 Aug 2014 23:19:38 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id du8si25234535pdb.189.2014.08.18.23.19.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Mon, 18 Aug 2014 22:46:30 -0700 (PDT)
-Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NAJ000SNHDEBU60@mailout1.samsung.com> for
- linux-mm@kvack.org; Tue, 19 Aug 2014 14:46:26 +0900 (KST)
-From: Chao Yu <chao2.yu@samsung.com>
-References: <001201cfb838$fb0ac4a0$f1204de0$@samsung.com>
- <20140815061138.GA940@swordfish>
-In-reply-to: <20140815061138.GA940@swordfish>
-Subject: RE: [PATCH] zram: add num_discards for discarded pages stat
-Date: Tue, 19 Aug 2014 13:45:25 +0800
-Message-id: <002d01cfbb70$ea7410c0$bf5c3240$@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=US-ASCII
-Content-transfer-encoding: 7bit
-Content-language: zh-cn
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 18 Aug 2014 23:19:37 -0700 (PDT)
+Message-ID: <53F2EBCC.9020200@huawei.com>
+Date: Tue, 19 Aug 2014 14:16:44 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
+MIME-Version: 1.0
+Subject: [PATCH] mem-hotplug: fix boot failed in case all the nodes are hotpluggable
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>
-Cc: minchan@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, 'Jerome Marchand' <jmarchan@redhat.com>, 'Andrew Morton' <akpm@linux-foundation.org>
+To: davej@redhat.com, Tang Chen <tangchen@cn.fujitsu.com>, guz.fnst@cn.fujitsu.com, Thomas Gleixner <tglx@linutronix.de>, Andrew
+ Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-> -----Original Message-----
-> From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On Behalf Of Sergey
-> Senozhatsky
-> Sent: Friday, August 15, 2014 2:12 PM
-> To: Chao Yu
-> Cc: minchan@kernel.org; linux-kernel@vger.kernel.org; linux-mm@kvack.org; ngupta@vflare.org;
-> 'Jerome Marchand'; 'Sergey Senozhatsky'; 'Andrew Morton'
-> Subject: Re: [PATCH] zram: add num_discards for discarded pages stat
-> 
-> On (08/15/14 11:27), Chao Yu wrote:
-> > Now we have supported handling discard request which is sended by filesystem,
-> > but no interface could be used to show information of discard.
-> > This patch adds num_discards to stat discarded pages, then export it to sysfs
-> > for displaying.
-> >
-> 
-> a side question: we account discarded pages via slot free notify in
-> notify_free and via req_discard in num_discards. how about accounting
-> both of them in num_discards? because, after all, they account a number
-> of discarded pages (zram_free_page()). or there any particular reason we
-> want to distinguish.
+If all the nodes are marked hotpluggable flag, alloc node data will fail.
+Because __next_mem_range_rev() will skip the hotpluggable memory regions.
+numa_clear_kernel_node_hotplug() is called after alloc node data.
 
-Yeah, I agree with you as I have no such reason unless there are our users'
-explicitly requirement for showing notify_free/num_discards separately later.
+numa_init()
+	...
+	ret = init_func();  // this will mark hotpluggable flag from SRAT
+	...
+	memblock_set_bottom_up(false);
+	...
+	ret = numa_register_memblks(&numa_meminfo);  // this will alloc node data(pglist_data) 
+	...
+	numa_clear_kernel_node_hotplug();  // in case all the nodes are hotpluggable
+	...
 
-How do you think of sending another patch to merge these two counts?
+numa_register_memblks()
+	setup_node_data()
+		memblock_find_in_range_node()
+			__memblock_find_range_top_down()
+				for_each_mem_range_rev()
+					__next_mem_range_rev()
 
-One more thing is that I am missing to update document of zram, sorry about
-that, let me update it in v2.
+This patch moves numa_clear_kernel_node_hotplug() into numa_register_memblks(),
+clear kernel node hotpluggable flag before alloc node data, then alloc node data
+won't fail even all the nodes are hotpluggable.
 
-Thanks,
-Yu
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+---
+ arch/x86/mm/numa.c |   88 ++++++++++++++++++++++++++--------------------------
+ 1 files changed, 44 insertions(+), 44 deletions(-)
 
-> 
-> 	-ss
-> 
-> > Signed-off-by: Chao Yu <chao2.yu@samsung.com>
-> > ---
-> >  Documentation/ABI/testing/sysfs-block-zram | 10 ++++++++++
-> >  drivers/block/zram/zram_drv.c              |  3 +++
-> >  drivers/block/zram/zram_drv.h              |  1 +
-> >  3 files changed, 14 insertions(+)
-> >
-> > diff --git a/Documentation/ABI/testing/sysfs-block-zram
-> b/Documentation/ABI/testing/sysfs-block-zram
-> > index 70ec992..fa8936e 100644
-> > --- a/Documentation/ABI/testing/sysfs-block-zram
-> > +++ b/Documentation/ABI/testing/sysfs-block-zram
-> > @@ -57,6 +57,16 @@ Description:
-> >  		The failed_writes file is read-only and specifies the number of
-> >  		failed writes happened on this device.
-> >
-> > +
-> > +What:		/sys/block/zram<id>/num_discards
-> > +Date:		August 2014
-> > +Contact:	Chao Yu <chao2.yu@samsung.com>
-> > +Description:
-> > +		The num_discards file is read-only and specifies the number of
-> > +		physical blocks which are discarded by this device. These blocks
-> > +		are included in discard request which is sended by filesystem as
-> > +		the blocks are no longer used.
-> > +
-> >  What:		/sys/block/zram<id>/max_comp_streams
-> >  Date:		February 2014
-> >  Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> > index d00831c..904e7a5 100644
-> > --- a/drivers/block/zram/zram_drv.c
-> > +++ b/drivers/block/zram/zram_drv.c
-> > @@ -606,6 +606,7 @@ static void zram_bio_discard(struct zram *zram, u32 index,
-> >  		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
-> >  		zram_free_page(zram, index);
-> >  		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
-> > +		atomic64_inc(&zram->stats.num_discards);
-> >  		index++;
-> >  		n -= PAGE_SIZE;
-> >  	}
-> > @@ -866,6 +867,7 @@ ZRAM_ATTR_RO(num_reads);
-> >  ZRAM_ATTR_RO(num_writes);
-> >  ZRAM_ATTR_RO(failed_reads);
-> >  ZRAM_ATTR_RO(failed_writes);
-> > +ZRAM_ATTR_RO(num_discards);
-> >  ZRAM_ATTR_RO(invalid_io);
-> >  ZRAM_ATTR_RO(notify_free);
-> >  ZRAM_ATTR_RO(zero_pages);
-> > @@ -879,6 +881,7 @@ static struct attribute *zram_disk_attrs[] = {
-> >  	&dev_attr_num_writes.attr,
-> >  	&dev_attr_failed_reads.attr,
-> >  	&dev_attr_failed_writes.attr,
-> > +	&dev_attr_num_discards.attr,
-> >  	&dev_attr_invalid_io.attr,
-> >  	&dev_attr_notify_free.attr,
-> >  	&dev_attr_zero_pages.attr,
-> > diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-> > index e0f725c..2994aaf 100644
-> > --- a/drivers/block/zram/zram_drv.h
-> > +++ b/drivers/block/zram/zram_drv.h
-> > @@ -86,6 +86,7 @@ struct zram_stats {
-> >  	atomic64_t num_writes;	/* --do-- */
-> >  	atomic64_t failed_reads;	/* can happen when memory is too low */
-> >  	atomic64_t failed_writes;	/* can happen when memory is too low */
-> > +	atomic64_t num_discards;	/* no. of discarded pages */
-> >  	atomic64_t invalid_io;	/* non-page-aligned I/O requests */
-> >  	atomic64_t notify_free;	/* no. of swap slot free notifications */
-> >  	atomic64_t zero_pages;		/* no. of zero filled pages */
-> > --
-> > 2.0.1.474.g72c7794
-> >
-> >
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index a32b706..f7ebd97 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -478,6 +478,41 @@ static bool __init numa_meminfo_cover_memory(const struct numa_meminfo *mi)
+ 	return true;
+ }
+ 
++static void __init numa_clear_kernel_node_hotplug(void)
++{
++	int i, nid;
++	nodemask_t numa_kernel_nodes = NODE_MASK_NONE;
++	unsigned long start, end;
++	struct memblock_region *r;
++
++	/*
++	 * At this time, all memory regions reserved by memblock are
++	 * used by the kernel. Set the nid in memblock.reserved will
++	 * mark out all the nodes the kernel resides in.
++	 */
++	for (i = 0; i < numa_meminfo.nr_blks; i++) {
++		struct numa_memblk *mb = &numa_meminfo.blk[i];
++		memblock_set_node(mb->start, mb->end - mb->start,
++				  &memblock.reserved, mb->nid);
++	}
++
++	/* Mark all kernel nodes. */
++	for_each_memblock(reserved, r)
++		node_set(r->nid, numa_kernel_nodes);
++
++	/* Clear MEMBLOCK_HOTPLUG flag for memory in kernel nodes. */
++	for (i = 0; i < numa_meminfo.nr_blks; i++) {
++		nid = numa_meminfo.blk[i].nid;
++		if (!node_isset(nid, numa_kernel_nodes))
++			continue;
++
++		start = numa_meminfo.blk[i].start;
++		end = numa_meminfo.blk[i].end;
++
++		memblock_clear_hotplug(start, end - start);
++	}
++}
++
+ static int __init numa_register_memblks(struct numa_meminfo *mi)
+ {
+ 	unsigned long uninitialized_var(pfn_align);
+@@ -496,6 +531,15 @@ static int __init numa_register_memblks(struct numa_meminfo *mi)
+ 	}
+ 
+ 	/*
++	 * At very early time, the kernel have to use some memory such as
++	 * loading the kernel image. We cannot prevent this anyway. So any
++	 * node the kernel resides in should be un-hotpluggable.
++	 *
++	 * And when we come here, alloc node data won't fail.
++	 */
++	numa_clear_kernel_node_hotplug();
++
++	/*
+ 	 * If sections array is gonna be used for pfn -> nid mapping, check
+ 	 * whether its granularity is fine enough.
+ 	 */
+@@ -554,41 +598,6 @@ static void __init numa_init_array(void)
+ 	}
+ }
+ 
+-static void __init numa_clear_kernel_node_hotplug(void)
+-{
+-	int i, nid;
+-	nodemask_t numa_kernel_nodes = NODE_MASK_NONE;
+-	unsigned long start, end;
+-	struct memblock_region *r;
+-
+-	/*
+-	 * At this time, all memory regions reserved by memblock are
+-	 * used by the kernel. Set the nid in memblock.reserved will
+-	 * mark out all the nodes the kernel resides in.
+-	 */
+-	for (i = 0; i < numa_meminfo.nr_blks; i++) {
+-		struct numa_memblk *mb = &numa_meminfo.blk[i];
+-		memblock_set_node(mb->start, mb->end - mb->start,
+-				  &memblock.reserved, mb->nid);
+-	}
+-
+-	/* Mark all kernel nodes. */
+-	for_each_memblock(reserved, r)
+-		node_set(r->nid, numa_kernel_nodes);
+-
+-	/* Clear MEMBLOCK_HOTPLUG flag for memory in kernel nodes. */
+-	for (i = 0; i < numa_meminfo.nr_blks; i++) {
+-		nid = numa_meminfo.blk[i].nid;
+-		if (!node_isset(nid, numa_kernel_nodes))
+-			continue;
+-
+-		start = numa_meminfo.blk[i].start;
+-		end = numa_meminfo.blk[i].end;
+-
+-		memblock_clear_hotplug(start, end - start);
+-	}
+-}
+-
+ static int __init numa_init(int (*init_func)(void))
+ {
+ 	int i;
+@@ -643,15 +652,6 @@ static int __init numa_init(int (*init_func)(void))
+ 	}
+ 	numa_init_array();
+ 
+-	/*
+-	 * At very early time, the kernel have to use some memory such as
+-	 * loading the kernel image. We cannot prevent this anyway. So any
+-	 * node the kernel resides in should be un-hotpluggable.
+-	 *
+-	 * And when we come here, numa_init() won't fail.
+-	 */
+-	numa_clear_kernel_node_hotplug();
+-
+ 	return 0;
+ }
+ 
+-- 
+1.7.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
