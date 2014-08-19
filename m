@@ -1,159 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 93C2A6B0035
-	for <linux-mm@kvack.org>; Tue, 19 Aug 2014 18:29:07 -0400 (EDT)
-Received: by mail-lb0-f176.google.com with SMTP id u10so6114870lbd.35
-        for <linux-mm@kvack.org>; Tue, 19 Aug 2014 15:29:06 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.193])
-        by mx.google.com with ESMTP id xp7si31802371lac.79.2014.08.19.15.29.04
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E7836B0035
+	for <linux-mm@kvack.org>; Tue, 19 Aug 2014 19:31:59 -0400 (EDT)
+Received: by mail-we0-f177.google.com with SMTP id w62so7130809wes.22
+        for <linux-mm@kvack.org>; Tue, 19 Aug 2014 16:31:58 -0700 (PDT)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id pm2si33545766wjb.79.2014.08.19.16.31.55
         for <linux-mm@kvack.org>;
-        Tue, 19 Aug 2014 15:29:04 -0700 (PDT)
-Date: Wed, 20 Aug 2014 01:26:21 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] [RFC] TAINT_PERFORMANCE
-Message-ID: <20140819222621.GA32690@node.dhcp.inet.fi>
-References: <20140819212604.6C94DF09@viggo.jf.intel.com>
+        Tue, 19 Aug 2014 16:31:57 -0700 (PDT)
+Date: Wed, 20 Aug 2014 08:32:25 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2 3/4] zram: zram memory size limitation
+Message-ID: <20140819233225.GA32620@bbox>
+References: <1408434887-16387-1-git-send-email-minchan@kernel.org>
+ <1408434887-16387-4-git-send-email-minchan@kernel.org>
+ <7959928.Exbvf4HrNB@fb07-iapwap2>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20140819212604.6C94DF09@viggo.jf.intel.com>
+In-Reply-To: <7959928.Exbvf4HrNB@fb07-iapwap2>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-kernel@vger.kernel.org, dave.hansen@linux.intel.com, peterz@infradead.org, mingo@redhat.com, ak@linux.intel.com, tim.c.chen@linux.intel.com, akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org, linux-mm@kvack.org
+To: Marc Dietrich <marvin24@gmx.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>, ds2horner@gmail.com
 
-On Tue, Aug 19, 2014 at 02:26:04PM -0700, Dave Hansen wrote:
-> 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> I have more than once myself been the victim of an accidentally-
-> enabled kernel config option being mistaken for a true
-> performance problem.
-> 
-> I'm sure I've also taken profiles or performance measurements
-> and assumed they were real-world when really I was measuing the
-> performance with an option that nobody turns on in production.
-> 
-> A warning like this late in boot will help remind folks when
-> these kinds of things are enabled.
-> 
-> As for the patch...
-> 
-> I originally wanted this for CONFIG_DEBUG_VM, but I think it also
-> applies to things like lockdep and slab debugging.  See the patch
-> for the list of offending config options.  I'm open to adding
-> more, but this seemed like a good list to start.
-> 
-> This could be done with Kconfig and an #ifdef to save us 8 bytes
-> of text and the entry in the late_initcall() section.  Doing it
-> this way lets us keep the list of these things in one spot, and
-> also gives us a convenient way to dump out the name of the
-> offending option.
-> 
-> The dump_stack() is really just to be loud.
-> 
-> For anybody that *really* cares, I put the whole thing under
-> #ifdef CONFIG_DEBUG_KERNEL.
-> 
-> The messages look like this:
-> 
-> [    2.534574] CONFIG_LOCKDEP enabled
-> [    2.536392] Do not use this kernel for performance measurement.
-> [    2.547189] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 3.16.0-10473-gc8d6637-dirty #800
-> [    2.558075] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-> [    2.564483]  0000000080000000 ffff88009c70be78 ffffffff817ce318 0000000000000000
-> [    2.582505]  ffffffff81dca5b6 ffff88009c70be88 ffffffff81dca5e2 ffff88009c70bef8
-> [    2.588589]  ffffffff81000377 0000000000000000 0007000700000142 ffffffff81b78968
-> [    2.592638] Call Trace:
-> [    2.593762]  [<ffffffff817ce318>] dump_stack+0x4e/0x68
-> [    2.597742]  [<ffffffff81dca5b6>] ? oops_setup+0x2e/0x2e
-> [    2.601247]  [<ffffffff81dca5e2>] performance_taint+0x2c/0x3c
-> [    2.603498]  [<ffffffff81000377>] do_one_initcall+0xe7/0x290
-> [    2.606556]  [<ffffffff81db3215>] kernel_init_freeable+0x106/0x19a
-> [    2.609718]  [<ffffffff81db29e8>] ? do_early_param+0x86/0x86
-> [    2.613772]  [<ffffffff817bcfc0>] ? rest_init+0x150/0x150
-> [    2.617333]  [<ffffffff817bcfce>] kernel_init+0xe/0xf0
-> [    2.620840]  [<ffffffff817dbc7c>] ret_from_fork+0x7c/0xb0
-> [    2.624718]  [<ffffffff817bcfc0>] ? rest_init+0x150/0x150
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: ak@linux.intel.com
-> Cc: tim.c.chen@linux.intel.com
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Pekka Enberg <penberg@kernel.org>
-> Cc: linux-kernel@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> ---
-> 
->  b/include/linux/kernel.h |    1 +
->  b/kernel/panic.c         |   40 ++++++++++++++++++++++++++++++++++++++++
->  2 files changed, 41 insertions(+)
-> 
-> diff -puN include/linux/kernel.h~taint-performance include/linux/kernel.h
-> --- a/include/linux/kernel.h~taint-performance	2014-08-19 11:38:07.424005355 -0700
-> +++ b/include/linux/kernel.h	2014-08-19 11:38:20.960615904 -0700
-> @@ -471,6 +471,7 @@ extern enum system_states {
->  #define TAINT_OOT_MODULE		12
->  #define TAINT_UNSIGNED_MODULE		13
->  #define TAINT_SOFTLOCKUP		14
-> +#define TAINT_PERFORMANCE		15
->  
->  extern const char hex_asc[];
->  #define hex_asc_lo(x)	hex_asc[((x) & 0x0f)]
-> diff -puN kernel/panic.c~taint-performance kernel/panic.c
-> --- a/kernel/panic.c~taint-performance	2014-08-19 11:38:28.928975233 -0700
-> +++ b/kernel/panic.c	2014-08-19 14:14:23.444983711 -0700
-> @@ -225,6 +225,7 @@ static const struct tnt tnts[] = {
->  	{ TAINT_OOT_MODULE,		'O', ' ' },
->  	{ TAINT_UNSIGNED_MODULE,	'E', ' ' },
->  	{ TAINT_SOFTLOCKUP,		'L', ' ' },
-> +	{ TAINT_PERFORMANCE,		'Q', ' ' },
->  };
->  
->  /**
-> @@ -501,3 +502,42 @@ static int __init oops_setup(char *s)
->  	return 0;
->  }
->  early_param("oops", oops_setup);
-> +
-> +#ifdef CONFIG_DEBUG_KERNEL
-> +#define TAINT_PERF_IF(x) do {						\
-> +		if (IS_ENABLED(CONFIG_##x)) {				\
-> +			do_taint = 1;					\
-> +			pr_warn("CONFIG_%s enabled\n",	__stringify(x));\
-> +		}							\
-> +	} while (0)
-> +
-> +static int __init performance_taint(void)
-> +{
-> +	int do_taint = 0;
-> +
-> +	/*
-> +	 * This should list any kernel options that can substantially
-> +	 * affect performance.  This is intended to give a big, fat
-> +	 * warning during bootup so that folks have a fighting chance
-> +	 * of noticing these things.
-> +	 */
-> +	TAINT_PERF_IF(LOCKDEP);
-> +	TAINT_PERF_IF(LOCK_STAT);
-> +	TAINT_PERF_IF(DEBUG_VM);
-> +	TAINT_PERF_IF(DEBUG_VM_VMACACHE);
-> +	TAINT_PERF_IF(DEBUG_VM_RB);
-> +	TAINT_PERF_IF(DEBUG_SLAB);
-> +	TAINT_PERF_IF(DEBUG_OBJECTS_FREE);
-> +	TAINT_PERF_IF(DEBUG_KMEMLEAK);
-> +	TAINT_PERF_IF(SCHEDSTATS);
+Hello,
 
-Is SCHEDSTATS really harmful? It's enabled in some distro kernels.
-At least in Arch:
+On Tue, Aug 19, 2014 at 10:06:22AM +0200, Marc Dietrich wrote:
+> Am Dienstag, 19. August 2014, 16:54:46 schrieb Minchan Kim:
+> > Since zram has no control feature to limit memory usage,
+> > it makes hard to manage system memrory.
+> > 
+> > This patch adds new knob "mem_limit" via sysfs to set up the
+> > a limit so that zram could fail allocation once it reaches
+> > the limit.
+> 
+> Sorry to jump in late with a probably silly question, but I couldn't find the 
+> answer easily. What's the difference between disksize and mem_limit?
 
-https://projects.archlinux.org/svntogit/packages.git/tree/trunk/config.x86_64?h=packages/linux
+No need to say sorry.
+It was totally my fault because zram documentation sucks.
+
+The disksize means the size point of view upper layer from block subsystem
+so filesystem based on zram or blockdevice itself(ie, zram0) seen by admin
+will have the disksize size but keep in mind that it's virtual size,
+not compressed. As you know already, zram is backed on volatile storage
+(ie, DRAM) with *compressed form*, not permanent storage.
+
+The point of this patchset is that anybody cannot expect exact memory
+usage of zram in advance. Acutally, zram folks have estimated it by several
+experiment and assuming zram compression ratio(ex, 2:1 or 3:1) before
+releasing product. But thesedays, embedded platforms have varios workloads
+which cannot be expected when the product was released so compression
+ratio expectation could be wrong sometime so zram could consume lots of
+memory than expected once compression ratio is low.
+
+It makes admin trouble to manage memeory on the product because there
+is no way to release memory zram is using so that one of the way is
+to limit memory usage of zram from the beginning.
+
+> I assume the former is uncompressed size (virtual size) and the latter is 
+> compressed size (real memory usage)? Maybe the difference should be made 
+
+Right.
+
+> clearer in the documentation.
+
+Okay.
+
+> If disksize is the uncompressed size, why would we want to set this at all?
+
+For example, we have 500M disksize of zram0 because we assumed 2:1
+compression ratio so that we could guess zram will consume 250M physical memory
+in the end. But our guessing could be wrong so if real compression ratio
+is 4:1, we use up 125M phsyical memory to store 500M uncompressed pages.
+It's good but admin want to use up more memory for zram because we saved
+100% than expected zram memory but we couldn't becuase upper layer point of view
+from zram, zram is already full by 500M and if zram is used for swap,
+we will encounter OOM. :(
+
+So, it would be better to increase disksize to 1000M but in this case,
+if compression ratio becomes 4:1 by something(ex, workload change),
+zram can consume 500M physical memory, which is above we expected
+and admin don't want zram to use up system memory too much.
+
+In summary, we couldn't control exact zram memory usage with only disksize
+by compression ratio.
+
+> 
+> Marc
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
- Kirill A. Shutemov
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
