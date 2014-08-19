@@ -1,123 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FC7A6B0035
-	for <linux-mm@kvack.org>; Tue, 19 Aug 2014 07:04:38 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id eu11so9658360pac.3
-        for <linux-mm@kvack.org>; Tue, 19 Aug 2014 04:04:33 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id oh4si17321660pdb.118.2014.08.19.04.04.31
-        for <linux-mm@kvack.org>;
-        Tue, 19 Aug 2014 04:04:32 -0700 (PDT)
-Message-ID: <53F32F6E.6050008@cn.fujitsu.com>
-Date: Tue, 19 Aug 2014 19:05:18 +0800
-From: tangchen <tangchen@cn.fujitsu.com>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 31D4E6B0035
+	for <linux-mm@kvack.org>; Tue, 19 Aug 2014 07:25:31 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id kx10so9805476pab.6
+        for <linux-mm@kvack.org>; Tue, 19 Aug 2014 04:25:30 -0700 (PDT)
+Received: from mail-pd0-x230.google.com (mail-pd0-x230.google.com [2607:f8b0:400e:c02::230])
+        by mx.google.com with ESMTPS id u2si26335496pbz.202.2014.08.19.04.25.29
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 19 Aug 2014 04:25:29 -0700 (PDT)
+Received: by mail-pd0-f176.google.com with SMTP id y10so9320007pdj.35
+        for <linux-mm@kvack.org>; Tue, 19 Aug 2014 04:25:27 -0700 (PDT)
+Date: Tue, 19 Aug 2014 20:25:00 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH] zram: add num_discards for discarded pages stat
+Message-ID: <20140819112500.GA2484@swordfish>
+References: <001201cfb838$fb0ac4a0$f1204de0$@samsung.com>
+ <20140815061138.GA940@swordfish>
+ <002d01cfbb70$ea7410c0$bf5c3240$@samsung.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mem-hotplug: introduce movablenodes boot option for memory
- hotplug debugging
-References: <53F320B7.30002@huawei.com>
-In-Reply-To: <53F320B7.30002@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <002d01cfbb70$ea7410c0$bf5c3240$@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>, Toshi Kani <toshi.kani@hp.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Yinghai Lu <yinghai@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, tangchen@cn.fujitsu.com
+To: Chao Yu <chao2.yu@samsung.com>
+Cc: 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, minchan@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, 'Jerome Marchand' <jmarchan@redhat.com>, 'Andrew Morton' <akpm@linux-foundation.org>
 
+Hello,
 
-On 08/19/2014 06:02 PM, Xishi Qiu wrote:
-> This patch introduces a new boot option "movablenodes". This parameter
-> depends on movable_node, it is used for debugging memory hotplug.
-> Instead SRAT specifies which memory is hotpluggable.
->
-> e.g. movable_node movablenodes=1,2,4
->
-> It means nodes 1,2,4 will be set to movable nodes, the other nodes are
-> unmovable nodes. Usually movable nodes are parsed from SRAT table which
-> offered by BIOS.
+On (08/19/14 13:45), Chao Yu wrote:
+> > On (08/15/14 11:27), Chao Yu wrote:
+> > > Now we have supported handling discard request which is sended by filesystem,
+> > > but no interface could be used to show information of discard.
+> > > This patch adds num_discards to stat discarded pages, then export it to sysfs
+> > > for displaying.
+> > >
+> > 
+> > a side question: we account discarded pages via slot free notify in
+> > notify_free and via req_discard in num_discards. how about accounting
+> > both of them in num_discards? because, after all, they account a number
+> > of discarded pages (zram_free_page()). or there any particular reason we
+> > want to distinguish.
+> 
+> Yeah, I agree with you as I have no such reason unless there are our users'
+> explicitly requirement for showing notify_free/num_discards separately later.
+> 
+> How do you think of sending another patch to merge these two counts?
+> 
 
-This may not work on some machines. So far as I know, there are machines
-that after a reboot, node id will change. So node 1,2,4 may be not the same
-nodes as before in the next boot.
+Minchan, what do you think? let's account discarded pages in one place.
 
-Thanks.
+> One more thing is that I am missing to update document of zram, sorry about
+> that, let me update it in v2.
 
->
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> ---
->   Documentation/kernel-parameters.txt |    5 ++++
->   arch/x86/mm/srat.c                  |   36 +++++++++++++++++++++++++++++++++++
->   2 files changed, 41 insertions(+), 0 deletions(-)
->
-> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-> index 5ae8608..e072ccf 100644
-> --- a/Documentation/kernel-parameters.txt
-> +++ b/Documentation/kernel-parameters.txt
-> @@ -1949,6 +1949,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
->   	movable_node	[KNL,X86] Boot-time switch to enable the effects
->   			of CONFIG_MOVABLE_NODE=y. See mm/Kconfig for details.
->   
-> +	movablenodes=	[KNL,X86] This parameter depends on movable_node, it
-> +			is used for debugging memory hotplug. Instead SRAT
-> +			specifies which memory is hotpluggable.
-> +			e.g. movablenodes=1,2,4
-> +
->   	MTD_Partition=	[MTD]
->   			Format: <name>,<region-number>,<size>,<offset>
->   
-> diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
-> index 66338a6..523e58b 100644
-> --- a/arch/x86/mm/srat.c
-> +++ b/arch/x86/mm/srat.c
-> @@ -157,6 +157,37 @@ static inline int save_add_info(void) {return 1;}
->   static inline int save_add_info(void) {return 0;}
->   #endif
->   
-> +static nodemask_t movablenodes_mask;
-> +
-> +static void __init parse_movablenodes_one(char *p)
-> +{
-> +	int node;
-> +
-> +	get_option(&p, &node);
-> +	node_set(node, movablenodes_mask);
-> +}
-> +
-> +static int __init parse_movablenodes_opt(char *str)
-> +{
-> +	nodes_clear(movablenodes_mask);
-> +
-> +#ifdef CONFIG_MOVABLE_NODE
-> +	while (str) {
-> +		char *k = strchr(str, ',');
-> +
-> +		if (k)
-> +			*k++ = 0;
-> +		parse_movablenodes_one(str);
-> +		str = k;
-> +	}
-> +#else
-> +	pr_warn("movable_node option not supported\n");
-> +#endif
-> +
-> +	return 0;
-> +}
-> +early_param("movablenodes", parse_movablenodes_opt);
-> +
->   /* Callback for parsing of the Proximity Domain <-> Memory Area mappings */
->   int __init
->   acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
-> @@ -202,6 +233,11 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
->   		pr_warn("SRAT: Failed to mark hotplug range [mem %#010Lx-%#010Lx] in memblock\n",
->   			(unsigned long long)start, (unsigned long long)end - 1);
->   
-> +	if (node_isset(node, movablenodes_mask) &&
-> +		memblock_mark_hotplug(start, ma->length))
-> +		pr_warn("SRAT debug: Failed to mark hotplug range [mem %#010Lx-%#010Lx] in memblock\n",
-> +			(unsigned long long)start, (unsigned long long)end - 1);
-> +
->   	return 0;
->   out_err_bad_srat:
->   	bad_srat();
+thanks.
+
+	-ss
+
+> Thanks,
+> Yu
+> 
+> > 
+> > 	-ss
+> > 
+> > > Signed-off-by: Chao Yu <chao2.yu@samsung.com>
+> > > ---
+> > >  Documentation/ABI/testing/sysfs-block-zram | 10 ++++++++++
+> > >  drivers/block/zram/zram_drv.c              |  3 +++
+> > >  drivers/block/zram/zram_drv.h              |  1 +
+> > >  3 files changed, 14 insertions(+)
+> > >
+> > > diff --git a/Documentation/ABI/testing/sysfs-block-zram
+> > b/Documentation/ABI/testing/sysfs-block-zram
+> > > index 70ec992..fa8936e 100644
+> > > --- a/Documentation/ABI/testing/sysfs-block-zram
+> > > +++ b/Documentation/ABI/testing/sysfs-block-zram
+> > > @@ -57,6 +57,16 @@ Description:
+> > >  		The failed_writes file is read-only and specifies the number of
+> > >  		failed writes happened on this device.
+> > >
+> > > +
+> > > +What:		/sys/block/zram<id>/num_discards
+> > > +Date:		August 2014
+> > > +Contact:	Chao Yu <chao2.yu@samsung.com>
+> > > +Description:
+> > > +		The num_discards file is read-only and specifies the number of
+> > > +		physical blocks which are discarded by this device. These blocks
+> > > +		are included in discard request which is sended by filesystem as
+> > > +		the blocks are no longer used.
+> > > +
+> > >  What:		/sys/block/zram<id>/max_comp_streams
+> > >  Date:		February 2014
+> > >  Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> > > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> > > index d00831c..904e7a5 100644
+> > > --- a/drivers/block/zram/zram_drv.c
+> > > +++ b/drivers/block/zram/zram_drv.c
+> > > @@ -606,6 +606,7 @@ static void zram_bio_discard(struct zram *zram, u32 index,
+> > >  		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
+> > >  		zram_free_page(zram, index);
+> > >  		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+> > > +		atomic64_inc(&zram->stats.num_discards);
+> > >  		index++;
+> > >  		n -= PAGE_SIZE;
+> > >  	}
+> > > @@ -866,6 +867,7 @@ ZRAM_ATTR_RO(num_reads);
+> > >  ZRAM_ATTR_RO(num_writes);
+> > >  ZRAM_ATTR_RO(failed_reads);
+> > >  ZRAM_ATTR_RO(failed_writes);
+> > > +ZRAM_ATTR_RO(num_discards);
+> > >  ZRAM_ATTR_RO(invalid_io);
+> > >  ZRAM_ATTR_RO(notify_free);
+> > >  ZRAM_ATTR_RO(zero_pages);
+> > > @@ -879,6 +881,7 @@ static struct attribute *zram_disk_attrs[] = {
+> > >  	&dev_attr_num_writes.attr,
+> > >  	&dev_attr_failed_reads.attr,
+> > >  	&dev_attr_failed_writes.attr,
+> > > +	&dev_attr_num_discards.attr,
+> > >  	&dev_attr_invalid_io.attr,
+> > >  	&dev_attr_notify_free.attr,
+> > >  	&dev_attr_zero_pages.attr,
+> > > diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+> > > index e0f725c..2994aaf 100644
+> > > --- a/drivers/block/zram/zram_drv.h
+> > > +++ b/drivers/block/zram/zram_drv.h
+> > > @@ -86,6 +86,7 @@ struct zram_stats {
+> > >  	atomic64_t num_writes;	/* --do-- */
+> > >  	atomic64_t failed_reads;	/* can happen when memory is too low */
+> > >  	atomic64_t failed_writes;	/* can happen when memory is too low */
+> > > +	atomic64_t num_discards;	/* no. of discarded pages */
+> > >  	atomic64_t invalid_io;	/* non-page-aligned I/O requests */
+> > >  	atomic64_t notify_free;	/* no. of swap slot free notifications */
+> > >  	atomic64_t zero_pages;		/* no. of zero filled pages */
+> > > --
+> > > 2.0.1.474.g72c7794
+> > >
+> > >
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
