@@ -1,163 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 150616B0038
-	for <linux-mm@kvack.org>; Tue, 19 Aug 2014 19:47:12 -0400 (EDT)
-Received: by mail-ie0-f174.google.com with SMTP id rp18so2054005iec.19
-        for <linux-mm@kvack.org>; Tue, 19 Aug 2014 16:47:11 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id oy4si25439457icc.35.2014.08.19.16.47.11
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Aug 2014 16:47:11 -0700 (PDT)
-Message-ID: <53F3E1FE.1000508@codeaurora.org>
-Date: Tue, 19 Aug 2014 16:47:10 -0700
-From: Laura Abbott <lauraa@codeaurora.org>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id A387F6B0039
+	for <linux-mm@kvack.org>; Tue, 19 Aug 2014 19:47:21 -0400 (EDT)
+Received: by mail-wi0-f177.google.com with SMTP id ho1so6071228wib.4
+        for <linux-mm@kvack.org>; Tue, 19 Aug 2014 16:47:21 -0700 (PDT)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id xs6si33588421wjb.80.2014.08.19.16.47.18
+        for <linux-mm@kvack.org>;
+        Tue, 19 Aug 2014 16:47:20 -0700 (PDT)
+Date: Wed, 20 Aug 2014 08:47:48 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2 2/4] zsmalloc: change return value unit of
+ zs_get_total_size_bytes
+Message-ID: <20140819234748.GC32620@bbox>
+References: <1408434887-16387-1-git-send-email-minchan@kernel.org>
+ <1408434887-16387-3-git-send-email-minchan@kernel.org>
+ <20140819144628.GA26403@cerebellum.variantweb.net>
+ <20140819151157.GB26403@cerebellum.variantweb.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH] [RFC] TAINT_PERFORMANCE
-References: <20140819212604.6C94DF09@viggo.jf.intel.com>
-In-Reply-To: <20140819212604.6C94DF09@viggo.jf.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20140819151157.GB26403@cerebellum.variantweb.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org
-Cc: dave.hansen@linux.intel.com, peterz@infradead.org, mingo@redhat.com, ak@linux.intel.com, tim.c.chen@linux.intel.com, akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org, linux-mm@kvack.org
+To: Seth Jennings <sjennings@variantweb.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Dan Streetman <ddstreet@ieee.org>, ds2horner@gmail.com
 
-On 8/19/2014 2:26 PM, Dave Hansen wrote:
-> From: Dave Hansen <dave.hansen@linux.intel.com>
+On Tue, Aug 19, 2014 at 10:11:57AM -0500, Seth Jennings wrote:
+> On Tue, Aug 19, 2014 at 09:46:28AM -0500, Seth Jennings wrote:
+> > On Tue, Aug 19, 2014 at 04:54:45PM +0900, Minchan Kim wrote:
+> > > zs_get_total_size_bytes returns a amount of memory zsmalloc
+> > > consumed with *byte unit* but zsmalloc operates *page unit*
+> > > rather than byte unit so let's change the API so benefit
+> > > we could get is that reduce unnecessary overhead
+> > > (ie, change page unit with byte unit) in zsmalloc.
+> > > 
+> > > Now, zswap can rollback to zswap_pool_pages.
+> > > Over to zswap guys ;-)
+> > 
+> > I don't think that's how is it done :-/  Changing the API for a
+> > component that has two users, changing one, then saying "hope you guys
+> > change your newly broken stuff".
 > 
-> I have more than once myself been the victim of an accidentally-
-> enabled kernel config option being mistaken for a true
-> performance problem.
+> However, I'll bite on this one :)  Just squash this in so that
+
+Thanks for the eating but it's not what I wanted.
+I'd like to leave current semantic of zpool and up to you to roll back
+to old time. ;-)
+
+> zpool/zswap aren't broken at any point.
 > 
-> I'm sure I've also taken profiles or performance measurements
-> and assumed they were real-world when really I was measuing the
-> performance with an option that nobody turns on in production.
+> Dan, care to make sure I didn't miss something?
 > 
-> A warning like this late in boot will help remind folks when
-> these kinds of things are enabled.
+> Thanks,
+> Seth
 > 
-> As for the patch...
-> 
-> I originally wanted this for CONFIG_DEBUG_VM, but I think it also
-> applies to things like lockdep and slab debugging.  See the patch
-> for the list of offending config options.  I'm open to adding
-> more, but this seemed like a good list to start.
-> 
-> This could be done with Kconfig and an #ifdef to save us 8 bytes
-> of text and the entry in the late_initcall() section.  Doing it
-> this way lets us keep the list of these things in one spot, and
-> also gives us a convenient way to dump out the name of the
-> offending option.
-> 
-> The dump_stack() is really just to be loud.
-> 
-> For anybody that *really* cares, I put the whole thing under
-> #ifdef CONFIG_DEBUG_KERNEL.
-> 
-> The messages look like this:
-> 
-> [    2.534574] CONFIG_LOCKDEP enabled
-> [    2.536392] Do not use this kernel for performance measurement.
-> [    2.547189] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 3.16.0-10473-gc8d6637-dirty #800
-> [    2.558075] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-> [    2.564483]  0000000080000000 ffff88009c70be78 ffffffff817ce318 0000000000000000
-> [    2.582505]  ffffffff81dca5b6 ffff88009c70be88 ffffffff81dca5e2 ffff88009c70bef8
-> [    2.588589]  ffffffff81000377 0000000000000000 0007000700000142 ffffffff81b78968
-> [    2.592638] Call Trace:
-> [    2.593762]  [<ffffffff817ce318>] dump_stack+0x4e/0x68
-> [    2.597742]  [<ffffffff81dca5b6>] ? oops_setup+0x2e/0x2e
-> [    2.601247]  [<ffffffff81dca5e2>] performance_taint+0x2c/0x3c
-> [    2.603498]  [<ffffffff81000377>] do_one_initcall+0xe7/0x290
-> [    2.606556]  [<ffffffff81db3215>] kernel_init_freeable+0x106/0x19a
-> [    2.609718]  [<ffffffff81db29e8>] ? do_early_param+0x86/0x86
-> [    2.613772]  [<ffffffff817bcfc0>] ? rest_init+0x150/0x150
-> [    2.617333]  [<ffffffff817bcfce>] kernel_init+0xe/0xf0
-> [    2.620840]  [<ffffffff817dbc7c>] ret_from_fork+0x7c/0xb0
-> [    2.624718]  [<ffffffff817bcfc0>] ? rest_init+0x150/0x150
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: ak@linux.intel.com
-> Cc: tim.c.chen@linux.intel.com
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Pekka Enberg <penberg@kernel.org>
-> Cc: linux-kernel@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> ---
-> 
->  b/include/linux/kernel.h |    1 +
->  b/kernel/panic.c         |   40 ++++++++++++++++++++++++++++++++++++++++
->  2 files changed, 41 insertions(+)
-> 
-> diff -puN include/linux/kernel.h~taint-performance include/linux/kernel.h
-> --- a/include/linux/kernel.h~taint-performance	2014-08-19 11:38:07.424005355 -0700
-> +++ b/include/linux/kernel.h	2014-08-19 11:38:20.960615904 -0700
-> @@ -471,6 +471,7 @@ extern enum system_states {
->  #define TAINT_OOT_MODULE		12
->  #define TAINT_UNSIGNED_MODULE		13
->  #define TAINT_SOFTLOCKUP		14
-> +#define TAINT_PERFORMANCE		15
+> diff --git a/mm/zbud.c b/mm/zbud.c
+> index a05790b..27a3701 100644
+> --- a/mm/zbud.c
+> +++ b/mm/zbud.c
+> @@ -179,7 +179,7 @@ static void zbud_zpool_unmap(void *pool, unsigned long handle)
 >  
->  extern const char hex_asc[];
->  #define hex_asc_lo(x)	hex_asc[((x) & 0x0f)]
-> diff -puN kernel/panic.c~taint-performance kernel/panic.c
-> --- a/kernel/panic.c~taint-performance	2014-08-19 11:38:28.928975233 -0700
-> +++ b/kernel/panic.c	2014-08-19 14:14:23.444983711 -0700
-> @@ -225,6 +225,7 @@ static const struct tnt tnts[] = {
->  	{ TAINT_OOT_MODULE,		'O', ' ' },
->  	{ TAINT_UNSIGNED_MODULE,	'E', ' ' },
->  	{ TAINT_SOFTLOCKUP,		'L', ' ' },
-> +	{ TAINT_PERFORMANCE,		'Q', ' ' },
->  };
->  
->  /**
-> @@ -501,3 +502,42 @@ static int __init oops_setup(char *s)
->  	return 0;
+>  static u64 zbud_zpool_total_size(void *pool)
+>  {
+> -	return zbud_get_pool_size(pool) * PAGE_SIZE;
+> +	return zbud_get_pool_size(pool);
 >  }
->  early_param("oops", oops_setup);
-> +
-> +#ifdef CONFIG_DEBUG_KERNEL
-> +#define TAINT_PERF_IF(x) do {						\
-> +		if (IS_ENABLED(CONFIG_##x)) {				\
-> +			do_taint = 1;					\
-> +			pr_warn("CONFIG_%s enabled\n",	__stringify(x));\
-> +		}							\
-> +	} while (0)
-> +
-> +static int __init performance_taint(void)
-> +{
-> +	int do_taint = 0;
-> +
-> +	/*
-> +	 * This should list any kernel options that can substantially
-> +	 * affect performance.  This is intended to give a big, fat
-> +	 * warning during bootup so that folks have a fighting chance
-> +	 * of noticing these things.
-> +	 */
-> +	TAINT_PERF_IF(LOCKDEP);
-> +	TAINT_PERF_IF(LOCK_STAT);
-> +	TAINT_PERF_IF(DEBUG_VM);
-> +	TAINT_PERF_IF(DEBUG_VM_VMACACHE);
-> +	TAINT_PERF_IF(DEBUG_VM_RB);
-> +	TAINT_PERF_IF(DEBUG_SLAB);
-> +	TAINT_PERF_IF(DEBUG_OBJECTS_FREE);
-> +	TAINT_PERF_IF(DEBUG_KMEMLEAK);
-> +	TAINT_PERF_IF(SCHEDSTATS);
-> +
-
-I nominate CONFIG_DEBUG_PAGEALLOC, CONFIG_SLUB_DEBUG,
-CONFIG_SLUB_DEBUG_ON as well since I've wasted days debugging
-supposed performance issues where those were on.
-
-Thanks,
-Laura
+>  
+>  static struct zpool_driver zbud_zpool_driver = {
+> diff --git a/mm/zpool.c b/mm/zpool.c
+> index e40612a..d126ebc 100644
+> --- a/mm/zpool.c
+> +++ b/mm/zpool.c
+> @@ -336,9 +336,9 @@ void zpool_unmap_handle(struct zpool *zpool, unsigned long handle)
+>   * zpool_get_total_size() - The total size of the pool
+>   * @pool	The zpool to check
+>   *
+> - * This returns the total size in bytes of the pool.
+> + * This returns the total size in pages of the pool.
+>   *
+> - * Returns: Total size of the zpool in bytes.
+> + * Returns: Total size of the zpool in pages.
+>   */
+>  u64 zpool_get_total_size(struct zpool *zpool)
+>  {
+> diff --git a/mm/zswap.c b/mm/zswap.c
+> index ea064c1..124f750 100644
+> --- a/mm/zswap.c
+> +++ b/mm/zswap.c
+> @@ -45,8 +45,8 @@
+>  /*********************************
+>  * statistics
+>  **********************************/
+> -/* Total bytes used by the compressed storage */
+> -static u64 zswap_pool_total_size;
+> +/* Total pages used by the compressed storage */
+> +static u64 zswap_pool_pages;
+>  /* The number of compressed pages currently stored in zswap */
+>  static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
+>  
+> @@ -297,7 +297,7 @@ static void zswap_free_entry(struct zswap_entry *entry)
+>  	zpool_free(zswap_pool, entry->handle);
+>  	zswap_entry_cache_free(entry);
+>  	atomic_dec(&zswap_stored_pages);
+> -	zswap_pool_total_size = zpool_get_total_size(zswap_pool);
+> +	zswap_pool_pages = zpool_get_total_size(zswap_pool);
+>  }
+>  
+>  /* caller must hold the tree lock */
+> @@ -414,7 +414,7 @@ cleanup:
+>  static bool zswap_is_full(void)
+>  {
+>  	return totalram_pages * zswap_max_pool_percent / 100 <
+> -		DIV_ROUND_UP(zswap_pool_total_size, PAGE_SIZE);
+> +		zswap_pool_pages;
+>  }
+>  
+>  /*********************************
+> @@ -721,7 +721,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+>  
+>  	/* update stats */
+>  	atomic_inc(&zswap_stored_pages);
+> -	zswap_pool_total_size = zpool_get_total_size(zswap_pool);
+> +	zswap_pool_pages = zpool_get_total_size(zswap_pool);
+>  
+>  	return 0;
+>  
+> @@ -874,8 +874,8 @@ static int __init zswap_debugfs_init(void)
+>  			zswap_debugfs_root, &zswap_written_back_pages);
+>  	debugfs_create_u64("duplicate_entry", S_IRUGO,
+>  			zswap_debugfs_root, &zswap_duplicate_entry);
+> -	debugfs_create_u64("pool_total_size", S_IRUGO,
+> -			zswap_debugfs_root, &zswap_pool_total_size);
+> +	debugfs_create_u64("pool_pages", S_IRUGO,
+> +			zswap_debugfs_root, &zswap_pool_pages);
+>  	debugfs_create_atomic_t("stored_pages", S_IRUGO,
+>  			zswap_debugfs_root, &zswap_stored_pages);
+>  
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 -- 
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-hosted by The Linux Foundation
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
