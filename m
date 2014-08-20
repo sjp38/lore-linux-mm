@@ -1,170 +1,227 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 09F136B0035
-	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 02:01:23 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id v10so11206266pde.39
-        for <linux-mm@kvack.org>; Tue, 19 Aug 2014 23:01:23 -0700 (PDT)
-Received: from qmta14.emeryville.ca.mail.comcast.net (qmta14.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:212])
-        by mx.google.com with ESMTP id t9si30208709pas.58.2014.08.19.23.01.22
-        for <linux-mm@kvack.org>;
-        Tue, 19 Aug 2014 23:01:22 -0700 (PDT)
-Date: Wed, 20 Aug 2014 01:01:19 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: slub/debugobjects: lockup when freeing memory
-In-Reply-To: <20140820023121.GS4752@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.11.1408200059260.2810@gentwo.org>
-References: <53A2F406.4010109@oracle.com> <alpine.DEB.2.11.1406191001090.2785@gentwo.org> <20140619165247.GA4904@linux.vnet.ibm.com> <alpine.DEB.2.10.1406192127100.5170@nanos> <alpine.DEB.2.11.1406191519090.4002@gentwo.org> <20140818163757.GA30742@linux.vnet.ibm.com>
- <alpine.DEB.2.11.1408182147400.28727@gentwo.org> <20140819035828.GI4752@linux.vnet.ibm.com> <alpine.DEB.2.11.1408192057200.32428@gentwo.org> <20140820023121.GS4752@linux.vnet.ibm.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 20F996B0035
+	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 02:26:52 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id z10so11152652pdj.30
+        for <linux-mm@kvack.org>; Tue, 19 Aug 2014 23:26:51 -0700 (PDT)
+Received: from mail-pd0-x229.google.com (mail-pd0-x229.google.com [2607:f8b0:400e:c02::229])
+        by mx.google.com with ESMTPS id q4si30267923pdp.206.2014.08.19.23.26.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 19 Aug 2014 23:26:51 -0700 (PDT)
+Received: by mail-pd0-f169.google.com with SMTP id y10so11076915pdj.0
+        for <linux-mm@kvack.org>; Tue, 19 Aug 2014 23:26:50 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1408434887-16387-5-git-send-email-minchan@kernel.org>
+References: <1408434887-16387-1-git-send-email-minchan@kernel.org>
+	<1408434887-16387-5-git-send-email-minchan@kernel.org>
+Date: Wed, 20 Aug 2014 02:26:50 -0400
+Message-ID: <CAFdhcLQcgME18U2NfEc6dXfvHnJWpyqcMR=Y16MyyghWiNRo1w@mail.gmail.com>
+Subject: Re: [PATCH v2 4/4] zram: report maximum used memory
+From: David Horner <ds2horner@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Sasha Levin <sasha.levin@oracle.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>
 
-On Tue, 19 Aug 2014, Paul E. McKenney wrote:
-
-> > We could also remove the #ifdefs if init_rcu_head and destroy_rcu_head
-> > are no ops if CONFIG_DEBUG_RCU_HEAD is not defined.
+On Tue, Aug 19, 2014 at 3:54 AM, Minchan Kim <minchan@kernel.org> wrote:
+> Normally, zram user could get maximum memory usage zram consumed
+> via polling mem_used_total with sysfs in userspace.
 >
-> And indeed they are, good point!  It appears to me that both sets of
-> #ifdefs can go away.
+> But it has a critical problem because user can miss peak memory
+> usage during update inverval of polling. For avoiding that,
+> user should poll it with shorter interval(ie, 0.0000000001s)
+> with mlocking to avoid page fault delay when memory pressure
+> is heavy. It would be troublesome.
+>
+> This patch adds new knob "mem_used_max" so user could see
+> the maximum memory usage easily via reading the knob and reset
+> it via "echo 0 > /sys/block/zram0/mem_used_max".
+>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  Documentation/ABI/testing/sysfs-block-zram | 10 +++++
+>  Documentation/blockdev/zram.txt            |  1 +
+>  drivers/block/zram/zram_drv.c              | 60 +++++++++++++++++++++++++++++-
+>  drivers/block/zram/zram_drv.h              |  1 +
+>  4 files changed, 70 insertions(+), 2 deletions(-)
+>
+> diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
+> index 025331c19045..ffd1ea7443dd 100644
+> --- a/Documentation/ABI/testing/sysfs-block-zram
+> +++ b/Documentation/ABI/testing/sysfs-block-zram
+> @@ -120,6 +120,16 @@ Description:
+>                 statistic.
+>                 Unit: bytes
+>
+> +What:          /sys/block/zram<id>/mem_used_max
+> +Date:          August 2014
+> +Contact:       Minchan Kim <minchan@kernel.org>
+> +Description:
+> +               The mem_used_max file is read/write and specifies the amount
+> +               of maximum memory zram have consumed to store compressed data.
+> +               For resetting the value, you should do "echo 0". Otherwise,
+> +               you could see -EINVAL.
+> +               Unit: bytes
+> +
+>  What:          /sys/block/zram<id>/mem_limit
+>  Date:          August 2014
+>  Contact:       Minchan Kim <minchan@kernel.org>
+> diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
+> index 9f239ff8c444..3b2247c2d4cf 100644
+> --- a/Documentation/blockdev/zram.txt
+> +++ b/Documentation/blockdev/zram.txt
+> @@ -107,6 +107,7 @@ size of the disk when not in use so a huge zram is wasteful.
+>                 orig_data_size
+>                 compr_data_size
+>                 mem_used_total
+> +               mem_used_max
+>
+>  8) Deactivate:
+>         swapoff /dev/zram0
+> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> index adc91c7ecaef..e4d44842a91d 100644
+> --- a/drivers/block/zram/zram_drv.c
+> +++ b/drivers/block/zram/zram_drv.c
+> @@ -149,6 +149,40 @@ static ssize_t mem_limit_store(struct device *dev,
+>         return len;
+>  }
+>
+> +static ssize_t mem_used_max_show(struct device *dev,
+> +               struct device_attribute *attr, char *buf)
+> +{
+> +       u64 val = 0;
+> +       struct zram *zram = dev_to_zram(dev);
+> +
+> +       down_read(&zram->init_lock);
+> +       if (init_done(zram))
+> +               val = atomic64_read(&zram->stats.max_used_pages);
+> +       up_read(&zram->init_lock);
+> +
+> +       return scnprintf(buf, PAGE_SIZE, "%llu\n", val << PAGE_SHIFT);
+> +}
+> +
+> +static ssize_t mem_used_max_store(struct device *dev,
+> +               struct device_attribute *attr, const char *buf, size_t len)
+> +{
+> +       u64 limit;
+> +       struct zram *zram = dev_to_zram(dev);
+> +       struct zram_meta *meta = zram->meta;
+> +
+> -       limit = memparse(buf, NULL);
+> -       if (0 != limit)
 
-Ok then this is a first workable version I think. How do we test this?
+we wanted explicit "0" and nothing else for extensibility
 
-From: Christoph Lameter <cl@linux.com>
-Subject: slub: Add init/destroy function calls for rcu_heads
+     if (len != 1 || *buf != "0")
 
-In order to do proper debugging for rcu_head use we need some
-additional structures allocated when an object potentially
-using a rcu_head is allocated in the slub allocator.
+> +               return -EINVAL;
+> +
+> +       down_read(&zram->init_lock);
+> +       if (init_done(zram))
+> +               atomic64_set(&zram->stats.max_used_pages,
+> +                               zs_get_total_size(meta->mem_pool));
+> +       up_read(&zram->init_lock);
+> +
+> +       return len;
+          return 1;
 
-This adds the proper calls to init_rcu_head()
-and destroy_rcu_head().
+the standard convention is to return used amount of buffer
 
-init_rcu_head() is a bit of an unusual function since:
-1. It does not touch the contents of the rcu_head. This is
-   required since the rcu_head is only used during
-   slab_page freeing. Outside of that the same memory location
-   is used for slab page list management. However, the
-   initialization occurs when the slab page is initially allocated.
-   So in the time between init_rcu_head() and destroy_rcu_head()
-   there may be multiple uses of the indicated address as a
-   list_head.
 
-2. It is called without gfp flags and could potentially
-   be called from atomic contexts. Allocations from init_rcu_head()
-   context need to deal with this.
 
-3. init_rcu_head() is called from within the slab allocation
-   functions. Since init_rcu_head() calls the allocator again
-   for more allocations it must avoid to use slabs that use
-   rcu freeing. Otherwise endless recursion may occur
-   (We may have to convince lockdep that what we do here is sane).
+> +}
+> +
+>  static ssize_t max_comp_streams_store(struct device *dev,
+>                 struct device_attribute *attr, const char *buf, size_t len)
+>  {
+> @@ -461,6 +495,26 @@ out_cleanup:
+>         return ret;
+>  }
+>
+> +static bool check_limit(struct zram *zram)
+> +{
+> +       unsigned long alloced_pages;
+> +       u64 old_max, cur_max;
+> +       struct zram_meta *meta = zram->meta;
+> +
+> +       do {
+> +               alloced_pages = zs_get_total_size(meta->mem_pool);
+> +               if (zram->limit_pages && alloced_pages > zram->limit_pages)
+> +                       return false;
+> +
+> +               old_max = cur_max = atomic64_read(&zram->stats.max_used_pages);
+> +               if (alloced_pages > cur_max)
+> +                       old_max = atomic64_cmpxchg(&zram->stats.max_used_pages,
+> +                                       cur_max, alloced_pages);
+> +       } while (old_max != cur_max);
+> +
+> +       return true;
+> +}
+> +
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+Check_limit does more than check limit - it has a substantial side
+effect of updating max used.
 
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c
-+++ linux/mm/slub.c
-@@ -1308,6 +1308,25 @@ static inline struct page *alloc_slab_pa
- 	return page;
- }
+Basically if we already allocated the buffer and our alloced_pages is
+less than the limit then we are good to go.
 
-+#define need_reserve_slab_rcu						\
-+	(sizeof(((struct page *)NULL)->lru) < sizeof(struct rcu_head))
-+
-+static struct rcu_head *get_rcu_head(struct kmem_cache *s, struct page *page)
-+{
-+	if (need_reserve_slab_rcu) {
-+		int order = compound_order(page);
-+		int offset = (PAGE_SIZE << order) - s->reserved;
-+
-+		VM_BUG_ON(s->reserved != sizeof(struct rcu_head));
-+		return page_address(page) + offset;
-+	} else {
-+		/*
-+		 * RCU free overloads the RCU head over the LRU
-+		 */
-+		return (void *)&page->lru;
-+	}
-+}
-+
- static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
- {
- 	struct page *page;
-@@ -1357,6 +1376,29 @@ static struct page *allocate_slab(struct
- 			kmemcheck_mark_unallocated_pages(page, pages);
- 	}
+It is the race to update that we need to have the cmpxchg.
+And maybe a helper function would aid readability - not sure, see next point.
 
-+	if (unlikely(s->flags & SLAB_DESTROY_BY_RCU) && page)
-+		/*
-+		 * Initialize various things. However, this init is
-+	 	 * not allowed to modify the contents of the rcu head.
-+		 * The allocator typically overloads the rcu head over
-+		 * page->lru which is also used to manage lists of
-+		 * slab pages.
-+		 *
-+		 * Allocations are permitted in init_rcu_head().
-+		 * However, the use of the same cache or another
-+		 * cache with SLAB_DESTROY_BY_RCU set will cause
-+		 * additional recursions.
-+		 *
-+		 * So in order to be safe the slab caches used
-+		 * in init_rcu_head() should be restricted to be of the
-+		 * non rcu kind only.
-+		 *
-+		 * Note also that no GFPFLAG is passed. The function
-+		 * may therefore be called from atomic contexts
-+		 * and somehow(?) needs to do the right thing.
-+		 */
-+		init_rcu_head(get_rcu_head(s, page));
-+
- 	if (flags & __GFP_WAIT)
- 		local_irq_disable();
- 	if (!page)
-@@ -1452,13 +1494,11 @@ static void __free_slab(struct kmem_cach
- 	memcg_uncharge_slab(s, order);
- }
+I don't believe there is need for the loop either.
+Any other updater will also be including our allocated pages
+(and at this point in the code eliminated from roll back)
+ so if they beat us to it, then no problem, their max is better than ours.
 
--#define need_reserve_slab_rcu						\
--	(sizeof(((struct page *)NULL)->lru) < sizeof(struct rcu_head))
--
- static void rcu_free_slab(struct rcu_head *h)
- {
- 	struct page *page;
 
-+	destroy_rcu_head(h);
- 	if (need_reserve_slab_rcu)
- 		page = virt_to_head_page(h);
- 	else
-@@ -1469,24 +1509,9 @@ static void rcu_free_slab(struct rcu_hea
 
- static void free_slab(struct kmem_cache *s, struct page *page)
- {
--	if (unlikely(s->flags & SLAB_DESTROY_BY_RCU)) {
--		struct rcu_head *head;
--
--		if (need_reserve_slab_rcu) {
--			int order = compound_order(page);
--			int offset = (PAGE_SIZE << order) - s->reserved;
--
--			VM_BUG_ON(s->reserved != sizeof(*head));
--			head = page_address(page) + offset;
--		} else {
--			/*
--			 * RCU free overloads the RCU head over the LRU
--			 */
--			head = (void *)&page->lru;
--		}
--
--		call_rcu(head, rcu_free_slab);
--	} else
-+	if (unlikely(s->flags & SLAB_DESTROY_BY_RCU))
-+		call_rcu(get_rcu_head(s, page), rcu_free_slab);
-+	else
- 		__free_slab(s, page);
- }
+>  static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+>                            int offset)
+>  {
+> @@ -541,8 +595,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+>                 goto out;
+>         }
+>
+> -       if (zram->limit_pages &&
+> -               zs_get_total_size(meta->mem_pool) > zram->limit_pages) {
+> +       if (!check_limit(zram)) {
+>                 zs_free(meta->mem_pool, handle);
+>                 ret = -ENOMEM;
+>                 goto out;
+> @@ -897,6 +950,8 @@ static DEVICE_ATTR(orig_data_size, S_IRUGO, orig_data_size_show, NULL);
+>  static DEVICE_ATTR(mem_used_total, S_IRUGO, mem_used_total_show, NULL);
+>  static DEVICE_ATTR(mem_limit, S_IRUGO | S_IWUSR, mem_limit_show,
+>                 mem_limit_store);
+> +static DEVICE_ATTR(mem_used_max, S_IRUGO | S_IWUSR, mem_used_max_show,
+> +               mem_used_max_store);
+>  static DEVICE_ATTR(max_comp_streams, S_IRUGO | S_IWUSR,
+>                 max_comp_streams_show, max_comp_streams_store);
+>  static DEVICE_ATTR(comp_algorithm, S_IRUGO | S_IWUSR,
+> @@ -926,6 +981,7 @@ static struct attribute *zram_disk_attrs[] = {
+>         &dev_attr_compr_data_size.attr,
+>         &dev_attr_mem_used_total.attr,
+>         &dev_attr_mem_limit.attr,
+> +       &dev_attr_mem_used_max.attr,
+>         &dev_attr_max_comp_streams.attr,
+>         &dev_attr_comp_algorithm.attr,
+>         NULL,
+> diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+> index b7aa9c21553f..29383312d543 100644
+> --- a/drivers/block/zram/zram_drv.h
+> +++ b/drivers/block/zram/zram_drv.h
+> @@ -90,6 +90,7 @@ struct zram_stats {
+>         atomic64_t notify_free; /* no. of swap slot free notifications */
+>         atomic64_t zero_pages;          /* no. of zero filled pages */
+>         atomic64_t pages_stored;        /* no. of pages currently stored */
+> +       atomic64_t max_used_pages;      /* no. of maximum pages stored */
+>  };
+>
+>  struct zram_meta {
+> --
+> 2.0.0
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
