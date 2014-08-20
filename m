@@ -1,24 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DDFC6B0039
-	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 11:05:04 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id fp1so12109133pdb.27
-        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 08:05:00 -0700 (PDT)
-Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
-        by mx.google.com with ESMTPS id bc5si32175041pdb.119.2014.08.20.08.04.59
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C2776B003A
+	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 11:05:08 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id g10so12076178pdj.12
+        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 08:05:06 -0700 (PDT)
+Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
+        by mx.google.com with ESMTPS id fk8si21120758pdb.143.2014.08.20.08.05.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Wed, 20 Aug 2014 08:05:00 -0700 (PDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout3.w1.samsung.com
+        Wed, 20 Aug 2014 08:05:02 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout2.w1.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NAM00MWH1W5CN20@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 20 Aug 2014 16:04:53 +0100 (BST)
-Subject: [PATCH 4/7] selftests/vm/transhuge-stress: stress test for memory
- compaction
+ 17 2011)) with ESMTP id <0NAM005KB215I960@mailout2.w1.samsung.com> for
+ linux-mm@kvack.org; Wed, 20 Aug 2014 16:07:53 +0100 (BST)
+Subject: [PATCH 5/7] mm: introduce common page state for ballooned memory
 From: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
-Date: Wed, 20 Aug 2014 19:04:52 +0400
-Message-id: <20140820150452.4194.85926.stgit@buzz>
+Date: Wed, 20 Aug 2014 19:04:58 +0400
+Message-id: <20140820150458.4194.58775.stgit@buzz>
 In-reply-to: <20140820150435.4194.28003.stgit@buzz>
 References: <20140820150435.4194.28003.stgit@buzz>
 MIME-version: 1.0
@@ -29,180 +28,289 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Rafael Aquini <aquini@redhat.com>
 Cc: Sasha Levin <sasha.levin@oracle.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, linux-kernel@vger.kernel.org
 
-From: Konstantin Khlebnikov <koct9i@gmail.com>
+This patch adds page state PageBallon() and functions __Set/ClearPageBalloon.
+Like PageBuddy() PageBalloon() looks like page-flag but actually this is special
+state of page->_mapcount counter. There is no conflict because ballooned pages
+cannot be mapped and cannot be in buddy allocator.
 
-This tool induces memory fragmentation via sequential allocation of transparent
-huge pages and splitting off everything except their last sub-pages.
+Ballooned pages are counted in vmstat counter NR_BALLOON_PAGES, it's shown them
+in /proc/meminfo and /proc/meminfo. Also this patch it exports PageBallon into
+userspace via /proc/kpageflags as KPF_BALLOON.
 
-Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
+All this code including mm/balloon_compaction.o is under CONFIG_MEMORY_BALLOON,
+it should be selected by ballooning driver which want use this feature.
+
+Signed-off-by: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
 ---
- tools/testing/selftests/vm/Makefile           |    1 
- tools/testing/selftests/vm/transhuge-stress.c |  144 +++++++++++++++++++++++++
- 2 files changed, 145 insertions(+)
- create mode 100644 tools/testing/selftests/vm/transhuge-stress.c
+ Documentation/filesystems/proc.txt     |    2 ++
+ drivers/base/node.c                    |   16 ++++++++++------
+ drivers/virtio/Kconfig                 |    1 +
+ fs/proc/meminfo.c                      |    6 ++++++
+ fs/proc/page.c                         |    3 +++
+ include/linux/mm.h                     |   10 ++++++++++
+ include/linux/mmzone.h                 |    3 +++
+ include/uapi/linux/kernel-page-flags.h |    1 +
+ mm/Kconfig                             |    5 +++++
+ mm/Makefile                            |    3 ++-
+ mm/balloon_compaction.c                |   14 ++++++++++++++
+ mm/vmstat.c                            |    8 +++++++-
+ tools/vm/page-types.c                  |    1 +
+ 13 files changed, 65 insertions(+), 8 deletions(-)
 
-diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
-index 3f94e1a..4c4b1f6 100644
---- a/tools/testing/selftests/vm/Makefile
-+++ b/tools/testing/selftests/vm/Makefile
-@@ -3,6 +3,7 @@
- CC = $(CROSS_COMPILE)gcc
- CFLAGS = -Wall
- BINARIES = hugepage-mmap hugepage-shm map_hugetlb thuge-gen hugetlbfstest
-+BINARIES += transhuge-stress
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index eb8a10e..154a345 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -796,6 +796,7 @@ VmallocTotal:   112216 kB
+ VmallocUsed:       428 kB
+ VmallocChunk:   111088 kB
+ AnonHugePages:   49152 kB
++BalloonPages:        0 kB
  
- all: $(BINARIES)
- %: %.c
-diff --git a/tools/testing/selftests/vm/transhuge-stress.c b/tools/testing/selftests/vm/transhuge-stress.c
-new file mode 100644
-index 0000000..fd7f1b4
---- /dev/null
-+++ b/tools/testing/selftests/vm/transhuge-stress.c
-@@ -0,0 +1,144 @@
-+/*
-+ * Stress test for transparent huge pages, memory compaction and migration.
-+ *
-+ * Authors: Konstantin Khlebnikov <koct9i@gmail.com>
-+ *
-+ * This is free and unencumbered software released into the public domain.
-+ */
+     MemTotal: Total usable ram (i.e. physical ram minus a few reserved
+               bits and the kernel binary code)
+@@ -838,6 +839,7 @@ MemAvailable: An estimate of how much memory is available for starting new
+    Writeback: Memory which is actively being written back to the disk
+    AnonPages: Non-file backed pages mapped into userspace page tables
+ AnonHugePages: Non-file backed huge pages mapped into userspace page tables
++BalloonPages: Memory which was ballooned, not included into MemTotal
+       Mapped: files which have been mmaped, such as libraries
+         Slab: in-kernel data structures cache
+ SReclaimable: Part of Slab, that might be reclaimed, such as caches
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index c6d3ae0..59e565c 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -120,6 +120,9 @@ static ssize_t node_read_meminfo(struct device *dev,
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 		       "Node %d AnonHugePages:  %8lu kB\n"
+ #endif
++#ifdef CONFIG_MEMORY_BALLOON
++		       "Node %d BalloonPages:   %8lu kB\n"
++#endif
+ 			,
+ 		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
+ 		       nid, K(node_page_state(nid, NR_WRITEBACK)),
+@@ -136,14 +139,15 @@ static ssize_t node_read_meminfo(struct device *dev,
+ 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE) +
+ 				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
+ 		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
+-			, nid,
+-			K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
+-			HPAGE_PMD_NR));
+-#else
+-		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++		       ,nid, K(node_page_state(nid,
++				NR_ANON_TRANSPARENT_HUGEPAGES) * HPAGE_PMD_NR)
++#endif
++#ifdef CONFIG_MEMORY_BALLOON
++		       ,nid, K(node_page_state(nid, NR_BALLOON_PAGES))
+ #endif
++		       );
+ 	n += hugetlb_report_node_meminfo(nid, buf + n);
+ 	return n;
+ }
+diff --git a/drivers/virtio/Kconfig b/drivers/virtio/Kconfig
+index c6683f2..00b2286 100644
+--- a/drivers/virtio/Kconfig
++++ b/drivers/virtio/Kconfig
+@@ -25,6 +25,7 @@ config VIRTIO_PCI
+ config VIRTIO_BALLOON
+ 	tristate "Virtio balloon driver"
+ 	depends on VIRTIO
++	select MEMORY_BALLOON
+ 	---help---
+ 	 This driver supports increasing and decreasing the amount
+ 	 of memory within a KVM guest.
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index aa1eee0..f897fbf 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -138,6 +138,9 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 		"AnonHugePages:  %8lu kB\n"
+ #endif
++#ifdef CONFIG_MEMORY_BALLOON
++		"BalloonPages:   %8lu kB\n"
++#endif
+ 		,
+ 		K(i.totalram),
+ 		K(i.freeram),
+@@ -193,6 +196,9 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 		,K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
+ 		   HPAGE_PMD_NR)
+ #endif
++#ifdef CONFIG_MEMORY_BALLOON
++		,K(global_page_state(NR_BALLOON_PAGES))
++#endif
+ 		);
+ 
+ 	hugetlb_report_meminfo(m);
+diff --git a/fs/proc/page.c b/fs/proc/page.c
+index e647c55..1e3187d 100644
+--- a/fs/proc/page.c
++++ b/fs/proc/page.c
+@@ -133,6 +133,9 @@ u64 stable_page_flags(struct page *page)
+ 	if (PageBuddy(page))
+ 		u |= 1 << KPF_BUDDY;
+ 
++	if (PageBalloon(page))
++		u |= 1 << KPF_BALLOON;
 +
-+#include <stdlib.h>
-+#include <stdio.h>
-+#include <stdint.h>
-+#include <err.h>
-+#include <time.h>
-+#include <unistd.h>
-+#include <fcntl.h>
-+#include <string.h>
-+#include <sys/mman.h>
+ 	u |= kpf_copy_bit(k, KPF_LOCKED,	PG_locked);
+ 
+ 	u |= kpf_copy_bit(k, KPF_SLAB,		PG_slab);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 8981cc8..d2dd497 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -553,6 +553,16 @@ static inline void __ClearPageBuddy(struct page *page)
+ 	atomic_set(&page->_mapcount, -1);
+ }
+ 
++#define PAGE_BALLOON_MAPCOUNT_VALUE (-256)
 +
-+#define PAGE_SHIFT 12
-+#define HPAGE_SHIFT 21
-+
-+#define PAGE_SIZE (1 << PAGE_SHIFT)
-+#define HPAGE_SIZE (1 << HPAGE_SHIFT)
-+
-+#define PAGEMAP_PRESENT(ent)	(((ent) & (1ull << 63)) != 0)
-+#define PAGEMAP_PFN(ent)	((ent) & ((1ull << 55) - 1))
-+
-+int pagemap_fd;
-+
-+int64_t allocate_transhuge(void *ptr)
++static inline int PageBalloon(struct page *page)
 +{
-+	uint64_t ent[2];
++	return IS_ENABLED(CONFIG_MEMORY_BALLOON) &&
++		atomic_read(&page->_mapcount) == PAGE_BALLOON_MAPCOUNT_VALUE;
++}
++void __SetPageBalloon(struct page *page);
++void __ClearPageBalloon(struct page *page);
 +
-+	/* drop pmd */
-+	if (mmap(ptr, HPAGE_SIZE, PROT_READ | PROT_WRITE,
-+				MAP_FIXED | MAP_ANONYMOUS |
-+				MAP_NORESERVE | MAP_PRIVATE, -1, 0) != ptr)
-+		errx(2, "mmap transhuge");
+ void put_page(struct page *page);
+ void put_pages_list(struct list_head *pages);
+ 
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 318df70..d88fd01 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -157,6 +157,9 @@ enum zone_stat_item {
+ 	WORKINGSET_NODERECLAIM,
+ 	NR_ANON_TRANSPARENT_HUGEPAGES,
+ 	NR_FREE_CMA_PAGES,
++#ifdef CONFIG_MEMORY_BALLOON
++	NR_BALLOON_PAGES,
++#endif
+ 	NR_VM_ZONE_STAT_ITEMS };
+ 
+ /*
+diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
+index 5116a0e..2f96d23 100644
+--- a/include/uapi/linux/kernel-page-flags.h
++++ b/include/uapi/linux/kernel-page-flags.h
+@@ -31,6 +31,7 @@
+ 
+ #define KPF_KSM			21
+ #define KPF_THP			22
++#define KPF_BALLOON		23
+ 
+ 
+ #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 886db21..72e0db0 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -228,6 +228,11 @@ config ARCH_ENABLE_SPLIT_PMD_PTLOCK
+ 	boolean
+ 
+ #
++# support for memory ballooning
++config MEMORY_BALLOON
++	boolean
 +
-+	if (madvise(ptr, HPAGE_SIZE, MADV_HUGEPAGE))
-+		err(2, "MADV_HUGEPAGE");
-+
-+	/* allocate transparent huge page */
-+	*(volatile void **)ptr = ptr;
-+
-+	if (pread(pagemap_fd, ent, sizeof(ent),
-+			(uintptr_t)ptr >> (PAGE_SHIFT - 3)) != sizeof(ent))
-+		err(2, "read pagemap");
-+
-+	if (PAGEMAP_PRESENT(ent[0]) && PAGEMAP_PRESENT(ent[1]) &&
-+	    PAGEMAP_PFN(ent[0]) + 1 == PAGEMAP_PFN(ent[1]) &&
-+	    !(PAGEMAP_PFN(ent[0]) & ((1 << (HPAGE_SHIFT - PAGE_SHIFT)) - 1)))
-+		return PAGEMAP_PFN(ent[0]);
-+
-+	return -1;
++#
+ # support for memory balloon compaction
+ config BALLOON_COMPACTION
+ 	bool "Allow for balloon memory compaction/migration"
+diff --git a/mm/Makefile b/mm/Makefile
+index 632ae77..2d33d7f 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -16,7 +16,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
+ 			   readahead.o swap.o truncate.o vmscan.o shmem.o \
+ 			   util.o mmzone.o vmstat.o backing-dev.o \
+ 			   mm_init.o mmu_context.o percpu.o slab_common.o \
+-			   compaction.o balloon_compaction.o vmacache.o \
++			   compaction.o vmacache.o \
+ 			   interval_tree.o list_lru.o workingset.o \
+ 			   iov_iter.o $(mmu-y)
+ 
+@@ -64,3 +64,4 @@ obj-$(CONFIG_ZBUD)	+= zbud.o
+ obj-$(CONFIG_ZSMALLOC)	+= zsmalloc.o
+ obj-$(CONFIG_GENERIC_EARLY_IOREMAP) += early_ioremap.o
+ obj-$(CONFIG_CMA)	+= cma.o
++obj-$(CONFIG_MEMORY_BALLOON) += balloon_compaction.o
+diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+index 6e45a50..533c567 100644
+--- a/mm/balloon_compaction.c
++++ b/mm/balloon_compaction.c
+@@ -10,6 +10,20 @@
+ #include <linux/export.h>
+ #include <linux/balloon_compaction.h>
+ 
++void __SetPageBalloon(struct page *page)
++{
++	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
++	atomic_set(&page->_mapcount, PAGE_BALLOON_MAPCOUNT_VALUE);
++	inc_zone_page_state(page, NR_BALLOON_PAGES);
 +}
 +
-+int main(int argc, char **argv)
++void __ClearPageBalloon(struct page *page)
 +{
-+	size_t ram, len;
-+	void *ptr, *p;
-+	struct timespec a, b;
-+	double s;
-+	uint8_t *map;
-+	size_t map_len;
-+
-+	ram = sysconf(_SC_PHYS_PAGES);
-+	if (ram > SIZE_MAX / sysconf(_SC_PAGESIZE) / 4)
-+		ram = SIZE_MAX / 4;
-+	else
-+		ram *= sysconf(_SC_PAGESIZE);
-+
-+	if (argc == 1)
-+		len = ram;
-+	else if (!strcmp(argv[1], "-h"))
-+		errx(1, "usage: %s [size in MiB]", argv[0]);
-+	else
-+		len = atoll(argv[1]) << 20;
-+
-+	warnx("allocate %zd transhuge pages, using %zd MiB virtual memory"
-+	      " and %zd MiB of ram", len >> HPAGE_SHIFT, len >> 20,
-+	      len >> (20 + HPAGE_SHIFT - PAGE_SHIFT - 1));
-+
-+	pagemap_fd = open("/proc/self/pagemap", O_RDONLY);
-+	if (pagemap_fd < 0)
-+		err(2, "open pagemap");
-+
-+	len -= len % HPAGE_SIZE;
-+	ptr = mmap(NULL, len + HPAGE_SIZE, PROT_READ | PROT_WRITE,
-+			MAP_ANONYMOUS | MAP_NORESERVE | MAP_PRIVATE, -1, 0);
-+	if (ptr == MAP_FAILED)
-+		err(2, "initial mmap");
-+	ptr += HPAGE_SIZE - (uintptr_t)ptr % HPAGE_SIZE;
-+
-+	if (madvise(ptr, len, MADV_HUGEPAGE))
-+		err(2, "MADV_HUGEPAGE");
-+
-+	map_len = ram >> (HPAGE_SHIFT - 1);
-+	map = malloc(map_len);
-+	if (!map)
-+		errx(2, "map malloc");
-+
-+	while (1) {
-+		int nr_succeed = 0, nr_failed = 0, nr_pages = 0;
-+
-+		memset(map, 0, map_len);
-+
-+		clock_gettime(CLOCK_MONOTONIC, &a);
-+		for (p = ptr; p < ptr + len; p += HPAGE_SIZE) {
-+			int64_t pfn;
-+
-+			pfn = allocate_transhuge(p);
-+
-+			if (pfn < 0) {
-+				nr_failed++;
-+			} else {
-+				size_t idx = pfn >> (HPAGE_SHIFT - PAGE_SHIFT);
-+
-+				nr_succeed++;
-+				if (idx >= map_len) {
-+					map = realloc(map, idx + 1);
-+					if (!map)
-+						errx(2, "map realloc");
-+					memset(map + map_len, 0, idx + 1 - map_len);
-+					map_len = idx + 1;
-+				}
-+				if (!map[idx])
-+					nr_pages++;
-+				map[idx] = 1;
-+			}
-+
-+			/* split transhuge page, keep last page */
-+			if (madvise(p, HPAGE_SIZE - PAGE_SIZE, MADV_DONTNEED))
-+				err(2, "MADV_DONTNEED");
-+		}
-+		clock_gettime(CLOCK_MONOTONIC, &b);
-+		s = b.tv_sec - a.tv_sec + (b.tv_nsec - a.tv_nsec) / 1000000000.;
-+
-+		warnx("%.3f s/loop, %.3f ms/page, %10.3f MiB/s\t"
-+		      "%4d succeed, %4d failed, %4d different pages",
-+		      s, s * 1000 / (len >> HPAGE_SHIFT), len / s / (1 << 20),
-+		      nr_succeed, nr_failed, nr_pages);
-+	}
++	VM_BUG_ON_PAGE(!PageBalloon(page), page);
++	atomic_set(&page->_mapcount, -1);
++	dec_zone_page_state(page, NR_BALLOON_PAGES);
 +}
++
+ /*
+  * balloon_devinfo_alloc - allocates a balloon device information descriptor.
+  * @balloon_dev_descriptor: pointer to reference the balloon device which
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index e9ab104..6e704cc 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -735,7 +735,7 @@ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
+ 					TEXT_FOR_HIGHMEM(xx) xx "_movable",
+ 
+ const char * const vmstat_text[] = {
+-	/* Zoned VM counters */
++	/* enum zone_stat_item countes */
+ 	"nr_free_pages",
+ 	"nr_alloc_batch",
+ 	"nr_inactive_anon",
+@@ -778,10 +778,16 @@ const char * const vmstat_text[] = {
+ 	"workingset_nodereclaim",
+ 	"nr_anon_transparent_hugepages",
+ 	"nr_free_cma",
++#ifdef CONFIG_MEMORY_BALLOON
++	"nr_balloon_pages",
++#endif
++
++	/* enum writeback_stat_item counters */
+ 	"nr_dirty_threshold",
+ 	"nr_dirty_background_threshold",
+ 
+ #ifdef CONFIG_VM_EVENT_COUNTERS
++	/* enum vm_event_item counters */
+ 	"pgpgin",
+ 	"pgpgout",
+ 	"pswpin",
+diff --git a/tools/vm/page-types.c b/tools/vm/page-types.c
+index c4d6d2e..264fbc2 100644
+--- a/tools/vm/page-types.c
++++ b/tools/vm/page-types.c
+@@ -132,6 +132,7 @@ static const char * const page_flag_names[] = {
+ 	[KPF_NOPAGE]		= "n:nopage",
+ 	[KPF_KSM]		= "x:ksm",
+ 	[KPF_THP]		= "t:thp",
++	[KPF_BALLOON]		= "o:balloon",
+ 
+ 	[KPF_RESERVED]		= "r:reserved",
+ 	[KPF_MLOCKED]		= "m:mlocked",
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
