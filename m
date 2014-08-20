@@ -1,109 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id D4A436B0035
-	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 04:12:05 -0400 (EDT)
-Received: by mail-we0-f180.google.com with SMTP id w61so7484102wes.25
-        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 01:12:05 -0700 (PDT)
-Received: from mail-wg0-x22c.google.com (mail-wg0-x22c.google.com [2a00:1450:400c:c00::22c])
-        by mx.google.com with ESMTPS id o10si3289844wix.26.2014.08.20.01.12.03
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 324726B0038
+	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 04:22:25 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id z10so11423773pdj.16
+        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 01:22:23 -0700 (PDT)
+Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
+        by mx.google.com with ESMTPS id p3si30667555pdg.107.2014.08.20.01.22.14
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 20 Aug 2014 01:12:04 -0700 (PDT)
-Received: by mail-wg0-f44.google.com with SMTP id m15so7414937wgh.15
-        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 01:12:03 -0700 (PDT)
-Date: Wed, 20 Aug 2014 10:11:58 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH] [v2] TAINT_PERFORMANCE
-Message-ID: <20140820081158.GA3991@gmail.com>
-References: <20140820035751.08C980FB@viggo.jf.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140820035751.08C980FB@viggo.jf.intel.com>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Wed, 20 Aug 2014 01:22:14 -0700 (PDT)
+Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
+ by mailout3.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NAL00GDNJ8DVH10@mailout3.samsung.com> for
+ linux-mm@kvack.org; Wed, 20 Aug 2014 17:21:49 +0900 (KST)
+From: Chao Yu <chao2.yu@samsung.com>
+References: <001201cfb838$fb0ac4a0$f1204de0$@samsung.com>
+ <20140815061138.GA940@swordfish> <002d01cfbb70$ea7410c0$bf5c3240$@samsung.com>
+ <20140819112500.GA2484@swordfish> <20140820020924.GD32620@bbox>
+In-reply-to: <20140820020924.GD32620@bbox>
+Subject: RE: [PATCH] zram: add num_discards for discarded pages stat
+Date: Wed, 20 Aug 2014 16:20:48 +0800
+Message-id: <006701cfbc4f$c9d2fe00$5d78fa00$@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=UTF-8
+Content-transfer-encoding: 7bit
+Content-language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-kernel@vger.kernel.org, dave.hansen@linux.intel.com, peterz@infradead.org, mingo@redhat.com, ak@linux.intel.com, tim.c.chen@linux.intel.com, akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org, linux-mm@kvack.org, kirill@shutemov.name, lauraa@codeaurora.org, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
+To: 'Minchan Kim' <minchan@kernel.org>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, 'Jerome Marchand' <jmarchan@redhat.com>, 'Andrew Morton' <akpm@linux-foundation.org>
 
+Hi Minchan,
 
-* Dave Hansen <dave@sr71.net> wrote:
+> -----Original Message-----
+> From: Minchan Kim [mailto:minchan@kernel.org]
+> Sent: Wednesday, August 20, 2014 10:09 AM
+> To: Sergey Senozhatsky
+> Cc: Chao Yu; linux-kernel@vger.kernel.org; linux-mm@kvack.org; ngupta@vflare.org; 'Jerome
+> Marchand'; 'Andrew Morton'
+> Subject: Re: [PATCH] zram: add num_discards for discarded pages stat
+> 
+> Hi Sergey,
+> 
+> On Tue, Aug 19, 2014 at 08:25:00PM +0900, Sergey Senozhatsky wrote:
+> > Hello,
+> >
+> > On (08/19/14 13:45), Chao Yu wrote:
+> > > > On (08/15/14 11:27), Chao Yu wrote:
+> > > > > Now we have supported handling discard request which is sended by filesystem,
+> > > > > but no interface could be used to show information of discard.
+> > > > > This patch adds num_discards to stat discarded pages, then export it to sysfs
+> > > > > for displaying.
+> > > > >
+> > > >
+> > > > a side question: we account discarded pages via slot free notify in
+> > > > notify_free and via req_discard in num_discards. how about accounting
+> > > > both of them in num_discards? because, after all, they account a number
+> > > > of discarded pages (zram_free_page()). or there any particular reason we
+> > > > want to distinguish.
+> > >
+> > > Yeah, I agree with you as I have no such reason unless there are our users'
+> > > explicitly requirement for showing notify_free/num_discards separately later.
+> > >
+> > > How do you think of sending another patch to merge these two counts?
+> > >
+> >
+> > Minchan, what do you think? let's account discarded pages in one place.
+> 
+> First of all, I'd like to know why we need num_discards.
+> It should be in description and depends on it whether we should merge both
+> counts or separate.
+
+Oh, it's my mistaken.
+
+When commit 	9b9913d80b2896ecd9e0a1a8f167ccad66fac79c (Staging: zram: Update
+zram documentation) and commit e98419c23b1a189c932775f7833e94cb5230a16b (Staging:
+zram: Document sysfs entries) description related to 'discard' stat was designed
+and added to zram.txt and sysfs-block-zram, but without implementation of function
+for handling discard request, description in documents were removed in commit
+8dd1d3247e6c00b50ef83934ea8b22a1590015de (zram: document failed_reads,
+failed_writes stats)
+
+For now, we have already supported discard handling, so it's better to resume
+the stat of discard number, this discard stat supports user one more kind of runtime
+information of zram as other stats supported.
+
+How do you think?
 
 > 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
+> Thanks.
 > 
-> Changes from v1:
->  * remove schedstats
->  * add DEBUG_PAGEALLOC and SLUB_DEBUG_ON
+> 
+> 
+> >
+> > > One more thing is that I am missing to update document of zram, sorry about
+> > > that, let me update it in v2.
+> >
+> > thanks.
+> >
+> > 	-ss
+> >
+> > > Thanks,
+> > > Yu
+> > >
+> > > >
+> > > > 	-ss
+> > > >
+> > > > > Signed-off-by: Chao Yu <chao2.yu@samsung.com>
+> > > > > ---
+> > > > >  Documentation/ABI/testing/sysfs-block-zram | 10 ++++++++++
+> > > > >  drivers/block/zram/zram_drv.c              |  3 +++
+> > > > >  drivers/block/zram/zram_drv.h              |  1 +
+> > > > >  3 files changed, 14 insertions(+)
+> > > > >
+> > > > > diff --git a/Documentation/ABI/testing/sysfs-block-zram
+> > > > b/Documentation/ABI/testing/sysfs-block-zram
+> > > > > index 70ec992..fa8936e 100644
+> > > > > --- a/Documentation/ABI/testing/sysfs-block-zram
+> > > > > +++ b/Documentation/ABI/testing/sysfs-block-zram
+> > > > > @@ -57,6 +57,16 @@ Description:
+> > > > >  		The failed_writes file is read-only and specifies the number of
+> > > > >  		failed writes happened on this device.
+> > > > >
+> > > > > +
+> > > > > +What:		/sys/block/zram<id>/num_discards
+> > > > > +Date:		August 2014
+> > > > > +Contact:	Chao Yu <chao2.yu@samsung.com>
+> > > > > +Description:
+> > > > > +		The num_discards file is read-only and specifies the number of
+> > > > > +		physical blocks which are discarded by this device. These blocks
+> > > > > +		are included in discard request which is sended by filesystem as
+> > > > > +		the blocks are no longer used.
+> > > > > +
+> > > > >  What:		/sys/block/zram<id>/max_comp_streams
+> > > > >  Date:		February 2014
+> > > > >  Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> > > > > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> > > > > index d00831c..904e7a5 100644
+> > > > > --- a/drivers/block/zram/zram_drv.c
+> > > > > +++ b/drivers/block/zram/zram_drv.c
+> > > > > @@ -606,6 +606,7 @@ static void zram_bio_discard(struct zram *zram, u32 index,
+> > > > >  		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
+> > > > >  		zram_free_page(zram, index);
+> > > > >  		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+> > > > > +		atomic64_inc(&zram->stats.num_discards);
+> > > > >  		index++;
+> > > > >  		n -= PAGE_SIZE;
+> > > > >  	}
+> > > > > @@ -866,6 +867,7 @@ ZRAM_ATTR_RO(num_reads);
+> > > > >  ZRAM_ATTR_RO(num_writes);
+> > > > >  ZRAM_ATTR_RO(failed_reads);
+> > > > >  ZRAM_ATTR_RO(failed_writes);
+> > > > > +ZRAM_ATTR_RO(num_discards);
+> > > > >  ZRAM_ATTR_RO(invalid_io);
+> > > > >  ZRAM_ATTR_RO(notify_free);
+> > > > >  ZRAM_ATTR_RO(zero_pages);
+> > > > > @@ -879,6 +881,7 @@ static struct attribute *zram_disk_attrs[] = {
+> > > > >  	&dev_attr_num_writes.attr,
+> > > > >  	&dev_attr_failed_reads.attr,
+> > > > >  	&dev_attr_failed_writes.attr,
+> > > > > +	&dev_attr_num_discards.attr,
+> > > > >  	&dev_attr_invalid_io.attr,
+> > > > >  	&dev_attr_notify_free.attr,
+> > > > >  	&dev_attr_zero_pages.attr,
+> > > > > diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+> > > > > index e0f725c..2994aaf 100644
+> > > > > --- a/drivers/block/zram/zram_drv.h
+> > > > > +++ b/drivers/block/zram/zram_drv.h
+> > > > > @@ -86,6 +86,7 @@ struct zram_stats {
+> > > > >  	atomic64_t num_writes;	/* --do-- */
+> > > > >  	atomic64_t failed_reads;	/* can happen when memory is too low */
+> > > > >  	atomic64_t failed_writes;	/* can happen when memory is too low */
+> > > > > +	atomic64_t num_discards;	/* no. of discarded pages */
+> > > > >  	atomic64_t invalid_io;	/* non-page-aligned I/O requests */
+> > > > >  	atomic64_t notify_free;	/* no. of swap slot free notifications */
+> > > > >  	atomic64_t zero_pages;		/* no. of zero filled pages */
+> > > > > --
+> > > > > 2.0.1.474.g72c7794
+> > > > >
+> > > > >
+> > > >
+> > > > --
+> > > > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > > > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > > > see: http://www.linux-mm.org/ .
+> > > > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> > >
+> >
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > 
 > --
-> 
-> I have more than once myself been the victim of an accidentally-
-> enabled kernel config option being mistaken for a true
-> performance problem.
-> 
-> I'm sure I've also taken profiles or performance measurements
-> and assumed they were real-world when really I was measuing the
-> performance with an option that nobody turns on in production.
-
-Most of these options already announce themselves in the 
-syslog.
-
-> A warning like this late in boot will help remind folks when
-> these kinds of things are enabled.
-> 
-> As for the patch...
-> 
-> I originally wanted this for CONFIG_DEBUG_VM, but I think it also
-> applies to things like lockdep and slab debugging.  See the patch
-> for the list of offending config options.  I'm open to adding
-> more, but this seemed like a good list to start.
-
-> [    2.534574] CONFIG_LOCKDEP enabled
-> [    2.536392] Do not use this kernel for performance measurement.
-
-This is workload dependent: for many kernel workloads this is 
-indeed true. For many user-space workloads it will add very 
-little overhead.
-
-> [    2.547189] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 3.16.0-10473-gc8d6637-dirty #800
-> [    2.558075] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-> [    2.564483]  0000000080000000 ffff88009c70be78 ffffffff817ce318 0000000000000000
-> [    2.582505]  ffffffff81dca5b6 ffff88009c70be88 ffffffff81dca5e2 ffff88009c70bef8
-> [    2.588589]  ffffffff81000377 0000000000000000 0007000700000142 ffffffff81b78968
-> [    2.592638] Call Trace:
-> [    2.593762]  [<ffffffff817ce318>] dump_stack+0x4e/0x68
-
-Generating a stack dump that tells us nothing isn't really 
-useful.
-
->  	{ TAINT_SOFTLOCKUP,		'L', ' ' },
-> +	{ TAINT_PERFORMANCE,		'Q', ' ' },
-
-Also this looks like a slight abuse of the taint flag: we taint 
-the kernel if there's a problem with it. But even for many 
-types of performance measurements, a debug kernel is just fine. 
-For other types of performance measurements, even a non-debug 
-kernel option can have big impact.
-
-A better option might be to declare known performance killers 
-in /proc/config_debug or so, and maybe print them once at the 
-end of the bootup, with a 'WARNING:' or 'INFO:' prefix. That 
-way tooling (benchmarks, profilers, etc.) can print them, but 
-it's also present in the syslog, just in case.
-
-/proc/config_debug is different from /proc/config.gz IKCONFIG, 
-because it would always be present when performance impacting 
-options are enabled. So tools would only have to check the 
-existence of this file, for the simplest test.
-
-In any case I don't think it's a good idea to abuse existing 
-facilities just to gain attention: you'll get the extra 
-attention, but the abuse dillutes the utility of those only 
-tangentially related facilities.
-
-Thanks,
-
-	Ingo
+> Kind regards,
+> Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
