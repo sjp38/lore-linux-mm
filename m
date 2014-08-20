@@ -1,98 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 4ED796B0038
-	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 11:11:51 -0400 (EDT)
-Received: by mail-wi0-f179.google.com with SMTP id f8so7102132wiw.12
-        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 08:11:50 -0700 (PDT)
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-        by mx.google.com with ESMTPS id uk5si36916489wjc.61.2014.08.20.08.11.49
+Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DC596B0038
+	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 11:25:52 -0400 (EDT)
+Received: by mail-qg0-f45.google.com with SMTP id f51so7499255qge.18
+        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 08:25:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z98si34414429qge.6.2014.08.20.08.25.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 20 Aug 2014 08:11:50 -0700 (PDT)
-Received: by mail-we0-f174.google.com with SMTP id x48so8078073wes.19
-        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 08:11:49 -0700 (PDT)
-Date: Wed, 20 Aug 2014 16:11:43 +0100
-From: Steve Capper <steve.capper@linaro.org>
-Subject: Re: [PATCH 0/6] RCU get_user_pages_fast and __get_user_pages_fast
-Message-ID: <20140820151142.GA26217@linaro.org>
-References: <1403710824-24340-1-git-send-email-steve.capper@linaro.org>
- <CALdTtns6+MRb=Z7i0ncq_c2u7QZWo1mUxD824bvNF==q-_+BiQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALdTtns6+MRb=Z7i0ncq_c2u7QZWo1mUxD824bvNF==q-_+BiQ@mail.gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Aug 2014 08:25:51 -0700 (PDT)
+From: Frantisek Hrbata <fhrbata@redhat.com>
+Subject: [PATCH 1/2] x86: add high_memory check to (xlate|unxlate)_dev_mem_ptr
+Date: Wed, 20 Aug 2014 17:25:25 +0200
+Message-Id: <1408548326-18665-2-git-send-email-fhrbata@redhat.com>
+In-Reply-To: <1408548326-18665-1-git-send-email-fhrbata@redhat.com>
+References: <1408103043-31015-1-git-send-email-fhrbata@redhat.com>
+ <1408548326-18665-1-git-send-email-fhrbata@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dann Frazier <dann.frazier@canonical.com>
-Cc: linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, linux@arm.linux.org.uk, linux-arch@vger.kernel.org, linux-mm@kvack.org, anders.roxell@linaro.org, peterz@infradead.org, gary.robertson@linaro.org, Will Deacon <will.deacon@arm.com>, akpm@linux-foundation.org, Christoffer Dall <christoffer.dall@linaro.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, oleg@redhat.com, kamaleshb@in.ibm.com, hechjie@cn.ibm.com, akpm@linux-foundation.org, dave.hansen@intel.com, dvlasenk@redhat.com, prarit@redhat.com, lwoodman@redhat.com, hannsj_uhl@de.ibm.com
 
-On Wed, Aug 20, 2014 at 08:56:09AM -0600, Dann Frazier wrote:
-> On Wed, Jun 25, 2014 at 9:40 AM, Steve Capper <steve.capper@linaro.org> wrote:
-> > Hello,
-> > This series implements general forms of get_user_pages_fast and
-> > __get_user_pages_fast and activates them for arm and arm64.
-> >
-> > These are required for Transparent HugePages to function correctly, as
-> > a futex on a THP tail will otherwise result in an infinite loop (due to
-> > the core implementation of __get_user_pages_fast always returning 0).
-> >
-> > This series may also be beneficial for direct-IO heavy workloads and
-> > certain KVM workloads.
-> >
-> > The main changes since RFC V5 are:
-> >  * Rebased against 3.16-rc1.
-> >  * pmd_present no longer tested for by gup_huge_pmd and gup_huge_pud,
-> >    because the entry must be present for these leaf functions to be
-> >    called.
-> >  * Rather than assume puds can be re-cast as pmds, a separate
-> >    function pud_write is instead used by the core gup.
-> >  * ARM activation logic changed, now it will only activate
-> >    RCU_TABLE_FREE and RCU_GUP when running with LPAE.
-> >
-> > The main changes since RFC V4 are:
-> >  * corrected the arm64 logic so it now correctly rcu-frees page
-> >    table backing pages.
-> >  * rcu free logic relaxed for pre-ARMv7 ARM as we need an IPI to
-> >    invalidate TLBs anyway.
-> >  * rebased to 3.15-rc3 (some minor changes were needed to allow it to merge).
-> >  * dropped Catalin's mmu_gather patch as that's been merged already.
-> >
-> > This series has been tested with LTP and some custom futex tests that
-> > exacerbate the futex on THP tail case. Also debug counters were
-> > temporarily employed to ensure that the RCU_TABLE_FREE logic was
-> > behaving as expected.
-> >
-> > I would really appreciate any testers or comments (especially on the
-> > validity or otherwise of the core fast_gup implementation).
-> 
-> I have a test case that can reliably hit the THP issue on arm64, which
-> hits it on both 3.16 and 3.17-rc1. I do a "juju bootstrap local" w/
-> THP disabled at boot. Then I reboot with THP enabled. At this point
-> you'll see jujud spin at 200% CPU. gccgo binaries seem to have a nack
-> for hitting it.
-> 
-> I validated that your patches resolve this issue on 3.16, so:
-> 
-> Tested-by: dann frazier <dann.frazier@canonical.com>
+So far (xlate|unxlate)_dev_mem_ptr for read/write /dev/mem relies on a generic
+high_memory check in valid_phys_addr_range(), which does not allow to access any
+memory above high_memory whatsoever. By adding the high_memory check to
+(xlate|unxlate)_dev_mem_ptr, it still will be possible to use __va safely for
+kernel mapped memory and it will also allow read/write to access non-system RAM
+above high_memory once the high_memory check is removed from
+valid_phys_addr_range.
 
-Thanks Dann!
+Signed-off-by: Frantisek Hrbata <fhrbata@redhat.com>
+---
+ arch/x86/mm/ioremap.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
 
-> 
-> I haven't done the same for 3.17-rc1 because they no longer apply
-> cleanly, but I'm happy to test future submissions w/ hopefully a
-> shorter feedback loop (please add me to the CC). btw, should we
-> consider something like this until your patches go in?
-
-I am about to post the following series, I will CC you:
-git://git.linaro.org/people/steve.capper/linux.git fast_gup/3.17-rc1
-(I've just been giving it a workout on 3.17-rc1).
-
-I would much prefer for the RCU fast_gup to go into 3.18 rather than
-BROKEN for THP. I am not sure what to do about earlier versions.
-
-Cheers,
+diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+index baff1da..1ae7323 100644
+--- a/arch/x86/mm/ioremap.c
++++ b/arch/x86/mm/ioremap.c
+@@ -320,8 +320,11 @@ void *xlate_dev_mem_ptr(unsigned long phys)
+ 	void *addr;
+ 	unsigned long start = phys & PAGE_MASK;
+ 
+-	/* If page is RAM, we can use __va. Otherwise ioremap and unmap. */
+-	if (page_is_ram(start >> PAGE_SHIFT))
++	/*
++	 * If page is RAM and is mapped by kernel, we can use __va.
++	 * Otherwise ioremap and unmap.
++	 */
++	if (page_is_ram(start >> PAGE_SHIFT) && phys <= __pa(high_memory))
+ 		return __va(phys);
+ 
+ 	addr = (void __force *)ioremap_cache(start, PAGE_SIZE);
+@@ -333,7 +336,7 @@ void *xlate_dev_mem_ptr(unsigned long phys)
+ 
+ void unxlate_dev_mem_ptr(unsigned long phys, void *addr)
+ {
+-	if (page_is_ram(phys >> PAGE_SHIFT))
++	if (page_is_ram(phys >> PAGE_SHIFT) && phys <= __pa(high_memory))
+ 		return;
+ 
+ 	iounmap((void __iomem *)((unsigned long)addr & PAGE_MASK));
 -- 
-Steve
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
