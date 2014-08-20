@@ -1,124 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
-	by kanga.kvack.org (Postfix) with ESMTP id D3C7B6B0035
-	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 03:58:48 -0400 (EDT)
-Received: by mail-lb0-f179.google.com with SMTP id v6so6397664lbi.38
-        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 00:58:48 -0700 (PDT)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.15.15])
-        by mx.google.com with ESMTPS id be18si22984785lab.96.2014.08.20.00.58.46
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+	by kanga.kvack.org (Postfix) with ESMTP id D4A436B0035
+	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 04:12:05 -0400 (EDT)
+Received: by mail-we0-f180.google.com with SMTP id w61so7484102wes.25
+        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 01:12:05 -0700 (PDT)
+Received: from mail-wg0-x22c.google.com (mail-wg0-x22c.google.com [2a00:1450:400c:c00::22c])
+        by mx.google.com with ESMTPS id o10si3289844wix.26.2014.08.20.01.12.03
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Aug 2014 00:58:47 -0700 (PDT)
-From: Marc Dietrich <marvin24@gmx.de>
-Subject: Re: [PATCH v2 3/4] zram: zram memory size limitation
-Date: Wed, 20 Aug 2014 09:58:26 +0200
-Message-ID: <2251457.nunIkSPjUl@fb07-iapwap2>
-In-Reply-To: <20140819233225.GA32620@bbox>
-References: <1408434887-16387-1-git-send-email-minchan@kernel.org> <7959928.Exbvf4HrNB@fb07-iapwap2> <20140819233225.GA32620@bbox>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 20 Aug 2014 01:12:04 -0700 (PDT)
+Received: by mail-wg0-f44.google.com with SMTP id m15so7414937wgh.15
+        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 01:12:03 -0700 (PDT)
+Date: Wed, 20 Aug 2014 10:11:58 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH] [v2] TAINT_PERFORMANCE
+Message-ID: <20140820081158.GA3991@gmail.com>
+References: <20140820035751.08C980FB@viggo.jf.intel.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; boundary="nextPart14239644.lTdfJoy1eL"; micalg="pgp-sha1"; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140820035751.08C980FB@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>, ds2horner@gmail.com
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-kernel@vger.kernel.org, dave.hansen@linux.intel.com, peterz@infradead.org, mingo@redhat.com, ak@linux.intel.com, tim.c.chen@linux.intel.com, akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org, linux-mm@kvack.org, kirill@shutemov.name, lauraa@codeaurora.org, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
 
 
---nextPart14239644.lTdfJoy1eL
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+* Dave Hansen <dave@sr71.net> wrote:
 
-Am Mittwoch, 20. August 2014, 08:32:25 schrieb Minchan Kim:
-> Hello,
 > 
-> On Tue, Aug 19, 2014 at 10:06:22AM +0200, Marc Dietrich wrote:
-> > Am Dienstag, 19. August 2014, 16:54:46 schrieb Minchan Kim:
-> > > Since zram has no control feature to limit memory usage,
-> > > it makes hard to manage system memrory.
-> > > 
-> > > This patch adds new knob "mem_limit" via sysfs to set up the
-> > > a limit so that zram could fail allocation once it reaches
-> > > the limit.
-> > 
-> > Sorry to jump in late with a probably silly question, but I couldn't find
-> > the answer easily. What's the difference between disksize and mem_limit?
-> No need to say sorry.
-> It was totally my fault because zram documentation sucks.
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> The disksize means the size point of view upper layer from block subsystem
-> so filesystem based on zram or blockdevice itself(ie, zram0) seen by admin
-> will have the disksize size but keep in mind that it's virtual size,
-> not compressed. As you know already, zram is backed on volatile storage
-> (ie, DRAM) with *compressed form*, not permanent storage.
+> Changes from v1:
+>  * remove schedstats
+>  * add DEBUG_PAGEALLOC and SLUB_DEBUG_ON
 > 
-> The point of this patchset is that anybody cannot expect exact memory
-> usage of zram in advance. Acutally, zram folks have estimated it by several
-> experiment and assuming zram compression ratio(ex, 2:1 or 3:1) before
-> releasing product. But thesedays, embedded platforms have varios workloads
-> which cannot be expected when the product was released so compression
-> ratio expectation could be wrong sometime so zram could consume lots of
-> memory than expected once compression ratio is low.
+> --
 > 
-> It makes admin trouble to manage memeory on the product because there
-> is no way to release memory zram is using so that one of the way is
-> to limit memory usage of zram from the beginning.
+> I have more than once myself been the victim of an accidentally-
+> enabled kernel config option being mistaken for a true
+> performance problem.
 > 
-> > I assume the former is uncompressed size (virtual size) and the latter is
-> > compressed size (real memory usage)? Maybe the difference should be made
-> 
-> Right.
-> 
-> > clearer in the documentation.
-> 
-> Okay.
-> 
-> > If disksize is the uncompressed size, why would we want to set this at
-> > all?
-> 
-> For example, we have 500M disksize of zram0 because we assumed 2:1
-> compression ratio so that we could guess zram will consume 250M physical
-> memory in the end. But our guessing could be wrong so if real compression
-> ratio is 4:1, we use up 125M phsyical memory to store 500M uncompressed
-> pages. It's good but admin want to use up more memory for zram because we
-> saved 100% than expected zram memory but we couldn't becuase upper layer
-> point of view from zram, zram is already full by 500M and if zram is used
-> for swap, we will encounter OOM. :(
-> 
-> So, it would be better to increase disksize to 1000M but in this case,
-> if compression ratio becomes 4:1 by something(ex, workload change),
-> zram can consume 500M physical memory, which is above we expected
-> and admin don't want zram to use up system memory too much.
-> 
-> In summary, we couldn't control exact zram memory usage with only disksize
-> by compression ratio.
+> I'm sure I've also taken profiles or performance measurements
+> and assumed they were real-world when really I was measuing the
+> performance with an option that nobody turns on in production.
 
-thanks for your detailed explanation. It's a bit confusing that you can 
-specify two limits (for two different layers). I guess a floating disksize is 
-not possible, because you wouldn't be able to create a filesystem/swapfile on 
-it, so you need to make a *fixed* assumption.
+Most of these options already announce themselves in the 
+syslog.
 
-Regards,
+> A warning like this late in boot will help remind folks when
+> these kinds of things are enabled.
+> 
+> As for the patch...
+> 
+> I originally wanted this for CONFIG_DEBUG_VM, but I think it also
+> applies to things like lockdep and slab debugging.  See the patch
+> for the list of offending config options.  I'm open to adding
+> more, but this seemed like a good list to start.
 
-Marc
+> [    2.534574] CONFIG_LOCKDEP enabled
+> [    2.536392] Do not use this kernel for performance measurement.
 
+This is workload dependent: for many kernel workloads this is 
+indeed true. For many user-space workloads it will add very 
+little overhead.
 
---nextPart14239644.lTdfJoy1eL
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part.
-Content-Transfer-Encoding: 7Bit
+> [    2.547189] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 3.16.0-10473-gc8d6637-dirty #800
+> [    2.558075] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+> [    2.564483]  0000000080000000 ffff88009c70be78 ffffffff817ce318 0000000000000000
+> [    2.582505]  ffffffff81dca5b6 ffff88009c70be88 ffffffff81dca5e2 ffff88009c70bef8
+> [    2.588589]  ffffffff81000377 0000000000000000 0007000700000142 ffffffff81b78968
+> [    2.592638] Call Trace:
+> [    2.593762]  [<ffffffff817ce318>] dump_stack+0x4e/0x68
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.22 (GNU/Linux)
+Generating a stack dump that tells us nothing isn't really 
+useful.
 
-iQEcBAABAgAGBQJT9FUjAAoJEKyeR39HFBtoMD8H/RmlKtaBlhTrVSn/W/M9V+/B
-Auzj6t21Y4qQ3zdo0q9i2PS8JLoqU6rW6Znfdv43I8bNAci49WtuCM6NWKgmicSs
-JhvxPlG4ixdf836vD2D/q4LfQ/4pJowAMc8B/WwjAgV5dnPwosRjGOAlAkhBpnhI
-6N9pXw/84+m4eew6Qazz2OnLN4BtyYErvrps33xbWtkCXa/diq4u9VzXDOWtfbl7
-8GoBNsg/yS9YLo6HA7DTdl9HwCv8OENeHoB5XLBy+XeVa1TKUFmFh3MyIwPjHGb1
-Sz66NSPaOPGiR05iEmaK8x6L6k/0RKOCcsJnpDrC2QNVvOvf8noHchiKB2LDNFM=
-=HOsN
------END PGP SIGNATURE-----
+>  	{ TAINT_SOFTLOCKUP,		'L', ' ' },
+> +	{ TAINT_PERFORMANCE,		'Q', ' ' },
 
---nextPart14239644.lTdfJoy1eL--
+Also this looks like a slight abuse of the taint flag: we taint 
+the kernel if there's a problem with it. But even for many 
+types of performance measurements, a debug kernel is just fine. 
+For other types of performance measurements, even a non-debug 
+kernel option can have big impact.
+
+A better option might be to declare known performance killers 
+in /proc/config_debug or so, and maybe print them once at the 
+end of the bootup, with a 'WARNING:' or 'INFO:' prefix. That 
+way tooling (benchmarks, profilers, etc.) can print them, but 
+it's also present in the syslog, just in case.
+
+/proc/config_debug is different from /proc/config.gz IKCONFIG, 
+because it would always be present when performance impacting 
+options are enabled. So tools would only have to check the 
+existence of this file, for the simplest test.
+
+In any case I don't think it's a good idea to abuse existing 
+facilities just to gain attention: you'll get the extra 
+attention, but the abuse dillutes the utility of those only 
+tangentially related facilities.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
