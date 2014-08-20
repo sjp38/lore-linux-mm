@@ -1,129 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 60C4C6B0035
-	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 19:03:22 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id fp1so12685854pdb.41
-        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 16:03:22 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
-        by mx.google.com with ESMTP id qz10si28648805pab.198.2014.08.20.16.03.20
-        for <linux-mm@kvack.org>;
-        Wed, 20 Aug 2014 16:03:21 -0700 (PDT)
-Message-ID: <1408575780.26863.21.camel@rzwisler-mobl1.amr.corp.intel.com>
-Subject: Re: [RFC 5/9] SQUASHME: prd: Last fixes for partitions
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Date: Wed, 20 Aug 2014 17:03:00 -0600
-In-Reply-To: <53EB5709.4090401@plexistor.com>
-References: <53EB5536.8020702@gmail.com> <53EB5709.4090401@plexistor.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E1156B0038
+	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 19:32:31 -0400 (EDT)
+Received: by mail-qg0-f54.google.com with SMTP id j5so5296095qga.13
+        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 16:32:30 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id gb9si36355141qcb.37.2014.08.20.16.32.30
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Aug 2014 16:32:30 -0700 (PDT)
+Date: Wed, 20 Aug 2014 20:32:21 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH 1/7] mm/balloon_compaction: ignore anonymous pages
+Message-ID: <20140820233221.GB3457@optiplex.redhat.com>
+References: <20140820150435.4194.28003.stgit@buzz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140820150435.4194.28003.stgit@buzz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>
-Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>, Sagi Manole <sagi@plexistor.com>, Yigal Korman <yigal@plexistor.com>
+To: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, linux-kernel@vger.kernel.org
 
-On Wed, 2014-08-13 at 15:16 +0300, Boaz Harrosh wrote:
-> From: Boaz Harrosh <boaz@plexistor.com>
+On Wed, Aug 20, 2014 at 07:04:35PM +0400, Konstantin Khlebnikov wrote:
+> Sasha Levin reported KASAN splash inside isolate_migratepages_range().
+> Problem is in function __is_movable_balloon_page() which tests AS_BALLOON_MAP
+> in page->mapping->flags. This function has no protection against anonymous
+> pages. As result it tried to check address space flags in inside anon-vma.
 > 
-> This streamlines prd with the latest brd code.
-> 
-> In prd we do not allocate new devices dynamically on devnod
-> access, because we need parameterization of each device. So
-> the dynamic allocation in prd_init_one is removed.
-> 
-> Therefor prd_init_one only called from prd_prob is moved
-> there, now that it is small.
-> 
-> And other small fixes regarding partitions
-> 
-> Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
+> Signed-off-by: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
+> Reported-by: Sasha Levin <sasha.levin@oracle.com>
+> Link: http://lkml.kernel.org/p/53E6CEAA.9020105@oracle.com
+> Cc: stable <stable@vger.kernel.org> # v3.8
 > ---
->  drivers/block/prd.c | 47 ++++++++++++++++++++++++-----------------------
->  1 file changed, 24 insertions(+), 23 deletions(-)
-
-<snip>
-
-> @@ -308,24 +314,6 @@ static void prd_free(struct prd_device *prd)
->  	kfree(prd);
->  }
->  
-> -static struct prd_device *prd_init_one(int i)
-> -{
-> -	struct prd_device *prd;
-> -
-> -	list_for_each_entry(prd, &prd_devices, prd_list) {
-> -		if (prd->prd_number == i)
-> -			goto out;
-> -	}
-> -
-> -	prd = prd_alloc(i);
-> -	if (prd) {
-> -		add_disk(prd->prd_disk);
-> -		list_add_tail(&prd->prd_list, &prd_devices);
-> -	}
-> -out:
-> -	return prd;
-> -}
-> -
->  static void prd_del_one(struct prd_device *prd)
+>  include/linux/balloon_compaction.h |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
+> index 089743a..53d482e 100644
+> --- a/include/linux/balloon_compaction.h
+> +++ b/include/linux/balloon_compaction.h
+> @@ -128,7 +128,7 @@ static inline bool page_flags_cleared(struct page *page)
+>  static inline bool __is_movable_balloon_page(struct page *page)
 >  {
->  	list_del(&prd->prd_list);
-> @@ -333,16 +321,27 @@ static void prd_del_one(struct prd_device *prd)
->  	prd_free(prd);
+>  	struct address_space *mapping = page->mapping;
+> -	return mapping_balloon(mapping);
+> +	return !PageAnon(page) && mapping_balloon(mapping);
 >  }
 >  
-> +/*FIXME: Actually in our driver prd_probe is never used. Can be removed */
->  static struct kobject *prd_probe(dev_t dev, int *part, void *data)
->  {
->  	struct prd_device *prd;
->  	struct kobject *kobj;
-> +	int number = MINOR(dev);
->  
->  	mutex_lock(&prd_devices_mutex);
-> -	prd = prd_init_one(MINOR(dev));
-> -	kobj = prd ? get_disk(prd->prd_disk) : NULL;
-> -	mutex_unlock(&prd_devices_mutex);
->  
-> +	list_for_each_entry(prd, &prd_devices, prd_list) {
-> +		if (prd->prd_number == number) {
-> +			kobj = get_disk(prd->prd_disk);
-> +			goto out;
-> +		}
-> +	}
-> +
-> +	pr_err("prd: prd_probe: Unexpected parameter=%d\n", number);
-> +	kobj = NULL;
-> +
-> +out:
-> +	mutex_unlock(&prd_devices_mutex);
->  	return kobj;
->  }
-
-I really like where you're going with getting rid of prd_probe.  Clearly I
-just copied this from brd, but I'd love to be rid of it entirely.  Is there a
-valid way for our probe function to get called?  If not, can we just have a
-little stub with a BUG() in it to make sure we hear about it if it does ever
-get called, and delete a bunch of code?
-
-I think this would let us get rid of pmem_probe(), pmem_init_one(), and the
-pmem_devices_mutex.
-
-If there *is* a valid way for this code to get called, let's figure it out so
-we can at least test this function.  This will be especially necessary as we
-add support for more pmem disks.
-
->  
-> @@ -424,5 +423,7 @@ static void __exit prd_exit(void)
->  
->  MODULE_AUTHOR("Ross Zwisler <ross.zwisler@linux.intel.com>");
->  MODULE_LICENSE("GPL");
-> +MODULE_ALIAS("pmem");
-
-Let's just go with the full rename s/prd/pmem/.  That turned out to be really
-clean & made everything consistent - thanks for the good suggestion.
-
-- Ross
-
+>  /*
+> 
+Acked-by: Rafael Aquini <aquini@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
