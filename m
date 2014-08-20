@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 69D676B0035
-	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 18:10:28 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so13113176pab.14
-        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 15:10:28 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id ia3si33573380pbb.209.2014.08.20.15.10.27
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 60C4C6B0035
+	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 19:03:22 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id fp1so12685854pdb.41
+        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 16:03:22 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
+        by mx.google.com with ESMTP id qz10si28648805pab.198.2014.08.20.16.03.20
         for <linux-mm@kvack.org>;
-        Wed, 20 Aug 2014 15:10:27 -0700 (PDT)
-Message-ID: <1408572624.26863.17.camel@rzwisler-mobl1.amr.corp.intel.com>
-Subject: Re: [RFC 4/9] SQUASHME: prd: Fixs to getgeo
+        Wed, 20 Aug 2014 16:03:21 -0700 (PDT)
+Message-ID: <1408575780.26863.21.camel@rzwisler-mobl1.amr.corp.intel.com>
+Subject: Re: [RFC 5/9] SQUASHME: prd: Last fixes for partitions
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Date: Wed, 20 Aug 2014 16:10:24 -0600
-In-Reply-To: <53EB568B.2060006@plexistor.com>
-References: <53EB5536.8020702@gmail.com> <53EB568B.2060006@plexistor.com>
+Date: Wed, 20 Aug 2014 17:03:00 -0600
+In-Reply-To: <53EB5709.4090401@plexistor.com>
+References: <53EB5536.8020702@gmail.com> <53EB5709.4090401@plexistor.com>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
@@ -22,62 +22,105 @@ List-ID: <linux-mm.kvack.org>
 To: Boaz Harrosh <boaz@plexistor.com>
 Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>, Sagi Manole <sagi@plexistor.com>, Yigal Korman <yigal@plexistor.com>
 
-On Wed, 2014-08-13 at 15:14 +0300, Boaz Harrosh wrote:
+On Wed, 2014-08-13 at 15:16 +0300, Boaz Harrosh wrote:
 > From: Boaz Harrosh <boaz@plexistor.com>
 > 
-> With current values fdisk does the wrong thing.
+> This streamlines prd with the latest brd code.
 > 
-> Setting all values to 1, will make everything nice and easy.
+> In prd we do not allocate new devices dynamically on devnod
+> access, because we need parameterization of each device. So
+> the dynamic allocation in prd_init_one is removed.
 > 
-> Note that current code had a BUG with anything bigger than
-> 64G because hd_geometry->cylinders is ushort and it would
-> overflow at this value. Any way capacity is not calculated
-> through getgeo so it does not matter what you put here.
+> Therefor prd_init_one only called from prd_prob is moved
+> there, now that it is small.
+> 
+> And other small fixes regarding partitions
 > 
 > Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
 > ---
->  drivers/block/prd.c | 16 ++++++++++++----
->  1 file changed, 12 insertions(+), 4 deletions(-)
-> 
-> diff --git a/drivers/block/prd.c b/drivers/block/prd.c
-> index cc0aabf..62af81e 100644
-> --- a/drivers/block/prd.c
-> +++ b/drivers/block/prd.c
-> @@ -55,10 +55,18 @@ struct prd_device {
+>  drivers/block/prd.c | 47 ++++++++++++++++++++++++-----------------------
+>  1 file changed, 24 insertions(+), 23 deletions(-)
+
+<snip>
+
+> @@ -308,24 +314,6 @@ static void prd_free(struct prd_device *prd)
+>  	kfree(prd);
+>  }
 >  
->  static int prd_getgeo(struct block_device *bd, struct hd_geometry *geo)
+> -static struct prd_device *prd_init_one(int i)
+> -{
+> -	struct prd_device *prd;
+> -
+> -	list_for_each_entry(prd, &prd_devices, prd_list) {
+> -		if (prd->prd_number == i)
+> -			goto out;
+> -	}
+> -
+> -	prd = prd_alloc(i);
+> -	if (prd) {
+> -		add_disk(prd->prd_disk);
+> -		list_add_tail(&prd->prd_list, &prd_devices);
+> -	}
+> -out:
+> -	return prd;
+> -}
+> -
+>  static void prd_del_one(struct prd_device *prd)
 >  {
-> -	/* some standard values */
-> -	geo->heads = 1 << 6;
-> -	geo->sectors = 1 << 5;
-> -	geo->cylinders = get_capacity(bd->bd_disk) >> 11;
-> +	/* Just tell fdisk to get out of the way. The math here is so
-> +	 * convoluted and does not make any sense at all. With all 1s
-> +	 * The math just gets out of the way.
-> +	 * NOTE: I was trying to get some values that will make fdisk
-> +	 * Want to align first sector on 4K (like 8, 16, 20, ... sectors) but
-> +	 * nothing worked, I searched the net the math is not your regular
-> +	 * simple multiplication at all. If you managed to get these please
-> +	 * fix here. For now we use 4k physical sectors for this
-> +	 */
-> +	geo->heads = 1;
-> +	geo->sectors = 1;
-> +	geo->cylinders = 1;
->  	return 0;
+>  	list_del(&prd->prd_list);
+> @@ -333,16 +321,27 @@ static void prd_del_one(struct prd_device *prd)
+>  	prd_free(prd);
+>  }
+>  
+> +/*FIXME: Actually in our driver prd_probe is never used. Can be removed */
+>  static struct kobject *prd_probe(dev_t dev, int *part, void *data)
+>  {
+>  	struct prd_device *prd;
+>  	struct kobject *kobj;
+> +	int number = MINOR(dev);
+>  
+>  	mutex_lock(&prd_devices_mutex);
+> -	prd = prd_init_one(MINOR(dev));
+> -	kobj = prd ? get_disk(prd->prd_disk) : NULL;
+> -	mutex_unlock(&prd_devices_mutex);
+>  
+> +	list_for_each_entry(prd, &prd_devices, prd_list) {
+> +		if (prd->prd_number == number) {
+> +			kobj = get_disk(prd->prd_disk);
+> +			goto out;
+> +		}
+> +	}
+> +
+> +	pr_err("prd: prd_probe: Unexpected parameter=%d\n", number);
+> +	kobj = NULL;
+> +
+> +out:
+> +	mutex_unlock(&prd_devices_mutex);
+>  	return kobj;
 >  }
 
-I'm okay with this change, but can you let me know in which case fdisk was
-previously doing the wrong thing?  I'm just curious because I never saw it
-misbehave, and wonder what else I should be testing.
+I really like where you're going with getting rid of prd_probe.  Clearly I
+just copied this from brd, but I'd love to be rid of it entirely.  Is there a
+valid way for our probe function to get called?  If not, can we just have a
+little stub with a BUG() in it to make sure we hear about it if it does ever
+get called, and delete a bunch of code?
 
-Regarding the note in the comment, is this addressed by the
-blk_queue_physical_block_size() and prd->prd_queue->limits.io_min changes in
-your patch 5/9, or is it an open issue?  Either way, can we nix the NOTE?
+I think this would let us get rid of pmem_probe(), pmem_init_one(), and the
+pmem_devices_mutex.
 
-Also, you put "SQUASHME" on this patch.  I'm planning on squashing all of my
-patches together into an "initial version" type patch (see
-https://github.com/01org/prd).  Based on this, it probably makes sense to keep
-it separate so you get credit for the patch?
+If there *is* a valid way for this code to get called, let's figure it out so
+we can at least test this function.  This will be especially necessary as we
+add support for more pmem disks.
+
+>  
+> @@ -424,5 +423,7 @@ static void __exit prd_exit(void)
+>  
+>  MODULE_AUTHOR("Ross Zwisler <ross.zwisler@linux.intel.com>");
+>  MODULE_LICENSE("GPL");
+> +MODULE_ALIAS("pmem");
+
+Let's just go with the full rename s/prd/pmem/.  That turned out to be really
+clean & made everything consistent - thanks for the good suggestion.
 
 - Ross
 
