@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DC596B0038
-	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 11:25:52 -0400 (EDT)
-Received: by mail-qg0-f45.google.com with SMTP id f51so7499255qge.18
-        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 08:25:52 -0700 (PDT)
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B93F6B0039
+	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 11:26:02 -0400 (EDT)
+Received: by mail-qg0-f50.google.com with SMTP id z107so3954949qgd.23
+        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 08:26:02 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z98si34414429qge.6.2014.08.20.08.25.51
+        by mx.google.com with ESMTPS id f65si34369600qga.117.2014.08.20.08.25.58
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Aug 2014 08:25:51 -0700 (PDT)
+        Wed, 20 Aug 2014 08:25:58 -0700 (PDT)
 From: Frantisek Hrbata <fhrbata@redhat.com>
-Subject: [PATCH 1/2] x86: add high_memory check to (xlate|unxlate)_dev_mem_ptr
-Date: Wed, 20 Aug 2014 17:25:25 +0200
-Message-Id: <1408548326-18665-2-git-send-email-fhrbata@redhat.com>
+Subject: [PATCH 2/2] x86: remove high_memory check from valid_phys_addr_range
+Date: Wed, 20 Aug 2014 17:25:26 +0200
+Message-Id: <1408548326-18665-3-git-send-email-fhrbata@redhat.com>
 In-Reply-To: <1408548326-18665-1-git-send-email-fhrbata@redhat.com>
 References: <1408103043-31015-1-git-send-email-fhrbata@redhat.com>
  <1408548326-18665-1-git-send-email-fhrbata@redhat.com>
@@ -21,46 +21,28 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, oleg@redhat.com, kamaleshb@in.ibm.com, hechjie@cn.ibm.com, akpm@linux-foundation.org, dave.hansen@intel.com, dvlasenk@redhat.com, prarit@redhat.com, lwoodman@redhat.com, hannsj_uhl@de.ibm.com
 
-So far (xlate|unxlate)_dev_mem_ptr for read/write /dev/mem relies on a generic
-high_memory check in valid_phys_addr_range(), which does not allow to access any
-memory above high_memory whatsoever. By adding the high_memory check to
-(xlate|unxlate)_dev_mem_ptr, it still will be possible to use __va safely for
-kernel mapped memory and it will also allow read/write to access non-system RAM
-above high_memory once the high_memory check is removed from
-valid_phys_addr_range.
+There is no need to block read/write access to /dev/mem for phys. addr. above
+high_memory for non-system RAM. The only limitation should be
+boot_cpu_data.x86_phys_bits(max phys. addr. size).
 
 Signed-off-by: Frantisek Hrbata <fhrbata@redhat.com>
 ---
- arch/x86/mm/ioremap.c | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ arch/x86/mm/mmap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
-index baff1da..1ae7323 100644
---- a/arch/x86/mm/ioremap.c
-+++ b/arch/x86/mm/ioremap.c
-@@ -320,8 +320,11 @@ void *xlate_dev_mem_ptr(unsigned long phys)
- 	void *addr;
- 	unsigned long start = phys & PAGE_MASK;
+diff --git a/arch/x86/mm/mmap.c b/arch/x86/mm/mmap.c
+index 110473e..16f222d 100644
+--- a/arch/x86/mm/mmap.c
++++ b/arch/x86/mm/mmap.c
+@@ -127,7 +127,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
  
--	/* If page is RAM, we can use __va. Otherwise ioremap and unmap. */
--	if (page_is_ram(start >> PAGE_SHIFT))
-+	/*
-+	 * If page is RAM and is mapped by kernel, we can use __va.
-+	 * Otherwise ioremap and unmap.
-+	 */
-+	if (page_is_ram(start >> PAGE_SHIFT) && phys <= __pa(high_memory))
- 		return __va(phys);
- 
- 	addr = (void __force *)ioremap_cache(start, PAGE_SIZE);
-@@ -333,7 +336,7 @@ void *xlate_dev_mem_ptr(unsigned long phys)
- 
- void unxlate_dev_mem_ptr(unsigned long phys, void *addr)
+ int valid_phys_addr_range(phys_addr_t addr, size_t count)
  {
--	if (page_is_ram(phys >> PAGE_SHIFT))
-+	if (page_is_ram(phys >> PAGE_SHIFT) && phys <= __pa(high_memory))
- 		return;
+-	return addr + count <= __pa(high_memory);
++	return arch_pfn_possible((addr + count) >> PAGE_SHIFT);
+ }
  
- 	iounmap((void __iomem *)((unsigned long)addr & PAGE_MASK));
+ int valid_mmap_phys_addr_range(unsigned long pfn, size_t count)
 -- 
 1.9.3
 
