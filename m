@@ -1,361 +1,270 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 854416B0037
-	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 19:46:16 -0400 (EDT)
-Received: by mail-qg0-f52.google.com with SMTP id f51so8248074qge.11
-        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 16:46:16 -0700 (PDT)
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id C446B6B0035
+	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 19:48:28 -0400 (EDT)
+Received: by mail-qg0-f42.google.com with SMTP id j5so8218322qga.29
+        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 16:48:28 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g106si36462102qge.32.2014.08.20.16.46.15
+        by mx.google.com with ESMTPS id s78si36476165qgd.19.2014.08.20.16.48.27
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Aug 2014 16:46:16 -0700 (PDT)
-Date: Wed, 20 Aug 2014 20:46:05 -0300
+        Wed, 20 Aug 2014 16:48:27 -0700 (PDT)
+Date: Wed, 20 Aug 2014 20:48:18 -0300
 From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH 5/7] mm: introduce common page state for ballooned memory
-Message-ID: <20140820234605.GE3457@optiplex.redhat.com>
+Subject: Re: [PATCH 6/7] mm/balloon_compaction: use common page ballooning
+Message-ID: <20140820234817.GF3457@optiplex.redhat.com>
 References: <20140820150435.4194.28003.stgit@buzz>
- <20140820150458.4194.58775.stgit@buzz>
+ <20140820150503.4194.38388.stgit@buzz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140820150458.4194.58775.stgit@buzz>
+In-Reply-To: <20140820150503.4194.38388.stgit@buzz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, linux-kernel@vger.kernel.org
 
-On Wed, Aug 20, 2014 at 07:04:58PM +0400, Konstantin Khlebnikov wrote:
-> This patch adds page state PageBallon() and functions __Set/ClearPageBalloon.
-> Like PageBuddy() PageBalloon() looks like page-flag but actually this is special
-> state of page->_mapcount counter. There is no conflict because ballooned pages
-> cannot be mapped and cannot be in buddy allocator.
+On Wed, Aug 20, 2014 at 07:05:04PM +0400, Konstantin Khlebnikov wrote:
+> This patch replaces checking AS_BALLOON_MAP in page->mapping->flags
+> with PageBalloon which is stored directly in the struct page.
 > 
-> Ballooned pages are counted in vmstat counter NR_BALLOON_PAGES, it's shown them
-> in /proc/meminfo and /proc/meminfo. Also this patch it exports PageBallon into
-> userspace via /proc/kpageflags as KPF_BALLOON.
-> 
-> All this code including mm/balloon_compaction.o is under CONFIG_MEMORY_BALLOON,
-> it should be selected by ballooning driver which want use this feature.
-> 
-
-Very nice overhaul Konstantin!
-Please, consider the nits I have below:
-
-
 > Signed-off-by: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
 > ---
->  Documentation/filesystems/proc.txt     |    2 ++
->  drivers/base/node.c                    |   16 ++++++++++------
->  drivers/virtio/Kconfig                 |    1 +
->  fs/proc/meminfo.c                      |    6 ++++++
->  fs/proc/page.c                         |    3 +++
->  include/linux/mm.h                     |   10 ++++++++++
->  include/linux/mmzone.h                 |    3 +++
->  include/uapi/linux/kernel-page-flags.h |    1 +
->  mm/Kconfig                             |    5 +++++
->  mm/Makefile                            |    3 ++-
->  mm/balloon_compaction.c                |   14 ++++++++++++++
->  mm/vmstat.c                            |    8 +++++++-
->  tools/vm/page-types.c                  |    1 +
->  13 files changed, 65 insertions(+), 8 deletions(-)
+>  include/linux/balloon_compaction.h |   85 ++----------------------------------
+>  mm/Kconfig                         |    2 -
+>  mm/balloon_compaction.c            |    7 +--
+>  mm/compaction.c                    |    9 ++--
+>  mm/migrate.c                       |    4 +-
+>  mm/vmscan.c                        |    2 -
+>  6 files changed, 15 insertions(+), 94 deletions(-)
 > 
-> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-> index eb8a10e..154a345 100644
-> --- a/Documentation/filesystems/proc.txt
-> +++ b/Documentation/filesystems/proc.txt
-> @@ -796,6 +796,7 @@ VmallocTotal:   112216 kB
->  VmallocUsed:       428 kB
->  VmallocChunk:   111088 kB
->  AnonHugePages:   49152 kB
-> +BalloonPages:        0 kB
->  
->      MemTotal: Total usable ram (i.e. physical ram minus a few reserved
->                bits and the kernel binary code)
-> @@ -838,6 +839,7 @@ MemAvailable: An estimate of how much memory is available for starting new
->     Writeback: Memory which is actively being written back to the disk
->     AnonPages: Non-file backed pages mapped into userspace page tables
->  AnonHugePages: Non-file backed huge pages mapped into userspace page tables
-> +BalloonPages: Memory which was ballooned, not included into MemTotal
->        Mapped: files which have been mmaped, such as libraries
->          Slab: in-kernel data structures cache
->  SReclaimable: Part of Slab, that might be reclaimed, such as caches
-> diff --git a/drivers/base/node.c b/drivers/base/node.c
-> index c6d3ae0..59e565c 100644
-> --- a/drivers/base/node.c
-> +++ b/drivers/base/node.c
-> @@ -120,6 +120,9 @@ static ssize_t node_read_meminfo(struct device *dev,
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->  		       "Node %d AnonHugePages:  %8lu kB\n"
->  #endif
-> +#ifdef CONFIG_MEMORY_BALLOON
-> +		       "Node %d BalloonPages:   %8lu kB\n"
-> +#endif
->  			,
->  		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),
->  		       nid, K(node_page_state(nid, NR_WRITEBACK)),
-> @@ -136,14 +139,15 @@ static ssize_t node_read_meminfo(struct device *dev,
->  		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE) +
->  				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),
->  		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),
-> -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
->  		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))
-> -			, nid,
-> -			K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *
-> -			HPAGE_PMD_NR));
-> -#else
-> -		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
-> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> +		       ,nid, K(node_page_state(nid,
-> +				NR_ANON_TRANSPARENT_HUGEPAGES) * HPAGE_PMD_NR)
-> +#endif
-> +#ifdef CONFIG_MEMORY_BALLOON
-> +		       ,nid, K(node_page_state(nid, NR_BALLOON_PAGES))
->  #endif
-> +		       );
->  	n += hugetlb_report_node_meminfo(nid, buf + n);
->  	return n;
+> diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
+> index 53d482e..f5fda8b 100644
+> --- a/include/linux/balloon_compaction.h
+> +++ b/include/linux/balloon_compaction.h
+> @@ -108,77 +108,6 @@ static inline void balloon_mapping_free(struct address_space *balloon_mapping)
 >  }
-> diff --git a/drivers/virtio/Kconfig b/drivers/virtio/Kconfig
-> index c6683f2..00b2286 100644
-> --- a/drivers/virtio/Kconfig
-> +++ b/drivers/virtio/Kconfig
-> @@ -25,6 +25,7 @@ config VIRTIO_PCI
->  config VIRTIO_BALLOON
->  	tristate "Virtio balloon driver"
->  	depends on VIRTIO
-> +	select MEMORY_BALLOON
->  	---help---
->  	 This driver supports increasing and decreasing the amount
->  	 of memory within a KVM guest.
-> diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-> index aa1eee0..f897fbf 100644
-> --- a/fs/proc/meminfo.c
-> +++ b/fs/proc/meminfo.c
-> @@ -138,6 +138,9 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
->  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->  		"AnonHugePages:  %8lu kB\n"
->  #endif
-> +#ifdef CONFIG_MEMORY_BALLOON
-> +		"BalloonPages:   %8lu kB\n"
-> +#endif
->  		,
->  		K(i.totalram),
->  		K(i.freeram),
-> @@ -193,6 +196,9 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
->  		,K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
->  		   HPAGE_PMD_NR)
->  #endif
-> +#ifdef CONFIG_MEMORY_BALLOON
-> +		,K(global_page_state(NR_BALLOON_PAGES))
-> +#endif
->  		);
->  
->  	hugetlb_report_meminfo(m);
-> diff --git a/fs/proc/page.c b/fs/proc/page.c
-> index e647c55..1e3187d 100644
-> --- a/fs/proc/page.c
-> +++ b/fs/proc/page.c
-> @@ -133,6 +133,9 @@ u64 stable_page_flags(struct page *page)
->  	if (PageBuddy(page))
->  		u |= 1 << KPF_BUDDY;
->  
-> +	if (PageBalloon(page))
-> +		u |= 1 << KPF_BALLOON;
-> +
->  	u |= kpf_copy_bit(k, KPF_LOCKED,	PG_locked);
->  
->  	u |= kpf_copy_bit(k, KPF_SLAB,		PG_slab);
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 8981cc8..d2dd497 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -553,6 +553,16 @@ static inline void __ClearPageBuddy(struct page *page)
->  	atomic_set(&page->_mapcount, -1);
->  }
->  
-> +#define PAGE_BALLOON_MAPCOUNT_VALUE (-256)
-> +
-> +static inline int PageBalloon(struct page *page)
-> +{
-> +	return IS_ENABLED(CONFIG_MEMORY_BALLOON) &&
-> +		atomic_read(&page->_mapcount) == PAGE_BALLOON_MAPCOUNT_VALUE;
-> +}
-> +void __SetPageBalloon(struct page *page);
-> +void __ClearPageBalloon(struct page *page);
-> +
-
-1) I think you should consider the following here:
-
--void __SetPageBalloon(struct page *page);
--void __ClearPageBalloon(struct page *page);
-+
-+static inline void __SetPageBalloon(struct page *page)
-+{
-+#ifdef CONFIG_MEMORY_BALLOON
-+        VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
-+        atomic_set(&page->_mapcount, PAGE_BALLOON_MAPCOUNT_VALUE);
-+#endif
-+}
-+
-+static inline void __ClearPageBalloon(struct page *page)
-+{
-+#ifdef CONFIG_MEMORY_BALLOON
-+        VM_BUG_ON_PAGE(!PageBalloon(page), page);
-+        atomic_set(&page->_mapcount, -1);
-+#endif
-+}
-
-
-
-
->  void put_page(struct page *page);
->  void put_pages_list(struct list_head *pages);
->  
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 318df70..d88fd01 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -157,6 +157,9 @@ enum zone_stat_item {
->  	WORKINGSET_NODERECLAIM,
->  	NR_ANON_TRANSPARENT_HUGEPAGES,
->  	NR_FREE_CMA_PAGES,
-> +#ifdef CONFIG_MEMORY_BALLOON
-> +	NR_BALLOON_PAGES,
-> +#endif
->  	NR_VM_ZONE_STAT_ITEMS };
 >  
 >  /*
-> diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
-> index 5116a0e..2f96d23 100644
-> --- a/include/uapi/linux/kernel-page-flags.h
-> +++ b/include/uapi/linux/kernel-page-flags.h
-> @@ -31,6 +31,7 @@
+> - * page_flags_cleared - helper to perform balloon @page ->flags tests.
+> - *
+> - * As balloon pages are obtained from buddy and we do not play with page->flags
+> - * at driver level (exception made when we get the page lock for compaction),
+> - * we can safely identify a ballooned page by checking if the
+> - * PAGE_FLAGS_CHECK_AT_PREP page->flags are all cleared.  This approach also
+> - * helps us skip ballooned pages that are locked for compaction or release, thus
+> - * mitigating their racy check at balloon_page_movable()
+> - */
+> -static inline bool page_flags_cleared(struct page *page)
+> -{
+> -	return !(page->flags & PAGE_FLAGS_CHECK_AT_PREP);
+> -}
+> -
+> -/*
+> - * __is_movable_balloon_page - helper to perform @page mapping->flags tests
+> - */
+> -static inline bool __is_movable_balloon_page(struct page *page)
+> -{
+> -	struct address_space *mapping = page->mapping;
+> -	return !PageAnon(page) && mapping_balloon(mapping);
+> -}
+> -
+> -/*
+> - * balloon_page_movable - test page->mapping->flags to identify balloon pages
+> - *			  that can be moved by compaction/migration.
+> - *
+> - * This function is used at core compaction's page isolation scheme, therefore
+> - * most pages exposed to it are not enlisted as balloon pages and so, to avoid
+> - * undesired side effects like racing against __free_pages(), we cannot afford
+> - * holding the page locked while testing page->mapping->flags here.
+> - *
+> - * As we might return false positives in the case of a balloon page being just
+> - * released under us, the page->mapping->flags need to be re-tested later,
+> - * under the proper page lock, at the functions that will be coping with the
+> - * balloon page case.
+> - */
+> -static inline bool balloon_page_movable(struct page *page)
+> -{
+> -	/*
+> -	 * Before dereferencing and testing mapping->flags, let's make sure
+> -	 * this is not a page that uses ->mapping in a different way
+> -	 */
+> -	if (page_flags_cleared(page) && !page_mapped(page) &&
+> -	    page_count(page) == 1)
+> -		return __is_movable_balloon_page(page);
+> -
+> -	return false;
+> -}
+> -
+> -/*
+> - * isolated_balloon_page - identify an isolated balloon page on private
+> - *			   compaction/migration page lists.
+> - *
+> - * After a compaction thread isolates a balloon page for migration, it raises
+> - * the page refcount to prevent concurrent compaction threads from re-isolating
+> - * the same page. For that reason putback_movable_pages(), or other routines
+> - * that need to identify isolated balloon pages on private pagelists, cannot
+> - * rely on balloon_page_movable() to accomplish the task.
+> - */
+> -static inline bool isolated_balloon_page(struct page *page)
+> -{
+> -	/* Already isolated balloon pages, by default, have a raised refcount */
+> -	if (page_flags_cleared(page) && !page_mapped(page) &&
+> -	    page_count(page) >= 2)
+> -		return __is_movable_balloon_page(page);
+> -
+> -	return false;
+> -}
+> -
+> -/*
+>   * balloon_page_insert - insert a page into the balloon's page list and make
+>   *		         the page->mapping assignment accordingly.
+>   * @page    : page to be assigned as a 'balloon page'
+> @@ -192,6 +121,7 @@ static inline void balloon_page_insert(struct page *page,
+>  				       struct address_space *mapping,
+>  				       struct list_head *head)
+>  {
+> +	__SetPageBalloon(page);
+>  	page->mapping = mapping;
+>  	list_add(&page->lru, head);
+>  }
+> @@ -206,6 +136,7 @@ static inline void balloon_page_insert(struct page *page,
+>   */
+>  static inline void balloon_page_delete(struct page *page)
+>  {
+> +	__ClearPageBalloon(page);
+>  	page->mapping = NULL;
+>  	list_del(&page->lru);
+>  }
+> @@ -250,24 +181,16 @@ static inline void balloon_page_insert(struct page *page,
+>  				       struct address_space *mapping,
+>  				       struct list_head *head)
+>  {
+> +	__SetPageBalloon(page);
+>  	list_add(&page->lru, head);
+>  }
 >  
->  #define KPF_KSM			21
->  #define KPF_THP			22
-> +#define KPF_BALLOON		23
+>  static inline void balloon_page_delete(struct page *page)
+>  {
+> +	__ClearPageBalloon(page);
+>  	list_del(&page->lru);
+>  }
 >  
->  
->  #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
+> -static inline bool balloon_page_movable(struct page *page)
+> -{
+> -	return false;
+> -}
+> -
+> -static inline bool isolated_balloon_page(struct page *page)
+> -{
+> -	return false;
+> -}
+> -
+>  static inline bool balloon_page_isolate(struct page *page)
+>  {
+>  	return false;
 > diff --git a/mm/Kconfig b/mm/Kconfig
-> index 886db21..72e0db0 100644
+> index 72e0db0..e09cf0a 100644
 > --- a/mm/Kconfig
 > +++ b/mm/Kconfig
-> @@ -228,6 +228,11 @@ config ARCH_ENABLE_SPLIT_PMD_PTLOCK
->  	boolean
->  
->  #
-> +# support for memory ballooning
-> +config MEMORY_BALLOON
-> +	boolean
-> +
-> +#
->  # support for memory balloon compaction
+> @@ -237,7 +237,7 @@ config MEMORY_BALLOON
 >  config BALLOON_COMPACTION
 >  	bool "Allow for balloon memory compaction/migration"
-> diff --git a/mm/Makefile b/mm/Makefile
-> index 632ae77..2d33d7f 100644
-> --- a/mm/Makefile
-> +++ b/mm/Makefile
-> @@ -16,7 +16,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
->  			   readahead.o swap.o truncate.o vmscan.o shmem.o \
->  			   util.o mmzone.o vmstat.o backing-dev.o \
->  			   mm_init.o mmu_context.o percpu.o slab_common.o \
-> -			   compaction.o balloon_compaction.o vmacache.o \
-> +			   compaction.o vmacache.o \
->  			   interval_tree.o list_lru.o workingset.o \
->  			   iov_iter.o $(mmu-y)
->  
-> @@ -64,3 +64,4 @@ obj-$(CONFIG_ZBUD)	+= zbud.o
->  obj-$(CONFIG_ZSMALLOC)	+= zsmalloc.o
->  obj-$(CONFIG_GENERIC_EARLY_IOREMAP) += early_ioremap.o
->  obj-$(CONFIG_CMA)	+= cma.o
-> +obj-$(CONFIG_MEMORY_BALLOON) += balloon_compaction.o
+>  	def_bool y
+> -	depends on COMPACTION && VIRTIO_BALLOON
+> +	depends on COMPACTION && MEMORY_BALLOON
+>  	help
+>  	  Memory fragmentation introduced by ballooning might reduce
+>  	  significantly the number of 2MB contiguous memory blocks that can be
 > diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
-> index 6e45a50..533c567 100644
+> index 533c567..22c8e03 100644
 > --- a/mm/balloon_compaction.c
 > +++ b/mm/balloon_compaction.c
-> @@ -10,6 +10,20 @@
->  #include <linux/export.h>
->  #include <linux/balloon_compaction.h>
+> @@ -253,8 +253,7 @@ bool balloon_page_isolate(struct page *page)
+>  			 * Prevent concurrent compaction threads from isolating
+>  			 * an already isolated balloon page by refcount check.
+>  			 */
+> -			if (__is_movable_balloon_page(page) &&
+> -			    page_count(page) == 2) {
+> +			if (PageBalloon(page) && page_count(page) == 2) {
+>  				__isolate_balloon_page(page);
+>  				unlock_page(page);
+>  				return true;
+> @@ -275,7 +274,7 @@ void balloon_page_putback(struct page *page)
+>  	 */
+>  	lock_page(page);
 >  
-> +void __SetPageBalloon(struct page *page)
-> +{
-> +	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
-> +	atomic_set(&page->_mapcount, PAGE_BALLOON_MAPCOUNT_VALUE);
-> +	inc_zone_page_state(page, NR_BALLOON_PAGES);
-> +}
-> +
-> +void __ClearPageBalloon(struct page *page)
-> +{
-> +	VM_BUG_ON_PAGE(!PageBalloon(page), page);
-> +	atomic_set(&page->_mapcount, -1);
-> +	dec_zone_page_state(page, NR_BALLOON_PAGES);
-> +}
-> +
-
-and if you go with (1), here:
--void __SetPageBalloon(struct page *page)
--{
--       VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
--       atomic_set(&page->_mapcount, PAGE_BALLOON_MAPCOUNT_VALUE);
--       inc_zone_page_state(page, NR_BALLOON_PAGES);
--}
--
--void __ClearPageBalloon(struct page *page)
--{
--       VM_BUG_ON_PAGE(!PageBalloon(page), page);
--       atomic_set(&page->_mapcount, -1);
--       dec_zone_page_state(page, NR_BALLOON_PAGES);
--}
-
-
->  /*
->   * balloon_devinfo_alloc - allocates a balloon device information descriptor.
->   * @balloon_dev_descriptor: pointer to reference the balloon device which
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index e9ab104..6e704cc 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -735,7 +735,7 @@ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
->  					TEXT_FOR_HIGHMEM(xx) xx "_movable",
+> -	if (__is_movable_balloon_page(page)) {
+> +	if (PageBalloon(page)) {
+>  		__putback_balloon_page(page);
+>  		/* drop the extra ref count taken for page isolation */
+>  		put_page(page);
+> @@ -300,7 +299,7 @@ int balloon_page_migrate(struct page *newpage,
+>  	 */
+>  	BUG_ON(!trylock_page(newpage));
 >  
->  const char * const vmstat_text[] = {
-> -	/* Zoned VM counters */
-> +	/* enum zone_stat_item countes */
->  	"nr_free_pages",
->  	"nr_alloc_batch",
->  	"nr_inactive_anon",
-> @@ -778,10 +778,16 @@ const char * const vmstat_text[] = {
->  	"workingset_nodereclaim",
->  	"nr_anon_transparent_hugepages",
->  	"nr_free_cma",
-> +#ifdef CONFIG_MEMORY_BALLOON
-> +	"nr_balloon_pages",
-> +#endif
-> +
-> +	/* enum writeback_stat_item counters */
->  	"nr_dirty_threshold",
->  	"nr_dirty_background_threshold",
+> -	if (WARN_ON(!__is_movable_balloon_page(page))) {
+> +	if (WARN_ON(!PageBalloon(page))) {
+>  		dump_page(page, "not movable balloon page");
+>  		unlock_page(newpage);
+>  		return rc;
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 0653f5f..e9aeed2 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -596,11 +596,10 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+>  		 * Skip any other type of page
+>  		 */
+>  		if (!PageLRU(page)) {
+> -			if (unlikely(balloon_page_movable(page))) {
+> -				if (balloon_page_isolate(page)) {
+> -					/* Successfully isolated */
+> -					goto isolate_success;
+> -				}
+> +			if (unlikely(PageBalloon(page)) &&
+> +					balloon_page_isolate(page)) {
+> +				/* Successfully isolated */
+> +				goto isolate_success;
+>  			}
+>  			continue;
+>  		}
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 161d044..c35e6f2 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -92,7 +92,7 @@ void putback_movable_pages(struct list_head *l)
+>  		list_del(&page->lru);
+>  		dec_zone_page_state(page, NR_ISOLATED_ANON +
+>  				page_is_file_cache(page));
+> -		if (unlikely(isolated_balloon_page(page)))
+> +		if (unlikely(PageBalloon(page)))
+>  			balloon_page_putback(page);
+>  		else
+>  			putback_lru_page(page);
+> @@ -873,7 +873,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
+>  		}
+>  	}
 >  
->  #ifdef CONFIG_VM_EVENT_COUNTERS
-> +	/* enum vm_event_item counters */
->  	"pgpgin",
->  	"pgpgout",
->  	"pswpin",
-> diff --git a/tools/vm/page-types.c b/tools/vm/page-types.c
-> index c4d6d2e..264fbc2 100644
-> --- a/tools/vm/page-types.c
-> +++ b/tools/vm/page-types.c
-> @@ -132,6 +132,7 @@ static const char * const page_flag_names[] = {
->  	[KPF_NOPAGE]		= "n:nopage",
->  	[KPF_KSM]		= "x:ksm",
->  	[KPF_THP]		= "t:thp",
-> +	[KPF_BALLOON]		= "o:balloon",
+> -	if (unlikely(__is_movable_balloon_page(page))) {
+> +	if (unlikely(PageBalloon(page))) {
+>  		/*
+>  		 * A ballooned page does not need any special attention from
+>  		 * physical to virtual reverse mapping procedures.
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 2836b53..f90f93e 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1160,7 +1160,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 >  
->  	[KPF_RESERVED]		= "r:reserved",
->  	[KPF_MLOCKED]		= "m:mlocked",
+>  	list_for_each_entry_safe(page, next, page_list, lru) {
+>  		if (page_is_file_cache(page) && !PageDirty(page) &&
+> -		    !isolated_balloon_page(page)) {
+> +		    !PageBalloon(page)) {
+>  			ClearPageActive(page);
+>  			list_move(&page->lru, &clean_pages);
+>  		}
 > 
+Acked-by: Rafael Aquini <aquini@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
