@@ -1,93 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 8ACD46B0038
-	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 04:11:34 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id fp1so13570919pdb.27
-        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 01:11:34 -0700 (PDT)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id p3si35444564pdg.107.2014.08.21.01.11.32
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id DA33E6B0035
+	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 04:29:42 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id v10so13579982pde.39
+        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 01:29:42 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id go1si35380550pbd.198.2014.08.21.01.29.39
         for <linux-mm@kvack.org>;
-        Thu, 21 Aug 2014 01:11:33 -0700 (PDT)
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH 3/3] mm/slab: support slab merge
-Date: Thu, 21 Aug 2014 17:11:15 +0900
-Message-Id: <1408608675-20420-3-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1408608675-20420-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1408608675-20420-1-git-send-email-iamjoonsoo.kim@lge.com>
+        Thu, 21 Aug 2014 01:29:40 -0700 (PDT)
+Message-ID: <53F5AD88.9050303@cn.fujitsu.com>
+Date: Thu, 21 Aug 2014 16:27:52 +0800
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/5] mm/slab_common: move kmem_cache definition to internal
+ header
+References: <1408608562-20339-1-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1408608562-20339-1-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Slab merge is good feature to reduce fragmentation. If new creating slab
-have similar size and property with exsitent slab, this feature reuse
-it rather than creating new one. As a result, objects are packed into
-fewer slabs so that fragmentation is reduced.
+Hello Joonsoo,
 
-Below is result of my testing.
+Seems like this is a cleanup patchset. I want to mention another
+tiny cleanup here.
 
-* After boot, sleep 20; cat /proc/meminfo | grep Slab
+You removed the "struct slab" before but it seems there is still
+a slab_page field in page descriptor left and has no user now, right?
 
-<Before>
-Slab: 25136 kB
+Thanks
+Zhang
 
-<After>
-Slab: 24364 kB
+On 08/21/2014 04:09 PM, Joonsoo Kim wrote:
+> We don't need to keep kmem_cache definition in include/linux/slab.h
+> if we don't need to inline kmem_cache_size(). According to my
+> code inspection, this function is only called at lc_create() in
+> lib/lru_cache.c which may be called at initialization phase of something,
+> so we don't need to inline it. Therfore, move it to slab_common.c and
+> move kmem_cache definition to internal header.
+> 
+> After this change, we can change kmem_cache definition easily without
+> full kernel build. For instance, we can turn on/off CONFIG_SLUB_STATS
+> without full kernel build.
+> 
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ---
+>  include/linux/slab.h |   42 +-----------------------------------------
+>  mm/slab.h            |   33 +++++++++++++++++++++++++++++++++
+>  mm/slab_common.c     |    8 ++++++++
+>  3 files changed, 42 insertions(+), 41 deletions(-)
+> 
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index 1d9abb7..9062e4a 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -158,31 +158,6 @@ size_t ksize(const void *);
+>  #define ARCH_KMALLOC_MINALIGN __alignof__(unsigned long long)
+>  #endif
+>  
+> -#ifdef CONFIG_SLOB
+> -/*
+> - * Common fields provided in kmem_cache by all slab allocators
+> - * This struct is either used directly by the allocator (SLOB)
+> - * or the allocator must include definitions for all fields
+> - * provided in kmem_cache_common in their definition of kmem_cache.
+> - *
+> - * Once we can do anonymous structs (C11 standard) we could put a
+> - * anonymous struct definition in these allocators so that the
+> - * separate allocations in the kmem_cache structure of SLAB and
+> - * SLUB is no longer needed.
+> - */
+> -struct kmem_cache {
+> -	unsigned int object_size;/* The original size of the object */
+> -	unsigned int size;	/* The aligned/padded/added on size  */
+> -	unsigned int align;	/* Alignment as calculated */
+> -	unsigned long flags;	/* Active flags on the slab */
+> -	const char *name;	/* Slab name for sysfs */
+> -	int refcount;		/* Use counter */
+> -	void (*ctor)(void *);	/* Called on object slot creation */
+> -	struct list_head list;	/* List of all slab caches on the system */
+> -};
+> -
+> -#endif /* CONFIG_SLOB */
+> -
+>  /*
+>   * Kmalloc array related definitions
+>   */
+> @@ -363,14 +338,6 @@ kmem_cache_alloc_node_trace(struct kmem_cache *s,
+>  }
+>  #endif /* CONFIG_TRACING */
+>  
+> -#ifdef CONFIG_SLAB
+> -#include <linux/slab_def.h>
+> -#endif
+> -
+> -#ifdef CONFIG_SLUB
+> -#include <linux/slub_def.h>
+> -#endif
+> -
+>  extern void *kmalloc_order(size_t size, gfp_t flags, unsigned int order);
+>  
+>  #ifdef CONFIG_TRACING
+> @@ -650,14 +617,7 @@ static inline void *kzalloc_node(size_t size, gfp_t flags, int node)
+>  	return kmalloc_node(size, flags | __GFP_ZERO, node);
+>  }
+>  
+> -/*
+> - * Determine the size of a slab object
+> - */
+> -static inline unsigned int kmem_cache_size(struct kmem_cache *s)
+> -{
+> -	return s->object_size;
+> -}
+> -
+> +unsigned int kmem_cache_size(struct kmem_cache *s);
+>  void __init kmem_cache_init_late(void);
+>  
+>  #endif	/* _LINUX_SLAB_H */
+> diff --git a/mm/slab.h b/mm/slab.h
+> index 0e0fdd3..bd1c54a 100644
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -4,6 +4,39 @@
+>   * Internal slab definitions
+>   */
+>  
+> +#ifdef CONFIG_SLOB
+> +/*
+> + * Common fields provided in kmem_cache by all slab allocators
+> + * This struct is either used directly by the allocator (SLOB)
+> + * or the allocator must include definitions for all fields
+> + * provided in kmem_cache_common in their definition of kmem_cache.
+> + *
+> + * Once we can do anonymous structs (C11 standard) we could put a
+> + * anonymous struct definition in these allocators so that the
+> + * separate allocations in the kmem_cache structure of SLAB and
+> + * SLUB is no longer needed.
+> + */
+> +struct kmem_cache {
+> +	unsigned int object_size;/* The original size of the object */
+> +	unsigned int size;	/* The aligned/padded/added on size  */
+> +	unsigned int align;	/* Alignment as calculated */
+> +	unsigned long flags;	/* Active flags on the slab */
+> +	const char *name;	/* Slab name for sysfs */
+> +	int refcount;		/* Use counter */
+> +	void (*ctor)(void *);	/* Called on object slot creation */
+> +	struct list_head list;	/* List of all slab caches on the system */
+> +};
+> +
+> +#endif /* CONFIG_SLOB */
+> +
+> +#ifdef CONFIG_SLAB
+> +#include <linux/slab_def.h>
+> +#endif
+> +
+> +#ifdef CONFIG_SLUB
+> +#include <linux/slub_def.h>
+> +#endif
+> +
+>  /*
+>   * State of the slab allocator.
+>   *
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index d319502..2088904 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -30,6 +30,14 @@ LIST_HEAD(slab_caches);
+>  DEFINE_MUTEX(slab_mutex);
+>  struct kmem_cache *kmem_cache;
+>  
+> +/*
+> + * Determine the size of a slab object
+> + */
+> +unsigned int kmem_cache_size(struct kmem_cache *s)
+> +{
+> +	return s->object_size;
+> +}
+> +
+>  #ifdef CONFIG_DEBUG_VM
+>  static int kmem_cache_sanity_check(const char *name, size_t size)
+>  {
+> 
 
-We can save 3% memory used by slab.
 
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- mm/slab.c |   20 ++++++++++++++++++++
- mm/slab.h |    2 +-
- 2 files changed, 21 insertions(+), 1 deletion(-)
-
-diff --git a/mm/slab.c b/mm/slab.c
-index 09b060e..a1cc1c9 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2052,6 +2052,26 @@ static int __init_refok setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
- 	return 0;
- }
- 
-+unsigned long kmem_cache_flags(unsigned long object_size,
-+	unsigned long flags, const char *name,
-+	void (*ctor)(void *))
-+{
-+	return flags;
-+}
-+
-+struct kmem_cache *
-+__kmem_cache_alias(const char *name, size_t size, size_t align,
-+		   unsigned long flags, void (*ctor)(void *))
-+{
-+	struct kmem_cache *cachep;
-+
-+	cachep = find_mergeable(size, align, flags, name, ctor);
-+	if (cachep)
-+		cachep->refcount++;
-+
-+	return cachep;
-+}
-+
- /**
-  * __kmem_cache_create - Create a cache.
-  * @cachep: cache management descriptor
-diff --git a/mm/slab.h b/mm/slab.h
-index 7c6e1ed..13845d0 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -89,7 +89,7 @@ struct mem_cgroup;
- int slab_unmergeable(struct kmem_cache *s);
- struct kmem_cache *find_mergeable(size_t size, size_t align,
- 		unsigned long flags, const char *name, void (*ctor)(void *));
--#ifdef CONFIG_SLUB
-+#ifndef CONFIG_SLOB
- struct kmem_cache *
- __kmem_cache_alias(const char *name, size_t size, size_t align,
- 		   unsigned long flags, void (*ctor)(void *));
 -- 
-1.7.9.5
+Thanks.
+Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
