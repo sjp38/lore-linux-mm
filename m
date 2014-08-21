@@ -1,177 +1,297 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
-	by kanga.kvack.org (Postfix) with ESMTP id A39F56B0035
-	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 19:59:15 -0400 (EDT)
-Received: by mail-qc0-f177.google.com with SMTP id x13so8428449qcv.8
-        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 16:59:15 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u3si17273442qab.24.2014.08.20.16.59.14
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Aug 2014 16:59:15 -0700 (PDT)
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH 7/7] mm/balloon_compaction: general cleanup 
-Date: Wed, 20 Aug 2014 20:58:58 -0300
-Message-Id: <60e809f1c932fbbb175d59a750a329f04730717e.1408576903.git.aquini@redhat.com>
-In-Reply-To: <20140820150509.4194.24336.stgit@buzz>
-References: <20140820150509.4194.24336.stgit@buzz>
-In-Reply-To: <5ad4664811559496e563ead974f10e8ee6b4ed47.1408576903.git.aquini@redhat.com>
-References: <5ad4664811559496e563ead974f10e8ee6b4ed47.1408576903.git.aquini@redhat.com>
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id A08C86B0035
+	for <linux-mm@kvack.org>; Wed, 20 Aug 2014 20:05:47 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id y10so12659016pdj.0
+        for <linux-mm@kvack.org>; Wed, 20 Aug 2014 17:05:47 -0700 (PDT)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id wi3si33895602pbc.166.2014.08.20.17.05.44
+        for <linux-mm@kvack.org>;
+        Wed, 20 Aug 2014 17:05:46 -0700 (PDT)
+Date: Thu, 21 Aug 2014 09:06:17 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2 4/4] zram: report maximum used memory
+Message-ID: <20140821000617.GD17372@bbox>
+References: <1408434887-16387-1-git-send-email-minchan@kernel.org>
+ <1408434887-16387-5-git-send-email-minchan@kernel.org>
+ <CAFdhcLQcgME18U2NfEc6dXfvHnJWpyqcMR=Y16MyyghWiNRo1w@mail.gmail.com>
+ <20140820065318.GB17372@bbox>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20140820065318.GB17372@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>
+To: David Horner <ds2horner@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>
 
-On Wed, Aug 20, 2014 at 07:05:09PM +0400, Konstantin Khlebnikov wrote:
-> * move special branch for balloon migraion into migrate_pages
-> * remove special mapping for balloon and its flag AS_BALLOON_MAP
-> * embed struct balloon_dev_info into struct virtio_balloon
-> * cleanup balloon_page_dequeue, kill balloon_page_free
+On Wed, Aug 20, 2014 at 03:53:18PM +0900, Minchan Kim wrote:
+> On Wed, Aug 20, 2014 at 02:26:50AM -0400, David Horner wrote:
+> > On Tue, Aug 19, 2014 at 3:54 AM, Minchan Kim <minchan@kernel.org> wrote:
+> > > Normally, zram user could get maximum memory usage zram consumed
+> > > via polling mem_used_total with sysfs in userspace.
+> > >
+> > > But it has a critical problem because user can miss peak memory
+> > > usage during update inverval of polling. For avoiding that,
+> > > user should poll it with shorter interval(ie, 0.0000000001s)
+> > > with mlocking to avoid page fault delay when memory pressure
+> > > is heavy. It would be troublesome.
+> > >
+> > > This patch adds new knob "mem_used_max" so user could see
+> > > the maximum memory usage easily via reading the knob and reset
+> > > it via "echo 0 > /sys/block/zram0/mem_used_max".
+> > >
+> > > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > > ---
+> > >  Documentation/ABI/testing/sysfs-block-zram | 10 +++++
+> > >  Documentation/blockdev/zram.txt            |  1 +
+> > >  drivers/block/zram/zram_drv.c              | 60 +++++++++++++++++++++++++++++-
+> > >  drivers/block/zram/zram_drv.h              |  1 +
+> > >  4 files changed, 70 insertions(+), 2 deletions(-)
+> > >
+> > > diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
+> > > index 025331c19045..ffd1ea7443dd 100644
+> > > --- a/Documentation/ABI/testing/sysfs-block-zram
+> > > +++ b/Documentation/ABI/testing/sysfs-block-zram
+> > > @@ -120,6 +120,16 @@ Description:
+> > >                 statistic.
+> > >                 Unit: bytes
+> > >
+> > > +What:          /sys/block/zram<id>/mem_used_max
+> > > +Date:          August 2014
+> > > +Contact:       Minchan Kim <minchan@kernel.org>
+> > > +Description:
+> > > +               The mem_used_max file is read/write and specifies the amount
+> > > +               of maximum memory zram have consumed to store compressed data.
+> > > +               For resetting the value, you should do "echo 0". Otherwise,
+> > > +               you could see -EINVAL.
+> > > +               Unit: bytes
+> > > +
+> > >  What:          /sys/block/zram<id>/mem_limit
+> > >  Date:          August 2014
+> > >  Contact:       Minchan Kim <minchan@kernel.org>
+> > > diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
+> > > index 9f239ff8c444..3b2247c2d4cf 100644
+> > > --- a/Documentation/blockdev/zram.txt
+> > > +++ b/Documentation/blockdev/zram.txt
+> > > @@ -107,6 +107,7 @@ size of the disk when not in use so a huge zram is wasteful.
+> > >                 orig_data_size
+> > >                 compr_data_size
+> > >                 mem_used_total
+> > > +               mem_used_max
+> > >
+> > >  8) Deactivate:
+> > >         swapoff /dev/zram0
+> > > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> > > index adc91c7ecaef..e4d44842a91d 100644
+> > > --- a/drivers/block/zram/zram_drv.c
+> > > +++ b/drivers/block/zram/zram_drv.c
+> > > @@ -149,6 +149,40 @@ static ssize_t mem_limit_store(struct device *dev,
+> > >         return len;
+> > >  }
+> > >
+> > > +static ssize_t mem_used_max_show(struct device *dev,
+> > > +               struct device_attribute *attr, char *buf)
+> > > +{
+> > > +       u64 val = 0;
+> > > +       struct zram *zram = dev_to_zram(dev);
+> > > +
+> > > +       down_read(&zram->init_lock);
+> > > +       if (init_done(zram))
+> > > +               val = atomic64_read(&zram->stats.max_used_pages);
+> > > +       up_read(&zram->init_lock);
+> > > +
+> > > +       return scnprintf(buf, PAGE_SIZE, "%llu\n", val << PAGE_SHIFT);
+> > > +}
+> > > +
+> > > +static ssize_t mem_used_max_store(struct device *dev,
+> > > +               struct device_attribute *attr, const char *buf, size_t len)
+> > > +{
+> > > +       u64 limit;
+> > > +       struct zram *zram = dev_to_zram(dev);
+> > > +       struct zram_meta *meta = zram->meta;
+> > > +
+> > > -       limit = memparse(buf, NULL);
+> > > -       if (0 != limit)
+> > 
+> > we wanted explicit "0" and nothing else for extensibility
+> > 
+> >      if (len != 1 || *buf != "0")
+> > 
 > 
-> Signed-off-by: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
-> ---
->  drivers/virtio/virtio_balloon.c    |   77 ++++---------
->  include/linux/balloon_compaction.h |  107 ++++++------------
->  include/linux/migrate.h            |   11 --
->  include/linux/pagemap.h            |   18 ---
->  mm/balloon_compaction.c            |  214 ++++++++++++------------------------
->  mm/migrate.c                       |   27 +----
->  6 files changed, 130 insertions(+), 324 deletions(-)
+> I wanted to work with "0", "0K", "0M", "0G" but agree it's meaningless
+> at the moment so your version is better.
+
+When I tested your way, it makes trobule for use who wanted "echo 0 >
+/sys/block/zram0/mem_used_max" because normally echo adds newline.
+Although we can guide them to use "echo -n", it's not a handy for users
+as well as not consistent with other knobs.
+IMO, we shouldn't force uncomfortable way to user for our uncertain
+future expandability. So, I will use kstrtoul.
 > 
-Very nice clean-up, just as all other patches in this set.
-Please, just consider amending the following changes to this patch of yours
+> 
+> > > +               return -EINVAL;
+> > > +
+> > > +       down_read(&zram->init_lock);
+> > > +       if (init_done(zram))
+> > > +               atomic64_set(&zram->stats.max_used_pages,
+> > > +                               zs_get_total_size(meta->mem_pool));
+> > > +       up_read(&zram->init_lock);
+> > > +
+> > > +       return len;
+> >           return 1;
+> > 
+> > the standard convention is to return used amount of buffer
+> 
+> If I follow your suggestion, len should be 1 right before returning
+> so no problem for functionality POV but I agree explicit "1" is better
+> for readability so your version is better, better.
+> 
+> > 
+> > 
+> > 
+> > > +}
+> > > +
+> > >  static ssize_t max_comp_streams_store(struct device *dev,
+> > >                 struct device_attribute *attr, const char *buf, size_t len)
+> > >  {
+> > > @@ -461,6 +495,26 @@ out_cleanup:
+> > >         return ret;
+> > >  }
+> > >
+> > > +static bool check_limit(struct zram *zram)
+> > > +{
+> > > +       unsigned long alloced_pages;
+> > > +       u64 old_max, cur_max;
+> > > +       struct zram_meta *meta = zram->meta;
+> > > +
+> > > +       do {
+> > > +               alloced_pages = zs_get_total_size(meta->mem_pool);
+> > > +               if (zram->limit_pages && alloced_pages > zram->limit_pages)
+> > > +                       return false;
+> > > +
+> > > +               old_max = cur_max = atomic64_read(&zram->stats.max_used_pages);
+> > > +               if (alloced_pages > cur_max)
+> > > +                       old_max = atomic64_cmpxchg(&zram->stats.max_used_pages,
+> > > +                                       cur_max, alloced_pages);
+> > > +       } while (old_max != cur_max);
+> > > +
+> > > +       return true;
+> > > +}
+> > > +
+> > 
+> > Check_limit does more than check limit - it has a substantial side
+> > effect of updating max used.
+> 
+> Hmm, Normally, limit check is best place to update the max although
+> function name imply just checking the limit and I don't think
+> code piece for max updating doesn't hurt readbilty.
+> If you or other reviewer is strong against, I will be happy to
+> factor out part of max updating into another function because
+> I think it's just preference problem for small logic and don't want
+> to waste argue for that.
+> 
+> If you really want it, pz, ping me again.
+> 
+> > 
+> > Basically if we already allocated the buffer and our alloced_pages is
+> > less than the limit then we are good to go.
+> 
+> Yeb.
+> 
+> > 
+> > It is the race to update that we need to have the cmpxchg.
+> > And maybe a helper function would aid readability - not sure, see next point.
+> > 
+> > I don't believe there is need for the loop either.
+> > Any other updater will also be including our allocated pages
+> > (and at this point in the code eliminated from roll back)
+> >  so if they beat us to it, then no problem, their max is better than ours.
+> 
+> Let's assume we don't have the loop.
+> 
+> 
+> CPU A                                   CPU B
+> 
+> alloced_pages = 2001
+> old_max = cur_max = 2000
+>                                         alloced_pages = 2005
+>                                         old_max = cur_max = 2000
+> 
+> cmpxchg(2000, 2000, 2001) -> OK
+> 
+>                                         cmpxchg(2001, 2000, 2005) -> FAIL
+> 
+> So, we lose 2005 which is bigger vaule.
+> 
+> > 
+> > 
+> > 
+> > >  static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+> > >                            int offset)
+> > >  {
+> > > @@ -541,8 +595,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+> > >                 goto out;
+> > >         }
+> > >
+> > > -       if (zram->limit_pages &&
+> > > -               zs_get_total_size(meta->mem_pool) > zram->limit_pages) {
+> > > +       if (!check_limit(zram)) {
+> > >                 zs_free(meta->mem_pool, handle);
+> > >                 ret = -ENOMEM;
+> > >                 goto out;
+> > > @@ -897,6 +950,8 @@ static DEVICE_ATTR(orig_data_size, S_IRUGO, orig_data_size_show, NULL);
+> > >  static DEVICE_ATTR(mem_used_total, S_IRUGO, mem_used_total_show, NULL);
+> > >  static DEVICE_ATTR(mem_limit, S_IRUGO | S_IWUSR, mem_limit_show,
+> > >                 mem_limit_store);
+> > > +static DEVICE_ATTR(mem_used_max, S_IRUGO | S_IWUSR, mem_used_max_show,
+> > > +               mem_used_max_store);
+> > >  static DEVICE_ATTR(max_comp_streams, S_IRUGO | S_IWUSR,
+> > >                 max_comp_streams_show, max_comp_streams_store);
+> > >  static DEVICE_ATTR(comp_algorithm, S_IRUGO | S_IWUSR,
+> > > @@ -926,6 +981,7 @@ static struct attribute *zram_disk_attrs[] = {
+> > >         &dev_attr_compr_data_size.attr,
+> > >         &dev_attr_mem_used_total.attr,
+> > >         &dev_attr_mem_limit.attr,
+> > > +       &dev_attr_mem_used_max.attr,
+> > >         &dev_attr_max_comp_streams.attr,
+> > >         &dev_attr_comp_algorithm.attr,
+> > >         NULL,
+> > > diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+> > > index b7aa9c21553f..29383312d543 100644
+> > > --- a/drivers/block/zram/zram_drv.h
+> > > +++ b/drivers/block/zram/zram_drv.h
+> > > @@ -90,6 +90,7 @@ struct zram_stats {
+> > >         atomic64_t notify_free; /* no. of swap slot free notifications */
+> > >         atomic64_t zero_pages;          /* no. of zero filled pages */
+> > >         atomic64_t pages_stored;        /* no. of pages currently stored */
+> > > +       atomic64_t max_used_pages;      /* no. of maximum pages stored */
+> > >  };
+> > >
+> > >  struct zram_meta {
+> > > --
+> > > 2.0.0
+> > >
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> -- 
+> Kind regards,
+> Minchan Kim
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Rafael
----
-
-diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
-index dc7073b..569cf96 100644
---- a/include/linux/balloon_compaction.h
-+++ b/include/linux/balloon_compaction.h
-@@ -75,41 +75,6 @@ extern struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info);
- #ifdef CONFIG_BALLOON_COMPACTION
- extern bool balloon_page_isolate(struct page *page);
- extern void balloon_page_putback(struct page *page);
--
--/*
-- * balloon_page_insert - insert a page into the balloon's page list and make
-- *		         the page->mapping assignment accordingly.
-- * @page    : page to be assigned as a 'balloon page'
-- * @mapping : allocated special 'balloon_mapping'
-- * @head    : balloon's device page list head
-- *
-- * Caller must ensure the page is locked and the spin_lock protecting balloon
-- * pages list is held before inserting a page into the balloon device.
-- */
--static inline void
--balloon_page_insert(struct balloon_dev_info *balloon, struct page *page)
--{
--	__SetPageBalloon(page);
--	set_page_private(page, (unsigned long)balloon);
--	list_add(&page->lru, &balloon->pages);
--}
--
--/*
-- * balloon_page_delete - delete a page from balloon's page list and clear
-- *			 the page->mapping assignement accordingly.
-- * @page    : page to be released from balloon's page list
-- *
-- * Caller must ensure the page is locked and the spin_lock protecting balloon
-- * pages list is held before deleting a page from the balloon device.
-- */
--static inline void balloon_page_delete(struct page *page, bool isolated)
--{
--	__ClearPageBalloon(page);
--	set_page_private(page, 0);
--	if (!isolated)
--		list_del(&page->lru);
--}
--
- int balloon_page_migrate(new_page_t get_new_page, free_page_t put_new_page,
- 		unsigned long private, struct page *page,
- 		int force, enum migrate_mode mode);
-@@ -130,31 +95,6 @@ static inline gfp_t balloon_mapping_gfp_mask(void)
- 
- #else /* !CONFIG_BALLOON_COMPACTION */
- 
--static inline void *balloon_mapping_alloc(void *balloon_device,
--				const struct address_space_operations *a_ops)
--{
--	return ERR_PTR(-EOPNOTSUPP);
--}
--
--static inline void balloon_mapping_free(struct address_space *balloon_mapping)
--{
--	return;
--}
--
--static inline void
--balloon_page_insert(struct balloon_dev_info *balloon, struct page *page)
--{
--	__SetPageBalloon(page);
--	list_add(&page->lru, head);
--}
--
--static inline void balloon_page_delete(struct page *page, bool isolated)
--{
--	__ClearPageBalloon(page);
--	if (!isolated)
--		list_del(&page->lru);
--}
--
- static inline int balloon_page_migrate(new_page_t get_new_page,
- 		free_page_t put_new_page, unsigned long private,
- 		struct page *page, int force, enum migrate_mode mode)
-@@ -176,6 +116,46 @@ static inline gfp_t balloon_mapping_gfp_mask(void)
- {
- 	return GFP_HIGHUSER;
- }
--
- #endif /* CONFIG_BALLOON_COMPACTION */
-+
-+/*
-+ * balloon_page_insert - insert a page into the balloon's page list and make
-+ *		         the page->mapping assignment accordingly.
-+ * @page    : page to be assigned as a 'balloon page'
-+ * @mapping : allocated special 'balloon_mapping'
-+ * @head    : balloon's device page list head
-+ *
-+ * Caller must ensure the page is locked and the spin_lock protecting balloon
-+ * pages list is held before inserting a page into the balloon device.
-+ */
-+static inline void
-+balloon_page_insert(struct balloon_dev_info *balloon, struct page *page)
-+{
-+#ifdef CONFIG_MEMORY_BALLOON
-+	__SetPageBalloon(page);
-+	set_page_private(page, (unsigned long)balloon);
-+	list_add(&page->lru, &balloon->pages);
-+	inc_zone_page_state(page, NR_BALLOON_PAGES);
-+#endif
-+}
-+
-+/*
-+ * balloon_page_delete - delete a page from balloon's page list and clear
-+ *			 the page->mapping assignement accordingly.
-+ * @page    : page to be released from balloon's page list
-+ *
-+ * Caller must ensure the page is locked and the spin_lock protecting balloon
-+ * pages list is held before deleting a page from the balloon device.
-+ */
-+static inline void balloon_page_delete(struct page *page, bool isolated)
-+{
-+#ifdef CONFIG_MEMORY_BALLOON
-+	__ClearPageBalloon(page);
-+	set_page_private(page, 0);
-+	if (!isolated)
-+		list_del(&page->lru);
-+	dec_zone_page_state(page, NR_BALLOON_PAGES);
-+#endif
-+}
-+
- #endif /* _LINUX_BALLOON_COMPACTION_H */
 -- 
-1.9.3
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
