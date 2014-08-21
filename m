@@ -1,197 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 31A9A6B0035
-	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 03:31:00 -0400 (EDT)
-Received: by mail-ie0-f177.google.com with SMTP id at20so4030708iec.8
-        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 00:30:59 -0700 (PDT)
-Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com [2607:f8b0:4001:c05::235])
-        by mx.google.com with ESMTPS id pj8si4525307igb.30.2014.08.21.00.30.59
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 21 Aug 2014 00:30:59 -0700 (PDT)
-Received: by mail-ig0-f181.google.com with SMTP id h3so12463878igd.2
-        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 00:30:59 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <60e809f1c932fbbb175d59a750a329f04730717e.1408576903.git.aquini@redhat.com>
-References: <5ad4664811559496e563ead974f10e8ee6b4ed47.1408576903.git.aquini@redhat.com>
-	<20140820150509.4194.24336.stgit@buzz>
-	<60e809f1c932fbbb175d59a750a329f04730717e.1408576903.git.aquini@redhat.com>
-Date: Thu, 21 Aug 2014 11:30:59 +0400
-Message-ID: <CALYGNiN+MZO42FLhpeyGXhs6a8MRPDDgKfngusWdfNV3r_C0dw@mail.gmail.com>
-Subject: Re: [PATCH 7/7] mm/balloon_compaction: general cleanup
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 3ACCD6B0035
+	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 04:09:27 -0400 (EDT)
+Received: by mail-qg0-f43.google.com with SMTP id a108so8423124qge.2
+        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 01:09:27 -0700 (PDT)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id o3si37763346qat.117.2014.08.21.01.09.24
+        for <linux-mm@kvack.org>;
+        Thu, 21 Aug 2014 01:09:26 -0700 (PDT)
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: [PATCH 3/5] mm/slab: move cache_flusharray() out of unlikely.text section
+Date: Thu, 21 Aug 2014 17:09:20 +0900
+Message-Id: <1408608562-20339-3-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1408608562-20339-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1408608562-20339-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rafael Aquini <aquini@redhat.com>
-Cc: Konstantin Khlebnikov <k.khlebnikov@samsung.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu, Aug 21, 2014 at 3:58 AM, Rafael Aquini <aquini@redhat.com> wrote:
-> On Wed, Aug 20, 2014 at 07:05:09PM +0400, Konstantin Khlebnikov wrote:
->> * move special branch for balloon migraion into migrate_pages
->> * remove special mapping for balloon and its flag AS_BALLOON_MAP
->> * embed struct balloon_dev_info into struct virtio_balloon
->> * cleanup balloon_page_dequeue, kill balloon_page_free
->>
->> Signed-off-by: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
->> ---
->>  drivers/virtio/virtio_balloon.c    |   77 ++++---------
->>  include/linux/balloon_compaction.h |  107 ++++++------------
->>  include/linux/migrate.h            |   11 --
->>  include/linux/pagemap.h            |   18 ---
->>  mm/balloon_compaction.c            |  214 ++++++++++++------------------------
->>  mm/migrate.c                       |   27 +----
->>  6 files changed, 130 insertions(+), 324 deletions(-)
->>
-> Very nice clean-up, just as all other patches in this set.
-> Please, just consider amending the following changes to this patch of yours
+Now, due to likely keyword, compiled code of cache_flusharray() is
+on unlikely.text section. Although it is uncommon case compared to
+free to cpu cache case, it is common case than free_block(). But,
+free_block() is on normal text section. This patch fix this odd situation
+to remove likely keyword.
 
-Well. Probably it's better to hide __Set/Clear inside mm/balloon_compaction.c
-it very unlikely that they might  be used by somebody else.
-mm.h contains too many obscure static inlines and other barely used stuff.
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
+ mm/slab.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-And it's worth to rename balloon_compaction.c/h into just balloon.c or
-memory_balloon because
-it provides generic balloon wtihout compaction too. Any objections?
-
->
-> Rafael
-> ---
->
-> diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
-> index dc7073b..569cf96 100644
-> --- a/include/linux/balloon_compaction.h
-> +++ b/include/linux/balloon_compaction.h
-> @@ -75,41 +75,6 @@ extern struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info);
->  #ifdef CONFIG_BALLOON_COMPACTION
->  extern bool balloon_page_isolate(struct page *page);
->  extern void balloon_page_putback(struct page *page);
-> -
-> -/*
-> - * balloon_page_insert - insert a page into the balloon's page list and make
-> - *                      the page->mapping assignment accordingly.
-> - * @page    : page to be assigned as a 'balloon page'
-> - * @mapping : allocated special 'balloon_mapping'
-> - * @head    : balloon's device page list head
-> - *
-> - * Caller must ensure the page is locked and the spin_lock protecting balloon
-> - * pages list is held before inserting a page into the balloon device.
-> - */
-> -static inline void
-> -balloon_page_insert(struct balloon_dev_info *balloon, struct page *page)
-> -{
-> -       __SetPageBalloon(page);
-> -       set_page_private(page, (unsigned long)balloon);
-> -       list_add(&page->lru, &balloon->pages);
-> -}
-> -
-> -/*
-> - * balloon_page_delete - delete a page from balloon's page list and clear
-> - *                      the page->mapping assignement accordingly.
-> - * @page    : page to be released from balloon's page list
-> - *
-> - * Caller must ensure the page is locked and the spin_lock protecting balloon
-> - * pages list is held before deleting a page from the balloon device.
-> - */
-> -static inline void balloon_page_delete(struct page *page, bool isolated)
-> -{
-> -       __ClearPageBalloon(page);
-> -       set_page_private(page, 0);
-> -       if (!isolated)
-> -               list_del(&page->lru);
-> -}
-> -
->  int balloon_page_migrate(new_page_t get_new_page, free_page_t put_new_page,
->                 unsigned long private, struct page *page,
->                 int force, enum migrate_mode mode);
-> @@ -130,31 +95,6 @@ static inline gfp_t balloon_mapping_gfp_mask(void)
->
->  #else /* !CONFIG_BALLOON_COMPACTION */
->
-> -static inline void *balloon_mapping_alloc(void *balloon_device,
-> -                               const struct address_space_operations *a_ops)
-> -{
-> -       return ERR_PTR(-EOPNOTSUPP);
-> -}
-> -
-> -static inline void balloon_mapping_free(struct address_space *balloon_mapping)
-> -{
-> -       return;
-> -}
-> -
-> -static inline void
-> -balloon_page_insert(struct balloon_dev_info *balloon, struct page *page)
-> -{
-> -       __SetPageBalloon(page);
-> -       list_add(&page->lru, head);
-> -}
-> -
-> -static inline void balloon_page_delete(struct page *page, bool isolated)
-> -{
-> -       __ClearPageBalloon(page);
-> -       if (!isolated)
-> -               list_del(&page->lru);
-> -}
-> -
->  static inline int balloon_page_migrate(new_page_t get_new_page,
->                 free_page_t put_new_page, unsigned long private,
->                 struct page *page, int force, enum migrate_mode mode)
-> @@ -176,6 +116,46 @@ static inline gfp_t balloon_mapping_gfp_mask(void)
->  {
->         return GFP_HIGHUSER;
->  }
-> -
->  #endif /* CONFIG_BALLOON_COMPACTION */
-> +
-> +/*
-> + * balloon_page_insert - insert a page into the balloon's page list and make
-> + *                      the page->mapping assignment accordingly.
-> + * @page    : page to be assigned as a 'balloon page'
-> + * @mapping : allocated special 'balloon_mapping'
-> + * @head    : balloon's device page list head
-> + *
-> + * Caller must ensure the page is locked and the spin_lock protecting balloon
-> + * pages list is held before inserting a page into the balloon device.
-> + */
-> +static inline void
-> +balloon_page_insert(struct balloon_dev_info *balloon, struct page *page)
-> +{
-> +#ifdef CONFIG_MEMORY_BALLOON
-> +       __SetPageBalloon(page);
-> +       set_page_private(page, (unsigned long)balloon);
-> +       list_add(&page->lru, &balloon->pages);
-> +       inc_zone_page_state(page, NR_BALLOON_PAGES);
-> +#endif
-> +}
-> +
-> +/*
-> + * balloon_page_delete - delete a page from balloon's page list and clear
-> + *                      the page->mapping assignement accordingly.
-> + * @page    : page to be released from balloon's page list
-> + *
-> + * Caller must ensure the page is locked and the spin_lock protecting balloon
-> + * pages list is held before deleting a page from the balloon device.
-> + */
-> +static inline void balloon_page_delete(struct page *page, bool isolated)
-> +{
-> +#ifdef CONFIG_MEMORY_BALLOON
-> +       __ClearPageBalloon(page);
-> +       set_page_private(page, 0);
-> +       if (!isolated)
-> +               list_del(&page->lru);
-> +       dec_zone_page_state(page, NR_BALLOON_PAGES);
-> +#endif
-> +}
-> +
->  #endif /* _LINUX_BALLOON_COMPACTION_H */
-> --
-> 1.9.3
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+diff --git a/mm/slab.c b/mm/slab.c
+index d80b654..d364e3f 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -3406,7 +3406,7 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp,
+ 	if (nr_online_nodes > 1 && cache_free_alien(cachep, objp))
+ 		return;
+ 
+-	if (likely(ac->avail < ac->limit)) {
++	if (ac->avail < ac->limit) {
+ 		STATS_INC_FREEHIT(cachep);
+ 	} else {
+ 		STATS_INC_FREEMISS(cachep);
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
