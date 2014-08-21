@@ -1,40 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 8950E6B0035
-	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 17:03:53 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id rd3so14699249pab.26
-        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 14:03:53 -0700 (PDT)
-Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
-        by mx.google.com with ESMTP id qo10si38046623pac.130.2014.08.21.14.03.49
-        for <linux-mm@kvack.org>;
-        Thu, 21 Aug 2014 14:03:50 -0700 (PDT)
-Message-ID: <53F65EB3.5060209@sr71.net>
-Date: Thu, 21 Aug 2014 14:03:47 -0700
-From: Dave Hansen <dave@sr71.net>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 230CF6B0035
+	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 17:46:04 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id lj1so15040999pab.33
+        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 14:46:03 -0700 (PDT)
+Received: from mail-pd0-x24a.google.com (mail-pd0-x24a.google.com [2607:f8b0:400e:c02::24a])
+        by mx.google.com with ESMTPS id bs4si38064534pbc.34.2014.08.21.14.46.02
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 21 Aug 2014 14:46:03 -0700 (PDT)
+Received: by mail-pd0-f202.google.com with SMTP id w10so2684830pde.1
+        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 14:46:02 -0700 (PDT)
+Date: Thu, 21 Aug 2014 17:46:01 -0400
+From: Peter Feiner <pfeiner@google.com>
+Subject: Re: [PATCH] mm: softdirty: write protect PTEs created for read
+ faults after VM_SOFTDIRTY cleared
+Message-ID: <20140821214601.GD16042@google.com>
+References: <1408571182-28750-1-git-send-email-pfeiner@google.com>
+ <20140820234543.GA7987@node.dhcp.inet.fi>
+ <20140821193737.GC16042@google.com>
+ <20140821205115.GH14072@moon>
+ <20140821213942.GA15218@node.dhcp.inet.fi>
 MIME-Version: 1.0
-Subject: Re: [PATCH] [v3] warn on performance-impacting configs aka. TAINT_PERFORMANCE
-References: <20140821202424.7ED66A50@viggo.jf.intel.com> <20140821205727.GA7200@redhat.com>
-In-Reply-To: <20140821205727.GA7200@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140821213942.GA15218@node.dhcp.inet.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, linux-kernel@vger.kernel.org, dave.hansen@linux.intel.com, peterz@infradead.org, mingo@redhat.com, ak@linux.intel.com, tim.c.chen@linux.intel.com, akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org, linux-mm@kvack.org, kirill@shutemov.name, lauraa@codeaurora.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Jamie Liu <jamieliu@google.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Magnus Damm <damm@opensource.se>
 
-On 08/21/2014 01:57 PM, Dave Jones wrote:
->  > diff -puN kernel/panic.c~taint-performance kernel/panic.c
->  > --- a/kernel/panic.c~taint-performance	2014-08-19 11:38:28.928975233 -0700
->  > +++ b/kernel/panic.c	2014-08-20 09:56:29.528471033 -0700
->  > @@ -225,6 +225,7 @@ static const struct tnt tnts[] = {
->  >  	{ TAINT_OOT_MODULE,		'O', ' ' },
->  >  	{ TAINT_UNSIGNED_MODULE,	'E', ' ' },
->  >  	{ TAINT_SOFTLOCKUP,		'L', ' ' },
->  > +	{ TAINT_PERFORMANCE,		'Q', ' ' },
+On Fri, Aug 22, 2014 at 12:39:42AM +0300, Kirill A. Shutemov wrote:
+> On Fri, Aug 22, 2014 at 12:51:15AM +0400, Cyrill Gorcunov wrote:
 > 
-> You don't need these any more.
+> Looks good to me.
+> 
+> Would you mind to apply the same pgprot_modify() approach on the
+> clear_refs_write(), test and post the patch?
+> 
+> Feel free to use my singed-off-by (or suggested-by if you prefer) once
+> it's tested (see merge case below).
 
-Bah, thanks for catching that.  I'll wait a bit for any other comments
-and send out a fixed version.
+Sure thing :-)
+
+> One thing: there could be (I haven't checked) complications on
+> vma_merge(): since vm_flags are identical it assumes that it can reuse
+> vma->vm_page_prot of expanded vma. But VM_SOFTDIRTY is excluded from
+> vm_flags compatibility check. What should we do with vm_page_prot there?
+
+Since the merged VMA will have VM_SOFTDIRTY set, it's OK that it's vm_page_prot
+won't be setup for write notifications. For the purpose of process migration,
+you'll just get some false positives, which is tolerable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
