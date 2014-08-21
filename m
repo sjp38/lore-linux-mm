@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 580B26B0035
-	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 19:17:21 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id w10so14655858pde.23
-        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 16:17:21 -0700 (PDT)
-Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com [2607:f8b0:400e:c02::232])
-        by mx.google.com with ESMTPS id a2si38378806pdn.27.2014.08.21.16.17.20
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 73BBE6B0037
+	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 19:18:25 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lf10so15592480pab.29
+        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 16:18:25 -0700 (PDT)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id ui8si38354579pab.67.2014.08.21.16.18.24
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 21 Aug 2014 16:17:20 -0700 (PDT)
-Received: by mail-pd0-f178.google.com with SMTP id w10so14900818pde.37
-        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 16:17:19 -0700 (PDT)
-Date: Thu, 21 Aug 2014 23:22:15 +0000
+        Thu, 21 Aug 2014 16:18:24 -0700 (PDT)
+Received: by mail-pa0-f47.google.com with SMTP id kx10so15270104pab.6
+        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 16:18:24 -0700 (PDT)
+Date: Thu, 21 Aug 2014 23:23:19 +0000
 From: Minchan Kim <minchan@kernel.org>
 Subject: Re: [PATCH v3 2/4] zsmalloc: change return value unit of
  zs_get_total_size_bytes
-Message-ID: <20140821232215.GF10703@gmail.com>
+Message-ID: <20140821232319.GG10703@gmail.com>
 References: <1408580838-29236-1-git-send-email-minchan@kernel.org>
  <1408580838-29236-3-git-send-email-minchan@kernel.org>
  <CALZtONBuZOORHAF0UHEZM7Aybuoesg3fyjnu9ACj_F7O5G35Og@mail.gmail.com>
@@ -27,8 +27,6 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Streetman <ddstreet@ieee.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, David Horner <ds2horner@gmail.com>
-
-Hi Dan,
 
 On Thu, Aug 21, 2014 at 02:53:57PM -0400, Dan Streetman wrote:
 > On Wed, Aug 20, 2014 at 8:27 PM, Minchan Kim <minchan@kernel.org> wrote:
@@ -48,13 +46,6 @@ On Thu, Aug 21, 2014 at 02:53:57PM -0400, Dan Streetman wrote:
 > they do that seems unlikely.  After this patch is finalized I can
 > write up a quick patch unless Seth disagrees (or already has a patch
 > :)
-
-That's extactly what I mentioned zswap in this patch.
-Now that you guys notice my intention, I will remove zswap part in
-description in next revision.
-
-Thanks.
-
 > 
 > >
 > > Signed-off-by: Minchan Kim <minchan@kernel.org>
@@ -96,46 +87,9 @@ Thanks.
 > "zs_get_total_size" implies to me the units are bytes, would
 > "zs_get_total_pages" be clearer that it's returning size in # of
 > pages, not bytes?
-> 
-> >
-> >  #endif
-> > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> > index a65924255763..80408a1da03a 100644
-> > --- a/mm/zsmalloc.c
-> > +++ b/mm/zsmalloc.c
-> > @@ -299,7 +299,7 @@ static void zs_zpool_unmap(void *pool, unsigned long handle)
-> >
-> >  static u64 zs_zpool_total_size(void *pool)
-> >  {
-> > -       return zs_get_total_size_bytes(pool);
-> > +       return zs_get_total_size(pool) << PAGE_SHIFT;
-> >  }
-> >
-> >  static struct zpool_driver zs_zpool_driver = {
-> > @@ -1186,16 +1186,16 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
-> >  }
-> >  EXPORT_SYMBOL_GPL(zs_unmap_object);
-> >
-> > -u64 zs_get_total_size_bytes(struct zs_pool *pool)
-> > +unsigned long zs_get_total_size(struct zs_pool *pool)
-> >  {
-> > -       u64 npages;
-> > +       unsigned long npages;
-> >
-> >         spin_lock(&pool->stat_lock);
-> >         npages = pool->pages_allocated;
-> >         spin_unlock(&pool->stat_lock);
-> > -       return npages << PAGE_SHIFT;
-> > +       return npages;
-> >  }
-> > -EXPORT_SYMBOL_GPL(zs_get_total_size_bytes);
-> > +EXPORT_SYMBOL_GPL(zs_get_total_size);
-> >
-> >  module_init(zs_init);
-> >  module_exit(zs_exit);
-> > --
-> > 2.0.0
-> >
+
+It's better. Will change.
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
