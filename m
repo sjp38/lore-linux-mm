@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 73BBE6B0037
-	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 19:18:25 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lf10so15592480pab.29
-        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 16:18:25 -0700 (PDT)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id ui8si38354579pab.67.2014.08.21.16.18.24
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 21 Aug 2014 16:18:24 -0700 (PDT)
-Received: by mail-pa0-f47.google.com with SMTP id kx10so15270104pab.6
-        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 16:18:24 -0700 (PDT)
-Date: Thu, 21 Aug 2014 23:23:19 +0000
-From: Minchan Kim <minchan@kernel.org>
+Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
+	by kanga.kvack.org (Postfix) with ESMTP id EBBEB6B0035
+	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 19:22:35 -0400 (EDT)
+Received: by mail-qa0-f48.google.com with SMTP id m5so8890247qaj.21
+        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 16:22:35 -0700 (PDT)
+Received: from relay.variantweb.net ([104.131.199.242])
+        by mx.google.com with ESMTP id q6si40412031qai.19.2014.08.21.16.22.35
+        for <linux-mm@kvack.org>;
+        Thu, 21 Aug 2014 16:22:35 -0700 (PDT)
+Received: from mail (unknown [10.42.10.20])
+	by relay.variantweb.net (Postfix) with ESMTP id 920F810134F
+	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 19:22:32 -0400 (EDT)
+Date: Thu, 21 Aug 2014 18:22:31 -0500
+From: Seth Jennings <sjennings@variantweb.net>
 Subject: Re: [PATCH v3 2/4] zsmalloc: change return value unit of
  zs_get_total_size_bytes
-Message-ID: <20140821232319.GG10703@gmail.com>
+Message-ID: <20140821232231.GA18894@cerebellum.variantweb.net>
 References: <1408580838-29236-1-git-send-email-minchan@kernel.org>
  <1408580838-29236-3-git-send-email-minchan@kernel.org>
  <CALZtONBuZOORHAF0UHEZM7Aybuoesg3fyjnu9ACj_F7O5G35Og@mail.gmail.com>
@@ -26,7 +26,7 @@ In-Reply-To: <CALZtONBuZOORHAF0UHEZM7Aybuoesg3fyjnu9ACj_F7O5G35Og@mail.gmail.com
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Streetman <ddstreet@ieee.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, David Horner <ds2horner@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, David Horner <ds2horner@gmail.com>
 
 On Thu, Aug 21, 2014 at 02:53:57PM -0400, Dan Streetman wrote:
 > On Wed, Aug 20, 2014 at 8:27 PM, Minchan Kim <minchan@kernel.org> wrote:
@@ -46,6 +46,15 @@ On Thu, Aug 21, 2014 at 02:53:57PM -0400, Dan Streetman wrote:
 > they do that seems unlikely.  After this patch is finalized I can
 > write up a quick patch unless Seth disagrees (or already has a patch
 > :)
+
+I agree that we should move everything (back) to pages.
+
+I can write the patch or you can; doesn't matter to me.  I might have
+one started on the previous version of this patchset where I erroneously
+determined that Minchan had broken stuff :-/
+
+Seth
+
 > 
 > >
 > > Signed-off-by: Minchan Kim <minchan@kernel.org>
@@ -87,9 +96,46 @@ On Thu, Aug 21, 2014 at 02:53:57PM -0400, Dan Streetman wrote:
 > "zs_get_total_size" implies to me the units are bytes, would
 > "zs_get_total_pages" be clearer that it's returning size in # of
 > pages, not bytes?
-
-It's better. Will change.
-Thanks!
+> 
+> >
+> >  #endif
+> > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> > index a65924255763..80408a1da03a 100644
+> > --- a/mm/zsmalloc.c
+> > +++ b/mm/zsmalloc.c
+> > @@ -299,7 +299,7 @@ static void zs_zpool_unmap(void *pool, unsigned long handle)
+> >
+> >  static u64 zs_zpool_total_size(void *pool)
+> >  {
+> > -       return zs_get_total_size_bytes(pool);
+> > +       return zs_get_total_size(pool) << PAGE_SHIFT;
+> >  }
+> >
+> >  static struct zpool_driver zs_zpool_driver = {
+> > @@ -1186,16 +1186,16 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
+> >  }
+> >  EXPORT_SYMBOL_GPL(zs_unmap_object);
+> >
+> > -u64 zs_get_total_size_bytes(struct zs_pool *pool)
+> > +unsigned long zs_get_total_size(struct zs_pool *pool)
+> >  {
+> > -       u64 npages;
+> > +       unsigned long npages;
+> >
+> >         spin_lock(&pool->stat_lock);
+> >         npages = pool->pages_allocated;
+> >         spin_unlock(&pool->stat_lock);
+> > -       return npages << PAGE_SHIFT;
+> > +       return npages;
+> >  }
+> > -EXPORT_SYMBOL_GPL(zs_get_total_size_bytes);
+> > +EXPORT_SYMBOL_GPL(zs_get_total_size);
+> >
+> >  module_init(zs_init);
+> >  module_exit(zs_exit);
+> > --
+> > 2.0.0
+> >
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
