@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BD8DF6B0038
-	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 11:43:46 -0400 (EDT)
-Received: by mail-wg0-f51.google.com with SMTP id b13so9269546wgh.34
-        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 08:43:46 -0700 (PDT)
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-        by mx.google.com with ESMTPS id u10si41752243wjr.88.2014.08.21.08.43.45
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F40E6B0039
+	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 11:43:48 -0400 (EDT)
+Received: by mail-wi0-f177.google.com with SMTP id ho1so8659794wib.16
+        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 08:43:48 -0700 (PDT)
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+        by mx.google.com with ESMTPS id cg2si41744819wjb.78.2014.08.21.08.43.46
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 21 Aug 2014 08:43:45 -0700 (PDT)
-Received: by mail-wg0-f44.google.com with SMTP id m15so9283053wgh.15
-        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 08:43:44 -0700 (PDT)
+        Thu, 21 Aug 2014 08:43:47 -0700 (PDT)
+Received: by mail-we0-f181.google.com with SMTP id k48so9550600wev.40
+        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 08:43:46 -0700 (PDT)
 From: Steve Capper <steve.capper@linaro.org>
-Subject: [PATH V2 2/6] arm: mm: Introduce special ptes for LPAE
-Date: Thu, 21 Aug 2014 16:43:28 +0100
-Message-Id: <1408635812-31584-3-git-send-email-steve.capper@linaro.org>
+Subject: [PATH V2 3/6] arm: mm: Enable HAVE_RCU_TABLE_FREE logic
+Date: Thu, 21 Aug 2014 16:43:29 +0100
+Message-Id: <1408635812-31584-4-git-send-email-steve.capper@linaro.org>
 In-Reply-To: <1408635812-31584-1-git-send-email-steve.capper@linaro.org>
 References: <1408635812-31584-1-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,87 +22,116 @@ List-ID: <linux-mm.kvack.org>
 To: linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, linux@arm.linux.org.uk, linux-arch@vger.kernel.org, linux-mm@kvack.org
 Cc: will.deacon@arm.com, gary.robertson@linaro.org, christoffer.dall@linaro.org, peterz@infradead.org, anders.roxell@linaro.org, akpm@linux-foundation.org, dann.frazier@canonical.com, mark.rutland@arm.com, mgorman@suse.de, Steve Capper <steve.capper@linaro.org>
 
-We need a mechanism to tag ptes as being special, this indicates that
-no attempt should be made to access the underlying struct page *
-associated with the pte. This is used by the fast_gup when operating on
-ptes as it has no means to access VMAs (that also contain this
-information) locklessly.
+In order to implement fast_get_user_pages we need to ensure that the
+page table walker is protected from page table pages being freed from
+under it.
 
-The L_PTE_SPECIAL bit is already allocated for LPAE, this patch modifies
-pte_special and pte_mkspecial to make use of it, and defines
-__HAVE_ARCH_PTE_SPECIAL.
-
-This patch also excludes special ptes from the icache/dcache sync logic.
+This patch enables HAVE_RCU_TABLE_FREE, any page table pages belonging
+to address spaces with multiple users will be call_rcu_sched freed.
+Meaning that disabling interrupts will block the free and protect
+the fast gup page walker.
 
 Signed-off-by: Steve Capper <steve.capper@linaro.org>
 ---
- arch/arm/include/asm/pgtable-2level.h | 2 ++
- arch/arm/include/asm/pgtable-3level.h | 7 +++++++
- arch/arm/include/asm/pgtable.h        | 6 ++----
- 3 files changed, 11 insertions(+), 4 deletions(-)
+ arch/arm/Kconfig           |  1 +
+ arch/arm/include/asm/tlb.h | 38 ++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 37 insertions(+), 2 deletions(-)
 
-diff --git a/arch/arm/include/asm/pgtable-2level.h b/arch/arm/include/asm/pgtable-2level.h
-index 219ac88..f027941 100644
---- a/arch/arm/include/asm/pgtable-2level.h
-+++ b/arch/arm/include/asm/pgtable-2level.h
-@@ -182,6 +182,8 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
- #define pmd_addr_end(addr,end) (end)
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index c49a775..cc740d2 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -60,6 +60,7 @@ config ARM
+ 	select HAVE_PERF_EVENTS
+ 	select HAVE_PERF_REGS
+ 	select HAVE_PERF_USER_STACK_DUMP
++	select HAVE_RCU_TABLE_FREE if (SMP && ARM_LPAE)
+ 	select HAVE_REGS_AND_STACK_ACCESS_API
+ 	select HAVE_SYSCALL_TRACEPOINTS
+ 	select HAVE_UID16
+diff --git a/arch/arm/include/asm/tlb.h b/arch/arm/include/asm/tlb.h
+index f1a0dac..3cadb72 100644
+--- a/arch/arm/include/asm/tlb.h
++++ b/arch/arm/include/asm/tlb.h
+@@ -35,12 +35,39 @@
  
- #define set_pte_ext(ptep,pte,ext) cpu_set_pte_ext(ptep,pte,ext)
-+#define pte_special(pte)	(0)
-+static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
+ #define MMU_GATHER_BUNDLE	8
  
- /*
-  * We don't have huge page support for short descriptors, for the moment
-diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
-index 06e0bc0..16122d4 100644
---- a/arch/arm/include/asm/pgtable-3level.h
-+++ b/arch/arm/include/asm/pgtable-3level.h
-@@ -213,6 +213,13 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
- #define pmd_isclear(pmd, val)	(!(pmd_val(pmd) & (val)))
- 
- #define pmd_young(pmd)		(pmd_isset((pmd), PMD_SECT_AF))
-+#define pte_special(pte)	(pte_isset((pte), L_PTE_SPECIAL))
-+static inline pte_t pte_mkspecial(pte_t pte)
++#ifdef CONFIG_HAVE_RCU_TABLE_FREE
++static inline void __tlb_remove_table(void *_table)
 +{
-+	pte_val(pte) |= L_PTE_SPECIAL;
-+	return pte;
++	free_page_and_swap_cache((struct page *)_table);
 +}
-+#define	__HAVE_ARCH_PTE_SPECIAL
- 
- #define __HAVE_ARCH_PMD_WRITE
- #define pmd_write(pmd)		(pmd_isclear((pmd), L_PMD_SECT_RDONLY))
-diff --git a/arch/arm/include/asm/pgtable.h b/arch/arm/include/asm/pgtable.h
-index 01baef0..90aa4583 100644
---- a/arch/arm/include/asm/pgtable.h
-+++ b/arch/arm/include/asm/pgtable.h
-@@ -226,7 +226,6 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
- #define pte_dirty(pte)		(pte_isset((pte), L_PTE_DIRTY))
- #define pte_young(pte)		(pte_isset((pte), L_PTE_YOUNG))
- #define pte_exec(pte)		(pte_isclear((pte), L_PTE_XN))
--#define pte_special(pte)	(0)
- 
- #define pte_valid_user(pte)	\
- 	(pte_valid(pte) && pte_isset((pte), L_PTE_USER) && pte_young(pte))
-@@ -245,7 +244,8 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
- 	unsigned long ext = 0;
- 
- 	if (addr < TASK_SIZE && pte_valid_user(pteval)) {
--		__sync_icache_dcache(pteval);
-+		if (!pte_special(pteval))
-+			__sync_icache_dcache(pteval);
- 		ext |= PTE_EXT_NG;
- 	}
- 
-@@ -264,8 +264,6 @@ PTE_BIT_FUNC(mkyoung,   |= L_PTE_YOUNG);
- PTE_BIT_FUNC(mkexec,   &= ~L_PTE_XN);
- PTE_BIT_FUNC(mknexec,   |= L_PTE_XN);
- 
--static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
--
- static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
++
++struct mmu_table_batch {
++	struct rcu_head		rcu;
++	unsigned int		nr;
++	void			*tables[0];
++};
++
++#define MAX_TABLE_BATCH		\
++	((PAGE_SIZE - sizeof(struct mmu_table_batch)) / sizeof(void *))
++
++extern void tlb_table_flush(struct mmu_gather *tlb);
++extern void tlb_remove_table(struct mmu_gather *tlb, void *table);
++
++#define tlb_remove_entry(tlb, entry)	tlb_remove_table(tlb, entry)
++#else
++#define tlb_remove_entry(tlb, entry)	tlb_remove_page(tlb, entry)
++#endif /* CONFIG_HAVE_RCU_TABLE_FREE */
++
+ /*
+  * TLB handling.  This allows us to remove pages from the page
+  * tables, and efficiently handle the TLB issues.
+  */
+ struct mmu_gather {
+ 	struct mm_struct	*mm;
++#ifdef CONFIG_HAVE_RCU_TABLE_FREE
++	struct mmu_table_batch	*batch;
++	unsigned int		need_flush;
++#endif
+ 	unsigned int		fullmm;
+ 	struct vm_area_struct	*vma;
+ 	unsigned long		start, end;
+@@ -101,6 +128,9 @@ static inline void __tlb_alloc_page(struct mmu_gather *tlb)
+ static inline void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)
  {
- 	const pteval_t mask = L_PTE_XN | L_PTE_RDONLY | L_PTE_USER |
+ 	tlb_flush(tlb);
++#ifdef CONFIG_HAVE_RCU_TABLE_FREE
++	tlb_table_flush(tlb);
++#endif
+ }
+ 
+ static inline void tlb_flush_mmu_free(struct mmu_gather *tlb)
+@@ -129,6 +159,10 @@ tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm, unsigned long start
+ 	tlb->pages = tlb->local;
+ 	tlb->nr = 0;
+ 	__tlb_alloc_page(tlb);
++
++#ifdef CONFIG_HAVE_RCU_TABLE_FREE
++	tlb->batch = NULL;
++#endif
+ }
+ 
+ static inline void
+@@ -205,7 +239,7 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
+ 	tlb_add_flush(tlb, addr + SZ_1M);
+ #endif
+ 
+-	tlb_remove_page(tlb, pte);
++	tlb_remove_entry(tlb, pte);
+ }
+ 
+ static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
+@@ -213,7 +247,7 @@ static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
+ {
+ #ifdef CONFIG_ARM_LPAE
+ 	tlb_add_flush(tlb, addr);
+-	tlb_remove_page(tlb, virt_to_page(pmdp));
++	tlb_remove_entry(tlb, virt_to_page(pmdp));
+ #endif
+ }
+ 
 -- 
 1.9.3
 
