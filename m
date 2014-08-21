@@ -1,216 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id A40206B0038
-	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 15:08:34 -0400 (EDT)
-Received: by mail-wi0-f176.google.com with SMTP id bs8so9181761wib.15
-        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 12:08:34 -0700 (PDT)
-Received: from mail-we0-x234.google.com (mail-we0-x234.google.com [2a00:1450:400c:c03::234])
-        by mx.google.com with ESMTPS id ew2si42360866wjd.41.2014.08.21.12.08.32
+Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 51E226B003A
+	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 15:37:39 -0400 (EDT)
+Received: by mail-ie0-f174.google.com with SMTP id rp18so5319066iec.19
+        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 12:37:39 -0700 (PDT)
+Received: from mail-ie0-x24a.google.com (mail-ie0-x24a.google.com [2607:f8b0:4001:c03::24a])
+        by mx.google.com with ESMTPS id t1si30504144icu.50.2014.08.21.12.37.38
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 21 Aug 2014 12:08:33 -0700 (PDT)
-Received: by mail-we0-f180.google.com with SMTP id w61so9698736wes.25
-        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 12:08:32 -0700 (PDT)
+        Thu, 21 Aug 2014 12:37:38 -0700 (PDT)
+Received: by mail-ie0-f202.google.com with SMTP id rl12so776324iec.5
+        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 12:37:38 -0700 (PDT)
+Date: Thu, 21 Aug 2014 15:37:37 -0400
+From: Peter Feiner <pfeiner@google.com>
+Subject: Re: [PATCH] mm: softdirty: write protect PTEs created for read
+ faults after VM_SOFTDIRTY cleared
+Message-ID: <20140821193737.GC16042@google.com>
+References: <1408571182-28750-1-git-send-email-pfeiner@google.com>
+ <20140820234543.GA7987@node.dhcp.inet.fi>
 MIME-Version: 1.0
-In-Reply-To: <1408580838-29236-4-git-send-email-minchan@kernel.org>
-References: <1408580838-29236-1-git-send-email-minchan@kernel.org> <1408580838-29236-4-git-send-email-minchan@kernel.org>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Thu, 21 Aug 2014 15:08:12 -0400
-Message-ID: <CALZtONAPtGRrkyjhcR75KDGp_8Rr_zy6Zov74AB4E1LZ6exPLA@mail.gmail.com>
-Subject: Re: [PATCH v3 3/4] zram: zram memory size limitation
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140820234543.GA7987@node.dhcp.inet.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, David Horner <ds2horner@gmail.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@parallels.com>, Jamie Liu <jamieliu@google.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Magnus Damm <damm@opensource.se>
 
-On Wed, Aug 20, 2014 at 8:27 PM, Minchan Kim <minchan@kernel.org> wrote:
-> Since zram has no control feature to limit memory usage,
-> it makes hard to manage system memrory.
->
-> This patch adds new knob "mem_limit" via sysfs to set up the
-> a limit so that zram could fail allocation once it reaches
-> the limit.
->
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  Documentation/ABI/testing/sysfs-block-zram |  9 +++++++
->  Documentation/blockdev/zram.txt            | 20 ++++++++++++---
->  drivers/block/zram/zram_drv.c              | 41 ++++++++++++++++++++++++++++++
->  drivers/block/zram/zram_drv.h              |  5 ++++
->  4 files changed, 71 insertions(+), 4 deletions(-)
->
-> diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
-> index 70ec992514d0..025331c19045 100644
-> --- a/Documentation/ABI/testing/sysfs-block-zram
-> +++ b/Documentation/ABI/testing/sysfs-block-zram
-> @@ -119,3 +119,12 @@ Description:
->                 efficiency can be calculated using compr_data_size and this
->                 statistic.
->                 Unit: bytes
-> +
-> +What:          /sys/block/zram<id>/mem_limit
-> +Date:          August 2014
-> +Contact:       Minchan Kim <minchan@kernel.org>
-> +Description:
-> +               The mem_limit file is read/write and specifies the amount
-> +               of memory to be able to consume memory to store store
-> +               compressed data.
+On Thu, Aug 21, 2014 at 02:45:43AM +0300, Kirill A. Shutemov wrote:
+> On Wed, Aug 20, 2014 at 05:46:22PM -0400, Peter Feiner wrote:
+> It basically means VM_SOFTDIRTY require writenotify on the vma.
+> 
+> What about patch below? Untested. And it seems it'll introduce bug similar
+> to bug fixed by c9d0bf241451, *but* IIUC we have it already in mprotect()
+> code path.
+> 
+> I'll look more careful tomorrow.
+> 
+> Not-signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> 
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index dfc791c42d64..67d509a15969 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -851,8 +851,9 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+>                         if (type == CLEAR_REFS_MAPPED && !vma->vm_file)
+>                                 continue;
+>                         if (type == CLEAR_REFS_SOFT_DIRTY) {
+> -                               if (vma->vm_flags & VM_SOFTDIRTY)
+> -                                       vma->vm_flags &= ~VM_SOFTDIRTY;
+> +                               vma->vm_flags &= ~VM_SOFTDIRTY;
+> +                               vma->vm_page_prot = vm_get_page_prot(
+> +                                               vma->vm_flags & ~VM_SHARED);
+>                         }
+>                         walk_page_range(vma->vm_start, vma->vm_end,
+>                                         &clear_refs_walk);
+> -- 
+>  Kirill A. Shutemov
 
-might want to clarify here that the value "0", which is the default,
-disables the limit.
+Thanks Kirill, I prefer your approach. I'll send a v2.
 
-> +               Unit: bytes
-> diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
-> index 0595c3f56ccf..9f239ff8c444 100644
-> --- a/Documentation/blockdev/zram.txt
-> +++ b/Documentation/blockdev/zram.txt
-> @@ -74,14 +74,26 @@ There is little point creating a zram of greater than twice the size of memory
->  since we expect a 2:1 compression ratio. Note that zram uses about 0.1% of the
->  size of the disk when not in use so a huge zram is wasteful.
->
-> -5) Activate:
-> +5) Set memory limit: Optional
-> +       Set memory limit by writing the value to sysfs node 'mem_limit'.
-> +       The value can be either in bytes or you can use mem suffixes.
-> +       Examples:
-> +           # limit /dev/zram0 with 50MB memory
-> +           echo $((50*1024*1024)) > /sys/block/zram0/mem_limit
-> +
-> +           # Using mem suffixes
-> +           echo 256K > /sys/block/zram0/mem_limit
-> +           echo 512M > /sys/block/zram0/mem_limit
-> +           echo 1G > /sys/block/zram0/mem_limit
+I believe you're right about c9d0bf241451. It seems like passing the old & new
+pgprot through pgprot_modify would handle the problem. Furthermore, as you
+suggest, mprotect_fixup should use pgprot_modify when it turns write
+notification on.  I think a patch like this is in order:
 
-# To disable memory limit
-echo 0 > /sys/block/zram0/mem_limit
+Not-signed-off-by: Peter Feiner <pfeiner@google.com>
 
-> +
-> +6) Activate:
->         mkswap /dev/zram0
->         swapon /dev/zram0
->
->         mkfs.ext4 /dev/zram1
->         mount /dev/zram1 /tmp
->
-> -6) Stats:
-> +7) Stats:
->         Per-device statistics are exported as various nodes under
->         /sys/block/zram<id>/
->                 disksize
-> @@ -96,11 +108,11 @@ size of the disk when not in use so a huge zram is wasteful.
->                 compr_data_size
->                 mem_used_total
->
-> -7) Deactivate:
-> +8) Deactivate:
->         swapoff /dev/zram0
->         umount /dev/zram1
->
-> -8) Reset:
-> +9) Reset:
->         Write any positive value to 'reset' sysfs node
->         echo 1 > /sys/block/zram0/reset
->         echo 1 > /sys/block/zram1/reset
-> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> index 302dd37bcea3..adc91c7ecaef 100644
-> --- a/drivers/block/zram/zram_drv.c
-> +++ b/drivers/block/zram/zram_drv.c
-> @@ -122,6 +122,33 @@ static ssize_t max_comp_streams_show(struct device *dev,
->         return scnprintf(buf, PAGE_SIZE, "%d\n", val);
->  }
->
-> +static ssize_t mem_limit_show(struct device *dev,
-> +               struct device_attribute *attr, char *buf)
-> +{
-> +       u64 val;
-> +       struct zram *zram = dev_to_zram(dev);
-> +
-> +       down_read(&zram->init_lock);
-> +       val = zram->limit_pages;
-> +       up_read(&zram->init_lock);
-> +
-> +       return scnprintf(buf, PAGE_SIZE, "%llu\n", val << PAGE_SHIFT);
-> +}
-> +
-> +static ssize_t mem_limit_store(struct device *dev,
-> +               struct device_attribute *attr, const char *buf, size_t len)
-> +{
-> +       u64 limit;
-> +       struct zram *zram = dev_to_zram(dev);
-> +
-> +       limit = memparse(buf, NULL);
-> +       down_write(&zram->init_lock);
-> +       zram->limit_pages = PAGE_ALIGN(limit) >> PAGE_SHIFT;
-> +       up_write(&zram->init_lock);
-> +
-> +       return len;
-> +}
-> +
->  static ssize_t max_comp_streams_store(struct device *dev,
->                 struct device_attribute *attr, const char *buf, size_t len)
->  {
-> @@ -513,6 +540,14 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
->                 ret = -ENOMEM;
->                 goto out;
->         }
-> +
-> +       if (zram->limit_pages &&
-> +               zs_get_total_size(meta->mem_pool) > zram->limit_pages) {
-> +               zs_free(meta->mem_pool, handle);
-> +               ret = -ENOMEM;
-> +               goto out;
-> +       }
-> +
->         cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_WO);
->
->         if ((clen == PAGE_SIZE) && !is_partial_io(bvec)) {
-> @@ -617,6 +652,9 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
->         struct zram_meta *meta;
->
->         down_write(&zram->init_lock);
-> +
-> +       zram->limit_pages = 0;
-> +
->         if (!init_done(zram)) {
->                 up_write(&zram->init_lock);
->                 return;
-> @@ -857,6 +895,8 @@ static DEVICE_ATTR(initstate, S_IRUGO, initstate_show, NULL);
->  static DEVICE_ATTR(reset, S_IWUSR, NULL, reset_store);
->  static DEVICE_ATTR(orig_data_size, S_IRUGO, orig_data_size_show, NULL);
->  static DEVICE_ATTR(mem_used_total, S_IRUGO, mem_used_total_show, NULL);
-> +static DEVICE_ATTR(mem_limit, S_IRUGO | S_IWUSR, mem_limit_show,
-> +               mem_limit_store);
->  static DEVICE_ATTR(max_comp_streams, S_IRUGO | S_IWUSR,
->                 max_comp_streams_show, max_comp_streams_store);
->  static DEVICE_ATTR(comp_algorithm, S_IRUGO | S_IWUSR,
-> @@ -885,6 +925,7 @@ static struct attribute *zram_disk_attrs[] = {
->         &dev_attr_orig_data_size.attr,
->         &dev_attr_compr_data_size.attr,
->         &dev_attr_mem_used_total.attr,
-> +       &dev_attr_mem_limit.attr,
->         &dev_attr_max_comp_streams.attr,
->         &dev_attr_comp_algorithm.attr,
->         NULL,
-> diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-> index e0f725c87cc6..b7aa9c21553f 100644
-> --- a/drivers/block/zram/zram_drv.h
-> +++ b/drivers/block/zram/zram_drv.h
-> @@ -112,6 +112,11 @@ struct zram {
->         u64 disksize;   /* bytes */
->         int max_comp_streams;
->         struct zram_stats stats;
-> +       /*
-> +        * the number of pages zram can consume for storing compressed data
-> +        */
-> +       unsigned long limit_pages;
-> +
->         char compressor[10];
->  };
->  #endif
-> --
-> 2.0.0
->
+diff --git a/mm/mmap.c b/mm/mmap.c
+index c1f2ea4..86f89a1 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1611,18 +1611,15 @@ munmap_back:
+ 	}
+ 
+ 	if (vma_wants_writenotify(vma)) {
+-		pgprot_t pprot = vma->vm_page_prot;
+-
+ 		/* Can vma->vm_page_prot have changed??
+ 		 *
+ 		 * Answer: Yes, drivers may have changed it in their
+ 		 *         f_op->mmap method.
+ 		 *
+-		 * Ensures that vmas marked as uncached stay that way.
++		 * Ensures that vmas marked with special bits stay that way.
+ 		 */
+-		vma->vm_page_prot = vm_get_page_prot(vm_flags & ~VM_SHARED);
+-		if (pgprot_val(pprot) == pgprot_val(pgprot_noncached(pprot)))
+-			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
++		vma->vm_page_prot = pgprot_modify(vma->vm_page_prot,
++		                        vm_get_page_prot(vm_flags & ~VM_SHARED);
+ 	}
+ 
+ 	vma_link(mm, vma, prev, rb_link, rb_parent);
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index c43d557..6826313 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -324,7 +324,8 @@ success:
+ 					  vm_get_page_prot(newflags));
+ 
+ 	if (vma_wants_writenotify(vma)) {
+-		vma->vm_page_prot = vm_get_page_prot(newflags & ~VM_SHARED);
++		vma->vm_page_prot = pgprot_modify(vma->vm_page_prot,
++		                       vm_get_page_prot(newflags & ~VM_SHARED));
+ 		dirty_accountable = 1;
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
