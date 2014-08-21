@@ -1,169 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id ECD5B6B0039
-	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 04:09:34 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id lf10so13991964pab.16
-        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 01:09:34 -0700 (PDT)
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 3972D6B003A
+	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 04:09:37 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id fp1so13669989pdb.13
+        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 01:09:36 -0700 (PDT)
 Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id v1si20679013pdm.225.2014.08.21.01.09.32
+        by mx.google.com with ESMTP id df3si35325875pbc.99.2014.08.21.01.09.35
         for <linux-mm@kvack.org>;
-        Thu, 21 Aug 2014 01:09:34 -0700 (PDT)
+        Thu, 21 Aug 2014 01:09:36 -0700 (PDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH 1/5] mm/slab_common: move kmem_cache definition to internal header
-Date: Thu, 21 Aug 2014 17:09:18 +0900
-Message-Id: <1408608562-20339-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 2/5] mm/sl[ao]b: always track caller in kmalloc_(node_)track_caller()
+Date: Thu, 21 Aug 2014 17:09:19 +0900
+Message-Id: <1408608562-20339-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1408608562-20339-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1408608562-20339-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-We don't need to keep kmem_cache definition in include/linux/slab.h
-if we don't need to inline kmem_cache_size(). According to my
-code inspection, this function is only called at lc_create() in
-lib/lru_cache.c which may be called at initialization phase of something,
-so we don't need to inline it. Therfore, move it to slab_common.c and
-move kmem_cache definition to internal header.
+Now, we track caller if tracing or slab debugging is enabled. If they are
+disabled, we could save one argument passing overhead by calling
+__kmalloc(_node)(). But, I think that it would be marginal. Furthermore,
+default slab allocator, SLUB, doesn't use this technique so I think
+that it's okay to change this situation.
 
-After this change, we can change kmem_cache definition easily without
-full kernel build. For instance, we can turn on/off CONFIG_SLUB_STATS
-without full kernel build.
+>From this change, we can turn on/off CONFIG_DEBUG_SLAB without full
+kernel build and remove some complicated '#if' defintion. It looks
+more benefitial to me.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- include/linux/slab.h |   42 +-----------------------------------------
- mm/slab.h            |   33 +++++++++++++++++++++++++++++++++
- mm/slab_common.c     |    8 ++++++++
- 3 files changed, 42 insertions(+), 41 deletions(-)
+ include/linux/slab.h |   22 ----------------------
+ mm/slab.c            |   18 ------------------
+ mm/slob.c            |    2 --
+ 3 files changed, 42 deletions(-)
 
 diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 1d9abb7..9062e4a 100644
+index 9062e4a..c265bec 100644
 --- a/include/linux/slab.h
 +++ b/include/linux/slab.h
-@@ -158,31 +158,6 @@ size_t ksize(const void *);
- #define ARCH_KMALLOC_MINALIGN __alignof__(unsigned long long)
- #endif
- 
--#ifdef CONFIG_SLOB
--/*
-- * Common fields provided in kmem_cache by all slab allocators
-- * This struct is either used directly by the allocator (SLOB)
-- * or the allocator must include definitions for all fields
-- * provided in kmem_cache_common in their definition of kmem_cache.
-- *
-- * Once we can do anonymous structs (C11 standard) we could put a
-- * anonymous struct definition in these allocators so that the
-- * separate allocations in the kmem_cache structure of SLAB and
-- * SLUB is no longer needed.
-- */
--struct kmem_cache {
--	unsigned int object_size;/* The original size of the object */
--	unsigned int size;	/* The aligned/padded/added on size  */
--	unsigned int align;	/* Alignment as calculated */
--	unsigned long flags;	/* Active flags on the slab */
--	const char *name;	/* Slab name for sysfs */
--	int refcount;		/* Use counter */
--	void (*ctor)(void *);	/* Called on object slot creation */
--	struct list_head list;	/* List of all slab caches on the system */
--};
--
--#endif /* CONFIG_SLOB */
--
- /*
-  * Kmalloc array related definitions
+@@ -549,37 +549,15 @@ static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
+  * allocator where we care about the real place the memory allocation
+  * request comes from.
   */
-@@ -363,14 +338,6 @@ kmem_cache_alloc_node_trace(struct kmem_cache *s,
- }
- #endif /* CONFIG_TRACING */
+-#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB) || \
+-	(defined(CONFIG_SLAB) && defined(CONFIG_TRACING)) || \
+-	(defined(CONFIG_SLOB) && defined(CONFIG_TRACING))
+ extern void *__kmalloc_track_caller(size_t, gfp_t, unsigned long);
+ #define kmalloc_track_caller(size, flags) \
+ 	__kmalloc_track_caller(size, flags, _RET_IP_)
+-#else
+-#define kmalloc_track_caller(size, flags) \
+-	__kmalloc(size, flags)
+-#endif /* DEBUG_SLAB */
  
--#ifdef CONFIG_SLAB
--#include <linux/slab_def.h>
--#endif
--
--#ifdef CONFIG_SLUB
--#include <linux/slub_def.h>
--#endif
--
- extern void *kmalloc_order(size_t size, gfp_t flags, unsigned int order);
- 
- #ifdef CONFIG_TRACING
-@@ -650,14 +617,7 @@ static inline void *kzalloc_node(size_t size, gfp_t flags, int node)
- 	return kmalloc_node(size, flags | __GFP_ZERO, node);
- }
- 
+ #ifdef CONFIG_NUMA
 -/*
-- * Determine the size of a slab object
+- * kmalloc_node_track_caller is a special version of kmalloc_node that
+- * records the calling function of the routine calling it for slab leak
+- * tracking instead of just the calling function (confusing, eh?).
+- * It's useful when the call to kmalloc_node comes from a widely-used
+- * standard allocator where we care about the real place the memory
+- * allocation request comes from.
 - */
--static inline unsigned int kmem_cache_size(struct kmem_cache *s)
+-#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_SLUB) || \
+-	(defined(CONFIG_SLAB) && defined(CONFIG_TRACING)) || \
+-	(defined(CONFIG_SLOB) && defined(CONFIG_TRACING))
+ extern void *__kmalloc_node_track_caller(size_t, gfp_t, int, unsigned long);
+ #define kmalloc_node_track_caller(size, flags, node) \
+ 	__kmalloc_node_track_caller(size, flags, node, \
+ 			_RET_IP_)
+-#else
+-#define kmalloc_node_track_caller(size, flags, node) \
+-	__kmalloc_node(size, flags, node)
+-#endif
+ 
+ #else /* CONFIG_NUMA */
+ 
+diff --git a/mm/slab.c b/mm/slab.c
+index a467b30..d80b654 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -3503,7 +3503,6 @@ __do_kmalloc_node(size_t size, gfp_t flags, int node, unsigned long caller)
+ 	return kmem_cache_alloc_node_trace(cachep, flags, node, size);
+ }
+ 
+-#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_TRACING)
+ void *__kmalloc_node(size_t size, gfp_t flags, int node)
+ {
+ 	return __do_kmalloc_node(size, flags, node, _RET_IP_);
+@@ -3516,13 +3515,6 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t flags,
+ 	return __do_kmalloc_node(size, flags, node, caller);
+ }
+ EXPORT_SYMBOL(__kmalloc_node_track_caller);
+-#else
+-void *__kmalloc_node(size_t size, gfp_t flags, int node)
 -{
--	return s->object_size;
+-	return __do_kmalloc_node(size, flags, node, 0);
 -}
+-EXPORT_SYMBOL(__kmalloc_node);
+-#endif /* CONFIG_DEBUG_SLAB || CONFIG_TRACING */
+ #endif /* CONFIG_NUMA */
+ 
+ /**
+@@ -3548,8 +3540,6 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
+ 	return ret;
+ }
+ 
 -
-+unsigned int kmem_cache_size(struct kmem_cache *s);
- void __init kmem_cache_init_late(void);
+-#if defined(CONFIG_DEBUG_SLAB) || defined(CONFIG_TRACING)
+ void *__kmalloc(size_t size, gfp_t flags)
+ {
+ 	return __do_kmalloc(size, flags, _RET_IP_);
+@@ -3562,14 +3552,6 @@ void *__kmalloc_track_caller(size_t size, gfp_t flags, unsigned long caller)
+ }
+ EXPORT_SYMBOL(__kmalloc_track_caller);
  
- #endif	/* _LINUX_SLAB_H */
-diff --git a/mm/slab.h b/mm/slab.h
-index 0e0fdd3..bd1c54a 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -4,6 +4,39 @@
-  * Internal slab definitions
-  */
+-#else
+-void *__kmalloc(size_t size, gfp_t flags)
+-{
+-	return __do_kmalloc(size, flags, 0);
+-}
+-EXPORT_SYMBOL(__kmalloc);
+-#endif
+-
+ /**
+  * kmem_cache_free - Deallocate an object
+  * @cachep: The cache the allocation was from.
+diff --git a/mm/slob.c b/mm/slob.c
+index 21980e0..96a8620 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -468,7 +468,6 @@ void *__kmalloc(size_t size, gfp_t gfp)
+ }
+ EXPORT_SYMBOL(__kmalloc);
  
-+#ifdef CONFIG_SLOB
-+/*
-+ * Common fields provided in kmem_cache by all slab allocators
-+ * This struct is either used directly by the allocator (SLOB)
-+ * or the allocator must include definitions for all fields
-+ * provided in kmem_cache_common in their definition of kmem_cache.
-+ *
-+ * Once we can do anonymous structs (C11 standard) we could put a
-+ * anonymous struct definition in these allocators so that the
-+ * separate allocations in the kmem_cache structure of SLAB and
-+ * SLUB is no longer needed.
-+ */
-+struct kmem_cache {
-+	unsigned int object_size;/* The original size of the object */
-+	unsigned int size;	/* The aligned/padded/added on size  */
-+	unsigned int align;	/* Alignment as calculated */
-+	unsigned long flags;	/* Active flags on the slab */
-+	const char *name;	/* Slab name for sysfs */
-+	int refcount;		/* Use counter */
-+	void (*ctor)(void *);	/* Called on object slot creation */
-+	struct list_head list;	/* List of all slab caches on the system */
-+};
-+
-+#endif /* CONFIG_SLOB */
-+
-+#ifdef CONFIG_SLAB
-+#include <linux/slab_def.h>
-+#endif
-+
-+#ifdef CONFIG_SLUB
-+#include <linux/slub_def.h>
-+#endif
-+
- /*
-  * State of the slab allocator.
-  *
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index d319502..2088904 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -30,6 +30,14 @@ LIST_HEAD(slab_caches);
- DEFINE_MUTEX(slab_mutex);
- struct kmem_cache *kmem_cache;
+-#ifdef CONFIG_TRACING
+ void *__kmalloc_track_caller(size_t size, gfp_t gfp, unsigned long caller)
+ {
+ 	return __do_kmalloc_node(size, gfp, NUMA_NO_NODE, caller);
+@@ -481,7 +480,6 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfp,
+ 	return __do_kmalloc_node(size, gfp, node, caller);
+ }
+ #endif
+-#endif
  
-+/*
-+ * Determine the size of a slab object
-+ */
-+unsigned int kmem_cache_size(struct kmem_cache *s)
-+{
-+	return s->object_size;
-+}
-+
- #ifdef CONFIG_DEBUG_VM
- static int kmem_cache_sanity_check(const char *name, size_t size)
+ void kfree(const void *block)
  {
 -- 
 1.7.9.5
