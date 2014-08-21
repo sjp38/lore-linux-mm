@@ -1,61 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id E8FE06B0035
-	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 18:11:18 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id eu11so15070376pac.3
-        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 15:11:18 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id km10si38098426pbd.132.2014.08.21.15.11.17
+Received: from mail-yh0-f45.google.com (mail-yh0-f45.google.com [209.85.213.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 889CC6B0035
+	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 18:50:35 -0400 (EDT)
+Received: by mail-yh0-f45.google.com with SMTP id 29so8563887yhl.18
+        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 15:50:35 -0700 (PDT)
+Received: from mail-yk0-x24a.google.com (mail-yk0-x24a.google.com [2607:f8b0:4002:c07::24a])
+        by mx.google.com with ESMTPS id v64si30319037yhk.17.2014.08.21.15.50.34
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Aug 2014 15:11:17 -0700 (PDT)
-Date: Thu, 21 Aug 2014 15:11:15 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v6 11/13] mm, compaction: skip buddy pages by their
- order in the migrate scanner
-Message-Id: <20140821151115.bcc66c15d53f7dc89d1b9b73@linux-foundation.org>
-In-Reply-To: <1407142524-2025-12-git-send-email-vbabka@suse.cz>
-References: <1407142524-2025-1-git-send-email-vbabka@suse.cz>
-	<1407142524-2025-12-git-send-email-vbabka@suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 21 Aug 2014 15:50:34 -0700 (PDT)
+Received: by mail-yk0-f202.google.com with SMTP id q9so1189661ykb.5
+        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 15:50:34 -0700 (PDT)
+Date: Thu, 21 Aug 2014 18:50:33 -0400
+From: Peter Feiner <pfeiner@google.com>
+Subject: Re: [PATCH] mm: softdirty: write protect PTEs created for read
+ faults after VM_SOFTDIRTY cleared
+Message-ID: <20140821225033.GE16042@google.com>
+References: <1408571182-28750-1-git-send-email-pfeiner@google.com>
+ <20140820234543.GA7987@node.dhcp.inet.fi>
+ <20140821193737.GC16042@google.com>
+ <20140821205115.GH14072@moon>
+ <20140821213942.GA15218@node.dhcp.inet.fi>
+ <20140821214601.GD16042@google.com>
+ <20140821215147.GA15482@node.dhcp.inet.fi>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140821215147.GA15482@node.dhcp.inet.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Cyrill Gorcunov <gorcunov@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Jamie Liu <jamieliu@google.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Magnus Damm <damm@opensource.se>
 
-On Mon,  4 Aug 2014 10:55:22 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
+On Fri, Aug 22, 2014 at 12:51:47AM +0300, Kirill A. Shutemov wrote:
+> > > One thing: there could be (I haven't checked) complications on
+> > > vma_merge(): since vm_flags are identical it assumes that it can reuse
+> > > vma->vm_page_prot of expanded vma. But VM_SOFTDIRTY is excluded from
+> > > vm_flags compatibility check. What should we do with vm_page_prot there?
+> > 
+> > Since the merged VMA will have VM_SOFTDIRTY set, it's OK that it's vm_page_prot
+> > won't be setup for write notifications. For the purpose of process migration,
+> > you'll just get some false positives, which is tolerable.
+> 
+> Right. But should we disable writenotify back to avoid exessive wp-faults
+> if it was enabled due to soft-dirty (the case when expanded vma is
+> soft-dirty)?
 
-> The migration scanner skips PageBuddy pages, but does not consider their order
-> as checking page_order() is generally unsafe without holding the zone->lock,
-> and acquiring the lock just for the check wouldn't be a good tradeoff.
-> 
-> Still, this could avoid some iterations over the rest of the buddy page, and
-> if we are careful, the race window between PageBuddy() check and page_order()
-> is small, and the worst thing that can happen is that we skip too much and miss
-> some isolation candidates. This is not that bad, as compaction can already fail
-> for many other reasons like parallel allocations, and those have much larger
-> race window.
-> 
-> This patch therefore makes the migration scanner obtain the buddy page order
-> and use it to skip the whole buddy page, if the order appears to be in the
-> valid range.
-> 
-> It's important that the page_order() is read only once, so that the value used
-> in the checks and in the pfn calculation is the same. But in theory the
-> compiler can replace the local variable by multiple inlines of page_order().
-> Therefore, the patch introduces page_order_unsafe() that uses ACCESS_ONCE to
-> prevent this.
-> 
-> Testing with stress-highalloc from mmtests shows a 15% reduction in number of
-> pages scanned by migration scanner. The reduction is >60% with __GFP_NO_KSWAPD
-> allocations, along with success rates better by few percent.
-> This change is also a prerequisite for a later patch which is detecting when
-> a cc->order block of pages contains non-buddy pages that cannot be isolated,
-> and the scanner should thus skip to the next block immediately.
-
-What is this "later patch"?  Or is the changelog stale?
+Ah, I understand now. I've got a patch in the works that disables the write
+faults when a VMA is merged. I'll send a series with all of the changes
+tomorrow.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
