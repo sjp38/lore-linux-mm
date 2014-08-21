@@ -1,133 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F3D096B0035
-	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 09:05:27 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id ey11so14076203pad.24
-        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 06:05:27 -0700 (PDT)
-Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com [2607:f8b0:400e:c03::236])
-        by mx.google.com with ESMTPS id of4si36395102pdb.243.2014.08.21.06.05.26
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 21 Aug 2014 06:05:26 -0700 (PDT)
-Received: by mail-pa0-f54.google.com with SMTP id fa1so14691835pad.27
-        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 06:05:26 -0700 (PDT)
-Date: Thu, 21 Aug 2014 22:05:04 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH] zram: add num_discards for discarded pages stat
-Message-ID: <20140821130504.GB946@swordfish>
-References: <001201cfb838$fb0ac4a0$f1204de0$@samsung.com>
- <20140815061138.GA940@swordfish>
- <002d01cfbb70$ea7410c0$bf5c3240$@samsung.com>
- <20140819112500.GA2484@swordfish>
- <20140820020924.GD32620@bbox>
- <006701cfbc4f$c9d2fe00$5d78fa00$@samsung.com>
- <20140821011854.GE17372@bbox>
- <001601cfbd1f$b9f068d0$2dd13a70$@samsung.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <001601cfbd1f$b9f068d0$2dd13a70$@samsung.com>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 170636B0035
+	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 10:14:28 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id kx10so14473597pab.6
+        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 07:14:27 -0700 (PDT)
+Received: from qmta15.emeryville.ca.mail.comcast.net (qmta15.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:228])
+        by mx.google.com with ESMTP id sk9si36679372pac.4.2014.08.21.07.14.26
+        for <linux-mm@kvack.org>;
+        Thu, 21 Aug 2014 07:14:27 -0700 (PDT)
+Date: Thu, 21 Aug 2014 09:14:24 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/5] mm/slab_common: move kmem_cache definition to internal
+ header
+In-Reply-To: <1408608562-20339-1-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <alpine.DEB.2.11.1408210913370.32524@gentwo.org>
+References: <1408608562-20339-1-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chao Yu <chao2.yu@samsung.com>
-Cc: 'Minchan Kim' <minchan@kernel.org>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, 'Jerome Marchand' <jmarchan@redhat.com>, 'Andrew Morton' <akpm@linux-foundation.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On (08/21/14 17:09), Chao Yu wrote:
-[cut]
-> > 
-> > I hope I'm not discouraging. :)
-> 
-> Nope, please let me try again, :)
-> 
-> Since we have supported handling discard request in this commit
-> f4659d8e620d08bd1a84a8aec5d2f5294a242764 (zram: support REQ_DISCARD), zram got
-> one more chance to free unused memory whenever received discard request. But
-> without stating for discard request, there is no method for user to know whether
-> discard request has been handled by zram or how many blocks were discarded by
-> zram when user wants to know the effect of discard.
-> 
-> In this patch, we add num_discards to stat discarded pages, and export it to
-> sysfs for users.
-> 
+On Thu, 21 Aug 2014, Joonsoo Kim wrote:
 
-In other words, here is my proposal:
+> We don't need to keep kmem_cache definition in include/linux/slab.h
+> if we don't need to inline kmem_cache_size(). According to my
+> code inspection, this function is only called at lc_create() in
+> lib/lru_cache.c which may be called at initialization phase of something,
+> so we don't need to inline it. Therfore, move it to slab_common.c and
+> move kmem_cache definition to internal header.
+>
+> After this change, we can change kmem_cache definition easily without
+> full kernel build. For instance, we can turn on/off CONFIG_SLUB_STATS
+> without full kernel build.
 
------8<-----8<-----
+Wow. I did not realize that we were already at that point.
 
-Subject: [PATCH] zram: use notify_free to account all free notifications
-
-notify_free device attribute accounts the number of slot free notifications
-and internally represents the number of zram_free_page() calls. Slot free
-notifications are sent only when device is used as a swap device, hence
-notify_free is used only for swap devices. Since f4659d8e620d08 (zram:
-support REQ_DISCARD) ZRAM handles yet another one free notification (also
-via zram_free_page() call) -- REQ_DISCARD requests, which are sent by a
-filesystem, whenever some data blocks are discarded. However, there is no
-way to know the number of notifications in the latter case.
-
-Use notify_free to account the number of pages freed in zram_free_page(),
-instead of accounting only swap_slot_free_notify() calls (each
-zram_slot_free_notify() call frees one page).
-
-This means that depending on usage scenario notify_free represents:
- a) the number of pages freed because of slot free notifications, which is
-   equal to the number of swap_slot_free_notify() calls, so there is no
-   behaviour change
-
- b) the number of pages freed because of REQ_DISCARD notifications
-
-Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
----
- Documentation/ABI/testing/sysfs-block-zram | 13 ++++++++-----
- drivers/block/zram/zram_drv.c              |  2 +-
- 2 files changed, 9 insertions(+), 6 deletions(-)
-
-diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
-index 70ec992..73ed400 100644
---- a/Documentation/ABI/testing/sysfs-block-zram
-+++ b/Documentation/ABI/testing/sysfs-block-zram
-@@ -77,11 +77,14 @@ What:		/sys/block/zram<id>/notify_free
- Date:		August 2010
- Contact:	Nitin Gupta <ngupta@vflare.org>
- Description:
--		The notify_free file is read-only and specifies the number of
--		swap slot free notifications received by this device. These
--		notifications are sent to a swap block device when a swap slot
--		is freed. This statistic is applicable only when this disk is
--		being used as a swap disk.
-+		The notify_free file is read-only. Depending on device usage
-+		scenario it may account a) the number of swap slot free
-+		notifications or b) the number of REQ_DISCARD requests sent
-+		by bio. The former ones are sent to a swap block device when a
-+		swap slot is freed, which implies that this disk is being used
-+		as a swap disk. The latter ones are sent by filesystem mounted
-+		with discard option, whenever some data blocks are getting
-+		discarded.
- 
- What:		/sys/block/zram<id>/zero_pages
- Date:		August 2010
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index d00831c..c2e7127 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -344,6 +344,7 @@ static void zram_free_page(struct zram *zram, size_t index)
- 	atomic64_sub(zram_get_obj_size(meta, index),
- 			&zram->stats.compr_data_size);
- 	atomic64_dec(&zram->stats.pages_stored);
-+	atomic64_inc(&zram->stats.notify_free);
- 
- 	meta->table[index].handle = 0;
- 	zram_set_obj_size(meta, index, 0);
-@@ -843,7 +844,6 @@ static void zram_slot_free_notify(struct block_device *bdev,
- 	bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
- 	zram_free_page(zram, index);
- 	bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
--	atomic64_inc(&zram->stats.notify_free);
- }
- 
- static const struct block_device_operations zram_devops = {
--- 
-2.1.0.233.g9eef2c8
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
