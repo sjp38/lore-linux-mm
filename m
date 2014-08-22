@@ -1,49 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 2325A6B0035
-	for <linux-mm@kvack.org>; Fri, 22 Aug 2014 10:18:26 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id rd3so16673201pab.12
-        for <linux-mm@kvack.org>; Fri, 22 Aug 2014 07:18:25 -0700 (PDT)
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 56CAF6B0035
+	for <linux-mm@kvack.org>; Fri, 22 Aug 2014 10:36:21 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id y10so15881777pdj.0
+        for <linux-mm@kvack.org>; Fri, 22 Aug 2014 07:36:20 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id e12si41053413pat.226.2014.08.22.07.18.24
+        by mx.google.com with ESMTP id i5si41148689pdh.56.2014.08.22.07.36.19
         for <linux-mm@kvack.org>;
-        Fri, 22 Aug 2014 07:18:25 -0700 (PDT)
-Date: Fri, 22 Aug 2014 07:18:07 -0700
-From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: [PATCH 0/6] mm/hugetlb: gigantic hugetlb page pools shrink
- supporting
-Message-ID: <20140822141807.GA5803@tassilo.jf.intel.com>
-References: <1365066554-29195-1-git-send-email-liwanp@linux.vnet.ibm.com>
- <20130411232907.GC29398@hacker.(null)>
- <20130412152237.GM16732@two.firstfloor.org>
- <20140821233729.GB2420@kernel>
- <53F69E26.1090408@cn.fujitsu.com>
- <20140822040420.GA4756@kernel>
+        Fri, 22 Aug 2014 07:36:20 -0700 (PDT)
+Message-ID: <53F75562.7040100@intel.com>
+Date: Fri, 22 Aug 2014 07:36:18 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140822040420.GA4756@kernel>
+Subject: Re: [RFC 9/9] prd: Add support for page struct mapping
+References: <53EB5536.8020702@gmail.com> <53EB5960.50200@plexistor.com>
+In-Reply-To: <53EB5960.50200@plexistor.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <wanpeng.li@linux.intel.com>
-Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hillf Danton <dhillf@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Boaz Harrosh <boaz@plexistor.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>, Sagi Manole <sagi@plexistor.com>, Yigal Korman <yigal@plexistor.com>
 
-> >commit 944d9fec8d7aee3f2e16573e9b6a16634b33f403
-> >Author: Luiz Capitulino <lcapitulino@redhat.com>
-> >Date:   Wed Jun 4 16:07:13 2014 -0700
-> >
-> >    hugetlb: add support for gigantic page allocation at runtime
-> >
-> >
-> 
-> Ah, thanks for your pointing out.
+On 08/13/2014 05:26 AM, Boaz Harrosh wrote:
+> +#ifdef CONFIG_BLK_DEV_PMEM_USE_PAGES
+> +static int prd_add_page_mapping(phys_addr_t phys_addr, size_t total_size,
+> +				void **o_virt_addr)
+> +{
+> +	int nid = memory_add_physaddr_to_nid(phys_addr);
+> +	unsigned long start_pfn = phys_addr >> PAGE_SHIFT;
+> +	unsigned long nr_pages = total_size >> PAGE_SHIFT;
+> +	unsigned int start_sec = pfn_to_section_nr(start_pfn);
+> +	unsigned int end_sec = pfn_to_section_nr(start_pfn + nr_pages - 1);
 
-I should add the CMA allocation would still make sense, as CMA would do
-compaction and better pre-allocation while this does not. Should probably
-revisit the issue. But it's at least partially solved now.
+Nit: any chance you'd change this to be an exclusive end?  In the mm
+code, we usually do:
 
+	unsigned int end_sec = pfn_to_section_nr(start_pfn + nr_pages);
 
--Andi
+so the for loops end up <end_sec instead of <=end_sec.
+
+> +	unsigned long phys_start_pfn;
+> +	struct page **page_array, **mapped_page_array;
+> +	unsigned long i;
+> +	struct vm_struct *vm_area;
+> +	void *virt_addr;
+> +	int ret = 0;
+
+This is a philosophical thing, but I don't see *ANY* block-specific code
+in here.  Seems like this belongs in mm/ to me.
+
+Is there a reason you don't just do this at boot and have to use hotplug
+at runtime for it?  What are the ratio of pmem to RAM?  Is it possible
+to exhaust all of RAM with 'struct page's for pmem?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
