@@ -1,89 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 551866B0035
-	for <linux-mm@kvack.org>; Fri, 22 Aug 2014 04:11:58 -0400 (EDT)
-Received: by mail-wg0-f44.google.com with SMTP id m15so10099916wgh.27
-        for <linux-mm@kvack.org>; Fri, 22 Aug 2014 01:11:57 -0700 (PDT)
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-        by mx.google.com with ESMTPS id c9si44034096wja.128.2014.08.22.01.11.56
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 29F4F6B0035
+	for <linux-mm@kvack.org>; Fri, 22 Aug 2014 04:22:26 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id hz1so15848892pad.8
+        for <linux-mm@kvack.org>; Fri, 22 Aug 2014 01:22:25 -0700 (PDT)
+Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
+        by mx.google.com with ESMTPS id x6si91585pas.223.2014.08.22.01.22.24
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 22 Aug 2014 01:11:56 -0700 (PDT)
-Received: by mail-wg0-f44.google.com with SMTP id m15so9992379wgh.3
-        for <linux-mm@kvack.org>; Fri, 22 Aug 2014 01:11:56 -0700 (PDT)
-Date: Fri, 22 Aug 2014 09:11:47 +0100
-From: Steve Capper <steve.capper@linaro.org>
-Subject: Re: [PATH V2 0/6] RCU get_user_pages_fast and __get_user_pages_fast
-Message-ID: <20140822081146.GA23364@linaro.org>
-References: <1408635812-31584-1-git-send-email-steve.capper@linaro.org>
- <CALdTtnuuZBNGR5Ti3PsN3BdA=FQ7ErYuyHMsiSp_5TD-U0n2Lg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALdTtnuuZBNGR5Ti3PsN3BdA=FQ7ErYuyHMsiSp_5TD-U0n2Lg@mail.gmail.com>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Fri, 22 Aug 2014 01:22:24 -0700 (PDT)
+Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
+ by mailout1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NAP005DW8KYRGB0@mailout1.samsung.com> for
+ linux-mm@kvack.org; Fri, 22 Aug 2014 17:22:10 +0900 (KST)
+From: Chao Yu <chao2.yu@samsung.com>
+Subject: [PATCH v3] zram: add num_discards for discarded pages stat
+Date: Fri, 22 Aug 2014 16:21:01 +0800
+Message-id: <000201cfbde2$2ae08710$80a19530$@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Content-language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dann Frazier <dann.frazier@canonical.com>
-Cc: linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, linux@arm.linux.org.uk, linux-arch@vger.kernel.org, linux-mm@kvack.org, Will Deacon <will.deacon@arm.com>, gary.robertson@linaro.org, Christoffer Dall <christoffer.dall@linaro.org>, peterz@infradead.org, anders.roxell@linaro.org, akpm@linux-foundation.org, Mark Rutland <mark.rutland@arm.com>, mgorman@suse.de
+To: minchan@kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, 'Jerome Marchand' <jmarchan@redhat.com>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, 'Andrew Morton' <akpm@linux-foundation.org>
 
-On Thu, Aug 21, 2014 at 02:42:29PM -0600, Dann Frazier wrote:
-> On Thu, Aug 21, 2014 at 9:43 AM, Steve Capper <steve.capper@linaro.org> wrote:
-> > Hello,
-> > This series implements general forms of get_user_pages_fast and
-> > __get_user_pages_fast and activates them for arm and arm64.
-> >
-> > These are required for Transparent HugePages to function correctly, as
-> > a futex on a THP tail will otherwise result in an infinite loop (due to
-> > the core implementation of __get_user_pages_fast always returning 0).
-> >
-> > Unfortunately, a futex on THP tail can be quite common for certain
-> > workloads; thus THP is unreliable without a __get_user_pages_fast
-> > implementation.
-> >
-> > This series may also be beneficial for direct-IO heavy workloads and
-> > certain KVM workloads.
-> >
-> > Changes since PATCH V1 are:
-> >  * Rebase to 3.17-rc1
-> >  * Switched to kick_all_cpus_sync as suggested by Mark Rutland.
-> >
-> > The main changes since RFC V5 are:
-> >  * Rebased against 3.16-rc1.
-> >  * pmd_present no longer tested for by gup_huge_pmd and gup_huge_pud,
-> >    because the entry must be present for these leaf functions to be
-> >    called.
-> >  * Rather than assume puds can be re-cast as pmds, a separate
-> >    function pud_write is instead used by the core gup.
-> >  * ARM activation logic changed, now it will only activate
-> >    RCU_TABLE_FREE and RCU_GUP when running with LPAE.
-> >
-> > The main changes since RFC V4 are:
-> >  * corrected the arm64 logic so it now correctly rcu-frees page
-> >    table backing pages.
-> >  * rcu free logic relaxed for pre-ARMv7 ARM as we need an IPI to
-> >    invalidate TLBs anyway.
-> >  * rebased to 3.15-rc3 (some minor changes were needed to allow it to merge).
-> >  * dropped Catalin's mmu_gather patch as that's been merged already.
-> >
-> > This series has been tested with LTP mm tests and some custom futex tests
-> > that exacerbate the futex on THP tail case; on both an Arndale board and
-> > a Juno board. Also debug counters were temporarily employed to ensure that
-> > the RCU_TABLE_FREE logic was behaving as expected.
-> >
-> > I would really appreciate any comments (especially on the validity or
-> > otherwise of the core fast_gup implementation) and testers.
-> 
-> Continues to gets rid of my gccgo hang issue w/ THP.
-> 
-> Tested-by: dann frazier <dann.frazier@canonical.com>
-> 
+Since we have supported handling discard request in this commit
+f4659d8e620d08bd1a84a8aec5d2f5294a242764 (zram: support REQ_DISCARD), zram got
+one more chance to free unused memory whenever received discard request. But
+without stating for discard request, there is no method for user to know whether
+discard request has been handled by zram or how many blocks were discarded by
+zram when user wants to know the effect of discard.
 
-Thanks Dann,
-I've added your Tested-by to the mm and two arm64 patches.
+In this patch, we add num_discards to stat discarded pages, and export it to
+sysfs for users.
 
-Cheers,
+* From v1
+ * Update zram document to show num_discards in statistics list.
+
+* From v2
+ * Update description of this patch with clear goal.
+
+Signed-off-by: Chao Yu <chao2.yu@samsung.com>
+---
+ Documentation/ABI/testing/sysfs-block-zram | 10 ++++++++++
+ Documentation/blockdev/zram.txt            |  1 +
+ drivers/block/zram/zram_drv.c              |  3 +++
+ drivers/block/zram/zram_drv.h              |  1 +
+ 4 files changed, 15 insertions(+)
+
+diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
+index 70ec992..fa8936e 100644
+--- a/Documentation/ABI/testing/sysfs-block-zram
++++ b/Documentation/ABI/testing/sysfs-block-zram
+@@ -57,6 +57,16 @@ Description:
+ 		The failed_writes file is read-only and specifies the number of
+ 		failed writes happened on this device.
+ 
++
++What:		/sys/block/zram<id>/num_discards
++Date:		August 2014
++Contact:	Chao Yu <chao2.yu@samsung.com>
++Description:
++		The num_discards file is read-only and specifies the number of
++		physical blocks which are discarded by this device. These blocks
++		are included in discard request which is sended by filesystem as
++		the blocks are no longer used.
++
+ What:		/sys/block/zram<id>/max_comp_streams
+ Date:		February 2014
+ Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
+index 0595c3f..e50e18b 100644
+--- a/Documentation/blockdev/zram.txt
++++ b/Documentation/blockdev/zram.txt
+@@ -89,6 +89,7 @@ size of the disk when not in use so a huge zram is wasteful.
+ 		num_writes
+ 		failed_reads
+ 		failed_writes
++		num_discards
+ 		invalid_io
+ 		notify_free
+ 		zero_pages
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index d00831c..904e7a5 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -606,6 +606,7 @@ static void zram_bio_discard(struct zram *zram, u32 index,
+ 		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
+ 		zram_free_page(zram, index);
+ 		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
++		atomic64_inc(&zram->stats.num_discards);
+ 		index++;
+ 		n -= PAGE_SIZE;
+ 	}
+@@ -866,6 +867,7 @@ ZRAM_ATTR_RO(num_reads);
+ ZRAM_ATTR_RO(num_writes);
+ ZRAM_ATTR_RO(failed_reads);
+ ZRAM_ATTR_RO(failed_writes);
++ZRAM_ATTR_RO(num_discards);
+ ZRAM_ATTR_RO(invalid_io);
+ ZRAM_ATTR_RO(notify_free);
+ ZRAM_ATTR_RO(zero_pages);
+@@ -879,6 +881,7 @@ static struct attribute *zram_disk_attrs[] = {
+ 	&dev_attr_num_writes.attr,
+ 	&dev_attr_failed_reads.attr,
+ 	&dev_attr_failed_writes.attr,
++	&dev_attr_num_discards.attr,
+ 	&dev_attr_invalid_io.attr,
+ 	&dev_attr_notify_free.attr,
+ 	&dev_attr_zero_pages.attr,
+diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+index e0f725c..2994aaf 100644
+--- a/drivers/block/zram/zram_drv.h
++++ b/drivers/block/zram/zram_drv.h
+@@ -86,6 +86,7 @@ struct zram_stats {
+ 	atomic64_t num_writes;	/* --do-- */
+ 	atomic64_t failed_reads;	/* can happen when memory is too low */
+ 	atomic64_t failed_writes;	/* can happen when memory is too low */
++	atomic64_t num_discards;	/* no. of discarded pages */
+ 	atomic64_t invalid_io;	/* non-page-aligned I/O requests */
+ 	atomic64_t notify_free;	/* no. of swap slot free notifications */
+ 	atomic64_t zero_pages;		/* no. of zero filled pages */
 -- 
-Steve
+2.0.1.474.g72c7794
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
