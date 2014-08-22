@@ -1,203 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id DCE9B6B003C
-	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 20:41:44 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id ey11so15082823pad.24
-        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 17:41:44 -0700 (PDT)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id n1si38535802pdj.42.2014.08.21.17.41.41
-        for <linux-mm@kvack.org>;
-        Thu, 21 Aug 2014 17:41:42 -0700 (PDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v4 4/4] zram: report maximum used memory
-Date: Fri, 22 Aug 2014 09:42:14 +0900
-Message-Id: <1408668134-21696-5-git-send-email-minchan@kernel.org>
-In-Reply-To: <1408668134-21696-1-git-send-email-minchan@kernel.org>
-References: <1408668134-21696-1-git-send-email-minchan@kernel.org>
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 74E266B0035
+	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 21:10:31 -0400 (EDT)
+Received: by mail-qg0-f53.google.com with SMTP id z60so6072028qgd.26
+        for <linux-mm@kvack.org>; Thu, 21 Aug 2014 18:10:31 -0700 (PDT)
+Received: from e7.ny.us.ibm.com (e7.ny.us.ibm.com. [32.97.182.137])
+        by mx.google.com with ESMTPS id y1si40622448qcr.8.2014.08.21.18.10.30
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 21 Aug 2014 18:10:30 -0700 (PDT)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Thu, 21 Aug 2014 21:10:30 -0400
+Received: from b01cxnp22036.gho.pok.ibm.com (b01cxnp22036.gho.pok.ibm.com [9.57.198.26])
+	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 427C36E8048
+	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 21:10:15 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by b01cxnp22036.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s7M1AQwD36503716
+	for <linux-mm@kvack.org>; Fri, 22 Aug 2014 01:10:26 GMT
+Received: from d01av01.pok.ibm.com (localhost [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s7M1APNU026952
+	for <linux-mm@kvack.org>; Thu, 21 Aug 2014 21:10:26 -0400
+Date: Thu, 21 Aug 2014 18:10:11 -0700
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH 0/4] Improve slab consumption with memoryless nodes
+Message-ID: <20140822011011.GF13999@linux.vnet.ibm.com>
+References: <20140814001301.GI11121@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140814001301.GI11121@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>, ds2horner@gmail.com, Minchan Kim <minchan@kernel.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org
 
-Normally, zram user could get maximum memory usage zram consumed
-via polling mem_used_total with sysfs in userspace.
+On 13.08.2014 [17:13:01 -0700], Nishanth Aravamudan wrote:
+> Anton noticed (http://www.spinics.net/lists/linux-mm/msg67489.html) that
+> on ppc LPARs with memoryless nodes, a large amount of memory was
+> consumed by slabs and was marked unreclaimable. He tracked it down to
+> slab deactivations in the SLUB core when we allocate remotely, leading
+> to poor efficiency always when memoryless nodes are present.
+> 
+> After much discussion, Joonsoo provided a few patches that help
+> significantly. They don't resolve the problem altogether:
+> 
+>  - memory hotplug still needs testing, that is when a memoryless node
+>    becomes memory-ful, we want to dtrt
+>  - there are other reasons for going off-node than memoryless nodes,
+>    e.g., fully exhausted local nodes
+> 
+> Neither case is resolved with this series, but I don't think that should
+> block their acceptance, as they can be explored/resolved with follow-on
+> patches.
+> 
+> The series consists of:
+> 
+> [1/4] topology: add support for node_to_mem_node() to determine the fallback node
+> [2/4] slub: fallback to node_to_mem_node() node if allocating on memoryless node
+> 
+>  - Joonsoo's patches to cache the nearest node with memory for each
+>    NUMA node
+> 
+> [3/4] Partial revert of 81c98869faa5 (""kthread: ensure locality of task_struct allocations")
+> 
+>  - At Tejun's request, keep the knowledge of memoryless node fallback to
+>    the allocator core.
+> 
+> [4/4] powerpc: reorder per-cpu NUMA information's initialization
+> 
+>  - Fix what appears to be a bug with when the NUMA topology information
+>    is stored in the powerpc initialization code.
 
-But it has a critical problem because user can miss peak memory
-usage during update inverval of polling. For avoiding that,
-user should poll it with shorter interval(ie, 0.0000000001s)
-with mlocking to avoid page fault delay when memory pressure
-is heavy. It would be troublesome.
+Andrew & others,
 
-This patch adds new knob "mem_used_max" so user could see
-the maximum memory usage easily via reading the knob and reset
-it via "echo 0 > /sys/block/zram0/mem_used_max".
+I know kernel summit is going on, so I'll be patient, but was just
+curious if anyone had any further comments other than Christoph's on the
+naming.
 
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- Documentation/ABI/testing/sysfs-block-zram | 10 +++++
- Documentation/blockdev/zram.txt            |  1 +
- drivers/block/zram/zram_drv.c              | 60 +++++++++++++++++++++++++++++-
- drivers/block/zram/zram_drv.h              |  1 +
- 4 files changed, 70 insertions(+), 2 deletions(-)
+Thanks,
+Nish
 
-diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
-index b8c779d64968..7b8fca6a9b77 100644
---- a/Documentation/ABI/testing/sysfs-block-zram
-+++ b/Documentation/ABI/testing/sysfs-block-zram
-@@ -120,6 +120,16 @@ Description:
- 		statistic.
- 		Unit: bytes
- 
-+What:		/sys/block/zram<id>/mem_used_max
-+Date:		August 2014
-+Contact:	Minchan Kim <minchan@kernel.org>
-+Description:
-+		The mem_used_max file is read/write and specifies the amount
-+		of maximum memory zram have consumed to store compressed data.
-+		For resetting the value, you should write "0". Otherwise,
-+		you could see -EINVAL.
-+		Unit: bytes
-+
- What:		/sys/block/zram<id>/mem_limit
- Date:		August 2014
- Contact:	Minchan Kim <minchan@kernel.org>
-diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
-index 82c6a41116db..7fcf9c6592ec 100644
---- a/Documentation/blockdev/zram.txt
-+++ b/Documentation/blockdev/zram.txt
-@@ -111,6 +111,7 @@ size of the disk when not in use so a huge zram is wasteful.
- 		orig_data_size
- 		compr_data_size
- 		mem_used_total
-+		mem_used_max
- 
- 8) Deactivate:
- 	swapoff /dev/zram0
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 370c355eb127..1a2b3e320ea5 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -149,6 +149,41 @@ static ssize_t mem_limit_store(struct device *dev,
- 	return len;
- }
- 
-+static ssize_t mem_used_max_show(struct device *dev,
-+		struct device_attribute *attr, char *buf)
-+{
-+	u64 val = 0;
-+	struct zram *zram = dev_to_zram(dev);
-+
-+	down_read(&zram->init_lock);
-+	if (init_done(zram))
-+		val = atomic_long_read(&zram->stats.max_used_pages);
-+	up_read(&zram->init_lock);
-+
-+	return scnprintf(buf, PAGE_SIZE, "%llu\n", val << PAGE_SHIFT);
-+}
-+
-+static ssize_t mem_used_max_store(struct device *dev,
-+		struct device_attribute *attr, const char *buf, size_t len)
-+{
-+	int err;
-+	unsigned long val;
-+	struct zram *zram = dev_to_zram(dev);
-+	struct zram_meta *meta = zram->meta;
-+
-+	err = kstrtoul(buf, 10, &val);
-+	if (err || val != 0)
-+		return -EINVAL;
-+
-+	down_read(&zram->init_lock);
-+	if (init_done(zram))
-+		atomic_long_set(&zram->stats.max_used_pages,
-+				zs_get_total_pages(meta->mem_pool));
-+	up_read(&zram->init_lock);
-+
-+	return len;
-+}
-+
- static ssize_t max_comp_streams_store(struct device *dev,
- 		struct device_attribute *attr, const char *buf, size_t len)
- {
-@@ -461,6 +496,21 @@ out_cleanup:
- 	return ret;
- }
- 
-+static inline void update_used_max(struct zram *zram,
-+					const unsigned long pages)
-+{
-+	int old_max, cur_max;
-+
-+	old_max = atomic_long_read(&zram->stats.max_used_pages);
-+
-+	do {
-+		cur_max = old_max;
-+		if (pages > cur_max)
-+			old_max = atomic_long_cmpxchg(
-+				&zram->stats.max_used_pages, cur_max, pages);
-+	} while (old_max != cur_max);
-+}
-+
- static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
- 			   int offset)
- {
-@@ -472,6 +522,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
- 	struct zram_meta *meta = zram->meta;
- 	struct zcomp_strm *zstrm;
- 	bool locked = false;
-+	unsigned long alloced_pages;
- 
- 	page = bvec->bv_page;
- 	if (is_partial_io(bvec)) {
-@@ -541,13 +592,15 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
- 		goto out;
- 	}
- 
--	if (zram->limit_pages &&
--		zs_get_total_pages(meta->mem_pool) > zram->limit_pages) {
-+	alloced_pages = zs_get_total_pages(meta->mem_pool);
-+	if (zram->limit_pages && alloced_pages > zram->limit_pages) {
- 		zs_free(meta->mem_pool, handle);
- 		ret = -ENOMEM;
- 		goto out;
- 	}
- 
-+	update_used_max(zram, alloced_pages);
-+
- 	cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_WO);
- 
- 	if ((clen == PAGE_SIZE) && !is_partial_io(bvec)) {
-@@ -897,6 +950,8 @@ static DEVICE_ATTR(orig_data_size, S_IRUGO, orig_data_size_show, NULL);
- static DEVICE_ATTR(mem_used_total, S_IRUGO, mem_used_total_show, NULL);
- static DEVICE_ATTR(mem_limit, S_IRUGO | S_IWUSR, mem_limit_show,
- 		mem_limit_store);
-+static DEVICE_ATTR(mem_used_max, S_IRUGO | S_IWUSR, mem_used_max_show,
-+		mem_used_max_store);
- static DEVICE_ATTR(max_comp_streams, S_IRUGO | S_IWUSR,
- 		max_comp_streams_show, max_comp_streams_store);
- static DEVICE_ATTR(comp_algorithm, S_IRUGO | S_IWUSR,
-@@ -926,6 +981,7 @@ static struct attribute *zram_disk_attrs[] = {
- 	&dev_attr_compr_data_size.attr,
- 	&dev_attr_mem_used_total.attr,
- 	&dev_attr_mem_limit.attr,
-+	&dev_attr_mem_used_max.attr,
- 	&dev_attr_max_comp_streams.attr,
- 	&dev_attr_comp_algorithm.attr,
- 	NULL,
-diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-index b7aa9c21553f..c6ee271317f5 100644
---- a/drivers/block/zram/zram_drv.h
-+++ b/drivers/block/zram/zram_drv.h
-@@ -90,6 +90,7 @@ struct zram_stats {
- 	atomic64_t notify_free;	/* no. of swap slot free notifications */
- 	atomic64_t zero_pages;		/* no. of zero filled pages */
- 	atomic64_t pages_stored;	/* no. of pages currently stored */
-+	atomic_long_t max_used_pages;	/* no. of maximum pages stored */
- };
- 
- struct zram_meta {
--- 
-2.0.0
+> 
+>  arch/powerpc/kernel/smp.c | 12 ++++++------
+>  arch/powerpc/mm/numa.c    | 13 ++++++++++---
+>  include/linux/topology.h  | 17 +++++++++++++++++
+>  kernel/kthread.c          |  2 +-
+>  mm/page_alloc.c           |  1 +
+>  mm/slub.c                 | 24 ++++++++++++++++++------
+>  6 files changed, 53 insertions(+), 16 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
