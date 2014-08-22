@@ -1,57 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 56CAF6B0035
-	for <linux-mm@kvack.org>; Fri, 22 Aug 2014 10:36:21 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id y10so15881777pdj.0
-        for <linux-mm@kvack.org>; Fri, 22 Aug 2014 07:36:20 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id i5si41148689pdh.56.2014.08.22.07.36.19
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 31F5A6B0035
+	for <linux-mm@kvack.org>; Fri, 22 Aug 2014 11:02:47 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id v10so16130049pde.24
+        for <linux-mm@kvack.org>; Fri, 22 Aug 2014 08:02:46 -0700 (PDT)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id gy1si41133393pbd.29.2014.08.22.08.02.43
         for <linux-mm@kvack.org>;
-        Fri, 22 Aug 2014 07:36:20 -0700 (PDT)
-Message-ID: <53F75562.7040100@intel.com>
-Date: Fri, 22 Aug 2014 07:36:18 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+        Fri, 22 Aug 2014 08:02:43 -0700 (PDT)
+Message-ID: <53F75B91.2040100@sr71.net>
+Date: Fri, 22 Aug 2014 08:02:41 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Subject: Re: [RFC 9/9] prd: Add support for page struct mapping
-References: <53EB5536.8020702@gmail.com> <53EB5960.50200@plexistor.com>
-In-Reply-To: <53EB5960.50200@plexistor.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH] [v3] warn on performance-impacting configs aka. TAINT_PERFORMANCE
+References: <20140821202424.7ED66A50@viggo.jf.intel.com> <20140822072023.GA7218@gmail.com>
+In-Reply-To: <20140822072023.GA7218@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>, Sagi Manole <sagi@plexistor.com>, Yigal Korman <yigal@plexistor.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, dave.hansen@linux.intel.com, peterz@infradead.org, mingo@redhat.com, ak@linux.intel.com, tim.c.chen@linux.intel.com, akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org, linux-mm@kvack.org, kirill@shutemov.name, lauraa@codeaurora.org, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
 
-On 08/13/2014 05:26 AM, Boaz Harrosh wrote:
-> +#ifdef CONFIG_BLK_DEV_PMEM_USE_PAGES
-> +static int prd_add_page_mapping(phys_addr_t phys_addr, size_t total_size,
-> +				void **o_virt_addr)
-> +{
-> +	int nid = memory_add_physaddr_to_nid(phys_addr);
-> +	unsigned long start_pfn = phys_addr >> PAGE_SHIFT;
-> +	unsigned long nr_pages = total_size >> PAGE_SHIFT;
-> +	unsigned int start_sec = pfn_to_section_nr(start_pfn);
-> +	unsigned int end_sec = pfn_to_section_nr(start_pfn + nr_pages - 1);
+On 08/22/2014 12:20 AM, Ingo Molnar wrote:
+> Essentially all DEBUG_OBJECTS_* options are expensive, assuming 
+> they are enabled, i.e. DEBUG_OBJECTS_ENABLE_DEFAULT=y.
+> 
+> Otherwise they should only be warned about if the debugobjects 
+> boot option got enabled.
+> 
+> I.e. you'll need a bit of a runtime check for this one.
 
-Nit: any chance you'd change this to be an exclusive end?  In the mm
-code, we usually do:
+At that point, what do we print, and when do we print it?  We're not
+saying that the config option should be disabled because it's really the
+boot option plus the config option that is causing the problem.
 
-	unsigned int end_sec = pfn_to_section_nr(start_pfn + nr_pages);
+I'll just put the DEBUG_OBJECTS_ENABLE_DEFAULT in here which is
+analogous to what we're doing with SLUB_DEBUG_ON.
 
-so the for loops end up <end_sec instead of <=end_sec.
+>> +static ssize_t performance_taint_read(struct file *file, char __user *user_buf,
+>> +			size_t count, loff_t *ppos)
+>> +{
+>> +	int i;
+>> +	int ret;
+>> +	char *buf;
+>> +	size_t buf_written = 0;
+>> +	size_t buf_left;
+>> +	size_t buf_len;
+>> +
+>> +	if (!ARRAY_SIZE(perfomance_killing_configs))
+>> +		return 0;
+>> +
+>> +	buf_len = 1;
+>> +	for (i = 0; i < ARRAY_SIZE(perfomance_killing_configs); i++)
+>> +		buf_len += strlen(config_prefix) +
+>> +			   strlen(perfomance_killing_configs[i]);
+>> +	/* Add a byte for for each entry in the array for a \n */
+>> +	buf_len += ARRAY_SIZE(perfomance_killing_configs);
+>> +
+>> +	buf = kmalloc(buf_len, GFP_KERNEL);
+>> +	if (!buf)
+>> +		return -ENOMEM;
+>> +
+>> +	buf_left = buf_len;
+>> +	for (i = 0; i < ARRAY_SIZE(perfomance_killing_configs); i++) {
+>> +		buf_written += snprintf(buf + buf_written, buf_left,
+>> +					"%s%s\n", config_prefix,
+>> +					perfomance_killing_configs[i]);
+>> +		buf_left = buf_len - buf_written;
+> 
+> So, ARRAY_SIZE(performance_killing_configs) is written out four 
+> times, a temporary variable would be in order I suspect.
 
-> +	unsigned long phys_start_pfn;
-> +	struct page **page_array, **mapped_page_array;
-> +	unsigned long i;
-> +	struct vm_struct *vm_area;
-> +	void *virt_addr;
-> +	int ret = 0;
+If one of them had gone over 80 chars, I probably would have. :)  I put
+one in anyway.
 
-This is a philosophical thing, but I don't see *ANY* block-specific code
-in here.  Seems like this belongs in mm/ to me.
+> Also, do you want to check buf_left and break out early from 
+> the loop if it goes non-positive?
 
-Is there a reason you don't just do this at boot and have to use hotplug
-at runtime for it?  What are the ratio of pmem to RAM?  Is it possible
-to exhaust all of RAM with 'struct page's for pmem?
+You're slowly inflating my patch for no practical gain. :)
+
+Oh well, I put that in too.
+
+I think I got the rest of the things addressed too.  v4 coming soon.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
