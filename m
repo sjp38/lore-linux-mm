@@ -1,64 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 9909D6B0039
-	for <linux-mm@kvack.org>; Sat, 23 Aug 2014 18:12:35 -0400 (EDT)
-Received: by mail-ie0-f180.google.com with SMTP id at20so8209440iec.11
-        for <linux-mm@kvack.org>; Sat, 23 Aug 2014 15:12:35 -0700 (PDT)
-Received: from mail-ie0-x249.google.com (mail-ie0-x249.google.com [2607:f8b0:4001:c03::249])
-        by mx.google.com with ESMTPS id d7si12035676icj.53.2014.08.23.15.12.33
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 23 Aug 2014 15:12:33 -0700 (PDT)
-Received: by mail-ie0-f201.google.com with SMTP id tr6so1163212ieb.2
-        for <linux-mm@kvack.org>; Sat, 23 Aug 2014 15:12:33 -0700 (PDT)
-From: Peter Feiner <pfeiner@google.com>
-Subject: [PATCH v2 3/3] mm: mmap: cleanup code that preserves special vm_page_prot bits
-Date: Sat, 23 Aug 2014 18:12:01 -0400
-Message-Id: <1408831921-10168-4-git-send-email-pfeiner@google.com>
-In-Reply-To: <1408831921-10168-1-git-send-email-pfeiner@google.com>
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C2246B0035
+	for <linux-mm@kvack.org>; Sat, 23 Aug 2014 19:12:56 -0400 (EDT)
+Received: by mail-wg0-f44.google.com with SMTP id m15so11657639wgh.15
+        for <linux-mm@kvack.org>; Sat, 23 Aug 2014 16:12:55 -0700 (PDT)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.228])
+        by mx.google.com with ESMTP id bp7si49501210wjb.115.2014.08.23.16.12.54
+        for <linux-mm@kvack.org>;
+        Sat, 23 Aug 2014 16:12:54 -0700 (PDT)
+Date: Sun, 24 Aug 2014 02:00:11 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v2 1/3] mm: softdirty: enable write notifications on VMAs
+ after VM_SOFTDIRTY cleared
+Message-ID: <20140823230011.GA26483@node.dhcp.inet.fi>
 References: <1408571182-28750-1-git-send-email-pfeiner@google.com>
  <1408831921-10168-1-git-send-email-pfeiner@google.com>
+ <1408831921-10168-2-git-send-email-pfeiner@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1408831921-10168-2-git-send-email-pfeiner@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Peter Feiner <pfeiner@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@parallels.com>, Jamie Liu <jamieliu@google.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Peter Feiner <pfeiner@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@parallels.com>, Jamie Liu <jamieliu@google.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Replace logic that has been factored out into a utility method.
+On Sat, Aug 23, 2014 at 06:11:59PM -0400, Peter Feiner wrote:
+> For VMAs that don't want write notifications, PTEs created for read
+> faults have their write bit set. If the read fault happens after
+> VM_SOFTDIRTY is cleared, then the PTE's softdirty bit will remain
+> clear after subsequent writes.
+> 
+> Here's a simple code snippet to demonstrate the bug:
+> 
+>   char* m = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE,
+>                  MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+>   system("echo 4 > /proc/$PPID/clear_refs"); /* clear VM_SOFTDIRTY */
+>   assert(*m == '\0');     /* new PTE allows write access */
+>   assert(!soft_dirty(x));
+>   *m = 'x';               /* should dirty the page */
+>   assert(soft_dirty(x));  /* fails */
+> 
+> With this patch, write notifications are enabled when VM_SOFTDIRTY is
+> cleared. Furthermore, to avoid faults, write notifications are
+> disabled when VM_SOFTDIRTY is reset.
+> 
+> Signed-off-by: Peter Feiner <pfeiner@google.com>
+> ---
+>  v1 -> v2: Instead of checking VM_SOFTDIRTY in the fault handler, enable write
+>            notifications on vm_page_prot when we clear VM_SOFTDIRTY.
+> 
+>  fs/proc/task_mmu.c | 17 ++++++++++++++++-
+>  include/linux/mm.h | 15 +++++++++++++++
+>  mm/mmap.c          | 10 +++++++++-
+>  3 files changed, 40 insertions(+), 2 deletions(-)
+> 
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index dfc791c..f1a5382 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -851,8 +851,23 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+>  			if (type == CLEAR_REFS_MAPPED && !vma->vm_file)
+>  				continue;
+>  			if (type == CLEAR_REFS_SOFT_DIRTY) {
+> -				if (vma->vm_flags & VM_SOFTDIRTY)
+> +				if (vma->vm_flags & VM_SOFTDIRTY) {
 
-Signed-off-by: Peter Feiner <pfeiner@google.com>
----
- mm/mmap.c | 16 ++--------------
- 1 file changed, 2 insertions(+), 14 deletions(-)
+Why do we need the branch here. Does it save us anything?
+Looks like we can update vm_flags and enable writenotify unconditionally.
+Indentation level is high enough already.
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index abcac32..c18c49a 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1618,20 +1618,8 @@ munmap_back:
- 			goto free_vma;
- 	}
- 
--	if (vma_wants_writenotify(vma)) {
--		pgprot_t pprot = vma->vm_page_prot;
--
--		/* Can vma->vm_page_prot have changed??
--		 *
--		 * Answer: Yes, drivers may have changed it in their
--		 *         f_op->mmap method.
--		 *
--		 * Ensures that vmas marked as uncached stay that way.
--		 */
--		vma->vm_page_prot = vm_get_page_prot(vm_flags & ~VM_SHARED);
--		if (pgprot_val(pprot) == pgprot_val(pgprot_noncached(pprot)))
--			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
--	}
-+	if (vma_wants_writenotify(vma))
-+		vma_enable_writenotify(vma);
- 
- 	vma_link(mm, vma, prev, rb_link, rb_parent);
- 	/* Once vma denies write, undo our temporary denial count */
+>  					vma->vm_flags &= ~VM_SOFTDIRTY;
+> +					/*
+> +					 * We don't have a write lock on
+> +					 * mm->mmap_sem, so we race with the
+> +					 * fault handler reading vm_page_prot.
+> +					 * Therefore writable PTEs (that won't
+> +					 * have soft-dirty set) can be created
+> +					 * for read faults. However, since the
+> +					 * PTE lock is held while vm_page_prot
+> +					 * is read and while we write protect
+> +					 * PTEs during our walk, any writable
+> +					 * PTEs that slipped through will be
+> +					 * write protected.
+> +					 */
+
+Hm.. Isn't this yet another bug?
+Updating vma->vm_flags without down_write(&mm->mmap_sem) looks troublesome
+to me. Am I wrong?
+
+> +					vma_enable_writenotify(vma);
+> +				}
+>  			}
+>  			walk_page_range(vma->vm_start, vma->vm_end,
+>  					&clear_refs_walk);
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 8981cc8..5f26634 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1946,6 +1946,21 @@ static inline pgprot_t vm_get_page_prot(unsigned long vm_flags)
+>  }
+>  #endif
+>  
+> +/* Enable write notifications without blowing away special flags. */
+> +static inline void vma_enable_writenotify(struct vm_area_struct *vma)
+> +{
+> +	vma->vm_page_prot = pgprot_modify(vma->vm_page_prot,
+> +	                                  vm_get_page_prot(vma->vm_flags &
+> +					                   ~VM_SHARED));
+
+I think this way is more readable:
+
+	pgprot_t newprot;
+	newprot = vm_get_page_prot(vma->vm_flags & ~VM_SHARED);
+	vma->vm_page_prot = pgprot_modify(vma->vm_page_prot, newprot);
+
+> +}
+> +
+> +/* Disable write notifications without blowing away special flags. */
+> +static inline void vma_disable_writenotify(struct vm_area_struct *vma)
+> +{
+> +	vma->vm_page_prot = pgprot_modify(vma->vm_page_prot,
+> +	                                  vm_get_page_prot(vma->vm_flags));
+
+ditto.
+
+> +}
+> +
+>  #ifdef CONFIG_NUMA_BALANCING
+>  unsigned long change_prot_numa(struct vm_area_struct *vma,
+>  			unsigned long start, unsigned long end);
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index c1f2ea4..abcac32 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -1549,8 +1549,16 @@ munmap_back:
+>  	 * Can we just expand an old mapping?
+>  	 */
+>  	vma = vma_merge(mm, prev, addr, addr + len, vm_flags, NULL, file, pgoff, NULL);
+> -	if (vma)
+> +	if (vma) {
+> +		if (!vma_wants_writenotify(vma)) {
+> +			/*
+> +			 * We're going to reset VM_SOFTDIRTY, so we can disable
+> +			 * write notifications.
+> +			 */
+> +			vma_disable_writenotify(vma);
+> +		}
+>  		goto out;
+> +	}
+>  
+>  	/*
+>  	 * Determine the object being mapped and call the appropriate
+> -- 
+> 2.1.0.rc2.206.gedb03e5
+> 
+
 -- 
-2.1.0.rc2.206.gedb03e5
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
