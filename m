@@ -1,59 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 0909D6B0035
-	for <linux-mm@kvack.org>; Sun, 24 Aug 2014 15:22:54 -0400 (EDT)
-Received: by mail-la0-f42.google.com with SMTP id pv20so11992317lab.29
-        for <linux-mm@kvack.org>; Sun, 24 Aug 2014 12:22:53 -0700 (PDT)
-Received: from mail-la0-x22c.google.com (mail-la0-x22c.google.com [2a00:1450:4010:c03::22c])
-        by mx.google.com with ESMTPS id t15si49771642lbk.31.2014.08.24.12.22.52
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 24 Aug 2014 12:22:52 -0700 (PDT)
-Received: by mail-la0-f44.google.com with SMTP id el20so11918859lab.17
-        for <linux-mm@kvack.org>; Sun, 24 Aug 2014 12:22:52 -0700 (PDT)
-Date: Sun, 24 Aug 2014 23:22:51 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [PATCH v3] mm: softdirty: enable write notifications on VMAs
- after VM_SOFTDIRTY cleared
-Message-ID: <20140824192251.GL25918@moon>
-References: <1408571182-28750-1-git-send-email-pfeiner@google.com>
- <1408844584-30380-1-git-send-email-pfeiner@google.com>
- <20140824075924.GA27392@node.dhcp.inet.fi>
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 4163F6B0036
+	for <linux-mm@kvack.org>; Sun, 24 Aug 2014 16:41:03 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id p10so19009032pdj.36
+        for <linux-mm@kvack.org>; Sun, 24 Aug 2014 13:41:02 -0700 (PDT)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id fn2si12306792pbc.168.2014.08.24.13.41.00
+        for <linux-mm@kvack.org>;
+        Sun, 24 Aug 2014 13:41:01 -0700 (PDT)
+Message-ID: <53FA4DDA.8020106@sr71.net>
+Date: Sun, 24 Aug 2014 13:40:58 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140824075924.GA27392@node.dhcp.inet.fi>
+Subject: Re: [PATCH] [v3] warn on performance-impacting configs aka. TAINT_PERFORMANCE
+References: <20140821202424.7ED66A50@viggo.jf.intel.com> <20140822072023.GA7218@gmail.com> <53F75B91.2040100@sr71.net> <20140824144946.GC9455@gmail.com>
+In-Reply-To: <20140824144946.GC9455@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Peter Feiner <pfeiner@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Jamie Liu <jamieliu@google.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, dave.hansen@linux.intel.com, peterz@infradead.org, mingo@redhat.com, ak@linux.intel.com, tim.c.chen@linux.intel.com, akpm@linux-foundation.org, cl@linux.com, penberg@kernel.org, linux-mm@kvack.org, kirill@shutemov.name, lauraa@codeaurora.org, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
 
-On Sun, Aug 24, 2014 at 10:59:24AM +0300, Kirill A. Shutemov wrote:
+On 08/24/2014 07:49 AM, Ingo Molnar wrote:
+>>>> > >> +	buf_left = buf_len;
+>>>> > >> +	for (i = 0; i < ARRAY_SIZE(perfomance_killing_configs); i++) {
+>>>> > >> +		buf_written += snprintf(buf + buf_written, buf_left,
+>>>> > >> +					"%s%s\n", config_prefix,
+>>>> > >> +					perfomance_killing_configs[i]);
+>>>> > >> +		buf_left = buf_len - buf_written;
 ...
-> > diff --git a/mm/mmap.c b/mm/mmap.c
-> > index c1f2ea4..1b61fbc 100644
-> > --- a/mm/mmap.c
-> > +++ b/mm/mmap.c
-> > @@ -1470,6 +1470,10 @@ int vma_wants_writenotify(struct vm_area_struct *vma)
-> >  	if (vma->vm_ops && vma->vm_ops->page_mkwrite)
-> >  		return 1;
-> >  
-> > +	/* Do we need to track softdirty? */
-> > +	if (!(vm_flags & VM_SOFTDIRTY))
-> 
-> This will give false-positive if CONFIG_MEM_SOFT_DIRTY is disabled, since
-> VM_SOFTDIRTY is 0 in this case:
-> 
-> 	if (IS_ENABLED(CONFIG_MEM_SOFT_DIRTY) && !(vm_flags & VM_SOFTDIRTY))
-> 
-> Otherwise looks good to me.
-> 
-> Suggested-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Reviewed-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+>>> > > Also, do you want to check buf_left and break out early from 
+>>> > > the loop if it goes non-positive?
+>> > 
+>> > You're slowly inflating my patch for no practical gain. :)
+> AFAICS it's a potential memory corruption and security bug, 
+> should the array ever grow large enough to overflow the passed
+> in buffer size.
 
-Really sorry for delay. Thanks a huge, guys!
+Let's say there is 1 "buf_left" and I attempt a 100-byte snprintf().
+Won't snprintf() return 1, and buf_written will then equal buf_len?
+buf_left=0 at that point, and will get passed in to the next snprintf()
+as the buffer length.  I'm expecting snprintf() to just return 0 when it
+gets a 0 for its 'size'.
 
-Reviewed-by: Cyrill Gorcunov <gorcunov@openvz.org>
+Exhausting the buffer will, at worst, mean a bunch of useless calls to
+snprintf() that do nothing, but I don't think it will run over the end
+of the buffer.
+
+Or am I missing something?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
