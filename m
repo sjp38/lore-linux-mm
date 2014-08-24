@@ -1,74 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BCF16B003A
-	for <linux-mm@kvack.org>; Sun, 24 Aug 2014 10:56:37 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id et14so19129296pad.7
-        for <linux-mm@kvack.org>; Sun, 24 Aug 2014 07:56:33 -0700 (PDT)
-Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com [2607:f8b0:400e:c03::231])
-        by mx.google.com with ESMTPS id xf10si49042911pab.70.2014.08.24.07.56.32
+Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 0909D6B0035
+	for <linux-mm@kvack.org>; Sun, 24 Aug 2014 15:22:54 -0400 (EDT)
+Received: by mail-la0-f42.google.com with SMTP id pv20so11992317lab.29
+        for <linux-mm@kvack.org>; Sun, 24 Aug 2014 12:22:53 -0700 (PDT)
+Received: from mail-la0-x22c.google.com (mail-la0-x22c.google.com [2a00:1450:4010:c03::22c])
+        by mx.google.com with ESMTPS id t15si49771642lbk.31.2014.08.24.12.22.52
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 24 Aug 2014 07:56:32 -0700 (PDT)
-Received: by mail-pa0-f49.google.com with SMTP id hz1so19244191pad.22
-        for <linux-mm@kvack.org>; Sun, 24 Aug 2014 07:56:32 -0700 (PDT)
-From: Akinobu Mita <akinobu.mita@gmail.com>
-Subject: [PATCH 2/2] mm: use memblock_alloc_range()
-Date: Sun, 24 Aug 2014 23:56:03 +0900
-Message-Id: <1408892163-8073-2-git-send-email-akinobu.mita@gmail.com>
-In-Reply-To: <1408892163-8073-1-git-send-email-akinobu.mita@gmail.com>
-References: <1408892163-8073-1-git-send-email-akinobu.mita@gmail.com>
+        Sun, 24 Aug 2014 12:22:52 -0700 (PDT)
+Received: by mail-la0-f44.google.com with SMTP id el20so11918859lab.17
+        for <linux-mm@kvack.org>; Sun, 24 Aug 2014 12:22:52 -0700 (PDT)
+Date: Sun, 24 Aug 2014 23:22:51 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH v3] mm: softdirty: enable write notifications on VMAs
+ after VM_SOFTDIRTY cleared
+Message-ID: <20140824192251.GL25918@moon>
+References: <1408571182-28750-1-git-send-email-pfeiner@google.com>
+ <1408844584-30380-1-git-send-email-pfeiner@google.com>
+ <20140824075924.GA27392@node.dhcp.inet.fi>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140824075924.GA27392@node.dhcp.inet.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, akpm@linux-foundation.org
-Cc: Akinobu Mita <akinobu.mita@gmail.com>, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Peter Feiner <pfeiner@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Jamie Liu <jamieliu@google.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Replace memblock_find_in_range() and memblock_reserve() with
-memblock_alloc_range().
+On Sun, Aug 24, 2014 at 10:59:24AM +0300, Kirill A. Shutemov wrote:
+...
+> > diff --git a/mm/mmap.c b/mm/mmap.c
+> > index c1f2ea4..1b61fbc 100644
+> > --- a/mm/mmap.c
+> > +++ b/mm/mmap.c
+> > @@ -1470,6 +1470,10 @@ int vma_wants_writenotify(struct vm_area_struct *vma)
+> >  	if (vma->vm_ops && vma->vm_ops->page_mkwrite)
+> >  		return 1;
+> >  
+> > +	/* Do we need to track softdirty? */
+> > +	if (!(vm_flags & VM_SOFTDIRTY))
+> 
+> This will give false-positive if CONFIG_MEM_SOFT_DIRTY is disabled, since
+> VM_SOFTDIRTY is 0 in this case:
+> 
+> 	if (IS_ENABLED(CONFIG_MEM_SOFT_DIRTY) && !(vm_flags & VM_SOFTDIRTY))
+> 
+> Otherwise looks good to me.
+> 
+> Suggested-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Reviewed-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-Signed-off-by: Akinobu Mita <akinobu.mita@gmail.com>
-Cc: linux-mm@kvack.org
----
- mm/memblock.c | 10 ++--------
- 1 file changed, 2 insertions(+), 8 deletions(-)
+Really sorry for delay. Thanks a huge, guys!
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 6d2f219..4d98d93 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1151,21 +1151,16 @@ static void * __init memblock_virt_alloc_internal(
- 	if (WARN_ON_ONCE(slab_is_available()))
- 		return kzalloc_node(size, GFP_NOWAIT, nid);
- 
--	if (!align)
--		align = SMP_CACHE_BYTES;
--
- 	if (max_addr > memblock.current_limit)
- 		max_addr = memblock.current_limit;
- 
- again:
--	alloc = memblock_find_in_range_node(size, align, min_addr, max_addr,
--					    nid);
-+	alloc = memblock_alloc_range_nid(size, align, min_addr, max_addr, nid);
- 	if (alloc)
- 		goto done;
- 
- 	if (nid != NUMA_NO_NODE) {
--		alloc = memblock_find_in_range_node(size, align, min_addr,
--						    max_addr,  NUMA_NO_NODE);
-+		alloc = memblock_alloc_range(size, align, min_addr, max_addr);
- 		if (alloc)
- 			goto done;
- 	}
-@@ -1178,7 +1173,6 @@ again:
- 	}
- 
- done:
--	memblock_reserve(alloc, size);
- 	ptr = phys_to_virt(alloc);
- 	memset(ptr, 0, size);
- 
--- 
-1.9.1
+Reviewed-by: Cyrill Gorcunov <gorcunov@openvz.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
