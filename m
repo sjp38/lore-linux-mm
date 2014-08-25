@@ -1,204 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id E17DE6B003B
-	for <linux-mm@kvack.org>; Sun, 24 Aug 2014 20:05:38 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id eu11so19746362pac.18
-        for <linux-mm@kvack.org>; Sun, 24 Aug 2014 17:05:38 -0700 (PDT)
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id EE49C6B003C
+	for <linux-mm@kvack.org>; Sun, 24 Aug 2014 20:35:34 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id y13so19133754pdi.17
+        for <linux-mm@kvack.org>; Sun, 24 Aug 2014 17:35:34 -0700 (PDT)
 Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id b2si50747987pdb.115.2014.08.24.17.05.36
+        by mx.google.com with ESMTP id ai1si43733820pad.85.2014.08.24.17.35.30
         for <linux-mm@kvack.org>;
-        Sun, 24 Aug 2014 17:05:37 -0700 (PDT)
+        Sun, 24 Aug 2014 17:35:32 -0700 (PDT)
+Date: Mon, 25 Aug 2014 09:36:10 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v5 4/4] zram: report maximum used memory
-Date: Mon, 25 Aug 2014 09:05:56 +0900
-Message-Id: <1408925156-11733-5-git-send-email-minchan@kernel.org>
-In-Reply-To: <1408925156-11733-1-git-send-email-minchan@kernel.org>
-References: <1408925156-11733-1-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH v3] zram: add num_discards for discarded pages stat
+Message-ID: <20140825003610.GM17372@bbox>
+References: <000201cfbde2$2ae08710$80a19530$@samsung.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <000201cfbde2$2ae08710$80a19530$@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>, ds2horner@gmail.com, Minchan Kim <minchan@kernel.org>
+To: Chao Yu <chao2.yu@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, 'Jerome Marchand' <jmarchan@redhat.com>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, 'Andrew Morton' <akpm@linux-foundation.org>
 
-Normally, zram user could get maximum memory usage zram consumed
-via polling mem_used_total with sysfs in userspace.
+Hello Chao,
 
-But it has a critical problem because user can miss peak memory
-usage during update inverval of polling. For avoiding that,
-user should poll it with shorter interval(ie, 0.0000000001s)
-with mlocking to avoid page fault delay when memory pressure
-is heavy. It would be troublesome.
+On Fri, Aug 22, 2014 at 04:21:01PM +0800, Chao Yu wrote:
+> Since we have supported handling discard request in this commit
+> f4659d8e620d08bd1a84a8aec5d2f5294a242764 (zram: support REQ_DISCARD), zram got
+> one more chance to free unused memory whenever received discard request. But
+> without stating for discard request, there is no method for user to know whether
+> discard request has been handled by zram or how many blocks were discarded by
+> zram when user wants to know the effect of discard.
 
-This patch adds new knob "mem_used_max" so user could see
-the maximum memory usage easily via reading the knob and reset
-it via "echo 0 > /sys/block/zram0/mem_used_max".
+My concern is that how much we are able to know the effect of discard
+exactly with your patch.
 
-Reviewed-by: Dan Streetman <ddstreet@ieee.org>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- Documentation/ABI/testing/sysfs-block-zram | 10 +++++
- Documentation/blockdev/zram.txt            |  1 +
- drivers/block/zram/zram_drv.c              | 60 +++++++++++++++++++++++++++++-
- drivers/block/zram/zram_drv.h              |  1 +
- 4 files changed, 70 insertions(+), 2 deletions(-)
+The issue I can think of is zram-swap discard.
+Now, zram handles notification from VM to free duplicated copy between
+VM-owned memory and zRAM-owned's one so discarding for zram-swap might
+be pointless overhead but your stat indicates lots of free page discarded
+without real freeing so that user might think "We should keep enable
+swap discard for zRAM because the stat indicates it's really good".
 
-diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
-index dbe643775ec1..01a38eaf1552 100644
---- a/Documentation/ABI/testing/sysfs-block-zram
-+++ b/Documentation/ABI/testing/sysfs-block-zram
-@@ -120,6 +120,16 @@ Description:
- 		statistic.
- 		Unit: bytes
- 
-+What:		/sys/block/zram<id>/mem_used_max
-+Date:		August 2014
-+Contact:	Minchan Kim <minchan@kernel.org>
-+Description:
-+		The mem_used_max file is read/write and specifies the amount
-+		of maximum memory zram have consumed to store compressed data.
-+		For resetting the value, you should write "0". Otherwise,
-+		you could see -EINVAL.
-+		Unit: bytes
-+
- What:		/sys/block/zram<id>/mem_limit
- Date:		August 2014
- Contact:	Minchan Kim <minchan@kernel.org>
-diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
-index 82c6a41116db..7fcf9c6592ec 100644
---- a/Documentation/blockdev/zram.txt
-+++ b/Documentation/blockdev/zram.txt
-@@ -111,6 +111,7 @@ size of the disk when not in use so a huge zram is wasteful.
- 		orig_data_size
- 		compr_data_size
- 		mem_used_total
-+		mem_used_max
- 
- 8) Deactivate:
- 	swapoff /dev/zram0
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 370c355eb127..1a2b3e320ea5 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -149,6 +149,41 @@ static ssize_t mem_limit_store(struct device *dev,
- 	return len;
- }
- 
-+static ssize_t mem_used_max_show(struct device *dev,
-+		struct device_attribute *attr, char *buf)
-+{
-+	u64 val = 0;
-+	struct zram *zram = dev_to_zram(dev);
-+
-+	down_read(&zram->init_lock);
-+	if (init_done(zram))
-+		val = atomic_long_read(&zram->stats.max_used_pages);
-+	up_read(&zram->init_lock);
-+
-+	return scnprintf(buf, PAGE_SIZE, "%llu\n", val << PAGE_SHIFT);
-+}
-+
-+static ssize_t mem_used_max_store(struct device *dev,
-+		struct device_attribute *attr, const char *buf, size_t len)
-+{
-+	int err;
-+	unsigned long val;
-+	struct zram *zram = dev_to_zram(dev);
-+	struct zram_meta *meta = zram->meta;
-+
-+	err = kstrtoul(buf, 10, &val);
-+	if (err || val != 0)
-+		return -EINVAL;
-+
-+	down_read(&zram->init_lock);
-+	if (init_done(zram))
-+		atomic_long_set(&zram->stats.max_used_pages,
-+				zs_get_total_pages(meta->mem_pool));
-+	up_read(&zram->init_lock);
-+
-+	return len;
-+}
-+
- static ssize_t max_comp_streams_store(struct device *dev,
- 		struct device_attribute *attr, const char *buf, size_t len)
- {
-@@ -461,6 +496,21 @@ out_cleanup:
- 	return ret;
- }
- 
-+static inline void update_used_max(struct zram *zram,
-+					const unsigned long pages)
-+{
-+	int old_max, cur_max;
-+
-+	old_max = atomic_long_read(&zram->stats.max_used_pages);
-+
-+	do {
-+		cur_max = old_max;
-+		if (pages > cur_max)
-+			old_max = atomic_long_cmpxchg(
-+				&zram->stats.max_used_pages, cur_max, pages);
-+	} while (old_max != cur_max);
-+}
-+
- static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
- 			   int offset)
- {
-@@ -472,6 +522,7 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
- 	struct zram_meta *meta = zram->meta;
- 	struct zcomp_strm *zstrm;
- 	bool locked = false;
-+	unsigned long alloced_pages;
- 
- 	page = bvec->bv_page;
- 	if (is_partial_io(bvec)) {
-@@ -541,13 +592,15 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
- 		goto out;
- 	}
- 
--	if (zram->limit_pages &&
--		zs_get_total_pages(meta->mem_pool) > zram->limit_pages) {
-+	alloced_pages = zs_get_total_pages(meta->mem_pool);
-+	if (zram->limit_pages && alloced_pages > zram->limit_pages) {
- 		zs_free(meta->mem_pool, handle);
- 		ret = -ENOMEM;
- 		goto out;
- 	}
- 
-+	update_used_max(zram, alloced_pages);
-+
- 	cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_WO);
- 
- 	if ((clen == PAGE_SIZE) && !is_partial_io(bvec)) {
-@@ -897,6 +950,8 @@ static DEVICE_ATTR(orig_data_size, S_IRUGO, orig_data_size_show, NULL);
- static DEVICE_ATTR(mem_used_total, S_IRUGO, mem_used_total_show, NULL);
- static DEVICE_ATTR(mem_limit, S_IRUGO | S_IWUSR, mem_limit_show,
- 		mem_limit_store);
-+static DEVICE_ATTR(mem_used_max, S_IRUGO | S_IWUSR, mem_used_max_show,
-+		mem_used_max_store);
- static DEVICE_ATTR(max_comp_streams, S_IRUGO | S_IWUSR,
- 		max_comp_streams_show, max_comp_streams_store);
- static DEVICE_ATTR(comp_algorithm, S_IRUGO | S_IWUSR,
-@@ -926,6 +981,7 @@ static struct attribute *zram_disk_attrs[] = {
- 	&dev_attr_compr_data_size.attr,
- 	&dev_attr_mem_used_total.attr,
- 	&dev_attr_mem_limit.attr,
-+	&dev_attr_mem_used_max.attr,
- 	&dev_attr_max_comp_streams.attr,
- 	&dev_attr_comp_algorithm.attr,
- 	NULL,
-diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-index b7aa9c21553f..c6ee271317f5 100644
---- a/drivers/block/zram/zram_drv.h
-+++ b/drivers/block/zram/zram_drv.h
-@@ -90,6 +90,7 @@ struct zram_stats {
- 	atomic64_t notify_free;	/* no. of swap slot free notifications */
- 	atomic64_t zero_pages;		/* no. of zero filled pages */
- 	atomic64_t pages_stored;	/* no. of pages currently stored */
-+	atomic_long_t max_used_pages;	/* no. of maximum pages stored */
- };
- 
- struct zram_meta {
+In summary, wouldn't it better to have two?
+
+num_discards,
+num_failed_discards?
+
+For it, we should modify zram_free_page has return value.
+What do other guys think?
+
+> 
+> In this patch, we add num_discards to stat discarded pages, and export it to
+> sysfs for users.
+> 
+> * From v1
+>  * Update zram document to show num_discards in statistics list.
+> 
+> * From v2
+>  * Update description of this patch with clear goal.
+> 
+> Signed-off-by: Chao Yu <chao2.yu@samsung.com>
+> ---
+>  Documentation/ABI/testing/sysfs-block-zram | 10 ++++++++++
+>  Documentation/blockdev/zram.txt            |  1 +
+>  drivers/block/zram/zram_drv.c              |  3 +++
+>  drivers/block/zram/zram_drv.h              |  1 +
+>  4 files changed, 15 insertions(+)
+> 
+> diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
+> index 70ec992..fa8936e 100644
+> --- a/Documentation/ABI/testing/sysfs-block-zram
+> +++ b/Documentation/ABI/testing/sysfs-block-zram
+> @@ -57,6 +57,16 @@ Description:
+>  		The failed_writes file is read-only and specifies the number of
+>  		failed writes happened on this device.
+>  
+> +
+> +What:		/sys/block/zram<id>/num_discards
+> +Date:		August 2014
+> +Contact:	Chao Yu <chao2.yu@samsung.com>
+> +Description:
+> +		The num_discards file is read-only and specifies the number of
+> +		physical blocks which are discarded by this device. These blocks
+> +		are included in discard request which is sended by filesystem as
+> +		the blocks are no longer used.
+> +
+>  What:		/sys/block/zram<id>/max_comp_streams
+>  Date:		February 2014
+>  Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
+> index 0595c3f..e50e18b 100644
+> --- a/Documentation/blockdev/zram.txt
+> +++ b/Documentation/blockdev/zram.txt
+> @@ -89,6 +89,7 @@ size of the disk when not in use so a huge zram is wasteful.
+>  		num_writes
+>  		failed_reads
+>  		failed_writes
+> +		num_discards
+>  		invalid_io
+>  		notify_free
+>  		zero_pages
+> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> index d00831c..904e7a5 100644
+> --- a/drivers/block/zram/zram_drv.c
+> +++ b/drivers/block/zram/zram_drv.c
+> @@ -606,6 +606,7 @@ static void zram_bio_discard(struct zram *zram, u32 index,
+>  		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
+>  		zram_free_page(zram, index);
+>  		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+> +		atomic64_inc(&zram->stats.num_discards);
+>  		index++;
+>  		n -= PAGE_SIZE;
+>  	}
+> @@ -866,6 +867,7 @@ ZRAM_ATTR_RO(num_reads);
+>  ZRAM_ATTR_RO(num_writes);
+>  ZRAM_ATTR_RO(failed_reads);
+>  ZRAM_ATTR_RO(failed_writes);
+> +ZRAM_ATTR_RO(num_discards);
+>  ZRAM_ATTR_RO(invalid_io);
+>  ZRAM_ATTR_RO(notify_free);
+>  ZRAM_ATTR_RO(zero_pages);
+> @@ -879,6 +881,7 @@ static struct attribute *zram_disk_attrs[] = {
+>  	&dev_attr_num_writes.attr,
+>  	&dev_attr_failed_reads.attr,
+>  	&dev_attr_failed_writes.attr,
+> +	&dev_attr_num_discards.attr,
+>  	&dev_attr_invalid_io.attr,
+>  	&dev_attr_notify_free.attr,
+>  	&dev_attr_zero_pages.attr,
+> diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+> index e0f725c..2994aaf 100644
+> --- a/drivers/block/zram/zram_drv.h
+> +++ b/drivers/block/zram/zram_drv.h
+> @@ -86,6 +86,7 @@ struct zram_stats {
+>  	atomic64_t num_writes;	/* --do-- */
+>  	atomic64_t failed_reads;	/* can happen when memory is too low */
+>  	atomic64_t failed_writes;	/* can happen when memory is too low */
+> +	atomic64_t num_discards;	/* no. of discarded pages */
+>  	atomic64_t invalid_io;	/* non-page-aligned I/O requests */
+>  	atomic64_t notify_free;	/* no. of swap slot free notifications */
+>  	atomic64_t zero_pages;		/* no. of zero filled pages */
+> -- 
+> 2.0.1.474.g72c7794
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
 -- 
-2.0.0
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
