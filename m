@@ -1,20 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 077296B0036
-	for <linux-mm@kvack.org>; Mon, 25 Aug 2014 16:10:12 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id et14so21533503pad.21
-        for <linux-mm@kvack.org>; Mon, 25 Aug 2014 13:10:12 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
-        by mx.google.com with ESMTP id dq7si903446pdb.217.2014.08.25.13.10.11
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id ACFFE6B0036
+	for <linux-mm@kvack.org>; Mon, 25 Aug 2014 19:02:46 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id w10so20755805pde.18
+        for <linux-mm@kvack.org>; Mon, 25 Aug 2014 16:02:46 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id kl1si1773663pbd.62.2014.08.25.16.02.45
         for <linux-mm@kvack.org>;
-        Mon, 25 Aug 2014 13:10:11 -0700 (PDT)
-Message-ID: <1408997403.17731.7.camel@rzwisler-mobl1.amr.corp.intel.com>
-Subject: Re: [PATCH 5/9 v2] SQUASHME: prd: Last fixes for partitions
+        Mon, 25 Aug 2014 16:02:45 -0700 (PDT)
+Message-ID: <1409007753.17731.8.camel@rzwisler-mobl1.amr.corp.intel.com>
+Subject: Re: [RFC 7/9] SQUASHME: prd: Support of multiple memory regions
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Date: Mon, 25 Aug 2014 14:10:03 -0600
-In-Reply-To: <53ECB480.4060104@plexistor.com>
-References: <53EB5536.8020702@gmail.com> <53EB5709.4090401@plexistor.com>
-	 <53ECB480.4060104@plexistor.com>
+Date: Mon, 25 Aug 2014 17:02:33 -0600
+In-Reply-To: <53EB57FA.3030705@plexistor.com>
+References: <53EB5536.8020702@gmail.com> <53EB57FA.3030705@plexistor.com>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
@@ -23,99 +22,203 @@ List-ID: <linux-mm.kvack.org>
 To: Boaz Harrosh <boaz@plexistor.com>
 Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>, Sagi Manole <sagi@plexistor.com>, Yigal Korman <yigal@plexistor.com>
 
-On Thu, 2014-08-14 at 16:07 +0300, Boaz Harrosh wrote:
+On Wed, 2014-08-13 at 15:20 +0300, Boaz Harrosh wrote:
 > From: Boaz Harrosh <boaz@plexistor.com>
 > 
-> This streamlines prd with the latest brd code.
+> After the last patch this is easy.
 > 
-> In prd we do not allocate new devices dynamically on devnod
-> access, because we need parameterization of each device. So
-> the dynamic allocation in prd_init_one is removed.
+> The API to prd module is changed. We now have a single string
+> parameter named "map" of the form:
+> 		 map=mapS[,mapS...]
 > 
-> Therefor prd_init_one only called from prd_prob is moved
-> there, now that it is small.
+> 		 where mapS=nn[KMG]$ss[KMG],
+> 		 or    mapS=nn[KMG]@ss[KMG],
 > 
-> And other small fixes regarding partitions
+> 		 nn=size, ss=offset
+> 
+> Just like the Kernel command line map && memmap parameters,
+> so anything you did at grub just copy/paste to here.
+> 
+> The "@" form is exactly the same as the "$" form only that
+> at bash prompt we need to escape the "$" with \$ so also
+> support the '@' char for convenience.
+> 
+> For each specified mapS there will be a device created.
+> 
+> So needless to say that all the previous prd_XXX params are
+> removed as well as the Kconfig defaults.
 > 
 > Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
 > ---
->  drivers/block/prd.c | 47 ++++++++++++++++++++++++-----------------------
->  1 file changed, 24 insertions(+), 23 deletions(-)
-
-<snip>
-
-> @@ -333,16 +321,27 @@ static void prd_del_one(struct prd_device *prd)
->  	prd_free(prd);
->  }
+>  drivers/block/Kconfig | 28 -----------------------
+>  drivers/block/prd.c   | 62 ++++++++++++++++++++++++++++++++++-----------------
+>  2 files changed, 41 insertions(+), 49 deletions(-)
+> 
+> diff --git a/drivers/block/Kconfig b/drivers/block/Kconfig
+> index 463c45e..8f0c225 100644
+> --- a/drivers/block/Kconfig
+> +++ b/drivers/block/Kconfig
+> @@ -416,34 +416,6 @@ config BLK_DEV_PMEM
+>  	  Most normal users won't need this functionality, and can thus say N
+>  	  here.
 >  
-> +/*FIXME: Actually in our driver prd_probe is never used. Can be removed */
->  static struct kobject *prd_probe(dev_t dev, int *part, void *data)
->  {
->  	struct prd_device *prd;
->  	struct kobject *kobj;
-> +	int number = MINOR(dev);
-
-Unfortunately I think this is broken, and it was broken in the previous
-version of prd_probe() as well.
-
-When we were allocating minors from our own device we could rely on the fact
-that there was a relationship between the minor number of the device and the
-prd_number.  Now that we're using the dynamic minors scheme, our minor is
-dependent on other drivers that are also using that same scheme.  For example,
-when both PRD and BRD are using dynamic minors:
-
-# ls -la /dev/ram* /dev/pmem*
-brw-rw---- 1 root disk 259, 4 Aug 25 12:38 /dev/pmem0
-brw-rw---- 1 root disk 259, 5 Aug 25 12:38 /dev/pmem1
-brw-rw---- 1 root disk 259, 6 Aug 25 12:38 /dev/pmem2
-brw-rw---- 1 root disk 259, 7 Aug 25 12:38 /dev/pmem3
-brw-rw---- 1 root disk 259, 0 Aug 25 12:22 /dev/ram0
-brw-rw---- 1 root disk 259, 1 Aug 25 12:22 /dev/ram1
-brw-rw---- 1 root disk 259, 2 Aug 25 12:22 /dev/ram2
-brw-rw---- 1 root disk 259, 3 Aug 25 12:22 /dev/ram3
-
-pmem0 has prd_number 0, but has minor 4.
-
-I think we can still have a working probe by instead comparing the passed in
-dev_t against the dev_t we get back from disk_to_dev(prd->prd_disk), but I'd
-really like a use case so I can test this.  Until then I think I'm just going
-to stub out prd/pmem_probe() with a BUG() so we can see if anyone hits it.
-
-It seems like this is preferable to just registering NULL for probe, as that
-would cause an oops in kobj_lookup(() when probe() is blindly called without
-checking for NULL.
-
-- Ross
-
+> -config BLK_DEV_PMEM_START
+> -	int "Offset in GiB of where to start claiming space"
+> -	default "0"
+> -	depends on BLK_DEV_PMEM
+> -	help
+> -	  Starting offset in GiB that PRD should use when claiming memory.  This
+> -	  memory needs to be reserved from the OS at boot time using the
+> -	  "memmap" kernel parameter.
+> -
+> -	  If you provide PRD with volatile memory it will act as a volatile
+> -	  RAM disk and your data will not be persistent.
+> -
+> -config BLK_DEV_PMEM_COUNT
+> -	int "Default number of PMEM disks"
+> -	default "4"
+> -	depends on BLK_DEV_PMEM
+> -	help
+> -	  Number of equal sized block devices that PRD should create.
+> -
+> -config BLK_DEV_PMEM_SIZE
+> -	int "Size in GiB of space to claim"
+> -	depends on BLK_DEV_PMEM
+> -	default "0"
+> -	help
+> -	  Amount of memory in GiB that PRD should use when creating block
+> -	  devices.  This memory needs to be reserved from the OS at
+> -	  boot time using the "memmap" kernel parameter.
+> -
+>  config CDROM_PKTCDVD
+>  	tristate "Packet writing on CD/DVD media"
+>  	depends on !UML
+> diff --git a/drivers/block/prd.c b/drivers/block/prd.c
+> index 6d96e6c..36b8fe4 100644
+> --- a/drivers/block/prd.c
+> +++ b/drivers/block/prd.c
+> @@ -228,21 +228,15 @@ static const struct block_device_operations prd_fops = {
+>  };
 >  
->  	mutex_lock(&prd_devices_mutex);
-> -	prd = prd_init_one(MINOR(dev));
-> -	kobj = prd ? get_disk(prd->prd_disk) : NULL;
-> -	mutex_unlock(&prd_devices_mutex);
+>  /* Kernel module stuff */
+> -static int prd_start_gb = CONFIG_BLK_DEV_PMEM_START;
+> -module_param(prd_start_gb, int, S_IRUGO);
+> -MODULE_PARM_DESC(prd_start_gb, "Offset in GB of where to start claiming space");
+> -
+> -static int prd_size_gb = CONFIG_BLK_DEV_PMEM_SIZE;
+> -module_param(prd_size_gb,  int, S_IRUGO);
+> -MODULE_PARM_DESC(prd_size_gb,  "Total size in GB of space to claim for all disks");
+> -
+>  static int prd_major;
+>  module_param(prd_major, int, 0);
+>  MODULE_PARM_DESC(prd_major,  "Major number to request for this driver");
 >  
-> +	list_for_each_entry(prd, &prd_devices, prd_list) {
-> +		if (prd->prd_number == number) {
-> +			kobj = get_disk(prd->prd_disk);
-> +			goto out;
-> +		}
+> -static int prd_count = CONFIG_BLK_DEV_PMEM_COUNT;
+> -module_param(prd_count, int, S_IRUGO);
+> -MODULE_PARM_DESC(prd_count, "Number of prd devices to evenly split allocated space");
+> +static char *map;
+> +module_param(map, charp, S_IRUGO);
+> +MODULE_PARM_DESC(map,
+> +	"pmem device mapping: map=mapS[,mapS...] where:\n"
+> +	"mapS=nn[KMG]$ss[KMG] or mapS=nn[KMG]@ss[KMG], nn=size, ss=offset.");
+>  
+>  static LIST_HEAD(prd_devices);
+>  static DEFINE_MUTEX(prd_devices_mutex);
+> @@ -292,6 +286,13 @@ static struct prd_device *prd_alloc(phys_addr_t phys_addr, size_t disk_size,
+>  	struct gendisk *disk;
+>  	int err;
+>  
+> +	if (unlikely((phys_addr & ~PAGE_MASK) || (disk_size & ~PAGE_MASK))) {
+> +		pr_err("phys_addr=0x%llx disk_size=0x%zx must be 4k aligned\n",
+
+Need a "pmem:" prefix on this error string.
+
+> +		       phys_addr, disk_size);
+> +		err = -EINVAL;
+> +		goto out;
 > +	}
 > +
-> +	pr_err("prd: prd_probe: Unexpected parameter=%d\n", number);
-> +	kobj = NULL;
-> +
-> +out:
-> +	mutex_unlock(&prd_devices_mutex);
+>  	prd = kzalloc(sizeof(*prd), GFP_KERNEL);
+>  	if (unlikely(!prd)) {
+>  		err = -ENOMEM;
+> @@ -388,22 +389,30 @@ out:
 >  	return kobj;
 >  }
 >  
-> @@ -424,5 +423,7 @@ static void __exit prd_exit(void)
->  
->  MODULE_AUTHOR("Ross Zwisler <ross.zwisler@linux.intel.com>");
->  MODULE_LICENSE("GPL");
-> +MODULE_ALIAS("pmem");
+> +static int prd_parse_map_one(char *map, phys_addr_t *start, size_t *size)
+> +{
+> +	char *p = map;
 > +
->  module_init(prd_init);
->  module_exit(prd_exit);
+> +	*size = (phys_addr_t)memparse(p, &p);
+> +	if ((p == map) || ((*p != '$') && (*p != '@')))
+> +		return -EINVAL;
+> +
+> +	*start = (size_t)memparse(p + 1, &p);
+> +
+> +	return *p == '\0' ? 0 : -EINVAL;
+
+Probably need to check for a zero-length parse on the start as well, similar
+to what you did with the (p == map) check for size.  Without this a parameter
+of "map=8G@" will try and map starting with address 0.  This'll fail, but
+probably better to catch it during the string parsing.
+
+> +}
+> +
+>  static int __init prd_init(void)
+>  {
+>  	int result, i;
+>  	struct prd_device *prd, *next;
+> -	phys_addr_t phys_addr;
+> -	size_t total_size, disk_size;
+> +	char *p, *prd_map = map;
+>  
+> -	if (unlikely(!prd_start_gb || !prd_size_gb || !prd_count)) {
+> -		pr_err("prd: prd_start_gb || prd_size_gb || prd_count are 0!!\n");
+> +	if (!prd_map) {
+> +		pr_err("prd: must specify map parameter.\n");
+>  		return -EINVAL;
+>  	}
+>  
+> -	phys_addr = (phys_addr_t) prd_start_gb * 1024 * 1024 * 1024;
+> -	total_size = (size_t)	   prd_size_gb  * 1024 * 1024 * 1024;
+> -	disk_size = total_size / prd_count;
+> -
+>  	result = register_blkdev(prd_major, "prd");
+>  	if (result < 0) {
+>  		result = -EIO;
+> @@ -411,13 +420,24 @@ static int __init prd_init(void)
+>  	} else if (result > 0)
+>  		prd_major = result;
+>  
+> -	for (i = 0; i < prd_count; i++) {
+> -		prd = prd_alloc(phys_addr + i * disk_size, disk_size, i);
+> +	i = 0;
+> +	while ((p = strsep(&prd_map, ",")) != NULL) {
+> +		phys_addr_t phys_addr;
+> +		size_t disk_size;
+> +
+> +		if (!*p)
+> +			continue;
+> +		result = prd_parse_map_one(p, &phys_addr, &disk_size);
+> +		if (result)
+> +			goto out_free;
+> +
+> +		prd = prd_alloc(phys_addr, disk_size, i);
+>  		if (IS_ERR(prd)) {
+>  			result = PTR_ERR(prd);
+>  			goto out_free;
+>  		}
+>  		list_add_tail(&prd->prd_list, &prd_devices);
+> +		++i;
+>  	}
+>  
+>  	list_for_each_entry(prd, &prd_devices, prd_list)
+
+Overall I really like this patch.  It makes dealing with multiple regions
+very easy!
+
+Thanks,
+- Ross
 
 
 --
