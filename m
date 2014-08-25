@@ -1,103 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F6EB6B008C
-	for <linux-mm@kvack.org>; Mon, 25 Aug 2014 04:33:57 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id et14so20350986pad.7
-        for <linux-mm@kvack.org>; Mon, 25 Aug 2014 01:33:57 -0700 (PDT)
-Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
-        by mx.google.com with ESMTPS id ci1si7023394pdb.160.2014.08.25.01.33.55
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 423556B0036
+	for <linux-mm@kvack.org>; Mon, 25 Aug 2014 07:01:42 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id bj1so20598029pad.39
+        for <linux-mm@kvack.org>; Mon, 25 Aug 2014 04:01:39 -0700 (PDT)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id t3si52878837pdp.220.2014.08.25.04.01.38
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Mon, 25 Aug 2014 01:33:56 -0700 (PDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout3.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NAU00F28T96W8A0@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 25 Aug 2014 09:36:42 +0100 (BST)
-Message-id: <53FAF4EE.6060201@samsung.com>
-Date: Mon, 25 Aug 2014 10:33:50 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-MIME-version: 1.0
-Subject: Re: [PATCH 0/2] ARM: Remove lowmem limit for default CMA region
-References: <1408610714-16204-1-git-send-email-m.szyprowski@samsung.com>
- <20140825012600.GN17372@bbox> <53FAED20.60200@samsung.com>
- <20140825081836.GF32620@bbox>
-In-reply-to: <20140825081836.GF32620@bbox>
-Content-type: text/plain; charset=utf-8; format=flowed
-Content-transfer-encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 25 Aug 2014 04:01:38 -0700 (PDT)
+Received: by mail-pa0-f53.google.com with SMTP id rd3so20871068pab.12
+        for <linux-mm@kvack.org>; Mon, 25 Aug 2014 04:01:38 -0700 (PDT)
+Date: Mon, 25 Aug 2014 20:01:18 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH v3] zram: add num_discards for discarded pages stat
+Message-ID: <20140825110118.GA933@swordfish>
+References: <000201cfbde2$2ae08710$80a19530$@samsung.com>
+ <20140825003610.GM17372@bbox>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140825003610.GM17372@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Russell King - ARM Linux <linux@arm.linux.org.uk>, Michal Nazarewicz <mina86@mina86.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
+Cc: Chao Yu <chao2.yu@samsung.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, 'Jerome Marchand' <jmarchan@redhat.com>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, 'Andrew Morton' <akpm@linux-foundation.org>
 
 Hello,
 
-On 2014-08-25 10:18, Minchan Kim wrote:
-> On Mon, Aug 25, 2014 at 10:00:32AM +0200, Marek Szyprowski wrote:
->> On 2014-08-25 03:26, Minchan Kim wrote:
->>> On Thu, Aug 21, 2014 at 10:45:12AM +0200, Marek Szyprowski wrote:
->>>> Russell King recently noticed that limiting default CMA region only to
->>>> low memory on ARM architecture causes serious memory management issues
->>>> with machines having a lot of memory (which is mainly available as high
->>>> memory). More information can be found the following thread:
->>>> http://thread.gmane.org/gmane.linux.ports.arm.kernel/348441/
->>>>
->>>> Those two patches removes this limit letting kernel to put default CMA
->>>> region into high memory when this is possible (there is enough high
->>>> memory available and architecture specific DMA limit fits).
->>> Agreed. It should be from the beginning because CMA page is effectly
->>> pinned if it is anonymous page and system has no swap.
->> Nope. Even without swap, anonymous page can be correctly migrated to other
->> location. Migration code doesn't depend on presence of swap.
-> I could be possible only if the zone has freeable page(ie, free pages
-> + shrinkable page like page cache). IOW, if the zone is full with
-> anon pages, it's efffectively pinned.
+On (08/25/14 09:36), Minchan Kim wrote:
+> Hello Chao,
+> 
+> On Fri, Aug 22, 2014 at 04:21:01PM +0800, Chao Yu wrote:
+> > Since we have supported handling discard request in this commit
+> > f4659d8e620d08bd1a84a8aec5d2f5294a242764 (zram: support REQ_DISCARD), zram got
+> > one more chance to free unused memory whenever received discard request. But
+> > without stating for discard request, there is no method for user to know whether
+> > discard request has been handled by zram or how many blocks were discarded by
+> > zram when user wants to know the effect of discard.
+> 
+> My concern is that how much we are able to know the effect of discard
+> exactly with your patch.
+> 
+> The issue I can think of is zram-swap discard.
+> Now, zram handles notification from VM to free duplicated copy between
+> VM-owned memory and zRAM-owned's one so discarding for zram-swap might
+> be pointless overhead but your stat indicates lots of free page discarded
+> without real freeing 
 
-Why? __alloc_contig_migrate_range() uses alloc_migrate_target() 
-function, which
-can take free page from any zone matching given flags.
+this is why I've moved stats accounting to the place where actual
+zs_free() happens. and, frankly, I still would like to see the number
+of zs_free() calls, rather than the number of slot free notifications
+and REQ_DISCARD (or separately), because they all end up calling
+zs_free(). iow, despite the call path, from the user point of view
+they are just zs_free() -- the number of pages that's been freed by
+the 3rd party and we had have to deal with that.
 
->>>> This should solve strange OOM issues on systems with lots of RAM
->>>> (i.e. >1GiB) and large (>256M) CMA area.
->>> I totally agree with the patchset although I didn't review code
->>> at all.
->>>
->>> Another topic:
->>> It means it should be a problem still if system has CMA in lowmem
->>> by some reason(ex, hardware limit or other purpose of CMA
->>> rather than DMA subsystem)?
->>>
->>> In that case, an idea that just popped in my head is to migrate
->>> pages from cma area to highest zone because they are all
->>> userspace pages which should be in there but not sure it's worth
->>> to implement at this point because how many such cripple platform
->>> are.
->>>
->>> Just for the recording.
->> Moving pages between low and high zone is not that easy. If I remember
->> correctly you cannot migrate a page from low memory to high zone in
->> generic case, although it should be possible to add exception for
->> anonymous pages. This will definitely improve poor low memory
->> handling in low zone when CMA is enabled.
-> Yeb, it's possible for anonymous pages but I just wonder it's worth
-> to add more complexitiy to mm and and you are answering it's worth.
-> Okay. May I understand your positive feedback means such platform(
-> ie, DMA works with only lowmem) are still common?
+> so that user might think "We should keep enable
+> swap discard for zRAM because the stat indicates it's really good".
+> 
+> In summary, wouldn't it better to have two?
+> 
+> num_discards,
+> num_failed_discards?
 
-There are still some platforms, which have limited DMA capabilities. However
-the ability to move anonymous a page from lowmem to highmem will be a 
-benefit
-in any case, as low memory is really much more precious.
+do we actully need this? the only value I can think of (perhaps I'm
+missing something) is that we can make sure that we need to support
+both slot free and REQ_DISCARDS, or we can leave only REQ_DISCARDS.
+is there anything else?
 
-It also doesn't look to be really hard to add this exception for anonymous
-pages from low memory. It will be just a matter of setting __GFP_HIGHMEM
-flag if source page is anonymous page in alloc_migrate_target() function.
-Am i right?
+	-ss
 
-Best regards
--- 
-Marek Szyprowski, PhD
-Samsung R&D Institute Poland
+> For it, we should modify zram_free_page has return value.
+> What do other guys think?
+> 
+> > 
+> > In this patch, we add num_discards to stat discarded pages, and export it to
+> > sysfs for users.
+> > 
+> > * From v1
+> >  * Update zram document to show num_discards in statistics list.
+> > 
+> > * From v2
+> >  * Update description of this patch with clear goal.
+> > 
+> > Signed-off-by: Chao Yu <chao2.yu@samsung.com>
+> > ---
+> >  Documentation/ABI/testing/sysfs-block-zram | 10 ++++++++++
+> >  Documentation/blockdev/zram.txt            |  1 +
+> >  drivers/block/zram/zram_drv.c              |  3 +++
+> >  drivers/block/zram/zram_drv.h              |  1 +
+> >  4 files changed, 15 insertions(+)
+> > 
+> > diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
+> > index 70ec992..fa8936e 100644
+> > --- a/Documentation/ABI/testing/sysfs-block-zram
+> > +++ b/Documentation/ABI/testing/sysfs-block-zram
+> > @@ -57,6 +57,16 @@ Description:
+> >  		The failed_writes file is read-only and specifies the number of
+> >  		failed writes happened on this device.
+> >  
+> > +
+> > +What:		/sys/block/zram<id>/num_discards
+> > +Date:		August 2014
+> > +Contact:	Chao Yu <chao2.yu@samsung.com>
+> > +Description:
+> > +		The num_discards file is read-only and specifies the number of
+> > +		physical blocks which are discarded by this device. These blocks
+> > +		are included in discard request which is sended by filesystem as
+> > +		the blocks are no longer used.
+> > +
+> >  What:		/sys/block/zram<id>/max_comp_streams
+> >  Date:		February 2014
+> >  Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> > diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
+> > index 0595c3f..e50e18b 100644
+> > --- a/Documentation/blockdev/zram.txt
+> > +++ b/Documentation/blockdev/zram.txt
+> > @@ -89,6 +89,7 @@ size of the disk when not in use so a huge zram is wasteful.
+> >  		num_writes
+> >  		failed_reads
+> >  		failed_writes
+> > +		num_discards
+> >  		invalid_io
+> >  		notify_free
+> >  		zero_pages
+> > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> > index d00831c..904e7a5 100644
+> > --- a/drivers/block/zram/zram_drv.c
+> > +++ b/drivers/block/zram/zram_drv.c
+> > @@ -606,6 +606,7 @@ static void zram_bio_discard(struct zram *zram, u32 index,
+> >  		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
+> >  		zram_free_page(zram, index);
+> >  		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+> > +		atomic64_inc(&zram->stats.num_discards);
+> >  		index++;
+> >  		n -= PAGE_SIZE;
+> >  	}
+> > @@ -866,6 +867,7 @@ ZRAM_ATTR_RO(num_reads);
+> >  ZRAM_ATTR_RO(num_writes);
+> >  ZRAM_ATTR_RO(failed_reads);
+> >  ZRAM_ATTR_RO(failed_writes);
+> > +ZRAM_ATTR_RO(num_discards);
+> >  ZRAM_ATTR_RO(invalid_io);
+> >  ZRAM_ATTR_RO(notify_free);
+> >  ZRAM_ATTR_RO(zero_pages);
+> > @@ -879,6 +881,7 @@ static struct attribute *zram_disk_attrs[] = {
+> >  	&dev_attr_num_writes.attr,
+> >  	&dev_attr_failed_reads.attr,
+> >  	&dev_attr_failed_writes.attr,
+> > +	&dev_attr_num_discards.attr,
+> >  	&dev_attr_invalid_io.attr,
+> >  	&dev_attr_notify_free.attr,
+> >  	&dev_attr_zero_pages.attr,
+> > diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+> > index e0f725c..2994aaf 100644
+> > --- a/drivers/block/zram/zram_drv.h
+> > +++ b/drivers/block/zram/zram_drv.h
+> > @@ -86,6 +86,7 @@ struct zram_stats {
+> >  	atomic64_t num_writes;	/* --do-- */
+> >  	atomic64_t failed_reads;	/* can happen when memory is too low */
+> >  	atomic64_t failed_writes;	/* can happen when memory is too low */
+> > +	atomic64_t num_discards;	/* no. of discarded pages */
+> >  	atomic64_t invalid_io;	/* non-page-aligned I/O requests */
+> >  	atomic64_t notify_free;	/* no. of swap slot free notifications */
+> >  	atomic64_t zero_pages;		/* no. of zero filled pages */
+> > -- 
+> > 2.0.1.474.g72c7794
+> > 
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> -- 
+> Kind regards,
+> Minchan Kim
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
