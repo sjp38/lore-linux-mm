@@ -1,51 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
-	by kanga.kvack.org (Postfix) with ESMTP id F05D16B0081
-	for <linux-mm@kvack.org>; Mon, 25 Aug 2014 04:25:52 -0400 (EDT)
-Received: by mail-oi0-f50.google.com with SMTP id a141so9419945oig.23
-        for <linux-mm@kvack.org>; Mon, 25 Aug 2014 01:25:52 -0700 (PDT)
-Received: from mail-ob0-x22e.google.com (mail-ob0-x22e.google.com [2607:f8b0:4003:c01::22e])
-        by mx.google.com with ESMTPS id uq6si45344161obc.33.2014.08.25.01.25.52
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 25 Aug 2014 01:25:52 -0700 (PDT)
-Received: by mail-ob0-f174.google.com with SMTP id vb8so10245932obc.5
-        for <linux-mm@kvack.org>; Mon, 25 Aug 2014 01:25:52 -0700 (PDT)
+Received: from mail-qc0-f175.google.com (mail-qc0-f175.google.com [209.85.216.175])
+	by kanga.kvack.org (Postfix) with ESMTP id BD7AD6B0083
+	for <linux-mm@kvack.org>; Mon, 25 Aug 2014 04:26:06 -0400 (EDT)
+Received: by mail-qc0-f175.google.com with SMTP id w7so13210374qcr.20
+        for <linux-mm@kvack.org>; Mon, 25 Aug 2014 01:26:06 -0700 (PDT)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id q5si51594289qce.20.2014.08.25.01.26.04
+        for <linux-mm@kvack.org>;
+        Mon, 25 Aug 2014 01:26:06 -0700 (PDT)
+Date: Mon, 25 Aug 2014 17:26:15 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 1/3] mm/slab: use percpu allocator for cpu cache
+Message-ID: <20140825082615.GA13475@js1304-P5Q-DELUXE>
+References: <1408608675-20420-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <alpine.DEB.2.11.1408210918050.32524@gentwo.org>
 MIME-Version: 1.0
-In-Reply-To: <20140825043755.GE32620@bbox>
-References: <1408668134-21696-1-git-send-email-minchan@kernel.org>
- <1408668134-21696-4-git-send-email-minchan@kernel.org> <CAFdhcLQXHoCT2tee8f1hb-XOsh4G5SQUGfhXtobNYjDq6MS9Ug@mail.gmail.com>
- <20140824235607.GJ17372@bbox> <CAFdhcLRvwifCVyoW5F9gdOGwcNd0PM679HckJY6+UDYV82n+bg@mail.gmail.com>
- <20140825043755.GE32620@bbox>
-From: Dongsheng Song <dongsheng.song@gmail.com>
-Date: Mon, 25 Aug 2014 16:25:31 +0800
-Message-ID: <CAE8XmWojKVaaY2GzRnpOVzc9cMeX2fb3nRC0JyBgrhPu1QaBEw@mail.gmail.com>
-Subject: Re: [PATCH v4 3/4] zram: zram memory size limitation
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.11.1408210918050.32524@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: David Horner <ds2horner@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Tejun Heo <htejun@gmail.com>, linux-kernel@vger.kernel.org
 
-> +What:          /sys/block/zram<id>/mem_limit
-> +Date:          August 2014
-> +Contact:       Minchan Kim <minchan@kernel.org>
-> +Description:
-> +               The mem_limit file is read/write and specifies the amount
- > +               of memory to be able to consume memory to store store
-> +               compressed data. The limit could be changed in run time
-> +               and "0" means disable the limit. No limit is the initial state.
+On Thu, Aug 21, 2014 at 09:21:30AM -0500, Christoph Lameter wrote:
+> On Thu, 21 Aug 2014, Joonsoo Kim wrote:
+> 
+> > So, this patch try to use percpu allocator in SLAB. This simplify
+> > initialization step in SLAB so that we could maintain SLAB code more
+> > easily.
+> 
+> I thought about this a couple of times but the amount of memory used for
+> the per cpu arrays can be huge. In contrast to slub which needs just a
+> few pointers, slab requires one pointer per object that can be in the
+> local cache. CC Tj.
+> 
+> Lets say we have 300 caches and we allow 1000 objects to be cached per
+> cpu. That is 300k pointers per cpu. 1.2M on 32 bit. 2.4M per cpu on
+> 64bit.
 
-extra word 'store' ?
-The mem_limit file is read/write and specifies the amount of memory to
-be able to consume memory to store store compressed data.
+Hello, Christoph.
 
-maybe this better ?
-The mem_limit file is read/write and specifies the amount of memory to
-store compressed data.
+Amount of memory we need to keep pointers for object is same in any case.
+I know that percpu allocator occupy vmalloc space, so maybe we could
+exhaust vmalloc space on 32 bit. 64 bit has no problem on it.
+How many cores does largest 32 bit system have? Is it possible
+to exhaust vmalloc space if we use percpu allocator?
 
---
-Dongsheng
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
