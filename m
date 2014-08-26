@@ -1,39 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 24A3F6B0036
-	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 08:54:59 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id w10so22275837pde.23
-        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 05:54:58 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id f2si3911404pdk.241.2014.08.26.05.54.57
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id ED4F36B0036
+	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 09:18:32 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so23486008pab.14
+        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 06:18:32 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id oe1si4084295pbc.212.2014.08.26.06.18.31
         for <linux-mm@kvack.org>;
-        Tue, 26 Aug 2014 05:54:58 -0700 (PDT)
-Date: Tue, 26 Aug 2014 20:55:44 +0800
+        Tue, 26 Aug 2014 06:18:32 -0700 (PDT)
+Date: Tue, 26 Aug 2014 21:18:15 +0800
 From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 155/172] undefined reference to
- `watchdog_hardlockup_detector_is_enabled'
-Message-ID: <53fc83d0.eS2Nhff1ydj9/9qj%fengguang.wu@intel.com>
+Subject: [next:master 2145/2346] drivers/base/dma-mapping.c:294:2: error:
+ implicit declaration of function 'dma_common_pages_remap'
+Message-ID: <53fc8917.8odw5fgQ/XJIRB7e%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ulrich Obergfell <uobergfe@redhat.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Don Zickus <dzickus@redhat.com>, Andrew Jones <drjones@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org
 
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   9ff078807eb23bbd93e8a09e4d323b4246a2a414
-commit: dd537b4f62ee02ada2c10246b9e82eb20287452b [155/172] kernel/watchdog.c: control hard lockup detection default
-config: make ARCH=sparc64 defconfig
+tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+head:   1c9e4561f3b2afffcda007eae9d0ddd25525f50e
+commit: fa44abcad042144651fa9cd0f698c7c40a59d60f [2145/2346] common: dma-mapping: introduce common remapping functions
+config: make ARCH=mn10300 asb2364_defconfig
 
 All error/warnings:
 
-   kernel/built-in.o: In function `proc_dowatchdog':
->> (.text+0x6a5e0): undefined reference to `watchdog_hardlockup_detector_is_enabled'
-   kernel/built-in.o: In function `proc_dowatchdog':
->> (.text+0x6a668): undefined reference to `watchdog_enable_hardlockup_detector'
-   kernel/built-in.o: In function `proc_dowatchdog':
->> (.text+0x6a75c): undefined reference to `watchdog_enable_hardlockup_detector'
+   drivers/base/dma-mapping.c: In function 'dma_common_contiguous_remap':
+>> drivers/base/dma-mapping.c:294:2: error: implicit declaration of function 'dma_common_pages_remap' [-Werror=implicit-function-declaration]
+     ptr = dma_common_pages_remap(pages, size, vm_flags, prot, caller);
+     ^
+>> drivers/base/dma-mapping.c:294:6: warning: assignment makes pointer from integer without a cast
+     ptr = dma_common_pages_remap(pages, size, vm_flags, prot, caller);
+         ^
+   drivers/base/dma-mapping.c: At top level:
+>> drivers/base/dma-mapping.c:305:7: error: conflicting types for 'dma_common_pages_remap'
+    void *dma_common_pages_remap(struct page **pages, size_t size,
+          ^
+   drivers/base/dma-mapping.c:294:8: note: previous implicit declaration of 'dma_common_pages_remap' was here
+     ptr = dma_common_pages_remap(pages, size, vm_flags, prot, caller);
+           ^
+   cc1: some warnings being treated as errors
+
+vim +/dma_common_pages_remap +294 drivers/base/dma-mapping.c
+
+   288		if (!pages)
+   289			return NULL;
+   290	
+   291		for (i = 0, pfn = page_to_pfn(page); i < (size >> PAGE_SHIFT); i++)
+   292			pages[i] = pfn_to_page(pfn + i);
+   293	
+ > 294		ptr = dma_common_pages_remap(pages, size, vm_flags, prot, caller);
+   295	
+   296		kfree(pages);
+   297	
+   298		return ptr;
+   299	}
+   300	
+   301	/*
+   302	 * remaps an array of PAGE_SIZE pages into another vm_area
+   303	 * Cannot be used in non-sleeping contexts
+   304	 */
+ > 305	void *dma_common_pages_remap(struct page **pages, size_t size,
+   306				unsigned long vm_flags, pgprot_t prot,
+   307				const void *caller)
+   308	{
 
 ---
 0-DAY kernel build testing backend              Open Source Technology Center
