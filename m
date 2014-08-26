@@ -1,199 +1,457 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 676256B0036
-	for <linux-mm@kvack.org>; Mon, 25 Aug 2014 23:07:35 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id ey11so22012465pad.24
-        for <linux-mm@kvack.org>; Mon, 25 Aug 2014 20:07:35 -0700 (PDT)
-Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
-        by mx.google.com with ESMTPS id pd5si2431841pbb.28.2014.08.25.20.07.33
+Received: from mail-qa0-f50.google.com (mail-qa0-f50.google.com [209.85.216.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 0380B6B0036
+	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 00:28:58 -0400 (EDT)
+Received: by mail-qa0-f50.google.com with SMTP id s7so13097832qap.37
+        for <linux-mm@kvack.org>; Mon, 25 Aug 2014 21:28:58 -0700 (PDT)
+Received: from mail-qc0-x231.google.com (mail-qc0-x231.google.com [2607:f8b0:400d:c01::231])
+        by mx.google.com with ESMTPS id t6si2643743qcc.21.2014.08.25.21.28.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Mon, 25 Aug 2014 20:07:34 -0700 (PDT)
-Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout4.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NAW005DV8ODI550@mailout4.samsung.com> for
- linux-mm@kvack.org; Tue, 26 Aug 2014 12:07:25 +0900 (KST)
-From: Chao Yu <chao2.yu@samsung.com>
-References: <000201cfbde2$2ae08710$80a19530$@samsung.com>
- <20140825003610.GM17372@bbox>
-In-reply-to: <20140825003610.GM17372@bbox>
-Subject: RE: [PATCH v3] zram: add num_discards for discarded pages stat
-Date: Tue, 26 Aug 2014 11:05:47 +0800
-Message-id: <008001cfc0da$de01b0d0$9a051270$@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=UTF-8
-Content-transfer-encoding: 7bit
-Content-language: zh-cn
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 25 Aug 2014 21:28:58 -0700 (PDT)
+Received: by mail-qc0-f177.google.com with SMTP id x13so14852841qcv.22
+        for <linux-mm@kvack.org>; Mon, 25 Aug 2014 21:28:58 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CALZtONAdrN2sknx_9USJUGEa+dUXLdg=kr_4g1u+zSQh4ZH=5w@mail.gmail.com>
+References: <1408668134-21696-1-git-send-email-minchan@kernel.org>
+	<1408668134-21696-4-git-send-email-minchan@kernel.org>
+	<CAFdhcLQXHoCT2tee8f1hb-XOsh4G5SQUGfhXtobNYjDq6MS9Ug@mail.gmail.com>
+	<20140824235607.GJ17372@bbox>
+	<CAFdhcLRvwifCVyoW5F9gdOGwcNd0PM679HckJY6+UDYV82n+bg@mail.gmail.com>
+	<20140825043755.GE32620@bbox>
+	<CAFdhcLRZreD3Ps+vb3osnT3yNYQ_oK+OVq3GJ1oBhfZfyDchww@mail.gmail.com>
+	<CALZtONAdrN2sknx_9USJUGEa+dUXLdg=kr_4g1u+zSQh4ZH=5w@mail.gmail.com>
+Date: Tue, 26 Aug 2014 00:28:57 -0400
+Message-ID: <CAFdhcLTNFkSzh254hhQp4Ley-rH12rW3MYJ+3SLPUM7GLX4OAA@mail.gmail.com>
+Subject: Re: [PATCH v4 3/4] zram: zram memory size limitation
+From: David Horner <ds2horner@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Minchan Kim' <minchan@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, 'Jerome Marchand' <jmarchan@redhat.com>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, 'Andrew Morton' <akpm@linux-foundation.org>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>
 
-Hi Minchan,
+On Mon, Aug 25, 2014 at 2:12 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+> On Mon, Aug 25, 2014 at 4:22 AM, David Horner <ds2horner@gmail.com> wrote:
+>> On Mon, Aug 25, 2014 at 12:37 AM, Minchan Kim <minchan@kernel.org> wrote:
+>>> On Sun, Aug 24, 2014 at 11:40:50PM -0400, David Horner wrote:
+>>>> On Sun, Aug 24, 2014 at 7:56 PM, Minchan Kim <minchan@kernel.org> wrote:
+>>>> > Hello David,
+>>>> >
+>>>> > On Fri, Aug 22, 2014 at 06:55:38AM -0400, David Horner wrote:
+>>>> >> On Thu, Aug 21, 2014 at 8:42 PM, Minchan Kim <minchan@kernel.org> wrote:
+>>>> >> > Since zram has no control feature to limit memory usage,
+>>>> >> > it makes hard to manage system memrory.
+>>>> >> >
+>>>> >> > This patch adds new knob "mem_limit" via sysfs to set up the
+>>>> >> > a limit so that zram could fail allocation once it reaches
+>>>> >> > the limit.
+>>>> >> >
+>>>> >> > In addition, user could change the limit in runtime so that
+>>>> >> > he could manage the memory more dynamically.
+>>>> >> >
+>>>> >> - Default is no limit so it doesn't break old behavior.
+>>>> >> + Initial state is no limit so it doesn't break old behavior.
+>>>> >>
+>>>> >> I understand your previous post now.
+>>>> >>
+>>>> >> I was saying that setting to either a null value or garbage
+>>>> >>  (which is interpreted as zero by memparse(buf, NULL);)
+>>>> >> removes the limit.
+>>>> >>
+>>>> >> I think this is "surprise" behaviour and rather the null case should
+>>>> >> return  -EINVAL
+>>>> >> The test below should be "good enough" though not catching all garbage.
+>>>> >
+>>>> > Thanks for suggesting but as I said, it should be fixed in memparse itself,
+>>>> > not caller if it is really problem so I don't want to touch it in this
+>>>> > patchset. It's not critical for adding the feature.
+>>>> >
+>>>>
+>>>> I've looked into the memparse function more since we talked.
+>>>> I do believe a wrapper function around it for the typical use by sysfs would
+>>>> be very valuable.
+>>>
+>>> Agree.
+>>>
+>>>> However, there is nothing wrong with memparse itself that needs to be fixed.
+>>>>
+>>>> It does what it is documented to do very well (In My Uninformed Opinion).
+>>>> It provides everything that a caller needs to manage the token that it
+>>>> processes.
+>>>> It thus handles strings like "7,,5,8,,9" with the implied zeros.
+>>>
+>>> Maybe strict_memparse would be better to protect such things so you
+>>> could find several places to clean it up.
+>>>
+>>>>
+>>>> The fact that other callers don't check the return pointer value to
+>>>> see if only a null
+>>>> string was processed, is not its fault.
+>>>> Nor that it may not be ideally suited to sysfs attributes; that other store
+>>>> functions use it in a given manner does not means that is correct -
+>>>> nor that it is
+>>>> incorrect for that "knob". Some attributes could be just as valid with
+>>>> null zeros.
+>>>>
+>>>> And you are correct, to disambiguate the zero is not required for the
+>>>> limit feature.
+>>>> Your original patch which disallowed zero was full feature for mem_limit.
+>>>> It is the requested non-crucial feature to allow zero to reestablish
+>>>> the initial state
+>>>>  that benefits from distinguishing an explicit zero from a "default zero'
+>>>>  when garbage is written.
+>>>>
+>>>> The final argument is that if we release this feature as is the undocumented
+>>>>  functionality could be relied upon, and when later fixed: user space breaks.
+>>>
+>>> I don't get it. Why does it break userspace?
+>>> The sysfs-block-zram says "0" means disable the limit.
+>>> If someone writes *garabge* but work as if disabling the limit,
+>>> it's not a right thing and he already broke although it worked
+>>> so it would be not a problem if we fix later.
+>>> (ie, we don't need to take care of broken userspace)
+>>> Am I missing your point?
+>>>
+>>
+>> Perhaps you are missing my point, perhaps ignoring or dismissing.
+>>
+>> Basically, if a facility works in a useful way, even if it was designed for
+>> different usage, that becomes the "accepted" interface/usage.
+>> The developer may not have intended that usage or may even considered
+>> it wrong and a broken usage, but it is what it is and people become
+>>  reliant on that behaviour.
+>>
+>> Case in point is memparse itself.
+>>
+>> The developer intentionally sets the return pointer because that is the
+>> only value that can be validated for correct performance.
+>> The return value allows -ve so the standard error message passing is not valid.
+>> Unfortunately, C allows the user to pass a NULL value in the parameter.
+>> The developer could consider that absurd and fundamentally broken.
+>> But to the user it is a valid situation, because (perhaps) it can't be
+>> bothered to handle error cases.
+>>
+>> So, who is to blame.
+>> You say memparse, that it is fundamentally broken,
+>>   because it didn't check to see that it was used correctly.
+>>  And I say  mem_limit_store is fundamentally broken,
+>>   because it didn't check to see that it was used correctly.
+>
+> I think we should look at what the rest of the kernel does as far as
+> checking memparse results.  It appears to be a mix of some code
+> checking memparse while others don't.  The most common way to check
+> appears to be to verify that memparse actually parsed at least 1
+> character, e.g.:
+>   oldp = p;
+>   mem_size = memparse(p, &p);
+>   if (p == oldp)
+>     return -EINVAL;
+>
+> although other places where 0 isn't valid can simply check for that:
+>   mem_size = memparse(p, &p);
+>   /* don't remove all of memory when handling "mem={invalid}" param */
+>   if (mem_size == 0)
+>     return -EINVAL;
+>
+> or even the other memparse use in zram_drv.c:
+>   disksize = memparse(buf, NULL);
+>   if (!disksize)
+>     return -EINVAL;
+>
+>
+> And there seem to be other places where (maybe?) there's no checking
+> at all.  However, it also seems like many cases of memparse usage are
+> looking for a non-zero value, and therefore they can either
+> immediately check for zero/invalid or (possibly) later code has checks
+> to avoid using any zero value.  In this case though, 0 is a valid
+> value.  So, while I agree that if a user passes an invalid (i.e.
+> non-numeric) value it's clearly user error, it might be closer to the
+> apparent (although unwritten AFAICT) memparse usage api to check the
+> result for validity; in our case a simple check if at least 1 char was
+> parsed is all that's needed, e.g.:
+>
+> {
+>   u64 limit;
+>   char *tmp = buf;
+>   struct zram *zram = dev_to_zram(dev);
+>
+>   limit = memparse(buf, &tmp);
+>   if (buf == tmp) /* no chars parsed, invalid input */
+>     return -EINVAL;
+>   down_write(&zram->init_lock);
+> ...
+>
+>
+> Separate from this patch, it would also help if the lib/cmdline.c
+> memparse doc was at least updated to clarify when the result should be
+> checked for validity
 
-> -----Original Message-----
-> From: Minchan Kim [mailto:minchan@kernel.org]
-> Sent: Monday, August 25, 2014 8:36 AM
-> To: Chao Yu
-> Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org; ngupta@vflare.org; 'Jerome Marchand';
-> 'Sergey Senozhatsky'; 'Andrew Morton'
-> Subject: Re: [PATCH v3] zram: add num_discards for discarded pages stat
-> 
-> Hello Chao,
-> 
-> On Fri, Aug 22, 2014 at 04:21:01PM +0800, Chao Yu wrote:
-> > Since we have supported handling discard request in this commit
-> > f4659d8e620d08bd1a84a8aec5d2f5294a242764 (zram: support REQ_DISCARD), zram got
-> > one more chance to free unused memory whenever received discard request. But
-> > without stating for discard request, there is no method for user to know whether
-> > discard request has been handled by zram or how many blocks were discarded by
-> > zram when user wants to know the effect of discard.
-> 
-> My concern is that how much we are able to know the effect of discard
-> exactly with your patch.
-> 
-> The issue I can think of is zram-swap discard.
-> Now, zram handles notification from VM to free duplicated copy between
-> VM-owned memory and zRAM-owned's one so discarding for zram-swap might
-> be pointless overhead but your stat indicates lots of free page discarded
-> without real freeing so that user might think "We should keep enable
-> swap discard for zRAM because the stat indicates it's really good".
+FWIW:
+I was pondering why I thought this was the wrong place.
+On reflection the best explanation is that it is not validity -
+     the program does what it does quite well.
+      (although it does have flaws for use by sysfs
+         1) it uses simple_strtoull which according to kernel.h#L269 is obsolete
+         2) it checks for a suffix in the null zero case
+              (that means G,K,M are all valid memory size constants,
+               and I think that should not be in the definition of
+valid mem parms)
+         3) it does nothing to enforce termination of the input.
+            Both simple_strtoull and its successor  kstrtoull are not
+buffer overrun safe.
+            And so neither is memparse.
+            It may be the sysfs buffer management does some magic here
+               - but I have not seen it documented nor in code.)
 
-Agreed.
+Rather than _validity_ it is _applicability_ that needs explaining.
+And that is not documented in the function that does its thing.
+But rather in the code that uses it, and more specifically in the framework
+established for its specific use - as in sysfs for numeric memory parameters.
 
-> 
-> In summary, wouldn't it better to have two?
-
-Yeah, I'd like to.
-
-> 
-> num_discards,
-> num_failed_discards?
-
-It's good, but, IMHO, as it's not failed to discard pages due to inside
-error of zRAM, How about show this information more positive by using:
-num_discard_req,
-num_discarded
-
-Then user might think "We can keep on using real-time mode or batch mode
-discard, because our freed pages are increased continuously shew by the
-num_discarded with sending discard reqs each time.
-
-How do you think?
-
-Thanks,
-Yu
-
-> 
-> For it, we should modify zram_free_page has return value.
-> What do other guys think?
-> 
-> >
-> > In this patch, we add num_discards to stat discarded pages, and export it to
-> > sysfs for users.
-> >
-> > * From v1
-> >  * Update zram document to show num_discards in statistics list.
-> >
-> > * From v2
-> >  * Update description of this patch with clear goal.
-> >
-> > Signed-off-by: Chao Yu <chao2.yu@samsung.com>
-> > ---
-> >  Documentation/ABI/testing/sysfs-block-zram | 10 ++++++++++
-> >  Documentation/blockdev/zram.txt            |  1 +
-> >  drivers/block/zram/zram_drv.c              |  3 +++
-> >  drivers/block/zram/zram_drv.h              |  1 +
-> >  4 files changed, 15 insertions(+)
-> >
-> > diff --git a/Documentation/ABI/testing/sysfs-block-zram
-> b/Documentation/ABI/testing/sysfs-block-zram
-> > index 70ec992..fa8936e 100644
-> > --- a/Documentation/ABI/testing/sysfs-block-zram
-> > +++ b/Documentation/ABI/testing/sysfs-block-zram
-> > @@ -57,6 +57,16 @@ Description:
-> >  		The failed_writes file is read-only and specifies the number of
-> >  		failed writes happened on this device.
-> >
-> > +
-> > +What:		/sys/block/zram<id>/num_discards
-> > +Date:		August 2014
-> > +Contact:	Chao Yu <chao2.yu@samsung.com>
-> > +Description:
-> > +		The num_discards file is read-only and specifies the number of
-> > +		physical blocks which are discarded by this device. These blocks
-> > +		are included in discard request which is sended by filesystem as
-> > +		the blocks are no longer used.
-> > +
-> >  What:		/sys/block/zram<id>/max_comp_streams
-> >  Date:		February 2014
-> >  Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> > diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
-> > index 0595c3f..e50e18b 100644
-> > --- a/Documentation/blockdev/zram.txt
-> > +++ b/Documentation/blockdev/zram.txt
-> > @@ -89,6 +89,7 @@ size of the disk when not in use so a huge zram is wasteful.
-> >  		num_writes
-> >  		failed_reads
-> >  		failed_writes
-> > +		num_discards
-> >  		invalid_io
-> >  		notify_free
-> >  		zero_pages
-> > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> > index d00831c..904e7a5 100644
-> > --- a/drivers/block/zram/zram_drv.c
-> > +++ b/drivers/block/zram/zram_drv.c
-> > @@ -606,6 +606,7 @@ static void zram_bio_discard(struct zram *zram, u32 index,
-> >  		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
-> >  		zram_free_page(zram, index);
-> >  		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
-> > +		atomic64_inc(&zram->stats.num_discards);
-> >  		index++;
-> >  		n -= PAGE_SIZE;
-> >  	}
-> > @@ -866,6 +867,7 @@ ZRAM_ATTR_RO(num_reads);
-> >  ZRAM_ATTR_RO(num_writes);
-> >  ZRAM_ATTR_RO(failed_reads);
-> >  ZRAM_ATTR_RO(failed_writes);
-> > +ZRAM_ATTR_RO(num_discards);
-> >  ZRAM_ATTR_RO(invalid_io);
-> >  ZRAM_ATTR_RO(notify_free);
-> >  ZRAM_ATTR_RO(zero_pages);
-> > @@ -879,6 +881,7 @@ static struct attribute *zram_disk_attrs[] = {
-> >  	&dev_attr_num_writes.attr,
-> >  	&dev_attr_failed_reads.attr,
-> >  	&dev_attr_failed_writes.attr,
-> > +	&dev_attr_num_discards.attr,
-> >  	&dev_attr_invalid_io.attr,
-> >  	&dev_attr_notify_free.attr,
-> >  	&dev_attr_zero_pages.attr,
-> > diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-> > index e0f725c..2994aaf 100644
-> > --- a/drivers/block/zram/zram_drv.h
-> > +++ b/drivers/block/zram/zram_drv.h
-> > @@ -86,6 +86,7 @@ struct zram_stats {
-> >  	atomic64_t num_writes;	/* --do-- */
-> >  	atomic64_t failed_reads;	/* can happen when memory is too low */
-> >  	atomic64_t failed_writes;	/* can happen when memory is too low */
-> > +	atomic64_t num_discards;	/* no. of discarded pages */
-> >  	atomic64_t invalid_io;	/* non-page-aligned I/O requests */
-> >  	atomic64_t notify_free;	/* no. of swap slot free notifications */
-> >  	atomic64_t zero_pages;		/* no. of zero filled pages */
-> > --
-> > 2.0.1.474.g72c7794
-> >
-> >
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> --
-> Kind regards,
-> Minchan Kim
+> and how best to do that (e.g. if 0 is an invalid value, just check if
+> the result is 0; if 0 is a possible valid value, check if any chars
+> were parsed).
+>
+>
+>>
+>> The difference is that memparse cannot stop being abused
+>> (C allows the NULL argument and extensive tricks are required to address that)
+>> however, we can readily fix mem_limit_store and ensure
+>> 1) no regression when the interface IS fixed and
+>> 2) predictable behaviour when accidental or "fuzzy" input arrives.
+>>
+>>
+>>>> They say getting API right is a difficult exercise. I suggest, if we
+>>>> don't insisting on
+>>>>  an explicit zero we have the API wrong.
+>>>>
+>>>> I don't think you disagreed, just that the burden to get it correct
+>>>> lay elsewhere.
+>>>>
+>>>> If that is the case it doesn't really matter, we cannot release this
+>>>> interface until
+>>>>  it is corrected wherever it must be.
+>>>>
+>>>> And my zero check was a poor hack.
+>>>>
+>>>> I should have explicitly checked the returned pointer value.
+>>>>
+>>>> I will send that proposed revision, and hopefully you will consider it
+>>>> for inclusion.
+>>>>
+>>>>
+>>>>
+>>>>
+>>>> >>
+>>>> >> >
+>>>> >> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+>>>> >> > ---
+>>>> >> >  Documentation/ABI/testing/sysfs-block-zram | 10 ++++++++
+>>>> >> >  Documentation/blockdev/zram.txt            | 24 ++++++++++++++---
+>>>> >> >  drivers/block/zram/zram_drv.c              | 41 ++++++++++++++++++++++++++++++
+>>>> >> >  drivers/block/zram/zram_drv.h              |  5 ++++
+>>>> >> >  4 files changed, 76 insertions(+), 4 deletions(-)
+>>>> >> >
+>>>> >> > diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
+>>>> >> > index 70ec992514d0..b8c779d64968 100644
+>>>> >> > --- a/Documentation/ABI/testing/sysfs-block-zram
+>>>> >> > +++ b/Documentation/ABI/testing/sysfs-block-zram
+>>>> >> > @@ -119,3 +119,13 @@ Description:
+>>>> >> >                 efficiency can be calculated using compr_data_size and this
+>>>> >> >                 statistic.
+>>>> >> >                 Unit: bytes
+>>>> >> > +
+>>>> >> > +What:          /sys/block/zram<id>/mem_limit
+>>>> >> > +Date:          August 2014
+>>>> >> > +Contact:       Minchan Kim <minchan@kernel.org>
+>>>> >> > +Description:
+>>>> >> > +               The mem_limit file is read/write and specifies the amount
+>>>> >> > +               of memory to be able to consume memory to store store
+>>>> >> > +               compressed data. The limit could be changed in run time
+>>>> >> > -               and "0" is default which means disable the limit.
+>>>> >> > +               and "0" means disable the limit. No limit is the initial state.
+>>>> >>
+>>>> >> there should be no default in the API.
+>>>> >
+>>>> > Thanks.
+>>>> >
+>>>> >>
+>>>> >> > +               Unit: bytes
+>>>> >> > diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
+>>>> >> > index 0595c3f56ccf..82c6a41116db 100644
+>>>> >> > --- a/Documentation/blockdev/zram.txt
+>>>> >> > +++ b/Documentation/blockdev/zram.txt
+>>>> >> > @@ -74,14 +74,30 @@ There is little point creating a zram of greater than twice the size of memory
+>>>> >> >  since we expect a 2:1 compression ratio. Note that zram uses about 0.1% of the
+>>>> >> >  size of the disk when not in use so a huge zram is wasteful.
+>>>> >> >
+>>>> >> > -5) Activate:
+>>>> >> > +5) Set memory limit: Optional
+>>>> >> > +       Set memory limit by writing the value to sysfs node 'mem_limit'.
+>>>> >> > +       The value can be either in bytes or you can use mem suffixes.
+>>>> >> > +       In addition, you could change the value in runtime.
+>>>> >> > +       Examples:
+>>>> >> > +           # limit /dev/zram0 with 50MB memory
+>>>> >> > +           echo $((50*1024*1024)) > /sys/block/zram0/mem_limit
+>>>> >> > +
+>>>> >> > +           # Using mem suffixes
+>>>> >> > +           echo 256K > /sys/block/zram0/mem_limit
+>>>> >> > +           echo 512M > /sys/block/zram0/mem_limit
+>>>> >> > +           echo 1G > /sys/block/zram0/mem_limit
+>>>> >> > +
+>>>> >> > +           # To disable memory limit
+>>>> >> > +           echo 0 > /sys/block/zram0/mem_limit
+>>>> >> > +
+>>>> >> > +6) Activate:
+>>>> >> >         mkswap /dev/zram0
+>>>> >> >         swapon /dev/zram0
+>>>> >> >
+>>>> >> >         mkfs.ext4 /dev/zram1
+>>>> >> >         mount /dev/zram1 /tmp
+>>>> >> >
+>>>> >> > -6) Stats:
+>>>> >> > +7) Stats:
+>>>> >> >         Per-device statistics are exported as various nodes under
+>>>> >> >         /sys/block/zram<id>/
+>>>> >> >                 disksize
+>>>> >> > @@ -96,11 +112,11 @@ size of the disk when not in use so a huge zram is wasteful.
+>>>> >> >                 compr_data_size
+>>>> >> >                 mem_used_total
+>>>> >> >
+>>>> >> > -7) Deactivate:
+>>>> >> > +8) Deactivate:
+>>>> >> >         swapoff /dev/zram0
+>>>> >> >         umount /dev/zram1
+>>>> >> >
+>>>> >> > -8) Reset:
+>>>> >> > +9) Reset:
+>>>> >> >         Write any positive value to 'reset' sysfs node
+>>>> >> >         echo 1 > /sys/block/zram0/reset
+>>>> >> >         echo 1 > /sys/block/zram1/reset
+>>>> >> > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+>>>> >> > index f0b8b30a7128..370c355eb127 100644
+>>>> >> > --- a/drivers/block/zram/zram_drv.c
+>>>> >> > +++ b/drivers/block/zram/zram_drv.c
+>>>> >> > @@ -122,6 +122,33 @@ static ssize_t max_comp_streams_show(struct device *dev,
+>>>> >> >         return scnprintf(buf, PAGE_SIZE, "%d\n", val);
+>>>> >> >  }
+>>>> >> >
+>>>> >> > +static ssize_t mem_limit_show(struct device *dev,
+>>>> >> > +               struct device_attribute *attr, char *buf)
+>>>> >> > +{
+>>>> >> > +       u64 val;
+>>>> >> > +       struct zram *zram = dev_to_zram(dev);
+>>>> >> > +
+>>>> >> > +       down_read(&zram->init_lock);
+>>>> >> > +       val = zram->limit_pages;
+>>>> >> > +       up_read(&zram->init_lock);
+>>>> >> > +
+>>>> >> > +       return scnprintf(buf, PAGE_SIZE, "%llu\n", val << PAGE_SHIFT);
+>>>> >> > +}
+>>>> >> > +
+>>>> >> > +static ssize_t mem_limit_store(struct device *dev,
+>>>> >> > +               struct device_attribute *attr, const char *buf, size_t len)
+>>>> >> > +{
+>>>> >> > +       u64 limit;
+>>>> >> > +       struct zram *zram = dev_to_zram(dev);
+>>>> >> > +
+>>>> >> > +       limit = memparse(buf, NULL);
+>>>> >>
+>>>> >>             if (limit = 0 && buf != "0")
+>>>> >>                   return  -EINVAL
+>>>> >>
+>>>> >> > +       down_write(&zram->init_lock);
+>>>> >> > +       zram->limit_pages = PAGE_ALIGN(limit) >> PAGE_SHIFT;
+>>>> >> > +       up_write(&zram->init_lock);
+>>>> >> > +
+>>>> >> > +       return len;
+>>>> >> > +}
+>>>> >> > +
+>>>> >> >  static ssize_t max_comp_streams_store(struct device *dev,
+>>>> >> >                 struct device_attribute *attr, const char *buf, size_t len)
+>>>> >> >  {
+>>>> >> > @@ -513,6 +540,14 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+>>>> >> >                 ret = -ENOMEM;
+>>>> >> >                 goto out;
+>>>> >> >         }
+>>>> >> > +
+>>>> >> > +       if (zram->limit_pages &&
+>>>> >> > +               zs_get_total_pages(meta->mem_pool) > zram->limit_pages) {
+>>>> >> > +               zs_free(meta->mem_pool, handle);
+>>>> >> > +               ret = -ENOMEM;
+>>>> >> > +               goto out;
+>>>> >> > +       }
+>>>> >> > +
+>>>> >> >         cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_WO);
+>>>> >> >
+>>>> >> >         if ((clen == PAGE_SIZE) && !is_partial_io(bvec)) {
+>>>> >> > @@ -617,6 +652,9 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+>>>> >> >         struct zram_meta *meta;
+>>>> >> >
+>>>> >> >         down_write(&zram->init_lock);
+>>>> >> > +
+>>>> >> > +       zram->limit_pages = 0;
+>>>> >> > +
+>>>> >> >         if (!init_done(zram)) {
+>>>> >> >                 up_write(&zram->init_lock);
+>>>> >> >                 return;
+>>>> >> > @@ -857,6 +895,8 @@ static DEVICE_ATTR(initstate, S_IRUGO, initstate_show, NULL);
+>>>> >> >  static DEVICE_ATTR(reset, S_IWUSR, NULL, reset_store);
+>>>> >> >  static DEVICE_ATTR(orig_data_size, S_IRUGO, orig_data_size_show, NULL);
+>>>> >> >  static DEVICE_ATTR(mem_used_total, S_IRUGO, mem_used_total_show, NULL);
+>>>> >> > +static DEVICE_ATTR(mem_limit, S_IRUGO | S_IWUSR, mem_limit_show,
+>>>> >> > +               mem_limit_store);
+>>>> >> >  static DEVICE_ATTR(max_comp_streams, S_IRUGO | S_IWUSR,
+>>>> >> >                 max_comp_streams_show, max_comp_streams_store);
+>>>> >> >  static DEVICE_ATTR(comp_algorithm, S_IRUGO | S_IWUSR,
+>>>> >> > @@ -885,6 +925,7 @@ static struct attribute *zram_disk_attrs[] = {
+>>>> >> >         &dev_attr_orig_data_size.attr,
+>>>> >> >         &dev_attr_compr_data_size.attr,
+>>>> >> >         &dev_attr_mem_used_total.attr,
+>>>> >> > +       &dev_attr_mem_limit.attr,
+>>>> >> >         &dev_attr_max_comp_streams.attr,
+>>>> >> >         &dev_attr_comp_algorithm.attr,
+>>>> >> >         NULL,
+>>>> >> > diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+>>>> >> > index e0f725c87cc6..b7aa9c21553f 100644
+>>>> >> > --- a/drivers/block/zram/zram_drv.h
+>>>> >> > +++ b/drivers/block/zram/zram_drv.h
+>>>> >> > @@ -112,6 +112,11 @@ struct zram {
+>>>> >> >         u64 disksize;   /* bytes */
+>>>> >> >         int max_comp_streams;
+>>>> >> >         struct zram_stats stats;
+>>>> >> > +       /*
+>>>> >> > +        * the number of pages zram can consume for storing compressed data
+>>>> >> > +        */
+>>>> >> > +       unsigned long limit_pages;
+>>>> >> > +
+>>>> >> >         char compressor[10];
+>>>> >> >  };
+>>>> >> >  #endif
+>>>> >> > --
+>>>> >> > 2.0.0
+>>>> >> >
+>>>> >>
+>>>> >> --
+>>>> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>>> >> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>>> >> see: http://www.linux-mm.org/ .
+>>>> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>>> >
+>>>> > --
+>>>> > Kind regards,
+>>>> > Minchan Kim
+>>>>
+>>>> --
+>>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>>> see: http://www.linux-mm.org/ .
+>>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>>
+>>> --
+>>> Kind regards,
+>>> Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
