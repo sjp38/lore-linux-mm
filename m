@@ -1,74 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 4857B6B0038
-	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 16:28:29 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so23987567pab.33
-        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 13:28:28 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id ia9si6108907pbc.55.2014.08.26.13.28.27
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Aug 2014 13:28:27 -0700 (PDT)
-Message-ID: <53FCEDEA.8080105@codeaurora.org>
-Date: Tue, 26 Aug 2014 13:28:26 -0700
-From: Laura Abbott <lauraa@codeaurora.org>
-MIME-Version: 1.0
-Subject: Re: [next:master 2145/2346] drivers/base/dma-mapping.c:311: undefined
- reference to `get_vm_area_caller'
-References: <53fcfa84.nN6tIZ72fHAO0L0L%fengguang.wu@intel.com>
-In-Reply-To: <53fcfa84.nN6tIZ72fHAO0L0L%fengguang.wu@intel.com>
-Content-Type: text/plain; charset=windows-1252
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 17B416B0038
+	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 16:34:20 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id r10so22781616pdi.6
+        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 13:34:19 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
+        by mx.google.com with ESMTP id bb4si5649073pdb.249.2014.08.26.13.34.18
+        for <linux-mm@kvack.org>;
+        Tue, 26 Aug 2014 13:34:18 -0700 (PDT)
+Message-ID: <1409085242.6066.7.camel@rzwisler-mobl1.amr.corp.intel.com>
+Subject: Re: [PATCH 5/9 v2] SQUASHME: prd: Last fixes for partitions
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Date: Tue, 26 Aug 2014 14:34:02 -0600
+In-Reply-To: <53FCC593.6020201@gmail.com>
+References: <53EB5536.8020702@gmail.com> <53EB5709.4090401@plexistor.com>
+	 <53ECB480.4060104@plexistor.com>
+	 <1408997403.17731.7.camel@rzwisler-mobl1.amr.corp.intel.com>
+	 <53FC42C5.6040300@plexistor.com> <53FCC593.6020201@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org
+To: Boaz Harrosh <openosd@gmail.com>
+Cc: Boaz Harrosh <boaz@plexistor.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>, Sagi Manole <sagi@plexistor.com>, Yigal Korman <yigal@plexistor.com>
 
-On 8/26/2014 2:22 PM, kbuild test robot wrote:
-> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> head:   1c9e4561f3b2afffcda007eae9d0ddd25525f50e
-> commit: fa44abcad042144651fa9cd0f698c7c40a59d60f [2145/2346] common: dma-mapping: introduce common remapping functions
-> config: make ARCH=microblaze nommu_defconfig
+On Tue, 2014-08-26 at 20:36 +0300, Boaz Harrosh wrote:
+> Meanwhile without any explanations, these will come tomorrow, I'm attaching
+> the most interesting bit which you have not seen before.
 > 
-> All error/warnings:
-> 
->    drivers/built-in.o: In function `dma_common_pages_remap':
->>> drivers/base/dma-mapping.c:311: undefined reference to `get_vm_area_caller'
->>> drivers/base/dma-mapping.c:315: undefined reference to `map_vm_area'
->    drivers/built-in.o: In function `dma_common_free_remap':
->>> drivers/base/dma-mapping.c:328: undefined reference to `find_vm_area'
-> 
-> vim +311 drivers/base/dma-mapping.c
-> 
->    305	void *dma_common_pages_remap(struct page **pages, size_t size,
->    306				unsigned long vm_flags, pgprot_t prot,
->    307				const void *caller)
->    308	{
->    309		struct vm_struct *area;
->    310	
->  > 311		area = get_vm_area_caller(size, vm_flags, caller);
->    312		if (!area)
->    313			return NULL;
->    314	
->    315		if (map_vm_area(area, prot, pages)) {
->    316			vunmap(area->addr);
->    317			return NULL;
->    318		}
->    319	
->    320		return area->addr;
->    321	}
->    322	
->    323	/*
->    324	 * unmaps a range previously mapped by dma_common_*_remap
->    325	 */
->    326	void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags)
->    327	{
->    328		struct vm_struct *area = find_vm_area(cpu_addr);
->    329	
->    330		if (!area || (area->flags & vm_flags) != vm_flags) {
->    331			WARN(1, "trying to free invalid coherent area: %p\n", cpu_addr);
-> 
+> If you want you can inspect a preview of what's to come here:
+> 	http://git.open-osd.org/gitweb.cgi?p=pmem.git;a=summary
 
-Based on top of my previous patch
+Regarding the top patch "pmem: KISS, remove the all pmem_major registration",
+I like that we're getting rid of lots of dead code.  The only issue I have is
+that I'm pretty sure we aren't supposed to register our disks directly with a
+major of BLOCK_EXT_MAJOR.  I think we still need to register our own major via
+register_blkdev(), and use that.  I'm fine with getting rid of the module
+parameter though, and always getting a major dynamically.
 
-----8<------
+If you look at the other block devices that use the GENHD_FL_EXT_DEVT flag
+(nvme, loop, md, etc.) they all register their own major.  You can't see this
+major by doing 'ls -l' on the resulting devices in /dev, but you can see it by
+looking at /proc/devices:
+
+# ls -l /dev/pmem0
+brw-rw---- 1 root disk 259, 0 Aug 26 12:37 /dev/pmem0
+
+# grep pmem /proc/devices 
+250 pmem
+
+- Ross
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
