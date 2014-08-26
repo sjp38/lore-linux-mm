@@ -1,65 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 4561B6B0037
-	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 00:50:10 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id lf10so22265868pab.2
-        for <linux-mm@kvack.org>; Mon, 25 Aug 2014 21:50:09 -0700 (PDT)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id rp7si2558050pab.93.2014.08.25.21.50.07
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 1778D6B0036
+	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 00:51:23 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id p10so21819717pdj.36
+        for <linux-mm@kvack.org>; Mon, 25 Aug 2014 21:51:23 -0700 (PDT)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id fo17si2283524pac.161.2014.08.25.21.51.21
         for <linux-mm@kvack.org>;
-        Mon, 25 Aug 2014 21:50:09 -0700 (PDT)
-Date: Tue, 26 Aug 2014 13:51:00 +0900
+        Mon, 25 Aug 2014 21:51:23 -0700 (PDT)
+Date: Tue, 26 Aug 2014 13:52:14 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v4 3/4] zram: zram memory size limitation
-Message-ID: <20140826045100.GD11319@bbox>
-References: <1408668134-21696-1-git-send-email-minchan@kernel.org>
- <1408668134-21696-4-git-send-email-minchan@kernel.org>
- <CAFdhcLQXHoCT2tee8f1hb-XOsh4G5SQUGfhXtobNYjDq6MS9Ug@mail.gmail.com>
- <20140824235607.GJ17372@bbox>
- <CAFdhcLRvwifCVyoW5F9gdOGwcNd0PM679HckJY6+UDYV82n+bg@mail.gmail.com>
- <20140825043755.GE32620@bbox>
- <CAE8XmWojKVaaY2GzRnpOVzc9cMeX2fb3nRC0JyBgrhPu1QaBEw@mail.gmail.com>
+Subject: Re: [PATCH v5 3/4] zram: zram memory size limitation
+Message-ID: <20140826045214.GE11319@bbox>
+References: <1408925156-11733-1-git-send-email-minchan@kernel.org>
+ <1408925156-11733-4-git-send-email-minchan@kernel.org>
+ <20140825110927.GB933@swordfish>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <CAE8XmWojKVaaY2GzRnpOVzc9cMeX2fb3nRC0JyBgrhPu1QaBEw@mail.gmail.com>
+In-Reply-To: <20140825110927.GB933@swordfish>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dongsheng Song <dongsheng.song@gmail.com>
-Cc: David Horner <ds2horner@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>, ds2horner@gmail.com
 
-Hello,
+Hey Sergey,
 
-On Mon, Aug 25, 2014 at 04:25:31PM +0800, Dongsheng Song wrote:
-> > +What:          /sys/block/zram<id>/mem_limit
-> > +Date:          August 2014
-> > +Contact:       Minchan Kim <minchan@kernel.org>
+On Mon, Aug 25, 2014 at 08:09:27PM +0900, Sergey Senozhatsky wrote:
+> On (08/25/14 09:05), Minchan Kim wrote:
+> > Since zram has no control feature to limit memory usage,
+> > it makes hard to manage system memrory.
+> > 
+> > This patch adds new knob "mem_limit" via sysfs to set up the
+> > a limit so that zram could fail allocation once it reaches
+> > the limit.
+> > 
+> > In addition, user could change the limit in runtime so that
+> > he could manage the memory more dynamically.
+> > 
+> > Initial state is no limit so it doesn't break old behavior.
+> > 
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> >  Documentation/ABI/testing/sysfs-block-zram | 10 ++++++++
+> >  Documentation/blockdev/zram.txt            | 24 ++++++++++++++---
+> >  drivers/block/zram/zram_drv.c              | 41 ++++++++++++++++++++++++++++++
+> >  drivers/block/zram/zram_drv.h              |  5 ++++
+> >  4 files changed, 76 insertions(+), 4 deletions(-)
+> > 
+> > diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
+> > index 70ec992514d0..dbe643775ec1 100644
+> > --- a/Documentation/ABI/testing/sysfs-block-zram
+> > +++ b/Documentation/ABI/testing/sysfs-block-zram
+> > @@ -119,3 +119,13 @@ Description:
+> >  		efficiency can be calculated using compr_data_size and this
+> >  		statistic.
+> >  		Unit: bytes
+> > +
+> > +What:		/sys/block/zram<id>/mem_limit
+> > +Date:		August 2014
+> > +Contact:	Minchan Kim <minchan@kernel.org>
 > > +Description:
-> > +               The mem_limit file is read/write and specifies the amount
->  > +               of memory to be able to consume memory to store store
-> > +               compressed data. The limit could be changed in run time
-> > +               and "0" means disable the limit. No limit is the initial state.
+> > +		The mem_limit file is read/write and specifies the amount
+> > +		of memory to be able to consume memory to store store
+> > +		compressed data. The limit could be changed in run time
+> > +		and "0" means disable the limit. No limit is the initial state.
 > 
-> extra word 'store' ?
-> The mem_limit file is read/write and specifies the amount of memory to
-> be able to consume memory to store store compressed data.
+> just a nitpick, sorry.
+> "the amount of memory to be able to consume memory to store store compressed data"
+> 							^^^^^^^
 > 
-> maybe this better ?
-> The mem_limit file is read/write and specifies the amount of memory to
-> store compressed data.
+> "the maximum amount of memory ZRAM can use to store the compressed data"?
 
 Will fix.
-Thanks!
-
-> 
-> --
-> Dongsheng
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thanks.
 
 -- 
 Kind regards,
