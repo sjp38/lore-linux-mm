@@ -1,100 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id C24106B0035
-	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 19:09:24 -0400 (EDT)
-Received: by mail-ig0-f176.google.com with SMTP id hn18so7135284igb.3
-        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 16:09:24 -0700 (PDT)
-Received: from relay.sgi.com (relay1.sgi.com. [192.48.180.66])
-        by mx.google.com with ESMTP id m4si2300719igx.47.2014.08.27.16.09.24
-        for <linux-mm@kvack.org>;
-        Wed, 27 Aug 2014 16:09:24 -0700 (PDT)
-Message-ID: <53FE6515.6050102@sgi.com>
-Date: Wed, 27 Aug 2014 16:09:09 -0700
-From: Mike Travis <travis@sgi.com>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 921A86B0039
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 19:14:24 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id kq14so129101pab.37
+        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 16:14:24 -0700 (PDT)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id rk5si2904185pab.204.2014.08.27.16.14.23
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 27 Aug 2014 16:14:23 -0700 (PDT)
+Received: by mail-pa0-f54.google.com with SMTP id fb1so128493pad.13
+        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 16:14:23 -0700 (PDT)
+Date: Wed, 27 Aug 2014 16:12:43 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH v5] mm: softdirty: enable write notifications on VMAs
+ after VM_SOFTDIRTY cleared
+In-Reply-To: <20140826155351.GC8952@moon>
+Message-ID: <alpine.LSU.2.11.1408271512090.7961@eggly.anvils>
+References: <1408571182-28750-1-git-send-email-pfeiner@google.com> <1408937681-1472-1-git-send-email-pfeiner@google.com> <alpine.LSU.2.11.1408252142380.2073@eggly.anvils> <20140826064952.GR25918@moon> <20140826140419.GA10625@node.dhcp.inet.fi>
+ <20140826141914.GA8952@moon> <20140826145612.GA11226@node.dhcp.inet.fi> <20140826151813.GB8952@moon> <20140826154355.GA11464@node.dhcp.inet.fi> <20140826155351.GC8952@moon>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] x86: Optimize resource lookups for ioremap
-References: <20140827225927.364537333@asylum.americas.sgi.com>	<20140827225927.602319674@asylum.americas.sgi.com> <20140827160515.c59f1c191fde5f788a7c42f6@linux-foundation.org>
-In-Reply-To: <20140827160515.c59f1c191fde5f788a7c42f6@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: mingo@redhat.com, tglx@linutronix.de, hpa@zytor.com, msalter@redhat.com, dyoung@redhat.com, riel@redhat.com, peterz@infradead.org, mgorman@suse.de, linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, Alex Thorlton <athorlton@sgi.com>
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Jamie Liu <jamieliu@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Magnus Damm <magnus.damm@gmail.com>
 
+On Tue, 26 Aug 2014, Cyrill Gorcunov wrote:
+> On Tue, Aug 26, 2014 at 06:43:55PM +0300, Kirill A. Shutemov wrote:
+> > On Tue, Aug 26, 2014 at 07:18:13PM +0400, Cyrill Gorcunov wrote:
+> > > > Basically, it's safe if only soft-dirty is allowed to modify vm_flags
+> > > > without down_write(). But why is soft-dirty so special?
+> > > 
+> > > because how we use this bit, i mean in normal workload this bit won't
+> > > be used intensively i think so it's not widespread in kernel code
+> > 
+> > Weak argument to me.
 
+Yes.  However rarely it's modified, we don't want any chance of it
+corrupting another flag.
 
-On 8/27/2014 4:05 PM, Andrew Morton wrote:
-> On Wed, 27 Aug 2014 17:59:28 -0500 Mike Travis <travis@sgi.com> wrote:
+VM_SOFTDIRTY is special in the sense that it's maintained in a very
+different way from the other VM_flags.  If we had a little alignment
+padding space somewhere in struct vm_area_struct, I think I'd jump at
+Kirill's suggestion to move it out of vm_flags and into a new field:
+that would remove some other special casing, like the vma merge issue.
+
+But I don't think we have such padding space, and we'd prefer not to
+bloat struct vm_area_struct for it; so maybe it should stay for now.
+Besides, with Peter's patch, we're also talking about the locking on
+modifications to vm_page_prot, aren't we?
+
+> > 
+> > What about walk through vmas twice: first with down_write() to modify
+> > vm_flags and vm_page_prot, then downgrade_write() and do
+> > walk_page_range() on every vma?
 > 
->> Since the ioremap operation is verifying that the specified address range
->> is NOT RAM, it will search the entire ioresource list if the condition
->> is true.  To make matters worse, it does this one 4k page at a time.
->> For a 128M BAR region this is 32 passes to determine the entire region
->> does not contain any RAM addresses.
->>
->> This patch provides another resource lookup function, region_is_ram,
->> that searches for the entire region specified, verifying that it is
->> completely contained within the resource region.  If it is found, then
->> it is checked to be RAM or not, within a single pass.
->>
->> The return result reflects if it was found or not (-1), and whether it is
->> RAM (1) or not (0).  This allows the caller to fallback to the previous
->> page by page search if it was not found.
->>
->> ...
->>
->> --- linux.orig/kernel/resource.c
->> +++ linux/kernel/resource.c
->> @@ -494,6 +494,43 @@ int __weak page_is_ram(unsigned long pfn
->>  }
->>  EXPORT_SYMBOL_GPL(page_is_ram);
->>  
->> +/*
->> + * Search for a resouce entry that fully contains the specified region.
->> + * If found, return 1 if it is RAM, 0 if not.
->> + * If not found, or region is not fully contained, return -1
->> + *
->> + * Used by the ioremap functions to insure user not remapping RAM and is as
->> + * vast speed up over walking through the resource table page by page.
->> + */
->> +int __weak region_is_ram(resource_size_t start, unsigned long size)
->> +{
->> +	struct resource *p;
->> +	resource_size_t end = start + size - 1;
->> +	int flags = IORESOURCE_MEM | IORESOURCE_BUSY;
->> +	const char *name = "System RAM";
->> +	int ret = -1;
->> +
->> +	read_lock(&resource_lock);
->> +	for (p = iomem_resource.child; p ; p = p->sibling) {
->> +		if (end < p->start)
->> +			continue;
->> +
->> +		if (p->start <= start && end <= p->end) {
->> +			/* resource fully contains region */
->> +			if ((p->flags != flags) || strcmp(p->name, name))
->> +				ret = 0;
->> +			else
->> +				ret = 1;
->> +			break;
->> +		}
->> +		if (p->end < start)
->> +			break;	/* not found */
->> +	}
->> +	read_unlock(&resource_lock);
->> +	return ret;
->> +}
->> +EXPORT_SYMBOL_GPL(region_is_ram);
-> 
-> Exporting a __weak symbol is strange.  I guess it works, but neither
-> the __weak nor the export are actually needed?
-> 
+> I still it's undeeded,
 
-I mainly used 'weak' and export because that was what the page_is_ram
-function was using.  Most likely this won't be used anywhere else but
-I wasn't sure.  I can certainly remove the weak and export, at least
-until it's actually needed?
+Yes, so long as nothing else is doing the same.
+No bug yet, that we can see, but a bug in waiting.
+
+> but for sure using write-lock/downgrade won't hurt,
+> so no argues from my side.
+
+Yes, Kirill's two-stage suggestion seems the best:
+
+down_write
+quickly scan vmas clearing VM_SOFT_DIRTY and updating vm_page_prot
+downgrade_write (or up_write, down_read?)
+slowly walk page tables write protecting and clearing soft-dirty on ptes
+up_read
+
+But please don't mistake me for someone who has a good grasp of
+soft-dirty: I don't.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
