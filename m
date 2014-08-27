@@ -1,56 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id BE2026B0037
-	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 19:20:10 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id hz1so142951pad.20
-        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 16:20:10 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id z3si3406734pdj.12.2014.08.27.16.20.08
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Aug 2014 16:20:08 -0700 (PDT)
-Date: Wed, 27 Aug 2014 16:20:06 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/2] x86: Speed up ioremap operations
-Message-Id: <20140827162006.580e83d57696b5eba203b18c@linux-foundation.org>
-In-Reply-To: <53FE6690.80608@sgi.com>
-References: <20140827225927.364537333@asylum.americas.sgi.com>
-	<20140827160610.4ef142d28fd7f276efd38a51@linux-foundation.org>
-	<53FE6690.80608@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B0CF6B0037
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 19:25:41 -0400 (EDT)
+Received: by mail-ie0-f182.google.com with SMTP id rd18so210798iec.41
+        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 16:25:41 -0700 (PDT)
+Received: from relay.sgi.com (relay1.sgi.com. [192.48.180.66])
+        by mx.google.com with ESMTP id xz8si2287786icb.102.2014.08.27.16.25.40
+        for <linux-mm@kvack.org>;
+        Wed, 27 Aug 2014 16:25:40 -0700 (PDT)
+Message-ID: <53FE68E4.4090902@sgi.com>
+Date: Wed, 27 Aug 2014 16:25:24 -0700
+From: Mike Travis <travis@sgi.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/2] x86: Optimize resource lookups for ioremap
+References: <20140827225927.364537333@asylum.americas.sgi.com>	<20140827225927.602319674@asylum.americas.sgi.com>	<20140827160515.c59f1c191fde5f788a7c42f6@linux-foundation.org>	<53FE6515.6050102@sgi.com> <20140827161854.0619a04653b336d3adc755f3@linux-foundation.org>
+In-Reply-To: <20140827161854.0619a04653b336d3adc755f3@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Travis <travis@sgi.com>
-Cc: mingo@redhat.com, tglx@linutronix.de, hpa@zytor.com, msalter@redhat.com, dyoung@redhat.com, riel@redhat.com, peterz@infradead.org, mgorman@suse.de, linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: mingo@redhat.com, tglx@linutronix.de, hpa@zytor.com, msalter@redhat.com, dyoung@redhat.com, riel@redhat.com, peterz@infradead.org, mgorman@suse.de, linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, Alex Thorlton <athorlton@sgi.com>
 
-On Wed, 27 Aug 2014 16:15:28 -0700 Mike Travis <travis@sgi.com> wrote:
 
+
+On 8/27/2014 4:18 PM, Andrew Morton wrote:
+> On Wed, 27 Aug 2014 16:09:09 -0700 Mike Travis <travis@sgi.com> wrote:
 > 
-> > 
-> >> There are two causes for requiring a restart/reload of the drivers.
-> >> First is periodic preventive maintenance (PM) and the second is if
-> >> any of the devices experience a fatal error.  Both of these trigger
-> >> this excessively long delay in bringing the system back up to full
-> >> capability.
-> >>
-> >> The problem was tracked down to a very slow IOREMAP operation and
-> >> the excessively long ioresource lookup to insure that the user is
-> >> not attempting to ioremap RAM.  These patches provide a speed up
-> >> to that function.
-> > 
-> > With what result?
-> > 
+>>
+>>>>
+>>>> ...
+>>>>
+>>>> --- linux.orig/kernel/resource.c
+>>>> +++ linux/kernel/resource.c
+>>>> @@ -494,6 +494,43 @@ int __weak page_is_ram(unsigned long pfn
+>>>>  }
+>>>>  EXPORT_SYMBOL_GPL(page_is_ram);
+>>>>  
+>>>> +/*
+>>>> + * Search for a resouce entry that fully contains the specified region.
+>>>> + * If found, return 1 if it is RAM, 0 if not.
+>>>> + * If not found, or region is not fully contained, return -1
+>>>> + *
+>>>> + * Used by the ioremap functions to insure user not remapping RAM and is as
+>>>> + * vast speed up over walking through the resource table page by page.
+>>>> + */
+>>>> +int __weak region_is_ram(resource_size_t start, unsigned long size)
+>>>> +{
+>>>> +	struct resource *p;
+>>>> +	resource_size_t end = start + size - 1;
+>>>> +	int flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+>>>> +	const char *name = "System RAM";
+>>>> +	int ret = -1;
+>>>> +
+>>>> +	read_lock(&resource_lock);
+>>>> +	for (p = iomem_resource.child; p ; p = p->sibling) {
+>>>> +		if (end < p->start)
+>>>> +			continue;
+>>>> +
+>>>> +		if (p->start <= start && end <= p->end) {
+>>>> +			/* resource fully contains region */
+>>>> +			if ((p->flags != flags) || strcmp(p->name, name))
+>>>> +				ret = 0;
+>>>> +			else
+>>>> +				ret = 1;
+>>>> +			break;
+>>>> +		}
+>>>> +		if (p->end < start)
+>>>> +			break;	/* not found */
+>>>> +	}
+>>>> +	read_unlock(&resource_lock);
+>>>> +	return ret;
+>>>> +}
+>>>> +EXPORT_SYMBOL_GPL(region_is_ram);
+>>>
+>>> Exporting a __weak symbol is strange.  I guess it works, but neither
+>>> the __weak nor the export are actually needed?
+>>>
+>>
+>> I mainly used 'weak' and export because that was what the page_is_ram
+>> function was using.  Most likely this won't be used anywhere else but
+>> I wasn't sure.  I can certainly remove the weak and export, at least
+>> until it's actually needed?
 > 
-> Early measurements on our in house lab system (with far fewer cpus
-> and memory) shows about a 60-75% increase.  They have a 31 devices,
-> 3000+ cpus, 10+Tb of memory.  We have 20 devices, 480 cpus, ~2Tb of
-> memory.  I expect their ioresource list to be about 5-10 times longer.
-> [But their system is in production so we have to wait for the next
-> scheduled PM interval before a live test can be done.]
+> Several architectures implement custom page_is_ram(), so they need the
+> __weak.  region_is_ram() needs neither so yes, they should be removed.
 
-So you expect 1+ hours?  That's still nuts.
+Okay.
+> 
+> <looks at the code>
+> 
+> Doing strcmp("System RAM") is rather a hack.  Is there nothing in
+> resource.flags which can be used?  Or added otherwise?
+
+I agree except this mimics the page_is_ram function:
+
+        while ((res.start < res.end) &&
+                (find_next_iomem_res(&res, "System RAM", true) >= 0)) {
+
+So it passes the same literal string which then find_next does the
+same strcmp on it:
+
+                if (p->flags != res->flags)
+                        continue;
+                if (name && strcmp(p->name, name))
+                        continue;
+
+I should add back in the check to insure name is not NULL.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
