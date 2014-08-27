@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id D1ABC6B003D
-	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 00:34:36 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so24817470pab.19
-        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 21:34:36 -0700 (PDT)
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 77F9A6B0044
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 00:34:37 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id kx10so24749197pab.6
+        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 21:34:37 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id bu3si7203157pdb.127.2014.08.26.21.34.32
+        by mx.google.com with ESMTP id ff10si7186669pdb.137.2014.08.26.21.34.32
         for <linux-mm@kvack.org>;
-        Tue, 26 Aug 2014 21:34:32 -0700 (PDT)
+        Tue, 26 Aug 2014 21:34:33 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v10 05/21] Introduce IS_DAX(inode)
-Date: Tue, 26 Aug 2014 23:45:25 -0400
-Message-Id: <4dcc92db5c551df5efaefb37fecc1eccdd12a8d6.1409110741.git.matthew.r.wilcox@intel.com>
+Subject: [PATCH v10 15/21] ext2: Remove xip.c and xip.h
+Date: Tue, 26 Aug 2014 23:45:35 -0400
+Message-Id: <6bc956dc5a386a43b12d4df3de7dd207de528915.1409110741.git.matthew.r.wilcox@intel.com>
 In-Reply-To: <cover.1409110741.git.matthew.r.wilcox@intel.com>
 References: <cover.1409110741.git.matthew.r.wilcox@intel.com>
 In-Reply-To: <cover.1409110741.git.matthew.r.wilcox@intel.com>
@@ -21,96 +21,108 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, willy@linux.intel.com
 
-Use an inode flag to tag inodes which should avoid using the page cache.
-Convert ext2 to use it instead of mapping_is_xip().
+These files are now empty, so delete them
 
 Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Reviewed-by: Jan Kara <jack@suse.cz>
 ---
- fs/ext2/inode.c    | 9 ++++++---
- fs/ext2/xip.h      | 2 --
- include/linux/fs.h | 6 ++++++
- 3 files changed, 12 insertions(+), 5 deletions(-)
+ fs/ext2/Makefile |  1 -
+ fs/ext2/inode.c  |  1 -
+ fs/ext2/namei.c  |  1 -
+ fs/ext2/super.c  |  1 -
+ fs/ext2/xip.c    | 15 ---------------
+ fs/ext2/xip.h    | 16 ----------------
+ 6 files changed, 35 deletions(-)
+ delete mode 100644 fs/ext2/xip.c
+ delete mode 100644 fs/ext2/xip.h
 
+diff --git a/fs/ext2/Makefile b/fs/ext2/Makefile
+index f42af45..445b0e9 100644
+--- a/fs/ext2/Makefile
++++ b/fs/ext2/Makefile
+@@ -10,4 +10,3 @@ ext2-y := balloc.o dir.o file.o ialloc.o inode.o \
+ ext2-$(CONFIG_EXT2_FS_XATTR)	 += xattr.o xattr_user.o xattr_trusted.o
+ ext2-$(CONFIG_EXT2_FS_POSIX_ACL) += acl.o
+ ext2-$(CONFIG_EXT2_FS_SECURITY)	 += xattr_security.o
+-ext2-$(CONFIG_EXT2_FS_XIP)	 += xip.o
 diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-index 36d35c3..0cb0448 100644
+index cba3833..154cbcf 100644
 --- a/fs/ext2/inode.c
 +++ b/fs/ext2/inode.c
-@@ -731,7 +731,7 @@ static int ext2_get_blocks(struct inode *inode,
- 		goto cleanup;
- 	}
+@@ -34,7 +34,6 @@
+ #include <linux/aio.h>
+ #include "ext2.h"
+ #include "acl.h"
+-#include "xip.h"
+ #include "xattr.h"
  
--	if (ext2_use_xip(inode->i_sb)) {
-+	if (IS_DAX(inode)) {
- 		/*
- 		 * we need to clear the block
- 		 */
-@@ -1201,7 +1201,7 @@ static int ext2_setsize(struct inode *inode, loff_t newsize)
+ static int __ext2_write_inode(struct inode *inode, int do_sync);
+diff --git a/fs/ext2/namei.c b/fs/ext2/namei.c
+index 846c356..7ca803f 100644
+--- a/fs/ext2/namei.c
++++ b/fs/ext2/namei.c
+@@ -35,7 +35,6 @@
+ #include "ext2.h"
+ #include "xattr.h"
+ #include "acl.h"
+-#include "xip.h"
  
- 	inode_dio_wait(inode);
- 
--	if (mapping_is_xip(inode->i_mapping))
-+	if (IS_DAX(inode))
- 		error = xip_truncate_page(inode->i_mapping, newsize);
- 	else if (test_opt(inode->i_sb, NOBH))
- 		error = nobh_truncate_page(inode->i_mapping,
-@@ -1273,7 +1273,8 @@ void ext2_set_inode_flags(struct inode *inode)
+ static inline int ext2_add_nondir(struct dentry *dentry, struct inode *inode)
  {
- 	unsigned int flags = EXT2_I(inode)->i_flags;
+diff --git a/fs/ext2/super.c b/fs/ext2/super.c
+index d862031..0393c6d 100644
+--- a/fs/ext2/super.c
++++ b/fs/ext2/super.c
+@@ -35,7 +35,6 @@
+ #include "ext2.h"
+ #include "xattr.h"
+ #include "acl.h"
+-#include "xip.h"
  
--	inode->i_flags &= ~(S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC);
-+	inode->i_flags &= ~(S_SYNC | S_APPEND | S_IMMUTABLE | S_NOATIME |
-+				S_DIRSYNC | S_DAX);
- 	if (flags & EXT2_SYNC_FL)
- 		inode->i_flags |= S_SYNC;
- 	if (flags & EXT2_APPEND_FL)
-@@ -1284,6 +1285,8 @@ void ext2_set_inode_flags(struct inode *inode)
- 		inode->i_flags |= S_NOATIME;
- 	if (flags & EXT2_DIRSYNC_FL)
- 		inode->i_flags |= S_DIRSYNC;
-+	if (test_opt(inode->i_sb, XIP))
-+		inode->i_flags |= S_DAX;
- }
- 
- /* Propagate flags from i_flags to EXT2_I(inode)->i_flags */
+ static void ext2_sync_super(struct super_block *sb,
+ 			    struct ext2_super_block *es, int wait);
+diff --git a/fs/ext2/xip.c b/fs/ext2/xip.c
+deleted file mode 100644
+index 66ca113..0000000
+--- a/fs/ext2/xip.c
++++ /dev/null
+@@ -1,15 +0,0 @@
+-/*
+- *  linux/fs/ext2/xip.c
+- *
+- * Copyright (C) 2005 IBM Corporation
+- * Author: Carsten Otte (cotte@de.ibm.com)
+- */
+-
+-#include <linux/mm.h>
+-#include <linux/fs.h>
+-#include <linux/genhd.h>
+-#include <linux/buffer_head.h>
+-#include <linux/blkdev.h>
+-#include "ext2.h"
+-#include "xip.h"
+-
 diff --git a/fs/ext2/xip.h b/fs/ext2/xip.h
-index 18b34d2..29be737 100644
+deleted file mode 100644
+index 87eeb04..0000000
 --- a/fs/ext2/xip.h
-+++ b/fs/ext2/xip.h
-@@ -16,9 +16,7 @@ static inline int ext2_use_xip (struct super_block *sb)
- }
- int ext2_get_xip_mem(struct address_space *, pgoff_t, int,
- 				void **, unsigned long *);
--#define mapping_is_xip(map) unlikely(map->a_ops->get_xip_mem)
- #else
--#define mapping_is_xip(map)			0
- #define ext2_xip_verify_sb(sb)			do { } while (0)
- #define ext2_use_xip(sb)			0
- #define ext2_clear_xip_target(inode, chain)	0
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 9418772..e99e5c4 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1605,6 +1605,7 @@ struct super_operations {
- #define S_IMA		1024	/* Inode has an associated IMA struct */
- #define S_AUTOMOUNT	2048	/* Automount/referral quasi-directory */
- #define S_NOSEC		4096	/* no suid or xattr security attributes */
-+#define S_DAX		8192	/* Direct Access, avoiding the page cache */
- 
- /*
-  * Note that nosuid etc flags are inode-specific: setting some file-system
-@@ -1642,6 +1643,11 @@ struct super_operations {
- #define IS_IMA(inode)		((inode)->i_flags & S_IMA)
- #define IS_AUTOMOUNT(inode)	((inode)->i_flags & S_AUTOMOUNT)
- #define IS_NOSEC(inode)		((inode)->i_flags & S_NOSEC)
-+#ifdef CONFIG_FS_XIP
-+#define IS_DAX(inode)		((inode)->i_flags & S_DAX)
-+#else
-+#define IS_DAX(inode)		0
-+#endif
- 
- /*
-  * Inode state bits.  Protected by inode->i_lock
++++ /dev/null
+@@ -1,16 +0,0 @@
+-/*
+- *  linux/fs/ext2/xip.h
+- *
+- * Copyright (C) 2005 IBM Corporation
+- * Author: Carsten Otte (cotte@de.ibm.com)
+- */
+-
+-#ifdef CONFIG_EXT2_FS_XIP
+-static inline int ext2_use_xip (struct super_block *sb)
+-{
+-	struct ext2_sb_info *sbi = EXT2_SB(sb);
+-	return (sbi->s_mount_opt & EXT2_MOUNT_XIP);
+-}
+-#else
+-#define ext2_use_xip(sb)			0
+-#endif
 -- 
 2.0.0
 
