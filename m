@@ -1,98 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id E3A216B0035
-	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 17:01:54 -0400 (EDT)
-Received: by mail-wi0-f171.google.com with SMTP id hi2so6512191wib.4
-        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 14:01:54 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id we4si3077367wjb.82.2014.08.27.14.01.52
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Aug 2014 14:01:53 -0700 (PDT)
-Message-ID: <1409173278.9919.29.camel@deneb.redhat.com>
-Subject: Re: [PATCHv7 3/5] common: dma-mapping: Introduce common remapping
- functions
-From: Mark Salter <msalter@redhat.com>
-Date: Wed, 27 Aug 2014 17:01:18 -0400
-In-Reply-To: <53FCBCC3.5040901@codeaurora.org>
-References: <1407800431-21566-1-git-send-email-lauraa@codeaurora.org>
-		<1407800431-21566-4-git-send-email-lauraa@codeaurora.org>
-	 <CAAG0J99=wrz4+c49HeDvL0W9rDZKk2HNLdVtHv4ZJxU4-OjewA@mail.gmail.com>
-	 <53FCBCC3.5040901@codeaurora.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id E753B6B0035
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 17:13:31 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id rd3so1330453pab.12
+        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 14:13:31 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id bb1si2536161pbb.173.2014.08.27.14.13.26
+        for <linux-mm@kvack.org>;
+        Wed, 27 Aug 2014 14:13:26 -0700 (PDT)
+Date: Wed, 27 Aug 2014 17:12:50 -0400
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH v10 00/21] Support ext4 on NV-DIMMs
+Message-ID: <20140827211250.GH3285@linux.intel.com>
+References: <cover.1409110741.git.matthew.r.wilcox@intel.com>
+ <20140827130613.c8f6790093d279a447196f17@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140827130613.c8f6790093d279a447196f17@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>
-Cc: James Hogan <james.hogan@imgtec.com>, Catalin Marinas <catalin.marinas@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Russell King <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, Will Deacon <will.deacon@arm.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Thierry Reding <thierry.reding@gmail.com>, linux-next@vger.kernel.org, Ritesh Harjain <ritesh.harjani@gmail.com>, David Riley <davidriley@chromium.org>, ARM Kernel List <linux-arm-kernel@lists.infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 2014-08-26 at 09:58 -0700, Laura Abbott wrote:
-> On 8/26/2014 3:05 AM, James Hogan wrote:
-> > On 12 August 2014 00:40, Laura Abbott <lauraa@codeaurora.org> wrote:
-> >>
-> >> For architectures without coherent DMA, memory for DMA may
-> >> need to be remapped with coherent attributes. Factor out
-> >> the the remapping code from arm and put it in a
-> >> common location to reduce code duplication.
-> >>
-> >> As part of this, the arm APIs are now migrated away from
-> >> ioremap_page_range to the common APIs which use map_vm_area for remapping.
-> >> This should be an equivalent change and using map_vm_area is more
-> >> correct as ioremap_page_range is intended to bring in io addresses
-> >> into the cpu space and not regular kernel managed memory.
-> >>
-> >> Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
-> >> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
-> > 
-> > This commit in linux-next () breaks the build for metag:
-> > 
-> > drivers/base/dma-mapping.c: In function a??dma_common_contiguous_remapa??:
-> > drivers/base/dma-mapping.c:294: error: implicit declaration of
-> > function a??dma_common_pages_remapa??
-> > drivers/base/dma-mapping.c:294: warning: assignment makes pointer from
-> > integer without a cast
-> > drivers/base/dma-mapping.c: At top level:
-> > drivers/base/dma-mapping.c:308: error: conflicting types for
-> > a??dma_common_pages_remapa??
-> > drivers/base/dma-mapping.c:294: error: previous implicit declaration
-> > of a??dma_common_pages_remapa?? was here
-> > 
-> > Looks like metag isn't alone either:
-> > 
-> > $ git grep -L dma-mapping-common arch/*/include/asm/dma-mapping.h
-> > arch/arc/include/asm/dma-mapping.h
-> > arch/avr32/include/asm/dma-mapping.h
-> > arch/blackfin/include/asm/dma-mapping.h
-> > arch/c6x/include/asm/dma-mapping.h
-> > arch/cris/include/asm/dma-mapping.h
-> > arch/frv/include/asm/dma-mapping.h
-> > arch/m68k/include/asm/dma-mapping.h
-> > arch/metag/include/asm/dma-mapping.h
-> > arch/mn10300/include/asm/dma-mapping.h
-> > arch/parisc/include/asm/dma-mapping.h
-> > arch/xtensa/include/asm/dma-mapping.h
-> > 
-> > I've checked a couple of these arches (blackfin, xtensa) which don't
-> > include dma-mapping-common.h and their builds seem to be broken too.
-> > 
-> > Cheers
-> > James
-> > 
+On Wed, Aug 27, 2014 at 01:06:13PM -0700, Andrew Morton wrote:
+> On Tue, 26 Aug 2014 23:45:20 -0400 Matthew Wilcox <matthew.r.wilcox@intel.com> wrote:
 > 
-> Thanks for the report. Would you mind giving the following patch
-> a test (this is theoretical only but I think it should work)
+> > One of the primary uses for NV-DIMMs is to expose them as a block device
+> > and use a filesystem to store files on the NV-DIMM.  While that works,
+> > it currently wastes memory and CPU time buffering the files in the page
+> > cache.  We have support in ext2 for bypassing the page cache, but it
+> > has some races which are unfixable in the current design.  This series
+> > of patches rewrite the underlying support, and add support for direct
+> > access to ext4.
+> 
+> Sat down to read all this but I'm finding it rather unwieldy - it's
+> just a great blob of code.  Is there some overall
+> what-it-does-and-how-it-does-it roadmap?
 
-There's a further problem with c6x (no  MMU):
+The overall goal is to map persistent memory / NV-DIMMs directly to
+userspace.  We have that functionality in the XIP code, but the way
+it's structured is unsuitable for filesystems like ext4 & XFS, and
+it has some pretty ugly races.
 
-drivers/built-in.o: In function `dma_common_pages_remap':
-(.text+0x220c4): undefined reference to `get_vm_area_caller'
-drivers/built-in.o: In function `dma_common_pages_remap':
-(.text+0x22108): undefined reference to `map_vm_area'
-drivers/built-in.o: In function `dma_common_free_remap':
-(.text+0x22278): undefined reference to `find_vm_area'
+Patches 1 & 3 are simply bug-fixes.  They should go in regardless of
+the merits of anything else in this series.
 
+Patch 2 changes the API for the direct_access block_device_operation so
+it can report more than a single page at a time.  As the series evolved,
+this work also included moving support for partitioning into the VFS
+where it belongs, handling various error cases in the VFS and so on.
 
+Patch 4 is an optimisation.  It's poor form to make userspace take two
+faults for the same dereference.
+
+Patch 5 gives us a VFS flag for the DAX property, which lets us get rid of
+the get_xip_mem() method later on.
+
+Patch 6 is also prep work; Al Viro liked it enough that it's now in
+his tree.
+
+The new DAX code is then dribbled in over patches 7-11, split up by
+functional area.  At each stage, the ext2-xip code is converted over to
+the new DAX code.
+
+Patches 12-18 delete the remnants of the old XIP code, and fix the things
+in ext2 that Jan didn't like when he reviewed them for ext4 :-)
+
+Patches 19 & 20 are the work to make ext4 use DAX.
+
+Patch 21 is some final cleanup of references to the old XIP code, renaming
+it all to DAX.
+
+> Some explanation of why one would use ext4 instead of, say,
+> suitably-modified ramfs/tmpfs/rd/etc?
+
+ramfs and tmpfs really rely on the page cache.  They're not exactly
+built for permanence either.  brd also relies on the page cache, and
+there's a clear desire to use a filesystem instead of a block device
+for all the usual reasons of access permissions, grow/shrink, etc.
+
+Some people might want to use XFS instead of ext4.  We're starting with
+ext4, but we've been keeping an eye on what other filesystems might want
+to use.  btrfs isn't going to use the DAX code, but some of the other
+pieces will probably come in handy.
+
+There are also at least three people working on their own filesystems
+specially designed for persistent memory.  I wish them all the best
+... but I'd like to get this infrastructure into place.
+
+> Performance testing results?
+
+I haven't been running any performance tests.  What sort of performance
+tests would be interesting for you to see?
+
+> Carsten Otte wrote filemap_xip.c and may be a useful reviewer of this
+> work.
+
+I cc'd him on some earlier versions and didn't hear anything back.  It felt
+rude to keep plying him with 20+ patches every month.
+
+> All the patch subjects violate Documentation/SubmittingPatches
+> section 15 ;)
+
+errr ... which bit?  I used git format-patch to create them.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
