@@ -1,262 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 171746B0035
-	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 23:24:24 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id y10so23835521pdj.21
-        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 20:24:23 -0700 (PDT)
-Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
-        by mx.google.com with ESMTPS id et5si6891694pbb.177.2014.08.26.20.24.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 26 Aug 2014 20:24:23 -0700 (PDT)
-Received: from kw-mxoi1.gw.nic.fujitsu.com (unknown [10.0.237.133])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id DDD753EE1C5
-	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 12:24:20 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by kw-mxoi1.gw.nic.fujitsu.com (Postfix) with ESMTP id 13056AC06F7
-	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 12:24:20 +0900 (JST)
-Received: from g01jpfmpwyt02.exch.g01.fujitsu.local (g01jpfmpwyt02.exch.g01.fujitsu.local [10.128.193.56])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id ABD011DB803C
-	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 12:24:19 +0900 (JST)
-Message-ID: <53FD4F12.6010500@jp.fujitsu.com>
-Date: Wed, 27 Aug 2014 12:22:58 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id EE9B16B0035
+	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 23:45:23 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id w10so23582930pde.23
+        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 20:45:23 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id db4si6741589pdb.240.2014.08.26.20.45.22
+        for <linux-mm@kvack.org>;
+        Tue, 26 Aug 2014 20:45:23 -0700 (PDT)
+Date: Wed, 27 Aug 2014 11:41:29 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [next:master 2111/2346] mm/nobootmem.c:122:28: note: in expansion of macro 'ULLONG_MAX'
+Message-ID: <53fd5369.uS9oxLCxNZ6nReEc%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] memory-hotplug: fix not enough check of valid_zones
-References: <1409046575-11025-1-git-send-email-zhenzhang.zhang@huawei.com> <53FC5A04.9070300@huawei.com> <53FC6009.1010308@jp.fujitsu.com> <53FD3A74.4020008@huawei.com>
-In-Reply-To: <53FD3A74.4020008@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Zhen <zhenzhang.zhang@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Toshi Kani <toshi.kani@hp.com>, David Rientjes <rientjes@google.com>, wangnan0@huawei.com, linux-kernel@vger.kernel.org, Linux MM <linux-mm@kvack.org>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org
 
-(2014/08/27 10:55), Zhang Zhen wrote:
-> On 2014/8/26 18:23, Yasuaki Ishimatsu wrote:
->> (2014/08/26 18:57), Zhang Zhen wrote:
->>> As Yasuaki Ishimatsu described the check here is not enough
->>> if memory has hole as follows:
->>>
->>> PFN       0x00          0xd0          0xe0          0xf0
->>>                +-------------+-------------+-------------+
->>> zone type   |   Normal    |     hole    |   Normal    |
->>>                +-------------+-------------+-------------+
->>> In this case, the check can't guarantee that this is "the last
->>> block of memory".
->>> The check of ZONE_MOVABLE has the same problem.
->>>
->>> Change the interface name to valid_zones according to most pepole's
->>> suggestion.
->>>
->>> Sample output of the sysfs files:
->>>      memory0/valid_zones: none
->>>      memory1/valid_zones: DMA32
->>>      memory2/valid_zones: DMA32
->>>      memory3/valid_zones: DMA32
->>>      memory4/valid_zones: Normal
->>>      memory5/valid_zones: Normal
->>>      memory6/valid_zones: Normal Movable
->>>      memory7/valid_zones: Movable Normal
->>>      memory8/valid_zones: Movable
->>
->> The patch has two changes:
->>   - change sysfs interface name
->>   - change check of ZONE_MOVABLE
->> So please separate them.
->>
-> Ok, i will separate them.
->
-> Thanks!
->>> Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
->>> ---
->>>    Documentation/ABI/testing/sysfs-devices-memory |  8 ++---
->>>    Documentation/memory-hotplug.txt               |  4 +--
->>>    drivers/base/memory.c                          | 42 ++++++--------------------
->>>    3 files changed, 15 insertions(+), 39 deletions(-)
->>>
->>> diff --git a/Documentation/ABI/testing/sysfs-devices-memory b/Documentation/ABI/testing/sysfs-devices-memory
->>> index 2b2a1d7..deef3b5 100644
->>> --- a/Documentation/ABI/testing/sysfs-devices-memory
->>> +++ b/Documentation/ABI/testing/sysfs-devices-memory
->>> @@ -61,13 +61,13 @@ Users:        hotplug memory remove tools
->>>            http://www.ibm.com/developerworks/wikis/display/LinuxP/powerpc-utils
->>>
->>>
->>> -What:           /sys/devices/system/memory/memoryX/zones_online_to
->>> +What:           /sys/devices/system/memory/memoryX/valid_zones
->>>    Date:           July 2014
->>>    Contact:    Zhang Zhen <zhenzhang.zhang@huawei.com>
->>>    Description:
->>> -        The file /sys/devices/system/memory/memoryX/zones_online_to
->>> -        is read-only and is designed to show which zone this memory block can
->>> -        be onlined to.
->>> +        The file /sys/devices/system/memory/memoryX/valid_zones    is
->>> +        read-only and is designed to show which zone this memory
->>> +        block can be onlined to.
->>>
->>>    What:        /sys/devices/system/memoryX/nodeY
->>>    Date:        October 2009
->>> diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
->>> index 5b34e33..947229c 100644
->>> --- a/Documentation/memory-hotplug.txt
->>> +++ b/Documentation/memory-hotplug.txt
->>> @@ -155,7 +155,7 @@ Under each memory block, you can see 4 files:
->>>    /sys/devices/system/memory/memoryXXX/phys_device
->>>    /sys/devices/system/memory/memoryXXX/state
->>>    /sys/devices/system/memory/memoryXXX/removable
->>> -/sys/devices/system/memory/memoryXXX/zones_online_to
->>> +/sys/devices/system/memory/memoryXXX/valid_zones
->>>
->>>    'phys_index'      : read-only and contains memory block id, same as XXX.
->>>    'state'           : read-write
->>> @@ -171,7 +171,7 @@ Under each memory block, you can see 4 files:
->>>                        block is removable and a value of 0 indicates that
->>>                        it is not removable. A memory block is removable only if
->>>                        every section in the block is removable.
->>> -'zones_online_to' : read-only: designed to show which zone this memory block
->>> +'valid_zones' : read-only: designed to show which zone this memory block
->>>                can be onlined to.
->>>
->>>    NOTE:
->>> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
->>> index ccaf37c..efd456c 100644
->>> --- a/drivers/base/memory.c
->>> +++ b/drivers/base/memory.c
->>> @@ -374,21 +374,7 @@ static ssize_t show_phys_device(struct device *dev,
->>>    }
->>>
->>>    #ifdef CONFIG_MEMORY_HOTREMOVE
->>> -static int __zones_online_to(unsigned long end_pfn,
->>> -                struct page *first_page, unsigned long nr_pages)
->>> -{
->>> -    struct zone *zone_next;
->>> -
->>> -    /* The mem block is the last block of memory. */
->>> -    if (!pfn_valid(end_pfn + 1))
->>> -        return 1;
->>> -    zone_next = page_zone(first_page + nr_pages);
->>> -    if (zone_idx(zone_next) == ZONE_MOVABLE)
->>> -        return 1;
->>> -    return 0;
->>> -}
->>> -
->>> -static ssize_t show_zones_online_to(struct device *dev,
->>> +static ssize_t show_valid_zones(struct device *dev,
->>>                    struct device_attribute *attr, char *buf)
->>>    {
->>>        struct memory_block *mem = to_memory_block(dev);
->>> @@ -407,33 +393,23 @@ static ssize_t show_zones_online_to(struct device *dev,
->>>
->>>        zone = page_zone(first_page);
->>>
->>> -#ifdef CONFIG_HIGHMEM
->>> -    if (zone_idx(zone) == ZONE_HIGHMEM) {
->>> -        if (__zones_online_to(end_pfn, first_page, nr_pages))
->>> +    if (zone_idx(zone) == ZONE_MOVABLE - 1) {
->>> +        /*The mem block is the last memoryblock of this zone.*/
->>> +        if (end_pfn == zone_end_pfn(zone))
->>>                return sprintf(buf, "%s %s\n",
->>>                        zone->name, (zone + 1)->name);
->>>        }
->>> -#else
->>> -    if (zone_idx(zone) == ZONE_NORMAL) {
->>> -        if (__zones_online_to(end_pfn, first_page, nr_pages))
->>> -            return sprintf(buf, "%s %s\n",
->>> -                    zone->name, (zone + 1)->name);
->>> -    }
->>> -#endif
->>>
->>>        if (zone_idx(zone) == ZONE_MOVABLE) {
->>> -        if (!pfn_valid(start_pfn - nr_pages))
->>> -            return sprintf(buf, "%s %s\n",
->>> -                        zone->name, (zone - 1)->name);
->>> -        zone_prev = page_zone(first_page - nr_pages);
->>> -        if (zone_idx(zone_prev) != ZONE_MOVABLE)
->>> +        /*The mem block is the first memoryblock of ZONE_MOVABLE.*/
->>
->>> +        if (start_pfn == zone->zone_start_pfn)
->>>                return sprintf(buf, "%s %s\n",
->>> -                        zone->name, (zone - 1)->name);
->>> +                    zone->name, (zone - 1)->name);
->>
->> How about swap zone->name and (zone - 1)->name.
->>
->> If swapping them, sample output of the sysfs files shows as follows:
->>       memory0/valid_zones: none
->>       memory1/valid_zones: DMA32
->>       memory2/valid_zones: DMA32
->>       memory3/valid_zones: DMA32
->>       memory4/valid_zones: Normal
->>       memory5/valid_zones: Normal
->>       memory6/valid_zones: Normal Movable
->>       memory7/valid_zones: Normal Movable
->>
-> 	memory6/valid_zones: Normal Movable
-> 	memory7/valid_zones: Movable Normal
-> Here can better show the dividing line between ZONE_MOVABLE and ZONE_NORMAL.
->
+tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+head:   1c9e4561f3b2afffcda007eae9d0ddd25525f50e
+commit: 6e162b4c49f7fad5a82d57c8fa4afc4c7103e1f8 [2111/2346] mem-hotplug: let memblock skip the hotpluggable memory regions in __next_mem_range()
+config: make ARCH=arm footbridge_defconfig
 
-> The first column shows it's default zone,
+All warnings:
 
-If so, please write the information in 'valid_zones' term
-of memory-hotplug.txt. Nobody know it.
+   In file included from include/asm-generic/bug.h:13:0,
+                    from arch/arm/include/asm/bug.h:61,
+                    from include/linux/bug.h:4,
+                    from include/linux/thread_info.h:11,
+                    from include/asm-generic/preempt.h:4,
+                    from arch/arm/include/generated/asm/preempt.h:1,
+                    from include/linux/preempt.h:18,
+                    from include/linux/spinlock.h:50,
+                    from include/linux/mmzone.h:7,
+                    from include/linux/gfp.h:5,
+                    from include/linux/slab.h:14,
+                    from mm/nobootmem.c:13:
+   mm/nobootmem.c: In function 'free_low_memory_core_early':
+>> include/linux/kernel.h:29:20: warning: large integer implicitly truncated to unsigned type [-Woverflow]
+    #define ULLONG_MAX (~0ULL)
+                       ^
+>> mm/nobootmem.c:122:28: note: in expansion of macro 'ULLONG_MAX'
+     memblock_clear_hotplug(0, ULLONG_MAX);
+                               ^
 
-Thanks,
-Yasuaki Ishimatasu
+vim +/ULLONG_MAX +122 mm/nobootmem.c
 
-> for memory6:
-> 	the first column Normal shows that it can be onlined to ZONE_NORMAL by default.
-> 	echo offline > memory6/state
-> 	echo online > memory6/state
-> 	the second column Movable shows that it can be onlined to ZONE_MOVABLE by online_movable.
-> 	echo offline > memory6/state
-> 	echo online_movable > memory6/state
-> for memory7:
-> 	the first column Movable shows that it can be onlined to ZONE_MOVABLE by default.
-> 	echo offline > memory7/state
-> 	echo online > memory7/state
-> 	the second column Normal shows that it can be onlined to ZONE_NORMAL by online_kernel.
-> 	echo offline > memory7/state
-> 	echo online_kernel > memory7/state
->
-> And it is more convenient for script to work.
-> So i think we should leave it as it is.
->
-> Thanks!
->                               ~~~~~~~~~~~~~~
->>       memory8/valid_zones: Movable
->>
->> Thanks,
->> Yasuaki Ishimatsu
->>
->>>        }
->>>
->>>        return sprintf(buf, "%s\n", zone->name);
->>>    }
->>> -static DEVICE_ATTR(zones_online_to, 0444, show_zones_online_to, NULL);
->>> +static DEVICE_ATTR(valid_zones, 0444, show_valid_zones, NULL);
->>>    #endif
->>>
->>>    static DEVICE_ATTR(phys_index, 0444, show_mem_start_phys_index, NULL);
->>> @@ -587,7 +563,7 @@ static struct attribute *memory_memblk_attrs[] = {
->>>        &dev_attr_phys_device.attr,
->>>        &dev_attr_removable.attr,
->>>    #ifdef CONFIG_MEMORY_HOTREMOVE
->>> -    &dev_attr_zones_online_to.attr,
->>> +    &dev_attr_valid_zones.attr,
->>>    #endif
->>>        NULL
->>>    };
->>>
->>
->>
->>
->> .
->>
->
->
+     7	 *
+     8	 * Access to this subsystem has to be serialized externally (which is true
+     9	 * for the boot process anyway).
+    10	 */
+    11	#include <linux/init.h>
+    12	#include <linux/pfn.h>
+  > 13	#include <linux/slab.h>
+    14	#include <linux/bootmem.h>
+    15	#include <linux/export.h>
+    16	#include <linux/kmemleak.h>
+    17	#include <linux/range.h>
+    18	#include <linux/memblock.h>
+    19	
+    20	#include <asm/bug.h>
+    21	#include <asm/io.h>
+    22	#include <asm/processor.h>
+    23	
+    24	#include "internal.h"
+    25	
+    26	#ifndef CONFIG_NEED_MULTIPLE_NODES
+    27	struct pglist_data __refdata contig_page_data;
+    28	EXPORT_SYMBOL(contig_page_data);
+    29	#endif
+    30	
+    31	unsigned long max_low_pfn;
+    32	unsigned long min_low_pfn;
+    33	unsigned long max_pfn;
+    34	
+    35	static void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
+    36						u64 goal, u64 limit)
+    37	{
+    38		void *ptr;
+    39		u64 addr;
+    40	
+    41		if (limit > memblock.current_limit)
+    42			limit = memblock.current_limit;
+    43	
+    44		addr = memblock_find_in_range_node(size, align, goal, limit, nid);
+    45		if (!addr)
+    46			return NULL;
+    47	
+    48		if (memblock_reserve(addr, size))
+    49			return NULL;
+    50	
+    51		ptr = phys_to_virt(addr);
+    52		memset(ptr, 0, size);
+    53		/*
+    54		 * The min_count is set to 0 so that bootmem allocated blocks
+    55		 * are never reported as leaks.
+    56		 */
+    57		kmemleak_alloc(ptr, size, 0, 0);
+    58		return ptr;
+    59	}
+    60	
+    61	/*
+    62	 * free_bootmem_late - free bootmem pages directly to page allocator
+    63	 * @addr: starting address of the range
+    64	 * @size: size of the range in bytes
+    65	 *
+    66	 * This is only useful when the bootmem allocator has already been torn
+    67	 * down, but we are still initializing the system.  Pages are given directly
+    68	 * to the page allocator, no bootmem metadata is updated because it is gone.
+    69	 */
+    70	void __init free_bootmem_late(unsigned long addr, unsigned long size)
+    71	{
+    72		unsigned long cursor, end;
+    73	
+    74		kmemleak_free_part(__va(addr), size);
+    75	
+    76		cursor = PFN_UP(addr);
+    77		end = PFN_DOWN(addr + size);
+    78	
+    79		for (; cursor < end; cursor++) {
+    80			__free_pages_bootmem(pfn_to_page(cursor), 0);
+    81			totalram_pages++;
+    82		}
+    83	}
+    84	
+    85	static void __init __free_pages_memory(unsigned long start, unsigned long end)
+    86	{
+    87		int order;
+    88	
+    89		while (start < end) {
+    90			order = min(MAX_ORDER - 1UL, __ffs(start));
+    91	
+    92			while (start + (1UL << order) > end)
+    93				order--;
+    94	
+    95			__free_pages_bootmem(pfn_to_page(start), order);
+    96	
+    97			start += (1UL << order);
+    98		}
+    99	}
+   100	
+   101	static unsigned long __init __free_memory_core(phys_addr_t start,
+   102					 phys_addr_t end)
+   103	{
+   104		unsigned long start_pfn = PFN_UP(start);
+   105		unsigned long end_pfn = min_t(unsigned long,
+   106					      PFN_DOWN(end), max_low_pfn);
+   107	
+   108		if (start_pfn > end_pfn)
+   109			return 0;
+   110	
+   111		__free_pages_memory(start_pfn, end_pfn);
+   112	
+   113		return end_pfn - start_pfn;
+   114	}
+   115	
+   116	static unsigned long __init free_low_memory_core_early(void)
+   117	{
+   118		unsigned long count = 0;
+   119		phys_addr_t start, end;
+   120		u64 i;
+   121	
+ > 122		memblock_clear_hotplug(0, ULLONG_MAX);
+   123	
+   124		for_each_free_mem_range(i, NUMA_NO_NODE, &start, &end, NULL)
+   125			count += __free_memory_core(start, end);
 
+---
+0-DAY kernel build testing backend              Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
