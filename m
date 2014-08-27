@@ -1,178 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B3536B0038
-	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 22:56:35 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lf10so25001249pab.29
-        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 19:56:34 -0700 (PDT)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id jd1si6949721pbb.115.2014.08.26.19.56.32
-        for <linux-mm@kvack.org>;
-        Tue, 26 Aug 2014 19:56:33 -0700 (PDT)
-Date: Wed, 27 Aug 2014 11:57:28 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 0/2] ARM: Remove lowmem limit for default CMA region
-Message-ID: <20140827025728.GJ32620@bbox>
-References: <1408610714-16204-1-git-send-email-m.szyprowski@samsung.com>
- <20140825012600.GN17372@bbox>
- <53FAED20.60200@samsung.com>
- <20140825081836.GF32620@bbox>
- <53FAF4EE.6060201@samsung.com>
- <20140826024355.GB11319@bbox>
- <53FC7ED0.4040905@samsung.com>
- <20140827003611.GH32620@bbox>
- <20140827014254.GB10198@js1304-P5Q-DELUXE>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20140827014254.GB10198@js1304-P5Q-DELUXE>
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 9060A6B0038
+	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 23:04:16 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id w10so23786220pde.32
+        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 20:04:16 -0700 (PDT)
+Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
+        by mx.google.com with ESMTPS id jj4si6650550pbb.226.2014.08.26.20.04.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Tue, 26 Aug 2014 20:04:15 -0700 (PDT)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout4.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NAY00EJQ371GH60@mailout4.samsung.com> for
+ linux-mm@kvack.org; Wed, 27 Aug 2014 12:04:13 +0900 (KST)
+From: Chao Yu <chao2.yu@samsung.com>
+Subject: [PATCH v4] zram: add num_{discard_req, discarded} for discard stat
+Date: Wed, 27 Aug 2014 11:02:51 +0800
+Message-id: <000401cfc1a3$938f3620$baada260$@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=US-ASCII
+Content-transfer-encoding: 7bit
+Content-language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Russell King - ARM Linux <linux@arm.linux.org.uk>, Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
+To: minchan@kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, 'Jerome Marchand' <jmarchan@redhat.com>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, 'Andrew Morton' <akpm@linux-foundation.org>
 
-On Wed, Aug 27, 2014 at 10:42:54AM +0900, Joonsoo Kim wrote:
-> On Wed, Aug 27, 2014 at 09:36:11AM +0900, Minchan Kim wrote:
-> > Hey Marek,
-> > 
-> > On Tue, Aug 26, 2014 at 02:34:24PM +0200, Marek Szyprowski wrote:
-> > > Hello,
-> > > 
-> > > On 2014-08-26 04:43, Minchan Kim wrote:
-> > > >On Mon, Aug 25, 2014 at 10:33:50AM +0200, Marek Szyprowski wrote:
-> > > >>On 2014-08-25 10:18, Minchan Kim wrote:
-> > > >>>On Mon, Aug 25, 2014 at 10:00:32AM +0200, Marek Szyprowski wrote:
-> > > >>>>On 2014-08-25 03:26, Minchan Kim wrote:
-> > > >>>>>On Thu, Aug 21, 2014 at 10:45:12AM +0200, Marek Szyprowski wrote:
-> > > >>>>>>Russell King recently noticed that limiting default CMA region only to
-> > > >>>>>>low memory on ARM architecture causes serious memory management issues
-> > > >>>>>>with machines having a lot of memory (which is mainly available as high
-> > > >>>>>>memory). More information can be found the following thread:
-> > > >>>>>>http://thread.gmane.org/gmane.linux.ports.arm.kernel/348441/
-> > > >>>>>>
-> > > >>>>>>Those two patches removes this limit letting kernel to put default CMA
-> > > >>>>>>region into high memory when this is possible (there is enough high
-> > > >>>>>>memory available and architecture specific DMA limit fits).
-> > > >>>>>Agreed. It should be from the beginning because CMA page is effectly
-> > > >>>>>pinned if it is anonymous page and system has no swap.
-> > > >>>>Nope. Even without swap, anonymous page can be correctly migrated to other
-> > > >>>>location. Migration code doesn't depend on presence of swap.
-> > > >>>I could be possible only if the zone has freeable page(ie, free pages
-> > > >>>+ shrinkable page like page cache). IOW, if the zone is full with
-> > > >>>anon pages, it's efffectively pinned.
-> > > >>Why? __alloc_contig_migrate_range() uses alloc_migrate_target()
-> > > >>function, which
-> > > >>can take free page from any zone matching given flags.
-> > > >Strictly speaking, it's not any zones. It allows zones which are
-> > > >equal or lower with zone of source page.
-> > > >
-> > > >Pz, look at Russell's case.
-> > > >The pgd_alloc is trying to allocate order 2 page on normal zone,
-> > > >which is lowest zone so there is no fallback zones to migrate
-> > > >anonymous pages in normal zone out and alloc_migrate_target doesn't
-> > > >allocate target page from higher zones of source page at the moment.
-> > > >That's why I call it as effectively pinned.
-> > > 
-> > > In Russell's case the issue is related to compaction code. It should still
-> > > be able to compact low zone and get some free pages. It is not a case of
-> > > alloc_migrate_target. I mentioned this function because I wanted to show
-> > > that it is possible to move pages out of that zone in case of doing CMA
-> > > alloc and having no swap.
-> > > 
-> > > >>>>>>This should solve strange OOM issues on systems with lots of RAM
-> > > >>>>>>(i.e. >1GiB) and large (>256M) CMA area.
-> > > >>>>>I totally agree with the patchset although I didn't review code
-> > > >>>>>at all.
-> > > >>>>>
-> > > >>>>>Another topic:
-> > > >>>>>It means it should be a problem still if system has CMA in lowmem
-> > > >>>>>by some reason(ex, hardware limit or other purpose of CMA
-> > > >>>>>rather than DMA subsystem)?
-> > > >>>>>
-> > > >>>>>In that case, an idea that just popped in my head is to migrate
-> > > >>>>>pages from cma area to highest zone because they are all
-> > > >>>>>userspace pages which should be in there but not sure it's worth
-> > > >>>>>to implement at this point because how many such cripple platform
-> > > >>>>>are.
-> > > >>>>>
-> > > >>>>>Just for the recording.
-> > > >>>>Moving pages between low and high zone is not that easy. If I remember
-> > > >>>>correctly you cannot migrate a page from low memory to high zone in
-> > > >>>>generic case, although it should be possible to add exception for
-> > > >>>>anonymous pages. This will definitely improve poor low memory
-> > > >>>>handling in low zone when CMA is enabled.
-> > > >>>Yeb, it's possible for anonymous pages but I just wonder it's worth
-> > > >>>to add more complexitiy to mm and and you are answering it's worth.
-> > > >>>Okay. May I understand your positive feedback means such platform(
-> > > >>>ie, DMA works with only lowmem) are still common?
-> > > >>There are still some platforms, which have limited DMA capabilities. However
-> > > >Thanks for your comment.
-> > > >I just wanted to know it's worth before I dive into that but it seems
-> > > >I was driving wrong way. See below.
-> > > >
-> > > >>the ability to move anonymous a page from lowmem to highmem will be
-> > > >>a benefit
-> > > >>in any case, as low memory is really much more precious.
-> > > >Maybe, but in case of this report, even if we move anonymous pages
-> > > >into higher zones, the problem(ie, OOM) is still there because
-> > > >pgd_alloc wanted high order page in no cma area in normal zone.
-> > > >
-> > > >The feature which move CMA pages into higher zones would help CMA alloc
-> > > >latency if there are lots of free pages in higher zone but no freeable
-> > > >page in the zone which source page located in. But it wouldn't help
-> > > >this OOM problem.
-> > > 
-> > > Right. The mentioned OOM problem shows that compaction fails in some cases
-> > > for unknown reasons. The question here is weather compaction_alloc()
-> > > function is able to get free CMA pages or not. Right now I'm not sure if
-> > > it will take pages from the right list or not. This case definitely should
-> > > be investigated.
-> 
-> Hello, Minchan and Marek.
-> 
-> IIUC, compaction_alloc() can get free CMA pages.
-> 
-> > 
-> > I think it can because suitable_migrate_target and migrate_async_suitable
-> > consider CMA. That's why I think the culprit is cmpaction deferring logic
-> > and sent a patch to detect it.
-> > http://www.spinics.net/lists/kernel/msg1812538.html
-> 
-> I guess that this problem is related to CMA.
-> When direct_compaction begins, compaction logic check whether this
-> zone is suitable or not by compaction_suitable(). In this function,
-> we check fragmentation_index() and it didn't consider whether free_blocks
-> is on CMA or not for free_blocks_suitable. So, in Russell's case, it
-> would always return -1000 and then return COMPACT_PARTIAL. After all,
-> compaction wouldn't actually happen and allocation request would fail,
-> too.
+Since we have supported handling discard request in this commit
+f4659d8e620d08bd1a84a8aec5d2f5294a242764 (zram: support REQ_DISCARD), zram got
+one more chance to free unused memory whenever received discard request. But
+without stating for discard request, there is no method for user to know whether
+discard request has been handled by zram or how many blocks were discarded by
+zram when user wants to know the effect of discard.
 
-Good catch! Acutally I checked it but I thought COMPACT_PARTIAL will
-go with compaction. Brain damaged.
+In this patch, we add num_discard_req to stat discard request and add
+num_discarded to stat real discarded blocks, and export them to sysfs for users.
 
+* From v1
+ * Update zram document to show num_discards in statistics list.
 
-> 
-> I should note that there is one more flaw on zone_watermark_ok().
-> zone_watermark_ok() doesn't handle > 0 allocation correctly if there
-> is free CMA memory so we can easily pass this watermakr check in
-> this case.
-> 
-> I have a plan to fix it, but, it will takes some time. :)
+* From v2
+ * Update description of this patch with clear goal.
 
-Okay, I am looking forward to seeing that. 
-Thanks Joonsoo!
+* From v3
+ * Stat discard request and discarded pages separately as "previous stat
+   indicates lots of free page discarded without real freeing, so the stat makes
+   our user's misunderstanding" pointed out by Minchan Kim.
 
-> 
-> Thanks.
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Signed-off-by: Chao Yu <chao2.yu@samsung.com>
+---
+ Documentation/ABI/testing/sysfs-block-zram | 17 +++++++++++++++++
+ Documentation/blockdev/zram.txt            |  2 ++
+ drivers/block/zram/zram_drv.c              | 17 ++++++++++++++---
+ drivers/block/zram/zram_drv.h              |  2 ++
+ 4 files changed, 35 insertions(+), 3 deletions(-)
 
+diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
+index 70ec992..805fb11 100644
+--- a/Documentation/ABI/testing/sysfs-block-zram
++++ b/Documentation/ABI/testing/sysfs-block-zram
+@@ -57,6 +57,23 @@ Description:
+ 		The failed_writes file is read-only and specifies the number of
+ 		failed writes happened on this device.
+ 
++What:		/sys/block/zram<id>/num_discard_req
++Date:		August 2014
++Contact:	Chao Yu <chao2.yu@samsung.com>
++Description:
++		The num_discard_req file is read-only and specifies the number
++		of requests received by this device. These requests are sent by
++		swap layer or filesystem when they want to free blocks which are
++		no longer used.
++
++What:		/sys/block/zram<id>/num_discarded
++Date:		August 2014
++Contact:	Chao Yu <chao2.yu@samsung.com>
++Description:
++		The num_discarded file is read-only and specifies the number of
++		real discarded blocks (pages which are really freed) in this
++		device after discard request is sent to this device.
++
+ What:		/sys/block/zram<id>/max_comp_streams
+ Date:		February 2014
+ Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
+index 0595c3f..f9c1e41 100644
+--- a/Documentation/blockdev/zram.txt
++++ b/Documentation/blockdev/zram.txt
+@@ -89,6 +89,8 @@ size of the disk when not in use so a huge zram is wasteful.
+ 		num_writes
+ 		failed_reads
+ 		failed_writes
++		num_discard_req
++		num_discarded
+ 		invalid_io
+ 		notify_free
+ 		zero_pages
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index d00831c..1d012e8 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -322,7 +322,7 @@ static void handle_zero_page(struct bio_vec *bvec)
+  * caller should hold this table index entry's bit_spinlock to
+  * indicate this index entry is accessing.
+  */
+-static void zram_free_page(struct zram *zram, size_t index)
++static bool zram_free_page(struct zram *zram, size_t index)
+ {
+ 	struct zram_meta *meta = zram->meta;
+ 	unsigned long handle = meta->table[index].handle;
+@@ -336,7 +336,7 @@ static void zram_free_page(struct zram *zram, size_t index)
+ 			zram_clear_flag(meta, index, ZRAM_ZERO);
+ 			atomic64_dec(&zram->stats.zero_pages);
+ 		}
+-		return;
++		return false;
+ 	}
+ 
+ 	zs_free(meta->mem_pool, handle);
+@@ -347,6 +347,7 @@ static void zram_free_page(struct zram *zram, size_t index)
+ 
+ 	meta->table[index].handle = 0;
+ 	zram_set_obj_size(meta, index, 0);
++	return true;
+ }
+ 
+ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
+@@ -603,12 +604,18 @@ static void zram_bio_discard(struct zram *zram, u32 index,
+ 	}
+ 
+ 	while (n >= PAGE_SIZE) {
++		bool discarded;
++
+ 		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
+-		zram_free_page(zram, index);
++		discarded = zram_free_page(zram, index);
+ 		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
++		if (discarded)
++			atomic64_inc(&zram->stats.num_discarded);
+ 		index++;
+ 		n -= PAGE_SIZE;
+ 	}
++
++	atomic64_inc(&zram->stats.num_discard_req);
+ }
+ 
+ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+@@ -866,6 +873,8 @@ ZRAM_ATTR_RO(num_reads);
+ ZRAM_ATTR_RO(num_writes);
+ ZRAM_ATTR_RO(failed_reads);
+ ZRAM_ATTR_RO(failed_writes);
++ZRAM_ATTR_RO(num_discard_req);
++ZRAM_ATTR_RO(num_discarded);
+ ZRAM_ATTR_RO(invalid_io);
+ ZRAM_ATTR_RO(notify_free);
+ ZRAM_ATTR_RO(zero_pages);
+@@ -879,6 +888,8 @@ static struct attribute *zram_disk_attrs[] = {
+ 	&dev_attr_num_writes.attr,
+ 	&dev_attr_failed_reads.attr,
+ 	&dev_attr_failed_writes.attr,
++	&dev_attr_num_discard_req.attr,
++	&dev_attr_num_discarded.attr,
+ 	&dev_attr_invalid_io.attr,
+ 	&dev_attr_notify_free.attr,
+ 	&dev_attr_zero_pages.attr,
+diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+index e0f725c..49f91aa 100644
+--- a/drivers/block/zram/zram_drv.h
++++ b/drivers/block/zram/zram_drv.h
+@@ -86,6 +86,8 @@ struct zram_stats {
+ 	atomic64_t num_writes;	/* --do-- */
+ 	atomic64_t failed_reads;	/* can happen when memory is too low */
+ 	atomic64_t failed_writes;	/* can happen when memory is too low */
++	atomic64_t num_discard_req;	/* no. of discard req */
++	atomic64_t num_discarded;	/* no. of discarded pages */
+ 	atomic64_t invalid_io;	/* non-page-aligned I/O requests */
+ 	atomic64_t notify_free;	/* no. of swap slot free notifications */
+ 	atomic64_t zero_pages;		/* no. of zero filled pages */
 -- 
-Kind regards,
-Minchan Kim
+2.0.1.474.g72c7794
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
