@@ -1,88 +1,262 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
-	by kanga.kvack.org (Postfix) with ESMTP id EF6C66B0038
-	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 23:17:47 -0400 (EDT)
-Received: by mail-ob0-f170.google.com with SMTP id wp4so12372386obc.15
-        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 20:17:47 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id k4si4807258obr.69.2014.08.26.20.17.47
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 171746B0035
+	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 23:24:24 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id y10so23835521pdj.21
+        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 20:24:23 -0700 (PDT)
+Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
+        by mx.google.com with ESMTPS id et5si6891694pbb.177.2014.08.26.20.24.22
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 26 Aug 2014 20:17:47 -0700 (PDT)
-Message-ID: <53FD4D9F.6050500@oracle.com>
-Date: Tue, 26 Aug 2014 23:16:47 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        Tue, 26 Aug 2014 20:24:23 -0700 (PDT)
+Received: from kw-mxoi1.gw.nic.fujitsu.com (unknown [10.0.237.133])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id DDD753EE1C5
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 12:24:20 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by kw-mxoi1.gw.nic.fujitsu.com (Postfix) with ESMTP id 13056AC06F7
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 12:24:20 +0900 (JST)
+Received: from g01jpfmpwyt02.exch.g01.fujitsu.local (g01jpfmpwyt02.exch.g01.fujitsu.local [10.128.193.56])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id ABD011DB803C
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 12:24:19 +0900 (JST)
+Message-ID: <53FD4F12.6010500@jp.fujitsu.com>
+Date: Wed, 27 Aug 2014 12:22:58 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: mm: BUG in unmap_page_range
-References: <53DD5F20.8010507@oracle.com> <alpine.LSU.2.11.1408040418500.3406@eggly.anvils> <20140805144439.GW10819@suse.de> <alpine.LSU.2.11.1408051649330.6591@eggly.anvils> <53E17F06.30401@oracle.com> <53E989FB.5000904@oracle.com>
-In-Reply-To: <53E989FB.5000904@oracle.com>
-Content-Type: text/plain; charset=windows-1252
+Subject: Re: [PATCH] memory-hotplug: fix not enough check of valid_zones
+References: <1409046575-11025-1-git-send-email-zhenzhang.zhang@huawei.com> <53FC5A04.9070300@huawei.com> <53FC6009.1010308@jp.fujitsu.com> <53FD3A74.4020008@huawei.com>
+In-Reply-To: <53FD3A74.4020008@huawei.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Cyrill Gorcunov <gorcunov@gmail.com>
+To: Zhang Zhen <zhenzhang.zhang@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Toshi Kani <toshi.kani@hp.com>, David Rientjes <rientjes@google.com>, wangnan0@huawei.com, linux-kernel@vger.kernel.org, Linux MM <linux-mm@kvack.org>
 
-On 08/11/2014 11:28 PM, Sasha Levin wrote:
-> On 08/05/2014 09:04 PM, Sasha Levin wrote:
->> > Thanks Hugh, Mel. I've added both patches to my local tree and will update tomorrow
->> > with the weather.
->> > 
->> > Also:
->> > 
->> > On 08/05/2014 08:42 PM, Hugh Dickins wrote:
->>> >> One thing I did wonder, though: at first I was reassured by the
->>> >> VM_BUG_ON(!pte_present(pte)) you add to pte_mknuma(); but then thought
->>> >> it would be better as VM_BUG_ON(!(val & _PAGE_PRESENT)), being stronger
->>> >> - asserting that indeed we do not put NUMA hints on PROT_NONE areas.
->>> >> (But I have not tested, perhaps such a VM_BUG_ON would actually fire.)
->> > 
->> > I've added VM_BUG_ON(!(val & _PAGE_PRESENT)) in just as a curiosity, I'll
->> > update how that one looks as well.
-> Sorry for the rather long delay.
-> 
-> The patch looks fine, the issue didn't reproduce.
-> 
-> The added VM_BUG_ON didn't trigger either, so maybe we should consider adding
-> it in.
+(2014/08/27 10:55), Zhang Zhen wrote:
+> On 2014/8/26 18:23, Yasuaki Ishimatsu wrote:
+>> (2014/08/26 18:57), Zhang Zhen wrote:
+>>> As Yasuaki Ishimatsu described the check here is not enough
+>>> if memory has hole as follows:
+>>>
+>>> PFN       0x00          0xd0          0xe0          0xf0
+>>>                +-------------+-------------+-------------+
+>>> zone type   |   Normal    |     hole    |   Normal    |
+>>>                +-------------+-------------+-------------+
+>>> In this case, the check can't guarantee that this is "the last
+>>> block of memory".
+>>> The check of ZONE_MOVABLE has the same problem.
+>>>
+>>> Change the interface name to valid_zones according to most pepole's
+>>> suggestion.
+>>>
+>>> Sample output of the sysfs files:
+>>>      memory0/valid_zones: none
+>>>      memory1/valid_zones: DMA32
+>>>      memory2/valid_zones: DMA32
+>>>      memory3/valid_zones: DMA32
+>>>      memory4/valid_zones: Normal
+>>>      memory5/valid_zones: Normal
+>>>      memory6/valid_zones: Normal Movable
+>>>      memory7/valid_zones: Movable Normal
+>>>      memory8/valid_zones: Movable
+>>
+>> The patch has two changes:
+>>   - change sysfs interface name
+>>   - change check of ZONE_MOVABLE
+>> So please separate them.
+>>
+> Ok, i will separate them.
+>
+> Thanks!
+>>> Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
+>>> ---
+>>>    Documentation/ABI/testing/sysfs-devices-memory |  8 ++---
+>>>    Documentation/memory-hotplug.txt               |  4 +--
+>>>    drivers/base/memory.c                          | 42 ++++++--------------------
+>>>    3 files changed, 15 insertions(+), 39 deletions(-)
+>>>
+>>> diff --git a/Documentation/ABI/testing/sysfs-devices-memory b/Documentation/ABI/testing/sysfs-devices-memory
+>>> index 2b2a1d7..deef3b5 100644
+>>> --- a/Documentation/ABI/testing/sysfs-devices-memory
+>>> +++ b/Documentation/ABI/testing/sysfs-devices-memory
+>>> @@ -61,13 +61,13 @@ Users:        hotplug memory remove tools
+>>>            http://www.ibm.com/developerworks/wikis/display/LinuxP/powerpc-utils
+>>>
+>>>
+>>> -What:           /sys/devices/system/memory/memoryX/zones_online_to
+>>> +What:           /sys/devices/system/memory/memoryX/valid_zones
+>>>    Date:           July 2014
+>>>    Contact:    Zhang Zhen <zhenzhang.zhang@huawei.com>
+>>>    Description:
+>>> -        The file /sys/devices/system/memory/memoryX/zones_online_to
+>>> -        is read-only and is designed to show which zone this memory block can
+>>> -        be onlined to.
+>>> +        The file /sys/devices/system/memory/memoryX/valid_zones    is
+>>> +        read-only and is designed to show which zone this memory
+>>> +        block can be onlined to.
+>>>
+>>>    What:        /sys/devices/system/memoryX/nodeY
+>>>    Date:        October 2009
+>>> diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
+>>> index 5b34e33..947229c 100644
+>>> --- a/Documentation/memory-hotplug.txt
+>>> +++ b/Documentation/memory-hotplug.txt
+>>> @@ -155,7 +155,7 @@ Under each memory block, you can see 4 files:
+>>>    /sys/devices/system/memory/memoryXXX/phys_device
+>>>    /sys/devices/system/memory/memoryXXX/state
+>>>    /sys/devices/system/memory/memoryXXX/removable
+>>> -/sys/devices/system/memory/memoryXXX/zones_online_to
+>>> +/sys/devices/system/memory/memoryXXX/valid_zones
+>>>
+>>>    'phys_index'      : read-only and contains memory block id, same as XXX.
+>>>    'state'           : read-write
+>>> @@ -171,7 +171,7 @@ Under each memory block, you can see 4 files:
+>>>                        block is removable and a value of 0 indicates that
+>>>                        it is not removable. A memory block is removable only if
+>>>                        every section in the block is removable.
+>>> -'zones_online_to' : read-only: designed to show which zone this memory block
+>>> +'valid_zones' : read-only: designed to show which zone this memory block
+>>>                can be onlined to.
+>>>
+>>>    NOTE:
+>>> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+>>> index ccaf37c..efd456c 100644
+>>> --- a/drivers/base/memory.c
+>>> +++ b/drivers/base/memory.c
+>>> @@ -374,21 +374,7 @@ static ssize_t show_phys_device(struct device *dev,
+>>>    }
+>>>
+>>>    #ifdef CONFIG_MEMORY_HOTREMOVE
+>>> -static int __zones_online_to(unsigned long end_pfn,
+>>> -                struct page *first_page, unsigned long nr_pages)
+>>> -{
+>>> -    struct zone *zone_next;
+>>> -
+>>> -    /* The mem block is the last block of memory. */
+>>> -    if (!pfn_valid(end_pfn + 1))
+>>> -        return 1;
+>>> -    zone_next = page_zone(first_page + nr_pages);
+>>> -    if (zone_idx(zone_next) == ZONE_MOVABLE)
+>>> -        return 1;
+>>> -    return 0;
+>>> -}
+>>> -
+>>> -static ssize_t show_zones_online_to(struct device *dev,
+>>> +static ssize_t show_valid_zones(struct device *dev,
+>>>                    struct device_attribute *attr, char *buf)
+>>>    {
+>>>        struct memory_block *mem = to_memory_block(dev);
+>>> @@ -407,33 +393,23 @@ static ssize_t show_zones_online_to(struct device *dev,
+>>>
+>>>        zone = page_zone(first_page);
+>>>
+>>> -#ifdef CONFIG_HIGHMEM
+>>> -    if (zone_idx(zone) == ZONE_HIGHMEM) {
+>>> -        if (__zones_online_to(end_pfn, first_page, nr_pages))
+>>> +    if (zone_idx(zone) == ZONE_MOVABLE - 1) {
+>>> +        /*The mem block is the last memoryblock of this zone.*/
+>>> +        if (end_pfn == zone_end_pfn(zone))
+>>>                return sprintf(buf, "%s %s\n",
+>>>                        zone->name, (zone + 1)->name);
+>>>        }
+>>> -#else
+>>> -    if (zone_idx(zone) == ZONE_NORMAL) {
+>>> -        if (__zones_online_to(end_pfn, first_page, nr_pages))
+>>> -            return sprintf(buf, "%s %s\n",
+>>> -                    zone->name, (zone + 1)->name);
+>>> -    }
+>>> -#endif
+>>>
+>>>        if (zone_idx(zone) == ZONE_MOVABLE) {
+>>> -        if (!pfn_valid(start_pfn - nr_pages))
+>>> -            return sprintf(buf, "%s %s\n",
+>>> -                        zone->name, (zone - 1)->name);
+>>> -        zone_prev = page_zone(first_page - nr_pages);
+>>> -        if (zone_idx(zone_prev) != ZONE_MOVABLE)
+>>> +        /*The mem block is the first memoryblock of ZONE_MOVABLE.*/
+>>
+>>> +        if (start_pfn == zone->zone_start_pfn)
+>>>                return sprintf(buf, "%s %s\n",
+>>> -                        zone->name, (zone - 1)->name);
+>>> +                    zone->name, (zone - 1)->name);
+>>
+>> How about swap zone->name and (zone - 1)->name.
+>>
+>> If swapping them, sample output of the sysfs files shows as follows:
+>>       memory0/valid_zones: none
+>>       memory1/valid_zones: DMA32
+>>       memory2/valid_zones: DMA32
+>>       memory3/valid_zones: DMA32
+>>       memory4/valid_zones: Normal
+>>       memory5/valid_zones: Normal
+>>       memory6/valid_zones: Normal Movable
+>>       memory7/valid_zones: Normal Movable
+>>
+> 	memory6/valid_zones: Normal Movable
+> 	memory7/valid_zones: Movable Normal
+> Here can better show the dividing line between ZONE_MOVABLE and ZONE_NORMAL.
+>
 
-It took a while, but I've managed to hit that VM_BUG_ON:
+> The first column shows it's default zone,
 
-[  707.975456] kernel BUG at include/asm-generic/pgtable.h:724!
-[  707.977147] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-[  707.978974] Dumping ftrace buffer:
-[  707.980110]    (ftrace buffer empty)
-[  707.981221] Modules linked in:
-[  707.982312] CPU: 18 PID: 9488 Comm: trinity-c538 Not tainted 3.17.0-rc2-next-20140826-sasha-00031-gc48c9ac-dirty #1079
-[  707.982801] task: ffff880165e28000 ti: ffff880165e30000 task.ti: ffff880165e30000
-[  707.982801] RIP: 0010:[<ffffffffb42e3dda>]  [<ffffffffb42e3dda>] change_protection_range+0x94a/0x970
-[  707.982801] RSP: 0018:ffff880165e33d98  EFLAGS: 00010246
-[  707.982801] RAX: 000000009d340902 RBX: ffff880511204a08 RCX: 0000000000000100
-[  707.982801] RDX: 000000009d340902 RSI: 0000000041741000 RDI: 000000009d340902
-[  707.982801] RBP: ffff880165e33e88 R08: ffff880708a23c00 R09: 0000000000b52000
-[  707.982801] R10: 0000000000001e01 R11: 0000000000000008 R12: 0000000041751000
-[  707.982801] R13: 00000000000000f7 R14: 000000009d340902 R15: 0000000041741000
-[  707.982801] FS:  00007f358a9aa700(0000) GS:ffff88071c600000(0000) knlGS:0000000000000000
-[  707.982801] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[  707.982801] CR2: 00007f3586b69490 CR3: 0000000165d88000 CR4: 00000000000006a0
-[  707.982801] Stack:
-[  707.982801]  ffff8804db88d058 0000000000000000 ffff88070fb17cf0 0000000000000000
-[  707.982801]  ffff880165d88000 0000000000000000 ffff8801686a5000 000000004163e000
-[  707.982801]  ffff8801686a5000 0000000000000001 0000000000000025 0000000041750fff
-[  707.982801] Call Trace:
-[  707.982801]  [<ffffffffb42e3e14>] change_protection+0x14/0x30
-[  707.982801]  [<ffffffffb42fda3b>] change_prot_numa+0x1b/0x40
-[  707.982801]  [<ffffffffb41ad766>] task_numa_work+0x1f6/0x330
-[  707.982801]  [<ffffffffb41937c4>] task_work_run+0xc4/0xf0
-[  707.982801]  [<ffffffffb40712e7>] do_notify_resume+0x97/0xb0
-[  707.982801]  [<ffffffffb74fd6ea>] int_signal+0x12/0x17
-[  707.982801] Code: e8 2c 84 21 03 e9 72 ff ff ff 0f 1f 80 00 00 00 00 0f 0b 48 8b 7d a8 4c 89 f2 4c 89 fe e8 9f 7b 03 00 e9 47 f9 ff ff 0f 0b 0f 0b <0f> 0b 0f 0b 48 8b b5 70 ff ff ff 4c 89 ea 48 89 c7 e8 10 d5 01
-[  707.982801] RIP  [<ffffffffb42e3dda>] change_protection_range+0x94a/0x970
-[  707.982801]  RSP <ffff880165e33d98>
-
+If so, please write the information in 'valid_zones' term
+of memory-hotplug.txt. Nobody know it.
 
 Thanks,
-Sasha
+Yasuaki Ishimatasu
+
+> for memory6:
+> 	the first column Normal shows that it can be onlined to ZONE_NORMAL by default.
+> 	echo offline > memory6/state
+> 	echo online > memory6/state
+> 	the second column Movable shows that it can be onlined to ZONE_MOVABLE by online_movable.
+> 	echo offline > memory6/state
+> 	echo online_movable > memory6/state
+> for memory7:
+> 	the first column Movable shows that it can be onlined to ZONE_MOVABLE by default.
+> 	echo offline > memory7/state
+> 	echo online > memory7/state
+> 	the second column Normal shows that it can be onlined to ZONE_NORMAL by online_kernel.
+> 	echo offline > memory7/state
+> 	echo online_kernel > memory7/state
+>
+> And it is more convenient for script to work.
+> So i think we should leave it as it is.
+>
+> Thanks!
+>                               ~~~~~~~~~~~~~~
+>>       memory8/valid_zones: Movable
+>>
+>> Thanks,
+>> Yasuaki Ishimatsu
+>>
+>>>        }
+>>>
+>>>        return sprintf(buf, "%s\n", zone->name);
+>>>    }
+>>> -static DEVICE_ATTR(zones_online_to, 0444, show_zones_online_to, NULL);
+>>> +static DEVICE_ATTR(valid_zones, 0444, show_valid_zones, NULL);
+>>>    #endif
+>>>
+>>>    static DEVICE_ATTR(phys_index, 0444, show_mem_start_phys_index, NULL);
+>>> @@ -587,7 +563,7 @@ static struct attribute *memory_memblk_attrs[] = {
+>>>        &dev_attr_phys_device.attr,
+>>>        &dev_attr_removable.attr,
+>>>    #ifdef CONFIG_MEMORY_HOTREMOVE
+>>> -    &dev_attr_zones_online_to.attr,
+>>> +    &dev_attr_valid_zones.attr,
+>>>    #endif
+>>>        NULL
+>>>    };
+>>>
+>>
+>>
+>>
+>> .
+>>
+>
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
