@@ -1,186 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 9060A6B0038
-	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 23:04:16 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id w10so23786220pde.32
-        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 20:04:16 -0700 (PDT)
-Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
-        by mx.google.com with ESMTPS id jj4si6650550pbb.226.2014.08.26.20.04.15
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
+	by kanga.kvack.org (Postfix) with ESMTP id EF6C66B0038
+	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 23:17:47 -0400 (EDT)
+Received: by mail-ob0-f170.google.com with SMTP id wp4so12372386obc.15
+        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 20:17:47 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id k4si4807258obr.69.2014.08.26.20.17.47
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Tue, 26 Aug 2014 20:04:15 -0700 (PDT)
-Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
- by mailout4.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NAY00EJQ371GH60@mailout4.samsung.com> for
- linux-mm@kvack.org; Wed, 27 Aug 2014 12:04:13 +0900 (KST)
-From: Chao Yu <chao2.yu@samsung.com>
-Subject: [PATCH v4] zram: add num_{discard_req, discarded} for discard stat
-Date: Wed, 27 Aug 2014 11:02:51 +0800
-Message-id: <000401cfc1a3$938f3620$baada260$@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=US-ASCII
-Content-transfer-encoding: 7bit
-Content-language: zh-cn
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 26 Aug 2014 20:17:47 -0700 (PDT)
+Message-ID: <53FD4D9F.6050500@oracle.com>
+Date: Tue, 26 Aug 2014 23:16:47 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
+MIME-Version: 1.0
+Subject: Re: mm: BUG in unmap_page_range
+References: <53DD5F20.8010507@oracle.com> <alpine.LSU.2.11.1408040418500.3406@eggly.anvils> <20140805144439.GW10819@suse.de> <alpine.LSU.2.11.1408051649330.6591@eggly.anvils> <53E17F06.30401@oracle.com> <53E989FB.5000904@oracle.com>
+In-Reply-To: <53E989FB.5000904@oracle.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: minchan@kernel.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, 'Jerome Marchand' <jmarchan@redhat.com>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, 'Andrew Morton' <akpm@linux-foundation.org>
+To: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Cyrill Gorcunov <gorcunov@gmail.com>
 
-Since we have supported handling discard request in this commit
-f4659d8e620d08bd1a84a8aec5d2f5294a242764 (zram: support REQ_DISCARD), zram got
-one more chance to free unused memory whenever received discard request. But
-without stating for discard request, there is no method for user to know whether
-discard request has been handled by zram or how many blocks were discarded by
-zram when user wants to know the effect of discard.
+On 08/11/2014 11:28 PM, Sasha Levin wrote:
+> On 08/05/2014 09:04 PM, Sasha Levin wrote:
+>> > Thanks Hugh, Mel. I've added both patches to my local tree and will update tomorrow
+>> > with the weather.
+>> > 
+>> > Also:
+>> > 
+>> > On 08/05/2014 08:42 PM, Hugh Dickins wrote:
+>>> >> One thing I did wonder, though: at first I was reassured by the
+>>> >> VM_BUG_ON(!pte_present(pte)) you add to pte_mknuma(); but then thought
+>>> >> it would be better as VM_BUG_ON(!(val & _PAGE_PRESENT)), being stronger
+>>> >> - asserting that indeed we do not put NUMA hints on PROT_NONE areas.
+>>> >> (But I have not tested, perhaps such a VM_BUG_ON would actually fire.)
+>> > 
+>> > I've added VM_BUG_ON(!(val & _PAGE_PRESENT)) in just as a curiosity, I'll
+>> > update how that one looks as well.
+> Sorry for the rather long delay.
+> 
+> The patch looks fine, the issue didn't reproduce.
+> 
+> The added VM_BUG_ON didn't trigger either, so maybe we should consider adding
+> it in.
 
-In this patch, we add num_discard_req to stat discard request and add
-num_discarded to stat real discarded blocks, and export them to sysfs for users.
+It took a while, but I've managed to hit that VM_BUG_ON:
 
-* From v1
- * Update zram document to show num_discards in statistics list.
+[  707.975456] kernel BUG at include/asm-generic/pgtable.h:724!
+[  707.977147] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[  707.978974] Dumping ftrace buffer:
+[  707.980110]    (ftrace buffer empty)
+[  707.981221] Modules linked in:
+[  707.982312] CPU: 18 PID: 9488 Comm: trinity-c538 Not tainted 3.17.0-rc2-next-20140826-sasha-00031-gc48c9ac-dirty #1079
+[  707.982801] task: ffff880165e28000 ti: ffff880165e30000 task.ti: ffff880165e30000
+[  707.982801] RIP: 0010:[<ffffffffb42e3dda>]  [<ffffffffb42e3dda>] change_protection_range+0x94a/0x970
+[  707.982801] RSP: 0018:ffff880165e33d98  EFLAGS: 00010246
+[  707.982801] RAX: 000000009d340902 RBX: ffff880511204a08 RCX: 0000000000000100
+[  707.982801] RDX: 000000009d340902 RSI: 0000000041741000 RDI: 000000009d340902
+[  707.982801] RBP: ffff880165e33e88 R08: ffff880708a23c00 R09: 0000000000b52000
+[  707.982801] R10: 0000000000001e01 R11: 0000000000000008 R12: 0000000041751000
+[  707.982801] R13: 00000000000000f7 R14: 000000009d340902 R15: 0000000041741000
+[  707.982801] FS:  00007f358a9aa700(0000) GS:ffff88071c600000(0000) knlGS:0000000000000000
+[  707.982801] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[  707.982801] CR2: 00007f3586b69490 CR3: 0000000165d88000 CR4: 00000000000006a0
+[  707.982801] Stack:
+[  707.982801]  ffff8804db88d058 0000000000000000 ffff88070fb17cf0 0000000000000000
+[  707.982801]  ffff880165d88000 0000000000000000 ffff8801686a5000 000000004163e000
+[  707.982801]  ffff8801686a5000 0000000000000001 0000000000000025 0000000041750fff
+[  707.982801] Call Trace:
+[  707.982801]  [<ffffffffb42e3e14>] change_protection+0x14/0x30
+[  707.982801]  [<ffffffffb42fda3b>] change_prot_numa+0x1b/0x40
+[  707.982801]  [<ffffffffb41ad766>] task_numa_work+0x1f6/0x330
+[  707.982801]  [<ffffffffb41937c4>] task_work_run+0xc4/0xf0
+[  707.982801]  [<ffffffffb40712e7>] do_notify_resume+0x97/0xb0
+[  707.982801]  [<ffffffffb74fd6ea>] int_signal+0x12/0x17
+[  707.982801] Code: e8 2c 84 21 03 e9 72 ff ff ff 0f 1f 80 00 00 00 00 0f 0b 48 8b 7d a8 4c 89 f2 4c 89 fe e8 9f 7b 03 00 e9 47 f9 ff ff 0f 0b 0f 0b <0f> 0b 0f 0b 48 8b b5 70 ff ff ff 4c 89 ea 48 89 c7 e8 10 d5 01
+[  707.982801] RIP  [<ffffffffb42e3dda>] change_protection_range+0x94a/0x970
+[  707.982801]  RSP <ffff880165e33d98>
 
-* From v2
- * Update description of this patch with clear goal.
 
-* From v3
- * Stat discard request and discarded pages separately as "previous stat
-   indicates lots of free page discarded without real freeing, so the stat makes
-   our user's misunderstanding" pointed out by Minchan Kim.
-
-Signed-off-by: Chao Yu <chao2.yu@samsung.com>
----
- Documentation/ABI/testing/sysfs-block-zram | 17 +++++++++++++++++
- Documentation/blockdev/zram.txt            |  2 ++
- drivers/block/zram/zram_drv.c              | 17 ++++++++++++++---
- drivers/block/zram/zram_drv.h              |  2 ++
- 4 files changed, 35 insertions(+), 3 deletions(-)
-
-diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
-index 70ec992..805fb11 100644
---- a/Documentation/ABI/testing/sysfs-block-zram
-+++ b/Documentation/ABI/testing/sysfs-block-zram
-@@ -57,6 +57,23 @@ Description:
- 		The failed_writes file is read-only and specifies the number of
- 		failed writes happened on this device.
- 
-+What:		/sys/block/zram<id>/num_discard_req
-+Date:		August 2014
-+Contact:	Chao Yu <chao2.yu@samsung.com>
-+Description:
-+		The num_discard_req file is read-only and specifies the number
-+		of requests received by this device. These requests are sent by
-+		swap layer or filesystem when they want to free blocks which are
-+		no longer used.
-+
-+What:		/sys/block/zram<id>/num_discarded
-+Date:		August 2014
-+Contact:	Chao Yu <chao2.yu@samsung.com>
-+Description:
-+		The num_discarded file is read-only and specifies the number of
-+		real discarded blocks (pages which are really freed) in this
-+		device after discard request is sent to this device.
-+
- What:		/sys/block/zram<id>/max_comp_streams
- Date:		February 2014
- Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
-index 0595c3f..f9c1e41 100644
---- a/Documentation/blockdev/zram.txt
-+++ b/Documentation/blockdev/zram.txt
-@@ -89,6 +89,8 @@ size of the disk when not in use so a huge zram is wasteful.
- 		num_writes
- 		failed_reads
- 		failed_writes
-+		num_discard_req
-+		num_discarded
- 		invalid_io
- 		notify_free
- 		zero_pages
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index d00831c..1d012e8 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -322,7 +322,7 @@ static void handle_zero_page(struct bio_vec *bvec)
-  * caller should hold this table index entry's bit_spinlock to
-  * indicate this index entry is accessing.
-  */
--static void zram_free_page(struct zram *zram, size_t index)
-+static bool zram_free_page(struct zram *zram, size_t index)
- {
- 	struct zram_meta *meta = zram->meta;
- 	unsigned long handle = meta->table[index].handle;
-@@ -336,7 +336,7 @@ static void zram_free_page(struct zram *zram, size_t index)
- 			zram_clear_flag(meta, index, ZRAM_ZERO);
- 			atomic64_dec(&zram->stats.zero_pages);
- 		}
--		return;
-+		return false;
- 	}
- 
- 	zs_free(meta->mem_pool, handle);
-@@ -347,6 +347,7 @@ static void zram_free_page(struct zram *zram, size_t index)
- 
- 	meta->table[index].handle = 0;
- 	zram_set_obj_size(meta, index, 0);
-+	return true;
- }
- 
- static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
-@@ -603,12 +604,18 @@ static void zram_bio_discard(struct zram *zram, u32 index,
- 	}
- 
- 	while (n >= PAGE_SIZE) {
-+		bool discarded;
-+
- 		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
--		zram_free_page(zram, index);
-+		discarded = zram_free_page(zram, index);
- 		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
-+		if (discarded)
-+			atomic64_inc(&zram->stats.num_discarded);
- 		index++;
- 		n -= PAGE_SIZE;
- 	}
-+
-+	atomic64_inc(&zram->stats.num_discard_req);
- }
- 
- static void zram_reset_device(struct zram *zram, bool reset_capacity)
-@@ -866,6 +873,8 @@ ZRAM_ATTR_RO(num_reads);
- ZRAM_ATTR_RO(num_writes);
- ZRAM_ATTR_RO(failed_reads);
- ZRAM_ATTR_RO(failed_writes);
-+ZRAM_ATTR_RO(num_discard_req);
-+ZRAM_ATTR_RO(num_discarded);
- ZRAM_ATTR_RO(invalid_io);
- ZRAM_ATTR_RO(notify_free);
- ZRAM_ATTR_RO(zero_pages);
-@@ -879,6 +888,8 @@ static struct attribute *zram_disk_attrs[] = {
- 	&dev_attr_num_writes.attr,
- 	&dev_attr_failed_reads.attr,
- 	&dev_attr_failed_writes.attr,
-+	&dev_attr_num_discard_req.attr,
-+	&dev_attr_num_discarded.attr,
- 	&dev_attr_invalid_io.attr,
- 	&dev_attr_notify_free.attr,
- 	&dev_attr_zero_pages.attr,
-diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-index e0f725c..49f91aa 100644
---- a/drivers/block/zram/zram_drv.h
-+++ b/drivers/block/zram/zram_drv.h
-@@ -86,6 +86,8 @@ struct zram_stats {
- 	atomic64_t num_writes;	/* --do-- */
- 	atomic64_t failed_reads;	/* can happen when memory is too low */
- 	atomic64_t failed_writes;	/* can happen when memory is too low */
-+	atomic64_t num_discard_req;	/* no. of discard req */
-+	atomic64_t num_discarded;	/* no. of discarded pages */
- 	atomic64_t invalid_io;	/* non-page-aligned I/O requests */
- 	atomic64_t notify_free;	/* no. of swap slot free notifications */
- 	atomic64_t zero_pages;		/* no. of zero filled pages */
--- 
-2.0.1.474.g72c7794
-
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
