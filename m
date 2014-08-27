@@ -1,176 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id F3B3D6B0035
-	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 22:50:39 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id eu11so24725492pac.4
-        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 19:50:39 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id ff10si6911229pdb.137.2014.08.26.19.50.36
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B3536B0038
+	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 22:56:35 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lf10so25001249pab.29
+        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 19:56:34 -0700 (PDT)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id jd1si6949721pbb.115.2014.08.26.19.56.32
         for <linux-mm@kvack.org>;
-        Tue, 26 Aug 2014 19:50:38 -0700 (PDT)
-Date: Wed, 27 Aug 2014 11:51:32 +0900
+        Tue, 26 Aug 2014 19:56:33 -0700 (PDT)
+Date: Wed, 27 Aug 2014 11:57:28 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v5 3/4] zram: zram memory size limitation
-Message-ID: <20140827025132.GI32620@bbox>
-References: <1408925156-11733-1-git-send-email-minchan@kernel.org>
- <1408925156-11733-4-git-send-email-minchan@kernel.org>
- <20140826073730.GA1975@js1304-P5Q-DELUXE>
- <20140826075511.GI11319@bbox>
- <CAFdhcLQce05qi2LGP85N=aaQiKz1ArC3Kn+W-s86R58BkjMr3w@mail.gmail.com>
- <20140827012610.GA10198@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH 0/2] ARM: Remove lowmem limit for default CMA region
+Message-ID: <20140827025728.GJ32620@bbox>
+References: <1408610714-16204-1-git-send-email-m.szyprowski@samsung.com>
+ <20140825012600.GN17372@bbox>
+ <53FAED20.60200@samsung.com>
+ <20140825081836.GF32620@bbox>
+ <53FAF4EE.6060201@samsung.com>
+ <20140826024355.GB11319@bbox>
+ <53FC7ED0.4040905@samsung.com>
+ <20140827003611.GH32620@bbox>
+ <20140827014254.GB10198@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20140827012610.GA10198@js1304-P5Q-DELUXE>
+In-Reply-To: <20140827014254.GB10198@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: David Horner <ds2horner@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Russell King - ARM Linux <linux@arm.linux.org.uk>, Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
 
-Hey Joonsoo,
-
-On Wed, Aug 27, 2014 at 10:26:11AM +0900, Joonsoo Kim wrote:
-> Hello, Minchan and David.
-> 
-> On Tue, Aug 26, 2014 at 08:22:29AM -0400, David Horner wrote:
-> > On Tue, Aug 26, 2014 at 3:55 AM, Minchan Kim <minchan@kernel.org> wrote:
-> > > Hey Joonsoo,
-> > >
-> > > On Tue, Aug 26, 2014 at 04:37:30PM +0900, Joonsoo Kim wrote:
-> > >> On Mon, Aug 25, 2014 at 09:05:55AM +0900, Minchan Kim wrote:
-> > >> > @@ -513,6 +540,14 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
-> > >> >             ret = -ENOMEM;
-> > >> >             goto out;
-> > >> >     }
-> > >> > +
-> > >> > +   if (zram->limit_pages &&
-> > >> > +           zs_get_total_pages(meta->mem_pool) > zram->limit_pages) {
-> > >> > +           zs_free(meta->mem_pool, handle);
-> > >> > +           ret = -ENOMEM;
-> > >> > +           goto out;
-> > >> > +   }
-> > >> > +
-> > >> >     cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_WO);
-> > >>
-> > >> Hello,
-> > >>
-> > >> I don't follow up previous discussion, so I could be wrong.
-> > >> Why this enforcement should be here?
-> > >>
-> > >> I think that this has two problems.
-> > >> 1) alloc/free happens unnecessarilly if we have used memory over the
-> > >> limitation.
-> > >
-> > > True but firstly, I implemented the logic in zsmalloc, not zram but
-> > > as I described in cover-letter, it's not a requirement of zsmalloc
-> > > but zram so it should be in there. If every user want it in future,
-> > > then we could move the function into zsmalloc. That's what we
-> > > concluded in previous discussion.
-> 
-> Hmm...
-> Problem is that we can't avoid these unnecessary overhead in this
-> implementation. If we can implement this feature in zram efficiently,
-> it's okay. But, I think that current form isn't.
-
-
-If we can add it in zsmalloc, it would be more clean and efficient
-for zram but as I said, at the moment, I didn't want to put zram's
-requirement into zsmalloc because to me, it's weird to enforce max
-limit to allocator. It's client's role, I think.
-
-If current implementation is expensive and rather hard to follow,
-It would be one reason to move the feature into zsmalloc but
-I don't think it makes critical trobule in zram usecase.
-See below.
-
-But I still open and will wait others's opinion.
-If other guys think zsmalloc is better place, I am willing to move
-it into zsmalloc.
-
-> 
-> > >
-> > > Another idea is we could call zs_get_total_pages right before zs_malloc
-> > > but the problem is we cannot know how many of pages are allocated
-> > > by zsmalloc in advance.
-> > > IOW, zram should be blind on zsmalloc's internal.
-> > >
+On Wed, Aug 27, 2014 at 10:42:54AM +0900, Joonsoo Kim wrote:
+> On Wed, Aug 27, 2014 at 09:36:11AM +0900, Minchan Kim wrote:
+> > Hey Marek,
 > > 
-> > We did however suggest that we could check before hand to see if
-> > max was already exceeded as an optimization.
-> > (possibly with a guess on usage but at least using the minimum of 1 page)
-> > In the contested case, the max may already be exceeded transiently and
-> > therefore we know this one _could_ fail (it could also pass, but odds
-> > aren't good).
-> > As Minchan mentions this was discussed before - but not into great detail.
-> > Testing should be done to determine possible benefit. And as he also
-> > mentions, the better place for it may be in zsmalloc, but that
-> > requires an ABI change.
+> > On Tue, Aug 26, 2014 at 02:34:24PM +0200, Marek Szyprowski wrote:
+> > > Hello,
+> > > 
+> > > On 2014-08-26 04:43, Minchan Kim wrote:
+> > > >On Mon, Aug 25, 2014 at 10:33:50AM +0200, Marek Szyprowski wrote:
+> > > >>On 2014-08-25 10:18, Minchan Kim wrote:
+> > > >>>On Mon, Aug 25, 2014 at 10:00:32AM +0200, Marek Szyprowski wrote:
+> > > >>>>On 2014-08-25 03:26, Minchan Kim wrote:
+> > > >>>>>On Thu, Aug 21, 2014 at 10:45:12AM +0200, Marek Szyprowski wrote:
+> > > >>>>>>Russell King recently noticed that limiting default CMA region only to
+> > > >>>>>>low memory on ARM architecture causes serious memory management issues
+> > > >>>>>>with machines having a lot of memory (which is mainly available as high
+> > > >>>>>>memory). More information can be found the following thread:
+> > > >>>>>>http://thread.gmane.org/gmane.linux.ports.arm.kernel/348441/
+> > > >>>>>>
+> > > >>>>>>Those two patches removes this limit letting kernel to put default CMA
+> > > >>>>>>region into high memory when this is possible (there is enough high
+> > > >>>>>>memory available and architecture specific DMA limit fits).
+> > > >>>>>Agreed. It should be from the beginning because CMA page is effectly
+> > > >>>>>pinned if it is anonymous page and system has no swap.
+> > > >>>>Nope. Even without swap, anonymous page can be correctly migrated to other
+> > > >>>>location. Migration code doesn't depend on presence of swap.
+> > > >>>I could be possible only if the zone has freeable page(ie, free pages
+> > > >>>+ shrinkable page like page cache). IOW, if the zone is full with
+> > > >>>anon pages, it's efffectively pinned.
+> > > >>Why? __alloc_contig_migrate_range() uses alloc_migrate_target()
+> > > >>function, which
+> > > >>can take free page from any zone matching given flags.
+> > > >Strictly speaking, it's not any zones. It allows zones which are
+> > > >equal or lower with zone of source page.
+> > > >
+> > > >Pz, look at Russell's case.
+> > > >The pgd_alloc is trying to allocate order 2 page on normal zone,
+> > > >which is lowest zone so there is no fallback zones to migrate
+> > > >anonymous pages in normal zone out and alloc_migrate_target doesn't
+> > > >allocate target page from higher zones of source page at the moment.
+> > > >That's why I call it as effectively pinned.
+> > > 
+> > > In Russell's case the issue is related to compaction code. It should still
+> > > be able to compact low zone and get some free pages. It is not a case of
+> > > alloc_migrate_target. I mentioned this function because I wanted to show
+> > > that it is possible to move pages out of that zone in case of doing CMA
+> > > alloc and having no swap.
+> > > 
+> > > >>>>>>This should solve strange OOM issues on systems with lots of RAM
+> > > >>>>>>(i.e. >1GiB) and large (>256M) CMA area.
+> > > >>>>>I totally agree with the patchset although I didn't review code
+> > > >>>>>at all.
+> > > >>>>>
+> > > >>>>>Another topic:
+> > > >>>>>It means it should be a problem still if system has CMA in lowmem
+> > > >>>>>by some reason(ex, hardware limit or other purpose of CMA
+> > > >>>>>rather than DMA subsystem)?
+> > > >>>>>
+> > > >>>>>In that case, an idea that just popped in my head is to migrate
+> > > >>>>>pages from cma area to highest zone because they are all
+> > > >>>>>userspace pages which should be in there but not sure it's worth
+> > > >>>>>to implement at this point because how many such cripple platform
+> > > >>>>>are.
+> > > >>>>>
+> > > >>>>>Just for the recording.
+> > > >>>>Moving pages between low and high zone is not that easy. If I remember
+> > > >>>>correctly you cannot migrate a page from low memory to high zone in
+> > > >>>>generic case, although it should be possible to add exception for
+> > > >>>>anonymous pages. This will definitely improve poor low memory
+> > > >>>>handling in low zone when CMA is enabled.
+> > > >>>Yeb, it's possible for anonymous pages but I just wonder it's worth
+> > > >>>to add more complexitiy to mm and and you are answering it's worth.
+> > > >>>Okay. May I understand your positive feedback means such platform(
+> > > >>>ie, DMA works with only lowmem) are still common?
+> > > >>There are still some platforms, which have limited DMA capabilities. However
+> > > >Thanks for your comment.
+> > > >I just wanted to know it's worth before I dive into that but it seems
+> > > >I was driving wrong way. See below.
+> > > >
+> > > >>the ability to move anonymous a page from lowmem to highmem will be
+> > > >>a benefit
+> > > >>in any case, as low memory is really much more precious.
+> > > >Maybe, but in case of this report, even if we move anonymous pages
+> > > >into higher zones, the problem(ie, OOM) is still there because
+> > > >pgd_alloc wanted high order page in no cma area in normal zone.
+> > > >
+> > > >The feature which move CMA pages into higher zones would help CMA alloc
+> > > >latency if there are lots of free pages in higher zone but no freeable
+> > > >page in the zone which source page located in. But it wouldn't help
+> > > >this OOM problem.
+> > > 
+> > > Right. The mentioned OOM problem shows that compaction fails in some cases
+> > > for unknown reasons. The question here is weather compaction_alloc()
+> > > function is able to get free CMA pages or not. Right now I'm not sure if
+> > > it will take pages from the right list or not. This case definitely should
+> > > be investigated.
 > 
-> Why we hesitate to change zsmalloc API? It is in-kernel API and there
-> are just two users now, zswap and zram. We can change it easily.
-> I think that we just need following simple API change in zsmalloc.c.
+> Hello, Minchan and Marek.
 > 
-> zs_zpool_create(gfp_t gfp, struct zpool_ops *zpool_op)
-> =>
-> zs_zpool_create(unsigned long limit, gfp_t gfp, struct zpool_ops
-> *zpool_op)
+> IIUC, compaction_alloc() can get free CMA pages.
 > 
-> It's pool allocator so there is no obstacle for us to limit maximum
-> memory usage in zsmalloc. It's a natural idea to limit memory usage
-> for pool allocator.
-> 
-> > Certainly a detailed suggestion could happen on this thread and I'm
-> > also interested
-> > in your thoughts, but this patchset should be able to go in as is.
-> > Memory exhaustion avoidance probably trumps the possible thrashing at
-> > threshold.
 > > 
-> > > About alloc/free cost once if it is over the limit,
-> > > I don't think it's important to consider.
-> > > Do you have any scenario in your mind to consider alloc/free cost
-> > > when the limit is over?
-> > >
-> > >> 2) Even if this request doesn't do new allocation, it could be failed
-> > >> due to other's allocation. There is time gap between allocation and
-> > >> free, so legimate user who want to use preallocated zsmalloc memory
-> > >> could also see this condition true and then he will be failed.
-> > >
-> > > Yeb, we already discussed that. :)
-> > > Such false positive shouldn't be a severe problem if we can keep a
-> > > promise that zram user cannot exceed mem_limit.
-> > >
+> > I think it can because suitable_migrate_target and migrate_async_suitable
+> > consider CMA. That's why I think the culprit is cmpaction deferring logic
+> > and sent a patch to detect it.
+> > http://www.spinics.net/lists/kernel/msg1812538.html
 > 
-> If we can keep such a promise, why we need to limit memory usage?
-> I guess that this limit feature is useful for user who can't keep such promise.
-> So, we should assume that this false positive happens frequently.
+> I guess that this problem is related to CMA.
+> When direct_compaction begins, compaction logic check whether this
+> zone is suitable or not by compaction_suitable(). In this function,
+> we check fragmentation_index() and it didn't consider whether free_blocks
+> is on CMA or not for free_blocks_suitable. So, in Russell's case, it
+> would always return -1000 and then return COMPACT_PARTIAL. After all,
+> compaction wouldn't actually happen and allocation request would fail,
+> too.
 
+Good catch! Acutally I checked it but I thought COMPACT_PARTIAL will
+go with compaction. Brain damaged.
 
-The goal is to limit memory usage within some threshold.
-so false positive shouldn't be harmful unless it exceeds the threshold.
-In addition, If such false positive happens frequently, it means
-zram is very trobule so that user would see lots of write fail
-message, sometime really slow system if zram is used for swap.
-If we protect just one write from the race, how much does it help
-this situation? I don't think it's critical problem.
 
 > 
-> > And we cannot avoid the race, nor can we avoid in a low overhead competitive
-> > concurrent process transient inconsistent states.
-> > Different views for different observers.
-> >  They are a consequence of the theory of "Special Computational Relativity".
-> >  I am working on a String Unification Theory of Quantum and General CR in LISP.
-> >  ;-)
+> I should note that there is one more flaw on zone_watermark_ok().
+> zone_watermark_ok() doesn't handle > 0 allocation correctly if there
+> is free CMA memory so we can easily pass this watermakr check in
+> this case.
 > 
-> If we move limit logic to zsmalloc, we can avoid the race by commiting
-> needed memory size before actual allocation attempt. This commiting makes
-> concurrent process serialized so there is no race here. There is
-> possibilty to fail to allocate, but I think this is better than alloc
-> and free blindlessly depending on inconsistent states.
+> I have a plan to fix it, but, it will takes some time. :)
 
-Normally, zsmalloc/zsfree allocates object from existing pool so
-it's not big overhead and if someone continue to try writing  once limit is
-full, another overhead (vfs, fs, block) would be bigger than zsmalloc
-so it's not a problem, I think.
+Okay, I am looking forward to seeing that. 
+Thanks Joonsoo!
 
 > 
 > Thanks.
