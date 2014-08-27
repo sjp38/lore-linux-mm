@@ -1,134 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 58B4F6B0035
-	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 07:20:33 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id lj1so80044pab.19
-        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 04:20:32 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id za17si138783pab.41.2014.08.27.04.20.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 27 Aug 2014 04:20:23 -0700 (PDT)
-Message-ID: <53FDBE6B.8070100@huawei.com>
-Date: Wed, 27 Aug 2014 19:18:03 +0800
-From: Zhang Zhen <zhenzhang.zhang@huawei.com>
+Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
+	by kanga.kvack.org (Postfix) with ESMTP id A594A6B0035
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 07:50:50 -0400 (EDT)
+Received: by mail-qg0-f46.google.com with SMTP id z60so81114qgd.19
+        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 04:50:50 -0700 (PDT)
+Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
+        by mx.google.com with ESMTP id u47si250603qgd.10.2014.08.27.04.50.49
+        for <linux-mm@kvack.org>;
+        Wed, 27 Aug 2014 04:50:49 -0700 (PDT)
+Date: Wed, 27 Aug 2014 12:50:10 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATH V2 3/6] arm: mm: Enable HAVE_RCU_TABLE_FREE logic
+Message-ID: <20140827115010.GJ6968@arm.com>
+References: <1408635812-31584-1-git-send-email-steve.capper@linaro.org>
+ <1408635812-31584-4-git-send-email-steve.capper@linaro.org>
 MIME-Version: 1.0
-Subject: [PATCH 2/2] memory-hotplug: rename zones_online_to to valid_zones
-References: <1409124238-18635-1-git-send-email-zhenzhang.zhang@huawei.com> <53FDBDF0.5000200@huawei.com>
-In-Reply-To: <53FDBDF0.5000200@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1408635812-31584-4-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Dave Hansen <dave.hansen@intel.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Toshi Kani <toshi.kani@hp.com>
-Cc: wangnan0@huawei.com, Linux MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Steve Capper <steve.capper@linaro.org>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Will Deacon <Will.Deacon@arm.com>, "gary.robertson@linaro.org" <gary.robertson@linaro.org>, "christoffer.dall@linaro.org" <christoffer.dall@linaro.org>, "peterz@infradead.org" <peterz@infradead.org>, "anders.roxell@linaro.org" <anders.roxell@linaro.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "dann.frazier@canonical.com" <dann.frazier@canonical.com>, Mark Rutland <Mark.Rutland@arm.com>, "mgorman@suse.de" <mgorman@suse.de>
 
-Rename the interface to valid_zones according to most pepole's
-suggestion.
+On Thu, Aug 21, 2014 at 04:43:29PM +0100, Steve Capper wrote:
+> --- a/arch/arm/include/asm/tlb.h
+> +++ b/arch/arm/include/asm/tlb.h
+> @@ -35,12 +35,39 @@
+>  
+>  #define MMU_GATHER_BUNDLE	8
+>  
+> +#ifdef CONFIG_HAVE_RCU_TABLE_FREE
+> +static inline void __tlb_remove_table(void *_table)
+> +{
+> +	free_page_and_swap_cache((struct page *)_table);
+> +}
+> +
+> +struct mmu_table_batch {
+> +	struct rcu_head		rcu;
+> +	unsigned int		nr;
+> +	void			*tables[0];
+> +};
+> +
+> +#define MAX_TABLE_BATCH		\
+> +	((PAGE_SIZE - sizeof(struct mmu_table_batch)) / sizeof(void *))
+> +
+> +extern void tlb_table_flush(struct mmu_gather *tlb);
+> +extern void tlb_remove_table(struct mmu_gather *tlb, void *table);
+> +
+> +#define tlb_remove_entry(tlb, entry)	tlb_remove_table(tlb, entry)
+> +#else
+> +#define tlb_remove_entry(tlb, entry)	tlb_remove_page(tlb, entry)
+> +#endif /* CONFIG_HAVE_RCU_TABLE_FREE */
+> +
+>  /*
+>   * TLB handling.  This allows us to remove pages from the page
+>   * tables, and efficiently handle the TLB issues.
+>   */
+>  struct mmu_gather {
+>  	struct mm_struct	*mm;
+> +#ifdef CONFIG_HAVE_RCU_TABLE_FREE
+> +	struct mmu_table_batch	*batch;
+> +	unsigned int		need_flush;
+> +#endif
 
-Sample output of the sysfs files:
-	memory0/valid_zones: none
-	memory1/valid_zones: DMA32
-	memory2/valid_zones: DMA32
-	memory3/valid_zones: DMA32
-	memory4/valid_zones: Normal
-	memory5/valid_zones: Normal
-	memory6/valid_zones: Normal Movable
-	memory7/valid_zones: Movable Normal
-	memory8/valid_zones: Movable
+We add need_flush here just because it is set by tlb_remove_table() but
+it won't actually be checked by anything since arch/arm uses its own
+version of tlb_flush_mmu(). But I wouldn't go for #ifdefs in the core
+code either.
 
-Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
----
- Documentation/ABI/testing/sysfs-devices-memory |  8 ++++----
- Documentation/memory-hotplug.txt               | 13 ++++++++++---
- drivers/base/memory.c                          |  6 +++---
- 3 files changed, 17 insertions(+), 10 deletions(-)
+We should (as a separate patchset) convert arch/arm to generic
+mmu_gather. I know Russell had objections in the past but mmu_gather has
+evolved since and it's not longer inefficient (I think the only case is
+shift_arg_pages but that's pretty much lost in the noise).
 
-diff --git a/Documentation/ABI/testing/sysfs-devices-memory b/Documentation/ABI/testing/sysfs-devices-memory
-index 2b2a1d7..deef3b5 100644
---- a/Documentation/ABI/testing/sysfs-devices-memory
-+++ b/Documentation/ABI/testing/sysfs-devices-memory
-@@ -61,13 +61,13 @@ Users:		hotplug memory remove tools
- 		http://www.ibm.com/developerworks/wikis/display/LinuxP/powerpc-utils
+For this patch:
 
-
--What:           /sys/devices/system/memory/memoryX/zones_online_to
-+What:           /sys/devices/system/memory/memoryX/valid_zones
- Date:           July 2014
- Contact:	Zhang Zhen <zhenzhang.zhang@huawei.com>
- Description:
--		The file /sys/devices/system/memory/memoryX/zones_online_to
--		is read-only and is designed to show which zone this memory block can
--		be onlined to.
-+		The file /sys/devices/system/memory/memoryX/valid_zones	is
-+		read-only and is designed to show which zone this memory
-+		block can be onlined to.
-
- What:		/sys/devices/system/memoryX/nodeY
- Date:		October 2009
-diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
-index 5b34e33..93a25ef 100644
---- a/Documentation/memory-hotplug.txt
-+++ b/Documentation/memory-hotplug.txt
-@@ -155,7 +155,7 @@ Under each memory block, you can see 4 files:
- /sys/devices/system/memory/memoryXXX/phys_device
- /sys/devices/system/memory/memoryXXX/state
- /sys/devices/system/memory/memoryXXX/removable
--/sys/devices/system/memory/memoryXXX/zones_online_to
-+/sys/devices/system/memory/memoryXXX/valid_zones
-
- 'phys_index'      : read-only and contains memory block id, same as XXX.
- 'state'           : read-write
-@@ -171,8 +171,15 @@ Under each memory block, you can see 4 files:
-                     block is removable and a value of 0 indicates that
-                     it is not removable. A memory block is removable only if
-                     every section in the block is removable.
--'zones_online_to' : read-only: designed to show which zone this memory block
--		    can be onlined to.
-+'valid_zones'     : read-only: designed to show which zones this memory block
-+		    can be onlined to.
-+		    The first column shows it's default zone.
-+		    "memory6/valid_zones: Normal Movable" shows this memoryblock
-+		    can be onlined to ZONE_NORMAL by default and to ZONE_MOVABLE
-+		    by online_movable.
-+		    "memory7/valid_zones: Movable Normal" shows this memoryblock
-+		    can be onlined to ZONE_MOVABLE by default and to ZONE_NORMAL
-+		    by online_kernel.
-
- NOTE:
-   These directories/files appear after physical memory hotplug phase.
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index 0fc1d25..efd456c 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -374,7 +374,7 @@ static ssize_t show_phys_device(struct device *dev,
- }
-
- #ifdef CONFIG_MEMORY_HOTREMOVE
--static ssize_t show_zones_online_to(struct device *dev,
-+static ssize_t show_valid_zones(struct device *dev,
- 				struct device_attribute *attr, char *buf)
- {
- 	struct memory_block *mem = to_memory_block(dev);
-@@ -409,7 +409,7 @@ static ssize_t show_zones_online_to(struct device *dev,
-
- 	return sprintf(buf, "%s\n", zone->name);
- }
--static DEVICE_ATTR(zones_online_to, 0444, show_zones_online_to, NULL);
-+static DEVICE_ATTR(valid_zones, 0444, show_valid_zones, NULL);
- #endif
-
- static DEVICE_ATTR(phys_index, 0444, show_mem_start_phys_index, NULL);
-@@ -563,7 +563,7 @@ static struct attribute *memory_memblk_attrs[] = {
- 	&dev_attr_phys_device.attr,
- 	&dev_attr_removable.attr,
- #ifdef CONFIG_MEMORY_HOTREMOVE
--	&dev_attr_zones_online_to.attr,
-+	&dev_attr_valid_zones.attr,
- #endif
- 	NULL
- };
--- 1.8.1.4
+Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
