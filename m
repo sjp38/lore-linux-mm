@@ -1,157 +1,242 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B6F76B0035
-	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 21:42:39 -0400 (EDT)
-Received: by mail-qc0-f172.google.com with SMTP id i8so16238162qcq.17
-        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 18:42:39 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id v9si6066457qad.59.2014.08.26.18.42.37
-        for <linux-mm@kvack.org>;
-        Tue, 26 Aug 2014 18:42:38 -0700 (PDT)
-Date: Wed, 27 Aug 2014 10:42:54 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 0/2] ARM: Remove lowmem limit for default CMA region
-Message-ID: <20140827014254.GB10198@js1304-P5Q-DELUXE>
-References: <1408610714-16204-1-git-send-email-m.szyprowski@samsung.com>
- <20140825012600.GN17372@bbox>
- <53FAED20.60200@samsung.com>
- <20140825081836.GF32620@bbox>
- <53FAF4EE.6060201@samsung.com>
- <20140826024355.GB11319@bbox>
- <53FC7ED0.4040905@samsung.com>
- <20140827003611.GH32620@bbox>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 886D76B0035
+	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 21:56:42 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id lf10so24630847pab.16
+        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 18:56:42 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id nm3si6761903pdb.138.2014.08.26.18.56.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 26 Aug 2014 18:56:41 -0700 (PDT)
+Message-ID: <53FD3A74.4020008@huawei.com>
+Date: Wed, 27 Aug 2014 09:55:00 +0800
+From: Zhang Zhen <zhenzhang.zhang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140827003611.GH32620@bbox>
+Subject: Re: [PATCH] memory-hotplug: fix not enough check of valid_zones
+References: <1409046575-11025-1-git-send-email-zhenzhang.zhang@huawei.com> <53FC5A04.9070300@huawei.com> <53FC6009.1010308@jp.fujitsu.com>
+In-Reply-To: <53FC6009.1010308@jp.fujitsu.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linaro-mm-sig@lists.linaro.org, Russell King - ARM Linux <linux@arm.linux.org.uk>, Michal Nazarewicz <mina86@mina86.com>, Andrew Morton <akpm@linux-foundation.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>
+To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Toshi Kani <toshi.kani@hp.com>, David Rientjes <rientjes@google.com>, wangnan0@huawei.com, linux-kernel@vger.kernel.org, Linux MM <linux-mm@kvack.org>
 
-On Wed, Aug 27, 2014 at 09:36:11AM +0900, Minchan Kim wrote:
-> Hey Marek,
+On 2014/8/26 18:23, Yasuaki Ishimatsu wrote:
+> (2014/08/26 18:57), Zhang Zhen wrote:
+>> As Yasuaki Ishimatsu described the check here is not enough
+>> if memory has hole as follows:
+>>
+>> PFN       0x00          0xd0          0xe0          0xf0
+>>               +-------------+-------------+-------------+
+>> zone type   |   Normal    |     hole    |   Normal    |
+>>               +-------------+-------------+-------------+
+>> In this case, the check can't guarantee that this is "the last
+>> block of memory".
+>> The check of ZONE_MOVABLE has the same problem.
+>>
+>> Change the interface name to valid_zones according to most pepole's
+>> suggestion.
+>>
+>> Sample output of the sysfs files:
+>>     memory0/valid_zones: none
+>>     memory1/valid_zones: DMA32
+>>     memory2/valid_zones: DMA32
+>>     memory3/valid_zones: DMA32
+>>     memory4/valid_zones: Normal
+>>     memory5/valid_zones: Normal
+>>     memory6/valid_zones: Normal Movable
+>>     memory7/valid_zones: Movable Normal
+>>     memory8/valid_zones: Movable
 > 
-> On Tue, Aug 26, 2014 at 02:34:24PM +0200, Marek Szyprowski wrote:
-> > Hello,
-> > 
-> > On 2014-08-26 04:43, Minchan Kim wrote:
-> > >On Mon, Aug 25, 2014 at 10:33:50AM +0200, Marek Szyprowski wrote:
-> > >>On 2014-08-25 10:18, Minchan Kim wrote:
-> > >>>On Mon, Aug 25, 2014 at 10:00:32AM +0200, Marek Szyprowski wrote:
-> > >>>>On 2014-08-25 03:26, Minchan Kim wrote:
-> > >>>>>On Thu, Aug 21, 2014 at 10:45:12AM +0200, Marek Szyprowski wrote:
-> > >>>>>>Russell King recently noticed that limiting default CMA region only to
-> > >>>>>>low memory on ARM architecture causes serious memory management issues
-> > >>>>>>with machines having a lot of memory (which is mainly available as high
-> > >>>>>>memory). More information can be found the following thread:
-> > >>>>>>http://thread.gmane.org/gmane.linux.ports.arm.kernel/348441/
-> > >>>>>>
-> > >>>>>>Those two patches removes this limit letting kernel to put default CMA
-> > >>>>>>region into high memory when this is possible (there is enough high
-> > >>>>>>memory available and architecture specific DMA limit fits).
-> > >>>>>Agreed. It should be from the beginning because CMA page is effectly
-> > >>>>>pinned if it is anonymous page and system has no swap.
-> > >>>>Nope. Even without swap, anonymous page can be correctly migrated to other
-> > >>>>location. Migration code doesn't depend on presence of swap.
-> > >>>I could be possible only if the zone has freeable page(ie, free pages
-> > >>>+ shrinkable page like page cache). IOW, if the zone is full with
-> > >>>anon pages, it's efffectively pinned.
-> > >>Why? __alloc_contig_migrate_range() uses alloc_migrate_target()
-> > >>function, which
-> > >>can take free page from any zone matching given flags.
-> > >Strictly speaking, it's not any zones. It allows zones which are
-> > >equal or lower with zone of source page.
-> > >
-> > >Pz, look at Russell's case.
-> > >The pgd_alloc is trying to allocate order 2 page on normal zone,
-> > >which is lowest zone so there is no fallback zones to migrate
-> > >anonymous pages in normal zone out and alloc_migrate_target doesn't
-> > >allocate target page from higher zones of source page at the moment.
-> > >That's why I call it as effectively pinned.
-> > 
-> > In Russell's case the issue is related to compaction code. It should still
-> > be able to compact low zone and get some free pages. It is not a case of
-> > alloc_migrate_target. I mentioned this function because I wanted to show
-> > that it is possible to move pages out of that zone in case of doing CMA
-> > alloc and having no swap.
-> > 
-> > >>>>>>This should solve strange OOM issues on systems with lots of RAM
-> > >>>>>>(i.e. >1GiB) and large (>256M) CMA area.
-> > >>>>>I totally agree with the patchset although I didn't review code
-> > >>>>>at all.
-> > >>>>>
-> > >>>>>Another topic:
-> > >>>>>It means it should be a problem still if system has CMA in lowmem
-> > >>>>>by some reason(ex, hardware limit or other purpose of CMA
-> > >>>>>rather than DMA subsystem)?
-> > >>>>>
-> > >>>>>In that case, an idea that just popped in my head is to migrate
-> > >>>>>pages from cma area to highest zone because they are all
-> > >>>>>userspace pages which should be in there but not sure it's worth
-> > >>>>>to implement at this point because how many such cripple platform
-> > >>>>>are.
-> > >>>>>
-> > >>>>>Just for the recording.
-> > >>>>Moving pages between low and high zone is not that easy. If I remember
-> > >>>>correctly you cannot migrate a page from low memory to high zone in
-> > >>>>generic case, although it should be possible to add exception for
-> > >>>>anonymous pages. This will definitely improve poor low memory
-> > >>>>handling in low zone when CMA is enabled.
-> > >>>Yeb, it's possible for anonymous pages but I just wonder it's worth
-> > >>>to add more complexitiy to mm and and you are answering it's worth.
-> > >>>Okay. May I understand your positive feedback means such platform(
-> > >>>ie, DMA works with only lowmem) are still common?
-> > >>There are still some platforms, which have limited DMA capabilities. However
-> > >Thanks for your comment.
-> > >I just wanted to know it's worth before I dive into that but it seems
-> > >I was driving wrong way. See below.
-> > >
-> > >>the ability to move anonymous a page from lowmem to highmem will be
-> > >>a benefit
-> > >>in any case, as low memory is really much more precious.
-> > >Maybe, but in case of this report, even if we move anonymous pages
-> > >into higher zones, the problem(ie, OOM) is still there because
-> > >pgd_alloc wanted high order page in no cma area in normal zone.
-> > >
-> > >The feature which move CMA pages into higher zones would help CMA alloc
-> > >latency if there are lots of free pages in higher zone but no freeable
-> > >page in the zone which source page located in. But it wouldn't help
-> > >this OOM problem.
-> > 
-> > Right. The mentioned OOM problem shows that compaction fails in some cases
-> > for unknown reasons. The question here is weather compaction_alloc()
-> > function is able to get free CMA pages or not. Right now I'm not sure if
-> > it will take pages from the right list or not. This case definitely should
-> > be investigated.
-
-Hello, Minchan and Marek.
-
-IIUC, compaction_alloc() can get free CMA pages.
-
+> The patch has two changes:
+>  - change sysfs interface name
+>  - change check of ZONE_MOVABLE
+> So please separate them.
 > 
-> I think it can because suitable_migrate_target and migrate_async_suitable
-> consider CMA. That's why I think the culprit is cmpaction deferring logic
-> and sent a patch to detect it.
-> http://www.spinics.net/lists/kernel/msg1812538.html
+Ok, i will separate them.
 
-I guess that this problem is related to CMA.
-When direct_compaction begins, compaction logic check whether this
-zone is suitable or not by compaction_suitable(). In this function,
-we check fragmentation_index() and it didn't consider whether free_blocks
-is on CMA or not for free_blocks_suitable. So, in Russell's case, it
-would always return -1000 and then return COMPACT_PARTIAL. After all,
-compaction wouldn't actually happen and allocation request would fail,
-too.
+Thanks!
+>> Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
+>> ---
+>>   Documentation/ABI/testing/sysfs-devices-memory |  8 ++---
+>>   Documentation/memory-hotplug.txt               |  4 +--
+>>   drivers/base/memory.c                          | 42 ++++++--------------------
+>>   3 files changed, 15 insertions(+), 39 deletions(-)
+>>
+>> diff --git a/Documentation/ABI/testing/sysfs-devices-memory b/Documentation/ABI/testing/sysfs-devices-memory
+>> index 2b2a1d7..deef3b5 100644
+>> --- a/Documentation/ABI/testing/sysfs-devices-memory
+>> +++ b/Documentation/ABI/testing/sysfs-devices-memory
+>> @@ -61,13 +61,13 @@ Users:        hotplug memory remove tools
+>>           http://www.ibm.com/developerworks/wikis/display/LinuxP/powerpc-utils
+>>
+>>
+>> -What:           /sys/devices/system/memory/memoryX/zones_online_to
+>> +What:           /sys/devices/system/memory/memoryX/valid_zones
+>>   Date:           July 2014
+>>   Contact:    Zhang Zhen <zhenzhang.zhang@huawei.com>
+>>   Description:
+>> -        The file /sys/devices/system/memory/memoryX/zones_online_to
+>> -        is read-only and is designed to show which zone this memory block can
+>> -        be onlined to.
+>> +        The file /sys/devices/system/memory/memoryX/valid_zones    is
+>> +        read-only and is designed to show which zone this memory
+>> +        block can be onlined to.
+>>
+>>   What:        /sys/devices/system/memoryX/nodeY
+>>   Date:        October 2009
+>> diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
+>> index 5b34e33..947229c 100644
+>> --- a/Documentation/memory-hotplug.txt
+>> +++ b/Documentation/memory-hotplug.txt
+>> @@ -155,7 +155,7 @@ Under each memory block, you can see 4 files:
+>>   /sys/devices/system/memory/memoryXXX/phys_device
+>>   /sys/devices/system/memory/memoryXXX/state
+>>   /sys/devices/system/memory/memoryXXX/removable
+>> -/sys/devices/system/memory/memoryXXX/zones_online_to
+>> +/sys/devices/system/memory/memoryXXX/valid_zones
+>>
+>>   'phys_index'      : read-only and contains memory block id, same as XXX.
+>>   'state'           : read-write
+>> @@ -171,7 +171,7 @@ Under each memory block, you can see 4 files:
+>>                       block is removable and a value of 0 indicates that
+>>                       it is not removable. A memory block is removable only if
+>>                       every section in the block is removable.
+>> -'zones_online_to' : read-only: designed to show which zone this memory block
+>> +'valid_zones' : read-only: designed to show which zone this memory block
+>>               can be onlined to.
+>>
+>>   NOTE:
+>> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+>> index ccaf37c..efd456c 100644
+>> --- a/drivers/base/memory.c
+>> +++ b/drivers/base/memory.c
+>> @@ -374,21 +374,7 @@ static ssize_t show_phys_device(struct device *dev,
+>>   }
+>>
+>>   #ifdef CONFIG_MEMORY_HOTREMOVE
+>> -static int __zones_online_to(unsigned long end_pfn,
+>> -                struct page *first_page, unsigned long nr_pages)
+>> -{
+>> -    struct zone *zone_next;
+>> -
+>> -    /* The mem block is the last block of memory. */
+>> -    if (!pfn_valid(end_pfn + 1))
+>> -        return 1;
+>> -    zone_next = page_zone(first_page + nr_pages);
+>> -    if (zone_idx(zone_next) == ZONE_MOVABLE)
+>> -        return 1;
+>> -    return 0;
+>> -}
+>> -
+>> -static ssize_t show_zones_online_to(struct device *dev,
+>> +static ssize_t show_valid_zones(struct device *dev,
+>>                   struct device_attribute *attr, char *buf)
+>>   {
+>>       struct memory_block *mem = to_memory_block(dev);
+>> @@ -407,33 +393,23 @@ static ssize_t show_zones_online_to(struct device *dev,
+>>
+>>       zone = page_zone(first_page);
+>>
+>> -#ifdef CONFIG_HIGHMEM
+>> -    if (zone_idx(zone) == ZONE_HIGHMEM) {
+>> -        if (__zones_online_to(end_pfn, first_page, nr_pages))
+>> +    if (zone_idx(zone) == ZONE_MOVABLE - 1) {
+>> +        /*The mem block is the last memoryblock of this zone.*/
+>> +        if (end_pfn == zone_end_pfn(zone))
+>>               return sprintf(buf, "%s %s\n",
+>>                       zone->name, (zone + 1)->name);
+>>       }
+>> -#else
+>> -    if (zone_idx(zone) == ZONE_NORMAL) {
+>> -        if (__zones_online_to(end_pfn, first_page, nr_pages))
+>> -            return sprintf(buf, "%s %s\n",
+>> -                    zone->name, (zone + 1)->name);
+>> -    }
+>> -#endif
+>>
+>>       if (zone_idx(zone) == ZONE_MOVABLE) {
+>> -        if (!pfn_valid(start_pfn - nr_pages))
+>> -            return sprintf(buf, "%s %s\n",
+>> -                        zone->name, (zone - 1)->name);
+>> -        zone_prev = page_zone(first_page - nr_pages);
+>> -        if (zone_idx(zone_prev) != ZONE_MOVABLE)
+>> +        /*The mem block is the first memoryblock of ZONE_MOVABLE.*/
+> 
+>> +        if (start_pfn == zone->zone_start_pfn)
+>>               return sprintf(buf, "%s %s\n",
+>> -                        zone->name, (zone - 1)->name);
+>> +                    zone->name, (zone - 1)->name);
+> 
+> How about swap zone->name and (zone - 1)->name.
+> 
+> If swapping them, sample output of the sysfs files shows as follows:
+>      memory0/valid_zones: none
+>      memory1/valid_zones: DMA32
+>      memory2/valid_zones: DMA32
+>      memory3/valid_zones: DMA32
+>      memory4/valid_zones: Normal
+>      memory5/valid_zones: Normal
+>      memory6/valid_zones: Normal Movable
+>      memory7/valid_zones: Normal Movable
+> 
+	memory6/valid_zones: Normal Movable
+	memory7/valid_zones: Movable Normal
+Here can better show the dividing line between ZONE_MOVABLE and ZONE_NORMAL.
 
-I should note that there is one more flaw on zone_watermark_ok().
-zone_watermark_ok() doesn't handle > 0 allocation correctly if there
-is free CMA memory so we can easily pass this watermakr check in
-this case.
+The first column shows it's default zone,
+for memory6:
+	the first column Normal shows that it can be onlined to ZONE_NORMAL by default.
+	echo offline > memory6/state
+	echo online > memory6/state
+	the second column Movable shows that it can be onlined to ZONE_MOVABLE by online_movable.
+	echo offline > memory6/state
+	echo online_movable > memory6/state
+for memory7:
+	the first column Movable shows that it can be onlined to ZONE_MOVABLE by default.
+	echo offline > memory7/state
+	echo online > memory7/state
+	the second column Normal shows that it can be onlined to ZONE_NORMAL by online_kernel.
+	echo offline > memory7/state
+	echo online_kernel > memory7/state
 
-I have a plan to fix it, but, it will takes some time. :)
+And it is more convenient for script to work.
+So i think we should leave it as it is.
 
-Thanks.
+Thanks!
+                             ~~~~~~~~~~~~~~
+>      memory8/valid_zones: Movable
+> 
+> Thanks,
+> Yasuaki Ishimatsu
+> 
+>>       }
+>>
+>>       return sprintf(buf, "%s\n", zone->name);
+>>   }
+>> -static DEVICE_ATTR(zones_online_to, 0444, show_zones_online_to, NULL);
+>> +static DEVICE_ATTR(valid_zones, 0444, show_valid_zones, NULL);
+>>   #endif
+>>
+>>   static DEVICE_ATTR(phys_index, 0444, show_mem_start_phys_index, NULL);
+>> @@ -587,7 +563,7 @@ static struct attribute *memory_memblk_attrs[] = {
+>>       &dev_attr_phys_device.attr,
+>>       &dev_attr_removable.attr,
+>>   #ifdef CONFIG_MEMORY_HOTREMOVE
+>> -    &dev_attr_zones_online_to.attr,
+>> +    &dev_attr_valid_zones.attr,
+>>   #endif
+>>       NULL
+>>   };
+>>
+> 
+> 
+> 
+> .
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
