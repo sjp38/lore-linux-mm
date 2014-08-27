@@ -1,45 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id CC0156B0035
-	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 17:31:01 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id et14so1392815pad.37
-        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 14:31:01 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id if4si2983463pbb.22.2014.08.27.14.30.58
+Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
+	by kanga.kvack.org (Postfix) with ESMTP id B0A756B0035
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 17:42:53 -0400 (EDT)
+Received: by mail-qa0-f48.google.com with SMTP id m5so128902qaj.35
+        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 14:42:53 -0700 (PDT)
+Received: from mail-qc0-x22a.google.com (mail-qc0-x22a.google.com [2607:f8b0:400d:c01::22a])
+        by mx.google.com with ESMTPS id u1si2598419qat.30.2014.08.27.14.42.53
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Aug 2014 14:30:58 -0700 (PDT)
-Date: Wed, 27 Aug 2014 14:30:55 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v10 00/21] Support ext4 on NV-DIMMs
-Message-Id: <20140827143055.5210c5fb9696e460b456eb26@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.11.1408271616070.17080@gentwo.org>
-References: <cover.1409110741.git.matthew.r.wilcox@intel.com>
-	<20140827130613.c8f6790093d279a447196f17@linux-foundation.org>
-	<alpine.DEB.2.11.1408271616070.17080@gentwo.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 27 Aug 2014 14:42:53 -0700 (PDT)
+Received: by mail-qc0-f170.google.com with SMTP id r5so79385qcx.15
+        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 14:42:53 -0700 (PDT)
+MIME-Version: 1.0
+Date: Wed, 27 Aug 2014 14:42:52 -0700
+Message-ID: <CAA25o9T+byVZjO5U8krW-hQAnx3jNrvARANtur82b2KFzYpELQ@mail.gmail.com>
+Subject: compaction of zspages
+From: Luigi Semenzato <semenzato@google.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, willy@linux.intel.com
+To: linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>
+Cc: Slava Malyugin <slavamn@google.com>, Sonny Rao <sonnyrao@google.com>
 
-On Wed, 27 Aug 2014 16:22:20 -0500 (CDT) Christoph Lameter <cl@linux.com> wrote:
+Hello Minchan and others,
 
-> > Some explanation of why one would use ext4 instead of, say,
-> > suitably-modified ramfs/tmpfs/rd/etc?
-> 
-> The NVDIMM contents survive reboot and therefore ramfs and friends wont
-> work with it.
+I just noticed that the data structures used by zsmalloc have the
+potential to tie up memory unnecessarily.  I don't call it "leaking"
+because that memory can be reused, but it's not necessarily returned
+to the system upon freeing.
 
-See "suitably modified".  Presumably this type of memory would need to
-come from a particular page allocator zone.  ramfs would be unweildy
-due to its use to dentry/inode caches, but rd/etc should be feasible.
+I have no idea if this has any impact in practice, but I plan to run a
+test in the near future.  Also, I am not sure that doing compaction in
+the shrinkers (as planned according to a comment) is the best
+approach, because the shrinkers won't be called unless there is
+considerable pressure, but the compaction would be more effective when
+there is less pressure.
 
-I dunno, I'm not proposing implementations - I'm asking obvious
-questions.  Stuff which should have been addressed in the changelogs
-before one even starts to read the code...
+Some more detail here:
+
+https://code.google.com/p/chromium/issues/detail?id=408221
+
+Should I open a bug on some other tracker?
+
+Thank you very much!
+Luigi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
