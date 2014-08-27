@@ -1,132 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id DF1B36B0035
-	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 21:04:44 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id fp1so23360511pdb.5
-        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 18:04:44 -0700 (PDT)
-Received: from qmta12.emeryville.ca.mail.comcast.net (qmta12.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:227])
-        by mx.google.com with ESMTP id xg7si6708359pbc.90.2014.08.26.18.04.42
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EAB36B0035
+	for <linux-mm@kvack.org>; Tue, 26 Aug 2014 21:25:57 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id bj1so24385987pad.39
+        for <linux-mm@kvack.org>; Tue, 26 Aug 2014 18:25:57 -0700 (PDT)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id sc9si6836904pac.60.2014.08.26.18.25.53
         for <linux-mm@kvack.org>;
-        Tue, 26 Aug 2014 18:04:43 -0700 (PDT)
-Message-ID: <53FD2E9E.6050809@gentoo.org>
-Date: Tue, 26 Aug 2014 21:04:30 -0400
-From: Joshua Kinard <kumba@gentoo.org>
+        Tue, 26 Aug 2014 18:25:55 -0700 (PDT)
+Date: Wed, 27 Aug 2014 10:26:11 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v5 3/4] zram: zram memory size limitation
+Message-ID: <20140827012610.GA10198@js1304-P5Q-DELUXE>
+References: <1408925156-11733-1-git-send-email-minchan@kernel.org>
+ <1408925156-11733-4-git-send-email-minchan@kernel.org>
+ <20140826073730.GA1975@js1304-P5Q-DELUXE>
+ <20140826075511.GI11319@bbox>
+ <CAFdhcLQce05qi2LGP85N=aaQiKz1ArC3Kn+W-s86R58BkjMr3w@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 0/2] mm/highmem: make kmap cache coloring aware
-References: <1406941899-19932-1-git-send-email-jcmvbkbc@gmail.com> <20140825171600.GH25892@linux-mips.org> <53FBCD09.1050003@gentoo.org> <53FBD676.8080307@gmail.com> <53FBF3C3.90509@gentoo.org> <53FCC7CB.8010701@gmail.com>
-In-Reply-To: <53FCC7CB.8010701@gmail.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAFdhcLQce05qi2LGP85N=aaQiKz1ArC3Kn+W-s86R58BkjMr3w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Daney <ddaney.cavm@gmail.com>
-Cc: Ralf Baechle <ralf@linux-mips.org>, Max Filippov <jcmvbkbc@gmail.com>, linux-xtensa@linux-xtensa.org, Chris Zankel <chris@zankel.net>, Marc Gauthier <marc@cadence.com>, linux-mm@kvack.org, linux-arch@vger.kernel.org, linux-mips@linux-mips.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Leonid Yegoshin <Leonid.Yegoshin@imgtec.com>, Steven Hill <Steven.Hill@imgtec.com>
+To: David Horner <ds2horner@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>
 
-On 08/26/2014 13:45, David Daney wrote:
-> On 08/25/2014 07:41 PM, Joshua Kinard wrote:
->> On 08/25/2014 20:36, David Daney wrote:
->>> On 08/25/2014 04:55 PM, Joshua Kinard wrote:
->>>> On 08/25/2014 13:16, Ralf Baechle wrote:
->>>>> On Sat, Aug 02, 2014 at 05:11:37AM +0400, Max Filippov wrote:
->>>>>
->>>>>> this series adds mapping color control to the generic kmap code, allowing
->>>>>> architectures with aliasing VIPT cache to use high memory. There's also
->>>>>> use example of this new interface by xtensa.
->>>>>
->>>>> I haven't actually ported this to MIPS but it certainly appears to be
->>>>> the right framework to get highmem aliases handled on MIPS, too.
->>>>>
->>>>> Though I still consider increasing PAGE_SIZE to 16k the preferable
->>>>> solution because it will entirly do away with cache aliases.
->>>>
->>>> Won't setting PAGE_SIZE to 16k break some existing userlands (o32)?  I
->>>> use a
->>>> 4k PAGE_SIZE because the last few times I've tried 16k or 64k, init won't
->>>> load (SIGSEGVs or such, which panicks the kernel).
->>>>
->>>
->>> It isn't supposed to break things.  Using "stock" toolchains should result
->>> in executables that will run with any page size.
->>>
->>> In the past, some geniuses came up with some linker (ld) patches that, in
->>> order to save a few KB of RAM, produced executables that ran only on 4K
->>> pages.
->>>
->>> There were some equally astute Debian emacs package maintainers that were
->>> carrying emacs patches into Debian that would not work on non-4K page size
->>> systems.
->>>
->>> That said, I think such thinking should be punished.  The punishment should
->>> be to not have their software run when we select non-4K page sizes.  The
->>> vast majority of prepackaged software runs just fine with a larger page
->>> size.
->>
->> Well, it does appear to mostly work now w/ 16k PAGE_SIZE.  The Octane booted
->> into userland with just a couple of "illegal instruction" errors from 'rm'
->> and 'mdadm'.  I wonder if that's tied to a hardcoded PAGE_SIZE somewhere.
->> Have to dig around and find something that reproduces the problem on demand.
->>
+Hello, Minchan and David.
+
+On Tue, Aug 26, 2014 at 08:22:29AM -0400, David Horner wrote:
+> On Tue, Aug 26, 2014 at 3:55 AM, Minchan Kim <minchan@kernel.org> wrote:
+> > Hey Joonsoo,
+> >
+> > On Tue, Aug 26, 2014 at 04:37:30PM +0900, Joonsoo Kim wrote:
+> >> On Mon, Aug 25, 2014 at 09:05:55AM +0900, Minchan Kim wrote:
+> >> > @@ -513,6 +540,14 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+> >> >             ret = -ENOMEM;
+> >> >             goto out;
+> >> >     }
+> >> > +
+> >> > +   if (zram->limit_pages &&
+> >> > +           zs_get_total_pages(meta->mem_pool) > zram->limit_pages) {
+> >> > +           zs_free(meta->mem_pool, handle);
+> >> > +           ret = -ENOMEM;
+> >> > +           goto out;
+> >> > +   }
+> >> > +
+> >> >     cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_WO);
+> >>
+> >> Hello,
+> >>
+> >> I don't follow up previous discussion, so I could be wrong.
+> >> Why this enforcement should be here?
+> >>
+> >> I think that this has two problems.
+> >> 1) alloc/free happens unnecessarilly if we have used memory over the
+> >> limitation.
+> >
+> > True but firstly, I implemented the logic in zsmalloc, not zram but
+> > as I described in cover-letter, it's not a requirement of zsmalloc
+> > but zram so it should be in there. If every user want it in future,
+> > then we could move the function into zsmalloc. That's what we
+> > concluded in previous discussion.
+
+Hmm...
+Problem is that we can't avoid these unnecessary overhead in this
+implementation. If we can implement this feature in zram efficiently,
+it's okay. But, I think that current form isn't.
+
+> >
+> > Another idea is we could call zs_get_total_pages right before zs_malloc
+> > but the problem is we cannot know how many of pages are allocated
+> > by zsmalloc in advance.
+> > IOW, zram should be blind on zsmalloc's internal.
+> >
 > 
-> What does the output of "readelf -lW" look like for the failing programs? 
-> If the "Offset" and "VirtAddr" constraints for the LOAD Program Headers are
-> not possible to achieve with the selected PAGE_SIZE, you will see problems. 
-> A "correct" toolchain will generate binaries that work with any PAGE_SIZE up
-> to 64K.
+> We did however suggest that we could check before hand to see if
+> max was already exceeded as an optimization.
+> (possibly with a guess on usage but at least using the minimum of 1 page)
+> In the contested case, the max may already be exceeded transiently and
+> therefore we know this one _could_ fail (it could also pass, but odds
+> aren't good).
+> As Minchan mentions this was discussed before - but not into great detail.
+> Testing should be done to determine possible benefit. And as he also
+> mentions, the better place for it may be in zsmalloc, but that
+> requires an ABI change.
 
-Well, I recently rebuilt shash, so that might've changed things.  But,
-running readelf -lW on shash core dumped readelf itself on the first
-invocation (with a SIGBUS instead of SIGILL).  So I instead ran readelf -lW
-on itself, which hasn't been recently rebuilt:
+Why we hesitate to change zsmalloc API? It is in-kernel API and there
+are just two users now, zswap and zram. We can change it easily.
+I think that we just need following simple API change in zsmalloc.c.
 
-# readelf -lW /usr/bin/shash
-Bus error (core dumped)
-# readelf -lW /usr/bin/readelf
+zs_zpool_create(gfp_t gfp, struct zpool_ops *zpool_op)
+=>
+zs_zpool_create(unsigned long limit, gfp_t gfp, struct zpool_ops
+*zpool_op)
 
-Elf file type is EXEC (Executable file)
-Entry point 0x402590
-There are 11 program headers, starting at offset 52
+It's pool allocator so there is no obstacle for us to limit maximum
+memory usage in zsmalloc. It's a natural idea to limit memory usage
+for pool allocator.
 
-Program Headers:
-  Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align
-  PHDR           0x000034 0x00400034 0x00400034 0x00160 0x00160 R E 0x4
-  INTERP         0x000194 0x00400194 0x00400194 0x0000d 0x0000d R   0x1
-      [Requesting program interpreter: /lib/ld.so.1]
-  REGINFO        0x0001c4 0x004001c4 0x004001c4 0x00018 0x00018 R   0x4
-  LOAD           0x000000 0x00400000 0x00400000 0x72338 0x72338 R E 0x10000
-  LOAD           0x0728c8 0x004828c8 0x004828c8 0x01834 0x03d88 RW  0x10000
-  DYNAMIC        0x0001dc 0x004001dc 0x004001dc 0x000e0 0x000e0 RWE 0x4
-  NOTE           0x0001a4 0x004001a4 0x004001a4 0x00020 0x00020 R   0x4
-  GNU_EH_FRAME   0x0722c0 0x004722c0 0x004722c0 0x00024 0x00024 R   0x4
-  GNU_RELRO      0x0728c8 0x004828c8 0x004828c8 0x00738 0x00738 R   0x1
-  PAX_FLAGS      0x000000 0x00000000 0x00000000 0x00000 0x00000     0x4
-  NULL           0x000000 0x00000000 0x00000000 0x00000 0x00000     0x4
+> Certainly a detailed suggestion could happen on this thread and I'm
+> also interested
+> in your thoughts, but this patchset should be able to go in as is.
+> Memory exhaustion avoidance probably trumps the possible thrashing at
+> threshold.
+> 
+> > About alloc/free cost once if it is over the limit,
+> > I don't think it's important to consider.
+> > Do you have any scenario in your mind to consider alloc/free cost
+> > when the limit is over?
+> >
+> >> 2) Even if this request doesn't do new allocation, it could be failed
+> >> due to other's allocation. There is time gap between allocation and
+> >> free, so legimate user who want to use preallocated zsmalloc memory
+> >> could also see this condition true and then he will be failed.
+> >
+> > Yeb, we already discussed that. :)
+> > Such false positive shouldn't be a severe problem if we can keep a
+> > promise that zram user cannot exceed mem_limit.
+> >
 
- Section to Segment mapping:
-  Segment Sections...
-   00
-   01     .interp
-   02     .reginfo
-   03     .interp .note.ABI-tag .reginfo .dynamic .hash .dynsym .dynstr
-.gnu.version .gnu.version_r .init .text .MIPS.stubs .fini .rodata
-.eh_frame_hdr .eh_frame
-   04     .ctors .dtors .jcr .data.rel.ro .data .rld_map .got .sdata .sbss .bss
-   05     .dynamic
-   06     .note.ABI-tag
-   07     .eh_frame_hdr
-   08     .ctors .dtors .jcr .data.rel.ro
-   09
-   10
+If we can keep such a promise, why we need to limit memory usage?
+I guess that this limit feature is useful for user who can't keep such promise.
+So, we should assume that this false positive happens frequently.
 
--- 
-Joshua Kinard
-Gentoo/MIPS
-kumba@gentoo.org
-4096R/D25D95E3 2011-03-28
+> And we cannot avoid the race, nor can we avoid in a low overhead competitive
+> concurrent process transient inconsistent states.
+> Different views for different observers.
+>  They are a consequence of the theory of "Special Computational Relativity".
+>  I am working on a String Unification Theory of Quantum and General CR in LISP.
+>  ;-)
 
-"The past tempts us, the present confuses us, the future frightens us.  And
-our lives slip away, moment by moment, lost in that vast, terrible in-between."
+If we move limit logic to zsmalloc, we can avoid the race by commiting
+needed memory size before actual allocation attempt. This commiting makes
+concurrent process serialized so there is no race here. There is
+possibilty to fail to allocate, but I think this is better than alloc
+and free blindlessly depending on inconsistent states.
 
---Emperor Turhan, Centauri Republic
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
