@@ -1,39 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 503A26B0037
-	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 07:52:17 -0400 (EDT)
-Received: by mail-qg0-f44.google.com with SMTP id e89so82989qgf.31
-        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 04:52:17 -0700 (PDT)
-Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
-        by mx.google.com with ESMTP id f98si164931qge.69.2014.08.27.04.52.16
-        for <linux-mm@kvack.org>;
-        Wed, 27 Aug 2014 04:52:16 -0700 (PDT)
-Date: Wed, 27 Aug 2014 12:51:37 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATH V2 4/6] arm: mm: Enable RCU fast_gup
-Message-ID: <20140827115137.GK6968@arm.com>
-References: <1408635812-31584-1-git-send-email-steve.capper@linaro.org>
- <1408635812-31584-5-git-send-email-steve.capper@linaro.org>
+Received: from mail-oi0-f52.google.com (mail-oi0-f52.google.com [209.85.218.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AB466B0035
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 08:14:23 -0400 (EDT)
+Received: by mail-oi0-f52.google.com with SMTP id g201so73203oib.11
+        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 05:14:23 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id h8si207235oej.50.2014.08.27.05.14.21
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 27 Aug 2014 05:14:21 -0700 (PDT)
+Message-ID: <53FDCB8F.40001@oracle.com>
+Date: Wed, 27 Aug 2014 08:14:07 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1408635812-31584-5-git-send-email-steve.capper@linaro.org>
+Subject: Re: mm: kernel BUG at mm/rmap.c:530
+References: <53F487EB.7070703@oracle.com> <20140820140247.C729CE00A3@blue.fi.intel.com>
+In-Reply-To: <20140820140247.C729CE00A3@blue.fi.intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steve Capper <steve.capper@linaro.org>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Will Deacon <Will.Deacon@arm.com>, "gary.robertson@linaro.org" <gary.robertson@linaro.org>, "christoffer.dall@linaro.org" <christoffer.dall@linaro.org>, "peterz@infradead.org" <peterz@infradead.org>, "anders.roxell@linaro.org" <anders.roxell@linaro.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "dann.frazier@canonical.com" <dann.frazier@canonical.com>, Mark Rutland <Mark.Rutland@arm.com>, "mgorman@suse.de" <mgorman@suse.de>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 21, 2014 at 04:43:30PM +0100, Steve Capper wrote:
-> Activate the RCU fast_gup for ARM. We also need to force THP splits to
-> broadcast an IPI s.t. we block in the fast_gup page walker. As THP
-> splits are comparatively rare, this should not lead to a noticeable
-> performance degradation.
+On 08/20/2014 10:02 AM, Kirill A. Shutemov wrote:
+> Sasha Levin wrote:
+>> > Hi all,
+>> > 
+>> > While fuzzing with trinity inside a KVM tools guest running the latest -next
+>> > kernel, I've stumbled on the following spew:
+>> > 
+>> > [ 2581.180086] kernel BUG at mm/rmap.c:530!
+> Page is mapped where it shouldn't be. Or vma/struct page/pgtable is corrupted.
+> Basically, I have no idea what happend :-P
 > 
-> Some pre-requisite functions pud_write and pud_page are also added.
+> We really should dump page and vma info there. It's strange we don't have
+> dump_vma() helper yet.
 > 
-> Signed-off-by: Steve Capper <steve.capper@linaro.org>
 
-Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+It just happened again, I'll work on that dump_vma helper... :/
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
