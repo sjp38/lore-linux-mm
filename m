@@ -1,105 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BBB26B0038
-	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 18:59:31 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id fa1so88654pad.12
-        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 15:59:31 -0700 (PDT)
-Received: from relay.sgi.com (relay3.sgi.com. [192.48.152.1])
-        by mx.google.com with ESMTP id yy1si3165231pbb.79.2014.08.27.15.59.30
-        for <linux-mm@kvack.org>;
-        Wed, 27 Aug 2014 15:59:30 -0700 (PDT)
-Message-Id: <20140827225927.602319674@asylum.americas.sgi.com>
-References: <20140827225927.364537333@asylum.americas.sgi.com>
-Date: Wed, 27 Aug 2014 17:59:28 -0500
-From: Mike Travis <travis@sgi.com>
-Subject: [PATCH 1/2] x86: Optimize resource lookups for ioremap
-Content-Disposition: inline; filename=add-get-resource-type
+Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
+	by kanga.kvack.org (Postfix) with ESMTP id E58576B0035
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 19:04:55 -0400 (EDT)
+Received: by mail-la0-f42.google.com with SMTP id mc6so207841lab.1
+        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 16:04:54 -0700 (PDT)
+Received: from lxorguk.ukuu.org.uk (7.3.c.8.2.a.e.f.f.f.8.1.0.3.2.0.9.6.0.7.2.3.f.b.0.b.8.0.1.0.0.2.ip6.arpa. [2001:8b0:bf32:7069:230:18ff:fea2:8c37])
+        by mx.google.com with ESMTPS id mq2si2833256lbb.9.2014.08.27.16.04.53
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Aug 2014 16:04:53 -0700 (PDT)
+Date: Thu, 28 Aug 2014 00:04:40 +0100
+From: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>
+Subject: Re: [PATCH v10 00/21] Support ext4 on NV-DIMMs
+Message-ID: <20140828000440.5d9f5bff@alan.etchedpixels.co.uk>
+In-Reply-To: <20140827143055.5210c5fb9696e460b456eb26@linux-foundation.org>
+References: <cover.1409110741.git.matthew.r.wilcox@intel.com>
+	<20140827130613.c8f6790093d279a447196f17@linux-foundation.org>
+	<alpine.DEB.2.11.1408271616070.17080@gentwo.org>
+	<20140827143055.5210c5fb9696e460b456eb26@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mingo@redhat.com, tglx@linutronix.de, hpa@zytor.com
-Cc: akpm@linux-foundation.org, msalter@redhat.com, dyoung@redhat.com, riel@redhat.com, peterz@infradead.org, mgorman@suse.de, linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, Alex Thorlton <athorlton@sgi.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, willy@linux.intel.com
 
-Since the ioremap operation is verifying that the specified address range
-is NOT RAM, it will search the entire ioresource list if the condition
-is true.  To make matters worse, it does this one 4k page at a time.
-For a 128M BAR region this is 32 passes to determine the entire region
-does not contain any RAM addresses.
+On Wed, 27 Aug 2014 14:30:55 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
 
-This patch provides another resource lookup function, region_is_ram,
-that searches for the entire region specified, verifying that it is
-completely contained within the resource region.  If it is found, then
-it is checked to be RAM or not, within a single pass.
+> On Wed, 27 Aug 2014 16:22:20 -0500 (CDT) Christoph Lameter <cl@linux.com> wrote:
+> 
+> > > Some explanation of why one would use ext4 instead of, say,
+> > > suitably-modified ramfs/tmpfs/rd/etc?
+> > 
+> > The NVDIMM contents survive reboot and therefore ramfs and friends wont
+> > work with it.
+> 
+> See "suitably modified".  Presumably this type of memory would need to
+> come from a particular page allocator zone.  ramfs would be unweildy
+> due to its use to dentry/inode caches, but rd/etc should be feasible.
 
-The return result reflects if it was found or not (-1), and whether it is
-RAM (1) or not (0).  This allows the caller to fallback to the previous
-page by page search if it was not found.
+If you took one of the existing ramfs types you would then need to
 
-Signed-off-by: Mike Travis <travis@sgi.com>
-Acked-by: Alex Thorlton <athorlton@sgi.com>
-Reviewed-by: Cliff Wickman <cpw@sgi.com>
----
- include/linux/mm.h |    1 +
- kernel/resource.c  |   37 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 38 insertions(+)
+- make it persistent in its storage, and put all the objects in the store
+- add journalling for failures mid transaction. Your dimm may retain its
+  bits but if your CPU reset mid fs operation its got to be recovered
+- write an fsck tool for it
+- validate it
 
---- linux.orig/include/linux/mm.h
-+++ linux/include/linux/mm.h
-@@ -346,6 +346,7 @@ static inline int put_page_unless_one(st
- }
- 
- extern int page_is_ram(unsigned long pfn);
-+extern int region_is_ram(resource_size_t phys_addr, unsigned long size);
- 
- /* Support for virtually mapped pages */
- struct page *vmalloc_to_page(const void *addr);
---- linux.orig/kernel/resource.c
-+++ linux/kernel/resource.c
-@@ -494,6 +494,43 @@ int __weak page_is_ram(unsigned long pfn
- }
- EXPORT_SYMBOL_GPL(page_is_ram);
- 
-+/*
-+ * Search for a resouce entry that fully contains the specified region.
-+ * If found, return 1 if it is RAM, 0 if not.
-+ * If not found, or region is not fully contained, return -1
-+ *
-+ * Used by the ioremap functions to insure user not remapping RAM and is as
-+ * vast speed up over walking through the resource table page by page.
-+ */
-+int __weak region_is_ram(resource_size_t start, unsigned long size)
-+{
-+	struct resource *p;
-+	resource_size_t end = start + size - 1;
-+	int flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-+	const char *name = "System RAM";
-+	int ret = -1;
-+
-+	read_lock(&resource_lock);
-+	for (p = iomem_resource.child; p ; p = p->sibling) {
-+		if (end < p->start)
-+			continue;
-+
-+		if (p->start <= start && end <= p->end) {
-+			/* resource fully contains region */
-+			if ((p->flags != flags) || strcmp(p->name, name))
-+				ret = 0;
-+			else
-+				ret = 1;
-+			break;
-+		}
-+		if (p->end < start)
-+			break;	/* not found */
-+	}
-+	read_unlock(&resource_lock);
-+	return ret;
-+}
-+EXPORT_SYMBOL_GPL(region_is_ram);
-+
- void __weak arch_remove_reservations(struct resource *avail)
- {
- }
+at which point it's probably turned into ext4 8)
 
--- 
+It's persistent but that doesn't solve the 'my box crashed' problem. 
+
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
