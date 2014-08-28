@@ -1,144 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f178.google.com (mail-we0-f178.google.com [74.125.82.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D8296B0035
-	for <linux-mm@kvack.org>; Thu, 28 Aug 2014 04:09:17 -0400 (EDT)
-Received: by mail-we0-f178.google.com with SMTP id u57so380343wes.37
-        for <linux-mm@kvack.org>; Thu, 28 Aug 2014 01:09:16 -0700 (PDT)
-Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com [2a00:1450:400c:c05::22c])
-        by mx.google.com with ESMTPS id c19si13955971wiv.75.2014.08.28.01.09.15
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 28 Aug 2014 01:09:15 -0700 (PDT)
-Received: by mail-wi0-f172.google.com with SMTP id n3so7055651wiv.11
-        for <linux-mm@kvack.org>; Thu, 28 Aug 2014 01:09:15 -0700 (PDT)
-Message-ID: <53FEE379.9060204@gmail.com>
-Date: Thu, 28 Aug 2014 11:08:25 +0300
-From: Boaz Harrosh <openosd@gmail.com>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 8146D6B0035
+	for <linux-mm@kvack.org>; Thu, 28 Aug 2014 04:21:04 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id hz1so1575484pad.6
+        for <linux-mm@kvack.org>; Thu, 28 Aug 2014 01:21:01 -0700 (PDT)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id g3si4729319pdn.222.2014.08.28.01.20.59
+        for <linux-mm@kvack.org>;
+        Thu, 28 Aug 2014 01:21:00 -0700 (PDT)
+Date: Thu, 28 Aug 2014 17:21:08 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v5 3/4] zram: zram memory size limitation
+Message-ID: <20140828082108.GA17910@js1304-P5Q-DELUXE>
+References: <1408925156-11733-1-git-send-email-minchan@kernel.org>
+ <1408925156-11733-4-git-send-email-minchan@kernel.org>
+ <20140826073730.GA1975@js1304-P5Q-DELUXE>
+ <20140826075511.GI11319@bbox>
+ <CAFdhcLQce05qi2LGP85N=aaQiKz1ArC3Kn+W-s86R58BkjMr3w@mail.gmail.com>
+ <20140827012610.GA10198@js1304-P5Q-DELUXE>
+ <20140827025132.GI32620@bbox>
+ <20140827050438.GA13300@js1304-P5Q-DELUXE>
+ <20140827072819.GK32620@bbox>
 MIME-Version: 1.0
-Subject: Re: [PATCH v10 00/21] Support ext4 on NV-DIMMs
-References: <cover.1409110741.git.matthew.r.wilcox@intel.com>
-In-Reply-To: <cover.1409110741.git.matthew.r.wilcox@intel.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140827072819.GK32620@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: willy@linux.intel.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: David Horner <ds2horner@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>
 
-On 08/27/2014 06:45 AM, Matthew Wilcox wrote:
-> One of the primary uses for NV-DIMMs is to expose them as a block device
-> and use a filesystem to store files on the NV-DIMM.  While that works,
-> it currently wastes memory and CPU time buffering the files in the page
-> cache.  We have support in ext2 for bypassing the page cache, but it
-> has some races which are unfixable in the current design.  This series
-> of patches rewrite the underlying support, and add support for direct
-> access to ext4.
+On Wed, Aug 27, 2014 at 04:28:19PM +0900, Minchan Kim wrote:
+> On Wed, Aug 27, 2014 at 02:04:38PM +0900, Joonsoo Kim wrote:
+> > On Wed, Aug 27, 2014 at 11:51:32AM +0900, Minchan Kim wrote:
+> > > Hey Joonsoo,
+> > > 
+> > > On Wed, Aug 27, 2014 at 10:26:11AM +0900, Joonsoo Kim wrote:
+> > > > Hello, Minchan and David.
+> > > > 
+> > > > On Tue, Aug 26, 2014 at 08:22:29AM -0400, David Horner wrote:
+> > > > > On Tue, Aug 26, 2014 at 3:55 AM, Minchan Kim <minchan@kernel.org> wrote:
+> > > > > > Hey Joonsoo,
+> > > > > >
+> > > > > > On Tue, Aug 26, 2014 at 04:37:30PM +0900, Joonsoo Kim wrote:
+> > > > > >> On Mon, Aug 25, 2014 at 09:05:55AM +0900, Minchan Kim wrote:
+> > > > > >> > @@ -513,6 +540,14 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+> > > > > >> >             ret = -ENOMEM;
+> > > > > >> >             goto out;
+> > > > > >> >     }
+> > > > > >> > +
+> > > > > >> > +   if (zram->limit_pages &&
+> > > > > >> > +           zs_get_total_pages(meta->mem_pool) > zram->limit_pages) {
+> > > > > >> > +           zs_free(meta->mem_pool, handle);
+> > > > > >> > +           ret = -ENOMEM;
+> > > > > >> > +           goto out;
+> > > > > >> > +   }
+> > > > > >> > +
+> > > > > >> >     cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_WO);
+> > > > > >>
+> > > > > >> Hello,
+> > > > > >>
+> > > > > >> I don't follow up previous discussion, so I could be wrong.
+> > > > > >> Why this enforcement should be here?
+> > > > > >>
+> > > > > >> I think that this has two problems.
+> > > > > >> 1) alloc/free happens unnecessarilly if we have used memory over the
+> > > > > >> limitation.
+> > > > > >
+> > > > > > True but firstly, I implemented the logic in zsmalloc, not zram but
+> > > > > > as I described in cover-letter, it's not a requirement of zsmalloc
+> > > > > > but zram so it should be in there. If every user want it in future,
+> > > > > > then we could move the function into zsmalloc. That's what we
+> > > > > > concluded in previous discussion.
+> > > > 
+> > > > Hmm...
+> > > > Problem is that we can't avoid these unnecessary overhead in this
+> > > > implementation. If we can implement this feature in zram efficiently,
+> > > > it's okay. But, I think that current form isn't.
+> > > 
+> > > 
+> > > If we can add it in zsmalloc, it would be more clean and efficient
+> > > for zram but as I said, at the moment, I didn't want to put zram's
+> > > requirement into zsmalloc because to me, it's weird to enforce max
+> > > limit to allocator. It's client's role, I think.
+> > 
+> > AFAIK, many kinds of pools such as thread-pool or memory-pool have
+> > their own limit. It's not weird for me.
 > 
-> Note that patch 6/21 has been included in
-> https://git.kernel.org/cgit/linux/kernel/git/viro/vfs.git/log/?h=for-next-candidate
+> Actually I don't know what is pool allocator but things you mentioned
+> is basically used to gaurantee *new* thread/memory, not limit although
+> it would implement limit.
 > 
+> Another question, why do you think zsmalloc is pool allocator?
+> IOW, What logic makes you think it's pool allocator?
 
-Matthew hi
+In fact, it is not pool allocator for now. But, it looks like pool
+allocator because it is used only for one zram device. If there are
+many zram devices, there are many zs_pool and their memory cannot be
+shared. It is totally isolated each other. We can easily make it
+actual pool allocator or impose memory usage limit on it with this
+property. This make me think that zsmalloc is better place to limit
+memory usage.
 
-Could you please push this to the regular or a new public tree?
+Anyway, I don't have strong objection to current implementation. You
+can fix it later when it turn out to be real problem.
 
-(Old versions are at: https://github.com/01org/prd)
-
-Thanks
-Boaz
-
-> This iteration of the patchset rebases to 3.17-rc2, changes the page fault
-> locking, fixes a couple of bugs and makes a few other minor changes.
-> 
->  - Move the calculation of the maximum size available at the requested
->    location from the ->direct_access implementations to bdev_direct_access()
->  - Fix a comment typo (Ross Zwisler)
->  - Check that the requested length is positive in bdev_direct_access().  If
->    it is not, assume that it's an errno, and just return it.
->  - Fix some whitespace issues flagged by checkpatch
->  - Added the Acked-by responses from Kirill that I forget in the last round
->  - Added myself to MAINTAINERS for DAX
->  - Fixed compilation with !CONFIG_DAX (Vishal Verma)
->  - Revert the locking in the page fault handler back to an earlier version.
->    If we hit the race that we were trying to protect against, we will leave
->    blocks allocated past the end of the file.  They will be removed on file
->    removal, the next truncate, or fsck.
-> 
-> 
-> Matthew Wilcox (20):
->   axonram: Fix bug in direct_access
->   Change direct_access calling convention
->   Fix XIP fault vs truncate race
->   Allow page fault handlers to perform the COW
->   Introduce IS_DAX(inode)
->   Add copy_to_iter(), copy_from_iter() and iov_iter_zero()
->   Replace XIP read and write with DAX I/O
->   Replace ext2_clear_xip_target with dax_clear_blocks
->   Replace the XIP page fault handler with the DAX page fault handler
->   Replace xip_truncate_page with dax_truncate_page
->   Replace XIP documentation with DAX documentation
->   Remove get_xip_mem
->   ext2: Remove ext2_xip_verify_sb()
->   ext2: Remove ext2_use_xip
->   ext2: Remove xip.c and xip.h
->   Remove CONFIG_EXT2_FS_XIP and rename CONFIG_FS_XIP to CONFIG_FS_DAX
->   ext2: Remove ext2_aops_xip
->   Get rid of most mentions of XIP in ext2
->   xip: Add xip_zero_page_range
->   brd: Rename XIP to DAX
-> 
-> Ross Zwisler (1):
->   ext4: Add DAX functionality
-> 
->  Documentation/filesystems/Locking  |   3 -
->  Documentation/filesystems/dax.txt  |  91 +++++++
->  Documentation/filesystems/ext4.txt |   2 +
->  Documentation/filesystems/xip.txt  |  68 -----
->  MAINTAINERS                        |   6 +
->  arch/powerpc/sysdev/axonram.c      |  19 +-
->  drivers/block/Kconfig              |  13 +-
->  drivers/block/brd.c                |  26 +-
->  drivers/s390/block/dcssblk.c       |  21 +-
->  fs/Kconfig                         |  21 +-
->  fs/Makefile                        |   1 +
->  fs/block_dev.c                     |  40 +++
->  fs/dax.c                           | 497 +++++++++++++++++++++++++++++++++++++
->  fs/exofs/inode.c                   |   1 -
->  fs/ext2/Kconfig                    |  11 -
->  fs/ext2/Makefile                   |   1 -
->  fs/ext2/ext2.h                     |  10 +-
->  fs/ext2/file.c                     |  45 +++-
->  fs/ext2/inode.c                    |  38 +--
->  fs/ext2/namei.c                    |  13 +-
->  fs/ext2/super.c                    |  53 ++--
->  fs/ext2/xip.c                      |  91 -------
->  fs/ext2/xip.h                      |  26 --
->  fs/ext4/ext4.h                     |   6 +
->  fs/ext4/file.c                     |  49 +++-
->  fs/ext4/indirect.c                 |  18 +-
->  fs/ext4/inode.c                    |  51 ++--
->  fs/ext4/namei.c                    |  10 +-
->  fs/ext4/super.c                    |  39 ++-
->  fs/open.c                          |   5 +-
->  include/linux/blkdev.h             |   6 +-
->  include/linux/fs.h                 |  49 +++-
->  include/linux/mm.h                 |   1 +
->  include/linux/uio.h                |   3 +
->  mm/Makefile                        |   1 -
->  mm/fadvise.c                       |   6 +-
->  mm/filemap.c                       |   6 +-
->  mm/filemap_xip.c                   | 483 -----------------------------------
->  mm/iov_iter.c                      | 237 ++++++++++++++++--
->  mm/madvise.c                       |   2 +-
->  mm/memory.c                        |  33 ++-
->  41 files changed, 1229 insertions(+), 873 deletions(-)
->  create mode 100644 Documentation/filesystems/dax.txt
->  delete mode 100644 Documentation/filesystems/xip.txt
->  create mode 100644 fs/dax.c
->  delete mode 100644 fs/ext2/xip.c
->  delete mode 100644 fs/ext2/xip.h
->  delete mode 100644 mm/filemap_xip.c
-> 
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
