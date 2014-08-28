@@ -1,152 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E6CA6B0035
-	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 19:58:08 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id kq14so85432pab.22
-        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 16:58:07 -0700 (PDT)
-Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
-        by mx.google.com with ESMTPS id c16si3231565pdk.131.2014.08.27.16.58.06
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 27 Aug 2014 16:58:07 -0700 (PDT)
-Received: from kw-mxoi2.gw.nic.fujitsu.com (unknown [10.0.237.143])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id C805C3EE0F8
-	for <linux-mm@kvack.org>; Thu, 28 Aug 2014 08:58:04 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by kw-mxoi2.gw.nic.fujitsu.com (Postfix) with ESMTP id DDFCBAC0486
-	for <linux-mm@kvack.org>; Thu, 28 Aug 2014 08:58:03 +0900 (JST)
-Received: from g01jpfmpwyt02.exch.g01.fujitsu.local (g01jpfmpwyt02.exch.g01.fujitsu.local [10.128.193.56])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 813F31DB802C
-	for <linux-mm@kvack.org>; Thu, 28 Aug 2014 08:58:03 +0900 (JST)
-Message-ID: <53FE705F.1050505@jp.fujitsu.com>
-Date: Thu, 28 Aug 2014 08:57:19 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 685006B0035
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2014 20:16:25 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id ey11so130470pad.35
+        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 17:16:25 -0700 (PDT)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id bp16si3538170pdb.34.2014.08.27.17.16.22
+        for <linux-mm@kvack.org>;
+        Wed, 27 Aug 2014 17:16:24 -0700 (PDT)
+Date: Thu, 28 Aug 2014 09:17:19 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: compaction of zspages
+Message-ID: <20140828001719.GA14679@bbox>
+References: <CAA25o9T+byVZjO5U8krW-hQAnx3jNrvARANtur82b2KFzYpELQ@mail.gmail.com>
+ <20140827220955.GA26902@cerebellum.variantweb.net>
+ <CAA25o9RVZGqZTBM6+sPXBfMB_b5ZHCjPWwdWVy_cB0_whiiQrw@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] memory-hotplug: rename zones_online_to to valid_zones
-References: <1409124238-18635-1-git-send-email-zhenzhang.zhang@huawei.com> <53FDBDF0.5000200@huawei.com> <53FDBE6B.8070100@huawei.com>
-In-Reply-To: <53FDBE6B.8070100@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CAA25o9RVZGqZTBM6+sPXBfMB_b5ZHCjPWwdWVy_cB0_whiiQrw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Zhen <zhenzhang.zhang@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Dave Hansen <dave.hansen@intel.com>, Toshi Kani <toshi.kani@hp.com>
-Cc: wangnan0@huawei.com, Linux MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Luigi Semenzato <semenzato@google.com>
+Cc: Seth Jennings <sjennings@variantweb.net>, linux-mm@kvack.org, Slava Malyugin <slavamn@google.com>, Sonny Rao <sonnyrao@google.com>
 
-(2014/08/27 20:18), Zhang Zhen wrote:
-> Rename the interface to valid_zones according to most pepole's
-> suggestion.
->
-> Sample output of the sysfs files:
-> 	memory0/valid_zones: none
-> 	memory1/valid_zones: DMA32
-> 	memory2/valid_zones: DMA32
-> 	memory3/valid_zones: DMA32
-> 	memory4/valid_zones: Normal
-> 	memory5/valid_zones: Normal
-> 	memory6/valid_zones: Normal Movable
-> 	memory7/valid_zones: Movable Normal
-> 	memory8/valid_zones: Movable
->
-> Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
+Hey Luigi,
 
-Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+On Wed, Aug 27, 2014 at 04:25:52PM -0700, Luigi Semenzato wrote:
+> Thank you Seth!
+> 
+> On Wed, Aug 27, 2014 at 3:09 PM, Seth Jennings <sjennings@variantweb.net> wrote:
+> > On Wed, Aug 27, 2014 at 02:42:52PM -0700, Luigi Semenzato wrote:
+> >> Hello Minchan and others,
+> >>
+> >> I just noticed that the data structures used by zsmalloc have the
+> >> potential to tie up memory unnecessarily.  I don't call it "leaking"
+> >> because that memory can be reused, but it's not necessarily returned
+> >> to the system upon freeing.
+> >
+> > Yes, this is a known condition in zsmalloc.
 
-Thanks,
-Yasuaki Ishimatsu
+Yeb, I discussed it with Seth and Dan two years ago but I didn't have
+a number how it's significat problem for real practice and no time to
+look at it.
 
-> ---
->   Documentation/ABI/testing/sysfs-devices-memory |  8 ++++----
->   Documentation/memory-hotplug.txt               | 13 ++++++++++---
->   drivers/base/memory.c                          |  6 +++---
->   3 files changed, 17 insertions(+), 10 deletions(-)
->
-> diff --git a/Documentation/ABI/testing/sysfs-devices-memory b/Documentation/ABI/testing/sysfs-devices-memory
-> index 2b2a1d7..deef3b5 100644
-> --- a/Documentation/ABI/testing/sysfs-devices-memory
-> +++ b/Documentation/ABI/testing/sysfs-devices-memory
-> @@ -61,13 +61,13 @@ Users:		hotplug memory remove tools
->   		http://www.ibm.com/developerworks/wikis/display/LinuxP/powerpc-utils
->
->
-> -What:           /sys/devices/system/memory/memoryX/zones_online_to
-> +What:           /sys/devices/system/memory/memoryX/valid_zones
->   Date:           July 2014
->   Contact:	Zhang Zhen <zhenzhang.zhang@huawei.com>
->   Description:
-> -		The file /sys/devices/system/memory/memoryX/zones_online_to
-> -		is read-only and is designed to show which zone this memory block can
-> -		be onlined to.
-> +		The file /sys/devices/system/memory/memoryX/valid_zones	is
-> +		read-only and is designed to show which zone this memory
-> +		block can be onlined to.
->
->   What:		/sys/devices/system/memoryX/nodeY
->   Date:		October 2009
-> diff --git a/Documentation/memory-hotplug.txt b/Documentation/memory-hotplug.txt
-> index 5b34e33..93a25ef 100644
-> --- a/Documentation/memory-hotplug.txt
-> +++ b/Documentation/memory-hotplug.txt
-> @@ -155,7 +155,7 @@ Under each memory block, you can see 4 files:
->   /sys/devices/system/memory/memoryXXX/phys_device
->   /sys/devices/system/memory/memoryXXX/state
->   /sys/devices/system/memory/memoryXXX/removable
-> -/sys/devices/system/memory/memoryXXX/zones_online_to
-> +/sys/devices/system/memory/memoryXXX/valid_zones
->
->   'phys_index'      : read-only and contains memory block id, same as XXX.
->   'state'           : read-write
-> @@ -171,8 +171,15 @@ Under each memory block, you can see 4 files:
->                       block is removable and a value of 0 indicates that
->                       it is not removable. A memory block is removable only if
->                       every section in the block is removable.
-> -'zones_online_to' : read-only: designed to show which zone this memory block
-> -		    can be onlined to.
-> +'valid_zones'     : read-only: designed to show which zones this memory block
-> +		    can be onlined to.
-> +		    The first column shows it's default zone.
-> +		    "memory6/valid_zones: Normal Movable" shows this memoryblock
-> +		    can be onlined to ZONE_NORMAL by default and to ZONE_MOVABLE
-> +		    by online_movable.
-> +		    "memory7/valid_zones: Movable Normal" shows this memoryblock
-> +		    can be onlined to ZONE_MOVABLE by default and to ZONE_NORMAL
-> +		    by online_kernel.
->
->   NOTE:
->     These directories/files appear after physical memory hotplug phase.
-> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-> index 0fc1d25..efd456c 100644
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -374,7 +374,7 @@ static ssize_t show_phys_device(struct device *dev,
->   }
->
->   #ifdef CONFIG_MEMORY_HOTREMOVE
-> -static ssize_t show_zones_online_to(struct device *dev,
-> +static ssize_t show_valid_zones(struct device *dev,
->   				struct device_attribute *attr, char *buf)
->   {
->   	struct memory_block *mem = to_memory_block(dev);
-> @@ -409,7 +409,7 @@ static ssize_t show_zones_online_to(struct device *dev,
->
->   	return sprintf(buf, "%s\n", zone->name);
->   }
-> -static DEVICE_ATTR(zones_online_to, 0444, show_zones_online_to, NULL);
-> +static DEVICE_ATTR(valid_zones, 0444, show_valid_zones, NULL);
->   #endif
->
->   static DEVICE_ATTR(phys_index, 0444, show_mem_start_phys_index, NULL);
-> @@ -563,7 +563,7 @@ static struct attribute *memory_memblk_attrs[] = {
->   	&dev_attr_phys_device.attr,
->   	&dev_attr_removable.attr,
->   #ifdef CONFIG_MEMORY_HOTREMOVE
-> -	&dev_attr_zones_online_to.attr,
-> +	&dev_attr_valid_zones.attr,
->   #endif
->   	NULL
->   };
-> -- 1.8.1.4
->
+> >
+> > Compaction is not a simple as it seems because zsmalloc returns a handle
+> > to the user that encodes the pfn.  In order the implement a compaction
+> > system, there would need to be some notification method to the alert the
+> > user that their allocation has moved and provide a new handle so the
+> > user can update its structures.  This is very non-trivial and I'm not
+> > sure that it can be done safely (i.e.  without races).
+> 
+> Since the handles are opaque, we can add a level of indirection
+> without affecting users.  Assuming that the overhead is tolerable, or
+> anyway less than what we're wasting now.  (For some definition of
+> "less".)
 
+Yeb, my idea was same.
+We could add indirection layer and it wouldn't be hard to implement.
+It would add a bit overhead for memory footprint and performance
+but I think it's is worth to try and see the result.
+I hope I'd really like to implement it.
+
+> 
+> I agree that notification + update would be a huge pain, not really acceptable.
+> 
+> >
+> > I looked at it a while back and it would be a significant effort.
+> >
+> > And yes, if you could do such a thing, you would not want the compaction
+> > triggered by the shrinkers as the users of zsmalloc are only active
+> > under memory pressure.  Something like a periodic compaction kthread
+> > would be the best way (after two minutes of thinking about it).
+> >
+> > Seth
+> >
+> >
+> >>
+> >> I have no idea if this has any impact in practice, but I plan to run a
+> >> test in the near future.  Also, I am not sure that doing compaction in
+> >> the shrinkers (as planned according to a comment) is the best
+> >> approach, because the shrinkers won't be called unless there is
+> >> considerable pressure, but the compaction would be more effective when
+> >> there is less pressure.
+
+If we add the feature, basically, I'd like to open the interface(ex, zs_compact)
+to user because when we need to compact depends on user's usecase and then
+we could add up more smart things (ex, zs_set_auto_compaction(frag_ratio))
+based on it.
+
+> >>
+> >> Some more detail here:
+> >>
+> >> https://code.google.com/p/chromium/issues/detail?id=408221
+> >>
+> >> Should I open a bug on some other tracker?
+
+I don't think it's a bug, every allocator have a same problem(fragmentation).
+
+Thanks for the report!
+
+> >>
+> >> Thank you very much!
+> >> Luigi
+> >>
+> >> --
+> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> >> the body to majordomo@kvack.org.  For more info on Linux MM,
+> >> see: http://www.linux-mm.org/ .
+> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
