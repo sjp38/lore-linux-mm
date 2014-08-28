@@ -1,144 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id A46D16B0038
-	for <linux-mm@kvack.org>; Thu, 28 Aug 2014 03:17:16 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id fb1so1363655pad.41
-        for <linux-mm@kvack.org>; Thu, 28 Aug 2014 00:17:16 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id gn1si4424927pbb.221.2014.08.28.00.17.12
-        for <linux-mm@kvack.org>;
-        Thu, 28 Aug 2014 00:17:13 -0700 (PDT)
-Date: Thu, 28 Aug 2014 17:17:06 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v10 00/21] Support ext4 on NV-DIMMs
-Message-ID: <20140828071706.GD26465@dastard>
-References: <cover.1409110741.git.matthew.r.wilcox@intel.com>
- <20140827130613.c8f6790093d279a447196f17@linux-foundation.org>
- <alpine.DEB.2.11.1408271616070.17080@gentwo.org>
- <20140827143055.5210c5fb9696e460b456eb26@linux-foundation.org>
+Received: from mail-we0-f178.google.com (mail-we0-f178.google.com [74.125.82.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D8296B0035
+	for <linux-mm@kvack.org>; Thu, 28 Aug 2014 04:09:17 -0400 (EDT)
+Received: by mail-we0-f178.google.com with SMTP id u57so380343wes.37
+        for <linux-mm@kvack.org>; Thu, 28 Aug 2014 01:09:16 -0700 (PDT)
+Received: from mail-wi0-x22c.google.com (mail-wi0-x22c.google.com [2a00:1450:400c:c05::22c])
+        by mx.google.com with ESMTPS id c19si13955971wiv.75.2014.08.28.01.09.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 28 Aug 2014 01:09:15 -0700 (PDT)
+Received: by mail-wi0-f172.google.com with SMTP id n3so7055651wiv.11
+        for <linux-mm@kvack.org>; Thu, 28 Aug 2014 01:09:15 -0700 (PDT)
+Message-ID: <53FEE379.9060204@gmail.com>
+Date: Thu, 28 Aug 2014 11:08:25 +0300
+From: Boaz Harrosh <openosd@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140827143055.5210c5fb9696e460b456eb26@linux-foundation.org>
+Subject: Re: [PATCH v10 00/21] Support ext4 on NV-DIMMs
+References: <cover.1409110741.git.matthew.r.wilcox@intel.com>
+In-Reply-To: <cover.1409110741.git.matthew.r.wilcox@intel.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, willy@linux.intel.com
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: willy@linux.intel.com
 
-On Wed, Aug 27, 2014 at 02:30:55PM -0700, Andrew Morton wrote:
-> On Wed, 27 Aug 2014 16:22:20 -0500 (CDT) Christoph Lameter <cl@linux.com> wrote:
+On 08/27/2014 06:45 AM, Matthew Wilcox wrote:
+> One of the primary uses for NV-DIMMs is to expose them as a block device
+> and use a filesystem to store files on the NV-DIMM.  While that works,
+> it currently wastes memory and CPU time buffering the files in the page
+> cache.  We have support in ext2 for bypassing the page cache, but it
+> has some races which are unfixable in the current design.  This series
+> of patches rewrite the underlying support, and add support for direct
+> access to ext4.
 > 
-> > > Some explanation of why one would use ext4 instead of, say,
-> > > suitably-modified ramfs/tmpfs/rd/etc?
-> > 
-> > The NVDIMM contents survive reboot and therefore ramfs and friends wont
-> > work with it.
+> Note that patch 6/21 has been included in
+> https://git.kernel.org/cgit/linux/kernel/git/viro/vfs.git/log/?h=for-next-candidate
 > 
-> See "suitably modified".  Presumably this type of memory would need to
-> come from a particular page allocator zone.  ramfs would be unweildy
-> due to its use to dentry/inode caches, but rd/etc should be feasible.
 
-<sigh>
+Matthew hi
 
-That's where we started about two years ago with that horrible
-pramfs trainwreck.
+Could you please push this to the regular or a new public tree?
 
-To start with: brd is a block device, not a filesystem. We still
-need the filesystem on top of a persistent ram disk to make it
-useful to applications. We can do this with ext4/XFS right now, and
-that is the fundamental basis on which DAX is built.
+(Old versions are at: https://github.com/01org/prd)
 
-For sake of the discussion, however, let's walk through what is
-required to make an "existing" ramfs persistent. Persistence means we
-can't just wipe it and start again if it gets corrupted, and
-rebooting is not a fix for problems.  Hence we need to be able to
-identify it, check it, repair it, ensure metadata operations are
-persistent across machine crashes, etc, so there is all sorts of
-management tools required by a persistent ramfs.
+Thanks
+Boaz
 
-But most important of all: the persistent storage format needs to be
-forwards and backwards compatible across kernel versions.  Hence we
-can't encode any structure the kernel uses internally into the
-persistent storage because they aren't stable structures.  That
-means we need to marshall objects between the persistence domain and
-the volatile domain in an orderly fashion.
-
-We can avoid using the dentry/inode *caches* by freeing those
-volatile objects the moment reference counts dop to zero rather than
-putting them on LRUs. However, we can't store them in persistent
-storage and we can't avoid using them to interface with the VFS, so
-it makes little sense to burn CPU continually marshalling such
-structures in and out of volatile memory if we have free RAM to do
-so. So even with a "persistent ramfs" caching the working set of
-volatile VFS objects makes sense from a peformance point of view.
-
-Then you've got crash recovery management: NVDIMMs are not
-synchronous: they can still lose data while it is being written on
-power loss. And we can't update persistent memory piecemeal as the
-VFS code modifies metadata - there needs to be synchronisation
-points, otherwise we will always have inconsistent metadata state in
-persistent memory.
-
-Persistent memory also can't do atomic writes across multiple,
-disjoint CPU cachelines or NVDIMMs, and this is what is needed for
-synchroniation points for multi-object metadata modification
-operations to be consistent after a crash.  There is some work in
-the nvme working groups to define this, but so far there hasn't been
-any useful outcome, and then we willhave to wait for CPUs to
-implement those interfaces.
-
-Hence the metadata that indexes the persistent RAM needs to use COW
-techniques, use a log structure or use WAL (journalling).  Hence
-that "persistent ramfs" is now looking much more like a database or
-traditional filesystem.
-
-Further, it's going to need to scale to very large amounts of
-storage.  We're talking about machines with *tens of TB* of NVDIMM
-capacity in the immediate future and so free space manangement and
-concurrency of allocation and freeing of used space is going to be
-fundamental to the performance of the persistent NVRAM filesystem.
-So, you end up with block/allocation groups to subdivide the space.
-Looking a lot like ext4 or XFS at this point.
-
-And now you have to scale to indexing tens of millions of
-everything. At least tens of millions - hundreds of millions to
-billions is more likely, because storing tens of terabytes of small
-files is going to require indexing billions of files. And because
-there is no performance penalty for doing this, people will use the
-filesystem as a great big database. So now you have to have a
-scalable posix compatible directory structures, scalable freespace
-indexation, dynamic, scalable inode allocation, freeing, etc. Oh,
-and it also needs to be highly concurrent to handle machines with
-hundreds of CPU cores.
-
-Funnily enough, we already have a couple of persistent storage
-implementations that solve these problems to varying degrees. ext4
-is one of them, if you ignore the scalability and concurrency
-requirements. XFS is the other. And both will run unmodified on
-a persistant ram block device, which we *already have*.
-
-And so back to DAX. What users actually want from their high speed
-persistant RAM storage is direct, cpu addressable access to that
-persistent storage. They don't want to have to care about how to
-find an object in the persistent storage - that's what filesystems
-are for - they just want to be able to read and write to it
-directly. That's what DAX does - it provides existing filesystems
-a method for exposing direct access to the persistent RAM to
-applications in a manner that application developers are already
-familiar with. It's a win-win situation all round.
-
-IOWs, ext4/XFS + DAX gets us to a place that is good enough for most
-users and the hardware capabilities we expect to see in the next 5
-years.  And hopefully that will be long enough to bring a purpose
-built, next generation persistent memory filesystem to production
-quality that can take full advantage of the technology...
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+> This iteration of the patchset rebases to 3.17-rc2, changes the page fault
+> locking, fixes a couple of bugs and makes a few other minor changes.
+> 
+>  - Move the calculation of the maximum size available at the requested
+>    location from the ->direct_access implementations to bdev_direct_access()
+>  - Fix a comment typo (Ross Zwisler)
+>  - Check that the requested length is positive in bdev_direct_access().  If
+>    it is not, assume that it's an errno, and just return it.
+>  - Fix some whitespace issues flagged by checkpatch
+>  - Added the Acked-by responses from Kirill that I forget in the last round
+>  - Added myself to MAINTAINERS for DAX
+>  - Fixed compilation with !CONFIG_DAX (Vishal Verma)
+>  - Revert the locking in the page fault handler back to an earlier version.
+>    If we hit the race that we were trying to protect against, we will leave
+>    blocks allocated past the end of the file.  They will be removed on file
+>    removal, the next truncate, or fsck.
+> 
+> 
+> Matthew Wilcox (20):
+>   axonram: Fix bug in direct_access
+>   Change direct_access calling convention
+>   Fix XIP fault vs truncate race
+>   Allow page fault handlers to perform the COW
+>   Introduce IS_DAX(inode)
+>   Add copy_to_iter(), copy_from_iter() and iov_iter_zero()
+>   Replace XIP read and write with DAX I/O
+>   Replace ext2_clear_xip_target with dax_clear_blocks
+>   Replace the XIP page fault handler with the DAX page fault handler
+>   Replace xip_truncate_page with dax_truncate_page
+>   Replace XIP documentation with DAX documentation
+>   Remove get_xip_mem
+>   ext2: Remove ext2_xip_verify_sb()
+>   ext2: Remove ext2_use_xip
+>   ext2: Remove xip.c and xip.h
+>   Remove CONFIG_EXT2_FS_XIP and rename CONFIG_FS_XIP to CONFIG_FS_DAX
+>   ext2: Remove ext2_aops_xip
+>   Get rid of most mentions of XIP in ext2
+>   xip: Add xip_zero_page_range
+>   brd: Rename XIP to DAX
+> 
+> Ross Zwisler (1):
+>   ext4: Add DAX functionality
+> 
+>  Documentation/filesystems/Locking  |   3 -
+>  Documentation/filesystems/dax.txt  |  91 +++++++
+>  Documentation/filesystems/ext4.txt |   2 +
+>  Documentation/filesystems/xip.txt  |  68 -----
+>  MAINTAINERS                        |   6 +
+>  arch/powerpc/sysdev/axonram.c      |  19 +-
+>  drivers/block/Kconfig              |  13 +-
+>  drivers/block/brd.c                |  26 +-
+>  drivers/s390/block/dcssblk.c       |  21 +-
+>  fs/Kconfig                         |  21 +-
+>  fs/Makefile                        |   1 +
+>  fs/block_dev.c                     |  40 +++
+>  fs/dax.c                           | 497 +++++++++++++++++++++++++++++++++++++
+>  fs/exofs/inode.c                   |   1 -
+>  fs/ext2/Kconfig                    |  11 -
+>  fs/ext2/Makefile                   |   1 -
+>  fs/ext2/ext2.h                     |  10 +-
+>  fs/ext2/file.c                     |  45 +++-
+>  fs/ext2/inode.c                    |  38 +--
+>  fs/ext2/namei.c                    |  13 +-
+>  fs/ext2/super.c                    |  53 ++--
+>  fs/ext2/xip.c                      |  91 -------
+>  fs/ext2/xip.h                      |  26 --
+>  fs/ext4/ext4.h                     |   6 +
+>  fs/ext4/file.c                     |  49 +++-
+>  fs/ext4/indirect.c                 |  18 +-
+>  fs/ext4/inode.c                    |  51 ++--
+>  fs/ext4/namei.c                    |  10 +-
+>  fs/ext4/super.c                    |  39 ++-
+>  fs/open.c                          |   5 +-
+>  include/linux/blkdev.h             |   6 +-
+>  include/linux/fs.h                 |  49 +++-
+>  include/linux/mm.h                 |   1 +
+>  include/linux/uio.h                |   3 +
+>  mm/Makefile                        |   1 -
+>  mm/fadvise.c                       |   6 +-
+>  mm/filemap.c                       |   6 +-
+>  mm/filemap_xip.c                   | 483 -----------------------------------
+>  mm/iov_iter.c                      | 237 ++++++++++++++++--
+>  mm/madvise.c                       |   2 +-
+>  mm/memory.c                        |  33 ++-
+>  41 files changed, 1229 insertions(+), 873 deletions(-)
+>  create mode 100644 Documentation/filesystems/dax.txt
+>  delete mode 100644 Documentation/filesystems/xip.txt
+>  create mode 100644 fs/dax.c
+>  delete mode 100644 fs/ext2/xip.c
+>  delete mode 100644 fs/ext2/xip.h
+>  delete mode 100644 mm/filemap_xip.c
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
