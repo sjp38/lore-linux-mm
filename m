@@ -1,89 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 85AD26B0035
-	for <linux-mm@kvack.org>; Thu, 28 Aug 2014 02:31:11 -0400 (EDT)
-Received: by mail-lb0-f177.google.com with SMTP id z11so341940lbi.22
-        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 23:31:09 -0700 (PDT)
-Received: from mail-lb0-x233.google.com (mail-lb0-x233.google.com [2a00:1450:4010:c04::233])
-        by mx.google.com with ESMTPS id k6si3852805lae.29.2014.08.27.23.31.08
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id BFCEE6B0035
+	for <linux-mm@kvack.org>; Thu, 28 Aug 2014 02:48:30 -0400 (EDT)
+Received: by mail-we0-f181.google.com with SMTP id x48so288391wes.40
+        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 23:48:30 -0700 (PDT)
+Received: from mail-wi0-x22b.google.com (mail-wi0-x22b.google.com [2a00:1450:400c:c05::22b])
+        by mx.google.com with ESMTPS id az10si6182795wib.11.2014.08.27.23.48.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 27 Aug 2014 23:31:08 -0700 (PDT)
-Received: by mail-lb0-f179.google.com with SMTP id l4so336691lbv.24
-        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 23:31:08 -0700 (PDT)
-Date: Thu, 28 Aug 2014 10:31:06 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [PATCH v5] mm: softdirty: enable write notifications on VMAs
- after VM_SOFTDIRTY cleared
-Message-ID: <20140828063106.GE23629@moon>
-References: <1408937681-1472-1-git-send-email-pfeiner@google.com>
- <alpine.LSU.2.11.1408252142380.2073@eggly.anvils>
- <20140826064952.GR25918@moon>
- <20140826140419.GA10625@node.dhcp.inet.fi>
- <20140826141914.GA8952@moon>
- <20140826145612.GA11226@node.dhcp.inet.fi>
- <20140826151813.GB8952@moon>
- <20140826154355.GA11464@node.dhcp.inet.fi>
- <20140826155351.GC8952@moon>
- <alpine.LSU.2.11.1408271512090.7961@eggly.anvils>
+        Wed, 27 Aug 2014 23:48:29 -0700 (PDT)
+Received: by mail-wi0-f171.google.com with SMTP id hi2so6921736wib.16
+        for <linux-mm@kvack.org>; Wed, 27 Aug 2014 23:48:29 -0700 (PDT)
+Date: Thu, 28 Aug 2014 08:48:25 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 0/2] x86: Speed up ioremap operations
+Message-ID: <20140828064825.GA6059@gmail.com>
+References: <20140827225927.364537333@asylum.americas.sgi.com>
+ <20140827160610.4ef142d28fd7f276efd38a51@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1408271512090.7961@eggly.anvils>
+In-Reply-To: <20140827160610.4ef142d28fd7f276efd38a51@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Peter Feiner <pfeiner@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pavel Emelyanov <xemul@parallels.com>, Jamie Liu <jamieliu@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Magnus Damm <magnus.damm@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mike Travis <travis@sgi.com>, mingo@redhat.com, tglx@linutronix.de, hpa@zytor.com, msalter@redhat.com, dyoung@redhat.com, riel@redhat.com, peterz@infradead.org, mgorman@suse.de, linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org
 
-On Wed, Aug 27, 2014 at 04:12:43PM -0700, Hugh Dickins wrote:
-> > > 
-> > > Weak argument to me.
-> 
-> Yes.  However rarely it's modified, we don't want any chance of it
-> corrupting another flag.
-> 
-> VM_SOFTDIRTY is special in the sense that it's maintained in a very
-> different way from the other VM_flags.  If we had a little alignment
-> padding space somewhere in struct vm_area_struct, I think I'd jump at
-> Kirill's suggestion to move it out of vm_flags and into a new field:
-> that would remove some other special casing, like the vma merge issue.
-> 
-> But I don't think we have such padding space, and we'd prefer not to
-> bloat struct vm_area_struct for it; so maybe it should stay for now.
-> Besides, with Peter's patch, we're also talking about the locking on
-> modifications to vm_page_prot, aren't we?
 
-I think so.
+* Andrew Morton <akpm@linux-foundation.org> wrote:
 
-> > > What about walk through vmas twice: first with down_write() to modify
-> > > vm_flags and vm_page_prot, then downgrade_write() and do
-> > > walk_page_range() on every vma?
+> On Wed, 27 Aug 2014 17:59:27 -0500 Mike Travis <travis@sgi.com> wrote:
+> 
 > > 
-> > I still it's undeeded,
+> > We have a large university system in the UK that is experiencing
+> > very long delays modprobing the driver for a specific I/O device.
+> > The delay is from 8-10 minutes per device and there are 31 devices
+> > in the system.  This 4 to 5 hour delay in starting up those I/O
+> > devices is very much a burden on the customer.
 > 
-> Yes, so long as nothing else is doing the same.
-> No bug yet, that we can see, but a bug in waiting.
+> That's nuts.
 
-:-)
+Agreed, and I'd suggest marking this for -stable, once it's all 
+settled and tested.
 
-> 
-> > but for sure using write-lock/downgrade won't hurt,
-> > so no argues from my side.
-> 
-> Yes, Kirill's two-stage suggestion seems the best:
-> 
-> down_write
-> quickly scan vmas clearing VM_SOFT_DIRTY and updating vm_page_prot
-> downgrade_write (or up_write, down_read?)
-> slowly walk page tables write protecting and clearing soft-dirty on ptes
-> up_read
-> 
-> But please don't mistake me for someone who has a good grasp of
-> soft-dirty: I don't.
+Thanks,
 
-Thanks for sharing opinion, Hugh! (And thanks for second email about
-vma-flags) So lets move it to Kirill's way, otherwise indeed one day
-it might end up in a bug which for sure will not be easy to catch.
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
