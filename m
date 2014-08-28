@@ -1,111 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 8146D6B0035
-	for <linux-mm@kvack.org>; Thu, 28 Aug 2014 04:21:04 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id hz1so1575484pad.6
-        for <linux-mm@kvack.org>; Thu, 28 Aug 2014 01:21:01 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id g3si4729319pdn.222.2014.08.28.01.20.59
-        for <linux-mm@kvack.org>;
-        Thu, 28 Aug 2014 01:21:00 -0700 (PDT)
-Date: Thu, 28 Aug 2014 17:21:08 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v5 3/4] zram: zram memory size limitation
-Message-ID: <20140828082108.GA17910@js1304-P5Q-DELUXE>
-References: <1408925156-11733-1-git-send-email-minchan@kernel.org>
- <1408925156-11733-4-git-send-email-minchan@kernel.org>
- <20140826073730.GA1975@js1304-P5Q-DELUXE>
- <20140826075511.GI11319@bbox>
- <CAFdhcLQce05qi2LGP85N=aaQiKz1ArC3Kn+W-s86R58BkjMr3w@mail.gmail.com>
- <20140827012610.GA10198@js1304-P5Q-DELUXE>
- <20140827025132.GI32620@bbox>
- <20140827050438.GA13300@js1304-P5Q-DELUXE>
- <20140827072819.GK32620@bbox>
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id D7CA26B0035
+	for <linux-mm@kvack.org>; Thu, 28 Aug 2014 04:59:52 -0400 (EDT)
+Received: by mail-wi0-f178.google.com with SMTP id r20so480171wiv.11
+        for <linux-mm@kvack.org>; Thu, 28 Aug 2014 01:59:49 -0700 (PDT)
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+        by mx.google.com with ESMTPS id oq3si5943162wjc.21.2014.08.28.01.59.48
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 28 Aug 2014 01:59:48 -0700 (PDT)
+Received: by mail-wi0-f178.google.com with SMTP id r20so480114wiv.11
+        for <linux-mm@kvack.org>; Thu, 28 Aug 2014 01:59:47 -0700 (PDT)
+Date: Thu, 28 Aug 2014 09:59:40 +0100
+From: Steve Capper <steve.capper@linaro.org>
+Subject: Re: [PATH V2 1/6] mm: Introduce a general RCU get_user_pages_fast.
+Message-ID: <20140828085939.GA15409@linaro.org>
+References: <1408635812-31584-1-git-send-email-steve.capper@linaro.org>
+ <1408635812-31584-2-git-send-email-steve.capper@linaro.org>
+ <20140827150139.GZ30401@n2100.arm.linux.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140827072819.GK32620@bbox>
+In-Reply-To: <20140827150139.GZ30401@n2100.arm.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: David Horner <ds2horner@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Jerome Marchand <jmarchan@redhat.com>, juno.choi@lge.com, seungho1.park@lge.com, Luigi Semenzato <semenzato@google.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Dan Streetman <ddstreet@ieee.org>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, will.deacon@arm.com, gary.robertson@linaro.org, christoffer.dall@linaro.org, peterz@infradead.org, anders.roxell@linaro.org, akpm@linux-foundation.org, dann.frazier@canonical.com, mark.rutland@arm.com, mgorman@suse.de
 
-On Wed, Aug 27, 2014 at 04:28:19PM +0900, Minchan Kim wrote:
-> On Wed, Aug 27, 2014 at 02:04:38PM +0900, Joonsoo Kim wrote:
-> > On Wed, Aug 27, 2014 at 11:51:32AM +0900, Minchan Kim wrote:
-> > > Hey Joonsoo,
-> > > 
-> > > On Wed, Aug 27, 2014 at 10:26:11AM +0900, Joonsoo Kim wrote:
-> > > > Hello, Minchan and David.
-> > > > 
-> > > > On Tue, Aug 26, 2014 at 08:22:29AM -0400, David Horner wrote:
-> > > > > On Tue, Aug 26, 2014 at 3:55 AM, Minchan Kim <minchan@kernel.org> wrote:
-> > > > > > Hey Joonsoo,
-> > > > > >
-> > > > > > On Tue, Aug 26, 2014 at 04:37:30PM +0900, Joonsoo Kim wrote:
-> > > > > >> On Mon, Aug 25, 2014 at 09:05:55AM +0900, Minchan Kim wrote:
-> > > > > >> > @@ -513,6 +540,14 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
-> > > > > >> >             ret = -ENOMEM;
-> > > > > >> >             goto out;
-> > > > > >> >     }
-> > > > > >> > +
-> > > > > >> > +   if (zram->limit_pages &&
-> > > > > >> > +           zs_get_total_pages(meta->mem_pool) > zram->limit_pages) {
-> > > > > >> > +           zs_free(meta->mem_pool, handle);
-> > > > > >> > +           ret = -ENOMEM;
-> > > > > >> > +           goto out;
-> > > > > >> > +   }
-> > > > > >> > +
-> > > > > >> >     cmem = zs_map_object(meta->mem_pool, handle, ZS_MM_WO);
-> > > > > >>
-> > > > > >> Hello,
-> > > > > >>
-> > > > > >> I don't follow up previous discussion, so I could be wrong.
-> > > > > >> Why this enforcement should be here?
-> > > > > >>
-> > > > > >> I think that this has two problems.
-> > > > > >> 1) alloc/free happens unnecessarilly if we have used memory over the
-> > > > > >> limitation.
-> > > > > >
-> > > > > > True but firstly, I implemented the logic in zsmalloc, not zram but
-> > > > > > as I described in cover-letter, it's not a requirement of zsmalloc
-> > > > > > but zram so it should be in there. If every user want it in future,
-> > > > > > then we could move the function into zsmalloc. That's what we
-> > > > > > concluded in previous discussion.
-> > > > 
-> > > > Hmm...
-> > > > Problem is that we can't avoid these unnecessary overhead in this
-> > > > implementation. If we can implement this feature in zram efficiently,
-> > > > it's okay. But, I think that current form isn't.
-> > > 
-> > > 
-> > > If we can add it in zsmalloc, it would be more clean and efficient
-> > > for zram but as I said, at the moment, I didn't want to put zram's
-> > > requirement into zsmalloc because to me, it's weird to enforce max
-> > > limit to allocator. It's client's role, I think.
-> > 
-> > AFAIK, many kinds of pools such as thread-pool or memory-pool have
-> > their own limit. It's not weird for me.
+On Wed, Aug 27, 2014 at 04:01:39PM +0100, Russell King - ARM Linux wrote:
+
+Hi Russell,
+
+> On Thu, Aug 21, 2014 at 04:43:27PM +0100, Steve Capper wrote:
+> > +int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+> > +			struct page **pages)
+> > +{
+> > +	struct mm_struct *mm = current->mm;
+> > +	int nr, ret;
+> > +
+> > +	start &= PAGE_MASK;
+> > +	nr = __get_user_pages_fast(start, nr_pages, write, pages);
+> > +	ret = nr;
+> > +
+> > +	if (nr < nr_pages) {
+> > +		/* Try to get the remaining pages with get_user_pages */
+> > +		start += nr << PAGE_SHIFT;
+> > +		pages += nr;
 > 
-> Actually I don't know what is pool allocator but things you mentioned
-> is basically used to gaurantee *new* thread/memory, not limit although
-> it would implement limit.
+> When I read this, my first reaction was... what if nr is negative?  In
+> that case, if nr_pages is positive, we fall through into this if, and
+> start to wind things backwards - which isn't what we want.
 > 
-> Another question, why do you think zsmalloc is pool allocator?
-> IOW, What logic makes you think it's pool allocator?
+> It looks like that can't happen... right?  __get_user_pages_fast() only
+> returns greater-or-equal to zero right now, but what about the future?
 
-In fact, it is not pool allocator for now. But, it looks like pool
-allocator because it is used only for one zram device. If there are
-many zram devices, there are many zs_pool and their memory cannot be
-shared. It is totally isolated each other. We can easily make it
-actual pool allocator or impose memory usage limit on it with this
-property. This make me think that zsmalloc is better place to limit
-memory usage.
+__get_user_pages_fast is a strict fast path, it will grab as many page
+references as it can and if something gets in its way it backs off. As
+it can't take locks, it can't inspect the VMA, thus it really isn't in
+a position to know if there's an error. It may be possible for the
+slow path to take a write fault for a read only pte, for instance.
+(we could in theory return an error on pte_special and save a fallback
+to the slowpath but I don't believe it's worth doing as special ptes
+should be encountered very rarely by the fast_gup).
 
-Anyway, I don't have strong objection to current implementation. You
-can fix it later when it turn out to be real problem.
+I think it's safe to assume that __get_use_pages_fast has non-negative
+return values; also it is logically contained in the same area as
+get_user_pages_fast, so if this does change we can apply changes below
+it too.
 
-Thanks.
+get_user_pages_fast attempts the fast path but is allowed to fallback
+to the slowpath, so is in a position to return an error code thus can
+return negative values.
+
+> 
+> > +
+> > +		down_read(&mm->mmap_sem);
+> > +		ret = get_user_pages(current, mm, start,
+> > +				     nr_pages - nr, write, 0, pages, NULL);
+> > +		up_read(&mm->mmap_sem);
+> > +
+> > +		/* Have to be a bit careful with return values */
+> > +		if (nr > 0) {
+> 
+> This kind'a makes it look like nr could be negative.
+
+I read it as "did the fast path get at least one page?".
+
+> 
+> Other than that, I don't see anything obviously wrong with it.
+
+Thank you for giving this a going over.
+
+Cheers,
+-- 
+Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
