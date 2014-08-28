@@ -1,99 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id D7CA26B0035
-	for <linux-mm@kvack.org>; Thu, 28 Aug 2014 04:59:52 -0400 (EDT)
-Received: by mail-wi0-f178.google.com with SMTP id r20so480171wiv.11
-        for <linux-mm@kvack.org>; Thu, 28 Aug 2014 01:59:49 -0700 (PDT)
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-        by mx.google.com with ESMTPS id oq3si5943162wjc.21.2014.08.28.01.59.48
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id B59BC6B0035
+	for <linux-mm@kvack.org>; Thu, 28 Aug 2014 07:42:08 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id kq14so2226521pab.37
+        for <linux-mm@kvack.org>; Thu, 28 Aug 2014 04:42:07 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id u2si6074910pdo.76.2014.08.28.04.42.02
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 28 Aug 2014 01:59:48 -0700 (PDT)
-Received: by mail-wi0-f178.google.com with SMTP id r20so480114wiv.11
-        for <linux-mm@kvack.org>; Thu, 28 Aug 2014 01:59:47 -0700 (PDT)
-Date: Thu, 28 Aug 2014 09:59:40 +0100
-From: Steve Capper <steve.capper@linaro.org>
-Subject: Re: [PATH V2 1/6] mm: Introduce a general RCU get_user_pages_fast.
-Message-ID: <20140828085939.GA15409@linaro.org>
-References: <1408635812-31584-1-git-send-email-steve.capper@linaro.org>
- <1408635812-31584-2-git-send-email-steve.capper@linaro.org>
- <20140827150139.GZ30401@n2100.arm.linux.org.uk>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 28 Aug 2014 04:42:03 -0700 (PDT)
+Message-ID: <53FF1538.60809@huawei.com>
+Date: Thu, 28 Aug 2014 19:40:40 +0800
+From: Xue jiufei <xuejiufei@huawei.com>
+Reply-To: <xuejiufei@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140827150139.GZ30401@n2100.arm.linux.org.uk>
+Subject: A deadlock when direct memory reclaim in network filesystem
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, linux-arch@vger.kernel.org, linux-mm@kvack.org, will.deacon@arm.com, gary.robertson@linaro.org, christoffer.dall@linaro.org, peterz@infradead.org, anders.roxell@linaro.org, akpm@linux-foundation.org, dann.frazier@canonical.com, mark.rutland@arm.com, mgorman@suse.de
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Aug 27, 2014 at 04:01:39PM +0100, Russell King - ARM Linux wrote:
+Hi all,
+We found there may exist a deadlock during direct memory reclaim in
+network filesystem.
+Here's one example in ocfs2, maybe other network filesystems has
+this problems too.
 
-Hi Russell,
+1)Receiving a connect message from other nodes, Node queued
+o2net_listen_work.
+2)o2net_wq processed this work and try to allocate memory for a
+new socket.
+3)Syetem has no more memory, it would do direct memory reclaim
+and trigger the inode cleanup. That inode being cleaned up is
+happened to be ocfs2 inode, so call evict()->ocfs2_evict_inode()
+->ocfs2_drop_lock()->dlmunlock()->o2net_send_message_vec(),
+and wait for the response.
+4)tcp layer received the response, call o2net_data_ready() and
+queue sc_rx_work, waiting o2net_wq to process this work.
+5)o2net_wq is a single thread workqueue, it process the work one by
+one. Right now is is still doing o2net_listen_work and cannot handle
+sc_rx_work. so we deadlock.
 
-> On Thu, Aug 21, 2014 at 04:43:27PM +0100, Steve Capper wrote:
-> > +int get_user_pages_fast(unsigned long start, int nr_pages, int write,
-> > +			struct page **pages)
-> > +{
-> > +	struct mm_struct *mm = current->mm;
-> > +	int nr, ret;
-> > +
-> > +	start &= PAGE_MASK;
-> > +	nr = __get_user_pages_fast(start, nr_pages, write, pages);
-> > +	ret = nr;
-> > +
-> > +	if (nr < nr_pages) {
-> > +		/* Try to get the remaining pages with get_user_pages */
-> > +		start += nr << PAGE_SHIFT;
-> > +		pages += nr;
-> 
-> When I read this, my first reaction was... what if nr is negative?  In
-> that case, if nr_pages is positive, we fall through into this if, and
-> start to wind things backwards - which isn't what we want.
-> 
-> It looks like that can't happen... right?  __get_user_pages_fast() only
-> returns greater-or-equal to zero right now, but what about the future?
+To avoid deadlock like this, caller should perform a GFP_NOFS
+allocation attempt(see the comments of shrink_dcache_memory and
+shrink_icache_memory).
+However, in the situation I described above, it is impossible to
+add GFP_NOFS flag unless we modify the socket create interface.
 
-__get_user_pages_fast is a strict fast path, it will grab as many page
-references as it can and if something gets in its way it backs off. As
-it can't take locks, it can't inspect the VMA, thus it really isn't in
-a position to know if there's an error. It may be possible for the
-slow path to take a write fault for a read only pte, for instance.
-(we could in theory return an error on pte_special and save a fallback
-to the slowpath but I don't believe it's worth doing as special ptes
-should be encountered very rarely by the fast_gup).
+To fix this deadlock, we would not like to shrink inode and dentry
+slab during direct memory reclaim. Kswapd would do this job for us.
+So we want to force add __GFP_FS when call
+__alloc_pages_direct_reclaim() in __alloc_pages_slowpath().
+Is that OK or any better advice?
 
-I think it's safe to assume that __get_use_pages_fast has non-negative
-return values; also it is logically contained in the same area as
-get_user_pages_fast, so if this does change we can apply changes below
-it too.
-
-get_user_pages_fast attempts the fast path but is allowed to fallback
-to the slowpath, so is in a position to return an error code thus can
-return negative values.
-
-> 
-> > +
-> > +		down_read(&mm->mmap_sem);
-> > +		ret = get_user_pages(current, mm, start,
-> > +				     nr_pages - nr, write, 0, pages, NULL);
-> > +		up_read(&mm->mmap_sem);
-> > +
-> > +		/* Have to be a bit careful with return values */
-> > +		if (nr > 0) {
-> 
-> This kind'a makes it look like nr could be negative.
-
-I read it as "did the fast path get at least one page?".
-
-> 
-> Other than that, I don't see anything obviously wrong with it.
-
-Thank you for giving this a going over.
-
-Cheers,
--- 
-Steve
+Thanks,
+Xuejiufei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
