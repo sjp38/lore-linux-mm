@@ -1,77 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 356D56B0037
-	for <linux-mm@kvack.org>; Fri, 29 Aug 2014 15:16:52 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id bj1so7090985pad.32
-        for <linux-mm@kvack.org>; Fri, 29 Aug 2014 12:16:51 -0700 (PDT)
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 2042F6B003D
+	for <linux-mm@kvack.org>; Fri, 29 Aug 2014 15:17:00 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id r10so1055593pdi.29
+        for <linux-mm@kvack.org>; Fri, 29 Aug 2014 12:16:59 -0700 (PDT)
 Received: from relay.sgi.com (relay1.sgi.com. [192.48.180.66])
-        by mx.google.com with ESMTP id go4si787265pbb.210.2014.08.29.12.16.50
+        by mx.google.com with ESMTP id yg2si1698975pab.48.2014.08.29.12.16.56
         for <linux-mm@kvack.org>;
-        Fri, 29 Aug 2014 12:16:51 -0700 (PDT)
-Message-Id: <20140829191647.744730085@asylum.americas.sgi.com>
+        Fri, 29 Aug 2014 12:16:56 -0700 (PDT)
+Message-Id: <20140829191647.582288686@asylum.americas.sgi.com>
 References: <20140829191647.364032240@asylum.americas.sgi.com>
-Date: Fri, 29 Aug 2014 14:16:49 -0500
+Date: Fri, 29 Aug 2014 14:16:48 -0500
 From: Mike Travis <travis@sgi.com>
-Subject: [PATCH 2/2] x86: Use optimized ioresource lookup in ioremap function
-Content-Disposition: inline; filename=use-get-resource-type
+Subject: [PATCH 1/2] x86: Optimize resource lookups for ioremap
+Content-Disposition: inline; filename=add-get-resource-type
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: mingo@redhat.com, tglx@linutronix.de, hpa@zytor.com
 Cc: akpm@linux-foundation.org, msalter@redhat.com, dyoung@redhat.com, riel@redhat.com, peterz@infradead.org, mgorman@suse.de, linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, Alex Thorlton <athorlton@sgi.com>
 
-This patch uses the optimized ioresource lookup, "region_is_ram", for
-the ioremap function.  If the region is not found, it falls back to the
-"page_is_ram" function.  If it is found and it is RAM, then the usual
-warning message is issued, and the ioremap operation is aborted.
-Otherwise, the ioremap operation continues.
+Since the ioremap operation is verifying that the specified address range
+is NOT RAM, it will search the entire ioresource list if the condition
+is true.  To make matters worse, it does this one 4k page at a time.
+For a 128M BAR region this is 32 passes to determine the entire region
+does not contain any RAM addresses.
+
+This patch provides another resource lookup function, region_is_ram,
+that searches for the entire region specified, verifying that it is
+completely contained within the resource region.  If it is found, then
+it is checked to be RAM or not, within a single pass.
+
+The return result reflects if it was found or not (-1), and whether it is
+RAM (1) or not (0).  This allows the caller to fallback to the previous
+page by page search if it was not found.
 
 Signed-off-by: Mike Travis <travis@sgi.com>
 Acked-by: Alex Thorlton <athorlton@sgi.com>
 Reviewed-by: Cliff Wickman <cpw@sgi.com>
 ---
-v2: slight rearrangement of code
+v2: remove 'weak' and EXPORT_SYMBOL_GPL from region_is_ram()
 ---
- arch/x86/mm/ioremap.c |   20 ++++++++++++++++----
- 1 file changed, 16 insertions(+), 4 deletions(-)
+ include/linux/mm.h |    1 +
+ kernel/resource.c  |   36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)
 
---- linux.orig/arch/x86/mm/ioremap.c
-+++ linux/arch/x86/mm/ioremap.c
-@@ -86,6 +86,7 @@ static void __iomem *__ioremap_caller(re
- 	pgprot_t prot;
- 	int retval;
- 	void __iomem *ret_addr;
-+	int ram_region;
+--- linux.orig/include/linux/mm.h
++++ linux/include/linux/mm.h
+@@ -346,6 +346,7 @@ static inline int put_page_unless_one(st
+ }
  
- 	/* Don't allow wraparound or zero size */
- 	last_addr = phys_addr + size - 1;
-@@ -108,12 +109,23 @@ static void __iomem *__ioremap_caller(re
- 	/*
- 	 * Don't allow anybody to remap normal RAM that we're using..
- 	 */
--	pfn      = phys_addr >> PAGE_SHIFT;
--	last_pfn = last_addr >> PAGE_SHIFT;
--	if (walk_system_ram_range(pfn, last_pfn - pfn + 1, NULL,
--				  __ioremap_check_ram) == 1)
-+	/* First check if whole region can be identified as RAM or not */
-+	ram_region = region_is_ram(phys_addr, size);
-+	if (ram_region > 0) {
-+		WARN_ONCE(1, "ioremap on RAM at 0x%lx - 0x%lx\n",
-+				(unsigned long int)phys_addr,
-+				(unsigned long int)last_addr);
- 		return NULL;
-+	}
+ extern int page_is_ram(unsigned long pfn);
++extern int region_is_ram(resource_size_t phys_addr, unsigned long size);
  
-+	/* If could not be identified(-1), check page by page */
-+	if (ram_region < 0) {
-+		pfn      = phys_addr >> PAGE_SHIFT;
-+		last_pfn = last_addr >> PAGE_SHIFT;
-+		if (walk_system_ram_range(pfn, last_pfn - pfn + 1, NULL,
-+					  __ioremap_check_ram) == 1)
-+			return NULL;
+ /* Support for virtually mapped pages */
+ struct page *vmalloc_to_page(const void *addr);
+--- linux.orig/kernel/resource.c
++++ linux/kernel/resource.c
+@@ -494,6 +494,42 @@ int __weak page_is_ram(unsigned long pfn
+ }
+ EXPORT_SYMBOL_GPL(page_is_ram);
+ 
++/*
++ * Search for a resouce entry that fully contains the specified region.
++ * If found, return 1 if it is RAM, 0 if not.
++ * If not found, or region is not fully contained, return -1
++ *
++ * Used by the ioremap functions to insure user not remapping RAM and is as
++ * vast speed up over walking through the resource table page by page.
++ */
++int region_is_ram(resource_size_t start, unsigned long size)
++{
++	struct resource *p;
++	resource_size_t end = start + size - 1;
++	int flags = IORESOURCE_MEM | IORESOURCE_BUSY;
++	const char *name = "System RAM";
++	int ret = -1;
++
++	read_lock(&resource_lock);
++	for (p = iomem_resource.child; p ; p = p->sibling) {
++		if (end < p->start)
++			continue;
++
++		if (p->start <= start && end <= p->end) {
++			/* resource fully contains region */
++			if ((p->flags != flags) || strcmp(p->name, name))
++				ret = 0;
++			else
++				ret = 1;
++			break;
++		}
++		if (p->end < start)
++			break;	/* not found */
 +	}
- 	/*
- 	 * Mappings have to be page-aligned
- 	 */
++	read_unlock(&resource_lock);
++	return ret;
++}
++
+ void __weak arch_remove_reservations(struct resource *avail)
+ {
+ }
 
 -- 
 
