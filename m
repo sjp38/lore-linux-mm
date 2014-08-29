@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id CB92E6B003A
-	for <linux-mm@kvack.org>; Fri, 29 Aug 2014 15:10:30 -0400 (EDT)
-Received: by mail-qg0-f45.google.com with SMTP id e89so2681506qgf.4
-        for <linux-mm@kvack.org>; Fri, 29 Aug 2014 12:10:30 -0700 (PDT)
-Received: from mail-qa0-x22c.google.com (mail-qa0-x22c.google.com [2607:f8b0:400d:c00::22c])
-        by mx.google.com with ESMTPS id w9si1440303qab.24.2014.08.29.12.10.29
+Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 893DB6B003C
+	for <linux-mm@kvack.org>; Fri, 29 Aug 2014 15:10:33 -0400 (EDT)
+Received: by mail-qa0-f53.google.com with SMTP id w8so2537755qac.26
+        for <linux-mm@kvack.org>; Fri, 29 Aug 2014 12:10:33 -0700 (PDT)
+Received: from mail-qg0-x233.google.com (mail-qg0-x233.google.com [2607:f8b0:400d:c04::233])
+        by mx.google.com with ESMTPS id d35si1421067qge.34.2014.08.29.12.10.32
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 29 Aug 2014 12:10:29 -0700 (PDT)
-Received: by mail-qa0-f44.google.com with SMTP id j7so2519603qaq.17
-        for <linux-mm@kvack.org>; Fri, 29 Aug 2014 12:10:29 -0700 (PDT)
+        Fri, 29 Aug 2014 12:10:32 -0700 (PDT)
+Received: by mail-qg0-f51.google.com with SMTP id i50so2748264qgf.10
+        for <linux-mm@kvack.org>; Fri, 29 Aug 2014 12:10:32 -0700 (PDT)
 From: j.glisse@gmail.com
-Subject: [RFC PATCH 2/6] lib: lockless generic and arch independent page table (gpt).
-Date: Fri, 29 Aug 2014 15:10:11 -0400
-Message-Id: <1409339415-3626-3-git-send-email-j.glisse@gmail.com>
+Subject: [RFC PATCH 3/6] hmm: heterogeneous memory management v5
+Date: Fri, 29 Aug 2014 15:10:12 -0400
+Message-Id: <1409339415-3626-4-git-send-email-j.glisse@gmail.com>
 In-Reply-To: <1409339415-3626-1-git-send-email-j.glisse@gmail.com>
 References: <1409339415-3626-1-git-send-email-j.glisse@gmail.com>
 MIME-Version: 1.0
@@ -23,63 +23,152 @@ Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Haggai Eran <haggaie@mellanox.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Jatin Kumar <jakumar@nvidia.com>
 
 From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-Page table is a common structure format most notably use by cpu mmu. The
-arch depend page table code has strong tie to the architecture which makes
-it unsuitable to be use by other non arch specific code.
+Motivation:
 
-This patch implement a generic and arch independent page table. It is generic
-in the sense that entry size can be any power of two smaller than PAGE_SIZE
-and each entry page size can cover a different power of two then PAGE_SIZE.
+Heterogeneous memory management is intended to allow a device to transparently
+access a process address space without having to lock pages of the process or
+take references on them. In other word mirroring a process address space while
+allowing the regular memory management event such as page reclamation or page
+migration, to happen seamlessly.
 
-It is lockless in the sense that at any point in time you can have concurrent
-thread updating the page table (removing or changing entry) and faulting in
-the page table (adding new entry). This is achieve by enforcing each updater
-and each faulter to take a range lock. There is no exclusion on range lock,
-ie several thread can fault or update the same range concurrently and it is
-the responsability of the user to synchronize update to the page table entry
-(pte), update to the page table directory (pdp) is under gpt responsability.
+Recent years have seen a surge into the number of specialized devices that are
+part of a computer platform (from desktop to phone). So far each of those
+devices have operated on there own private address space that is not link or
+expose to the process address space that is using them. This separation often
+leads to multiple memory copy happening between the device owned memory and the
+process memory. This of course is both a waste of cpu cycle and memory.
 
-API usage pattern is :
-  gpt_init()
+Over the last few years most of those devices have gained a full mmu allowing
+them to support multiple page table, page fault and other features that are
+found inside cpu mmu. There is now a strong incentive to start leveraging
+capabilities of such devices and to start sharing process address to avoid
+any unnecessary memory copy as well as simplifying the programming model of
+those devices by sharing an unique and common address space with the process
+that use them.
 
-  gpt_lock_update(lock_range)
-  // User can update pte for instance by using atomic bit operation
-  // allowing complete lockless update.
-  gpt_unlock_update(lock_range)
+The aim of the heterogeneous memory management is to provide a common API that
+can be use by any such devices in order to mirror process address. The hmm code
+provide an unique entry point and interface itself with the core mm code of the
+linux kernel avoiding duplicate implementation and shielding device driver code
+from core mm code.
 
-  gpt_lock_fault(lock_range)
-  // User can fault in pte but he is responsible for avoiding thread
-  // to concurrently fault the same pte and for properly accounting
-  // the number of pte faulted in the pdp structure.
-  gpt_unlock_fault(lock_range)
-  // The new faulted pte will only be visible to others updaters only
-  // once all faulter unlock.
+Moreover, hmm also intend to provide support for migrating memory to device
+private memory, allowing device to work on its own fast local memory. The hmm
+code would be responsible to intercept cpu page fault on migrated range and
+to migrate it back to system memory allowing cpu to resume its access to the
+memory.
 
-Details on how the lockless concurrent updater and faulter works is provided
-in the header file.
+Another feature hmm intend to provide is support for atomic operation for the
+device even if the bus linking the device and the cpu do not have any such
+capabilities. On such hardware atomic operation require the page to only be
+mapped on the device or on the cpu but not both at the same time.
+
+We expect that graphic processing unit and network interface to be among the
+first users of such api.
+
+Hardware requirement:
+
+Because hmm is intended to be use by device driver there are minimum features
+requirement for the hardware mmu :
+  - hardware have its own page table per process (can be share btw != devices)
+  - hardware mmu support page fault and suspend execution until the page fault
+    is serviced by hmm code. The page fault must also trigger some form of
+    interrupt so that hmm code can be call by the device driver.
+  - hardware must support at least read only mapping (otherwise it can not
+    access read only range of the process address space).
+  - hardware access to system memory must be cache coherent with the cpu.
+
+For better memory management it is highly recommanded that the device also
+support the following features :
+  - hardware mmu set access bit in its page table on memory access (like cpu).
+  - hardware page table can be updated from cpu or through a fast path.
+  - hardware provide advanced statistic over which range of memory it access
+    the most.
+  - hardware differentiate atomic memory access from regular access allowing
+    to support atomic operation even on platform that do not have atomic
+    support on the bus linking the device with the cpu.
+
+Implementation:
+
+The hmm layer provide a simple API to the device driver. Each device driver
+have to register and hmm device that holds pointer to all the callback the hmm
+code will make to synchronize the device page table with the cpu page table of
+a given process.
+
+For each process it wants to mirror the device driver must register a mirror
+hmm structure that holds all the informations specific to the process being
+mirrored. Each hmm mirror uniquely link an hmm device with a process address
+space (the mm struct).
+
+This design allow several different device driver to mirror concurrently the
+same process. The hmm layer will dispatch approprietly to each device driver
+modification that are happening to the process address space.
+
+The hmm layer rely on the mmu notifier api to monitor change to the process
+address space. Because update to device page table can have unbound completion
+time, the hmm layer need the capability to sleep during mmu notifier callback.
+
+This patch only implement the core of the hmm layer and do not support feature
+such as migration to device memory.
+
+Changed since v1:
+  - convert fence to refcounted object
+  - change the api to provide pte value directly avoiding useless temporary
+    special hmm pfn value
+  - cleanups & fixes ...
+
+Changed since v2:
+  - fixed checkpatch.pl warnings & errors
+  - converted to a staging feature
+
+Changed since v3:
+  - Use mmput notifier chain instead of adding hmm destroy call to mmput.
+  - Clear mm->hmm inside mm_init to be match mmu_notifier.
+  - Separate cpu page table invalidation from device page table fault to
+    have cleaner and simpler code for synchronization btw this two types
+    of event.
+  - Removing hmm_mirror kref and rely on user to manage lifetime of the
+    hmm_mirror.
+
+Changed since v4:
+  - Invalidate either in range_start() or in range_end() depending on the
+    kind of mmu event.
+  - Use the new generic page table implementation to keep an hmm mirror of
+    the cpu page table.
+  - Get rid of the range lock exclusion as it is no longer needed.
+  - Simplify the driver api.
+  - Support for hugue page.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
+Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
+Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
+Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
+Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+Signed-off-by: Jatin Kumar <jakumar@nvidia.com>
 ---
- include/linux/gpt.h | 625 ++++++++++++++++++++++++++++++++++++
- lib/Kconfig         |   3 +
- lib/Makefile        |   2 +
- lib/gpt.c           | 897 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 4 files changed, 1527 insertions(+)
- create mode 100644 include/linux/gpt.h
- create mode 100644 lib/gpt.c
+ include/linux/hmm.h      |  364 ++++++++++++++
+ include/linux/mm.h       |   11 +
+ include/linux/mm_types.h |   14 +
+ kernel/fork.c            |    2 +
+ mm/Kconfig               |   15 +
+ mm/Makefile              |    1 +
+ mm/hmm.c                 | 1253 ++++++++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 1660 insertions(+)
+ create mode 100644 include/linux/hmm.h
+ create mode 100644 mm/hmm.c
 
-diff --git a/include/linux/gpt.h b/include/linux/gpt.h
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
 new file mode 100644
-index 0000000..192935a
+index 0000000..f7c379b
 --- /dev/null
-+++ b/include/linux/gpt.h
-@@ -0,0 +1,625 @@
++++ b/include/linux/hmm.h
+@@ -0,0 +1,364 @@
 +/*
-+ * Copyright 2014 Red Hat Inc.
++ * Copyright 2013 Red Hat Inc.
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -93,646 +182,468 @@ index 0000000..192935a
 + *
 + * Authors: JA(C)rA'me Glisse <jglisse@redhat.com>
 + */
-+/*
-+ * High level overview
-+ * -------------------
++/* This is a heterogeneous memory management (hmm). In a nutshell this provide
++ * an API to mirror a process address on a device which has its own mmu using
++ * its own page table for the process. It supports everything except special
++ * vma.
 + *
-+ * This is a generic arch independant page table implementation with lockless
-+ * (allmost lockless) access. The content of the page table ie the page table
-+ * entry, are not protected by the gpt helper, it is up to the code using gpt
-+ * to protect the page table entry from concurrent update with no restriction
-+ * on the mechanism (can be atomic or can sleep).
++ * Mandatory hardware features :
++ *   - An mmu with pagetable.
++ *   - Read only flag per cpu page.
++ *   - Page fault ie hardware must stop and wait for kernel to service fault.
 + *
-+ * The gpt code only deals with protecting the page directory tree structure.
-+ * Which is done in a lockless way. Concurrent threads can read and or write
-+ * overlapping range of the gpt. There can also be concurrent insertion and
-+ * removal of page directory (insertion or removal of page table level).
++ * Optional hardware features :
++ *   - Dirty bit per cpu page.
++ *   - Access bit per cpu page.
 + *
-+ * While removal of page directory is completely lockless, insertion of new
-+ * page directory still require a lock (to avoid double insertion). If the
-+ * architecture have a spinlock in its page struct then several threads can
-+ * concurrently insert new directory (level) as long as they are inserting into
-+ * different page directory. Otherwise insertion will serialize using a common
-+ * spinlock. Note that insertion in this context only refer to inserting page
-+ * directory, it does not deal about page table entry insertion and again this
-+ * is the responsability of gpt user to properly synchronize those.
++ * The hmm code handle all the interfacing with the core kernel mm code and
++ * provide a simple API. It does support migrating system memory to device
++ * memory and handle migration back to system memory on cpu page fault.
 + *
-+ *
-+ * Each gpt access must be done under gpt lock protection by calling gpt_lock()
-+ * with a lock structure. Once a range is "locked" with gpt_lock() all access
-+ * can be done in lockless fashion, using either gpt_walk or gpt_iter helpers.
-+ * Note however that only directory that are considered as established will be
-+ * considered ie if a thread is concurently inserting a new directory in the
-+ * locked range then this directory will be ignore by gpt_walk or gpt_iter.
-+ *
-+ * This restriction comes from the lockless design. Some thread can hold a gpt
-+ * lock for long time but if it holds it for a period long enough some of the
-+ * internal gpt counter (unsigned long) might wrap around breaking all further
-+ * access (thought it is self healing after a period of time). So access
-+ * pattern to gpt should be :
-+ *   gpt_lock(gpt, lock)
-+ *   gpt_walk(gpt, lock, walk)
-+ *   gpt_unlock(gpt, lock)
-+ *
-+ * Walker callback can sleep but for for now longer than it would take for
-+ * other thread to wrap around internal gpt value through :
-+ *   gpt_lock_fault(gpt, lock)
-+ *   // user faulting in new pte
-+ *   gpt_unlock_fault(gpt, lock)
-+ *
-+ * The lockless design refer to gpt_lock() and gpt_unlock() taking a spinlock
-+ * only for adding/removing the lock struct to active lock list ie no more than
-+ * few instructions in both case leaving little room for lock contention.
-+ *
-+ * Moreover there is no memory allocation during gpt_lock() or gpt_unlock() or
-+ * gpt_walk(). The only constraint is that the lock struct must be the same for
-+ * gpt_lock(), gpt_unlock() and gpt_walk() so gpt_lock struct might need to be
-+ * allocated. This is however a small struct.
-+ *
-+ *
-+ * Internal of gpt synchronization :
-+ * ---------------------------------
-+ *
-+ * For the curious here is how gpt page directory access are synchronize with
-+ * each others.
-+ *
-+ * Each time a user want to access a range of the gpt it must take a lock on
-+ * the range using gpt_lock(). Each lock is associated with a serial number
-+ * that is the current serial number for insertion (ie all new page directory
-+ * will be assigned this serial number). Each lock holder will take a reference
-+ * on each page directory that is older than its serial number (ie each page
-+ * directory that are now considered alive).
-+ *
-+ * So page directory and lock holder form a timeline with following a regular
-+ * expression :
-+ *   (o*)h((r)*(a)*)*s
-+ * With :
-+ *   o : old directory page
-+ *   h : oldest active lock holder (ie lock holder with the smallest serial
-+ *       number)
-+ *   r : recent directory page added after oldest lock holder
-+ *   a : recent lock holder (ie lock holder with a serial number greater than
-+ *       the oldest active lock holder serial number)
-+ *   s : current serial number ie the serial number that is use by any thread
-+ *       actively adding new page directory.
-+ *
-+ * So few rules are in place, 's' will only increase once all thread using a
-+ * serial number are done inserting new page directory. So new page directory
-+ * go into the 'r' state once gpt_unlock_fault() is call.
-+ *
-+ * Now what is important is to keep the relationship between each lock holder
-+ * ('h' and 'a' state) and each recent directory page ('r' state) intact so
-+ * that when unlocking only page directory that were referenced by the lock
-+ * holder at lock time are unreferenced. This is simple, if page directory
-+ * serial number is older that lock serial number then we know that this page
-+ * directory was know at lock time and thus was referenced. Otherwise this is
-+ * a recent directory page that was unknown (or skip) during lock operation.
-+ *
-+ * Same rules apply when walking the directory, gpt will only consider page
-+ * directory that have an older serial number than the lock serial number.
-+ *
-+ * There is two issue that needs to be solve. First issue is wrap around of
-+ * serial number, it is solve by using unsigned long and the jiffies helpers
-+ * for comparing time (simple sign trick).
-+ *
-+ * However this first issue imply a second one, some page directory might sit
-+ * inside the gpt without being visited for a long period so long that the
-+ * current serial number wrapped around and is now smaller to this very old
-+ * serial number leading to invalid assumption about this page directory.
-+ *
-+ * Trying to update old serial number is cumberstone and tricky with the lock
-+ * less design of gpt. Not to mention this would need to happen at regular
-+ * interval.
-+ *
-+ * Instead the problem can be simplify by noticing that we only care about page
-+ * directory that were added after the oldest active lock 'h' everything added
-+ * before was know to all gpt lock holder and thus reference. So all is needed
-+ * is to keep track of serial number for page directory recently added and move
-+ * those page directory to the old status once the oldest active lock serial
-+ * number is after there serial number.
-+ *
-+ * To do this, gpt place new page directory on list, it is naturally sorted as
-+ * new page directory are added at the end. Each time gpt_unlock() is call the
-+ * new oldest lock serial number is found and the new page directory list is
-+ * traversed and entry that are now older than the oldest lock serial number
-+ * are remove.
-+ *
-+ * So if a page directory is not on the recent list then lock holder knows for
-+ * sure they have to unreference it during gpt_unlock() or traverse it during
-+ * gpt_walk().
-+ *
-+ * So issue can only happen if a thread hold a lock long enough for the serial
-+ * number to wrap around which would block page directory on the recent list
-+ * from being properly remove and lead to wrong assumption about how old is a
-+ * directory page.
-+ *
-+ * Page directory removal is easier, each page directory keeps a count of the
-+ * number of valid entry they have and number of lock that took a reference
-+ * on it. So when this count drop to 0 gpt code knows that no thread is trying
-+ * to access this page directory nor this page directory have any valid entry
-+ * left thus it can safely be remove. This use atomic counter and rcu read
-+ * section for synchronization.
++ * Migrated memory is considered as swaped from cpu and core mm code point of
++ * view.
 + */
-+#ifndef __LINUX_GPT_H
-+#define __LINUX_GPT_H
++#ifndef _HMM_H
++#define _HMM_H
 +
-+#include <linux/mm.h>
-+#include <asm/types.h>
++#ifdef CONFIG_HMM
 +
-+#ifdef CONFIG_64BIT
-+#define GPT_PDIR_NBITS		((unsigned long)PAGE_SHIFT - 3UL)
-+#else
-+#define GPT_PDIR_NBITS		((unsigned long)PAGE_SHIFT - 2UL)
-+#endif
-+#define GPT_PDIR_MASK		((1UL << GPT_PDIR_NBITS) - 1UL)
++#include <linux/list.h>
++#include <linux/rwsem.h>
++#include <linux/spinlock.h>
++#include <linux/atomic.h>
++#include <linux/mm_types.h>
++#include <linux/mmu_notifier.h>
++#include <linux/workqueue.h>
++#include <linux/swap.h>
++#include <linux/swapops.h>
++#include <linux/mman.h>
 +
-+struct gpt;
-+struct gpt_lock;
-+struct gpt_walk;
-+struct gpt_iter;
 +
-+/* struct gpt_ops - generic page table operations.
++struct hmm_device;
++struct hmm_device_ops;
++struct hmm_mirror;
++struct hmm_event;
++struct hmm;
++
++
++/* hmm_fence - device driver fence to wait for device driver operations.
 + *
-+ * @lock_update: Lock address range for update.
-+ * @unlock_update: Unlock address range after update.
-+ * @lock_fault: Lock address range for fault.
-+ * @unlock_fault: Unlock address range after fault.
++ * In order to concurrently update several different devices mmu the hmm rely
++ * on device driver fence to wait for operation hmm schedules to complete on
++ * devices. It is strongly recommanded to implement fences and have the hmm
++ * callback do as little as possible (just scheduling the update and returning
++ * a fence). Moreover the hmm code will reschedule for i/o the current process
++ * if necessary once it has scheduled all updates on all devices.
 + *
-+ * The generic page table use lock hold accross update or fault operation to
-+ * synchronize concurrent updater and faulter thread with each other. Because
-+ * generic page table is configurable it needs different function depending if
-+ * the page table is flat one (ie just one level) or a tree one (ie several
-+ * levels).
++ * Each fence is created as a result of either an update to range of memory or
++ * for remote memory to/from local memory dma.
++ *
++ * Update to range of memory correspond to a specific event type. For instance
++ * range of memory is unmap for page reclamation, or range of memory is unmap
++ * from process address space as result of munmap syscall (HMM_MUNMAP), or a
++ * memory protection change on the range. There is one hmm_etype for each of
++ * those event allowing the device driver to take appropriate action like for
++ * instance freeing device page table on HMM_MUNMAP but keeping it when it is
++ * just an access protection change or temporary unmap.
 + */
-+struct gpt_ops {
-+	void (*lock_update)(struct gpt *gpt, struct gpt_lock *lock);
-+	void (*unlock_update)(struct gpt *gpt, struct gpt_lock *lock);
-+	int (*lock_fault)(struct gpt *gpt, struct gpt_lock *lock);
-+	void (*unlock_fault)(struct gpt *gpt, struct gpt_lock *lock);
-+	int (*walk)(struct gpt_walk *walk,
-+		    struct gpt *gpt,
-+		    struct gpt_lock *lock);
-+	bool (*iter_addr)(struct gpt_iter *iter, unsigned long addr);
-+	bool (*iter_first)(struct gpt_iter *iter,
-+			   unsigned long start,
-+			   unsigned long end);
++enum hmm_etype {
++	HMM_NONE = 0,
++	HMM_ISDIRTY,
++	HMM_MIGRATE,
++	HMM_MUNMAP,
++	HMM_RFAULT,
++	HMM_WFAULT,
++	HMM_WRITE_PROTECT,
++};
++
++struct hmm_fence {
++	struct hmm_mirror	*mirror;
++	struct list_head	list;
 +};
 +
 +
-+/* struct gpt_user_ops - generic page table user provided operations.
++/* struct hmm_event - used to serialize change to overlapping range of address.
 + *
-+ * @pde_from_pdp: Return page directory entry that correspond to a page
-+ * directory page. This allow user to use there own custom page directory
-+ * entry format for all page directory level.
++ * @list: Core hmm keep track of all active events.
++ * @start: First address (inclusive).
++ * @end: Last address (exclusive).
++ * @fences: List of device fences associated with this event.
++ * @etype: Event type (munmap, migrate, truncate, ...).
++ * @backoff: Only meaningful for device page fault.
 + */
-+struct gpt_user_ops {
-+	unsigned long (*pde_from_pdp)(struct gpt *gpt, struct page *pdp);
-+};
-+
-+
-+/* struct gpt - generic page table structure.
-+ *
-+ * @ops: Generic page table operations.
-+ * @user_ops: User provided gpt operation (if null use default implementation).
-+ * @pgd: Page global directory if multi level (tree page table).
-+ * @pte: Page table entry if single level (flat page table).
-+ * @faulters: List of all concurrent fault locks.
-+ * @updaters: List of all concurrent update locks.
-+ * @pdp_young: List of all young page directory page.
-+ * @pdp_free: List of all page directory page to free (delayed free).
-+ * @max_addr: Maximum address that can index this page table (inclusive).
-+ * @min_serial: Oldest serial number use by the oldest updater.
-+ * @updater_serial: Current serial number use for updater.
-+ * @faulter_serial: Current serial number use for faulter.
-+ * @page_shift: The size as power of two of each table entry.
-+ * @pde_size: Size of page directory entry (sizeof(long) for instance).
-+ * @pfn_mask: Mask bit significant for page frame number of directory entry.
-+ * @pfn_shift: Shift value to get the pfn from a page directory entry.
-+ * @pfn_valid: Mask to know if a page directory entry is valid.
-+ * @pgd_shift: Shift value to get the index inside the pgd from an address.
-+ * @pld_shift: Page lower directory shift. This is shift value for the lowest
-+ * page directory ie the page directory containing pfn of page table entry
-+ * array. For instance if page_shift is 12 (4096 bytes) and each entry require
-+ * 1 bytes then :
-+ *   pld_shift = 12 + (PAGE_SHIFT - 0) = 12 + PAGE_SHIFT.
-+ * Now if each entry cover 4096 bytes and  each entry require 2 bytes then :
-+ *   pld_shift = 12 + (PAGE_SHIFT - 1) = 11 + PAGE_SHIFT.
-+ * @pte_mask: Mask bit significant for indexing page table entry (pte) array.
-+ * @pte_shift: Size shift for each page table entry (0 if each entry is one
-+ * byte, 1 if each entry is 2 bytes, ...).
-+ * @lock: Lock protecting serial number and updaters/faulters list.
-+ * @pgd_lock: Lock protecting pgd level (and all level if arch do not have room
-+ * for spinlock inside its page struct).
-+ */
-+struct gpt {
-+	const struct gpt_ops		*ops;
-+	const struct gpt_user_ops	*user_ops;
-+	union {
-+		unsigned long		*pgd;
-+		void			*pte;
-+	};
-+	struct list_head		faulters;
-+	struct list_head		updaters;
-+	struct list_head		pdp_young;
-+	struct list_head		pdp_free;
-+	unsigned long			max_addr;
-+	unsigned long			min_serial;
-+	unsigned long			faulter_serial;
-+	unsigned long			updater_serial;
-+	unsigned long			page_shift;
-+	unsigned long			pde_size;
-+	unsigned long			pfn_invalid;
-+	unsigned long			pfn_mask;
-+	unsigned long			pfn_shift;
-+	unsigned long			pfn_valid;
-+	unsigned long			pgd_shift;
-+	unsigned long			pld_shift;
-+	unsigned long			pte_mask;
-+	unsigned long			pte_shift;
-+	unsigned			gfp_flags;
-+	spinlock_t			lock;
-+	spinlock_t			pgd_lock;
-+};
-+
-+void gpt_free(struct gpt *gpt);
-+int gpt_init(struct gpt *gpt);
-+
-+static inline unsigned long gpt_align_start_addr(struct gpt *gpt,
-+						 unsigned long addr)
-+{
-+	return addr & ~((1UL << gpt->page_shift) - 1UL);
-+}
-+
-+static inline unsigned long gpt_align_end_addr(struct gpt *gpt,
-+					       unsigned long addr)
-+{
-+	return addr | ((1UL << gpt->page_shift) - 1UL);
-+}
-+
-+static inline unsigned long gpt_pdp_shift(struct gpt *gpt, struct page *pdp)
-+{
-+	if (!pdp)
-+		return gpt->pgd_shift;
-+	return pdp->flags & 0xff;
-+}
-+
-+static inline unsigned long gpt_pdp_start(struct gpt *gpt, struct page *pdp)
-+{
-+	if (!pdp)
-+		return 0UL;
-+	return pdp->index;
-+}
-+
-+static inline unsigned long gpt_pdp_end(struct gpt *gpt, struct page *pdp)
-+{
-+	if (!pdp)
-+		return gpt->max_addr;
-+	return pdp->index + (1UL << gpt_pdp_shift(gpt, pdp)) - 1UL;
-+}
-+
-+static inline bool gpt_pdp_cover_addr(struct gpt *gpt,
-+				      struct page *pdp,
-+				      unsigned long addr)
-+{
-+	return (addr >= gpt_pdp_start(gpt, pdp)) &&
-+	       (addr <= gpt_pdp_end(gpt, pdp));
-+}
-+
-+static inline bool gpt_pde_valid(struct gpt *gpt, unsigned long pde)
-+{
-+	return (pde & gpt->pfn_valid) && !(pde & gpt->pfn_invalid);
-+}
-+
-+static inline struct page *gpt_pde_pdp(struct gpt *gpt,
-+				       volatile unsigned long *pde)
-+{
-+	unsigned long tmp = *pde;
-+
-+	if (!gpt_pde_valid(gpt, tmp))
-+		return NULL;
-+
-+	return pfn_to_page((tmp & gpt->pfn_mask) >> gpt->pfn_shift);
-+}
-+
-+#if USE_SPLIT_PTE_PTLOCKS && !ALLOC_SPLIT_PTLOCKS
-+static inline void gpt_pdp_lock(struct gpt *gpt, struct page  *pdp)
-+{
-+	if (pdp)
-+		spin_lock(&page->ptl);
-+	else
-+		spin_lock(&gpt->pgd_lock);
-+}
-+
-+static inline void gpt_pdp_unlock(struct gpt *gpt, struct page  *pdp)
-+{
-+	if (pdp)
-+		spin_unlock(&page->ptl);
-+	else
-+		spin_unlock(&gpt->pgd_lock);
-+}
-+#else /* USE_SPLIT_PTE_PTLOCKS && !ALLOC_SPLIT_PTLOCKS */
-+static inline void gpt_pdp_lock(struct gpt *gpt, struct page  *pdp)
-+{
-+	spin_lock(&gpt->pgd_lock);
-+}
-+
-+static inline void gpt_pdp_unlock(struct gpt *gpt, struct page  *pdp)
-+{
-+	spin_unlock(&gpt->pgd_lock);
-+}
-+#endif /* USE_SPLIT_PTE_PTLOCKS && !ALLOC_SPLIT_PTLOCKS */
-+
-+static inline void gpt_ptp_ref(struct gpt *gpt, struct page  *ptp)
-+{
-+	if (ptp)
-+		atomic_inc(&ptp->_mapcount);
-+}
-+
-+static inline void gpt_ptp_unref(struct gpt *gpt, struct page  *ptp)
-+{
-+	if (ptp && atomic_dec_and_test(&ptp->_mapcount))
-+		BUG();
-+}
-+
-+static inline void gpt_ptp_batch_ref(struct gpt *gpt, struct page  *ptp, int n)
-+{
-+	if (ptp)
-+		atomic_add(n, &ptp->_mapcount);
-+}
-+
-+static inline void gpt_ptp_batch_unref(struct gpt *gpt,
-+				       struct page  *ptp,
-+				       int n)
-+{
-+	if (ptp && atomic_sub_and_test(n, &ptp->_mapcount))
-+		BUG();
-+}
-+
-+static inline void *gpt_ptp_pte(struct gpt *gpt, struct page *ptp)
-+{
-+	if (!ptp)
-+		return gpt->pte;
-+	return page_address(ptp);
-+}
-+
-+static inline void *gpt_pte_from_addr(struct gpt *gpt,
-+				      struct page *ptp,
-+				      void *pte,
-+				      unsigned long addr)
-+{
-+	addr = ((addr & gpt->pte_mask) >> gpt->page_shift) << gpt->pte_shift;
-+	if (!ptp)
-+		return gpt->pte += addr;
-+	return (void *)(((unsigned long)pte & PAGE_MASK) + addr);
-+}
-+
-+
-+/* struct gpt_lock - generic page table range lock structure.
-+ *
-+ * @list: List struct for active lock holder lists.
-+ * @start: Start address of the locked range (inclusive).
-+ * @end: End address of the locked range (inclusive).
-+ * @serial: Serial number associated with that lock.
-+ *
-+ * Before any read/update access to a range of the generic page table, it must
-+ * be locked to synchronize with conurrent read/update and insertion. In most
-+ * case gpt_lock will complete with only taking one spinlock for protecting the
-+ * struct insertion in the active lock holder list (either updaters or faulters
-+ * list depending if calling gpt_lock() or gpt_fault_lock()).
-+ */
-+struct gpt_lock {
++struct hmm_event {
 +	struct list_head	list;
 +	unsigned long		start;
 +	unsigned long		end;
-+	unsigned long		serial;
-+	bool (*hold)(struct gpt_lock *lock, struct page *pdp);
++	struct list_head	fences;
++	enum hmm_etype		etype;
++	bool			backoff;
 +};
 +
-+static inline int gpt_lock_update(struct gpt *gpt, struct gpt_lock *lock)
-+{
-+	lock->start = gpt_align_start_addr(gpt, lock->start);
-+	lock->end = gpt_align_end_addr(gpt, lock->end);
-+	if ((lock->start >= lock->end) || (lock->end > gpt->max_addr))
-+		return -EINVAL;
 +
-+	if (gpt->ops->lock_update)
-+		gpt->ops->lock_update(gpt, lock);
-+	return 0;
-+}
-+
-+static inline void gpt_unlock_update(struct gpt *gpt, struct gpt_lock *lock)
-+{
-+	if ((lock->start >= lock->end) || (lock->end > gpt->max_addr))
-+		BUG();
-+	if (list_empty(&lock->list))
-+		BUG();
-+
-+	if (gpt->ops->unlock_update)
-+		gpt->ops->unlock_update(gpt, lock);
-+}
-+
-+static inline int gpt_lock_fault(struct gpt *gpt, struct gpt_lock *lock)
-+{
-+	lock->start = gpt_align_start_addr(gpt, lock->start);
-+	lock->end = gpt_align_end_addr(gpt, lock->end);
-+	if ((lock->start >= lock->end) || (lock->end > gpt->max_addr))
-+		return -EINVAL;
-+
-+	if (gpt->ops->lock_fault)
-+		return gpt->ops->lock_fault(gpt, lock);
-+	return 0;
-+}
-+
-+static inline void gpt_unlock_fault(struct gpt *gpt, struct gpt_lock *lock)
-+{
-+	if ((lock->start >= lock->end) || (lock->end > gpt->max_addr))
-+		BUG();
-+	if (list_empty(&lock->list))
-+		BUG();
-+
-+	if (gpt->ops->unlock_fault)
-+		gpt->ops->unlock_fault(gpt, lock);
-+}
-+
-+
-+/* struct gpt_walk - generic page table range walker structure.
++/* struct hmm_range - used to communicate range infos to various callback.
 + *
-+ * @lock: The lock protecting this iterator.
-+ * @start: Start address of the walked range (inclusive).
-+ * @end: End address of the walked range (inclusive).
-+ *
-+ * This is similar to the cpu page table walker. It allows to walk a range of
-+ * the generic page table. Note that gpt walk does not imply protection hence
-+ * you must call gpt_lock() prior to using gpt_walk() if you want to safely
-+ * walk the range as otherwise you will be open to all kind of synchronization
-+ * issue.
++ * @pte: The hmm page table entry for the range.
++ * @ptp: The page directory page struct.
++ * @start: First address (inclusive).
++ * @end: Last address (exclusive).
 + */
-+struct gpt_walk {
-+	int (*pte)(struct gpt *gpt,
-+		   struct gpt_walk *walk,
-+		   struct page *pdp,
-+		   void *pte,
-+		   unsigned long start,
-+		   unsigned long end);
-+	int (*pde)(struct gpt *gpt,
-+		   struct gpt_walk *walk,
-+		   struct page *pdp,
-+		   volatile unsigned long *pde,
-+		   unsigned long start,
-+		   unsigned long end,
-+		   unsigned long shift);
-+	int (*pde_post)(struct gpt *gpt,
-+			struct gpt_walk *walk,
-+			struct page *pdp,
-+			volatile unsigned long *pde,
-+			unsigned long start,
-+			unsigned long end,
-+			unsigned long shift);
-+	struct gpt_lock	*lock;
-+	unsigned long	start;
-+	unsigned long	end;
-+	void		*data;
++struct hmm_range {
++	unsigned long		*pte;
++	struct page		*ptp;
++	unsigned long		start;
++	unsigned long		end;
 +};
 +
-+static inline int gpt_walk(struct gpt_walk *walk,
-+			   struct gpt *gpt,
-+			   struct gpt_lock *lock)
++static inline unsigned long hmm_range_size(struct hmm_range *range)
 +{
-+	if ((lock->start >= lock->end) || (lock->end > gpt->max_addr))
-+		return -EINVAL;
-+	if (list_empty(&lock->list))
-+		return -EINVAL;
-+	if (!((lock->start <= walk->start) && (lock->end >= walk->end)))
-+		return -EINVAL;
++	return range->end - range->start;
++}
 +
-+	walk->lock = lock;
-+	return gpt->ops->walk(walk, gpt, lock);
++#define HMM_PTE_VALID_PDIR_BIT	0UL
++#define HMM_PTE_VALID_SMEM_BIT	1UL
++#define HMM_PTE_WRITE_BIT	2UL
++#define HMM_PTE_DIRTY_BIT	3UL
++
++static inline unsigned long hmm_pte_from_pfn(unsigned long pfn)
++{
++	return (pfn << PAGE_SHIFT) | (1UL << HMM_PTE_VALID_SMEM_BIT);
++}
++
++static inline void hmm_pte_mk_dirty(volatile unsigned long *hmm_pte)
++{
++	set_bit(HMM_PTE_DIRTY_BIT, hmm_pte);
++}
++
++static inline void hmm_pte_mk_write(volatile unsigned long *hmm_pte)
++{
++	set_bit(HMM_PTE_WRITE_BIT, hmm_pte);
++}
++
++static inline bool hmm_pte_clear_valid_smem(volatile unsigned long *hmm_pte)
++{
++	return test_and_clear_bit(HMM_PTE_VALID_SMEM_BIT, hmm_pte);
++}
++
++static inline bool hmm_pte_clear_write(volatile unsigned long *hmm_pte)
++{
++	return test_and_clear_bit(HMM_PTE_WRITE_BIT, hmm_pte);
++}
++
++static inline bool hmm_pte_is_valid_smem(const volatile unsigned long *hmm_pte)
++{
++	return test_bit(HMM_PTE_VALID_SMEM_BIT, hmm_pte);
++}
++
++static inline bool hmm_pte_is_write(const volatile unsigned long *hmm_pte)
++{
++	return test_bit(HMM_PTE_WRITE_BIT, hmm_pte);
++}
++
++static inline unsigned long hmm_pte_pfn(unsigned long hmm_pte)
++{
++	return hmm_pte >> PAGE_SHIFT;
 +}
 +
 +
-+/* struct gpt_iter - generic page table range iterator structure.
++/* hmm_device - Each device driver must register one and only one hmm_device.
 + *
-+ * @gpt: The generic page table structure.
-+ * @lock: The lock protecting this iterator.
-+ * @ptp: Current page directory page.
-+ * @pte: Current page table entry array corresponding to pdp.
-+ * @pte_addr: Page table entry address.
-+ *
-+ * This allow to iterate over a range of generic page table. The range you want
-+ * to iterate over must be locked. First call gpt_iter_start() then to iterate
-+ * simply call gpt_iter_next() which return false once you reached the end.
++ * The hmm_device is the link btw hmm and each device driver.
 + */
-+struct gpt_iter {
-+	struct gpt	*gpt;
-+	struct gpt_lock	*lock;
-+	struct page	*ptp;
-+	void		*pte;
-+	unsigned long	pte_addr;
++
++/* struct hmm_device_operations - hmm device operation callback
++ */
++struct hmm_device_ops {
++	/* mirror_ref() - take reference on mirror struct.
++	 *
++	 * @mirror: Struct being referenced.
++	 */
++	struct hmm_mirror *(*mirror_ref)(struct hmm_mirror *hmm_mirror);
++
++	/* mirror_unref() - drop reference on mirror struct.
++	 *
++	 * @mirror: Struct being dereferenced.
++	 */
++	struct hmm_mirror *(*mirror_unref)(struct hmm_mirror *hmm_mirror);
++
++	/* mirror_release() - device must stop using the address space.
++	 *
++	 * @mirror: The mirror that link process address space with the device.
++	 *
++	 * This callback is call either on mm destruction or as result to a
++	 * call of hmm_mirror_release(). Device driver have to stop all hw
++	 * thread and all usage of the address space, it has to dirty all
++	 * pages that have been dirty by the device.
++	 */
++	void (*mirror_release)(struct hmm_mirror *hmm_mirror);
++
++	/* fence_wait() - to wait on device driver fence.
++	 *
++	 * @fence: The device driver fence struct.
++	 * Returns: 0 on success,-EIO on error, -EAGAIN to wait again.
++	 *
++	 * Called when hmm want to wait for all operations associated with a
++	 * fence to complete (including device cache flush if the event mandate
++	 * it).
++	 *
++	 * Device driver must free fence and associated resources if it returns
++	 * something else thant -EAGAIN. On -EAGAIN the fence must not be free
++	 * as hmm will call back again.
++	 *
++	 * Return error if scheduled operation failed or if need to wait again.
++	 * -EIO Some input/output error with the device.
++	 * -EAGAIN The fence not yet signaled, hmm reschedule waiting thread.
++	 *
++	 * All other return value trigger warning and are transformed to -EIO.
++	 */
++	int (*fence_wait)(struct hmm_fence *fence);
++
++	/* fence_ref() - take a reference fence structure.
++	 *
++	 * @fence: Fence structure hmm is referencing.
++	 */
++	void (*fence_ref)(struct hmm_fence *fence);
++
++	/* fence_unref() - drop a reference fence structure.
++	 *
++	 * @fence: Fence structure hmm is dereferencing.
++	 */
++	void (*fence_unref)(struct hmm_fence *fence);
++
++	/* update() - update device mmu for a range of address.
++	 *
++	 * @mirror: The mirror that link process address space with the device.
++	 * @event: The event that triggered the update.
++	 * @range: All informations about the range that needs to be updated.
++	 * Returns: Valid fence ptr or NULL on success otherwise ERR_PTR.
++	 *
++	 * Called to update device page table for a range of address.
++	 * The event type provide the nature of the update :
++	 *   - Range is no longer valid (munmap).
++	 *   - Range protection changes (mprotect, COW, ...).
++	 *   - Range is unmapped (swap, reclaim, page migration, ...).
++	 *   - Device page fault.
++	 *   - ...
++	 *
++	 * Any event that block further write to the memory must also trigger a
++	 * device cache flush and everything has to be flush to local memory by
++	 * the time the wait callback return (if this callback returned a fence
++	 * otherwise everything must be flush by the time the callback return).
++	 *
++	 * Device must properly set the dirty bit using hmm_pte_mk_dirty helper
++	 * on each hmm page table entry.
++	 *
++	 * The driver should return a fence pointer or NULL on success. Device
++	 * driver should return fence and delay wait for the operation to the
++	 * fence wait callback. Returning a fence allow hmm to batch update to
++	 * several devices and delay wait on those once they all have scheduled
++	 * the update.
++	 *
++	 * Device driver must not fail lightly, any failure result in device
++	 * process being kill.
++	 *
++	 * Return fence or NULL on success, error value otherwise :
++	 * -ENOMEM Not enough memory for performing the operation.
++	 * -EIO    Some input/output error with the device.
++	 *
++	 * All other return value trigger warning and are transformed to -EIO.
++	 */
++	struct hmm_fence *(*update)(struct hmm_mirror *mirror,
++				    struct hmm_event *event,
++				    const struct hmm_range *range);
 +};
 +
-+static inline void gpt_iter_init(struct gpt_iter *iter,
-+				 struct gpt *gpt,
-+				 struct gpt_lock *lock)
++
++/* struct hmm_device - per device hmm structure
++ *
++ * @name: Device name (uniquely identify the device on the system).
++ * @ops: The hmm operations callback.
++ * @mirrors: List of all active mirrors for the device.
++ * @mutex: Mutex protecting mirrors list.
++ *
++ * Each device that want to mirror an address space must register one of this
++ * struct (only once).
++ */
++struct hmm_device {
++	const char			*name;
++	const struct hmm_device_ops	*ops;
++	struct list_head		mirrors;
++	struct mutex			mutex;
++};
++
++int hmm_device_register(struct hmm_device *device);
++int hmm_device_unregister(struct hmm_device *device);
++
++
++/* hmm_mirror - device specific mirroring functions.
++ *
++ * Each device that mirror a process has a uniq hmm_mirror struct associating
++ * the process address space with the device. Same process can be mirrored by
++ * several different devices at the same time.
++ */
++
++/* struct hmm_mirror - per device and per mm hmm structure
++ *
++ * @device: The hmm_device struct this hmm_mirror is associated to.
++ * @hmm: The hmm struct this hmm_mirror is associated to.
++ * @dlist: List of all hmm_mirror for same device.
++ * @mlist: List of all hmm_mirror for same process.
++ * @work: Work struct for delayed unreference.
++ *
++ * Each device that want to mirror an address space must register one of this
++ * struct for each of the address space it wants to mirror. Same device can
++ * mirror several different address space. As well same address space can be
++ * mirror by different devices.
++ */
++struct hmm_mirror {
++	struct hmm_device	*device;
++	struct hmm		*hmm;
++	struct list_head	dlist;
++	struct list_head	mlist;
++	struct work_struct	work;
++};
++
++int hmm_mirror_register(struct hmm_mirror *mirror,
++			struct hmm_device *device,
++			struct mm_struct *mm);
++void hmm_mirror_unregister(struct hmm_mirror *mirror);
++
++static inline struct hmm_mirror *hmm_mirror_ref(struct hmm_mirror *mirror)
 +{
-+	iter->gpt = gpt;
-+	iter->lock = lock;
-+	iter->ptp = NULL;
-+	iter->pte = NULL;
++	if (!mirror || !mirror->device)
++		return NULL;
++
++	return mirror->device->ops->mirror_ref(mirror);
 +}
 +
-+static inline bool gpt_iter_addr(struct gpt_iter *iter, unsigned long addr)
++static inline struct hmm_mirror *hmm_mirror_unref(struct hmm_mirror *mirror)
 +{
-+	addr = gpt_align_start_addr(iter->gpt, addr);
-+	if ((addr < iter->lock->start) || (addr > iter->lock->end)) {
-+		iter->ptp = NULL;
-+		iter->pte = NULL;
-+		return false;
-+	}
-+	if (iter->pte && gpt_pdp_cover_addr(iter->gpt, iter->ptp, addr)) {
-+		struct gpt *gpt = iter->gpt;
++	if (!mirror || !mirror->device)
++		return NULL;
 +
-+		iter->pte = gpt_pte_from_addr(gpt, iter->ptp, iter->pte, addr);
-+		iter->pte_addr = addr;
-+		return true;
-+	}
-+
-+	return iter->gpt->ops->iter_addr(iter, addr);
++	return mirror->device->ops->mirror_unref(mirror);
 +}
 +
-+static inline bool gpt_iter_first(struct gpt_iter *iter,
-+				  unsigned long start,
-+				  unsigned long end)
-+{
-+	start = gpt_align_start_addr(iter->gpt, start);
-+	end = gpt_align_end_addr(iter->gpt, start);
-+	if (!((start >= iter->lock->start) && (end <= iter->lock->end))) {
-+		iter->ptp = NULL;
-+		iter->pte = NULL;
-+		return false;
-+	}
-+	if (iter->pte && gpt_pdp_cover_addr(iter->gpt, iter->ptp, start)) {
-+		struct gpt *gpt = iter->gpt;
-+
-+		iter->pte = gpt_pte_from_addr(gpt, iter->ptp, iter->pte, start);
-+		iter->pte_addr = start;
-+		return true;
-+	}
-+
-+	return iter->gpt->ops->iter_first(iter, start, end);
-+}
-+
-+static inline bool gpt_iter_next(struct gpt_iter *iter)
-+{
-+	unsigned long start;
-+
-+	if (!iter->pte) {
-+		iter->ptp = NULL;
-+		iter->pte = NULL;
-+		return false;
-+	}
-+
-+	start = iter->pte_addr + (1UL << iter->gpt->page_shift);
-+	if (start > iter->lock->end) {
-+		iter->ptp = NULL;
-+		iter->pte = NULL;
-+		return false;
-+	}
-+
-+	return iter->gpt->ops->iter_first(iter, start, iter->lock->end);
-+}
++void hmm_mirror_release(struct hmm_mirror *mirror);
++int hmm_mirror_fault(struct hmm_mirror *mirror, struct hmm_event *event);
 +
 +
-+#endif /* __LINUX_GPT_H */
-diff --git a/lib/Kconfig b/lib/Kconfig
-index a5ce0c7..176be56 100644
---- a/lib/Kconfig
-+++ b/lib/Kconfig
-@@ -515,4 +515,7 @@ source "lib/fonts/Kconfig"
- config ARCH_HAS_SG_CHAIN
- 	def_bool n
++#endif /* CONFIG_HMM */
++#endif
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 8981cc8..2237ceb 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2120,5 +2120,16 @@ void __init setup_nr_node_ids(void);
+ static inline void setup_nr_node_ids(void) {}
+ #endif
  
-+config GENERIC_PAGE_TABLE
-+	bool
++#ifdef CONFIG_HMM
++static inline void hmm_mm_init(struct mm_struct *mm)
++{
++	mm->hmm = NULL;
++}
++#else /* !CONFIG_HMM */
++static inline void hmm_mm_init(struct mm_struct *mm)
++{
++}
++#endif /* !CONFIG_HMM */
 +
- endmenu
-diff --git a/lib/Makefile b/lib/Makefile
-index d6b4bc4..eae4516 100644
---- a/lib/Makefile
-+++ b/lib/Makefile
-@@ -196,3 +196,5 @@ quiet_cmd_build_OID_registry = GEN     $@
- clean-files	+= oid_registry_data.c
+ #endif /* __KERNEL__ */
+ #endif /* _LINUX_MM_H */
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 6e0b286..7eeff71 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -16,6 +16,10 @@
+ #include <asm/page.h>
+ #include <asm/mmu.h>
  
- obj-$(CONFIG_UCS2_STRING) += ucs2_string.o
++#ifdef CONFIG_HMM
++struct hmm;
++#endif
 +
-+obj-$(CONFIG_GENERIC_PAGE_TABLE) += gpt.o
-diff --git a/lib/gpt.c b/lib/gpt.c
+ #ifndef AT_VECTOR_SIZE_ARCH
+ #define AT_VECTOR_SIZE_ARCH 0
+ #endif
+@@ -425,6 +429,16 @@ struct mm_struct {
+ #ifdef CONFIG_MMU_NOTIFIER
+ 	struct mmu_notifier_mm *mmu_notifier_mm;
+ #endif
++#ifdef CONFIG_HMM
++	/*
++	 * hmm always register an mmu_notifier we rely on mmu notifier to keep
++	 * refcount on mm struct as well as forbiding registering hmm on a
++	 * dying mm
++	 *
++	 * This field is set with mmap_sem old in write mode.
++	 */
++	struct hmm *hmm;
++#endif
+ #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
+ 	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
+ #endif
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 1380d8a..88032ca 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -27,6 +27,7 @@
+ #include <linux/binfmts.h>
+ #include <linux/mman.h>
+ #include <linux/mmu_notifier.h>
++#include <linux/hmm.h>
+ #include <linux/fs.h>
+ #include <linux/mm.h>
+ #include <linux/vmacache.h>
+@@ -562,6 +563,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
+ 	mm_init_aio(mm);
+ 	mm_init_owner(mm, p);
+ 	mmu_notifier_mm_init(mm);
++	hmm_mm_init(mm);
+ 	clear_tlb_flush_pending(mm);
+ #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
+ 	mm->pmd_huge_pte = NULL;
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 886db21..8784e7e 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -610,3 +610,18 @@ config MAX_STACK_SIZE_MB
+ 	  changed to a smaller value in which case that is used.
+ 
+ 	  A sane initial value is 80 MB.
++
++if STAGING
++config HMM
++	bool "Enable heterogeneous memory management (HMM)"
++	depends on MMU
++	select MMU_NOTIFIER
++	select GENERIC_PAGE_TABLE
++	default n
++	help
++	  Heterogeneous memory management provide infrastructure for a device
++	  to mirror a process address space into an hardware mmu or into any
++	  things supporting pagefault like event.
++
++	  If unsure, say N to disable hmm.
++endif # STAGING
+diff --git a/mm/Makefile b/mm/Makefile
+index 632ae77..35091ae 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -64,3 +64,4 @@ obj-$(CONFIG_ZBUD)	+= zbud.o
+ obj-$(CONFIG_ZSMALLOC)	+= zsmalloc.o
+ obj-$(CONFIG_GENERIC_EARLY_IOREMAP) += early_ioremap.o
+ obj-$(CONFIG_CMA)	+= cma.o
++obj-$(CONFIG_HMM) += hmm.o
+diff --git a/mm/hmm.c b/mm/hmm.c
 new file mode 100644
-index 0000000..5d82777
+index 0000000..d29a2d9
 --- /dev/null
-+++ b/lib/gpt.c
-@@ -0,0 +1,897 @@
++++ b/mm/hmm.c
+@@ -0,0 +1,1253 @@
 +/*
-+ * Copyright 2014 Red Hat Inc.
++ * Copyright 2013 Red Hat Inc.
 + *
 + * This program is free software; you can redistribute it and/or modify
 + * it under the terms of the GNU General Public License as published by
@@ -746,888 +657,1244 @@ index 0000000..5d82777
 + *
 + * Authors: JA(C)rA'me Glisse <jglisse@redhat.com>
 + */
-+/* Generic arch independant page table implementation. See include/linux/gpt.h
-+ * for further informations on the design.
++/* This is the core code for heterogeneous memory management (HMM). HMM intend
++ * to provide helper for mirroring a process address space on a device as well
++ * as allowing migration of data between system memory and device memory refer
++ * as remote memory from here on out.
++ *
++ * Refer to include/linux/hmm.h for further informations on general design.
 + */
-+#include <linux/gpt.h>
-+#include <linux/highmem.h>
++#include <linux/export.h>
++#include <linux/bitmap.h>
++#include <linux/list.h>
++#include <linux/rculist.h>
 +#include <linux/slab.h>
++#include <linux/mmu_notifier.h>
++#include <linux/mm.h>
++#include <linux/hugetlb.h>
++#include <linux/fs.h>
++#include <linux/file.h>
++#include <linux/ksm.h>
++#include <linux/rmap.h>
++#include <linux/swap.h>
++#include <linux/swapops.h>
++#include <linux/mmu_context.h>
++#include <linux/memcontrol.h>
++#include <linux/hmm.h>
++#include <linux/wait.h>
++#include <linux/mman.h>
++#include <linux/delay.h>
++#include <linux/workqueue.h>
++#include <linux/gpt.h>
++
++#include "internal.h"
++
++/* global SRCU for all HMMs */
++static struct srcu_struct srcu;
 +
 +
-+/*
-+ * Generic page table operations for page table with multi directory level.
++/* struct hmm - per mm_struct hmm structure
++ *
++ * @mm: The mm struct this hmm is associated with.
++ * @kref: Reference counter
++ * @lock: Serialize the mirror list modifications.
++ * @device_faults: List of all active device page table faults.
++ * @invalidations: List of all active invalidations.
++ * @mirrors: List of all mirror for this mm (one per device).
++ * @mmu_notifier: The mmu_notifier of this mm.
++ * @wait_queue: Wait queue for event synchronization.
++ *
++ * For each process address space (mm_struct) there is one and only one hmm
++ * struct. hmm functions will redispatch to each devices the change made to
++ * the process address space.
 + */
-+static inline struct page *gpt_pdp_upper_pdp(struct gpt *gpt,
-+					      struct page *pdp)
-+{
-+	if (!pdp)
-+		return NULL;
-+	return pdp->s_mem;
-+}
-+
-+static inline unsigned long *gpt_pdp_upper_pde(struct gpt *gpt,
-+						struct page *pdp)
-+{
-+	unsigned long idx;
-+	struct page *updp;
-+
-+	if (!pdp)
-+		return NULL;
-+
-+	updp = gpt_pdp_upper_pdp(gpt, pdp);
-+	idx = gpt_pdp_start(gpt, pdp) - gpt_pdp_start(gpt, updp);
-+	idx = (idx >> gpt_pdp_shift(gpt, pdp)) & GPT_PDIR_MASK;
-+	if (!updp) {
-+		return gpt->pgd + idx;
-+	}
-+	return ((unsigned long *)page_address(updp)) + idx;
-+}
-+
-+static inline bool gpt_pdp_before_serial(struct page *pdp, unsigned long serial)
-+{
-+	/*
-+	 * To know if a page directory is new or old we first check if it's not
-+	 * on the recently added list. If it is and its serial number is newer
-+	 * or equal to our lock serial number then it is a new page directory
-+	 * entry and must be ignore.
-+	 */
-+	return list_empty(&pdp->lru) || time_after(serial, pdp->private);
-+}
-+
-+static inline bool gpt_pdp_before_eq_serial(struct page *pdp, unsigned long serial)
-+{
-+	/*
-+	 * To know if a page directory is new or old we first check if it's not
-+	 * on the recently added list. If it is and its serial number is newer
-+	 * or equal to our lock serial number then it is a new page directory
-+	 * entry and must be ignore.
-+	 */
-+	return list_empty(&pdp->lru) || time_after_eq(serial, pdp->private);
-+}
-+
-+static int gpt_walk_pde(struct gpt *gpt,
-+			struct gpt_walk *walk,
-+			struct page *pdp,
-+			volatile unsigned long *pde,
-+			unsigned long start,
-+			unsigned long end,
-+			unsigned long shift)
-+{
-+	unsigned long addr, idx, lshift, mask, next, npde;
-+	int ret;
-+
-+	npde = ((end - start) >> shift) + 1;
-+	mask = ~((1UL << shift) - 1UL);
-+	lshift = shift - GPT_PDIR_NBITS;
-+
-+	if (walk->pde) {
-+		ret = walk->pde(gpt, walk, pdp, pde, start, end, shift);
-+		if (ret)
-+			return ret;
-+	}
-+
-+	for (addr = start, idx = 0; idx < npde; addr = next + 1UL, ++idx) {
-+		struct page *lpdp;
-+		void *lpde;
-+
-+		next = min((addr & mask) + (1UL << shift) - 1UL, end);
-+		lpdp = gpt_pde_pdp(gpt, &pde[idx]);
-+		if (!lpdp || !walk->lock->hold(walk->lock, lpdp))
-+			continue;
-+		lpde = page_address(lpdp);
-+		if (lshift >= gpt->pld_shift) {
-+			lpde += ((addr >> lshift) & GPT_PDIR_MASK) *
-+				gpt->pde_size;
-+			ret = gpt_walk_pde(gpt, walk, lpdp, lpde,
-+					   addr, next, lshift);
-+			if (ret)
-+				return ret;
-+		} else if (walk->pte) {
-+			lpde = gpt_pte_from_addr(gpt, lpdp, lpde, addr);
-+			ret = walk->pte(gpt, walk, lpdp, lpde, addr, next);
-+			if (ret)
-+				return ret;
-+		}
-+	}
-+
-+	if (walk->pde_post) {
-+		ret = walk->pde_post(gpt, walk, pdp, pde, start, end, shift);
-+		if (ret)
-+			return ret;
-+	}
-+
-+	return 0;
-+}
-+
-+static int gpt_tree_walk(struct gpt_walk *walk,
-+			 struct gpt *gpt,
-+			 struct gpt_lock *lock)
-+{
-+	unsigned long idx;
-+
-+	walk->start = gpt_align_start_addr(gpt, walk->start);
-+	walk->end = gpt_align_end_addr(gpt, walk->start);
-+	if ((walk->start >= walk->end) || (walk->end > gpt->max_addr))
-+		return -EINVAL;
-+
-+	idx = (walk->start >> gpt->pgd_shift);
-+	return gpt_walk_pde(gpt, walk, NULL, &gpt->pgd[idx],
-+			    walk->start, walk->end,
-+			    gpt->pgd_shift);
-+}
-+
-+struct gpt_lock_walk {
-+	struct list_head	pdp_to_free;
-+	struct gpt_lock		*lock;
-+	unsigned long		locked[BITS_TO_LONGS(1UL << GPT_PDIR_NBITS)];
++struct hmm {
++	struct mm_struct	*mm;
++	struct kref		kref;
++	spinlock_t		lock;
++	struct list_head	device_faults;
++	struct list_head	invalidations;
++	struct list_head	mirrors;
++	struct mmu_notifier	mmu_notifier;
++	unsigned long		ndevice_faults;
++	unsigned long		ninvalidations;
++	struct gpt		pt;
++	wait_queue_head_t	wait_queue;
 +};
 +
-+static inline void gpt_pdp_unref(struct gpt *gpt,
-+				 struct page *pdp,
-+				 struct gpt_lock_walk *wlock,
-+				 struct page *updp,
-+				 volatile unsigned long *upde)
++static struct mmu_notifier_ops hmm_notifier_ops;
++
++static inline struct hmm *hmm_ref(struct hmm *hmm);
++static inline struct hmm *hmm_unref(struct hmm *hmm);
++
++static void hmm_mirror_delayed_unref(struct work_struct *work);
++static void hmm_mirror_handle_error(struct hmm_mirror *mirror);
++
++static void hmm_device_fence_wait(struct hmm_device *device,
++				  struct hmm_fence *fence);
++
++
++/* hmm_event - use to track information relating to an event.
++ *
++ * Each change to cpu page table or fault from a device is considered as an
++ * event by hmm. For each event there is a common set of things that need to
++ * be tracked. The hmm_event struct centralize those and the helper functions
++ * help dealing with all this.
++ */
++
++static inline bool hmm_event_overlap(struct hmm_event *a, struct hmm_event *b)
 +{
-+	if (!atomic_dec_and_test(&pdp->_mapcount))
++	return !((a->end <= b->start) || (a->start >= b->end));
++}
++
++static inline void hmm_event_init(struct hmm_event *event,
++				  unsigned long start,
++				  unsigned long end)
++{
++	event->start = start & PAGE_MASK;
++	event->end = PAGE_ALIGN(end);
++	INIT_LIST_HEAD(&event->fences);
++}
++
++static inline void hmm_event_wait(struct hmm_event *event)
++{
++	struct hmm_fence *fence, *tmp;
++
++	if (list_empty(&event->fences))
++		/* Nothing to wait for. */
 +		return;
 +
-+	*upde = 0;
-+	if (!list_empty(&pdp->lru)) {
-+		/*
-+		 * This should be a rare event, it means this page directory
-+		 * was added recently but is about to be destroy before it
-+		 * could be remove from the young list.
-+		 *
-+		 * Because it is in the young list and lock holder can access
-+		 * the page table without rcu protection it means that we can
-+		 * not rely on synchronize_rcu to know when it is safe to free
-+		 * the page. We have to wait for all lock that are older than
-+		 * this page directory to be release. Only once we reach that
-+		 * point we know for sure that no thread can have a live
-+		 * reference on that page directory.
-+		 */
-+		spin_lock(&gpt->pgd_lock);
-+		list_add_tail(&pdp->lru, &gpt->pdp_free);
-+		spin_unlock(&gpt->pgd_lock);
-+	} else
-+		/*
-+		 * This means this is an old page directory and thus any lock
-+		 * holder that might dereference a pointer to it would have a
-+		 * reference on it. Hence when refcount reach 0 we know for
-+		 * sure no lock holder will dereference this page directory
-+		 * and thus synchronize_rcu is an long enough delay before
-+		 * free.
-+		 */
-+		list_add_tail(&pdp->lru, &wlock->pdp_to_free);
++	io_schedule();
 +
-+	/* Un-account this entry caller must hold a ref on pdp. */
-+	if (updp && atomic_dec_and_test(&updp->_mapcount))
-+		BUG();
-+}
-+
-+static void gpt_lock_walk_free_pdp(struct gpt_lock_walk *wlock)
-+{
-+	struct page *pdp, *tmp;
-+
-+	if (list_empty(&wlock->pdp_to_free))
-+		return;
-+
-+	synchronize_rcu();
-+
-+	list_for_each_entry_safe(pdp, tmp, &wlock->pdp_to_free, lru) {
-+		/* Restore page struct fields to their expect value. */
-+		list_del(&pdp->lru);
-+		atomic_dec(&pdp->_mapcount);
-+		pdp->mapping = NULL;
-+		pdp->index = 0;
-+		pdp->flags &= (~0xffUL);
-+		__free_page(pdp);
++	list_for_each_entry_safe(fence, tmp, &event->fences, list) {
++		hmm_device_fence_wait(fence->mirror->device, fence);
 +	}
 +}
 +
-+static bool gpt_lock_update_hold(struct gpt_lock *lock, struct page *pdp)
++
++/* hmm_range - range helper functions.
++ *
++ * Range are use to communicate btw various hmm function and device driver.
++ */
++
++static void hmm_range_update_mirrors(struct hmm_range *range,
++				     struct hmm *hmm,
++				     struct hmm_event *event)
 +{
-+	if (!atomic_read(&pdp->_mapcount))
-+		return false;
-+	if (!gpt_pdp_before_serial(pdp, lock->serial))
-+		return false;
-+	return true;
-+}
++	struct hmm_mirror *mirror;
++	int id;
 +
-+static void gpt_lock_walk_update_finish(struct gpt *gpt,
-+					struct gpt_lock_walk *wlock)
-+{
-+	struct gpt_lock *lock = wlock->lock;
-+	unsigned long min_serial;
++	id = srcu_read_lock(&srcu);
++	list_for_each_entry(mirror, &hmm->mirrors, mlist) {
++		struct hmm_device *device = mirror->device;
++		struct hmm_fence *fence;
 +
-+	spin_lock(&gpt->lock);
-+	min_serial = gpt->min_serial;
-+	list_del_init(&lock->list);
-+	lock = list_first_entry_or_null(&gpt->updaters, struct gpt_lock, list);
-+	gpt->min_serial = lock ? lock->serial : gpt->updater_serial;
-+	spin_unlock(&gpt->lock);
-+
-+	/*
-+	 * Drain the young pdp list if the new smallest serial lock holder is
-+	 * different from previous one.
-+	 */
-+	if (gpt->min_serial != min_serial) {
-+		struct page *pdp, *next;
-+
-+		spin_lock(&gpt->pgd_lock);
-+		list_for_each_entry_safe(pdp, next, &gpt->pdp_young, lru) {
-+			if (!gpt_pdp_before_serial(pdp, gpt->min_serial))
-+				break;
-+			list_del_init(&pdp->lru);
++		fence = device->ops->update(mirror, event, range);
++		if (fence) {
++			if (IS_ERR(fence)) {
++				hmm_mirror_handle_error(mirror);
++			} else {
++				fence->mirror = hmm_mirror_ref(mirror);
++				list_add_tail(&fence->list, &event->fences);
++			}
 +		}
-+		list_for_each_entry_safe(pdp, next, &gpt->pdp_free, lru) {
-+			if (!gpt_pdp_before_serial(pdp, gpt->min_serial))
-+				break;
-+			list_del(&pdp->lru);
-+			list_add_tail(&pdp->lru, &wlock->pdp_to_free);
-+		}
-+		spin_unlock(&gpt->pgd_lock);
 +	}
++	srcu_read_unlock(&srcu, id);
 +}
 +
-+static int gpt_pde_lock_update(struct gpt *gpt,
-+			       struct gpt_walk *walk,
-+			       struct page *pdp,
-+			       volatile unsigned long *pde,
-+			       unsigned long start,
-+			       unsigned long end,
-+			       unsigned long shift)
++static bool hmm_range_wprot(struct hmm_range *range, struct hmm *hmm)
 +{
-+	unsigned long addr, idx, mask, next, npde;
-+	struct gpt_lock_walk *wlock = walk->data;
-+	struct gpt_lock *lock = wlock->lock;
++	unsigned long i;
++	bool update = false;
 +
-+	npde = ((end - start) >> shift) + 1;
-+	mask = ~((1UL << shift) - 1UL);
-+
-+	rcu_read_lock();
-+	for (addr = start, idx = 0; idx < npde; addr = next + 1UL, ++idx) {
-+		struct page *lpdp;
-+
-+		next = min((addr & mask) + (1UL << shift) - 1UL, end);
-+		lpdp = gpt_pde_pdp(gpt, &pde[idx]);
-+		if (!lpdp)
-+			continue;
-+		if (!atomic_inc_not_zero(&lpdp->_mapcount)) {
-+			/*
-+			 * Force page directory entry to zero we know for sure
-+			 * that some other thread is deleting this entry. So it
-+			 * is safe to double clear pde.
-+			 */
-+			pde[idx] = 0;
-+			continue;
-+		}
-+
-+		if (!gpt_pdp_before_serial(lpdp, lock->serial)) {
-+			/* This is a new entry drop reference and ignore it. */
-+			gpt_pdp_unref(gpt, lpdp, wlock, pdp, &pde[idx]);
-+			continue;
-+		}
-+		set_bit(idx, wlock->locked);
++	for (i = 0; i < (hmm_range_size(range) >> PAGE_SHIFT); ++i) {
++		update |= hmm_pte_clear_write(&range->pte[i]);
 +	}
-+	rcu_read_unlock();
-+
-+	for (addr = start, idx = 0; idx < npde; addr = next + 1UL, ++idx) {
-+		struct page *lpdp;
-+
-+		next = min((addr & mask) + (1UL << shift) - 1UL, end);
-+		if (!test_bit(idx, wlock->locked))
-+			continue;
-+		clear_bit(idx, wlock->locked);
-+		lpdp = gpt_pde_pdp(gpt, &pde[idx]);
-+		kmap(lpdp);
-+	}
-+
-+	return 0;
++	return update;
 +}
 +
-+static void gpt_tree_lock_update(struct gpt *gpt, struct gpt_lock *lock)
++static void hmm_range_clear(struct hmm_range *range, struct hmm *hmm)
 +{
-+	struct gpt_lock_walk wlock;
-+	struct gpt_walk walk;
++	unsigned long i;
 +
-+	lock->hold = &gpt_lock_update_hold;
-+	spin_lock(&gpt->lock);
-+	lock->serial = gpt->updater_serial;
-+	list_add_tail(&lock->list, &gpt->updaters);
-+	spin_unlock(&gpt->lock);
-+
-+	bitmap_zero(wlock.locked, BITS_TO_LONGS(1UL << GPT_PDIR_NBITS));
-+	INIT_LIST_HEAD(&wlock.pdp_to_free);
-+	wlock.lock = lock;
-+	walk.lock = lock;
-+	walk.data = &wlock;
-+	walk.pde = &gpt_pde_lock_update;
-+	walk.pde_post = NULL;
-+	walk.pte = NULL;
-+	walk.start = lock->start;
-+	walk.end = lock->end;
-+
-+	gpt_tree_walk(&walk, gpt, lock);
-+	gpt_lock_walk_free_pdp(&wlock);
++	for (i = 0; i < (hmm_range_size(range) >> PAGE_SHIFT); ++i)
++		if (hmm_pte_clear_valid_smem(&range->pte[i]))
++			gpt_ptp_unref(&hmm->pt, range->ptp);
 +}
 +
-+static int gpt_pde_unlock_update(struct gpt *gpt,
-+				 struct gpt_walk *walk,
-+				 struct page *pdp,
-+				 volatile unsigned long *pde,
-+				 unsigned long start,
-+				 unsigned long end,
-+				 unsigned long shift)
++
++/* hmm - core hmm functions.
++ *
++ * Core hmm functions that deal with all the process mm activities and use
++ * event for synchronization. Those function are use mostly as result of cpu
++ * mm event.
++ */
++
++static int hmm_init(struct hmm *hmm, struct mm_struct *mm)
 +{
-+	unsigned long addr, idx, mask, next, npde;
-+	struct gpt_lock_walk *wlock = walk->data;
-+	struct gpt_lock *lock = wlock->lock;
-+
-+	npde = ((end - start) >> shift) + 1;
-+	mask = ~((1UL << shift) - 1UL);
-+
-+	for (addr = start, idx = 0; idx < npde; addr = next + 1UL, ++idx) {
-+		struct page *lpdp;
-+
-+		next = min((addr & mask) + (1UL << shift) - 1UL, end);
-+		lpdp = gpt_pde_pdp(gpt, &pde[idx]);
-+		if (!lpdp || !gpt_pdp_before_serial(lpdp, lock->serial))
-+			continue;
-+		kunmap(lpdp);
-+		gpt_pdp_unref(gpt, lpdp, wlock, pdp, &pde[idx]);
-+	}
-+
-+	return 0;
-+}
-+
-+static void gpt_tree_unlock_update(struct gpt *gpt, struct gpt_lock *lock)
-+{
-+	struct gpt_lock_walk wlock;
-+	struct gpt_walk walk;
-+
-+	bitmap_zero(wlock.locked, BITS_TO_LONGS(1UL << GPT_PDIR_NBITS));
-+	INIT_LIST_HEAD(&wlock.pdp_to_free);
-+	wlock.lock = lock;
-+	walk.lock = lock;
-+	walk.data = &wlock;
-+	walk.pde = NULL;
-+	walk.pde_post = &gpt_pde_unlock_update;
-+	walk.pte = NULL;
-+	walk.start = lock->start;
-+	walk.end = lock->end;
-+
-+	gpt_tree_walk(&walk, gpt, lock);
-+
-+	gpt_lock_walk_update_finish(gpt, &wlock);
-+	gpt_lock_walk_free_pdp(&wlock);
-+}
-+
-+static bool gpt_lock_fault_hold(struct gpt_lock *lock, struct page *pdp)
-+{
-+	if (!atomic_read(&pdp->_mapcount))
-+		return false;
-+	if (!gpt_pdp_before_eq_serial(pdp, lock->serial))
-+		return false;
-+	return true;
-+}
-+
-+static void gpt_lock_walk_fault_finish(struct gpt *gpt,
-+				       struct gpt_lock_walk *wlock)
-+{
-+	struct gpt_lock *lock = wlock->lock;
-+
-+	spin_lock(&gpt->lock);
-+	list_del_init(&lock->list);
-+	lock = list_first_entry_or_null(&gpt->faulters, struct gpt_lock, list);
-+	if (lock)
-+		gpt->updater_serial = lock->serial;
-+	else
-+		gpt->updater_serial = gpt->faulter_serial;
-+	spin_unlock(&gpt->lock);
-+}
-+
-+static int gpt_pde_lock_fault(struct gpt *gpt,
-+			      struct gpt_walk *walk,
-+			      struct page *pdp,
-+			      volatile unsigned long *pde,
-+			      unsigned long start,
-+			      unsigned long end,
-+			      unsigned long shift)
-+{
-+	unsigned long addr, c, idx, mask, next, npde;
-+	struct gpt_lock_walk *wlock = walk->data;
-+	struct gpt_lock *lock = wlock->lock;
-+	struct list_head lpdp_new, lpdp_added;
-+	struct page *lpdp, *tmp;
 +	int ret;
 +
-+	npde = ((end - start) >> shift) + 1;
-+	mask = ~((1UL << shift) - 1UL);
-+	INIT_LIST_HEAD(&lpdp_added);
-+	INIT_LIST_HEAD(&lpdp_new);
++	hmm->mm = mm;
++	kref_init(&hmm->kref);
++	INIT_LIST_HEAD(&hmm->device_faults);
++	INIT_LIST_HEAD(&hmm->invalidations);
++	INIT_LIST_HEAD(&hmm->mirrors);
++	spin_lock_init(&hmm->lock);
++	init_waitqueue_head(&hmm->wait_queue);
++	hmm->ndevice_faults = 0;
++	hmm->ninvalidations = 0;
 +
-+	rcu_read_lock();
-+	for (addr = start, c = idx = 0; idx < npde; addr = next + 1UL, ++idx) {
++	/* Initialize page table. */
++	hmm->pt.max_addr = mm->highest_vm_end - 1UL;
++	hmm->pt.page_shift = PAGE_SHIFT;
++	hmm->pt.pfn_invalid = 0;
++	hmm->pt.pfn_mask = PAGE_MASK;
++	hmm->pt.pfn_shift = PAGE_SHIFT;
++	hmm->pt.pfn_valid = 1UL << HMM_PTE_VALID_PDIR_BIT;
++	hmm->pt.pte_shift = ffs(BITS_PER_LONG) - 4;
++	hmm->pt.user_ops = NULL;
++	hmm->pt.gfp_flags = GFP_HIGHUSER;
++	ret = gpt_init(&hmm->pt);
++	if (ret)
++		return ret;
 +
-+		next = min((addr & mask) + (1UL << shift) - 1UL, end);
-+		lpdp = gpt_pde_pdp(gpt, &pde[idx]);
-+		if (lpdp == NULL) {
-+			c++;
-+			continue;
-+		}
-+		if (!atomic_inc_not_zero(&lpdp->_mapcount)) {
-+			/*
-+			 * Force page directory entry to zero we know for sure
-+			 * that some other thread is deleting this entry. So it
-+			 * is safe to double clear pde.
-+			 */
-+			c++;
-+			pde[idx] = 0;
-+			continue;
-+		}
-+		set_bit(idx, wlock->locked);
-+	}
-+	rcu_read_unlock();
-+
-+	/* Allocate missing page directory page. */
-+	for (idx = 0; idx < c; ++idx) {
-+		lpdp = alloc_page(gpt->gfp_flags | __GFP_ZERO);
-+		if (!lpdp) {
-+			ret = -ENOMEM;
-+			goto error;
-+		}
-+		list_add_tail(&lpdp->lru, &lpdp_new);
-+		kmap(lpdp);
-+	}
-+
-+	gpt_pdp_lock(gpt, pdp);
-+	for (addr = start, idx = 0; idx < npde; addr = next + 1UL, ++idx) {
-+		struct page *lpdp;
-+
-+		next = min((addr & mask) + (1UL << shift) - 1UL, end);
-+		/* Anoter thread might already have populated entry. */
-+		if (test_bit(idx, wlock->locked) || gpt_pde_valid(gpt, pde[idx]))
-+			continue;
-+
-+		lpdp = list_first_entry_or_null(&lpdp_new, struct page, lru);
-+		BUG_ON(!lpdp);
-+		list_del(&lpdp->lru);
-+
-+		/* Initialize page directory page struct. */
-+		lpdp->private = lock->serial;
-+		lpdp->s_mem = pdp;
-+		lpdp->index = addr & ~((1UL << shift) - 1UL);
-+		lpdp->flags |= shift & 0xff;
-+		list_add_tail(&lpdp->lru, &lpdp_added);
-+		atomic_set(&lpdp->_mapcount, 1);
-+#if USE_SPLIT_PTE_PTLOCKS && !ALLOC_SPLIT_PTLOCKS
-+		spin_lock_init(&page->ptl);
-+#endif
-+
-+		pde[idx] = gpt->user_ops->pde_from_pdp(gpt, lpdp);
-+		/* Account this new entry inside upper directory. */
-+		if (pdp)
-+			atomic_inc(&pdp->_mapcount);
-+	}
-+	gpt_pdp_unlock(gpt, pdp);
-+
-+	spin_lock(&gpt->pgd_lock);
-+	list_splice_tail(&lpdp_added, &gpt->pdp_young);
-+	spin_unlock(&gpt->pgd_lock);
-+
-+	for (addr = start, idx = 0; idx < npde; addr = next + 1UL, ++idx) {
-+		struct page *lpdp;
-+
-+		next = min((addr & mask) + (1UL << shift) - 1UL, end);
-+		if (!test_bit(idx, wlock->locked));
-+			continue;
-+		clear_bit(idx, wlock->locked);
-+		lpdp = gpt_pde_pdp(gpt, &pde[idx]);
-+		kmap(lpdp);
-+	}
-+
-+	/* Free any left over pages. */
-+	list_for_each_entry_safe (lpdp, tmp, &lpdp_new, lru) {
-+		list_del(&lpdp->lru);
-+		kunmap(lpdp);
-+		__free_page(lpdp);
-+	}
-+	return 0;
-+
-+error:
-+	list_for_each_entry_safe (lpdp, tmp, &lpdp_new, lru) {
-+		list_del(&lpdp->lru);
-+		kunmap(lpdp);
-+		__free_page(lpdp);
-+	}
-+	walk->end = start - 1UL;
-+	return ret;
++	/* register notifier */
++	hmm->mmu_notifier.ops = &hmm_notifier_ops;
++	return __mmu_notifier_register(&hmm->mmu_notifier, mm);
 +}
 +
-+static int gpt_pde_unlock_fault(struct gpt *gpt,
-+				struct gpt_walk *walk,
-+				struct page *pdp,
-+				volatile unsigned long *pde,
++static void hmm_del_mirror_locked(struct hmm *hmm, struct hmm_mirror *mirror)
++{
++	list_del_rcu(&mirror->mlist);
++}
++
++static int hmm_add_mirror(struct hmm *hmm, struct hmm_mirror *mirror)
++{
++	struct hmm_mirror *tmp_mirror;
++
++	spin_lock(&hmm->lock);
++	list_for_each_entry_rcu (tmp_mirror, &hmm->mirrors, mlist)
++		if (tmp_mirror->device == mirror->device) {
++			/* Same device can mirror only once. */
++			spin_unlock(&hmm->lock);
++			return -EINVAL;
++		}
++	list_add_rcu(&mirror->mlist, &hmm->mirrors);
++	spin_unlock(&hmm->lock);
++
++	return 0;
++}
++
++static inline struct hmm *hmm_ref(struct hmm *hmm)
++{
++	if (hmm) {
++		if (!kref_get_unless_zero(&hmm->kref))
++			return NULL;
++		return hmm;
++	}
++	return NULL;
++}
++
++static void hmm_destroy(struct kref *kref)
++{
++	struct hmm *hmm;
++
++	hmm = container_of(kref, struct hmm, kref);
++
++	down_write(&hmm->mm->mmap_sem);
++	/* A new hmm might have been register before we get call. */
++	if (hmm->mm->hmm == hmm)
++		hmm->mm->hmm = NULL;
++	up_write(&hmm->mm->mmap_sem);
++	mmu_notifier_unregister_no_release(&hmm->mmu_notifier, hmm->mm);
++
++	mmu_notifier_synchronize();
++
++	gpt_free(&hmm->pt);
++	kfree(hmm);
++}
++
++static inline struct hmm *hmm_unref(struct hmm *hmm)
++{
++	if (hmm)
++		kref_put(&hmm->kref, hmm_destroy);
++	return NULL;
++}
++
++static void hmm_start_device_faults(struct hmm *hmm, struct hmm_event *fevent)
++{
++	struct hmm_event *ievent;
++	unsigned long wait_for = 0;
++
++again:
++	spin_lock(&hmm->lock);
++	list_for_each_entry (ievent, &hmm->device_faults, list) {
++		if (!hmm_event_overlap(fevent, ievent))
++			continue;
++		wait_for = hmm->ninvalidations;
++	}
++
++	if (!wait_for) {
++		fevent->backoff = false;
++		list_add_tail(&fevent->list, &hmm->device_faults);
++		hmm->ndevice_faults++;
++		spin_unlock(&hmm->lock);
++		return;
++	}
++
++	spin_unlock(&hmm->lock);
++	wait_event(hmm->wait_queue, wait_for != hmm->ninvalidations);
++	wait_for = 0;
++	goto again;
++}
++
++static void hmm_end_device_faults(struct hmm *hmm, struct hmm_event *fevent)
++{
++	spin_lock(&hmm->lock);
++	list_del_init(&fevent->list);
++	hmm->ndevice_faults--;
++	spin_unlock(&hmm->lock);
++	wake_up(&hmm->wait_queue);
++}
++
++static void hmm_start_invalidations(struct hmm *hmm, struct hmm_event *ievent)
++{
++	struct hmm_event *fevent;
++	unsigned long wait_for = 0;
++
++	spin_lock(&hmm->lock);
++	list_add_tail(&ievent->list, &hmm->invalidations);
++	hmm->ninvalidations++;
++
++again:
++	list_for_each_entry (fevent, &hmm->device_faults, list) {
++		if (!hmm_event_overlap(fevent, ievent))
++			continue;
++		fevent->backoff = true;
++		wait_for = hmm->ndevice_faults;
++	}
++	spin_unlock(&hmm->lock);
++
++	if (wait_for > 0) {
++		wait_event(hmm->wait_queue, wait_for != hmm->ndevice_faults);
++		spin_lock(&hmm->lock);
++		wait_for = 0;
++		goto again;
++	}
++}
++
++static void hmm_end_invalidations(struct hmm *hmm, struct hmm_event *ievent)
++{
++	spin_lock(&hmm->lock);
++	list_del_init(&ievent->list);
++	hmm->ninvalidations--;
++	spin_unlock(&hmm->lock);
++	wake_up(&hmm->wait_queue);
++}
++
++static void hmm_end_migrate(struct hmm *hmm, struct hmm_event *ievent)
++{
++	struct hmm_event *event;
++
++	spin_lock(&hmm->lock);
++	list_for_each_entry (event, &hmm->invalidations, list) {
++		if (event->etype != HMM_MIGRATE)
++			continue;
++		if (event->start != ievent->start || event->end != ievent->end)
++			continue;
++		list_del_init(&event->list);
++		spin_unlock(&hmm->lock);
++		wake_up(&hmm->wait_queue);
++		kfree(event);
++		return;
++	}
++	spin_unlock(&hmm->lock);
++}
++
++static void hmm_update(struct hmm *hmm,
++		       struct hmm_event *event)
++{
++	struct hmm_range range;
++	struct gpt_lock lock;
++	struct gpt_iter iter;
++	struct gpt *pt = &hmm->pt;
++
++	/* This hmm is already fully stop. */
++	if (hmm->mm->hmm != hmm)
++		return;
++
++	hmm_start_invalidations(hmm, event);
++
++	lock.start = event->start;
++	lock.end = event->end - 1UL;
++	if (gpt_lock_update(&hmm->pt, &lock)) {
++		if (event->etype != HMM_MIGRATE)
++			hmm_end_invalidations(hmm, event);
++		return;
++	}
++	gpt_iter_init(&iter, &hmm->pt, &lock);
++	if (!gpt_iter_first(&iter, event->start, event->end - 1UL)) {
++		/* Empty range nothing to invalidate. */
++		gpt_unlock_update(&hmm->pt, &lock);
++		if (event->etype != HMM_MIGRATE)
++			hmm_end_invalidations(hmm, event);
++		return;
++	}
++
++	for (range.start = iter.pte_addr; iter.pte;) {
++		bool update_mirrors = true;
++
++		range.pte = iter.pte;
++		range.ptp = iter.ptp;
++		range.end = min(gpt_pdp_end(pt, iter.ptp) + 1UL, event->end);
++		if (event->etype == HMM_WRITE_PROTECT)
++			update_mirrors = hmm_range_wprot(&range, hmm);
++		if (update_mirrors)
++			hmm_range_update_mirrors(&range, hmm, event);
++
++		range.start = range.end;
++		gpt_iter_first(&iter, range.start, event->end - 1UL);
++	}
++
++	hmm_event_wait(event);
++
++	if (event->etype == HMM_MUNMAP || event->etype == HMM_MIGRATE) {
++		BUG_ON(!gpt_iter_first(&iter, event->start, event->end - 1UL));
++		for (range.start = iter.pte_addr; iter.pte;) {
++			range.pte = iter.pte;
++			range.ptp = iter.ptp;
++			range.end = min(gpt_pdp_end(pt, iter.ptp) + 1UL,
++					event->end);
++			hmm_range_clear(&range, hmm);
++			range.start = range.end;
++			gpt_iter_first(&iter, range.start, event->end - 1UL);
++		}
++	}
++
++	gpt_unlock_update(&hmm->pt, &lock);
++	if (event->etype != HMM_MIGRATE)
++		hmm_end_invalidations(hmm, event);
++}
++
++static int hmm_do_mm_fault(struct hmm *hmm,
++			   struct hmm_event *event,
++			   struct vm_area_struct *vma,
++			   unsigned long addr)
++{
++	struct mm_struct *mm = vma->vm_mm;
++	int r;
++
++	for (; addr < event->end; addr += PAGE_SIZE) {
++		unsigned flags = 0;
++
++		flags |= event->etype == HMM_WFAULT ? FAULT_FLAG_WRITE : 0;
++		flags |= FAULT_FLAG_ALLOW_RETRY;
++		do {
++			r = handle_mm_fault(mm, vma, addr, flags);
++			if (!(r & VM_FAULT_RETRY) && (r & VM_FAULT_ERROR)) {
++				if (r & VM_FAULT_OOM)
++					return -ENOMEM;
++				/* Same error code for all other cases. */
++				return -EFAULT;
++			}
++			flags &= ~FAULT_FLAG_ALLOW_RETRY;
++		} while (r & VM_FAULT_RETRY);
++	}
++
++	return 0;
++}
++
++
++/* hmm_notifier - HMM callback for mmu_notifier tracking change to process mm.
++ *
++ * HMM use use mmu notifier to track change made to process address space.
++ */
++
++static void hmm_notifier_release(struct mmu_notifier *mn, struct mm_struct *mm)
++{
++	struct hmm_mirror *mirror;
++	struct hmm *hmm;
++
++	/* The hmm structure can not be free because the mmu_notifier srcu is
++	 * read locked thus any concurrent hmm_mirror_unregister that would
++	 * free hmm would have to wait on the mmu_notifier.
++	 */
++	hmm = container_of(mn, struct hmm, mmu_notifier);
++	spin_lock(&hmm->lock);
++	mirror = list_first_or_null_rcu(&hmm->mirrors,
++					struct hmm_mirror,
++					mlist);
++	while (mirror) {
++		hmm_del_mirror_locked(hmm, mirror);
++		spin_unlock(&hmm->lock);
++
++		mirror->device->ops->mirror_release(mirror);
++		INIT_WORK(&mirror->work, hmm_mirror_delayed_unref);
++		schedule_work(&mirror->work);
++
++		spin_lock(&hmm->lock);
++		mirror = list_first_or_null_rcu(&hmm->mirrors,
++						struct hmm_mirror,
++						mlist);
++	}
++	spin_unlock(&hmm->lock);
++
++	synchronize_srcu(&srcu);
++
++	wake_up(&hmm->wait_queue);
++}
++
++static void hmm_notifier_invalidate_range_start(struct mmu_notifier *mn,
++						struct mm_struct *mm,
++						unsigned long start,
++						unsigned long end,
++						enum mmu_event mmu_event)
++{
++	struct hmm_event *event, static_event;
++	struct hmm *hmm;
++
++	BUG_ON(start >= mm->highest_vm_end);
++	BUG_ON(end >= mm->highest_vm_end);
++
++	switch (mmu_event) {
++	case MMU_ISDIRTY:
++		event = &static_event;
++		event->etype = HMM_ISDIRTY;
++		break;
++	case MMU_HSPLIT:
++	case MMU_MPROT:
++	case MMU_MUNLOCK:
++	case MMU_WRITE_BACK:
++	case MMU_WRITE_PROTECT:
++		return;
++	case MMU_MUNMAP:
++		event = &static_event;
++		event->etype = HMM_MUNMAP;
++		break;
++	default:
++		event = kzalloc(sizeof(*event), GFP_KERNEL);
++		if (!event) {
++			pr_warning("Out of memory killing hmm mirroring !");
++			hmm_notifier_release(mn, mm);
++			return;
++		}
++		event->etype = HMM_MIGRATE;
++		break;
++	}
++
++	hmm = container_of(mn, struct hmm, mmu_notifier);
++	hmm_event_init(event, start, end);
++
++	hmm_update(hmm, event);
++}
++
++static void hmm_mmu_mprot_to_etype(struct mm_struct *mm,
++				   unsigned long addr,
++				   enum mmu_event mmu_event,
++				   enum hmm_etype *etype)
++{
++	struct vm_area_struct *vma;
++
++	vma = find_vma(mm, addr);
++	if (!vma || vma->vm_start > addr || !(vma->vm_flags & VM_READ)) {
++		*etype = HMM_MUNMAP;
++		return;
++	}
++
++	if (!(vma->vm_flags & VM_WRITE)) {
++		*etype = HMM_WRITE_PROTECT;
++		return;
++	}
++
++	*etype = HMM_NONE;
++}
++
++static void hmm_notifier_invalidate_range_end(struct mmu_notifier *mn,
++					      struct mm_struct *mm,
++					      unsigned long start,
++					      unsigned long end,
++					      enum mmu_event mmu_event)
++{
++	struct hmm_event event;
++	struct hmm *hmm;
++
++	hmm = container_of(mn, struct hmm, mmu_notifier);
++	hmm_event_init(&event, start, end);
++
++	switch (mmu_event) {
++	case MMU_MIGRATE:
++		event.etype = HMM_MIGRATE;
++		hmm_end_migrate(hmm, &event);
++		return;
++	case MMU_MPROT:
++		hmm_mmu_mprot_to_etype(mm, start, mmu_event, &event.etype);
++		if (event.etype == HMM_NONE)
++			return;
++		break;
++	case MMU_WRITE_BACK:
++	case MMU_WRITE_PROTECT:
++		event.etype = HMM_WRITE_PROTECT;
++		break;
++	case MMU_HSPLIT:
++	case MMU_MUNLOCK:
++	default:
++		return;
++	}
++
++	hmm_update(hmm, &event);
++}
++
++static void hmm_notifier_invalidate_page(struct mmu_notifier *mn,
++					 struct mm_struct *mm,
++					 unsigned long addr,
++					 enum mmu_event mmu_event)
++{
++	struct hmm_event event;
++	struct hmm *hmm;
++
++	switch (mmu_event) {
++	case MMU_HSPLIT:
++	case MMU_MUNLOCK:
++		return;
++	case MMU_ISDIRTY:
++		event.etype = HMM_ISDIRTY;
++		break;
++	case MMU_MPROT:
++		hmm_mmu_mprot_to_etype(mm, addr, mmu_event, &event.etype);
++		if (event.etype == HMM_NONE)
++			return;
++		break;
++	case MMU_WRITE_BACK:
++	case MMU_WRITE_PROTECT:
++		event.etype = HMM_WRITE_PROTECT;
++		break;
++	case MMU_MUNMAP:
++		event.etype = HMM_MUNMAP;
++		break;
++	default:
++		event.etype = HMM_MIGRATE;
++		break;
++	}
++
++	hmm = container_of(mn, struct hmm, mmu_notifier);
++	hmm_event_init(&event, addr, addr);
++
++	hmm_update(hmm, &event);
++}
++
++static struct mmu_notifier_ops hmm_notifier_ops = {
++	.release		= hmm_notifier_release,
++	/* .clear_flush_young FIXME we probably want to do something. */
++	/* .test_young FIXME we probably want to do something. */
++	/* WARNING .change_pte must always bracketed by range_start/end there
++	 * was patches to remove that behavior we must make sure that those
++	 * patches are not included as there are alternative solutions to issue
++	 * they are trying to solve.
++	 *
++	 * Fact is hmm can not use the change_pte callback as non sleeping lock
++	 * are held during change_pte callback.
++	 */
++	.change_pte		= NULL,
++	.invalidate_page	= hmm_notifier_invalidate_page,
++	.invalidate_range_start	= hmm_notifier_invalidate_range_start,
++	.invalidate_range_end	= hmm_notifier_invalidate_range_end,
++};
++
++
++/* hmm_mirror - per device mirroring functions.
++ *
++ * Each device that mirror a process has a uniq hmm_mirror struct. A process
++ * can be mirror by several devices at the same time.
++ *
++ * Below are all the functions and their helpers use by device driver to mirror
++ * the process address space. Those functions either deals with updating the
++ * device page table (through hmm callback). Or provide helper functions use by
++ * the device driver to fault in range of memory in the device page table.
++ */
++
++/* hmm_mirror_register() - register a device mirror against an mm struct
++ *
++ * @mirror: The mirror that link process address space with the device.
++ * @device: The device struct to associate this mirror with.
++ * @mm: The mm struct of the process.
++ * Returns: 0 success, -ENOMEM or -EINVAL if process already mirrored.
++ *
++ * Call when device driver want to start mirroring a process address space. The
++ * hmm shim will register mmu_notifier and start monitoring process address
++ * space changes. Hence callback to device driver might happen even before this
++ * function return.
++ *
++ * The mm pin must also be hold (either task is current or using get_task_mm).
++ *
++ * Only one mirror per mm and hmm_device can be created, it will return -EINVAL
++ * if the hmm_device already has an hmm_mirror for the the mm.
++ */
++int hmm_mirror_register(struct hmm_mirror *mirror,
++			struct hmm_device *device,
++			struct mm_struct *mm)
++{
++	struct hmm *hmm = NULL;
++	int ret = 0;
++
++	/* Sanity checks. */
++	BUG_ON(!mirror);
++	BUG_ON(!device);
++	BUG_ON(!mm);
++
++	/*
++	 * Initialize the mirror struct fields, the mlist init and del dance is
++	 * necessary to make the error path easier for driver and for hmm.
++	 */
++	INIT_LIST_HEAD(&mirror->mlist);
++	list_del(&mirror->mlist);
++	INIT_LIST_HEAD(&mirror->dlist);
++	mutex_lock(&device->mutex);
++	mirror->device = device;
++	list_add(&mirror->dlist, &device->mirrors);
++	mutex_unlock(&device->mutex);
++	mirror->hmm = NULL;
++	mirror = hmm_mirror_ref(mirror);
++	if (!mirror) {
++		mutex_lock(&device->mutex);
++		list_del_init(&mirror->dlist);
++		mutex_unlock(&device->mutex);
++		return -EINVAL;
++	}
++
++	down_write(&mm->mmap_sem);
++
++	hmm = mm->hmm ? hmm_ref(hmm) : NULL;
++	if (hmm == NULL) {
++		/* no hmm registered yet so register one */
++		hmm = kzalloc(sizeof(*mm->hmm), GFP_KERNEL);
++		if (hmm == NULL) {
++			up_write(&mm->mmap_sem);
++			hmm_mirror_unref(mirror);
++			return -ENOMEM;
++		}
++
++		ret = hmm_init(hmm, mm);
++		if (ret) {
++			up_write(&mm->mmap_sem);
++			hmm_mirror_unref(mirror);
++			kfree(hmm);
++			return ret;
++		}
++
++		mm->hmm = hmm;
++	}
++
++	mirror->hmm = hmm;
++	ret = hmm_add_mirror(hmm, mirror);
++	up_write(&mm->mmap_sem);
++	if (ret) {
++		mirror->hmm = NULL;
++		hmm_mirror_unref(mirror);
++		hmm_unref(hmm);
++		return ret;
++	}
++
++	return 0;
++}
++EXPORT_SYMBOL(hmm_mirror_register);
++
++static void hmm_mirror_delayed_unref(struct work_struct *work)
++{
++	struct hmm_mirror *mirror;
++
++	mirror = container_of(work, struct hmm_mirror, work);
++	hmm_mirror_unref(mirror);
++}
++
++static void hmm_mirror_handle_error(struct hmm_mirror *mirror)
++{
++	struct hmm *hmm = mirror->hmm;
++
++	spin_lock(&hmm->lock);
++	if (mirror->mlist.prev != LIST_POISON2) {
++		hmm_del_mirror_locked(hmm, mirror);
++		spin_unlock(&hmm->lock);
++
++		mirror->device->ops->mirror_release(mirror);
++		INIT_WORK(&mirror->work, hmm_mirror_delayed_unref);
++		schedule_work(&mirror->work);
++	} else
++		spin_unlock(&hmm->lock);
++}
++
++/* hmm_mirror_unregister() - unregister an hmm_mirror.
++ *
++ * @mirror: The mirror that link process address space with the device.
++ *
++ * Device driver must call this function when it is destroying a registered
++ * mirror structure. If destruction was initiated by the device driver then
++ * it must have call hmm_mirror_release() prior to calling this function.
++ */
++void hmm_mirror_unregister(struct hmm_mirror *mirror)
++{
++	BUG_ON(!mirror || !mirror->device);
++	BUG_ON(mirror->mlist.prev != LIST_POISON2);
++
++	mirror->hmm = hmm_unref(mirror->hmm);
++
++	mutex_lock(&mirror->device->mutex);
++	list_del_init(&mirror->dlist);
++	mutex_unlock(&mirror->device->mutex);
++	mirror->device = NULL;
++}
++EXPORT_SYMBOL(hmm_mirror_unregister);
++
++/* hmm_mirror_release() - release an hmm_mirror.
++ *
++ * @mirror: The mirror that link process address space with the device.
++ *
++ * Device driver must call this function when it wants to stop mirroring the
++ * process.
++ */
++void hmm_mirror_release(struct hmm_mirror *mirror)
++{
++	if (!mirror->hmm)
++		return;
++
++	spin_lock(&mirror->hmm->lock);
++	/* Check if the mirror is already removed from the mirror list in which
++	 * case there is no reason to call release.
++	 */
++	if (mirror->mlist.prev != LIST_POISON2) {
++		hmm_del_mirror_locked(mirror->hmm, mirror);
++		spin_unlock(&mirror->hmm->lock);
++
++		mirror->device->ops->mirror_release(mirror);
++		synchronize_srcu(&srcu);
++
++		hmm_mirror_unref(mirror);
++	} else
++		spin_unlock(&mirror->hmm->lock);
++}
++EXPORT_SYMBOL(hmm_mirror_release);
++
++static int hmm_mirror_update(struct hmm_mirror *mirror,
++			     struct hmm_event *event,
++			     unsigned long *start,
++			     struct gpt_iter *iter)
++{
++	unsigned long addr = *start & PAGE_MASK;
++
++	if (!gpt_iter_addr(iter, addr))
++		return -EINVAL;
++
++	do {
++		struct hmm_device *device = mirror->device;
++		unsigned long *pte = iter->pte;
++		struct hmm_fence *fence;
++		struct hmm_range range;
++
++		if (event->backoff)
++			return -EAGAIN;
++
++		range.start = addr;
++		range.end = min(gpt_pdp_end(iter->gpt, iter->ptp) + 1UL,
++				event->end);
++		range.pte = iter->pte;
++		for (; addr < range.end; addr += PAGE_SIZE, ++pte) {
++			if (!hmm_pte_is_valid_smem(pte)) {
++				*start = addr;
++				return 0;
++			}
++			if (event->etype == HMM_WFAULT &&
++			    !hmm_pte_is_write(pte)) {
++				*start = addr;
++				return 0;
++			}
++		}
++
++		fence = device->ops->update(mirror, event, &range);
++		if (fence) {
++			if (IS_ERR(fence)) {
++				*start = range.start;
++				return -EIO;
++			}
++			fence->mirror = hmm_mirror_ref(mirror);
++			list_add_tail(&fence->list, &event->fences);
++		}
++
++	} while (addr < event->end && gpt_iter_addr(iter, addr));
++
++	*start = addr;
++	return 0;
++}
++
++struct hmm_mirror_fault {
++	struct hmm_mirror	*mirror;
++	struct hmm_event	*event;
++	struct vm_area_struct	*vma;
++	unsigned long		addr;
++	struct gpt_iter		*iter;
++};
++
++static int hmm_mirror_fault_hpmd(struct hmm_mirror *mirror,
++				 struct hmm_event *event,
++				 struct vm_area_struct *vma,
++				 struct gpt_iter *iter,
++				 pmd_t *pmdp,
++				 unsigned long start,
++				 unsigned long end)
++{
++	struct page *page;
++	unsigned long *hmm_pte, i;
++	unsigned flags = FOLL_TOUCH;
++	spinlock_t *ptl;
++
++	ptl = pmd_lock(mirror->hmm->mm, pmdp);
++	if (unlikely(!pmd_trans_huge(*pmdp))) {
++		spin_unlock(ptl);
++		return -EAGAIN;
++	}
++	if (unlikely(pmd_trans_splitting(*pmdp))) {
++		spin_unlock(ptl);
++		wait_split_huge_page(vma->anon_vma, pmdp);
++		return -EAGAIN;
++	}
++	flags |= event->etype == HMM_WFAULT ? FOLL_WRITE : 0;
++	page = follow_trans_huge_pmd(vma, start, pmdp, flags);
++	spin_unlock(ptl);
++
++	BUG_ON(!gpt_iter_addr(iter, start));
++	hmm_pte = iter->pte;
++
++	gpt_pdp_lock(&mirror->hmm->pt, iter->ptp);
++	for (i = 0; start < end; start += PAGE_SIZE, ++i, ++page) {
++		if (!hmm_pte_is_valid_smem(&hmm_pte[i])) {
++			hmm_pte[i] = hmm_pte_from_pfn(page_to_pfn(page));
++			gpt_ptp_ref(&mirror->hmm->pt, iter->ptp);
++		}
++		BUG_ON(hmm_pte_pfn(hmm_pte[i]) != page_to_pfn(page));
++		if (pmd_write(*pmdp))
++			hmm_pte_mk_write(&hmm_pte[i]);
++	}
++	gpt_pdp_unlock(&mirror->hmm->pt, iter->ptp);
++
++	return 0;
++}
++
++static int hmm_mirror_fault_pmd(pmd_t *pmdp,
 +				unsigned long start,
 +				unsigned long end,
-+				unsigned long shift)
++				struct mm_walk *walk)
 +{
-+	unsigned long addr, idx, mask, next, npde;
-+	struct gpt_lock_walk *wlock = walk->data;
-+	struct gpt_lock *lock = wlock->lock;
++	struct hmm_mirror_fault *mirror_fault = walk->private;
++	struct vm_area_struct *vma = mirror_fault->vma;
++	struct hmm_mirror *mirror = mirror_fault->mirror;
++	struct hmm_event *event = mirror_fault->event;
++	struct gpt_iter *iter = mirror_fault->iter;
++	unsigned long addr = start, i, *hmm_pte;
++	struct hmm *hmm = mirror->hmm;
++	pte_t *ptep;
++	int ret = 0;
 +
-+	npde = ((end - start) >> shift) + 1;
-+	mask = ~((1UL << shift) - 1UL);
++	/* Make sure there was no gap. */
++	if (start != mirror_fault->addr)
++		return -ENOENT;
 +
-+	for (addr = start, idx = 0; idx < npde; addr = next + 1UL, ++idx) {
-+		struct page *lpdp;
++	if (event->backoff)
++		return -EAGAIN;
 +
-+		next = min((addr & mask) + (1UL << shift) - 1UL, end);
-+		lpdp = gpt_pde_pdp(gpt, &pde[idx]);
-+		if (!lpdp || !lock->hold(lock, lpdp))
-+			continue;
-+		kunmap(lpdp);
-+		gpt_pdp_unref(gpt, lpdp, wlock, pdp, &pde[idx]);
++	if (pmd_none(*pmdp))
++		return -ENOENT;
++
++	if (pmd_trans_huge(*pmdp)) {
++		ret = hmm_mirror_fault_hpmd(mirror, event, vma, iter,
++					    pmdp, start, end);
++		mirror_fault->addr = ret ? start : end;
++		return ret;
 +	}
 +
-+	return 0;
-+}
++	if (pmd_none_or_trans_huge_or_clear_bad(pmdp))
++		return -EFAULT;
 +
-+static int gpt_tree_lock_fault(struct gpt *gpt, struct gpt_lock *lock)
-+{
-+	struct gpt_lock_walk wlock;
-+	struct gpt_walk walk;
-+	int ret;
++	BUG_ON(!gpt_iter_addr(iter, start));
++	hmm_pte = iter->pte;
 +
-+	lock->hold = &gpt_lock_fault_hold;
-+	spin_lock(&gpt->lock);
-+	lock->serial = gpt->faulter_serial++;
-+	list_add_tail(&lock->list, &gpt->faulters);
-+	spin_unlock(&gpt->lock);
++	ptep = pte_offset_map(pmdp, start);
++	gpt_pdp_lock(&hmm->pt, iter->ptp);
++	for (i = 0; addr < end; addr += PAGE_SIZE, ++i) {
++		if (!pte_present(*ptep) ||
++		    ((event->etype == HMM_WFAULT) && !pte_write(*ptep))) {
++			ptep++;
++			ret = -ENOENT;
++			break;
++		}
 +
-+	bitmap_zero(wlock.locked, BITS_TO_LONGS(1UL << GPT_PDIR_NBITS));
-+	INIT_LIST_HEAD(&wlock.pdp_to_free);
-+	wlock.lock = lock;
-+	walk.lock = lock;
-+	walk.data = &wlock;
-+	walk.pde = &gpt_pde_lock_fault;
-+	walk.pde_post = NULL;
-+	walk.pte = NULL;
-+	walk.start = lock->start;
-+	walk.end = lock->end;
-+
-+	ret = gpt_tree_walk(&walk, gpt, lock);
-+	if (ret) {
-+		walk.pde = NULL;
-+		walk.pde_post = &gpt_pde_unlock_fault;
-+		gpt_tree_walk(&walk, gpt, lock);
-+		gpt_lock_walk_fault_finish(gpt, &wlock);
++		if (!hmm_pte_is_valid_smem(&hmm_pte[i])) {
++			hmm_pte[i] = hmm_pte_from_pfn(pte_pfn(*ptep));
++			gpt_ptp_ref(&hmm->pt, iter->ptp);
++		}
++		BUG_ON(hmm_pte_pfn(hmm_pte[i]) != pte_pfn(*ptep));
++		if (pte_write(*ptep))
++			hmm_pte_mk_write(&hmm_pte[i]);
++		ptep++;
 +	}
-+	gpt_lock_walk_free_pdp(&wlock);
++	gpt_pdp_unlock(&hmm->pt, iter->ptp);
++	pte_unmap(ptep - 1);
++	mirror_fault->addr = addr;
 +
 +	return ret;
 +}
 +
-+static void gpt_tree_unlock_fault(struct gpt *gpt, struct gpt_lock *lock)
++static int hmm_mirror_handle_fault(struct hmm_mirror *mirror,
++				   struct hmm_event *event,
++				   struct vm_area_struct *vma)
 +{
-+	struct gpt_lock_walk wlock;
-+	struct gpt_walk walk;
++	struct hmm_mirror_fault mirror_fault;
++	struct mm_walk walk = {0};
++	struct gpt_lock lock;
++	struct gpt_iter iter;
++	unsigned long addr;
++	int ret;
 +
-+	bitmap_zero(wlock.locked, BITS_TO_LONGS(1UL << GPT_PDIR_NBITS));
-+	INIT_LIST_HEAD(&wlock.pdp_to_free);
-+	wlock.lock = lock;
-+	walk.lock = lock;
-+	walk.data = &wlock;
-+	walk.pde = NULL;
-+	walk.pde_post = &gpt_pde_unlock_fault;
-+	walk.pte = NULL;
-+	walk.start = lock->start;
-+	walk.end = lock->end;
++	if ((event->etype == HMM_WFAULT) && !(vma->vm_flags & VM_WRITE))
++		return -EACCES;
 +
-+	gpt_tree_walk(&walk, gpt, lock);
++	hmm_start_device_faults(mirror->hmm, event);
 +
-+	gpt_lock_walk_fault_finish(gpt, &wlock);
-+	gpt_lock_walk_free_pdp(&wlock);
-+}
-+
-+static bool gpt_tree_iter_addr_ptp(struct gpt_iter *iter,
-+				   unsigned long addr,
-+				   struct page *pdp,
-+				   volatile unsigned long *pde,
-+				   unsigned long shift)
-+{
-+	struct gpt_lock *lock = iter->lock;
-+	struct gpt *gpt = iter->gpt;
-+	struct page *lpdp;
-+	void *lpde;
-+
-+	lpdp = gpt_pde_pdp(gpt, pde);
-+	if (!lpdp || !lock->hold(lock, lpdp)) {
-+		iter->ptp = NULL;
-+		iter->pte = NULL;
-+		return false;
++	addr = event->start;
++	lock.start = event->start;
++	lock.end = event->end - 1UL;
++	ret = gpt_lock_fault(&mirror->hmm->pt, &lock);
++	if (ret) {
++		hmm_end_device_faults(mirror->hmm, event);
++		return ret;
 +	}
++	gpt_iter_init(&iter, &mirror->hmm->pt, &lock);
 +
-+	lpde = page_address(lpdp);
-+	if (shift == gpt->pld_shift) {
-+		iter->ptp = lpdp;
-+		iter->pte = gpt_pte_from_addr(gpt, lpdp, lpde, addr);
-+		iter->pte_addr = addr;
-+		return true;
++again:
++	ret = hmm_mirror_update(mirror, event, &addr, &iter);
++	if (ret)
++		goto out;
++
++	if (event->backoff) {
++		ret = -EAGAIN;
++		goto out;
 +	}
++	if (addr >= event->end)
++		goto out;
 +
-+	shift -= GPT_PDIR_NBITS;
-+	lpde += ((addr >> shift) & GPT_PDIR_MASK) * gpt->pde_size;
-+	return gpt_tree_iter_addr_ptp(iter, addr, lpdp, lpde, shift);
-+}
++	mirror_fault.event = event;
++	mirror_fault.mirror = mirror;
++	mirror_fault.vma = vma;
++	mirror_fault.addr = addr;
++	mirror_fault.iter = &iter;
++	walk.mm = mirror->hmm->mm;
++	walk.private = &mirror_fault;
++	walk.pmd_entry = hmm_mirror_fault_pmd;
++	ret = walk_page_range(addr, event->end, &walk);
++	hmm_event_wait(event);
++	if (!ret)
++		goto again;
++	addr = mirror_fault.addr;
 +
-+static bool gpt_tree_iter_next_pdp(struct gpt_iter *iter,
-+				   struct page *pdp,
-+				   unsigned long addr)
-+{
-+	struct gpt *gpt = iter->gpt;
-+	unsigned long *upde;
-+	struct page *updp;
-+
-+	updp = gpt_pdp_upper_pdp(gpt, pdp);
-+	upde = gpt_pdp_upper_pde(gpt, pdp);
-+	if (gpt_pdp_cover_addr(gpt, updp, addr)) {
-+		unsigned long shift = gpt_pdp_shift(gpt, updp);
-+
-+		return gpt_tree_iter_addr_ptp(iter, addr, updp, upde, shift);
++out:
++	gpt_unlock_fault(&mirror->hmm->pt, &lock);
++	hmm_end_device_faults(mirror->hmm, event);
++	if (ret == -ENOENT) {
++		ret = hmm_do_mm_fault(mirror->hmm, event, vma, addr);
++		ret = ret ? ret : -EAGAIN;
 +	}
-+
-+	return gpt_tree_iter_next_pdp(iter, updp, addr);
++	return ret;
 +}
 +
-+static bool gpt_tree_iter_addr(struct gpt_iter *iter, unsigned long addr)
-+{
-+	volatile unsigned long *pde;
-+	struct gpt *gpt = iter->gpt;
-+
-+	if (iter->ptp)
-+		return gpt_tree_iter_next_pdp(iter, iter->ptp, addr);
-+	pde = gpt->pgd + (addr >> gpt->pgd_shift);
-+	return gpt_tree_iter_addr_ptp(iter, addr, NULL, pde, gpt->pgd_shift);
-+}
-+
-+static bool gpt_tree_iter_first_ptp(struct gpt_iter *iter,
-+				    unsigned long start,
-+				    unsigned long end,
-+				    struct page *pdp,
-+				    volatile unsigned long *pde,
-+				    unsigned long shift)
-+{
-+	unsigned long addr, idx, lshift, mask, next, npde;
-+	struct gpt_lock *lock = iter->lock;
-+	struct gpt *gpt = iter->gpt;
-+
-+	npde = ((end - start) >> shift) + 1;
-+	mask = ~((1UL << shift) - 1UL);
-+	lshift = shift - GPT_PDIR_NBITS;
-+
-+	for (addr = start, idx = 0; idx < npde; addr = next + 1UL, ++idx) {
-+		struct page *lpdp;
-+		void *lpde;
-+
-+		next = min((addr & mask) + (1UL << shift) - 1UL, end);
-+		lpdp = gpt_pde_pdp(gpt, &pde[idx]);
-+		if (!lpdp || !lock->hold(lock, lpdp))
-+			continue;
-+
-+		lpde = page_address(lpdp);
-+		if (gpt->pld_shift == shift) {
-+			iter->ptp = lpdp;
-+			iter->pte = gpt_pte_from_addr(gpt, lpdp, lpde, addr);
-+			iter->pte_addr = addr;
-+			return true;
-+		}
-+
-+		lpde += ((addr >> lshift) & GPT_PDIR_MASK) * gpt->pde_size;
-+		if (gpt_tree_iter_first_ptp(iter, addr, next,
-+					    lpdp, lpde, lshift))
-+			return true;
-+	}
-+	return false;
-+}
-+
-+static bool gpt_tree_iter_first_pdp(struct gpt_iter *iter,
-+				    struct page *pdp,
-+				    unsigned long start,
-+				    unsigned long end)
-+{
-+	struct gpt *gpt = iter->gpt;
-+	unsigned long *upde;
-+	struct page *updp;
-+
-+	updp = gpt_pdp_upper_pdp(gpt, pdp);
-+	upde = gpt_pdp_upper_pde(gpt, pdp);
-+	if (gpt_pdp_cover_addr(gpt, updp, start)) {
-+		unsigned long shift = gpt_pdp_shift(gpt, updp);
-+
-+		if (gpt_tree_iter_first_ptp(iter, start, end,
-+					    updp, upde, shift))
-+			return true;
-+		start = gpt_pdp_end(gpt, updp) + 1UL;
-+		if (start > end) {
-+			iter->ptp = NULL;
-+			iter->pte = NULL;
-+			return false;
-+		}
-+	}
-+
-+	return gpt_tree_iter_first_pdp(iter, updp, start, end);
-+}
-+
-+static bool gpt_tree_iter_first(struct gpt_iter *iter,
-+				unsigned long start,
-+				unsigned long end)
-+{
-+	unsigned long *pde;
-+	struct gpt *gpt = iter->gpt;
-+
-+	if (iter->ptp)
-+		return gpt_tree_iter_first_pdp(iter, iter->ptp, start, end);
-+
-+	pde = gpt->pgd + (start >> gpt->pgd_shift);
-+	return gpt_tree_iter_first_ptp(iter, start, end, NULL,
-+				       pde, gpt->pgd_shift);
-+}
-+
-+static const struct gpt_ops _gpt_ops_tree = {
-+	.lock_update = gpt_tree_lock_update,
-+	.unlock_update = gpt_tree_unlock_update,
-+	.lock_fault = gpt_tree_lock_fault,
-+	.unlock_fault = gpt_tree_unlock_fault,
-+	.walk = gpt_tree_walk,
-+	.iter_addr = gpt_tree_iter_addr,
-+	.iter_first = gpt_tree_iter_first,
-+};
-+
-+
-+/*
-+ * Generic page table operations for page table with single level (flat).
++/* hmm_mirror_fault() - call by the device driver on device memory fault.
++ *
++ * @mirror: Mirror related to the fault if any.
++ * @event: Event describing the fault.
++ *
++ * Device driver call this function either if it needs to fill its page table
++ * for a range of address or if it needs to migrate memory between system and
++ * remote memory.
++ *
++ * This function perform vma lookup and access permission check on behalf of
++ * the device. If device ask for range [A; D] but there is only a valid vma
++ * starting at B with B > A and B < D then callback will return -EFAULT and
++ * set event->end to B so device driver can either report an issue back or
++ * call again the hmm_mirror_fault with range updated to [B; D].
++ *
++ * This allows device driver to optimistically fault range of address without
++ * having to know about valid vma range. Device driver can then take proper
++ * action if a real memory access happen inside an invalid address range.
++ *
++ * Also the fault will clamp the requested range to valid vma range (unless the
++ * vma into which event->start falls to, can grow). So in previous example if D
++ * D is not cover by any vma then hmm_mirror_fault will stop a C with C < D and
++ * C being the last address of a valid vma. Also event->end will be set to C.
++ *
++ * All error must be handled by device driver and most likely result in the
++ * process device tasks to be kill by the device driver.
++ *
++ * Returns:
++ * > 0 Number of pages faulted.
++ * -EINVAL if invalid argument.
++ * -ENOMEM if failing to allocate memory.
++ * -EACCES if trying to write to read only address.
++ * -EFAULT if trying to access an invalid address.
++ * -ENODEV if mirror is in process of being destroy.
++ * -EIO if device driver update callback failed.
 + */
-+static int gpt_flat_walk(struct gpt_walk *walk,
-+			 struct gpt *gpt,
-+			 struct gpt_lock *lock)
++int hmm_mirror_fault(struct hmm_mirror *mirror, struct hmm_event *event)
 +{
-+	void *pte;
++	struct vm_area_struct *vma;
++	int ret = 0;
 +
-+	if (!walk->pte)
-+		return 0;
-+
-+	pte = gpt_pte_from_addr(gpt, NULL, gpt->pte, walk->start);
-+	return walk->pte(gpt, walk, NULL, pte, walk->start, walk->end);
-+}
-+
-+static bool gpt_flat_iter_addr(struct gpt_iter *iter, unsigned long addr)
-+{
-+	struct gpt *gpt = iter->gpt;
-+
-+	iter->ptp = NULL;
-+	iter->pte = gpt_pte_from_addr(gpt, NULL, gpt->pte, addr);
-+	iter->pte_addr = addr;
-+	return true;
-+}
-+
-+static bool gpt_flat_iter_first(struct gpt_iter *iter,
-+				unsigned long start,
-+				unsigned long end)
-+{
-+	struct gpt *gpt = iter->gpt;
-+
-+	iter->ptp = NULL;
-+	iter->pte = gpt_pte_from_addr(gpt, NULL, gpt->pte, start);
-+	iter->pte_addr = start;
-+	return true;
-+}
-+
-+static const struct gpt_ops _gpt_ops_flat = {
-+	.lock_update = NULL,
-+	.unlock_update = NULL,
-+	.lock_fault = NULL,
-+	.unlock_fault = NULL,
-+	.walk = gpt_flat_walk,
-+	.iter_addr = gpt_flat_iter_addr,
-+	.iter_first = gpt_flat_iter_first,
-+};
-+
-+
-+/*
-+ * Default user operations implementation.
-+ */
-+static unsigned long gpt_default_pde_from_pdp(struct gpt *gpt,
-+					      struct page *pdp)
-+{
-+	unsigned long pde;
-+
-+	pde = (page_to_pfn(pdp) << gpt->pfn_shift) | gpt->pfn_valid;
-+	return pde;
-+}
-+
-+static const struct gpt_user_ops _gpt_user_ops_default = {
-+	.pde_from_pdp = gpt_default_pde_from_pdp,
-+};
-+
-+
-+void gpt_free(struct gpt *gpt)
-+{
-+	BUG_ON(!list_empty(&gpt->faulters));
-+	BUG_ON(!list_empty(&gpt->updaters));
-+	gpt->max_addr = 0;
-+	kfree(gpt->pgd);
-+}
-+EXPORT_SYMBOL(gpt_free);
-+
-+int gpt_init(struct gpt *gpt)
-+{
-+	unsigned long pgd_size;
-+
-+	gpt->user_ops = gpt->user_ops ? gpt->user_ops : &_gpt_user_ops_default;
-+	gpt->max_addr = gpt_align_end_addr(gpt, gpt->max_addr);
-+	INIT_LIST_HEAD(&gpt->pdp_young);
-+	INIT_LIST_HEAD(&gpt->pdp_free);
-+	INIT_LIST_HEAD(&gpt->faulters);
-+	INIT_LIST_HEAD(&gpt->updaters);
-+	spin_lock_init(&gpt->pgd_lock);
-+	spin_lock_init(&gpt->lock);
-+	gpt->updater_serial = gpt->faulter_serial = gpt->min_serial = 0;
-+	gpt->pde_size = sizeof(long);
-+
-+	/* The page table entry size must smaller than page size. */
-+	if (gpt->pte_shift >= PAGE_SHIFT)
++	if (!mirror || !event || event->start >= event->end)
 +		return -EINVAL;
-+	gpt->pte_mask = (1UL << (PAGE_SHIFT - gpt->pte_shift)) - 1UL;
-+	gpt->pte_mask = gpt->pte_mask << gpt->page_shift;
 +
-+	gpt->pld_shift = PAGE_SHIFT - gpt->pte_shift + gpt->page_shift;
-+	if (gpt_align_end_addr(gpt, 1UL << gpt->pld_shift) >= gpt->max_addr) {
-+		/* Only need one level ie this is a flat page table. */
-+		gpt->pgd_shift = gpt->page_shift;
-+		pgd_size = (gpt->max_addr >> gpt->pgd_shift) + 1UL;
-+		pgd_size = pgd_size << gpt->pte_shift;
-+		gpt->ops = &_gpt_ops_flat;
-+	} else {
-+		unsigned long nbits, pgd_nbits;
++	hmm_event_init(event, event->start, event->end);
++	if (event->end > mirror->hmm->mm->highest_vm_end)
++		return -EFAULT;
 +
-+		nbits = __fls(gpt->max_addr);
-+		pgd_nbits = (nbits - gpt->pld_shift) % GPT_PDIR_NBITS;
-+		pgd_nbits = pgd_nbits ? pgd_nbits : GPT_PDIR_NBITS;
-+		gpt->pgd_shift = nbits - pgd_nbits;
-+		pgd_size = ((gpt->max_addr >> gpt->pgd_shift) + 1UL) *
-+			   gpt->pde_size;
-+		gpt->ops = &_gpt_ops_tree;
++retry:
++	if (!mirror->hmm->mm->hmm)
++		return -ENODEV;
++
++	/*
++	 * So synchronization with the cpu page table is the most important
++	 * and tedious aspect of device page fault. There must be a strong
++	 * ordering btw call to device->update() for device page fault and
++	 * device->update() for cpu page table invalidation/update.
++	 *
++	 * Page that are exposed to device driver must stay valid while the
++	 * callback is in progress ie any cpu page table invalidation that
++	 * render those pages obsolete must call device->update() after the
++	 * device->update() call that faulted those pages.
++	 *
++	 * To achieve this we rely on few things. First the mmap_sem insure
++	 * us that any munmap() syscall will serialize with us. So issue are
++	 * with unmap_mapping_range() and with migrate or merge page. For this
++	 * hmm keep track of affected range of address and block device page
++	 * fault that hit overlapping range.
++	 */
++	down_read(&mirror->hmm->mm->mmap_sem);
++	vma = find_vma_intersection(mirror->hmm->mm, event->start, event->end);
++	if (!vma) {
++		ret = -EFAULT;
++		goto out;
++	}
++	if (vma->vm_start > event->start) {
++		event->end = vma->vm_start;
++		ret = -EFAULT;
++		goto out;
++	}
++	event->end = min(event->end, vma->vm_end);
++	if ((vma->vm_flags & (VM_IO | VM_PFNMAP | VM_MIXEDMAP | VM_HUGETLB))) {
++		ret = -EFAULT;
++		goto out;
 +	}
 +
-+	gpt->pgd = kzalloc(pgd_size, GFP_KERNEL);
-+	if (!gpt->pgd)
-+		return -ENOMEM;
++	switch (event->etype) {
++	case HMM_RFAULT:
++	case HMM_WFAULT:
++		ret = hmm_mirror_handle_fault(mirror, event, vma);
++		break;
++	default:
++		ret = -EINVAL;
++		break;
++	}
++
++out:
++	/* Drop the mmap_sem so anyone waiting on it have a chance. */
++	up_read(&mirror->hmm->mm->mmap_sem);
++	if (ret == -EAGAIN)
++		goto retry;
++	return ret;
++}
++EXPORT_SYMBOL(hmm_mirror_fault);
++
++
++/* hmm_device - Each device driver must register one and only one hmm_device
++ *
++ * The hmm_device is the link btw hmm and each device driver.
++ */
++
++/* hmm_device_register() - register a device with hmm.
++ *
++ * @device: The hmm_device struct.
++ * Returns: 0 on success, -EINVAL otherwise.
++ *
++ * Call when device driver want to register itself with hmm. Device driver can
++ * only register once. It will return a reference on the device thus to release
++ * a device the driver must unreference the device.
++ */
++int hmm_device_register(struct hmm_device *device)
++{
++	/* sanity check */
++	BUG_ON(!device);
++	BUG_ON(!device->ops);
++	BUG_ON(!device->ops->mirror_ref);
++	BUG_ON(!device->ops->mirror_unref);
++	BUG_ON(!device->ops->mirror_release);
++	BUG_ON(!device->ops->fence_wait);
++	BUG_ON(!device->ops->fence_ref);
++	BUG_ON(!device->ops->fence_unref);
++	BUG_ON(!device->ops->update);
++
++	mutex_init(&device->mutex);
++	INIT_LIST_HEAD(&device->mirrors);
 +
 +	return 0;
 +}
-+EXPORT_SYMBOL(gpt_init);
++EXPORT_SYMBOL(hmm_device_register);
++
++/* hmm_device_unregister() - unregister a device with hmm.
++ *
++ * @device: The hmm_device struct.
++ *
++ * Call when device driver want to unregister itself with hmm. This will check
++ * if there is any active mirror and return -EBUSY if so. It is device driver
++ * responsability to cleanup and stop all mirror before calling this.
++ */
++int hmm_device_unregister(struct hmm_device *device)
++{
++	struct hmm_mirror *mirror;
++
++	mutex_lock(&device->mutex);
++	mirror = list_first_entry_or_null(&device->mirrors,
++					  struct hmm_mirror,
++					  dlist);
++	mutex_unlock(&device->mutex);
++	if (mirror)
++		return -EBUSY;
++	return 0;
++}
++EXPORT_SYMBOL(hmm_device_unregister);
++
++static void hmm_device_fence_wait(struct hmm_device *device,
++				  struct hmm_fence *fence)
++{
++	struct hmm_mirror *mirror;
++	int r;
++
++	if (fence == NULL)
++		return;
++
++	list_del_init(&fence->list);
++	do {
++		r = device->ops->fence_wait(fence);
++		if (r == -EAGAIN)
++			io_schedule();
++	} while (r == -EAGAIN);
++
++	mirror = fence->mirror;
++	device->ops->fence_unref(fence);
++	if (r)
++		hmm_mirror_handle_error(mirror);
++	hmm_mirror_unref(mirror);
++}
++
++
++static int __init hmm_subsys_init(void)
++{
++	return init_srcu_struct(&srcu);
++}
++subsys_initcall(hmm_subsys_init);
 -- 
 1.9.3
 
