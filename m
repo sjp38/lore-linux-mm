@@ -1,106 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 2042F6B003D
-	for <linux-mm@kvack.org>; Fri, 29 Aug 2014 15:17:00 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id r10so1055593pdi.29
-        for <linux-mm@kvack.org>; Fri, 29 Aug 2014 12:16:59 -0700 (PDT)
-Received: from relay.sgi.com (relay1.sgi.com. [192.48.180.66])
-        by mx.google.com with ESMTP id yg2si1698975pab.48.2014.08.29.12.16.56
-        for <linux-mm@kvack.org>;
-        Fri, 29 Aug 2014 12:16:56 -0700 (PDT)
-Message-Id: <20140829191647.582288686@asylum.americas.sgi.com>
-References: <20140829191647.364032240@asylum.americas.sgi.com>
-Date: Fri, 29 Aug 2014 14:16:48 -0500
-From: Mike Travis <travis@sgi.com>
-Subject: [PATCH 1/2] x86: Optimize resource lookups for ioremap
-Content-Disposition: inline; filename=add-get-resource-type
+Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
+	by kanga.kvack.org (Postfix) with ESMTP id CEF236B0044
+	for <linux-mm@kvack.org>; Fri, 29 Aug 2014 15:17:25 -0400 (EDT)
+Received: by mail-qc0-f178.google.com with SMTP id x13so2845405qcv.37
+        for <linux-mm@kvack.org>; Fri, 29 Aug 2014 12:17:25 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s75si1352646qgs.94.2014.08.29.12.17.25
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Aug 2014 12:17:25 -0700 (PDT)
+Date: Fri, 29 Aug 2014 15:17:19 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 3/3] Convert a few VM_BUG_ON callers to VM_BUG_ON_VMA
+Message-ID: <20140829191719.GC12774@nhori.bos.redhat.com>
+References: <1409324059-28692-1-git-send-email-sasha.levin@oracle.com>
+ <1409324059-28692-3-git-send-email-sasha.levin@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1409324059-28692-3-git-send-email-sasha.levin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mingo@redhat.com, tglx@linutronix.de, hpa@zytor.com
-Cc: akpm@linux-foundation.org, msalter@redhat.com, dyoung@redhat.com, riel@redhat.com, peterz@infradead.org, mgorman@suse.de, linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, Alex Thorlton <athorlton@sgi.com>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, khlebnikov@openvz.org, riel@redhat.com, mgorman@suse.de, mhocko@suse.cz, hughd@google.com, vbabka@suse.cz, walken@google.com, minchan@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Since the ioremap operation is verifying that the specified address range
-is NOT RAM, it will search the entire ioresource list if the condition
-is true.  To make matters worse, it does this one 4k page at a time.
-For a 128M BAR region this is 32 passes to determine the entire region
-does not contain any RAM addresses.
+On Fri, Aug 29, 2014 at 10:54:19AM -0400, Sasha Levin wrote:
+> Trivially convert a few VM_BUG_ON calls to VM_BUG_ON_VMA to extract
+> more information when they trigger.
+> 
+> Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
+> ---
+...
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index 3e8491c..5fbd0fe 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+...
+> @@ -897,7 +897,7 @@ void page_move_anon_rmap(struct page *page,
+>  	struct anon_vma *anon_vma = vma->anon_vma;
+>  
+>  	VM_BUG_ON_PAGE(!PageLocked(page), page);
+> -	VM_BUG_ON(!anon_vma);
+> +	VM_BUG_ON_VMA(!anon_vma, vma);
 
-This patch provides another resource lookup function, region_is_ram,
-that searches for the entire region specified, verifying that it is
-completely contained within the resource region.  If it is found, then
-it is checked to be RAM or not, within a single pass.
+>  	VM_BUG_ON_PAGE(page->index != linear_page_index(vma, address), page);
 
-The return result reflects if it was found or not (-1), and whether it is
-RAM (1) or not (0).  This allows the caller to fallback to the previous
-page by page search if it was not found.
+This line contains both of vma and page.
+But I'm not sure that introducing another macro like VM_BUG_ON_PAGE_AND_VMA()
+is worth doing. So it's ok for me to keep it untouched.
 
-Signed-off-by: Mike Travis <travis@sgi.com>
-Acked-by: Alex Thorlton <athorlton@sgi.com>
-Reviewed-by: Cliff Wickman <cpw@sgi.com>
----
-v2: remove 'weak' and EXPORT_SYMBOL_GPL from region_is_ram()
----
- include/linux/mm.h |    1 +
- kernel/resource.c  |   36 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 37 insertions(+)
+>  
+>  	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+> @@ -1024,7 +1024,7 @@ void do_page_add_anon_rmap(struct page *page,
+>  void page_add_new_anon_rmap(struct page *page,
+>  	struct vm_area_struct *vma, unsigned long address)
+>  {
+> -	VM_BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+> +	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
+>  	SetPageSwapBacked(page);
+>  	atomic_set(&page->_mapcount, 0); /* increment count (starts at -1) */
+>  	if (PageTransHuge(page))
+> @@ -1666,7 +1666,7 @@ static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc)
+>  	 * structure at mapping cannot be freed and reused yet,
+>  	 * so we can safely take mapping->i_mmap_mutex.
+>  	 */
+> -	VM_BUG_ON(!PageLocked(page));
+> +	VM_BUG_ON_PAGE(!PageLocked(page), page);
 
---- linux.orig/include/linux/mm.h
-+++ linux/include/linux/mm.h
-@@ -346,6 +346,7 @@ static inline int put_page_unless_one(st
- }
- 
- extern int page_is_ram(unsigned long pfn);
-+extern int region_is_ram(resource_size_t phys_addr, unsigned long size);
- 
- /* Support for virtually mapped pages */
- struct page *vmalloc_to_page(const void *addr);
---- linux.orig/kernel/resource.c
-+++ linux/kernel/resource.c
-@@ -494,6 +494,42 @@ int __weak page_is_ram(unsigned long pfn
- }
- EXPORT_SYMBOL_GPL(page_is_ram);
- 
-+/*
-+ * Search for a resouce entry that fully contains the specified region.
-+ * If found, return 1 if it is RAM, 0 if not.
-+ * If not found, or region is not fully contained, return -1
-+ *
-+ * Used by the ioremap functions to insure user not remapping RAM and is as
-+ * vast speed up over walking through the resource table page by page.
-+ */
-+int region_is_ram(resource_size_t start, unsigned long size)
-+{
-+	struct resource *p;
-+	resource_size_t end = start + size - 1;
-+	int flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-+	const char *name = "System RAM";
-+	int ret = -1;
-+
-+	read_lock(&resource_lock);
-+	for (p = iomem_resource.child; p ; p = p->sibling) {
-+		if (end < p->start)
-+			continue;
-+
-+		if (p->start <= start && end <= p->end) {
-+			/* resource fully contains region */
-+			if ((p->flags != flags) || strcmp(p->name, name))
-+				ret = 0;
-+			else
-+				ret = 1;
-+			break;
-+		}
-+		if (p->end < start)
-+			break;	/* not found */
-+	}
-+	read_unlock(&resource_lock);
-+	return ret;
-+}
-+
- void __weak arch_remove_reservations(struct resource *avail)
- {
- }
+This is not the replacement with VM_BUG_ON_VMA(), but it's fine :)
 
--- 
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
