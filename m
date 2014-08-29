@@ -1,34 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 21B536B005C
-	for <linux-mm@kvack.org>; Fri, 29 Aug 2014 15:18:14 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id et14so7224723pad.2
-        for <linux-mm@kvack.org>; Fri, 29 Aug 2014 12:18:13 -0700 (PDT)
-Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [72.246.2.115])
-        by mx.google.com with ESMTP id sb10si1525030pac.125.2014.08.29.12.18.13
-        for <linux-mm@kvack.org>;
-        Fri, 29 Aug 2014 12:18:13 -0700 (PDT)
-Message-ID: <5400D1F2.6020900@akamai.com>
-Date: Fri, 29 Aug 2014 15:18:10 -0400
-From: Jason Baron <jbaron@akamai.com>
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 40F6F6B003B
+	for <linux-mm@kvack.org>; Fri, 29 Aug 2014 15:32:16 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id fp1so1080480pdb.27
+        for <linux-mm@kvack.org>; Fri, 29 Aug 2014 12:32:15 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id i5si2017569pdp.16.2014.08.29.12.32.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 29 Aug 2014 12:32:15 -0700 (PDT)
+Message-ID: <5400D535.9080002@oracle.com>
+Date: Fri, 29 Aug 2014 15:32:05 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] lib: Use seq_open_private() instead of seq_open()
-References: <1409328400-18212-1-git-send-email-rob.jones@codethink.co.uk> <1409328400-18212-5-git-send-email-rob.jones@codethink.co.uk>
-In-Reply-To: <1409328400-18212-5-git-send-email-rob.jones@codethink.co.uk>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 3/3] Convert a few VM_BUG_ON callers to VM_BUG_ON_VMA
+References: <1409324059-28692-1-git-send-email-sasha.levin@oracle.com> <1409324059-28692-3-git-send-email-sasha.levin@oracle.com> <20140829191719.GC12774@nhori.bos.redhat.com>
+In-Reply-To: <20140829191719.GC12774@nhori.bos.redhat.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rob Jones <rob.jones@codethink.co.uk>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "cl@linux-foundation.org" <cl@linux-foundation.org>, "penberg@kernel.org" <penberg@kernel.org>, "mpm@selenic.com" <mpm@selenic.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@codethink.co.uk" <linux-kernel@codethink.co.uk>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, khlebnikov@openvz.org, riel@redhat.com, mgorman@suse.de, mhocko@suse.cz, hughd@google.com, vbabka@suse.cz, walken@google.com, minchan@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 08/29/2014 12:06 PM, Rob Jones wrote:
-> Using seq_open_private() removes boilerplate code from ddebug_proc_open()
->
+On 08/29/2014 03:17 PM, Naoya Horiguchi wrote:
+>> -	VM_BUG_ON(!PageLocked(page));
+>> > +	VM_BUG_ON_PAGE(!PageLocked(page), page);
+> This is not the replacement with VM_BUG_ON_VMA(), but it's fine :)
 
-Looks good.
+Woops, I was on a spree and got this one as well.
 
-Acked-by: Jason Baron <jbaron@akamai.com>
+Thanks for the review Naoya!
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
