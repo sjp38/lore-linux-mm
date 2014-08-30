@@ -1,116 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 02B5D6B0035
-	for <linux-mm@kvack.org>; Sat, 30 Aug 2014 02:44:42 -0400 (EDT)
-Received: by mail-ie0-f170.google.com with SMTP id rl12so3892697iec.29
-        for <linux-mm@kvack.org>; Fri, 29 Aug 2014 23:44:42 -0700 (PDT)
-Received: from mail-ie0-x235.google.com (mail-ie0-x235.google.com [2607:f8b0:4001:c03::235])
-        by mx.google.com with ESMTPS id x7si719648ice.38.2014.08.29.23.44.42
+Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
+	by kanga.kvack.org (Postfix) with ESMTP id AF4AD6B0035
+	for <linux-mm@kvack.org>; Sat, 30 Aug 2014 09:59:30 -0400 (EDT)
+Received: by mail-qa0-f48.google.com with SMTP id m5so3222719qaj.7
+        for <linux-mm@kvack.org>; Sat, 30 Aug 2014 06:59:30 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 10si4284385qaj.81.2014.08.30.06.59.29
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 29 Aug 2014 23:44:42 -0700 (PDT)
-Received: by mail-ie0-f181.google.com with SMTP id rp18so3885722iec.12
-        for <linux-mm@kvack.org>; Fri, 29 Aug 2014 23:44:42 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 30 Aug 2014 06:59:30 -0700 (PDT)
+Date: Sat, 30 Aug 2014 15:57:06 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [mmotm:master 123/287] fs/proc/task_mmu.c:1426:27: error:
+	'task' undeclared
+Message-ID: <20140830135706.GA7371@redhat.com>
+References: <54011337.obkqHml8e//Q+mnU%fengguang.wu@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20140829143811.90bfab2a46ccade0f586b369@linux-foundation.org>
-References: <20140820150435.4194.28003.stgit@buzz>
-	<20140820150509.4194.24336.stgit@buzz>
-	<20140829143811.90bfab2a46ccade0f586b369@linux-foundation.org>
-Date: Sat, 30 Aug 2014 10:44:41 +0400
-Message-ID: <CALYGNiN9rHG-b1p-seR9NfDW-FKAxeQq6iUTdmr1PoQYEpr+qA@mail.gmail.com>
-Subject: Re: [PATCH 7/7] mm/balloon_compaction: general cleanup
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54011337.obkqHml8e//Q+mnU%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Konstantin Khlebnikov <k.khlebnikov@samsung.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rafael Aquini <aquini@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
 
-On Sat, Aug 30, 2014 at 1:38 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Wed, 20 Aug 2014 19:05:09 +0400 Konstantin Khlebnikov <k.khlebnikov@samsung.com> wrote:
+On 08/30, kbuild test robot wrote:
 >
->> * move special branch for balloon migraion into migrate_pages
->> * remove special mapping for balloon and its flag AS_BALLOON_MAP
->> * embed struct balloon_dev_info into struct virtio_balloon
->> * cleanup balloon_page_dequeue, kill balloon_page_free
+> tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> head:   8f1fc64dc9b39fedb7390e086001ce5ec327e80d
+> commit: 8b38b95075137cd18b5e51bc48751c023d16c3fb [123/287] mempolicy: fix show_numa_map() vs exec() + do_set_mempolicy() race
+> config: make ARCH=x86_64 allmodconfig
 >
-> Another testing failure.  Guys, allnoconfig is really fast.
+> Note: the mmotm/master HEAD 8f1fc64dc9b39fedb7390e086001ce5ec327e80d builds fine.
+>       It only hurts bisectibility.
+>
+> All error/warnings:
+>
+>    fs/proc/task_mmu.c: In function 'show_numa_map':
+> >> fs/proc/task_mmu.c:1426:27: error: 'task' undeclared (first use in this function)
+>       pid_t tid = vm_is_stack(task, vma, is_pid);
+>                               ^
 
-Heh, mea culpa too. I've missed messages about including my patches except one
-with stress-test, probably they are stuck somewhere in my corporate email.
-So I thought you've picked only one patch.
+Thanks!
 
-Rafael had several suggestions so I postponed them till v2 patchset
-which never been sent.
+Looks like, this commit was wrongly reordered with
 
->
->> --- a/include/linux/balloon_compaction.h
->> +++ b/include/linux/balloon_compaction.h
->> @@ -54,58 +54,27 @@
->>   * balloon driver as a page book-keeper for its registered balloon devices.
->>   */
->>  struct balloon_dev_info {
->> -     void *balloon_device;           /* balloon device descriptor */
->> -     struct address_space *mapping;  /* balloon special page->mapping */
->>       unsigned long isolated_pages;   /* # of isolated pages for migration */
->>       spinlock_t pages_lock;          /* Protection to pages list */
->>       struct list_head pages;         /* Pages enqueued & handled to Host */
->> +     int (* migrate_page)(struct balloon_dev_info *, struct page *newpage,
->> +                     struct page *page, enum migrate_mode mode);
->>  };
->
-> If CONFIG_MIGRATION=n this gets turned into "NULL" and chaos ensues.  I
-> think I'll just nuke that #define:
+	proc-maps-make-vm_is_stack-logic-namespace-friendly.patch
 
-Hmm, i think it's better to rename migrate_page() into something less generic.
-for example generic_migrate_page() or generic_migratepage().
+Indeed, from "mmotm 2014-08-29-15-15 uploaded":
 
->
-> --- a/include/linux/migrate.h~include-linux-migrateh-remove-migratepage-define
-> +++ a/include/linux/migrate.h
-> @@ -82,9 +82,6 @@ static inline int migrate_huge_page_move
->         return -ENOSYS;
->  }
->
-> -/* Possible settings for the migrate_page() method in address_operations */
-> -#define migrate_page NULL
-> -
->  #endif /* CONFIG_MIGRATION */
->
->  #ifdef CONFIG_NUMA_BALANCING
-> --- a/mm/swap_state.c~include-linux-migrateh-remove-migratepage-define
-> +++ a/mm/swap_state.c
-> @@ -28,7 +28,9 @@
->  static const struct address_space_operations swap_aops = {
->         .writepage      = swap_writepage,
->         .set_page_dirty = swap_set_page_dirty,
-> +#ifdef CONFIG_MIGRATION
->         .migratepage    = migrate_page,
-> +#endif
->  };
->
->  static struct backing_dev_info swap_backing_dev_info = {
-> --- a/mm/shmem.c~include-linux-migrateh-remove-migratepage-define
-> +++ a/mm/shmem.c
-> @@ -3075,7 +3075,9 @@ static const struct address_space_operat
->         .write_begin    = shmem_write_begin,
->         .write_end      = shmem_write_end,
->  #endif
-> +#ifdef CONFIG_MIGRATION
->         .migratepage    = migrate_page,
-> +#endif
->         .error_remove_page = generic_error_remove_page,
->  };
->
->
-> Our mixture of "migratepage" and "migrate_page" is maddening.
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+	* mempolicy-change-alloc_pages_vma-to-use-mpol_cond_put.patch
+	* mempolicy-change-get_task_policy-to-return-default_policy-rather-than-null.patch
+	* mempolicy-sanitize-the-usage-of-get_task_policy.patch
+	* mempolicy-remove-the-task-arg-of-vma_policy_mof-and-simplify-it.patch
+	* mempolicy-introduce-__get_vma_policy-export-get_task_policy.patch
+	* mempolicy-fix-show_numa_map-vs-exec-do_set_mempolicy-race.patch
+	* mempolicy-kill-do_set_mempolicy-down_writemm-mmap_sem.patch
+	* mempolicy-unexport-get_vma_policy-and-remove-its-task-arg.patch
+	...
+	* proc-maps-replace-proc_maps_private-pid-with-struct-inode-inode.patch
+	* proc-maps-make-vm_is_stack-logic-namespace-friendly.patch
+
+but "mempolicy" series depends (textually) on the previous "proc-maps" changes.
+
+Oleg.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
