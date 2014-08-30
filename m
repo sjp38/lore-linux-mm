@@ -1,54 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A8866B0035
-	for <linux-mm@kvack.org>; Fri, 29 Aug 2014 22:58:45 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id rd3so7869654pab.3
-        for <linux-mm@kvack.org>; Fri, 29 Aug 2014 19:58:44 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id he2si2952208pac.73.2014.08.29.19.58.43
-        for <linux-mm@kvack.org>;
-        Fri, 29 Aug 2014 19:58:44 -0700 (PDT)
-Date: Sat, 30 Aug 2014 10:55:05 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 140/287] mm/page_alloc.c:6737:46: error: request
- for member 'pgprot' in something not a structure or union
-Message-ID: <54013d09.FbZj6mSRPCEpiqTF%fengguang.wu@intel.com>
+Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 02B5D6B0035
+	for <linux-mm@kvack.org>; Sat, 30 Aug 2014 02:44:42 -0400 (EDT)
+Received: by mail-ie0-f170.google.com with SMTP id rl12so3892697iec.29
+        for <linux-mm@kvack.org>; Fri, 29 Aug 2014 23:44:42 -0700 (PDT)
+Received: from mail-ie0-x235.google.com (mail-ie0-x235.google.com [2607:f8b0:4001:c03::235])
+        by mx.google.com with ESMTPS id x7si719648ice.38.2014.08.29.23.44.42
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 29 Aug 2014 23:44:42 -0700 (PDT)
+Received: by mail-ie0-f181.google.com with SMTP id rp18so3885722iec.12
+        for <linux-mm@kvack.org>; Fri, 29 Aug 2014 23:44:42 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20140829143811.90bfab2a46ccade0f586b369@linux-foundation.org>
+References: <20140820150435.4194.28003.stgit@buzz>
+	<20140820150509.4194.24336.stgit@buzz>
+	<20140829143811.90bfab2a46ccade0f586b369@linux-foundation.org>
+Date: Sat, 30 Aug 2014 10:44:41 +0400
+Message-ID: <CALYGNiN9rHG-b1p-seR9NfDW-FKAxeQq6iUTdmr1PoQYEpr+qA@mail.gmail.com>
+Subject: Re: [PATCH 7/7] mm/balloon_compaction: general cleanup
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Konstantin Khlebnikov <k.khlebnikov@samsung.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rafael Aquini <aquini@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   8f1fc64dc9b39fedb7390e086001ce5ec327e80d
-commit: 59f16a3915d3e5c6ddebc1b1c10ce0c14fd518cf [140/287] mm: introduce dump_vma
-config: make ARCH=powerpc allmodconfig
+On Sat, Aug 30, 2014 at 1:38 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Wed, 20 Aug 2014 19:05:09 +0400 Konstantin Khlebnikov <k.khlebnikov@samsung.com> wrote:
+>
+>> * move special branch for balloon migraion into migrate_pages
+>> * remove special mapping for balloon and its flag AS_BALLOON_MAP
+>> * embed struct balloon_dev_info into struct virtio_balloon
+>> * cleanup balloon_page_dequeue, kill balloon_page_free
+>
+> Another testing failure.  Guys, allnoconfig is really fast.
 
-All error/warnings:
+Heh, mea culpa too. I've missed messages about including my patches except one
+with stress-test, probably they are stuck somewhere in my corporate email.
+So I thought you've picked only one patch.
 
-   mm/page_alloc.c: In function 'dump_vma':
->> mm/page_alloc.c:6737:46: error: request for member 'pgprot' in something not a structure or union
-      vma->vm_prev, vma->vm_mm, vma->vm_page_prot.pgprot,
-                                                 ^
+Rafael had several suggestions so I postponed them till v2 patchset
+which never been sent.
 
-vim +/pgprot +6737 mm/page_alloc.c
+>
+>> --- a/include/linux/balloon_compaction.h
+>> +++ b/include/linux/balloon_compaction.h
+>> @@ -54,58 +54,27 @@
+>>   * balloon driver as a page book-keeper for its registered balloon devices.
+>>   */
+>>  struct balloon_dev_info {
+>> -     void *balloon_device;           /* balloon device descriptor */
+>> -     struct address_space *mapping;  /* balloon special page->mapping */
+>>       unsigned long isolated_pages;   /* # of isolated pages for migration */
+>>       spinlock_t pages_lock;          /* Protection to pages list */
+>>       struct list_head pages;         /* Pages enqueued & handled to Host */
+>> +     int (* migrate_page)(struct balloon_dev_info *, struct page *newpage,
+>> +                     struct page *page, enum migrate_mode mode);
+>>  };
+>
+> If CONFIG_MIGRATION=n this gets turned into "NULL" and chaos ensues.  I
+> think I'll just nuke that #define:
 
-  6731		printk(KERN_ALERT
-  6732			"vma %p start %p end %p\n"
-  6733			"next %p prev %p mm %p\n"
-  6734			"prot %lx anon_vma %p vm_ops %p\n"
-  6735			"pgoff %lx file %p private_data %p\n",
-  6736			vma, (void *)vma->vm_start, (void *)vma->vm_end, vma->vm_next,
-> 6737			vma->vm_prev, vma->vm_mm, vma->vm_page_prot.pgprot,
-  6738			vma->anon_vma, vma->vm_ops, vma->vm_pgoff,
-  6739			vma->vm_file, vma->vm_private_data);
-  6740		dump_flags(vma->vm_flags, vmaflags_names, ARRAY_SIZE(vmaflags_names));
+Hmm, i think it's better to rename migrate_page() into something less generic.
+for example generic_migrate_page() or generic_migratepage().
 
----
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+>
+> --- a/include/linux/migrate.h~include-linux-migrateh-remove-migratepage-define
+> +++ a/include/linux/migrate.h
+> @@ -82,9 +82,6 @@ static inline int migrate_huge_page_move
+>         return -ENOSYS;
+>  }
+>
+> -/* Possible settings for the migrate_page() method in address_operations */
+> -#define migrate_page NULL
+> -
+>  #endif /* CONFIG_MIGRATION */
+>
+>  #ifdef CONFIG_NUMA_BALANCING
+> --- a/mm/swap_state.c~include-linux-migrateh-remove-migratepage-define
+> +++ a/mm/swap_state.c
+> @@ -28,7 +28,9 @@
+>  static const struct address_space_operations swap_aops = {
+>         .writepage      = swap_writepage,
+>         .set_page_dirty = swap_set_page_dirty,
+> +#ifdef CONFIG_MIGRATION
+>         .migratepage    = migrate_page,
+> +#endif
+>  };
+>
+>  static struct backing_dev_info swap_backing_dev_info = {
+> --- a/mm/shmem.c~include-linux-migrateh-remove-migratepage-define
+> +++ a/mm/shmem.c
+> @@ -3075,7 +3075,9 @@ static const struct address_space_operat
+>         .write_begin    = shmem_write_begin,
+>         .write_end      = shmem_write_end,
+>  #endif
+> +#ifdef CONFIG_MIGRATION
+>         .migratepage    = migrate_page,
+> +#endif
+>         .error_remove_page = generic_error_remove_page,
+>  };
+>
+>
+> Our mixture of "migratepage" and "migrate_page" is maddening.
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
