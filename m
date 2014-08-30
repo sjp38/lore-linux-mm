@@ -1,20 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
-	by kanga.kvack.org (Postfix) with ESMTP id A34B56B0038
-	for <linux-mm@kvack.org>; Sat, 30 Aug 2014 12:41:18 -0400 (EDT)
-Received: by mail-la0-f44.google.com with SMTP id hz20so4253164lab.3
-        for <linux-mm@kvack.org>; Sat, 30 Aug 2014 09:41:18 -0700 (PDT)
-Received: from mail-la0-x22d.google.com (mail-la0-x22d.google.com [2a00:1450:4010:c03::22d])
-        by mx.google.com with ESMTPS id uf7si4675016lbc.101.2014.08.30.09.41.16
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id A3FD36B0039
+	for <linux-mm@kvack.org>; Sat, 30 Aug 2014 12:41:22 -0400 (EDT)
+Received: by mail-lb0-f172.google.com with SMTP id 10so4094167lbg.3
+        for <linux-mm@kvack.org>; Sat, 30 Aug 2014 09:41:22 -0700 (PDT)
+Received: from mail-lb0-x232.google.com (mail-lb0-x232.google.com [2a00:1450:4010:c04::232])
+        by mx.google.com with ESMTPS id jj4si4785034lbc.39.2014.08.30.09.41.20
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 30 Aug 2014 09:41:17 -0700 (PDT)
-Received: by mail-la0-f45.google.com with SMTP id pn19so4173680lab.32
-        for <linux-mm@kvack.org>; Sat, 30 Aug 2014 09:41:16 -0700 (PDT)
-Subject: [PATCH v2 0/6] mm/balloon_compaction: fixes and cleanups
+        Sat, 30 Aug 2014 09:41:21 -0700 (PDT)
+Received: by mail-lb0-f178.google.com with SMTP id v6so4009005lbi.37
+        for <linux-mm@kvack.org>; Sat, 30 Aug 2014 09:41:20 -0700 (PDT)
+Subject: [PATCH v2 1/6] mm/balloon_compaction: ignore anonymous pages
 From: Konstantin Khlebnikov <koct9i@gmail.com>
-Date: Sat, 30 Aug 2014 20:41:06 +0400
-Message-ID: <20140830163834.29066.98205.stgit@zurg>
+Date: Sat, 30 Aug 2014 20:41:09 +0400
+Message-ID: <20140830164109.29066.46373.stgit@zurg>
+In-Reply-To: <20140830163834.29066.98205.stgit@zurg>
+References: <20140830163834.29066.98205.stgit@zurg>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -23,67 +25,34 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Konstantin Khlebnikov <k.khlebnikov@samsung.com>, Rafael Aquini <aquini@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Sasha Levin <sasha.levin@oracle.com>
 
-I've checked compilation of linux-next/x86 for allnoconfig, defconfig and
-defconfig + kvmconfig + virtio-balloon with and without balloon-compaction.
-For stable kernels first three patches should be enough.
+From: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
 
-changes since v1:
+Sasha Levin reported KASAN splash inside isolate_migratepages_range().
+Problem is in function __is_movable_balloon_page() which tests AS_BALLOON_MAP
+in page->mapping->flags. This function has no protection against anonymous
+pages. As result it tried to check address space flags in inside anon-vma.
 
-mm/balloon_compaction: ignore anonymous pages
-* no changes
-
-mm/balloon_compaction: keep ballooned pages away from normal migration path
-* fix compilation without CONFIG_BALLOON_COMPACTION
-
-mm/balloon_compaction: isolate balloon pages without lru_lock
-* no changes
-
-mm: introduce common page state for ballooned memory
-* move __Set/ClearPageBalloon into linux/mm.h
-* remove inc/dec_zone_page_state from __Set/ClearPageBalloon
-
-mm/balloon_compaction: use common page ballooning
-* call inc/dec_zone_page_state from balloon_page_insert/delete
-
-mm/balloon_compaction: general cleanup
-* fix compilation without CONFIG_MIGRATION
-* fix compilation without CONFIG_BALLOON_COMPACTION
-
+Signed-off-by: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
+Reported-by: Sasha Levin <sasha.levin@oracle.com>
+Link: http://lkml.kernel.org/p/53E6CEAA.9020105@oracle.com
+Cc: stable <stable@vger.kernel.org> # v3.8
 ---
+ include/linux/balloon_compaction.h |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Konstantin Khlebnikov (6):
-      mm/balloon_compaction: ignore anonymous pages
-      mm/balloon_compaction: keep ballooned pages away from normal migration path
-      mm/balloon_compaction: isolate balloon pages without lru_lock
-      mm: introduce common page state for ballooned memory
-      mm/balloon_compaction: use common page ballooning
-      mm/balloon_compaction: general cleanup
-
-
- Documentation/filesystems/proc.txt     |    2 
- drivers/base/node.c                    |   16 +-
- drivers/virtio/Kconfig                 |    1 
- drivers/virtio/virtio_balloon.c        |   77 +++--------
- fs/proc/meminfo.c                      |    6 +
- fs/proc/page.c                         |    3 
- include/linux/balloon_compaction.h     |  223 ++++++--------------------------
- include/linux/migrate.h                |   11 --
- include/linux/mm.h                     |   20 +++
- include/linux/mmzone.h                 |    3 
- include/linux/pagemap.h                |   18 ---
- include/uapi/linux/kernel-page-flags.h |    1 
- mm/Kconfig                             |    7 +
- mm/Makefile                            |    3 
- mm/balloon_compaction.c                |  219 ++++++++++---------------------
- mm/compaction.c                        |    9 +
- mm/migrate.c                           |   29 +---
- mm/vmscan.c                            |    2 
- mm/vmstat.c                            |    8 +
- tools/vm/page-types.c                  |    1 
- 20 files changed, 210 insertions(+), 449 deletions(-)
-
---
-Signature
+diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
+index 089743a..53d482e 100644
+--- a/include/linux/balloon_compaction.h
++++ b/include/linux/balloon_compaction.h
+@@ -128,7 +128,7 @@ static inline bool page_flags_cleared(struct page *page)
+ static inline bool __is_movable_balloon_page(struct page *page)
+ {
+ 	struct address_space *mapping = page->mapping;
+-	return mapping_balloon(mapping);
++	return !PageAnon(page) && mapping_balloon(mapping);
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
