@@ -1,58 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-	by kanga.kvack.org (Postfix) with ESMTP id C18C96B0035
-	for <linux-mm@kvack.org>; Sat, 30 Aug 2014 23:18:18 -0400 (EDT)
-Received: by mail-qg0-f43.google.com with SMTP id f51so3867813qge.2
-        for <linux-mm@kvack.org>; Sat, 30 Aug 2014 20:18:18 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e109si6167394qgf.40.2014.08.30.20.18.17
+Received: from mail-vc0-f175.google.com (mail-vc0-f175.google.com [209.85.220.175])
+	by kanga.kvack.org (Postfix) with ESMTP id E54FB6B0035
+	for <linux-mm@kvack.org>; Sun, 31 Aug 2014 07:36:19 -0400 (EDT)
+Received: by mail-vc0-f175.google.com with SMTP id lf12so4286288vcb.6
+        for <linux-mm@kvack.org>; Sun, 31 Aug 2014 04:36:19 -0700 (PDT)
+Received: from mail-vc0-x22e.google.com (mail-vc0-x22e.google.com [2607:f8b0:400c:c03::22e])
+        by mx.google.com with ESMTPS id d9si2932997vdi.28.2014.08.31.04.36.19
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 30 Aug 2014 20:18:17 -0700 (PDT)
-Date: Sat, 30 Aug 2014 22:43:17 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [mmotm:master 140/287] mm/page_alloc.c:6737:46: error:
- 'pgprot_t' has no member named 'pgprot'
-Message-ID: <20140831024317.GA7269@nhori>
-References: <54011800.d8MKnT8qiZd6dbb6%fengguang.wu@intel.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 31 Aug 2014 04:36:19 -0700 (PDT)
+Received: by mail-vc0-f174.google.com with SMTP id hy4so4288667vcb.5
+        for <linux-mm@kvack.org>; Sun, 31 Aug 2014 04:36:19 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <54011800.d8MKnT8qiZd6dbb6%fengguang.wu@intel.com>
+In-Reply-To: <54012D74.7010302@infradead.org>
+References: <5400fba1.732YclygYZprDXeI%akpm@linux-foundation.org>
+	<54012D74.7010302@infradead.org>
+Date: Sun, 31 Aug 2014 15:36:18 +0400
+Message-ID: <CAPAsAGz4458YgHN0b04Z4fTwvo-guh+ESNAXy7j=c-bc7v4gcA@mail.gmail.com>
+Subject: Re: [PATCH -mmotm] mm: fix kmemcheck.c build errors
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: kbuild test robot <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: Randy Dunlap <rdunlap@infradead.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, Pekka Enberg <penberg@kernel.org>, Vegard Nossum <vegardno@ifi.uio.no>
 
-On Sat, Aug 30, 2014 at 08:17:04AM +0800, kbuild test robot wrote:
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   8f1fc64dc9b39fedb7390e086001ce5ec327e80d
-> commit: 59f16a3915d3e5c6ddebc1b1c10ce0c14fd518cf [140/287] mm: introduce dump_vma
-> config: make ARCH=tile tilegx_defconfig
-> 
-> All error/warnings:
-> 
->    mm/page_alloc.c: In function 'dump_vma':
-> >> mm/page_alloc.c:6737:46: error: 'pgprot_t' has no member named 'pgprot'
-> 
-> vim +6737 mm/page_alloc.c
-> 
->   6731		printk(KERN_ALERT
->   6732			"vma %p start %p end %p\n"
->   6733			"next %p prev %p mm %p\n"
->   6734			"prot %lx anon_vma %p vm_ops %p\n"
->   6735			"pgoff %lx file %p private_data %p\n",
->   6736			vma, (void *)vma->vm_start, (void *)vma->vm_end, vma->vm_next,
-> > 6737			vma->vm_prev, vma->vm_mm, vma->vm_page_prot.pgprot,
->   6738			vma->anon_vma, vma->vm_ops, vma->vm_pgoff,
->   6739			vma->vm_file, vma->vm_private_data);
->   6740		dump_flags(vma->vm_flags, vmaflags_names, ARRAY_SIZE(vmaflags_names));
+2014-08-30 5:48 GMT+04:00 Randy Dunlap <rdunlap@infradead.org>:
+> From: Randy Dunlap <rdunlap@infradead.org>
+>
+> Add header file to fix kmemcheck.c build errors:
+>
+> ../mm/kmemcheck.c:70:7: error: dereferencing pointer to incomplete type
+> ../mm/kmemcheck.c:83:15: error: dereferencing pointer to incomplete type
+> ../mm/kmemcheck.c:95:8: error: dereferencing pointer to incomplete type
+> ../mm/kmemcheck.c:95:21: error: dereferencing pointer to incomplete type
+>
+> Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
+> ---
+>  mm/kmemcheck.c |    1 +
+>  1 file changed, 1 insertion(+)
+>
+> Index: mmotm-2014-0829-1515/mm/kmemcheck.c
+> ===================================================================
+> --- mmotm-2014-0829-1515.orig/mm/kmemcheck.c
+> +++ mmotm-2014-0829-1515/mm/kmemcheck.c
+> @@ -2,6 +2,7 @@
+>  #include <linux/mm_types.h>
+>  #include <linux/mm.h>
+>  #include <linux/slab.h>
+> +#include <linux/slab_def.h>
 
-pgprot_t is defined differently by arch, so we should access the contents
-via pgprot_val() macro.
+This will work only for CONFIG_SLAB=y. struct kmem_cache definition
+was moved to internal header [*],
+so you need to include it here:
+#include "slab.h"
 
-Thanks,
-Naoya Horiguchi
+[*] http://ozlabs.org/~akpm/mmotm/broken-out/mm-slab_common-move-kmem_cache-definition-to-internal-header.patch
+
+>  #include <linux/kmemcheck.h>
+>
+>  void kmemcheck_alloc_shadow(struct page *page, int order, gfp_t flags, int node)
+>
+
+
+-- 
+Best regards,
+Andrey Ryabinin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
