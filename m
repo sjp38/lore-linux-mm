@@ -1,38 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 045D76B0035
-	for <linux-mm@kvack.org>; Sun, 31 Aug 2014 11:27:37 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id rd3so10178886pab.17
-        for <linux-mm@kvack.org>; Sun, 31 Aug 2014 08:27:37 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id pi6si9757228pac.39.2014.08.31.08.27.36
-        for <linux-mm@kvack.org>;
-        Sun, 31 Aug 2014 08:27:36 -0700 (PDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 0/6] hugepage migration fixes (v3)
-References: <1409276340-7054-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Date: Sun, 31 Aug 2014 08:27:35 -0700
-In-Reply-To: <1409276340-7054-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	(Naoya Horiguchi's message of "Thu, 28 Aug 2014 21:38:54 -0400")
-Message-ID: <87tx4sk7bs.fsf@tassilo.jf.intel.com>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 3104A6B0035
+	for <linux-mm@kvack.org>; Sun, 31 Aug 2014 19:33:22 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id et14so10775073pad.16
+        for <linux-mm@kvack.org>; Sun, 31 Aug 2014 16:33:21 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id gp10si10222509pbd.244.2014.08.31.16.33.21
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 31 Aug 2014 16:33:21 -0700 (PDT)
+Message-ID: <5403B0B8.8010507@infradead.org>
+Date: Sun, 31 Aug 2014 16:33:12 -0700
+From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: [PATCH -mmotm v2] mm: fix kmemcheck.c build errors
+References: <5400fba1.732YclygYZprDXeI%akpm@linux-foundation.org>	<54012D74.7010302@infradead.org> <CAPAsAGz4458YgHN0b04Z4fTwvo-guh+ESNAXy7j=c-bc7v4gcA@mail.gmail.com> <540335C5.3030905@infradead.org>
+In-Reply-To: <540335C5.3030905@infradead.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, Pekka Enberg <penberg@kernel.org>, Vegard Nossum <vegardno@ifi.uio.no>
 
-Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> writes:
+On 08/31/14 07:48, Randy Dunlap wrote:
+> On 08/31/14 04:36, Andrey Ryabinin wrote:
+>> 2014-08-30 5:48 GMT+04:00 Randy Dunlap <rdunlap@infradead.org>:
+>>> From: Randy Dunlap <rdunlap@infradead.org>
+>>>
+>>> Add header file to fix kmemcheck.c build errors:
+>>>
+>>> ../mm/kmemcheck.c:70:7: error: dereferencing pointer to incomplete type
+>>> ../mm/kmemcheck.c:83:15: error: dereferencing pointer to incomplete type
+>>> ../mm/kmemcheck.c:95:8: error: dereferencing pointer to incomplete type
+>>> ../mm/kmemcheck.c:95:21: error: dereferencing pointer to incomplete type
+>>>
+>>> Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
+>>> ---
+>>>  mm/kmemcheck.c |    1 +
+>>>  1 file changed, 1 insertion(+)
+>>>
+>>> Index: mmotm-2014-0829-1515/mm/kmemcheck.c
+>>> ===================================================================
+>>> --- mmotm-2014-0829-1515.orig/mm/kmemcheck.c
+>>> +++ mmotm-2014-0829-1515/mm/kmemcheck.c
+>>> @@ -2,6 +2,7 @@
+>>>  #include <linux/mm_types.h>
+>>>  #include <linux/mm.h>
+>>>  #include <linux/slab.h>
+>>> +#include <linux/slab_def.h>
+>>
+>> This will work only for CONFIG_SLAB=y. struct kmem_cache definition
+>> was moved to internal header [*],
+>> so you need to include it here:
+>> #include "slab.h"
+>>
+>> [*] http://ozlabs.org/~akpm/mmotm/broken-out/mm-slab_common-move-kmem_cache-definition-to-internal-header.patch
+> 
+> Thanks.  That makes sense.  [testing]  mm/kmemcheck.c still has a build error:
+> 
+> In file included from ../mm/kmemcheck.c:5:0:
+> ../mm/slab.h: In function 'cache_from_obj':
+> ../mm/slab.h:283:2: error: implicit declaration of function 'memcg_kmem_enabled' [-Werror=implicit-function-declaration]
+> 
 
-> This is the ver.3 of hugepage migration fix patchset.
+Naughty header file.  It uses something from <linux/memcontrol.h> without
+#including that header file...
 
-I wonder how far we are away from support THP migration with the
-standard migrate_pages() syscall?
+Working patch is below.
 
--Andi
+> 
+> Maybe Andrew should just drop that patch and its associated patches.
+> 
+> 
+>>>  #include <linux/kmemcheck.h>
+>>>
+>>>  void kmemcheck_alloc_shadow(struct page *page, int order, gfp_t flags, int node)
 
--- 
-ak@linux.intel.com -- Speaking for myself only
+
+
+From: Randy Dunlap <rdunlap@infradead.org>
+
+Add header files to fix kmemcheck.c build errors:
+
+../mm/kmemcheck.c:70:7: error: dereferencing pointer to incomplete type
+../mm/kmemcheck.c:83:15: error: dereferencing pointer to incomplete type
+../mm/kmemcheck.c:95:8: error: dereferencing pointer to incomplete type
+../mm/kmemcheck.c:95:21: error: dereferencing pointer to incomplete type
+
+../mm/slab.h: In function 'cache_from_obj':
+../mm/slab.h:283:2: error: implicit declaration of function 'memcg_kmem_enabled' [-Werror=implicit-function-declaration]
+
+Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
+---
+ mm/kmemcheck.c |    1 +
+ mm/slab.h      |    2 ++
+ 2 files changed, 3 insertions(+)
+
+Index: mmotm-2014-0829-1515/mm/kmemcheck.c
+===================================================================
+--- mmotm-2014-0829-1515.orig/mm/kmemcheck.c
++++ mmotm-2014-0829-1515/mm/kmemcheck.c
+@@ -2,6 +2,7 @@
+ #include <linux/mm_types.h>
+ #include <linux/mm.h>
+ #include <linux/slab.h>
++#include "slab.h"
+ #include <linux/kmemcheck.h>
+ 
+ void kmemcheck_alloc_shadow(struct page *page, int order, gfp_t flags, int node)
+Index: mmotm-2014-0829-1515/mm/slab.h
+===================================================================
+--- mmotm-2014-0829-1515.orig/mm/slab.h
++++ mmotm-2014-0829-1515/mm/slab.h
+@@ -268,6 +268,8 @@ static inline void memcg_uncharge_slab(s
+ }
+ #endif
+ 
++#include <linux/memcontrol.h>
++
+ static inline struct kmem_cache *cache_from_obj(struct kmem_cache *s, void *x)
+ {
+ 	struct kmem_cache *cachep;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
