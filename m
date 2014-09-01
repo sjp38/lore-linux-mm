@@ -1,116 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id EC5326B0035
-	for <linux-mm@kvack.org>; Sun, 31 Aug 2014 20:12:40 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id lj1so10813025pab.28
-        for <linux-mm@kvack.org>; Sun, 31 Aug 2014 17:12:40 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id yi6si11307148pab.53.2014.08.31.17.12.38
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id EC8496B0037
+	for <linux-mm@kvack.org>; Sun, 31 Aug 2014 20:13:33 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id bj1so10768378pad.4
+        for <linux-mm@kvack.org>; Sun, 31 Aug 2014 17:13:33 -0700 (PDT)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id td1si10539127pbc.140.2014.08.31.17.13.31
         for <linux-mm@kvack.org>;
-        Sun, 31 Aug 2014 17:12:40 -0700 (PDT)
-Date: Mon, 1 Sep 2014 09:13:13 +0900
+        Sun, 31 Aug 2014 17:13:33 -0700 (PDT)
+Date: Mon, 1 Sep 2014 09:14:01 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH -mmotm v2] mm: fix kmemcheck.c build errors
-Message-ID: <20140901001312.GA25599@js1304-P5Q-DELUXE>
-References: <5400fba1.732YclygYZprDXeI%akpm@linux-foundation.org>
- <54012D74.7010302@infradead.org>
- <CAPAsAGz4458YgHN0b04Z4fTwvo-guh+ESNAXy7j=c-bc7v4gcA@mail.gmail.com>
- <540335C5.3030905@infradead.org>
- <5403B0B8.8010507@infradead.org>
+Subject: Re: [RFC PATCH v3 1/4] mm/page_alloc: fix incorrect isolation
+ behavior by rechecking migratetype
+Message-ID: <20140901001401.GB25599@js1304-P5Q-DELUXE>
+References: <1409040498-10148-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1409040498-10148-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <20140829174641.GB27127@nhori.bos.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5403B0B8.8010507@infradead.org>
+In-Reply-To: <20140829174641.GB27127@nhori.bos.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, Pekka Enberg <penberg@kernel.org>, Vegard Nossum <vegardno@ifi.uio.no>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, Aug 31, 2014 at 04:33:12PM -0700, Randy Dunlap wrote:
-> On 08/31/14 07:48, Randy Dunlap wrote:
-> > On 08/31/14 04:36, Andrey Ryabinin wrote:
-> >> 2014-08-30 5:48 GMT+04:00 Randy Dunlap <rdunlap@infradead.org>:
-> >>> From: Randy Dunlap <rdunlap@infradead.org>
-> >>>
-> >>> Add header file to fix kmemcheck.c build errors:
-> >>>
-> >>> ../mm/kmemcheck.c:70:7: error: dereferencing pointer to incomplete type
-> >>> ../mm/kmemcheck.c:83:15: error: dereferencing pointer to incomplete type
-> >>> ../mm/kmemcheck.c:95:8: error: dereferencing pointer to incomplete type
-> >>> ../mm/kmemcheck.c:95:21: error: dereferencing pointer to incomplete type
-> >>>
-> >>> Signed-off-by: Randy Dunlap <rdunlap@infradead.org>
-> >>> ---
-> >>>  mm/kmemcheck.c |    1 +
-> >>>  1 file changed, 1 insertion(+)
-> >>>
-> >>> Index: mmotm-2014-0829-1515/mm/kmemcheck.c
-> >>> ===================================================================
-> >>> --- mmotm-2014-0829-1515.orig/mm/kmemcheck.c
-> >>> +++ mmotm-2014-0829-1515/mm/kmemcheck.c
-> >>> @@ -2,6 +2,7 @@
-> >>>  #include <linux/mm_types.h>
-> >>>  #include <linux/mm.h>
-> >>>  #include <linux/slab.h>
-> >>> +#include <linux/slab_def.h>
-> >>
-> >> This will work only for CONFIG_SLAB=y. struct kmem_cache definition
-> >> was moved to internal header [*],
-> >> so you need to include it here:
-> >> #include "slab.h"
-> >>
-> >> [*] http://ozlabs.org/~akpm/mmotm/broken-out/mm-slab_common-move-kmem_cache-definition-to-internal-header.patch
+On Fri, Aug 29, 2014 at 01:46:41PM -0400, Naoya Horiguchi wrote:
+> On Tue, Aug 26, 2014 at 05:08:15PM +0900, Joonsoo Kim wrote:
+> > There are two paths to reach core free function of buddy allocator,
+> > __free_one_page(), one is free_one_page()->__free_one_page() and the
+> > other is free_hot_cold_page()->free_pcppages_bulk()->__free_one_page().
+> > Each paths has race condition causing serious problems. At first, this
+> > patch is focused on first type of freepath. And then, following patch
+> > will solve the problem in second type of freepath.
 > > 
-> > Thanks.  That makes sense.  [testing]  mm/kmemcheck.c still has a build error:
+> > In the first type of freepath, we got migratetype of freeing page without
+> > holding the zone lock, so it could be racy. There are two cases of this
+> > race.
 > > 
-> > In file included from ../mm/kmemcheck.c:5:0:
-> > ../mm/slab.h: In function 'cache_from_obj':
-> > ../mm/slab.h:283:2: error: implicit declaration of function 'memcg_kmem_enabled' [-Werror=implicit-function-declaration]
+> > 1. pages are added to isolate buddy list after restoring orignal
+> > migratetype
 > > 
+> > CPU1                                   CPU2
+> > 
+> > get migratetype => return MIGRATE_ISOLATE
+> > call free_one_page() with MIGRATE_ISOLATE
+> > 
+> > 				grab the zone lock
+> > 				unisolate pageblock
+> > 				release the zone lock
+> > 
+> > grab the zone lock
+> > call __free_one_page() with MIGRATE_ISOLATE
+> > freepage go into isolate buddy list,
+> > although pageblock is already unisolated
+> > 
+> > This may cause two problems. One is that we can't use this page anymore
+> > until next isolation attempt of this pageblock, because freepage is on
+> > isolate pageblock. The other is that freepage accouting could be wrong
+> > due to merging between different buddy list. Freepages on isolate buddy
+> > list aren't counted as freepage, but ones on normal buddy list are counted
+> > as freepage. If merge happens, buddy freepage on normal buddy list is
+> > inevitably moved to isolate buddy list without any consideration of
+> > freepage accouting so it could be incorrect.
+> > 
+> > 2. pages are added to normal buddy list while pageblock is isolated.
+> > It is similar with above case.
+> > 
+> > This also may cause two problems. One is that we can't keep these
+> > freepages from being allocated. Although this pageblock is isolated,
+> > freepage would be added to normal buddy list so that it could be
+> > allocated without any restriction. And the other problem is same as
+> > case 1, that it, incorrect freepage accouting.
+> > 
+> > This race condition would be prevented by checking migratetype again
+> > with holding the zone lock. Because it is somewhat heavy operation
+> > and it isn't needed in common case, we want to avoid rechecking as much
+> > as possible. So this patch introduce new variable, nr_isolate_pageblock
+> > in struct zone to check if there is isolated pageblock.
+> > With this, we can avoid to re-check migratetype in common case and do
+> > it only if there is isolated pageblock. This solve above
+> > mentioned problems.
+> > 
+> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > ---
+> >  include/linux/mmzone.h         |    4 ++++
+> >  include/linux/page-isolation.h |    8 ++++++++
+> >  mm/page_alloc.c                |   10 ++++++++--
+> >  mm/page_isolation.c            |    2 ++
+> >  4 files changed, 22 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > index 318df70..23e69f1 100644
+> > --- a/include/linux/mmzone.h
+> > +++ b/include/linux/mmzone.h
+> > @@ -431,6 +431,10 @@ struct zone {
+> >  	 */
+> >  	int			nr_migrate_reserve_block;
+> >  
+> > +#ifdef CONFIG_MEMORY_ISOLATION
 > 
-> Naughty header file.  It uses something from <linux/memcontrol.h> without
-> #including that header file...
+> It's worth adding some comment, especially about locking?
+> The patch itself looks good me.
 
-
-Hello.
-
-Indeed...
-Thanks for catching this.
-
-> 
-> Working patch is below.
-
-With your patch, build also failed if CONFIG_MEMCG_KMEM=y.
-Right fix is something like below.
+Okay. Will do. :)
 
 Thanks.
-
---------->8----------
-diff --git a/mm/kmemcheck.c b/mm/kmemcheck.c
-index fd814fd..cab58bb 100644
---- a/mm/kmemcheck.c
-+++ b/mm/kmemcheck.c
-@@ -2,6 +2,7 @@
- #include <linux/mm_types.h>
- #include <linux/mm.h>
- #include <linux/slab.h>
-+#include "slab.h"
- #include <linux/kmemcheck.h>
- 
- void kmemcheck_alloc_shadow(struct page *page, int order, gfp_t flags, int node)
-diff --git a/mm/slab.h b/mm/slab.h
-index 13845d0..963a3f8 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -37,6 +37,8 @@ struct kmem_cache {
- #include <linux/slub_def.h>
- #endif
- 
-+#include <linux/memcontrol.h>
-+
- /*
-  * State of the slab allocator.
-  *
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
