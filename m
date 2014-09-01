@@ -1,130 +1,215 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id BAD116B0037
-	for <linux-mm@kvack.org>; Mon,  1 Sep 2014 03:19:42 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id y13so5435691pdi.16
-        for <linux-mm@kvack.org>; Mon, 01 Sep 2014 00:19:42 -0700 (PDT)
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D2E26B0038
+	for <linux-mm@kvack.org>; Mon,  1 Sep 2014 03:19:45 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id eu11so11573795pac.25
+        for <linux-mm@kvack.org>; Mon, 01 Sep 2014 00:19:44 -0700 (PDT)
 Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id j7si39878pdp.1.2014.09.01.00.19.37
+        by mx.google.com with ESMTP id co6si12500942pac.57.2014.09.01.00.19.42
         for <linux-mm@kvack.org>;
-        Mon, 01 Sep 2014 00:19:38 -0700 (PDT)
+        Mon, 01 Sep 2014 00:19:44 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v16 0/7] MADV_FREE support
-Date: Mon,  1 Sep 2014 16:20:41 +0900
-Message-Id: <1409556048-5045-1-git-send-email-minchan@kernel.org>
+Subject: [PATCH v16 7/7] mm: Don't split THP page when syscall is called
+Date: Mon,  1 Sep 2014 16:20:48 +0900
+Message-Id: <1409556048-5045-8-git-send-email-minchan@kernel.org>
+In-Reply-To: <1409556048-5045-1-git-send-email-minchan@kernel.org>
+References: <1409556048-5045-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, zhangyanfei@cn.fujitsu.com, "Kirill A. Shutemov" <kirill@shutemov.name>, Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, zhangyanfei@cn.fujitsu.com, "Kirill A. Shutemov" <kirill@shutemov.name>, Minchan Kim <minchan@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-This patch enable MADV_FREE hint for madvise syscall, which have
-been supported by other OSes. [PATCH 1] includes the details.
+We don't need to split THP page when MADV_FREE syscall is
+called. It could be done when VM decide really frees it so
+we could avoid unnecessary THP split.
 
-[1] support MADVISE_FREE for !THP page so if VM encounter
-THP page in syscall context, it splits THP page.
-[2-6] is to preparing to call madvise syscall without THP plitting
-[7] enable THP page support for MADV_FREE.
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ include/linux/huge_mm.h |  4 ++++
+ mm/huge_memory.c        | 35 +++++++++++++++++++++++++++++++++++
+ mm/madvise.c            | 21 ++++++++++++++++++++-
+ mm/rmap.c               |  8 ++++++--
+ mm/vmscan.c             | 28 ++++++++++++++++++----------
+ 5 files changed, 83 insertions(+), 13 deletions(-)
 
-* from v15
- * Add more Acked-by - Rik van Riel
- * Rebased on mmotom-08-29-15-15
-
-* from v14
- * Add more Ackedy-by from arch people(sparc, arm64 and arm)
- * Drop s390 since pmd_dirty/clean was merged
-
-* from v13
- * Add more Ackedy-by from arch people(arm, arm64 and ppc)
- * Rebased on mmotm 2014-08-13-14-29
-
-* from v12
- * Fix - skip to mark free pte on try_to_free_swap failed page - Kirill
- * Add more Acked-by from arch maintainers and Kirill
-
-* From v11
- * Fix arm build - Steve
- * Separate patch for arm and arm64 - Steve
- * Remove unnecessary check - Kirill
- * Skip non-vm_normal page - Kirill
- * Add Acked-by - Zhang
- * Sparc64 build fix
- * Pagetable walker THP handling fix
-
-* From v10
- * Add Acked-by from arch stuff(x86, s390)
- * Pagewalker based pagetable working - Kirill
- * Fix try_to_unmap_one broken with hwpoison - Kirill
- * Use VM_BUG_ON_PAGE in madvise_free_pmd - Kirill
- * Fix pgtable-3level.h for arm - Steve
-
-* From v9
- * Add Acked-by - Rik
- * Add THP page support - Kirill
-
-* From v8
- * Rebased-on v3.16-rc2-mmotm-2014-06-25-16-44
-
-* From v7
- * Rebased-on next-20140613
-
-* From v6
- * Remove page from swapcache in syscal time
- * Move utility functions from memory.c to madvise.c - Johannes
- * Rename untilify functtions - Johannes
- * Remove unnecessary checks from vmscan.c - Johannes
- * Rebased-on v3.15-rc5-mmotm-2014-05-16-16-56
- * Drop Reviewe-by because there was some changes since then.
-
-* From v5
- * Fix PPC problem which don't flush TLB - Rik
- * Remove unnecessary lazyfree_range stub function - Rik
- * Rebased on v3.15-rc5
-
-* From v4
- * Add Reviewed-by: Zhang Yanfei
- * Rebase on v3.15-rc1-mmotm-2014-04-15-16-14
-
-* From v3
- * Add "how to work part" in description - Zhang
- * Add page_discardable utility function - Zhang
- * Clean up
-
-* From v2
- * Remove forceful dirty marking of swap-readed page - Johannes
- * Remove deactivation logic of lazyfreed page
- * Rebased on 3.14
- * Remove RFC tag
-
-* From v1
- * Use custom page table walker for madvise_free - Johannes
- * Remove PG_lazypage flag - Johannes
- * Do madvise_dontneed instead of madvise_freein swapless system
-
-Minchan Kim (7):
-  mm: support madvise(MADV_FREE)
-  x86: add pmd_[dirty|mkclean] for THP
-  sparc: add pmd_[dirty|mkclean] for THP
-  powerpc: add pmd_[dirty|mkclean] for THP
-  arm: add pmd_mkclean for THP
-  arm64: add pmd_[dirty|mkclean] for THP
-  mm: Don't split THP page when syscall is called
-
- arch/arm/include/asm/pgtable-3level.h    |   1 +
- arch/arm64/include/asm/pgtable.h         |   2 +
- arch/powerpc/include/asm/pgtable-ppc64.h |   2 +
- arch/sparc/include/asm/pgtable_64.h      |  16 ++++
- arch/x86/include/asm/pgtable.h           |  10 ++
- include/linux/huge_mm.h                  |   4 +
- include/linux/rmap.h                     |   9 +-
- include/linux/vm_event_item.h            |   1 +
- include/uapi/asm-generic/mman-common.h   |   1 +
- mm/huge_memory.c                         |  35 +++++++
- mm/madvise.c                             | 159 +++++++++++++++++++++++++++++++
- mm/rmap.c                                |  46 ++++++++-
- mm/vmscan.c                              |  64 +++++++++----
- mm/vmstat.c                              |   1 +
- 14 files changed, 331 insertions(+), 20 deletions(-)
-
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index ad9051bab267..07f736b18ffc 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -19,6 +19,9 @@ extern struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
+ 					  unsigned long addr,
+ 					  pmd_t *pmd,
+ 					  unsigned int flags);
++extern int madvise_free_huge_pmd(struct mmu_gather *tlb,
++			struct vm_area_struct *vma,
++			pmd_t *pmd, unsigned long addr);
+ extern int zap_huge_pmd(struct mmu_gather *tlb,
+ 			struct vm_area_struct *vma,
+ 			pmd_t *pmd, unsigned long addr);
+@@ -56,6 +59,7 @@ extern pmd_t *page_check_address_pmd(struct page *page,
+ 				     unsigned long address,
+ 				     enum page_check_address_pmd_flag flag,
+ 				     spinlock_t **ptl);
++extern int pmd_freeable(pmd_t pmd);
+ 
+ #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
+ #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index d81f8ba88c0c..c505d9fc5165 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1384,6 +1384,36 @@ out:
+ 	return 0;
+ }
+ 
++int madvise_free_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
++		 pmd_t *pmd, unsigned long addr)
++
++{
++	spinlock_t *ptl;
++	struct mm_struct *mm = tlb->mm;
++	int ret = 1;
++
++	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
++		struct page *page;
++		pmd_t orig_pmd;
++
++		orig_pmd = pmdp_get_and_clear(mm, addr, pmd);
++
++		/* No hugepage in swapcache */
++		page = pmd_page(orig_pmd);
++		VM_BUG_ON_PAGE(PageSwapCache(page), page);
++
++		orig_pmd = pmd_mkold(orig_pmd);
++		orig_pmd = pmd_mkclean(orig_pmd);
++
++		set_pmd_at(mm, addr, pmd, orig_pmd);
++		tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
++		spin_unlock(ptl);
++		ret = 0;
++	}
++
++	return ret;
++}
++
+ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
+ 		 pmd_t *pmd, unsigned long addr)
+ {
+@@ -1620,6 +1650,11 @@ unlock:
+ 	return NULL;
+ }
+ 
++int pmd_freeable(pmd_t pmd)
++{
++	return !pmd_dirty(pmd);
++}
++
+ static int __split_huge_page_splitting(struct page *page,
+ 				       struct vm_area_struct *vma,
+ 				       unsigned long address)
+diff --git a/mm/madvise.c b/mm/madvise.c
+index a21584235bb6..84badee5f46d 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -271,8 +271,26 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 	spinlock_t *ptl;
+ 	pte_t *pte, ptent;
+ 	struct page *page;
++	unsigned long next;
++
++	next = pmd_addr_end(addr, end);
++	if (pmd_trans_huge(*pmd)) {
++		if (next - addr != HPAGE_PMD_SIZE) {
++#ifdef CONFIG_DEBUG_VM
++			if (!rwsem_is_locked(&mm->mmap_sem)) {
++				pr_err("%s: mmap_sem is unlocked! addr=0x%lx end=0x%lx vma->vm_start=0x%lx vma->vm_end=0x%lx\n",
++					__func__, addr, end,
++					vma->vm_start,
++					vma->vm_end);
++				BUG();
++			}
++#endif
++			split_huge_page_pmd(vma, addr, pmd);
++		} else if (!madvise_free_huge_pmd(tlb, vma, pmd, addr))
++			goto next;
++		/* fall through */
++	}
+ 
+-	split_huge_page_pmd(vma, addr, pmd);
+ 	if (pmd_trans_unstable(pmd))
+ 		return 0;
+ 
+@@ -316,6 +334,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+ 	}
+ 	arch_leave_lazy_mmu_mode();
+ 	pte_unmap_unlock(pte - 1, ptl);
++next:
+ 	cond_resched();
+ 	return 0;
+ }
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 93149c82a5a4..3a7081d884b9 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -704,9 +704,13 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+ 			referenced++;
+ 
+ 		/*
+-		 * In this implmentation, MADV_FREE doesn't support THP free
++		 * Use pmd_freeable instead of raw pmd_dirty because in some
++		 * of architecture, pmd_dirty is not defined unless
++		 * CONFIG_TRANSPARNTE_HUGE is enabled
+ 		 */
+-		dirty++;
++		if (!pmd_freeable(*pmd))
++			dirty++;
++
+ 		spin_unlock(ptl);
+ 	} else {
+ 		pte_t *pte;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index e3e026c6c7b1..96c9b312e4f4 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -976,17 +976,25 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		 * Anonymous process memory has backing store?
+ 		 * Try to allocate it some swap space here.
+ 		 */
+-		if (PageAnon(page) && !PageSwapCache(page) && !freeable) {
+-			if (!(sc->gfp_mask & __GFP_IO))
+-				goto keep_locked;
+-			if (!add_to_swap(page, page_list))
+-				goto activate_locked;
+-			may_enter_fs = 1;
+-
+-			/* Adding to swap updated mapping */
+-			mapping = page_mapping(page);
++		if (PageAnon(page) && !PageSwapCache(page)) {
++			if (!freeable) {
++				if (!(sc->gfp_mask & __GFP_IO))
++					goto keep_locked;
++				if (!add_to_swap(page, page_list))
++					goto activate_locked;
++				may_enter_fs = 1;
++				/* Adding to swap updated mapping */
++				mapping = page_mapping(page);
++			} else {
++				if (likely(!PageTransHuge(page)))
++					goto unmap;
++				/* try_to_unmap isn't aware of THP page */
++				if (unlikely(split_huge_page_to_list(page,
++								page_list)))
++					goto keep_locked;
++			}
+ 		}
+-
++unmap:
+ 		/*
+ 		 * The page is mapped into the page tables of one or more
+ 		 * processes. Try to unmap it here.
 -- 
 2.0.0
 
