@@ -1,63 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f181.google.com (mail-yk0-f181.google.com [209.85.160.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 399E36B0036
-	for <linux-mm@kvack.org>; Tue,  2 Sep 2014 10:57:30 -0400 (EDT)
-Received: by mail-yk0-f181.google.com with SMTP id 131so4149792ykp.12
-        for <linux-mm@kvack.org>; Tue, 02 Sep 2014 07:57:30 -0700 (PDT)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id a49si7394794yha.130.2014.09.02.07.57.29
+Received: from mail-la0-f48.google.com (mail-la0-f48.google.com [209.85.215.48])
+	by kanga.kvack.org (Postfix) with ESMTP id B7FE56B0036
+	for <linux-mm@kvack.org>; Tue,  2 Sep 2014 11:21:49 -0400 (EDT)
+Received: by mail-la0-f48.google.com with SMTP id gl10so7924742lab.21
+        for <linux-mm@kvack.org>; Tue, 02 Sep 2014 08:21:48 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b8si5284648laf.117.2014.09.02.08.21.47
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 02 Sep 2014 07:57:29 -0700 (PDT)
-Date: Tue, 2 Sep 2014 10:55:15 -0400
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: ext4 vs btrfs performance on SSD array
-Message-ID: <20140902145515.GD6232@thunk.org>
-References: <CAEp=YLgzsLbmEfGB5YKVcHP4CQ-_z1yxnZ0tpo7gjKZ2e1ma5g@mail.gmail.com>
- <20140902000822.GA20473@dastard>
- <20140902012222.GA21405@infradead.org>
- <20140902113104.GD5049@thunk.org>
- <20140902142024.GB19412@quack.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 02 Sep 2014 08:21:47 -0700 (PDT)
+Date: Tue, 2 Sep 2014 16:21:43 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: page_alloc: Default to node-ordering on 64-bit NUMA
+ machines
+Message-ID: <20140902152143.GL12424@suse.de>
+References: <20140901125551.GI12424@suse.de>
+ <20140902135120.GC29501@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20140902142024.GB19412@quack.suse.cz>
+In-Reply-To: <20140902135120.GC29501@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Nikolai Grigoriev <ngrigoriev@gmail.com>, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-raid@vger.kernel.org, linux-mm@kvack.org, Jens Axboe <axboe@kernel.dk>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Fengguang Wu <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Sep 02, 2014 at 04:20:24PM +0200, Jan Kara wrote:
-> On Tue 02-09-14 07:31:04, Ted Tso wrote:
-> > >  - the very small max readahead size
+On Tue, Sep 02, 2014 at 09:51:20AM -0400, Johannes Weiner wrote:
+> On Mon, Sep 01, 2014 at 01:55:51PM +0100, Mel Gorman wrote:
+> > Zones are allocated by the page allocator in either node or zone order.
+> > Node ordering is preferred in terms of locality and is applied automatically
+> > in one of three cases.
 > > 
-> > For things like the readahead size, that's probably something that we
-> > should autotune, based the time it takes to read N sectors.  i.e.,
-> > start N relatively small, such as 128k, and then bump it up based on
-> > how long it takes to do a sequential read of N sectors until it hits a
-> > given tunable, which is specified in milliseconds instead of kilobytes.
->   Actually the amount of readahead we do is autotuned (based on hit rate).
-> So I would keep the setting in sysfs as the maximum size adaptive readahead
-> can ever read and we can bump it up. We can possibly add another feedback
-> into the readahead code to tune actualy readahead size depending on device
-> speed but we'd have to research exactly what algorithm would work best.
+> >   1. If a node has only low memory
+> > 
+> >   2. If DMA/DMA32 is a high percentage of memory
+> > 
+> >   3. If low memory on a single node is greater than 70% of the node size
+> > 
+> > Otherwise zone ordering is used to preserve low memory. Unfortunately
+> > a consequence of this is that a machine with balanced NUMA nodes will
+> > experience different performance characteristics depending on which node
+> > they happen to start from.
+> > 
+> > The point of zone ordering is to protect lower nodes for devices that require
+> > DMA/DMA32 memory. When NUMA was first introduced, this was critical as 32-bit
+> > NUMA machines commonly suffered from low memory exhaustion problems. On
+> > 64-bit machines the primary concern is devices that are 32-bit only which
+> > is less severe than the low memory exhaustion problem on 32-bit NUMA. It
+> > seems there are really few devices that depends on it.
+> > 
+> > AGP -- I assume this is getting more rare but even then I think the allocations
+> > 	happen early in boot time where lowmem pressure is less of a problem
+> > 
+> > DRM -- If the device is 32-bit only then there may be low pressure. I didn't
+> > 	evaluate these in detail but it looks like some of these are mobile
+> > 	graphics card. Not many NUMA laptops out there. DRM folk should know
+> > 	better though.
+> > 
+> > Some TV cards -- Much demand for 32-bit capable TV cards on NUMA machines?
+> > 
+> > B43 wireless card -- again not really a NUMA thing.
+> > 
+> > I cannot find a good reason to incur a performance penalty on all 64-bit NUMA
+> > machines in case someone throws a brain damanged TV or graphics card in there.
+> > This patch defaults to node-ordering on 64-bit NUMA machines. I was tempted
+> > to make it default everywhere but I understand that some embedded arches may
+> > be using 32-bit NUMA where I cannot predict the consequences.
+> 
+> This patch is a step in the right direction, but I'm not too fond of
+> further fragmenting this code and where it applies, while leaving all
+> the complexity from the heuristics and the zonelist building in, just
+> on spec.  Could we at least remove the heuristics too?  If anybody is
+> affected by this, they can always override the default on the cmdline.
 
-I do think we will need to add a time based cap when bump up the max
-adaptive readahead; otherwise what could happen is that if we are
-streaming off of a slow block device, the readhaead could easily grow
-to the point where it starts affecting the latency of competing read
-requests to the slow block device.
+I see no problem with deleting the heuristics. Default node for 64-bit
+and default zone for 32-bit sound ok to you?
 
-I suppose we could make the argument that it's not needed, because most of
-situations where we might be using slow block devices, the streaming
-reader will likely have exclusive use of the device, since no one
-would be crazy enough to say, try to run a live CD-ROM image when USB
-sticks are so cheap.  :-)
-
-So maybe in practice it won't matter, but I think some kind of time
-based cap would probably be a good idea.
-
-						- Ted
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
