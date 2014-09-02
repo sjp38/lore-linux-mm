@@ -1,84 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f48.google.com (mail-la0-f48.google.com [209.85.215.48])
-	by kanga.kvack.org (Postfix) with ESMTP id B7FE56B0036
-	for <linux-mm@kvack.org>; Tue,  2 Sep 2014 11:21:49 -0400 (EDT)
-Received: by mail-la0-f48.google.com with SMTP id gl10so7924742lab.21
-        for <linux-mm@kvack.org>; Tue, 02 Sep 2014 08:21:48 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b8si5284648laf.117.2014.09.02.08.21.47
+Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
+	by kanga.kvack.org (Postfix) with ESMTP id D89546B0036
+	for <linux-mm@kvack.org>; Tue,  2 Sep 2014 12:33:32 -0400 (EDT)
+Received: by mail-ob0-f180.google.com with SMTP id m8so5079332obr.11
+        for <linux-mm@kvack.org>; Tue, 02 Sep 2014 09:33:32 -0700 (PDT)
+Received: from avon.wwwdotorg.org (avon.wwwdotorg.org. [70.85.31.133])
+        by mx.google.com with ESMTPS id gv9si4502092obc.38.2014.09.02.09.33.32
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 02 Sep 2014 08:21:47 -0700 (PDT)
-Date: Tue, 2 Sep 2014 16:21:43 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: page_alloc: Default to node-ordering on 64-bit NUMA
- machines
-Message-ID: <20140902152143.GL12424@suse.de>
-References: <20140901125551.GI12424@suse.de>
- <20140902135120.GC29501@cmpxchg.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 02 Sep 2014 09:33:32 -0700 (PDT)
+From: Stephen Warren <swarren@wwwdotorg.org>
+Subject: [PATCH] mm: fix dump_vma() compilation
+Date: Tue,  2 Sep 2014 10:33:16 -0600
+Message-Id: <1409675596-19860-1-git-send-email-swarren@wwwdotorg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20140902135120.GC29501@cmpxchg.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Fengguang Wu <fengguang.wu@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Stephen Warren <swarren@nvidia.com>, Sasha Levin <sasha.levin@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Vlastimil Babka <vbabka@suse.cz>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>
 
-On Tue, Sep 02, 2014 at 09:51:20AM -0400, Johannes Weiner wrote:
-> On Mon, Sep 01, 2014 at 01:55:51PM +0100, Mel Gorman wrote:
-> > Zones are allocated by the page allocator in either node or zone order.
-> > Node ordering is preferred in terms of locality and is applied automatically
-> > in one of three cases.
-> > 
-> >   1. If a node has only low memory
-> > 
-> >   2. If DMA/DMA32 is a high percentage of memory
-> > 
-> >   3. If low memory on a single node is greater than 70% of the node size
-> > 
-> > Otherwise zone ordering is used to preserve low memory. Unfortunately
-> > a consequence of this is that a machine with balanced NUMA nodes will
-> > experience different performance characteristics depending on which node
-> > they happen to start from.
-> > 
-> > The point of zone ordering is to protect lower nodes for devices that require
-> > DMA/DMA32 memory. When NUMA was first introduced, this was critical as 32-bit
-> > NUMA machines commonly suffered from low memory exhaustion problems. On
-> > 64-bit machines the primary concern is devices that are 32-bit only which
-> > is less severe than the low memory exhaustion problem on 32-bit NUMA. It
-> > seems there are really few devices that depends on it.
-> > 
-> > AGP -- I assume this is getting more rare but even then I think the allocations
-> > 	happen early in boot time where lowmem pressure is less of a problem
-> > 
-> > DRM -- If the device is 32-bit only then there may be low pressure. I didn't
-> > 	evaluate these in detail but it looks like some of these are mobile
-> > 	graphics card. Not many NUMA laptops out there. DRM folk should know
-> > 	better though.
-> > 
-> > Some TV cards -- Much demand for 32-bit capable TV cards on NUMA machines?
-> > 
-> > B43 wireless card -- again not really a NUMA thing.
-> > 
-> > I cannot find a good reason to incur a performance penalty on all 64-bit NUMA
-> > machines in case someone throws a brain damanged TV or graphics card in there.
-> > This patch defaults to node-ordering on 64-bit NUMA machines. I was tempted
-> > to make it default everywhere but I understand that some embedded arches may
-> > be using 32-bit NUMA where I cannot predict the consequences.
-> 
-> This patch is a step in the right direction, but I'm not too fond of
-> further fragmenting this code and where it applies, while leaving all
-> the complexity from the heuristics and the zonelist building in, just
-> on spec.  Could we at least remove the heuristics too?  If anybody is
-> affected by this, they can always override the default on the cmdline.
+From: Stephen Warren <swarren@nvidia.com>
 
-I see no problem with deleting the heuristics. Default node for 64-bit
-and default zone for 32-bit sound ok to you?
+dump_vma() was written to access fields within vma->vm_page_prot. However,
+pgprot_t is sometimes a scalar and sometimes a struct (At least on ARM;
+see arch/arm/include/asm/pgtable-2level-types.h). use macro pgprot_val()
+to get the value, so the code is immune to these differences.
 
+This fixes:
+mm/page_alloc.c: In function a??dump_vmaa??:
+mm/page_alloc.c:6742:46: error: request for member a??pgprota?? in something not a structure or union
+
+The cast is required to avoid:
+
+mm/page_alloc.c: In function a??dump_vmaa??:
+mm/page_alloc.c:6745:3: warning: format a??%lxa?? expects argument of type a??long unsigned inta??, but argument 8 has type a??pgprot_ta?? [-Wformat]
+
+Cc: Sasha Levin <sasha.levin@oracle.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Konstantin Khlebnikov <khlebnikov@openvz.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michel Lespinasse <walken@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Fixes: 658f7da49d34 ("mm: introduce dump_vma")
+Signed-off-by: Stephen Warren <swarren@nvidia.com>
+---
+ mm/page_alloc.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index cb510c08073b..1578bc98eb29 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6739,7 +6739,8 @@ void dump_vma(const struct vm_area_struct *vma)
+ 		"prot %lx anon_vma %p vm_ops %p\n"
+ 		"pgoff %lx file %p private_data %p\n",
+ 		vma, (void *)vma->vm_start, (void *)vma->vm_end, vma->vm_next,
+-		vma->vm_prev, vma->vm_mm, vma->vm_page_prot.pgprot,
++		vma->vm_prev, vma->vm_mm,
++		(unsigned long)pgprot_val(vma->vm_page_prot),
+ 		vma->anon_vma, vma->vm_ops, vma->vm_pgoff,
+ 		vma->vm_file, vma->vm_private_data);
+ 	dump_flags(vma->vm_flags, vmaflags_names, ARRAY_SIZE(vmaflags_names));
 -- 
-Mel Gorman
-SUSE Labs
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
