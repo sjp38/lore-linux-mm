@@ -1,85 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 988706B0036
-	for <linux-mm@kvack.org>; Tue,  2 Sep 2014 15:05:46 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id r10so9159861pdi.22
-        for <linux-mm@kvack.org>; Tue, 02 Sep 2014 12:05:46 -0700 (PDT)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id o8si7284107pdr.159.2014.09.02.12.05.43
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 89D9B6B0036
+	for <linux-mm@kvack.org>; Tue,  2 Sep 2014 16:19:04 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id eu11so15519635pac.25
+        for <linux-mm@kvack.org>; Tue, 02 Sep 2014 13:19:04 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id gp10si7326906pbd.244.2014.09.02.13.19.03
         for <linux-mm@kvack.org>;
-        Tue, 02 Sep 2014 12:05:43 -0700 (PDT)
-Message-ID: <54061505.8020500@sr71.net>
-Date: Tue, 02 Sep 2014 12:05:41 -0700
-From: Dave Hansen <dave@sr71.net>
+        Tue, 02 Sep 2014 13:19:03 -0700 (PDT)
+Message-ID: <5406262F.4050705@intel.com>
+Date: Tue, 02 Sep 2014 13:18:55 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Subject: regression caused by cgroups optimization in 3.17-rc2
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Subject: Re: regression caused by cgroups optimization in 3.17-rc2
+References: <54061505.8020500@sr71.net>
+In-Reply-To: <54061505.8020500@sr71.net>
+Content-Type: multipart/mixed;
+ boundary="------------020108010704030702030400"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Dave Hansen <dave@sr71.net>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-I'm seeing a pretty large regression in 3.17-rc2 vs 3.16 coming from the
-memory cgroups code.  This is on a kernel with cgroups enabled at
-compile time, but not _used_ for anything.  See the green lines in the
-graph:
+This is a multi-part message in MIME format.
+--------------020108010704030702030400
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 
-	https://www.sr71.net/~dave/intel/regression-from-05b843012.png
-
-The workload is a little parallel microbenchmark doing page faults:
-
-> https://github.com/antonblanchard/will-it-scale/blob/master/tests/page_fault2.c
-
-The hardware is an 8-socket Westmere box with 160 hardware threads.  For
-some reason, this does not affect the version of the microbenchmark
-which is doing completely anonymous page faults.
-
-I bisected it down to this commit:
-
-> commit 05b8430123359886ef6a4146fba384e30d771b3f
-> Author: Johannes Weiner <hannes@cmpxchg.org>
-> Date:   Wed Aug 6 16:05:59 2014 -0700
+On 09/02/2014 12:05 PM, Dave Hansen wrote:
+> It does not revert cleanly because of the hunks below.  The code in
+> those hunks was removed, so I tried running without properly merging
+> them and it spews warnings because counter->usage is seen going negative.
 > 
->     mm: memcontrol: use root_mem_cgroup res_counter
->     
->     Due to an old optimization to keep expensive res_counter changes at a
->     minimum, the root_mem_cgroup res_counter is never charged; there is no
->     limit at that level anyway, and any statistics can be generated on
->     demand by summing up the counters of all other cgroups.
->     
->     However, with per-cpu charge caches, res_counter operations do not even
->     show up in profiles anymore, so this optimization is no longer
->     necessary.
->     
->     Remove it to simplify the code.
+> So, it doesn't appear we can quickly revert this.
 
-It does not revert cleanly because of the hunks below.  The code in
-those hunks was removed, so I tried running without properly merging
-them and it spews warnings because counter->usage is seen going negative.
+I'm fairly confident that I missed some of the cases (especially in the
+charge-moving code), but the attached patch does at least work around
+the regression for me.  It restores the original performance, or at
+least gets _close_ to it.
 
-So, it doesn't appear we can quickly revert this.
 
-> --- mm/memcontrol.c
-> +++ mm/memcontrol.c
-> @@ -3943,7 +3947,7 @@
->          * replacement page, so leave it alone when phasing out the
->          * page that is unused after the migration.
->          */
-> -       if (!end_migration)
-> +       if (!end_migration && !mem_cgroup_is_root(memcg))
->                 mem_cgroup_do_uncharge(memcg, nr_pages, ctype);
->  
->         return memcg;
-> @@ -4076,7 +4080,8 @@
->                  * We uncharge this because swap is freed.  This memcg can
->                  * be obsolete one. We avoid calling css_tryget_online().
->                  */
-> -               res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
-> +               if (!mem_cgroup_is_root(memcg))
-> +                       res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
->                 mem_cgroup_swap_statistics(memcg, false);
->                 css_put(&memcg->css);
->         }
+
+--------------020108010704030702030400
+Content-Type: text/x-patch;
+ name="try-partial-revert-of-root-charge-regression-patch.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename*0="try-partial-revert-of-root-charge-regression-patch.patch"
+
+
+
+---
+
+ b/mm/memcontrol.c |   14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff -puN mm/memcontrol.c~try-partial-revert-of-root-charge-regression-patch mm/memcontrol.c
+--- a/mm/memcontrol.c~try-partial-revert-of-root-charge-regression-patch	2014-09-02 12:20:11.209527453 -0700
++++ b/mm/memcontrol.c	2014-09-02 13:10:28.756736862 -0700
+@@ -2534,6 +2534,8 @@ static int try_charge(struct mem_cgroup
+ 	unsigned long long size;
+ 	int ret = 0;
+ 
++	if (mem_cgroup_is_root(memcg))
++		goto done;
+ retry:
+ 	if (consume_stock(memcg, nr_pages))
+ 		goto done;
+@@ -2640,6 +2642,9 @@ static void __mem_cgroup_cancel_local_ch
+ {
+ 	unsigned long bytes = nr_pages * PAGE_SIZE;
+ 
++	if (mem_cgroup_is_root(memcg))
++		return;
++
+ 	res_counter_uncharge_until(&memcg->res, memcg->res.parent, bytes);
+ 	if (do_swap_account)
+ 		res_counter_uncharge_until(&memcg->memsw,
+@@ -6440,6 +6445,9 @@ void mem_cgroup_commit_charge(struct pag
+ 	VM_BUG_ON_PAGE(!page->mapping, page);
+ 	VM_BUG_ON_PAGE(PageLRU(page) && !lrucare, page);
+ 
++	if (mem_cgroup_is_root(memcg))
++		return;
++
+ 	if (mem_cgroup_disabled())
+ 		return;
+ 	/*
+@@ -6484,6 +6492,9 @@ void mem_cgroup_cancel_charge(struct pag
+ {
+ 	unsigned int nr_pages = 1;
+ 
++	if (mem_cgroup_is_root(memcg))
++		return;
++
+ 	if (mem_cgroup_disabled())
+ 		return;
+ 	/*
+@@ -6509,6 +6520,9 @@ static void uncharge_batch(struct mem_cg
+ {
+ 	unsigned long flags;
+ 
++	if (mem_cgroup_is_root(memcg))
++		return;
++
+ 	if (nr_mem)
+ 		res_counter_uncharge(&memcg->res, nr_mem * PAGE_SIZE);
+ 	if (nr_memsw)
+_
+
+--------------020108010704030702030400--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
