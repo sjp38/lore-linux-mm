@@ -1,64 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C71E6B0035
-	for <linux-mm@kvack.org>; Mon,  1 Sep 2014 23:33:16 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id fb1so13566289pad.27
-        for <linux-mm@kvack.org>; Mon, 01 Sep 2014 20:33:15 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id z1si3765499pas.101.2014.09.01.20.33.14
-        for <linux-mm@kvack.org>;
-        Mon, 01 Sep 2014 20:33:15 -0700 (PDT)
-Date: Tue, 02 Sep 2014 11:32:13 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [next:master 2850/2956] mm/page_alloc.c:6739:3: warning: format
- '%lx' expects argument of type 'long unsigned int', but argument 8 has type 'long long unsigned int'
-Message-ID: <54053a3d.W7Lf0ZQMGeHXkMg+%fengguang.wu@intel.com>
+Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
+	by kanga.kvack.org (Postfix) with ESMTP id D0A536B0035
+	for <linux-mm@kvack.org>; Tue,  2 Sep 2014 05:04:07 -0400 (EDT)
+Received: by mail-ob0-f173.google.com with SMTP id uy5so4607074obc.32
+        for <linux-mm@kvack.org>; Tue, 02 Sep 2014 02:04:07 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id p10si3187315obk.36.2014.09.02.02.04.05
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 02 Sep 2014 02:04:07 -0700 (PDT)
+Message-ID: <540587DF.6040302@huawei.com>
+Date: Tue, 2 Sep 2014 17:03:27 +0800
+From: Xue jiufei <xuejiufei@huawei.com>
+Reply-To: <xuejiufei@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [PATCH] fs/super.c: do not shrink fs slab during direct memory
+ reclaim
+References: <54004E82.3060608@huawei.com> <20140901235102.GI26465@dastard>
+In-Reply-To: <20140901235102.GI26465@dastard>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mark Brown <broonie@sirena.org.uk>, kbuild-all@01.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "ocfs2-devel@oss.oracle.com" <ocfs2-devel@oss.oracle.com>, Junxiao Bi <junxiao.bi@oracle.com>
 
-tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-head:   03af78748485f63e8ed21d2e2585b5d1ec862ba6
-commit: 658f7da49d34bc6187e6cd1ec57933d1a2a76035 [2850/2956] mm: introduce dump_vma
-config: make ARCH=sh apsh4ad0a_defconfig
+Hi, Dave
+On 2014/9/2 7:51, Dave Chinner wrote:
+> On Fri, Aug 29, 2014 at 05:57:22PM +0800, Xue jiufei wrote:
+>> The patch trys to solve one deadlock problem caused by cluster
+>> fs, like ocfs2. And the problem may happen at least in the below
+>> situations:
+>> 1)Receiving a connect message from other nodes, node queues a
+>> work_struct o2net_listen_work.
+>> 2)o2net_wq processes this work and calls sock_alloc() to allocate
+>> memory for a new socket.
+>> 3)It would do direct memory reclaim when available memory is not
+>> enough and trigger the inode cleanup. That inode being cleaned up
+>> is happened to be ocfs2 inode, so call evict()->ocfs2_evict_inode()
+>> ->ocfs2_drop_lock()->dlmunlock()->o2net_send_message_vec(),
+>> and wait for the unlock response from master.
+>> 4)tcp layer received the response, call o2net_data_ready() and
+>> queue sc_rx_work, waiting o2net_wq to process this work.
+>> 5)o2net_wq is a single thread workqueue, it process the work one by
+>> one. Right now it is still doing o2net_listen_work and cannot handle
+>> sc_rx_work. so we deadlock.
+>>
+>> It is impossible to set GFP_NOFS for memory allocation in sock_alloc().
+>> So we use PF_FSTRANS to avoid the task reentering filesystem when
+>> available memory is not enough.
+>>
+>> Signed-off-by: joyce.xue <xuejiufei@huawei.com>
+> 
+> For the second time: use memalloc_noio_save/memalloc_noio_restore.
+> And please put a great big comment in the code explaining why you
+> need to do this special thing with memory reclaim flags.
+> 
+> Cheers,
+> 
+> Dave.
+> 
+Thanks for your reply. But I am afraid that memalloc_noio_save/
+memalloc_noio_restore can not solve my problem. __GFP_IO is cleared
+if PF_MEMALLOC_NOIO is set and can avoid doing IO in direct memory
+reclaim. However, __GFP_FS is still set that can not avoid pruning
+dcache and icache in memory allocation, resulting in the deadlock I
+described.
 
-All warnings:
+Thanks.
+XueJiufei
 
-   mm/page_alloc.c: In function 'dump_vma':
->> mm/page_alloc.c:6739:3: warning: format '%lx' expects argument of type 'long unsigned int', but argument 8 has type 'long long unsigned int' [-Wformat]
-   mm/page_alloc.c: In function 'free_area_init_nodes':
-   mm/page_alloc.c:5362:34: warning: array subscript is below array bounds [-Warray-bounds]
 
-vim +6739 mm/page_alloc.c
-
-  6723		{VM_MIXEDMAP,			"mixedmap"	},
-  6724		{VM_HUGEPAGE,			"hugepage"	},
-  6725		{VM_NOHUGEPAGE,			"nohugepage"	},
-  6726		{VM_MERGEABLE,			"mergeable"	},
-  6727	};
-  6728	
-  6729	void dump_vma(const struct vm_area_struct *vma)
-  6730	{
-  6731		printk(KERN_ALERT
-  6732			"vma %p start %p end %p\n"
-  6733			"next %p prev %p mm %p\n"
-  6734			"prot %lx anon_vma %p vm_ops %p\n"
-  6735			"pgoff %lx file %p private_data %p\n",
-  6736			vma, (void *)vma->vm_start, (void *)vma->vm_end, vma->vm_next,
-  6737			vma->vm_prev, vma->vm_mm, vma->vm_page_prot.pgprot,
-  6738			vma->anon_vma, vma->vm_ops, vma->vm_pgoff,
-> 6739			vma->vm_file, vma->vm_private_data);
-  6740		dump_flags(vma->vm_flags, vmaflags_names, ARRAY_SIZE(vmaflags_names));
-  6741	}
-  6742	EXPORT_SYMBOL(dump_vma);
-
----
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
