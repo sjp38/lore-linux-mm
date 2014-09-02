@@ -1,91 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id F2A686B0036
-	for <linux-mm@kvack.org>; Tue,  2 Sep 2014 16:57:28 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id fa1so15764021pad.12
-        for <linux-mm@kvack.org>; Tue, 02 Sep 2014 13:57:28 -0700 (PDT)
-Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
-        by mx.google.com with ESMTP id np1si7899516pdb.31.2014.09.02.13.57.24
-        for <linux-mm@kvack.org>;
-        Tue, 02 Sep 2014 13:57:24 -0700 (PDT)
-Message-ID: <54062F32.5070504@sr71.net>
-Date: Tue, 02 Sep 2014 13:57:22 -0700
-From: Dave Hansen <dave@sr71.net>
+Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F1F06B0036
+	for <linux-mm@kvack.org>; Tue,  2 Sep 2014 17:42:17 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id tr6so8564227ieb.0
+        for <linux-mm@kvack.org>; Tue, 02 Sep 2014 14:42:16 -0700 (PDT)
+Received: from mail-ie0-x231.google.com (mail-ie0-x231.google.com [2607:f8b0:4001:c03::231])
+        by mx.google.com with ESMTPS id n7si26530igp.26.2014.09.02.14.42.16
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 02 Sep 2014 14:42:16 -0700 (PDT)
+Received: by mail-ie0-f177.google.com with SMTP id tp5so8459173ieb.22
+        for <linux-mm@kvack.org>; Tue, 02 Sep 2014 14:42:16 -0700 (PDT)
+Date: Tue, 2 Sep 2014 14:42:14 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm: clean up zone flags
+In-Reply-To: <1409668074-16875-1-git-send-email-hannes@cmpxchg.org>
+Message-ID: <alpine.DEB.2.02.1409021437160.28054@chino.kir.corp.google.com>
+References: <1409668074-16875-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: regression caused by cgroups optimization in 3.17-rc2
-References: <54061505.8020500@sr71.net> <5406262F.4050705@intel.com>
-In-Reply-To: <5406262F.4050705@intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-I, of course, forgot to include the most important detail.  This appears
-to be pretty run-of-the-mill spinlock contention in the resource counter
-code.  Nearly 80% of the CPU is spent spinning in the charge or uncharge
-paths in the kernel.  It is apparently spinning on res_counter->lock in
-both the charge and uncharge paths.
+On Tue, 2 Sep 2014, Johannes Weiner wrote:
 
-It already does _some_ batching here on the free side, but that
-apparently breaks down after ~40 threads.
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 318df7051850..48bf12ef6620 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -521,13 +521,13 @@ struct zone {
+>  	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
+>  } ____cacheline_internodealigned_in_smp;
+>  
+> -typedef enum {
+> +enum zone_flags {
+>  	ZONE_RECLAIM_LOCKED,		/* prevents concurrent reclaim */
+>  	ZONE_OOM_LOCKED,		/* zone is in OOM killer zonelist */
+>  	ZONE_CONGESTED,			/* zone has many dirty pages backed by
+>  					 * a congested BDI
+>  					 */
+> -	ZONE_TAIL_LRU_DIRTY,		/* reclaim scanning has recently found
+> +	ZONE_DIRTY,			/* reclaim scanning has recently found
+>  					 * many dirty file pages at the tail
+>  					 * of the LRU.
+>  					 */
+> @@ -535,52 +535,7 @@ typedef enum {
+>  					 * many pages under writeback
+>  					 */
+>  	ZONE_FAIR_DEPLETED,		/* fair zone policy batch depleted */
+> -} zone_flags_t;
+> -
+> -static inline void zone_set_flag(struct zone *zone, zone_flags_t flag)
+> -{
+> -	set_bit(flag, &zone->flags);
+> -}
+> -
+> -static inline int zone_test_and_set_flag(struct zone *zone, zone_flags_t flag)
+> -{
+> -	return test_and_set_bit(flag, &zone->flags);
+> -}
+> -
+> -static inline void zone_clear_flag(struct zone *zone, zone_flags_t flag)
+> -{
+> -	clear_bit(flag, &zone->flags);
+> -}
+> -
+> -static inline int zone_is_reclaim_congested(const struct zone *zone)
+> -{
+> -	return test_bit(ZONE_CONGESTED, &zone->flags);
+> -}
+> -
+> -static inline int zone_is_reclaim_dirty(const struct zone *zone)
+> -{
+> -	return test_bit(ZONE_TAIL_LRU_DIRTY, &zone->flags);
+> -}
+> -
+> -static inline int zone_is_reclaim_writeback(const struct zone *zone)
+> -{
+> -	return test_bit(ZONE_WRITEBACK, &zone->flags);
+> -}
+> -
+> -static inline int zone_is_reclaim_locked(const struct zone *zone)
+> -{
+> -	return test_bit(ZONE_RECLAIM_LOCKED, &zone->flags);
+> -}
+> -
+> -static inline int zone_is_fair_depleted(const struct zone *zone)
+> -{
+> -	return test_bit(ZONE_FAIR_DEPLETED, &zone->flags);
+> -}
+> -
+> -static inline int zone_is_oom_locked(const struct zone *zone)
+> -{
+> -	return test_bit(ZONE_OOM_LOCKED, &zone->flags);
+> -}
+> +};
+>  
+>  static inline unsigned long zone_end_pfn(const struct zone *zone)
+>  {
+> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> index 1706cbbdf5f0..d7a9051a6db5 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -631,7 +631,7 @@ long wait_iff_congested(struct zone *zone, int sync, long timeout)
+>  	 * of sleeping on the congestion queue
+>  	 */
+>  	if (atomic_read(&nr_bdi_congested[sync]) == 0 ||
+> -			!zone_is_reclaim_congested(zone)) {
+> +	    test_bit(ZONE_CONGESTED, &zone->flags)) {
+>  		cond_resched();
+>  
+>  		/* In case we scheduled, work out time remaining */
 
-It's a no-brainer since the patch in question removed an optimization
-skipping the charging, and now we're seeing overhead from the charging.
+That's not equivalent.
 
-Here's the first entry from perf top:
+[snip]
 
-    80.18%    80.18%  [kernel]               [k] _raw_spin_lock
-                  |
-                  --- _raw_spin_lock
-                     |
-                     |--66.59%-- res_counter_uncharge_until
-                     |          res_counter_uncharge
-                     |          uncharge_batch
-                     |          uncharge_list
-                     |          mem_cgroup_uncharge_list
-                     |          release_pages
-                     |          free_pages_and_swap_cache
-                     |          tlb_flush_mmu_free
-                     |          |
-                     |          |--90.12%-- unmap_single_vma
-                     |          |          unmap_vmas
-                     |          |          unmap_region
-                     |          |          do_munmap
-                     |          |          vm_munmap
-                     |          |          sys_munmap
-                     |          |          system_call_fastpath
-                     |          |          __GI___munmap
-                     |          |
-                     |           --9.88%-- tlb_flush_mmu
-                     |                     tlb_finish_mmu
-                     |                     unmap_region
-                     |                     do_munmap
-                     |                     vm_munmap
-                     |                     sys_munmap
-                     |                     system_call_fastpath
-                     |                     __GI___munmap
-                     |
-                     |--46.13%-- __res_counter_charge
-                     |          res_counter_charge
-                     |          try_charge
-                     |          mem_cgroup_try_charge
-                     |          |
-                     |          |--99.89%-- do_cow_fault
-                     |          |          handle_mm_fault
-                     |          |          __do_page_fault
-                     |          |          do_page_fault
-                     |          |          page_fault
-                     |          |          testcase
-                     |           --0.11%-- [...]
-                     |
-                     |--1.14%-- do_cow_fault
-                     |          handle_mm_fault
-                     |          __do_page_fault
-                     |          do_page_fault
-                     |          page_fault
-                     |          testcase
-                      --8217937613.29%-- [...]
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 2836b5373b2e..590a92bec6a4 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -920,7 +920,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  			/* Case 1 above */
+>  			if (current_is_kswapd() &&
+>  			    PageReclaim(page) &&
+> -			    zone_is_reclaim_writeback(zone)) {
+> +			    test_bit(ZONE_WRITEBACK, &zone->flags)) {
+>  				nr_immediate++;
+>  				goto keep_locked;
+>  
+> @@ -1002,7 +1002,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  			 */
+>  			if (page_is_file_cache(page) &&
+>  					(!current_is_kswapd() ||
+> -					 !zone_is_reclaim_dirty(zone))) {
+> +					 test_bit(ZONE_DIRTY, &zone->flags))) {
+>  				/*
+>  				 * Immediately reclaim when written back.
+>  				 * Similar in principal to deactivate_page()
+
+Nor is this.
+
+After fixed, for the oom killer bits:
+
+	Acked-by: David Rientjes <rientjes@google.com>
+
+since this un-obscurification is most welcome.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
