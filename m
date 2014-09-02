@@ -1,114 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 89D9B6B0036
-	for <linux-mm@kvack.org>; Tue,  2 Sep 2014 16:19:04 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id eu11so15519635pac.25
-        for <linux-mm@kvack.org>; Tue, 02 Sep 2014 13:19:04 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id gp10si7326906pbd.244.2014.09.02.13.19.03
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id F2A686B0036
+	for <linux-mm@kvack.org>; Tue,  2 Sep 2014 16:57:28 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id fa1so15764021pad.12
+        for <linux-mm@kvack.org>; Tue, 02 Sep 2014 13:57:28 -0700 (PDT)
+Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
+        by mx.google.com with ESMTP id np1si7899516pdb.31.2014.09.02.13.57.24
         for <linux-mm@kvack.org>;
-        Tue, 02 Sep 2014 13:19:03 -0700 (PDT)
-Message-ID: <5406262F.4050705@intel.com>
-Date: Tue, 02 Sep 2014 13:18:55 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+        Tue, 02 Sep 2014 13:57:24 -0700 (PDT)
+Message-ID: <54062F32.5070504@sr71.net>
+Date: Tue, 02 Sep 2014 13:57:22 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
 Subject: Re: regression caused by cgroups optimization in 3.17-rc2
-References: <54061505.8020500@sr71.net>
-In-Reply-To: <54061505.8020500@sr71.net>
-Content-Type: multipart/mixed;
- boundary="------------020108010704030702030400"
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
-
-This is a multi-part message in MIME format.
---------------020108010704030702030400
+References: <54061505.8020500@sr71.net> <5406262F.4050705@intel.com>
+In-Reply-To: <5406262F.4050705@intel.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On 09/02/2014 12:05 PM, Dave Hansen wrote:
-> It does not revert cleanly because of the hunks below.  The code in
-> those hunks was removed, so I tried running without properly merging
-> them and it spews warnings because counter->usage is seen going negative.
-> 
-> So, it doesn't appear we can quickly revert this.
+I, of course, forgot to include the most important detail.  This appears
+to be pretty run-of-the-mill spinlock contention in the resource counter
+code.  Nearly 80% of the CPU is spent spinning in the charge or uncharge
+paths in the kernel.  It is apparently spinning on res_counter->lock in
+both the charge and uncharge paths.
 
-I'm fairly confident that I missed some of the cases (especially in the
-charge-moving code), but the attached patch does at least work around
-the regression for me.  It restores the original performance, or at
-least gets _close_ to it.
+It already does _some_ batching here on the free side, but that
+apparently breaks down after ~40 threads.
 
+It's a no-brainer since the patch in question removed an optimization
+skipping the charging, and now we're seeing overhead from the charging.
 
+Here's the first entry from perf top:
 
---------------020108010704030702030400
-Content-Type: text/x-patch;
- name="try-partial-revert-of-root-charge-regression-patch.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
- filename*0="try-partial-revert-of-root-charge-regression-patch.patch"
-
-
-
----
-
- b/mm/memcontrol.c |   14 ++++++++++++++
- 1 file changed, 14 insertions(+)
-
-diff -puN mm/memcontrol.c~try-partial-revert-of-root-charge-regression-patch mm/memcontrol.c
---- a/mm/memcontrol.c~try-partial-revert-of-root-charge-regression-patch	2014-09-02 12:20:11.209527453 -0700
-+++ b/mm/memcontrol.c	2014-09-02 13:10:28.756736862 -0700
-@@ -2534,6 +2534,8 @@ static int try_charge(struct mem_cgroup
- 	unsigned long long size;
- 	int ret = 0;
- 
-+	if (mem_cgroup_is_root(memcg))
-+		goto done;
- retry:
- 	if (consume_stock(memcg, nr_pages))
- 		goto done;
-@@ -2640,6 +2642,9 @@ static void __mem_cgroup_cancel_local_ch
- {
- 	unsigned long bytes = nr_pages * PAGE_SIZE;
- 
-+	if (mem_cgroup_is_root(memcg))
-+		return;
-+
- 	res_counter_uncharge_until(&memcg->res, memcg->res.parent, bytes);
- 	if (do_swap_account)
- 		res_counter_uncharge_until(&memcg->memsw,
-@@ -6440,6 +6445,9 @@ void mem_cgroup_commit_charge(struct pag
- 	VM_BUG_ON_PAGE(!page->mapping, page);
- 	VM_BUG_ON_PAGE(PageLRU(page) && !lrucare, page);
- 
-+	if (mem_cgroup_is_root(memcg))
-+		return;
-+
- 	if (mem_cgroup_disabled())
- 		return;
- 	/*
-@@ -6484,6 +6492,9 @@ void mem_cgroup_cancel_charge(struct pag
- {
- 	unsigned int nr_pages = 1;
- 
-+	if (mem_cgroup_is_root(memcg))
-+		return;
-+
- 	if (mem_cgroup_disabled())
- 		return;
- 	/*
-@@ -6509,6 +6520,9 @@ static void uncharge_batch(struct mem_cg
- {
- 	unsigned long flags;
- 
-+	if (mem_cgroup_is_root(memcg))
-+		return;
-+
- 	if (nr_mem)
- 		res_counter_uncharge(&memcg->res, nr_mem * PAGE_SIZE);
- 	if (nr_memsw)
-_
-
---------------020108010704030702030400--
+    80.18%    80.18%  [kernel]               [k] _raw_spin_lock
+                  |
+                  --- _raw_spin_lock
+                     |
+                     |--66.59%-- res_counter_uncharge_until
+                     |          res_counter_uncharge
+                     |          uncharge_batch
+                     |          uncharge_list
+                     |          mem_cgroup_uncharge_list
+                     |          release_pages
+                     |          free_pages_and_swap_cache
+                     |          tlb_flush_mmu_free
+                     |          |
+                     |          |--90.12%-- unmap_single_vma
+                     |          |          unmap_vmas
+                     |          |          unmap_region
+                     |          |          do_munmap
+                     |          |          vm_munmap
+                     |          |          sys_munmap
+                     |          |          system_call_fastpath
+                     |          |          __GI___munmap
+                     |          |
+                     |           --9.88%-- tlb_flush_mmu
+                     |                     tlb_finish_mmu
+                     |                     unmap_region
+                     |                     do_munmap
+                     |                     vm_munmap
+                     |                     sys_munmap
+                     |                     system_call_fastpath
+                     |                     __GI___munmap
+                     |
+                     |--46.13%-- __res_counter_charge
+                     |          res_counter_charge
+                     |          try_charge
+                     |          mem_cgroup_try_charge
+                     |          |
+                     |          |--99.89%-- do_cow_fault
+                     |          |          handle_mm_fault
+                     |          |          __do_page_fault
+                     |          |          do_page_fault
+                     |          |          page_fault
+                     |          |          testcase
+                     |           --0.11%-- [...]
+                     |
+                     |--1.14%-- do_cow_fault
+                     |          handle_mm_fault
+                     |          __do_page_fault
+                     |          do_page_fault
+                     |          page_fault
+                     |          testcase
+                      --8217937613.29%-- [...]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
