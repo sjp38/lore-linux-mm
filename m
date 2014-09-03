@@ -1,92 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 456786B0036
-	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 06:32:39 -0400 (EDT)
-Received: by mail-we0-f182.google.com with SMTP id w62so8407598wes.27
-        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 03:32:38 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id dw7si2217841wib.14.2014.09.03.03.32.37
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 03 Sep 2014 03:32:38 -0700 (PDT)
-Date: Wed, 3 Sep 2014 12:32:27 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v4 2/2] ksm: provide support to use deferrable timers
- for scanner thread
-In-Reply-To: <20140903095815.GK4783@worktop.ger.corp.intel.com>
-Message-ID: <alpine.DEB.2.10.1409031212300.3333@nanos>
-References: <1408536628-29379-1-git-send-email-cpandya@codeaurora.org> <1408536628-29379-2-git-send-email-cpandya@codeaurora.org> <alpine.LSU.2.11.1408272258050.10518@eggly.anvils> <20140903095815.GK4783@worktop.ger.corp.intel.com>
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 25A056B0036
+	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 07:13:09 -0400 (EDT)
+Received: by mail-ig0-f178.google.com with SMTP id hn18so8868195igb.5
+        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 04:13:08 -0700 (PDT)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id bu5si10377128pbb.194.2014.09.03.04.13.06
+        for <linux-mm@kvack.org>;
+        Wed, 03 Sep 2014 04:13:07 -0700 (PDT)
+Date: Wed, 3 Sep 2014 21:13:02 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v10 20/21] ext4: Add DAX functionality
+Message-ID: <20140903111302.GG20473@dastard>
+References: <cover.1409110741.git.matthew.r.wilcox@intel.com>
+ <5422062f87eb5606f4632fd06575254379f40ddc.1409110741.git.matthew.r.wilcox@intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5422062f87eb5606f4632fd06575254379f40ddc.1409110741.git.matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Hugh Dickins <hughd@google.com>, Chintan Pandya <cpandya@codeaurora.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, John Stultz <john.stultz@linaro.org>, Ingo Molnar <mingo@redhat.com>
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, willy@linux.intel.com
 
-On Wed, 3 Sep 2014, Peter Zijlstra wrote:
-> On Wed, Aug 27, 2014 at 11:02:20PM -0700, Hugh Dickins wrote:
-> > Sorry for holding you up, I'm slow. and needed to think about this more,
-> > 
-> > On Wed, 20 Aug 2014, Chintan Pandya wrote:
-> > 
-> > > KSM thread to scan pages is scheduled on definite timeout. That wakes up
-> > > CPU from idle state and hence may affect the power consumption. Provide
-> > > an optional support to use deferrable timer which suites low-power
-> > > use-cases.
-> > > 
-> > > Typically, on our setup we observed, 10% less power consumption with some
-> > > use-cases in which CPU goes to power collapse frequently. For example,
-> > > playing audio on Soc which has HW based Audio encoder/decoder, CPU
-> > > remains idle for longer duration of time. This idle state will save
-> > > significant CPU power consumption if KSM don't wakes them up
-> > > periodically.
-> > > 
-> > > Note that, deferrable timers won't be deferred if any CPU is active and
-> > > not in IDLE state.
-
-This is completely wrong. A deferrable timer enqueued on a given CPU
-is deferred if that very CPU goes idle. The timer subsystem does not
-care at all about the other CPUs.
-
-And that very much explains Hughs observations. If the ksm thread
-sleeps deferrable on a CPU which is idle for a very long time, it will
-be deferred despite work accumulating on other CPUs.
-
-> > > By default, deferrable timers is enabled. To disable deferrable timers,
-> > > $ echo 0 > /sys/kernel/mm/ksm/deferrable_timer
-> > 
-> > I have now experimented.  And, much as I wanted to eliminate the
-> > tunable, and just have deferrable timers on, I have come right back
-> > to your original position.
-> > 
-> > I was impressed by how quiet ksmd goes when there's nothing much
-> > happening on the machine; but equally, disappointed in how slow
-> > it then is to fulfil the outstanding merge work.  I agree with your
-> > original assessment, that not everybody will want deferrable timer,
-> > the way it is working at present.
-> > 
-> > I expect that can be fixed, partly by doing more work on wakeup from
-> > a deferred timer, according to how long it has been deferred; and
-> > partly by not deferring on idle until two passes of the list have been
-> > completed.  But that's easier said than done, and might turn out to
+On Tue, Aug 26, 2014 at 11:45:40PM -0400, Matthew Wilcox wrote:
+> From: Ross Zwisler <ross.zwisler@linux.intel.com>
 > 
-> So why not have the timer cancel itself when there is no more work to do
-> and start itself up again when there's work added?
+> This is a port of the DAX functionality found in the current version of
+> ext2.
+....
+> diff --git a/fs/ext4/indirect.c b/fs/ext4/indirect.c
+> index e75f840..fa9ec8d 100644
+> --- a/fs/ext4/indirect.c
+> +++ b/fs/ext4/indirect.c
+> @@ -691,14 +691,22 @@ retry:
+>  			inode_dio_done(inode);
+>  			goto locked;
+>  		}
+> -		ret = __blockdev_direct_IO(rw, iocb, inode,
+> -				 inode->i_sb->s_bdev, iter, offset,
+> -				 ext4_get_block, NULL, NULL, 0);
+> +		if (IS_DAX(inode))
+> +			ret = dax_do_io(rw, iocb, inode, iter, offset,
+> +					ext4_get_block, NULL, 0);
+> +		else
+> +			ret = __blockdev_direct_IO(rw, iocb, inode,
+> +					inode->i_sb->s_bdev, iter, offset,
+> +					ext4_get_block, NULL, NULL, 0);
+>  		inode_dio_done(inode);
+>  	} else {
+>  locked:
+> -		ret = blockdev_direct_IO(rw, iocb, inode, iter,
+> -				 offset, ext4_get_block);
+> +		if (IS_DAX(inode))
+> +			ret = dax_do_io(rw, iocb, inode, iter, offset,
+> +					ext4_get_block, NULL, DIO_LOCKING);
+> +		else
+> +			ret = blockdev_direct_IO(rw, iocb, inode, iter,
+> +					offset, ext4_get_block);
+>  
+>  		if (unlikely((rw & WRITE) && ret < 0)) {
+>  			loff_t isize = i_size_read(inode);
 
-Because that requires more work and thoughts than simply slapping a
-deferrable timer at the problem and creating a sysfs variable to turn
-it on/off.
+When direct IO fails ext4 falls back to buffered IO, right? And
+dax_do_io() can return partial writes, yes?
 
-So looking at Hughs test results I'm quite sure that the deferrable
-timer is just another tunable bandaid with dubious value and the
-potential of predictable bug/regresssion reports.
+So that means if you get, say, ENOSPC part way through a DAX write,
+ext4 can start dirtying the page cache from
+__generic_file_write_iter() because the DAX write didn't wholly
+complete? And say this ENOSPC races with space being freed from
+another inode, then the buffered write will succeed and we'll end up
+with coherency issues, right?
 
-So no, I wont merge the schedule_timeout_deferrable() hackery unless
-the whole mechanism is usable w/o tunables and regressions.
+This is not an idle question - XFS if firing asserts all over the
+place when doing ENOSPC testing because DAX is returning partial
+writes and the XFS direct IO code is expecting them to either wholly
+complete or wholly fail. I can make the DAX variant do allow partial
+writes, but I'm not going to add a useless fallback to buffered IO
+for XFS when the (fully featured) direct allocation fails.
 
-Thanks,
+Indeed, I note that in the dax_fault code, any page found in the
+page cache is explicitly removed and released, and the direct mapped
+block replaces that page in the vma. IOWs, this code expects pages
+to be clean as we're only supposed to have regions covered by holes
+using cached pages (dax_load_hole()). So if we've done a buffered
+write, we're going to toss out dirty pages the moment there is a
+page fault on the range and map the unmodified backing store in
+instead.
 
-	tglx
+That just seems wrong. Maybe I've forgotten something, but this
+looks like a wart that we don't need and shouldn't bake into this
+interface as both ext4 and XFS can allocate into holes and extend
+files from from the direct IO interfaces. Of course, correct me if
+I'm wrong about ext4 capabilities...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
