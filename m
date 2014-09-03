@@ -1,91 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CDBB6B0036
-	for <linux-mm@kvack.org>; Tue,  2 Sep 2014 23:10:41 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id r10so10053877pdi.15
-        for <linux-mm@kvack.org>; Tue, 02 Sep 2014 20:10:40 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id bx4si8534357pab.174.2014.09.02.20.10.38
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A55286B0036
+	for <linux-mm@kvack.org>; Tue,  2 Sep 2014 23:15:07 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id rd3so16433103pab.10
+        for <linux-mm@kvack.org>; Tue, 02 Sep 2014 20:15:07 -0700 (PDT)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id ci1si8596883pad.150.2014.09.02.20.15.06
         for <linux-mm@kvack.org>;
-        Tue, 02 Sep 2014 20:10:40 -0700 (PDT)
-Date: Wed, 3 Sep 2014 13:10:23 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] fs/super.c: do not shrink fs slab during direct memory
- reclaim
-Message-ID: <20140903031023.GC20473@dastard>
-References: <54004E82.3060608@huawei.com>
- <20140901235102.GI26465@dastard>
- <540587DF.6040302@huawei.com>
- <54067117.4060201@oracle.com>
+        Tue, 02 Sep 2014 20:15:06 -0700 (PDT)
+Message-ID: <540687B9.7070305@sr71.net>
+Date: Tue, 02 Sep 2014 20:15:05 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <54067117.4060201@oracle.com>
+Subject: Re: regression caused by cgroups optimization in 3.17-rc2
+References: <54061505.8020500@sr71.net> <20140902221814.GA18069@cmpxchg.org> <5406466D.1020000@sr71.net> <20140903001009.GA25970@cmpxchg.org> <CA+55aFw6ZkGNVX-CwyG0ybQAPjYAscdM59k_tOLtg4rr-fS-jg@mail.gmail.com> <20140903013317.GA26086@cmpxchg.org>
+In-Reply-To: <20140903013317.GA26086@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Junxiao Bi <junxiao.bi@oracle.com>
-Cc: xuejiufei@huawei.com, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "ocfs2-devel@oss.oracle.com" <ocfs2-devel@oss.oracle.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Wed, Sep 03, 2014 at 09:38:31AM +0800, Junxiao Bi wrote:
-> Hi Jiufei,
-> 
-> On 09/02/2014 05:03 PM, Xue jiufei wrote:
-> > Hi, Dave
-> > On 2014/9/2 7:51, Dave Chinner wrote:
-> >> On Fri, Aug 29, 2014 at 05:57:22PM +0800, Xue jiufei wrote:
-> >>> The patch trys to solve one deadlock problem caused by cluster
-> >>> fs, like ocfs2. And the problem may happen at least in the below
-> >>> situations:
-> >>> 1)Receiving a connect message from other nodes, node queues a
-> >>> work_struct o2net_listen_work.
-> >>> 2)o2net_wq processes this work and calls sock_alloc() to allocate
-> >>> memory for a new socket.
-> >>> 3)It would do direct memory reclaim when available memory is not
-> >>> enough and trigger the inode cleanup. That inode being cleaned up
-> >>> is happened to be ocfs2 inode, so call evict()->ocfs2_evict_inode()
-> >>> ->ocfs2_drop_lock()->dlmunlock()->o2net_send_message_vec(),
-> >>> and wait for the unlock response from master.
-> >>> 4)tcp layer received the response, call o2net_data_ready() and
-> >>> queue sc_rx_work, waiting o2net_wq to process this work.
-> >>> 5)o2net_wq is a single thread workqueue, it process the work one by
-> >>> one. Right now it is still doing o2net_listen_work and cannot handle
-> >>> sc_rx_work. so we deadlock.
-> >>>
-> >>> It is impossible to set GFP_NOFS for memory allocation in sock_alloc().
-> >>> So we use PF_FSTRANS to avoid the task reentering filesystem when
-> >>> available memory is not enough.
-> >>>
-> >>> Signed-off-by: joyce.xue <xuejiufei@huawei.com>
-> >>
-> >> For the second time: use memalloc_noio_save/memalloc_noio_restore.
-> >> And please put a great big comment in the code explaining why you
-> >> need to do this special thing with memory reclaim flags.
-> >>
-> >> Cheers,
-> >>
-> >> Dave.
-> >>
-> > Thanks for your reply. But I am afraid that memalloc_noio_save/
-> > memalloc_noio_restore can not solve my problem. __GFP_IO is cleared
-> > if PF_MEMALLOC_NOIO is set and can avoid doing IO in direct memory
-> > reclaim. However, __GFP_FS is still set that can not avoid pruning
-> > dcache and icache in memory allocation, resulting in the deadlock I
-> > described.
-> 
-> You can use PF_MEMALLOC_NOIO to replace PF_FSTRANS, set this flag in
-> ocfs2 and check it in sb shrinker.
+On 09/02/2014 06:33 PM, Johannes Weiner wrote:
+> kfree isn't eating 56% of "all cpu time" here, and it wasn't clear to
+> me whether Dave filtered symbols from only memcontrol.o, memory.o, and
+> mmap.o in a similar way.  I'm not arguing against the regression, I'm
+> just trying to make sense of the numbers from the *patched* kernel.
 
-No changes to the superblock shrinker, please. The flag should
-modify the gfp_mask in the struct shrink_control passed to the
-shrinker, just like the noio flag is used in the rest of the mm
-code.
+I guess I could have included it in the description, but that was a
+pretty vanilla run:
 
-Cheers,
+	perf top --call-graph=fp --stdio > foo.txt
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+I didn't use any filtering.  I didn't even know I _could_ filter. :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
