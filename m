@@ -1,108 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A53E86B0036
-	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 01:02:50 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id rd3so16500293pab.38
-        for <linux-mm@kvack.org>; Tue, 02 Sep 2014 22:02:50 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id as4si8922284pbc.130.2014.09.02.22.02.48
-        for <linux-mm@kvack.org>;
-        Tue, 02 Sep 2014 22:02:49 -0700 (PDT)
-Date: Wed, 3 Sep 2014 15:02:32 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] fs/super.c: do not shrink fs slab during direct memory
- reclaim
-Message-ID: <20140903050232.GD20473@dastard>
-References: <54004E82.3060608@huawei.com>
- <20140901235102.GI26465@dastard>
- <540587DF.6040302@huawei.com>
- <54067117.4060201@oracle.com>
- <20140903031023.GC20473@dastard>
- <54069744.7050509@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <54069744.7050509@oracle.com>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 86A936B0036
+	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 01:55:08 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id kq14so16559050pab.37
+        for <linux-mm@kvack.org>; Tue, 02 Sep 2014 22:55:08 -0700 (PDT)
+Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
+        by mx.google.com with ESMTPS id pk8si9006670pac.176.2014.09.02.22.55.06
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Tue, 02 Sep 2014 22:55:07 -0700 (PDT)
+Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
+ by mailout3.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NBB00EM39RE4K60@mailout3.samsung.com> for
+ linux-mm@kvack.org; Wed, 03 Sep 2014 14:54:50 +0900 (KST)
+From: Chao Yu <chao2.yu@samsung.com>
+Subject: [PATCH] zbud: avoid accessing in last unused freelist
+Date: Wed, 03 Sep 2014 13:54:09 +0800
+Message-id: <000001cfc73b$9340d050$b9c270f0$@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Content-language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Junxiao Bi <junxiao.bi@oracle.com>
-Cc: xuejiufei@huawei.com, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "ocfs2-devel@oss.oracle.com" <ocfs2-devel@oss.oracle.com>
+To: sjennings@variantweb.net
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Sep 03, 2014 at 12:21:24PM +0800, Junxiao Bi wrote:
-> On 09/03/2014 11:10 AM, Dave Chinner wrote:
-> > On Wed, Sep 03, 2014 at 09:38:31AM +0800, Junxiao Bi wrote:
-> >> Hi Jiufei,
-> >>
-> >> On 09/02/2014 05:03 PM, Xue jiufei wrote:
-> >>> Hi, Dave
-> >>> On 2014/9/2 7:51, Dave Chinner wrote:
-> >>>> On Fri, Aug 29, 2014 at 05:57:22PM +0800, Xue jiufei wrote:
-> >>>>> The patch trys to solve one deadlock problem caused by cluster
-> >>>>> fs, like ocfs2. And the problem may happen at least in the below
-> >>>>> situations:
-> >>>>> 1)Receiving a connect message from other nodes, node queues a
-> >>>>> work_struct o2net_listen_work.
-> >>>>> 2)o2net_wq processes this work and calls sock_alloc() to allocate
-> >>>>> memory for a new socket.
-> >>>>> 3)It would do direct memory reclaim when available memory is not
-> >>>>> enough and trigger the inode cleanup. That inode being cleaned up
-> >>>>> is happened to be ocfs2 inode, so call evict()->ocfs2_evict_inode()
-> >>>>> ->ocfs2_drop_lock()->dlmunlock()->o2net_send_message_vec(),
-> >>>>> and wait for the unlock response from master.
-> >>>>> 4)tcp layer received the response, call o2net_data_ready() and
-> >>>>> queue sc_rx_work, waiting o2net_wq to process this work.
-> >>>>> 5)o2net_wq is a single thread workqueue, it process the work one by
-> >>>>> one. Right now it is still doing o2net_listen_work and cannot handle
-> >>>>> sc_rx_work. so we deadlock.
-> >>>>>
-> >>>>> It is impossible to set GFP_NOFS for memory allocation in sock_alloc().
-> >>>>> So we use PF_FSTRANS to avoid the task reentering filesystem when
-> >>>>> available memory is not enough.
-> >>>>>
-> >>>>> Signed-off-by: joyce.xue <xuejiufei@huawei.com>
-> >>>>
-> >>>> For the second time: use memalloc_noio_save/memalloc_noio_restore.
-> >>>> And please put a great big comment in the code explaining why you
-> >>>> need to do this special thing with memory reclaim flags.
-> >>>>
-> >>>> Cheers,
-> >>>>
-> >>>> Dave.
-> >>>>
-> >>> Thanks for your reply. But I am afraid that memalloc_noio_save/
-> >>> memalloc_noio_restore can not solve my problem. __GFP_IO is cleared
-> >>> if PF_MEMALLOC_NOIO is set and can avoid doing IO in direct memory
-> >>> reclaim. However, __GFP_FS is still set that can not avoid pruning
-> >>> dcache and icache in memory allocation, resulting in the deadlock I
-> >>> described.
-> >>
-> >> You can use PF_MEMALLOC_NOIO to replace PF_FSTRANS, set this flag in
-> >> ocfs2 and check it in sb shrinker.
-> > 
-> > No changes to the superblock shrinker, please. The flag should
-> > modify the gfp_mask in the struct shrink_control passed to the
-> > shrinker, just like the noio flag is used in the rest of the mm
-> > code.
-> __GFP_FS seemed imply __GFP_IO,
+For now, there are NCHUNKS of 64 freelists in zbud_pool, the last unbuddied[63]
+freelist linked with all zbud pages which have free chunks of 63. Calculating
+according to context of num_free_chunks(), our max chunk number of unbuddied
+zbud page is 62, so none of zbud pages will be added/removed in last freelist,
+but still we will try to find an unbuddied zbud page in the last unused
+freelist, it is unneeded.
 
-Now you are starting to understand. Check what GFP_NOIO actually
-means, then tell me why memalloc_noio_flags() is not fully correct,
-needs fixing, and needs to be applied to all of reclaim.
+This patch redefines NCHUNKS to 63 as free chunk number in one zbud page, hence
+we can decrease size of zpool and avoid accessing the last unused freelist
+whenever failing to allocate zbud from freelist in zbud_alloc.
 
-Hint: there's a heirarchy involved....
+Signed-off-by: Chao Yu <chao2.yu@samsung.com>
+---
+ mm/zbud.c | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
 
-> can superblock shrinker check
-> !(sc->gfp_mask & __GFP_IO) and stop?
-
-No. Go back and read what I said about the initial setting of
-sc->gfp_mask.
-
-Cheers,
-
-Dave.
+diff --git a/mm/zbud.c b/mm/zbud.c
+index f26e7fc..ecf1dbe 100644
+--- a/mm/zbud.c
++++ b/mm/zbud.c
+@@ -60,15 +60,17 @@
+  * NCHUNKS_ORDER determines the internal allocation granularity, effectively
+  * adjusting internal fragmentation.  It also determines the number of
+  * freelists maintained in each pool. NCHUNKS_ORDER of 6 means that the
+- * allocation granularity will be in chunks of size PAGE_SIZE/64, and there
+- * will be 64 freelists per pool.
++ * allocation granularity will be in chunks of size PAGE_SIZE/64. As one chunk
++ * in allocated page is occupied by zbud header, NCHUNKS will be calculated to
++ * 63 which shows the max number of free chunks in zbud page, also there will be
++ * 63 freelists per pool.
+  */
+ #define NCHUNKS_ORDER	6
+ 
+ #define CHUNK_SHIFT	(PAGE_SHIFT - NCHUNKS_ORDER)
+ #define CHUNK_SIZE	(1 << CHUNK_SHIFT)
+-#define NCHUNKS		(PAGE_SIZE >> CHUNK_SHIFT)
+ #define ZHDR_SIZE_ALIGNED CHUNK_SIZE
++#define NCHUNKS		((PAGE_SIZE - ZHDR_SIZE_ALIGNED) >> CHUNK_SHIFT)
+ 
+ /**
+  * struct zbud_pool - stores metadata for each zbud pool
+@@ -268,10 +270,9 @@ static int num_free_chunks(struct zbud_header *zhdr)
+ {
+ 	/*
+ 	 * Rather than branch for different situations, just use the fact that
+-	 * free buddies have a length of zero to simplify everything. -1 at the
+-	 * end for the zbud header.
++	 * free buddies have a length of zero to simplify everything.
+ 	 */
+-	return NCHUNKS - zhdr->first_chunks - zhdr->last_chunks - 1;
++	return NCHUNKS - zhdr->first_chunks - zhdr->last_chunks;
+ }
+ 
+ /*****************
 -- 
-Dave Chinner
-david@fromorbit.com
+2.0.1.474.g72c7794
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
