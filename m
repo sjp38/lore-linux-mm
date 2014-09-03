@@ -1,163 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 138B96B0036
-	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 05:22:03 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id r10so10748165pdi.29
-        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 02:22:02 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id ln4si9950454pab.151.2014.09.03.02.21.39
-        for <linux-mm@kvack.org>;
-        Wed, 03 Sep 2014 02:21:41 -0700 (PDT)
-Date: Wed, 3 Sep 2014 19:21:16 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v10 19/21] xip: Add xip_zero_page_range
-Message-ID: <20140903092116.GF20473@dastard>
-References: <cover.1409110741.git.matthew.r.wilcox@intel.com>
- <80c8efc903971eb3a338f262fbd3ef135db63eb0.1409110741.git.matthew.r.wilcox@intel.com>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id D47FA6B0036
+	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 05:58:23 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id ey11so16932756pad.7
+        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 02:58:20 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id rc5si10289977pbc.60.2014.09.03.02.58.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Sep 2014 02:58:19 -0700 (PDT)
+Date: Wed, 3 Sep 2014 11:58:15 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v4 2/2] ksm: provide support to use deferrable timers for
+ scanner thread
+Message-ID: <20140903095815.GK4783@worktop.ger.corp.intel.com>
+References: <1408536628-29379-1-git-send-email-cpandya@codeaurora.org>
+ <1408536628-29379-2-git-send-email-cpandya@codeaurora.org>
+ <alpine.LSU.2.11.1408272258050.10518@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <80c8efc903971eb3a338f262fbd3ef135db63eb0.1409110741.git.matthew.r.wilcox@intel.com>
+In-Reply-To: <alpine.LSU.2.11.1408272258050.10518@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, willy@linux.intel.com, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Chintan Pandya <cpandya@codeaurora.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, John Stultz <john.stultz@linaro.org>, Ingo Molnar <mingo@redhat.com>
 
-On Tue, Aug 26, 2014 at 11:45:39PM -0400, Matthew Wilcox wrote:
-> This new function allows us to support hole-punch for XIP files by zeroing
-> a partial page, as opposed to the xip_truncate_page() function which can
-> only truncate to the end of the page.  Reimplement xip_truncate_page() as
-> a macro that calls xip_zero_page_range().
+On Wed, Aug 27, 2014 at 11:02:20PM -0700, Hugh Dickins wrote:
+> Sorry for holding you up, I'm slow. and needed to think about this more,
 > 
-> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-> [ported to 3.13-rc2]
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> ---
->  Documentation/filesystems/dax.txt |  1 +
->  fs/dax.c                          | 20 ++++++++++++++------
->  include/linux/fs.h                |  9 ++++++++-
->  3 files changed, 23 insertions(+), 7 deletions(-)
+> On Wed, 20 Aug 2014, Chintan Pandya wrote:
 > 
-> diff --git a/Documentation/filesystems/dax.txt b/Documentation/filesystems/dax.txt
-> index 635adaa..ebcd97f 100644
-> --- a/Documentation/filesystems/dax.txt
-> +++ b/Documentation/filesystems/dax.txt
-> @@ -62,6 +62,7 @@ Filesystem support consists of
->    for fault and page_mkwrite (which should probably call dax_fault() and
->    dax_mkwrite(), passing the appropriate get_block() callback)
->  - calling dax_truncate_page() instead of block_truncate_page() for DAX files
-> +- calling dax_zero_page_range() instead of zero_user() for DAX files
->  - ensuring that there is sufficient locking between reads, writes,
->    truncates and page faults
->  
-> diff --git a/fs/dax.c b/fs/dax.c
-> index d54f7d3..96c4fed 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -445,13 +445,16 @@ int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
->  EXPORT_SYMBOL_GPL(dax_fault);
->  
->  /**
-> - * dax_truncate_page - handle a partial page being truncated in a DAX file
-> + * dax_zero_page_range - zero a range within a page of a DAX file
->   * @inode: The file being truncated
->   * @from: The file offset that is being truncated to
-> + * @length: The number of bytes to zero
->   * @get_block: The filesystem method used to translate file offsets to blocks
->   *
-> - * Similar to block_truncate_page(), this function can be called by a
-> - * filesystem when it is truncating an DAX file to handle the partial page.
-> + * This function can be called by a filesystem when it is zeroing part of a
-> + * page in a DAX file.  This is intended for hole-punch operations.  If
-> + * you are truncating a file, the helper function dax_truncate_page() may be
-> + * more convenient.
->   *
->   * We work in terms of PAGE_CACHE_SIZE here for commonality with
->   * block_truncate_page(), but we could go down to PAGE_SIZE if the filesystem
-> @@ -459,12 +462,12 @@ EXPORT_SYMBOL_GPL(dax_fault);
->   * block size is smaller than PAGE_SIZE, we have to zero the rest of the page
->   * since the file might be mmaped.
->   */
-> -int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
-> +int dax_zero_page_range(struct inode *inode, loff_t from, unsigned length,
-> +							get_block_t get_block)
->  {
->  	struct buffer_head bh;
->  	pgoff_t index = from >> PAGE_CACHE_SHIFT;
->  	unsigned offset = from & (PAGE_CACHE_SIZE-1);
-> -	unsigned length = PAGE_CACHE_ALIGN(from) - from;
->  	int err;
->  
->  	/* Block boundary? Nothing to do */
-> @@ -481,9 +484,14 @@ int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
->  		err = dax_get_addr(&bh, &addr, inode->i_blkbits);
->  		if (err < 0)
->  			return err;
-> +		/*
-> +		 * ext4 sometimes asks to zero past the end of a block.  It
-> +		 * really just wants to zero to the end of the block.
-> +		 */
-> +		length = min_t(unsigned, length, PAGE_CACHE_SIZE - offset);
->  		memset(addr + offset, 0, length);
+> > KSM thread to scan pages is scheduled on definite timeout. That wakes up
+> > CPU from idle state and hence may affect the power consumption. Provide
+> > an optional support to use deferrable timer which suites low-power
+> > use-cases.
+> > 
+> > Typically, on our setup we observed, 10% less power consumption with some
+> > use-cases in which CPU goes to power collapse frequently. For example,
+> > playing audio on Soc which has HW based Audio encoder/decoder, CPU
+> > remains idle for longer duration of time. This idle state will save
+> > significant CPU power consumption if KSM don't wakes them up
+> > periodically.
+> > 
+> > Note that, deferrable timers won't be deferred if any CPU is active and
+> > not in IDLE state.
+> > 
+> > By default, deferrable timers is enabled. To disable deferrable timers,
+> > $ echo 0 > /sys/kernel/mm/ksm/deferrable_timer
+> 
+> I have now experimented.  And, much as I wanted to eliminate the
+> tunable, and just have deferrable timers on, I have come right back
+> to your original position.
+> 
+> I was impressed by how quiet ksmd goes when there's nothing much
+> happening on the machine; but equally, disappointed in how slow
+> it then is to fulfil the outstanding merge work.  I agree with your
+> original assessment, that not everybody will want deferrable timer,
+> the way it is working at present.
+> 
+> I expect that can be fixed, partly by doing more work on wakeup from
+> a deferred timer, according to how long it has been deferred; and
+> partly by not deferring on idle until two passes of the list have been
+> completed.  But that's easier said than done, and might turn out to
 
-Sorry, what?
-
-You introduce that bug with the way dax_truncate_page() is redefined
-to always pass PAGE_CACHE_SIZE a a length later on in this patch.
-into the function. That's hardly an ext4 bug....
-
->  	}
->  
->  	return 0;
->  }
-> -EXPORT_SYMBOL_GPL(dax_truncate_page);
-> +EXPORT_SYMBOL_GPL(dax_zero_page_range);
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index e6b48cc..b0078df 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -2490,6 +2490,7 @@ extern int nonseekable_open(struct inode * inode, struct file * filp);
->  
->  #ifdef CONFIG_FS_DAX
->  int dax_clear_blocks(struct inode *, sector_t block, long size);
-> +int dax_zero_page_range(struct inode *, loff_t from, unsigned len, get_block_t);
->  int dax_truncate_page(struct inode *, loff_t from, get_block_t);
-
-It's still defined as a function that doesn't exist now....
-
->  ssize_t dax_do_io(int rw, struct kiocb *, struct inode *, struct iov_iter *,
->  		loff_t, get_block_t, dio_iodone_t, int flags);
-> @@ -2501,7 +2502,8 @@ static inline int dax_clear_blocks(struct inode *i, sector_t blk, long sz)
->  	return 0;
->  }
->  
-> -static inline int dax_truncate_page(struct inode *i, loff_t frm, get_block_t gb)
-> +static inline int dax_zero_page_range(struct inode *inode, loff_t from,
-> +						unsigned len, get_block_t gb)
->  {
->  	return 0;
->  }
-> @@ -2514,6 +2516,11 @@ static inline ssize_t dax_do_io(int rw, struct kiocb *iocb,
->  }
->  #endif
->  
-> +/* Can't be a function because PAGE_CACHE_SIZE is defined in pagemap.h */
-> +#define dax_truncate_page(inode, from, get_block)	\
-> +	dax_zero_page_range(inode, from, PAGE_CACHE_SIZE, get_block)
-
-And then redefined as a macro here. This is wrong, IMO,
-dax_truncate_page() should remain as a function and it should
-correctly calculate how much of the page shoul dbe trimmed, not
-leave landmines that other code has to clean up...
-
-(Yup, I'm tracking down a truncate bug in XFS from fsx...)
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+So why not have the timer cancel itself when there is no more work to do
+and start itself up again when there's work added?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
