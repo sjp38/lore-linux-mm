@@ -1,77 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 98B596B003B
-	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 06:11:27 -0400 (EDT)
-Received: by mail-la0-f41.google.com with SMTP id gi9so9576477lab.0
-        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 03:11:26 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id kx4si2282044lac.8.2014.09.03.03.11.25
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 456786B0036
+	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 06:32:39 -0400 (EDT)
+Received: by mail-we0-f182.google.com with SMTP id w62so8407598wes.27
+        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 03:32:38 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id dw7si2217841wib.14.2014.09.03.03.32.37
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Sep 2014 03:11:26 -0700 (PDT)
-Subject: [PATCH 2/2] fuse: fuse_get_user_pages(): do not pack more data than
- requested
-From: Maxim Patlasov <MPatlasov@parallels.com>
-Date: Wed, 03 Sep 2014 14:11:21 +0400
-Message-ID: <20140903101109.23218.60234.stgit@localhost.localdomain>
-In-Reply-To: <20140903100826.23218.95122.stgit@localhost.localdomain>
-References: <20140903100826.23218.95122.stgit@localhost.localdomain>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Wed, 03 Sep 2014 03:32:38 -0700 (PDT)
+Date: Wed, 3 Sep 2014 12:32:27 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v4 2/2] ksm: provide support to use deferrable timers
+ for scanner thread
+In-Reply-To: <20140903095815.GK4783@worktop.ger.corp.intel.com>
+Message-ID: <alpine.DEB.2.10.1409031212300.3333@nanos>
+References: <1408536628-29379-1-git-send-email-cpandya@codeaurora.org> <1408536628-29379-2-git-send-email-cpandya@codeaurora.org> <alpine.LSU.2.11.1408272258050.10518@eggly.anvils> <20140903095815.GK4783@worktop.ger.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: viro@zeniv.linux.org.uk
-Cc: miklos@szeredi.hu, fuse-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, werner.baumann@onlinehome.de
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Hugh Dickins <hughd@google.com>, Chintan Pandya <cpandya@codeaurora.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, John Stultz <john.stultz@linaro.org>, Ingo Molnar <mingo@redhat.com>
 
-The patch fixes a bug introduced by commit c9c37e2e6378 ("fuse: switch to
-iov_iter_get_pages()"):
+On Wed, 3 Sep 2014, Peter Zijlstra wrote:
+> On Wed, Aug 27, 2014 at 11:02:20PM -0700, Hugh Dickins wrote:
+> > Sorry for holding you up, I'm slow. and needed to think about this more,
+> > 
+> > On Wed, 20 Aug 2014, Chintan Pandya wrote:
+> > 
+> > > KSM thread to scan pages is scheduled on definite timeout. That wakes up
+> > > CPU from idle state and hence may affect the power consumption. Provide
+> > > an optional support to use deferrable timer which suites low-power
+> > > use-cases.
+> > > 
+> > > Typically, on our setup we observed, 10% less power consumption with some
+> > > use-cases in which CPU goes to power collapse frequently. For example,
+> > > playing audio on Soc which has HW based Audio encoder/decoder, CPU
+> > > remains idle for longer duration of time. This idle state will save
+> > > significant CPU power consumption if KSM don't wakes them up
+> > > periodically.
+> > > 
+> > > Note that, deferrable timers won't be deferred if any CPU is active and
+> > > not in IDLE state.
 
-The third argument of fuse_get_user_pages() "nbytesp" refers to the number of
-bytes a caller asked to pack into fuse request. This value may be lesser
-than capacity of fuse request or iov_iter. So fuse_get_user_pages() must
-ensure that *nbytesp won't grow. Before that commit, it was ensured by:
+This is completely wrong. A deferrable timer enqueued on a given CPU
+is deferred if that very CPU goes idle. The timer subsystem does not
+care at all about the other CPUs.
 
->		ret = get_user_pages_fast(user_addr, npages, !write,
->					  &req->pages[req->num_pages]);
->		...
->		npages = ret;
->		frag_size = min_t(size_t, frag_size,
->				  (npages << PAGE_SHIFT) - offset);
+And that very much explains Hughs observations. If the ksm thread
+sleeps deferrable on a CPU which is idle for a very long time, it will
+be deferred despite work accumulating on other CPUs.
 
-Now, when helper iov_iter_get_pages() performs all hard work of extracting
-pages from iov_iter, it can be done by passing properly calculated "maxsize"
-to the helper.
+> > > By default, deferrable timers is enabled. To disable deferrable timers,
+> > > $ echo 0 > /sys/kernel/mm/ksm/deferrable_timer
+> > 
+> > I have now experimented.  And, much as I wanted to eliminate the
+> > tunable, and just have deferrable timers on, I have come right back
+> > to your original position.
+> > 
+> > I was impressed by how quiet ksmd goes when there's nothing much
+> > happening on the machine; but equally, disappointed in how slow
+> > it then is to fulfil the outstanding merge work.  I agree with your
+> > original assessment, that not everybody will want deferrable timer,
+> > the way it is working at present.
+> > 
+> > I expect that can be fixed, partly by doing more work on wakeup from
+> > a deferred timer, according to how long it has been deferred; and
+> > partly by not deferring on idle until two passes of the list have been
+> > completed.  But that's easier said than done, and might turn out to
+> 
+> So why not have the timer cancel itself when there is no more work to do
+> and start itself up again when there's work added?
 
-Reported-by: Werner Baumann <werner.baumann@onlinehome.de>
-Signed-off-by: Maxim Patlasov <mpatlasov@parallels.com>
----
- fs/fuse/file.c |   11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
+Because that requires more work and thoughts than simply slapping a
+deferrable timer at the problem and creating a sysfs variable to turn
+it on/off.
 
-diff --git a/fs/fuse/file.c b/fs/fuse/file.c
-index 40ac262..1d2bb70 100644
---- a/fs/fuse/file.c
-+++ b/fs/fuse/file.c
-@@ -1303,10 +1303,15 @@ static int fuse_get_user_pages(struct fuse_req *req, struct iov_iter *ii,
- 	while (nbytes < *nbytesp && req->num_pages < req->max_pages) {
- 		unsigned npages;
- 		size_t start;
-+		ssize_t ret;
- 		unsigned n = req->max_pages - req->num_pages;
--		ssize_t ret = iov_iter_get_pages(ii,
--					&req->pages[req->num_pages],
--					n * PAGE_SIZE, &start);
-+		size_t frag_size = fuse_get_frag_size(ii, *nbytesp - nbytes);
-+
-+		frag_size = min_t(size_t, frag_size, n << PAGE_SHIFT);
-+
-+		ret = iov_iter_get_pages(ii,
-+				&req->pages[req->num_pages],
-+				frag_size, &start);
- 		if (ret < 0)
- 			return ret;
- 
+So looking at Hughs test results I'm quite sure that the deferrable
+timer is just another tunable bandaid with dubious value and the
+potential of predictable bug/regresssion reports.
+
+So no, I wont merge the schedule_timeout_deferrable() hackery unless
+the whole mechanism is usable w/o tunables and regressions.
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
