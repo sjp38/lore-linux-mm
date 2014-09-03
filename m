@@ -1,71 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D47FA6B0036
-	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 05:58:23 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id ey11so16932756pad.7
-        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 02:58:20 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id rc5si10289977pbc.60.2014.09.03.02.58.19
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 45C356B0038
+	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 05:58:55 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id eu11so17071383pac.39
+        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 02:58:54 -0700 (PDT)
+Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
+        by mx.google.com with ESMTPS id mt7si10167040pdb.135.2014.09.03.02.58.16
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Sep 2014 02:58:19 -0700 (PDT)
-Date: Wed, 3 Sep 2014 11:58:15 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v4 2/2] ksm: provide support to use deferrable timers for
- scanner thread
-Message-ID: <20140903095815.GK4783@worktop.ger.corp.intel.com>
-References: <1408536628-29379-1-git-send-email-cpandya@codeaurora.org>
- <1408536628-29379-2-git-send-email-cpandya@codeaurora.org>
- <alpine.LSU.2.11.1408272258050.10518@eggly.anvils>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 03 Sep 2014 02:58:18 -0700 (PDT)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Wed, 3 Sep 2014 17:57:57 +0800
+Subject: free initrd / cma pages problems with memblock
+Message-ID: <35FD53F367049845BC99AC72306C23D103CDBFBFB00B@CNBJMBX05.corpusers.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1408272258050.10518@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Chintan Pandya <cpandya@codeaurora.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, John Stultz <john.stultz@linaro.org>, Ingo Molnar <mingo@redhat.com>
+To: "'linux@arm.linux.org.uk'" <linux@arm.linux.org.uk>, "'santosh.shilimkar@ti.com'" <santosh.shilimkar@ti.com>, "'grant.likely@linaro.org'" <grant.likely@linaro.org>, "'robh@kernel.org'" <robh@kernel.org>, "'akpm@linux-foundation.org'" <akpm@linux-foundation.org>, "'m.szyprowski@samsung.com'" <m.szyprowski@samsung.com>, "'lauraa@codeaurora.org'" <lauraa@codeaurora.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>"'m.szyprowski@samsung.com'" <m.szyprowski@samsung.com>"'akpm@linux-foundation.org'" <akpm@linux-foundation.org>, "'iamjoonsoo.kim@lge.com'" <iamjoonsoo.kim@lge.com>, "'mina86@mina86.com'" <mina86@mina86.com>, "'aneesh.kumar@linux.vnet.ibm.com'" <aneesh.kumar@linux.vnet.ibm.com>"'lauraa@codeaurora.org'" <lauraa@codeaurora.org>, "'gioh.kim@lge.com'" <gioh.kim@lge.com>, "'michael.opdenacker@free-electrons.com'" <michael.opdenacker@free-electrons.com>, "'akinobu.mita@gmail.com'" <akinobu.mita@gmail.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>"'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>
 
-On Wed, Aug 27, 2014 at 11:02:20PM -0700, Hugh Dickins wrote:
-> Sorry for holding you up, I'm slow. and needed to think about this more,
-> 
-> On Wed, 20 Aug 2014, Chintan Pandya wrote:
-> 
-> > KSM thread to scan pages is scheduled on definite timeout. That wakes up
-> > CPU from idle state and hence may affect the power consumption. Provide
-> > an optional support to use deferrable timer which suites low-power
-> > use-cases.
-> > 
-> > Typically, on our setup we observed, 10% less power consumption with some
-> > use-cases in which CPU goes to power collapse frequently. For example,
-> > playing audio on Soc which has HW based Audio encoder/decoder, CPU
-> > remains idle for longer duration of time. This idle state will save
-> > significant CPU power consumption if KSM don't wakes them up
-> > periodically.
-> > 
-> > Note that, deferrable timers won't be deferred if any CPU is active and
-> > not in IDLE state.
-> > 
-> > By default, deferrable timers is enabled. To disable deferrable timers,
-> > $ echo 0 > /sys/kernel/mm/ksm/deferrable_timer
-> 
-> I have now experimented.  And, much as I wanted to eliminate the
-> tunable, and just have deferrable timers on, I have come right back
-> to your original position.
-> 
-> I was impressed by how quiet ksmd goes when there's nothing much
-> happening on the machine; but equally, disappointed in how slow
-> it then is to fulfil the outstanding merge work.  I agree with your
-> original assessment, that not everybody will want deferrable timer,
-> the way it is working at present.
-> 
-> I expect that can be fixed, partly by doing more work on wakeup from
-> a deferred timer, according to how long it has been deferred; and
-> partly by not deferring on idle until two passes of the list have been
-> completed.  But that's easier said than done, and might turn out to
+Hi=20
 
-So why not have the timer cancel itself when there is no more work to do
-and start itself up again when there's work added?
+
+I found the freed reserved memory by free_initrd_mem( ) and  cma_activate_a=
+rea( )
+Are still marked as reserved in /sys/kernel/debug/memblock/reserved .
+
+I think This is not correct and not suitable for memory debug,
+Why not also call memblock_free during these functions?
+So that /sys/kernel/debug/memblock/reserved only mark really reserved memor=
+y as reserved .
+
+
+
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
