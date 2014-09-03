@@ -1,49 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f178.google.com (mail-vc0-f178.google.com [209.85.220.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 62FFF6B0036
-	for <linux-mm@kvack.org>; Tue,  2 Sep 2014 20:20:56 -0400 (EDT)
-Received: by mail-vc0-f178.google.com with SMTP id la4so8135834vcb.9
-        for <linux-mm@kvack.org>; Tue, 02 Sep 2014 17:20:56 -0700 (PDT)
-Received: from mail-vc0-x235.google.com (mail-vc0-x235.google.com [2607:f8b0:400c:c03::235])
-        by mx.google.com with ESMTPS id s10si254747vdv.68.2014.09.02.17.20.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 02 Sep 2014 17:20:55 -0700 (PDT)
-Received: by mail-vc0-f181.google.com with SMTP id ij19so7864746vcb.26
-        for <linux-mm@kvack.org>; Tue, 02 Sep 2014 17:20:55 -0700 (PDT)
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id F02306B0036
+	for <linux-mm@kvack.org>; Tue,  2 Sep 2014 20:30:40 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id lj1so15952146pab.14
+        for <linux-mm@kvack.org>; Tue, 02 Sep 2014 17:30:40 -0700 (PDT)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id la16si8124380pab.171.2014.09.02.17.30.39
+        for <linux-mm@kvack.org>;
+        Tue, 02 Sep 2014 17:30:40 -0700 (PDT)
+Message-ID: <5406612E.8040802@sr71.net>
+Date: Tue, 02 Sep 2014 17:30:38 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-In-Reply-To: <20140903001009.GA25970@cmpxchg.org>
-References: <54061505.8020500@sr71.net>
-	<20140902221814.GA18069@cmpxchg.org>
-	<5406466D.1020000@sr71.net>
-	<20140903001009.GA25970@cmpxchg.org>
-Date: Tue, 2 Sep 2014 17:20:55 -0700
-Message-ID: <CA+55aFw6ZkGNVX-CwyG0ybQAPjYAscdM59k_tOLtg4rr-fS-jg@mail.gmail.com>
 Subject: Re: regression caused by cgroups optimization in 3.17-rc2
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+References: <54061505.8020500@sr71.net> <20140902221814.GA18069@cmpxchg.org> <5406466D.1020000@sr71.net> <20140903001009.GA25970@cmpxchg.org>
+In-Reply-To: <20140903001009.GA25970@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Dave Hansen <dave@sr71.net>, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+Cc: Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Tue, Sep 2, 2014 at 5:10 PM, Johannes Weiner <hannes@cmpxchg.org> wrote:
->
+On 09/02/2014 05:10 PM, Johannes Weiner wrote:
+> On Tue, Sep 02, 2014 at 03:36:29PM -0700, Dave Hansen wrote:
+>> On 09/02/2014 03:18 PM, Johannes Weiner wrote:
+>>> Accounting new pages is buffered through per-cpu caches, but taking
+>>> them off the counters on free is not, so I'm guessing that above a
+>>> certain allocation rate the cost of locking and changing the counters
+>>> takes over.  Is there a chance you could profile this to see if locks
+>>> and res_counter-related operations show up?
+>>
+>> It looks pretty much the same, although it might have equalized the
+>> charge and uncharge sides a bit.  Full 'perf top' output attached.
+> 
 > That looks like a partial profile, where did the page allocator, page
 > zeroing etc. go?  Because the distribution among these listed symbols
 > doesn't seem all that crazy:
 
-Please argue this *after* the commit has been reverted. You guys can
-try to make the memcontrol batching actually work and scale later.
-It's not appropriate to argue against major regressions when reported
-and bisected by users.
+Perf was only outputting the top 20 functions.  Believe it or not, page
+zeroing and the rest of the allocator path wasn't even in the path of
+the top 20 functions because there is so much lock contention.
 
-Showing the spinlock at the top of the profile is very much crazy
-(apparently taking 68% of all cpu time), when it's all useless
-make-believe work. I don't understand why you wouldn't call that
-crazy.
+Here's a longer run of 'perf top' along with the top 100 functions:
 
-              Linus
+	http://www.sr71.net/~dave/intel/perf-top-1409702817.txt.gz
+
+you can at least see copy_page_rep in there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
