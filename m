@@ -1,455 +1,486 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id D931B6B0035
-	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 15:42:19 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id eu11so18040278pac.5
-        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 12:42:19 -0700 (PDT)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id pk3si12872650pdb.182.2014.09.03.12.42.18
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id A26606B0035
+	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 17:19:24 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id p10so11857116pdj.4
+        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 14:19:24 -0700 (PDT)
+Received: from mail-pd0-x233.google.com (mail-pd0-x233.google.com [2607:f8b0:400e:c02::233])
+        by mx.google.com with ESMTPS id c1si13495196pdp.60.2014.09.03.14.19.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 03 Sep 2014 12:42:18 -0700 (PDT)
-Received: by mail-pa0-f46.google.com with SMTP id eu11so18253187pac.19
-        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 12:42:18 -0700 (PDT)
-Date: Wed, 3 Sep 2014 12:40:28 -0700 (PDT)
+        Wed, 03 Sep 2014 14:19:23 -0700 (PDT)
+Received: by mail-pd0-f179.google.com with SMTP id z10so11932631pdj.24
+        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 14:19:22 -0700 (PDT)
+Date: Wed, 3 Sep 2014 14:17:41 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v3 1/6] mm/hugetlb: reduce arch dependent code around
- follow_huge_*
-In-Reply-To: <1409276340-7054-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-Message-ID: <alpine.LSU.2.11.1409031207470.9023@eggly.anvils>
-References: <1409276340-7054-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1409276340-7054-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v3 2/6] mm/hugetlb: take page table lock in
+ follow_huge_(addr|pmd|pud)()
+In-Reply-To: <1409276340-7054-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Message-ID: <alpine.LSU.2.11.1409031243420.9023@eggly.anvils>
+References: <1409276340-7054-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1409276340-7054-3-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: James Hogan <james.hogan@imgtec.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
 On Thu, 28 Aug 2014, Naoya Horiguchi wrote:
 
-> Currently we have many duplicates in definitions around follow_huge_addr(),
-> follow_huge_pmd(), and follow_huge_pud(), so this patch tries to remove them.
-> The basic idea is to put the default implementation for these functions in
-> mm/hugetlb.c as weak symbols (regardless of CONFIG_ARCH_WANT_GENERAL_HUGETLB),
-> and to implement arch-specific code only when the arch needs it.
-> 
-> For follow_huge_addr(), only powerpc and ia64 have their own implementation,
-> and in all other architectures this function just returns ERR_PTR(-EINVAL).
-> So this patch sets returning ERR_PTR(-EINVAL) as default.
-> 
-> As for follow_huge_(pmd|pud)(), if (pmd|pud)_huge() is implemented to always
-> return 0 in your architecture (like in ia64 or sparc,) it's never called
-> (the callsite is optimized away) no matter how implemented it is.
-> So in such architectures, we don't need arch-specific implementation.
-> 
-> In some architecture (like mips, s390 and tile,) their current arch-specific
-> follow_huge_(pmd|pud)() are effectively identical with the common code,
-> so this patch lets these architecture use the common code.
-> 
-> One exception is metag, where pmd_huge() could return non-zero but it expects
-> follow_huge_pmd() to always return NULL. This means that we need arch-specific
-> implementation which returns NULL. This behavior looks strange to me (because
-> non-zero pmd_huge() implies that the architecture supports PMD-based hugepage,
-> so follow_huge_pmd() can/should return some relevant value,) but that's beyond
-> this cleanup patch, so let's keep it.
-> 
-> Justification of non-trivial changes:
-> - in s390, follow_huge_pmd() checks !MACHINE_HAS_HPAGE at first, and this
->   patch removes the check. This is OK because we can assume MACHINE_HAS_HPAGE
->   is true when follow_huge_pmd() can be called (note that pmd_huge() has
->   the same check and always returns 0 for !MACHINE_HAS_HPAGE.)
-> - in s390 and mips, we use HPAGE_MASK instead of PMD_MASK as done in common
->   code. This patch forces these archs use PMD_MASK, but it's OK because
->   they are identical in both archs.
->   In s390, both of HPAGE_SHIFT and PMD_SHIFT are 20.
->   In mips, HPAGE_SHIFT is defined as (PAGE_SHIFT + PAGE_SHIFT - 3) and
->   PMD_SHIFT is define as (PAGE_SHIFT + PAGE_SHIFT + PTE_ORDER - 3), but
->   PTE_ORDER is always 0, so these are identical.
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> We have a race condition between move_pages() and freeing hugepages,
+> where move_pages() calls follow_page(FOLL_GET) for hugepages internally
+> and tries to get its refcount without preventing concurrent freeing.
+> This race crashes the kernel, so this patch fixes it by moving FOLL_GET
+> code for hugepages into follow_huge_pmd() with taking the page table lock.
 
-Acked-by: Hugh Dickins <hughd@google.com>
+You really ought to mention how you are intentionally dropping the
+unnecessary check for NULL pte_page() in this patch: we agree on that,
+but it does need to be mentioned somewhere in the comment.
+
+> 
+> This patch also adds the similar locking to follow_huge_(addr|pud)
+> for consistency.
+> 
+> Here is the reproducer:
+> 
+>   $ cat movepages.c
+>   #include <stdio.h>
+>   #include <stdlib.h>
+>   #include <numaif.h>
+> 
+>   #define ADDR_INPUT      0x700000000000UL
+>   #define HPS             0x200000
+>   #define PS              0x1000
+> 
+>   int main(int argc, char *argv[]) {
+>           int i;
+>           int nr_hp = strtol(argv[1], NULL, 0);
+>           int nr_p  = nr_hp * HPS / PS;
+>           int ret;
+>           void **addrs;
+>           int *status;
+>           int *nodes;
+>           pid_t pid;
+> 
+>           pid = strtol(argv[2], NULL, 0);
+>           addrs  = malloc(sizeof(char *) * nr_p + 1);
+>           status = malloc(sizeof(char *) * nr_p + 1);
+>           nodes  = malloc(sizeof(char *) * nr_p + 1);
+> 
+>           while (1) {
+>                   for (i = 0; i < nr_p; i++) {
+>                           addrs[i] = (void *)ADDR_INPUT + i * PS;
+>                           nodes[i] = 1;
+>                           status[i] = 0;
+>                   }
+>                   ret = numa_move_pages(pid, nr_p, addrs, nodes, status,
+>                                         MPOL_MF_MOVE_ALL);
+>                   if (ret == -1)
+>                           err("move_pages");
+> 
+>                   for (i = 0; i < nr_p; i++) {
+>                           addrs[i] = (void *)ADDR_INPUT + i * PS;
+>                           nodes[i] = 0;
+>                           status[i] = 0;
+>                   }
+>                   ret = numa_move_pages(pid, nr_p, addrs, nodes, status,
+>                                         MPOL_MF_MOVE_ALL);
+>                   if (ret == -1)
+>                           err("move_pages");
+>           }
+>           return 0;
+>   }
+> 
+>   $ cat hugepage.c
+>   #include <stdio.h>
+>   #include <sys/mman.h>
+>   #include <string.h>
+> 
+>   #define ADDR_INPUT      0x700000000000UL
+>   #define HPS             0x200000
+> 
+>   int main(int argc, char *argv[]) {
+>           int nr_hp = strtol(argv[1], NULL, 0);
+>           char *p;
+> 
+>           while (1) {
+>                   p = mmap((void *)ADDR_INPUT, nr_hp * HPS, PROT_READ | PROT_WRITE,
+>                            MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
+>                   if (p != (void *)ADDR_INPUT) {
+>                           perror("mmap");
+>                           break;
+>                   }
+>                   memset(p, 0, nr_hp * HPS);
+>                   munmap(p, nr_hp * HPS);
+>           }
+>   }
+> 
+>   $ sysctl vm.nr_hugepages=40
+>   $ ./hugepage 10 &
+>   $ ./movepages 10 $(pgrep -f hugepage)
+> 
+> Note for stable inclusion:
+>   This patch fixes e632a938d914 ("mm: migrate: add hugepage migration code
+>   to move_pages()"), so is applicable to -stable kernels which includes it.
+
+Just say
+Fixes: e632a938d914 ("mm: migrate: add hugepage migration code to move_pages()")
+
+> 
+> ChangeLog v3:
+> - remove unnecessary if (page) check
+> - check (pmd|pud)_huge again after holding ptl
+> - do the same change also on follow_huge_pud()
+> - take page table lock also in follow_huge_addr()
+> 
+> ChangeLog v2:
+> - introduce follow_huge_pmd_lock() to do locking in arch-independent code.
+
+ChangeLog vN info belongs below the ---
+
+> 
+> Reported-by: Hugh Dickins <hughd@google.com>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: <stable@vger.kernel.org>  # [3.12+]
+
+No ack to this one yet, I'm afraid.
 
 > ---
->  arch/arm/mm/hugetlbpage.c     |  6 ------
->  arch/arm64/mm/hugetlbpage.c   |  6 ------
->  arch/ia64/mm/hugetlbpage.c    |  6 ------
->  arch/metag/mm/hugetlbpage.c   |  6 ------
->  arch/mips/mm/hugetlbpage.c    | 18 ------------------
->  arch/powerpc/mm/hugetlbpage.c |  8 ++++++++
->  arch/s390/mm/hugetlbpage.c    | 20 --------------------
->  arch/sh/mm/hugetlbpage.c      | 12 ------------
->  arch/sparc/mm/hugetlbpage.c   | 12 ------------
->  arch/tile/mm/hugetlbpage.c    | 28 ----------------------------
->  arch/x86/mm/hugetlbpage.c     | 12 ------------
->  mm/hugetlb.c                  | 30 +++++++++++++++---------------
->  12 files changed, 23 insertions(+), 141 deletions(-)
-
-I like this very much.  And I agree with each of your decisions above,
-which you described very well in the commit message.  Not everybody
-likes __weak-ness, but hugetlb.c is already using that technique,
-and I think you're right to extend it to these functions.
-
-What a delight to be able to see at a grep-glance that only ia64
-and powerpc use the follow_huge_addr() method!
-
-I agree that the metag situation is odd: I suppose almost nothing ends
-up using follow_huge_pmd() apart from move_pages(), so it barely matters
-at present; but odd-ones-out present a risk, and it will prevent your
-hugetlb migration from being extended to metag.
-
-Let's Cc James Hogan, who I hope will be able to say that metag can
-just use the default implementation of follow_huge_pmd().
-
-It would be good to Cc the other affected architecture maintainers
-next time, but I don't expect this will pose any problem for them.
-
-The only problem I have with this patch is its position in the series:
-it's a cleanup, and so not marked for stable; but it's 1/6, and so at
-least one of the fixes for stable depends on it.
-
-It might be possible to shift it to the end of the series, and fix
-only the x86 hugetlb migration for stable (since you have disabled it
-on all other architectures for now); but I expect that would get too
-messy, and you'll end up preferring to keep this as 1/6 and mark it
-for stable too.
-
+>  arch/ia64/mm/hugetlbpage.c    |  9 +++++++--
+>  arch/metag/mm/hugetlbpage.c   |  4 ++--
+>  arch/powerpc/mm/hugetlbpage.c | 22 +++++++++++-----------
+>  include/linux/hugetlb.h       | 12 ++++++------
+>  mm/gup.c                      | 25 ++++---------------------
+>  mm/hugetlb.c                  | 43 +++++++++++++++++++++++++++++++------------
+>  6 files changed, 61 insertions(+), 54 deletions(-)
 > 
-> diff --git mmotm-2014-08-25-16-52.orig/arch/arm/mm/hugetlbpage.c mmotm-2014-08-25-16-52/arch/arm/mm/hugetlbpage.c
-> index 66781bf34077..c72412415093 100644
-> --- mmotm-2014-08-25-16-52.orig/arch/arm/mm/hugetlbpage.c
-> +++ mmotm-2014-08-25-16-52/arch/arm/mm/hugetlbpage.c
-> @@ -36,12 +36,6 @@
->   * of type casting from pmd_t * to pte_t *.
->   */
->  
-> -struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
-> -			      int write)
-> -{
-> -	return ERR_PTR(-EINVAL);
-> -}
-> -
->  int pud_huge(pud_t pud)
->  {
->  	return 0;
-> diff --git mmotm-2014-08-25-16-52.orig/arch/arm64/mm/hugetlbpage.c mmotm-2014-08-25-16-52/arch/arm64/mm/hugetlbpage.c
-> index 023747bf4dd7..2de9d2e59d96 100644
-> --- mmotm-2014-08-25-16-52.orig/arch/arm64/mm/hugetlbpage.c
-> +++ mmotm-2014-08-25-16-52/arch/arm64/mm/hugetlbpage.c
-> @@ -38,12 +38,6 @@ int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
->  }
->  #endif
->  
-> -struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
-> -			      int write)
-> -{
-> -	return ERR_PTR(-EINVAL);
-> -}
-> -
->  int pmd_huge(pmd_t pmd)
->  {
->  	return !(pmd_val(pmd) & PMD_TABLE_BIT);
 > diff --git mmotm-2014-08-25-16-52.orig/arch/ia64/mm/hugetlbpage.c mmotm-2014-08-25-16-52/arch/ia64/mm/hugetlbpage.c
-> index 76069c18ee42..52b7604b5215 100644
+> index 52b7604b5215..6170381bf074 100644
 > --- mmotm-2014-08-25-16-52.orig/arch/ia64/mm/hugetlbpage.c
 > +++ mmotm-2014-08-25-16-52/arch/ia64/mm/hugetlbpage.c
-> @@ -114,12 +114,6 @@ int pud_huge(pud_t pud)
->  	return 0;
->  }
+> @@ -91,17 +91,22 @@ int prepare_hugepage_range(struct file *file,
 >  
-> -struct page *
-> -follow_huge_pmd(struct mm_struct *mm, unsigned long address, pmd_t *pmd, int write)
-> -{
-> -	return NULL;
-> -}
-> -
->  void hugetlb_free_pgd_range(struct mmu_gather *tlb,
->  			unsigned long addr, unsigned long end,
->  			unsigned long floor, unsigned long ceiling)
+>  struct page *follow_huge_addr(struct mm_struct *mm, unsigned long addr, int write)
+>  {
+> -	struct page *page;
+> +	struct page *page = NULL;
+>  	pte_t *ptep;
+> +	spinlock_t *ptl;
+>  
+>  	if (REGION_NUMBER(addr) != RGN_HPAGE)
+>  		return ERR_PTR(-EINVAL);
+>  
+>  	ptep = huge_pte_offset(mm, addr);
+> +	ptl = huge_pte_lock(hstate_vma(vma), vma->vm_mm, ptep);
+
+It was a mistake to lump this follow_huge_addr() change in with the
+rest: please defer it to your 6/6 (or send 5 and leave 6th to later).
+
+Unless I'm missing something, all you succeed in doing here is break
+the build on ia64 and powerpc, by introducing undeclared "vma" variable.
+
+There is no point whatever in taking and dropping this lock: the
+point was to do the get_page while holding the relevant page table lock,
+but you're not doing any get_page, and you still have an "int write"
+argument instead of "int flags" to pass down the FOLL_GET flag,
+and you still have the BUG_ON(flags & FOLL_GET) in follow_page_mask().
+
+So, please throw these follow_huge_addr() parts out this patch.
+
+>  	if (!ptep || pte_none(*ptep))
+> -		return NULL;
+> +		goto out;
+> +
+>  	page = pte_page(*ptep);
+>  	page += ((addr & ~HPAGE_MASK) >> PAGE_SHIFT);
+> +out:
+> +	spin_unlock(ptl);
+>  	return page;
+>  }
+>  int pmd_huge(pmd_t pmd)
 > diff --git mmotm-2014-08-25-16-52.orig/arch/metag/mm/hugetlbpage.c mmotm-2014-08-25-16-52/arch/metag/mm/hugetlbpage.c
-> index 3c52fa6d0f8e..745081427659 100644
+> index 745081427659..5e96ef096df9 100644
 > --- mmotm-2014-08-25-16-52.orig/arch/metag/mm/hugetlbpage.c
 > +++ mmotm-2014-08-25-16-52/arch/metag/mm/hugetlbpage.c
-> @@ -94,12 +94,6 @@ int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+> @@ -104,8 +104,8 @@ int pud_huge(pud_t pud)
 >  	return 0;
 >  }
 >  
-> -struct page *follow_huge_addr(struct mm_struct *mm,
-> -			      unsigned long address, int write)
-> -{
-> -	return ERR_PTR(-EINVAL);
-> -}
-> -
->  int pmd_huge(pmd_t pmd)
+> -struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+> -			     pmd_t *pmd, int write)
+> +struct page *follow_huge_pmd(struct vm_area_struct *vma, unsigned long address,
+> +			     pmd_t *pmd, int flags)
+
+Change from "write" to "flags" is good, but I question below whether
+we actually need to change from mm to vma in follow_huge_pmd() and
+follow_huge_pud().
+
 >  {
->  	return pmd_page_shift(pmd) > PAGE_SHIFT;
-> diff --git mmotm-2014-08-25-16-52.orig/arch/mips/mm/hugetlbpage.c mmotm-2014-08-25-16-52/arch/mips/mm/hugetlbpage.c
-> index 4ec8ee10d371..06e0f421b41b 100644
-> --- mmotm-2014-08-25-16-52.orig/arch/mips/mm/hugetlbpage.c
-> +++ mmotm-2014-08-25-16-52/arch/mips/mm/hugetlbpage.c
-> @@ -68,12 +68,6 @@ int is_aligned_hugepage_range(unsigned long addr, unsigned long len)
->  	return 0;
+>  	return NULL;
 >  }
->  
-> -struct page *
-> -follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
-> -{
-> -	return ERR_PTR(-EINVAL);
-> -}
-> -
->  int pmd_huge(pmd_t pmd)
->  {
->  	return (pmd_val(pmd) & _PAGE_HUGE) != 0;
-> @@ -83,15 +77,3 @@ int pud_huge(pud_t pud)
->  {
->  	return (pud_val(pud) & _PAGE_HUGE) != 0;
->  }
-> -
-> -struct page *
-> -follow_huge_pmd(struct mm_struct *mm, unsigned long address,
-> -		pmd_t *pmd, int write)
-> -{
-> -	struct page *page;
-> -
-> -	page = pte_page(*(pte_t *)pmd);
-> -	if (page)
-> -		page += ((address & ~HPAGE_MASK) >> PAGE_SHIFT);
-> -	return page;
-> -}
 > diff --git mmotm-2014-08-25-16-52.orig/arch/powerpc/mm/hugetlbpage.c mmotm-2014-08-25-16-52/arch/powerpc/mm/hugetlbpage.c
-> index 7e70ae968e5f..9517a93a315c 100644
+> index 9517a93a315c..1d8854a56309 100644
 > --- mmotm-2014-08-25-16-52.orig/arch/powerpc/mm/hugetlbpage.c
 > +++ mmotm-2014-08-25-16-52/arch/powerpc/mm/hugetlbpage.c
-> @@ -706,6 +706,14 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
->  	return NULL;
->  }
->  
-> +struct page *
-> +follow_huge_pud(struct mm_struct *mm, unsigned long address,
-> +		pmd_t *pmd, int write)
-> +{
-> +	BUG();
-> +	return NULL;
-> +}
-> +
->  static unsigned long hugepte_addr_end(unsigned long addr, unsigned long end,
->  				      unsigned long sz)
+> @@ -677,38 +677,38 @@ struct page *
+>  follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
 >  {
-> diff --git mmotm-2014-08-25-16-52.orig/arch/s390/mm/hugetlbpage.c mmotm-2014-08-25-16-52/arch/s390/mm/hugetlbpage.c
-> index 0ff66a7e29bb..811e7f9a2de0 100644
-> --- mmotm-2014-08-25-16-52.orig/arch/s390/mm/hugetlbpage.c
-> +++ mmotm-2014-08-25-16-52/arch/s390/mm/hugetlbpage.c
-> @@ -201,12 +201,6 @@ int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
->  	return 0;
->  }
->  
-> -struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
-> -			      int write)
-> -{
-> -	return ERR_PTR(-EINVAL);
-> -}
-> -
->  int pmd_huge(pmd_t pmd)
->  {
->  	if (!MACHINE_HAS_HPAGE)
-> @@ -219,17 +213,3 @@ int pud_huge(pud_t pud)
->  {
->  	return 0;
->  }
-> -
-> -struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
-> -			     pmd_t *pmdp, int write)
-> -{
+>  	pte_t *ptep;
 > -	struct page *page;
+> +	struct page *page = ERR_PTR(-EINVAL);
+>  	unsigned shift;
+>  	unsigned long mask;
+> +	spinlock_t *ptl;
+>  	/*
+>  	 * Transparent hugepages are handled by generic code. We can skip them
+>  	 * here.
+>  	 */
+>  	ptep = find_linux_pte_or_hugepte(mm->pgd, address, &shift);
 > -
-> -	if (!MACHINE_HAS_HPAGE)
-> -		return NULL;
-> -
-> -	page = pmd_page(*pmdp);
+> +	ptl = huge_pte_lock(hstate_vma(vma), vma->vm_mm, ptep);
+
+As above, you're breaking the build with a lock that serves no purpose
+in the current patch.
+
+>  	/* Verify it is a huge page else bail. */
+>  	if (!ptep || !shift || pmd_trans_huge(*(pmd_t *)ptep))
+> -		return ERR_PTR(-EINVAL);
+> +		goto out;
+>  
+>  	mask = (1UL << shift) - 1;
+> -	page = pte_page(*ptep);
 > -	if (page)
-> -		page += ((address & ~HPAGE_MASK) >> PAGE_SHIFT);
-> -	return page;
-> -}
-> diff --git mmotm-2014-08-25-16-52.orig/arch/sh/mm/hugetlbpage.c mmotm-2014-08-25-16-52/arch/sh/mm/hugetlbpage.c
-> index d7762349ea48..534bc978af8a 100644
-> --- mmotm-2014-08-25-16-52.orig/arch/sh/mm/hugetlbpage.c
-> +++ mmotm-2014-08-25-16-52/arch/sh/mm/hugetlbpage.c
-> @@ -67,12 +67,6 @@ int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
->  	return 0;
+> -		page += (address & mask) / PAGE_SIZE;
+> -
+> +	page = pte_page(*ptep) + ((address & mask) >> PAGE_SHIFT);
+> +out:
+> +	spin_unlock(ptl);
+>  	return page;
 >  }
 >  
-> -struct page *follow_huge_addr(struct mm_struct *mm,
-> -			      unsigned long address, int write)
-> -{
-> -	return ERR_PTR(-EINVAL);
-> -}
-> -
->  int pmd_huge(pmd_t pmd)
+>  struct page *
+> -follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+> -		pmd_t *pmd, int write)
+> +follow_huge_pmd(struct vm_area_struct *vma, unsigned long address,
+> +		pmd_t *pmd, int flags)
 >  {
->  	return 0;
-> @@ -82,9 +76,3 @@ int pud_huge(pud_t pud)
->  {
->  	return 0;
->  }
-> -
-> -struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
-> -			     pmd_t *pmd, int write)
-> -{
-> -	return NULL;
-> -}
-> diff --git mmotm-2014-08-25-16-52.orig/arch/sparc/mm/hugetlbpage.c mmotm-2014-08-25-16-52/arch/sparc/mm/hugetlbpage.c
-> index d329537739c6..4242eab12e10 100644
-> --- mmotm-2014-08-25-16-52.orig/arch/sparc/mm/hugetlbpage.c
-> +++ mmotm-2014-08-25-16-52/arch/sparc/mm/hugetlbpage.c
-> @@ -215,12 +215,6 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
->  	return entry;
->  }
->  
-> -struct page *follow_huge_addr(struct mm_struct *mm,
-> -			      unsigned long address, int write)
-> -{
-> -	return ERR_PTR(-EINVAL);
-> -}
-> -
->  int pmd_huge(pmd_t pmd)
->  {
->  	return 0;
-> @@ -230,9 +224,3 @@ int pud_huge(pud_t pud)
->  {
->  	return 0;
->  }
-> -
-> -struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
-> -			     pmd_t *pmd, int write)
-> -{
-> -	return NULL;
-> -}
-> diff --git mmotm-2014-08-25-16-52.orig/arch/tile/mm/hugetlbpage.c mmotm-2014-08-25-16-52/arch/tile/mm/hugetlbpage.c
-> index e514899e1100..8a00c7b7b862 100644
-> --- mmotm-2014-08-25-16-52.orig/arch/tile/mm/hugetlbpage.c
-> +++ mmotm-2014-08-25-16-52/arch/tile/mm/hugetlbpage.c
-> @@ -150,12 +150,6 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+>  	BUG();
 >  	return NULL;
 >  }
 >  
-> -struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
-> -			      int write)
-> -{
-> -	return ERR_PTR(-EINVAL);
-> -}
-> -
->  int pmd_huge(pmd_t pmd)
+>  struct page *
+> -follow_huge_pud(struct mm_struct *mm, unsigned long address,
+> -		pmd_t *pmd, int write)
+> +follow_huge_pud(struct vm_area_struct *vma, unsigned long address,
+> +		pud_t *pud, int flags)
 >  {
->  	return !!(pmd_val(pmd) & _PAGE_HUGE_PAGE);
-> @@ -166,28 +160,6 @@ int pud_huge(pud_t pud)
->  	return !!(pud_val(pud) & _PAGE_HUGE_PAGE);
+>  	BUG();
+>  	return NULL;
+> diff --git mmotm-2014-08-25-16-52.orig/include/linux/hugetlb.h mmotm-2014-08-25-16-52/include/linux/hugetlb.h
+> index 6e6d338641fe..b3200fce07aa 100644
+> --- mmotm-2014-08-25-16-52.orig/include/linux/hugetlb.h
+> +++ mmotm-2014-08-25-16-52/include/linux/hugetlb.h
+> @@ -98,10 +98,10 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr);
+>  int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep);
+>  struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
+>  			      int write);
+> -struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+> -				pmd_t *pmd, int write);
+> -struct page *follow_huge_pud(struct mm_struct *mm, unsigned long address,
+> -				pud_t *pud, int write);
+> +struct page *follow_huge_pmd(struct vm_area_struct *vma, unsigned long address,
+> +				pmd_t *pmd, int flags);
+> +struct page *follow_huge_pud(struct vm_area_struct *vma, unsigned long address,
+> +				pud_t *pud, int flags);
+>  int pmd_huge(pmd_t pmd);
+>  int pud_huge(pud_t pmd);
+>  unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
+> @@ -133,8 +133,8 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
+>  static inline void hugetlb_show_meminfo(void)
+>  {
+>  }
+> -#define follow_huge_pmd(mm, addr, pmd, write)	NULL
+> -#define follow_huge_pud(mm, addr, pud, write)	NULL
+> +#define follow_huge_pmd(vma, addr, pmd, flags)	NULL
+> +#define follow_huge_pud(vma, addr, pud, flags)	NULL
+>  #define prepare_hugepage_range(file, addr, len)	(-EINVAL)
+>  #define pmd_huge(x)	0
+>  #define pud_huge(x)	0
+> diff --git mmotm-2014-08-25-16-52.orig/mm/gup.c mmotm-2014-08-25-16-52/mm/gup.c
+> index 91d044b1600d..597a5e92e265 100644
+> --- mmotm-2014-08-25-16-52.orig/mm/gup.c
+> +++ mmotm-2014-08-25-16-52/mm/gup.c
+> @@ -162,33 +162,16 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
+>  	pud = pud_offset(pgd, address);
+>  	if (pud_none(*pud))
+>  		return no_page_table(vma, flags);
+> -	if (pud_huge(*pud) && vma->vm_flags & VM_HUGETLB) {
+> -		if (flags & FOLL_GET)
+> -			return NULL;
+> -		page = follow_huge_pud(mm, address, pud, flags & FOLL_WRITE);
+> -		return page;
+> -	}
+> +	if (pud_huge(*pud) && vma->vm_flags & VM_HUGETLB)
+> +		return follow_huge_pud(vma, address, pud, flags);
+
+Yes, this part is good, except I think mm rather than vma.
+
+>  	if (unlikely(pud_bad(*pud)))
+>  		return no_page_table(vma, flags);
+>  
+>  	pmd = pmd_offset(pud, address);
+>  	if (pmd_none(*pmd))
+>  		return no_page_table(vma, flags);
+> -	if (pmd_huge(*pmd) && vma->vm_flags & VM_HUGETLB) {
+> -		page = follow_huge_pmd(mm, address, pmd, flags & FOLL_WRITE);
+> -		if (flags & FOLL_GET) {
+> -			/*
+> -			 * Refcount on tail pages are not well-defined and
+> -			 * shouldn't be taken. The caller should handle a NULL
+> -			 * return when trying to follow tail pages.
+> -			 */
+> -			if (PageHead(page))
+> -				get_page(page);
+> -			else
+> -				page = NULL;
+> -		}
+> -		return page;
+> -	}
+> +	if (pmd_huge(*pmd) && vma->vm_flags & VM_HUGETLB)
+> +		return follow_huge_pmd(vma, address, pmd, flags);
+
+And this part is good, except I think mm rather than vma.
+
+>  	if ((flags & FOLL_NUMA) && pmd_numa(*pmd))
+>  		return no_page_table(vma, flags);
+>  	if (pmd_trans_huge(*pmd)) {
+> diff --git mmotm-2014-08-25-16-52.orig/mm/hugetlb.c mmotm-2014-08-25-16-52/mm/hugetlb.c
+> index 022767506c7b..c5345c5edb50 100644
+> --- mmotm-2014-08-25-16-52.orig/mm/hugetlb.c
+> +++ mmotm-2014-08-25-16-52/mm/hugetlb.c
+> @@ -3667,26 +3667,45 @@ follow_huge_addr(struct mm_struct *mm, unsigned long address,
 >  }
 >  
-> -struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
-> -			     pmd_t *pmd, int write)
-> -{
+>  struct page * __weak
+> -follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+> -		pmd_t *pmd, int write)
+> +follow_huge_pmd(struct vm_area_struct *vma, unsigned long address,
+> +		pmd_t *pmd, int flags)
+>  {
 > -	struct page *page;
-> -
+> +	struct page *page = NULL;
+> +	spinlock_t *ptl;
+>  
 > -	page = pte_page(*(pte_t *)pmd);
 > -	if (page)
 > -		page += ((address & ~PMD_MASK) >> PAGE_SHIFT);
-> -	return page;
-> -}
-> -
-> -struct page *follow_huge_pud(struct mm_struct *mm, unsigned long address,
-> -			     pud_t *pud, int write)
-> -{
+> +	ptl = huge_pte_lock(hstate_vma(vma), vma->vm_mm, (pte_t *)pmd);
+
+So, this is why you have had to change from "mm" to "vma" throughout.
+And we might end up deciding that that is the right thing to do.
+
+But here we are deep in page table code, dealing with a huge pmd entry:
+I protest that it's very lame to be asking vma->vm_file to tell us what
+lock the page table code needs at this level.  Isn't it pmd_lockptr()?
+
+Now, I'm easily confused, and there may be reasons why it's more subtle
+than that, and you really are forced to use huge_pte_lockptr(); but I'd
+much rather not if we can avoid doing so, just as a matter of principle.
+
+One subtlety to take care over: it's a long time since I've had to
+worry about pmd folding and pud folding (what happens when you only
+have 2 or 3 levels of page table instead of the full 4): macros get
+defined to each other, and levels get optimized out (perhaps
+differently on different architectures).
+
+So although at first sight the lock to take in follow_huge_pud()
+would seem to be mm->page_table_lock, I am not at this point certain
+that that's necessarily so - sometimes pud_huge might be pmd_huge,
+and the size PMD_SIZE, and pmd_lockptr appropriate at what appears
+to be the pud level.  Maybe: needs checking through the architectures
+and their configs, not obvious to me.
+
+I realize that I am asking for you (or I) to do more work, when using
+huge_pte_lock(hstate_vma(vma),,) would work it out "automatically";
+but I do feel quite strongly that that's the right approach here
+(and I'm not just trying to avoid a few edits of "mm" to "vma").
+
+Cc'ing Kirill, who may have a strong view to the contrary,
+or a good insight on where the problems if any might be.
+
+Also Cc'ing Kirill because I'm not convinced that huge_pte_lockptr()
+necessarily does the right thing on follow_huge_addr() architectures,
+ia64 and powerpc.  Do they, for example, allocate the memory for their
+hugetlb entries in such a way that we can indeed use pmd_lockptr() to
+point to a useable spinlock, in the case when huge_page_size(h) just
+happens to equal PMD_SIZE?
+
+I don't know if this was thought through thoroughly
+(now that's a satisfying phrase hugh thinks hugh never wrote before!)
+when huge_pte_lockptr() was invented or not.  I think it would be safer
+if huge_pte_lockptr() just gave mm->page_table_lock on follow_huge_addr()
+architectures.
+
+> +
+> +	if (!pmd_huge(*pmd))
+> +		goto out;
+> +
+> +	page = pte_page(*(pte_t *)pmd) + ((address & ~PMD_MASK) >> PAGE_SHIFT);
+> +
+> +	if (flags & FOLL_GET)
+> +		if (!get_page_unless_zero(page))
+> +			page = NULL;
+
+get_page() should be quite good enough, shouldn't it?  We are holding
+the necessary lock, and have tested pmd_huge(*pmd), so it would be a
+bug if page_count(page) were zero here.
+
+> +out:
+> +	spin_unlock(ptl);
+>  	return page;
+>  }
+>  
+>  struct page * __weak
+> -follow_huge_pud(struct mm_struct *mm, unsigned long address,
+> -		pud_t *pud, int write)
+> +follow_huge_pud(struct vm_area_struct *vma, unsigned long address,
+> +		pud_t *pud, int flags)
+>  {
 > -	struct page *page;
-> -
+> +	struct page *page = NULL;
+> +	spinlock_t *ptl;
+>  
 > -	page = pte_page(*(pte_t *)pud);
 > -	if (page)
 > -		page += ((address & ~PUD_MASK) >> PAGE_SHIFT);
-> -	return page;
-> -}
-> -
->  int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
->  {
->  	return 0;
-> diff --git mmotm-2014-08-25-16-52.orig/arch/x86/mm/hugetlbpage.c mmotm-2014-08-25-16-52/arch/x86/mm/hugetlbpage.c
-> index 8b977ebf9388..03b8a7c11817 100644
-> --- mmotm-2014-08-25-16-52.orig/arch/x86/mm/hugetlbpage.c
-> +++ mmotm-2014-08-25-16-52/arch/x86/mm/hugetlbpage.c
-> @@ -52,20 +52,8 @@ int pud_huge(pud_t pud)
->  	return 0;
->  }
->  
-> -struct page *
-> -follow_huge_pmd(struct mm_struct *mm, unsigned long address,
-> -		pmd_t *pmd, int write)
-> -{
-> -	return NULL;
-> -}
->  #else
->  
-> -struct page *
-> -follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
-> -{
-> -	return ERR_PTR(-EINVAL);
-> -}
-> -
->  int pmd_huge(pmd_t pmd)
->  {
->  	return !!(pmd_val(pmd) & _PAGE_PSE);
-> diff --git mmotm-2014-08-25-16-52.orig/mm/hugetlb.c mmotm-2014-08-25-16-52/mm/hugetlb.c
-> index eeceeeb09019..022767506c7b 100644
-> --- mmotm-2014-08-25-16-52.orig/mm/hugetlb.c
-> +++ mmotm-2014-08-25-16-52/mm/hugetlb.c
-> @@ -3653,7 +3653,20 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
->  	return (pte_t *) pmd;
->  }
->  
-> -struct page *
-> +#endif /* CONFIG_ARCH_WANT_GENERAL_HUGETLB */
+> +	if (flags & FOLL_GET)
+> +		return NULL;
 > +
-> +/*
-> + * These functions are overwritable if your architecture needs its own
-> + * behavior.
-> + */
-> +struct page * __weak
-> +follow_huge_addr(struct mm_struct *mm, unsigned long address,
-> +			      int write)
-> +{
-> +	return ERR_PTR(-EINVAL);
-> +}
+> +	ptl = huge_pte_lock(hstate_vma(vma), vma->vm_mm, (pte_t *)pud);
+
+Well, you do have vma declared here, but otherwise it's like what you
+had in follow_huge_addr(): there is no point in taking and dropping
+the lock if you're not getting the page while the lock is held.
+
+So, which way to go on follow_huge_pud()?  I certainly think that we
+should implement FOLL_GET on it, as we should for follow_huge_addr(),
+simply for completeness, and so we don't need to come back here.
+
+But whether we should do so in a patch which is Cc'ed to stable is not
+so clear.  And leaving follow_huge_pmd() and follow_huge_addr() out
+of this patch may avoid those awkward where-is-the-lock questions
+for now.  Convert follow_huge_pmd() in a separate patch?
+
 > +
-> +struct page * __weak
->  follow_huge_pmd(struct mm_struct *mm, unsigned long address,
->  		pmd_t *pmd, int write)
->  {
-> @@ -3665,7 +3678,7 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+> +	if (!pud_huge(*pud))
+> +		goto out;
+> +
+> +	page = pte_page(*(pte_t *)pud) + ((address & ~PUD_MASK) >> PAGE_SHIFT);
+> +out:
+> +	spin_unlock(ptl);
 >  	return page;
 >  }
 >  
-> -struct page *
-> +struct page * __weak
->  follow_huge_pud(struct mm_struct *mm, unsigned long address,
->  		pud_t *pud, int write)
->  {
-> @@ -3677,19 +3690,6 @@ follow_huge_pud(struct mm_struct *mm, unsigned long address,
->  	return page;
->  }
->  
-> -#else /* !CONFIG_ARCH_WANT_GENERAL_HUGETLB */
-> -
-> -/* Can be overriden by architectures */
-> -struct page * __weak
-> -follow_huge_pud(struct mm_struct *mm, unsigned long address,
-> -	       pud_t *pud, int write)
-> -{
-> -	BUG();
-> -	return NULL;
-> -}
-> -
-> -#endif /* CONFIG_ARCH_WANT_GENERAL_HUGETLB */
-> -
->  #ifdef CONFIG_MEMORY_FAILURE
->  
->  /* Should be called in hugetlb_lock */
 > -- 
 > 1.9.3
 
