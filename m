@@ -1,93 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D25B6B0035
-	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 21:49:27 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id fb1so18781868pad.27
-        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 18:49:27 -0700 (PDT)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id pb4si224949pdb.225.2014.09.03.18.49.26
+Received: from mail-yk0-f182.google.com (mail-yk0-f182.google.com [209.85.160.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 94BFA6B0035
+	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 22:08:42 -0400 (EDT)
+Received: by mail-yk0-f182.google.com with SMTP id 19so5617407ykq.41
+        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 19:08:42 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id o67si11557133yhp.81.2014.09.03.19.08.41
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 03 Sep 2014 18:49:26 -0700 (PDT)
-Received: by mail-pa0-f47.google.com with SMTP id hz1so18897140pad.34
-        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 18:49:26 -0700 (PDT)
-Date: Wed, 3 Sep 2014 18:47:38 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v3 5/6] mm/hugetlb: add migration entry check in
- __unmap_hugepage_range
-In-Reply-To: <1409276340-7054-6-git-send-email-n-horiguchi@ah.jp.nec.com>
-Message-ID: <alpine.LSU.2.11.1409031821220.11485@eggly.anvils>
-References: <1409276340-7054-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1409276340-7054-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 03 Sep 2014 19:08:42 -0700 (PDT)
+Message-ID: <5407C989.50605@oracle.com>
+Date: Thu, 04 Sep 2014 10:08:09 +0800
+From: Junxiao Bi <junxiao.bi@oracle.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] mm: clear __GFP_FS when PF_MEMALLOC_NOIO is set
+References: <1409723694-16047-1-git-send-email-junxiao.bi@oracle.com> <20140903161000.f383fa4c1a4086de054cb6a0@linux-foundation.org>
+In-Reply-To: <20140903161000.f383fa4c1a4086de054cb6a0@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: david@fromorbit.com, xuejiufei@huawei.com, ming.lei@canonical.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Thu, 28 Aug 2014, Naoya Horiguchi wrote:
-
-> If __unmap_hugepage_range() tries to unmap the address range over which
-> hugepage migration is on the way, we get the wrong page because pte_page()
-> doesn't work for migration entries. This patch calls pte_to_swp_entry() and
-> migration_entry_to_page() to get the right page for migration entries.
+On 09/04/2014 07:10 AM, Andrew Morton wrote:
+> On Wed,  3 Sep 2014 13:54:54 +0800 Junxiao Bi <junxiao.bi@oracle.com> wrote:
 > 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: <stable@vger.kernel.org>  # [2.6.36+]
-
-2.6.36+?  But this one doesn't affect hwpoisoned.
-I admit I've lost track of how far back hugetlb migration goes:
-oh, to 2.6.37+, that fits with what you marked on some commits earlier.
-But then 2/6 says 3.12+.  Help!  Please remind me of the sequence of events.
-
-> ---
->  mm/hugetlb.c | 9 ++++++++-
->  1 file changed, 8 insertions(+), 1 deletion(-)
+>> commit 21caf2fc1931 ("mm: teach mm by current context info to not do I/O during memory allocation")
+>> introduces PF_MEMALLOC_NOIO flag to avoid doing I/O inside memory allocation, __GFP_IO is cleared
+>> when this flag is set, but __GFP_FS implies __GFP_IO, it should also be cleared. Or it may still
+>> run into I/O, like in superblock shrinker.
 > 
-> diff --git mmotm-2014-08-25-16-52.orig/mm/hugetlb.c mmotm-2014-08-25-16-52/mm/hugetlb.c
-> index 1ed9df6def54..0a4511115ee0 100644
-> --- mmotm-2014-08-25-16-52.orig/mm/hugetlb.c
-> +++ mmotm-2014-08-25-16-52/mm/hugetlb.c
-> @@ -2652,6 +2652,13 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
->  		if (huge_pte_none(pte))
->  			goto unlock;
->  
-> +		if (unlikely(is_hugetlb_entry_migration(pte))) {
-> +			swp_entry_t entry = pte_to_swp_entry(pte);
-> +
-> +			page = migration_entry_to_page(entry);
-> +			goto clear;
-> +		}
-> +
+> Is there an actual bug which inspired this fix?  If so, please describe
+> it.
+> 
+Yes, an ocfs2 deadlock bug is related to this, there is a workqueue in
+ocfs2 who is for building tcp connections and processing ocfs2 message.
+Like when an new node is up in ocfs2 cluster, the workqueue will try to
+build the connections to it, since there are some common code in
+networking like sock_alloc() using GFP_KERNEL to allocate memory, direct
+reclaim will be triggered and call into superblock shrinker if available
+memory is not enough even set PF_MEMALLOC_NOIO for the workqueue. To
+shrink the inode cache, ocfs2 needs release cluster lock and this
+depends on workqueue to do it, so cause the deadlock. Not sure whether
+there are similar issue for other cluster fs, like nfs, it is possible
+rpciod hung like the ocfs2 workqueue?
 
-This surprises me: are you sure?  Obviously you know hugetlb migration
-much better than I do: is it done in a significantly different way from
-order:0 page migration?  In the order:0 case, there is no reference to
-the page corresponding to the migration entry placed in a page table,
-just the remaining reference held by the task doing the migration.  But
-here you are jumping to the code which unmaps and frees a present page.
 
-I can see that a fix is necessary, but I would have expected it to
-consist of merely changing the "HWPoisoned" comment below to include
-migration entries, and changing its test from
-		if (unlikely(is_hugetlb_entry_hwpoisoned(pte))) {
-to
-		if (unlikely(!pte_present(pte))) {
+> I don't think it's accurate to say that __GFP_FS implies __GFP_IO. 
+> Where did that info come from?
+__GFP_FS allowed callback into fs during memory allocation, and fs may
+do io whatever __GFP_IO is set?
+> 
+> And the superblock shrinker is a good example of why this shouldn't be
+> the case.  The main thing that code does is to reclaim clean fs objects
+> without performing IO.  AFAICT the proposed patch will significantly
+> weaken PF_MEMALLOC_NOIO allocation attempts by needlessly preventing
+> the kernel from reclaiming such objects?
+Even fs didn't do io in superblock shrinker, it is possible for a fs
+process who is not convenient to set GFP_NOFS holding some fs lock and
+call back fs again?
 
->  		/*
->  		 * HWPoisoned hugepage is already unmapped and dropped reference
->  		 */
-> @@ -2677,7 +2684,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
->  			 */
->  			set_vma_resv_flags(vma, HPAGE_RESV_UNMAPPED);
->  		}
-> -
-> +clear:
->  		pte = huge_ptep_get_and_clear(mm, address, ptep);
->  		tlb_remove_tlb_entry(tlb, ptep, address);
->  		if (huge_pte_dirty(pte))
-> -- 
-> 1.9.3
+PF_MEMALLOC_NOIO is only set for some special processes. I think it
+won't affect much.
+
+Thanks,
+Junxiao.
+> 
+>> --- a/include/linux/sched.h
+>> +++ b/include/linux/sched.h
+>> @@ -1936,11 +1936,13 @@ extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut,
+>>  #define tsk_used_math(p) ((p)->flags & PF_USED_MATH)
+>>  #define used_math() tsk_used_math(current)
+>>  
+>> -/* __GFP_IO isn't allowed if PF_MEMALLOC_NOIO is set in current->flags */
+>> +/* __GFP_IO isn't allowed if PF_MEMALLOC_NOIO is set in current->flags
+>> + * __GFP_FS is also cleared as it implies __GFP_IO.
+>> + */
+>>  static inline gfp_t memalloc_noio_flags(gfp_t flags)
+>>  {
+>>  	if (unlikely(current->flags & PF_MEMALLOC_NOIO))
+>> -		flags &= ~__GFP_IO;
+>> +		flags &= ~(__GFP_IO | __GFP_FS);
+>>  	return flags;
+>>  }
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
