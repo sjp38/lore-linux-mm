@@ -1,70 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E35476B003B
-	for <linux-mm@kvack.org>; Thu,  4 Sep 2014 05:24:09 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id rd3so19638579pab.38
-        for <linux-mm@kvack.org>; Thu, 04 Sep 2014 02:24:08 -0700 (PDT)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id mu4si2246564pdb.253.2014.09.04.02.23.47
-        for <linux-mm@kvack.org>;
-        Thu, 04 Sep 2014 02:23:48 -0700 (PDT)
-Date: Thu, 4 Sep 2014 19:23:29 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] mm: clear __GFP_FS when PF_MEMALLOC_NOIO is set
-Message-ID: <20140904092329.GN20473@dastard>
-References: <1409723694-16047-1-git-send-email-junxiao.bi@oracle.com>
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 324D86B0035
+	for <linux-mm@kvack.org>; Thu,  4 Sep 2014 10:27:28 -0400 (EDT)
+Received: by mail-wi0-f169.google.com with SMTP id n3so7655125wiv.2
+        for <linux-mm@kvack.org>; Thu, 04 Sep 2014 07:27:26 -0700 (PDT)
+Received: from mail-wg0-x232.google.com (mail-wg0-x232.google.com [2a00:1450:400c:c00::232])
+        by mx.google.com with ESMTPS id u12si2597768wiv.33.2014.09.04.07.27.24
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 04 Sep 2014 07:27:25 -0700 (PDT)
+Received: by mail-wg0-f50.google.com with SMTP id x12so10361067wgg.9
+        for <linux-mm@kvack.org>; Thu, 04 Sep 2014 07:27:23 -0700 (PDT)
+Date: Thu, 4 Sep 2014 16:27:21 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: regression caused by cgroups optimization in 3.17-rc2
+Message-ID: <20140904142721.GB14548@dhcp22.suse.cz>
+References: <54061505.8020500@sr71.net>
+ <5406262F.4050705@intel.com>
+ <54062F32.5070504@sr71.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1409723694-16047-1-git-send-email-junxiao.bi@oracle.com>
+In-Reply-To: <54062F32.5070504@sr71.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Junxiao Bi <junxiao.bi@oracle.com>
-Cc: akpm@linux-foundation.org, xuejiufei@huawei.com, ming.lei@canonical.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Dave Hansen <dave@sr71.net>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Tejun Heo <tj@kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Sep 03, 2014 at 01:54:54PM +0800, Junxiao Bi wrote:
-> commit 21caf2fc1931 ("mm: teach mm by current context info to not do I/O during memory allocation")
-> introduces PF_MEMALLOC_NOIO flag to avoid doing I/O inside memory allocation, __GFP_IO is cleared
-> when this flag is set, but __GFP_FS implies __GFP_IO, it should also be cleared. Or it may still
-> run into I/O, like in superblock shrinker.
+[Sorry to reply so late]
+
+On Tue 02-09-14 13:57:22, Dave Hansen wrote:
+> I, of course, forgot to include the most important detail.  This appears
+> to be pretty run-of-the-mill spinlock contention in the resource counter
+> code.  Nearly 80% of the CPU is spent spinning in the charge or uncharge
+> paths in the kernel.  It is apparently spinning on res_counter->lock in
+> both the charge and uncharge paths.
 > 
-> Signed-off-by: Junxiao Bi <junxiao.bi@oracle.com>
-> Cc: joyce.xue <xuejiufei@huawei.com>
-> Cc: Ming Lei <ming.lei@canonical.com>
-> ---
->  include/linux/sched.h |    6 ++++--
->  1 file changed, 4 insertions(+), 2 deletions(-)
+> It already does _some_ batching here on the free side, but that
+> apparently breaks down after ~40 threads.
 > 
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index 5c2c885..2fb2c47 100644
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -1936,11 +1936,13 @@ extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut,
->  #define tsk_used_math(p) ((p)->flags & PF_USED_MATH)
->  #define used_math() tsk_used_math(current)
->  
-> -/* __GFP_IO isn't allowed if PF_MEMALLOC_NOIO is set in current->flags */
-> +/* __GFP_IO isn't allowed if PF_MEMALLOC_NOIO is set in current->flags
-> + * __GFP_FS is also cleared as it implies __GFP_IO.
-> + */
->  static inline gfp_t memalloc_noio_flags(gfp_t flags)
->  {
->  	if (unlikely(current->flags & PF_MEMALLOC_NOIO))
-> -		flags &= ~__GFP_IO;
-> +		flags &= ~(__GFP_IO | __GFP_FS);
->  	return flags;
->  }
+> It's a no-brainer since the patch in question removed an optimization
+> skipping the charging, and now we're seeing overhead from the charging.
+> 
+> Here's the first entry from perf top:
+> 
+>     80.18%    80.18%  [kernel]               [k] _raw_spin_lock
+>                   |
+>                   --- _raw_spin_lock
+>                      |
+>                      |--66.59%-- res_counter_uncharge_until
+>                      |          res_counter_uncharge
+>                      |          uncharge_batch
+>                      |          uncharge_list
+>                      |          mem_cgroup_uncharge_list
+>                      |          release_pages
+>                      |          free_pages_and_swap_cache
 
-You also need to mask all the shrink_control->gfp_mask
-initialisations in mm/vmscan.c. The current code only masks the page
-reclaim gfp_mask, not those that are passed to the shrinkers.
+Ouch. free_pages_and_swap_cache completely kills the uncharge batching
+because it reduces it to PAGEVEC_SIZE batches.
 
-Cheers,
+I think we really do not need PAGEVEC_SIZE batching anymore. We are
+already batching on tlb_gather layer. That one is limited so I think
+the below should be safe but I have to think about this some more. There
+is a risk of prolonged lru_lock wait times but the number of pages is
+limited to 10k and the heavy work is done outside of the lock. If this
+is really a problem then we can tear LRU part and the actual
+freeing/uncharging into a separate functions in this path.
 
-Dave.
+Could you test with this half baked patch, please? I didn't get to test
+it myself unfortunately.
+---
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index ef1f39139b71..154444918685 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -265,18 +265,12 @@ void free_page_and_swap_cache(struct page *page)
+ void free_pages_and_swap_cache(struct page **pages, int nr)
+ {
+ 	struct page **pagep = pages;
++	int i;
+ 
+ 	lru_add_drain();
+-	while (nr) {
+-		int todo = min(nr, PAGEVEC_SIZE);
+-		int i;
+-
+-		for (i = 0; i < todo; i++)
+-			free_swap_cache(pagep[i]);
+-		release_pages(pagep, todo, false);
+-		pagep += todo;
+-		nr -= todo;
+-	}
++	for (i = 0; i < nr; i++)
++		free_swap_cache(pagep[i]);
++	release_pages(pagep, nr, false);
+ }
+ 
+ /*
 -- 
-Dave Chinner
-david@fromorbit.com
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
