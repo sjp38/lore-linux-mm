@@ -1,43 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id D19696B0036
-	for <linux-mm@kvack.org>; Thu,  4 Sep 2014 16:21:55 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id fb1so20741729pad.13
-        for <linux-mm@kvack.org>; Thu, 04 Sep 2014 13:21:54 -0700 (PDT)
-Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id bi17si5418433pdb.236.2014.09.04.13.21.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Sep 2014 13:21:53 -0700 (PDT)
-Message-ID: <5408C9C4.1010705@zytor.com>
-Date: Thu, 04 Sep 2014 13:21:24 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 754356B0036
+	for <linux-mm@kvack.org>; Thu,  4 Sep 2014 16:28:09 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id g10so2092370pdj.38
+        for <linux-mm@kvack.org>; Thu, 04 Sep 2014 13:28:09 -0700 (PDT)
+Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
+        by mx.google.com with ESMTP id ss2si563497pbc.160.2014.09.04.13.27.32
+        for <linux-mm@kvack.org>;
+        Thu, 04 Sep 2014 13:27:33 -0700 (PDT)
+Message-ID: <5408CB2E.3080101@sr71.net>
+Date: Thu, 04 Sep 2014 13:27:26 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/5] x86, mm, pat: Set WT to PA4 slot of PAT MSR
-References: <1409855739-8985-1-git-send-email-toshi.kani@hp.com> <1409855739-8985-2-git-send-email-toshi.kani@hp.com> <20140904201123.GA9116@khazad-dum.debian.net>
-In-Reply-To: <20140904201123.GA9116@khazad-dum.debian.net>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: regression caused by cgroups optimization in 3.17-rc2
+References: <54061505.8020500@sr71.net> <5406262F.4050705@intel.com> <54062F32.5070504@sr71.net> <20140904142721.GB14548@dhcp22.suse.cz>
+In-Reply-To: <20140904142721.GB14548@dhcp22.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Toshi Kani <toshi.kani@hp.com>
-Cc: tglx@linutronix.de, mingo@redhat.com, akpm@linuxfoundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, konrad.wilk@oracle.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Tejun Heo <tj@kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, LKML <linux-kernel@vger.kernel.org>
 
-On 09/04/2014 01:11 PM, Henrique de Moraes Holschuh wrote:
+On 09/04/2014 07:27 AM, Michal Hocko wrote:
+> Ouch. free_pages_and_swap_cache completely kills the uncharge batching
+> because it reduces it to PAGEVEC_SIZE batches.
 > 
-> I am worried of uncharted territory, here.  I'd actually advocate for not
-> enabling the upper four PAT entries on IA-32 at all, unless Windows 9X / XP
-> is using them as well.  Is this a real concern, or am I being overly
-> cautious?
+> I think we really do not need PAGEVEC_SIZE batching anymore. We are
+> already batching on tlb_gather layer. That one is limited so I think
+> the below should be safe but I have to think about this some more. There
+> is a risk of prolonged lru_lock wait times but the number of pages is
+> limited to 10k and the heavy work is done outside of the lock. If this
+> is really a problem then we can tear LRU part and the actual
+> freeing/uncharging into a separate functions in this path.
 > 
+> Could you test with this half baked patch, please? I didn't get to test
+> it myself unfortunately.
 
-It is extremely unlikely that we'd have PAT issues in 32-bit mode and
-not in 64-bit mode on the same CPU.
+3.16 settled out at about 11.5M faults/sec before the regression.  This
+patch gets it back up to about 10.5M, which is good.  The top spinlock
+contention in the kernel is still from the resource counter code via
+mem_cgroup_commit_charge(), though.
 
-As far as I know, the current blacklist rule is very conservative due to
-lack of testing more than anything else.
-
-	-hpa
+I'm running Johannes' patch now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
