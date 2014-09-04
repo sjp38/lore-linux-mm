@@ -1,42 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F4ED6B0037
-	for <linux-mm@kvack.org>; Thu,  4 Sep 2014 16:50:39 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id p10so14280600pdj.25
-        for <linux-mm@kvack.org>; Thu, 04 Sep 2014 13:50:39 -0700 (PDT)
-Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
-        by mx.google.com with ESMTP id g3si67879pdi.100.2014.09.04.13.50.37
-        for <linux-mm@kvack.org>;
-        Thu, 04 Sep 2014 13:50:37 -0700 (PDT)
-Message-ID: <5408D09A.5030000@sr71.net>
-Date: Thu, 04 Sep 2014 13:50:34 -0700
-From: Dave Hansen <dave@sr71.net>
+	by kanga.kvack.org (Postfix) with ESMTP id 37EAA6B0036
+	for <linux-mm@kvack.org>; Thu,  4 Sep 2014 16:54:46 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id p10so14287125pdj.25
+        for <linux-mm@kvack.org>; Thu, 04 Sep 2014 13:54:45 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id u7si117934pdn.82.2014.09.04.13.54.44
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 04 Sep 2014 13:54:45 -0700 (PDT)
+Message-ID: <5408D0A6.9040505@oracle.com>
+Date: Thu, 04 Sep 2014 16:50:46 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Subject: Re: regression caused by cgroups optimization in 3.17-rc2
-References: <54061505.8020500@sr71.net> <20140902221814.GA18069@cmpxchg.org> <5406466D.1020000@sr71.net> <20140903001009.GA25970@cmpxchg.org> <5406612E.8040802@sr71.net> <20140904150846.GA10794@cmpxchg.org>
-In-Reply-To: <20140904150846.GA10794@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] mm: mmap: use pr_emerg when printing BUG related information
+References: <1409855782-15089-1-git-send-email-sasha.levin@oracle.com> <20140904133058.37ca7aa2e46a607eed94df3b@linux-foundation.org>
+In-Reply-To: <20140904133058.37ca7aa2e46a607eed94df3b@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, Linus Torvalds <torvalds@linuxfoundation.org>, Andrew Morton <akpm@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: oleg@redhat.com, riel@redhat.com, kirill.shutemov@linux.intel.com, luto@amacapital.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 09/04/2014 08:08 AM, Johannes Weiner wrote:
-> Dave Hansen reports a massive scalability regression in an uncontained
-> page fault benchmark with more than 30 concurrent threads, which he
-> bisected down to 05b843012335 ("mm: memcontrol: use root_mem_cgroup
-> res_counter") and pin-pointed on res_counter spinlock contention.
+On 09/04/2014 04:30 PM, Andrew Morton wrote:
+> On Thu,  4 Sep 2014 14:36:22 -0400 Sasha Levin <sasha.levin@oracle.com> wrote:
 > 
-> That change relied on the per-cpu charge caches to mostly swallow the
-> res_counter costs, but it's apparent that the caches don't scale yet.
+>> Make sure we actually see the output of validate_mm() and browse_rb()
+>> before triggering a BUG(). pr_info isn't shown by default so the reason
+>> for the BUG() isn't obvious.
+>>
 > 
-> Revert memcg back to bypassing res_counters on the root level in order
-> to restore performance for uncontained workloads.
+> yup, I'll scoot that into 3.17.
+> 
+> 
+> That code's actually pretty cruddy.  How does this look?
 
-A quick sniff test shows performance coming back to what it was around
-3.16 with this patch.  I'll run a more thorough set of tests and verify
-that it's working well.
+The patch looks good.
+
+I've got sidetracked and started working on dump_mm()...
+
+
+Thanks,
+Sasha
 
 
 --
