@@ -1,295 +1,367 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 795866B0035
-	for <linux-mm@kvack.org>; Thu,  4 Sep 2014 11:43:54 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id eu11so20313825pac.19
-        for <linux-mm@kvack.org>; Thu, 04 Sep 2014 08:43:54 -0700 (PDT)
-Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com [2607:f8b0:400e:c02::22e])
-        by mx.google.com with ESMTPS id fb7si4503088pab.30.2014.09.04.08.43.52
+Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 515506B0035
+	for <linux-mm@kvack.org>; Thu,  4 Sep 2014 12:43:15 -0400 (EDT)
+Received: by mail-oi0-f50.google.com with SMTP id u20so6797599oif.23
+        for <linux-mm@kvack.org>; Thu, 04 Sep 2014 09:43:15 -0700 (PDT)
+Received: from mail-pd0-x24a.google.com (mail-pd0-x24a.google.com [2607:f8b0:400e:c02::24a])
+        by mx.google.com with ESMTPS id rj1si4447504pbc.228.2014.09.04.09.43.13
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 04 Sep 2014 08:43:53 -0700 (PDT)
-Received: by mail-pd0-f174.google.com with SMTP id v10so549292pde.19
-        for <linux-mm@kvack.org>; Thu, 04 Sep 2014 08:43:51 -0700 (PDT)
-Date: Fri, 5 Sep 2014 00:43:31 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH v3] zram: add num_discards for discarded pages stat
-Message-ID: <20140904154331.GA1113@swordfish>
-References: <000201cfbde2$2ae08710$80a19530$@samsung.com>
- <20140825003610.GM17372@bbox>
- <20140825110118.GA933@swordfish>
- <20140826050839.GF11319@bbox>
- <20140826141543.GB934@swordfish>
- <20140904022507.GA13540@bbox>
+        Thu, 04 Sep 2014 09:43:14 -0700 (PDT)
+Received: by mail-pd0-f202.google.com with SMTP id w10so1958349pde.3
+        for <linux-mm@kvack.org>; Thu, 04 Sep 2014 09:43:13 -0700 (PDT)
+Date: Thu, 4 Sep 2014 09:43:11 -0700
+From: Peter Feiner <pfeiner@google.com>
+Subject: Re: [PATCH v5] mm: softdirty: enable write notifications on VMAs
+ after VM_SOFTDIRTY cleared
+Message-ID: <20140904164311.GA29610@google.com>
+References: <1408571182-28750-1-git-send-email-pfeiner@google.com>
+ <1408937681-1472-1-git-send-email-pfeiner@google.com>
+ <alpine.LSU.2.11.1408252142380.2073@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140904022507.GA13540@bbox>
+In-Reply-To: <alpine.LSU.2.11.1408252142380.2073@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Chao Yu <chao2.yu@samsung.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, 'Jerome Marchand' <jmarchan@redhat.com>, 'Andrew Morton' <akpm@linux-foundation.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@parallels.com>, Jamie Liu <jamieliu@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Magnus Damm <magnus.damm@gmail.com>
 
-Hello,
+On Mon, Aug 25, 2014 at 09:45:34PM -0700, Hugh Dickins wrote:
+> On Sun, 24 Aug 2014, Peter Feiner wrote:
+> > With this patch, write notifications are enabled when VM_SOFTDIRTY is
+> > cleared. Furthermore, to avoid unnecessary faults, write
+> > notifications are disabled when VM_SOFTDIRTY is reset.
+> 
+> "reset" is often a synonym for "cleared": "whenever VM_SOFTDIRTY is set"?
 
-On (09/04/14 11:25), Minchan Kim wrote:
-> Hello Sergey,
-> 
-> First of all, Sorry for late response.
-> 
-> On Tue, Aug 26, 2014 at 11:15:43PM +0900, Sergey Senozhatsky wrote:
-> > Hello,
-> > 
-> > On (08/26/14 14:08), Minchan Kim wrote:
-> > > Hi,
-> > > 
-> > > On Mon, Aug 25, 2014 at 08:01:18PM +0900, Sergey Senozhatsky wrote:
-> > > > Hello,
-> > > > 
-> > > > On (08/25/14 09:36), Minchan Kim wrote:
-> > > > > Hello Chao,
-> > > > > 
-> > > > > On Fri, Aug 22, 2014 at 04:21:01PM +0800, Chao Yu wrote:
-> > > > > > Since we have supported handling discard request in this commit
-> > > > > > f4659d8e620d08bd1a84a8aec5d2f5294a242764 (zram: support REQ_DISCARD), zram got
-> > > > > > one more chance to free unused memory whenever received discard request. But
-> > > > > > without stating for discard request, there is no method for user to know whether
-> > > > > > discard request has been handled by zram or how many blocks were discarded by
-> > > > > > zram when user wants to know the effect of discard.
-> > > > > 
-> > > > > My concern is that how much we are able to know the effect of discard
-> > > > > exactly with your patch.
-> > > > > 
-> > > > > The issue I can think of is zram-swap discard.
-> > > > > Now, zram handles notification from VM to free duplicated copy between
-> > > > > VM-owned memory and zRAM-owned's one so discarding for zram-swap might
-> > > > > be pointless overhead but your stat indicates lots of free page discarded
-> > > > > without real freeing 
-> > > > 
-> > > > this is why I've moved stats accounting to the place where actual
-> > > > zs_free() happens. and, frankly, I still would like to see the number
-> > > > of zs_free() calls, rather than the number of slot free notifications
-> > > > and REQ_DISCARD (or separately), because they all end up calling
-> > > > zs_free(). iow, despite the call path, from the user point of view
-> > > > they are just zs_free() -- the number of pages that's been freed by
-> > > > the 3rd party and we had have to deal with that.
-> > > 
-> > > My qeustion is that what user can do with the only real freeing count?
-> > > Could you give me a concret example?
-> > 
-> > for !swap device case it's identicall to `num_discarded'.
-> > for swap device case, it's a bit more complicated (less convenient) if
-> > we actually can receive both slot free and delayed REQ_DISCARDs.
-> > 
-> > > It's a just number of real freeing count so if you were admin, what
-> > > do you expect from that? That's what I'd like to see in changelog.
-> > > 
-> > > > 
-> > > > > so that user might think "We should keep enable
-> > > > > swap discard for zRAM because the stat indicates it's really good".
-> > > > > 
-> > > > > In summary, wouldn't it better to have two?
-> > > > > 
-> > > > > num_discards,
-> > > > > num_failed_discards?
-> > > > 
-> > > > do we actully need this? the only value I can think of (perhaps I'm
-> > > > missing something) is that we can make sure that we need to support
-> > > > both slot free and REQ_DISCARDS, or we can leave only REQ_DISCARDS.
-> > > > is there anything else?
-> > > 
-> > > The secnario I imagined with two stat is how REQ_DISCARDS is effective
-> > > from swap layer. Normally, slot free logic is called in advance
-> > > when the page is zapped or swap read happens to avoid duplicate copy,
-> > > so discard request from swap space would be just overhead without
-> > > any benefit so we might guide zram-swap user don't use "swap -d".
-> > > Otherwise, as failed_discard ratio is low, it means it would be
-> > > better to remove swap slot free logic because swap discard works well
-> > > without slot free hint.(Although I don't think)
-> > 
-> > yes, so it looks like it is a developer's stat - to make some
-> > observations and to come up with some decisions. do we really
-> > want to put it into release?
-> 
-> Agree. I was too specific for my purpose and it couldn't be
-> a compelling reason to make it export for general purpose.
-> 
-> Actually, discard req sent by swap for getting free cluster
-> shouldn't be success(i,e num_discarded should be zero) because
-> zram_slot_free_notify will always free the duplicated copy
-> in advance so user don't have any gain with 'swapon -d'.
-> 
-> Now, I agree with you that we shouldn't add more stat without
-> compelling reason so it would be better to rename notify_free
-> with discarded and move it in zram_free_page like your patch.
-> https://lkml.org/lkml/2014/8/21/294
-> 
-> I will ask to Andrew to revert Chao's patch and pick your patch
-> after a few days unless Chao has another opinion.
-> 
+Agreed, "set" sounds good.
 
-no problem.
-
-I, probably, was not clear enough. one of my objections was that
-it is really easy to add a new stat file, and surprisingly hard to
-remove it later, even a temporary one. because it's almost impossible
-to beat the "someone might use it" argument.
-just a side note, my whole impresion is that some of the stats, that we
-export, belongs to /proc/diskstats, /sys/block/zramX/stat and frieds.
-I didn't check but I think that some handy tools like iostat/etc are
-using these files. though I have no idea how often (if ever) people
-want to track (or at least see) zram in iostat or similar tools.
-
-
-
-please let me know if I have to resend the patch.
-
-	-ss
-
-> > 
-> > 
-> > I'm not strongly against and we can proceed with Chao's patch.
-> > 
-> > 	-ss
-> > 
-> > > My point is I'm not saying you're wrong but adding a new stat is easy
-> > > and I need a compelling reason that how it can help users.
-> > > 
-> > > Thanks.
-> > > 
-> > > > 
-> > > > 	-ss
-> > > > 
-> > > > > For it, we should modify zram_free_page has return value.
-> > > > > What do other guys think?
-> > > > > 
-> > > > > > 
-> > > > > > In this patch, we add num_discards to stat discarded pages, and export it to
-> > > > > > sysfs for users.
-> > > > > > 
-> > > > > > * From v1
-> > > > > >  * Update zram document to show num_discards in statistics list.
-> > > > > > 
-> > > > > > * From v2
-> > > > > >  * Update description of this patch with clear goal.
-> > > > > > 
-> > > > > > Signed-off-by: Chao Yu <chao2.yu@samsung.com>
-> > > > > > ---
-> > > > > >  Documentation/ABI/testing/sysfs-block-zram | 10 ++++++++++
-> > > > > >  Documentation/blockdev/zram.txt            |  1 +
-> > > > > >  drivers/block/zram/zram_drv.c              |  3 +++
-> > > > > >  drivers/block/zram/zram_drv.h              |  1 +
-> > > > > >  4 files changed, 15 insertions(+)
-> > > > > > 
-> > > > > > diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
-> > > > > > index 70ec992..fa8936e 100644
-> > > > > > --- a/Documentation/ABI/testing/sysfs-block-zram
-> > > > > > +++ b/Documentation/ABI/testing/sysfs-block-zram
-> > > > > > @@ -57,6 +57,16 @@ Description:
-> > > > > >  		The failed_writes file is read-only and specifies the number of
-> > > > > >  		failed writes happened on this device.
-> > > > > >  
-> > > > > > +
-> > > > > > +What:		/sys/block/zram<id>/num_discards
-> > > > > > +Date:		August 2014
-> > > > > > +Contact:	Chao Yu <chao2.yu@samsung.com>
-> > > > > > +Description:
-> > > > > > +		The num_discards file is read-only and specifies the number of
-> > > > > > +		physical blocks which are discarded by this device. These blocks
-> > > > > > +		are included in discard request which is sended by filesystem as
-> > > > > > +		the blocks are no longer used.
-> > > > > > +
-> > > > > >  What:		/sys/block/zram<id>/max_comp_streams
-> > > > > >  Date:		February 2014
-> > > > > >  Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> > > > > > diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
-> > > > > > index 0595c3f..e50e18b 100644
-> > > > > > --- a/Documentation/blockdev/zram.txt
-> > > > > > +++ b/Documentation/blockdev/zram.txt
-> > > > > > @@ -89,6 +89,7 @@ size of the disk when not in use so a huge zram is wasteful.
-> > > > > >  		num_writes
-> > > > > >  		failed_reads
-> > > > > >  		failed_writes
-> > > > > > +		num_discards
-> > > > > >  		invalid_io
-> > > > > >  		notify_free
-> > > > > >  		zero_pages
-> > > > > > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> > > > > > index d00831c..904e7a5 100644
-> > > > > > --- a/drivers/block/zram/zram_drv.c
-> > > > > > +++ b/drivers/block/zram/zram_drv.c
-> > > > > > @@ -606,6 +606,7 @@ static void zram_bio_discard(struct zram *zram, u32 index,
-> > > > > >  		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
-> > > > > >  		zram_free_page(zram, index);
-> > > > > >  		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
-> > > > > > +		atomic64_inc(&zram->stats.num_discards);
-> > > > > >  		index++;
-> > > > > >  		n -= PAGE_SIZE;
-> > > > > >  	}
-> > > > > > @@ -866,6 +867,7 @@ ZRAM_ATTR_RO(num_reads);
-> > > > > >  ZRAM_ATTR_RO(num_writes);
-> > > > > >  ZRAM_ATTR_RO(failed_reads);
-> > > > > >  ZRAM_ATTR_RO(failed_writes);
-> > > > > > +ZRAM_ATTR_RO(num_discards);
-> > > > > >  ZRAM_ATTR_RO(invalid_io);
-> > > > > >  ZRAM_ATTR_RO(notify_free);
-> > > > > >  ZRAM_ATTR_RO(zero_pages);
-> > > > > > @@ -879,6 +881,7 @@ static struct attribute *zram_disk_attrs[] = {
-> > > > > >  	&dev_attr_num_writes.attr,
-> > > > > >  	&dev_attr_failed_reads.attr,
-> > > > > >  	&dev_attr_failed_writes.attr,
-> > > > > > +	&dev_attr_num_discards.attr,
-> > > > > >  	&dev_attr_invalid_io.attr,
-> > > > > >  	&dev_attr_notify_free.attr,
-> > > > > >  	&dev_attr_zero_pages.attr,
-> > > > > > diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-> > > > > > index e0f725c..2994aaf 100644
-> > > > > > --- a/drivers/block/zram/zram_drv.h
-> > > > > > +++ b/drivers/block/zram/zram_drv.h
-> > > > > > @@ -86,6 +86,7 @@ struct zram_stats {
-> > > > > >  	atomic64_t num_writes;	/* --do-- */
-> > > > > >  	atomic64_t failed_reads;	/* can happen when memory is too low */
-> > > > > >  	atomic64_t failed_writes;	/* can happen when memory is too low */
-> > > > > > +	atomic64_t num_discards;	/* no. of discarded pages */
-> > > > > >  	atomic64_t invalid_io;	/* non-page-aligned I/O requests */
-> > > > > >  	atomic64_t notify_free;	/* no. of swap slot free notifications */
-> > > > > >  	atomic64_t zero_pages;		/* no. of zero filled pages */
-> > > > > > -- 
-> > > > > > 2.0.1.474.g72c7794
-> > > > > > 
-> > > > > > 
-> > > > > > --
-> > > > > > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > > > > > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > > > > > see: http://www.linux-mm.org/ .
-> > > > > > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> > > > > 
-> > > > > -- 
-> > > > > Kind regards,
-> > > > > Minchan Kim
-> > > > > 
-> > > > 
-> > > > --
-> > > > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > > > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > > > see: http://www.linux-mm.org/ .
-> > > > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> > > 
-> > > -- 
-> > > Kind regards,
-> > > Minchan Kim
-> > > 
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> > As a side effect of enabling and disabling write notifications with
+> > care, this patch fixes a bug in mprotect where vm_page_prot bits set
+> > by drivers were zapped on mprotect. An analogous bug was fixed in mmap
+> > by c9d0bf241451a3ab7d02e1652c22b80cd7d93e8f.
 > 
-> -- 
-> Kind regards,
-> Minchan Kim
 > 
+> Commit c9d0bf241451 ("mm: uncached vma support with writenotify").
+> Adding Magnus to the Cc list: I have some doubt as to whether his
+> bugfix is in fact preserved below, and would like him to check.
+
+I believe the fix is preserved as long as pgprot_modify preserves cache flags.
+As you explain below, pgprot_modify only does this on x86 and tile. So this
+patch does indeed break c9d0bf241451 on most architectures. Furthermore, as you
+said below, this patch would break the build on the other architectures :-)
+
+> I like Kirill's suggestion to approach this via writenotify,
+> but find the disable/enable rather confusing (partly because
+> enabling writenotify amounts to disabling write access).
+> I may be alone in my confusion.
+
+I agree about the confusion. I wasn't too happy with the names myself.
+Furthermore, I only really use vma_disable_writenotify to set vm_page_prot
+from vm_flags. So I think the enable / disable idea is pretty broken. As you
+suggest below, I'm going to give vma_set_page_prot a try.
+
+> > +		if (type == CLEAR_REFS_SOFT_DIRTY &&
+> > +		    (vma->vm_flags & VM_SOFTDIRTY)) {
+> > +			if (!write) {
+> > +				r = -EAGAIN;
+> > +				break;
+> 
+> Hmm.  For a long time I thought you were fixing another important bug
+> with down_write, since we "always" use down_write to modify vm_flags.
+> 
+> But now I'm realizing that if this is the _only_ place which modifies
+> vm_flags with down_read, then it's "probably" safe.  I've a vague
+> feeling that this was discussed before - is that so, Cyrill?
+> 
+> It certainly feels fragile to depend on this; but conversely, I don't
+> like replacing a long down_read scan by an indefinite down_read scan
+> followed by a long down_write scan.
+> 
+> I see that you earlier persuaded yourself that the races are benign
+> if you stick with down_read.  I can't confirm or deny that at present:
+> seems more important right now to get this mail out to you than think
+> through that aspect.
+
+Your observation is correct: clear_refs_write is the only place that vm_flags
+is modified without an exclusive lock on mmap_sem.
+
+I was wrong about the race between clear_refs_write modifying vm_flags and the
+fault handler reading vm_flags being benign. I had thought that since
+clear_refs_write zaps all of the PTEs in the VMA after it modifies vm_flags,
+it was ok for a writable PTE to be temporarily installed to handle a read
+fault. However, if a write happened after the read fault and before
+clear_refs_write zapped the PTE, then we'd miss the write. Therefore I'm
+convinced that its necessary to serialize changes to vm_flags and fault
+handling.
+
+There are a few ways to accomplish this serialization, all with their pros and
+cons:
+
+	* One down_read scan followed by a down_write scan, if necessary. This
+	  is the current implementation.
+	  Pros: won't take exclusive lock when VMAs haven't changed.
+	  Cons: might hold exclusive lock during page table walk.
+
+	* Per-vma lock, as Cyrill and Kirill were discussing.
+	  Pros: handle faults on other VMAs when vm_flags is changing.
+	  Cons: another lock acquired in fault path.
+	
+	* Iterate over VMAs and modify vm_flags with down_write, then
+	  downgrade to down_read for page table scan, as Kirill suggested.
+	  Pros: won't hold exclusive lock during page table walk.
+	  Cons: clear_refs_write always grabs exclusive lock.
+
+I think the extra lock in the fault handling path rules the per-vma lock out.
+Whether the first or third approach is better depends on whether or not VMAs
+are changing, which is obviously application specific behavior. A hybrid
+approach offers the best of both worlds (i.e., an optimistic down_read scan
+that bails out if there's a VM_SOFTDIRTY VMA and falls back to the downgrading
+approach).
+
+> 
+> > +			}
+> > +			vma->vm_flags &= ~VM_SOFTDIRTY;
+> > +			vma_enable_writenotify(vma);
+> 
+> That's an example of how the vma_enable_writenotify() interface
+> may be confusing.  I thought for a while that that line was unsafe,
+> there being quite other reasons why write protection may be needed;
+> then realized it's okay because "enable" is the restrictive one.
+
+Yep, agreed. It'll look like
+
+	vma->vm_flags &= ~VM_SOFTDIRTY;
+	vma_set_page_prot(vma);
+
+after implementing your suggestion.
+
+> 
+> > +		}
+> > +		walk_page_range(vma->vm_start, vma->vm_end,
+> > +				&clear_refs_walk);
+> > +	}
+> > +
+> > +	if (type == CLEAR_REFS_SOFT_DIRTY)
+> > +		mmu_notifier_invalidate_range_end(mm, 0, -1);
+> > +
+> > +	if (!r)
+> > +		flush_tlb_mm(mm);
+> > +
+> > +	if (write)
+> > +		up_write(&mm->mmap_sem);
+> > +	else
+> > +		up_read(&mm->mmap_sem);
+> > +
+> > +	return r;
+> > +}
+> > +
+> >  static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+> >  				size_t count, loff_t *ppos)
+> >  {
+> >  	struct task_struct *task;
+> >  	char buffer[PROC_NUMBUF];
+> >  	struct mm_struct *mm;
+> > -	struct vm_area_struct *vma;
+> >  	enum clear_refs_types type;
+> >  	int itype;
+> >  	int rv;
+> > @@ -820,47 +887,9 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+> >  		return -ESRCH;
+> >  	mm = get_task_mm(task);
+> >  	if (mm) {
+> > -		struct clear_refs_private cp = {
+> > -			.type = type,
+> > -		};
+> > -		struct mm_walk clear_refs_walk = {
+> > -			.pmd_entry = clear_refs_pte_range,
+> > -			.mm = mm,
+> > -			.private = &cp,
+> > -		};
+> > -		down_read(&mm->mmap_sem);
+> > -		if (type == CLEAR_REFS_SOFT_DIRTY)
+> > -			mmu_notifier_invalidate_range_start(mm, 0, -1);
+> > -		for (vma = mm->mmap; vma; vma = vma->vm_next) {
+> > -			cp.vma = vma;
+> > -			if (is_vm_hugetlb_page(vma))
+> > -				continue;
+> > -			/*
+> > -			 * Writing 1 to /proc/pid/clear_refs affects all pages.
+> > -			 *
+> > -			 * Writing 2 to /proc/pid/clear_refs only affects
+> > -			 * Anonymous pages.
+> > -			 *
+> > -			 * Writing 3 to /proc/pid/clear_refs only affects file
+> > -			 * mapped pages.
+> > -			 *
+> > -			 * Writing 4 to /proc/pid/clear_refs affects all pages.
+> > -			 */
+> > -			if (type == CLEAR_REFS_ANON && vma->vm_file)
+> > -				continue;
+> > -			if (type == CLEAR_REFS_MAPPED && !vma->vm_file)
+> > -				continue;
+> > -			if (type == CLEAR_REFS_SOFT_DIRTY) {
+> > -				if (vma->vm_flags & VM_SOFTDIRTY)
+> > -					vma->vm_flags &= ~VM_SOFTDIRTY;
+> > -			}
+> > -			walk_page_range(vma->vm_start, vma->vm_end,
+> > -					&clear_refs_walk);
+> > -		}
+> > -		if (type == CLEAR_REFS_SOFT_DIRTY)
+> > -			mmu_notifier_invalidate_range_end(mm, 0, -1);
+> > -		flush_tlb_mm(mm);
+> > -		up_read(&mm->mmap_sem);
+> > +		rv = clear_refs(mm, type, 0);
+> > +		if (rv)
+> > +			clear_refs(mm, type, 1);
+> >  		mmput(mm);
+> >  	}
+> >  	put_task_struct(task);
+> > diff --git a/include/linux/mm.h b/include/linux/mm.h
+> > index 8981cc8..7979b79 100644
+> > --- a/include/linux/mm.h
+> > +++ b/include/linux/mm.h
+> > @@ -1946,6 +1946,20 @@ static inline pgprot_t vm_get_page_prot(unsigned long vm_flags)
+> >  }
+> >  #endif
+> >  
+> > +/* Enable write notifications without blowing away special flags. */
+> > +static inline void vma_enable_writenotify(struct vm_area_struct *vma)
+> > +{
+> > +	pgprot_t newprot = vm_get_page_prot(vma->vm_flags & ~VM_SHARED);
+> > +	vma->vm_page_prot = pgprot_modify(vma->vm_page_prot, newprot);
+> > +}
+> > +
+> > +/* Disable write notifications without blowing away special flags. */
+> > +static inline void vma_disable_writenotify(struct vm_area_struct *vma)
+> > +{
+> > +	pgprot_t newprot = vm_get_page_prot(vma->vm_flags);
+> > +	vma->vm_page_prot = pgprot_modify(vma->vm_page_prot, newprot);
+> > +}
+> 
+> As mentioned above, I find that enable and disable confusing.
+> Might it be better just to have a vma_set_page_prot(vma), which does
+> the "if vma_wants_writenotify(vma) blah; else blah;" internally?
+
+I like that idea. I'll think it through and give it a try.
+
+> And does what you have there build on any architecture other than
+> x86 and tile?  Because pgprot_modify() was only used in mm/mprotect.c
+> before, we declare the fallback version there, and so far as I can see,
+> only x86 and tile declare the pgprot_modify() they need in a header file.
+> 
+> > +
+> >  #ifdef CONFIG_NUMA_BALANCING
+> >  unsigned long change_prot_numa(struct vm_area_struct *vma,
+> >  			unsigned long start, unsigned long end);
+> > diff --git a/mm/mmap.c b/mm/mmap.c
+> > index c1f2ea4..2963130 100644
+> > --- a/mm/mmap.c
+> > +++ b/mm/mmap.c
+> > @@ -1470,6 +1470,10 @@ int vma_wants_writenotify(struct vm_area_struct *vma)
+> >  	if (vma->vm_ops && vma->vm_ops->page_mkwrite)
+> >  		return 1;
+> >  
+> > +	/* Do we need to track softdirty? */
+> > +	if (IS_ENABLED(CONFIG_MEM_SOFT_DIRTY) && !(vm_flags & VM_SOFTDIRTY))
+> > +		return 1;
+> > +
+> >  	/* The open routine did something to the protections already? */
+> >  	if (pgprot_val(vma->vm_page_prot) !=
+> >  	    pgprot_val(vm_get_page_prot(vm_flags)))
+> 
+> That sets me wondering: have you placed the VM_SOFTDIRTY check in the
+> right place in this series of tests?
+> 
+> I think, once pgprot_modify() is correct on all architectures,
+> it should be possible to drop that pgprot_val() check from
+> vma_wants_writenotify() - which would be a welcome simplification.
+> 
+> But what about the VM_PFNMAP test below it?  If that test was necessary,
+> then having your VM_SOFTDIRTY check before it seems dangerous.  But I'm
+> hoping we can persuade ourselves that the VM_PFNMAP test was unnecessary,
+> and simply delete it.
+
+If VM_PFNMAP is necessary, then I definitely put the VM_SOFTDIRTY check in the
+wrong spot :-) I don't know much (i.e., anything) about VM_PFNMAP, so I'll
+have to bone up on a lot of code before I have an informed opinion about the
+necessity of the check.
+
+I had erroneously reasoned that it was necessary to put the VM_SOFTDIRTY check
+before the pgprot_val check in order to handle VMA merging correctly. I'll
+give this another think and look into dropping the pgprot_val check altogether,
+as you suggest.
+
+> 
+> > @@ -1610,21 +1614,6 @@ munmap_back:
+> >  			goto free_vma;
+> >  	}
+> >  
+> > -	if (vma_wants_writenotify(vma)) {
+> > -		pgprot_t pprot = vma->vm_page_prot;
+> > -
+> > -		/* Can vma->vm_page_prot have changed??
+> > -		 *
+> > -		 * Answer: Yes, drivers may have changed it in their
+> > -		 *         f_op->mmap method.
+> > -		 *
+> > -		 * Ensures that vmas marked as uncached stay that way.
+> > -		 */
+> > -		vma->vm_page_prot = vm_get_page_prot(vm_flags & ~VM_SHARED);
+> > -		if (pgprot_val(pprot) == pgprot_val(pgprot_noncached(pprot)))
+> > -			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+> 
+> So, this is where Magnus's bugfix gets deleted: but I'm afraid that
+> with pgprot_modify() properly implemented only on x86 and tile, we
+> cannot delete this so easily.
+> 
+> It's going to be tedious and error-prone to devise a proper
+> pgprot_modify() for each of N unfamiliar architectures.  I wonder
+> if we can take a hint from Magnus's code there, to get a suitable
+> default going, which may not be perfect for each, but will avoid
+> introducing regression.
+> 
+> Or am I simply confused about the lack of proper pgprot_modify()s?
+
+No, I think you're right about pgprot_modify. I like your idea for
+a best-effort implementation of a generic pgprot_modify. I'll give it a try
+and see if everything fits together nicely for VM_SOFTDIRTY.
+
+> > diff --git a/mm/mprotect.c b/mm/mprotect.c
+> > index c43d557..2dea043 100644
+> > --- a/mm/mprotect.c
+> > +++ b/mm/mprotect.c
+> > @@ -320,12 +320,12 @@ success:
+> >  	 * held in write mode.
+> >  	 */
+> >  	vma->vm_flags = newflags;
+> > -	vma->vm_page_prot = pgprot_modify(vma->vm_page_prot,
+> > -					  vm_get_page_prot(newflags));
+> >  
+> >  	if (vma_wants_writenotify(vma)) {
+> > -		vma->vm_page_prot = vm_get_page_prot(newflags & ~VM_SHARED);
+> > +		vma_enable_writenotify(vma);
+> >  		dirty_accountable = 1;
+> 
+> Not an issue coming from your patch, but please take a look at how
+> dirty_accountable gets used in change_pte_range(): I suspect we have a
+> similar soft-dirty bug there, do you agree?  Or does it work out safely?
+
+Indeed, there is a similar bug in change_pte_range. If a PTE is dirty but not
+soft-dirty and dirty_accountable is true, then the PTE will be made writable
+and we'll never get to mark the PTE softdirty. Good catch! I'll submit another
+patch to fix this.
+
+> scripts/checkpatch.pl has a few complaints too.  Personally, I like
+> to make very simple functions as brief as possible, ignoring the rule
+> about a blank line between declarations and body.  So I like your style,
+> but others will disagree: I suppose we should bow to checkpatch there.
+
+Aye, I shall bend the knee.
+
+Peter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
