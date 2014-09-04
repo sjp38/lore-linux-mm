@@ -1,64 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E2376B0035
-	for <linux-mm@kvack.org>; Thu,  4 Sep 2014 05:11:53 -0400 (EDT)
-Received: by mail-ie0-f174.google.com with SMTP id at20so11361833iec.33
-        for <linux-mm@kvack.org>; Thu, 04 Sep 2014 02:11:53 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id jd1si1572493icc.20.2014.09.04.02.11.52
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Sep 2014 02:11:52 -0700 (PDT)
-Message-ID: <54082CD3.1080307@codeaurora.org>
-Date: Thu, 04 Sep 2014 14:41:47 +0530
-From: Chintan Pandya <cpandya@codeaurora.org>
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BE5D6B0035
+	for <linux-mm@kvack.org>; Thu,  4 Sep 2014 05:22:00 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id fp1so13121312pdb.13
+        for <linux-mm@kvack.org>; Thu, 04 Sep 2014 02:21:58 -0700 (PDT)
+Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
+        by mx.google.com with ESMTP id fi2si2419240pad.144.2014.09.04.02.21.45
+        for <linux-mm@kvack.org>;
+        Thu, 04 Sep 2014 02:21:46 -0700 (PDT)
+Date: Thu, 4 Sep 2014 19:21:31 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] mm: clear __GFP_FS when PF_MEMALLOC_NOIO is set
+Message-ID: <20140904092131.GM20473@dastard>
+References: <1409723694-16047-1-git-send-email-junxiao.bi@oracle.com>
+ <20140903161000.f383fa4c1a4086de054cb6a0@linux-foundation.org>
+ <5407C989.50605@oracle.com>
+ <20140903193058.2bc891a7.akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: ksm: Remove unused function process_timeout()
-References: <1407756165-1906-1-git-send-email-mopsfelder@gmail.com>
-In-Reply-To: <1407756165-1906-1-git-send-email-mopsfelder@gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140903193058.2bc891a7.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Murilo Opsfelder Araujo <mopsfelder@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Junxiao Bi <junxiao.bi@oracle.com>, xuejiufei@huawei.com, ming.lei@canonical.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On 08/11/2014 04:52 PM, Murilo Opsfelder Araujo wrote:
-> This patch fixes compilation warning:
->
-> mm/ksm.c:1711:13: warning: a??process_timeouta?? defined but not used [-Wunused-function]
->
-> Signed-off-by: Murilo Opsfelder Araujo<mopsfelder@gmail.com>
-> ---
->   mm/ksm.c | 5 -----
->   1 file changed, 5 deletions(-)
->
-> diff --git a/mm/ksm.c b/mm/ksm.c
-> index f7de4c0..434a50a 100644
-> --- a/mm/ksm.c
-> +++ b/mm/ksm.c
-> @@ -1708,11 +1708,6 @@ static void ksm_do_scan(unsigned int scan_npages)
->   	}
->   }
->
-> -static void process_timeout(unsigned long __data)
-> -{
-> -	wake_up_process((struct task_struct *)__data);
-> -}
-> -
->   static int ksmd_should_run(void)
->   {
->   	return (ksm_run&  KSM_RUN_MERGE)&&  !list_empty(&ksm_mm_head.mm_list);
+On Wed, Sep 03, 2014 at 07:30:58PM -0700, Andrew Morton wrote:
+> > PF_MEMALLOC_NOIO is only set for some special processes. I think it
+> > won't affect much.
+> 
+> Maybe not now.  But once we add hacks like this, people say "goody" and
+> go and use them rather than exerting the effort to sort out their
+> deadlocks properly :( There will be more PF_MEMALLOC_NOIO users in
+> 2019.
 
+We got PF_MEMALLOC_NOIO because we failed to get vmalloc deadlocks
+fixed. The reason vmalloc didn't get fixed?
 
-The original KSM patch which introduced this function (by mistake) has 
-been re-sent for reviews. So, we can drop this at the moment.
+"there will be more vmalloc users".
 
+> Dunno, I'd like to hear David's thoughts but perhaps it would be better
+> to find some way to continue to permit PF_MEMALLOC_NOIO to shrink VFS
+> caches for most filesystems and find some fs-specific fix for ocfs2. 
+> That would mean testing PF_MEMALLOC_NOIO directly I guess.
+
+No special flags in the superblock shrinker, please. We have tens of
+other filesystem shrinkers that might be impacted, too. If we do not
+want filesystem shrinkers (note the plural) to run, the
+shrink_control->gfp_mask needs to have __GFP_FS cleared from it when
+it is first configured and so that context is constant across all
+shrinker reclaim cases.
+
+If you're really worried by changing PF_MEMALLOC_NOIO, then we can
+introduce PF_MEMALLOC_NOFS and have the mm subsystem mask both flags
+appropriately when setting the gfp_mask in the shrink_control
+settings. But fundamentally, our reclaim heirarchy defines that NOIO
+implies NOFS, and so we need to fix PF_MEMALLOC_NOIO anyway.
+
+Cheers,
+
+Dave.
 -- 
-Chintan Pandya
-
-QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
-member of the Code Aurora Forum, hosted by The Linux Foundation
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
