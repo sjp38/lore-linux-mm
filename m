@@ -1,94 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BEF86B0035
-	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 21:08:23 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id hz1so18722093pad.6
-        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 18:08:23 -0700 (PDT)
-Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com [2607:f8b0:400e:c02::232])
-        by mx.google.com with ESMTPS id mi6si421286pab.17.2014.09.03.18.08.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 03 Sep 2014 18:08:23 -0700 (PDT)
-Received: by mail-pd0-f178.google.com with SMTP id y13so12386290pdi.37
-        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 18:08:22 -0700 (PDT)
-Date: Wed, 3 Sep 2014 18:06:34 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v3 4/6] mm/hugetlb: add migration entry check in
- hugetlb_change_protection
-In-Reply-To: <1409276340-7054-5-git-send-email-n-horiguchi@ah.jp.nec.com>
-Message-ID: <alpine.LSU.2.11.1409031752510.11238@eggly.anvils>
-References: <1409276340-7054-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1409276340-7054-5-git-send-email-n-horiguchi@ah.jp.nec.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 306CD6B0035
+	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 21:38:28 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id lj1so18751459pab.14
+        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 18:38:27 -0700 (PDT)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id ey7si268268pdb.175.2014.09.03.18.38.25
+        for <linux-mm@kvack.org>;
+        Wed, 03 Sep 2014 18:38:27 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [RFC 2/3] mm: add swap_get_free hint for zram
+Date: Thu,  4 Sep 2014 10:39:45 +0900
+Message-Id: <1409794786-10951-3-git-send-email-minchan@kernel.org>
+In-Reply-To: <1409794786-10951-1-git-send-email-minchan@kernel.org>
+References: <1409794786-10951-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>, Minchan Kim <minchan@kernel.org>
 
-On Thu, 28 Aug 2014, Naoya Horiguchi wrote:
+VM uses nr_swap_pages as one of information when it does
+anonymous reclaim so that VM is able to throttle amount of swap.
 
-> There is a race condition between hugepage migration and change_protection(),
-> where hugetlb_change_protection() doesn't care about migration entries and
-> wrongly overwrites them. That causes unexpected results like kernel crash.
-> 
-> This patch adds is_hugetlb_entry_(migration|hwpoisoned) check in this
-> function to do proper actions.
-> 
-> ChangeLog v3:
-> - handle migration entry correctly (instead of just skipping)
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: <stable@vger.kernel.org> # [2.6.36+]
+Normally, the nr_swap_pages is equal to freeable space of swap disk
+but for zram, it doesn't match because zram can limit memory usage
+by knob(ie, mem_limit) so although VM can see lots of free space
+from zram disk, zram can make fail intentionally once the allocated
+space is over to limit. If it happens, VM should notice it and
+stop reclaimaing until zram can obtain more free space but there
+is a good way to do at the moment.
 
-2.6.36+?  For the hwpoisoned part of it, I suppose.
-Then you'd better mentioned the hwpoisoned case in the comment above.
+This patch adds new hint SWAP_GET_FREE which zram can return how
+many of freeable space it has. With using that, this patch adds
+__swap_full which returns true if the zram is full and substract
+remained freeable space of the zram-swap from nr_swap_pages.
+IOW, VM sees there is no more swap space of zram so that it stops
+anonymous reclaiming until swap_entry_free free a page and increase
+nr_swap_pages again.
 
-> ---
->  mm/hugetlb.c | 21 ++++++++++++++++++++-
->  1 file changed, 20 insertions(+), 1 deletion(-)
-> 
-> diff --git mmotm-2014-08-25-16-52.orig/mm/hugetlb.c mmotm-2014-08-25-16-52/mm/hugetlb.c
-> index 2aafe073cb06..1ed9df6def54 100644
-> --- mmotm-2014-08-25-16-52.orig/mm/hugetlb.c
-> +++ mmotm-2014-08-25-16-52/mm/hugetlb.c
-> @@ -3362,7 +3362,26 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
->  			spin_unlock(ptl);
->  			continue;
->  		}
-> -		if (!huge_pte_none(huge_ptep_get(ptep))) {
-> +		pte = huge_ptep_get(ptep);
-> +		if (unlikely(is_hugetlb_entry_hwpoisoned(pte))) {
-> +			spin_unlock(ptl);
-> +			continue;
-> +		}
-> +		if (unlikely(is_hugetlb_entry_migration(pte))) {
-> +			swp_entry_t entry = pte_to_swp_entry(pte);
-> +
-> +			if (is_write_migration_entry(entry)) {
-> +				pte_t newpte;
-> +
-> +				make_migration_entry_read(&entry);
-> +				newpte = swp_entry_to_pte(entry);
-> +				set_pte_at(mm, address, ptep, newpte);
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ include/linux/blkdev.h |  1 +
+ mm/swapfile.c          | 45 +++++++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 44 insertions(+), 2 deletions(-)
 
-set_huge_pte_at.
-
-(As usual, I can't bear to see these is_hugetlb_entry_hwpoisoned and
-is_hugetlb_entry_migration examples go past without bleating about
-wanting to streamline them a little; but agreed last time to leave
-that to some later cleanup once all the stable backports are stable.)
-
-> +				pages++;
-> +			}
-> +			spin_unlock(ptl);
-> +			continue;
-> +		}
-> +		if (!huge_pte_none(pte)) {
->  			pte = huge_ptep_get_and_clear(mm, address, ptep);
->  			pte = pte_mkhuge(huge_pte_modify(pte, newprot));
->  			pte = arch_make_huge_pte(pte, vma, NULL, 0);
-> -- 
-> 1.9.3
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index 17437b2c18e4..c1199806e0f1 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -1611,6 +1611,7 @@ static inline bool blk_integrity_is_initialized(struct gendisk *g)
+ 
+ enum swap_blk_hint {
+ 	SWAP_SLOT_FREE,
++	SWAP_GET_FREE,
+ };
+ 
+ struct block_device_operations {
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 4bff521e649a..72737e6dd5e5 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -484,6 +484,22 @@ new_cluster:
+ 	*scan_base = tmp;
+ }
+ 
++static bool __swap_full(struct swap_info_struct *si)
++{
++	if (si->flags & SWP_BLKDEV) {
++		long free;
++		struct gendisk *disk = si->bdev->bd_disk;
++
++		if (disk->fops->swap_hint)
++			if (!disk->fops->swap_hint(si->bdev,
++						SWAP_GET_FREE,
++						&free))
++				return free <= 0;
++	}
++
++	return si->inuse_pages == si->pages;
++}
++
+ static unsigned long scan_swap_map(struct swap_info_struct *si,
+ 				   unsigned char usage)
+ {
+@@ -583,11 +599,21 @@ checks:
+ 	if (offset == si->highest_bit)
+ 		si->highest_bit--;
+ 	si->inuse_pages++;
+-	if (si->inuse_pages == si->pages) {
++	if (__swap_full(si)) {
++		struct gendisk *disk = si->bdev->bd_disk;
++
+ 		si->lowest_bit = si->max;
+ 		si->highest_bit = 0;
+ 		spin_lock(&swap_avail_lock);
+ 		plist_del(&si->avail_list, &swap_avail_head);
++		/*
++		 * If zram is full, it decreases nr_swap_pages
++		 * for stopping anonymous page reclaim until
++		 * zram has free space. Look at swap_entry_free
++		 */
++		if (disk->fops->swap_hint)
++			atomic_long_sub(si->pages - si->inuse_pages,
++				&nr_swap_pages);
+ 		spin_unlock(&swap_avail_lock);
+ 	}
+ 	si->swap_map[offset] = usage;
+@@ -796,6 +822,7 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
+ 
+ 	/* free if no reference */
+ 	if (!usage) {
++		struct gendisk *disk = p->bdev->bd_disk;
+ 		dec_cluster_info_page(p, p->cluster_info, offset);
+ 		if (offset < p->lowest_bit)
+ 			p->lowest_bit = offset;
+@@ -808,6 +835,21 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
+ 				if (plist_node_empty(&p->avail_list))
+ 					plist_add(&p->avail_list,
+ 						  &swap_avail_head);
++				if ((p->flags & SWP_BLKDEV) &&
++					disk->fops->swap_hint) {
++					atomic_long_add(p->pages -
++							p->inuse_pages,
++							&nr_swap_pages);
++					/*
++					 * reset [highest|lowest]_bit to avoid
++					 * scan_swap_map infinite looping if
++					 * cached free cluster's index by
++					 * scan_swap_map_try_ssd_cluster is
++					 * above p->highest_bit.
++					 */
++					p->highest_bit = p->max - 1;
++					p->lowest_bit = 1;
++				}
+ 				spin_unlock(&swap_avail_lock);
+ 			}
+ 		}
+@@ -815,7 +857,6 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
+ 		p->inuse_pages--;
+ 		frontswap_invalidate_page(p->type, offset);
+ 		if (p->flags & SWP_BLKDEV) {
+-			struct gendisk *disk = p->bdev->bd_disk;
+ 			if (disk->fops->swap_hint)
+ 				disk->fops->swap_hint(p->bdev,
+ 						SWAP_SLOT_FREE,
+-- 
+2.0.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
