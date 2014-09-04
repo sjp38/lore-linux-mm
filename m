@@ -1,57 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 771C96B0038
-	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 21:38:29 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id ft15so12308242pdb.20
-        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 18:38:29 -0700 (PDT)
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id B4BF36B0039
+	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 21:38:36 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id g10so324240pdj.10
+        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 18:38:36 -0700 (PDT)
 Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id qt3si537289pbc.13.2014.09.03.18.38.26
+        by mx.google.com with ESMTP id ec3si495989pbc.36.2014.09.03.18.38.30
         for <linux-mm@kvack.org>;
-        Wed, 03 Sep 2014 18:38:27 -0700 (PDT)
+        Wed, 03 Sep 2014 18:38:32 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [RFC 0/3] make vm aware of zram-swap
-Date: Thu,  4 Sep 2014 10:39:43 +0900
-Message-Id: <1409794786-10951-1-git-send-email-minchan@kernel.org>
+Subject: [RFC 1/3] zram: generalize swap_slot_free_notify
+Date: Thu,  4 Sep 2014 10:39:44 +0900
+Message-Id: <1409794786-10951-2-git-send-email-minchan@kernel.org>
+In-Reply-To: <1409794786-10951-1-git-send-email-minchan@kernel.org>
+References: <1409794786-10951-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>, Minchan Kim <minchan@kernel.org>
 
-VM uses nr_swap_pages as one of information when it reclaims
-anonymous page because nr_swap_pages means how many freeable
-space in swap so VM is able to throttle swap out if it found
-there is no more space in swap.
+Currently, swap_slot_free_notify is used for zram to free
+duplicated copy page for memory efficiency when it knows
+there is no reference to the swap slot.
 
-But for zram-swap, there is size gap between virtual disksize
-and physical memory to be able to store compressed memory so
-nr_swap_pages is not correct parameter to throttle swap.
+Let's extend it to be able to use it for other purpose
+so this patch generalizes it so that zram can get more hints
+from VM.
 
-It causes endless anonymous reclaim(ie, swapout) even if there
-is no free space in zram-swap so it makes system unresponsive.
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ Documentation/filesystems/Locking |  7 ++-----
+ drivers/block/zram/zram_drv.c     | 18 ++++++++++++++++--
+ include/linux/blkdev.h            |  7 +++++--
+ mm/page_io.c                      |  7 ++++---
+ mm/swapfile.c                     |  7 ++++---
+ 5 files changed, 31 insertions(+), 15 deletions(-)
 
-This patch adds new hint SWAP_GET_FREE so zram can return how
-many of freeable space to VM. With using that, VM can know whether
-zram is full and substract remained freeable space from
-nr_swap_pages to make it less than 0. IOW, from now on, VM sees
-there is no more space of zram so that it will stop anonymous
-reclaiming until swap_entry_free free a page which increases
-nr_swap_pages again.
-
-With this patch, user will see OOM when zram-swap is full
-instead of hang with no response.
-
-Minchan Kim (3):
-  zram: generalize swap_slot_free_notify
-  mm: add swap_get_free hint for zram
-  zram: add swap_get_free hint
-
- Documentation/filesystems/Locking |  7 ++----
- drivers/block/zram/zram_drv.c     | 36 +++++++++++++++++++++++++--
- include/linux/blkdev.h            |  8 ++++--
- mm/page_io.c                      |  7 +++---
- mm/swapfile.c                     | 52 +++++++++++++++++++++++++++++++++++----
- 5 files changed, 93 insertions(+), 17 deletions(-)
-
+diff --git a/Documentation/filesystems/Locking b/Documentation/filesystems/Locking
+index f1997e9da61f..e7133874fd75 100644
+--- a/Documentation/filesystems/Locking
++++ b/Documentation/filesystems/Locking
+@@ -405,7 +405,7 @@ prototypes:
+ 	void (*unlock_native_capacity) (struct gendisk *);
+ 	int (*revalidate_disk) (struct gendisk *);
+ 	int (*getgeo)(struct block_device *, struct hd_geometry *);
+-	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
++	int (*swap_hint) (struct block_device *, unsigned int, void *);
+ 
+ locking rules:
+ 			bd_mutex
+@@ -418,14 +418,11 @@ media_changed:		no
+ unlock_native_capacity:	no
+ revalidate_disk:	no
+ getgeo:			no
+-swap_slot_free_notify:	no	(see below)
++swap_hint:		no
+ 
+ media_changed, unlock_native_capacity and revalidate_disk are called only from
+ check_disk_change().
+ 
+-swap_slot_free_notify is called with swap_lock and sometimes the page lock
+-held.
+-
+ 
+ --------------------------- file_operations -------------------------------
+ prototypes:
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index be88d750b112..88661d62e46a 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -933,7 +933,8 @@ error:
+ 	bio_io_error(bio);
+ }
+ 
+-static void zram_slot_free_notify(struct block_device *bdev,
++/* this callback is with swap_lock and sometimes page table lock held */
++static int zram_slot_free_notify(struct block_device *bdev,
+ 				unsigned long index)
+ {
+ 	struct zram *zram;
+@@ -946,10 +947,23 @@ static void zram_slot_free_notify(struct block_device *bdev,
+ 	zram_free_page(zram, index);
+ 	bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+ 	atomic64_inc(&zram->stats.notify_free);
++
++	return 0;
++}
++
++static int zram_swap_hint(struct block_device *bdev,
++				unsigned int hint, void *arg)
++{
++	int ret = -EINVAL;
++
++	if (hint == SWAP_SLOT_FREE)
++		ret = zram_slot_free_notify(bdev, (unsigned long)arg);
++
++	return ret;
+ }
+ 
+ static const struct block_device_operations zram_devops = {
+-	.swap_slot_free_notify = zram_slot_free_notify,
++	.swap_hint = zram_swap_hint,
+ 	.owner = THIS_MODULE
+ };
+ 
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index 518b46555b80..17437b2c18e4 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -1609,6 +1609,10 @@ static inline bool blk_integrity_is_initialized(struct gendisk *g)
+ 
+ #endif /* CONFIG_BLK_DEV_INTEGRITY */
+ 
++enum swap_blk_hint {
++	SWAP_SLOT_FREE,
++};
++
+ struct block_device_operations {
+ 	int (*open) (struct block_device *, fmode_t);
+ 	void (*release) (struct gendisk *, fmode_t);
+@@ -1624,8 +1628,7 @@ struct block_device_operations {
+ 	void (*unlock_native_capacity) (struct gendisk *);
+ 	int (*revalidate_disk) (struct gendisk *);
+ 	int (*getgeo)(struct block_device *, struct hd_geometry *);
+-	/* this callback is with swap_lock and sometimes page table lock held */
+-	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
++	int (*swap_hint)(struct block_device *, unsigned int, void *);
+ 	struct module *owner;
+ };
+ 
+diff --git a/mm/page_io.c b/mm/page_io.c
+index 955db8b0d497..88a13d74c621 100644
+--- a/mm/page_io.c
++++ b/mm/page_io.c
+@@ -114,7 +114,7 @@ void end_swap_bio_read(struct bio *bio, int err)
+ 			 * we again wish to reclaim it.
+ 			 */
+ 			struct gendisk *disk = sis->bdev->bd_disk;
+-			if (disk->fops->swap_slot_free_notify) {
++			if (disk->fops->swap_hint) {
+ 				swp_entry_t entry;
+ 				unsigned long offset;
+ 
+@@ -122,8 +122,9 @@ void end_swap_bio_read(struct bio *bio, int err)
+ 				offset = swp_offset(entry);
+ 
+ 				SetPageDirty(page);
+-				disk->fops->swap_slot_free_notify(sis->bdev,
+-						offset);
++				disk->fops->swap_hint(sis->bdev,
++						SWAP_SLOT_FREE,
++						(void *)offset);
+ 			}
+ 		}
+ 	}
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 8798b2e0ac59..4bff521e649a 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -816,9 +816,10 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
+ 		frontswap_invalidate_page(p->type, offset);
+ 		if (p->flags & SWP_BLKDEV) {
+ 			struct gendisk *disk = p->bdev->bd_disk;
+-			if (disk->fops->swap_slot_free_notify)
+-				disk->fops->swap_slot_free_notify(p->bdev,
+-								  offset);
++			if (disk->fops->swap_hint)
++				disk->fops->swap_hint(p->bdev,
++						SWAP_SLOT_FREE,
++						(void *)offset);
+ 		}
+ 	}
+ 
 -- 
 2.0.0
 
