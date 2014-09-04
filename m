@@ -1,69 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id C66576B0037
-	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 21:38:28 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id y13so12438756pdi.37
-        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 18:38:28 -0700 (PDT)
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 771C96B0038
+	for <linux-mm@kvack.org>; Wed,  3 Sep 2014 21:38:29 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id ft15so12308242pdb.20
+        for <linux-mm@kvack.org>; Wed, 03 Sep 2014 18:38:29 -0700 (PDT)
 Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id bx17si306334pdb.153.2014.09.03.18.38.25
+        by mx.google.com with ESMTP id qt3si537289pbc.13.2014.09.03.18.38.26
         for <linux-mm@kvack.org>;
         Wed, 03 Sep 2014 18:38:27 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [RFC 3/3] zram: add swap_get_free hint
-Date: Thu,  4 Sep 2014 10:39:46 +0900
-Message-Id: <1409794786-10951-4-git-send-email-minchan@kernel.org>
-In-Reply-To: <1409794786-10951-1-git-send-email-minchan@kernel.org>
-References: <1409794786-10951-1-git-send-email-minchan@kernel.org>
+Subject: [RFC 0/3] make vm aware of zram-swap
+Date: Thu,  4 Sep 2014 10:39:43 +0900
+Message-Id: <1409794786-10951-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>, Minchan Kim <minchan@kernel.org>
 
-This patch implement SWAP_GET_FREE handler in zram so that VM can
-know how many zram has freeable space.
-VM can use it to stop anonymous reclaiming once zram is full.
+VM uses nr_swap_pages as one of information when it reclaims
+anonymous page because nr_swap_pages means how many freeable
+space in swap so VM is able to throttle swap out if it found
+there is no more space in swap.
 
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- drivers/block/zram/zram_drv.c | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+But for zram-swap, there is size gap between virtual disksize
+and physical memory to be able to store compressed memory so
+nr_swap_pages is not correct parameter to throttle swap.
 
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 88661d62e46a..8e22b20aa2db 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -951,6 +951,22 @@ static int zram_slot_free_notify(struct block_device *bdev,
- 	return 0;
- }
- 
-+static int zram_get_free_pages(struct block_device *bdev, long *free)
-+{
-+	struct zram *zram;
-+	struct zram_meta *meta;
-+
-+	zram = bdev->bd_disk->private_data;
-+	meta = zram->meta;
-+
-+	if (!zram->limit_pages)
-+		return 1;
-+
-+	*free = zram->limit_pages - zs_get_total_pages(meta->mem_pool);
-+
-+	return 0;
-+}
-+
- static int zram_swap_hint(struct block_device *bdev,
- 				unsigned int hint, void *arg)
- {
-@@ -958,6 +974,8 @@ static int zram_swap_hint(struct block_device *bdev,
- 
- 	if (hint == SWAP_SLOT_FREE)
- 		ret = zram_slot_free_notify(bdev, (unsigned long)arg);
-+	else if (hint == SWAP_GET_FREE)
-+		ret = zram_get_free_pages(bdev, arg);
- 
- 	return ret;
- }
+It causes endless anonymous reclaim(ie, swapout) even if there
+is no free space in zram-swap so it makes system unresponsive.
+
+This patch adds new hint SWAP_GET_FREE so zram can return how
+many of freeable space to VM. With using that, VM can know whether
+zram is full and substract remained freeable space from
+nr_swap_pages to make it less than 0. IOW, from now on, VM sees
+there is no more space of zram so that it will stop anonymous
+reclaiming until swap_entry_free free a page which increases
+nr_swap_pages again.
+
+With this patch, user will see OOM when zram-swap is full
+instead of hang with no response.
+
+Minchan Kim (3):
+  zram: generalize swap_slot_free_notify
+  mm: add swap_get_free hint for zram
+  zram: add swap_get_free hint
+
+ Documentation/filesystems/Locking |  7 ++----
+ drivers/block/zram/zram_drv.c     | 36 +++++++++++++++++++++++++--
+ include/linux/blkdev.h            |  8 ++++--
+ mm/page_io.c                      |  7 +++---
+ mm/swapfile.c                     | 52 +++++++++++++++++++++++++++++++++++----
+ 5 files changed, 93 insertions(+), 17 deletions(-)
+
 -- 
 2.0.0
 
