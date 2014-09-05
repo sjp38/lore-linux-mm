@@ -1,106 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 7575E6B0036
-	for <linux-mm@kvack.org>; Fri,  5 Sep 2014 01:14:58 -0400 (EDT)
-Received: by mail-ig0-f173.google.com with SMTP id h18so212631igc.0
-        for <linux-mm@kvack.org>; Thu, 04 Sep 2014 22:14:58 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id oq6si3916487igb.48.2014.09.04.22.14.57
+Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 454DB6B0036
+	for <linux-mm@kvack.org>; Fri,  5 Sep 2014 01:46:34 -0400 (EDT)
+Received: by mail-qg0-f52.google.com with SMTP id z60so11441188qgd.11
+        for <linux-mm@kvack.org>; Thu, 04 Sep 2014 22:46:34 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g69si239914qgg.113.2014.09.04.22.46.33
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 04 Sep 2014 22:14:57 -0700 (PDT)
-Message-ID: <54094697.8010008@oracle.com>
-Date: Fri, 05 Sep 2014 13:13:59 +0800
-From: Junxiao Bi <junxiao.bi@oracle.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 Sep 2014 22:46:33 -0700 (PDT)
+Date: Fri, 5 Sep 2014 01:29:04 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v3 6/6] mm/hugetlb: remove unused argument of
+ follow_huge_addr()
+Message-ID: <20140905052904.GE6883@nhori.redhat.com>
+References: <1409276340-7054-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1409276340-7054-7-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <alpine.LSU.2.11.1409031418420.9811@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: clear __GFP_FS when PF_MEMALLOC_NOIO is set
-References: <1409723694-16047-1-git-send-email-junxiao.bi@oracle.com> <20140904092329.GN20473@dastard> <540920DB.9000200@oracle.com>
-In-Reply-To: <540920DB.9000200@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1409031418420.9811@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: akpm@linux-foundation.org, xuejiufei@huawei.com, ming.lei@canonical.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On 09/05/2014 10:32 AM, Junxiao Bi wrote:
-> On 09/04/2014 05:23 PM, Dave Chinner wrote:
->> On Wed, Sep 03, 2014 at 01:54:54PM +0800, Junxiao Bi wrote:
->>> commit 21caf2fc1931 ("mm: teach mm by current context info to not do I/O during memory allocation")
->>> introduces PF_MEMALLOC_NOIO flag to avoid doing I/O inside memory allocation, __GFP_IO is cleared
->>> when this flag is set, but __GFP_FS implies __GFP_IO, it should also be cleared. Or it may still
->>> run into I/O, like in superblock shrinker.
->>>
->>> Signed-off-by: Junxiao Bi <junxiao.bi@oracle.com>
->>> Cc: joyce.xue <xuejiufei@huawei.com>
->>> Cc: Ming Lei <ming.lei@canonical.com>
->>> ---
->>>  include/linux/sched.h |    6 ++++--
->>>  1 file changed, 4 insertions(+), 2 deletions(-)
->>>
->>> diff --git a/include/linux/sched.h b/include/linux/sched.h
->>> index 5c2c885..2fb2c47 100644
->>> --- a/include/linux/sched.h
->>> +++ b/include/linux/sched.h
->>> @@ -1936,11 +1936,13 @@ extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut,
->>>  #define tsk_used_math(p) ((p)->flags & PF_USED_MATH)
->>>  #define used_math() tsk_used_math(current)
->>>  
->>> -/* __GFP_IO isn't allowed if PF_MEMALLOC_NOIO is set in current->flags */
->>> +/* __GFP_IO isn't allowed if PF_MEMALLOC_NOIO is set in current->flags
->>> + * __GFP_FS is also cleared as it implies __GFP_IO.
->>> + */
->>>  static inline gfp_t memalloc_noio_flags(gfp_t flags)
->>>  {
->>>  	if (unlikely(current->flags & PF_MEMALLOC_NOIO))
->>> -		flags &= ~__GFP_IO;
->>> +		flags &= ~(__GFP_IO | __GFP_FS);
->>>  	return flags;
->>>  }
->>
->> You also need to mask all the shrink_control->gfp_mask
->> initialisations in mm/vmscan.c. The current code only masks the page
->> reclaim gfp_mask, not those that are passed to the shrinkers.
-> Yes, there are some shrink_control->gfp_mask not masked in vmscan.c in
-> the following functions. Beside this, all seemed be masked from direct
-> reclaim path by memalloc_noio_flags().
+On Wed, Sep 03, 2014 at 02:26:37PM -0700, Hugh Dickins wrote:
+> On Thu, 28 Aug 2014, Naoya Horiguchi wrote:
 > 
-> -reclaim_clean_pages_from_list()
-> used by alloc_contig_range(), this function is invoked in hugetlb and
-> cma, for hugetlb, it should be safe as only userspace use it. I am not
-> sure about the cma.
-> David & Andrew, may you share your idea about whether cma is affected?
+> > follow_huge_addr()'s parameter write is not used, so let's remove it.
+> > 
+> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 > 
-Look at CMA, it's used for device which doesn't support scatter/gather
-dma and mainly used for embedded device like camera, this should not be
-the case of the block device. So i think this gfp_mask doesn't need be
-masked.
+> I think this patch is a waste of time: that it should be replaced
+> by a patch which replaces the "write" argument by a "flags" argument,
 
-Thanks,
-Junxiao.
-> -mem_cgroup_shrink_node_zone()
-> -try_to_free_mem_cgroup_pages()
-> These two are used by mem cgroup, as no kernel thread can be assigned
-> into such cgroup, so i think, no need mask.
+OK, I just drop this patch.
+
+> so that follow_huge_addr() can do get_page() for FOLL_GET while holding
+> appropriate lock, instead of the BUG_ON(flags & FOLL_GET) we currently
+> have.
 > 
-> -balance_pgdat()
-> used by kswapd, no need mask.
+> Once that is implemented, you could try getting hugetlb migration
+> tested on ia64 and powerpc; but yes, keep hugetlb migration disabled
+> on all but x86 until it has been tested elsewhere.
 > 
-> -shrink_all_memory()
-> used by hibernate, should be safe with GFP_FS/IO.
-> 
-> Thanks,
-> Junxiao.
->>
->> Cheers,
->>
->> Dave.
->>
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> > ---
+> >  arch/ia64/mm/hugetlbpage.c    | 2 +-
+> >  arch/powerpc/mm/hugetlbpage.c | 2 +-
+> >  arch/x86/mm/hugetlbpage.c     | 2 +-
+> >  include/linux/hugetlb.h       | 5 ++---
+> >  mm/gup.c                      | 2 +-
+> >  mm/hugetlb.c                  | 3 +--
+> >  6 files changed, 7 insertions(+), 9 deletions(-)
+> > 
+> > diff --git mmotm-2014-08-25-16-52.orig/arch/ia64/mm/hugetlbpage.c mmotm-2014-08-25-16-52/arch/ia64/mm/hugetlbpage.c
+> > index 6170381bf074..524a4e001bda 100644
+> > --- mmotm-2014-08-25-16-52.orig/arch/ia64/mm/hugetlbpage.c
+> > +++ mmotm-2014-08-25-16-52/arch/ia64/mm/hugetlbpage.c
+> > @@ -89,7 +89,7 @@ int prepare_hugepage_range(struct file *file,
+> >  	return 0;
+> >  }
+> >  
+> > -struct page *follow_huge_addr(struct mm_struct *mm, unsigned long addr, int write)
+> > +struct page *follow_huge_addr(struct mm_struct *mm, unsigned long addr)
+> >  {
+> >  	struct page *page = NULL;
+> >  	pte_t *ptep;
+> > diff --git mmotm-2014-08-25-16-52.orig/arch/powerpc/mm/hugetlbpage.c mmotm-2014-08-25-16-52/arch/powerpc/mm/hugetlbpage.c
+> > index 1d8854a56309..5b6fe8b0cde3 100644
+> > --- mmotm-2014-08-25-16-52.orig/arch/powerpc/mm/hugetlbpage.c
+> > +++ mmotm-2014-08-25-16-52/arch/powerpc/mm/hugetlbpage.c
+> > @@ -674,7 +674,7 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb,
+> >  }
+> >  
+> >  struct page *
+> > -follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
+> > +follow_huge_addr(struct mm_struct *mm, unsigned long address)
+> >  {
+> >  	pte_t *ptep;
+> >  	struct page *page = ERR_PTR(-EINVAL);
+> > diff --git mmotm-2014-08-25-16-52.orig/arch/x86/mm/hugetlbpage.c mmotm-2014-08-25-16-52/arch/x86/mm/hugetlbpage.c
+> > index 03b8a7c11817..cab09d87ae65 100644
+> > --- mmotm-2014-08-25-16-52.orig/arch/x86/mm/hugetlbpage.c
+> > +++ mmotm-2014-08-25-16-52/arch/x86/mm/hugetlbpage.c
+> > @@ -18,7 +18,7 @@
+> >  
+> >  #if 0	/* This is just for testing */
+> >  struct page *
+> > -follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
+> > +follow_huge_addr(struct mm_struct *mm, unsigned long address)
+> >  {
+> >  	unsigned long start = address;
+> >  	int length = 1;
+> > diff --git mmotm-2014-08-25-16-52.orig/include/linux/hugetlb.h mmotm-2014-08-25-16-52/include/linux/hugetlb.h
+> > index b3200fce07aa..cdff1bd393bb 100644
+> > --- mmotm-2014-08-25-16-52.orig/include/linux/hugetlb.h
+> > +++ mmotm-2014-08-25-16-52/include/linux/hugetlb.h
+> > @@ -96,8 +96,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
+> >  			unsigned long addr, unsigned long sz);
+> >  pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr);
+> >  int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep);
+> > -struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
+> > -			      int write);
+> > +struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address);
+> >  struct page *follow_huge_pmd(struct vm_area_struct *vma, unsigned long address,
+> >  				pmd_t *pmd, int flags);
+> >  struct page *follow_huge_pud(struct vm_area_struct *vma, unsigned long address,
+> > @@ -124,7 +123,7 @@ static inline unsigned long hugetlb_total_pages(void)
+> >  }
+> >  
+> >  #define follow_hugetlb_page(m,v,p,vs,a,b,i,w)	({ BUG(); 0; })
+> > -#define follow_huge_addr(mm, addr, write)	ERR_PTR(-EINVAL)
+> > +#define follow_huge_addr(mm, addr)	ERR_PTR(-EINVAL)
+> >  #define copy_hugetlb_page_range(src, dst, vma)	({ BUG(); 0; })
+> >  static inline void hugetlb_report_meminfo(struct seq_file *m)
+> >  {
+> > diff --git mmotm-2014-08-25-16-52.orig/mm/gup.c mmotm-2014-08-25-16-52/mm/gup.c
+> > index 597a5e92e265..8f0550f1770d 100644
+> > --- mmotm-2014-08-25-16-52.orig/mm/gup.c
+> > +++ mmotm-2014-08-25-16-52/mm/gup.c
+> > @@ -149,7 +149,7 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
+> >  
+> >  	*page_mask = 0;
+> >  
+> > -	page = follow_huge_addr(mm, address, flags & FOLL_WRITE);
+> > +	page = follow_huge_addr(mm, address);
+> >  	if (!IS_ERR(page)) {
+> >  		BUG_ON(flags & FOLL_GET);
+> >  		return page;
+> > diff --git mmotm-2014-08-25-16-52.orig/mm/hugetlb.c mmotm-2014-08-25-16-52/mm/hugetlb.c
+> > index 0a4511115ee0..f7dcad3474ec 100644
+> > --- mmotm-2014-08-25-16-52.orig/mm/hugetlb.c
+> > +++ mmotm-2014-08-25-16-52/mm/hugetlb.c
+> > @@ -3690,8 +3690,7 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+> >   * behavior.
+> >   */
+> >  struct page * __weak
+> > -follow_huge_addr(struct mm_struct *mm, unsigned long address,
+> > -			      int write)
+> > +follow_huge_addr(struct mm_struct *mm, unsigned long address)
+> >  {
+> >  	return ERR_PTR(-EINVAL);
+> >  }
+> > -- 
+> > 1.9.3
 > 
 
 --
