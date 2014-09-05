@@ -1,49 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f172.google.com (mail-vc0-f172.google.com [209.85.220.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 37ABB6B0036
-	for <linux-mm@kvack.org>; Fri,  5 Sep 2014 09:55:26 -0400 (EDT)
-Received: by mail-vc0-f172.google.com with SMTP id le20so988414vcb.17
-        for <linux-mm@kvack.org>; Fri, 05 Sep 2014 06:55:26 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id gr5si4241913pbc.131.2014.09.05.06.55.21
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id C2A5A6B0038
+	for <linux-mm@kvack.org>; Fri,  5 Sep 2014 10:01:14 -0400 (EDT)
+Received: by mail-ob0-f178.google.com with SMTP id uy5so8686171obc.9
+        for <linux-mm@kvack.org>; Fri, 05 Sep 2014 07:01:14 -0700 (PDT)
+Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
+        by mx.google.com with ESMTPS id mp4si3185190obb.24.2014.09.05.07.01.13
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Sep 2014 06:55:21 -0700 (PDT)
-Date: Fri, 5 Sep 2014 17:55:07 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [patch] mm: memcontrol: revert use of root_mem_cgroup res_counter
-Message-ID: <20140905135507.GE25641@esperanza>
-References: <1409921037-21405-1-git-send-email-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <1409921037-21405-1-git-send-email-hannes@cmpxchg.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 05 Sep 2014 07:01:13 -0700 (PDT)
+Message-ID: <1409925023.28990.176.camel@misato.fc.hp.com>
+Subject: Re: [PATCH 1/5] x86, mm, pat: Set WT to PA4 slot of PAT MSR
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Fri, 05 Sep 2014 07:50:23 -0600
+In-Reply-To: <20140905102347.GA30096@gmail.com>
+References: <1409855739-8985-1-git-send-email-toshi.kani@hp.com>
+	 <1409855739-8985-2-git-send-email-toshi.kani@hp.com>
+	 <20140904201123.GA9116@khazad-dum.debian.net>
+	 <1409862708.28990.141.camel@misato.fc.hp.com>
+	 <1409873255.28990.158.camel@misato.fc.hp.com>
+	 <20140905102347.GA30096@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave@sr71.net>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Henrique de Moraes Holschuh <hmh@hmh.eng.br>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linuxfoundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, konrad.wilk@oracle.com
 
-On Fri, Sep 05, 2014 at 08:43:57AM -0400, Johannes Weiner wrote:
-> Dave Hansen reports a massive scalability regression in an uncontained
-> page fault benchmark with more than 30 concurrent threads, which he
-> bisected down to 05b843012335 ("mm: memcontrol: use root_mem_cgroup
-> res_counter") and pin-pointed on res_counter spinlock contention.
+On Fri, 2014-09-05 at 12:23 +0200, Ingo Molnar wrote:
+> * Toshi Kani <toshi.kani@hp.com> wrote:
 > 
-> That change relied on the per-cpu charge caches to mostly swallow the
-> res_counter costs, but it's apparent that the caches don't scale yet.
+> > On Thu, 2014-09-04 at 14:31 -0600, Toshi Kani wrote:
+> > > On Thu, 2014-09-04 at 17:11 -0300, Henrique de Moraes Holschuh wrote:
+> > > > On Thu, 04 Sep 2014, Toshi Kani wrote:
+> > > > > This patch sets WT to the PA4 slot in the PAT MSR when the processor
+> > > > > is not affected by the PAT errata.  The upper 4 slots of the PAT MSR
+> > > > > are continued to be unused on the following Intel processors.
+> > > > > 
+> > > > >   errata           cpuid
+> > > > >   --------------------------------------
+> > > > >   Pentium 2, A52   family 0x6, model 0x5
+> > > > >   Pentium 3, E27   family 0x6, model 0x7
+> > > > >   Pentium M, Y26   family 0x6, model 0x9
+> > > > >   Pentium 4, N46   family 0xf, model 0x0
+> > > > > 
+> > > > > For these affected processors, _PAGE_CACHE_MODE_WT is redirected to UC-
+> > > > > per the default setup in __cachemode2pte_tbl[].
+> > > > 
+> > > > There are at least two PAT errata.  The blacklist is in
+> > > > arch/x86/kernel/cpu/intel.c:
+> > > > 
+> > > >         if (c->x86 == 6 && c->x86_model < 15)
+> > > >                 clear_cpu_cap(c, X86_FEATURE_PAT);
+> > > > 
+> > > > It covers model 13, which is not in your blacklist.
+> > > > 
+> > > > It *is* possible that PAT would work on model 13, as I don't think it has
+> > > > any PAT errata listed and it was blacklisted "just in case" (from memory. I
+> > > > did not re-check), but this is untested, and unwise to enable on an aging
+> > > > platform.
+> > > > 
+> > > > I am worried of uncharted territory, here.  I'd actually advocate for not
+> > > > enabling the upper four PAT entries on IA-32 at all, unless Windows 9X / XP
+> > > > is using them as well.  Is this a real concern, or am I being overly
+> > > > cautious?
+> > > 
+> > > The blacklist you pointed out covers a different PAT errata, and is
+> > > still effective after this change.  pat_init() will call pat_disable()
+> > > and the PAT will continue to be disabled on these processors.  There is
+> > > no change for them.
+> > > 
+> > > My blacklist covers the PAT errata that makes the upper four bit
+> > > unusable when the PAT is enabled.
+> > 
+> > I checked more carefully, and it turns out that the processors 
+> > that have the WC bug with PAT/MTRR also have the upper four bit 
+> > bug in PAT as well.  The updated blacklist is:
+> > 
+> >    errata               cpuid
+> >    --------------------------------------
+> >    Pentium 2, A52       family 0x6, model 0x5
+> >    Pentium 3, E27       family 0x6, model 0x7, 0x8
+> >    Pentium 3 Xeon, G26  family 0x6, model 0x7, 0x8, 0xa
+> >    Pentium M, Y26       family 0x6, model 0x9
+> >    Pentium M 90nm, X9   family 0x6, model 0xd
+> >    Pentium 4, N46       family 0xf, model 0x0
+> >                 
+> > So, the check can be the same as cpu/intel.c, except that early 
+> > Pentium 4 steppings also have the upper four bit bug.  I will 
+> > update the check. In any case, this check is only meaningful 
+> > for P4 since the PAT is disabled for P2/3/M.
 > 
-> Revert memcg back to bypassing res_counters on the root level in order
-> to restore performance for uncontained workloads.
+> Any reason why we have to create such a sharp boundary, instead 
+> of simply saying: 'disable PAT on all x86 CPU families that have 
+> at least one buggy model'?
 > 
-> Reported-by: Dave Hansen <dave@sr71.net>
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Tested-by: Dave Hansen <dave.hansen@intel.com>
-> Acked-by: Michal Hocko <mhocko@suse.cz>
+> That would nicely sort out all the broken CPUs, and would make it 
+> highly unlikely that we'd accidentally forget about a model or 
+> two.
 
-It's a pity we have to revert this nice cleanup, but seems we can't do
-anything better right now. FWIW,
+Agreed.  I will disable this feature on all Pentium 4 models as well.  I
+do not think there is any necessity to enable it on Pentium 4.
 
-Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
