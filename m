@@ -1,107 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id C2A5A6B0038
-	for <linux-mm@kvack.org>; Fri,  5 Sep 2014 10:01:14 -0400 (EDT)
-Received: by mail-ob0-f178.google.com with SMTP id uy5so8686171obc.9
-        for <linux-mm@kvack.org>; Fri, 05 Sep 2014 07:01:14 -0700 (PDT)
-Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
-        by mx.google.com with ESMTPS id mp4si3185190obb.24.2014.09.05.07.01.13
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 174A06B0038
+	for <linux-mm@kvack.org>; Fri,  5 Sep 2014 10:11:08 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id et14so22298574pad.16
+        for <linux-mm@kvack.org>; Fri, 05 Sep 2014 07:11:06 -0700 (PDT)
+Received: from g2t2354.austin.hp.com (g2t2354.austin.hp.com. [15.217.128.53])
+        by mx.google.com with ESMTPS id f5si4571380pat.14.2014.09.05.07.11.03
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 05 Sep 2014 07:01:13 -0700 (PDT)
-Message-ID: <1409925023.28990.176.camel@misato.fc.hp.com>
+        Fri, 05 Sep 2014 07:11:04 -0700 (PDT)
+Message-ID: <1409925614.28990.184.camel@misato.fc.hp.com>
 Subject: Re: [PATCH 1/5] x86, mm, pat: Set WT to PA4 slot of PAT MSR
 From: Toshi Kani <toshi.kani@hp.com>
-Date: Fri, 05 Sep 2014 07:50:23 -0600
-In-Reply-To: <20140905102347.GA30096@gmail.com>
+Date: Fri, 05 Sep 2014 08:00:14 -0600
+In-Reply-To: <CALCETrUhbx4hFRAkHfczLkZBYo0E7tRmdFyO7bqPd5e9JEWcMA@mail.gmail.com>
 References: <1409855739-8985-1-git-send-email-toshi.kani@hp.com>
 	 <1409855739-8985-2-git-send-email-toshi.kani@hp.com>
-	 <20140904201123.GA9116@khazad-dum.debian.net>
-	 <1409862708.28990.141.camel@misato.fc.hp.com>
-	 <1409873255.28990.158.camel@misato.fc.hp.com>
-	 <20140905102347.GA30096@gmail.com>
+	 <20140904201123.GA9116@khazad-dum.debian.net> <5408C9C4.1010705@zytor.com>
+	 <20140904231923.GA15320@khazad-dum.debian.net>
+	 <CALCETrWxKFtM8FhnHQz--uaHYbiqShE1XLJxMCKN7Rs4SO14eQ@mail.gmail.com>
+	 <1409876991.28990.172.camel@misato.fc.hp.com>
+	 <CALCETrUhbx4hFRAkHfczLkZBYo0E7tRmdFyO7bqPd5e9JEWcMA@mail.gmail.com>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Henrique de Moraes Holschuh <hmh@hmh.eng.br>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linuxfoundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, konrad.wilk@oracle.com
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Henrique de Moraes Holschuh <hmh@hmh.eng.br>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, akpm@linuxfoundation.org, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Juergen Gross <jgross@suse.com>, Stefan Bader <stefan.bader@canonical.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-On Fri, 2014-09-05 at 12:23 +0200, Ingo Molnar wrote:
-> * Toshi Kani <toshi.kani@hp.com> wrote:
+On Thu, 2014-09-04 at 17:51 -0700, Andy Lutomirski wrote:
+> On Thu, Sep 4, 2014 at 5:29 PM, Toshi Kani <toshi.kani@hp.com> wrote:
+> > On Thu, 2014-09-04 at 16:34 -0700, Andy Lutomirski wrote:
+> >> On Thu, Sep 4, 2014 at 4:19 PM, Henrique de Moraes Holschuh
+> >> <hmh@hmh.eng.br> wrote:
+> >> > On Thu, 04 Sep 2014, H. Peter Anvin wrote:
+> >> >> On 09/04/2014 01:11 PM, Henrique de Moraes Holschuh wrote:
+> >> >> > I am worried of uncharted territory, here.  I'd actually advocate for not
+> >> >> > enabling the upper four PAT entries on IA-32 at all, unless Windows 9X / XP
+> >> >> > is using them as well.  Is this a real concern, or am I being overly
+> >> >> > cautious?
+> >> >>
+> >> >> It is extremely unlikely that we'd have PAT issues in 32-bit mode and
+> >> >> not in 64-bit mode on the same CPU.
+> >> >
+> >> > Sure, but is it really a good idea to enable this on the *old* non-64-bit
+> >> > capable processors (note: I don't mean x86-64 processors operating in 32-bit
+> >> > mode) ?
+> >> >
+> >> >> As far as I know, the current blacklist rule is very conservative due to
+> >> >> lack of testing more than anything else.
+> >> >
+> >> > I was told that much in 2009 when I asked why cpuid 0x6d8 was blacklisted
+> >> > from using PAT :-)
+> >>
+> >> At the very least, anyone who plugs an NV-DIMM into a 32-bit machine
+> >> is nuts, and not just because I'd be somewhat amazed if it even
+> >> physically fits into the slot. :)
+> >
+> > According to the spec, the upper four entries bug was fixed in Pentium 4
+> > model 0x1.  So, the remaining Intel 32-bit processors that may enable
+> > the upper four entries are Pentium 4 model 0x1-4.  Should we disable it
+> > for all Pentium 4 models?
 > 
-> > On Thu, 2014-09-04 at 14:31 -0600, Toshi Kani wrote:
-> > > On Thu, 2014-09-04 at 17:11 -0300, Henrique de Moraes Holschuh wrote:
-> > > > On Thu, 04 Sep 2014, Toshi Kani wrote:
-> > > > > This patch sets WT to the PA4 slot in the PAT MSR when the processor
-> > > > > is not affected by the PAT errata.  The upper 4 slots of the PAT MSR
-> > > > > are continued to be unused on the following Intel processors.
-> > > > > 
-> > > > >   errata           cpuid
-> > > > >   --------------------------------------
-> > > > >   Pentium 2, A52   family 0x6, model 0x5
-> > > > >   Pentium 3, E27   family 0x6, model 0x7
-> > > > >   Pentium M, Y26   family 0x6, model 0x9
-> > > > >   Pentium 4, N46   family 0xf, model 0x0
-> > > > > 
-> > > > > For these affected processors, _PAGE_CACHE_MODE_WT is redirected to UC-
-> > > > > per the default setup in __cachemode2pte_tbl[].
-> > > > 
-> > > > There are at least two PAT errata.  The blacklist is in
-> > > > arch/x86/kernel/cpu/intel.c:
-> > > > 
-> > > >         if (c->x86 == 6 && c->x86_model < 15)
-> > > >                 clear_cpu_cap(c, X86_FEATURE_PAT);
-> > > > 
-> > > > It covers model 13, which is not in your blacklist.
-> > > > 
-> > > > It *is* possible that PAT would work on model 13, as I don't think it has
-> > > > any PAT errata listed and it was blacklisted "just in case" (from memory. I
-> > > > did not re-check), but this is untested, and unwise to enable on an aging
-> > > > platform.
-> > > > 
-> > > > I am worried of uncharted territory, here.  I'd actually advocate for not
-> > > > enabling the upper four PAT entries on IA-32 at all, unless Windows 9X / XP
-> > > > is using them as well.  Is this a real concern, or am I being overly
-> > > > cautious?
-> > > 
-> > > The blacklist you pointed out covers a different PAT errata, and is
-> > > still effective after this change.  pat_init() will call pat_disable()
-> > > and the PAT will continue to be disabled on these processors.  There is
-> > > no change for them.
-> > > 
-> > > My blacklist covers the PAT errata that makes the upper four bit
-> > > unusable when the PAT is enabled.
-> > 
-> > I checked more carefully, and it turns out that the processors 
-> > that have the WC bug with PAT/MTRR also have the upper four bit 
-> > bug in PAT as well.  The updated blacklist is:
-> > 
-> >    errata               cpuid
-> >    --------------------------------------
-> >    Pentium 2, A52       family 0x6, model 0x5
-> >    Pentium 3, E27       family 0x6, model 0x7, 0x8
-> >    Pentium 3 Xeon, G26  family 0x6, model 0x7, 0x8, 0xa
-> >    Pentium M, Y26       family 0x6, model 0x9
-> >    Pentium M 90nm, X9   family 0x6, model 0xd
-> >    Pentium 4, N46       family 0xf, model 0x0
-> >                 
-> > So, the check can be the same as cpu/intel.c, except that early 
-> > Pentium 4 steppings also have the upper four bit bug.  I will 
-> > update the check. In any case, this check is only meaningful 
-> > for P4 since the PAT is disabled for P2/3/M.
-> 
-> Any reason why we have to create such a sharp boundary, instead 
-> of simply saying: 'disable PAT on all x86 CPU families that have 
-> at least one buggy model'?
-> 
-> That would nicely sort out all the broken CPUs, and would make it 
-> highly unlikely that we'd accidentally forget about a model or 
-> two.
+> Assuming that this is Pentium 4 erratum N46, then there may be another
+> option: use slot 7 instead of slot 4 for WT.  Then, even if somehow
+> the blacklist screws up, the worst that happens is that a WT page gets
+> interpreted as UC.  I suppose this could cause aliasing issues, but
+> can't cause problems for people who don't use the high entries in the
+> first place.
 
-Agreed.  I will disable this feature on all Pentium 4 models as well.  I
-do not think there is any necessity to enable it on Pentium 4.
+That's a fine idea, but as Ingo also suggested, I am going to disable
+this feature on all Pentium 4 models.  That should give us a safety
+margin.  Using slot 4 has a benefit that it keeps the PAT setup
+consistent with Xen.      
 
 Thanks,
 -Toshi
