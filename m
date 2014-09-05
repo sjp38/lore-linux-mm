@@ -1,79 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id D6B3A6B0037
-	for <linux-mm@kvack.org>; Fri,  5 Sep 2014 05:28:46 -0400 (EDT)
-Received: by mail-wi0-f181.google.com with SMTP id e4so2618556wiv.8
-        for <linux-mm@kvack.org>; Fri, 05 Sep 2014 02:28:46 -0700 (PDT)
-Received: from mail-wg0-x22a.google.com (mail-wg0-x22a.google.com [2a00:1450:400c:c00::22a])
-        by mx.google.com with ESMTPS id s20si2144015wiv.55.2014.09.05.02.28.43
+Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
+	by kanga.kvack.org (Postfix) with ESMTP id D4AEA6B0036
+	for <linux-mm@kvack.org>; Fri,  5 Sep 2014 06:14:56 -0400 (EDT)
+Received: by mail-la0-f54.google.com with SMTP id b17so13742206lan.27
+        for <linux-mm@kvack.org>; Fri, 05 Sep 2014 03:14:56 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a12si2160275lbl.110.2014.09.05.03.14.54
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 05 Sep 2014 02:28:44 -0700 (PDT)
-Received: by mail-wg0-f42.google.com with SMTP id b13so11336884wgh.25
-        for <linux-mm@kvack.org>; Fri, 05 Sep 2014 02:28:43 -0700 (PDT)
-Date: Fri, 5 Sep 2014 11:28:41 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: regression caused by cgroups optimization in 3.17-rc2
-Message-ID: <20140905092841.GD26243@dhcp22.suse.cz>
-References: <54061505.8020500@sr71.net>
- <5406262F.4050705@intel.com>
- <54062F32.5070504@sr71.net>
- <20140904142721.GB14548@dhcp22.suse.cz>
- <5408CB2E.3080101@sr71.net>
- <5408ED7A.5010908@intel.com>
+        Fri, 05 Sep 2014 03:14:55 -0700 (PDT)
+Date: Fri, 5 Sep 2014 11:14:51 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] mm: page_alloc: Fix setting of ZONE_FAIR_DEPLETED on UP
+Message-ID: <20140905101451.GF17501@suse.de>
+References: <1404893588-21371-1-git-send-email-mgorman@suse.de>
+ <1404893588-21371-7-git-send-email-mgorman@suse.de>
+ <53E4EC53.1050904@suse.cz>
+ <20140811121241.GD7970@suse.de>
+ <53E8B83D.1070004@suse.cz>
+ <20140902140116.GD29501@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <5408ED7A.5010908@intel.com>
+In-Reply-To: <20140902140116.GD29501@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Dave Hansen <dave@sr71.net>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-On Thu 04-09-14 15:53:46, Dave Hansen wrote:
-> On 09/04/2014 01:27 PM, Dave Hansen wrote:
-> > On 09/04/2014 07:27 AM, Michal Hocko wrote:
-> >> Ouch. free_pages_and_swap_cache completely kills the uncharge batching
-> >> because it reduces it to PAGEVEC_SIZE batches.
-> >>
-> >> I think we really do not need PAGEVEC_SIZE batching anymore. We are
-> >> already batching on tlb_gather layer. That one is limited so I think
-> >> the below should be safe but I have to think about this some more. There
-> >> is a risk of prolonged lru_lock wait times but the number of pages is
-> >> limited to 10k and the heavy work is done outside of the lock. If this
-> >> is really a problem then we can tear LRU part and the actual
-> >> freeing/uncharging into a separate functions in this path.
-> >>
-> >> Could you test with this half baked patch, please? I didn't get to test
-> >> it myself unfortunately.
-> > 
-> > 3.16 settled out at about 11.5M faults/sec before the regression.  This
-> > patch gets it back up to about 10.5M, which is good.  The top spinlock
-> > contention in the kernel is still from the resource counter code via
-> > mem_cgroup_commit_charge(), though.
-> > 
-> > I'm running Johannes' patch now.
-> 
-> This looks pretty good.  The area where it plateaus (above 80 threads
-> where hyperthreading kicks in) might be a bit slower than it was in
-> 3.16, but that could easily be from other things.
+Commit 4ffeaf35 (mm: page_alloc: reduce cost of the fair zone allocation policy)
+broke the fair zone allocation policy on UP with these hunks.
 
-Good news indeed. But I think it would be safer to apply Johannes'
-revert for now. Both changes are still worth having anyway because they
-have potential to improve memcg case.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6e5e8f7..fb99081 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1612,6 +1612,9 @@ again:
+        }
 
-> > https://www.sr71.net/~dave/intel/bb.html?1=3.16.0-rc4-g67b9d76/&2=3.17.0-rc3-g57b252f
-> 
-> Feel free to add my Tested-by:
+        __mod_zone_page_state(zone, NR_ALLOC_BATCH, -(1 << order));
++       if (zone_page_state(zone, NR_ALLOC_BATCH) == 0 &&
++           !zone_is_fair_depleted(zone))
++               zone_set_flag(zone, ZONE_FAIR_DEPLETED);
 
-Thanks a lot! I have posted another patch which reduces the batching for
-LRU handling because this would be too risky. So I haven't added your
-Tested-by yet.
+        __count_zone_vm_events(PGALLOC, zone, 1 << order);
+        zone_statistics(preferred_zone, zone, gfp_flags);
+@@ -1966,8 +1985,10 @@ zonelist_scan:
+                if (alloc_flags & ALLOC_FAIR) {
+                        if (!zone_local(preferred_zone, zone))
+                                break;
+-                       if (zone_page_state(zone, NR_ALLOC_BATCH) <= 0)
++                       if (zone_is_fair_depleted(zone)) {
++                               nr_fair_skipped++;
+                                continue;
++                       }
+                }
+
+The problem is that a <= check was replaced with a ==. On SMP it doesn't
+matter because negative values are returned as zero due to per-CPU drift
+which is not possible in the UP case. Vlastimil Babka correctly pointed
+out that this can be negative due to high-order allocations. This patch
+fixes the problem.
+
+Reported-by: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 18cee0d..cd4c05c 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1612,7 +1612,7 @@ again:
+ 	}
  
-
--- 
-Michal Hocko
-SUSE Labs
+ 	__mod_zone_page_state(zone, NR_ALLOC_BATCH, -(1 << order));
+-	if (zone_page_state(zone, NR_ALLOC_BATCH) == 0 &&
++	if (zone_page_state(zone, NR_ALLOC_BATCH) <= 0 &&
+ 	    !zone_is_fair_depleted(zone))
+ 		zone_set_flag(zone, ZONE_FAIR_DEPLETED);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
