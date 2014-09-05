@@ -1,348 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A8A46B0036
-	for <linux-mm@kvack.org>; Fri,  5 Sep 2014 07:32:08 -0400 (EDT)
-Received: by mail-ob0-f182.google.com with SMTP id va2so8436591obc.13
-        for <linux-mm@kvack.org>; Fri, 05 Sep 2014 04:32:07 -0700 (PDT)
-Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com [2607:f8b0:400e:c03::22d])
-        by mx.google.com with ESMTPS id pd5si3630309pbb.28.2014.09.05.04.32.06
+Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 78FA86B0036
+	for <linux-mm@kvack.org>; Fri,  5 Sep 2014 08:35:40 -0400 (EDT)
+Received: by mail-lb0-f177.google.com with SMTP id l4so855826lbv.8
+        for <linux-mm@kvack.org>; Fri, 05 Sep 2014 05:35:39 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id o7si2814005lbi.59.2014.09.05.05.35.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 05 Sep 2014 04:32:06 -0700 (PDT)
-Received: by mail-pa0-f45.google.com with SMTP id bj1so21951058pad.32
-        for <linux-mm@kvack.org>; Fri, 05 Sep 2014 04:32:05 -0700 (PDT)
-Date: Fri, 5 Sep 2014 20:31:42 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH v3] zram: add num_discards for discarded pages stat
-Message-ID: <20140905113142.GA1120@swordfish>
-References: <000201cfbde2$2ae08710$80a19530$@samsung.com>
- <20140825003610.GM17372@bbox>
- <20140825110118.GA933@swordfish>
- <20140826050839.GF11319@bbox>
- <20140826141543.GB934@swordfish>
- <20140904022507.GA13540@bbox>
- <20140904154331.GA1113@swordfish>
- <20140905003540.GB32561@bbox>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 05 Sep 2014 05:35:34 -0700 (PDT)
+Date: Fri, 5 Sep 2014 08:35:17 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: regression caused by cgroups optimization in 3.17-rc2
+Message-ID: <20140905123517.GA21208@cmpxchg.org>
+References: <54061505.8020500@sr71.net>
+ <5406262F.4050705@intel.com>
+ <54062F32.5070504@sr71.net>
+ <20140904142721.GB14548@dhcp22.suse.cz>
+ <5408CB2E.3080101@sr71.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140905003540.GB32561@bbox>
+In-Reply-To: <5408CB2E.3080101@sr71.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Chao Yu <chao2.yu@samsung.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, ngupta@vflare.org, 'Jerome Marchand' <jmarchan@redhat.com>, 'Andrew Morton' <akpm@linux-foundation.org>
+To: Dave Hansen <dave@sr71.net>
+Cc: Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Tejun Heo <tj@kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, LKML <linux-kernel@vger.kernel.org>
 
-Hello,
+On Thu, Sep 04, 2014 at 01:27:26PM -0700, Dave Hansen wrote:
+> On 09/04/2014 07:27 AM, Michal Hocko wrote:
+> > Ouch. free_pages_and_swap_cache completely kills the uncharge batching
+> > because it reduces it to PAGEVEC_SIZE batches.
+> > 
+> > I think we really do not need PAGEVEC_SIZE batching anymore. We are
+> > already batching on tlb_gather layer. That one is limited so I think
+> > the below should be safe but I have to think about this some more. There
+> > is a risk of prolonged lru_lock wait times but the number of pages is
+> > limited to 10k and the heavy work is done outside of the lock. If this
+> > is really a problem then we can tear LRU part and the actual
+> > freeing/uncharging into a separate functions in this path.
+> > 
+> > Could you test with this half baked patch, please? I didn't get to test
+> > it myself unfortunately.
+> 
+> 3.16 settled out at about 11.5M faults/sec before the regression.  This
+> patch gets it back up to about 10.5M, which is good.  The top spinlock
+> contention in the kernel is still from the resource counter code via
+> mem_cgroup_commit_charge(), though.
 
-On (09/05/14 09:35), Minchan Kim wrote:
-> Hi Sergey,
-> 
-> On Fri, Sep 05, 2014 at 12:43:31AM +0900, Sergey Senozhatsky wrote:
-> > Hello,
-> > 
-> > On (09/04/14 11:25), Minchan Kim wrote:
-> > > Hello Sergey,
-> > > 
-> > > First of all, Sorry for late response.
-> > > 
-> > > On Tue, Aug 26, 2014 at 11:15:43PM +0900, Sergey Senozhatsky wrote:
-> > > > Hello,
-> > > > 
-> > > > On (08/26/14 14:08), Minchan Kim wrote:
-> > > > > Hi,
-> > > > > 
-> > > > > On Mon, Aug 25, 2014 at 08:01:18PM +0900, Sergey Senozhatsky wrote:
-> > > > > > Hello,
-> > > > > > 
-> > > > > > On (08/25/14 09:36), Minchan Kim wrote:
-> > > > > > > Hello Chao,
-> > > > > > > 
-> > > > > > > On Fri, Aug 22, 2014 at 04:21:01PM +0800, Chao Yu wrote:
-> > > > > > > > Since we have supported handling discard request in this commit
-> > > > > > > > f4659d8e620d08bd1a84a8aec5d2f5294a242764 (zram: support REQ_DISCARD), zram got
-> > > > > > > > one more chance to free unused memory whenever received discard request. But
-> > > > > > > > without stating for discard request, there is no method for user to know whether
-> > > > > > > > discard request has been handled by zram or how many blocks were discarded by
-> > > > > > > > zram when user wants to know the effect of discard.
-> > > > > > > 
-> > > > > > > My concern is that how much we are able to know the effect of discard
-> > > > > > > exactly with your patch.
-> > > > > > > 
-> > > > > > > The issue I can think of is zram-swap discard.
-> > > > > > > Now, zram handles notification from VM to free duplicated copy between
-> > > > > > > VM-owned memory and zRAM-owned's one so discarding for zram-swap might
-> > > > > > > be pointless overhead but your stat indicates lots of free page discarded
-> > > > > > > without real freeing 
-> > > > > > 
-> > > > > > this is why I've moved stats accounting to the place where actual
-> > > > > > zs_free() happens. and, frankly, I still would like to see the number
-> > > > > > of zs_free() calls, rather than the number of slot free notifications
-> > > > > > and REQ_DISCARD (or separately), because they all end up calling
-> > > > > > zs_free(). iow, despite the call path, from the user point of view
-> > > > > > they are just zs_free() -- the number of pages that's been freed by
-> > > > > > the 3rd party and we had have to deal with that.
-> > > > > 
-> > > > > My qeustion is that what user can do with the only real freeing count?
-> > > > > Could you give me a concret example?
-> > > > 
-> > > > for !swap device case it's identicall to `num_discarded'.
-> > > > for swap device case, it's a bit more complicated (less convenient) if
-> > > > we actually can receive both slot free and delayed REQ_DISCARDs.
-> > > > 
-> > > > > It's a just number of real freeing count so if you were admin, what
-> > > > > do you expect from that? That's what I'd like to see in changelog.
-> > > > > 
-> > > > > > 
-> > > > > > > so that user might think "We should keep enable
-> > > > > > > swap discard for zRAM because the stat indicates it's really good".
-> > > > > > > 
-> > > > > > > In summary, wouldn't it better to have two?
-> > > > > > > 
-> > > > > > > num_discards,
-> > > > > > > num_failed_discards?
-> > > > > > 
-> > > > > > do we actully need this? the only value I can think of (perhaps I'm
-> > > > > > missing something) is that we can make sure that we need to support
-> > > > > > both slot free and REQ_DISCARDS, or we can leave only REQ_DISCARDS.
-> > > > > > is there anything else?
-> > > > > 
-> > > > > The secnario I imagined with two stat is how REQ_DISCARDS is effective
-> > > > > from swap layer. Normally, slot free logic is called in advance
-> > > > > when the page is zapped or swap read happens to avoid duplicate copy,
-> > > > > so discard request from swap space would be just overhead without
-> > > > > any benefit so we might guide zram-swap user don't use "swap -d".
-> > > > > Otherwise, as failed_discard ratio is low, it means it would be
-> > > > > better to remove swap slot free logic because swap discard works well
-> > > > > without slot free hint.(Although I don't think)
-> > > > 
-> > > > yes, so it looks like it is a developer's stat - to make some
-> > > > observations and to come up with some decisions. do we really
-> > > > want to put it into release?
-> > > 
-> > > Agree. I was too specific for my purpose and it couldn't be
-> > > a compelling reason to make it export for general purpose.
-> > > 
-> > > Actually, discard req sent by swap for getting free cluster
-> > > shouldn't be success(i,e num_discarded should be zero) because
-> > > zram_slot_free_notify will always free the duplicated copy
-> > > in advance so user don't have any gain with 'swapon -d'.
-> > > 
-> > > Now, I agree with you that we shouldn't add more stat without
-> > > compelling reason so it would be better to rename notify_free
-> > > with discarded and move it in zram_free_page like your patch.
-> > > https://lkml.org/lkml/2014/8/21/294
-> > > 
-> > > I will ask to Andrew to revert Chao's patch and pick your patch
-> > > after a few days unless Chao has another opinion.
-> > > 
-> > 
-> > no problem.
-> > 
-> > I, probably, was not clear enough. one of my objections was that
-> > it is really easy to add a new stat file, and surprisingly hard to
-> > remove it later, even a temporary one. because it's almost impossible
-> > to beat the "someone might use it" argument.
-> 
-> Almost true but it's not the case for sysfs.
-> Documentation/sysfs-rulies.txt says
-> 
-> "The kernel-exported sysfs exports internal kernel implementation details
-> and depends on internal kernel structures and layout. It is agreed upon
-> by the kernel developers that the Linux kernel does not provide a stable
-> internal API. Therefore, there are aspects of the sysfs interface that
-> may not be stable across kernel releases."
-> 
-> So, we could decide a schedule when we removes and warn to user
-> if they try to see that. If any serious issue doesn't appear until
-> the deadline, we would remove it then.
-> 
-> You could read Documentation/ABI/README.
+Thanks for testing, that looks a lot better.
 
-oh, didn't know that. thanks!
-
-> 
-> > just a side note, my whole impresion is that some of the stats, that we
-> > export, belongs to /proc/diskstats, /sys/block/zramX/stat and frieds.
-> > I didn't check but I think that some handy tools like iostat/etc are
-> > using these files. though I have no idea how often (if ever) people
-> > want to track (or at least see) zram in iostat or similar tools.
-> 
-> Yeb, I knew it and wanted to clean it up in my spare time but
-> patches are welcome!
-> 
-> > 
-> > 
-> > 
-> > please let me know if I have to resend the patch.
-> 
-> It would be great if you send.
-> Could you resend a patch with aking to Andrew for dropping
-> Chao's patch?
-
-ok.
-
-	-ss
-
-> Thanks!
-> 
-> > 
-> > 	-ss
-> > 
-> > > > 
-> > > > 
-> > > > I'm not strongly against and we can proceed with Chao's patch.
-> > > > 
-> > > > 	-ss
-> > > > 
-> > > > > My point is I'm not saying you're wrong but adding a new stat is easy
-> > > > > and I need a compelling reason that how it can help users.
-> > > > > 
-> > > > > Thanks.
-> > > > > 
-> > > > > > 
-> > > > > > 	-ss
-> > > > > > 
-> > > > > > > For it, we should modify zram_free_page has return value.
-> > > > > > > What do other guys think?
-> > > > > > > 
-> > > > > > > > 
-> > > > > > > > In this patch, we add num_discards to stat discarded pages, and export it to
-> > > > > > > > sysfs for users.
-> > > > > > > > 
-> > > > > > > > * From v1
-> > > > > > > >  * Update zram document to show num_discards in statistics list.
-> > > > > > > > 
-> > > > > > > > * From v2
-> > > > > > > >  * Update description of this patch with clear goal.
-> > > > > > > > 
-> > > > > > > > Signed-off-by: Chao Yu <chao2.yu@samsung.com>
-> > > > > > > > ---
-> > > > > > > >  Documentation/ABI/testing/sysfs-block-zram | 10 ++++++++++
-> > > > > > > >  Documentation/blockdev/zram.txt            |  1 +
-> > > > > > > >  drivers/block/zram/zram_drv.c              |  3 +++
-> > > > > > > >  drivers/block/zram/zram_drv.h              |  1 +
-> > > > > > > >  4 files changed, 15 insertions(+)
-> > > > > > > > 
-> > > > > > > > diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
-> > > > > > > > index 70ec992..fa8936e 100644
-> > > > > > > > --- a/Documentation/ABI/testing/sysfs-block-zram
-> > > > > > > > +++ b/Documentation/ABI/testing/sysfs-block-zram
-> > > > > > > > @@ -57,6 +57,16 @@ Description:
-> > > > > > > >  		The failed_writes file is read-only and specifies the number of
-> > > > > > > >  		failed writes happened on this device.
-> > > > > > > >  
-> > > > > > > > +
-> > > > > > > > +What:		/sys/block/zram<id>/num_discards
-> > > > > > > > +Date:		August 2014
-> > > > > > > > +Contact:	Chao Yu <chao2.yu@samsung.com>
-> > > > > > > > +Description:
-> > > > > > > > +		The num_discards file is read-only and specifies the number of
-> > > > > > > > +		physical blocks which are discarded by this device. These blocks
-> > > > > > > > +		are included in discard request which is sended by filesystem as
-> > > > > > > > +		the blocks are no longer used.
-> > > > > > > > +
-> > > > > > > >  What:		/sys/block/zram<id>/max_comp_streams
-> > > > > > > >  Date:		February 2014
-> > > > > > > >  Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> > > > > > > > diff --git a/Documentation/blockdev/zram.txt b/Documentation/blockdev/zram.txt
-> > > > > > > > index 0595c3f..e50e18b 100644
-> > > > > > > > --- a/Documentation/blockdev/zram.txt
-> > > > > > > > +++ b/Documentation/blockdev/zram.txt
-> > > > > > > > @@ -89,6 +89,7 @@ size of the disk when not in use so a huge zram is wasteful.
-> > > > > > > >  		num_writes
-> > > > > > > >  		failed_reads
-> > > > > > > >  		failed_writes
-> > > > > > > > +		num_discards
-> > > > > > > >  		invalid_io
-> > > > > > > >  		notify_free
-> > > > > > > >  		zero_pages
-> > > > > > > > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> > > > > > > > index d00831c..904e7a5 100644
-> > > > > > > > --- a/drivers/block/zram/zram_drv.c
-> > > > > > > > +++ b/drivers/block/zram/zram_drv.c
-> > > > > > > > @@ -606,6 +606,7 @@ static void zram_bio_discard(struct zram *zram, u32 index,
-> > > > > > > >  		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
-> > > > > > > >  		zram_free_page(zram, index);
-> > > > > > > >  		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
-> > > > > > > > +		atomic64_inc(&zram->stats.num_discards);
-> > > > > > > >  		index++;
-> > > > > > > >  		n -= PAGE_SIZE;
-> > > > > > > >  	}
-> > > > > > > > @@ -866,6 +867,7 @@ ZRAM_ATTR_RO(num_reads);
-> > > > > > > >  ZRAM_ATTR_RO(num_writes);
-> > > > > > > >  ZRAM_ATTR_RO(failed_reads);
-> > > > > > > >  ZRAM_ATTR_RO(failed_writes);
-> > > > > > > > +ZRAM_ATTR_RO(num_discards);
-> > > > > > > >  ZRAM_ATTR_RO(invalid_io);
-> > > > > > > >  ZRAM_ATTR_RO(notify_free);
-> > > > > > > >  ZRAM_ATTR_RO(zero_pages);
-> > > > > > > > @@ -879,6 +881,7 @@ static struct attribute *zram_disk_attrs[] = {
-> > > > > > > >  	&dev_attr_num_writes.attr,
-> > > > > > > >  	&dev_attr_failed_reads.attr,
-> > > > > > > >  	&dev_attr_failed_writes.attr,
-> > > > > > > > +	&dev_attr_num_discards.attr,
-> > > > > > > >  	&dev_attr_invalid_io.attr,
-> > > > > > > >  	&dev_attr_notify_free.attr,
-> > > > > > > >  	&dev_attr_zero_pages.attr,
-> > > > > > > > diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-> > > > > > > > index e0f725c..2994aaf 100644
-> > > > > > > > --- a/drivers/block/zram/zram_drv.h
-> > > > > > > > +++ b/drivers/block/zram/zram_drv.h
-> > > > > > > > @@ -86,6 +86,7 @@ struct zram_stats {
-> > > > > > > >  	atomic64_t num_writes;	/* --do-- */
-> > > > > > > >  	atomic64_t failed_reads;	/* can happen when memory is too low */
-> > > > > > > >  	atomic64_t failed_writes;	/* can happen when memory is too low */
-> > > > > > > > +	atomic64_t num_discards;	/* no. of discarded pages */
-> > > > > > > >  	atomic64_t invalid_io;	/* non-page-aligned I/O requests */
-> > > > > > > >  	atomic64_t notify_free;	/* no. of swap slot free notifications */
-> > > > > > > >  	atomic64_t zero_pages;		/* no. of zero filled pages */
-> > > > > > > > -- 
-> > > > > > > > 2.0.1.474.g72c7794
-> > > > > > > > 
-> > > > > > > > 
-> > > > > > > > --
-> > > > > > > > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > > > > > > > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > > > > > > > see: http://www.linux-mm.org/ .
-> > > > > > > > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> > > > > > > 
-> > > > > > > -- 
-> > > > > > > Kind regards,
-> > > > > > > Minchan Kim
-> > > > > > > 
-> > > > > > 
-> > > > > > --
-> > > > > > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > > > > > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > > > > > see: http://www.linux-mm.org/ .
-> > > > > > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> > > > > 
-> > > > > -- 
-> > > > > Kind regards,
-> > > > > Minchan Kim
-> > > > > 
-> > > > 
-> > > > --
-> > > > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > > > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > > > see: http://www.linux-mm.org/ .
-> > > > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> > > 
-> > > -- 
-> > > Kind regards,
-> > > Minchan Kim
-> > > 
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> -- 
-> Kind regards,
-> Minchan Kim
-> 
+But commit doesn't touch resource counters - did you mean try_charge()
+or uncharge() by any chance?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
