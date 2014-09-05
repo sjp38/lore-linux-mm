@@ -1,129 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id A4DED6B0038
-	for <linux-mm@kvack.org>; Fri,  5 Sep 2014 10:23:32 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id v10so2287662pde.33
-        for <linux-mm@kvack.org>; Fri, 05 Sep 2014 07:23:30 -0700 (PDT)
-Received: from fgwmail6.fujitsu.co.jp (fgwmail6.fujitsu.co.jp. [192.51.44.36])
-        by mx.google.com with ESMTPS id rl12si4243456pab.232.2014.09.05.07.23.29
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id F2D646B0036
+	for <linux-mm@kvack.org>; Fri,  5 Sep 2014 10:41:07 -0400 (EDT)
+Received: by mail-ig0-f175.google.com with SMTP id uq10so1206917igb.8
+        for <linux-mm@kvack.org>; Fri, 05 Sep 2014 07:41:07 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id ge5si4755680pbc.3.2014.09.05.07.41.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 05 Sep 2014 07:23:30 -0700 (PDT)
-Received: from kw-mxoi1.gw.nic.fujitsu.com (unknown [10.0.237.133])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id E5FF73EE0C2
-	for <linux-mm@kvack.org>; Fri,  5 Sep 2014 23:23:26 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by kw-mxoi1.gw.nic.fujitsu.com (Postfix) with ESMTP id ECCE6AC0954
-	for <linux-mm@kvack.org>; Fri,  5 Sep 2014 23:23:25 +0900 (JST)
-Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 8DEBD1DB803F
-	for <linux-mm@kvack.org>; Fri,  5 Sep 2014 23:23:25 +0900 (JST)
-Message-ID: <5409C6BB.7060009@jp.fujitsu.com>
-Date: Fri, 05 Sep 2014 23:20:43 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+        Fri, 05 Sep 2014 07:41:06 -0700 (PDT)
+Message-ID: <5409CAFD.90206@oracle.com>
+Date: Fri, 05 Sep 2014 10:38:53 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [RFC] memory cgroup: my thoughts on memsw
-References: <20140904143055.GA20099@esperanza> <5408E1CD.3090004@jp.fujitsu.com> <20140905082846.GA25641@esperanza>
-In-Reply-To: <20140905082846.GA25641@esperanza>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: mm: invalid memory deref in page_get_anon_vma
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Motohiro Kosaki <Motohiro.Kosaki@us.fujitsu.com>, Glauber Costa <glommer@gmail.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@parallels.com>, Konstantin Khorenko <khorenko@parallels.com>, LKML-MM <linux-mm@kvack.org>, LKML-cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
 
-(2014/09/05 17:28), Vladimir Davydov wrote:
-> Hi Kamezawa,
->
-> Thanks for reading this :-)
->
-> On Fri, Sep 05, 2014 at 07:03:57AM +0900, Kamezawa Hiroyuki wrote:
->> (2014/09/04 23:30), Vladimir Davydov wrote:
->>>   - memory.limit - container can't use memory above this
->>>   - memory.memsw.limit - container can't use swappable memory above this
->>
->> If one hits anon+swap limit, it just means OOM. Hitting limit means
->> process's death.
->
-> Basically yes. Hitting the memory.limit will result in swap out + cache
-> reclaim no matter if it's an anon charge or a page cache one. Hitting
-> the swappable memory limit (anon+swap) can only occur on anon charge and
-> if it happens we have no choice rather than invoking OOM.
->
-> Frankly, I don't see anything wrong in such a behavior. Why is it worse
-> than the current behavior where we also kill processes if a cgroup
-> reaches memsw.limit and we can't reclaim page caches?
->
+Hi all,
 
-IIUC, it's the same behavior with the system without cgroup.
+While fuzzing with trinity inside a KVM tools guest running the latest -next
+kernel, I've stumbled on the following spew:
 
-> I admit I may be missing something. So I'd appreciate if you could
-> provide me with a use case where we want *only* the current behavior and
-> my proposal is a no-go.
->
+[12191.987737] BUG: unable to handle kernel paging request at ffff88035615eca8
+[12191.988865] IP: page_get_anon_vma (./arch/x86/include/asm/atomic.h:27 ./arch/x86/include/asm/atomic.h:197 include/linux/atomic.h:17 mm/rmap.c:417)
+[12191.990071] PGD 2ed4b067 PUD 9753bd067 PMD 97530c067 PTE 800000035615e060
+[12191.991578] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[12191.991578] Dumping ftrace buffer:
+[12191.991578]    (ftrace buffer empty)
+[12191.991578] Modules linked in:
+[12191.991578] CPU: 5 PID: 3079 Comm: khugepaged Not tainted 3.17.0-rc3-next-20140903-sasha-00034-g33e7ae9 #1108
+[12191.991578] task: ffff8802729f3000 ti: ffff880272b0c000 task.ti: ffff880272b0c000
+[12191.991578] RIP: page_get_anon_vma (./arch/x86/include/asm/atomic.h:27 ./arch/x86/include/asm/atomic.h:197 include/linux/atomic.h:17 mm/rmap.c:417)
+[12191.991578] RSP: 0018:ffff880272b0f7b8  EFLAGS: 00010246
+[12191.991578] RAX: 0000000000000000 RBX: ffff88035615ec00 RCX: 0000000000000001
+[12191.991578] RDX: ffff88035615ec01 RSI: ffffffffa72e2182 RDI: ffffffffa71ebfd4
+[12191.991578] RBP: ffff880272b0f7d8 R08: 0000000000000001 R09: 0000000000000000
+[12191.991578] R10: 0000000000000000 R11: 0000000000000000 R12: ffffea000a72aa40
+[12191.991578] R13: ffff880272b0f8f8 R14: ffffea000a72aa40 R15: 000000000029cc00
+[12191.991578] FS:  0000000000000000(0000) GS:ffff8804c9e00000(0000) knlGS:0000000000000000
+[12192.020146] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[12192.020146] CR2: ffff88035615eca8 CR3: 000000002c032000 CR4: 00000000000006a0
+[12192.020146] Stack:
+[12192.020146]  ffffffffa72e2135 ffff880272b0f8f8 ffffea000a72aa60 ffffea000d2b7780
+[12192.020146]  ffff880272b0f888 ffffffffa730d27a ffff880272b0f7f8 000000008b880a00
+[12192.020146]  ffff8804c5e00340 ffff8802729f3000 0000000100000000 0000000000000000
+[12192.020146] Call Trace:
+[12192.020146] ? page_get_anon_vma (mm/rmap.c:405)
+[12192.020146] migrate_pages (mm/migrate.c:853 mm/migrate.c:941 mm/migrate.c:1122)
+[12192.020146] ? __reset_isolation_suitable (mm/compaction.c:947)
+[12192.020146] ? isolate_freepages_block (mm/compaction.c:918)
+[12192.020146] compact_zone (mm/compaction.c:1209)
+[12192.020146] compact_zone_order (mm/compaction.c:1258)
+[12192.020146] try_to_compact_pages (mm/compaction.c:1323)
+[12192.020146] __alloc_pages_direct_compact (mm/page_alloc.c:2313)
+[12192.020146] __alloc_pages_slowpath (mm/page_alloc.c:2760)
+[12192.020146] __alloc_pages_nodemask (mm/page_alloc.c:2838)
+[12192.020146] ? collapse_huge_page.isra.31 (mm/huge_memory.c:766 mm/huge_memory.c:2336 mm/huge_memory.c:2435)
+[12192.020146] collapse_huge_page.isra.31 (mm/huge_memory.c:2336 mm/huge_memory.c:2435)
+[12192.020146] ? debug_smp_processor_id (lib/smp_processor_id.c:57)
+[12192.020146] ? put_lock_stats.isra.12 (./arch/x86/include/asm/preempt.h:98 kernel/locking/lockdep.c:254)
+[12192.020146] ? khugepaged_scan_mm_slot (include/linux/spinlock.h:349 mm/huge_memory.c:2604 mm/huge_memory.c:2700)
+[12192.020146] ? preempt_count_sub (kernel/sched/core.c:2626)
+[12192.020146] khugepaged_scan_mm_slot (mm/huge_memory.c:2704)
+[12192.020146] khugepaged (include/linux/spinlock.h:349 mm/huge_memory.c:2784 mm/huge_memory.c:2817)
+[12192.020146] ? bit_waitqueue (kernel/sched/wait.c:291)
+[12192.020146] ? khugepaged_scan_mm_slot (mm/huge_memory.c:2810)
+[12192.020146] kthread (kernel/kthread.c:210)
+[12192.020146] ? kthread_create_on_node (kernel/kthread.c:176)
+[12192.020146] ret_from_fork (arch/x86/kernel/entry_64.S:348)
+[12192.020146] ? kthread_create_on_node (kernel/kthread.c:176)
+[12192.020146] Code: ee ff 0f 1f 00 49 8b 54 24 08 48 89 d0 83 e0 03 48 83 f8 01 0f 85 cb 00 00 00 41 8b 44 24 18 85 c0 0f 88 be 00 00 00 48 8d 5a ff <8b> 8b a8 00 00 00 85 c9 0f 84 ac 00 00 00 8d 71 01 89 c8 48 8d
+All code
+========
+   0:	ee                   	out    %al,(%dx)
+   1:	ff 0f                	decl   (%rdi)
+   3:	1f                   	(bad)
+   4:	00 49 8b             	add    %cl,-0x75(%rcx)
+   7:	54                   	push   %rsp
+   8:	24 08                	and    $0x8,%al
+   a:	48 89 d0             	mov    %rdx,%rax
+   d:	83 e0 03             	and    $0x3,%eax
+  10:	48 83 f8 01          	cmp    $0x1,%rax
+  14:	0f 85 cb 00 00 00    	jne    0xe5
+  1a:	41 8b 44 24 18       	mov    0x18(%r12),%eax
+  1f:	85 c0                	test   %eax,%eax
+  21:	0f 88 be 00 00 00    	js     0xe5
+  27:	48 8d 5a ff          	lea    -0x1(%rdx),%rbx
+  2b:*	8b 8b a8 00 00 00    	mov    0xa8(%rbx),%ecx		<-- trapping instruction
+  31:	85 c9                	test   %ecx,%ecx
+  33:	0f 84 ac 00 00 00    	je     0xe5
+  39:	8d 71 01             	lea    0x1(%rcx),%esi
+  3c:	89 c8                	mov    %ecx,%eax
+  3e:	48 8d 00             	lea    (%rax),%rax
 
-Basically, I don't like OOM Kill. Anyone don't like it, I think.
+Code starting with the faulting instruction
+===========================================
+   0:	8b 8b a8 00 00 00    	mov    0xa8(%rbx),%ecx
+   6:	85 c9                	test   %ecx,%ecx
+   8:	0f 84 ac 00 00 00    	je     0xba
+   e:	8d 71 01             	lea    0x1(%rcx),%esi
+  11:	89 c8                	mov    %ecx,%eax
+  13:	48 8d 00             	lea    (%rax),%rax
+[12192.070370] RIP page_get_anon_vma (./arch/x86/include/asm/atomic.h:27 ./arch/x86/include/asm/atomic.h:197 include/linux/atomic.h:17 mm/rmap.c:417)
+[12192.070370]  RSP <ffff880272b0f7b8>
+[12192.070370] CR2: ffff88035615eca8
 
-In recent container use, application may be build as "stateless" and
-kill-and-respawn may not be problematic, but I think killing "a" process
-by oom-kill is too naive.
-
-If your proposal is triggering notification to user space at hitting
-anon+swap limit, it may be useful.
-...Some container-cluster management software can handle it.
-For example, container may be restarted.
-
-Memcg has threshold notifier and vmpressure notifier.
-I think you can enhance it.
-
-
->> Is it useful ?
->
-> I think so, at least, if we want to use soft limits. The point is we
-> will have to kill a process if it eats too much anon memory *anyway*
-> when it comes to global memory pressure, but before finishing it we'll
-> be torturing the culprit as well as *innocent* processes by issuing
-> massive reclaim, as I tried to point out in the example above. IMO, this
-> is no good.
->
-
-My point is that "killing a process" tend not to be able to fix the situation.
-For example, fork-bomb by "make -j" cannot be handled by it.
-
-So, I don't want to think about enhancing OOM-Kill. Please think of better
-way to survive. With the help of countainer-management-softwares, I think
-we can have several choices.
-
-Restart contantainer (killall) may be the best if container app is stateless.
-Or container-management can provide some failover.
-
-> Besides, I believe such a distinction between swappable memory and
-> caches would look more natural to users. Everyone got used to it
-> actually. For example, when an admin or user or any userspace utility
-> looks at the output of free(1), it primarily pays attention to free
-> memory "-/+ buffers/caches", because almost all memory is usually full
-> with file caches. And they know that caches easy come, easy go. IMO, for
-> them it'd be more useful to limit this to avoid nasty surprises in the
-> future, and only set some hints for page cache reclaim.
->
-> The only exception is strict sand-boxing, but AFAIU we can sand-box apps
->perfectly well with this either, because we would still have a strict
-> memory limit and a limit on maximal swap usage.
->
-> Please sorry if the idea looks to you totally stupid (may be it is!),
-> but let's just try to consider every possibility we have in mind.
->
-
-The 1st reason we added memsw.limit was for avoiding that the whole swap
-is used up by a cgroup where memory-leak of forkbomb running and not for
-some intellegent controls.
-
- From your opinion, I feel what you want is avoiding charging against page-caches.
-But thiking docker at el, page-cache is not shared between containers any more.
-I think "including cache" makes sense.
 
 Thanks,
--Kame
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
