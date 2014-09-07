@@ -1,58 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 364856B0035
-	for <linux-mm@kvack.org>; Sun,  7 Sep 2014 04:49:36 -0400 (EDT)
-Received: by mail-we0-f172.google.com with SMTP id w62so1109898wes.31
-        for <linux-mm@kvack.org>; Sun, 07 Sep 2014 01:49:35 -0700 (PDT)
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-        by mx.google.com with ESMTPS id e12si9383707wik.70.2014.09.07.01.49.34
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 84C886B0035
+	for <linux-mm@kvack.org>; Sun,  7 Sep 2014 09:59:09 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id kq14so25390145pab.36
+        for <linux-mm@kvack.org>; Sun, 07 Sep 2014 06:59:09 -0700 (PDT)
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id zp8si13151382pac.130.2014.09.07.06.59.06
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 07 Sep 2014 01:49:34 -0700 (PDT)
-Received: by mail-wi0-f169.google.com with SMTP id n3so1319806wiv.2
-        for <linux-mm@kvack.org>; Sun, 07 Sep 2014 01:49:34 -0700 (PDT)
-Message-ID: <540C1C01.1000308@plexistor.com>
-Date: Sun, 07 Sep 2014 11:49:05 +0300
-From: Yigal Korman <yigal@plexistor.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 07 Sep 2014 06:59:07 -0700 (PDT)
+Received: from compute1.internal (compute1.nyi.internal [10.202.2.41])
+	by gateway2.nyi.internal (Postfix) with ESMTP id C71D420723
+	for <linux-mm@kvack.org>; Sun,  7 Sep 2014 09:59:03 -0400 (EDT)
+Date: Sun, 7 Sep 2014 10:58:50 -0300
+From: Henrique de Moraes Holschuh <hmh@hmh.eng.br>
+Subject: Re: [PATCH 1/5] x86, mm, pat: Set WT to PA4 slot of PAT MSR
+Message-ID: <20140907135850.GA23026@khazad-dum.debian.net>
+References: <1409855739-8985-1-git-send-email-toshi.kani@hp.com>
+ <1409855739-8985-2-git-send-email-toshi.kani@hp.com>
+ <20140904201123.GA9116@khazad-dum.debian.net>
+ <1409862708.28990.141.camel@misato.fc.hp.com>
+ <1409873255.28990.158.camel@misato.fc.hp.com>
+ <20140905102347.GA30096@gmail.com>
+ <1409925023.28990.176.camel@misato.fc.hp.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/5] x86, mm: Add set_memory_wt() for WT
-References: <1409855739-8985-1-git-send-email-toshi.kani@hp.com>	 <1409855739-8985-5-git-send-email-toshi.kani@hp.com>	 <CALCETrXjpoVmCi07zo0dKH9LrF+nz9F3GshNiQvmiueFFH=TUQ@mail.gmail.com> <1409857025.28990.125.camel@misato.fc.hp.com>
-In-Reply-To: <1409857025.28990.125.camel@misato.fc.hp.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1409925023.28990.176.camel@misato.fc.hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>, Andy Lutomirski <luto@amacapital.net>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, akpm@linuxfoundation.org, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Juergen Gross <jgross@suse.com>, Stefan Bader <stefan.bader@canonical.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: Ingo Molnar <mingo@kernel.org>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linuxfoundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, konrad.wilk@oracle.com
 
-I think that what confused Andy (or at least me) is the documentation in Documentation/x86/pat.txt
-If it's possible, can you please update pat.txt as part of the patch?
+On Fri, 05 Sep 2014, Toshi Kani wrote:
+> On Fri, 2014-09-05 at 12:23 +0200, Ingo Molnar wrote:
+> > Any reason why we have to create such a sharp boundary, instead 
+> > of simply saying: 'disable PAT on all x86 CPU families that have 
+> > at least one buggy model'?
+> > 
+> > That would nicely sort out all the broken CPUs, and would make it 
+> > highly unlikely that we'd accidentally forget about a model or 
+> > two.
+> 
+> Agreed.  I will disable this feature on all Pentium 4 models as well.  I
+> do not think there is any necessity to enable it on Pentium 4.
 
-Thank you,
-Yigal
+Thank you.  That takes care of my misguivings about enabling this on aging
+platforms as well.
 
-On 04/09/2014 21:57, Toshi Kani wrote:
-> On Thu, 2014-09-04 at 11:57 -0700, Andy Lutomirski wrote:
->> On Thu, Sep 4, 2014 at 11:35 AM, Toshi Kani <toshi.kani@hp.com> wrote:
->>> This patch adds set_memory_wt(), set_memory_array_wt(), and
->>> set_pages_array_wt() for setting range(s) of memory to WT.
->>>
->> Possibly dumb question: I thought that set_memory_xyz was only for
->> RAM.  Is that incorrect?
-> It works for non-RAM ranges as well.  For instance, you can use
-> set_memory_xyz() to change cache attribute for a non-RAM range mapped by
-> ioremap_cache().
->
-> Thanks,
-> -Toshi
->
->
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+-- 
+  "One disk to rule them all, One disk to find them. One disk to bring
+  them all and in the darkness grind them. In the Land of Redmond
+  where the shadows lie." -- The Silicon Valley Tarot
+  Henrique Holschuh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
