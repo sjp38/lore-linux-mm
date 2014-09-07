@@ -1,132 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E7FD6B0038
-	for <linux-mm@kvack.org>; Sat,  6 Sep 2014 15:39:41 -0400 (EDT)
-Received: by mail-ig0-f177.google.com with SMTP id h18so741184igc.16
-        for <linux-mm@kvack.org>; Sat, 06 Sep 2014 12:39:41 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id k6si6607126ici.82.2014.09.06.12.39.39
+Received: from mail-vc0-f171.google.com (mail-vc0-f171.google.com [209.85.220.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 76ABD6B0035
+	for <linux-mm@kvack.org>; Sun,  7 Sep 2014 02:32:43 -0400 (EDT)
+Received: by mail-vc0-f171.google.com with SMTP id id10so14050168vcb.16
+        for <linux-mm@kvack.org>; Sat, 06 Sep 2014 23:32:43 -0700 (PDT)
+Received: from mail-vc0-f172.google.com (mail-vc0-f172.google.com [209.85.220.172])
+        by mx.google.com with ESMTPS id k7si3382893vdf.18.2014.09.06.23.32.42
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 06 Sep 2014 12:39:40 -0700 (PDT)
-From: Sasha Levin <sasha.levin@oracle.com>
-Subject: [PATCH 3/3] mm: use VM_BUG_ON_MM where possible
-Date: Sat,  6 Sep 2014 15:38:46 -0400
-Message-Id: <1410032326-4380-3-git-send-email-sasha.levin@oracle.com>
-In-Reply-To: <1410032326-4380-1-git-send-email-sasha.levin@oracle.com>
-References: <1410032326-4380-1-git-send-email-sasha.levin@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 06 Sep 2014 23:32:42 -0700 (PDT)
+Received: by mail-vc0-f172.google.com with SMTP id hy10so619215vcb.31
+        for <linux-mm@kvack.org>; Sat, 06 Sep 2014 23:32:42 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20140905101451.GF17501@suse.de>
+References: <1404893588-21371-1-git-send-email-mgorman@suse.de>
+ <1404893588-21371-7-git-send-email-mgorman@suse.de> <53E4EC53.1050904@suse.cz>
+ <20140811121241.GD7970@suse.de> <53E8B83D.1070004@suse.cz>
+ <20140902140116.GD29501@cmpxchg.org> <20140905101451.GF17501@suse.de>
+From: Leon Romanovsky <leon@leon.nu>
+Date: Sun, 7 Sep 2014 09:32:20 +0300
+Message-ID: <CALq1K=JO2b-=iq40RRvK8JFFbrzyH5EyAp5jyS50CeV0P3eQcA@mail.gmail.com>
+Subject: Re: [PATCH] mm: page_alloc: Fix setting of ZONE_FAIR_DEPLETED on UP
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: kirill.shutemov@linux.intel.com, khlebnikov@openvz.org, riel@redhat.com, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, mhocko@suse.cz, hughd@google.com, vbabka@suse.cz, walken@google.com, minchan@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sasha Levin <sasha.levin@oracle.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-Dump the contents of the relevant struct_mm when we hit the
-bug condition.
+Hi Mel,
+>         __mod_zone_page_state(zone, NR_ALLOC_BATCH, -(1 << order));
+> -       if (zone_page_state(zone, NR_ALLOC_BATCH) == 0 &&
+> +       if (zone_page_state(zone, NR_ALLOC_BATCH) <= 0 &&
+zone_page_state is declared to return unsigned long value [1], so it
+should never be below 0.
+So interesting question: what zone_page_state will return for negative
+atomic_long_read(&zone->vm_stat[item]) ?
 
-Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
----
- kernel/fork.c    |    3 +--
- kernel/sys.c     |    2 +-
- mm/huge_memory.c |    2 +-
- mm/mlock.c       |    2 +-
- mm/mmap.c        |    7 ++++---
- mm/pagewalk.c    |    2 +-
- 6 files changed, 9 insertions(+), 9 deletions(-)
+130 static inline unsigned long zone_page_state(struct zone *zone,
+131                                         enum zone_stat_item item)
+132 {
+133         long x = atomic_long_read(&zone->vm_stat[item]);
+134 #ifdef CONFIG_SMP
+135         if (x < 0)
+136                 x = 0;
+137 #endif
+138         return x;
+139 }
 
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 0cf9cdb..7953519 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -601,9 +601,8 @@ static void check_mm(struct mm_struct *mm)
- 			printk(KERN_ALERT "BUG: Bad rss-counter state "
- 					  "mm:%p idx:%d val:%ld\n", mm, i, x);
- 	}
--
- #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
--	VM_BUG_ON(mm->pmd_huge_pte);
-+	VM_BUG_ON_MM(mm->pmd_huge_pte, mm);
- #endif
- }
- 
-diff --git a/kernel/sys.c b/kernel/sys.c
-index b59294d..037fd76 100644
---- a/kernel/sys.c
-+++ b/kernel/sys.c
-@@ -1642,7 +1642,7 @@ static int prctl_set_mm_exe_file_locked(struct mm_struct *mm, unsigned int fd)
- 	struct inode *inode;
- 	int err;
- 
--	VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
-+	VM_BUG_ON_MM(!rwsem_is_locked(&mm->mmap_sem), mm);
- 
- 	exe = fdget(fd);
- 	if (!exe.file)
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index d81f8ba..ba5dc2f 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2045,7 +2045,7 @@ int __khugepaged_enter(struct mm_struct *mm)
- 		return -ENOMEM;
- 
- 	/* __khugepaged_exit() must not run from under us */
--	VM_BUG_ON(khugepaged_test_exit(mm));
-+	VM_BUG_ON_MM(khugepaged_test_exit(mm), mm);
- 	if (unlikely(test_and_set_bit(MMF_VM_HUGEPAGE, &mm->flags))) {
- 		free_mm_slot(mm_slot);
- 		return 0;
-diff --git a/mm/mlock.c b/mm/mlock.c
-index d5d09d0..03aa851 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -235,7 +235,7 @@ long __mlock_vma_pages_range(struct vm_area_struct *vma,
- 	VM_BUG_ON(end   & ~PAGE_MASK);
- 	VM_BUG_ON_VMA(start < vma->vm_start, vma);
- 	VM_BUG_ON_VMA(end   > vma->vm_end, vma);
--	VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
-+	VM_BUG_ON_MM(!rwsem_is_locked(&mm->mmap_sem), mm);
- 
- 	gup_flags = FOLL_TOUCH | FOLL_MLOCK;
- 	/*
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 9351482..d2f1a0a 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -408,8 +408,9 @@ static void validate_mm_rb(struct rb_root *root, struct vm_area_struct *ignore)
- 	for (nd = rb_first(root); nd; nd = rb_next(nd)) {
- 		struct vm_area_struct *vma;
- 		vma = rb_entry(nd, struct vm_area_struct, vm_rb);
--		BUG_ON(vma != ignore &&
--		       vma->rb_subtree_gap != vma_compute_subtree_gap(vma));
-+		VM_BUG_ON_VMA(vma != ignore &&
-+			vma->rb_subtree_gap != vma_compute_subtree_gap(vma),
-+			vma);
- 	}
- }
- 
-@@ -443,7 +444,7 @@ static void validate_mm(struct mm_struct *mm)
- 		pr_info("map_count %d rb %d\n", mm->map_count, i);
- 		bug = 1;
- 	}
--	BUG_ON(bug);
-+	VM_BUG_ON_MM(bug, mm);
- }
- #else
- #define validate_mm_rb(root, ignore) do { } while (0)
-diff --git a/mm/pagewalk.c b/mm/pagewalk.c
-index 2beeabf..ad83195 100644
---- a/mm/pagewalk.c
-+++ b/mm/pagewalk.c
-@@ -177,7 +177,7 @@ int walk_page_range(unsigned long addr, unsigned long end,
- 	if (!walk->mm)
- 		return -EINVAL;
- 
--	VM_BUG_ON(!rwsem_is_locked(&walk->mm->mmap_sem));
-+	VM_BUG_ON_MM(!rwsem_is_locked(&walk->mm->mmap_sem), walk->mm);
- 
- 	pgd = pgd_offset(walk->mm, addr);
- 	do {
+[1] https://git.kernel.org/cgit/linux/kernel/git/mhocko/mm.git/tree/include/linux/vmstat.h#n130
+
 -- 
-1.7.10.4
+Leon Romanovsky | Independent Linux Consultant
+        www.leon.nu | leon@leon.nu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
