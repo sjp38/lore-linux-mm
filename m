@@ -1,199 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 22A4E6B0036
-	for <linux-mm@kvack.org>; Mon,  8 Sep 2014 14:59:51 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id kq14so676473pab.19
-        for <linux-mm@kvack.org>; Mon, 08 Sep 2014 11:59:50 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id pb4si19220816pdb.225.2014.09.08.11.59.49
-        for <linux-mm@kvack.org>;
-        Mon, 08 Sep 2014 11:59:49 -0700 (PDT)
-Date: Mon, 8 Sep 2014 14:59:36 -0400
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v10 19/21] xip: Add xip_zero_page_range
-Message-ID: <20140908185936.GE27730@localhost.localdomain>
-References: <cover.1409110741.git.matthew.r.wilcox@intel.com>
- <80c8efc903971eb3a338f262fbd3ef135db63eb0.1409110741.git.matthew.r.wilcox@intel.com>
- <20140903092116.GF20473@dastard>
- <20140904210802.GA27730@localhost.localdomain>
- <20140904213641.GB4364@thunk.org>
+Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
+	by kanga.kvack.org (Postfix) with ESMTP id BB9746B0036
+	for <linux-mm@kvack.org>; Mon,  8 Sep 2014 17:59:12 -0400 (EDT)
+Received: by mail-qa0-f48.google.com with SMTP id m5so14929216qaj.35
+        for <linux-mm@kvack.org>; Mon, 08 Sep 2014 14:59:12 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b9si10131723qgb.51.2014.09.08.14.59.11
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Sep 2014 14:59:11 -0700 (PDT)
+Date: Mon, 8 Sep 2014 17:37:41 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v3 2/6] mm/hugetlb: take page table lock in
+ follow_huge_(addr|pmd|pud)()
+Message-ID: <20140908213741.GA6866@nhori.bos.redhat.com>
+References: <1409276340-7054-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1409276340-7054-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <alpine.LSU.2.11.1409031243420.9023@eggly.anvils>
+ <20140905052751.GA6883@nhori.redhat.com>
+ <alpine.LSU.2.11.1409072307430.1298@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140904213641.GB4364@thunk.org>
+In-Reply-To: <alpine.LSU.2.11.1409072307430.1298@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, Matthew Wilcox <willy@linux.intel.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Thu, Sep 04, 2014 at 05:36:41PM -0400, Theodore Ts'o wrote:
-> On Thu, Sep 04, 2014 at 05:08:02PM -0400, Matthew Wilcox wrote:
+On Mon, Sep 08, 2014 at 12:13:16AM -0700, Hugh Dickins wrote:
+> On Fri, 5 Sep 2014, Naoya Horiguchi wrote:
+> > On Wed, Sep 03, 2014 at 02:17:41PM -0700, Hugh Dickins wrote:
+> > > On Thu, 28 Aug 2014, Naoya Horiguchi wrote:
+> > > > 
+> > > > Reported-by: Hugh Dickins <hughd@google.com>
+> > > > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > > > Cc: <stable@vger.kernel.org>  # [3.12+]
+> > > 
+> > > No ack to this one yet, I'm afraid.
 > > 
-> > ext4 does (or did?) have this bug (expectation?).  I then take advantage
-> > of the fact that we have to accommodate it, so there are now two places
-> > that have to accommodate it.  I forget what the path was that has that
-> > assumption, but xfstests used to display it.
+> > OK, I defer Reported-by until all the problems in this patch are solved.
+> > I added this Reported-by because Andrew asked how In found this problem,
+> > and advised me to show the reporter.
+> > And I didn't intend by this Reported-by that you acked the patch.
+> > In this case, should I have used some unofficial tag like
+> > "Not-yet-Reported-by:" to avoid being rude?
+> 
+> Sorry, misunderstanding, I chose that position to write "No ack to this
+> one yet" because that is where I would insert my "Acked-by" to the patch
+> when ready.  I just meant that I cannot yet give you my "Acked-by".
+
+I see my understanding, thanks.
+
+> You were not being rude to me at all, quite the reverse.
+> 
+> I have no objection to your writing "Reported-by: Hugh...": you are
+> being polite to acknowledge me, and I was not objecting to that.
+
+Great.
+
+> Although usually, we save "Reported-by"s for users who have
+> reported a problem they saw in practice, rather than for fellow
+> developers who have looked at the code and seen a potential bug -
+> so I won't mind at all if you end up taking it out.
+> 
 > > 
-> > I'm away this week (... bad timing), but I can certainly fix it elsewhere
-> > in ext4 next week.
+> > > One subtlety to take care over: it's a long time since I've had to
+> > > worry about pmd folding and pud folding (what happens when you only
+> > > have 2 or 3 levels of page table instead of the full 4): macros get
+> > > defined to each other, and levels get optimized out (perhaps
+> > > differently on different architectures).
+> > > 
+> > > So although at first sight the lock to take in follow_huge_pud()
+> > > would seem to be mm->page_table_lock, I am not at this point certain
+> > > that that's necessarily so - sometimes pud_huge might be pmd_huge,
+> > > and the size PMD_SIZE, and pmd_lockptr appropriate at what appears
+> > > to be the pud level.  Maybe: needs checking through the architectures
+> > > and their configs, not obvious to me.
+> > 
+> > I think that every architecture uses mm->page_table_lock for pud-level
+> > locking at least for now, but that could be changed in the future,
+> > for example when 1GB hugepages or pud-based hugepages become common and
+> > someone are interested in splitting lock for pud level.
 > 
-> Huh?  Can you say more about what it is or was doing?  And where?
+> I'm not convinced by your answer, that you understand the (perhaps
+> imaginary!) issue I'm referring to.  Try grep for __PAGETABLE_P.D_FOLDED.
 > 
-> I tried to look for it, and I'm not seeing it, but I'm not entirely
-> sure from your description whether I'm looking in the right place.
+> Our infrastructure allows for 4 levels of pagetable, pgd pud pmd pte,
+> but many architectures/configurations support only 2 or 3 levels.
+> What pud functions and pmd functions work out to be in those
+> configs is confusing, and varies from architecture to architecture.
+> 
+> In particular, pud and pmd may be different expressions of the same
+> thing (with 1 pmd per pud, instead of say 512).  In that case PUD_SIZE
+> will equal PMD_SIZE: and then at the pud level huge_pte_lockptr()
+> will be using split locking instead of mm->page_table_lock.
 
-I wrote this patch:
+Is it a possible problem? It seems to me that in such system no one
+can create pud-based hugepages and care about pud level locking.
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 96c4fed..bdf6622 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -473,6 +473,7 @@ int dax_zero_page_range(struct inode *inode, loff_t from, unsigned length,
- 	/* Block boundary? Nothing to do */
- 	if (!length)
- 		return 0;
-+	BUG_ON((offset + length) > PAGE_CACHE_SIZE);
- 
- 	memset(&bh, 0, sizeof(bh));
- 	bh.b_size = PAGE_CACHE_SIZE;
-@@ -484,14 +485,31 @@ int dax_zero_page_range(struct inode *inode, loff_t from, unsigned length,
- 		err = dax_get_addr(&bh, &addr, inode->i_blkbits);
- 		if (err < 0)
- 			return err;
--		/*
--		 * ext4 sometimes asks to zero past the end of a block.  It
--		 * really just wants to zero to the end of the block.
--		 */
--		length = min_t(unsigned, length, PAGE_CACHE_SIZE - offset);
- 		memset(addr + offset, 0, length);
- 	}
- 
- 	return 0;
- }
- EXPORT_SYMBOL_GPL(dax_zero_page_range);
-+
-+/**
-+ * dax_truncate_page - handle a partial page being truncated in a DAX file
-+ * @inode: The file being truncated
-+ * @from: The file offset that is being truncated to
-+ * @get_block: The filesystem method used to translate file offsets to blocks
-+ *
-+ * Similar to block_truncate_page(), this function can be called by a
-+ * filesystem when it is truncating an DAX file to handle the partial page.
-+ *
-+ * We work in terms of PAGE_CACHE_SIZE here for commonality with
-+ * block_truncate_page(), but we could go down to PAGE_SIZE if the filesystem
-+ * took care of disposing of the unnecessary blocks.  Even if the filesystem
-+ * block size is smaller than PAGE_SIZE, we have to zero the rest of the page
-+ * since the file might be mmaped.
-+ */
-+int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
-+{
-+	unsigned length = PAGE_CACHE_ALIGN(from) - from;
-+	return dax_zero_page_range(inode, from, length, get_block);
-+}
-+EXPORT_SYMBOL_GPL(dax_truncate_page);
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index b0078df..d0182a5 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -2502,6 +2502,12 @@ static inline int dax_clear_blocks(struct inode *i, sector_t blk, long sz)
- 	return 0;
- }
- 
-+static inline int dax_truncate_page(struct inode *inode, loff_t from,
-+								get_block_t gb)
-+{
-+	return 0;
-+}
-+
- static inline int dax_zero_page_range(struct inode *inode, loff_t from,
- 						unsigned len, get_block_t gb)
- {
-@@ -2516,11 +2522,6 @@ static inline ssize_t dax_do_io(int rw, struct kiocb *iocb,
- }
- #endif
- 
--/* Can't be a function because PAGE_CACHE_SIZE is defined in pagemap.h */
--#define dax_truncate_page(inode, from, get_block)	\
--	dax_zero_page_range(inode, from, PAGE_CACHE_SIZE, get_block)
--
--
- #ifdef CONFIG_BLOCK
- typedef void (dio_submit_t)(int rw, struct bio *bio, struct inode *inode,
- 			    loff_t file_offset);
+> Many of the hugetlb architectures have a pud_huge() which just returns
+> 0, and we need not worry about those, nor the follow_huge_addr() powerpc.
+> But arm64, mips, tile, x86 look more interesting.
+> 
+> Frankly, I find myself too dumb to be sure of the right answer for all:
+> and think that when we put the proper locking into follow_huge_pud(),
+> we shall have to include a PUD_SIZE == PMD_SIZE test, to let the
+> compiler decide for us which is the appropriate locking to match
+> huge_pte_lockptr().
 
-When running generic/008, it hit the BUG_ON in dax_zero_page_range():
+Yes, both should be done at the same time.
 
-[  506.752872] Call Trace:
-[  506.752891]  [<ffffffffa02303cb>] ? __ext4_handle_dirty_metadata+0x9b/0x210 [ext4]
-[  506.752910]  [<ffffffffa0200ffa>] ext4_block_zero_page_range+0x1ba/0x400 [ext4]
-[  506.752930]  [<ffffffffa022f708>] ? ext4_fallocate+0x818/0xb70 [ext4]
-[  506.752947]  [<ffffffffa020188e>] ext4_zero_partial_blocks+0xae/0xf0 [ext4]
-[  506.752966]  [<ffffffffa022f719>] ext4_fallocate+0x829/0xb70 [ext4]
-[  506.752980]  [<ffffffff811fee96>] do_fallocate+0x126/0x1b0
-[  506.752992]  [<ffffffff811fef63>] SyS_fallocate+0x43/0x70
+> 
+> Unless Kirill can illuminate: I may be afraid of complications
+> where actually there are none.
 
-Someone appears to already know about this, since this code exists
-in the current ext4_block_zero_page_range() [which I renamed to
-__ext4_block_zero_page_range() in my patchset]:
+Yes. What we need now is to fix follow_huge_pmd(), and combining
+non-urgent things with it is not easy for me.
 
-        /*
-         * correct length if it does not fall between
-         * 'from' and the end of the block
-         */
-        if (length > max || length < 0)
-                length = max;
-
-Applying the following patch on top of the DAX patchset and the above
-patch fixes everything nicely, but does result in a small amount of
-code duplication.
-
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index e71adf6..5edd903 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -3231,7 +3231,7 @@ static int __ext4_block_zero_page_range(handle_t *handle,
- {
- 	ext4_fsblk_t index = from >> PAGE_CACHE_SHIFT;
- 	unsigned offset = from & (PAGE_CACHE_SIZE-1);
--	unsigned blocksize, max, pos;
-+	unsigned blocksize, pos;
- 	ext4_lblk_t iblock;
- 	struct inode *inode = mapping->host;
- 	struct buffer_head *bh;
-@@ -3244,14 +3244,6 @@ static int __ext4_block_zero_page_range(handle_t *handle,
- 		return -ENOMEM;
- 
- 	blocksize = inode->i_sb->s_blocksize;
--	max = blocksize - (offset & (blocksize - 1));
--
--	/*
--	 * correct length if it does not fall between
--	 * 'from' and the end of the block
--	 */
--	if (length > max || length < 0)
--		length = max;
- 
- 	iblock = index << (PAGE_CACHE_SHIFT - inode->i_sb->s_blocksize_bits);
- 
-@@ -3327,6 +3319,17 @@ static int ext4_block_zero_page_range(handle_t *handle,
- 		struct address_space *mapping, loff_t from, loff_t length)
- {
- 	struct inode *inode = mapping->host;
-+	unsigned offset = from & (PAGE_CACHE_SIZE-1);
-+	unsigned blocksize = inode->i_sb->s_blocksize;
-+	unsigned max = blocksize - (offset & (blocksize - 1));
-+
-+	/*
-+	 * correct length if it does not fall between
-+	 * 'from' and the end of the block
-+	 */
-+	if (length > max || length < 0)
-+		length = max;
-+
- 	if (IS_DAX(inode))
- 		return dax_zero_page_range(inode, from, length, ext4_get_block);
- 	return __ext4_block_zero_page_range(handle, mapping, from, length);
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
