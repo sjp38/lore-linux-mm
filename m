@@ -1,79 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
-	by kanga.kvack.org (Postfix) with ESMTP id CE2B86B0036
-	for <linux-mm@kvack.org>; Mon,  8 Sep 2014 04:31:36 -0400 (EDT)
-Received: by mail-la0-f42.google.com with SMTP id hz20so2168393lab.15
-        for <linux-mm@kvack.org>; Mon, 08 Sep 2014 01:31:36 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y8si12727486lag.85.2014.09.08.01.31.34
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id CE7176B0036
+	for <linux-mm@kvack.org>; Mon,  8 Sep 2014 05:06:38 -0400 (EDT)
+Received: by mail-wi0-f170.google.com with SMTP id cc10so2269589wib.3
+        for <linux-mm@kvack.org>; Mon, 08 Sep 2014 02:06:38 -0700 (PDT)
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+        by mx.google.com with ESMTPS id n8si12919410wib.82.2014.09.08.02.06.36
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 08 Sep 2014 01:31:34 -0700 (PDT)
-Message-ID: <540D6961.8060209@suse.cz>
-Date: Mon, 08 Sep 2014 10:31:29 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        Mon, 08 Sep 2014 02:06:36 -0700 (PDT)
+Received: by mail-wg0-f45.google.com with SMTP id z12so787950wgg.16
+        for <linux-mm@kvack.org>; Mon, 08 Sep 2014 02:06:36 -0700 (PDT)
+Date: Mon, 8 Sep 2014 10:06:27 +0100
+From: Steve Capper <steve.capper@linaro.org>
+Subject: Re: [PATCH V3 0/6] RCU get_user_pages_fast and __get_user_pages_fast
+Message-ID: <20140908090626.GA14634@linaro.org>
+References: <1409237107-24228-1-git-send-email-steve.capper@linaro.org>
+ <20140828152320.GN22580@arm.com>
+ <CAPvkgC0YVhPEBqbWSDnGyZBUn3+8Kv7-yx1-_n0Jx+giKzOqmw@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH v3 1/4] mm/page_alloc: fix incorrect isolation behavior
- by rechecking migratetype
-References: <1409040498-10148-1-git-send-email-iamjoonsoo.kim@lge.com> <1409040498-10148-2-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1409040498-10148-2-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPvkgC0YVhPEBqbWSDnGyZBUn3+8Kv7-yx1-_n0Jx+giKzOqmw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, Will Deacon <will.deacon@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <Catalin.Marinas@arm.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "gary.robertson@linaro.org" <gary.robertson@linaro.org>, "christoffer.dall@linaro.org" <christoffer.dall@linaro.org>, "peterz@infradead.org" <peterz@infradead.org>, "anders.roxell@linaro.org" <anders.roxell@linaro.org>, "dann.frazier@canonical.com" <dann.frazier@canonical.com>, Mark Rutland <Mark.Rutland@arm.com>, "mgorman@suse.de" <mgorman@suse.de>
 
-On 08/26/2014 10:08 AM, Joonsoo Kim wrote:
+On Mon, Sep 01, 2014 at 12:43:06PM +0100, Steve Capper wrote:
+> On 28 August 2014 16:23, Will Deacon <will.deacon@arm.com> wrote:
+> > On Thu, Aug 28, 2014 at 03:45:01PM +0100, Steve Capper wrote:
+> >> I would like to get this series into 3.18 as it fixes quite a big problem
+> >> with THP on arm and arm64. This series is split into a core mm part, an
+> >> arm part and an arm64 part.
+> >>
+> >> Could somebody please take patch #1 (if it looks okay)?
+> >> Russell, would you be happy with patches #2, #3, #4? (if we get #1 merged)
+> >> Catalin, would you be happy taking patches #5, #6? (if we get #1 merged)
+> >
+> > Pretty sure we're happy to take the arm64 bits once you've got the core
+> > changes sorted out. Failing that, Catalin's acked them so they could go via
+> > an mm tree if it's easier.
+> >
+> 
+> Hello,
+> 
+> Are any mm maintainers willing to take the first patch from this
+> series into their tree for merging into 3.18?
+>   mm: Introduce a general RCU get_user_pages_fast.
+> 
+> (or please let me know if there are any issues with the patch that
+> need addressing).
+> 
+> As Will has stated, Catalin's already acked the arm64 patches, and
+> these can also go in via an mm tree if that makes things easier:
+>   arm64: mm: Enable HAVE_RCU_TABLE_FREE logic
+>   arm64: mm: Enable RCU fast_gup
+> 
+> Thanks,
+> --
+> Steve
 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index f86023b..51e0d13 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -740,9 +740,15 @@ static void free_one_page(struct zone *zone,
->   	if (nr_scanned)
->   		__mod_zone_page_state(zone, NR_PAGES_SCANNED, -nr_scanned);
->
-> +	if (unlikely(has_isolate_pageblock(zone))) {
-> +		migratetype = get_pfnblock_migratetype(page, pfn);
-> +		if (is_migrate_isolate(migratetype))
-> +			goto skip_counting;
-> +	}
-> +	__mod_zone_freepage_state(zone, 1 << order, migratetype);
-> +
-> +skip_counting:
+Hi,
+Just a ping on this.
 
-Here, wouldn't a simple 'else __mod_zone_freepage_state...' look better 
-than goto + label? (same for the following 2 patches). Or does that 
-generate worse code?
+I was wondering if the first patch in this series:
 
->   	__free_one_page(page, pfn, zone, order, migratetype);
-> -	if (unlikely(!is_migrate_isolate(migratetype)))
-> -		__mod_zone_freepage_state(zone, 1 << order, migratetype);
->   	spin_unlock(&zone->lock);
->   }
->
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index d1473b2..1fa4a4d 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -60,6 +60,7 @@ out:
->   		int migratetype = get_pageblock_migratetype(page);
->
->   		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
-> +		zone->nr_isolate_pageblock++;
->   		nr_pages = move_freepages_block(zone, page, MIGRATE_ISOLATE);
->
->   		__mod_zone_freepage_state(zone, -nr_pages, migratetype);
-> @@ -83,6 +84,7 @@ void unset_migratetype_isolate(struct page *page, unsigned migratetype)
->   	nr_pages = move_freepages_block(zone, page, migratetype);
->   	__mod_zone_freepage_state(zone, nr_pages, migratetype);
->   	set_pageblock_migratetype(page, migratetype);
-> +	zone->nr_isolate_pageblock--;
->   out:
->   	spin_unlock_irqrestore(&zone->lock, flags);
->   }
->
+[PATCH V3 1/6] mm: Introduce a general RCU get_user_pages_fast.
+http://marc.info/?l=linux-mm&m=140923713202355&w=2
+
+could be merged into 3.18 via an mm tree, or if there are any issues
+with the patch that I should fix?
+
+Acks or flames from the mm maintainers would be greatly appreciated!
+
+Cheers,
+-- 
+Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
