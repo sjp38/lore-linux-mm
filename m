@@ -1,334 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
-	by kanga.kvack.org (Postfix) with ESMTP id C9BE96B0038
-	for <linux-mm@kvack.org>; Sun,  7 Sep 2014 19:01:54 -0400 (EDT)
-Received: by mail-ob0-f173.google.com with SMTP id uy5so10279296obc.32
-        for <linux-mm@kvack.org>; Sun, 07 Sep 2014 16:01:54 -0700 (PDT)
-Received: from mail-oi0-x24a.google.com (mail-oi0-x24a.google.com [2607:f8b0:4003:c06::24a])
-        by mx.google.com with ESMTPS id f4si11863446oeq.64.2014.09.07.16.01.53
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 27B156B0036
+	for <linux-mm@kvack.org>; Mon,  8 Sep 2014 03:16:10 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id kx10so2450121pab.31
+        for <linux-mm@kvack.org>; Mon, 08 Sep 2014 00:16:09 -0700 (PDT)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id oo1si16024150pdb.228.2014.09.08.00.16.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 07 Sep 2014 16:01:53 -0700 (PDT)
-Received: by mail-oi0-f74.google.com with SMTP id e131so540573oig.5
-        for <linux-mm@kvack.org>; Sun, 07 Sep 2014 16:01:52 -0700 (PDT)
-From: Peter Feiner <pfeiner@google.com>
-Subject: [PATCH v6] mm: softdirty: enable write notifications on VMAs after VM_SOFTDIRTY cleared
-Date: Sun,  7 Sep 2014 16:01:49 -0700
-Message-Id: <1410130909-8864-1-git-send-email-pfeiner@google.com>
-In-Reply-To: <1408571182-28750-1-git-send-email-pfeiner@google.com>
-References: <1408571182-28750-1-git-send-email-pfeiner@google.com>
+        Mon, 08 Sep 2014 00:16:09 -0700 (PDT)
+Received: by mail-pa0-f53.google.com with SMTP id rd3so1844888pab.12
+        for <linux-mm@kvack.org>; Mon, 08 Sep 2014 00:16:08 -0700 (PDT)
+Date: Mon, 8 Sep 2014 00:13:16 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH v3 2/6] mm/hugetlb: take page table lock in
+ follow_huge_(addr|pmd|pud)()
+In-Reply-To: <20140905052751.GA6883@nhori.redhat.com>
+Message-ID: <alpine.LSU.2.11.1409072307430.1298@eggly.anvils>
+References: <1409276340-7054-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1409276340-7054-3-git-send-email-n-horiguchi@ah.jp.nec.com> <alpine.LSU.2.11.1409031243420.9023@eggly.anvils> <20140905052751.GA6883@nhori.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Peter Feiner <pfeiner@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@parallels.com>, Jamie Liu <jamieliu@google.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-For VMAs that don't want write notifications, PTEs created for read
-faults have their write bit set. If the read fault happens after
-VM_SOFTDIRTY is cleared, then the PTE's softdirty bit will remain
-clear after subsequent writes.
+On Fri, 5 Sep 2014, Naoya Horiguchi wrote:
+> On Wed, Sep 03, 2014 at 02:17:41PM -0700, Hugh Dickins wrote:
+> > On Thu, 28 Aug 2014, Naoya Horiguchi wrote:
+> > > 
+> > > Reported-by: Hugh Dickins <hughd@google.com>
+> > > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > > Cc: <stable@vger.kernel.org>  # [3.12+]
+> > 
+> > No ack to this one yet, I'm afraid.
+> 
+> OK, I defer Reported-by until all the problems in this patch are solved.
+> I added this Reported-by because Andrew asked how In found this problem,
+> and advised me to show the reporter.
+> And I didn't intend by this Reported-by that you acked the patch.
+> In this case, should I have used some unofficial tag like
+> "Not-yet-Reported-by:" to avoid being rude?
 
-Here's a simple code snippet to demonstrate the bug:
+Sorry, misunderstanding, I chose that position to write "No ack to this
+one yet" because that is where I would insert my "Acked-by" to the patch
+when ready.  I just meant that I cannot yet give you my "Acked-by".
 
-  char* m = mmap(NULL, getpagesize(), PROT_READ | PROT_WRITE,
-                 MAP_ANONYMOUS | MAP_SHARED, -1, 0);
-  system("echo 4 > /proc/$PPID/clear_refs"); /* clear VM_SOFTDIRTY */
-  assert(*m == '\0');     /* new PTE allows write access */
-  assert(!soft_dirty(x));
-  *m = 'x';               /* should dirty the page */
-  assert(soft_dirty(x));  /* fails */
+You were not being rude to me at all, quite the reverse.
 
-With this patch, write notifications are enabled when VM_SOFTDIRTY is
-cleared. Furthermore, to avoid unnecessary faults, write
-notifications are disabled when VM_SOFTDIRTY is set.
+I have no objection to your writing "Reported-by: Hugh...": you are
+being polite to acknowledge me, and I was not objecting to that.
 
-As a side effect of enabling and disabling write notifications with
-care, this patch fixes a bug in mprotect where vm_page_prot bits set
-by drivers were zapped on mprotect. An analogous bug was fixed in mmap
-by c9d0bf241451a3ab7d02e1652c22b80cd7d93e8f.
+Although usually, we save "Reported-by"s for users who have
+reported a problem they saw in practice, rather than for fellow
+developers who have looked at the code and seen a potential bug -
+so I won't mind at all if you end up taking it out.
 
-Reported-by: Peter Feiner <pfeiner@google.com>
-Suggested-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Signed-off-by: Peter Feiner <pfeiner@google.com>
+> 
+> > One subtlety to take care over: it's a long time since I've had to
+> > worry about pmd folding and pud folding (what happens when you only
+> > have 2 or 3 levels of page table instead of the full 4): macros get
+> > defined to each other, and levels get optimized out (perhaps
+> > differently on different architectures).
+> > 
+> > So although at first sight the lock to take in follow_huge_pud()
+> > would seem to be mm->page_table_lock, I am not at this point certain
+> > that that's necessarily so - sometimes pud_huge might be pmd_huge,
+> > and the size PMD_SIZE, and pmd_lockptr appropriate at what appears
+> > to be the pud level.  Maybe: needs checking through the architectures
+> > and their configs, not obvious to me.
+> 
+> I think that every architecture uses mm->page_table_lock for pud-level
+> locking at least for now, but that could be changed in the future,
+> for example when 1GB hugepages or pud-based hugepages become common and
+> someone are interested in splitting lock for pud level.
 
----
+I'm not convinced by your answer, that you understand the (perhaps
+imaginary!) issue I'm referring to.  Try grep for __PAGETABLE_P.D_FOLDED.
 
-v1 -> v2: Instead of checking VM_SOFTDIRTY in the fault handler,
-          enable write notifications on vm_page_prot when we clear
-          VM_SOFTDIRTY.
+Our infrastructure allows for 4 levels of pagetable, pgd pud pmd pte,
+but many architectures/configurations support only 2 or 3 levels.
+What pud functions and pmd functions work out to be in those
+configs is confusing, and varies from architecture to architecture.
 
-v2 -> v3: * Grab the mmap_sem in write mode if any VMAs have
-            VM_SOFTDIRTY set. This involved refactoring clear_refs_write
-            to make it less unwieldy.
+In particular, pud and pmd may be different expressions of the same
+thing (with 1 pmd per pud, instead of say 512).  In that case PUD_SIZE
+will equal PMD_SIZE: and then at the pud level huge_pte_lockptr()
+will be using split locking instead of mm->page_table_lock.
 
-          * In mprotect, don't inadvertently disable write notifications on VMAs
-            that have had VM_SOFTDIRTY cleared
+Many of the hugetlb architectures have a pud_huge() which just returns
+0, and we need not worry about those, nor the follow_huge_addr() powerpc.
+But arm64, mips, tile, x86 look more interesting.
 
-          * The mprotect fix and mmap cleanup that comprised the
-            second and third patches in v2 were swallowed by the main
-            patch because of vm_page_prot corner case handling.
+Frankly, I find myself too dumb to be sure of the right answer for all:
+and think that when we put the proper locking into follow_huge_pud(),
+we shall have to include a PUD_SIZE == PMD_SIZE test, to let the
+compiler decide for us which is the appropriate locking to match
+huge_pte_lockptr().
 
-v3 -> v4: Handle !defined(CONFIG_MEM_SOFT_DIRTY): old patch would have
-          enabled write notifications for all VMAs in this case.
+Unless Kirill can illuminate: I may be afraid of complications
+where actually there are none.
 
-v4 -> v5: IS_ENABLED(CONFIG_MEM_SOFT_DIRTY) instead of #ifdef ...
+> So it would be helpful to introduce pud_lockptr() which just returns
+> mm->page_table_lock now, so that developers never forget to update it
+> when considering splitting pud lock.
+> 
+> > 
+> > I realize that I am asking for you (or I) to do more work, when using
+> > huge_pte_lock(hstate_vma(vma),,) would work it out "automatically";
+> > but I do feel quite strongly that that's the right approach here
+> > (and I'm not just trying to avoid a few edits of "mm" to "vma").
+> 
+> Yes, I agree.
+> 
+> > Cc'ing Kirill, who may have a strong view to the contrary,
+> > or a good insight on where the problems if any might be.
+> > 
+> > Also Cc'ing Kirill because I'm not convinced that huge_pte_lockptr()
+> > necessarily does the right thing on follow_huge_addr() architectures,
+> > ia64 and powerpc.  Do they, for example, allocate the memory for their
+> > hugetlb entries in such a way that we can indeed use pmd_lockptr() to
+> > point to a useable spinlock, in the case when huge_page_size(h) just
+> > happens to equal PMD_SIZE?
+> > 
+> > I don't know if this was thought through thoroughly
+> > (now that's a satisfying phrase hugh thinks hugh never wrote before!)
+> > when huge_pte_lockptr() was invented or not.  I think it would be safer
+> > if huge_pte_lockptr() just gave mm->page_table_lock on follow_huge_addr()
+> > architectures.
+> 
+> Yes, this seems a real problem and is worth discussing with maintainers
+> of these architectures. Maybe we can do this as a separate work.
 
-v5 -> v6:
-          * Replaced vma_{enable,disable}_writenotify() with vma_set_page_prot()
-            as per Hugh's suggestion.
+Perhaps, but I'm hoping Kirill can say, whether it's something he
+considered and felt safe with, or something he overlooked at the
+time and would prefer to change now.
 
-          * Per Hugh's suggestion, added an arch generic pgprot_modify that
-            handles pgprot_noncached and pgprot_writecombine pgprot. This arch
-            generic pgprot_modify fixes the regression introduced in v2 that
-            re-introduced the bug fixed by
-            c9d0bf241451a3ab7d02e1652c22b80cd7d93e8f for arch's without
-            pgprot_modify.
+I suspect that either the follow_huge_addr() architectures should be
+constrained to use mm->page_table_lock; or, when we do introduce the
+proper locking into find_huge_addr() (you appear to be backing away
+from making any change there for now: yes, it's not needed urgently),
+that one will have to take vma instead of mm, so that it can be sure
+to match huge_pte_lockptr().
 
-          * Made vma_set_page_prot's pgprot check less restrictive by using
-            pgprot_modify. Couldn't remove the pgprot check altogether since
-            pgprot_modify isn't 100% on all arch's, such as powerpc.
-
-          * Fixed dirty_accountable bug.
-
-          * Fixed non-x86 build (tested build on arm64 and powerpc)
-
-          * Per Kirill's suggestion, changed locking so mmap_sem isn't held
-            exclusively during page table traversal.
-
-Kirill & Cyrill: I removed your Reviewed-By: footers since this patch is quite
-different than v5 and I didn't want to presume your approval. Please re-add as
-you see fit - this has been a group effort!
----
- fs/proc/task_mmu.c            | 19 +++++++++++++-----
- include/asm-generic/pgtable.h | 12 ++++++++++++
- include/linux/mm.h            |  5 +++++
- mm/memory.c                   |  3 ++-
- mm/mmap.c                     | 45 +++++++++++++++++++++++++++----------------
- mm/mprotect.c                 | 20 +++++--------------
- 6 files changed, 66 insertions(+), 38 deletions(-)
-
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index dfc791c..4621914 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -829,8 +829,21 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
- 			.private = &cp,
- 		};
- 		down_read(&mm->mmap_sem);
--		if (type == CLEAR_REFS_SOFT_DIRTY)
-+		if (type == CLEAR_REFS_SOFT_DIRTY) {
-+			for (vma = mm->mmap; vma; vma = vma->vm_next) {
-+				if (!(vma->vm_flags & VM_SOFTDIRTY))
-+					continue;
-+				up_read(&mm->mmap_sem);
-+				down_write(&mm->mmap_sem);
-+				for (vma = mm->mmap; vma; vma = vma->vm_next) {
-+					vma->vm_flags &= ~VM_SOFTDIRTY;
-+					vma_set_page_prot(vma);
-+				}
-+				downgrade_write(&mm->mmap_sem);
-+				break;
-+			}
- 			mmu_notifier_invalidate_range_start(mm, 0, -1);
-+		}
- 		for (vma = mm->mmap; vma; vma = vma->vm_next) {
- 			cp.vma = vma;
- 			if (is_vm_hugetlb_page(vma))
-@@ -850,10 +863,6 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
- 				continue;
- 			if (type == CLEAR_REFS_MAPPED && !vma->vm_file)
- 				continue;
--			if (type == CLEAR_REFS_SOFT_DIRTY) {
--				if (vma->vm_flags & VM_SOFTDIRTY)
--					vma->vm_flags &= ~VM_SOFTDIRTY;
--			}
- 			walk_page_range(vma->vm_start, vma->vm_end,
- 					&clear_refs_walk);
- 		}
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 53b2acc..0f6edbd 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -249,6 +249,18 @@ static inline int pmd_same(pmd_t pmd_a, pmd_t pmd_b)
- #define pgprot_writecombine pgprot_noncached
- #endif
- 
-+#ifndef pgprot_modify
-+#define pgprot_modify pgprot_modify
-+static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
-+{
-+	if (pgprot_val(oldprot) == pgprot_val(pgprot_noncached(oldprot)))
-+		newprot = pgprot_noncached(newprot);
-+	if (pgprot_val(oldprot) == pgprot_val(pgprot_writecombine(oldprot)))
-+		newprot = pgprot_writecombine(newprot);
-+	return newprot;
-+}
-+#endif
-+
- /*
-  * When walking page tables, get the address of the next boundary,
-  * or the end address of the range if that comes earlier.  Although no
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 8981cc8..4e070aa 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1939,11 +1939,16 @@ static inline struct vm_area_struct *find_exact_vma(struct mm_struct *mm,
- 
- #ifdef CONFIG_MMU
- pgprot_t vm_get_page_prot(unsigned long vm_flags);
-+void vma_set_page_prot(struct vm_area_struct *vma);
- #else
- static inline pgprot_t vm_get_page_prot(unsigned long vm_flags)
- {
- 	return __pgprot(0);
- }
-+static inline void vma_set_page_prot(struct vm_area_struct *vma)
-+{
-+	vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
-+}
- #endif
- 
- #ifdef CONFIG_NUMA_BALANCING
-diff --git a/mm/memory.c b/mm/memory.c
-index adeac30..1715233 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2051,7 +2051,8 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	old_page = vm_normal_page(vma, address, orig_pte);
- 	if (!old_page) {
- 		/*
--		 * VM_MIXEDMAP !pfn_valid() case
-+		 * VM_MIXEDMAP !pfn_valid() case, or VM_SOFTDIRTY clear on a
-+		 * VM_PFNMAP VMA.
- 		 *
- 		 * We should not cow pages in a shared writeable mapping.
- 		 * Just mark the pages writable as we can't do any dirty
-diff --git a/mm/mmap.c b/mm/mmap.c
-index c1f2ea4..4ef9325 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -89,6 +89,25 @@ pgprot_t vm_get_page_prot(unsigned long vm_flags)
- }
- EXPORT_SYMBOL(vm_get_page_prot);
- 
-+static pgprot_t vm_pgprot_modify(pgprot_t oldprot, unsigned long vm_flags)
-+{
-+	return pgprot_modify(oldprot, vm_get_page_prot(vm_flags));
-+}
-+
-+/* Update vma->vm_page_prot to reflect vma->vm_flags. */
-+void vma_set_page_prot(struct vm_area_struct *vma)
-+{
-+	unsigned long vm_flags = vma->vm_flags;
-+
-+	vma->vm_page_prot = vm_pgprot_modify(vma->vm_page_prot, vm_flags);
-+	if (vma_wants_writenotify(vma)) {
-+		vm_flags &= ~VM_SHARED;
-+		vma->vm_page_prot = vm_pgprot_modify(vma->vm_page_prot,
-+						     vm_flags);
-+	}
-+}
-+
-+
- int sysctl_overcommit_memory __read_mostly = OVERCOMMIT_GUESS;  /* heuristic overcommit */
- int sysctl_overcommit_ratio __read_mostly = 50;	/* default is 50% */
- unsigned long sysctl_overcommit_kbytes __read_mostly;
-@@ -1470,11 +1489,16 @@ int vma_wants_writenotify(struct vm_area_struct *vma)
- 	if (vma->vm_ops && vma->vm_ops->page_mkwrite)
- 		return 1;
- 
--	/* The open routine did something to the protections already? */
-+	/* The open routine did something to the protections that pgprot_modify
-+	 * won't preserve? */
- 	if (pgprot_val(vma->vm_page_prot) !=
--	    pgprot_val(vm_get_page_prot(vm_flags)))
-+	    pgprot_val(vm_pgprot_modify(vma->vm_page_prot, vm_flags)))
- 		return 0;
- 
-+	/* Do we need to track softdirty? */
-+	if (IS_ENABLED(CONFIG_MEM_SOFT_DIRTY) && !(vm_flags & VM_SOFTDIRTY))
-+		return 1;
-+
- 	/* Specialty mapping? */
- 	if (vm_flags & VM_PFNMAP)
- 		return 0;
-@@ -1610,21 +1634,6 @@ munmap_back:
- 			goto free_vma;
- 	}
- 
--	if (vma_wants_writenotify(vma)) {
--		pgprot_t pprot = vma->vm_page_prot;
--
--		/* Can vma->vm_page_prot have changed??
--		 *
--		 * Answer: Yes, drivers may have changed it in their
--		 *         f_op->mmap method.
--		 *
--		 * Ensures that vmas marked as uncached stay that way.
--		 */
--		vma->vm_page_prot = vm_get_page_prot(vm_flags & ~VM_SHARED);
--		if (pgprot_val(pprot) == pgprot_val(pgprot_noncached(pprot)))
--			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
--	}
--
- 	vma_link(mm, vma, prev, rb_link, rb_parent);
- 	/* Once vma denies write, undo our temporary denial count */
- 	if (file) {
-@@ -1658,6 +1667,8 @@ out:
- 	 */
- 	vma->vm_flags |= VM_SOFTDIRTY;
- 
-+	vma_set_page_prot(vma);
-+
- 	return addr;
- 
- unmap_and_free_vma:
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index c43d557..ace9345 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -29,13 +29,6 @@
- #include <asm/cacheflush.h>
- #include <asm/tlbflush.h>
- 
--#ifndef pgprot_modify
--static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
--{
--	return newprot;
--}
--#endif
--
- /*
-  * For a prot_numa update we only hold mmap_sem for read so there is a
-  * potential race with faulting where a pmd was temporarily none. This
-@@ -93,7 +86,9 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 				 * Avoid taking write faults for pages we
- 				 * know to be dirty.
- 				 */
--				if (dirty_accountable && pte_dirty(ptent))
-+				if (dirty_accountable && pte_dirty(ptent) &&
-+				    (pte_soft_dirty(ptent) ||
-+				     !(vma->vm_flags & VM_SOFTDIRTY)))
- 					ptent = pte_mkwrite(ptent);
- 				ptep_modify_prot_commit(mm, addr, pte, ptent);
- 				updated = true;
-@@ -320,13 +315,8 @@ success:
- 	 * held in write mode.
- 	 */
- 	vma->vm_flags = newflags;
--	vma->vm_page_prot = pgprot_modify(vma->vm_page_prot,
--					  vm_get_page_prot(newflags));
--
--	if (vma_wants_writenotify(vma)) {
--		vma->vm_page_prot = vm_get_page_prot(newflags & ~VM_SHARED);
--		dirty_accountable = 1;
--	}
-+	dirty_accountable = vma_wants_writenotify(vma);
-+	vma_set_page_prot(vma);
- 
- 	change_protection(vma, start, end, vma->vm_page_prot,
- 			  dirty_accountable, 0);
--- 
-2.1.0.rc2.206.gedb03e5
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
