@@ -1,46 +1,59 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 740CE6B0069
-	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 22:32:37 -0400 (EDT)
-Received: by mail-ie0-f173.google.com with SMTP id tp5so187505ieb.18
-        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 19:32:37 -0700 (PDT)
-Received: from mail-ie0-x236.google.com (mail-ie0-x236.google.com [2607:f8b0:4001:c03::236])
-        by mx.google.com with ESMTPS id u1si520042icw.52.2014.09.30.19.32.36
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 30 Sep 2014 19:32:36 -0700 (PDT)
-Received: by mail-ie0-f182.google.com with SMTP id rp18so175623iec.13
-        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 19:32:36 -0700 (PDT)
-Message-ID: <542B67C1.9080303@gmail.com>
-Date: Tue, 30 Sep 2014 22:32:33 -0400
-From: Daniel Micay <danielmicay@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3] mm: add mremap flag for preserving the old mapping
-References: <1412052900-1722-1-git-send-email-danielmicay@gmail.com> <CALCETrX6D7X7zm3qCn8kaBtYHCQvdR06LAAwzBA=1GteHAaLKA@mail.gmail.com> <542A79AF.8060602@gmail.com> <CALCETrVHgvhAN3neoOpJEk94uM7QKm2izZpp+=1UA6qieaQiTQ@mail.gmail.com>
-In-Reply-To: <CALCETrVHgvhAN3neoOpJEk94uM7QKm2izZpp+=1UA6qieaQiTQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jason Evans <jasone@canonware.com>, Linux API <linux-api@vger.kernel.org>
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch] mm: page_alloc: fix zone allocation fairness on UP
+Date: Mon,  8 Sep 2014 08:35:51 -0400
+Message-ID: <1410179751-28115-1-git-send-email-hannes@cmpxchg.org>
+Return-path: <linux-kernel-owner@vger.kernel.org>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+List-Id: linux-mm.kvack.org
 
-On 30/09/14 01:49 PM, Andy Lutomirski wrote:
-> 
-> I think it might pay to add an explicit vm_op to authorize
-> duplication, especially for non-cow mappings.  IOW this kind of
-> extension seems quite magical for anything that doesn't have the
-> normal COW semantics, including for plain old read-only mappings.
+The zone allocation batches can easily underflow due to higher-order
+allocations or spills to remote nodes.  On SMP that's fine, because
+underflows are expected from concurrency and dealt with by returning
+0.  But on UP, zone_page_state will just return a wrapped unsigned
+long, which will get past the <= 0 check and then consider the zone
+eligible until its watermarks are hit.
 
-This sounds like the best way forwards.
+3a025760fc15 ("mm: page_alloc: spill to remote nodes before waking
+kswapd") already made the counter-resetting use atomic_long_read() to
+accomodate underflows from remote spills, but it didn't go all the way
+with it.  Make it clear that these batches are expected to go negative
+regardless of concurrency, and use atomic_long_read() everywhere.
 
-Setting up the op for private, anonymous mappings and having it check
-vm_flags & VM_WRITE dynamically seems like it would be enough for the
-intended use case in general purpose allocators. It can be extended to
-other mapping types later if there's a compelling use case.
+Fixes: 81c0a2bb515f ("mm: page_alloc: fair zone allocator policy")
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: "3.12+" <stable@kernel.org>
+---
+ mm/page_alloc.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 18cee0d4c8a2..eee961958021 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1612,7 +1612,7 @@ again:
+ 	}
+ 
+ 	__mod_zone_page_state(zone, NR_ALLOC_BATCH, -(1 << order));
+-	if (zone_page_state(zone, NR_ALLOC_BATCH) == 0 &&
++	if (atomic_long_read(&zone->vm_stat[NR_ALLOC_BATCH]) <= 0 &&
+ 	    !zone_is_fair_depleted(zone))
+ 		zone_set_flag(zone, ZONE_FAIR_DEPLETED);
+ 
+@@ -5701,9 +5701,8 @@ static void __setup_per_zone_wmarks(void)
+ 		zone->watermark[WMARK_HIGH] = min_wmark_pages(zone) + (tmp >> 1);
+ 
+ 		__mod_zone_page_state(zone, NR_ALLOC_BATCH,
+-				      high_wmark_pages(zone) -
+-				      low_wmark_pages(zone) -
+-				      zone_page_state(zone, NR_ALLOC_BATCH));
++			high_wmark_pages(zone) - low_wmark_pages(zone) -
++			atomic_long_read(&zone->vm_stat[NR_ALLOC_BATCH]));
+ 
+ 		setup_zone_migrate_reserve(zone);
+ 		spin_unlock_irqrestore(&zone->lock, flags);
+-- 
+2.0.4
