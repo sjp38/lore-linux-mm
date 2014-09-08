@@ -1,181 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id B3D356B0036
-	for <linux-mm@kvack.org>; Mon,  8 Sep 2014 05:39:55 -0400 (EDT)
-Received: by mail-wi0-f179.google.com with SMTP id q5so2278864wiv.12
-        for <linux-mm@kvack.org>; Mon, 08 Sep 2014 02:39:55 -0700 (PDT)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id cv10si13096816wib.43.2014.09.08.02.39.53
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EA2A6B0036
+	for <linux-mm@kvack.org>; Mon,  8 Sep 2014 07:01:49 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id ey11so4509051pad.34
+        for <linux-mm@kvack.org>; Mon, 08 Sep 2014 04:01:49 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id c16si17113451pdk.131.2014.09.08.04.01.47
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Sep 2014 02:39:54 -0700 (PDT)
-Date: Mon, 8 Sep 2014 11:39:49 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v4 2/2] ksm: provide support to use deferrable timers for
- scanner thread
-Message-ID: <20140908093949.GZ6758@twins.programming.kicks-ass.net>
-References: <1408536628-29379-1-git-send-email-cpandya@codeaurora.org>
- <1408536628-29379-2-git-send-email-cpandya@codeaurora.org>
- <alpine.LSU.2.11.1408272258050.10518@eggly.anvils>
- <20140903095815.GK4783@worktop.ger.corp.intel.com>
- <alpine.LSU.2.11.1409080023100.1610@eggly.anvils>
+        Mon, 08 Sep 2014 04:01:48 -0700 (PDT)
+Date: Mon, 8 Sep 2014 15:01:31 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [RFC] memory cgroup: my thoughts on memsw
+Message-ID: <20140908110131.GA11812@esperanza>
+References: <20140904143055.GA20099@esperanza>
+ <5408E1CD.3090004@jp.fujitsu.com>
+ <20140905082846.GA25641@esperanza>
+ <5409C6BB.7060009@jp.fujitsu.com>
+ <20140905160029.GF25641@esperanza>
+ <540A4420.2030504@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="82wJsBn+m3vGehqm"
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1409080023100.1610@eggly.anvils>
+In-Reply-To: <540A4420.2030504@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Chintan Pandya <cpandya@codeaurora.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, John Stultz <john.stultz@linaro.org>, Ingo Molnar <mingo@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Motohiro Kosaki <Motohiro.Kosaki@us.fujitsu.com>, Glauber Costa <glommer@gmail.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@parallels.com>, Konstantin Khorenko <khorenko@parallels.com>, LKML-MM <linux-mm@kvack.org>, LKML-cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+
+On Sat, Sep 06, 2014 at 08:15:44AM +0900, Kamezawa Hiroyuki wrote:
+> As you noticed, hitting anon+swap limit just means oom-kill.
+> My point is that using oom-killer for "server management" just seems crazy.
+> 
+> Let my clarify things. your proposal was.
+>  1. soft-limit will be a main feature for server management.
+>  2. Because of soft-limit, global memory reclaim runs.
+>  3. Using swap at global memory reclaim can cause poor performance.
+>  4. So, making use of OOM-Killer for avoiding swap.
+> 
+> I can't agree "4". I think
+> 
+>  - don't configure swap.
+
+Suppose there are two containers, each having soft limit set to 50% of
+total system RAM. One of the containers eats 90% of the system RAM by
+allocating anonymous pages. Another starts using file caches and wants
+more than 10% of RAM to work w/o issuing disk reads. So what should we
+do then? We won't be able to shrink the first container to its soft
+limit, because there's no swap. Leaving it as is would be unfair from
+the second container's point of view. Kill it? But the whole system is
+going OK, because the working set of the second container is easily
+shrinkable. Besides there may be some progress in shrinking file caches
+from the first container.
+
+>  - use zram
+
+In fact this isn't different from the previous proposal (working w/o
+swap). ZRAM only compresses data while still storing them in RAM so we
+eventually may get into a situation where almost all RAM is full of
+compressed anon pages.
+
+>  - use SSD for swap
+
+Such a requirement might be OK in enterprise, but forcing SMB to update
+their hardware to run a piece of software is a no go. And again, SSD
+isn't infinite, we may use it up.
+
+> Or
+>  - provide a way to notify usage of "anon+swap" to container management software.
+> 
+>    Now we have "vmpressure". Container management software can kill or respawn container
+>    with using user-defined policy for avoidng swap.
+> 
+>    If you don't want to run kswapd at all, threshold notifier enhancement may be required.
+> 
+> /proc/meminfo provides total number of ANON/CACHE pages.
+> Many things can be done in userland.
+
+AFAIK OOM-in-userspace-handling has been discussed many times, but
+there's still no agreement upon it. Basically it isn't reliable, because
+it can lead to a deadlock if the userspace handler won't be able to
+allocate memory to proceed or will get stuck in some other way. IMO
+there must be in-kernel OOM-handling as a last resort anyway. And
+actually we already have one - we may kill processes when they hit the
+memsw limit.
+
+But OK, you don't like OOM on hitting anon+swap limit and propose to
+introduce a kind of userspace notification instead, but the problem
+actually isn't *WHAT* we should do on hitting anon+swap limit, but *HOW*
+we should implement it (or should we implement it at all). No matter
+which way we go, in-kernel OOM or userland notifications, we have to
+*INTRODUCE ANON+SWAP ACCOUNTING* to achieve that so that on breaching a
+predefined threshold we could invoke OOM or issue a userland
+notification or both. And here goes the problem: there's anon+file and
+anon+file+swap resource counters, but no anon+swap counter. To react on
+anon+swap limit breaching, we must introduce one. I propose to *REUSE*
+memsw instead by slightly modifying its meaning.
+
+What we would get then is the ability to react on potentially
+unreclaimable memory growth inside a container. What we would loose is
+the current implementation of memory+swap limit, *BUT* we would still be
+able to limit memory+swap usage by imposing limits on total memory and
+anon+swap usage.
+
+> And your idea can't help swap-out caused by memory pressure comes from "zones".
+
+It would help limit swap-out to a sane value.
 
 
---82wJsBn+m3vGehqm
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+I'm sorry if I'm not clear or don't understand something that looks
+trivial to you.
 
-On Mon, Sep 08, 2014 at 01:25:36AM -0700, Hugh Dickins wrote:
-> Well, yes, but... how do we know when there is no more work to do?
-
-Yeah, I figured that out _after_ I send that email..
-
-> Thomas has given reason why KSM might simply fail to do its job if we
-> rely on the deferrable timer.  So I've tried another approach, patch
-> below; but I do not expect you to jump for joy at the sight of it!
-
-Indeed :/
-
-> I've tried to minimize the offensive KSM hook in context_switch().
-> Why place it there, rather than do something near profile_tick() or
-> account_process_tick()?  Because KSM is aware of mms not tasks, and
-> context_switch() should have the next mm cachelines hot (if not, a
-> slight regrouping in mm_struct should do it); whereas I can find
-> no reference whatever to mm_struct in kernel/time, so hooking to
-> KSM from there would drag in another few cachelines every tick.
->=20
-> (Another approach would be to set up KSM hint faulting, along the
-> lines of NUMA hint faulting.  Not a path I'm keen to go down.)
->=20
-> I'm not thrilled with this patch, I think it's somewhat defective
-> in several ways.  But maybe in practice it will prove good enough,
-> and if so then I'd rather not waste effort on complicating it.
->=20
-> My own testing is not realistic, nor representative of real KSM users;
-> and I have no idea what values of pages_to_scan and sleep_millisecs
-> people really use (and those may make quite a difference to how
-> well it works).
->=20
-> Chintan, even if the scheduler guys turn out to hate it, please would
-> you give the patch below a try, to see how well it works in your
-> environment, whether it seems to go better or worse than your own patch.
->=20
-> If it works well enough for you, maybe we can come up with ideas to
-> make it more palatable.  I do think your issue is an important one
-> to fix, one way or another.
->=20
-> Thanks,
-> Hugh
->=20
-> [PATCH] ksm: avoid periodic wakeup while mergeable mms are quiet
->=20
-> Description yet to be written!
->=20
-> Reported-by: Chintan Pandya <cpandya@codeaurora.org>
-> Not-Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
->=20
->  include/linux/ksm.h   |   14 +++++++++++
->  include/linux/sched.h |    1=20
->  kernel/sched/core.c   |    9 ++++++-
->  mm/ksm.c              |   50 ++++++++++++++++++++++++++++------------
->  4 files changed, 58 insertions(+), 16 deletions(-)
->=20
-> --- 3.17-rc4/include/linux/ksm.h	2014-03-30 20:40:15.000000000 -0700
-> +++ linux/include/linux/ksm.h	2014-09-07 11:54:41.528003316 -0700
-
-> @@ -87,6 +96,11 @@ static inline void ksm_exit(struct mm_st
->  {
->  }
-> =20
-> +static inline wait_queue_head_t *ksm_switch(struct mm_struct *mm)
-
-s/ksm_switch/__&/
-
-> +{
-> +	return NULL;
-> +}
-> +
->  static inline int PageKsm(struct page *page)
->  {
->  	return 0;
-
-> --- 3.17-rc4/kernel/sched/core.c	2014-08-16 16:00:54.062189063 -0700
-> +++ linux/kernel/sched/core.c	2014-09-07 11:54:41.528003316 -0700
-
-> @@ -2304,6 +2305,7 @@ context_switch(struct rq *rq, struct tas
->  	       struct task_struct *next)
->  {
->  	struct mm_struct *mm, *oldmm;
-> +	wait_queue_head_t *wake_ksm =3D NULL;
-> =20
->  	prepare_task_switch(rq, prev, next);
-> =20
-> @@ -2320,8 +2322,10 @@ context_switch(struct rq *rq, struct tas
->  		next->active_mm =3D oldmm;
->  		atomic_inc(&oldmm->mm_count);
->  		enter_lazy_tlb(oldmm, next);
-> -	} else
-> +	} else {
->  		switch_mm(oldmm, mm, next);
-> +		wake_ksm =3D ksm_switch(mm);
-
-Is this the right mm? We've just switched the stack, so we're looking at
-next->mm when we switched away from current. That might not exist
-anymore.
-
-> +	}
-> =20
->  	if (!prev->mm) {
->  		prev->active_mm =3D NULL;
-> @@ -2348,6 +2352,9 @@ context_switch(struct rq *rq, struct tas
->  	 * frame will be invalid.
->  	 */
->  	finish_task_switch(this_rq(), prev);
-> +
-> +	if (wake_ksm)
-> +		wake_up_interruptible(wake_ksm);
->  }
-
-Quite horrible for sure. I really hate seeing KSM cruft all the way down
-here. Can't we create a new (timer) infrastructure that does the right
-thing? Surely this isn't the only such case.
-
-I know both RCU and some NOHZ_FULL muck already track when the system is
-completely idle. This is yet another case of that.
-
---82wJsBn+m3vGehqm
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBAgAGBQJUDXllAAoJEHZH4aRLwOS6XXgP/3S0AwWq3WaXgJAD4RwYaBh6
-FFLgz+/Hl/QeBSDJXHPTt96D4ppMTeke4vWHx82dfagPcQS/8Tg7+dSQCkdRVaiG
-iXWtGfuNS/oFJfIN3oOjAfhFhmlPvpgB+QswUm3xQ3ftZqsnlL+XoaDijrOyHsis
-Qr7h4K95uU4iN/gvdfsjUmdoxifIZt8h/FHWX9F8NuZWYaWNlLQBsptaIqHLkIWg
-so2gNxa3os2nJToMQtcMCNFkyZJvsMbf/kPBKzIJjX+eyNCuN2kVUObHFeSi7OLm
-ACOgao/kTdWswz+tv+rOJ+gxLvAJ1ErPyKx4PuzDrDmXmWT/OI4ADPjW2oA3nbGX
-PIryZuI5wXMRGFQDxyaGkEJqFKYiPDETiBCNDiDsja/m6uWeO/wcB2qNxgbQsaNx
-McBftBKhUvpRUWdOIdadaat6Fx7xRnGJ78ZQ1dGqf3jk8Mr9iyxGuU6BcmNY3nEc
-NyptRyCoQR/9H2EExMl1rukjsD3uTAOXgH++UJaLeLkqnWOMwU+r8NC0AUmOwOtg
-sXRvTJDjoDp/w/nLYqRgCgRiAr7K/Yy+3SFdvdadHzt70/lxcOCtIp5NxjYRY6AR
-0zPOwC5KlUO0LOIMaDlbdoKDhwzUISFCaNi9E08e4mwffw5LsuY4j3okJV6REW79
-DZ72OzY8UTDchPWN6FUR
-=A+t6
------END PGP SIGNATURE-----
-
---82wJsBn+m3vGehqm--
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
