@@ -1,156 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 14E626B0075
-	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 11:44:21 -0400 (EDT)
-Received: by mail-lb0-f176.google.com with SMTP id z11so5549357lbi.7
-        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 08:44:21 -0700 (PDT)
-Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
-        by mx.google.com with ESMTPS id kz8si18423898lab.23.2014.09.09.08.44.14
+Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E7716B0081
+	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 11:45:51 -0400 (EDT)
+Received: by mail-we0-f169.google.com with SMTP id w61so2440247wes.28
+        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 08:45:50 -0700 (PDT)
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+        by mx.google.com with ESMTPS id ep1si17616766wjd.166.2014.09.09.08.45.49
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Sep 2014 08:44:14 -0700 (PDT)
-From: Joerg Roedel <joro@8bytes.org>
-Subject: [PATCH 3/3] mmu_notifier: Add the call-back for mmu_notifier_invalidate_range()
-Date: Tue,  9 Sep 2014 17:43:54 +0200
-Message-Id: <1410277434-3087-4-git-send-email-joro@8bytes.org>
-In-Reply-To: <1410277434-3087-1-git-send-email-joro@8bytes.org>
-References: <1410277434-3087-1-git-send-email-joro@8bytes.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 09 Sep 2014 08:45:49 -0700 (PDT)
+Received: by mail-we0-f180.google.com with SMTP id t60so2863484wes.25
+        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 08:45:49 -0700 (PDT)
+Message-ID: <540F20AB.4000404@plexistor.com>
+Date: Tue, 09 Sep 2014 18:45:47 +0300
+From: Boaz Harrosh <boaz@plexistor.com>
 MIME-Version: 1.0
+Subject: [PATCH 5/9] mm: Let sparse_{add,remove}_one_section receive a node_id
+References: <1409173922-7484-1-git-send-email-ross.zwisler@linux.intel.com> <540F1EC6.4000504@plexistor.com>
+In-Reply-To: <540F1EC6.4000504@plexistor.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, jroedel@suse.de, joro@8bytes.org, Jay.Cornwall@amd.com, Oded.Gabbay@amd.com, John.Bridgman@amd.com, Suravee.Suthikulpanit@amd.com, ben.sander@amd.com, Jesse Barnes <jbarnes@virtuousgeek.org>, David Woodhouse <dwmw2@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@fb.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-nvdimm@lists.01.org, Toshi Kani <toshi.kani@hp.com>, Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-From: Joerg Roedel <jroedel@suse.de>
+From: Yigal Korman <yigal@plexistor.com>
 
-Now that the mmu_notifier_invalidate_range() calls are in
-place, add the call-back to allow subsystems to register
-against it.
+Refactored the arguments of sparse_add_one_section / sparse_remove_one_section
+to use node id instead of struct zone * - A memory section has no direct
+connection to zones, all that was needed from zone was the node id.
 
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
-Reviewed-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Signed-off-by: Joerg Roedel <jroedel@suse.de>
+This is for add_persistent_memory that will want a section of pages
+allocated but without any zone associated. This is because belonging
+to a zone will give the memory to the page allocators, but
+persistent_memory belongs to a block device, and is not available for
+regular volatile usage.
+
+Signed-off-by: Yigal Korman <yigal@plexistor.com>
+Signed-off-by: Boaz Harrosh <boaz@plexistor.com>
 ---
- include/linux/mmu_notifier.h | 37 ++++++++++++++++++++++++++++++++-----
- mm/mmu_notifier.c            | 25 +++++++++++++++++++++++++
- 2 files changed, 57 insertions(+), 5 deletions(-)
+ include/linux/memory_hotplug.h | 4 ++--
+ mm/memory_hotplug.c            | 4 ++--
+ mm/sparse.c                    | 9 +++++----
+ 3 files changed, 9 insertions(+), 8 deletions(-)
 
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index 877d1c8..aa1a6bf 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -95,11 +95,11 @@ struct mmu_notifier_ops {
- 	/*
- 	 * invalidate_range_start() and invalidate_range_end() must be
- 	 * paired and are called only when the mmap_sem and/or the
--	 * locks protecting the reverse maps are held. The subsystem
--	 * must guarantee that no additional references are taken to
--	 * the pages in the range established between the call to
--	 * invalidate_range_start() and the matching call to
--	 * invalidate_range_end().
-+	 * locks protecting the reverse maps are held. If the subsystem
-+	 * can't guarantee that no additional references are taken to
-+	 * the pages in the range, it has to implement the
-+	 * invalidate_range() notifier to remove any references taken
-+	 * after invalidate_range_start().
- 	 *
- 	 * Invalidation of multiple concurrent ranges may be
- 	 * optionally permitted by the driver. Either way the
-@@ -141,6 +141,29 @@ struct mmu_notifier_ops {
- 	void (*invalidate_range_end)(struct mmu_notifier *mn,
- 				     struct mm_struct *mm,
- 				     unsigned long start, unsigned long end);
-+
-+	/*
-+	 * invalidate_range() is either called between
-+	 * invalidate_range_start() and invalidate_range_end() when the
-+	 * VM has to free pages that where unmapped, but before the
-+	 * pages are actually freed, or outside of _start()/_end() when
-+	 * page-table pages are about to be freed.
-+	 *
-+	 * If invalidate_range() is used to manage a non-CPU TLB with
-+	 * shared page-tables, it not necessary to implement the
-+	 * invalidate_range_start()/end() notifiers, as
-+	 * invalidate_range() alread catches the points in time when an
-+	 * external TLB range needs to be flushed.
-+	 *
-+	 * The invalidate_range() function is called under the ptl
-+	 * spin-lock and not allowed to sleep.
-+	 *
-+	 * Note that this function might be called with just a sub-range
-+	 * of what was passed to invalidate_range_start()/end(), if
-+	 * called between those functions.
-+	 */
-+	void (*invalidate_range)(struct mmu_notifier *mn, struct mm_struct *mm,
-+				 unsigned long start, unsigned long end);
- };
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index d9524c4..35ca1bb 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -264,8 +264,8 @@ extern int arch_add_memory(int nid, u64 start, u64 size);
+ extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+ extern bool is_memblock_offlined(struct memory_block *mem);
+ extern void remove_memory(int nid, u64 start, u64 size);
+-extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn);
+-extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms);
++extern int sparse_add_one_section(int nid, unsigned long start_pfn);
++extern void sparse_remove_one_section(int nid, struct mem_section *ms);
+ extern struct page *sparse_decode_mem_map(unsigned long coded_mem_map,
+ 					  unsigned long pnum);
  
- /*
-@@ -186,6 +209,8 @@ extern void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end);
- extern void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end);
-+extern void __mmu_notifier_invalidate_range(struct mm_struct *mm,
-+				  unsigned long start, unsigned long end);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 2ff8c23..e556a90 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -471,7 +471,7 @@ static int __meminit __add_section(int nid, struct zone *zone,
+ 	if (pfn_valid(phys_start_pfn))
+ 		return -EEXIST;
  
- static inline void mmu_notifier_release(struct mm_struct *mm)
- {
-@@ -240,6 +265,8 @@ static inline void mmu_notifier_invalidate_range_end(struct mm_struct *mm,
- static inline void mmu_notifier_invalidate_range(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end)
- {
-+	if (mm_has_notifiers(mm))
-+		__mmu_notifier_invalidate_range(mm, start, end);
+-	ret = sparse_add_one_section(zone, phys_start_pfn);
++	ret = sparse_add_one_section(zone->zone_pgdat->node_id, phys_start_pfn);
+ 
+ 	if (ret < 0)
+ 		return ret;
+@@ -737,7 +737,7 @@ static int __remove_section(struct zone *zone, struct mem_section *ms)
+ 	start_pfn = section_nr_to_pfn(scn_nr);
+ 	__remove_zone(zone, start_pfn);
+ 
+-	sparse_remove_one_section(zone, ms);
++	sparse_remove_one_section(zone->zone_pgdat->node_id, ms);
+ 	return 0;
  }
  
- static inline void mmu_notifier_mm_init(struct mm_struct *mm)
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index 950813b..a900637 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -192,6 +192,16 @@ void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
- 
- 	id = srcu_read_lock(&srcu);
- 	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
-+		/*
-+		 * Call invalidate_range here too to avoid the need for the
-+		 * subsystem of having to register an invalidate_range_end
-+		 * call-back when there is invalidate_range already. Usually a
-+		 * subsystem registers either invalidate_range_start()/end() or
-+		 * invalidate_range(), so this will be no additional overhead
-+		 * (besides the pointer check).
-+		 */
-+		if (mn->ops->invalidate_range)
-+			mn->ops->invalidate_range(mn, mm, start, end);
- 		if (mn->ops->invalidate_range_end)
- 			mn->ops->invalidate_range_end(mn, mm, start, end);
- 	}
-@@ -199,6 +209,21 @@ void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
+diff --git a/mm/sparse.c b/mm/sparse.c
+index d1b48b6..12a10ab 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -690,10 +690,10 @@ static void free_map_bootmem(struct page *memmap)
+  * set.  If this is <=0, then that means that the passed-in
+  * map was not consumed and must be freed.
+  */
+-int __meminit sparse_add_one_section(struct zone *zone, unsigned long start_pfn)
++int __meminit sparse_add_one_section(int nid, unsigned long start_pfn)
+ {
+ 	unsigned long section_nr = pfn_to_section_nr(start_pfn);
+-	struct pglist_data *pgdat = zone->zone_pgdat;
++	struct pglist_data *pgdat = NODE_DATA(nid);
+ 	struct mem_section *ms;
+ 	struct page *memmap;
+ 	unsigned long *usemap;
+@@ -788,11 +788,11 @@ static void free_section_usemap(struct page *memmap, unsigned long *usemap)
+ 		free_map_bootmem(memmap);
  }
- EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_end);
  
-+void __mmu_notifier_invalidate_range(struct mm_struct *mm,
-+				  unsigned long start, unsigned long end)
-+{
-+	struct mmu_notifier *mn;
-+	int id;
+-void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
++void sparse_remove_one_section(int nid, struct mem_section *ms)
+ {
+ 	struct page *memmap = NULL;
+ 	unsigned long *usemap = NULL, flags;
+-	struct pglist_data *pgdat = zone->zone_pgdat;
++	struct pglist_data *pgdat = NODE_DATA(nid);
+ 
+ 	pgdat_resize_lock(pgdat, &flags);
+ 	if (ms->section_mem_map) {
+@@ -807,5 +807,6 @@ void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
+ 	clear_hwpoisoned_pages(memmap, PAGES_PER_SECTION);
+ 	free_section_usemap(memmap, usemap);
+ }
 +
-+	id = srcu_read_lock(&srcu);
-+	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
-+		if (mn->ops->invalidate_range)
-+			mn->ops->invalidate_range(mn, mm, start, end);
-+	}
-+	srcu_read_unlock(&srcu, id);
-+}
-+EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range);
-+
- static int do_mmu_notifier_register(struct mmu_notifier *mn,
- 				    struct mm_struct *mm,
- 				    int take_mmap_sem)
+ #endif /* CONFIG_MEMORY_HOTREMOVE */
+ #endif /* CONFIG_MEMORY_HOTPLUG */
 -- 
-1.9.1
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
