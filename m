@@ -1,90 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 288F26B009F
-	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 15:05:03 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id v10so9506962pde.5
-        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 12:05:02 -0700 (PDT)
-Received: from mail-pd0-x22b.google.com (mail-pd0-x22b.google.com [2607:f8b0:400e:c02::22b])
-        by mx.google.com with ESMTPS id ag3si16930240pbc.61.2014.09.09.12.05.01
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id B00636B00A1
+	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 15:05:28 -0400 (EDT)
+Received: by mail-ie0-f182.google.com with SMTP id tr6so3782545ieb.13
+        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 12:05:28 -0700 (PDT)
+Received: from e8.ny.us.ibm.com (e8.ny.us.ibm.com. [32.97.182.138])
+        by mx.google.com with ESMTPS id x6si17560655igl.40.2014.09.09.12.05.27
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 09 Sep 2014 12:05:02 -0700 (PDT)
-Received: by mail-pd0-f171.google.com with SMTP id p10so6637657pdj.2
-        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 12:05:01 -0700 (PDT)
-Date: Tue, 9 Sep 2014 12:03:14 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v3 2/6] mm/hugetlb: take page table lock in
- follow_huge_(addr|pmd|pud)()
-In-Reply-To: <20140908213741.GA6866@nhori.bos.redhat.com>
-Message-ID: <alpine.LSU.2.11.1409091142330.8184@eggly.anvils>
-References: <1409276340-7054-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1409276340-7054-3-git-send-email-n-horiguchi@ah.jp.nec.com> <alpine.LSU.2.11.1409031243420.9023@eggly.anvils> <20140905052751.GA6883@nhori.redhat.com> <alpine.LSU.2.11.1409072307430.1298@eggly.anvils>
- <20140908213741.GA6866@nhori.bos.redhat.com>
+        Tue, 09 Sep 2014 12:05:28 -0700 (PDT)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Tue, 9 Sep 2014 15:05:27 -0400
+Received: from b01cxnp22035.gho.pok.ibm.com (b01cxnp22035.gho.pok.ibm.com [9.57.198.25])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 4CCBCC90045
+	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 15:05:15 -0400 (EDT)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by b01cxnp22035.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s89J5Nuq9240984
+	for <linux-mm@kvack.org>; Tue, 9 Sep 2014 19:05:23 GMT
+Received: from d01av02.pok.ibm.com (localhost [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s89J5LBT027067
+	for <linux-mm@kvack.org>; Tue, 9 Sep 2014 15:05:23 -0400
+Date: Tue, 9 Sep 2014 12:05:14 -0700
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: [PATCH 2/3] slub: fallback to node_to_mem_node() node if allocating
+ on memoryless node
+Message-ID: <20140909190514.GE22906@linux.vnet.ibm.com>
+References: <20140909190154.GC22906@linux.vnet.ibm.com>
+ <20140909190326.GD22906@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140909190326.GD22906@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org
 
-On Mon, 8 Sep 2014, Naoya Horiguchi wrote:
-> On Mon, Sep 08, 2014 at 12:13:16AM -0700, Hugh Dickins wrote:
-> > On Fri, 5 Sep 2014, Naoya Horiguchi wrote:
-> > > On Wed, Sep 03, 2014 at 02:17:41PM -0700, Hugh Dickins wrote:
-> > > 
-> > > > One subtlety to take care over: it's a long time since I've had to
-> > > > worry about pmd folding and pud folding (what happens when you only
-> > > > have 2 or 3 levels of page table instead of the full 4): macros get
-> > > > defined to each other, and levels get optimized out (perhaps
-> > > > differently on different architectures).
-> > > > 
-> > > > So although at first sight the lock to take in follow_huge_pud()
-> > > > would seem to be mm->page_table_lock, I am not at this point certain
-> > > > that that's necessarily so - sometimes pud_huge might be pmd_huge,
-> > > > and the size PMD_SIZE, and pmd_lockptr appropriate at what appears
-> > > > to be the pud level.  Maybe: needs checking through the architectures
-> > > > and their configs, not obvious to me.
-> > > 
-> > > I think that every architecture uses mm->page_table_lock for pud-level
-> > > locking at least for now, but that could be changed in the future,
-> > > for example when 1GB hugepages or pud-based hugepages become common and
-> > > someone are interested in splitting lock for pud level.
-> > 
-> > I'm not convinced by your answer, that you understand the (perhaps
-> > imaginary!) issue I'm referring to.  Try grep for __PAGETABLE_P.D_FOLDED.
-> > 
-> > Our infrastructure allows for 4 levels of pagetable, pgd pud pmd pte,
-> > but many architectures/configurations support only 2 or 3 levels.
-> > What pud functions and pmd functions work out to be in those
-> > configs is confusing, and varies from architecture to architecture.
-> > 
-> > In particular, pud and pmd may be different expressions of the same
-> > thing (with 1 pmd per pud, instead of say 512).  In that case PUD_SIZE
-> > will equal PMD_SIZE: and then at the pud level huge_pte_lockptr()
-> > will be using split locking instead of mm->page_table_lock.
-> 
-> Is it a possible problem? It seems to me that in such system no one
-> can create pud-based hugepages and care about pud level locking.
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Maybe it is not a possible problem, I already said I'm not certain.
-(Maybe I just need to try a couple of x86_32 builds with printks,
-to find that it is a real problem; but I haven't tried, and x86_32
-would not disprove it for the other architectures.)
+Update the SLUB code to search for partial slabs on the nearest node
+with memory in the presence of memoryless nodes. Additionally, do not
+consider it to be an ALLOC_NODE_MISMATCH (and deactivate the slab) when
+a memoryless-node specified allocation goes off-node.
 
-But again, your answer does not convince me that you begin to understand
-the issue: please read again what I wrote.  I am not talking about
-pud-based hugepages, I'm talking about pmd-based hugepages when the
-pud level is identical to the pmd level.
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Signed-off-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
 
-Hopefully, you're seeing the issue from a different viewpoint than I am,
-and from your good viewpoint the answer is obvious, whereas from my
-muddled viewpoint it is not; but you're not making that clear to me.
+---
+v1 -> v2 (Nishanth):
+  Add commit message
+  Clean-up conditions in get_partial()
 
-What is certain is that we do not need to worry about this in a
-patch fixing follow_huge_pmd() alone: it only becomes an issue in a
-patch extending properly locked FOLL_GET support to follow_huge_pud(),
-which I think you've decided to set aside for now.
-
-Hugh
+diff --git a/mm/slub.c b/mm/slub.c
+index 3e8afcc07a76..497fdfed2f01 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1699,7 +1699,12 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
+ 		struct kmem_cache_cpu *c)
+ {
+ 	void *object;
+-	int searchnode = (node == NUMA_NO_NODE) ? numa_mem_id() : node;
++	int searchnode = node;
++
++	if (node == NUMA_NO_NODE)
++		searchnode = numa_mem_id();
++	else if (!node_present_pages(node))
++		searchnode = node_to_mem_node(node);
+ 
+ 	object = get_partial_node(s, get_node(s, searchnode), c, flags);
+ 	if (object || node != NUMA_NO_NODE)
+@@ -2280,11 +2285,18 @@ static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
+ redo:
+ 
+ 	if (unlikely(!node_match(page, node))) {
+-		stat(s, ALLOC_NODE_MISMATCH);
+-		deactivate_slab(s, page, c->freelist);
+-		c->page = NULL;
+-		c->freelist = NULL;
+-		goto new_slab;
++		int searchnode = node;
++
++		if (node != NUMA_NO_NODE && !node_present_pages(node))
++			searchnode = node_to_mem_node(node);
++
++		if (unlikely(!node_match(page, searchnode))) {
++			stat(s, ALLOC_NODE_MISMATCH);
++			deactivate_slab(s, page, c->freelist);
++			c->page = NULL;
++			c->freelist = NULL;
++			goto new_slab;
++		}
+ 	}
+ 
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
