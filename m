@@ -1,107 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 495C36B0044
-	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 10:50:58 -0400 (EDT)
-Received: by mail-wg0-f48.google.com with SMTP id m15so3154874wgh.7
-        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 07:50:57 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id s6si18328100wiy.42.2014.09.09.07.50.56
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 368756B0055
+	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 10:52:20 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id ft15so7090975pdb.18
+        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 07:52:19 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id k17si23679271pdj.114.2014.09.09.07.52.18
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Sep 2014 07:50:56 -0700 (PDT)
-Date: Tue, 9 Sep 2014 10:50:44 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: regression caused by cgroups optimization in 3.17-rc2
-Message-ID: <20140909145044.GA16027@cmpxchg.org>
-References: <54061505.8020500@sr71.net>
- <5406262F.4050705@intel.com>
- <54062F32.5070504@sr71.net>
- <20140904142721.GB14548@dhcp22.suse.cz>
- <5408CB2E.3080101@sr71.net>
- <20140905123517.GA21208@cmpxchg.org>
- <540DCF99.2070900@intel.com>
+        Tue, 09 Sep 2014 07:52:19 -0700 (PDT)
+Message-ID: <540F141B.9060603@codeaurora.org>
+Date: Tue, 09 Sep 2014 20:22:11 +0530
+From: Chintan Pandya <cpandya@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <540DCF99.2070900@intel.com>
+Subject: Re: [PATCH v4 2/2] ksm: provide support to use deferrable timers
+ for scanner thread
+References: <1408536628-29379-1-git-send-email-cpandya@codeaurora.org> <1408536628-29379-2-git-send-email-cpandya@codeaurora.org> <alpine.LSU.2.11.1408272258050.10518@eggly.anvils> <20140903095815.GK4783@worktop.ger.corp.intel.com> <alpine.LSU.2.11.1409080023100.1610@eggly.anvils> <20140908093949.GZ6758@twins.programming.kicks-ass.net>
+In-Reply-To: <20140908093949.GZ6758@twins.programming.kicks-ass.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Dave Hansen <dave@sr71.net>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, LKML <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Hugh Dickins <hughd@google.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, John Stultz <john.stultz@linaro.org>, Ingo Molnar <mingo@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>
 
-On Mon, Sep 08, 2014 at 08:47:37AM -0700, Dave Hansen wrote:
-> On 09/05/2014 05:35 AM, Johannes Weiner wrote:
-> > On Thu, Sep 04, 2014 at 01:27:26PM -0700, Dave Hansen wrote:
-> >> On 09/04/2014 07:27 AM, Michal Hocko wrote:
-> >>> Ouch. free_pages_and_swap_cache completely kills the uncharge batching
-> >>> because it reduces it to PAGEVEC_SIZE batches.
-> >>>
-> >>> I think we really do not need PAGEVEC_SIZE batching anymore. We are
-> >>> already batching on tlb_gather layer. That one is limited so I think
-> >>> the below should be safe but I have to think about this some more. There
-> >>> is a risk of prolonged lru_lock wait times but the number of pages is
-> >>> limited to 10k and the heavy work is done outside of the lock. If this
-> >>> is really a problem then we can tear LRU part and the actual
-> >>> freeing/uncharging into a separate functions in this path.
-> >>>
-> >>> Could you test with this half baked patch, please? I didn't get to test
-> >>> it myself unfortunately.
-> >>
-> >> 3.16 settled out at about 11.5M faults/sec before the regression.  This
-> >> patch gets it back up to about 10.5M, which is good.  The top spinlock
-> >> contention in the kernel is still from the resource counter code via
-> >> mem_cgroup_commit_charge(), though.
-> > 
-> > Thanks for testing, that looks a lot better.
-> > 
-> > But commit doesn't touch resource counters - did you mean try_charge()
-> > or uncharge() by any chance?
-> 
-> I don't have the perf output that I was looking at when I said this, but
-> here's the path that I think I was referring to.  The inlining makes
-> this non-obvious, but this memcg_check_events() calls
-> mem_cgroup_update_tree() which is contending on mctz->lock.
-> 
-> So, you were right, it's not the resource counters code, it's a lock in
-> 'struct mem_cgroup_tree_per_zone'.  But, the contention isn't _that_
-> high (2% of CPU) in this case.  But, that is 2% that we didn't see before.
-> 
-> >      1.87%     1.87%  [kernel]               [k] _raw_spin_lock_irqsave       
-> >                                |
-> >                                --- _raw_spin_lock_irqsave
-> >                                   |          
-> >                                   |--107.09%-- memcg_check_events
-> >                                   |          |          
-> >                                   |          |--79.98%-- mem_cgroup_commit_charge
-> >                                   |          |          |          
-> >                                   |          |          |--99.81%-- do_cow_fault
-> >                                   |          |          |          handle_mm_fault
-> >                                   |          |          |          __do_page_fault
-> >                                   |          |          |          do_page_fault
-> >                                   |          |          |          page_fault
-> >                                   |          |          |          testcase
-> >                                   |          |           --0.19%-- [...]
+Hello All,
 
-The mctz->lock is only taken when there is, or has been, soft limit
-excess.  However, the soft limit defaults to infinity, so unless you
-set it explicitly on the root level, I can't see how this could be
-mctz->lock contention.
+Before its too late to discuss this basic question, allow me to share my 
+view on the deferrable timer approach.
 
-It's more plausible that this is the res_counter lock for testing soft
-limit excess - for me, both these locks get inlined into check_events,
-could you please double check you got the right lock?
+I believe KSM at this point is tunable with predictable outcomes. When 
+it will get triggered, how many pages it will scan etc. This aggression 
+control is with user who can implement any complex logic based on its 
+own flashy parameters. Along the same line, I was seeing this deferrable 
+timer knob.
 
-As the limit defaults to infinity, and really doesn't mean anything on
-the root level it's idiotic to test it, we can easily eliminate that.
-With the patch below, I don't have that trace show up in the profile
-anymore.  Could you please give it a try?
+Here I was hoping the same level of predictability with this knob. 
+Kernel still won't do smart work and user is free to play smart/complex 
+with the knob. I believe that there are many use-cases where a single 
+strategy of "to make KSM perform better while saving power at the same 
+time" may not work. So,
 
-You also said that this cost hasn't been there before, but I do see
-that trace in both v3.16 and v3.17-rc3 with roughly the same impact
-(although my machines show less contention than yours).  Could you
-please double check that this is in fact a regression independent of
-05b843012335 ("mm: memcontrol: use root_mem_cgroup res_counter")?
 
-Thanks!
+> On Mon, Sep 08, 2014 at 01:25:36AM -0700, Hugh Dickins wrote:
+>> Well, yes, but... how do we know when there is no more work to do?
+>
+> Yeah, I figured that out _after_ I send that email..
+>
+>> Thomas has given reason why KSM might simply fail to do its job if we
+>> rely on the deferrable timer.
 
----
+With deferrable timer, KSM thread will be scheduled on the 'active' CPU 
+at that very same time. Yes, I understood from Thomas's clarification 
+that if that very CPU goes IDLE, KSM task will get deferred even if at 
+the timeout, we have some CPUs running. I think, this situation can be 
+avoided potentially very small timeout value (?). But in totality, this 
+is where KSM will be idle for sure, may be that is unwanted.
+
+>>
+>> Chintan, even if the scheduler guys turn out to hate it, please would
+>> you give the patch below a try, to see how well it works in your
+>> environment, whether it seems to go better or worse than your own patch.
+>>
+>> If it works well enough for you, maybe we can come up with ideas to
+>> make it more palatable.  I do think your issue is an important one
+>> to fix, one way or another.
+
+It is taking a little more time for me to grasp your change :) So, after 
+Peter's comment, do you want me to try this out or you are looking 
+forward for even better idea ? BTW, if deferrable timer patch gets any 
+green signal, I will publish new patch with your comments on v4.
+
+>>
+>> Thanks,
+>> Hugh
+>>
+>> [PATCH] ksm: avoid periodic wakeup while mergeable mms are quiet
+>>
+>> Description yet to be written!
+>>
+>> Reported-by: Chintan Pandya<cpandya@codeaurora.org>
+>> Not-Signed-off-by: Hugh Dickins<hughd@google.com>
+
+
+ >>> So looking at Hughs test results I'm quite sure that the deferrable
+ >>> timer is just another tunable bandaid with dubious value and the
+ >>> potential of predictable bug/regresssion reports.
+
+Here I am naive in understanding the obvious disadvantages of 'one more 
+knob'. And hence was inclined towards deferrable timer knob. Thomas, 
+could you explain what kind of bug/regression you foresee with such 
+approach ?
+
+-- 
+Chintan Pandya
+
+QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+member of the Code Aurora Forum, hosted by The Linux Foundation
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
