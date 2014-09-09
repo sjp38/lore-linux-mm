@@ -1,68 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 95A466B00A3
-	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 15:06:44 -0400 (EDT)
-Received: by mail-ie0-f176.google.com with SMTP id ar1so2738440iec.35
-        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 12:06:44 -0700 (PDT)
-Received: from e36.co.us.ibm.com (e36.co.us.ibm.com. [32.97.110.154])
-        by mx.google.com with ESMTPS id x8si15490718icj.45.2014.09.09.12.06.43
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 5342B6B00A5
+	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 15:53:21 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id p10so6734886pdj.37
+        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 12:53:21 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id kk6si24708551pdb.192.2014.09.09.12.53.20
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 09 Sep 2014 12:06:44 -0700 (PDT)
-Received: from /spool/local
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Tue, 9 Sep 2014 13:06:43 -0600
-Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id D891A3E40030
-	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 13:06:41 -0600 (MDT)
-Received: from d03av01.ahe.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by b03cxnp07028.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s89J4ldB50725116
-	for <linux-mm@kvack.org>; Tue, 9 Sep 2014 21:04:47 +0200
-Received: from d03av01.ahe.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av01.ahe.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s89J6d1U006710
-	for <linux-mm@kvack.org>; Tue, 9 Sep 2014 13:06:41 -0600
-Date: Tue, 9 Sep 2014 12:06:30 -0700
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: [PATCH 3/3] Partial revert of 81c98869faa5 ("kthread: ensure
- locality of task_struct allocations")
-Message-ID: <20140909190630.GF22906@linux.vnet.ibm.com>
-References: <20140909190154.GC22906@linux.vnet.ibm.com>
- <20140909190326.GD22906@linux.vnet.ibm.com>
- <20140909190514.GE22906@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140909190514.GE22906@linux.vnet.ibm.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Sep 2014 12:53:20 -0700 (PDT)
+Date: Tue, 9 Sep 2014 12:53:18 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: page_alloc: Fix setting of ZONE_FAIR_DEPLETED on UP
+ v2
+Message-Id: <20140909125318.b07aee9f77b5a15d6b3041f1@linux-foundation.org>
+In-Reply-To: <20140908115718.GL17501@suse.de>
+References: <1404893588-21371-1-git-send-email-mgorman@suse.de>
+	<1404893588-21371-7-git-send-email-mgorman@suse.de>
+	<53E4EC53.1050904@suse.cz>
+	<20140811121241.GD7970@suse.de>
+	<53E8B83D.1070004@suse.cz>
+	<20140902140116.GD29501@cmpxchg.org>
+	<20140905101451.GF17501@suse.de>
+	<CALq1K=JO2b-=iq40RRvK8JFFbrzyH5EyAp5jyS50CeV0P3eQcA@mail.gmail.com>
+	<20140908115718.GL17501@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Leon Romanovsky <leon@leon.nu>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-After discussions with Tejun, we don't want to spread the use of
-cpu_to_mem() (and thus knowledge of allocators/NUMA topology details)
-into callers, but would rather ensure the callees correctly handle
-memoryless nodes. With the previous patches ("topology: add support for
-node_to_mem_node() to determine the fallback node" and "slub: fallback
-to node_to_mem_node() node if allocating on memoryless node") adding and
-using node_to_mem_node(), we can safely undo part of the change to the
-kthread logic from 81c98869faa5.
+On Mon, 8 Sep 2014 12:57:18 +0100 Mel Gorman <mgorman@suse.de> wrote:
 
-Signed-off-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+> zone_page_state is an API hazard because of the difference in behaviour
+> between SMP and UP is very surprising. There is a good reason to allow
+> NR_ALLOC_BATCH to go negative -- when the counter is reset the negative
+> value takes recent activity into account. This patch makes zone_page_state
+> behave the same on SMP and UP as saving one branch on UP is not likely to
+> make a measurable performance difference.
+> 
+> ...
+>
+> --- a/include/linux/vmstat.h
+> +++ b/include/linux/vmstat.h
+> @@ -131,10 +131,8 @@ static inline unsigned long zone_page_state(struct zone *zone,
+>  					enum zone_stat_item item)
+>  {
+>  	long x = atomic_long_read(&zone->vm_stat[item]);
+> -#ifdef CONFIG_SMP
+>  	if (x < 0)
+>  		x = 0;
+> -#endif
+>  	return x;
+>  }
 
-diff --git a/kernel/kthread.c b/kernel/kthread.c
-index ef483220e855..10e489c448fe 100644
---- a/kernel/kthread.c
-+++ b/kernel/kthread.c
-@@ -369,7 +369,7 @@ struct task_struct *kthread_create_on_cpu(int (*threadfn)(void *data),
- {
- 	struct task_struct *p;
- 
--	p = kthread_create_on_node(threadfn, data, cpu_to_mem(cpu), namefmt,
-+	p = kthread_create_on_node(threadfn, data, cpu_to_node(cpu), namefmt,
- 				   cpu);
- 	if (IS_ERR(p))
- 		return p;
+We now have three fixes for the same thing.  I'm presently holding on
+to hannes's mm-page_alloc-fix-zone-allocation-fairness-on-up.patch.
+
+Regularizing zone_page_state() in this fashion seems a good idea and is
+presumably safe because callers have been tested with SMP.  So unless
+shouted at I think I'll queue this one for 3.18?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
