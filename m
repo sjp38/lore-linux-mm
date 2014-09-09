@@ -1,50 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 645226B0036
-	for <linux-mm@kvack.org>; Mon,  8 Sep 2014 22:09:10 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id kq14so1336511pab.39
-        for <linux-mm@kvack.org>; Mon, 08 Sep 2014 19:09:10 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
-        by mx.google.com with ESMTPS id zi3si20300800pbb.217.2014.09.08.19.09.08
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 893326B0036
+	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 02:14:09 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id p10so5404512pdj.37
+        for <linux-mm@kvack.org>; Mon, 08 Sep 2014 23:14:09 -0700 (PDT)
+Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
+        by mx.google.com with ESMTPS id a1si10991449pat.36.2014.09.08.23.14.06
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 08 Sep 2014 19:09:09 -0700 (PDT)
-From: Zhang Zhen <zhenzhang.zhang@huawei.com>
-Subject: [PATCH] memory-hotplug: fix below build warning
-Date: Tue, 9 Sep 2014 10:11:43 +0800
-Message-ID: <1410228703-2496-1-git-send-email-zhenzhang.zhang@huawei.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 08 Sep 2014 23:14:08 -0700 (PDT)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Tue, 9 Sep 2014 14:13:58 +0800
+Subject: [RFC] Free the reserved memblock when free cma pages
+Message-ID: <35FD53F367049845BC99AC72306C23D103CDBFBFB016@CNBJMBX05.corpusers.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, wangnan0@huawei.com
+To: "'mhocko@suse.cz'" <mhocko@suse.cz>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'akpm@linux-foundation.org'" <akpm@linux-foundation.org>, "mm-commits@vger.kernel.org" <mm-commits@vger.kernel.org>, "hughd@google.com" <hughd@google.com>, "b.zolnierkie@samsung.com" <b.zolnierkie@samsung.com>
 
-drivers/base/memory.c: In function 'show_valid_zones':
-drivers/base/memory.c:384:22: warning: unused variable 'zone_prev' [-Wunused-variable]
-  struct zone *zone, *zone_prev;
-                      ^
+This patch add memblock_free to also free the reserved memblock,
+so that the cma pages are not marked as reserved memory in
+/sys/kernel/debug/memblock/reserved debug file
 
-Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
+Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
 ---
- drivers/base/memory.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/cma.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index efd456c..7c5d871 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -381,7 +381,7 @@ static ssize_t show_valid_zones(struct device *dev,
- 	unsigned long start_pfn, end_pfn;
- 	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
- 	struct page *first_page;
--	struct zone *zone, *zone_prev;
-+	struct zone *zone;
- 
- 	start_pfn = section_nr_to_pfn(mem->start_section_nr);
- 	end_pfn = start_pfn + nr_pages;
--- 
-1.8.1.4
+diff --git a/mm/cma.c b/mm/cma.c
+index c17751c..f3ec756 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -114,6 +114,8 @@ static int __init cma_activate_area(struct cma *cma)
+ 				goto err;
+ 		}
+ 		init_cma_reserved_pageblock(pfn_to_page(base_pfn));
++		memblock_free(__pfn_to_phys(base_pfn),
++				pageblock_nr_pages * PAGE_SIZE);
+ 	} while (--i);
+=20
+ 	mutex_init(&cma->lock);
+--=20
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
