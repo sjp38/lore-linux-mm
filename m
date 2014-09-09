@@ -1,111 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D5926B0070
-	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 11:37:48 -0400 (EDT)
-Received: by mail-wi0-f170.google.com with SMTP id em10so692973wid.1
-        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 08:37:47 -0700 (PDT)
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-        by mx.google.com with ESMTPS id gd11si18529451wic.26.2014.09.09.08.37.46
+Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 945766B0072
+	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 11:44:16 -0400 (EDT)
+Received: by mail-la0-f45.google.com with SMTP id pn19so19842495lab.18
+        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 08:44:16 -0700 (PDT)
+Received: from theia.8bytes.org (8bytes.org. [2a01:238:4383:600:38bc:a715:4b6d:a889])
+        by mx.google.com with ESMTPS id vs12si18400906lac.36.2014.09.09.08.44.13
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 09 Sep 2014 08:37:46 -0700 (PDT)
-Received: by mail-wi0-f175.google.com with SMTP id ex7so4556613wid.8
-        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 08:37:44 -0700 (PDT)
-Message-ID: <540F1EC6.4000504@plexistor.com>
-Date: Tue, 09 Sep 2014 18:37:42 +0300
-From: Boaz Harrosh <boaz@plexistor.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Sep 2014 08:44:14 -0700 (PDT)
+From: Joerg Roedel <joro@8bytes.org>
+Subject: [PATCH 0/3 v3] mmu_notifier: Allow to manage CPU external TLBs
+Date: Tue,  9 Sep 2014 17:43:51 +0200
+Message-Id: <1410277434-3087-1-git-send-email-joro@8bytes.org>
 MIME-Version: 1.0
-Subject: [PATCH 0/9] pmem: Fixes and farther development (mm: add_persistent_memory)
-References: <1409173922-7484-1-git-send-email-ross.zwisler@linux.intel.com>
-In-Reply-To: <1409173922-7484-1-git-send-email-ross.zwisler@linux.intel.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@fb.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-nvdimm@lists.01.org, Toshi Kani <toshi.kani@hp.com>, Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <jweiner@redhat.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, jroedel@suse.de, joro@8bytes.org, Jay.Cornwall@amd.com, Oded.Gabbay@amd.com, John.Bridgman@amd.com, Suravee.Suthikulpanit@amd.com, ben.sander@amd.com, Jesse Barnes <jbarnes@virtuousgeek.org>, David Woodhouse <dwmw2@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org
 
-On 08/28/2014 12:11 AM, Ross Zwisler wrote:
-> PMEM is a modified version of the Block RAM Driver, BRD. The major difference
-> is that BRD allocates its backing store pages from the page cache, whereas
-> PMEM uses reserved memory that has been ioremapped.
-> 
-> One benefit of this approach is that there is a direct mapping between
-> filesystem block numbers and virtual addresses.  In PMEM, filesystem blocks N,
-> N+1, N+2, etc. will all be adjacent in the virtual memory space. This property
-> allows us to set up PMD mappings (2 MiB) for DAX.
-> 
-> This patch set is builds upon the work that Matthew Wilcox has been doing for
-> DAX:
-> 
+Changes V2->V3:
 
-Let us not submit a driver with the wrong user visible API. Lets submit the
-better API (and structure) I have sent.
+* Rebased to v3.17-rc4
+* Fixed compile error because pmdp_get_and_clear_notify was
+  missing
 
-> https://lkml.org/lkml/2014/8/27/31
-> 
-> Specifically, my implementation of pmem_direct_access() in patch 4/4 uses API
-> enhancements introduced in Matthew's DAX patch v10 02/21:
-> 
-> https://lkml.org/lkml/2014/8/27/48
-> 
-> Ross Zwisler (4):
->   pmem: Initial version of persistent memory driver
->   pmem: Add support for getgeo()
->   pmem: Add support for rw_page()
->   pmem: Add support for direct_access()
-> 
+Changes V1->V2:
 
-On top of the 4 above patches here is a list of changes:
+* Rebase to v3.16-rc7
+* Added call of ->invalidate_range to
+  __mmu_notifier_invalidate_end() so that the subsystem
+  doesn't need to register an ->invalidate_end() call-back,
+  subsystems will likely either register
+  invalidate_range_start/end or invalidate_range, so that
+  should be fine.
+* Re-orded declarations a bit to reflect that
+  invalidate_range is not only called between
+  invalidate_range_start/end
+* Updated documentation to cover the case where
+  invalidate_range is called outside of
+  invalidate_range_start/end to flush page-table pages out
+  of the TLB
 
-[PATCH 1/9] SQUASHME: pmem: Remove unused #include headers
-[PATCH 2/9] SQUASHME: pmem: Request from fdisk 4k alignment
-[PATCH 3/9] SQUASHME: pmem: Let each device manage private memory region
-[PATCH 4/9] SQUASHME: pmem: Support of multiple memory regions
+Hi,
 
-	These 4 need to be squashed into Ross's 
-		[patch 1/4] pmem: Initial version of persistent memory driver
-	See below for a suggested new patch
+here is a patch-set to extend the mmu_notifiers in the Linux
+kernel to allow managing CPU external TLBs. Those TLBs may
+be implemented in IOMMUs or any other external device, e.g.
+ATS/PRI capable PCI devices.
 
-[PATCH 5/9 v2] mm: Let sparse_{add,remove}_one_section receive a node_id
-[PATCH 6/9 v2] mm: New add_persistent_memory/remove_persistent_memory
-[PATCH 7/9 v2] pmem: Add support for page structs
+The problem with managing these TLBs are the semantics of
+the invalidate_range_start/end call-backs currently
+available. Currently the subsystem using mmu_notifiers has
+to guarantee that no new TLB entries are established between
+invalidate_range_start/end. Furthermore the
+invalidate_range_start() function is called when all pages
+are still mapped and invalidate_range_end() when the pages
+are unmapped an already freed.
 
-	Please need review by Toshi and mm people.
+So both call-backs can't be used to safely flush any non-CPU
+TLB because _start() is called too early and _end() too
+late.
 
-[PATCH 8/9] SQUASHME: pmem: Fixs to getgeo
-[PATCH 9/9] pmem: KISS, remove register_blkdev
+In the AMD IOMMUv2 driver this is currently implemented by
+assigning an empty page-table to the external device between
+_start() and _end(). But as tests have shown this doesn't
+work as external devices don't re-fault infinitly but enter
+a failure state after some time.
 
-	And some more development atop the initial version
+Next problem with this solution is that it causes an
+interrupt storm for IO page faults to be handled when an
+empty page-table is assigned.
 
+Furthermore the _start()/end() notifiers only catch the
+moment when page mappings are released, but not page-table
+pages. But this is necessary for managing external TLBs when
+the page-table is shared with the CPU.
 
-All these patches can be viewed in this tree/branch:
-	git://git.open-osd.org/pmem.git branch pmem-jens-3.17-rc1
-	[http://git.open-osd.org/gitweb.cgi?p=pmem.git;a=shortlog;h=refs/heads/pmem-jens-3.17-rc1]
+To solve this situation I wrote a patch-set to introduce a
+new notifier call-back: mmu_notifer_invalidate_range(). This
+notifier lifts the strict requirements that no new
+references are taken in the range between _start() and
+_end(). When the subsystem can't guarantee that any new
+references are taken is has to provide the
+invalidate_range() call-back to clear any new references in
+there.
 
-I have also prepared a new branch *pmem* which is already SQUASHED
-And has my suggested changed commit logs for the combined patches
-here is the commit-log:
+It is called between invalidate_range_start() and _end()
+every time the VMM has to wipe out any references to a
+couple of pages. This are usually the places where the CPU
+TLBs are flushed too and where its important that this
+happens before invalidate_range_end() is called.
 
-aa85c80 Boaz Harrosh  |  pmem: KISS, remove register_blkdev 
-738203c Boaz Harrosh  |  pmem: Add support for page structs 
-9f50a54 Boaz Harrosh  |  mm: New add_persistent_memory/remove_persistent_memory 
-fdfab12 Yigal Korman  |  mm: Let sparse_{add,remove}_one_section receive a node_id 
-a477a87 Ross Zwisler  |  pmem: Add support for direct_access() 
-316a93a Ross Zwisler  |  pmem: Add support for rw_page() 
-6850353 Boaz Harrosh  |  SQUASHME: pmem: Fixs to getgeo 
-d78a84a Ross Zwisler  |  pmem: Add support for getgeo() 
-bb0eb45 Ross Zwisler  |  pmem: Initial version of persistent memory driver                                                                             
+Any comments and review appreciated!
 
-All these patches can be viewed in this tree/branch:
-	git://git.open-osd.org/pmem.git branch pmem
-	[http://git.open-osd.org/gitweb.cgi?p=pmem.git;a=shortlog;h=refs/heads/pmem]
-Specifically the first [bb0eb45] is needed so first version can be released with the
-proper user visible API.
-Ross please consider taking these patches (pmem branch) in your tree for submission?
+Thanks,
 
-Thanks
-Boaz
+	Joerg
+
+Joerg Roedel (3):
+  mmu_notifier: Add mmu_notifier_invalidate_range()
+  mmu_notifier: Call mmu_notifier_invalidate_range() from VMM
+  mmu_notifier: Add the call-back for mmu_notifier_invalidate_range()
+
+ include/linux/mmu_notifier.h | 88 +++++++++++++++++++++++++++++++++++++++++---
+ kernel/events/uprobes.c      |  2 +-
+ mm/fremap.c                  |  2 +-
+ mm/huge_memory.c             |  9 +++--
+ mm/hugetlb.c                 |  7 +++-
+ mm/ksm.c                     |  4 +-
+ mm/memory.c                  |  3 +-
+ mm/migrate.c                 |  3 +-
+ mm/mmu_notifier.c            | 25 +++++++++++++
+ mm/rmap.c                    |  2 +-
+ 10 files changed, 128 insertions(+), 17 deletions(-)
+
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
