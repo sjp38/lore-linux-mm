@@ -1,60 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
-	by kanga.kvack.org (Postfix) with ESMTP id AE7226B0037
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 10:42:10 -0400 (EDT)
-Received: by mail-la0-f43.google.com with SMTP id gi9so10000744lab.30
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 07:42:09 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id mk4si8757131lbc.48.2014.09.10.07.42.08
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 10 Sep 2014 07:42:08 -0700 (PDT)
-Date: Wed, 10 Sep 2014 16:42:06 +0200 (CEST)
-From: Jiri Kosina <jkosina@suse.cz>
-Subject: Re: [PATCH] mm/sl[aou]b: make kfree() aware of error pointers
-In-Reply-To: <CAPAsAGyYoPjThA1EV46jYiGX2UzqF1oD4JJueNKh9V1XvAXjcA@mail.gmail.com>
-Message-ID: <alpine.LNX.2.00.1409101640350.5523@pobox.suse.cz>
-References: <alpine.LNX.2.00.1409092319370.5523@pobox.suse.cz> <20140909162114.44b3e98cf925f125e84a8a06@linux-foundation.org> <alpine.LNX.2.00.1409100702190.5523@pobox.suse.cz> <20140910140759.GC31903@thunk.org> <alpine.LNX.2.00.1409101613500.5523@pobox.suse.cz>
- <CAPAsAGyYoPjThA1EV46jYiGX2UzqF1oD4JJueNKh9V1XvAXjcA@mail.gmail.com>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 21EF16B0036
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 11:02:21 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id ey11so9473100pad.6
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 08:02:20 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id ya2si28153553pbb.87.2014.09.10.08.02.18
+        for <linux-mm@kvack.org>;
+        Wed, 10 Sep 2014 08:02:19 -0700 (PDT)
+Message-ID: <541067D1.4090907@intel.com>
+Date: Wed, 10 Sep 2014 08:01:37 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [RFC/PATCH v2 00/10] Kernel address sainitzer (KASan) - dynamic
+ memory error deetector.
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com> <1410359487-31938-1-git-send-email-a.ryabinin@samsung.com>
+In-Reply-To: <1410359487-31938-1-git-send-email-a.ryabinin@samsung.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Cc: Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dan Carpenter <dan.carpenter@oracle.com>
+To: Andrey Ryabinin <a.ryabinin@samsung.com>, linux-kernel@vger.kernel.org
+Cc: Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Marek <mmarek@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-kbuild@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, Randy Dunlap <rdunlap@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>
 
-On Wed, 10 Sep 2014, Andrey Ryabinin wrote:
+On 09/10/2014 07:31 AM, Andrey Ryabinin wrote:
+> This is a second iteration of kerenel address sanitizer (KASan).
 
-> > I of course have no objections to this check being added to whatever
-> > static checker, that would be very welcome improvement.
-> >
-> > Still, I believe that kernel shouldn't be just ignoring kfree(ERR_PTR)
-> > happening. Would something like the below be more acceptable?
-> >
-> >
-> >
-> > From: Jiri Kosina <jkosina@suse.cz>
-> > Subject: [PATCH] mm/sl[aou]b: make kfree() aware of error pointers
-> >
-> > Freeing if ERR_PTR is not covered by ZERO_OR_NULL_PTR() check already
-> > present in kfree(), but it happens in the wild and has disastrous effects.
-> >
-> > Issue a warning and don't proceed trying to free the memory if
-> > CONFIG_DEBUG_SLAB is set.
-> >
-> 
-> This won't work cause CONFIG_DEBUG_SLAB  is only for CONFIG_SLAB=y
-> 
-> How about just VM_BUG_ON(IS_ERR(ptr)); ?
-
-VM_BUG_ON() makes very little sense to me, as we are going to oops anyway 
-later, so it's a lose-lose situation.
-
-VM_WARN_ON() + return seems like much more reasonable choice.
-
--- 
-Jiri Kosina
-SUSE Labs
+Could you give a summary of what you've changed since the last version?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
