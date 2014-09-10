@@ -1,61 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
-	by kanga.kvack.org (Postfix) with ESMTP id CD3116B0099
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 16:31:49 -0400 (EDT)
-Received: by mail-lb0-f169.google.com with SMTP id p9so10560691lbv.14
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 13:31:49 -0700 (PDT)
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-        by mx.google.com with ESMTPS id 1si17763106lal.89.2014.09.10.13.31.48
+Received: from mail-vc0-f178.google.com (mail-vc0-f178.google.com [209.85.220.178])
+	by kanga.kvack.org (Postfix) with ESMTP id BECF06B009B
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 16:32:34 -0400 (EDT)
+Received: by mail-vc0-f178.google.com with SMTP id hy4so4523794vcb.37
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 13:32:34 -0700 (PDT)
+Received: from mail-vc0-x234.google.com (mail-vc0-x234.google.com [2607:f8b0:400c:c03::234])
+        by mx.google.com with ESMTPS id xe7si6813562vcb.14.2014.09.10.13.32.34
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 10 Sep 2014 13:31:48 -0700 (PDT)
-Received: by mail-lb0-f174.google.com with SMTP id n15so11815957lbi.33
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 13:31:48 -0700 (PDT)
+        Wed, 10 Sep 2014 13:32:34 -0700 (PDT)
+Received: by mail-vc0-f180.google.com with SMTP id hq11so1032821vcb.25
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 13:32:34 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <5410B10A.4030207@zytor.com>
-References: <1410367910-6026-1-git-send-email-toshi.kani@hp.com>
- <1410367910-6026-3-git-send-email-toshi.kani@hp.com> <CALCETrXRjU3HvHogpm5eKB3Cogr5QHUvE67JOFGbOmygKYEGyA@mail.gmail.com>
- <1410377428.28990.260.camel@misato.fc.hp.com> <5410B10A.4030207@zytor.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Wed, 10 Sep 2014 13:31:27 -0700
-Message-ID: <CALCETrX5JEZ3cLbuehobnH3bmBDAKARV9o0V5VYoazV8rL5o-A@mail.gmail.com>
-Subject: Re: [PATCH v2 2/6] x86, mm, pat: Change reserve_memtype() to handle WT
+In-Reply-To: <alpine.DEB.2.11.1409101116160.1654@gentwo.org>
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+	<1410359487-31938-1-git-send-email-a.ryabinin@samsung.com>
+	<1410359487-31938-5-git-send-email-a.ryabinin@samsung.com>
+	<alpine.DEB.2.11.1409101116160.1654@gentwo.org>
+Date: Thu, 11 Sep 2014 00:32:34 +0400
+Message-ID: <CAPAsAGxuoXEM2AXRV_at0=xiLOmaZe+QY-45KeA7ZvvHzhOqMg@mail.gmail.com>
+Subject: Re: [RFC/PATCH v2 04/10] mm: slub: introduce virt_to_obj function.
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Toshi Kani <toshi.kani@hp.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Juergen Gross <jgross@suse.com>, Stefan Bader <stefan.bader@canonical.com>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Yigal Korman <yigal@plexistor.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, LKML <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
 
-On Wed, Sep 10, 2014 at 1:14 PM, H. Peter Anvin <hpa@zytor.com> wrote:
-> On 09/10/2014 12:30 PM, Toshi Kani wrote:
->>
->> When WT is unavailable due to the PAT errata, it does not fail but gets
->> redirected to UC-.  Similarly, when PAT is disabled, WT gets redirected
->> to UC- as well.
->>
+2014-09-10 20:16 GMT+04:00 Christoph Lameter <cl@linux.com>:
+> On Wed, 10 Sep 2014, Andrey Ryabinin wrote:
 >
-> But on pre-PAT hardware you can still do WT.
+>> virt_to_obj takes kmem_cache address, address of slab page,
+>> address x pointing somewhere inside slab object,
+>> and returns address of the begging of object.
 >
-
-Using MTRRs?  /me shudders, although I suppose this would be okay for
-NV-DIMMs as long as you map the whole thing WT.
-
-One of these days I'll finish excising mtrr_add from everything
-outside arch/x86.  I already killed it in all modern graphics drivers
-:)
-
---Andy
-
-
-
->         -hpa
+> This function is SLUB specific. Does it really need to be in slab.h?
 >
 
-
+Oh, yes this should be in slub.c
 
 -- 
-Andy Lutomirski
-AMA Capital Management, LLC
+Best regards,
+Andrey Ryabinin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
