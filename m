@@ -1,147 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D02D6B0036
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 05:16:10 -0400 (EDT)
-Received: by mail-la0-f45.google.com with SMTP id pn19so21254566lab.18
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 02:16:09 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id oe10si15045931lbb.34.2014.09.10.02.16.08
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AA016B0036
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 05:51:24 -0400 (EDT)
+Received: by mail-wg0-f47.google.com with SMTP id y10so3848690wgg.6
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 02:51:24 -0700 (PDT)
+Received: from mail-we0-x233.google.com (mail-we0-x233.google.com [2a00:1450:400c:c03::233])
+        by mx.google.com with ESMTPS id f18si1622159wiw.99.2014.09.10.02.51.22
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 10 Sep 2014 02:16:08 -0700 (PDT)
-Date: Wed, 10 Sep 2014 10:16:03 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: page_alloc: Fix setting of ZONE_FAIR_DEPLETED on UP
- v2
-Message-ID: <20140910091603.GS17501@suse.de>
-References: <1404893588-21371-1-git-send-email-mgorman@suse.de>
- <1404893588-21371-7-git-send-email-mgorman@suse.de>
- <53E4EC53.1050904@suse.cz>
- <20140811121241.GD7970@suse.de>
- <53E8B83D.1070004@suse.cz>
- <20140902140116.GD29501@cmpxchg.org>
- <20140905101451.GF17501@suse.de>
- <CALq1K=JO2b-=iq40RRvK8JFFbrzyH5EyAp5jyS50CeV0P3eQcA@mail.gmail.com>
- <20140908115718.GL17501@suse.de>
- <20140909125318.b07aee9f77b5a15d6b3041f1@linux-foundation.org>
+        Wed, 10 Sep 2014 02:51:22 -0700 (PDT)
+Received: by mail-we0-f179.google.com with SMTP id u56so4242414wes.10
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 02:51:22 -0700 (PDT)
+Date: Wed, 10 Sep 2014 11:51:15 +0200
+From: Miklos Szeredi <miklos@szeredi.hu>
+Subject: Re: [PATCH 0/2] fuse: fix regression in fuse_get_user_pages()
+Message-ID: <20140910095115.GA7441@tucsk.piliscsaba.szeredi.hu>
+References: <20140903100826.23218.95122.stgit@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140909125318.b07aee9f77b5a15d6b3041f1@linux-foundation.org>
+In-Reply-To: <20140903100826.23218.95122.stgit@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Leon Romanovsky <leon@leon.nu>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
+To: Maxim Patlasov <MPatlasov@parallels.com>
+Cc: viro@zeniv.linux.org.uk, fuse-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, werner.baumann@onlinehome.de
 
-On Tue, Sep 09, 2014 at 12:53:18PM -0700, Andrew Morton wrote:
-> On Mon, 8 Sep 2014 12:57:18 +0100 Mel Gorman <mgorman@suse.de> wrote:
+On Wed, Sep 03, 2014 at 02:10:23PM +0400, Maxim Patlasov wrote:
+> Hi,
 > 
-> > zone_page_state is an API hazard because of the difference in behaviour
-> > between SMP and UP is very surprising. There is a good reason to allow
-> > NR_ALLOC_BATCH to go negative -- when the counter is reset the negative
-> > value takes recent activity into account. This patch makes zone_page_state
-> > behave the same on SMP and UP as saving one branch on UP is not likely to
-> > make a measurable performance difference.
-> > 
-> > ...
-> >
-> > --- a/include/linux/vmstat.h
-> > +++ b/include/linux/vmstat.h
-> > @@ -131,10 +131,8 @@ static inline unsigned long zone_page_state(struct zone *zone,
-> >  					enum zone_stat_item item)
-> >  {
-> >  	long x = atomic_long_read(&zone->vm_stat[item]);
-> > -#ifdef CONFIG_SMP
-> >  	if (x < 0)
-> >  		x = 0;
-> > -#endif
-> >  	return x;
-> >  }
+> The patchset fixes a regression introduced by the following commits:
 > 
-> We now have three fixes for the same thing. 
-
-This might be holding a record for most patches for what should have
-been a trivial issue :P
-
-> I'm presently holding on
-> to hannes's mm-page_alloc-fix-zone-allocation-fairness-on-up.patch.
+> c7f3888ad7f0 ("switch iov_iter_get_pages() to passing maximal number of pages")
+> c9c37e2e6378 ("fuse: switch to iov_iter_get_pages()")
 > 
 
-This is my preferred fix because it clearly points to where the source of the
-original problem is. Furthermore, the second hunk really should be reading
-the unsigned counter value. It's an inconsequential corner-case but it's
-still more correct although it's a pity that it's also a layering violation.
-However, adding a new API to return the raw value on UP and SMP is likely
-to be interpreted as unwelcome indirection.
+Hmm, instead of reverting to passing maxbytes *instead* of maxpages, I think the
+right fix is to *add* the maxbytes argument.
 
-> Regularizing zone_page_state() in this fashion seems a good idea and is
-> presumably safe because callers have been tested with SMP.  So unless
-> shouted at I think I'll queue this one for 3.18?
+Just maxbytes alone doesn't have enough information in it.  E.g. 4096 contiguous
+bytes could occupy 1 or 2 pages, depending on the starting offset.
 
-Both are ok but if we really want to regularise the API then all readers
-should be brought in line and declared an API cleanup. That looks like
-the following;
+So how about the following (untested) patch?
 
----8<---
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm: vmstat: regularize UP and SMP behavior
+Thanks,
+Miklos
 
-zone_page_state and friends are an API hazard because of the difference in
-behaviour between SMP and UP is very surprising.  There is a good reason
-to allow NR_ALLOC_BATCH to go negative -- when the counter is reset the
-negative value takes recent activity into account. NR_ALLOC_BATCH callers
-that matter access the raw counter but the API hazard is a lesson.
-
-This patch makes zone_page_state, global_page_state and
-zone_page_state_snapshot return the same values on SMP and UP as saving
-the branches on UP is unlikely to make a measurable performance difference.
-
-Signed-off-by: Mel Gorman <mgorman@suse.de>
-Reported-by: Vlastimil Babka <vbabka@suse.cz>
-Reported-by: Leon Romanovsky <leon@leon.nu>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/vmstat.h | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
-
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index 82e7db7..873104e 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -120,10 +120,8 @@ static inline void zone_page_state_add(long x, struct zone *zone,
- static inline unsigned long global_page_state(enum zone_stat_item item)
+diff --git a/fs/direct-io.c b/fs/direct-io.c
+index c3116404ab49..e181b6b2e297 100644
+--- a/fs/direct-io.c
++++ b/fs/direct-io.c
+@@ -158,7 +158,7 @@ static inline int dio_refill_pages(struct dio *dio, struct dio_submit *sdio)
  {
- 	long x = atomic_long_read(&vm_stat[item]);
--#ifdef CONFIG_SMP
- 	if (x < 0)
- 		x = 0;
--#endif
- 	return x;
+ 	ssize_t ret;
+ 
+-	ret = iov_iter_get_pages(sdio->iter, dio->pages, DIO_PAGES,
++	ret = iov_iter_get_pages(sdio->iter, dio->pages, LONG_MAX, DIO_PAGES,
+ 				&sdio->from);
+ 
+ 	if (ret < 0 && sdio->blocks_available && (dio->rw & WRITE)) {
+diff --git a/fs/fuse/file.c b/fs/fuse/file.c
+index 912061ac4baf..caa8d95b24e8 100644
+--- a/fs/fuse/file.c
++++ b/fs/fuse/file.c
+@@ -1305,6 +1305,7 @@ static int fuse_get_user_pages(struct fuse_req *req, struct iov_iter *ii,
+ 		size_t start;
+ 		ssize_t ret = iov_iter_get_pages(ii,
+ 					&req->pages[req->num_pages],
++					*nbytesp - nbytes,
+ 					req->max_pages - req->num_pages,
+ 					&start);
+ 		if (ret < 0)
+diff --git a/include/linux/uio.h b/include/linux/uio.h
+index 48d64e6ab292..290fbf0b6b8a 100644
+--- a/include/linux/uio.h
++++ b/include/linux/uio.h
+@@ -84,7 +84,7 @@ unsigned long iov_iter_alignment(const struct iov_iter *i);
+ void iov_iter_init(struct iov_iter *i, int direction, const struct iovec *iov,
+ 			unsigned long nr_segs, size_t count);
+ ssize_t iov_iter_get_pages(struct iov_iter *i, struct page **pages,
+-			unsigned maxpages, size_t *start);
++			size_t maxsize, unsigned maxpages, size_t *start);
+ ssize_t iov_iter_get_pages_alloc(struct iov_iter *i, struct page ***pages,
+ 			size_t maxsize, size_t *start);
+ int iov_iter_npages(const struct iov_iter *i, int maxpages);
+diff --git a/mm/iov_iter.c b/mm/iov_iter.c
+index ab88dc0ea1d3..9a09f2034fcc 100644
+--- a/mm/iov_iter.c
++++ b/mm/iov_iter.c
+@@ -310,7 +310,7 @@ void iov_iter_init(struct iov_iter *i, int direction,
+ EXPORT_SYMBOL(iov_iter_init);
+ 
+ static ssize_t get_pages_iovec(struct iov_iter *i,
+-		   struct page **pages, unsigned maxpages,
++		   struct page **pages, size_t maxsize, unsigned maxpages,
+ 		   size_t *start)
+ {
+ 	size_t offset = i->iov_offset;
+@@ -323,6 +323,8 @@ static ssize_t get_pages_iovec(struct iov_iter *i,
+ 	len = iov->iov_len - offset;
+ 	if (len > i->count)
+ 		len = i->count;
++	if (len > maxsize)
++		len = maxsize;
+ 	addr = (unsigned long)iov->iov_base + offset;
+ 	len += *start = addr & (PAGE_SIZE - 1);
+ 	if (len > maxpages * PAGE_SIZE)
+@@ -588,13 +590,15 @@ static unsigned long alignment_bvec(const struct iov_iter *i)
  }
  
-@@ -131,10 +129,8 @@ static inline unsigned long zone_page_state(struct zone *zone,
- 					enum zone_stat_item item)
+ static ssize_t get_pages_bvec(struct iov_iter *i,
+-		   struct page **pages, unsigned maxpages,
++		   struct page **pages, size_t maxsize, unsigned maxpages,
+ 		   size_t *start)
  {
- 	long x = atomic_long_read(&zone->vm_stat[item]);
--#ifdef CONFIG_SMP
- 	if (x < 0)
- 		x = 0;
--#endif
- 	return x;
- }
+ 	const struct bio_vec *bvec = i->bvec;
+ 	size_t len = bvec->bv_len - i->iov_offset;
+ 	if (len > i->count)
+ 		len = i->count;
++	if (len > maxsize)
++		len = maxsize;
+ 	/* can't be more than PAGE_SIZE */
+ 	*start = bvec->bv_offset + i->iov_offset;
  
-@@ -153,10 +149,10 @@ static inline unsigned long zone_page_state_snapshot(struct zone *zone,
- 	int cpu;
- 	for_each_online_cpu(cpu)
- 		x += per_cpu_ptr(zone->pageset, cpu)->vm_stat_diff[item];
--
-+#endif
- 	if (x < 0)
- 		x = 0;
--#endif
-+
- 	return x;
+@@ -711,13 +715,13 @@ unsigned long iov_iter_alignment(const struct iov_iter *i)
+ EXPORT_SYMBOL(iov_iter_alignment);
+ 
+ ssize_t iov_iter_get_pages(struct iov_iter *i,
+-		   struct page **pages, unsigned maxpages,
++		   struct page **pages, size_t maxsize, unsigned maxpages,
+ 		   size_t *start)
+ {
+ 	if (i->type & ITER_BVEC)
+-		return get_pages_bvec(i, pages, maxpages, start);
++		return get_pages_bvec(i, pages, maxsize, maxpages, start);
+ 	else
+-		return get_pages_iovec(i, pages, maxpages, start);
++		return get_pages_iovec(i, pages, maxsize, maxpages, start);
  }
+ EXPORT_SYMBOL(iov_iter_get_pages);
  
 
 --
