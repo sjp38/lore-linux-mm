@@ -1,85 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id AB5A86B0038
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 06:07:31 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lj1so6185513pab.1
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 03:07:31 -0700 (PDT)
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-        by mx.google.com with ESMTPS id et5si26922678pbb.177.2014.09.10.03.07.30
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 622DE6B0036
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 08:02:12 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id lj1so8361917pab.41
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 05:02:12 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id rf7si27515267pdb.108.2014.09.10.05.02.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 10 Sep 2014 03:07:30 -0700 (PDT)
-Received: by mail-pd0-f172.google.com with SMTP id v10so12081719pde.3
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 03:07:30 -0700 (PDT)
-Message-ID: <541022DB.9090000@plexistor.com>
-Date: Wed, 10 Sep 2014 13:07:23 +0300
-From: Boaz Harrosh <boaz@plexistor.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Sep 2014 05:02:11 -0700 (PDT)
+Date: Wed, 10 Sep 2014 16:01:57 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [RFC] memory cgroup: my thoughts on memsw
+Message-ID: <20140910120157.GA13796@esperanza>
+References: <20140904143055.GA20099@esperanza>
+ <5408E1CD.3090004@jp.fujitsu.com>
+ <20140905082846.GA25641@esperanza>
+ <5409C6BB.7060009@jp.fujitsu.com>
+ <20140905160029.GF25641@esperanza>
+ <540A4420.2030504@jp.fujitsu.com>
+ <20140908110131.GA11812@esperanza>
+ <540DB4EC.6060100@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/9] mm: Let sparse_{add,remove}_one_section receive a
- node_id
-References: <1409173922-7484-1-git-send-email-ross.zwisler@linux.intel.com> <540F1EC6.4000504@plexistor.com> <540F20AB.4000404@plexistor.com> <540F48BA.2090304@intel.com>
-In-Reply-To: <540F48BA.2090304@intel.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <540DB4EC.6060100@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@fb.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-nvdimm@lists.01.org, Toshi Kani <toshi.kani@hp.com>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Motohiro Kosaki <Motohiro.Kosaki@us.fujitsu.com>, Glauber Costa <glommer@gmail.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@parallels.com>, Konstantin Khorenko <khorenko@parallels.com>, LKML-MM <linux-mm@kvack.org>, LKML-cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 09/09/2014 09:36 PM, Dave Hansen wrote:
-> On 09/09/2014 08:45 AM, Boaz Harrosh wrote:
->> This is for add_persistent_memory that will want a section of pages
->> allocated but without any zone associated. This is because belonging
->> to a zone will give the memory to the page allocators, but
->> persistent_memory belongs to a block device, and is not available for
->> regular volatile usage.
+On Mon, Sep 08, 2014 at 10:53:48PM +0900, Kamezawa Hiroyuki wrote:
+> (2014/09/08 20:01), Vladimir Davydov wrote:
+> >On Sat, Sep 06, 2014 at 08:15:44AM +0900, Kamezawa Hiroyuki wrote:
+> >>As you noticed, hitting anon+swap limit just means oom-kill.
+> >>My point is that using oom-killer for "server management" just seems crazy.
+> >>
+> >>Let my clarify things. your proposal was.
+> >>  1. soft-limit will be a main feature for server management.
+> >>  2. Because of soft-limit, global memory reclaim runs.
+> >>  3. Using swap at global memory reclaim can cause poor performance.
+> >>  4. So, making use of OOM-Killer for avoiding swap.
+> >>
+> >>I can't agree "4". I think
+> >>
+> >>  - don't configure swap.
+> >
+> >Suppose there are two containers, each having soft limit set to 50% of
+> >total system RAM. One of the containers eats 90% of the system RAM by
+> >allocating anonymous pages. Another starts using file caches and wants
+> >more than 10% of RAM to work w/o issuing disk reads. So what should we
+> >do then?
+> >We won't be able to shrink the first container to its soft
+> >limit, because there's no swap. Leaving it as is would be unfair from
+> >the second container's point of view. Kill it? But the whole system is
+> >going OK, because the working set of the second container is easily
+> >shrinkable. Besides there may be some progress in shrinking file caches
+> >from the first container.
+> >
+> >>  - use zram
+> >
+> >In fact this isn't different from the previous proposal (working w/o
+> >swap). ZRAM only compresses data while still storing them in RAM so we
+> >eventually may get into a situation where almost all RAM is full of
+> >compressed anon pages.
+> >
 > 
-> I don't think we should be taking patches like this in to the kernel
-> until we've seen the other side of it.  Where is the page allocator code
-> which will see a page belonging to no zone?  Am I missing it in this set?
-> 
+> In above 2 cases, "vmpressure" works fine.
 
-It is not missing. It will never be.
+What if a container allocates memory so fast that the userspace thread
+handling its threshold notifications won't have time to react before it
+eats all memory?
 
-These pages do not belong to any allocator. They are not allocate-able
-pages. In fact they are not "memory" they are "storage"
-
-These pages belong wholesomely to a block-device. In turn the block
-device grants ownership of a partition of this pages to an FS.
-The FS loaded has its own block allocation schema. Which internally
-circulate each pages usage around. But the page never goes beyond its
-FS.
-
-> I see about 80 or so calls to page_zone() in the kernel.  How will a
-> zone-less page look to all of these sites?
-> 
-
-None of these 80 call site will be reached! the pages are always used
-below the FS, like send them on the network, or send them to a slower
-block device via a BIO. I have a full fledge FS on top of this code
-and it all works very smoothly, and stable. (And fast ;))
-
-It is up to the pMem-based FS to manage its pages's ref count so they are
-never released outside of its own block allocator.
-
-at the end of the day, struct pages has nothing to do with zones
-and allocators and "memory", as it says in Documentation struct
-page is a facility to track the state of a physical page in the
-system. All the other structures are higher in the stack above
-the physical layer, struct-pages for me are the upper API of the
-memory physical layer. Which are in common with pmem, higher
-on the stack where with memory we have a zone, pmem has a block-device.
-Higher where we have page allocators, pmem has an FS block allocator,
-higher where we have a slab, pmem has files for user consumption.
-
-pmem is storage, which shares the physical layer with memory, and
-this is what this patch describes. There will be no more mm interaction
-at all for pmem. The rest of the picture is all there in plain site as
-part of this patchset, the pmem.c driver then an FS on top of that. What
-else do you need to see?
-
-Thanks
-Boaz
+Thanks,
+Vladimir
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
