@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f50.google.com (mail-oi0-f50.google.com [209.85.218.50])
-	by kanga.kvack.org (Postfix) with ESMTP id C30536B003D
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 13:02:46 -0400 (EDT)
-Received: by mail-oi0-f50.google.com with SMTP id u20so12267044oif.23
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 10:02:46 -0700 (PDT)
-Received: from g5t1626.atlanta.hp.com (g5t1626.atlanta.hp.com. [15.192.137.9])
-        by mx.google.com with ESMTPS id xj6si21714267oec.44.2014.09.10.10.02.44
+Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
+	by kanga.kvack.org (Postfix) with ESMTP id A877D6B0044
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 13:02:47 -0400 (EDT)
+Received: by mail-ob0-f179.google.com with SMTP id uz6so13450460obc.38
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 10:02:47 -0700 (PDT)
+Received: from g6t1525.atlanta.hp.com (g6t1525.atlanta.hp.com. [15.193.200.68])
+        by mx.google.com with ESMTPS id j8si23189948obk.3.2014.09.10.10.02.46
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 10 Sep 2014 10:02:45 -0700 (PDT)
+        Wed, 10 Sep 2014 10:02:47 -0700 (PDT)
 From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v2 3/6] x86, mm, asm-gen: Add ioremap_wt() for WT
-Date: Wed, 10 Sep 2014 10:51:47 -0600
-Message-Id: <1410367910-6026-4-git-send-email-toshi.kani@hp.com>
+Subject: [PATCH v2 4/6] x86, mm: Add set_memory_wt() for WT
+Date: Wed, 10 Sep 2014 10:51:48 -0600
+Message-Id: <1410367910-6026-5-git-send-email-toshi.kani@hp.com>
 In-Reply-To: <1410367910-6026-1-git-send-email-toshi.kani@hp.com>
 References: <1410367910-6026-1-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,111 +20,198 @@ List-ID: <linux-mm.kvack.org>
 To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Toshi Kani <toshi.kani@hp.com>
 
-This patch adds ioremap_wt() for creating WT mapping on x86.
-It follows the same model as ioremap_wc() for multi-architecture
-support.  ARCH_HAS_IOREMAP_WT is defined in the x86 version of
-io.h to indicate that ioremap_wt() is implemented on x86.
+This patch adds set_memory_wt(), set_memory_array_wt(), and
+set_pages_array_wt() for setting range(s) of memory to WT.
+
+Note that set_memory_wt() only works for non-RAM ranges at
+this point due to the current limitation in reserve_memtype().
+This may still be useful when a driver maps the entire NV-DIMM
+range with ioremap_cache() and then modifies a specific range
+to WT with set_memory_wt().
 
 Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 ---
- arch/x86/include/asm/io.h   |    2 ++
- arch/x86/mm/ioremap.c       |   24 ++++++++++++++++++++++++
- include/asm-generic/io.h    |    4 ++++
- include/asm-generic/iomap.h |    4 ++++
- 4 files changed, 34 insertions(+)
+ arch/x86/include/asm/cacheflush.h |    6 +++
+ arch/x86/mm/pageattr.c            |   73 ++++++++++++++++++++++++++++++++++---
+ 2 files changed, 72 insertions(+), 7 deletions(-)
 
-diff --git a/arch/x86/include/asm/io.h b/arch/x86/include/asm/io.h
-index 71b9e65..c813c86 100644
---- a/arch/x86/include/asm/io.h
-+++ b/arch/x86/include/asm/io.h
-@@ -35,6 +35,7 @@
-   */
+diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
+index c912680..5bfd5d0 100644
+--- a/arch/x86/include/asm/cacheflush.h
++++ b/arch/x86/include/asm/cacheflush.h
+@@ -81,7 +81,7 @@ static inline void set_page_memtype(struct page *pg,
+ /*
+  * The set_memory_* API can be used to change various attributes of a virtual
+  * address range. The attributes include:
+- * Cachability   : UnCached, WriteCombining, WriteBack
++ * Cachability   : UnCached, WriteCombining, WriteThrough, WriteBack
+  * Executability : eXeutable, NoteXecutable
+  * Read/Write    : ReadOnly, ReadWrite
+  * Presence      : NotPresent
+@@ -108,9 +108,11 @@ static inline void set_page_memtype(struct page *pg,
  
- #define ARCH_HAS_IOREMAP_WC
-+#define ARCH_HAS_IOREMAP_WT
+ int _set_memory_uc(unsigned long addr, int numpages);
+ int _set_memory_wc(unsigned long addr, int numpages);
++int _set_memory_wt(unsigned long addr, int numpages);
+ int _set_memory_wb(unsigned long addr, int numpages);
+ int set_memory_uc(unsigned long addr, int numpages);
+ int set_memory_wc(unsigned long addr, int numpages);
++int set_memory_wt(unsigned long addr, int numpages);
+ int set_memory_wb(unsigned long addr, int numpages);
+ int set_memory_x(unsigned long addr, int numpages);
+ int set_memory_nx(unsigned long addr, int numpages);
+@@ -121,10 +123,12 @@ int set_memory_4k(unsigned long addr, int numpages);
  
- #include <linux/string.h>
- #include <linux/compiler.h>
-@@ -316,6 +317,7 @@ extern void unxlate_dev_mem_ptr(unsigned long phys, void *addr);
- extern int ioremap_change_attr(unsigned long vaddr, unsigned long size,
- 				enum page_cache_mode pcm);
- extern void __iomem *ioremap_wc(resource_size_t offset, unsigned long size);
-+extern void __iomem *ioremap_wt(resource_size_t offset, unsigned long size);
+ int set_memory_array_uc(unsigned long *addr, int addrinarray);
+ int set_memory_array_wc(unsigned long *addr, int addrinarray);
++int set_memory_array_wt(unsigned long *addr, int addrinarray);
+ int set_memory_array_wb(unsigned long *addr, int addrinarray);
  
- extern bool is_early_ioremap_ptep(pte_t *ptep);
+ int set_pages_array_uc(struct page **pages, int addrinarray);
+ int set_pages_array_wc(struct page **pages, int addrinarray);
++int set_pages_array_wt(struct page **pages, int addrinarray);
+ int set_pages_array_wb(struct page **pages, int addrinarray);
  
-diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
-index 885fe44..952f4b4 100644
---- a/arch/x86/mm/ioremap.c
-+++ b/arch/x86/mm/ioremap.c
-@@ -155,6 +155,10 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
- 		prot = __pgprot(pgprot_val(prot) |
- 				cachemode2protval(_PAGE_CACHE_MODE_WC));
- 		break;
-+	case _PAGE_CACHE_MODE_WT:
-+		prot = __pgprot(pgprot_val(prot) |
-+				cachemode2protval(_PAGE_CACHE_MODE_WT));
-+		break;
- 	case _PAGE_CACHE_MODE_WB:
- 		break;
+ /*
+diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+index 6917b39..2dda151 100644
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -1484,12 +1484,10 @@ EXPORT_SYMBOL(set_memory_uc);
+ static int _set_memory_array(unsigned long *addr, int addrinarray,
+ 		enum page_cache_mode new_type)
+ {
++	enum page_cache_mode set_type;
+ 	int i, j;
+ 	int ret;
+ 
+-	/*
+-	 * for now UC MINUS. see comments in ioremap_nocache()
+-	 */
+ 	for (i = 0; i < addrinarray; i++) {
+ 		ret = reserve_memtype(__pa(addr[i]), __pa(addr[i]) + PAGE_SIZE,
+ 					new_type, NULL);
+@@ -1497,9 +1495,12 @@ static int _set_memory_array(unsigned long *addr, int addrinarray,
+ 			goto out_free;
  	}
-@@ -249,6 +253,26 @@ void __iomem *ioremap_wc(resource_size_t phys_addr, unsigned long size)
- }
- EXPORT_SYMBOL(ioremap_wc);
  
-+/**
-+ * ioremap_wt	-	map memory into CPU space write through
-+ * @phys_addr:	bus address of the memory
-+ * @size:	size of the resource to map
-+ *
-+ * This version of ioremap ensures that the memory is marked write through.
-+ * Write through writes data into memory while keeping the cache up-to-date.
-+ *
-+ * Must be freed with iounmap.
-+ */
-+void __iomem *ioremap_wt(resource_size_t phys_addr, unsigned long size)
++	/* If WC, set to UC- first and then WC */
++	set_type = (new_type == _PAGE_CACHE_MODE_WC) ?
++				_PAGE_CACHE_MODE_UC_MINUS : new_type;
++
+ 	ret = change_page_attr_set(addr, addrinarray,
+-				   cachemode2pgprot(_PAGE_CACHE_MODE_UC_MINUS),
+-				   1);
++				   cachemode2pgprot(set_type), 1);
+ 
+ 	if (!ret && new_type == _PAGE_CACHE_MODE_WC)
+ 		ret = change_page_attr_set_clr(addr, addrinarray,
+@@ -1527,10 +1528,22 @@ EXPORT_SYMBOL(set_memory_array_uc);
+ 
+ int set_memory_array_wc(unsigned long *addr, int addrinarray)
+ {
++	if (!pat_enabled)
++		return set_memory_array_uc(addr, addrinarray);
++
+ 	return _set_memory_array(addr, addrinarray, _PAGE_CACHE_MODE_WC);
+ }
+ EXPORT_SYMBOL(set_memory_array_wc);
+ 
++int set_memory_array_wt(unsigned long *addr, int addrinarray)
 +{
-+	if (pat_enabled)
-+		return __ioremap_caller(phys_addr, size, _PAGE_CACHE_MODE_WT,
-+					__builtin_return_address(0));
-+	else
-+		return ioremap_nocache(phys_addr, size);
++	if (!pat_enabled)
++		return set_memory_array_uc(addr, addrinarray);
++
++	return _set_memory_array(addr, addrinarray, _PAGE_CACHE_MODE_WT);
 +}
-+EXPORT_SYMBOL(ioremap_wt);
++EXPORT_SYMBOL(set_memory_array_wt);
 +
- void __iomem *ioremap_cache(resource_size_t phys_addr, unsigned long size)
+ int _set_memory_wc(unsigned long addr, int numpages)
  {
- 	return __ioremap_caller(phys_addr, size, _PAGE_CACHE_MODE_WB,
-diff --git a/include/asm-generic/io.h b/include/asm-generic/io.h
-index 975e1cc..405d418 100644
---- a/include/asm-generic/io.h
-+++ b/include/asm-generic/io.h
-@@ -322,6 +322,10 @@ static inline void __iomem *ioremap(phys_addr_t offset, unsigned long size)
- #define ioremap_wc ioremap_nocache
- #endif
- 
-+#ifndef ioremap_wt
-+#define ioremap_wt ioremap_nocache
-+#endif
-+
- static inline void iounmap(void __iomem *addr)
- {
+ 	int ret;
+@@ -1574,6 +1587,37 @@ out_err:
  }
-diff --git a/include/asm-generic/iomap.h b/include/asm-generic/iomap.h
-index 1b41011..d8f8622 100644
---- a/include/asm-generic/iomap.h
-+++ b/include/asm-generic/iomap.h
-@@ -66,6 +66,10 @@ extern void ioport_unmap(void __iomem *);
- #define ioremap_wc ioremap_nocache
- #endif
+ EXPORT_SYMBOL(set_memory_wc);
  
-+#ifndef ARCH_HAS_IOREMAP_WT
-+#define ioremap_wt ioremap_nocache
-+#endif
++int _set_memory_wt(unsigned long addr, int numpages)
++{
++	return change_page_attr_set(&addr, numpages,
++				    cachemode2pgprot(_PAGE_CACHE_MODE_WT), 0);
++}
 +
- #ifdef CONFIG_PCI
- /* Destroy a virtual mapping cookie for a PCI BAR (memory or IO) */
- struct pci_dev;
++int set_memory_wt(unsigned long addr, int numpages)
++{
++	int ret;
++
++	if (!pat_enabled)
++		return set_memory_uc(addr, numpages);
++
++	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
++			      _PAGE_CACHE_MODE_WT, NULL);
++	if (ret)
++		goto out_err;
++
++	ret = _set_memory_wt(addr, numpages);
++	if (ret)
++		goto out_free;
++
++	return 0;
++
++out_free:
++	free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
++out_err:
++	return ret;
++}
++EXPORT_SYMBOL(set_memory_wt);
++
+ int _set_memory_wb(unsigned long addr, int numpages)
+ {
+ 	/* WB cache mode is hard wired to all cache attribute bits being 0 */
+@@ -1666,6 +1710,7 @@ static int _set_pages_array(struct page **pages, int addrinarray,
+ {
+ 	unsigned long start;
+ 	unsigned long end;
++	enum page_cache_mode set_type;
+ 	int i;
+ 	int free_idx;
+ 	int ret;
+@@ -1679,8 +1724,12 @@ static int _set_pages_array(struct page **pages, int addrinarray,
+ 			goto err_out;
+ 	}
+ 
++	/* If WC, set to UC- first and then WC */
++	set_type = (new_type == _PAGE_CACHE_MODE_WC) ?
++				_PAGE_CACHE_MODE_UC_MINUS : new_type;
++
+ 	ret = cpa_set_pages_array(pages, addrinarray,
+-			cachemode2pgprot(_PAGE_CACHE_MODE_UC_MINUS));
++				  cachemode2pgprot(set_type));
+ 	if (!ret && new_type == _PAGE_CACHE_MODE_WC)
+ 		ret = change_page_attr_set_clr(NULL, addrinarray,
+ 					       cachemode2pgprot(
+@@ -1710,10 +1759,22 @@ EXPORT_SYMBOL(set_pages_array_uc);
+ 
+ int set_pages_array_wc(struct page **pages, int addrinarray)
+ {
++	if (!pat_enabled)
++		return set_pages_array_uc(pages, addrinarray);
++
+ 	return _set_pages_array(pages, addrinarray, _PAGE_CACHE_MODE_WC);
+ }
+ EXPORT_SYMBOL(set_pages_array_wc);
+ 
++int set_pages_array_wt(struct page **pages, int addrinarray)
++{
++	if (!pat_enabled)
++		return set_pages_array_uc(pages, addrinarray);
++
++	return _set_pages_array(pages, addrinarray, _PAGE_CACHE_MODE_WT);
++}
++EXPORT_SYMBOL(set_pages_array_wt);
++
+ int set_pages_wb(struct page *page, int numpages)
+ {
+ 	unsigned long addr = (unsigned long)page_address(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
