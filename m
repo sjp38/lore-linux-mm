@@ -1,63 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id CCE366B005A
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 14:55:53 -0400 (EDT)
-Received: by mail-ig0-f176.google.com with SMTP id hn18so7072838igb.9
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 11:55:53 -0700 (PDT)
-Received: from mail-ie0-x230.google.com (mail-ie0-x230.google.com [2607:f8b0:4001:c03::230])
-        by mx.google.com with ESMTPS id il10si2782691igb.6.2014.09.10.11.55.52
+Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F4A36B0062
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 15:02:56 -0400 (EDT)
+Received: by mail-ie0-f172.google.com with SMTP id tr6so5792314ieb.17
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 12:02:56 -0700 (PDT)
+Received: from mail-ie0-x232.google.com (mail-ie0-x232.google.com [2607:f8b0:4001:c03::232])
+        by mx.google.com with ESMTPS id cr6si2771099igb.30.2014.09.10.12.02.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 10 Sep 2014 11:55:53 -0700 (PDT)
-Received: by mail-ie0-f176.google.com with SMTP id ar1so4728181iec.35
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 11:55:52 -0700 (PDT)
-Date: Wed, 10 Sep 2014 11:55:50 -0700 (PDT)
+        Wed, 10 Sep 2014 12:02:55 -0700 (PDT)
+Received: by mail-ie0-f178.google.com with SMTP id tp5so9046539ieb.37
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 12:02:55 -0700 (PDT)
+Date: Wed, 10 Sep 2014 12:02:53 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] memory-hotplug: fix below build warning
-In-Reply-To: <1410228703-2496-1-git-send-email-zhenzhang.zhang@huawei.com>
-Message-ID: <alpine.DEB.2.02.1409101153340.27173@chino.kir.corp.google.com>
-References: <1410228703-2496-1-git-send-email-zhenzhang.zhang@huawei.com>
+Subject: Re: [PATCH] mm: page_alloc: Make paranoid check in move_freepages
+ a VM_BUG_ON
+In-Reply-To: <20140909145228.GB12309@suse.de>
+Message-ID: <alpine.DEB.2.02.1409101202400.27173@chino.kir.corp.google.com>
+References: <20140909145228.GB12309@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Zhen <zhenzhang.zhang@huawei.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, wangnan0@huawei.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linuxfoundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 9 Sep 2014, Zhang Zhen wrote:
+On Tue, 9 Sep 2014, Mel Gorman wrote:
 
-> drivers/base/memory.c: In function 'show_valid_zones':
-> drivers/base/memory.c:384:22: warning: unused variable 'zone_prev' [-Wunused-variable]
->   struct zone *zone, *zone_prev;
->                       ^
+> Since 2.6.24 there has been a paranoid check in move_freepages that looks
+> up the zone of two pages. This is a very slow path and the only time I've
+> seen this bug trigger recently is when memory initialisation was broken
+> during patch development. Despite the fact it's a slow path, this patch
+> converts the check to a VM_BUG_ON anyway as it is served its purpose by now.
 > 
-> Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-This is
-Reported-by: kbuild test robot <fengguang.wu@intel.com>
-on August 29 to this mailing list.
-
-> ---
->  drivers/base/memory.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-> index efd456c..7c5d871 100644
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -381,7 +381,7 @@ static ssize_t show_valid_zones(struct device *dev,
->  	unsigned long start_pfn, end_pfn;
->  	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
->  	struct page *first_page;
-> -	struct zone *zone, *zone_prev;
-> +	struct zone *zone;
->  
->  	start_pfn = section_nr_to_pfn(mem->start_section_nr);
->  	end_pfn = start_pfn + nr_pages;
-
-Looks good, but this should already be fixed by
-http://ozlabs.org/~akpm/mmotm/broken-out/memory-hotplug-add-sysfs-zones_online_to-attribute-fix-3-fix.patch
-right?
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
