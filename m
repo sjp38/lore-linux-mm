@@ -1,102 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 74C076B0036
-	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 20:55:53 -0400 (EDT)
-Received: by mail-qc0-f174.google.com with SMTP id i17so18488131qcy.33
-        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 17:55:53 -0700 (PDT)
-Received: from e8.ny.us.ibm.com (e8.ny.us.ibm.com. [32.97.182.138])
-        by mx.google.com with ESMTPS id c17si17217858qae.59.2014.09.09.17.55.52
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C0CF6B0036
+	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 22:47:16 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id kq14so3715658pab.39
+        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 19:47:15 -0700 (PDT)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id k5si25819560pdn.89.2014.09.09.19.47.14
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 09 Sep 2014 17:55:52 -0700 (PDT)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Tue, 9 Sep 2014 20:55:52 -0400
-Received: from b01cxnp22036.gho.pok.ibm.com (b01cxnp22036.gho.pok.ibm.com [9.57.198.26])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 8EC7FC90048
-	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 20:55:40 -0400 (EDT)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by b01cxnp22036.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s8A0tnlx8126974
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 00:55:49 GMT
-Received: from d01av01.pok.ibm.com (localhost [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s8A0tmkH011669
-	for <linux-mm@kvack.org>; Tue, 9 Sep 2014 20:55:48 -0400
-Date: Tue, 9 Sep 2014 17:55:42 -0700
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/3] slub: fallback to node_to_mem_node() node if
- allocating on memoryless node
-Message-ID: <20140910005542.GI22906@linux.vnet.ibm.com>
-References: <20140909190154.GC22906@linux.vnet.ibm.com>
- <20140909190326.GD22906@linux.vnet.ibm.com>
- <20140909190514.GE22906@linux.vnet.ibm.com>
- <20140909171125.de9844579d55599c59260afb@linux-foundation.org>
+        Tue, 09 Sep 2014 19:47:15 -0700 (PDT)
+Received: by mail-pa0-f44.google.com with SMTP id kx10so6690021pab.17
+        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 19:47:14 -0700 (PDT)
+Date: Tue, 9 Sep 2014 19:45:26 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: mm: BUG in unmap_page_range
+In-Reply-To: <540F7D42.1020402@oracle.com>
+Message-ID: <alpine.LSU.2.11.1409091903390.10989@eggly.anvils>
+References: <20140805144439.GW10819@suse.de> <alpine.LSU.2.11.1408051649330.6591@eggly.anvils> <53E17F06.30401@oracle.com> <53E989FB.5000904@oracle.com> <53FD4D9F.6050500@oracle.com> <20140827152622.GC12424@suse.de> <540127AC.4040804@oracle.com>
+ <54082B25.9090600@oracle.com> <20140908171853.GN17501@suse.de> <540DEDE7.4020300@oracle.com> <20140909213309.GQ17501@suse.de> <540F7D42.1020402@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140909171125.de9844579d55599c59260afb@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Cyrill Gorcunov <gorcunov@gmail.com>
 
-On 09.09.2014 [17:11:25 -0700], Andrew Morton wrote:
-> On Tue, 9 Sep 2014 12:05:14 -0700 Nishanth Aravamudan <nacc@linux.vnet.ibm.com> wrote:
-> 
-> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Tue, 9 Sep 2014, Sasha Levin wrote:
+> On 09/09/2014 05:33 PM, Mel Gorman wrote:
+> > On Mon, Sep 08, 2014 at 01:56:55PM -0400, Sasha Levin wrote:
+> >> On 09/08/2014 01:18 PM, Mel Gorman wrote:
+> >>> A worse possibility is that somehow the lock is getting corrupted but
+> >>> that's also a tough sell considering that the locks should be allocated
+> >>> from a dedicated cache. I guess I could try breaking that to allocate
+> >>> one page per lock so DEBUG_PAGEALLOC triggers but I'm not very
+> >>> optimistic.
+> >>
+> >> I did see ptl corruption couple days ago:
+> >>
+> >> 	https://lkml.org/lkml/2014/9/4/599
+> >>
+> >> Could this be related?
+> >>
 > > 
-> > Update the SLUB code to search for partial slabs on the nearest node
-> > with memory in the presence of memoryless nodes. Additionally, do not
-> > consider it to be an ALLOC_NODE_MISMATCH (and deactivate the slab) when
-> > a memoryless-node specified allocation goes off-node.
-> > 
-> > ...
-> >
-> > --- a/mm/slub.c
-> > +++ b/mm/slub.c
-> > @@ -1699,7 +1699,12 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
-> >  		struct kmem_cache_cpu *c)
-> >  {
-> >  	void *object;
-> > -	int searchnode = (node == NUMA_NO_NODE) ? numa_mem_id() : node;
-> > +	int searchnode = node;
-> > +
-> > +	if (node == NUMA_NO_NODE)
-> > +		searchnode = numa_mem_id();
-> > +	else if (!node_present_pages(node))
-> > +		searchnode = node_to_mem_node(node);
+> > Possibly although the likely explanation then would be that there is
+> > just general corruption coming from somewhere. Even using your config
+> > and applying a patch to make linux-next boot (already in Tejun's tree)
+> > I was unable to reproduce the problem after running for several hours. I
+> > had to run trinity on tmpfs as ext4 and xfs blew up almost immediately
+> > so I have a few questions.
 > 
-> I expect a call to node_to_mem_node() will always be preceded by a test
-> of node_present_pages().  Perhaps node_to_mem_node() should just do the
-> node_present_pages() call itself?
+> I agree it could be a case of random corruption somewhere else, it's just
+> that the amount of times this exact issue reproduced
 
-Really, we don't need that test here. We could always use the result of
-node_to_mem_node() in the else. If memoryless nodes are not supported
-(off in .config), then node_to_mem_node() trivially returns. If they are
-supported, it returns the correct value for all nodes.
- 
-It's just an optimization (premature?) since we can avoid worrying (in
-this path) about memoryless nodes if the node in question has memory.
+Yes, I doubt it's random corruption; but I've been no more successful
+than Mel in working it out (I share responsibility for that VM_BUG_ON).
 
-And, in fact, in __slab_alloc(), we could do the following:
+Sasha, you say you're getting plenty of these now, but I've only seen
+the dump for one of them, on Aug26: please post a few more dumps, so
+that we can look for commonality.
 
-...
-	int searchnode = node;
+And please attach a disassembly of change_protection_range() (noting
+which of the dumps it corresponds to, in case it has changed around):
+"Code" just shows a cluster of ud2s for the unlikely bugs at end of the
+function, we cannot tell at all what should be in the registers by then.
 
-	if (node != NUMA_NO_NODE)
-		searchnode = node_to_mem_node(node);
+I've been rather assuming that the 9d340902 seen in many of the
+registers in that Aug26 dump is the pte val in question: that's
+SOFT_DIRTY|PROTNONE|RW.
 
-	if (node != searchnode &&
-		unlikely(!node_match(page, searchnode))) {
+I think RW on PROTNONE is unusual but not impossible (migration entry
+replacement racing with mprotect setting PROT_NONE, after it's updated
+vm_page_prot, before it's reached the page table).  But exciting though
+that line of thought is, I cannot actually bring it to a pte_mknuma bug,
+or any bug at all.
 
-...
+Mel, no way can it be the cause of this bug - unless Sasha's later
+traces actually show a different stack - but I don't see the call
+to change_prot_numa() from queue_pages_range() sharing the same
+avoidance of PROT_NONE that task_numa_work() has (though it does
+have an outdated comment about PROT_NONE which should be removed).
+So I think that site probably does need PROT_NONE checking added.
 
-which would minimize the impact to non-memoryless node NUMA configs.
-
-Does that seem better to you? I can add comments to this patch as well.
-
-Thanks,
-Nish
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
