@@ -1,66 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CEB86B0072
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 15:11:31 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id kx10so8250753pab.17
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 12:11:31 -0700 (PDT)
-Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com [2607:f8b0:400e:c03::230])
-        by mx.google.com with ESMTPS id iu9si28784360pbd.251.2014.09.10.12.11.30
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FC776B0074
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 15:15:09 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id fp1so3996689pdb.15
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 12:15:09 -0700 (PDT)
+Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
+        by mx.google.com with ESMTPS id y3si29351235pda.0.2014.09.10.12.15.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 10 Sep 2014 12:11:31 -0700 (PDT)
-Received: by mail-pa0-f48.google.com with SMTP id hz1so10936043pad.21
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 12:11:30 -0700 (PDT)
-Date: Wed, 10 Sep 2014 12:09:40 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: mm: BUG in unmap_page_range
-In-Reply-To: <54104E24.5010402@oracle.com>
-Message-ID: <alpine.LSU.2.11.1409101148290.1262@eggly.anvils>
-References: <20140805144439.GW10819@suse.de> <alpine.LSU.2.11.1408051649330.6591@eggly.anvils> <53E17F06.30401@oracle.com> <53E989FB.5000904@oracle.com> <53FD4D9F.6050500@oracle.com> <20140827152622.GC12424@suse.de> <540127AC.4040804@oracle.com>
- <54082B25.9090600@oracle.com> <20140908171853.GN17501@suse.de> <540DEDE7.4020300@oracle.com> <20140909213309.GQ17501@suse.de> <540F7D42.1020402@oracle.com> <alpine.LSU.2.11.1409091903390.10989@eggly.anvils> <54104E24.5010402@oracle.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Sep 2014 12:15:08 -0700 (PDT)
+Message-ID: <5410A316.8090700@zytor.com>
+Date: Wed, 10 Sep 2014 12:14:30 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH v2 2/6] x86, mm, pat: Change reserve_memtype() to handle
+ WT
+References: <1410367910-6026-1-git-send-email-toshi.kani@hp.com> <1410367910-6026-3-git-send-email-toshi.kani@hp.com> <CALCETrXRjU3HvHogpm5eKB3Cogr5QHUvE67JOFGbOmygKYEGyA@mail.gmail.com>
+In-Reply-To: <CALCETrXRjU3HvHogpm5eKB3Cogr5QHUvE67JOFGbOmygKYEGyA@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Cyrill Gorcunov <gorcunov@gmail.com>
+To: Andy Lutomirski <luto@amacapital.net>, Toshi Kani <toshi.kani@hp.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Juergen Gross <jgross@suse.com>, Stefan Bader <stefan.bader@canonical.com>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Yigal Korman <yigal@plexistor.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-On Wed, 10 Sep 2014, Sasha Levin wrote:
-> On 09/09/2014 10:45 PM, Hugh Dickins wrote:
-> > Sasha, you say you're getting plenty of these now, but I've only seen
-> > the dump for one of them, on Aug26: please post a few more dumps, so
-> > that we can look for commonality.
+On 09/10/2014 11:26 AM, Andy Lutomirski wrote:
+> On Wed, Sep 10, 2014 at 9:51 AM, Toshi Kani <toshi.kani@hp.com> wrote:
+>> This patch changes reserve_memtype() to handle the WT cache mode.
+>> When PAT is not enabled, it continues to set UC- to *new_type for
+>> any non-WB request.
+>>
+>> When a target range is RAM, reserve_ram_pages_type() fails for WT
+>> for now.  This function may not reserve a RAM range for WT since
+>> reserve_ram_pages_type() uses the page flags limited to three memory
+>> types, WB, WC and UC.
 > 
-> I wasn't saving older logs for this issue so I only have 2 traces from
-> tonight. If that's not enough please let me know and I'll try to add
-> a few more.
-
-Thanks, these two are useful, mainly because the register contents most
-likely to be ptes are in both of these ...900, with no sign of a ...902.
-
-So the RW bit I got excited about yesterday is clearly not necessary for
-the bug (though it's still possible that it was good for implicating page
-migration, and page migration still play a part in the story).
-
-> > And please attach a disassembly of change_protection_range() (noting
-> > which of the dumps it corresponds to, in case it has changed around):
-> > "Code" just shows a cluster of ud2s for the unlikely bugs at end of the
-> > function, we cannot tell at all what should be in the registers by then.
+> Should it fail if WT is unavailable due to errata?  More generally,
+> how are all of the do_something_wc / do_something_wt /
+> do_something_nocache helpers supposed to handle unsupported types?
 > 
-> change_protection_range() got inlined into change_protection(), it applies to
-> both traces above:
 
-Thanks for supplying, but the change in inlining means that
-change_protection_range() and change_protection() are no longer
-relevant for these traces, we now need to see change_pte_range()
-instead, to confirm that what I expect are ptes are indeed ptes.
+Errata, or because it is pre-PAT hardware.  Keep in mind that even
+pre-PAT hardware supports using page tables for cache types, it is only
+that the only types supposed are WB, WT, UC.
 
-If you can include line numbers (objdump -ld) in the disassembly, so
-much the better, but should be decipherable without.  (Or objdump -Sd
-for source, but I often find that harder to unscramble, can't say why.)
+	-hpa
 
-Thanks,
-Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
