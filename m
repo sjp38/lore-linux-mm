@@ -1,46 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id F3DC66B003A
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 11:13:37 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id hz1so10470265pad.7
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 08:13:37 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id gp10si28293342pbc.44.2014.09.10.08.13.36
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 172C66B003D
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 11:21:47 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id y10so3566823pdj.8
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 08:21:46 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id st7si28249714pab.122.2014.09.10.08.21.45
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 10 Sep 2014 08:13:37 -0700 (PDT)
-Message-ID: <54106A58.50802@oracle.com>
-Date: Wed, 10 Sep 2014 11:12:24 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        Wed, 10 Sep 2014 08:21:45 -0700 (PDT)
+Date: Wed, 10 Sep 2014 18:21:04 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
+Subject: Re: [PATCH] mm/sl[aou]b: make kfree() aware of error pointers
+Message-ID: <20140910152104.GS6549@mwanda>
+References: <alpine.LNX.2.00.1409092319370.5523@pobox.suse.cz>
+ <20140909162114.44b3e98cf925f125e84a8a06@linux-foundation.org>
+ <alpine.LNX.2.00.1409100702190.5523@pobox.suse.cz>
+ <20140910140759.GC31903@thunk.org>
+ <alpine.LNX.2.00.1409101625160.5523@pobox.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [RFC/PATCH v2 00/10] Kernel address sainitzer (KASan) - dynamic
- memory error deetector.
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com> <1410359487-31938-1-git-send-email-a.ryabinin@samsung.com>
-In-Reply-To: <1410359487-31938-1-git-send-email-a.ryabinin@samsung.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LNX.2.00.1409101625160.5523@pobox.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <a.ryabinin@samsung.com>, linux-kernel@vger.kernel.org
-Cc: Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Michal Marek <mmarek@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-kbuild@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, Randy Dunlap <rdunlap@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>
+To: Jiri Kosina <jkosina@suse.cz>
+Cc: Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 09/10/2014 10:31 AM, Andrey Ryabinin wrote:
-> Hi,
-> This is a second iteration of kerenel address sanitizer (KASan).
+On Wed, Sep 10, 2014 at 04:26:46PM +0200, Jiri Kosina wrote:
+> On Wed, 10 Sep 2014, Theodore Ts'o wrote:
+> 
+> > I'd much rather depending on better testing and static checkers to fix 
+> > them, since kfree *is* a hot path.
+> 
+> BTW if we stretch this argument a little bit more, we should also kill the 
+> ZERO_OR_NULL_PTR() check from kfree() and make it callers responsibility 
+> to perform the checking only if applicable ... we are currently doing a 
+> lot of pointless checking in cases where caller would be able to guarantee 
+> that the pointer is going to be non-NULL.
 
-FWIW, I've been using v1 for a while and it has uncovered quite a few
-real bugs across the kernel.
+What you're saying is that we should remove the ZERO_SIZE_PTR
+completely.  ZERO_SIZE_PTR is a very useful idiom and also it's too late
+to remove it because everything depends on it.
 
-Some of them (I didn't go beyond the first page on google):
+Returning ZERO_SIZE_PTR is not an error.  Callers shouldn't test for it.
+It works like this:
+1) User space says "copy zero items to somewhere."
+2) The kernel says "here is a zero size pointer"
+3) We do some stuff like:
+	copy_from_user(zero_pointer, src, 0)
+   or:
+	for (i = 0; i < 0; i++)
+4) The caller frees the ZERO_SIZE_PTR.
+5) We return success.
 
-* https://lkml.org/lkml/2014/8/9/162 - Which resulted in major changes to
-ballooning.
-* https://lkml.org/lkml/2014/7/13/192
-* https://lkml.org/lkml/2014/7/24/359
+If we get rid of it then we're start returning -ENOMEM all over the
+place and that breaks userspace.  Or we introduce zero as a special case
+for every kmalloc.
 
+You would think there would be a lot of bugs with ZERO_SIZE_POINTERs
+but they seem fairly rare to me.  There are some where we allocate a
+zero length string and then put a NUL terminator at the end.
 
-Thanks,
-Sasha
+regards,
+dan carpenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
