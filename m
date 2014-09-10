@@ -1,166 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BE086B0036
-	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 20:47:33 -0400 (EDT)
-Received: by mail-qg0-f53.google.com with SMTP id q108so1120090qgd.40
-        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 17:47:33 -0700 (PDT)
-Received: from e38.co.us.ibm.com (e38.co.us.ibm.com. [32.97.110.159])
-        by mx.google.com with ESMTPS id b10si17205461qat.61.2014.09.09.17.47.32
+Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 74C076B0036
+	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 20:55:53 -0400 (EDT)
+Received: by mail-qc0-f174.google.com with SMTP id i17so18488131qcy.33
+        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 17:55:53 -0700 (PDT)
+Received: from e8.ny.us.ibm.com (e8.ny.us.ibm.com. [32.97.182.138])
+        by mx.google.com with ESMTPS id c17si17217858qae.59.2014.09.09.17.55.52
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 09 Sep 2014 17:47:32 -0700 (PDT)
+        Tue, 09 Sep 2014 17:55:52 -0700 (PDT)
 Received: from /spool/local
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Tue, 9 Sep 2014 18:47:31 -0600
-Received: from b03cxnp08026.gho.boulder.ibm.com (b03cxnp08026.gho.boulder.ibm.com [9.17.130.18])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 9F3EB3E4003D
-	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 18:47:30 -0600 (MDT)
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by b03cxnp08026.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s8A0lUI050200578
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 02:47:30 +0200
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s8A0lT5U021676
-	for <linux-mm@kvack.org>; Tue, 9 Sep 2014 18:47:30 -0600
-Date: Tue, 9 Sep 2014 17:47:23 -0700
+	Tue, 9 Sep 2014 20:55:52 -0400
+Received: from b01cxnp22036.gho.pok.ibm.com (b01cxnp22036.gho.pok.ibm.com [9.57.198.26])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 8EC7FC90048
+	for <linux-mm@kvack.org>; Tue,  9 Sep 2014 20:55:40 -0400 (EDT)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by b01cxnp22036.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s8A0tnlx8126974
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 00:55:49 GMT
+Received: from d01av01.pok.ibm.com (localhost [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s8A0tmkH011669
+	for <linux-mm@kvack.org>; Tue, 9 Sep 2014 20:55:48 -0400
+Date: Tue, 9 Sep 2014 17:55:42 -0700
 From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3] topology: add support for node_to_mem_node() to
- determine the fallback node
-Message-ID: <20140910004723.GH22906@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/3] slub: fallback to node_to_mem_node() node if
+ allocating on memoryless node
+Message-ID: <20140910005542.GI22906@linux.vnet.ibm.com>
 References: <20140909190154.GC22906@linux.vnet.ibm.com>
  <20140909190326.GD22906@linux.vnet.ibm.com>
- <20140909171115.75c7702c37dfb23b9e053636@linux-foundation.org>
+ <20140909190514.GE22906@linux.vnet.ibm.com>
+ <20140909171125.de9844579d55599c59260afb@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140909171115.75c7702c37dfb23b9e053636@linux-foundation.org>
+In-Reply-To: <20140909171125.de9844579d55599c59260afb@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Tejun Heo <tj@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org
 
-On 09.09.2014 [17:11:15 -0700], Andrew Morton wrote:
-> On Tue, 9 Sep 2014 12:03:27 -0700 Nishanth Aravamudan <nacc@linux.vnet.ibm.com> wrote:
+On 09.09.2014 [17:11:25 -0700], Andrew Morton wrote:
+> On Tue, 9 Sep 2014 12:05:14 -0700 Nishanth Aravamudan <nacc@linux.vnet.ibm.com> wrote:
 > 
 > > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > > 
-> > We need to determine the fallback node in slub allocator if the
-> > allocation target node is memoryless node. Without it, the SLUB wrongly
-> > select the node which has no memory and can't use a partial slab,
-> > because of node mismatch. Introduced function, node_to_mem_node(X), will
-> > return a node Y with memory that has the nearest distance. If X is
-> > memoryless node, it will return nearest distance node, but, if X is
-> > normal node, it will return itself.
-> > 
-> > We will use this function in following patch to determine the fallback
-> > node.
+> > Update the SLUB code to search for partial slabs on the nearest node
+> > with memory in the presence of memoryless nodes. Additionally, do not
+> > consider it to be an ALLOC_NODE_MISMATCH (and deactivate the slab) when
+> > a memoryless-node specified allocation goes off-node.
 > > 
 > > ...
 > >
-> > --- a/include/linux/topology.h
-> > +++ b/include/linux/topology.h
-> > @@ -119,11 +119,20 @@ static inline int numa_node_id(void)
-> >   * Use the accessor functions set_numa_mem(), numa_mem_id() and cpu_to_mem().
-> 
-> This comment could be updated.
-
-Will do, do you prefer a follow-on patch or one that replaces this one?
-
-> >   */
-> >  DECLARE_PER_CPU(int, _numa_mem_);
-> > +extern int _node_numa_mem_[MAX_NUMNODES];
-> >  
-> >  #ifndef set_numa_mem
-> >  static inline void set_numa_mem(int node)
+> > --- a/mm/slub.c
+> > +++ b/mm/slub.c
+> > @@ -1699,7 +1699,12 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
+> >  		struct kmem_cache_cpu *c)
 > >  {
-> >  	this_cpu_write(_numa_mem_, node);
-> > +	_node_numa_mem_[numa_node_id()] = node;
-> > +}
-> > +#endif
+> >  	void *object;
+> > -	int searchnode = (node == NUMA_NO_NODE) ? numa_mem_id() : node;
+> > +	int searchnode = node;
 > > +
-> > +#ifndef node_to_mem_node
-> > +static inline int node_to_mem_node(int node)
-> > +{
-> > +	return _node_numa_mem_[node];
-> >  }
+> > +	if (node == NUMA_NO_NODE)
+> > +		searchnode = numa_mem_id();
+> > +	else if (!node_present_pages(node))
+> > +		searchnode = node_to_mem_node(node);
 > 
-> A wee bit of documentation wouldn't hurt.
-> 
-> How does node_to_mem_node(numa_node_id()) differ from numa_mem_id()? 
-> If I'm reading things correctly, they should both always return the
-> same thing.  If so, do we need both?
+> I expect a call to node_to_mem_node() will always be preceded by a test
+> of node_present_pages().  Perhaps node_to_mem_node() should just do the
+> node_present_pages() call itself?
 
-That seems correct to me. The nearest memory node of this cpu's NUMA
-node (node_to_mem_node(numa_node_id()) is always equal to the nearest
-memory node (numa_mem_id()).
-
-> Will node_to_mem_node() ever actually be called with a node !=
-> numa_node_id()?
-
-Well, it's a layering problem. The eventual callers of
-node_to_mem_node() only have the requested NUMA node (if any) available.
-I think because get_partial() __slab_alloc() allow for allocations for
-any node, and that's where we see the slab deactivation issues, we need
-to support this in the API.
-
-In practice, it's probably that the node parameter is often
-numa_node_id(), but we can't be sure of that in these call-paths,
-afaict.
+Really, we don't need that test here. We could always use the result of
+node_to_mem_node() in the else. If memoryless nodes are not supported
+(off in .config), then node_to_mem_node() trivially returns. If they are
+supported, it returns the correct value for all nodes.
  
-> >  #endif
-> >  
-> > @@ -146,6 +155,7 @@ static inline int cpu_to_mem(int cpu)
-> >  static inline void set_cpu_numa_mem(int cpu, int node)
-> >  {
-> >  	per_cpu(_numa_mem_, cpu) = node;
-> > +	_node_numa_mem_[cpu_to_node(cpu)] = node;
-> >  }
-> >  #endif
-> >  
-> > @@ -159,6 +169,13 @@ static inline int numa_mem_id(void)
-> >  }
-> >  #endif
-> >  
-> > +#ifndef node_to_mem_node
-> > +static inline int node_to_mem_node(int node)
-> > +{
-> > +	return node;
-> > +}
-> > +#endif
-> > +
-> >  #ifndef cpu_to_mem
-> >  static inline int cpu_to_mem(int cpu)
-> >  {
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 18cee0d4c8a2..0883c42936d4 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -85,6 +85,7 @@ EXPORT_PER_CPU_SYMBOL(numa_node);
-> >   */
-> >  DEFINE_PER_CPU(int, _numa_mem_);		/* Kernel "local memory" node */
-> >  EXPORT_PER_CPU_SYMBOL(_numa_mem_);
-> > +int _node_numa_mem_[MAX_NUMNODES];
-> 
-> How does this get updated as CPUs, memory and nodes are hot-added and
-> removed?
+It's just an optimization (premature?) since we can avoid worrying (in
+this path) about memoryless nodes if the node in question has memory.
 
-As CPUs are added, the architecture code in the CPU bringup will update
-the NUMA topology. Memory and node hotplug are still open issues, I
-mentioned the former in the cover letter. I should have mentioned it in
-this commit message as well.
+And, in fact, in __slab_alloc(), we could do the following:
 
-I do notice that Lee's commit message from 7aac78988551 ("numa:
-introduce numa_mem_id()- effective local memory node id"):
+...
+	int searchnode = node;
 
-"Generic initialization of 'numa_mem' occurs in __build_all_zonelists().
-This will initialize the boot cpu at boot time, and all cpus on change
-of numa_zonelist_order, or when node or memory hot-plug requires
-zonelist rebuild.  Archs that support memoryless nodes will need to
-initialize 'numa_mem' for secondary cpus as they're brought on-line."
+	if (node != NUMA_NO_NODE)
+		searchnode = node_to_mem_node(node);
 
-And since we update the _node_numa_mem_ value on set_cpu_numa_mem()
-calls, which were already needed for numa_mem_id(), we might be covered.
-Testing these cases (hotplug) is next in my plans.
+	if (node != searchnode &&
+		unlikely(!node_match(page, searchnode))) {
+
+...
+
+which would minimize the impact to non-memoryless node NUMA configs.
+
+Does that seem better to you? I can add comments to this patch as well.
 
 Thanks,
 Nish
