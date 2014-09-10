@@ -1,92 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f50.google.com (mail-oa0-f50.google.com [209.85.219.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C7DD6B0055
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 13:02:53 -0400 (EDT)
-Received: by mail-oa0-f50.google.com with SMTP id o6so13328761oag.9
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 10:02:52 -0700 (PDT)
-Received: from g6t1526.atlanta.hp.com (g6t1526.atlanta.hp.com. [15.193.200.69])
-        by mx.google.com with ESMTPS id o7si23187072oei.13.2014.09.10.10.02.51
+Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
+	by kanga.kvack.org (Postfix) with ESMTP id E33776B003B
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 13:05:10 -0400 (EDT)
+Received: by mail-we0-f176.google.com with SMTP id q58so5554576wes.7
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 10:05:10 -0700 (PDT)
+Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com [2a00:1450:400c:c05::22d])
+        by mx.google.com with ESMTPS id gq8si21489329wjc.23.2014.09.10.10.05.09
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 10 Sep 2014 10:02:51 -0700 (PDT)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v2 6/6] x86, pat: Update documentation for WT changes
-Date: Wed, 10 Sep 2014 10:51:50 -0600
-Message-Id: <1410367910-6026-7-git-send-email-toshi.kani@hp.com>
-In-Reply-To: <1410367910-6026-1-git-send-email-toshi.kani@hp.com>
-References: <1410367910-6026-1-git-send-email-toshi.kani@hp.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 10 Sep 2014 10:05:09 -0700 (PDT)
+Received: by mail-wi0-f173.google.com with SMTP id em10so2563594wid.0
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 10:05:09 -0700 (PDT)
+Date: Wed, 10 Sep 2014 19:05:06 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: regression caused by cgroups optimization in 3.17-rc2
+Message-ID: <20140910170506.GL25219@dhcp22.suse.cz>
+References: <54061505.8020500@sr71.net>
+ <5406262F.4050705@intel.com>
+ <54062F32.5070504@sr71.net>
+ <20140904142721.GB14548@dhcp22.suse.cz>
+ <5408CB2E.3080101@sr71.net>
+ <20140905092537.GC26243@dhcp22.suse.cz>
+ <20140910162936.GI25219@dhcp22.suse.cz>
+ <54108314.80400@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54108314.80400@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Toshi Kani <toshi.kani@hp.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Dave Hansen <dave@sr71.net>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, LKML <linux-kernel@vger.kernel.org>
 
-This patch updates the PAT documentation file to cover the new
-WT mapping interfaces.
+On Wed 10-09-14 09:57:56, Dave Hansen wrote:
+> On 09/10/2014 09:29 AM, Michal Hocko wrote:
+> > I do not have a bigger machine to play with unfortunately. I think the
+> > patch makes sense on its own. I would really appreciate if you could
+> > give it a try on your machine with !root memcg case to see how much it
+> > helped. I would expect similar results to your previous testing without
+> > the revert and Johannes' patch.
+> 
+> So you want to see before/after this patch:
+> 
+> Subject: [PATCH] mm, memcg: Do not kill release batching in
+>  free_pages_and_swap_cache
+> 
+> And you want it on top of a kernel with the revert or without?
 
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
----
- Documentation/x86/pat.txt |   14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+Revert doesn't make any difference if you run the load inside a memcg
+(without any limit set).
+So just before and after the patch would be sufficient.
 
-diff --git a/Documentation/x86/pat.txt b/Documentation/x86/pat.txt
-index cf08c9f..445caab 100644
---- a/Documentation/x86/pat.txt
-+++ b/Documentation/x86/pat.txt
-@@ -12,7 +12,7 @@ virtual addresses.
- 
- PAT allows for different types of memory attributes. The most commonly used
- ones that will be supported at this time are Write-back, Uncached,
--Write-combined and Uncached Minus.
-+Write-combined, Write-through and Uncached Minus.
- 
- 
- PAT APIs
-@@ -38,12 +38,17 @@ ioremap_nocache        |    --    |    UC-     |       UC-        |
-                        |          |            |                  |
- ioremap_wc             |    --    |    --      |       WC         |
-                        |          |            |                  |
-+ioremap_wt             |    --    |    --      |       WT         |
-+                       |          |            |                  |
- set_memory_uc          |    UC-   |    --      |       --         |
-  set_memory_wb         |          |            |                  |
-                        |          |            |                  |
- set_memory_wc          |    WC    |    --      |       --         |
-  set_memory_wb         |          |            |                  |
-                        |          |            |                  |
-+set_memory_wt          |    *1    |    --      |       WT         |
-+ set_memory_wb         |          |            |                  |
-+                       |          |            |                  |
- pci sysfs resource     |    --    |    --      |       UC-        |
-                        |          |            |                  |
- pci sysfs resource_wc  |    --    |    --      |       WC         |
-@@ -79,6 +84,7 @@ pci proc               |    --    |    --      |       WC         |
-  MTRR says !WB         |          |            |                  |
-                        |          |            |                  |
- -------------------------------------------------------------------
-+*1: -EINVAL due to the current limitation in reserve_memtype().
- 
- Advanced APIs for drivers
- -------------------------
-@@ -115,8 +121,8 @@ can be more restrictive, in case of any existing aliasing for that address.
- For example: If there is an existing uncached mapping, a new ioremap_wc can
- return uncached mapping in place of write-combine requested.
- 
--set_memory_[uc|wc] and set_memory_wb should be used in pairs, where driver will
--first make a region uc or wc and switch it back to wb after use.
-+set_memory_[uc|wc|wt] and set_memory_wb should be used in pairs, where driver
-+will first make a region uc, wc or wt and switch it back to wb after use.
- 
- Over time writes to /proc/mtrr will be deprecated in favor of using PAT based
- interfaces. Users writing to /proc/mtrr are suggested to use above interfaces.
-@@ -126,6 +132,8 @@ types.
- 
- Drivers should use set_memory_[uc|wc] to set access type for RAM ranges.
- 
-+Drivers may map the entire NV-DIMM range with ioremap_cache and then change
-+a specific range to wt with set_memory_wt.
- 
- PAT debugging
- -------------
+Thanks a lot Dave!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
