@@ -1,143 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f174.google.com (mail-vc0-f174.google.com [209.85.220.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 454746B0036
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 10:33:53 -0400 (EDT)
-Received: by mail-vc0-f174.google.com with SMTP id hy10so4248479vcb.5
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 07:33:53 -0700 (PDT)
-Received: from mail-vc0-x229.google.com (mail-vc0-x229.google.com [2607:f8b0:400c:c03::229])
-        by mx.google.com with ESMTPS id iy2si7036334vdb.3.2014.09.10.07.33.52
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id BD0636B0037
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 10:34:39 -0400 (EDT)
+Received: by mail-wi0-f174.google.com with SMTP id n3so2847068wiv.1
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 07:34:39 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id ew1si2503036wib.36.2014.09.10.07.34.37
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 10 Sep 2014 07:33:52 -0700 (PDT)
-Received: by mail-vc0-f169.google.com with SMTP id ik5so2137302vcb.14
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 07:33:52 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Sep 2014 07:34:38 -0700 (PDT)
+Date: Wed, 10 Sep 2014 10:33:52 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: Trinity and mbind flags (WAS: Re: mm: BUG in unmap_page_range)
+Message-ID: <20140910143352.GB10785@redhat.com>
+References: <20140827152622.GC12424@suse.de>
+ <540127AC.4040804@oracle.com>
+ <54082B25.9090600@oracle.com>
+ <20140908171853.GN17501@suse.de>
+ <540DEDE7.4020300@oracle.com>
+ <20140909213309.GQ17501@suse.de>
+ <540F7D42.1020402@oracle.com>
+ <alpine.LSU.2.11.1409091903390.10989@eggly.anvils>
+ <20140910124732.GT17501@suse.de>
+ <54105F28.1000506@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LNX.2.00.1409101613500.5523@pobox.suse.cz>
-References: <alpine.LNX.2.00.1409092319370.5523@pobox.suse.cz>
-	<20140909162114.44b3e98cf925f125e84a8a06@linux-foundation.org>
-	<alpine.LNX.2.00.1409100702190.5523@pobox.suse.cz>
-	<20140910140759.GC31903@thunk.org>
-	<alpine.LNX.2.00.1409101613500.5523@pobox.suse.cz>
-Date: Wed, 10 Sep 2014 18:33:52 +0400
-Message-ID: <CAPAsAGyYoPjThA1EV46jYiGX2UzqF1oD4JJueNKh9V1XvAXjcA@mail.gmail.com>
-Subject: Re: [PATCH] mm/sl[aou]b: make kfree() aware of error pointers
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54105F28.1000506@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Kosina <jkosina@suse.cz>
-Cc: Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dan Carpenter <dan.carpenter@oracle.com>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Cyrill Gorcunov <gorcunov@gmail.com>
 
-2014-09-10 18:24 GMT+04:00 Jiri Kosina <jkosina@suse.cz>:
-> On Wed, 10 Sep 2014, Theodore Ts'o wrote:
->
->> So I wouldn't be so sure that we don't have these sorts of bugs hiding
->> somewhere; and it's extremely easy for them to sneak in.  That being
->> said, I'm not in favor of making changes to kfree; I'd much rather
->> depending on better testing and static checkers to fix them, since
->> kfree *is* a hot path.
->
-> I of course have no objections to this check being added to whatever
-> static checker, that would be very welcome improvement.
->
-> Still, I believe that kernel shouldn't be just ignoring kfree(ERR_PTR)
-> happening. Would something like the below be more acceptable?
->
->
->
-> From: Jiri Kosina <jkosina@suse.cz>
-> Subject: [PATCH] mm/sl[aou]b: make kfree() aware of error pointers
->
-> Freeing if ERR_PTR is not covered by ZERO_OR_NULL_PTR() check already
-> present in kfree(), but it happens in the wild and has disastrous effects.
->
-> Issue a warning and don't proceed trying to free the memory if
-> CONFIG_DEBUG_SLAB is set.
->
+On Wed, Sep 10, 2014 at 10:24:40AM -0400, Sasha Levin wrote:
+ > On 09/10/2014 08:47 AM, Mel Gorman wrote:
+ > > That site should have checked PROT_NONE but it can't be the same bug
+ > > that trinity is seeing. Minimally trinity is unaware of MPOL_MF_LAZY
+ > > according to git grep of the trinity source.
+ > 
+ > Actually, if I'm reading it correctly I think that Trinity handles mbind()
+ > calls wrong. It passes the wrong values for mode flags and actual flags.
 
-This won't work cause CONFIG_DEBUG_SLAB  is only for CONFIG_SLAB=y
+Ugh, I think you're right.  I misinterpreted the man page that mentions
+that flags like MPOL_F_STATIC_NODES/RELATIVE_NODES are OR'd with the
+mode, and instead dumped those flags into .. the flags field.
 
-How about just VM_BUG_ON(IS_ERR(ptr)); ?
+So the 'flags' argument it generates is crap, because I didn't add
+any of the actual correct values.
 
+I'll fix it up, though if it's currently finding bugs, you might want
+to keep the current syscalls/mbind.c for now.
 
-> Inspired by a9cfcd63e8d ("ext4: avoid trying to kfree an ERR_PTR pointer").
->
-> Signed-off-by: Jiri Kosina <jkosina@suse.cz>
-> ---
->  mm/slab.c | 6 ++++++
->  mm/slob.c | 7 ++++++-
->  mm/slub.c | 7 ++++++-
->  3 files changed, 18 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/slab.c b/mm/slab.c
-> index a467b30..6f49d6b 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -3612,6 +3612,12 @@ void kfree(const void *objp)
->
->         trace_kfree(_RET_IP_, objp);
->
-> +#ifdef CONFIG_DEBUG_SLAB
-> +       if (unlikely(IS_ERR(objp))) {
-> +                       WARN(1, "trying to free ERR_PTR\n");
-> +                       return;
-> +       }
-> +#endif
->         if (unlikely(ZERO_OR_NULL_PTR(objp)))
->                 return;
->         local_irq_save(flags);
-> diff --git a/mm/slob.c b/mm/slob.c
-> index 21980e0..66422a0 100644
-> --- a/mm/slob.c
-> +++ b/mm/slob.c
-> @@ -488,7 +488,12 @@ void kfree(const void *block)
->         struct page *sp;
->
->         trace_kfree(_RET_IP_, block);
-> -
-> +#ifdef CONFIG_DEBUG_SLAB
-> +       if (unlikely(IS_ERR(block))) {
-> +               WARN(1, "trying to free ERR_PTR\n");
-> +               return;
-> +       }
-> +#endif
->         if (unlikely(ZERO_OR_NULL_PTR(block)))
->                 return;
->         kmemleak_free(block);
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 3e8afcc..21155ae 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -3337,7 +3337,12 @@ void kfree(const void *x)
->         void *object = (void *)x;
->
->         trace_kfree(_RET_IP_, x);
-> -
-> +#ifdef CONFIG_DEBUG_SLAB
-> +       if (unlikely(IS_ERR(x))) {
-> +               WARN(1, "trying to free ERR_PTR\n");
-> +               return;
-> +       }
-> +#endif
->         if (unlikely(ZERO_OR_NULL_PTR(x)))
->                 return;
->
->
-> --
-> Jiri Kosina
-> SUSE Labs
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
-
-
--- 
-Best regards,
-Andrey Ryabinin
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
