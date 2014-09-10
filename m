@@ -1,64 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id D00EB6B0038
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 14:29:22 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id ey11so9822850pad.6
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 11:29:22 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id hb5si28770541pbb.186.2014.09.10.11.29.21
-        for <linux-mm@kvack.org>;
-        Wed, 10 Sep 2014 11:29:22 -0700 (PDT)
-Message-ID: <54109845.3050309@intel.com>
-Date: Wed, 10 Sep 2014 11:28:21 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 65FEC6B003A
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 14:29:33 -0400 (EDT)
+Received: by mail-la0-f41.google.com with SMTP id s18so10460459lam.28
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 11:29:32 -0700 (PDT)
+Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
+        by mx.google.com with ESMTPS id v2si22405315lal.134.2014.09.10.11.29.31
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 10 Sep 2014 11:29:31 -0700 (PDT)
+Received: by mail-la0-f54.google.com with SMTP id ge10so917476lab.13
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 11:29:31 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/9] mm: Let sparse_{add,remove}_one_section receive a
- node_id
-References: <1409173922-7484-1-git-send-email-ross.zwisler@linux.intel.com> <540F1EC6.4000504@plexistor.com> <540F20AB.4000404@plexistor.com> <540F48BA.2090304@intel.com> <541022DB.9090000@plexistor.com> <541077DF.1060609@intel.com> <5410899C.3030501@plexistor.com>
-In-Reply-To: <5410899C.3030501@plexistor.com>
+In-Reply-To: <1410367910-6026-4-git-send-email-toshi.kani@hp.com>
+References: <1410367910-6026-1-git-send-email-toshi.kani@hp.com> <1410367910-6026-4-git-send-email-toshi.kani@hp.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Wed, 10 Sep 2014 11:29:10 -0700
+Message-ID: <CALCETrWoCYWRSDXy0W8vEhdiEKmuETMRpDMWRgYvVx71MeeTkg@mail.gmail.com>
+Subject: Re: [PATCH v2 3/6] x86, mm, asm-gen: Add ioremap_wt() for WT
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Boaz Harrosh <boaz@plexistor.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@fb.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-nvdimm@lists.01.org, Toshi Kani <toshi.kani@hp.com>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Juergen Gross <jgross@suse.com>, Stefan Bader <stefan.bader@canonical.com>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Yigal Korman <yigal@plexistor.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-On 09/10/2014 10:25 AM, Boaz Harrosh wrote:
-> Yes the block_allocator of the pmem-FS always holds the final REF on this
-> page, as long as there is valid data on this block. Even cross boots, the
-> mount code re-initializes references. The only internal state that frees
-> these blocks is truncate, which only then return these pages to the block
-> allocator, all this is common practice in filesystems so the page-ref on
-> these blocks only ever drops to zero after they loose all visibility. And
-> yes the block allocator uses a special code to drop the count to zero
-> not using put_page().
+On Wed, Sep 10, 2014 at 9:51 AM, Toshi Kani <toshi.kani@hp.com> wrote:
+> This patch adds ioremap_wt() for creating WT mapping on x86.
+> It follows the same model as ioremap_wc() for multi-architecture
+> support.  ARCH_HAS_IOREMAP_WT is defined in the x86 version of
+> io.h to indicate that ioremap_wt() is implemented on x86.
+>
+> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+> ---
+>  arch/x86/include/asm/io.h   |    2 ++
+>  arch/x86/mm/ioremap.c       |   24 ++++++++++++++++++++++++
+>  include/asm-generic/io.h    |    4 ++++
+>  include/asm-generic/iomap.h |    4 ++++
+>  4 files changed, 34 insertions(+)
+>
+> diff --git a/arch/x86/include/asm/io.h b/arch/x86/include/asm/io.h
+> index 71b9e65..c813c86 100644
+> --- a/arch/x86/include/asm/io.h
+> +++ b/arch/x86/include/asm/io.h
+> @@ -35,6 +35,7 @@
+>    */
+>
+>  #define ARCH_HAS_IOREMAP_WC
+> +#define ARCH_HAS_IOREMAP_WT
+>
+>  #include <linux/string.h>
+>  #include <linux/compiler.h>
+> @@ -316,6 +317,7 @@ extern void unxlate_dev_mem_ptr(unsigned long phys, void *addr);
+>  extern int ioremap_change_attr(unsigned long vaddr, unsigned long size,
+>                                 enum page_cache_mode pcm);
+>  extern void __iomem *ioremap_wc(resource_size_t offset, unsigned long size);
+> +extern void __iomem *ioremap_wt(resource_size_t offset, unsigned long size);
+>
+>  extern bool is_early_ioremap_ptep(pte_t *ptep);
+>
+> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+> index 885fe44..952f4b4 100644
+> --- a/arch/x86/mm/ioremap.c
+> +++ b/arch/x86/mm/ioremap.c
+> @@ -155,6 +155,10 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
+>                 prot = __pgprot(pgprot_val(prot) |
+>                                 cachemode2protval(_PAGE_CACHE_MODE_WC));
+>                 break;
+> +       case _PAGE_CACHE_MODE_WT:
+> +               prot = __pgprot(pgprot_val(prot) |
+> +                               cachemode2protval(_PAGE_CACHE_MODE_WT));
+> +               break;
+>         case _PAGE_CACHE_MODE_WB:
+>                 break;
+>         }
+> @@ -249,6 +253,26 @@ void __iomem *ioremap_wc(resource_size_t phys_addr, unsigned long size)
+>  }
+>  EXPORT_SYMBOL(ioremap_wc);
+>
+> +/**
+> + * ioremap_wt  -       map memory into CPU space write through
+> + * @phys_addr: bus address of the memory
+> + * @size:      size of the resource to map
+> + *
+> + * This version of ioremap ensures that the memory is marked write through.
+> + * Write through writes data into memory while keeping the cache up-to-date.
+> + *
+> + * Must be freed with iounmap.
+> + */
+> +void __iomem *ioremap_wt(resource_size_t phys_addr, unsigned long size)
+> +{
+> +       if (pat_enabled)
+> +               return __ioremap_caller(phys_addr, size, _PAGE_CACHE_MODE_WT,
+> +                                       __builtin_return_address(0));
+> +       else
+> +               return ioremap_nocache(phys_addr, size);
+> +}
+> +EXPORT_SYMBOL(ioremap_wt);
+> +
+>  void __iomem *ioremap_cache(resource_size_t phys_addr, unsigned long size)
+>  {
+>         return __ioremap_caller(phys_addr, size, _PAGE_CACHE_MODE_WB,
+> diff --git a/include/asm-generic/io.h b/include/asm-generic/io.h
+> index 975e1cc..405d418 100644
+> --- a/include/asm-generic/io.h
+> +++ b/include/asm-generic/io.h
+> @@ -322,6 +322,10 @@ static inline void __iomem *ioremap(phys_addr_t offset, unsigned long size)
+>  #define ioremap_wc ioremap_nocache
+>  #endif
+>
+> +#ifndef ioremap_wt
+> +#define ioremap_wt ioremap_nocache
+> +#endif
+> +
+>  static inline void iounmap(void __iomem *addr)
+>  {
+>  }
+> diff --git a/include/asm-generic/iomap.h b/include/asm-generic/iomap.h
+> index 1b41011..d8f8622 100644
+> --- a/include/asm-generic/iomap.h
+> +++ b/include/asm-generic/iomap.h
+> @@ -66,6 +66,10 @@ extern void ioport_unmap(void __iomem *);
+>  #define ioremap_wc ioremap_nocache
+>  #endif
+>
+> +#ifndef ARCH_HAS_IOREMAP_WT
+> +#define ioremap_wt ioremap_nocache
+> +#endif
+> +
 
-OK, so what happens when a page is truncated out of a file and this
-"last" block reference is dropped while a get_user_pages() still has a
-reference?
+This is a little bit sad.  I wouldn't be too surprised if there are
+eventually users who prefer WC or WB over UC if WT isn't available
+(and they'll want a corresponding way to figure out what kind of fence
+to use).
 
-> On 09/10/2014 07:10 PM, Dave Hansen wrote:
->> Does the fs support mmap()?
->>
-> No!
-> 
-> Yes the FS supports mmap, but through the DAX patchset. Please see
-> Matthew's DAX patchset how he implements mmap without using pages
-> at all, direct PFN to virtual_addr. So these pages do not get exposed
-> to the top of the FS.
-> 
-> My FS uses his technics exactly only when it wants to spill over to
-> slower device it will use these pages copy-less.
+Hey Intel and AMD: want to add another memtype that has cacheable
+reads but acts like WC for writes?  Being able to use sfence to flush
+to NV-DIMMs would be neat!  (Presumably nontemporal stores to WT
+memory work like that, but this stuff is barely documented.)
 
->From my perspective, DAX is complicated, but it is necessary because we
-don't have a 'struct page'.  You're saying that even if we pay the cost
-of a 'struct page' for the memory, we still don't get the benefit of
-having it like getting rid of this DAX stuff?
-
-Also, about not having a zone for these pages.  Do you intend to support
-32-bit systems?  If so, I believe you will require the kmap() family of
-functions to map the pages in order to copy data in and out.  kmap()
-currently requires knowing the zone of the page.
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
