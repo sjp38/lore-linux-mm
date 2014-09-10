@@ -1,50 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 75CF96B0036
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 02:51:47 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id fp1so4992923pdb.0
-        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 23:51:47 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id jd10si26257262pbd.168.2014.09.09.23.51.46
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BB916B0036
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 04:10:07 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id bj1so5292174pad.9
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 01:10:07 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id v1si15961549pdf.4.2014.09.10.01.10.06
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 09 Sep 2014 23:51:46 -0700 (PDT)
-Date: Wed, 10 Sep 2014 09:51:29 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-Subject: Re: [PATCH] mm/sl[aou]b: make kfree() aware of error pointers
-Message-ID: <20140910065129.GN6549@mwanda>
-References: <alpine.LNX.2.00.1409092319370.5523@pobox.suse.cz>
- <20140909162114.44b3e98cf925f125e84a8a06@linux-foundation.org>
- <113623.1410326115@turing-police.cc.vt.edu>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Sep 2014 01:10:06 -0700 (PDT)
+Date: Wed, 10 Sep 2014 10:10:00 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v4 2/2] ksm: provide support to use deferrable timers for
+ scanner thread
+Message-ID: <20140910081000.GN6758@twins.programming.kicks-ass.net>
+References: <1408536628-29379-1-git-send-email-cpandya@codeaurora.org>
+ <1408536628-29379-2-git-send-email-cpandya@codeaurora.org>
+ <alpine.LSU.2.11.1408272258050.10518@eggly.anvils>
+ <20140903095815.GK4783@worktop.ger.corp.intel.com>
+ <alpine.LSU.2.11.1409080023100.1610@eggly.anvils>
+ <20140908093949.GZ6758@twins.programming.kicks-ass.net>
+ <alpine.LSU.2.11.1409091225310.8432@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="xwQtY96q3287+Drf"
 Content-Disposition: inline
-In-Reply-To: <113623.1410326115@turing-police.cc.vt.edu>
+In-Reply-To: <alpine.LSU.2.11.1409091225310.8432@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Valdis.Kletnieks@vt.edu
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>
+To: Hugh Dickins <hughd@google.com>
+Cc: Chintan Pandya <cpandya@codeaurora.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, John Stultz <john.stultz@linaro.org>, Ingo Molnar <mingo@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>
 
-On Wed, Sep 10, 2014 at 01:15:15AM -0400, Valdis.Kletnieks@vt.edu wrote:
-> On Tue, 09 Sep 2014 16:21:14 -0700, Andrew Morton said:
-> > On Tue, 9 Sep 2014 23:25:28 +0200 (CEST) Jiri Kosina <jkosina@suse.cz> wrote:
-> > kfree() is quite a hot path to which this will add overhead.  And we
-> > have (as far as we know) no code which will actually use this at
-> > present.
-> 
-> We already do a check for ZERO_SIZE_PTR, and given that dereferencing *that* is
-> instant death for the kernel, and we see it very rarely, I'm going to guess
-> that IS_ERR(ptr) *has* to be true more often than ZERO_SIZE_PTR, and thus even
-> more advantageous to short-circuit.
 
-ZERO_SIZE_PTR is sort of common.
+--xwQtY96q3287+Drf
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-ZERO_SIZE_PTR is an mm abstraction and kfree() and ksize() are basically
-the only places where we need to test for it.  Also friends of kfree()
-like jbd2_journal_free_transaction().
+On Tue, Sep 09, 2014 at 01:14:50PM -0700, Hugh Dickins wrote:
+> On Mon, 8 Sep 2014, Peter Zijlstra wrote:
+> > >  		switch_mm(oldmm, mm, next);
+> > > +		wake_ksm =3D ksm_switch(mm);
+> >=20
+> > Is this the right mm?
+>=20
+> It's next->mm, that's the one I intended (though the patch might
+> be equally workable using prev->mm instead: given free rein, I'd
+> have opted for hooking into both prev and next, but free rein is
+> definitely not what should be granted around here!).
+>=20
+> > We've just switched the stack,
+>=20
+> I thought that came in switch_to() a few lines further down,
+> but don't think it matters for this.
 
-regards,
-dan carpenter
+Ah, yes. Got my task and mm separation messed up.
+
+> > so we're looing at next->mm when we switched away from current.
+> > That might not exist anymore.
+>=20
+> I fail to see how that can be.  Looking at the x86 switch_mm(),
+> I can see it referencing (unsurprisingly!) both old and new mms
+> at this point, and no reference to an mm is dropped before the
+> ksm_switch().  oldmm (there called mm) is mmdropped later in
+> finish_task_switch().
+
+Well, see the above confusion about switch_mm vs switch_to :-/
+
+So if this were switch_to(), we'd see next->mm as before the last
+context switch. And since that switch fully happened, it would also
+already have done the finish_task_switch() -> mmdrop().
+
+
+
+--xwQtY96q3287+Drf
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBAgAGBQJUEAdYAAoJEHZH4aRLwOS6A1cQAI8Vb0oUNxiFZOGEypnIBrOe
+TsRhja+rHPMGJGufjUHB7KM8PPCoQv9h+lsPbVhtHo+S6JQnKS6AFUTgZomuOJrD
+9cJOoTOh0fItLH0YsG9lshJngHA7YqszpqcVGhWfu9rWuWWHry1S0NvmW2Eyfg1W
+nkGR742Y0T+JFqA0HiNP3/GO+G/EwMX+uW/2bf08igecE9jg0IoiHkA1hai1J1dz
+IGdTBn2dkbSX6ibthhvmtGr0oBwKU/64xO6H4OXhXVim3IeSxNbBBsVIhasvTeSp
+/Fxy2ptubQsXEuZ8g8R0XX+NXZ6LqycIWteO3qfGyTvttfNN7V0Z3AFxJfno1TZg
+qRq/FPNEr55kSK7yaRfoX19kkEbqgC2fO0248fMqc3vmiL+UjFtr7wZUA4NXXsDB
+pnJ9ESx7LqgVf0AqaoEjZOL3D+W0iQ2JYi5M7yfNaQRmXA9dlqZc/SeAH0dA4WPZ
+pbo415GzR5BDrVZ58H96yw+PUcyMbxJoSD6mR21HUnrjKVsHaqHxk/CV6lKOyItp
+k//n4z4HKI2aiBGiqhTCFdYi6XP2waF9C9ASeFWU5u2aDGtcUDtm8rUdWzvXHn7t
+v9G0iBg5eiGNwPmJ3CgNOO2VUffBsKCoy9Jq/Pp25phIfi74jmtus0t6mHW8snbk
+vdr2QsOjO08nStVEEXY8
+=nrfj
+-----END PGP SIGNATURE-----
+
+--xwQtY96q3287+Drf--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
