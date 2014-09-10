@@ -1,122 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 22F466B0036
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 14:26:46 -0400 (EDT)
-Received: by mail-la0-f49.google.com with SMTP id pv20so894034lab.22
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 11:26:45 -0700 (PDT)
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
-        by mx.google.com with ESMTPS id l2si22431986lag.111.2014.09.10.11.26.43
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 10 Sep 2014 11:26:44 -0700 (PDT)
-Received: by mail-lb0-f175.google.com with SMTP id v6so5408220lbi.34
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 11:26:43 -0700 (PDT)
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id D00EB6B0038
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 14:29:22 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id ey11so9822850pad.6
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 11:29:22 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id hb5si28770541pbb.186.2014.09.10.11.29.21
+        for <linux-mm@kvack.org>;
+        Wed, 10 Sep 2014 11:29:22 -0700 (PDT)
+Message-ID: <54109845.3050309@intel.com>
+Date: Wed, 10 Sep 2014 11:28:21 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <1410367910-6026-3-git-send-email-toshi.kani@hp.com>
-References: <1410367910-6026-1-git-send-email-toshi.kani@hp.com> <1410367910-6026-3-git-send-email-toshi.kani@hp.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Wed, 10 Sep 2014 11:26:23 -0700
-Message-ID: <CALCETrXRjU3HvHogpm5eKB3Cogr5QHUvE67JOFGbOmygKYEGyA@mail.gmail.com>
-Subject: Re: [PATCH v2 2/6] x86, mm, pat: Change reserve_memtype() to handle WT
+Subject: Re: [PATCH 5/9] mm: Let sparse_{add,remove}_one_section receive a
+ node_id
+References: <1409173922-7484-1-git-send-email-ross.zwisler@linux.intel.com> <540F1EC6.4000504@plexistor.com> <540F20AB.4000404@plexistor.com> <540F48BA.2090304@intel.com> <541022DB.9090000@plexistor.com> <541077DF.1060609@intel.com> <5410899C.3030501@plexistor.com>
+In-Reply-To: <5410899C.3030501@plexistor.com>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Juergen Gross <jgross@suse.com>, Stefan Bader <stefan.bader@canonical.com>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Yigal Korman <yigal@plexistor.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: Boaz Harrosh <boaz@plexistor.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@fb.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-nvdimm@lists.01.org, Toshi Kani <toshi.kani@hp.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Wed, Sep 10, 2014 at 9:51 AM, Toshi Kani <toshi.kani@hp.com> wrote:
-> This patch changes reserve_memtype() to handle the WT cache mode.
-> When PAT is not enabled, it continues to set UC- to *new_type for
-> any non-WB request.
->
-> When a target range is RAM, reserve_ram_pages_type() fails for WT
-> for now.  This function may not reserve a RAM range for WT since
-> reserve_ram_pages_type() uses the page flags limited to three memory
-> types, WB, WC and UC.
+On 09/10/2014 10:25 AM, Boaz Harrosh wrote:
+> Yes the block_allocator of the pmem-FS always holds the final REF on this
+> page, as long as there is valid data on this block. Even cross boots, the
+> mount code re-initializes references. The only internal state that frees
+> these blocks is truncate, which only then return these pages to the block
+> allocator, all this is common practice in filesystems so the page-ref on
+> these blocks only ever drops to zero after they loose all visibility. And
+> yes the block allocator uses a special code to drop the count to zero
+> not using put_page().
 
-Should it fail if WT is unavailable due to errata?  More generally,
-how are all of the do_something_wc / do_something_wt /
-do_something_nocache helpers supposed to handle unsupported types?
+OK, so what happens when a page is truncated out of a file and this
+"last" block reference is dropped while a get_user_pages() still has a
+reference?
 
---Andy
+> On 09/10/2014 07:10 PM, Dave Hansen wrote:
+>> Does the fs support mmap()?
+>>
+> No!
+> 
+> Yes the FS supports mmap, but through the DAX patchset. Please see
+> Matthew's DAX patchset how he implements mmap without using pages
+> at all, direct PFN to virtual_addr. So these pages do not get exposed
+> to the top of the FS.
+> 
+> My FS uses his technics exactly only when it wants to spill over to
+> slower device it will use these pages copy-less.
 
->
-> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
-> ---
->  arch/x86/include/asm/cacheflush.h |    4 ++++
->  arch/x86/mm/pat.c                 |   16 +++++++++++++---
->  2 files changed, 17 insertions(+), 3 deletions(-)
->
-> diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
-> index 157644b..c912680 100644
-> --- a/arch/x86/include/asm/cacheflush.h
-> +++ b/arch/x86/include/asm/cacheflush.h
-> @@ -53,6 +53,10 @@ static inline void set_page_memtype(struct page *pg,
->         case _PAGE_CACHE_MODE_WB:
->                 memtype_flags = _PGMT_WB;
->                 break;
-> +       case _PAGE_CACHE_MODE_WT:
-> +       case _PAGE_CACHE_MODE_WP:
-> +               pr_err("set_page_memtype: unsupported cachemode %d\n", memtype);
-> +               BUG();
->         default:
->                 memtype_flags = _PGMT_DEFAULT;
->                 break;
-> diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-> index 598d7c7..7644967 100644
-> --- a/arch/x86/mm/pat.c
-> +++ b/arch/x86/mm/pat.c
-> @@ -268,6 +268,8 @@ static int pat_pagerange_is_ram(resource_size_t start, resource_size_t end)
->
->  /*
->   * For RAM pages, we use page flags to mark the pages with appropriate type.
-> + * The page flags are currently limited to three types, WB, WC and UC. Hence,
-> + * any request to WT or WP will fail with -EINVAL.
->   * Here we do two pass:
->   * - Find the memtype of all the pages in the range, look for any conflicts
->   * - In case of no conflicts, set the new memtype for pages in the range
-> @@ -279,6 +281,13 @@ static int reserve_ram_pages_type(u64 start, u64 end,
->         struct page *page;
->         u64 pfn;
->
-> +       if ((req_type == _PAGE_CACHE_MODE_WT) ||
-> +           (req_type == _PAGE_CACHE_MODE_WP)) {
-> +               if (new_type)
-> +                       *new_type = _PAGE_CACHE_MODE_UC_MINUS;
-> +               return -EINVAL;
-> +       }
-> +
->         if (req_type == _PAGE_CACHE_MODE_UC) {
->                 /* We do not support strong UC */
->                 WARN_ON_ONCE(1);
-> @@ -328,6 +337,7 @@ static int free_ram_pages_type(u64 start, u64 end)
->   * - _PAGE_CACHE_MODE_WC
->   * - _PAGE_CACHE_MODE_UC_MINUS
->   * - _PAGE_CACHE_MODE_UC
-> + * - _PAGE_CACHE_MODE_WT
->   *
->   * If new_type is NULL, function will return an error if it cannot reserve the
->   * region with req_type. If new_type is non-NULL, function will return
-> @@ -347,10 +357,10 @@ int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
->         if (!pat_enabled) {
->                 /* This is identical to page table setting without PAT */
->                 if (new_type) {
-> -                       if (req_type == _PAGE_CACHE_MODE_WC)
-> -                               *new_type = _PAGE_CACHE_MODE_UC_MINUS;
-> +                       if (req_type == _PAGE_CACHE_MODE_WB)
-> +                               *new_type = _PAGE_CACHE_MODE_WB;
->                         else
-> -                               *new_type = req_type;
-> +                               *new_type = _PAGE_CACHE_MODE_UC_MINUS;
->                 }
->                 return 0;
->         }
+>From my perspective, DAX is complicated, but it is necessary because we
+don't have a 'struct page'.  You're saying that even if we pay the cost
+of a 'struct page' for the memory, we still don't get the benefit of
+having it like getting rid of this DAX stuff?
 
-
-
--- 
-Andy Lutomirski
-AMA Capital Management, LLC
+Also, about not having a zone for these pages.  Do you intend to support
+32-bit systems?  If so, I believe you will require the kmap() family of
+functions to map the pages in order to copy data in and out.  kmap()
+currently requires knowing the zone of the page.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
