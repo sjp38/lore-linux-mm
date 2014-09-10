@@ -1,39 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 43A5D6B0039
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 10:25:20 -0400 (EDT)
-Received: by mail-ig0-f177.google.com with SMTP id uq10so3072767igb.4
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 07:25:20 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id uh2si2062107igc.34.2014.09.10.07.25.19
+Received: from mail-lb0-f170.google.com (mail-lb0-f170.google.com [209.85.217.170])
+	by kanga.kvack.org (Postfix) with ESMTP id D253D6B0036
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 10:26:49 -0400 (EDT)
+Received: by mail-lb0-f170.google.com with SMTP id u10so4414037lbd.29
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 07:26:49 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id we6si21733006lbb.77.2014.09.10.07.26.47
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 10 Sep 2014 07:25:19 -0700 (PDT)
-Message-ID: <54105F28.1000506@oracle.com>
-Date: Wed, 10 Sep 2014 10:24:40 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 10 Sep 2014 07:26:48 -0700 (PDT)
+Date: Wed, 10 Sep 2014 16:26:46 +0200 (CEST)
+From: Jiri Kosina <jkosina@suse.cz>
+Subject: Re: [PATCH] mm/sl[aou]b: make kfree() aware of error pointers
+In-Reply-To: <20140910140759.GC31903@thunk.org>
+Message-ID: <alpine.LNX.2.00.1409101625160.5523@pobox.suse.cz>
+References: <alpine.LNX.2.00.1409092319370.5523@pobox.suse.cz> <20140909162114.44b3e98cf925f125e84a8a06@linux-foundation.org> <alpine.LNX.2.00.1409100702190.5523@pobox.suse.cz> <20140910140759.GC31903@thunk.org>
 MIME-Version: 1.0
-Subject: Trinity and mbind flags (WAS: Re: mm: BUG in unmap_page_range)
-References: <53E989FB.5000904@oracle.com> <53FD4D9F.6050500@oracle.com> <20140827152622.GC12424@suse.de> <540127AC.4040804@oracle.com> <54082B25.9090600@oracle.com> <20140908171853.GN17501@suse.de> <540DEDE7.4020300@oracle.com> <20140909213309.GQ17501@suse.de> <540F7D42.1020402@oracle.com> <alpine.LSU.2.11.1409091903390.10989@eggly.anvils> <20140910124732.GT17501@suse.de>
-In-Reply-To: <20140910124732.GT17501@suse.de>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Cyrill Gorcunov <gorcunov@gmail.com>
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Carpenter <dan.carpenter@oracle.com>
 
-On 09/10/2014 08:47 AM, Mel Gorman wrote:
-> That site should have checked PROT_NONE but it can't be the same bug
-> that trinity is seeing. Minimally trinity is unaware of MPOL_MF_LAZY
-> according to git grep of the trinity source.
+On Wed, 10 Sep 2014, Theodore Ts'o wrote:
 
-Actually, if I'm reading it correctly I think that Trinity handles mbind()
-calls wrong. It passes the wrong values for mode flags and actual flags.
+> I'd much rather depending on better testing and static checkers to fix 
+> them, since kfree *is* a hot path.
 
+BTW if we stretch this argument a little bit more, we should also kill the 
+ZERO_OR_NULL_PTR() check from kfree() and make it callers responsibility 
+to perform the checking only if applicable ... we are currently doing a 
+lot of pointless checking in cases where caller would be able to guarantee 
+that the pointer is going to be non-NULL.
 
-Thanks,
-Sasha
+-- 
+Jiri Kosina
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
