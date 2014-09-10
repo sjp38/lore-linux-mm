@@ -1,74 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f170.google.com (mail-lb0-f170.google.com [209.85.217.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 23E616B0036
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 01:05:45 -0400 (EDT)
-Received: by mail-lb0-f170.google.com with SMTP id u10so3535834lbd.1
-        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 22:05:44 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o6si20076064lbc.99.2014.09.09.22.05.42
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id A7D796B0036
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 01:11:18 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so6221808pab.18
+        for <linux-mm@kvack.org>; Tue, 09 Sep 2014 22:11:18 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id fr3si26207973pbd.34.2014.09.09.22.11.17
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 09 Sep 2014 22:05:43 -0700 (PDT)
-Date: Wed, 10 Sep 2014 07:05:40 +0200 (CEST)
-From: Jiri Kosina <jkosina@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Sep 2014 22:11:17 -0700 (PDT)
+Date: Tue, 9 Sep 2014 22:11:38 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH] mm/sl[aou]b: make kfree() aware of error pointers
-In-Reply-To: <20140909162114.44b3e98cf925f125e84a8a06@linux-foundation.org>
-Message-ID: <alpine.LNX.2.00.1409100702190.5523@pobox.suse.cz>
-References: <alpine.LNX.2.00.1409092319370.5523@pobox.suse.cz> <20140909162114.44b3e98cf925f125e84a8a06@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20140909221138.2587d864.akpm@linux-foundation.org>
+In-Reply-To: <alpine.LNX.2.00.1409100702190.5523@pobox.suse.cz>
+References: <alpine.LNX.2.00.1409092319370.5523@pobox.suse.cz>
+	<20140909162114.44b3e98cf925f125e84a8a06@linux-foundation.org>
+	<alpine.LNX.2.00.1409100702190.5523@pobox.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
+To: Jiri Kosina <jkosina@suse.cz>
 Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Carpenter <dan.carpenter@oracle.com>, Theodore Ts'o <tytso@mit.edu>
 
-On Tue, 9 Sep 2014, Andrew Morton wrote:
+On Wed, 10 Sep 2014 07:05:40 +0200 (CEST) Jiri Kosina <jkosina@suse.cz> wrote:
 
-> > kfree() is happy to accept NULL pointer and does nothing in such case. 
-> > It's reasonable to expect it to behave the same if ERR_PTR is passed to 
-> > it.
+> > > --- a/mm/slab.c
+> > > +++ b/mm/slab.c
+> > > @@ -3612,7 +3612,7 @@ void kfree(const void *objp)
+> > >  
+> > >  	trace_kfree(_RET_IP_, objp);
+> > >  
+> > > -	if (unlikely(ZERO_OR_NULL_PTR(objp)))
+> > > +	if (unlikely(ZERO_OR_NULL_PTR(objp) || IS_ERR(objp)))
+> > >  		return;
 > > 
-> > Inspired by a9cfcd63e8d ("ext4: avoid trying to kfree an ERR_PTR 
-> > pointer").
-> > 
-> > ...
-> >
-> > --- a/mm/slab.c
-> > +++ b/mm/slab.c
-> > @@ -3612,7 +3612,7 @@ void kfree(const void *objp)
-> >  
-> >  	trace_kfree(_RET_IP_, objp);
-> >  
-> > -	if (unlikely(ZERO_OR_NULL_PTR(objp)))
-> > +	if (unlikely(ZERO_OR_NULL_PTR(objp) || IS_ERR(objp)))
-> >  		return;
+> > kfree() is quite a hot path to which this will add overhead.  And we
+> > have (as far as we know) no code which will actually use this at
+> > present.
 > 
-> kfree() is quite a hot path to which this will add overhead.  And we
-> have (as far as we know) no code which will actually use this at
-> present.
+> We obviously don't, as such code will be causing explosions. This is meant 
+> as a prevention of problems such as the one that has just been fixed in 
+> ext4.
 
-We obviously don't, as such code will be causing explosions. This is meant 
-as a prevention of problems such as the one that has just been fixed in 
-ext4.
+Well.  I bet there exist sites which can pass an ERR_PTR to kfree but
+haven't been know to do so yet because errors are rare.  Your patch
+would fix all those by magic, but is it worth the overhead?
 
-> How about a new
-> 
-> kfree_safe(...)
-> {
-> 	if (IS_ERR(...))
-> 		return;
-> 	if (other-stuff-when-we-think-of-it)
-> 		return;
-> 	kfree(...);
-> }
-
-I think this unfortunately undermines the whole point of the patch ... if 
-the caller knows that he might potentially be feeding ERR_PTR() to 
-kfree(), he can as well check the pointer himself.
-
--- 
-Jiri Kosina
-SUSE Labs
+This is the sort of error which a static checker could find.  I wonder
+if any of them do so.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
