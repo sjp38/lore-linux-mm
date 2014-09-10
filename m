@@ -1,59 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 82B556B0037
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 10:27:44 -0400 (EDT)
-Received: by mail-qc0-f182.google.com with SMTP id x13so6214644qcv.13
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 07:27:44 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g69si18802116qgg.113.2014.09.10.07.27.27
+Received: from mail-vc0-f174.google.com (mail-vc0-f174.google.com [209.85.220.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 454746B0036
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 10:33:53 -0400 (EDT)
+Received: by mail-vc0-f174.google.com with SMTP id hy10so4248479vcb.5
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 07:33:53 -0700 (PDT)
+Received: from mail-vc0-x229.google.com (mail-vc0-x229.google.com [2607:f8b0:400c:c03::229])
+        by mx.google.com with ESMTPS id iy2si7036334vdb.3.2014.09.10.07.33.52
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Sep 2014 07:27:28 -0700 (PDT)
-Date: Wed, 10 Sep 2014 10:27:12 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: [PATCH] mm/sl[aou]b: make kfree() aware of error pointers
-Message-ID: <20140910142712.GA10785@redhat.com>
-References: <alpine.LNX.2.00.1409092319370.5523@pobox.suse.cz>
- <20140909162114.44b3e98cf925f125e84a8a06@linux-foundation.org>
- <alpine.LNX.2.00.1409100702190.5523@pobox.suse.cz>
- <20140909221138.2587d864.akpm@linux-foundation.org>
- <20140910063630.GM6549@mwanda>
- <20140910135649.GB31903@thunk.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 10 Sep 2014 07:33:52 -0700 (PDT)
+Received: by mail-vc0-f169.google.com with SMTP id ik5so2137302vcb.14
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 07:33:52 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140910135649.GB31903@thunk.org>
+In-Reply-To: <alpine.LNX.2.00.1409101613500.5523@pobox.suse.cz>
+References: <alpine.LNX.2.00.1409092319370.5523@pobox.suse.cz>
+	<20140909162114.44b3e98cf925f125e84a8a06@linux-foundation.org>
+	<alpine.LNX.2.00.1409100702190.5523@pobox.suse.cz>
+	<20140910140759.GC31903@thunk.org>
+	<alpine.LNX.2.00.1409101613500.5523@pobox.suse.cz>
+Date: Wed, 10 Sep 2014 18:33:52 +0400
+Message-ID: <CAPAsAGyYoPjThA1EV46jYiGX2UzqF1oD4JJueNKh9V1XvAXjcA@mail.gmail.com>
+Subject: Re: [PATCH] mm/sl[aou]b: make kfree() aware of error pointers
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, Dan Carpenter <dan.carpenter@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jiri Kosina <jkosina@suse.cz>
+Cc: Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dan Carpenter <dan.carpenter@oracle.com>
 
-On Wed, Sep 10, 2014 at 09:56:49AM -0400, Theodore Ts'o wrote:
+2014-09-10 18:24 GMT+04:00 Jiri Kosina <jkosina@suse.cz>:
+> On Wed, 10 Sep 2014, Theodore Ts'o wrote:
+>
+>> So I wouldn't be so sure that we don't have these sorts of bugs hiding
+>> somewhere; and it's extremely easy for them to sneak in.  That being
+>> said, I'm not in favor of making changes to kfree; I'd much rather
+>> depending on better testing and static checkers to fix them, since
+>> kfree *is* a hot path.
+>
+> I of course have no objections to this check being added to whatever
+> static checker, that would be very welcome improvement.
+>
+> Still, I believe that kernel shouldn't be just ignoring kfree(ERR_PTR)
+> happening. Would something like the below be more acceptable?
+>
+>
+>
+> From: Jiri Kosina <jkosina@suse.cz>
+> Subject: [PATCH] mm/sl[aou]b: make kfree() aware of error pointers
+>
+> Freeing if ERR_PTR is not covered by ZERO_OR_NULL_PTR() check already
+> present in kfree(), but it happens in the wild and has disastrous effects.
+>
+> Issue a warning and don't proceed trying to free the memory if
+> CONFIG_DEBUG_SLAB is set.
+>
 
- > The ironic thing is that I asked Dan to add the feature to smatch
- > because I found two such bugs in ext4, and I suspected there would be
- > more.  Sure enough, it found four more such bugs, including two in a
- > recent commit where I had found the first two bugs --- and I had
- > missed the other two even though I was specifically looking for such
- > instances.  Oops.  :-)
- > 
- > Maybe we can add a debugging config option?  I think having static
- > checkers plus some kmalloc failure testing should be sufficient to
- > prevent these sorts of problem from showing up.
- > 
- > It would seem to me that this is the sort of thing that a static
- > checker should find reliably; Coverity has found things that were more
- > complex than what this should require, I think.  I don't know if they
- > would be willing to add something this kernel-specific, though.  (I've
- > added Dave Jones to the thread since he's been working a lot with
- > Coverity; Dave, what do you think?)
+This won't work cause CONFIG_DEBUG_SLAB  is only for CONFIG_SLAB=y
 
-It *might* be possible to rig up something using their modelling 
-functionality, but I've not managed to make that work to my ends in the past.
+How about just VM_BUG_ON(IS_ERR(ptr)); ?
 
-I suspect a runtime check would be more fruitful faster than they could
-implement kernel specific checkers & roll them out.
 
-	Dave
+> Inspired by a9cfcd63e8d ("ext4: avoid trying to kfree an ERR_PTR pointer").
+>
+> Signed-off-by: Jiri Kosina <jkosina@suse.cz>
+> ---
+>  mm/slab.c | 6 ++++++
+>  mm/slob.c | 7 ++++++-
+>  mm/slub.c | 7 ++++++-
+>  3 files changed, 18 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/slab.c b/mm/slab.c
+> index a467b30..6f49d6b 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -3612,6 +3612,12 @@ void kfree(const void *objp)
+>
+>         trace_kfree(_RET_IP_, objp);
+>
+> +#ifdef CONFIG_DEBUG_SLAB
+> +       if (unlikely(IS_ERR(objp))) {
+> +                       WARN(1, "trying to free ERR_PTR\n");
+> +                       return;
+> +       }
+> +#endif
+>         if (unlikely(ZERO_OR_NULL_PTR(objp)))
+>                 return;
+>         local_irq_save(flags);
+> diff --git a/mm/slob.c b/mm/slob.c
+> index 21980e0..66422a0 100644
+> --- a/mm/slob.c
+> +++ b/mm/slob.c
+> @@ -488,7 +488,12 @@ void kfree(const void *block)
+>         struct page *sp;
+>
+>         trace_kfree(_RET_IP_, block);
+> -
+> +#ifdef CONFIG_DEBUG_SLAB
+> +       if (unlikely(IS_ERR(block))) {
+> +               WARN(1, "trying to free ERR_PTR\n");
+> +               return;
+> +       }
+> +#endif
+>         if (unlikely(ZERO_OR_NULL_PTR(block)))
+>                 return;
+>         kmemleak_free(block);
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 3e8afcc..21155ae 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -3337,7 +3337,12 @@ void kfree(const void *x)
+>         void *object = (void *)x;
+>
+>         trace_kfree(_RET_IP_, x);
+> -
+> +#ifdef CONFIG_DEBUG_SLAB
+> +       if (unlikely(IS_ERR(x))) {
+> +               WARN(1, "trying to free ERR_PTR\n");
+> +               return;
+> +       }
+> +#endif
+>         if (unlikely(ZERO_OR_NULL_PTR(x)))
+>                 return;
+>
+>
+> --
+> Jiri Kosina
+> SUSE Labs
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+
+
+-- 
+Best regards,
+Andrey Ryabinin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
