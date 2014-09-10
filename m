@@ -1,63 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CCFF6B0036
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 09:56:55 -0400 (EDT)
-Received: by mail-yk0-f174.google.com with SMTP id q200so1263467ykb.19
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 06:56:54 -0700 (PDT)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id h21si8550747yhd.111.2014.09.10.06.56.54
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 10 Sep 2014 06:56:54 -0700 (PDT)
-Date: Wed, 10 Sep 2014 09:56:49 -0400
-From: Theodore Ts'o <tytso@mit.edu>
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D7556B0037
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 09:59:37 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id y10so3456543pdj.36
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 06:59:37 -0700 (PDT)
+Received: from qmta13.emeryville.ca.mail.comcast.net (qmta13.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:243])
+        by mx.google.com with ESMTP id v5si27739071pdj.234.2014.09.10.06.59.36
+        for <linux-mm@kvack.org>;
+        Wed, 10 Sep 2014 06:59:36 -0700 (PDT)
+Date: Wed, 10 Sep 2014 08:59:33 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
 Subject: Re: [PATCH] mm/sl[aou]b: make kfree() aware of error pointers
-Message-ID: <20140910135649.GB31903@thunk.org>
-References: <alpine.LNX.2.00.1409092319370.5523@pobox.suse.cz>
- <20140909162114.44b3e98cf925f125e84a8a06@linux-foundation.org>
- <alpine.LNX.2.00.1409100702190.5523@pobox.suse.cz>
- <20140909221138.2587d864.akpm@linux-foundation.org>
- <20140910063630.GM6549@mwanda>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140910063630.GM6549@mwanda>
+In-Reply-To: <20140909162114.44b3e98cf925f125e84a8a06@linux-foundation.org>
+Message-ID: <alpine.DEB.2.11.1409100858470.23359@gentwo.org>
+References: <alpine.LNX.2.00.1409092319370.5523@pobox.suse.cz> <20140909162114.44b3e98cf925f125e84a8a06@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Carpenter <dan.carpenter@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Jones <davej@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Jiri Kosina <jkosina@suse.cz>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dan Carpenter <dan.carpenter@oracle.com>, Theodore Ts'o <tytso@mit.edu>
 
-On Wed, Sep 10, 2014 at 09:36:30AM +0300, Dan Carpenter wrote:
-> On Tue, Sep 09, 2014 at 10:11:38PM -0700, Andrew Morton wrote:
-> > On Wed, 10 Sep 2014 07:05:40 +0200 (CEST) Jiri Kosina <jkosina@suse.cz> wrote:
-> > This is the sort of error which a static checker could find.  I wonder
-> > if any of them do so.
-> 
-> Yes.  Ted asked me to add this to Smatch and that's how we found the
-> problems in ext4.  I'll push it out later this week.  It won't find
-> every single bug.
-> 
-> We have fixed the 8 bugs that Smatch found.
+On Tue, 9 Sep 2014, Andrew Morton wrote:
 
-The ironic thing is that I asked Dan to add the feature to smatch
-because I found two such bugs in ext4, and I suspected there would be
-more.  Sure enough, it found four more such bugs, including two in a
-recent commit where I had found the first two bugs --- and I had
-missed the other two even though I was specifically looking for such
-instances.  Oops.  :-)
+> >
+> > -	if (unlikely(ZERO_OR_NULL_PTR(objp)))
+> > +	if (unlikely(ZERO_OR_NULL_PTR(objp) || IS_ERR(objp)))
+> >  		return;
+>
+> kfree() is quite a hot path to which this will add overhead.  And we
+> have (as far as we know) no code which will actually use this at
+> present.
 
-Maybe we can add a debugging config option?  I think having static
-checkers plus some kmalloc failure testing should be sufficient to
-prevent these sorts of problem from showing up.
-
-It would seem to me that this is the sort of thing that a static
-checker should find reliably; Coverity has found things that were more
-complex than what this should require, I think.  I don't know if they
-would be willing to add something this kernel-specific, though.  (I've
-added Dave Jones to the thread since he's been working a lot with
-Coverity; Dave, what do you think?)
-
-      	 	    		       - Ted
+We could come up with a macro that does both. Basically if objp < 4086 or
+so (signed comparison) then just return.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
