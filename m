@@ -1,116 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id D77716B0038
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 13:25:55 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id w10so6716122pde.40
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 10:25:55 -0700 (PDT)
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-        by mx.google.com with ESMTPS id fh5si28736413pbb.70.2014.09.10.10.25.54
+Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 22F466B0036
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 14:26:46 -0400 (EDT)
+Received: by mail-la0-f49.google.com with SMTP id pv20so894034lab.22
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 11:26:45 -0700 (PDT)
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+        by mx.google.com with ESMTPS id l2si22431986lag.111.2014.09.10.11.26.43
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 10 Sep 2014 10:25:54 -0700 (PDT)
-Received: by mail-pa0-f45.google.com with SMTP id rd3so7453577pab.32
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 10:25:54 -0700 (PDT)
-Message-ID: <5410899C.3030501@plexistor.com>
-Date: Wed, 10 Sep 2014 20:25:48 +0300
-From: Boaz Harrosh <boaz@plexistor.com>
+        Wed, 10 Sep 2014 11:26:44 -0700 (PDT)
+Received: by mail-lb0-f175.google.com with SMTP id v6so5408220lbi.34
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 11:26:43 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/9] mm: Let sparse_{add,remove}_one_section receive a
- node_id
-References: <1409173922-7484-1-git-send-email-ross.zwisler@linux.intel.com> <540F1EC6.4000504@plexistor.com> <540F20AB.4000404@plexistor.com> <540F48BA.2090304@intel.com> <541022DB.9090000@plexistor.com> <541077DF.1060609@intel.com>
-In-Reply-To: <541077DF.1060609@intel.com>
+In-Reply-To: <1410367910-6026-3-git-send-email-toshi.kani@hp.com>
+References: <1410367910-6026-1-git-send-email-toshi.kani@hp.com> <1410367910-6026-3-git-send-email-toshi.kani@hp.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Wed, 10 Sep 2014 11:26:23 -0700
+Message-ID: <CALCETrXRjU3HvHogpm5eKB3Cogr5QHUvE67JOFGbOmygKYEGyA@mail.gmail.com>
+Subject: Re: [PATCH v2 2/6] x86, mm, pat: Change reserve_memtype() to handle WT
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@fb.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-nvdimm@lists.01.org, Toshi Kani <toshi.kani@hp.com>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Juergen Gross <jgross@suse.com>, Stefan Bader <stefan.bader@canonical.com>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Yigal Korman <yigal@plexistor.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-On 09/10/2014 07:10 PM, Dave Hansen wrote:
-> On 09/10/2014 03:07 AM, Boaz Harrosh wrote:
->> On 09/09/2014 09:36 PM, Dave Hansen wrote:
->>> On 09/09/2014 08:45 AM, Boaz Harrosh wrote:
->>>> This is for add_persistent_memory that will want a section of pages
->>>> allocated but without any zone associated. This is because belonging
->>>> to a zone will give the memory to the page allocators, but
->>>> persistent_memory belongs to a block device, and is not available for
->>>> regular volatile usage.
->>>
->>> I don't think we should be taking patches like this in to the kernel
->>> until we've seen the other side of it.  Where is the page allocator code
->>> which will see a page belonging to no zone?  Am I missing it in this set?
->>
->> It is not missing. It will never be.
->>
->> These pages do not belong to any allocator. They are not allocate-able
->> pages. In fact they are not "memory" they are "storage"
->>
->> These pages belong wholesomely to a block-device. In turn the block
->> device grants ownership of a partition of this pages to an FS.
->> The FS loaded has its own block allocation schema. Which internally
->> circulate each pages usage around. But the page never goes beyond its
->> FS.
-> 
-> I'm mostly worried about things that start with an mmap().
-> 
-> Imagine you mmap() a persistent memory file, fault some pages in, then
-> 'cat /proc/$pid/numa_maps'.  That code will look at the page to see
-> which zone and node it is in.
-> 
-> Or, consider if you mmap() then put a futex in the page.  The page will
-> have get_user_pages() called on it by the futex code, and a reference
-> taken.  The reference can outlast the mmap().  We either have to put the
-> file somewhere special and scan the page's reference occasionally, or we
-> need to hook something under put_page() to make sure that we keep the
-> page out of the normal allocator.
-> 
+On Wed, Sep 10, 2014 at 9:51 AM, Toshi Kani <toshi.kani@hp.com> wrote:
+> This patch changes reserve_memtype() to handle the WT cache mode.
+> When PAT is not enabled, it continues to set UC- to *new_type for
+> any non-WB request.
+>
+> When a target range is RAM, reserve_ram_pages_type() fails for WT
+> for now.  This function may not reserve a RAM range for WT since
+> reserve_ram_pages_type() uses the page flags limited to three memory
+> types, WB, WC and UC.
 
-Yes the block_allocator of the pmem-FS always holds the final REF on this
-page, as long as there is valid data on this block. Even cross boots, the
-mount code re-initializes references. The only internal state that frees
-these blocks is truncate, which only then return these pages to the block
-allocator, all this is common practice in filesystems so the page-ref on
-these blocks only ever drops to zero after they loose all visibility. And
-yes the block allocator uses a special code to drop the count to zero
-not using put_page().
+Should it fail if WT is unavailable due to errata?  More generally,
+how are all of the do_something_wc / do_something_wt /
+do_something_nocache helpers supposed to handle unsupported types?
 
-So there is no chance these pages will ever be presented to page_allocators
-through a  put_page().
+--Andy
 
-BTW: There is an hook in place that can be used today. By calling
-  SetPagePrivate(page) and setting a .release function on the page->mapping->a_ops
-  If .release() returns false the page is not released (and can be added on an
-  internal queue for garbage collection)
-  But with above schema this is not needed at all. I yet need to find a test
-  that keeps my free_block reference above 1. At which time I will exercise
-  a garbage collection queue.
+>
+> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+> ---
+>  arch/x86/include/asm/cacheflush.h |    4 ++++
+>  arch/x86/mm/pat.c                 |   16 +++++++++++++---
+>  2 files changed, 17 insertions(+), 3 deletions(-)
+>
+> diff --git a/arch/x86/include/asm/cacheflush.h b/arch/x86/include/asm/cacheflush.h
+> index 157644b..c912680 100644
+> --- a/arch/x86/include/asm/cacheflush.h
+> +++ b/arch/x86/include/asm/cacheflush.h
+> @@ -53,6 +53,10 @@ static inline void set_page_memtype(struct page *pg,
+>         case _PAGE_CACHE_MODE_WB:
+>                 memtype_flags = _PGMT_WB;
+>                 break;
+> +       case _PAGE_CACHE_MODE_WT:
+> +       case _PAGE_CACHE_MODE_WP:
+> +               pr_err("set_page_memtype: unsupported cachemode %d\n", memtype);
+> +               BUG();
+>         default:
+>                 memtype_flags = _PGMT_DEFAULT;
+>                 break;
+> diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
+> index 598d7c7..7644967 100644
+> --- a/arch/x86/mm/pat.c
+> +++ b/arch/x86/mm/pat.c
+> @@ -268,6 +268,8 @@ static int pat_pagerange_is_ram(resource_size_t start, resource_size_t end)
+>
+>  /*
+>   * For RAM pages, we use page flags to mark the pages with appropriate type.
+> + * The page flags are currently limited to three types, WB, WC and UC. Hence,
+> + * any request to WT or WP will fail with -EINVAL.
+>   * Here we do two pass:
+>   * - Find the memtype of all the pages in the range, look for any conflicts
+>   * - In case of no conflicts, set the new memtype for pages in the range
+> @@ -279,6 +281,13 @@ static int reserve_ram_pages_type(u64 start, u64 end,
+>         struct page *page;
+>         u64 pfn;
+>
+> +       if ((req_type == _PAGE_CACHE_MODE_WT) ||
+> +           (req_type == _PAGE_CACHE_MODE_WP)) {
+> +               if (new_type)
+> +                       *new_type = _PAGE_CACHE_MODE_UC_MINUS;
+> +               return -EINVAL;
+> +       }
+> +
+>         if (req_type == _PAGE_CACHE_MODE_UC) {
+>                 /* We do not support strong UC */
+>                 WARN_ON_ONCE(1);
+> @@ -328,6 +337,7 @@ static int free_ram_pages_type(u64 start, u64 end)
+>   * - _PAGE_CACHE_MODE_WC
+>   * - _PAGE_CACHE_MODE_UC_MINUS
+>   * - _PAGE_CACHE_MODE_UC
+> + * - _PAGE_CACHE_MODE_WT
+>   *
+>   * If new_type is NULL, function will return an error if it cannot reserve the
+>   * region with req_type. If new_type is non-NULL, function will return
+> @@ -347,10 +357,10 @@ int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
+>         if (!pat_enabled) {
+>                 /* This is identical to page table setting without PAT */
+>                 if (new_type) {
+> -                       if (req_type == _PAGE_CACHE_MODE_WC)
+> -                               *new_type = _PAGE_CACHE_MODE_UC_MINUS;
+> +                       if (req_type == _PAGE_CACHE_MODE_WB)
+> +                               *new_type = _PAGE_CACHE_MODE_WB;
+>                         else
+> -                               *new_type = req_type;
+> +                               *new_type = _PAGE_CACHE_MODE_UC_MINUS;
+>                 }
+>                 return 0;
+>         }
 
->>> I see about 80 or so calls to page_zone() in the kernel.  How will a
->>> zone-less page look to all of these sites?
->>
->> None of these 80 call site will be reached! the pages are always used
->> below the FS, like send them on the network, or send them to a slower
->> block device via a BIO. I have a full fledge FS on top of this code
->> and it all works very smoothly, and stable. (And fast ;))
-> 
-> Does the fs support mmap()?
-> 
-> The idea of layering is a nice one, but mmap() is a big fat layering
-> violation. :)
-> 
 
-No!
 
-Yes the FS supports mmap, but through the DAX patchset. Please see
-Matthew's DAX patchset how he implements mmap without using pages
-at all, direct PFN to virtual_addr. So these pages do not get exposed
-to the top of the FS.
-
-My FS uses his technics exactly only when it wants to spill over to
-slower device it will use these pages copy-less.
-
-Cheers
-Boaz
+-- 
+Andy Lutomirski
+AMA Capital Management, LLC
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
