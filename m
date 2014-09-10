@@ -1,49 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f47.google.com (mail-oi0-f47.google.com [209.85.218.47])
-	by kanga.kvack.org (Postfix) with ESMTP id DB3186B00A3
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 16:41:26 -0400 (EDT)
-Received: by mail-oi0-f47.google.com with SMTP id a141so10491988oig.34
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 13:41:26 -0700 (PDT)
-Received: from g5t1625.atlanta.hp.com (g5t1625.atlanta.hp.com. [15.192.137.8])
-        by mx.google.com with ESMTPS id w8si23736119oep.42.2014.09.10.13.41.26
+Received: from mail-vc0-f170.google.com (mail-vc0-f170.google.com [209.85.220.170])
+	by kanga.kvack.org (Postfix) with ESMTP id C8AE46B00A5
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 16:46:04 -0400 (EDT)
+Received: by mail-vc0-f170.google.com with SMTP id hy4so4591027vcb.1
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 13:46:04 -0700 (PDT)
+Received: from mail-vc0-x229.google.com (mail-vc0-x229.google.com [2607:f8b0:400c:c03::229])
+        by mx.google.com with ESMTPS id vd2si3932788vdc.87.2014.09.10.13.46.04
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 10 Sep 2014 13:41:26 -0700 (PDT)
-Message-ID: <1410381050.28990.295.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v2 2/6] x86, mm, pat: Change reserve_memtype() to handle
- WT
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 10 Sep 2014 14:30:51 -0600
-In-Reply-To: <5410B10A.4030207@zytor.com>
-References: <1410367910-6026-1-git-send-email-toshi.kani@hp.com>
-		 <1410367910-6026-3-git-send-email-toshi.kani@hp.com>
-		 <CALCETrXRjU3HvHogpm5eKB3Cogr5QHUvE67JOFGbOmygKYEGyA@mail.gmail.com>
-	 <1410377428.28990.260.camel@misato.fc.hp.com> <5410B10A.4030207@zytor.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 10 Sep 2014 13:46:04 -0700 (PDT)
+Received: by mail-vc0-f169.google.com with SMTP id ik5so2715462vcb.28
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 13:46:04 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20140910203814.GA10244@redhat.com>
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+	<1410359487-31938-1-git-send-email-a.ryabinin@samsung.com>
+	<1410359487-31938-11-git-send-email-a.ryabinin@samsung.com>
+	<20140910203814.GA10244@redhat.com>
+Date: Thu, 11 Sep 2014 00:46:04 +0400
+Message-ID: <CAPAsAGxwPZ_Qn_4d8hGcjcz1ZSN5-2qqqjqJhDPmv7NKq9=x+Q@mail.gmail.com>
+Subject: Re: [RFC/PATCH v2 10/10] lib: add kasan test module
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Andy Lutomirski <luto@amacapital.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Juergen Gross <jgross@suse.com>, Stefan Bader <stefan.bader@canonical.com>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Yigal Korman <yigal@plexistor.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: Dave Jones <davej@redhat.com>, Andrey Ryabinin <a.ryabinin@samsung.com>, LKML <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, 2014-09-10 at 13:14 -0700, H. Peter Anvin wrote:
-> On 09/10/2014 12:30 PM, Toshi Kani wrote:
-> > 
-> > When WT is unavailable due to the PAT errata, it does not fail but gets
-> > redirected to UC-.  Similarly, when PAT is disabled, WT gets redirected
-> > to UC- as well.
-> > 
-> 
-> But on pre-PAT hardware you can still do WT.
+2014-09-11 0:38 GMT+04:00 Dave Jones <davej@redhat.com>:
+> On Wed, Sep 10, 2014 at 06:31:27PM +0400, Andrey Ryabinin wrote:
+>  > This is a test module doing varios nasty things like
+>  > out of bounds accesses, use after free. It is usefull for testing
+>  > kernel debugging features like kernel address sanitizer.
+>
+>  > +void __init kmalloc_oob_rigth(void)
+>  > +{
+>
+> 'right' ?
+>
+>
 
-Yes, if we manipulates the bits directly, but such code is no longer
-allowed for PAT systems.  The PAT-based kernel interfaces won't work for
-pre-PAT systems, and therefore requests are redirected to UC- on such
-systems. 
+I mean to the right side here (opposite to left), not synonym of  word
+'correct'.
 
-Thanks,
--Toshi
+-- 
+Best regards,
+Andrey Ryabinin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
