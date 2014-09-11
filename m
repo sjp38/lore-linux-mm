@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id A06BF6B0037
-	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 16:54:47 -0400 (EDT)
-Received: by mail-ig0-f181.google.com with SMTP id h3so1037146igd.14
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 13:54:47 -0700 (PDT)
-Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com [2607:f8b0:4001:c05::229])
-        by mx.google.com with ESMTPS id pz4si2457602icb.95.2014.09.11.13.54.46
+Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B3916B0039
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 16:54:51 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id rl12so8950951iec.0
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 13:54:51 -0700 (PDT)
+Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com [2607:f8b0:4001:c05::22b])
+        by mx.google.com with ESMTPS id q10si2520956icg.8.2014.09.11.13.54.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 11 Sep 2014 13:54:46 -0700 (PDT)
-Received: by mail-ig0-f169.google.com with SMTP id a13so144477igq.2
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 13:54:46 -0700 (PDT)
+        Thu, 11 Sep 2014 13:54:50 -0700 (PDT)
+Received: by mail-ig0-f171.google.com with SMTP id r10so1690919igi.16
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 13:54:50 -0700 (PDT)
 From: Dan Streetman <ddstreet@ieee.org>
-Subject: [PATCH 01/10] zsmalloc: fix init_zspage free obj linking
-Date: Thu, 11 Sep 2014 16:53:52 -0400
-Message-Id: <1410468841-320-2-git-send-email-ddstreet@ieee.org>
+Subject: [PATCH 02/10] zsmalloc: add fullness group list for ZS_FULL zspages
+Date: Thu, 11 Sep 2014 16:53:53 -0400
+Message-Id: <1410468841-320-3-git-send-email-ddstreet@ieee.org>
 In-Reply-To: <1410468841-320-1-git-send-email-ddstreet@ieee.org>
 References: <1410468841-320-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,65 +22,71 @@ List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>, Dan Streetman <ddstreet@ieee.org>
 
-When zsmalloc creates a new zspage, it initializes each object it contains
-with a link to the next object, so that the zspage has a singly-linked list
-of its free objects.  However, the logic that sets up the links is wrong,
-and in the case of objects that are precisely aligned with the page boundries
-(e.g. a zspage with objects that are 1/2 PAGE_SIZE) the first object on the
-next page is skipped, due to incrementing the offset twice.  The logic can be
-simplified, as it doesn't need to calculate how many objects can fit on the
-current page; simply checking the offset for each object is enough.
+Move ZS_FULL into section of fullness_group entries that are tracked in
+the class fullness_lists.  Without this change, full zspages are untracked
+by zsmalloc; they are only moved back onto one of the tracked lists
+(ZS_ALMOST_FULL or ZS_ALMOST_EMPTY) when a zsmalloc user frees one or more
+of its contained objects.
 
-Change zsmalloc init_zspage() logic to iterate through each object on
-each of its pages, checking the offset to verify the object is on the
-current page before linking it into the zspage.
+This is required for zsmalloc shrinking, which needs to be able to search
+all zspages in a zsmalloc pool, to find one to shrink.
 
 Signed-off-by: Dan Streetman <ddstreet@ieee.org>
 Cc: Minchan Kim <minchan@kernel.org>
 ---
- mm/zsmalloc.c | 14 +++++---------
- 1 file changed, 5 insertions(+), 9 deletions(-)
+ mm/zsmalloc.c | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
 
 diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index c4a9157..03aa72f 100644
+index 03aa72f..fedb70f 100644
 --- a/mm/zsmalloc.c
 +++ b/mm/zsmalloc.c
-@@ -628,7 +628,7 @@ static void init_zspage(struct page *first_page, struct size_class *class)
- 	while (page) {
- 		struct page *next_page;
- 		struct link_free *link;
--		unsigned int i, objs_on_page;
-+		unsigned int i = 1;
+@@ -159,16 +159,19 @@
+ 					ZS_SIZE_CLASS_DELTA + 1)
  
- 		/*
- 		 * page->index stores offset of first object starting
-@@ -641,14 +641,10 @@ static void init_zspage(struct page *first_page, struct size_class *class)
+ /*
+- * We do not maintain any list for completely empty or full pages
++ * We do not maintain any list for completely empty zspages,
++ * since a zspage is freed when it becomes empty.
+  */
+ enum fullness_group {
+ 	ZS_ALMOST_FULL,
+ 	ZS_ALMOST_EMPTY,
++	ZS_FULL,
++
+ 	_ZS_NR_FULLNESS_GROUPS,
  
- 		link = (struct link_free *)kmap_atomic(page) +
- 						off / sizeof(*link);
--		objs_on_page = (PAGE_SIZE - off) / class->size;
+ 	ZS_EMPTY,
+-	ZS_FULL
+ };
++#define _ZS_NR_AVAILABLE_FULLNESS_GROUPS ZS_FULL
  
--		for (i = 1; i <= objs_on_page; i++) {
--			off += class->size;
--			if (off < PAGE_SIZE) {
--				link->next = obj_location_to_handle(page, i);
--				link += class->size / sizeof(*link);
--			}
-+		while ((off += class->size) < PAGE_SIZE) {
-+			link->next = obj_location_to_handle(page, i++);
-+			link += class->size / sizeof(*link);
- 		}
- 
- 		/*
-@@ -660,7 +656,7 @@ static void init_zspage(struct page *first_page, struct size_class *class)
- 		link->next = obj_location_to_handle(next_page, 0);
- 		kunmap_atomic(link);
- 		page = next_page;
--		off = (off + class->size) % PAGE_SIZE;
-+		off %= PAGE_SIZE;
- 	}
+ /*
+  * We assign a page to ZS_ALMOST_EMPTY fullness group when:
+@@ -722,12 +725,12 @@ cleanup:
+ 	return first_page;
  }
  
+-static struct page *find_get_zspage(struct size_class *class)
++static struct page *find_available_zspage(struct size_class *class)
+ {
+ 	int i;
+ 	struct page *page;
+ 
+-	for (i = 0; i < _ZS_NR_FULLNESS_GROUPS; i++) {
++	for (i = 0; i < _ZS_NR_AVAILABLE_FULLNESS_GROUPS; i++) {
+ 		page = class->fullness_list[i];
+ 		if (page)
+ 			break;
+@@ -1013,7 +1016,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+ 	BUG_ON(class_idx != class->index);
+ 
+ 	spin_lock(&class->lock);
+-	first_page = find_get_zspage(class);
++	first_page = find_available_zspage(class);
+ 
+ 	if (!first_page) {
+ 		spin_unlock(&class->lock);
 -- 
 1.8.3.1
 
