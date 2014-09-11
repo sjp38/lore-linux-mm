@@ -1,71 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DEC96B0035
-	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 17:50:59 -0400 (EDT)
-Received: by mail-qa0-f52.google.com with SMTP id m5so3089066qaj.25
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 14:50:58 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t89si3163111qge.30.2014.09.11.14.50.57
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 697966B0038
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 18:13:48 -0400 (EDT)
+Received: by mail-wg0-f43.google.com with SMTP id x12so7313084wgg.26
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 15:13:47 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id z17si3919707wjr.162.2014.09.11.15.13.46
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Sep 2014 14:50:58 -0700 (PDT)
-Date: Thu, 11 Sep 2014 17:50:41 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [PATCH] slab: fix for_each_kmem_cache_node
-In-Reply-To: <20140911143357.43ece13ce88eec413c3004b1@linux-foundation.org>
-Message-ID: <alpine.LRH.2.02.1409111746320.14676@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1409051155001.5269@file01.intranet.prod.int.rdu2.redhat.com> <540AD4B4.3010403@iki.fi> <alpine.DEB.2.11.1409080916230.20388@gentwo.org> <20140911143357.43ece13ce88eec413c3004b1@linux-foundation.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Thu, 11 Sep 2014 15:13:47 -0700 (PDT)
+Date: Fri, 12 Sep 2014 00:13:32 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v8 06/10] mips: sync struct siginfo with general
+ version
+In-Reply-To: <1410425210-24789-7-git-send-email-qiaowei.ren@intel.com>
+Message-ID: <alpine.DEB.2.10.1409120007550.4178@nanos>
+References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com> <1410425210-24789-7-git-send-email-qiaowei.ren@intel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@iki.fi>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Qiaowei Ren <qiaowei.ren@intel.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Dave Hansen <dave.hansen@intel.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Thu, 11 Sep 2014, Qiaowei Ren wrote:
 
+> Due to new fields about bound violation added into struct siginfo,
+> this patch syncs it with general version to avoid build issue.
 
-On Thu, 11 Sep 2014, Andrew Morton wrote:
+You completely fail to explain which build issue is addressed by this
+patch. The code you added to kernel/signal.c which accesses _addr_bnd
+is guarded by
 
-> On Mon, 8 Sep 2014 09:16:34 -0500 (CDT) Christoph Lameter <cl@linux.com> wrote:
++#ifdef SEGV_BNDERR
+
+which is not defined my MIPS. Also why is this only affecting MIPS and
+not any other architecture which provides its own struct siginfo ?
+
+That patch makes no sense at all, at least not without a proper
+explanation.
+
+Thanks,
+
+	tglx
+
+> Signed-off-by: Qiaowei Ren <qiaowei.ren@intel.com>
+> ---
+>  arch/mips/include/uapi/asm/siginfo.h |    4 ++++
+>  1 files changed, 4 insertions(+), 0 deletions(-)
 > 
-> > 
-> > Acked-by: Christoph Lameter <cl@linux.com>
+> diff --git a/arch/mips/include/uapi/asm/siginfo.h b/arch/mips/include/uapi/asm/siginfo.h
+> index e811744..d08f83f 100644
+> --- a/arch/mips/include/uapi/asm/siginfo.h
+> +++ b/arch/mips/include/uapi/asm/siginfo.h
+> @@ -92,6 +92,10 @@ typedef struct siginfo {
+>  			int _trapno;	/* TRAP # which caused the signal */
+>  #endif
+>  			short _addr_lsb;
+> +			struct {
+> +				void __user *_lower;
+> +				void __user *_upper;
+> +			} _addr_bnd;
+>  		} _sigfault;
+>  
+>  		/* SIGPOLL, SIGXFSZ (To do ...)	 */
+> -- 
+> 1.7.1
 > 
-> I suspect the original patch got eaten by the linux-foundation.org DNS
-> outage, and whoever started this thread didn't cc any mailing lists. 
-> So I have no patch and no way of finding it.
 > 
-> Full resend with appropriate cc's please, after adding all the
-> acked-bys and reviewed-bys.
-
-This patch fixes a bug (discovered with kmemcheck) in
-for_each_kmem_cache_node. The for loop reads the array "node" before
-verifying that the index is within the range. This results in kmemcheck
-warning.
-
-Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
-Reviewed-by: Pekka Enberg <penberg@kernel.org>
-Acked-by: Christoph Lameter <cl@linux.com>
-
----
- mm/slab.h |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-Index: linux-2.6/mm/slab.h
-===================================================================
---- linux-2.6.orig/mm/slab.h	2014-09-04 23:04:31.000000000 +0200
-+++ linux-2.6/mm/slab.h	2014-09-04 23:23:37.000000000 +0200
-@@ -303,8 +303,8 @@ static inline struct kmem_cache_node *ge
-  * a kmem_cache_node structure allocated (which is true for all online nodes)
-  */
- #define for_each_kmem_cache_node(__s, __node, __n) \
--	for (__node = 0; __n = get_node(__s, __node), __node < nr_node_ids; __node++) \
--		 if (__n)
-+	for (__node = 0; __node < nr_node_ids; __node++) \
-+		 if ((__n = get_node(__s, __node)))
- 
- #endif
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
