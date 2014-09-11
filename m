@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CAEA6B00A5
-	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 10:59:19 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id p10so10655881pdj.30
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 07:59:18 -0700 (PDT)
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 42BAF6B00A7
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 11:04:47 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id kx10so10129071pab.31
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 08:04:46 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id gm1si2310522pbd.47.2014.09.11.07.59.16
+        by mx.google.com with ESMTP id uk10si2043727pab.233.2014.09.11.08.04.45
         for <linux-mm@kvack.org>;
-        Thu, 11 Sep 2014 07:59:17 -0700 (PDT)
-Message-ID: <5411B8C3.7080205@intel.com>
-Date: Thu, 11 Sep 2014 07:59:15 -0700
+        Thu, 11 Sep 2014 08:04:45 -0700 (PDT)
+Message-ID: <5411B9BD.2000900@intel.com>
+Date: Thu, 11 Sep 2014 08:03:25 -0700
 From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v8 09/10] x86, mpx: cleanup unused bound tables
-References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com> <1410425210-24789-10-git-send-email-qiaowei.ren@intel.com>
-In-Reply-To: <1410425210-24789-10-git-send-email-qiaowei.ren@intel.com>
+Subject: Re: [PATCH v8 08/10] x86, mpx: add prctl commands PR_MPX_REGISTER,
+ PR_MPX_UNREGISTER
+References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com> <1410425210-24789-9-git-send-email-qiaowei.ren@intel.com>
+In-Reply-To: <1410425210-24789-9-git-send-email-qiaowei.ren@intel.com>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -23,25 +24,13 @@ To: Qiaowei Ren <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thoma
 Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 On 09/11/2014 01:46 AM, Qiaowei Ren wrote:
-> + * This function will be called by do_munmap(), and the VMAs covering
-> + * the virtual address region start...end have already been split if
-> + * necessary and remvoed from the VMA list.
-
-"remvoed" -> "removed"
-
-> +void mpx_unmap(struct mm_struct *mm,
-> +		unsigned long start, unsigned long end)
-> +{
-> +	int ret;
 > +
-> +	ret = mpx_try_unmap(mm, start, end);
-> +	if (ret == -EINVAL)
-> +		force_sig(SIGSEGV, current);
+> +	return (void __user *)(unsigned long)(xsave_buf->bndcsr.cfg_reg_u &
+> +			MPX_BNDCFG_ADDR_MASK);
 > +}
 
-In the case of a fault during an unmap, this just ignores the situation
-and returns silently.  Where is the code to retry the freeing operation
-outside of mmap_sem?
+I don't think casting a u64 to a ulong, then to a pointer is useful.
+Just take the '(unsigned long)' out.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
