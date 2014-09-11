@@ -1,111 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id A36206B0039
-	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 17:07:48 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id p10so11044081pdj.23
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 14:07:48 -0700 (PDT)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id ec3si4062447pbc.36.2014.09.11.14.07.47
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id AF3D86B0071
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 17:16:32 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id ft15so12006019pdb.11
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 14:16:32 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id x13si3964474pdk.119.2014.09.11.14.16.31
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 11 Sep 2014 14:07:47 -0700 (PDT)
-Received: by mail-pa0-f53.google.com with SMTP id rd3so10125777pab.12
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 14:07:47 -0700 (PDT)
-Date: Thu, 11 Sep 2014 14:05:52 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: lockdep warning when logging in via ssh
-In-Reply-To: <20140911023213.GN20518@dastard>
-Message-ID: <alpine.LSU.2.11.1409111344450.1002@eggly.anvils>
-References: <5410D3E7.2020804@redhat.com> <alpine.LSU.2.11.1409101609380.3685@eggly.anvils> <20140911023213.GN20518@dastard>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Sep 2014 14:16:31 -0700 (PDT)
+Date: Thu, 11 Sep 2014 14:16:29 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/3] mm: introduce VM_BUG_ON_MM
+Message-Id: <20140911141629.e24f7fa5a2ec2401d4f3b429@linux-foundation.org>
+In-Reply-To: <1410032326-4380-2-git-send-email-sasha.levin@oracle.com>
+References: <1410032326-4380-1-git-send-email-sasha.levin@oracle.com>
+	<1410032326-4380-2-git-send-email-sasha.levin@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Prarit Bhargava <prarit@redhat.com>
-Cc: Hugh Dickins <hughd@google.com>, Dave Chinner <david@fromorbit.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Eric Sandeen <esandeen@redhat.com>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: kirill.shutemov@linux.intel.com, khlebnikov@openvz.org, riel@redhat.com, mgorman@suse.de, n-horiguchi@ah.jp.nec.com, mhocko@suse.cz, hughd@google.com, vbabka@suse.cz, walken@google.com, minchan@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 11 Sep 2014, Dave Chinner wrote:
-> On Wed, Sep 10, 2014 at 04:24:16PM -0700, Hugh Dickins wrote:
-> > On Wed, 10 Sep 2014, Prarit Bhargava wrote:
-> > 
-> > > I see this when I attempt to login via ssh.  I do not see it if I login on
-> > > the serial console.
-> ....
-> > > 
-> > > According to Dave Chinner:
-> > > 
-> > > "It's the shmem code that is broken - instantiating an inode while
-> > > holding the mmap_sem inverts lock orders all over the place,
-> > > especially in the security subsystem...."
-> > 
-> > Interesting, thank you.  But it seems a bit late to accuse shmem
-> > of doing the wrong thing here: mmap -> shmem_zero_setup worked this
-> > way in 2.4.0 (if not before) and has done ever since.
-> > 
-> > Only now is a problem reported, so perhaps a change is needed rather
-> > at the xfs end - unless Dave has a suggestion for how to change it
-> > easily at the shmem end.
-> > 
-> > Or is xfs not the one to change recently, but something else in the stack?
-> 
-> XFS recently added directory inode specific lockdep class
-> annotations. AFAIA, nobody else has done this so nobody else will
-> have tripped over this issue. Effectively, lockdep is complaining
-> that shmem is taking inode security locks in a different order to
-> what it sees XFS taking directory locks and page faults in the
-> readdir path.
-> 
-> That is, VFS lock order is directory i_mutex/security lock on file
-> creation, directory i_mutex/filldir/may_fault(mmap_sem) on readdir
-> operations. Hence both the security lock and mmap_sem nest under
-> i_mutex in real filesystems, but on shmem the security lock nests
-> under mmap_sem because of inode instantiation.
-> 
-> Now, lockdep is too naive to realise that these are completely
-> different filesystems and so (probably) aren't in danger of
-> deadlocks, but the fact is that having shmem instantiate an inode as
-> a result of a page fault is -surprising- to say the least.
-> 
-> I said that "It's the shmem code that is broken" bluntly because
-> this has already been reported to the linux-mm list twice by me, and
-> it's been ignored twice. it may be that what shmem is doing is OK,
-> but the fact is that it is /very different/ to anyone else and is
-> triggering lockdep reports against the normal behaviour on other
-> filesystems.
-> 
-> My point is that avoiding the lockdep report or fixing any other
-> issue that it uncovers is not an XFS problem - shmem is doing the
-> weird thing and we should not be working around shmem idiosyncracies
-> in XFS or other filesystems....
+On Sat,  6 Sep 2014 15:38:45 -0400 Sasha Levin <sasha.levin@oracle.com> wrote:
 
-Prarit, please would you try the patch below - thanks.
+> Very similar to VM_BUG_ON_PAGE and VM_BUG_ON_VMA, dump struct_mm
+> when the bug is hit.
+> 
+> ...
+>
+> +void dump_mm(const struct mm_struct *mm)
+> +{
+> +	printk(KERN_ALERT
 
-Dave might prefer a more extensive rework of the long-standing
-mmap_region() -> file->f_op->mmap of /dev/zero -> shmem_zero_setup()
-path which surprised him, but if this S_PRIVATE patch actually fixes
-all the lockdep problems for you (rather than just stopping one and
-exposing another), then I think it's precisely what's needed - there
-is no reason to apply selinux inode checks to the internal object
-supporting a shared-anonymous mapping, and this is much easier than
-going down some road of special lock classes at the xfs or shmem end.
+I'm not sure why we should use KERN_ALERT here - KERN_EMERG is for
+"system is unusable", which is a fair descrition of a post-BUG kernel,
+yes?
 
-Not-yet-Signed-off-by: Hugh Dickins <hughd@google.com>
+> +		"mm %p mmap %p seqnum %d task_size %lu\n"
+> +#ifdef CONFIG_MMU
+> +		"get_unmapped_area %p\n"
+> +#endif
+
+This printk is rather hilarious.  I can't think of a better way apart
+from a great string of individual printks.
+
+And maybe we should use individual printks - dump_mm() presently uses
+114 bytes of stack for that printk and that's somewhat of a concern
+considering the situations when it will be called.
+
+
+How's this look?
+
+
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: mm/debug.c: use pr_emerg()
+
+- s/KERN_ALERT/pr_emerg/: we're going BUG so let's maximize the changes
+  of getting the message out.
+
+- convert debug.c to pr_foo()
+
+Cc: Sasha Levin <sasha.levin@oracle.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
 
- mm/shmem.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/debug.c |   21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)
 
---- 3.17-rc4/mm/shmem.c	2014-08-16 16:00:54.151189065 -0700
-+++ linux/mm/shmem.c	2014-09-11 13:37:46.048040904 -0700
-@@ -3375,7 +3375,7 @@ int shmem_zero_setup(struct vm_area_stru
- 	struct file *file;
- 	loff_t size = vma->vm_end - vma->vm_start;
+diff -puN mm/debug.c~mm-debugc-use-pr_emerg mm/debug.c
+--- a/mm/debug.c~mm-debugc-use-pr_emerg
++++ a/mm/debug.c
+@@ -57,7 +57,7 @@ static void dump_flags(unsigned long fla
+ 	unsigned long mask;
+ 	int i;
  
--	file = shmem_file_setup("dev/zero", size, vma->vm_flags);
-+	file = __shmem_file_setup("dev/zero", size, vma->vm_flags, S_PRIVATE);
- 	if (IS_ERR(file))
- 		return PTR_ERR(file);
+-	printk(KERN_ALERT "flags: %#lx(", flags);
++	pr_emerg("flags: %#lx(", flags);
  
+ 	/* remove zone id */
+ 	flags &= (1UL << NR_PAGEFLAGS) - 1;
+@@ -69,24 +69,23 @@ static void dump_flags(unsigned long fla
+ 			continue;
+ 
+ 		flags &= ~mask;
+-		printk("%s%s", delim, names[i].name);
++		pr_cont("%s%s", delim, names[i].name);
+ 		delim = "|";
+ 	}
+ 
+ 	/* check for left over flags */
+ 	if (flags)
+-		printk("%s%#lx", delim, flags);
++		pr_cont("%s%#lx", delim, flags);
+ 
+-	printk(")\n");
++	pr_cont(")\n");
+ }
+ 
+ void dump_page_badflags(struct page *page, const char *reason,
+ 		unsigned long badflags)
+ {
+-	printk(KERN_ALERT
+-	       "page:%p count:%d mapcount:%d mapping:%p index:%#lx\n",
+-		page, atomic_read(&page->_count), page_mapcount(page),
+-		page->mapping, page->index);
++	pr_emerg("page:%p count:%d mapcount:%d mapping:%p index:%#lx\n",
++		  page, atomic_read(&page->_count), page_mapcount(page),
++		  page->mapping, page->index);
+ 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS);
+ 	dump_flags(page->flags, pageflag_names, ARRAY_SIZE(pageflag_names));
+ 	if (reason)
+@@ -152,8 +151,7 @@ static const struct trace_print_flags vm
+ 
+ void dump_vma(const struct vm_area_struct *vma)
+ {
+-	printk(KERN_ALERT
+-		"vma %p start %p end %p\n"
++	pr_emerg("vma %p start %p end %p\n"
+ 		"next %p prev %p mm %p\n"
+ 		"prot %lx anon_vma %p vm_ops %p\n"
+ 		"pgoff %lx file %p private_data %p\n",
+@@ -168,8 +166,7 @@ EXPORT_SYMBOL(dump_vma);
+ 
+ void dump_mm(const struct mm_struct *mm)
+ {
+-	printk(KERN_ALERT
+-		"mm %p mmap %p seqnum %d task_size %lu\n"
++	pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+ #ifdef CONFIG_MMU
+ 		"get_unmapped_area %p\n"
+ #endif
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
