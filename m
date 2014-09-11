@@ -1,192 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f50.google.com (mail-qa0-f50.google.com [209.85.216.50])
-	by kanga.kvack.org (Postfix) with ESMTP id D63B16B0036
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 20:02:19 -0400 (EDT)
-Received: by mail-qa0-f50.google.com with SMTP id cm18so17885202qab.23
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 17:02:19 -0700 (PDT)
-Received: from mail-qg0-x22f.google.com (mail-qg0-x22f.google.com [2607:f8b0:400d:c04::22f])
-        by mx.google.com with ESMTPS id ma9si3231792qcb.22.2014.09.10.17.02.18
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E9256B0035
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 21:08:54 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id g10so13335597pdj.38
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 18:08:54 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id r1si29916917pdl.121.2014.09.10.18.08.52
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 10 Sep 2014 17:02:18 -0700 (PDT)
-Received: by mail-qg0-f47.google.com with SMTP id i50so5668878qgf.34
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 17:02:18 -0700 (PDT)
-Date: Wed, 10 Sep 2014 20:02:12 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [PATCH 0/3 v3] mmu_notifier: Allow to manage CPU external TLBs
-Message-ID: <20140911000211.GA4989@gmail.com>
-References: <1410277434-3087-1-git-send-email-joro@8bytes.org>
- <20140910150125.31a7495c7d0fe814b85fd514@linux-foundation.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 10 Sep 2014 18:08:53 -0700 (PDT)
+Message-ID: <5410F5D5.8060403@huawei.com>
+Date: Thu, 11 Sep 2014 09:07:33 +0800
+From: Zhang Zhen <zhenzhang.zhang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20140910150125.31a7495c7d0fe814b85fd514@linux-foundation.org>
+Subject: Re: [PATCH] memory-hotplug: fix below build warning
+References: <1410228703-2496-1-git-send-email-zhenzhang.zhang@huawei.com> <alpine.DEB.2.02.1409101153340.27173@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1409101153340.27173@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joerg Roedel <joro@8bytes.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, jroedel@suse.de, Peter Zijlstra <a.p.zijlstra@chello.nl>, John.Bridgman@amd.com, Jesse Barnes <jbarnes@virtuousgeek.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, ben.sander@amd.com, linux-mm@kvack.org, Jerome Glisse <jglisse@redhat.com>, Jay.Cornwall@amd.com, Mel Gorman <mgorman@suse.de>, David Woodhouse <dwmw2@infradead.org>, Johannes Weiner <jweiner@redhat.com>, iommu@lists.linux-foundation.org
+To: David Rientjes <rientjes@google.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, wangnan0@huawei.com
 
-On Wed, Sep 10, 2014 at 03:01:25PM -0700, Andrew Morton wrote:
-> On Tue,  9 Sep 2014 17:43:51 +0200 Joerg Roedel <joro@8bytes.org> wrote:
+On 2014/9/11 2:55, David Rientjes wrote:
+> On Tue, 9 Sep 2014, Zhang Zhen wrote:
 > 
-> > here is a patch-set to extend the mmu_notifiers in the Linux
-> > kernel to allow managing CPU external TLBs. Those TLBs may
-> > be implemented in IOMMUs or any other external device, e.g.
-> > ATS/PRI capable PCI devices.
-> > 
-> > The problem with managing these TLBs are the semantics of
-> > the invalidate_range_start/end call-backs currently
-> > available. Currently the subsystem using mmu_notifiers has
-> > to guarantee that no new TLB entries are established between
-> > invalidate_range_start/end. Furthermore the
-> > invalidate_range_start() function is called when all pages
-> > are still mapped and invalidate_range_end() when the pages
-> > are unmapped an already freed.
-> > 
-> > So both call-backs can't be used to safely flush any non-CPU
-> > TLB because _start() is called too early and _end() too
-> > late.
+>> drivers/base/memory.c: In function 'show_valid_zones':
+>> drivers/base/memory.c:384:22: warning: unused variable 'zone_prev' [-Wunused-variable]
+>>   struct zone *zone, *zone_prev;
+>>                       ^
+>>
+>> Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
 > 
-> There's a lot of missing information here.  Why don't the existing
-> callbacks suit non-CPU TLBs?  What is different about them?  Please
-> update the changelog to contain all this context.
-
-So unlike KVM or any current user of the mmu_notifier api, any PCIE
-ATS/PASID capable hardware IOMMUv2 for AMD and forgot the marketing
-name for Intel (probably VTd) implementation walk the cpu page table
-on there own and have there own TLB cache. In fact not only the iommu
-can have a TLB cache but any single PCIE hardware can implement its
-own local TLB cache.
-
-So if we flush the IOMMU and device TLB inside the range_start callback
-there is a chance that the hw will just rewalk the cpu page table and
-repopulate its TLB before the CPU page table is actually updated.
-
-Now if we shoot down the TLB inside the range_end callback, then we
-are too late ie the CPU page table is already populated with new entry
-and all the TLB in the IOMMU an in device might be pointing to the old
-pages.
-
-So the aim of this callback is to happen right after the CPU page table
-is updated but before the old page is freed or recycled. Note that it
-is also safe for COW and other transition from like read only to read
-and write or the other way around.
-
+> This is
+> Reported-by: kbuild test robot <fengguang.wu@intel.com>
+> on August 29 to this mailing list.
 > 
-> > In the AMD IOMMUv2 driver this is currently implemented by
-> > assigning an empty page-table to the external device between
-> > _start() and _end(). But as tests have shown this doesn't
-> > work as external devices don't re-fault infinitly but enter
-> > a failure state after some time.
+>> ---
+>>  drivers/base/memory.c | 2 +-
+>>  1 file changed, 1 insertion(+), 1 deletion(-)
+>>
+>> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+>> index efd456c..7c5d871 100644
+>> --- a/drivers/base/memory.c
+>> +++ b/drivers/base/memory.c
+>> @@ -381,7 +381,7 @@ static ssize_t show_valid_zones(struct device *dev,
+>>  	unsigned long start_pfn, end_pfn;
+>>  	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
+>>  	struct page *first_page;
+>> -	struct zone *zone, *zone_prev;
+>> +	struct zone *zone;
+>>  
+>>  	start_pfn = section_nr_to_pfn(mem->start_section_nr);
+>>  	end_pfn = start_pfn + nr_pages;
 > 
-> More missing info.  Why are these faults occurring?  Is there some
-> device activity which is trying to fault in pages, but the CPU is
-> executing code between _start() and _end() so the driver must refuse to
-> instantiate a page to satisfy the fault?  That's just a guess, and I
-> shouldn't be guessing.  Please update the changelog to fully describe
-> the dynamic activity which is causing this.
-
-The hack that was use prior to this patch was to point the IOMMU to an
-empty page table (a zero page) inside the range_start() callback and
-shoot down the TLB but this meant that the device might enter inside a
-storm of page fault. GPU can have thousand of threads and because during
-invalidation the empty page table is use they all starts triggering page
-fault even if they were not trying to access the range being invalidated.
-It turns out that when this happens current hw like AMD GPU actually stop
-working after a while ie the hw stumble because there is too much fault
-going on.
-
+> Looks good, but this should already be fixed by
+> http://ozlabs.org/~akpm/mmotm/broken-out/memory-hotplug-add-sysfs-zones_online_to-attribute-fix-3-fix.patch
+> right?
 > 
-> > Next problem with this solution is that it causes an
-> > interrupt storm for IO page faults to be handled when an
-> > empty page-table is assigned.
-> 
-> Also too skimpy.  I *think* this is a variant of the problem in the
-> preceding paragraph.  We get a fault storm (which is problem 2) and
-> sometimes the faulting device gives up (which is problem 1).
-> 
-> Or something.  Please de-fog all of this.
+Yeah, thanks!
 > 
 
-Does above explanation help understand the issue ? Given that on each
-device page fault an IRQ is trigger (well the way the hw works is bit
-more complex than that).
-
-> > Furthermore the _start()/end() notifiers only catch the
-> > moment when page mappings are released, but not page-table
-> > pages. But this is necessary for managing external TLBs when
-> > the page-table is shared with the CPU.
-> 
-> How come?
-
-As explained above end() might happens after page that were previously
-mapped are free or recycled.
-
-> 
-> > To solve this situation I wrote a patch-set to introduce a
-> > new notifier call-back: mmu_notifer_invalidate_range(). This
-> > notifier lifts the strict requirements that no new
-> > references are taken in the range between _start() and
-> > _end(). When the subsystem can't guarantee that any new
-> > references are taken is has to provide the
-> > invalidate_range() call-back to clear any new references in
-> > there.
-> > 
-> > It is called between invalidate_range_start() and _end()
-> > every time the VMM has to wipe out any references to a
-> > couple of pages. This are usually the places where the CPU
-> > TLBs are flushed too and where its important that this
-> > happens before invalidate_range_end() is called.
-> > 
-> > Any comments and review appreciated!
-> 
-> The patchset looks decent, although I find it had to review because I
-> just wasn't provided with enough of the thinking that went into it.  I
-> have enough info to look at the C code, but not enough info to identify
-> and evaluate alternative implementation approaches, to identify
-> possible future extensions, etc.
-> 
-> The patchset does appear to add significant additional overhead to hot
-> code paths when mm_has_notifiers(mm).  Please let's update the
-> changelog to address this rather important concern.  How significant is
-> the impact on such mm's, how common are such mm's now and in the
-> future, should we (for example) look at short-circuiting
-> __mmu_notifier_invalidate_range() if none of the registered notifiers
-> implement ->invalidate_range(), etc.
-
-So one might feel like just completely removing the range_start()/end()
-from the mmu_notifier and stick to this one callback but it will not work
-with other hardware like the one i am doing HMM patchset for (i send it
-again a couple weeks ago https://lkml.org/lkml/2014/8/29/423).
-
-Right now there are very few user of the mmu_notifier, SGI, xen, KVM and
-sadly recently the GPU folks (which i am part of too). So as the GPU are
-starting to use it we will see a lot more application going through the
-mmu_notifier callback. Yet you do want to leverage the hw like GPU and
-you do want to use the same address space on the GPU as on the CPU and
-thus you do want to share or at least keep synchronize the GPU view of
-the CPU page table.
-
-Right now, for IOMMUv2 this means adding this callback, for device that
-do not rely on ATS/PASID PCIE extension this means something like HMM.
-Also note that HMM is a superset of IOMMUv2 as it could be use at the
-same time and provide more feature mainly allowing migrating some page
-to device local memory for performances purposes.
-
-I think this sumup all motivation behind this patchset and also behind
-my other patchset. As usual i am happy to discuss alternative way to do
-things but i think that the path of least disruption from current code
-is the one implemented by those patchset.
-
-Cheers,
-Jerome
-
-
-> _______________________________________________
-> iommu mailing list
-> iommu@lists.linux-foundation.org
-> https://lists.linuxfoundation.org/mailman/listinfo/iommu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
