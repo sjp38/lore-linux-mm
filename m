@@ -1,122 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
-	by kanga.kvack.org (Postfix) with ESMTP id AAAB36B00B0
-	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 12:28:39 -0400 (EDT)
-Received: by mail-la0-f41.google.com with SMTP id s18so12102286lam.14
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 09:28:36 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id oy5si2382311lbb.15.2014.09.11.09.28.32
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 11 Sep 2014 09:28:32 -0700 (PDT)
-Date: Thu, 11 Sep 2014 17:28:28 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: mm: BUG in unmap_page_range
-Message-ID: <20140911162827.GZ17501@suse.de>
-References: <54082B25.9090600@oracle.com>
- <20140908171853.GN17501@suse.de>
- <540DEDE7.4020300@oracle.com>
- <20140909213309.GQ17501@suse.de>
- <540F7D42.1020402@oracle.com>
- <alpine.LSU.2.11.1409091903390.10989@eggly.anvils>
- <20140910124732.GT17501@suse.de>
- <alpine.LSU.2.11.1409101210520.1744@eggly.anvils>
- <54110C62.4030702@oracle.com>
- <alpine.LSU.2.11.1409110356280.2116@eggly.anvils>
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 27BD26B009B
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 13:08:06 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id ft15so11617338pdb.11
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 10:08:05 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id mb10si2674003pdb.251.2014.09.11.10.08.04
+        for <linux-mm@kvack.org>;
+        Thu, 11 Sep 2014 10:08:04 -0700 (PDT)
+Message-ID: <5411D6D9.5080107@intel.com>
+Date: Thu, 11 Sep 2014 10:07:37 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1409110356280.2116@eggly.anvils>
+Subject: Re: [PATCH 5/9] mm: Let sparse_{add,remove}_one_section receive a
+ node_id
+References: <1409173922-7484-1-git-send-email-ross.zwisler@linux.intel.com> <540F1EC6.4000504@plexistor.com> <540F20AB.4000404@plexistor.com> <540F48BA.2090304@intel.com> <541022DB.9090000@plexistor.com> <541077DF.1060609@intel.com> <5410899C.3030501@plexistor.com> <54109845.3050309@intel.com> <54115FAB.2050601@gmail.com>
+In-Reply-To: <54115FAB.2050601@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Cyrill Gorcunov <gorcunov@gmail.com>
+To: Boaz Harrosh <openosd@gmail.com>, Boaz Harrosh <boaz@plexistor.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@fb.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-nvdimm@lists.01.org, Toshi Kani <toshi.kani@hp.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Thu, Sep 11, 2014 at 04:39:39AM -0700, Hugh Dickins wrote:
-> On Wed, 10 Sep 2014, Sasha Levin wrote:
-> > On 09/10/2014 03:36 PM, Hugh Dickins wrote:
-> > > Right, and Sasha  reports that that can fire, but he sees the bug
-> > > with this patch in and without that firing.
-> > 
-> > I've changed that WARN_ON_ONCE() to a VM_BUG_ON_VMA() to get some useful
-> > VMA information out, and got the following:
+On 09/11/2014 01:39 AM, Boaz Harrosh wrote:
+> On 09/10/2014 09:28 PM, Dave Hansen wrote:
+>> OK, so what happens when a page is truncated out of a file and this
+>> "last" block reference is dropped while a get_user_pages() still has a
+>> reference?
 > 
-> Well, thanks, but Mel and I have both failed to perceive any actual
-> problem arising from that peculiarity.  And Mel's warning, and the 900s
-> in yesterday's dumps, have shown that it is not correlated with the
-> pte_mknuma() bug we are chasing.  So there isn't anything that I want to
-> look up in these vmas.  Or did you notice something interesting in them?
+> I have a very simple plan for this scenario, as I said, hang these pages
+> with ref!=1 on a garbage list, and one of the clear threads can scan them
+> periodically and release them.
 > 
-> > And on a maybe related note, I've started seeing the following today. It may
-> > be because we fixed mbind() in trinity but it could also be related to
-> 
-> The fixed trinity may be counter-productive for now, since we think
-> there is an understandable pte_mknuma() bug coming from that direction,
-> but have not posted a patch for it yet.
-> 
-> > this issue (free_pgtables() is in the call chain). If you don't think it has
-> > anything to do with it let me know and I'll start a new thread:
-> > 
-> > [ 1195.996803] BUG: unable to handle kernel NULL pointer dereference at           (null)
-> > [ 1196.001744] IP: __rb_erase_color (include/linux/rbtree_augmented.h:107 lib/rbtree.c:229 lib/rbtree.c:367)
-> > [ 1196.001744] Call Trace:
-> > [ 1196.001744] vma_interval_tree_remove (mm/interval_tree.c:24)
-> > [ 1196.001744] __remove_shared_vm_struct (mm/mmap.c:232)
-> > [ 1196.001744] unlink_file_vma (mm/mmap.c:246)
-> > [ 1196.001744] free_pgtables (mm/memory.c:547)
-> > [ 1196.001744] exit_mmap (mm/mmap.c:2826)
-> > [ 1196.001744] mmput (kernel/fork.c:654)
-> > [ 1196.001744] do_exit (./arch/x86/include/asm/thread_info.h:168 kernel/exit.c:461 kernel/exit.c:746)
-> 
-> I didn't study in any detail, but this one seems much more like the
-> zeroing and vma corruption that you've been seeing in other dumps.
-> 
+> I have this test in place, currently what I do is just drop the block
+> and let it leak (that is, not be used any more) until a next mount where
+> this will be returned to free store. Yes stupid I know. But I have a big
+> fat message when this happens and I have not been able to reproduce it.
+> So I'm still waiting for this test case, I guess DAX protects me.
 
-I didn't look through the dumps closely today because I spent the time
-putting together a KVM setup similar to Sasha's (many cpus, fake NUMA,
-etc) so I could run trinity in it in another attempt to reproduce this.
-I did not encounter the same VM_BUG_ON unfortunately. However, trinity
-itself crashed after 2.5 hours complaining
+OK, that sounds like it will work.  The "leaked until the next mount"
+sounds disastrous, but I'm sure you'll fix that.  I can see how it might
+lead to some fragmentation if only small amounts are ever pinned, but
+not a deal-breaker.
 
-[watchdog] pid 32188 has disappeared. Reaping.
-[watchdog] pid 32024 has disappeared. Reaping.
-[watchdog] pid 32300 has disappeared. Reaping.
-[watchdog] Sanity check failed! Found pid 0 at pidslot 35!
-
-This did not happen when running on bare metal. This error makes me wonder
-if it is evidence that there is zeroing corruption occuring when running
-inside KVM. Another possibility is that it's somehow related to fake NUMA
-although it's hard to see how. It's still possible the bug is with the
-page table handling and KVM affects timing enough to cause problems so
-I'm not ruling that out.
-
-> Though a single pte_mknuma() crash could presumably be caused by vma
-> corruption (but I think not mere zeroing), the recurrent way in which
-> you hit that pte_mknuma() bug in particular makes it unlikely to be
-> caused by random corruption.
+>> From my perspective, DAX is complicated, but it is necessary because we
+>> don't have a 'struct page'.  You're saying that even if we pay the cost
+>> of a 'struct page' for the memory, we still don't get the benefit of
+>> having it like getting rid of this DAX stuff?
 > 
-> You are generating new crashes faster than we can keep up with them.
-> Would this be a suitable point for you to switch over to testing
-> 3.17-rc, to see if that is as unstable for you as -next is?
-> 
-> That VM_BUG_ON(!(val & _PAGE_PRESENT)) is not in the 3.17-rc tree,
-> but I think you can "safely" add it to 3.17-rc.  Quotes around
-> "safely" meaning that we know that there's a bug to hit, at least
-> in -next, but I don't think it's going to be hit for stupid obvious
-> reasons.
-> 
+> No DAX is still necessary because we map storage directly to app space,
+> and we still need it persistent. That is we can-not/need-not use an
+> in-ram radix tree but directly use on-storage btrees.
 
-Agreed. If 3.17-rc4 looks stable with the VM_BUG_ON then it would be
-really nice if you could bisect 3.17-rc4 to linux-next carrying the
-VM_BUG_ON(!(val & _PAGE_PRESENT)) check at each bisection point. I'm not
-100% sure if I'm seeing the same corruption as you or some other issue and
-do not want to conflate numerous different problems into one. I know this
-is a pain in the ass but if 3.17-rc4 looks stable then a bisection might
-be faster overall than my constant head scratching :(
+Huh?  We obviously don't need/want persistent memory pages in the page
+*cache*.  But, that's completely orthogonal to _having_ a 'struct page'
+for them.
 
--- 
-Mel Gorman
-SUSE Labs
+DAX does two major things:
+1. avoids needing the page cache
+2. creates "raw" page table entries that the VM does not manage
+   for mmap()s
+
+I'm not saying to put persistent memory in the page cache.
+
+I'm saying that, if we have a 'struct page' for the memory, we should
+try to make the mmap()s more normal.  This enables all kinds of things
+that DAX does not support today, like direct I/O.
+
+> Life is hard and we do need the two models all at the same time, to support
+> all these different devices. So yes the complexity is added with the added
+> choice. But please do not confuse, DAX is not the complicated part. Having
+> a Choice is.
+
+Great, so we at least agree that this adds complexity.
+
+>> Also, about not having a zone for these pages.  Do you intend to support
+>> 32-bit systems?  If so, I believe you will require the kmap() family of
+>> functions to map the pages in order to copy data in and out.  kmap()
+>> currently requires knowing the zone of the page.
+> 
+> No!!! This is strictly 64 bit. A 32bit system is able to have at maximum
+> 3Gb of low-ram + storage.
+> DAX implies always mapped. That is, no re-mapping. So this rules out
+> more then a G of storage. Since that is a joke then No! 32bit is out.
+> 
+> You need to understand current HW std talks about DDR4 and there are
+> DDR3 samples flouting around. So this is strictly 64bit, even on
+> phones.
+
+OK, so I think I at least understand the scope of the patch set and the
+limitations.  I think I've summarized the limitations:
+
+1. Approach requires all of RAM+Pmem to be direct-mapped (rules out
+   almost all 32-bit systems, or any 64-bit systems with more than 64TB
+   of RAM+pmem-storage)
+2. Approach is currently incompatible with some kernel code that
+   requires a 'struct page' (such as direct I/O), and all kernel code
+   that requires knowledge of zones or NUMA nodes.
+3. Approach requires 1/64 of the amount of storage to be consumed by
+   RAM for a pseudo 'struct page'.  If you had 64GB of storage and 1GB
+   of RAM, you would simply run our of RAM.
+
+Did I miss any?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
