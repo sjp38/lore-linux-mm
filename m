@@ -1,93 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id CB0526B0038
-	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 04:39:14 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id v10so12844241pde.33
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 01:39:14 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id ez9si292295pab.128.2014.09.11.01.39.13
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 11 Sep 2014 01:39:13 -0700 (PDT)
-Received: by mail-pa0-f51.google.com with SMTP id kx10so9415114pab.24
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 01:39:13 -0700 (PDT)
-Message-ID: <54115FAB.2050601@gmail.com>
-Date: Thu, 11 Sep 2014 11:39:07 +0300
-From: Boaz Harrosh <openosd@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 5/9] mm: Let sparse_{add,remove}_one_section receive a
- node_id
-References: <1409173922-7484-1-git-send-email-ross.zwisler@linux.intel.com> <540F1EC6.4000504@plexistor.com> <540F20AB.4000404@plexistor.com> <540F48BA.2090304@intel.com> <541022DB.9090000@plexistor.com> <541077DF.1060609@intel.com> <5410899C.3030501@plexistor.com> <54109845.3050309@intel.com>
-In-Reply-To: <54109845.3050309@intel.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id D1DDC6B0035
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 04:54:04 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id v10so12869955pde.5
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 01:54:04 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id v3si274639pds.170.2014.09.11.01.54.03
+        for <linux-mm@kvack.org>;
+        Thu, 11 Sep 2014 01:54:03 -0700 (PDT)
+From: Qiaowei Ren <qiaowei.ren@intel.com>
+Subject: [PATCH v8 00/10] Intel MPX support
+Date: Thu, 11 Sep 2014 16:46:40 +0800
+Message-Id: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Boaz Harrosh <boaz@plexistor.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@fb.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-nvdimm@lists.01.org, Toshi Kani <toshi.kani@hp.com>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Dave Hansen <dave.hansen@intel.com>
+Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Qiaowei Ren <qiaowei.ren@intel.com>
 
-On 09/10/2014 09:28 PM, Dave Hansen wrote:
-<>
-> 
-> OK, so what happens when a page is truncated out of a file and this
-> "last" block reference is dropped while a get_user_pages() still has a
-> reference?
-> 
+This patchset adds support for the Memory Protection Extensions
+(MPX) feature found in future Intel processors.
 
-I have a very simple plan for this scenario, as I said, hang these pages
-with ref!=1 on a garbage list, and one of the clear threads can scan them
-periodically and release them.
+MPX can be used in conjunction with compiler changes to check memory
+references, for those references whose compile-time normal intentions
+are usurped at runtime due to buffer overflow or underflow.
 
-I have this test in place, currently what I do is just drop the block
-and let it leak (that is, not be used any more) until a next mount where
-this will be returned to free store. Yes stupid I know. But I have a big
-fat message when this happens and I have not been able to reproduce it.
-So I'm still waiting for this test case, I guess DAX protects me.
+MPX provides this capability at very low performance overhead for
+newly compiled code, and provides compatibility mechanisms with legacy
+software components. MPX architecture is designed allow a machine to
+run both MPX enabled software and legacy software that is MPX unaware.
+In such a case, the legacy software does not benefit from MPX, but it
+also does not experience any change in functionality or reduction in
+performance.
 
-<>
-> From my perspective, DAX is complicated, but it is necessary because we
-> don't have a 'struct page'.  You're saying that even if we pay the cost
-> of a 'struct page' for the memory, we still don't get the benefit of
-> having it like getting rid of this DAX stuff?
-> 
+More information about Intel MPX can be found in "Intel(R) Architecture
+Instruction Set Extensions Programming Reference".
 
-No DAX is still necessary because we map storage directly to app space,
-and we still need it persistent. That is we can-not/need-not use an
-in-ram radix tree but directly use on-storage btrees.
-Regular VFS has this 2 tiers model, volatile-ram over persistent store.
-DAX is an alternative VFS model where you have a single tier. the name
-implies "Direct Access".
+To get the advantage of MPX, changes are required in the OS kernel,
+binutils, compiler, system libraries support.
 
-So this is nothing to do with page cost or "benefit". DAX is about a new
-VFS model for new storage technologies.
+New GCC option -fmpx is introduced to utilize MPX instructions.
+Currently GCC compiler sources with MPX support is available in a
+separate branch in common GCC SVN repository. See GCC SVN page
+(http://gcc.gnu.org/svn.html) for details.
 
-And please be noted, the complexity you are talking about is just a learning
-curve, on the developers side. Not a technological one. Actually if you
-compare the two models, lets call them VFS-2t and VFS-1t, then you see that
-DAX is an order of a magnitude simpler then the old model.
+To have the full protection, we had to add MPX instrumentation to all
+the necessary Glibc routines (e.g. memcpy) written on assembler, and
+compile Glibc with the MPX enabled GCC compiler. Currently MPX enabled
+Glibc source can be found in Glibc git repository.
 
-Life is hard and we do need the two models all at the same time, to support
-all these different devices. So yes the complexity is added with the added
-choice. But please do not confuse, DAX is not the complicated part. Having
-a Choice is.
+Enabling an application to use MPX will generally not require source
+code updates but there is some runtime code, which is responsible for
+configuring and enabling MPX, needed in order to make use of MPX.
+For most applications this runtime support will be available by linking
+to a library supplied by the compiler or possibly it will come directly
+from the OS once OS versions that support MPX are available.
 
-> Also, about not having a zone for these pages.  Do you intend to support
-> 32-bit systems?  If so, I believe you will require the kmap() family of
-> functions to map the pages in order to copy data in and out.  kmap()
-> currently requires knowing the zone of the page.
+MPX kernel code, namely this patchset, has mainly the 2 responsibilities:
+provide handlers for bounds faults (#BR), and manage bounds memory.
 
-No!!! This is strictly 64 bit. A 32bit system is able to have at maximum
-3Gb of low-ram + storage.
-DAX implies always mapped. That is, no re-mapping. So this rules out
-more then a G of storage. Since that is a joke then No! 32bit is out.
+The high-level areas modified in the patchset are as follow:
+1) struct siginfo is extended to include bound violation information.
+2) two prctl() commands are added to do performance optimization.
 
-You need to understand current HW std talks about DDR4 and there are
-DDR3 samples flouting around. So this is strictly 64bit, even on
-phones.
+Currently no hardware with MPX ISA is available but it is always
+possible to use SDE (Intel(R) software Development Emulator) instead,
+which can be downloaded from
+http://software.intel.com/en-us/articles/intel-software-development-emulator
 
+This patchset has been tested on real internal hardware platform at Intel.
+We have some simple unit tests in user space, which directly call MPX
+instructions to produce #BR to let kernel allocate bounds tables and
+cause bounds violations. We also compiled several benchmarks with an
+MPX-enabled Gcc/Glibc and ICC, an ran them with this patch set.
+We found a number of bugs in this code in these tests.
 
-Thanks
-Boaz
+Future TODO items:
+1) support 32-bit binaries on 64-bit kernels.
+
+Changes since v1:
+  * check to see if #BR occurred in userspace or kernel space.
+  * use generic structure and macro as much as possible when
+    decode mpx instructions.
+
+Changes since v2:
+  * fix some compile warnings.
+  * update documentation.
+
+Changes since v3:
+  * correct some syntax errors at documentation, and document
+    extended struct siginfo.
+  * for kill the process when the error code of BNDSTATUS is 3.
+  * add some comments.
+  * remove new prctl() commands.
+  * fix some compile warnings for 32-bit.
+
+Changes since v4:
+  * raise SIGBUS if the allocations of the bound tables fail.
+
+Changes since v5:
+  * hook unmap() path to cleanup unused bounds tables, and use
+    new prctl() command to register bounds directory address to
+    struct mm_struct to check whether one process is MPX enabled
+    during unmap().
+  * in order track precisely MPX memory usage, add MPX specific
+    mmap interface and one VM_MPX flag to check whether a VMA
+    is MPX bounds table.
+  * add macro cpu_has_mpx to do performance optimization.
+  * sync struct figinfo for mips with general version to avoid
+    build issue.
+
+Changes since v6:
+  * because arch_vma_name is removed, this patchset have toset MPX
+    specific ->vm_ops to do the same thing.
+  * fix warnings for 32 bit arch.
+  * add more description into these patches.
+
+Changes since v7:
+  * introduce VM_ARCH_2 flag. 
+  * remove all of the pr_debug()s.
+  * fix prctl numbers in documentation.
+  * fix some bugs on bounds tables freeing.
+
+Qiaowei Ren (10):
+  x86, mpx: introduce VM_MPX to indicate that a VMA is MPX specific
+  x86, mpx: add MPX specific mmap interface
+  x86, mpx: add macro cpu_has_mpx
+  x86, mpx: hook #BR exception handler to allocate bound tables
+  x86, mpx: extend siginfo structure to include bound violation
+    information
+  mips: sync struct siginfo with general version
+  x86, mpx: decode MPX instruction to get bound violation information
+  x86, mpx: add prctl commands PR_MPX_REGISTER, PR_MPX_UNREGISTER
+  x86, mpx: cleanup unused bound tables
+  x86, mpx: add documentation on Intel MPX
+
+ Documentation/x86/intel_mpx.txt      |  127 +++++++++++
+ arch/mips/include/uapi/asm/siginfo.h |    4 +
+ arch/x86/Kconfig                     |    4 +
+ arch/x86/include/asm/cpufeature.h    |    6 +
+ arch/x86/include/asm/mmu_context.h   |   16 ++
+ arch/x86/include/asm/mpx.h           |   91 ++++++++
+ arch/x86/include/asm/processor.h     |   18 ++
+ arch/x86/kernel/Makefile             |    1 +
+ arch/x86/kernel/mpx.c                |  412 ++++++++++++++++++++++++++++++++++
+ arch/x86/kernel/traps.c              |   61 +++++-
+ arch/x86/mm/Makefile                 |    2 +
+ arch/x86/mm/mpx.c                    |  331 +++++++++++++++++++++++++++
+ fs/proc/task_mmu.c                   |    1 +
+ include/asm-generic/mmu_context.h    |    6 +
+ include/linux/mm.h                   |    6 +
+ include/linux/mm_types.h             |    3 +
+ include/uapi/asm-generic/siginfo.h   |    9 +-
+ include/uapi/linux/prctl.h           |    6 +
+ kernel/signal.c                      |    4 +
+ kernel/sys.c                         |   12 +
+ mm/mmap.c                            |    2 +
+ 21 files changed, 1120 insertions(+), 2 deletions(-)
+ create mode 100644 Documentation/x86/intel_mpx.txt
+ create mode 100644 arch/x86/include/asm/mpx.h
+ create mode 100644 arch/x86/kernel/mpx.c
+ create mode 100644 arch/x86/mm/mpx.c
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
