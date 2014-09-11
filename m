@@ -1,116 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 547B66B0035
-	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 15:31:31 -0400 (EDT)
-Received: by mail-wi0-f182.google.com with SMTP id e4so1680702wiv.9
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 12:31:27 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id bi2si360955wib.103.2014.09.11.12.31.25
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 24C6F6B0038
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 15:54:39 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id kq14so7564783pab.5
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 12:54:38 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id h12si3731910pdj.75.2014.09.11.12.54.37
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 11 Sep 2014 12:31:26 -0700 (PDT)
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: [PATCH] mm: dmapool: add/remove sysfs file outside of the pool lock
-Date: Thu, 11 Sep 2014 21:31:16 +0200
-Message-Id: <1410463876-21265-1-git-send-email-bigeasy@linutronix.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Sep 2014 12:54:37 -0700 (PDT)
+Date: Thu, 11 Sep 2014 12:54:36 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: softdirty: unmapped addresses between VMAs are
+ clean
+Message-Id: <20140911125436.51338d98e8e84abacc418aff@linux-foundation.org>
+In-Reply-To: <20140911054104.GA31069@google.com>
+References: <1410391486-9106-1-git-send-email-pfeiner@google.com>
+	<20140910163628.66302ac77f7835ba5df2f49c@linux-foundation.org>
+	<20140911054104.GA31069@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+To: Peter Feiner <pfeiner@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill@shutemov.name>, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@parallels.com>, Jamie Liu <jamieliu@google.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-cat /sys/a?|/pools followed by removal the device leads to:
+On Wed, 10 Sep 2014 22:41:04 -0700 Peter Feiner <pfeiner@google.com> wrote:
 
-|======================================================
-|[ INFO: possible circular locking dependency detected ]
-|3.17.0-rc4+ #1498 Not tainted
-|-------------------------------------------------------
-|rmmod/2505 is trying to acquire lock:
-| (s_active#28){++++.+}, at: [<c017f754>] kernfs_remove_by_name_ns+0x3c/0x88
-|
-|but task is already holding lock:
-| (pools_lock){+.+.+.}, at: [<c011494c>] dma_pool_destroy+0x18/0x17c
-|
-|which lock already depends on the new lock.
+> On Wed, Sep 10, 2014 at 04:36:28PM -0700, Andrew Morton wrote:
+> > On Wed, 10 Sep 2014 16:24:46 -0700 Peter Feiner <pfeiner@google.com> wrote:
+> > > @@ -1048,32 +1048,51 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+> > > +	while (1) {
+> > > +		unsigned long vm_start = end;
+> > 
+> > Did you really mean to do that?  If so, perhaps a little comment to
+> > explain how it works?
+> 
+> It's the same idea that I used in the pagemap_pte_hole patch that I submitted
+> today: if vma is NULL, then we fill in the pagemap from (addr) to (end) with
+> non-present pagemap entries. 
+> 
+> Should I submit a v2 with a comment?
 
-The problem is the lock order of pools_lock and kernfs_mutex in
-dma_pool_destroy() vs show_pools().
+I spent quite some time staring at that code wondering wtf, so anything
+you can do to clarify it would be good.
 
-This patch breaks out the creation of the sysfs file outside of the
-pools_lock mutex.
-In theory we would have to create the link in the error path of
-device_create_file() in case the dev->dma_pools list is not empty. In
-reality I doubt that there will be a single device creating dma-pools in
-parallel where it would matter.
-
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
----
- mm/dmapool.c | 29 +++++++++++++++++++++--------
- 1 file changed, 21 insertions(+), 8 deletions(-)
-
-diff --git a/mm/dmapool.c b/mm/dmapool.c
-index 306baa594f95..0cad8ee7891f 100644
---- a/mm/dmapool.c
-+++ b/mm/dmapool.c
-@@ -132,6 +132,7 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
- {
- 	struct dma_pool *retval;
- 	size_t allocation;
-+	bool empty = false;
- 
- 	if (align == 0) {
- 		align = 1;
-@@ -173,14 +174,22 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
- 	INIT_LIST_HEAD(&retval->pools);
- 
- 	mutex_lock(&pools_lock);
--	if (list_empty(&dev->dma_pools) &&
--	    device_create_file(dev, &dev_attr_pools)) {
--		kfree(retval);
--		return NULL;
--	} else
--		list_add(&retval->pools, &dev->dma_pools);
-+	if (list_empty(&dev->dma_pools))
-+		empty = true;
-+	list_add(&retval->pools, &dev->dma_pools);
- 	mutex_unlock(&pools_lock);
--
-+	if (empty) {
-+		int err;
-+
-+		err = device_create_file(dev, &dev_attr_pools);
-+		if (err) {
-+			mutex_lock(&pools_lock);
-+			list_del(&retval->pools);
-+			mutex_unlock(&pools_lock);
-+			kfree(retval);
-+			return NULL;
-+		}
-+	}
- 	return retval;
- }
- EXPORT_SYMBOL(dma_pool_create);
-@@ -251,11 +260,15 @@ static void pool_free_page(struct dma_pool *pool, struct dma_page *page)
-  */
- void dma_pool_destroy(struct dma_pool *pool)
- {
-+	bool empty = false;
-+
- 	mutex_lock(&pools_lock);
- 	list_del(&pool->pools);
- 	if (pool->dev && list_empty(&pool->dev->dma_pools))
--		device_remove_file(pool->dev, &dev_attr_pools);
-+		empty = true;
- 	mutex_unlock(&pools_lock);
-+	if (empty)
-+		device_remove_file(pool->dev, &dev_attr_pools);
- 
- 	while (!list_empty(&pool->page_list)) {
- 		struct dma_page *page;
--- 
-2.1.0
+I think a better name would be plain old "start", to communicate that
+it's just a local convenience variable.  "vm_start" means "start of a
+vma" and that isn't accurate in this context; in fact it is misleading.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
