@@ -1,51 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 594026B0098
-	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 09:26:54 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id y13so9614134pdi.7
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 06:26:54 -0700 (PDT)
-Received: from mail-pd0-x231.google.com (mail-pd0-x231.google.com [2607:f8b0:400e:c02::231])
-        by mx.google.com with ESMTPS id rs11si1527196pab.201.2014.09.11.06.26.53
+Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
+	by kanga.kvack.org (Postfix) with ESMTP id A95F36B009D
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 10:13:25 -0400 (EDT)
+Received: by mail-qc0-f174.google.com with SMTP id m20so1363630qcx.33
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 07:13:23 -0700 (PDT)
+Received: from mail-qa0-x22b.google.com (mail-qa0-x22b.google.com [2607:f8b0:400d:c00::22b])
+        by mx.google.com with ESMTPS id w4si1172371qaj.69.2014.09.11.07.13.22
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 11 Sep 2014 06:26:53 -0700 (PDT)
-Received: by mail-pd0-f177.google.com with SMTP id y10so5569747pdj.36
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 06:26:53 -0700 (PDT)
-Date: Thu, 11 Sep 2014 06:25:09 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v4 2/2] ksm: provide support to use deferrable timers
- for scanner thread
-In-Reply-To: <541156C9.1080203@codeaurora.org>
-Message-ID: <alpine.LSU.2.11.1409110609320.2465@eggly.anvils>
-References: <1408536628-29379-1-git-send-email-cpandya@codeaurora.org> <1408536628-29379-2-git-send-email-cpandya@codeaurora.org> <alpine.LSU.2.11.1408272258050.10518@eggly.anvils> <20140903095815.GK4783@worktop.ger.corp.intel.com>
- <alpine.LSU.2.11.1409080023100.1610@eggly.anvils> <20140908093949.GZ6758@twins.programming.kicks-ass.net> <alpine.LSU.2.11.1409091225310.8432@eggly.anvils> <541156C9.1080203@codeaurora.org>
+        Thu, 11 Sep 2014 07:13:22 -0700 (PDT)
+Received: by mail-qa0-f43.google.com with SMTP id cm18so18805576qab.2
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 07:13:20 -0700 (PDT)
+Date: Thu, 11 Sep 2014 10:13:09 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [RFC PATCH 1/6] mmu_notifier: add event information to address
+ invalidation v4
+Message-ID: <20140911141308.GA1969@gmail.com>
+References: <1409339415-3626-1-git-send-email-j.glisse@gmail.com>
+ <1409339415-3626-2-git-send-email-j.glisse@gmail.com>
+ <541172D4.50608@mellanox.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <541172D4.50608@mellanox.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chintan Pandya <cpandya@codeaurora.org>
-Cc: Hugh Dickins <hughd@google.com>, Peter Zijlstra <peterz@infradead.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, John Stultz <john.stultz@linaro.org>, Ingo Molnar <mingo@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>
+To: Haggai Eran <haggaie@mellanox.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, Linus Torvalds <torvalds@linux-foundation.org>, joro@8bytes.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
 
-On Thu, 11 Sep 2014, Chintan Pandya wrote:
-
-> I don't mean to divert the thread too much. But just one suggestion offered
-> by Harshad.
+On Thu, Sep 11, 2014 at 01:00:52PM +0300, Haggai Eran wrote:
+> On 29/08/2014 22:10, j.glisse@gmail.com wrote:
+> > + * - MMU_MUNMAP: the range is being unmapped (outcome of a munmap syscall or
+> > + * process destruction). However, access is still allowed, up until the
+> > + * invalidate_range_free_pages callback. This also implies that secondary
+> > + * page table can be trimmed, because the address range is no longer valid.
 > 
-> Why can't we stop invoking more of a KSM scanner thread when we are
-> saturating from savings ? But again, to check whether savings are saturated
-> or not, we may still want to rely upon timers and we have to wake the CPUs up
-> from IDLE state.
+> I couldn't find the invalidate_range_free_pages callback. Is that a left over 
+> from a previous version of the patch?
+> 
+> Also, I think that you have to invalidate the secondary PTEs of the range being 
+> unmapped immediately, because put_page may be called immediately after the 
+> invalidate_range_start returns.
 
-I agree that it should make sense for KSM to slow down when it sees it's
-making no progress (though that would depart from the pages_to_scan and
-sleep_millisecs prescription - perhaps could be tied to sleep_millisecs 0).
+This is because patchset was originaly on top of a variation of another
+patchset :
 
-But not stop.  That's the problem we're mainly concerned with here:
-to save power we need it to stop, but then how to wake up, without
-putting nasty hooks in hot paths for a minority interest?
-I don't see an answer to that above.
+https://lkml.org/lkml/2014/9/9/601
 
-Hugh
+In which invalidate_range_free_pages was a function call right after cpu
+page table is updated but before page are free. Hence the comment was
+right if on top of that patchset but on top of master you are right this
+comment is wrong.
+
+Cheers,
+Jerome
+
+> 
+> Haggai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
