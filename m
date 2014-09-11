@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D4326B003D
-	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 16:55:00 -0400 (EDT)
-Received: by mail-ig0-f178.google.com with SMTP id a13so1736533igq.17
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 13:55:00 -0700 (PDT)
+Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id AF6906B0044
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 16:55:03 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id rl12so8973633iec.28
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 13:55:03 -0700 (PDT)
 Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com [2607:f8b0:4001:c05::231])
-        by mx.google.com with ESMTPS id y2si6199047igl.47.2014.09.11.13.54.59
+        by mx.google.com with ESMTPS id p3si6208232ige.41.2014.09.11.13.55.02
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 11 Sep 2014 13:54:59 -0700 (PDT)
-Received: by mail-ig0-f177.google.com with SMTP id uq10so5713293igb.10
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 13:54:59 -0700 (PDT)
+        Thu, 11 Sep 2014 13:55:02 -0700 (PDT)
+Received: by mail-ig0-f177.google.com with SMTP id uq10so5713384igb.10
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 13:55:02 -0700 (PDT)
 From: Dan Streetman <ddstreet@ieee.org>
-Subject: [PATCH 05/10] zsmalloc: add atomic index to find zspage to reclaim
-Date: Thu, 11 Sep 2014 16:53:56 -0400
-Message-Id: <1410468841-320-6-git-send-email-ddstreet@ieee.org>
+Subject: [PATCH 06/10] zsmalloc: add zs_ops to zs_pool
+Date: Thu, 11 Sep 2014 16:53:57 -0400
+Message-Id: <1410468841-320-7-git-send-email-ddstreet@ieee.org>
 In-Reply-To: <1410468841-320-1-git-send-email-ddstreet@ieee.org>
 References: <1410468841-320-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,115 +22,119 @@ List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>, Dan Streetman <ddstreet@ieee.org>
 
-Add an atomic index that allows multiple threads to concurrently and
-sequentially iterate through the zspages in all classes and fullness
-groups.  Add a function find_next_lru_class_fg() to find the next class
-fullness group to check for a zspage.  Add a function find_lru_zspage()
-which calls find_next_lru_class_fg() until a fullness group with an
-available zspage is found.  This is required to implement zsmalloc pool
-shrinking, which needs to be able to find a zspage to reclaim.
+Add struct zs_ops with a evict() callback function.  Add documentation
+to zs_free() function clarifying that it cannot be called with a
+zs_pool handle after that handle has been successfully evicted;
+since evict calls into a function provided by the zs_pool creator,
+the creator is therefore responsible for ensuring this requirement.
 
-Since zsmalloc categorizes its zspages in arrays of fullness groups, which
-are themselves inside arrays of classes, there is no (simple) way to
-determine the LRU order of all a zsmalloc pool's zspages.  But to implement
-shrinking, there must be some way to select the zspage to reclaim.  This
-can't use a simple iteration through all classes, since any failure to
-reclaim a zspage would result in any following reclaims to attempt to
-reclaim the same zspage, which would likely result in repeated failures
-to shrink the pool.
+This is required to implement zsmalloc shrinking.
 
 Signed-off-by: Dan Streetman <ddstreet@ieee.org>
 Cc: Minchan Kim <minchan@kernel.org>
 ---
- mm/zsmalloc.c | 68 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 68 insertions(+)
+ drivers/block/zram/zram_drv.c |  2 +-
+ include/linux/zsmalloc.h      |  6 +++++-
+ mm/zsmalloc.c                 | 26 ++++++++++++++++++++++++--
+ 3 files changed, 30 insertions(+), 4 deletions(-)
 
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index bc20fe1..31ba9c7 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -328,7 +328,7 @@ static struct zram_meta *zram_meta_alloc(u64 disksize)
+ 		goto free_meta;
+ 	}
+ 
+-	meta->mem_pool = zs_create_pool(GFP_NOIO | __GFP_HIGHMEM);
++	meta->mem_pool = zs_create_pool(GFP_NOIO | __GFP_HIGHMEM, NULL);
+ 	if (!meta->mem_pool) {
+ 		pr_err("Error creating memory pool\n");
+ 		goto free_table;
+diff --git a/include/linux/zsmalloc.h b/include/linux/zsmalloc.h
+index 05c2147..2c341d4 100644
+--- a/include/linux/zsmalloc.h
++++ b/include/linux/zsmalloc.h
+@@ -36,7 +36,11 @@ enum zs_mapmode {
+ 
+ struct zs_pool;
+ 
+-struct zs_pool *zs_create_pool(gfp_t flags);
++struct zs_ops {
++	int (*evict)(struct zs_pool *pool, unsigned long handle);
++};
++
++struct zs_pool *zs_create_pool(gfp_t flags, struct zs_ops *ops);
+ void zs_destroy_pool(struct zs_pool *pool);
+ 
+ unsigned long zs_malloc(struct zs_pool *pool, size_t size);
 diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index cff8935..a2e417b 100644
+index a2e417b..3dc7dae 100644
 --- a/mm/zsmalloc.c
 +++ b/mm/zsmalloc.c
-@@ -242,6 +242,16 @@ struct mapping_area {
- 	enum zs_mapmode vm_mm; /* mapping mode */
+@@ -221,6 +221,8 @@ struct zs_pool {
+ 
+ 	gfp_t flags;	/* allocation flags used when growing pool */
+ 	atomic_long_t pages_allocated;
++
++	struct zs_ops *ops;
  };
  
-+/* atomic counter indicating which class/fg to reclaim from */
-+static atomic_t lru_class_fg;
-+/* specific order of fg we want to reclaim from */
-+static enum fullness_group lru_fg[] = {
-+	ZS_ALMOST_EMPTY,
-+	ZS_ALMOST_FULL,
-+	ZS_FULL
-+};
-+#define _ZS_NR_LRU_CLASS_FG (ZS_SIZE_CLASSES * ARRAY_SIZE(lru_fg))
-+
- /* zpool driver */
+ /*
+@@ -256,9 +258,18 @@ static enum fullness_group lru_fg[] = {
  
  #ifdef CONFIG_ZPOOL
-@@ -752,6 +762,64 @@ static struct page *find_available_zspage(struct size_class *class)
- 	return page;
+ 
++static int zs_zpool_evict(struct zs_pool *pool, unsigned long handle)
++{
++	return zpool_evict(pool, handle);
++}
++
++static struct zs_ops zs_zpool_ops = {
++	.evict =	zs_zpool_evict
++};
++
+ static void *zs_zpool_create(gfp_t gfp, struct zpool_ops *zpool_ops)
+ {
+-	return zs_create_pool(gfp);
++	return zs_create_pool(gfp, &zs_zpool_ops);
  }
  
-+/* this simply iterates atomically through all classes,
-+ * using a specific fullness group.  At the end, it starts
-+ * over using the next fullness group, and so on.  The
-+ * fullness groups are used in a specific order, from
-+ * least to most full.
-+ */
-+static void find_next_lru_class_fg(struct zs_pool *pool,
-+			struct size_class **class, enum fullness_group *fg)
-+{
-+	int i = atomic_inc_return(&lru_class_fg);
-+
-+	if (i >= _ZS_NR_LRU_CLASS_FG) {
-+		int orig = i;
-+
-+		i %= _ZS_NR_LRU_CLASS_FG;
-+		/* only need to try once, since if we don't
-+		 * succeed whoever changed it will also try
-+		 * and eventually someone will reset it
-+		 */
-+		atomic_cmpxchg(&lru_class_fg, orig, i);
-+	}
-+	*class = &pool->size_class[i % ZS_SIZE_CLASSES];
-+	*fg = lru_fg[i / ZS_SIZE_CLASSES];
-+}
-+
-+/*
-+ * This attempts to find the LRU zspage, but that's not really possible
-+ * because zspages are not contained in a single LRU list, they're
-+ * contained inside fullness groups which are themselves contained
-+ * inside classes.  So this simply iterates through the classes and
-+ * fullness groups to find the next non-empty fullness group, and
-+ * uses the LRU zspage there.
-+ *
-+ * On success, the zspage is returned with its class locked.
-+ * On failure, NULL is returned.
-+ */
-+static struct page *find_lru_zspage(struct zs_pool *pool)
-+{
-+	struct size_class *class;
-+	struct page *page;
-+	enum fullness_group fg;
-+	int tries = 0;
-+
-+	while (tries++ < _ZS_NR_LRU_CLASS_FG) {
-+		find_next_lru_class_fg(pool, &class, &fg);
-+
-+		spin_lock(&class->lock);
-+
-+		page = class->fullness_list[fg];
-+		if (page)
-+			return list_prev_entry(page, lru);
-+
-+		spin_unlock(&class->lock);
-+	}
-+
-+	return NULL;
-+}
-+
- #ifdef CONFIG_PGTABLE_MAPPING
- static inline int __zs_cpu_up(struct mapping_area *area)
+ static void zs_zpool_destroy(void *pool)
+@@ -1019,7 +1030,7 @@ fail:
+  * On success, a pointer to the newly created pool is returned,
+  * otherwise NULL.
+  */
+-struct zs_pool *zs_create_pool(gfp_t flags)
++struct zs_pool *zs_create_pool(gfp_t flags, struct zs_ops *ops)
  {
+ 	int i, ovhd_size;
+ 	struct zs_pool *pool;
+@@ -1046,6 +1057,7 @@ struct zs_pool *zs_create_pool(gfp_t flags)
+ 	}
+ 
+ 	pool->flags = flags;
++	pool->ops = ops;
+ 
+ 	return pool;
+ }
+@@ -1130,6 +1142,16 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+ }
+ EXPORT_SYMBOL_GPL(zs_malloc);
+ 
++/**
++ * zs_free - Free the handle from this pool.
++ * @pool: pool containing the handle
++ * @obj: the handle to free
++ *
++ * The caller must provide a valid handle that is contained
++ * in the provided pool.  The caller must ensure this is
++ * not called after evict() has returned successfully for the
++ * handle.
++ */
+ void zs_free(struct zs_pool *pool, unsigned long obj)
+ {
+ 	struct page *first_page, *f_page;
 -- 
 1.8.3.1
 
