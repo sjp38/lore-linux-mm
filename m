@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B3916B0039
-	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 16:54:51 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id rl12so8950951iec.0
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 13:54:51 -0700 (PDT)
-Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com [2607:f8b0:4001:c05::22b])
-        by mx.google.com with ESMTPS id q10si2520956icg.8.2014.09.11.13.54.50
+Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 588806B003A
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 16:54:54 -0400 (EDT)
+Received: by mail-ie0-f171.google.com with SMTP id y20so3965062ier.30
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 13:54:54 -0700 (PDT)
+Received: from mail-ie0-x229.google.com (mail-ie0-x229.google.com [2607:f8b0:4001:c03::229])
+        by mx.google.com with ESMTPS id i5si2484179igi.56.2014.09.11.13.54.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 11 Sep 2014 13:54:50 -0700 (PDT)
-Received: by mail-ig0-f171.google.com with SMTP id r10so1690919igi.16
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 13:54:50 -0700 (PDT)
+        Thu, 11 Sep 2014 13:54:53 -0700 (PDT)
+Received: by mail-ie0-f169.google.com with SMTP id rl12so8951014iec.0
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 13:54:53 -0700 (PDT)
 From: Dan Streetman <ddstreet@ieee.org>
-Subject: [PATCH 02/10] zsmalloc: add fullness group list for ZS_FULL zspages
-Date: Thu, 11 Sep 2014 16:53:53 -0400
-Message-Id: <1410468841-320-3-git-send-email-ddstreet@ieee.org>
+Subject: [PATCH 03/10] zsmalloc: always update lru ordering of each zspage
+Date: Thu, 11 Sep 2014 16:53:54 -0400
+Message-Id: <1410468841-320-4-git-send-email-ddstreet@ieee.org>
 In-Reply-To: <1410468841-320-1-git-send-email-ddstreet@ieee.org>
 References: <1410468841-320-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,71 +22,45 @@ List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>, Dan Streetman <ddstreet@ieee.org>
 
-Move ZS_FULL into section of fullness_group entries that are tracked in
-the class fullness_lists.  Without this change, full zspages are untracked
-by zsmalloc; they are only moved back onto one of the tracked lists
-(ZS_ALMOST_FULL or ZS_ALMOST_EMPTY) when a zsmalloc user frees one or more
-of its contained objects.
+Update ordering of a changed zspage in its fullness group LRU list,
+even if it has not moved to a different fullness group.
 
-This is required for zsmalloc shrinking, which needs to be able to search
-all zspages in a zsmalloc pool, to find one to shrink.
+This is needed by zsmalloc shrinking, which partially relies on each
+class fullness group list to be kept in LRU order, so the oldest can
+be reclaimed first.  Currently, LRU ordering is only updated when
+a zspage changes fullness groups.
 
 Signed-off-by: Dan Streetman <ddstreet@ieee.org>
 Cc: Minchan Kim <minchan@kernel.org>
 ---
- mm/zsmalloc.c | 13 ++++++++-----
- 1 file changed, 8 insertions(+), 5 deletions(-)
+ mm/zsmalloc.c | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)
 
 diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 03aa72f..fedb70f 100644
+index fedb70f..51db622 100644
 --- a/mm/zsmalloc.c
 +++ b/mm/zsmalloc.c
-@@ -159,16 +159,19 @@
- 					ZS_SIZE_CLASS_DELTA + 1)
+@@ -467,16 +467,14 @@ static enum fullness_group fix_fullness_group(struct zs_pool *pool,
+ 	BUG_ON(!is_first_page(page));
  
- /*
-- * We do not maintain any list for completely empty or full pages
-+ * We do not maintain any list for completely empty zspages,
-+ * since a zspage is freed when it becomes empty.
-  */
- enum fullness_group {
- 	ZS_ALMOST_FULL,
- 	ZS_ALMOST_EMPTY,
-+	ZS_FULL,
-+
- 	_ZS_NR_FULLNESS_GROUPS,
+ 	get_zspage_mapping(page, &class_idx, &currfg);
+-	newfg = get_fullness_group(page);
+-	if (newfg == currfg)
+-		goto out;
+-
+ 	class = &pool->size_class[class_idx];
++	newfg = get_fullness_group(page);
++	/* Need to do this even if currfg == newfg, to update lru */
+ 	remove_zspage(page, class, currfg);
+ 	insert_zspage(page, class, newfg);
+-	set_zspage_mapping(page, class_idx, newfg);
++	if (currfg != newfg)
++		set_zspage_mapping(page, class_idx, newfg);
  
- 	ZS_EMPTY,
--	ZS_FULL
- };
-+#define _ZS_NR_AVAILABLE_FULLNESS_GROUPS ZS_FULL
- 
- /*
-  * We assign a page to ZS_ALMOST_EMPTY fullness group when:
-@@ -722,12 +725,12 @@ cleanup:
- 	return first_page;
+-out:
+ 	return newfg;
  }
  
--static struct page *find_get_zspage(struct size_class *class)
-+static struct page *find_available_zspage(struct size_class *class)
- {
- 	int i;
- 	struct page *page;
- 
--	for (i = 0; i < _ZS_NR_FULLNESS_GROUPS; i++) {
-+	for (i = 0; i < _ZS_NR_AVAILABLE_FULLNESS_GROUPS; i++) {
- 		page = class->fullness_list[i];
- 		if (page)
- 			break;
-@@ -1013,7 +1016,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
- 	BUG_ON(class_idx != class->index);
- 
- 	spin_lock(&class->lock);
--	first_page = find_get_zspage(class);
-+	first_page = find_available_zspage(class);
- 
- 	if (!first_page) {
- 		spin_unlock(&class->lock);
 -- 
 1.8.3.1
 
