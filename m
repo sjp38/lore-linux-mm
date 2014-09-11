@@ -1,135 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 17AE86B0035
-	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 23:10:17 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id z10so12403967pdj.34
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 20:10:16 -0700 (PDT)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
-        by mx.google.com with ESMTP id nw11si30234804pab.104.2014.09.10.20.10.14
-        for <linux-mm@kvack.org>;
-        Wed, 10 Sep 2014 20:10:15 -0700 (PDT)
-Date: Thu, 11 Sep 2014 13:09:26 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v10 09/21] Replace the XIP page fault handler with the
- DAX page fault handler
-Message-ID: <20140911030926.GO20518@dastard>
-References: <cover.1409110741.git.matthew.r.wilcox@intel.com>
- <4d71d7a13bec3acf703e26bf6b0c7da21a71ebe0.1409110741.git.matthew.r.wilcox@intel.com>
- <20140903074724.GE20473@dastard>
- <20140910152337.GF27730@localhost.localdomain>
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 67F786B0035
+	for <linux-mm@kvack.org>; Wed, 10 Sep 2014 23:56:31 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id p10so9619856pdj.30
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 20:56:31 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id y3si30561758pda.0.2014.09.10.20.56.29
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 10 Sep 2014 20:56:30 -0700 (PDT)
+Message-ID: <54111D3B.6060609@oracle.com>
+Date: Wed, 10 Sep 2014 23:55:39 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140910152337.GF27730@localhost.localdomain>
+Subject: Re: [RFC/PATCH v2 01/10] Add kernel address sanitizer infrastructure.
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com> <1410359487-31938-1-git-send-email-a.ryabinin@samsung.com> <1410359487-31938-2-git-send-email-a.ryabinin@samsung.com>
+In-Reply-To: <1410359487-31938-2-git-send-email-a.ryabinin@samsung.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrey Ryabinin <a.ryabinin@samsung.com>, linux-kernel@vger.kernel.org
+Cc: Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-mm@kvack.org, Randy Dunlap <rdunlap@infradead.org>, Michal Marek <mmarek@suse.cz>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 
-On Wed, Sep 10, 2014 at 11:23:37AM -0400, Matthew Wilcox wrote:
-> On Wed, Sep 03, 2014 at 05:47:24PM +1000, Dave Chinner wrote:
-> > > +	error = get_block(inode, block, &bh, 0);
-> > > +	if (!error && (bh.b_size < PAGE_SIZE))
-> > > +		error = -EIO;
-> > > +	if (error)
-> > > +		goto unlock_page;
-> > 
-> > page fault into unwritten region, returns buffer_unwritten(bh) ==
-> > true. Hence buffer_written(bh) is false, and we take this branch:
-> > 
-> > > +	if (!buffer_written(&bh) && !vmf->cow_page) {
-> > > +		if (vmf->flags & FAULT_FLAG_WRITE) {
-> > > +			error = get_block(inode, block, &bh, 1);
-> > 
-> > Exactly what are you expecting to happen here? We don't do
-> > allocation because there are already unwritten blocks over this
-> > extent, and so bh will be unchanged when returning. i.e. it will
-> > still be mapping an unwritten extent.
-> 
-> I was expecting calling get_block() on an unwritten extent to convert it
-> to a written extent.  Your suggestion below of using b_end_io() to do that
-> is a better idea.
-> 
-> So this should be:
-> 
-> 	if (!buffer_mapped(&bh) && !vmf->cow_page) {
-> 
-> ... right?
+On 09/10/2014 10:31 AM, Andrey Ryabinin wrote:
+> +ifdef CONFIG_KASAN
+> +  ifeq ($(call cc-option, $(CFLAGS_KASAN)),)
+> +    $(warning Cannot use CONFIG_KASAN: \
+> +	      -fsanitize=kernel-address not supported by compiler)
+> +  endif
+> +endif
 
-Yes, that is the conclusion I reached as well. ;)
+This seems to always indicate that my gcc doesn't support
+-fsanitize=kernel-address:
 
-> > dax: add IO completion callback for page faults
-> > 
-> > From: Dave Chinner <dchinner@redhat.com>
-> > 
-> > When a page fault drops into a hole, it needs to allocate an extent.
-> > Filesystems may allocate unwritten extents so that the underlying
-> > contents are not exposed until data is written to the extent. In
-> > that case, we need an io completion callback to run once the blocks
-> > have been zeroed to indicate that it is safe for the filesystem to
-> > mark those blocks written without exposing stale data in the event
-> > of a crash.
-> > 
-> > Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> > ---
-> >  fs/dax.c | 7 ++++++-
-> >  1 file changed, 6 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/fs/dax.c b/fs/dax.c
-> > index 96c4fed..387ca78 100644
-> > --- a/fs/dax.c
-> > +++ b/fs/dax.c
-> > @@ -306,6 +306,7 @@ static int do_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
-> >  	memset(&bh, 0, sizeof(bh));
-> >  	block = (sector_t)vmf->pgoff << (PAGE_SHIFT - blkbits);
-> >  	bh.b_size = PAGE_SIZE;
-> > +	bh.b_end_io = NULL;
-> 
-> Given the above memset, I don't think we need to explicitly set b_end_io
-> to NULL.
+Makefile:769: Cannot use CONFIG_KASAN: -fsanitize=kernel-address not supported by compiler
 
-I missed that ;)
+Even though:
 
-> >   repeat:
-> >  	page = find_get_page(mapping, vmf->pgoff);
-> > @@ -364,8 +365,12 @@ static int do_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
-> >  		return VM_FAULT_LOCKED;
-> >  	}
-> >  
-> > -	if (buffer_unwritten(&bh) || buffer_new(&bh))
-> > +	if (buffer_unwritten(&bh) || buffer_new(&bh)) {
-> > +		/* XXX: errors zeroing the blocks are propagated how? */
-> >  		dax_clear_blocks(inode, bh.b_blocknr, bh.b_size);
-> 
-> That's a great question.  I think we need to segfault here.
+$ gcc --version
+gcc (GCC) 5.0.0 20140904 (experimental)
+Copyright (C) 2014 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
-I suspect there are other cases where we need to do similar "trigger
-segv" error handling rather than ignoring errors altogether...
+$ cat test.c
+#include <stdio.h>
+#include <sys/mman.h>
 
-> 
-> > +		if (bh.b_end_io)
-> > +			bh.b_end_io(&bh, 1);
-> > +	}
-> 
-> I think ext4 is going to need to set b_end_io too.  Right now, it uses the
-> dio_iodone_t to convert unwritten extents to written extents, but we don't
-> have (and I don't think we should have) a kiocb for page faults.
+void __asan_init_v3(void) { }
 
-Yes, ext4 is going to need this as well. After I got XFS running
-without problems, I then went back and ran xfstests on ext4 and it
-failed many of the tests that do operations into unwritten regions.
+int main(int argc, char *argv[])
+{
+        return 0;
+}
+$ gcc -fsanitize=kernel-address test.c
+$ ./a.out
+$
 
-> So, if it's OK with you, I'm going to fold this patch into version 11 and
-> add your Reviewed-by to it.
 
-Fold it in, I'll review the result ;)
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
