@@ -1,70 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 83D976B0039
-	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 17:33:56 -0400 (EDT)
-Received: by mail-wi0-f175.google.com with SMTP id cc10so1694708wib.14
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 14:33:55 -0700 (PDT)
-Received: from mail-we0-x22d.google.com (mail-we0-x22d.google.com [2a00:1450:400c:c03::22d])
-        by mx.google.com with ESMTPS id hu1si4296826wib.22.2014.09.11.14.33.54
+Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DEC96B0035
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 17:50:59 -0400 (EDT)
+Received: by mail-qa0-f52.google.com with SMTP id m5so3089066qaj.25
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 14:50:58 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t89si3163111qge.30.2014.09.11.14.50.57
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 11 Sep 2014 14:33:55 -0700 (PDT)
-Received: by mail-we0-f173.google.com with SMTP id u56so6671565wes.32
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 14:33:54 -0700 (PDT)
-Date: Thu, 11 Sep 2014 17:33:39 -0400
-From: Niv Yehezkel <executerx@gmail.com>
-Subject: [PATCH] oom: break after selecting process to kill
-Message-ID: <20140911213338.GA4098@localhost.localdomain>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Sep 2014 14:50:58 -0700 (PDT)
+Date: Thu, 11 Sep 2014 17:50:41 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH] slab: fix for_each_kmem_cache_node
+In-Reply-To: <20140911143357.43ece13ce88eec413c3004b1@linux-foundation.org>
+Message-ID: <alpine.LRH.2.02.1409111746320.14676@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1409051155001.5269@file01.intranet.prod.int.rdu2.redhat.com> <540AD4B4.3010403@iki.fi> <alpine.DEB.2.11.1409080916230.20388@gentwo.org> <20140911143357.43ece13ce88eec413c3004b1@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, akpm@linux-foundation.org, rientjes@google.com, mhocko@suse.cz, hannes@cmpxchg.org, oleg@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@iki.fi>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-There is no need to fallback and continue computing
-badness for each running process after we have found a
-process currently performing the swapoff syscall. We ought to
-immediately select this process for killing.
 
-Signed-off-by: Niv Yehezkel <executerx@gmail.com>
+
+On Thu, 11 Sep 2014, Andrew Morton wrote:
+
+> On Mon, 8 Sep 2014 09:16:34 -0500 (CDT) Christoph Lameter <cl@linux.com> wrote:
+> 
+> > 
+> > Acked-by: Christoph Lameter <cl@linux.com>
+> 
+> I suspect the original patch got eaten by the linux-foundation.org DNS
+> outage, and whoever started this thread didn't cc any mailing lists. 
+> So I have no patch and no way of finding it.
+> 
+> Full resend with appropriate cc's please, after adding all the
+> acked-bys and reviewed-bys.
+
+This patch fixes a bug (discovered with kmemcheck) in
+for_each_kmem_cache_node. The for loop reads the array "node" before
+verifying that the index is within the range. This results in kmemcheck
+warning.
+
+Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
+Reviewed-by: Pekka Enberg <penberg@kernel.org>
+Acked-by: Christoph Lameter <cl@linux.com>
+
 ---
- mm/oom_kill.c |    6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ mm/slab.h |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 1e11df8..68ac30e 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -305,6 +305,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
- 	struct task_struct *g, *p;
- 	struct task_struct *chosen = NULL;
- 	unsigned long chosen_points = 0;
-+	bool process_selected = false;
+Index: linux-2.6/mm/slab.h
+===================================================================
+--- linux-2.6.orig/mm/slab.h	2014-09-04 23:04:31.000000000 +0200
++++ linux-2.6/mm/slab.h	2014-09-04 23:23:37.000000000 +0200
+@@ -303,8 +303,8 @@ static inline struct kmem_cache_node *ge
+  * a kmem_cache_node structure allocated (which is true for all online nodes)
+  */
+ #define for_each_kmem_cache_node(__s, __node, __n) \
+-	for (__node = 0; __n = get_node(__s, __node), __node < nr_node_ids; __node++) \
+-		 if (__n)
++	for (__node = 0; __node < nr_node_ids; __node++) \
++		 if ((__n = get_node(__s, __node)))
  
- 	rcu_read_lock();
- 	for_each_process_thread(g, p) {
-@@ -315,7 +316,8 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
- 		case OOM_SCAN_SELECT:
- 			chosen = p;
- 			chosen_points = ULONG_MAX;
--			/* fall through */
-+			process_selected = true;
-+			break;
- 		case OOM_SCAN_CONTINUE:
- 			continue;
- 		case OOM_SCAN_ABORT:
-@@ -324,6 +326,8 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
- 		case OOM_SCAN_OK:
- 			break;
- 		};
-+		if (process_selected)
-+			break;
- 		points = oom_badness(p, NULL, nodemask, totalpages);
- 		if (!points || points < chosen_points)
- 			continue;
--- 
-1.7.10.4
+ #endif
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
