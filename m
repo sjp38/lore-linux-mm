@@ -1,49 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 490146B00A3
-	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 10:34:41 -0400 (EDT)
-Received: by mail-wg0-f51.google.com with SMTP id k14so5333830wgh.22
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 07:34:40 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id cw8si1671970wjb.156.2014.09.11.07.34.34
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Sep 2014 07:34:35 -0700 (PDT)
-Date: Thu, 11 Sep 2014 10:33:52 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: mm: BUG in unmap_page_range
-Message-ID: <20140911143352.GA3008@redhat.com>
-References: <20140908171853.GN17501@suse.de>
- <540DEDE7.4020300@oracle.com>
- <20140909213309.GQ17501@suse.de>
- <540F7D42.1020402@oracle.com>
- <alpine.LSU.2.11.1409091903390.10989@eggly.anvils>
- <20140910124732.GT17501@suse.de>
- <alpine.LSU.2.11.1409101210520.1744@eggly.anvils>
- <54110C62.4030702@oracle.com>
- <alpine.LSU.2.11.1409110356280.2116@eggly.anvils>
- <5411B032.7050205@oracle.com>
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CAEA6B00A5
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 10:59:19 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id p10so10655881pdj.30
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 07:59:18 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id gm1si2310522pbd.47.2014.09.11.07.59.16
+        for <linux-mm@kvack.org>;
+        Thu, 11 Sep 2014 07:59:17 -0700 (PDT)
+Message-ID: <5411B8C3.7080205@intel.com>
+Date: Thu, 11 Sep 2014 07:59:15 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5411B032.7050205@oracle.com>
+Subject: Re: [PATCH v8 09/10] x86, mpx: cleanup unused bound tables
+References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com> <1410425210-24789-10-git-send-email-qiaowei.ren@intel.com>
+In-Reply-To: <1410425210-24789-10-git-send-email-qiaowei.ren@intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Cyrill Gorcunov <gorcunov@gmail.com>
+To: Qiaowei Ren <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
+Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Sep 11, 2014 at 10:22:42AM -0400, Sasha Levin wrote:
+On 09/11/2014 01:46 AM, Qiaowei Ren wrote:
+> + * This function will be called by do_munmap(), and the VMAs covering
+> + * the virtual address region start...end have already been split if
+> + * necessary and remvoed from the VMA list.
 
- > > The fixed trinity may be counter-productive for now, since we think
- > > there is an understandable pte_mknuma() bug coming from that direction,
- > > but have not posted a patch for it yet.
- > 
- > I'm still seeing the bug with fixed trinity, it was a matter of adding more flags
- > to mbind.
- 
-What did I miss ? Anything not in the MPOL_MF_VALID mask should be -EINVAL
+"remvoed" -> "removed"
 
-	Dave
+> +void mpx_unmap(struct mm_struct *mm,
+> +		unsigned long start, unsigned long end)
+> +{
+> +	int ret;
+> +
+> +	ret = mpx_try_unmap(mm, start, end);
+> +	if (ret == -EINVAL)
+> +		force_sig(SIGSEGV, current);
+> +}
+
+In the case of a fault during an unmap, this just ignores the situation
+and returns silently.  Where is the code to retry the freeing operation
+outside of mmap_sem?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
