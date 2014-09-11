@@ -1,40 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id B06196B0037
-	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 00:33:35 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id p10so9675376pdj.30
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 21:33:35 -0700 (PDT)
-Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id ph4si30279657pdb.200.2014.09.10.21.33.34
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Sep 2014 21:33:34 -0700 (PDT)
-Message-ID: <54112607.9030303@zytor.com>
-Date: Wed, 10 Sep 2014 21:33:11 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 568406B0035
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 00:38:21 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id fa1so8471594pad.2
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 21:38:21 -0700 (PDT)
+Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
+        by mx.google.com with ESMTP id ps4si11441971pac.239.2014.09.10.21.38.18
+        for <linux-mm@kvack.org>;
+        Wed, 10 Sep 2014 21:38:20 -0700 (PDT)
+Date: Thu, 11 Sep 2014 14:38:15 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v10 20/21] ext4: Add DAX functionality
+Message-ID: <20140911043815.GP20518@dastard>
+References: <cover.1409110741.git.matthew.r.wilcox@intel.com>
+ <5422062f87eb5606f4632fd06575254379f40ddc.1409110741.git.matthew.r.wilcox@intel.com>
+ <20140903111302.GG20473@dastard>
+ <54108124.9030707@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC/PATCH v2 02/10] x86_64: add KASan support
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com> <1410359487-31938-1-git-send-email-a.ryabinin@samsung.com> <1410359487-31938-3-git-send-email-a.ryabinin@samsung.com> <5410724B.8000803@intel.com> <CAPAsAGzm29VWz8ZvOu+fVGn4Vbj7bQZAnB11M5ZZXRTQTchj0w@mail.gmail.com> <5410D486.4060200@intel.com> <9E98939B-E2C6-4530-A822-ED550FC3B9D2@zytor.com> <54112512.6040409@oracle.com>
-In-Reply-To: <54112512.6040409@oracle.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <54108124.9030707@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>, Dave Hansen <dave.hansen@intel.com>
-Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Andrey Ryabinin <a.ryabinin@samsung.com>, LKML <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
+To: Boaz Harrosh <openosd@gmail.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, willy@linux.intel.com
 
-On 09/10/2014 09:29 PM, Sasha Levin wrote:
-> On 09/11/2014 12:26 AM, H. Peter Anvin wrote:
->> Except you just broke PVop kernels.
+On Wed, Sep 10, 2014 at 07:49:40PM +0300, Boaz Harrosh wrote:
+> On 09/03/2014 02:13 PM, Dave Chinner wrote:
+> <>
+> > 
+> > When direct IO fails ext4 falls back to buffered IO, right? And
+> > dax_do_io() can return partial writes, yes?
+> > 
 > 
-> So is this why v2 refuses to boot on my KVM guest? (was digging
-> into that before I send a mail out).
+> There is no buffered writes with DAX. .I.E buffered writes are always
+> direct as well. (No page cache)
+
+Yes, I know. But you didn't actually read the code I pointed out,
+did you?
+
+> > So that means if you get, say, ENOSPC part way through a DAX write,
+> > ext4 can start dirtying the page cache from
+> > __generic_file_write_iter() because the DAX write didn't wholly
+> > complete? And say this ENOSPC races with space being freed from
+> > another inode, then the buffered write will succeed and we'll end up
+> > with coherency issues, right?
+> > 
+> > This is not an idle question - XFS if firing asserts all over the
+> > place when doing ENOSPC testing because DAX is returning partial
+> > writes and the XFS direct IO code is expecting them to either wholly
+> > complete or wholly fail. I can make the DAX variant do allow partial
+> > writes, but I'm not going to add a useless fallback to buffered IO
+> > for XFS when the (fully featured) direct allocation fails.
+> > 
 > 
+> Right, no fall back.
 
-No, KVM should be fine.  It is Xen PV which ends up as a smoldering crater.
+And so ext4 is buggy, because what ext4 does ....
 
-	-hpa
+> Because a fallback is just a retry, because in any
+> way DAX assumes there is never a page_cache_page for a written data
 
+... is not a retry - it falls back to a fundamentally different
+code path. i.e:
+
+sys_write()
+....
+	new_sync_write
+	  ext4_file_write_iter
+	    __generic_file_write_iter(O_DIRECT)
+	      written = generic_file_direct_write()
+	      if (error || complete write)
+	        return
+	      /* short write! do buffered IO to finish! */
+	      generic_perform_write()
+	        loop {
+			ext4_write_begin
+			ext4_write_end
+		}
+
+and so we allocate pages in the page cache and do buffered IO into
+them because DAX doesn't hook ->writebegin/write_end as we are
+supposed to intercept all buffered IO at a higher level.
+
+This causes data corruption when tested at ENOSPC on DAX enabled
+ext4 filesystems. I think that it's an oversight and hence a bug
+that needs to be fixed but I'm first asking Willy to see if it was
+intentional or not because maybe I missed sometihng in the past 4
+months since I've paid really close attention to the DAX code.
+
+And in saying that, Boaz, I'd suggest you spend some time looking at
+the history of the DAX patchset. Pay careful note to who came up
+with the original idea and architecture that led to the IO path you
+are so stridently defending.....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
