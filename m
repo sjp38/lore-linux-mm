@@ -1,15 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 153316B0035
-	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 00:02:10 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id v10so12422808pde.5
-        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 21:02:09 -0700 (PDT)
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 4951F6B0037
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 00:02:11 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so8399068pab.4
+        for <linux-mm@kvack.org>; Wed, 10 Sep 2014 21:02:11 -0700 (PDT)
 Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id rg11si30301095pdb.142.2014.09.10.21.02.08
+        by mx.google.com with ESMTPS id go11si27313569pbd.132.2014.09.10.21.02.10
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Sep 2014 21:02:08 -0700 (PDT)
-Message-ID: <54111E99.9010408@zytor.com>
+        Wed, 10 Sep 2014 21:02:10 -0700 (PDT)
+Message-ID: <54111E99.7080309@zytor.com>
 Date: Wed, 10 Sep 2014 21:01:29 -0700
 From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
