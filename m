@@ -1,92 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id E6A2C6B0035
-	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 03:04:11 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id ft15so10671303pdb.11
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 00:04:11 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id j7si177704pdp.1.2014.09.11.00.04.09
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 802EA6B0035
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 04:01:21 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id bj1so8095170pad.28
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 01:01:21 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id qm7si83005pbc.178.2014.09.11.01.01.20
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Sep 2014 00:04:10 -0700 (PDT)
-Date: Thu, 11 Sep 2014 11:03:53 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [RFC] memory cgroup: my thoughts on memsw
-Message-ID: <20140911070353.GA4151@esperanza>
-References: <20140904143055.GA20099@esperanza>
- <5408E1CD.3090004@jp.fujitsu.com>
- <20140905082846.GA25641@esperanza>
- <5409C6BB.7060009@jp.fujitsu.com>
- <20140905160029.GF25641@esperanza>
- <540A4420.2030504@jp.fujitsu.com>
- <20140908110131.GA11812@esperanza>
- <540DB4EC.6060100@jp.fujitsu.com>
- <20140910120157.GA13796@esperanza>
- <5410F96B.1020308@jp.fujitsu.com>
+        Thu, 11 Sep 2014 01:01:20 -0700 (PDT)
+Message-ID: <541156C9.1080203@codeaurora.org>
+Date: Thu, 11 Sep 2014 13:31:13 +0530
+From: Chintan Pandya <cpandya@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <5410F96B.1020308@jp.fujitsu.com>
+Subject: Re: [PATCH v4 2/2] ksm: provide support to use deferrable timers
+ for scanner thread
+References: <1408536628-29379-1-git-send-email-cpandya@codeaurora.org> <1408536628-29379-2-git-send-email-cpandya@codeaurora.org> <alpine.LSU.2.11.1408272258050.10518@eggly.anvils> <20140903095815.GK4783@worktop.ger.corp.intel.com> <alpine.LSU.2.11.1409080023100.1610@eggly.anvils> <20140908093949.GZ6758@twins.programming.kicks-ass.net> <alpine.LSU.2.11.1409091225310.8432@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1409091225310.8432@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Motohiro Kosaki <Motohiro.Kosaki@us.fujitsu.com>, Glauber Costa <glommer@gmail.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@parallels.com>, Konstantin Khorenko <khorenko@parallels.com>, LKML-MM <linux-mm@kvack.org>, LKML-cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, John Stultz <john.stultz@linaro.org>, Ingo Molnar <mingo@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>
 
-On Thu, Sep 11, 2014 at 10:22:51AM +0900, Kamezawa Hiroyuki wrote:
-> (2014/09/10 21:01), Vladimir Davydov wrote:
-> >On Mon, Sep 08, 2014 at 10:53:48PM +0900, Kamezawa Hiroyuki wrote:
-> >>(2014/09/08 20:01), Vladimir Davydov wrote:
-> >>>On Sat, Sep 06, 2014 at 08:15:44AM +0900, Kamezawa Hiroyuki wrote:
-> >>>>As you noticed, hitting anon+swap limit just means oom-kill.
-> >>>>My point is that using oom-killer for "server management" just seems crazy.
-> >>>>
-> >>>>Let my clarify things. your proposal was.
-> >>>>  1. soft-limit will be a main feature for server management.
-> >>>>  2. Because of soft-limit, global memory reclaim runs.
-> >>>>  3. Using swap at global memory reclaim can cause poor performance.
-> >>>>  4. So, making use of OOM-Killer for avoiding swap.
-> >>>>
-> >>>>I can't agree "4". I think
-> >>>>
-> >>>>  - don't configure swap.
-> >>>
-> >>>Suppose there are two containers, each having soft limit set to 50% of
-> >>>total system RAM. One of the containers eats 90% of the system RAM by
-> >>>allocating anonymous pages. Another starts using file caches and wants
-> >>>more than 10% of RAM to work w/o issuing disk reads. So what should we
-> >>>do then?
-> >>>We won't be able to shrink the first container to its soft
-> >>>limit, because there's no swap. Leaving it as is would be unfair from
-> >>>the second container's point of view. Kill it? But the whole system is
-> >>>going OK, because the working set of the second container is easily
-> >>>shrinkable. Besides there may be some progress in shrinking file caches
-> >>>from the first container.
-> >>>
-> >>>>  - use zram
-> >>>
-> >>>In fact this isn't different from the previous proposal (working w/o
-> >>>swap). ZRAM only compresses data while still storing them in RAM so we
-> >>>eventually may get into a situation where almost all RAM is full of
-> >>>compressed anon pages.
-> >>>
-> >>
-> >>In above 2 cases, "vmpressure" works fine.
-> >
-> >What if a container allocates memory so fast that the userspace thread
-> >handling its threshold notifications won't have time to react before it
-> >eats all memory?
-> >
-> 
-> Softlimit is for avoiding such unfair memory scheduling, isn't it ?
+I don't mean to divert the thread too much. But just one suggestion 
+offered by Harshad.
 
-Yeah, and we're returning back to the very beginning. Anonymous memory
-reclaim triggered by soft limit may be impossible due to lack of swap
-space or really sluggish. The whole system will be dragging its feet
-until it finally realizes the container must be killed. It's a kind of
-DOS attack...
+Why can't we stop invoking more of a KSM scanner thread when we are 
+saturating from savings ? But again, to check whether savings are 
+saturated or not, we may still want to rely upon timers and we have to 
+wake the CPUs up from IDLE state.
 
-Thanks,
-Vladimir
+>> here. Can't we create a new (timer) infrastructure that does the right
+>> thing? Surely this isn't the only such case.
+>
+> A sleep-walking timer, that goes to sleep in one bed, but may wake in
+> another; and defers while beds are empty?  I'd be happy to try using
+> that for KSM if it already existed, and no doubt Chintan would too
+
+This is interesting for sure :)
+
+>
+> But I don't think KSM presents a very good case for developing it.
+> I think KSM's use of a sleep_millisecs timer is really just an apology
+> for the amount of often wasted work that it does, and dates from before
+> we niced it down 5.  I prefer the idea of a KSM which waits on activity
+> amongst the restricted set of tasks it is tracking: as this patch tries.
+>
+> But my preference may be naive: doing lots of unnecessary work doesn't
+> matter as much as waking cpus from deep sleep.
+
+This is exactly the preference we are looking for. But yes, cannot be 
+generalized for all.
+
+>
+>>
+>> I know both RCU and some NOHZ_FULL muck already track when the system is
+>> completely idle. This is yet another case of that.
+>
+> Hugh
+
+
+-- 
+Chintan Pandya
+
+QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
+member of the Code Aurora Forum, hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
