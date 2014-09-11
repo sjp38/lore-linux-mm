@@ -1,72 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 802EA6B0035
-	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 04:01:21 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id bj1so8095170pad.28
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 01:01:21 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id qm7si83005pbc.178.2014.09.11.01.01.20
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id A03BA6B0035
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 04:04:59 -0400 (EDT)
+Received: by mail-wg0-f41.google.com with SMTP id k14so4881998wgh.24
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 01:04:59 -0700 (PDT)
+Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com [2a00:1450:400c:c05::232])
+        by mx.google.com with ESMTPS id az8si4857394wib.60.2014.09.11.01.04.57
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Sep 2014 01:01:20 -0700 (PDT)
-Message-ID: <541156C9.1080203@codeaurora.org>
-Date: Thu, 11 Sep 2014 13:31:13 +0530
-From: Chintan Pandya <cpandya@codeaurora.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 11 Sep 2014 01:04:58 -0700 (PDT)
+Received: by mail-wi0-f178.google.com with SMTP id ho1so507127wib.17
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 01:04:57 -0700 (PDT)
+Date: Thu, 11 Sep 2014 10:04:55 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm/compaction: Fix warning of 'flags' may be used
+ uninitialized
+Message-ID: <20140911080455.GA22047@dhcp22.suse.cz>
+References: <1410329540-40708-1-git-send-email-Li.Xiubo@freescale.com>
+ <alpine.DEB.2.02.1409101149500.27173@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4 2/2] ksm: provide support to use deferrable timers
- for scanner thread
-References: <1408536628-29379-1-git-send-email-cpandya@codeaurora.org> <1408536628-29379-2-git-send-email-cpandya@codeaurora.org> <alpine.LSU.2.11.1408272258050.10518@eggly.anvils> <20140903095815.GK4783@worktop.ger.corp.intel.com> <alpine.LSU.2.11.1409080023100.1610@eggly.anvils> <20140908093949.GZ6758@twins.programming.kicks-ass.net> <alpine.LSU.2.11.1409091225310.8432@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1409091225310.8432@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1409101149500.27173@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-arm-msm@vger.kernel.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, John Stultz <john.stultz@linaro.org>, Ingo Molnar <mingo@redhat.com>, Frederic Weisbecker <fweisbec@gmail.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Xiubo Li <Li.Xiubo@freescale.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, linux-mm@kvack.org
 
-I don't mean to divert the thread too much. But just one suggestion 
-offered by Harshad.
+On Wed 10-09-14 11:50:41, David Rientjes wrote:
+> On Wed, 10 Sep 2014, Xiubo Li wrote:
+> 
+> > C      mm/compaction.o
+> > mm/compaction.c: In function isolate_freepages_block:
+> > mm/compaction.c:364:37: warning: flags may be used uninitialized in
+> > this function [-Wmaybe-uninitialized]
+> >        && compact_unlock_should_abort(&cc->zone->lock, flags,
+> >                                      ^
+> > In file included from include/linux/irqflags.h:15:0,
+> >                  from ./arch/arm/include/asm/bitops.h:27,
+> >                  from include/linux/bitops.h:33,
+> >                  from include/linux/kernel.h:10,
+> >                  from include/linux/list.h:8,
+> >                  from include/linux/preempt.h:10,
+> >                  from include/linux/spinlock.h:50,
+> >                  from include/linux/swap.h:4,
+> >                  from mm/compaction.c:10:
+> > mm/compaction.c: In function isolate_migratepages_block:
+> > ./arch/arm/include/asm/irqflags.h:152:2: warning: flags may be used
+> > uninitialized in this function [-Wmaybe-uninitialized]
+> >   asm volatile(
+> >   ^
+> > mm/compaction.c:576:16: note: flags as declared here
+> >   unsigned long flags;
+> >                 ^
+> > 
+> > Signed-off-by: Xiubo Li <Li.Xiubo@freescale.com>
+> 
+> Arnd Bergmann already sent a patch for this to use uninitialized_var() 
+> privately but it didn't get cc'd to any mailing list, sorry.
 
-Why can't we stop invoking more of a KSM scanner thread when we are 
-saturating from savings ? But again, to check whether savings are 
-saturated or not, we may still want to rely upon timers and we have to 
-wake the CPUs up from IDLE state.
-
->> here. Can't we create a new (timer) infrastructure that does the right
->> thing? Surely this isn't the only such case.
->
-> A sleep-walking timer, that goes to sleep in one bed, but may wake in
-> another; and defers while beds are empty?  I'd be happy to try using
-> that for KSM if it already existed, and no doubt Chintan would too
-
-This is interesting for sure :)
-
->
-> But I don't think KSM presents a very good case for developing it.
-> I think KSM's use of a sleep_millisecs timer is really just an apology
-> for the amount of often wasted work that it does, and dates from before
-> we niced it down 5.  I prefer the idea of a KSM which waits on activity
-> amongst the restricted set of tasks it is tracking: as this patch tries.
->
-> But my preference may be naive: doing lots of unnecessary work doesn't
-> matter as much as waking cpus from deep sleep.
-
-This is exactly the preference we are looking for. But yes, cannot be 
-generalized for all.
-
->
->>
->> I know both RCU and some NOHZ_FULL muck already track when the system is
->> completely idle. This is yet another case of that.
->
-> Hugh
-
+Besides that setting flags to 0 is certainly a misleading way to fix
+this issue. uninitialized_var is a correct way because the warning is a
+false possitive. compact_unlock_should_abort will not touch the flags if
+locked is false and this is true only after a lock has been taken and
+flags set. (this should be preferably in the patch description).
 
 -- 
-Chintan Pandya
-
-QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
-member of the Code Aurora Forum, hosted by The Linux Foundation
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
