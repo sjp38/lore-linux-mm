@@ -1,87 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BC456B0081
-	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 07:41:30 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id fp1so5449776pdb.1
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 04:41:30 -0700 (PDT)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id xn3si1009280pab.146.2014.09.11.04.41.28
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E4896B0083
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 07:58:18 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id kq14so6664927pab.25
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 04:58:17 -0700 (PDT)
+Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
+        by mx.google.com with ESMTPS id z3si1222945pdo.71.2014.09.11.04.58.16
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 11 Sep 2014 04:41:29 -0700 (PDT)
-Received: by mail-pa0-f43.google.com with SMTP id fa1so9190196pad.30
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 04:41:28 -0700 (PDT)
-Date: Thu, 11 Sep 2014 04:39:39 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: mm: BUG in unmap_page_range
-In-Reply-To: <54110C62.4030702@oracle.com>
-Message-ID: <alpine.LSU.2.11.1409110356280.2116@eggly.anvils>
-References: <53E989FB.5000904@oracle.com> <53FD4D9F.6050500@oracle.com> <20140827152622.GC12424@suse.de> <540127AC.4040804@oracle.com> <54082B25.9090600@oracle.com> <20140908171853.GN17501@suse.de> <540DEDE7.4020300@oracle.com> <20140909213309.GQ17501@suse.de>
- <540F7D42.1020402@oracle.com> <alpine.LSU.2.11.1409091903390.10989@eggly.anvils> <20140910124732.GT17501@suse.de> <alpine.LSU.2.11.1409101210520.1744@eggly.anvils> <54110C62.4030702@oracle.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Thu, 11 Sep 2014 04:58:17 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout2.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NBQ00G7CK1RT330@mailout2.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 11 Sep 2014 13:01:03 +0100 (BST)
+Message-id: <54118CC9.8070405@samsung.com>
+Date: Thu, 11 Sep 2014 15:51:37 +0400
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+MIME-version: 1.0
+Subject: Re: [RFC/PATCH v2 02/10] x86_64: add KASan support
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+ <1410359487-31938-1-git-send-email-a.ryabinin@samsung.com>
+ <1410359487-31938-3-git-send-email-a.ryabinin@samsung.com>
+ <5410724B.8000803@intel.com>
+ <CAPAsAGzm29VWz8ZvOu+fVGn4Vbj7bQZAnB11M5ZZXRTQTchj0w@mail.gmail.com>
+ <5410D486.4060200@intel.com> <9E98939B-E2C6-4530-A822-ED550FC3B9D2@zytor.com>
+ <54112512.6040409@oracle.com>
+In-reply-to: <54112512.6040409@oracle.com>
+Content-type: text/plain; charset=windows-1252
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@intel.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
 
-On Wed, 10 Sep 2014, Sasha Levin wrote:
-> On 09/10/2014 03:36 PM, Hugh Dickins wrote:
-> > Right, and Sasha  reports that that can fire, but he sees the bug
-> > with this patch in and without that firing.
+On 09/11/2014 08:29 AM, Sasha Levin wrote:
+> On 09/11/2014 12:26 AM, H. Peter Anvin wrote:
+>> Except you just broke PVop kernels.
 > 
-> I've changed that WARN_ON_ONCE() to a VM_BUG_ON_VMA() to get some useful
-> VMA information out, and got the following:
-
-Well, thanks, but Mel and I have both failed to perceive any actual
-problem arising from that peculiarity.  And Mel's warning, and the 900s
-in yesterday's dumps, have shown that it is not correlated with the
-pte_mknuma() bug we are chasing.  So there isn't anything that I want to
-look up in these vmas.  Or did you notice something interesting in them?
-
-> And on a maybe related note, I've started seeing the following today. It may
-> be because we fixed mbind() in trinity but it could also be related to
-
-The fixed trinity may be counter-productive for now, since we think
-there is an understandable pte_mknuma() bug coming from that direction,
-but have not posted a patch for it yet.
-
-> this issue (free_pgtables() is in the call chain). If you don't think it has
-> anything to do with it let me know and I'll start a new thread:
+> So is this why v2 refuses to boot on my KVM guest? (was digging
+> into that before I send a mail out).
 > 
-> [ 1195.996803] BUG: unable to handle kernel NULL pointer dereference at           (null)
-> [ 1196.001744] IP: __rb_erase_color (include/linux/rbtree_augmented.h:107 lib/rbtree.c:229 lib/rbtree.c:367)
-> [ 1196.001744] Call Trace:
-> [ 1196.001744] vma_interval_tree_remove (mm/interval_tree.c:24)
-> [ 1196.001744] __remove_shared_vm_struct (mm/mmap.c:232)
-> [ 1196.001744] unlink_file_vma (mm/mmap.c:246)
-> [ 1196.001744] free_pgtables (mm/memory.c:547)
-> [ 1196.001744] exit_mmap (mm/mmap.c:2826)
-> [ 1196.001744] mmput (kernel/fork.c:654)
-> [ 1196.001744] do_exit (./arch/x86/include/asm/thread_info.h:168 kernel/exit.c:461 kernel/exit.c:746)
 
-I didn't study in any detail, but this one seems much more like the
-zeroing and vma corruption that you've been seeing in other dumps.
+Maybe this will help?
 
-Though a single pte_mknuma() crash could presumably be caused by vma
-corruption (but I think not mere zeroing), the recurrent way in which
-you hit that pte_mknuma() bug in particular makes it unlikely to be
-caused by random corruption.
 
-You are generating new crashes faster than we can keep up with them.
-Would this be a suitable point for you to switch over to testing
-3.17-rc, to see if that is as unstable for you as -next is?
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+Subject: [PATCH] x86_64: kasan: fix kernel boot with CONFIG_DEBUG_VIRTUAL=y
 
-That VM_BUG_ON(!(val & _PAGE_PRESENT)) is not in the 3.17-rc tree,
-but I think you can "safely" add it to 3.17-rc.  Quotes around
-"safely" meaning that we know that there's a bug to hit, at least
-in -next, but I don't think it's going to be hit for stupid obvious
-reasons.
+Use __pa_nodebug instead of __pa before shadow initialized.
+__pa with CONFIG_DEBUG_VIRTUAL=y may result in __asan_load
+call before shadow area initialized.
 
-And you're using a gcc 5 these days?  That's another variable to
-try removing from the mix, to see if it makes a difference.
+Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
+---
+ arch/x86/kernel/head64.c    | 6 +++---
+ arch/x86/mm/kasan_init_64.c | 2 +-
+ 2 files changed, 4 insertions(+), 4 deletions(-)
 
-Hugh
+diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
+index 9d97e3a..5669a8b 100644
+--- a/arch/x86/kernel/head64.c
++++ b/arch/x86/kernel/head64.c
+@@ -47,7 +47,7 @@ static void __init reset_early_page_tables(void)
+
+ 	next_early_pgt = 0;
+
+-	write_cr3(__pa(early_level4_pgt));
++	write_cr3(__pa_nodebug(early_level4_pgt));
+ }
+
+ /* Create a new PMD entry */
+@@ -60,7 +60,7 @@ int __init early_make_pgtable(unsigned long address)
+ 	pmdval_t pmd, *pmd_p;
+
+ 	/* Invalid address or early pgt is done ?  */
+-	if (physaddr >= MAXMEM || read_cr3() != __pa(early_level4_pgt))
++	if (physaddr >= MAXMEM || read_cr3() != __pa_nodebug(early_level4_pgt))
+ 		return -1;
+
+ again:
+@@ -160,7 +160,7 @@ asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
+ 	reset_early_page_tables();
+
+ 	kasan_map_zero_shadow(early_level4_pgt);
+-	write_cr3(__pa(early_level4_pgt));
++	write_cr3(__pa_nodebug(early_level4_pgt));
+
+ 	/* clear bss before set_intr_gate with early_idt_handler */
+ 	clear_bss();
+diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
+index b7c857e..6615bf1 100644
+--- a/arch/x86/mm/kasan_init_64.c
++++ b/arch/x86/mm/kasan_init_64.c
+@@ -35,7 +35,7 @@ void __init kasan_map_zero_shadow(pgd_t *pgd)
+ 	unsigned long end = KASAN_SHADOW_END;
+
+ 	for (i = pgd_index(start); start < end; i++) {
+-		pgd[i] = __pgd(__pa(zero_pud) | __PAGE_KERNEL_RO);
++		pgd[i] = __pgd(__pa_nodebug(zero_pud) | __PAGE_KERNEL_RO);
+ 		start += PGDIR_SIZE;
+ 	}
+ }
+-- 
+2.1.0
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
