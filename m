@@ -1,60 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 11F216B0039
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 13:52:48 -0400 (EDT)
-Received: by mail-we0-f181.google.com with SMTP id w62so1147352wes.12
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 10:52:48 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id iu6si4098270wic.41.2014.09.12.10.52.47
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id CB10A6B0039
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 13:55:23 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id w10so1713649pde.12
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 10:55:23 -0700 (PDT)
+Received: from mail-pd0-x229.google.com (mail-pd0-x229.google.com [2607:f8b0:400e:c02::229])
+        by mx.google.com with ESMTPS id oe1si9120083pbc.212.2014.09.12.10.55.22
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 12 Sep 2014 10:52:47 -0700 (PDT)
-Date: Fri, 12 Sep 2014 19:52:37 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v8 07/10] x86, mpx: decode MPX instruction to get bound
- violation information
-In-Reply-To: <541223B1.5040705@zytor.com>
-Message-ID: <alpine.DEB.2.10.1409121949460.4178@nanos>
-References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com> <1410425210-24789-8-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.10.1409120015030.4178@nanos> <5412230A.6090805@intel.com> <541223B1.5040705@zytor.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 12 Sep 2014 10:55:23 -0700 (PDT)
+Received: by mail-pd0-f169.google.com with SMTP id fp1so1717844pdb.14
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 10:55:22 -0700 (PDT)
+Date: Sat, 13 Sep 2014 02:55:16 +0900
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH RFC] memcg: revert kmem.tcp accounting
+Message-ID: <20140912175516.GB6298@mtj.dyndns.org>
+References: <1410535618-9601-1-git-send-email-vdavydov@parallels.com>
+ <20140912171809.GA24469@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140912171809.GA24469@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Qiaowei Ren <qiaowei.ren@intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, "David S. Miller" <davem@davemloft.net>, Johannes Weiner <hannes@cmpxchg.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Glauber Costa <glommer@gmail.com>, Pavel Emelianov <xemul@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, "Eric W. Biederman" <ebiederm@xmission.com>
 
-On Thu, 11 Sep 2014, H. Peter Anvin wrote:
+Hello, guys.
 
-> On 09/11/2014 03:32 PM, Dave Hansen wrote:
-> > On 09/11/2014 03:18 PM, Thomas Gleixner wrote:
-> >> On Thu, 11 Sep 2014, Qiaowei Ren wrote:
-> >>> This patch sets bound violation fields of siginfo struct in #BR
-> >>> exception handler by decoding the user instruction and constructing
-> >>> the faulting pointer.
-> >>>
-> >>> This patch does't use the generic decoder, and implements a limited
-> >>> special-purpose decoder to decode MPX instructions, simply because the
-> >>> generic decoder is very heavyweight not just in terms of performance
-> >>> but in terms of interface -- because it has to.
-> >>
-> >> And why is that an argument to add another special purpose decoder?
-> > 
-> > Peter asked for it to be done this way specifically:
-> > 
-> > 	https://lkml.org/lkml/2014/6/19/411
-> > 
+On Fri, Sep 12, 2014 at 07:18:09PM +0200, Michal Hocko wrote:
+> On Fri 12-09-14 19:26:58, Vladimir Davydov wrote:
+> > memory.kmem.tcp.limit_in_bytes works as the system-wide tcp_mem sysctl,
+> > but per memory cgroup. While the existence of the latter is justified
+> > (it prevents the system from becoming unusable due to uncontrolled tcp
+> > buffers growth) the reason why we need such a knob in containers isn't
+> > clear to me.
 > 
-> Specifically because marshaling the data in and out of the generic
-> decoder was more complex than a special-purpose decoder.
+> Parallels was the primary driver for this change. I haven't heard of
+> anybody using the feature other than Parallels. I also remember there
+> was a strong push for this feature before it was merged besides there
+> were some complains at the time. I do not remember details (and I am
+> one half way gone for the weekend now) so I do not have pointers to
+> discussions.
+> 
+> I would love to get rid of the code and I am pretty sure that networking
+> people would love this go even more. I didn't plan to provide kmem.tcp.*
+> knobs for the cgroups v2 interface but getting rid of it altogether
+> sounds even better. I am just not sure whether some additional users
+> grown over time.
+> Nevertheless I am really curious. What has changed that Parallels is not
+> interested in kmem.tcp anymore?
 
-Well, I did not see the trainwreck which tried to use the generic
-decoder, but as I explained in the other mail, there is no reason not
-to use it and I can't see any complexity in retrieving the data beyond
-calling insn_get_length(insn);
+So, I'd love to see this happen too but I don't think we can do this.
+People use published interface.  The usages might be utterly one-off
+and mental but let's please not underestimate the sometimes senseless
+creativity found in the wild.  We simply can't remove a bunch of
+control knobs like this.
 
-Thanks,
+Thanks.
 
-	tglx
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
