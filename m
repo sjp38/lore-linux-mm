@@ -1,76 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AE1C6B003B
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 15:28:45 -0400 (EDT)
-Received: by mail-qc0-f171.google.com with SMTP id x3so1459646qcv.16
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 12:28:45 -0700 (PDT)
-Received: from mail-qc0-x22d.google.com (mail-qc0-x22d.google.com [2607:f8b0:400d:c01::22d])
-        by mx.google.com with ESMTPS id g69si6936271qgg.113.2014.09.12.12.28.44
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 009206B003C
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 15:34:00 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id hz1so1942256pad.7
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 12:34:00 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id m5si9687643pap.159.2014.09.12.12.33.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 12 Sep 2014 12:28:44 -0700 (PDT)
-Received: by mail-qc0-f173.google.com with SMTP id i8so991471qcq.32
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 12:28:43 -0700 (PDT)
-Date: Fri, 12 Sep 2014 15:28:37 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [PATCH 0/3 v3] mmu_notifier: Allow to manage CPU external TLBs
-Message-ID: <20140912192837.GC5196@gmail.com>
-References: <1410277434-3087-1-git-send-email-joro@8bytes.org>
- <20140910150125.31a7495c7d0fe814b85fd514@linux-foundation.org>
- <20140912184739.GF2519@suse.de>
- <20140912121937.ebb3010d52abd4196e9341de@linux-foundation.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 12 Sep 2014 12:34:00 -0700 (PDT)
+Date: Fri, 12 Sep 2014 15:33:45 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [PATCH v2 1/6] x86, mm, pat: Set WT to PA4 slot of PAT MSR
+Message-ID: <20140912193345.GH15656@laptop.dumpdata.com>
+References: <1410367910-6026-1-git-send-email-toshi.kani@hp.com>
+ <1410367910-6026-2-git-send-email-toshi.kani@hp.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20140912121937.ebb3010d52abd4196e9341de@linux-foundation.org>
+In-Reply-To: <1410367910-6026-2-git-send-email-toshi.kani@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joerg Roedel <jroedel@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Jay.Cornwall@amd.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, John.Bridgman@amd.com, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, ben.sander@amd.com, linux-mm@kvack.org, Jerome Glisse <jglisse@redhat.com>, iommu@lists.linux-foundation.org, Jesse Barnes <jbarnes@virtuousgeek.org>, Mel Gorman <mgorman@suse.de>, David Woodhouse <dwmw2@infradead.org>, Johannes Weiner <jweiner@redhat.com>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com
 
-On Fri, Sep 12, 2014 at 12:19:37PM -0700, Andrew Morton wrote:
-> On Fri, 12 Sep 2014 20:47:39 +0200 Joerg Roedel <jroedel@suse.de> wrote:
-> 
-> > thanks for your review, I tried to answer your questions below.
-> 
-> You'd be amazed how helpful that was ;)
-> 
-> > Fair enough, I hope I clarified a few things with my explanations
-> > above. I will also update the description of the patch-set when I
-> > re-send.
-> 
-> Sounds good, thanks.
-> 
-> 
-> How does HMM play into all of this?  Would HMM make this patchset
-> obsolete, or could HMM be evolved to do so?  
+> -	/* Set PWT to Write-Combining. All other bits stay the same */
+> -	/*
+> -	 * PTE encoding used in Linux:
+> -	 *      PAT
+> -	 *      |PCD
+> -	 *      ||PWT
+> -	 *      |||
+> -	 *      000 WB		_PAGE_CACHE_WB
+> -	 *      001 WC		_PAGE_CACHE_WC
+> -	 *      010 UC-		_PAGE_CACHE_UC_MINUS
+> -	 *      011 UC		_PAGE_CACHE_UC
 
-HMM should be consider as distinc from this. The hardware TLB we are talking
-with this patchset can be flush by the CPU from inside an atomic context (ie
-while holding cpu page table spinlock for instance).
 
-HMM on the other hand deals with hardware that have there own page table
-ie they do not necessarily walk the cpu page table. Flushing the TLB for this
-kind of hardware means scheduling some job on the hardware and this can not
-be done from kernel atomic context as this job might take a long time to
-complete (imagine preempting thousand of threads on a gpu).
+I think having this nice picture would be beneficial to folks
+who want to understand it. And now you can of course expand it with
+the slot 7 usage.
 
-Still HMM can be use in a mixed environement where the IOMMUv2 is use for
-memory that reside into system ram while HMM only handle memory that have
-been migrated to the device memory.
+> -	 * PAT bit unused
+> -	 */
+> -	pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
+> -	      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
+> +	if ((c->x86_vendor == X86_VENDOR_INTEL) &&
+> +	    (((c->x86 == 0x6) && (c->x86_model <= 0xd)) ||
+> +	     ((c->x86 == 0xf) && (c->x86_model <= 0x6)))) {
+> +		/*
+> +		 * Intel Pentium 2, 3, M, and 4 are affected by PAT errata,
+> +		 * which makes the upper four entries unusable.  We do not
+> +		 * use the upper four entries for all the affected processor
+> +		 * families for safe.
+> +		 *
+> +		 * PAT 0:WB, 1:WC, 2:UC-, 3:UC, 4-7:unusable
+> +		 *
+> +		 * NOTE: When WT or WP is used, it is redirected to UC- per
+> +		 * the default setup in  __cachemode2pte_tbl[].
+> +		 */
+> +		pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
+> +		      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
+> +	} else {
+> +		/*
+> +		 * WT is set to slot 7, which minimizes the risk of using
 
-So while HMM intend to provide more features than IOMMUv2 hardware allow,
-it does not intend to replace it. On contrary hope is that both can work at
-same time.
+You say slot 7 here, but the title of the patch says slot 4?
 
-Cheers,
-Jerome
-
-> _______________________________________________
-> iommu mailing list
-> iommu@lists.linux-foundation.org
-> https://lists.linuxfoundation.org/mailman/listinfo/iommu
+> +		 * the PAT bit as slot 3 is UC and is currently unused.
+> +		 * Slot 4 should remain as reserved.
+> +		 *
+> +		 * PAT 0:WB, 1:WC, 2:UC-, 3:UC, 4-6:reserved, 7:WT
+> +		 */
+> +		pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
+> +		      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, WT);
+> +	}
+>  
+>  	/* Boot CPU check */
+>  	if (!boot_pat_state)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
