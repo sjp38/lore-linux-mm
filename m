@@ -1,94 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DE9A6B0038
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 08:31:28 -0400 (EDT)
-Received: by mail-we0-f172.google.com with SMTP id k48so654493wev.17
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 05:31:26 -0700 (PDT)
-Received: from mail-wi0-x236.google.com (mail-wi0-x236.google.com [2a00:1450:400c:c05::236])
-        by mx.google.com with ESMTPS id wx3si6977204wjc.170.2014.09.12.05.31.25
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id B4E8F6B0038
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 09:11:19 -0400 (EDT)
+Received: by mail-wi0-f176.google.com with SMTP id ex7so588976wid.9
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 06:11:14 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id n9si2897259wic.14.2014.09.12.06.11.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 12 Sep 2014 05:31:25 -0700 (PDT)
-Received: by mail-wi0-f182.google.com with SMTP id e4so534507wiv.9
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 05:31:25 -0700 (PDT)
-Date: Fri, 12 Sep 2014 14:31:22 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] oom: break after selecting process to kill
-Message-ID: <20140912123122.GF12156@dhcp22.suse.cz>
-References: <20140911213338.GA4098@localhost.localdomain>
- <20140912080853.GA12156@dhcp22.suse.cz>
- <20140912082329.GA12330@localhost.localdomain>
- <20140912121817.GE12156@dhcp22.suse.cz>
- <20140912122143.GA20622@localhost.localdomain>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 12 Sep 2014 06:11:09 -0700 (PDT)
+Date: Fri, 12 Sep 2014 15:10:56 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v8 07/10] x86, mpx: decode MPX instruction to get bound
+ violation information
+In-Reply-To: <54127A16.4030701@zytor.com>
+Message-ID: <alpine.DEB.2.10.1409121238290.4178@nanos>
+References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com> <1410425210-24789-8-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.10.1409120015030.4178@nanos> <5412230A.6090805@intel.com> <541223B1.5040705@zytor.com> <alpine.DEB.2.10.1409120133330.4178@nanos>
+ <54127A16.4030701@zytor.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140912122143.GA20622@localhost.localdomain>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Niv Yehezkel <executerx@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, rientjes@google.com, hannes@cmpxchg.org, oleg@redhat.com
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Qiaowei Ren <qiaowei.ren@intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 12-09-14 08:21:43, Niv Yehezkel wrote:
-> On Fri, Sep 12, 2014 at 02:18:17PM +0200, Michal Hocko wrote:
-> > On Fri 12-09-14 04:23:29, Niv Yehezkel wrote:
-> > [...]
-> > > From 1e92f232e9367565d93629b54117b27b9bbfebda Mon Sep 17 00:00:00 2001
-> > > From: Niv Yehezkel <executerx@gmail.com>
-> > > Date: Fri, 12 Sep 2014 04:21:48 -0400
-> > > Subject: [PATCH] break after selecting process to kill
+On Thu, 11 Sep 2014, H. Peter Anvin wrote:
+
+> On 09/11/2014 04:37 PM, Thomas Gleixner wrote:
 > > > 
-> > > 
+> > > Specifically because marshaling the data in and out of the generic
+> > > decoder was more complex than a special-purpose decoder.
 > > 
-> > Now the justification please ;)
+> > I did not look at that detail and I trust your judgement here, but
+> > that is in no way explained in the changelog.
 > > 
-> > > Signed-off-by: Niv Yehezkel <executerx@gmail.com>
-> > > ---
-> > >  mm/oom_kill.c |    4 +++-
-> > >  1 file changed, 3 insertions(+), 1 deletion(-)
-> > > 
-> > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > > index 1e11df8..3203578 100644
-> > > --- a/mm/oom_kill.c
-> > > +++ b/mm/oom_kill.c
-> > > @@ -315,7 +315,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
-> > >  		case OOM_SCAN_SELECT:
-> > >  			chosen = p;
-> > >  			chosen_points = ULONG_MAX;
-> > > -			/* fall through */
-> > > +			break;
-> > >  		case OOM_SCAN_CONTINUE:
-> > >  			continue;
-> > >  		case OOM_SCAN_ABORT:
-> > > @@ -324,6 +324,8 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
-> > >  		case OOM_SCAN_OK:
-> > >  			break;
-> > >  		};
-> > > +		if (chosen_points == ULONG_MAX)
-> > > +			break;
-> > >  		points = oom_badness(p, NULL, nodemask, totalpages);
-> > >  		if (!points || points < chosen_points)
-> > >  			continue;
-> > > -- 
-> > > 1.7.10.4
-> > > 
+> > This whole patchset is a pain to review due to half baken changelogs
+> > and complete lack of a proper design description.
 > > 
-> > 
-> > -- 
-> > Michal Hocko
-> > SUSE Labs
 > 
-> As mentioned earlier, there's no need to keep iterating over all
-> running processes once the process with the highest score has been found.
+> I'm not wedded to that concept, by the way, but using the generic parser had a
+> whole bunch of its own problems, including the fact that you're getting bytes
+> from user space.
 
-Please refer to Documentation/SubmittingPatches, especially "2) Describe
-your changes." section for more information about the preferred
-workflow. I really do not want to be nit picking on you but this is not
-the right way to send your changes.
+Errm. The instruction decoder does not even know about user space.
 
--- 
-Michal Hocko
-SUSE Labs
+      u8 buf[MAX_INSN_SIZE];
+
+      memset(buf, 0, MAX_INSN_SIZE);
+      if (copy_from_user(buf, addr, MAX_INSN_SIZE))
+      	    return 0;
+
+      insn_init(insn, buf, is_64bit(current));
+
+      /* Process the entire instruction */
+      insn_get_length(insn);
+
+      /* Decode the faulting address */
+      return mpx_get_addr(insn, regs);
+
+I really can't see why that should not work. insn_get_length()
+retrieves exactly the information which is required to call
+mpx_get_addr().
+
+Sure it might be a bit slower because the generic decoder does a bit
+more than the mpx private sauce, but this happens in the context of a
+bounds violation and it really does not matter at all whether SIGSEGV
+is delivered 5 microseconds later or not.
+
+The only difference is the insn->limit handling in the MPX
+decoder. The existing decoder has a limit check of:
+
+#define MAX_INSN_SIZE       16
+
+and MPX private one makes that
+
+#define MAX_MPX_INSN_SIZE   15
+
+and limits it runtime further to:
+
+    MAX_MPX_INSN_SIZE - bytes_not_copied_from_user_space;
+
+This is beyond silly, really. If we cannot copy 16 bytes from user
+space, why bother in dealing with a partial copy at all.
+
+Aside of that the existing decoder handles the 32bit app on a 64bit
+kernel already correctly while the extra magic MPX decoder does
+not. It just adds some magically optimized and different copy of the
+existing decoder for exactly ZERO value.
+
+> It might be worthwhile to compare the older patchset which did use the generic
+> parser to make sure that it actually made sense.
+
+I can't find such a thing. The first version I found contains an even
+more convoluted private parser. Intelnal mail perhaps?
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
