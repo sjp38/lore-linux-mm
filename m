@@ -1,52 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C3B66B0035
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 00:44:22 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id lj1so381859pab.15
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 21:44:22 -0700 (PDT)
-Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id fk4si5249889pbb.236.2014.09.11.21.44.19
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Sep 2014 21:44:19 -0700 (PDT)
-Message-ID: <54127A16.4030701@zytor.com>
-Date: Thu, 11 Sep 2014 21:44:06 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 588B06B0035
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 00:59:16 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so411514pab.4
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 21:59:16 -0700 (PDT)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id fh5si5568901pbb.70.2014.09.11.21.59.14
+        for <linux-mm@kvack.org>;
+        Thu, 11 Sep 2014 21:59:15 -0700 (PDT)
+Date: Fri, 12 Sep 2014 13:59:13 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 01/10] zsmalloc: fix init_zspage free obj linking
+Message-ID: <20140912045913.GA2160@bbox>
+References: <1410468841-320-1-git-send-email-ddstreet@ieee.org>
+ <1410468841-320-2-git-send-email-ddstreet@ieee.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v8 07/10] x86, mpx: decode MPX instruction to get bound
- violation information
-References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com> <1410425210-24789-8-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.10.1409120015030.4178@nanos> <5412230A.6090805@intel.com> <541223B1.5040705@zytor.com> <alpine.DEB.2.10.1409120133330.4178@nanos>
-In-Reply-To: <alpine.DEB.2.10.1409120133330.4178@nanos>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <1410468841-320-2-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Dave Hansen <dave.hansen@intel.com>, Qiaowei Ren <qiaowei.ren@intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>
 
-On 09/11/2014 04:37 PM, Thomas Gleixner wrote:
->>
->> Specifically because marshaling the data in and out of the generic
->> decoder was more complex than a special-purpose decoder.
->
-> I did not look at that detail and I trust your judgement here, but
-> that is in no way explained in the changelog.
->
-> This whole patchset is a pain to review due to half baken changelogs
-> and complete lack of a proper design description.
->
+On Thu, Sep 11, 2014 at 04:53:52PM -0400, Dan Streetman wrote:
+> When zsmalloc creates a new zspage, it initializes each object it contains
+> with a link to the next object, so that the zspage has a singly-linked list
+> of its free objects.  However, the logic that sets up the links is wrong,
+> and in the case of objects that are precisely aligned with the page boundries
+> (e.g. a zspage with objects that are 1/2 PAGE_SIZE) the first object on the
+> next page is skipped, due to incrementing the offset twice.  The logic can be
+> simplified, as it doesn't need to calculate how many objects can fit on the
+> current page; simply checking the offset for each object is enough.
 
-I'm not wedded to that concept, by the way, but using the generic parser 
-had a whole bunch of its own problems, including the fact that you're 
-getting bytes from user space.
+If objects are precisely aligned with the page boundary, pages_per_zspage
+should be 1 so there is no next page.
 
-It might be worthwhile to compare the older patchset which did use the 
-generic parser to make sure that it actually made sense.
+> 
+> Change zsmalloc init_zspage() logic to iterate through each object on
+> each of its pages, checking the offset to verify the object is on the
+> current page before linking it into the zspage.
+> 
+> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+> Cc: Minchan Kim <minchan@kernel.org>
+> ---
+>  mm/zsmalloc.c | 14 +++++---------
+>  1 file changed, 5 insertions(+), 9 deletions(-)
+> 
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index c4a9157..03aa72f 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -628,7 +628,7 @@ static void init_zspage(struct page *first_page, struct size_class *class)
+>  	while (page) {
+>  		struct page *next_page;
+>  		struct link_free *link;
+> -		unsigned int i, objs_on_page;
+> +		unsigned int i = 1;
+>  
+>  		/*
+>  		 * page->index stores offset of first object starting
+> @@ -641,14 +641,10 @@ static void init_zspage(struct page *first_page, struct size_class *class)
+>  
+>  		link = (struct link_free *)kmap_atomic(page) +
+>  						off / sizeof(*link);
+> -		objs_on_page = (PAGE_SIZE - off) / class->size;
+>  
+> -		for (i = 1; i <= objs_on_page; i++) {
+> -			off += class->size;
+> -			if (off < PAGE_SIZE) {
+> -				link->next = obj_location_to_handle(page, i);
+> -				link += class->size / sizeof(*link);
+> -			}
+> +		while ((off += class->size) < PAGE_SIZE) {
+> +			link->next = obj_location_to_handle(page, i++);
+> +			link += class->size / sizeof(*link);
+>  		}
+>  
+>  		/*
+> @@ -660,7 +656,7 @@ static void init_zspage(struct page *first_page, struct size_class *class)
+>  		link->next = obj_location_to_handle(next_page, 0);
+>  		kunmap_atomic(link);
+>  		page = next_page;
+> -		off = (off + class->size) % PAGE_SIZE;
+> +		off %= PAGE_SIZE;
+>  	}
+>  }
+>  
+> -- 
+> 1.8.3.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-	-hpa
-
-
-
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
