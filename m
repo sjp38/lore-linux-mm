@@ -1,96 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id C9DAC6B0035
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 04:09:06 -0400 (EDT)
-Received: by mail-wi0-f179.google.com with SMTP id hi2so130615wib.0
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 01:09:06 -0700 (PDT)
-Received: from mail-wi0-x22a.google.com (mail-wi0-x22a.google.com [2a00:1450:400c:c05::22a])
-        by mx.google.com with ESMTPS id i7si6027607wjz.36.2014.09.12.01.09.05
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BC056B0037
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 04:11:38 -0400 (EDT)
+Received: by mail-wg0-f41.google.com with SMTP id k14so336532wgh.24
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 01:11:37 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id g2si5933604wjx.123.2014.09.12.01.11.35
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 12 Sep 2014 01:09:05 -0700 (PDT)
-Received: by mail-wi0-f170.google.com with SMTP id em10so368111wid.3
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 01:09:05 -0700 (PDT)
-Date: Fri, 12 Sep 2014 10:08:53 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] oom: break after selecting process to kill
-Message-ID: <20140912080853.GA12156@dhcp22.suse.cz>
-References: <20140911213338.GA4098@localhost.localdomain>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 12 Sep 2014 01:11:36 -0700 (PDT)
+Date: Fri, 12 Sep 2014 10:11:21 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v8 08/10] x86, mpx: add prctl commands PR_MPX_REGISTER,
+ PR_MPX_UNREGISTER
+In-Reply-To: <541239F1.2000508@intel.com>
+Message-ID: <alpine.DEB.2.10.1409120950260.4178@nanos>
+References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com> <1410425210-24789-9-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.10.1409120020060.4178@nanos> <541239F1.2000508@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140911213338.GA4098@localhost.localdomain>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Niv Yehezkel <executerx@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, rientjes@google.com, hannes@cmpxchg.org, oleg@redhat.com
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Qiaowei Ren <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 11-09-14 17:33:39, Niv Yehezkel wrote:
-> There is no need to fallback and continue computing
-> badness for each running process after we have found a
-> process currently performing the swapoff syscall. We ought to
-> immediately select this process for killing.
-
-a) this is not only about swapoff. KSM (run_store) is currently
-   considered oom origin as well.
-b) you forgot to tell us what led you to this change. It sounds like a
-   minor optimization to me. We can potentially skip scanning through
-   many tasks but this is not guaranteed at all because our task might
-   be at the very end of the tasks list as well.
-c) finally this might select thread != thread_group_leader which is a
-   minor issue affecting oom report
-
-I am not saying the change is wrong but please make sure you first
-describe your motivation. Does it fix any issue you are seeing?  Is this
-just something that struck you while reading the code? Maybe it was 
-/* always select this thread first */ comment for OOM_SCAN_SELECT.
-Besides that your process_selected is not really needed. You could test
-for chosen_points == ULONG_MAX as well. This would be even more
-straightforward because any score like that is ultimate candidate.
-
-> Signed-off-by: Niv Yehezkel <executerx@gmail.com>
-> ---
->  mm/oom_kill.c |    6 +++++-
->  1 file changed, 5 insertions(+), 1 deletion(-)
+On Thu, 11 Sep 2014, Dave Hansen wrote:
+> On 09/11/2014 04:28 PM, Thomas Gleixner wrote:
+> > On Thu, 11 Sep 2014, Qiaowei Ren wrote:
+> >> This patch adds the PR_MPX_REGISTER and PR_MPX_UNREGISTER prctl()
+> >> commands. These commands can be used to register and unregister MPX
+> >> related resource on the x86 platform.
+> > 
+> > I cant see anything which is registered/unregistered.
 > 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 1e11df8..68ac30e 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -305,6 +305,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
->  	struct task_struct *g, *p;
->  	struct task_struct *chosen = NULL;
->  	unsigned long chosen_points = 0;
-> +	bool process_selected = false;
->  
->  	rcu_read_lock();
->  	for_each_process_thread(g, p) {
-> @@ -315,7 +316,8 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
->  		case OOM_SCAN_SELECT:
->  			chosen = p;
->  			chosen_points = ULONG_MAX;
-> -			/* fall through */
-> +			process_selected = true;
-> +			break;
->  		case OOM_SCAN_CONTINUE:
->  			continue;
->  		case OOM_SCAN_ABORT:
-> @@ -324,6 +326,8 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
->  		case OOM_SCAN_OK:
->  			break;
->  		};
-> +		if (process_selected)
-> +			break;
->  		points = oom_badness(p, NULL, nodemask, totalpages);
->  		if (!points || points < chosen_points)
->  			continue;
-> -- 
-> 1.7.10.4
+> This registers the location of the bounds directory with the kernel.
 > 
+> >From the app's perspective, it says "I'm using MPX, and here is where I
+> put the root data structure".
+> 
+> Without this, the kernel would have to do an (expensive) xsave operation
+> every time it wanted to see if MPX was in use.  This also makes the
+> user/kernel interaction more explicit.  We would be in a world of hurt
+> if userspace was allowed to move the bounds directory around.  With this
+> interface, it's a bit more obvious that userspace can't just move it
+> around willy-nilly.
 
--- 
-Michal Hocko
-SUSE Labs
+And what prevents it to do so? Just the fact that you have a prctl
+does not make userspace better.
+
+> >> The base of the bounds directory is set into mm_struct during
+> >> PR_MPX_REGISTER command execution. This member can be used to
+> >> check whether one application is mpx enabled.
+> > 
+> > This changelog is completely useless.
+> 
+> Yeah, it's pretty bare-bones.  Let me know if the explanation above
+> makes sense, and we'll get it updated.
+
+Well, it at least explains what its supposed to do. Whether that
+itself makes sense is a completely different question.
+ 
+> >> + */
+> >> +static __user void *task_get_bounds_dir(struct task_struct *tsk)
+> >> +{
+> >> +	struct xsave_struct *xsave_buf;
+> >> +
+> >> +	fpu_xsave(&tsk->thread.fpu);
+> >> +	xsave_buf = &(tsk->thread.fpu.state->xsave);
+> >> +	if (!(xsave_buf->bndcsr.cfg_reg_u & MPX_BNDCFG_ENABLE_FLAG))
+> >> +		return NULL;
+> > 
+> > Now this might be understandable with a proper comment. Right now it's
+> > a magic check for something uncomprehensible.
+> 
+> It's a bit ugly to access, but it seems pretty blatantly obvious that
+> this is a check for "Is the enable flag in a hardware register set?"
+> 
+> Yes, the registers have names only a mother could love.  But that is
+> what they're really called.
+> 
+> I guess we could add some comments about why we need to do the xsave.
+
+Exactly.
+ 
+> > So we use that information to check, whether we need to tear down a
+> > VM_MPX flagged region with mpx_unmap(), right?
+> 
+> Well, we use it to figure out whether we _potentially_ need to tear down
+> an VM_MPX-flagged area.  There's no guarantee that there will be one.
+
+So what you are saying is, that if user space sets the pointer to NULL
+via the unregister prctl, kernel can safely ignore vmas which have the
+VM_MPX flag set. I really can't follow that logic.
+ 
+	mmap_mpx();
+	prctl(enable mpx);
+	do lots of crap which uses mpx;
+	prctl(disable mpx);
+
+So after that point the previous use of MPX is irrelevant, just
+because we set a pointer to NULL? Does it just look like crap because
+I do not get the big picture how all of this is supposed to work?
+
+> Yes.  The only other way the kernel can possibly know that it needs to
+> go tearing things down is with a potentially frequent and expensive xsave.
+> 
+> Either we change mmap to say "this mmap() is for a bounds directory", or
+> we have some other interface that says "the mmap() for the bounds
+> directory is at $foo".  We could also record the bounds directory the
+> first time that we catch userspace using it.  I'd rather have an
+> explicit interface than an implicit one like that, though I don't feel
+> that strongly about it.
+
+I really have to disagree here. If I follow your logic then we would
+have a prctl for using floating point as well instead of catching the
+use and handle it from there. Just get it, if you make it simple for
+user space to do stupid things, they will happen in all provided ways
+and some more.
+
+> > The design to support this feature makes no sense at all to me. We
+> > have a special mmap interface, some magic kernel side mapping
+> > functionality and then on top of it a prctl telling the kernel to
+> > ignore/respect it.
+> 
+> That's a good point.  We don't seem to have anything in the
+> allocate_bt() side of things to tell the kernel to refuse to create
+> things if the prctl() hasn't been called.  That needs to get added.
+
+And then you need another bunch of logic in the prctl(disable mpx)
+path to cleanup the mess instead of just setting a random pointer to
+NULL.
+
+> If you don't want to share them in public, I'm happy to take this
+> off-list, but please do share.
+
+I'll let you know once I verified that it might work.
+
+Thanks,
+
+	tglx
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
