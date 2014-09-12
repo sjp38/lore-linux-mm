@@ -1,77 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id E5B7F6B0038
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 15:25:24 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id ey11so1909400pad.20
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 12:25:24 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id f8si9746528pdm.106.2014.09.12.12.25.23
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F0286B003A
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 15:27:40 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id g10so1849184pdj.24
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 12:27:40 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id wq6si9632039pac.179.2014.09.12.12.27.39
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 12 Sep 2014 12:25:23 -0700 (PDT)
-Date: Fri, 12 Sep 2014 15:25:01 -0400
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCH 1/5] x86, mm, pat: Set WT to PA4 slot of PAT MSR
-Message-ID: <20140912192501.GG15656@laptop.dumpdata.com>
-References: <1409855739-8985-1-git-send-email-toshi.kani@hp.com>
- <1409855739-8985-2-git-send-email-toshi.kani@hp.com>
- <20140904201123.GA9116@khazad-dum.debian.net>
- <5408C9C4.1010705@zytor.com>
- <20140904231923.GA15320@khazad-dum.debian.net>
- <CALCETrWxKFtM8FhnHQz--uaHYbiqShE1XLJxMCKN7Rs4SO14eQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALCETrWxKFtM8FhnHQz--uaHYbiqShE1XLJxMCKN7Rs4SO14eQ@mail.gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 12 Sep 2014 12:27:39 -0700 (PDT)
+Date: Fri, 12 Sep 2014 12:27:37 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/3 v3] mmu_notifier: Allow to manage CPU external TLBs
+Message-Id: <20140912122737.53a7947e5378fa501092887b@linux-foundation.org>
+In-Reply-To: <20140912192100.GB5196@gmail.com>
+References: <1410277434-3087-1-git-send-email-joro@8bytes.org>
+	<20140910150125.31a7495c7d0fe814b85fd514@linux-foundation.org>
+	<20140911000211.GA4989@gmail.com>
+	<20140912121036.1fb998af4147ad9ea35166db@linux-foundation.org>
+	<20140912192100.GB5196@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Henrique de Moraes Holschuh <hmh@hmh.eng.br>, "H. Peter Anvin" <hpa@zytor.com>, Toshi Kani <toshi.kani@hp.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, akpm@linuxfoundation.org, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Juergen Gross <jgross@suse.com>, Stefan Bader <stefan.bader@canonical.com>
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Joerg Roedel <joro@8bytes.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, jroedel@suse.de, Peter Zijlstra <a.p.zijlstra@chello.nl>, John.Bridgman@amd.com, Jesse Barnes <jbarnes@virtuousgeek.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, ben.sander@amd.com, linux-mm@kvack.org, Jerome Glisse <jglisse@redhat.com>, Jay.Cornwall@amd.com, Mel Gorman <mgorman@suse.de>, David Woodhouse <dwmw2@infradead.org>, Johannes Weiner <jweiner@redhat.com>, iommu@lists.linux-foundation.org
 
-On Thu, Sep 04, 2014 at 04:34:43PM -0700, Andy Lutomirski wrote:
-> On Thu, Sep 4, 2014 at 4:19 PM, Henrique de Moraes Holschuh
-> <hmh@hmh.eng.br> wrote:
-> > On Thu, 04 Sep 2014, H. Peter Anvin wrote:
-> >> On 09/04/2014 01:11 PM, Henrique de Moraes Holschuh wrote:
-> >> > I am worried of uncharted territory, here.  I'd actually advocate for not
-> >> > enabling the upper four PAT entries on IA-32 at all, unless Windows 9X / XP
-> >> > is using them as well.  Is this a real concern, or am I being overly
-> >> > cautious?
-> >>
-> >> It is extremely unlikely that we'd have PAT issues in 32-bit mode and
-> >> not in 64-bit mode on the same CPU.
-> >
-> > Sure, but is it really a good idea to enable this on the *old* non-64-bit
-> > capable processors (note: I don't mean x86-64 processors operating in 32-bit
-> > mode) ?
-> >
-> >> As far as I know, the current blacklist rule is very conservative due to
-> >> lack of testing more than anything else.
-> >
-> > I was told that much in 2009 when I asked why cpuid 0x6d8 was blacklisted
-> > from using PAT :-)
-> 
-> At the very least, anyone who plugs an NV-DIMM into a 32-bit machine
-> is nuts, and not just because I'd be somewhat amazed if it even
-> physically fits into the slot. :)
+On Fri, 12 Sep 2014 15:21:01 -0400 Jerome Glisse <j.glisse@gmail.com> wrote:
 
-They do have PCIe to PCI adapters, so you _could_ do it :-)
+> > > I think this sumup all motivation behind this patchset and also behind
+> > > my other patchset. As usual i am happy to discuss alternative way to do
+> > > things but i think that the path of least disruption from current code
+> > > is the one implemented by those patchset.
+> > 
+> > "least disruption" is nice, but "good implementation" is better.  In
+> > other words I'd prefer the more complex implementation if the end
+> > result is better.  Depending on the magnitudes of "complex" and
+> > "better" :) Two years from now (which isn't very long), I don't think
+> > we'll regret having chosen the better implementation.
+> > 
+> > Does this patchset make compromises to achieve low disruption?
+> 
+> Well right now i think we are lacking proper userspace support with which
+> this code and the global new usecase can be stress tested allowing to gather
+> profiling information.
+> 
+> I think as a first step we should take this least disruptive path and if
+> it proove to perform badly then we should work toward possibly more complex
+> design. Note that only complex design i can think of involve an overhaul of
+> how process memory management is done and probably linking cpu page table
+> update with the scheduler to try to hide cost of those update by scheduling
+> other thread meanwhile.
 
-> 
-> --Andy
-> 
-> >
-> > --
-> >   "One disk to rule them all, One disk to find them. One disk to bring
-> >   them all and in the darkness grind them. In the Land of Redmond
-> >   where the shadows lie." -- The Silicon Valley Tarot
-> >   Henrique Holschuh
-> 
-> 
-> 
-> -- 
-> Andy Lutomirski
-> AMA Capital Management, LLC
+OK.  Often I'd resist merging a patchset when we're not sure it will be
+sufficient.  But there are practical advantages to doing so and the
+present patchset is quite simple.  So if we decide to remove it later
+on the impact will be small.  If the patchset made userspace-visible
+changes then things would be different!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
