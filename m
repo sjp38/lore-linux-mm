@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D1F576B0035
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 06:12:18 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id hz1so938158pad.7
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 03:12:18 -0700 (PDT)
-Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
-        by mx.google.com with ESMTPS id j3si7046129pbw.2.2014.09.12.03.12.15
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 83BFB6B0035
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 06:20:57 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id fp1so929226pdb.15
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 03:20:56 -0700 (PDT)
+Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
+        by mx.google.com with ESMTPS id rf9si6744941pbc.221.2014.09.12.03.20.54
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 12 Sep 2014 03:12:17 -0700 (PDT)
+        Fri, 12 Sep 2014 03:20:56 -0700 (PDT)
 From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Fri, 12 Sep 2014 18:05:04 +0800
-Subject: [PATCH] arm:free_initrd_mem should also free the memblock
-Message-ID: <35FD53F367049845BC99AC72306C23D103CDBFBFB028@CNBJMBX05.corpusers.net>
+Date: Fri, 12 Sep 2014 18:17:18 +0800
+Subject: [PATCH] arm64:free_initrd_mem should also free the memblock
+Message-ID: <35FD53F367049845BC99AC72306C23D103CDBFBFB029@CNBJMBX05.corpusers.net>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
@@ -28,22 +28,25 @@ be marked as reserved, even they are freed.
 
 Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
 ---
- arch/arm/mm/init.c | 1 +
- 1 file changed, 1 insertion(+)
+ arch/arm64/mm/init.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-index 659c75d..7bc8e5b 100644
---- a/arch/arm/mm/init.c
-+++ b/arch/arm/mm/init.c
-@@ -638,6 +638,7 @@ void free_initrd_mem(unsigned long start, unsigned long=
- end)
- 	if (!keep_initrd) {
- 		poison_init_mem((void *)start, PAGE_ALIGN(end) - start);
- 		free_reserved_area((void *)start, (void *)end, -1, "initrd");
+diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+index 5472c24..34605c8 100644
+--- a/arch/arm64/mm/init.c
++++ b/arch/arm64/mm/init.c
+@@ -334,8 +334,10 @@ static int keep_initrd;
+=20
+ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+-	if (!keep_initrd)
++	if (!keep_initrd) {
+ 		free_reserved_area((void *)start, (void *)end, 0, "initrd");
 +		memblock_free(__pa(start), end - start);
- 	}
++	}
  }
 =20
+ static int __init keepinitrd_setup(char *__unused)
 --=20
 2.1.0
 
