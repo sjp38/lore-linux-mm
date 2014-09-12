@@ -1,104 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 59F566B0044
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 13:05:33 -0400 (EDT)
-Received: by mail-wg0-f45.google.com with SMTP id z12so1054223wgg.16
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 10:05:32 -0700 (PDT)
-Received: from mail-wg0-x22b.google.com (mail-wg0-x22b.google.com [2a00:1450:400c:c00::22b])
-        by mx.google.com with ESMTPS id ch6si8308313wjb.106.2014.09.12.10.05.31
+Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 66DA66B0037
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 13:18:18 -0400 (EDT)
+Received: by mail-we0-f172.google.com with SMTP id k48so1069547wev.31
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 10:18:15 -0700 (PDT)
+Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com [2a00:1450:400c:c05::232])
+        by mx.google.com with ESMTPS id fq2si3953860wic.44.2014.09.12.10.18.12
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 12 Sep 2014 10:05:31 -0700 (PDT)
-Received: by mail-wg0-f43.google.com with SMTP id x12so1007546wgg.2
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 10:05:31 -0700 (PDT)
+        Fri, 12 Sep 2014 10:18:12 -0700 (PDT)
+Received: by mail-wi0-f178.google.com with SMTP id ho1so1052102wib.17
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 10:18:12 -0700 (PDT)
+Date: Fri, 12 Sep 2014 19:18:09 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH RFC] memcg: revert kmem.tcp accounting
+Message-ID: <20140912171809.GA24469@dhcp22.suse.cz>
+References: <1410535618-9601-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <20140912054640.GB2160@bbox>
-References: <1410468841-320-1-git-send-email-ddstreet@ieee.org> <20140912054640.GB2160@bbox>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Fri, 12 Sep 2014 13:05:11 -0400
-Message-ID: <CALZtONAzfUaXpxPc83KA6edB21uptWWGZkWZZa5DTFi=CMpgXA@mail.gmail.com>
-Subject: Re: [PATCH 00/10] implement zsmalloc shrinking
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1410535618-9601-1-git-send-email-vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, "David S. Miller" <davem@davemloft.net>, Johannes Weiner <hannes@cmpxchg.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Glauber Costa <glommer@gmail.com>, Pavel Emelianov <xemul@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, "Eric W. Biederman" <ebiederm@xmission.com>
 
-On Fri, Sep 12, 2014 at 1:46 AM, Minchan Kim <minchan@kernel.org> wrote:
-> On Thu, Sep 11, 2014 at 04:53:51PM -0400, Dan Streetman wrote:
->> Now that zswap can use zsmalloc as a storage pool via zpool, it will
->> try to shrink its zsmalloc zs_pool once it reaches its max_pool_percent
->> limit.  These patches implement zsmalloc shrinking.  The way the pool is
->> shrunk is by finding a zspage and reclaiming it, by evicting each of its
->> objects that is in use.
->>
->> Without these patches zswap, and any other future user of zpool/zsmalloc
->> that attempts to shrink the zpool/zs_pool, will only get errors and will
->> be unable to shrink its zpool/zs_pool.  With the ability to shrink, zswap
->> can keep the most recent compressed pages in memory.
->>
->> Note that the design of zsmalloc makes it impossible to actually find the
->> LRU zspage, so each class and fullness group is searched in a round-robin
->> method to find the next zspage to reclaim.  Each fullness group orders its
->> zspages in LRU order, so the oldest zspage is used for each fullness group.
->>
->
-> 1. Pz, Cc Mel who was strong against zswap with zsmalloc.
-> 2. I don't think LRU stuff should be in allocator layer. Exp, it's really
->    hard to work well in zsmalloc design.
+On Fri 12-09-14 19:26:58, Vladimir Davydov wrote:
+> memory.kmem.tcp.limit_in_bytes works as the system-wide tcp_mem sysctl,
+> but per memory cgroup. While the existence of the latter is justified
+> (it prevents the system from becoming unusable due to uncontrolled tcp
+> buffers growth) the reason why we need such a knob in containers isn't
+> clear to me.
 
-I didn't add any LRU - the existing fullness group LRU ordering is
-already there.  And yes, the zsmalloc design prevents any real LRU
-ordering, beyond per-fullness-group LRU ordering.
+Parallels was the primary driver for this change. I haven't heard of
+anybody using the feature other than Parallels. I also remember there
+was a strong push for this feature before it was merged besides there
+were some complains at the time. I do not remember details (and I am
+one half way gone for the weekend now) so I do not have pointers to
+discussions.
 
-> 3. If you want to add another writeback, make zswap writeback sane first.
->    current implemenation(zswap store -> zbud reclaim -> zswap writeback,
->    even) is really ugly.
+I would love to get rid of the code and I am pretty sure that networking
+people would love this go even more. I didn't plan to provide kmem.tcp.*
+knobs for the cgroups v2 interface but getting rid of it altogether
+sounds even better. I am just not sure whether some additional users
+grown over time.
+Nevertheless I am really curious. What has changed that Parallels is not
+interested in kmem.tcp anymore?
 
-why what's wrong with that?  how else can zbud/zsmalloc evict stored objects?
+[...]
 
-> 4. Don't make zsmalloc complicated without any data(benefit, regression)
->    I will never ack if you don't give any number and real usecase.
+Anyway, more than welcome
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-ok, i'll run performance tests then, but let me know if you see any
-technical problems with any of the patches before then.
-
-thanks!
-
->
->> ---
->>
->> This patch set applies to linux-next.
->>
->> Dan Streetman (10):
->>   zsmalloc: fix init_zspage free obj linking
->>   zsmalloc: add fullness group list for ZS_FULL zspages
->>   zsmalloc: always update lru ordering of each zspage
->>   zsmalloc: move zspage obj freeing to separate function
->>   zsmalloc: add atomic index to find zspage to reclaim
->>   zsmalloc: add zs_ops to zs_pool
->>   zsmalloc: add obj_handle_is_free()
->>   zsmalloc: add reclaim_zspage()
->>   zsmalloc: add zs_shrink()
->>   zsmalloc: implement zs_zpool_shrink() with zs_shrink()
->>
->>  drivers/block/zram/zram_drv.c |   2 +-
->>  include/linux/zsmalloc.h      |   7 +-
->>  mm/zsmalloc.c                 | 314 +++++++++++++++++++++++++++++++++++++-----
->>  3 files changed, 290 insertions(+), 33 deletions(-)
->>
->> --
->> 1.8.3.1
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
-> --
-> Kind regards,
-> Minchan Kim
+In case we happened to grow more users, which I hope hasn't happened, we
+would need to keep this around at least with the legacy cgroups API.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
