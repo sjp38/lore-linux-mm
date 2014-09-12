@@ -1,80 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F71A6B0037
-	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 21:24:12 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id y10so64395pdj.22
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 18:24:11 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id ns7si4637248pbc.179.2014.09.11.18.24.09
+Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 277CD6B0035
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 22:33:14 -0400 (EDT)
+Received: by mail-qg0-f52.google.com with SMTP id i50so100172qgf.11
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 19:33:13 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j4si4061486qgf.81.2014.09.11.19.33.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 11 Sep 2014 18:24:11 -0700 (PDT)
-Message-ID: <54124AC9.2040308@huawei.com>
-Date: Fri, 12 Sep 2014 09:22:17 +0800
-From: Zhang Zhen <zhenzhang.zhang@huawei.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Sep 2014 19:33:13 -0700 (PDT)
+Date: Thu, 11 Sep 2014 22:32:52 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH] slab: implement kmalloc guard
+In-Reply-To: <alpine.DEB.2.11.1409081108190.20388@gentwo.org>
+Message-ID: <alpine.LRH.2.02.1409112211060.30537@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1409051833510.9790@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.11.1409080932490.20388@gentwo.org> <alpine.LRH.2.02.1409081041160.29432@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.11.1409081108190.20388@gentwo.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] oom: break after selecting process to kill
-References: <20140911213338.GA4098@localhost.localdomain>
-In-Reply-To: <20140911213338.GA4098@localhost.localdomain>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Niv Yehezkel <executerx@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, rientjes@google.com, mhocko@suse.cz, hannes@cmpxchg.org, oleg@redhat.com, wangnan0@huawei.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Alasdair G. Kergon" <agk@redhat.com>, Mike Snitzer <msnitzer@redhat.com>, Milan Broz <gmazyland@gmail.com>, kkolasa@winsoft.pl, dm-devel@redhat.com
 
-On 2014/9/12 5:33, Niv Yehezkel wrote:
-> There is no need to fallback and continue computing
-> badness for each running process after we have found a
-> process currently performing the swapoff syscall. We ought to
-> immediately select this process for killing.
+
+
+On Mon, 8 Sep 2014, Christoph Lameter wrote:
+
+> On Mon, 8 Sep 2014, Mikulas Patocka wrote:
 > 
-> Signed-off-by: Niv Yehezkel <executerx@gmail.com>
-> ---
->  mm/oom_kill.c |    6 +++++-
->  1 file changed, 5 insertions(+), 1 deletion(-)
+> > I don't know what you mean. If someone allocates 10000 objects with sizes
+> > from 1 to 10000, you can't have 10000 slab caches - you can't have a slab
+> > cache for each used size. Also - you can't create a slab cache in
+> > interrupt context.
 > 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 1e11df8..68ac30e 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -305,6 +305,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
->  	struct task_struct *g, *p;
->  	struct task_struct *chosen = NULL;
->  	unsigned long chosen_points = 0;
-> +	bool process_selected = false;
->  
->  	rcu_read_lock();
->  	for_each_process_thread(g, p) {
-> @@ -315,7 +316,8 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
->  		case OOM_SCAN_SELECT:
->  			chosen = p;
->  			chosen_points = ULONG_MAX;
-> -			/* fall through */
-> +			process_selected = true;
-> +			break;
->  		case OOM_SCAN_CONTINUE:
->  			continue;
->  		case OOM_SCAN_ABORT:
-> @@ -324,6 +326,8 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
->  		case OOM_SCAN_OK:
->  			break;
->  		};
-> +		if (process_selected)
-> +			break;
+> Oh you can create them up front on bootup. And I think only the small
+> sizes matter. Allocations >=8K are pushed to the page allocator anyways.
 
-Hi,
-The following comment shows that we prefer thread group leaders for display purposes.
-If we break here and two threads in a thread group are performing the swapoff syscall, maybe we can not get thread
-group leaders.
+Only for SLUB. For SLAB, large allocations are still use SLAB caches up to 
+4M. But anyway - having 8K preallocated slab caches is too much.
 
-Thanks!
+If you want to integrate this patch into the slab/slub subsystem, a better 
+solution would be to store the exact size requested with kmalloc along the 
+slab/slub object itself (before the preceding redzone). But it would 
+result in duplicating the work - you'd have to repeat the logic in this 
+patch three times - once for slab, once for slub and once for 
+kmalloc_large/kmalloc_large_node.
 
->  		points = oom_badness(p, NULL, nodemask, totalpages);
->  		if (!points || points < chosen_points)
->  			continue;
+I don't know if it would be better than this patch.
+
+> > > We already have a redzone structure to check for writes over the end of
+> > > the object. Lets use that.
+> >
+> > So, change all three slab subsystems to use that.
 > 
+> SLOB has no debugging features and I think that was intentional. We are
+> trying to unify the debug checks etc. Some work on that would be
+> appreciated. I think the kmalloc creation is already in slab_common.c
 
+Mikulas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
