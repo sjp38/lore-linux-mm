@@ -1,54 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 900336B0038
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 05:25:03 -0400 (EDT)
-Received: by mail-wi0-f174.google.com with SMTP id n3so243172wiv.1
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 02:25:03 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id bp7si6206623wjb.134.2014.09.12.02.25.02
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 27E696B0035
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 05:35:56 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so879920pab.4
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 02:35:55 -0700 (PDT)
+Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
+        by mx.google.com with ESMTPS id gx11si6622787pbd.148.2014.09.12.02.35.54
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 12 Sep 2014 02:25:02 -0700 (PDT)
-Date: Fri, 12 Sep 2014 11:24:49 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v8 08/10] x86, mpx: add prctl commands PR_MPX_REGISTER,
- PR_MPX_UNREGISTER
-In-Reply-To: <alpine.DEB.2.10.1409120950260.4178@nanos>
-Message-ID: <alpine.DEB.2.10.1409121120440.4178@nanos>
-References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com> <1410425210-24789-9-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.10.1409120020060.4178@nanos> <541239F1.2000508@intel.com> <alpine.DEB.2.10.1409120950260.4178@nanos>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Fri, 12 Sep 2014 02:35:55 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout3.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NBS00HL484HED80@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 12 Sep 2014 10:38:41 +0100 (BST)
+Message-id: <5412BE75.8030600@samsung.com>
+Date: Fri, 12 Sep 2014 11:35:49 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+MIME-version: 1.0
+Subject: Re: [RFC] Free the reserved memblock when free cma pages
+References: 
+ <35FD53F367049845BC99AC72306C23D103CDBFBFB016@CNBJMBX05.corpusers.net>
+In-reply-to: 
+ <35FD53F367049845BC99AC72306C23D103CDBFBFB016@CNBJMBX05.corpusers.net>
+Content-type: text/plain; charset=utf-8; format=flowed
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Qiaowei Ren <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>, "'mhocko@suse.cz'" <mhocko@suse.cz>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'akpm@linux-foundation.org'" <akpm@linux-foundation.org>, "mm-commits@vger.kernel.org" <mm-commits@vger.kernel.org>, "hughd@google.com" <hughd@google.com>, "b.zolnierkie@samsung.com" <b.zolnierkie@samsung.com>
 
-On Fri, 12 Sep 2014, Thomas Gleixner wrote:
-> On Thu, 11 Sep 2014, Dave Hansen wrote:
-> > Well, we use it to figure out whether we _potentially_ need to tear down
-> > an VM_MPX-flagged area.  There's no guarantee that there will be one.
-> 
-> So what you are saying is, that if user space sets the pointer to NULL
-> via the unregister prctl, kernel can safely ignore vmas which have the
-> VM_MPX flag set. I really can't follow that logic.
->  
-> 	mmap_mpx();
-> 	prctl(enable mpx);
-> 	do lots of crap which uses mpx;
-> 	prctl(disable mpx);
-> 
-> So after that point the previous use of MPX is irrelevant, just
-> because we set a pointer to NULL? Does it just look like crap because
-> I do not get the big picture how all of this is supposed to work?
+Hello,
 
-do_bounds() will happily map new BTs no matter whether the prctl was
-invoked or not. So what's the value of the prctl at all?
+On 2014-09-09 08:13, Wang, Yalin wrote:
+> This patch add memblock_free to also free the reserved memblock,
+> so that the cma pages are not marked as reserved memory in
+> /sys/kernel/debug/memblock/reserved debug file
+>
+> Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
 
-The mapping is flagged VM_MPX. Why is this not sufficient?
+Acked-by: Marek Szyprowski <m.szyprowski@samsung.com>
 
-Thanks,
+> ---
+>   mm/cma.c | 2 ++
+>   1 file changed, 2 insertions(+)
+>
+> diff --git a/mm/cma.c b/mm/cma.c
+> index c17751c..f3ec756 100644
+> --- a/mm/cma.c
+> +++ b/mm/cma.c
+> @@ -114,6 +114,8 @@ static int __init cma_activate_area(struct cma *cma)
+>   				goto err;
+>   		}
+>   		init_cma_reserved_pageblock(pfn_to_page(base_pfn));
+> +		memblock_free(__pfn_to_phys(base_pfn),
+> +				pageblock_nr_pages * PAGE_SIZE);
+>   	} while (--i);
+>   
+>   	mutex_init(&cma->lock);
 
-	tglx
+Right. Thanks for fixing this issue. When cma_activate_area() is called 
+noone
+should use memblock to allocate memory, but it is ok to call memblock_free()
+to update memblock statistics, so users won't be confused by cma entries in
+/sys/kernel/debug/memblock/reserved file.
+
+Best regards
+-- 
+Marek Szyprowski, PhD
+Samsung R&D Institute Poland
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
