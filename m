@@ -1,78 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id A06076B0037
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 17:31:05 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id g10so2040372pdj.24
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 14:31:05 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id jb8si10251349pbd.78.2014.09.12.14.31.04
-        for <linux-mm@kvack.org>;
-        Fri, 12 Sep 2014 14:31:04 -0700 (PDT)
-Message-ID: <54136617.8070203@intel.com>
-Date: Fri, 12 Sep 2014 14:31:03 -0700
-From: Dave Hansen <dave.hansen@intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v8 00/10] Intel MPX support
-References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com> <54124379.5090502@intel.com> <alpine.DEB.2.10.1409121543090.4178@nanos>
-In-Reply-To: <alpine.DEB.2.10.1409121543090.4178@nanos>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 730786B0039
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 17:43:29 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id bj1so2139845pad.0
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 14:43:29 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id zm1si10094317pbc.201.2014.09.12.14.43.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 12 Sep 2014 14:43:28 -0700 (PDT)
+Date: Fri, 12 Sep 2014 14:43:26 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH RFC] memcg: revert kmem.tcp accounting
+Message-Id: <20140912144326.a8d5153d7c91d220ea89924a@linux-foundation.org>
+In-Reply-To: <20140912175516.GB6298@mtj.dyndns.org>
+References: <1410535618-9601-1-git-send-email-vdavydov@parallels.com>
+	<20140912171809.GA24469@dhcp22.suse.cz>
+	<20140912175516.GB6298@mtj.dyndns.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Qiaowei Ren <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, "David S. Miller" <davem@davemloft.net>, Johannes Weiner <hannes@cmpxchg.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Glauber Costa <glommer@gmail.com>, Pavel Emelianov <xemul@parallels.com>, Greg Thelen <gthelen@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, "Eric W. Biederman" <ebiederm@xmission.com>
 
-On 09/12/2014 12:21 PM, Thomas Gleixner wrote:
-> On Thu, 11 Sep 2014, Dave Hansen wrote:
->> +When #BR fault is produced due to invalid entry, bounds table will be
->> +created in kernel on demand and kernel will not transfer this fault to
->> +userspace. So usersapce can't receive #BR fault for invalid entry, and
->> +it is not also necessary for users to create bounds tables by themselves.
->> +
->> +Certainly users can allocate bounds tables and forcibly point the bounds
->> +directory at them through XSAVE instruction, and then set valid bit
->> +of bounds entry to have this entry valid. But we have no way to track
->> +the memory usage of these user-created bounds tables. In regard to this,
->> +this behaviour is outlawed here.
+On Sat, 13 Sep 2014 02:55:16 +0900 Tejun Heo <tj@kernel.org> wrote:
+
+> Hello, guys.
 > 
-> So what's the point of declaring it outlawed? Nothing as far as I can
-> see simply because you cannot enforce it. This is possible and people
-> simply will do it.
-
-All that we want to get across is: if the kernel didn't make the mess,
-we're not going to clean it up.
-
-Userspace is free to do whatever the heck it wants.  But, if it wants
-the kernel to clean up the bounds tables, it needs to follow the rules
-we're laying out here.
-
-I think it boils down to two rules:
-1. Don't move the bounds directory without telling the kernel.
-2. The kernel will not free any memory which it did not allocate.
-
->> +2) We will not support the case that multiple bounds directory entries
->> +are pointed at the same bounds table.
->> +
->> +Users can be allowed to take multiple bounds directory entries and point
->> +them at the same bounds table. See more information "Intel(R) Architecture
->> +Instruction Set Extensions Programming Reference" (9.3.4).
->> +
->> +If userspace did this, it will be possible for kernel to unmap an in-use
->> +bounds table since it does not recognize sharing. So this behavior is
->> +also outlawed here.
+> On Fri, Sep 12, 2014 at 07:18:09PM +0200, Michal Hocko wrote:
+> > On Fri 12-09-14 19:26:58, Vladimir Davydov wrote:
+> > > memory.kmem.tcp.limit_in_bytes works as the system-wide tcp_mem sysctl,
+> > > but per memory cgroup. While the existence of the latter is justified
+> > > (it prevents the system from becoming unusable due to uncontrolled tcp
+> > > buffers growth) the reason why we need such a knob in containers isn't
+> > > clear to me.
+> > 
+> > Parallels was the primary driver for this change. I haven't heard of
+> > anybody using the feature other than Parallels. I also remember there
+> > was a strong push for this feature before it was merged besides there
+> > were some complains at the time. I do not remember details (and I am
+> > one half way gone for the weekend now) so I do not have pointers to
+> > discussions.
+> > 
+> > I would love to get rid of the code and I am pretty sure that networking
+> > people would love this go even more. I didn't plan to provide kmem.tcp.*
+> > knobs for the cgroups v2 interface but getting rid of it altogether
+> > sounds even better. I am just not sure whether some additional users
+> > grown over time.
+> > Nevertheless I am really curious. What has changed that Parallels is not
+> > interested in kmem.tcp anymore?
 > 
-> Again, this is nothing you can enforce and just saying its outlawed
-> does not prevent user space from doing it and then sending hard to
-> decode bug reports where it complains about mappings silently
-> vanishing under it.
-> 
-> So all you can do here is to write up a rule set how well behaving
-> user space is supposed to use this facility and the kernel side of it. 
+> So, I'd love to see this happen too but I don't think we can do this.
+> People use published interface.  The usages might be utterly one-off
+> and mental but let's please not underestimate the sometimes senseless
+> creativity found in the wild.  We simply can't remove a bunch of
+> control knobs like this.
 
-"Outlaw" was probably the wrong word.
+17 files changed, 51 insertions(+), 761 deletions(-)
 
-I completely agree that all we can do is set up a set of rules for what
-well-behaved userspace is expected to do.
+Sob.
+
+Is there a convenient way of disabling the whole thing and adding a
+please-tell-us printk?  If nobody tells us for a year or two then zap.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
