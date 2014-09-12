@@ -1,100 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id A23736B0037
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 12:43:44 -0400 (EDT)
-Received: by mail-wi0-f177.google.com with SMTP id em10so992697wid.10
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 09:43:44 -0700 (PDT)
-Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com [2a00:1450:400c:c05::22f])
-        by mx.google.com with ESMTPS id s10si3794623wik.52.2014.09.12.09.43.42
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 59F566B0044
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 13:05:33 -0400 (EDT)
+Received: by mail-wg0-f45.google.com with SMTP id z12so1054223wgg.16
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 10:05:32 -0700 (PDT)
+Received: from mail-wg0-x22b.google.com (mail-wg0-x22b.google.com [2a00:1450:400c:c00::22b])
+        by mx.google.com with ESMTPS id ch6si8308313wjb.106.2014.09.12.10.05.31
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 12 Sep 2014 09:43:43 -0700 (PDT)
-Received: by mail-wi0-f175.google.com with SMTP id cc10so993594wib.14
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 09:43:42 -0700 (PDT)
+        Fri, 12 Sep 2014 10:05:31 -0700 (PDT)
+Received: by mail-wg0-f43.google.com with SMTP id x12so1007546wgg.2
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 10:05:31 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20140912045913.GA2160@bbox>
-References: <1410468841-320-1-git-send-email-ddstreet@ieee.org>
- <1410468841-320-2-git-send-email-ddstreet@ieee.org> <20140912045913.GA2160@bbox>
+In-Reply-To: <20140912054640.GB2160@bbox>
+References: <1410468841-320-1-git-send-email-ddstreet@ieee.org> <20140912054640.GB2160@bbox>
 From: Dan Streetman <ddstreet@ieee.org>
-Date: Fri, 12 Sep 2014 12:43:22 -0400
-Message-ID: <CALZtONAuJhgZLJECxwQOyKPj2n02d+521d+eHCkqLjjc=Ba9FQ@mail.gmail.com>
-Subject: Re: [PATCH 01/10] zsmalloc: fix init_zspage free obj linking
+Date: Fri, 12 Sep 2014 13:05:11 -0400
+Message-ID: <CALZtONAzfUaXpxPc83KA6edB21uptWWGZkWZZa5DTFi=CMpgXA@mail.gmail.com>
+Subject: Re: [PATCH 00/10] implement zsmalloc shrinking
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
 
-On Fri, Sep 12, 2014 at 12:59 AM, Minchan Kim <minchan@kernel.org> wrote:
-> On Thu, Sep 11, 2014 at 04:53:52PM -0400, Dan Streetman wrote:
->> When zsmalloc creates a new zspage, it initializes each object it contains
->> with a link to the next object, so that the zspage has a singly-linked list
->> of its free objects.  However, the logic that sets up the links is wrong,
->> and in the case of objects that are precisely aligned with the page boundries
->> (e.g. a zspage with objects that are 1/2 PAGE_SIZE) the first object on the
->> next page is skipped, due to incrementing the offset twice.  The logic can be
->> simplified, as it doesn't need to calculate how many objects can fit on the
->> current page; simply checking the offset for each object is enough.
->
-> If objects are precisely aligned with the page boundary, pages_per_zspage
-> should be 1 so there is no next page.
-
-ah, ok.  I wonder if it should be changed anyway so it doesn't rely on
-that detail, in case that's ever changed in the future.  It's not
-obvious the existing logic relies on that for correct operation.  And
-this simplifies the logic too.
-
->
+On Fri, Sep 12, 2014 at 1:46 AM, Minchan Kim <minchan@kernel.org> wrote:
+> On Thu, Sep 11, 2014 at 04:53:51PM -0400, Dan Streetman wrote:
+>> Now that zswap can use zsmalloc as a storage pool via zpool, it will
+>> try to shrink its zsmalloc zs_pool once it reaches its max_pool_percent
+>> limit.  These patches implement zsmalloc shrinking.  The way the pool is
+>> shrunk is by finding a zspage and reclaiming it, by evicting each of its
+>> objects that is in use.
 >>
->> Change zsmalloc init_zspage() logic to iterate through each object on
->> each of its pages, checking the offset to verify the object is on the
->> current page before linking it into the zspage.
+>> Without these patches zswap, and any other future user of zpool/zsmalloc
+>> that attempts to shrink the zpool/zs_pool, will only get errors and will
+>> be unable to shrink its zpool/zs_pool.  With the ability to shrink, zswap
+>> can keep the most recent compressed pages in memory.
 >>
->> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
->> Cc: Minchan Kim <minchan@kernel.org>
+>> Note that the design of zsmalloc makes it impossible to actually find the
+>> LRU zspage, so each class and fullness group is searched in a round-robin
+>> method to find the next zspage to reclaim.  Each fullness group orders its
+>> zspages in LRU order, so the oldest zspage is used for each fullness group.
+>>
+>
+> 1. Pz, Cc Mel who was strong against zswap with zsmalloc.
+> 2. I don't think LRU stuff should be in allocator layer. Exp, it's really
+>    hard to work well in zsmalloc design.
+
+I didn't add any LRU - the existing fullness group LRU ordering is
+already there.  And yes, the zsmalloc design prevents any real LRU
+ordering, beyond per-fullness-group LRU ordering.
+
+> 3. If you want to add another writeback, make zswap writeback sane first.
+>    current implemenation(zswap store -> zbud reclaim -> zswap writeback,
+>    even) is really ugly.
+
+why what's wrong with that?  how else can zbud/zsmalloc evict stored objects?
+
+> 4. Don't make zsmalloc complicated without any data(benefit, regression)
+>    I will never ack if you don't give any number and real usecase.
+
+ok, i'll run performance tests then, but let me know if you see any
+technical problems with any of the patches before then.
+
+thanks!
+
+>
 >> ---
->>  mm/zsmalloc.c | 14 +++++---------
->>  1 file changed, 5 insertions(+), 9 deletions(-)
 >>
->> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
->> index c4a9157..03aa72f 100644
->> --- a/mm/zsmalloc.c
->> +++ b/mm/zsmalloc.c
->> @@ -628,7 +628,7 @@ static void init_zspage(struct page *first_page, struct size_class *class)
->>       while (page) {
->>               struct page *next_page;
->>               struct link_free *link;
->> -             unsigned int i, objs_on_page;
->> +             unsigned int i = 1;
+>> This patch set applies to linux-next.
 >>
->>               /*
->>                * page->index stores offset of first object starting
->> @@ -641,14 +641,10 @@ static void init_zspage(struct page *first_page, struct size_class *class)
+>> Dan Streetman (10):
+>>   zsmalloc: fix init_zspage free obj linking
+>>   zsmalloc: add fullness group list for ZS_FULL zspages
+>>   zsmalloc: always update lru ordering of each zspage
+>>   zsmalloc: move zspage obj freeing to separate function
+>>   zsmalloc: add atomic index to find zspage to reclaim
+>>   zsmalloc: add zs_ops to zs_pool
+>>   zsmalloc: add obj_handle_is_free()
+>>   zsmalloc: add reclaim_zspage()
+>>   zsmalloc: add zs_shrink()
+>>   zsmalloc: implement zs_zpool_shrink() with zs_shrink()
 >>
->>               link = (struct link_free *)kmap_atomic(page) +
->>                                               off / sizeof(*link);
->> -             objs_on_page = (PAGE_SIZE - off) / class->size;
->>
->> -             for (i = 1; i <= objs_on_page; i++) {
->> -                     off += class->size;
->> -                     if (off < PAGE_SIZE) {
->> -                             link->next = obj_location_to_handle(page, i);
->> -                             link += class->size / sizeof(*link);
->> -                     }
->> +             while ((off += class->size) < PAGE_SIZE) {
->> +                     link->next = obj_location_to_handle(page, i++);
->> +                     link += class->size / sizeof(*link);
->>               }
->>
->>               /*
->> @@ -660,7 +656,7 @@ static void init_zspage(struct page *first_page, struct size_class *class)
->>               link->next = obj_location_to_handle(next_page, 0);
->>               kunmap_atomic(link);
->>               page = next_page;
->> -             off = (off + class->size) % PAGE_SIZE;
->> +             off %= PAGE_SIZE;
->>       }
->>  }
+>>  drivers/block/zram/zram_drv.c |   2 +-
+>>  include/linux/zsmalloc.h      |   7 +-
+>>  mm/zsmalloc.c                 | 314 +++++++++++++++++++++++++++++++++++++-----
+>>  3 files changed, 290 insertions(+), 33 deletions(-)
 >>
 >> --
 >> 1.8.3.1
