@@ -1,87 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C2DE6B0035
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 01:46:46 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id lf10so472362pab.36
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 22:46:45 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id uc10si5557638pac.194.2014.09.11.22.46.41
-        for <linux-mm@kvack.org>;
-        Thu, 11 Sep 2014 22:46:45 -0700 (PDT)
-Date: Fri, 12 Sep 2014 14:46:40 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 00/10] implement zsmalloc shrinking
-Message-ID: <20140912054640.GB2160@bbox>
-References: <1410468841-320-1-git-send-email-ddstreet@ieee.org>
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id F10796B0035
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 03:39:54 -0400 (EDT)
+Received: by mail-wg0-f47.google.com with SMTP id y10so296009wgg.6
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 00:39:54 -0700 (PDT)
+Received: from mail-we0-x22c.google.com (mail-we0-x22c.google.com [2a00:1450:400c:c03::22c])
+        by mx.google.com with ESMTPS id qn9si2939391wjc.37.2014.09.12.00.39.53
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 12 Sep 2014 00:39:53 -0700 (PDT)
+Received: by mail-we0-f172.google.com with SMTP id k48so305793wev.17
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 00:39:53 -0700 (PDT)
+Date: Fri, 12 Sep 2014 03:39:36 -0400
+From: Niv Yehezkel <executerx@gmail.com>
+Subject: Re: [PATCH] oom: break after selecting process to kill
+Message-ID: <20140912073936.GA10692@localhost.localdomain>
+References: <20140911213338.GA4098@localhost.localdomain>
+ <54124AC9.2040308@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1410468841-320-1-git-send-email-ddstreet@ieee.org>
+In-Reply-To: <54124AC9.2040308@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
+To: Zhang Zhen <zhenzhang.zhang@huawei.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, rientjes@google.com, mhocko@suse.cz, hannes@cmpxchg.org, oleg@redhat.com, wangnan0@huawei.com
 
-On Thu, Sep 11, 2014 at 04:53:51PM -0400, Dan Streetman wrote:
-> Now that zswap can use zsmalloc as a storage pool via zpool, it will
-> try to shrink its zsmalloc zs_pool once it reaches its max_pool_percent
-> limit.  These patches implement zsmalloc shrinking.  The way the pool is
-> shrunk is by finding a zspage and reclaiming it, by evicting each of its
-> objects that is in use.
+On Fri, Sep 12, 2014 at 09:22:17AM +0800, Zhang Zhen wrote:
+> On 2014/9/12 5:33, Niv Yehezkel wrote:
+> > There is no need to fallback and continue computing
+> > badness for each running process after we have found a
+> > process currently performing the swapoff syscall. We ought to
+> > immediately select this process for killing.
+> > 
+> > Signed-off-by: Niv Yehezkel <executerx@gmail.com>
+> > ---
+> >  mm/oom_kill.c |    6 +++++-
+> >  1 file changed, 5 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > index 1e11df8..68ac30e 100644
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -305,6 +305,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+> >  	struct task_struct *g, *p;
+> >  	struct task_struct *chosen = NULL;
+> >  	unsigned long chosen_points = 0;
+> > +	bool process_selected = false;
+> >  
+> >  	rcu_read_lock();
+> >  	for_each_process_thread(g, p) {
+> > @@ -315,7 +316,8 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+> >  		case OOM_SCAN_SELECT:
+> >  			chosen = p;
+> >  			chosen_points = ULONG_MAX;
+> > -			/* fall through */
+> > +			process_selected = true;
+> > +			break;
+> >  		case OOM_SCAN_CONTINUE:
+> >  			continue;
+> >  		case OOM_SCAN_ABORT:
+> > @@ -324,6 +326,8 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+> >  		case OOM_SCAN_OK:
+> >  			break;
+> >  		};
+> > +		if (process_selected)
+> > +			break;
 > 
-> Without these patches zswap, and any other future user of zpool/zsmalloc
-> that attempts to shrink the zpool/zs_pool, will only get errors and will
-> be unable to shrink its zpool/zs_pool.  With the ability to shrink, zswap
-> can keep the most recent compressed pages in memory.
+> Hi,
+> The following comment shows that we prefer thread group leaders for display purposes.
+> If we break here and two threads in a thread group are performing the swapoff syscall, maybe we can not get thread
+> group leaders.
 > 
-> Note that the design of zsmalloc makes it impossible to actually find the
-> LRU zspage, so each class and fullness group is searched in a round-robin
-> method to find the next zspage to reclaim.  Each fullness group orders its
-> zspages in LRU order, so the oldest zspage is used for each fullness group.
+> Thanks!
+> 
+> >  		points = oom_badness(p, NULL, nodemask, totalpages);
+> >  		if (!points || points < chosen_points)
+> >  			continue;
+> > 
+> 
 > 
 
-1. Pz, Cc Mel who was strong against zswap with zsmalloc.
-2. I don't think LRU stuff should be in allocator layer. Exp, it's really
-   hard to work well in zsmalloc design.
-3. If you want to add another writeback, make zswap writeback sane first.
-   current implemenation(zswap store -> zbud reclaim -> zswap writeback,
-   even) is really ugly.
-4. Don't make zsmalloc complicated without any data(benefit, regression)
-   I will never ack if you don't give any number and real usecase.
-
-> ---
-> 
-> This patch set applies to linux-next.
-> 
-> Dan Streetman (10):
->   zsmalloc: fix init_zspage free obj linking
->   zsmalloc: add fullness group list for ZS_FULL zspages
->   zsmalloc: always update lru ordering of each zspage
->   zsmalloc: move zspage obj freeing to separate function
->   zsmalloc: add atomic index to find zspage to reclaim
->   zsmalloc: add zs_ops to zs_pool
->   zsmalloc: add obj_handle_is_free()
->   zsmalloc: add reclaim_zspage()
->   zsmalloc: add zs_shrink()
->   zsmalloc: implement zs_zpool_shrink() with zs_shrink()
-> 
->  drivers/block/zram/zram_drv.c |   2 +-
->  include/linux/zsmalloc.h      |   7 +-
->  mm/zsmalloc.c                 | 314 +++++++++++++++++++++++++++++++++++++-----
->  3 files changed, 290 insertions(+), 33 deletions(-)
-> 
-> -- 
-> 1.8.3.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+Well, this is not the logic implemented in the loop.
+Once a process is selected, it fallbacks and continues the loop.
+If two threads are performing the swapoff, the latter will be chosen whatsoever.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
