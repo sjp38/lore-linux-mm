@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 20F276B0035
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 10:37:02 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id kx10so1383803pab.38
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 07:37:01 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id l4si8416960pdd.40.2014.09.12.07.37.00
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 385E16B0038
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 11:22:06 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id fa1so1488815pad.2
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 08:22:05 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id u10si8399831pds.201.2014.09.12.08.22.04
         for <linux-mm@kvack.org>;
-        Fri, 12 Sep 2014 07:37:01 -0700 (PDT)
-Message-ID: <5413050A.1090307@intel.com>
-Date: Fri, 12 Sep 2014 07:36:58 -0700
+        Fri, 12 Sep 2014 08:22:05 -0700 (PDT)
+Message-ID: <54130F9A.3000406@intel.com>
+Date: Fri, 12 Sep 2014 08:22:02 -0700
 From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v8 08/10] x86, mpx: add prctl commands PR_MPX_REGISTER,
  PR_MPX_UNREGISTER
-References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com> <1410425210-24789-9-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.10.1409120020060.4178@nanos> <541239F1.2000508@intel.com> <alpine.DEB.2.10.1409120950260.4178@nanos> <alpine.DEB.2.10.1409121120440.4178@nanos>
-In-Reply-To: <alpine.DEB.2.10.1409121120440.4178@nanos>
+References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com> <1410425210-24789-9-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.10.1409120020060.4178@nanos> <541239F1.2000508@intel.com> <alpine.DEB.2.10.1409120950260.4178@nanos>
+In-Reply-To: <alpine.DEB.2.10.1409120950260.4178@nanos>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -23,62 +23,70 @@ List-ID: <linux-mm.kvack.org>
 To: Thomas Gleixner <tglx@linutronix.de>
 Cc: Qiaowei Ren <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 09/12/2014 02:24 AM, Thomas Gleixner wrote:
-> On Fri, 12 Sep 2014, Thomas Gleixner wrote:
->> On Thu, 11 Sep 2014, Dave Hansen wrote:
->>> Well, we use it to figure out whether we _potentially_ need to tear down
->>> an VM_MPX-flagged area.  There's no guarantee that there will be one.
->>
->> So what you are saying is, that if user space sets the pointer to NULL
->> via the unregister prctl, kernel can safely ignore vmas which have the
->> VM_MPX flag set. I really can't follow that logic.
->>  
->> 	mmap_mpx();
->> 	prctl(enable mpx);
->> 	do lots of crap which uses mpx;
->> 	prctl(disable mpx);
->>
->> So after that point the previous use of MPX is irrelevant, just
->> because we set a pointer to NULL? Does it just look like crap because
->> I do not get the big picture how all of this is supposed to work?
+On 09/12/2014 01:11 AM, Thomas Gleixner wrote:
+> So what you are saying is, that if user space sets the pointer to NULL
+> via the unregister prctl, kernel can safely ignore vmas which have the
+> VM_MPX flag set. I really can't follow that logic.
+>  
+> 	mmap_mpx();
+> 	prctl(enable mpx);
+> 	do lots of crap which uses mpx;
+> 	prctl(disable mpx);
 > 
-> do_bounds() will happily map new BTs no matter whether the prctl was
-> invoked or not. So what's the value of the prctl at all?
+> So after that point the previous use of MPX is irrelevant, just
+> because we set a pointer to NULL? Does it just look like crap because
+> I do not get the big picture how all of this is supposed to work?
 
-The behavior as it stands is wrong.  We should at least have the kernel
-refuse to map new BTs if the prctl() hasn't been issued.  We'll fix it up.
+The prctl(register) is meant to be a signal from userspace to the kernel
+to say, "I would like your help in managing these bounds tables".
+prctl(unregister) is the opposite, meaning "I don't want your help any
+more".
 
-> The mapping is flagged VM_MPX. Why is this not sufficient?
+The kernel won't really ignore VM_MPX vmas, it just won't go looking for
+them actively in response to the unmapping of other non-VM_MPX vmas.
 
-The comment is confusing and only speaks to half of what the if() in
-question is doing.  We'll get a better comment in there.  But, for the
-sake of explaining it fully:
+>> Yes.  The only other way the kernel can possibly know that it needs to
+>> go tearing things down is with a potentially frequent and expensive xsave.
+>>
+>> Either we change mmap to say "this mmap() is for a bounds directory", or
+>> we have some other interface that says "the mmap() for the bounds
+>> directory is at $foo".  We could also record the bounds directory the
+>> first time that we catch userspace using it.  I'd rather have an
+>> explicit interface than an implicit one like that, though I don't feel
+>> that strongly about it.
+> 
+> I really have to disagree here. If I follow your logic then we would
+> have a prctl for using floating point as well instead of catching the
+> use and handle it from there. Just get it, if you make it simple for
+> user space to do stupid things, they will happen in all provided ways
+> and some more.
 
-There are two mappings in play:
-1. The mapping with the actual data, which userspace is munmap()ing or
-   brk()ing away, etc... (never tagged VM_MPX)
-2. The mapping for the bounds table *backing* the data (is tagged with
-   VM_MPX)
+Here's what it boils down to:
 
-The code ends up looking like this:
+If userspace uses a floating point register, it wants it saved.
 
-vm_munmap()
-{
-	do_unmap(vma); // #1 above
-	if (mm->bd_addr && !(vma->vm_flags & VM_MPX))
-		// lookup the backing vma (#2 above)
-		vm_munmap(vma2)
-}
+If userspace uses MPX, it does not necessarily want the kernel to do
+bounds table management all the time (or ever in some cases).  Without
+the prctl(), the kernel has no way of distinguishing what userspace wants.
 
-The bd_addr check is intended to say "could the kernel have possibly
-created some VM_MPX vmas?"  As you noted above, we will happily go
-creating VM_MPX vmas without mm->bd_addr being set.  That's will get fixed.
+>>> The design to support this feature makes no sense at all to me. We
+>>> have a special mmap interface, some magic kernel side mapping
+>>> functionality and then on top of it a prctl telling the kernel to
+>>> ignore/respect it.
+>>
+>> That's a good point.  We don't seem to have anything in the
+>> allocate_bt() side of things to tell the kernel to refuse to create
+>> things if the prctl() hasn't been called.  That needs to get added.
+> 
+> And then you need another bunch of logic in the prctl(disable mpx)
+> path to cleanup the mess instead of just setting a random pointer to
+> NULL.
 
-The VM_MPX _flags_ check on the VMA is there simply to prevent
-recursion.  vm_munmap() of the VM_MPX vma is called _under_ vm_munmap()
-of the data VMA, and we've got to ensure it doesn't recurse.  *This*
-part of the if() in question is not addressed in the comment.  That's
-something we can fix up in the next version.
+The bounds tables potentially represent a *lot* of state.  If userspace
+wants to temporarily turn off the kernel's MPX bounds table management,
+it does not necessarily want that state destroyed.  On the other hand,
+if userspace feels the need to go destroying all the state, it is free
+to do so and does not need any help to do so from the kernel.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
