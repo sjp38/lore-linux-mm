@@ -1,110 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 55A2B6B0035
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 05:03:14 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id v10so795851pde.3
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 02:03:14 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id dk1si6413846pdb.179.2014.09.12.02.03.12
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 900336B0038
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 05:25:03 -0400 (EDT)
+Received: by mail-wi0-f174.google.com with SMTP id n3so243172wiv.1
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 02:25:03 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id bp7si6206623wjb.134.2014.09.12.02.25.02
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Sep 2014 02:03:13 -0700 (PDT)
-Date: Fri, 12 Sep 2014 13:02:58 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH RFC 2/2] memcg: add threshold for anon rss
-Message-ID: <20140912090258.GI4151@esperanza>
-References: <cover.1410447097.git.vdavydov@parallels.com>
- <b7e7abb6cadc1301a775177ef3d4f4944192c579.1410447097.git.vdavydov@parallels.com>
- <54124AFC.6020700@jp.fujitsu.com>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 12 Sep 2014 02:25:02 -0700 (PDT)
+Date: Fri, 12 Sep 2014 11:24:49 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v8 08/10] x86, mpx: add prctl commands PR_MPX_REGISTER,
+ PR_MPX_UNREGISTER
+In-Reply-To: <alpine.DEB.2.10.1409120950260.4178@nanos>
+Message-ID: <alpine.DEB.2.10.1409121120440.4178@nanos>
+References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com> <1410425210-24789-9-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.10.1409120020060.4178@nanos> <541239F1.2000508@intel.com> <alpine.DEB.2.10.1409120950260.4178@nanos>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <54124AFC.6020700@jp.fujitsu.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Motohiro Kosaki <Motohiro.Kosaki@us.fujitsu.com>, Glauber Costa <glommer@gmail.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@parallels.com>, Konstantin Khorenko <khorenko@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Qiaowei Ren <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Sep 12, 2014 at 10:23:08AM +0900, Kamezawa Hiroyuki wrote:
-> (2014/09/12 0:41), Vladimir Davydov wrote:
-> > Though hard memory limits suit perfectly for sand-boxing, they are not
-> > that efficient when it comes to partitioning a server's resources among
-> > multiple containers. The point is a container consuming a particular
-> > amount of memory most of time may have infrequent spikes in the load.
-> > Setting the hard limit to the maximal possible usage (spike) will lower
-> > server utilization while setting it to the "normal" usage will result in
-> > heavy lags during the spikes.
-> > 
-> > To handle such scenarios soft limits were introduced. The idea is to
-> > allow a container to breach the limit freely when there's enough free
-> > memory, but shrink it back to the limit aggressively on global memory
-> > pressure. However, the concept of soft limits is intrinsically unsafe
-> > by itself: if a container eats too much anonymous memory, it will be
-> > very slow or even impossible (if there's no swap) to reclaim its
-> > resources back to the limit. As a result the whole system will be
-> > feeling bad until it finally realizes the culprit must die.
-> > 
-> > Currently we have no way to react to anonymous memory + swap usage
-> > growth inside a container: the memsw counter accounts both anonymous
-> > memory and file caches and swap, so we have neither a limit for
-> > anon+swap nor a threshold notification. Actually, memsw is totally
-> > useless if one wants to make full use of soft limits: it should be set
-> > to a very large value or infinity then, otherwise it just makes no
-> > sense.
-> > 
-> > That's one of the reasons why I think we should replace memsw with a
-> > kind of anonsw so that it'd account only anon+swap. This way we'd still
-> > be able to sand-box apps, but it'd also allow us to avoid nasty
-> > surprises like the one I described above. For more arguments for and
-> > against this idea, please see the following thread:
-> > 
-> > http://www.spinics.net/lists/linux-mm/msg78180.html
-> > 
-> > There's an alternative to this approach backed by Kamezawa. He thinks
-> > that OOM on anon+swap limit hit is a no-go and proposes to use memory
-> > thresholds for it. I still strongly disagree with the proposal, because
-> > it's unsafe (what if the userspace handler won't react in time?).
-> > Nevertheless, I implement his idea in this RFC. I hope this will fuel
-> > the debate, because sadly enough nobody seems to care about this
-> > problem.
-> > 
-> > So this patch adds the "memory.rss" file that shows the amount of
-> > anonymous memory consumed by a cgroup and the event to handle threshold
-> > notifications coming from it. The notification works exactly in the same
-> > fashion as the existing memory/memsw usage notifications.
-> > 
-> >
+On Fri, 12 Sep 2014, Thomas Gleixner wrote:
+> On Thu, 11 Sep 2014, Dave Hansen wrote:
+> > Well, we use it to figure out whether we _potentially_ need to tear down
+> > an VM_MPX-flagged area.  There's no guarantee that there will be one.
 > 
-> So, now, you know you can handle "threshould".
+> So what you are saying is, that if user space sets the pointer to NULL
+> via the unregister prctl, kernel can safely ignore vmas which have the
+> VM_MPX flag set. I really can't follow that logic.
+>  
+> 	mmap_mpx();
+> 	prctl(enable mpx);
+> 	do lots of crap which uses mpx;
+> 	prctl(disable mpx);
 > 
-> If you want to implement "automatic-oom-killall-in-a-contanier-threshold-in-kernel",
-> I don't have any objections.
-> 
-> What you want is not limit, you want a trigger for killing process.
-> Threshold + Kill is enough, using res_counter for that is overspec.
+> So after that point the previous use of MPX is irrelevant, just
+> because we set a pointer to NULL? Does it just look like crap because
+> I do not get the big picture how all of this is supposed to work?
 
-I'm still unsure if it's always enough. Handing this job out to the
-userspace may work in 90% percent of situations, but fail under some
-circumstances (a bunch of containers go mad so that the userspace daemon
-doesn't react in time). Can the admin take a risk like that?
+do_bounds() will happily map new BTs no matter whether the prctl was
+invoked or not. So what's the value of the prctl at all?
 
-> You don't need res_counter and don't need to break other guy's use case.
-
-This is the time when we have a great chance to rework the user
-interface. That's why I started this thread.
-
->From what I read from the comment to the memsw patch and slides,
-anon+swap wasn't even considered as an alternative to anon+cache+swap.
-The only question raised was "Why not a separate swap limit, why
-mem+swap?". It was clearly answered "no need to recharge on swap
-in/out", but anon+swap isn't a bit worse in this respect - caches can't
-migrate from swap to mem anyway. I guess nobody considered the anon+swap
-alternative, simply because there was no notion of soft limits at that
-time, so mem+swap had no problems. But today the things have changed, so
-let's face it now. Why not anon+swap?
+The mapping is flagged VM_MPX. Why is this not sufficient?
 
 Thanks,
-Vladimir
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
