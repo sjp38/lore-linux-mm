@@ -1,63 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F0286B003A
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 15:27:40 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id g10so1849184pdj.24
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 12:27:40 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id wq6si9632039pac.179.2014.09.12.12.27.39
+Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AE1C6B003B
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 15:28:45 -0400 (EDT)
+Received: by mail-qc0-f171.google.com with SMTP id x3so1459646qcv.16
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 12:28:45 -0700 (PDT)
+Received: from mail-qc0-x22d.google.com (mail-qc0-x22d.google.com [2607:f8b0:400d:c01::22d])
+        by mx.google.com with ESMTPS id g69si6936271qgg.113.2014.09.12.12.28.44
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Sep 2014 12:27:39 -0700 (PDT)
-Date: Fri, 12 Sep 2014 12:27:37 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 12 Sep 2014 12:28:44 -0700 (PDT)
+Received: by mail-qc0-f173.google.com with SMTP id i8so991471qcq.32
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 12:28:43 -0700 (PDT)
+Date: Fri, 12 Sep 2014 15:28:37 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
 Subject: Re: [PATCH 0/3 v3] mmu_notifier: Allow to manage CPU external TLBs
-Message-Id: <20140912122737.53a7947e5378fa501092887b@linux-foundation.org>
-In-Reply-To: <20140912192100.GB5196@gmail.com>
+Message-ID: <20140912192837.GC5196@gmail.com>
 References: <1410277434-3087-1-git-send-email-joro@8bytes.org>
-	<20140910150125.31a7495c7d0fe814b85fd514@linux-foundation.org>
-	<20140911000211.GA4989@gmail.com>
-	<20140912121036.1fb998af4147ad9ea35166db@linux-foundation.org>
-	<20140912192100.GB5196@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20140910150125.31a7495c7d0fe814b85fd514@linux-foundation.org>
+ <20140912184739.GF2519@suse.de>
+ <20140912121937.ebb3010d52abd4196e9341de@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20140912121937.ebb3010d52abd4196e9341de@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>
-Cc: Joerg Roedel <joro@8bytes.org>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, jroedel@suse.de, Peter Zijlstra <a.p.zijlstra@chello.nl>, John.Bridgman@amd.com, Jesse Barnes <jbarnes@virtuousgeek.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, ben.sander@amd.com, linux-mm@kvack.org, Jerome Glisse <jglisse@redhat.com>, Jay.Cornwall@amd.com, Mel Gorman <mgorman@suse.de>, David Woodhouse <dwmw2@infradead.org>, Johannes Weiner <jweiner@redhat.com>, iommu@lists.linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joerg Roedel <jroedel@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Jay.Cornwall@amd.com, Peter Zijlstra <a.p.zijlstra@chello.nl>, John.Bridgman@amd.com, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, ben.sander@amd.com, linux-mm@kvack.org, Jerome Glisse <jglisse@redhat.com>, iommu@lists.linux-foundation.org, Jesse Barnes <jbarnes@virtuousgeek.org>, Mel Gorman <mgorman@suse.de>, David Woodhouse <dwmw2@infradead.org>, Johannes Weiner <jweiner@redhat.com>
 
-On Fri, 12 Sep 2014 15:21:01 -0400 Jerome Glisse <j.glisse@gmail.com> wrote:
-
-> > > I think this sumup all motivation behind this patchset and also behind
-> > > my other patchset. As usual i am happy to discuss alternative way to do
-> > > things but i think that the path of least disruption from current code
-> > > is the one implemented by those patchset.
-> > 
-> > "least disruption" is nice, but "good implementation" is better.  In
-> > other words I'd prefer the more complex implementation if the end
-> > result is better.  Depending on the magnitudes of "complex" and
-> > "better" :) Two years from now (which isn't very long), I don't think
-> > we'll regret having chosen the better implementation.
-> > 
-> > Does this patchset make compromises to achieve low disruption?
+On Fri, Sep 12, 2014 at 12:19:37PM -0700, Andrew Morton wrote:
+> On Fri, 12 Sep 2014 20:47:39 +0200 Joerg Roedel <jroedel@suse.de> wrote:
 > 
-> Well right now i think we are lacking proper userspace support with which
-> this code and the global new usecase can be stress tested allowing to gather
-> profiling information.
+> > thanks for your review, I tried to answer your questions below.
 > 
-> I think as a first step we should take this least disruptive path and if
-> it proove to perform badly then we should work toward possibly more complex
-> design. Note that only complex design i can think of involve an overhaul of
-> how process memory management is done and probably linking cpu page table
-> update with the scheduler to try to hide cost of those update by scheduling
-> other thread meanwhile.
+> You'd be amazed how helpful that was ;)
+> 
+> > Fair enough, I hope I clarified a few things with my explanations
+> > above. I will also update the description of the patch-set when I
+> > re-send.
+> 
+> Sounds good, thanks.
+> 
+> 
+> How does HMM play into all of this?  Would HMM make this patchset
+> obsolete, or could HMM be evolved to do so?  
 
-OK.  Often I'd resist merging a patchset when we're not sure it will be
-sufficient.  But there are practical advantages to doing so and the
-present patchset is quite simple.  So if we decide to remove it later
-on the impact will be small.  If the patchset made userspace-visible
-changes then things would be different!
+HMM should be consider as distinc from this. The hardware TLB we are talking
+with this patchset can be flush by the CPU from inside an atomic context (ie
+while holding cpu page table spinlock for instance).
+
+HMM on the other hand deals with hardware that have there own page table
+ie they do not necessarily walk the cpu page table. Flushing the TLB for this
+kind of hardware means scheduling some job on the hardware and this can not
+be done from kernel atomic context as this job might take a long time to
+complete (imagine preempting thousand of threads on a gpu).
+
+Still HMM can be use in a mixed environement where the IOMMUv2 is use for
+memory that reside into system ram while HMM only handle memory that have
+been migrated to the device memory.
+
+So while HMM intend to provide more features than IOMMUv2 hardware allow,
+it does not intend to replace it. On contrary hope is that both can work at
+same time.
+
+Cheers,
+Jerome
+
+> _______________________________________________
+> iommu mailing list
+> iommu@lists.linux-foundation.org
+> https://lists.linuxfoundation.org/mailman/listinfo/iommu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
