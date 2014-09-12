@@ -1,146 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D4BC6B0038
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 19:13:20 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id rd3so2298703pab.4
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 16:13:19 -0700 (PDT)
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id BB0076B0035
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 19:51:46 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id z10so2243587pdj.6
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 16:51:46 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j7si10675857pdo.21.2014.09.12.16.13.18
+        by mx.google.com with ESMTPS id gk5si10380228pbc.246.2014.09.12.16.51.45
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Sep 2014 16:13:19 -0700 (PDT)
-Date: Fri, 12 Sep 2014 16:13:17 -0700
+        Fri, 12 Sep 2014 16:51:45 -0700 (PDT)
+Date: Fri, 12 Sep 2014 16:51:43 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: dmapool: add/remove sysfs file outside of the pool
- lock
-Message-Id: <20140912161317.f38c0d2c3b589aea94bdb870@linux-foundation.org>
-In-Reply-To: <1410463876-21265-1-git-send-email-bigeasy@linutronix.de>
-References: <1410463876-21265-1-git-send-email-bigeasy@linutronix.de>
+Subject: Re: [PATCH v2 4/6] mm: introduce common page state for ballooned
+ memory
+Message-Id: <20140912165143.86d5f83dcde4a9fd78069f79@linux-foundation.org>
+In-Reply-To: <20140830164120.29066.8857.stgit@zurg>
+References: <20140830163834.29066.98205.stgit@zurg>
+	<20140830164120.29066.8857.stgit@zurg>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Konstantin Khlebnikov <k.khlebnikov@samsung.com>, Rafael Aquini <aquini@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Sasha Levin <sasha.levin@oracle.com>
 
-On Thu, 11 Sep 2014 21:31:16 +0200 Sebastian Andrzej Siewior <bigeasy@linutronix.de> wrote:
+On Sat, 30 Aug 2014 20:41:20 +0400 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
 
-> cat /sys/___/pools followed by removal the device leads to:
+> This patch adds page state PageBallon() and functions __Set/ClearPageBalloon.
+> Like PageBuddy() PageBalloon() looks like page-flag but actually this is special
+> state of page->_mapcount counter. There is no conflict because ballooned pages
+> cannot be mapped and cannot be in buddy allocator.
 > 
-> |======================================================
-> |[ INFO: possible circular locking dependency detected ]
-> |3.17.0-rc4+ #1498 Not tainted
-> |-------------------------------------------------------
-> |rmmod/2505 is trying to acquire lock:
-> | (s_active#28){++++.+}, at: [<c017f754>] kernfs_remove_by_name_ns+0x3c/0x88
-> |
-> |but task is already holding lock:
-> | (pools_lock){+.+.+.}, at: [<c011494c>] dma_pool_destroy+0x18/0x17c
-> |
-> |which lock already depends on the new lock.
+> Ballooned pages are counted in vmstat counter NR_BALLOON_PAGES, it's shown them
+> in /proc/meminfo and /proc/meminfo. Also this patch it exports PageBallon into
+> userspace via /proc/kpageflags as KPF_BALLOON.
 > 
-> The problem is the lock order of pools_lock and kernfs_mutex in
-> dma_pool_destroy() vs show_pools().
+> All new code is under CONFIG_MEMORY_BALLOON, it should be selected by
+> ballooning driver which wants use this feature.
 
-Important details were omitted.  What's the call path whereby
-show_pools() is called under kernfs_mutex?
+The delta from the (fixed) v1 is below.
 
-> This patch breaks out the creation of the sysfs file outside of the
-> pools_lock mutex.
+What's up with those Kconfig/Makefile changes?  We're now including a
+pile of balloon code into vmlinux when CONFIG_MEMORY_BALLOON=n?  These
+changes were not changelogged?
 
-I think the patch adds races.  They're improbable, but they're there.
+Did we really need to put the BalloonPages count into per-zone vmstat,
+global vmstat and /proc/meminfo?  Seems a bit overkillish - why so
+important?
 
-> In theory we would have to create the link in the error path of
-> device_create_file() in case the dev->dma_pools list is not empty. In
-> reality I doubt that there will be a single device creating dma-pools in
-> parallel where it would matter.
+Consuming another page flag is a big deal.  We keep on nearly running
+out and one day we'll run out for real.  page-flags-layout.h is
+incomprehensible.  How many flags do we have left (worst-case) with this
+change?  Is there no other way?  Needs extraordinary justification,
+please.
 
-Maybe you're saying the same thing here, but the changelog lacks
-sufficient detail for me to tell because it doesn't explain *why* "we
-would have to create the link".
+ drivers/virtio/Kconfig  |    1 -
+ include/linux/mm.h      |   14 ++++++++++++--
+ mm/Makefile             |    3 +--
+ mm/balloon_compaction.c |   16 ----------------
+ 4 files changed, 13 insertions(+), 21 deletions(-)
 
-> --- a/mm/dmapool.c
-> +++ b/mm/dmapool.c
-> @@ -132,6 +132,7 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
->  {
->  	struct dma_pool *retval;
->  	size_t allocation;
-> +	bool empty = false;
->  
->  	if (align == 0) {
->  		align = 1;
-> @@ -173,14 +174,22 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
->  	INIT_LIST_HEAD(&retval->pools);
->  
->  	mutex_lock(&pools_lock);
-> -	if (list_empty(&dev->dma_pools) &&
-> -	    device_create_file(dev, &dev_attr_pools)) {
-> -		kfree(retval);
-> -		return NULL;
-> -	} else
-> -		list_add(&retval->pools, &dev->dma_pools);
-> +	if (list_empty(&dev->dma_pools))
-> +		empty = true;
-> +	list_add(&retval->pools, &dev->dma_pools);
->  	mutex_unlock(&pools_lock);
-> -
-> +	if (empty) {
-> +		int err;
-> +
-> +		err = device_create_file(dev, &dev_attr_pools);
-> +		if (err) {
-> +			mutex_lock(&pools_lock);
-> +			list_del(&retval->pools);
-> +			mutex_unlock(&pools_lock);
-> +			kfree(retval);
-> +			return NULL;
-> +		}
-> +	}
->  	return retval;
->  }
->  EXPORT_SYMBOL(dma_pool_create);
-> @@ -251,11 +260,15 @@ static void pool_free_page(struct dma_pool *pool, struct dma_page *page)
->   */
->  void dma_pool_destroy(struct dma_pool *pool)
->  {
-> +	bool empty = false;
-> +
->  	mutex_lock(&pools_lock);
->  	list_del(&pool->pools);
->  	if (pool->dev && list_empty(&pool->dev->dma_pools))
-> -		device_remove_file(pool->dev, &dev_attr_pools);
-> +		empty = true;
->  	mutex_unlock(&pools_lock);
-
-For example, if another process now runs dma_pool_create(), it will try
-to create the sysfs file and will presumably fail because it's already
-there.  Then when this process runs, the file gets removed again.  So
-we'll get a nasty warning from device_create_file() (I assume) and the
-dma_pool_create() call will fail.
-
-There's probably a similar race in the destroy()-interrupts-create()
-path but I'm lazy.
-
-> +	if (empty)
-> +		device_remove_file(pool->dev, &dev_attr_pools);
->  
-
-
-This problem is pretty ugly.
-
-It's a bit surprising that it hasn't happened elsewhere.  Perhaps this
-is because dmapool went and broke the sysfs rules and has multiple
-values in a single sysfs file.  This causes dmapool to walk a list
-under kernfs_lock and that list walk requires a lock.
-
-And it's too late to fix this by switching to one-value-per-file.  Ugh.
-Maybe there's some wizardly hack we can use in dma_pool_create() and
-dma_pool_destroy() to avoid the races.  Maybe use your patch as-is but
-add yet another mutex to serialise dma_pool_create() against
-dma_pool_destroy() so they can never run concurrently?  There may
-already be higher-level locking which ensures this so perhaps we can
-"fix" the races with suitable code comments.
+diff -puN drivers/virtio/Kconfig~mm-introduce-common-page-state-for-ballooned-memory-fix-v2 drivers/virtio/Kconfig
+--- a/drivers/virtio/Kconfig~mm-introduce-common-page-state-for-ballooned-memory-fix-v2
++++ a/drivers/virtio/Kconfig
+@@ -25,7 +25,6 @@ config VIRTIO_PCI
+ config VIRTIO_BALLOON
+ 	tristate "Virtio balloon driver"
+ 	depends on VIRTIO
+-	select MEMORY_BALLOON
+ 	---help---
+ 	 This driver supports increasing and decreasing the amount
+ 	 of memory within a KVM guest.
+diff -puN include/linux/mm.h~mm-introduce-common-page-state-for-ballooned-memory-fix-v2 include/linux/mm.h
+--- a/include/linux/mm.h~mm-introduce-common-page-state-for-ballooned-memory-fix-v2
++++ a/include/linux/mm.h
+@@ -561,8 +561,18 @@ static inline int PageBalloon(struct pag
+ 	return IS_ENABLED(CONFIG_MEMORY_BALLOON) &&
+ 		atomic_read(&page->_mapcount) == PAGE_BALLOON_MAPCOUNT_VALUE;
+ }
+-void __SetPageBalloon(struct page *page);
+-void __ClearPageBalloon(struct page *page);
++
++static inline void __SetPageBalloon(struct page *page)
++{
++	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
++	atomic_set(&page->_mapcount, PAGE_BALLOON_MAPCOUNT_VALUE);
++}
++
++static inline void __ClearPageBalloon(struct page *page)
++{
++	VM_BUG_ON_PAGE(!PageBalloon(page), page);
++	atomic_set(&page->_mapcount, -1);
++}
+ 
+ void put_page(struct page *page);
+ void put_pages_list(struct list_head *pages);
+diff -puN mm/Makefile~mm-introduce-common-page-state-for-ballooned-memory-fix-v2 mm/Makefile
+--- a/mm/Makefile~mm-introduce-common-page-state-for-ballooned-memory-fix-v2
++++ a/mm/Makefile
+@@ -16,7 +16,7 @@ obj-y			:= filemap.o mempool.o oom_kill.
+ 			   readahead.o swap.o truncate.o vmscan.o shmem.o \
+ 			   util.o mmzone.o vmstat.o backing-dev.o \
+ 			   mm_init.o mmu_context.o percpu.o slab_common.o \
+-			   compaction.o vmacache.o \
++			   compaction.o balloon_compaction.o vmacache.o \
+ 			   interval_tree.o list_lru.o workingset.o \
+ 			   iov_iter.o $(mmu-y)
+ 
+@@ -64,4 +64,3 @@ obj-$(CONFIG_ZBUD)	+= zbud.o
+ obj-$(CONFIG_ZSMALLOC)	+= zsmalloc.o
+ obj-$(CONFIG_GENERIC_EARLY_IOREMAP) += early_ioremap.o
+ obj-$(CONFIG_CMA)	+= cma.o
+-obj-$(CONFIG_MEMORY_BALLOON) += balloon_compaction.o
+diff -puN mm/balloon_compaction.c~mm-introduce-common-page-state-for-ballooned-memory-fix-v2 mm/balloon_compaction.c
+--- a/mm/balloon_compaction.c~mm-introduce-common-page-state-for-ballooned-memory-fix-v2
++++ a/mm/balloon_compaction.c
+@@ -10,22 +10,6 @@
+ #include <linux/export.h>
+ #include <linux/balloon_compaction.h>
+ 
+-void __SetPageBalloon(struct page *page)
+-{
+-	VM_BUG_ON_PAGE(atomic_read(&page->_mapcount) != -1, page);
+-	atomic_set(&page->_mapcount, PAGE_BALLOON_MAPCOUNT_VALUE);
+-	inc_zone_page_state(page, NR_BALLOON_PAGES);
+-}
+-EXPORT_SYMBOL(__SetPageBalloon);
+-
+-void __ClearPageBalloon(struct page *page)
+-{
+-	VM_BUG_ON_PAGE(!PageBalloon(page), page);
+-	atomic_set(&page->_mapcount, -1);
+-	dec_zone_page_state(page, NR_BALLOON_PAGES);
+-}
+-EXPORT_SYMBOL(__ClearPageBalloon);
+-
+ /*
+  * balloon_devinfo_alloc - allocates a balloon device information descriptor.
+  * @balloon_dev_descriptor: pointer to reference the balloon device which
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
