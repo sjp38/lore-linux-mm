@@ -1,69 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 730786B0039
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 17:43:29 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id bj1so2139845pad.0
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 14:43:29 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id zm1si10094317pbc.201.2014.09.12.14.43.28
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Sep 2014 14:43:28 -0700 (PDT)
-Date: Fri, 12 Sep 2014 14:43:26 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH RFC] memcg: revert kmem.tcp accounting
-Message-Id: <20140912144326.a8d5153d7c91d220ea89924a@linux-foundation.org>
-In-Reply-To: <20140912175516.GB6298@mtj.dyndns.org>
-References: <1410535618-9601-1-git-send-email-vdavydov@parallels.com>
-	<20140912171809.GA24469@dhcp22.suse.cz>
-	<20140912175516.GB6298@mtj.dyndns.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 689586B0037
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 18:08:06 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id kx10so2207935pab.3
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 15:08:06 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id sd8si10355505pbc.89.2014.09.12.15.08.04
+        for <linux-mm@kvack.org>;
+        Fri, 12 Sep 2014 15:08:05 -0700 (PDT)
+Message-ID: <54136EC4.6000905@intel.com>
+Date: Fri, 12 Sep 2014 15:08:04 -0700
+From: Dave Hansen <dave.hansen@intel.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v8 00/10] Intel MPX support
+References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com> <54124379.5090502@intel.com> <alpine.DEB.2.10.1409121543090.4178@nanos>
+In-Reply-To: <alpine.DEB.2.10.1409121543090.4178@nanos>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Li Zefan <lizefan@huawei.com>, "David S. Miller" <davem@davemloft.net>, Johannes Weiner <hannes@cmpxchg.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Glauber Costa <glommer@gmail.com>, Pavel Emelianov <xemul@parallels.com>, Greg Thelen <gthelen@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, "Eric W. Biederman" <ebiederm@xmission.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Qiaowei Ren <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, 13 Sep 2014 02:55:16 +0900 Tejun Heo <tj@kernel.org> wrote:
+OK, here's some revised text for patch 00/10.  Again, this will
+obviously be updated for the next post, but comments before that would
+be much appreciated.
 
-> Hello, guys.
-> 
-> On Fri, Sep 12, 2014 at 07:18:09PM +0200, Michal Hocko wrote:
-> > On Fri 12-09-14 19:26:58, Vladimir Davydov wrote:
-> > > memory.kmem.tcp.limit_in_bytes works as the system-wide tcp_mem sysctl,
-> > > but per memory cgroup. While the existence of the latter is justified
-> > > (it prevents the system from becoming unusable due to uncontrolled tcp
-> > > buffers growth) the reason why we need such a knob in containers isn't
-> > > clear to me.
-> > 
-> > Parallels was the primary driver for this change. I haven't heard of
-> > anybody using the feature other than Parallels. I also remember there
-> > was a strong push for this feature before it was merged besides there
-> > were some complains at the time. I do not remember details (and I am
-> > one half way gone for the weekend now) so I do not have pointers to
-> > discussions.
-> > 
-> > I would love to get rid of the code and I am pretty sure that networking
-> > people would love this go even more. I didn't plan to provide kmem.tcp.*
-> > knobs for the cgroups v2 interface but getting rid of it altogether
-> > sounds even better. I am just not sure whether some additional users
-> > grown over time.
-> > Nevertheless I am really curious. What has changed that Parallels is not
-> > interested in kmem.tcp anymore?
-> 
-> So, I'd love to see this happen too but I don't think we can do this.
-> People use published interface.  The usages might be utterly one-off
-> and mental but let's please not underestimate the sometimes senseless
-> creativity found in the wild.  We simply can't remove a bunch of
-> control knobs like this.
+-----
 
-17 files changed, 51 insertions(+), 761 deletions(-)
+This patch set adds support for the Memory Protection eXtensions
+(MPX) feature found in future Intel processors.  MPX is used in
+conjunction with compiler changes to check memory references, and can be
+used to catch buffer overflow or underflow.
 
-Sob.
+For MPX to work, changes are required in the kernel, binutils and
+compiler.  No source changes are required for applications, just a
+recompile.
 
-Is there a convenient way of disabling the whole thing and adding a
-please-tell-us printk?  If nobody tells us for a year or two then zap.
+There are a lot of moving parts of this to all work right:
+
+===== Example Compiler / Application / Kernel Interaction =====
+
+1. Application developer compiles with -fmpx.  The compiler will add the
+   instrumentation as well as some setup code called early after the app
+   starts.  New instruction prefixes are noops for old CPUs.
+2. That setup code allocates (virtual) space for the "bounds directory",
+   points the "bndcfgu" register to the directory and notifies the
+   kernel (via the new prctl()) that the app will be using MPX.
+3. The kernel detects that the CPU has MPX, allows the new prctl() to
+   succeed, and notes the location of the bounds directory.  We note it
+   instead of reading it each time because the 'xsave' operation needed
+   to access the bounds directory register is an expensive operation.
+4. If the application needs to spill bounds out of the 4 registers, it
+   issues a bndstx instruction.  Since the bounds directory is empty at
+   this point, a bounds fault (#BR) is raised, the kernel allocates a
+   bounds table (in the user address space) and makes the relevant
+   entry in the bounds directory point to the new table. [1]
+5. If the application violates the bounds specified in the bounds
+   registers, a separate kind of #BR is raised which will deliver a
+   signal with information about the violation in the 'struct siginfo'.
+6. Whenever memory is freed, we know that it can no longer contain
+   valid pointers, and we attempt to free the associated space in the
+   bounds tables.  If an entire table becomes unused, we will attempt
+   to free the table and remove the entry in the directory.
+
+To summarize, there are essentially three things interacting here:
+
+GCC with -fmpx:
+ * enables annotation of code with MPX instructions and prefixes
+ * inserts code early in the application to call in to the "gcc runtime"
+GCC MPX Runtime:
+ * Checks for hardware MPX support in cpuid leaf
+ * allocates virtual space for the bounds directory (malloc()
+   essentially)
+ * points the hardware BNDCFGU register at the directory
+ * calls a new prctl() to notify the kernel to start managing the
+   bounds directories
+Kernel MPX Code:
+ * Checks for hardware MPX support in cpuid leaf
+ * Handles #BR exceptions and sends SIGSEGV to the app when it violates
+   bounds, like during a buffer overflow.
+ * When bounds are spilled in to an unallocated bounds table, the kernel
+   notices in the #BR exception, allocates the virtual space, then
+   updates the bounds directory to point to the new table.  It keeps
+   special track of the memory with a VM_MPX flag.
+ * Frees unused bounds tables at the time that the memory they described
+   is unmapped. (See "cleanup unused bound tables")
+
+===== Testing =====
+
+This patchset has been tested on real internal hardware platform at
+Intel.  We have some simple unit tests in user space, which directly
+call MPX instructions to produce #BR to let kernel allocate bounds
+tables and cause bounds violations. We also compiled several benchmarks
+with an MPX-enabled compiler and ran them with this patch set.  We found
+a number of bugs in this code in these tests.
+
+1. For more info on why the kernel does these allocations, see the patch
+"on-demand kernel allocation of bounds tables"
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
