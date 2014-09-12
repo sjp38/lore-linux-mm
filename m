@@ -1,100 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BED46B0035
-	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 21:23:49 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id y13so60548pdi.35
-        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 18:23:49 -0700 (PDT)
-Received: from fgwmail6.fujitsu.co.jp (fgwmail6.fujitsu.co.jp. [192.51.44.36])
-        by mx.google.com with ESMTPS id mi6si4906070pab.17.2014.09.11.18.23.47
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F71A6B0037
+	for <linux-mm@kvack.org>; Thu, 11 Sep 2014 21:24:12 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id y10so64395pdj.22
+        for <linux-mm@kvack.org>; Thu, 11 Sep 2014 18:24:11 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id ns7si4637248pbc.179.2014.09.11.18.24.09
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 11 Sep 2014 18:23:48 -0700 (PDT)
-Received: from kw-mxauth.gw.nic.fujitsu.com (unknown [10.0.237.134])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 093F83EE0C7
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 10:23:46 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
-	by kw-mxauth.gw.nic.fujitsu.com (Postfix) with ESMTP id 02212AC08FA
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 10:23:45 +0900 (JST)
-Received: from g01jpfmpwkw03.exch.g01.fujitsu.local (g01jpfmpwkw03.exch.g01.fujitsu.local [10.0.193.57])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 939761DB803E
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 10:23:44 +0900 (JST)
-Message-ID: <54124AFC.6020700@jp.fujitsu.com>
-Date: Fri, 12 Sep 2014 10:23:08 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+        Thu, 11 Sep 2014 18:24:11 -0700 (PDT)
+Message-ID: <54124AC9.2040308@huawei.com>
+Date: Fri, 12 Sep 2014 09:22:17 +0800
+From: Zhang Zhen <zhenzhang.zhang@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC 2/2] memcg: add threshold for anon rss
-References: <cover.1410447097.git.vdavydov@parallels.com> <b7e7abb6cadc1301a775177ef3d4f4944192c579.1410447097.git.vdavydov@parallels.com>
-In-Reply-To: <b7e7abb6cadc1301a775177ef3d4f4944192c579.1410447097.git.vdavydov@parallels.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
+Subject: Re: [PATCH] oom: break after selecting process to kill
+References: <20140911213338.GA4098@localhost.localdomain>
+In-Reply-To: <20140911213338.GA4098@localhost.localdomain>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>, linux-kernel@vger.kernel.org
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Motohiro Kosaki <Motohiro.Kosaki@us.fujitsu.com>, Glauber Costa <glommer@gmail.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@parallels.com>, Konstantin Khorenko <khorenko@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Niv Yehezkel <executerx@gmail.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, rientjes@google.com, mhocko@suse.cz, hannes@cmpxchg.org, oleg@redhat.com, wangnan0@huawei.com
 
-(2014/09/12 0:41), Vladimir Davydov wrote:
-> Though hard memory limits suit perfectly for sand-boxing, they are not
-> that efficient when it comes to partitioning a server's resources among
-> multiple containers. The point is a container consuming a particular
-> amount of memory most of time may have infrequent spikes in the load.
-> Setting the hard limit to the maximal possible usage (spike) will lower
-> server utilization while setting it to the "normal" usage will result in
-> heavy lags during the spikes.
+On 2014/9/12 5:33, Niv Yehezkel wrote:
+> There is no need to fallback and continue computing
+> badness for each running process after we have found a
+> process currently performing the swapoff syscall. We ought to
+> immediately select this process for killing.
 > 
-> To handle such scenarios soft limits were introduced. The idea is to
-> allow a container to breach the limit freely when there's enough free
-> memory, but shrink it back to the limit aggressively on global memory
-> pressure. However, the concept of soft limits is intrinsically unsafe
-> by itself: if a container eats too much anonymous memory, it will be
-> very slow or even impossible (if there's no swap) to reclaim its
-> resources back to the limit. As a result the whole system will be
-> feeling bad until it finally realizes the culprit must die.
+> Signed-off-by: Niv Yehezkel <executerx@gmail.com>
+> ---
+>  mm/oom_kill.c |    6 +++++-
+>  1 file changed, 5 insertions(+), 1 deletion(-)
 > 
-> Currently we have no way to react to anonymous memory + swap usage
-> growth inside a container: the memsw counter accounts both anonymous
-> memory and file caches and swap, so we have neither a limit for
-> anon+swap nor a threshold notification. Actually, memsw is totally
-> useless if one wants to make full use of soft limits: it should be set
-> to a very large value or infinity then, otherwise it just makes no
-> sense.
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 1e11df8..68ac30e 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -305,6 +305,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+>  	struct task_struct *g, *p;
+>  	struct task_struct *chosen = NULL;
+>  	unsigned long chosen_points = 0;
+> +	bool process_selected = false;
+>  
+>  	rcu_read_lock();
+>  	for_each_process_thread(g, p) {
+> @@ -315,7 +316,8 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+>  		case OOM_SCAN_SELECT:
+>  			chosen = p;
+>  			chosen_points = ULONG_MAX;
+> -			/* fall through */
+> +			process_selected = true;
+> +			break;
+>  		case OOM_SCAN_CONTINUE:
+>  			continue;
+>  		case OOM_SCAN_ABORT:
+> @@ -324,6 +326,8 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+>  		case OOM_SCAN_OK:
+>  			break;
+>  		};
+> +		if (process_selected)
+> +			break;
+
+Hi,
+The following comment shows that we prefer thread group leaders for display purposes.
+If we break here and two threads in a thread group are performing the swapoff syscall, maybe we can not get thread
+group leaders.
+
+Thanks!
+
+>  		points = oom_badness(p, NULL, nodemask, totalpages);
+>  		if (!points || points < chosen_points)
+>  			continue;
 > 
-> That's one of the reasons why I think we should replace memsw with a
-> kind of anonsw so that it'd account only anon+swap. This way we'd still
-> be able to sand-box apps, but it'd also allow us to avoid nasty
-> surprises like the one I described above. For more arguments for and
-> against this idea, please see the following thread:
-> 
-> http://www.spinics.net/lists/linux-mm/msg78180.html
-> 
-> There's an alternative to this approach backed by Kamezawa. He thinks
-> that OOM on anon+swap limit hit is a no-go and proposes to use memory
-> thresholds for it. I still strongly disagree with the proposal, because
-> it's unsafe (what if the userspace handler won't react in time?).
-> Nevertheless, I implement his idea in this RFC. I hope this will fuel
-> the debate, because sadly enough nobody seems to care about this
-> problem.
-> 
-> So this patch adds the "memory.rss" file that shows the amount of
-> anonymous memory consumed by a cgroup and the event to handle threshold
-> notifications coming from it. The notification works exactly in the same
-> fashion as the existing memory/memsw usage notifications.
-> 
->
-
-So, now, you know you can handle "threshould".
-
-If you want to implement "automatic-oom-killall-in-a-contanier-threshold-in-kernel",
-I don't have any objections.
-
-What you want is not limit, you want a trigger for killing process.
-Threshold + Kill is enough, using res_counter for that is overspec.
-
-You don't need res_counter and don't need to break other guy's use case.
-
-Thanks,
--Kame
-
-
 
 
 --
