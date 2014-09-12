@@ -1,62 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 66DA66B0037
-	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 13:18:18 -0400 (EDT)
-Received: by mail-we0-f172.google.com with SMTP id k48so1069547wev.31
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 10:18:15 -0700 (PDT)
-Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com [2a00:1450:400c:c05::232])
-        by mx.google.com with ESMTPS id fq2si3953860wic.44.2014.09.12.10.18.12
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 8802F6B0037
+	for <linux-mm@kvack.org>; Fri, 12 Sep 2014 13:34:25 -0400 (EDT)
+Received: by mail-we0-f181.google.com with SMTP id w62so1093405wes.26
+        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 10:34:25 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id v19si3952223wij.81.2014.09.12.10.34.21
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 12 Sep 2014 10:18:12 -0700 (PDT)
-Received: by mail-wi0-f178.google.com with SMTP id ho1so1052102wib.17
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 10:18:12 -0700 (PDT)
-Date: Fri, 12 Sep 2014 19:18:09 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH RFC] memcg: revert kmem.tcp accounting
-Message-ID: <20140912171809.GA24469@dhcp22.suse.cz>
-References: <1410535618-9601-1-git-send-email-vdavydov@parallels.com>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 12 Sep 2014 10:34:22 -0700 (PDT)
+Date: Fri, 12 Sep 2014 19:34:06 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v8 08/10] x86, mpx: add prctl commands PR_MPX_REGISTER,
+ PR_MPX_UNREGISTER
+In-Reply-To: <5413050A.1090307@intel.com>
+Message-ID: <alpine.DEB.2.10.1409121812550.4178@nanos>
+References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com> <1410425210-24789-9-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.10.1409120020060.4178@nanos> <541239F1.2000508@intel.com> <alpine.DEB.2.10.1409120950260.4178@nanos>
+ <alpine.DEB.2.10.1409121120440.4178@nanos> <5413050A.1090307@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1410535618-9601-1-git-send-email-vdavydov@parallels.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, "David S. Miller" <davem@davemloft.net>, Johannes Weiner <hannes@cmpxchg.org>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Glauber Costa <glommer@gmail.com>, Pavel Emelianov <xemul@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Eric Dumazet <eric.dumazet@gmail.com>, "Eric W. Biederman" <ebiederm@xmission.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Qiaowei Ren <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 12-09-14 19:26:58, Vladimir Davydov wrote:
-> memory.kmem.tcp.limit_in_bytes works as the system-wide tcp_mem sysctl,
-> but per memory cgroup. While the existence of the latter is justified
-> (it prevents the system from becoming unusable due to uncontrolled tcp
-> buffers growth) the reason why we need such a knob in containers isn't
-> clear to me.
+On Fri, 12 Sep 2014, Dave Hansen wrote:
+> On 09/12/2014 02:24 AM, Thomas Gleixner wrote:
+> > On Fri, 12 Sep 2014, Thomas Gleixner wrote:
+> >> On Thu, 11 Sep 2014, Dave Hansen wrote:
+> >>> Well, we use it to figure out whether we _potentially_ need to tear down
+> >>> an VM_MPX-flagged area.  There's no guarantee that there will be one.
+> >>
+> >> So what you are saying is, that if user space sets the pointer to NULL
+> >> via the unregister prctl, kernel can safely ignore vmas which have the
+> >> VM_MPX flag set. I really can't follow that logic.
+> >>  
+> >> 	mmap_mpx();
+> >> 	prctl(enable mpx);
+> >> 	do lots of crap which uses mpx;
+> >> 	prctl(disable mpx);
+> >>
+> >> So after that point the previous use of MPX is irrelevant, just
+> >> because we set a pointer to NULL? Does it just look like crap because
+> >> I do not get the big picture how all of this is supposed to work?
+> > 
+> > do_bounds() will happily map new BTs no matter whether the prctl was
+> > invoked or not. So what's the value of the prctl at all?
+> 
+> The behavior as it stands is wrong.  We should at least have the kernel
+> refuse to map new BTs if the prctl() hasn't been issued.  We'll fix it up.
+> 
+> > The mapping is flagged VM_MPX. Why is this not sufficient?
+> 
+> The comment is confusing and only speaks to half of what the if() in
+> question is doing.  We'll get a better comment in there.  But, for the
+> sake of explaining it fully:
+> 
+> There are two mappings in play:
+> 1. The mapping with the actual data, which userspace is munmap()ing or
+>    brk()ing away, etc... (never tagged VM_MPX)
 
-Parallels was the primary driver for this change. I haven't heard of
-anybody using the feature other than Parallels. I also remember there
-was a strong push for this feature before it was merged besides there
-were some complains at the time. I do not remember details (and I am
-one half way gone for the weekend now) so I do not have pointers to
-discussions.
+It's not tagged that way because it is mapped by user space. This is
+the directory, right?
 
-I would love to get rid of the code and I am pretty sure that networking
-people would love this go even more. I didn't plan to provide kmem.tcp.*
-knobs for the cgroups v2 interface but getting rid of it altogether
-sounds even better. I am just not sure whether some additional users
-grown over time.
-Nevertheless I am really curious. What has changed that Parallels is not
-interested in kmem.tcp anymore?
+> 2. The mapping for the bounds table *backing* the data (is tagged with
+>    VM_MPX)
 
-[...]
+That's the stuff, which gets magically allocated from do_bounds(). And
+the reason you do that from the #BR is that user space would have to
+allocate a gazillion of bound tables to make sure that every corner
+case is covered. With the allocation from #BR you make that behaviour
+dynamic and you just provide an empty "no bounds" table to make the
+bound checker happy.
 
-Anyway, more than welcome
-Acked-by: Michal Hocko <mhocko@suse.cz>
+> The code ends up looking like this:
+> 
+> vm_munmap()
+> {
+> 	do_unmap(vma); // #1 above
+> 	if (mm->bd_addr && !(vma->vm_flags & VM_MPX))
+> 		// lookup the backing vma (#2 above)
+> 		vm_munmap(vma2)
+> }
+> 
+> The bd_addr check is intended to say "could the kernel have possibly
+> created some VM_MPX vmas?"  As you noted above, we will happily go
+> creating VM_MPX vmas without mm->bd_addr being set.  That's will get fixed.
+> 
+> The VM_MPX _flags_ check on the VMA is there simply to prevent
+> recursion.  vm_munmap() of the VM_MPX vma is called _under_ vm_munmap()
+> of the data VMA, and we've got to ensure it doesn't recurse.  *This*
+> part of the if() in question is not addressed in the comment.  That's
+> something we can fix up in the next version.
 
-In case we happened to grow more users, which I hope hasn't happened, we
-would need to keep this around at least with the legacy cgroups API.
--- 
-Michal Hocko
-SUSE Labs
+Ok, slowly I get the puzzle together :)
+
+Now, the question is whether this magic fragile fixup is the right
+thing to do in the context of unmap/brk.
+
+So if the directory is unmapped, you want to free the bounds tables
+which are referenced from the directory, i.e. those which you
+allocated in do_bounds().
+ 
+So you call arch_unmap() at the very end of do_unmap(). This walks the
+directory to look at the entries and unmaps the bounds table which is
+referenced from the directory and then clears the directory entry.
+
+Now, I have a hard time to see how that is supposed to work.
+
+do_unmap()
+ detach_vmas_to_be_unmapped()
+ unmap_region()
+   free_pgtables()
+ arch_unmap()
+   mpx_unmap()
+
+So at the point where you try to access the directory to gather the
+information about the entries which might be affected, that stuff is
+unmapped already and the page tables are gone.
+
+Brilliant idea, really. And if you run into the fault in mpx_unmap()
+you plan to delegate the fixup to a work queue. How is that thing
+going to find what belonged to the unmapped directory?
+
+Even if the stuff would be accessible at that point, it is a damned
+stupid idea to rely on anything userspace is providing to you. I
+learned that the hard way in futex.c
+
+The proper solution to this problem is:
+
+    do_bounds()
+	bd_addr = get_bd_addr_from_xsave();
+	bd_entry = bndstatus & ADDR_MASK:
+
+	bt = mpx_mmap(bd_addr, bd_entry, len);
+
+	set_bt_entry_in_bd(bd_entry, bt);
+
+And in mpx_mmap()
+
+       .....
+       vma = find_vma();
+
+       vma->bd_addr = bd_addr;
+       vma->bd_entry = bd_entry;
+
+Now on mpx_unmap()
+
+    for_each_vma()
+	if (is_affected(vma->bd_addr, vma->bd_entry))
+ 	   unmap(vma);
+
+That does not require a prctl, no fault handling in the unmap path, it
+just works and is robust by design because it does not rely on any
+user space crappola. You store the directory context at allocation
+time and free it when that context goes away. It's that simple, really.
+
+So you can still think about a prctl in order to enable/disable the
+automatic mapping stuff, but that's a completely different story.
+   
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
