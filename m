@@ -1,46 +1,224 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id EDE6F6B0035
-	for <linux-mm@kvack.org>; Sat, 13 Sep 2014 10:03:33 -0400 (EDT)
-Received: by mail-ig0-f182.google.com with SMTP id h18so1951618igc.3
-        for <linux-mm@kvack.org>; Sat, 13 Sep 2014 07:03:33 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id d14si8074784ici.39.2014.09.13.07.03.32
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 130976B0035
+	for <linux-mm@kvack.org>; Sat, 13 Sep 2014 15:02:09 -0400 (EDT)
+Received: by mail-wg0-f51.google.com with SMTP id k14so2185887wgh.10
+        for <linux-mm@kvack.org>; Sat, 13 Sep 2014 12:02:09 -0700 (PDT)
+Received: from mail-wg0-x22e.google.com (mail-wg0-x22e.google.com [2a00:1450:400c:c00::22e])
+        by mx.google.com with ESMTPS id dv7si8819406wib.101.2014.09.13.12.02.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 13 Sep 2014 07:03:33 -0700 (PDT)
-Message-ID: <54144EAC.8030101@oracle.com>
-Date: Sat, 13 Sep 2014 10:03:24 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 13 Sep 2014 12:02:08 -0700 (PDT)
+Received: by mail-wg0-f46.google.com with SMTP id n12so2185319wgh.29
+        for <linux-mm@kvack.org>; Sat, 13 Sep 2014 12:02:08 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 4/6] mm: introduce common page state for ballooned
- memory
-References: <20140830163834.29066.98205.stgit@zurg>	<20140830164120.29066.8857.stgit@zurg>	<20140912165143.86d5f83dcde4a9fd78069f79@linux-foundation.org> <CALYGNiM0Uh1KG8Z6pFEAn=uxZBRPfHDffXjKkKJoG-K0hCaqaA@mail.gmail.com>
-In-Reply-To: <CALYGNiM0Uh1KG8Z6pFEAn=uxZBRPfHDffXjKkKJoG-K0hCaqaA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1409794786-10951-3-git-send-email-minchan@kernel.org>
+References: <1409794786-10951-1-git-send-email-minchan@kernel.org> <1409794786-10951-3-git-send-email-minchan@kernel.org>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Sat, 13 Sep 2014 15:01:47 -0400
+Message-ID: <CALZtONCortZodFfVU5-oXUdGShhjFOg+FesxMFCdsyhsnnkmZw@mail.gmail.com>
+Subject: Re: [RFC 2/3] mm: add swap_get_free hint for zram
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Konstantin Khlebnikov <k.khlebnikov@samsung.com>, Rafael Aquini <aquini@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>
 
-On 09/13/2014 01:26 AM, Konstantin Khlebnikov wrote:
->> Did we really need to put the BalloonPages count into per-zone vmstat,
->> > global vmstat and /proc/meminfo?  Seems a bit overkillish - why so
->> > important?
-> Balloon grabs random pages, their distribution among numa nodes might
-> be important.
-> But I know nobody who uses numa-aware vm together with ballooning.
+On Wed, Sep 3, 2014 at 9:39 PM, Minchan Kim <minchan@kernel.org> wrote:
+> VM uses nr_swap_pages as one of information when it does
+> anonymous reclaim so that VM is able to throttle amount of swap.
+>
+> Normally, the nr_swap_pages is equal to freeable space of swap disk
+> but for zram, it doesn't match because zram can limit memory usage
+> by knob(ie, mem_limit) so although VM can see lots of free space
+> from zram disk, zram can make fail intentionally once the allocated
+> space is over to limit. If it happens, VM should notice it and
+> stop reclaimaing until zram can obtain more free space but there
+> is a good way to do at the moment.
+>
+> This patch adds new hint SWAP_GET_FREE which zram can return how
+> many of freeable space it has. With using that, this patch adds
+> __swap_full which returns true if the zram is full and substract
+> remained freeable space of the zram-swap from nr_swap_pages.
+> IOW, VM sees there is no more swap space of zram so that it stops
+> anonymous reclaiming until swap_entry_free free a page and increase
+> nr_swap_pages again.
+>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  include/linux/blkdev.h |  1 +
+>  mm/swapfile.c          | 45 +++++++++++++++++++++++++++++++++++++++++++--
+>  2 files changed, 44 insertions(+), 2 deletions(-)
+>
+> diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+> index 17437b2c18e4..c1199806e0f1 100644
+> --- a/include/linux/blkdev.h
+> +++ b/include/linux/blkdev.h
+> @@ -1611,6 +1611,7 @@ static inline bool blk_integrity_is_initialized(struct gendisk *g)
+>
+>  enum swap_blk_hint {
+>         SWAP_SLOT_FREE,
+> +       SWAP_GET_FREE,
+>  };
+>
+>  struct block_device_operations {
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 4bff521e649a..72737e6dd5e5 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -484,6 +484,22 @@ new_cluster:
+>         *scan_base = tmp;
+>  }
+>
+> +static bool __swap_full(struct swap_info_struct *si)
+> +{
+> +       if (si->flags & SWP_BLKDEV) {
+> +               long free;
+> +               struct gendisk *disk = si->bdev->bd_disk;
+> +
+> +               if (disk->fops->swap_hint)
+> +                       if (!disk->fops->swap_hint(si->bdev,
+> +                                               SWAP_GET_FREE,
+> +                                               &free))
+> +                               return free <= 0;
+> +       }
+> +
+> +       return si->inuse_pages == si->pages;
+> +}
+> +
+>  static unsigned long scan_swap_map(struct swap_info_struct *si,
+>                                    unsigned char usage)
+>  {
+> @@ -583,11 +599,21 @@ checks:
+>         if (offset == si->highest_bit)
+>                 si->highest_bit--;
+>         si->inuse_pages++;
+> -       if (si->inuse_pages == si->pages) {
+> +       if (__swap_full(si)) {
 
-*cough*. me?
+This check is done after an available offset has already been
+selected.  So if the variable-size blkdev is full at this point, then
+this is incorrect, as swap will try to store a page at the current
+selected offset.
 
-Obviously there's no need to keep that per-zone vmstat just for me, but
-right now NUMA on KVM works just fine and does a good job of catching
-NUMA issues without having to run on actual metal.
+> +               struct gendisk *disk = si->bdev->bd_disk;
+> +
+>                 si->lowest_bit = si->max;
+>                 si->highest_bit = 0;
+>                 spin_lock(&swap_avail_lock);
+>                 plist_del(&si->avail_list, &swap_avail_head);
+> +               /*
+> +                * If zram is full, it decreases nr_swap_pages
+> +                * for stopping anonymous page reclaim until
+> +                * zram has free space. Look at swap_entry_free
+> +                */
+> +               if (disk->fops->swap_hint)
+
+Simply checking for the existence of swap_hint isn't enough to know
+we're using zram...
+
+> +                       atomic_long_sub(si->pages - si->inuse_pages,
+> +                               &nr_swap_pages);
+>                 spin_unlock(&swap_avail_lock);
+>         }
+>         si->swap_map[offset] = usage;
+> @@ -796,6 +822,7 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
+>
+>         /* free if no reference */
+>         if (!usage) {
+> +               struct gendisk *disk = p->bdev->bd_disk;
+>                 dec_cluster_info_page(p, p->cluster_info, offset);
+>                 if (offset < p->lowest_bit)
+>                         p->lowest_bit = offset;
+> @@ -808,6 +835,21 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
+>                                 if (plist_node_empty(&p->avail_list))
+>                                         plist_add(&p->avail_list,
+>                                                   &swap_avail_head);
+> +                               if ((p->flags & SWP_BLKDEV) &&
+> +                                       disk->fops->swap_hint) {
+
+freeing an entry from a full variable-size blkdev doesn't mean it's
+not still full.  In this case with zsmalloc, freeing one handle
+doesn't actually free any memory unless it was the only handle left in
+its containing zspage, and therefore it's possible that it is still
+full at this point.
+
+> +                                       atomic_long_add(p->pages -
+> +                                                       p->inuse_pages,
+> +                                                       &nr_swap_pages);
+> +                                       /*
+> +                                        * reset [highest|lowest]_bit to avoid
+> +                                        * scan_swap_map infinite looping if
+> +                                        * cached free cluster's index by
+> +                                        * scan_swap_map_try_ssd_cluster is
+> +                                        * above p->highest_bit.
+> +                                        */
+> +                                       p->highest_bit = p->max - 1;
+> +                                       p->lowest_bit = 1;
+
+lowest_bit and highest_bit are likely to remain at those extremes for
+a long time, until 1 or max-1 is freed and re-allocated.
 
 
-Thanks,
-Sasha
+By adding variable-size blkdev support to swap, I don't think
+highest_bit can be re-used as a "full" flag anymore.
+
+Instead, I suggest that you add a "full" flag to struct
+swap_info_struct.  Then put a swap_hint GET_FREE check at the top of
+scan_swap_map(), and if full simply turn "full" on, remove the
+swap_info_struct from the avail list, reduce nr_swap_pages
+appropriately, and return failure.  Don't mess with lowest_bit or
+highest_bit at all.
+
+Then in swap_entry_free(), do something like:
+
+    dec_cluster_info_page(p, p->cluster_info, offset);
+    if (offset < p->lowest_bit)
+      p->lowest_bit = offset;
+-   if (offset > p->highest_bit) {
+-     bool was_full = !p->highest_bit;
++   if (offset > p->highest_bit)
+      p->highest_bit = offset;
+-     if (was_full && (p->flags & SWP_WRITEOK)) {
++   if (p->full && p->flags & SWP_WRITEOK) {
++     bool is_var_size_blkdev = is_variable_size_blkdev(p);
++     bool blkdev_full = is_variable_size_blkdev_full(p);
++
++     if (!is_var_size_blkdev || !blkdev_full) {
++       if (is_var_size_blkdev)
++         atomic_long_add(p->pages - p->inuse_pages, &nr_swap_pages);
++       p->full = false;
+        spin_lock(&swap_avail_lock);
+        WARN_ON(!plist_node_empty(&p->avail_list));
+        if (plist_node_empty(&p->avail_list))
+          plist_add(&p->avail_list,
+             &swap_avail_head);
+        spin_unlock(&swap_avail_lock);
++     } else if (blkdev_full) {
++       /* still full, so this page isn't actually
++        * available yet to use; once non-full,
++        * pages-inuse_pages will be the correct
++        * number to add (above) since below will
++        * inuse_pages--
++        */
++       atomic_long_dec(&nr_swap_pages);
+      }
+    }
+    atomic_long_inc(&nr_swap_pages);
+
+
+
+> @@ -815,7 +857,6 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
+>                 p->inuse_pages--;
+>                 frontswap_invalidate_page(p->type, offset);
+>                 if (p->flags & SWP_BLKDEV) {
+> -                       struct gendisk *disk = p->bdev->bd_disk;
+>                         if (disk->fops->swap_hint)
+>                                 disk->fops->swap_hint(p->bdev,
+>                                                 SWAP_SLOT_FREE,
+> --
+> 2.0.0
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
