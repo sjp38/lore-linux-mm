@@ -1,62 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 1153C6B0035
-	for <linux-mm@kvack.org>; Sat, 13 Sep 2014 01:43:56 -0400 (EDT)
-Received: by mail-ie0-f175.google.com with SMTP id at20so2043247iec.6
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 22:43:55 -0700 (PDT)
-Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com [2607:f8b0:4001:c05::231])
-        by mx.google.com with ESMTPS id rs7si4103859igb.13.2014.09.12.22.43.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 12 Sep 2014 22:43:55 -0700 (PDT)
-Received: by mail-ig0-f177.google.com with SMTP id h15so1635118igd.10
-        for <linux-mm@kvack.org>; Fri, 12 Sep 2014 22:43:55 -0700 (PDT)
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 521A26B0035
+	for <linux-mm@kvack.org>; Sat, 13 Sep 2014 03:13:07 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id lj1so2870766pab.27
+        for <linux-mm@kvack.org>; Sat, 13 Sep 2014 00:13:07 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id pd9si12158440pac.49.2014.09.13.00.13.05
+        for <linux-mm@kvack.org>;
+        Sat, 13 Sep 2014 00:13:06 -0700 (PDT)
+From: "Ren, Qiaowei" <qiaowei.ren@intel.com>
+Subject: RE: [PATCH v8 06/10] mips: sync struct siginfo with general version
+Date: Sat, 13 Sep 2014 07:13:02 +0000
+Message-ID: <9E0BE1322F2F2246BD820DA9FC397ADE017A5800@shsmsx102.ccr.corp.intel.com>
+References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com>
+ <1410425210-24789-7-git-send-email-qiaowei.ren@intel.com>
+ <alpine.DEB.2.10.1409120007550.4178@nanos>
+ <9E0BE1322F2F2246BD820DA9FC397ADE017A3FF0@shsmsx102.ccr.corp.intel.com>
+ <alpine.DEB.2.10.1409121015070.4178@nanos>
+In-Reply-To: <alpine.DEB.2.10.1409121015070.4178@nanos>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20140912170616.cb4c832a09cc2b221453ad32@linux-foundation.org>
-References: <20140830163834.29066.98205.stgit@zurg>
-	<20140830164127.29066.99498.stgit@zurg>
-	<20140912170404.f14663cc823691cab36bf793@linux-foundation.org>
-	<20140912170616.cb4c832a09cc2b221453ad32@linux-foundation.org>
-Date: Sat, 13 Sep 2014 09:43:54 +0400
-Message-ID: <CALYGNiM-ArE2+M+xjSbDjLyNc_Rr0C=6TKBKPi4bEwxFfeU_tA@mail.gmail.com>
-Subject: Re: [PATCH v2 6/6] mm/balloon_compaction: general cleanup
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Konstantin Khlebnikov <k.khlebnikov@samsung.com>, Rafael Aquini <aquini@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Sasha Levin <sasha.levin@oracle.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Sat, Sep 13, 2014 at 4:06 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Fri, 12 Sep 2014 17:04:04 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
->
->> On Sat, 30 Aug 2014 20:41:27 +0400 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
->>
->> > * move special branch for balloon migraion into migrate_pages
->> > * remove special mapping for balloon and its flag AS_BALLOON_MAP
->> > * embed struct balloon_dev_info into struct virtio_balloon
->> > * cleanup balloon_page_dequeue, kill balloon_page_free
->>
->> Not sure what's going on here - your include/linux/balloon_compaction.h
->> seems significantly different from mine.
->
-> OK, I worked it out.
->
->> I think I'll just drop this patch - it's quite inconvenient to have a
->> large "general cleanup" coming after a stack of significant functional
->> changes.  It makes review, debug, fix, merge and reversion harder.
->> Let's worry about it later.
->
-> But I'm still thinking we should defer this one?
 
-It seems in this case massive cleanup before fixies leads to much bigger mess.
-I've separated fixes specially for merging into stable kernels.
 
-The rest patches mostly rewrites this code using new approatch.
-I don't know how to make it more reviewable, it's easier to write a
-new version from the scratch.
-Probably rework should be untied form fixes and sent as separate patchset.
+On 2014-09-12, Thomas Gleixner wrote:
+> On Fri, 12 Sep 2014, Ren, Qiaowei wrote:
+>> On 2014-09-12, Thomas Gleixner wrote:
+>>> On Thu, 11 Sep 2014, Qiaowei Ren wrote:
+>>>=20
+>>>> Due to new fields about bound violation added into struct
+>>>> siginfo, this patch syncs it with general version to avoid build issue=
+.
+>>>=20
+>>> You completely fail to explain which build issue is addressed by
+>>> this patch. The code you added to kernel/signal.c which accesses
+>>> _addr_bnd is guarded by
+>>>=20
+>>> +#ifdef SEGV_BNDERR
+>>>=20
+>>> which is not defined my MIPS. Also why is this only affecting MIPS
+>>> and not any other architecture which provides its own struct siginfo ?
+>>>=20
+>>> That patch makes no sense at all, at least not without a proper explana=
+tion.
+>>>=20
+>> For arch=3Dmips, siginfo.h (arch/mips/include/uapi/asm/siginfo.h) will
+>> include general siginfo.h, and only replace general stuct siginfo
+>> with mips specific struct siginfo. So SEGV_BNDERR will be defined
+>> for all archs, and we will get error like "no _lower in struct
+>> siginfo" when arch=3Dmips.
+>>=20
+>> In addition, only MIPS arch define its own struct siginfo, so this
+>> is only affecting MIPS.
+>=20
+> So IA64 does not count as an architecture and therefor does not need
+> the same treatment, right?
+>=20
+struct siginfo for IA64 should be also synced. I will do this next post.
+
+Thanks,
+Qiaowei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
