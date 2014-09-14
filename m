@@ -1,113 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 18C006B0035
-	for <linux-mm@kvack.org>; Sun, 14 Sep 2014 05:36:31 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id z10so4301903pdj.6
-        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 02:36:30 -0700 (PDT)
-Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com [2607:f8b0:400e:c02::22a])
-        by mx.google.com with ESMTPS id jd10si8320634pbd.104.2014.09.14.02.36.29
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id B1C5C6B0035
+	for <linux-mm@kvack.org>; Sun, 14 Sep 2014 08:25:51 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id bj1so4568285pad.37
+        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 05:25:51 -0700 (PDT)
+Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com [2607:f8b0:400e:c02::22e])
+        by mx.google.com with ESMTPS id tn4si17876444pbc.136.2014.09.14.05.25.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 14 Sep 2014 02:36:29 -0700 (PDT)
-Received: by mail-pd0-f170.google.com with SMTP id fp1so4302713pdb.1
-        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 02:36:29 -0700 (PDT)
-Message-ID: <54156197.5050303@gmail.com>
-Date: Sun, 14 Sep 2014 12:36:23 +0300
+        Sun, 14 Sep 2014 05:25:50 -0700 (PDT)
+Received: by mail-pd0-f174.google.com with SMTP id v10so4417710pde.5
+        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 05:25:50 -0700 (PDT)
+Message-ID: <54158949.8080009@gmail.com>
+Date: Sun, 14 Sep 2014 15:25:45 +0300
 From: Boaz Harrosh <openosd@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/9] mm: Let sparse_{add,remove}_one_section receive a
- node_id
-References: <1409173922-7484-1-git-send-email-ross.zwisler@linux.intel.com> <540F1EC6.4000504@plexistor.com> <540F20AB.4000404@plexistor.com> <540F48BA.2090304@intel.com> <541022DB.9090000@plexistor.com> <541077DF.1060609@intel.com> <5410899C.3030501@plexistor.com> <54109845.3050309@intel.com> <54115FAB.2050601@gmail.com> <5411D6D9.5080107@intel.com>
-In-Reply-To: <5411D6D9.5080107@intel.com>
+Subject: Re: [PATCH v10 20/21] ext4: Add DAX functionality
+References: <cover.1409110741.git.matthew.r.wilcox@intel.com> <5422062f87eb5606f4632fd06575254379f40ddc.1409110741.git.matthew.r.wilcox@intel.com> <20140903111302.GG20473@dastard> <54108124.9030707@gmail.com> <20140911043815.GP20518@dastard>
+In-Reply-To: <20140911043815.GP20518@dastard>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Boaz Harrosh <boaz@plexistor.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@fb.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-nvdimm@lists.01.org, Toshi Kani <toshi.kani@hp.com>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, willy@linux.intel.com
 
-On 09/11/2014 08:07 PM, Dave Hansen wrote:
+On 09/11/2014 07:38 AM, Dave Chinner wrote:
 <>
 > 
-> OK, that sounds like it will work.  The "leaked until the next mount"
-> sounds disastrous, but I'm sure you'll fix that.  I can see how it might
-> lead to some fragmentation if only small amounts are ever pinned, but
-> not a deal-breaker.
+> And so ext4 is buggy, because what ext4 does ....
+> 
+> ... is not a retry - it falls back to a fundamentally different
+> code path. i.e:
+> 
+> sys_write()
+> ....
+> 	new_sync_write
+> 	  ext4_file_write_iter
+> 	    __generic_file_write_iter(O_DIRECT)
+> 	      written = generic_file_direct_write()
+> 	      if (error || complete write)
+> 	        return
+> 	      /* short write! do buffered IO to finish! */
+> 	      generic_perform_write()
+> 	        loop {
+> 			ext4_write_begin
+> 			ext4_write_end
+> 		}
+> 
+> and so we allocate pages in the page cache and do buffered IO into
+> them because DAX doesn't hook ->writebegin/write_end as we are
+> supposed to intercept all buffered IO at a higher level.
+> 
+> This causes data corruption when tested at ENOSPC on DAX enabled
+> ext4 filesystems. I think that it's an oversight and hence a bug
+> that needs to be fixed but I'm first asking Willy to see if it was
+> intentional or not because maybe I missed sometihng in the past 4
+> months since I've paid really close attention to the DAX code.
+> 
+> And in saying that, Boaz, I'd suggest you spend some time looking at
+> the history of the DAX patchset. Pay careful note to who came up
+> with the original idea and architecture that led to the IO path you
+> are so stridently defending.....
 > 
 
-There is no such thing as fragmentation with memory mapped storage ;-)
+Yes! you are completely right, and I have not seen this bug. The same bug
+exist with ext2 as well. I think this is a bug in patch:
+	[PATCH v10 07/21] Replace XIP read and write with DAX I/O
 
-<>
-> I'm saying that, if we have a 'struct page' for the memory, we should
-> try to make the mmap()s more normal.  This enables all kinds of things
-> that DAX does not support today, like direct I/O.
-> 
+It needs a:
+@@ -2584,7 +2584,7 @@ ssize_t __generic_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
+ 		loff_t endbyte;
+ 
+ 		written = generic_file_direct_write(iocb, from, pos);
+-		if (written < 0 || written == count)
++		if (written < 0 || written == count || IS_DAX(inode))
+ 			goto out;
+ 
+ 		/*
 
-What? no! direct I/O is fully supported. Including all API's of it. Do
-you mean open(O_DIRECT) and io_submit(..) Yes it is fully supported.
+Or something like that. Is that what you meant?
 
-In fact all IO is direct IO. there is never page-cache on the way, hence direct
+(You have commented on the ext4 patch but this is already earlier in ext2
+ so I did not see it, sorry. "If you explain slow I finally get it ;-)" )
 
-BTW: These patches enable something else. Say FSA is DAX and FSB is regular
-disk FS then
-	fda = open(/mnt/FSA);
-	pa = mmap(fda, ...);
+> Cheers,
+> Dave.
 
-	fdb = open(/mnt/FSB, O_DIRECT);
-	io_submit(fdb,..,pa ,..);
-	/* I mean pa is put for IO into the passed iocb for fdb */
+Yes I agree this is a very bad data corruption bug. I also think that the
+read path should not be allowed to fall back to buffered IO just the same
+for the same reason. We must not allow any real data in page_cache for a
+DAX file.
 
-Before this patch above will not work and revert to buffered IO, but
-with these patches it will work.
-Please note this is true for the submitted pmem driver. With brd which
-also supports DAX this will work, because brd always uses pages.
-
-<>
-> Great, so we at least agree that this adds complexity.
-> 
-
-But the complexity is already there DAX by Matthew is to go in soon I hope.
-Surly these added pages do not add to the complexity that much.
-
-<>
-> 
-> OK, so I think I at least understand the scope of the patch set and the
-> limitations.  I think I've summarized the limitations:
-> 
-> 1. Approach requires all of RAM+Pmem to be direct-mapped (rules out
->    almost all 32-bit systems, or any 64-bit systems with more than 64TB
->    of RAM+pmem-storage)
-
-Yes, for NOW
-
-> 2. Approach is currently incompatible with some kernel code that
->    requires a 'struct page' (such as direct I/O), and all kernel code
->    that requires knowledge of zones or NUMA nodes.
-
-NO!
-Direct IO - supported
-NUMA - supported
-
-"all kernel code that requires knowledge of zones" - Not needed
-
-> 3. Approach requires 1/64 of the amount of storage to be consumed by
->    RAM for a pseudo 'struct page'.  If you had 64GB of storage and 1GB
->    of RAM, you would simply run our of RAM.
-> 
-
-Yes so in a system as above of 64GB of pmem, 1GB of pmem will need to be
-set aside and hotpluged as volatile memory. This already works today BTW
-you can set aside a portion of NvDIMM and hotplug it as system memory.
-
-We are already used to pay that ratio for RAM.
-On a kernel-config choice that ratio can be also paid for pmem. This is
-why I left it a configuration option
-
-> Did I miss any?
-> 
-
-Thanks
+Thanks for explaining
 Boaz
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
