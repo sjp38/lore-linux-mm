@@ -1,70 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 934BA6B0035
-	for <linux-mm@kvack.org>; Sun, 14 Sep 2014 16:46:19 -0400 (EDT)
-Received: by mail-ig0-f182.google.com with SMTP id h18so3011249igc.9
-        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 13:46:19 -0700 (PDT)
-Received: from mail-ie0-x233.google.com (mail-ie0-x233.google.com [2607:f8b0:4001:c03::233])
-        by mx.google.com with ESMTPS id jd1si10682365icc.20.2014.09.14.13.46.18
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 14 Sep 2014 13:46:18 -0700 (PDT)
-Received: by mail-ie0-f179.google.com with SMTP id rl12so3639550iec.10
-        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 13:46:18 -0700 (PDT)
-Date: Sun, 14 Sep 2014 13:46:15 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] oom: break after selecting process to kill
-In-Reply-To: <20140912122143.GA20622@localhost.localdomain>
-Message-ID: <alpine.DEB.2.02.1409141345300.19382@chino.kir.corp.google.com>
-References: <20140911213338.GA4098@localhost.localdomain> <20140912080853.GA12156@dhcp22.suse.cz> <20140912082329.GA12330@localhost.localdomain> <20140912121817.GE12156@dhcp22.suse.cz> <20140912122143.GA20622@localhost.localdomain>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 79A1A6B0035
+	for <linux-mm@kvack.org>; Sun, 14 Sep 2014 19:24:20 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id ey11so5123925pad.20
+        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 16:24:20 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id ha1si19887167pbd.97.2014.09.14.16.24.18
+        for <linux-mm@kvack.org>;
+        Sun, 14 Sep 2014 16:24:19 -0700 (PDT)
+Date: Mon, 15 Sep 2014 08:24:27 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 01/10] zsmalloc: fix init_zspage free obj linking
+Message-ID: <20140914232427.GD2160@bbox>
+References: <1410468841-320-1-git-send-email-ddstreet@ieee.org>
+ <1410468841-320-2-git-send-email-ddstreet@ieee.org>
+ <20140912045913.GA2160@bbox>
+ <CALZtONAuJhgZLJECxwQOyKPj2n02d+521d+eHCkqLjjc=Ba9FQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CALZtONAuJhgZLJECxwQOyKPj2n02d+521d+eHCkqLjjc=Ba9FQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Niv Yehezkel <executerx@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, oleg@redhat.com
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, 12 Sep 2014, Niv Yehezkel wrote:
-
-> > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > > index 1e11df8..3203578 100644
-> > > --- a/mm/oom_kill.c
-> > > +++ b/mm/oom_kill.c
-> > > @@ -315,7 +315,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
-> > >  		case OOM_SCAN_SELECT:
-> > >  			chosen = p;
-> > >  			chosen_points = ULONG_MAX;
-> > > -			/* fall through */
-> > > +			break;
-> > >  		case OOM_SCAN_CONTINUE:
-> > >  			continue;
-> > >  		case OOM_SCAN_ABORT:
-> > > @@ -324,6 +324,8 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
-> > >  		case OOM_SCAN_OK:
-> > >  			break;
-> > >  		};
-> > > +		if (chosen_points == ULONG_MAX)
-> > > +			break;
-> > >  		points = oom_badness(p, NULL, nodemask, totalpages);
-> > >  		if (!points || points < chosen_points)
-> > >  			continue;
-> > > -- 
-> > > 1.7.10.4
-> > > 
-> > 
-> > 
-> > -- 
-> > Michal Hocko
-> > SUSE Labs
+On Fri, Sep 12, 2014 at 12:43:22PM -0400, Dan Streetman wrote:
+> On Fri, Sep 12, 2014 at 12:59 AM, Minchan Kim <minchan@kernel.org> wrote:
+> > On Thu, Sep 11, 2014 at 04:53:52PM -0400, Dan Streetman wrote:
+> >> When zsmalloc creates a new zspage, it initializes each object it contains
+> >> with a link to the next object, so that the zspage has a singly-linked list
+> >> of its free objects.  However, the logic that sets up the links is wrong,
+> >> and in the case of objects that are precisely aligned with the page boundries
+> >> (e.g. a zspage with objects that are 1/2 PAGE_SIZE) the first object on the
+> >> next page is skipped, due to incrementing the offset twice.  The logic can be
+> >> simplified, as it doesn't need to calculate how many objects can fit on the
+> >> current page; simply checking the offset for each object is enough.
+> >
+> > If objects are precisely aligned with the page boundary, pages_per_zspage
+> > should be 1 so there is no next page.
 > 
-> As mentioned earlier, there's no need to keep iterating over all
-> running processes once the process with the highest score has been found.
-> 
+> ah, ok.  I wonder if it should be changed anyway so it doesn't rely on
+> that detail, in case that's ever changed in the future.  It's not
+> obvious the existing logic relies on that for correct operation.  And
+> this simplifies the logic too.
 
-This would lead to unnecessary oom killing since we may miss a process 
-that returns OOM_SCAN_ABORT simply because it is later in the tasklist (we 
-want to defer oom killing if there is an exiting process or an oom kill 
-victim hasn't exited yet).  NACK.
+Correct description and resend if you want.
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
