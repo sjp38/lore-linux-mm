@@ -1,71 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D14B56B0036
-	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 12:24:48 -0400 (EDT)
-Received: by mail-qa0-f48.google.com with SMTP id v10so4040706qac.7
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 09:24:48 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t89si15345997qga.63.2014.09.15.09.24.46
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id DDD056B0037
+	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 12:24:50 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id kq14so6660431pab.11
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 09:24:50 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id gz10si23990685pbd.137.2014.09.15.09.24.47
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Sep 2014 09:24:46 -0700 (PDT)
-Date: Mon, 15 Sep 2014 18:21:31 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [RFC PATCH v2 5/5] mm, shmem: Show location of non-resident
-	shmem pages in smaps
-Message-ID: <20140915162131.GA22768@redhat.com>
-References: <1410791077-5300-1-git-send-email-jmarchan@redhat.com> <1410791077-5300-6-git-send-email-jmarchan@redhat.com>
+        Mon, 15 Sep 2014 09:24:48 -0700 (PDT)
+Message-ID: <541712C9.5020509@infradead.org>
+Date: Mon, 15 Sep 2014 09:24:41 -0700
+From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1410791077-5300-6-git-send-email-jmarchan@redhat.com>
+Subject: Re: [RFC/PATCH v2 01/10] Add kernel address sanitizer infrastructure.
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com> <1410359487-31938-1-git-send-email-a.ryabinin@samsung.com> <1410359487-31938-2-git-send-email-a.ryabinin@samsung.com> <5414F0F3.4000001@infradead.org> <5417058E.1010206@samsung.com>
+In-Reply-To: <5417058E.1010206@samsung.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Marchand <jmarchan@redhat.com>
-Cc: linux-mm@kvack.org, Randy Dunlap <rdunlap@infradead.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux390@de.ibm.com, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Mackerras <paulus@samba.org>, Ingo Molnar <mingo@redhat.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org
+To: Andrey Ryabinin <a.ryabinin@samsung.com>, linux-kernel@vger.kernel.org
+Cc: Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, linux-mm@kvack.org, Michal Marek <mmarek@suse.cz>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
 
-Hi Jerome,
+On 09/15/14 08:28, Andrey Ryabinin wrote:
+> On 09/14/2014 05:35 AM, Randy Dunlap wrote:
+>> Following sentence is confusing.  I'm not sure how to fix it.
+>>
+> 
+> 
+> Perhaps rephrase is like this:
+> 
+> Do not use slub poisoning with KASan if user tracking enabled (iow slub_debug=PU).
 
-Not sure I understand this patch correctly, will try to read it later.
-But a couple of nits/questions anyway,
+                                       if user tracking is enabled
 
-On 09/15, Jerome Marchand wrote:
->
-> +The ShmXXX lines only appears for shmem mapping. They show the amount of memory
-> +from the mapping that is currently:
-> + - resident in RAM but not mapped into any process (ShmNotMapped)
+> User tracking info (allocation/free stacktraces) are stored inside slub object's metadata.
+> Slub poisoning overwrites slub object and it's metadata with poison value on freeing.
 
-But how can we know that it is not mapped by another process?
+                                            its
 
-And in fact "not mapped" looks confusing (at least to me). IIUC it is actually
-mapped even by this process, just it never tried to fault these (resident or
-swapped) pages in. Right?
+> So if KASan will detect use after free, allocation/free stacktraces will be overwritten
 
-> +void update_shmem_stats(struct mem_size_stats *mss, struct vm_area_struct *vma,
-> +			pgoff_t pgoff, unsigned long size)
+  So if KASan detects a use after free, allocation/free stacktraces are overwritten
 
-static?
+> and KASan won't be able to print them.
 
-> +{
-> +	int count = 0;
-> +
-> +	switch (shmem_locate(vma, pgoff, &count)) {
-> +	case SHMEM_RESIDENT:
-> +		if (!count)
-> +			mss->shmem_notmapped += size;
-> +		break;
-> +	case SHMEM_SWAP:
-> +		mss->shmem_swap += size;
-> +		break;
-> +	}
-> +}
 
-It seems that shmem_locate() and shmem_vma() are only defined if CONFIG_SHMEM,
-probably this series needs more ifdef's.
+Thanks.
 
-And I am not sure why we ignore SHMEM_SWAPCACHE...
-
-Oleg.
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
