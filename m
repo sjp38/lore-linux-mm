@@ -1,126 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 74F526B0035
-	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 01:09:47 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id fa1so5651440pad.2
-        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 22:09:47 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id t1si20648152pdi.123.2014.09.14.22.09.44
-        for <linux-mm@kvack.org>;
-        Sun, 14 Sep 2014 22:09:46 -0700 (PDT)
-Date: Mon, 15 Sep 2014 14:09:54 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC PATCH v3 0/4] fix freepage count problems in memory
- isolation
-Message-ID: <20140915050954.GH2160@bbox>
-References: <1409040498-10148-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 982266B0035
+	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 01:11:22 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id y13so5440292pdi.7
+        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 22:11:22 -0700 (PDT)
+Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
+        by mx.google.com with ESMTPS id qo10si20633258pac.133.2014.09.14.22.11.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 14 Sep 2014 22:11:21 -0700 (PDT)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Mon, 15 Sep 2014 13:11:14 +0800
+Subject: [RFC] arm:extend the reserved mrmory for initrd to be page aligned
+Message-ID: <35FD53F367049845BC99AC72306C23D103D6DB4915FC@CNBJMBX05.corpusers.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <1409040498-10148-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: 'Will Deacon' <will.deacon@arm.com>, "'linux@arm.linux.org.uk'" <linux@arm.linux.org.uk>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "linux-arm-msm@vger.kernel.org" <linux-arm-msm@vger.kernel.org>
 
-Hi Joonsoo,
+this patch extend the start and end address of initrd to be page aligned,
+so that we can free all memory including the un-page aligned head or tail
+page of initrd, if the start or end address of initrd are not page
+aligned, the page can't be freed by free_initrd_mem() function.
 
-Sorry for late response.
+Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
+---
+ arch/arm/mm/init.c   | 20 ++++++++++++++------
+ arch/arm64/mm/init.c | 37 +++++++++++++++++++++++++++++++++----
+ 2 files changed, 47 insertions(+), 10 deletions(-)
 
-On Tue, Aug 26, 2014 at 05:08:14PM +0900, Joonsoo Kim wrote:
-> This is version 3 patchset which is improved and minimized version of
-> version 1 to fix freepage accounting problem during memory isolation.
-> I tried different approach in version 2, but, it looks really complicated
-> so I change my mind to improve version 1. You can see version 1, 2 in
-> following links [1] [2], respectively.
-> 
-> IMO, this v3 is better than v2, because this is simpler than v2 so
-> better for maintainance and this doesn't change pageblock isolation
-> logic so it is much easier to backport.
-> 
-> This problems are found by testing my patchset [3]. There are some race
-> conditions on pageblock isolation and these race cause incorrect
-> freepage count.
-> 
-> Before describing bugs itself, I first explain definition of freepage.
-> 
-> 1. pages on buddy list are counted as freepage.
-> 2. pages on isolate migratetype buddy list are *not* counted as freepage.
-> 3. pages on cma buddy list are counted as CMA freepage, too.
-> 
-> Now, I describe problems and related patch.
-> 
-> Patch 1: There is race conditions on getting pageblock migratetype that
-> it results in misplacement of freepages on buddy list, incorrect
-> freepage count and un-availability of freepage.
-> 
-> Patch 2: Freepages on pcp list could have stale cached information to
-> determine migratetype of buddy list to go. This causes misplacement
-> of freepages on buddy list and incorrect freepage count.
-> 
-> Patch 4: Merging between freepages on different migratetype of
-> pageblocks will cause freepages accouting problem. This patch fixes it.
-
-Look though this patchset, it's really simple compared to v2 although
-it adds some overhead on hotpath but I support this patchset unless
-other suggest more simple/clean code to fix horrible race bugs.
-
-Thanks a lot!
-
-> 
-> Without patchset [3], above problem doesn't happens on my CMA allocation
-> test, because CMA reserved pages aren't used at all. So there is no
-> chance for above race.
-> 
-> With patchset [3], I did simple CMA allocation test and get below result.
-> 
-> - Virtual machine, 4 cpus, 1024 MB memory, 256 MB CMA reservation
-> - run kernel build (make -j16) on background
-> - 30 times CMA allocation(8MB * 30 = 240MB) attempts in 5 sec interval
-> - Result: more than 5000 freepage count are missed
-> 
-> With patchset [3] and this patchset, I found that no freepage count are
-> missed so that I conclude that problems are solved.
-> 
-> These problems can be possible on memory hot remove users, although
-> I didn't check it further.
-> 
-> This patchset is based on linux-next-20140826.
-> Please see individual patches for more information.
-> 
-> Thanks.
-> 
-> [1]: https://lkml.org/lkml/2014/7/4/79
-> [2]: lkml.org/lkml/2014/8/6/52
-> [3]: Aggressively allocate the pages on cma reserved memory
->      https://lkml.org/lkml/2014/5/30/291
-> 
-> Joonsoo Kim (4):
->   mm/page_alloc: fix incorrect isolation behavior by rechecking
->     migratetype
->   mm/page_alloc: add freepage on isolate pageblock to correct buddy
->     list
->   mm/page_alloc: move migratetype recheck logic to __free_one_page()
->   mm/page_alloc: restrict max order of merging on isolated pageblock
-> 
->  include/linux/mmzone.h         |    4 ++++
->  include/linux/page-isolation.h |    8 ++++++++
->  mm/page_alloc.c                |   28 +++++++++++++++++++---------
->  mm/page_isolation.c            |    2 ++
->  4 files changed, 33 insertions(+), 9 deletions(-)
-> 
-> -- 
-> 1.7.9.5
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+index 659c75d..6c1db07 100644
+--- a/arch/arm/mm/init.c
++++ b/arch/arm/mm/init.c
+@@ -288,7 +288,12 @@ void __init arm_memblock_init(const struct machine_des=
+c *mdesc)
+ 		phys_initrd_start =3D __virt_to_phys(initrd_start);
+ 		phys_initrd_size =3D initrd_end - initrd_start;
+ 	}
+-	initrd_start =3D initrd_end =3D 0;
++
++	/* make sure the start and end address are page aligned */
++	phys_initrd_size =3D round_up(phys_initrd_start + phys_initrd_size, PAGE_=
+SIZE);
++	phys_initrd_start =3D round_down(phys_initrd_start, PAGE_SIZE);
++	phys_initrd_size -=3D phys_initrd_start;
++
+ 	if (phys_initrd_size &&
+ 	    !memblock_is_region_memory(phys_initrd_start, phys_initrd_size)) {
+ 		pr_err("INITRD: 0x%08llx+0x%08lx is not a memory region - disabling init=
+rd\n",
+@@ -301,13 +306,11 @@ void __init arm_memblock_init(const struct machine_de=
+sc *mdesc)
+ 		       (u64)phys_initrd_start, phys_initrd_size);
+ 		phys_initrd_start =3D phys_initrd_size =3D 0;
+ 	}
+-	if (phys_initrd_size) {
++	if (phys_initrd_size)
+ 		memblock_reserve(phys_initrd_start, phys_initrd_size);
++	else
++		initrd_start =3D initrd_end =3D 0;
+=20
+-		/* Now convert initrd to virtual addresses */
+-		initrd_start =3D __phys_to_virt(phys_initrd_start);
+-		initrd_end =3D initrd_start + phys_initrd_size;
+-	}
+ #endif
+=20
+ 	arm_mm_memblock_reserve();
+@@ -636,6 +639,11 @@ static int keep_initrd;
+ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+ 	if (!keep_initrd) {
++		if (start =3D=3D initrd_start)
++			start =3D round_down(start, PAGE_SIZE);
++		if (end =3D=3D initrd_end)
++			end =3D round_up(end, PAGE_SIZE);
++
+ 		poison_init_mem((void *)start, PAGE_ALIGN(end) - start);
+ 		free_reserved_area((void *)start, (void *)end, -1, "initrd");
+ 	}
+diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+index 5472c24..9dfd9a6 100644
+--- a/arch/arm64/mm/init.c
++++ b/arch/arm64/mm/init.c
+@@ -138,15 +138,38 @@ static void arm64_memory_present(void)
+ void __init arm64_memblock_init(void)
+ {
+ 	phys_addr_t dma_phys_limit =3D 0;
+-
++	phys_addr_t phys_initrd_start;
++	phys_addr_t phys_initrd_size;
+ 	/*
+ 	 * Register the kernel text, kernel data, initrd, and initial
+ 	 * pagetables with memblock.
+ 	 */
+ 	memblock_reserve(__pa(_text), _end - _text);
+ #ifdef CONFIG_BLK_DEV_INITRD
+-	if (initrd_start)
+-		memblock_reserve(__virt_to_phys(initrd_start), initrd_end - initrd_start=
+);
++	if (initrd_start) {
++		phys_initrd_start =3D __virt_to_phys(initrd_start);
++		phys_initrd_size =3D initrd_end - initrd_start;
++		/* make sure the start and end address are page aligned */
++		phys_initrd_size =3D round_up(phys_initrd_start + phys_initrd_size, PAGE=
+_SIZE);
++		phys_initrd_start =3D round_down(phys_initrd_start, PAGE_SIZE);
++		phys_initrd_size -=3D phys_initrd_start;
++		if (phys_initrd_size &&
++				!memblock_is_region_memory(phys_initrd_start, phys_initrd_size)) {
++			pr_err("INITRD: %pa+%pa is not a memory region - disabling initrd\n",
++					&phys_initrd_start, &phys_initrd_size);
++			phys_initrd_start =3D phys_initrd_size =3D 0;
++		}
++		if (phys_initrd_size &&
++				memblock_is_region_reserved(phys_initrd_start, phys_initrd_size)) {
++			pr_err("INITRD: %pa+%pa overlaps in-use memory region - disabling initr=
+d\n",
++					&phys_initrd_start, &phys_initrd_size);
++			phys_initrd_start =3D phys_initrd_size =3D 0;
++		}
++		if (phys_initrd_size)
++			memblock_reserve(phys_initrd_start, phys_initrd_size);
++		else
++			initrd_start =3D initrd_end =3D 0;
++	}
+ #endif
+=20
+ 	if (!efi_enabled(EFI_MEMMAP))
+@@ -334,8 +357,14 @@ static int keep_initrd;
+=20
+ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+-	if (!keep_initrd)
++	if (!keep_initrd) {
++		if (start =3D=3D initrd_start)
++			start =3D round_down(start, PAGE_SIZE);
++		if (end =3D=3D initrd_end)
++			end =3D round_up(end, PAGE_SIZE);
++
+ 		free_reserved_area((void *)start, (void *)end, 0, "initrd");
++	}
+ }
+=20
+ static int __init keepinitrd_setup(char *__unused)
+--=20
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
