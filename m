@@ -1,89 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 984036B0080
-	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 16:59:19 -0400 (EDT)
-Received: by mail-ie0-f178.google.com with SMTP id tp5so5415954ieb.37
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 13:59:19 -0700 (PDT)
-Received: from mail-ie0-x232.google.com (mail-ie0-x232.google.com [2607:f8b0:4001:c03::232])
-        by mx.google.com with ESMTPS id bg2si4582icb.58.2014.09.15.13.59.18
+Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F77B6B0081
+	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 17:29:51 -0400 (EDT)
+Received: by mail-yk0-f174.google.com with SMTP id q200so2421995ykb.19
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 14:29:51 -0700 (PDT)
+Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
+        by mx.google.com with ESMTPS id g35si11229213yhb.157.2014.09.15.14.29.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 15 Sep 2014 13:59:19 -0700 (PDT)
-Received: by mail-ie0-f178.google.com with SMTP id tp5so5181911ieb.23
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 13:59:18 -0700 (PDT)
-From: Dan Streetman <ddstreet@ieee.org>
-Subject: [PATCH] zsmalloc: simplify init_zspage free obj linking
-Date: Mon, 15 Sep 2014 16:58:50 -0400
-Message-Id: <1410814730-5740-1-git-send-email-ddstreet@ieee.org>
-In-Reply-To: <20140914232427.GD2160@bbox>
-References: <20140914232427.GD2160@bbox>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 15 Sep 2014 14:29:50 -0700 (PDT)
+Message-ID: <1410815951.28990.384.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v2 6/6] x86, pat: Update documentation for WT changes
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Mon, 15 Sep 2014 15:19:11 -0600
+In-Reply-To: <1410384895.28990.312.camel@misato.fc.hp.com>
+References: <1410367910-6026-1-git-send-email-toshi.kani@hp.com>
+	 <1410367910-6026-7-git-send-email-toshi.kani@hp.com>
+	 <CALCETrVnHg0X=R23qyiPtxYs3knHaXq65L0Jw_1oY4=gX5kpXQ@mail.gmail.com>
+	 <1410379933.28990.287.camel@misato.fc.hp.com>
+	 <CALCETrUh20-2PX_KN2KWO085n=5XJpOnPysmCGbk7bufaD3Mhw@mail.gmail.com>
+	 <1410384895.28990.312.camel@misato.fc.hp.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>, Dan Streetman <ddstreet@ieee.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Juergen Gross <jgross@suse.com>, Stefan Bader <stefan.bader@canonical.com>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Yigal Korman <yigal@plexistor.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-Change zsmalloc init_zspage() logic to iterate through each object on
-each of its pages, checking the offset to verify the object is on the
-current page before linking it into the zspage.
+On Wed, 2014-09-10 at 15:34 -0600, Toshi Kani wrote:
+> On Wed, 2014-09-10 at 13:29 -0700, Andy Lutomirski wrote:
+> > On Wed, Sep 10, 2014 at 1:12 PM, Toshi Kani <toshi.kani@hp.com> wrote:
+> > > On Wed, 2014-09-10 at 11:30 -0700, Andy Lutomirski wrote:
+> > >> On Wed, Sep 10, 2014 at 9:51 AM, Toshi Kani <toshi.kani@hp.com> wrote:
+> > >> > +Drivers may map the entire NV-DIMM range with ioremap_cache and then change
+> > >> > +a specific range to wt with set_memory_wt.
+> > >>
+> > >> That's mighty specific :)
+> > >
+> > > How about below?
+> > >
+> > > Drivers may use set_memory_wt to set WT type for cached reserve ranges.
+> > 
+> > Do they have to be cached?
+> 
+> Yes, set_memory_xyz only supports WB->type->WB transition.
+> 
+> > How about:
+> > 
+> > Drivers may call set_memory_wt on ioremapped ranges.  In this case,
+> > there is no need to change the memory type back before calling
+> > iounmap.
+> > 
+> > (Or only on cached ioremapped ranges if that is, in fact, the case.)
+> 
+> Sounds good.  Yes, I will use cashed ioremapped ranges.
 
-The current zsmalloc init_zspage free object linking code has logic
-that relies on there only being one page per zspage when PAGE_SIZE
-is a multiple of class->size.  It calculates the number of objects
-for the current page, and iterates through all of them plus one,
-to account for the assumed partial object at the end of the page.
-While this currently works, the logic can be simplified to just
-link the object at each successive offset until the offset is larger
-than PAGE_SIZE, which does not rely on PAGE_SIZE being a multiple of
-class->size.
+Well, testing "no need to change the memory type back before calling
+iounmap" turns out to be a good test case.  I realized that
+set_memory_xyz only works properly for RAM.  There are two problems for
+using this interface for ioremapped ranges.
 
-Signed-off-by: Dan Streetman <ddstreet@ieee.org>
-Cc: Minchan Kim <minchan@kernel.org>
----
- mm/zsmalloc.c | 14 +++++---------
- 1 file changed, 5 insertions(+), 9 deletions(-)
+1) set_memory_xyz calls reserve_memtype() with __pa(addr).  However,
+__pa() translates the addr into a fake physical address when it is an
+ioremapped address.
 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index c4a9157..03aa72f 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -628,7 +628,7 @@ static void init_zspage(struct page *first_page, struct size_class *class)
- 	while (page) {
- 		struct page *next_page;
- 		struct link_free *link;
--		unsigned int i, objs_on_page;
-+		unsigned int i = 1;
- 
- 		/*
- 		 * page->index stores offset of first object starting
-@@ -641,14 +641,10 @@ static void init_zspage(struct page *first_page, struct size_class *class)
- 
- 		link = (struct link_free *)kmap_atomic(page) +
- 						off / sizeof(*link);
--		objs_on_page = (PAGE_SIZE - off) / class->size;
- 
--		for (i = 1; i <= objs_on_page; i++) {
--			off += class->size;
--			if (off < PAGE_SIZE) {
--				link->next = obj_location_to_handle(page, i);
--				link += class->size / sizeof(*link);
--			}
-+		while ((off += class->size) < PAGE_SIZE) {
-+			link->next = obj_location_to_handle(page, i++);
-+			link += class->size / sizeof(*link);
- 		}
- 
- 		/*
-@@ -660,7 +656,7 @@ static void init_zspage(struct page *first_page, struct size_class *class)
- 		link->next = obj_location_to_handle(next_page, 0);
- 		kunmap_atomic(link);
- 		page = next_page;
--		off = (off + class->size) % PAGE_SIZE;
-+		off %= PAGE_SIZE;
- 	}
- }
- 
--- 
-1.8.3.1
+2) reserve_memtype() does not work for set_memory_xyz.  For RAM, the WB
+state is managed untracked.  Hence, WB->new->WB is not considered as a
+conflict.  For ioremapped ranges, WB is tracked in the same way as other
+cache types.  Hence, WB->new is considered as a conflict.
+
+In my previous testing, 2) was undetected since 1) led using a fake
+physical address which was not tracked for WB.  This made ioremapped
+ranges worked just like RAM. :-( 
+
+Anyway, 1) can be fixed by using slow_virt_to_phys() instead of __pa().
+set_memory_xyz is already slow, but this makes it even slower, though.
+
+For 2), WB has to be continuously tracked in order to detect aliasing,
+ex. ioremap_cache and ioremap to a same address.  So, I think
+reserve_memtype() needs the following changes:
+ - Add a new arg to see if an operation is to create a new mapping or to
+change cache attribute.
+ - Track overlapping maps so that cache type change to an overlapping
+range can be detected and failed.
+
+This level of changes requires a separate set of patches if we pursue to
+support ioremapped ranges.  So, I am considering to take one of the two
+options below.
+
+A) Drop the patch for set_memory_wt.
+
+B) Keep the patch for set_memory_wt, but document that it fails with
+-EINVAL and its use is for RAM only.
+
+Any suggestion?
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
