@@ -1,339 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 683DD6B0078
-	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 16:53:57 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id kq14so7211470pab.39
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 13:53:57 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id sw2si25357669pab.185.2014.09.15.13.53.55
-        for <linux-mm@kvack.org>;
-        Mon, 15 Sep 2014 13:53:56 -0700 (PDT)
-Message-ID: <541751DF.8090706@intel.com>
-Date: Mon, 15 Sep 2014 13:53:51 -0700
-From: Dave Hansen <dave.hansen@intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v8 09/10] x86, mpx: cleanup unused bound tables
-References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com> <1410425210-24789-10-git-send-email-qiaowei.ren@intel.com>
-In-Reply-To: <1410425210-24789-10-git-send-email-qiaowei.ren@intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F6AB6B007B
+	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 16:57:24 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id kx10so7159203pab.38
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 13:57:24 -0700 (PDT)
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+        by mx.google.com with ESMTPS id f7si25319514pat.215.2014.09.15.13.57.21
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 15 Sep 2014 13:57:23 -0700 (PDT)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so7232464pab.29
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 13:57:21 -0700 (PDT)
+Content-Type: multipart/signed; boundary="Apple-Mail=_E598B7C7-17C5-47C3-B92D-62A85D68E0DE"; protocol="application/pgp-signature"; micalg=pgp-sha1
+Mime-Version: 1.0 (Mac OS X Mail 7.3 \(1878.6\))
+Subject: Re: Best way to pin a page in ext4?
+From: Andreas Dilger <adilger@dilger.ca>
+In-Reply-To: <20140915185102.0944158037A@closure.thunk.org>
+Date: Mon, 15 Sep 2014 14:57:23 -0600
+Message-Id: <36321733-F488-49E3-8733-C6758F83DFA1@dilger.ca>
+References: <20140915185102.0944158037A@closure.thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Qiaowei Ren <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
-Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: linux-mm <linux-mm@kvack.org>, linux-ext4@vger.kernel.org
 
-On 09/11/2014 01:46 AM, Qiaowei Ren wrote:
-> +static int get_bt_addr(long __user *bd_entry, unsigned long *bt_addr)
-> +{
-> +	int valid;
-> +
-> +	if (!access_ok(VERIFY_READ, (bd_entry), sizeof(*(bd_entry))))
-> +		return -EFAULT;
 
-Nit: get rid of unnecessary parenthesis.
+--Apple-Mail=_E598B7C7-17C5-47C3-B92D-62A85D68E0DE
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+	charset=us-ascii
 
-> +	pagefault_disable();
-> +	if (get_user(*bt_addr, bd_entry))
-> +		goto out;
-> +	pagefault_enable();
+On Sep 15, 2014, at 12:51 PM, Theodore Ts'o <tytso@mit.edu> wrote:
+> In ext4, we currently use the page cache to store the allocation
+> bitmaps.  The pages are associated with an internal, in-memory inode
+> which is located in EXT4_SB(sb)->s_buddy_cache.  Since the pages can be
+> reconstructed at will, either by reading them from disk (in the case of
+> the actual allocation bitmap), or by calculating the buddy bitmap from
+> the allocation bitmap, normally we allow the VM to eject the pags as
+> necessary.
+> 
+> For a specialty use case, I've been requested to have an optional mode
+> where the on-disk bitmaps are pinned into memory; this is a situation
+> where the file system size is known in advance, and the user is willing
+> to trade off the locked-down memory for the latency gains required by
+> this use case.
 
-Nit #2: Rewrite this.  Do this:
+As discussed in http://lists.openwall.net/linux-ext4/2013/03/25/15
+the bitmap pages were being evicted under memory pressure even when
+they are active use.  That turned out to be an MM problem and not an
+ext4 problem in the end, and was fixed in commit c53954a092d in 3.11,
+in case you are running an older kernel.
 
-	int ret;
-	...
-	pagefault_disable();
-	ret = get_user(*bt_addr, bd_entry))
-	pagefault_enable();
-	if (ret)
-		return ret;
+There was a discussion on whether we were doing all of the right calls
+to mark_page_accessed() in the ext4 code to ensure that these bitmaps
+were being kept at the hot end of the LRU.
 
-Then you don't need the out block below.
+> It seems that the simplest way to do that is to use mlock_vma_page()
+> when the file system is first mounted, and then use munlock_vma_page()
+> when the file system is unmounted.  However, these functions are in
+> mm/internal.h, so I figured I'd better ask permission before using
+> them.   Does this sound like a sane way to do things?
+> 
+> The other approach would be to keep an elevated refcount on the pages in
+> question, but it seemed it would be more efficient use the mlock
+> facility since that keeps the pages on an unevictable list.
 
-> +	valid = *bt_addr & MPX_BD_ENTRY_VALID_FLAG;
-> +	*bt_addr &= MPX_BT_ADDR_MASK;
-> +
-> +	/*
-> +	 * If this bounds directory entry is nonzero, and meanwhile
-> +	 * the valid bit is zero, one SIGSEGV will be produced due to
-> +	 * this unexpected situation.
-> +	 */
-> +	if (!valid && *bt_addr)
-> +		return -EINVAL;
+It doesn't seem unreasonable to just grab an extra refcount on the pages
+when they are first loaded.  However, the memory usage may be fairly
+high (32MB per 1TB of disk) so this definitely can't be generally used,
+and it would be nice to make sure that ext4 is already doing the right
+thing to keep these important pages in cache.
 
-/*
- * Not present is OK.  It just means there was no bounds table
- * for this memory, which is completely OK.  Make sure to distinguish
- * this from -EINVAL, which will cause a SEGV.
- */
+The other option is to improve the in-memory description of free blocks
+and use an extent map or rbtree to handle this instead of bitmaps.  That
+may also speed up allocation in general, but is a lot more work...
 
-> +	if (!valid)
-> +		return -ENOENT;
-> +
-> +	return 0;
-> +
-> +out:
-> +	pagefault_enable();
-> +	return -EFAULT;
-> +}
-> +
-> +/*
-> + * Free the backing physical pages of bounds table 'bt_addr'.
-> + * Assume start...end is within that bounds table.
-> + */
-> +static int __must_check zap_bt_entries(struct mm_struct *mm,
-> +		unsigned long bt_addr,
-> +		unsigned long start, unsigned long end)
-> +{
-> +	struct vm_area_struct *vma;
-> +
-> +	/* Find the vma which overlaps this bounds table */
-> +	vma = find_vma(mm, bt_addr);
-> +	/*
-> +	 * The table entry comes from userspace and could be
-> +	 * pointing anywhere, so make sure it is at least
-> +	 * pointing to valid memory.
-> +	 */
-> +	if (!vma || !(vma->vm_flags & VM_MPX) ||
-> +			vma->vm_start > bt_addr ||
-> +			vma->vm_end < bt_addr+MPX_BT_SIZE_BYTES)
-> +		return -EINVAL;
+> Does using the mlock/munlock_vma_page() functions make sense?   Any
+> pitfalls I should worry about?   Note that these pages are never mapped
+> into userspace, so there is no associated vma; fortunately the functions
+> don't take a vma argument, their name notwithstanding.....
+> 
+> Thanks,
+> 
+>                                        - Ted
 
-If someone did *ANYTHING* to split the VMA, this check would fail.  I
-think that's a little draconian, considering that somebody could do a
-NUMA policy on part of a VM_MPX VMA and cause it to be split.
 
-This check should look across the entire 'bt_addr ->
-bt_addr+MPX_BT_SIZE_BYTES' range, find all of the VM_MPX VMAs, and zap
-only those.
+Cheers, Andreas
 
-If we encounter a non-VM_MPX vma, it should be ignored.
 
-> +	zap_page_range(vma, start, end - start, NULL);
-> +	return 0;
-> +}
-> +
-> +static int __must_check unmap_single_bt(struct mm_struct *mm,
-> +		long __user *bd_entry, unsigned long bt_addr)
-> +{
-> +	int ret;
-> +
-> +	pagefault_disable();
-> +	ret = user_atomic_cmpxchg_inatomic(&bt_addr, bd_entry,
-> +			bt_addr | MPX_BD_ENTRY_VALID_FLAG, 0);
-> +	pagefault_enable();
-> +	if (ret)
-> +		return -EFAULT;
-> +
-> +	/*
-> +	 * to avoid recursion, do_munmap() will check whether it comes
-> +	 * from one bounds table through VM_MPX flag.
-> +	 */
 
-Add this to the comment: "Note, we are likely being called under
-do_munmap() already."
 
-> +	return do_munmap(mm, bt_addr & MPX_BT_ADDR_MASK, MPX_BT_SIZE_BYTES);
-> +}
 
-Add a comment about where we checked for VM_MPX already.
 
-> +/*
-> + * If the bounds table pointed by bounds directory 'bd_entry' is
-> + * not shared, unmap this whole bounds table. Otherwise, only free
-> + * those backing physical pages of bounds table entries covered
-> + * in this virtual address region start...end.
-> + */
-> +static int __must_check unmap_shared_bt(struct mm_struct *mm,
-> +		long __user *bd_entry, unsigned long start,
-> +		unsigned long end, bool prev_shared, bool next_shared)
-> +{
-> +	unsigned long bt_addr;
-> +	int ret;
-> +
-> +	ret = get_bt_addr(bd_entry, &bt_addr);
-> +	if (ret)
-> +		return ret;
-> +
-> +	if (prev_shared && next_shared)
-> +		ret = zap_bt_entries(mm, bt_addr,
-> +				bt_addr+MPX_GET_BT_ENTRY_OFFSET(start),
-> +				bt_addr+MPX_GET_BT_ENTRY_OFFSET(end));
-> +	else if (prev_shared)
-> +		ret = zap_bt_entries(mm, bt_addr,
-> +				bt_addr+MPX_GET_BT_ENTRY_OFFSET(start),
-> +				bt_addr+MPX_BT_SIZE_BYTES);
-> +	else if (next_shared)
-> +		ret = zap_bt_entries(mm, bt_addr, bt_addr,
-> +				bt_addr+MPX_GET_BT_ENTRY_OFFSET(end));
-> +	else
-> +		ret = unmap_single_bt(mm, bd_entry, bt_addr);
-> +
-> +	return ret;
-> +}
-> +
-> +/*
-> + * A virtual address region being munmap()ed might share bounds table
-> + * with adjacent VMAs. We only need to free the backing physical
-> + * memory of these shared bounds tables entries covered in this virtual
-> + * address region.
-> + *
-> + * the VMAs covering the virtual address region start...end have already
-> + * been split if necessary and removed from the VMA list.
-> + */
-> +static int __must_check unmap_side_bts(struct mm_struct *mm,
-> +		unsigned long start, unsigned long end)
-> +{
+--Apple-Mail=_E598B7C7-17C5-47C3-B92D-62A85D68E0DE
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+	filename=signature.asc
+Content-Type: application/pgp-signature;
+	name=signature.asc
+Content-Description: Message signed with OpenPGP using GPGMail
 
-> +	long __user *bde_start, *bde_end;
-> +	struct vm_area_struct *prev, *next;
-> +	bool prev_shared = false, next_shared = false;
-> +
-> +	bde_start = mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(start);
-> +	bde_end = mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(end-1);
-> +
-> +	next = find_vma_prev(mm, start, &prev);
+-----BEGIN PGP SIGNATURE-----
+Comment: GPGTools - http://gpgtools.org
 
-Let's update the comment here to:
+iQIVAwUBVBdSs3Kl2rkXzB/gAQKAlA//TmiPlJeX2x9b73udjm5ubqekvWF0On4J
+tsdXmW3L2iMMrwFqTu+oPh6Up7bbSrfzB4ZEud177UN9gX72D++KbMsC4NAxyHI4
+vyu3PbrUE/43pm4p0it1gMX5lpUg+c+Uiq99ZDu1i4BVmLc6pble3W2gdliR5dVf
+7cpwzrvcDugcH8iDujd8qXAYe5OG/VDACGyZ/X2SyfJ+9mjfY7pLYIUEvQtDXY0b
+zSE7czEWiAW32WW79SqiK6c/qLdJSL7fJ9oe7LE92AN5HBmcwEnfvo7B0X/iazsn
+CtR20PTX+0y62eiOT1WoNBXoorpzQVHNhBrdtnHui/+g1Ee/eNRsumkBZtU4y9Ed
+wFSonammwXKL+FCsQ8QKVnvr1c6ckHD+oIB+cecDNVs/GSxfR3NIwPj/fIOlFyuc
+2ZH08Xyp8LComJza/cC8uzRBBSoSwd1SvHy4s0uMj0rRk3vKSJnuObRWXR7RU09K
+VRdtUa1GduJ4A5wo/TfXt+cfeARtF57EH0AH+ALBguBs/d9YA4A4LFqivjD9Z9OD
+bQjUfv71jX8GJV/ICGwDFdaG9634GxSXuJUVGey6dCc04ESbQhOUvFeKu7VSz4xW
+IDo5CUq3T/sJgxTASm7N/IsM1uH7ol0OswfxlqpYRuO9ZGhKRicYPBFf6Sn4Kb/M
+cYEBtPDUcL8=
+=3qOM
+-----END PGP SIGNATURE-----
 
-/* We already unliked the VMAs from the mm's rbtree so 'start' is
-guaranteed to be in a hole.  This gets us the first VMA before the hole
-in to 'prev' and the next VMA after the hole in to 'next'. */
-
-> +	if (prev && (mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(prev->vm_end-1))
-> +			== bde_start)
-> +		prev_shared = true;
-> +	if (next && (mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(next->vm_start))
-> +			== bde_end)
-> +		next_shared = true;
-> +	/*
-> +	 * This virtual address region being munmap()ed is only
-> +	 * covered by one bounds table.
-> +	 *
-> +	 * In this case, if this table is also shared with adjacent
-> +	 * VMAs, only part of the backing physical memory of the bounds
-> +	 * table need be freeed. Otherwise the whole bounds table need
-> +	 * be unmapped.
-> +	 */
-> +	if (bde_start == bde_end) {
-> +		return unmap_shared_bt(mm, bde_start, start, end,
-> +				prev_shared, next_shared);
-> +	}
-> +
-> +	/*
-> +	 * If more than one bounds tables are covered in this virtual
-> +	 * address region being munmap()ed, we need to separately check
-> +	 * whether bde_start and bde_end are shared with adjacent VMAs.
-> +	 */
-> +	ret = unmap_shared_bt(mm, bde_start, start, end, prev_shared, false);
-> +	if (ret)
-> +		return ret;
-> +
-> +	ret = unmap_shared_bt(mm, bde_end, start, end, false, next_shared);
-> +	if (ret)
-> +		return ret;
-> +
-> +	return 0;
-> +}
-> +
-> +static int __must_check mpx_try_unmap(struct mm_struct *mm,
-> +		unsigned long start, unsigned long end)
-> +{
-> +	int ret;
-> +	long __user *bd_entry, *bde_start, *bde_end;
-> +	unsigned long bt_addr;
-> +
-> +	/*
-> +	 * unmap bounds tables pointed out by start/end bounds directory
-> +	 * entries, or only free part of their backing physical memroy
-> +	 * if they are shared with adjacent VMAs.
-> +	 */
-
-New comment suggestion:
-/*
- * "Side" bounds tables are those which are being used by the region
- * (start -> end), but that may be shared with adjacent areas.  If they
- * turn out to be completely unshared, they will be freed.  If they are
- * shared, we will free the backing store (like an MADV_DONTNEED) for
- * areas used by this region.
- */
-
-> +	ret = unmap_side_bts(mm, start, end);
-
-I think I'd start calling these "edge" bounds tables.
-
-> +	if (ret == -EFAULT)
-> +		return ret;
-> +
-> +	/*
-> +	 * unmap those bounds table which are entirely covered in this
-> +	 * virtual address region.
-> +	 */
-
-Entirely covered *AND* not at the edges, right?
-
-> +	bde_start = mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(start);
-> +	bde_end = mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(end-1);
-> +	for (bd_entry = bde_start + 1; bd_entry < bde_end; bd_entry++) {
-
-This needs a big fat comment that it is only freeing the bounds tables
-that are
-1. fully covered
-2. not at the edges of the mapping, even if full aligned
-
-Does this get any nicer if we have unmap_side_bts() *ONLY* go after
-bounds tables that are partially owned by the region being unmapped?
-
-It seems like we really should do this:
-
-	for (each bt fully owned)
-		unmap_single_bt()
-	if (start edge unaligned)
-		free start edge
-	if (end edge unaligned)
-		free end edge
-
-I bet the unmap_side_bts() code gets simpler if we do that, too.
-
-> +		ret = get_bt_addr(bd_entry, &bt_addr);
-> +		/*
-> +		 * A fault means we have to drop mmap_sem,
-> +		 * perform the fault, and retry this somehow.
-> +		 */
-> +		if (ret == -EFAULT)
-> +			return ret;
-> +		/*
-> +		 * Any other issue (like a bad bounds-directory)
-> +		 * we can try the next one.
-> +		 */
-> +		if (ret)
-> +			continue;
-> +
-> +		ret = unmap_single_bt(mm, bd_entry, bt_addr);
-> +		if (ret)
-> +			return ret;
-> +	}
-> +
-> +	return 0;
-> +}
-> +
-> +/*
-> + * Free unused bounds tables covered in a virtual address region being
-> + * munmap()ed. Assume end > start.
-> + *
-> + * This function will be called by do_munmap(), and the VMAs covering
-> + * the virtual address region start...end have already been split if
-> + * necessary and remvoed from the VMA list.
-> + */
-> +void mpx_unmap(struct mm_struct *mm,
-> +		unsigned long start, unsigned long end)
-> +{
-> +	int ret;
-> +
-> +	ret = mpx_try_unmap(mm, start, end);
-
-We should rename mpx_try_unmap().  Please rename to:
-
-	mpx_unmap_tables_for(mm, start, end);
+--Apple-Mail=_E598B7C7-17C5-47C3-B92D-62A85D68E0DE--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
