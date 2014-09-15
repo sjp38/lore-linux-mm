@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
-	by kanga.kvack.org (Postfix) with ESMTP id CE1BA6B0037
-	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 10:25:34 -0400 (EDT)
-Received: by mail-qg0-f46.google.com with SMTP id q107so3932608qgd.5
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 07:25:34 -0700 (PDT)
+Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
+	by kanga.kvack.org (Postfix) with ESMTP id E971F6B0038
+	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 10:25:38 -0400 (EDT)
+Received: by mail-qg0-f47.google.com with SMTP id i50so3981605qgf.6
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 07:25:37 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v20si14874520qav.94.2014.09.15.07.25.33
+        by mx.google.com with ESMTPS id o43si14935729qge.17.2014.09.15.07.25.35
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Sep 2014 07:25:34 -0700 (PDT)
+        Mon, 15 Sep 2014 07:25:35 -0700 (PDT)
 From: "Jerome Marchand" <jmarchan@redhat.com>
-Subject: [RFC PATCH v2 2/5] mm, procfs: Display VmAnon, VmFile and VmShm in /proc/pid/status
-Date: Mon, 15 Sep 2014 16:24:34 +0200
-Message-Id: <1410791077-5300-3-git-send-email-jmarchan@redhat.com>
+Subject: [RFC PATCH v2 3/5] mm, shmem: Add shmem_locate function
+Date: Mon, 15 Sep 2014 16:24:35 +0200
+Message-Id: <1410791077-5300-4-git-send-email-jmarchan@redhat.com>
 In-Reply-To: <1410791077-5300-1-git-send-email-jmarchan@redhat.com>
 References: <1410791077-5300-1-git-send-email-jmarchan@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,88 +20,84 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Randy Dunlap <rdunlap@infradead.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux390@de.ibm.com, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Mackerras <paulus@samba.org>, Ingo Molnar <mingo@redhat.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>
 
-It's currently inconvenient to retrieve MM_ANONPAGES value from status
-and statm files and there is no way to separate MM_FILEPAGES and
-MM_SHMEMPAGES. Add VmAnon, VmFile and VmShm lines in /proc/<pid>/status
-to solve these issues.
+The shmem subsytem is kind of a black box: the generic mm code can't
+always know where a specific page physically is. This patch adds the
+shmem_locate() function to find out the physical location of shmem
+pages (resident, in swap or swapcache). If the optional argument count
+isn't NULL and the page is resident, it also returns the mapcount value
+of this page.
+This is intended to allow finer accounting of shmem/tmpfs pages.
 
 Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
 ---
- Documentation/filesystems/proc.txt | 10 +++++++++-
- fs/proc/task_mmu.c                 | 11 ++++++++++-
- 2 files changed, 19 insertions(+), 2 deletions(-)
+ include/linux/shmem_fs.h |  6 ++++++
+ mm/shmem.c               | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index 154a345..ffd4a7f 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -165,6 +165,9 @@ read the file /proc/PID/status:
-   VmLck:         0 kB
-   VmHWM:       476 kB
-   VmRSS:       476 kB
-+  VmAnon:      352 kB
-+  VmFile:      124 kB
-+  VmShm:         4 kB
-   VmData:      156 kB
-   VmStk:        88 kB
-   VmExe:        68 kB
-@@ -221,7 +224,12 @@ Table 1-2: Contents of the status files (as of 2.6.30-rc7)
-  VmSize                      total program size
-  VmLck                       locked memory size
-  VmHWM                       peak resident set size ("high water mark")
-- VmRSS                       size of memory portions
-+ VmRSS                       size of memory portions. It contains the three
-+                             following parts (VmRSS = VmAnon + VmFile + VmShm)
-+ VmAnon                      size of resident anonymous memory
-+ VmFile                      size of resident file mappings
-+ VmShm                       size of resident shmem memory (includes SysV shm,
-+                             mapping of tmpfs and shared anonymous mappings)
-  VmData                      size of data, stack, and text segments
-  VmStk                       size of data, stack, and text segments
-  VmExe                       size of text segment
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 32657e3..762257f 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -21,7 +21,7 @@
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index 50777b5..99992cf 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -42,6 +42,11 @@ static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
+ 	return container_of(inode, struct shmem_inode_info, vfs_inode);
+ }
  
- void task_mem(struct seq_file *m, struct mm_struct *mm)
++#define SHMEM_NOTPRESENT	1 /* page is not present in memory */
++#define SHMEM_RESIDENT		2 /* page is resident in RAM */
++#define SHMEM_SWAPCACHE		3 /* page is in swap cache */
++#define SHMEM_SWAP		4 /* page is paged out */
++
+ /*
+  * Functions in mm/shmem.c called directly from elsewhere:
+  */
+@@ -59,6 +64,7 @@ extern struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
+ 					pgoff_t index, gfp_t gfp_mask);
+ extern void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end);
+ extern int shmem_unuse(swp_entry_t entry, struct page *page);
++extern int shmem_locate(struct vm_area_struct *vma, pgoff_t pgoff, int *count);
+ 
+ static inline struct page *shmem_read_mapping_page(
+ 				struct address_space *mapping, pgoff_t index)
+diff --git a/mm/shmem.c b/mm/shmem.c
+index d547345..134a422 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1350,6 +1350,35 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	return ret;
+ }
+ 
++int shmem_locate(struct vm_area_struct *vma, pgoff_t pgoff, int *count)
++{
++	struct address_space *mapping = file_inode(vma->vm_file)->i_mapping;
++	struct page *page;
++	swp_entry_t swap;
++	int ret;
++
++	page = find_get_entry(mapping, pgoff);
++	if (!page) /* Not yet initialised? */
++		return SHMEM_NOTPRESENT;
++
++	if (!radix_tree_exceptional_entry(page)) {
++		ret = SHMEM_RESIDENT;
++		if (count)
++			*count = page_mapcount(page);
++		goto out;
++	}
++
++	swap = radix_to_swp_entry(page);
++	page = find_get_page(swap_address_space(swap), swap.val);
++	if (!page)
++		return SHMEM_SWAP;
++	ret = SHMEM_SWAPCACHE;
++
++out:
++	page_cache_release(page);
++	return ret;
++}
++
+ #ifdef CONFIG_NUMA
+ static int shmem_set_policy(struct vm_area_struct *vma, struct mempolicy *mpol)
  {
--	unsigned long data, text, lib, swap;
-+	unsigned long data, text, lib, swap, anon, file, shmem;
- 	unsigned long hiwater_vm, total_vm, hiwater_rss, total_rss;
- 
- 	/*
-@@ -38,6 +38,9 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
- 	if (hiwater_rss < mm->hiwater_rss)
- 		hiwater_rss = mm->hiwater_rss;
- 
-+	anon = get_mm_counter(mm, MM_ANONPAGES);
-+	file = get_mm_counter(mm, MM_FILEPAGES);
-+	shmem = get_mm_counter(mm, MM_SHMEMPAGES);
- 	data = mm->total_vm - mm->shared_vm - mm->stack_vm;
- 	text = (PAGE_ALIGN(mm->end_code) - (mm->start_code & PAGE_MASK)) >> 10;
- 	lib = (mm->exec_vm << (PAGE_SHIFT-10)) - text;
-@@ -49,6 +52,9 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
- 		"VmPin:\t%8lu kB\n"
- 		"VmHWM:\t%8lu kB\n"
- 		"VmRSS:\t%8lu kB\n"
-+		"VmAnon:\t%8lu kB\n"
-+		"VmFile:\t%8lu kB\n"
-+		"VmShm:\t%8lu kB\n"
- 		"VmData:\t%8lu kB\n"
- 		"VmStk:\t%8lu kB\n"
- 		"VmExe:\t%8lu kB\n"
-@@ -61,6 +67,9 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
- 		mm->pinned_vm << (PAGE_SHIFT-10),
- 		hiwater_rss << (PAGE_SHIFT-10),
- 		total_rss << (PAGE_SHIFT-10),
-+		anon << (PAGE_SHIFT-10),
-+		file << (PAGE_SHIFT-10),
-+		shmem << (PAGE_SHIFT-10),
- 		data << (PAGE_SHIFT-10),
- 		mm->stack_vm << (PAGE_SHIFT-10), text, lib,
- 		(PTRS_PER_PTE * sizeof(pte_t) *
 -- 
 1.9.3
 
