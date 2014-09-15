@@ -1,175 +1,339 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f44.google.com (mail-yh0-f44.google.com [209.85.213.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C8B36B0036
-	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 16:11:33 -0400 (EDT)
-Received: by mail-yh0-f44.google.com with SMTP id b6so1512414yha.3
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 13:11:33 -0700 (PDT)
-Received: from mail-yh0-x24a.google.com (mail-yh0-x24a.google.com [2607:f8b0:4002:c01::24a])
-        by mx.google.com with ESMTPS id i61si10991069yhg.183.2014.09.15.13.11.32
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 15 Sep 2014 13:11:33 -0700 (PDT)
-Received: by mail-yh0-f74.google.com with SMTP id f73so451310yha.5
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 13:11:32 -0700 (PDT)
-From: Andres Lagar-Cavilla <andreslc@google.com>
-Subject: [PATCH] kvm: Faults which trigger IO release the mmap_sem
-Date: Mon, 15 Sep 2014 13:11:25 -0700
-Message-Id: <1410811885-17267-1-git-send-email-andreslc@google.com>
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 683DD6B0078
+	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 16:53:57 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id kq14so7211470pab.39
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 13:53:57 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id sw2si25357669pab.185.2014.09.15.13.53.55
+        for <linux-mm@kvack.org>;
+        Mon, 15 Sep 2014 13:53:56 -0700 (PDT)
+Message-ID: <541751DF.8090706@intel.com>
+Date: Mon, 15 Sep 2014 13:53:51 -0700
+From: Dave Hansen <dave.hansen@intel.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v8 09/10] x86, mpx: cleanup unused bound tables
+References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com> <1410425210-24789-10-git-send-email-qiaowei.ren@intel.com>
+In-Reply-To: <1410425210-24789-10-git-send-email-qiaowei.ren@intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gleb Natapov <gleb@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Andres Lagar-Cavilla <andreslc@google.com>
+To: Qiaowei Ren <qiaowei.ren@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
+Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-When KVM handles a tdp fault it uses FOLL_NOWAIT. If the guest memory has been
-swapped out or is behind a filemap, this will trigger async readahead and
-return immediately. The rationale is that KVM will kick back the guest with an
-"async page fault" and allow for some other guest process to take over.
+On 09/11/2014 01:46 AM, Qiaowei Ren wrote:
+> +static int get_bt_addr(long __user *bd_entry, unsigned long *bt_addr)
+> +{
+> +	int valid;
+> +
+> +	if (!access_ok(VERIFY_READ, (bd_entry), sizeof(*(bd_entry))))
+> +		return -EFAULT;
 
-If async PFs are enabled the fault is retried asap from a workqueue, or
-immediately if no async PFs. The retry will not relinquish the mmap semaphore
-and will block on the IO. This is a bad thing, as other mmap semaphore users
-now stall. The fault could take a long time, depending on swap or filemap
-latency.
+Nit: get rid of unnecessary parenthesis.
 
-This patch ensures both the regular and async PF path re-enter the fault
-allowing for the mmap semaphore to be relinquished in the case of IO wait.
+> +	pagefault_disable();
+> +	if (get_user(*bt_addr, bd_entry))
+> +		goto out;
+> +	pagefault_enable();
 
-Signed-off-by: Andres Lagar-Cavilla <andreslc@google.com>
----
- include/linux/kvm_host.h |  9 +++++++++
- include/linux/mm.h       |  1 +
- mm/gup.c                 |  4 ++++
- virt/kvm/async_pf.c      |  4 +---
- virt/kvm/kvm_main.c      | 45 ++++++++++++++++++++++++++++++++++++++++++---
- 5 files changed, 57 insertions(+), 6 deletions(-)
+Nit #2: Rewrite this.  Do this:
 
-diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
-index 3addcbc..704908d 100644
---- a/include/linux/kvm_host.h
-+++ b/include/linux/kvm_host.h
-@@ -198,6 +198,15 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, unsigned long hva,
- int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu);
- #endif
- 
-+/*
-+ * Retry a fault after a gup with FOLL_NOWAIT. This properly relinquishes mmap
-+ * semaphore if the filemap/swap has to wait on page lock (and retries the gup
-+ * to completion after that).
-+ */
-+int kvm_get_user_page_retry(struct task_struct *tsk, struct mm_struct *mm,
-+			    unsigned long addr, bool write_fault,
-+			    struct page **pagep);
-+
- enum {
- 	OUTSIDE_GUEST_MODE,
- 	IN_GUEST_MODE,
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index ebc5f90..13e585f7 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2011,6 +2011,7 @@ static inline struct page *follow_page(struct vm_area_struct *vma,
- #define FOLL_HWPOISON	0x100	/* check page is hwpoisoned */
- #define FOLL_NUMA	0x200	/* force NUMA hinting page fault */
- #define FOLL_MIGRATION	0x400	/* wait for page to replace migration entry */
-+#define FOLL_TRIED	0x800	/* a retry, previous pass started an IO */
- 
- typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
- 			void *data);
-diff --git a/mm/gup.c b/mm/gup.c
-index 91d044b..332d1c3 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -281,6 +281,10 @@ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
- 		fault_flags |= FAULT_FLAG_ALLOW_RETRY;
- 	if (*flags & FOLL_NOWAIT)
- 		fault_flags |= FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT;
-+	if (*flags & FOLL_TRIED) {
-+		WARN_ON_ONCE(fault_flags & FAULT_FLAG_ALLOW_RETRY);
-+		fault_flags |= FAULT_FLAG_TRIED;
-+	}
- 
- 	ret = handle_mm_fault(mm, vma, address, fault_flags);
- 	if (ret & VM_FAULT_ERROR) {
-diff --git a/virt/kvm/async_pf.c b/virt/kvm/async_pf.c
-index d6a3d09..17b78b1 100644
---- a/virt/kvm/async_pf.c
-+++ b/virt/kvm/async_pf.c
-@@ -80,9 +80,7 @@ static void async_pf_execute(struct work_struct *work)
- 
- 	might_sleep();
- 
--	down_read(&mm->mmap_sem);
--	get_user_pages(NULL, mm, addr, 1, 1, 0, NULL, NULL);
--	up_read(&mm->mmap_sem);
-+	kvm_get_user_page_retry(NULL, mm, addr, 1, NULL);
- 	kvm_async_page_present_sync(vcpu, apf);
- 
- 	spin_lock(&vcpu->async_pf.lock);
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-index 7ef6b48..43a9ab9 100644
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -1115,6 +1115,39 @@ static int get_user_page_nowait(struct task_struct *tsk, struct mm_struct *mm,
- 	return __get_user_pages(tsk, mm, start, 1, flags, page, NULL, NULL);
- }
- 
-+int kvm_get_user_page_retry(struct task_struct *tsk, struct mm_struct *mm,
-+				unsigned long addr, bool write_fault,
-+				struct page **pagep)
-+{
-+	int npages;
-+	int locked = 1;
-+	int flags = FOLL_TOUCH | FOLL_HWPOISON |
-+		    (pagep ? FOLL_GET : 0) |
-+		    (write_fault ? FOLL_WRITE : 0);
-+
-+	/*
-+	 * Retrying fault, we get here *not* having allowed the filemap to wait
-+	 * on the page lock. We should now allow waiting on the IO with the
-+	 * mmap semaphore released.
-+	 */
-+	down_read(&mm->mmap_sem);
-+	npages = __get_user_pages(tsk, mm, addr, 1, flags, pagep, NULL,
-+				  &locked);
-+	if (!locked) {
-+		BUG_ON(npages != -EBUSY);
-+		/*
-+		 * The previous call has now waited on the IO. Now we can
-+		 * retry and complete. Pass TRIED to ensure we do not re
-+		 * schedule async IO (see e.g. filemap_fault).
-+		 */
-+		down_read(&mm->mmap_sem);
-+		npages = __get_user_pages(tsk, mm, addr, 1, flags | FOLL_TRIED,
-+					  pagep, NULL, NULL);
-+	}
-+	up_read(&mm->mmap_sem);
-+	return npages;
-+}
-+
- static inline int check_user_page_hwpoison(unsigned long addr)
- {
- 	int rc, flags = FOLL_TOUCH | FOLL_HWPOISON | FOLL_WRITE;
-@@ -1177,9 +1210,15 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
- 		npages = get_user_page_nowait(current, current->mm,
- 					      addr, write_fault, page);
- 		up_read(&current->mm->mmap_sem);
--	} else
--		npages = get_user_pages_fast(addr, 1, write_fault,
--					     page);
-+	} else {
-+		/*
-+		 * By now we have tried gup_fast, and possible async_pf, and we
-+		 * are certainly not atomic. Time to retry the gup, allowing
-+		 * mmap semaphore to be relinquished in the case of IO.
-+		 */
-+		npages = kvm_get_user_page_retry(current, current->mm, addr,
-+						 write_fault, page);
-+	}
- 	if (npages != 1)
- 		return npages;
- 
--- 
-2.1.0.rc2.206.gedb03e5
+	int ret;
+	...
+	pagefault_disable();
+	ret = get_user(*bt_addr, bd_entry))
+	pagefault_enable();
+	if (ret)
+		return ret;
+
+Then you don't need the out block below.
+
+> +	valid = *bt_addr & MPX_BD_ENTRY_VALID_FLAG;
+> +	*bt_addr &= MPX_BT_ADDR_MASK;
+> +
+> +	/*
+> +	 * If this bounds directory entry is nonzero, and meanwhile
+> +	 * the valid bit is zero, one SIGSEGV will be produced due to
+> +	 * this unexpected situation.
+> +	 */
+> +	if (!valid && *bt_addr)
+> +		return -EINVAL;
+
+/*
+ * Not present is OK.  It just means there was no bounds table
+ * for this memory, which is completely OK.  Make sure to distinguish
+ * this from -EINVAL, which will cause a SEGV.
+ */
+
+> +	if (!valid)
+> +		return -ENOENT;
+> +
+> +	return 0;
+> +
+> +out:
+> +	pagefault_enable();
+> +	return -EFAULT;
+> +}
+> +
+> +/*
+> + * Free the backing physical pages of bounds table 'bt_addr'.
+> + * Assume start...end is within that bounds table.
+> + */
+> +static int __must_check zap_bt_entries(struct mm_struct *mm,
+> +		unsigned long bt_addr,
+> +		unsigned long start, unsigned long end)
+> +{
+> +	struct vm_area_struct *vma;
+> +
+> +	/* Find the vma which overlaps this bounds table */
+> +	vma = find_vma(mm, bt_addr);
+> +	/*
+> +	 * The table entry comes from userspace and could be
+> +	 * pointing anywhere, so make sure it is at least
+> +	 * pointing to valid memory.
+> +	 */
+> +	if (!vma || !(vma->vm_flags & VM_MPX) ||
+> +			vma->vm_start > bt_addr ||
+> +			vma->vm_end < bt_addr+MPX_BT_SIZE_BYTES)
+> +		return -EINVAL;
+
+If someone did *ANYTHING* to split the VMA, this check would fail.  I
+think that's a little draconian, considering that somebody could do a
+NUMA policy on part of a VM_MPX VMA and cause it to be split.
+
+This check should look across the entire 'bt_addr ->
+bt_addr+MPX_BT_SIZE_BYTES' range, find all of the VM_MPX VMAs, and zap
+only those.
+
+If we encounter a non-VM_MPX vma, it should be ignored.
+
+> +	zap_page_range(vma, start, end - start, NULL);
+> +	return 0;
+> +}
+> +
+> +static int __must_check unmap_single_bt(struct mm_struct *mm,
+> +		long __user *bd_entry, unsigned long bt_addr)
+> +{
+> +	int ret;
+> +
+> +	pagefault_disable();
+> +	ret = user_atomic_cmpxchg_inatomic(&bt_addr, bd_entry,
+> +			bt_addr | MPX_BD_ENTRY_VALID_FLAG, 0);
+> +	pagefault_enable();
+> +	if (ret)
+> +		return -EFAULT;
+> +
+> +	/*
+> +	 * to avoid recursion, do_munmap() will check whether it comes
+> +	 * from one bounds table through VM_MPX flag.
+> +	 */
+
+Add this to the comment: "Note, we are likely being called under
+do_munmap() already."
+
+> +	return do_munmap(mm, bt_addr & MPX_BT_ADDR_MASK, MPX_BT_SIZE_BYTES);
+> +}
+
+Add a comment about where we checked for VM_MPX already.
+
+> +/*
+> + * If the bounds table pointed by bounds directory 'bd_entry' is
+> + * not shared, unmap this whole bounds table. Otherwise, only free
+> + * those backing physical pages of bounds table entries covered
+> + * in this virtual address region start...end.
+> + */
+> +static int __must_check unmap_shared_bt(struct mm_struct *mm,
+> +		long __user *bd_entry, unsigned long start,
+> +		unsigned long end, bool prev_shared, bool next_shared)
+> +{
+> +	unsigned long bt_addr;
+> +	int ret;
+> +
+> +	ret = get_bt_addr(bd_entry, &bt_addr);
+> +	if (ret)
+> +		return ret;
+> +
+> +	if (prev_shared && next_shared)
+> +		ret = zap_bt_entries(mm, bt_addr,
+> +				bt_addr+MPX_GET_BT_ENTRY_OFFSET(start),
+> +				bt_addr+MPX_GET_BT_ENTRY_OFFSET(end));
+> +	else if (prev_shared)
+> +		ret = zap_bt_entries(mm, bt_addr,
+> +				bt_addr+MPX_GET_BT_ENTRY_OFFSET(start),
+> +				bt_addr+MPX_BT_SIZE_BYTES);
+> +	else if (next_shared)
+> +		ret = zap_bt_entries(mm, bt_addr, bt_addr,
+> +				bt_addr+MPX_GET_BT_ENTRY_OFFSET(end));
+> +	else
+> +		ret = unmap_single_bt(mm, bd_entry, bt_addr);
+> +
+> +	return ret;
+> +}
+> +
+> +/*
+> + * A virtual address region being munmap()ed might share bounds table
+> + * with adjacent VMAs. We only need to free the backing physical
+> + * memory of these shared bounds tables entries covered in this virtual
+> + * address region.
+> + *
+> + * the VMAs covering the virtual address region start...end have already
+> + * been split if necessary and removed from the VMA list.
+> + */
+> +static int __must_check unmap_side_bts(struct mm_struct *mm,
+> +		unsigned long start, unsigned long end)
+> +{
+
+> +	long __user *bde_start, *bde_end;
+> +	struct vm_area_struct *prev, *next;
+> +	bool prev_shared = false, next_shared = false;
+> +
+> +	bde_start = mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(start);
+> +	bde_end = mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(end-1);
+> +
+> +	next = find_vma_prev(mm, start, &prev);
+
+Let's update the comment here to:
+
+/* We already unliked the VMAs from the mm's rbtree so 'start' is
+guaranteed to be in a hole.  This gets us the first VMA before the hole
+in to 'prev' and the next VMA after the hole in to 'next'. */
+
+> +	if (prev && (mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(prev->vm_end-1))
+> +			== bde_start)
+> +		prev_shared = true;
+> +	if (next && (mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(next->vm_start))
+> +			== bde_end)
+> +		next_shared = true;
+> +	/*
+> +	 * This virtual address region being munmap()ed is only
+> +	 * covered by one bounds table.
+> +	 *
+> +	 * In this case, if this table is also shared with adjacent
+> +	 * VMAs, only part of the backing physical memory of the bounds
+> +	 * table need be freeed. Otherwise the whole bounds table need
+> +	 * be unmapped.
+> +	 */
+> +	if (bde_start == bde_end) {
+> +		return unmap_shared_bt(mm, bde_start, start, end,
+> +				prev_shared, next_shared);
+> +	}
+> +
+> +	/*
+> +	 * If more than one bounds tables are covered in this virtual
+> +	 * address region being munmap()ed, we need to separately check
+> +	 * whether bde_start and bde_end are shared with adjacent VMAs.
+> +	 */
+> +	ret = unmap_shared_bt(mm, bde_start, start, end, prev_shared, false);
+> +	if (ret)
+> +		return ret;
+> +
+> +	ret = unmap_shared_bt(mm, bde_end, start, end, false, next_shared);
+> +	if (ret)
+> +		return ret;
+> +
+> +	return 0;
+> +}
+> +
+> +static int __must_check mpx_try_unmap(struct mm_struct *mm,
+> +		unsigned long start, unsigned long end)
+> +{
+> +	int ret;
+> +	long __user *bd_entry, *bde_start, *bde_end;
+> +	unsigned long bt_addr;
+> +
+> +	/*
+> +	 * unmap bounds tables pointed out by start/end bounds directory
+> +	 * entries, or only free part of their backing physical memroy
+> +	 * if they are shared with adjacent VMAs.
+> +	 */
+
+New comment suggestion:
+/*
+ * "Side" bounds tables are those which are being used by the region
+ * (start -> end), but that may be shared with adjacent areas.  If they
+ * turn out to be completely unshared, they will be freed.  If they are
+ * shared, we will free the backing store (like an MADV_DONTNEED) for
+ * areas used by this region.
+ */
+
+> +	ret = unmap_side_bts(mm, start, end);
+
+I think I'd start calling these "edge" bounds tables.
+
+> +	if (ret == -EFAULT)
+> +		return ret;
+> +
+> +	/*
+> +	 * unmap those bounds table which are entirely covered in this
+> +	 * virtual address region.
+> +	 */
+
+Entirely covered *AND* not at the edges, right?
+
+> +	bde_start = mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(start);
+> +	bde_end = mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(end-1);
+> +	for (bd_entry = bde_start + 1; bd_entry < bde_end; bd_entry++) {
+
+This needs a big fat comment that it is only freeing the bounds tables
+that are
+1. fully covered
+2. not at the edges of the mapping, even if full aligned
+
+Does this get any nicer if we have unmap_side_bts() *ONLY* go after
+bounds tables that are partially owned by the region being unmapped?
+
+It seems like we really should do this:
+
+	for (each bt fully owned)
+		unmap_single_bt()
+	if (start edge unaligned)
+		free start edge
+	if (end edge unaligned)
+		free end edge
+
+I bet the unmap_side_bts() code gets simpler if we do that, too.
+
+> +		ret = get_bt_addr(bd_entry, &bt_addr);
+> +		/*
+> +		 * A fault means we have to drop mmap_sem,
+> +		 * perform the fault, and retry this somehow.
+> +		 */
+> +		if (ret == -EFAULT)
+> +			return ret;
+> +		/*
+> +		 * Any other issue (like a bad bounds-directory)
+> +		 * we can try the next one.
+> +		 */
+> +		if (ret)
+> +			continue;
+> +
+> +		ret = unmap_single_bt(mm, bd_entry, bt_addr);
+> +		if (ret)
+> +			return ret;
+> +	}
+> +
+> +	return 0;
+> +}
+> +
+> +/*
+> + * Free unused bounds tables covered in a virtual address region being
+> + * munmap()ed. Assume end > start.
+> + *
+> + * This function will be called by do_munmap(), and the VMAs covering
+> + * the virtual address region start...end have already been split if
+> + * necessary and remvoed from the VMA list.
+> + */
+> +void mpx_unmap(struct mm_struct *mm,
+> +		unsigned long start, unsigned long end)
+> +{
+> +	int ret;
+> +
+> +	ret = mpx_try_unmap(mm, start, end);
+
+We should rename mpx_try_unmap().  Please rename to:
+
+	mpx_unmap_tables_for(mm, start, end);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
