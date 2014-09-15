@@ -1,95 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B5EE6B0036
-	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 01:57:28 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id p10so5419352pdj.16
-        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 22:57:28 -0700 (PDT)
-Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
-        by mx.google.com with ESMTPS id g3si20615369pdk.230.2014.09.14.22.57.26
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E4416B0035
+	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 02:10:31 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so5670460pab.18
+        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 23:10:31 -0700 (PDT)
+Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
+        by mx.google.com with ESMTPS id bz4si20939983pbb.26.2014.09.14.23.10.29
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Sun, 14 Sep 2014 22:57:27 -0700 (PDT)
-Received: from epcpsbgr3.samsung.com
- (u143.gpu120.samsung.co.kr [203.254.230.143])
- by mailout3.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTP id <0NBX007PBHV2H4C0@mailout3.samsung.com> for linux-mm@kvack.org;
- Mon, 15 Sep 2014 14:57:02 +0900 (KST)
-From: Namjae Jeon <namjae.jeon@samsung.com>
-References: <000801cf6a4a$5d5c2dc0$18148940$@samsung.com>
- <20140915020714.GD4322@dastard>
-In-reply-to: <20140915020714.GD4322@dastard>
-Subject: RE: Writeback, partial page writes and data corruption (was Re: [PATCH
- v3] ext4: fix data integrity sync in ordered mode)
-Date: Mon, 15 Sep 2014 14:57:01 +0900
-Message-id: <004a01cfd0a9$de7713f0$9b653bd0$@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
-Content-language: ko
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 14 Sep 2014 23:10:30 -0700 (PDT)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Mon, 15 Sep 2014 14:10:19 +0800
+Subject: RE: [RFC V2] Free the reserved memblock when free cma pages
+Message-ID: <35FD53F367049845BC99AC72306C23D103D6DB4915FF@CNBJMBX05.corpusers.net>
+References: <35FD53F367049845BC99AC72306C23D103CDBFBFB016@CNBJMBX05.corpusers.net>
+ <20140915052151.GI2160@bbox>
+ <35FD53F367049845BC99AC72306C23D103D6DB4915FD@CNBJMBX05.corpusers.net>
+ <20140915054236.GJ2160@bbox>
+In-Reply-To: <20140915054236.GJ2160@bbox>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Dave Chinner' <david@fromorbit.com>
-Cc: 'Theodore Ts'o' <tytso@mit.edu>, 'linux-ext4' <linux-ext4@vger.kernel.org>, linux-mm@kvack.org, 'Jan Kara' <jack@suse.cz>, linux-fsdevel@vger.kernel.org
+To: 'Minchan Kim' <minchan@kernel.org>
+Cc: "'mhocko@suse.cz'" <mhocko@suse.cz>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'akpm@linux-foundation.org'" <akpm@linux-foundation.org>, "mm-commits@vger.kernel.org" <mm-commits@vger.kernel.org>, "hughd@google.com" <hughd@google.com>, "b.zolnierkie@samsung.com" <b.zolnierkie@samsung.com>
 
-> 
-> [cc linux-fsdevel as a heads-up]
-> 
-> On Thu, May 08, 2014 at 08:16:24AM +0900, Namjae Jeon wrote:
-> > When we perform a data integrity sync we tag all the dirty pages with
-> > PAGECACHE_TAG_TOWRITE at start of ext4_da_writepages.
-> > Later we check for this tag in write_cache_pages_da and creates a
-> > struct mpage_da_data containing contiguously indexed pages tagged with this
-> > tag and sync these pages with a call to mpage_da_map_and_submit.
-> > This process is done in while loop until all the PAGECACHE_TAG_TOWRITE pages
-> > are synced. We also do journal start and stop in each iteration.
-> > journal_stop could initiate journal commit which would call ext4_writepage
-> > which in turn will call ext4_bio_write_page even for delayed OR unwritten
-> > buffers. When ext4_bio_write_page is called for such buffers, even though it
-> > does not sync them but it clears the PAGECACHE_TAG_TOWRITE of the corresponding
-> > page and hence these pages are also not synced by the currently running data
-> > integrity sync. We will end up with dirty pages although sync is completed.
-> >
-> > This could cause a potential data loss when the sync call is followed by a
-> > truncate_pagecache call, which is exactly the case in collapse_range.
-> > (It will cause generic/127 failure in xfstests)
-> 
-> Yes, this is a patch that went into 3.16, but I only just found out
-> about it because Brian just found a very similar data corruption bug
-> in XFS. i.e. a partial page write was starting writeback and hence
-> clearing PAGECACHE_TAG_TOWRITE before the page was fully cleaned and
-> hence WB_SYNC_ALL wasn't writing the entire page.
-> 
-> http://oss.sgi.com/pipermail/xfs/2014-September/038150.html
-> http://oss.sgi.com/pipermail/xfs/2014-September/038167.html
-> 
-> IOWs, if a filesystem does write-ahead in ->writepages() or
-> relies on the write_cache_pages() layer to reissue dirty pages in
-> partial page write situations for data integrity purposes, then it
-> needs to be converted to use set_page_writeback_keepwrite() until
-> the page is fully clean, at which point it can then use
-> set_page_writeback().
-> 
-> For everyone: if one filesystem is using the generic code
-> incorrectly, then it is likely the same or similar bugs exist in
-> other filesystems. As a courtesy to your fellow filesystem
-> developers, if you find a data corruption bug caused by interactions
-> with the generic code can the fixes please be CC'd to linux-fsdevel
-> so everyone knows about the issue? This is especially important if
-> new interfaces in the generic code have been added to avoid the
-> problem.
-Hi Dave,
-
-I apologize for inconvenience. I will keep in mind your words next time.
-
-Thanks!
-> 
-> Cheers,
-> 
-> Dave.
-> --
-> Dave Chinner
-> david@fromorbit.com
+VGhpcyBwYXRjaCBhZGQgbWVtYmxvY2tfZnJlZSB0byBhbHNvIGZyZWUgdGhlIHJlc2VydmVkIG1l
+bWJsb2NrLA0Kc28gdGhhdCB0aGUgY21hIHBhZ2VzIGFyZSBub3QgbWFya2VkIGFzIHJlc2VydmVk
+IG1lbW9yeSBpbg0KL3N5cy9rZXJuZWwvZGVidWcvbWVtYmxvY2svcmVzZXJ2ZWQgZGVidWcgZmls
+ZQ0KDQpTaWduZWQtb2ZmLWJ5OiBZYWxpbiBXYW5nIDx5YWxpbi53YW5nQHNvbnltb2JpbGUuY29t
+Pg0KLS0tDQogbW0vY21hLmMgICAgICAgIHwgNiArKysrKy0NCiBtbS9wYWdlX2FsbG9jLmMgfCAy
+ICstDQogMiBmaWxlcyBjaGFuZ2VkLCA2IGluc2VydGlvbnMoKyksIDIgZGVsZXRpb25zKC0pDQoN
+CmRpZmYgLS1naXQgYS9tbS9jbWEuYyBiL21tL2NtYS5jDQppbmRleCBjMTc3NTFjLi5lYzY5YzY5
+IDEwMDY0NA0KLS0tIGEvbW0vY21hLmMNCisrKyBiL21tL2NtYS5jDQpAQCAtMTk2LDcgKzE5Niwx
+MSBAQCBpbnQgX19pbml0IGNtYV9kZWNsYXJlX2NvbnRpZ3VvdXMocGh5c19hZGRyX3QgYmFzZSwN
+CiAJaWYgKCFJU19BTElHTkVEKHNpemUgPj4gUEFHRV9TSElGVCwgMSA8PCBvcmRlcl9wZXJfYml0
+KSkNCiAJCXJldHVybiAtRUlOVkFMOw0KIA0KLQkvKiBSZXNlcnZlIG1lbW9yeSAqLw0KKwkvKg0K
+KwkgKiBSZXNlcnZlIG1lbW9yeSwgYW5kIHRoZSByZXNlcnZlZCBtZW1vcnkgYXJlIG1hcmtlZCBh
+cyByZXNlcnZlZCBieQ0KKwkgKiBtZW1ibG9jayBkcml2ZXIsIHJlbWVtYmVyIHRvIGNsZWFyIHRo
+ZSByZXNlcnZlZCBzdGF0dXMgd2hlbiBmcmVlDQorCSAqIHRoZXNlIGNtYSBwYWdlcywgc2VlIGlu
+aXRfY21hX3Jlc2VydmVkX3BhZ2VibG9jaygpDQorCSAqLw0KIAlpZiAoYmFzZSAmJiBmaXhlZCkg
+ew0KIAkJaWYgKG1lbWJsb2NrX2lzX3JlZ2lvbl9yZXNlcnZlZChiYXNlLCBzaXplKSB8fA0KIAkJ
+ICAgIG1lbWJsb2NrX3Jlc2VydmUoYmFzZSwgc2l6ZSkgPCAwKSB7DQpkaWZmIC0tZ2l0IGEvbW0v
+cGFnZV9hbGxvYy5jIGIvbW0vcGFnZV9hbGxvYy5jDQppbmRleCAxOGNlZTBkLi5mZmZiYjg0IDEw
+MDY0NA0KLS0tIGEvbW0vcGFnZV9hbGxvYy5jDQorKysgYi9tbS9wYWdlX2FsbG9jLmMNCkBAIC04
+MzYsOCArODM2LDggQEAgdm9pZCBfX2luaXQgaW5pdF9jbWFfcmVzZXJ2ZWRfcGFnZWJsb2NrKHN0
+cnVjdCBwYWdlICpwYWdlKQ0KIAkJc2V0X3BhZ2VfcmVmY291bnRlZChwYWdlKTsNCiAJCV9fZnJl
+ZV9wYWdlcyhwYWdlLCBwYWdlYmxvY2tfb3JkZXIpOw0KIAl9DQotDQogCWFkanVzdF9tYW5hZ2Vk
+X3BhZ2VfY291bnQocGFnZSwgcGFnZWJsb2NrX25yX3BhZ2VzKTsNCisJbWVtYmxvY2tfZnJlZShw
+YWdlX3RvX3BoeXMocGFnZSksIHBhZ2VibG9ja19ucl9wYWdlcyA8PCBQQUdFX1NISUZUKTsNCiB9
+DQogI2VuZGlmDQogDQotLSANCjIuMS4wDQoNCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
