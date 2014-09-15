@@ -1,73 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id C6F226B0035
-	for <linux-mm@kvack.org>; Sun, 14 Sep 2014 22:29:57 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id ft15so5190260pdb.18
-        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 19:29:57 -0700 (PDT)
-Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
-        by mx.google.com with ESMTPS id gt7si20416344pac.16.2014.09.14.19.29.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 14 Sep 2014 19:29:56 -0700 (PDT)
-From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Mon, 15 Sep 2014 10:29:48 +0800
-Subject: [PATCH] arm:extend __init_end to a page align address
-Message-ID: <35FD53F367049845BC99AC72306C23D103D6DB4915FB@CNBJMBX05.corpusers.net>
-References: <35FD53F367049845BC99AC72306C23D103CDBFBFB028@CNBJMBX05.corpusers.net>
-In-Reply-To: <35FD53F367049845BC99AC72306C23D103CDBFBFB028@CNBJMBX05.corpusers.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 747C06B0035
+	for <linux-mm@kvack.org>; Sun, 14 Sep 2014 22:31:09 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so5348044pab.32
+        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 19:31:09 -0700 (PDT)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id jd10si12112768pbd.165.2014.09.14.19.31.07
+        for <linux-mm@kvack.org>;
+        Sun, 14 Sep 2014 19:31:08 -0700 (PDT)
+Date: Mon, 15 Sep 2014 11:31:06 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [RFC PATCH v3 1/4] mm/page_alloc: fix incorrect isolation
+ behavior by rechecking migratetype
+Message-ID: <20140915023106.GD2676@js1304-P5Q-DELUXE>
+References: <1409040498-10148-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1409040498-10148-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <540D6961.8060209@suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <540D6961.8060209@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Will Deacon' <will.deacon@arm.com>, "'linux@arm.linux.org.uk'" <linux@arm.linux.org.uk>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-this patch change the __init_end address to a
-page align address, so that free_initmem() can
-free the whole .init section, because if the end
-address is not page aligned, it will round down to
-a page align address, then the tail unligned page
-will not be freed.
+On Mon, Sep 08, 2014 at 10:31:29AM +0200, Vlastimil Babka wrote:
+> On 08/26/2014 10:08 AM, Joonsoo Kim wrote:
+> 
+> >diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >index f86023b..51e0d13 100644
+> >--- a/mm/page_alloc.c
+> >+++ b/mm/page_alloc.c
+> >@@ -740,9 +740,15 @@ static void free_one_page(struct zone *zone,
+> >  	if (nr_scanned)
+> >  		__mod_zone_page_state(zone, NR_PAGES_SCANNED, -nr_scanned);
+> >
+> >+	if (unlikely(has_isolate_pageblock(zone))) {
+> >+		migratetype = get_pfnblock_migratetype(page, pfn);
+> >+		if (is_migrate_isolate(migratetype))
+> >+			goto skip_counting;
+> >+	}
+> >+	__mod_zone_freepage_state(zone, 1 << order, migratetype);
+> >+
+> >+skip_counting:
+> 
+> Here, wouldn't a simple 'else __mod_zone_freepage_state...' look
+> better than goto + label? (same for the following 2 patches). Or
+> does that generate worse code?
 
-Signed-off-by: wang <yalin.wang2010@gmail.com>
----
- arch/arm/kernel/vmlinux.lds.S   | 2 +-
- arch/arm64/kernel/vmlinux.lds.S | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+To remove goto label, we need two __mod_zone_freepage_state() like
+as below. On my system, it doesn't generate worse code, but, I am not
+sure that this is true if more logic would be added. I think that
+goto + label is better.
 
-diff --git a/arch/arm/kernel/vmlinux.lds.S b/arch/arm/kernel/vmlinux.lds.S
-index 6f57cb9..8e95aa4 100644
---- a/arch/arm/kernel/vmlinux.lds.S
-+++ b/arch/arm/kernel/vmlinux.lds.S
-@@ -219,8 +219,8 @@ SECTIONS
- 	__data_loc =3D ALIGN(4);		/* location in binary */
- 	. =3D PAGE_OFFSET + TEXT_OFFSET;
- #else
--	__init_end =3D .;
- 	. =3D ALIGN(THREAD_SIZE);
-+	__init_end =3D .;
- 	__data_loc =3D .;
- #endif
-=20
-diff --git a/arch/arm64/kernel/vmlinux.lds.S b/arch/arm64/kernel/vmlinux.ld=
-s.S
-index 97f0c04..edf8715 100644
---- a/arch/arm64/kernel/vmlinux.lds.S
-+++ b/arch/arm64/kernel/vmlinux.lds.S
-@@ -97,9 +97,9 @@ SECTIONS
-=20
- 	PERCPU_SECTION(64)
-=20
-+	. =3D ALIGN(PAGE_SIZE);
- 	__init_end =3D .;
-=20
--	. =3D ALIGN(PAGE_SIZE);
- 	_data =3D .;
- 	_sdata =3D .;
- 	RW_DATA_SECTION(64, PAGE_SIZE, THREAD_SIZE)
---=20
-1.9.2.msysgit.0
++	if (unlikely(has_isolate_pageblock(zone))) {
++		migratetype = get_pfnblock_migratetype(page, pfn);
++               if (!is_migrate_isolate(migratetype))
++                       __mod_zone_freepage_state(zone, 1 << order, migratetype);
++       } else {
++               __mod_zone_freepage_state(zone, 1 << order, migratetype);
+        }
+
+Anyway, What do you think which one is better, either v2 or v3? Still, v3? :)
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
