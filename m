@@ -1,138 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DB516B0036
-	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 10:25:03 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id p10so6327998pdj.9
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 07:25:03 -0700 (PDT)
-Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
-        by mx.google.com with ESMTPS id pf5si23282515pdb.190.2014.09.15.07.25.00
+Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
+	by kanga.kvack.org (Postfix) with ESMTP id CE1BA6B0037
+	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 10:25:34 -0400 (EDT)
+Received: by mail-qg0-f46.google.com with SMTP id q107so3932608qgd.5
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 07:25:34 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v20si14874520qav.94.2014.09.15.07.25.33
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 15 Sep 2014 07:25:02 -0700 (PDT)
-From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Mon, 15 Sep 2014 22:20:14 +0800
-Subject: RE: [RFC v2] arm:extend the reserved mrmory for initrd to be page
- aligned
-Message-ID: <35FD53F367049845BC99AC72306C23D103D6DB4D6F19@CNBJMBX05.corpusers.net>
-References: <35FD53F367049845BC99AC72306C23D103D6DB491609@CNBJMBX05.corpusers.net>,<20140915113325.GD12361@n2100.arm.linux.org.uk>
-In-Reply-To: <20140915113325.GD12361@n2100.arm.linux.org.uk>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 Sep 2014 07:25:34 -0700 (PDT)
+From: "Jerome Marchand" <jmarchan@redhat.com>
+Subject: [RFC PATCH v2 2/5] mm, procfs: Display VmAnon, VmFile and VmShm in /proc/pid/status
+Date: Mon, 15 Sep 2014 16:24:34 +0200
+Message-Id: <1410791077-5300-3-git-send-email-jmarchan@redhat.com>
+In-Reply-To: <1410791077-5300-1-git-send-email-jmarchan@redhat.com>
+References: <1410791077-5300-1-git-send-email-jmarchan@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: 'Will Deacon' <will.deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-msm@vger.kernel.org'" <linux-arm-msm@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: Randy Dunlap <rdunlap@infradead.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux390@de.ibm.com, Hugh Dickins <hughd@google.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Paul Mackerras <paulus@samba.org>, Ingo Molnar <mingo@redhat.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>
 
-Great!
-yeah, you are right,
-just keep the change in free_initrd_mem( ) is ok.
-we don't need keep reserved memory to be aligned ,
+It's currently inconvenient to retrieve MM_ANONPAGES value from status
+and statm files and there is no way to separate MM_FILEPAGES and
+MM_SHMEMPAGES. Add VmAnon, VmFile and VmShm lines in /proc/<pid>/status
+to solve these issues.
 
-Thanks!
+Signed-off-by: Jerome Marchand <jmarchan@redhat.com>
+---
+ Documentation/filesystems/proc.txt | 10 +++++++++-
+ fs/proc/task_mmu.c                 | 11 ++++++++++-
+ 2 files changed, 19 insertions(+), 2 deletions(-)
 
-________________________________________
-From: Russell King - ARM Linux [linux@arm.linux.org.uk]
-Sent: Monday, September 15, 2014 7:33 PM
-To: Wang, Yalin
-Cc: 'Will Deacon'; 'linux-kernel@vger.kernel.org'; 'linux-arm-kernel@lists.=
-infradead.org'; 'linux-mm@kvack.org'; 'linux-arm-msm@vger.kernel.org'
-Subject: Re: [RFC v2] arm:extend the reserved mrmory for initrd to be page =
-     aligned
-
-On Mon, Sep 15, 2014 at 07:07:20PM +0800, Wang, Yalin wrote:
-> this patch extend the start and end address of initrd to be page aligned,
-> so that we can free all memory including the un-page aligned head or tail
-> page of initrd, if the start or end address of initrd are not page
-> aligned, the page can't be freed by free_initrd_mem() function.
-
-Better, but I think it's more complicated than it needs to be:
-
-> Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
-> ---
->  arch/arm/mm/init.c   | 19 +++++++++++++++++--
->  arch/arm64/mm/init.c | 37 +++++++++++++++++++++++++++++++++----
->  2 files changed, 50 insertions(+), 6 deletions(-)
->
-> diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-> index 659c75d..8490b70 100644
-> --- a/arch/arm/mm/init.c
-> +++ b/arch/arm/mm/init.c
-> @@ -277,6 +277,8 @@ phys_addr_t __init arm_memblock_steal(phys_addr_t siz=
-e, phys_addr_t align)
->  void __init arm_memblock_init(const struct machine_desc *mdesc)
->  {
->       /* Register the kernel text, kernel data and initrd with memblock. =
-*/
-> +     phys_addr_t phys_initrd_start_orig __maybe_unused;
-> +     phys_addr_t phys_initrd_size_orig __maybe_unused;
->  #ifdef CONFIG_XIP_KERNEL
->       memblock_reserve(__pa(_sdata), _end - _sdata);
->  #else
-> @@ -289,6 +291,13 @@ void __init arm_memblock_init(const struct machine_d=
-esc *mdesc)
->               phys_initrd_size =3D initrd_end - initrd_start;
->       }
->       initrd_start =3D initrd_end =3D 0;
-> +     phys_initrd_start_orig =3D phys_initrd_start;
-> +     phys_initrd_size_orig =3D phys_initrd_size;
-> +     /* make sure the start and end address are page aligned */
-> +     phys_initrd_size =3D round_up(phys_initrd_start + phys_initrd_size,=
- PAGE_SIZE);
-> +     phys_initrd_start =3D round_down(phys_initrd_start, PAGE_SIZE);
-> +     phys_initrd_size -=3D phys_initrd_start;
-> +
->       if (phys_initrd_size &&
->           !memblock_is_region_memory(phys_initrd_start, phys_initrd_size)=
-) {
->               pr_err("INITRD: 0x%08llx+0x%08lx is not a memory region - d=
-isabling initrd\n",
-> @@ -305,9 +314,10 @@ void __init arm_memblock_init(const struct machine_d=
-esc *mdesc)
->               memblock_reserve(phys_initrd_start, phys_initrd_size);
->
->               /* Now convert initrd to virtual addresses */
-> -             initrd_start =3D __phys_to_virt(phys_initrd_start);
-> -             initrd_end =3D initrd_start + phys_initrd_size;
-> +             initrd_start =3D __phys_to_virt(phys_initrd_start_orig);
-> +             initrd_end =3D initrd_start + phys_initrd_size_orig;
->       }
-> +
-
-I think all the above is entirely unnecessary.  The memblock APIs
-(especially memblock_reserve()) will mark the overlapped pages as reserved
-- they round down the starting address, and round up the end address
-(calculated from start + size).
-
-Hence, this:
-
-> @@ -636,6 +646,11 @@ static int keep_initrd;
->  void free_initrd_mem(unsigned long start, unsigned long end)
->  {
->       if (!keep_initrd) {
-> +             if (start =3D=3D initrd_start)
-> +                     start =3D round_down(start, PAGE_SIZE);
-> +             if (end =3D=3D initrd_end)
-> +                     end =3D round_up(end, PAGE_SIZE);
-> +
->               poison_init_mem((void *)start, PAGE_ALIGN(end) - start);
->               free_reserved_area((void *)start, (void *)end, -1, "initrd"=
-);
->       }
-
-is the only bit of code you likely need to achieve your goal.
-
-Thinking about this, I think that you are quite right to align these.
-The memory around the initrd is defined to be system memory, and we
-already free the pages around it, so it *is* wrong not to free the
-partial initrd pages.
-
-Good catch.
-
---
-FTTC broadband for 0.8mile line: currently at 9.5Mbps down 400kbps up
-according to speedtest.net.=
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index 154a345..ffd4a7f 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -165,6 +165,9 @@ read the file /proc/PID/status:
+   VmLck:         0 kB
+   VmHWM:       476 kB
+   VmRSS:       476 kB
++  VmAnon:      352 kB
++  VmFile:      124 kB
++  VmShm:         4 kB
+   VmData:      156 kB
+   VmStk:        88 kB
+   VmExe:        68 kB
+@@ -221,7 +224,12 @@ Table 1-2: Contents of the status files (as of 2.6.30-rc7)
+  VmSize                      total program size
+  VmLck                       locked memory size
+  VmHWM                       peak resident set size ("high water mark")
+- VmRSS                       size of memory portions
++ VmRSS                       size of memory portions. It contains the three
++                             following parts (VmRSS = VmAnon + VmFile + VmShm)
++ VmAnon                      size of resident anonymous memory
++ VmFile                      size of resident file mappings
++ VmShm                       size of resident shmem memory (includes SysV shm,
++                             mapping of tmpfs and shared anonymous mappings)
+  VmData                      size of data, stack, and text segments
+  VmStk                       size of data, stack, and text segments
+  VmExe                       size of text segment
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 32657e3..762257f 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -21,7 +21,7 @@
+ 
+ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ {
+-	unsigned long data, text, lib, swap;
++	unsigned long data, text, lib, swap, anon, file, shmem;
+ 	unsigned long hiwater_vm, total_vm, hiwater_rss, total_rss;
+ 
+ 	/*
+@@ -38,6 +38,9 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ 	if (hiwater_rss < mm->hiwater_rss)
+ 		hiwater_rss = mm->hiwater_rss;
+ 
++	anon = get_mm_counter(mm, MM_ANONPAGES);
++	file = get_mm_counter(mm, MM_FILEPAGES);
++	shmem = get_mm_counter(mm, MM_SHMEMPAGES);
+ 	data = mm->total_vm - mm->shared_vm - mm->stack_vm;
+ 	text = (PAGE_ALIGN(mm->end_code) - (mm->start_code & PAGE_MASK)) >> 10;
+ 	lib = (mm->exec_vm << (PAGE_SHIFT-10)) - text;
+@@ -49,6 +52,9 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ 		"VmPin:\t%8lu kB\n"
+ 		"VmHWM:\t%8lu kB\n"
+ 		"VmRSS:\t%8lu kB\n"
++		"VmAnon:\t%8lu kB\n"
++		"VmFile:\t%8lu kB\n"
++		"VmShm:\t%8lu kB\n"
+ 		"VmData:\t%8lu kB\n"
+ 		"VmStk:\t%8lu kB\n"
+ 		"VmExe:\t%8lu kB\n"
+@@ -61,6 +67,9 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ 		mm->pinned_vm << (PAGE_SHIFT-10),
+ 		hiwater_rss << (PAGE_SHIFT-10),
+ 		total_rss << (PAGE_SHIFT-10),
++		anon << (PAGE_SHIFT-10),
++		file << (PAGE_SHIFT-10),
++		shmem << (PAGE_SHIFT-10),
+ 		data << (PAGE_SHIFT-10),
+ 		mm->stack_vm << (PAGE_SHIFT-10), text, lib,
+ 		(PTRS_PER_PTE * sizeof(pte_t) *
+-- 
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
