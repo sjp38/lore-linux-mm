@@ -1,80 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id D4B7C6B0035
-	for <linux-mm@kvack.org>; Sun, 14 Sep 2014 22:07:31 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id y10so5176137pdj.36
-        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 19:07:31 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id cz6si20083368pdb.198.2014.09.14.19.07.29
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id ACC136B0035
+	for <linux-mm@kvack.org>; Sun, 14 Sep 2014 22:11:47 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id lj1so5424093pab.27
+        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 19:11:47 -0700 (PDT)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id j5si20096234pdk.197.2014.09.14.19.11.45
         for <linux-mm@kvack.org>;
-        Sun, 14 Sep 2014 19:07:30 -0700 (PDT)
-Date: Mon, 15 Sep 2014 12:07:14 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Writeback, partial page writes and data corruption (was Re: [PATCH
- v3] ext4: fix data integrity sync in ordered mode)
-Message-ID: <20140915020714.GD4322@dastard>
-References: <000801cf6a4a$5d5c2dc0$18148940$@samsung.com>
+        Sun, 14 Sep 2014 19:11:46 -0700 (PDT)
+Date: Mon, 15 Sep 2014 11:11:34 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH] slab: implement kmalloc guard
+Message-ID: <20140915021133.GC2676@js1304-P5Q-DELUXE>
+References: <alpine.LRH.2.02.1409051833510.9790@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.11.1409080932490.20388@gentwo.org>
+ <alpine.LRH.2.02.1409081041160.29432@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.11.1409081108190.20388@gentwo.org>
+ <alpine.LRH.2.02.1409112211060.30537@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <000801cf6a4a$5d5c2dc0$18148940$@samsung.com>
+In-Reply-To: <alpine.LRH.2.02.1409112211060.30537@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Namjae Jeon <namjae.jeon@samsung.com>
-Cc: Theodore Ts'o <tytso@mit.edu>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Alasdair G. Kergon" <agk@redhat.com>, Mike Snitzer <msnitzer@redhat.com>, Milan Broz <gmazyland@gmail.com>, kkolasa@winsoft.pl, dm-devel@redhat.com
 
-[cc linux-fsdevel as a heads-up]
-
-On Thu, May 08, 2014 at 08:16:24AM +0900, Namjae Jeon wrote:
-> When we perform a data integrity sync we tag all the dirty pages with
-> PAGECACHE_TAG_TOWRITE at start of ext4_da_writepages.
-> Later we check for this tag in write_cache_pages_da and creates a
-> struct mpage_da_data containing contiguously indexed pages tagged with this
-> tag and sync these pages with a call to mpage_da_map_and_submit.
-> This process is done in while loop until all the PAGECACHE_TAG_TOWRITE pages
-> are synced. We also do journal start and stop in each iteration.
-> journal_stop could initiate journal commit which would call ext4_writepage
-> which in turn will call ext4_bio_write_page even for delayed OR unwritten
-> buffers. When ext4_bio_write_page is called for such buffers, even though it
-> does not sync them but it clears the PAGECACHE_TAG_TOWRITE of the corresponding
-> page and hence these pages are also not synced by the currently running data
-> integrity sync. We will end up with dirty pages although sync is completed.
+On Thu, Sep 11, 2014 at 10:32:52PM -0400, Mikulas Patocka wrote:
 > 
-> This could cause a potential data loss when the sync call is followed by a
-> truncate_pagecache call, which is exactly the case in collapse_range.
-> (It will cause generic/127 failure in xfstests)
+> 
+> On Mon, 8 Sep 2014, Christoph Lameter wrote:
+> 
+> > On Mon, 8 Sep 2014, Mikulas Patocka wrote:
+> > 
+> > > I don't know what you mean. If someone allocates 10000 objects with sizes
+> > > from 1 to 10000, you can't have 10000 slab caches - you can't have a slab
+> > > cache for each used size. Also - you can't create a slab cache in
+> > > interrupt context.
+> > 
+> > Oh you can create them up front on bootup. And I think only the small
+> > sizes matter. Allocations >=8K are pushed to the page allocator anyways.
+> 
+> Only for SLUB. For SLAB, large allocations are still use SLAB caches up to 
+> 4M. But anyway - having 8K preallocated slab caches is too much.
+> 
+> If you want to integrate this patch into the slab/slub subsystem, a better 
+> solution would be to store the exact size requested with kmalloc along the 
+> slab/slub object itself (before the preceding redzone). But it would 
+> result in duplicating the work - you'd have to repeat the logic in this 
+> patch three times - once for slab, once for slub and once for 
+> kmalloc_large/kmalloc_large_node.
+> 
+> I don't know if it would be better than this patch.
 
-Yes, this is a patch that went into 3.16, but I only just found out
-about it because Brian just found a very similar data corruption bug
-in XFS. i.e. a partial page write was starting writeback and hence
-clearing PAGECACHE_TAG_TOWRITE before the page was fully cleaned and
-hence WB_SYNC_ALL wasn't writing the entire page.
+Hello,
 
-http://oss.sgi.com/pipermail/xfs/2014-September/038150.html
-http://oss.sgi.com/pipermail/xfs/2014-September/038167.html
+Out of bound write could be detected by kernel address asanitizer(KASan).
+See following link.
 
-IOWs, if a filesystem does write-ahead in ->writepages() or
-relies on the write_cache_pages() layer to reissue dirty pages in
-partial page write situations for data integrity purposes, then it
-needs to be converted to use set_page_writeback_keepwrite() until
-the page is fully clean, at which point it can then use
-set_page_writeback().
+https://lkml.org/lkml/2014/9/10/441
 
-For everyone: if one filesystem is using the generic code
-incorrectly, then it is likely the same or similar bugs exist in
-other filesystems. As a courtesy to your fellow filesystem
-developers, if you find a data corruption bug caused by interactions
-with the generic code can the fixes please be CC'd to linux-fsdevel
-so everyone knows about the issue? This is especially important if
-new interfaces in the generic code have been added to avoid the
-problem.
+Although this patch also looks good to me, I think that KASan is
+better than this, because it could detect out of bound write and
+has more features for debugging.
 
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
