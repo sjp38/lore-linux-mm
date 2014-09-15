@@ -1,112 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id C66E56B0035
-	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 01:42:29 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id ft15so5521916pdb.4
-        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 22:42:29 -0700 (PDT)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id yk5si20590751pbc.183.2014.09.14.22.42.27
-        for <linux-mm@kvack.org>;
-        Sun, 14 Sep 2014 22:42:28 -0700 (PDT)
-Date: Mon, 15 Sep 2014 14:42:37 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC] Free the reserved memblock when free cma pages
-Message-ID: <20140915054236.GJ2160@bbox>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BC016B0035
+	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 01:46:49 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id bj1so5597755pad.9
+        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 22:46:48 -0700 (PDT)
+Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
+        by mx.google.com with ESMTPS id gw10si20560183pac.240.2014.09.14.22.46.46
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 14 Sep 2014 22:46:48 -0700 (PDT)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Mon, 15 Sep 2014 13:46:40 +0800
+Subject: RE: [RFC] Free the reserved memblock when free cma pages
+Message-ID: <35FD53F367049845BC99AC72306C23D103D6DB4915FE@CNBJMBX05.corpusers.net>
 References: <35FD53F367049845BC99AC72306C23D103CDBFBFB016@CNBJMBX05.corpusers.net>
  <20140915052151.GI2160@bbox>
  <35FD53F367049845BC99AC72306C23D103D6DB4915FD@CNBJMBX05.corpusers.net>
+ <20140915054236.GJ2160@bbox>
+In-Reply-To: <20140915054236.GJ2160@bbox>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <35FD53F367049845BC99AC72306C23D103D6DB4915FD@CNBJMBX05.corpusers.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+To: 'Minchan Kim' <minchan@kernel.org>
 Cc: "'mhocko@suse.cz'" <mhocko@suse.cz>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'akpm@linux-foundation.org'" <akpm@linux-foundation.org>, "mm-commits@vger.kernel.org" <mm-commits@vger.kernel.org>, "hughd@google.com" <hughd@google.com>, "b.zolnierkie@samsung.com" <b.zolnierkie@samsung.com>
 
-On Mon, Sep 15, 2014 at 01:36:13PM +0800, Wang, Yalin wrote:
-> Hi Kim,
-> 
-> I think move memblock_free into init_cma_reserved_pageblock
-> Is not a good idea,
-> Because this will need call memblock_free for
-> Every page release,
-> Think that for a 4MB memory, need call memblock_free
-> 1024 times , instead, we just call memblock_free one
-> Time for every pageblock_nr_pages pages .
-
-Why?
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1953a243836b..876b789378af 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -848,6 +848,9 @@ void __init init_cma_reserved_pageblock(struct page *page)
- 	}
- 
- 	adjust_managed_page_count(page, pageblock_nr_pages);
-+	memblock_free(page_to_phys(page),
-+				pageblock_nr_pages * PAGE_SIZE);
-+
- }
- #endif
- 
-> 
-> I will add some descriptions in cma_declare_contiguous
-> For patch version 2 .
-> 
-> Thanks
-> 
-> -----Original Message-----
-> Hello,
-> 
-> On Tue, Sep 09, 2014 at 02:13:58PM +0800, Wang, Yalin wrote:
-> > This patch add memblock_free to also free the reserved memblock, so 
-> > that the cma pages are not marked as reserved memory in 
-> > /sys/kernel/debug/memblock/reserved debug file
-> > 
-> > Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
-> > ---
-> >  mm/cma.c | 2 ++
-> >  1 file changed, 2 insertions(+)
-> > 
-> > diff --git a/mm/cma.c b/mm/cma.c
-> > index c17751c..f3ec756 100644
-> > --- a/mm/cma.c
-> > +++ b/mm/cma.c
-> > @@ -114,6 +114,8 @@ static int __init cma_activate_area(struct cma *cma)
-> >  				goto err;
-> >  		}
-> >  		init_cma_reserved_pageblock(pfn_to_page(base_pfn));
-> > +		memblock_free(__pfn_to_phys(base_pfn),
-> > +				pageblock_nr_pages * PAGE_SIZE);
-> 
-> Nitpick:
-> 
-> Couldn't we add memblock_free into init_cma_reserved_pageblock?
-> Because it should be pair with ClearPageReserved, I think.
-> 
-> In addition, please add description on memory reserve part in cma_declare_contiguous.
-> 
-> >  	} while (--i);
-> >  
-> >  	mutex_init(&cma->lock);
-> > --
-> > 2.1.0
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in the body 
-> > to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> --
-> Kind regards,
-> Minchan Kim
-
--- 
-Kind regards,
-Minchan Kim
+SGkgS2ltLA0KDQpPaCwgbXkgbWlzdGFrZSwNCkkgc2VlIHlvdXIgbWVhbmluZywNCkkgd2lsbCBy
+ZXNlbmQgYSBuZXcgcGF0Y2guDQoNClRoYW5rcyBmb3IgeW91ciBhZHZpY2UuDQoNCi0tLS0tT3Jp
+Z2luYWwgTWVzc2FnZS0tLS0tDQpPbiBNb24sIFNlcCAxNSwgMjAxNCBhdCAwMTozNjoxM1BNICsw
+ODAwLCBXYW5nLCBZYWxpbiB3cm90ZToNCj4gSGkgS2ltLA0KPiANCj4gSSB0aGluayBtb3ZlIG1l
+bWJsb2NrX2ZyZWUgaW50byBpbml0X2NtYV9yZXNlcnZlZF9wYWdlYmxvY2sgSXMgbm90IGEgDQo+
+IGdvb2QgaWRlYSwgQmVjYXVzZSB0aGlzIHdpbGwgbmVlZCBjYWxsIG1lbWJsb2NrX2ZyZWUgZm9y
+IEV2ZXJ5IHBhZ2UgDQo+IHJlbGVhc2UsIFRoaW5rIHRoYXQgZm9yIGEgNE1CIG1lbW9yeSwgbmVl
+ZCBjYWxsIG1lbWJsb2NrX2ZyZWUNCj4gMTAyNCB0aW1lcyAsIGluc3RlYWQsIHdlIGp1c3QgY2Fs
+bCBtZW1ibG9ja19mcmVlIG9uZSBUaW1lIGZvciBldmVyeSANCj4gcGFnZWJsb2NrX25yX3BhZ2Vz
+IHBhZ2VzIC4NCg0KV2h5Pw0KDQpkaWZmIC0tZ2l0IGEvbW0vcGFnZV9hbGxvYy5jIGIvbW0vcGFn
+ZV9hbGxvYy5jIGluZGV4IDE5NTNhMjQzODM2Yi4uODc2Yjc4OTM3OGFmIDEwMDY0NA0KLS0tIGEv
+bW0vcGFnZV9hbGxvYy5jDQorKysgYi9tbS9wYWdlX2FsbG9jLmMNCkBAIC04NDgsNiArODQ4LDkg
+QEAgdm9pZCBfX2luaXQgaW5pdF9jbWFfcmVzZXJ2ZWRfcGFnZWJsb2NrKHN0cnVjdCBwYWdlICpw
+YWdlKQ0KIAl9DQogDQogCWFkanVzdF9tYW5hZ2VkX3BhZ2VfY291bnQocGFnZSwgcGFnZWJsb2Nr
+X25yX3BhZ2VzKTsNCisJbWVtYmxvY2tfZnJlZShwYWdlX3RvX3BoeXMocGFnZSksDQorCQkJCXBh
+Z2VibG9ja19ucl9wYWdlcyAqIFBBR0VfU0laRSk7DQorDQogfQ0KICNlbmRpZg0KIA0KPiANCj4g
+SSB3aWxsIGFkZCBzb21lIGRlc2NyaXB0aW9ucyBpbiBjbWFfZGVjbGFyZV9jb250aWd1b3VzIEZv
+ciBwYXRjaCANCj4gdmVyc2lvbiAyIC4NCj4gDQo+IFRoYW5rcw0KPiANCj4gLS0tLS1PcmlnaW5h
+bCBNZXNzYWdlLS0tLS0NCj4gSGVsbG8sDQo+IA0KPiBPbiBUdWUsIFNlcCAwOSwgMjAxNCBhdCAw
+MjoxMzo1OFBNICswODAwLCBXYW5nLCBZYWxpbiB3cm90ZToNCj4gPiBUaGlzIHBhdGNoIGFkZCBt
+ZW1ibG9ja19mcmVlIHRvIGFsc28gZnJlZSB0aGUgcmVzZXJ2ZWQgbWVtYmxvY2ssIHNvIA0KPiA+
+IHRoYXQgdGhlIGNtYSBwYWdlcyBhcmUgbm90IG1hcmtlZCBhcyByZXNlcnZlZCBtZW1vcnkgaW4g
+DQo+ID4gL3N5cy9rZXJuZWwvZGVidWcvbWVtYmxvY2svcmVzZXJ2ZWQgZGVidWcgZmlsZQ0KPiA+
+IA0KPiA+IFNpZ25lZC1vZmYtYnk6IFlhbGluIFdhbmcgPHlhbGluLndhbmdAc29ueW1vYmlsZS5j
+b20+DQo+ID4gLS0tDQo+ID4gIG1tL2NtYS5jIHwgMiArKw0KPiA+ICAxIGZpbGUgY2hhbmdlZCwg
+MiBpbnNlcnRpb25zKCspDQo+ID4gDQo+ID4gZGlmZiAtLWdpdCBhL21tL2NtYS5jIGIvbW0vY21h
+LmMNCj4gPiBpbmRleCBjMTc3NTFjLi5mM2VjNzU2IDEwMDY0NA0KPiA+IC0tLSBhL21tL2NtYS5j
+DQo+ID4gKysrIGIvbW0vY21hLmMNCj4gPiBAQCAtMTE0LDYgKzExNCw4IEBAIHN0YXRpYyBpbnQg
+X19pbml0IGNtYV9hY3RpdmF0ZV9hcmVhKHN0cnVjdCBjbWEgKmNtYSkNCj4gPiAgCQkJCWdvdG8g
+ZXJyOw0KPiA+ICAJCX0NCj4gPiAgCQlpbml0X2NtYV9yZXNlcnZlZF9wYWdlYmxvY2socGZuX3Rv
+X3BhZ2UoYmFzZV9wZm4pKTsNCj4gPiArCQltZW1ibG9ja19mcmVlKF9fcGZuX3RvX3BoeXMoYmFz
+ZV9wZm4pLA0KPiA+ICsJCQkJcGFnZWJsb2NrX25yX3BhZ2VzICogUEFHRV9TSVpFKTsNCj4gDQo+
+IE5pdHBpY2s6DQo+IA0KPiBDb3VsZG4ndCB3ZSBhZGQgbWVtYmxvY2tfZnJlZSBpbnRvIGluaXRf
+Y21hX3Jlc2VydmVkX3BhZ2VibG9jaz8NCj4gQmVjYXVzZSBpdCBzaG91bGQgYmUgcGFpciB3aXRo
+IENsZWFyUGFnZVJlc2VydmVkLCBJIHRoaW5rLg0KPiANCj4gSW4gYWRkaXRpb24sIHBsZWFzZSBh
+ZGQgZGVzY3JpcHRpb24gb24gbWVtb3J5IHJlc2VydmUgcGFydCBpbiBjbWFfZGVjbGFyZV9jb250
+aWd1b3VzLg0KPiANCj4gPiAgCX0gd2hpbGUgKC0taSk7DQo+ID4gIA0KPiA+ICAJbXV0ZXhfaW5p
+dCgmY21hLT5sb2NrKTsNCj4gPiAtLQ0KPiA+IDIuMS4wDQo+ID4gDQo+ID4gLS0NCj4gPiBUbyB1
+bnN1YnNjcmliZSwgc2VuZCBhIG1lc3NhZ2Ugd2l0aCAndW5zdWJzY3JpYmUgbGludXgtbW0nIGlu
+IHRoZSANCj4gPiBib2R5IHRvIG1ham9yZG9tb0BrdmFjay5vcmcuICBGb3IgbW9yZSBpbmZvIG9u
+IExpbnV4IE1NLA0KPiA+IHNlZTogaHR0cDovL3d3dy5saW51eC1tbS5vcmcvIC4NCj4gPiBEb24n
+dCBlbWFpbDogPGEgaHJlZj1tYWlsdG86ImRvbnRAa3ZhY2sub3JnIj4gZW1haWxAa3ZhY2sub3Jn
+IDwvYT4NCj4gDQo+IC0tDQo+IEtpbmQgcmVnYXJkcywNCj4gTWluY2hhbiBLaW0NCg0KLS0NCktp
+bmQgcmVnYXJkcywNCk1pbmNoYW4gS2ltDQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
