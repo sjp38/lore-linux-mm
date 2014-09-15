@@ -1,76 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BC016B0035
-	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 01:46:49 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id bj1so5597755pad.9
-        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 22:46:48 -0700 (PDT)
-Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
-        by mx.google.com with ESMTPS id gw10si20560183pac.240.2014.09.14.22.46.46
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B5EE6B0036
+	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 01:57:28 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id p10so5419352pdj.16
+        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 22:57:28 -0700 (PDT)
+Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
+        by mx.google.com with ESMTPS id g3si20615369pdk.230.2014.09.14.22.57.26
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 14 Sep 2014 22:46:48 -0700 (PDT)
-From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Mon, 15 Sep 2014 13:46:40 +0800
-Subject: RE: [RFC] Free the reserved memblock when free cma pages
-Message-ID: <35FD53F367049845BC99AC72306C23D103D6DB4915FE@CNBJMBX05.corpusers.net>
-References: <35FD53F367049845BC99AC72306C23D103CDBFBFB016@CNBJMBX05.corpusers.net>
- <20140915052151.GI2160@bbox>
- <35FD53F367049845BC99AC72306C23D103D6DB4915FD@CNBJMBX05.corpusers.net>
- <20140915054236.GJ2160@bbox>
-In-Reply-To: <20140915054236.GJ2160@bbox>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Sun, 14 Sep 2014 22:57:27 -0700 (PDT)
+Received: from epcpsbgr3.samsung.com
+ (u143.gpu120.samsung.co.kr [203.254.230.143])
+ by mailout3.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTP id <0NBX007PBHV2H4C0@mailout3.samsung.com> for linux-mm@kvack.org;
+ Mon, 15 Sep 2014 14:57:02 +0900 (KST)
+From: Namjae Jeon <namjae.jeon@samsung.com>
+References: <000801cf6a4a$5d5c2dc0$18148940$@samsung.com>
+ <20140915020714.GD4322@dastard>
+In-reply-to: <20140915020714.GD4322@dastard>
+Subject: RE: Writeback, partial page writes and data corruption (was Re: [PATCH
+ v3] ext4: fix data integrity sync in ordered mode)
+Date: Mon, 15 Sep 2014 14:57:01 +0900
+Message-id: <004a01cfd0a9$de7713f0$9b653bd0$@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Content-language: ko
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Minchan Kim' <minchan@kernel.org>
-Cc: "'mhocko@suse.cz'" <mhocko@suse.cz>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'akpm@linux-foundation.org'" <akpm@linux-foundation.org>, "mm-commits@vger.kernel.org" <mm-commits@vger.kernel.org>, "hughd@google.com" <hughd@google.com>, "b.zolnierkie@samsung.com" <b.zolnierkie@samsung.com>
+To: 'Dave Chinner' <david@fromorbit.com>
+Cc: 'Theodore Ts'o' <tytso@mit.edu>, 'linux-ext4' <linux-ext4@vger.kernel.org>, linux-mm@kvack.org, 'Jan Kara' <jack@suse.cz>, linux-fsdevel@vger.kernel.org
 
-SGkgS2ltLA0KDQpPaCwgbXkgbWlzdGFrZSwNCkkgc2VlIHlvdXIgbWVhbmluZywNCkkgd2lsbCBy
-ZXNlbmQgYSBuZXcgcGF0Y2guDQoNClRoYW5rcyBmb3IgeW91ciBhZHZpY2UuDQoNCi0tLS0tT3Jp
-Z2luYWwgTWVzc2FnZS0tLS0tDQpPbiBNb24sIFNlcCAxNSwgMjAxNCBhdCAwMTozNjoxM1BNICsw
-ODAwLCBXYW5nLCBZYWxpbiB3cm90ZToNCj4gSGkgS2ltLA0KPiANCj4gSSB0aGluayBtb3ZlIG1l
-bWJsb2NrX2ZyZWUgaW50byBpbml0X2NtYV9yZXNlcnZlZF9wYWdlYmxvY2sgSXMgbm90IGEgDQo+
-IGdvb2QgaWRlYSwgQmVjYXVzZSB0aGlzIHdpbGwgbmVlZCBjYWxsIG1lbWJsb2NrX2ZyZWUgZm9y
-IEV2ZXJ5IHBhZ2UgDQo+IHJlbGVhc2UsIFRoaW5rIHRoYXQgZm9yIGEgNE1CIG1lbW9yeSwgbmVl
-ZCBjYWxsIG1lbWJsb2NrX2ZyZWUNCj4gMTAyNCB0aW1lcyAsIGluc3RlYWQsIHdlIGp1c3QgY2Fs
-bCBtZW1ibG9ja19mcmVlIG9uZSBUaW1lIGZvciBldmVyeSANCj4gcGFnZWJsb2NrX25yX3BhZ2Vz
-IHBhZ2VzIC4NCg0KV2h5Pw0KDQpkaWZmIC0tZ2l0IGEvbW0vcGFnZV9hbGxvYy5jIGIvbW0vcGFn
-ZV9hbGxvYy5jIGluZGV4IDE5NTNhMjQzODM2Yi4uODc2Yjc4OTM3OGFmIDEwMDY0NA0KLS0tIGEv
-bW0vcGFnZV9hbGxvYy5jDQorKysgYi9tbS9wYWdlX2FsbG9jLmMNCkBAIC04NDgsNiArODQ4LDkg
-QEAgdm9pZCBfX2luaXQgaW5pdF9jbWFfcmVzZXJ2ZWRfcGFnZWJsb2NrKHN0cnVjdCBwYWdlICpw
-YWdlKQ0KIAl9DQogDQogCWFkanVzdF9tYW5hZ2VkX3BhZ2VfY291bnQocGFnZSwgcGFnZWJsb2Nr
-X25yX3BhZ2VzKTsNCisJbWVtYmxvY2tfZnJlZShwYWdlX3RvX3BoeXMocGFnZSksDQorCQkJCXBh
-Z2VibG9ja19ucl9wYWdlcyAqIFBBR0VfU0laRSk7DQorDQogfQ0KICNlbmRpZg0KIA0KPiANCj4g
-SSB3aWxsIGFkZCBzb21lIGRlc2NyaXB0aW9ucyBpbiBjbWFfZGVjbGFyZV9jb250aWd1b3VzIEZv
-ciBwYXRjaCANCj4gdmVyc2lvbiAyIC4NCj4gDQo+IFRoYW5rcw0KPiANCj4gLS0tLS1PcmlnaW5h
-bCBNZXNzYWdlLS0tLS0NCj4gSGVsbG8sDQo+IA0KPiBPbiBUdWUsIFNlcCAwOSwgMjAxNCBhdCAw
-MjoxMzo1OFBNICswODAwLCBXYW5nLCBZYWxpbiB3cm90ZToNCj4gPiBUaGlzIHBhdGNoIGFkZCBt
-ZW1ibG9ja19mcmVlIHRvIGFsc28gZnJlZSB0aGUgcmVzZXJ2ZWQgbWVtYmxvY2ssIHNvIA0KPiA+
-IHRoYXQgdGhlIGNtYSBwYWdlcyBhcmUgbm90IG1hcmtlZCBhcyByZXNlcnZlZCBtZW1vcnkgaW4g
-DQo+ID4gL3N5cy9rZXJuZWwvZGVidWcvbWVtYmxvY2svcmVzZXJ2ZWQgZGVidWcgZmlsZQ0KPiA+
-IA0KPiA+IFNpZ25lZC1vZmYtYnk6IFlhbGluIFdhbmcgPHlhbGluLndhbmdAc29ueW1vYmlsZS5j
-b20+DQo+ID4gLS0tDQo+ID4gIG1tL2NtYS5jIHwgMiArKw0KPiA+ICAxIGZpbGUgY2hhbmdlZCwg
-MiBpbnNlcnRpb25zKCspDQo+ID4gDQo+ID4gZGlmZiAtLWdpdCBhL21tL2NtYS5jIGIvbW0vY21h
-LmMNCj4gPiBpbmRleCBjMTc3NTFjLi5mM2VjNzU2IDEwMDY0NA0KPiA+IC0tLSBhL21tL2NtYS5j
-DQo+ID4gKysrIGIvbW0vY21hLmMNCj4gPiBAQCAtMTE0LDYgKzExNCw4IEBAIHN0YXRpYyBpbnQg
-X19pbml0IGNtYV9hY3RpdmF0ZV9hcmVhKHN0cnVjdCBjbWEgKmNtYSkNCj4gPiAgCQkJCWdvdG8g
-ZXJyOw0KPiA+ICAJCX0NCj4gPiAgCQlpbml0X2NtYV9yZXNlcnZlZF9wYWdlYmxvY2socGZuX3Rv
-X3BhZ2UoYmFzZV9wZm4pKTsNCj4gPiArCQltZW1ibG9ja19mcmVlKF9fcGZuX3RvX3BoeXMoYmFz
-ZV9wZm4pLA0KPiA+ICsJCQkJcGFnZWJsb2NrX25yX3BhZ2VzICogUEFHRV9TSVpFKTsNCj4gDQo+
-IE5pdHBpY2s6DQo+IA0KPiBDb3VsZG4ndCB3ZSBhZGQgbWVtYmxvY2tfZnJlZSBpbnRvIGluaXRf
-Y21hX3Jlc2VydmVkX3BhZ2VibG9jaz8NCj4gQmVjYXVzZSBpdCBzaG91bGQgYmUgcGFpciB3aXRo
-IENsZWFyUGFnZVJlc2VydmVkLCBJIHRoaW5rLg0KPiANCj4gSW4gYWRkaXRpb24sIHBsZWFzZSBh
-ZGQgZGVzY3JpcHRpb24gb24gbWVtb3J5IHJlc2VydmUgcGFydCBpbiBjbWFfZGVjbGFyZV9jb250
-aWd1b3VzLg0KPiANCj4gPiAgCX0gd2hpbGUgKC0taSk7DQo+ID4gIA0KPiA+ICAJbXV0ZXhfaW5p
-dCgmY21hLT5sb2NrKTsNCj4gPiAtLQ0KPiA+IDIuMS4wDQo+ID4gDQo+ID4gLS0NCj4gPiBUbyB1
-bnN1YnNjcmliZSwgc2VuZCBhIG1lc3NhZ2Ugd2l0aCAndW5zdWJzY3JpYmUgbGludXgtbW0nIGlu
-IHRoZSANCj4gPiBib2R5IHRvIG1ham9yZG9tb0BrdmFjay5vcmcuICBGb3IgbW9yZSBpbmZvIG9u
-IExpbnV4IE1NLA0KPiA+IHNlZTogaHR0cDovL3d3dy5saW51eC1tbS5vcmcvIC4NCj4gPiBEb24n
-dCBlbWFpbDogPGEgaHJlZj1tYWlsdG86ImRvbnRAa3ZhY2sub3JnIj4gZW1haWxAa3ZhY2sub3Jn
-IDwvYT4NCj4gDQo+IC0tDQo+IEtpbmQgcmVnYXJkcywNCj4gTWluY2hhbiBLaW0NCg0KLS0NCktp
-bmQgcmVnYXJkcywNCk1pbmNoYW4gS2ltDQo=
+> 
+> [cc linux-fsdevel as a heads-up]
+> 
+> On Thu, May 08, 2014 at 08:16:24AM +0900, Namjae Jeon wrote:
+> > When we perform a data integrity sync we tag all the dirty pages with
+> > PAGECACHE_TAG_TOWRITE at start of ext4_da_writepages.
+> > Later we check for this tag in write_cache_pages_da and creates a
+> > struct mpage_da_data containing contiguously indexed pages tagged with this
+> > tag and sync these pages with a call to mpage_da_map_and_submit.
+> > This process is done in while loop until all the PAGECACHE_TAG_TOWRITE pages
+> > are synced. We also do journal start and stop in each iteration.
+> > journal_stop could initiate journal commit which would call ext4_writepage
+> > which in turn will call ext4_bio_write_page even for delayed OR unwritten
+> > buffers. When ext4_bio_write_page is called for such buffers, even though it
+> > does not sync them but it clears the PAGECACHE_TAG_TOWRITE of the corresponding
+> > page and hence these pages are also not synced by the currently running data
+> > integrity sync. We will end up with dirty pages although sync is completed.
+> >
+> > This could cause a potential data loss when the sync call is followed by a
+> > truncate_pagecache call, which is exactly the case in collapse_range.
+> > (It will cause generic/127 failure in xfstests)
+> 
+> Yes, this is a patch that went into 3.16, but I only just found out
+> about it because Brian just found a very similar data corruption bug
+> in XFS. i.e. a partial page write was starting writeback and hence
+> clearing PAGECACHE_TAG_TOWRITE before the page was fully cleaned and
+> hence WB_SYNC_ALL wasn't writing the entire page.
+> 
+> http://oss.sgi.com/pipermail/xfs/2014-September/038150.html
+> http://oss.sgi.com/pipermail/xfs/2014-September/038167.html
+> 
+> IOWs, if a filesystem does write-ahead in ->writepages() or
+> relies on the write_cache_pages() layer to reissue dirty pages in
+> partial page write situations for data integrity purposes, then it
+> needs to be converted to use set_page_writeback_keepwrite() until
+> the page is fully clean, at which point it can then use
+> set_page_writeback().
+> 
+> For everyone: if one filesystem is using the generic code
+> incorrectly, then it is likely the same or similar bugs exist in
+> other filesystems. As a courtesy to your fellow filesystem
+> developers, if you find a data corruption bug caused by interactions
+> with the generic code can the fixes please be CC'd to linux-fsdevel
+> so everyone knows about the issue? This is especially important if
+> new interfaces in the generic code have been added to avoid the
+> problem.
+Hi Dave,
+
+I apologize for inconvenience. I will keep in mind your words next time.
+
+Thanks!
+> 
+> Cheers,
+> 
+> Dave.
+> --
+> Dave Chinner
+> david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
