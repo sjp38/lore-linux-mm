@@ -1,73 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CD336B003B
-	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 06:26:51 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id z10so5908169pdj.20
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 03:26:51 -0700 (PDT)
-Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
-        by mx.google.com with ESMTPS id m6si21971770pdk.214.2014.09.15.03.26.48
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 753B96B003C
+	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 06:30:43 -0400 (EDT)
+Received: by mail-wi0-f173.google.com with SMTP id em10so3874559wid.12
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 03:30:41 -0700 (PDT)
+Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id lv9si13723510wic.23.2014.09.15.03.30.33
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 15 Sep 2014 03:26:50 -0700 (PDT)
-From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Mon, 15 Sep 2014 18:26:43 +0800
-Subject: [RFC Resend] arm:extend __init_end to a page align address
-Message-ID: <35FD53F367049845BC99AC72306C23D103D6DB491607@CNBJMBX05.corpusers.net>
-References: <35FD53F367049845BC99AC72306C23D103CDBFBFB028@CNBJMBX05.corpusers.net>
- <35FD53F367049845BC99AC72306C23D103D6DB4915FB@CNBJMBX05.corpusers.net>
-In-Reply-To: <35FD53F367049845BC99AC72306C23D103D6DB4915FB@CNBJMBX05.corpusers.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 15 Sep 2014 03:30:34 -0700 (PDT)
+Date: Mon, 15 Sep 2014 11:30:13 +0100
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [RFC] arm:extend the reserved mrmory for initrd to be page
+	aligned
+Message-ID: <20140915103013.GB12361@n2100.arm.linux.org.uk>
+References: <35FD53F367049845BC99AC72306C23D103D6DB4915FC@CNBJMBX05.corpusers.net> <20140915084616.GX12361@n2100.arm.linux.org.uk> <35FD53F367049845BC99AC72306C23D103D6DB491604@CNBJMBX05.corpusers.net> <20140915093014.GZ12361@n2100.arm.linux.org.uk> <35FD53F367049845BC99AC72306C23D103D6DB491605@CNBJMBX05.corpusers.net> <20140915101632.GA12361@n2100.arm.linux.org.uk> <35FD53F367049845BC99AC72306C23D103D6DB491606@CNBJMBX05.corpusers.net>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <35FD53F367049845BC99AC72306C23D103D6DB491606@CNBJMBX05.corpusers.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Will Deacon' <will.deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>
+To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Cc: 'Will Deacon' <will.deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "linux-arm-msm@vger.kernel.org" <linux-arm-msm@vger.kernel.org>
 
-this patch change the __init_end address to a page align address, so that f=
-ree_initmem()
-can free the whole .init section, because if the end address is not page al=
-igned,
-it will round down to a page align address, then the tail unligned page wil=
-l not be freed.
+On Mon, Sep 15, 2014 at 06:22:12PM +0800, Wang, Yalin wrote:
+> Oh, I see your meaning,
+> Yeah , my initrd is a cpio image,
+> And it can still work after apply this patch.
 
-Signed-off-by: Yalin wang <yalin.wang@sonymobile.com>
----
- arch/arm/kernel/vmlinux.lds.S   | 2 +-
- arch/arm64/kernel/vmlinux.lds.S | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+Okay, that's what I wanted to know.  However, I believe your patch to
+be incorrect.  You delete the assignments to initrd_start and initrd_end
+in arm_memblock_init(), which will result in non-OF platforms having
+no initrd.
 
-diff --git a/arch/arm/kernel/vmlinux.lds.S b/arch/arm/kernel/vmlinux.lds.S =
-index 6f57cb9..8e95aa4 100644
---- a/arch/arm/kernel/vmlinux.lds.S
-+++ b/arch/arm/kernel/vmlinux.lds.S
-@@ -219,8 +219,8 @@ SECTIONS
- 	__data_loc =3D ALIGN(4);		/* location in binary */
- 	. =3D PAGE_OFFSET + TEXT_OFFSET;
- #else
--	__init_end =3D .;
- 	. =3D ALIGN(THREAD_SIZE);
-+	__init_end =3D .;
- 	__data_loc =3D .;
- #endif
-=20
-diff --git a/arch/arm64/kernel/vmlinux.lds.S b/arch/arm64/kernel/vmlinux.ld=
-s.S index 97f0c04..edf8715 100644
---- a/arch/arm64/kernel/vmlinux.lds.S
-+++ b/arch/arm64/kernel/vmlinux.lds.S
-@@ -97,9 +97,9 @@ SECTIONS
-=20
- 	PERCPU_SECTION(64)
-=20
-+	. =3D ALIGN(PAGE_SIZE);
- 	__init_end =3D .;
-=20
--	. =3D ALIGN(PAGE_SIZE);
- 	_data =3D .;
- 	_sdata =3D .;
- 	RW_DATA_SECTION(64, PAGE_SIZE, THREAD_SIZE)
---
-1.9.2.msysgit.0
+The reason is that OF platforms set initrd_start and initrd_size from
+the OF code (drivers/of/fdt.c), but ATAG platforms only set our private
+phys_* versions.
+
+The reason I went with phys_* stuff was to permit better verification
+of the addresses passed - that the addresses were indeed memory locations
+before passing them through something like __va().
+
+-- 
+FTTC broadband for 0.8mile line: currently at 9.5Mbps down 400kbps up
+according to speedtest.net.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
