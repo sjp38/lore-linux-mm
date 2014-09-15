@@ -1,90 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D5E86B0035
-	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 02:57:51 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id bj1so5800837pad.14
-        for <linux-mm@kvack.org>; Sun, 14 Sep 2014 23:57:51 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id j5si20911311pdk.197.2014.09.14.23.57.49
-        for <linux-mm@kvack.org>;
-        Sun, 14 Sep 2014 23:57:50 -0700 (PDT)
-Date: Mon, 15 Sep 2014 15:57:59 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC V2] Free the reserved memblock when free cma pages
-Message-ID: <20140915065759.GM2160@bbox>
-References: <35FD53F367049845BC99AC72306C23D103CDBFBFB016@CNBJMBX05.corpusers.net>
- <20140915052151.GI2160@bbox>
- <35FD53F367049845BC99AC72306C23D103D6DB4915FD@CNBJMBX05.corpusers.net>
- <20140915054236.GJ2160@bbox>
- <35FD53F367049845BC99AC72306C23D103D6DB4915FF@CNBJMBX05.corpusers.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <35FD53F367049845BC99AC72306C23D103D6DB4915FF@CNBJMBX05.corpusers.net>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 5059F6B0035
+	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 03:17:57 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id fa1so5731528pad.16
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 00:17:56 -0700 (PDT)
+Received: from mailout1.w1.samsung.com (mailout1.w1.samsung.com. [210.118.77.11])
+        by mx.google.com with ESMTPS id i14si3986271pdl.61.2014.09.15.00.17.55
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Mon, 15 Sep 2014 00:17:56 -0700 (PDT)
+Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
+ by mailout1.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0NBX000OULQMZ020@mailout1.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 15 Sep 2014 08:20:46 +0100 (BST)
+Message-id: <5416910F.9020106@samsung.com>
+Date: Mon, 15 Sep 2014 11:11:11 +0400
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+MIME-version: 1.0
+Subject: Re: [RFC/PATCH v2 04/10] mm: slub: introduce virt_to_obj function.
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+ <1410359487-31938-1-git-send-email-a.ryabinin@samsung.com>
+ <1410359487-31938-5-git-send-email-a.ryabinin@samsung.com>
+ <alpine.DEB.2.11.1409101116160.1654@gentwo.org>
+ <CAPAsAGxuoXEM2AXRV_at0=xiLOmaZe+QY-45KeA7ZvvHzhOqMg@mail.gmail.com>
+In-reply-to: 
+ <CAPAsAGxuoXEM2AXRV_at0=xiLOmaZe+QY-45KeA7ZvvHzhOqMg@mail.gmail.com>
+Content-type: text/plain; charset=UTF-8
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Cc: "'mhocko@suse.cz'" <mhocko@suse.cz>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'akpm@linux-foundation.org'" <akpm@linux-foundation.org>, "mm-commits@vger.kernel.org" <mm-commits@vger.kernel.org>, "hughd@google.com" <hughd@google.com>, "b.zolnierkie@samsung.com" <b.zolnierkie@samsung.com>
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Christoph Lameter <cl@linux.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
 
-On Mon, Sep 15, 2014 at 02:10:19PM +0800, Wang, Yalin wrote:
-> This patch add memblock_free to also free the reserved memblock,
-> so that the cma pages are not marked as reserved memory in
-> /sys/kernel/debug/memblock/reserved debug file
-
-If you received some comments and judges the direction is right,
-you could remove RFC tag from the patch title.
-
-
+On 09/11/2014 12:32 AM, Andrey Ryabinin wrote:
+> 2014-09-10 20:16 GMT+04:00 Christoph Lameter <cl@linux.com>:
+>> On Wed, 10 Sep 2014, Andrey Ryabinin wrote:
+>>
+>>> virt_to_obj takes kmem_cache address, address of slab page,
+>>> address x pointing somewhere inside slab object,
+>>> and returns address of the begging of object.
+>>
+>> This function is SLUB specific. Does it really need to be in slab.h?
+>>
 > 
-> Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
-
-Anyway,
-Acked-by: Minchan Kim <minchan@kernel.org>
-
->
-> ---
->  mm/cma.c        | 6 +++++-
->  mm/page_alloc.c | 2 +-
->  2 files changed, 6 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/cma.c b/mm/cma.c
-> index c17751c..ec69c69 100644
-> --- a/mm/cma.c
-> +++ b/mm/cma.c
-> @@ -196,7 +196,11 @@ int __init cma_declare_contiguous(phys_addr_t base,
->  	if (!IS_ALIGNED(size >> PAGE_SHIFT, 1 << order_per_bit))
->  		return -EINVAL;
->  
-> -	/* Reserve memory */
-> +	/*
-> +	 * Reserve memory, and the reserved memory are marked as reserved by
-> +	 * memblock driver, remember to clear the reserved status when free
-> +	 * these cma pages, see init_cma_reserved_pageblock()
-> +	 */
->  	if (base && fixed) {
->  		if (memblock_is_region_reserved(base, size) ||
->  		    memblock_reserve(base, size) < 0) {
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 18cee0d..fffbb84 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -836,8 +836,8 @@ void __init init_cma_reserved_pageblock(struct page *page)
->  		set_page_refcounted(page);
->  		__free_pages(page, pageblock_order);
->  	}
-> -
->  	adjust_managed_page_count(page, pageblock_nr_pages);
-> +	memblock_free(page_to_phys(page), pageblock_nr_pages << PAGE_SHIFT);
->  }
->  #endif
->  
-> -- 
-> 2.1.0
+> Oh, yes this should be in slub.c
 > 
 
--- 
-Kind regards,
-Minchan Kim
+I forgot that include/linux/slub_def.h exists. Perhaps it would be better to move
+virt_to_obj into slub_def.h to avoid ugly #ifdef CONFIG_KASAN in slub.c
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
