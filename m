@@ -1,94 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A50F6B0036
-	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 15:19:32 -0400 (EDT)
-Received: by mail-ie0-f173.google.com with SMTP id x19so5242726ier.18
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 12:19:32 -0700 (PDT)
-Received: from mail-ie0-x24a.google.com (mail-ie0-x24a.google.com [2607:f8b0:4001:c03::24a])
-        by mx.google.com with ESMTPS id qo6si10461380igb.23.2014.09.15.12.19.31
+Received: from mail-yh0-f44.google.com (mail-yh0-f44.google.com [209.85.213.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C8B36B0036
+	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 16:11:33 -0400 (EDT)
+Received: by mail-yh0-f44.google.com with SMTP id b6so1512414yha.3
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 13:11:33 -0700 (PDT)
+Received: from mail-yh0-x24a.google.com (mail-yh0-x24a.google.com [2607:f8b0:4002:c01::24a])
+        by mx.google.com with ESMTPS id i61si10991069yhg.183.2014.09.15.13.11.32
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 15 Sep 2014 12:19:31 -0700 (PDT)
-Received: by mail-ie0-f202.google.com with SMTP id rl12so682877iec.1
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 12:19:31 -0700 (PDT)
-From: Peter Feiner <pfeiner@google.com>
-Subject: [PATCH v2] mm: softdirty: addresses before VMAs in PTE holes aren't softdirty
-Date: Mon, 15 Sep 2014 12:19:27 -0700
-Message-Id: <1410808767-9047-1-git-send-email-pfeiner@google.com>
-In-Reply-To: <1410374050-13074-1-git-send-email-pfeiner@google.com>
-References: <1410374050-13074-1-git-send-email-pfeiner@google.com>
+        Mon, 15 Sep 2014 13:11:33 -0700 (PDT)
+Received: by mail-yh0-f74.google.com with SMTP id f73so451310yha.5
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 13:11:32 -0700 (PDT)
+From: Andres Lagar-Cavilla <andreslc@google.com>
+Subject: [PATCH] kvm: Faults which trigger IO release the mmap_sem
+Date: Mon, 15 Sep 2014 13:11:25 -0700
+Message-Id: <1410811885-17267-1-git-send-email-andreslc@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Peter Feiner <pfeiner@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@parallels.com>, Jamie Liu <jamieliu@google.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Gleb Natapov <gleb@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andres Lagar-Cavilla <andreslc@google.com>
 
-In PTE holes that contain VM_SOFTDIRTY VMAs, unmapped addresses before
-VM_SOFTDIRTY VMAs are reported as softdirty by /proc/pid/pagemap. This
-bug was introduced in 68b5a652485682f67eacdee3deae640fb7845b63. The
-aforementioned patch made /proc/pid/pagemap look at VM_SOFTDIRTY in PTE
-holes but neglected to observe the start of VMAs returned by find_vma.
+When KVM handles a tdp fault it uses FOLL_NOWAIT. If the guest memory has been
+swapped out or is behind a filemap, this will trigger async readahead and
+return immediately. The rationale is that KVM will kick back the guest with an
+"async page fault" and allow for some other guest process to take over.
 
-Tested:
-  Wrote a selftest that creates a PMD-sized VMA then unmaps the first
-  page and asserts that the page is not softdirty. I'm going to send the
-  pagemap selftest in a later commit.
+If async PFs are enabled the fault is retried asap from a workqueue, or
+immediately if no async PFs. The retry will not relinquish the mmap semaphore
+and will block on the IO. This is a bad thing, as other mmap semaphore users
+now stall. The fault could take a long time, depending on swap or filemap
+latency.
 
-Signed-off-by: Peter Feiner <pfeiner@google.com>
+This patch ensures both the regular and async PF path re-enter the fault
+allowing for the mmap semaphore to be relinquished in the case of IO wait.
 
+Signed-off-by: Andres Lagar-Cavilla <andreslc@google.com>
 ---
+ include/linux/kvm_host.h |  9 +++++++++
+ include/linux/mm.h       |  1 +
+ mm/gup.c                 |  4 ++++
+ virt/kvm/async_pf.c      |  4 +---
+ virt/kvm/kvm_main.c      | 45 ++++++++++++++++++++++++++++++++++++++++++---
+ 5 files changed, 57 insertions(+), 6 deletions(-)
 
-v1 -> v2:
-	Rewrote to make logic easier to follow.
----
- fs/proc/task_mmu.c | 27 ++++++++++++++++++---------
- 1 file changed, 18 insertions(+), 9 deletions(-)
-
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index dfc791c..c341568 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -931,23 +931,32 @@ static int pagemap_pte_hole(unsigned long start, unsigned long end,
- 	while (addr < end) {
- 		struct vm_area_struct *vma = find_vma(walk->mm, addr);
- 		pagemap_entry_t pme = make_pme(PM_NOT_PRESENT(pm->v2));
--		unsigned long vm_end;
-+		/* End of address space hole, which we mark as non-present. */
-+		unsigned long hole_end;
+diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
+index 3addcbc..704908d 100644
+--- a/include/linux/kvm_host.h
++++ b/include/linux/kvm_host.h
+@@ -198,6 +198,15 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, unsigned long hva,
+ int kvm_async_pf_wakeup_all(struct kvm_vcpu *vcpu);
+ #endif
  
--		if (!vma) {
--			vm_end = end;
--		} else {
--			vm_end = min(end, vma->vm_end);
--			if (vma->vm_flags & VM_SOFTDIRTY)
--				pme.pme |= PM_STATUS2(pm->v2, __PM_SOFT_DIRTY);
-+		if (vma)
-+			hole_end = min(end, vma->vm_start);
-+		else
-+			hole_end = end;
++/*
++ * Retry a fault after a gup with FOLL_NOWAIT. This properly relinquishes mmap
++ * semaphore if the filemap/swap has to wait on page lock (and retries the gup
++ * to completion after that).
++ */
++int kvm_get_user_page_retry(struct task_struct *tsk, struct mm_struct *mm,
++			    unsigned long addr, bool write_fault,
++			    struct page **pagep);
 +
-+		for (; addr < hole_end; addr += PAGE_SIZE) {
-+			err = add_to_pagemap(addr, &pme, pm);
-+			if (err)
-+				goto out;
- 		}
+ enum {
+ 	OUTSIDE_GUEST_MODE,
+ 	IN_GUEST_MODE,
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index ebc5f90..13e585f7 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2011,6 +2011,7 @@ static inline struct page *follow_page(struct vm_area_struct *vma,
+ #define FOLL_HWPOISON	0x100	/* check page is hwpoisoned */
+ #define FOLL_NUMA	0x200	/* force NUMA hinting page fault */
+ #define FOLL_MIGRATION	0x400	/* wait for page to replace migration entry */
++#define FOLL_TRIED	0x800	/* a retry, previous pass started an IO */
  
--		for (; addr < vm_end; addr += PAGE_SIZE) {
-+		if (!vma)
-+			break;
-+
-+		/* Addresses in the VMA. */
-+		if (vma->vm_flags & VM_SOFTDIRTY)
-+			pme.pme |= PM_STATUS2(pm->v2, __PM_SOFT_DIRTY);
-+		for (; addr < min(end, vma->vm_end); addr += PAGE_SIZE) {
- 			err = add_to_pagemap(addr, &pme, pm);
- 			if (err)
- 				goto out;
- 		}
- 	}
--
- out:
- 	return err;
+ typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
+ 			void *data);
+diff --git a/mm/gup.c b/mm/gup.c
+index 91d044b..332d1c3 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -281,6 +281,10 @@ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
+ 		fault_flags |= FAULT_FLAG_ALLOW_RETRY;
+ 	if (*flags & FOLL_NOWAIT)
+ 		fault_flags |= FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT;
++	if (*flags & FOLL_TRIED) {
++		WARN_ON_ONCE(fault_flags & FAULT_FLAG_ALLOW_RETRY);
++		fault_flags |= FAULT_FLAG_TRIED;
++	}
+ 
+ 	ret = handle_mm_fault(mm, vma, address, fault_flags);
+ 	if (ret & VM_FAULT_ERROR) {
+diff --git a/virt/kvm/async_pf.c b/virt/kvm/async_pf.c
+index d6a3d09..17b78b1 100644
+--- a/virt/kvm/async_pf.c
++++ b/virt/kvm/async_pf.c
+@@ -80,9 +80,7 @@ static void async_pf_execute(struct work_struct *work)
+ 
+ 	might_sleep();
+ 
+-	down_read(&mm->mmap_sem);
+-	get_user_pages(NULL, mm, addr, 1, 1, 0, NULL, NULL);
+-	up_read(&mm->mmap_sem);
++	kvm_get_user_page_retry(NULL, mm, addr, 1, NULL);
+ 	kvm_async_page_present_sync(vcpu, apf);
+ 
+ 	spin_lock(&vcpu->async_pf.lock);
+diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+index 7ef6b48..43a9ab9 100644
+--- a/virt/kvm/kvm_main.c
++++ b/virt/kvm/kvm_main.c
+@@ -1115,6 +1115,39 @@ static int get_user_page_nowait(struct task_struct *tsk, struct mm_struct *mm,
+ 	return __get_user_pages(tsk, mm, start, 1, flags, page, NULL, NULL);
  }
+ 
++int kvm_get_user_page_retry(struct task_struct *tsk, struct mm_struct *mm,
++				unsigned long addr, bool write_fault,
++				struct page **pagep)
++{
++	int npages;
++	int locked = 1;
++	int flags = FOLL_TOUCH | FOLL_HWPOISON |
++		    (pagep ? FOLL_GET : 0) |
++		    (write_fault ? FOLL_WRITE : 0);
++
++	/*
++	 * Retrying fault, we get here *not* having allowed the filemap to wait
++	 * on the page lock. We should now allow waiting on the IO with the
++	 * mmap semaphore released.
++	 */
++	down_read(&mm->mmap_sem);
++	npages = __get_user_pages(tsk, mm, addr, 1, flags, pagep, NULL,
++				  &locked);
++	if (!locked) {
++		BUG_ON(npages != -EBUSY);
++		/*
++		 * The previous call has now waited on the IO. Now we can
++		 * retry and complete. Pass TRIED to ensure we do not re
++		 * schedule async IO (see e.g. filemap_fault).
++		 */
++		down_read(&mm->mmap_sem);
++		npages = __get_user_pages(tsk, mm, addr, 1, flags | FOLL_TRIED,
++					  pagep, NULL, NULL);
++	}
++	up_read(&mm->mmap_sem);
++	return npages;
++}
++
+ static inline int check_user_page_hwpoison(unsigned long addr)
+ {
+ 	int rc, flags = FOLL_TOUCH | FOLL_HWPOISON | FOLL_WRITE;
+@@ -1177,9 +1210,15 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
+ 		npages = get_user_page_nowait(current, current->mm,
+ 					      addr, write_fault, page);
+ 		up_read(&current->mm->mmap_sem);
+-	} else
+-		npages = get_user_pages_fast(addr, 1, write_fault,
+-					     page);
++	} else {
++		/*
++		 * By now we have tried gup_fast, and possible async_pf, and we
++		 * are certainly not atomic. Time to retry the gup, allowing
++		 * mmap semaphore to be relinquished in the case of IO.
++		 */
++		npages = kvm_get_user_page_retry(current, current->mm, addr,
++						 write_fault, page);
++	}
+ 	if (npages != 1)
+ 		return npages;
+ 
 -- 
 2.1.0.rc2.206.gedb03e5
 
