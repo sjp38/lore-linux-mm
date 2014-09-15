@@ -1,70 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id DB6266B0036
-	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 14:40:44 -0400 (EDT)
-Received: by mail-wi0-f176.google.com with SMTP id ex7so4851446wid.3
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 11:40:44 -0700 (PDT)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id qn9si17313619wjc.37.2014.09.15.11.40.37
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 34AE66B0037
+	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 14:40:53 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id p10so6779302pdj.9
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 11:40:52 -0700 (PDT)
+Received: from mail-pd0-x24a.google.com (mail-pd0-x24a.google.com [2607:f8b0:400e:c02::24a])
+        by mx.google.com with ESMTPS id pd5si24927277pbb.28.2014.09.15.11.40.52
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 15 Sep 2014 11:40:37 -0700 (PDT)
-Date: Mon, 15 Sep 2014 19:40:23 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCH] arm64:free_initrd_mem should also free the memblock
-Message-ID: <20140915184023.GF12361@n2100.arm.linux.org.uk>
-References: <35FD53F367049845BC99AC72306C23D103CDBFBFB029@CNBJMBX05.corpusers.net> <20140915183334.GA30737@arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140915183334.GA30737@arm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 15 Sep 2014 11:40:52 -0700 (PDT)
+Received: by mail-pd0-f202.google.com with SMTP id ft15so923701pdb.1
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 11:40:51 -0700 (PDT)
+From: Peter Feiner <pfeiner@google.com>
+Subject: [PATCH v2] mm: softdirty: unmapped addresses between VMAs are clean
+Date: Mon, 15 Sep 2014 11:40:38 -0700
+Message-Id: <1410806438-7496-1-git-send-email-pfeiner@google.com>
+In-Reply-To: <1410391486-9106-1-git-send-email-pfeiner@google.com>
+References: <1410391486-9106-1-git-send-email-pfeiner@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: "Wang, Yalin" <Yalin.Wang@sonymobile.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Peter Feiner <pfeiner@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@parallels.com>, Jamie Liu <jamieliu@google.com>, Hugh Dickins <hughd@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Sep 15, 2014 at 07:33:34PM +0100, Will Deacon wrote:
-> On Fri, Sep 12, 2014 at 11:17:18AM +0100, Wang, Yalin wrote:
-> > this patch fix the memblock statics for memblock
-> > in file /sys/kernel/debug/memblock/reserved
-> > if we don't call memblock_free the initrd will still
-> > be marked as reserved, even they are freed.
-> > 
-> > Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
-> > ---
-> >  arch/arm64/mm/init.c | 4 +++-
-> >  1 file changed, 3 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-> > index 5472c24..34605c8 100644
-> > --- a/arch/arm64/mm/init.c
-> > +++ b/arch/arm64/mm/init.c
-> > @@ -334,8 +334,10 @@ static int keep_initrd;
-> >  
-> >  void free_initrd_mem(unsigned long start, unsigned long end)
-> >  {
-> > -	if (!keep_initrd)
-> > +	if (!keep_initrd) {
-> >  		free_reserved_area((void *)start, (void *)end, 0, "initrd");
-> > +		memblock_free(__pa(start), end - start);
-> > +	}
-> 
-> I don't think it makes any technical difference, but doing the memblock_free
-> before the free_reserved_area makes more sense to me.
+If a /proc/pid/pagemap read spans a [VMA, an unmapped region, then a
+VM_SOFTDIRTY VMA], the virtual pages in the unmapped region are reported
+as softdirty. Here's a program to demonstrate the bug:
 
-A better question is... should we even be doing this.  The memblock
-information is used as a method to bring up the kernel and provide
-early allocation.  Once the memory is handed over from memblock to
-the normal kernel page allocators, we no longer care what happens to
-memblock.
+int main() {
+	const uint64_t PAGEMAP_SOFTDIRTY = 1ul << 55;
+	uint64_t pme[3];
+	int fd = open("/proc/self/pagemap", O_RDONLY);;
+	char *m = mmap(NULL, 3 * getpagesize(), PROT_READ,
+	               MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+	munmap(m + getpagesize(), getpagesize());
+	pread(fd, pme, 24, (unsigned long) m / getpagesize() * 8);
+	assert(pme[0] & PAGEMAP_SOFTDIRTY);    /* passes */
+	assert(!(pme[1] & PAGEMAP_SOFTDIRTY)); /* fails */
+	assert(pme[2] & PAGEMAP_SOFTDIRTY);    /* passes */
+	return 0;
+}
 
-There is no need to free the initrd memory back into memblock.  In
-fact, seeing the initrd location in /sys/kernel/debug/memblock/reserved
-can be useful debug information in itself.
+(Note that all pages in new VMAs are softdirty until cleared).
 
+Tested:
+	Used the program given above. I'm going to include this code in
+	a selftest in the future.
+
+Signed-off-by: Peter Feiner <pfeiner@google.com>
+
+---
+
+v1 -> v2:
+	Restructured patch to make logic more clear.
+---
+ fs/proc/task_mmu.c | 61 +++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 40 insertions(+), 21 deletions(-)
+
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index dfc791c..2abf37b 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -1020,7 +1020,6 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 	spinlock_t *ptl;
+ 	pte_t *pte;
+ 	int err = 0;
+-	pagemap_entry_t pme = make_pme(PM_NOT_PRESENT(pm->v2));
+ 
+ 	/* find the first VMA at or above 'addr' */
+ 	vma = find_vma(walk->mm, addr);
+@@ -1034,6 +1033,7 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 
+ 		for (; addr != end; addr += PAGE_SIZE) {
+ 			unsigned long offset;
++			pagemap_entry_t pme;
+ 
+ 			offset = (addr & ~PAGEMAP_WALK_MASK) >>
+ 					PAGE_SHIFT;
+@@ -1048,32 +1048,51 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 
+ 	if (pmd_trans_unstable(pmd))
+ 		return 0;
+-	for (; addr != end; addr += PAGE_SIZE) {
+-		int flags2;
+-
+-		/* check to see if we've left 'vma' behind
+-		 * and need a new, higher one */
+-		if (vma && (addr >= vma->vm_end)) {
+-			vma = find_vma(walk->mm, addr);
+-			if (vma && (vma->vm_flags & VM_SOFTDIRTY))
+-				flags2 = __PM_SOFT_DIRTY;
+-			else
+-				flags2 = 0;
+-			pme = make_pme(PM_NOT_PRESENT(pm->v2) | PM_STATUS2(pm->v2, flags2));
++
++	while (1) {
++		/* End of address space hole, which we mark as non-present. */
++		unsigned long hole_end;
++
++		if (vma)
++			hole_end = min(end, vma->vm_start);
++		else
++			hole_end = end;
++
++		for (; addr < hole_end; addr += PAGE_SIZE) {
++			pagemap_entry_t pme = make_pme(PM_NOT_PRESENT(pm->v2));
++
++			err = add_to_pagemap(addr, &pme, pm);
++			if (err)
++				return err;
+ 		}
+ 
+-		/* check that 'vma' actually covers this address,
+-		 * and that it isn't a huge page vma */
+-		if (vma && (vma->vm_start <= addr) &&
+-		    !is_vm_hugetlb_page(vma)) {
++		if (!vma)
++			break;
++		/*
++		 * We can't possibly be in a hugetlb VMA. In general,
++		 * for a mm_walk with a pmd_entry and a hugetlb_entry,
++		 * the pmd_entry can only be called on addresses in a
++		 * hugetlb if the walk starts in a non-hugetlb VMA and
++		 * spans a hugepage VMA. Since pagemap_read walks are
++		 * PMD-sized and PMD-aligned, this will never be true.
++		 */
++		BUG_ON(is_vm_hugetlb_page(vma));
++
++		/* Addresses in the VMA. */
++		for (; addr < min(end, vma->vm_end); addr += PAGE_SIZE) {
++			pagemap_entry_t pme;
+ 			pte = pte_offset_map(pmd, addr);
+ 			pte_to_pagemap_entry(&pme, pm, vma, addr, *pte);
+-			/* unmap before userspace copy */
+ 			pte_unmap(pte);
++			err = add_to_pagemap(addr, &pme, pm);
++			if (err)
++				return err;
+ 		}
+-		err = add_to_pagemap(addr, &pme, pm);
+-		if (err)
+-			return err;
++
++		if (addr == end)
++			break;
++
++		vma = find_vma(walk->mm, addr);
+ 	}
+ 
+ 	cond_resched();
 -- 
-FTTC broadband for 0.8mile line: currently at 9.5Mbps down 400kbps up
-according to speedtest.net.
+2.1.0.rc2.206.gedb03e5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
