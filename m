@@ -1,72 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id CFCDD6B0039
-	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 06:58:24 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id w10so6037817pde.12
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 03:58:24 -0700 (PDT)
-Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
-        by mx.google.com with ESMTPS id jj4si22057548pbb.226.2014.09.15.03.58.21
+	by kanga.kvack.org (Postfix) with ESMTP id CF76F6B0036
+	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 07:07:28 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id w10so6109391pde.40
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 04:07:28 -0700 (PDT)
+Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
+        by mx.google.com with ESMTPS id yo4si22334318pab.117.2014.09.15.04.07.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 15 Sep 2014 03:58:23 -0700 (PDT)
+        Mon, 15 Sep 2014 04:07:27 -0700 (PDT)
 From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Mon, 15 Sep 2014 18:58:15 +0800
-Subject: RE: [RFC] arm:extend the reserved mrmory for initrd to be page
-	aligned
-Message-ID: <35FD53F367049845BC99AC72306C23D103D6DB491608@CNBJMBX05.corpusers.net>
-References: <35FD53F367049845BC99AC72306C23D103D6DB4915FC@CNBJMBX05.corpusers.net>
- <20140915084616.GX12361@n2100.arm.linux.org.uk>
- <35FD53F367049845BC99AC72306C23D103D6DB491604@CNBJMBX05.corpusers.net>
- <20140915093014.GZ12361@n2100.arm.linux.org.uk>
- <35FD53F367049845BC99AC72306C23D103D6DB491605@CNBJMBX05.corpusers.net>
- <20140915101632.GA12361@n2100.arm.linux.org.uk>
- <35FD53F367049845BC99AC72306C23D103D6DB491606@CNBJMBX05.corpusers.net>
- <20140915103013.GB12361@n2100.arm.linux.org.uk>
-In-Reply-To: <20140915103013.GB12361@n2100.arm.linux.org.uk>
+Date: Mon, 15 Sep 2014 19:07:20 +0800
+Subject: [RFC v2] arm:extend the reserved mrmory for initrd to be page
+ aligned
+Message-ID: <35FD53F367049845BC99AC72306C23D103D6DB491609@CNBJMBX05.corpusers.net>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>
-Cc: 'Will Deacon' <will.deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "linux-arm-msm@vger.kernel.org" <linux-arm-msm@vger.kernel.org>
+To: 'Will Deacon' <will.deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-msm@vger.kernel.org'" <linux-arm-msm@vger.kernel.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>
 
-Oh, I see,
-I don't consider non-of platform kernels,
-I will send V2 patch for this .
+this patch extend the start and end address of initrd to be page aligned,
+so that we can free all memory including the un-page aligned head or tail
+page of initrd, if the start or end address of initrd are not page
+aligned, the page can't be freed by free_initrd_mem() function.
 
-Thanks
+Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
+---
+ arch/arm/mm/init.c   | 19 +++++++++++++++++--
+ arch/arm64/mm/init.c | 37 +++++++++++++++++++++++++++++++++----
+ 2 files changed, 50 insertions(+), 6 deletions(-)
 
------Original Message-----
-From: Russell King - ARM Linux [mailto:linux@arm.linux.org.uk]=20
-Sent: Monday, September 15, 2014 6:30 PM
-To: Wang, Yalin
-Cc: 'Will Deacon'; 'linux-kernel@vger.kernel.org'; 'linux-arm-kernel@lists.=
-infradead.org'; 'linux-mm@kvack.org'; linux-arm-msm@vger.kernel.org
-Subject: Re: [RFC] arm:extend the reserved mrmory for initrd to be page ali=
-gned
-
-On Mon, Sep 15, 2014 at 06:22:12PM +0800, Wang, Yalin wrote:
-> Oh, I see your meaning,
-> Yeah , my initrd is a cpio image,
-> And it can still work after apply this patch.
-
-Okay, that's what I wanted to know.  However, I believe your patch to be in=
-correct.  You delete the assignments to initrd_start and initrd_end in arm_=
-memblock_init(), which will result in non-OF platforms having no initrd.
-
-The reason is that OF platforms set initrd_start and initrd_size from the O=
-F code (drivers/of/fdt.c), but ATAG platforms only set our private
-phys_* versions.
-
-The reason I went with phys_* stuff was to permit better verification of th=
-e addresses passed - that the addresses were indeed memory locations before=
- passing them through something like __va().
-
---
-FTTC broadband for 0.8mile line: currently at 9.5Mbps down 400kbps up accor=
-ding to speedtest.net.
+diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+index 659c75d..8490b70 100644
+--- a/arch/arm/mm/init.c
++++ b/arch/arm/mm/init.c
+@@ -277,6 +277,8 @@ phys_addr_t __init arm_memblock_steal(phys_addr_t size,=
+ phys_addr_t align)
+ void __init arm_memblock_init(const struct machine_desc *mdesc)
+ {
+ 	/* Register the kernel text, kernel data and initrd with memblock. */
++	phys_addr_t phys_initrd_start_orig __maybe_unused;
++	phys_addr_t phys_initrd_size_orig __maybe_unused;
+ #ifdef CONFIG_XIP_KERNEL
+ 	memblock_reserve(__pa(_sdata), _end - _sdata);
+ #else
+@@ -289,6 +291,13 @@ void __init arm_memblock_init(const struct machine_des=
+c *mdesc)
+ 		phys_initrd_size =3D initrd_end - initrd_start;
+ 	}
+ 	initrd_start =3D initrd_end =3D 0;
++	phys_initrd_start_orig =3D phys_initrd_start;
++	phys_initrd_size_orig =3D phys_initrd_size;
++	/* make sure the start and end address are page aligned */
++	phys_initrd_size =3D round_up(phys_initrd_start + phys_initrd_size, PAGE_=
+SIZE);
++	phys_initrd_start =3D round_down(phys_initrd_start, PAGE_SIZE);
++	phys_initrd_size -=3D phys_initrd_start;
++
+ 	if (phys_initrd_size &&
+ 	    !memblock_is_region_memory(phys_initrd_start, phys_initrd_size)) {
+ 		pr_err("INITRD: 0x%08llx+0x%08lx is not a memory region - disabling init=
+rd\n",
+@@ -305,9 +314,10 @@ void __init arm_memblock_init(const struct machine_des=
+c *mdesc)
+ 		memblock_reserve(phys_initrd_start, phys_initrd_size);
+=20
+ 		/* Now convert initrd to virtual addresses */
+-		initrd_start =3D __phys_to_virt(phys_initrd_start);
+-		initrd_end =3D initrd_start + phys_initrd_size;
++		initrd_start =3D __phys_to_virt(phys_initrd_start_orig);
++		initrd_end =3D initrd_start + phys_initrd_size_orig;
+ 	}
++
+ #endif
+=20
+ 	arm_mm_memblock_reserve();
+@@ -636,6 +646,11 @@ static int keep_initrd;
+ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+ 	if (!keep_initrd) {
++		if (start =3D=3D initrd_start)
++			start =3D round_down(start, PAGE_SIZE);
++		if (end =3D=3D initrd_end)
++			end =3D round_up(end, PAGE_SIZE);
++
+ 		poison_init_mem((void *)start, PAGE_ALIGN(end) - start);
+ 		free_reserved_area((void *)start, (void *)end, -1, "initrd");
+ 	}
+diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+index 5472c24..9dfd9a6 100644
+--- a/arch/arm64/mm/init.c
++++ b/arch/arm64/mm/init.c
+@@ -138,15 +138,38 @@ static void arm64_memory_present(void)
+ void __init arm64_memblock_init(void)
+ {
+ 	phys_addr_t dma_phys_limit =3D 0;
+-
++	phys_addr_t phys_initrd_start;
++	phys_addr_t phys_initrd_size;
+ 	/*
+ 	 * Register the kernel text, kernel data, initrd, and initial
+ 	 * pagetables with memblock.
+ 	 */
+ 	memblock_reserve(__pa(_text), _end - _text);
+ #ifdef CONFIG_BLK_DEV_INITRD
+-	if (initrd_start)
+-		memblock_reserve(__virt_to_phys(initrd_start), initrd_end - initrd_start=
+);
++	if (initrd_start) {
++		phys_initrd_start =3D __virt_to_phys(initrd_start);
++		phys_initrd_size =3D initrd_end - initrd_start;
++		/* make sure the start and end address are page aligned */
++		phys_initrd_size =3D round_up(phys_initrd_start + phys_initrd_size, PAGE=
+_SIZE);
++		phys_initrd_start =3D round_down(phys_initrd_start, PAGE_SIZE);
++		phys_initrd_size -=3D phys_initrd_start;
++		if (phys_initrd_size &&
++				!memblock_is_region_memory(phys_initrd_start, phys_initrd_size)) {
++			pr_err("INITRD: %pa+%pa is not a memory region - disabling initrd\n",
++					&phys_initrd_start, &phys_initrd_size);
++			phys_initrd_start =3D phys_initrd_size =3D 0;
++		}
++		if (phys_initrd_size &&
++				memblock_is_region_reserved(phys_initrd_start, phys_initrd_size)) {
++			pr_err("INITRD: %pa+%pa overlaps in-use memory region - disabling initr=
+d\n",
++					&phys_initrd_start, &phys_initrd_size);
++			phys_initrd_start =3D phys_initrd_size =3D 0;
++		}
++		if (phys_initrd_size)
++			memblock_reserve(phys_initrd_start, phys_initrd_size);
++		else
++			initrd_start =3D initrd_end =3D 0;
++	}
+ #endif
+=20
+ 	if (!efi_enabled(EFI_MEMMAP))
+@@ -334,8 +357,14 @@ static int keep_initrd;
+=20
+ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+-	if (!keep_initrd)
++	if (!keep_initrd) {
++		if (start =3D=3D initrd_start)
++			start =3D round_down(start, PAGE_SIZE);
++		if (end =3D=3D initrd_end)
++			end =3D round_up(end, PAGE_SIZE);
++
+ 		free_reserved_area((void *)start, (void *)end, 0, "initrd");
++	}
+ }
+=20
+ static int __init keepinitrd_setup(char *__unused)
+--=20
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
