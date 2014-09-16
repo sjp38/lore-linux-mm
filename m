@@ -1,96 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
-	by kanga.kvack.org (Postfix) with ESMTP id EE8BE6B0038
-	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 19:38:20 -0400 (EDT)
-Received: by mail-lb0-f169.google.com with SMTP id p9so801741lbv.28
-        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 16:38:19 -0700 (PDT)
+Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C64D6B0038
+	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 19:41:25 -0400 (EDT)
+Received: by mail-lb0-f179.google.com with SMTP id p9so795798lbv.10
+        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 16:41:25 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id rt5si26389903lbb.2.2014.09.16.16.38.18
+        by mx.google.com with ESMTPS id l3si1863517laf.115.2014.09.16.16.41.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 16 Sep 2014 16:38:18 -0700 (PDT)
-Date: Wed, 17 Sep 2014 09:37:57 +1000
+        Tue, 16 Sep 2014 16:41:24 -0700 (PDT)
+Date: Wed, 17 Sep 2014 09:41:13 +1000
 From: NeilBrown <neilb@suse.de>
-Subject: Re: [PATCH 3/4] NFS: avoid deadlocks with loop-back mounted NFS
- filesystems.
-Message-ID: <20140917093757.472c8cf2@notabene.brown>
-In-Reply-To: <54182F8B.8010302@Netapp.com>
+Subject: Re: [PATCH 0/4] Remove possible deadlocks in nfs_release_page()
+Message-ID: <20140917094113.0cb07cf1@notabene.brown>
+In-Reply-To: <20140916074741.1de870c5@tlielax.poochiereds.net>
 References: <20140916051911.22257.24658.stgit@notabene.brown>
-	<20140916053135.22257.68002.stgit@notabene.brown>
-	<54182F8B.8010302@Netapp.com>
+	<20140916074741.1de870c5@tlielax.poochiereds.net>
 MIME-Version: 1.0
 Content-Type: multipart/signed; micalg=pgp-sha1;
- boundary="Sig_/SleaSZokHRCCDT+.Q_nPcHS"; protocol="application/pgp-signature"
+ boundary="Sig_/PeO.vTXB5CZ=.Tnfg/xaxQv"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anna Schumaker <Anna.Schumaker@netapp.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, Ingo Molnar <mingo@redhat.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, Jeff Layton <jeff.layton@primarydata.com>
+To: Jeff Layton <jeff.layton@primarydata.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, Ingo Molnar <mingo@redhat.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 
---Sig_/SleaSZokHRCCDT+.Q_nPcHS
+--Sig_/PeO.vTXB5CZ=.Tnfg/xaxQv
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: quoted-printable
 
-On Tue, 16 Sep 2014 08:39:39 -0400 Anna Schumaker <Anna.Schumaker@netapp.co=
-m>
+On Tue, 16 Sep 2014 07:47:41 -0400 Jeff Layton <jeff.layton@primarydata.com>
 wrote:
 
-> On 09/16/2014 01:31 AM, NeilBrown wrote:
-> > Support for loop-back mounted NFS filesystems is useful when NFS is
-> > used to access shared storage in a high-availability cluster.
-> >
-> > If the node running the NFS server fails, some other node can mount the
-> > filesystem and start providing NFS service.  If that node already had
-> > the filesystem NFS mounted, it will now have it loop-back mounted.
-> >
-> > nfsd can suffer a deadlock when allocating memory and entering direct
-> > reclaim.
-> > While direct reclaim does not write to the NFS filesystem it can send
-> > and wait for a COMMIT through nfs_release_page().
->=20
-> Is there anything that can be done on the nfsd side to prevent the deadlo=
-cks?
+
+> Also, we call things like invalidate_complete_page2 from the cache
+> invalidation code. Will we end up with potential problems now that we
+> have a stronger possibility that a page might not be freeable when it
+> calls releasepage? (no idea on this -- I'm just spitballing)
 >=20
 
-I went down that path first and it didn't work out.
-Setting PF_FSTRANS in nfsd (when the request comes from localhost) and then
-arranging the __GFP_FS is cleared when that flag is set overcomes a number =
-of
-possible deadlock sources, but not all.
+Answering just this part here:
+ invalidate_complete_page2() is only called immediately after a call to
+do_launder_page().
+For nfs, that means nfs_launder_page() was called, which calls nfs_wb_page()
+which in turn calls
+		ret =3D nfs_commit_inode(inode, FLUSH_SYNC);
 
-There are a number of situations where nfsd is waiting on some other thread
-(which doesn't have PF_FSTRANS set) and that thread tries to reclaim memory
-and hits nfs_release_page().
-It was a long and complex patch set, and nobody liked it.
-And the common thread was always that it always blocked in nfs_release_page=
-().
-So it seemed to make sense to just remove that blockage.
+so the inode is fully committed when invalidate_complete_page2 is called, so
+nfs_release_page will succeed.
+
+So there shouldn't be a problem there.
 
 Thanks,
 NeilBrown
 
---Sig_/SleaSZokHRCCDT+.Q_nPcHS
+--Sig_/PeO.vTXB5CZ=.Tnfg/xaxQv
 Content-Type: application/pgp-signature; name=signature.asc
 Content-Disposition: attachment; filename=signature.asc
 
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v2.0.22 (GNU/Linux)
 
-iQIVAwUBVBjJ1Tnsnt1WYoG5AQIA4A/9FUdVuHypfzeP82ItnBzQ2jKdkcLlfEI6
-g6BsDX9RJ28++zq7MqI1mnsyJXzZbBpvB1W6wSFWiFNq8FqZOhHH+YFzQMGY6MgX
-m9NjV5Jb6aXCGwjwjlE/ocIhbgHyS3DYJyiid28Lv0j/mdsA2rux0lW86Z3QuqP+
-zV4y/FQCs9Hmf0hwOmlrdVjdMe5XYtZpBgctlKaynMKooC69yfna21zzWMAW0JU4
-TgNPR9XMNVULFS+rtt1tYYMbHynPtnuIS0tT7RJJjAf4EWxzlMrcHGebCoZaJZ3G
-7AgadunMpvBPmBDQOwUbf2iVibEFkEUSOTqr4X6xMdOOzbNv8hGO0+7WixEuLQv/
-uP5W0S+1oBSLyISUhhW8KQharjPIKbPF8pM+WLXpZclXNMDl6xRztOeHrHjc7InZ
-E2HrOlR/ttWbtcTMz0B17PhkKZjyYvuRyxTXoj0cWxgnTNH4MCzGFYlDDcwqKOUu
-kLZ2TCrIHpVmzhlFde6wFLpTWBzErhuo1Wna/HYFXK7sitq2hiOx0NM4DPDMNInw
-tw4hxzUBjd5s7UEaW/+YEZAct8rkXWDjYAkw0fyQZFTEqjGKZXVKvY6koJDG0gZG
-B/2pWkP0VyU23iZ/SjpLdpWgP030KI/X/TXYRZTzCaPipJyYGfCL/xpwWk2N7ki9
-0eK6lfXjMvs=
-=F4Ed
+iQIVAwUBVBjKmTnsnt1WYoG5AQIKoxAAwHYOT2px8v/27OkcGivaLkX0QeRC/v7N
+DGFYWzkLZCJQTk8ubsU8qTaMiYBsCHBfxMh7RxIQ66IQ4YOis9/3BiMTFtA81eQL
+sm8TK64e4jBSPrTSwevJ4GUGlJBF/xWZTfYKCGjzaGDo3I/G+WB6fTj2YJDulWnk
+xgoDy1s23yrvdKJpiC3av9hnvnFAYv4d/sv2axOQGzKDfMn62f8vApPLpqphoq+1
+Zone0nWEKTZbDxS0vhf+cN5wDkXtITyjd3WViocfx/QgGPDSZRTvauIXaSmsxYmC
+x4jB2n9bnyAI/ifetUjQwt7WbXu61gmI2Tzkny+hZQBTtng/N3S3UBQlCDfJRszD
+Gn9juNyfO2NbUJb3z1SxUtPo/liHECOzxt/4qmWgVxRs0BQjcY3WdMejOK19llBO
+brBixSxRyNE9c60upOeS3/7kosQSIQttz0KOP0p+/iNmva7h7i5/tgXGpM79vLmn
+DTCCQtU/bNnNaTkUgviSZgm68TrmE6HTHJ4JWdKKgDqDFeb0XJaKqd6yS8zmm7lk
+l3ChbGiK2ul66xNgFkFfBv1QXozpz9lGfvujoESnMrvWTCYbREWg8mVNEIxyhe2K
+3WWlQhEMF5OklFyBUCuQKq+xnNr5O+EiHPboA4wl1PVGRP79pILQ1vbBFdOg/FPD
+3fd8+iJf7nc=
+=Lclc
 -----END PGP SIGNATURE-----
 
---Sig_/SleaSZokHRCCDT+.Q_nPcHS--
+--Sig_/PeO.vTXB5CZ=.Tnfg/xaxQv--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
