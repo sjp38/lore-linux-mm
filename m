@@ -1,114 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B3AF6B0036
-	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 07:47:45 -0400 (EDT)
-Received: by mail-qa0-f52.google.com with SMTP id m5so5322761qaj.11
-        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 04:47:44 -0700 (PDT)
-Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
-        by mx.google.com with ESMTPS id p5si18748048qah.13.2014.09.16.04.47.44
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id C10A86B0036
+	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 08:39:49 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id kq14so8763607pab.33
+        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 05:39:46 -0700 (PDT)
+Received: from mx12.netapp.com (mx12.netapp.com. [216.240.18.77])
+        by mx.google.com with ESMTPS id db9si7071188pdb.36.2014.09.16.05.39.45
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 16 Sep 2014 04:47:44 -0700 (PDT)
-Received: by mail-qc0-f170.google.com with SMTP id l6so5823173qcy.15
-        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 04:47:43 -0700 (PDT)
-From: Jeff Layton <jeff.layton@primarydata.com>
-Date: Tue, 16 Sep 2014 07:47:41 -0400
-Subject: Re: [PATCH 0/4] Remove possible deadlocks in nfs_release_page()
-Message-ID: <20140916074741.1de870c5@tlielax.poochiereds.net>
-In-Reply-To: <20140916051911.22257.24658.stgit@notabene.brown>
-References: <20140916051911.22257.24658.stgit@notabene.brown>
+        Tue, 16 Sep 2014 05:39:45 -0700 (PDT)
+Message-ID: <54182F8B.8010302@Netapp.com>
+Date: Tue, 16 Sep 2014 08:39:39 -0400
+From: Anna Schumaker <Anna.Schumaker@netapp.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Subject: Re: [PATCH 3/4] NFS: avoid deadlocks with loop-back mounted NFS filesystems.
+References: <20140916051911.22257.24658.stgit@notabene.brown> <20140916053135.22257.68002.stgit@notabene.brown>
+In-Reply-To: <20140916053135.22257.68002.stgit@notabene.brown>
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.de>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, Ingo Molnar <mingo@redhat.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, Jeff Layton <jeff.layton@primarydata.com>
+To: NeilBrown <neilb@suse.de>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, Ingo Molnar <mingo@redhat.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, Jeff Layton <jeff.layton@primarydata.com>
 
-On Tue, 16 Sep 2014 15:31:34 +1000
-NeilBrown <neilb@suse.de> wrote:
+On 09/16/2014 01:31 AM, NeilBrown wrote:
+> Support for loop-back mounted NFS filesystems is useful when NFS is
+> used to access shared storage in a high-availability cluster.
+>
+> If the node running the NFS server fails, some other node can mount the
+> filesystem and start providing NFS service.  If that node already had
+> the filesystem NFS mounted, it will now have it loop-back mounted.
+>
+> nfsd can suffer a deadlock when allocating memory and entering direct
+> reclaim.
+> While direct reclaim does not write to the NFS filesystem it can send
+> and wait for a COMMIT through nfs_release_page().
 
-> Because nfs_release_page() submits a 'COMMIT' nfs request and waits
-> for it to complete, and does this during memory reclaim, it is
-> susceptible to deadlocks if memory allocation happens anywhere in
-> sending the COMMIT message.  If the NFS server is on the same host
-> (i.e. loop-back NFS), then any memory allocations in the NFS server
-> can also cause deadlocks.
-> 
-> nfs_release_page() already has some code to avoid deadlocks in some
-> circumstances, but these are not sufficient for loopback NFS.
-> 
-> This patch set changes the approach to deadlock avoidance.  Rather
-> than detecting cases that could deadlock and avoiding the COMMIT, it
-> always tries the COMMIT, but only waits a short time (1 second).
-> This avoid any deadlock possibility at the expense of not waiting
-> longer than 1 second even if no deadlock is pending.
-> 
-> nfs_release_page() does not *need* to wait longer - all callers that
-> matter handle a failure gracefully - they move on to other pages.
-> 
-> This set:
->  - adds some "_timeout()" functions to "wait_on_bit".  Only a
->    wait_on_page version is actually used.
->  - exports page wake_up support.  NFS knows that the COMMIT is complete
->    when PG_private is clear.  So nfs_release_page will use
->    wait_on_page_bit_killable_timeout to wait for the bit to clear,
->    and needs access to wake_up_page()
->  - changes nfs_release_page() to use
->     wait_on_page_bit_killable_timeout()
->  - removes the other deadlock avoidance mechanisms from
->    nfs_release_page, so that PF_FSTRANS is again only used
->    by XFS.
-> 
-> As such, it needs buy-in from sched people, mm people, and NFS people.
-> Assuming I get that buy-in, suggests for how these patches can flow
-> into mainline would be appreciated ... I daren't hope they can all go
-> in through one tree....
-> 
-> Thanks,
-> NeilBrown
-> 
-> 
+Is there anything that can be done on the nfsd side to prevent the deadlocks?
+
+Anna
+
+>
+> This patch modifies nfs_release_page() to wait a limited time for the
+> commit to complete - one second.  If the commit doesn't complete
+> in this time, nfs_release_page() will fail.  This means it might now
+> fail in some cases where it wouldn't before.  These cases are only
+> when 'gfp' includes '__GFP_WAIT'.
+>
+> nfs_release_page() is only called by try_to_release_page(), and that
+> can only be called on an NFS page with required 'gfp' flags from
+>  - page_cache_pipe_buf_steal() in splice.c
+>  - shrink_page_list() in vmscan.c
+>  - invalidate_inode_pages2_range() in truncate.c
+>
+> The first two handle failure quite safely.  The last is only called
+> after ->launder_page() has been called, and that will have waited
+> for the commit to finish already.
+>
+> So aborting if the commit takes longer than 1 second is perfectly safe.
+>
+> 1 second may be longer than is really necessary, but it is much
+> shorter than the current maximum wait, so this is not a regression.
+> Some waiting is needed to help slow down memory allocation to the
+> rate that we can complete writeout of pages.
+>
+> In those rare cases where it is nfsd, or something that nfsd is
+> waiting for, that is calling nfs_release_page(), this delay will at
+> most cause a small hic-cough in places where it currently deadlocks.
+>
+> Signed-off-by: NeilBrown <neilb@suse.de>
 > ---
-> 
-> NeilBrown (4):
->       SCHED: add some "wait..on_bit...timeout()" interfaces.
->       MM: export page_wakeup functions
->       NFS: avoid deadlocks with loop-back mounted NFS filesystems.
->       NFS/SUNRPC: Remove other deadlock-avoidance mechanisms in nfs_release_page()
-> 
-> 
->  fs/nfs/file.c                   |   22 ++++++++++++----------
->  fs/nfs/write.c                  |    2 ++
->  include/linux/pagemap.h         |   12 ++++++++++--
->  include/linux/wait.h            |    5 ++++-
->  kernel/sched/wait.c             |   36 ++++++++++++++++++++++++++++++++++++
->  mm/filemap.c                    |   21 +++++++++++++++------
->  net/sunrpc/sched.c              |    2 --
->  net/sunrpc/xprtrdma/transport.c |    2 --
->  net/sunrpc/xprtsock.c           |   10 ----------
->  9 files changed, 79 insertions(+), 33 deletions(-)
-> 
-
-On balance, I like the NFS parts of this set -- particular the fact
-that we get rid of the PF_FSTRANS abortion, and simplify the code quite
-a bit. My only real concern is that you could end up stalling in this
-code in situations where you really can't release the page.
-
-For instance, suppose you're trying to reconnect the socket to the
-server (a'la xs_tcp_setup_socket). The VM is low on memory and tries to
-release a page that needs that socket in order to issue a COMMIT. That
-situation is going to end up with the page unable to be released, but
-you'll still wait 1s before returning. If the VM tries to release a
-bunch of pages like this, then those waits could add up.
-
-Also, we call things like invalidate_complete_page2 from the cache
-invalidation code. Will we end up with potential problems now that we
-have a stronger possibility that a page might not be freeable when it
-calls releasepage? (no idea on this -- I'm just spitballing)
-
--- 
-Jeff Layton <jlayton@primarydata.com>
+>  fs/nfs/file.c  |   24 ++++++++++++++----------
+>  fs/nfs/write.c |    2 ++
+>  2 files changed, 16 insertions(+), 10 deletions(-)
+>
+> diff --git a/fs/nfs/file.c b/fs/nfs/file.c
+> index 524dd80d1898..8d74983417af 100644
+> --- a/fs/nfs/file.c
+> +++ b/fs/nfs/file.c
+> @@ -468,17 +468,21 @@ static int nfs_release_page(struct page *page, gfp_t gfp)
+>  
+>  	dfprintk(PAGECACHE, "NFS: release_page(%p)\n", page);
+>  
+> -	/* Only do I/O if gfp is a superset of GFP_KERNEL, and we're not
+> -	 * doing this memory reclaim for a fs-related allocation.
+> +	/* Always try to initiate a 'commit' if relevant, but only
+> +	 * wait for it if __GFP_WAIT is set and the calling process is
+> +	 * allowed to block.  Even then, only wait 1 second.  Waiting
+> +	 * indefinitely can cause deadlocks when the NFS server is on
+> +	 * this machine, and there is no particular need to wait
+> +	 * extensively here.  A short wait has the benefit that
+> +	 * someone else can worry about the freezer.
+>  	 */
+> -	if (mapping && (gfp & GFP_KERNEL) == GFP_KERNEL &&
+> -	    !(current->flags & PF_FSTRANS)) {
+> -		int how = FLUSH_SYNC;
+> -
+> -		/* Don't let kswapd deadlock waiting for OOM RPC calls */
+> -		if (current_is_kswapd())
+> -			how = 0;
+> -		nfs_commit_inode(mapping->host, how);
+> +	if (mapping) {
+> +		nfs_commit_inode(mapping->host, 0);
+> +		if ((gfp & __GFP_WAIT) &&
+> +		    !current_is_kswapd() &&
+> +		    !(current->flags & PF_FSTRANS))
+> +			wait_on_page_bit_killable_timeout(page, PG_private,
+> +							  HZ);
+>  	}
+>  	/* If PagePrivate() is set, then the page is not freeable */
+>  	if (PagePrivate(page))
+> diff --git a/fs/nfs/write.c b/fs/nfs/write.c
+> index 175d5d073ccf..b5d83c7545d4 100644
+> --- a/fs/nfs/write.c
+> +++ b/fs/nfs/write.c
+> @@ -731,6 +731,8 @@ static void nfs_inode_remove_request(struct nfs_page *req)
+>  		if (likely(!PageSwapCache(head->wb_page))) {
+>  			set_page_private(head->wb_page, 0);
+>  			ClearPagePrivate(head->wb_page);
+> +			smp_mb__after_atomic();
+> +			wake_up_page(head->wb_page, PG_private);
+>  			clear_bit(PG_MAPPED, &head->wb_flags);
+>  		}
+>  		nfsi->npages--;
+>
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-nfs" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
