@@ -1,120 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 289E06B0036
-	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 13:02:58 -0400 (EDT)
-Received: by mail-qc0-f172.google.com with SMTP id i17so240782qcy.3
-        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 10:02:57 -0700 (PDT)
-Received: from g5t1625.atlanta.hp.com (g5t1625.atlanta.hp.com. [15.192.137.8])
-        by mx.google.com with ESMTPS id j25si13522374yhb.29.2014.09.16.10.02.56
+Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 668C86B0036
+	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 14:08:02 -0400 (EDT)
+Received: by mail-qa0-f53.google.com with SMTP id n8so306273qaq.40
+        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 11:08:02 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id n67si13627175yhp.61.2014.09.16.11.08.00
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 16 Sep 2014 10:02:57 -0700 (PDT)
-Message-ID: <1410886335.28990.393.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v2 6/6] x86, pat: Update documentation for WT changes
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Tue, 16 Sep 2014 10:52:15 -0600
-In-Reply-To: <CALCETrXMiSpMMi-4P8FTMeH_0J+6eNj0RAVJDhZYQOZub1jUOA@mail.gmail.com>
-References: <1410367910-6026-1-git-send-email-toshi.kani@hp.com>
-	 <1410367910-6026-7-git-send-email-toshi.kani@hp.com>
-	 <CALCETrVnHg0X=R23qyiPtxYs3knHaXq65L0Jw_1oY4=gX5kpXQ@mail.gmail.com>
-	 <1410379933.28990.287.camel@misato.fc.hp.com>
-	 <CALCETrUh20-2PX_KN2KWO085n=5XJpOnPysmCGbk7bufaD3Mhw@mail.gmail.com>
-	 <1410384895.28990.312.camel@misato.fc.hp.com>
-	 <1410815951.28990.384.camel@misato.fc.hp.com>
-	 <CALCETrXMiSpMMi-4P8FTMeH_0J+6eNj0RAVJDhZYQOZub1jUOA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Tue, 16 Sep 2014 11:08:01 -0700 (PDT)
+Date: Tue, 16 Sep 2014 14:07:59 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: Best way to pin a page in ext4?
+Message-ID: <20140916180759.GI6205@thunk.org>
+References: <20140915185102.0944158037A@closure.thunk.org>
+ <36321733-F488-49E3-8733-C6758F83DFA1@dilger.ca>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <36321733-F488-49E3-8733-C6758F83DFA1@dilger.ca>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Juergen Gross <jgross@suse.com>, Stefan Bader <stefan.bader@canonical.com>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Yigal Korman <yigal@plexistor.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: Andreas Dilger <adilger@dilger.ca>
+Cc: linux-mm <linux-mm@kvack.org>, linux-ext4@vger.kernel.org
 
-On Mon, 2014-09-15 at 18:22 -0700, Andy Lutomirski wrote:
-> On Mon, Sep 15, 2014 at 2:19 PM, Toshi Kani <toshi.kani@hp.com> wrote:
-> > On Wed, 2014-09-10 at 15:34 -0600, Toshi Kani wrote:
-> >> On Wed, 2014-09-10 at 13:29 -0700, Andy Lutomirski wrote:
-> >> > On Wed, Sep 10, 2014 at 1:12 PM, Toshi Kani <toshi.kani@hp.com> wrote:
-> >> > > On Wed, 2014-09-10 at 11:30 -0700, Andy Lutomirski wrote:
-> >> > >> On Wed, Sep 10, 2014 at 9:51 AM, Toshi Kani <toshi.kani@hp.com> wrote:
-> >> > >> > +Drivers may map the entire NV-DIMM range with ioremap_cache and then change
-> >> > >> > +a specific range to wt with set_memory_wt.
-> >> > >>
-> >> > >> That's mighty specific :)
-> >> > >
-> >> > > How about below?
-> >> > >
-> >> > > Drivers may use set_memory_wt to set WT type for cached reserve ranges.
-> >> >
-> >> > Do they have to be cached?
-> >>
-> >> Yes, set_memory_xyz only supports WB->type->WB transition.
-> >>
-> >> > How about:
-> >> >
-> >> > Drivers may call set_memory_wt on ioremapped ranges.  In this case,
-> >> > there is no need to change the memory type back before calling
-> >> > iounmap.
-> >> >
-> >> > (Or only on cached ioremapped ranges if that is, in fact, the case.)
-> >>
-> >> Sounds good.  Yes, I will use cashed ioremapped ranges.
-> >
-> > Well, testing "no need to change the memory type back before calling
-> > iounmap" turns out to be a good test case.  I realized that
-> > set_memory_xyz only works properly for RAM.  There are two problems for
-> > using this interface for ioremapped ranges.
-> >
-> > 1) set_memory_xyz calls reserve_memtype() with __pa(addr).  However,
-> > __pa() translates the addr into a fake physical address when it is an
-> > ioremapped address.
-> >
-> > 2) reserve_memtype() does not work for set_memory_xyz.  For RAM, the WB
-> > state is managed untracked.  Hence, WB->new->WB is not considered as a
-> > conflict.  For ioremapped ranges, WB is tracked in the same way as other
-> > cache types.  Hence, WB->new is considered as a conflict.
-> >
-> > In my previous testing, 2) was undetected since 1) led using a fake
-> > physical address which was not tracked for WB.  This made ioremapped
-> > ranges worked just like RAM. :-(
-> >
-> > Anyway, 1) can be fixed by using slow_virt_to_phys() instead of __pa().
-> > set_memory_xyz is already slow, but this makes it even slower, though.
-> >
-> > For 2), WB has to be continuously tracked in order to detect aliasing,
-> > ex. ioremap_cache and ioremap to a same address.  So, I think
-> > reserve_memtype() needs the following changes:
-> >  - Add a new arg to see if an operation is to create a new mapping or to
-> > change cache attribute.
-> >  - Track overlapping maps so that cache type change to an overlapping
-> > range can be detected and failed.
-> >
-> > This level of changes requires a separate set of patches if we pursue to
-> > support ioremapped ranges.  So, I am considering to take one of the two
-> > options below.
-> >
-> > A) Drop the patch for set_memory_wt.
-> >
-> > B) Keep the patch for set_memory_wt, but document that it fails with
-> > -EINVAL and its use is for RAM only.
-> >
+On Mon, Sep 15, 2014 at 02:57:23PM -0600, Andreas Dilger wrote:
 > 
-> I vote A.  I see no great reason to add code that can't be used.  Once
-> someone needs this ability, they can add it :)
+> As discussed in http://lists.openwall.net/linux-ext4/2013/03/25/15
+> the bitmap pages were being evicted under memory pressure even when
+> they are active use.  That turned out to be an MM problem and not an
+> ext4 problem in the end, and was fixed in commit c53954a092d in 3.11,
+> in case you are running an older kernel.
 
-Agreed.  I will drop the patch for now.  Since _PGMT_WB does not seem to
-be used for tracking WB, we might be able to use this bit for WT.  But I
-need to look at the code more carefully for sure.
+Yes, I remember.  And that could potentially be a contributing factor,
+since the user in question is using 3.2.  However, the user in
+question has a use case where bitmap pinning is probably going to be
+needed given the likely allocation patterns of a DVR; if the pages
+aren't pinned, it's likely that by the time the DVR needs to fallocate
+space for a new show, the bitmap pages would have been aged out due to
+not being frequently accessed enough, even if the usage tracking was
+backported to a 3.2 kernel.
 
-> It's too bad that ioremap is called ioremap and not iomap.  Otherwise
-> the natural solution would be to add a different function call
-> ioremap_wt that's like set_memory_wt but for ioremap ranges.  Calling
-> it ioreremap_wt sounds kind of disgusting :)
+> > The other approach would be to keep an elevated refcount on the pages in
+> > question, but it seemed it would be more efficient use the mlock
+> > facility since that keeps the pages on an unevictable list.
+> 
+> It doesn't seem unreasonable to just grab an extra refcount on the pages
+> when they are first loaded.  
 
-:)
+Well yes, but using mlock_vma_page() would be a bit more efficient,
+and technically, more correct than simply elevating the refcount.
 
-Thanks,
--Toshi
+> However, the memory usage may be fairly
+> high (32MB per 1TB of disk) so this definitely can't be generally used,
+> and it would be nice to make sure that ext4 is already doing the right
+> thing to keep these important pages in cache.
+
+Well, as I mentioned above, the use case in question is a DVR, where
+having the disk need to suddenly seek a large number block groups, and
+thus pull in a largish number of allocation bitmaps, might be harmful
+for a video replay that might be happening at the same time that the
+DVR needs to fallocate space for a new TV show to be recorded.
+
+And for a 2TB disk, the developer in question felt that he could
+afford pinning 64MB.  So no, it's not a general solution, but it's
+probably good enough for now.
+
+Long run, I think we really need to consider trying to cache free
+space information in some kind in-memory of rbtree, with a bail-out in
+the worst case of the free space is horrendously fragmented in a
+particular block group.  But as a quick hack, using mlock_vma_page()
+was the simplest short term solution.
+
+The main question then for the mm developers is would there be
+objections in making mlock/munlock_vma_page() be EXPORT_SYMBOL_GPL and
+moving the function declaration from mm/internal.h to
+include/linux/mm.h?
+
+Cheers,
+
+					- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
