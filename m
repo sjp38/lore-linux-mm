@@ -1,56 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qc0-f176.google.com (mail-qc0-f176.google.com [209.85.216.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 8944F6B0036
-	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 14:56:43 -0400 (EDT)
-Received: by mail-qc0-f176.google.com with SMTP id x13so458767qcv.21
-        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 11:56:43 -0700 (PDT)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id 49si13642905yhg.203.2014.09.16.11.56.42
+	by kanga.kvack.org (Postfix) with ESMTP id C39836B0035
+	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 16:51:50 -0400 (EDT)
+Received: by mail-qc0-f176.google.com with SMTP id x13so707935qcv.35
+        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 13:51:50 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x10si20495267qci.7.2014.09.16.13.51.48
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 16 Sep 2014 11:56:42 -0700 (PDT)
-Date: Tue, 16 Sep 2014 14:56:39 -0400
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: Best way to pin a page in ext4?
-Message-ID: <20140916185639.GM6205@thunk.org>
-References: <20140915185102.0944158037A@closure.thunk.org>
- <36321733-F488-49E3-8733-C6758F83DFA1@dilger.ca>
- <20140916180759.GI6205@thunk.org>
- <alpine.DEB.2.11.1409161330480.21297@gentwo.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Sep 2014 13:51:49 -0700 (PDT)
+Date: Tue, 16 Sep 2014 22:51:10 +0200
+From: Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>
+Subject: Re: [PATCH] kvm: Faults which trigger IO release the mmap_sem
+Message-ID: <20140916205110.GA1273@potion.brq.redhat.com>
+References: <1410811885-17267-1-git-send-email-andreslc@google.com>
+ <54184078.4070505@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1409161330480.21297@gentwo.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <54184078.4070505@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andreas Dilger <adilger@dilger.ca>, linux-mm <linux-mm@kvack.org>, linux-ext4@vger.kernel.org, hughd@google.com, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Andres Lagar-Cavilla <andreslc@google.com>, Gleb Natapov <gleb@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Sep 16, 2014 at 01:34:37PM -0500, Christoph Lameter wrote:
-> On Tue, 16 Sep 2014, Theodore Ts'o wrote:
+2014-09-15 13:11-0700, Andres Lagar-Cavilla:
+> +int kvm_get_user_page_retry(struct task_struct *tsk, struct mm_struct *mm,
+
+The suffix '_retry' is not best suited for this.
+On first reading, I imagined we will be retrying something from before,
+possibly calling it in a loop, but we are actually doing the first and
+last try in one call.
+
+Hard to find something that conveys our lock-dropping mechanic,
+'_polite' is my best candidate at the moment.
+
+> +	int flags = FOLL_TOUCH | FOLL_HWPOISON |
+
+(FOLL_HWPOISON wasn't used before, but it's harmless.)
+
+2014-09-16 15:51+0200, Paolo Bonzini:
+> Il 15/09/2014 22:11, Andres Lagar-Cavilla ha scritto:
+> > @@ -1177,9 +1210,15 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
+> >  		npages = get_user_page_nowait(current, current->mm,
+> >  					      addr, write_fault, page);
+> >  		up_read(&current->mm->mmap_sem);
+> > -	} else
+> > -		npages = get_user_pages_fast(addr, 1, write_fault,
+> > -					     page);
+> > +	} else {
+> > +		/*
+> > +		 * By now we have tried gup_fast, and possible async_pf, and we
+                                        ^
+(If we really tried get_user_pages_fast, we wouldn't be here, so I'd
+ prepend two underscores here as well.)
+
+> > +		 * are certainly not atomic. Time to retry the gup, allowing
+> > +		 * mmap semaphore to be relinquished in the case of IO.
+> > +		 */
+> > +		npages = kvm_get_user_page_retry(current, current->mm, addr,
+> > +						 write_fault, page);
 > 
-> > > It doesn't seem unreasonable to just grab an extra refcount on the pages
-> > > when they are first loaded.
-> >
-> > Well yes, but using mlock_vma_page() would be a bit more efficient,
-> > and technically, more correct than simply elevating the refcount.
+> This is a separate logical change.  Was this:
 > 
-> mlocked pages can be affected by page migration. They are not
-> pinned since POSIX only says that the pages must stay in memory. So the OS
-> is free to move them around physical memory.
+> 	down_read(&mm->mmap_sem);
+> 	npages = get_user_pages(NULL, mm, addr, 1, 1, 0, NULL, NULL);
+> 	up_read(&mm->mmap_sem);
+> 
+> the intention rather than get_user_pages_fast?
 
-And indeed, that would be a better reason to use mlock_vma_page()
-rather than elevating the refcount; we just need the page to stay in
-memory.  If the mm system needs to move the page around to coalesce
-for hugepages, or some such, that's fine.
+I believe so as well.
 
-(And so the subject line in my original post is wrong; apologies, I'm
-a fs developer, not a mm developer, and so I used the wrong
-terminology.)
+(Looking at get_user_pages_fast and __get_user_pages_fast made my
+ abstraction detector very sad.)
 
-Cheers,
+> I think a first patch should introduce kvm_get_user_page_retry ("Retry a
+> fault after a gup with FOLL_NOWAIT.") and the second would add
+> FOLL_TRIED ("This properly relinquishes mmap semaphore if the
+> filemap/swap has to wait on page lock (and retries the gup to completion
+> after that").
 
-					- Ted
+Not sure if that would help to understand the goal ...
+
+> Apart from this, the patch looks good.  The mm/ parts are minimal, so I
+> think it's best to merge it through the KVM tree with someone's Acked-by.
+
+I would prefer to have the last hunk in a separate patch, but still,
+
+Acked-by: Radim KrA?mA!A? <rkrcmar@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
