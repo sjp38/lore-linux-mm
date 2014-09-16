@@ -1,109 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
-	by kanga.kvack.org (Postfix) with ESMTP id D13F76B0038
-	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 21:23:18 -0400 (EDT)
-Received: by mail-lb0-f175.google.com with SMTP id n15so1918175lbi.6
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 18:23:18 -0700 (PDT)
-Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
-        by mx.google.com with ESMTPS id zt7si14792983lbb.115.2014.09.15.18.23.16
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id AB3F46B0038
+	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 21:36:15 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id fp1so7468868pdb.29
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 18:36:15 -0700 (PDT)
+Received: from fgwmail6.fujitsu.co.jp (fgwmail6.fujitsu.co.jp. [192.51.44.36])
+        by mx.google.com with ESMTPS id o2si25867166pdf.1.2014.09.15.18.36.14
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 15 Sep 2014 18:23:17 -0700 (PDT)
-Received: by mail-lb0-f179.google.com with SMTP id p9so5604276lbv.10
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 18:23:16 -0700 (PDT)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 15 Sep 2014 18:36:14 -0700 (PDT)
+Received: from kw-mxauth.gw.nic.fujitsu.com (unknown [10.0.237.134])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id A6F5F3EE0C3
+	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 10:36:11 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.fujitsu.co.jp [10.0.50.91])
+	by kw-mxauth.gw.nic.fujitsu.com (Postfix) with ESMTP id B3AF3AC01D8
+	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 10:36:10 +0900 (JST)
+Received: from g01jpfmpwyt03.exch.g01.fujitsu.local (g01jpfmpwyt03.exch.g01.fujitsu.local [10.128.193.57])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 502A5E08002
+	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 10:36:10 +0900 (JST)
+Message-ID: <541793BF.7070106@jp.fujitsu.com>
+Date: Tue, 16 Sep 2014 10:34:55 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <1410815951.28990.384.camel@misato.fc.hp.com>
-References: <1410367910-6026-1-git-send-email-toshi.kani@hp.com>
- <1410367910-6026-7-git-send-email-toshi.kani@hp.com> <CALCETrVnHg0X=R23qyiPtxYs3knHaXq65L0Jw_1oY4=gX5kpXQ@mail.gmail.com>
- <1410379933.28990.287.camel@misato.fc.hp.com> <CALCETrUh20-2PX_KN2KWO085n=5XJpOnPysmCGbk7bufaD3Mhw@mail.gmail.com>
- <1410384895.28990.312.camel@misato.fc.hp.com> <1410815951.28990.384.camel@misato.fc.hp.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 15 Sep 2014 18:22:56 -0700
-Message-ID: <CALCETrXMiSpMMi-4P8FTMeH_0J+6eNj0RAVJDhZYQOZub1jUOA@mail.gmail.com>
-Subject: Re: [PATCH v2 6/6] x86, pat: Update documentation for WT changes
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [RFC] memory cgroup: my thoughts on memsw
+References: <20140904143055.GA20099@esperanza> <20140915191435.GA8950@cmpxchg.org>
+In-Reply-To: <20140915191435.GA8950@cmpxchg.org>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Juergen Gross <jgross@suse.com>, Stefan Bader <stefan.bader@canonical.com>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Yigal Korman <yigal@plexistor.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Motohiro Kosaki <Motohiro.Kosaki@us.fujitsu.com>, Glauber Costa <glommer@gmail.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Pavel Emelianov <xemul@parallels.com>, Konstantin Khorenko <khorenko@parallels.com>, LKML-MM <linux-mm@kvack.org>, LKML-cgroups <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Sep 15, 2014 at 2:19 PM, Toshi Kani <toshi.kani@hp.com> wrote:
-> On Wed, 2014-09-10 at 15:34 -0600, Toshi Kani wrote:
->> On Wed, 2014-09-10 at 13:29 -0700, Andy Lutomirski wrote:
->> > On Wed, Sep 10, 2014 at 1:12 PM, Toshi Kani <toshi.kani@hp.com> wrote:
->> > > On Wed, 2014-09-10 at 11:30 -0700, Andy Lutomirski wrote:
->> > >> On Wed, Sep 10, 2014 at 9:51 AM, Toshi Kani <toshi.kani@hp.com> wrote:
->> > >> > +Drivers may map the entire NV-DIMM range with ioremap_cache and then change
->> > >> > +a specific range to wt with set_memory_wt.
->> > >>
->> > >> That's mighty specific :)
->> > >
->> > > How about below?
->> > >
->> > > Drivers may use set_memory_wt to set WT type for cached reserve ranges.
->> >
->> > Do they have to be cached?
+(2014/09/16 4:14), Johannes Weiner wrote:
+> Hi Vladimir,
+>
+> On Thu, Sep 04, 2014 at 06:30:55PM +0400, Vladimir Davydov wrote:
+>> To sum it up, the current mem + memsw configuration scheme doesn't allow
+>> us to limit swap usage if we want to partition the system dynamically
+>> using soft limits. Actually, it also looks rather confusing to me. We
+>> have mem limit and mem+swap limit. I bet that from the first glance, an
+>> average admin will think it's possible to limit swap usage by setting
+>> the limits so that the difference between memory.memsw.limit and
+>> memory.limit equals the maximal swap usage, but (surprise!) it isn't
+>> really so. It holds if there's no global memory pressure, but otherwise
+>> swap usage is only limited by memory.memsw.limit! IMHO, it isn't
+>> something obvious.
+>
+> Agreed, memory+swap accounting & limiting is broken.
+>
+>>   - Anon memory is handled by the user application, while file caches are
+>>     all on the kernel. That means the application will *definitely* die
+>>     w/o anon memory. W/o file caches it usually can survive, but the more
+>>     caches it has the better it feels.
 >>
->> Yes, set_memory_xyz only supports WB->type->WB transition.
+>>   - Anon memory is not that easy to reclaim. Swap out is a really slow
+>>     process, because data are usually read/written w/o any specific
+>>     order. Dropping file caches is much easier. Typically we have lots of
+>>     clean pages there.
 >>
->> > How about:
->> >
->> > Drivers may call set_memory_wt on ioremapped ranges.  In this case,
->> > there is no need to change the memory type back before calling
->> > iounmap.
->> >
->> > (Or only on cached ioremapped ranges if that is, in fact, the case.)
->>
->> Sounds good.  Yes, I will use cashed ioremapped ranges.
+>>   - Swap space is limited. And today, it's OK to have TBs of RAM and only
+>>     several GBs of swap. Customers simply don't want to waste their disk
+>>     space on that.
 >
-> Well, testing "no need to change the memory type back before calling
-> iounmap" turns out to be a good test case.  I realized that
-> set_memory_xyz only works properly for RAM.  There are two problems for
-> using this interface for ioremapped ranges.
+>> Finally, my understanding (may be crazy!) how the things should be
+>> configured. Just like now, there should be mem_cgroup->res accounting
+>> and limiting total user memory (cache+anon) usage for processes inside
+>> cgroups. This is where there's nothing to do. However, mem_cgroup->memsw
+>> should be reworked to account *only* memory that may be swapped out plus
+>> memory that has been swapped out (i.e. swap usage).
 >
-> 1) set_memory_xyz calls reserve_memtype() with __pa(addr).  However,
-> __pa() translates the addr into a fake physical address when it is an
-> ioremapped address.
+> But anon pages are not a resource, they are a swap space liability.
+> Think of virtual memory vs. physical pages - the use of one does not
+> necessarily result in the use of the other.  Without memory pressure,
+> anonymous pages do not consume swap space.
 >
-> 2) reserve_memtype() does not work for set_memory_xyz.  For RAM, the WB
-> state is managed untracked.  Hence, WB->new->WB is not considered as a
-> conflict.  For ioremapped ranges, WB is tracked in the same way as other
-> cache types.  Hence, WB->new is considered as a conflict.
+> What we *should* be accounting and limiting here is the actual finite
+> resource: swap space.  Whenever we try to swap a page, its owner
+> should be charged for the swap space - or the swapout be rejected.
 >
-> In my previous testing, 2) was undetected since 1) led using a fake
-> physical address which was not tracked for WB.  This made ioremapped
-> ranges worked just like RAM. :-(
+> For hard limit reclaim, the semantics of a swap space limit would be
+> fairly obvious, because it's clear who the offender is.
 >
-> Anyway, 1) can be fixed by using slow_virt_to_phys() instead of __pa().
-> set_memory_xyz is already slow, but this makes it even slower, though.
+> However, in an overcommitted machine, the amount of swap space used by
+> a particular group depends just as much on the behavior of the other
+> groups in the system, so the per-group swap limit should be enforced
+> even during global reclaim to feed back pressure on whoever is causing
+> the swapout.  If reclaim fails, the global OOM killer triggers, which
+> should then off the group with the biggest soft limit excess.
 >
-> For 2), WB has to be continuously tracked in order to detect aliasing,
-> ex. ioremap_cache and ioremap to a same address.  So, I think
-> reserve_memtype() needs the following changes:
->  - Add a new arg to see if an operation is to create a new mapping or to
-> change cache attribute.
->  - Track overlapping maps so that cache type change to an overlapping
-> range can be detected and failed.
+> As far as implementation goes, it should be doable to try-charge from
+> add_to_swap() and keep the uncharging in swap_entry_free().
 >
-> This level of changes requires a separate set of patches if we pursue to
-> support ioremapped ranges.  So, I am considering to take one of the two
-> options below.
->
-> A) Drop the patch for set_memory_wt.
->
-> B) Keep the patch for set_memory_wt, but document that it fails with
-> -EINVAL and its use is for RAM only.
+> We'll also have to extend the global OOM killer to be memcg-aware, but
+> we've been meaning to do that anyway.
 >
 
-I vote A.  I see no great reason to add code that can't be used.  Once
-someone needs this ability, they can add it :)
+When we introduced memsw limitation, we tried to avoid affecting global memory reclaim.
+Then, we did memory+swap limitation.
 
-It's too bad that ioremap is called ioremap and not iomap.  Otherwise
-the natural solution would be to add a different function call
-ioremap_wt that's like set_memory_wt but for ioremap ranges.  Calling
-it ioreremap_wt sounds kind of disgusting :)
+Now, global memory reclaim is memcg-aware. So, I think swap-limitation rather than
+anon+swap may be a choice. The change will reduce res_counter access. Hmm, it will be
+desireble to move anon pages to Unevictable if memcg's swap slot is 0.
 
---Andy
+Anyway, I think softlimit should be re-implemented, 1st. It will be starting point.
+
+Thanks,
+-Kame
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
