@@ -1,74 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 25F3B6B0038
-	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 21:38:13 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id kq14so7650843pab.33
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 18:38:12 -0700 (PDT)
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id A17BA6B0038
+	for <linux-mm@kvack.org>; Mon, 15 Sep 2014 21:47:15 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id v10so7514534pde.5
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 18:47:15 -0700 (PDT)
 Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
-        by mx.google.com with ESMTPS id o2si26415146pdh.86.2014.09.15.18.38.10
+        by mx.google.com with ESMTPS id j2si26457977pdr.83.2014.09.15.18.47.13
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 15 Sep 2014 18:38:12 -0700 (PDT)
+        Mon, 15 Sep 2014 18:47:14 -0700 (PDT)
 From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Tue, 16 Sep 2014 09:34:49 +0800
-Subject: [RFC v3] arm:extend the reserved mrmory for initrd to be page
- aligned
-Message-ID: <35FD53F367049845BC99AC72306C23D103D6DB49160A@CNBJMBX05.corpusers.net>
+Date: Tue, 16 Sep 2014 09:44:15 +0800
+Subject: [PATCH v2] arm:extend __init_end to a page align address
+Message-ID: <35FD53F367049845BC99AC72306C23D103D6DB49160B@CNBJMBX05.corpusers.net>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Will Deacon' <will.deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-msm@vger.kernel.org'" <linux-arm-msm@vger.kernel.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>, Jiang Liu <jiang.liu@huawei.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, Will Deacon <Will.Deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>
 
-this patch extend the start and end address of initrd to be page aligned,
-so that we can free all memory including the un-page aligned head or tail
-page of initrd, if the start or end address of initrd are not page
-aligned, the page can't be freed by free_initrd_mem() function.
+this patch change the __init_end address to a
+page align address, so that free_initmem() can
+free the whole .init section, because if the end
+address is not page aligned, it will round down to
+a page align address, then the tail unligned page
+will not be freed.
 
-Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
+Signed-off-by: wang <yalin.wang2010@gmail.com>
 ---
- arch/arm/mm/init.c   | 5 +++++
- arch/arm64/mm/init.c | 8 +++++++-
- 2 files changed, 12 insertions(+), 1 deletion(-)
+ arch/arm/kernel/vmlinux.lds.S     | 2 +-
+ arch/arm64/kernel/vmlinux.lds.S   | 2 +-
+ include/asm-generic/vmlinux.lds.h | 2 ++
+ 3 files changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-index 659c75d..9221645 100644
---- a/arch/arm/mm/init.c
-+++ b/arch/arm/mm/init.c
-@@ -636,6 +636,11 @@ static int keep_initrd;
- void free_initrd_mem(unsigned long start, unsigned long end)
- {
- 	if (!keep_initrd) {
-+		if (start =3D=3D initrd_start)
-+			start =3D round_down(start, PAGE_SIZE);
-+		if (end =3D=3D initrd_end)
-+			end =3D round_up(end, PAGE_SIZE);
-+
- 		poison_init_mem((void *)start, PAGE_ALIGN(end) - start);
- 		free_reserved_area((void *)start, (void *)end, -1, "initrd");
- 	}
-diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-index 5472c24..c5512f6 100644
---- a/arch/arm64/mm/init.c
-+++ b/arch/arm64/mm/init.c
-@@ -334,8 +334,14 @@ static int keep_initrd;
+diff --git a/arch/arm/kernel/vmlinux.lds.S b/arch/arm/kernel/vmlinux.lds.S
+index 6f57cb9..8e95aa4 100644
+--- a/arch/arm/kernel/vmlinux.lds.S
++++ b/arch/arm/kernel/vmlinux.lds.S
+@@ -219,8 +219,8 @@ SECTIONS
+ 	__data_loc =3D ALIGN(4);		/* location in binary */
+ 	. =3D PAGE_OFFSET + TEXT_OFFSET;
+ #else
+-	__init_end =3D .;
+ 	. =3D ALIGN(THREAD_SIZE);
++	__init_end =3D .;
+ 	__data_loc =3D .;
+ #endif
 =20
- void free_initrd_mem(unsigned long start, unsigned long end)
- {
--	if (!keep_initrd)
-+	if (!keep_initrd) {
-+		if (start =3D=3D initrd_start)
-+			start =3D round_down(start, PAGE_SIZE);
-+		if (end =3D=3D initrd_end)
-+			end =3D round_up(end, PAGE_SIZE);
-+
- 		free_reserved_area((void *)start, (void *)end, 0, "initrd");
-+	}
- }
+diff --git a/arch/arm64/kernel/vmlinux.lds.S b/arch/arm64/kernel/vmlinux.ld=
+s.S
+index 97f0c04..edf8715 100644
+--- a/arch/arm64/kernel/vmlinux.lds.S
++++ b/arch/arm64/kernel/vmlinux.lds.S
+@@ -97,9 +97,9 @@ SECTIONS
 =20
- static int __init keepinitrd_setup(char *__unused)
+ 	PERCPU_SECTION(64)
+=20
++	. =3D ALIGN(PAGE_SIZE);
+ 	__init_end =3D .;
+=20
+-	. =3D ALIGN(PAGE_SIZE);
+ 	_data =3D .;
+ 	_sdata =3D .;
+ 	RW_DATA_SECTION(64, PAGE_SIZE, THREAD_SIZE)
+diff --git a/include/asm-generic/vmlinux.lds.h b/include/asm-generic/vmlinu=
+x.lds.h
+index 5ba0360..aa70cbd 100644
+--- a/include/asm-generic/vmlinux.lds.h
++++ b/include/asm-generic/vmlinux.lds.h
+@@ -40,6 +40,8 @@
+  * }
+  *
+  * [__init_begin, __init_end] is the init section that may be freed after =
+init
++ * 	// __init_begin and __init_end should be page aligned, so that we can
++ *	// free the whole .init memory
+  * [_stext, _etext] is the text section
+  * [_sdata, _edata] is the data section
+  *
 --=20
 2.1.0
 
