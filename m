@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 90A3D6B0039
-	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 01:32:58 -0400 (EDT)
-Received: by mail-lb0-f178.google.com with SMTP id c11so5818968lbj.23
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 22:32:58 -0700 (PDT)
+Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 6682B6B003A
+	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 01:33:07 -0400 (EDT)
+Received: by mail-lb0-f181.google.com with SMTP id z11so5747569lbi.40
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 22:33:06 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c10si22195422lab.76.2014.09.15.22.32.56
+        by mx.google.com with ESMTPS id am7si22193636lac.74.2014.09.15.22.33.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 15 Sep 2014 22:32:57 -0700 (PDT)
+        Mon, 15 Sep 2014 22:33:05 -0700 (PDT)
 From: NeilBrown <neilb@suse.de>
 Date: Tue, 16 Sep 2014 15:31:35 +1000
-Subject: [PATCH 3/4] NFS: avoid deadlocks with loop-back mounted NFS
- filesystems.
-Message-ID: <20140916053135.22257.68002.stgit@notabene.brown>
+Subject: [PATCH 4/4] NFS/SUNRPC: Remove other deadlock-avoidance mechanisms
+ in nfs_release_page()
+Message-ID: <20140916053135.22257.46476.stgit@notabene.brown>
 In-Reply-To: <20140916051911.22257.24658.stgit@notabene.brown>
 References: <20140916051911.22257.24658.stgit@notabene.brown>
 MIME-Version: 1.0
@@ -24,100 +24,154 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, Ingo Molnar <mingo@redhat.com>
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, Jeff Layton <jeff.layton@primarydata.com>
 
-Support for loop-back mounted NFS filesystems is useful when NFS is
-used to access shared storage in a high-availability cluster.
+Now that nfs_release_page() doesn't block indefinitely, other deadlock
+avoidance mechanisms aren't needed.
+ - it doesn't hurt for kswapd to block occasionally.  If it doesn't
+   want to block it would clear __GFP_WAIT.  The current_is_kswapd()
+   was only added to avoid deadlocks and we have a new approach for
+   that.
+ - memory allocation in the SUNRPC layer can very rarely try to
+   ->releasepage() a page it is trying to handle.  The deadlock
+   is removed as nfs_release_page() doesn't block indefinitely.
 
-If the node running the NFS server fails, some other node can mount the
-filesystem and start providing NFS service.  If that node already had
-the filesystem NFS mounted, it will now have it loop-back mounted.
-
-nfsd can suffer a deadlock when allocating memory and entering direct
-reclaim.
-While direct reclaim does not write to the NFS filesystem it can send
-and wait for a COMMIT through nfs_release_page().
-
-This patch modifies nfs_release_page() to wait a limited time for the
-commit to complete - one second.  If the commit doesn't complete
-in this time, nfs_release_page() will fail.  This means it might now
-fail in some cases where it wouldn't before.  These cases are only
-when 'gfp' includes '__GFP_WAIT'.
-
-nfs_release_page() is only called by try_to_release_page(), and that
-can only be called on an NFS page with required 'gfp' flags from
- - page_cache_pipe_buf_steal() in splice.c
- - shrink_page_list() in vmscan.c
- - invalidate_inode_pages2_range() in truncate.c
-
-The first two handle failure quite safely.  The last is only called
-after ->launder_page() has been called, and that will have waited
-for the commit to finish already.
-
-So aborting if the commit takes longer than 1 second is perfectly safe.
-
-1 second may be longer than is really necessary, but it is much
-shorter than the current maximum wait, so this is not a regression.
-Some waiting is needed to help slow down memory allocation to the
-rate that we can complete writeout of pages.
-
-In those rare cases where it is nfsd, or something that nfsd is
-waiting for, that is calling nfs_release_page(), this delay will at
-most cause a small hic-cough in places where it currently deadlocks.
+So we don't need to set PF_FSTRANS for sunrpc network operations any
+more.
 
 Signed-off-by: NeilBrown <neilb@suse.de>
 ---
- fs/nfs/file.c  |   24 ++++++++++++++----------
- fs/nfs/write.c |    2 ++
- 2 files changed, 16 insertions(+), 10 deletions(-)
+ fs/nfs/file.c                   |   16 +++++++---------
+ net/sunrpc/sched.c              |    2 --
+ net/sunrpc/xprtrdma/transport.c |    2 --
+ net/sunrpc/xprtsock.c           |   10 ----------
+ 4 files changed, 7 insertions(+), 23 deletions(-)
 
 diff --git a/fs/nfs/file.c b/fs/nfs/file.c
-index 524dd80d1898..8d74983417af 100644
+index 8d74983417af..5949ca37cd18 100644
 --- a/fs/nfs/file.c
 +++ b/fs/nfs/file.c
-@@ -468,17 +468,21 @@ static int nfs_release_page(struct page *page, gfp_t gfp)
- 
+@@ -469,18 +469,16 @@ static int nfs_release_page(struct page *page, gfp_t gfp)
  	dfprintk(PAGECACHE, "NFS: release_page(%p)\n", page);
  
--	/* Only do I/O if gfp is a superset of GFP_KERNEL, and we're not
--	 * doing this memory reclaim for a fs-related allocation.
-+	/* Always try to initiate a 'commit' if relevant, but only
-+	 * wait for it if __GFP_WAIT is set and the calling process is
-+	 * allowed to block.  Even then, only wait 1 second.  Waiting
-+	 * indefinitely can cause deadlocks when the NFS server is on
-+	 * this machine, and there is no particular need to wait
-+	 * extensively here.  A short wait has the benefit that
-+	 * someone else can worry about the freezer.
+ 	/* Always try to initiate a 'commit' if relevant, but only
+-	 * wait for it if __GFP_WAIT is set and the calling process is
+-	 * allowed to block.  Even then, only wait 1 second.  Waiting
+-	 * indefinitely can cause deadlocks when the NFS server is on
+-	 * this machine, and there is no particular need to wait
+-	 * extensively here.  A short wait has the benefit that
+-	 * someone else can worry about the freezer.
++	 * wait for it if __GFP_WAIT is set.  Even then, only wait 1
++	 * second.  Waiting indefinitely can cause deadlocks when the
++	 * NFS server is on this machine, when a new TCP connection is
++	 * needed and in other rare cases.  There is no particular
++	 * need to wait extensively here.  A short wait has the
++	 * benefit that someone else can worry about the freezer.
  	 */
--	if (mapping && (gfp & GFP_KERNEL) == GFP_KERNEL &&
--	    !(current->flags & PF_FSTRANS)) {
--		int how = FLUSH_SYNC;
--
--		/* Don't let kswapd deadlock waiting for OOM RPC calls */
--		if (current_is_kswapd())
--			how = 0;
--		nfs_commit_inode(mapping->host, how);
-+	if (mapping) {
-+		nfs_commit_inode(mapping->host, 0);
-+		if ((gfp & __GFP_WAIT) &&
-+		    !current_is_kswapd() &&
-+		    !(current->flags & PF_FSTRANS))
-+			wait_on_page_bit_killable_timeout(page, PG_private,
-+							  HZ);
+ 	if (mapping) {
+ 		nfs_commit_inode(mapping->host, 0);
+-		if ((gfp & __GFP_WAIT) &&
+-		    !current_is_kswapd() &&
+-		    !(current->flags & PF_FSTRANS))
++		if ((gfp & __GFP_WAIT))
+ 			wait_on_page_bit_killable_timeout(page, PG_private,
+ 							  HZ);
  	}
- 	/* If PagePrivate() is set, then the page is not freeable */
- 	if (PagePrivate(page))
-diff --git a/fs/nfs/write.c b/fs/nfs/write.c
-index 175d5d073ccf..b5d83c7545d4 100644
---- a/fs/nfs/write.c
-+++ b/fs/nfs/write.c
-@@ -731,6 +731,8 @@ static void nfs_inode_remove_request(struct nfs_page *req)
- 		if (likely(!PageSwapCache(head->wb_page))) {
- 			set_page_private(head->wb_page, 0);
- 			ClearPagePrivate(head->wb_page);
-+			smp_mb__after_atomic();
-+			wake_up_page(head->wb_page, PG_private);
- 			clear_bit(PG_MAPPED, &head->wb_flags);
- 		}
- 		nfsi->npages--;
+diff --git a/net/sunrpc/sched.c b/net/sunrpc/sched.c
+index 9358c79fd589..fe3441abdbe5 100644
+--- a/net/sunrpc/sched.c
++++ b/net/sunrpc/sched.c
+@@ -821,9 +821,7 @@ void rpc_execute(struct rpc_task *task)
+ 
+ static void rpc_async_schedule(struct work_struct *work)
+ {
+-	current->flags |= PF_FSTRANS;
+ 	__rpc_execute(container_of(work, struct rpc_task, u.tk_work));
+-	current->flags &= ~PF_FSTRANS;
+ }
+ 
+ /**
+diff --git a/net/sunrpc/xprtrdma/transport.c b/net/sunrpc/xprtrdma/transport.c
+index 2faac4940563..6a4615dd0261 100644
+--- a/net/sunrpc/xprtrdma/transport.c
++++ b/net/sunrpc/xprtrdma/transport.c
+@@ -205,7 +205,6 @@ xprt_rdma_connect_worker(struct work_struct *work)
+ 	struct rpc_xprt *xprt = &r_xprt->xprt;
+ 	int rc = 0;
+ 
+-	current->flags |= PF_FSTRANS;
+ 	xprt_clear_connected(xprt);
+ 
+ 	dprintk("RPC:       %s: %sconnect\n", __func__,
+@@ -216,7 +215,6 @@ xprt_rdma_connect_worker(struct work_struct *work)
+ 
+ 	dprintk("RPC:       %s: exit\n", __func__);
+ 	xprt_clear_connecting(xprt);
+-	current->flags &= ~PF_FSTRANS;
+ }
+ 
+ /*
+diff --git a/net/sunrpc/xprtsock.c b/net/sunrpc/xprtsock.c
+index 43cd89eacfab..4707c0c8568b 100644
+--- a/net/sunrpc/xprtsock.c
++++ b/net/sunrpc/xprtsock.c
+@@ -1927,8 +1927,6 @@ static int xs_local_setup_socket(struct sock_xprt *transport)
+ 	struct socket *sock;
+ 	int status = -EIO;
+ 
+-	current->flags |= PF_FSTRANS;
+-
+ 	clear_bit(XPRT_CONNECTION_ABORT, &xprt->state);
+ 	status = __sock_create(xprt->xprt_net, AF_LOCAL,
+ 					SOCK_STREAM, 0, &sock, 1);
+@@ -1968,7 +1966,6 @@ static int xs_local_setup_socket(struct sock_xprt *transport)
+ out:
+ 	xprt_clear_connecting(xprt);
+ 	xprt_wake_pending_tasks(xprt, status);
+-	current->flags &= ~PF_FSTRANS;
+ 	return status;
+ }
+ 
+@@ -2071,8 +2068,6 @@ static void xs_udp_setup_socket(struct work_struct *work)
+ 	struct socket *sock = transport->sock;
+ 	int status = -EIO;
+ 
+-	current->flags |= PF_FSTRANS;
+-
+ 	/* Start by resetting any existing state */
+ 	xs_reset_transport(transport);
+ 	sock = xs_create_sock(xprt, transport,
+@@ -2092,7 +2087,6 @@ static void xs_udp_setup_socket(struct work_struct *work)
+ out:
+ 	xprt_clear_connecting(xprt);
+ 	xprt_wake_pending_tasks(xprt, status);
+-	current->flags &= ~PF_FSTRANS;
+ }
+ 
+ /*
+@@ -2229,8 +2223,6 @@ static void xs_tcp_setup_socket(struct work_struct *work)
+ 	struct rpc_xprt *xprt = &transport->xprt;
+ 	int status = -EIO;
+ 
+-	current->flags |= PF_FSTRANS;
+-
+ 	if (!sock) {
+ 		clear_bit(XPRT_CONNECTION_ABORT, &xprt->state);
+ 		sock = xs_create_sock(xprt, transport,
+@@ -2276,7 +2268,6 @@ static void xs_tcp_setup_socket(struct work_struct *work)
+ 	case -EINPROGRESS:
+ 	case -EALREADY:
+ 		xprt_clear_connecting(xprt);
+-		current->flags &= ~PF_FSTRANS;
+ 		return;
+ 	case -EINVAL:
+ 		/* Happens, for instance, if the user specified a link
+@@ -2294,7 +2285,6 @@ out_eagain:
+ out:
+ 	xprt_clear_connecting(xprt);
+ 	xprt_wake_pending_tasks(xprt, status);
+-	current->flags &= ~PF_FSTRANS;
+ }
+ 
+ /**
 
 
 --
