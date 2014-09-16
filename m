@@ -1,85 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 668C86B0036
-	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 14:08:02 -0400 (EDT)
-Received: by mail-qa0-f53.google.com with SMTP id n8so306273qaq.40
-        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 11:08:02 -0700 (PDT)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id n67si13627175yhp.61.2014.09.16.11.08.00
+Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
+	by kanga.kvack.org (Postfix) with ESMTP id AD8186B0036
+	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 14:29:57 -0400 (EDT)
+Received: by mail-qg0-f43.google.com with SMTP id a108so362372qge.16
+        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 11:29:57 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c20si20063451qax.63.2014.09.16.11.29.55
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 16 Sep 2014 11:08:01 -0700 (PDT)
-Date: Tue, 16 Sep 2014 14:07:59 -0400
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: Best way to pin a page in ext4?
-Message-ID: <20140916180759.GI6205@thunk.org>
-References: <20140915185102.0944158037A@closure.thunk.org>
- <36321733-F488-49E3-8733-C6758F83DFA1@dilger.ca>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Sep 2014 11:29:56 -0700 (PDT)
+Message-ID: <54188179.7010705@redhat.com>
+Date: Tue, 16 Sep 2014 20:29:13 +0200
+From: Paolo Bonzini <pbonzini@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <36321733-F488-49E3-8733-C6758F83DFA1@dilger.ca>
+Subject: Re: [PATCH] kvm: Faults which trigger IO release the mmap_sem
+References: <1410811885-17267-1-git-send-email-andreslc@google.com>	<54184078.4070505@redhat.com> <CAJu=L5_w+u6komiZB6RE1+9H5MiL+8RJBy_GYO6CmjqkhaG5Zg@mail.gmail.com>
+In-Reply-To: <CAJu=L5_w+u6komiZB6RE1+9H5MiL+8RJBy_GYO6CmjqkhaG5Zg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andreas Dilger <adilger@dilger.ca>
-Cc: linux-mm <linux-mm@kvack.org>, linux-ext4@vger.kernel.org
+To: Andres Lagar-Cavilla <andreslc@google.com>
+Cc: Gleb Natapov <gleb@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Sep 15, 2014 at 02:57:23PM -0600, Andreas Dilger wrote:
+Il 16/09/2014 18:52, Andres Lagar-Cavilla ha scritto:
+> Was this:
 > 
-> As discussed in http://lists.openwall.net/linux-ext4/2013/03/25/15
-> the bitmap pages were being evicted under memory pressure even when
-> they are active use.  That turned out to be an MM problem and not an
-> ext4 problem in the end, and was fixed in commit c53954a092d in 3.11,
-> in case you are running an older kernel.
-
-Yes, I remember.  And that could potentially be a contributing factor,
-since the user in question is using 3.2.  However, the user in
-question has a use case where bitmap pinning is probably going to be
-needed given the likely allocation patterns of a DVR; if the pages
-aren't pinned, it's likely that by the time the DVR needs to fallocate
-space for a new show, the bitmap pages would have been aged out due to
-not being frequently accessed enough, even if the usage tracking was
-backported to a 3.2 kernel.
-
-> > The other approach would be to keep an elevated refcount on the pages in
-> > question, but it seemed it would be more efficient use the mlock
-> > facility since that keeps the pages on an unevictable list.
+>         down_read(&mm->mmap_sem);
+>         npages = get_user_pages(NULL, mm, addr, 1, 1, 0, NULL, NULL);
+>         up_read(&mm->mmap_sem);
 > 
-> It doesn't seem unreasonable to just grab an extra refcount on the pages
-> when they are first loaded.  
+> the intention rather than get_user_pages_fast?
 
-Well yes, but using mlock_vma_page() would be a bit more efficient,
-and technically, more correct than simply elevating the refcount.
+I meant the intention of the original author, not yours.
 
-> However, the memory usage may be fairly
-> high (32MB per 1TB of disk) so this definitely can't be generally used,
-> and it would be nice to make sure that ext4 is already doing the right
-> thing to keep these important pages in cache.
+> By that point in the call chain I felt comfortable dropping the _fast.
+> All paths that get there have already tried _fast (and some have tried
+> _NOWAIT).
 
-Well, as I mentioned above, the use case in question is a DVR, where
-having the disk need to suddenly seek a large number block groups, and
-thus pull in a largish number of allocation bitmaps, might be harmful
-for a video replay that might be happening at the same time that the
-DVR needs to fallocate space for a new TV show to be recorded.
+Yes, understood.
 
-And for a 2TB disk, the developer in question felt that he could
-afford pinning 64MB.  So no, it's not a general solution, but it's
-probably good enough for now.
+>     I think a first patch should introduce kvm_get_user_page_retry ("Retry a
+>     fault after a gup with FOLL_NOWAIT.") and the second would add
+>     FOLL_TRIED ("This properly relinquishes mmap semaphore if the
+>     filemap/swap has to wait on page lock (and retries the gup to completion
+>     after that").
+> 
+> That's not what FOLL_TRIED does. The relinquishing of mmap semaphore is
+> done by this patch minus the FOLL_TRIED bits. FOLL_TRIED will let the
+> fault handler (e.g. filemap) know that we've been there and waited on
+> the IO already, so in the common case we won't need to redo the IO.
 
-Long run, I think we really need to consider trying to cache free
-space information in some kind in-memory of rbtree, with a bail-out in
-the worst case of the free space is horrendously fragmented in a
-particular block group.  But as a quick hack, using mlock_vma_page()
-was the simplest short term solution.
+Yes, that's not what FOLL_TRIED does.  But it's the difference between
+get_user_pages and kvm_get_user_page_retry, right?
 
-The main question then for the mm developers is would there be
-objections in making mlock/munlock_vma_page() be EXPORT_SYMBOL_GPL and
-moving the function declaration from mm/internal.h to
-include/linux/mm.h?
-
-Cheers,
-
-					- Ted
+Paolo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
