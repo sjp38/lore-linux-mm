@@ -1,124 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DB076B0036
-	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 12:55:34 -0400 (EDT)
-Received: by mail-ig0-f181.google.com with SMTP id h3so421573igd.14
-        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 09:55:34 -0700 (PDT)
-Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com [2607:f8b0:4001:c05::233])
-        by mx.google.com with ESMTPS id qr10si2258773igb.42.2014.09.16.09.55.33
+Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 289E06B0036
+	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 13:02:58 -0400 (EDT)
+Received: by mail-qc0-f172.google.com with SMTP id i17so240782qcy.3
+        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 10:02:57 -0700 (PDT)
+Received: from g5t1625.atlanta.hp.com (g5t1625.atlanta.hp.com. [15.192.137.8])
+        by mx.google.com with ESMTPS id j25si13522374yhb.29.2014.09.16.10.02.56
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 16 Sep 2014 09:55:33 -0700 (PDT)
-Received: by mail-ig0-f179.google.com with SMTP id r10so429033igi.0
-        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 09:55:33 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAJu=L5_w+u6komiZB6RE1+9H5MiL+8RJBy_GYO6CmjqkhaG5Zg@mail.gmail.com>
-References: <1410811885-17267-1-git-send-email-andreslc@google.com>
-	<54184078.4070505@redhat.com>
-	<CAJu=L5_w+u6komiZB6RE1+9H5MiL+8RJBy_GYO6CmjqkhaG5Zg@mail.gmail.com>
-Date: Tue, 16 Sep 2014 09:55:32 -0700
-Message-ID: <CAJu=L597w-DNGV_7t9k36eh9R=JgnkUHFKwXUL2WVaMmEW5FNw@mail.gmail.com>
-Subject: Re: [PATCH] kvm: Faults which trigger IO release the mmap_sem
-From: Andres Lagar-Cavilla <andreslc@google.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 16 Sep 2014 10:02:57 -0700 (PDT)
+Message-ID: <1410886335.28990.393.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v2 6/6] x86, pat: Update documentation for WT changes
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Tue, 16 Sep 2014 10:52:15 -0600
+In-Reply-To: <CALCETrXMiSpMMi-4P8FTMeH_0J+6eNj0RAVJDhZYQOZub1jUOA@mail.gmail.com>
+References: <1410367910-6026-1-git-send-email-toshi.kani@hp.com>
+	 <1410367910-6026-7-git-send-email-toshi.kani@hp.com>
+	 <CALCETrVnHg0X=R23qyiPtxYs3knHaXq65L0Jw_1oY4=gX5kpXQ@mail.gmail.com>
+	 <1410379933.28990.287.camel@misato.fc.hp.com>
+	 <CALCETrUh20-2PX_KN2KWO085n=5XJpOnPysmCGbk7bufaD3Mhw@mail.gmail.com>
+	 <1410384895.28990.312.camel@misato.fc.hp.com>
+	 <1410815951.28990.384.camel@misato.fc.hp.com>
+	 <CALCETrXMiSpMMi-4P8FTMeH_0J+6eNj0RAVJDhZYQOZub1jUOA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paolo Bonzini <pbonzini@redhat.com>
-Cc: Gleb Natapov <gleb@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Juergen Gross <jgross@suse.com>, Stefan Bader <stefan.bader@canonical.com>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Yigal Korman <yigal@plexistor.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 
-On Tue, Sep 16, 2014 at 9:52 AM, Andres Lagar-Cavilla
-<andreslc@google.com> wrote:
+On Mon, 2014-09-15 at 18:22 -0700, Andy Lutomirski wrote:
+> On Mon, Sep 15, 2014 at 2:19 PM, Toshi Kani <toshi.kani@hp.com> wrote:
+> > On Wed, 2014-09-10 at 15:34 -0600, Toshi Kani wrote:
+> >> On Wed, 2014-09-10 at 13:29 -0700, Andy Lutomirski wrote:
+> >> > On Wed, Sep 10, 2014 at 1:12 PM, Toshi Kani <toshi.kani@hp.com> wrote:
+> >> > > On Wed, 2014-09-10 at 11:30 -0700, Andy Lutomirski wrote:
+> >> > >> On Wed, Sep 10, 2014 at 9:51 AM, Toshi Kani <toshi.kani@hp.com> wrote:
+> >> > >> > +Drivers may map the entire NV-DIMM range with ioremap_cache and then change
+> >> > >> > +a specific range to wt with set_memory_wt.
+> >> > >>
+> >> > >> That's mighty specific :)
+> >> > >
+> >> > > How about below?
+> >> > >
+> >> > > Drivers may use set_memory_wt to set WT type for cached reserve ranges.
+> >> >
+> >> > Do they have to be cached?
+> >>
+> >> Yes, set_memory_xyz only supports WB->type->WB transition.
+> >>
+> >> > How about:
+> >> >
+> >> > Drivers may call set_memory_wt on ioremapped ranges.  In this case,
+> >> > there is no need to change the memory type back before calling
+> >> > iounmap.
+> >> >
+> >> > (Or only on cached ioremapped ranges if that is, in fact, the case.)
+> >>
+> >> Sounds good.  Yes, I will use cashed ioremapped ranges.
+> >
+> > Well, testing "no need to change the memory type back before calling
+> > iounmap" turns out to be a good test case.  I realized that
+> > set_memory_xyz only works properly for RAM.  There are two problems for
+> > using this interface for ioremapped ranges.
+> >
+> > 1) set_memory_xyz calls reserve_memtype() with __pa(addr).  However,
+> > __pa() translates the addr into a fake physical address when it is an
+> > ioremapped address.
+> >
+> > 2) reserve_memtype() does not work for set_memory_xyz.  For RAM, the WB
+> > state is managed untracked.  Hence, WB->new->WB is not considered as a
+> > conflict.  For ioremapped ranges, WB is tracked in the same way as other
+> > cache types.  Hence, WB->new is considered as a conflict.
+> >
+> > In my previous testing, 2) was undetected since 1) led using a fake
+> > physical address which was not tracked for WB.  This made ioremapped
+> > ranges worked just like RAM. :-(
+> >
+> > Anyway, 1) can be fixed by using slow_virt_to_phys() instead of __pa().
+> > set_memory_xyz is already slow, but this makes it even slower, though.
+> >
+> > For 2), WB has to be continuously tracked in order to detect aliasing,
+> > ex. ioremap_cache and ioremap to a same address.  So, I think
+> > reserve_memtype() needs the following changes:
+> >  - Add a new arg to see if an operation is to create a new mapping or to
+> > change cache attribute.
+> >  - Track overlapping maps so that cache type change to an overlapping
+> > range can be detected and failed.
+> >
+> > This level of changes requires a separate set of patches if we pursue to
+> > support ioremapped ranges.  So, I am considering to take one of the two
+> > options below.
+> >
+> > A) Drop the patch for set_memory_wt.
+> >
+> > B) Keep the patch for set_memory_wt, but document that it fails with
+> > -EINVAL and its use is for RAM only.
+> >
+> 
+> I vote A.  I see no great reason to add code that can't be used.  Once
+> someone needs this ability, they can add it :)
 
-Apologies to all. Resend as lists rejected my gmail-formatted version.
-Now on plain text. Won't happen again.
+Agreed.  I will drop the patch for now.  Since _PGMT_WB does not seem to
+be used for tracking WB, we might be able to use this bit for WT.  But I
+need to look at the code more carefully for sure.
 
-> On Tue, Sep 16, 2014 at 6:51 AM, Paolo Bonzini <pbonzini@redhat.com> wrote:
->>
->> Il 15/09/2014 22:11, Andres Lagar-Cavilla ha scritto:
->> > +     if (!locked) {
->> > +             BUG_ON(npages != -EBUSY);
->>
->> VM_BUG_ON perhaps?
->
-> Sure.
->
->>
->> > @@ -1177,9 +1210,15 @@ static int hva_to_pfn_slow(unsigned long addr,
->> > bool *async, bool write_fault,
->> >               npages = get_user_page_nowait(current, current->mm,
->> >                                             addr, write_fault, page);
->> >               up_read(&current->mm->mmap_sem);
->> > -     } else
->> > -             npages = get_user_pages_fast(addr, 1, write_fault,
->> > -                                          page);
->> > +     } else {
->> > +             /*
->> > +              * By now we have tried gup_fast, and possible async_pf,
->> > and we
->> > +              * are certainly not atomic. Time to retry the gup,
->> > allowing
->> > +              * mmap semaphore to be relinquished in the case of IO.
->> > +              */
->> > +             npages = kvm_get_user_page_retry(current, current->mm,
->> > addr,
->> > +                                              write_fault, page);
->>
->> This is a separate logical change.  Was this:
->>
->>         down_read(&mm->mmap_sem);
->>         npages = get_user_pages(NULL, mm, addr, 1, 1, 0, NULL, NULL);
->>         up_read(&mm->mmap_sem);
->>
->> the intention rather than get_user_pages_fast?
->
->
-> Nope. The intention was to pass FAULT_FLAG_RETRY to the vma fault handler
-> (without _NOWAIT). And once you do that, if you come back without holding
-> the mmap sem, you need to call yet again.
->
-> By that point in the call chain I felt comfortable dropping the _fast. All
-> paths that get there have already tried _fast (and some have tried _NOWAIT).
->
->>
->> I think a first patch should introduce kvm_get_user_page_retry ("Retry a
->> fault after a gup with FOLL_NOWAIT.") and the second would add
->> FOLL_TRIED ("This properly relinquishes mmap semaphore if the
->> filemap/swap has to wait on page lock (and retries the gup to completion
->> after that").
->
->
-> That's not what FOLL_TRIED does. The relinquishing of mmap semaphore is done
-> by this patch minus the FOLL_TRIED bits. FOLL_TRIED will let the fault
-> handler (e.g. filemap) know that we've been there and waited on the IO
-> already, so in the common case we won't need to redo the IO.
->
-> Have a look at how FAULT_FLAG_TRIED is used in e.g. arch/x86/mm/fault.c.
->
->>
->>
->> Apart from this, the patch looks good.  The mm/ parts are minimal, so I
->> think it's best to merge it through the KVM tree with someone's Acked-by.
->
->
-> Thanks!
-> Andres
->
->>
->>
->> Paolo
->
->
->
->
-> --
-> Andres Lagar-Cavilla | Google Cloud Platform | andreslc@google.com |
-> 647-778-4380
+> It's too bad that ioremap is called ioremap and not iomap.  Otherwise
+> the natural solution would be to add a different function call
+> ioremap_wt that's like set_memory_wt but for ioremap ranges.  Calling
+> it ioreremap_wt sounds kind of disgusting :)
 
+:)
 
-
--- 
-Andres Lagar-Cavilla | Google Cloud Platform | andreslc@google.com |
-647-778-4380
+Thanks,
+-Toshi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
