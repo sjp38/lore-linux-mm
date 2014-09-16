@@ -1,369 +1,432 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 863666B0036
-	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 11:10:05 -0400 (EDT)
-Received: by mail-wi0-f169.google.com with SMTP id cc10so4105055wib.4
-        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 08:10:04 -0700 (PDT)
-Received: from mail-we0-x235.google.com (mail-we0-x235.google.com [2a00:1450:400c:c03::235])
-        by mx.google.com with ESMTPS id o15si3091464wiw.74.2014.09.16.08.10.04
+Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EB016B0036
+	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 11:57:19 -0400 (EDT)
+Received: by mail-we0-f175.google.com with SMTP id w61so48180wes.34
+        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 08:57:18 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id lg3si3248460wic.77.2014.09.16.08.57.16
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 16 Sep 2014 08:10:04 -0700 (PDT)
-Received: by mail-we0-f181.google.com with SMTP id w62so5824640wes.26
-        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 08:10:03 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 16 Sep 2014 08:57:17 -0700 (PDT)
+Date: Tue, 16 Sep 2014 11:56:58 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH v3 1/5] mm/hugetlb: reduce arch dependent code around
+ follow_huge_*
+Message-ID: <20140916155658.GA11889@nhori.bos.redhat.com>
+References: <1410820799-27278-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1410820799-27278-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-In-Reply-To: <20140916003336.GD10912@bbox>
-References: <1409794786-10951-1-git-send-email-minchan@kernel.org>
- <1409794786-10951-3-git-send-email-minchan@kernel.org> <CALZtONCortZodFfVU5-oXUdGShhjFOg+FesxMFCdsyhsnnkmZw@mail.gmail.com>
- <20140915003015.GF2160@bbox> <CALZtONBghSTAbgXLrgmNV+EEKaJnx96TRuXorM-J_JFEKC88=Q@mail.gmail.com>
- <20140916003336.GD10912@bbox>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Tue, 16 Sep 2014 11:09:43 -0400
-Message-ID: <CALZtONASzacLJGAQ1o8BUtry9a8SRmGhheKRtKpfFrHYtTSC1w@mail.gmail.com>
-Subject: Re: [RFC 2/3] mm: add swap_get_free hint for zram
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1410820799-27278-2-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>, James Hogan <james.hogan@imgtec.com>
 
-On Mon, Sep 15, 2014 at 8:33 PM, Minchan Kim <minchan@kernel.org> wrote:
-> On Mon, Sep 15, 2014 at 10:53:01AM -0400, Dan Streetman wrote:
->> On Sun, Sep 14, 2014 at 8:30 PM, Minchan Kim <minchan@kernel.org> wrote:
->> > On Sat, Sep 13, 2014 at 03:01:47PM -0400, Dan Streetman wrote:
->> >> On Wed, Sep 3, 2014 at 9:39 PM, Minchan Kim <minchan@kernel.org> wrote:
->> >> > VM uses nr_swap_pages as one of information when it does
->> >> > anonymous reclaim so that VM is able to throttle amount of swap.
->> >> >
->> >> > Normally, the nr_swap_pages is equal to freeable space of swap disk
->> >> > but for zram, it doesn't match because zram can limit memory usage
->> >> > by knob(ie, mem_limit) so although VM can see lots of free space
->> >> > from zram disk, zram can make fail intentionally once the allocated
->> >> > space is over to limit. If it happens, VM should notice it and
->> >> > stop reclaimaing until zram can obtain more free space but there
->> >> > is a good way to do at the moment.
->> >> >
->> >> > This patch adds new hint SWAP_GET_FREE which zram can return how
->> >> > many of freeable space it has. With using that, this patch adds
->> >> > __swap_full which returns true if the zram is full and substract
->> >> > remained freeable space of the zram-swap from nr_swap_pages.
->> >> > IOW, VM sees there is no more swap space of zram so that it stops
->> >> > anonymous reclaiming until swap_entry_free free a page and increase
->> >> > nr_swap_pages again.
->> >> >
->> >> > Signed-off-by: Minchan Kim <minchan@kernel.org>
->> >> > ---
->> >> >  include/linux/blkdev.h |  1 +
->> >> >  mm/swapfile.c          | 45 +++++++++++++++++++++++++++++++++++++++++++--
->> >> >  2 files changed, 44 insertions(+), 2 deletions(-)
->> >> >
->> >> > diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
->> >> > index 17437b2c18e4..c1199806e0f1 100644
->> >> > --- a/include/linux/blkdev.h
->> >> > +++ b/include/linux/blkdev.h
->> >> > @@ -1611,6 +1611,7 @@ static inline bool blk_integrity_is_initialized(struct gendisk *g)
->> >> >
->> >> >  enum swap_blk_hint {
->> >> >         SWAP_SLOT_FREE,
->> >> > +       SWAP_GET_FREE,
->> >> >  };
->> >> >
->> >> >  struct block_device_operations {
->> >> > diff --git a/mm/swapfile.c b/mm/swapfile.c
->> >> > index 4bff521e649a..72737e6dd5e5 100644
->> >> > --- a/mm/swapfile.c
->> >> > +++ b/mm/swapfile.c
->> >> > @@ -484,6 +484,22 @@ new_cluster:
->> >> >         *scan_base = tmp;
->> >> >  }
->> >> >
->> >> > +static bool __swap_full(struct swap_info_struct *si)
->> >> > +{
->> >> > +       if (si->flags & SWP_BLKDEV) {
->> >> > +               long free;
->> >> > +               struct gendisk *disk = si->bdev->bd_disk;
->> >> > +
->> >> > +               if (disk->fops->swap_hint)
->> >> > +                       if (!disk->fops->swap_hint(si->bdev,
->> >> > +                                               SWAP_GET_FREE,
->> >> > +                                               &free))
->> >> > +                               return free <= 0;
->> >> > +       }
->> >> > +
->> >> > +       return si->inuse_pages == si->pages;
->> >> > +}
->> >> > +
->> >> >  static unsigned long scan_swap_map(struct swap_info_struct *si,
->> >> >                                    unsigned char usage)
->> >> >  {
->> >> > @@ -583,11 +599,21 @@ checks:
->> >> >         if (offset == si->highest_bit)
->> >> >                 si->highest_bit--;
->> >> >         si->inuse_pages++;
->> >> > -       if (si->inuse_pages == si->pages) {
->> >> > +       if (__swap_full(si)) {
->> >>
->> >> This check is done after an available offset has already been
->> >> selected.  So if the variable-size blkdev is full at this point, then
->> >> this is incorrect, as swap will try to store a page at the current
->> >> selected offset.
->> >
->> > So the result is just fail of a write then what happens?
->> > Page become redirty and keep it in memory so there is no harm.
->>
->> Happening once, it's not a big deal.  But it's not as good as not
->> happening at all.
->
-> With your suggestion, we should check full whevever we need new
-> swap slot. To me, it's more concern than just a write fail.
+I found that the version on the subject of this and later patches isn't
+correct (s/v3/v4/). It's not critical, so I don't resend to fix it,
+but sorry if confusing.
 
-well normal device fullness, i.e. inuse_pages == pages, is checked for
-each new swap slot also.  I don't see how you would get around
-checking for each new swap slot.
+Naoya
 
->
->>
->> >
->> >>
->> >> > +               struct gendisk *disk = si->bdev->bd_disk;
->> >> > +
->> >> >                 si->lowest_bit = si->max;
->> >> >                 si->highest_bit = 0;
->> >> >                 spin_lock(&swap_avail_lock);
->> >> >                 plist_del(&si->avail_list, &swap_avail_head);
->> >> > +               /*
->> >> > +                * If zram is full, it decreases nr_swap_pages
->> >> > +                * for stopping anonymous page reclaim until
->> >> > +                * zram has free space. Look at swap_entry_free
->> >> > +                */
->> >> > +               if (disk->fops->swap_hint)
->> >>
->> >> Simply checking for the existence of swap_hint isn't enough to know
->> >> we're using zram...
->> >
->> > Yes but acutally the hint have been used for only zram for several years.
->> > If other user is coming in future, we would add more checks if we really
->> > need it at that time.
->> > Do you have another idea?
->>
->> Well if this hint == zram just rename it zram.  Especially if it's now
->> going to be explicitly used to mean it == zram.  But I don't think
->> that is necessary.
->
-> I'd like to clarify your comment. So, are you okay without any change?
-
-no what i meant was i don't think the code at this location is
-necessary...i think you can put a single blkdev swap_hint fullness
-check at the start of scan_swap_map() and remove this.
-
-
->
->>
->> >
->> >>
->> >> > +                       atomic_long_sub(si->pages - si->inuse_pages,
->> >> > +                               &nr_swap_pages);
->> >> >                 spin_unlock(&swap_avail_lock);
->> >> >         }
->> >> >         si->swap_map[offset] = usage;
->> >> > @@ -796,6 +822,7 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
->> >> >
->> >> >         /* free if no reference */
->> >> >         if (!usage) {
->> >> > +               struct gendisk *disk = p->bdev->bd_disk;
->> >> >                 dec_cluster_info_page(p, p->cluster_info, offset);
->> >> >                 if (offset < p->lowest_bit)
->> >> >                         p->lowest_bit = offset;
->> >> > @@ -808,6 +835,21 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
->> >> >                                 if (plist_node_empty(&p->avail_list))
->> >> >                                         plist_add(&p->avail_list,
->> >> >                                                   &swap_avail_head);
->> >> > +                               if ((p->flags & SWP_BLKDEV) &&
->> >> > +                                       disk->fops->swap_hint) {
->> >>
->> >> freeing an entry from a full variable-size blkdev doesn't mean it's
->> >> not still full.  In this case with zsmalloc, freeing one handle
->> >> doesn't actually free any memory unless it was the only handle left in
->> >> its containing zspage, and therefore it's possible that it is still
->> >> full at this point.
->> >
->> > No need to free a zspage in zsmalloc.
->> > If we free a page in zspage, it means we have free space in zspage
->> > so user can give a chance to user for writing out new page.
->>
->> That's not actually true, since zsmalloc has 255 different class
->> sizes, freeing one page means the next page to be compressed has a
->> 1/255 chance that it will be the same size as the just-freed page
->> (assuming random page compressability).
->
-> I said "a chance" so if we have a possiblity, I'd like to try it.
-> Pz, don't tie your thought into zsmalloc's internal. It's facility
-> to communitcate with swap/zram, not zram allocator.
-> IOW, We could change allocator of zram potentially
-> (ex, historically, we have already done) and the (imaginary allocator/
-> or enhanced zsmalloc) could have a technique to handle it.
-
-I'm only thinking of what currently will happen.  A lot of this
-depends on exactly how zram's IS_FULL (or GET_FREE) is defined.  If
-it's a black/white boundary then this can certainly assume freeing one
-entry should put the swap_info_struct back onto the avail_list, but if
-it's a not-so-clear full/not-full boundary, then there almost
-certainly will be write failures.
-
-It seems like avoiding swap write failures is important, especially
-when under heavy memory pressure, but maybe some testing would show
-it's not really a big deal.
-
->
->>
->> >
->> >>
->> >> > +                                       atomic_long_add(p->pages -
->> >> > +                                                       p->inuse_pages,
->> >> > +                                                       &nr_swap_pages);
->> >> > +                                       /*
->> >> > +                                        * reset [highest|lowest]_bit to avoid
->> >> > +                                        * scan_swap_map infinite looping if
->> >> > +                                        * cached free cluster's index by
->> >> > +                                        * scan_swap_map_try_ssd_cluster is
->> >> > +                                        * above p->highest_bit.
->> >> > +                                        */
->> >> > +                                       p->highest_bit = p->max - 1;
->> >> > +                                       p->lowest_bit = 1;
->> >>
->> >> lowest_bit and highest_bit are likely to remain at those extremes for
->> >> a long time, until 1 or max-1 is freed and re-allocated.
->> >>
->> >>
->> >> By adding variable-size blkdev support to swap, I don't think
->> >> highest_bit can be re-used as a "full" flag anymore.
->> >>
->> >> Instead, I suggest that you add a "full" flag to struct
->> >> swap_info_struct.  Then put a swap_hint GET_FREE check at the top of
->> >> scan_swap_map(), and if full simply turn "full" on, remove the
->> >> swap_info_struct from the avail list, reduce nr_swap_pages
->> >> appropriately, and return failure.  Don't mess with lowest_bit or
->> >> highest_bit at all.
->> >
->> > Could you explain what logic in your suggestion prevent the problem
->> > I mentioned(ie, scan_swap_map infinite looping)?
->>
->> scan_swap_map would immediately exit since the GET_FREE (or IS_FULL)
->> check is done at its start.  And it wouldn't be called again with that
->> swap_info_struct until non-full since it is removed from the
->> avail_list.
->
-> Sorry for being not clear. I don't mean it.
-> Please consider the situation where swap is not full any more
-> by swap_entry_free. Newly scan_swap_map can select the slot index which
-> is higher than p->highest_bit because we have cached free_cluster so
-> scan_swap_map will reset it with p->lowest_bit and scan again and finally
-> pick the slot index just freed by swap_entry_free and checks again.
-> Then, it could be conflict by scan_swap_map_ssd_cluster_conflict so
-> scan_swap_map_try_ssd_cluster will reset offset, scan_base to free_cluster_head
-> but unfortunately, offset is higher than p->highest_bit so again it is reset
-> to p->lowest_bit. It loops forever :(
-
-sorry, i don't see what you're talking about...if you don't touch the
-lowest_bit or highest_bit at all when marking zram as full, and also
-don't touch them when marking zram as not-full, then there should
-never be any problem with either.
-
-The only reason that lowest_bit/highest_bit are reset when
-inuse_pages==pages is because when that condition is true, there
-really are no more offsets available.  So highest_bit really is 0, and
-lowest_bit really is max.  Then, when a single offset is made
-available in swap_entry_free, both lowest_bit and highest_bit are set
-to it, because that really is both the lowest and highest bit.
-
-In the case of a variable size blkdev, when it's full there actually
-still are more offsets that can be used, so neither lowest nor highest
-bit should be modified.  Just leave them where they are, and when the
-swap_info_struct is placed back onto the avail_list for scanning,
-things will keep working correctly.
-
-am i missing something?
-
->
-> I'd like to solve this problem without many hooking in swap layer and
-> any overhead for !zram case.
-
-the only overhead for !zram is the (failing) check for swap_hint,
-which you can't avoid.
-
->
->>
->> >
->> >>
->> >> Then in swap_entry_free(), do something like:
->> >>
->> >>     dec_cluster_info_page(p, p->cluster_info, offset);
->> >>     if (offset < p->lowest_bit)
->> >>       p->lowest_bit = offset;
->> >> -   if (offset > p->highest_bit) {
->> >> -     bool was_full = !p->highest_bit;
->> >> +   if (offset > p->highest_bit)
->> >>       p->highest_bit = offset;
->> >> -     if (was_full && (p->flags & SWP_WRITEOK)) {
->> >> +   if (p->full && p->flags & SWP_WRITEOK) {
->> >> +     bool is_var_size_blkdev = is_variable_size_blkdev(p);
->> >> +     bool blkdev_full = is_variable_size_blkdev_full(p);
->> >> +
->> >> +     if (!is_var_size_blkdev || !blkdev_full) {
->> >> +       if (is_var_size_blkdev)
->> >> +         atomic_long_add(p->pages - p->inuse_pages, &nr_swap_pages);
->> >> +       p->full = false;
->> >>         spin_lock(&swap_avail_lock);
->> >>         WARN_ON(!plist_node_empty(&p->avail_list));
->> >>         if (plist_node_empty(&p->avail_list))
->> >>           plist_add(&p->avail_list,
->> >>              &swap_avail_head);
->> >>         spin_unlock(&swap_avail_lock);
->> >> +     } else if (blkdev_full) {
->> >> +       /* still full, so this page isn't actually
->> >> +        * available yet to use; once non-full,
->> >> +        * pages-inuse_pages will be the correct
->> >> +        * number to add (above) since below will
->> >> +        * inuse_pages--
->> >> +        */
->> >> +       atomic_long_dec(&nr_swap_pages);
->> >>       }
->> >>     }
->> >>     atomic_long_inc(&nr_swap_pages);
->> >>
->> >>
->> >>
->> >> > @@ -815,7 +857,6 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
->> >> >                 p->inuse_pages--;
->> >> >                 frontswap_invalidate_page(p->type, offset);
->> >> >                 if (p->flags & SWP_BLKDEV) {
->> >> > -                       struct gendisk *disk = p->bdev->bd_disk;
->> >> >                         if (disk->fops->swap_hint)
->> >> >                                 disk->fops->swap_hint(p->bdev,
->> >> >                                                 SWAP_SLOT_FREE,
->> >> > --
->> >> > 2.0.0
->> >> >
->> >>
->> >> --
->> >> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> >> the body to majordomo@kvack.org.  For more info on Linux MM,
->> >> see: http://www.linux-mm.org/ .
->> >> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->> >
->> > --
->> > Kind regards,
->> > Minchan Kim
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
-> --
-> Kind regards,
-> Minchan Kim
+On Mon, Sep 15, 2014 at 06:39:55PM -0400, Naoya Horiguchi wrote:
+> Currently we have many duplicates in definitions around follow_huge_addr(),
+> follow_huge_pmd(), and follow_huge_pud(), so this patch tries to remove them.
+> The basic idea is to put the default implementation for these functions in
+> mm/hugetlb.c as weak symbols (regardless of CONFIG_ARCH_WANT_GENERAL_HUGETLB),
+> and to implement arch-specific code only when the arch needs it.
+> 
+> For follow_huge_addr(), only powerpc and ia64 have their own implementation,
+> and in all other architectures this function just returns ERR_PTR(-EINVAL).
+> So this patch sets returning ERR_PTR(-EINVAL) as default.
+> 
+> As for follow_huge_(pmd|pud)(), if (pmd|pud)_huge() is implemented to always
+> return 0 in your architecture (like in ia64 or sparc,) it's never called
+> (the callsite is optimized away) no matter how implemented it is.
+> So in such architectures, we don't need arch-specific implementation.
+> 
+> In some architecture (like mips, s390 and tile,) their current arch-specific
+> follow_huge_(pmd|pud)() are effectively identical with the common code,
+> so this patch lets these architecture use the common code.
+> 
+> One exception is metag, where pmd_huge() could return non-zero but it expects
+> follow_huge_pmd() to always return NULL. This means that we need arch-specific
+> implementation which returns NULL. This behavior looks strange to me (because
+> non-zero pmd_huge() implies that the architecture supports PMD-based hugepage,
+> so follow_huge_pmd() can/should return some relevant value,) but that's beyond
+> this cleanup patch, so let's keep it.
+> 
+> Justification of non-trivial changes:
+> - in s390, follow_huge_pmd() checks !MACHINE_HAS_HPAGE at first, and this
+>   patch removes the check. This is OK because we can assume MACHINE_HAS_HPAGE
+>   is true when follow_huge_pmd() can be called (note that pmd_huge() has
+>   the same check and always returns 0 for !MACHINE_HAS_HPAGE.)
+> - in s390 and mips, we use HPAGE_MASK instead of PMD_MASK as done in common
+>   code. This patch forces these archs use PMD_MASK, but it's OK because
+>   they are identical in both archs.
+>   In s390, both of HPAGE_SHIFT and PMD_SHIFT are 20.
+>   In mips, HPAGE_SHIFT is defined as (PAGE_SHIFT + PAGE_SHIFT - 3) and
+>   PMD_SHIFT is define as (PAGE_SHIFT + PAGE_SHIFT + PTE_ORDER - 3), but
+>   PTE_ORDER is always 0, so these are identical.
+> 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Acked-by: Hugh Dickins <hughd@google.com>
+> Cc: James Hogan <james.hogan@imgtec.com>
+> ---
+>  arch/arm/mm/hugetlbpage.c     |  6 ------
+>  arch/arm64/mm/hugetlbpage.c   |  6 ------
+>  arch/ia64/mm/hugetlbpage.c    |  6 ------
+>  arch/metag/mm/hugetlbpage.c   |  6 ------
+>  arch/mips/mm/hugetlbpage.c    | 18 ------------------
+>  arch/powerpc/mm/hugetlbpage.c |  8 ++++++++
+>  arch/s390/mm/hugetlbpage.c    | 20 --------------------
+>  arch/sh/mm/hugetlbpage.c      | 12 ------------
+>  arch/sparc/mm/hugetlbpage.c   | 12 ------------
+>  arch/tile/mm/hugetlbpage.c    | 28 ----------------------------
+>  arch/x86/mm/hugetlbpage.c     | 12 ------------
+>  mm/hugetlb.c                  | 30 +++++++++++++++---------------
+>  12 files changed, 23 insertions(+), 141 deletions(-)
+> 
+> diff --git mmotm-2014-09-09-14-42.orig/arch/arm/mm/hugetlbpage.c mmotm-2014-09-09-14-42/arch/arm/mm/hugetlbpage.c
+> index 66781bf34077..c72412415093 100644
+> --- mmotm-2014-09-09-14-42.orig/arch/arm/mm/hugetlbpage.c
+> +++ mmotm-2014-09-09-14-42/arch/arm/mm/hugetlbpage.c
+> @@ -36,12 +36,6 @@
+>   * of type casting from pmd_t * to pte_t *.
+>   */
+>  
+> -struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
+> -			      int write)
+> -{
+> -	return ERR_PTR(-EINVAL);
+> -}
+> -
+>  int pud_huge(pud_t pud)
+>  {
+>  	return 0;
+> diff --git mmotm-2014-09-09-14-42.orig/arch/arm64/mm/hugetlbpage.c mmotm-2014-09-09-14-42/arch/arm64/mm/hugetlbpage.c
+> index 023747bf4dd7..2de9d2e59d96 100644
+> --- mmotm-2014-09-09-14-42.orig/arch/arm64/mm/hugetlbpage.c
+> +++ mmotm-2014-09-09-14-42/arch/arm64/mm/hugetlbpage.c
+> @@ -38,12 +38,6 @@ int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+>  }
+>  #endif
+>  
+> -struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
+> -			      int write)
+> -{
+> -	return ERR_PTR(-EINVAL);
+> -}
+> -
+>  int pmd_huge(pmd_t pmd)
+>  {
+>  	return !(pmd_val(pmd) & PMD_TABLE_BIT);
+> diff --git mmotm-2014-09-09-14-42.orig/arch/ia64/mm/hugetlbpage.c mmotm-2014-09-09-14-42/arch/ia64/mm/hugetlbpage.c
+> index 76069c18ee42..52b7604b5215 100644
+> --- mmotm-2014-09-09-14-42.orig/arch/ia64/mm/hugetlbpage.c
+> +++ mmotm-2014-09-09-14-42/arch/ia64/mm/hugetlbpage.c
+> @@ -114,12 +114,6 @@ int pud_huge(pud_t pud)
+>  	return 0;
+>  }
+>  
+> -struct page *
+> -follow_huge_pmd(struct mm_struct *mm, unsigned long address, pmd_t *pmd, int write)
+> -{
+> -	return NULL;
+> -}
+> -
+>  void hugetlb_free_pgd_range(struct mmu_gather *tlb,
+>  			unsigned long addr, unsigned long end,
+>  			unsigned long floor, unsigned long ceiling)
+> diff --git mmotm-2014-09-09-14-42.orig/arch/metag/mm/hugetlbpage.c mmotm-2014-09-09-14-42/arch/metag/mm/hugetlbpage.c
+> index 3c52fa6d0f8e..745081427659 100644
+> --- mmotm-2014-09-09-14-42.orig/arch/metag/mm/hugetlbpage.c
+> +++ mmotm-2014-09-09-14-42/arch/metag/mm/hugetlbpage.c
+> @@ -94,12 +94,6 @@ int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+>  	return 0;
+>  }
+>  
+> -struct page *follow_huge_addr(struct mm_struct *mm,
+> -			      unsigned long address, int write)
+> -{
+> -	return ERR_PTR(-EINVAL);
+> -}
+> -
+>  int pmd_huge(pmd_t pmd)
+>  {
+>  	return pmd_page_shift(pmd) > PAGE_SHIFT;
+> diff --git mmotm-2014-09-09-14-42.orig/arch/mips/mm/hugetlbpage.c mmotm-2014-09-09-14-42/arch/mips/mm/hugetlbpage.c
+> index 4ec8ee10d371..06e0f421b41b 100644
+> --- mmotm-2014-09-09-14-42.orig/arch/mips/mm/hugetlbpage.c
+> +++ mmotm-2014-09-09-14-42/arch/mips/mm/hugetlbpage.c
+> @@ -68,12 +68,6 @@ int is_aligned_hugepage_range(unsigned long addr, unsigned long len)
+>  	return 0;
+>  }
+>  
+> -struct page *
+> -follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
+> -{
+> -	return ERR_PTR(-EINVAL);
+> -}
+> -
+>  int pmd_huge(pmd_t pmd)
+>  {
+>  	return (pmd_val(pmd) & _PAGE_HUGE) != 0;
+> @@ -83,15 +77,3 @@ int pud_huge(pud_t pud)
+>  {
+>  	return (pud_val(pud) & _PAGE_HUGE) != 0;
+>  }
+> -
+> -struct page *
+> -follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+> -		pmd_t *pmd, int write)
+> -{
+> -	struct page *page;
+> -
+> -	page = pte_page(*(pte_t *)pmd);
+> -	if (page)
+> -		page += ((address & ~HPAGE_MASK) >> PAGE_SHIFT);
+> -	return page;
+> -}
+> diff --git mmotm-2014-09-09-14-42.orig/arch/powerpc/mm/hugetlbpage.c mmotm-2014-09-09-14-42/arch/powerpc/mm/hugetlbpage.c
+> index 7e70ae968e5f..9517a93a315c 100644
+> --- mmotm-2014-09-09-14-42.orig/arch/powerpc/mm/hugetlbpage.c
+> +++ mmotm-2014-09-09-14-42/arch/powerpc/mm/hugetlbpage.c
+> @@ -706,6 +706,14 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+>  	return NULL;
+>  }
+>  
+> +struct page *
+> +follow_huge_pud(struct mm_struct *mm, unsigned long address,
+> +		pmd_t *pmd, int write)
+> +{
+> +	BUG();
+> +	return NULL;
+> +}
+> +
+>  static unsigned long hugepte_addr_end(unsigned long addr, unsigned long end,
+>  				      unsigned long sz)
+>  {
+> diff --git mmotm-2014-09-09-14-42.orig/arch/s390/mm/hugetlbpage.c mmotm-2014-09-09-14-42/arch/s390/mm/hugetlbpage.c
+> index 0ff66a7e29bb..811e7f9a2de0 100644
+> --- mmotm-2014-09-09-14-42.orig/arch/s390/mm/hugetlbpage.c
+> +++ mmotm-2014-09-09-14-42/arch/s390/mm/hugetlbpage.c
+> @@ -201,12 +201,6 @@ int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+>  	return 0;
+>  }
+>  
+> -struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
+> -			      int write)
+> -{
+> -	return ERR_PTR(-EINVAL);
+> -}
+> -
+>  int pmd_huge(pmd_t pmd)
+>  {
+>  	if (!MACHINE_HAS_HPAGE)
+> @@ -219,17 +213,3 @@ int pud_huge(pud_t pud)
+>  {
+>  	return 0;
+>  }
+> -
+> -struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+> -			     pmd_t *pmdp, int write)
+> -{
+> -	struct page *page;
+> -
+> -	if (!MACHINE_HAS_HPAGE)
+> -		return NULL;
+> -
+> -	page = pmd_page(*pmdp);
+> -	if (page)
+> -		page += ((address & ~HPAGE_MASK) >> PAGE_SHIFT);
+> -	return page;
+> -}
+> diff --git mmotm-2014-09-09-14-42.orig/arch/sh/mm/hugetlbpage.c mmotm-2014-09-09-14-42/arch/sh/mm/hugetlbpage.c
+> index d7762349ea48..534bc978af8a 100644
+> --- mmotm-2014-09-09-14-42.orig/arch/sh/mm/hugetlbpage.c
+> +++ mmotm-2014-09-09-14-42/arch/sh/mm/hugetlbpage.c
+> @@ -67,12 +67,6 @@ int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+>  	return 0;
+>  }
+>  
+> -struct page *follow_huge_addr(struct mm_struct *mm,
+> -			      unsigned long address, int write)
+> -{
+> -	return ERR_PTR(-EINVAL);
+> -}
+> -
+>  int pmd_huge(pmd_t pmd)
+>  {
+>  	return 0;
+> @@ -82,9 +76,3 @@ int pud_huge(pud_t pud)
+>  {
+>  	return 0;
+>  }
+> -
+> -struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+> -			     pmd_t *pmd, int write)
+> -{
+> -	return NULL;
+> -}
+> diff --git mmotm-2014-09-09-14-42.orig/arch/sparc/mm/hugetlbpage.c mmotm-2014-09-09-14-42/arch/sparc/mm/hugetlbpage.c
+> index d329537739c6..4242eab12e10 100644
+> --- mmotm-2014-09-09-14-42.orig/arch/sparc/mm/hugetlbpage.c
+> +++ mmotm-2014-09-09-14-42/arch/sparc/mm/hugetlbpage.c
+> @@ -215,12 +215,6 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
+>  	return entry;
+>  }
+>  
+> -struct page *follow_huge_addr(struct mm_struct *mm,
+> -			      unsigned long address, int write)
+> -{
+> -	return ERR_PTR(-EINVAL);
+> -}
+> -
+>  int pmd_huge(pmd_t pmd)
+>  {
+>  	return 0;
+> @@ -230,9 +224,3 @@ int pud_huge(pud_t pud)
+>  {
+>  	return 0;
+>  }
+> -
+> -struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+> -			     pmd_t *pmd, int write)
+> -{
+> -	return NULL;
+> -}
+> diff --git mmotm-2014-09-09-14-42.orig/arch/tile/mm/hugetlbpage.c mmotm-2014-09-09-14-42/arch/tile/mm/hugetlbpage.c
+> index e514899e1100..8a00c7b7b862 100644
+> --- mmotm-2014-09-09-14-42.orig/arch/tile/mm/hugetlbpage.c
+> +++ mmotm-2014-09-09-14-42/arch/tile/mm/hugetlbpage.c
+> @@ -150,12 +150,6 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+>  	return NULL;
+>  }
+>  
+> -struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
+> -			      int write)
+> -{
+> -	return ERR_PTR(-EINVAL);
+> -}
+> -
+>  int pmd_huge(pmd_t pmd)
+>  {
+>  	return !!(pmd_val(pmd) & _PAGE_HUGE_PAGE);
+> @@ -166,28 +160,6 @@ int pud_huge(pud_t pud)
+>  	return !!(pud_val(pud) & _PAGE_HUGE_PAGE);
+>  }
+>  
+> -struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+> -			     pmd_t *pmd, int write)
+> -{
+> -	struct page *page;
+> -
+> -	page = pte_page(*(pte_t *)pmd);
+> -	if (page)
+> -		page += ((address & ~PMD_MASK) >> PAGE_SHIFT);
+> -	return page;
+> -}
+> -
+> -struct page *follow_huge_pud(struct mm_struct *mm, unsigned long address,
+> -			     pud_t *pud, int write)
+> -{
+> -	struct page *page;
+> -
+> -	page = pte_page(*(pte_t *)pud);
+> -	if (page)
+> -		page += ((address & ~PUD_MASK) >> PAGE_SHIFT);
+> -	return page;
+> -}
+> -
+>  int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
+>  {
+>  	return 0;
+> diff --git mmotm-2014-09-09-14-42.orig/arch/x86/mm/hugetlbpage.c mmotm-2014-09-09-14-42/arch/x86/mm/hugetlbpage.c
+> index 8b977ebf9388..03b8a7c11817 100644
+> --- mmotm-2014-09-09-14-42.orig/arch/x86/mm/hugetlbpage.c
+> +++ mmotm-2014-09-09-14-42/arch/x86/mm/hugetlbpage.c
+> @@ -52,20 +52,8 @@ int pud_huge(pud_t pud)
+>  	return 0;
+>  }
+>  
+> -struct page *
+> -follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+> -		pmd_t *pmd, int write)
+> -{
+> -	return NULL;
+> -}
+>  #else
+>  
+> -struct page *
+> -follow_huge_addr(struct mm_struct *mm, unsigned long address, int write)
+> -{
+> -	return ERR_PTR(-EINVAL);
+> -}
+> -
+>  int pmd_huge(pmd_t pmd)
+>  {
+>  	return !!(pmd_val(pmd) & _PAGE_PSE);
+> diff --git mmotm-2014-09-09-14-42.orig/mm/hugetlb.c mmotm-2014-09-09-14-42/mm/hugetlb.c
+> index 9fd722769927..34351251e164 100644
+> --- mmotm-2014-09-09-14-42.orig/mm/hugetlb.c
+> +++ mmotm-2014-09-09-14-42/mm/hugetlb.c
+> @@ -3653,7 +3653,20 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+>  	return (pte_t *) pmd;
+>  }
+>  
+> -struct page *
+> +#endif /* CONFIG_ARCH_WANT_GENERAL_HUGETLB */
+> +
+> +/*
+> + * These functions are overwritable if your architecture needs its own
+> + * behavior.
+> + */
+> +struct page * __weak
+> +follow_huge_addr(struct mm_struct *mm, unsigned long address,
+> +			      int write)
+> +{
+> +	return ERR_PTR(-EINVAL);
+> +}
+> +
+> +struct page * __weak
+>  follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+>  		pmd_t *pmd, int write)
+>  {
+> @@ -3665,7 +3678,7 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+>  	return page;
+>  }
+>  
+> -struct page *
+> +struct page * __weak
+>  follow_huge_pud(struct mm_struct *mm, unsigned long address,
+>  		pud_t *pud, int write)
+>  {
+> @@ -3677,19 +3690,6 @@ follow_huge_pud(struct mm_struct *mm, unsigned long address,
+>  	return page;
+>  }
+>  
+> -#else /* !CONFIG_ARCH_WANT_GENERAL_HUGETLB */
+> -
+> -/* Can be overriden by architectures */
+> -struct page * __weak
+> -follow_huge_pud(struct mm_struct *mm, unsigned long address,
+> -	       pud_t *pud, int write)
+> -{
+> -	BUG();
+> -	return NULL;
+> -}
+> -
+> -#endif /* CONFIG_ARCH_WANT_GENERAL_HUGETLB */
+> -
+>  #ifdef CONFIG_MEMORY_FAILURE
+>  
+>  /* Should be called in hugetlb_lock */
+> -- 
+> 1.9.3
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
