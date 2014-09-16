@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 22D286B0036
-	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 01:12:31 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id v10so7796155pde.33
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 22:12:30 -0700 (PDT)
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id A44476B0036
+	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 01:18:23 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id lj1so8178147pab.41
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 22:18:23 -0700 (PDT)
 Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
-        by mx.google.com with ESMTPS id fx3si27119457pdb.113.2014.09.15.22.12.28
+        by mx.google.com with ESMTPS id sn3si27148405pab.106.2014.09.15.22.18.20
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 15 Sep 2014 22:12:30 -0700 (PDT)
+        Mon, 15 Sep 2014 22:18:22 -0700 (PDT)
 From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Tue, 16 Sep 2014 13:09:30 +0800
-Subject: [RFC] change keep_initrd and free_initrd_mem into .init section
-Message-ID: <35FD53F367049845BC99AC72306C23D103D6DB49160E@CNBJMBX05.corpusers.net>
+Date: Tue, 16 Sep 2014 13:14:05 +0800
+Subject: [RFC resend] arm:change keep_initrd and free_initrd_mem into .init
+ section
+Message-ID: <35FD53F367049845BC99AC72306C23D103D6DB49160F@CNBJMBX05.corpusers.net>
 Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
