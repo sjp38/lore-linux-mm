@@ -1,167 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id CEFE86B0036
-	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 02:47:46 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id v10so8015295pde.5
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 23:47:46 -0700 (PDT)
-Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
-        by mx.google.com with ESMTPS id fm3si10256617pad.229.2014.09.15.23.47.44
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 15 Sep 2014 23:47:45 -0700 (PDT)
-From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Tue, 16 Sep 2014 14:43:40 +0800
-Subject: [RFC] arm:fdt:free the fdt reserved memory
-Message-ID: <35FD53F367049845BC99AC72306C23D103D6DB491610@CNBJMBX05.corpusers.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 0855E6B0037
+	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 02:50:20 -0400 (EDT)
+Received: by mail-ie0-f180.google.com with SMTP id rd18so5994863iec.11
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 23:50:19 -0700 (PDT)
+Received: from chicago.guarana.org (chicago.guarana.org. [198.144.183.183])
+        by mx.google.com with ESMTP id fu3si731703igd.37.2014.09.15.23.50.18
+        for <linux-mm@kvack.org>;
+        Mon, 15 Sep 2014 23:50:19 -0700 (PDT)
+Date: Tue, 16 Sep 2014 17:50:07 +1000
+From: Kevin Easton <kevin@guarana.org>
+Subject: Re: [PATCH v8 08/10] x86, mpx: add prctl commands PR_MPX_REGISTER,
+ PR_MPX_UNREGISTER
+Message-ID: <20140916075007.GA22076@chicago.guarana.org>
+References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com>
+ <1410425210-24789-9-git-send-email-qiaowei.ren@intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1410425210-24789-9-git-send-email-qiaowei.ren@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Jiang Liu' <jiang.liu@huawei.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, 'Will Deacon' <Will.Deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'grant.likely@linaro.org'" <grant.likely@linaro.org>, "'robh+dt@kernel.org'" <robh+dt@kernel.org>, "'devicetree@vger.kernel.org'" <devicetree@vger.kernel.org>
+To: Qiaowei Ren <qiaowei.ren@intel.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Dave Hansen <dave.hansen@intel.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-this patch make some change to fdt driver, so that we can
-free the reserved memory which is reserved by fdt blob for
-unflatten device tree, we free it in free_initmem, this memory
-will not be used after init calls.
+On Thu, Sep 11, 2014 at 04:46:48PM +0800, Qiaowei Ren wrote:
 
-Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
----
- arch/arm/mm/init.c     |  5 +++--
- arch/arm64/mm/init.c   |  4 +++-
- drivers/of/fdt.c       | 27 +++++++++++++++++++++++----
- include/linux/of_fdt.h |  2 ++
- 4 files changed, 31 insertions(+), 7 deletions(-)
+> +static __user void *task_get_bounds_dir(struct task_struct *tsk)
+> +{
+> +	struct xsave_struct *xsave_buf;
+> +
+> +	fpu_xsave(&tsk->thread.fpu);
+> +	xsave_buf = &(tsk->thread.fpu.state->xsave);
+> +	if (!(xsave_buf->bndcsr.cfg_reg_u & MPX_BNDCFG_ENABLE_FLAG))
+> +		return NULL;
+> +
+> +	return (void __user *)(unsigned long)(xsave_buf->bndcsr.cfg_reg_u &
+> +			MPX_BNDCFG_ADDR_MASK);
+> +}
 
-diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
-index 907dee1..de4dfa1 100644
---- a/arch/arm/mm/init.c
-+++ b/arch/arm/mm/init.c
-@@ -615,7 +615,7 @@ void __init mem_init(void)
- 	}
- }
-=20
--void free_initmem(void)
-+void __init_refok free_initmem(void)
- {
- #ifdef CONFIG_HAVE_TCM
- 	extern char __tcm_start, __tcm_end;
-@@ -623,7 +623,8 @@ void free_initmem(void)
- 	poison_init_mem(&__tcm_start, &__tcm_end - &__tcm_start);
- 	free_reserved_area(&__tcm_start, &__tcm_end, -1, "TCM link");
- #endif
--
-+	/*this function must be called before init memory are freed*/
-+	free_early_init_fdt_scan_reserved_mem();
- 	poison_init_mem(__init_begin, __init_end - __init_begin);
- 	if (!machine_is_integrator() && !machine_is_cintegrator())
- 		free_initmem_default(-1);
-diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-index 7268d57..6ad21ef 100644
---- a/arch/arm64/mm/init.c
-+++ b/arch/arm64/mm/init.c
-@@ -323,8 +323,10 @@ void __init mem_init(void)
- 	}
- }
-=20
--void free_initmem(void)
-+void __init_refok free_initmem(void)
- {
-+	/*this function must be called before init memory are freed*/
-+	free_early_init_fdt_scan_reserved_mem();
- 	free_initmem_default(0);
- }
-=20
-diff --git a/drivers/of/fdt.c b/drivers/of/fdt.c
-index 79cb831..bdcc104 100644
---- a/drivers/of/fdt.c
-+++ b/drivers/of/fdt.c
-@@ -240,6 +240,7 @@ static void * unflatten_dt_node(void *blob,
- 	     (offset =3D fdt_next_property_offset(blob, offset))) {
- 		const char *pname;
- 		u32 sz;
-+		int name_len;
-=20
- 		if (!(p =3D fdt_getprop_by_offset(blob, offset, &pname, &sz))) {
- 			offset =3D -FDT_ERR_INTERNAL;
-@@ -250,10 +251,12 @@ static void * unflatten_dt_node(void *blob,
- 			pr_info("Can't find property name in list !\n");
- 			break;
- 		}
-+		name_len =3D strlen(pname);
- 		if (strcmp(pname, "name") =3D=3D 0)
- 			has_name =3D 1;
--		pp =3D unflatten_dt_alloc(&mem, sizeof(struct property),
--					__alignof__(struct property));
-+		pp =3D unflatten_dt_alloc(&mem,
-+				ALIGN(sizeof(struct property) + name_len + 1, 4)
-+				+ sz, __alignof__(struct property));
- 		if (allnextpp) {
- 			/* We accept flattened tree phandles either in
- 			 * ePAPR-style "phandle" properties, or the
-@@ -270,9 +273,11 @@ static void * unflatten_dt_node(void *blob,
- 			 * stuff */
- 			if (strcmp(pname, "ibm,phandle") =3D=3D 0)
- 				np->phandle =3D be32_to_cpup(p);
--			pp->name =3D (char *)pname;
-+			pp->name =3D (char *)memcpy(pp + 1, pname, name_len + 1);
- 			pp->length =3D sz;
--			pp->value =3D (__be32 *)p;
-+			pp->value =3D (__be32 *)memcpy((void *)pp +
-+					ALIGN(sizeof(struct property) +
-+						name_len + 1, 4), p, sz);
- 			*prev_pp =3D pp;
- 			prev_pp =3D &pp->next;
- 		}
-@@ -564,6 +569,20 @@ void __init early_init_fdt_scan_reserved_mem(void)
- 	fdt_init_reserved_mem();
- }
-=20
-+void __init free_early_init_fdt_scan_reserved_mem(void)
-+{
-+	unsigned long start, end, size;
-+	if (!initial_boot_params)
-+		return;
-+
-+	size =3D fdt_totalsize(initial_boot_params);
-+	memblock_free(__pa(initial_boot_params), size);
-+	start =3D round_down((unsigned long)initial_boot_params, PAGE_SIZE);
-+	end =3D round_up(start + size, PAGE_SIZE);
-+	free_reserved_area((void *)start, (void *)end, 0, "fdt");
-+	initial_boot_params =3D 0;
-+}
-+
- /**
-  * of_scan_flat_dt - scan flattened tree blob and call callback on each.
-  * @it: callback function
-diff --git a/include/linux/of_fdt.h b/include/linux/of_fdt.h
-index 0ff360d..21d51ce 100644
---- a/include/linux/of_fdt.h
-+++ b/include/linux/of_fdt.h
-@@ -62,6 +62,7 @@ extern int early_init_dt_scan_chosen(unsigned long node, =
-const char *uname,
- extern int early_init_dt_scan_memory(unsigned long node, const char *uname=
-,
- 				     int depth, void *data);
- extern void early_init_fdt_scan_reserved_mem(void);
-+extern void free_early_init_fdt_scan_reserved_mem(void);
- extern void early_init_dt_add_memory_arch(u64 base, u64 size);
- extern int early_init_dt_reserve_memory_arch(phys_addr_t base, phys_addr_t=
- size,
- 					     bool no_map);
-@@ -89,6 +90,7 @@ extern u64 fdt_translate_address(const void *blob, int no=
-de_offset);
- extern void of_fdt_limit_memory(int limit);
- #else /* CONFIG_OF_FLATTREE */
- static inline void early_init_fdt_scan_reserved_mem(void) {}
-+static inline void free_early_init_fdt_scan_reserved_mem(void) {}
- static inline const char *of_flat_dt_get_machine_name(void) { return NULL;=
- }
- static inline void unflatten_device_tree(void) {}
- static inline void unflatten_and_copy_device_tree(void) {}
---=20
-2.1.0
+This only makes sense if called with 'current', so is there any need
+for the function argument?
+
+> +
+> +int mpx_register(struct task_struct *tsk)
+> +{
+> +	struct mm_struct *mm = tsk->mm;
+> +
+> +	if (!cpu_has_mpx)
+> +		return -EINVAL;
+> +
+> +	/*
+> +	 * runtime in the userspace will be responsible for allocation of
+> +	 * the bounds directory. Then, it will save the base of the bounds
+> +	 * directory into XSAVE/XRSTOR Save Area and enable MPX through
+> +	 * XRSTOR instruction.
+> +	 *
+> +	 * fpu_xsave() is expected to be very expensive. In order to do
+> +	 * performance optimization, here we get the base of the bounds
+> +	 * directory and then save it into mm_struct to be used in future.
+> +	 */
+> +	mm->bd_addr = task_get_bounds_dir(tsk);
+> +	if (!mm->bd_addr)
+> +		return -EINVAL;
+> +
+> +	return 0;
+> +}
+> +
+> +int mpx_unregister(struct task_struct *tsk)
+> +{
+> +	struct mm_struct *mm = current->mm;
+> +
+> +	if (!cpu_has_mpx)
+> +		return -EINVAL;
+> +
+> +	mm->bd_addr = NULL;
+> +	return 0;
+> +}
+
+If that's changed, then mpx_register() and mpx_unregister() don't need
+a task_struct, just an mm_struct.
+
+Probably these functions should be locking mmap_sem.
+
+Would it be prudent to use an error code other than EINVAL for the 
+"hardware doesn't support it" case?
+
+> @@ -2011,6 +2017,12 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
+>  			me->mm->def_flags &= ~VM_NOHUGEPAGE;
+>  		up_write(&me->mm->mmap_sem);
+>  		break;
+> +	case PR_MPX_REGISTER:
+> +		error = MPX_REGISTER(me);
+> +		break;
+> +	case PR_MPX_UNREGISTER:
+> +		error = MPX_UNREGISTER(me);
+> +		break;
+
+If you pass me->mm from prctl, that makes it clear that it's per-process
+not per-thread, just like PR_SET_DUMPABLE / PR_GET_DUMPABLE.
+
+This code should also enforce nulls in arg2 / arg3 / arg4,/ arg5 if it's
+not using them, otherwise you'll be sunk if you ever want to use them later.
+
+It seems like it only makes sense for all threads using the mm to have the
+same bounds directory set.  If the interface was changed to directly pass
+the address, then could the kernel take care of setting it for *all* of
+the threads in the process? This seems like something that would be easier
+for the kernel to do than userspace.
+
+    - Kevin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
