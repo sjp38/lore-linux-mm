@@ -1,166 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 800AD6B0036
-	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 05:10:22 -0400 (EDT)
-Received: by mail-we0-f174.google.com with SMTP id t60so5343427wes.19
-        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 02:10:20 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id dj6si1381051wib.105.2014.09.16.02.10.17
+Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B3AF6B0036
+	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 07:47:45 -0400 (EDT)
+Received: by mail-qa0-f52.google.com with SMTP id m5so5322761qaj.11
+        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 04:47:44 -0700 (PDT)
+Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
+        by mx.google.com with ESMTPS id p5si18748048qah.13.2014.09.16.04.47.44
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 16 Sep 2014 02:10:17 -0700 (PDT)
-Date: Tue, 16 Sep 2014 11:10:11 +0200
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: [PATCH v2] mm: dmapool: add/remove sysfs file outside of the pool
- lock lock
-Message-ID: <20140916091011.GA1948@linutronix.de>
-References: <1410463876-21265-1-git-send-email-bigeasy@linutronix.de>
- <20140912161317.f38c0d2c3b589aea94bdb870@linux-foundation.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 16 Sep 2014 04:47:44 -0700 (PDT)
+Received: by mail-qc0-f170.google.com with SMTP id l6so5823173qcy.15
+        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 04:47:43 -0700 (PDT)
+From: Jeff Layton <jeff.layton@primarydata.com>
+Date: Tue, 16 Sep 2014 07:47:41 -0400
+Subject: Re: [PATCH 0/4] Remove possible deadlocks in nfs_release_page()
+Message-ID: <20140916074741.1de870c5@tlielax.poochiereds.net>
+In-Reply-To: <20140916051911.22257.24658.stgit@notabene.brown>
+References: <20140916051911.22257.24658.stgit@notabene.brown>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-In-Reply-To: <20140912161317.f38c0d2c3b589aea94bdb870@linux-foundation.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: NeilBrown <neilb@suse.de>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, Ingo Molnar <mingo@redhat.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, Jeff Layton <jeff.layton@primarydata.com>
 
-cat /sys/=E2=80=A6/pools followed by removal the device leads to:
+On Tue, 16 Sep 2014 15:31:34 +1000
+NeilBrown <neilb@suse.de> wrote:
 
-|=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D
-|[ INFO: possible circular locking dependency detected ]
-|3.17.0-rc4+ #1498 Not tainted
-|-------------------------------------------------------
-|rmmod/2505 is trying to acquire lock:
-| (s_active#28){++++.+}, at: [<c017f754>] kernfs_remove_by_name_ns+0x3c/0x88
-|
-|but task is already holding lock:
-| (pools_lock){+.+.+.}, at: [<c011494c>] dma_pool_destroy+0x18/0x17c
-|
-|which lock already depends on the new lock.
-|the existing dependency chain (in reverse order) is:
-|
-|-> #1 (pools_lock){+.+.+.}:
-|   [<c0114ae8>] show_pools+0x30/0xf8
-|   [<c0313210>] dev_attr_show+0x1c/0x48
-|   [<c0180e84>] sysfs_kf_seq_show+0x88/0x10c
-|   [<c017f960>] kernfs_seq_show+0x24/0x28
-|   [<c013efc4>] seq_read+0x1b8/0x480
-|   [<c011e820>] vfs_read+0x8c/0x148
-|   [<c011ea10>] SyS_read+0x40/0x8c
-|   [<c000e960>] ret_fast_syscall+0x0/0x48
-|
-|-> #0 (s_active#28){++++.+}:
-|   [<c017e9ac>] __kernfs_remove+0x258/0x2ec
-|   [<c017f754>] kernfs_remove_by_name_ns+0x3c/0x88
-|   [<c0114a7c>] dma_pool_destroy+0x148/0x17c
-|   [<c03ad288>] hcd_buffer_destroy+0x20/0x34
-|   [<c03a4780>] usb_remove_hcd+0x110/0x1a4
+> Because nfs_release_page() submits a 'COMMIT' nfs request and waits
+> for it to complete, and does this during memory reclaim, it is
+> susceptible to deadlocks if memory allocation happens anywhere in
+> sending the COMMIT message.  If the NFS server is on the same host
+> (i.e. loop-back NFS), then any memory allocations in the NFS server
+> can also cause deadlocks.
+> 
+> nfs_release_page() already has some code to avoid deadlocks in some
+> circumstances, but these are not sufficient for loopback NFS.
+> 
+> This patch set changes the approach to deadlock avoidance.  Rather
+> than detecting cases that could deadlock and avoiding the COMMIT, it
+> always tries the COMMIT, but only waits a short time (1 second).
+> This avoid any deadlock possibility at the expense of not waiting
+> longer than 1 second even if no deadlock is pending.
+> 
+> nfs_release_page() does not *need* to wait longer - all callers that
+> matter handle a failure gracefully - they move on to other pages.
+> 
+> This set:
+>  - adds some "_timeout()" functions to "wait_on_bit".  Only a
+>    wait_on_page version is actually used.
+>  - exports page wake_up support.  NFS knows that the COMMIT is complete
+>    when PG_private is clear.  So nfs_release_page will use
+>    wait_on_page_bit_killable_timeout to wait for the bit to clear,
+>    and needs access to wake_up_page()
+>  - changes nfs_release_page() to use
+>     wait_on_page_bit_killable_timeout()
+>  - removes the other deadlock avoidance mechanisms from
+>    nfs_release_page, so that PF_FSTRANS is again only used
+>    by XFS.
+> 
+> As such, it needs buy-in from sched people, mm people, and NFS people.
+> Assuming I get that buy-in, suggests for how these patches can flow
+> into mainline would be appreciated ... I daren't hope they can all go
+> in through one tree....
+> 
+> Thanks,
+> NeilBrown
+> 
+> 
+> ---
+> 
+> NeilBrown (4):
+>       SCHED: add some "wait..on_bit...timeout()" interfaces.
+>       MM: export page_wakeup functions
+>       NFS: avoid deadlocks with loop-back mounted NFS filesystems.
+>       NFS/SUNRPC: Remove other deadlock-avoidance mechanisms in nfs_release_page()
+> 
+> 
+>  fs/nfs/file.c                   |   22 ++++++++++++----------
+>  fs/nfs/write.c                  |    2 ++
+>  include/linux/pagemap.h         |   12 ++++++++++--
+>  include/linux/wait.h            |    5 ++++-
+>  kernel/sched/wait.c             |   36 ++++++++++++++++++++++++++++++++++++
+>  mm/filemap.c                    |   21 +++++++++++++++------
+>  net/sunrpc/sched.c              |    2 --
+>  net/sunrpc/xprtrdma/transport.c |    2 --
+>  net/sunrpc/xprtsock.c           |   10 ----------
+>  9 files changed, 79 insertions(+), 33 deletions(-)
+> 
 
-The problem is the lock order of pools_lock and kernfs_mutex in
-dma_pool_destroy() vs show_pools() call path.
+On balance, I like the NFS parts of this set -- particular the fact
+that we get rid of the PF_FSTRANS abortion, and simplify the code quite
+a bit. My only real concern is that you could end up stalling in this
+code in situations where you really can't release the page.
 
-This patch breaks out the creation of the sysfs file outside of the
-pools_lock mutex. The newly added pools_reg_lock ensures that there is
-no race of create vs destroy code path in terms whether or not the sysfs
-file has to be deleted (and was it deleted before we try to create a new
-one) and what to do if device_create_file() failed.
+For instance, suppose you're trying to reconnect the socket to the
+server (a'la xs_tcp_setup_socket). The VM is low on memory and tries to
+release a page that needs that socket in order to issue a COMMIT. That
+situation is going to end up with the page unable to be released, but
+you'll still wait 1s before returning. If the VM tries to release a
+bunch of pages like this, then those waits could add up.
 
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
----
- mm/dmapool.c | 43 +++++++++++++++++++++++++++++++++++--------
- 1 file changed, 35 insertions(+), 8 deletions(-)
+Also, we call things like invalidate_complete_page2 from the cache
+invalidation code. Will we end up with potential problems now that we
+have a stronger possibility that a page might not be freeable when it
+calls releasepage? (no idea on this -- I'm just spitballing)
 
-diff --git a/mm/dmapool.c b/mm/dmapool.c
-index 306baa594f95..2372ed5a33d3 100644
---- a/mm/dmapool.c
-+++ b/mm/dmapool.c
-@@ -62,6 +62,7 @@ struct dma_page {		/* cacheable header for 'allocation' b=
-ytes */
- };
-=20
- static DEFINE_MUTEX(pools_lock);
-+static DEFINE_MUTEX(pools_reg_lock);
-=20
- static ssize_t
- show_pools(struct device *dev, struct device_attribute *attr, char *buf)
-@@ -132,6 +133,7 @@ struct dma_pool *dma_pool_create(const char *name, stru=
-ct device *dev,
- {
- 	struct dma_pool *retval;
- 	size_t allocation;
-+	bool empty =3D false;
-=20
- 	if (align =3D=3D 0) {
- 		align =3D 1;
-@@ -172,15 +174,34 @@ struct dma_pool *dma_pool_create(const char *name, st=
-ruct device *dev,
-=20
- 	INIT_LIST_HEAD(&retval->pools);
-=20
-+	/*
-+	 * pools_lock ensures that the ->dma_pools list does not get corrupted.
-+	 * pools_reg_lock ensures that there is not a race between
-+	 * dma_pool_create() and dma_pool_destroy() or within dma_pool_create()
-+	 * when the first invocation of dma_pool_create() failed on
-+	 * device_create_file() and the second assumes that it has been done (I
-+	 * know it is a short window).
-+	 */
-+	mutex_lock(&pools_reg_lock);
- 	mutex_lock(&pools_lock);
--	if (list_empty(&dev->dma_pools) &&
--	    device_create_file(dev, &dev_attr_pools)) {
--		kfree(retval);
--		return NULL;
--	} else
--		list_add(&retval->pools, &dev->dma_pools);
-+	if (list_empty(&dev->dma_pools))
-+		empty =3D true;
-+	list_add(&retval->pools, &dev->dma_pools);
- 	mutex_unlock(&pools_lock);
--
-+	if (empty) {
-+		int err;
-+
-+		err =3D device_create_file(dev, &dev_attr_pools);
-+		if (err) {
-+			mutex_lock(&pools_lock);
-+			list_del(&retval->pools);
-+			mutex_unlock(&pools_lock);
-+			mutex_unlock(&pools_reg_lock);
-+			kfree(retval);
-+			return NULL;
-+		}
-+	}
-+	mutex_unlock(&pools_reg_lock);
- 	return retval;
- }
- EXPORT_SYMBOL(dma_pool_create);
-@@ -251,11 +272,17 @@ static void pool_free_page(struct dma_pool *pool, str=
-uct dma_page *page)
-  */
- void dma_pool_destroy(struct dma_pool *pool)
- {
-+	bool empty =3D false;
-+
-+	mutex_lock(&pools_reg_lock);
- 	mutex_lock(&pools_lock);
- 	list_del(&pool->pools);
- 	if (pool->dev && list_empty(&pool->dev->dma_pools))
--		device_remove_file(pool->dev, &dev_attr_pools);
-+		empty =3D true;
- 	mutex_unlock(&pools_lock);
-+	if (empty)
-+		device_remove_file(pool->dev, &dev_attr_pools);
-+	mutex_unlock(&pools_reg_lock);
-=20
- 	while (!list_empty(&pool->page_list)) {
- 		struct dma_page *page;
---=20
-2.1.0
+-- 
+Jeff Layton <jlayton@primarydata.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
