@@ -1,71 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B62E6B0038
-	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 18:34:08 -0400 (EDT)
-Received: by mail-wg0-f50.google.com with SMTP id x13so519774wgg.21
-        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 15:34:07 -0700 (PDT)
-Received: from v.hpx.cz (v.hpx.cz. [46.28.110.221])
-        by mx.google.com with ESMTP id eg6si4342272wic.96.2014.09.16.15.34.07
-        for <linux-mm@kvack.org>;
-        Tue, 16 Sep 2014 15:34:07 -0700 (PDT)
-Date: Wed, 17 Sep 2014 00:34:05 +0200
-From: Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>
-Subject: Re: [PATCH] kvm: Faults which trigger IO release the mmap_sem
-Message-ID: <20140916223402.GL15807@hpx.cz>
+Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
+	by kanga.kvack.org (Postfix) with ESMTP id EE8BE6B0038
+	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 19:38:20 -0400 (EDT)
+Received: by mail-lb0-f169.google.com with SMTP id p9so801741lbv.28
+        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 16:38:19 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id rt5si26389903lbb.2.2014.09.16.16.38.18
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 16 Sep 2014 16:38:18 -0700 (PDT)
+Date: Wed, 17 Sep 2014 09:37:57 +1000
+From: NeilBrown <neilb@suse.de>
+Subject: Re: [PATCH 3/4] NFS: avoid deadlocks with loop-back mounted NFS
+ filesystems.
+Message-ID: <20140917093757.472c8cf2@notabene.brown>
+In-Reply-To: <54182F8B.8010302@Netapp.com>
+References: <20140916051911.22257.24658.stgit@notabene.brown>
+	<20140916053135.22257.68002.stgit@notabene.brown>
+	<54182F8B.8010302@Netapp.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAJu=L59f6ODMDOiKEGGSGg+0RhYw3FDy5D7AJcCOrHD5xL_iwQ@mail.gmail.com>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ boundary="Sig_/SleaSZokHRCCDT+.Q_nPcHS"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andres Lagar-Cavilla <andreslc@google.com>
-Cc: Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Anna Schumaker <Anna.Schumaker@netapp.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, Ingo Molnar <mingo@redhat.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, Jeff Layton <jeff.layton@primarydata.com>
 
-[Emergency posting to fix the tag and couldn't find unmangled Cc list,
- so some recipients were dropped, sorry.  (I guess you are glad though).]
+--Sig_/SleaSZokHRCCDT+.Q_nPcHS
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-2014-09-16 14:01-0700, Andres Lagar-Cavilla:
-> On Tue, Sep 16, 2014 at 1:51 PM, Radim KrA?mA!A? <rkrcmar@redhat.com> wrote:
-> > 2014-09-15 13:11-0700, Andres Lagar-Cavilla:
-> >> +int kvm_get_user_page_retry(struct task_struct *tsk, struct
-> >> mm_struct *mm,
+On Tue, 16 Sep 2014 08:39:39 -0400 Anna Schumaker <Anna.Schumaker@netapp.co=
+m>
+wrote:
+
+> On 09/16/2014 01:31 AM, NeilBrown wrote:
+> > Support for loop-back mounted NFS filesystems is useful when NFS is
+> > used to access shared storage in a high-availability cluster.
 > >
-> > The suffix '_retry' is not best suited for this.
-> > On first reading, I imagined we will be retrying something from
-> > before,
-> > possibly calling it in a loop, but we are actually doing the first and
-> > last try in one call.
-> 
-> We are doing ... the second and third in most scenarios. async_pf did
-> the first with _NOWAIT. We call this from the async pf retrier, or if
-> async pf couldn't be notified to the guest.
-
-I was thinking more about what the function does, not how we currently
-use it -- nothing prevents us from using it as first somewhere -- but
-yeah, even comments would be off then.
-
-> >> Apart from this, the patch looks good.  The mm/ parts are minimal, so
-> >> I
-> >> think it's best to merge it through the KVM tree with someone's
-> >> Acked-by.
+> > If the node running the NFS server fails, some other node can mount the
+> > filesystem and start providing NFS service.  If that node already had
+> > the filesystem NFS mounted, it will now have it loop-back mounted.
 > >
-> > I would prefer to have the last hunk in a separate patch, but still,
-> >
-> > Acked-by: Radim KrA?mA!A? <rkrcmar@redhat.com>
-> 
-> Awesome, thanks much.
-> 
-> I'll recut with the VM_BUG_ON from Paolo and your Ack. LMK if anything
-> else from this email should go into the recut.
+> > nfsd can suffer a deadlock when allocating memory and entering direct
+> > reclaim.
+> > While direct reclaim does not write to the NFS filesystem it can send
+> > and wait for a COMMIT through nfs_release_page().
+>=20
+> Is there anything that can be done on the nfsd side to prevent the deadlo=
+cks?
+>=20
 
-Ah, sorry, I'm not maintaining mm ... what I meant was
+I went down that path first and it didn't work out.
+Setting PF_FSTRANS in nfsd (when the request comes from localhost) and then
+arranging the __GFP_FS is cleared when that flag is set overcomes a number =
+of
+possible deadlock sources, but not all.
 
-Reviewed-by: Radim KrA?mA!A? <rkrcmar@redhat.com>
+There are a number of situations where nfsd is waiting on some other thread
+(which doesn't have PF_FSTRANS set) and that thread tries to reclaim memory
+and hits nfs_release_page().
+It was a long and complex patch set, and nobody liked it.
+And the common thread was always that it always blocked in nfs_release_page=
+().
+So it seemed to make sense to just remove that blockage.
 
-and I had to leave before I could find a good apology for
-VM_WARN_ON_ONCE(), so if you are replacing BUG_ON, you might want to
-look at that one as well.
+Thanks,
+NeilBrown
+
+--Sig_/SleaSZokHRCCDT+.Q_nPcHS
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Disposition: attachment; filename=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.22 (GNU/Linux)
+
+iQIVAwUBVBjJ1Tnsnt1WYoG5AQIA4A/9FUdVuHypfzeP82ItnBzQ2jKdkcLlfEI6
+g6BsDX9RJ28++zq7MqI1mnsyJXzZbBpvB1W6wSFWiFNq8FqZOhHH+YFzQMGY6MgX
+m9NjV5Jb6aXCGwjwjlE/ocIhbgHyS3DYJyiid28Lv0j/mdsA2rux0lW86Z3QuqP+
+zV4y/FQCs9Hmf0hwOmlrdVjdMe5XYtZpBgctlKaynMKooC69yfna21zzWMAW0JU4
+TgNPR9XMNVULFS+rtt1tYYMbHynPtnuIS0tT7RJJjAf4EWxzlMrcHGebCoZaJZ3G
+7AgadunMpvBPmBDQOwUbf2iVibEFkEUSOTqr4X6xMdOOzbNv8hGO0+7WixEuLQv/
+uP5W0S+1oBSLyISUhhW8KQharjPIKbPF8pM+WLXpZclXNMDl6xRztOeHrHjc7InZ
+E2HrOlR/ttWbtcTMz0B17PhkKZjyYvuRyxTXoj0cWxgnTNH4MCzGFYlDDcwqKOUu
+kLZ2TCrIHpVmzhlFde6wFLpTWBzErhuo1Wna/HYFXK7sitq2hiOx0NM4DPDMNInw
+tw4hxzUBjd5s7UEaW/+YEZAct8rkXWDjYAkw0fyQZFTEqjGKZXVKvY6koJDG0gZG
+B/2pWkP0VyU23iZ/SjpLdpWgP030KI/X/TXYRZTzCaPipJyYGfCL/xpwWk2N7ki9
+0eK6lfXjMvs=
+=F4Ed
+-----END PGP SIGNATURE-----
+
+--Sig_/SleaSZokHRCCDT+.Q_nPcHS--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
