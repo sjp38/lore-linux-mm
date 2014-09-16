@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
-	by kanga.kvack.org (Postfix) with ESMTP id BC2306B0037
-	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 01:32:40 -0400 (EDT)
-Received: by mail-la0-f54.google.com with SMTP id ge10so6155765lab.13
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 22:32:39 -0700 (PDT)
+Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 1934F6B0038
+	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 01:32:48 -0400 (EDT)
+Received: by mail-la0-f44.google.com with SMTP id mc6so6028398lab.31
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 22:32:48 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o1si2812746lbp.117.2014.09.15.22.32.38
+        by mx.google.com with ESMTPS id o5si13933489lao.127.2014.09.15.22.32.47
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 15 Sep 2014 22:32:38 -0700 (PDT)
+        Mon, 15 Sep 2014 22:32:47 -0700 (PDT)
 From: NeilBrown <neilb@suse.de>
 Date: Tue, 16 Sep 2014 15:31:35 +1000
-Subject: [PATCH 1/4] SCHED: add some "wait..on_bit...timeout()" interfaces.
-Message-ID: <20140916053134.22257.28841.stgit@notabene.brown>
+Subject: [PATCH 2/4] MM: export page_wakeup functions
+Message-ID: <20140916053135.22257.22693.stgit@notabene.brown>
 In-Reply-To: <20140916051911.22257.24658.stgit@notabene.brown>
 References: <20140916051911.22257.24658.stgit@notabene.brown>
 MIME-Version: 1.0
@@ -23,150 +23,67 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Trond Myklebust <trond.myklebust@primarydata.com>, Ingo Molnar <mingo@redhat.com>
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, Jeff Layton <jeff.layton@primarydata.com>
 
-In commit c1221321b7c25b53204447cff9949a6d5a7ddddc
-   sched: Allow wait_on_bit_action() functions to support a timeout
-
-I suggested that a "wait_on_bit_timeout()" interface would not meet my
-need.  This isn't true - I was just over-engineering.
-
-Including a 'private' field in wait_bit_key instead of a focused
-"timeout" field was just premature generalization.  If some other
-use is ever found, it can be generalized or added later.
-
-So this patch renames "private" to "timeout" with a meaning "stop
-waiting when "jiffies" reaches or passes "timeout",
-and adds two of the many possible wait..bit..timeout() interfaces:
-
-wait_on_page_bit_killable_timeout(), which is the one I want to use,
-and out_of_line_wait_on_bit_timeout() which is a reasonably general
-example.  Others can be added as needed.
+This will allow NFS to wait for PG_private to be cleared and,
+particularly, to send a wake-up when it is.
 
 Signed-off-by: NeilBrown <neilb@suse.de>
 ---
- include/linux/pagemap.h |    2 ++
- include/linux/wait.h    |    5 ++++-
- kernel/sched/wait.c     |   36 ++++++++++++++++++++++++++++++++++++
- mm/filemap.c            |   13 +++++++++++++
- 4 files changed, 55 insertions(+), 1 deletion(-)
+ include/linux/pagemap.h |   10 ++++++++--
+ mm/filemap.c            |    8 ++------
+ 2 files changed, 10 insertions(+), 8 deletions(-)
 
 diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 3df8c7db7a4e..87f9e4230d3a 100644
+index 87f9e4230d3a..2dca0cef3506 100644
 --- a/include/linux/pagemap.h
 +++ b/include/linux/pagemap.h
-@@ -502,6 +502,8 @@ static inline int lock_page_or_retry(struct page *page, struct mm_struct *mm,
+@@ -496,8 +496,8 @@ static inline int lock_page_or_retry(struct page *page, struct mm_struct *mm,
+ }
+ 
+ /*
+- * This is exported only for wait_on_page_locked/wait_on_page_writeback.
+- * Never use this directly!
++ * This is exported only for wait_on_page_locked/wait_on_page_writeback,
++ * and for filesystems which need to wait on PG_private.
+  */
  extern void wait_on_page_bit(struct page *page, int bit_nr);
  
- extern int wait_on_page_bit_killable(struct page *page, int bit_nr);
-+extern int wait_on_page_bit_killable_timeout(struct page *page,
-+					     int bit_nr, unsigned long timeout);
- 
- static inline int wait_on_page_locked_killable(struct page *page)
- {
-diff --git a/include/linux/wait.h b/include/linux/wait.h
-index 6fb1ba5f9b2f..80115bf88671 100644
---- a/include/linux/wait.h
-+++ b/include/linux/wait.h
-@@ -25,7 +25,7 @@ struct wait_bit_key {
- 	void			*flags;
- 	int			bit_nr;
- #define WAIT_ATOMIC_T_BIT_NR	-1
--	unsigned long		private;
-+	unsigned long		timeout;
- };
- 
- struct wait_bit_queue {
-@@ -154,6 +154,7 @@ int __wait_on_bit_lock(wait_queue_head_t *, struct wait_bit_queue *, wait_bit_ac
- void wake_up_bit(void *, int);
- void wake_up_atomic_t(atomic_t *);
- int out_of_line_wait_on_bit(void *, int, wait_bit_action_f *, unsigned);
-+int out_of_line_wait_on_bit_timeout(void *, int, wait_bit_action_f *, unsigned, unsigned long);
- int out_of_line_wait_on_bit_lock(void *, int, wait_bit_action_f *, unsigned);
- int out_of_line_wait_on_atomic_t(atomic_t *, int (*)(atomic_t *), unsigned);
- wait_queue_head_t *bit_waitqueue(void *, int);
-@@ -859,6 +860,8 @@ int wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
- 
- extern int bit_wait(struct wait_bit_key *);
- extern int bit_wait_io(struct wait_bit_key *);
-+extern int bit_wait_timeout(struct wait_bit_key *);
-+extern int bit_wait_io_timeout(struct wait_bit_key *);
- 
- /**
-  * wait_on_bit - wait for a bit to be cleared
-diff --git a/kernel/sched/wait.c b/kernel/sched/wait.c
-index 15cab1a4f84e..380678b3cba4 100644
---- a/kernel/sched/wait.c
-+++ b/kernel/sched/wait.c
-@@ -343,6 +343,18 @@ int __sched out_of_line_wait_on_bit(void *word, int bit,
- }
- EXPORT_SYMBOL(out_of_line_wait_on_bit);
- 
-+int __sched out_of_line_wait_on_bit_timeout(
-+	void *word, int bit, wait_bit_action_f *action,
-+	unsigned mode, unsigned long timeout)
-+{
-+	wait_queue_head_t *wq = bit_waitqueue(word, bit);
-+	DEFINE_WAIT_BIT(wait, word, bit);
-+
-+	wait.key.timeout = jiffies + timeout;
-+	return __wait_on_bit(wq, &wait, action, mode);
-+}
-+EXPORT_SYMBOL(out_of_line_wait_on_bit_timeout);
-+
- int __sched
- __wait_on_bit_lock(wait_queue_head_t *wq, struct wait_bit_queue *q,
- 			wait_bit_action_f *action, unsigned mode)
-@@ -520,3 +532,27 @@ __sched int bit_wait_io(struct wait_bit_key *word)
+@@ -512,6 +512,12 @@ static inline int wait_on_page_locked_killable(struct page *page)
  	return 0;
  }
- EXPORT_SYMBOL(bit_wait_io);
-+
-+__sched int bit_wait_timeout(struct wait_bit_key *word)
+ 
++extern wait_queue_head_t *page_waitqueue(struct page *page);
++static inline void wake_up_page(struct page *page, int bit)
 +{
-+	unsigned long now = ACCESS_ONCE(jiffies);
-+	if (signal_pending_state(current->state, current))
-+		return 1;
-+	if (time_after_eq(now, word->timeout))
-+		return -EAGAIN;
-+	schedule_timeout(word->timeout - now);
-+	return 0;
++	__wake_up_bit(page_waitqueue(page), &page->flags, bit);
 +}
-+EXPORT_SYMBOL(bit_wait_timeout);
 +
-+__sched int bit_wait_io_timeout(struct wait_bit_key *word)
-+{
-+	unsigned long now = ACCESS_ONCE(jiffies);
-+	if (signal_pending_state(current->state, current))
-+		return 1;
-+	if (time_after_eq(now, word->timeout))
-+		return -EAGAIN;
-+	io_schedule_timeout(word->timeout - now);
-+	return 0;
-+}
-+EXPORT_SYMBOL(bit_wait_io_timeout);
+ /* 
+  * Wait for a page to be unlocked.
+  *
 diff --git a/mm/filemap.c b/mm/filemap.c
-index 90effcdf948d..4a19c084bdb1 100644
+index 4a19c084bdb1..c9ba09f2ad3c 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
-@@ -703,6 +703,19 @@ int wait_on_page_bit_killable(struct page *page, int bit_nr)
- 			     bit_wait_io, TASK_KILLABLE);
- }
+@@ -670,17 +670,13 @@ EXPORT_SYMBOL(__page_cache_alloc);
+  * at a cost of "thundering herd" phenomena during rare hash
+  * collisions.
+  */
+-static wait_queue_head_t *page_waitqueue(struct page *page)
++wait_queue_head_t *page_waitqueue(struct page *page)
+ {
+ 	const struct zone *zone = page_zone(page);
  
-+int wait_on_page_bit_killable_timeout(struct page *page,
-+				       int bit_nr, unsigned long timeout)
-+{
-+	DEFINE_WAIT_BIT(wait, &page->flags, bit_nr);
-+
-+	wait.key.timeout = jiffies + timeout;
-+	if (!test_bit(bit_nr, &page->flags))
-+		return 0;
-+	return __wait_on_bit(page_waitqueue(page), &wait,
-+			     bit_wait_io_timeout, TASK_KILLABLE);
-+}
-+EXPORT_SYMBOL(wait_on_page_bit_killable_timeout);
-+
- /**
-  * add_page_wait_queue - Add an arbitrary waiter to a page's wait queue
-  * @page: Page defining the wait queue of interest
+ 	return &zone->wait_table[hash_ptr(page, zone->wait_table_bits)];
+ }
+-
+-static inline void wake_up_page(struct page *page, int bit)
+-{
+-	__wake_up_bit(page_waitqueue(page), &page->flags, bit);
+-}
++EXPORT_SYMBOL(page_waitqueue);
+ 
+ void wait_on_page_bit(struct page *page, int bit_nr)
+ {
 
 
 --
