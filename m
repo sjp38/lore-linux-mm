@@ -1,105 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CD216B0036
-	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 04:07:00 -0400 (EDT)
-Received: by mail-ig0-f180.google.com with SMTP id hn15so5288195igb.1
-        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 01:06:59 -0700 (PDT)
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B1C36B0036
+	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 04:24:16 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id fa1so8304142pad.16
+        for <linux-mm@kvack.org>; Tue, 16 Sep 2014 01:24:13 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id br4si15974194pbc.155.2014.09.16.01.06.56
+        by mx.google.com with ESMTP id tx4si28051775pbc.24.2014.09.16.01.24.09
         for <linux-mm@kvack.org>;
-        Tue, 16 Sep 2014 01:06:56 -0700 (PDT)
-From: "Ren, Qiaowei" <qiaowei.ren@intel.com>
-Subject: RE: [PATCH v8 09/10] x86, mpx: cleanup unused bound tables
-Date: Tue, 16 Sep 2014 08:06:23 +0000
-Message-ID: <9E0BE1322F2F2246BD820DA9FC397ADE017AE487@shsmsx102.ccr.corp.intel.com>
-References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com>
- <1410425210-24789-10-git-send-email-qiaowei.ren@intel.com>
- <541751DF.8090706@intel.com>
-In-Reply-To: <541751DF.8090706@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Tue, 16 Sep 2014 01:24:10 -0700 (PDT)
+Date: Tue, 16 Sep 2014 16:23:19 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [next:master 5942/5973]
+ drivers/net/wireless/hostap/hostap_proc.c:171:6: warning: unused variable
+ 'i'
+Message-ID: <5417f377.QBIorNJRsAKXIipj%fengguang.wu@intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Hansen, Dave" <dave.hansen@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
-Cc: "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org
 
+tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+head:   cac2183332bf304f5abf54e5dc715a4b5c18da06
+commit: 8410495acbb7a56d7060adeb5af1a1e616ecb916 [5942/5973] wireless: hostap: proc: print properly escaped SSID
+config: i386-allyesconfig
+reproduce:
+  git checkout 8410495acbb7a56d7060adeb5af1a1e616ecb916
+  make ARCH=i386  allyesconfig
+  make ARCH=i386 
 
+All warnings:
 
-On 2014-09-16, Hansen, Dave wrote:
-> On 09/11/2014 01:46 AM, Qiaowei Ren wrote:
->> +/*
->> + * Free the backing physical pages of bounds table 'bt_addr'.
->> + * Assume start...end is within that bounds table.
->> + */
->> +static int __must_check zap_bt_entries(struct mm_struct *mm,
->> +		unsigned long bt_addr,
->> +		unsigned long start, unsigned long end) {
->> +	struct vm_area_struct *vma;
->> +
->> +	/* Find the vma which overlaps this bounds table */
->> +	vma =3D find_vma(mm, bt_addr);
->> +	/*
->> +	 * The table entry comes from userspace and could be
->> +	 * pointing anywhere, so make sure it is at least
->> +	 * pointing to valid memory.
->> +	 */
->> +	if (!vma || !(vma->vm_flags & VM_MPX) ||
->> +			vma->vm_start > bt_addr ||
->> +			vma->vm_end < bt_addr+MPX_BT_SIZE_BYTES)
->> +		return -EINVAL;
->=20
-> If someone did *ANYTHING* to split the VMA, this check would fail.  I
-> think that's a little draconian, considering that somebody could do a
-> NUMA policy on part of a VM_MPX VMA and cause it to be split.
->=20
-> This check should look across the entire 'bt_addr ->
-> bt_addr+MPX_BT_SIZE_BYTES' range, find all of the VM_MPX VMAs, and zap
-> only those.
->=20
-> If we encounter a non-VM_MPX vma, it should be ignored.
->
-Ok.
+   drivers/net/wireless/hostap/hostap_proc.c: In function 'prism2_bss_list_proc_show':
+>> drivers/net/wireless/hostap/hostap_proc.c:171:6: warning: unused variable 'i' [-Wunused-variable]
+     int i;
+         ^
 
->> +	if (ret =3D=3D -EFAULT)
->> +		return ret;
->> +
->> +	/*
->> +	 * unmap those bounds table which are entirely covered in this
->> +	 * virtual address region.
->> +	 */
->=20
-> Entirely covered *AND* not at the edges, right?
->=20
-Yes.
+vim +/i +171 drivers/net/wireless/hostap/hostap_proc.c
 
->> +	bde_start =3D mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(start);
->> +	bde_end =3D mm->bd_addr + MPX_GET_BD_ENTRY_OFFSET(end-1);
->> +	for (bd_entry =3D bde_start + 1; bd_entry < bde_end; bd_entry++) {
->=20
-> This needs a big fat comment that it is only freeing the bounds tables th=
-at are 1.
-> fully covered 2. not at the edges of the mapping, even if full aligned
->=20
-> Does this get any nicer if we have unmap_side_bts() *ONLY* go after
-> bounds tables that are partially owned by the region being unmapped?
->=20
-> It seems like we really should do this:
->=20
-> 	for (each bt fully owned)
-> 		unmap_single_bt()
-> 	if (start edge unaligned)
-> 		free start edge
-> 	if (end edge unaligned)
-> 		free end edge
->=20
-> I bet the unmap_side_bts() code gets simpler if we do that, too.
->=20
-Maybe. I will try this.
+6bbefe86 David Howells 2013-04-10  155  	return ret;
+ff1d2767 Jouni Malinen 2005-05-12  156  }
+ff1d2767 Jouni Malinen 2005-05-12  157  
+6bbefe86 David Howells 2013-04-10  158  static const struct file_operations prism2_wds_proc_fops = {
+6bbefe86 David Howells 2013-04-10  159  	.open		= prism2_wds_proc_open,
+6bbefe86 David Howells 2013-04-10  160  	.read		= seq_read,
+6bbefe86 David Howells 2013-04-10  161  	.llseek		= seq_lseek,
+6bbefe86 David Howells 2013-04-10  162  	.release	= seq_release,
+6bbefe86 David Howells 2013-04-10  163  };
+ff1d2767 Jouni Malinen 2005-05-12  164  
+6bbefe86 David Howells 2013-04-10  165  
+6bbefe86 David Howells 2013-04-10  166  static int prism2_bss_list_proc_show(struct seq_file *m, void *v)
+ff1d2767 Jouni Malinen 2005-05-12  167  {
+6bbefe86 David Howells 2013-04-10  168  	local_info_t *local = m->private;
+6bbefe86 David Howells 2013-04-10  169  	struct list_head *ptr = v;
+ff1d2767 Jouni Malinen 2005-05-12  170  	struct hostap_bss_info *bss;
+ff1d2767 Jouni Malinen 2005-05-12 @171  	int i;
+ff1d2767 Jouni Malinen 2005-05-12  172  
+6bbefe86 David Howells 2013-04-10  173  	if (ptr == &local->bss_list) {
+6bbefe86 David Howells 2013-04-10  174  		seq_printf(m, "#BSSID\tlast_update\tcount\tcapab_info\tSSID(txt)\t"
+6bbefe86 David Howells 2013-04-10  175  			   "SSID(hex)\tWPA IE\n");
+ff1d2767 Jouni Malinen 2005-05-12  176  		return 0;
+ff1d2767 Jouni Malinen 2005-05-12  177  	}
+ff1d2767 Jouni Malinen 2005-05-12  178  
+ff1d2767 Jouni Malinen 2005-05-12  179  	bss = list_entry(ptr, struct hostap_bss_info, list);
 
-Thanks,
-Qiaowei
+:::::: The code at line 171 was first introduced by commit
+:::::: ff1d2767d5a43c85f944e86a45284b721f66196c Add HostAP wireless driver.
+
+:::::: TO: Jouni Malinen <jkmaline@cc.hut.fi>
+:::::: CC: Jeff Garzik <jgarzik@pobox.com>
+
+---
+0-DAY kernel build testing backend              Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
