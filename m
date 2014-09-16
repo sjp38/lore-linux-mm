@@ -1,45 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 895D26B0036
-	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 00:17:06 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id kq14so7839488pab.11
-        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 21:17:06 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id fr9si26735785pdb.239.2014.09.15.21.17.04
-        for <linux-mm@kvack.org>;
-        Mon, 15 Sep 2014 21:17:05 -0700 (PDT)
-Message-ID: <5417B9BE.1030209@intel.com>
-Date: Mon, 15 Sep 2014 21:17:02 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 22D286B0036
+	for <linux-mm@kvack.org>; Tue, 16 Sep 2014 01:12:31 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id v10so7796155pde.33
+        for <linux-mm@kvack.org>; Mon, 15 Sep 2014 22:12:30 -0700 (PDT)
+Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
+        by mx.google.com with ESMTPS id fx3si27119457pdb.113.2014.09.15.22.12.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 15 Sep 2014 22:12:30 -0700 (PDT)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Tue, 16 Sep 2014 13:09:30 +0800
+Subject: [RFC] change keep_initrd and free_initrd_mem into .init section
+Message-ID: <35FD53F367049845BC99AC72306C23D103D6DB49160E@CNBJMBX05.corpusers.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Subject: Re: [PATCH v8 08/10] x86, mpx: add prctl commands PR_MPX_REGISTER,
- PR_MPX_UNREGISTER
-References: <1410425210-24789-1-git-send-email-qiaowei.ren@intel.com>	<1410425210-24789-9-git-send-email-qiaowei.ren@intel.com> <20140915010025.5940c946@alan.etchedpixels.co.uk> <9E0BE1322F2F2246BD820DA9FC397ADE017AE183@shsmsx102.ccr.corp.intel.com>
-In-Reply-To: <9E0BE1322F2F2246BD820DA9FC397ADE017AE183@shsmsx102.ccr.corp.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Ren, Qiaowei" <qiaowei.ren@intel.com>, One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, 'Jiang Liu' <jiang.liu@huawei.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, 'Will Deacon' <Will.Deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>
 
-On 09/15/2014 08:20 PM, Ren, Qiaowei wrote:
->> What are the semantics across execve() ?
->> 
-> This will not impact on the semantics of execve(). One runtime
-> library
-> for MPX will be provided (or merged into Glibc), and when the
-> application starts, this runtime will be called to initialize MPX
-> runtime environment, including calling prctl() to notify the kernel to
-> start managing the bounds directories. You can see the discussion
-> about exec(): https://lkml.org/lkml/2014/1/26/199
+this patch change keep_initrd to __initdata section,
+and free_initrd_mem to __init section so that they can be freed by
+free_initmem, free_initrd_mem is only called by free_initrd function,
+so it's safe to free it after use.
 
-I think he's asking what happens to the kernel value at execve() time.
+Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
+---
+ arch/arm/mm/init.c   | 4 ++--
+ arch/arm64/mm/init.c | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
 
-The short answer is that it is zero'd along with the rest of a new mm.
-It probably _shouldn't_ be, though.  It's actually valid to have a bound
-directory at 0x0.  We probably need to initialize it to -1 instead, and
-that means initializing to -1 at execve() time.
+diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+index 659c75d..907dee1 100644
+--- a/arch/arm/mm/init.c
++++ b/arch/arm/mm/init.c
+@@ -631,9 +631,9 @@ void free_initmem(void)
+=20
+ #ifdef CONFIG_BLK_DEV_INITRD
+=20
+-static int keep_initrd;
++static int __initdata keep_initrd;
+=20
+-void free_initrd_mem(unsigned long start, unsigned long end)
++void __init free_initrd_mem(unsigned long start, unsigned long end)
+ {
+ 	if (!keep_initrd) {
+ 		poison_init_mem((void *)start, PAGE_ALIGN(end) - start);
+diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+index 5472c24..7268d57 100644
+--- a/arch/arm64/mm/init.c
++++ b/arch/arm64/mm/init.c
+@@ -330,9 +330,9 @@ void free_initmem(void)
+=20
+ #ifdef CONFIG_BLK_DEV_INITRD
+=20
+-static int keep_initrd;
++static int __initdata keep_initrd;
+=20
+-void free_initrd_mem(unsigned long start, unsigned long end)
++void __init free_initrd_mem(unsigned long start, unsigned long end)
+ {
+ 	if (!keep_initrd)
+ 		free_reserved_area((void *)start, (void *)end, 0, "initrd");
+--=20
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
