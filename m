@@ -1,133 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
-	by kanga.kvack.org (Postfix) with ESMTP id D50DF6B003B
-	for <linux-mm@kvack.org>; Wed, 17 Sep 2014 15:59:38 -0400 (EDT)
-Received: by mail-qg0-f53.google.com with SMTP id z107so75162qgd.40
-        for <linux-mm@kvack.org>; Wed, 17 Sep 2014 12:59:38 -0700 (PDT)
-Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
-        by mx.google.com with ESMTPS id y4si15943877yhy.15.2014.09.17.12.59.38
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E2486B0035
+	for <linux-mm@kvack.org>; Wed, 17 Sep 2014 16:02:14 -0400 (EDT)
+Received: by mail-wi0-f173.google.com with SMTP id em10so1915351wid.6
+        for <linux-mm@kvack.org>; Wed, 17 Sep 2014 13:02:13 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c19si211540wiv.75.2014.09.17.13.02.12
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 17 Sep 2014 12:59:38 -0700 (PDT)
-From: Toshi Kani <toshi.kani@hp.com>
-Subject: [PATCH v3 1/5] x86, mm, pat: Set WT to PA7 slot of PAT MSR
-Date: Wed, 17 Sep 2014 13:48:37 -0600
-Message-Id: <1410983321-15162-2-git-send-email-toshi.kani@hp.com>
-In-Reply-To: <1410983321-15162-1-git-send-email-toshi.kani@hp.com>
-References: <1410983321-15162-1-git-send-email-toshi.kani@hp.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Sep 2014 13:02:13 -0700 (PDT)
+Message-ID: <5419E89B.7020002@redhat.com>
+Date: Wed, 17 Sep 2014 22:01:31 +0200
+From: Paolo Bonzini <pbonzini@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] kvm: Faults which trigger IO release the mmap_sem
+References: <1410811885-17267-1-git-send-email-andreslc@google.com>	<54184078.4070505@redhat.com>	<CAJu=L5_w+u6komiZB6RE1+9H5MiL+8RJBy_GYO6CmjqkhaG5Zg@mail.gmail.com>	<54188179.7010705@redhat.com>	<CAJu=L58z-=_KkZXpEiPjDUup8GpH7079HH39csmvgUxGkvXy0A@mail.gmail.com>	<54193BB2.8010500@redhat.com> <CAJu=L5-_1ZDyhnMTFePRCyECr1rVLeMqR6dCDK1m6baR7J7gpw@mail.gmail.com>
+In-Reply-To: <CAJu=L5-_1ZDyhnMTFePRCyECr1rVLeMqR6dCDK1m6baR7J7gpw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jgross@suse.com, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com, Toshi Kani <toshi.kani@hp.com>
+To: Andres Lagar-Cavilla <andreslc@google.com>
+Cc: Gleb Natapov <gleb@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-This patch sets WT to the PA7 slot in the PAT MSR when the processor
-is not affected by the PAT errata.  The PA7 slot is chosen to further
-minimize the risk of using the PAT bit as the PA3 slot is UC and is
-not currently used.
+Il 17/09/2014 18:58, Andres Lagar-Cavilla ha scritto:
+> Understood. So in patch 1, would kvm_gup_retry be ... just a wrapper
+> around gup? That looks thin to me, and the naming of the function will
+> not be accurate.
 
-The following Intel processors are affected by the PAT errata.
+Depends on how you interpret "retry" ("with retry" vs. "retry after
+_fast"). :)
 
-   errata               cpuid
-   ----------------------------------------------------
-   Pentium 2, A52       family 0x6, model 0x5
-   Pentium 3, E27       family 0x6, model 0x7, 0x8
-   Pentium 3 Xenon, G26 family 0x6, model 0x7, 0x8, 0xa
-   Pentium M, Y26       family 0x6, model 0x9
-   Pentium M 90nm, X9   family 0x6, model 0xd
-   Pentium 4, N46       family 0xf, model 0x0
+My point was more to make possible future bisection easier, but I'm not
+going to insist.  I'll queue the patch as soon as I get the required
+Acked-by.
 
-Instead of making sharp boundary checks, this patch makes conservative
-checks to exclude all Pentium 2, 3, M and 4 family processors.  For
-such processors, _PAGE_CACHE_MODE_WT is redirected to UC- per the
-default setup in __cachemode2pte_tbl[].
-
-Signed-off-by: Toshi Kani <toshi.kani@hp.com>
----
- arch/x86/mm/pat.c |   64 +++++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 49 insertions(+), 15 deletions(-)
-
-diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-index ff31851..db687c3 100644
---- a/arch/x86/mm/pat.c
-+++ b/arch/x86/mm/pat.c
-@@ -133,6 +133,7 @@ void pat_init(void)
- {
- 	u64 pat;
- 	bool boot_cpu = !boot_pat_state;
-+	struct cpuinfo_x86 *c = &boot_cpu_data;
- 
- 	if (!pat_enabled)
- 		return;
-@@ -153,21 +154,54 @@ void pat_init(void)
- 		}
- 	}
- 
--	/* Set PWT to Write-Combining. All other bits stay the same */
--	/*
--	 * PTE encoding used in Linux:
--	 *      PAT
--	 *      |PCD
--	 *      ||PWT
--	 *      |||
--	 *      000 WB		_PAGE_CACHE_WB
--	 *      001 WC		_PAGE_CACHE_WC
--	 *      010 UC-		_PAGE_CACHE_UC_MINUS
--	 *      011 UC		_PAGE_CACHE_UC
--	 * PAT bit unused
--	 */
--	pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
--	      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
-+	if ((c->x86_vendor == X86_VENDOR_INTEL) &&
-+	    (((c->x86 == 0x6) && (c->x86_model <= 0xd)) ||
-+	     ((c->x86 == 0xf) && (c->x86_model <= 0x6)))) {
-+		/*
-+		 * PAT support with the lower four entries. Intel Pentium 2,
-+		 * 3, M, and 4 are affected by PAT errata, which makes the
-+		 * upper four entries unusable.  We do not use the upper four
-+		 * entries for all the affected processor families for safe.
-+		 *
-+		 *  PTE encoding used in Linux:
-+		 *      PAT
-+		 *      |PCD
-+		 *      ||PWT  PAT
-+		 *      |||    slot
-+		 *      000    0    WB : _PAGE_CACHE_MODE_WB
-+		 *      001    1    WC : _PAGE_CACHE_MODE_WC
-+		 *      010    2    UC-: _PAGE_CACHE_MODE_UC_MINUS
-+		 *      011    3    UC : _PAGE_CACHE_MODE_UC
-+		 * PAT bit unused
-+		 *
-+		 * NOTE: When WT or WP is used, it is redirected to UC- per
-+		 * the default setup in __cachemode2pte_tbl[].
-+		 */
-+		pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
-+		      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
-+	} else {
-+		/*
-+		 * PAT full support. WT is set to slot 7, which minimizes
-+		 * the risk of using the PAT bit as slot 3 is UC and is
-+		 * currently unused. Slot 4 should remain as reserved.
-+		 *
-+		 *  PTE encoding used in Linux:
-+		 *      PAT
-+		 *      |PCD
-+		 *      ||PWT  PAT
-+		 *      |||    slot
-+		 *      000    0    WB : _PAGE_CACHE_MODE_WB
-+		 *      001    1    WC : _PAGE_CACHE_MODE_WC
-+		 *      010    2    UC-: _PAGE_CACHE_MODE_UC_MINUS
-+		 *      011    3    UC : _PAGE_CACHE_MODE_UC
-+		 *      100    4    <reserved>
-+		 *      101    5    <reserved>
-+		 *      110    6    <reserved>
-+		 *      111    7    WT : _PAGE_CACHE_MODE_WT
-+		 */
-+		pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
-+		      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, WT);
-+	}
- 
- 	/* Boot CPU check */
- 	if (!boot_pat_state)
+Paolo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
