@@ -1,45 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id EB3376B0038
-	for <linux-mm@kvack.org>; Wed, 17 Sep 2014 07:42:19 -0400 (EDT)
-Received: by mail-wi0-f175.google.com with SMTP id r20so62849wiv.8
-        for <linux-mm@kvack.org>; Wed, 17 Sep 2014 04:42:19 -0700 (PDT)
-Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
-        by mx.google.com with ESMTPS id jy2si28090178wjc.14.2014.09.17.04.42.18
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id AB8A56B0038
+	for <linux-mm@kvack.org>; Wed, 17 Sep 2014 09:56:23 -0400 (EDT)
+Received: by mail-wi0-f172.google.com with SMTP id e4so1284715wiv.5
+        for <linux-mm@kvack.org>; Wed, 17 Sep 2014 06:56:23 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id gn3si6763023wib.26.2014.09.17.06.56.21
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 17 Sep 2014 04:42:18 -0700 (PDT)
-Received: by mail-we0-f176.google.com with SMTP id q58so1272832wes.35
-        for <linux-mm@kvack.org>; Wed, 17 Sep 2014 04:42:18 -0700 (PDT)
-Date: Wed, 17 Sep 2014 14:42:15 +0300
-From: Gleb Natapov <gleb@kernel.org>
-Subject: Re: [PATCH] kvm: Faults which trigger IO release the mmap_sem
-Message-ID: <20140917114214.GB30733@minantech.com>
-References: <1410811885-17267-1-git-send-email-andreslc@google.com>
- <20140917102635.GA30733@minantech.com>
- <20140917112713.GB1273@potion.brq.redhat.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Sep 2014 06:56:21 -0700 (PDT)
+Date: Wed, 17 Sep 2014 15:56:14 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: Best way to pin a page in ext4?
+Message-ID: <20140917135614.GJ2840@worktop.localdomain>
+References: <20140915185102.0944158037A@closure.thunk.org>
+ <36321733-F488-49E3-8733-C6758F83DFA1@dilger.ca>
+ <20140916180759.GI6205@thunk.org>
+ <alpine.LSU.2.11.1409161555120.5144@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-In-Reply-To: <20140917112713.GB1273@potion.brq.redhat.com>
+In-Reply-To: <alpine.LSU.2.11.1409161555120.5144@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>
-Cc: Andres Lagar-Cavilla <andreslc@google.com>, Gleb Natapov <gleb@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger@dilger.ca>, Christoph Lameter <cl@linux.com>, linux-mm <linux-mm@kvack.org>, linux-ext4@vger.kernel.org
 
-On Wed, Sep 17, 2014 at 01:27:14PM +0200, Radim Kr=C4=8Dm=C3=A1=C5=99 wrote:
-> 2014-09-17 13:26+0300, Gleb Natapov:
-> > For async_pf_execute() you do not need to even retry. Next guest's page=
- fault
-> > will retry it for you.
->=20
-> Wouldn't that be a waste of vmentries?
-This is how it will work with or without this second gup. Page is not
-mapped into a shadow page table on this path, it happens on a next fault.
+On Tue, Sep 16, 2014 at 05:07:18PM -0700, Hugh Dickins wrote:
+> On the page migration issue: it's not quite as straightforward as
+> Christoph suggests.  He and I agree completely that mlocked pages
+> should be migratable, but some real-time-minded people disagree:
+> so normal compaction is still forbidden to migrate mlocked pages in
+> the vanilla kernel (though we in Google patch that prohibition out).
+> So pinning by refcount is no worse for compaction than mlocking,
+> in the vanilla kernel.
 
---
-			Gleb.
+These realtime people are fully aware of this -- they should be at
+least, I've been telling them for years.
+
+Also, they would be very happy with means to actually pin pages -- as
+per the patches Christoph referred to. The advantage of also having
+mpin() and co is that we can migrate the memory into non-movable blocks
+before returning etc.
+
+In any case, I think we can (and should) change the behaviour of mlock
+to be migratable (possibly with an easy way to revert in -rt for
+migratory purposes until we get mpin sorted).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
