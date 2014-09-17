@@ -1,60 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 016246B0035
-	for <linux-mm@kvack.org>; Wed, 17 Sep 2014 16:39:25 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id p10so2827752pdj.30
-        for <linux-mm@kvack.org>; Wed, 17 Sep 2014 13:39:25 -0700 (PDT)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id o2si36090783pdf.1.2014.09.17.13.39.23
+Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 5494F6B0035
+	for <linux-mm@kvack.org>; Wed, 17 Sep 2014 17:38:27 -0400 (EDT)
+Received: by mail-qc0-f171.google.com with SMTP id x3so1796970qcv.2
+        for <linux-mm@kvack.org>; Wed, 17 Sep 2014 14:38:27 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id g66si6598389yhc.18.2014.09.17.14.38.26
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 17 Sep 2014 13:39:24 -0700 (PDT)
-Received: by mail-pa0-f43.google.com with SMTP id fa1so2965843pad.2
-        for <linux-mm@kvack.org>; Wed, 17 Sep 2014 13:39:23 -0700 (PDT)
-Date: Wed, 17 Sep 2014 13:37:40 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: Best way to pin a page in ext4?
-In-Reply-To: <20140917135719.GK2840@worktop.localdomain>
-Message-ID: <alpine.LSU.2.11.1409171328002.7181@eggly.anvils>
-References: <20140915185102.0944158037A@closure.thunk.org> <36321733-F488-49E3-8733-C6758F83DFA1@dilger.ca> <20140916180759.GI6205@thunk.org> <alpine.LSU.2.11.1409161555120.5144@eggly.anvils> <alpine.DEB.2.11.1409162230160.12769@gentwo.org>
- <20140917135719.GK2840@worktop.localdomain>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 17 Sep 2014 14:38:26 -0700 (PDT)
+Message-ID: <5419FF2F.4000705@oracle.com>
+Date: Wed, 17 Sep 2014 17:37:51 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: mm: BUG in unmap_page_range
+References: <54082B25.9090600@oracle.com> <20140908171853.GN17501@suse.de> <540DEDE7.4020300@oracle.com> <20140909213309.GQ17501@suse.de> <540F7D42.1020402@oracle.com> <alpine.LSU.2.11.1409091903390.10989@eggly.anvils> <20140910124732.GT17501@suse.de> <alpine.LSU.2.11.1409101210520.1744@eggly.anvils> <54110C62.4030702@oracle.com> <alpine.LSU.2.11.1409110356280.2116@eggly.anvils> <20140911162827.GZ17501@suse.de> <5412246E.109@oracle.com>
+In-Reply-To: <5412246E.109@oracle.com>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Christoph Lameter <cl@linux.com>, Hugh Dickins <hughd@google.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger@dilger.ca>, linux-mm <linux-mm@kvack.org>, linux-ext4@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Cyrill Gorcunov <gorcunov@gmail.com>
 
-On Wed, 17 Sep 2014, Peter Zijlstra wrote:
-> On Tue, Sep 16, 2014 at 10:31:24PM -0500, Christoph Lameter wrote:
-> > On Tue, 16 Sep 2014, Hugh Dickins wrote:
-> > 
-> > > On the page migration issue: it's not quite as straightforward as
-> > > Christoph suggests.  He and I agree completely that mlocked pages
-> > > should be migratable, but some real-time-minded people disagree:
-> > > so normal compaction is still forbidden to migrate mlocked pages in
-> > > the vanilla kernel (though we in Google patch that prohibition out).
-> > > So pinning by refcount is no worse for compaction than mlocking,
-> > > in the vanilla kernel.
-> > 
-> > Note though that compaction is not the only mechanism that uses page
-> > migration.
+On 09/11/2014 06:38 PM, Sasha Levin wrote:
+> On 09/11/2014 12:28 PM, Mel Gorman wrote:
+>> > Agreed. If 3.17-rc4 looks stable with the VM_BUG_ON then it would be
+>> > really nice if you could bisect 3.17-rc4 to linux-next carrying the
+>> > VM_BUG_ON(!(val & _PAGE_PRESENT)) check at each bisection point. I'm not
+>> > 100% sure if I'm seeing the same corruption as you or some other issue and
+>> > do not want to conflate numerous different problems into one. I know this
+>> > is a pain in the ass but if 3.17-rc4 looks stable then a bisection might
+>> > be faster overall than my constant head scratching :(
+> The good news are that 3.17-rc4 seems to be stable. I'll start the bisection,
+> which I suspect would take several days. I'll update when I run into something.
 
-True: offhand, I think memory hotremove, and CMA, and explicit mempolicy
-changes, are all (for good reason) allowed to migrate mlocked pages; but
-the case which most interests many is migration for compaction.
+I might need a bit of a help here. The bisection is going sideways because I
+can't reliably reproduce the issue.
 
-> 
-> Agreed, and not all migration paths check for mlocked iirc. ISTR it is
-> very much possible for mlocked pages to get migrated in mainline.
+We don't know what's causing this issue, but we know what the symptoms are. Is
+there a VM_BUG_ON we could add somewhere so that it would be more likely to
+trigger?
 
-I think all the checks are for unevictable; and certainly we permit
-races whereby an mlocked page may miss the unevictable LRU, until
-subsequent reclaim corrects the omission.  But I think that's the
-extent to which mlocked pages might be migrated for compaction at
-present.
 
-Hugh
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
