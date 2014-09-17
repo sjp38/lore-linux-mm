@@ -1,49 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id DA0B16B0037
-	for <linux-mm@kvack.org>; Wed, 17 Sep 2014 12:58:57 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id eu11so1112509pac.37
-        for <linux-mm@kvack.org>; Wed, 17 Sep 2014 09:58:57 -0700 (PDT)
-Received: from foss-mx-na.foss.arm.com (foss-mx-na.foss.arm.com. [217.140.108.86])
-        by mx.google.com with ESMTP id hh2si32380883pbb.80.2014.09.17.09.28.54
-        for <linux-mm@kvack.org>;
-        Wed, 17 Sep 2014 09:28:54 -0700 (PDT)
-Date: Wed, 17 Sep 2014 17:28:23 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH] arm64:free_initrd_mem should also free the memblock
-Message-ID: <20140917162822.GB15261@e104818-lin.cambridge.arm.com>
-References: <35FD53F367049845BC99AC72306C23D103CDBFBFB029@CNBJMBX05.corpusers.net>
- <20140915183334.GA30737@arm.com>
- <20140915184023.GF12361@n2100.arm.linux.org.uk>
- <20140915185027.GC30737@arm.com>
- <35FD53F367049845BC99AC72306C23D103D6DB49160C@CNBJMBX05.corpusers.net>
+Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 12AC66B0035
+	for <linux-mm@kvack.org>; Wed, 17 Sep 2014 13:00:34 -0400 (EDT)
+Received: by mail-qc0-f169.google.com with SMTP id r5so2678745qcx.28
+        for <linux-mm@kvack.org>; Wed, 17 Sep 2014 10:00:33 -0700 (PDT)
+Received: from mail-qg0-x22d.google.com (mail-qg0-x22d.google.com [2607:f8b0:400d:c04::22d])
+        by mx.google.com with ESMTPS id a17si23184594qai.28.2014.09.17.10.00.33
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 17 Sep 2014 10:00:33 -0700 (PDT)
+Received: by mail-qg0-f45.google.com with SMTP id j107so2268303qga.18
+        for <linux-mm@kvack.org>; Wed, 17 Sep 2014 10:00:33 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <35FD53F367049845BC99AC72306C23D103D6DB49160C@CNBJMBX05.corpusers.net>
+In-Reply-To: <20140917114214.GB30733@minantech.com>
+References: <1410811885-17267-1-git-send-email-andreslc@google.com>
+	<20140917102635.GA30733@minantech.com>
+	<20140917112713.GB1273@potion.brq.redhat.com>
+	<20140917114214.GB30733@minantech.com>
+Date: Wed, 17 Sep 2014 10:00:32 -0700
+Message-ID: <CAJu=L58O147YQJyODD8MFtdvQ6+TSG6gi6qGySgH3EigP32MrQ@mail.gmail.com>
+Subject: Re: [PATCH] kvm: Faults which trigger IO release the mmap_sem
+From: Andres Lagar-Cavilla <andreslc@google.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Cc: Will Deacon <Will.Deacon@arm.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>
+To: Gleb Natapov <gleb@kernel.org>
+Cc: =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Gleb Natapov <gleb@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Sep 16, 2014 at 02:53:55AM +0100, Wang, Yalin wrote:
-> The reason that a want merge this patch is that
-> It confuse me when I debug memory issue by 
-> /sys/kernel/debug/memblock/reserved  debug file,
-> It show lots of un-correct reserved memory.
-> In fact, I also send a patch to cma driver part
-> For this issue too:
-> http://ozlabs.org/~akpm/mmots/broken-out/free-the-reserved-memblock-when-free-cma-pages.patch
-> 
-> I want to remove these un-correct memblock parts as much as possible,
-> so that I can see more correct info from /sys/kernel/debug/memblock/reserved
-> debug file .
+On Wed, Sep 17, 2014 at 4:42 AM, Gleb Natapov <gleb@kernel.org> wrote:
+> On Wed, Sep 17, 2014 at 01:27:14PM +0200, Radim Kr=C4=8Dm=C3=A1=C5=99 wro=
+te:
+>> 2014-09-17 13:26+0300, Gleb Natapov:
+>> > For async_pf_execute() you do not need to even retry. Next guest's pag=
+e fault
+>> > will retry it for you.
+>>
+>> Wouldn't that be a waste of vmentries?
+> This is how it will work with or without this second gup. Page is not
+> mapped into a shadow page table on this path, it happens on a next fault.
 
-Could we not always call memblock_free() from free_reserved_area() (with
-a dummy definition when !CONFIG_HAVE_MEMBLOCK)?
+The point is that the gup in the async pf completion from the work
+queue will not relinquish the mmap semaphore. And it most definitely
+should, given that we are likely looking at swap/filemap.
 
--- 
-Catalin
+Andres
+
+>
+> --
+>                         Gleb.
+
+
+
+--=20
+Andres Lagar-Cavilla | Google Kernel Team | andreslc@google.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
