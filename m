@@ -1,95 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FA976B003A
-	for <linux-mm@kvack.org>; Wed, 17 Sep 2014 21:50:56 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id lf10so332080pab.36
-        for <linux-mm@kvack.org>; Wed, 17 Sep 2014 18:50:55 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
-        by mx.google.com with ESMTPS id hs3si36141527pdb.108.2014.09.17.18.50.54
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D8D06B003C
+	for <linux-mm@kvack.org>; Wed, 17 Sep 2014 21:58:20 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id hz1so339826pad.35
+        for <linux-mm@kvack.org>; Wed, 17 Sep 2014 18:58:19 -0700 (PDT)
+Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
+        by mx.google.com with ESMTPS id iv3si37385888pbd.30.2014.09.17.18.58.17
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 17 Sep 2014 18:50:54 -0700 (PDT)
-From: Wang Nan <wangnan0@huawei.com>
-Subject: [PATCH] cgroup/kmemleak: add kmemleak_free() for cgroup deallocations.
-Date: Thu, 18 Sep 2014 09:38:05 +0800
-Message-ID: <1411004285-42101-1-git-send-email-wangnan0@huawei.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 17 Sep 2014 18:58:19 -0700 (PDT)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Thu, 18 Sep 2014 09:58:10 +0800
+Subject: [PATCH] arm:extend the reserved mrmory for initrd to be page aligned
+Message-ID: <35FD53F367049845BC99AC72306C23D103D6DB491616@CNBJMBX05.corpusers.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Steven Rostedt <rostedt@goodmis.org>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>
+To: 'Will Deacon' <will.deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-msm@vger.kernel.org'" <linux-arm-msm@vger.kernel.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>
 
-Commit ff7ee93f4 introduces kmemleak_alloc() for alloc_page_cgroup(),
-but corresponding kmemleak_free() is missing, which makes kmemleak be
-wrongly disabled after memory offlining. Log is pasted at the end of
-this commit message.
+this patch extend the start and end address of initrd to be page aligned,
+so that we can free all memory including the un-page aligned head or tail
+page of initrd, if the start or end address of initrd are not page
+aligned, the page can't be freed by free_initrd_mem() function.
 
-This patch add kmemleak_free() into free_page_cgroup(). During page
-offlining, this patch removes corresponding entries in kmemleak rbtree.
-After that, the freed memory can be allocated again by other subsystems
-without killing kmemleak.
-
-bash # for x in 1 2 3 4; do echo offline > /sys/devices/system/memory/memory$x/state ; sleep 1; done ; dmesg | grep leak
-[   45.537934] Offlined Pages 32768
-[   46.617892] kmemleak: Cannot insert 0xffff880016969000 into the object search tree (overlaps existing)
-[   46.617892] CPU: 0 PID: 412 Comm: sleep Not tainted 3.17.0-rc5+ #86
-[   46.617892] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
-[   46.617892]  ffff880016823d10 ffff880018bdfc38 ffffffff81725d2c ffff88001780e950
-[   46.617892]  ffff880016969000 ffff880018bdfc88 ffffffff8117a9e6 ffff880018bdfc78
-[   46.617892]  0000000000000096 ffff880017812800 ffffffff81c2eda0 ffff880016969000
-[   46.617892] Call Trace:
-[   46.617892]  [<ffffffff81725d2c>] dump_stack+0x46/0x58
-[   46.617892]  [<ffffffff8117a9e6>] create_object+0x266/0x2c0
-[   46.617892]  [<ffffffff8171d2f6>] kmemleak_alloc+0x26/0x50
-[   46.617892]  [<ffffffff8116a3a3>] kmem_cache_alloc+0xd3/0x160
-[   46.617892]  [<ffffffff81058e59>] __sigqueue_alloc+0x49/0xd0
-[   46.617892]  [<ffffffff8105a41b>] __send_signal+0xcb/0x410
-[   46.617892]  [<ffffffff8105a7a5>] send_signal+0x45/0x90
-[   46.617892]  [<ffffffff8105a803>] __group_send_sig_info+0x13/0x20
-[   46.617892]  [<ffffffff8105bd0b>] do_notify_parent+0x1bb/0x260
-[   46.617892]  [<ffffffff81077e7a>] ? sched_move_task+0xaa/0x130
-[   46.617892]  [<ffffffff81050917>] do_exit+0x767/0xa40
-[   46.617892]  [<ffffffff81050c84>] do_group_exit+0x44/0xa0
-[   46.617892]  [<ffffffff81050cf7>] SyS_exit_group+0x17/0x20
-[   46.617892]  [<ffffffff8172cd12>] system_call_fastpath+0x16/0x1b
-[   46.617892] kmemleak: Kernel memory leak detector disabled
-[   46.617892] kmemleak: Object 0xffff880016900000 (size 524288):
-[   46.617892] kmemleak:   comm "swapper/0", pid 0, jiffies 4294667296
-[   46.617892] kmemleak:   min_count = 0
-[   46.617892] kmemleak:   count = 0
-[   46.617892] kmemleak:   flags = 0x1
-[   46.617892] kmemleak:   checksum = 0
-[   46.617892] kmemleak:   backtrace:
-[   46.617892]      [<ffffffff81d0a7f0>] log_early+0x63/0x77
-[   46.617892]      [<ffffffff8171d31b>] kmemleak_alloc+0x4b/0x50
-[   46.617892]      [<ffffffff81720e4f>] init_section_page_cgroup+0x7f/0xf5
-[   46.617892]      [<ffffffff81d0a6f0>] page_cgroup_init+0xc5/0xd0
-[   46.617892]      [<ffffffff81ce4ed9>] start_kernel+0x333/0x408
-[   46.617892]      [<ffffffff81ce45b2>] x86_64_start_reservations+0x2a/0x2c
-[   46.617892]      [<ffffffff81ce46a9>] x86_64_start_kernel+0xf5/0xfc
-[   46.617892]      [<ffffffffffffffff>] 0xffffffffffffffff
-
-Signed-off-by: Wang Nan <wangnan0@huawei.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>
+Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
 ---
- mm/page_cgroup.c | 1 +
- 1 file changed, 1 insertion(+)
+ arch/arm/mm/init.c   | 5 +++++
+ arch/arm64/mm/init.c | 8 +++++++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)
 
-diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-index 3708264..5331c2b 100644
---- a/mm/page_cgroup.c
-+++ b/mm/page_cgroup.c
-@@ -171,6 +171,7 @@ static void free_page_cgroup(void *addr)
- 			sizeof(struct page_cgroup) * PAGES_PER_SECTION;
- 
- 		BUG_ON(PageReserved(page));
-+		kmemleak_free(addr);
- 		free_pages_exact(addr, table_size);
+diff --git a/arch/arm/mm/init.c b/arch/arm/mm/init.c
+index 659c75d..9221645 100644
+--- a/arch/arm/mm/init.c
++++ b/arch/arm/mm/init.c
+@@ -636,6 +636,11 @@ static int keep_initrd;
+ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+ 	if (!keep_initrd) {
++		if (start =3D=3D initrd_start)
++			start =3D round_down(start, PAGE_SIZE);
++		if (end =3D=3D initrd_end)
++			end =3D round_up(end, PAGE_SIZE);
++
+ 		poison_init_mem((void *)start, PAGE_ALIGN(end) - start);
+ 		free_reserved_area((void *)start, (void *)end, -1, "initrd");
  	}
+diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+index 5472c24..c5512f6 100644
+--- a/arch/arm64/mm/init.c
++++ b/arch/arm64/mm/init.c
+@@ -334,8 +334,14 @@ static int keep_initrd;
+=20
+ void free_initrd_mem(unsigned long start, unsigned long end)
+ {
+-	if (!keep_initrd)
++	if (!keep_initrd) {
++		if (start =3D=3D initrd_start)
++			start =3D round_down(start, PAGE_SIZE);
++		if (end =3D=3D initrd_end)
++			end =3D round_up(end, PAGE_SIZE);
++
+ 		free_reserved_area((void *)start, (void *)end, 0, "initrd");
++	}
  }
--- 
-1.8.4
+=20
+ static int __init keepinitrd_setup(char *__unused)
+--=20
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
