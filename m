@@ -1,45 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 095816B009F
-	for <linux-mm@kvack.org>; Thu, 18 Sep 2014 12:04:53 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id et14so1797520pad.14
-        for <linux-mm@kvack.org>; Thu, 18 Sep 2014 09:04:53 -0700 (PDT)
-Received: from foss-mx-na.foss.arm.com (foss-mx-na.foss.arm.com. [217.140.108.86])
-        by mx.google.com with ESMTP id rn6si40398555pab.165.2014.09.18.09.04.51
-        for <linux-mm@kvack.org>;
-        Thu, 18 Sep 2014 09:04:51 -0700 (PDT)
-Date: Thu, 18 Sep 2014 17:04:34 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH Resend] arm:extend the reserved mrmory for initrd to be
- page aligned
-Message-ID: <20140918160434.GC25330@e104818-lin.cambridge.arm.com>
-References: <35FD53F367049845BC99AC72306C23D103D6DB491616@CNBJMBX05.corpusers.net>
- <20140918055553.GO3755@pengutronix.de>
- <35FD53F367049845BC99AC72306C23D103D6DB491619@CNBJMBX05.corpusers.net>
+Received: from mail-vc0-f170.google.com (mail-vc0-f170.google.com [209.85.220.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 49CAE6B00A1
+	for <linux-mm@kvack.org>; Thu, 18 Sep 2014 12:42:12 -0400 (EDT)
+Received: by mail-vc0-f170.google.com with SMTP id hy4so974048vcb.29
+        for <linux-mm@kvack.org>; Thu, 18 Sep 2014 09:42:12 -0700 (PDT)
+Received: from mail-vc0-x22d.google.com (mail-vc0-x22d.google.com [2607:f8b0:400c:c03::22d])
+        by mx.google.com with ESMTPS id wl13si10322754vcb.9.2014.09.18.09.42.11
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 18 Sep 2014 09:42:11 -0700 (PDT)
+Received: by mail-vc0-f173.google.com with SMTP id le20so954966vcb.4
+        for <linux-mm@kvack.org>; Thu, 18 Sep 2014 09:42:11 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <35FD53F367049845BC99AC72306C23D103D6DB491619@CNBJMBX05.corpusers.net>
+In-Reply-To: <20140918154621.F16A2C86@viggo.jf.intel.com>
+References: <20140918154621.F16A2C86@viggo.jf.intel.com>
+Date: Thu, 18 Sep 2014 20:42:10 +0400
+Message-ID: <CAPAsAGzSfW6ba5Bcij_ndVZ7M8fyQGWS7KO76NZDbifRbW-XNg@mail.gmail.com>
+Subject: Re: [PATCH] x86: update memory map about hypervisor-reserved area
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Cc: 'Uwe =?iso-8859-1?Q?Kleine-K=F6nig'?= <u.kleine-koenig@pengutronix.de>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, "'linux-arm-msm@vger.kernel.org'" <linux-arm-msm@vger.kernel.org>, Will Deacon <Will.Deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>
+To: Dave Hansen <dave@sr71.net>
+Cc: LKML <linux-kernel@vger.kernel.org>, dave.hansen@linux.intel.com, Dmitry Vyukov <dvyukov@google.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
 
-On Thu, Sep 18, 2014 at 07:53:57AM +0100, Wang, Yalin wrote:
-> This patch extends the start and end address of initrd to be page aligned,
-> so that we can free all memory including the un-page aligned head or tail
-> page of initrd, if the start or end address of initrd are not page
-> aligned, the page can't be freed by free_initrd_mem() function.
-> 
-> Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
+2014-09-18 19:46 GMT+04:00 Dave Hansen <dave@sr71.net>:
+>
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+>
+> Peter Anvin says:
+>> 0xffff880000000000 is the lowest usable address because we have
+>> agreed to leave 0xffff800000000000-0xffff880000000000 for the
+>> hypervisor or other non-OS uses.
+>
+> Let's call this out in the documentation.
+>
+> This came up during the kernel address sanitizer discussions
+> where it was proposed to use this area for other kernel things.
+>
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+> Cc: Dmitry Vyukov <dvyukov@google.com>
+> Cc: Andi Kleen <andi@firstfloor.org>
+> Cc: x86@kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> ---
+>
+>  b/Documentation/x86/x86_64/mm.txt |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff -puN Documentation/x86/x86_64/mm.txt~update-x86-mm-doc Documentation/x86/x86_64/mm.txt
+> --- a/Documentation/x86/x86_64/mm.txt~update-x86-mm-doc 2014-09-17 21:44:10.499781092 -0700
+> +++ b/Documentation/x86/x86_64/mm.txt   2014-09-17 21:44:31.852740822 -0700
+> @@ -5,7 +5,7 @@ Virtual memory map with 4 level page tab
+>
+>  0000000000000000 - 00007fffffffffff (=47 bits) user space, different per mm
+>  hole caused by [48:63] sign extension
+> -ffff800000000000 - ffff80ffffffffff (=40 bits) guard hole
+> +ffff800000000000 - ffff80ffffffffff (=40 bits) guard hole, reserved for hypervisor
 
-You still have a typo in the subject.
+ffff800000000000 - ffff87ffffffffff (=43 bits) guard hole, reserved
+for hypervisor
 
-For the arm64 part:
+>  ffff880000000000 - ffffc7ffffffffff (=64 TB) direct mapping of all phys. memory
+>  ffffc80000000000 - ffffc8ffffffffff (=40 bits) hole
+>  ffffc90000000000 - ffffe8ffffffffff (=45 bits) vmalloc/ioremap space
+> _
 
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 
-so you can merge it via Russell's patch system.
+
+-- 
+Best regards,
+Andrey Ryabinin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
