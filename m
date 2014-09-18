@@ -1,79 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f170.google.com (mail-vc0-f170.google.com [209.85.220.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 49CAE6B00A1
-	for <linux-mm@kvack.org>; Thu, 18 Sep 2014 12:42:12 -0400 (EDT)
-Received: by mail-vc0-f170.google.com with SMTP id hy4so974048vcb.29
-        for <linux-mm@kvack.org>; Thu, 18 Sep 2014 09:42:12 -0700 (PDT)
-Received: from mail-vc0-x22d.google.com (mail-vc0-x22d.google.com [2607:f8b0:400c:c03::22d])
-        by mx.google.com with ESMTPS id wl13si10322754vcb.9.2014.09.18.09.42.11
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id B40E46B00A3
+	for <linux-mm@kvack.org>; Thu, 18 Sep 2014 12:59:44 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id v10so1794304pde.17
+        for <linux-mm@kvack.org>; Thu, 18 Sep 2014 09:59:44 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id dl9si13557957pdb.66.2014.09.18.09.59.43
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 18 Sep 2014 09:42:11 -0700 (PDT)
-Received: by mail-vc0-f173.google.com with SMTP id le20so954966vcb.4
-        for <linux-mm@kvack.org>; Thu, 18 Sep 2014 09:42:11 -0700 (PDT)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 18 Sep 2014 09:59:43 -0700 (PDT)
+Message-ID: <541B0E35.4090302@oracle.com>
+Date: Thu, 18 Sep 2014 12:54:13 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20140918154621.F16A2C86@viggo.jf.intel.com>
-References: <20140918154621.F16A2C86@viggo.jf.intel.com>
-Date: Thu, 18 Sep 2014 20:42:10 +0400
-Message-ID: <CAPAsAGzSfW6ba5Bcij_ndVZ7M8fyQGWS7KO76NZDbifRbW-XNg@mail.gmail.com>
-Subject: Re: [PATCH] x86: update memory map about hypervisor-reserved area
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [RFC/PATCH v2 02/10] x86_64: add KASan support
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com> <1410359487-31938-1-git-send-email-a.ryabinin@samsung.com> <1410359487-31938-3-git-send-email-a.ryabinin@samsung.com> <5410724B.8000803@intel.com> <CAPAsAGzm29VWz8ZvOu+fVGn4Vbj7bQZAnB11M5ZZXRTQTchj0w@mail.gmail.com> <5410D486.4060200@intel.com> <9E98939B-E2C6-4530-A822-ED550FC3B9D2@zytor.com> <54112512.6040409@oracle.com> <54118CC9.8070405@samsung.com>
+In-Reply-To: <54118CC9.8070405@samsung.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: LKML <linux-kernel@vger.kernel.org>, dave.hansen@linux.intel.com, Dmitry Vyukov <dvyukov@google.com>, Andi Kleen <andi@firstfloor.org>, x86@kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
+To: Andrey Ryabinin <a.ryabinin@samsung.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@intel.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
 
-2014-09-18 19:46 GMT+04:00 Dave Hansen <dave@sr71.net>:
->
-> From: Dave Hansen <dave.hansen@linux.intel.com>
->
-> Peter Anvin says:
->> 0xffff880000000000 is the lowest usable address because we have
->> agreed to leave 0xffff800000000000-0xffff880000000000 for the
->> hypervisor or other non-OS uses.
->
-> Let's call this out in the documentation.
->
-> This came up during the kernel address sanitizer discussions
-> where it was proposed to use this area for other kernel things.
->
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-> Cc: Dmitry Vyukov <dvyukov@google.com>
-> Cc: Andi Kleen <andi@firstfloor.org>
-> Cc: x86@kernel.org
-> Cc: linux-mm@kvack.org
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> ---
->
->  b/Documentation/x86/x86_64/mm.txt |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff -puN Documentation/x86/x86_64/mm.txt~update-x86-mm-doc Documentation/x86/x86_64/mm.txt
-> --- a/Documentation/x86/x86_64/mm.txt~update-x86-mm-doc 2014-09-17 21:44:10.499781092 -0700
-> +++ b/Documentation/x86/x86_64/mm.txt   2014-09-17 21:44:31.852740822 -0700
-> @@ -5,7 +5,7 @@ Virtual memory map with 4 level page tab
->
->  0000000000000000 - 00007fffffffffff (=47 bits) user space, different per mm
->  hole caused by [48:63] sign extension
-> -ffff800000000000 - ffff80ffffffffff (=40 bits) guard hole
-> +ffff800000000000 - ffff80ffffffffff (=40 bits) guard hole, reserved for hypervisor
+On 09/11/2014 07:51 AM, Andrey Ryabinin wrote:
+> On 09/11/2014 08:29 AM, Sasha Levin wrote:
+>> > On 09/11/2014 12:26 AM, H. Peter Anvin wrote:
+>>> >> Except you just broke PVop kernels.
+>> > 
+>> > So is this why v2 refuses to boot on my KVM guest? (was digging
+>> > into that before I send a mail out).
+>> > 
+> Maybe this will help?
+> 
+> 
+> From: Andrey Ryabinin <a.ryabinin@samsung.com>
+> Subject: [PATCH] x86_64: kasan: fix kernel boot with CONFIG_DEBUG_VIRTUAL=y
+> 
+> Use __pa_nodebug instead of __pa before shadow initialized.
+> __pa with CONFIG_DEBUG_VIRTUAL=y may result in __asan_load
+> call before shadow area initialized.
 
-ffff800000000000 - ffff87ffffffffff (=43 bits) guard hole, reserved
-for hypervisor
-
->  ffff880000000000 - ffffc7ffffffffff (=64 TB) direct mapping of all phys. memory
->  ffffc80000000000 - ffffc8ffffffffff (=40 bits) hole
->  ffffc90000000000 - ffffe8ffffffffff (=45 bits) vmalloc/ioremap space
-> _
+Woops, I got sidetracked and forgot to reply. Yes, this patch fixed
+the issue, KASan is running properly now.
 
 
-
--- 
-Best regards,
-Andrey Ryabinin
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
