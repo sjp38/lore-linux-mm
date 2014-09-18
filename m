@@ -1,46 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 51D2E6B0093
-	for <linux-mm@kvack.org>; Thu, 18 Sep 2014 11:16:45 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id rd3so1682851pab.18
-        for <linux-mm@kvack.org>; Thu, 18 Sep 2014 08:16:45 -0700 (PDT)
-Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.229])
-        by mx.google.com with ESMTP id fl2si40022871pbb.202.2014.09.18.08.16.43
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id DB49A6B0096
+	for <linux-mm@kvack.org>; Thu, 18 Sep 2014 11:46:54 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id fb1so868655pad.35
+        for <linux-mm@kvack.org>; Thu, 18 Sep 2014 08:46:54 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id gx11si7174017pbd.145.2014.09.18.08.46.48
         for <linux-mm@kvack.org>;
-        Thu, 18 Sep 2014 08:16:43 -0700 (PDT)
-Date: Thu, 18 Sep 2014 11:16:34 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH] cgroup/kmemleak: add kmemleak_free() for cgroup
- deallocations.
-Message-ID: <20140918111634.1bb56716@gandalf.local.home>
-In-Reply-To: <20140918141639.GA17230@cmpxchg.org>
-References: <1411004285-42101-1-git-send-email-wangnan0@huawei.com>
-	<20140918141639.GA17230@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 18 Sep 2014 08:46:48 -0700 (PDT)
+Subject: [PATCH] x86: update memory map about hypervisor-reserved area
+From: Dave Hansen <dave@sr71.net>
+Date: Thu, 18 Sep 2014 08:46:21 -0700
+Message-Id: <20140918154621.F16A2C86@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Wang Nan <wangnan0@huawei.com>, Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>
+To: linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com, ryabinin.a.a@gmail.com, dvyukov@google.com, andi@firstfloor.org, x86@kernel.org, linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com
 
-On Thu, 18 Sep 2014 10:16:39 -0400
-Johannes Weiner <hannes@cmpxchg.org> wrote:
+
+From: Dave Hansen <dave.hansen@linux.intel.com>
+
+Peter Anvin says:
+> 0xffff880000000000 is the lowest usable address because we have
+> agreed to leave 0xffff800000000000-0xffff880000000000 for the
+> hypervisor or other non-OS uses.
+
+Let's call this out in the documentation.
+
+This came up during the kernel address sanitizer discussions
+where it was proposed to use this area for other kernel things.
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andi Kleen <andi@firstfloor.org>
+Cc: x86@kernel.org
+Cc: linux-mm@kvack.org
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+---
+
+ b/Documentation/x86/x86_64/mm.txt |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff -puN Documentation/x86/x86_64/mm.txt~update-x86-mm-doc Documentation/x86/x86_64/mm.txt
+--- a/Documentation/x86/x86_64/mm.txt~update-x86-mm-doc	2014-09-17 21:44:10.499781092 -0700
++++ b/Documentation/x86/x86_64/mm.txt	2014-09-17 21:44:31.852740822 -0700
+@@ -5,7 +5,7 @@ Virtual memory map with 4 level page tab
  
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> Should this go into -stable?  I'm inclined to say no, this has been
-> busted since Steve's other kmemleak fix since 2011, and that change
-> also didn't go into -stable.
-
-It only breaks kmem tests, and since nobody noticed recently, I don't
-think it needs to go into stable.
-
-On the other hand, it's a very non intrusive fix that I highly doubt
-will cause other regressions, so it may not be bad to add a stable tag
-to it.
-
--- Steve
+ 0000000000000000 - 00007fffffffffff (=47 bits) user space, different per mm
+ hole caused by [48:63] sign extension
+-ffff800000000000 - ffff80ffffffffff (=40 bits) guard hole
++ffff800000000000 - ffff80ffffffffff (=40 bits) guard hole, reserved for hypervisor
+ ffff880000000000 - ffffc7ffffffffff (=64 TB) direct mapping of all phys. memory
+ ffffc80000000000 - ffffc8ffffffffff (=40 bits) hole
+ ffffc90000000000 - ffffe8ffffffffff (=45 bits) vmalloc/ioremap space
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
