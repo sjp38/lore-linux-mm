@@ -1,50 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
-	by kanga.kvack.org (Postfix) with ESMTP id CBDFA6B0068
-	for <linux-mm@kvack.org>; Thu, 18 Sep 2014 01:56:07 -0400 (EDT)
-Received: by mail-lb0-f176.google.com with SMTP id z11so452649lbi.35
-        for <linux-mm@kvack.org>; Wed, 17 Sep 2014 22:56:06 -0700 (PDT)
-Received: from metis.ext.pengutronix.de (metis.ext.pengutronix.de. [2001:6f8:1178:4:290:27ff:fe1d:cc33])
-        by mx.google.com with ESMTPS id jd4si14301970lac.131.2014.09.17.22.56.05
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 72CB26B006C
+	for <linux-mm@kvack.org>; Thu, 18 Sep 2014 02:13:31 -0400 (EDT)
+Received: by mail-we0-f177.google.com with SMTP id u57so342299wes.36
+        for <linux-mm@kvack.org>; Wed, 17 Sep 2014 23:13:31 -0700 (PDT)
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+        by mx.google.com with ESMTPS id j2si30922445wjy.1.2014.09.17.23.13.29
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 17 Sep 2014 22:56:05 -0700 (PDT)
-Date: Thu, 18 Sep 2014 07:55:53 +0200
-From: Uwe =?iso-8859-1?Q?Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
-Subject: Re: [PATCH] arm:extend the reserved mrmory for initrd to be page
- aligned
-Message-ID: <20140918055553.GO3755@pengutronix.de>
-References: <35FD53F367049845BC99AC72306C23D103D6DB491616@CNBJMBX05.corpusers.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 17 Sep 2014 23:13:30 -0700 (PDT)
+Received: by mail-wi0-f169.google.com with SMTP id e4so1105427wiv.4
+        for <linux-mm@kvack.org>; Wed, 17 Sep 2014 23:13:29 -0700 (PDT)
+Date: Thu, 18 Sep 2014 09:13:26 +0300
+From: Gleb Natapov <gleb@kernel.org>
+Subject: Re: [PATCH v2] kvm: Faults which trigger IO release the mmap_sem
+Message-ID: <20140918061326.GC30733@minantech.com>
+References: <1410811885-17267-1-git-send-email-andreslc@google.com>
+ <1410976308-7683-1-git-send-email-andreslc@google.com>
+ <20140918002917.GA3921@kernel>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <35FD53F367049845BC99AC72306C23D103D6DB491616@CNBJMBX05.corpusers.net>
+In-Reply-To: <20140918002917.GA3921@kernel>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Cc: 'Will Deacon' <will.deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-msm@vger.kernel.org'" <linux-arm-msm@vger.kernel.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>
+To: Wanpeng Li <wanpeng.li@linux.intel.com>
+Cc: Andres Lagar-Cavilla <andreslc@google.com>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hello,
+On Thu, Sep 18, 2014 at 08:29:17AM +0800, Wanpeng Li wrote:
+> Hi Andres,
+> On Wed, Sep 17, 2014 at 10:51:48AM -0700, Andres Lagar-Cavilla wrote:
+> [...]
+> > static inline int check_user_page_hwpoison(unsigned long addr)
+> > {
+> > 	int rc, flags = FOLL_TOUCH | FOLL_HWPOISON | FOLL_WRITE;
+> >@@ -1177,9 +1214,15 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
+> > 		npages = get_user_page_nowait(current, current->mm,
+> > 					      addr, write_fault, page);
+> > 		up_read(&current->mm->mmap_sem);
+> >-	} else
+> >-		npages = get_user_pages_fast(addr, 1, write_fault,
+> >-					     page);
+> >+	} else {
+> >+		/*
+> >+		 * By now we have tried gup_fast, and possibly async_pf, and we
+> >+		 * are certainly not atomic. Time to retry the gup, allowing
+> >+		 * mmap semaphore to be relinquished in the case of IO.
+> >+		 */
+> >+		npages = kvm_get_user_page_io(current, current->mm, addr,
+> >+					      write_fault, page);
+> >+	}
+> 
+> try_async_pf 
+>  gfn_to_pfn_async 
+>   __gfn_to_pfn  			async = false 
+                                        *async = false
 
-just some commit log nit picking:
+>    __gfn_to_pfn_memslot
+>     hva_to_pfn 
+> 	 hva_to_pfn_fast 
+> 	 hva_to_pfn_slow 
+hva_to_pfn_slow checks async not *async.
 
-$Subject ~= s/mrmory/memory/
+> 	  kvm_get_user_page_io
+> 
+> page will always be ready after kvm_get_user_page_io which leads to APF
+> don't need to work any more.
+> 
+> Regards,
+> Wanpeng Li
+> 
+> > 	if (npages != 1)
+> > 		return npages;
+> > 
+> >-- 
+> >2.1.0.rc2.206.gedb03e5
+> >
+> >--
+> >To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> >the body to majordomo@kvack.org.  For more info on Linux MM,
+> >see: http://www.linux-mm.org/ .
+> >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-And also "ARM: " is the more typical prefix. Don't know if there is a
-best practice for patches touching both arm and arm64. (But assuming
-this will go through Russell's patch tracker this doesn't matter much.)
-
-On Thu, Sep 18, 2014 at 09:58:10AM +0800, Wang, Yalin wrote:
-> this patch extend the start and end address of initrd to be page aligned,
-This patch extends ...
-
-Best regards
-Uwe
-
--- 
-Pengutronix e.K.                           | Uwe Kleine-Konig            |
-Industrial Linux Solutions                 | http://www.pengutronix.de/  |
+--
+			Gleb.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
