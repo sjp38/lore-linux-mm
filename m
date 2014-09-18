@@ -1,154 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id EDD2C6B0087
-	for <linux-mm@kvack.org>; Thu, 18 Sep 2014 08:13:33 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id rd3so1380598pab.40
-        for <linux-mm@kvack.org>; Thu, 18 Sep 2014 05:13:33 -0700 (PDT)
-Received: from cnbjrel02.sonyericsson.com (cnbjrel02.sonyericsson.com. [219.141.167.166])
-        by mx.google.com with ESMTPS id ci1si39393187pbb.85.2014.09.18.05.13.31
+Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C6A46B0088
+	for <linux-mm@kvack.org>; Thu, 18 Sep 2014 10:16:56 -0400 (EDT)
+Received: by mail-we0-f170.google.com with SMTP id u57so993914wes.29
+        for <linux-mm@kvack.org>; Thu, 18 Sep 2014 07:16:55 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id vt6si32194305wjc.99.2014.09.18.07.16.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 18 Sep 2014 05:13:32 -0700 (PDT)
-From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Thu, 18 Sep 2014 20:13:25 +0800
-Subject: RE: [PATCH] arm64:free_initrd_mem should also free the memblock
-Message-ID: <35FD53F367049845BC99AC72306C23D103D6DB4D6F21@CNBJMBX05.corpusers.net>
-References: <35FD53F367049845BC99AC72306C23D103CDBFBFB029@CNBJMBX05.corpusers.net>
- <20140915183334.GA30737@arm.com>
- <20140915184023.GF12361@n2100.arm.linux.org.uk>
- <20140915185027.GC30737@arm.com>
- <35FD53F367049845BC99AC72306C23D103D6DB49160C@CNBJMBX05.corpusers.net>
- <20140917162822.GB15261@e104818-lin.cambridge.arm.com>
- <20140917181254.GW12361@n2100.arm.linux.org.uk>
- <35FD53F367049845BC99AC72306C23D103D6DB49161B@CNBJMBX05.corpusers.net>,<20140918095914.GB5182@n2100.arm.linux.org.uk>
-In-Reply-To: <20140918095914.GB5182@n2100.arm.linux.org.uk>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Sep 2014 07:16:54 -0700 (PDT)
+Date: Thu, 18 Sep 2014 10:16:39 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] cgroup/kmemleak: add kmemleak_free() for cgroup
+ deallocations.
+Message-ID: <20140918141639.GA17230@cmpxchg.org>
+References: <1411004285-42101-1-git-send-email-wangnan0@huawei.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1411004285-42101-1-git-send-email-wangnan0@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <Will.Deacon@arm.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>
+To: Wang Nan <wangnan0@huawei.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Steven Rostedt <rostedt@goodmis.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>
 
-hi=20
+On Thu, Sep 18, 2014 at 09:38:05AM +0800, Wang Nan wrote:
+> Commit ff7ee93f4 introduces kmemleak_alloc() for alloc_page_cgroup(),
+> but corresponding kmemleak_free() is missing, which makes kmemleak be
+> wrongly disabled after memory offlining. Log is pasted at the end of
+> this commit message.
+> 
+> This patch add kmemleak_free() into free_page_cgroup(). During page
+> offlining, this patch removes corresponding entries in kmemleak rbtree.
+> After that, the freed memory can be allocated again by other subsystems
+> without killing kmemleak.
+> 
+> bash # for x in 1 2 3 4; do echo offline > /sys/devices/system/memory/memory$x/state ; sleep 1; done ; dmesg | grep leak
+> [   45.537934] Offlined Pages 32768
+> [   46.617892] kmemleak: Cannot insert 0xffff880016969000 into the object search tree (overlaps existing)
+> [   46.617892] CPU: 0 PID: 412 Comm: sleep Not tainted 3.17.0-rc5+ #86
+> [   46.617892] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+> [   46.617892]  ffff880016823d10 ffff880018bdfc38 ffffffff81725d2c ffff88001780e950
+> [   46.617892]  ffff880016969000 ffff880018bdfc88 ffffffff8117a9e6 ffff880018bdfc78
+> [   46.617892]  0000000000000096 ffff880017812800 ffffffff81c2eda0 ffff880016969000
+> [   46.617892] Call Trace:
+> [   46.617892]  [<ffffffff81725d2c>] dump_stack+0x46/0x58
+> [   46.617892]  [<ffffffff8117a9e6>] create_object+0x266/0x2c0
+> [   46.617892]  [<ffffffff8171d2f6>] kmemleak_alloc+0x26/0x50
+> [   46.617892]  [<ffffffff8116a3a3>] kmem_cache_alloc+0xd3/0x160
+> [   46.617892]  [<ffffffff81058e59>] __sigqueue_alloc+0x49/0xd0
+> [   46.617892]  [<ffffffff8105a41b>] __send_signal+0xcb/0x410
+> [   46.617892]  [<ffffffff8105a7a5>] send_signal+0x45/0x90
+> [   46.617892]  [<ffffffff8105a803>] __group_send_sig_info+0x13/0x20
+> [   46.617892]  [<ffffffff8105bd0b>] do_notify_parent+0x1bb/0x260
+> [   46.617892]  [<ffffffff81077e7a>] ? sched_move_task+0xaa/0x130
+> [   46.617892]  [<ffffffff81050917>] do_exit+0x767/0xa40
+> [   46.617892]  [<ffffffff81050c84>] do_group_exit+0x44/0xa0
+> [   46.617892]  [<ffffffff81050cf7>] SyS_exit_group+0x17/0x20
+> [   46.617892]  [<ffffffff8172cd12>] system_call_fastpath+0x16/0x1b
+> [   46.617892] kmemleak: Kernel memory leak detector disabled
+> [   46.617892] kmemleak: Object 0xffff880016900000 (size 524288):
+> [   46.617892] kmemleak:   comm "swapper/0", pid 0, jiffies 4294667296
+> [   46.617892] kmemleak:   min_count = 0
+> [   46.617892] kmemleak:   count = 0
+> [   46.617892] kmemleak:   flags = 0x1
+> [   46.617892] kmemleak:   checksum = 0
+> [   46.617892] kmemleak:   backtrace:
+> [   46.617892]      [<ffffffff81d0a7f0>] log_early+0x63/0x77
+> [   46.617892]      [<ffffffff8171d31b>] kmemleak_alloc+0x4b/0x50
+> [   46.617892]      [<ffffffff81720e4f>] init_section_page_cgroup+0x7f/0xf5
+> [   46.617892]      [<ffffffff81d0a6f0>] page_cgroup_init+0xc5/0xd0
+> [   46.617892]      [<ffffffff81ce4ed9>] start_kernel+0x333/0x408
+> [   46.617892]      [<ffffffff81ce45b2>] x86_64_start_reservations+0x2a/0x2c
+> [   46.617892]      [<ffffffff81ce46a9>] x86_64_start_kernel+0xf5/0xfc
+> [   46.617892]      [<ffffffffffffffff>] 0xffffffffffffffff
+> 
+> Signed-off-by: Wang Nan <wangnan0@huawei.com>
+> Cc: Steven Rostedt <rostedt@goodmis.org>
 
-(a)
-We have pages which are allocated on demand, which are then marked with
-the PG_reserved flag to indicate that they are something special.  These
-get counted in the statistics as "reserved" pages.  These pages may be
-freed at a later time.  These never appear in memblock.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-(b)
-We have pages which cover the kernel text/data.  These are never freed
-once the system is running.  Memblock records a chunk of memory reserved
-at boot time for the kernel, so that memblock does not try to allocate
-from that region.
-(c)
-We also have pages which cover the DT and initrd images.  Again, we need
-to mark them reserved in memblock so that it doesn't try to allocate from
-those regions while we're bringing the kernel up.  However, once the
-kernel is running, these areas are freed into the normal memory kernel
-memory allocators, but they remain in memblock.
-
-
-generically to say, the reserved memory i want to know  means all the physi=
-cal memory whose
-struct page are never placed into buddy system ,
-this means memblock.reserve  should include (b) , but not include (a) and (=
-c) .
-
-use debugfs to print all struct page which has  PG_reserved is a good idea =
-.
-But there is a little problem here :
-the struct page which has PG_reserved set maybe come from (a) or (b) ,
-if memblock.reserve also mark both (a) (b) as reserved ,
-we will assume it come from (b) , even it come from (a) ,
-this is wrong .
-
-but this special case is very rare , should not a serious problem .
-
-i will think of your new idea for reserved memory debug .
-
-Thanks !
-
-
-
-
-________________________________________
-From: Russell King - ARM Linux [linux@arm.linux.org.uk]
-Sent: Thursday, September 18, 2014 5:59 PM
-To: Wang, Yalin
-Cc: Catalin Marinas; Will Deacon; 'linux-mm@kvack.org'; 'linux-kernel@vger.=
-kernel.org'; 'linux-arm-kernel@lists.infradead.org'
-Subject: Re: [PATCH] arm64:free_initrd_mem should also free the memblock
-
-On Thu, Sep 18, 2014 at 05:38:54PM +0800, Wang, Yalin wrote:
-> Hi Russell,
->
-> mm..
-> I see your meaning,
-> But how to debug reserved memory,
-> I mean how to know which physical memory are reserved in kernel if
-> Not use /sys/kernel/debug/memblock/reserved  debug file ?
-
-What are you trying to do when you say "debug reserved memory" ?
-Let's first sort out what you mean by "reserved memory".
-
-We have pages which are allocated on demand, which are then marked with
-the PG_reserved flag to indicate that they are something special.  These
-get counted in the statistics as "reserved" pages.  These pages may be
-freed at a later time.  These never appear in memblock.
-
-We have pages which cover the kernel text/data.  These are never freed
-once the system is running.  Memblock records a chunk of memory reserved
-at boot time for the kernel, so that memblock does not try to allocate
-from that region.
-
-We also have pages which cover the DT and initrd images.  Again, we need
-to mark them reserved in memblock so that it doesn't try to allocate from
-those regions while we're bringing the kernel up.  However, once the
-kernel is running, these areas are freed into the normal memory kernel
-memory allocators, but they remain in memblock.
-
-So, even if you solve the third case, your picture of reserved memory
-from memblock is still very much incomplete, and adding memblock calls
-to all the sites which allocate and then reserve the pages is (a) going
-to add unnecessary overhead, and (b) is going to add quite a bit of
-complexity all over the kernel.
-
-Let me re-iterate.  memblock is a stepping stone for bringing the kernel
-up.  It is used early in boot to provide trivial memory allocation, and
-once the main kernel memory allocators are initialised (using allocations
-from memblock), memblock becomes mostly redundant - memblocks idea of
-reserved areas becomes completely redundant and unnecessary since that
-information is now tracked by the main kernel allocators.
-
-It's useful to leave memblock reserved memory in place, because then you
-have a picture at early kernel boot which you can then compare with the
-page arrays, and see what's changed between early boot and the current
-kernels state.  Yes, there is no code to dump out the page array - when
-you realise that dumping the page array (which is 262144 entries per
-gigabyte of memory) in some generic way becomes quite cumbersome.  The
-array itself is around 8MB per gigabyte of memory.
-
-If you want this information, it's probably best to write a custom debugfs
-entry which scans the page array, and dumps the regions of reserved memory
-(in other words, detects where the PG_reserved flag changes state between
-two consecutive pages.)
-
-With such a dump, you can then compare it with the memblock reserved
-debugfs file, and check whether the initrd was properly freed, etc.  If
-you dump it in the same format as the memblock reserved debugfs, you
-can compare the two using diff(1).
-
-The other advantage of this approach is that you're not asking lots of
-places in the kernel to gain additional calls to change the state of
-something that is never otherwise used.
-
---
-FTTC broadband for 0.8mile line: currently at 9.5Mbps down 400kbps up
-according to speedtest.net.=
+Should this go into -stable?  I'm inclined to say no, this has been
+busted since Steve's other kmemleak fix since 2011, and that change
+also didn't go into -stable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
