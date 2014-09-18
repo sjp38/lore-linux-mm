@@ -1,50 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 5494F6B0035
-	for <linux-mm@kvack.org>; Wed, 17 Sep 2014 17:38:27 -0400 (EDT)
-Received: by mail-qc0-f171.google.com with SMTP id x3so1796970qcv.2
-        for <linux-mm@kvack.org>; Wed, 17 Sep 2014 14:38:27 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id g66si6598389yhc.18.2014.09.17.14.38.26
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 17 Sep 2014 14:38:26 -0700 (PDT)
-Message-ID: <5419FF2F.4000705@oracle.com>
-Date: Wed, 17 Sep 2014 17:37:51 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A2A96B0035
+	for <linux-mm@kvack.org>; Wed, 17 Sep 2014 20:27:48 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id ey11so198427pad.20
+        for <linux-mm@kvack.org>; Wed, 17 Sep 2014 17:27:48 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id v4si37257510pdl.30.2014.09.17.17.27.43
+        for <linux-mm@kvack.org>;
+        Wed, 17 Sep 2014 17:27:43 -0700 (PDT)
+Date: Thu, 18 Sep 2014 08:29:17 +0800
+From: Wanpeng Li <wanpeng.li@linux.intel.com>
+Subject: Re: [PATCH v2] kvm: Faults which trigger IO release the mmap_sem
+Message-ID: <20140918002917.GA3921@kernel>
+Reply-To: Wanpeng Li <wanpeng.li@linux.intel.com>
+References: <1410811885-17267-1-git-send-email-andreslc@google.com>
+ <1410976308-7683-1-git-send-email-andreslc@google.com>
 MIME-Version: 1.0
-Subject: Re: mm: BUG in unmap_page_range
-References: <54082B25.9090600@oracle.com> <20140908171853.GN17501@suse.de> <540DEDE7.4020300@oracle.com> <20140909213309.GQ17501@suse.de> <540F7D42.1020402@oracle.com> <alpine.LSU.2.11.1409091903390.10989@eggly.anvils> <20140910124732.GT17501@suse.de> <alpine.LSU.2.11.1409101210520.1744@eggly.anvils> <54110C62.4030702@oracle.com> <alpine.LSU.2.11.1409110356280.2116@eggly.anvils> <20140911162827.GZ17501@suse.de> <5412246E.109@oracle.com>
-In-Reply-To: <5412246E.109@oracle.com>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1410976308-7683-1-git-send-email-andreslc@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Cyrill Gorcunov <gorcunov@gmail.com>
+To: Andres Lagar-Cavilla <andreslc@google.com>
+Cc: Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 09/11/2014 06:38 PM, Sasha Levin wrote:
-> On 09/11/2014 12:28 PM, Mel Gorman wrote:
->> > Agreed. If 3.17-rc4 looks stable with the VM_BUG_ON then it would be
->> > really nice if you could bisect 3.17-rc4 to linux-next carrying the
->> > VM_BUG_ON(!(val & _PAGE_PRESENT)) check at each bisection point. I'm not
->> > 100% sure if I'm seeing the same corruption as you or some other issue and
->> > do not want to conflate numerous different problems into one. I know this
->> > is a pain in the ass but if 3.17-rc4 looks stable then a bisection might
->> > be faster overall than my constant head scratching :(
-> The good news are that 3.17-rc4 seems to be stable. I'll start the bisection,
-> which I suspect would take several days. I'll update when I run into something.
+Hi Andres,
+On Wed, Sep 17, 2014 at 10:51:48AM -0700, Andres Lagar-Cavilla wrote:
+[...]
+> static inline int check_user_page_hwpoison(unsigned long addr)
+> {
+> 	int rc, flags = FOLL_TOUCH | FOLL_HWPOISON | FOLL_WRITE;
+>@@ -1177,9 +1214,15 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
+> 		npages = get_user_page_nowait(current, current->mm,
+> 					      addr, write_fault, page);
+> 		up_read(&current->mm->mmap_sem);
+>-	} else
+>-		npages = get_user_pages_fast(addr, 1, write_fault,
+>-					     page);
+>+	} else {
+>+		/*
+>+		 * By now we have tried gup_fast, and possibly async_pf, and we
+>+		 * are certainly not atomic. Time to retry the gup, allowing
+>+		 * mmap semaphore to be relinquished in the case of IO.
+>+		 */
+>+		npages = kvm_get_user_page_io(current, current->mm, addr,
+>+					      write_fault, page);
+>+	}
 
-I might need a bit of a help here. The bisection is going sideways because I
-can't reliably reproduce the issue.
+try_async_pf 
+ gfn_to_pfn_async 
+  __gfn_to_pfn  			async = false 
+   __gfn_to_pfn_memslot
+    hva_to_pfn 
+	 hva_to_pfn_fast 
+	 hva_to_pfn_slow 
+	  kvm_get_user_page_io
 
-We don't know what's causing this issue, but we know what the symptoms are. Is
-there a VM_BUG_ON we could add somewhere so that it would be more likely to
-trigger?
+page will always be ready after kvm_get_user_page_io which leads to APF
+don't need to work any more.
 
+Regards,
+Wanpeng Li
 
-Thanks,
-Sasha
+> 	if (npages != 1)
+> 		return npages;
+> 
+>-- 
+>2.1.0.rc2.206.gedb03e5
+>
+>--
+>To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>the body to majordomo@kvack.org.  For more info on Linux MM,
+>see: http://www.linux-mm.org/ .
+>Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
