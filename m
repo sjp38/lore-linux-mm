@@ -1,104 +1,307 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
-	by kanga.kvack.org (Postfix) with ESMTP id A106F6B0036
-	for <linux-mm@kvack.org>; Fri, 19 Sep 2014 14:28:19 -0400 (EDT)
-Received: by mail-we0-f177.google.com with SMTP id t60so191823wes.8
-        for <linux-mm@kvack.org>; Fri, 19 Sep 2014 11:28:19 -0700 (PDT)
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-        by mx.google.com with ESMTPS id n3si137571wiy.15.2014.09.19.11.28.17
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BFF66B0036
+	for <linux-mm@kvack.org>; Fri, 19 Sep 2014 17:11:06 -0400 (EDT)
+Received: by mail-wi0-f180.google.com with SMTP id q5so228761wiv.7
+        for <linux-mm@kvack.org>; Fri, 19 Sep 2014 14:11:05 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id c10si3280388wix.55.2014.09.19.14.11.04
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 19 Sep 2014 11:28:18 -0700 (PDT)
-Received: by mail-wg0-f43.google.com with SMTP id y10so135216wgg.14
-        for <linux-mm@kvack.org>; Fri, 19 Sep 2014 11:28:17 -0700 (PDT)
-Date: Fri, 19 Sep 2014 19:28:09 +0100
-From: Steve Capper <steve.capper@linaro.org>
-Subject: Re: [PATCH V3 0/6] RCU get_user_pages_fast and __get_user_pages_fast
-Message-ID: <20140919182808.GA22622@linaro.org>
-References: <1409237107-24228-1-git-send-email-steve.capper@linaro.org>
- <20140828152320.GN22580@arm.com>
- <CAPvkgC0YVhPEBqbWSDnGyZBUn3+8Kv7-yx1-_n0Jx+giKzOqmw@mail.gmail.com>
- <20140908090626.GA14634@linaro.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140908090626.GA14634@linaro.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 Sep 2014 14:11:04 -0700 (PDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch] mm: memcontrol: convert reclaim iterator to simple css refcounting
+Date: Fri, 19 Sep 2014 17:10:59 -0400
+Message-Id: <1411161059-16552-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, Will Deacon <will.deacon@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <Catalin.Marinas@arm.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "gary.robertson@linaro.org" <gary.robertson@linaro.org>, "christoffer.dall@linaro.org" <christoffer.dall@linaro.org>, "peterz@infradead.org" <peterz@infradead.org>, "anders.roxell@linaro.org" <anders.roxell@linaro.org>, "dann.frazier@canonical.com" <dann.frazier@canonical.com>, Mark Rutland <Mark.Rutland@arm.com>, "mgorman@suse.de" <mgorman@suse.de>, hughd@google.com
+To: linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Sep 08, 2014 at 10:06:27AM +0100, Steve Capper wrote:
-> On Mon, Sep 01, 2014 at 12:43:06PM +0100, Steve Capper wrote:
-> > On 28 August 2014 16:23, Will Deacon <will.deacon@arm.com> wrote:
-> > > On Thu, Aug 28, 2014 at 03:45:01PM +0100, Steve Capper wrote:
-> > >> I would like to get this series into 3.18 as it fixes quite a big problem
-> > >> with THP on arm and arm64. This series is split into a core mm part, an
-> > >> arm part and an arm64 part.
-> > >>
-> > >> Could somebody please take patch #1 (if it looks okay)?
-> > >> Russell, would you be happy with patches #2, #3, #4? (if we get #1 merged)
-> > >> Catalin, would you be happy taking patches #5, #6? (if we get #1 merged)
-> > >
-> > > Pretty sure we're happy to take the arm64 bits once you've got the core
-> > > changes sorted out. Failing that, Catalin's acked them so they could go via
-> > > an mm tree if it's easier.
-> > >
-> > 
-> > Hello,
-> > 
-> > Are any mm maintainers willing to take the first patch from this
-> > series into their tree for merging into 3.18?
-> >   mm: Introduce a general RCU get_user_pages_fast.
-> > 
-> > (or please let me know if there are any issues with the patch that
-> > need addressing).
-> > 
-> > As Will has stated, Catalin's already acked the arm64 patches, and
-> > these can also go in via an mm tree if that makes things easier:
-> >   arm64: mm: Enable HAVE_RCU_TABLE_FREE logic
-> >   arm64: mm: Enable RCU fast_gup
-> > 
-> > Thanks,
-> > --
-> > Steve
-> 
-> Hi,
-> Just a ping on this.
-> 
-> I was wondering if the first patch in this series:
-> 
-> [PATCH V3 1/6] mm: Introduce a general RCU get_user_pages_fast.
-> http://marc.info/?l=linux-mm&m=140923713202355&w=2
-> 
-> could be merged into 3.18 via an mm tree, or if there are any issues
-> with the patch that I should fix?
-> 
-> Acks or flames from the mm maintainers would be greatly appreciated!
-> 
-> Cheers,
-> -- 
-> Steve
+The memcg reclaim iterators use a complicated weak reference scheme to
+prevent pinning cgroups indefinitely in the absence of memory pressure.
 
+However, during the ongoing cgroup core rework, css lifetime has been
+decoupled such that a pinned css no longer interferes with removal of
+the user-visible cgroup, and all this complexity is now unnecessary.
 
-Hello,
-Apologies for being a pest, but we're really keen to get this into 3.18,
-as it fixes a THP problem with arm/arm64.
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/memcontrol.c | 200 ++++++++++----------------------------------------------
+ 1 file changed, 33 insertions(+), 167 deletions(-)
 
-I need mm folk to either ack or flame the first patch in the series in
-order to proceed. (All the patches in the series have been
-acked/reviewed, but not by any mm folk.):
- [PATCH V3 1/6] mm: Introduce a general RCU get_user_pages_fast.
-
-If it puts people's minds at rest regarding the testing...
-On top of the ltp tests, and futex tests, we also ran these patches on
-the arm64 Debian buildd's. With THP set to always, just under 8000
-Debian packages have been built (and unit tested) without any kernel
-issues for arm64.
-
-Cheers,
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index dfd3b15a57e8..5daa1d3dd9d5 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -253,18 +253,6 @@ struct mem_cgroup_stat_cpu {
+ 	unsigned long targets[MEM_CGROUP_NTARGETS];
+ };
+ 
+-struct mem_cgroup_reclaim_iter {
+-	/*
+-	 * last scanned hierarchy member. Valid only if last_dead_count
+-	 * matches memcg->dead_count of the hierarchy root group.
+-	 */
+-	struct mem_cgroup *last_visited;
+-	int last_dead_count;
+-
+-	/* scan generation, increased every round-trip */
+-	unsigned int generation;
+-};
+-
+ /*
+  * per-zone information in memory controller.
+  */
+@@ -272,7 +260,7 @@ struct mem_cgroup_per_zone {
+ 	struct lruvec		lruvec;
+ 	unsigned long		lru_size[NR_LRU_LISTS];
+ 
+-	struct mem_cgroup_reclaim_iter reclaim_iter[DEF_PRIORITY + 1];
++	struct mem_cgroup	*reclaim_iter[DEF_PRIORITY + 1];
+ 
+ 	struct rb_node		tree_node;	/* RB tree node */
+ 	unsigned long		usage_in_excess;/* Set to the value by which */
+@@ -1174,111 +1162,6 @@ static struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
+ 	return memcg;
+ }
+ 
+-/*
+- * Returns a next (in a pre-order walk) alive memcg (with elevated css
+- * ref. count) or NULL if the whole root's subtree has been visited.
+- *
+- * helper function to be used by mem_cgroup_iter
+- */
+-static struct mem_cgroup *__mem_cgroup_iter_next(struct mem_cgroup *root,
+-		struct mem_cgroup *last_visited)
+-{
+-	struct cgroup_subsys_state *prev_css, *next_css;
+-
+-	prev_css = last_visited ? &last_visited->css : NULL;
+-skip_node:
+-	next_css = css_next_descendant_pre(prev_css, &root->css);
+-
+-	/*
+-	 * Even if we found a group we have to make sure it is
+-	 * alive. css && !memcg means that the groups should be
+-	 * skipped and we should continue the tree walk.
+-	 * last_visited css is safe to use because it is
+-	 * protected by css_get and the tree walk is rcu safe.
+-	 *
+-	 * We do not take a reference on the root of the tree walk
+-	 * because we might race with the root removal when it would
+-	 * be the only node in the iterated hierarchy and mem_cgroup_iter
+-	 * would end up in an endless loop because it expects that at
+-	 * least one valid node will be returned. Root cannot disappear
+-	 * because caller of the iterator should hold it already so
+-	 * skipping css reference should be safe.
+-	 */
+-	if (next_css) {
+-		if ((next_css == &root->css) ||
+-		    ((next_css->flags & CSS_ONLINE) &&
+-		     css_tryget_online(next_css)))
+-			return mem_cgroup_from_css(next_css);
+-
+-		prev_css = next_css;
+-		goto skip_node;
+-	}
+-
+-	return NULL;
+-}
+-
+-static void mem_cgroup_iter_invalidate(struct mem_cgroup *root)
+-{
+-	/*
+-	 * When a group in the hierarchy below root is destroyed, the
+-	 * hierarchy iterator can no longer be trusted since it might
+-	 * have pointed to the destroyed group.  Invalidate it.
+-	 */
+-	atomic_inc(&root->dead_count);
+-}
+-
+-static struct mem_cgroup *
+-mem_cgroup_iter_load(struct mem_cgroup_reclaim_iter *iter,
+-		     struct mem_cgroup *root,
+-		     int *sequence)
+-{
+-	struct mem_cgroup *position = NULL;
+-	/*
+-	 * A cgroup destruction happens in two stages: offlining and
+-	 * release.  They are separated by a RCU grace period.
+-	 *
+-	 * If the iterator is valid, we may still race with an
+-	 * offlining.  The RCU lock ensures the object won't be
+-	 * released, tryget will fail if we lost the race.
+-	 */
+-	*sequence = atomic_read(&root->dead_count);
+-	if (iter->last_dead_count == *sequence) {
+-		smp_rmb();
+-		position = iter->last_visited;
+-
+-		/*
+-		 * We cannot take a reference to root because we might race
+-		 * with root removal and returning NULL would end up in
+-		 * an endless loop on the iterator user level when root
+-		 * would be returned all the time.
+-		 */
+-		if (position && position != root &&
+-		    !css_tryget_online(&position->css))
+-			position = NULL;
+-	}
+-	return position;
+-}
+-
+-static void mem_cgroup_iter_update(struct mem_cgroup_reclaim_iter *iter,
+-				   struct mem_cgroup *last_visited,
+-				   struct mem_cgroup *new_position,
+-				   struct mem_cgroup *root,
+-				   int sequence)
+-{
+-	/* root reference counting symmetric to mem_cgroup_iter_load */
+-	if (last_visited && last_visited != root)
+-		css_put(&last_visited->css);
+-	/*
+-	 * We store the sequence count from the time @last_visited was
+-	 * loaded successfully instead of rereading it here so that we
+-	 * don't lose destruction events in between.  We could have
+-	 * raced with the destruction of @new_position after all.
+-	 */
+-	iter->last_visited = new_position;
+-	smp_wmb();
+-	iter->last_dead_count = sequence;
+-}
+-
+ /**
+  * mem_cgroup_iter - iterate over memory cgroup hierarchy
+  * @root: hierarchy root
+@@ -1300,8 +1183,11 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+ 				   struct mem_cgroup *prev,
+ 				   struct mem_cgroup_reclaim_cookie *reclaim)
+ {
++	struct mem_cgroup_per_zone *uninitialized_var(mz);
++	struct cgroup_subsys_state *css = NULL;
++	int uninitialized_var(priority);
+ 	struct mem_cgroup *memcg = NULL;
+-	struct mem_cgroup *last_visited = NULL;
++	struct mem_cgroup *pos = NULL;
+ 
+ 	if (mem_cgroup_disabled())
+ 		return NULL;
+@@ -1310,50 +1196,50 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+ 		root = root_mem_cgroup;
+ 
+ 	if (prev && !reclaim)
+-		last_visited = prev;
++		pos = prev;
+ 
+ 	if (!root->use_hierarchy && root != root_mem_cgroup) {
+ 		if (prev)
+-			goto out_css_put;
++			goto out;
+ 		return root;
+ 	}
+ 
+ 	rcu_read_lock();
+-	while (!memcg) {
+-		struct mem_cgroup_reclaim_iter *uninitialized_var(iter);
+-		int uninitialized_var(seq);
+ 
+-		if (reclaim) {
+-			struct mem_cgroup_per_zone *mz;
++	if (reclaim) {
++		mz = mem_cgroup_zone_zoneinfo(root, reclaim->zone);
++		priority = reclaim->priority;
+ 
+-			mz = mem_cgroup_zone_zoneinfo(root, reclaim->zone);
+-			iter = &mz->reclaim_iter[reclaim->priority];
+-			if (prev && reclaim->generation != iter->generation) {
+-				iter->last_visited = NULL;
+-				goto out_unlock;
+-			}
+-
+-			last_visited = mem_cgroup_iter_load(iter, root, &seq);
+-		}
+-
+-		memcg = __mem_cgroup_iter_next(root, last_visited);
++		do {
++			pos = ACCESS_ONCE(mz->reclaim_iter[priority]);
++		} while (!css_tryget(&pos->css));
++	}
+ 
+-		if (reclaim) {
+-			mem_cgroup_iter_update(iter, last_visited, memcg, root,
+-					seq);
++	if (pos)
++		css = &pos->css;
+ 
+-			if (!memcg)
+-				iter->generation++;
+-			else if (!prev && memcg)
+-				reclaim->generation = iter->generation;
++	for (;;) {
++		css = css_next_descendant_pre(css, &root->css);
++		if (!css) {
++			if (prev)
++				goto out_unlock;
++			continue;
++		}
++		if (css == &root->css || css_tryget_online(css)) {
++			memcg = mem_cgroup_from_css(css);
++			break;
+ 		}
++	}
+ 
+-		if (prev && !memcg)
+-			goto out_unlock;
++	if (reclaim) {
++		if (cmpxchg(&mz->reclaim_iter[priority], pos, memcg) == pos)
++			css_get(&memcg->css);
++		css_put(&pos->css);
+ 	}
++
+ out_unlock:
+ 	rcu_read_unlock();
+-out_css_put:
++out:
+ 	if (prev && prev != root)
+ 		css_put(&prev->css);
+ 
+@@ -5526,24 +5412,6 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
+ 	return memcg_init_kmem(memcg, &memory_cgrp_subsys);
+ }
+ 
+-/*
+- * Announce all parents that a group from their hierarchy is gone.
+- */
+-static void mem_cgroup_invalidate_reclaim_iterators(struct mem_cgroup *memcg)
+-{
+-	struct mem_cgroup *parent = memcg;
+-
+-	while ((parent = parent_mem_cgroup(parent)))
+-		mem_cgroup_iter_invalidate(parent);
+-
+-	/*
+-	 * if the root memcg is not hierarchical we have to check it
+-	 * explicitely.
+-	 */
+-	if (!root_mem_cgroup->use_hierarchy)
+-		mem_cgroup_iter_invalidate(root_mem_cgroup);
+-}
+-
+ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
+ {
+ 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+@@ -5564,8 +5432,6 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
+ 
+ 	kmem_cgroup_css_offline(memcg);
+ 
+-	mem_cgroup_invalidate_reclaim_iterators(memcg);
+-
+ 	/*
+ 	 * This requires that offlining is serialized.  Right now that is
+ 	 * guaranteed because css_killed_work_fn() holds the cgroup_mutex.
 -- 
-Steve
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
