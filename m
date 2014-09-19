@@ -1,323 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 7878B6B0036
-	for <linux-mm@kvack.org>; Fri, 19 Sep 2014 17:28:47 -0400 (EDT)
-Received: by mail-we0-f181.google.com with SMTP id q59so373753wes.12
-        for <linux-mm@kvack.org>; Fri, 19 Sep 2014 14:28:47 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id r8si507990wif.54.2014.09.19.14.28.45
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 0079C6B0036
+	for <linux-mm@kvack.org>; Fri, 19 Sep 2014 17:35:22 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id kx10so876607pab.2
+        for <linux-mm@kvack.org>; Fri, 19 Sep 2014 14:35:22 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id f2si4813521pdj.105.2014.09.19.14.35.21
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Sep 2014 14:28:46 -0700 (PDT)
-Date: Fri, 19 Sep 2014 17:28:43 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch v2] mm: memcontrol: convert reclaim iterator to simple css
- refcounting
-Message-ID: <20140919212843.GA23861@cmpxchg.org>
-References: <1411161059-16552-1-git-send-email-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1411161059-16552-1-git-send-email-hannes@cmpxchg.org>
+        Fri, 19 Sep 2014 14:35:21 -0700 (PDT)
+Date: Fri, 19 Sep 2014 14:35:20 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 4/6] mm: introduce common page state for ballooned
+ memory
+Message-Id: <20140919143520.94f4a17f752398a6c7c927d8@linux-foundation.org>
+In-Reply-To: <CALYGNiNg5yLbAvqwG3nPqWZHkqXc1-3p4yqdP2Eo2rNJbRo0rg@mail.gmail.com>
+References: <20140830163834.29066.98205.stgit@zurg>
+	<20140830164120.29066.8857.stgit@zurg>
+	<20140912165143.86d5f83dcde4a9fd78069f79@linux-foundation.org>
+	<CALYGNiM0Uh1KG8Z6pFEAn=uxZBRPfHDffXjKkKJoG-K0hCaqaA@mail.gmail.com>
+	<20140912224221.9ee5888a.akpm@linux-foundation.org>
+	<CALYGNiNg5yLbAvqwG3nPqWZHkqXc1-3p4yqdP2Eo2rNJbRo0rg@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Konstantin Khlebnikov <k.khlebnikov@samsung.com>, Rafael Aquini <aquini@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Sasha Levin <sasha.levin@oracle.com>
 
-Eek, sent a stale version of this.  Here is the right one:
+On Sat, 13 Sep 2014 12:22:23 +0400 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
 
+> On Sat, Sep 13, 2014 at 9:42 AM, Andrew Morton
+> <akpm@linux-foundation.org> wrote:
+> > On Sat, 13 Sep 2014 09:26:49 +0400 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+> >
+> >> >
+> >> > Did we really need to put the BalloonPages count into per-zone vmstat,
+> >> > global vmstat and /proc/meminfo?  Seems a bit overkillish - why so
+> >> > important?
+> >>
+> >> Balloon grabs random pages, their distribution among numa nodes might
+> >> be important.
+> >> But I know nobody who uses numa-aware vm together with ballooning.
+> >>
+> >> Probably it's better to drop per-zone vmstat and line from meminfo,
+> >> global vmstat counter should be enough.
+> >
+> > Yes, the less we add the better - we can always add stuff later if
+> > there is a demonstrated need.
+> 
+> Ok. (I guess incremental patches are more convenient for you)
+> Here is two fixes which remove redundant per-zone counters and adds
+> three vmstat counters: "balloon_inflate", "balloon_deflate" and
+> "balloon_migrate".
+> 
+> This statistic seems more useful than current state snapshot.
+> Size of balloon is just a difference between "inflate" and "deflate".
+
+This is a complete mess.  
+
+Your second patch (which is actually the first one) called "fix for
+mm-introduce-common-page-state-for-ballooned-memory-fix-v2" is indeed a
+fix for
+mm-introduce-common-page-state-for-ballooned-memory-fix-v2.patch and
+has a changelog.
+
+I eventually worked out that your first patch (whcih is actually the
+second one) called "fix for
+mm-balloon_compaction-use-common-page-ballooning-v2" assumes that
+mm-balloon_compaction-general-cleanup.patch has been applied.  Does it
+actually fix mm-balloon_compaction-use-common-page-ballooning-v2.patch?
+I can't tell, because the "general cleanup" is in the way.
+
+So I'm going to send "fix for
+mm-balloon_compaction-use-common-page-ballooning-v2" to Linus
+separately, but it has no changelog at all.
+
+Please always write changelogs.  Please never send more than one patch
+in a single email.  Please be *consistent* in filenames, patch titles,
+email subjects, etc.
+
+Please send me a changelog for the below patch.
+
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Subject: mm-balloon_compaction-use-common-page-ballooning-v2-fix-1
+
+Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
-From: Johannes Weiner <hannes@cmpxchg.org>
-Date: Fri, 19 Sep 2014 12:39:18 -0400
-Subject: [patch v2] mm: memcontrol: convert reclaim iterator to simple css
- refcounting
 
-The memcg reclaim iterators use a complicated weak reference scheme to
-prevent pinning cgroups indefinitely in the absence of memory pressure.
+ drivers/virtio/virtio_balloon.c    |    1 +
+ include/linux/balloon_compaction.h |    2 --
+ mm/balloon_compaction.c            |    2 ++
+ 3 files changed, 3 insertions(+), 2 deletions(-)
 
-However, during the ongoing cgroup core rework, css lifetime has been
-decoupled such that a pinned css no longer interferes with removal of
-the user-visible cgroup, and all this complexity is now unnecessary.
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/memcontrol.c | 201 ++++++++++----------------------------------------------
- 1 file changed, 34 insertions(+), 167 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index dfd3b15a57e8..154161bb7d4c 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -253,18 +253,6 @@ struct mem_cgroup_stat_cpu {
- 	unsigned long targets[MEM_CGROUP_NTARGETS];
- };
- 
--struct mem_cgroup_reclaim_iter {
--	/*
--	 * last scanned hierarchy member. Valid only if last_dead_count
--	 * matches memcg->dead_count of the hierarchy root group.
--	 */
--	struct mem_cgroup *last_visited;
--	int last_dead_count;
--
--	/* scan generation, increased every round-trip */
--	unsigned int generation;
--};
--
- /*
-  * per-zone information in memory controller.
-  */
-@@ -272,7 +260,7 @@ struct mem_cgroup_per_zone {
- 	struct lruvec		lruvec;
- 	unsigned long		lru_size[NR_LRU_LISTS];
- 
--	struct mem_cgroup_reclaim_iter reclaim_iter[DEF_PRIORITY + 1];
-+	struct mem_cgroup	*reclaim_iter[DEF_PRIORITY + 1];
- 
- 	struct rb_node		tree_node;	/* RB tree node */
- 	unsigned long		usage_in_excess;/* Set to the value by which */
-@@ -1174,111 +1162,6 @@ static struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
- 	return memcg;
- }
- 
--/*
-- * Returns a next (in a pre-order walk) alive memcg (with elevated css
-- * ref. count) or NULL if the whole root's subtree has been visited.
-- *
-- * helper function to be used by mem_cgroup_iter
-- */
--static struct mem_cgroup *__mem_cgroup_iter_next(struct mem_cgroup *root,
--		struct mem_cgroup *last_visited)
--{
--	struct cgroup_subsys_state *prev_css, *next_css;
--
--	prev_css = last_visited ? &last_visited->css : NULL;
--skip_node:
--	next_css = css_next_descendant_pre(prev_css, &root->css);
--
--	/*
--	 * Even if we found a group we have to make sure it is
--	 * alive. css && !memcg means that the groups should be
--	 * skipped and we should continue the tree walk.
--	 * last_visited css is safe to use because it is
--	 * protected by css_get and the tree walk is rcu safe.
--	 *
--	 * We do not take a reference on the root of the tree walk
--	 * because we might race with the root removal when it would
--	 * be the only node in the iterated hierarchy and mem_cgroup_iter
--	 * would end up in an endless loop because it expects that at
--	 * least one valid node will be returned. Root cannot disappear
--	 * because caller of the iterator should hold it already so
--	 * skipping css reference should be safe.
--	 */
--	if (next_css) {
--		if ((next_css == &root->css) ||
--		    ((next_css->flags & CSS_ONLINE) &&
--		     css_tryget_online(next_css)))
--			return mem_cgroup_from_css(next_css);
--
--		prev_css = next_css;
--		goto skip_node;
--	}
--
--	return NULL;
--}
--
--static void mem_cgroup_iter_invalidate(struct mem_cgroup *root)
--{
--	/*
--	 * When a group in the hierarchy below root is destroyed, the
--	 * hierarchy iterator can no longer be trusted since it might
--	 * have pointed to the destroyed group.  Invalidate it.
--	 */
--	atomic_inc(&root->dead_count);
--}
--
--static struct mem_cgroup *
--mem_cgroup_iter_load(struct mem_cgroup_reclaim_iter *iter,
--		     struct mem_cgroup *root,
--		     int *sequence)
--{
--	struct mem_cgroup *position = NULL;
--	/*
--	 * A cgroup destruction happens in two stages: offlining and
--	 * release.  They are separated by a RCU grace period.
--	 *
--	 * If the iterator is valid, we may still race with an
--	 * offlining.  The RCU lock ensures the object won't be
--	 * released, tryget will fail if we lost the race.
--	 */
--	*sequence = atomic_read(&root->dead_count);
--	if (iter->last_dead_count == *sequence) {
--		smp_rmb();
--		position = iter->last_visited;
--
--		/*
--		 * We cannot take a reference to root because we might race
--		 * with root removal and returning NULL would end up in
--		 * an endless loop on the iterator user level when root
--		 * would be returned all the time.
--		 */
--		if (position && position != root &&
--		    !css_tryget_online(&position->css))
--			position = NULL;
--	}
--	return position;
--}
--
--static void mem_cgroup_iter_update(struct mem_cgroup_reclaim_iter *iter,
--				   struct mem_cgroup *last_visited,
--				   struct mem_cgroup *new_position,
--				   struct mem_cgroup *root,
--				   int sequence)
--{
--	/* root reference counting symmetric to mem_cgroup_iter_load */
--	if (last_visited && last_visited != root)
--		css_put(&last_visited->css);
--	/*
--	 * We store the sequence count from the time @last_visited was
--	 * loaded successfully instead of rereading it here so that we
--	 * don't lose destruction events in between.  We could have
--	 * raced with the destruction of @new_position after all.
--	 */
--	iter->last_visited = new_position;
--	smp_wmb();
--	iter->last_dead_count = sequence;
--}
--
- /**
-  * mem_cgroup_iter - iterate over memory cgroup hierarchy
-  * @root: hierarchy root
-@@ -1300,8 +1183,11 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
- 				   struct mem_cgroup *prev,
- 				   struct mem_cgroup_reclaim_cookie *reclaim)
+diff -puN drivers/virtio/virtio_balloon.c~mm-balloon_compaction-use-common-page-ballooning-v2-fix-1 drivers/virtio/virtio_balloon.c
+--- a/drivers/virtio/virtio_balloon.c~mm-balloon_compaction-use-common-page-ballooning-v2-fix-1
++++ a/drivers/virtio/virtio_balloon.c
+@@ -395,6 +395,7 @@ static int virtballoon_migratepage(struc
+ 	/* balloon's page migration 1st step  -- inflate "newpage" */
+ 	spin_lock_irqsave(&vb_dev_info->pages_lock, flags);
+ 	balloon_page_insert(vb_dev_info, newpage);
++	__count_vm_event(BALLOON_MIGRATE);
+ 	vb_dev_info->isolated_pages--;
+ 	spin_unlock_irqrestore(&vb_dev_info->pages_lock, flags);
+ 	vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
+diff -puN include/linux/balloon_compaction.h~mm-balloon_compaction-use-common-page-ballooning-v2-fix-1 include/linux/balloon_compaction.h
+--- a/include/linux/balloon_compaction.h~mm-balloon_compaction-use-common-page-ballooning-v2-fix-1
++++ a/include/linux/balloon_compaction.h
+@@ -87,7 +87,6 @@ static inline void
+ balloon_page_insert(struct balloon_dev_info *b_dev_info, struct page *page)
  {
-+	struct mem_cgroup_per_zone *uninitialized_var(mz);
-+	struct cgroup_subsys_state *css = NULL;
-+	int uninitialized_var(priority);
- 	struct mem_cgroup *memcg = NULL;
--	struct mem_cgroup *last_visited = NULL;
-+	struct mem_cgroup *pos = NULL;
- 
- 	if (mem_cgroup_disabled())
- 		return NULL;
-@@ -1310,50 +1196,51 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
- 		root = root_mem_cgroup;
- 
- 	if (prev && !reclaim)
--		last_visited = prev;
-+		pos = prev;
- 
- 	if (!root->use_hierarchy && root != root_mem_cgroup) {
- 		if (prev)
--			goto out_css_put;
-+			goto out;
- 		return root;
- 	}
- 
- 	rcu_read_lock();
--	while (!memcg) {
--		struct mem_cgroup_reclaim_iter *uninitialized_var(iter);
--		int uninitialized_var(seq);
- 
--		if (reclaim) {
--			struct mem_cgroup_per_zone *mz;
-+	if (reclaim) {
-+		mz = mem_cgroup_zone_zoneinfo(root, reclaim->zone);
-+		priority = reclaim->priority;
- 
--			mz = mem_cgroup_zone_zoneinfo(root, reclaim->zone);
--			iter = &mz->reclaim_iter[reclaim->priority];
--			if (prev && reclaim->generation != iter->generation) {
--				iter->last_visited = NULL;
--				goto out_unlock;
--			}
--
--			last_visited = mem_cgroup_iter_load(iter, root, &seq);
--		}
--
--		memcg = __mem_cgroup_iter_next(root, last_visited);
-+		do {
-+			pos = ACCESS_ONCE(mz->reclaim_iter[priority]);
-+		} while (pos && !css_tryget(&pos->css));
-+	}
- 
--		if (reclaim) {
--			mem_cgroup_iter_update(iter, last_visited, memcg, root,
--					seq);
-+	if (pos)
-+		css = &pos->css;
- 
--			if (!memcg)
--				iter->generation++;
--			else if (!prev && memcg)
--				reclaim->generation = iter->generation;
-+	for (;;) {
-+		css = css_next_descendant_pre(css, &root->css);
-+		if (!css) {
-+			if (prev)
-+				goto out_unlock;
-+			continue;
-+		}
-+		if (css == &root->css || css_tryget_online(css)) {
-+			memcg = mem_cgroup_from_css(css);
-+			break;
- 		}
-+	}
- 
--		if (prev && !memcg)
--			goto out_unlock;
-+	if (reclaim) {
-+		if (cmpxchg(&mz->reclaim_iter[priority], pos, memcg) == pos)
-+			css_get(&memcg->css);
-+		if (pos)
-+			css_put(&pos->css);
- 	}
-+
- out_unlock:
- 	rcu_read_unlock();
--out_css_put:
-+out:
- 	if (prev && prev != root)
- 		css_put(&prev->css);
- 
-@@ -5526,24 +5413,6 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
- 	return memcg_init_kmem(memcg, &memory_cgrp_subsys);
+ 	__SetPageBalloon(page);
+-	inc_zone_page_state(page, NR_BALLOON_PAGES);
+ 	set_page_private(page, (unsigned long)b_dev_info);
+ 	list_add(&page->lru, &b_dev_info->pages);
  }
- 
--/*
-- * Announce all parents that a group from their hierarchy is gone.
-- */
--static void mem_cgroup_invalidate_reclaim_iterators(struct mem_cgroup *memcg)
--{
--	struct mem_cgroup *parent = memcg;
--
--	while ((parent = parent_mem_cgroup(parent)))
--		mem_cgroup_iter_invalidate(parent);
--
--	/*
--	 * if the root memcg is not hierarchical we have to check it
--	 * explicitely.
--	 */
--	if (!root_mem_cgroup->use_hierarchy)
--		mem_cgroup_iter_invalidate(root_mem_cgroup);
--}
--
- static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
+@@ -104,7 +103,6 @@ balloon_page_insert(struct balloon_dev_i
+ static inline void balloon_page_delete(struct page *page, bool isolated)
  {
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-@@ -5564,8 +5433,6 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
- 
- 	kmem_cgroup_css_offline(memcg);
- 
--	mem_cgroup_invalidate_reclaim_iterators(memcg);
--
- 	/*
- 	 * This requires that offlining is serialized.  Right now that is
- 	 * guaranteed because css_killed_work_fn() holds the cgroup_mutex.
--- 
-2.1.0
-
+ 	__ClearPageBalloon(page);
+-	dec_zone_page_state(page, NR_BALLOON_PAGES);
+ 	set_page_private(page, 0);
+ 	if (!isolated)
+ 		list_del(&page->lru);
+diff -puN mm/balloon_compaction.c~mm-balloon_compaction-use-common-page-ballooning-v2-fix-1 mm/balloon_compaction.c
+--- a/mm/balloon_compaction.c~mm-balloon_compaction-use-common-page-ballooning-v2-fix-1
++++ a/mm/balloon_compaction.c
+@@ -36,6 +36,7 @@ struct page *balloon_page_enqueue(struct
+ 	BUG_ON(!trylock_page(page));
+ 	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+ 	balloon_page_insert(b_dev_info, page);
++	__count_vm_event(BALLOON_INFLATE);
+ 	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+ 	unlock_page(page);
+ 	return page;
+@@ -67,6 +68,7 @@ struct page *balloon_page_dequeue(struct
+ 		if (trylock_page(page)) {
+ 			spin_lock_irqsave(&b_dev_info->pages_lock, flags);
+ 			balloon_page_delete(page, false);
++			__count_vm_event(BALLOON_DEFLATE);
+ 			spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+ 			unlock_page(page);
+ 			return page;
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
