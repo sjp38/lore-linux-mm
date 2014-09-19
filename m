@@ -1,41 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AD766B0035
-	for <linux-mm@kvack.org>; Fri, 19 Sep 2014 09:29:24 -0400 (EDT)
-Received: by mail-wi0-f175.google.com with SMTP id cc10so2825461wib.14
-        for <linux-mm@kvack.org>; Fri, 19 Sep 2014 06:29:23 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id we4si2174269wjb.82.2014.09.19.06.29.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Sep 2014 06:29:22 -0700 (PDT)
-Date: Fri, 19 Sep 2014 09:29:19 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm: memcontrol: lockless page counters
-Message-ID: <20140919132919.GA16184@cmpxchg.org>
-References: <1411132928-16143-1-git-send-email-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1411132928-16143-1-git-send-email-hannes@cmpxchg.org>
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 781556B0035
+	for <linux-mm@kvack.org>; Fri, 19 Sep 2014 11:30:17 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id g10so153394pdj.41
+        for <linux-mm@kvack.org>; Fri, 19 Sep 2014 08:30:17 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id s4si3487287pdj.117.2014.09.19.08.30.16
+        for <linux-mm@kvack.org>;
+        Fri, 19 Sep 2014 08:30:16 -0700 (PDT)
+From: Jeff Kirsher <jeffrey.t.kirsher@intel.com>
+Subject: [PATCH 6/7] mm: Silence nested-externs warnings
+Date: Fri, 19 Sep 2014 08:29:39 -0700
+Message-Id: <1411140580-20909-7-git-send-email-jeffrey.t.kirsher@intel.com>
+In-Reply-To: <1411140580-20909-1-git-send-email-jeffrey.t.kirsher@intel.com>
+References: <1411140580-20909-1-git-send-email-jeffrey.t.kirsher@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Dave Hansen <dave@sr71.net>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: sparse@chrisli.org
+Cc: Mark Rustad <mark.d.rustad@intel.com>, linux-sparse@vger.kernel.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Brian Norris <computersforpeace@gmail.com>, Jeff Kirsher <jeffrey.t.kirsher@intel.com>
 
-Hi Dave,
+From: Mark Rustad <mark.d.rustad@intel.com>
 
-this patch removes the lock you saw with will-it-scale/page_fault2
-entirely, is there a chance you could give it a spin?  It's based on
-v3.17-rc4-mmots-2014-09-12-17-13-4 and that memcg THP fix.  That
-kernel also includes the recent root-memcg revert, so you'd have to
-run it in a memcg; which is as easy as:
+Use diagnostic control macros to ignore nested-externs warnings
+in this case.
 
-mkdir /sys/fs/cgroup/memory/foo
-echo $$ >/sys/fs/cgroup/memory/foo/tasks
-perf record -g -a ./runtest.py page_fault2
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: <linux-mm@kvack.org>
+CC: Brian Norris <computersforpeace@gmail.com>
+Signed-off-by: Mark Rustad <mark.d.rustad@intel.com>
+Signed-off-by: Jeff Kirsher <jeffrey.t.kirsher@intel.com>
+---
+ include/linux/mm.h | 2 ++
+ 1 file changed, 2 insertions(+)
 
-Thanks!
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 8981cc8..9bf2c7e 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1623,7 +1623,9 @@ static inline void mark_page_reserved(struct page *page)
+  */
+ static inline unsigned long free_initmem_default(int poison)
+ {
++	DIAG_PUSH DIAG_IGNORE(nested-externs)
+ 	extern char __init_begin[], __init_end[];
++	DIAG_POP
+ 
+ 	return free_reserved_area(&__init_begin, &__init_end,
+ 				  poison, "unused kernel");
+-- 
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
