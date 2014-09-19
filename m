@@ -1,22 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BFF66B0036
-	for <linux-mm@kvack.org>; Fri, 19 Sep 2014 17:11:06 -0400 (EDT)
-Received: by mail-wi0-f180.google.com with SMTP id q5so228761wiv.7
-        for <linux-mm@kvack.org>; Fri, 19 Sep 2014 14:11:05 -0700 (PDT)
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 7878B6B0036
+	for <linux-mm@kvack.org>; Fri, 19 Sep 2014 17:28:47 -0400 (EDT)
+Received: by mail-we0-f181.google.com with SMTP id q59so373753wes.12
+        for <linux-mm@kvack.org>; Fri, 19 Sep 2014 14:28:47 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id c10si3280388wix.55.2014.09.19.14.11.04
+        by mx.google.com with ESMTPS id r8si507990wif.54.2014.09.19.14.28.45
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Sep 2014 14:11:04 -0700 (PDT)
+        Fri, 19 Sep 2014 14:28:46 -0700 (PDT)
+Date: Fri, 19 Sep 2014 17:28:43 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch] mm: memcontrol: convert reclaim iterator to simple css refcounting
-Date: Fri, 19 Sep 2014 17:10:59 -0400
-Message-Id: <1411161059-16552-1-git-send-email-hannes@cmpxchg.org>
+Subject: [patch v2] mm: memcontrol: convert reclaim iterator to simple css
+ refcounting
+Message-ID: <20140919212843.GA23861@cmpxchg.org>
+References: <1411161059-16552-1-git-send-email-hannes@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1411161059-16552-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+
+Eek, sent a stale version of this.  Here is the right one:
+
+---
+From: Johannes Weiner <hannes@cmpxchg.org>
+Date: Fri, 19 Sep 2014 12:39:18 -0400
+Subject: [patch v2] mm: memcontrol: convert reclaim iterator to simple css
+ refcounting
 
 The memcg reclaim iterators use a complicated weak reference scheme to
 prevent pinning cgroups indefinitely in the absence of memory pressure.
@@ -27,11 +41,11 @@ the user-visible cgroup, and all this complexity is now unnecessary.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/memcontrol.c | 200 ++++++++++----------------------------------------------
- 1 file changed, 33 insertions(+), 167 deletions(-)
+ mm/memcontrol.c | 201 ++++++++++----------------------------------------------
+ 1 file changed, 34 insertions(+), 167 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index dfd3b15a57e8..5daa1d3dd9d5 100644
+index dfd3b15a57e8..154161bb7d4c 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
 @@ -253,18 +253,6 @@ struct mem_cgroup_stat_cpu {
@@ -187,7 +201,7 @@ index dfd3b15a57e8..5daa1d3dd9d5 100644
  
  	if (mem_cgroup_disabled())
  		return NULL;
-@@ -1310,50 +1196,50 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+@@ -1310,50 +1196,51 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
  		root = root_mem_cgroup;
  
  	if (prev && !reclaim)
@@ -225,7 +239,7 @@ index dfd3b15a57e8..5daa1d3dd9d5 100644
 -		memcg = __mem_cgroup_iter_next(root, last_visited);
 +		do {
 +			pos = ACCESS_ONCE(mz->reclaim_iter[priority]);
-+		} while (!css_tryget(&pos->css));
++		} while (pos && !css_tryget(&pos->css));
 +	}
  
 -		if (reclaim) {
@@ -256,7 +270,8 @@ index dfd3b15a57e8..5daa1d3dd9d5 100644
 +	if (reclaim) {
 +		if (cmpxchg(&mz->reclaim_iter[priority], pos, memcg) == pos)
 +			css_get(&memcg->css);
-+		css_put(&pos->css);
++		if (pos)
++			css_put(&pos->css);
  	}
 +
  out_unlock:
@@ -266,7 +281,7 @@ index dfd3b15a57e8..5daa1d3dd9d5 100644
  	if (prev && prev != root)
  		css_put(&prev->css);
  
-@@ -5526,24 +5412,6 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
+@@ -5526,24 +5413,6 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
  	return memcg_init_kmem(memcg, &memory_cgrp_subsys);
  }
  
@@ -291,7 +306,7 @@ index dfd3b15a57e8..5daa1d3dd9d5 100644
  static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
  {
  	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-@@ -5564,8 +5432,6 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
+@@ -5564,8 +5433,6 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
  
  	kmem_cgroup_css_offline(memcg);
  
@@ -302,6 +317,7 @@ index dfd3b15a57e8..5daa1d3dd9d5 100644
  	 * guaranteed because css_killed_work_fn() holds the cgroup_mutex.
 -- 
 2.1.0
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
