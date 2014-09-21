@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id D3F9C6B0055
-	for <linux-mm@kvack.org>; Sun, 21 Sep 2014 11:15:49 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id ft15so2828617pdb.38
-        for <linux-mm@kvack.org>; Sun, 21 Sep 2014 08:15:49 -0700 (PDT)
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 7715C6B005C
+	for <linux-mm@kvack.org>; Sun, 21 Sep 2014 11:15:54 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id fb1so3014299pad.27
+        for <linux-mm@kvack.org>; Sun, 21 Sep 2014 08:15:54 -0700 (PDT)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ck6si11992739pdb.104.2014.09.21.08.15.47
+        by mx.google.com with ESMTPS id gh9si12036573pac.62.2014.09.21.08.15.53
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 21 Sep 2014 08:15:47 -0700 (PDT)
+        Sun, 21 Sep 2014 08:15:53 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm 09/14] memcg: rename some cache id related variables
-Date: Sun, 21 Sep 2014 19:14:41 +0400
-Message-ID: <04aef0cce8877175f4ea7563b45310bef4b59e57.1411301245.git.vdavydov@parallels.com>
+Subject: [PATCH -mm 10/14] memcg: add rwsem to sync against memcg_caches arrays relocation
+Date: Sun, 21 Sep 2014 19:14:42 +0400
+Message-ID: <4711e5b4c4fcd37d839cd5b23643b3b077b12406.1411301245.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1411301245.git.vdavydov@parallels.com>
 References: <cover.1411301245.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,133 +22,179 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Dave Chinner <david@fromorbit.com>, Glauber Costa <glommer@gmail.com>, Suleiman Souhlal <suleiman@google.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-memcg_limited_groups_array_size, which defines the size of memcg_caches
-arrays, sounds rather cumbersome. Also it doesn't point anyhow that it's
-related to kmem/caches stuff. So let's rename it to memcg_max_cache_ids.
-It's concise and points us directly to memcg_cache_id.
+We need a stable value of memcg_max_cache_ids in kmem_cache_create()
+(memcg_alloc_cache_params() wants it for root caches), where we only
+hold the slab_mutex and no memcg-related locks. As a result, we have to
+update memcg_cache_ids under the slab_mutex, which we can only take from
+the slab's side. This looks awkward and will become even worse when
+per-memcg list_lru is introduced, which also wants stable access to
+memcg_max_cache_ids.
 
-Also, rename kmem_limited_groups to memcg_cache_ida, because it's not a
-container for groups, but the memcg_cache_id allocator.
+To get rid of this dependency between the memcg_max_cache_ids and the
+slab_mutex, this patch introduces a special rwsem. The rwsem is held for
+writing during memcg_caches arrays relocation and memcg_max_cache_ids
+updates. Therefore one can take it for reading to get a stable access to
+memcg_caches arrays and/or memcg_max_cache_ids.
+
+Currently the semaphore is taken for reading only from
+kmem_cache_create, right before taking the slab_mutex, so right now
+there's no point in using rwsem instead of mutex. However, once list_lru
+is made per-memcg it will allow list_lru initializations to proceed
+concurrently.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- include/linux/memcontrol.h |    9 ++++++++-
- mm/memcontrol.c            |   19 +++++++++----------
- mm/slab_common.c           |    4 ++--
- 3 files changed, 19 insertions(+), 13 deletions(-)
+ include/linux/memcontrol.h |   15 +++++++++++++--
+ mm/memcontrol.c            |   28 ++++++++++++++++++----------
+ mm/slab_common.c           |   10 +++++-----
+ 3 files changed, 36 insertions(+), 17 deletions(-)
 
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index e57a097cf393..7c1bf0a84950 100644
+index 7c1bf0a84950..f2cd342d6544 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -415,7 +415,12 @@ static inline void sock_release_memcg(struct sock *sk)
- #ifdef CONFIG_MEMCG_KMEM
- extern struct static_key memcg_kmem_enabled_key;
- 
--extern int memcg_limited_groups_array_size;
-+/*
-+ * The maximal number of kmem-active memory cgroups that can exist on the
-+ * system. May grow, but never shrinks. The value returned by memcg_cache_id()
-+ * is always less.
-+ */
-+extern int memcg_max_cache_ids;
+@@ -419,8 +419,13 @@ extern struct static_key memcg_kmem_enabled_key;
+  * The maximal number of kmem-active memory cgroups that can exist on the
+  * system. May grow, but never shrinks. The value returned by memcg_cache_id()
+  * is always less.
++ *
++ * To prevent memcg_max_cache_ids from growing, memcg_lock_cache_id_space() can
++ * be used. It's backed by rw semaphore.
+  */
+ extern int memcg_max_cache_ids;
++extern void memcg_lock_cache_id_space(void);
++extern void memcg_unlock_cache_id_space(void);
  
  static inline bool memcg_kmem_enabled(void)
  {
-@@ -545,6 +550,8 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
- 	return __memcg_kmem_get_cache(cachep, gfp);
+@@ -449,8 +454,6 @@ void __memcg_kmem_uncharge_pages(struct page *page, int order);
+ 
+ int memcg_cache_id(struct mem_cgroup *memcg);
+ 
+-void memcg_update_array_size(int num_groups);
+-
+ struct kmem_cache *
+ __memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
+ 
+@@ -587,6 +590,14 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
+ 	return -1;
  }
- #else
-+#define memcg_max_cache_ids 0
+ 
++static inline void memcg_lock_cache_id_space(void)
++{
++}
 +
- static inline bool memcg_kmem_enabled(void)
++static inline void memcg_unlock_cache_id_space(void)
++{
++}
++
+ static inline struct kmem_cache *
+ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
  {
- 	return false;
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index d665d715090b..0020824dee96 100644
+index 0020824dee96..0c6d412ae5a3 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -615,12 +615,11 @@ static void disarm_sock_keys(struct mem_cgroup *memcg)
-  *  memcgs, and none but the 200th is kmem-limited, we'd have to have a
-  *  200 entry array for that.
-  *
-- * The current size of the caches array is stored in
-- * memcg_limited_groups_array_size.  It will double each time we have to
-- * increase it.
-+ * The current size of the caches array is stored in memcg_max_cache_ids. It
-+ * will double each time we have to increase it.
-  */
--static DEFINE_IDA(kmem_limited_groups);
--int memcg_limited_groups_array_size;
-+static DEFINE_IDA(memcg_cache_ida);
-+int memcg_max_cache_ids;
+@@ -621,6 +621,19 @@ static void disarm_sock_keys(struct mem_cgroup *memcg)
+ static DEFINE_IDA(memcg_cache_ida);
+ int memcg_max_cache_ids;
  
++/* Protects memcg_max_cache_ids */
++static DECLARE_RWSEM(memcg_cache_id_space_sem);
++
++void memcg_lock_cache_id_space(void)
++{
++	down_read(&memcg_cache_id_space_sem);
++}
++
++void memcg_unlock_cache_id_space(void)
++{
++	up_read(&memcg_cache_id_space_sem);
++}
++
  /*
   * MIN_SIZE is different than 1, because we would like to avoid going through
-@@ -2926,12 +2925,12 @@ static int memcg_alloc_cache_id(void)
- 	int id, size;
- 	int err;
+  * the alloc/free process all the time. In a small machine, 4 kmem-limited
+@@ -2937,6 +2950,7 @@ static int memcg_alloc_cache_id(void)
+ 	 * There's no space for the new id in memcg_caches arrays,
+ 	 * so we have to grow them.
+ 	 */
++	down_write(&memcg_cache_id_space_sem);
  
--	id = ida_simple_get(&kmem_limited_groups,
-+	id = ida_simple_get(&memcg_cache_ida,
- 			    0, MEMCG_CACHES_MAX_SIZE, GFP_KERNEL);
- 	if (id < 0)
- 		return id;
- 
--	if (id < memcg_limited_groups_array_size)
-+	if (id < memcg_max_cache_ids)
- 		return id;
- 
- 	/*
-@@ -2950,7 +2949,7 @@ static int memcg_alloc_cache_id(void)
+ 	size = 2 * (id + 1);
+ 	if (size < MEMCG_CACHES_MIN_SIZE)
+@@ -2948,6 +2962,10 @@ static int memcg_alloc_cache_id(void)
+ 	err = memcg_update_all_caches(size);
  	mutex_unlock(&memcg_slab_mutex);
  
++	if (!err)
++		memcg_max_cache_ids = size;
++	up_write(&memcg_cache_id_space_sem);
++
  	if (err) {
--		ida_simple_remove(&kmem_limited_groups, id);
-+		ida_simple_remove(&memcg_cache_ida, id);
+ 		ida_simple_remove(&memcg_cache_ida, id);
  		return err;
- 	}
- 	return id;
-@@ -2959,7 +2958,7 @@ static int memcg_alloc_cache_id(void)
- 
- static void memcg_free_cache_id(int id)
- {
--	ida_simple_remove(&kmem_limited_groups, id);
-+	ida_simple_remove(&memcg_cache_ida, id);
+@@ -2961,16 +2979,6 @@ static void memcg_free_cache_id(int id)
+ 	ida_simple_remove(&memcg_cache_ida, id);
  }
  
- /*
-@@ -2969,7 +2968,7 @@ static void memcg_free_cache_id(int id)
-  */
- void memcg_update_array_size(int num)
- {
--	memcg_limited_groups_array_size = num;
-+	memcg_max_cache_ids = num;
- }
- 
+-/*
+- * We should update the current array size iff all caches updates succeed. This
+- * can only be done from the slab side. The slab mutex needs to be held when
+- * calling this.
+- */
+-void memcg_update_array_size(int num)
+-{
+-	memcg_max_cache_ids = num;
+-}
+-
  static void memcg_register_cache(struct mem_cgroup *memcg,
+ 				 struct kmem_cache *root_cache)
+ {
 diff --git a/mm/slab_common.c b/mm/slab_common.c
-index d4add958843c..cc6e18437f6c 100644
+index cc6e18437f6c..4e2b9040a49f 100644
 --- a/mm/slab_common.c
 +++ b/mm/slab_common.c
-@@ -98,7 +98,7 @@ static int memcg_alloc_cache_params(struct mem_cgroup *memcg,
+@@ -157,8 +157,8 @@ int memcg_update_all_caches(int num_memcgs)
+ {
+ 	struct kmem_cache *s;
+ 	int ret = 0;
+-	mutex_lock(&slab_mutex);
  
- 	if (!memcg) {
- 		size = offsetof(struct memcg_cache_params, memcg_caches);
--		size += memcg_limited_groups_array_size * sizeof(void *);
-+		size += memcg_max_cache_ids * sizeof(void *);
- 	} else
- 		size = sizeof(struct memcg_cache_params);
++	mutex_lock(&slab_mutex);
+ 	list_for_each_entry(s, &slab_caches, list) {
+ 		if (!is_root_cache(s))
+ 			continue;
+@@ -169,11 +169,8 @@ int memcg_update_all_caches(int num_memcgs)
+ 		 * up to this point in an updated state.
+ 		 */
+ 		if (ret)
+-			goto out;
++			break;
+ 	}
+-
+-	memcg_update_array_size(num_memcgs);
+-out:
+ 	mutex_unlock(&slab_mutex);
+ 	return ret;
+ }
+@@ -290,6 +287,8 @@ kmem_cache_create(const char *name, size_t size, size_t align,
  
-@@ -138,7 +138,7 @@ static int memcg_update_cache_params(struct kmem_cache *s, int num_memcgs)
+ 	get_online_cpus();
+ 	get_online_mems();
++	memcg_lock_cache_id_space(); /* memcg_alloc_cache_params() needs a
++					stable value of memcg_max_cache_ids */
  
- 	cur_params = s->memcg_params;
- 	memcpy(new_params->memcg_caches, cur_params->memcg_caches,
--	       memcg_limited_groups_array_size * sizeof(void *));
-+	       memcg_max_cache_ids * sizeof(void *));
+ 	mutex_lock(&slab_mutex);
  
- 	new_params->is_root_cache = true;
- 	INIT_LIST_HEAD(&new_params->memcg_caches_list);
+@@ -328,6 +327,7 @@ kmem_cache_create(const char *name, size_t size, size_t align,
+ out_unlock:
+ 	mutex_unlock(&slab_mutex);
+ 
++	memcg_unlock_cache_id_space();
+ 	put_online_mems();
+ 	put_online_cpus();
+ 
 -- 
 1.7.10.4
 
