@@ -1,91 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D8026B0038
-	for <linux-mm@kvack.org>; Mon, 22 Sep 2014 04:32:17 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id g10so3500228pdj.19
-        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 01:32:17 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id zx14si4363361pab.5.2014.09.22.01.32.16
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Sep 2014 01:32:16 -0700 (PDT)
-Date: Mon, 22 Sep 2014 12:32:04 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [patch 3/3] mm: memcontrol: continue cache reclaim from offlined
- groups
-Message-ID: <20140922083204.GC18526@esperanza>
-References: <1411243235-24680-1-git-send-email-hannes@cmpxchg.org>
- <1411243235-24680-4-git-send-email-hannes@cmpxchg.org>
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B9FA6B0036
+	for <linux-mm@kvack.org>; Mon, 22 Sep 2014 05:29:03 -0400 (EDT)
+Received: by mail-wi0-f172.google.com with SMTP id em10so2508799wid.5
+        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 02:29:02 -0700 (PDT)
+Received: from cam-admin0.cambridge.arm.com (cam-admin0.cambridge.arm.com. [217.140.96.50])
+        by mx.google.com with ESMTP id dk6si7670269wib.44.2014.09.22.02.29.01
+        for <linux-mm@kvack.org>;
+        Mon, 22 Sep 2014 02:29:01 -0700 (PDT)
+Date: Mon, 22 Sep 2014 10:28:38 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH V3 0/6] RCU get_user_pages_fast and __get_user_pages_fast
+Message-ID: <20140922092838.GC25809@arm.com>
+References: <1409237107-24228-1-git-send-email-steve.capper@linaro.org>
+ <20140828152320.GN22580@arm.com>
+ <CAPvkgC0YVhPEBqbWSDnGyZBUn3+8Kv7-yx1-_n0Jx+giKzOqmw@mail.gmail.com>
+ <20140908090626.GA14634@linaro.org>
+ <20140919182808.GA22622@linaro.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1411243235-24680-4-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <20140919182808.GA22622@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Steve Capper <steve.capper@linaro.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <Catalin.Marinas@arm.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "gary.robertson@linaro.org" <gary.robertson@linaro.org>, "christoffer.dall@linaro.org" <christoffer.dall@linaro.org>, "peterz@infradead.org" <peterz@infradead.org>, "anders.roxell@linaro.org" <anders.roxell@linaro.org>, "dann.frazier@canonical.com" <dann.frazier@canonical.com>, Mark Rutland <Mark.Rutland@arm.com>, "mgorman@suse.de" <mgorman@suse.de>, "hughd@google.com" <hughd@google.com>
 
-On Sat, Sep 20, 2014 at 04:00:35PM -0400, Johannes Weiner wrote:
-> On cgroup deletion, outstanding page cache charges are moved to the
-> parent group so that they're not lost and can be reclaimed during
-> pressure on/inside said parent.  But this reparenting is fairly tricky
-> and its synchroneous nature has led to several lock-ups in the past.
+On Fri, Sep 19, 2014 at 07:28:09PM +0100, Steve Capper wrote:
+> Apologies for being a pest, but we're really keen to get this into 3.18,
+> as it fixes a THP problem with arm/arm64.
 > 
-> Since css iterators now also include offlined css, memcg iterators can
-> be changed to include offlined children during reclaim of a group, and
-> leftover cache can just stay put.
+> I need mm folk to either ack or flame the first patch in the series in
+> order to proceed. (All the patches in the series have been
+> acked/reviewed, but not by any mm folk.):
+>  [PATCH V3 1/6] mm: Introduce a general RCU get_user_pages_fast.
 > 
-> There is a slight change of behavior in that charges of deleted groups
-> no longer show up as local charges in the parent.  But they are still
-> included in the parent's hierarchical statistics.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  mm/memcontrol.c | 260 ++------------------------------------------------------
->  1 file changed, 5 insertions(+), 255 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 019a44ac25d6..48531433a2fc 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -736,8 +736,6 @@ static void disarm_static_keys(struct mem_cgroup *memcg)
->  	disarm_kmem_keys(memcg);
->  }
->  
-> -static void drain_all_stock_async(struct mem_cgroup *memcg);
-> -
->  static struct mem_cgroup_per_zone *
->  mem_cgroup_zone_zoneinfo(struct mem_cgroup *memcg, struct zone *zone)
->  {
-> @@ -1208,7 +1206,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->  				goto out_unlock;
->  			continue;
->  		}
-> -		if (css == &root->css || css_tryget_online(css)) {
-> +		if (css == &root->css || css_tryget(css)) {
->  			memcg = mem_cgroup_from_css(css);
->  			break;
->  		}
-> @@ -2349,10 +2347,12 @@ static void refill_stock(struct mem_cgroup *memcg, unsigned int nr_pages)
->   * of the hierarchy under it. sync flag says whether we should block
+> If it puts people's minds at rest regarding the testing...
+> On top of the ltp tests, and futex tests, we also ran these patches on
+> the arm64 Debian buildd's. With THP set to always, just under 8000
+> Debian packages have been built (and unit tested) without any kernel
+> issues for arm64.
 
-Please update the comment.
+Yes, please. It would be great if somebody can take these into an -mm tree
+and/or provide an ack so that we can queue them via the arm64 tree instead.
 
->   * until the work is done.
->   */
-> -static void drain_all_stock(struct mem_cgroup *root_memcg, bool sync)
-> +static void drain_all_stock(struct mem_cgroup *root_memcg)
->  {
->  	int cpu, curcpu;
->  
-> +	if (!mutex_trylock(&percpu_charge_mutex))
-> +		return;
-
-It's not obvious why we need it here. The old code has an explanatory
-comment. Could you please add one?
-
-Thanks,
-Vladimir
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
