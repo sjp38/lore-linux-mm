@@ -1,48 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id A5F6A6B0037
-	for <linux-mm@kvack.org>; Mon, 22 Sep 2014 17:53:28 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id y10so5210929pdj.4
-        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 14:53:28 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id se5si17605236pbc.27.2014.09.22.14.53.26
+Received: from mail-yh0-f45.google.com (mail-yh0-f45.google.com [209.85.213.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 124C16B0035
+	for <linux-mm@kvack.org>; Mon, 22 Sep 2014 17:54:46 -0400 (EDT)
+Received: by mail-yh0-f45.google.com with SMTP id a41so1372719yho.4
+        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 14:54:45 -0700 (PDT)
+Received: from mail-yh0-x229.google.com (mail-yh0-x229.google.com [2607:f8b0:4002:c01::229])
+        by mx.google.com with ESMTPS id 5si7488907yhp.173.2014.09.22.14.54.45
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Sep 2014 14:53:27 -0700 (PDT)
-Date: Mon, 22 Sep 2014 14:53:25 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] kvm: Faults which trigger IO release the mmap_sem
-Message-Id: <20140922145325.a63c848db6ebc02b5a4e5b35@linux-foundation.org>
-In-Reply-To: <54209574.6020002@redhat.com>
-References: <1410811885-17267-1-git-send-email-andreslc@google.com>
-	<1410976308-7683-1-git-send-email-andreslc@google.com>
-	<20140918002917.GA3921@kernel>
-	<20140918061326.GC30733@minantech.com>
-	<20140919003207.GA4296@kernel>
-	<CAJu=L5_SPcqca0sBYcCLjt4hv6RQwa+QV8Fhi6t3mxz0+X=KSA@mail.gmail.com>
-	<541BC848.6080001@redhat.com>
-	<CAJu=L5-B+2POA1h0P5cO2-SBDpQpHi35bvcAxWw4G+GMaQeHCw@mail.gmail.com>
-	<54209574.6020002@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 22 Sep 2014 14:54:45 -0700 (PDT)
+Received: by mail-yh0-f41.google.com with SMTP id b6so2327140yha.14
+        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 14:54:45 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <5420991C.2000400@redhat.com>
+References: <1411410865-3603-1-git-send-email-andreslc@google.com>
+	<1411417565-15748-1-git-send-email-andreslc@google.com>
+	<5420991C.2000400@redhat.com>
+Date: Mon, 22 Sep 2014 14:54:45 -0700
+Message-ID: <CAJu=L59=QGpWWW=ghPkFyhParXB4jMepQROiQ+5ZBh235Dmepg@mail.gmail.com>
+Subject: Re: [PATCH v3] kvm: Fix page ageing bugs
+From: Andres Lagar-Cavilla <andreslc@google.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Paolo Bonzini <pbonzini@redhat.com>
-Cc: Andres Lagar-Cavilla <andreslc@google.com>, Wanpeng Li <wanpeng.li@linux.intel.com>, Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andres Lagar-Cavilla <andreslc@gooogle.com>
 
-On Mon, 22 Sep 2014 23:32:36 +0200 Paolo Bonzini <pbonzini@redhat.com> wrote:
+On Mon, Sep 22, 2014 at 2:48 PM, Paolo Bonzini <pbonzini@redhat.com> wrote:
+> Il 22/09/2014 22:26, Andres Lagar-Cavilla ha scritto:
+>> +             __entry->gfn            = gfn;
+>> +             __entry->hva            = ((gfn - slot->base_gfn) >>
+>
+> This must be <<.
 
-> Il 22/09/2014 22:49, Andres Lagar-Cavilla ha scritto:
-> >>> > > Paolo, should I recut including the recent Reviewed-by's?
-> >> >
-> >> > No, I'll add them myself.
-> > Paolo, is this patch waiting for something? Is Gleb's Reviewed-by enough?
-> 
-> It's waiting for an Acked-by on the mm/ changes.
-> 
+Correct, thanks.
 
-The MM changes look good to me.
+>
+>> +                                         PAGE_SHIFT) + slot->userspace_addr;
+>
+>> +             /*
+>> +              * No need for _notify because we're called within an
+>> +              * mmu_notifier_invalidate_range_ {start|end} scope.
+>> +              */
+>
+> Why "called within"?  It is try_to_unmap_cluster itself that calls
+> mmu_notifier_invalidate_range_*, so "we're within an
+> mmu_notifier_invalidate_range_start/end scope" sounds better, and it's
+> also what you use in the commit message.
+
+Also correct. V4...
+Andres
+
+>
+> Paolo
+
+
+
+-- 
+Andres Lagar-Cavilla | Google Kernel Team | andreslc@google.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
