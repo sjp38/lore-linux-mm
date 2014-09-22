@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A1D686B0035
-	for <linux-mm@kvack.org>; Mon, 22 Sep 2014 17:11:20 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id eu11so3573182pac.10
-        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 14:11:20 -0700 (PDT)
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id C30486B0035
+	for <linux-mm@kvack.org>; Mon, 22 Sep 2014 17:17:36 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id r10so5131904pdi.11
+        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 14:17:36 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id kt6si17530561pdb.47.2014.09.22.14.11.19
+        by mx.google.com with ESMTPS id rh5si16371613pbc.189.2014.09.22.14.17.35
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Sep 2014 14:11:19 -0700 (PDT)
-Date: Mon, 22 Sep 2014 14:11:18 -0700
+        Mon, 22 Sep 2014 14:17:35 -0700 (PDT)
+Date: Mon, 22 Sep 2014 14:17:33 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v1 4/5] zram: add swap full hint
-Message-Id: <20140922141118.de46ae5e54099cf2b39c8c5b@linux-foundation.org>
-In-Reply-To: <1411344191-2842-5-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH v1 5/5] zram: add fullness knob to control swap full
+Message-Id: <20140922141733.023a9ecbc0fe802d7f742d6e@linux-foundation.org>
+In-Reply-To: <1411344191-2842-6-git-send-email-minchan@kernel.org>
 References: <1411344191-2842-1-git-send-email-minchan@kernel.org>
-	<1411344191-2842-5-git-send-email-minchan@kernel.org>
+	<1411344191-2842-6-git-send-email-minchan@kernel.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -24,137 +24,89 @@ List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>, juno.choi@lge.com
 
-On Mon, 22 Sep 2014 09:03:10 +0900 Minchan Kim <minchan@kernel.org> wrote:
+On Mon, 22 Sep 2014 09:03:11 +0900 Minchan Kim <minchan@kernel.org> wrote:
 
-> This patch implement SWAP_FULL handler in zram so that VM can
-> know whether zram is full or not and use it to stop anonymous
-> page reclaim.
+> Some zram usecase could want lower fullness than default 80 to
+> avoid unnecessary swapout-and-fail-recover overhead.
 > 
-> How to judge fullness is below,
+> A typical example is that mutliple swap with high piroirty
+> zram-swap and low priority HDD-swap so it could still enough
+> free swap space although one of swap devices is full(ie, zram).
+> It would be better to fail over to HDD-swap rather than failing
+> swap write to zram in this case.
 > 
-> fullness = (100 * used space / total space)
-> 
-> It means the higher fullness is, the slower we reach zram full.
-> Now, default of fullness is 80 so that it biased more momory
-> consumption rather than early OOM kill.
+> This patch exports fullness to user so user can control it
+> via the knob.
 
-It's unclear to me why this is being done.  What's wrong with "use it
-until it's full then stop", which is what I assume the current code
-does?  Why add this stuff?  What goes wrong with the current code and
-how does this fix it?
+Adding new userspace interfaces requires a pretty strong justification
+and it's unclear to me that this is being met.  In fact the whole
+patchset reads like "we have some problem, don't know how to fix it so
+let's add a userspace knob to make it someone else's problem".
 
-ie: better explanation and justification in the chagnelogs, please.
+> index b13dc993291f..817738d14061 100644
+> --- a/Documentation/ABI/testing/sysfs-block-zram
+> +++ b/Documentation/ABI/testing/sysfs-block-zram
+> @@ -138,3 +138,13 @@ Description:
+>  		amount of memory ZRAM can use to store the compressed data.  The
+>  		limit could be changed in run time and "0" means disable the
+>  		limit.  No limit is the initial state.  Unit: bytes
+> +
+> +What:		/sys/block/zram<id>/fullness
+> +Date:		August 2014
+> +Contact:	Minchan Kim <minchan@kernel.org>
+> +Description:
+> +		The fullness file is read/write and specifies how easily
+> +		zram become full state so if you set it to lower value,
+> +		zram can reach full state easily compared to higher value.
+> +		Curretnly, initial value is 80% but it could be changed.
+> +		Unit: Percentage
 
-> Above logic works only when used space of zram hit over the limit
-> but zram also pretend to be full once 32 consecutive allocation
-> fail happens. It's safe guard to prevent system hang caused by
-> fragment uncertainty.
-
-So allocation requests are of variable size, yes?  If so, the above
-statement should read "32 consecutive allocation attempts for regions
-or size 2 or more slots".  Because a failure of a single-slot
-allocation attempt is an immediate failure.
-
-The 32-in-a-row thing sounds like a hack.  Why can't we do this
-deterministically?  If one request for four slots fails then the next
-one will as well, so why bother retrying?
+And I don't think that there is sufficient information here for a user
+to be able to work out what to do with this tunable.
 
 > --- a/drivers/block/zram/zram_drv.c
 > +++ b/drivers/block/zram/zram_drv.c
-> @@ -43,6 +43,20 @@ static const char *default_compressor = "lzo";
->  /* Module params (documentation at end) */
->  static unsigned int num_devices = 1;
->  
-> +/*
-> + * If (100 * used_pages / total_pages) >= ZRAM_FULLNESS_PERCENT),
-> + * we regards it as zram-full. It means that the higher
-> + * ZRAM_FULLNESS_PERCENT is, the slower we reach zram full.
-> + */
-
-I just don't understand this patch :( To me, the above implies that the
-user who sets 80% has elected to never use 20% of the zram capacity. 
-Why on earth would anyone do that?  This chagnelog doesn't tell me.
-
-> +#define ZRAM_FULLNESS_PERCENT 80
-
-We've had problems in the past where 1% is just too large an increment
-for large systems.
-
-> @@ -597,10 +613,15 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
->  	}
->  
->  	alloced_pages = zs_get_total_pages(meta->mem_pool);
-> -	if (zram->limit_pages && alloced_pages > zram->limit_pages) {
-> -		zs_free(meta->mem_pool, handle);
-> -		ret = -ENOMEM;
-> -		goto out;
-> +	if (zram->limit_pages) {
-> +		if (alloced_pages > zram->limit_pages) {
-
-This is all a bit racy, isn't it?  pool->pages_allocated and
-zram->limit_pages could be changing under our feet.
-
-> +			zs_free(meta->mem_pool, handle);
-> +			atomic_inc(&zram->alloc_fail);
-> +			ret = -ENOMEM;
-> +			goto out;
-> +		} else {
-> +			atomic_set(&zram->alloc_fail, 0);
-> +		}
- 	}
- 
- 	update_used_max(zram, alloced_pages);
-
-> @@ -711,6 +732,7 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
->  	down_write(&zram->init_lock);
->  
->  	zram->limit_pages = 0;
-> +	atomic_set(&zram->alloc_fail, 0);
->  
->  	if (!init_done(zram)) {
->  		up_write(&zram->init_lock);
-> @@ -944,6 +966,34 @@ static int zram_slot_free_notify(struct block_device *bdev,
->  	return 0;
+> @@ -136,6 +136,37 @@ static ssize_t max_comp_streams_show(struct device *dev,
+>  	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
 >  }
 >  
-> +static int zram_full(struct block_device *bdev, void *arg)
-
-This could return a bool.  That implies that zram_swap_hint should
-return bool too, but as we haven't been told what the zram_swap_hint
-return value does, I'm a bit stumped.
-
-And why include the unusefully-named "void *arg"?  It doesn't get used here.
-
+> +static ssize_t fullness_show(struct device *dev,
+> +		struct device_attribute *attr, char *buf)
 > +{
-> +	struct zram *zram;
-> +	struct zram_meta *meta;
-> +	unsigned long total_pages, compr_pages;
+> +	int val;
+> +	struct zram *zram = dev_to_zram(dev);
 > +
-> +	zram = bdev->bd_disk->private_data;
-> +	if (!zram->limit_pages)
-> +		return 0;
-> +
-> +	meta = zram->meta;
-> +	total_pages = zs_get_total_pages(meta->mem_pool);
-> +
-> +	if (total_pages >= zram->limit_pages) {
-> +
-> +		compr_pages = atomic64_read(&zram->stats.compr_data_size)
-> +					>> PAGE_SHIFT;
-> +		if ((100 * compr_pages / total_pages)
-> +			>= ZRAM_FULLNESS_PERCENT)
-> +			return 1;
-> +	}
-> +
-> +	if (atomic_read(&zram->alloc_fail) > ALLOC_FAIL_MAX)
-> +		return 1;
-> +
-> +	return 0;
+> +	down_read(&zram->init_lock);
+> +	val = zram->fullness;
+> +	up_read(&zram->init_lock);
+
+Did we really need to take a lock to display a value which became
+out-of-date as soon as we released that lock?
+
+> +	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
 > +}
 > +
->  static int zram_swap_hint(struct block_device *bdev,
->  				unsigned int hint, void *arg)
->  {
+> +static ssize_t fullness_store(struct device *dev,
+> +		struct device_attribute *attr, const char *buf, size_t len)
+> +{
+> +	int err;
+> +	unsigned long val;
+> +	struct zram *zram = dev_to_zram(dev);
+> +
+> +	err = kstrtoul(buf, 10, &val);
+> +	if (err || val > 100)
+> +		return -EINVAL;
+
+This overwrites the kstrtoul() return value.
+
+> +
+> +	down_write(&zram->init_lock);
+> +	zram->fullness = val;
+> +	up_write(&zram->init_lock);
+> +
+> +	return len;
+> +}
+> +
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
