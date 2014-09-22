@@ -1,173 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id AC9FD6B0039
-	for <linux-mm@kvack.org>; Mon, 22 Sep 2014 12:01:04 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id v10so3558423pde.34
-        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 09:01:04 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id gv6si16341280pac.113.2014.09.22.09.01.03
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C1A96B0036
+	for <linux-mm@kvack.org>; Mon, 22 Sep 2014 12:11:26 -0400 (EDT)
+Received: by mail-wi0-f179.google.com with SMTP id d1so3370646wiv.0
+        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 09:11:26 -0700 (PDT)
+Received: from relay5-d.mail.gandi.net (relay5-d.mail.gandi.net. [2001:4b98:c:538::197])
+        by mx.google.com with ESMTPS id ln5si11667652wjc.118.2014.09.22.09.11.25
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Sep 2014 09:01:03 -0700 (PDT)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH v2 3/3] memcg: move memcg_update_cache_size to slab_common.c
-Date: Mon, 22 Sep 2014 20:00:46 +0400
-Message-ID: <dd66241915c99132e41f10d0cd0d346be3a4f39c.1411401021.git.vdavydov@parallels.com>
-In-Reply-To: <cover.1411401021.git.vdavydov@parallels.com>
-References: <cover.1411401021.git.vdavydov@parallels.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 22 Sep 2014 09:11:25 -0700 (PDT)
+Date: Mon, 22 Sep 2014 09:11:16 -0700
+From: Josh Triplett <josh@joshtriplett.org>
+Subject: [PATCH] mm: Support compiling out madvise and fadvise
+Message-ID: <20140922161109.GA25027@thin>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, linux-mm@kvack.org
 
-While growing per memcg caches arrays, we jump between memcontrol.c and
-slab_common.c in a weird way:
+Many embedded systems will not need these syscalls, and omitting them
+saves space.  Add a new EXPERT config option CONFIG_ADVISE_SYSCALLS
+(default y) to support compiling them out.
 
-  memcg_alloc_cache_id - memcontrol.c
-    memcg_update_all_caches - slab_common.c
-      memcg_update_cache_size - memcontrol.c
+bloat-o-meter:
+add/remove: 0/3 grow/shrink: 0/0 up/down: 0/-2250 (-2250)
+function                                     old     new   delta
+sys_fadvise64                                 57       -     -57
+sys_fadvise64_64                             691       -    -691
+sys_madvise                                 1502       -   -1502
 
-There's absolutely no reason why memcg_update_cache_size can't live on
-the slab's side though. So let's move it there and settle it comfortably
-amid per-memcg cache allocation functions.
-
-Besides, this patch cleans this function up a bit, removing all the
-useless comments from it, and renames it to memcg_update_cache_params to
-conform to memcg_alloc/free_cache_params, which we already have in
-slab_common.c.
-
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+Signed-off-by: Josh Triplett <josh@joshtriplett.org>
 ---
- include/linux/memcontrol.h |    1 -
- mm/memcontrol.c            |   49 --------------------------------------------
- mm/slab_common.c           |   30 +++++++++++++++++++++++++--
- 3 files changed, 28 insertions(+), 52 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 4d17242eeff7..19df5d857411 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -440,7 +440,6 @@ void __memcg_kmem_uncharge_pages(struct page *page, int order);
+Posting this for review.  I can upstream this directly through my new tiny
+tree.
+
+ init/Kconfig    | 10 ++++++++++
+ kernel/sys_ni.c |  3 +++
+ mm/Makefile     |  7 +++++--
+ 3 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/init/Kconfig b/init/Kconfig
+index e84c642..782a65b 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1537,6 +1537,16 @@ config AIO
+ 	  by some high performance threaded applications. Disabling
+ 	  this option saves about 7k.
  
- int memcg_cache_id(struct mem_cgroup *memcg);
++config ADVISE_SYSCALLS
++	bool "Enable madvise/fadvise syscalls" if EXPERT
++	default y
++	help
++	  This option enables the madvise and fadvise syscalls, used by
++	  applications to advise the kernel about their future memory or file
++	  usage, improving performance. If building an embedded system where no
++	  applications use these syscalls, you can disable this option to save
++	  space.
++
+ config PCI_QUIRKS
+ 	default y
+ 	bool "Enable PCI quirk workarounds" if EXPERT
+diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
+index 391d4dd..d4709d4 100644
+--- a/kernel/sys_ni.c
++++ b/kernel/sys_ni.c
+@@ -156,6 +156,9 @@ cond_syscall(sys_process_vm_writev);
+ cond_syscall(compat_sys_process_vm_readv);
+ cond_syscall(compat_sys_process_vm_writev);
+ cond_syscall(sys_uselib);
++cond_syscall(sys_fadvise64);
++cond_syscall(sys_fadvise64_64);
++cond_syscall(sys_madvise);
  
--int memcg_update_cache_size(struct kmem_cache *s, int num_groups);
- void memcg_update_array_size(int num_groups);
+ /* arch-specific weak syscall entries */
+ cond_syscall(sys_pciconfig_read);
+diff --git a/mm/Makefile b/mm/Makefile
+index 632ae77..fe7a053 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -3,7 +3,7 @@
+ #
  
- struct kmem_cache *
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 55d131645b45..1ec22bf380d0 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2944,55 +2944,6 @@ void memcg_update_array_size(int num)
- 	memcg_limited_groups_array_size = num;
- }
+ mmu-y			:= nommu.o
+-mmu-$(CONFIG_MMU)	:= fremap.o gup.o highmem.o madvise.o memory.o mincore.o \
++mmu-$(CONFIG_MMU)	:= fremap.o gup.o highmem.o memory.o mincore.o \
+ 			   mlock.o mmap.o mprotect.o mremap.o msync.o rmap.o \
+ 			   vmalloc.o pagewalk.o pgtable-generic.o
  
--int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
--{
--	struct memcg_cache_params *cur_params = s->memcg_params;
--	struct memcg_cache_params *new_params;
--	size_t size;
--	int i;
--
--	VM_BUG_ON(!is_root_cache(s));
--
--	size = num_groups * sizeof(void *);
--	size += offsetof(struct memcg_cache_params, memcg_caches);
--
--	new_params = kzalloc(size, GFP_KERNEL);
--	if (!new_params)
--		return -ENOMEM;
--
--	new_params->is_root_cache = true;
--
--	/*
--	 * There is the chance it will be bigger than
--	 * memcg_limited_groups_array_size, if we failed an allocation
--	 * in a cache, in which case all caches updated before it, will
--	 * have a bigger array.
--	 *
--	 * But if that is the case, the data after
--	 * memcg_limited_groups_array_size is certainly unused
--	 */
--	for (i = 0; i < memcg_limited_groups_array_size; i++) {
--		if (!cur_params->memcg_caches[i])
--			continue;
--		new_params->memcg_caches[i] =
--			cur_params->memcg_caches[i];
--	}
--
--	/*
--	 * Ideally, we would wait until all caches succeed, and only
--	 * then free the old one. But this is not worth the extra
--	 * pointer per-cache we'd have to have for this.
--	 *
--	 * It is not a big deal if some caches are left with a size
--	 * bigger than the others. And all updates will reset this
--	 * anyway.
--	 */
--	rcu_assign_pointer(s->memcg_params, new_params);
--	if (cur_params)
--		kfree_rcu(cur_params, rcu_head);
--	return 0;
--}
--
- static void memcg_register_cache(struct mem_cgroup *memcg,
- 				 struct kmem_cache *root_cache)
- {
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 9c29ba792368..800314e2a075 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -120,6 +120,33 @@ static void memcg_free_cache_params(struct kmem_cache *s)
- 	kfree(s->memcg_params);
- }
+@@ -11,7 +11,7 @@ ifdef CONFIG_CROSS_MEMORY_ATTACH
+ mmu-$(CONFIG_MMU)	+= process_vm_access.o
+ endif
  
-+static int memcg_update_cache_params(struct kmem_cache *s, int num_memcgs)
-+{
-+	int size;
-+	struct memcg_cache_params *new_params, *cur_params;
-+
-+	BUG_ON(!is_root_cache(s));
-+
-+	size = offsetof(struct memcg_cache_params, memcg_caches);
-+	size += num_memcgs * sizeof(void *);
-+
-+	new_params = kzalloc(size, GFP_KERNEL);
-+	if (!new_params)
-+		return -ENOMEM;
-+
-+	cur_params = s->memcg_params;
-+	memcpy(new_params->memcg_caches, cur_params->memcg_caches,
-+	       memcg_limited_groups_array_size * sizeof(void *));
-+
-+	new_params->is_root_cache = true;
-+
-+	rcu_assign_pointer(s->memcg_params, new_params);
-+	if (cur_params)
-+		kfree_rcu(cur_params, rcu_head);
-+
-+	return 0;
-+}
-+
- int memcg_update_all_caches(int num_memcgs)
- {
- 	struct kmem_cache *s;
-@@ -130,9 +157,8 @@ int memcg_update_all_caches(int num_memcgs)
- 		if (!is_root_cache(s))
- 			continue;
+-obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
++obj-y			:= filemap.o mempool.o oom_kill.o \
+ 			   maccess.o page_alloc.o page-writeback.o \
+ 			   readahead.o swap.o truncate.o vmscan.o shmem.o \
+ 			   util.o mmzone.o vmstat.o backing-dev.o \
+@@ -28,6 +28,9 @@ else
+ 	obj-y		+= bootmem.o
+ endif
  
--		ret = memcg_update_cache_size(s, num_memcgs);
-+		ret = memcg_update_cache_params(s, num_memcgs);
- 		/*
--		 * See comment in memcontrol.c, memcg_update_cache_size:
- 		 * Instead of freeing the memory, we'll just leave the caches
- 		 * up to this point in an updated state.
- 		 */
++ifdef CONFIG_MMU
++	obj-$(CONFIG_ADVISE_SYSCALLS)	+= fadvise.o madvise.o
++endif
+ obj-$(CONFIG_HAVE_MEMBLOCK) += memblock.o
+ 
+ obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o
 -- 
-1.7.10.4
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
