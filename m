@@ -1,463 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 633406B0035
-	for <linux-mm@kvack.org>; Mon, 22 Sep 2014 16:26:10 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id z10so3764453pdj.21
-        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 13:26:10 -0700 (PDT)
-Received: from mail-pa0-x249.google.com (mail-pa0-x249.google.com [2607:f8b0:400e:c03::249])
-        by mx.google.com with ESMTPS id 10si17327767pdl.110.2014.09.22.13.26.09
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D7396B0035
+	for <linux-mm@kvack.org>; Mon, 22 Sep 2014 16:41:12 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id lj1so4738800pab.4
+        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 13:41:12 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id qo10si17338411pac.133.2014.09.22.13.41.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 22 Sep 2014 13:26:09 -0700 (PDT)
-Received: by mail-pa0-f73.google.com with SMTP id ey11so1095426pad.0
-        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 13:26:09 -0700 (PDT)
-From: Andres Lagar-Cavilla <andreslc@google.com>
-Subject: [PATCH v3] kvm: Fix page ageing bugs
-Date: Mon, 22 Sep 2014 13:26:05 -0700
-Message-Id: <1411417565-15748-1-git-send-email-andreslc@google.com>
-In-Reply-To: <1411410865-3603-1-git-send-email-andreslc@google.com>
-References: <1411410865-3603-1-git-send-email-andreslc@google.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Sep 2014 13:41:11 -0700 (PDT)
+Date: Mon, 22 Sep 2014 13:41:09 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v1 1/5] zram: generalize swap_slot_free_notify
+Message-Id: <20140922134109.f61195768841a3b300e6b81e@linux-foundation.org>
+In-Reply-To: <1411344191-2842-2-git-send-email-minchan@kernel.org>
+References: <1411344191-2842-1-git-send-email-minchan@kernel.org>
+	<1411344191-2842-2-git-send-email-minchan@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Andres Lagar-Cavilla <andreslc@google.com>, Andres Lagar-Cavilla <andreslc@gooogle.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>, juno.choi@lge.com
 
-1. We were calling clear_flush_young_notify in unmap_one, but we are
-within an mmu notifier invalidate range scope. The spte exists no more
-(due to range_start) and the accessed bit info has already been
-propagated (due to kvm_pfn_set_accessed). Simply call
-clear_flush_young.
+On Mon, 22 Sep 2014 09:03:07 +0900 Minchan Kim <minchan@kernel.org> wrote:
 
-2. We clear_flush_young on a primary MMU PMD, but this may be mapped
-as a collection of PTEs by the secondary MMU (e.g. during log-dirty).
-This required expanding the interface of the clear_flush_young mmu
-notifier, so a lot of code has been trivially touched.
+> Currently, swap_slot_free_notify is used for zram to free
+> duplicated copy page for memory efficiency when it knows
+> there is no reference to the swap slot.
+> 
+> This patch generalizes it to be able to use for other
+> swap hint to communicate with VM.
+> 
 
-3. In the absence of shadow_accessed_mask (e.g. EPT A bit), we emulate
-the access bit by blowing the spte. This requires proper synchronizing
-with MMU notifier consumers, like every other removal of spte's does.
+I really think we need to do a better job of documenting the code.
 
----
-v1 -> v2: * Small cosmetic changes
-          * Remove unnecessary handling of mmu_notifier_seq in
-            mmu_lock protected region
-          * Func prototypes fixed
+> index 94d93b1f8b53..c262bfbeafa9 100644
+> --- a/Documentation/filesystems/Locking
+> +++ b/Documentation/filesystems/Locking
+> @@ -405,7 +405,7 @@ prototypes:
+>  	void (*unlock_native_capacity) (struct gendisk *);
+>  	int (*revalidate_disk) (struct gendisk *);
+>  	int (*getgeo)(struct block_device *, struct hd_geometry *);
+> -	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
+> +	int (*swap_hint) (struct block_device *, unsigned int, void *);
+>  
+>  locking rules:
+>  			bd_mutex
+> @@ -418,7 +418,7 @@ media_changed:		no
+>  unlock_native_capacity:	no
+>  revalidate_disk:	no
+>  getgeo:			no
+> -swap_slot_free_notify:	no	(see below)
+> +swap_hint:		no	(see below)
 
-v2 -> v3  * Added Acked-by
-          * Fix compilation in PowerPC
----
-Signed-off-by: Andres Lagar-Cavilla <andreslc@gooogle.com>
-Acked-by: Rik van Riel <riel@redhat.com>
----
- arch/arm/include/asm/kvm_host.h     |  3 ++-
- arch/arm64/include/asm/kvm_host.h   |  3 ++-
- arch/powerpc/include/asm/kvm_host.h |  2 +-
- arch/powerpc/kvm/book3s.c           |  4 ++--
- arch/powerpc/kvm/book3s.h           |  3 ++-
- arch/powerpc/kvm/book3s_64_mmu_hv.c |  4 ++--
- arch/powerpc/kvm/book3s_pr.c        |  3 ++-
- arch/powerpc/kvm/e500_mmu_host.c    |  2 +-
- arch/x86/include/asm/kvm_host.h     |  2 +-
- arch/x86/kvm/mmu.c                  | 46 +++++++++++++++++++++++--------------
- drivers/iommu/amd_iommu_v2.c        |  6 +++--
- include/linux/mmu_notifier.h        | 24 +++++++++++++------
- include/trace/events/kvm.h          | 10 ++++----
- mm/mmu_notifier.c                   |  5 ++--
- mm/rmap.c                           |  6 ++++-
- virt/kvm/kvm_main.c                 |  5 ++--
- 16 files changed, 81 insertions(+), 47 deletions(-)
+This didn't tell anyone anythnig much.
 
-diff --git a/arch/arm/include/asm/kvm_host.h b/arch/arm/include/asm/kvm_host.h
-index 032a853..8c3f7eb 100644
---- a/arch/arm/include/asm/kvm_host.h
-+++ b/arch/arm/include/asm/kvm_host.h
-@@ -170,7 +170,8 @@ unsigned long kvm_arm_num_regs(struct kvm_vcpu *vcpu);
- int kvm_arm_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices);
- 
- /* We do not have shadow page tables, hence the empty hooks */
--static inline int kvm_age_hva(struct kvm *kvm, unsigned long hva)
-+static inline int kvm_age_hva(struct kvm *kvm, unsigned long start,
-+			      unsigned long end)
- {
- 	return 0;
- }
-diff --git a/arch/arm64/include/asm/kvm_host.h b/arch/arm64/include/asm/kvm_host.h
-index be9970a..a3c671b 100644
---- a/arch/arm64/include/asm/kvm_host.h
-+++ b/arch/arm64/include/asm/kvm_host.h
-@@ -180,7 +180,8 @@ int kvm_unmap_hva_range(struct kvm *kvm,
- void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
- 
- /* We do not have shadow page tables, hence the empty hooks */
--static inline int kvm_age_hva(struct kvm *kvm, unsigned long hva)
-+static inline int kvm_age_hva(struct kvm *kvm, unsigned long start,
-+			      unsigned long end)
- {
- 	return 0;
- }
-diff --git a/arch/powerpc/include/asm/kvm_host.h b/arch/powerpc/include/asm/kvm_host.h
-index 6040008..d329bc5 100644
---- a/arch/powerpc/include/asm/kvm_host.h
-+++ b/arch/powerpc/include/asm/kvm_host.h
-@@ -56,7 +56,7 @@
- extern int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
- extern int kvm_unmap_hva_range(struct kvm *kvm,
- 			       unsigned long start, unsigned long end);
--extern int kvm_age_hva(struct kvm *kvm, unsigned long hva);
-+extern int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end);
- extern int kvm_test_age_hva(struct kvm *kvm, unsigned long hva);
- extern void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
- 
-diff --git a/arch/powerpc/kvm/book3s.c b/arch/powerpc/kvm/book3s.c
-index dd03f6b..c16cfbf 100644
---- a/arch/powerpc/kvm/book3s.c
-+++ b/arch/powerpc/kvm/book3s.c
-@@ -851,9 +851,9 @@ int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
- 	return kvm->arch.kvm_ops->unmap_hva_range(kvm, start, end);
- }
- 
--int kvm_age_hva(struct kvm *kvm, unsigned long hva)
-+int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end)
- {
--	return kvm->arch.kvm_ops->age_hva(kvm, hva);
-+	return kvm->arch.kvm_ops->age_hva(kvm, start, end);
- }
- 
- int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
-diff --git a/arch/powerpc/kvm/book3s.h b/arch/powerpc/kvm/book3s.h
-index 4bf956c..d2b3ec0 100644
---- a/arch/powerpc/kvm/book3s.h
-+++ b/arch/powerpc/kvm/book3s.h
-@@ -17,7 +17,8 @@ extern void kvmppc_core_flush_memslot_hv(struct kvm *kvm,
- extern int kvm_unmap_hva_hv(struct kvm *kvm, unsigned long hva);
- extern int kvm_unmap_hva_range_hv(struct kvm *kvm, unsigned long start,
- 				  unsigned long end);
--extern int kvm_age_hva_hv(struct kvm *kvm, unsigned long hva);
-+extern int kvm_age_hva_hv(struct kvm *kvm, unsigned long start,
-+			  unsigned long end);
- extern int kvm_test_age_hva_hv(struct kvm *kvm, unsigned long hva);
- extern void kvm_set_spte_hva_hv(struct kvm *kvm, unsigned long hva, pte_t pte);
- 
-diff --git a/arch/powerpc/kvm/book3s_64_mmu_hv.c b/arch/powerpc/kvm/book3s_64_mmu_hv.c
-index 72c20bb..81460c5 100644
---- a/arch/powerpc/kvm/book3s_64_mmu_hv.c
-+++ b/arch/powerpc/kvm/book3s_64_mmu_hv.c
-@@ -1002,11 +1002,11 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
- 	return ret;
- }
- 
--int kvm_age_hva_hv(struct kvm *kvm, unsigned long hva)
-+int kvm_age_hva_hv(struct kvm *kvm, unsigned long start, unsigned long end)
- {
- 	if (!kvm->arch.using_mmu_notifiers)
- 		return 0;
--	return kvm_handle_hva(kvm, hva, kvm_age_rmapp);
-+	return kvm_handle_hva_range(kvm, start, end, kvm_age_rmapp);
- }
- 
- static int kvm_test_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
-diff --git a/arch/powerpc/kvm/book3s_pr.c b/arch/powerpc/kvm/book3s_pr.c
-index faffb27..852fcd8 100644
---- a/arch/powerpc/kvm/book3s_pr.c
-+++ b/arch/powerpc/kvm/book3s_pr.c
-@@ -295,7 +295,8 @@ static int kvm_unmap_hva_range_pr(struct kvm *kvm, unsigned long start,
- 	return 0;
- }
- 
--static int kvm_age_hva_pr(struct kvm *kvm, unsigned long hva)
-+static int kvm_age_hva_pr(struct kvm *kvm, unsigned long start,
-+			  unsigned long end)
- {
- 	/* XXX could be more clever ;) */
- 	return 0;
-diff --git a/arch/powerpc/kvm/e500_mmu_host.c b/arch/powerpc/kvm/e500_mmu_host.c
-index 08f14bb..b1f3f63 100644
---- a/arch/powerpc/kvm/e500_mmu_host.c
-+++ b/arch/powerpc/kvm/e500_mmu_host.c
-@@ -732,7 +732,7 @@ int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
- 	return 0;
- }
- 
--int kvm_age_hva(struct kvm *kvm, unsigned long hva)
-+int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end)
- {
- 	/* XXX could be more clever ;) */
- 	return 0;
-diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
-index 028df8d..a96c61b 100644
---- a/arch/x86/include/asm/kvm_host.h
-+++ b/arch/x86/include/asm/kvm_host.h
-@@ -1036,7 +1036,7 @@ asmlinkage void kvm_spurious_fault(void);
- #define KVM_ARCH_WANT_MMU_NOTIFIER
- int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
- int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end);
--int kvm_age_hva(struct kvm *kvm, unsigned long hva);
-+int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end);
- int kvm_test_age_hva(struct kvm *kvm, unsigned long hva);
- void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
- int cpuid_maxphyaddr(struct kvm_vcpu *vcpu);
-diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-index 76398fe..f33d5e4 100644
---- a/arch/x86/kvm/mmu.c
-+++ b/arch/x86/kvm/mmu.c
-@@ -1406,32 +1406,24 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
- 	struct rmap_iterator uninitialized_var(iter);
- 	int young = 0;
- 
--	/*
--	 * In case of absence of EPT Access and Dirty Bits supports,
--	 * emulate the accessed bit for EPT, by checking if this page has
--	 * an EPT mapping, and clearing it if it does. On the next access,
--	 * a new EPT mapping will be established.
--	 * This has some overhead, but not as much as the cost of swapping
--	 * out actively used pages or breaking up actively used hugepages.
--	 */
--	if (!shadow_accessed_mask) {
--		young = kvm_unmap_rmapp(kvm, rmapp, slot, data);
--		goto out;
--	}
-+	BUG_ON(!shadow_accessed_mask);
- 
- 	for (sptep = rmap_get_first(*rmapp, &iter); sptep;
- 	     sptep = rmap_get_next(&iter)) {
-+		struct kvm_mmu_page *sp;
-+		gfn_t gfn;
- 		BUG_ON(!is_shadow_present_pte(*sptep));
-+		/* From spte to gfn. */
-+		sp = page_header(__pa(sptep));
-+		gfn = kvm_mmu_page_get_gfn(sp, sptep - sp->spt);
- 
- 		if (*sptep & shadow_accessed_mask) {
- 			young = 1;
- 			clear_bit((ffs(shadow_accessed_mask) - 1),
- 				 (unsigned long *)sptep);
- 		}
-+		trace_kvm_age_page(gfn, slot, young);
- 	}
--out:
--	/* @data has hva passed to kvm_age_hva(). */
--	trace_kvm_age_page(data, slot, young);
- 	return young;
- }
- 
-@@ -1478,9 +1470,29 @@ static void rmap_recycle(struct kvm_vcpu *vcpu, u64 *spte, gfn_t gfn)
- 	kvm_flush_remote_tlbs(vcpu->kvm);
- }
- 
--int kvm_age_hva(struct kvm *kvm, unsigned long hva)
-+int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end)
- {
--	return kvm_handle_hva(kvm, hva, hva, kvm_age_rmapp);
-+	/*
-+	 * In case of absence of EPT Access and Dirty Bits supports,
-+	 * emulate the accessed bit for EPT, by checking if this page has
-+	 * an EPT mapping, and clearing it if it does. On the next access,
-+	 * a new EPT mapping will be established.
-+	 * This has some overhead, but not as much as the cost of swapping
-+	 * out actively used pages or breaking up actively used hugepages.
-+	 */
-+	if (!shadow_accessed_mask) {
-+		/*
-+		 * We are holding the kvm->mmu_lock, and we are blowing up
-+		 * shadow PTEs. MMU notifier consumers need to be kept at bay.
-+		 * This is correct as long as we don't decouple the mmu_lock
-+		 * protected regions (like invalidate_range_start|end does).
-+		 */
-+		kvm->mmu_notifier_seq++;
-+		return kvm_handle_hva_range(kvm, start, end, 0,
-+					    kvm_unmap_rmapp);
-+	}
-+
-+	return kvm_handle_hva_range(kvm, start, end, 0, kvm_age_rmapp);
- }
- 
- int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
-diff --git a/drivers/iommu/amd_iommu_v2.c b/drivers/iommu/amd_iommu_v2.c
-index 5f578e8..90d734b 100644
---- a/drivers/iommu/amd_iommu_v2.c
-+++ b/drivers/iommu/amd_iommu_v2.c
-@@ -402,9 +402,11 @@ static void __mn_flush_page(struct mmu_notifier *mn,
- 
- static int mn_clear_flush_young(struct mmu_notifier *mn,
- 				struct mm_struct *mm,
--				unsigned long address)
-+				unsigned long start,
-+				unsigned long end)
- {
--	__mn_flush_page(mn, address);
-+	for (; start < end; start += PAGE_SIZE)
-+		__mn_flush_page(mn, start);
- 
- 	return 0;
- }
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index 2728869..88787bb 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -57,10 +57,13 @@ struct mmu_notifier_ops {
- 	 * pte. This way the VM will provide proper aging to the
- 	 * accesses to the page through the secondary MMUs and not
- 	 * only to the ones through the Linux pte.
-+	 * Start-end is necessary in case the secondary MMU is mapping the page
-+	 * at a smaller granularity than the primary MMU.
- 	 */
- 	int (*clear_flush_young)(struct mmu_notifier *mn,
- 				 struct mm_struct *mm,
--				 unsigned long address);
-+				 unsigned long start,
-+				 unsigned long end);
- 
- 	/*
- 	 * test_young is called to check the young/accessed bitflag in
-@@ -175,7 +178,8 @@ extern void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
- extern void __mmu_notifier_mm_destroy(struct mm_struct *mm);
- extern void __mmu_notifier_release(struct mm_struct *mm);
- extern int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
--					  unsigned long address);
-+					  unsigned long start,
-+					  unsigned long end);
- extern int __mmu_notifier_test_young(struct mm_struct *mm,
- 				     unsigned long address);
- extern void __mmu_notifier_change_pte(struct mm_struct *mm,
-@@ -194,10 +198,11 @@ static inline void mmu_notifier_release(struct mm_struct *mm)
- }
- 
- static inline int mmu_notifier_clear_flush_young(struct mm_struct *mm,
--					  unsigned long address)
-+					  unsigned long start,
-+					  unsigned long end)
- {
- 	if (mm_has_notifiers(mm))
--		return __mmu_notifier_clear_flush_young(mm, address);
-+		return __mmu_notifier_clear_flush_young(mm, start, end);
- 	return 0;
- }
- 
-@@ -255,7 +260,9 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
- 	unsigned long ___address = __address;				\
- 	__young = ptep_clear_flush_young(___vma, ___address, __ptep);	\
- 	__young |= mmu_notifier_clear_flush_young(___vma->vm_mm,	\
--						  ___address);		\
-+						  ___address,		\
-+						  ___address +		\
-+							PAGE_SIZE);	\
- 	__young;							\
- })
- 
-@@ -266,7 +273,9 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
- 	unsigned long ___address = __address;				\
- 	__young = pmdp_clear_flush_young(___vma, ___address, __pmdp);	\
- 	__young |= mmu_notifier_clear_flush_young(___vma->vm_mm,	\
--						  ___address);		\
-+						  ___address,		\
-+						  ___address +		\
-+							PMD_SIZE);	\
- 	__young;							\
- })
- 
-@@ -301,7 +310,8 @@ static inline void mmu_notifier_release(struct mm_struct *mm)
- }
- 
- static inline int mmu_notifier_clear_flush_young(struct mm_struct *mm,
--					  unsigned long address)
-+					  unsigned long start,
-+					  unsigned long end)
- {
- 	return 0;
- }
-diff --git a/include/trace/events/kvm.h b/include/trace/events/kvm.h
-index ab679c3..f58ef59 100644
---- a/include/trace/events/kvm.h
-+++ b/include/trace/events/kvm.h
-@@ -225,8 +225,8 @@ TRACE_EVENT(kvm_fpu,
- );
- 
- TRACE_EVENT(kvm_age_page,
--	TP_PROTO(ulong hva, struct kvm_memory_slot *slot, int ref),
--	TP_ARGS(hva, slot, ref),
-+	TP_PROTO(ulong gfn, struct kvm_memory_slot *slot, int ref),
-+	TP_ARGS(gfn, slot, ref),
- 
- 	TP_STRUCT__entry(
- 		__field(	u64,	hva		)
-@@ -235,9 +235,9 @@ TRACE_EVENT(kvm_age_page,
- 	),
- 
- 	TP_fast_assign(
--		__entry->hva		= hva;
--		__entry->gfn		=
--		  slot->base_gfn + ((hva - slot->userspace_addr) >> PAGE_SHIFT);
-+		__entry->gfn		= gfn;
-+		__entry->hva		= ((gfn - slot->base_gfn) >>
-+					    PAGE_SHIFT) + slot->userspace_addr;
- 		__entry->referenced	= ref;
- 	),
- 
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index 950813b..2c8da98 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -107,7 +107,8 @@ void __mmu_notifier_release(struct mm_struct *mm)
-  * existed or not.
-  */
- int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
--					unsigned long address)
-+					unsigned long start,
-+					unsigned long end)
- {
- 	struct mmu_notifier *mn;
- 	int young = 0, id;
-@@ -115,7 +116,7 @@ int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
- 	id = srcu_read_lock(&srcu);
- 	hlist_for_each_entry_rcu(mn, &mm->mmu_notifier_mm->list, hlist) {
- 		if (mn->ops->clear_flush_young)
--			young |= mn->ops->clear_flush_young(mn, mm, address);
-+			young |= mn->ops->clear_flush_young(mn, mm, start, end);
- 	}
- 	srcu_read_unlock(&srcu, id);
- 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 3e8491c..66b075f 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1355,7 +1355,11 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
- 			continue;	/* don't unmap */
- 		}
- 
--		if (ptep_clear_flush_young_notify(vma, address, pte))
-+		/*
-+		 * No need for _notify because we're called within an
-+		 * mmu_notifier_invalidate_range_ {start|end} scope.
-+		 */
-+		if (ptep_clear_flush_young(vma, address, pte))
- 			continue;
- 
- 		/* Nuke the page table entry. */
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-index db57363..ea327f4 100644
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -367,7 +367,8 @@ static void kvm_mmu_notifier_invalidate_range_end(struct mmu_notifier *mn,
- 
- static int kvm_mmu_notifier_clear_flush_young(struct mmu_notifier *mn,
- 					      struct mm_struct *mm,
--					      unsigned long address)
-+					      unsigned long start,
-+					      unsigned long end)
- {
- 	struct kvm *kvm = mmu_notifier_to_kvm(mn);
- 	int young, idx;
-@@ -375,7 +376,7 @@ static int kvm_mmu_notifier_clear_flush_young(struct mmu_notifier *mn,
- 	idx = srcu_read_lock(&kvm->srcu);
- 	spin_lock(&kvm->mmu_lock);
- 
--	young = kvm_age_hva(kvm, address);
-+	young = kvm_age_hva(kvm, start, end);
- 	if (young)
- 		kvm_flush_remote_tlbs(kvm);
- 
--- 
-2.1.0.rc2.206.gedb03e5
+> index d78b245bae06..22a37764c409 100644
+> --- a/drivers/block/zram/zram_drv.c
+> +++ b/drivers/block/zram/zram_drv.c
+> @@ -926,7 +926,8 @@ error:
+>  	bio_io_error(bio);
+>  }
+>  
+> -static void zram_slot_free_notify(struct block_device *bdev,
+> +/* this callback is with swap_lock and sometimes page table lock held */
+
+OK, that was useful.
+
+It's called "page_table_lock".
+
+Also *which* page_table_lock?  current->mm?
+
+> +static int zram_slot_free_notify(struct block_device *bdev,
+>  				unsigned long index)
+>  {
+>  	struct zram *zram;
+>
+> ...
+>
+> --- a/include/linux/blkdev.h
+> +++ b/include/linux/blkdev.h
+> @@ -1609,6 +1609,10 @@ static inline bool blk_integrity_is_initialized(struct gendisk *g)
+>  
+>  #endif /* CONFIG_BLK_DEV_INTEGRITY */
+>  
+> +enum swap_blk_hint {
+> +	SWAP_FREE,
+> +};
+
+This would be a great place to document SWAP_FREE.
+
+>  struct block_device_operations {
+>  	int (*open) (struct block_device *, fmode_t);
+>  	void (*release) (struct gendisk *, fmode_t);
+> @@ -1624,8 +1628,7 @@ struct block_device_operations {
+>  	void (*unlock_native_capacity) (struct gendisk *);
+>  	int (*revalidate_disk) (struct gendisk *);
+>  	int (*getgeo)(struct block_device *, struct hd_geometry *);
+> -	/* this callback is with swap_lock and sometimes page table lock held */
+> -	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
+> +	int (*swap_hint)(struct block_device *, unsigned int, void *);
+
+And this would be a suitable place to document ->swap_hint().
+
+- Hint from who to who?  Is it the caller providing the callee a hint
+  or is the caller asking the callee for a hint?
+
+- What is the meaning of the return value?
+
+- What are the meaning of the arguments?
+
+Please don't omit the argument names like this.  They are useful!  How
+is a reader to know what that "unsigned int" and "void *" actually
+*do*?
+
+The second arg-which-doesn't-have-a-name should have had type
+swap_blk_hint, yes?
+
+swap_blk_hint should be called swap_block_hint.  I assume that's what
+"blk" means.  Why does the name have "block" in there anyway?  It has
+something to do with disk blocks?  How is anyone supposed to work that
+out?
+
+->swap_hint was converted to return an `int', but all the callers
+simply ignore the return value.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
