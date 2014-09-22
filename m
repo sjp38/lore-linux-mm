@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 760766B003A
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 037D76B003B
 	for <linux-mm@kvack.org>; Sun, 21 Sep 2014 20:02:45 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id g10so2781822pdj.19
+Received: by mail-pd0-f173.google.com with SMTP id y10so3251354pdj.32
         for <linux-mm@kvack.org>; Sun, 21 Sep 2014 17:02:45 -0700 (PDT)
 Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id kq4si13357177pbc.97.2014.09.21.17.02.41
+        by mx.google.com with ESMTP id td1si13303519pbc.140.2014.09.21.17.02.41
         for <linux-mm@kvack.org>;
-        Sun, 21 Sep 2014 17:02:42 -0700 (PDT)
+        Sun, 21 Sep 2014 17:02:43 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v1 4/5] zram: add swap full hint
-Date: Mon, 22 Sep 2014 09:03:10 +0900
-Message-Id: <1411344191-2842-5-git-send-email-minchan@kernel.org>
+Subject: [PATCH v1 5/5] zram: add fullness knob to control swap full
+Date: Mon, 22 Sep 2014 09:03:11 +0900
+Message-Id: <1411344191-2842-6-git-send-email-minchan@kernel.org>
 In-Reply-To: <1411344191-2842-1-git-send-email-minchan@kernel.org>
 References: <1411344191-2842-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -19,154 +19,139 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>, juno.choi@lge.com, Minchan Kim <minchan@kernel.org>
 
-This patch implement SWAP_FULL handler in zram so that VM can
-know whether zram is full or not and use it to stop anonymous
-page reclaim.
+Some zram usecase could want lower fullness than default 80 to
+avoid unnecessary swapout-and-fail-recover overhead.
 
-How to judge fullness is below,
+A typical example is that mutliple swap with high piroirty
+zram-swap and low priority HDD-swap so it could still enough
+free swap space although one of swap devices is full(ie, zram).
+It would be better to fail over to HDD-swap rather than failing
+swap write to zram in this case.
 
-fullness = (100 * used space / total space)
-
-It means the higher fullness is, the slower we reach zram full.
-Now, default of fullness is 80 so that it biased more momory
-consumption rather than early OOM kill.
-
-Above logic works only when used space of zram hit over the limit
-but zram also pretend to be full once 32 consecutive allocation
-fail happens. It's safe guard to prevent system hang caused by
-fragment uncertainty.
+This patch exports fullness to user so user can control it
+via the knob.
 
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- drivers/block/zram/zram_drv.c | 60 ++++++++++++++++++++++++++++++++++++++++---
- drivers/block/zram/zram_drv.h |  1 +
- 2 files changed, 57 insertions(+), 4 deletions(-)
+ Documentation/ABI/testing/sysfs-block-zram | 10 ++++++++
+ drivers/block/zram/zram_drv.c              | 38 +++++++++++++++++++++++++++++-
+ drivers/block/zram/zram_drv.h              |  1 +
+ 3 files changed, 48 insertions(+), 1 deletion(-)
 
+diff --git a/Documentation/ABI/testing/sysfs-block-zram b/Documentation/ABI/testing/sysfs-block-zram
+index b13dc993291f..817738d14061 100644
+--- a/Documentation/ABI/testing/sysfs-block-zram
++++ b/Documentation/ABI/testing/sysfs-block-zram
+@@ -138,3 +138,13 @@ Description:
+ 		amount of memory ZRAM can use to store the compressed data.  The
+ 		limit could be changed in run time and "0" means disable the
+ 		limit.  No limit is the initial state.  Unit: bytes
++
++What:		/sys/block/zram<id>/fullness
++Date:		August 2014
++Contact:	Minchan Kim <minchan@kernel.org>
++Description:
++		The fullness file is read/write and specifies how easily
++		zram become full state so if you set it to lower value,
++		zram can reach full state easily compared to higher value.
++		Curretnly, initial value is 80% but it could be changed.
++		Unit: Percentage
 diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 22a37764c409..649cad9d0b1c 100644
+index 649cad9d0b1c..ec3656f6891d 100644
 --- a/drivers/block/zram/zram_drv.c
 +++ b/drivers/block/zram/zram_drv.c
-@@ -43,6 +43,20 @@ static const char *default_compressor = "lzo";
- /* Module params (documentation at end) */
- static unsigned int num_devices = 1;
+@@ -136,6 +136,37 @@ static ssize_t max_comp_streams_show(struct device *dev,
+ 	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
+ }
  
-+/*
-+ * If (100 * used_pages / total_pages) >= ZRAM_FULLNESS_PERCENT),
-+ * we regards it as zram-full. It means that the higher
-+ * ZRAM_FULLNESS_PERCENT is, the slower we reach zram full.
-+ */
-+#define ZRAM_FULLNESS_PERCENT 80
++static ssize_t fullness_show(struct device *dev,
++		struct device_attribute *attr, char *buf)
++{
++	int val;
++	struct zram *zram = dev_to_zram(dev);
 +
-+/*
-+ * If zram fails to allocate memory consecutively up to this,
-+ * we regard it as zram-full. It's safe guard to prevent too
-+ * many swap write fail due to lack of fragmentation uncertainty.
-+ */
-+#define ALLOC_FAIL_MAX	32
++	down_read(&zram->init_lock);
++	val = zram->fullness;
++	up_read(&zram->init_lock);
 +
- #define ZRAM_ATTR_RO(name)						\
- static ssize_t zram_attr_##name##_show(struct device *d,		\
- 				struct device_attribute *attr, char *b)	\
-@@ -148,6 +162,7 @@ static ssize_t mem_limit_store(struct device *dev,
- 
- 	down_write(&zram->init_lock);
- 	zram->limit_pages = PAGE_ALIGN(limit) >> PAGE_SHIFT;
-+	atomic_set(&zram->alloc_fail, 0);
- 	up_write(&zram->init_lock);
- 
- 	return len;
-@@ -410,6 +425,7 @@ static void zram_free_page(struct zram *zram, size_t index)
- 	atomic64_sub(zram_get_obj_size(meta, index),
- 			&zram->stats.compr_data_size);
- 	atomic64_dec(&zram->stats.pages_stored);
-+	atomic_set(&zram->alloc_fail, 0);
- 
- 	meta->table[index].handle = 0;
- 	zram_set_obj_size(meta, index, 0);
-@@ -597,10 +613,15 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
- 	}
- 
- 	alloced_pages = zs_get_total_pages(meta->mem_pool);
--	if (zram->limit_pages && alloced_pages > zram->limit_pages) {
--		zs_free(meta->mem_pool, handle);
--		ret = -ENOMEM;
--		goto out;
-+	if (zram->limit_pages) {
-+		if (alloced_pages > zram->limit_pages) {
-+			zs_free(meta->mem_pool, handle);
-+			atomic_inc(&zram->alloc_fail);
-+			ret = -ENOMEM;
-+			goto out;
-+		} else {
-+			atomic_set(&zram->alloc_fail, 0);
-+		}
- 	}
- 
- 	update_used_max(zram, alloced_pages);
-@@ -711,6 +732,7 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
- 	down_write(&zram->init_lock);
++	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
++}
++
++static ssize_t fullness_store(struct device *dev,
++		struct device_attribute *attr, const char *buf, size_t len)
++{
++	int err;
++	unsigned long val;
++	struct zram *zram = dev_to_zram(dev);
++
++	err = kstrtoul(buf, 10, &val);
++	if (err || val > 100)
++		return -EINVAL;
++
++	down_write(&zram->init_lock);
++	zram->fullness = val;
++	up_write(&zram->init_lock);
++
++	return len;
++}
++
+ static ssize_t mem_limit_show(struct device *dev,
+ 		struct device_attribute *attr, char *buf)
+ {
+@@ -733,6 +764,7 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
  
  	zram->limit_pages = 0;
-+	atomic_set(&zram->alloc_fail, 0);
+ 	atomic_set(&zram->alloc_fail, 0);
++	zram->fullness = ZRAM_FULLNESS_PERCENT;
  
  	if (!init_done(zram)) {
  		up_write(&zram->init_lock);
-@@ -944,6 +966,34 @@ static int zram_slot_free_notify(struct block_device *bdev,
+@@ -984,7 +1016,7 @@ static int zram_full(struct block_device *bdev, void *arg)
+ 		compr_pages = atomic64_read(&zram->stats.compr_data_size)
+ 					>> PAGE_SHIFT;
+ 		if ((100 * compr_pages / total_pages)
+-			>= ZRAM_FULLNESS_PERCENT)
++			>= zram->fullness)
+ 			return 1;
+ 	}
+ 
+@@ -1020,6 +1052,8 @@ static DEVICE_ATTR(orig_data_size, S_IRUGO, orig_data_size_show, NULL);
+ static DEVICE_ATTR(mem_used_total, S_IRUGO, mem_used_total_show, NULL);
+ static DEVICE_ATTR(mem_limit, S_IRUGO | S_IWUSR, mem_limit_show,
+ 		mem_limit_store);
++static DEVICE_ATTR(fullness, S_IRUGO | S_IWUSR, fullness_show,
++		fullness_store);
+ static DEVICE_ATTR(mem_used_max, S_IRUGO | S_IWUSR, mem_used_max_show,
+ 		mem_used_max_store);
+ static DEVICE_ATTR(max_comp_streams, S_IRUGO | S_IWUSR,
+@@ -1051,6 +1085,7 @@ static struct attribute *zram_disk_attrs[] = {
+ 	&dev_attr_compr_data_size.attr,
+ 	&dev_attr_mem_used_total.attr,
+ 	&dev_attr_mem_limit.attr,
++	&dev_attr_fullness.attr,
+ 	&dev_attr_mem_used_max.attr,
+ 	&dev_attr_max_comp_streams.attr,
+ 	&dev_attr_comp_algorithm.attr,
+@@ -1132,6 +1167,7 @@ static int create_device(struct zram *zram, int device_id)
+ 	strlcpy(zram->compressor, default_compressor, sizeof(zram->compressor));
+ 	zram->meta = NULL;
+ 	zram->max_comp_streams = 1;
++	zram->fullness = ZRAM_FULLNESS_PERCENT;
  	return 0;
- }
  
-+static int zram_full(struct block_device *bdev, void *arg)
-+{
-+	struct zram *zram;
-+	struct zram_meta *meta;
-+	unsigned long total_pages, compr_pages;
-+
-+	zram = bdev->bd_disk->private_data;
-+	if (!zram->limit_pages)
-+		return 0;
-+
-+	meta = zram->meta;
-+	total_pages = zs_get_total_pages(meta->mem_pool);
-+
-+	if (total_pages >= zram->limit_pages) {
-+
-+		compr_pages = atomic64_read(&zram->stats.compr_data_size)
-+					>> PAGE_SHIFT;
-+		if ((100 * compr_pages / total_pages)
-+			>= ZRAM_FULLNESS_PERCENT)
-+			return 1;
-+	}
-+
-+	if (atomic_read(&zram->alloc_fail) > ALLOC_FAIL_MAX)
-+		return 1;
-+
-+	return 0;
-+}
-+
- static int zram_swap_hint(struct block_device *bdev,
- 				unsigned int hint, void *arg)
- {
-@@ -951,6 +1001,8 @@ static int zram_swap_hint(struct block_device *bdev,
- 
- 	if (hint == SWAP_FREE)
- 		ret = zram_slot_free_notify(bdev, (unsigned long)arg);
-+	else if (hint == SWAP_FULL)
-+		ret = zram_full(bdev, arg);
- 
- 	return ret;
- }
+ out_free_disk:
 diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-index c6ee271317f5..fcf3176a9f15 100644
+index fcf3176a9f15..6a9f383d0d78 100644
 --- a/drivers/block/zram/zram_drv.h
 +++ b/drivers/block/zram/zram_drv.h
-@@ -113,6 +113,7 @@ struct zram {
- 	u64 disksize;	/* bytes */
- 	int max_comp_streams;
- 	struct zram_stats stats;
-+	atomic_t alloc_fail;
- 	/*
- 	 * the number of pages zram can consume for storing compressed data
+@@ -119,6 +119,7 @@ struct zram {
  	 */
+ 	unsigned long limit_pages;
+ 
++	int fullness;
+ 	char compressor[10];
+ };
+ #endif
 -- 
 2.0.0
 
