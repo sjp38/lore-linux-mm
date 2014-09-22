@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 354356B0038
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id BD0DC6B0039
 	for <linux-mm@kvack.org>; Sun, 21 Sep 2014 20:02:44 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id ft15so3219596pdb.23
-        for <linux-mm@kvack.org>; Sun, 21 Sep 2014 17:02:43 -0700 (PDT)
+Received: by mail-pd0-f175.google.com with SMTP id v10so2150743pde.34
+        for <linux-mm@kvack.org>; Sun, 21 Sep 2014 17:02:44 -0700 (PDT)
 Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id tc10si13421320pbc.42.2014.09.21.17.02.40
+        by mx.google.com with ESMTP id o2si13518247pdf.1.2014.09.21.17.02.41
         for <linux-mm@kvack.org>;
         Sun, 21 Sep 2014 17:02:42 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v1 2/5] mm: add full variable in swap_info_struct
-Date: Mon, 22 Sep 2014 09:03:08 +0900
-Message-Id: <1411344191-2842-3-git-send-email-minchan@kernel.org>
+Subject: [PATCH v1 3/5] mm: VM can be aware of zram fullness
+Date: Mon, 22 Sep 2014 09:03:09 +0900
+Message-Id: <1411344191-2842-4-git-send-email-minchan@kernel.org>
 In-Reply-To: <1411344191-2842-1-git-send-email-minchan@kernel.org>
 References: <1411344191-2842-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -19,110 +19,116 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>, juno.choi@lge.com, Minchan Kim <minchan@kernel.org>
 
-Now, swap leans on !p->highest_bit to indicate a swap is full.
-It works well for normal swap because every slot on swap device
-is used up when the swap is full but in case of zram, swap sees
-still many empty slot although backed device(ie, zram) is full
-since zram's limit is over so that it could make trouble when
-swap use highest_bit to select new slot via free_cluster.
+VM uses nr_swap_pages to throttle amount of swap when it reclaims
+anonymous pages because the nr_swap_pages means freeable space
+of swap disk.
 
-This patch introduces full varaiable in swap_info_struct
-to solve the problem.
+However, it's a problem for zram because zram can limit memory
+usage by knob(ie, mem_limit) so that swap out can fail although
+VM can see lots of free space from zram disk but no more free
+space in zram by the limit. If it happens, VM should notice it
+and stop reclaimaing until zram can obtain more free space but
+we don't have a way to communicate between VM and zram.
 
-Suggested-by: Dan Streetman <ddstreet@ieee.org>
+This patch adds new hint SWAP_FULL so that zram can say to VM
+"I'm full" from now on. Then VM cannot reclaim annoymous page
+any more. If VM notice swap is full, it can remove swap_info_struct
+from swap_avail_head and substract remained freeable space from
+nr_swap_pages so that VM can think swap is full until VM frees a
+swap and increase nr_swap_pages again.
+
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- include/linux/swap.h |  1 +
- mm/swapfile.c        | 33 +++++++++++++++++++--------------
- 2 files changed, 20 insertions(+), 14 deletions(-)
+ include/linux/blkdev.h |  1 +
+ mm/swapfile.c          | 44 ++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 39 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index ea4f926e6b9b..a3c11c051495 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -224,6 +224,7 @@ struct swap_info_struct {
- 	struct swap_cluster_info free_cluster_tail; /* free cluster list tail */
- 	unsigned int lowest_bit;	/* index of first free in swap_map */
- 	unsigned int highest_bit;	/* index of last free in swap_map */
-+	bool	full;			/* whether swap is full or not */
- 	unsigned int pages;		/* total of usable pages of swap */
- 	unsigned int inuse_pages;	/* number of those currently in use */
- 	unsigned int cluster_next;	/* likely index for next allocation */
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index c7220409456c..39f074e0acd7 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -1611,6 +1611,7 @@ static inline bool blk_integrity_is_initialized(struct gendisk *g)
+ 
+ enum swap_blk_hint {
+ 	SWAP_FREE,
++	SWAP_FULL,
+ };
+ 
+ struct block_device_operations {
 diff --git a/mm/swapfile.c b/mm/swapfile.c
-index c07f7f4912e9..209112cf8b83 100644
+index 209112cf8b83..71e3df0431b6 100644
 --- a/mm/swapfile.c
 +++ b/mm/swapfile.c
-@@ -558,7 +558,7 @@ checks:
- 	}
- 	if (!(si->flags & SWP_WRITEOK))
- 		goto no_page;
--	if (!si->highest_bit)
-+	if (si->full)
- 		goto no_page;
- 	if (offset > si->highest_bit)
- 		scan_base = offset = si->lowest_bit;
-@@ -589,6 +589,7 @@ checks:
- 		spin_lock(&swap_avail_lock);
- 		plist_del(&si->avail_list, &swap_avail_head);
- 		spin_unlock(&swap_avail_lock);
-+		si->full = true;
- 	}
- 	si->swap_map[offset] = usage;
- 	inc_cluster_info_page(si, si->cluster_info, offset);
-@@ -653,14 +654,14 @@ start_over:
- 		plist_requeue(&si->avail_list, &swap_avail_head);
- 		spin_unlock(&swap_avail_lock);
- 		spin_lock(&si->lock);
--		if (!si->highest_bit || !(si->flags & SWP_WRITEOK)) {
-+		if (si->full || !(si->flags & SWP_WRITEOK)) {
- 			spin_lock(&swap_avail_lock);
- 			if (plist_node_empty(&si->avail_list)) {
- 				spin_unlock(&si->lock);
- 				goto nextsi;
- 			}
--			WARN(!si->highest_bit,
--			     "swap_info %d in list but !highest_bit\n",
-+			WARN(si->full,
-+			     "swap_info %d in list but swap is full\n",
- 			     si->type);
- 			WARN(!(si->flags & SWP_WRITEOK),
- 			     "swap_info %d in list but !SWP_WRITEOK\n",
-@@ -796,21 +797,25 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
+@@ -493,6 +493,29 @@ static unsigned long scan_swap_map(struct swap_info_struct *si,
+ 	int latency_ration = LATENCY_LIMIT;
  
+ 	/*
++	 * If zram is full, we don't need to scan and want to stop swap.
++	 * For it, we removes si from swap_avail_head and decreases
++	 * nr_swap_pages to prevent further anonymous reclaim so that
++	 * VM can restart swap out if zram has a free space.
++	 * Look at swap_entry_free.
++	 */
++	if (si->flags & SWP_BLKDEV) {
++		struct gendisk *disk = si->bdev->bd_disk;
++
++		if (disk->fops->swap_hint && disk->fops->swap_hint(
++				si->bdev, SWAP_FULL, NULL)) {
++			spin_lock(&swap_avail_lock);
++			WARN_ON(plist_node_empty(&si->avail_list));
++			plist_del(&si->avail_list, &swap_avail_head);
++			spin_unlock(&swap_avail_lock);
++			atomic_long_sub(si->pages - si->inuse_pages,
++						&nr_swap_pages);
++			si->full = true;
++			return 0;
++		}
++	}
++
++	/*
+ 	 * We try to cluster swap pages by allocating them sequentially
+ 	 * in swap.  Once we've allocated SWAPFILE_CLUSTER pages this
+ 	 * way, however, we resort to first-free allocation, starting
+@@ -798,6 +821,14 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
  	/* free if no reference */
  	if (!usage) {
-+		bool was_full;
+ 		bool was_full;
++		struct gendisk *virt_swap = NULL;
 +
++		/* Check virtual swap */
++		if (p->flags & SWP_BLKDEV) {
++			virt_swap = p->bdev->bd_disk;
++			if (!virt_swap->fops->swap_hint)
++				virt_swap = NULL;
++		}
+ 
  		dec_cluster_info_page(p, p->cluster_info, offset);
  		if (offset < p->lowest_bit)
- 			p->lowest_bit = offset;
--		if (offset > p->highest_bit) {
--			bool was_full = !p->highest_bit;
-+		if (offset > p->highest_bit)
- 			p->highest_bit = offset;
--			if (was_full && (p->flags & SWP_WRITEOK)) {
--				spin_lock(&swap_avail_lock);
--				WARN_ON(!plist_node_empty(&p->avail_list));
--				if (plist_node_empty(&p->avail_list))
--					plist_add(&p->avail_list,
--						  &swap_avail_head);
--				spin_unlock(&swap_avail_lock);
--			}
-+		was_full = p->full;
-+
-+		if (was_full && (p->flags & SWP_WRITEOK)) {
-+			spin_lock(&swap_avail_lock);
-+			WARN_ON(!plist_node_empty(&p->avail_list));
-+			if (plist_node_empty(&p->avail_list))
-+				plist_add(&p->avail_list,
-+					  &swap_avail_head);
-+			spin_unlock(&swap_avail_lock);
-+			p->full = false;
+@@ -814,17 +845,18 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
+ 					  &swap_avail_head);
+ 			spin_unlock(&swap_avail_lock);
+ 			p->full = false;
++			if (virt_swap)
++				atomic_long_add(p->pages -
++						p->inuse_pages,
++						&nr_swap_pages);
  		}
-+
+ 
  		atomic_long_inc(&nr_swap_pages);
  		p->inuse_pages--;
  		frontswap_invalidate_page(p->type, offset);
+-		if (p->flags & SWP_BLKDEV) {
+-			struct gendisk *disk = p->bdev->bd_disk;
+-			if (disk->fops->swap_hint)
+-				disk->fops->swap_hint(p->bdev,
+-						SWAP_FREE, (void *)offset);
+-		}
++		if (virt_swap)
++			virt_swap->fops->swap_hint(p->bdev,
++					SWAP_FREE, (void *)offset);
+ 	}
+ 
+ 	return usage;
 -- 
 2.0.0
 
