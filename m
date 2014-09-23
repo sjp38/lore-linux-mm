@@ -1,64 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DC4C6B0035
-	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 16:12:26 -0400 (EDT)
-Received: by mail-qa0-f54.google.com with SMTP id n8so2184407qaq.27
-        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 13:12:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j6si13597071qae.107.2014.09.23.13.12.24
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id DA0BA6B0035
+	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 16:13:31 -0400 (EDT)
+Received: by mail-la0-f47.google.com with SMTP id mc6so9560032lab.34
+        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 13:13:30 -0700 (PDT)
+Received: from mail-lb0-x22e.google.com (mail-lb0-x22e.google.com [2a00:1450:4010:c04::22e])
+        by mx.google.com with ESMTPS id am7si20112183lac.74.2014.09.23.13.13.29
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Sep 2014 13:12:26 -0700 (PDT)
-Date: Tue, 23 Sep 2014 16:12:04 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: [PATCH] mm, debug: mm-introduce-vm_bug_on_mm-fix-fix.patch
-Message-ID: <20140923201204.GB4252@redhat.com>
-References: <5420b8b0.9HdYLyyuTikszzH8%akpm@linux-foundation.org>
- <1411464279-20158-1-git-send-email-mhocko@suse.cz>
- <20140923112848.GA10046@dhcp22.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 23 Sep 2014 13:13:30 -0700 (PDT)
+Received: by mail-lb0-f174.google.com with SMTP id l4so9324046lbv.5
+        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 13:13:29 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140923112848.GA10046@dhcp22.suse.cz>
+In-Reply-To: <20140923130128.79f5931ac03dbb31f53be805@linux-foundation.org>
+References: <5420b8b0.9HdYLyyuTikszzH8%akpm@linux-foundation.org>
+	<20140923190222.GA4662@roeck-us.net>
+	<20140923130128.79f5931ac03dbb31f53be805@linux-foundation.org>
+Date: Tue, 23 Sep 2014 17:13:29 -0300
+Message-ID: <CAOMZO5CdVenLgOFvPXpQB9f1H_ATayDDk5e9Rhrf-32OweqO2w@mail.gmail.com>
+Subject: Re: mmotm 2014-09-22-16-57 uploaded
+From: Fabio Estevam <festevam@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, Sasha Levin <sasha.levin@oracle.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Guenter Roeck <linux@roeck-us.net>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "linux-next@vger.kernel.org" <linux-next@vger.kernel.org>, Stephen Rothwell <sfr@canb.auug.org.au>, mhocko@suse.cz, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Sasha Levin <sasha.levin@oracle.com>, Anish Bhatt <anish@chelsio.com>, David Miller <davem@davemloft.net>, Fabio Estevam <fabio.estevam@freescale.com>
 
-On Tue, Sep 23, 2014 at 01:28:48PM +0200, Michal Hocko wrote:
- > And there is another one hitting during randconfig. The patch makes my
- > eyes bleed but I don't know about other way without breaking out the
- > thing into separate parts sounds worse because we can mix with other
- > messages then.
+On Tue, Sep 23, 2014 at 5:01 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
 
-how about something along the lines of..
+>> arm:imx_v6_v7_defconfig
+>> arm:imx_v4_v5_defconfig
+>>
+>> drivers/media/platform/coda/coda-bit.c: In function 'coda_fill_bitstream':
+>> drivers/media/platform/coda/coda-bit.c:231:4: error: implicit declaration of function 'kmalloc'
+>> drivers/media/platform/coda/coda-bit.c: In function 'coda_alloc_framebuffers':
+>> drivers/media/platform/coda/coda-bit.c:312:3: error: implicit declaration of function 'kfree'
+>
+> That's odd - it includes slab.h.  Cc Fabio.
 
- bufptr = buffer = kmalloc()
-
- #if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
-	bufptr += sprintf(bufptr, "tlb_flush_pending %d\n",
-			mm->tlb_flush_pending);
- #endif
-
- #ifdef CONFIG_MMU
-	bufptr += sprintf(bufptr, "...
- #endif
-
- ...
-
- printk(KERN_EMERG "%s", buffer);
-
- free(buffer);
-
-
-Still ugly, but looks less like a trainwreck, and keeps the variables
-with the associated text.
-
-It does introduce an allocation though, which may be problematic
-in this situation. Depending how big this gets, perhaps make it static
-instead?
-
-	Dave
+linux-next 20140923 has commit c0aaf696d45e2a72 which included slab.h
+and fixed these errors.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
