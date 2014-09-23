@@ -1,81 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 1532A6B0039
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 10:16:36 -0400 (EDT)
-Received: by mail-la0-f41.google.com with SMTP id s18so10787033lam.0
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 07:16:36 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v2si22938431lav.132.2014.09.24.07.16.34
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id B78DE6B0035
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 10:28:58 -0400 (EDT)
+Received: by mail-wi0-f178.google.com with SMTP id z2so7382039wiv.11
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 07:28:58 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d6si7025846wix.107.2014.09.24.07.28.53
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 24 Sep 2014 07:16:35 -0700 (PDT)
-Date: Wed, 24 Sep 2014 16:16:33 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm: memcontrol: lockless page counters
-Message-ID: <20140924141633.GB4558@dhcp22.suse.cz>
-References: <1411132928-16143-1-git-send-email-hannes@cmpxchg.org>
- <20140922144158.GC20398@esperanza>
- <20140922185736.GB6630@cmpxchg.org>
- <20140923110634.GH18526@esperanza>
- <20140923132801.GA14302@cmpxchg.org>
- <20140923152150.GL18526@esperanza>
- <20140923170525.GA28460@cmpxchg.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Sep 2014 07:28:55 -0700 (PDT)
+Date: Tue, 23 Sep 2014 16:20:02 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: mmotm 2014-09-22-16-57 uploaded
+Message-ID: <20140923202002.GA22362@nhori>
+References: <5420b8b0.9HdYLyyuTikszzH8%akpm@linux-foundation.org>
+ <20140923190222.GA4662@roeck-us.net>
+ <20140923130128.79f5931ac03dbb31f53be805@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140923170525.GA28460@cmpxchg.org>
+In-Reply-To: <20140923130128.79f5931ac03dbb31f53be805@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Dave Hansen <dave@sr71.net>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Guenter Roeck <linux@roeck-us.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, Sasha Levin <sasha.levin@oracle.com>, Anish Bhatt <anish@chelsio.com>, David Miller <davem@davemloft.net>, Fabio Estevam <fabio.estevam@freescale.com>
 
-On Tue 23-09-14 13:05:25, Johannes Weiner wrote:
-[...]
->  #include <trace/events/vmscan.h>
+On Tue, Sep 23, 2014 at 01:01:28PM -0700, Andrew Morton wrote:
+> On Tue, 23 Sep 2014 12:02:22 -0700 Guenter Roeck <linux@roeck-us.net> wrote:
+...
+> > 
+> > arch/powerpc/mm/hugetlbpage.c:710:1: error: conflicting types for 'follow_huge_pud'
+> >  follow_huge_pud(struct mm_struct *mm, unsigned long address,
+> >   ^
+> > In file included from arch/powerpc/mm/hugetlbpage.c:14:0: include/linux/hugetlb.h:103:14:
+> > 	note: previous declaration of 'follow_huge_pud' was here
+> >    struct page *follow_huge_pud(struct mm_struct *mm, unsigned long address,
+>                  ^
+> 
+> Naoya, please check:
+> 
+> --- a/arch/powerpc/mm/hugetlbpage.c~mm-hugetlb-reduce-arch-dependent-code-around-follow_huge_-fix
+> +++ a/arch/powerpc/mm/hugetlbpage.c
+> @@ -708,7 +708,7 @@ follow_huge_pmd(struct mm_struct *mm, un
 >  
-> -int page_counter_sub(struct page_counter *counter, unsigned long nr_pages)
-> +/**
-> + * page_counter_cancel - take pages out of the local counter
-> + * @counter: counter
-> + * @nr_pages: number of pages to cancel
-> + *
-> + * Returns whether there are remaining pages in the counter.
-> + */
-> +int page_counter_cancel(struct page_counter *counter, unsigned long nr_pages)
+>  struct page *
+>  follow_huge_pud(struct mm_struct *mm, unsigned long address,
+> -		pmd_t *pmd, int write)
+> +		pud_t *pud, int write)
 >  {
->  	long new;
->  
->  	new = atomic_long_sub_return(nr_pages, &counter->count);
->  
-> -	if (WARN_ON(unlikely(new < 0)))
-> -		atomic_long_set(&counter->count, 0);
-> +	if (WARN_ON_ONCE(unlikely(new < 0)))
-> +		atomic_long_add(nr_pages, &counter->count);
->  
->  	return new > 0;
->  }
+>  	BUG();
+>  	return NULL;
+> _
 
-I am not sure I understand this correctly.
+Yes, this is a right fix. Thanks.
 
-The original res_counter code has protection against < 0 because it used
-unsigned longs and wanted to protect from really disturbing effects of
-underflow I guess (this wasn't documented anywhere). But you are using
-long so even underflow shouldn't be a big problem so why do we need a
-fixup?
-
-The only way how we can end up < 0 would be a cancel without pairing
-charge AFAICS. A charge should always appear before uncharge
-because both of them are using atomics which imply memory barriers
-(atomic_*_return). So do I understand correctly that your motivation
-is to fix up those cancel-without-charge automatically? This would
-definitely ask for a fat comment. Or am I missing something?
-
-Besides that do we need to have any memory barrier there?
-
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
