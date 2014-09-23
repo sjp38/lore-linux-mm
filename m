@@ -1,54 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
-	by kanga.kvack.org (Postfix) with ESMTP id E93876B0037
-	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 11:03:37 -0400 (EDT)
-Received: by mail-lb0-f171.google.com with SMTP id l4so8941748lbv.30
-        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 08:03:36 -0700 (PDT)
+Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 73AA26B0039
+	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 11:03:38 -0400 (EDT)
+Received: by mail-lb0-f176.google.com with SMTP id w7so3984356lbi.7
+        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 08:03:37 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id kz8si19086995lab.23.2014.09.23.08.03.34
+        by mx.google.com with ESMTPS id b5si19051256lbf.54.2014.09.23.08.03.34
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Tue, 23 Sep 2014 08:03:34 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 2/2] ext4: Fix mmap data corruption when blocksize < pagesize
-Date: Tue, 23 Sep 2014 17:03:23 +0200
-Message-Id: <1411484603-17756-3-git-send-email-jack@suse.cz>
-In-Reply-To: <1411484603-17756-1-git-send-email-jack@suse.cz>
-References: <1411484603-17756-1-git-send-email-jack@suse.cz>
+Subject: [PATCH 0/2] Fix data corruption when blocksize < pagesize
+Date: Tue, 23 Sep 2014 17:03:21 +0200
+Message-Id: <1411484603-17756-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org
-Cc: linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, linux-ext4@vger.kernel.org, Ted Tso <tytso@mit.edu>, Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, linux-ext4@vger.kernel.org, Ted Tso <tytso@mit.edu>
 
-Use block_create_hole() when hole is being created in a file so that
-->page_mkwrite() will get called for the partial tail page if it is
-mmaped (see the first patch in the series for details).
 
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- fs/ext4/inode.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+  Hello,
 
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index 3aa26e9117c4..fdcb007c2c9e 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -4536,8 +4536,12 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
- 				ext4_orphan_del(NULL, inode);
- 				goto err_out;
- 			}
--		} else
-+		} else {
-+			loff_t old_size = inode->i_size;
-+
- 			i_size_write(inode, attr->ia_size);
-+			block_create_hole(inode, old_size, inode->i_size);
-+		}
- 
- 		/*
- 		 * Blocks are going to be removed from the inode. Wait
--- 
-1.8.1.4
+  these two patches fix the data corruption triggered by xfstests
+generic/030 test for ext4. I believe XFS can use the same function to
+deal with the problem... Dave can you verify? If the function is indeed
+usable for XFS as well, through which tree are we going to merge it?
+ext4 or xfs?
+
+								Honza
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
