@@ -1,116 +1,413 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E75A6B0035
-	for <linux-mm@kvack.org>; Mon, 22 Sep 2014 22:17:45 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id y13so5471650pdi.16
-        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 19:17:45 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id cw5si18068698pbc.133.2014.09.22.19.17.43
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 798786B0035
+	for <linux-mm@kvack.org>; Mon, 22 Sep 2014 22:23:30 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id eu11so3974505pac.38
+        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 19:23:30 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id o2si18096363pdo.163.2014.09.22.19.23.21
         for <linux-mm@kvack.org>;
-        Mon, 22 Sep 2014 19:17:44 -0700 (PDT)
-Date: Tue, 23 Sep 2014 10:16:29 +0800
+        Mon, 22 Sep 2014 19:23:29 -0700 (PDT)
+Date: Tue, 23 Sep 2014 10:21:23 +0800
 From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 169/385] mm/debug.c:197:3: error: expected ')'
- before 'mm'
-Message-ID: <5420d7fd.Djen/rSHBwTySF6S%fengguang.wu@intel.com>
+Subject: [mmotm:master 172/385] mm/debug.c:169:2: note: in expansion of
+ macro 'pr_emerg'
+Message-ID: <5420d923.JS3oIYhwYBbTderW%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: multipart/mixed;
- boundary="=_5420d7fd.55sTp7Yjzy0LFZo4am0OMib6kVgRVma9/rwAT0TgltUeS92V"
+ boundary="=_5420d923.pllRGhZW8dXUcEeb4Cnt8Ko5371TaHQqMVG6YlUT6BlNFZd9"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org
 
 This is a multi-part message in MIME format.
 
---=_5420d7fd.55sTp7Yjzy0LFZo4am0OMib6kVgRVma9/rwAT0TgltUeS92V
+--=_5420d923.pllRGhZW8dXUcEeb4Cnt8Ko5371TaHQqMVG6YlUT6BlNFZd9
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 
 tree:   git://git.cmpxchg.org/linux-mmotm.git master
 head:   eb076320e4dbdf99513732811ed8730812b34b2f
-commit: bac27df2312993aedf1cdfa2dad43e5aeb29504d [169/385] mm: introduce VM_BUG_ON_MM
+commit: be8822ebbbd211ae6c1ab2b5c1c9e606af1cf334 [172/385] mm/debug.c: use pr_emerg()
 config: i386-randconfig-ha3-0923 (attached as .config)
 reproduce:
-  git checkout bac27df2312993aedf1cdfa2dad43e5aeb29504d
+  git checkout be8822ebbbd211ae6c1ab2b5c1c9e606af1cf334
   # save the attached .config to linux build tree
   make ARCH=i386 
 
-All error/warnings:
+All warnings:
 
+   In file included from include/linux/kernel.h:13:0,
+                    from mm/debug.c:8:
    mm/debug.c: In function 'dump_mm':
->> mm/debug.c:197:3: error: expected ')' before 'mm'
+   mm/debug.c:194:3: error: expected ')' before 'mm'
       mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
       ^
->> mm/debug.c:225:3: warning: format '%p' expects a matching 'void *' argument [-Wformat=]
-      );
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%p' expects a matching 'void *' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
       ^
->> mm/debug.c:225:3: warning: format '%p' expects a matching 'void *' argument [-Wformat=]
->> mm/debug.c:225:3: warning: format '%d' expects a matching 'int' argument [-Wformat=]
->> mm/debug.c:225:3: warning: format '%lu' expects a matching 'long unsigned int' argument [-Wformat=]
->> mm/debug.c:225:3: warning: format '%p' expects a matching 'void *' argument [-Wformat=]
->> mm/debug.c:225:3: warning: format '%lu' expects a matching 'long unsigned int' argument [-Wformat=]
->> mm/debug.c:225:3: warning: format '%lu' expects a matching 'long unsigned int' argument [-Wformat=]
->> mm/debug.c:225:3: warning: format '%lu' expects a matching 'long unsigned int' argument [-Wformat=]
->> mm/debug.c:225:3: warning: format '%p' expects a matching 'void *' argument [-Wformat=]
->> mm/debug.c:225:3: warning: format '%d' expects a matching 'int' argument [-Wformat=]
->> mm/debug.c:225:3: warning: format '%d' expects a matching 'int' argument [-Wformat=]
->> mm/debug.c:225:3: warning: format '%lu' expects a matching 'long unsigned int' argument [-Wformat=]
->> mm/debug.c:225:3: warning: format '%d' expects a matching 'int' argument [-Wformat=]
->> mm/debug.c:225:3: warning: format '%lx' expects a matching 'long unsigned int' argument [-Wformat=]
->> mm/debug.c:225:3: warning: format '%lx' expects a matching 'long unsigned int' argument [-Wformat=]
->> mm/debug.c:225:3: warning: format '%lx' expects a matching 'long unsigned int' argument [-Wformat=]
->> mm/debug.c:225:3: warning: format '%lx' expects a matching 'long unsigned int' argument [-Wformat=]
->> mm/debug.c:225:3: warning: format '%lx' expects a matching 'long unsigned int' argument [-Wformat=]
->> mm/debug.c:225:3: warning: format '%lx' expects a matching 'long unsigned int' argument [-Wformat=]
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%p' expects a matching 'void *' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+      ^
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%d' expects a matching 'int' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+      ^
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%lu' expects a matching 'long unsigned int' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+      ^
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%p' expects a matching 'void *' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+      ^
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%lu' expects a matching 'long unsigned int' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+      ^
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%lu' expects a matching 'long unsigned int' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+      ^
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%lu' expects a matching 'long unsigned int' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+      ^
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%p' expects a matching 'void *' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+      ^
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%d' expects a matching 'int' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+      ^
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%d' expects a matching 'int' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+      ^
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%lu' expects a matching 'long unsigned int' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+      ^
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%d' expects a matching 'int' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+      ^
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%lx' expects a matching 'long unsigned int' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+      ^
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%lx' expects a matching 'long unsigned int' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+      ^
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%lx' expects a matching 'long unsigned int' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+      ^
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%lx' expects a matching 'long unsigned int' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+      ^
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%lx' expects a matching 'long unsigned int' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+      ^
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%lx' expects a matching 'long unsigned int' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+      ^
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
+>> mm/debug.c:169:2: note: in expansion of macro 'pr_emerg'
+     pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+     ^
+   mm/debug.c:194:3: warning: format '%lx' expects a matching 'long unsigned int' argument [-Wformat=]
+      mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+      ^
+   include/linux/printk.h:224:21: note: in definition of macro 'pr_fmt'
+    #define pr_fmt(fmt) fmt
+                        ^
 
-vim +197 mm/debug.c
+vim +/pr_emerg +169 mm/debug.c
 
-   191	#ifdef CONFIG_NUMA_BALANCING
-   192			"numa_next_scan %lu numa_scan_offset %lu numa_scan_seq %d\n"
-   193	#endif
-   194	#if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
-   195			"tlb_flush_pending %d\n",
-   196	#endif
-   197			mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
-   198	#ifdef CONFIG_MMU
-   199			mm->get_unmapped_area,
-   200	#endif
-   201			mm->mmap_base, mm->mmap_legacy_base, mm->highest_vm_end,
-   202			mm->pgd, atomic_read(&mm->mm_users),
-   203			atomic_read(&mm->mm_count),
-   204			atomic_long_read((atomic_long_t *)&mm->nr_ptes),
-   205			mm->map_count,
-   206			mm->hiwater_rss, mm->hiwater_vm, mm->total_vm, mm->locked_vm,
-   207			mm->pinned_vm, mm->shared_vm, mm->exec_vm, mm->stack_vm,
-   208			mm->start_code, mm->end_code, mm->start_data, mm->end_data,
-   209			mm->start_brk, mm->brk, mm->start_stack,
-   210			mm->arg_start, mm->arg_end, mm->env_start, mm->env_end,
-   211			mm->binfmt, mm->flags, mm->core_state,
-   212	#ifdef CONFIG_AIO
-   213			mm->ioctx_table,
-   214	#endif
-   215			mm->owner, mm->exe_file,
-   216	#ifdef CONFIG_MMU_NOTIFIER
-   217			mm->mmu_notifier_mm,
-   218	#endif
-   219	#ifdef CONFIG_NUMA_BALANCING
-   220			mm->numa_next_scan, mm->numa_scan_offset, mm->numa_scan_seq,
-   221	#endif
-   222	#if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
-   223			mm->tlb_flush_pending
-   224	#endif
-   225			);
-   226	
-   227			dump_flags(mm->def_flags, vmaflags_names,
-   228					ARRAY_SIZE(vmaflags_names));
+     2	 * mm/debug.c
+     3	 *
+     4	 * mm/ specific debug routines.
+     5	 *
+     6	 */
+     7	
+     8	#include <linux/kernel.h>
+     9	#include <linux/mm.h>
+    10	#include <linux/ftrace_event.h>
+    11	#include <linux/memcontrol.h>
+    12	
+    13	static const struct trace_print_flags pageflag_names[] = {
+    14		{1UL << PG_locked,		"locked"	},
+    15		{1UL << PG_error,		"error"		},
+    16		{1UL << PG_referenced,		"referenced"	},
+    17		{1UL << PG_uptodate,		"uptodate"	},
+    18		{1UL << PG_dirty,		"dirty"		},
+    19		{1UL << PG_lru,			"lru"		},
+    20		{1UL << PG_active,		"active"	},
+    21		{1UL << PG_slab,		"slab"		},
+    22		{1UL << PG_owner_priv_1,	"owner_priv_1"	},
+    23		{1UL << PG_arch_1,		"arch_1"	},
+    24		{1UL << PG_reserved,		"reserved"	},
+    25		{1UL << PG_private,		"private"	},
+    26		{1UL << PG_private_2,		"private_2"	},
+    27		{1UL << PG_writeback,		"writeback"	},
+    28	#ifdef CONFIG_PAGEFLAGS_EXTENDED
+    29		{1UL << PG_head,		"head"		},
+    30		{1UL << PG_tail,		"tail"		},
+    31	#else
+    32		{1UL << PG_compound,		"compound"	},
+    33	#endif
+    34		{1UL << PG_swapcache,		"swapcache"	},
+    35		{1UL << PG_mappedtodisk,	"mappedtodisk"	},
+    36		{1UL << PG_reclaim,		"reclaim"	},
+    37		{1UL << PG_swapbacked,		"swapbacked"	},
+    38		{1UL << PG_unevictable,		"unevictable"	},
+    39	#ifdef CONFIG_MMU
+    40		{1UL << PG_mlocked,		"mlocked"	},
+    41	#endif
+    42	#ifdef CONFIG_ARCH_USES_PG_UNCACHED
+    43		{1UL << PG_uncached,		"uncached"	},
+    44	#endif
+    45	#ifdef CONFIG_MEMORY_FAILURE
+    46		{1UL << PG_hwpoison,		"hwpoison"	},
+    47	#endif
+    48	#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+    49		{1UL << PG_compound_lock,	"compound_lock"	},
+    50	#endif
+    51	};
+    52	
+    53	static void dump_flags(unsigned long flags,
+    54				const struct trace_print_flags *names, int count)
+    55	{
+    56		const char *delim = "";
+    57		unsigned long mask;
+    58		int i;
+    59	
+    60		pr_emerg("flags: %#lx(", flags);
+    61	
+    62		/* remove zone id */
+    63		flags &= (1UL << NR_PAGEFLAGS) - 1;
+    64	
+    65		for (i = 0; i < count && flags; i++) {
+    66	
+    67			mask = names[i].mask;
+    68			if ((flags & mask) != mask)
+    69				continue;
+    70	
+    71			flags &= ~mask;
+    72			pr_cont("%s%s", delim, names[i].name);
+    73			delim = "|";
+    74		}
+    75	
+    76		/* check for left over flags */
+    77		if (flags)
+    78			pr_cont("%s%#lx", delim, flags);
+    79	
+    80		pr_cont(")\n");
+    81	}
+    82	
+    83	void dump_page_badflags(struct page *page, const char *reason,
+    84			unsigned long badflags)
+    85	{
+    86		pr_emerg("page:%p count:%d mapcount:%d mapping:%p index:%#lx\n",
+    87			  page, atomic_read(&page->_count), page_mapcount(page),
+    88			  page->mapping, page->index);
+    89		BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS);
+    90		dump_flags(page->flags, pageflag_names, ARRAY_SIZE(pageflag_names));
+    91		if (reason)
+    92			pr_alert("page dumped because: %s\n", reason);
+    93		if (page->flags & badflags) {
+    94			pr_alert("bad because of flags:\n");
+    95			dump_flags(page->flags & badflags,
+    96					pageflag_names, ARRAY_SIZE(pageflag_names));
+    97		}
+    98		mem_cgroup_print_bad_page(page);
+    99	}
+   100	
+   101	void dump_page(struct page *page, const char *reason)
+   102	{
+   103		dump_page_badflags(page, reason, 0);
+   104	}
+   105	EXPORT_SYMBOL(dump_page);
+   106	
+   107	#ifdef CONFIG_DEBUG_VM
+   108	
+   109	static const struct trace_print_flags vmaflags_names[] = {
+   110		{VM_READ,			"read"		},
+   111		{VM_WRITE,			"write"		},
+   112		{VM_EXEC,			"exec"		},
+   113		{VM_SHARED,			"shared"	},
+   114		{VM_MAYREAD,			"mayread"	},
+   115		{VM_MAYWRITE,			"maywrite"	},
+   116		{VM_MAYEXEC,			"mayexec"	},
+   117		{VM_MAYSHARE,			"mayshare"	},
+   118		{VM_GROWSDOWN,			"growsdown"	},
+   119		{VM_PFNMAP,			"pfnmap"	},
+   120		{VM_DENYWRITE,			"denywrite"	},
+   121		{VM_LOCKED,			"locked"	},
+   122		{VM_IO,				"io"		},
+   123		{VM_SEQ_READ,			"seqread"	},
+   124		{VM_RAND_READ,			"randread"	},
+   125		{VM_DONTCOPY,			"dontcopy"	},
+   126		{VM_DONTEXPAND,			"dontexpand"	},
+   127		{VM_ACCOUNT,			"account"	},
+   128		{VM_NORESERVE,			"noreserve"	},
+   129		{VM_HUGETLB,			"hugetlb"	},
+   130		{VM_NONLINEAR,			"nonlinear"	},
+   131	#if defined(CONFIG_X86)
+   132		{VM_PAT,			"pat"		},
+   133	#elif defined(CONFIG_PPC)
+   134		{VM_SAO,			"sao"		},
+   135	#elif defined(CONFIG_PARISC) || defined(CONFIG_METAG) || defined(CONFIG_IA64)
+   136		{VM_GROWSUP,			"growsup"	},
+   137	#elif !defined(CONFIG_MMU)
+   138		{VM_MAPPED_COPY,		"mappedcopy"	},
+   139	#else
+   140		{VM_ARCH_1,			"arch_1"	},
+   141	#endif
+   142		{VM_DONTDUMP,			"dontdump"	},
+   143	#ifdef CONFIG_MEM_SOFT_DIRTY
+   144		{VM_SOFTDIRTY,			"softdirty"	},
+   145	#endif
+   146		{VM_MIXEDMAP,			"mixedmap"	},
+   147		{VM_HUGEPAGE,			"hugepage"	},
+   148		{VM_NOHUGEPAGE,			"nohugepage"	},
+   149		{VM_MERGEABLE,			"mergeable"	},
+   150	};
+   151	
+   152	void dump_vma(const struct vm_area_struct *vma)
+   153	{
+   154		pr_emerg("vma %p start %p end %p\n"
+   155			"next %p prev %p mm %p\n"
+   156			"prot %lx anon_vma %p vm_ops %p\n"
+   157			"pgoff %lx file %p private_data %p\n",
+   158			vma, (void *)vma->vm_start, (void *)vma->vm_end, vma->vm_next,
+   159			vma->vm_prev, vma->vm_mm,
+   160			(unsigned long)pgprot_val(vma->vm_page_prot),
+   161			vma->anon_vma, vma->vm_ops, vma->vm_pgoff,
+   162			vma->vm_file, vma->vm_private_data);
+   163		dump_flags(vma->vm_flags, vmaflags_names, ARRAY_SIZE(vmaflags_names));
+   164	}
+   165	EXPORT_SYMBOL(dump_vma);
+   166	
+   167	void dump_mm(const struct mm_struct *mm)
+   168	{
+   169		pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+   170	#ifdef CONFIG_MMU
+   171			"get_unmapped_area %p\n"
+   172	#endif
 
 ---
 0-DAY kernel build testing backend              Open Source Technology Center
 http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
---=_5420d7fd.55sTp7Yjzy0LFZo4am0OMib6kVgRVma9/rwAT0TgltUeS92V
+--=_5420d923.pllRGhZW8dXUcEeb4Cnt8Ko5371TaHQqMVG6YlUT6BlNFZd9
 Content-Type: text/plain;
  charset=us-ascii
 Content-Transfer-Encoding: 7bit
@@ -4292,7 +4589,7 @@ CONFIG_FONT_SUN12x22=y
 CONFIG_FONT_10x18=y
 CONFIG_ARCH_HAS_SG_CHAIN=y
 
---=_5420d7fd.55sTp7Yjzy0LFZo4am0OMib6kVgRVma9/rwAT0TgltUeS92V--
+--=_5420d923.pllRGhZW8dXUcEeb4Cnt8Ko5371TaHQqMVG6YlUT6BlNFZd9--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
