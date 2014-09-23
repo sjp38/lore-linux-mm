@@ -1,113 +1,299 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
-	by kanga.kvack.org (Postfix) with ESMTP id E6F8F6B0035
-	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 09:25:57 -0400 (EDT)
-Received: by mail-la0-f43.google.com with SMTP id gi9so8653635lab.2
-        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 06:25:57 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s6si18602900las.121.2014.09.23.06.25.55
+Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 427916B0035
+	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 09:28:05 -0400 (EDT)
+Received: by mail-we0-f176.google.com with SMTP id w61so3714744wes.7
+        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 06:28:04 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id fu1si14927078wjb.120.2014.09.23.06.28.03
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 23 Sep 2014 06:25:55 -0700 (PDT)
-Date: Tue, 23 Sep 2014 15:25:53 +0200
-From: Michal Hocko <mhocko@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Sep 2014 06:28:03 -0700 (PDT)
+Date: Tue, 23 Sep 2014 09:28:01 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [patch] mm: memcontrol: lockless page counters
-Message-ID: <20140923132553.GB10046@dhcp22.suse.cz>
+Message-ID: <20140923132801.GA14302@cmpxchg.org>
 References: <1411132928-16143-1-git-send-email-hannes@cmpxchg.org>
- <20140922144436.GG336@dhcp22.suse.cz>
- <20140922155049.GA6630@cmpxchg.org>
- <20140922172800.GA4343@dhcp22.suse.cz>
- <20140922195829.GA5197@cmpxchg.org>
+ <20140922144158.GC20398@esperanza>
+ <20140922185736.GB6630@cmpxchg.org>
+ <20140923110634.GH18526@esperanza>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140922195829.GA5197@cmpxchg.org>
+In-Reply-To: <20140923110634.GH18526@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Dave Hansen <dave@sr71.net>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Dave Hansen <dave@sr71.net>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon 22-09-14 15:58:29, Johannes Weiner wrote:
-> On Mon, Sep 22, 2014 at 07:28:00PM +0200, Michal Hocko wrote:
-> > On Mon 22-09-14 11:50:49, Johannes Weiner wrote:
-> > > On Mon, Sep 22, 2014 at 04:44:36PM +0200, Michal Hocko wrote:
-> > > > On Fri 19-09-14 09:22:08, Johannes Weiner wrote:
-> > [...]
-> > > > Nevertheless I think that the counter should live outside of memcg (it
-> > > > is ugly and bad in general to make HUGETLB controller depend on MEMCG
-> > > > just to have a counter). If you made kernel/page_counter.c and led both
-> > > > containers select CONFIG_PAGE_COUNTER then you do not need a dependency
-> > > > on MEMCG and I would find it cleaner in general.
+On Tue, Sep 23, 2014 at 03:06:34PM +0400, Vladimir Davydov wrote:
+> On Mon, Sep 22, 2014 at 02:57:36PM -0400, Johannes Weiner wrote:
+> > On Mon, Sep 22, 2014 at 06:41:58PM +0400, Vladimir Davydov wrote:
+> > > On Fri, Sep 19, 2014 at 09:22:08AM -0400, Johannes Weiner wrote:
+> > > > diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> > > > index 19df5d857411..bf8fb1a05597 100644
+> > > > --- a/include/linux/memcontrol.h
+> > > > +++ b/include/linux/memcontrol.h
+> > > > @@ -54,6 +54,38 @@ struct mem_cgroup_reclaim_cookie {
+> > > >  };
+> > > >  
+> > > >  #ifdef CONFIG_MEMCG
+> > > > +
+> > > > +struct page_counter {
 > > > 
-> > > The reason I did it this way is because the hugetlb controller simply
-> > > accounts and limits a certain type of memory and in the future I would
-> > > like to make it a memcg extension, just like kmem and swap.
+> > > I'd place it in a separate file, say
+> > > 
+> > > 	include/linux/page_counter.h
+> > > 	mm/page_counter.c
+> > > 
+> > > just to keep mm/memcontrol.c clean.
 > > 
-> > I am not sure this is the right way to go. Hugetlb has always been
-> > "special" and I do not see any advantage to pull its specialness into
-> > memcg proper.
-> >
-> > It would just make the code more complicated. I can also imagine
-> > users who simply do not want to pay memcg overhead and use only
-> > hugetlb controller.
+> > The page counters are the very core of the memory controller and, as I
+> > said to Michal, I want to integrate the hugetlb controller into memcg
+> > as well, at which point there won't be any outside users anymore.  So
+> > I think this is the right place for it.
 > 
-> We already group user memory, kernel memory, and swap space together,
-> what makes hugetlb-backed memory special?
+> Hmm, there might be memcg users out there that don't want to pay for
+> hugetlb accounting. Or is the overhead supposed to be negligible?
 
-There is only a little overlap between LRU backed and kmem accounted
-memory with hugetlb which has always been standing aside from the rest
-of the memory management code (THP being a successor which fits in much
-better and which is already covered by memcg). It has basically its own
-code path for every aspect of its object life cycle and internal data
-structures which are in many ways not compatible with regular user or
-kmem memory. Merging the controllers would require to merge hugetlb code
-closer the MM code. Until then it just doesn't make sense to me.
+Yes.  But if it gets in the way, it creates pressure to optimize it.
+That's the same reason why I've been trying to integrate memcg into
+the rest of the VM for over two years now - aside from resulting in
+much more unified code, it forces us to compete, and it increases our
+testing exposure by several orders of magnitude.
 
-> It's much easier to organize the code if all those closely related
-> things are grouped together.
+The only reason we are discussing lockless page counters right now is
+because we got rid of "memcg specialness" and exposed res_counters to
+the rest of the world; and boy did that instantly raise the bar on us.
 
-Could you be more specific please? How can pulling hugetlb details would
-help other !hugetlb code paths?
+> Anyway, I still don't think it's a good idea to keep all the definitions
+> in the same file. memcontrol.c is already huge. Adding more code to it
+> is not desirable, especially if it can naturally live in a separate
+> file. And since the page_counter is independent of the memcg core and
+> *looks* generic, I believe we should keep it separately.
 
-> It's also better for the user interface to have a single memory
-> controller.
+It's less code than what I just deleted, and half of it seems
+redundant when integrated into memcg.  This code would benefit a lot
+from being part of memcg, and memcg could reduce its public API.
 
-I have seen so much confusion coming from hugetlb vs. THP that I think
-the quite opposite is true. Besides that we would need a separate limit
-for hugetlb accounted memory anyway so having a small and specialized
-controller for specialized memory sounds like a proper way to go.
+There are tangible costs associated with having a separate pile of
+bitrot depend on our public interface.  Over 90% of the recent changes
+to the hugetlb controller were done by Tejun as part of changing the
+cgroup interfaces.  And I went through several WTFs switching that
+code to the new page counter API.  The cost of maintaining a unified
+codebase is negligible in comparison.
 
-Finally, as mentioned in previous email, you might have users interested
-only in hugetlb controller with memcg disabled.
+> > > > +	atomic_long_t count;
+> > > > +	unsigned long limit;
+> > > > +	struct page_counter *parent;
+> > > > +
+> > > > +	/* legacy */
+> > > > +	unsigned long watermark;
+> > > > +	unsigned long limited;
+> > > 
+> > > IMHO, failcnt would fit better.
+> > 
+> > I never liked the failcnt name, but also have to admit that "limited"
+> > is crap.  Let's leave it at failcnt for now.
+> > 
+> > > > +int page_counter_cancel(struct page_counter *counter, unsigned long nr_pages);
+> > > 
+> > > When I first saw this function, I couldn't realize by looking at its
+> > > name what it's intended to do. I think
+> > > 
+> > > 	page_counter_cancel_local_charge()
+> > > 
+> > > would fit better.
+> > 
+> > It's a fairly unwieldy name.  How about page_counter_sub()?  local_sub()?
+> 
+> The _sub suffix doesn't match _charge/_uncharge. May be
+> page_counter_local_uncharge, or _uncharge_local?
 
-> We're also close to the point where we don't differentiate between the
-> root group and dedicated groups in terms of performance, Dave's tests
-> fell apart at fairly high concurrency, and I'm already getting rid of
-> the lock he saw contended.
+I always think of a charge as the full hierarchical quantity, but this
+function only clips that one counter and so anything "uncharge" sounds
+terribly wrong to me.  But I can't think of anything great, either.
 
-Sure but this has nothing to do with it. Hugetlb can safely use the same
-lockless counter as a replacement for res_counter and benefit from it
-even though the contention hasn't been seen/reported yet.
+Any more ideas? :)
 
-> The downsides of fragmenting our configuration- and testspace, our
-> user interface, and our code base by far outweigh the benefits of
-> offering a dedicated hugetlb controller.
+> > > > +int page_counter_charge(struct page_counter *counter, unsigned long nr_pages,
+> > > > +			struct page_counter **fail);
+> > > > +int page_counter_uncharge(struct page_counter *counter, unsigned long nr_pages);
+> > > > +int page_counter_limit(struct page_counter *counter, unsigned long limit);
+> > > 
+> > > Hmm, why not page_counter_set_limit?
+> > 
+> > Limit is used as a verb here, "to limit".  Getters and setters are
+> > usually wrappers around unusual/complex data structure access,
+> 
+> Not necessarily. Look at percpu_counter_read e.g. It's a one-line
+> getter, which we could easily live w/o, but still it's there.
 
-Could you be more specific please? Hugetlb has to be configured and
-tested separately whether it would be in a separate controller or not.
+It abstracts an unusual and error-prone access to a counter value,
+i.e. reading an unsigned quantity out of a signed variable.
 
-Last but not least, even if this turns out to make some sense in
-the future please do not mix those things together here. Your
-res_counter -> page_counter transition makes a lot of sense for both
-controllers. And it is a huge improvement. I do not see any reason
-to pull a conceptually nontrivial merging/dependency of two separate
-controllers into the picture. If you think it makes some sense then
-bring that up later for a separate discussion.
+> > but this function does a lot more, so I'm not fond of _set_limit().
+> 
+> Nevertheless, everything it does can be perfectly described in one
+> sentence "it tries to set the new value of the limit", so it does
+> function as a setter. And if there's a setter, there must be a getter
+> IMO.
 
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+That's oversimplifying things.  Setting a limit requires enforcing a
+whole bunch of rules and synchronization, whereas reading a limit is
+accessing an unsigned long.
+
+In general I agree that we should strive for symmetry and follow the
+principle of least surprise, but in terms of complexity these two
+operations are very different, and providing a getter on principle
+would not actually improve readability in this case.
+
+> > > > @@ -1218,34 +1217,26 @@ static inline void memcg_memory_allocated_add(struct cg_proto *prot,
+> > > >  					      unsigned long amt,
+> > > >  					      int *parent_status)
+> > > >  {
+> > > > -	struct res_counter *fail;
+> > > > -	int ret;
+> > > > +	page_counter_charge(&prot->memory_allocated, amt, NULL);
+> > > >  
+> > > > -	ret = res_counter_charge_nofail(&prot->memory_allocated,
+> > > > -					amt << PAGE_SHIFT, &fail);
+> > > > -	if (ret < 0)
+> > > > +	if (atomic_long_read(&prot->memory_allocated.count) >
+> > > > +	    prot->memory_allocated.limit)
+> > > 
+> > > I don't like your equivalent of res_counter_charge_nofail.
+> > > 
+> > > Passing NULL to page_counter_charge might be useful if one doesn't have
+> > > a back-off strategy, but still want to fail on hitting the limit. With
+> > > your interface the user must pass something to the function then, which
+> > > isn't convenient.
+> > > 
+> > > Besides, it depends on the internal implementation of the page_counter
+> > > struct. I'd encapsulate this.
+> > 
+> > Thinking about this more, I don't like my version either; not because
+> > of how @fail must always be passed, but because of how it changes the
+> > behavior.  I changed the API to
+> > 
+> > void page_counter_charge(struct page_counter *counter, unsigned long nr_pages);
+> > int page_counter_try_charge(struct page_counter *counter, unsigned long nr_pages,
+> >                             struct page_counter **fail);
+> 
+> That looks good to me. I would also add something like
+> 
+>   bool page_counter_exceeds_limit(struct page_counter *counter);
+> 
+> to use instead of this
+> 
+> +	if (atomic_long_read(&prot->memory_allocated.count) >
+> +	    prot->memory_allocated.limit)
+
+I really don't see the point in obscuring a simple '<' behind a
+function call.  What follows this is that somebody adds it for the
+soft limit, and later for any other type of relational comparison.
+
+> > > >  		break;
+> > > >  	case RES_FAILCNT:
+> > > > -		res_counter_reset_failcnt(&h_cg->hugepage[idx]);
+> > > > +		counter->limited = 0;
+> > > 
+> > > page_counter_reset_failcnt?
+> > 
+> > That would be more obscure than counter->failcnt = 0, I think.
+> 
+> There's one thing that bothers me about this patch. Before, all the
+> functions operating on res_counter were mutually smp-safe, now they
+> aren't. E.g. if the failcnt reset races with the falcnt increment from
+> page_counter_try_charge, the reset might be skipped. You only use the
+> atomic type for the counter, but my guess is that failcnt and watermark
+> should be atomic too, at least if we're not going to get rid of them
+> soon. Otherwise, it should be clearly stated that failcnt and watermark
+> are racy.
+
+It's fair enough that the raciness should be documented, but both
+counters are such roundabout metrics to begin with that it really
+doesn't matter.  What's the difference between a failcnt of 590 and
+600 in practical terms?  And what does it matter if the counter
+watermark is off by a few pages when there are per-cpu caches on top
+of the counters, and the majority of workloads peg the watermark to
+the limit during startup anyway?
+
+> Anyway, that's where the usefulness of res_counter_reset_failcnt
+> reveals. If one decides to make it race-free one day, they won't have to
+> modify code outside the page_counter definition.
+
+A major problem with cgroups overall was that it was designed for a
+lot of hypotheticals that are irrelevant in practice but incur very
+high costs.  Multiple orthogonal hierarchies is the best example, but
+using locked byte counters that can be used to account all manner of
+resources, with accurate watermarks and limit failures, when all we
+need to count is pages and nobody cares about accurate watermarks and
+limit failures, is another one.
+
+It's very unlikely that failcnt and watermark will have to me atomic
+ever again, so there is very little hypothetical upside to wrapping a
+'= 0' in a function.  But such indirection comes at a real cost.
+
+> > > > +int page_counter_limit(struct page_counter *counter, unsigned long limit)
+> > > > +{
+> > > > +	for (;;) {
+> > > > +		unsigned long count;
+> > > > +		unsigned long old;
+> > > > +
+> > > > +		count = atomic_long_read(&counter->count);
+> > > > +
+> > > > +		old = xchg(&counter->limit, limit);
+> > > > +
+> > > > +		if (atomic_long_read(&counter->count) != count) {
+> > > > +			counter->limit = old;
+> > > 
+> > > I wonder what can happen if two threads execute this function
+> > > concurrently... or may be it's not supposed to be smp-safe?
+> > 
+> > memcg already holds the set_limit_mutex here.  I updated the tcp and
+> > hugetlb controllers accordingly to take limit locks as well.
+> 
+> I would prefer page_counter to handle it internally, because we won't
+> need the set_limit_mutex once memsw is converted to plain swap
+> accounting.
+>
+> Besides, memcg_update_kmem_limit doesn't take it. Any chance to
+> achieve that w/o spinlocks, using only atomic variables?
+
+We still need it to serialize concurrent access to the memory limit,
+and I updated the patch to have kmem take it as well.  It's such a
+cold path that using a lockless scheme and worrying about coherency
+between updates is not worth it, I think.
+
+> If I were you, I'd separate the patch introducing the page_counter API
+> and implementation from the rest. I think it'd ease the review.
+> 
+> A couple of extra notes about the patch:
+> 
+>  - I think having comments to function definitions would be nice.
+> 
+>  - Your implementation of try_charge uses CAS, but this is a really
+>    costly operation (the most costly of all atomic primitives). Have
+>    you considered using FAA? Something like this:
+> 
+>    try_charge(pc, nr):
+> 
+>      limit = pc->limit;
+>      count = atomic_add_return(&pc->count, nr);
+>      if (count > limit) {
+>          atomic_sub(&pc->count, nr);
+>          return -ENOMEM;
+>      }
+>      return 0;
+
+The thing I was worried about there is when you have varying charge
+sizes, and a failing big-charge can lock out a small-charge that would
+otherwise succeed and force it into early reclaim.  But thinking more
+about it, the error is limited to the biggest charge size, which is
+THP in our case, and it doesn't matter if we reclaim 2MB too early.
+
+I'll reconsider, thanks for your input!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
