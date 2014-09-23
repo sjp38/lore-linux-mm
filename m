@@ -1,118 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 747EF6B0037
-	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 00:56:26 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id y13so5736844pdi.30
-        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 21:56:26 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id vm9si18338343pbc.242.2014.09.22.21.56.24
-        for <linux-mm@kvack.org>;
-        Mon, 22 Sep 2014 21:56:25 -0700 (PDT)
-Date: Tue, 23 Sep 2014 13:57:01 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v1 5/5] zram: add fullness knob to control swap full
-Message-ID: <20140923045701.GD8325@bbox>
-References: <1411344191-2842-1-git-send-email-minchan@kernel.org>
- <1411344191-2842-6-git-send-email-minchan@kernel.org>
- <20140922141733.023a9ecbc0fe802d7f742d6e@linux-foundation.org>
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BBA16B0035
+	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 01:24:30 -0400 (EDT)
+Received: by mail-lb0-f175.google.com with SMTP id w7so2420021lbi.34
+        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 22:24:29 -0700 (PDT)
+Received: from mail-lb0-x22b.google.com (mail-lb0-x22b.google.com [2a00:1450:4010:c04::22b])
+        by mx.google.com with ESMTPS id rb9si17067530lbb.31.2014.09.22.22.24.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 22 Sep 2014 22:24:28 -0700 (PDT)
+Received: by mail-lb0-f171.google.com with SMTP id l4so8078287lbv.30
+        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 22:24:28 -0700 (PDT)
+Message-ID: <54210407.1000602@gmail.com>
+Date: Tue, 23 Sep 2014 07:24:23 +0200
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH 0/4] ipc/shm.c: increase the limits for SHMMAX, SHMALL
+References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com>	 <CAKgNAkjuU68hgyMOVGBVoBTOhhGdBytQh6H0ExiLoXfujKyP_w@mail.gmail.com> <1401823560.4911.2.camel@buesod1.americas.hpqcorp.net>
+In-Reply-To: <1401823560.4911.2.camel@buesod1.americas.hpqcorp.net>
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20140922141733.023a9ecbc0fe802d7f742d6e@linux-foundation.org>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>, juno.choi@lge.com
+To: Davidlohr Bueso <dave@stgolabs.net>
+Cc: mtk.manpages@gmail.com, Manfred Spraul <manfred@colorfullife.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, aswin@hp.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Sep 22, 2014 at 02:17:33PM -0700, Andrew Morton wrote:
-> On Mon, 22 Sep 2014 09:03:11 +0900 Minchan Kim <minchan@kernel.org> wrote:
+On 06/03/2014 09:26 PM, Davidlohr Bueso wrote:
+> On Fri, 2014-05-02 at 15:16 +0200, Michael Kerrisk (man-pages) wrote:
+>> Hi Manfred,
+>>
+>> On Mon, Apr 21, 2014 at 4:26 PM, Manfred Spraul
+>> <manfred@colorfullife.com> wrote:
+>>> Hi all,
+>>>
+>>> the increase of SHMMAX/SHMALL is now a 4 patch series.
+>>> I don't have ideas how to improve it further.
+>>
+>> On the assumption that your patches are heading to mainline, could you
+>> send me a man-pages patch for the changes?
 > 
-> > Some zram usecase could want lower fullness than default 80 to
-> > avoid unnecessary swapout-and-fail-recover overhead.
-> > 
-> > A typical example is that mutliple swap with high piroirty
-> > zram-swap and low priority HDD-swap so it could still enough
-> > free swap space although one of swap devices is full(ie, zram).
-> > It would be better to fail over to HDD-swap rather than failing
-> > swap write to zram in this case.
-> > 
-> > This patch exports fullness to user so user can control it
-> > via the knob.
+> It seems we're still behind here and the 3.16 merge window is already
+> opened. Please consider this, and again feel free to add/modify as
+> necessary. I think adding a note as below is enough and was hesitant to
+> add a lot of details... Thanks.
 > 
-> Adding new userspace interfaces requires a pretty strong justification
-> and it's unclear to me that this is being met.  In fact the whole
-> patchset reads like "we have some problem, don't know how to fix it so
-> let's add a userspace knob to make it someone else's problem".
+> 8<--------------------------------------------------
+> From: Davidlohr Bueso <davidlohr@hp.com>
+> Subject: [PATCH] shmget.2: document new limits for shmmax/shmall
+> 
+> These limits have been recently enlarged and
+> modifying them is no longer really necessary.
+> Update the manpage.
+> 
+> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+> ---
+>  man2/shmget.2 | 11 +++++++++++
+>  1 file changed, 11 insertions(+)
+> 
+> diff --git a/man2/shmget.2 b/man2/shmget.2
+> index f781048..77764ea 100644
+> --- a/man2/shmget.2
+> +++ b/man2/shmget.2
+> @@ -299,6 +299,11 @@ with 8kB page size, it yields 2^20 (1048576).
+>  
+>  On Linux, this limit can be read and modified via
+>  .IR /proc/sys/kernel/shmall .
+> +As of Linux 3.16, the default value for this limit is increased to
+> +.B ULONG_MAX - 2^24
+> +pages, which is as large as it can be without helping userspace overflow
+> +the values. Modifying this limit is therefore discouraged. This is suitable
+> +for both 32 and 64-bit systems.
+>  .TP
+>  .B SHMMAX
+>  Maximum size in bytes for a shared memory segment.
+> @@ -306,6 +311,12 @@ Since Linux 2.2, the default value of this limit is 0x2000000 (32MB).
+>  
+>  On Linux, this limit can be read and modified via
+>  .IR /proc/sys/kernel/shmmax .
+> +As of Linux 3.16, the default value for this limit is increased from 32Mb
+> +to
+> +.B ULONG_MAX - 2^24
+> +bytes, which is as large as it can be without helping userspace overflow
+> +the values. Modifying this limit is therefore discouraged. This is suitable
+> +for both 32 and 64-bit systems.
+>  .TP
+>  .B SHMMIN
+>  Minimum size in bytes for a shared memory segment: implementation
 
-I explained rationale in 4/5's reply but if it's not enough or wrong,
-please tell me.
+David,
 
-> 
-> > index b13dc993291f..817738d14061 100644
-> > --- a/Documentation/ABI/testing/sysfs-block-zram
-> > +++ b/Documentation/ABI/testing/sysfs-block-zram
-> > @@ -138,3 +138,13 @@ Description:
-> >  		amount of memory ZRAM can use to store the compressed data.  The
-> >  		limit could be changed in run time and "0" means disable the
-> >  		limit.  No limit is the initial state.  Unit: bytes
-> > +
-> > +What:		/sys/block/zram<id>/fullness
-> > +Date:		August 2014
-> > +Contact:	Minchan Kim <minchan@kernel.org>
-> > +Description:
-> > +		The fullness file is read/write and specifies how easily
-> > +		zram become full state so if you set it to lower value,
-> > +		zram can reach full state easily compared to higher value.
-> > +		Curretnly, initial value is 80% but it could be changed.
-> > +		Unit: Percentage
-> 
-> And I don't think that there is sufficient information here for a user
-> to be able to work out what to do with this tunable.
+I applied various pieces from your patch on top of material
+that I already had, so that now we have the text below describing
+these limits.  Comments/suggestions/improvements from all welcome.
 
-I will put more words.
+Cheers,
 
-> 
-> > --- a/drivers/block/zram/zram_drv.c
-> > +++ b/drivers/block/zram/zram_drv.c
-> > @@ -136,6 +136,37 @@ static ssize_t max_comp_streams_show(struct device *dev,
-> >  	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
-> >  }
-> >  
-> > +static ssize_t fullness_show(struct device *dev,
-> > +		struct device_attribute *attr, char *buf)
-> > +{
-> > +	int val;
-> > +	struct zram *zram = dev_to_zram(dev);
-> > +
-> > +	down_read(&zram->init_lock);
-> > +	val = zram->fullness;
-> > +	up_read(&zram->init_lock);
-> 
-> Did we really need to take a lock to display a value which became
-> out-of-date as soon as we released that lock?
-> 
-> > +	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
-> > +}
-> > +
-> > +static ssize_t fullness_store(struct device *dev,
-> > +		struct device_attribute *attr, const char *buf, size_t len)
-> > +{
-> > +	int err;
-> > +	unsigned long val;
-> > +	struct zram *zram = dev_to_zram(dev);
-> > +
-> > +	err = kstrtoul(buf, 10, &val);
-> > +	if (err || val > 100)
-> > +		return -EINVAL;
-> 
-> This overwrites the kstrtoul() return value.
+Michael
 
-Will fix.
+       SHMALL System-wide limit on the number of pages of shared memory.
 
-Thanks for the reivew, Andrew.
+              On  Linux,  this  limit  can  be  read  and  modified  via
+              /proc/sys/kernel/shmall.  Since Linux  3.16,  the  default
+              value for this limit is:
+
+                  ULONG_MAX - 2^24
+
+              The  effect  of  this  value  (which  is suitable for both
+              32-bit and 64-bit systems) is to impose no  limitation  on
+              allocations.   This value, rather than ULONG_MAX, was choa??
+              sen as the default to prevent some cases where  historical
+              applications  simply  raised  the  existing  limit without
+              first checking its current value.  Such applications would
+              cause  the  value  to  overflow  if  the  limit was set at
+              ULONG_MAX.
+
+              From Linux 2.4 up to Linux 3.15,  the  default  value  for
+              this limit was:
+
+                  SHMMAX / PAGE_SIZE * (SHMMNI / 16)
+
+              If  SHMMAX  and SHMMNI were not modified, then multiplying
+              the result of this formula by the  page  size  (to  get  a
+              value  in  bytes)  yielded a value of 8 GB as the limit on
+              the total memory used by all shared memory segments.
+
+       SHMMAX Maximum size in bytes for a shared memory segment.
+
+              On  Linux,  this  limit  can  be  read  and  modified  via
+              /proc/sys/kernel/shmmax.   Since  Linux  3.16, the default
+              value for this limit is:
+
+                  ULONG_MAX - 2^24
+
+              The effect of this  value  (which  is  suitable  for  both
+              32-bit  and  64-bit systems) is to impose no limitation on
+              allocations.  See the description of SHMALL for a  discusa??
+              sion  of why this default value (rather than ULONG_MAX) is
+              used.
+
+              From Linux 2.2 up to Linux 3.15, the default value of this
+              limit was 0x2000000 (32MB).
+
+              Because  it  is  not possible to map just part of a shared
+              memory  segment,  the  amount  of  virtual  memory  places
+              another limit on the maximum size of a usable segment: for
+              example, on i386 the largest segments that can  be  mapped
+              have  a  size of around 2.8 GB, and on x86_64 the limit is
+              around 127 TB.
+
+
+
 -- 
-Kind regards,
-Minchan Kim
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
