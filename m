@@ -1,355 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
-	by kanga.kvack.org (Postfix) with ESMTP id E0C956B0035
-	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 02:25:47 -0400 (EDT)
-Received: by mail-lb0-f180.google.com with SMTP id b12so7957196lbj.25
-        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 23:25:46 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id vr4si8377129lbb.110.2014.09.22.23.25.45
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 22 Sep 2014 23:25:46 -0700 (PDT)
-Message-ID: <54211266.70201@suse.com>
-Date: Tue, 23 Sep 2014 08:25:42 +0200
-From: Juergen Gross <jgross@suse.com>
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 652716B0035
+	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 02:27:45 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id v10so4064447pde.8
+        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 23:27:45 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id jd9si18791089pbd.114.2014.09.22.23.27.43
+        for <linux-mm@kvack.org>;
+        Mon, 22 Sep 2014 23:27:44 -0700 (PDT)
+Date: Tue, 23 Sep 2014 14:26:40 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [mmotm:master 262/385] drivers/rtc/rtc-bq32k.c:155:21: sparse:
+ incorrect type in assignment (different base types)
+Message-ID: <542112a0.F1EaJC3N9jNPLjHw%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3 5/5] x86, mm, pat: Refactor !pat_enabled handling
-References: <1410983321-15162-1-git-send-email-toshi.kani@hp.com> <1410983321-15162-6-git-send-email-toshi.kani@hp.com>
-In-Reply-To: <1410983321-15162-6-git-send-email-toshi.kani@hp.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
 
-On 09/17/2014 09:48 PM, Toshi Kani wrote:
-> This patch refactors the !pat_enabled handling code and integrates
-> this case into the PAT abstraction code. The PAT table is emulated
-> by corresponding to the two cache attribute bits, PWT (Write Through)
-> and PCD (Cache Disable). The emulated PAT table is also the same as
-> the BIOS default setup in case the system has PAT but "nopat" boot
-> option is specified.
->
-> As a result of this change, cache aliasing is checked for all cases
-> including !pat_enabled.
->
-> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
+tree:   git://git.cmpxchg.org/linux-mmotm.git master
+head:   eb076320e4dbdf99513732811ed8730812b34b2f
+commit: b44e93cb89b6c5b32fd625f30341bcf14991322d [262/385] rtc: bq32000: add trickle charger option, with device tree binding
+reproduce:
+  # apt-get install sparse
+  git checkout b44e93cb89b6c5b32fd625f30341bcf14991322d
+  make ARCH=x86_64 allmodconfig
+  make C=1 CF=-D__CHECK_ENDIAN__
 
-Reviewed-by: Juergen Gross <jgross@suse.com>
 
-> ---
->   arch/x86/mm/init.c     |    6 ++-
->   arch/x86/mm/iomap_32.c |   18 +++-------
->   arch/x86/mm/ioremap.c  |   10 +----
->   arch/x86/mm/pageattr.c |    3 --
->   arch/x86/mm/pat.c      |   90 +++++++++++++++++++++---------------------------
->   5 files changed, 50 insertions(+), 77 deletions(-)
->
-> diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
-> index 82b41d5..2e147c8 100644
-> --- a/arch/x86/mm/init.c
-> +++ b/arch/x86/mm/init.c
-> @@ -37,7 +37,7 @@
->    */
->   uint16_t __cachemode2pte_tbl[_PAGE_CACHE_MODE_NUM] = {
->   	[_PAGE_CACHE_MODE_WB]		= 0,
-> -	[_PAGE_CACHE_MODE_WC]		= _PAGE_PWT,
-> +	[_PAGE_CACHE_MODE_WC]		= _PAGE_PCD,
->   	[_PAGE_CACHE_MODE_UC_MINUS]	= _PAGE_PCD,
->   	[_PAGE_CACHE_MODE_UC]		= _PAGE_PCD | _PAGE_PWT,
->   	[_PAGE_CACHE_MODE_WT]		= _PAGE_PCD,
-> @@ -46,11 +46,11 @@ uint16_t __cachemode2pte_tbl[_PAGE_CACHE_MODE_NUM] = {
->   EXPORT_SYMBOL_GPL(__cachemode2pte_tbl);
->   uint8_t __pte2cachemode_tbl[8] = {
->   	[__pte2cm_idx(0)] = _PAGE_CACHE_MODE_WB,
-> -	[__pte2cm_idx(_PAGE_PWT)] = _PAGE_CACHE_MODE_WC,
-> +	[__pte2cm_idx(_PAGE_PWT)] = _PAGE_CACHE_MODE_UC_MINUS,
->   	[__pte2cm_idx(_PAGE_PCD)] = _PAGE_CACHE_MODE_UC_MINUS,
->   	[__pte2cm_idx(_PAGE_PWT | _PAGE_PCD)] = _PAGE_CACHE_MODE_UC,
->   	[__pte2cm_idx(_PAGE_PAT)] = _PAGE_CACHE_MODE_WB,
-> -	[__pte2cm_idx(_PAGE_PWT | _PAGE_PAT)] = _PAGE_CACHE_MODE_WC,
-> +	[__pte2cm_idx(_PAGE_PWT | _PAGE_PAT)] = _PAGE_CACHE_MODE_UC_MINUS,
->   	[__pte2cm_idx(_PAGE_PCD | _PAGE_PAT)] = _PAGE_CACHE_MODE_UC_MINUS,
->   	[__pte2cm_idx(_PAGE_PWT | _PAGE_PCD | _PAGE_PAT)] = _PAGE_CACHE_MODE_UC,
->   };
-> diff --git a/arch/x86/mm/iomap_32.c b/arch/x86/mm/iomap_32.c
-> index ee58a0b..96aa8bf 100644
-> --- a/arch/x86/mm/iomap_32.c
-> +++ b/arch/x86/mm/iomap_32.c
-> @@ -70,29 +70,23 @@ void *kmap_atomic_prot_pfn(unsigned long pfn, pgprot_t prot)
->   	return (void *)vaddr;
->   }
->
-> -/*
-> - * Map 'pfn' using protections 'prot'
-> - */
-> -#define __PAGE_KERNEL_WC	(__PAGE_KERNEL | \
-> -				 cachemode2protval(_PAGE_CACHE_MODE_WC))
-> -
->   void __iomem *
->   iomap_atomic_prot_pfn(unsigned long pfn, pgprot_t prot)
->   {
->   	/*
-> -	 * For non-PAT systems, promote PAGE_KERNEL_WC to PAGE_KERNEL_UC_MINUS.
-> -	 * PAGE_KERNEL_WC maps to PWT, which translates to uncached if the
-> -	 * MTRR is UC or WC.  UC_MINUS gets the real intention, of the
-> -	 * user, which is "WC if the MTRR is WC, UC if you can't do that."
-> +	 * For non-PAT systems, translate non-WB request to UC- just in
-> +	 * case the caller set the PWT bit to prot directly without using
-> +	 * pgprot_writecombine(). UC- translates to uncached if the MTRR
-> +	 * is UC or WC. UC- gets the real intention, of the user, which is
-> +	 * "WC if the MTRR is WC, UC if you can't do that."
->   	 */
-> -	if (!pat_enabled && pgprot_val(prot) == __PAGE_KERNEL_WC)
-> +	if (!pat_enabled && pgprot2cachemode(prot) != _PAGE_CACHE_MODE_WB)
->   		prot = __pgprot(__PAGE_KERNEL |
->   				cachemode2protval(_PAGE_CACHE_MODE_UC_MINUS));
->
->   	return (void __force __iomem *) kmap_atomic_prot_pfn(pfn, prot);
->   }
->   EXPORT_SYMBOL_GPL(iomap_atomic_prot_pfn);
-> -#undef __PAGE_KERNEL_WC
->
->   void
->   iounmap_atomic(void __iomem *kvaddr)
-> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
-> index 952f4b4..ff45c19 100644
-> --- a/arch/x86/mm/ioremap.c
-> +++ b/arch/x86/mm/ioremap.c
-> @@ -245,11 +245,8 @@ EXPORT_SYMBOL(ioremap_nocache);
->    */
->   void __iomem *ioremap_wc(resource_size_t phys_addr, unsigned long size)
->   {
-> -	if (pat_enabled)
-> -		return __ioremap_caller(phys_addr, size, _PAGE_CACHE_MODE_WC,
-> +	return __ioremap_caller(phys_addr, size, _PAGE_CACHE_MODE_WC,
->   					__builtin_return_address(0));
-> -	else
-> -		return ioremap_nocache(phys_addr, size);
->   }
->   EXPORT_SYMBOL(ioremap_wc);
->
-> @@ -265,11 +262,8 @@ EXPORT_SYMBOL(ioremap_wc);
->    */
->   void __iomem *ioremap_wt(resource_size_t phys_addr, unsigned long size)
->   {
-> -	if (pat_enabled)
-> -		return __ioremap_caller(phys_addr, size, _PAGE_CACHE_MODE_WT,
-> +	return __ioremap_caller(phys_addr, size, _PAGE_CACHE_MODE_WT,
->   					__builtin_return_address(0));
-> -	else
-> -		return ioremap_nocache(phys_addr, size);
->   }
->   EXPORT_SYMBOL(ioremap_wt);
->
-> diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
-> index 6917b39..34f870d 100644
-> --- a/arch/x86/mm/pageattr.c
-> +++ b/arch/x86/mm/pageattr.c
-> @@ -1553,9 +1553,6 @@ int set_memory_wc(unsigned long addr, int numpages)
->   {
->   	int ret;
->
-> -	if (!pat_enabled)
-> -		return set_memory_uc(addr, numpages);
-> -
->   	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
->   		_PAGE_CACHE_MODE_WC, NULL);
->   	if (ret)
-> diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
-> index a0264d3..e0e836e 100644
-> --- a/arch/x86/mm/pat.c
-> +++ b/arch/x86/mm/pat.c
-> @@ -135,28 +135,48 @@ void pat_init(void)
->   	bool boot_cpu = !boot_pat_state;
->   	struct cpuinfo_x86 *c = &boot_cpu_data;
->
-> -	if (!pat_enabled)
-> -		return;
-> -
->   	if (!cpu_has_pat) {
->   		if (!boot_pat_state) {
->   			pat_disable("PAT not supported by CPU.");
-> -			return;
-> -		} else {
-> +		} else if (pat_enabled) {
->   			/*
->   			 * If this happens we are on a secondary CPU, but
->   			 * switched to PAT on the boot CPU. We have no way to
->   			 * undo PAT.
->   			 */
-> -			printk(KERN_ERR "PAT enabled, "
-> +			pr_err("PAT enabled, "
->   			       "but not supported by secondary CPU\n");
->   			BUG();
->   		}
->   	}
->
-> -	if ((c->x86_vendor == X86_VENDOR_INTEL) &&
-> -	    (((c->x86 == 0x6) && (c->x86_model <= 0xd)) ||
-> -	     ((c->x86 == 0xf) && (c->x86_model <= 0x6)))) {
-> +	if (!pat_enabled) {
-> +		/*
-> +		 * No PAT. Emulate the PAT table by corresponding to the two
-> +		 * cache bits, PWT (Write Through) and PCD (Cache Disable).
-> +		 * This is also the same as the BIOS default setup in case
-> +		 * the system has PAT but "nopat" boot option is specified.
-> +		 *
-> +		 *  PTE encoding used in Linux:
-> +		 *       PCD
-> +		 *       |PWT  PAT
-> +		 *       ||    slot
-> +		 *       00    0    WB : _PAGE_CACHE_MODE_WB
-> +		 *       01    1    WT : _PAGE_CACHE_MODE_WT
-> +		 *       10    2    UC-: _PAGE_CACHE_MODE_UC_MINUS
-> +		 *       11    3    UC : _PAGE_CACHE_MODE_UC
-> +		 *
-> +		 * NOTE: When WC or WP is used, it is redirected to UC- per
-> +		 * the default setup in __cachemode2pte_tbl[].
-> +		 */
-> +		pat = PAT(0, WB) | PAT(1, WT) | PAT(2, UC_MINUS) | PAT(3, UC) |
-> +		      PAT(4, WB) | PAT(5, WT) | PAT(6, UC_MINUS) | PAT(7, UC);
-> +		if (!boot_pat_state)
-> +			boot_pat_state = pat;
-> +
-> +	} else if ((c->x86_vendor == X86_VENDOR_INTEL) &&
-> +		   (((c->x86 == 0x6) && (c->x86_model <= 0xd)) ||
-> +		    ((c->x86 == 0xf) && (c->x86_model <= 0x6)))) {
->   		/*
->   		 * PAT support with the lower four entries. Intel Pentium 2,
->   		 * 3, M, and 4 are affected by PAT errata, which makes the
-> @@ -203,11 +223,13 @@ void pat_init(void)
->   		      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, WT);
->   	}
->
-> -	/* Boot CPU check */
-> -	if (!boot_pat_state)
-> -		rdmsrl(MSR_IA32_CR_PAT, boot_pat_state);
-> +	if (pat_enabled) {
-> +		/* Boot CPU check */
-> +		if (!boot_pat_state)
-> +			rdmsrl(MSR_IA32_CR_PAT, boot_pat_state);
->
-> -	wrmsrl(MSR_IA32_CR_PAT, pat);
-> +		wrmsrl(MSR_IA32_CR_PAT, pat);
-> +	}
->
->   	if (boot_cpu)
->   		pat_init_cache_modes();
-> @@ -375,17 +397,6 @@ int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
->
->   	BUG_ON(start >= end); /* end is exclusive */
->
-> -	if (!pat_enabled) {
-> -		/* This is identical to page table setting without PAT */
-> -		if (new_type) {
-> -			if (req_type == _PAGE_CACHE_MODE_WB)
-> -				*new_type = _PAGE_CACHE_MODE_WB;
-> -			else
-> -				*new_type = _PAGE_CACHE_MODE_UC_MINUS;
-> -		}
-> -		return 0;
-> -	}
-> -
->   	/* Low ISA region is always mapped WB in page table. No need to track */
->   	if (x86_platform.is_untracked_pat_range(start, end)) {
->   		if (new_type)
-> @@ -450,9 +461,6 @@ int free_memtype(u64 start, u64 end)
->   	int is_range_ram;
->   	struct memtype *entry;
->
-> -	if (!pat_enabled)
-> -		return 0;
-> -
->   	/* Low ISA region is always mapped WB. No need to track */
->   	if (x86_platform.is_untracked_pat_range(start, end))
->   		return 0;
-> @@ -591,16 +599,13 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
->   	return 1;
->   }
->   #else
-> -/* This check is needed to avoid cache aliasing when PAT is enabled */
-> +/* This check is needed to avoid cache aliasing */
->   static inline int range_is_allowed(unsigned long pfn, unsigned long size)
->   {
->   	u64 from = ((u64)pfn) << PAGE_SHIFT;
->   	u64 to = from + size;
->   	u64 cursor = from;
->
-> -	if (!pat_enabled)
-> -		return 1;
-> -
->   	while (cursor < to) {
->   		if (!devmem_is_allowed(pfn)) {
->   			printk(KERN_INFO "Program %s tried to access /dev/mem between [mem %#010Lx-%#010Lx]\n",
-> @@ -704,9 +709,6 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
->   	 * the type requested matches the type of first page in the range.
->   	 */
->   	if (is_ram) {
-> -		if (!pat_enabled)
-> -			return 0;
-> -
->   		pcm = lookup_memtype(paddr);
->   		if (want_pcm != pcm) {
->   			printk(KERN_WARNING "%s:%d map pfn RAM range req %s for [mem %#010Lx-%#010Lx], got %s\n",
-> @@ -819,9 +821,6 @@ int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
->   		return ret;
->   	}
->
-> -	if (!pat_enabled)
-> -		return 0;
-> -
->   	/*
->   	 * For anything smaller than the vma size we set prot based on the
->   	 * lookup.
-> @@ -847,9 +846,6 @@ int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
->   {
->   	enum page_cache_mode pcm;
->
-> -	if (!pat_enabled)
-> -		return 0;
-> -
->   	/* Set prot based on lookup */
->   	pcm = lookup_memtype((resource_size_t)pfn << PAGE_SHIFT);
->   	*prot = __pgprot((pgprot_val(vma->vm_page_prot) & (~_PAGE_CACHE_MASK)) |
-> @@ -888,21 +884,15 @@ void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
->
->   pgprot_t pgprot_writecombine(pgprot_t prot)
->   {
-> -	if (pat_enabled)
-> -		return __pgprot(pgprot_val(prot) |
-> +	return __pgprot(pgprot_val(prot) |
->   				cachemode2protval(_PAGE_CACHE_MODE_WC));
-> -	else
-> -		return pgprot_noncached(prot);
->   }
->   EXPORT_SYMBOL_GPL(pgprot_writecombine);
->
->   pgprot_t pgprot_writethrough(pgprot_t prot)
->   {
-> -	if (pat_enabled)
-> -		return __pgprot(pgprot_val(prot) |
-> +	return __pgprot(pgprot_val(prot) |
->   				cachemode2protval(_PAGE_CACHE_MODE_WT));
-> -	else
-> -		return pgprot_noncached(prot);
->   }
->   EXPORT_SYMBOL_GPL(pgprot_writethrough);
->
-> @@ -981,10 +971,8 @@ static const struct file_operations memtype_fops = {
->
->   static int __init pat_memtype_list_init(void)
->   {
-> -	if (pat_enabled) {
-> -		debugfs_create_file("pat_memtype_list", S_IRUSR,
-> +	debugfs_create_file("pat_memtype_list", S_IRUSR,
->   				    arch_debugfs_dir, NULL, &memtype_fops);
-> -	}
->   	return 0;
->   }
->
->
+sparse warnings: (new ones prefixed by >>)
+
+   drivers/rtc/rtc-bq32k.c:76:28: sparse: Variable length array is used.
+>> drivers/rtc/rtc-bq32k.c:155:21: sparse: incorrect type in assignment (different base types)
+   drivers/rtc/rtc-bq32k.c:155:21:    expected unsigned int const [usertype] *reg
+   drivers/rtc/rtc-bq32k.c:155:21:    got int
+>> drivers/rtc/rtc-bq32k.c:165:21: sparse: incorrect type in assignment (different base types)
+   drivers/rtc/rtc-bq32k.c:165:21:    expected unsigned int const [usertype] *reg
+   drivers/rtc/rtc-bq32k.c:165:21:    got int
+>> drivers/rtc/rtc-bq32k.c:177:13: sparse: incorrect type in assignment (different base types)
+   drivers/rtc/rtc-bq32k.c:177:13:    expected unsigned int const [usertype] *[addressable] reg
+   drivers/rtc/rtc-bq32k.c:177:13:    got int
+   drivers/rtc/rtc-bq32k.c: In function 'trickle_charger_of_init':
+   drivers/rtc/rtc-bq32k.c:155:7: warning: assignment makes pointer from integer without a cast
+      reg = 0x05;
+          ^
+   drivers/rtc/rtc-bq32k.c:165:7: warning: assignment makes pointer from integer without a cast
+      reg = 0x25;
+          ^
+   drivers/rtc/rtc-bq32k.c:177:6: warning: assignment makes pointer from integer without a cast
+     reg = 0x20;
+         ^
+   drivers/rtc/rtc-bq32k.c:135:6: warning: unused variable 'plen' [-Wunused-variable]
+     int plen = 0;
+         ^
+
+vim +155 drivers/rtc/rtc-bq32k.c
+
+    70		return -EIO;
+    71	}
+    72	
+    73	static int bq32k_write(struct device *dev, void *data, uint8_t off, uint8_t len)
+    74	{
+    75		struct i2c_client *client = to_i2c_client(dev);
+    76		uint8_t buffer[len + 1];
+    77	
+    78		buffer[0] = off;
+    79		memcpy(&buffer[1], data, len);
+    80	
+    81		if (i2c_master_send(client, buffer, len + 1) == len + 1)
+    82			return 0;
+    83	
+    84		return -EIO;
+    85	}
+    86	
+    87	static int bq32k_rtc_read_time(struct device *dev, struct rtc_time *tm)
+    88	{
+    89		struct bq32k_regs regs;
+    90		int error;
+    91	
+    92		error = bq32k_read(dev, &regs, 0, sizeof(regs));
+    93		if (error)
+    94			return error;
+    95	
+    96		tm->tm_sec = bcd2bin(regs.seconds & BQ32K_SECONDS_MASK);
+    97		tm->tm_min = bcd2bin(regs.minutes & BQ32K_SECONDS_MASK);
+    98		tm->tm_hour = bcd2bin(regs.cent_hours & BQ32K_HOURS_MASK);
+    99		tm->tm_mday = bcd2bin(regs.date);
+   100		tm->tm_wday = bcd2bin(regs.day) - 1;
+   101		tm->tm_mon = bcd2bin(regs.month) - 1;
+   102		tm->tm_year = bcd2bin(regs.years) +
+   103					((regs.cent_hours & BQ32K_CENT) ? 100 : 0);
+   104	
+   105		return rtc_valid_tm(tm);
+   106	}
+   107	
+   108	static int bq32k_rtc_set_time(struct device *dev, struct rtc_time *tm)
+   109	{
+   110		struct bq32k_regs regs;
+   111	
+   112		regs.seconds = bin2bcd(tm->tm_sec);
+   113		regs.minutes = bin2bcd(tm->tm_min);
+   114		regs.cent_hours = bin2bcd(tm->tm_hour) | BQ32K_CENT_EN;
+   115		regs.day = bin2bcd(tm->tm_wday + 1);
+   116		regs.date = bin2bcd(tm->tm_mday);
+   117		regs.month = bin2bcd(tm->tm_mon + 1);
+   118	
+   119		if (tm->tm_year >= 100) {
+   120			regs.cent_hours |= BQ32K_CENT;
+   121			regs.years = bin2bcd(tm->tm_year - 100);
+   122		} else
+   123			regs.years = bin2bcd(tm->tm_year);
+   124	
+   125		return bq32k_write(dev, &regs, 0, sizeof(regs));
+   126	}
+   127	
+   128	static const struct rtc_class_ops bq32k_rtc_ops = {
+   129		.read_time	= bq32k_rtc_read_time,
+   130		.set_time	= bq32k_rtc_set_time,
+   131	};
+   132	
+   133	static int trickle_charger_of_init(struct device *dev, struct device_node *node)
+   134	{
+   135		int plen = 0;
+   136		const uint32_t *setup;
+   137		const uint32_t *reg;
+   138		int error;
+   139		u32 ohms = 0;
+   140	
+   141		if (of_property_read_u32(node, "trickle-resistor-ohms" , &ohms))
+   142			return 0;
+   143	
+   144		switch (ohms) {
+   145		case 180+940:
+   146			/*
+   147			 * TCHE[3:0] == 0x05, TCH2 == 1, TCFE == 0 (charging
+   148			 * over diode and 940ohm resistor)
+   149			 */
+   150	
+   151			if (of_property_read_bool(node, "trickle-diode-disable")) {
+   152				dev_err(dev, "diode and resistor mismatch\n");
+   153				return -EINVAL;
+   154			}
+   155			reg = 0x05;
+   156			break;
+   157	
+   158		case 180+20000:
+   159			/* diode disabled */
+   160	
+   161			if (!of_property_read_bool(node, "trickle-diode-disable")) {
+   162				dev_err(dev, "bq32k: diode and resistor mismatch\n");
+   163				return -EINVAL;
+   164			}
+   165			reg = 0x25;
+   166			break;
+   167	
+   168		default:
+   169			dev_err(dev, "invalid resistor value (%d)\n", *setup);
+   170			return -EINVAL;
+   171		}
+   172	
+   173		error = bq32k_write(dev, &reg, BQ32K_CFG2, 1);
+   174		if (error)
+   175			return error;
+   176	
+   177		reg = 0x20;
+   178		error = bq32k_write(dev, &reg, BQ32K_TCH2, 1);
+   179		if (error)
+   180			return error;
+
+---
+0-DAY kernel build testing backend              Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
