@@ -1,89 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 01B996B003A
-	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 16:53:00 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id y13so7214265pdi.29
-        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 13:53:00 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ml7si22734518pdb.210.2014.09.23.13.52.59
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F36D6B003A
+	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 16:57:13 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id v10so5325183pde.22
+        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 13:57:13 -0700 (PDT)
+Received: from mail-pd0-x234.google.com (mail-pd0-x234.google.com [2607:f8b0:400e:c02::234])
+        by mx.google.com with ESMTPS id dw2si22698158pbb.187.2014.09.23.13.57.12
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Sep 2014 13:52:59 -0700 (PDT)
-Date: Tue, 23 Sep 2014 13:52:58 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm, debug: mm-introduce-vm_bug_on_mm-fix-fix.patch
-Message-Id: <20140923135258.faf628403a58701da5a981df@linux-foundation.org>
-In-Reply-To: <83907.1411489189@turing-police.cc.vt.edu>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 23 Sep 2014 13:57:12 -0700 (PDT)
+Received: by mail-pd0-f180.google.com with SMTP id r10so7034611pdi.25
+        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 13:57:12 -0700 (PDT)
+Date: Tue, 23 Sep 2014 13:57:07 -0700
+From: Guenter Roeck <linux@roeck-us.net>
+Subject: Re: mmotm 2014-09-22-16-57 uploaded
+Message-ID: <20140923205707.GA14428@roeck-us.net>
 References: <5420b8b0.9HdYLyyuTikszzH8%akpm@linux-foundation.org>
-	<1411464279-20158-1-git-send-email-mhocko@suse.cz>
-	<20140923112848.GA10046@dhcp22.suse.cz>
-	<83907.1411489189@turing-police.cc.vt.edu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20140923190222.GA4662@roeck-us.net>
+ <5421D8B1.1030504@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5421D8B1.1030504@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Valdis.Kletnieks@vt.edu
-Cc: Michal Hocko <mhocko@suse.cz>, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, Sasha Levin <sasha.levin@oracle.com>
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, David Miller <davem@davemloft.net>
 
-On Tue, 23 Sep 2014 12:19:49 -0400 Valdis.Kletnieks@vt.edu wrote:
-
-> On Tue, 23 Sep 2014 13:28:48 +0200, Michal Hocko said:
-> > And there is another one hitting during randconfig. The patch makes my
-> > eyes bleed
+On Tue, Sep 23, 2014 at 01:31:45PM -0700, Randy Dunlap wrote:
+> On 09/23/14 12:02, Guenter Roeck wrote:
+> > On Mon, Sep 22, 2014 at 05:02:56PM -0700, akpm@linux-foundation.org wrote:
+> >> The mm-of-the-moment snapshot 2014-09-22-16-57 has been uploaded to
+> >>
+> >>    http://www.ozlabs.org/~akpm/mmotm/
+> >>
+> >> mmotm-readme.txt says
+> >>
+> >> README for mm-of-the-moment:
+> >>
+> >> http://www.ozlabs.org/~akpm/mmotm/
+> >>
+> >> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> >> more than once a week.
+> >>
+> > Sine I started testing this branch, I figure I might as well share the results.
+> > 
+> > i386:allyesconfig
+> > 
+> > drivers/built-in.o: In function `_scsih_qcmd':
+> > mpt2sas_scsih.c:(.text+0xf5327d): undefined reference to `__udivdi3'
+> > mpt2sas_scsih.c:(.text+0xf532b0): undefined reference to `__umoddi3'
+> > 
+> > i386:allmodconfig
+> > 
+> > ERROR: "__udivdi3" [drivers/scsi/mpt2sas/mpt2sas.ko] undefined!
+> > ERROR: "__umoddi3" [drivers/scsi/mpt2sas/mpt2sas.ko] undefined!
 > 
-> Amen.  But I'm not seeing a better fix either.
+> A patch has been posted for that and I believe that Christoph Hellwig has
+> merged it.
 > 
-> >  #if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
-> > -		"tlb_flush_pending %d\n",
-> > +		"tlb_flush_pending %d\n"
-> >  #endif
-> > -		mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
-> > +		, mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+> > mips:nlm_xlp_defconfig
+> > 
+> > ERROR: "scsi_is_fc_rport" [drivers/scsi/libfc/libfc.ko] undefined!
+> > ERROR: "fc_get_event_number" [drivers/scsi/libfc/libfc.ko] undefined!
+> > ERROR: "skb_trim" [drivers/scsi/libfc/libfc.ko] undefined!
+> > ERROR: "fc_host_post_event" [drivers/scsi/libfc/libfc.ko] undefined!
+> > 
+> > [and many more]
 > 
-> I'm surprised that checkpatch doesn't explode on this.  And I'm starting
-> a pool on how soon somebody submits a patch to "fix" this. :)
+> I have posted a patch for these build errors.
+> 
+mips:nlm_xlp_defconfig builds in next-20140923, but it doesn't configure
+CONFIG_NET. I don't see a patch which would address that problem.
+In case I am missing it, can you point me to your patch ?
 
-It is all pretty godawful.  We can eliminate the tricks with the comma
-separators by adding an always-there, does-nothing argument:
+On the other side, maybe it is just me thinking that taking CONFIG_NET out
+of standard configurations might be a problem. If so, apologies for the noise.
 
-
---- a/mm/debug.c~mm-debug-mm-introduce-vm_bug_on_mm-fix-fixpatch-fix
-+++ a/mm/debug.c
-@@ -197,7 +197,9 @@ void dump_mm(const struct mm_struct *mm)
- #if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
- 		"tlb_flush_pending %d\n"
- #endif
--		, mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
-+		"%s",	/* This is here to hold the comma */
-+
-+		mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
- #ifdef CONFIG_MMU
- 		mm->get_unmapped_area,
- #endif
-@@ -218,16 +220,17 @@ void dump_mm(const struct mm_struct *mm)
- #ifdef CONFIG_MEMCG
- 		mm->owner,
- #endif
--		mm->exe_file
-+		mm->exe_file,
- #ifdef CONFIG_MMU_NOTIFIER
--		, mm->mmu_notifier_mm
-+		mm->mmu_notifier_mm,
- #endif
- #ifdef CONFIG_NUMA_BALANCING
--		, mm->numa_next_scan, mm->numa_scan_offset, mm->numa_scan_seq
-+		mm->numa_next_scan, mm->numa_scan_offset, mm->numa_scan_seq,
- #endif
- #if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
--		, mm->tlb_flush_pending
-+		mm->tlb_flush_pending,
- #endif
-+		""		/* This is here to not have a comma! */
- 		);
- 
- 		dump_flags(mm->def_flags, vmaflags_names,
-_
+Thanks,
+Guenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
