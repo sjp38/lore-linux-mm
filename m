@@ -1,84 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F36D6B003A
-	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 16:57:13 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id v10so5325183pde.22
-        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 13:57:13 -0700 (PDT)
-Received: from mail-pd0-x234.google.com (mail-pd0-x234.google.com [2607:f8b0:400e:c02::234])
-        by mx.google.com with ESMTPS id dw2si22698158pbb.187.2014.09.23.13.57.12
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id CFC7A6B003A
+	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 17:01:11 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id eu11so6348963pac.3
+        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 14:01:11 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id md3si22844172pdb.135.2014.09.23.14.01.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 23 Sep 2014 13:57:12 -0700 (PDT)
-Received: by mail-pd0-f180.google.com with SMTP id r10so7034611pdi.25
-        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 13:57:12 -0700 (PDT)
-Date: Tue, 23 Sep 2014 13:57:07 -0700
-From: Guenter Roeck <linux@roeck-us.net>
-Subject: Re: mmotm 2014-09-22-16-57 uploaded
-Message-ID: <20140923205707.GA14428@roeck-us.net>
-References: <5420b8b0.9HdYLyyuTikszzH8%akpm@linux-foundation.org>
- <20140923190222.GA4662@roeck-us.net>
- <5421D8B1.1030504@infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5421D8B1.1030504@infradead.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Sep 2014 14:01:10 -0700 (PDT)
+Date: Tue, 23 Sep 2014 14:01:09 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [next:master 7267/7446] drivers/rtc/rtc-bq32k.c:169:3: warning:
+ 'setup' may be used uninitialized in this function
+Message-Id: <20140923140109.d1e81b714082e562b7fb3e2c@linux-foundation.org>
+In-Reply-To: <542131f8.FeDGKH/9671AZbCt%fengguang.wu@intel.com>
+References: <542131f8.FeDGKH/9671AZbCt%fengguang.wu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, David Miller <davem@davemloft.net>
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Pavel Machek <pavel@ucw.cz>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org
 
-On Tue, Sep 23, 2014 at 01:31:45PM -0700, Randy Dunlap wrote:
-> On 09/23/14 12:02, Guenter Roeck wrote:
-> > On Mon, Sep 22, 2014 at 05:02:56PM -0700, akpm@linux-foundation.org wrote:
-> >> The mm-of-the-moment snapshot 2014-09-22-16-57 has been uploaded to
-> >>
-> >>    http://www.ozlabs.org/~akpm/mmotm/
-> >>
-> >> mmotm-readme.txt says
-> >>
-> >> README for mm-of-the-moment:
-> >>
-> >> http://www.ozlabs.org/~akpm/mmotm/
-> >>
-> >> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-> >> more than once a week.
-> >>
-> > Sine I started testing this branch, I figure I might as well share the results.
-> > 
-> > i386:allyesconfig
-> > 
-> > drivers/built-in.o: In function `_scsih_qcmd':
-> > mpt2sas_scsih.c:(.text+0xf5327d): undefined reference to `__udivdi3'
-> > mpt2sas_scsih.c:(.text+0xf532b0): undefined reference to `__umoddi3'
-> > 
-> > i386:allmodconfig
-> > 
-> > ERROR: "__udivdi3" [drivers/scsi/mpt2sas/mpt2sas.ko] undefined!
-> > ERROR: "__umoddi3" [drivers/scsi/mpt2sas/mpt2sas.ko] undefined!
-> 
-> A patch has been posted for that and I believe that Christoph Hellwig has
-> merged it.
-> 
-> > mips:nlm_xlp_defconfig
-> > 
-> > ERROR: "scsi_is_fc_rport" [drivers/scsi/libfc/libfc.ko] undefined!
-> > ERROR: "fc_get_event_number" [drivers/scsi/libfc/libfc.ko] undefined!
-> > ERROR: "skb_trim" [drivers/scsi/libfc/libfc.ko] undefined!
-> > ERROR: "fc_host_post_event" [drivers/scsi/libfc/libfc.ko] undefined!
-> > 
-> > [and many more]
-> 
-> I have posted a patch for these build errors.
-> 
-mips:nlm_xlp_defconfig builds in next-20140923, but it doesn't configure
-CONFIG_NET. I don't see a patch which would address that problem.
-In case I am missing it, can you point me to your patch ?
+On Tue, 23 Sep 2014 16:40:24 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
 
-On the other side, maybe it is just me thinking that taking CONFIG_NET out
-of standard configurations might be a problem. If so, apologies for the noise.
+> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> head:   55f21306900abf9f9d2a087a127ff49c6d388ad2
+> commit: 7bb72683b1708c3cf3bea0575c0e80314a2232dc [7267/7446] rtc: bq32000: add trickle charger option, with device tree binding
+> config: i386-randconfig-ib0-09231629 (attached as .config)
+> reproduce:
+>   git checkout 7bb72683b1708c3cf3bea0575c0e80314a2232dc
+>   # save the attached .config to linux build tree
+>   make ARCH=i386 
+> 
+> Note: it may well be a FALSE warning. FWIW you are at least aware of it now.
+> http://gcc.gnu.org/wiki/Better_Uninitialized_Warnings
+> 
+> All warnings:
+> 
+>    drivers/rtc/rtc-bq32k.c: In function 'trickle_charger_of_init':
+>    drivers/rtc/rtc-bq32k.c:155:7: warning: assignment makes pointer from integer without a cast
+>       reg = 0x05;
+>           ^
+>    drivers/rtc/rtc-bq32k.c:165:7: warning: assignment makes pointer from integer without a cast
+>       reg = 0x25;
+>           ^
+>    drivers/rtc/rtc-bq32k.c:177:6: warning: assignment makes pointer from integer without a cast
+>      reg = 0x20;
+>          ^
+>    drivers/rtc/rtc-bq32k.c:135:6: warning: unused variable 'plen' [-Wunused-variable]
+>      int plen = 0;
+>          ^
+>    drivers/rtc/rtc-bq32k.c: In function 'bq32k_probe':
+> >> drivers/rtc/rtc-bq32k.c:169:3: warning: 'setup' may be used uninitialized in this function [-Wmaybe-uninitialized]
+>       dev_err(dev, "invalid resistor value (%d)\n", *setup);
+>       ^
+>    drivers/rtc/rtc-bq32k.c:136:18: note: 'setup' was declared here
+>      const uint32_t *setup;
 
-Thanks,
-Guenter
+Pavel's changelog failed to tell us what warnings were being fixed
+(bad!) but I expect the below will fix this.
+
+From: Pavel Machek <pavel@ucw.cz>
+Subject: drivers/rtc/rtc-bq32k.c fix warnings I introduced
+
+Sorry about that, I somehow failed to notice rather severe warnings.
+
+Signed-off-by: Pavel Machek <pavel@denx.de>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ drivers/rtc/rtc-bq32k.c |    6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff -puN drivers/rtc/rtc-bq32k.c~rtc-bq32000-add-trickle-charger-option-with-device-tree-binding-fix drivers/rtc/rtc-bq32k.c
+--- a/drivers/rtc/rtc-bq32k.c~rtc-bq32000-add-trickle-charger-option-with-device-tree-binding-fix
++++ a/drivers/rtc/rtc-bq32k.c
+@@ -132,9 +132,7 @@ static const struct rtc_class_ops bq32k_
+ 
+ static int trickle_charger_of_init(struct device *dev, struct device_node *node)
+ {
+-	int plen = 0;
+-	const uint32_t *setup;
+-	const uint32_t *reg;
++	unsigned char reg;
+ 	int error;
+ 	u32 ohms = 0;
+ 
+@@ -166,7 +164,7 @@ static int trickle_charger_of_init(struc
+ 		break;
+ 
+ 	default:
+-		dev_err(dev, "invalid resistor value (%d)\n", *setup);
++		dev_err(dev, "invalid resistor value (%d)\n", ohms);
+ 		return -EINVAL;
+ 	}
+ 
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
