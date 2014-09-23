@@ -1,316 +1,355 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id E80D36B0035
-	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 02:16:58 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id r10so5835909pdi.39
-        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 23:16:58 -0700 (PDT)
-Received: from mail-pa0-x24a.google.com (mail-pa0-x24a.google.com [2607:f8b0:400e:c03::24a])
-        by mx.google.com with ESMTPS id y8si18724998pdq.188.2014.09.22.23.16.57
+Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
+	by kanga.kvack.org (Postfix) with ESMTP id E0C956B0035
+	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 02:25:47 -0400 (EDT)
+Received: by mail-lb0-f180.google.com with SMTP id b12so7957196lbj.25
+        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 23:25:46 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id vr4si8377129lbb.110.2014.09.22.23.25.45
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 22 Sep 2014 23:16:57 -0700 (PDT)
-Received: by mail-pa0-f74.google.com with SMTP id kx10so1024467pab.1
-        for <linux-mm@kvack.org>; Mon, 22 Sep 2014 23:16:57 -0700 (PDT)
-References: <1411132840-16025-1-git-send-email-hannes@cmpxchg.org>
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [patch] mm: memcontrol: support transparent huge pages under pressure
-Date: Mon, 22 Sep 2014 22:52:50 -0700
-In-reply-to: <1411132840-16025-1-git-send-email-hannes@cmpxchg.org>
-Message-ID: <xr934mvykgiv.fsf@gthelen.mtv.corp.google.com>
+        Mon, 22 Sep 2014 23:25:46 -0700 (PDT)
+Message-ID: <54211266.70201@suse.com>
+Date: Tue, 23 Sep 2014 08:25:42 +0200
+From: Juergen Gross <jgross@suse.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH v3 5/5] x86, mm, pat: Refactor !pat_enabled handling
+References: <1410983321-15162-1-git-send-email-toshi.kani@hp.com> <1410983321-15162-6-git-send-email-toshi.kani@hp.com>
+In-Reply-To: <1410983321-15162-6-git-send-email-toshi.kani@hp.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@sr71.net>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Toshi Kani <toshi.kani@hp.com>, hpa@zytor.com, tglx@linutronix.de, mingo@redhat.com, akpm@linux-foundation.org, arnd@arndb.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, stefan.bader@canonical.com, luto@amacapital.net, hmh@hmh.eng.br, yigal@plexistor.com, konrad.wilk@oracle.com
 
-
-On Fri, Sep 19 2014, Johannes Weiner wrote:
-
-> In a memcg with even just moderate cache pressure, success rates for
-> transparent huge page allocations drop to zero, wasting a lot of
-> effort that the allocator puts into assembling these pages.
+On 09/17/2014 09:48 PM, Toshi Kani wrote:
+> This patch refactors the !pat_enabled handling code and integrates
+> this case into the PAT abstraction code. The PAT table is emulated
+> by corresponding to the two cache attribute bits, PWT (Write Through)
+> and PCD (Cache Disable). The emulated PAT table is also the same as
+> the BIOS default setup in case the system has PAT but "nopat" boot
+> option is specified.
 >
-> The reason for this is that the memcg reclaim code was never designed
-> for higher-order charges.  It reclaims in small batches until there is
-> room for at least one page.  Huge pages charges only succeed when
-> these batches add up over a series of huge faults, which is unlikely
-> under any significant load involving order-0 allocations in the group.
+> As a result of this change, cache aliasing is checked for all cases
+> including !pat_enabled.
 >
-> Remove that loop on the memcg side in favor of passing the actual
-> reclaim goal to direct reclaim, which is already set up and optimized
-> to meet higher-order goals efficiently.
->
-> This brings memcg's THP policy in line with the system policy: if the
-> allocator painstakingly assembles a hugepage, memcg will at least make
-> an honest effort to charge it.  As a result, transparent hugepage
-> allocation rates amid cache activity are drastically improved:
->
->                                       vanilla                 patched
-> pgalloc                 4717530.80 (  +0.00%)   4451376.40 (  -5.64%)
-> pgfault                  491370.60 (  +0.00%)    225477.40 ( -54.11%)
-> pgmajfault                    2.00 (  +0.00%)         1.80 (  -6.67%)
-> thp_fault_alloc               0.00 (  +0.00%)       531.60 (+100.00%)
-> thp_fault_fallback          749.00 (  +0.00%)       217.40 ( -70.88%)
->
-> [ Note: this may in turn increase memory consumption from internal
->   fragmentation, which is an inherent risk of transparent hugepages.
->   Some setups may have to adjust the memcg limits accordingly to
->   accomodate this - or, if the machine is already packed to capacity,
->   disable the transparent huge page feature. ]
+> Signed-off-by: Toshi Kani <toshi.kani@hp.com>
 
-We're using an earlier version of this patch, so I approve of the
-general direction.  But I have some feedback.
+Reviewed-by: Juergen Gross <jgross@suse.com>
 
-The memsw aspect of this change seems somewhat separate.  Can it be
-split into a different patch?
-
-The memsw aspect of this patch seems to change behavior.  Is this
-intended?  If so, a mention of it in the commit log would assuage the
-reader.  I'll explain...  Assume a machine with swap enabled and
-res.limit==memsw.limit, thus memsw_is_minimum is true.  My understanding
-is that memsw.usage represents sum(ram_usage, swap_usage).  So when
-memsw_is_minimum=true, then both swap_usage=0 and
-memsw.usage==res.usage.  In this condition, if res usage is at limit
-then there's no point in swapping because memsw.usage is already
-maximal.  Prior to this patch I think the kernel did the right thing,
-but not afterwards.
-
-Before this patch:
-  if res.usage == res.limit, try_charge() indirectly calls
-  try_to_free_mem_cgroup_pages(noswap=true)
-
-After this patch:
-  if res.usage == res.limit, try_charge() calls
-  try_to_free_mem_cgroup_pages(may_swap=true)
-
-Notice the inverted swap-is-allowed value.
-
-I haven't had time to look at your other outstanding memcg patches.
-These comments were made with this patch in isolation.
-
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 > ---
->  include/linux/swap.h |  6 ++--
->  mm/memcontrol.c      | 86 +++++++++++-----------------------------------------
->  mm/vmscan.c          |  7 +++--
->  3 files changed, 25 insertions(+), 74 deletions(-)
+>   arch/x86/mm/init.c     |    6 ++-
+>   arch/x86/mm/iomap_32.c |   18 +++-------
+>   arch/x86/mm/ioremap.c  |   10 +----
+>   arch/x86/mm/pageattr.c |    3 --
+>   arch/x86/mm/pat.c      |   90 +++++++++++++++++++++---------------------------
+>   5 files changed, 50 insertions(+), 77 deletions(-)
 >
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index ea4f926e6b9b..37a585beef5c 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -327,8 +327,10 @@ extern void lru_cache_add_active_or_unevictable(struct page *page,
->  extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
->  					gfp_t gfp_mask, nodemask_t *mask);
->  extern int __isolate_lru_page(struct page *page, isolate_mode_t mode);
-> -extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
-> -						  gfp_t gfp_mask, bool noswap);
-> +extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
-> +						  unsigned long nr_pages,
-> +						  gfp_t gfp_mask,
-> +						  bool may_swap);
->  extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
->  						gfp_t gfp_mask, bool noswap,
->  						struct zone *zone,
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 9431024e490c..e2def11f1ec1 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -315,9 +315,6 @@ struct mem_cgroup {
->  	/* OOM-Killer disable */
->  	int		oom_kill_disable;
->  
-> -	/* set when res.limit == memsw.limit */
-> -	bool		memsw_is_minimum;
-> -
->  	/* protect arrays of thresholds */
->  	struct mutex thresholds_lock;
->  
-> @@ -481,14 +478,6 @@ enum res_type {
->  #define OOM_CONTROL		(0)
->  
->  /*
-> - * Reclaim flags for mem_cgroup_hierarchical_reclaim
-> - */
-> -#define MEM_CGROUP_RECLAIM_NOSWAP_BIT	0x0
-> -#define MEM_CGROUP_RECLAIM_NOSWAP	(1 << MEM_CGROUP_RECLAIM_NOSWAP_BIT)
-> -#define MEM_CGROUP_RECLAIM_SHRINK_BIT	0x1
-> -#define MEM_CGROUP_RECLAIM_SHRINK	(1 << MEM_CGROUP_RECLAIM_SHRINK_BIT)
-> -
+> diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c
+> index 82b41d5..2e147c8 100644
+> --- a/arch/x86/mm/init.c
+> +++ b/arch/x86/mm/init.c
+> @@ -37,7 +37,7 @@
+>    */
+>   uint16_t __cachemode2pte_tbl[_PAGE_CACHE_MODE_NUM] = {
+>   	[_PAGE_CACHE_MODE_WB]		= 0,
+> -	[_PAGE_CACHE_MODE_WC]		= _PAGE_PWT,
+> +	[_PAGE_CACHE_MODE_WC]		= _PAGE_PCD,
+>   	[_PAGE_CACHE_MODE_UC_MINUS]	= _PAGE_PCD,
+>   	[_PAGE_CACHE_MODE_UC]		= _PAGE_PCD | _PAGE_PWT,
+>   	[_PAGE_CACHE_MODE_WT]		= _PAGE_PCD,
+> @@ -46,11 +46,11 @@ uint16_t __cachemode2pte_tbl[_PAGE_CACHE_MODE_NUM] = {
+>   EXPORT_SYMBOL_GPL(__cachemode2pte_tbl);
+>   uint8_t __pte2cachemode_tbl[8] = {
+>   	[__pte2cm_idx(0)] = _PAGE_CACHE_MODE_WB,
+> -	[__pte2cm_idx(_PAGE_PWT)] = _PAGE_CACHE_MODE_WC,
+> +	[__pte2cm_idx(_PAGE_PWT)] = _PAGE_CACHE_MODE_UC_MINUS,
+>   	[__pte2cm_idx(_PAGE_PCD)] = _PAGE_CACHE_MODE_UC_MINUS,
+>   	[__pte2cm_idx(_PAGE_PWT | _PAGE_PCD)] = _PAGE_CACHE_MODE_UC,
+>   	[__pte2cm_idx(_PAGE_PAT)] = _PAGE_CACHE_MODE_WB,
+> -	[__pte2cm_idx(_PAGE_PWT | _PAGE_PAT)] = _PAGE_CACHE_MODE_WC,
+> +	[__pte2cm_idx(_PAGE_PWT | _PAGE_PAT)] = _PAGE_CACHE_MODE_UC_MINUS,
+>   	[__pte2cm_idx(_PAGE_PCD | _PAGE_PAT)] = _PAGE_CACHE_MODE_UC_MINUS,
+>   	[__pte2cm_idx(_PAGE_PWT | _PAGE_PCD | _PAGE_PAT)] = _PAGE_CACHE_MODE_UC,
+>   };
+> diff --git a/arch/x86/mm/iomap_32.c b/arch/x86/mm/iomap_32.c
+> index ee58a0b..96aa8bf 100644
+> --- a/arch/x86/mm/iomap_32.c
+> +++ b/arch/x86/mm/iomap_32.c
+> @@ -70,29 +70,23 @@ void *kmap_atomic_prot_pfn(unsigned long pfn, pgprot_t prot)
+>   	return (void *)vaddr;
+>   }
+>
 > -/*
->   * The memcg_create_mutex will be held whenever a new cgroup is created.
->   * As a consequence, any change that needs to protect against new child cgroups
->   * appearing has to hold it as well.
-> @@ -1794,42 +1783,6 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
->  			 NULL, "Memory cgroup out of memory");
->  }
->  
-> -static unsigned long mem_cgroup_reclaim(struct mem_cgroup *memcg,
-> -					gfp_t gfp_mask,
-> -					unsigned long flags)
-> -{
-> -	unsigned long total = 0;
-> -	bool noswap = false;
-> -	int loop;
+> - * Map 'pfn' using protections 'prot'
+> - */
+> -#define __PAGE_KERNEL_WC	(__PAGE_KERNEL | \
+> -				 cachemode2protval(_PAGE_CACHE_MODE_WC))
 > -
-> -	if (flags & MEM_CGROUP_RECLAIM_NOSWAP)
-> -		noswap = true;
-> -	if (!(flags & MEM_CGROUP_RECLAIM_SHRINK) && memcg->memsw_is_minimum)
-> -		noswap = true;
+>   void __iomem *
+>   iomap_atomic_prot_pfn(unsigned long pfn, pgprot_t prot)
+>   {
+>   	/*
+> -	 * For non-PAT systems, promote PAGE_KERNEL_WC to PAGE_KERNEL_UC_MINUS.
+> -	 * PAGE_KERNEL_WC maps to PWT, which translates to uncached if the
+> -	 * MTRR is UC or WC.  UC_MINUS gets the real intention, of the
+> -	 * user, which is "WC if the MTRR is WC, UC if you can't do that."
+> +	 * For non-PAT systems, translate non-WB request to UC- just in
+> +	 * case the caller set the PWT bit to prot directly without using
+> +	 * pgprot_writecombine(). UC- translates to uncached if the MTRR
+> +	 * is UC or WC. UC- gets the real intention, of the user, which is
+> +	 * "WC if the MTRR is WC, UC if you can't do that."
+>   	 */
+> -	if (!pat_enabled && pgprot_val(prot) == __PAGE_KERNEL_WC)
+> +	if (!pat_enabled && pgprot2cachemode(prot) != _PAGE_CACHE_MODE_WB)
+>   		prot = __pgprot(__PAGE_KERNEL |
+>   				cachemode2protval(_PAGE_CACHE_MODE_UC_MINUS));
+>
+>   	return (void __force __iomem *) kmap_atomic_prot_pfn(pfn, prot);
+>   }
+>   EXPORT_SYMBOL_GPL(iomap_atomic_prot_pfn);
+> -#undef __PAGE_KERNEL_WC
+>
+>   void
+>   iounmap_atomic(void __iomem *kvaddr)
+> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+> index 952f4b4..ff45c19 100644
+> --- a/arch/x86/mm/ioremap.c
+> +++ b/arch/x86/mm/ioremap.c
+> @@ -245,11 +245,8 @@ EXPORT_SYMBOL(ioremap_nocache);
+>    */
+>   void __iomem *ioremap_wc(resource_size_t phys_addr, unsigned long size)
+>   {
+> -	if (pat_enabled)
+> -		return __ioremap_caller(phys_addr, size, _PAGE_CACHE_MODE_WC,
+> +	return __ioremap_caller(phys_addr, size, _PAGE_CACHE_MODE_WC,
+>   					__builtin_return_address(0));
+> -	else
+> -		return ioremap_nocache(phys_addr, size);
+>   }
+>   EXPORT_SYMBOL(ioremap_wc);
+>
+> @@ -265,11 +262,8 @@ EXPORT_SYMBOL(ioremap_wc);
+>    */
+>   void __iomem *ioremap_wt(resource_size_t phys_addr, unsigned long size)
+>   {
+> -	if (pat_enabled)
+> -		return __ioremap_caller(phys_addr, size, _PAGE_CACHE_MODE_WT,
+> +	return __ioremap_caller(phys_addr, size, _PAGE_CACHE_MODE_WT,
+>   					__builtin_return_address(0));
+> -	else
+> -		return ioremap_nocache(phys_addr, size);
+>   }
+>   EXPORT_SYMBOL(ioremap_wt);
+>
+> diff --git a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+> index 6917b39..34f870d 100644
+> --- a/arch/x86/mm/pageattr.c
+> +++ b/arch/x86/mm/pageattr.c
+> @@ -1553,9 +1553,6 @@ int set_memory_wc(unsigned long addr, int numpages)
+>   {
+>   	int ret;
+>
+> -	if (!pat_enabled)
+> -		return set_memory_uc(addr, numpages);
 > -
-> -	for (loop = 0; loop < MEM_CGROUP_MAX_RECLAIM_LOOPS; loop++) {
-> -		if (loop)
-> -			drain_all_stock_async(memcg);
-> -		total += try_to_free_mem_cgroup_pages(memcg, gfp_mask, noswap);
-> -		/*
-> -		 * Allow limit shrinkers, which are triggered directly
-> -		 * by userspace, to catch signals and stop reclaim
-> -		 * after minimal progress, regardless of the margin.
-> -		 */
-> -		if (total && (flags & MEM_CGROUP_RECLAIM_SHRINK))
-> -			break;
-> -		if (mem_cgroup_margin(memcg))
-> -			break;
-> -		/*
-> -		 * If nothing was reclaimed after two attempts, there
-> -		 * may be no reclaimable pages in this hierarchy.
-> -		 */
-> -		if (loop && !total)
-> -			break;
-> -	}
-> -	return total;
-> -}
+>   	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
+>   		_PAGE_CACHE_MODE_WC, NULL);
+>   	if (ret)
+> diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
+> index a0264d3..e0e836e 100644
+> --- a/arch/x86/mm/pat.c
+> +++ b/arch/x86/mm/pat.c
+> @@ -135,28 +135,48 @@ void pat_init(void)
+>   	bool boot_cpu = !boot_pat_state;
+>   	struct cpuinfo_x86 *c = &boot_cpu_data;
+>
+> -	if (!pat_enabled)
+> -		return;
 > -
->  /**
->   * test_mem_cgroup_node_reclaimable
->   * @memcg: the target memcg
-> @@ -2532,8 +2485,9 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
->  	struct mem_cgroup *mem_over_limit;
->  	struct res_counter *fail_res;
->  	unsigned long nr_reclaimed;
-> -	unsigned long flags = 0;
->  	unsigned long long size;
-> +	bool may_swap = true;
-> +	bool drained = false;
->  	int ret = 0;
->  
->  	if (mem_cgroup_is_root(memcg))
-> @@ -2550,7 +2504,7 @@ retry:
->  			goto done_restock;
->  		res_counter_uncharge(&memcg->res, size);
->  		mem_over_limit = mem_cgroup_from_res_counter(fail_res, memsw);
-> -		flags |= MEM_CGROUP_RECLAIM_NOSWAP;
-> +		may_swap = false;
->  	} else
->  		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
->  
-> @@ -2576,11 +2530,18 @@ retry:
->  	if (!(gfp_mask & __GFP_WAIT))
->  		goto nomem;
->  
-> -	nr_reclaimed = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
-> +	nr_reclaimed = try_to_free_mem_cgroup_pages(mem_over_limit, nr_pages,
-> +						    gfp_mask, may_swap);
->  
->  	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
->  		goto retry;
->  
-> +	if (!drained) {
-> +		drain_all_stock_async(mem_over_limit);
-> +		drained = true;
-> +		goto retry;
+>   	if (!cpu_has_pat) {
+>   		if (!boot_pat_state) {
+>   			pat_disable("PAT not supported by CPU.");
+> -			return;
+> -		} else {
+> +		} else if (pat_enabled) {
+>   			/*
+>   			 * If this happens we are on a secondary CPU, but
+>   			 * switched to PAT on the boot CPU. We have no way to
+>   			 * undo PAT.
+>   			 */
+> -			printk(KERN_ERR "PAT enabled, "
+> +			pr_err("PAT enabled, "
+>   			       "but not supported by secondary CPU\n");
+>   			BUG();
+>   		}
+>   	}
+>
+> -	if ((c->x86_vendor == X86_VENDOR_INTEL) &&
+> -	    (((c->x86 == 0x6) && (c->x86_model <= 0xd)) ||
+> -	     ((c->x86 == 0xf) && (c->x86_model <= 0x6)))) {
+> +	if (!pat_enabled) {
+> +		/*
+> +		 * No PAT. Emulate the PAT table by corresponding to the two
+> +		 * cache bits, PWT (Write Through) and PCD (Cache Disable).
+> +		 * This is also the same as the BIOS default setup in case
+> +		 * the system has PAT but "nopat" boot option is specified.
+> +		 *
+> +		 *  PTE encoding used in Linux:
+> +		 *       PCD
+> +		 *       |PWT  PAT
+> +		 *       ||    slot
+> +		 *       00    0    WB : _PAGE_CACHE_MODE_WB
+> +		 *       01    1    WT : _PAGE_CACHE_MODE_WT
+> +		 *       10    2    UC-: _PAGE_CACHE_MODE_UC_MINUS
+> +		 *       11    3    UC : _PAGE_CACHE_MODE_UC
+> +		 *
+> +		 * NOTE: When WC or WP is used, it is redirected to UC- per
+> +		 * the default setup in __cachemode2pte_tbl[].
+> +		 */
+> +		pat = PAT(0, WB) | PAT(1, WT) | PAT(2, UC_MINUS) | PAT(3, UC) |
+> +		      PAT(4, WB) | PAT(5, WT) | PAT(6, UC_MINUS) | PAT(7, UC);
+> +		if (!boot_pat_state)
+> +			boot_pat_state = pat;
+> +
+> +	} else if ((c->x86_vendor == X86_VENDOR_INTEL) &&
+> +		   (((c->x86 == 0x6) && (c->x86_model <= 0xd)) ||
+> +		    ((c->x86 == 0xf) && (c->x86_model <= 0x6)))) {
+>   		/*
+>   		 * PAT support with the lower four entries. Intel Pentium 2,
+>   		 * 3, M, and 4 are affected by PAT errata, which makes the
+> @@ -203,11 +223,13 @@ void pat_init(void)
+>   		      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, WT);
+>   	}
+>
+> -	/* Boot CPU check */
+> -	if (!boot_pat_state)
+> -		rdmsrl(MSR_IA32_CR_PAT, boot_pat_state);
+> +	if (pat_enabled) {
+> +		/* Boot CPU check */
+> +		if (!boot_pat_state)
+> +			rdmsrl(MSR_IA32_CR_PAT, boot_pat_state);
+>
+> -	wrmsrl(MSR_IA32_CR_PAT, pat);
+> +		wrmsrl(MSR_IA32_CR_PAT, pat);
 > +	}
-> +
->  	if (gfp_mask & __GFP_NORETRY)
->  		goto nomem;
->  	/*
-> @@ -3655,19 +3616,13 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
->  			enlarge = 1;
->  
->  		ret = res_counter_set_limit(&memcg->res, val);
-> -		if (!ret) {
-> -			if (memswlimit == val)
-> -				memcg->memsw_is_minimum = true;
+>
+>   	if (boot_cpu)
+>   		pat_init_cache_modes();
+> @@ -375,17 +397,6 @@ int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
+>
+>   	BUG_ON(start >= end); /* end is exclusive */
+>
+> -	if (!pat_enabled) {
+> -		/* This is identical to page table setting without PAT */
+> -		if (new_type) {
+> -			if (req_type == _PAGE_CACHE_MODE_WB)
+> -				*new_type = _PAGE_CACHE_MODE_WB;
 > -			else
-> -				memcg->memsw_is_minimum = false;
+> -				*new_type = _PAGE_CACHE_MODE_UC_MINUS;
 > -		}
->  		mutex_unlock(&set_limit_mutex);
->  
->  		if (!ret)
->  			break;
->  
-> -		mem_cgroup_reclaim(memcg, GFP_KERNEL,
-> -				   MEM_CGROUP_RECLAIM_SHRINK);
-> +		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, true);
-> +
->  		curusage = res_counter_read_u64(&memcg->res, RES_USAGE);
->  		/* Usage is reduced ? */
->  		if (curusage >= oldusage)
-> @@ -3714,20 +3669,13 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
->  		if (memswlimit < val)
->  			enlarge = 1;
->  		ret = res_counter_set_limit(&memcg->memsw, val);
-> -		if (!ret) {
-> -			if (memlimit == val)
-> -				memcg->memsw_is_minimum = true;
-> -			else
-> -				memcg->memsw_is_minimum = false;
-> -		}
->  		mutex_unlock(&set_limit_mutex);
->  
->  		if (!ret)
->  			break;
->  
-> -		mem_cgroup_reclaim(memcg, GFP_KERNEL,
-> -				   MEM_CGROUP_RECLAIM_NOSWAP |
-> -				   MEM_CGROUP_RECLAIM_SHRINK);
-> +		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, false);
-> +
->  		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
->  		/* Usage is reduced ? */
->  		if (curusage >= oldusage)
-> @@ -3976,8 +3924,8 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
->  		if (signal_pending(current))
->  			return -EINTR;
->  
-> -		progress = try_to_free_mem_cgroup_pages(memcg, GFP_KERNEL,
-> -						false);
-> +		progress = try_to_free_mem_cgroup_pages(memcg, 1,
-> +							GFP_KERNEL, true);
->  		if (!progress) {
->  			nr_retries--;
->  			/* maybe some writeback is necessary */
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index b672e2c6becc..97d31ec17d06 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2759,21 +2759,22 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *memcg,
->  }
->  
->  unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
-> +					   unsigned long nr_pages,
->  					   gfp_t gfp_mask,
-> -					   bool noswap)
-> +					   bool may_swap)
->  {
->  	struct zonelist *zonelist;
->  	unsigned long nr_reclaimed;
->  	int nid;
->  	struct scan_control sc = {
-> -		.nr_to_reclaim = SWAP_CLUSTER_MAX,
-> +		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
->  		.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
->  				(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK),
->  		.target_mem_cgroup = memcg,
->  		.priority = DEF_PRIORITY,
->  		.may_writepage = !laptop_mode,
->  		.may_unmap = 1,
-> -		.may_swap = !noswap,
-> +		.may_swap = may_swap,
->  	};
->  
->  	/*
+> -		return 0;
+> -	}
+> -
+>   	/* Low ISA region is always mapped WB in page table. No need to track */
+>   	if (x86_platform.is_untracked_pat_range(start, end)) {
+>   		if (new_type)
+> @@ -450,9 +461,6 @@ int free_memtype(u64 start, u64 end)
+>   	int is_range_ram;
+>   	struct memtype *entry;
+>
+> -	if (!pat_enabled)
+> -		return 0;
+> -
+>   	/* Low ISA region is always mapped WB. No need to track */
+>   	if (x86_platform.is_untracked_pat_range(start, end))
+>   		return 0;
+> @@ -591,16 +599,13 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
+>   	return 1;
+>   }
+>   #else
+> -/* This check is needed to avoid cache aliasing when PAT is enabled */
+> +/* This check is needed to avoid cache aliasing */
+>   static inline int range_is_allowed(unsigned long pfn, unsigned long size)
+>   {
+>   	u64 from = ((u64)pfn) << PAGE_SHIFT;
+>   	u64 to = from + size;
+>   	u64 cursor = from;
+>
+> -	if (!pat_enabled)
+> -		return 1;
+> -
+>   	while (cursor < to) {
+>   		if (!devmem_is_allowed(pfn)) {
+>   			printk(KERN_INFO "Program %s tried to access /dev/mem between [mem %#010Lx-%#010Lx]\n",
+> @@ -704,9 +709,6 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
+>   	 * the type requested matches the type of first page in the range.
+>   	 */
+>   	if (is_ram) {
+> -		if (!pat_enabled)
+> -			return 0;
+> -
+>   		pcm = lookup_memtype(paddr);
+>   		if (want_pcm != pcm) {
+>   			printk(KERN_WARNING "%s:%d map pfn RAM range req %s for [mem %#010Lx-%#010Lx], got %s\n",
+> @@ -819,9 +821,6 @@ int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
+>   		return ret;
+>   	}
+>
+> -	if (!pat_enabled)
+> -		return 0;
+> -
+>   	/*
+>   	 * For anything smaller than the vma size we set prot based on the
+>   	 * lookup.
+> @@ -847,9 +846,6 @@ int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+>   {
+>   	enum page_cache_mode pcm;
+>
+> -	if (!pat_enabled)
+> -		return 0;
+> -
+>   	/* Set prot based on lookup */
+>   	pcm = lookup_memtype((resource_size_t)pfn << PAGE_SHIFT);
+>   	*prot = __pgprot((pgprot_val(vma->vm_page_prot) & (~_PAGE_CACHE_MASK)) |
+> @@ -888,21 +884,15 @@ void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
+>
+>   pgprot_t pgprot_writecombine(pgprot_t prot)
+>   {
+> -	if (pat_enabled)
+> -		return __pgprot(pgprot_val(prot) |
+> +	return __pgprot(pgprot_val(prot) |
+>   				cachemode2protval(_PAGE_CACHE_MODE_WC));
+> -	else
+> -		return pgprot_noncached(prot);
+>   }
+>   EXPORT_SYMBOL_GPL(pgprot_writecombine);
+>
+>   pgprot_t pgprot_writethrough(pgprot_t prot)
+>   {
+> -	if (pat_enabled)
+> -		return __pgprot(pgprot_val(prot) |
+> +	return __pgprot(pgprot_val(prot) |
+>   				cachemode2protval(_PAGE_CACHE_MODE_WT));
+> -	else
+> -		return pgprot_noncached(prot);
+>   }
+>   EXPORT_SYMBOL_GPL(pgprot_writethrough);
+>
+> @@ -981,10 +971,8 @@ static const struct file_operations memtype_fops = {
+>
+>   static int __init pat_memtype_list_init(void)
+>   {
+> -	if (pat_enabled) {
+> -		debugfs_create_file("pat_memtype_list", S_IRUSR,
+> +	debugfs_create_file("pat_memtype_list", S_IRUSR,
+>   				    arch_debugfs_dir, NULL, &memtype_fops);
+> -	}
+>   	return 0;
+>   }
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
