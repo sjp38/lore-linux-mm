@@ -1,46 +1,240 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id F0C226B0038
-	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 13:10:38 -0400 (EDT)
-Received: by mail-wg0-f44.google.com with SMTP id z12so981365wgg.27
-        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 10:10:38 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d6si3325232wix.107.2014.09.23.10.10.36
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 180766B0035
+	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 13:41:01 -0400 (EDT)
+Received: by mail-wg0-f51.google.com with SMTP id z12so1024753wgg.22
+        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 10:41:00 -0700 (PDT)
+Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com [2a00:1450:400c:c05::232])
+        by mx.google.com with ESMTPS id ba7si12441502wjc.158.2014.09.23.10.40.59
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Sep 2014 10:10:37 -0700 (PDT)
-Message-ID: <5421A851.70403@redhat.com>
-Date: Tue, 23 Sep 2014 19:05:21 +0200
-From: Paolo Bonzini <pbonzini@redhat.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 23 Sep 2014 10:40:59 -0700 (PDT)
+Received: by mail-wi0-f178.google.com with SMTP id z2so5641296wiv.5
+        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 10:40:59 -0700 (PDT)
+Date: Tue, 23 Sep 2014 19:40:56 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2 1/3] memcg: move memcg_{alloc,free}_cache_params to
+ slab_common.c
+Message-ID: <20140923174056.GA29528@dhcp22.suse.cz>
+References: <cover.1411401021.git.vdavydov@parallels.com>
+ <6dce5fd23f4cdd9f7055474f27d0c35e76251892.1411401021.git.vdavydov@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v4] kvm: Fix page ageing bugs
-References: <1411410865-3603-1-git-send-email-andreslc@google.com>	<1411422882-16245-1-git-send-email-andreslc@google.com>	<542125F1.3080607@redhat.com> <CAJu=L58L4XrACYieQuM412TJuJoD+QYBb=qOcN1MtwdVAPzn2Q@mail.gmail.com>
-In-Reply-To: <CAJu=L58L4XrACYieQuM412TJuJoD+QYBb=qOcN1MtwdVAPzn2Q@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <6dce5fd23f4cdd9f7055474f27d0c35e76251892.1411401021.git.vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andres Lagar-Cavilla <andreslc@google.com>
-Cc: Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andres Lagar-Cavilla <andreslc@gooogle.com>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Il 23/09/2014 19:04, Andres Lagar-Cavilla ha scritto:
-> I'm not sure. The addition is not always by PAGE_SIZE, since it
-> depends on the current level we are iterating at in the outer
-> kvm_handle_hva_range(). IOW, could be PMD_SIZE or even PUD_SIZE, and
-> is_large_pte() enough to tell?
+On Mon 22-09-14 20:00:44, Vladimir Davydov wrote:
+> The only reason why they live in memcontrol.c is that we get/put css
+> reference to the owner memory cgroup in them. However, we can do that in
+> memcg_{un,}register_cache. OTOH, there are several reasons to move them
+> to slab_common.c.
 > 
-> This is probably worth a general fix, I can see all the callbacks
-> benefiting from knowing the gfn (passed down by
-> kvm_handle_hva_range()) without any additional computation, and adding
-> that to a tracing call if they don't already.
+> First, I think that the less public interface functions we have in
+> memcontrol.h the better. Since the functions I move don't depend on
+> memcontrol, I think it's worth making them private to slab, especially
+> taking into account that the arrays are defined on the slab's side too.
 > 
-> Even passing the level down to the callback would help by cutting down
-> to one arithmetic op (subtract rmapp from slot rmap base pointer for
-> that level)
+> Second, the way how per-memcg arrays are updated looks rather awkward:
+> it proceeds from memcontrol.c (__memcg_activate_kmem) to slab_common.c
+> (memcg_update_all_caches) and back to memcontrol.c again
+> (memcg_update_array_size). In the following patches I move the function
+> relocating the arrays (memcg_update_array_size) to slab_common.c and
+> therefore get rid this circular call path. I think we should have the
+> cache allocation stuff in the same place where we have relocation,
+> because it's easier to follow the code then. So I move arrays alloc/free
+> functions to slab_common.c too.
+> 
+> The third point isn't obvious. I'm going to make the list_lru structure
+> per-memcg to allow targeted kmem reclaim. That means we will have
+> per-memcg arrays in list_lrus too. It turns out that it's much easier to
+> update these arrays in list_lru.c rather than in memcontrol.c, because
+> all the stuff we need is defined there. This patch makes memcg caches
+> arrays allocation path conform that of the upcoming list_lru.
+> 
+> So let's move these functions to slab_common.c and make them static.
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 
-You're right.  Let's apply this patch and work on that as a follow-up.
+Excelent and thanks a lot for updating the changelog.
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-Paolo
+> ---
+>  include/linux/memcontrol.h |   14 --------------
+>  mm/memcontrol.c            |   41 ++++-------------------------------------
+>  mm/slab_common.c           |   44 +++++++++++++++++++++++++++++++++++++++++++-
+>  3 files changed, 47 insertions(+), 52 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index e0752d204d9e..4d17242eeff7 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -440,10 +440,6 @@ void __memcg_kmem_uncharge_pages(struct page *page, int order);
+>  
+>  int memcg_cache_id(struct mem_cgroup *memcg);
+>  
+> -int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
+> -			     struct kmem_cache *root_cache);
+> -void memcg_free_cache_params(struct kmem_cache *s);
+> -
+>  int memcg_update_cache_size(struct kmem_cache *s, int num_groups);
+>  void memcg_update_array_size(int num_groups);
+>  
+> @@ -574,16 +570,6 @@ static inline int memcg_cache_id(struct mem_cgroup *memcg)
+>  	return -1;
+>  }
+>  
+> -static inline int memcg_alloc_cache_params(struct mem_cgroup *memcg,
+> -		struct kmem_cache *s, struct kmem_cache *root_cache)
+> -{
+> -	return 0;
+> -}
+> -
+> -static inline void memcg_free_cache_params(struct kmem_cache *s)
+> -{
+> -}
+> -
+>  static inline struct kmem_cache *
+>  memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+>  {
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 085dc6d2f876..b6bbb1e3e2ab 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2970,43 +2970,6 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
+>  	return 0;
+>  }
+>  
+> -int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
+> -			     struct kmem_cache *root_cache)
+> -{
+> -	size_t size;
+> -
+> -	if (!memcg_kmem_enabled())
+> -		return 0;
+> -
+> -	if (!memcg) {
+> -		size = offsetof(struct memcg_cache_params, memcg_caches);
+> -		size += memcg_limited_groups_array_size * sizeof(void *);
+> -	} else
+> -		size = sizeof(struct memcg_cache_params);
+> -
+> -	s->memcg_params = kzalloc(size, GFP_KERNEL);
+> -	if (!s->memcg_params)
+> -		return -ENOMEM;
+> -
+> -	if (memcg) {
+> -		s->memcg_params->memcg = memcg;
+> -		s->memcg_params->root_cache = root_cache;
+> -		css_get(&memcg->css);
+> -	} else
+> -		s->memcg_params->is_root_cache = true;
+> -
+> -	return 0;
+> -}
+> -
+> -void memcg_free_cache_params(struct kmem_cache *s)
+> -{
+> -	if (!s->memcg_params)
+> -		return;
+> -	if (!s->memcg_params->is_root_cache)
+> -		css_put(&s->memcg_params->memcg->css);
+> -	kfree(s->memcg_params);
+> -}
+> -
+>  static void memcg_register_cache(struct mem_cgroup *memcg,
+>  				 struct kmem_cache *root_cache)
+>  {
+> @@ -3037,6 +3000,7 @@ static void memcg_register_cache(struct mem_cgroup *memcg,
+>  	if (!cachep)
+>  		return;
+>  
+> +	css_get(&memcg->css);
+>  	list_add(&cachep->memcg_params->list, &memcg->memcg_slab_caches);
+>  
+>  	/*
+> @@ -3070,6 +3034,9 @@ static void memcg_unregister_cache(struct kmem_cache *cachep)
+>  	list_del(&cachep->memcg_params->list);
+>  
+>  	kmem_cache_destroy(cachep);
+> +
+> +	/* drop the reference taken in memcg_register_cache */
+> +	css_put(&memcg->css);
+>  }
+>  
+>  /*
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index d7d8ffd0c306..9c29ba792368 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -88,6 +88,38 @@ static inline int kmem_cache_sanity_check(const char *name, size_t size)
+>  #endif
+>  
+>  #ifdef CONFIG_MEMCG_KMEM
+> +static int memcg_alloc_cache_params(struct mem_cgroup *memcg,
+> +		struct kmem_cache *s, struct kmem_cache *root_cache)
+> +{
+> +	size_t size;
+> +
+> +	if (!memcg_kmem_enabled())
+> +		return 0;
+> +
+> +	if (!memcg) {
+> +		size = offsetof(struct memcg_cache_params, memcg_caches);
+> +		size += memcg_limited_groups_array_size * sizeof(void *);
+> +	} else
+> +		size = sizeof(struct memcg_cache_params);
+> +
+> +	s->memcg_params = kzalloc(size, GFP_KERNEL);
+> +	if (!s->memcg_params)
+> +		return -ENOMEM;
+> +
+> +	if (memcg) {
+> +		s->memcg_params->memcg = memcg;
+> +		s->memcg_params->root_cache = root_cache;
+> +	} else
+> +		s->memcg_params->is_root_cache = true;
+> +
+> +	return 0;
+> +}
+> +
+> +static void memcg_free_cache_params(struct kmem_cache *s)
+> +{
+> +	kfree(s->memcg_params);
+> +}
+> +
+>  int memcg_update_all_caches(int num_memcgs)
+>  {
+>  	struct kmem_cache *s;
+> @@ -113,7 +145,17 @@ out:
+>  	mutex_unlock(&slab_mutex);
+>  	return ret;
+>  }
+> -#endif
+> +#else
+> +static inline int memcg_alloc_cache_params(struct mem_cgroup *memcg,
+> +		struct kmem_cache *s, struct kmem_cache *root_cache)
+> +{
+> +	return 0;
+> +}
+> +
+> +static inline void memcg_free_cache_params(struct kmem_cache *s)
+> +{
+> +}
+> +#endif /* CONFIG_MEMCG_KMEM */
+>  
+>  /*
+>   * Figure out what the alignment of the objects will be given a set of
+> -- 
+> 1.7.10.4
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
