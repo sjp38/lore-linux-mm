@@ -1,74 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id A6D026B0035
-	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 17:43:22 -0400 (EDT)
-Received: by mail-ie0-f177.google.com with SMTP id x19so9950714ier.8
-        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 14:43:22 -0700 (PDT)
-Received: from mail-ie0-x236.google.com (mail-ie0-x236.google.com [2607:f8b0:4001:c03::236])
-        by mx.google.com with ESMTPS id y13si13742857icn.100.2014.09.23.14.43.21
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 35AF96B0035
+	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 17:54:10 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id v10so6013859pde.20
+        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 14:54:09 -0700 (PDT)
+Received: from mail-pd0-x230.google.com (mail-pd0-x230.google.com [2607:f8b0:400e:c02::230])
+        by mx.google.com with ESMTPS id x13si23051623pas.83.2014.09.23.14.54.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 23 Sep 2014 14:43:22 -0700 (PDT)
-Received: by mail-ie0-f182.google.com with SMTP id tp5so5063461ieb.27
-        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 14:43:21 -0700 (PDT)
-Date: Tue, 23 Sep 2014 14:43:19 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, slab: initialize object alignment on cache creation
-In-Reply-To: <20140923141940.e2d3840f31d0f8850b925cf6@linux-foundation.org>
-Message-ID: <alpine.DEB.2.02.1409231439190.22630@chino.kir.corp.google.com>
-References: <20140923141940.e2d3840f31d0f8850b925cf6@linux-foundation.org>
+        Tue, 23 Sep 2014 14:54:09 -0700 (PDT)
+Received: by mail-pd0-f176.google.com with SMTP id z10so5866326pdj.35
+        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 14:54:01 -0700 (PDT)
+Date: Tue, 23 Sep 2014 14:53:56 -0700
+From: Guenter Roeck <linux@roeck-us.net>
+Subject: Re: mmotm 2014-09-22-16-57 uploaded
+Message-ID: <20140923215356.GA15481@roeck-us.net>
+References: <5420b8b0.9HdYLyyuTikszzH8%akpm@linux-foundation.org>
+ <20140923190222.GA4662@roeck-us.net>
+ <5421D8B1.1030504@infradead.org>
+ <20140923205707.GA14428@roeck-us.net>
+ <5421E7E1.80203@infradead.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5421E7E1.80203@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>, a.elovikov@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, David Miller <davem@davemloft.net>
 
-Since 4590685546a3 ("mm/sl[aou]b: Common alignment code"), the "ralign" 
-automatic variable in __kmem_cache_create() may be used as uninitialized.
+On Tue, Sep 23, 2014 at 02:36:33PM -0700, Randy Dunlap wrote:
+> On 09/23/14 13:57, Guenter Roeck wrote:
+> > On Tue, Sep 23, 2014 at 01:31:45PM -0700, Randy Dunlap wrote:
+> >> On 09/23/14 12:02, Guenter Roeck wrote:
+> >>> On Mon, Sep 22, 2014 at 05:02:56PM -0700, akpm@linux-foundation.org wrote:
+> >>>> The mm-of-the-moment snapshot 2014-09-22-16-57 has been uploaded to
+> >>>>
+> >>>>    http://www.ozlabs.org/~akpm/mmotm/
+> >>>>
+> >>>> mmotm-readme.txt says
+> >>>>
+> >>>> README for mm-of-the-moment:
+> >>>>
+> >>>> http://www.ozlabs.org/~akpm/mmotm/
+> >>>>
+> >>>> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> >>>> more than once a week.
+> >>>>
+> >>> Sine I started testing this branch, I figure I might as well share the results.
+> >>>
+> >>> i386:allyesconfig
+> >>>
+> >>> drivers/built-in.o: In function `_scsih_qcmd':
+> >>> mpt2sas_scsih.c:(.text+0xf5327d): undefined reference to `__udivdi3'
+> >>> mpt2sas_scsih.c:(.text+0xf532b0): undefined reference to `__umoddi3'
+> >>>
+> >>> i386:allmodconfig
+> >>>
+> >>> ERROR: "__udivdi3" [drivers/scsi/mpt2sas/mpt2sas.ko] undefined!
+> >>> ERROR: "__umoddi3" [drivers/scsi/mpt2sas/mpt2sas.ko] undefined!
+> >>
+> >> A patch has been posted for that and I believe that Christoph Hellwig has
+> >> merged it.
+> >>
+> >>> mips:nlm_xlp_defconfig
+> >>>
+> >>> ERROR: "scsi_is_fc_rport" [drivers/scsi/libfc/libfc.ko] undefined!
+> >>> ERROR: "fc_get_event_number" [drivers/scsi/libfc/libfc.ko] undefined!
+> >>> ERROR: "skb_trim" [drivers/scsi/libfc/libfc.ko] undefined!
+> >>> ERROR: "fc_host_post_event" [drivers/scsi/libfc/libfc.ko] undefined!
+> >>>
+> >>> [and many more]
+> >>
+> >> I have posted a patch for these build errors.
+> >>
+> > mips:nlm_xlp_defconfig builds in next-20140923, but it doesn't configure
+> > CONFIG_NET. I don't see a patch which would address that problem.
+> > In case I am missing it, can you point me to your patch ?
+> 
+> I was referring to this one:
+> http://marc.info/?l=linux-scsi&m=141117068414761&w=2
+> 
+> although I think that Dave is also working on a patch that is a little
+> different from mine.
+> 
+His patch is in next-20140923.
 
-The proper alignment defaults to BYTES_PER_WORD and can be overridden by 
-SLAB_RED_ZONE or the alignment specified by the caller.
+> Neither of these patches enables CONFIG_NET.  They just add dependencies.
+> 
+This means CONFIG_NET is now disabled in at least 31 configurations where
+it used to be enabled before (per my count), and there may be additional
+impact due to the additional changes of "select X" to "depends on X".
 
-This fixes https://bugzilla.kernel.org/show_bug.cgi?id=85031
+3.18 is going to be interesting.
 
-Reported-by: Andrei Elovikov <a.elovikov@gmail.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- a.elovikov: If you respond to this email with your full name, Andrew can 
- give proper credit for reporting this issue.
-
- mm/slab.c | 11 ++---------
- 1 file changed, 2 insertions(+), 9 deletions(-)
-
-diff --git a/mm/slab.c b/mm/slab.c
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2128,7 +2128,8 @@ static int __init_refok setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
- int
- __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
- {
--	size_t left_over, freelist_size, ralign;
-+	size_t left_over, freelist_size;
-+	size_t ralign = BYTES_PER_WORD;
- 	gfp_t gfp;
- 	int err;
- 	size_t size = cachep->size;
-@@ -2161,14 +2162,6 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
- 		size &= ~(BYTES_PER_WORD - 1);
- 	}
- 
--	/*
--	 * Redzoning and user store require word alignment or possibly larger.
--	 * Note this will be overridden by architecture or caller mandated
--	 * alignment if either is greater than BYTES_PER_WORD.
--	 */
--	if (flags & SLAB_STORE_USER)
--		ralign = BYTES_PER_WORD;
--
- 	if (flags & SLAB_RED_ZONE) {
- 		ralign = REDZONE_ALIGN;
- 		/* If redzoning, ensure that the second redzone is suitably
+Guenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
