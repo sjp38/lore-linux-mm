@@ -1,37 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FCEA6B0035
-	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 17:30:37 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id g10so6702807pdj.33
-        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 14:30:36 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id yy9si22908326pab.150.2014.09.23.14.30.35
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id B5A406B0035
+	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 17:36:41 -0400 (EDT)
+Received: by mail-wi0-f172.google.com with SMTP id em10so5783814wid.11
+        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 14:36:41 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id dz13si16762045wjb.100.2014.09.23.14.36.40
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Sep 2014 14:30:36 -0700 (PDT)
-Date: Tue, 23 Sep 2014 14:30:34 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/4] SCHED: add some "wait..on_bit...timeout()"
- interfaces.
-Message-Id: <20140923143034.4adbbbfd12174baaab1a1ee4@linux-foundation.org>
-In-Reply-To: <20140923121052.55dcb4f5@notabene.brown>
-References: <20140916051911.22257.24658.stgit@notabene.brown>
-	<20140916053134.22257.28841.stgit@notabene.brown>
-	<20140918144222.GP2840@worktop.localdomain>
-	<20140923121052.55dcb4f5@notabene.brown>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Tue, 23 Sep 2014 14:36:40 -0700 (PDT)
+Message-ID: <5421E7E1.80203@infradead.org>
+Date: Tue, 23 Sep 2014 14:36:33 -0700
+From: Randy Dunlap <rdunlap@infradead.org>
+MIME-Version: 1.0
+Subject: Re: mmotm 2014-09-22-16-57 uploaded
+References: <5420b8b0.9HdYLyyuTikszzH8%akpm@linux-foundation.org> <20140923190222.GA4662@roeck-us.net> <5421D8B1.1030504@infradead.org> <20140923205707.GA14428@roeck-us.net>
+In-Reply-To: <20140923205707.GA14428@roeck-us.net>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.de>
-Cc: Peter Zijlstra <peterz@infradead.org>, Trond Myklebust <trond.myklebust@primarydata.com>, Ingo Molnar <mingo@redhat.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, Jeff Layton <jeff.layton@primarydata.com>
+To: Guenter Roeck <linux@roeck-us.net>
+Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, David Miller <davem@davemloft.net>
 
-On Tue, 23 Sep 2014 12:10:52 +1000 NeilBrown <neilb@suse.de> wrote:
+On 09/23/14 13:57, Guenter Roeck wrote:
+> On Tue, Sep 23, 2014 at 01:31:45PM -0700, Randy Dunlap wrote:
+>> On 09/23/14 12:02, Guenter Roeck wrote:
+>>> On Mon, Sep 22, 2014 at 05:02:56PM -0700, akpm@linux-foundation.org wrote:
+>>>> The mm-of-the-moment snapshot 2014-09-22-16-57 has been uploaded to
+>>>>
+>>>>    http://www.ozlabs.org/~akpm/mmotm/
+>>>>
+>>>> mmotm-readme.txt says
+>>>>
+>>>> README for mm-of-the-moment:
+>>>>
+>>>> http://www.ozlabs.org/~akpm/mmotm/
+>>>>
+>>>> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+>>>> more than once a week.
+>>>>
+>>> Sine I started testing this branch, I figure I might as well share the results.
+>>>
+>>> i386:allyesconfig
+>>>
+>>> drivers/built-in.o: In function `_scsih_qcmd':
+>>> mpt2sas_scsih.c:(.text+0xf5327d): undefined reference to `__udivdi3'
+>>> mpt2sas_scsih.c:(.text+0xf532b0): undefined reference to `__umoddi3'
+>>>
+>>> i386:allmodconfig
+>>>
+>>> ERROR: "__udivdi3" [drivers/scsi/mpt2sas/mpt2sas.ko] undefined!
+>>> ERROR: "__umoddi3" [drivers/scsi/mpt2sas/mpt2sas.ko] undefined!
+>>
+>> A patch has been posted for that and I believe that Christoph Hellwig has
+>> merged it.
+>>
+>>> mips:nlm_xlp_defconfig
+>>>
+>>> ERROR: "scsi_is_fc_rport" [drivers/scsi/libfc/libfc.ko] undefined!
+>>> ERROR: "fc_get_event_number" [drivers/scsi/libfc/libfc.ko] undefined!
+>>> ERROR: "skb_trim" [drivers/scsi/libfc/libfc.ko] undefined!
+>>> ERROR: "fc_host_post_event" [drivers/scsi/libfc/libfc.ko] undefined!
+>>>
+>>> [and many more]
+>>
+>> I have posted a patch for these build errors.
+>>
+> mips:nlm_xlp_defconfig builds in next-20140923, but it doesn't configure
+> CONFIG_NET. I don't see a patch which would address that problem.
+> In case I am missing it, can you point me to your patch ?
 
-> Now I just need an Ack from akpm for the mm bits (please...)
+I was referring to this one:
+http://marc.info/?l=linux-scsi&m=141117068414761&w=2
 
-Ack
+although I think that Dave is also working on a patch that is a little
+different from mine.
+
+Neither of these patches enables CONFIG_NET.  They just add dependencies.
+
+> On the other side, maybe it is just me thinking that taking CONFIG_NET out
+> of standard configurations might be a problem. If so, apologies for the noise.
+
+
+
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
