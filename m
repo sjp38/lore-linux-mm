@@ -1,73 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 841296B0035
-	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 12:20:04 -0400 (EDT)
-Received: by mail-wi0-f172.google.com with SMTP id em10so5205449wid.17
-        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 09:20:04 -0700 (PDT)
-Received: from omr2.cc.vt.edu (omr2.cc.ipv6.vt.edu. [2001:468:c80:2105:0:24d:7091:8b9c])
-        by mx.google.com with ESMTPS id ka3si15644009wjc.127.2014.09.23.09.20.02
+Received: from mail-yk0-f171.google.com (mail-yk0-f171.google.com [209.85.160.171])
+	by kanga.kvack.org (Postfix) with ESMTP id A39DE6B0035
+	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 13:04:25 -0400 (EDT)
+Received: by mail-yk0-f171.google.com with SMTP id 79so2170291ykr.16
+        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 10:04:25 -0700 (PDT)
+Received: from mail-yh0-x22d.google.com (mail-yh0-x22d.google.com [2607:f8b0:4002:c01::22d])
+        by mx.google.com with ESMTPS id u26si9527705yhf.138.2014.09.23.10.04.24
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Sep 2014 09:20:03 -0700 (PDT)
-Subject: Re: [PATCH] mm, debug: mm-introduce-vm_bug_on_mm-fix-fix.patch
-In-Reply-To: Your message of "Tue, 23 Sep 2014 13:28:48 +0200."
-             <20140923112848.GA10046@dhcp22.suse.cz>
-From: Valdis.Kletnieks@vt.edu
-References: <5420b8b0.9HdYLyyuTikszzH8%akpm@linux-foundation.org> <1411464279-20158-1-git-send-email-mhocko@suse.cz>
-            <20140923112848.GA10046@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1411489189_2175P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 23 Sep 2014 12:19:49 -0400
-Message-ID: <83907.1411489189@turing-police.cc.vt.edu>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 23 Sep 2014 10:04:24 -0700 (PDT)
+Received: by mail-yh0-f45.google.com with SMTP id a41so1926256yho.18
+        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 10:04:24 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <542125F1.3080607@redhat.com>
+References: <1411410865-3603-1-git-send-email-andreslc@google.com>
+	<1411422882-16245-1-git-send-email-andreslc@google.com>
+	<542125F1.3080607@redhat.com>
+Date: Tue, 23 Sep 2014 10:04:24 -0700
+Message-ID: <CAJu=L58L4XrACYieQuM412TJuJoD+QYBb=qOcN1MtwdVAPzn2Q@mail.gmail.com>
+Subject: Re: [PATCH v4] kvm: Fix page ageing bugs
+From: Andres Lagar-Cavilla <andreslc@google.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, Sasha Levin <sasha.levin@oracle.com>
+To: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andres Lagar-Cavilla <andreslc@gooogle.com>
 
---==_Exmh_1411489189_2175P
-Content-Type: text/plain; charset=us-ascii
+On Tue, Sep 23, 2014 at 12:49 AM, Paolo Bonzini <pbonzini@redhat.com> wrote:
+> Il 22/09/2014 23:54, Andres Lagar-Cavilla ha scritto:
+>> @@ -1406,32 +1406,24 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
+>>       struct rmap_iterator uninitialized_var(iter);
+>>       int young = 0;
+>>
+>> -     /*
+>> -      * In case of absence of EPT Access and Dirty Bits supports,
+>> -      * emulate the accessed bit for EPT, by checking if this page has
+>> -      * an EPT mapping, and clearing it if it does. On the next access,
+>> -      * a new EPT mapping will be established.
+>> -      * This has some overhead, but not as much as the cost of swapping
+>> -      * out actively used pages or breaking up actively used hugepages.
+>> -      */
+>> -     if (!shadow_accessed_mask) {
+>> -             young = kvm_unmap_rmapp(kvm, rmapp, slot, data);
+>> -             goto out;
+>> -     }
+>> +     BUG_ON(!shadow_accessed_mask);
+>>
+>>       for (sptep = rmap_get_first(*rmapp, &iter); sptep;
+>>            sptep = rmap_get_next(&iter)) {
+>> +             struct kvm_mmu_page *sp;
+>> +             gfn_t gfn;
+>>               BUG_ON(!is_shadow_present_pte(*sptep));
+>> +             /* From spte to gfn. */
+>> +             sp = page_header(__pa(sptep));
+>> +             gfn = kvm_mmu_page_get_gfn(sp, sptep - sp->spt);
+>>
+>>               if (*sptep & shadow_accessed_mask) {
+>>                       young = 1;
+>>                       clear_bit((ffs(shadow_accessed_mask) - 1),
+>>                                (unsigned long *)sptep);
+>>               }
+>> +             trace_kvm_age_page(gfn, slot, young);
+>
+> Yesterday I couldn't think of a way to avoid the
+> page_header/kvm_mmu_page_get_gfn on every iteration, but it's actually
+> not hard.  Instead of passing hva as datum, you can pass (unsigned long)
+> &start.  Then you can add PAGE_SIZE to it at the end of every call to
+> kvm_age_rmapp, and keep the old tracing logic.
 
-On Tue, 23 Sep 2014 13:28:48 +0200, Michal Hocko said:
-> And there is another one hitting during randconfig. The patch makes my
-> eyes bleed
+I'm not sure. The addition is not always by PAGE_SIZE, since it
+depends on the current level we are iterating at in the outer
+kvm_handle_hva_range(). IOW, could be PMD_SIZE or even PUD_SIZE, and
+is_large_pte() enough to tell?
 
-Amen.  But I'm not seeing a better fix either.
+This is probably worth a general fix, I can see all the callbacks
+benefiting from knowing the gfn (passed down by
+kvm_handle_hva_range()) without any additional computation, and adding
+that to a tracing call if they don't already.
 
->  #if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
-> -		"tlb_flush_pending %d\n",
-> +		"tlb_flush_pending %d\n"
->  #endif
-> -		mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
-> +		, mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+Even passing the level down to the callback would help by cutting down
+to one arithmetic op (subtract rmapp from slot rmap base pointer for
+that level)
 
-I'm surprised that checkpatch doesn't explode on this.  And I'm starting
-a pool on how soon somebody submits a patch to "fix" this. :)
+Andres
+>
+>
+> Paolo
 
---==_Exmh_1411489189_2175P
-Content-Type: application/pgp-signature
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-Comment: Exmh version 2.5 07/13/2001
 
-iQIVAwUBVCGdpQdmEQWDXROgAQLLKBAAiTSdExIo2aogwb191B7h7hkYPyPVu8ne
-lyHn0dfT7JDVht3nsQBmDHn48qL/h4d+GvU0priCoHlvXG+17p5asW/bcaOttavH
-xPSagNrH7sCUGhZyupe9n5ZFfw4Mer41uA9H4cFqMOVJCoSJyCMvCPB9ilKWDOZl
-dTbzN/XyRVhFR6nHoecXGWlAsHFWi2zstPPYi98fmM9VqZQ/025wpr5Fb0Ffdphr
-csIwovxR2blTVQpGUSZhPRYbGaPPL6S4JJ8waC7IDmAWqdyvj7vY3Z5L5n44vu+d
-QeRUsCD30w0B14QdBO2fFl2LE2LppsEjjmQ2RrGoRpB9MSKhXdK2wF4uL6xzLIWL
-CGYoPkR6mvPmDX5rOJMN7AWx5wTcB6jhp1xnDyhK3IlfzurOmZaqi/YuzHqXUwkV
-DQL1VYz1FTBd1yRyqY6OCRcjaZHopijNiyAvrSwvcpylELDCLqg6Sm+6zQG8Nmw4
-CFLi6fRhYZUr0ypQQwsyk9KHQBWMkOi+gYGalM2ahD/TnfeLx+T2FA79Tb2rTW5w
-jtoPo5nryghgWSeF2oaWE13iJNEjyZUb6PjWcUn+lhbr+6lcCr0FCCXapSAlR80A
-++W/jsSBDNPbNNskbKzuvJxN+hxDzYWxNJLlhCqJeu5yydgS8Is5jXOa7N3dwKS3
-Esg0LBXwHp4=
-=2FOW
------END PGP SIGNATURE-----
-
---==_Exmh_1411489189_2175P--
+-- 
+Andres Lagar-Cavilla | Google Kernel Team | andreslc@google.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
