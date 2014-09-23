@@ -1,57 +1,212 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FF766B0035
-	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 03:31:20 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id p10so5804394pdj.27
-        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 00:31:19 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id sk4si19043961pab.163.2014.09.23.00.31.18
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id AE4236B0035
+	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 03:48:07 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id r10so5962448pdi.39
+        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 00:48:07 -0700 (PDT)
+Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
+        by mx.google.com with ESMTPS id fr9si19030224pdb.239.2014.09.23.00.48.06
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Sep 2014 00:31:18 -0700 (PDT)
-Date: Tue, 23 Sep 2014 11:31:11 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH 1/2] memcg: move memcg_{alloc,free}_cache_params to
- slab_common.c
-Message-ID: <20140923073111.GC3588@esperanza>
-References: <e768785511927d65bd3e6d9f65ab2a9851a3d73d.1411054735.git.vdavydov@parallels.com>
- <20140922200825.GA5373@cmpxchg.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 23 Sep 2014 00:48:06 -0700 (PDT)
+Received: from kw-mxq.gw.nic.fujitsu.com (unknown [10.0.237.131])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 0462C3EE113
+	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 16:48:04 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
+	by kw-mxq.gw.nic.fujitsu.com (Postfix) with ESMTP id C38CAAC0427
+	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 16:48:02 +0900 (JST)
+Received: from g01jpfmpwkw03.exch.g01.fujitsu.local (g01jpfmpwkw03.exch.g01.fujitsu.local [10.0.193.57])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6D40FE38003
+	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 16:48:02 +0900 (JST)
+Message-ID: <5421256A.8080708@jp.fujitsu.com>
+Date: Tue, 23 Sep 2014 16:46:50 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20140922200825.GA5373@cmpxchg.org>
+Subject: Re: [patch] mm: memcontrol: lockless page counters
+References: <1411132928-16143-1-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1411132928-16143-1-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@suse.cz>, Christoph Lameter <cl@linux.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Dave Hansen <dave@sr71.net>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Sep 22, 2014 at 04:08:25PM -0400, Johannes Weiner wrote:
-> On Thu, Sep 18, 2014 at 07:50:19PM +0400, Vladimir Davydov wrote:
-> > The only reason why they live in memcontrol.c is that we get/put css
-> > reference to the owner memory cgroup in them. However, we can do that in
-> > memcg_{un,}register_cache.
-> > 
-> > So let's move them to slab_common.c and make them static.
-> > 
-> > Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Michal Hocko <mhocko@suse.cz>
-> > Cc: Christoph Lameter <cl@linux.com>
+(2014/09/19 22:22), Johannes Weiner wrote:
+> Memory is internally accounted in bytes, using spinlock-protected
+> 64-bit counters, even though the smallest accounting delta is a page.
+> The counter interface is also convoluted and does too many things.
 > 
-> Cool, so you get rid of the back-and-forth between memcg and slab, and
-> thereby also shrink the public memcg interface.
+> Introduce a new lockless word-sized page counter API, then change all
+> memory accounting over to it and remove the old one.  The translation
+> from and to bytes then only happens when interfacing with userspace.
+> 
+> Aside from the locking costs, this gets rid of the icky unsigned long
+> long types in the very heart of memcg, which is great for 32 bit and
+> also makes the code a lot more readable.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-It should be mentioned that we still call memcg_update_array_size()
-(defined at memcontrol.c) from memcg_update_all_caches()
-(slab_common.c), because we must hold the slab_mutex while updating
-memcg_limited_groups_array_size. However, I'm going to remove this
-requirement and get rid of memcg_update_array_size() too. This is what
-"[PATCH -mm 10/14] memcg: add rwsem to sync against memcg_caches arrays
-relocation", which is a part of my "Per memcg slab shrinkers" patch set,
-does.
+I like this patch because I hate res_counter very much.
+
+a few nitpick comments..
+
+<snip>
+
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 19df5d857411..bf8fb1a05597 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -54,6 +54,38 @@ struct mem_cgroup_reclaim_cookie {
+>   };
+>   
+>   #ifdef CONFIG_MEMCG
+> +
+> +struct page_counter {
+> +	atomic_long_t count;
+> +	unsigned long limit;
+> +	struct page_counter *parent;
+> +
+> +	/* legacy */
+> +	unsigned long watermark;
+> +	unsigned long limited;
+> +};
+
+I guees all attributes should be on the same cache line. How about align this to cache ?
+And legacy values are not very important to be atomic by design, right ?
+
+> +
+> +#if BITS_PER_LONG == 32
+> +#define PAGE_COUNTER_MAX ULONG_MAX
+> +#else
+> +#define PAGE_COUNTER_MAX (ULONG_MAX / PAGE_SIZE)
+> +#endif
+> +
+<snip>
+
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index e2def11f1ec1..dfd3b15a57e8 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -25,7 +25,6 @@
+>    * GNU General Public License for more details.
+>    */
+>   
+> -#include <linux/res_counter.h>
+>   #include <linux/memcontrol.h>
+>   #include <linux/cgroup.h>
+>   #include <linux/mm.h>
+> @@ -66,6 +65,117 @@
+>   
+>   #include <trace/events/vmscan.h>
+>   
+> +int page_counter_cancel(struct page_counter *counter, unsigned long nr_pages)
+> +{
+> +	long new;
+> +
+> +	new = atomic_long_sub_return(nr_pages, &counter->count);
+> +
+> +	if (WARN_ON(unlikely(new < 0)))
+> +		atomic_long_set(&counter->count, 0);
+
+ WARN_ON_ONCE() ?
+ Or I prefer atomic_add(&counter->count, nr_pages) rather than set to 0
+ because if a buggy call's "nr_pages" is enough big, following calls to
+ page_counter_cacnel() will show more logs.
+
+> +
+> +	return new > 1;
+> +}
+> +
+> +int page_counter_charge(struct page_counter *counter, unsigned long nr_pages,
+> +			struct page_counter **fail)
+> +{
+> +	struct page_counter *c;
+> +
+> +	for (c = counter; c; c = c->parent) {
+> +		for (;;) {
+> +			unsigned long count;
+> +			unsigned long new;
+> +
+> +			count = atomic_long_read(&c->count);
+> +
+> +			new = count + nr_pages;
+> +			if (new > c->limit) {
+> +				c->limited++;
+> +				if (fail) {
+> +					*fail = c;
+> +					goto failed;
+> +				}
+  seeing res_counter(), c ret code for this case should be -ENOMEM.
+> +			}
+> +
+> +			if (atomic_long_cmpxchg(&c->count, count, new) != count)
+> +				continue;
+> +
+> +			if (new > c->watermark)
+> +				c->watermark = new;
+> +
+> +			break;
+> +		}
+> +	}
+> +	return 0;
+> +
+> +failed:
+> +	for (c = counter; c != *fail; c = c->parent)
+> +		page_counter_cancel(c, nr_pages);
+> +
+> +	return -ENOMEM;
+> +}
+> +
+> +int page_counter_uncharge(struct page_counter *counter, unsigned long nr_pages)
+> +{
+> +	struct page_counter *c;
+> +	int ret = 1;
+> +
+> +	for (c = counter; c; c = c->parent) {
+> +		int remainder;
+> +
+> +		remainder = page_counter_cancel(c, nr_pages);
+> +		if (c == counter && !remainder)
+> +			ret = 0;
+> +	}
+> +
+> +	return ret;
+> +}
+> +
+> +int page_counter_limit(struct page_counter *counter, unsigned long limit)
+> +{
+> +	for (;;) {
+> +		unsigned long count;
+> +		unsigned long old;
+> +
+> +		count = atomic_long_read(&counter->count);
+> +
+> +		old = xchg(&counter->limit, limit);
+> +
+> +		if (atomic_long_read(&counter->count) != count) {
+> +			counter->limit = old;
+> +			continue;
+> +		}
+> +
+> +		if (count > limit) {
+> +			counter->limit = old;
+> +			return -EBUSY;
+> +		}
+> +
+> +		return 0;
+> +	}
+> +}
+
+I think the whole "updating limit"  ops should be mutual exclusive. It seems
+there will be trouble if multiple updater comes at once.
+So, "xchg" isn't required. calllers should have their own locks.
 
 Thanks,
-Vladimir
+-Kame
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
