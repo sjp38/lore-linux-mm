@@ -1,52 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f169.google.com (mail-vc0-f169.google.com [209.85.220.169])
-	by kanga.kvack.org (Postfix) with ESMTP id AE02D6B0035
-	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 22:06:07 -0400 (EDT)
-Received: by mail-vc0-f169.google.com with SMTP id id10so5087623vcb.0
-        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 19:06:07 -0700 (PDT)
-Received: from mail-vc0-f181.google.com (mail-vc0-f181.google.com [209.85.220.181])
-        by mx.google.com with ESMTPS id fh1si5141729vcb.46.2014.09.23.19.06.07
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 23 Sep 2014 19:06:07 -0700 (PDT)
-Received: by mail-vc0-f181.google.com with SMTP id ik5so4812173vcb.26
-        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 19:06:06 -0700 (PDT)
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 297E96B0037
+	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 22:25:25 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id v10so5774157pde.22
+        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 19:25:24 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id xj1si23609377pbc.210.2014.09.23.19.25.23
+        for <linux-mm@kvack.org>;
+        Tue, 23 Sep 2014 19:25:24 -0700 (PDT)
+Date: Wed, 24 Sep 2014 10:27:29 +0800
+From: Wanpeng Li <wanpeng.li@linux.intel.com>
+Subject: Re: [PATCH v4] kvm: Fix page ageing bugs
+Message-ID: <20140924022729.GA2889@kernel>
+Reply-To: Wanpeng Li <wanpeng.li@linux.intel.com>
+References: <1411410865-3603-1-git-send-email-andreslc@google.com>
+ <1411422882-16245-1-git-send-email-andreslc@google.com>
 MIME-Version: 1.0
-In-Reply-To: <20140924012422.4838.29188.stgit@notabene.brown>
-References: <20140924012422.4838.29188.stgit@notabene.brown>
-Date: Tue, 23 Sep 2014 22:06:06 -0400
-Message-ID: <CAHQdGtRrU+vKB9s=Yks0rB0nVFy1-wOuW94ZrLsjMqGyLib=kQ@mail.gmail.com>
-Subject: Re: [PATCH 0/5] Remove possible deadlocks in nfs_release_page() - V3
-From: Trond Myklebust <trond.myklebust@primarydata.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1411422882-16245-1-git-send-email-andreslc@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.de>
-Cc: Linux NFS Mailing List <linux-nfs@vger.kernel.org>, Linux Kernel mailing list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Devel FS Linux <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jeff Layton <jeff.layton@primarydata.com>, Peter Zijlstra <peterz@infradead.org>
+To: Andres Lagar-Cavilla <andreslc@google.com>
+Cc: Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Sep 23, 2014 at 9:28 PM, NeilBrown <neilb@suse.de> wrote:
-> This set includes acked-by's from Andrew and Peter so it should be
-> OK for all five patches to go upstream through the NFS tree.
+Hi Andres,
+On Mon, Sep 22, 2014 at 02:54:42PM -0700, Andres Lagar-Cavilla wrote:
+>1. We were calling clear_flush_young_notify in unmap_one, but we are
+>within an mmu notifier invalidate range scope. The spte exists no more
+>(due to range_start) and the accessed bit info has already been
+>propagated (due to kvm_pfn_set_accessed). Simply call
+>clear_flush_young.
 >
-> I split the congestion tracking patch out from the wait-for-PG_private
-> patch as they are conceptually separate.
+>2. We clear_flush_young on a primary MMU PMD, but this may be mapped
+>as a collection of PTEs by the secondary MMU (e.g. during log-dirty).
+>This required expanding the interface of the clear_flush_young mmu
+>notifier, so a lot of code has been trivially touched.
 >
-> This set continues to perform well in my tests and addresses all
-> issues that have been raised.
+>3. In the absence of shadow_accessed_mask (e.g. EPT A bit), we emulate
+>the access bit by blowing the spte. This requires proper synchronizing
+>with MMU notifier consumers, like every other removal of spte's does.
 >
-> Thanks a lot,
-> NeilBrown
->
+[...]
+>---
+>+	BUG_ON(!shadow_accessed_mask);
+> 
+> 	for (sptep = rmap_get_first(*rmapp, &iter); sptep;
+> 	     sptep = rmap_get_next(&iter)) {
+>+		struct kvm_mmu_page *sp;
+>+		gfn_t gfn;
+> 		BUG_ON(!is_shadow_present_pte(*sptep));
+>+		/* From spte to gfn. */
+>+		sp = page_header(__pa(sptep));
+>+		gfn = kvm_mmu_page_get_gfn(sp, sptep - sp->spt);
+> 
+> 		if (*sptep & shadow_accessed_mask) {
+> 			young = 1;
+> 			clear_bit((ffs(shadow_accessed_mask) - 1),
+> 				 (unsigned long *)sptep);
+> 		}
+>+		trace_kvm_age_page(gfn, slot, young);
 
-Thanks Neil! I'll give them a final review tomorrow, and then queue
-them up for the 3.18 merge window.
+IIUC, all the rmapps in this for loop are against the same gfn which
+results in the above trace point dump the message duplicated.
 
--- 
-Trond Myklebust
-
-Linux NFS client maintainer, PrimaryData
-
-trond.myklebust@primarydata.com
+Regards,
+Wanpeng Li 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
