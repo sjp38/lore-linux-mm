@@ -1,103 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id EB7466B0036
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 11:43:12 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id fp1so4681330pdb.0
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 08:43:12 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id h4si26993138pat.27.2014.09.24.08.43.11
-        for <linux-mm@kvack.org>;
-        Wed, 24 Sep 2014 08:43:11 -0700 (PDT)
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 0858D6B0037
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 11:43:19 -0400 (EDT)
+Received: by mail-we0-f177.google.com with SMTP id t60so6426006wes.22
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 08:43:19 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id ep3si92031wib.35.2014.09.24.08.43.18
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Sep 2014 08:43:18 -0700 (PDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch 0/3] mm: memcontrol: lockless page counters v2
 Date: Wed, 24 Sep 2014 11:43:07 -0400
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v10 09/21] Replace the XIP page fault handler with the
- DAX page fault handler
-Message-ID: <20140924154307.GO27730@localhost.localdomain>
-References: <cover.1409110741.git.matthew.r.wilcox@intel.com>
- <4d71d7a13bec3acf703e26bf6b0c7da21a71ebe0.1409110741.git.matthew.r.wilcox@intel.com>
- <20140903074724.GE20473@dastard>
- <20140910152337.GF27730@localhost.localdomain>
- <20140911030926.GO20518@dastard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140911030926.GO20518@dastard>
+Message-Id: <1411573390-9601-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Matthew Wilcox <willy@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave@sr71.net>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Sep 11, 2014 at 01:09:26PM +1000, Dave Chinner wrote:
-> On Wed, Sep 10, 2014 at 11:23:37AM -0400, Matthew Wilcox wrote:
-> > On Wed, Sep 03, 2014 at 05:47:24PM +1000, Dave Chinner wrote:
-> > > > +	error = get_block(inode, block, &bh, 0);
-> > > > +	if (!error && (bh.b_size < PAGE_SIZE))
-> > > > +		error = -EIO;
-> > > > +	if (error)
-> > > > +		goto unlock_page;
-> > > 
-> > > page fault into unwritten region, returns buffer_unwritten(bh) ==
-> > > true. Hence buffer_written(bh) is false, and we take this branch:
-> > > 
-> > > > +	if (!buffer_written(&bh) && !vmf->cow_page) {
-> > > > +		if (vmf->flags & FAULT_FLAG_WRITE) {
-> > > > +			error = get_block(inode, block, &bh, 1);
-> > > 
-> > > Exactly what are you expecting to happen here? We don't do
-> > > allocation because there are already unwritten blocks over this
-> > > extent, and so bh will be unchanged when returning. i.e. it will
-> > > still be mapping an unwritten extent.
-> > 
-> > I was expecting calling get_block() on an unwritten extent to convert it
-> > to a written extent.  Your suggestion below of using b_end_io() to do that
-> > is a better idea.
-> > 
-> > So this should be:
-> > 
-> > 	if (!buffer_mapped(&bh) && !vmf->cow_page) {
-> > 
-> > ... right?
-> 
-> Yes, that is the conclusion I reached as well. ;)
+Hi,
 
-Now I know why I was expecting get_block() on an unwritten extent to
-convert it to a written extent.  That's the way ext4 behaves!
+this series replaces the spinlock_irq-protected 64-bit res_counters
+with lockless word-sized page counters.
 
-[  236.660772] got bh ffffffffa06e3bd0 1000
-[  236.660814] got bh for write ffffffffa06e3bd0 60
-[  236.660821] calling end_io ffffffffa06e3bd0 60
+Version 2 has many changes over the first submission.  Among a ton of
+bugfixes and performance improvements (thanks, Vladimir!), the series
+has also been restructured to improve reviewability, and to address
+concerns about the hugetlb controller depending on compile-time memcg:
 
-(1000 is BH_Unwritten, 60 is BH_Mapped | BH_New)
+    optimizations:
+    - converted page_counter_try_charge() from CAS to FAA [vladimir]
 
-The code producing this output:
+    fixes:
+    - fixed kmem's notion of "unlimited" [vladimir]
+    - fixed page_counter_cancel() return value [vladimir]
+    - based page counter range on atomic_long_t's max [vladimir]
+    - fixed tcp memcontrol's usage reporting [vladimir]
+    - fixed hugepage limit page alignment [vladimir]
+    - fixed page_counter_limit() serialization [vladimir]
 
-        error = get_block(inode, block, &bh, 0);
-printk("got bh %p %lx\n", bh.b_end_io, bh.b_state);
-        if (!error && (bh.b_size < PAGE_SIZE))
-                error = -EIO;
-        if (error)
-                goto unlock_page;
+    cleanups:
+    - moved new page_counter API to its own file [vladimir, michal]
+    - documented page counter API [vladimir]
+    - documented acceptable race conditions [vladimir]
+    - split out res_counter removal to reduce patch size [vladimir]
+    - split out hugetlb controller conversion to reduce patch size
+    - split page_counter_charge and page_counter_try_charge [vladimir]
+    - wrapped signed-to-unsigned read in page_counter_read() [vladimir]
+    - wrapped watermark reset in page_counter_reset_watermark() [vladimir]
+    - reverted counter->limited back to counter->failcnt [vladimir]
+    - changed underflow to WARN_ON_ONCE and counter revert [kame, vladimir]
 
-        if (!buffer_mapped(&bh) && !vmf->cow_page) {
-                if (vmf->flags & FAULT_FLAG_WRITE) {
-                        error = get_block(inode, block, &bh, 1);
-printk("got bh for write %p %lx\n", bh.b_end_io, bh.b_state);
-
-# xfs_io -f -c "truncate 20k" -c "fiemap -v" -c "falloc 0 20k" -c "fiemap -v" -c "mmap -w 0 20k" -c "fiemap -v" -c "mwrite 4k 4k" -c "fiemap -v" /mnt/ram0/b
-/mnt/ram0/b:
-/mnt/ram0/b:
- EXT: FILE-OFFSET      BLOCK-RANGE      TOTAL FLAGS
-   0: [0..39]:         263176..263215      40 0x801
-/mnt/ram0/b:
- EXT: FILE-OFFSET      BLOCK-RANGE      TOTAL FLAGS
-   0: [0..39]:         263176..263215      40 0x801
-/mnt/ram0/b:
- EXT: FILE-OFFSET      BLOCK-RANGE      TOTAL FLAGS
-   0: [0..39]:         263176..263215      40   0x1
-
-Actually, this looks wrong ... ext4 should only have converted one block
-of the extent to written, not all of it.  I think that means ext4 is
-exposing stale data :-(  I'll keep digging.
+ Documentation/cgroups/hugetlb.txt          |   2 +-
+ Documentation/cgroups/memory.txt           |   4 +-
+ Documentation/cgroups/resource_counter.txt | 197 ---------
+ include/linux/hugetlb_cgroup.h             |   1 -
+ include/linux/memcontrol.h                 |   5 +-
+ include/linux/page_counter.h               |  49 +++
+ include/linux/res_counter.h                | 223 ----------
+ include/net/sock.h                         |  26 +-
+ init/Kconfig                               |  12 +-
+ kernel/Makefile                            |   1 -
+ kernel/res_counter.c                       | 211 ---------
+ mm/Makefile                                |   1 +
+ mm/hugetlb_cgroup.c                        | 104 +++--
+ mm/memcontrol.c                            | 635 +++++++++++++--------------
+ mm/page_counter.c                          | 191 ++++++++
+ net/ipv4/tcp_memcontrol.c                  |  87 ++--
+ 16 files changed, 659 insertions(+), 1090 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
