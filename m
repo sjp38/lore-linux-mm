@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 841C96B0037
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 11:09:13 -0400 (EDT)
-Received: by mail-wg0-f46.google.com with SMTP id a1so6104733wgh.29
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 08:09:12 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id B8D4C6B0038
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 11:09:14 -0400 (EDT)
+Received: by mail-wi0-f181.google.com with SMTP id z2so7493779wiv.8
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 08:09:14 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id ep3si7236400wib.35.2014.09.24.08.09.11
+        by mx.google.com with ESMTPS id p20si7162512wie.104.2014.09.24.08.09.13
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Sep 2014 08:09:12 -0700 (PDT)
+        Wed, 24 Sep 2014 08:09:13 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 1/3] mm: memcontrol: do not kill uncharge batching in free_pages_and_swap_cache
-Date: Wed, 24 Sep 2014 11:08:56 -0400
-Message-Id: <1411571338-8178-2-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 2/3] mm: memcontrol: simplify detecting when the memory+swap limit is hit
+Date: Wed, 24 Sep 2014 11:08:57 -0400
+Message-Id: <1411571338-8178-3-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1411571338-8178-1-git-send-email-hannes@cmpxchg.org>
 References: <1411571338-8178-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,152 +20,139 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Greg Thelen <gthelen@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Dave Hansen <dave@sr71.net>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.cz>
+When attempting to charge pages, we first charge the memory counter
+and then the memory+swap counter.  If one of the counters is at its
+limit, we enter reclaim, but if it's the memory+swap counter, reclaim
+shouldn't swap because that wouldn't change the situation.  However,
+if the counters have the same limits, we never get to the memory+swap
+limit.  To know whether reclaim should swap or not, there is a state
+flag that indicates whether the limits are equal and whether hitting
+the memory limit implies hitting the memory+swap limit.
 
-free_pages_and_swap_cache limits release_pages to PAGEVEC_SIZE chunks.
-This is not a big deal for the normal release path but it completely
-kills memcg uncharge batching which reduces res_counter spin_lock
-contention. Dave has noticed this with his page fault scalability test
-case on a large machine when the lock was basically dominating on all
-CPUs:
-    80.18%    80.18%  [kernel]               [k] _raw_spin_lock
-                  |
-                  --- _raw_spin_lock
-                     |
-                     |--66.59%-- res_counter_uncharge_until
-                     |          res_counter_uncharge
-                     |          uncharge_batch
-                     |          uncharge_list
-                     |          mem_cgroup_uncharge_list
-                     |          release_pages
-                     |          free_pages_and_swap_cache
-                     |          tlb_flush_mmu_free
-                     |          |
-                     |          |--90.12%-- unmap_single_vma
-                     |          |          unmap_vmas
-                     |          |          unmap_region
-                     |          |          do_munmap
-                     |          |          vm_munmap
-                     |          |          sys_munmap
-                     |          |          system_call_fastpath
-                     |          |          __GI___munmap
-                     |          |
-                     |           --9.88%-- tlb_flush_mmu
-                     |                     tlb_finish_mmu
-                     |                     unmap_region
-                     |                     do_munmap
-                     |                     vm_munmap
-                     |                     sys_munmap
-                     |                     system_call_fastpath
-                     |                     __GI___munmap
+Just try the memory+swap counter first.
 
-In his case the load was running in the root memcg and that part
-has been handled by reverting 05b843012335 ("mm: memcontrol: use
-root_mem_cgroup res_counter") because this is a clear regression,
-but the problem remains inside dedicated memcgs.
-
-There is no reason to limit release_pages to PAGEVEC_SIZE batches other
-than lru_lock held times. This logic, however, can be moved inside the
-function. mem_cgroup_uncharge_list and free_hot_cold_page_list do not
-hold any lock for the whole pages_to_free list so it is safe to call
-them in a single run.
-
-Page reference count and LRU handling is moved to release_lru_pages and
-that is run in PAGEVEC_SIZE batches.
-
-Reported-by: Dave Hansen <dave@sr71.net>
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/swap.c       | 27 +++++++++++++++++++++------
- mm/swap_state.c | 14 ++++----------
- 2 files changed, 25 insertions(+), 16 deletions(-)
+ mm/memcontrol.c | 47 +++++++++++++----------------------------------
+ 1 file changed, 13 insertions(+), 34 deletions(-)
 
-diff --git a/mm/swap.c b/mm/swap.c
-index 6b2dc3897cd5..8af99dd68dd2 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -888,9 +888,9 @@ void lru_add_drain_all(void)
- }
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 1ec22bf380d0..89c920156c2a 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -315,9 +315,6 @@ struct mem_cgroup {
+ 	/* OOM-Killer disable */
+ 	int		oom_kill_disable;
  
- /*
-- * Batched page_cache_release().  Decrement the reference count on all the
-- * passed pages.  If it fell to zero then remove the page from the LRU and
-- * free it.
-+ * Batched lru release. Decrement the reference count on all the passed pages.
-+ * If it fell to zero then remove the page from the LRU and add it to the given
-+ * list to be freed by the caller.
-  *
-  * Avoid taking zone->lru_lock if possible, but if it is taken, retain it
-  * for the remainder of the operation.
-@@ -900,10 +900,10 @@ void lru_add_drain_all(void)
-  * grabbed the page via the LRU.  If it did, give up: shrink_inactive_list()
-  * will free it.
-  */
--void release_pages(struct page **pages, int nr, bool cold)
-+static void release_lru_pages(struct page **pages, int nr,
-+			      struct list_head *pages_to_free)
- {
- 	int i;
--	LIST_HEAD(pages_to_free);
- 	struct zone *zone = NULL;
- 	struct lruvec *lruvec;
- 	unsigned long uninitialized_var(flags);
-@@ -943,11 +943,26 @@ void release_pages(struct page **pages, int nr, bool cold)
- 		/* Clear Active bit in case of parallel mark_page_accessed */
- 		__ClearPageActive(page);
- 
--		list_add(&page->lru, &pages_to_free);
-+		list_add(&page->lru, pages_to_free);
- 	}
- 	if (zone)
- 		spin_unlock_irqrestore(&zone->lru_lock, flags);
-+}
-+/*
-+ * Batched page_cache_release(). Frees and uncharges all given pages
-+ * for which the reference count drops to 0.
-+ */
-+void release_pages(struct page **pages, int nr, bool cold)
-+{
-+	LIST_HEAD(pages_to_free);
- 
-+	while (nr) {
-+		int batch = min(nr, PAGEVEC_SIZE);
-+
-+		release_lru_pages(pages, batch, &pages_to_free);
-+		pages += batch;
-+		nr -= batch;
-+	}
- 	mem_cgroup_uncharge_list(&pages_to_free);
- 	free_hot_cold_page_list(&pages_to_free, cold);
- }
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index ef1f39139b71..154444918685 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -265,18 +265,12 @@ void free_page_and_swap_cache(struct page *page)
- void free_pages_and_swap_cache(struct page **pages, int nr)
- {
- 	struct page **pagep = pages;
-+	int i;
- 
- 	lru_add_drain();
--	while (nr) {
--		int todo = min(nr, PAGEVEC_SIZE);
--		int i;
+-	/* set when res.limit == memsw.limit */
+-	bool		memsw_is_minimum;
 -
--		for (i = 0; i < todo; i++)
--			free_swap_cache(pagep[i]);
--		release_pages(pagep, todo, false);
--		pagep += todo;
--		nr -= todo;
--	}
-+	for (i = 0; i < nr; i++)
-+		free_swap_cache(pagep[i]);
-+	release_pages(pagep, nr, false);
- }
+ 	/* protect arrays of thresholds */
+ 	struct mutex thresholds_lock;
  
- /*
+@@ -1804,8 +1801,6 @@ static unsigned long mem_cgroup_reclaim(struct mem_cgroup *memcg,
+ 
+ 	if (flags & MEM_CGROUP_RECLAIM_NOSWAP)
+ 		noswap = true;
+-	if (!(flags & MEM_CGROUP_RECLAIM_SHRINK) && memcg->memsw_is_minimum)
+-		noswap = true;
+ 
+ 	for (loop = 0; loop < MEM_CGROUP_MAX_RECLAIM_LOOPS; loop++) {
+ 		if (loop)
+@@ -2543,16 +2538,17 @@ retry:
+ 		goto done;
+ 
+ 	size = batch * PAGE_SIZE;
+-	if (!res_counter_charge(&memcg->res, size, &fail_res)) {
+-		if (!do_swap_account)
++	if (!do_swap_account ||
++	    !res_counter_charge(&memcg->memsw, size, &fail_res)) {
++		if (!res_counter_charge(&memcg->res, size, &fail_res))
+ 			goto done_restock;
+-		if (!res_counter_charge(&memcg->memsw, size, &fail_res))
+-			goto done_restock;
+-		res_counter_uncharge(&memcg->res, size);
++		if (do_swap_account)
++			res_counter_uncharge(&memcg->memsw, size);
++		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
++	} else {
+ 		mem_over_limit = mem_cgroup_from_res_counter(fail_res, memsw);
+ 		flags |= MEM_CGROUP_RECLAIM_NOSWAP;
+-	} else
+-		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
++	}
+ 
+ 	if (batch > nr_pages) {
+ 		batch = nr_pages;
+@@ -3615,7 +3611,6 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+ 				unsigned long long val)
+ {
+ 	int retry_count;
+-	u64 memswlimit, memlimit;
+ 	int ret = 0;
+ 	int children = mem_cgroup_count_children(memcg);
+ 	u64 curusage, oldusage;
+@@ -3642,24 +3637,16 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+ 		 * We have to guarantee memcg->res.limit <= memcg->memsw.limit.
+ 		 */
+ 		mutex_lock(&set_limit_mutex);
+-		memswlimit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
+-		if (memswlimit < val) {
++		if (res_counter_read_u64(&memcg->memsw, RES_LIMIT) < val) {
+ 			ret = -EINVAL;
+ 			mutex_unlock(&set_limit_mutex);
+ 			break;
+ 		}
+ 
+-		memlimit = res_counter_read_u64(&memcg->res, RES_LIMIT);
+-		if (memlimit < val)
++		if (res_counter_read_u64(&memcg->res, RES_LIMIT) < val)
+ 			enlarge = 1;
+ 
+ 		ret = res_counter_set_limit(&memcg->res, val);
+-		if (!ret) {
+-			if (memswlimit == val)
+-				memcg->memsw_is_minimum = true;
+-			else
+-				memcg->memsw_is_minimum = false;
+-		}
+ 		mutex_unlock(&set_limit_mutex);
+ 
+ 		if (!ret)
+@@ -3684,7 +3671,7 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+ 					unsigned long long val)
+ {
+ 	int retry_count;
+-	u64 memlimit, memswlimit, oldusage, curusage;
++	u64 oldusage, curusage;
+ 	int children = mem_cgroup_count_children(memcg);
+ 	int ret = -EBUSY;
+ 	int enlarge = 0;
+@@ -3703,22 +3690,14 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+ 		 * We have to guarantee memcg->res.limit <= memcg->memsw.limit.
+ 		 */
+ 		mutex_lock(&set_limit_mutex);
+-		memlimit = res_counter_read_u64(&memcg->res, RES_LIMIT);
+-		if (memlimit > val) {
++		if (res_counter_read_u64(&memcg->res, RES_LIMIT) > val) {
+ 			ret = -EINVAL;
+ 			mutex_unlock(&set_limit_mutex);
+ 			break;
+ 		}
+-		memswlimit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
+-		if (memswlimit < val)
++		if (res_counter_read_u64(&memcg->memsw, RES_LIMIT) < val)
+ 			enlarge = 1;
+ 		ret = res_counter_set_limit(&memcg->memsw, val);
+-		if (!ret) {
+-			if (memlimit == val)
+-				memcg->memsw_is_minimum = true;
+-			else
+-				memcg->memsw_is_minimum = false;
+-		}
+ 		mutex_unlock(&set_limit_mutex);
+ 
+ 		if (!ret)
 -- 
 2.1.0
 
