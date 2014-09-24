@@ -1,121 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 52C326B0035
-	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 21:53:58 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id rd3so6714998pab.9
-        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 18:53:57 -0700 (PDT)
-Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
-        by mx.google.com with ESMTPS id kr9si23779895pab.33.2014.09.23.18.53.55
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id F2F956B0035
+	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 22:03:06 -0400 (EDT)
+Received: by mail-lb0-f172.google.com with SMTP id p9so9285704lbv.3
+        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 19:03:06 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g5si20825243laa.119.2014.09.23.19.03.04
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 23 Sep 2014 18:53:56 -0700 (PDT)
-From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Wed, 24 Sep 2014 09:53:44 +0800
-Subject: RE: Boot failure caused by "mm/cma.c: free the reserved memblock
- when free cma pages"
-Message-ID: <35FD53F367049845BC99AC72306C23D103D6DB49162B@CNBJMBX05.corpusers.net>
-References: <5421FC12.2020706@oracle.com>
-In-Reply-To: <5421FC12.2020706@oracle.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        Tue, 23 Sep 2014 19:03:05 -0700 (PDT)
+From: NeilBrown <neilb@suse.de>
+Date: Wed, 24 Sep 2014 11:28:32 +1000
+Subject: [PATCH 0/5]  Remove possible deadlocks in nfs_release_page() - V3
+Message-ID: <20140924012422.4838.29188.stgit@notabene.brown>
 MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Sasha Levin' <sasha.levin@oracle.com>, Minchan Kim <minchan@kernel.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 'Russell King - ARM Linux' <linux@arm.linux.org.uk>
+To: Trond Myklebust <trond.myklebust@primarydata.com>
+Cc: linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jeff Layton <jeff.layton@primarydata.com>, Peter Zijlstra <peterz@infradead.org>
 
-SGkNCg0KVmVyeeOAgHN0cmFuZ2UsDQpJIHRlc3QgaXQgb24gQVJN44CAYXJjaCwNCkl0IHdvcmtz
-IHdlbGwuDQoNCkkgdGhpbmsgcmV2ZXJ0IGl0IGlzIG9rICwNCkkgaGF2ZSBhIGRpc2N1c3Npb24g
-d2l0aCBSdXNzZWxsLA0KSGlzIGNvbmNlcm4gbWFrZSBzZW5zZSwNClJlbW92ZSB0aGlzIHBhdGNo
-IGlzIG9rLg0KaHR0cHM6Ly9sa21sLm9yZy9sa21sLzIwMTQvOS8xOC8xNzENCg0KDQp0aGUgY3Jh
-c2ggaXMgaW50ZXJlc3RpbmcsDQpJIHdpbGwgaGF2ZSBhIGxvb2suDQpTb3JyeSBmb3IgdGhhdCAu
-Lg0KDQotLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KRnJvbTogU2FzaGEgTGV2aW4gW21haWx0
-bzpzYXNoYS5sZXZpbkBvcmFjbGUuY29tXSANClNlbnQ6IFdlZG5lc2RheSwgU2VwdGVtYmVyIDI0
-LCAyMDE0IDc6MDMgQU0NClRvOiBXYW5nLCBZYWxpbjsgTWluY2hhbiBLaW0NCkNjOiBNaWNoYWwg
-SG9ja287IEh1Z2ggRGlja2luczsgSm9vbnNvbyBLaW07IEFuZHJldyBNb3J0b247IExLTUw7IGxp
-bnV4LW1tQGt2YWNrLm9yZw0KU3ViamVjdDogQm9vdCBmYWlsdXJlIGNhdXNlZCBieSAibW0vY21h
-LmM6IGZyZWUgdGhlIHJlc2VydmVkIG1lbWJsb2NrIHdoZW4gZnJlZSBjbWEgcGFnZXMiDQoNCkhp
-IFlhbGluLA0KDQpJJ20gc2VlaW5nIHRoZSBmb2xsb3dpbmcgQlVHIHdoZW4gYm9vdGluZyB0aGUg
-bGF0ZXN0IC1uZXh0IGtlcm5lbC4gSSd2ZSBiaXNlY3RlZCBpdCBkb3duIHRvICJtbS9jbWEuYzog
-ZnJlZSB0aGUgcmVzZXJ2ZWQgbWVtYmxvY2sgd2hlbiBmcmVlIGNtYSBwYWdlcyIuDQoNClsgICAg
-Mi40Mzg3MDFdIEJVRzogdW5hYmxlIHRvIGhhbmRsZSBrZXJuZWwgcGFnaW5nIHJlcXVlc3QgYXQg
-ZmZmZjg4MDk3MjQ5MzAwMA0KWyAgICAyLjQzODcwMV0gSVA6IG1lbWJsb2NrX2lzb2xhdGVfcmFu
-Z2UgKG1tL21lbWJsb2NrLmM6NjI0KQ0KWyAgICAyLjQzODcwMV0gUEdEIDM0YjUxMDY3IFBVRCAz
-NGI1NDA2NyBQTUQgOTc2YzU2MDY3IFBURSA4MDAwMDAwOTcyNDkzMDYwDQpbICAgIDIuNDM4NzAx
-XSBPb3BzOiAwMDAwIFsjMV0gUFJFRU1QVCBTTVAgREVCVUdfUEFHRUFMTE9DDQpbICAgIDIuNDM4
-NzAxXSBEdW1waW5nIGZ0cmFjZSBidWZmZXI6DQpbICAgIDIuNDM4NzAxXSAgICAoZnRyYWNlIGJ1
-ZmZlciBlbXB0eSkNClsgICAgMi40Mzg3MDFdIE1vZHVsZXMgbGlua2VkIGluOg0KWyAgICAyLjQz
-ODcwMV0gQ1BVOiAxNyBQSUQ6IDEgQ29tbTogc3dhcHBlci8wIE5vdCB0YWludGVkIDMuMTcuMC1y
-YzYtbmV4dC0yMDE0MDkyMy1zYXNoYS0wMDAzNy1nYzQwZWNhNCAjMTIxMw0KWyAgICAyLjQzODcw
-MV0gdGFzazogZmZmZjg4MDc2ZDdkMDAwMCB0aTogZmZmZjg4MDA0OGQ0MDAwMCB0YXNrLnRpOiBm
-ZmZmODgwMDQ4ZDQwMDAwDQpbICAgIDIuNDM4NzAxXSBSSVA6IG1lbWJsb2NrX2lzb2xhdGVfcmFu
-Z2UgKG1tL21lbWJsb2NrLmM6NjI0KQ0KWyAgICAyLjQzODcwMV0gUlNQOiAwMDAwOmZmZmY4ODAw
-NDhkNDNjZjggIEVGTEFHUzogMDAwMTAyODYNClsgICAgMi40Mzg4MjhdIFJBWDogZmZmZjg4MDk3
-MjQ5MzAwMCBSQlg6IDAwMDAwMDA5NjI2MDAwMDAgUkNYOiBmZmZmODgwMDQ4ZDQzZDUwDQpbICAg
-IDIuNDM5NTkwXSBSRFg6IDAwMDAwMDAwMDAyMDAwMDAgUlNJOiAwMDAwMDAwOTYyNDAwMDAwIFJE
-STogZmZmZmZmZmZiMmZjYWEzMA0KWyAgICAyLjQ0MDAwMF0gUkJQOiBmZmZmODgwMDQ4ZDQzZDM4
-IFIwODogZmZmZjg4MDA0OGQ0M2Q1NCBSMDk6IDAwMDAwMDAwMDAwMDAwMDENClsgICAgMi40NDAw
-MDBdIFIxMDogMDAwMDAwMDAwMDAwMDAwMCBSMTE6IDAwMDAwMDAwMDAwMDAwMDEgUjEyOiBmZmZm
-ODgwMDQ4ZDQzZDU0DQpbICAgIDIuNDQwMDAwXSBSMTM6IDAwMDAwMDA5NjI0MDAwMDAgUjE0OiAw
-MDAwMDAwMDAwMDAwMDAwIFIxNTogZmZmZmZmZmZiMmZjYWEzMA0KWyAgICAyLjQ0MDAwMF0gRlM6
-ICAwMDAwMDAwMDAwMDAwMDAwKDAwMDApIEdTOmZmZmY4ODA1NjdjMDAwMDAoMDAwMCkga25sR1M6
-MDAwMDAwMDAwMDAwMDAwMA0KWyAgICAyLjQ0MDAwMF0gQ1M6ICAwMDEwIERTOiAwMDAwIEVTOiAw
-MDAwIENSMDogMDAwMDAwMDA4MDA1MDAzYg0KWyAgICAyLjQ0MDAwMF0gQ1IyOiBmZmZmODgwOTcy
-NDkzMDAwIENSMzogMDAwMDAwMDAzMWUyZjAwMCBDUjQ6IDAwMDAwMDAwMDAwMDA2YTANClsgICAg
-Mi40NDAwMDBdIFN0YWNrOg0KWyAgICAyLjQ0MDAwMF0gIGZmZmZmZmZmYWQyOWNkYTIgZmZmZjg4
-MDA0OGQ0M2Q1MCBmZmZmZWEwMDJlZWI0MDAwIDAwMDAwMDA5NjI0MDAwMDANClsgICAgMi40NDAw
-MDBdICBmZmZmZmZmZmIyZmNhYTMwIDAwMDAwMDAwMDAwMDAwMDAgMDAwMDAwMDAwMDAwYTAwMCBm
-ZmZmZWEwMDJlZWI0MDA4DQpbICAgIDIuNDQwMDAwXSAgZmZmZjg4MDA0OGQ0M2Q2OCBmZmZmZmZm
-ZmIwNDllNjRhIDAwMDAwMDA5NjI0MDAwMDAgMDAwMDAwMDAwMDAwMDAwMA0KWyAgICAyLjQ0MDAw
-MF0gQ2FsbCBUcmFjZToNClsgICAgMi40NDAwMDBdID8gYWRqdXN0X21hbmFnZWRfcGFnZV9jb3Vu
-dCAobW0vcGFnZV9hbGxvYy5jOjU0MzApDQpbICAgIDIuNDQwMDAwXSBtZW1ibG9ja19yZW1vdmVf
-cmFuZ2UgKG1tL21lbWJsb2NrLmM6NjcyKQ0KWyAgICAyLjQ0MDAwMF0gbWVtYmxvY2tfZnJlZSAo
-bW0vbWVtYmxvY2suYzo2OTUpDQpbICAgIDIuNDQwMDAwXSBpbml0X2NtYV9yZXNlcnZlZF9wYWdl
-YmxvY2sgKG1tL3BhZ2VfYWxsb2MuYzo4NDApDQpbICAgIDIuNDQwMDAwXSBjbWFfaW5pdF9yZXNl
-cnZlZF9hcmVhcyAobW0vY21hLmM6MTE4IG1tL2NtYS5jOjEzMykNClsgICAgMi40NDAwMDBdID8g
-a2ZyZWUgKG1tL3NsdWIuYzoyNjc0IG1tL3NsdWIuYzozMzM5KQ0KWyAgICAyLjQ0MDAwMF0gPyBl
-YXJseV9tZW11bm1hcCAobW0vY21hLmM6MTI5KQ0KWyAgICAyLjQ0MDAwMF0gZG9fb25lX2luaXRj
-YWxsIChpbml0L21haW4uYzo3OTIpDQpbICAgIDIuNDQwMDAwXSBrZXJuZWxfaW5pdF9mcmVlYWJs
-ZSAoaW5pdC9tYWluLmM6ODU3IGluaXQvbWFpbi5jOjg2NSBpbml0L21haW4uYzo4ODQgaW5pdC9t
-YWluLmM6MTAwNSkNClsgICAgMi40NDAwMDBdID8gcmVzdF9pbml0IChpbml0L21haW4uYzo5MzIp
-DQpbICAgIDIuNDQwMDAwXSBrZXJuZWxfaW5pdCAoaW5pdC9tYWluLmM6OTM3KQ0KWyAgICAyLjQ0
-MDAwMF0gcmV0X2Zyb21fZm9yayAoYXJjaC94ODYva2VybmVsL2VudHJ5XzY0LlM6MzQ4KQ0KWyAg
-ICAyLjQ0MDAwMF0gPyByZXN0X2luaXQgKGluaXQvbWFpbi5jOjkzMikNClsgMi40NDAwMDBdIENv
-ZGU6IDg5IGZmIGU4IGVjIGZhIGZmIGZmIDg1IGMwIDc5IGUxIGI4IGY0IGZmIGZmIGZmIGU5IGMw
-IDAwIDAwIDAwIDRjIDAxIGViIDQ1IDMxIGY2IDQ5IDYzIGM2IDQ5IDNiIDA3IDczIGI5IDQ4IGMx
-IGUwIDA1IDQ5IDAzIDQ3IDE4IDw0OD4gOGIgMTAgNDggOGIgNDggMDggNDggOGQgMzQgMTEgNDgg
-MzkgZDMgNzYgYTEgNDkgMzkgZjUgMGYgODMgQWxsIGNvZGUgPT09PT09PT0NCiAgIDA6CTg5IGZm
-ICAgICAgICAgICAgICAgIAltb3YgICAgJWVkaSwlZWRpDQogICAyOgllOCBlYyBmYSBmZiBmZiAg
-ICAgICAJY2FsbHEgIDB4ZmZmZmZmZmZmZmZmZmFmMw0KICAgNzoJODUgYzAgICAgICAgICAgICAg
-ICAgCXRlc3QgICAlZWF4LCVlYXgNCiAgIDk6CTc5IGUxICAgICAgICAgICAgICAgIAlqbnMgICAg
-MHhmZmZmZmZmZmZmZmZmZmVjDQogICBiOgliOCBmNCBmZiBmZiBmZiAgICAgICAJbW92ICAgICQw
-eGZmZmZmZmY0LCVlYXgNCiAgMTA6CWU5IGMwIDAwIDAwIDAwICAgICAgIAlqbXBxICAgMHhkNQ0K
-ICAxNToJNGMgMDEgZWIgICAgICAgICAgICAgCWFkZCAgICAlcjEzLCVyYngNCiAgMTg6CTQ1IDMx
-IGY2ICAgICAgICAgICAgIAl4b3IgICAgJXIxNGQsJXIxNGQNCiAgMWI6CTQ5IDYzIGM2ICAgICAg
-ICAgICAgIAltb3ZzbHEgJXIxNGQsJXJheA0KICAxZToJNDkgM2IgMDcgICAgICAgICAgICAgCWNt
-cCAgICAoJXIxNSksJXJheA0KICAyMToJNzMgYjkgICAgICAgICAgICAgICAgCWphZSAgICAweGZm
-ZmZmZmZmZmZmZmZmZGMNCiAgMjM6CTQ4IGMxIGUwIDA1ICAgICAgICAgIAlzaGwgICAgJDB4NSwl
-cmF4DQogIDI3Ogk0OSAwMyA0NyAxOCAgICAgICAgICAJYWRkICAgIDB4MTgoJXIxNSksJXJheA0K
-ICAyYjoqCTQ4IDhiIDEwICAgICAgICAgICAgIAltb3YgICAgKCVyYXgpLCVyZHgJCTwtLSB0cmFw
-cGluZyBpbnN0cnVjdGlvbg0KICAyZToJNDggOGIgNDggMDggICAgICAgICAgCW1vdiAgICAweDgo
-JXJheCksJXJjeA0KICAzMjoJNDggOGQgMzQgMTEgICAgICAgICAgCWxlYSAgICAoJXJjeCwlcmR4
-LDEpLCVyc2kNCiAgMzY6CTQ4IDM5IGQzICAgICAgICAgICAgIAljbXAgICAgJXJkeCwlcmJ4DQog
-IDM5Ogk3NiBhMSAgICAgICAgICAgICAgICAJamJlICAgIDB4ZmZmZmZmZmZmZmZmZmZkYw0KICAz
-YjoJNDkgMzkgZjUgICAgICAgICAgICAgCWNtcCAgICAlcnNpLCVyMTMNCiAgM2U6CTBmICAgICAg
-ICAgICAgICAgICAgIAkuYnl0ZSAweGYNCiAgM2Y6CTgzICAgICAgICAgICAgICAgICAgIAkuYnl0
-ZSAweDgzDQoJLi4uDQoNCkNvZGUgc3RhcnRpbmcgd2l0aCB0aGUgZmF1bHRpbmcgaW5zdHJ1Y3Rp
-b24gPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PQ0KICAgMDoJNDgg
-OGIgMTAgICAgICAgICAgICAgCW1vdiAgICAoJXJheCksJXJkeA0KICAgMzoJNDggOGIgNDggMDgg
-ICAgICAgICAgCW1vdiAgICAweDgoJXJheCksJXJjeA0KICAgNzoJNDggOGQgMzQgMTEgICAgICAg
-ICAgCWxlYSAgICAoJXJjeCwlcmR4LDEpLCVyc2kNCiAgIGI6CTQ4IDM5IGQzICAgICAgICAgICAg
-IAljbXAgICAgJXJkeCwlcmJ4DQogICBlOgk3NiBhMSAgICAgICAgICAgICAgICAJamJlICAgIDB4
-ZmZmZmZmZmZmZmZmZmZiMQ0KICAxMDoJNDkgMzkgZjUgICAgICAgICAgICAgCWNtcCAgICAlcnNp
-LCVyMTMNCiAgMTM6CTBmICAgICAgICAgICAgICAgICAgIAkuYnl0ZSAweGYNCiAgMTQ6CTgzICAg
-ICAgICAgICAgICAgICAgIAkuYnl0ZSAweDgzDQoJLi4uDQpbICAgIDIuNDQwMDAwXSBSSVAgbWVt
-YmxvY2tfaXNvbGF0ZV9yYW5nZSAobW0vbWVtYmxvY2suYzo2MjQpDQpbICAgIDIuNDQwMDAwXSAg
-UlNQIDxmZmZmODgwMDQ4ZDQzY2Y4Pg0KWyAgICAyLjQ0MDAwMF0gQ1IyOiBmZmZmODgwOTcyNDkz
-MDAwDQoNCg0KVGhhbmtzLA0KU2FzaGENCg==
+This set includes acked-by's from Andrew and Peter so it should be
+OK for all five patches to go upstream through the NFS tree.
+
+I split the congestion tracking patch out from the wait-for-PG_private
+patch as they are conceptually separate.
+
+This set continues to perform well in my tests and addresses all
+issues that have been raised.
+
+Thanks a lot,
+NeilBrown
+
+
+---
+
+NeilBrown (5):
+      SCHED: add some "wait..on_bit...timeout()" interfaces.
+      MM: export page_wakeup functions
+      NFS: avoid deadlocks with loop-back mounted NFS filesystems.
+      NFS: avoid waiting at all in nfs_release_page when congested.
+      NFS/SUNRPC: Remove other deadlock-avoidance mechanisms in nfs_release_page()
+
+
+ fs/nfs/file.c                   |   29 +++++++++++++++++++----------
+ fs/nfs/write.c                  |    7 +++++++
+ include/linux/pagemap.h         |   12 ++++++++++--
+ include/linux/wait.h            |    5 ++++-
+ kernel/sched/wait.c             |   36 ++++++++++++++++++++++++++++++++++++
+ mm/filemap.c                    |   21 +++++++++++++++------
+ net/sunrpc/sched.c              |    2 --
+ net/sunrpc/xprtrdma/transport.c |    2 --
+ net/sunrpc/xprtsock.c           |   10 ----------
+ 9 files changed, 91 insertions(+), 33 deletions(-)
+
+-- 
+Signature
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
