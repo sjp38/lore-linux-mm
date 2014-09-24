@@ -1,499 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id D50036B0038
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 09:36:45 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id eu11so7848519pac.3
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 06:36:45 -0700 (PDT)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id rp1si26184978pbc.214.2014.09.24.06.36.44
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DC836B0038
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 10:01:25 -0400 (EDT)
+Received: by mail-wi0-f170.google.com with SMTP id fb4so6540114wid.5
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 07:01:24 -0700 (PDT)
+Received: from mail-we0-x232.google.com (mail-we0-x232.google.com [2a00:1450:400c:c03::232])
+        by mx.google.com with ESMTPS id bf5si11487296wjc.82.2014.09.24.07.01.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 24 Sep 2014 06:36:44 -0700 (PDT)
-Received: by mail-pa0-f47.google.com with SMTP id et14so8615653pad.20
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 06:36:44 -0700 (PDT)
-Date: Wed, 24 Sep 2014 06:34:56 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH V3 1/6] mm: Introduce a general RCU
- get_user_pages_fast.
-In-Reply-To: <1409237107-24228-2-git-send-email-steve.capper@linaro.org>
-Message-ID: <alpine.LSU.2.11.1409240633190.10068@eggly.anvils>
-References: <1409237107-24228-1-git-send-email-steve.capper@linaro.org> <1409237107-24228-2-git-send-email-steve.capper@linaro.org>
+        Wed, 24 Sep 2014 07:01:23 -0700 (PDT)
+Received: by mail-we0-f178.google.com with SMTP id t60so6284479wes.9
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 07:01:23 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <1411344191-2842-5-git-send-email-minchan@kernel.org>
+References: <1411344191-2842-1-git-send-email-minchan@kernel.org> <1411344191-2842-5-git-send-email-minchan@kernel.org>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Wed, 24 Sep 2014 10:01:03 -0400
+Message-ID: <CALZtONB+NBMa8xf8xuAoeYHDoMtS56VLGP-a46LZgpppFyz7ag@mail.gmail.com>
+Subject: Re: [PATCH v1 4/5] zram: add swap full hint
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steve Capper <steve.capper@linaro.org>
-Cc: linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, linux@arm.linux.org.uk, linux-arch@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, will.deacon@arm.com, gary.robertson@linaro.org, christoffer.dall@linaro.org, peterz@infradead.org, anders.roxell@linaro.org, dann.frazier@canonical.com, mark.rutland@arm.com, mgorman@suse.de
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>, juno.choi@lge.com
 
-On Thu, 28 Aug 2014, Steve Capper wrote:
-
-> get_user_pages_fast attempts to pin user pages by walking the page
-> tables directly and avoids taking locks. Thus the walker needs to be
-> protected from page table pages being freed from under it, and needs
-> to block any THP splits.
-> 
-> One way to achieve this is to have the walker disable interrupts, and
-> rely on IPIs from the TLB flushing code blocking before the page table
-> pages are freed.
-> 
-> On some platforms we have hardware broadcast of TLB invalidations, thus
-> the TLB flushing code doesn't necessarily need to broadcast IPIs; and
-> spuriously broadcasting IPIs can hurt system performance if done too
-> often.
-> 
-> This problem has been solved on PowerPC and Sparc by batching up page
-> table pages belonging to more than one mm_user, then scheduling an
-> rcu_sched callback to free the pages. This RCU page table free logic
-> has been promoted to core code and is activated when one enables
-> HAVE_RCU_TABLE_FREE. Unfortunately, these architectures implement
-> their own get_user_pages_fast routines.
-> 
-> The RCU page table free logic coupled with a an IPI broadcast on THP
-> split (which is a rare event), allows one to protect a page table
-> walker by merely disabling the interrupts during the walk.
-> 
-> This patch provides a general RCU implementation of get_user_pages_fast
-> that can be used by architectures that perform hardware broadcast of
-> TLB invalidations.
-> 
-> It is based heavily on the PowerPC implementation by Nick Piggin.
-
-That's a helpful description above, thank you; and the patch looks
-mostly good to me.  I took a look because I see time is running out,
-and you're having trouble getting review of this one: I was hoping
-to give you a quick acked-by, but cannot do so as yet.
-
-Most of my remarks below are trivial comments on where it
-needs a little more, to be presented as a generic implementation in
-mm/gup.c.  And most come from comparing against an up-to-date version
-of arch/x86/mm/gup.c: please do the same, I may have missed some.
-
-It would be a pity to mess up your arm schedule for lack of linkage
-to this one: maybe this patch can go in as is, and be fixed up a
-litte later (that would be up to Andrew); or maybe you'll have
-no trouble making the changes before the merge window; or maybe
-this should just be kept with arm and arm64 for now (but thank
-you for making the effort to give us a generic version).
-
-Hugh
-
-> 
-> Signed-off-by: Steve Capper <steve.capper@linaro.org>
-> Tested-by: Dann Frazier <dann.frazier@canonical.com>
-> Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+On Sun, Sep 21, 2014 at 8:03 PM, Minchan Kim <minchan@kernel.org> wrote:
+> This patch implement SWAP_FULL handler in zram so that VM can
+> know whether zram is full or not and use it to stop anonymous
+> page reclaim.
+>
+> How to judge fullness is below,
+>
+> fullness = (100 * used space / total space)
+>
+> It means the higher fullness is, the slower we reach zram full.
+> Now, default of fullness is 80 so that it biased more momory
+> consumption rather than early OOM kill.
+>
+> Above logic works only when used space of zram hit over the limit
+> but zram also pretend to be full once 32 consecutive allocation
+> fail happens. It's safe guard to prevent system hang caused by
+> fragment uncertainty.
+>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 > ---
->  mm/Kconfig |   3 +
->  mm/gup.c   | 278 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
->  2 files changed, 281 insertions(+)
-> 
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 886db21..0ceb8a5 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -137,6 +137,9 @@ config HAVE_MEMBLOCK_NODE_MAP
->  config HAVE_MEMBLOCK_PHYS_MAP
->  	boolean
->  
-> +config HAVE_GENERIC_RCU_GUP
+>  drivers/block/zram/zram_drv.c | 60 ++++++++++++++++++++++++++++++++++++++++---
+>  drivers/block/zram/zram_drv.h |  1 +
+>  2 files changed, 57 insertions(+), 4 deletions(-)
+>
+> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+> index 22a37764c409..649cad9d0b1c 100644
+> --- a/drivers/block/zram/zram_drv.c
+> +++ b/drivers/block/zram/zram_drv.c
+> @@ -43,6 +43,20 @@ static const char *default_compressor = "lzo";
+>  /* Module params (documentation at end) */
+>  static unsigned int num_devices = 1;
+>
+> +/*
+> + * If (100 * used_pages / total_pages) >= ZRAM_FULLNESS_PERCENT),
+> + * we regards it as zram-full. It means that the higher
+> + * ZRAM_FULLNESS_PERCENT is, the slower we reach zram full.
+> + */
+> +#define ZRAM_FULLNESS_PERCENT 80
 
-I'm not wild about that name (fast GUP does require that page tables
-cannot be freed beneath it, and RCU freeing of page tables is one way
-in which that can be guaranteed for this implementation); but I cannot
-suggest a better, so let's stick with it.
+As Andrew said, this (or the user-configurable fullness param from the
+next patch) should have more detail about exactly why it's needed and
+what it does.  The details of how zram considers itself "full" should
+be clear, which probably includes explaining zsmalloc fragmentation.
+It should be also clear this param only matters when limit_pages is
+set, and this param is only checked when zsmalloc's total size has
+reached that limit.
 
-> +	boolean
+Also, since the next patch changes it to be used only as a default,
+shouldn't it be DEFAULT_ZRAM_FULLNESS_PERCENT or similar?
+
 > +
->  config ARCH_DISCARD_MEMBLOCK
->  	boolean
->  
-> diff --git a/mm/gup.c b/mm/gup.c
-> index 91d044b..5e6f6cb 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -10,6 +10,10 @@
->  #include <linux/swap.h>
->  #include <linux/swapops.h>
->  
-> +#include <linux/sched.h>
-> +#include <linux/rwsem.h>
-> +#include <asm/pgtable.h>
+> +/*
+> + * If zram fails to allocate memory consecutively up to this,
+> + * we regard it as zram-full. It's safe guard to prevent too
+> + * many swap write fail due to lack of fragmentation uncertainty.
+> + */
+> +#define ALLOC_FAIL_MAX 32
 > +
->  #include "internal.h"
->  
->  static struct page *no_page_table(struct vm_area_struct *vma,
-> @@ -672,3 +676,277 @@ struct page *get_dump_page(unsigned long addr)
->  	return page;
+>  #define ZRAM_ATTR_RO(name)                                             \
+>  static ssize_t zram_attr_##name##_show(struct device *d,               \
+>                                 struct device_attribute *attr, char *b) \
+> @@ -148,6 +162,7 @@ static ssize_t mem_limit_store(struct device *dev,
+>
+>         down_write(&zram->init_lock);
+>         zram->limit_pages = PAGE_ALIGN(limit) >> PAGE_SHIFT;
+> +       atomic_set(&zram->alloc_fail, 0);
+>         up_write(&zram->init_lock);
+>
+>         return len;
+> @@ -410,6 +425,7 @@ static void zram_free_page(struct zram *zram, size_t index)
+>         atomic64_sub(zram_get_obj_size(meta, index),
+>                         &zram->stats.compr_data_size);
+>         atomic64_dec(&zram->stats.pages_stored);
+> +       atomic_set(&zram->alloc_fail, 0);
+>
+>         meta->table[index].handle = 0;
+>         zram_set_obj_size(meta, index, 0);
+> @@ -597,10 +613,15 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+>         }
+>
+>         alloced_pages = zs_get_total_pages(meta->mem_pool);
+> -       if (zram->limit_pages && alloced_pages > zram->limit_pages) {
+> -               zs_free(meta->mem_pool, handle);
+> -               ret = -ENOMEM;
+> -               goto out;
+> +       if (zram->limit_pages) {
+> +               if (alloced_pages > zram->limit_pages) {
+> +                       zs_free(meta->mem_pool, handle);
+> +                       atomic_inc(&zram->alloc_fail);
+> +                       ret = -ENOMEM;
+> +                       goto out;
+> +               } else {
+> +                       atomic_set(&zram->alloc_fail, 0);
+> +               }
+
+So, with zram_full() checking for alloced_pages >= limit_pages, this
+will need to be changed; the way it is now it prevents that from ever
+being true.
+
+Instead I believe this check has to be moved to before zs_malloc(), so
+that alloced_pages > limit_pages is true.
+
+
+>         }
+>
+>         update_used_max(zram, alloced_pages);
+> @@ -711,6 +732,7 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
+>         down_write(&zram->init_lock);
+>
+>         zram->limit_pages = 0;
+> +       atomic_set(&zram->alloc_fail, 0);
+>
+>         if (!init_done(zram)) {
+>                 up_write(&zram->init_lock);
+> @@ -944,6 +966,34 @@ static int zram_slot_free_notify(struct block_device *bdev,
+>         return 0;
 >  }
->  #endif /* CONFIG_ELF_CORE */
-> +
-> +#ifdef CONFIG_HAVE_GENERIC_RCU_GUP
-
-This desperately needs a long comment explaining the assumptions made,
-and what an architecture must supply and guarantee to use this option.
-
-Maybe your commit message already provides a good enough comment (I
-have not now re-read it in that light) and can simply be inserted here.
-I don't think it needs to spell everything out, but it does need to
-direct a maintainer to thinking through the appropriate issues.
-
-> +
-> +#ifdef __HAVE_ARCH_PTE_SPECIAL
-> +static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
-> +			 int write, struct page **pages, int *nr)
+>
+> +static int zram_full(struct block_device *bdev, void *arg)
 > +{
-> +	pte_t *ptep, *ptem;
-> +	int ret = 0;
+> +       struct zram *zram;
+> +       struct zram_meta *meta;
+> +       unsigned long total_pages, compr_pages;
 > +
-> +	ptem = ptep = pte_offset_map(&pmd, addr);
-> +	do {
-> +		pte_t pte = ACCESS_ONCE(*ptep);
-
-Here is my only substantive criticism.  I don't know the arm architecture,
-but my guess is that your LPAE has a similar problem to x86's PAE: that
-the pte entry is bigger than the natural word size of the architecture,
-and so cannot be safely accessed in one operation on SMP or PREEMPT -
-there's a danger that you get mismatched top and bottom halves here.
-And how serious that is depends upon the layout of the pte bits.
-
-See comments on gup_get_pte() in arch/x86/mm/gup.c,
-and pte_unmap_same() in mm/memory.c.
-
-And even if arm's LPAE is safe, this is unsafe to present in generic
-code, or not without a big comment that GENERIC_RCU_GUP should not be
-used for such configs; or, better than a comment, a build time error
-according to sizeof(pte_t).
-
-(It turns out not to be a problem at pmd, pud and pgd level: IIRC
-that's because the transitions at those levels are much more restricted,
-limited to setting, then clearing on pagetable teardown - except for
-the THP transitions which the local_irq_disable() guards against.)
-
-Ah, enlightenment: arm (unlike arm64) does not __HAVE_ARCH_PTE_SPECIAL,
-so this "dangerous" code won't be compiled in for it, it's only using
-the stub below.  Well, you can see my point about needing more
-comments, those would have saved me a LOT of time.
-
-> +		struct page *page;
+> +       zram = bdev->bd_disk->private_data;
+> +       if (!zram->limit_pages)
+> +               return 0;
 > +
-> +		if (!pte_present(pte) || pte_special(pte)
-> +			|| (write && !pte_write(pte)))
-
-The " ||" at end of line above please.  And, more importantly,
-we need a pte_numa() test in here nowadays, for generic use.
-
-> +			goto pte_unmap;
+> +       meta = zram->meta;
+> +       total_pages = zs_get_total_pages(meta->mem_pool);
 > +
-> +		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
-> +		page = pte_page(pte);
+> +       if (total_pages >= zram->limit_pages) {
 > +
-> +		if (!page_cache_get_speculative(page))
-> +			goto pte_unmap;
+> +               compr_pages = atomic64_read(&zram->stats.compr_data_size)
+> +                                       >> PAGE_SHIFT;
+> +               if ((100 * compr_pages / total_pages)
+> +                       >= ZRAM_FULLNESS_PERCENT)
+> +                       return 1;
+> +       }
 > +
-> +		if (unlikely(pte_val(pte) != pte_val(*ptep))) {
-> +			put_page(page);
-> +			goto pte_unmap;
-> +		}
+> +       if (atomic_read(&zram->alloc_fail) > ALLOC_FAIL_MAX)
+> +               return 1;
 > +
-> +		pages[*nr] = page;
-> +		(*nr)++;
-> +
-> +	} while (ptep++, addr += PAGE_SIZE, addr != end);
-> +
-> +	ret = 1;
-> +
-> +pte_unmap:
-> +	pte_unmap(ptem);
-> +	return ret;
-> +}
-> +#else
-> +
-> +/*
-> + * If we can't determine whether or not a pte is special, then fail immediately
-> + * for ptes. Note, we can still pin HugeTLB and THP as these are guaranteed not
-> + * to be special.
-
->From that comment, I just thought it very weird that you were compiling
-in any of this HAVE_GENERIC_RCU_GUP code in the !__HAVE_ARCH_PTE_SPECIAL
-case.  But somewhere else, over in the 0/6, you have a very important
-remark about futex on THP tail which makes sense of it: please add that
-explanation here.
-
-> + */
-> +static inline int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
-
-checkpatch.pl is noisy about that line over 80 characters, whereas
-you understandably prefer to keep the stub declaration just like the
-main declaration.  Simply omit the " inline"?  The compiler should be
-able to work that out for itself, and it doesn't matter if it cannot.
-
-> +			 int write, struct page **pages, int *nr)
-> +{
-> +	return 0;
-> +}
-> +#endif /* __HAVE_ARCH_PTE_SPECIAL */
-> +
-> +static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
-> +		unsigned long end, int write, struct page **pages, int *nr)
-> +{
-> +	struct page *head, *page, *tail;
-> +	int refs;
-> +
-> +	if (write && !pmd_write(orig))
-> +		return 0;
-> +
-> +	refs = 0;
-> +	head = pmd_page(orig);
-> +	page = head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
-> +	tail = page;
-> +	do {
-> +		VM_BUG_ON(compound_head(page) != head);
-
-VM_BUG_ON_PAGE() is the latest preference.
-
-> +		pages[*nr] = page;
-> +		(*nr)++;
-> +		page++;
-> +		refs++;
-> +	} while (addr += PAGE_SIZE, addr != end);
-> +
-> +	if (!page_cache_add_speculative(head, refs)) {
-> +		*nr -= refs;
-> +		return 0;
-> +	}
-> +
-> +	if (unlikely(pmd_val(orig) != pmd_val(*pmdp))) {
-> +		*nr -= refs;
-> +		while (refs--)
-> +			put_page(head);
-> +		return 0;
-> +	}
-> +
-> +	/*
-> +	 * Any tail pages need their mapcount reference taken before we
-> +	 * return. (This allows the THP code to bump their ref count when
-> +	 * they are split into base pages).
-> +	 */
-> +	while (refs--) {
-> +		if (PageTail(tail))
-> +			get_huge_page_tail(tail);
-> +		tail++;
-> +	}
-> +
-> +	return 1;
+> +       return 0;
 > +}
 > +
-> +static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
-> +		unsigned long end, int write, struct page **pages, int *nr)
-> +{
-> +	struct page *head, *page, *tail;
-> +	int refs;
-> +
-> +	if (write && !pud_write(orig))
-> +		return 0;
-> +
-> +	refs = 0;
-> +	head = pud_page(orig);
-> +	page = head + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
-> +	tail = page;
-> +	do {
-> +		VM_BUG_ON(compound_head(page) != head);
-
-VM_BUG_ON_PAGE() is the latest preference.
-
-> +		pages[*nr] = page;
-> +		(*nr)++;
-> +		page++;
-> +		refs++;
-> +	} while (addr += PAGE_SIZE, addr != end);
-> +
-> +	if (!page_cache_add_speculative(head, refs)) {
-> +		*nr -= refs;
-> +		return 0;
-> +	}
-> +
-> +	if (unlikely(pud_val(orig) != pud_val(*pudp))) {
-> +		*nr -= refs;
-> +		while (refs--)
-> +			put_page(head);
-> +		return 0;
-> +	}
-> +
-> +	while (refs--) {
-> +		if (PageTail(tail))
-> +			get_huge_page_tail(tail);
-> +		tail++;
-> +	}
-> +
-> +	return 1;
-> +}
-> +
-> +static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
-> +		int write, struct page **pages, int *nr)
-> +{
-> +	unsigned long next;
-> +	pmd_t *pmdp;
-> +
-> +	pmdp = pmd_offset(&pud, addr);
-> +	do {
-> +		pmd_t pmd = ACCESS_ONCE(*pmdp);
-
-I like to do it this way too, but checkpatch.pl prefers a blank line.
-
-> +		next = pmd_addr_end(addr, end);
-> +		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
-> +			return 0;
-> +
-> +		if (unlikely(pmd_trans_huge(pmd) || pmd_huge(pmd))) {
-
-I wonder if you spent any time pondering pmd_large() and whether to
-use it here (and define it in arm): I have forgotten its relationship
-to pmd_huge() and pmd_trans_huge(), and you are probably right to
-steer clear of it.
-
-A pmd_numa() test is needed here nowadays, for generic use.
-
-> +			if (!gup_huge_pmd(pmd, pmdp, addr, next, write,
-> +				pages, nr))
-> +				return 0;
-> +		} else {
-> +			if (!gup_pte_range(pmd, addr, next, write, pages, nr))
-> +				return 0;
-> +		}
-
-You've chosen a different (indentation and else) style here from what
-you use below in the very similar gup_pud_range(): it's easier to see
-the differences if you keep the style the same, personally I prefer
-how you did gup_pud_range().
-
-> +	} while (pmdp++, addr = next, addr != end);
-> +
-> +	return 1;
-> +}
-> +
-> +static int gup_pud_range(pgd_t *pgdp, unsigned long addr, unsigned long end,
-> +		int write, struct page **pages, int *nr)
-> +{
-> +	unsigned long next;
-> +	pud_t *pudp;
-> +
-> +	pudp = pud_offset(pgdp, addr);
-> +	do {
-> +		pud_t pud = ACCESS_ONCE(*pudp);
-
-I like to do it this way too, but checkpatch.pl prefers a blank line.
-
-> +		next = pud_addr_end(addr, end);
-> +		if (pud_none(pud))
-> +			return 0;
-> +		if (pud_huge(pud)) {
-
-I wonder if you spent any time pondering pud_large() and whether to
-use it here (and define it in arm): I have forgotten its relationship
-to pud_huge(), and you are probably right to steer clear of it.
-
-> +			if (!gup_huge_pud(pud, pudp, addr, next, write,
-> +					pages, nr))
-> +				return 0;
-> +		} else if (!gup_pmd_range(pud, addr, next, write, pages, nr))
-> +			return 0;
-> +	} while (pudp++, addr = next, addr != end);
-> +
-> +	return 1;
-> +}
-> +
-> +/*
-> + * Like get_user_pages_fast() except its IRQ-safe in that it won't fall
-> + * back to the regular GUP.
-> + */
-> +int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
-> +			  struct page **pages)
-> +{
-> +	struct mm_struct *mm = current->mm;
-> +	unsigned long addr, len, end;
-> +	unsigned long next, flags;
-> +	pgd_t *pgdp;
-> +	int nr = 0;
-> +
-> +	start &= PAGE_MASK;
-> +	addr = start;
-> +	len = (unsigned long) nr_pages << PAGE_SHIFT;
-> +	end = start + len;
-> +
-> +	if (unlikely(!access_ok(write ? VERIFY_WRITE : VERIFY_READ,
-> +					start, len)))
-> +		return 0;
-> +
-> +	/*
-> +	 * Disable interrupts, we use the nested form as we can already
-> +	 * have interrupts disabled by get_futex_key.
-> +	 *
-> +	 * With interrupts disabled, we block page table pages from being
-> +	 * freed from under us. See mmu_gather_tlb in asm-generic/tlb.h
-> +	 * for more details.
-> +	 *
-> +	 * We do not adopt an rcu_read_lock(.) here as we also want to
-> +	 * block IPIs that come from THPs splitting.
-> +	 */
-> +
-> +	local_irq_save(flags);
-> +	pgdp = pgd_offset(mm, addr);
-> +	do {
-> +		next = pgd_addr_end(addr, end);
-> +		if (pgd_none(*pgdp))
-> +			break;
-> +		else if (!gup_pud_range(pgdp, addr, next, write, pages, &nr))
-> +			break;
-> +	} while (pgdp++, addr = next, addr != end);
-> +	local_irq_restore(flags);
-> +
-> +	return nr;
-> +}
-> +
-
-The x86 version has a comment on this interface:
-it would be helpful to copy that here.
-
-> +int get_user_pages_fast(unsigned long start, int nr_pages, int write,
-> +			struct page **pages)
-> +{
-> +	struct mm_struct *mm = current->mm;
-> +	int nr, ret;
-> +
-> +	start &= PAGE_MASK;
-> +	nr = __get_user_pages_fast(start, nr_pages, write, pages);
-
-The x86 version has a commit from Linus, avoiding the access_ok() check
-in __get_user_pages_fast(): I confess I just did not spend long enough
-trying to understand what that's about, and whether it would be
-important to incorporate here.
-
-> +	ret = nr;
-> +
-> +	if (nr < nr_pages) {
-> +		/* Try to get the remaining pages with get_user_pages */
-> +		start += nr << PAGE_SHIFT;
-> +		pages += nr;
-> +
-> +		down_read(&mm->mmap_sem);
-> +		ret = get_user_pages(current, mm, start,
-> +				     nr_pages - nr, write, 0, pages, NULL);
-> +		up_read(&mm->mmap_sem);
-> +
-> +		/* Have to be a bit careful with return values */
-> +		if (nr > 0) {
-> +			if (ret < 0)
-> +				ret = nr;
-> +			else
-> +				ret += nr;
-> +		}
-> +	}
-> +
-> +	return ret;
-> +}
-> +
-> +#endif /* CONFIG_HAVE_GENERIC_RCU_GUP */
-> -- 
-> 1.9.3
+>  static int zram_swap_hint(struct block_device *bdev,
+>                                 unsigned int hint, void *arg)
+>  {
+> @@ -951,6 +1001,8 @@ static int zram_swap_hint(struct block_device *bdev,
+>
+>         if (hint == SWAP_FREE)
+>                 ret = zram_slot_free_notify(bdev, (unsigned long)arg);
+> +       else if (hint == SWAP_FULL)
+> +               ret = zram_full(bdev, arg);
+>
+>         return ret;
+>  }
+> diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+> index c6ee271317f5..fcf3176a9f15 100644
+> --- a/drivers/block/zram/zram_drv.h
+> +++ b/drivers/block/zram/zram_drv.h
+> @@ -113,6 +113,7 @@ struct zram {
+>         u64 disksize;   /* bytes */
+>         int max_comp_streams;
+>         struct zram_stats stats;
+> +       atomic_t alloc_fail;
+>         /*
+>          * the number of pages zram can consume for storing compressed data
+>          */
+> --
+> 2.0.0
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
