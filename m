@@ -1,144 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
-	by kanga.kvack.org (Postfix) with ESMTP id C82576B0035
-	for <linux-mm@kvack.org>; Tue, 23 Sep 2014 22:53:27 -0400 (EDT)
-Received: by mail-we0-f181.google.com with SMTP id w61so3535481wes.26
-        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 19:53:27 -0700 (PDT)
-Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com [2a00:1450:400c:c05::229])
-        by mx.google.com with ESMTPS id fq8si5085945wib.63.2014.09.23.19.53.25
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 204EA6B0035
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 00:34:30 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id kx10so7927531pab.30
+        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 21:34:29 -0700 (PDT)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id wf10si1180752pab.63.2014.09.23.21.34.28
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 23 Sep 2014 19:53:26 -0700 (PDT)
-Received: by mail-wi0-f169.google.com with SMTP id fb4so5684687wid.4
-        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 19:53:25 -0700 (PDT)
+        Tue, 23 Sep 2014 21:34:29 -0700 (PDT)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so645058pab.0
+        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 21:34:28 -0700 (PDT)
+Date: Tue, 23 Sep 2014 21:34:23 -0700
+From: Guenter Roeck <linux@roeck-us.net>
+Subject: Re: mmotm 2014-09-22-16-57 uploaded
+Message-ID: <20140924043423.GA28993@roeck-us.net>
+References: <5420b8b0.9HdYLyyuTikszzH8%akpm@linux-foundation.org>
+ <20140923190222.GA4662@roeck-us.net>
+ <5421D8B1.1030504@infradead.org>
+ <20140923205707.GA14428@roeck-us.net>
+ <5421E7E1.80203@infradead.org>
+ <20140923215356.GA15481@roeck-us.net>
 MIME-Version: 1.0
-In-Reply-To: <1411344191-2842-3-git-send-email-minchan@kernel.org>
-References: <1411344191-2842-1-git-send-email-minchan@kernel.org> <1411344191-2842-3-git-send-email-minchan@kernel.org>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Tue, 23 Sep 2014 22:53:05 -0400
-Message-ID: <CALZtONCgteaZwvS-oipcs3zK--AfDMSM0bEcFkEemmg_DvZF=A@mail.gmail.com>
-Subject: Re: [PATCH v1 2/5] mm: add full variable in swap_info_struct
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140923215356.GA15481@roeck-us.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>, juno.choi@lge.com
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, David Miller <davem@davemloft.net>
 
-On Sun, Sep 21, 2014 at 8:03 PM, Minchan Kim <minchan@kernel.org> wrote:
-> Now, swap leans on !p->highest_bit to indicate a swap is full.
-> It works well for normal swap because every slot on swap device
-> is used up when the swap is full but in case of zram, swap sees
-> still many empty slot although backed device(ie, zram) is full
-> since zram's limit is over so that it could make trouble when
-> swap use highest_bit to select new slot via free_cluster.
->
-> This patch introduces full varaiable in swap_info_struct
-> to solve the problem.
->
-> Suggested-by: Dan Streetman <ddstreet@ieee.org>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  include/linux/swap.h |  1 +
->  mm/swapfile.c        | 33 +++++++++++++++++++--------------
->  2 files changed, 20 insertions(+), 14 deletions(-)
->
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index ea4f926e6b9b..a3c11c051495 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -224,6 +224,7 @@ struct swap_info_struct {
->         struct swap_cluster_info free_cluster_tail; /* free cluster list tail */
->         unsigned int lowest_bit;        /* index of first free in swap_map */
->         unsigned int highest_bit;       /* index of last free in swap_map */
-> +       bool    full;                   /* whether swap is full or not */
->         unsigned int pages;             /* total of usable pages of swap */
->         unsigned int inuse_pages;       /* number of those currently in use */
->         unsigned int cluster_next;      /* likely index for next allocation */
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index c07f7f4912e9..209112cf8b83 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -558,7 +558,7 @@ checks:
->         }
->         if (!(si->flags & SWP_WRITEOK))
->                 goto no_page;
-> -       if (!si->highest_bit)
-> +       if (si->full)
->                 goto no_page;
->         if (offset > si->highest_bit)
->                 scan_base = offset = si->lowest_bit;
-> @@ -589,6 +589,7 @@ checks:
->                 spin_lock(&swap_avail_lock);
->                 plist_del(&si->avail_list, &swap_avail_head);
->                 spin_unlock(&swap_avail_lock);
-> +               si->full = true;
->         }
->         si->swap_map[offset] = usage;
->         inc_cluster_info_page(si, si->cluster_info, offset);
-> @@ -653,14 +654,14 @@ start_over:
->                 plist_requeue(&si->avail_list, &swap_avail_head);
->                 spin_unlock(&swap_avail_lock);
->                 spin_lock(&si->lock);
-> -               if (!si->highest_bit || !(si->flags & SWP_WRITEOK)) {
-> +               if (si->full || !(si->flags & SWP_WRITEOK)) {
->                         spin_lock(&swap_avail_lock);
->                         if (plist_node_empty(&si->avail_list)) {
->                                 spin_unlock(&si->lock);
->                                 goto nextsi;
->                         }
-> -                       WARN(!si->highest_bit,
-> -                            "swap_info %d in list but !highest_bit\n",
-> +                       WARN(si->full,
-> +                            "swap_info %d in list but swap is full\n",
->                              si->type);
->                         WARN(!(si->flags & SWP_WRITEOK),
->                              "swap_info %d in list but !SWP_WRITEOK\n",
-> @@ -796,21 +797,25 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
->
->         /* free if no reference */
->         if (!usage) {
-> +               bool was_full;
-> +
->                 dec_cluster_info_page(p, p->cluster_info, offset);
->                 if (offset < p->lowest_bit)
->                         p->lowest_bit = offset;
-> -               if (offset > p->highest_bit) {
-> -                       bool was_full = !p->highest_bit;
-> +               if (offset > p->highest_bit)
->                         p->highest_bit = offset;
-> -                       if (was_full && (p->flags & SWP_WRITEOK)) {
-> -                               spin_lock(&swap_avail_lock);
-> -                               WARN_ON(!plist_node_empty(&p->avail_list));
-> -                               if (plist_node_empty(&p->avail_list))
-> -                                       plist_add(&p->avail_list,
-> -                                                 &swap_avail_head);
-> -                               spin_unlock(&swap_avail_lock);
-> -                       }
-> +               was_full = p->full;
-> +
-> +               if (was_full && (p->flags & SWP_WRITEOK)) {
+On Tue, Sep 23, 2014 at 02:53:56PM -0700, Guenter Roeck wrote:
+> 
+> > Neither of these patches enables CONFIG_NET.  They just add dependencies.
+> > 
+> This means CONFIG_NET is now disabled in at least 31 configurations where
+> it used to be enabled before (per my count), and there may be additional
+> impact due to the additional changes of "select X" to "depends on X".
+> 
+> 3.18 is going to be interesting.
+> 
+Actually, turns out the changes are already in 3.17.
 
-was_full was only needed because highest_bit was reset to offset right
-before checking for fullness, so now that ->full is used instead of
-!highest_bit, was_full isn't needed anymore, you can just check
-p->full.
+In case anyone is interested, here is a list of now broken configurations
+(where 'broken' is defined as "CONFIG NET used to be defined, but
+is not defined anymore"). No guarantee for completeness or correctness.
 
+mips:gpr_defconfig
+mips:ip27_defconfig
+mips:jazz_defconfig
+mips:loongson3_defconfig
+mips:malta_defconfig
+mips:malta_kvm_defconfig
+mips:malta_kvm_guest_defconfig
+mips:mtx1_defconfig
+mips:nlm_xlp_defconfig
+mips:nlm_xlr_defconfig
+mips:rm200_defconfig
+parisc:a500_defconfig
+parisc:c8000_defconfig
+powerpc:c2k_defconfig
+powerpc:pmac32_defconfig
+powerpc:ppc64_defconfig
+powerpc:ppc64e_defconfig
+powerpc:pseries_defconfig
+powerpc:pseries_le_defconfig
+s390:default_defconfig
+s390:gcov_defconfig
+s390:performance_defconfig
+s390:zfcpdump_defconfig
+sh:sdk7780_defconfig
+sh:sh2007_defconfig
+sparc:sparc64_defconfig
 
-> +                       spin_lock(&swap_avail_lock);
-> +                       WARN_ON(!plist_node_empty(&p->avail_list));
-> +                       if (plist_node_empty(&p->avail_list))
-> +                               plist_add(&p->avail_list,
-> +                                         &swap_avail_head);
-> +                       spin_unlock(&swap_avail_lock);
-> +                       p->full = false;
->                 }
-> +
->                 atomic_long_inc(&nr_swap_pages);
->                 p->inuse_pages--;
->                 frontswap_invalidate_page(p->type, offset);
-> --
-> 2.0.0
->
+Several ia64 configurations were affected as well, but that
+has already been fixed.
+
+Guenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
