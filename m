@@ -1,167 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 989BC6B0062
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 08:51:46 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id lj1so210701pab.37
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 05:51:46 -0700 (PDT)
-Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
-        by mx.google.com with ESMTPS id rk5si26079161pab.204.2014.09.24.05.51.45
+Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
+	by kanga.kvack.org (Postfix) with ESMTP id C2A8A6B0038
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 09:30:34 -0400 (EDT)
+Received: by mail-lb0-f178.google.com with SMTP id z12so8002110lbi.37
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 06:30:32 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id lm5si22926568lac.7.2014.09.24.06.30.30
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Wed, 24 Sep 2014 05:51:45 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout2.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NCE00J0GP6XWDA0@mailout2.w1.samsung.com> for
- linux-mm@kvack.org; Wed, 24 Sep 2014 13:54:33 +0100 (BST)
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-Subject: [RFC PATCH v3 13/13] kasan: introduce inline instrumentation
-Date: Wed, 24 Sep 2014 16:44:09 +0400
-Message-id: <1411562649-28231-14-git-send-email-a.ryabinin@samsung.com>
-In-reply-to: <1411562649-28231-1-git-send-email-a.ryabinin@samsung.com>
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
- <1411562649-28231-1-git-send-email-a.ryabinin@samsung.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 24 Sep 2014 06:30:31 -0700 (PDT)
+Message-ID: <5422C772.3080700@suse.cz>
+Date: Wed, 24 Sep 2014 15:30:26 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
+MIME-Version: 1.0
+Subject: Re: [RFC PATCH v3 1/4] mm/page_alloc: fix incorrect isolation behavior
+ by rechecking migratetype
+References: <1409040498-10148-1-git-send-email-iamjoonsoo.kim@lge.com> <1409040498-10148-2-git-send-email-iamjoonsoo.kim@lge.com> <540D6961.8060209@suse.cz> <20140915023106.GD2676@js1304-P5Q-DELUXE>
+In-Reply-To: <20140915023106.GD2676@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, x86@kernel.org, linux-mm@kvack.org, Michal Marek <mmarek@suse.cz>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This patch only demonstration how easy this could be achieved.
-GCC doesn't support this feature yet. Two patches required for this:
-    https://gcc.gnu.org/ml/gcc-patches/2014-09/msg00452.html
-    https://gcc.gnu.org/ml/gcc-patches/2014-09/msg00605.html
+On 09/15/2014 04:31 AM, Joonsoo Kim wrote:
+> On Mon, Sep 08, 2014 at 10:31:29AM +0200, Vlastimil Babka wrote:
+>> On 08/26/2014 10:08 AM, Joonsoo Kim wrote:
+>>
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index f86023b..51e0d13 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -740,9 +740,15 @@ static void free_one_page(struct zone *zone,
+>>>   	if (nr_scanned)
+>>>   		__mod_zone_page_state(zone, NR_PAGES_SCANNED, -nr_scanned);
+>>>
+>>> +	if (unlikely(has_isolate_pageblock(zone))) {
+>>> +		migratetype = get_pfnblock_migratetype(page, pfn);
+>>> +		if (is_migrate_isolate(migratetype))
+>>> +			goto skip_counting;
+>>> +	}
+>>> +	__mod_zone_freepage_state(zone, 1 << order, migratetype);
+>>> +
+>>> +skip_counting:
+>>
+>> Here, wouldn't a simple 'else __mod_zone_freepage_state...' look
+>> better than goto + label? (same for the following 2 patches). Or
+>> does that generate worse code?
+>
+> To remove goto label, we need two __mod_zone_freepage_state() like
+> as below. On my system, it doesn't generate worse code, but, I am not
+> sure that this is true if more logic would be added. I think that
+> goto + label is better.
 
-In inline instrumentation mode compiler directly inserts code
-checking shadow memory instead of __asan_load/__asan_store
-calls.
-This is usually faster than outline. In some workloads inline is
-2 times faster than outline instrumentation.
+Oh right, I missed that. It's a bit subtle, but I don't see a nicer 
+solution right now.
 
-The downside of inline instrumentation is bloated kernel's .text size:
+> +	if (unlikely(has_isolate_pageblock(zone))) {
+> +		migratetype = get_pfnblock_migratetype(page, pfn);
+> +               if (!is_migrate_isolate(migratetype))
+> +                       __mod_zone_freepage_state(zone, 1 << order, migratetype);
+> +       } else {
+> +               __mod_zone_freepage_state(zone, 1 << order, migratetype);
+>          }
+>
 
-size noasan/vmlinux
-   text     data     bss      dec     hex    filename
-11759720  1566560  946176  14272456  d9c7c8  noasan/vmlinux
+Yeah that would be uglier I guess.
 
-size outline/vmlinux
-   text    data     bss      dec      hex    filename
-16553474  1602592  950272  19106338  1238a22 outline/vmlinux
+> Anyway, What do you think which one is better, either v2 or v3? Still, v3? :)
 
-size inline/vmlinux
-   text    data     bss      dec      hex    filename
-32064759  1598688  946176  34609623  21019d7 inline/vmlinux
+Yeah v3 is much better than v1 was, and better for backporting than v2. 
+The changelogs also look quite clear. The overhead shouldn't be bad with 
+the per-zone flag guarding get_pfnblock_migratetype.
 
-Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
----
- Makefile          |  5 +++++
- lib/Kconfig.kasan | 24 ++++++++++++++++++++++++
- mm/kasan/report.c | 45 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 74 insertions(+)
+I'm just not sure about patch 4 and potentially leaving unmerged budies 
+behind. How would it look if instead we made sure isolation works on 
+whole MAX_ORDER blocks instead?
 
-diff --git a/Makefile b/Makefile
-index 6cefe5e..fe7c534 100644
---- a/Makefile
-+++ b/Makefile
-@@ -773,6 +773,11 @@ KBUILD_CFLAGS += $(call cc-option, -fno-inline-functions-called-once)
- endif
- 
- ifdef CONFIG_KASAN
-+ifdef CONFIG_KASAN_INLINE
-+CFLAGS_KASAN += $(call cc-option, -fasan-shadow-offset=$(CONFIG_KASAN_SHADOW_OFFSET)) \
-+		 $(call cc-option, --param asan-instrumentation-with-call-threshold=10000)
-+endif
-+
-   ifeq ($(CFLAGS_KASAN),)
-     $(warning Cannot use CONFIG_KASAN: \
- 	      -fsanitize=kernel-address not supported by compiler)
-diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
-index faddb0e..c4ac040 100644
---- a/lib/Kconfig.kasan
-+++ b/lib/Kconfig.kasan
-@@ -27,4 +27,28 @@ config TEST_KASAN
- 	  out of bounds accesses, use after free. It is usefull for testing
- 	  kernel debugging features like kernel address sanitizer.
- 
-+choice
-+	prompt "Instrumentation type"
-+	depends on KASAN
-+	default KASAN_INLINE if X86_64
-+
-+config KASAN_OUTLINE
-+	bool "Outline instrumentation"
-+	help
-+	  Before every memory access compiler insert function call
-+	  __asan_load*/__asan_store*. These functions performs check
-+	  of shadow memory. This is slower than inline instrumentation,
-+	  however it doesn't bloat size of kernel's .text section so
-+	  much as inline does.
-+
-+config KASAN_INLINE
-+	bool "Inline instrumentation"
-+	help
-+	  Compiler directly inserts code checking shadow memory before
-+	  memory accesses. This is faster than outline (in some workloads
-+	  it gives about x2 boost over outline instrumentation), but
-+	  make kernel's .text size much bigger.
-+
-+endchoice
-+
- endif
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index c42f6ba..a9262f8 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -212,3 +212,48 @@ void kasan_report_user_access(struct access_info *info)
- 		"=================================\n");
- 	spin_unlock_irqrestore(&report_lock, flags);
- }
-+
-+#define CALL_KASAN_REPORT(__addr, __size, __is_write) \
-+	struct access_info info;                      \
-+	info.access_addr = __addr;                    \
-+	info.access_size = __size;                    \
-+	info.is_write = __is_write;                   \
-+	info.ip = _RET_IP_;                           \
-+	kasan_report_error(&info)
-+
-+#define DEFINE_ASAN_REPORT_LOAD(size)                     \
-+void __asan_report_recover_load##size(unsigned long addr) \
-+{                                                         \
-+	CALL_KASAN_REPORT(addr, size, false);             \
-+}                                                         \
-+EXPORT_SYMBOL(__asan_report_recover_load##size)
-+
-+#define DEFINE_ASAN_REPORT_STORE(size)                     \
-+void __asan_report_recover_store##size(unsigned long addr) \
-+{                                                          \
-+	CALL_KASAN_REPORT(addr, size, true);               \
-+}                                                          \
-+EXPORT_SYMBOL(__asan_report_recover_store##size)
-+
-+DEFINE_ASAN_REPORT_LOAD(1);
-+DEFINE_ASAN_REPORT_LOAD(2);
-+DEFINE_ASAN_REPORT_LOAD(4);
-+DEFINE_ASAN_REPORT_LOAD(8);
-+DEFINE_ASAN_REPORT_LOAD(16);
-+DEFINE_ASAN_REPORT_STORE(1);
-+DEFINE_ASAN_REPORT_STORE(2);
-+DEFINE_ASAN_REPORT_STORE(4);
-+DEFINE_ASAN_REPORT_STORE(8);
-+DEFINE_ASAN_REPORT_STORE(16);
-+
-+void __asan_report_recover_load_n(unsigned long addr, size_t size)
-+{
-+	CALL_KASAN_REPORT(addr, size, false);
-+}
-+EXPORT_SYMBOL(__asan_report_recover_load_n);
-+
-+void __asan_report_recover_store_n(unsigned long addr, size_t size)
-+{
-+	CALL_KASAN_REPORT(addr, size, true);
-+}
-+EXPORT_SYMBOL(__asan_report_recover_store_n);
--- 
-2.1.1
+Vlastimil
+
+> Thanks.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
