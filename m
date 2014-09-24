@@ -1,248 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A1DA6B0039
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 11:09:16 -0400 (EDT)
-Received: by mail-wi0-f180.google.com with SMTP id q5so7502582wiv.13
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 08:09:15 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id p9si14065936wjy.126.2014.09.24.08.09.14
+Received: from mail-qc0-f175.google.com (mail-qc0-f175.google.com [209.85.216.175])
+	by kanga.kvack.org (Postfix) with ESMTP id EBFED6B0036
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 11:10:49 -0400 (EDT)
+Received: by mail-qc0-f175.google.com with SMTP id o8so3591575qcw.6
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 08:10:49 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e14si16226408qaa.39.2014.09.24.08.10.48
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Sep 2014 08:09:15 -0700 (PDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 3/3] mm: memcontrol: fix transparent huge page allocations under pressure
-Date: Wed, 24 Sep 2014 11:08:58 -0400
-Message-Id: <1411571338-8178-4-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1411571338-8178-1-git-send-email-hannes@cmpxchg.org>
-References: <1411571338-8178-1-git-send-email-hannes@cmpxchg.org>
+        Wed, 24 Sep 2014 08:10:49 -0700 (PDT)
+Message-ID: <5422DEDE.1060004@redhat.com>
+Date: Wed, 24 Sep 2014 17:10:22 +0200
+From: Jerome Marchand <jmarchan@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v1 4/5] zram: add swap full hint
+References: <1411344191-2842-1-git-send-email-minchan@kernel.org>	<1411344191-2842-5-git-send-email-minchan@kernel.org>	<20140922141118.de46ae5e54099cf2b39c8c5b@linux-foundation.org>	<20140923045602.GC8325@bbox> <20140923141755.b7854bae484cfe434797be02@linux-foundation.org>
+In-Reply-To: <20140923141755.b7854bae484cfe434797be02@linux-foundation.org>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ protocol="application/pgp-signature";
+ boundary="EmHDdKerlwaUAa7w9h7n2fPu1bvmAkW9v"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Greg Thelen <gthelen@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Dave Hansen <dave@sr71.net>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>, juno.choi@lge.com
 
-In a memcg with even just moderate cache pressure, success rates for
-transparent huge page allocations drop to zero, wasting a lot of
-effort that the allocator puts into assembling these pages.
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--EmHDdKerlwaUAa7w9h7n2fPu1bvmAkW9v
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-The reason for this is that the memcg reclaim code was never designed
-for higher-order charges.  It reclaims in small batches until there is
-room for at least one page.  Huge page charges only succeed when these
-batches add up over a series of huge faults, which is unlikely under
-any significant load involving order-0 allocations in the group.
+On 09/23/2014 11:17 PM, Andrew Morton wrote:
+> On Tue, 23 Sep 2014 13:56:02 +0900 Minchan Kim <minchan@kernel.org> wro=
+te:
+>=20
+>>>
+>>>> +#define ZRAM_FULLNESS_PERCENT 80
+>>>
+>>> We've had problems in the past where 1% is just too large an incremen=
+t
+>>> for large systems.
+>>
+>> So, do you want fullness_bytes like dirty_bytes?
+>=20
+> Firstly I'd like you to think about whether we're ever likely to have
+> similar granularity problems with this tunable.  If not then forget
+> about it.
+>=20
+> If yes then we should do something.  I don't like the "bytes" thing
+> much because it requires that the operator know the pool size
+> beforehand, and any time that changes, the "bytes" needs hanging too.=20
+> Ratios are nice but percent is too coarse.  Maybe kernel should start
+> using "ppm" for ratios, parts per million.  hrm.
 
-Remove that loop on the memcg side in favor of passing the actual
-reclaim goal to direct reclaim, which is already set up and optimized
-to meet higher-order goals efficiently.
+An other possibility is to use decimal fractions. AFAIK, lustre fs uses
+them already for its procfs entries.
 
-This brings memcg's THP policy in line with the system policy: if the
-allocator painstakingly assembles a hugepage, memcg will at least make
-an honest effort to charge it.  As a result, transparent hugepage
-allocation rates amid cache activity are drastically improved:
+>=20
+>>>> @@ -711,6 +732,7 @@ static void zram_reset_device(struct zram *zram,=
+ bool reset_capacity)
+>>>>  	down_write(&zram->init_lock);
+>>>> =20
+>>>>  	zram->limit_pages =3D 0;
+>>>> +	atomic_set(&zram->alloc_fail, 0);
+>>>> =20
+>>>>  	if (!init_done(zram)) {
+>>>>  		up_write(&zram->init_lock);
+>>>> @@ -944,6 +966,34 @@ static int zram_slot_free_notify(struct block_d=
+evice *bdev,
+>>>>  	return 0;
+>>>>  }
+>>>> =20
+>>>> +static int zram_full(struct block_device *bdev, void *arg)
+>>>
+>>> This could return a bool.  That implies that zram_swap_hint should
+>>> return bool too, but as we haven't been told what the zram_swap_hint
+>>> return value does, I'm a bit stumped.
+>>
+>> Hmm, currently, SWAP_FREE doesn't use return and SWAP_FULL uses return=
 
-                                      vanilla                 patched
-pgalloc                 4717530.80 (  +0.00%)   4451376.40 (  -5.64%)
-pgfault                  491370.60 (  +0.00%)    225477.40 ( -54.11%)
-pgmajfault                    2.00 (  +0.00%)         1.80 (  -6.67%)
-thp_fault_alloc               0.00 (  +0.00%)       531.60 (+100.00%)
-thp_fault_fallback          749.00 (  +0.00%)       217.40 ( -70.88%)
+>> as bool so in the end, we can change it as bool but I want to remain i=
+t
+>> as int for the future. At least, we might use it as propagating error
+>> in future. Instead, I will use *arg to return the result instead of
+>> return val. But I'm not strong so if you want to remove return val,
+>> I will do it. For clarifictaion, please tell me again if you want.
+>=20
+> I'm easy, as long as it makes sense, is understandable by people other
+> than he-who-wrote-it and doesn't use argument names such as "arg".
+>=20
+>=20
 
-[ Note: this may in turn increase memory consumption from internal
-  fragmentation, which is an inherent risk of transparent hugepages.
-  Some setups may have to adjust the memcg limits accordingly to
-  accomodate this - or, if the machine is already packed to capacity,
-  disable the transparent huge page feature. ]
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
----
- include/linux/swap.h |  6 +++--
- mm/memcontrol.c      | 69 +++++++++++++---------------------------------------
- mm/vmscan.c          |  7 +++---
- 3 files changed, 25 insertions(+), 57 deletions(-)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index ea4f926e6b9b..37a585beef5c 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -327,8 +327,10 @@ extern void lru_cache_add_active_or_unevictable(struct page *page,
- extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- 					gfp_t gfp_mask, nodemask_t *mask);
- extern int __isolate_lru_page(struct page *page, isolate_mode_t mode);
--extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
--						  gfp_t gfp_mask, bool noswap);
-+extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
-+						  unsigned long nr_pages,
-+						  gfp_t gfp_mask,
-+						  bool may_swap);
- extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
- 						gfp_t gfp_mask, bool noswap,
- 						struct zone *zone,
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 89c920156c2a..c2c75262a209 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -478,14 +478,6 @@ enum res_type {
- #define OOM_CONTROL		(0)
- 
- /*
-- * Reclaim flags for mem_cgroup_hierarchical_reclaim
-- */
--#define MEM_CGROUP_RECLAIM_NOSWAP_BIT	0x0
--#define MEM_CGROUP_RECLAIM_NOSWAP	(1 << MEM_CGROUP_RECLAIM_NOSWAP_BIT)
--#define MEM_CGROUP_RECLAIM_SHRINK_BIT	0x1
--#define MEM_CGROUP_RECLAIM_SHRINK	(1 << MEM_CGROUP_RECLAIM_SHRINK_BIT)
--
--/*
-  * The memcg_create_mutex will be held whenever a new cgroup is created.
-  * As a consequence, any change that needs to protect against new child cgroups
-  * appearing has to hold it as well.
-@@ -1791,40 +1783,6 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 			 NULL, "Memory cgroup out of memory");
- }
- 
--static unsigned long mem_cgroup_reclaim(struct mem_cgroup *memcg,
--					gfp_t gfp_mask,
--					unsigned long flags)
--{
--	unsigned long total = 0;
--	bool noswap = false;
--	int loop;
--
--	if (flags & MEM_CGROUP_RECLAIM_NOSWAP)
--		noswap = true;
--
--	for (loop = 0; loop < MEM_CGROUP_MAX_RECLAIM_LOOPS; loop++) {
--		if (loop)
--			drain_all_stock_async(memcg);
--		total += try_to_free_mem_cgroup_pages(memcg, gfp_mask, noswap);
--		/*
--		 * Allow limit shrinkers, which are triggered directly
--		 * by userspace, to catch signals and stop reclaim
--		 * after minimal progress, regardless of the margin.
--		 */
--		if (total && (flags & MEM_CGROUP_RECLAIM_SHRINK))
--			break;
--		if (mem_cgroup_margin(memcg))
--			break;
--		/*
--		 * If nothing was reclaimed after two attempts, there
--		 * may be no reclaimable pages in this hierarchy.
--		 */
--		if (loop && !total)
--			break;
--	}
--	return total;
--}
--
- /**
-  * test_mem_cgroup_node_reclaimable
-  * @memcg: the target memcg
-@@ -2527,8 +2485,9 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	struct mem_cgroup *mem_over_limit;
- 	struct res_counter *fail_res;
- 	unsigned long nr_reclaimed;
--	unsigned long flags = 0;
- 	unsigned long long size;
-+	bool may_swap = true;
-+	bool drained = false;
- 	int ret = 0;
- 
- 	if (mem_cgroup_is_root(memcg))
-@@ -2547,7 +2506,7 @@ retry:
- 		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
- 	} else {
- 		mem_over_limit = mem_cgroup_from_res_counter(fail_res, memsw);
--		flags |= MEM_CGROUP_RECLAIM_NOSWAP;
-+		may_swap = false;
- 	}
- 
- 	if (batch > nr_pages) {
-@@ -2572,11 +2531,18 @@ retry:
- 	if (!(gfp_mask & __GFP_WAIT))
- 		goto nomem;
- 
--	nr_reclaimed = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
-+	nr_reclaimed = try_to_free_mem_cgroup_pages(mem_over_limit, nr_pages,
-+						    gfp_mask, may_swap);
- 
- 	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
- 		goto retry;
- 
-+	if (!drained) {
-+		drain_all_stock_async(mem_over_limit);
-+		drained = true;
-+		goto retry;
-+	}
-+
- 	if (gfp_mask & __GFP_NORETRY)
- 		goto nomem;
- 	/*
-@@ -3652,8 +3618,8 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
- 		if (!ret)
- 			break;
- 
--		mem_cgroup_reclaim(memcg, GFP_KERNEL,
--				   MEM_CGROUP_RECLAIM_SHRINK);
-+		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, true);
-+
- 		curusage = res_counter_read_u64(&memcg->res, RES_USAGE);
- 		/* Usage is reduced ? */
- 		if (curusage >= oldusage)
-@@ -3703,9 +3669,8 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
- 		if (!ret)
- 			break;
- 
--		mem_cgroup_reclaim(memcg, GFP_KERNEL,
--				   MEM_CGROUP_RECLAIM_NOSWAP |
--				   MEM_CGROUP_RECLAIM_SHRINK);
-+		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, false);
-+
- 		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
- 		/* Usage is reduced ? */
- 		if (curusage >= oldusage)
-@@ -3954,8 +3919,8 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
- 		if (signal_pending(current))
- 			return -EINTR;
- 
--		progress = try_to_free_mem_cgroup_pages(memcg, GFP_KERNEL,
--						false);
-+		progress = try_to_free_mem_cgroup_pages(memcg, 1,
-+							GFP_KERNEL, true);
- 		if (!progress) {
- 			nr_retries--;
- 			/* maybe some writeback is necessary */
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 06123f20a326..dcb47074ae03 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2759,21 +2759,22 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *memcg,
- }
- 
- unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
-+					   unsigned long nr_pages,
- 					   gfp_t gfp_mask,
--					   bool noswap)
-+					   bool may_swap)
- {
- 	struct zonelist *zonelist;
- 	unsigned long nr_reclaimed;
- 	int nid;
- 	struct scan_control sc = {
--		.nr_to_reclaim = SWAP_CLUSTER_MAX,
-+		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
- 		.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
- 				(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK),
- 		.target_mem_cgroup = memcg,
- 		.priority = DEF_PRIORITY,
- 		.may_writepage = !laptop_mode,
- 		.may_unmap = 1,
--		.may_swap = !noswap,
-+		.may_swap = may_swap,
- 	};
- 
- 	/*
--- 
-2.1.0
+--EmHDdKerlwaUAa7w9h7n2fPu1bvmAkW9v
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQEcBAEBAgAGBQJUIt7eAAoJEHTzHJCtsuoCc1gH+QGCqyId6qZj+DM0/AunjLCs
+ufVK4Prb7RPScj6TTYK1XA2BDuiy3Qdkcef6ZJzJp+qQHWOkcL6GTr+C+xNt3Zd+
+V+EDc7pSd55l/Ej9NpxhbOBOX3opT4OkuOSjp8Y6zuvLKHaa2ffjMQcBruwuQySB
+o4bQ1RE96OfeVXBeLXkzZCzmF8RHwIQnMNSAvhbxq7aONwD6CGPt++YkJXSPS9/k
+ZYAPbKFnEpb8VqkpXE5BZ9dxUMXB9UZTuIfOXDDmtqLc9oXUozCjXK0habgoieBP
+ldyKjnxS/l9QHFRjiy2SaQxNBKtjLAsdmLOWIjH8xjdHhbzOGFsoPYBcLfwbgT0=
+=VF1L
+-----END PGP SIGNATURE-----
+
+--EmHDdKerlwaUAa7w9h7n2fPu1bvmAkW9v--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
