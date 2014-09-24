@@ -1,101 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
-	by kanga.kvack.org (Postfix) with ESMTP id CDA9D6B0037
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 03:04:23 -0400 (EDT)
-Received: by mail-we0-f179.google.com with SMTP id u56so5701758wes.10
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 00:04:23 -0700 (PDT)
-Received: from mail-wi0-x22b.google.com (mail-wi0-x22b.google.com [2a00:1450:400c:c05::22b])
-        by mx.google.com with ESMTPS id vm3si18325288wjc.3.2014.09.24.00.04.22
+Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 4318C6B0035
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 03:09:44 -0400 (EDT)
+Received: by mail-la0-f49.google.com with SMTP id pn19so10118736lab.36
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 00:09:43 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dc3si13295863lac.13.2014.09.24.00.09.41
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 24 Sep 2014 00:04:22 -0700 (PDT)
-Received: by mail-wi0-f171.google.com with SMTP id ho1so6271406wib.4
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 00:04:22 -0700 (PDT)
-Date: Wed, 24 Sep 2014 09:04:18 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 1/5] SCHED: add some "wait..on_bit...timeout()"
- interfaces.
-Message-ID: <20140924070418.GA990@gmail.com>
-References: <20140924012422.4838.29188.stgit@notabene.brown>
- <20140924012832.4838.59410.stgit@notabene.brown>
+        Wed, 24 Sep 2014 00:09:42 -0700 (PDT)
+Date: Wed, 24 Sep 2014 09:09:39 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm, debug: mm-introduce-vm_bug_on_mm-fix-fix.patch
+Message-ID: <20140924070939.GA26917@dhcp22.suse.cz>
+References: <5420b8b0.9HdYLyyuTikszzH8%akpm@linux-foundation.org>
+ <1411464279-20158-1-git-send-email-mhocko@suse.cz>
+ <20140923112848.GA10046@dhcp22.suse.cz>
+ <83907.1411489189@turing-police.cc.vt.edu>
+ <20140923135258.faf628403a58701da5a981df@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140924012832.4838.59410.stgit@notabene.brown>
+In-Reply-To: <20140923135258.faf628403a58701da5a981df@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.de>
-Cc: Trond Myklebust <trond.myklebust@primarydata.com>, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jeff Layton <jeff.layton@primarydata.com>, Peter Zijlstra <peterz@infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Valdis.Kletnieks@vt.edu, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, Sasha Levin <sasha.levin@oracle.com>
 
+On Tue 23-09-14 13:52:58, Andrew Morton wrote:
+> On Tue, 23 Sep 2014 12:19:49 -0400 Valdis.Kletnieks@vt.edu wrote:
+> 
+> > On Tue, 23 Sep 2014 13:28:48 +0200, Michal Hocko said:
+> > > And there is another one hitting during randconfig. The patch makes my
+> > > eyes bleed
+> > 
+> > Amen.  But I'm not seeing a better fix either.
+> > 
+> > >  #if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
+> > > -		"tlb_flush_pending %d\n",
+> > > +		"tlb_flush_pending %d\n"
+> > >  #endif
+> > > -		mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+> > > +		, mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+> > 
+> > I'm surprised that checkpatch doesn't explode on this.  And I'm starting
+> > a pool on how soon somebody submits a patch to "fix" this. :)
+> 
+> It is all pretty godawful.  We can eliminate the tricks with the comma
+> separators by adding an always-there, does-nothing argument:
 
-* NeilBrown <neilb@suse.de> wrote:
+yes, this is safer if we have more conditional fields in mm_struct later
+on. It is also less awful. Thanks!
 
-> @@ -859,6 +860,8 @@ int wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
+> 
+> --- a/mm/debug.c~mm-debug-mm-introduce-vm_bug_on_mm-fix-fixpatch-fix
+> +++ a/mm/debug.c
+> @@ -197,7 +197,9 @@ void dump_mm(const struct mm_struct *mm)
+>  #if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
+>  		"tlb_flush_pending %d\n"
+>  #endif
+> -		, mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+> +		"%s",	/* This is here to hold the comma */
+> +
+> +		mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
+>  #ifdef CONFIG_MMU
+>  		mm->get_unmapped_area,
+>  #endif
+> @@ -218,16 +220,17 @@ void dump_mm(const struct mm_struct *mm)
+>  #ifdef CONFIG_MEMCG
+>  		mm->owner,
+>  #endif
+> -		mm->exe_file
+> +		mm->exe_file,
+>  #ifdef CONFIG_MMU_NOTIFIER
+> -		, mm->mmu_notifier_mm
+> +		mm->mmu_notifier_mm,
+>  #endif
+>  #ifdef CONFIG_NUMA_BALANCING
+> -		, mm->numa_next_scan, mm->numa_scan_offset, mm->numa_scan_seq
+> +		mm->numa_next_scan, mm->numa_scan_offset, mm->numa_scan_seq,
+>  #endif
+>  #if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
+> -		, mm->tlb_flush_pending
+> +		mm->tlb_flush_pending,
+>  #endif
+> +		""		/* This is here to not have a comma! */
+>  		);
 >  
->  extern int bit_wait(struct wait_bit_key *);
->  extern int bit_wait_io(struct wait_bit_key *);
-> +extern int bit_wait_timeout(struct wait_bit_key *);
-> +extern int bit_wait_io_timeout(struct wait_bit_key *);
->  
->  /**
->   * wait_on_bit - wait for a bit to be cleared
-> diff --git a/kernel/sched/wait.c b/kernel/sched/wait.c
-> index 15cab1a4f84e..380678b3cba4 100644
-> --- a/kernel/sched/wait.c
-> +++ b/kernel/sched/wait.c
-> @@ -343,6 +343,18 @@ int __sched out_of_line_wait_on_bit(void *word, int bit,
->  }
->  EXPORT_SYMBOL(out_of_line_wait_on_bit);
->  
-> +int __sched out_of_line_wait_on_bit_timeout(
-> +	void *word, int bit, wait_bit_action_f *action,
-> +	unsigned mode, unsigned long timeout)
-> +{
-> +	wait_queue_head_t *wq = bit_waitqueue(word, bit);
-> +	DEFINE_WAIT_BIT(wait, word, bit);
-> +
-> +	wait.key.timeout = jiffies + timeout;
-> +	return __wait_on_bit(wq, &wait, action, mode);
-> +}
-> +EXPORT_SYMBOL(out_of_line_wait_on_bit_timeout);
-> +
->  int __sched
->  __wait_on_bit_lock(wait_queue_head_t *wq, struct wait_bit_queue *q,
->  			wait_bit_action_f *action, unsigned mode)
-> @@ -520,3 +532,27 @@ __sched int bit_wait_io(struct wait_bit_key *word)
->  	return 0;
->  }
->  EXPORT_SYMBOL(bit_wait_io);
-> +
-> +__sched int bit_wait_timeout(struct wait_bit_key *word)
-> +{
-> +	unsigned long now = ACCESS_ONCE(jiffies);
-> +	if (signal_pending_state(current->state, current))
-> +		return 1;
-> +	if (time_after_eq(now, word->timeout))
-> +		return -EAGAIN;
-> +	schedule_timeout(word->timeout - now);
-> +	return 0;
-> +}
-> +EXPORT_SYMBOL(bit_wait_timeout);
-> +
-> +__sched int bit_wait_io_timeout(struct wait_bit_key *word)
-> +{
-> +	unsigned long now = ACCESS_ONCE(jiffies);
-> +	if (signal_pending_state(current->state, current))
-> +		return 1;
-> +	if (time_after_eq(now, word->timeout))
-> +		return -EAGAIN;
-> +	io_schedule_timeout(word->timeout - now);
-> +	return 0;
-> +}
-> +EXPORT_SYMBOL(bit_wait_io_timeout);
+>  		dump_flags(mm->def_flags, vmaflags_names,
+> _
+> 
 
-New scheduler APIs should be exported via EXPORT_SYMBOL_GPL().
-
-Thanks,
-
-	Ingo
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
