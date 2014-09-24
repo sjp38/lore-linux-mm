@@ -1,60 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 323976B0036
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 11:22:36 -0400 (EDT)
-Received: by mail-la0-f49.google.com with SMTP id pn19so10749686lab.22
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 08:22:35 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r7si23315122lae.1.2014.09.24.08.22.33
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 24 Sep 2014 08:22:33 -0700 (PDT)
-Message-ID: <5422E1B8.9000100@suse.cz>
-Date: Wed, 24 Sep 2014 17:22:32 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id EB7466B0036
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 11:43:12 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id fp1so4681330pdb.0
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 08:43:12 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id h4si26993138pat.27.2014.09.24.08.43.11
+        for <linux-mm@kvack.org>;
+        Wed, 24 Sep 2014 08:43:11 -0700 (PDT)
+Date: Wed, 24 Sep 2014 11:43:07 -0400
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH v10 09/21] Replace the XIP page fault handler with the
+ DAX page fault handler
+Message-ID: <20140924154307.GO27730@localhost.localdomain>
+References: <cover.1409110741.git.matthew.r.wilcox@intel.com>
+ <4d71d7a13bec3acf703e26bf6b0c7da21a71ebe0.1409110741.git.matthew.r.wilcox@intel.com>
+ <20140903074724.GE20473@dastard>
+ <20140910152337.GF27730@localhost.localdomain>
+ <20140911030926.GO20518@dastard>
 MIME-Version: 1.0
-Subject: Re: [RFC] mm: show deferred_compaction state in page alloc fail
-References: <1409038219-21483-1-git-send-email-minchan@kernel.org>
-In-Reply-To: <1409038219-21483-1-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140911030926.GO20518@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 08/26/2014 09:30 AM, Minchan Kim wrote:
-> Recently, I saw several reports that high order allocation failed
-> although there were many freeable pages but it's hard to reproduce
-> so asking them to reproduce the problem several time is really painful.
->
-> A culprit I doubt is compaction deferring logic which prevent
-> compaction for a while so high order allocation could be fail.
+On Thu, Sep 11, 2014 at 01:09:26PM +1000, Dave Chinner wrote:
+> On Wed, Sep 10, 2014 at 11:23:37AM -0400, Matthew Wilcox wrote:
+> > On Wed, Sep 03, 2014 at 05:47:24PM +1000, Dave Chinner wrote:
+> > > > +	error = get_block(inode, block, &bh, 0);
+> > > > +	if (!error && (bh.b_size < PAGE_SIZE))
+> > > > +		error = -EIO;
+> > > > +	if (error)
+> > > > +		goto unlock_page;
+> > > 
+> > > page fault into unwritten region, returns buffer_unwritten(bh) ==
+> > > true. Hence buffer_written(bh) is false, and we take this branch:
+> > > 
+> > > > +	if (!buffer_written(&bh) && !vmf->cow_page) {
+> > > > +		if (vmf->flags & FAULT_FLAG_WRITE) {
+> > > > +			error = get_block(inode, block, &bh, 1);
+> > > 
+> > > Exactly what are you expecting to happen here? We don't do
+> > > allocation because there are already unwritten blocks over this
+> > > extent, and so bh will be unchanged when returning. i.e. it will
+> > > still be mapping an unwritten extent.
+> > 
+> > I was expecting calling get_block() on an unwritten extent to convert it
+> > to a written extent.  Your suggestion below of using b_end_io() to do that
+> > is a better idea.
+> > 
+> > So this should be:
+> > 
+> > 	if (!buffer_mapped(&bh) && !vmf->cow_page) {
+> > 
+> > ... right?
+> 
+> Yes, that is the conclusion I reached as well. ;)
 
-Could be that, but also the non-determinism of watermark checking, where 
-compaction thinks allocation should succeed, but in the end it won't.
+Now I know why I was expecting get_block() on an unwritten extent to
+convert it to a written extent.  That's the way ext4 behaves!
 
-> It would be more clear if we can see the stat which can show
-> current zone's compaction deferred state when allocatil fail.
->
-> It's a RFC and never test it. I just get an idea with
-> handling another strange high order allocation fail.
-> Any comments are welcome.
+[  236.660772] got bh ffffffffa06e3bd0 1000
+[  236.660814] got bh for write ffffffffa06e3bd0 60
+[  236.660821] calling end_io ffffffffa06e3bd0 60
 
-It's quite large patch. Maybe it could be much simpler if you did not 
-print just true/false but:
+(1000 is BH_Unwritten, 60 is BH_Mapped | BH_New)
 
-1) true/false based on zone->compact_considered < defer_limit, ignoring
-    zone->compact_order_failed
+The code producing this output:
 
-2) zone->compact_order_failed value itself
+        error = get_block(inode, block, &bh, 0);
+printk("got bh %p %lx\n", bh.b_end_io, bh.b_state);
+        if (!error && (bh.b_size < PAGE_SIZE))
+                error = -EIO;
+        if (error)
+                goto unlock_page;
 
-Then you wouldn't need to pass the allocation order around like you do.
-The "allocation failed" message tells you the order which was attempted, 
-and then it's easy for the user to compare with the reported
-zone->compact_order_failed and decide if the defer status actually 
-applies or not.
+        if (!buffer_mapped(&bh) && !vmf->cow_page) {
+                if (vmf->flags & FAULT_FLAG_WRITE) {
+                        error = get_block(inode, block, &bh, 1);
+printk("got bh for write %p %lx\n", bh.b_end_io, bh.b_state);
 
+# xfs_io -f -c "truncate 20k" -c "fiemap -v" -c "falloc 0 20k" -c "fiemap -v" -c "mmap -w 0 20k" -c "fiemap -v" -c "mwrite 4k 4k" -c "fiemap -v" /mnt/ram0/b
+/mnt/ram0/b:
+/mnt/ram0/b:
+ EXT: FILE-OFFSET      BLOCK-RANGE      TOTAL FLAGS
+   0: [0..39]:         263176..263215      40 0x801
+/mnt/ram0/b:
+ EXT: FILE-OFFSET      BLOCK-RANGE      TOTAL FLAGS
+   0: [0..39]:         263176..263215      40 0x801
+/mnt/ram0/b:
+ EXT: FILE-OFFSET      BLOCK-RANGE      TOTAL FLAGS
+   0: [0..39]:         263176..263215      40   0x1
+
+Actually, this looks wrong ... ext4 should only have converted one block
+of the extent to written, not all of it.  I think that means ext4 is
+exposing stale data :-(  I'll keep digging.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
