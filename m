@@ -1,45 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id F245F6B0037
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 11:14:29 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id r10so8755813pdi.39
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 08:14:29 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id xd1si24857108pab.234.2014.09.24.08.14.28
+Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 323976B0036
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 11:22:36 -0400 (EDT)
+Received: by mail-la0-f49.google.com with SMTP id pn19so10749686lab.22
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 08:22:35 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r7si23315122lae.1.2014.09.24.08.22.33
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Sep 2014 08:14:28 -0700 (PDT)
-Date: Wed, 24 Sep 2014 19:14:21 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [patch 2/3] mm: memcontrol: simplify detecting when the
- memory+swap limit is hit
-Message-ID: <20140924151421.GA29445@esperanza>
-References: <1411571338-8178-1-git-send-email-hannes@cmpxchg.org>
- <1411571338-8178-3-git-send-email-hannes@cmpxchg.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 24 Sep 2014 08:22:33 -0700 (PDT)
+Message-ID: <5422E1B8.9000100@suse.cz>
+Date: Wed, 24 Sep 2014 17:22:32 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <1411571338-8178-3-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [RFC] mm: show deferred_compaction state in page alloc fail
+References: <1409038219-21483-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1409038219-21483-1-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Dave Hansen <dave@sr71.net>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>
 
-On Wed, Sep 24, 2014 at 11:08:57AM -0400, Johannes Weiner wrote:
-> When attempting to charge pages, we first charge the memory counter
-> and then the memory+swap counter.  If one of the counters is at its
-> limit, we enter reclaim, but if it's the memory+swap counter, reclaim
-> shouldn't swap because that wouldn't change the situation.  However,
-> if the counters have the same limits, we never get to the memory+swap
-> limit.  To know whether reclaim should swap or not, there is a state
-> flag that indicates whether the limits are equal and whether hitting
-> the memory limit implies hitting the memory+swap limit.
-> 
-> Just try the memory+swap counter first.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+On 08/26/2014 09:30 AM, Minchan Kim wrote:
+> Recently, I saw several reports that high order allocation failed
+> although there were many freeable pages but it's hard to reproduce
+> so asking them to reproduce the problem several time is really painful.
+>
+> A culprit I doubt is compaction deferring logic which prevent
+> compaction for a while so high order allocation could be fail.
 
-Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
+Could be that, but also the non-determinism of watermark checking, where 
+compaction thinks allocation should succeed, but in the end it won't.
+
+> It would be more clear if we can see the stat which can show
+> current zone's compaction deferred state when allocatil fail.
+>
+> It's a RFC and never test it. I just get an idea with
+> handling another strange high order allocation fail.
+> Any comments are welcome.
+
+It's quite large patch. Maybe it could be much simpler if you did not 
+print just true/false but:
+
+1) true/false based on zone->compact_considered < defer_limit, ignoring
+    zone->compact_order_failed
+
+2) zone->compact_order_failed value itself
+
+Then you wouldn't need to pass the allocation order around like you do.
+The "allocation failed" message tells you the order which was attempted, 
+and then it's easy for the user to compare with the reported
+zone->compact_order_failed and decide if the defer status actually 
+applies or not.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
