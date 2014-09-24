@@ -1,49 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id F25866B0035
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 02:24:16 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so830499pab.0
-        for <linux-mm@kvack.org>; Tue, 23 Sep 2014 23:24:16 -0700 (PDT)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id fb7si24767942pab.30.2014.09.23.23.24.15
-        for <linux-mm@kvack.org>;
-        Tue, 23 Sep 2014 23:24:15 -0700 (PDT)
-Date: Wed, 24 Sep 2014 02:24:10 -0400 (EDT)
-Message-Id: <20140924.022410.1707532643268164791.davem@davemloft.net>
-Subject: Re: mmotm 2014-09-22-16-57 uploaded
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20140924043423.GA28993@roeck-us.net>
-References: <5421E7E1.80203@infradead.org>
-	<20140923215356.GA15481@roeck-us.net>
-	<20140924043423.GA28993@roeck-us.net>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B9566B0035
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 03:04:21 -0400 (EDT)
+Received: by mail-wg0-f49.google.com with SMTP id x12so5694721wgg.20
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 00:04:20 -0700 (PDT)
+Received: from mail-wg0-x233.google.com (mail-wg0-x233.google.com [2a00:1450:400c:c00::233])
+        by mx.google.com with ESMTPS id qp2si18272111wjc.58.2014.09.24.00.04.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 24 Sep 2014 00:04:19 -0700 (PDT)
+Received: by mail-wg0-f51.google.com with SMTP id z12so1826958wgg.10
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 00:04:19 -0700 (PDT)
+Message-ID: <54226CEB.9080504@redhat.com>
+Date: Wed, 24 Sep 2014 09:04:11 +0200
+From: Paolo Bonzini <pbonzini@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v4] kvm: Fix page ageing bugs
+References: <1411410865-3603-1-git-send-email-andreslc@google.com> <1411422882-16245-1-git-send-email-andreslc@google.com> <20140924022729.GA2889@kernel>
+In-Reply-To: <20140924022729.GA2889@kernel>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux@roeck-us.net
-Cc: rdunlap@infradead.org, akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz
+To: Wanpeng Li <wanpeng.li@linux.intel.com>, Andres Lagar-Cavilla <andreslc@google.com>
+Cc: Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Guenter Roeck <linux@roeck-us.net>
-Date: Tue, 23 Sep 2014 21:34:23 -0700
-
-> On Tue, Sep 23, 2014 at 02:53:56PM -0700, Guenter Roeck wrote:
->> 
->> > Neither of these patches enables CONFIG_NET.  They just add dependencies.
->> > 
->> This means CONFIG_NET is now disabled in at least 31 configurations where
->> it used to be enabled before (per my count), and there may be additional
->> impact due to the additional changes of "select X" to "depends on X".
->> 
->> 3.18 is going to be interesting.
->> 
-> Actually, turns out the changes are already in 3.17.
+Il 24/09/2014 04:27, Wanpeng Li ha scritto:
+> Hi Andres,
+> On Mon, Sep 22, 2014 at 02:54:42PM -0700, Andres Lagar-Cavilla wrote:
+>> 1. We were calling clear_flush_young_notify in unmap_one, but we are
+>> within an mmu notifier invalidate range scope. The spte exists no more
+>> (due to range_start) and the accessed bit info has already been
+>> propagated (due to kvm_pfn_set_accessed). Simply call
+>> clear_flush_young.
+>>
+>> 2. We clear_flush_young on a primary MMU PMD, but this may be mapped
+>> as a collection of PTEs by the secondary MMU (e.g. during log-dirty).
+>> This required expanding the interface of the clear_flush_young mmu
+>> notifier, so a lot of code has been trivially touched.
+>>
+>> 3. In the absence of shadow_accessed_mask (e.g. EPT A bit), we emulate
+>> the access bit by blowing the spte. This requires proper synchronizing
+>> with MMU notifier consumers, like every other removal of spte's does.
+>>
+> [...]
+>> ---
+>> +	BUG_ON(!shadow_accessed_mask);
+>>
+>> 	for (sptep = rmap_get_first(*rmapp, &iter); sptep;
+>> 	     sptep = rmap_get_next(&iter)) {
+>> +		struct kvm_mmu_page *sp;
+>> +		gfn_t gfn;
+>> 		BUG_ON(!is_shadow_present_pte(*sptep));
+>> +		/* From spte to gfn. */
+>> +		sp = page_header(__pa(sptep));
+>> +		gfn = kvm_mmu_page_get_gfn(sp, sptep - sp->spt);
+>>
+>> 		if (*sptep & shadow_accessed_mask) {
+>> 			young = 1;
+>> 			clear_bit((ffs(shadow_accessed_mask) - 1),
+>> 				 (unsigned long *)sptep);
+>> 		}
+>> +		trace_kvm_age_page(gfn, slot, young);
 > 
-> In case anyone is interested, here is a list of now broken configurations
-> (where 'broken' is defined as "CONFIG NET used to be defined, but
-> is not defined anymore"). No guarantee for completeness or correctness.
+> IIUC, all the rmapps in this for loop are against the same gfn which
+> results in the above trace point dump the message duplicated.
 
-I'll sort this out completely tomorrow.
+You're right; Andres's patch "[PATCH] kvm/x86/mmu: Pass gfn and level to
+rmapp callback" helps avoiding that.
+
+Paolo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
