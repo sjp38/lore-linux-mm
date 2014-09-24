@@ -1,88 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 918476B0035
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 04:57:30 -0400 (EDT)
-Received: by mail-lb0-f169.google.com with SMTP id b12so10302450lbj.0
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 01:57:29 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e7si21929847lag.100.2014.09.24.01.57.26
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 24 Sep 2014 01:57:27 -0700 (PDT)
-Date: Wed, 24 Sep 2014 10:57:24 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 2/2] ext4: Fix mmap data corruption when blocksize <
- pagesize
-Message-ID: <20140924085724.GA21864@quack.suse.cz>
-References: <1411484603-17756-1-git-send-email-jack@suse.cz>
- <1411484603-17756-3-git-send-email-jack@suse.cz>
- <20140924084519.GA21987@quack.suse.cz>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 12D0A6B0037
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 05:56:00 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id eu11so6749858pac.38
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 02:55:59 -0700 (PDT)
+From: "xiaowen.liu@freescale.com" <xiaowen.liu@freescale.com>
+Subject: rss MM_FILEPAGES statistics value issue in kernel memory
+ remap_pfn_range function.
+Date: Wed, 24 Sep 2014 09:55:56 +0000
+Message-ID: <e71eda4ca6734380876f0ddbb4e4f258@DM2PR03MB432.namprd03.prod.outlook.com>
+Content-Language: en-US
+Content-Type: multipart/alternative;
+	boundary="_000_e71eda4ca6734380876f0ddbb4e4f258DM2PR03MB432namprd03pro_"
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="MGYHOYXEY6WxJCY8"
-Content-Disposition: inline
-In-Reply-To: <20140924084519.GA21987@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-fsdevel@vger.kernel.org
-Cc: linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, linux-ext4@vger.kernel.org, Ted Tso <tytso@mit.edu>, Jan Kara <jack@suse.cz>, xfs@oss.sgi.com
+To: "majordomo@kvack.org" <majordomo@kvack.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+
+--_000_e71eda4ca6734380876f0ddbb4e4f258DM2PR03MB432namprd03pro_
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+Hi majordomo,
+
+Sorry to bother you.
+
+I noticed that there are two functions provided to map memory to user space=
+ from kernel: remap_pfn_range and vm_insert_page.
+There is one difference that vm_insert_page increase task rss MM_FILEPAGES =
+value. But remap_pfn_range doesn't.
+The issue is the munmap function will call zap_pte_range to decrease task r=
+ss MM_FILEPAGES value.
+So, the task rss MM_FILEPAGES value increase and decrease doesn't match.
+
+And there are many places in kernel driver call remap_pfn_range to map memo=
+ry to user space.
+
+I think remap_pfn_range should also increase task rss MM_FILEPAGES value.
+
+If there is any misunderstanding, please correct me.
+Thanks.
 
 
---MGYHOYXEY6WxJCY8
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-
-On Wed 24-09-14 10:45:19, Jan Kara wrote:
-> On Tue 23-09-14 17:03:23, Jan Kara wrote:
-> > Use block_create_hole() when hole is being created in a file so that
-> > ->page_mkwrite() will get called for the partial tail page if it is
-> > mmaped (see the first patch in the series for details).
->   Just out of curiosity I did a change similar to this one for ext4 to XFS
-> and indeed it fixed generic/030 test failures for XFS with blocksize 1k.
-  Just for reference attached the patch I was testing - I can resend with
-proper changelog etc. if people are fine with this approach.
-
-								Honza
-
-> > Signed-off-by: Jan Kara <jack@suse.cz>
-> > ---
-> >  fs/ext4/inode.c | 6 +++++-
-> >  1 file changed, 5 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-> > index 3aa26e9117c4..fdcb007c2c9e 100644
-> > --- a/fs/ext4/inode.c
-> > +++ b/fs/ext4/inode.c
-> > @@ -4536,8 +4536,12 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
-> >  				ext4_orphan_del(NULL, inode);
-> >  				goto err_out;
-> >  			}
-> > -		} else
-> > +		} else {
-> > +			loff_t old_size = inode->i_size;
-> > +
-> >  			i_size_write(inode, attr->ia_size);
-> > +			block_create_hole(inode, old_size, inode->i_size);
-> > +		}
-> >  
-> >  		/*
-> >  		 * Blocks are going to be removed from the inode. Wait
-> > -- 
-> > 1.8.1.4
-> > 
-> -- 
-> Jan Kara <jack@suse.cz>
-> SUSE Labs, CR
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-ext4" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
-
---MGYHOYXEY6WxJCY8
-Content-Type: text/x-patch; charset=us-ascii
-Content-Disposition: attachment; filename="0001-xfs-Fix-mmap-data-corruption.patch"
+BestRegards,
+Ivan.liu
 
 
---MGYHOYXEY6WxJCY8--
+
+
+
+
+
+
+
+--_000_e71eda4ca6734380876f0ddbb4e4f258DM2PR03MB432namprd03pro_
+Content-Type: text/html; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+
+<html xmlns:v=3D"urn:schemas-microsoft-com:vml" xmlns:o=3D"urn:schemas-micr=
+osoft-com:office:office" xmlns:w=3D"urn:schemas-microsoft-com:office:word" =
+xmlns:m=3D"http://schemas.microsoft.com/office/2004/12/omml" xmlns=3D"http:=
+//www.w3.org/TR/REC-html40">
+<head>
+<meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Dus-ascii"=
+>
+<meta name=3D"Generator" content=3D"Microsoft Word 12 (filtered medium)">
+<style><!--
+/* Font Definitions */
+@font-face
+	{font-family:SimSun;
+	panose-1:2 1 6 0 3 1 1 1 1 1;}
+@font-face
+	{font-family:SimSun;
+	panose-1:2 1 6 0 3 1 1 1 1 1;}
+@font-face
+	{font-family:Calibri;
+	panose-1:2 15 5 2 2 2 4 3 2 4;}
+@font-face
+	{font-family:SimSun;
+	panose-1:2 1 6 0 3 1 1 1 1 1;}
+/* Style Definitions */
+p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{margin:0in;
+	margin-bottom:.0001pt;
+	font-size:11.0pt;
+	font-family:"Calibri","sans-serif";}
+a:link, span.MsoHyperlink
+	{mso-style-priority:99;
+	color:blue;
+	text-decoration:underline;}
+a:visited, span.MsoHyperlinkFollowed
+	{mso-style-priority:99;
+	color:purple;
+	text-decoration:underline;}
+span.EmailStyle17
+	{mso-style-type:personal-compose;
+	font-family:"Calibri","sans-serif";
+	color:windowtext;}
+.MsoChpDefault
+	{mso-style-type:export-only;}
+@page WordSection1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.25in 1.0in 1.25in;}
+div.WordSection1
+	{page:WordSection1;}
+--></style><!--[if gte mso 9]><xml>
+<o:shapedefaults v:ext=3D"edit" spidmax=3D"1026" />
+</xml><![endif]--><!--[if gte mso 9]><xml>
+<o:shapelayout v:ext=3D"edit">
+<o:idmap v:ext=3D"edit" data=3D"1" />
+</o:shapelayout></xml><![endif]-->
+</head>
+<body lang=3D"EN-US" link=3D"blue" vlink=3D"purple">
+<div class=3D"WordSection1">
+<p class=3D"MsoNormal"><span style=3D"font-size:14.0pt">Hi majordomo,<o:p><=
+/o:p></span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:14.0pt"><o:p>&nbsp;</o:p></=
+span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:14.0pt">Sorry to bother you=
+.<o:p></o:p></span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:14.0pt"><o:p>&nbsp;</o:p></=
+span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:14.0pt">I noticed that ther=
+e are two functions provided to map memory to user space from kernel: remap=
+_pfn_range and vm_insert_page.<o:p></o:p></span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:14.0pt">There is one differ=
+ence that vm_insert_page increase task rss MM_FILEPAGES value. But remap_pf=
+n_range doesn&#8217;t.<o:p></o:p></span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:14.0pt">The issue is the mu=
+nmap function will call zap_pte_range to decrease task rss MM_FILEPAGES val=
+ue.<o:p></o:p></span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:14.0pt">So, the task rss MM=
+_FILEPAGES value increase and decrease doesn&#8217;t match.<o:p></o:p></spa=
+n></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:14.0pt"><o:p>&nbsp;</o:p></=
+span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:14.0pt">And there are many =
+places in kernel driver call remap_pfn_range to map memory to user space.<o=
+:p></o:p></span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:14.0pt"><o:p>&nbsp;</o:p></=
+span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:14.0pt">I think remap_pfn_r=
+ange should also increase task rss MM_FILEPAGES value.<o:p></o:p></span></p=
+>
+<p class=3D"MsoNormal"><span style=3D"font-size:14.0pt"><o:p>&nbsp;</o:p></=
+span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:14.0pt">If there is any mis=
+understanding, please correct me.<o:p></o:p></span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:14.0pt">Thanks. <o:p></o:p>=
+</span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:14.0pt"><o:p>&nbsp;</o:p></=
+span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:14.0pt"><o:p>&nbsp;</o:p></=
+span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:14.0pt">BestRegards,<o:p></=
+o:p></span></p>
+<p class=3D"MsoNormal"><span style=3D"font-size:14.0pt">Ivan.liu<o:p></o:p>=
+</span></p>
+<p class=3D"MsoNormal"><o:p>&nbsp;</o:p></p>
+<p class=3D"MsoNormal"><o:p>&nbsp;</o:p></p>
+<p class=3D"MsoNormal"><o:p>&nbsp;</o:p></p>
+<p class=3D"MsoNormal"><o:p>&nbsp;</o:p></p>
+<p class=3D"MsoNormal"><o:p>&nbsp;</o:p></p>
+<p class=3D"MsoNormal"><o:p>&nbsp;</o:p></p>
+<p class=3D"MsoNormal"><o:p>&nbsp;</o:p></p>
+<p class=3D"MsoNormal"><o:p>&nbsp;</o:p></p>
+</div>
+</body>
+</html>
+
+--_000_e71eda4ca6734380876f0ddbb4e4f258DM2PR03MB432namprd03pro_--
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
