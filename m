@@ -1,73 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id BDDB66B0055
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 08:51:39 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id g10so8037644pdj.33
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 05:51:39 -0700 (PDT)
-Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
-        by mx.google.com with ESMTPS id qs7si26108851pbc.118.2014.09.24.05.51.38
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 475F86B005A
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 08:51:43 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id et14so8542456pad.20
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 05:51:42 -0700 (PDT)
+Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
+        by mx.google.com with ESMTPS id pw4si26137075pbb.98.2014.09.24.05.51.41
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Wed, 24 Sep 2014 05:51:38 -0700 (PDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout3.w1.samsung.com
+        Wed, 24 Sep 2014 05:51:42 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout4.w1.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NCE00F0JP6PD3A0@mailout3.w1.samsung.com> for
+ 17 2011)) with ESMTP id <0NCE00HTZP6PTC90@mailout4.w1.samsung.com> for
  linux-mm@kvack.org; Wed, 24 Sep 2014 13:54:25 +0100 (BST)
 From: Andrey Ryabinin <a.ryabinin@samsung.com>
-Subject: [PATCH v3 10/13] fs: dcache: manually unpoison dname after allocation
- to shut up kasan's reports
-Date: Wed, 24 Sep 2014 16:44:06 +0400
-Message-id: <1411562649-28231-11-git-send-email-a.ryabinin@samsung.com>
+Subject: [PATCH v3 11/13] kmemleak: disable kasan instrumentation for kmemleak
+Date: Wed, 24 Sep 2014 16:44:07 +0400
+Message-id: <1411562649-28231-12-git-send-email-a.ryabinin@samsung.com>
 In-reply-to: <1411562649-28231-1-git-send-email-a.ryabinin@samsung.com>
 References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
  <1411562649-28231-1-git-send-email-a.ryabinin@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, x86@kernel.org, linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, x86@kernel.org, linux-mm@kvack.org, Catalin Marinas <catalin.marinas@arm.com>
 
-We need to manually unpoison rounded up allocation size for dname
-to avoid kasan's reports in dentry_string_cmp().
-When CONFIG_DCACHE_WORD_ACCESS=y dentry_string_cmp may access
-few bytes beyound requested in kmalloc() size.
+kmalloc internally round up allocation size, and kmemleak
+uses rounded up size as object's size. This makes kasan
+to complain while kmemleak scans memory or calculates of object's
+checksum. The simplest solution here is to disable kasan.
 
-dentry_string_cmp() relates on that fact that dentry allocated
-using kmalloc and kmalloc internally round up allocation size.
-So this is not a bug, but this makes kasan to complain about
-such accesses.
-To avoid such reports we mark rounded up allocation size in
-shadow as accessible.
-
-Reported-by: Dmitry Vyukov <dvyukov@google.com>
 Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
 ---
- fs/dcache.c | 5 +++++
- 1 file changed, 5 insertions(+)
+ mm/kmemleak.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
 
-diff --git a/fs/dcache.c b/fs/dcache.c
-index 8552986..7811eb2 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -38,6 +38,7 @@
- #include <linux/prefetch.h>
- #include <linux/ratelimit.h>
- #include <linux/list_lru.h>
-+#include <linux/kasan.h>
- #include "internal.h"
- #include "mount.h"
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index 3cda50c..9bda1b3 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -98,6 +98,7 @@
+ #include <asm/processor.h>
+ #include <linux/atomic.h>
  
-@@ -1395,6 +1396,10 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
- 			kmem_cache_free(dentry_cache, dentry); 
- 			return NULL;
- 		}
-+#ifdef CONFIG_DCACHE_WORD_ACCESS
-+		kasan_unpoison_shadow(dname,
-+				round_up(name->len + 1,	sizeof(unsigned long)));
-+#endif
- 	} else  {
- 		dname = dentry->d_iname;
- 	}	
++#include <linux/kasan.h>
+ #include <linux/kmemcheck.h>
+ #include <linux/kmemleak.h>
+ #include <linux/memory_hotplug.h>
+@@ -1113,7 +1114,10 @@ static bool update_checksum(struct kmemleak_object *object)
+ 	if (!kmemcheck_is_obj_initialized(object->pointer, object->size))
+ 		return false;
+ 
++	kasan_disable_local();
+ 	object->checksum = crc32(0, (void *)object->pointer, object->size);
++	kasan_enable_local();
++
+ 	return object->checksum != old_csum;
+ }
+ 
+@@ -1164,7 +1168,9 @@ static void scan_block(void *_start, void *_end,
+ 						  BYTES_PER_POINTER))
+ 			continue;
+ 
++		kasan_disable_local();
+ 		pointer = *ptr;
++		kasan_enable_local();
+ 
+ 		object = find_and_get_object(pointer, 1);
+ 		if (!object)
 -- 
 2.1.1
 
