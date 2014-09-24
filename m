@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DC836B0038
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 10:01:25 -0400 (EDT)
-Received: by mail-wi0-f170.google.com with SMTP id fb4so6540114wid.5
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 07:01:24 -0700 (PDT)
-Received: from mail-we0-x232.google.com (mail-we0-x232.google.com [2a00:1450:400c:c03::232])
-        by mx.google.com with ESMTPS id bf5si11487296wjc.82.2014.09.24.07.01.23
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 252496B0038
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 10:12:40 -0400 (EDT)
+Received: by mail-wi0-f172.google.com with SMTP id em10so7009117wid.11
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 07:12:39 -0700 (PDT)
+Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com [2a00:1450:400c:c05::231])
+        by mx.google.com with ESMTPS id cy9si7048487wib.37.2014.09.24.07.12.38
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 24 Sep 2014 07:01:23 -0700 (PDT)
-Received: by mail-we0-f178.google.com with SMTP id t60so6284479wes.9
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 07:01:23 -0700 (PDT)
+        Wed, 24 Sep 2014 07:12:38 -0700 (PDT)
+Received: by mail-wi0-f177.google.com with SMTP id q5so7360573wiv.4
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 07:12:38 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1411344191-2842-5-git-send-email-minchan@kernel.org>
-References: <1411344191-2842-1-git-send-email-minchan@kernel.org> <1411344191-2842-5-git-send-email-minchan@kernel.org>
+In-Reply-To: <1411344191-2842-4-git-send-email-minchan@kernel.org>
+References: <1411344191-2842-1-git-send-email-minchan@kernel.org> <1411344191-2842-4-git-send-email-minchan@kernel.org>
 From: Dan Streetman <ddstreet@ieee.org>
-Date: Wed, 24 Sep 2014 10:01:03 -0400
-Message-ID: <CALZtONB+NBMa8xf8xuAoeYHDoMtS56VLGP-a46LZgpppFyz7ag@mail.gmail.com>
-Subject: Re: [PATCH v1 4/5] zram: add swap full hint
+Date: Wed, 24 Sep 2014 10:12:18 -0400
+Message-ID: <CALZtOND9YOXPQ0vNKFVrs+yhnkbWkKg8FD78cHmqJWhLyo89Gw@mail.gmail.com>
+Subject: Re: [PATCH v1 3/5] mm: VM can be aware of zram fullness
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -25,175 +25,124 @@ To: Minchan Kim <minchan@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>, juno.choi@lge.com
 
 On Sun, Sep 21, 2014 at 8:03 PM, Minchan Kim <minchan@kernel.org> wrote:
-> This patch implement SWAP_FULL handler in zram so that VM can
-> know whether zram is full or not and use it to stop anonymous
-> page reclaim.
+> VM uses nr_swap_pages to throttle amount of swap when it reclaims
+> anonymous pages because the nr_swap_pages means freeable space
+> of swap disk.
 >
-> How to judge fullness is below,
+> However, it's a problem for zram because zram can limit memory
+> usage by knob(ie, mem_limit) so that swap out can fail although
+> VM can see lots of free space from zram disk but no more free
+> space in zram by the limit. If it happens, VM should notice it
+> and stop reclaimaing until zram can obtain more free space but
+> we don't have a way to communicate between VM and zram.
 >
-> fullness = (100 * used space / total space)
->
-> It means the higher fullness is, the slower we reach zram full.
-> Now, default of fullness is 80 so that it biased more momory
-> consumption rather than early OOM kill.
->
-> Above logic works only when used space of zram hit over the limit
-> but zram also pretend to be full once 32 consecutive allocation
-> fail happens. It's safe guard to prevent system hang caused by
-> fragment uncertainty.
+> This patch adds new hint SWAP_FULL so that zram can say to VM
+> "I'm full" from now on. Then VM cannot reclaim annoymous page
+> any more. If VM notice swap is full, it can remove swap_info_struct
+> from swap_avail_head and substract remained freeable space from
+> nr_swap_pages so that VM can think swap is full until VM frees a
+> swap and increase nr_swap_pages again.
 >
 > Signed-off-by: Minchan Kim <minchan@kernel.org>
 > ---
->  drivers/block/zram/zram_drv.c | 60 ++++++++++++++++++++++++++++++++++++++++---
->  drivers/block/zram/zram_drv.h |  1 +
->  2 files changed, 57 insertions(+), 4 deletions(-)
+>  include/linux/blkdev.h |  1 +
+>  mm/swapfile.c          | 44 ++++++++++++++++++++++++++++++++++++++------
+>  2 files changed, 39 insertions(+), 6 deletions(-)
 >
-> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> index 22a37764c409..649cad9d0b1c 100644
-> --- a/drivers/block/zram/zram_drv.c
-> +++ b/drivers/block/zram/zram_drv.c
-> @@ -43,6 +43,20 @@ static const char *default_compressor = "lzo";
->  /* Module params (documentation at end) */
->  static unsigned int num_devices = 1;
+> diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+> index c7220409456c..39f074e0acd7 100644
+> --- a/include/linux/blkdev.h
+> +++ b/include/linux/blkdev.h
+> @@ -1611,6 +1611,7 @@ static inline bool blk_integrity_is_initialized(struct gendisk *g)
 >
-> +/*
-> + * If (100 * used_pages / total_pages) >= ZRAM_FULLNESS_PERCENT),
-> + * we regards it as zram-full. It means that the higher
-> + * ZRAM_FULLNESS_PERCENT is, the slower we reach zram full.
-> + */
-> +#define ZRAM_FULLNESS_PERCENT 80
-
-As Andrew said, this (or the user-configurable fullness param from the
-next patch) should have more detail about exactly why it's needed and
-what it does.  The details of how zram considers itself "full" should
-be clear, which probably includes explaining zsmalloc fragmentation.
-It should be also clear this param only matters when limit_pages is
-set, and this param is only checked when zsmalloc's total size has
-reached that limit.
-
-Also, since the next patch changes it to be used only as a default,
-shouldn't it be DEFAULT_ZRAM_FULLNESS_PERCENT or similar?
-
+>  enum swap_blk_hint {
+>         SWAP_FREE,
+> +       SWAP_FULL,
+>  };
+>
+>  struct block_device_operations {
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 209112cf8b83..71e3df0431b6 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -493,6 +493,29 @@ static unsigned long scan_swap_map(struct swap_info_struct *si,
+>         int latency_ration = LATENCY_LIMIT;
+>
+>         /*
+> +        * If zram is full, we don't need to scan and want to stop swap.
+> +        * For it, we removes si from swap_avail_head and decreases
+> +        * nr_swap_pages to prevent further anonymous reclaim so that
+> +        * VM can restart swap out if zram has a free space.
+> +        * Look at swap_entry_free.
+> +        */
+> +       if (si->flags & SWP_BLKDEV) {
+> +               struct gendisk *disk = si->bdev->bd_disk;
 > +
-> +/*
-> + * If zram fails to allocate memory consecutively up to this,
-> + * we regard it as zram-full. It's safe guard to prevent too
-> + * many swap write fail due to lack of fragmentation uncertainty.
-> + */
-> +#define ALLOC_FAIL_MAX 32
-> +
->  #define ZRAM_ATTR_RO(name)                                             \
->  static ssize_t zram_attr_##name##_show(struct device *d,               \
->                                 struct device_attribute *attr, char *b) \
-> @@ -148,6 +162,7 @@ static ssize_t mem_limit_store(struct device *dev,
->
->         down_write(&zram->init_lock);
->         zram->limit_pages = PAGE_ALIGN(limit) >> PAGE_SHIFT;
-> +       atomic_set(&zram->alloc_fail, 0);
->         up_write(&zram->init_lock);
->
->         return len;
-> @@ -410,6 +425,7 @@ static void zram_free_page(struct zram *zram, size_t index)
->         atomic64_sub(zram_get_obj_size(meta, index),
->                         &zram->stats.compr_data_size);
->         atomic64_dec(&zram->stats.pages_stored);
-> +       atomic_set(&zram->alloc_fail, 0);
->
->         meta->table[index].handle = 0;
->         zram_set_obj_size(meta, index, 0);
-> @@ -597,10 +613,15 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
->         }
->
->         alloced_pages = zs_get_total_pages(meta->mem_pool);
-> -       if (zram->limit_pages && alloced_pages > zram->limit_pages) {
-> -               zs_free(meta->mem_pool, handle);
-> -               ret = -ENOMEM;
-> -               goto out;
-> +       if (zram->limit_pages) {
-> +               if (alloced_pages > zram->limit_pages) {
-> +                       zs_free(meta->mem_pool, handle);
-> +                       atomic_inc(&zram->alloc_fail);
-> +                       ret = -ENOMEM;
-> +                       goto out;
-> +               } else {
-> +                       atomic_set(&zram->alloc_fail, 0);
+> +               if (disk->fops->swap_hint && disk->fops->swap_hint(
+> +                               si->bdev, SWAP_FULL, NULL)) {
+> +                       spin_lock(&swap_avail_lock);
+> +                       WARN_ON(plist_node_empty(&si->avail_list));
+> +                       plist_del(&si->avail_list, &swap_avail_head);
+> +                       spin_unlock(&swap_avail_lock);
+> +                       atomic_long_sub(si->pages - si->inuse_pages,
+> +                                               &nr_swap_pages);
+> +                       si->full = true;
+> +                       return 0;
 > +               }
-
-So, with zram_full() checking for alloced_pages >= limit_pages, this
-will need to be changed; the way it is now it prevents that from ever
-being true.
-
-Instead I believe this check has to be moved to before zs_malloc(), so
-that alloced_pages > limit_pages is true.
-
-
->         }
->
->         update_used_max(zram, alloced_pages);
-> @@ -711,6 +732,7 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
->         down_write(&zram->init_lock);
->
->         zram->limit_pages = 0;
-> +       atomic_set(&zram->alloc_fail, 0);
->
->         if (!init_done(zram)) {
->                 up_write(&zram->init_lock);
-> @@ -944,6 +966,34 @@ static int zram_slot_free_notify(struct block_device *bdev,
->         return 0;
->  }
->
-> +static int zram_full(struct block_device *bdev, void *arg)
-> +{
-> +       struct zram *zram;
-> +       struct zram_meta *meta;
-> +       unsigned long total_pages, compr_pages;
-> +
-> +       zram = bdev->bd_disk->private_data;
-> +       if (!zram->limit_pages)
-> +               return 0;
-> +
-> +       meta = zram->meta;
-> +       total_pages = zs_get_total_pages(meta->mem_pool);
-> +
-> +       if (total_pages >= zram->limit_pages) {
-> +
-> +               compr_pages = atomic64_read(&zram->stats.compr_data_size)
-> +                                       >> PAGE_SHIFT;
-> +               if ((100 * compr_pages / total_pages)
-> +                       >= ZRAM_FULLNESS_PERCENT)
-> +                       return 1;
 > +       }
 > +
-> +       if (atomic_read(&zram->alloc_fail) > ALLOC_FAIL_MAX)
-> +               return 1;
+> +       /*
+>          * We try to cluster swap pages by allocating them sequentially
+>          * in swap.  Once we've allocated SWAPFILE_CLUSTER pages this
+>          * way, however, we resort to first-free allocation, starting
+> @@ -798,6 +821,14 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
+>         /* free if no reference */
+>         if (!usage) {
+>                 bool was_full;
+> +               struct gendisk *virt_swap = NULL;
 > +
-> +       return 0;
-> +}
-> +
->  static int zram_swap_hint(struct block_device *bdev,
->                                 unsigned int hint, void *arg)
->  {
-> @@ -951,6 +1001,8 @@ static int zram_swap_hint(struct block_device *bdev,
+> +               /* Check virtual swap */
+> +               if (p->flags & SWP_BLKDEV) {
+> +                       virt_swap = p->bdev->bd_disk;
+> +                       if (!virt_swap->fops->swap_hint)
+
+not a big deal, but can't you just combine these two if's to simplify this?
+
+> +                               virt_swap = NULL;
+> +               }
 >
->         if (hint == SWAP_FREE)
->                 ret = zram_slot_free_notify(bdev, (unsigned long)arg);
-> +       else if (hint == SWAP_FULL)
-> +               ret = zram_full(bdev, arg);
+>                 dec_cluster_info_page(p, p->cluster_info, offset);
+>                 if (offset < p->lowest_bit)
+> @@ -814,17 +845,18 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
+>                                           &swap_avail_head);
+>                         spin_unlock(&swap_avail_lock);
+>                         p->full = false;
+> +                       if (virt_swap)
+> +                               atomic_long_add(p->pages -
+> +                                               p->inuse_pages,
+> +                                               &nr_swap_pages);
+
+a comment here might be good, to clarify it relies on the check at the
+top of scan_swap_map previously subtracting the same number of pages.
+
+
+>                 }
 >
->         return ret;
->  }
-> diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-> index c6ee271317f5..fcf3176a9f15 100644
-> --- a/drivers/block/zram/zram_drv.h
-> +++ b/drivers/block/zram/zram_drv.h
-> @@ -113,6 +113,7 @@ struct zram {
->         u64 disksize;   /* bytes */
->         int max_comp_streams;
->         struct zram_stats stats;
-> +       atomic_t alloc_fail;
->         /*
->          * the number of pages zram can consume for storing compressed data
->          */
+>                 atomic_long_inc(&nr_swap_pages);
+>                 p->inuse_pages--;
+>                 frontswap_invalidate_page(p->type, offset);
+> -               if (p->flags & SWP_BLKDEV) {
+> -                       struct gendisk *disk = p->bdev->bd_disk;
+> -                       if (disk->fops->swap_hint)
+> -                               disk->fops->swap_hint(p->bdev,
+> -                                               SWAP_FREE, (void *)offset);
+> -               }
+> +               if (virt_swap)
+> +                       virt_swap->fops->swap_hint(p->bdev,
+> +                                       SWAP_FREE, (void *)offset);
+>         }
+>
+>         return usage;
 > --
 > 2.0.0
 >
