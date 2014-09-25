@@ -1,181 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AB696B0036
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 21:31:42 -0400 (EDT)
-Received: by mail-wg0-f41.google.com with SMTP id k14so7063349wgh.0
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 18:31:41 -0700 (PDT)
-Received: from mail-we0-x22e.google.com (mail-we0-x22e.google.com [2a00:1450:400c:c03::22e])
-        by mx.google.com with ESMTPS id yw4si884533wjc.94.2014.09.24.18.31.40
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 24 Sep 2014 18:31:41 -0700 (PDT)
-Received: by mail-we0-f174.google.com with SMTP id w62so6649682wes.19
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 18:31:40 -0700 (PDT)
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AFC46B0037
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 21:32:40 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id ft15so9585196pdb.24
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 18:32:40 -0700 (PDT)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id f9si1185126pdk.6.2014.09.24.18.32.38
+        for <linux-mm@kvack.org>;
+        Wed, 24 Sep 2014 18:32:39 -0700 (PDT)
+Date: Thu, 25 Sep 2014 11:32:16 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 1/2] vfs: Fix data corruption when blocksize < pagesize
+ for mmaped data
+Message-ID: <20140925013216.GD4945@dastard>
+References: <1411484603-17756-1-git-send-email-jack@suse.cz>
+ <1411484603-17756-2-git-send-email-jack@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20140925010638.GB17364@bbox>
-References: <1411344191-2842-1-git-send-email-minchan@kernel.org>
- <1411344191-2842-4-git-send-email-minchan@kernel.org> <CALZtOND9YOXPQ0vNKFVrs+yhnkbWkKg8FD78cHmqJWhLyo89Gw@mail.gmail.com>
- <20140925010638.GB17364@bbox>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Wed, 24 Sep 2014 21:31:20 -0400
-Message-ID: <CALZtONAyFjD-+dNt5LnSTYwSnC86HwZ=mZQ6OK2U0TpZ_975+w@mail.gmail.com>
-Subject: Re: [PATCH v1 3/5] mm: VM can be aware of zram fullness
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1411484603-17756-2-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>, juno.choi@lge.com
+To: Jan Kara <jack@suse.cz>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, Ted Tso <tytso@mit.edu>
 
-On Wed, Sep 24, 2014 at 9:06 PM, Minchan Kim <minchan@kernel.org> wrote:
-> On Wed, Sep 24, 2014 at 10:12:18AM -0400, Dan Streetman wrote:
->> On Sun, Sep 21, 2014 at 8:03 PM, Minchan Kim <minchan@kernel.org> wrote:
->> > VM uses nr_swap_pages to throttle amount of swap when it reclaims
->> > anonymous pages because the nr_swap_pages means freeable space
->> > of swap disk.
->> >
->> > However, it's a problem for zram because zram can limit memory
->> > usage by knob(ie, mem_limit) so that swap out can fail although
->> > VM can see lots of free space from zram disk but no more free
->> > space in zram by the limit. If it happens, VM should notice it
->> > and stop reclaimaing until zram can obtain more free space but
->> > we don't have a way to communicate between VM and zram.
->> >
->> > This patch adds new hint SWAP_FULL so that zram can say to VM
->> > "I'm full" from now on. Then VM cannot reclaim annoymous page
->> > any more. If VM notice swap is full, it can remove swap_info_struct
->> > from swap_avail_head and substract remained freeable space from
->> > nr_swap_pages so that VM can think swap is full until VM frees a
->> > swap and increase nr_swap_pages again.
->> >
->> > Signed-off-by: Minchan Kim <minchan@kernel.org>
->> > ---
->> >  include/linux/blkdev.h |  1 +
->> >  mm/swapfile.c          | 44 ++++++++++++++++++++++++++++++++++++++------
->> >  2 files changed, 39 insertions(+), 6 deletions(-)
->> >
->> > diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
->> > index c7220409456c..39f074e0acd7 100644
->> > --- a/include/linux/blkdev.h
->> > +++ b/include/linux/blkdev.h
->> > @@ -1611,6 +1611,7 @@ static inline bool blk_integrity_is_initialized(struct gendisk *g)
->> >
->> >  enum swap_blk_hint {
->> >         SWAP_FREE,
->> > +       SWAP_FULL,
->> >  };
->> >
->> >  struct block_device_operations {
->> > diff --git a/mm/swapfile.c b/mm/swapfile.c
->> > index 209112cf8b83..71e3df0431b6 100644
->> > --- a/mm/swapfile.c
->> > +++ b/mm/swapfile.c
->> > @@ -493,6 +493,29 @@ static unsigned long scan_swap_map(struct swap_info_struct *si,
->> >         int latency_ration = LATENCY_LIMIT;
->> >
->> >         /*
->> > +        * If zram is full, we don't need to scan and want to stop swap.
->> > +        * For it, we removes si from swap_avail_head and decreases
->> > +        * nr_swap_pages to prevent further anonymous reclaim so that
->> > +        * VM can restart swap out if zram has a free space.
->> > +        * Look at swap_entry_free.
->> > +        */
->> > +       if (si->flags & SWP_BLKDEV) {
->> > +               struct gendisk *disk = si->bdev->bd_disk;
->> > +
->> > +               if (disk->fops->swap_hint && disk->fops->swap_hint(
->> > +                               si->bdev, SWAP_FULL, NULL)) {
->> > +                       spin_lock(&swap_avail_lock);
->> > +                       WARN_ON(plist_node_empty(&si->avail_list));
->> > +                       plist_del(&si->avail_list, &swap_avail_head);
->> > +                       spin_unlock(&swap_avail_lock);
->> > +                       atomic_long_sub(si->pages - si->inuse_pages,
->> > +                                               &nr_swap_pages);
->> > +                       si->full = true;
->> > +                       return 0;
->> > +               }
->> > +       }
->> > +
->> > +       /*
->> >          * We try to cluster swap pages by allocating them sequentially
->> >          * in swap.  Once we've allocated SWAPFILE_CLUSTER pages this
->> >          * way, however, we resort to first-free allocation, starting
->> > @@ -798,6 +821,14 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
->> >         /* free if no reference */
->> >         if (!usage) {
->> >                 bool was_full;
->> > +               struct gendisk *virt_swap = NULL;
->> > +
->> > +               /* Check virtual swap */
->> > +               if (p->flags & SWP_BLKDEV) {
->> > +                       virt_swap = p->bdev->bd_disk;
->> > +                       if (!virt_swap->fops->swap_hint)
->>
->> not a big deal, but can't you just combine these two if's to simplify this?
->
-> Do you want this?
->
-> if (p->flags & SWP_BLKDEV && p->bdev->bd_disk->fops->swap_hint)
->         virt_swap = p->bdev->bd_disk;
+On Tue, Sep 23, 2014 at 05:03:22PM +0200, Jan Kara wrote:
+> ->page_mkwrite() is used by filesystems to allocate blocks under a page
+> which is becoming writeably mmapped in some process' address space. This
+> allows a filesystem to return a page fault if there is not enough space
+> available, user exceeds quota or similar problem happens, rather than
+> silently discarding data later when writepage is called.
+> 
+> However VFS fails to call ->page_mkwrite() in all the cases where
+> filesystems need it when blocksize < pagesize. For example when
+> blocksize = 1024, pagesize = 4096 the following is problematic:
+>   ftruncate(fd, 0);
+>   pwrite(fd, buf, 1024, 0);
+>   map = mmap(NULL, 1024, PROT_WRITE, MAP_SHARED, fd, 0);
+>   map[0] = 'a';       ----> page_mkwrite() for index 0 is called
+>   ftruncate(fd, 10000); /* or even pwrite(fd, buf, 1, 10000) */
+>   mremap(map, 1024, 10000, 0);
+>   map[4095] = 'a';    ----> no page_mkwrite() called
+> 
+> At the moment ->page_mkwrite() is called, filesystem can allocate only
+> one block for the page because i_size == 1024. Otherwise it would create
+> blocks beyond i_size which is generally undesirable. But later at
+> ->writepage() time, we also need to store data at offset 4095 but we
+> don't have block allocated for it.
+...
+>  
+> +#ifdef CONFIG_MMU
+> +/**
+> + * block_create_hole - handle creation of a hole in a file
+> + * @inode:	inode where the hole is created
+> + * @from:	offset in bytes where the hole starts
+> + * @to:		offset in bytes where the hole ends.
 
-ah sorry, i wasn't paying attention there, you're right accessing
-virt_swap after you set it is probably better.
+This function doesn't create holes.  It also manipulates page state,
+not block state.  Probably could do with a better name, but I'm not
+sure what a better name is - something like
+pagecache_extend_isize(old_eof, new_eof)?
 
 
->
->
->
->>
->> > +                               virt_swap = NULL;
->> > +               }
->> >
->> >                 dec_cluster_info_page(p, p->cluster_info, offset);
->> >                 if (offset < p->lowest_bit)
->> > @@ -814,17 +845,18 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
->> >                                           &swap_avail_head);
->> >                         spin_unlock(&swap_avail_lock);
->> >                         p->full = false;
->> > +                       if (virt_swap)
->> > +                               atomic_long_add(p->pages -
->> > +                                               p->inuse_pages,
->> > +                                               &nr_swap_pages);
->>
->> a comment here might be good, to clarify it relies on the check at the
->> top of scan_swap_map previously subtracting the same number of pages.
->
-> Okay.
->
->>
->>
->> >                 }
->> >
->> >                 atomic_long_inc(&nr_swap_pages);
->> >                 p->inuse_pages--;
->> >                 frontswap_invalidate_page(p->type, offset);
->> > -               if (p->flags & SWP_BLKDEV) {
->> > -                       struct gendisk *disk = p->bdev->bd_disk;
->> > -                       if (disk->fops->swap_hint)
->> > -                               disk->fops->swap_hint(p->bdev,
->> > -                                               SWAP_FREE, (void *)offset);
->> > -               }
->> > +               if (virt_swap)
->> > +                       virt_swap->fops->swap_hint(p->bdev,
->> > +                                       SWAP_FREE, (void *)offset);
->> >         }
->> >
->> >         return usage;
->> > --
->> > 2.0.0
->> >
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
-> --
-> Kind regards,
-> Minchan Kim
+> +void block_create_hole(struct inode *inode, loff_t from, loff_t to)
+> +{
+> +	int bsize = 1 << inode->i_blkbits;
+> +	loff_t rounded_from;
+> +	struct page *page;
+> +	pgoff_t index;
+> +
+> +	WARN_ON(!mutex_is_locked(&inode->i_mutex));
+> +	WARN_ON(to > inode->i_size);
+
+We've already changed i_size, so shouldn't that be:
+
+	WARN_ON(to != inode->i_size);
+
+> +
+> +	if (from >= to || bsize == PAGE_CACHE_SIZE)
+> +		return;
+> +	/* Currently last page will not have any hole block created? */
+> +	rounded_from = ALIGN(from, bsize);
+
+That rounds down? or up? round_down/round_up are much better than
+ALIGN() because they tell you exactly what rounding was intended...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
