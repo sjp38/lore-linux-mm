@@ -1,98 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AEDC6B0036
-	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 02:12:58 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id fb1so10269545pad.41
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 23:12:57 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id ra6si1966965pab.43.2014.09.24.23.12.56
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 39E516B0036
+	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 02:16:53 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id fp1so453251pdb.31
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 23:16:52 -0700 (PDT)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id fq5si1940759pbd.63.2014.09.24.23.16.50
         for <linux-mm@kvack.org>;
-        Wed, 24 Sep 2014 23:12:57 -0700 (PDT)
-Date: Thu, 25 Sep 2014 15:13:31 +0900
+        Wed, 24 Sep 2014 23:16:52 -0700 (PDT)
+Date: Thu, 25 Sep 2014 15:17:27 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC PATCH v3 1/4] mm/page_alloc: fix incorrect isolation
- behavior by rechecking migratetype
-Message-ID: <20140925061331.GA23558@js1304-P5Q-DELUXE>
-References: <1409040498-10148-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1409040498-10148-2-git-send-email-iamjoonsoo.kim@lge.com>
- <540D6961.8060209@suse.cz>
- <20140915023106.GD2676@js1304-P5Q-DELUXE>
- <5422C772.3080700@suse.cz>
+Subject: Re: [PATCH v2] zsmalloc: merge size_class to reduce fragmentation
+Message-ID: <20140925061727.GB23558@js1304-P5Q-DELUXE>
+References: <1411538626-19285-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20140924081220.GC3181@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5422C772.3080700@suse.cz>
+In-Reply-To: <20140924081220.GC3181@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Luigi Semenzato <semenzato@google.com>, juno.choi@lge.com, "seungho1.park" <seungho1.park@lge.com>
 
-On Wed, Sep 24, 2014 at 03:30:26PM +0200, Vlastimil Babka wrote:
-> On 09/15/2014 04:31 AM, Joonsoo Kim wrote:
-> >On Mon, Sep 08, 2014 at 10:31:29AM +0200, Vlastimil Babka wrote:
-> >>On 08/26/2014 10:08 AM, Joonsoo Kim wrote:
-> >>
-> >>>diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >>>index f86023b..51e0d13 100644
-> >>>--- a/mm/page_alloc.c
-> >>>+++ b/mm/page_alloc.c
-> >>>@@ -740,9 +740,15 @@ static void free_one_page(struct zone *zone,
-> >>>  	if (nr_scanned)
-> >>>  		__mod_zone_page_state(zone, NR_PAGES_SCANNED, -nr_scanned);
-> >>>
-> >>>+	if (unlikely(has_isolate_pageblock(zone))) {
-> >>>+		migratetype = get_pfnblock_migratetype(page, pfn);
-> >>>+		if (is_migrate_isolate(migratetype))
-> >>>+			goto skip_counting;
-> >>>+	}
-> >>>+	__mod_zone_freepage_state(zone, 1 << order, migratetype);
-> >>>+
-> >>>+skip_counting:
-> >>
-> >>Here, wouldn't a simple 'else __mod_zone_freepage_state...' look
-> >>better than goto + label? (same for the following 2 patches). Or
-> >>does that generate worse code?
-> >
-> >To remove goto label, we need two __mod_zone_freepage_state() like
-> >as below. On my system, it doesn't generate worse code, but, I am not
-> >sure that this is true if more logic would be added. I think that
-> >goto + label is better.
+On Wed, Sep 24, 2014 at 05:12:20PM +0900, Minchan Kim wrote:
+> Hi Joonsoo,
 > 
-> Oh right, I missed that. It's a bit subtle, but I don't see a nicer
-> solution right now.
+> On Wed, Sep 24, 2014 at 03:03:46PM +0900, Joonsoo Kim wrote:
+> > zsmalloc has many size_classes to reduce fragmentation and they are
+> > in 16 bytes unit, for example, 16, 32, 48, etc., if PAGE_SIZE is 4096.
+> > And, zsmalloc has constraint that each zspage has 4 pages at maximum.
+> > 
+> > In this situation, we can see interesting aspect.
+> > Let's think about size_class for 1488, 1472, ..., 1376.
+> > To prevent external fragmentation, they uses 4 pages per zspage and
+> > so all they can contain 11 objects at maximum.
+> > 
+> > 16384 (4096 * 4) = 1488 * 11 + remains
+> > 16384 (4096 * 4) = 1472 * 11 + remains
+> > 16384 (4096 * 4) = ...
+> > 16384 (4096 * 4) = 1376 * 11 + remains
+> > 
+> > It means that they have same characteristics and classification between
+> > them isn't needed. If we use one size_class for them, we can reduce
+> > fragementation and save some memory. For this purpose, this patch
+> > implement size_class merging. If there is size_class that have
+> > same pages_per_zspage and same number of objects per zspage with previous
+> > size_class, we don't create and use new size_class. Instead, we use
+> > previous, same characteristic size_class. With this way, above example
+> > sizes (1488, 1472, ..., 1376) use just one size_class so we can get much
+> > more memory utilization.
+> > 
+> > Below is result of my simple test.
+> > 
+> > TEST ENV: EXT4 on zram, mount with discard option
+> > WORKLOAD: untar kernel source code, remove directory in descending order
+> > in size. (drivers arch fs sound include net Documentation firmware
+> > kernel tools)
+> > 
+> > Each line represents orig_data_size, compr_data_size, mem_used_total,
+> > fragmentation overhead (mem_used - compr_data_size) and overhead ratio
+> > (overhead to compr_data_size), respectively, after untar and remove
+> > operation is executed.
+> > 
+> > * untar-nomerge.out
+> > 
+> > orig_size compr_size used_size overhead overhead_ratio
+> > 525.88MB 199.16MB 210.23MB  11.08MB 5.56%
+> > 288.32MB  97.43MB 105.63MB   8.20MB 8.41%
+> > 177.32MB  61.12MB  69.40MB   8.28MB 13.55%
+> > 146.47MB  47.32MB  56.10MB   8.78MB 18.55%
+> > 124.16MB  38.85MB  48.41MB   9.55MB 24.58%
+> > 103.93MB  31.68MB  40.93MB   9.25MB 29.21%
+> >  84.34MB  22.86MB  32.72MB   9.86MB 43.13%
+> >  66.87MB  14.83MB  23.83MB   9.00MB 60.70%
+> >  60.67MB  11.11MB  18.60MB   7.49MB 67.48%
+> >  55.86MB   8.83MB  16.61MB   7.77MB 88.03%
+> >  53.32MB   8.01MB  15.32MB   7.31MB 91.24%
+> > 
+> > * untar-merge.out
+> > 
+> > orig_size compr_size used_size overhead overhead_ratio
+> > 526.23MB 199.18MB 209.81MB  10.64MB 5.34%
+> > 288.68MB  97.45MB 104.08MB   6.63MB 6.80%
+> > 177.68MB  61.14MB  66.93MB   5.79MB 9.47%
+> > 146.83MB  47.34MB  52.79MB   5.45MB 11.51%
+> > 124.52MB  38.87MB  44.30MB   5.43MB 13.96%
+> > 104.29MB  31.70MB  36.83MB   5.13MB 16.19%
+> >  84.70MB  22.88MB  27.92MB   5.04MB 22.04%
+> >  67.11MB  14.83MB  19.26MB   4.43MB 29.86%
+> >  60.82MB  11.10MB  14.90MB   3.79MB 34.17%
+> >  55.90MB   8.82MB  12.61MB   3.79MB 42.97%
+> >  53.32MB   8.01MB  11.73MB   3.73MB 46.53%
+> > 
+> > As you can see above result, merged one has better utilization (overhead
+> > ratio, 5th column) and uses less memory (mem_used_total, 3rd column).
 > 
-> >+	if (unlikely(has_isolate_pageblock(zone))) {
-> >+		migratetype = get_pfnblock_migratetype(page, pfn);
-> >+               if (!is_migrate_isolate(migratetype))
-> >+                       __mod_zone_freepage_state(zone, 1 << order, migratetype);
-> >+       } else {
-> >+               __mod_zone_freepage_state(zone, 1 << order, migratetype);
-> >         }
-> >
-> 
-> Yeah that would be uglier I guess.
-> 
-> >Anyway, What do you think which one is better, either v2 or v3? Still, v3? :)
-> 
-> Yeah v3 is much better than v1 was, and better for backporting than
-> v2. The changelogs also look quite clear. The overhead shouldn't be
-> bad with the per-zone flag guarding get_pfnblock_migratetype.
+> What a nice patch!
 
-Okay. I will go this way. :)
+Thank you. :)
 
+> Below is minor but want to fix.
 > 
-> I'm just not sure about patch 4 and potentially leaving unmerged
-> budies behind. How would it look if instead we made sure isolation
-> works on whole MAX_ORDER blocks instead?
+> > 
+> > Changed from v1:
+> > - More commit description about what to do in this patch.
+> > - Remove nr_obj in size_class, because it isn't need after initialization.
+> > - Rename __size_class to size_class, size_class to merged_size_class.
+> > - Add code comment for merged_size_class of struct zs_pool.
+> > - Add code comment how merging works in zs_create_pool().
+> > 
+> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > ---
+> >  mm/zsmalloc.c |   57 ++++++++++++++++++++++++++++++++++++++++++++++++---------
+> >  1 file changed, 48 insertions(+), 9 deletions(-)
+> > 
+> > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> > index c4a9157..586c19d 100644
+> > --- a/mm/zsmalloc.c
+> > +++ b/mm/zsmalloc.c
+> > @@ -214,6 +214,11 @@ struct link_free {
+> >  };
+> >  
+> >  struct zs_pool {
+> > +	/*
+> > +	 * Each merge_size_class is pointing to one of size_class that have
+> > +	 * same characteristics. See zs_create_pool() for more information.
+> > +	 */
+> > +	struct size_class *merged_size_class[ZS_SIZE_CLASSES];
+> >  	struct size_class size_class[ZS_SIZE_CLASSES];
 > 
+> I don't like the naming.
+> My preference is to keep size_class as it is. Instead, please use
+> __size_class or raw_size_class for internal size class.
 
-If alloc_contig_range() succeed, and later, free_contig_range() is
-called for free, there would be no leaving unmerged buddies.
-If we fail on alloc_contig_range(), we can get unmerged buddies, but,
-that's rare case and it's not big matter because normally we don't
-want to allocate page with MAXORDER-1. We mostly want to allocate page
-with pageblock_order at maximum. After some split and merging of freepage,
-freepage could be MAXORDER-1 page again so that's not real issue, IMO.
+I think that Dan's proposal in another mail is better that is just
+allocating real size_class by kmalloc and removing this ambiguity. It can
+also save memory. I will go that way.
+
+> >  
+> >  	gfp_t flags;	/* allocation flags used when growing pool */
+> > @@ -468,7 +473,7 @@ static enum fullness_group fix_fullness_group(struct zs_pool *pool,
+> >  	if (newfg == currfg)
+> >  		goto out;
+> >  
+> > -	class = &pool->size_class[class_idx];
+> > +	class = pool->merged_size_class[class_idx];
+> >  	remove_zspage(page, class, currfg);
+> >  	insert_zspage(page, class, newfg);
+> >  	set_zspage_mapping(page, class_idx, newfg);
+> > @@ -929,6 +934,22 @@ fail:
+> >  	return notifier_to_errno(ret);
+> >  }
+> >  
+> > +static unsigned int objs_per_zspage(struct size_class *class)
+> 
+> It seems to be the number of objects in the class but it doesn't.
+> Please use get_maxobj_per_zspage for consistent with get_pages_per_zspage.
+
+Will do.
 
 Thanks.
 
