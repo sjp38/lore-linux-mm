@@ -1,158 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 67B276B0038
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 023E56B005C
 	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 16:34:10 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id fp1so1781955pdb.31
+Received: by mail-pd0-f178.google.com with SMTP id ft15so11379579pdb.9
         for <linux-mm@kvack.org>; Thu, 25 Sep 2014 13:34:10 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id m5si5535291pdi.216.2014.09.25.13.34.02
+        by mx.google.com with ESMTP id m5si5535291pdi.216.2014.09.25.13.34.04
         for <linux-mm@kvack.org>;
-        Thu, 25 Sep 2014 13:34:03 -0700 (PDT)
+        Thu, 25 Sep 2014 13:34:04 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v11 04/21] mm: Allow page fault handlers to perform the COW
-Date: Thu, 25 Sep 2014 16:33:21 -0400
-Message-Id: <1411677218-29146-5-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH v11 19/21] dax: Add dax_zero_page_range
+Date: Thu, 25 Sep 2014 16:33:36 -0400
+Message-Id: <1411677218-29146-20-git-send-email-matthew.r.wilcox@intel.com>
 In-Reply-To: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
 References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-Currently COW of an XIP file is done by first bringing in a read-only
-mapping, then retrying the fault and copying the page.  It is much more
-efficient to tell the fault handler that a COW is being attempted (by
-passing in the pre-allocated page in the vm_fault structure), and allow
-the handler to perform the COW operation itself.
-
-The handler cannot insert the page itself if there is already a read-only
-mapping at that address, so allow the handler to return VM_FAULT_LOCKED
-and set the fault_page to be NULL.  This indicates to the MM code that
-the i_mmap_mutex is held instead of the page lock.
+This new function allows us to support hole-punch for DAX files by zeroing
+a partial page, as opposed to the dax_truncate_page() function which can
+only truncate to the end of the page.  Reimplement dax_truncate_page() to
+call dax_zero_page_range().
 
 Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+[ported to 3.13-rc2]
+Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- include/linux/mm.h |  1 +
- mm/memory.c        | 33 ++++++++++++++++++++++++---------
- 2 files changed, 25 insertions(+), 9 deletions(-)
+ Documentation/filesystems/dax.txt |  1 +
+ fs/dax.c                          | 36 +++++++++++++++++++++++++++++++-----
+ include/linux/fs.h                |  7 +++++++
+ 3 files changed, 39 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 8981cc8..0a47817 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -208,6 +208,7 @@ struct vm_fault {
- 	pgoff_t pgoff;			/* Logical page offset based on vma */
- 	void __user *virtual_address;	/* Faulting virtual address */
+diff --git a/Documentation/filesystems/dax.txt b/Documentation/filesystems/dax.txt
+index 635adaa..ebcd97f 100644
+--- a/Documentation/filesystems/dax.txt
++++ b/Documentation/filesystems/dax.txt
+@@ -62,6 +62,7 @@ Filesystem support consists of
+   for fault and page_mkwrite (which should probably call dax_fault() and
+   dax_mkwrite(), passing the appropriate get_block() callback)
+ - calling dax_truncate_page() instead of block_truncate_page() for DAX files
++- calling dax_zero_page_range() instead of zero_user() for DAX files
+ - ensuring that there is sufficient locking between reads, writes,
+   truncates and page faults
  
-+	struct page *cow_page;		/* Handler may choose to COW */
- 	struct page *page;		/* ->fault handlers should return a
- 					 * page here, unless VM_FAULT_NOPAGE
- 					 * is set (which is also implied by
-diff --git a/mm/memory.c b/mm/memory.c
-index adeac30..3368785 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2000,6 +2000,7 @@ static int do_page_mkwrite(struct vm_area_struct *vma, struct page *page,
- 	vmf.pgoff = page->index;
- 	vmf.flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
- 	vmf.page = page;
-+	vmf.cow_page = NULL;
+diff --git a/fs/dax.c b/fs/dax.c
+index 6801be7..91b7561 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -462,13 +462,16 @@ int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+ EXPORT_SYMBOL_GPL(dax_fault);
  
- 	ret = vma->vm_ops->page_mkwrite(vma, &vmf);
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
-@@ -2698,7 +2699,8 @@ oom:
-  * See filemap_fault() and __lock_page_retry().
+ /**
+- * dax_truncate_page - handle a partial page being truncated in a DAX file
++ * dax_zero_page_range - zero a range within a page of a DAX file
+  * @inode: The file being truncated
+  * @from: The file offset that is being truncated to
++ * @length: The number of bytes to zero
+  * @get_block: The filesystem method used to translate file offsets to blocks
+  *
+- * Similar to block_truncate_page(), this function can be called by a
+- * filesystem when it is truncating an DAX file to handle the partial page.
++ * This function can be called by a filesystem when it is zeroing part of a
++ * page in a DAX file.  This is intended for hole-punch operations.  If
++ * you are truncating a file, the helper function dax_truncate_page() may be
++ * more convenient.
+  *
+  * We work in terms of PAGE_CACHE_SIZE here for commonality with
+  * block_truncate_page(), but we could go down to PAGE_SIZE if the filesystem
+@@ -476,17 +479,18 @@ EXPORT_SYMBOL_GPL(dax_fault);
+  * block size is smaller than PAGE_SIZE, we have to zero the rest of the page
+  * since the file might be mmaped.
   */
- static int __do_fault(struct vm_area_struct *vma, unsigned long address,
--		pgoff_t pgoff, unsigned int flags, struct page **page)
-+			pgoff_t pgoff, unsigned int flags,
-+			struct page *cow_page, struct page **page)
+-int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
++int dax_zero_page_range(struct inode *inode, loff_t from, unsigned length,
++							get_block_t get_block)
  {
- 	struct vm_fault vmf;
- 	int ret;
-@@ -2707,10 +2709,13 @@ static int __do_fault(struct vm_area_struct *vma, unsigned long address,
- 	vmf.pgoff = pgoff;
- 	vmf.flags = flags;
- 	vmf.page = NULL;
-+	vmf.cow_page = cow_page;
+ 	struct buffer_head bh;
+ 	pgoff_t index = from >> PAGE_CACHE_SHIFT;
+ 	unsigned offset = from & (PAGE_CACHE_SIZE-1);
+-	unsigned length = PAGE_CACHE_ALIGN(from) - from;
+ 	int err;
  
- 	ret = vma->vm_ops->fault(vma, &vmf);
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
- 		return ret;
-+	if (!vmf.page)
-+		goto out;
+ 	/* Block boundary? Nothing to do */
+ 	if (!length)
+ 		return 0;
++	BUG_ON((offset + length) > PAGE_CACHE_SIZE);
  
- 	if (unlikely(PageHWPoison(vmf.page))) {
- 		if (ret & VM_FAULT_LOCKED)
-@@ -2724,6 +2729,7 @@ static int __do_fault(struct vm_area_struct *vma, unsigned long address,
- 	else
- 		VM_BUG_ON_PAGE(!PageLocked(vmf.page), vmf.page);
+ 	memset(&bh, 0, sizeof(bh));
+ 	bh.b_size = PAGE_CACHE_SIZE;
+@@ -503,4 +507,26 @@ int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
  
-+ out:
- 	*page = vmf.page;
- 	return ret;
+ 	return 0;
  }
-@@ -2897,7 +2903,7 @@ static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		pte_unmap_unlock(pte, ptl);
- 	}
++EXPORT_SYMBOL_GPL(dax_zero_page_range);
++
++/**
++ * dax_truncate_page - handle a partial page being truncated in a DAX file
++ * @inode: The file being truncated
++ * @from: The file offset that is being truncated to
++ * @get_block: The filesystem method used to translate file offsets to blocks
++ *
++ * Similar to block_truncate_page(), this function can be called by a
++ * filesystem when it is truncating an DAX file to handle the partial page.
++ *
++ * We work in terms of PAGE_CACHE_SIZE here for commonality with
++ * block_truncate_page(), but we could go down to PAGE_SIZE if the filesystem
++ * took care of disposing of the unnecessary blocks.  Even if the filesystem
++ * block size is smaller than PAGE_SIZE, we have to zero the rest of the page
++ * since the file might be mmaped.
++ */
++int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
++{
++	unsigned length = PAGE_CACHE_ALIGN(from) - from;
++	return dax_zero_page_range(inode, from, length, get_block);
++}
+ EXPORT_SYMBOL_GPL(dax_truncate_page);
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index e6b48cc..105d0f0 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2490,6 +2490,7 @@ extern int nonseekable_open(struct inode * inode, struct file * filp);
  
--	ret = __do_fault(vma, address, pgoff, flags, &fault_page);
-+	ret = __do_fault(vma, address, pgoff, flags, NULL, &fault_page);
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
- 		return ret;
+ #ifdef CONFIG_FS_DAX
+ int dax_clear_blocks(struct inode *, sector_t block, long size);
++int dax_zero_page_range(struct inode *, loff_t from, unsigned len, get_block_t);
+ int dax_truncate_page(struct inode *, loff_t from, get_block_t);
+ ssize_t dax_do_io(int rw, struct kiocb *, struct inode *, struct iov_iter *,
+ 		loff_t, get_block_t, dio_iodone_t, int flags);
+@@ -2506,6 +2507,12 @@ static inline int dax_truncate_page(struct inode *i, loff_t frm, get_block_t gb)
+ 	return 0;
+ }
  
-@@ -2937,26 +2943,35 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		return VM_FAULT_OOM;
- 	}
- 
--	ret = __do_fault(vma, address, pgoff, flags, &fault_page);
-+	ret = __do_fault(vma, address, pgoff, flags, new_page, &fault_page);
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
- 		goto uncharge_out;
- 
--	copy_user_highpage(new_page, fault_page, address, vma);
-+	if (fault_page)
-+		copy_user_highpage(new_page, fault_page, address, vma);
- 	__SetPageUptodate(new_page);
- 
- 	pte = pte_offset_map_lock(mm, pmd, address, &ptl);
- 	if (unlikely(!pte_same(*pte, orig_pte))) {
- 		pte_unmap_unlock(pte, ptl);
--		unlock_page(fault_page);
--		page_cache_release(fault_page);
-+		if (fault_page) {
-+			unlock_page(fault_page);
-+			page_cache_release(fault_page);
-+		} else {
-+			mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
-+		}
- 		goto uncharge_out;
- 	}
- 	do_set_pte(vma, address, new_page, pte, true, true);
- 	mem_cgroup_commit_charge(new_page, memcg, false);
- 	lru_cache_add_active_or_unevictable(new_page, vma);
- 	pte_unmap_unlock(pte, ptl);
--	unlock_page(fault_page);
--	page_cache_release(fault_page);
-+	if (fault_page) {
-+		unlock_page(fault_page);
-+		page_cache_release(fault_page);
-+	} else {
-+		mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
-+	}
- 	return ret;
- uncharge_out:
- 	mem_cgroup_cancel_charge(new_page, memcg);
-@@ -2975,7 +2990,7 @@ static int do_shared_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	int dirtied = 0;
- 	int ret, tmp;
- 
--	ret = __do_fault(vma, address, pgoff, flags, &fault_page);
-+	ret = __do_fault(vma, address, pgoff, flags, NULL, &fault_page);
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
- 		return ret;
- 
++static inline int dax_zero_page_range(struct inode *i, loff_t frm,
++						unsigned len, get_block_t gb)
++{
++	return 0;
++}
++
+ static inline ssize_t dax_do_io(int rw, struct kiocb *iocb,
+ 		struct inode *inode, struct iov_iter *iter, loff_t pos,
+ 		get_block_t get_block, dio_iodone_t end_io, int flags)
 -- 
 2.1.0
 
