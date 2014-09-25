@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id B6C896B007D
-	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 16:34:36 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id y13so11352862pdi.1
-        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 13:34:36 -0700 (PDT)
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 641436B007D
+	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 16:34:37 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id hz1so11568803pad.25
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 13:34:37 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
         by mx.google.com with ESMTP id md3si5664064pdb.135.2014.09.25.13.34.35
         for <linux-mm@kvack.org>;
-        Thu, 25 Sep 2014 13:34:35 -0700 (PDT)
+        Thu, 25 Sep 2014 13:34:36 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v11 03/21] mm: Fix XIP fault vs truncate race
-Date: Thu, 25 Sep 2014 16:33:20 -0400
-Message-Id: <1411677218-29146-4-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH v11 18/21] ext2: Get rid of most mentions of XIP in ext2
+Date: Thu, 25 Sep 2014 16:33:35 -0400
+Message-Id: <1411677218-29146-19-git-send-email-matthew.r.wilcox@intel.com>
 In-Reply-To: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
 References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,79 +19,197 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-Pagecache faults recheck i_size after taking the page lock to ensure that
-the fault didn't race against a truncate.  We don't have a page to lock
-in the XIP case, so use the i_mmap_mutex instead.  It is locked in the
-truncate path in unmap_mapping_range() after updating i_size.  So while
-we hold it in the fault path, we are guaranteed that either i_size has
-already been updated in the truncate path, or that the truncate will
-subsequently call zap_page_range_single() and so remove the mapping we
-have just inserted.
-
-There is a window of time in which i_size has been reduced and the
-thread has a mapping to a page which will be removed from the file,
-but this is harmless as the page will not be allocated to a different
-purpose before the thread's access to it is revoked.
-
-Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Reviewed-by: Jan Kara <jack@suse.cz>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+To help people transition, accept the 'xip' mount option (and report it
+in /proc/mounts), but print a message encouraging people to switch over
+to the 'dax' option.
 ---
- mm/filemap_xip.c | 24 ++++++++++++++++++++++--
- 1 file changed, 22 insertions(+), 2 deletions(-)
+ fs/ext2/ext2.h  | 13 +++++++------
+ fs/ext2/file.c  |  2 +-
+ fs/ext2/inode.c |  6 +++---
+ fs/ext2/namei.c |  8 ++++----
+ fs/ext2/super.c | 25 ++++++++++++++++---------
+ 5 files changed, 31 insertions(+), 23 deletions(-)
 
-diff --git a/mm/filemap_xip.c b/mm/filemap_xip.c
-index d8d9fe3..c8d23e9 100644
---- a/mm/filemap_xip.c
-+++ b/mm/filemap_xip.c
-@@ -260,8 +260,17 @@ again:
- 		__xip_unmap(mapping, vmf->pgoff);
+diff --git a/fs/ext2/ext2.h b/fs/ext2/ext2.h
+index b8b1c11..46133a0 100644
+--- a/fs/ext2/ext2.h
++++ b/fs/ext2/ext2.h
+@@ -380,14 +380,15 @@ struct ext2_inode {
+ #define EXT2_MOUNT_NO_UID32		0x000200  /* Disable 32-bit UIDs */
+ #define EXT2_MOUNT_XATTR_USER		0x004000  /* Extended user attributes */
+ #define EXT2_MOUNT_POSIX_ACL		0x008000  /* POSIX Access Control Lists */
+-#ifdef CONFIG_FS_DAX
+-#define EXT2_MOUNT_XIP			0x010000  /* Execute in place */
+-#else
+-#define EXT2_MOUNT_XIP			0
+-#endif
++#define EXT2_MOUNT_XIP			0x010000  /* Obsolete, use DAX */
+ #define EXT2_MOUNT_USRQUOTA		0x020000  /* user quota */
+ #define EXT2_MOUNT_GRPQUOTA		0x040000  /* group quota */
+ #define EXT2_MOUNT_RESERVATION		0x080000  /* Preallocation */
++#ifdef CONFIG_FS_DAX
++#define EXT2_MOUNT_DAX			0x100000  /* Direct Access */
++#else
++#define EXT2_MOUNT_DAX			0
++#endif
  
- found:
-+		/* We must recheck i_size under i_mmap_mutex */
-+		mutex_lock(&mapping->i_mmap_mutex);
-+		size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
-+							PAGE_CACHE_SHIFT;
-+		if (unlikely(vmf->pgoff >= size)) {
-+			mutex_unlock(&mapping->i_mmap_mutex);
-+			return VM_FAULT_SIGBUS;
-+		}
- 		err = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
- 							xip_pfn);
-+		mutex_unlock(&mapping->i_mmap_mutex);
- 		if (err == -ENOMEM)
- 			return VM_FAULT_OOM;
- 		/*
-@@ -285,16 +294,27 @@ found:
+ 
+ #define clear_opt(o, opt)		o &= ~EXT2_MOUNT_##opt
+@@ -789,7 +790,7 @@ extern int ext2_fsync(struct file *file, loff_t start, loff_t end,
+ 		      int datasync);
+ extern const struct inode_operations ext2_file_inode_operations;
+ extern const struct file_operations ext2_file_operations;
+-extern const struct file_operations ext2_xip_file_operations;
++extern const struct file_operations ext2_dax_file_operations;
+ 
+ /* inode.c */
+ extern const struct address_space_operations ext2_aops;
+diff --git a/fs/ext2/file.c b/fs/ext2/file.c
+index 46b333d..5b8cab5 100644
+--- a/fs/ext2/file.c
++++ b/fs/ext2/file.c
+@@ -110,7 +110,7 @@ const struct file_operations ext2_file_operations = {
+ };
+ 
+ #ifdef CONFIG_FS_DAX
+-const struct file_operations ext2_xip_file_operations = {
++const struct file_operations ext2_dax_file_operations = {
+ 	.llseek		= generic_file_llseek,
+ 	.read		= new_sync_read,
+ 	.write		= new_sync_write,
+diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
+index 034fd42..6434bc0 100644
+--- a/fs/ext2/inode.c
++++ b/fs/ext2/inode.c
+@@ -1286,7 +1286,7 @@ void ext2_set_inode_flags(struct inode *inode)
+ 		inode->i_flags |= S_NOATIME;
+ 	if (flags & EXT2_DIRSYNC_FL)
+ 		inode->i_flags |= S_DIRSYNC;
+-	if (test_opt(inode->i_sb, XIP))
++	if (test_opt(inode->i_sb, DAX))
+ 		inode->i_flags |= S_DAX;
+ }
+ 
+@@ -1388,9 +1388,9 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
+ 
+ 	if (S_ISREG(inode->i_mode)) {
+ 		inode->i_op = &ext2_file_inode_operations;
+-		if (test_opt(inode->i_sb, XIP)) {
++		if (test_opt(inode->i_sb, DAX)) {
+ 			inode->i_mapping->a_ops = &ext2_aops;
+-			inode->i_fop = &ext2_xip_file_operations;
++			inode->i_fop = &ext2_dax_file_operations;
+ 		} else if (test_opt(inode->i_sb, NOBH)) {
+ 			inode->i_mapping->a_ops = &ext2_nobh_aops;
+ 			inode->i_fop = &ext2_file_operations;
+diff --git a/fs/ext2/namei.c b/fs/ext2/namei.c
+index 0db888c..148f6e3 100644
+--- a/fs/ext2/namei.c
++++ b/fs/ext2/namei.c
+@@ -104,9 +104,9 @@ static int ext2_create (struct inode * dir, struct dentry * dentry, umode_t mode
+ 		return PTR_ERR(inode);
+ 
+ 	inode->i_op = &ext2_file_inode_operations;
+-	if (test_opt(inode->i_sb, XIP)) {
++	if (test_opt(inode->i_sb, DAX)) {
+ 		inode->i_mapping->a_ops = &ext2_aops;
+-		inode->i_fop = &ext2_xip_file_operations;
++		inode->i_fop = &ext2_dax_file_operations;
+ 	} else if (test_opt(inode->i_sb, NOBH)) {
+ 		inode->i_mapping->a_ops = &ext2_nobh_aops;
+ 		inode->i_fop = &ext2_file_operations;
+@@ -125,9 +125,9 @@ static int ext2_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
+ 		return PTR_ERR(inode);
+ 
+ 	inode->i_op = &ext2_file_inode_operations;
+-	if (test_opt(inode->i_sb, XIP)) {
++	if (test_opt(inode->i_sb, DAX)) {
+ 		inode->i_mapping->a_ops = &ext2_aops;
+-		inode->i_fop = &ext2_xip_file_operations;
++		inode->i_fop = &ext2_dax_file_operations;
+ 	} else if (test_opt(inode->i_sb, NOBH)) {
+ 		inode->i_mapping->a_ops = &ext2_nobh_aops;
+ 		inode->i_fop = &ext2_file_operations;
+diff --git a/fs/ext2/super.c b/fs/ext2/super.c
+index feb53d8..8b9debf 100644
+--- a/fs/ext2/super.c
++++ b/fs/ext2/super.c
+@@ -290,6 +290,8 @@ static int ext2_show_options(struct seq_file *seq, struct dentry *root)
+ #ifdef CONFIG_FS_DAX
+ 	if (sbi->s_mount_opt & EXT2_MOUNT_XIP)
+ 		seq_puts(seq, ",xip");
++	if (sbi->s_mount_opt & EXT2_MOUNT_DAX)
++		seq_puts(seq, ",dax");
+ #endif
+ 
+ 	if (!test_opt(sb, RESERVATION))
+@@ -393,7 +395,7 @@ enum {
+ 	Opt_resgid, Opt_resuid, Opt_sb, Opt_err_cont, Opt_err_panic,
+ 	Opt_err_ro, Opt_nouid32, Opt_nocheck, Opt_debug,
+ 	Opt_oldalloc, Opt_orlov, Opt_nobh, Opt_user_xattr, Opt_nouser_xattr,
+-	Opt_acl, Opt_noacl, Opt_xip, Opt_ignore, Opt_err, Opt_quota,
++	Opt_acl, Opt_noacl, Opt_xip, Opt_dax, Opt_ignore, Opt_err, Opt_quota,
+ 	Opt_usrquota, Opt_grpquota, Opt_reservation, Opt_noreservation
+ };
+ 
+@@ -422,6 +424,7 @@ static const match_table_t tokens = {
+ 	{Opt_acl, "acl"},
+ 	{Opt_noacl, "noacl"},
+ 	{Opt_xip, "xip"},
++	{Opt_dax, "dax"},
+ 	{Opt_grpquota, "grpquota"},
+ 	{Opt_ignore, "noquota"},
+ 	{Opt_quota, "quota"},
+@@ -549,10 +552,14 @@ static int parse_options(char *options, struct super_block *sb)
+ 			break;
+ #endif
+ 		case Opt_xip:
++			ext2_msg(sb, KERN_INFO, "use dax instead of xip");
++			set_opt(sbi->s_mount_opt, XIP);
++			/* Fall through */
++		case Opt_dax:
+ #ifdef CONFIG_FS_DAX
+-			set_opt (sbi->s_mount_opt, XIP);
++			set_opt(sbi->s_mount_opt, DAX);
+ #else
+-			ext2_msg(sb, KERN_INFO, "xip option not supported");
++			ext2_msg(sb, KERN_INFO, "dax option not supported");
+ #endif
+ 			break;
+ 
+@@ -896,15 +903,15 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
+ 
+ 	blocksize = BLOCK_SIZE << le32_to_cpu(sbi->s_es->s_log_block_size);
+ 
+-	if (sbi->s_mount_opt & EXT2_MOUNT_XIP) {
++	if (sbi->s_mount_opt & EXT2_MOUNT_DAX) {
+ 		if (blocksize != PAGE_SIZE) {
+ 			ext2_msg(sb, KERN_ERR,
+-					"error: unsupported blocksize for xip");
++					"error: unsupported blocksize for dax");
+ 			goto failed_mount;
  		}
- 		if (error != -ENODATA)
- 			goto out;
-+
-+		/* We must recheck i_size under i_mmap_mutex */
-+		mutex_lock(&mapping->i_mmap_mutex);
-+		size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
-+							PAGE_CACHE_SHIFT;
-+		if (unlikely(vmf->pgoff >= size)) {
-+			ret = VM_FAULT_SIGBUS;
-+			goto unlock;
-+		}
- 		/* not shared and writable, use xip_sparse_page() */
- 		page = xip_sparse_page();
- 		if (!page)
--			goto out;
-+			goto unlock;
- 		err = vm_insert_page(vma, (unsigned long)vmf->virtual_address,
- 							page);
- 		if (err == -ENOMEM)
--			goto out;
-+			goto unlock;
+ 		if (!sb->s_bdev->bd_disk->fops->direct_access) {
+ 			ext2_msg(sb, KERN_ERR,
+-					"error: device does not support xip");
++					"error: device does not support dax");
+ 			goto failed_mount;
+ 		}
+ 	}
+@@ -1276,10 +1283,10 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
+ 		((sbi->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ? MS_POSIXACL : 0);
  
- 		ret = VM_FAULT_NOPAGE;
-+unlock:
-+		mutex_unlock(&mapping->i_mmap_mutex);
- out:
- 		write_seqcount_end(&xip_sparse_seq);
- 		mutex_unlock(&xip_sparse_mutex);
+ 	es = sbi->s_es;
+-	if ((sbi->s_mount_opt ^ old_opts.s_mount_opt) & EXT2_MOUNT_XIP) {
++	if ((sbi->s_mount_opt ^ old_opts.s_mount_opt) & EXT2_MOUNT_DAX) {
+ 		ext2_msg(sb, KERN_WARNING, "warning: refusing change of "
+-			 "xip flag with busy inodes while remounting");
+-		sbi->s_mount_opt ^= EXT2_MOUNT_XIP;
++			 "dax flag with busy inodes while remounting");
++		sbi->s_mount_opt ^= EXT2_MOUNT_DAX;
+ 	}
+ 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
+ 		spin_unlock(&sbi->s_lock);
 -- 
 2.1.0
 
