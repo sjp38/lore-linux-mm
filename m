@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 641436B007D
-	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 16:34:37 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id hz1so11568803pad.25
-        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 13:34:37 -0700 (PDT)
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B2136B007D
+	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 16:34:39 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id rd3so982282pab.34
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 13:34:38 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id md3si5664064pdb.135.2014.09.25.13.34.35
+        by mx.google.com with ESMTP id md3si5664064pdb.135.2014.09.25.13.34.37
         for <linux-mm@kvack.org>;
-        Thu, 25 Sep 2014 13:34:36 -0700 (PDT)
+        Thu, 25 Sep 2014 13:34:38 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v11 18/21] ext2: Get rid of most mentions of XIP in ext2
-Date: Thu, 25 Sep 2014 16:33:35 -0400
-Message-Id: <1411677218-29146-19-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH v11 10/21] dax,ext2: Replace xip_truncate_page with dax_truncate_page
+Date: Thu, 25 Sep 2014 16:33:27 -0400
+Message-Id: <1411677218-29146-11-git-send-email-matthew.r.wilcox@intel.com>
 In-Reply-To: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
 References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,197 +19,152 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-To help people transition, accept the 'xip' mount option (and report it
-in /proc/mounts), but print a message encouraging people to switch over
-to the 'dax' option.
----
- fs/ext2/ext2.h  | 13 +++++++------
- fs/ext2/file.c  |  2 +-
- fs/ext2/inode.c |  6 +++---
- fs/ext2/namei.c |  8 ++++----
- fs/ext2/super.c | 25 ++++++++++++++++---------
- 5 files changed, 31 insertions(+), 23 deletions(-)
+It takes a get_block parameter just like nobh_truncate_page() and
+block_truncate_page()
 
-diff --git a/fs/ext2/ext2.h b/fs/ext2/ext2.h
-index b8b1c11..46133a0 100644
---- a/fs/ext2/ext2.h
-+++ b/fs/ext2/ext2.h
-@@ -380,14 +380,15 @@ struct ext2_inode {
- #define EXT2_MOUNT_NO_UID32		0x000200  /* Disable 32-bit UIDs */
- #define EXT2_MOUNT_XATTR_USER		0x004000  /* Extended user attributes */
- #define EXT2_MOUNT_POSIX_ACL		0x008000  /* POSIX Access Control Lists */
--#ifdef CONFIG_FS_DAX
--#define EXT2_MOUNT_XIP			0x010000  /* Execute in place */
--#else
--#define EXT2_MOUNT_XIP			0
--#endif
-+#define EXT2_MOUNT_XIP			0x010000  /* Obsolete, use DAX */
- #define EXT2_MOUNT_USRQUOTA		0x020000  /* user quota */
- #define EXT2_MOUNT_GRPQUOTA		0x040000  /* group quota */
- #define EXT2_MOUNT_RESERVATION		0x080000  /* Preallocation */
-+#ifdef CONFIG_FS_DAX
-+#define EXT2_MOUNT_DAX			0x100000  /* Direct Access */
-+#else
-+#define EXT2_MOUNT_DAX			0
-+#endif
- 
- 
- #define clear_opt(o, opt)		o &= ~EXT2_MOUNT_##opt
-@@ -789,7 +790,7 @@ extern int ext2_fsync(struct file *file, loff_t start, loff_t end,
- 		      int datasync);
- extern const struct inode_operations ext2_file_inode_operations;
- extern const struct file_operations ext2_file_operations;
--extern const struct file_operations ext2_xip_file_operations;
-+extern const struct file_operations ext2_dax_file_operations;
- 
- /* inode.c */
- extern const struct address_space_operations ext2_aops;
-diff --git a/fs/ext2/file.c b/fs/ext2/file.c
-index 46b333d..5b8cab5 100644
---- a/fs/ext2/file.c
-+++ b/fs/ext2/file.c
-@@ -110,7 +110,7 @@ const struct file_operations ext2_file_operations = {
- };
- 
- #ifdef CONFIG_FS_DAX
--const struct file_operations ext2_xip_file_operations = {
-+const struct file_operations ext2_dax_file_operations = {
- 	.llseek		= generic_file_llseek,
- 	.read		= new_sync_read,
- 	.write		= new_sync_write,
+Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
+---
+ fs/dax.c           | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ fs/ext2/inode.c    |  2 +-
+ include/linux/fs.h |  4 ++--
+ mm/filemap_xip.c   | 40 ----------------------------------------
+ 4 files changed, 47 insertions(+), 43 deletions(-)
+
+diff --git a/fs/dax.c b/fs/dax.c
+index ac5d3a6..6801be7 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -460,3 +460,47 @@ int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+ 	return result;
+ }
+ EXPORT_SYMBOL_GPL(dax_fault);
++
++/**
++ * dax_truncate_page - handle a partial page being truncated in a DAX file
++ * @inode: The file being truncated
++ * @from: The file offset that is being truncated to
++ * @get_block: The filesystem method used to translate file offsets to blocks
++ *
++ * Similar to block_truncate_page(), this function can be called by a
++ * filesystem when it is truncating an DAX file to handle the partial page.
++ *
++ * We work in terms of PAGE_CACHE_SIZE here for commonality with
++ * block_truncate_page(), but we could go down to PAGE_SIZE if the filesystem
++ * took care of disposing of the unnecessary blocks.  Even if the filesystem
++ * block size is smaller than PAGE_SIZE, we have to zero the rest of the page
++ * since the file might be mmaped.
++ */
++int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
++{
++	struct buffer_head bh;
++	pgoff_t index = from >> PAGE_CACHE_SHIFT;
++	unsigned offset = from & (PAGE_CACHE_SIZE-1);
++	unsigned length = PAGE_CACHE_ALIGN(from) - from;
++	int err;
++
++	/* Block boundary? Nothing to do */
++	if (!length)
++		return 0;
++
++	memset(&bh, 0, sizeof(bh));
++	bh.b_size = PAGE_CACHE_SIZE;
++	err = get_block(inode, index, &bh, 0);
++	if (err < 0)
++		return err;
++	if (buffer_written(&bh)) {
++		void *addr;
++		err = dax_get_addr(&bh, &addr, inode->i_blkbits);
++		if (err < 0)
++			return err;
++		memset(addr + offset, 0, length);
++	}
++
++	return 0;
++}
++EXPORT_SYMBOL_GPL(dax_truncate_page);
 diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-index 034fd42..6434bc0 100644
+index 52978b8..5ac0a34 100644
 --- a/fs/ext2/inode.c
 +++ b/fs/ext2/inode.c
-@@ -1286,7 +1286,7 @@ void ext2_set_inode_flags(struct inode *inode)
- 		inode->i_flags |= S_NOATIME;
- 	if (flags & EXT2_DIRSYNC_FL)
- 		inode->i_flags |= S_DIRSYNC;
--	if (test_opt(inode->i_sb, XIP))
-+	if (test_opt(inode->i_sb, DAX))
- 		inode->i_flags |= S_DAX;
+@@ -1210,7 +1210,7 @@ static int ext2_setsize(struct inode *inode, loff_t newsize)
+ 	inode_dio_wait(inode);
+ 
+ 	if (IS_DAX(inode))
+-		error = xip_truncate_page(inode->i_mapping, newsize);
++		error = dax_truncate_page(inode, newsize, ext2_get_block);
+ 	else if (test_opt(inode->i_sb, NOBH))
+ 		error = nobh_truncate_page(inode->i_mapping,
+ 				newsize, ext2_get_block);
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 338f04b..eee848d 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2492,7 +2492,7 @@ extern int nonseekable_open(struct inode * inode, struct file * filp);
+ 
+ #ifdef CONFIG_FS_XIP
+ int dax_clear_blocks(struct inode *, sector_t block, long size);
+-extern int xip_truncate_page(struct address_space *mapping, loff_t from);
++int dax_truncate_page(struct inode *, loff_t from, get_block_t);
+ ssize_t dax_do_io(int rw, struct kiocb *, struct inode *, struct iov_iter *,
+ 		loff_t, get_block_t, dio_iodone_t, int flags);
+ int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t);
+@@ -2503,7 +2503,7 @@ static inline int dax_clear_blocks(struct inode *i, sector_t blk, long sz)
+ 	return 0;
  }
  
-@@ -1388,9 +1388,9 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
+-static inline int xip_truncate_page(struct address_space *mapping, loff_t from)
++static inline int dax_truncate_page(struct inode *i, loff_t frm, get_block_t gb)
+ {
+ 	return 0;
+ }
+diff --git a/mm/filemap_xip.c b/mm/filemap_xip.c
+index 9dd45f3..6316578 100644
+--- a/mm/filemap_xip.c
++++ b/mm/filemap_xip.c
+@@ -21,43 +21,3 @@
+ #include <asm/tlbflush.h>
+ #include <asm/io.h>
  
- 	if (S_ISREG(inode->i_mode)) {
- 		inode->i_op = &ext2_file_inode_operations;
--		if (test_opt(inode->i_sb, XIP)) {
-+		if (test_opt(inode->i_sb, DAX)) {
- 			inode->i_mapping->a_ops = &ext2_aops;
--			inode->i_fop = &ext2_xip_file_operations;
-+			inode->i_fop = &ext2_dax_file_operations;
- 		} else if (test_opt(inode->i_sb, NOBH)) {
- 			inode->i_mapping->a_ops = &ext2_nobh_aops;
- 			inode->i_fop = &ext2_file_operations;
-diff --git a/fs/ext2/namei.c b/fs/ext2/namei.c
-index 0db888c..148f6e3 100644
---- a/fs/ext2/namei.c
-+++ b/fs/ext2/namei.c
-@@ -104,9 +104,9 @@ static int ext2_create (struct inode * dir, struct dentry * dentry, umode_t mode
- 		return PTR_ERR(inode);
- 
- 	inode->i_op = &ext2_file_inode_operations;
--	if (test_opt(inode->i_sb, XIP)) {
-+	if (test_opt(inode->i_sb, DAX)) {
- 		inode->i_mapping->a_ops = &ext2_aops;
--		inode->i_fop = &ext2_xip_file_operations;
-+		inode->i_fop = &ext2_dax_file_operations;
- 	} else if (test_opt(inode->i_sb, NOBH)) {
- 		inode->i_mapping->a_ops = &ext2_nobh_aops;
- 		inode->i_fop = &ext2_file_operations;
-@@ -125,9 +125,9 @@ static int ext2_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
- 		return PTR_ERR(inode);
- 
- 	inode->i_op = &ext2_file_inode_operations;
--	if (test_opt(inode->i_sb, XIP)) {
-+	if (test_opt(inode->i_sb, DAX)) {
- 		inode->i_mapping->a_ops = &ext2_aops;
--		inode->i_fop = &ext2_xip_file_operations;
-+		inode->i_fop = &ext2_dax_file_operations;
- 	} else if (test_opt(inode->i_sb, NOBH)) {
- 		inode->i_mapping->a_ops = &ext2_nobh_aops;
- 		inode->i_fop = &ext2_file_operations;
-diff --git a/fs/ext2/super.c b/fs/ext2/super.c
-index feb53d8..8b9debf 100644
---- a/fs/ext2/super.c
-+++ b/fs/ext2/super.c
-@@ -290,6 +290,8 @@ static int ext2_show_options(struct seq_file *seq, struct dentry *root)
- #ifdef CONFIG_FS_DAX
- 	if (sbi->s_mount_opt & EXT2_MOUNT_XIP)
- 		seq_puts(seq, ",xip");
-+	if (sbi->s_mount_opt & EXT2_MOUNT_DAX)
-+		seq_puts(seq, ",dax");
- #endif
- 
- 	if (!test_opt(sb, RESERVATION))
-@@ -393,7 +395,7 @@ enum {
- 	Opt_resgid, Opt_resuid, Opt_sb, Opt_err_cont, Opt_err_panic,
- 	Opt_err_ro, Opt_nouid32, Opt_nocheck, Opt_debug,
- 	Opt_oldalloc, Opt_orlov, Opt_nobh, Opt_user_xattr, Opt_nouser_xattr,
--	Opt_acl, Opt_noacl, Opt_xip, Opt_ignore, Opt_err, Opt_quota,
-+	Opt_acl, Opt_noacl, Opt_xip, Opt_dax, Opt_ignore, Opt_err, Opt_quota,
- 	Opt_usrquota, Opt_grpquota, Opt_reservation, Opt_noreservation
- };
- 
-@@ -422,6 +424,7 @@ static const match_table_t tokens = {
- 	{Opt_acl, "acl"},
- 	{Opt_noacl, "noacl"},
- 	{Opt_xip, "xip"},
-+	{Opt_dax, "dax"},
- 	{Opt_grpquota, "grpquota"},
- 	{Opt_ignore, "noquota"},
- 	{Opt_quota, "quota"},
-@@ -549,10 +552,14 @@ static int parse_options(char *options, struct super_block *sb)
- 			break;
- #endif
- 		case Opt_xip:
-+			ext2_msg(sb, KERN_INFO, "use dax instead of xip");
-+			set_opt(sbi->s_mount_opt, XIP);
-+			/* Fall through */
-+		case Opt_dax:
- #ifdef CONFIG_FS_DAX
--			set_opt (sbi->s_mount_opt, XIP);
-+			set_opt(sbi->s_mount_opt, DAX);
- #else
--			ext2_msg(sb, KERN_INFO, "xip option not supported");
-+			ext2_msg(sb, KERN_INFO, "dax option not supported");
- #endif
- 			break;
- 
-@@ -896,15 +903,15 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
- 
- 	blocksize = BLOCK_SIZE << le32_to_cpu(sbi->s_es->s_log_block_size);
- 
--	if (sbi->s_mount_opt & EXT2_MOUNT_XIP) {
-+	if (sbi->s_mount_opt & EXT2_MOUNT_DAX) {
- 		if (blocksize != PAGE_SIZE) {
- 			ext2_msg(sb, KERN_ERR,
--					"error: unsupported blocksize for xip");
-+					"error: unsupported blocksize for dax");
- 			goto failed_mount;
- 		}
- 		if (!sb->s_bdev->bd_disk->fops->direct_access) {
- 			ext2_msg(sb, KERN_ERR,
--					"error: device does not support xip");
-+					"error: device does not support dax");
- 			goto failed_mount;
- 		}
- 	}
-@@ -1276,10 +1283,10 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
- 		((sbi->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ? MS_POSIXACL : 0);
- 
- 	es = sbi->s_es;
--	if ((sbi->s_mount_opt ^ old_opts.s_mount_opt) & EXT2_MOUNT_XIP) {
-+	if ((sbi->s_mount_opt ^ old_opts.s_mount_opt) & EXT2_MOUNT_DAX) {
- 		ext2_msg(sb, KERN_WARNING, "warning: refusing change of "
--			 "xip flag with busy inodes while remounting");
--		sbi->s_mount_opt ^= EXT2_MOUNT_XIP;
-+			 "dax flag with busy inodes while remounting");
-+		sbi->s_mount_opt ^= EXT2_MOUNT_DAX;
- 	}
- 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
- 		spin_unlock(&sbi->s_lock);
+-/*
+- * truncate a page used for execute in place
+- * functionality is analog to block_truncate_page but does use get_xip_mem
+- * to get the page instead of page cache
+- */
+-int
+-xip_truncate_page(struct address_space *mapping, loff_t from)
+-{
+-	pgoff_t index = from >> PAGE_CACHE_SHIFT;
+-	unsigned offset = from & (PAGE_CACHE_SIZE-1);
+-	unsigned blocksize;
+-	unsigned length;
+-	void *xip_mem;
+-	unsigned long xip_pfn;
+-	int err;
+-
+-	BUG_ON(!mapping->a_ops->get_xip_mem);
+-
+-	blocksize = 1 << mapping->host->i_blkbits;
+-	length = offset & (blocksize - 1);
+-
+-	/* Block boundary? Nothing to do */
+-	if (!length)
+-		return 0;
+-
+-	length = blocksize - length;
+-
+-	err = mapping->a_ops->get_xip_mem(mapping, index, 0,
+-						&xip_mem, &xip_pfn);
+-	if (unlikely(err)) {
+-		if (err == -ENODATA)
+-			/* Hole? No need to truncate */
+-			return 0;
+-		else
+-			return err;
+-	}
+-	memset(xip_mem + offset, 0, length);
+-	return 0;
+-}
+-EXPORT_SYMBOL_GPL(xip_truncate_page);
 -- 
 2.1.0
 
