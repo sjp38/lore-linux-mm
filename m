@@ -1,93 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id DDC126B0038
-	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 14:51:04 -0400 (EDT)
-Received: by mail-wi0-f174.google.com with SMTP id fb4so9568418wid.13
-        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 11:51:04 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id ln5si3778410wjc.118.2014.09.25.11.51.03
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D9766B0038
+	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 14:55:11 -0400 (EDT)
+Received: by mail-qg0-f48.google.com with SMTP id z107so7963868qgd.21
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 11:55:10 -0700 (PDT)
+Received: from n23.mail01.mtsvc.net (mailout32.mail01.mtsvc.net. [216.70.64.70])
+        by mx.google.com with ESMTPS id y32si3380626qgd.79.2014.09.25.11.55.10
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Sep 2014 11:51:03 -0700 (PDT)
-Date: Thu, 25 Sep 2014 14:50:47 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm/slab: use IS_ENABLED() instead of ZONE_DMA_FLAG
-Message-ID: <20140925185047.GA21089@cmpxchg.org>
-References: <1411667851.2020.6.camel@x41>
+        Thu, 25 Sep 2014 11:55:10 -0700 (PDT)
+Message-ID: <54246506.50401@hurleysoftware.com>
+Date: Thu, 25 Sep 2014 14:55:02 -0400
+From: Peter Hurley <peter@hurleysoftware.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1411667851.2020.6.camel@x41>
+Subject: page allocator bug in 3.16?
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Bolle <pebolle@tiscali.nl>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Maarten Lankhorst <maarten.lankhorst@canonical.com>, Thomas Hellstrom <thellstrom@vmware.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@kernel.org>, Hugh Dickens <hughd@google.com>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>
 
-On Thu, Sep 25, 2014 at 07:57:31PM +0200, Paul Bolle wrote:
-> The Kconfig symbol ZONE_DMA_FLAG probably predates the introduction of
-> IS_ENABLED(). Remove it and replace its two uses with the equivalent
-> IS_ENABLED(CONFIG_ZONE_DMA).
-> 
-> Signed-off-by: Paul Bolle <pebolle@tiscali.nl>
-> ---
-> Build tested on x86_64 (on top of next-20140925).
-> 
-> Run tested on i686 (on top of v3.17-rc6). That test required me to
-> switch from SLUB (Fedora's default) to SLAB. That makes running this
-> patch both more scary and less informative. Besides, I have no idea how
-> to hit the codepaths I just changed. You'd expect this to not actually
-> change slab.o, but I'm not sure how to check that. So, in short: review
-> very much appreciated.
-> 
->  mm/Kconfig | 5 -----
->  mm/slab.c  | 4 ++--
->  2 files changed, 2 insertions(+), 7 deletions(-)
-> 
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 886db21..8e860c7 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -273,11 +273,6 @@ config ARCH_ENABLE_HUGEPAGE_MIGRATION
->  config PHYS_ADDR_T_64BIT
->  	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
->  
-> -config ZONE_DMA_FLAG
-> -	int
-> -	default "0" if !ZONE_DMA
-> -	default "1"
-> -
->  config BOUNCE
->  	bool "Enable bounce buffers"
->  	default y
-> diff --git a/mm/slab.c b/mm/slab.c
-> index 628f2b5..766c90e 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -2243,7 +2243,7 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
->  	cachep->freelist_size = freelist_size;
->  	cachep->flags = flags;
->  	cachep->allocflags = __GFP_COMP;
-> -	if (CONFIG_ZONE_DMA_FLAG && (flags & SLAB_CACHE_DMA))
-> +	if (IS_ENABLED(CONFIG_ZONE_DMA) && (flags & SLAB_CACHE_DMA))
->  		cachep->allocflags |= GFP_DMA;
+After several days uptime with a 3.16 kernel (generally running
+Thunderbird, emacs, kernel builds, several Chrome tabs on multiple
+desktop workspaces) I've been seeing some really extreme slowdowns.
 
-GFP_DMA is actually safe to use even without CONFIG_ZONE_DMA, so you
-only need to check for SLAB_CACHE_DMA here.
+Mostly the slowdowns are associated with gpu-related tasks, like
+opening new emacs windows, switching workspaces, laughing at internet
+gifs, etc. Because this x86_64 desktop is nouveau-based, I didn't pursue
+it right away -- 3.15 is the first time suspend has worked reliably.
 
-> @@ -2516,7 +2516,7 @@ static void cache_init_objs(struct kmem_cache *cachep,
->  
->  static void kmem_flagcheck(struct kmem_cache *cachep, gfp_t flags)
->  {
-> -	if (CONFIG_ZONE_DMA_FLAG) {
-> +	if (IS_ENABLED(CONFIG_ZONE_DMA)) {
->  		if (flags & GFP_DMA)
->  			BUG_ON(!(cachep->allocflags & GFP_DMA));
->  		else
+This week I started looking into what the slowdown was and discovered
+it's happening during dma allocation through swiotlb (the cpus can do
+intel iommu but I don't use it because it's not the default for most users).
 
-I think this assertion can be removed altogether and replaced by ORing
-the passed in flags with the cache gfp flags.  The page allocator will
-catch any contradictions, but the 3 callsites that actually do use DMA
-caches are well-behaved as of now.
+I'm still working on a bisection but each step takes 8+ hours to
+validate and even then I'm no longer sure I still have the 'bad'
+commit in the bisection. [edit: yup, I started over]
+
+I just discovered a smattering of these in my logs and only on 3.16-rc+ kernels:
+Sep 25 07:57:59 thor kernel: [28786.001300] alloc_contig_range test_pages_isolated(2bf560, 2bf562) failed
+
+This dual-Xeon box has 10GB and sysrq Show Memory isn't showing heavy
+fragmentation [1].
+
+Besides Mel's page allocator changes in 3.16, another suspect commit is:
+
+commit b13b1d2d8692b437203de7a404c6b809d2cc4d99
+Author: Shaohua Li <shli@kernel.org>
+Date:   Tue Apr 8 15:58:09 2014 +0800
+
+    x86/mm: In the PTE swapout page reclaim case clear the accessed bit instead of flushing the TLB
+
+Specifically, this statement:
+
+    It could cause incorrect page aging and the (mistaken) reclaim of
+    hot pages, but the chance of that should be relatively low.
+
+I'm wondering if this could cause worse-case behavior with TTM? I'm
+testing a revert of this on mainline 3.16-final now, with no results yet.
+
+Thoughts?
+
+Regards,
+Peter Hurley
+
+[1]
+SysRq : Show Memory
+Mem-Info:
+Node 0 DMA per-cpu:
+CPU    0: hi:    0, btch:   1 usd:   0
+CPU    1: hi:    0, btch:   1 usd:   0
+CPU    2: hi:    0, btch:   1 usd:   0
+CPU    3: hi:    0, btch:   1 usd:   0
+CPU    4: hi:    0, btch:   1 usd:   0
+CPU    5: hi:    0, btch:   1 usd:   0
+CPU    6: hi:    0, btch:   1 usd:   0
+CPU    7: hi:    0, btch:   1 usd:   0
+Node 0 DMA32 per-cpu:
+CPU    0: hi:  186, btch:  31 usd:  18
+CPU    1: hi:  186, btch:  31 usd:  82
+CPU    2: hi:  186, btch:  31 usd:  46
+CPU    3: hi:  186, btch:  31 usd:  30
+CPU    4: hi:  186, btch:  31 usd:  18
+CPU    5: hi:  186, btch:  31 usd:  43
+CPU    6: hi:  186, btch:  31 usd: 157
+CPU    7: hi:  186, btch:  31 usd:  26
+Node 0 Normal per-cpu:
+CPU    0: hi:  186, btch:  31 usd:  25
+CPU    1: hi:  186, btch:  31 usd:  33
+CPU    2: hi:  186, btch:  31 usd:  28
+CPU    3: hi:  186, btch:  31 usd:  46
+CPU    4: hi:  186, btch:  31 usd:  23
+CPU    5: hi:  186, btch:  31 usd:   8
+CPU    6: hi:  186, btch:  31 usd: 112
+CPU    7: hi:  186, btch:  31 usd:  18
+active_anon:382833 inactive_anon:12103 isolated_anon:0
+ active_file:1156997 inactive_file:733988 isolated_file:0
+ unevictable:15 dirty:35833 writeback:0 unstable:0
+ free:129383 slab_reclaimable:95038 slab_unreclaimable:11095
+ mapped:81924 shmem:12509 pagetables:9039 bounce:0
+ free_cma:0
+Node 0 DMA free:15860kB min:104kB low:128kB high:156kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15960kB managed:15876kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:0kB slab_reclaimable:0kB slab_unreclaimable:16kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? yes
+lowmem_reserve[]: 0 2974 9980 9980
+Node 0 DMA32 free:166712kB min:20108kB low:25132kB high:30160kB active_anon:475548kB inactive_anon:15204kB active_file:1368716kB inactive_file:865832kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:3127336kB managed:3048188kB mlocked:0kB dirty:38228kB writeback:0kB mapped:94340kB shmem:15436kB slab_reclaimable:116424kB slab_unreclaimable:12756kB kernel_stack:2512kB pagetables:11532kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+lowmem_reserve[]: 0 0 7006 7006
+Node 0 Normal free:334960kB min:47368kB low:59208kB high:71052kB active_anon:1055784kB inactive_anon:33208kB active_file:3259272kB inactive_file:2070120kB unevictable:60kB isolated(anon):0kB isolated(file):0kB present:7340032kB managed:7174484kB mlocked:60kB dirty:105104kB writeback:0kB mapped:233356kB shmem:34600kB slab_reclaimable:263728kB slab_unreclaimable:31608kB kernel_stack:7344kB pagetables:24624kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+lowmem_reserve[]: 0 0 0 0
+Node 0 DMA: 1*4kB (U) 0*8kB 1*16kB (U) 1*32kB (U) 1*64kB (U) 1*128kB (U) 1*256kB (U) 0*512kB 1*1024kB (U) 1*2048kB (R) 3*4096kB (M) = 15860kB
+Node 0 DMA32: 209*4kB (UEM) 394*8kB (UEM) 303*16kB (UEM) 60*32kB (UEM) 314*64kB (UEM) 117*128kB (UEM) 9*256kB (EM) 3*512kB (UEM) 2*1024kB (EM) 2*2048kB (UM) 27*4096kB (MR) = 166404kB
+Node 0 Normal: 17*4kB (UE) 460*8kB (UEM) 747*16kB (UM) 130*32kB (UEM) 521*64kB (UM) 184*128kB (UEM) 70*256kB (UM) 22*512kB (UM) 11*1024kB (UM) 2*2048kB (EM) 52*4096kB (MR) = 334292kB
+Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
+1903443 total pagecache pages
+0 pages in swap cache
+Swap cache stats: add 0, delete 0, find 0/0
+Free swap  = 10996456kB
+Total swap = 10996456kB
+2620832 pages RAM
+0 pages HighMem/MovableOnly
+41387 pages reserved
+0 pages hwpoisoned
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
