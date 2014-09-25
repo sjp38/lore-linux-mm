@@ -1,311 +1,275 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 474D16B0038
-	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 11:52:46 -0400 (EDT)
-Received: by mail-wg0-f48.google.com with SMTP id x13so5030315wgg.7
-        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 08:52:45 -0700 (PDT)
-Received: from mail-wg0-x232.google.com (mail-wg0-x232.google.com [2a00:1450:400c:c00::232])
-        by mx.google.com with ESMTPS id pe7si3186335wjb.119.2014.09.25.08.52.44
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 77CEE6B0038
+	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 11:58:09 -0400 (EDT)
+Received: by mail-wi0-f175.google.com with SMTP id r20so9253103wiv.14
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 08:58:08 -0700 (PDT)
+Received: from mail-wi0-x22b.google.com (mail-wi0-x22b.google.com [2a00:1450:400c:c05::22b])
+        by mx.google.com with ESMTPS id el2si3173453wjd.142.2014.09.25.08.58.07
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 25 Sep 2014 08:52:44 -0700 (PDT)
-Received: by mail-wg0-f50.google.com with SMTP id l18so7132921wgh.21
-        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 08:52:44 -0700 (PDT)
+        Thu, 25 Sep 2014 08:58:08 -0700 (PDT)
+Received: by mail-wi0-f171.google.com with SMTP id ho1so9234129wib.10
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 08:58:07 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20140925010229.GA17364@bbox>
-References: <1411344191-2842-1-git-send-email-minchan@kernel.org>
- <1411344191-2842-5-git-send-email-minchan@kernel.org> <CALZtONB+NBMa8xf8xuAoeYHDoMtS56VLGP-a46LZgpppFyz7ag@mail.gmail.com>
- <20140925010229.GA17364@bbox>
+In-Reply-To: <20140925062004.GC23558@js1304-P5Q-DELUXE>
+References: <1411538626-19285-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <CALZtONDFdn_NXj85GbOD263T8n9cwtJsWQELwdCBNHBKsddVtQ@mail.gmail.com> <20140925062004.GC23558@js1304-P5Q-DELUXE>
 From: Dan Streetman <ddstreet@ieee.org>
-Date: Thu, 25 Sep 2014 11:52:22 -0400
-Message-ID: <CALZtONDnrqPZEBgJb5t8v_pmgh5YMSCA649sCPObb+U=5hAX_A@mail.gmail.com>
-Subject: Re: [PATCH v1 4/5] zram: add swap full hint
+Date: Thu, 25 Sep 2014 11:57:47 -0400
+Message-ID: <CALZtONBOrOGG5F5ru+2UQ5QCtvHEt6CEoNLfM=f5w4dXLFfcuQ@mail.gmail.com>
+Subject: Re: [PATCH v2] zsmalloc: merge size_class to reduce fragmentation
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>, juno.choi@lge.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Luigi Semenzato <semenzato@google.com>, juno.choi@lge.com, "seungho1.park" <seungho1.park@lge.com>
 
-On Wed, Sep 24, 2014 at 9:02 PM, Minchan Kim <minchan@kernel.org> wrote:
-> On Wed, Sep 24, 2014 at 10:01:03AM -0400, Dan Streetman wrote:
->> On Sun, Sep 21, 2014 at 8:03 PM, Minchan Kim <minchan@kernel.org> wrote:
->> > This patch implement SWAP_FULL handler in zram so that VM can
->> > know whether zram is full or not and use it to stop anonymous
->> > page reclaim.
+On Thu, Sep 25, 2014 at 2:20 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> On Wed, Sep 24, 2014 at 12:24:14PM -0400, Dan Streetman wrote:
+>> On Wed, Sep 24, 2014 at 2:03 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+>> > zsmalloc has many size_classes to reduce fragmentation and they are
+>> > in 16 bytes unit, for example, 16, 32, 48, etc., if PAGE_SIZE is 4096.
+>> > And, zsmalloc has constraint that each zspage has 4 pages at maximum.
 >> >
->> > How to judge fullness is below,
+>> > In this situation, we can see interesting aspect.
+>> > Let's think about size_class for 1488, 1472, ..., 1376.
+>> > To prevent external fragmentation, they uses 4 pages per zspage and
+>> > so all they can contain 11 objects at maximum.
 >> >
->> > fullness = (100 * used space / total space)
+>> > 16384 (4096 * 4) = 1488 * 11 + remains
+>> > 16384 (4096 * 4) = 1472 * 11 + remains
+>> > 16384 (4096 * 4) = ...
+>> > 16384 (4096 * 4) = 1376 * 11 + remains
 >> >
->> > It means the higher fullness is, the slower we reach zram full.
->> > Now, default of fullness is 80 so that it biased more momory
->> > consumption rather than early OOM kill.
+>> > It means that they have same characteristics and classification between
+>> > them isn't needed. If we use one size_class for them, we can reduce
+>> > fragementation and save some memory.
+>>
+>> Just a suggestion, but you might want to further clarify the example
+>> by saying something like:
+>>
+>> since both the 1488 and 1472 sized classes can only fit 11 objects
+>> into 4 pages, and an object that's 1472 bytes can fit into an object
+>> that's 1488 bytes, merging these classes to always use objects that
+>> are 1488 bytes will reduce the total number of size classes.  And
+>> reducing the total number of size classes reduces overall
+>> fragmentation, because a wider range of compressed pages can fit into
+>> a single size class, leaving less unused objects in each size class.
+>
+> Hello, Dan.
+>
+> Yes, your suggestion is really good. I will add it on v3.
+>
+>>
+>>
+>> > For this purpose, this patch
+>> > implement size_class merging. If there is size_class that have
+>> > same pages_per_zspage and same number of objects per zspage with previous
+>> > size_class, we don't create and use new size_class. Instead, we use
+>> > previous, same characteristic size_class. With this way, above example
+>> > sizes (1488, 1472, ..., 1376) use just one size_class so we can get much
+>> > more memory utilization.
 >> >
->> > Above logic works only when used space of zram hit over the limit
->> > but zram also pretend to be full once 32 consecutive allocation
->> > fail happens. It's safe guard to prevent system hang caused by
->> > fragment uncertainty.
+>> > Below is result of my simple test.
 >> >
->> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+>> > TEST ENV: EXT4 on zram, mount with discard option
+>> > WORKLOAD: untar kernel source code, remove directory in descending order
+>> > in size. (drivers arch fs sound include net Documentation firmware
+>> > kernel tools)
+>> >
+>> > Each line represents orig_data_size, compr_data_size, mem_used_total,
+>> > fragmentation overhead (mem_used - compr_data_size) and overhead ratio
+>> > (overhead to compr_data_size), respectively, after untar and remove
+>> > operation is executed.
+>> >
+>> > * untar-nomerge.out
+>> >
+>> > orig_size compr_size used_size overhead overhead_ratio
+>> > 525.88MB 199.16MB 210.23MB  11.08MB 5.56%
+>> > 288.32MB  97.43MB 105.63MB   8.20MB 8.41%
+>> > 177.32MB  61.12MB  69.40MB   8.28MB 13.55%
+>> > 146.47MB  47.32MB  56.10MB   8.78MB 18.55%
+>> > 124.16MB  38.85MB  48.41MB   9.55MB 24.58%
+>> > 103.93MB  31.68MB  40.93MB   9.25MB 29.21%
+>> >  84.34MB  22.86MB  32.72MB   9.86MB 43.13%
+>> >  66.87MB  14.83MB  23.83MB   9.00MB 60.70%
+>> >  60.67MB  11.11MB  18.60MB   7.49MB 67.48%
+>> >  55.86MB   8.83MB  16.61MB   7.77MB 88.03%
+>> >  53.32MB   8.01MB  15.32MB   7.31MB 91.24%
+>> >
+>> > * untar-merge.out
+>> >
+>> > orig_size compr_size used_size overhead overhead_ratio
+>> > 526.23MB 199.18MB 209.81MB  10.64MB 5.34%
+>> > 288.68MB  97.45MB 104.08MB   6.63MB 6.80%
+>> > 177.68MB  61.14MB  66.93MB   5.79MB 9.47%
+>> > 146.83MB  47.34MB  52.79MB   5.45MB 11.51%
+>> > 124.52MB  38.87MB  44.30MB   5.43MB 13.96%
+>> > 104.29MB  31.70MB  36.83MB   5.13MB 16.19%
+>> >  84.70MB  22.88MB  27.92MB   5.04MB 22.04%
+>> >  67.11MB  14.83MB  19.26MB   4.43MB 29.86%
+>> >  60.82MB  11.10MB  14.90MB   3.79MB 34.17%
+>> >  55.90MB   8.82MB  12.61MB   3.79MB 42.97%
+>> >  53.32MB   8.01MB  11.73MB   3.73MB 46.53%
+>> >
+>> > As you can see above result, merged one has better utilization (overhead
+>> > ratio, 5th column) and uses less memory (mem_used_total, 3rd column).
+>>
+>> This patch is definitely a good idea!
+>
+> Thank you. :)
+>
+>> >
+>> > Changed from v1:
+>> > - More commit description about what to do in this patch.
+>> > - Remove nr_obj in size_class, because it isn't need after initialization.
+>> > - Rename __size_class to size_class, size_class to merged_size_class.
+>> > - Add code comment for merged_size_class of struct zs_pool.
+>> > - Add code comment how merging works in zs_create_pool().
+>> >
+>> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 >> > ---
->> >  drivers/block/zram/zram_drv.c | 60 ++++++++++++++++++++++++++++++++++++++++---
->> >  drivers/block/zram/zram_drv.h |  1 +
->> >  2 files changed, 57 insertions(+), 4 deletions(-)
+>> >  mm/zsmalloc.c |   57 ++++++++++++++++++++++++++++++++++++++++++++++++---------
+>> >  1 file changed, 48 insertions(+), 9 deletions(-)
 >> >
->> > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
->> > index 22a37764c409..649cad9d0b1c 100644
->> > --- a/drivers/block/zram/zram_drv.c
->> > +++ b/drivers/block/zram/zram_drv.c
->> > @@ -43,6 +43,20 @@ static const char *default_compressor = "lzo";
->> >  /* Module params (documentation at end) */
->> >  static unsigned int num_devices = 1;
+>> > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+>> > index c4a9157..586c19d 100644
+>> > --- a/mm/zsmalloc.c
+>> > +++ b/mm/zsmalloc.c
+>> > @@ -214,6 +214,11 @@ struct link_free {
+>> >  };
 >> >
->> > +/*
->> > + * If (100 * used_pages / total_pages) >= ZRAM_FULLNESS_PERCENT),
->> > + * we regards it as zram-full. It means that the higher
->> > + * ZRAM_FULLNESS_PERCENT is, the slower we reach zram full.
->> > + */
->> > +#define ZRAM_FULLNESS_PERCENT 80
+>> >  struct zs_pool {
+>> > +       /*
+>> > +        * Each merge_size_class is pointing to one of size_class that have
+>> > +        * same characteristics. See zs_create_pool() for more information.
+>> > +        */
+>> > +       struct size_class *merged_size_class[ZS_SIZE_CLASSES];
+>> >         struct size_class size_class[ZS_SIZE_CLASSES];
 >>
->> As Andrew said, this (or the user-configurable fullness param from the
->> next patch) should have more detail about exactly why it's needed and
->> what it does.  The details of how zram considers itself "full" should
->> be clear, which probably includes explaining zsmalloc fragmentation.
->> It should be also clear this param only matters when limit_pages is
->> set, and this param is only checked when zsmalloc's total size has
->> reached that limit.
+>> Isn't this confusing and wasteful?  merged_size_class is what
+>> everything should use, and each of those just point to one of the
+>> size_class entries, and not all size_class entries will be used.
+>>
+>> Instead can we just keep only size_class[], but change it to pointers,
+>> and use kmalloc in zs_create_pool?  That wastes no memory and doesn't
+>> have duplicate arrays with confusingly similar names :-)
 >
-> Sure, How about this?
->
->                 The fullness file is read/write and specifies how easily
->                 zram become full state. Normally, we can think "full"
->                 once all of memory is consumed but it's not simple with
->                 zram because zsmalloc has some issue by internal design
->                 so that write could fail once consumed *page* by zram
->                 reaches the mem_limit and zsmalloc cannot have a empty
->                 slot for the compressed object's size on fragmenet space
->                 although it has more empty slots for other sizes.
-
-I understand that, but it might be confusing or unclear to anyone
-who's not familiar with how zsmalloc works.
-
-Maybe it could be explained by referencing the existing
-compr_data_size and mem_used_total?  In addition to some or all of the
-above, you could add something like:
-
-This controls when zram decides that it is "full".  It is a percent
-value, checked against compr_data_size / mem_used_total.  When
-mem_used_total is equal to mem_limit, the fullness is checked and if
-the compr_data_size / mem_used_total percentage is higher than this
-specified fullness value, zram is considered "full".
-
-
->
->                 We regard zram as full once consumed *page* reaches the
->                 mem_limit and consumed memory until now is higher the value
->                 resulted from the knob. So, if you set the value high,
->                 you can squeeze more pages into fragment space so you could
->                 avoid early OOM while you could see more write-fail warning,
->                 overhead to fail-write recovering by VM and reclaim latency.
->                 If you set the value low, you can see OOM kill easily
->                 even though there are memory space in zram but you could
->                 avoid shortcomings mentioned above.
-
-You should clarify also that this is currently only used by
-swap-on-zram, and this value prevents swap from writing to zram once
-it is "full".  This setting has no effect when using zram for a
-mounted filesystem.
-
->
->                 This knobs is valid ony if you set mem_limit.
->                 Currently, initial value is 80% but it could be changed.
->
-> I didn't decide how to change it from percent.
-> Decimal fraction Jerome mentioned does make sense to me so please ignore
-> percent part in above.
+> I will do it.
 >
 >>
->> Also, since the next patch changes it to be used only as a default,
->> shouldn't it be DEFAULT_ZRAM_FULLNESS_PERCENT or similar?
->
-> Okay, I will do it in 5/5.
->
->>
->> > +
->> > +/*
->> > + * If zram fails to allocate memory consecutively up to this,
->> > + * we regard it as zram-full. It's safe guard to prevent too
->> > + * many swap write fail due to lack of fragmentation uncertainty.
->> > + */
->> > +#define ALLOC_FAIL_MAX 32
->> > +
->> >  #define ZRAM_ATTR_RO(name)                                             \
->> >  static ssize_t zram_attr_##name##_show(struct device *d,               \
->> >                                 struct device_attribute *attr, char *b) \
->> > @@ -148,6 +162,7 @@ static ssize_t mem_limit_store(struct device *dev,
 >> >
->> >         down_write(&zram->init_lock);
->> >         zram->limit_pages = PAGE_ALIGN(limit) >> PAGE_SHIFT;
->> > +       atomic_set(&zram->alloc_fail, 0);
->> >         up_write(&zram->init_lock);
+>> >         gfp_t flags;    /* allocation flags used when growing pool */
+>> > @@ -468,7 +473,7 @@ static enum fullness_group fix_fullness_group(struct zs_pool *pool,
+>> >         if (newfg == currfg)
+>> >                 goto out;
 >> >
->> >         return len;
->> > @@ -410,6 +425,7 @@ static void zram_free_page(struct zram *zram, size_t index)
->> >         atomic64_sub(zram_get_obj_size(meta, index),
->> >                         &zram->stats.compr_data_size);
->> >         atomic64_dec(&zram->stats.pages_stored);
->> > +       atomic_set(&zram->alloc_fail, 0);
->> >
->> >         meta->table[index].handle = 0;
->> >         zram_set_obj_size(meta, index, 0);
->> > @@ -597,10 +613,15 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
->> >         }
->> >
->> >         alloced_pages = zs_get_total_pages(meta->mem_pool);
->> > -       if (zram->limit_pages && alloced_pages > zram->limit_pages) {
->> > -               zs_free(meta->mem_pool, handle);
->> > -               ret = -ENOMEM;
->> > -               goto out;
->> > +       if (zram->limit_pages) {
->> > +               if (alloced_pages > zram->limit_pages) {
->> > +                       zs_free(meta->mem_pool, handle);
->> > +                       atomic_inc(&zram->alloc_fail);
->> > +                       ret = -ENOMEM;
->> > +                       goto out;
->> > +               } else {
->> > +                       atomic_set(&zram->alloc_fail, 0);
->> > +               }
->>
->> So, with zram_full() checking for alloced_pages >= limit_pages, this
->> will need to be changed; the way it is now it prevents that from ever
->> being true.
->>
->> Instead I believe this check has to be moved to before zs_malloc(), so
->> that alloced_pages > limit_pages is true.
->
-> I don't get it why you said "it prevents that from ever being true".
-> Now, zram can use up until limit_pages (ie, used memory == zram->limit_pages)
-> and trying to get more is failed. so zram_full checks it as
-> toal_pages >= zram->limit_pages so what is problem?
-> If I miss your point, could you explain more?
-
-ok, that's true, it's possible for alloc_pages == limit_pages, but
-since zsmalloc will increase its size by a full zspage, and those can
-be anywhere between 1 and 4 pages in size, it's only a (very roughly)
-25% chance that an alloc will cause alloc_pages == limit_pages, it's
-more likely that an alloc will cause alloc_pages > limit_pages.  Now,
-after some number of write failures, that 25% (-ish) probability will
-be met, and alloc_pages == limit_pages will happen, but there's a
-rather high chance that there will be some number of write failures
-first.
-
-To summarize or restate that, I guess what I'm saying is that for
-users who don't care about some write failures and/or users with no
-other swap devices except zram, it probably does not matter.  However
-for them, they probably will rely on the 32 write failure limit, and
-not the fullness limit.  For users where zram is only the primary swap
-device, and there is a backup swap device, they probably will want
-zram to fail over to the backup fairly quickly, with as few write
-failures as possible (preferably, none, I would think).  And this
-situation makes that highly unlikely - since there's only about a 25%
-chance of alloc_pages == limit_pages with no previous write failures,
-it's almost a certainty that there will be write failures before zram
-is decided to be "full", even if "fullness" is set to 0.
-
-With that said, you're right that it will eventually work, and those
-few write failures while trying to get to alloc_pages == limit_pages
-would probably not be noticable.  However, do remember that zram won't
-stay full forever, so if it is only the primary swap device, it's
-likely it will move between "full" and "not full" quite a lot, and
-those few write failures may start adding up.
-
-I suppose testing would show if those few write failures are
-significant.  Also, if nobody ever uses zram with a backup (real disk)
-secondary swap device, then it likely doesn't matter.
-
->
->>
->>
->> >         }
->> >
->> >         update_used_max(zram, alloced_pages);
->> > @@ -711,6 +732,7 @@ static void zram_reset_device(struct zram *zram, bool reset_capacity)
->> >         down_write(&zram->init_lock);
->> >
->> >         zram->limit_pages = 0;
->> > +       atomic_set(&zram->alloc_fail, 0);
->> >
->> >         if (!init_done(zram)) {
->> >                 up_write(&zram->init_lock);
->> > @@ -944,6 +966,34 @@ static int zram_slot_free_notify(struct block_device *bdev,
->> >         return 0;
+>> > -       class = &pool->size_class[class_idx];
+>> > +       class = pool->merged_size_class[class_idx];
+>> >         remove_zspage(page, class, currfg);
+>> >         insert_zspage(page, class, newfg);
+>> >         set_zspage_mapping(page, class_idx, newfg);
+>> > @@ -929,6 +934,22 @@ fail:
+>> >         return notifier_to_errno(ret);
 >> >  }
 >> >
->> > +static int zram_full(struct block_device *bdev, void *arg)
+>> > +static unsigned int objs_per_zspage(struct size_class *class)
 >> > +{
->> > +       struct zram *zram;
->> > +       struct zram_meta *meta;
->> > +       unsigned long total_pages, compr_pages;
->> > +
->> > +       zram = bdev->bd_disk->private_data;
->> > +       if (!zram->limit_pages)
->> > +               return 0;
->> > +
->> > +       meta = zram->meta;
->> > +       total_pages = zs_get_total_pages(meta->mem_pool);
->> > +
->> > +       if (total_pages >= zram->limit_pages) {
->> > +
->> > +               compr_pages = atomic64_read(&zram->stats.compr_data_size)
->> > +                                       >> PAGE_SHIFT;
->> > +               if ((100 * compr_pages / total_pages)
->> > +                       >= ZRAM_FULLNESS_PERCENT)
->> > +                       return 1;
->> > +       }
->> > +
->> > +       if (atomic_read(&zram->alloc_fail) > ALLOC_FAIL_MAX)
->> > +               return 1;
->> > +
->> > +       return 0;
+>> > +       return class->pages_per_zspage * PAGE_SIZE / class->size;
 >> > +}
 >> > +
->> >  static int zram_swap_hint(struct block_device *bdev,
->> >                                 unsigned int hint, void *arg)
+>> > +static bool can_merge(struct size_class *prev, struct size_class *curr)
+>> > +{
+>> > +       if (prev->pages_per_zspage != curr->pages_per_zspage)
+>> > +               return false;
+>> > +
+>> > +       if (objs_per_zspage(prev) != objs_per_zspage(curr))
+>> > +               return false;
+>> > +
+>> > +       return true;
+>> > +}
+>> > +
+>> >  /**
+>> >   * zs_create_pool - Creates an allocation pool to work from.
+>> >   * @flags: allocation flags used to allocate pool metadata
+>> > @@ -949,9 +970,14 @@ struct zs_pool *zs_create_pool(gfp_t flags)
+>> >         if (!pool)
+>> >                 return NULL;
+>> >
+>> > -       for (i = 0; i < ZS_SIZE_CLASSES; i++) {
+>> > +       /*
+>> > +        * Loop reversly, because, size of size_class that we want to use for
+>> > +        * merging should be larger or equal to current size.
+>> > +        */
+>> > +       for (i = ZS_SIZE_CLASSES - 1; i >= 0; i--) {
+>> >                 int size;
+>> >                 struct size_class *class;
+>> > +               struct size_class *prev_class;
+>> >
+>> >                 size = ZS_MIN_ALLOC_SIZE + i * ZS_SIZE_CLASS_DELTA;
+>> >                 if (size > ZS_MAX_ALLOC_SIZE)
+>> > @@ -963,6 +989,22 @@ struct zs_pool *zs_create_pool(gfp_t flags)
+>> >                 spin_lock_init(&class->lock);
+>> >                 class->pages_per_zspage = get_pages_per_zspage(size);
+>> >
+>> > +               pool->merged_size_class[i] = class;
+>> > +               if (i == ZS_SIZE_CLASSES - 1)
+>> > +                       continue;
+>> > +
+>> > +               /*
+>> > +                * merged_size_class is used for normal zsmalloc operation such
+>> > +                * as alloc/free for that size. Although it is natural that we
+>> > +                * have one size_class for each size, there is a chance that we
+>> > +                * can get more memory utilization if we use one size_class for
+>> > +                * many different sizes whose size_class have same
+>> > +                * characteristics. So, we makes merged_size_class point to
+>> > +                * previous size_class if possible.
+>> > +                */
+>> > +               prev_class = pool->merged_size_class[i + 1];
+>> > +               if (can_merge(prev_class, class))
+>> > +                       pool->merged_size_class[i] = prev_class;
+>> >         }
+>> >
+>> >         pool->flags = flags;
+>> > @@ -1003,7 +1045,6 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
 >> >  {
->> > @@ -951,6 +1001,8 @@ static int zram_swap_hint(struct block_device *bdev,
+>> >         unsigned long obj;
+>> >         struct link_free *link;
+>> > -       int class_idx;
+>> >         struct size_class *class;
 >> >
->> >         if (hint == SWAP_FREE)
->> >                 ret = zram_slot_free_notify(bdev, (unsigned long)arg);
->> > +       else if (hint == SWAP_FULL)
->> > +               ret = zram_full(bdev, arg);
+>> >         struct page *first_page, *m_page;
+>> > @@ -1012,9 +1053,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+>> >         if (unlikely(!size || size > ZS_MAX_ALLOC_SIZE))
+>> >                 return 0;
 >> >
->> >         return ret;
->> >  }
->> > diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
->> > index c6ee271317f5..fcf3176a9f15 100644
->> > --- a/drivers/block/zram/zram_drv.h
->> > +++ b/drivers/block/zram/zram_drv.h
->> > @@ -113,6 +113,7 @@ struct zram {
->> >         u64 disksize;   /* bytes */
->> >         int max_comp_streams;
->> >         struct zram_stats stats;
->> > +       atomic_t alloc_fail;
->> >         /*
->> >          * the number of pages zram can consume for storing compressed data
->> >          */
->> > --
->> > 2.0.0
->> >
+>> > -       class_idx = get_size_class_index(size);
+>> > -       class = &pool->size_class[class_idx];
+>> > -       BUG_ON(class_idx != class->index);
+>> > +       class = pool->merged_size_class[get_size_class_index(size)];
 >>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>> As this change implies, class->index will no longer always be equal to
+>> the index used in pool->class[index], since with merged size classes
+>> the class->index will be the highest index of the merged classes.
+>>
+>> Most places in the code won't care about this, but the two places that
+>> definitely do need fixing are where classes are iterated by index
+>> number.  I believe those places are zs_destroy_pool() and
+>> zs_get_total_size_bytes().  Probably, the for() iteration currently in
+>> use should be replaced by a for_each_size_class() function, that
+>> automatically skips size classes that are duplicates in a merged size
+>> class.  Of course, the for() iteration in zs_create_pool() has to
+>> stay, since that's where the merged classes are setup.
 >
-> --
-> Kind regards,
-> Minchan Kim
+> Now, there is no zs_get_total_size_bytes(), isn't it?
+
+Sorry you're right, I was looking at an older version.
+
+> I will change zs_destroy_pool() according to change you suggested.
+>
+> Thanks.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
