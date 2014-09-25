@@ -1,47 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 3245F6B0036
-	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 10:02:51 -0400 (EDT)
-Received: by mail-wi0-f170.google.com with SMTP id fb4so8399298wid.5
-        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 07:02:50 -0700 (PDT)
-Received: from mail-we0-x235.google.com (mail-we0-x235.google.com [2a00:1450:400c:c03::235])
-        by mx.google.com with ESMTPS id yw4si2823876wjc.94.2014.09.25.07.02.49
+Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DC206B0036
+	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 10:11:57 -0400 (EDT)
+Received: by mail-we0-f171.google.com with SMTP id k48so8048049wev.2
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 07:11:57 -0700 (PDT)
+Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com [2a00:1450:400c:c05::22f])
+        by mx.google.com with ESMTPS id v19si10678450wij.81.2014.09.25.07.11.51
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 25 Sep 2014 07:02:49 -0700 (PDT)
-Received: by mail-we0-f181.google.com with SMTP id w61so6056890wes.26
-        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 07:02:49 -0700 (PDT)
-Date: Thu, 25 Sep 2014 16:02:46 +0200
+        Thu, 25 Sep 2014 07:11:52 -0700 (PDT)
+Received: by mail-wi0-f175.google.com with SMTP id r20so9024518wiv.14
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 07:11:51 -0700 (PDT)
+Date: Thu, 25 Sep 2014 16:11:48 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [linux-next] mm/debug.c compile failure with CONFIG_MEMCG not set
-Message-ID: <20140925140246.GC11080@dhcp22.suse.cz>
-References: <CALLJCT0YKkg=PZN1i4eOEWdJoLE8oAyTAk0OmRHLOGRstqk4MQ@mail.gmail.com>
+Subject: Re: [patch v2] mm: memcontrol: do not iterate uninitialized memcgs
+Message-ID: <20140925141148.GD11080@dhcp22.suse.cz>
+References: <1411612278-4707-1-git-send-email-hannes@cmpxchg.org>
+ <20140925024054.GA4888@cmpxchg.org>
+ <20140925114339.GD12090@dhcp22.suse.cz>
+ <20140925135450.GA1822@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CALLJCT0YKkg=PZN1i4eOEWdJoLE8oAyTAk0OmRHLOGRstqk4MQ@mail.gmail.com>
+In-Reply-To: <20140925135450.GA1822@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Masanari Iida <standby24x7@gmail.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, sasha.levin@oracle.com, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu 25-09-14 22:55:24, Masanari Iida wrote:
-> As of linux-next 20140925, if I don't set CONFIG_MEMCG,
-> the compile failed with following error.
+On Thu 25-09-14 09:54:50, Johannes Weiner wrote:
+> On Thu, Sep 25, 2014 at 01:43:39PM +0200, Michal Hocko wrote:
+> > On Wed 24-09-14 22:40:55, Johannes Weiner wrote:
+> > > Argh, buggy css_put() against the root.  Hand grenades, everywhere.
+> > > Update:
+> > > 
+> > > ---
+> > > From 9b0b4d72d71cd8acd7aaa58d2006c751decc8739 Mon Sep 17 00:00:00 2001
+> > > From: Johannes Weiner <hannes@cmpxchg.org>
+> > > Date: Wed, 24 Sep 2014 22:00:20 -0400
+> > > Subject: [patch] mm: memcontrol: do not iterate uninitialized memcgs
+> > > 
+> > > The cgroup iterators yield css objects that have not yet gone through
+> > > css_online(), but they are not complete memcgs at this point and so
+> > > the memcg iterators should not return them.  d8ad30559715 ("mm/memcg:
+> > > iteration skip memcgs not yet fully initialized") set out to implement
+> > > exactly this, but it uses CSS_ONLINE, a cgroup-internal flag that does
+> > > not meet the ordering requirements for memcg, and so we still may see
+> > > partially initialized memcgs from the iterators.
+> > 
+> > I do not see how would this happen. CSS_ONLINE is set after css_online
+> > callback returns and mem_cgroup_css_online ends the core initialization
+> > with mutex_unlock which should provide sufficient memory ordering
+> > requirements
 > 
-> mm/debug.c: In function a??dump_mma??:
-> mm/debug.c:169:1183: error: a??const struct mm_structa?? has no member named a??ownera??
->   pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
-> 
-> make[1]: *** [mm/debug.o] Error 1
-> 
-> If I set CONFIG_MEMCG, the compile succeed.
-> 
-> Reported-by: Masanari Iida <standby24x7@gmail.com>
+> But the iterators do not use the mutex?  We are missing the matching
+> acquire for the proper ordering.
 
-This is already fixed in Andrew's tree:
-http://marc.info/?l=linux-mm&m=141146435524579&w=2
+OK, I guess you are right. Besides that I am not sure what are the
+ordering guarantees of mutex now that I am looking into the code.
+
+Anyway it is definitely better to be explicit about barriers.
 
 -- 
 Michal Hocko
