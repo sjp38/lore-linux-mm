@@ -1,158 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Thu, 25 Sep 2014 11:13:16 -0400
-From: Benjamin LaHaise <bcrl@kvack.org>
-Subject: Re: [PATCH] aio: Make it possible to remap aio ring
-Message-ID: <20140925151316.GO8303@kvack.org>
-References: <541B00A1.50003@parallels.com> <87eguzuc44.fsf@openvz.org>
-Mime-Version: 1.0
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DCF26B0038
+	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 11:27:59 -0400 (EDT)
+Received: by mail-wg0-f43.google.com with SMTP id y10so8300131wgg.2
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 08:27:58 -0700 (PDT)
+Received: from mail-we0-x230.google.com (mail-we0-x230.google.com [2a00:1450:400c:c03::230])
+        by mx.google.com with ESMTPS id hm9si3210957wjb.40.2014.09.25.08.27.57
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 25 Sep 2014 08:27:57 -0700 (PDT)
+Received: by mail-we0-f176.google.com with SMTP id w61so7266667wes.7
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 08:27:57 -0700 (PDT)
+Date: Thu, 25 Sep 2014 17:27:54 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 2/3] mm: memcontrol: simplify detecting when the
+ memory+swap limit is hit
+Message-ID: <20140925152754.GF11080@dhcp22.suse.cz>
+References: <1411571338-8178-1-git-send-email-hannes@cmpxchg.org>
+ <1411571338-8178-3-git-send-email-hannes@cmpxchg.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87eguzuc44.fsf@openvz.org>
+In-Reply-To: <1411571338-8178-3-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Monakhov <dmonakhov@gmail.com>
-Cc: Pavel Emelyanov <xemul@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-aio@kvack.org, Linux MM <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Dave Hansen <dave@sr71.net>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Sep 25, 2014 at 04:18:51PM +0400, Dmitry Monakhov wrote:
-> On Thu, 18 Sep 2014 19:56:17 +0400, Pavel Emelyanov <xemul@parallels.com> wrote:
-> > Hi,
-> > 
-> > There are actually two issues this patch addresses. Let me start with
-> > the one I tried to solve in the beginning.
-> > 
-> > So, in the checkpoint-restore project (criu) we try to dump tasks'
-> > state and restore one back exactly as it was. One of the tasks' state
-> > bits is rings set up with io_setup() call. There's (almost) no problems
-> > in dumping them, there's a problem restoring them -- if I dump a task
-> > with aio ring originally mapped at address A, I want to restore one
-> > back at exactly the same address A. Unfortunately, the io_setup() does
-> > not allow for that -- it mmaps the ring at whatever place mm finds
-> > appropriate (it calls do_mmap_pgoff() with zero address and without
-> > the MAP_FIXED flag).
-> > 
-> > To make restore possible I'm going to mremap() the freshly created ring
-> > into the address A (under which it was seen before dump). The problem is
-> > that the ring's virtual address is passed back to the user-space as the
-> > context ID and this ID is then used as search key by all the other io_foo()
-> > calls. Reworking this ID to be just some integer doesn't seem to work, as
-> > this value is already used by libaio as a pointer using which this library
-> > accesses memory for aio meta-data.
-> > 
-> > So, to make restore work we need to make sure that
-> > 
-> > a) ring is mapped at desired virtual address
-> > b) kioctx->user_id matches this value
-> > 
-> > Having said that, the patch makes mremap() on aio region update the
-> > kioctx's user_id and mmap_base values.
-> > 
-> > 
-> > Here appears the 2nd issue I mentioned in the beginning of this mail.
-> > If (regardless of the C/R dances I do) someone creates an io context
-> > with io_setup(), then mremap()-s the ring and then destroys the context,
-> > the kill_ioctx() routine will call munmap() on wrong (old) address.
-> > This will result in a) aio ring remaining in memory and b) some other
-> > vma get unexpectedly unmapped.
-> > 
-> > 
-> > What do you think?
-> Look reasonable.
-> Feel free to add Acked-by:Dmitry Monakhov <dmonakhov@openvz.org>
-> > 
-> > Signed-off-by: Pavel Emelyanov <xemul@parallels.com>
+On Wed 24-09-14 11:08:57, Johannes Weiner wrote:
+> When attempting to charge pages, we first charge the memory counter
+> and then the memory+swap counter.  If one of the counters is at its
+> limit, we enter reclaim, but if it's the memory+swap counter, reclaim
+> shouldn't swap because that wouldn't change the situation.  However,
+> if the counters have the same limits, we never get to the memory+swap
+> limit.  To know whether reclaim should swap or not, there is a state
+> flag that indicates whether the limits are equal and whether hitting
+> the memory limit implies hitting the memory+swap limit.
+> 
+> Just try the memory+swap counter first.
 
-I've had a look over this patch, and it seems okay to me.  The interaction 
-with page migration looks safe, as well as with io_destroy().  I've applied 
-this to my aio-next tree at git://git.kvack.org/~bcrl/aio-next.git .  If 
-mm folks have any concerns, please let me know.
+OK, this makes sense and makes the reclaim code little bit more
+readable (). I would just add that the patch shouldn't have any visible
+effectes because that is not apparent from the description.
 
-		-ben
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-> > ---
-> >  fs/aio.c           | 25 +++++++++++++++++++++++++
-> >  include/linux/fs.h |  1 +
-> >  mm/mremap.c        |  3 ++-
-> >  3 files changed, 28 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/fs/aio.c b/fs/aio.c
-> > index 1c9c5f0..a0865e4 100644
-> > --- a/fs/aio.c
-> > +++ b/fs/aio.c
-> > @@ -273,12 +273,37 @@ static void aio_free_ring(struct kioctx *ctx)
-> >  
-> >  static int aio_ring_mmap(struct file *file, struct vm_area_struct *vma)
-> >  {
-> > +	vma->vm_flags |= VM_DONTEXPAND;
-> >  	vma->vm_ops = &generic_file_vm_ops;
-> >  	return 0;
-> >  }
-> >  
-> > +static void aio_ring_remap(struct file *file, struct vm_area_struct *vma)
-> > +{
-> > +	struct mm_struct *mm = vma->vm_mm;
-> > +	struct kioctx_table *table;
-> > +	int i;
-> > +
-> > +	spin_lock(&mm->ioctx_lock);
-> > +	rcu_read_lock();
-> > +	table = rcu_dereference(mm->ioctx_table);
-> > +	for (i = 0; i < table->nr; i++) {
-> > +		struct kioctx *ctx;
-> > +
-> > +		ctx = table->table[i];
-> > +		if (ctx && ctx->aio_ring_file == file) {
-> > +			ctx->user_id = ctx->mmap_base = vma->vm_start;
-> > +			break;
-> > +		}
-> > +	}
-> > +
-> > +	rcu_read_unlock();
-> > +	spin_unlock(&mm->ioctx_lock);
-> > +}
-> > +
-> >  static const struct file_operations aio_ring_fops = {
-> >  	.mmap = aio_ring_mmap,
-> > +	.mremap = aio_ring_remap,
-> >  };
-> >  
-> >  static int aio_set_page_dirty(struct page *page)
-> > diff --git a/include/linux/fs.h b/include/linux/fs.h
-> > index e11d60c..379bd75 100644
-> > --- a/include/linux/fs.h
-> > +++ b/include/linux/fs.h
-> > @@ -1467,6 +1467,7 @@ struct file_operations {
-> >  	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
-> >  	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
-> >  	int (*mmap) (struct file *, struct vm_area_struct *);
-> > +	void (*mremap)(struct file *, struct vm_area_struct *);
-> >  	int (*open) (struct inode *, struct file *);
-> >  	int (*flush) (struct file *, fl_owner_t id);
-> >  	int (*release) (struct inode *, struct file *);
-> > diff --git a/mm/mremap.c b/mm/mremap.c
-> > index 05f1180..18200b9 100644
-> > --- a/mm/mremap.c
-> > +++ b/mm/mremap.c
-> > @@ -287,7 +287,8 @@ static unsigned long move_vma(struct vm_area_struct *vma,
-> >  		old_len = new_len;
-> >  		old_addr = new_addr;
-> >  		new_addr = -ENOMEM;
-> > -	}
-> > +	} else if (vma->vm_file && vma->vm_file->f_op->mremap)
-> > +		vma->vm_file->f_op->mremap(vma->vm_file, new_vma);
-> >  
-> >  	/* Conceal VM_ACCOUNT so old reservation is not undone */
-> >  	if (vm_flags & VM_ACCOUNT) {
-> > -- 
-> > 1.8.4.2
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  mm/memcontrol.c | 47 +++++++++++++----------------------------------
+>  1 file changed, 13 insertions(+), 34 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 1ec22bf380d0..89c920156c2a 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -315,9 +315,6 @@ struct mem_cgroup {
+>  	/* OOM-Killer disable */
+>  	int		oom_kill_disable;
+>  
+> -	/* set when res.limit == memsw.limit */
+> -	bool		memsw_is_minimum;
+> -
+>  	/* protect arrays of thresholds */
+>  	struct mutex thresholds_lock;
+>  
+> @@ -1804,8 +1801,6 @@ static unsigned long mem_cgroup_reclaim(struct mem_cgroup *memcg,
+>  
+>  	if (flags & MEM_CGROUP_RECLAIM_NOSWAP)
+>  		noswap = true;
+> -	if (!(flags & MEM_CGROUP_RECLAIM_SHRINK) && memcg->memsw_is_minimum)
+> -		noswap = true;
+>  
+>  	for (loop = 0; loop < MEM_CGROUP_MAX_RECLAIM_LOOPS; loop++) {
+>  		if (loop)
+> @@ -2543,16 +2538,17 @@ retry:
+>  		goto done;
+>  
+>  	size = batch * PAGE_SIZE;
+> -	if (!res_counter_charge(&memcg->res, size, &fail_res)) {
+> -		if (!do_swap_account)
+> +	if (!do_swap_account ||
+> +	    !res_counter_charge(&memcg->memsw, size, &fail_res)) {
+> +		if (!res_counter_charge(&memcg->res, size, &fail_res))
+>  			goto done_restock;
+> -		if (!res_counter_charge(&memcg->memsw, size, &fail_res))
+> -			goto done_restock;
+> -		res_counter_uncharge(&memcg->res, size);
+> +		if (do_swap_account)
+> +			res_counter_uncharge(&memcg->memsw, size);
+> +		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
+> +	} else {
+>  		mem_over_limit = mem_cgroup_from_res_counter(fail_res, memsw);
+>  		flags |= MEM_CGROUP_RECLAIM_NOSWAP;
+> -	} else
+> -		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
+> +	}
+>  
+>  	if (batch > nr_pages) {
+>  		batch = nr_pages;
+> @@ -3615,7 +3611,6 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+>  				unsigned long long val)
+>  {
+>  	int retry_count;
+> -	u64 memswlimit, memlimit;
+>  	int ret = 0;
+>  	int children = mem_cgroup_count_children(memcg);
+>  	u64 curusage, oldusage;
+> @@ -3642,24 +3637,16 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+>  		 * We have to guarantee memcg->res.limit <= memcg->memsw.limit.
+>  		 */
+>  		mutex_lock(&set_limit_mutex);
+> -		memswlimit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
+> -		if (memswlimit < val) {
+> +		if (res_counter_read_u64(&memcg->memsw, RES_LIMIT) < val) {
+>  			ret = -EINVAL;
+>  			mutex_unlock(&set_limit_mutex);
+>  			break;
+>  		}
+>  
+> -		memlimit = res_counter_read_u64(&memcg->res, RES_LIMIT);
+> -		if (memlimit < val)
+> +		if (res_counter_read_u64(&memcg->res, RES_LIMIT) < val)
+>  			enlarge = 1;
+>  
+>  		ret = res_counter_set_limit(&memcg->res, val);
+> -		if (!ret) {
+> -			if (memswlimit == val)
+> -				memcg->memsw_is_minimum = true;
+> -			else
+> -				memcg->memsw_is_minimum = false;
+> -		}
+>  		mutex_unlock(&set_limit_mutex);
+>  
+>  		if (!ret)
+> @@ -3684,7 +3671,7 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+>  					unsigned long long val)
+>  {
+>  	int retry_count;
+> -	u64 memlimit, memswlimit, oldusage, curusage;
+> +	u64 oldusage, curusage;
+>  	int children = mem_cgroup_count_children(memcg);
+>  	int ret = -EBUSY;
+>  	int enlarge = 0;
+> @@ -3703,22 +3690,14 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+>  		 * We have to guarantee memcg->res.limit <= memcg->memsw.limit.
+>  		 */
+>  		mutex_lock(&set_limit_mutex);
+> -		memlimit = res_counter_read_u64(&memcg->res, RES_LIMIT);
+> -		if (memlimit > val) {
+> +		if (res_counter_read_u64(&memcg->res, RES_LIMIT) > val) {
+>  			ret = -EINVAL;
+>  			mutex_unlock(&set_limit_mutex);
+>  			break;
+>  		}
+> -		memswlimit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
+> -		if (memswlimit < val)
+> +		if (res_counter_read_u64(&memcg->memsw, RES_LIMIT) < val)
+>  			enlarge = 1;
+>  		ret = res_counter_set_limit(&memcg->memsw, val);
+> -		if (!ret) {
+> -			if (memlimit == val)
+> -				memcg->memsw_is_minimum = true;
+> -			else
+> -				memcg->memsw_is_minimum = false;
+> -		}
+>  		mutex_unlock(&set_limit_mutex);
+>  
+>  		if (!ret)
+> -- 
+> 2.1.0
+> 
 
 -- 
-"Thought is the essence of where you are now."
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
