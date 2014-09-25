@@ -1,124 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 119D96B0037
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 21:02:20 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id v10so8390063pde.34
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 18:02:19 -0700 (PDT)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id gz10si894204pbd.135.2014.09.24.18.02.17
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id C709D6B0036
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 21:05:57 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id r10so9522808pdi.11
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 18:05:57 -0700 (PDT)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id gg1si1044108pac.50.2014.09.24.18.05.55
         for <linux-mm@kvack.org>;
-        Wed, 24 Sep 2014 18:02:18 -0700 (PDT)
-Date: Thu, 25 Sep 2014 11:01:26 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v10 09/21] Replace the XIP page fault handler with the
- DAX page fault handler
-Message-ID: <20140925010126.GC4945@dastard>
-References: <cover.1409110741.git.matthew.r.wilcox@intel.com>
- <4d71d7a13bec3acf703e26bf6b0c7da21a71ebe0.1409110741.git.matthew.r.wilcox@intel.com>
- <20140903074724.GE20473@dastard>
- <20140910152337.GF27730@localhost.localdomain>
- <20140911030926.GO20518@dastard>
- <20140924154307.GO27730@localhost.localdomain>
+        Wed, 24 Sep 2014 18:05:57 -0700 (PDT)
+Date: Thu, 25 Sep 2014 10:06:38 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v1 3/5] mm: VM can be aware of zram fullness
+Message-ID: <20140925010638.GB17364@bbox>
+References: <1411344191-2842-1-git-send-email-minchan@kernel.org>
+ <1411344191-2842-4-git-send-email-minchan@kernel.org>
+ <CALZtOND9YOXPQ0vNKFVrs+yhnkbWkKg8FD78cHmqJWhLyo89Gw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20140924154307.GO27730@localhost.localdomain>
+Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <CALZtOND9YOXPQ0vNKFVrs+yhnkbWkKg8FD78cHmqJWhLyo89Gw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>, juno.choi@lge.com
 
-On Wed, Sep 24, 2014 at 11:43:07AM -0400, Matthew Wilcox wrote:
-> On Thu, Sep 11, 2014 at 01:09:26PM +1000, Dave Chinner wrote:
-> > On Wed, Sep 10, 2014 at 11:23:37AM -0400, Matthew Wilcox wrote:
-> > > On Wed, Sep 03, 2014 at 05:47:24PM +1000, Dave Chinner wrote:
-> > > > > +	error = get_block(inode, block, &bh, 0);
-> > > > > +	if (!error && (bh.b_size < PAGE_SIZE))
-> > > > > +		error = -EIO;
-> > > > > +	if (error)
-> > > > > +		goto unlock_page;
-> > > > 
-> > > > page fault into unwritten region, returns buffer_unwritten(bh) ==
-> > > > true. Hence buffer_written(bh) is false, and we take this branch:
-> > > > 
-> > > > > +	if (!buffer_written(&bh) && !vmf->cow_page) {
-> > > > > +		if (vmf->flags & FAULT_FLAG_WRITE) {
-> > > > > +			error = get_block(inode, block, &bh, 1);
-> > > > 
-> > > > Exactly what are you expecting to happen here? We don't do
-> > > > allocation because there are already unwritten blocks over this
-> > > > extent, and so bh will be unchanged when returning. i.e. it will
-> > > > still be mapping an unwritten extent.
-> > > 
-> > > I was expecting calling get_block() on an unwritten extent to convert it
-> > > to a written extent.  Your suggestion below of using b_end_io() to do that
-> > > is a better idea.
-> > > 
-> > > So this should be:
-> > > 
-> > > 	if (!buffer_mapped(&bh) && !vmf->cow_page) {
-> > > 
-> > > ... right?
-> > 
-> > Yes, that is the conclusion I reached as well. ;)
-> 
-> Now I know why I was expecting get_block() on an unwritten extent to
-> convert it to a written extent.  That's the way ext4 behaves!
+On Wed, Sep 24, 2014 at 10:12:18AM -0400, Dan Streetman wrote:
+> On Sun, Sep 21, 2014 at 8:03 PM, Minchan Kim <minchan@kernel.org> wrote:
+> > VM uses nr_swap_pages to throttle amount of swap when it reclaims
+> > anonymous pages because the nr_swap_pages means freeable space
+> > of swap disk.
+> >
+> > However, it's a problem for zram because zram can limit memory
+> > usage by knob(ie, mem_limit) so that swap out can fail although
+> > VM can see lots of free space from zram disk but no more free
+> > space in zram by the limit. If it happens, VM should notice it
+> > and stop reclaimaing until zram can obtain more free space but
+> > we don't have a way to communicate between VM and zram.
+> >
+> > This patch adds new hint SWAP_FULL so that zram can say to VM
+> > "I'm full" from now on. Then VM cannot reclaim annoymous page
+> > any more. If VM notice swap is full, it can remove swap_info_struct
+> > from swap_avail_head and substract remained freeable space from
+> > nr_swap_pages so that VM can think swap is full until VM frees a
+> > swap and increase nr_swap_pages again.
+> >
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> >  include/linux/blkdev.h |  1 +
+> >  mm/swapfile.c          | 44 ++++++++++++++++++++++++++++++++++++++----=
+--
+> >  2 files changed, 39 insertions(+), 6 deletions(-)
+> >
+> > diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+> > index c7220409456c..39f074e0acd7 100644
+> > --- a/include/linux/blkdev.h
+> > +++ b/include/linux/blkdev.h
+> > @@ -1611,6 +1611,7 @@ static inline bool blk_integrity_is_initialized(s=
+truct gendisk *g)
+> >
+> >  enum swap_blk_hint {
+> >         SWAP_FREE,
+> > +       SWAP_FULL,
+> >  };
+> >
+> >  struct block_device_operations {
+> > diff --git a/mm/swapfile.c b/mm/swapfile.c
+> > index 209112cf8b83..71e3df0431b6 100644
+> > --- a/mm/swapfile.c
+> > +++ b/mm/swapfile.c
+> > @@ -493,6 +493,29 @@ static unsigned long scan_swap_map(struct swap_inf=
+o_struct *si,
+> >         int latency_ration =3D LATENCY_LIMIT;
+> >
+> >         /*
+> > +        * If zram is full, we don't need to scan and want to stop swap.
+> > +        * For it, we removes si from swap_avail_head and decreases
+> > +        * nr_swap_pages to prevent further anonymous reclaim so that
+> > +        * VM can restart swap out if zram has a free space.
+> > +        * Look at swap_entry_free.
+> > +        */
+> > +       if (si->flags & SWP_BLKDEV) {
+> > +               struct gendisk *disk =3D si->bdev->bd_disk;
+> > +
+> > +               if (disk->fops->swap_hint && disk->fops->swap_hint(
+> > +                               si->bdev, SWAP_FULL, NULL)) {
+> > +                       spin_lock(&swap_avail_lock);
+> > +                       WARN_ON(plist_node_empty(&si->avail_list));
+> > +                       plist_del(&si->avail_list, &swap_avail_head);
+> > +                       spin_unlock(&swap_avail_lock);
+> > +                       atomic_long_sub(si->pages - si->inuse_pages,
+> > +                                               &nr_swap_pages);
+> > +                       si->full =3D true;
+> > +                       return 0;
+> > +               }
+> > +       }
+> > +
+> > +       /*
+> >          * We try to cluster swap pages by allocating them sequentially
+> >          * in swap.  Once we've allocated SWAPFILE_CLUSTER pages this
+> >          * way, however, we resort to first-free allocation, starting
+> > @@ -798,6 +821,14 @@ static unsigned char swap_entry_free(struct swap_i=
+nfo_struct *p,
+> >         /* free if no reference */
+> >         if (!usage) {
+> >                 bool was_full;
+> > +               struct gendisk *virt_swap =3D NULL;
+> > +
+> > +               /* Check virtual swap */
+> > +               if (p->flags & SWP_BLKDEV) {
+> > +                       virt_swap =3D p->bdev->bd_disk;
+> > +                       if (!virt_swap->fops->swap_hint)
+>=20
+> not a big deal, but can't you just combine these two if's to simplify thi=
+s?
 
-That seems wrong. Unwritten extent conversion should only occur
-on IO completion...
+Do you want this?
 
-> 
-> [  236.660772] got bh ffffffffa06e3bd0 1000
-> [  236.660814] got bh for write ffffffffa06e3bd0 60
-> [  236.660821] calling end_io ffffffffa06e3bd0 60
-> 
-> (1000 is BH_Unwritten, 60 is BH_Mapped | BH_New)
-> 
-> The code producing this output:
-> 
->         error = get_block(inode, block, &bh, 0);
-> printk("got bh %p %lx\n", bh.b_end_io, bh.b_state);
->         if (!error && (bh.b_size < PAGE_SIZE))
->                 error = -EIO;
->         if (error)
->                 goto unlock_page;
-> 
->         if (!buffer_mapped(&bh) && !vmf->cow_page) {
->                 if (vmf->flags & FAULT_FLAG_WRITE) {
->                         error = get_block(inode, block, &bh, 1);
-> printk("got bh for write %p %lx\n", bh.b_end_io, bh.b_state);
+if (p->flags & SWP_BLKDEV && p->bdev->bd_disk->fops->swap_hint)
+        virt_swap =3D p->bdev->bd_disk;
 
-%pF will do symbol decoding for you ;)
 
-> 
-> # xfs_io -f -c "truncate 20k" -c "fiemap -v" -c "falloc 0 20k" -c "fiemap -v" -c "mmap -w 0 20k" -c "fiemap -v" -c "mwrite 4k 4k" -c "fiemap -v" /mnt/ram0/b
-> /mnt/ram0/b:
-> /mnt/ram0/b:
->  EXT: FILE-OFFSET      BLOCK-RANGE      TOTAL FLAGS
->    0: [0..39]:         263176..263215      40 0x801
-> /mnt/ram0/b:
->  EXT: FILE-OFFSET      BLOCK-RANGE      TOTAL FLAGS
->    0: [0..39]:         263176..263215      40 0x801
-> /mnt/ram0/b:
->  EXT: FILE-OFFSET      BLOCK-RANGE      TOTAL FLAGS
->    0: [0..39]:         263176..263215      40   0x1
-> 
-> Actually, this looks wrong ... ext4 should only have converted one block
-> of the extent to written, not all of it.  I think that means ext4 is
-> exposing stale data :-(  I'll keep digging.
+=02
+>=20
+> > +                               virt_swap =3D NULL;
+> > +               }
+> >
+> >                 dec_cluster_info_page(p, p->cluster_info, offset);
+> >                 if (offset < p->lowest_bit)
+> > @@ -814,17 +845,18 @@ static unsigned char swap_entry_free(struct swap_=
+info_struct *p,
+> >                                           &swap_avail_head);
+> >                         spin_unlock(&swap_avail_lock);
+> >                         p->full =3D false;
+> > +                       if (virt_swap)
+> > +                               atomic_long_add(p->pages -
+> > +                                               p->inuse_pages,
+> > +                                               &nr_swap_pages);
+>=20
+> a comment here might be good, to clarify it relies on the check at the
+> top of scan_swap_map previously subtracting the same number of pages.
 
-Check to see if ext4 has zeroed the entire extent - it does some
-convoluted "hole filling" in certain siutations where it extends the
-range of allocation operations by writing zeros around the range that
-it was asked to allocate.
+Okay.
 
-Cheers,
+>=20
+>=20
+> >                 }
+> >
+> >                 atomic_long_inc(&nr_swap_pages);
+> >                 p->inuse_pages--;
+> >                 frontswap_invalidate_page(p->type, offset);
+> > -               if (p->flags & SWP_BLKDEV) {
+> > -                       struct gendisk *disk =3D p->bdev->bd_disk;
+> > -                       if (disk->fops->swap_hint)
+> > -                               disk->fops->swap_hint(p->bdev,
+> > -                                               SWAP_FREE, (void *)offs=
+et);
+> > -               }
+> > +               if (virt_swap)
+> > +                       virt_swap->fops->swap_hint(p->bdev,
+> > +                                       SWAP_FREE, (void *)offset);
+> >         }
+> >
+> >         return usage;
+> > --
+> > 2.0.0
+> >
+>=20
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+--=20
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
