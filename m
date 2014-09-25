@@ -1,147 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 023E56B005C
-	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 16:34:10 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id ft15so11379579pdb.9
-        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 13:34:10 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id m5si5535291pdi.216.2014.09.25.13.34.04
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 58BCD6B006C
+	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 16:34:20 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id hz1so11829262pad.40
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 13:34:20 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id ex8si4730150pdb.203.2014.09.25.13.34.18
         for <linux-mm@kvack.org>;
-        Thu, 25 Sep 2014 13:34:04 -0700 (PDT)
+        Thu, 25 Sep 2014 13:34:19 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v11 19/21] dax: Add dax_zero_page_range
-Date: Thu, 25 Sep 2014 16:33:36 -0400
-Message-Id: <1411677218-29146-20-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH v11 13/21] ext2: Remove ext2_xip_verify_sb()
+Date: Thu, 25 Sep 2014 16:33:30 -0400
+Message-Id: <1411677218-29146-14-git-send-email-matthew.r.wilcox@intel.com>
 In-Reply-To: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
 References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-This new function allows us to support hole-punch for DAX files by zeroing
-a partial page, as opposed to the dax_truncate_page() function which can
-only truncate to the end of the page.  Reimplement dax_truncate_page() to
-call dax_zero_page_range().
+Jan Kara pointed out that calling ext2_xip_verify_sb() in ext2_remount()
+doesn't make sense, since changing the XIP option on remount isn't
+allowed.  It also doesn't make sense to re-check whether blocksize is
+supported since it can't change between mounts.
+
+Replace the call to ext2_xip_verify_sb() in ext2_fill_super() with the
+equivalent check and delete the definition.
 
 Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-[ported to 3.13-rc2]
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- Documentation/filesystems/dax.txt |  1 +
- fs/dax.c                          | 36 +++++++++++++++++++++++++++++++-----
- include/linux/fs.h                |  7 +++++++
- 3 files changed, 39 insertions(+), 5 deletions(-)
+ fs/ext2/super.c | 33 ++++++++++++---------------------
+ fs/ext2/xip.c   | 12 ------------
+ fs/ext2/xip.h   |  2 --
+ 3 files changed, 12 insertions(+), 35 deletions(-)
 
-diff --git a/Documentation/filesystems/dax.txt b/Documentation/filesystems/dax.txt
-index 635adaa..ebcd97f 100644
---- a/Documentation/filesystems/dax.txt
-+++ b/Documentation/filesystems/dax.txt
-@@ -62,6 +62,7 @@ Filesystem support consists of
-   for fault and page_mkwrite (which should probably call dax_fault() and
-   dax_mkwrite(), passing the appropriate get_block() callback)
- - calling dax_truncate_page() instead of block_truncate_page() for DAX files
-+- calling dax_zero_page_range() instead of zero_user() for DAX files
- - ensuring that there is sufficient locking between reads, writes,
-   truncates and page faults
+diff --git a/fs/ext2/super.c b/fs/ext2/super.c
+index b88edc0..d862031 100644
+--- a/fs/ext2/super.c
++++ b/fs/ext2/super.c
+@@ -868,9 +868,6 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
+ 		((EXT2_SB(sb)->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ?
+ 		 MS_POSIXACL : 0);
  
-diff --git a/fs/dax.c b/fs/dax.c
-index 6801be7..91b7561 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -462,13 +462,16 @@ int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- EXPORT_SYMBOL_GPL(dax_fault);
+-	ext2_xip_verify_sb(sb); /* see if bdev supports xip, unset
+-				    EXT2_MOUNT_XIP if not */
+-
+ 	if (le32_to_cpu(es->s_rev_level) == EXT2_GOOD_OLD_REV &&
+ 	    (EXT2_HAS_COMPAT_FEATURE(sb, ~0U) ||
+ 	     EXT2_HAS_RO_COMPAT_FEATURE(sb, ~0U) ||
+@@ -900,11 +897,17 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
  
- /**
-- * dax_truncate_page - handle a partial page being truncated in a DAX file
-+ * dax_zero_page_range - zero a range within a page of a DAX file
-  * @inode: The file being truncated
-  * @from: The file offset that is being truncated to
-+ * @length: The number of bytes to zero
-  * @get_block: The filesystem method used to translate file offsets to blocks
-  *
-- * Similar to block_truncate_page(), this function can be called by a
-- * filesystem when it is truncating an DAX file to handle the partial page.
-+ * This function can be called by a filesystem when it is zeroing part of a
-+ * page in a DAX file.  This is intended for hole-punch operations.  If
-+ * you are truncating a file, the helper function dax_truncate_page() may be
-+ * more convenient.
-  *
-  * We work in terms of PAGE_CACHE_SIZE here for commonality with
-  * block_truncate_page(), but we could go down to PAGE_SIZE if the filesystem
-@@ -476,17 +479,18 @@ EXPORT_SYMBOL_GPL(dax_fault);
-  * block size is smaller than PAGE_SIZE, we have to zero the rest of the page
-  * since the file might be mmaped.
-  */
--int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
-+int dax_zero_page_range(struct inode *inode, loff_t from, unsigned length,
-+							get_block_t get_block)
+ 	blocksize = BLOCK_SIZE << le32_to_cpu(sbi->s_es->s_log_block_size);
+ 
+-	if (ext2_use_xip(sb) && blocksize != PAGE_SIZE) {
+-		if (!silent)
++	if (sbi->s_mount_opt & EXT2_MOUNT_XIP) {
++		if (blocksize != PAGE_SIZE) {
+ 			ext2_msg(sb, KERN_ERR,
+-				"error: unsupported blocksize for xip");
+-		goto failed_mount;
++					"error: unsupported blocksize for xip");
++			goto failed_mount;
++		}
++		if (!sb->s_bdev->bd_disk->fops->direct_access) {
++			ext2_msg(sb, KERN_ERR,
++					"error: device does not support xip");
++			goto failed_mount;
++		}
+ 	}
+ 
+ 	/* If the blocksize doesn't match, re-read the thing.. */
+@@ -1249,7 +1252,6 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
  {
- 	struct buffer_head bh;
- 	pgoff_t index = from >> PAGE_CACHE_SHIFT;
- 	unsigned offset = from & (PAGE_CACHE_SIZE-1);
--	unsigned length = PAGE_CACHE_ALIGN(from) - from;
+ 	struct ext2_sb_info * sbi = EXT2_SB(sb);
+ 	struct ext2_super_block * es;
+-	unsigned long old_mount_opt = sbi->s_mount_opt;
+ 	struct ext2_mount_options old_opts;
+ 	unsigned long old_sb_flags;
  	int err;
+@@ -1274,22 +1276,11 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
+ 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
+ 		((sbi->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ? MS_POSIXACL : 0);
  
- 	/* Block boundary? Nothing to do */
- 	if (!length)
- 		return 0;
-+	BUG_ON((offset + length) > PAGE_CACHE_SIZE);
+-	ext2_xip_verify_sb(sb); /* see if bdev supports xip, unset
+-				    EXT2_MOUNT_XIP if not */
+-
+-	if ((ext2_use_xip(sb)) && (sb->s_blocksize != PAGE_SIZE)) {
+-		ext2_msg(sb, KERN_WARNING,
+-			"warning: unsupported blocksize for xip");
+-		err = -EINVAL;
+-		goto restore_opts;
+-	}
+-
+ 	es = sbi->s_es;
+-	if ((sbi->s_mount_opt ^ old_mount_opt) & EXT2_MOUNT_XIP) {
++	if ((sbi->s_mount_opt ^ old_opts.s_mount_opt) & EXT2_MOUNT_XIP) {
+ 		ext2_msg(sb, KERN_WARNING, "warning: refusing change of "
+ 			 "xip flag with busy inodes while remounting");
+-		sbi->s_mount_opt &= ~EXT2_MOUNT_XIP;
+-		sbi->s_mount_opt |= old_mount_opt & EXT2_MOUNT_XIP;
++		sbi->s_mount_opt ^= EXT2_MOUNT_XIP;
+ 	}
+ 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
+ 		spin_unlock(&sbi->s_lock);
+diff --git a/fs/ext2/xip.c b/fs/ext2/xip.c
+index 132d4da..66ca113 100644
+--- a/fs/ext2/xip.c
++++ b/fs/ext2/xip.c
+@@ -13,15 +13,3 @@
+ #include "ext2.h"
+ #include "xip.h"
  
- 	memset(&bh, 0, sizeof(bh));
- 	bh.b_size = PAGE_CACHE_SIZE;
-@@ -503,4 +507,26 @@ int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
+-void ext2_xip_verify_sb(struct super_block *sb)
+-{
+-	struct ext2_sb_info *sbi = EXT2_SB(sb);
+-
+-	if ((sbi->s_mount_opt & EXT2_MOUNT_XIP) &&
+-	    !sb->s_bdev->bd_disk->fops->direct_access) {
+-		sbi->s_mount_opt &= (~EXT2_MOUNT_XIP);
+-		ext2_msg(sb, KERN_WARNING,
+-			     "warning: ignoring xip option - "
+-			     "not supported by bdev");
+-	}
+-}
+diff --git a/fs/ext2/xip.h b/fs/ext2/xip.h
+index e7b9f0a..87eeb04 100644
+--- a/fs/ext2/xip.h
++++ b/fs/ext2/xip.h
+@@ -6,13 +6,11 @@
+  */
  
- 	return 0;
+ #ifdef CONFIG_EXT2_FS_XIP
+-extern void ext2_xip_verify_sb (struct super_block *);
+ static inline int ext2_use_xip (struct super_block *sb)
+ {
+ 	struct ext2_sb_info *sbi = EXT2_SB(sb);
+ 	return (sbi->s_mount_opt & EXT2_MOUNT_XIP);
  }
-+EXPORT_SYMBOL_GPL(dax_zero_page_range);
-+
-+/**
-+ * dax_truncate_page - handle a partial page being truncated in a DAX file
-+ * @inode: The file being truncated
-+ * @from: The file offset that is being truncated to
-+ * @get_block: The filesystem method used to translate file offsets to blocks
-+ *
-+ * Similar to block_truncate_page(), this function can be called by a
-+ * filesystem when it is truncating an DAX file to handle the partial page.
-+ *
-+ * We work in terms of PAGE_CACHE_SIZE here for commonality with
-+ * block_truncate_page(), but we could go down to PAGE_SIZE if the filesystem
-+ * took care of disposing of the unnecessary blocks.  Even if the filesystem
-+ * block size is smaller than PAGE_SIZE, we have to zero the rest of the page
-+ * since the file might be mmaped.
-+ */
-+int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
-+{
-+	unsigned length = PAGE_CACHE_ALIGN(from) - from;
-+	return dax_zero_page_range(inode, from, length, get_block);
-+}
- EXPORT_SYMBOL_GPL(dax_truncate_page);
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index e6b48cc..105d0f0 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -2490,6 +2490,7 @@ extern int nonseekable_open(struct inode * inode, struct file * filp);
- 
- #ifdef CONFIG_FS_DAX
- int dax_clear_blocks(struct inode *, sector_t block, long size);
-+int dax_zero_page_range(struct inode *, loff_t from, unsigned len, get_block_t);
- int dax_truncate_page(struct inode *, loff_t from, get_block_t);
- ssize_t dax_do_io(int rw, struct kiocb *, struct inode *, struct iov_iter *,
- 		loff_t, get_block_t, dio_iodone_t, int flags);
-@@ -2506,6 +2507,12 @@ static inline int dax_truncate_page(struct inode *i, loff_t frm, get_block_t gb)
- 	return 0;
- }
- 
-+static inline int dax_zero_page_range(struct inode *i, loff_t frm,
-+						unsigned len, get_block_t gb)
-+{
-+	return 0;
-+}
-+
- static inline ssize_t dax_do_io(int rw, struct kiocb *iocb,
- 		struct inode *inode, struct iov_iter *iter, loff_t pos,
- 		get_block_t get_block, dio_iodone_t end_io, int flags)
+ #else
+-#define ext2_xip_verify_sb(sb)			do { } while (0)
+ #define ext2_use_xip(sb)			0
+ #endif
 -- 
 2.1.0
 
