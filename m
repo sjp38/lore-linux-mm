@@ -1,106 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D7796B0036
-	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 09:07:21 -0400 (EDT)
-Received: by mail-wi0-f177.google.com with SMTP id q5so9388760wiv.16
-        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 06:07:20 -0700 (PDT)
-Received: from mail-we0-x236.google.com (mail-we0-x236.google.com [2a00:1450:400c:c03::236])
-        by mx.google.com with ESMTPS id q9si10447118wia.97.2014.09.25.06.07.19
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id D9DFE6B0036
+	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 09:43:58 -0400 (EDT)
+Received: by mail-wi0-f181.google.com with SMTP id z2so9475644wiv.2
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 06:43:58 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id r8si10613174wif.54.2014.09.25.06.43.56
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 25 Sep 2014 06:07:19 -0700 (PDT)
-Received: by mail-we0-f182.google.com with SMTP id u57so6079209wes.27
-        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 06:07:19 -0700 (PDT)
-Date: Thu, 25 Sep 2014 15:07:16 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm: memcontrol: lockless page counters
-Message-ID: <20140925130716.GE12090@dhcp22.suse.cz>
-References: <1411132928-16143-1-git-send-email-hannes@cmpxchg.org>
- <20140922144158.GC20398@esperanza>
- <20140922185736.GB6630@cmpxchg.org>
- <20140923110634.GH18526@esperanza>
- <20140923132801.GA14302@cmpxchg.org>
- <20140923152150.GL18526@esperanza>
- <20140923170525.GA28460@cmpxchg.org>
- <20140924141633.GB4558@dhcp22.suse.cz>
- <20140924170017.GB9968@cmpxchg.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Sep 2014 06:43:56 -0700 (PDT)
+Date: Thu, 25 Sep 2014 09:43:42 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch] mm: memcontrol: do not iterate uninitialized memcgs
+Message-ID: <20140925134342.GB22508@cmpxchg.org>
+References: <1411612278-4707-1-git-send-email-hannes@cmpxchg.org>
+ <20140925025758.GA6903@mtj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140924170017.GB9968@cmpxchg.org>
+In-Reply-To: <20140925025758.GA6903@mtj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Dave Hansen <dave@sr71.net>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed 24-09-14 13:00:17, Johannes Weiner wrote:
-> On Wed, Sep 24, 2014 at 04:16:33PM +0200, Michal Hocko wrote:
-> > On Tue 23-09-14 13:05:25, Johannes Weiner wrote:
-> > [...]
-> > >  #include <trace/events/vmscan.h>
-> > >  
-> > > -int page_counter_sub(struct page_counter *counter, unsigned long nr_pages)
-> > > +/**
-> > > + * page_counter_cancel - take pages out of the local counter
-> > > + * @counter: counter
-> > > + * @nr_pages: number of pages to cancel
-> > > + *
-> > > + * Returns whether there are remaining pages in the counter.
-> > > + */
-> > > +int page_counter_cancel(struct page_counter *counter, unsigned long nr_pages)
-> > >  {
-> > >  	long new;
-> > >  
-> > >  	new = atomic_long_sub_return(nr_pages, &counter->count);
-> > >  
-> > > -	if (WARN_ON(unlikely(new < 0)))
-> > > -		atomic_long_set(&counter->count, 0);
-> > > +	if (WARN_ON_ONCE(unlikely(new < 0)))
-> > > +		atomic_long_add(nr_pages, &counter->count);
-> > >  
-> > >  	return new > 0;
-> > >  }
-> > 
-> > I am not sure I understand this correctly.
-> > 
-> > The original res_counter code has protection against < 0 because it used
-> > unsigned longs and wanted to protect from really disturbing effects of
-> > underflow I guess (this wasn't documented anywhere). But you are using
-> > long so even underflow shouldn't be a big problem so why do we need a
-> > fixup?
+On Wed, Sep 24, 2014 at 10:57:58PM -0400, Tejun Heo wrote:
+> Hello,
 > 
-> Immediate issues might be bogus numbers showing up in userspace or
-> endless looping during reparenting.  Negative values are just not
-> defined for that counter, so I want to mitigate exposing them.
+> On Wed, Sep 24, 2014 at 10:31:18PM -0400, Johannes Weiner wrote:
+> ..
+> > not meet the ordering requirements for memcg, and so we still may see
+> > partially initialized memcgs from the iterators.
 > 
-> It's not completely leak-free, as you can see, but I don't think it'd
-> be worth weighing down the hot path any more than this just to
-> mitigate the unlikely consequences of kernel bug.
-> 
-> > The only way how we can end up < 0 would be a cancel without pairing
-> > charge AFAICS. A charge should always appear before uncharge
-> > because both of them are using atomics which imply memory barriers
-> > (atomic_*_return). So do I understand correctly that your motivation
-> > is to fix up those cancel-without-charge automatically? This would
-> > definitely ask for a fat comment. Or am I missing something?
-> 
-> This function is also used by the uncharge path, so any imbalance in
-> accounting, not just from spurious cancels, is caught that way.
-> 
-> As you said, these are all atomics, so it has nothing to do with
-> memory ordering.  It's simply catching logical underflows.
+> It's mainly the other way around - a fully initialized css may not
+> show up in an iteration, but given that there's no memory ordering or
+> synchronization around the flag, anything can happen.
 
-OK, I think we should document this in the changelog and/or in the
-comment. These things are easy to forget...
+Oh sure, I'm just more worried about leaking invalid memcgs rather
+than temporarily skipping over a fully initialized one.  But I updated
+the changelog to mention both possibilities.
+
+> > +		if (next_css == &root->css ||
+> > +		    css_tryget_online(next_css)) {
+> > +			struct mem_cgroup *memcg;
+> > +
+> > +			memcg = mem_cgroup_from_css(next_css);
+> > +			if (memcg->initialized) {
+> > +				/*
+> > +				 * Make sure the caller's accesses to
+> > +				 * the memcg members are issued after
+> > +				 * we see this flag set.
+> 
+> I usually prefer if the comment points to the exact location that the
+> matching memory barriers live.  Sometimes it's difficult to locate the
+> partner barrier even w/ the functional explanation.
+
+That makes sense, updated.
+
+> > +				 */
+> > +				smp_rmb();
+> > +				return memcg;
+> 
+> In an unlikely event this rmb becomes an issue, a self-pointing
+> pointer which is set/read using smp_store_release() and
+> smp_load_acquire() respectively can do with plain barrier() on the
+> reader side on archs which don't need data dependency barrier
+> (basically everything except alpha).  Not sure whether that'd be more
+> or less readable than this tho.
+
+So as far as I understand memory-barriers.txt we do not even need a
+data dependency here to use store_release and load_acquire:
+
+mem_cgroup_css_online():
+<initialize memcg>
+smp_store_release(&memcg->initialized, 1);
+
+mem_cgroup_iter():
+<look up maybe-initialized memcg>
+if (smp_load_acquire(&memcg->initialized))
+  return memcg;
+
+So while I doubt that the smp_rmb() will become a problem in this
+path, it would be neat to annotate the state flag around which we
+synchronize like this, rather than have an anonymous barrier.
+
+Peter, would you know if this is correct, or whether these primitives
+actually do require a data dependency?
 
 Thanks!
 
--- 
-Michal Hocko
-SUSE Labs
+Updated patch:
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+---
