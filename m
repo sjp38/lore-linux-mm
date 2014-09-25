@@ -1,96 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AFC46B0037
-	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 21:32:40 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id ft15so9585196pdb.24
-        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 18:32:40 -0700 (PDT)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id f9si1185126pdk.6.2014.09.24.18.32.38
-        for <linux-mm@kvack.org>;
-        Wed, 24 Sep 2014 18:32:39 -0700 (PDT)
-Date: Thu, 25 Sep 2014 11:32:16 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 1/2] vfs: Fix data corruption when blocksize < pagesize
- for mmaped data
-Message-ID: <20140925013216.GD4945@dastard>
-References: <1411484603-17756-1-git-send-email-jack@suse.cz>
- <1411484603-17756-2-git-send-email-jack@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1411484603-17756-2-git-send-email-jack@suse.cz>
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 371B26B0036
+	for <linux-mm@kvack.org>; Wed, 24 Sep 2014 22:31:30 -0400 (EDT)
+Received: by mail-we0-f180.google.com with SMTP id q59so61705wes.25
+        for <linux-mm@kvack.org>; Wed, 24 Sep 2014 19:31:29 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id ch2si1612934wib.41.2014.09.24.19.31.27
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Sep 2014 19:31:28 -0700 (PDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch] mm: memcontrol: do not iterate uninitialized memcgs
+Date: Wed, 24 Sep 2014 22:31:18 -0400
+Message-Id: <1411612278-4707-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, Ted Tso <tytso@mit.edu>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Sep 23, 2014 at 05:03:22PM +0200, Jan Kara wrote:
-> ->page_mkwrite() is used by filesystems to allocate blocks under a page
-> which is becoming writeably mmapped in some process' address space. This
-> allows a filesystem to return a page fault if there is not enough space
-> available, user exceeds quota or similar problem happens, rather than
-> silently discarding data later when writepage is called.
-> 
-> However VFS fails to call ->page_mkwrite() in all the cases where
-> filesystems need it when blocksize < pagesize. For example when
-> blocksize = 1024, pagesize = 4096 the following is problematic:
->   ftruncate(fd, 0);
->   pwrite(fd, buf, 1024, 0);
->   map = mmap(NULL, 1024, PROT_WRITE, MAP_SHARED, fd, 0);
->   map[0] = 'a';       ----> page_mkwrite() for index 0 is called
->   ftruncate(fd, 10000); /* or even pwrite(fd, buf, 1, 10000) */
->   mremap(map, 1024, 10000, 0);
->   map[4095] = 'a';    ----> no page_mkwrite() called
-> 
-> At the moment ->page_mkwrite() is called, filesystem can allocate only
-> one block for the page because i_size == 1024. Otherwise it would create
-> blocks beyond i_size which is generally undesirable. But later at
-> ->writepage() time, we also need to store data at offset 4095 but we
-> don't have block allocated for it.
-...
->  
-> +#ifdef CONFIG_MMU
-> +/**
-> + * block_create_hole - handle creation of a hole in a file
-> + * @inode:	inode where the hole is created
-> + * @from:	offset in bytes where the hole starts
-> + * @to:		offset in bytes where the hole ends.
+The cgroup iterators yield css objects that have not yet gone through
+css_online(), but they are not complete memcgs at this point and so
+the memcg iterators should not return them.  d8ad30559715 ("mm/memcg:
+iteration skip memcgs not yet fully initialized") set out to implement
+exactly this, but it uses CSS_ONLINE, a cgroup-internal flag that does
+not meet the ordering requirements for memcg, and so we still may see
+partially initialized memcgs from the iterators.
 
-This function doesn't create holes.  It also manipulates page state,
-not block state.  Probably could do with a better name, but I'm not
-sure what a better name is - something like
-pagecache_extend_isize(old_eof, new_eof)?
+The cgroup core can not reasonably provide a clear answer on whether
+the object around the css has been fully initialized, as that depends
+on controller-specific locking and lifetime rules.  Thus, introduce a
+memcg-specific flag that is set after the memcg has been initialized
+in css_online(), and read before mem_cgroup_iter() callers access the
+memcg members.
 
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Cc: <stable@vger.kernel.org>	[3.12+]
+---
+ mm/memcontrol.c | 35 ++++++++++++++++++++++++++++++-----
+ 1 file changed, 30 insertions(+), 5 deletions(-)
 
-> +void block_create_hole(struct inode *inode, loff_t from, loff_t to)
-> +{
-> +	int bsize = 1 << inode->i_blkbits;
-> +	loff_t rounded_from;
-> +	struct page *page;
-> +	pgoff_t index;
-> +
-> +	WARN_ON(!mutex_is_locked(&inode->i_mutex));
-> +	WARN_ON(to > inode->i_size);
-
-We've already changed i_size, so shouldn't that be:
-
-	WARN_ON(to != inode->i_size);
-
-> +
-> +	if (from >= to || bsize == PAGE_CACHE_SIZE)
-> +		return;
-> +	/* Currently last page will not have any hole block created? */
-> +	rounded_from = ALIGN(from, bsize);
-
-That rounds down? or up? round_down/round_up are much better than
-ALIGN() because they tell you exactly what rounding was intended...
-
-Cheers,
-
-Dave.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 306b6470784c..71ed15e3a148 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -292,6 +292,9 @@ struct mem_cgroup {
+ 	/* vmpressure notifications */
+ 	struct vmpressure vmpressure;
+ 
++	/* css_online() has been completed */
++	bool initialized;
++
+ 	/*
+ 	 * the counter to account for mem+swap usage.
+ 	 */
+@@ -1090,10 +1093,22 @@ skip_node:
+ 	 * skipping css reference should be safe.
+ 	 */
+ 	if (next_css) {
+-		if ((next_css == &root->css) ||
+-		    ((next_css->flags & CSS_ONLINE) &&
+-		     css_tryget_online(next_css)))
+-			return mem_cgroup_from_css(next_css);
++		if (next_css == &root->css ||
++		    css_tryget_online(next_css)) {
++			struct mem_cgroup *memcg;
++
++			memcg = mem_cgroup_from_css(next_css);
++			if (memcg->initialized) {
++				/*
++				 * Make sure the caller's accesses to
++				 * the memcg members are issued after
++				 * we see this flag set.
++				 */
++				smp_rmb();
++				return memcg;
++			}
++			css_put(next_css);
++		}
+ 
+ 		prev_css = next_css;
+ 		goto skip_node;
+@@ -5413,6 +5428,7 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
+ {
+ 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+ 	struct mem_cgroup *parent = mem_cgroup_from_css(css->parent);
++	int ret;
+ 
+ 	if (css->id > MEM_CGROUP_ID_MAX)
+ 		return -ENOSPC;
+@@ -5449,7 +5465,16 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
+ 	}
+ 	mutex_unlock(&memcg_create_mutex);
+ 
+-	return memcg_init_kmem(memcg, &memory_cgrp_subsys);
++	ret = memcg_init_kmem(memcg, &memory_cgrp_subsys);
++	if (ret)
++		return ret;
++
++	/* Make sure the initialization is visible before the flag */
++	smp_wmb();
++
++	memcg->initialized = true;
++
++	return 0;
+ }
+ 
+ /*
 -- 
-Dave Chinner
-david@fromorbit.com
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
