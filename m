@@ -1,188 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C0476B0073
-	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 16:34:29 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id r10so11289601pdi.11
-        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 13:34:29 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id q1si4732930pdd.220.2014.09.25.13.34.28
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 306656B007B
+	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 16:34:36 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id fb1so11847300pad.27
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 13:34:35 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id md3si5664064pdb.135.2014.09.25.13.34.34
         for <linux-mm@kvack.org>;
-        Thu, 25 Sep 2014 13:34:28 -0700 (PDT)
+        Thu, 25 Sep 2014 13:34:35 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v11 16/21] vfs,ext2: Remove CONFIG_EXT2_FS_XIP and rename CONFIG_FS_XIP to CONFIG_FS_DAX
-Date: Thu, 25 Sep 2014 16:33:33 -0400
-Message-Id: <1411677218-29146-17-git-send-email-matthew.r.wilcox@intel.com>
-In-Reply-To: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
-References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH v11 00/21] Add support for NV-DIMMs to ext4
+Date: Thu, 25 Sep 2014 16:33:17 -0400
+Message-Id: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>
 
-The fewer Kconfig options we have the better.  Use the generic
-CONFIG_FS_DAX to enable XIP support in ext2 as well as in the core.
+From: Matthew Wilcox <willy@linux.intel.com>
 
-Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
----
- fs/Kconfig         | 21 ++++++++++++++-------
- fs/Makefile        |  2 +-
- fs/ext2/Kconfig    | 11 -----------
- fs/ext2/ext2.h     |  2 +-
- fs/ext2/file.c     |  4 ++--
- fs/ext2/super.c    |  4 ++--
- include/linux/fs.h |  4 ++--
- 7 files changed, 22 insertions(+), 26 deletions(-)
+We currently have two unrelated things inside the Linux kernel called
+"XIP".  One allows the kernel to run out of flash without being copied
+into DRAM, the other allows executables to be run without copying them
+into the page cache.  The latter is almost the behaviour we want for
+NV-DIMMs, except that we primarily want data to be accessed through
+this filesystem, not executables.  We deal with the confusion between
+the two XIPs by renaming the second one to DAX (short for Direct Access).
 
-diff --git a/fs/Kconfig b/fs/Kconfig
-index 312393f..a9eb53d 100644
---- a/fs/Kconfig
-+++ b/fs/Kconfig
-@@ -13,13 +13,6 @@ if BLOCK
- source "fs/ext2/Kconfig"
- source "fs/ext3/Kconfig"
- source "fs/ext4/Kconfig"
--
--config FS_XIP
--# execute in place
--	bool
--	depends on EXT2_FS_XIP
--	default y
--
- source "fs/jbd/Kconfig"
- source "fs/jbd2/Kconfig"
- 
-@@ -40,6 +33,20 @@ source "fs/ocfs2/Kconfig"
- source "fs/btrfs/Kconfig"
- source "fs/nilfs2/Kconfig"
- 
-+config FS_DAX
-+	bool "Direct Access support"
-+	depends on MMU
-+	help
-+	  Direct Access (DAX) can be used on memory-backed block devices.
-+	  If the block device supports DAX and the filesystem supports DAX,
-+	  then you can avoid using the pagecache to buffer I/Os.  Turning
-+	  on this option will compile in support for DAX; you will need to
-+	  mount the filesystem using the -o xip option.
-+
-+	  If you do not have a block device that is capable of using this,
-+	  or if unsure, say N.  Saying Y will increase the size of the kernel
-+	  by about 2kB.
-+
- endif # BLOCK
- 
- # Posix ACL utility routines
-diff --git a/fs/Makefile b/fs/Makefile
-index 0325ec3..df4a4cf 100644
---- a/fs/Makefile
-+++ b/fs/Makefile
-@@ -28,7 +28,7 @@ obj-$(CONFIG_SIGNALFD)		+= signalfd.o
- obj-$(CONFIG_TIMERFD)		+= timerfd.o
- obj-$(CONFIG_EVENTFD)		+= eventfd.o
- obj-$(CONFIG_AIO)               += aio.o
--obj-$(CONFIG_FS_XIP)		+= dax.o
-+obj-$(CONFIG_FS_DAX)		+= dax.o
- obj-$(CONFIG_FILE_LOCKING)      += locks.o
- obj-$(CONFIG_COMPAT)		+= compat.o compat_ioctl.o
- obj-$(CONFIG_BINFMT_AOUT)	+= binfmt_aout.o
-diff --git a/fs/ext2/Kconfig b/fs/ext2/Kconfig
-index 14a6780..c634874e 100644
---- a/fs/ext2/Kconfig
-+++ b/fs/ext2/Kconfig
-@@ -42,14 +42,3 @@ config EXT2_FS_SECURITY
- 
- 	  If you are not using a security module that requires using
- 	  extended attributes for file security labels, say N.
--
--config EXT2_FS_XIP
--	bool "Ext2 execute in place support"
--	depends on EXT2_FS && MMU
--	help
--	  Execute in place can be used on memory-backed block devices. If you
--	  enable this option, you can select to mount block devices which are
--	  capable of this feature without using the page cache.
--
--	  If you do not use a block device that is capable of using this,
--	  or if unsure, say N.
-diff --git a/fs/ext2/ext2.h b/fs/ext2/ext2.h
-index 5ecf570..b30c3bd 100644
---- a/fs/ext2/ext2.h
-+++ b/fs/ext2/ext2.h
-@@ -380,7 +380,7 @@ struct ext2_inode {
- #define EXT2_MOUNT_NO_UID32		0x000200  /* Disable 32-bit UIDs */
- #define EXT2_MOUNT_XATTR_USER		0x004000  /* Extended user attributes */
- #define EXT2_MOUNT_POSIX_ACL		0x008000  /* POSIX Access Control Lists */
--#ifdef CONFIG_FS_XIP
-+#ifdef CONFIG_FS_DAX
- #define EXT2_MOUNT_XIP			0x010000  /* Execute in place */
- #else
- #define EXT2_MOUNT_XIP			0
-diff --git a/fs/ext2/file.c b/fs/ext2/file.c
-index da8dc64..46b333d 100644
---- a/fs/ext2/file.c
-+++ b/fs/ext2/file.c
-@@ -25,7 +25,7 @@
- #include "xattr.h"
- #include "acl.h"
- 
--#ifdef CONFIG_EXT2_FS_XIP
-+#ifdef CONFIG_FS_DAX
- static int ext2_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
- {
- 	return dax_fault(vma, vmf, ext2_get_block);
-@@ -109,7 +109,7 @@ const struct file_operations ext2_file_operations = {
- 	.splice_write	= iter_file_splice_write,
- };
- 
--#ifdef CONFIG_EXT2_FS_XIP
-+#ifdef CONFIG_FS_DAX
- const struct file_operations ext2_xip_file_operations = {
- 	.llseek		= generic_file_llseek,
- 	.read		= new_sync_read,
-diff --git a/fs/ext2/super.c b/fs/ext2/super.c
-index 0393c6d..feb53d8 100644
---- a/fs/ext2/super.c
-+++ b/fs/ext2/super.c
-@@ -287,7 +287,7 @@ static int ext2_show_options(struct seq_file *seq, struct dentry *root)
- 		seq_puts(seq, ",grpquota");
- #endif
- 
--#if defined(CONFIG_EXT2_FS_XIP)
-+#ifdef CONFIG_FS_DAX
- 	if (sbi->s_mount_opt & EXT2_MOUNT_XIP)
- 		seq_puts(seq, ",xip");
- #endif
-@@ -549,7 +549,7 @@ static int parse_options(char *options, struct super_block *sb)
- 			break;
- #endif
- 		case Opt_xip:
--#ifdef CONFIG_EXT2_FS_XIP
-+#ifdef CONFIG_FS_DAX
- 			set_opt (sbi->s_mount_opt, XIP);
- #else
- 			ext2_msg(sb, KERN_INFO, "xip option not supported");
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index d73db11..e6b48cc 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1642,7 +1642,7 @@ struct super_operations {
- #define IS_IMA(inode)		((inode)->i_flags & S_IMA)
- #define IS_AUTOMOUNT(inode)	((inode)->i_flags & S_AUTOMOUNT)
- #define IS_NOSEC(inode)		((inode)->i_flags & S_NOSEC)
--#ifdef CONFIG_FS_XIP
-+#ifdef CONFIG_FS_DAX
- #define IS_DAX(inode)		((inode)->i_flags & S_DAX)
- #else
- #define IS_DAX(inode)		0
-@@ -2488,7 +2488,7 @@ extern loff_t fixed_size_llseek(struct file *file, loff_t offset,
- extern int generic_file_open(struct inode * inode, struct file * filp);
- extern int nonseekable_open(struct inode * inode, struct file * filp);
- 
--#ifdef CONFIG_FS_XIP
-+#ifdef CONFIG_FS_DAX
- int dax_clear_blocks(struct inode *, sector_t block, long size);
- int dax_truncate_page(struct inode *, loff_t from, get_block_t);
- ssize_t dax_do_io(int rw, struct kiocb *, struct inode *, struct iov_iter *,
+DAX bears some resemblance to its ancestor XIP but fixes many races that
+were not relevant for its original use case of storing executables.
+The major design change is using the filesystem's get_block routine
+instead of a special-purpose ->get_xip_mem() address_space operation.
+Further enhancements are planned, such as supporting huge pages, but
+this is a useful amount of work to merge before adding more functionality.
+
+This is not the only way to support NV-DIMMs, of course.  People have
+written new filesystems to support them, some of which have even seen
+the light of day.  We believe it is valuable to support traditional
+filesystems such as ext4 and XFS on NV-DIMMs in a more efficient manner
+than copying the contents of the NV-DIMM to DRAM.
+
+Patch 1 is a bug fix.  It is obviously correct, and should be included
+into 3.18.
+
+Patch 2 starts the transformation by changing how ->direct_access works.
+Much code is moved from the drivers and filesystems into the block
+layer, and we add the flexibility of being able to map more than one
+page at a time.  It would be good to get this patch into 3.18 as it is
+useful for people who are pursuing non-DAX approaches to working with
+persistent memory.
+
+Patch 3 is also a bug fix, probably worth including in 3.18.
+
+Patches 4-6 are infrastructure for DAX (note that patch 6 is in the
+for-next branch of Al Viro's VFS tree).
+
+Patches 7-11 replace the XIP code with its DAX equivalents, transforming
+ext2 to use the DAX code as we go.  Note that patch 11 is the
+Documentation patch.
+
+Patches 12-18 clean up after the XIP code, removing the infrastructure
+that is no longer needed and renaming various XIP things to DAX.
+Most of these patches were added after Jan found things he didn't
+like in an earlier version of the ext4 patch ... that had been copied
+from ext2.  So ext2 i being transformed to do things the same way that
+ext4 will later.  The ability to mount ext2 filesystems with the 'xip'
+option is retained, although the 'dax' option is now preferred.
+
+Patch 19 adds some DAX infrastructure to support ext4.
+
+Patch 20 adds DAX support to ext4.  It is broadly similar to ext2's DAX
+support, but it is more efficient than ext4's due to its support for
+unwritten extents.
+
+Patch 21 is another cleanup patch renaming XIP to DAX.
+
+Matthew Wilcox (20):
+  axonram: Fix bug in direct_access
+  block: Change direct_access calling convention
+  mm: Fix XIP fault vs truncate race
+  mm: Allow page fault handlers to perform the COW
+  vfs,ext2: Introduce IS_DAX(inode)
+  vfs: Add copy_to_iter(), copy_from_iter() and iov_iter_zero()
+  dax,ext2: Replace XIP read and write with DAX I/O
+  dax,ext2: Replace ext2_clear_xip_target with dax_clear_blocks
+  dax,ext2: Replace the XIP page fault handler with the DAX page fault
+    handler
+  dax,ext2: Replace xip_truncate_page with dax_truncate_page
+  dax: Replace XIP documentation with DAX documentation
+  vfs: Remove get_xip_mem
+  ext2: Remove ext2_xip_verify_sb()
+  ext2: Remove ext2_use_xip
+  ext2: Remove xip.c and xip.h
+  vfs,ext2: Remove CONFIG_EXT2_FS_XIP and rename CONFIG_FS_XIP to
+    CONFIG_FS_DAX
+  ext2: Remove ext2_aops_xip
+  ext2: Get rid of most mentions of XIP in ext2
+  dax: Add dax_zero_page_range
+  brd: Rename XIP to DAX
+
+Ross Zwisler (1):
+  ext4: Add DAX functionality
+
+ Documentation/filesystems/Locking  |   3 -
+ Documentation/filesystems/dax.txt  |  91 +++++++
+ Documentation/filesystems/ext4.txt |   2 +
+ Documentation/filesystems/xip.txt  |  68 -----
+ MAINTAINERS                        |   6 +
+ arch/powerpc/sysdev/axonram.c      |  19 +-
+ drivers/block/Kconfig              |  13 +-
+ drivers/block/brd.c                |  26 +-
+ drivers/s390/block/dcssblk.c       |  21 +-
+ fs/Kconfig                         |  21 +-
+ fs/Makefile                        |   1 +
+ fs/block_dev.c                     |  40 +++
+ fs/dax.c                           | 532 +++++++++++++++++++++++++++++++++++++
+ fs/exofs/inode.c                   |   1 -
+ fs/ext2/Kconfig                    |  11 -
+ fs/ext2/Makefile                   |   1 -
+ fs/ext2/ext2.h                     |  10 +-
+ fs/ext2/file.c                     |  45 +++-
+ fs/ext2/inode.c                    |  38 +--
+ fs/ext2/namei.c                    |  13 +-
+ fs/ext2/super.c                    |  53 ++--
+ fs/ext2/xip.c                      |  91 -------
+ fs/ext2/xip.h                      |  26 --
+ fs/ext4/ext4.h                     |   6 +
+ fs/ext4/file.c                     |  49 +++-
+ fs/ext4/indirect.c                 |  18 +-
+ fs/ext4/inode.c                    |  89 +++++--
+ fs/ext4/namei.c                    |  10 +-
+ fs/ext4/super.c                    |  39 ++-
+ fs/open.c                          |   5 +-
+ include/linux/blkdev.h             |   6 +-
+ include/linux/fs.h                 |  49 +++-
+ include/linux/mm.h                 |   1 +
+ include/linux/uio.h                |   3 +
+ mm/Makefile                        |   1 -
+ mm/fadvise.c                       |   6 +-
+ mm/filemap.c                       |  25 +-
+ mm/filemap_xip.c                   | 483 ---------------------------------
+ mm/iov_iter.c                      | 237 ++++++++++++++++-
+ mm/madvise.c                       |   2 +-
+ mm/memory.c                        |  33 ++-
+ 41 files changed, 1305 insertions(+), 889 deletions(-)
+ create mode 100644 Documentation/filesystems/dax.txt
+ delete mode 100644 Documentation/filesystems/xip.txt
+ create mode 100644 fs/dax.c
+ delete mode 100644 fs/ext2/xip.c
+ delete mode 100644 fs/ext2/xip.h
+ delete mode 100644 mm/filemap_xip.c
+
 -- 
 2.1.0
 
