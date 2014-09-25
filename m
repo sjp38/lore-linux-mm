@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id BB4506B0072
-	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 16:34:28 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id eu11so10751485pac.17
-        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 13:34:28 -0700 (PDT)
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C0476B0073
+	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 16:34:29 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id r10so11289601pdi.11
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 13:34:29 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id q1si4732930pdd.220.2014.09.25.13.34.27
+        by mx.google.com with ESMTP id q1si4732930pdd.220.2014.09.25.13.34.28
         for <linux-mm@kvack.org>;
-        Thu, 25 Sep 2014 13:34:27 -0700 (PDT)
+        Thu, 25 Sep 2014 13:34:28 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v11 08/21] dax,ext2: Replace ext2_clear_xip_target with dax_clear_blocks
-Date: Thu, 25 Sep 2014 16:33:25 -0400
-Message-Id: <1411677218-29146-9-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH v11 16/21] vfs,ext2: Remove CONFIG_EXT2_FS_XIP and rename CONFIG_FS_XIP to CONFIG_FS_DAX
+Date: Thu, 25 Sep 2014 16:33:33 -0400
+Message-Id: <1411677218-29146-17-git-send-email-matthew.r.wilcox@intel.com>
 In-Reply-To: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
 References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,158 +19,170 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-This is practically generic code; other filesystems will want to call
-it from other places, but there's nothing ext2-specific about it.
-
-Make it a little more generic by allowing it to take a count of the number
-of bytes to zero rather than fixing it to a single page.  Thanks to Dave
-Hansen for suggesting that I need to call cond_resched() if zeroing more
-than one page.
+The fewer Kconfig options we have the better.  Use the generic
+CONFIG_FS_DAX to enable XIP support in ext2 as well as in the core.
 
 Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
 ---
- fs/dax.c           | 35 +++++++++++++++++++++++++++++++++++
- fs/ext2/inode.c    |  8 +++++---
- fs/ext2/xip.c      | 14 --------------
- fs/ext2/xip.h      |  3 ---
- include/linux/fs.h |  6 ++++++
- 5 files changed, 46 insertions(+), 20 deletions(-)
+ fs/Kconfig         | 21 ++++++++++++++-------
+ fs/Makefile        |  2 +-
+ fs/ext2/Kconfig    | 11 -----------
+ fs/ext2/ext2.h     |  2 +-
+ fs/ext2/file.c     |  4 ++--
+ fs/ext2/super.c    |  4 ++--
+ include/linux/fs.h |  4 ++--
+ 7 files changed, 22 insertions(+), 26 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 108c68e..02e226f 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -20,8 +20,43 @@
- #include <linux/fs.h>
- #include <linux/genhd.h>
- #include <linux/mutex.h>
-+#include <linux/sched.h>
- #include <linux/uio.h>
- 
-+int dax_clear_blocks(struct inode *inode, sector_t block, long size)
-+{
-+	struct block_device *bdev = inode->i_sb->s_bdev;
-+	sector_t sector = block << (inode->i_blkbits - 9);
-+
-+	might_sleep();
-+	do {
-+		void *addr;
-+		unsigned long pfn;
-+		long count;
-+
-+		count = bdev_direct_access(bdev, sector, &addr, &pfn, size);
-+		if (count < 0)
-+			return count;
-+		while (count > 0) {
-+			unsigned pgsz = PAGE_SIZE - offset_in_page(addr);
-+			if (pgsz > count)
-+				pgsz = count;
-+			if (pgsz < PAGE_SIZE)
-+				memset(addr, 0, pgsz);
-+			else
-+				clear_page(addr);
-+			addr += pgsz;
-+			size -= pgsz;
-+			count -= pgsz;
-+			sector += pgsz / 512;
-+			cond_resched();
-+		}
-+	} while (size);
-+
-+	return 0;
-+}
-+EXPORT_SYMBOL_GPL(dax_clear_blocks);
-+
- static long dax_get_addr(struct buffer_head *bh, void **addr, unsigned blkbits)
- {
- 	unsigned long pfn;
-diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-index 3ccd5fd..52978b8 100644
---- a/fs/ext2/inode.c
-+++ b/fs/ext2/inode.c
-@@ -733,10 +733,12 @@ static int ext2_get_blocks(struct inode *inode,
- 
- 	if (IS_DAX(inode)) {
- 		/*
--		 * we need to clear the block
-+		 * block must be initialised before we put it in the tree
-+		 * so that it's not found by another thread before it's
-+		 * initialised
- 		 */
--		err = ext2_clear_xip_target (inode,
--			le32_to_cpu(chain[depth-1].key));
-+		err = dax_clear_blocks(inode, le32_to_cpu(chain[depth-1].key),
-+						1 << inode->i_blkbits);
- 		if (err) {
- 			mutex_unlock(&ei->truncate_mutex);
- 			goto cleanup;
-diff --git a/fs/ext2/xip.c b/fs/ext2/xip.c
-index bbc5fec..8cfca3a 100644
---- a/fs/ext2/xip.c
-+++ b/fs/ext2/xip.c
-@@ -42,20 +42,6 @@ __ext2_get_block(struct inode *inode, pgoff_t pgoff, int create,
- 	return rc;
- }
- 
--int
--ext2_clear_xip_target(struct inode *inode, sector_t block)
--{
--	void *kaddr;
--	unsigned long pfn;
--	long size;
+diff --git a/fs/Kconfig b/fs/Kconfig
+index 312393f..a9eb53d 100644
+--- a/fs/Kconfig
++++ b/fs/Kconfig
+@@ -13,13 +13,6 @@ if BLOCK
+ source "fs/ext2/Kconfig"
+ source "fs/ext3/Kconfig"
+ source "fs/ext4/Kconfig"
 -
--	size = __inode_direct_access(inode, block, &kaddr, &pfn, PAGE_SIZE);
--	if (size < 0)
--		return size;
--	clear_page(kaddr);
--	return 0;
--}
+-config FS_XIP
+-# execute in place
+-	bool
+-	depends on EXT2_FS_XIP
+-	default y
 -
- void ext2_xip_verify_sb(struct super_block *sb)
- {
- 	struct ext2_sb_info *sbi = EXT2_SB(sb);
-diff --git a/fs/ext2/xip.h b/fs/ext2/xip.h
-index 29be737..b2592f2 100644
---- a/fs/ext2/xip.h
-+++ b/fs/ext2/xip.h
-@@ -7,8 +7,6 @@
+ source "fs/jbd/Kconfig"
+ source "fs/jbd2/Kconfig"
  
- #ifdef CONFIG_EXT2_FS_XIP
- extern void ext2_xip_verify_sb (struct super_block *);
--extern int ext2_clear_xip_target (struct inode *, sector_t);
+@@ -40,6 +33,20 @@ source "fs/ocfs2/Kconfig"
+ source "fs/btrfs/Kconfig"
+ source "fs/nilfs2/Kconfig"
+ 
++config FS_DAX
++	bool "Direct Access support"
++	depends on MMU
++	help
++	  Direct Access (DAX) can be used on memory-backed block devices.
++	  If the block device supports DAX and the filesystem supports DAX,
++	  then you can avoid using the pagecache to buffer I/Os.  Turning
++	  on this option will compile in support for DAX; you will need to
++	  mount the filesystem using the -o xip option.
++
++	  If you do not have a block device that is capable of using this,
++	  or if unsure, say N.  Saying Y will increase the size of the kernel
++	  by about 2kB.
++
+ endif # BLOCK
+ 
+ # Posix ACL utility routines
+diff --git a/fs/Makefile b/fs/Makefile
+index 0325ec3..df4a4cf 100644
+--- a/fs/Makefile
++++ b/fs/Makefile
+@@ -28,7 +28,7 @@ obj-$(CONFIG_SIGNALFD)		+= signalfd.o
+ obj-$(CONFIG_TIMERFD)		+= timerfd.o
+ obj-$(CONFIG_EVENTFD)		+= eventfd.o
+ obj-$(CONFIG_AIO)               += aio.o
+-obj-$(CONFIG_FS_XIP)		+= dax.o
++obj-$(CONFIG_FS_DAX)		+= dax.o
+ obj-$(CONFIG_FILE_LOCKING)      += locks.o
+ obj-$(CONFIG_COMPAT)		+= compat.o compat_ioctl.o
+ obj-$(CONFIG_BINFMT_AOUT)	+= binfmt_aout.o
+diff --git a/fs/ext2/Kconfig b/fs/ext2/Kconfig
+index 14a6780..c634874e 100644
+--- a/fs/ext2/Kconfig
++++ b/fs/ext2/Kconfig
+@@ -42,14 +42,3 @@ config EXT2_FS_SECURITY
+ 
+ 	  If you are not using a security module that requires using
+ 	  extended attributes for file security labels, say N.
 -
- static inline int ext2_use_xip (struct super_block *sb)
- {
- 	struct ext2_sb_info *sbi = EXT2_SB(sb);
-@@ -19,6 +17,5 @@ int ext2_get_xip_mem(struct address_space *, pgoff_t, int,
+-config EXT2_FS_XIP
+-	bool "Ext2 execute in place support"
+-	depends on EXT2_FS && MMU
+-	help
+-	  Execute in place can be used on memory-backed block devices. If you
+-	  enable this option, you can select to mount block devices which are
+-	  capable of this feature without using the page cache.
+-
+-	  If you do not use a block device that is capable of using this,
+-	  or if unsure, say N.
+diff --git a/fs/ext2/ext2.h b/fs/ext2/ext2.h
+index 5ecf570..b30c3bd 100644
+--- a/fs/ext2/ext2.h
++++ b/fs/ext2/ext2.h
+@@ -380,7 +380,7 @@ struct ext2_inode {
+ #define EXT2_MOUNT_NO_UID32		0x000200  /* Disable 32-bit UIDs */
+ #define EXT2_MOUNT_XATTR_USER		0x004000  /* Extended user attributes */
+ #define EXT2_MOUNT_POSIX_ACL		0x008000  /* POSIX Access Control Lists */
+-#ifdef CONFIG_FS_XIP
++#ifdef CONFIG_FS_DAX
+ #define EXT2_MOUNT_XIP			0x010000  /* Execute in place */
  #else
- #define ext2_xip_verify_sb(sb)			do { } while (0)
- #define ext2_use_xip(sb)			0
--#define ext2_clear_xip_target(inode, chain)	0
- #define ext2_get_xip_mem			NULL
+ #define EXT2_MOUNT_XIP			0
+diff --git a/fs/ext2/file.c b/fs/ext2/file.c
+index da8dc64..46b333d 100644
+--- a/fs/ext2/file.c
++++ b/fs/ext2/file.c
+@@ -25,7 +25,7 @@
+ #include "xattr.h"
+ #include "acl.h"
+ 
+-#ifdef CONFIG_EXT2_FS_XIP
++#ifdef CONFIG_FS_DAX
+ static int ext2_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ {
+ 	return dax_fault(vma, vmf, ext2_get_block);
+@@ -109,7 +109,7 @@ const struct file_operations ext2_file_operations = {
+ 	.splice_write	= iter_file_splice_write,
+ };
+ 
+-#ifdef CONFIG_EXT2_FS_XIP
++#ifdef CONFIG_FS_DAX
+ const struct file_operations ext2_xip_file_operations = {
+ 	.llseek		= generic_file_llseek,
+ 	.read		= new_sync_read,
+diff --git a/fs/ext2/super.c b/fs/ext2/super.c
+index 0393c6d..feb53d8 100644
+--- a/fs/ext2/super.c
++++ b/fs/ext2/super.c
+@@ -287,7 +287,7 @@ static int ext2_show_options(struct seq_file *seq, struct dentry *root)
+ 		seq_puts(seq, ",grpquota");
  #endif
+ 
+-#if defined(CONFIG_EXT2_FS_XIP)
++#ifdef CONFIG_FS_DAX
+ 	if (sbi->s_mount_opt & EXT2_MOUNT_XIP)
+ 		seq_puts(seq, ",xip");
+ #endif
+@@ -549,7 +549,7 @@ static int parse_options(char *options, struct super_block *sb)
+ 			break;
+ #endif
+ 		case Opt_xip:
+-#ifdef CONFIG_EXT2_FS_XIP
++#ifdef CONFIG_FS_DAX
+ 			set_opt (sbi->s_mount_opt, XIP);
+ #else
+ 			ext2_msg(sb, KERN_INFO, "xip option not supported");
 diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 45839e8..c04d371 100644
+index d73db11..e6b48cc 100644
 --- a/include/linux/fs.h
 +++ b/include/linux/fs.h
-@@ -2490,11 +2490,17 @@ extern int generic_file_open(struct inode * inode, struct file * filp);
+@@ -1642,7 +1642,7 @@ struct super_operations {
+ #define IS_IMA(inode)		((inode)->i_flags & S_IMA)
+ #define IS_AUTOMOUNT(inode)	((inode)->i_flags & S_AUTOMOUNT)
+ #define IS_NOSEC(inode)		((inode)->i_flags & S_NOSEC)
+-#ifdef CONFIG_FS_XIP
++#ifdef CONFIG_FS_DAX
+ #define IS_DAX(inode)		((inode)->i_flags & S_DAX)
+ #else
+ #define IS_DAX(inode)		0
+@@ -2488,7 +2488,7 @@ extern loff_t fixed_size_llseek(struct file *file, loff_t offset,
+ extern int generic_file_open(struct inode * inode, struct file * filp);
  extern int nonseekable_open(struct inode * inode, struct file * filp);
  
- #ifdef CONFIG_FS_XIP
-+int dax_clear_blocks(struct inode *, sector_t block, long size);
- extern int xip_file_mmap(struct file * file, struct vm_area_struct * vma);
- extern int xip_truncate_page(struct address_space *mapping, loff_t from);
+-#ifdef CONFIG_FS_XIP
++#ifdef CONFIG_FS_DAX
+ int dax_clear_blocks(struct inode *, sector_t block, long size);
+ int dax_truncate_page(struct inode *, loff_t from, get_block_t);
  ssize_t dax_do_io(int rw, struct kiocb *, struct inode *, struct iov_iter *,
- 		loff_t, get_block_t, dio_iodone_t, int flags);
- #else
-+static inline int dax_clear_blocks(struct inode *i, sector_t blk, long sz)
-+{
-+	return 0;
-+}
-+
- static inline int xip_truncate_page(struct address_space *mapping, loff_t from)
- {
- 	return 0;
 -- 
 2.1.0
 
