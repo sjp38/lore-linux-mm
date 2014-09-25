@@ -1,157 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id D801F6B0036
-	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 07:43:43 -0400 (EDT)
-Received: by mail-wi0-f170.google.com with SMTP id fb4so8147488wid.3
-        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 04:43:43 -0700 (PDT)
-Received: from mail-wg0-x22f.google.com (mail-wg0-x22f.google.com [2a00:1450:400c:c00::22f])
-        by mx.google.com with ESMTPS id d4si2350183wje.123.2014.09.25.04.43.42
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 25 Sep 2014 04:43:42 -0700 (PDT)
-Received: by mail-wg0-f47.google.com with SMTP id y10so8169631wgg.30
-        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 04:43:42 -0700 (PDT)
-Date: Thu, 25 Sep 2014 13:43:39 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch v2] mm: memcontrol: do not iterate uninitialized memcgs
-Message-ID: <20140925114339.GD12090@dhcp22.suse.cz>
-References: <1411612278-4707-1-git-send-email-hannes@cmpxchg.org>
- <20140925024054.GA4888@cmpxchg.org>
+Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
+	by kanga.kvack.org (Postfix) with ESMTP id E051E6B0037
+	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 08:18:56 -0400 (EDT)
+Received: by mail-la0-f52.google.com with SMTP id gq15so12256459lab.25
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 05:18:56 -0700 (PDT)
+From: Dmitry Monakhov <dmonakhov@gmail.com>
+Subject: Re: [PATCH] aio: Make it possible to remap aio ring
+In-Reply-To: <541B00A1.50003@parallels.com>
+References: <541B00A1.50003@parallels.com>
+Date: Thu, 25 Sep 2014 16:18:51 +0400
+Message-ID: <87eguzuc44.fsf@openvz.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140925024054.GA4888@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Pavel Emelyanov <xemul@parallels.com>, Benjamin LaHaise <bcrl@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-aio@kvack.org, Linux MM <linux-mm@kvack.org>
 
-On Wed 24-09-14 22:40:55, Johannes Weiner wrote:
-> Argh, buggy css_put() against the root.  Hand grenades, everywhere.
-> Update:
+On Thu, 18 Sep 2014 19:56:17 +0400, Pavel Emelyanov <xemul@parallels.com> wrote:
+> Hi,
 > 
+> There are actually two issues this patch addresses. Let me start with
+> the one I tried to solve in the beginning.
+> 
+> So, in the checkpoint-restore project (criu) we try to dump tasks'
+> state and restore one back exactly as it was. One of the tasks' state
+> bits is rings set up with io_setup() call. There's (almost) no problems
+> in dumping them, there's a problem restoring them -- if I dump a task
+> with aio ring originally mapped at address A, I want to restore one
+> back at exactly the same address A. Unfortunately, the io_setup() does
+> not allow for that -- it mmaps the ring at whatever place mm finds
+> appropriate (it calls do_mmap_pgoff() with zero address and without
+> the MAP_FIXED flag).
+> 
+> To make restore possible I'm going to mremap() the freshly created ring
+> into the address A (under which it was seen before dump). The problem is
+> that the ring's virtual address is passed back to the user-space as the
+> context ID and this ID is then used as search key by all the other io_foo()
+> calls. Reworking this ID to be just some integer doesn't seem to work, as
+> this value is already used by libaio as a pointer using which this library
+> accesses memory for aio meta-data.
+> 
+> So, to make restore work we need to make sure that
+> 
+> a) ring is mapped at desired virtual address
+> b) kioctx->user_id matches this value
+> 
+> Having said that, the patch makes mremap() on aio region update the
+> kioctx's user_id and mmap_base values.
+> 
+> 
+> Here appears the 2nd issue I mentioned in the beginning of this mail.
+> If (regardless of the C/R dances I do) someone creates an io context
+> with io_setup(), then mremap()-s the ring and then destroys the context,
+> the kill_ioctx() routine will call munmap() on wrong (old) address.
+> This will result in a) aio ring remaining in memory and b) some other
+> vma get unexpectedly unmapped.
+> 
+> 
+> What do you think?
+Look reasonable.
+Feel free to add Acked-by:Dmitry Monakhov <dmonakhov@openvz.org>
+> 
+> Signed-off-by: Pavel Emelyanov <xemul@parallels.com>
 > ---
-> From 9b0b4d72d71cd8acd7aaa58d2006c751decc8739 Mon Sep 17 00:00:00 2001
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Date: Wed, 24 Sep 2014 22:00:20 -0400
-> Subject: [patch] mm: memcontrol: do not iterate uninitialized memcgs
+>  fs/aio.c           | 25 +++++++++++++++++++++++++
+>  include/linux/fs.h |  1 +
+>  mm/mremap.c        |  3 ++-
+>  3 files changed, 28 insertions(+), 1 deletion(-)
 > 
-> The cgroup iterators yield css objects that have not yet gone through
-> css_online(), but they are not complete memcgs at this point and so
-> the memcg iterators should not return them.  d8ad30559715 ("mm/memcg:
-> iteration skip memcgs not yet fully initialized") set out to implement
-> exactly this, but it uses CSS_ONLINE, a cgroup-internal flag that does
-> not meet the ordering requirements for memcg, and so we still may see
-> partially initialized memcgs from the iterators.
-
-I do not see how would this happen. CSS_ONLINE is set after css_online
-callback returns and mem_cgroup_css_online ends the core initialization
-with mutex_unlock which should provide sufficient memory ordering
-requirements (kmem is not covered but activate_kmem_mutex kmem.tcp by
-proto_list_mutex). So the worst thing that might happen is that we miss
-an already initialized memcg but that shouldn't matter because such a
-memcg doesn't contain any tasks nor memory. memcg_has_children doesn't
-rely on our iterators so important parts will not miss anything.
-
-So I do not see any bug right now. The flag abuse is another story and I
-do agree we should use proper memcg specific synchronization here as
-explained by Tejun in other email.
-
-> The cgroup core can not reasonably provide a clear answer on whether
-> the object around the css has been fully initialized, as that depends
-> on controller-specific locking and lifetime rules.  Thus, introduce a
-> memcg-specific flag that is set after the memcg has been initialized
-> in css_online(), and read before mem_cgroup_iter() callers access the
-> memcg members.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-
-With updated changelog
-Acked-by: Michal Hocko <mhocko@suse.cz>
-
-> Cc: <stable@vger.kernel.org>	[3.12+]
-
-This is not necessary IMO
-
-> ---
->  mm/memcontrol.c | 36 +++++++++++++++++++++++++++++++-----
->  1 file changed, 31 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 306b6470784c..bafdac0f724e 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -292,6 +292,9 @@ struct mem_cgroup {
->  	/* vmpressure notifications */
->  	struct vmpressure vmpressure;
+> diff --git a/fs/aio.c b/fs/aio.c
+> index 1c9c5f0..a0865e4 100644
+> --- a/fs/aio.c
+> +++ b/fs/aio.c
+> @@ -273,12 +273,37 @@ static void aio_free_ring(struct kioctx *ctx)
 >  
-> +	/* css_online() has been completed */
-> +	bool initialized;
-> +
->  	/*
->  	 * the counter to account for mem+swap usage.
->  	 */
-> @@ -1090,10 +1093,23 @@ skip_node:
->  	 * skipping css reference should be safe.
->  	 */
->  	if (next_css) {
-> -		if ((next_css == &root->css) ||
-> -		    ((next_css->flags & CSS_ONLINE) &&
-> -		     css_tryget_online(next_css)))
-> -			return mem_cgroup_from_css(next_css);
-> +		struct mem_cgroup *memcg = mem_cgroup_from_css(next_css);
-> +
-> +		if (next_css == &root->css)
-> +			return memcg;
-> +
-> +		if (css_tryget_online(next_css)) {
-> +			if (memcg->initialized) {
-> +				/*
-> +				 * Make sure the caller's accesses to
-> +				 * the memcg members are issued after
-> +				 * we see this flag set.
-> +				 */
-> +				smp_rmb();
-> +				return memcg;
-> +			}
-> +			css_put(next_css);
-> +		}
->  
->  		prev_css = next_css;
->  		goto skip_node;
-> @@ -5413,6 +5429,7 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
+>  static int aio_ring_mmap(struct file *file, struct vm_area_struct *vma)
 >  {
->  	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
->  	struct mem_cgroup *parent = mem_cgroup_from_css(css->parent);
-> +	int ret;
->  
->  	if (css->id > MEM_CGROUP_ID_MAX)
->  		return -ENOSPC;
-> @@ -5449,7 +5466,16 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
->  	}
->  	mutex_unlock(&memcg_create_mutex);
->  
-> -	return memcg_init_kmem(memcg, &memory_cgrp_subsys);
-> +	ret = memcg_init_kmem(memcg, &memory_cgrp_subsys);
-> +	if (ret)
-> +		return ret;
-> +
-> +	/* Make sure the initialization is visible before the flag */
-> +	smp_wmb();
-> +
-> +	memcg->initialized = true;
-> +
-> +	return 0;
+> +	vma->vm_flags |= VM_DONTEXPAND;
+>  	vma->vm_ops = &generic_file_vm_ops;
+>  	return 0;
 >  }
 >  
->  /*
+> +static void aio_ring_remap(struct file *file, struct vm_area_struct *vma)
+> +{
+> +	struct mm_struct *mm = vma->vm_mm;
+> +	struct kioctx_table *table;
+> +	int i;
+> +
+> +	spin_lock(&mm->ioctx_lock);
+> +	rcu_read_lock();
+> +	table = rcu_dereference(mm->ioctx_table);
+> +	for (i = 0; i < table->nr; i++) {
+> +		struct kioctx *ctx;
+> +
+> +		ctx = table->table[i];
+> +		if (ctx && ctx->aio_ring_file == file) {
+> +			ctx->user_id = ctx->mmap_base = vma->vm_start;
+> +			break;
+> +		}
+> +	}
+> +
+> +	rcu_read_unlock();
+> +	spin_unlock(&mm->ioctx_lock);
+> +}
+> +
+>  static const struct file_operations aio_ring_fops = {
+>  	.mmap = aio_ring_mmap,
+> +	.mremap = aio_ring_remap,
+>  };
+>  
+>  static int aio_set_page_dirty(struct page *page)
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index e11d60c..379bd75 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -1467,6 +1467,7 @@ struct file_operations {
+>  	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
+>  	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
+>  	int (*mmap) (struct file *, struct vm_area_struct *);
+> +	void (*mremap)(struct file *, struct vm_area_struct *);
+>  	int (*open) (struct inode *, struct file *);
+>  	int (*flush) (struct file *, fl_owner_t id);
+>  	int (*release) (struct inode *, struct file *);
+> diff --git a/mm/mremap.c b/mm/mremap.c
+> index 05f1180..18200b9 100644
+> --- a/mm/mremap.c
+> +++ b/mm/mremap.c
+> @@ -287,7 +287,8 @@ static unsigned long move_vma(struct vm_area_struct *vma,
+>  		old_len = new_len;
+>  		old_addr = new_addr;
+>  		new_addr = -ENOMEM;
+> -	}
+> +	} else if (vma->vm_file && vma->vm_file->f_op->mremap)
+> +		vma->vm_file->f_op->mremap(vma->vm_file, new_vma);
+>  
+>  	/* Conceal VM_ACCOUNT so old reservation is not undone */
+>  	if (vm_flags & VM_ACCOUNT) {
 > -- 
-> 2.1.0
+> 1.8.4.2
 > 
-
--- 
-Michal Hocko
-SUSE Labs
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
