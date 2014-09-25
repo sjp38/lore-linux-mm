@@ -1,56 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id AACE66B0036
-	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 09:54:56 -0400 (EDT)
-Received: by mail-wi0-f178.google.com with SMTP id z2so9490347wiv.5
-        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 06:54:56 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id hf2si2841656wjc.63.2014.09.25.06.54.55
+Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 246396B0037
+	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 09:55:26 -0400 (EDT)
+Received: by mail-we0-f176.google.com with SMTP id w61so7079051wes.21
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 06:55:25 -0700 (PDT)
+Received: from mail-we0-x233.google.com (mail-we0-x233.google.com [2a00:1450:400c:c03::233])
+        by mx.google.com with ESMTPS id gq6si10660921wib.42.2014.09.25.06.55.24
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Sep 2014 06:54:55 -0700 (PDT)
-Date: Thu, 25 Sep 2014 09:54:50 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch v2] mm: memcontrol: do not iterate uninitialized memcgs
-Message-ID: <20140925135450.GA1822@cmpxchg.org>
-References: <1411612278-4707-1-git-send-email-hannes@cmpxchg.org>
- <20140925024054.GA4888@cmpxchg.org>
- <20140925114339.GD12090@dhcp22.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 25 Sep 2014 06:55:24 -0700 (PDT)
+Received: by mail-we0-f179.google.com with SMTP id u56so82324wes.10
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 06:55:24 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140925114339.GD12090@dhcp22.suse.cz>
+Date: Thu, 25 Sep 2014 22:55:24 +0900
+Message-ID: <CALLJCT0YKkg=PZN1i4eOEWdJoLE8oAyTAk0OmRHLOGRstqk4MQ@mail.gmail.com>
+Subject: [linux-next] mm/debug.c compile failure with CONFIG_MEMCG not set
+From: Masanari Iida <standby24x7@gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.cz, sasha.levin@oracle.com, linux-mm@kvack.org
 
-On Thu, Sep 25, 2014 at 01:43:39PM +0200, Michal Hocko wrote:
-> On Wed 24-09-14 22:40:55, Johannes Weiner wrote:
-> > Argh, buggy css_put() against the root.  Hand grenades, everywhere.
-> > Update:
-> > 
-> > ---
-> > From 9b0b4d72d71cd8acd7aaa58d2006c751decc8739 Mon Sep 17 00:00:00 2001
-> > From: Johannes Weiner <hannes@cmpxchg.org>
-> > Date: Wed, 24 Sep 2014 22:00:20 -0400
-> > Subject: [patch] mm: memcontrol: do not iterate uninitialized memcgs
-> > 
-> > The cgroup iterators yield css objects that have not yet gone through
-> > css_online(), but they are not complete memcgs at this point and so
-> > the memcg iterators should not return them.  d8ad30559715 ("mm/memcg:
-> > iteration skip memcgs not yet fully initialized") set out to implement
-> > exactly this, but it uses CSS_ONLINE, a cgroup-internal flag that does
-> > not meet the ordering requirements for memcg, and so we still may see
-> > partially initialized memcgs from the iterators.
-> 
-> I do not see how would this happen. CSS_ONLINE is set after css_online
-> callback returns and mem_cgroup_css_online ends the core initialization
-> with mutex_unlock which should provide sufficient memory ordering
-> requirements
+As of linux-next 20140925, if I don't set CONFIG_MEMCG,
+the compile failed with following error.
 
-But the iterators do not use the mutex?  We are missing the matching
-acquire for the proper ordering.
+mm/debug.c: In function =E2=80=98dump_mm=E2=80=99:
+mm/debug.c:169:1183: error: =E2=80=98const struct mm_struct=E2=80=99 has no=
+ member named =E2=80=98owner=E2=80=99
+  pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
+
+make[1]: *** [mm/debug.o] Error 1
+
+If I set CONFIG_MEMCG, the compile succeed.
+
+Reported-by: Masanari Iida <standby24x7@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
