@@ -1,114 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 773716B0036
-	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 05:34:16 -0400 (EDT)
-Received: by mail-la0-f44.google.com with SMTP id gi9so1960099lab.3
-        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 02:34:15 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id oc4si2279189lbb.11.2014.09.25.02.34.13
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 739196B0036
+	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 06:01:35 -0400 (EDT)
+Received: by mail-wg0-f46.google.com with SMTP id a1so7273821wgh.5
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 03:01:34 -0700 (PDT)
+Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com [2a00:1450:400c:c05::231])
+        by mx.google.com with ESMTPS id ei7si9929728wid.59.2014.09.25.03.01.33
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 25 Sep 2014 02:34:14 -0700 (PDT)
-Date: Thu, 25 Sep 2014 11:34:10 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/2] vfs: Fix data corruption when blocksize < pagesize
- for mmaped data
-Message-ID: <20140925093410.GC3096@quack.suse.cz>
-References: <1411484603-17756-1-git-send-email-jack@suse.cz>
- <1411484603-17756-2-git-send-email-jack@suse.cz>
- <20140925013216.GD4945@dastard>
+        Thu, 25 Sep 2014 03:01:33 -0700 (PDT)
+Received: by mail-wi0-f177.google.com with SMTP id q5so9029670wiv.4
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 03:01:33 -0700 (PDT)
+Date: Thu, 25 Sep 2014 12:01:30 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch v2] mm: memcontrol: convert reclaim iterator to simple
+ css refcounting
+Message-ID: <20140925100130.GC12090@dhcp22.suse.cz>
+References: <1411161059-16552-1-git-send-email-hannes@cmpxchg.org>
+ <20140919212843.GA23861@cmpxchg.org>
+ <20140924164739.GA15897@dhcp22.suse.cz>
+ <20140924171653.GA10082@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140925013216.GD4945@dastard>
+In-Reply-To: <20140924171653.GA10082@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, Ted Tso <tytso@mit.edu>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu 25-09-14 11:32:16, Dave Chinner wrote:
-> On Tue, Sep 23, 2014 at 05:03:22PM +0200, Jan Kara wrote:
-> > ->page_mkwrite() is used by filesystems to allocate blocks under a page
-> > which is becoming writeably mmapped in some process' address space. This
-> > allows a filesystem to return a page fault if there is not enough space
-> > available, user exceeds quota or similar problem happens, rather than
-> > silently discarding data later when writepage is called.
+On Wed 24-09-14 13:16:53, Johannes Weiner wrote:
+> On Wed, Sep 24, 2014 at 06:47:39PM +0200, Michal Hocko wrote:
+> > On Fri 19-09-14 17:28:43, Johannes Weiner wrote:
+[...]
+> > > -		memcg = __mem_cgroup_iter_next(root, last_visited);
+> > > +		do {
+> > > +			pos = ACCESS_ONCE(mz->reclaim_iter[priority]);
+> > > +		} while (pos && !css_tryget(&pos->css));
 > > 
-> > However VFS fails to call ->page_mkwrite() in all the cases where
-> > filesystems need it when blocksize < pagesize. For example when
-> > blocksize = 1024, pagesize = 4096 the following is problematic:
-> >   ftruncate(fd, 0);
-> >   pwrite(fd, buf, 1024, 0);
-> >   map = mmap(NULL, 1024, PROT_WRITE, MAP_SHARED, fd, 0);
-> >   map[0] = 'a';       ----> page_mkwrite() for index 0 is called
-> >   ftruncate(fd, 10000); /* or even pwrite(fd, buf, 1, 10000) */
-> >   mremap(map, 1024, 10000, 0);
-> >   map[4095] = 'a';    ----> no page_mkwrite() called
+> > This is a bit confusing. AFAIU css_tryget fails only when the current
+> > ref count is zero already. When do we keep cached memcg with zero count
+> > behind? We always do css_get after cmpxchg.
 > > 
-> > At the moment ->page_mkwrite() is called, filesystem can allocate only
-> > one block for the page because i_size == 1024. Otherwise it would create
-> > blocks beyond i_size which is generally undesirable. But later at
-> > ->writepage() time, we also need to store data at offset 4095 but we
-> > don't have block allocated for it.
-> ...
-> >  
-> > +#ifdef CONFIG_MMU
-> > +/**
-> > + * block_create_hole - handle creation of a hole in a file
-> > + * @inode:	inode where the hole is created
-> > + * @from:	offset in bytes where the hole starts
-> > + * @to:		offset in bytes where the hole ends.
+> > Hmm, there is a small window between cmpxchg and css_get when we store
+> > the current memcg into the reclaim_iter[priority]. If the current memcg
+> > is root then we do not take any css reference before cmpxchg and so it
+> > might drop down to zero in the mean time so other CPU might see zero I
+> > guess. But I do not see how css_get after cmpxchg on such css works.
+> > I guess I should go and check the css reference counting again.
 > 
-> This function doesn't create holes.  It also manipulates page state,
-> not block state.  Probably could do with a better name, but I'm not
-> sure what a better name is - something like
-> pagecache_extend_isize(old_eof, new_eof)?
-  Yeah, you are right. I should be actually better off moving that function
-to mm/truncate.c. Regarding the name I agree block_create_hole() isn't
-very accurate but I don't like pagecache_extend_isize() too much either -
-see below for reason.
+> It's not about root or the newly stored memcg, it's that you might
+> read the position right before it's replaced and css_put(), at which
 
-> > +void block_create_hole(struct inode *inode, loff_t from, loff_t to)
-> > +{
-> > +	int bsize = 1 << inode->i_blkbits;
-> > +	loff_t rounded_from;
-> > +	struct page *page;
-> > +	pgoff_t index;
-> > +
-> > +	WARN_ON(!mutex_is_locked(&inode->i_mutex));
-> > +	WARN_ON(to > inode->i_size);
-> 
-> We've already changed i_size, so shouldn't that be:
-  Not quite. When you have 1k blocksize, filesize == 512 and you do
-pwrite(file, buf, 1024, 8192);
-  Then you want the function to be called for range 512 - 8192, however
-i_size is already 9216. So the assertion is correct as is. This is also
-the reason why I don't like pagecache_extend_isize() because it suggests
-'to' is the final i_size but it's not.
+OK, got it
 
-Maybe the most simple interface would be to really call the function
-pagecache_extend_isize(), let it take just 'to' and it will write the new
-i_size and handle pagecache tricks. The extending writes will then be
-handled by first calling pagecache_extend_isize() to extend to 'pos' and
-then just i_size_write() the final size...
+	CPU0					CPU1
+pos = reclaim_iter[priority]
+					cmpxchg(reclaim_iter[priority], pos, memcg)
+					css_put(pos)	# -> 0
+css_tryget(pos)
 
-								Honza
-> 	WARN_ON(to != inode->i_size);
-> 
-> > +
-> > +	if (from >= to || bsize == PAGE_CACHE_SIZE)
-> > +		return;
-> > +	/* Currently last page will not have any hole block created? */
-> > +	rounded_from = ALIGN(from, bsize);
-> 
-> That rounds down? or up? round_down/round_up are much better than
-> ALIGN() because they tell you exactly what rounding was intended...
-  Good point. I'll use round_up().
-
-								Honza
+Thanks!
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
