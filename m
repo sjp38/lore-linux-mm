@@ -1,83 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B4F16B0036
-	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 10:35:53 -0400 (EDT)
-Received: by mail-we0-f179.google.com with SMTP id u56so153969wes.38
-        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 07:35:52 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id xt8si2991154wjb.55.2014.09.25.07.35.51
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Thu, 25 Sep 2014 07:35:52 -0700 (PDT)
-Date: Thu, 25 Sep 2014 16:35:49 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: hrtimer deadlock caused by nohz_full
-In-Reply-To: <20140925141425.GA21702@redhat.com>
-Message-ID: <alpine.DEB.2.10.1409251630210.4604@nanos>
-References: <20140925141425.GA21702@redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 25 Sep 2014 11:13:16 -0400
+From: Benjamin LaHaise <bcrl@kvack.org>
+Subject: Re: [PATCH] aio: Make it possible to remap aio ring
+Message-ID: <20140925151316.GO8303@kvack.org>
+References: <541B00A1.50003@parallels.com> <87eguzuc44.fsf@openvz.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87eguzuc44.fsf@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>
-Cc: linux-mm@kvack.org, Frederic Weisbecker <fweisbec@gmail.com>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dmitry Monakhov <dmonakhov@gmail.com>
+Cc: Pavel Emelyanov <xemul@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-aio@kvack.org, Linux MM <linux-mm@kvack.org>
 
-On Thu, 25 Sep 2014, Dave Jones wrote:
+On Thu, Sep 25, 2014 at 04:18:51PM +0400, Dmitry Monakhov wrote:
+> On Thu, 18 Sep 2014 19:56:17 +0400, Pavel Emelyanov <xemul@parallels.com> wrote:
+> > Hi,
+> > 
+> > There are actually two issues this patch addresses. Let me start with
+> > the one I tried to solve in the beginning.
+> > 
+> > So, in the checkpoint-restore project (criu) we try to dump tasks'
+> > state and restore one back exactly as it was. One of the tasks' state
+> > bits is rings set up with io_setup() call. There's (almost) no problems
+> > in dumping them, there's a problem restoring them -- if I dump a task
+> > with aio ring originally mapped at address A, I want to restore one
+> > back at exactly the same address A. Unfortunately, the io_setup() does
+> > not allow for that -- it mmaps the ring at whatever place mm finds
+> > appropriate (it calls do_mmap_pgoff() with zero address and without
+> > the MAP_FIXED flag).
+> > 
+> > To make restore possible I'm going to mremap() the freshly created ring
+> > into the address A (under which it was seen before dump). The problem is
+> > that the ring's virtual address is passed back to the user-space as the
+> > context ID and this ID is then used as search key by all the other io_foo()
+> > calls. Reworking this ID to be just some integer doesn't seem to work, as
+> > this value is already used by libaio as a pointer using which this library
+> > accesses memory for aio meta-data.
+> > 
+> > So, to make restore work we need to make sure that
+> > 
+> > a) ring is mapped at desired virtual address
+> > b) kioctx->user_id matches this value
+> > 
+> > Having said that, the patch makes mremap() on aio region update the
+> > kioctx's user_id and mmap_base values.
+> > 
+> > 
+> > Here appears the 2nd issue I mentioned in the beginning of this mail.
+> > If (regardless of the C/R dances I do) someone creates an io context
+> > with io_setup(), then mremap()-s the ring and then destroys the context,
+> > the kill_ioctx() routine will call munmap() on wrong (old) address.
+> > This will result in a) aio ring remaining in memory and b) some other
+> > vma get unexpectedly unmapped.
+> > 
+> > 
+> > What do you think?
+> Look reasonable.
+> Feel free to add Acked-by:Dmitry Monakhov <dmonakhov@openvz.org>
+> > 
+> > Signed-off-by: Pavel Emelyanov <xemul@parallels.com>
 
-> Got this on a box that had been fuzzing for 12 hours or so.
-> There's also some timer stuff going on htere, so cc'ing the usual suspects.
+I've had a look over this patch, and it seems okay to me.  The interaction 
+with page migration looks safe, as well as with io_destroy().  I've applied 
+this to my aio-next tree at git://git.kvack.org/~bcrl/aio-next.git .  If 
+mm folks have any concerns, please let me know.
 
-And it's a hrtimer lockup
- 
->  [<ffffffffa10f95f8>] ? hrtimer_try_to_cancel+0x58/0x1f0
->  [<ffffffffa10d103d>] ? lock_release+0x1d/0x300
->  [<ffffffffa10d103d>] ? lock_release+0x1d/0x300
->  [<ffffffffa10f95f8>] ? hrtimer_try_to_cancel+0x58/0x1f0
->  [<ffffffffa10d103d>] ? lock_release+0x1d/0x300
->  <<EOE>>  <IRQ>  [<ffffffffa1823ac4>] _raw_spin_unlock_irqrestore+0x24/0x70
->  [<ffffffffa10f95f8>] hrtimer_try_to_cancel+0x58/0x1f0
->  [<ffffffffa10f97aa>] hrtimer_cancel+0x1a/0x30
->  [<ffffffffa110a0e7>] tick_nohz_restart+0x17/0x90
->  [<ffffffffa110af38>] __tick_nohz_full_check+0xc8/0xe0
->  [<ffffffffa110af5e>] nohz_full_kick_work_func+0xe/0x10
->  [<ffffffffa117c9bf>] irq_work_run_list+0x4f/0x70
->  [<ffffffffa117ca0a>] irq_work_run+0x2a/0x60
->  [<ffffffffa10f82eb>] update_process_times+0x5b/0x70
->  [<ffffffffa1109dc5>] tick_sched_handle.isra.21+0x25/0x60
->  [<ffffffffa110a0b1>] tick_sched_timer+0x41/0x60
->  [<ffffffffa10f8c71>] __run_hrtimer+0x81/0x480
->  [<ffffffffa110a070>] ? tick_sched_do_timer+0x90/0x90
->  [<ffffffffa10f9b27>] hrtimer_interrupt+0x107/0x260
->  [<ffffffffa10331a4>] local_apic_timer_interrupt+0x34/0x60
->  [<ffffffffa182734f>] smp_apic_timer_interrupt+0x3f/0x60
->  [<ffffffffa182576f>] apic_timer_interrupt+0x6f/0x80
+		-ben
 
-hrtimer_interrupt
-  tick_sched_timer
-    tick_sched_handle
-      update_process_times
-        irq_work_run
-	  irq_work_run_list
-	    nohz_full_kick_work_func
-	      __tick_nohz_full_check
-	        tick_nohz_restart
-                  hrtimer_cancel
+> > ---
+> >  fs/aio.c           | 25 +++++++++++++++++++++++++
+> >  include/linux/fs.h |  1 +
+> >  mm/mremap.c        |  3 ++-
+> >  3 files changed, 28 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/fs/aio.c b/fs/aio.c
+> > index 1c9c5f0..a0865e4 100644
+> > --- a/fs/aio.c
+> > +++ b/fs/aio.c
+> > @@ -273,12 +273,37 @@ static void aio_free_ring(struct kioctx *ctx)
+> >  
+> >  static int aio_ring_mmap(struct file *file, struct vm_area_struct *vma)
+> >  {
+> > +	vma->vm_flags |= VM_DONTEXPAND;
+> >  	vma->vm_ops = &generic_file_vm_ops;
+> >  	return 0;
+> >  }
+> >  
+> > +static void aio_ring_remap(struct file *file, struct vm_area_struct *vma)
+> > +{
+> > +	struct mm_struct *mm = vma->vm_mm;
+> > +	struct kioctx_table *table;
+> > +	int i;
+> > +
+> > +	spin_lock(&mm->ioctx_lock);
+> > +	rcu_read_lock();
+> > +	table = rcu_dereference(mm->ioctx_table);
+> > +	for (i = 0; i < table->nr; i++) {
+> > +		struct kioctx *ctx;
+> > +
+> > +		ctx = table->table[i];
+> > +		if (ctx && ctx->aio_ring_file == file) {
+> > +			ctx->user_id = ctx->mmap_base = vma->vm_start;
+> > +			break;
+> > +		}
+> > +	}
+> > +
+> > +	rcu_read_unlock();
+> > +	spin_unlock(&mm->ioctx_lock);
+> > +}
+> > +
+> >  static const struct file_operations aio_ring_fops = {
+> >  	.mmap = aio_ring_mmap,
+> > +	.mremap = aio_ring_remap,
+> >  };
+> >  
+> >  static int aio_set_page_dirty(struct page *page)
+> > diff --git a/include/linux/fs.h b/include/linux/fs.h
+> > index e11d60c..379bd75 100644
+> > --- a/include/linux/fs.h
+> > +++ b/include/linux/fs.h
+> > @@ -1467,6 +1467,7 @@ struct file_operations {
+> >  	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
+> >  	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
+> >  	int (*mmap) (struct file *, struct vm_area_struct *);
+> > +	void (*mremap)(struct file *, struct vm_area_struct *);
+> >  	int (*open) (struct inode *, struct file *);
+> >  	int (*flush) (struct file *, fl_owner_t id);
+> >  	int (*release) (struct inode *, struct file *);
+> > diff --git a/mm/mremap.c b/mm/mremap.c
+> > index 05f1180..18200b9 100644
+> > --- a/mm/mremap.c
+> > +++ b/mm/mremap.c
+> > @@ -287,7 +287,8 @@ static unsigned long move_vma(struct vm_area_struct *vma,
+> >  		old_len = new_len;
+> >  		old_addr = new_addr;
+> >  		new_addr = -ENOMEM;
+> > -	}
+> > +	} else if (vma->vm_file && vma->vm_file->f_op->mremap)
+> > +		vma->vm_file->f_op->mremap(vma->vm_file, new_vma);
+> >  
+> >  	/* Conceal VM_ACCOUNT so old reservation is not undone */
+> >  	if (vm_flags & VM_ACCOUNT) {
+> > -- 
+> > 1.8.4.2
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-And that hrtimer_cancel is:
-
-static void tick_nohz_restart(struct tick_sched *ts, ktime_t now)
-{
-	hrtimer_cancel(&ts->sched_timer);
-
-Now, that's really bad because we are in the timer callback of
-ts->sched_timer. So hrtimer_cancel will loop forever waiting for the
-callback to complete.
-
-Frederic !?!?
-
-Thanks,
-
-	tglx
+-- 
+"Thought is the essence of where you are now."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
