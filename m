@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D0F0900014
-	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 16:34:08 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id r10so11238051pdi.25
-        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 13:34:08 -0700 (PDT)
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 67B276B0038
+	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 16:34:10 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id fp1so1781955pdb.31
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 13:34:10 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
         by mx.google.com with ESMTP id m5si5535291pdi.216.2014.09.25.13.34.02
         for <linux-mm@kvack.org>;
-        Thu, 25 Sep 2014 13:34:02 -0700 (PDT)
+        Thu, 25 Sep 2014 13:34:03 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v11 02/21] block: Change direct_access calling convention
-Date: Thu, 25 Sep 2014 16:33:19 -0400
-Message-Id: <1411677218-29146-3-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH v11 04/21] mm: Allow page fault handlers to perform the COW
+Date: Thu, 25 Sep 2014 16:33:21 -0400
+Message-Id: <1411677218-29146-5-git-send-email-matthew.r.wilcox@intel.com>
 In-Reply-To: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
 References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,311 +19,140 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-In order to support accesses to larger chunks of memory, pass in a
-'size' parameter (counted in bytes), and return the amount available at
-that address.
+Currently COW of an XIP file is done by first bringing in a read-only
+mapping, then retrying the fault and copying the page.  It is much more
+efficient to tell the fault handler that a COW is being attempted (by
+passing in the pre-allocated page in the vm_fault structure), and allow
+the handler to perform the COW operation itself.
 
-Add a new helper function, bdev_direct_access(), to handle common
-functionality including partition handling, checking the length requested
-is positive, checking for the sector being page-aligned, and checking
-the length of the request does not pass the end of the partition.
+The handler cannot insert the page itself if there is already a read-only
+mapping at that address, so allow the handler to return VM_FAULT_LOCKED
+and set the fault_page to be NULL.  This indicates to the MM code that
+the i_mmap_mutex is held instead of the page lock.
 
 Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Reviewed-by: Jan Kara <jack@suse.cz>
-Reviewed-by: Boaz Harrosh <boaz@plexistor.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- Documentation/filesystems/xip.txt | 15 +++++++++------
- arch/powerpc/sysdev/axonram.c     | 17 ++++-------------
- drivers/block/brd.c               | 12 +++++-------
- drivers/s390/block/dcssblk.c      | 21 +++++++++-----------
- fs/block_dev.c                    | 40 +++++++++++++++++++++++++++++++++++++++
- fs/ext2/xip.c                     | 31 +++++++++++++-----------------
- include/linux/blkdev.h            |  6 ++++--
- 7 files changed, 84 insertions(+), 58 deletions(-)
+ include/linux/mm.h |  1 +
+ mm/memory.c        | 33 ++++++++++++++++++++++++---------
+ 2 files changed, 25 insertions(+), 9 deletions(-)
 
-diff --git a/Documentation/filesystems/xip.txt b/Documentation/filesystems/xip.txt
-index 0466ee5..b774729 100644
---- a/Documentation/filesystems/xip.txt
-+++ b/Documentation/filesystems/xip.txt
-@@ -28,12 +28,15 @@ Implementation
- Execute-in-place is implemented in three steps: block device operation,
- address space operation, and file operations.
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 8981cc8..0a47817 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -208,6 +208,7 @@ struct vm_fault {
+ 	pgoff_t pgoff;			/* Logical page offset based on vma */
+ 	void __user *virtual_address;	/* Faulting virtual address */
  
--A block device operation named direct_access is used to retrieve a
--reference (pointer) to a block on-disk. The reference is supposed to be
--cpu-addressable, physical address and remain valid until the release operation
--is performed. A struct block_device reference is used to address the device,
--and a sector_t argument is used to identify the individual block. As an
--alternative, memory technology devices can be used for this.
-+A block device operation named direct_access is used to translate the
-+block device sector number to a page frame number (pfn) that identifies
-+the physical page for the memory.  It also returns a kernel virtual
-+address that can be used to access the memory.
-+
-+The direct_access method takes a 'size' parameter that indicates the
-+number of bytes being requested.  The function should return the number
-+of bytes that can be contiguously accessed at that offset.  It may also
-+return a negative errno if an error occurs.
++	struct page *cow_page;		/* Handler may choose to COW */
+ 	struct page *page;		/* ->fault handlers should return a
+ 					 * page here, unless VM_FAULT_NOPAGE
+ 					 * is set (which is also implied by
+diff --git a/mm/memory.c b/mm/memory.c
+index adeac30..3368785 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2000,6 +2000,7 @@ static int do_page_mkwrite(struct vm_area_struct *vma, struct page *page,
+ 	vmf.pgoff = page->index;
+ 	vmf.flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
+ 	vmf.page = page;
++	vmf.cow_page = NULL;
  
- The block device operation is optional, these block devices support it as of
- today:
-diff --git a/arch/powerpc/sysdev/axonram.c b/arch/powerpc/sysdev/axonram.c
-index 830edc8..8709b9f 100644
---- a/arch/powerpc/sysdev/axonram.c
-+++ b/arch/powerpc/sysdev/axonram.c
-@@ -139,26 +139,17 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
-  * axon_ram_direct_access - direct_access() method for block device
-  * @device, @sector, @data: see block_device_operations method
+ 	ret = vma->vm_ops->page_mkwrite(vma, &vmf);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
+@@ -2698,7 +2699,8 @@ oom:
+  * See filemap_fault() and __lock_page_retry().
   */
--static int
-+static long
- axon_ram_direct_access(struct block_device *device, sector_t sector,
--		       void **kaddr, unsigned long *pfn)
-+		       void **kaddr, unsigned long *pfn, long size)
+ static int __do_fault(struct vm_area_struct *vma, unsigned long address,
+-		pgoff_t pgoff, unsigned int flags, struct page **page)
++			pgoff_t pgoff, unsigned int flags,
++			struct page *cow_page, struct page **page)
  {
- 	struct axon_ram_bank *bank = device->bd_disk->private_data;
--	loff_t offset;
--
--	offset = sector;
--	if (device->bd_part != NULL)
--		offset += device->bd_part->start_sect;
--	offset <<= AXON_RAM_SECTOR_SHIFT;
--	if (offset >= bank->size) {
--		dev_err(&bank->device->dev, "Access outside of address space\n");
--		return -ERANGE;
--	}
-+	loff_t offset = (loff_t)sector << AXON_RAM_SECTOR_SHIFT;
+ 	struct vm_fault vmf;
+ 	int ret;
+@@ -2707,10 +2709,13 @@ static int __do_fault(struct vm_area_struct *vma, unsigned long address,
+ 	vmf.pgoff = pgoff;
+ 	vmf.flags = flags;
+ 	vmf.page = NULL;
++	vmf.cow_page = cow_page;
  
- 	*kaddr = (void *)(bank->ph_addr + offset);
- 	*pfn = virt_to_phys(*kaddr) >> PAGE_SHIFT;
+ 	ret = vma->vm_ops->fault(vma, &vmf);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+ 		return ret;
++	if (!vmf.page)
++		goto out;
  
--	return 0;
-+	return bank->size - offset;
+ 	if (unlikely(PageHWPoison(vmf.page))) {
+ 		if (ret & VM_FAULT_LOCKED)
+@@ -2724,6 +2729,7 @@ static int __do_fault(struct vm_area_struct *vma, unsigned long address,
+ 	else
+ 		VM_BUG_ON_PAGE(!PageLocked(vmf.page), vmf.page);
+ 
++ out:
+ 	*page = vmf.page;
+ 	return ret;
  }
+@@ -2897,7 +2903,7 @@ static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		pte_unmap_unlock(pte, ptl);
+ 	}
  
- static const struct block_device_operations axon_ram_devops = {
-diff --git a/drivers/block/brd.c b/drivers/block/brd.c
-index 3598110..78fe510 100644
---- a/drivers/block/brd.c
-+++ b/drivers/block/brd.c
-@@ -370,25 +370,23 @@ static int brd_rw_page(struct block_device *bdev, sector_t sector,
- }
+-	ret = __do_fault(vma, address, pgoff, flags, &fault_page);
++	ret = __do_fault(vma, address, pgoff, flags, NULL, &fault_page);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+ 		return ret;
  
- #ifdef CONFIG_BLK_DEV_XIP
--static int brd_direct_access(struct block_device *bdev, sector_t sector,
--			void **kaddr, unsigned long *pfn)
-+static long brd_direct_access(struct block_device *bdev, sector_t sector,
-+			void **kaddr, unsigned long *pfn, long size)
- {
- 	struct brd_device *brd = bdev->bd_disk->private_data;
- 	struct page *page;
+@@ -2937,26 +2943,35 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		return VM_FAULT_OOM;
+ 	}
  
- 	if (!brd)
- 		return -ENODEV;
--	if (sector & (PAGE_SECTORS-1))
--		return -EINVAL;
--	if (sector + PAGE_SECTORS > get_capacity(bdev->bd_disk))
--		return -ERANGE;
- 	page = brd_insert_page(brd, sector);
- 	if (!page)
- 		return -ENOSPC;
- 	*kaddr = page_address(page);
- 	*pfn = page_to_pfn(page);
+-	ret = __do_fault(vma, address, pgoff, flags, &fault_page);
++	ret = __do_fault(vma, address, pgoff, flags, new_page, &fault_page);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+ 		goto uncharge_out;
  
--	return 0;
-+	/* If size > PAGE_SIZE, we could look to see if the next page in the
-+	 * file happens to be mapped to the next page of physical RAM */
-+	return PAGE_SIZE;
- }
- #endif
+-	copy_user_highpage(new_page, fault_page, address, vma);
++	if (fault_page)
++		copy_user_highpage(new_page, fault_page, address, vma);
+ 	__SetPageUptodate(new_page);
  
-diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
-index 0f47175..96bc411 100644
---- a/drivers/s390/block/dcssblk.c
-+++ b/drivers/s390/block/dcssblk.c
-@@ -28,8 +28,8 @@
- static int dcssblk_open(struct block_device *bdev, fmode_t mode);
- static void dcssblk_release(struct gendisk *disk, fmode_t mode);
- static void dcssblk_make_request(struct request_queue *q, struct bio *bio);
--static int dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
--				 void **kaddr, unsigned long *pfn);
-+static long dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
-+				 void **kaddr, unsigned long *pfn, long size);
+ 	pte = pte_offset_map_lock(mm, pmd, address, &ptl);
+ 	if (unlikely(!pte_same(*pte, orig_pte))) {
+ 		pte_unmap_unlock(pte, ptl);
+-		unlock_page(fault_page);
+-		page_cache_release(fault_page);
++		if (fault_page) {
++			unlock_page(fault_page);
++			page_cache_release(fault_page);
++		} else {
++			mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
++		}
+ 		goto uncharge_out;
+ 	}
+ 	do_set_pte(vma, address, new_page, pte, true, true);
+ 	mem_cgroup_commit_charge(new_page, memcg, false);
+ 	lru_cache_add_active_or_unevictable(new_page, vma);
+ 	pte_unmap_unlock(pte, ptl);
+-	unlock_page(fault_page);
+-	page_cache_release(fault_page);
++	if (fault_page) {
++		unlock_page(fault_page);
++		page_cache_release(fault_page);
++	} else {
++		mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
++	}
+ 	return ret;
+ uncharge_out:
+ 	mem_cgroup_cancel_charge(new_page, memcg);
+@@ -2975,7 +2990,7 @@ static int do_shared_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	int dirtied = 0;
+ 	int ret, tmp;
  
- static char dcssblk_segments[DCSSBLK_PARM_LEN] = "\0";
+-	ret = __do_fault(vma, address, pgoff, flags, &fault_page);
++	ret = __do_fault(vma, address, pgoff, flags, NULL, &fault_page);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+ 		return ret;
  
-@@ -866,25 +866,22 @@ fail:
- 	bio_io_error(bio);
- }
- 
--static int
-+static long
- dcssblk_direct_access (struct block_device *bdev, sector_t secnum,
--			void **kaddr, unsigned long *pfn)
-+			void **kaddr, unsigned long *pfn, long size)
- {
- 	struct dcssblk_dev_info *dev_info;
--	unsigned long pgoff;
-+	unsigned long offset, dev_sz;
- 
- 	dev_info = bdev->bd_disk->private_data;
- 	if (!dev_info)
- 		return -ENODEV;
--	if (secnum % (PAGE_SIZE/512))
--		return -EINVAL;
--	pgoff = secnum / (PAGE_SIZE / 512);
--	if ((pgoff+1)*PAGE_SIZE-1 > dev_info->end - dev_info->start)
--		return -ERANGE;
--	*kaddr = (void *) (dev_info->start+pgoff*PAGE_SIZE);
-+	dev_sz = dev_info->end - dev_info->start;
-+	offset = secnum * 512;
-+	*kaddr = (void *) (dev_info->start + offset);
- 	*pfn = virt_to_phys(*kaddr) >> PAGE_SHIFT;
- 
--	return 0;
-+	return dev_sz - offset;
- }
- 
- static void
-diff --git a/fs/block_dev.c b/fs/block_dev.c
-index 6d72746..ffe0761 100644
---- a/fs/block_dev.c
-+++ b/fs/block_dev.c
-@@ -427,6 +427,46 @@ int bdev_write_page(struct block_device *bdev, sector_t sector,
- }
- EXPORT_SYMBOL_GPL(bdev_write_page);
- 
-+/**
-+ * bdev_direct_access() - Get the address for directly-accessibly memory
-+ * @bdev: The device containing the memory
-+ * @sector: The offset within the device
-+ * @addr: Where to put the address of the memory
-+ * @pfn: The Page Frame Number for the memory
-+ * @size: The number of bytes requested
-+ *
-+ * If a block device is made up of directly addressable memory, this function
-+ * will tell the caller the PFN and the address of the memory.  The address
-+ * may be directly dereferenced within the kernel without the need to call
-+ * ioremap(), kmap() or similar.  The PFN is suitable for inserting into
-+ * page tables.
-+ *
-+ * Return: negative errno if an error occurs, otherwise the number of bytes
-+ * accessible at this address.
-+ */
-+long bdev_direct_access(struct block_device *bdev, sector_t sector,
-+			void **addr, unsigned long *pfn, long size)
-+{
-+	long avail;
-+	const struct block_device_operations *ops = bdev->bd_disk->fops;
-+
-+	if (size < 0)
-+		return size;
-+	if (!ops->direct_access)
-+		return -EOPNOTSUPP;
-+	if ((sector + DIV_ROUND_UP(size, 512)) >
-+					part_nr_sects_read(bdev->bd_part))
-+		return -ERANGE;
-+	sector += get_start_sect(bdev);
-+	if (sector % (PAGE_SIZE / 512))
-+		return -EINVAL;
-+	avail = ops->direct_access(bdev, sector, addr, pfn, size);
-+	if (!avail)
-+		return -ERANGE;
-+	return min(avail, size);
-+}
-+EXPORT_SYMBOL_GPL(bdev_direct_access);
-+
- /*
-  * pseudo-fs
-  */
-diff --git a/fs/ext2/xip.c b/fs/ext2/xip.c
-index e98171a..bbc5fec 100644
---- a/fs/ext2/xip.c
-+++ b/fs/ext2/xip.c
-@@ -13,18 +13,12 @@
- #include "ext2.h"
- #include "xip.h"
- 
--static inline int
--__inode_direct_access(struct inode *inode, sector_t block,
--		      void **kaddr, unsigned long *pfn)
-+static inline long __inode_direct_access(struct inode *inode, sector_t block,
-+				void **kaddr, unsigned long *pfn, long size)
- {
- 	struct block_device *bdev = inode->i_sb->s_bdev;
--	const struct block_device_operations *ops = bdev->bd_disk->fops;
--	sector_t sector;
--
--	sector = block * (PAGE_SIZE / 512); /* ext2 block to bdev sector */
--
--	BUG_ON(!ops->direct_access);
--	return ops->direct_access(bdev, sector, kaddr, pfn);
-+	sector_t sector = block * (PAGE_SIZE / 512);
-+	return bdev_direct_access(bdev, sector, kaddr, pfn, size);
- }
- 
- static inline int
-@@ -53,12 +47,13 @@ ext2_clear_xip_target(struct inode *inode, sector_t block)
- {
- 	void *kaddr;
- 	unsigned long pfn;
--	int rc;
-+	long size;
- 
--	rc = __inode_direct_access(inode, block, &kaddr, &pfn);
--	if (!rc)
--		clear_page(kaddr);
--	return rc;
-+	size = __inode_direct_access(inode, block, &kaddr, &pfn, PAGE_SIZE);
-+	if (size < 0)
-+		return size;
-+	clear_page(kaddr);
-+	return 0;
- }
- 
- void ext2_xip_verify_sb(struct super_block *sb)
-@@ -77,7 +72,7 @@ void ext2_xip_verify_sb(struct super_block *sb)
- int ext2_get_xip_mem(struct address_space *mapping, pgoff_t pgoff, int create,
- 				void **kmem, unsigned long *pfn)
- {
--	int rc;
-+	long rc;
- 	sector_t block;
- 
- 	/* first, retrieve the sector number */
-@@ -86,6 +81,6 @@ int ext2_get_xip_mem(struct address_space *mapping, pgoff_t pgoff, int create,
- 		return rc;
- 
- 	/* retrieve address of the target data */
--	rc = __inode_direct_access(mapping->host, block, kmem, pfn);
--	return rc;
-+	rc = __inode_direct_access(mapping->host, block, kmem, pfn, PAGE_SIZE);
-+	return (rc < 0) ? rc : 0;
- }
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index 518b465..ac25166 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -1615,8 +1615,8 @@ struct block_device_operations {
- 	int (*rw_page)(struct block_device *, sector_t, struct page *, int rw);
- 	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
- 	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
--	int (*direct_access) (struct block_device *, sector_t,
--						void **, unsigned long *);
-+	long (*direct_access)(struct block_device *, sector_t,
-+					void **, unsigned long *pfn, long size);
- 	unsigned int (*check_events) (struct gendisk *disk,
- 				      unsigned int clearing);
- 	/* ->media_changed() is DEPRECATED, use ->check_events() instead */
-@@ -1634,6 +1634,8 @@ extern int __blkdev_driver_ioctl(struct block_device *, fmode_t, unsigned int,
- extern int bdev_read_page(struct block_device *, sector_t, struct page *);
- extern int bdev_write_page(struct block_device *, sector_t, struct page *,
- 						struct writeback_control *);
-+extern long bdev_direct_access(struct block_device *, sector_t, void **addr,
-+						unsigned long *pfn, long size);
- #else /* CONFIG_BLOCK */
- 
- struct block_device;
 -- 
 2.1.0
 
