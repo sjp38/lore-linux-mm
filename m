@@ -1,139 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id EEFD56B0038
-	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 11:12:26 -0400 (EDT)
-Received: by mail-wi0-f181.google.com with SMTP id z2so11819122wiv.2
-        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 08:12:26 -0700 (PDT)
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-        by mx.google.com with ESMTPS id wg9si7038542wjb.70.2014.09.26.08.12.24
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 26 Sep 2014 08:12:25 -0700 (PDT)
-Received: by mail-wg0-f50.google.com with SMTP id l18so8974953wgh.33
-        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 08:12:24 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <542573EE.8070103@hurleysoftware.com>
-References: <54246506.50401@hurleysoftware.com>
-	<20140925143555.1f276007@as>
-	<5424AAD0.9010708@hurleysoftware.com>
-	<542512AD.9070304@vmware.com>
-	<20140926054005.5c7985c0@as>
-	<542543D8.8020604@vmware.com>
-	<CAF6AEGvOkPq5LQR76-VbspYyCvUxL1=W-dLc4g_aWX2wkUmRpg@mail.gmail.com>
-	<54255EA5.3030207@redhat.com>
-	<542573EE.8070103@hurleysoftware.com>
-Date: Fri, 26 Sep 2014 08:12:24 -0700
-Message-ID: <CAAE8-r+52KWP8BkDatwUoZfOMBBSDVqLZqunff9+L-Ac109Bxg@mail.gmail.com>
-Subject: Re: page allocator bug in 3.16?
-From: Leann Ogasawara <leann.ogasawara@canonical.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D3876B0038
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 11:44:50 -0400 (EDT)
+Received: by mail-ie0-f170.google.com with SMTP id x19so13114420ier.29
+        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 08:44:50 -0700 (PDT)
+Received: from qmta05.westchester.pa.mail.comcast.net (qmta05.westchester.pa.mail.comcast.net. [2001:558:fe14:43:76:96:62:48])
+        by mx.google.com with ESMTP id ox6si7238482icb.56.2014.09.26.08.44.48
+        for <linux-mm@kvack.org>;
+        Fri, 26 Sep 2014 08:44:49 -0700 (PDT)
+Date: Fri, 26 Sep 2014 10:44:47 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/4] cpuset: convert callback_mutex to a spinlock
+In-Reply-To: <778e648ce62511c7aff225ca067e0abedb247f25.1411741632.git.vdavydov@parallels.com>
+Message-ID: <alpine.DEB.2.11.1409261039410.3870@gentwo.org>
+References: <cover.1411741632.git.vdavydov@parallels.com> <778e648ce62511c7aff225ca067e0abedb247f25.1411741632.git.vdavydov@parallels.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Hurley <peter@hurleysoftware.com>
-Cc: Rik van Riel <riel@redhat.com>, Rob Clark <robdclark@gmail.com>, Thomas Hellstrom <thellstrom@vmware.com>, Chuck Ebbert <cebbert.lkml@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickens <hughd@google.com>, Linux kernel <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@kernel.org>, Ingo Molnar <mingo@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Fri, Sep 26, 2014 at 7:10 AM, Peter Hurley <peter@hurleysoftware.com> wrote:
-> [ +cc Leann Ogasawara, Marek Szyprowski, Kyungmin Park, Arnd Bergmann ]
->
-> On 09/26/2014 08:40 AM, Rik van Riel wrote:
->> On 09/26/2014 08:28 AM, Rob Clark wrote:
->>> On Fri, Sep 26, 2014 at 6:45 AM, Thomas Hellstrom
->>> <thellstrom@vmware.com> wrote:
->>>> On 09/26/2014 12:40 PM, Chuck Ebbert wrote:
->>>>> On Fri, 26 Sep 2014 09:15:57 +0200 Thomas Hellstrom
->>>>> <thellstrom@vmware.com> wrote:
->>>>>
->>>>>> On 09/26/2014 01:52 AM, Peter Hurley wrote:
->>>>>>> On 09/25/2014 03:35 PM, Chuck Ebbert wrote:
->>>>>>>> There are six ttm patches queued for 3.16.4:
->>>>>>>>
->>>>>>>> drm-ttm-choose-a-pool-to-shrink-correctly-in-ttm_dma_pool_shrink_scan.patch
->>>>>>>>
->>>>>>>>
->> drm-ttm-fix-handling-of-ttm_pl_flag_topdown-v2.patch
->>>>>>>> drm-ttm-fix-possible-division-by-0-in-ttm_dma_pool_shrink_scan.patch
->>>>>>>>
->>>>>>>>
->> drm-ttm-fix-possible-stack-overflow-by-recursive-shrinker-calls.patch
->>>>>>>> drm-ttm-pass-gfp-flags-in-order-to-avoid-deadlock.patch
->>>>>>>> drm-ttm-use-mutex_trylock-to-avoid-deadlock-inside-shrinker-functions.patch
->>>>>>>
->>>>>>>>
->> Thanks for info, Chuck.
->>>>>>>
->>>>>>> Unfortunately, none of these fix TTM dma allocation doing
->>>>>>> CMA dma allocation, which is the root problem.
->>>>>>>
->>>>>>> Regards, Peter Hurley
->>>>>> The problem is not really in TTM but in CMA, There was a guy
->>>>>> offering to fix this in the CMA code but I guess he didn't
->>>>>> probably because he didn't receive any feedback.
->>>>>>
->>>>> Yeah, the "solution" to this problem seems to be "don't enable
->>>>> CMA on x86". Maybe it should even be disabled in the config
->>>>> system.
->>>> Or, as previously suggested, don't use CMA for order 0 (single
->>>> page) allocations....
->>>
->>> On devices that actually need CMA pools to arrange for memory to be
->>> in certain ranges, I think you probably do want to have order 0
->>> pages come from the CMA pool.
->>>
->>> Seems like disabling CMA on x86 (where it should be unneeded) is
->>> the better way, IMO
->>
->> CMA has its uses on x86. For example, CMA is used to allocate 1GB huge
->> pages.
->>
->> There may also be people with devices that do not scatter-gather, and
->> need a large physically contiguous buffer, though there should be
->> relatively few of those on x86.
->>
->> I suspect it makes most sense to do DMA allocations up to PAGE_ORDER
->> through the normal allocator on x86, and only invoking CMA for larger
->> allocations.
->
-> The code that uses CMA to satisfy DMA allocations on x86 is
-> specific to the x86 arch and was added in 2011 as a means of _testing_
-> CMA in KVM:
->
-> commit 0a2b9a6ea93650b8a00f9fd5ee8fdd25671e2df6
-> Author: Marek Szyprowski <m.szyprowski@samsung.com>
-> Date:   Thu Dec 29 13:09:51 2011 +0100
->
->     X86: integrate CMA with DMA-mapping subsystem
->
->     This patch adds support for CMA to dma-mapping subsystem for x86
->     architecture that uses common pci-dma/pci-nommu implementation. This
->     allows to test CMA on KVM/QEMU and a lot of common x86 boxes.
->
->     Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
->     Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
->     CC: Michal Nazarewicz <mina86@mina86.com>
->     Acked-by: Arnd Bergmann <arnd@arndb.de>
->
-> (no x86 maintainer acks?).
->
-> Unfortunately, this code is enabled whenever CMA is enabled, rather
-> than as a separate test configuration.
->
-> So, while enabling CMA may have other purposes on x86, using it for
-> x86 swiotlb and nommu dma allocations is not one of the them.
->
-> And Ubuntu should not be enabling CONFIG_DMA_CMA for their i386
-> and amd64 configurations, as this is trying to drive _all_ dma mapping
-> allocations through a _very_ small window (which is killing GPU
-> performance).
+On Fri, 26 Sep 2014, Vladimir Davydov wrote:
 
-Thanks for the note Peter.  We do have this disabled for our upcoming
-Ubuntu 14.10 release.  It is however still enabled in the previous 14.04
-release.  We have been tracking this in
-https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1362261 but users
-able to reproduce performance impacts in 14.10 were unable to reproduce
-in 14.04 which is why we hadn't yet disabled it there.
+> The callback_mutex is only used to synchronize reads/updates of cpusets'
+> flags and cpu/node masks. These operations should always proceed fast so
+> there's no reason why we can't use a spinlock instead of the mutex.
 
-Thanks,
-Leann
+Checked that and given the other restrictions already on the use of
+callback_mutex this is to be expected.
+
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
