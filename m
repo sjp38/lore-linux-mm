@@ -1,93 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 3827D6B0039
-	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 10:36:48 -0400 (EDT)
-Received: by mail-yk0-f170.google.com with SMTP id 19so3925710ykq.1
-        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 07:36:47 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 24si4886419yhd.26.2014.09.26.07.36.47
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id AFA216B0038
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 10:51:12 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id bj1so2678928pad.1
+        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 07:51:12 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id fd3si9855657pbc.11.2014.09.26.07.51.11
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 26 Sep 2014 07:36:47 -0700 (PDT)
-Date: Fri, 26 Sep 2014 17:36:37 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-Subject: [kbuild] [mmotm:master 57/427] fs/ocfs2/journal.c:2204:9: sparse:
- context imbalance in 'ocfs2_recover_orphans' - different lock contexts for
- basic block
-Message-ID: <20140926143636.GA3414@mwanda>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Sep 2014 07:51:11 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH 0/4] Simplify cpuset API and fix cpuset check in SL[AU]B
+Date: Fri, 26 Sep 2014 18:50:51 +0400
+Message-ID: <cover.1411741632.git.vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild@01.org, WeiWei Wang <wangww631@huawei.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org
+Cc: Li Zefan <lizefan@huawei.com>, Christoph Lameter <cl@linux.com>, Pekka
+ Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo
+ Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   065f1d86a58cc88249cd8371b29a57c97483753a
-commit: 8a09937cacc099da21313223443237cbc84d5876 [57/427] ocfs2: add orphan recovery types in ocfs2_recover_orphans
-reproduce:
-  # apt-get install sparse
-  git checkout 8a09937cacc099da21313223443237cbc84d5876
-  make ARCH=x86_64 allmodconfig
-  make C=1 CF=-D__CHECK_ENDIAN__
+Hi,
 
-   fs/ocfs2/journal.c:111:6: sparse: symbol 'ocfs2_replay_map_set_state' was not declared. Should it be static?
-   fs/ocfs2/journal.c:156:6: sparse: symbol 'ocfs2_queue_replay_slots' was not declared. Should it be static?
-   fs/ocfs2/journal.c:176:6: sparse: symbol 'ocfs2_free_replay_slots' was not declared. Should it be static?
-   fs/ocfs2/journal.c:1888:6: sparse: symbol 'ocfs2_queue_orphan_scan' was not declared. Should it be static?
-   fs/ocfs2/journal.c:1937:6: sparse: symbol 'ocfs2_orphan_scan_work' was not declared. Should it be static?
->> fs/ocfs2/journal.c:2204:9: sparse: context imbalance in 'ocfs2_recover_orphans' - different lock contexts for basic block
+SLAB and SLUB use hardwall cpuset check on fallback alloc, while the
+page allocator uses softwall check for all kernel allocations. This may
+result in falling into the page allocator even if there are free objects
+on other nodes. SLAB algorithm is especially affected: the number of
+objects allocated in vain is unlimited, so that they theoretically can
+eat up a whole NUMA node. For more details see comments to patches 3, 4.
 
-git remote add mmotm git://git.cmpxchg.org/linux-mmotm.git
-git remote update mmotm
-git checkout 8a09937cacc099da21313223443237cbc84d5876
-vim +/ocfs2_recover_orphans +2204 fs/ocfs2/journal.c
+When I last sent a fix (https://lkml.org/lkml/2014/8/10/100), David
+found the whole cpuset API being cumbersome and proposed to simplify it
+before getting to fixing its users. So this patch set addresses both
+David's complain (patches 1, 2) and the SL[AU]B issues (patches 3, 4).
 
-8a09937c WeiWei Wang 2014-09-26  2188  		 * if the orphan scan work, continue to process the
-8a09937c WeiWei Wang 2014-09-26  2189  		 * next orphan.
-8a09937c WeiWei Wang 2014-09-26  2190  		 */
-8a09937c WeiWei Wang 2014-09-26  2191  		else if (orphan_reco_type == ORPHAN_SCAN_WORK) {
-8a09937c WeiWei Wang 2014-09-26  2192  			spin_unlock(&oi->ip_lock);
-8a09937c WeiWei Wang 2014-09-26  2193  			inode = iter;
-8a09937c WeiWei Wang 2014-09-26  2194  			continue;
-8a09937c WeiWei Wang 2014-09-26  2195  		}
-ccd979bd Mark Fasheh 2005-12-15  2196  		spin_unlock(&oi->ip_lock);
-ccd979bd Mark Fasheh 2005-12-15  2197  
-ccd979bd Mark Fasheh 2005-12-15  2198  		iput(inode);
-ccd979bd Mark Fasheh 2005-12-15  2199  
-ccd979bd Mark Fasheh 2005-12-15  2200  		inode = iter;
-ccd979bd Mark Fasheh 2005-12-15  2201  	}
-ccd979bd Mark Fasheh 2005-12-15  2202  
-8a09937c WeiWei Wang 2014-09-26  2203  out:
+Reviews are appreciated.
 
-Sparse error messages are hard to understand.  It's saying that there is
-a missing unlock if ocfs2_start_trans() fails and we "goto out;"
+Thanks,
 
-"out" labels are the worst btw.  The name is too vague.  Sometimes they
-do something and sometimes they don't do anything but the name doesn't
-give any clue what it does.  In theory, out labels future proof the code
-from locking bugs but they don't work.  It just means you have to jump
-around like a rabbit to follow all the goto paths.  A return statement
-is easier to understand.
+Vladimir Davydov (4):
+  cpuset: convert callback_mutex to a spinlock
+  cpuset: simplify cpuset_node_allowed API
+  slab: fix cpuset check in fallback_alloc
+  slub: fix cpuset check in get_any_partial
 
-b4df6ed8 Mark Fasheh 2006-02-22 @2204  	return ret;
-ccd979bd Mark Fasheh 2005-12-15  2205  }
-ccd979bd Mark Fasheh 2005-12-15  2206  
-19ece546 Jan Kara    2008-08-21  2207  static int __ocfs2_wait_on_mount(struct ocfs2_super *osb, int quota)
-ccd979bd Mark Fasheh 2005-12-15  2208  {
-ccd979bd Mark Fasheh 2005-12-15  2209  	/* This check is good because ocfs2 will wait on our recovery
-ccd979bd Mark Fasheh 2005-12-15  2210  	 * thread before changing it to something other than MOUNTED
-ccd979bd Mark Fasheh 2005-12-15  2211  	 * or DISABLED. */
-ccd979bd Mark Fasheh 2005-12-15  2212  	wait_event(osb->osb_mount_event,
+ include/linux/cpuset.h |   37 +++--------
+ kernel/cpuset.c        |  162 +++++++++++++++++-------------------------------
+ mm/hugetlb.c           |    2 +-
+ mm/oom_kill.c          |    2 +-
+ mm/page_alloc.c        |    6 +-
+ mm/slab.c              |    2 +-
+ mm/slub.c              |    2 +-
+ mm/vmscan.c            |    5 +-
+ 8 files changed, 74 insertions(+), 144 deletions(-)
 
----
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
-_______________________________________________
-kbuild mailing list
-kbuild@lists.01.org
-https://lists.01.org/mailman/listinfo/kbuild
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
