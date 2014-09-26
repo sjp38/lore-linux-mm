@@ -1,101 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f45.google.com (mail-qa0-f45.google.com [209.85.216.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 9779C6B0035
-	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 13:29:56 -0400 (EDT)
-Received: by mail-qa0-f45.google.com with SMTP id k15so6366678qaq.4
-        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 10:29:56 -0700 (PDT)
-Received: from mail-qg0-x22b.google.com (mail-qg0-x22b.google.com [2607:f8b0:400d:c04::22b])
-        by mx.google.com with ESMTPS id u98si6528349qge.88.2014.09.26.10.29.55
+Received: from mail-vc0-f179.google.com (mail-vc0-f179.google.com [209.85.220.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B1B76B0035
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 13:33:33 -0400 (EDT)
+Received: by mail-vc0-f179.google.com with SMTP id im17so446514vcb.24
+        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 10:33:33 -0700 (PDT)
+Received: from mail-vc0-x232.google.com (mail-vc0-x232.google.com [2607:f8b0:400c:c03::232])
+        by mx.google.com with ESMTPS id ec1si2667521vdb.19.2014.09.26.10.33.32
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 26 Sep 2014 10:29:55 -0700 (PDT)
-Received: by mail-qg0-f43.google.com with SMTP id j107so626635qga.16
-        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 10:29:55 -0700 (PDT)
+        Fri, 26 Sep 2014 10:33:32 -0700 (PDT)
+Received: by mail-vc0-f178.google.com with SMTP id lf12so7381659vcb.9
+        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 10:33:32 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAPAsAGyDpnhpMquXi-K4wdDEbj-5W44uJLircsok7ziOO_m66g@mail.gmail.com>
+In-Reply-To: <CACT4Y+bTXPzYH+TMjM9-NyVajZms8zKdEMMLDPvOKvRSoD8tog@mail.gmail.com>
 References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
- <1411562649-28231-1-git-send-email-a.ryabinin@samsung.com>
- <54259BD4.8090508@oracle.com> <CACT4Y+Y0fzbs4DPt3n30R33cYqXEZ8E86tzCfzL6RUE9f+-r=w@mail.gmail.com>
- <CAPAsAGyDpnhpMquXi-K4wdDEbj-5W44uJLircsok7ziOO_m66g@mail.gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Fri, 26 Sep 2014 10:29:34 -0700
-Message-ID: <CACT4Y+bptO341KQAQMSzUVV22KsjuomdTeDip=HaHJ3+1kvraQ@mail.gmail.com>
-Subject: Re: [PATCH v3 00/13] Kernel address sanitizer - runtime memory debugger.
+	<1411562649-28231-1-git-send-email-a.ryabinin@samsung.com>
+	<1411562649-28231-14-git-send-email-a.ryabinin@samsung.com>
+	<CACT4Y+bTXPzYH+TMjM9-NyVajZms8zKdEMMLDPvOKvRSoD8tog@mail.gmail.com>
+Date: Fri, 26 Sep 2014 21:33:32 +0400
+Message-ID: <CAPAsAGzDWQ6LKN1RN6u0cv6eTVfxgRT6NCpGA08dC6dnDiUKmA@mail.gmail.com>
+Subject: Re: [RFC PATCH v3 13/13] kasan: introduce inline instrumentation
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Andrey Ryabinin <a.ryabinin@samsung.com>, LKML <linux-kernel@vger.kernel.org>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Michal Marek <mmarek@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-kbuild@vger.kernel.org, x86@kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Randy Dunlap <rdunlap@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Jones <davej@redhat.com>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, LKML <linux-kernel@vger.kernel.org>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, x86@kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Marek <mmarek@suse.cz>
 
-On Fri, Sep 26, 2014 at 10:22 AM, Andrey Ryabinin
-<ryabinin.a.a@gmail.com> wrote:
-> 2014-09-26 21:07 GMT+04:00 Dmitry Vyukov <dvyukov@google.com>:
->> On Fri, Sep 26, 2014 at 10:01 AM, Sasha Levin <sasha.levin@oracle.com> wrote:
->>> On 09/24/2014 08:43 AM, Andrey Ryabinin wrote:
->>>> Hi.
->>>>
->>>> This is a third iteration of kerenel address sanitizer (KASan).
->>>>
->>>> KASan is a runtime memory debugger designed to find use-after-free
->>>> and out-of-bounds bugs.
->>>>
->>>> Currently KASAN supported only for x86_64 architecture and requires kernel
->>>> to be build with SLUB allocator.
->>>> KASAN uses compile-time instrumentation for checking every memory access, therefore you
->>>> will need a fresh GCC >= v5.0.0.
->>>
->>> Hi Andrey,
->>>
->>> I tried this patchset, with the latest gcc, and I'm seeing the following:
->>>
->>> arch/x86/kernel/head.o: In function `_GLOBAL__sub_I_00099_0_reserve_ebda_region':
->>> /home/sasha/linux-next/arch/x86/kernel/head.c:71: undefined reference to `__asan_init_v4'
->>> init/built-in.o: In function `_GLOBAL__sub_I_00099_0___ksymtab_system_state':
->>> /home/sasha/linux-next/init/main.c:1034: undefined reference to `__asan_init_v4'
->>> init/built-in.o: In function `_GLOBAL__sub_I_00099_0_init_uts_ns':
->>> /home/sasha/linux-next/init/version.c:50: undefined reference to `__asan_init_v4'
->>> init/built-in.o: In function `_GLOBAL__sub_I_00099_0_root_mountflags':
->>> /home/sasha/linux-next/init/do_mounts.c:638: undefined reference to `__asan_init_v4'
->>> init/built-in.o: In function `_GLOBAL__sub_I_00099_0_rd_prompt':
->>> /home/sasha/linux-next/init/do_mounts_rd.c:361: undefined reference to `__asan_init_v4'
->>> init/built-in.o:/home/sasha/linux-next/init/do_mounts_md.c:312: more undefined references to `__asan_init_v4' follow
->>>
->>>
->>> What am I missing?
->>
->>
->> Emission of __asan_init_vx needs to be disabled when
->> -fsanitize=kernel-address. Our kernel does not boot with them at all.
->> It probably hits some limit for something that can be increased. But I
->> don't want to investigate what that limit is, as __asan_init is not
->> needed for kasan at all.
->>
+2014-09-26 21:18 GMT+04:00 Dmitry Vyukov <dvyukov@google.com>:
 >
-> __asan_init_vx maybe not needed for kernel, but we still need somehow
-> to identify
-> compiler's asan version (e.g. for globals).
-> We could add some define to GCC or just something like this in kernel:
-> #if __GNUC__ == 5
-> #define ASAN_V4
-> ....
+> Yikes!
+> So this works during bootstrap, for user memory accesses, valloc
+> memory, etc, right?
+>
+
+Yes, this works. Userspace memory access in instrumented code will
+produce general protection fault,
+so it won't be unnoticed.
 
 
-This looks good to me.
-The versioning won't work the same way it works for clang/compiler-rt
-and gcc/libgcc. Because clang/compiler-rt are both part of the same
-repo and always versioned simultaneously. While kernel and gcc are
-versioned independently, so once you bump API version you break all
-users who use old gcc.
-
-So in kernel we will need to support all API versions, and the
-following looks like a much simpler way to identify current API
-version:
-> #if __GNUC__ == 5
-> #define ASAN_V4
-
-Note that in user-space asan the other important purpose of
-__asan_init is to trigger asan runtime initialization as early as
-possible. This is not needed for kernel.
+-- 
+Best regards,
+Andrey Ryabinin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
