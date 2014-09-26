@@ -1,53 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 108B96B0038
-	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 03:16:24 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id p10so437220pdj.14
-        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 00:16:23 -0700 (PDT)
-Received: from smtp-outbound-1.vmware.com (smtp-outbound-1.vmware.com. [208.91.2.12])
-        by mx.google.com with ESMTPS id pl6si7703725pdb.111.2014.09.26.00.16.21
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id E0EFB6B0038
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 03:31:29 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so2849607pab.32
+        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 00:31:29 -0700 (PDT)
+Received: from mail-pd0-x22b.google.com (mail-pd0-x22b.google.com [2607:f8b0:400e:c02::22b])
+        by mx.google.com with ESMTPS id zs1si7569848pbc.225.2014.09.26.00.31.28
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 26 Sep 2014 00:16:23 -0700 (PDT)
-Message-ID: <542512AD.9070304@vmware.com>
-Date: Fri, 26 Sep 2014 09:15:57 +0200
-From: Thomas Hellstrom <thellstrom@vmware.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 26 Sep 2014 00:31:28 -0700 (PDT)
+Received: by mail-pd0-f171.google.com with SMTP id y13so12367705pdi.2
+        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 00:31:28 -0700 (PDT)
+Date: Fri, 26 Sep 2014 00:31:23 -0700
+From: Guenter Roeck <linux@roeck-us.net>
+Subject: Re: mmotm 2014-09-25-16-28 uploaded
+Message-ID: <20140926073123.GA3033@roeck-us.net>
+References: <5424a53b.o+nym6SX0Tg7EdW6%akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: page allocator bug in 3.16?
-References: <54246506.50401@hurleysoftware.com> <20140925143555.1f276007@as> <5424AAD0.9010708@hurleysoftware.com>
-In-Reply-To: <5424AAD0.9010708@hurleysoftware.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5424a53b.o+nym6SX0Tg7EdW6%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Hurley <peter@hurleysoftware.com>
-Cc: Chuck Ebbert <cebbert.lkml@gmail.com>, Mel Gorman <mgorman@suse.de>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Maarten
- Lankhorst <maarten.lankhorst@canonical.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@kernel.org>, Hugh Dickens <hughd@google.com>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz
 
-On 09/26/2014 01:52 AM, Peter Hurley wrote:
-> On 09/25/2014 03:35 PM, Chuck Ebbert wrote:
->> There are six ttm patches queued for 3.16.4:
->>
->> drm-ttm-choose-a-pool-to-shrink-correctly-in-ttm_dma_pool_shrink_scan.patch
->> drm-ttm-fix-handling-of-ttm_pl_flag_topdown-v2.patch
->> drm-ttm-fix-possible-division-by-0-in-ttm_dma_pool_shrink_scan.patch
->> drm-ttm-fix-possible-stack-overflow-by-recursive-shrinker-calls.patch
->> drm-ttm-pass-gfp-flags-in-order-to-avoid-deadlock.patch
->> drm-ttm-use-mutex_trylock-to-avoid-deadlock-inside-shrinker-functions.patch
-> Thanks for info, Chuck.
->
-> Unfortunately, none of these fix TTM dma allocation doing CMA dma allocation,
-> which is the root problem.
->
-> Regards,
-> Peter Hurley
+On Thu, Sep 25, 2014 at 04:28:59PM -0700, akpm@linux-foundation.org wrote:
+> The mm-of-the-moment snapshot 2014-09-25-16-28 has been uploaded to
+> 
+>    http://www.ozlabs.org/~akpm/mmotm/
+> 
+> mmotm-readme.txt says
+> 
+> README for mm-of-the-moment:
+> 
+> http://www.ozlabs.org/~akpm/mmotm/
+> 
+> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> more than once a week.
+> 
 
-The problem is not really in TTM but in CMA, There was a guy offering to
-fix this in the CMA code but I guess he didn't probably because he
-didn't receive any feedback.
+Build results:
+	total: 133 pass: 10 fail: 123
 
+I won't list all the broken builds.
 
-/Thomas
+problem is due to
+
+include/linux/signal.h: In function 'sigisemptyset':
+include/linux/signal.h:79:3: error: implicit declaration of function 'BUILD_BUG'
+
+as far as I can see.
+
+Detailed build results are available at http://server.roeck-us.net:8010/builders.
+
+Guenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
