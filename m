@@ -1,51 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 632BC6B0038
-	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 12:31:34 -0400 (EDT)
-Received: by mail-ie0-f169.google.com with SMTP id rp18so14081735iec.14
-        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 09:31:34 -0700 (PDT)
-Received: from resqmta-po-04v.sys.comcast.net (resqmta-po-04v.sys.comcast.net. [2001:558:fe16:19:96:114:154:163])
-        by mx.google.com with ESMTPS id wa16si7339781icb.86.2014.09.26.09.31.33
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D2A96B0038
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 13:02:05 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so3831225pab.32
+        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 10:02:05 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id ib9si10305270pad.125.2014.09.26.10.02.03
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 26 Sep 2014 09:31:33 -0700 (PDT)
-Date: Fri, 26 Sep 2014 11:31:31 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 3/4] slab: fix cpuset check in fallback_alloc
-In-Reply-To: <5ccdd901946feaf88fd6d2441b18a6845cc56571.1411741632.git.vdavydov@parallels.com>
-Message-ID: <alpine.DEB.2.11.1409261130550.3870@gentwo.org>
-References: <cover.1411741632.git.vdavydov@parallels.com> <5ccdd901946feaf88fd6d2441b18a6845cc56571.1411741632.git.vdavydov@parallels.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Fri, 26 Sep 2014 10:02:04 -0700 (PDT)
+Message-ID: <54259BD4.8090508@oracle.com>
+Date: Fri, 26 Sep 2014 13:01:08 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v3 00/13] Kernel address sanitizer - runtime memory debugger.
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com> <1411562649-28231-1-git-send-email-a.ryabinin@samsung.com>
+In-Reply-To: <1411562649-28231-1-git-send-email-a.ryabinin@samsung.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Andrey Ryabinin <a.ryabinin@samsung.com>, linux-kernel@vger.kernel.org
+Cc: Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Michal Marek <mmarek@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-kbuild@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, Randy Dunlap <rdunlap@infradead.org>, Peter Zijlstra <peterz@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Jones <davej@redhat.com>
 
-On Fri, 26 Sep 2014, Vladimir Davydov wrote:
+On 09/24/2014 08:43 AM, Andrey Ryabinin wrote:
+> Hi.
+> 
+> This is a third iteration of kerenel address sanitizer (KASan).
+> 
+> KASan is a runtime memory debugger designed to find use-after-free
+> and out-of-bounds bugs.
+> 
+> Currently KASAN supported only for x86_64 architecture and requires kernel
+> to be build with SLUB allocator.
+> KASAN uses compile-time instrumentation for checking every memory access, therefore you
+> will need a fresh GCC >= v5.0.0.
 
-> To avoid this we should use softwall cpuset check in fallback_alloc.
+Hi Andrey,
 
-Its weird that softwall checking occurs by setting __GFP_HARDWALL.
->
-> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-> ---
->  mm/slab.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/mm/slab.c b/mm/slab.c
-> index eb6f0cf6875c..e35822d07821 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -3051,7 +3051,7 @@ retry:
->  	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
->  		nid = zone_to_nid(zone);
->
-> -		if (cpuset_zone_allowed(zone, flags | __GFP_HARDWALL) &&
-> +		if (cpuset_zone_allowed(zone, flags) &&
->  			get_node(cache, nid) &&
->  			get_node(cache, nid)->free_objects) {
->  				obj = ____cache_alloc_node(cache,
->
+I tried this patchset, with the latest gcc, and I'm seeing the following:
+
+arch/x86/kernel/head.o: In function `_GLOBAL__sub_I_00099_0_reserve_ebda_region':
+/home/sasha/linux-next/arch/x86/kernel/head.c:71: undefined reference to `__asan_init_v4'
+init/built-in.o: In function `_GLOBAL__sub_I_00099_0___ksymtab_system_state':
+/home/sasha/linux-next/init/main.c:1034: undefined reference to `__asan_init_v4'
+init/built-in.o: In function `_GLOBAL__sub_I_00099_0_init_uts_ns':
+/home/sasha/linux-next/init/version.c:50: undefined reference to `__asan_init_v4'
+init/built-in.o: In function `_GLOBAL__sub_I_00099_0_root_mountflags':
+/home/sasha/linux-next/init/do_mounts.c:638: undefined reference to `__asan_init_v4'
+init/built-in.o: In function `_GLOBAL__sub_I_00099_0_rd_prompt':
+/home/sasha/linux-next/init/do_mounts_rd.c:361: undefined reference to `__asan_init_v4'
+init/built-in.o:/home/sasha/linux-next/init/do_mounts_md.c:312: more undefined references to `__asan_init_v4' follow
+
+
+What am I missing?
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
