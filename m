@@ -1,204 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id D78536B0039
-	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 03:32:14 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id r10so12153477pdi.25
-        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 00:32:14 -0700 (PDT)
-Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
-        by mx.google.com with ESMTPS id cf1si7593856pdb.231.2014.09.26.00.32.13
+	by kanga.kvack.org (Postfix) with ESMTP id 8651B6B0038
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 04:52:29 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id r10so12587204pdi.39
+        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 01:52:29 -0700 (PDT)
+Received: from BAY004-OMC2S26.hotmail.com (bay004-omc2s26.hotmail.com. [65.54.190.101])
+        by mx.google.com with ESMTPS id kn10si1977067pbd.49.2014.09.26.01.52.28
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Fri, 26 Sep 2014 00:32:13 -0700 (PDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout3.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NCH00E6RZQCRO80@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 26 Sep 2014 08:35:00 +0100 (BST)
-Message-id: <542514DD.5080402@samsung.com>
-Date: Fri, 26 Sep 2014 11:25:17 +0400
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-MIME-version: 1.0
-Subject: Re: [PATCH v3 09/13] mm: slub: add kernel address sanitizer support
- for slub allocator
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
- <1411562649-28231-1-git-send-email-a.ryabinin@samsung.com>
- <1411562649-28231-10-git-send-email-a.ryabinin@samsung.com>
- <CACT4Y+a0DMk8vyCcesrsKt7rXVDD2LZsfnGemJAgeRiVbMxxxw@mail.gmail.com>
-In-reply-to: 
- <CACT4Y+a0DMk8vyCcesrsKt7rXVDD2LZsfnGemJAgeRiVbMxxxw@mail.gmail.com>
-Content-type: text/plain; charset=UTF-8
-Content-transfer-encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 26 Sep 2014 01:52:28 -0700 (PDT)
+Message-ID: <BAY169-W38291C97E5E42E5DCA8787EFBF0@phx.gbl>
+From: Pintu Kumar <pintu.k@outlook.com>
+Subject: Changing PAGE_ALLOC_COSTLY_ORDER from 3 to 2
+Date: Fri, 26 Sep 2014 14:22:27 +0530
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, x86@kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
+To: "mgorman@suse.de" <mgorman@suse.de>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, PINTU KUMAR <pintu_agarwal@yahoo.com>, "pintu.k@samsung.com" <pintu.k@samsung.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On 09/26/2014 08:48 AM, Dmitry Vyukov wrote:
-> On Wed, Sep 24, 2014 at 5:44 AM, Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
->> --- a/lib/Kconfig.kasan
->> +++ b/lib/Kconfig.kasan
->> @@ -6,6 +6,7 @@ if HAVE_ARCH_KASAN
->>  config KASAN
->>         bool "AddressSanitizer: runtime memory debugger"
->>         depends on !MEMORY_HOTPLUG
->> +       depends on SLUB_DEBUG
-> 
-> 
-> What does SLUB_DEBUG do? I think that generally we don't want any
-> other *heavy* debug checks to be required for kasan.
-> 
-
-SLUB_DEBUG enables support for different debugging features.
-It doesn't enables this debugging features by default, it only allows
-you to switch them on/off in runtime.
-Generally SLUB_DEBUG option is enabled in most kernels. SLUB_DEBUG disabled
-only with intention to get minimal kernel.
-
-Without SLUB_DEBUG there will be no redzones, no user tracking info (allocation/free stacktraces).
-KASAN won't be so usefull without SLUB_DEBUG.
-
-
-[...]
-
->> --- a/mm/kasan/kasan.c
->> +++ b/mm/kasan/kasan.c
->> @@ -30,6 +30,7 @@
->>  #include <linux/kasan.h>
->>
->>  #include "kasan.h"
->> +#include "../slab.h"
->>
->>  /*
->>   * Poisons the shadow memory for 'size' bytes starting from 'addr'.
->> @@ -265,6 +266,102 @@ void kasan_free_pages(struct page *page, unsigned int order)
->>                                 KASAN_FREE_PAGE);
->>  }
->>
->> +void kasan_free_slab_pages(struct page *page, int order)
-> 
-> Doesn't this callback followed by actually freeing the pages, and so
-> kasan_free_pages callback that will poison the range? If so, I would
-> prefer to not double poison.
-> 
-
-Yes, this could be removed.
-
-> 
->> +{
->> +       kasan_poison_shadow(page_address(page),
->> +                       PAGE_SIZE << order, KASAN_SLAB_FREE);
->> +}
->> +
->> +void kasan_mark_slab_padding(struct kmem_cache *s, void *object)
->> +{
->> +       unsigned long object_end = (unsigned long)object + s->size;
->> +       unsigned long padding_end = round_up(object_end, PAGE_SIZE);
->> +       unsigned long padding_start = round_up(object_end,
->> +                                       KASAN_SHADOW_SCALE_SIZE);
->> +       size_t size = padding_end - padding_start;
->> +
->> +       if (size)
->> +               kasan_poison_shadow((void *)padding_start,
->> +                               size, KASAN_SLAB_PADDING);
->> +}
->> +
->> +void kasan_slab_alloc(struct kmem_cache *cache, void *object)
->> +{
->> +       kasan_kmalloc(cache, object, cache->object_size);
->> +}
->> +
->> +void kasan_slab_free(struct kmem_cache *cache, void *object)
->> +{
->> +       unsigned long size = cache->size;
->> +       unsigned long rounded_up_size = round_up(size, KASAN_SHADOW_SCALE_SIZE);
->> +
-> 
-> Add a comment saying that SLAB_DESTROY_BY_RCU objects can be "legally"
-> used after free.
-> 
-
-Ok.
-
->> +       if (unlikely(cache->flags & SLAB_DESTROY_BY_RCU))
->> +               return;
->> +
->> +       kasan_poison_shadow(object, rounded_up_size, KASAN_KMALLOC_FREE);
->> +}
->> +
->> +void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size)
->> +{
->> +       unsigned long redzone_start;
->> +       unsigned long redzone_end;
->> +
->> +       if (unlikely(object == NULL))
->> +               return;
->> +
->> +       redzone_start = round_up((unsigned long)(object + size),
->> +                               KASAN_SHADOW_SCALE_SIZE);
->> +       redzone_end = (unsigned long)object + cache->size;
->> +
->> +       kasan_unpoison_shadow(object, size);
->> +       kasan_poison_shadow((void *)redzone_start, redzone_end - redzone_start,
->> +               KASAN_KMALLOC_REDZONE);
->> +
->> +}
->> +EXPORT_SYMBOL(kasan_kmalloc);
->> +
->> +void kasan_kmalloc_large(const void *ptr, size_t size)
->> +{
->> +       struct page *page;
->> +       unsigned long redzone_start;
->> +       unsigned long redzone_end;
->> +
->> +       if (unlikely(ptr == NULL))
->> +               return;
->> +
->> +       page = virt_to_page(ptr);
->> +       redzone_start = round_up((unsigned long)(ptr + size),
->> +                               KASAN_SHADOW_SCALE_SIZE);
->> +       redzone_end = (unsigned long)ptr + (PAGE_SIZE << compound_order(page));
-> 
-> If size == N*PAGE_SIZE - KASAN_SHADOW_SCALE_SIZE - 1, the object does
-> not receive any redzone at all. 
-
-If size == N*PAGE_SIZE - KASAN_SHADOW_SCALE_SIZE - 1, there will be redzone
-KASAN_SHADOW_SCALE_SIZE + 1 bytes. There will be no readzone if and only if
-(size == PAGE_SIZE << compound_order(page))
-
-> Can we pass full memory block size
-> from above to fix it? Will compound_order(page) do?
-> 
-
-What is full memory block size?
-PAGE_SIZE << compound_order(page) is how much was really allocated.
-
-
-[..]
-
->>
->>  static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
->> @@ -1416,8 +1426,10 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
->>                 setup_object(s, page, p);
->>                 if (likely(idx < page->objects))
->>                         set_freepointer(s, p, p + s->size);
-> 
-> Sorry, I don't fully follow this code, so I will just ask some questions.
-> Can we have some slab padding after last object in this case as well?
-> 
-This case is for not the last object. Padding is the place after the last object.
-The last object initialized bellow in else case.
-
->> -               else
->> +               else {
->>                         set_freepointer(s, p, NULL);
->> +                       kasan_mark_slab_padding(s, p);
-> 
-> kasan_mark_slab_padding poisons only up to end of the page. Can there
-> be multiple pages that we need to poison?
-> 
-Yep, that's a good catch.
-
-Thanks.
+Hi=2C=0A=
+=0A=
+I wanted to know about the impact of changing PAGE_ALLOC_COSTLY_ORDER value=
+ from 3 to 2.=0A=
+This macro is defined in include/linux/mmzone.h=0A=
+#define PAGE_ALLOC_COSTLY_ORDER=A0=A0 3=0A=
+=0A=
+As I know this value should never be changed irrespective of the type of th=
+e system.=0A=
+Is it good to change this value for RAM size: 512MB=2C 256MB or 128MB?=0A=
+If anybody have changed this value and experience any kind of problem or be=
+nefits please let us know.=0A=
+=0A=
+We noticed that for one of the Android product with 512MB RAM=2C the PAGE_A=
+LLOC_COSTLY_ORDER was set to 2.=0A=
+We could not figure out why this value was decreased from 3 to 2.=0A=
+=0A=
+As per my analysis=2C I observed that kmalloc fails little early=2C if we c=
+hange this value to 2.=0A=
+This is also visible from the _slowpath_ in page_alloc.c=0A=
+=0A=
+Apart from this we could not find any other impact.=0A=
+If anybody is aware of any other impact=2C please let us know.=0A=
+=0A=
+=0A=
+=0A=
+Thank you!=0A=
+Regards=2C=0A=
+Pintu Kumar=0A=
+=0A=
+ 		 	   		  =
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
