@@ -1,70 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 048A86B003A
-	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 10:23:21 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id ft15so13079798pdb.10
-        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 07:23:21 -0700 (PDT)
-Received: from resqmta-ch2-05v.sys.comcast.net (resqmta-ch2-05v.sys.comcast.net. [2001:558:fe21:29:69:252:207:37])
-        by mx.google.com with ESMTPS id nq8si9384485pbc.198.2014.09.26.07.23.20
+Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 3827D6B0039
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 10:36:48 -0400 (EDT)
+Received: by mail-yk0-f170.google.com with SMTP id 19so3925710ykq.1
+        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 07:36:47 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id 24si4886419yhd.26.2014.09.26.07.36.47
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 26 Sep 2014 07:23:20 -0700 (PDT)
-Date: Fri, 26 Sep 2014 09:22:54 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v3 09/13] mm: slub: add kernel address sanitizer support
- for slub allocator
-In-Reply-To: <CACT4Y+a0DMk8vyCcesrsKt7rXVDD2LZsfnGemJAgeRiVbMxxxw@mail.gmail.com>
-Message-ID: <alpine.DEB.2.11.1409260918460.32028@gentwo.org>
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com> <1411562649-28231-1-git-send-email-a.ryabinin@samsung.com> <1411562649-28231-10-git-send-email-a.ryabinin@samsung.com>
- <CACT4Y+a0DMk8vyCcesrsKt7rXVDD2LZsfnGemJAgeRiVbMxxxw@mail.gmail.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Fri, 26 Sep 2014 07:36:47 -0700 (PDT)
+Date: Fri, 26 Sep 2014 17:36:37 +0300
+From: Dan Carpenter <dan.carpenter@oracle.com>
+Subject: [kbuild] [mmotm:master 57/427] fs/ocfs2/journal.c:2204:9: sparse:
+ context imbalance in 'ocfs2_recover_orphans' - different lock contexts for
+ basic block
+Message-ID: <20140926143636.GA3414@mwanda>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, LKML <linux-kernel@vger.kernel.org>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, x86@kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
+To: kbuild@01.org, WeiWei Wang <wangww631@huawei.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Thu, 25 Sep 2014, Dmitry Vyukov wrote:
+tree:   git://git.cmpxchg.org/linux-mmotm.git master
+head:   065f1d86a58cc88249cd8371b29a57c97483753a
+commit: 8a09937cacc099da21313223443237cbc84d5876 [57/427] ocfs2: add orphan recovery types in ocfs2_recover_orphans
+reproduce:
+  # apt-get install sparse
+  git checkout 8a09937cacc099da21313223443237cbc84d5876
+  make ARCH=x86_64 allmodconfig
+  make C=1 CF=-D__CHECK_ENDIAN__
 
-> > +       depends on SLUB_DEBUG
->
->
-> What does SLUB_DEBUG do? I think that generally we don't want any
-> other *heavy* debug checks to be required for kasan.
+   fs/ocfs2/journal.c:111:6: sparse: symbol 'ocfs2_replay_map_set_state' was not declared. Should it be static?
+   fs/ocfs2/journal.c:156:6: sparse: symbol 'ocfs2_queue_replay_slots' was not declared. Should it be static?
+   fs/ocfs2/journal.c:176:6: sparse: symbol 'ocfs2_free_replay_slots' was not declared. Should it be static?
+   fs/ocfs2/journal.c:1888:6: sparse: symbol 'ocfs2_queue_orphan_scan' was not declared. Should it be static?
+   fs/ocfs2/journal.c:1937:6: sparse: symbol 'ocfs2_orphan_scan_work' was not declared. Should it be static?
+>> fs/ocfs2/journal.c:2204:9: sparse: context imbalance in 'ocfs2_recover_orphans' - different lock contexts for basic block
 
-SLUB_DEBUG includes the capabilties for debugging. It does not switch
-debug on by default. SLUB_DEBUG_ON will results in a kernel that boots
-with active debugging. Without SLUB_DEBUG_ON a kernel parameter activates
-debugging.
+git remote add mmotm git://git.cmpxchg.org/linux-mmotm.git
+git remote update mmotm
+git checkout 8a09937cacc099da21313223443237cbc84d5876
+vim +/ocfs2_recover_orphans +2204 fs/ocfs2/journal.c
 
-> > +{
-> > +       unsigned long size = cache->size;
-> > +       unsigned long rounded_up_size = round_up(size, KASAN_SHADOW_SCALE_SIZE);
-> > +
->
-> Add a comment saying that SLAB_DESTROY_BY_RCU objects can be "legally"
-> used after free.
+8a09937c WeiWei Wang 2014-09-26  2188  		 * if the orphan scan work, continue to process the
+8a09937c WeiWei Wang 2014-09-26  2189  		 * next orphan.
+8a09937c WeiWei Wang 2014-09-26  2190  		 */
+8a09937c WeiWei Wang 2014-09-26  2191  		else if (orphan_reco_type == ORPHAN_SCAN_WORK) {
+8a09937c WeiWei Wang 2014-09-26  2192  			spin_unlock(&oi->ip_lock);
+8a09937c WeiWei Wang 2014-09-26  2193  			inode = iter;
+8a09937c WeiWei Wang 2014-09-26  2194  			continue;
+8a09937c WeiWei Wang 2014-09-26  2195  		}
+ccd979bd Mark Fasheh 2005-12-15  2196  		spin_unlock(&oi->ip_lock);
+ccd979bd Mark Fasheh 2005-12-15  2197  
+ccd979bd Mark Fasheh 2005-12-15  2198  		iput(inode);
+ccd979bd Mark Fasheh 2005-12-15  2199  
+ccd979bd Mark Fasheh 2005-12-15  2200  		inode = iter;
+ccd979bd Mark Fasheh 2005-12-15  2201  	}
+ccd979bd Mark Fasheh 2005-12-15  2202  
+8a09937c WeiWei Wang 2014-09-26  2203  out:
 
-Add "within the rcu period"
+Sparse error messages are hard to understand.  It's saying that there is
+a missing unlock if ocfs2_start_trans() fails and we "goto out;"
 
-> >  static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
-> > @@ -1416,8 +1426,10 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
-> >                 setup_object(s, page, p);
-> >                 if (likely(idx < page->objects))
-> >                         set_freepointer(s, p, p + s->size);
->
-> Sorry, I don't fully follow this code, so I will just ask some questions.
-> Can we have some slab padding after last object in this case as well?
+"out" labels are the worst btw.  The name is too vague.  Sometimes they
+do something and sometimes they don't do anything but the name doesn't
+give any clue what it does.  In theory, out labels future proof the code
+from locking bugs but they don't work.  It just means you have to jump
+around like a rabbit to follow all the goto paths.  A return statement
+is easier to understand.
 
-This is the free case. If poisoing is enabled then the object will be
-overwritten on free. Padding is used depending on the need to align the
-object and is optional. Redzoning will occur if requested. Are you asking
-for redzoning?
+b4df6ed8 Mark Fasheh 2006-02-22 @2204  	return ret;
+ccd979bd Mark Fasheh 2005-12-15  2205  }
+ccd979bd Mark Fasheh 2005-12-15  2206  
+19ece546 Jan Kara    2008-08-21  2207  static int __ocfs2_wait_on_mount(struct ocfs2_super *osb, int quota)
+ccd979bd Mark Fasheh 2005-12-15  2208  {
+ccd979bd Mark Fasheh 2005-12-15  2209  	/* This check is good because ocfs2 will wait on our recovery
+ccd979bd Mark Fasheh 2005-12-15  2210  	 * thread before changing it to something other than MOUNTED
+ccd979bd Mark Fasheh 2005-12-15  2211  	 * or DISABLED. */
+ccd979bd Mark Fasheh 2005-12-15  2212  	wait_event(osb->osb_mount_event,
 
-> kasan_mark_slab_padding poisons only up to end of the page. Can there
-> be multiple pages that we need to poison?
-
-If there is a higher order page then only the end portion needs to be
-poisoned. Objects may straddle order 0 boundaries then.
+---
+0-DAY kernel build testing backend              Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+_______________________________________________
+kbuild mailing list
+kbuild@lists.01.org
+https://lists.01.org/mailman/listinfo/kbuild
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
