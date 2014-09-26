@@ -1,62 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id C028082BDC
-	for <linux-mm@kvack.org>; Thu, 25 Sep 2014 22:41:02 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id rd3so2393309pab.4
-        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 19:41:02 -0700 (PDT)
-Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
-        by mx.google.com with ESMTPS id y9si6574948pas.196.2014.09.25.19.41.00
+Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 94A406B0070
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 00:03:27 -0400 (EDT)
+Received: by mail-qa0-f54.google.com with SMTP id n8so5486015qaq.13
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 21:03:27 -0700 (PDT)
+Received: from mail-qa0-x233.google.com (mail-qa0-x233.google.com [2607:f8b0:400d:c00::233])
+        by mx.google.com with ESMTPS id k4si4709657qan.98.2014.09.25.21.03.26
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 25 Sep 2014 19:41:01 -0700 (PDT)
-From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
-Date: Fri, 26 Sep 2014 10:40:54 +0800
-Subject: RE: [PATCH resend] arm:extend the reserved memory for initrd to be
- page aligned
-Message-ID: <35FD53F367049845BC99AC72306C23D103D6DB49163B@CNBJMBX05.corpusers.net>
-References: <35FD53F367049845BC99AC72306C23D103D6DB49161F@CNBJMBX05.corpusers.net>
- <20140919095959.GA2295@e104818-lin.cambridge.arm.com>
- <20140925143142.GF5182@n2100.arm.linux.org.uk>
- <20140925154403.GL10390@e104818-lin.cambridge.arm.com>
-In-Reply-To: <20140925154403.GL10390@e104818-lin.cambridge.arm.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+        Thu, 25 Sep 2014 21:03:26 -0700 (PDT)
+Received: by mail-qa0-f51.google.com with SMTP id j7so5606099qaq.10
+        for <linux-mm@kvack.org>; Thu, 25 Sep 2014 21:03:26 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <1411562649-28231-9-git-send-email-a.ryabinin@samsung.com>
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+ <1411562649-28231-1-git-send-email-a.ryabinin@samsung.com> <1411562649-28231-9-git-send-email-a.ryabinin@samsung.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Thu, 25 Sep 2014 21:03:06 -0700
+Message-ID: <CACT4Y+Y7thfa91kqkU-Wkna=1ZeXxQCHHXjz9QyPC-nKm6dJwQ@mail.gmail.com>
+Subject: Re: [PATCH v3 08/13] mm: slub: introduce metadata_access_enable()/metadata_access_disable()
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Catalin Marinas' <catalin.marinas@arm.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Will Deacon <Will.Deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-msm@vger.kernel.org'" <linux-arm-msm@vger.kernel.org>, =?iso-8859-1?Q?=27Uwe_Kleine-K=F6nig=27?= <u.kleine-koenig@pengutronix.de>, DL-WW-ContributionOfficers-Linux <DL-WW-ContributionOfficers-Linux@sonymobile.com>
+To: Andrey Ryabinin <a.ryabinin@samsung.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, x86@kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
 
-> They were so close ;)
->=20
-> I can see three patches but none of them exactly right:
->=20
-> 8157/1 - wrong diff format
-> 8159/1 - correct format, does not have my ack (you can take this one if
-> 	 you want)
-> 8162/1 - got my ack this time but with the wrong diff format again
->=20
-> Maybe a pull request is a better idea.
->=20
-I am really confused,=20
-I read this web:
-http://www.arm.linux.org.uk/developer/patches/info.php
-it said use diff -urN to generate patch like this:
+Looks good to me.
 
-diff -Nru linux.orig/lib/string.c linux/lib/string.c
-
-but I see other developers use git format-patch to generate patch and
-submit to the patch system.
-Git format-patch format can also be accepted by the patch system correctly =
-?
-If yes, I think this web should update,
-Use git format-patch to generate patch is more convenient than use diff -ur=
-N=20
-
-Thanks
-
-
+On Wed, Sep 24, 2014 at 5:44 AM, Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
+> Wrap access to object's metadata in external functions with
+> metadata_access_enable()/metadata_access_disable() function calls.
+>
+> This hooks separates payload accesses from metadata accesses
+> which might be useful for different checkers (e.g. KASan).
+>
+> Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
+> ---
+>  mm/slub.c | 16 ++++++++++++++++
+>  1 file changed, 16 insertions(+)
+>
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 82282f5..9b1f75c 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -467,13 +467,23 @@ static int slub_debug;
+>  static char *slub_debug_slabs;
+>  static int disable_higher_order_debug;
+>
+> +static inline void metadata_access_enable(void)
+> +{
+> +}
+> +
+> +static inline void metadata_access_disable(void)
+> +{
+> +}
+> +
+>  /*
+>   * Object debugging
+>   */
+>  static void print_section(char *text, u8 *addr, unsigned int length)
+>  {
+> +       metadata_access_enable();
+>         print_hex_dump(KERN_ERR, text, DUMP_PREFIX_ADDRESS, 16, 1, addr,
+>                         length, 1);
+> +       metadata_access_disable();
+>  }
+>
+>  static struct track *get_track(struct kmem_cache *s, void *object,
+> @@ -503,7 +513,9 @@ static void set_track(struct kmem_cache *s, void *object,
+>                 trace.max_entries = TRACK_ADDRS_COUNT;
+>                 trace.entries = p->addrs;
+>                 trace.skip = 3;
+> +               metadata_access_enable();
+>                 save_stack_trace(&trace);
+> +               metadata_access_disable();
+>
+>                 /* See rant in lockdep.c */
+>                 if (trace.nr_entries != 0 &&
+> @@ -677,7 +689,9 @@ static int check_bytes_and_report(struct kmem_cache *s, struct page *page,
+>         u8 *fault;
+>         u8 *end;
+>
+> +       metadata_access_enable();
+>         fault = memchr_inv(start, value, bytes);
+> +       metadata_access_disable();
+>         if (!fault)
+>                 return 1;
+>
+> @@ -770,7 +784,9 @@ static int slab_pad_check(struct kmem_cache *s, struct page *page)
+>         if (!remainder)
+>                 return 1;
+>
+> +       metadata_access_enable();
+>         fault = memchr_inv(end - remainder, POISON_INUSE, remainder);
+> +       metadata_access_disable();
+>         if (!fault)
+>                 return 1;
+>         while (end > fault && end[-1] == POISON_INUSE)
+> --
+> 2.1.1
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
