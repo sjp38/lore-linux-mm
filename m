@@ -1,56 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 8651B6B0038
-	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 04:52:29 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id r10so12587204pdi.39
-        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 01:52:29 -0700 (PDT)
-Received: from BAY004-OMC2S26.hotmail.com (bay004-omc2s26.hotmail.com. [65.54.190.101])
-        by mx.google.com with ESMTPS id kn10si1977067pbd.49.2014.09.26.01.52.28
+Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 42BE06B0038
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 05:55:36 -0400 (EDT)
+Received: by mail-lb0-f182.google.com with SMTP id z11so2440053lbi.27
+        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 02:55:35 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ee12si6370545lbd.126.2014.09.26.02.55.34
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 26 Sep 2014 01:52:28 -0700 (PDT)
-Message-ID: <BAY169-W38291C97E5E42E5DCA8787EFBF0@phx.gbl>
-From: Pintu Kumar <pintu.k@outlook.com>
-Subject: Changing PAGE_ALLOC_COSTLY_ORDER from 3 to 2
-Date: Fri, 26 Sep 2014 14:22:27 +0530
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 26 Sep 2014 02:55:34 -0700 (PDT)
+From: Jiri Slaby <jslaby@suse.cz>
+Subject: [patch added to the 3.12 stable tree] x86/mm: In the PTE swapout page reclaim case clear the accessed bit instead of flushing the TLB
+Date: Fri, 26 Sep 2014 11:54:55 +0200
+Message-Id: <1411725331-4427-60-git-send-email-jslaby@suse.cz>
+In-Reply-To: <1411725331-4427-1-git-send-email-jslaby@suse.cz>
+References: <1411725331-4427-1-git-send-email-jslaby@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "mgorman@suse.de" <mgorman@suse.de>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, PINTU KUMAR <pintu_agarwal@yahoo.com>, "pintu.k@samsung.com" <pintu.k@samsung.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: stable@vger.kernel.org
+Cc: Shaohua Li <shli@kernel.org>, Shaohua Li <shli@fusionio.com>, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>, Jiri Slaby <jslaby@suse.cz>
 
-Hi=2C=0A=
-=0A=
-I wanted to know about the impact of changing PAGE_ALLOC_COSTLY_ORDER value=
- from 3 to 2.=0A=
-This macro is defined in include/linux/mmzone.h=0A=
-#define PAGE_ALLOC_COSTLY_ORDER=A0=A0 3=0A=
-=0A=
-As I know this value should never be changed irrespective of the type of th=
-e system.=0A=
-Is it good to change this value for RAM size: 512MB=2C 256MB or 128MB?=0A=
-If anybody have changed this value and experience any kind of problem or be=
-nefits please let us know.=0A=
-=0A=
-We noticed that for one of the Android product with 512MB RAM=2C the PAGE_A=
-LLOC_COSTLY_ORDER was set to 2.=0A=
-We could not figure out why this value was decreased from 3 to 2.=0A=
-=0A=
-As per my analysis=2C I observed that kmalloc fails little early=2C if we c=
-hange this value to 2.=0A=
-This is also visible from the _slowpath_ in page_alloc.c=0A=
-=0A=
-Apart from this we could not find any other impact.=0A=
-If anybody is aware of any other impact=2C please let us know.=0A=
-=0A=
-=0A=
-=0A=
-Thank you!=0A=
-Regards=2C=0A=
-Pintu Kumar=0A=
-=0A=
- 		 	   		  =
+From: Shaohua Li <shli@kernel.org>
+
+This patch has been added to the 3.12 stable tree. If you have any
+objections, please let us know.
+
+===============
+
+commit b13b1d2d8692b437203de7a404c6b809d2cc4d99 upstream.
+
+We use the accessed bit to age a page at page reclaim time,
+and currently we also flush the TLB when doing so.
+
+But in some workloads TLB flush overhead is very heavy. In my
+simple multithreaded app with a lot of swap to several pcie
+SSDs, removing the tlb flush gives about 20% ~ 30% swapout
+speedup.
+
+Fortunately just removing the TLB flush is a valid optimization:
+on x86 CPUs, clearing the accessed bit without a TLB flush
+doesn't cause data corruption.
+
+It could cause incorrect page aging and the (mistaken) reclaim of
+hot pages, but the chance of that should be relatively low.
+
+So as a performance optimization don't flush the TLB when
+clearing the accessed bit, it will eventually be flushed by
+a context switch or a VM operation anyway. [ In the rare
+event of it not getting flushed for a long time the delay
+shouldn't really matter because there's no real memory
+pressure for swapout to react to. ]
+
+Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Shaohua Li <shli@fusionio.com>
+Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mgorman@suse.de>
+Acked-by: Hugh Dickins <hughd@google.com>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Link: http://lkml.kernel.org/r/20140408075809.GA1764@kernel.org
+[ Rewrote the changelog and the code comments. ]
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Jiri Slaby <jslaby@suse.cz>
+---
+ arch/x86/mm/pgtable.c | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)
+
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index dfa537a03be1..5da29d04de2f 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -386,13 +386,20 @@ int pmdp_test_and_clear_young(struct vm_area_struct *vma,
+ int ptep_clear_flush_young(struct vm_area_struct *vma,
+ 			   unsigned long address, pte_t *ptep)
+ {
+-	int young;
+-
+-	young = ptep_test_and_clear_young(vma, address, ptep);
+-	if (young)
+-		flush_tlb_page(vma, address);
+-
+-	return young;
++	/*
++	 * On x86 CPUs, clearing the accessed bit without a TLB flush
++	 * doesn't cause data corruption. [ It could cause incorrect
++	 * page aging and the (mistaken) reclaim of hot pages, but the
++	 * chance of that should be relatively low. ]
++	 *
++	 * So as a performance optimization don't flush the TLB when
++	 * clearing the accessed bit, it will eventually be flushed by
++	 * a context switch or a VM operation anyway. [ In the rare
++	 * event of it not getting flushed for a long time the delay
++	 * shouldn't really matter because there's no real memory
++	 * pressure for swapout to react to. ]
++	 */
++	return ptep_test_and_clear_young(vma, address, ptep);
+ }
+ 
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
