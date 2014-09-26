@@ -1,126 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id F0B6F6B0039
-	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 09:40:04 -0400 (EDT)
-Received: by mail-ig0-f181.google.com with SMTP id h18so10259574igc.14
-        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 06:40:04 -0700 (PDT)
-Received: from mail-ie0-x232.google.com (mail-ie0-x232.google.com [2607:f8b0:4001:c03::232])
-        by mx.google.com with ESMTPS id j1si2365405igo.8.2014.09.26.06.40.04
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id E6C3F6B0038
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 10:04:08 -0400 (EDT)
+Received: by mail-wi0-f171.google.com with SMTP id ho1so11002705wib.10
+        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 07:04:08 -0700 (PDT)
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+        by mx.google.com with ESMTPS id mx10si2467361wib.103.2014.09.26.07.04.06
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 26 Sep 2014 06:40:04 -0700 (PDT)
-Received: by mail-ie0-f178.google.com with SMTP id rl12so222860iec.9
-        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 06:40:04 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <54255D58.1040802@vmware.com>
-References: <54246506.50401@hurleysoftware.com>
-	<20140925143555.1f276007@as>
-	<5424AAD0.9010708@hurleysoftware.com>
-	<542512AD.9070304@vmware.com>
-	<20140926054005.5c7985c0@as>
-	<542543D8.8020604@vmware.com>
-	<CAF6AEGvOkPq5LQR76-VbspYyCvUxL1=W-dLc4g_aWX2wkUmRpg@mail.gmail.com>
-	<54255D58.1040802@vmware.com>
-Date: Fri, 26 Sep 2014 09:40:03 -0400
-Message-ID: <CAF6AEGteJcYdQekMPW3vc9S6_=URqJus7-Faq-RrdTp_ETN1eQ@mail.gmail.com>
-Subject: Re: page allocator bug in 3.16?
-From: Rob Clark <robdclark@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+        Fri, 26 Sep 2014 07:04:07 -0700 (PDT)
+Received: by mail-wg0-f49.google.com with SMTP id x12so9918094wgg.32
+        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 07:04:06 -0700 (PDT)
+From: Steve Capper <steve.capper@linaro.org>
+Subject: [PATCH V4 0/6] RCU get_user_pages_fast and __get_user_pages_fast
+Date: Fri, 26 Sep 2014 15:03:47 +0100
+Message-Id: <1411740233-28038-1-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Hellstrom <thellstrom@vmware.com>
-Cc: Chuck Ebbert <cebbert.lkml@gmail.com>, Rik van Riel <riel@redhat.com>, Peter Hurley <peter@hurleysoftware.com>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickens <hughd@google.com>, Linux kernel <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@kernel.org>, Ingo Molnar <mingo@kernel.org>
+To: linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, linux@arm.linux.org.uk, linux-arch@vger.kernel.org, linux-mm@kvack.org
+Cc: will.deacon@arm.com, gary.robertson@linaro.org, christoffer.dall@linaro.org, peterz@infradead.org, anders.roxell@linaro.org, akpm@linux-foundation.org, dann.frazier@canonical.com, mark.rutland@arm.com, mgorman@suse.de, hughd@google.com, Steve Capper <steve.capper@linaro.org>
 
-On Fri, Sep 26, 2014 at 8:34 AM, Thomas Hellstrom <thellstrom@vmware.com> w=
-rote:
-> On 09/26/2014 02:28 PM, Rob Clark wrote:
->> On Fri, Sep 26, 2014 at 6:45 AM, Thomas Hellstrom <thellstrom@vmware.com=
-> wrote:
->>> On 09/26/2014 12:40 PM, Chuck Ebbert wrote:
->>>> On Fri, 26 Sep 2014 09:15:57 +0200
->>>> Thomas Hellstrom <thellstrom@vmware.com> wrote:
->>>>
->>>>> On 09/26/2014 01:52 AM, Peter Hurley wrote:
->>>>>> On 09/25/2014 03:35 PM, Chuck Ebbert wrote:
->>>>>>> There are six ttm patches queued for 3.16.4:
->>>>>>>
->>>>>>> drm-ttm-choose-a-pool-to-shrink-correctly-in-ttm_dma_pool_shrink_sc=
-an.patch
->>>>>>> drm-ttm-fix-handling-of-ttm_pl_flag_topdown-v2.patch
->>>>>>> drm-ttm-fix-possible-division-by-0-in-ttm_dma_pool_shrink_scan.patc=
-h
->>>>>>> drm-ttm-fix-possible-stack-overflow-by-recursive-shrinker-calls.pat=
-ch
->>>>>>> drm-ttm-pass-gfp-flags-in-order-to-avoid-deadlock.patch
->>>>>>> drm-ttm-use-mutex_trylock-to-avoid-deadlock-inside-shrinker-functio=
-ns.patch
->>>>>> Thanks for info, Chuck.
->>>>>>
->>>>>> Unfortunately, none of these fix TTM dma allocation doing CMA dma al=
-location,
->>>>>> which is the root problem.
->>>>>>
->>>>>> Regards,
->>>>>> Peter Hurley
->>>>> The problem is not really in TTM but in CMA, There was a guy offering=
- to
->>>>> fix this in the CMA code but I guess he didn't probably because he
->>>>> didn't receive any feedback.
->>>>>
->>>> Yeah, the "solution" to this problem seems to be "don't enable CMA on
->>>> x86". Maybe it should even be disabled in the config system.
->>> Or, as previously suggested, don't use CMA for order 0 (single page)
->>> allocations....
->> On devices that actually need CMA pools to arrange for memory to be in
->> certain ranges, I think you probably do want to have order 0 pages
->> come from the CMA pool.
->
-> But can the DMA subsystem or more specifically dma_alloc_coherent()
-> really guarantee such things? Isn't it better for such devices to use
-> CMA directly?
+Hello,
+This series implements general forms of get_user_pages_fast and
+__get_user_pages_fast in core code and activates them for arm and arm64.
 
-Well, I was thinking more specifically about a use-case that was
-mentioned several times during the early CMA discussions, about video
-decoders/encoders which needed Y and UV split across memory banks to
-achieve sufficient bandwidth.  I assume they must use CMA directly for
-this (since they'd need multiple pools per device), but not really
-100% sure about that.
+These are required for Transparent HugePages to function correctly, as
+a futex on a THP tail will otherwise result in an infinite loop (due to
+the core implementation of __get_user_pages_fast always returning 0).
 
-So perhaps, yeah, if you shunt order 0 allocations away from CMA at
-the DMA layer, maybe it is ok.  If there actually is a valid use-case
-for CMA on sane hardware, then maybe this is the better way, and let
-the insane hw folks hack around it.
+Unfortunately, a futex on THP tail can be quite common for certain
+workloads; thus THP is unreliable without a __get_user_pages_fast
+implementation.
 
-(plus, well, the use-case I was mentioning isn't really about order 0
-allocations anyway)
+This series may also be beneficial for direct-IO heavy workloads and
+certain KVM workloads.
 
-BR,
--R
+I appreciate that the merge window is coming very soon, and am posting
+this revision on the off-chance that it gets the nod for 3.18. (The changes
+thus far have been minimal and the feedback I've got has been mainly
+positive).
+
+Changes since PATCH V3 are
+(mainly addressing comments from Hugh Dickins):
+ * Added pte_numa and pmd_numa calls.
+ * Added comments to clarify what assumptions are being made by the
+   implementation.
+ * Cleaned up formatting for checkpatch.
+ * As these changes are mainly cosmetic, I've retained the Tested-by
+   and Reviewed-by tags.
+
+Changes since PATCH V2 are:
+ * spelt `PATCH' correctly in the subject prefix this time. :-(
+ * Added acks, tested-bys and reviewed-bys.
+ * Cleanup of patch #6 with pud_pte and pud_pmd helpers.
+ * Switched config option from HAVE_RCU_GUP to HAVE_GENERIC_RCU_GUP.
+
+Changes since PATCH V1 are:
+ * Rebase to 3.17-rc1
+ * Switched to kick_all_cpus_sync as suggested by Mark Rutland.
+
+The main changes since RFC V5 are:
+ * Rebased against 3.16-rc1.
+ * pmd_present no longer tested for by gup_huge_pmd and gup_huge_pud,
+   because the entry must be present for these leaf functions to be
+   called. 
+ * Rather than assume puds can be re-cast as pmds, a separate
+   function pud_write is instead used by the core gup.
+ * ARM activation logic changed, now it will only activate
+   RCU_TABLE_FREE and RCU_GUP when running with LPAE.
+
+The main changes since RFC V4 are:
+ * corrected the arm64 logic so it now correctly rcu-frees page
+   table backing pages.
+ * rcu free logic relaxed for pre-ARMv7 ARM as we need an IPI to
+   invalidate TLBs anyway.
+ * rebased to 3.15-rc3 (some minor changes were needed to allow it to merge).
+ * dropped Catalin's mmu_gather patch as that's been merged already.
+
+This series has been tested with LTP mm tests and some custom futex tests
+that exacerbate the futex on THP tail case; on both an Arndale board and
+a Juno board. Also debug counters were temporarily employed to ensure that
+the RCU_TABLE_FREE logic was behaving as expected.
+
+Cheers,
+--
+Steve
 
 
-> /Thomas
->
->
->>
->> Seems like disabling CMA on x86 (where it should be unneeded) is the
->> better way, IMO
->>
->> BR,
->> -R
->>
->>
->>> /Thomas
->>>
->>> _______________________________________________
->>> dri-devel mailing list
->>> dri-devel@lists.freedesktop.org
->>> https://urldefense.proofpoint.com/v1/url?u=3Dhttp://lists.freedesktop.o=
-rg/mailman/listinfo/dri-devel&k=3DoIvRg1%2BdGAgOoM1BIlLLqw%3D%3D%0A&r=3Dl5A=
-go9ekmVFZ3c4M6eauqrJWGwjf6fTb%2BP3CxbBFkVM%3D%0A&m=3DUz7JXDXYXp4RlLs7G6qxMQ=
-lhOOT0trW3l78xpKg6Ass%3D%0A&s=3D50d6b7b3bfd093c93a228437a3d4414e49b4de81765=
-7c49c35154a115a5c2188
->
+Steve Capper (6):
+  mm: Introduce a general RCU get_user_pages_fast.
+  arm: mm: Introduce special ptes for LPAE
+  arm: mm: Enable HAVE_RCU_TABLE_FREE logic
+  arm: mm: Enable RCU fast_gup
+  arm64: mm: Enable HAVE_RCU_TABLE_FREE logic
+  arm64: mm: Enable RCU fast_gup
+
+ arch/arm/Kconfig                      |   5 +
+ arch/arm/include/asm/pgtable-2level.h |   2 +
+ arch/arm/include/asm/pgtable-3level.h |  15 ++
+ arch/arm/include/asm/pgtable.h        |   6 +-
+ arch/arm/include/asm/tlb.h            |  38 +++-
+ arch/arm/mm/flush.c                   |  15 ++
+ arch/arm64/Kconfig                    |   4 +
+ arch/arm64/include/asm/pgtable.h      |  21 +-
+ arch/arm64/include/asm/tlb.h          |  20 +-
+ arch/arm64/mm/flush.c                 |  15 ++
+ mm/Kconfig                            |   3 +
+ mm/gup.c                              | 354 ++++++++++++++++++++++++++++++++++
+ 12 files changed, 488 insertions(+), 10 deletions(-)
+
+-- 
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
