@@ -1,83 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
-	by kanga.kvack.org (Postfix) with ESMTP id DB8536B0039
-	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 11:56:17 -0400 (EDT)
-Received: by mail-qc0-f182.google.com with SMTP id x3so3948659qcv.27
-        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 08:56:16 -0700 (PDT)
-Received: from mail-qg0-x233.google.com (mail-qg0-x233.google.com [2607:f8b0:400d:c04::233])
-        by mx.google.com with ESMTPS id x9si6201168qai.121.2014.09.26.08.56.16
+Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 632BC6B0038
+	for <linux-mm@kvack.org>; Fri, 26 Sep 2014 12:31:34 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id rp18so14081735iec.14
+        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 09:31:34 -0700 (PDT)
+Received: from resqmta-po-04v.sys.comcast.net (resqmta-po-04v.sys.comcast.net. [2001:558:fe16:19:96:114:154:163])
+        by mx.google.com with ESMTPS id wa16si7339781icb.86.2014.09.26.09.31.33
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 26 Sep 2014 08:56:16 -0700 (PDT)
-Received: by mail-qg0-f51.google.com with SMTP id a108so8823504qge.38
-        for <linux-mm@kvack.org>; Fri, 26 Sep 2014 08:56:16 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.11.1409260918460.32028@gentwo.org>
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
- <1411562649-28231-1-git-send-email-a.ryabinin@samsung.com>
- <1411562649-28231-10-git-send-email-a.ryabinin@samsung.com>
- <CACT4Y+a0DMk8vyCcesrsKt7rXVDD2LZsfnGemJAgeRiVbMxxxw@mail.gmail.com> <alpine.DEB.2.11.1409260918460.32028@gentwo.org>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Fri, 26 Sep 2014 08:55:55 -0700
-Message-ID: <CACT4Y+YmZ_G6B4mAx0+K-chcDpNzVtR9mA=b5vam0tXD02-CQA@mail.gmail.com>
-Subject: Re: [PATCH v3 09/13] mm: slub: add kernel address sanitizer support
- for slub allocator
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 26 Sep 2014 09:31:33 -0700 (PDT)
+Date: Fri, 26 Sep 2014 11:31:31 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 3/4] slab: fix cpuset check in fallback_alloc
+In-Reply-To: <5ccdd901946feaf88fd6d2441b18a6845cc56571.1411741632.git.vdavydov@parallels.com>
+Message-ID: <alpine.DEB.2.11.1409261130550.3870@gentwo.org>
+References: <cover.1411741632.git.vdavydov@parallels.com> <5ccdd901946feaf88fd6d2441b18a6845cc56571.1411741632.git.vdavydov@parallels.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, LKML <linux-kernel@vger.kernel.org>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, x86@kernel.org, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Fri, Sep 26, 2014 at 7:22 AM, Christoph Lameter <cl@linux.com> wrote:
-> On Thu, 25 Sep 2014, Dmitry Vyukov wrote:
+On Fri, 26 Sep 2014, Vladimir Davydov wrote:
+
+> To avoid this we should use softwall cpuset check in fallback_alloc.
+
+Its weird that softwall checking occurs by setting __GFP_HARDWALL.
 >
->> > +       depends on SLUB_DEBUG
->>
->>
->> What does SLUB_DEBUG do? I think that generally we don't want any
->> other *heavy* debug checks to be required for kasan.
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+> ---
+>  mm/slab.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 >
-> SLUB_DEBUG includes the capabilties for debugging. It does not switch
-> debug on by default. SLUB_DEBUG_ON will results in a kernel that boots
-> with active debugging. Without SLUB_DEBUG_ON a kernel parameter activates
-> debugging.
-
-Ack
-thanks for explanation
-
-
->> > +{
->> > +       unsigned long size = cache->size;
->> > +       unsigned long rounded_up_size = round_up(size, KASAN_SHADOW_SCALE_SIZE);
->> > +
->>
->> Add a comment saying that SLAB_DESTROY_BY_RCU objects can be "legally"
->> used after free.
+> diff --git a/mm/slab.c b/mm/slab.c
+> index eb6f0cf6875c..e35822d07821 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -3051,7 +3051,7 @@ retry:
+>  	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+>  		nid = zone_to_nid(zone);
 >
-> Add "within the rcu period"
->
->> >  static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
->> > @@ -1416,8 +1426,10 @@ static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
->> >                 setup_object(s, page, p);
->> >                 if (likely(idx < page->objects))
->> >                         set_freepointer(s, p, p + s->size);
->>
->> Sorry, I don't fully follow this code, so I will just ask some questions.
->> Can we have some slab padding after last object in this case as well?
->
-> This is the free case. If poisoing is enabled then the object will be
-> overwritten on free. Padding is used depending on the need to align the
-> object and is optional. Redzoning will occur if requested. Are you asking
-> for redzoning?
-
-I am not asking for redzoning yet.
-
-
->> kasan_mark_slab_padding poisons only up to end of the page. Can there
->> be multiple pages that we need to poison?
->
-> If there is a higher order page then only the end portion needs to be
-> poisoned. Objects may straddle order 0 boundaries then.
+> -		if (cpuset_zone_allowed(zone, flags | __GFP_HARDWALL) &&
+> +		if (cpuset_zone_allowed(zone, flags) &&
+>  			get_node(cache, nid) &&
+>  			get_node(cache, nid)->free_objects) {
+>  				obj = ____cache_alloc_node(cache,
 >
 
 --
