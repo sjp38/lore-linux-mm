@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CE7E6B003B
-	for <linux-mm@kvack.org>; Sat, 27 Sep 2014 15:15:44 -0400 (EDT)
-Received: by mail-la0-f53.google.com with SMTP id ty20so3553090lab.26
-        for <linux-mm@kvack.org>; Sat, 27 Sep 2014 12:15:43 -0700 (PDT)
-Received: from mail-la0-x22d.google.com (mail-la0-x22d.google.com [2a00:1450:4010:c03::22d])
-        by mx.google.com with ESMTPS id p7si12122474lbr.56.2014.09.27.12.15.42
+Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EE616B003C
+	for <linux-mm@kvack.org>; Sat, 27 Sep 2014 15:15:47 -0400 (EDT)
+Received: by mail-la0-f51.google.com with SMTP id pv20so6409294lab.24
+        for <linux-mm@kvack.org>; Sat, 27 Sep 2014 12:15:47 -0700 (PDT)
+Received: from mail-la0-x22a.google.com (mail-la0-x22a.google.com [2a00:1450:4010:c03::22a])
+        by mx.google.com with ESMTPS id jn7si12197985lbc.7.2014.09.27.12.15.45
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 27 Sep 2014 12:15:42 -0700 (PDT)
-Received: by mail-la0-f45.google.com with SMTP id q1so4464169lam.4
-        for <linux-mm@kvack.org>; Sat, 27 Sep 2014 12:15:42 -0700 (PDT)
-Subject: [PATCH v3 3/4] mm/balloon_compaction: add vmstat counters and
- kpageflags bit
+        Sat, 27 Sep 2014 12:15:46 -0700 (PDT)
+Received: by mail-la0-f42.google.com with SMTP id hz20so16239306lab.15
+        for <linux-mm@kvack.org>; Sat, 27 Sep 2014 12:15:45 -0700 (PDT)
+Subject: [PATCH v3 4/4] selftests/vm/transhuge-stress: stress test for
+ memory compaction
 From: Konstantin Khlebnikov <koct9i@gmail.com>
-Date: Sat, 27 Sep 2014 23:15:23 +0400
-Message-ID: <20140927191522.13738.70854.stgit@zurg>
+Date: Sat, 27 Sep 2014 23:15:26 +0400
+Message-ID: <20140927191526.13738.25727.stgit@zurg>
 In-Reply-To: <20140927183403.13738.22121.stgit@zurg>
 References: <20140927183403.13738.22121.stgit@zurg>
 MIME-Version: 1.0
@@ -24,237 +24,205 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: Konstantin Khlebnikov <k.khlebnikov@samsung.com>, Rafael Aquini <aquini@redhat.com>
+Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Rafael Aquini <aquini@redhat.com>, Shuah Khan <shuahkh@osg.samsung.com>
 
-From: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
+This tool induces memory fragmentation via sequential allocation of
+transparent huge pages and splitting off everything except their last
+sub-pages. It easily generates pressure to the memory compaction code.
 
-Always mark pages with PageBalloon even if balloon compaction is
-disabled and expose this mark in /proc/kpageflags as KPF_BALLOON.
+$ perf stat -e 'compaction:*' -e 'migrate:*' ./transhuge-stress
+transhuge-stress: allocate 7858 transhuge pages, using 15716 MiB virtual memory and 61 MiB of ram
+transhuge-stress: 1.653 s/loop, 0.210 ms/page,   9504.828 MiB/s	7858 succeed,    0 failed, 2439 different pages
+transhuge-stress: 1.537 s/loop, 0.196 ms/page,  10226.227 MiB/s	7858 succeed,    0 failed, 2364 different pages
+transhuge-stress: 1.658 s/loop, 0.211 ms/page,   9479.215 MiB/s	7858 succeed,    0 failed, 2179 different pages
+transhuge-stress: 1.617 s/loop, 0.206 ms/page,   9716.992 MiB/s	7858 succeed,    0 failed, 2421 different pages
+^C./transhuge-stress: Interrupt
 
-Also this patch adds three counters into /proc/vmstat: "balloon_inflate",
-"balloon_deflate" and "balloon_migrate". They accumulate balloon activity.
-Current size of balloon is (balloon_inflate - balloon_deflate) pages.
+ Performance counter stats for './transhuge-stress':
 
-All generic balloon code now gathered under option CONFIG_MEMORY_BALLOON.
-It should be selected by ballooning driver which wants use this feature.
-Currently virtio-balloon is the only user.
+         1.744.051      compaction:mm_compaction_isolate_migratepages
+             1.014      compaction:mm_compaction_isolate_freepages
+         1.744.051      compaction:mm_compaction_migratepages
+             1.647      compaction:mm_compaction_begin
+             1.647      compaction:mm_compaction_end
+         1.744.051      migrate:mm_migrate_pages
+                 0      migrate:mm_numa_migrate_ratelimit
 
-Signed-off-by: Konstantin Khlebnikov <k.khlebnikov@samsung.com>
+       7,964696835 seconds time elapsed
+
+Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
 Cc: Rafael Aquini <aquini@redhat.com>
+Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Cc: Shuah Khan <shuahkh@osg.samsung.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- drivers/virtio/Kconfig                 |    1 +
- drivers/virtio/virtio_balloon.c        |    1 +
- fs/proc/page.c                         |    3 +++
- include/linux/balloon_compaction.h     |    2 ++
- include/linux/vm_event_item.h          |    7 +++++++
- include/uapi/linux/kernel-page-flags.h |    1 +
- mm/Kconfig                             |    7 ++++++-
- mm/Makefile                            |    3 ++-
- mm/balloon_compaction.c                |    2 ++
- mm/vmstat.c                            |   12 +++++++++++-
- tools/vm/page-types.c                  |    1 +
- 11 files changed, 37 insertions(+), 3 deletions(-)
+ tools/testing/selftests/vm/Makefile           |    1 
+ tools/testing/selftests/vm/transhuge-stress.c |  144 +++++++++++++++++++++++++
+ 2 files changed, 145 insertions(+)
+ create mode 100644 tools/testing/selftests/vm/transhuge-stress.c
 
-diff --git a/drivers/virtio/Kconfig b/drivers/virtio/Kconfig
-index c6683f2..00b2286 100644
---- a/drivers/virtio/Kconfig
-+++ b/drivers/virtio/Kconfig
-@@ -25,6 +25,7 @@ config VIRTIO_PCI
- config VIRTIO_BALLOON
- 	tristate "Virtio balloon driver"
- 	depends on VIRTIO
-+	select MEMORY_BALLOON
- 	---help---
- 	 This driver supports increasing and decreasing the amount
- 	 of memory within a KVM guest.
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index 2bad7f9..f893148 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -396,6 +396,7 @@ static int virtballoon_migratepage(struct balloon_dev_info *vb_dev_info,
- 	spin_lock_irqsave(&vb_dev_info->pages_lock, flags);
- 	balloon_page_insert(vb_dev_info, newpage);
- 	vb_dev_info->isolated_pages--;
-+	__count_vm_event(BALLOON_MIGRATE);
- 	spin_unlock_irqrestore(&vb_dev_info->pages_lock, flags);
- 	vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
- 	set_page_pfns(vb->pfns, newpage);
-diff --git a/fs/proc/page.c b/fs/proc/page.c
-index e647c55..1e3187d 100644
---- a/fs/proc/page.c
-+++ b/fs/proc/page.c
-@@ -133,6 +133,9 @@ u64 stable_page_flags(struct page *page)
- 	if (PageBuddy(page))
- 		u |= 1 << KPF_BUDDY;
+diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
+index 3f94e1a..4c4b1f6 100644
+--- a/tools/testing/selftests/vm/Makefile
++++ b/tools/testing/selftests/vm/Makefile
+@@ -3,6 +3,7 @@
+ CC = $(CROSS_COMPILE)gcc
+ CFLAGS = -Wall
+ BINARIES = hugepage-mmap hugepage-shm map_hugetlb thuge-gen hugetlbfstest
++BINARIES += transhuge-stress
  
-+	if (PageBalloon(page))
-+		u |= 1 << KPF_BALLOON;
+ all: $(BINARIES)
+ %: %.c
+diff --git a/tools/testing/selftests/vm/transhuge-stress.c b/tools/testing/selftests/vm/transhuge-stress.c
+new file mode 100644
+index 0000000..fd7f1b4
+--- /dev/null
++++ b/tools/testing/selftests/vm/transhuge-stress.c
+@@ -0,0 +1,144 @@
++/*
++ * Stress test for transparent huge pages, memory compaction and migration.
++ *
++ * Authors: Konstantin Khlebnikov <koct9i@gmail.com>
++ *
++ * This is free and unencumbered software released into the public domain.
++ */
 +
- 	u |= kpf_copy_bit(k, KPF_LOCKED,	PG_locked);
- 
- 	u |= kpf_copy_bit(k, KPF_SLAB,		PG_slab);
-diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
-index bc3d298..9b0a15d 100644
---- a/include/linux/balloon_compaction.h
-+++ b/include/linux/balloon_compaction.h
-@@ -166,11 +166,13 @@ static inline gfp_t balloon_mapping_gfp_mask(void)
- static inline void balloon_page_insert(struct balloon_dev_info *balloon,
- 				       struct page *page)
- {
-+	__SetPageBalloon(page);
- 	list_add(&page->lru, &balloon->pages);
- }
- 
- static inline void balloon_page_delete(struct page *page)
- {
-+	__ClearPageBalloon(page);
- 	list_del(&page->lru);
- }
- 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index ced9234..730334c 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -72,6 +72,13 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		THP_ZERO_PAGE_ALLOC,
- 		THP_ZERO_PAGE_ALLOC_FAILED,
- #endif
-+#ifdef CONFIG_MEMORY_BALLOON
-+		BALLOON_INFLATE,
-+		BALLOON_DEFLATE,
-+#ifdef CONFIG_BALLOON_COMPACTION
-+		BALLOON_MIGRATE,
-+#endif
-+#endif
- #ifdef CONFIG_DEBUG_TLBFLUSH
- #ifdef CONFIG_SMP
- 		NR_TLB_REMOTE_FLUSH,	/* cpu tried to flush others' tlbs */
-diff --git a/include/uapi/linux/kernel-page-flags.h b/include/uapi/linux/kernel-page-flags.h
-index 5116a0e..2f96d23 100644
---- a/include/uapi/linux/kernel-page-flags.h
-+++ b/include/uapi/linux/kernel-page-flags.h
-@@ -31,6 +31,7 @@
- 
- #define KPF_KSM			21
- #define KPF_THP			22
-+#define KPF_BALLOON		23
- 
- 
- #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 886db21..83250e4 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -228,11 +228,16 @@ config ARCH_ENABLE_SPLIT_PMD_PTLOCK
- 	boolean
- 
- #
-+# support for memory balloon
-+config MEMORY_BALLOON
-+	boolean
++#include <stdlib.h>
++#include <stdio.h>
++#include <stdint.h>
++#include <err.h>
++#include <time.h>
++#include <unistd.h>
++#include <fcntl.h>
++#include <string.h>
++#include <sys/mman.h>
 +
-+#
- # support for memory balloon compaction
- config BALLOON_COMPACTION
- 	bool "Allow for balloon memory compaction/migration"
- 	def_bool y
--	depends on COMPACTION && VIRTIO_BALLOON
-+	depends on COMPACTION && MEMORY_BALLOON
- 	help
- 	  Memory fragmentation introduced by ballooning might reduce
- 	  significantly the number of 2MB contiguous memory blocks that can be
-diff --git a/mm/Makefile b/mm/Makefile
-index 7b77050..e88d9b9 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -16,7 +16,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o \
- 			   readahead.o swap.o truncate.o vmscan.o shmem.o \
- 			   util.o mmzone.o vmstat.o backing-dev.o \
- 			   mm_init.o mmu_context.o percpu.o slab_common.o \
--			   compaction.o balloon_compaction.o vmacache.o \
-+			   compaction.o vmacache.o \
- 			   interval_tree.o list_lru.o workingset.o \
- 			   iov_iter.o debug.o $(mmu-y)
- 
-@@ -68,3 +68,4 @@ obj-$(CONFIG_ZBUD)	+= zbud.o
- obj-$(CONFIG_ZSMALLOC)	+= zsmalloc.o
- obj-$(CONFIG_GENERIC_EARLY_IOREMAP) += early_ioremap.o
- obj-$(CONFIG_CMA)	+= cma.o
-+obj-$(CONFIG_MEMORY_BALLOON) += balloon_compaction.o
-diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
-index 3afdabd..b3cbe19 100644
---- a/mm/balloon_compaction.c
-+++ b/mm/balloon_compaction.c
-@@ -36,6 +36,7 @@ struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info)
- 	BUG_ON(!trylock_page(page));
- 	spin_lock_irqsave(&b_dev_info->pages_lock, flags);
- 	balloon_page_insert(b_dev_info, page);
-+	__count_vm_event(BALLOON_INFLATE);
- 	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
- 	unlock_page(page);
- 	return page;
-@@ -74,6 +75,7 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
- 			}
- 			spin_lock_irqsave(&b_dev_info->pages_lock, flags);
- 			balloon_page_delete(page);
-+			__count_vm_event(BALLOON_DEFLATE);
- 			spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
- 			unlock_page(page);
- 			dequeued_page = true;
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index c53a50a..5da8834 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -751,7 +751,7 @@ static void walk_zones_in_node(struct seq_file *m, pg_data_t *pgdat,
- 					TEXT_FOR_HIGHMEM(xx) xx "_movable",
- 
- const char * const vmstat_text[] = {
--	/* Zoned VM counters */
-+	/* enum zone_stat_item countes */
- 	"nr_free_pages",
- 	"nr_alloc_batch",
- 	"nr_inactive_anon",
-@@ -794,10 +794,13 @@ const char * const vmstat_text[] = {
- 	"workingset_nodereclaim",
- 	"nr_anon_transparent_hugepages",
- 	"nr_free_cma",
++#define PAGE_SHIFT 12
++#define HPAGE_SHIFT 21
 +
-+	/* enum writeback_stat_item counters */
- 	"nr_dirty_threshold",
- 	"nr_dirty_background_threshold",
- 
- #ifdef CONFIG_VM_EVENT_COUNTERS
-+	/* enum vm_event_item counters */
- 	"pgpgin",
- 	"pgpgout",
- 	"pswpin",
-@@ -876,6 +879,13 @@ const char * const vmstat_text[] = {
- 	"thp_zero_page_alloc",
- 	"thp_zero_page_alloc_failed",
- #endif
-+#ifdef CONFIG_MEMORY_BALLOON
-+	"balloon_inflate",
-+	"balloon_deflate",
-+#ifdef CONFIG_BALLOON_COMPACTION
-+	"balloon_migrate",
-+#endif
-+#endif /* CONFIG_MEMORY_BALLOON */
- #ifdef CONFIG_DEBUG_TLBFLUSH
- #ifdef CONFIG_SMP
- 	"nr_tlb_remote_flush",
-diff --git a/tools/vm/page-types.c b/tools/vm/page-types.c
-index c4d6d2e..264fbc2 100644
---- a/tools/vm/page-types.c
-+++ b/tools/vm/page-types.c
-@@ -132,6 +132,7 @@ static const char * const page_flag_names[] = {
- 	[KPF_NOPAGE]		= "n:nopage",
- 	[KPF_KSM]		= "x:ksm",
- 	[KPF_THP]		= "t:thp",
-+	[KPF_BALLOON]		= "o:balloon",
- 
- 	[KPF_RESERVED]		= "r:reserved",
- 	[KPF_MLOCKED]		= "m:mlocked",
++#define PAGE_SIZE (1 << PAGE_SHIFT)
++#define HPAGE_SIZE (1 << HPAGE_SHIFT)
++
++#define PAGEMAP_PRESENT(ent)	(((ent) & (1ull << 63)) != 0)
++#define PAGEMAP_PFN(ent)	((ent) & ((1ull << 55) - 1))
++
++int pagemap_fd;
++
++int64_t allocate_transhuge(void *ptr)
++{
++	uint64_t ent[2];
++
++	/* drop pmd */
++	if (mmap(ptr, HPAGE_SIZE, PROT_READ | PROT_WRITE,
++				MAP_FIXED | MAP_ANONYMOUS |
++				MAP_NORESERVE | MAP_PRIVATE, -1, 0) != ptr)
++		errx(2, "mmap transhuge");
++
++	if (madvise(ptr, HPAGE_SIZE, MADV_HUGEPAGE))
++		err(2, "MADV_HUGEPAGE");
++
++	/* allocate transparent huge page */
++	*(volatile void **)ptr = ptr;
++
++	if (pread(pagemap_fd, ent, sizeof(ent),
++			(uintptr_t)ptr >> (PAGE_SHIFT - 3)) != sizeof(ent))
++		err(2, "read pagemap");
++
++	if (PAGEMAP_PRESENT(ent[0]) && PAGEMAP_PRESENT(ent[1]) &&
++	    PAGEMAP_PFN(ent[0]) + 1 == PAGEMAP_PFN(ent[1]) &&
++	    !(PAGEMAP_PFN(ent[0]) & ((1 << (HPAGE_SHIFT - PAGE_SHIFT)) - 1)))
++		return PAGEMAP_PFN(ent[0]);
++
++	return -1;
++}
++
++int main(int argc, char **argv)
++{
++	size_t ram, len;
++	void *ptr, *p;
++	struct timespec a, b;
++	double s;
++	uint8_t *map;
++	size_t map_len;
++
++	ram = sysconf(_SC_PHYS_PAGES);
++	if (ram > SIZE_MAX / sysconf(_SC_PAGESIZE) / 4)
++		ram = SIZE_MAX / 4;
++	else
++		ram *= sysconf(_SC_PAGESIZE);
++
++	if (argc == 1)
++		len = ram;
++	else if (!strcmp(argv[1], "-h"))
++		errx(1, "usage: %s [size in MiB]", argv[0]);
++	else
++		len = atoll(argv[1]) << 20;
++
++	warnx("allocate %zd transhuge pages, using %zd MiB virtual memory"
++	      " and %zd MiB of ram", len >> HPAGE_SHIFT, len >> 20,
++	      len >> (20 + HPAGE_SHIFT - PAGE_SHIFT - 1));
++
++	pagemap_fd = open("/proc/self/pagemap", O_RDONLY);
++	if (pagemap_fd < 0)
++		err(2, "open pagemap");
++
++	len -= len % HPAGE_SIZE;
++	ptr = mmap(NULL, len + HPAGE_SIZE, PROT_READ | PROT_WRITE,
++			MAP_ANONYMOUS | MAP_NORESERVE | MAP_PRIVATE, -1, 0);
++	if (ptr == MAP_FAILED)
++		err(2, "initial mmap");
++	ptr += HPAGE_SIZE - (uintptr_t)ptr % HPAGE_SIZE;
++
++	if (madvise(ptr, len, MADV_HUGEPAGE))
++		err(2, "MADV_HUGEPAGE");
++
++	map_len = ram >> (HPAGE_SHIFT - 1);
++	map = malloc(map_len);
++	if (!map)
++		errx(2, "map malloc");
++
++	while (1) {
++		int nr_succeed = 0, nr_failed = 0, nr_pages = 0;
++
++		memset(map, 0, map_len);
++
++		clock_gettime(CLOCK_MONOTONIC, &a);
++		for (p = ptr; p < ptr + len; p += HPAGE_SIZE) {
++			int64_t pfn;
++
++			pfn = allocate_transhuge(p);
++
++			if (pfn < 0) {
++				nr_failed++;
++			} else {
++				size_t idx = pfn >> (HPAGE_SHIFT - PAGE_SHIFT);
++
++				nr_succeed++;
++				if (idx >= map_len) {
++					map = realloc(map, idx + 1);
++					if (!map)
++						errx(2, "map realloc");
++					memset(map + map_len, 0, idx + 1 - map_len);
++					map_len = idx + 1;
++				}
++				if (!map[idx])
++					nr_pages++;
++				map[idx] = 1;
++			}
++
++			/* split transhuge page, keep last page */
++			if (madvise(p, HPAGE_SIZE - PAGE_SIZE, MADV_DONTNEED))
++				err(2, "MADV_DONTNEED");
++		}
++		clock_gettime(CLOCK_MONOTONIC, &b);
++		s = b.tv_sec - a.tv_sec + (b.tv_nsec - a.tv_nsec) / 1000000000.;
++
++		warnx("%.3f s/loop, %.3f ms/page, %10.3f MiB/s\t"
++		      "%4d succeed, %4d failed, %4d different pages",
++		      s, s * 1000 / (len >> HPAGE_SHIFT), len / s / (1 << 20),
++		      nr_succeed, nr_failed, nr_pages);
++	}
++}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
