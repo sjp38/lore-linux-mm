@@ -1,20 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E9C46B0038
-	for <linux-mm@kvack.org>; Sat, 27 Sep 2014 13:58:33 -0400 (EDT)
-Received: by mail-ig0-f178.google.com with SMTP id r10so1244559igi.5
-        for <linux-mm@kvack.org>; Sat, 27 Sep 2014 10:58:33 -0700 (PDT)
-Received: from mail-ie0-x22c.google.com (mail-ie0-x22c.google.com [2607:f8b0:4001:c03::22c])
-        by mx.google.com with ESMTPS id r19si6687140ign.1.2014.09.27.10.58.32
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id A26C16B0038
+	for <linux-mm@kvack.org>; Sat, 27 Sep 2014 14:51:19 -0400 (EDT)
+Received: by mail-ig0-f182.google.com with SMTP id hn18so1280835igb.15
+        for <linux-mm@kvack.org>; Sat, 27 Sep 2014 11:51:19 -0700 (PDT)
+Received: from mail-ie0-x234.google.com (mail-ie0-x234.google.com [2607:f8b0:4001:c03::234])
+        by mx.google.com with ESMTPS id g8si2756823icw.4.2014.09.27.11.51.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 27 Sep 2014 10:58:32 -0700 (PDT)
-Received: by mail-ie0-f172.google.com with SMTP id rl12so188815iec.31
-        for <linux-mm@kvack.org>; Sat, 27 Sep 2014 10:58:32 -0700 (PDT)
+        Sat, 27 Sep 2014 11:51:18 -0700 (PDT)
+Received: by mail-ie0-f180.google.com with SMTP id ar1so14839632iec.11
+        for <linux-mm@kvack.org>; Sat, 27 Sep 2014 11:51:18 -0700 (PDT)
 From: Daniel Micay <danielmicay@gmail.com>
-Subject: [PATCH] mm: add mremap flag for preserving the old mapping
-Date: Sat, 27 Sep 2014 13:58:06 -0400
-Message-Id: <1411840686-7965-1-git-send-email-danielmicay@gmail.com>
+Subject: [PATCH v2] mm: add mremap flag for preserving the old mapping
+Date: Sat, 27 Sep 2014 14:51:07 -0400
+Message-Id: <1411843867-9575-1-git-send-email-danielmicay@gmail.com>
+In-Reply-To: <1411840686-7965-1-git-send-email-danielmicay@gmail.com>
+References: <1411840686-7965-1-git-send-email-danielmicay@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
@@ -49,14 +51,14 @@ table reallocations. Consider the typical vector building pattern:
         for (size_t size = 4; size < (1 << 30); size *= 2) {
             ptr = realloc(ptr, size);
             if (!ptr) return 1;
-            memset(ptr, 0xff, size - old_size);
+            memset(ptr + old_size, 0xff, size - old_size);
             old_size = size;
         }
     }
 
-glibc: 0.115s
-jemalloc: 0.199s
-TCMalloc: 0.202s
+glibc: 0.135s
+jemalloc: 0.226s
+TCMalloc: 0.238s
 
 In practice, in-place growth never occurs because the heap grows in the
 downwards direction for all 3 allocators. TCMalloc and jemalloc pay for
