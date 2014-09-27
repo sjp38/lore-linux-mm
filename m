@@ -1,173 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id A26C16B0038
-	for <linux-mm@kvack.org>; Sat, 27 Sep 2014 14:51:19 -0400 (EDT)
-Received: by mail-ig0-f182.google.com with SMTP id hn18so1280835igb.15
-        for <linux-mm@kvack.org>; Sat, 27 Sep 2014 11:51:19 -0700 (PDT)
-Received: from mail-ie0-x234.google.com (mail-ie0-x234.google.com [2607:f8b0:4001:c03::234])
-        by mx.google.com with ESMTPS id g8si2756823icw.4.2014.09.27.11.51.18
+Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 580746B0038
+	for <linux-mm@kvack.org>; Sat, 27 Sep 2014 15:15:34 -0400 (EDT)
+Received: by mail-la0-f43.google.com with SMTP id gb8so6650386lab.30
+        for <linux-mm@kvack.org>; Sat, 27 Sep 2014 12:15:33 -0700 (PDT)
+Received: from mail-la0-x235.google.com (mail-la0-x235.google.com [2a00:1450:4010:c03::235])
+        by mx.google.com with ESMTPS id f8si12002509lbc.136.2014.09.27.12.15.31
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 27 Sep 2014 11:51:18 -0700 (PDT)
-Received: by mail-ie0-f180.google.com with SMTP id ar1so14839632iec.11
-        for <linux-mm@kvack.org>; Sat, 27 Sep 2014 11:51:18 -0700 (PDT)
-From: Daniel Micay <danielmicay@gmail.com>
-Subject: [PATCH v2] mm: add mremap flag for preserving the old mapping
-Date: Sat, 27 Sep 2014 14:51:07 -0400
-Message-Id: <1411843867-9575-1-git-send-email-danielmicay@gmail.com>
-In-Reply-To: <1411840686-7965-1-git-send-email-danielmicay@gmail.com>
-References: <1411840686-7965-1-git-send-email-danielmicay@gmail.com>
+        Sat, 27 Sep 2014 12:15:32 -0700 (PDT)
+Received: by mail-la0-f53.google.com with SMTP id ty20so3502844lab.40
+        for <linux-mm@kvack.org>; Sat, 27 Sep 2014 12:15:31 -0700 (PDT)
+Subject: [PATCH v3 0/4] mm/balloon_compaction: fixes and cleanups
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Date: Sat, 27 Sep 2014 23:15:12 +0400
+Message-ID: <20140927183403.13738.22121.stgit@zurg>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, jasone@canonware.com, Daniel Micay <danielmicay@gmail.com>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
 
-This introduces the MREMAP_RETAIN flag for preserving the source mapping
-when MREMAP_MAYMOVE moves the pages to a new destination. Accesses to
-the source location will fault and cause fresh pages to be mapped in.
+Here is reworked and resplitted patchset. patches agains current mmotm.
+I've merged fixes into first patch. It appyies clearly to v3.16,
+older kernels has a trivial conflict in mm/migrate.c.
 
-For consistency, the old_len >= new_len case could decommit the pages
-instead of unmapping. However, userspace can accomplish the same thing
-via madvise and a coherent definition of the flag is possible without
-the extra complexity.
+Reference counting during isolation and migration of ballooned pages
+reorganized and now looks similar to scheme used for normal pages
+(grab extra reference, isolate, migrate, putback/drop extra reference).
 
-Motivation:
+Changes since v2:
 
-TCMalloc and jemalloc avoid releasing virtual memory in order to reduce
-virtual memory fragmentation. A call to munmap or mremap would leave a
-hole in the address space. Instead, unused pages are lazily returned to
-the operating system via MADV_DONTNEED.
+* PagePrivate used for fixing race between isolation and deflation
+* all fixes merged into first patch
 
-Since mremap cannot be used to elide copies, TCMalloc and jemalloc end
-up being significantly slower for patterns like repeated vector / hash
-table reallocations. Consider the typical vector building pattern:
+second patch contains only cleanup
+third patch adds new interfaces (vmstat, kpageflags)
+transhuge-stress: no changes except commit message
 
-    #include <string.h>
-    #include <stdlib.h>
+bloat-o-meter (x86_64, defconfig + balloon-compaction):
 
-    int main(void) {
-        void *ptr = NULL;
-        size_t old_size = 0;
-        for (size_t size = 4; size < (1 << 30); size *= 2) {
-            ptr = realloc(ptr, size);
-            if (!ptr) return 1;
-            memset(ptr + old_size, 0xff, size - old_size);
-            old_size = size;
-        }
-    }
+add/remove: 0/7 grow/shrink: 7/9 up/down: 134/-1045 (-911)
+function                                     old     new   delta
+virtballoon_migratepage                      322     357     +35
+vmstat_text                                  824     848     +24
+vm_event_states                              496     520     +24
+stable_page_flags                            378     401     +23
+balloon_page_enqueue                         138     154     +16
+balloon_page_migrate                         162     168      +6
+balloon_page_dequeue                         287     293      +6
+leak_balloon                                 254     246      -8
+balloon_page_putback                         205     193     -12
+__ksymtab_balloon_mapping_alloc               16       -     -16
+__ksymtab_balloon_devinfo_alloc               16       -     -16
+virtballoon_remove                            70      48     -22
+__kstrtab_balloon_mapping_alloc               22       -     -22
+__kstrtab_balloon_devinfo_alloc               22       -     -22
+balloon_page_isolate                         291     243     -48
+virtballoon_probe                            382     318     -64
+balloon_devinfo_alloc                         96       -     -96
+isolate_migratepages_block                  1682    1578    -104
+reclaim_clean_pages_from_list                435     330    -105
+putback_movable_pages                        312     207    -105
+migrate_pages                               1992    1875    -117
+balloon_mapping_alloc                        128       -    -128
+virtio_balloon_aops                          160       -    -160
 
-glibc: 0.135s
-jemalloc: 0.226s
-TCMalloc: 0.238s
+even allnoconfig is smaller now:
 
-In practice, in-place growth never occurs because the heap grows in the
-downwards direction for all 3 allocators. TCMalloc and jemalloc pay for
-enormous copies while glibc is only spending time writing new elements
-to the vector. Even if it was grown in the other direction, real-world
-applications would end up blocking in-place growth with new allocations.
+add/remove: 0/3 grow/shrink: 0/0 up/down: 0/-291 (-291)
+function                                     old     new   delta
+balloon_devinfo_alloc                         63       -     -63
+balloon_page_enqueue                          82       -     -82
+balloon_page_dequeue                         146       -    -146
 
-The allocators could attempt to map the source location again after an
-mremap call, but there is no guarantee of success in a multi-threaded
-program and fragmentating memory over time is considered unacceptable.
-
-Signed-off-by: Daniel Micay <danielmicay@gmail.com>
 ---
- include/uapi/linux/mman.h |  1 +
- mm/mremap.c               | 18 +++++++++++-------
- 2 files changed, 12 insertions(+), 7 deletions(-)
 
-diff --git a/include/uapi/linux/mman.h b/include/uapi/linux/mman.h
-index ade4acd..4e9a546 100644
---- a/include/uapi/linux/mman.h
-+++ b/include/uapi/linux/mman.h
-@@ -5,6 +5,7 @@
- 
- #define MREMAP_MAYMOVE	1
- #define MREMAP_FIXED	2
-+#define MREMAP_RETAIN	4
- 
- #define OVERCOMMIT_GUESS		0
- #define OVERCOMMIT_ALWAYS		1
-diff --git a/mm/mremap.c b/mm/mremap.c
-index 05f1180..c01bab6 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -235,7 +235,8 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
- 
- static unsigned long move_vma(struct vm_area_struct *vma,
- 		unsigned long old_addr, unsigned long old_len,
--		unsigned long new_len, unsigned long new_addr, bool *locked)
-+		unsigned long new_len, unsigned long new_addr, bool retain,
-+		bool *locked)
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	struct vm_area_struct *new_vma;
-@@ -287,6 +288,7 @@ static unsigned long move_vma(struct vm_area_struct *vma,
- 		old_len = new_len;
- 		old_addr = new_addr;
- 		new_addr = -ENOMEM;
-+		retain = false;
- 	}
- 
- 	/* Conceal VM_ACCOUNT so old reservation is not undone */
-@@ -310,7 +312,7 @@ static unsigned long move_vma(struct vm_area_struct *vma,
- 	hiwater_vm = mm->hiwater_vm;
- 	vm_stat_account(mm, vma->vm_flags, vma->vm_file, new_len>>PAGE_SHIFT);
- 
--	if (do_munmap(mm, old_addr, old_len) < 0) {
-+	if (retain || do_munmap(mm, old_addr, old_len) < 0) {
- 		/* OOM: unable to split vma, just get accounts right */
- 		vm_unacct_memory(excess >> PAGE_SHIFT);
- 		excess = 0;
-@@ -392,7 +394,8 @@ Eagain:
- }
- 
- static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
--		unsigned long new_addr, unsigned long new_len, bool *locked)
-+		unsigned long new_addr, unsigned long new_len, bool retain,
-+		bool *locked)
- {
- 	struct mm_struct *mm = current->mm;
- 	struct vm_area_struct *vma;
-@@ -442,7 +445,7 @@ static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
- 	if (ret & ~PAGE_MASK)
- 		goto out1;
- 
--	ret = move_vma(vma, addr, old_len, new_len, new_addr, locked);
-+	ret = move_vma(vma, addr, old_len, new_len, new_addr, retain, locked);
- 	if (!(ret & ~PAGE_MASK))
- 		goto out;
- out1:
-@@ -482,7 +485,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
- 	unsigned long charged = 0;
- 	bool locked = false;
- 
--	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE))
-+	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE | MREMAP_RETAIN))
- 		return ret;
- 
- 	if (flags & MREMAP_FIXED && !(flags & MREMAP_MAYMOVE))
-@@ -506,7 +509,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
- 
- 	if (flags & MREMAP_FIXED) {
- 		ret = mremap_to(addr, old_len, new_addr, new_len,
--				&locked);
-+				flags & MREMAP_RETAIN, &locked);
- 		goto out;
- 	}
- 
-@@ -575,7 +578,8 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
- 			goto out;
- 		}
- 
--		ret = move_vma(vma, addr, old_len, new_len, new_addr, &locked);
-+		ret = move_vma(vma, addr, old_len, new_len, new_addr,
-+			       flags & MREMAP_RETAIN, &locked);
- 	}
- out:
- 	if (ret & ~PAGE_MASK)
--- 
-2.1.1
+Konstantin Khlebnikov (4):
+      mm/balloon_compaction: redesign ballooned pages management
+      mm/balloon_compaction: remove balloon mapping and flag AS_BALLOON_MAP
+      mm/balloon_compaction: add vmstat counters and kpageflags bit
+      selftests/vm/transhuge-stress: stress test for memory compaction
+
+
+ drivers/virtio/Kconfig                        |    1 
+ drivers/virtio/virtio_balloon.c               |   76 +++--------
+ fs/proc/page.c                                |    3 
+ include/linux/balloon_compaction.h            |  169 +++++++------------------
+ include/linux/migrate.h                       |   11 --
+ include/linux/mm.h                            |   19 +++
+ include/linux/pagemap.h                       |   18 ---
+ include/linux/vm_event_item.h                 |    7 +
+ include/uapi/linux/kernel-page-flags.h        |    1 
+ mm/Kconfig                                    |    7 +
+ mm/Makefile                                   |    3 
+ mm/balloon_compaction.c                       |  123 +++---------------
+ mm/compaction.c                               |    2 
+ mm/migrate.c                                  |   16 +-
+ mm/vmstat.c                                   |   12 ++
+ tools/testing/selftests/vm/Makefile           |    1 
+ tools/testing/selftests/vm/transhuge-stress.c |  144 +++++++++++++++++++++
+ tools/vm/page-types.c                         |    1 
+ 18 files changed, 288 insertions(+), 326 deletions(-)
+ create mode 100644 tools/testing/selftests/vm/transhuge-stress.c
+
+--
+Signature
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
