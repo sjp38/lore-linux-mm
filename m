@@ -1,106 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 0ABB46B0038
-	for <linux-mm@kvack.org>; Sat, 27 Sep 2014 05:56:45 -0400 (EDT)
-Received: by mail-wi0-f181.google.com with SMTP id z2so768811wiv.8
-        for <linux-mm@kvack.org>; Sat, 27 Sep 2014 02:56:45 -0700 (PDT)
-Received: from cpsmtpb-ews06.kpnxchange.com (cpsmtpb-ews06.kpnxchange.com. [213.75.39.9])
-        by mx.google.com with ESMTP id az10si5527245wib.11.2014.09.27.02.56.44
-        for <linux-mm@kvack.org>;
-        Sat, 27 Sep 2014 02:56:44 -0700 (PDT)
-Message-ID: <1411811803.15241.50.camel@x220>
-Subject: Re: [PATCH] mm/slab: use IS_ENABLED() instead of ZONE_DMA_FLAG
-From: Paul Bolle <pebolle@tiscali.nl>
-Date: Sat, 27 Sep 2014 11:56:43 +0200
-In-Reply-To: <20140925185047.GA21089@cmpxchg.org>
-References: <1411667851.2020.6.camel@x41>
-	 <20140925185047.GA21089@cmpxchg.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 190A36B0038
+	for <linux-mm@kvack.org>; Sat, 27 Sep 2014 10:15:26 -0400 (EDT)
+Received: by mail-qa0-f46.google.com with SMTP id cs9so329146qab.33
+        for <linux-mm@kvack.org>; Sat, 27 Sep 2014 07:15:25 -0700 (PDT)
+Received: from n23.mail01.mtsvc.net (mailout32.mail01.mtsvc.net. [216.70.64.70])
+        by mx.google.com with ESMTPS id 44si3798469qgh.65.2014.09.27.07.15.24
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 27 Sep 2014 07:15:24 -0700 (PDT)
+Message-ID: <5426C666.7000801@hurleysoftware.com>
+Date: Sat, 27 Sep 2014 10:15:02 -0400
+From: Peter Hurley <peter@hurleysoftware.com>
+MIME-Version: 1.0
+Subject: Re: page allocator bug in 3.16?
+References: <54246506.50401@hurleysoftware.com>	<20140925143555.1f276007@as>	<5424AAD0.9010708@hurleysoftware.com>	<542512AD.9070304@vmware.com>	<20140926054005.5c7985c0@as>	<542543D8.8020604@vmware.com>	<CAF6AEGvOkPq5LQR76-VbspYyCvUxL1=W-dLc4g_aWX2wkUmRpg@mail.gmail.com>	<54255EA5.3030207@redhat.com>	<542573EE.8070103@hurleysoftware.com> <CAAE8-r+52KWP8BkDatwUoZfOMBBSDVqLZqunff9+L-Ac109Bxg@mail.gmail.com>
+In-Reply-To: <CAAE8-r+52KWP8BkDatwUoZfOMBBSDVqLZqunff9+L-Ac109Bxg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Leann Ogasawara <leann.ogasawara@canonical.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Rob Clark <robdclark@gmail.com>, Thomas Hellstrom <thellstrom@vmware.com>, Chuck Ebbert <cebbert.lkml@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickens <hughd@google.com>, Linux kernel <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@suse.de>, Shaohua Li <shli@kernel.org>, Ingo Molnar <mingo@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Kyungmin Park <kyungmin.park@samsung.com>, Arnd Bergmann <arnd@arndb.de>, Akinobu Mita <akinobu.mita@gmail.com>
 
-Hi Johannes,
-
-On Thu, 2014-09-25 at 14:50 -0400, Johannes Weiner wrote:
-> On Thu, Sep 25, 2014 at 07:57:31PM +0200, Paul Bolle wrote:
-> > The Kconfig symbol ZONE_DMA_FLAG probably predates the introduction of
-> > IS_ENABLED(). Remove it and replace its two uses with the equivalent
-> > IS_ENABLED(CONFIG_ZONE_DMA).
-> > 
-> > Signed-off-by: Paul Bolle <pebolle@tiscali.nl>
-> > ---
-> > Build tested on x86_64 (on top of next-20140925).
-> > 
-> > Run tested on i686 (on top of v3.17-rc6). That test required me to
-> > switch from SLUB (Fedora's default) to SLAB. That makes running this
-> > patch both more scary and less informative. Besides, I have no idea how
-> > to hit the codepaths I just changed. You'd expect this to not actually
-> > change slab.o, but I'm not sure how to check that. So, in short: review
-> > very much appreciated.
-> > 
-> >  mm/Kconfig | 5 -----
-> >  mm/slab.c  | 4 ++--
-> >  2 files changed, 2 insertions(+), 7 deletions(-)
-> > 
-> > diff --git a/mm/Kconfig b/mm/Kconfig
-> > index 886db21..8e860c7 100644
-> > --- a/mm/Kconfig
-> > +++ b/mm/Kconfig
-> > @@ -273,11 +273,6 @@ config ARCH_ENABLE_HUGEPAGE_MIGRATION
-> >  config PHYS_ADDR_T_64BIT
-> >  	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
-> >  
-> > -config ZONE_DMA_FLAG
-> > -	int
-> > -	default "0" if !ZONE_DMA
-> > -	default "1"
-> > -
-> >  config BOUNCE
-> >  	bool "Enable bounce buffers"
-> >  	default y
-> > diff --git a/mm/slab.c b/mm/slab.c
-> > index 628f2b5..766c90e 100644
-> > --- a/mm/slab.c
-> > +++ b/mm/slab.c
-> > @@ -2243,7 +2243,7 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
-> >  	cachep->freelist_size = freelist_size;
-> >  	cachep->flags = flags;
-> >  	cachep->allocflags = __GFP_COMP;
-> > -	if (CONFIG_ZONE_DMA_FLAG && (flags & SLAB_CACHE_DMA))
-> > +	if (IS_ENABLED(CONFIG_ZONE_DMA) && (flags & SLAB_CACHE_DMA))
-> >  		cachep->allocflags |= GFP_DMA;
+On 09/26/2014 11:12 AM, Leann Ogasawara wrote:
+> On Fri, Sep 26, 2014 at 7:10 AM, Peter Hurley <peter@hurleysoftware.com> wrote:
+>> [ +cc Leann Ogasawara, Marek Szyprowski, Kyungmin Park, Arnd Bergmann ]
+>>
+>> On 09/26/2014 08:40 AM, Rik van Riel wrote:
+>>> On 09/26/2014 08:28 AM, Rob Clark wrote:
+>>>> On Fri, Sep 26, 2014 at 6:45 AM, Thomas Hellstrom
+>>>> <thellstrom@vmware.com> wrote:
+>>>>> On 09/26/2014 12:40 PM, Chuck Ebbert wrote:
+>>>>>> On Fri, 26 Sep 2014 09:15:57 +0200 Thomas Hellstrom
+>>>>>> <thellstrom@vmware.com> wrote:
+>>>>>>
+>>>>>>> On 09/26/2014 01:52 AM, Peter Hurley wrote:
+>>>>>>>> On 09/25/2014 03:35 PM, Chuck Ebbert wrote:
+>>>>>>>>> There are six ttm patches queued for 3.16.4:
+>>>>>>>>>
+>>>>>>>>> drm-ttm-choose-a-pool-to-shrink-correctly-in-ttm_dma_pool_shrink_scan.patch
+>>>>>>>>>
+>>>>>>>>>
+>>> drm-ttm-fix-handling-of-ttm_pl_flag_topdown-v2.patch
+>>>>>>>>> drm-ttm-fix-possible-division-by-0-in-ttm_dma_pool_shrink_scan.patch
+>>>>>>>>>
+>>>>>>>>>
+>>> drm-ttm-fix-possible-stack-overflow-by-recursive-shrinker-calls.patch
+>>>>>>>>> drm-ttm-pass-gfp-flags-in-order-to-avoid-deadlock.patch
+>>>>>>>>> drm-ttm-use-mutex_trylock-to-avoid-deadlock-inside-shrinker-functions.patch
+>>>>>>>>
+>>>>>>>>>
+>>> Thanks for info, Chuck.
+>>>>>>>>
+>>>>>>>> Unfortunately, none of these fix TTM dma allocation doing
+>>>>>>>> CMA dma allocation, which is the root problem.
+>>>>>>>>
+>>>>>>>> Regards, Peter Hurley
+>>>>>>> The problem is not really in TTM but in CMA, There was a guy
+>>>>>>> offering to fix this in the CMA code but I guess he didn't
+>>>>>>> probably because he didn't receive any feedback.
+>>>>>>>
+>>>>>> Yeah, the "solution" to this problem seems to be "don't enable
+>>>>>> CMA on x86". Maybe it should even be disabled in the config
+>>>>>> system.
+>>>>> Or, as previously suggested, don't use CMA for order 0 (single
+>>>>> page) allocations....
+>>>>
+>>>> On devices that actually need CMA pools to arrange for memory to be
+>>>> in certain ranges, I think you probably do want to have order 0
+>>>> pages come from the CMA pool.
+>>>>
+>>>> Seems like disabling CMA on x86 (where it should be unneeded) is
+>>>> the better way, IMO
+>>>
+>>> CMA has its uses on x86. For example, CMA is used to allocate 1GB huge
+>>> pages.
+>>>
+>>> There may also be people with devices that do not scatter-gather, and
+>>> need a large physically contiguous buffer, though there should be
+>>> relatively few of those on x86.
+>>>
+>>> I suspect it makes most sense to do DMA allocations up to PAGE_ORDER
+>>> through the normal allocator on x86, and only invoking CMA for larger
+>>> allocations.
+>>
+>> The code that uses CMA to satisfy DMA allocations on x86 is
+>> specific to the x86 arch and was added in 2011 as a means of _testing_
+>> CMA in KVM:
+>>
+>> commit 0a2b9a6ea93650b8a00f9fd5ee8fdd25671e2df6
+>> Author: Marek Szyprowski <m.szyprowski@samsung.com>
+>> Date:   Thu Dec 29 13:09:51 2011 +0100
+>>
+>>     X86: integrate CMA with DMA-mapping subsystem
+>>
+>>     This patch adds support for CMA to dma-mapping subsystem for x86
+>>     architecture that uses common pci-dma/pci-nommu implementation. This
+>>     allows to test CMA on KVM/QEMU and a lot of common x86 boxes.
+>>
+>>     Signed-off-by: Marek Szyprowski <m.szyprowski@samsung.com>
+>>     Signed-off-by: Kyungmin Park <kyungmin.park@samsung.com>
+>>     CC: Michal Nazarewicz <mina86@mina86.com>
+>>     Acked-by: Arnd Bergmann <arnd@arndb.de>
+>>
+>> (no x86 maintainer acks?).
+>>
+>> Unfortunately, this code is enabled whenever CMA is enabled, rather
+>> than as a separate test configuration.
+>>
+>> So, while enabling CMA may have other purposes on x86, using it for
+>> x86 swiotlb and nommu dma allocations is not one of the them.
+>>
+>> And Ubuntu should not be enabling CONFIG_DMA_CMA for their i386
+>> and amd64 configurations, as this is trying to drive _all_ dma mapping
+>> allocations through a _very_ small window (which is killing GPU
+>> performance).
 > 
-> GFP_DMA is actually safe to use even without CONFIG_ZONE_DMA, so you
-> only need to check for SLAB_CACHE_DMA here.
-> 
-> > @@ -2516,7 +2516,7 @@ static void cache_init_objs(struct kmem_cache *cachep,
-> >  
-> >  static void kmem_flagcheck(struct kmem_cache *cachep, gfp_t flags)
-> >  {
-> > -	if (CONFIG_ZONE_DMA_FLAG) {
-> > +	if (IS_ENABLED(CONFIG_ZONE_DMA)) {
-> >  		if (flags & GFP_DMA)
-> >  			BUG_ON(!(cachep->allocflags & GFP_DMA));
-> >  		else
-> 
-> I think this assertion can be removed altogether and replaced by ORing
-> the passed in flags with the cache gfp flags.  The page allocator will
-> catch any contradictions, but the 3 callsites that actually do use DMA
-> caches are well-behaved as of now.
+> Thanks for the note Peter.  We do have this disabled for our upcoming
+> Ubuntu 14.10 release.  It is however still enabled in the previous 14.04
+> release.  We have been tracking this in
+> https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1362261 but users
+> able to reproduce performance impacts in 14.10 were unable to reproduce
+> in 14.04 which is why we hadn't yet disabled it there.
 
-Do your comments require the patch to be redone (partially or entirely)?
-In that case someone else should probably take it and improve it, as I
-hardly understand the issues you raise. Or is the patch already queued
-somewhere, with Cristoph's Ack attached?
+Leann,
 
-Thanks,
+Thanks for that important clue.
 
+The missing piece specific to 3.16+ is these patches which impact every
+iommu config:
 
-Paul Bolle
+Akinobu Mita (5):
+  x86: make dma_alloc_coherent() return zeroed memory if CMA is enabled
+  x86: enable DMA CMA with swiotlb
+  intel-iommu: integrate DMA CMA
+  memblock: introduce memblock_alloc_range()
+  cma: add placement specifier for "cma=" kernel parameter
+
+These patches take the pre-existing nommu CMA test configuration and
+hook it up to all the x86 iommus, effectively reducing 10GB of DMA-able
+memory to 64MB, and hooks it all up to an allocator that's not nearly as
+effective as the page allocator.
+
+All to enable DMA allocation below 4GB which is already supported with the
+GFP_DMA32 flag to dma_alloc_coherent().
+
+Regards,
+Peter Hurley
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
