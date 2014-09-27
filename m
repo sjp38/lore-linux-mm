@@ -1,58 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f170.google.com (mail-vc0-f170.google.com [209.85.220.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FADA6B0038
-	for <linux-mm@kvack.org>; Sat, 27 Sep 2014 03:01:56 -0400 (EDT)
-Received: by mail-vc0-f170.google.com with SMTP id ij19so7897571vcb.1
-        for <linux-mm@kvack.org>; Sat, 27 Sep 2014 00:01:55 -0700 (PDT)
-Received: from mail-vc0-x234.google.com (mail-vc0-x234.google.com [2607:f8b0:400c:c03::234])
-        by mx.google.com with ESMTPS id w18si3266933vdj.103.2014.09.27.00.01.54
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BDA96B0038
+	for <linux-mm@kvack.org>; Sat, 27 Sep 2014 04:12:21 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa1so6251440pad.0
+        for <linux-mm@kvack.org>; Sat, 27 Sep 2014 01:12:21 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id te6si12862945pbc.227.2014.09.27.01.12.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 27 Sep 2014 00:01:54 -0700 (PDT)
-Received: by mail-vc0-f180.google.com with SMTP id hq12so2786553vcb.11
-        for <linux-mm@kvack.org>; Sat, 27 Sep 2014 00:01:54 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 27 Sep 2014 01:12:20 -0700 (PDT)
+Date: Sat, 27 Sep 2014 12:12:03 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH 3/4] slab: fix cpuset check in fallback_alloc
+Message-ID: <20140927081203.GA1633@esperanza>
+References: <cover.1411741632.git.vdavydov@parallels.com>
+ <5ccdd901946feaf88fd6d2441b18a6845cc56571.1411741632.git.vdavydov@parallels.com>
+ <alpine.DEB.2.11.1409261130550.3870@gentwo.org>
 MIME-Version: 1.0
-In-Reply-To: <542628C8.8030004@oracle.com>
-References: <5420407E.8040406@oracle.com>
-	<alpine.LSU.2.11.1409221531570.1244@eggly.anvils>
-	<542628C8.8030004@oracle.com>
-Date: Sat, 27 Sep 2014 11:01:54 +0400
-Message-ID: <CAPAsAGyjq1YbvYneUe3GiYhfXy0bj1VjJehbN1Kkm70B=Y_wDQ@mail.gmail.com>
-Subject: Re: mm: NULL ptr deref in migrate_page_move_mapping
-From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.11.1409261130550.3870@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@suse.de>, Andrey Ryabinin <a.ryabinin@samsung.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-kernel@vger.kernel.org, Li Zefan <lizefan@huawei.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-2014-09-27 7:02 GMT+04:00 Sasha Levin <sasha.levin@oracle.com>:
-> On 09/22/2014 07:04 PM, Hugh Dickins wrote:
->>> but I'm not sure what went wrong.
->> Most likely would be a zeroing of the radix_tree node, just as you
->> were experiencing zeroing of other mm structures in earlier weeks.
->>
->> Not that I've got any suggestions on where to take it from there.
->
-> I've added poisoning to a few mm related structures, and managed to
-> confirm that the issue here is indeed corruption rather than something
-> specific with the given structures.
->
-> Right now I'm looking into making KASan (Cc Andrey) to mark the poison
-> bytes somehow so it would trigger an error on access, that way we'll
-> know what's corruption them.
->
-> Andrey, since it takes a while to trigger this corruption, could you
-> confirm that if I kasan_poison_shadow() a few bytes I will get a KASan
-> report on any read/write to them?
->
+Hi Christoph,
 
-That's right. Note that poison value has to be negative.
-Address and size of poisoned area has to be aligned to 8 bytes.
+On Fri, Sep 26, 2014 at 11:31:31AM -0500, Christoph Lameter wrote:
+> On Fri, 26 Sep 2014, Vladimir Davydov wrote:
+> 
+> > To avoid this we should use softwall cpuset check in fallback_alloc.
+> 
+> Its weird that softwall checking occurs by setting __GFP_HARDWALL.
 
--- 
-Best regards,
-Andrey Ryabinin
+Hmm, I don't think I follow. Currently we enforce *hardwall* check by
+passing __GFP_HARDWALL to cpuset_zone_allowed(). However, we need
+softwall check there to conform to the page allocator behavior, so I
+remove the __GFP_HARDWALL flag from cpuset_zone_allowed() to get
+softwall check.
+
+Actually, initially we used softwall check in fallback_alloc(). This was
+changed to hardwall check by commit b8b50b6519afa ("mm: fallback_alloc
+cpuset_zone_allowed irq fix") in order to fix sleep-in-atomic bug,
+because at that time softwall check required taking the callback_mutex
+while fallback_alloc is called with interrupts disabled.
+
+Thanks,
+Vladimir
+
+> >
+> > Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+> > ---
+> >  mm/slab.c |    2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> >
+> > diff --git a/mm/slab.c b/mm/slab.c
+> > index eb6f0cf6875c..e35822d07821 100644
+> > --- a/mm/slab.c
+> > +++ b/mm/slab.c
+> > @@ -3051,7 +3051,7 @@ retry:
+> >  	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+> >  		nid = zone_to_nid(zone);
+> >
+> > -		if (cpuset_zone_allowed(zone, flags | __GFP_HARDWALL) &&
+> > +		if (cpuset_zone_allowed(zone, flags) &&
+> >  			get_node(cache, nid) &&
+> >  			get_node(cache, nid)->free_objects) {
+> >  				obj = ____cache_alloc_node(cache,
+> >
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
