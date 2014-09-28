@@ -1,549 +1,517 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id B7CA86B0035
-	for <linux-mm@kvack.org>; Sun, 28 Sep 2014 02:24:54 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id kq14so3604240pab.26
-        for <linux-mm@kvack.org>; Sat, 27 Sep 2014 23:24:54 -0700 (PDT)
-Received: from mail-pd0-x233.google.com (mail-pd0-x233.google.com [2607:f8b0:400e:c02::233])
-        by mx.google.com with ESMTPS id rx10si17124994pab.77.2014.09.27.23.24.53
+Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
+	by kanga.kvack.org (Postfix) with ESMTP id E4AB76B0035
+	for <linux-mm@kvack.org>; Sun, 28 Sep 2014 10:01:14 -0400 (EDT)
+Received: by mail-qa0-f42.google.com with SMTP id v10so2383528qac.29
+        for <linux-mm@kvack.org>; Sun, 28 Sep 2014 07:01:14 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w4si11338053qar.1.2014.09.28.07.01.12
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 27 Sep 2014 23:24:53 -0700 (PDT)
-Received: by mail-pd0-f179.google.com with SMTP id r10so758734pdi.38
-        for <linux-mm@kvack.org>; Sat, 27 Sep 2014 23:24:53 -0700 (PDT)
-Date: Sat, 27 Sep 2014 23:24:49 -0700
-From: Jeremiah Mahler <jmmahler@gmail.com>
-Subject: Re: [REGRESSION] [PATCH 1/3] mm/slab: use percpu allocator for cpu
- cache
-Message-ID: <20140928062449.GA1277@hudson.localdomain>
-References: <1408608675-20420-1-git-send-email-iamjoonsoo.kim@lge.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 28 Sep 2014 07:01:13 -0700 (PDT)
+Date: Sun, 28 Sep 2014 16:00:27 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: RFC: get_user_pages_locked|unlocked to leverage VM_FAULT_RETRY
+Message-ID: <20140928140027.GE4590@redhat.com>
+References: <20140926172535.GC4590@redhat.com>
+ <CAJu=L58c1ErLKZqAWVAT7widbJFMHKWfX1gPJoBZ3RaODjXfEg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1408608675-20420-1-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <CAJu=L58c1ErLKZqAWVAT7widbJFMHKWfX1gPJoBZ3RaODjXfEg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andres Lagar-Cavilla <andreslc@google.com>
+Cc: Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Dr. David Alan Gilbert" <dgilbert@redhat.com>
 
-On Thu, Aug 21, 2014 at 05:11:13PM +0900, Joonsoo Kim wrote:
-> Because of chicken and egg problem, initializaion of SLAB is really
-> complicated. We need to allocate cpu cache through SLAB to make
-> the kmem_cache works, but, before initialization of kmem_cache,
-> allocation through SLAB is impossible.
+On Fri, Sep 26, 2014 at 12:54:46PM -0700, Andres Lagar-Cavilla wrote:
+> On Fri, Sep 26, 2014 at 10:25 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> > On Thu, Sep 25, 2014 at 02:50:29PM -0700, Andres Lagar-Cavilla wrote:
+> >> It's nearly impossible to name it right because 1) it indicates we can
+> >> relinquish 2) it returns whether we still hold the mmap semaphore.
+> >>
+> >> I'd prefer it'd be called mmap_sem_hold, which conveys immediately
+> >> what this is about ("nonblocking" or "locked" could be about a whole
+> >> lot of things)
+> >
+> > To me FOLL_NOWAIT/FAULT_FLAG_RETRY_NOWAIT is nonblocking,
+> > "locked"/FAULT_FLAG_ALLOW_RETRY is still very much blocking, just
+> > without the mmap_sem, so I called it "locked"... but I'm fine to
+> > change the name to mmap_sem_hold. Just get_user_pages_mmap_sem_hold
+> > seems less friendly than get_user_pages_locked(..., &locked). locked
+> > as you used comes intuitive when you do later "if (locked) up_read".
+> >
 > 
-> On the other hand, SLUB does initialization with more simple way. It
-> uses percpu allocator to allocate cpu cache so there is no chicken and
-> egg problem.
-> 
-> So, this patch try to use percpu allocator in SLAB. This simplify
-> initialization step in SLAB so that we could maintain SLAB code more
-> easily.
-> 
-> From my testing, there is no performance difference.
-> 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
->  include/linux/slab_def.h |   20 +---
->  mm/slab.c                |  237 +++++++++++++++-------------------------------
->  mm/slab.h                |    1 -
->  3 files changed, 81 insertions(+), 177 deletions(-)
-> 
-> diff --git a/include/linux/slab_def.h b/include/linux/slab_def.h
-> index 8235dfb..b869d16 100644
-> --- a/include/linux/slab_def.h
-> +++ b/include/linux/slab_def.h
-> @@ -8,6 +8,8 @@
->   */
->  
->  struct kmem_cache {
-> +	struct array_cache __percpu *cpu_cache;
-> +
->  /* 1) Cache tunables. Protected by slab_mutex */
->  	unsigned int batchcount;
->  	unsigned int limit;
-> @@ -71,23 +73,7 @@ struct kmem_cache {
->  	struct memcg_cache_params *memcg_params;
->  #endif
->  
-> -/* 6) per-cpu/per-node data, touched during every alloc/free */
-> -	/*
-> -	 * We put array[] at the end of kmem_cache, because we want to size
-> -	 * this array to nr_cpu_ids slots instead of NR_CPUS
-> -	 * (see kmem_cache_init())
-> -	 * We still use [NR_CPUS] and not [1] or [0] because cache_cache
-> -	 * is statically defined, so we reserve the max number of cpus.
-> -	 *
-> -	 * We also need to guarantee that the list is able to accomodate a
-> -	 * pointer for each node since "nodelists" uses the remainder of
-> -	 * available pointers.
-> -	 */
-> -	struct kmem_cache_node **node;
-> -	struct array_cache *array[NR_CPUS + MAX_NUMNODES];
-> -	/*
-> -	 * Do not add fields after array[]
-> -	 */
-> +	struct kmem_cache_node *node[MAX_NUMNODES];
->  };
->  
->  #endif	/* _LINUX_SLAB_DEF_H */
-> diff --git a/mm/slab.c b/mm/slab.c
-> index 5927a17..09b060e 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -237,11 +237,10 @@ struct arraycache_init {
->  /*
->   * Need this for bootstrapping a per node allocator.
->   */
-> -#define NUM_INIT_LISTS (3 * MAX_NUMNODES)
-> +#define NUM_INIT_LISTS (2 * MAX_NUMNODES)
->  static struct kmem_cache_node __initdata init_kmem_cache_node[NUM_INIT_LISTS];
->  #define	CACHE_CACHE 0
-> -#define	SIZE_AC MAX_NUMNODES
-> -#define	SIZE_NODE (2 * MAX_NUMNODES)
-> +#define	SIZE_NODE (MAX_NUMNODES)
->  
->  static int drain_freelist(struct kmem_cache *cache,
->  			struct kmem_cache_node *n, int tofree);
-> @@ -253,7 +252,6 @@ static void cache_reap(struct work_struct *unused);
->  
->  static int slab_early_init = 1;
->  
-> -#define INDEX_AC kmalloc_index(sizeof(struct arraycache_init))
->  #define INDEX_NODE kmalloc_index(sizeof(struct kmem_cache_node))
->  
->  static void kmem_cache_node_init(struct kmem_cache_node *parent)
-> @@ -458,9 +456,6 @@ static inline unsigned int obj_to_index(const struct kmem_cache *cache,
->  	return reciprocal_divide(offset, cache->reciprocal_buffer_size);
->  }
->  
-> -static struct arraycache_init initarray_generic =
-> -    { {0, BOOT_CPUCACHE_ENTRIES, 1, 0} };
-> -
->  /* internal cache of cache description objs */
->  static struct kmem_cache kmem_cache_boot = {
->  	.batchcount = 1,
-> @@ -476,7 +471,7 @@ static DEFINE_PER_CPU(struct delayed_work, slab_reap_work);
->  
->  static inline struct array_cache *cpu_cache_get(struct kmem_cache *cachep)
->  {
-> -	return cachep->array[smp_processor_id()];
-> +	return this_cpu_ptr(cachep->cpu_cache);
->  }
->  
->  static size_t calculate_freelist_size(int nr_objs, size_t align)
-> @@ -1096,9 +1091,6 @@ static void cpuup_canceled(long cpu)
->  		struct alien_cache **alien;
->  		LIST_HEAD(list);
->  
-> -		/* cpu is dead; no one can alloc from it. */
-> -		nc = cachep->array[cpu];
-> -		cachep->array[cpu] = NULL;
->  		n = get_node(cachep, node);
->  
->  		if (!n)
-> @@ -1108,6 +1100,9 @@ static void cpuup_canceled(long cpu)
->  
->  		/* Free limit for this kmem_cache_node */
->  		n->free_limit -= cachep->batchcount;
-> +
-> +		/* cpu is dead; no one can alloc from it. */
-> +		nc = per_cpu_ptr(cachep->cpu_cache, cpu);
->  		if (nc)
->  			free_block(cachep, nc->entry, nc->avail, node, &list);
->  
-> @@ -1135,7 +1130,6 @@ static void cpuup_canceled(long cpu)
->  		}
->  free_array_cache:
->  		slabs_destroy(cachep, &list);
-> -		kfree(nc);
->  	}
->  	/*
->  	 * In the previous loop, all the objects were freed to
-> @@ -1172,32 +1166,23 @@ static int cpuup_prepare(long cpu)
->  	 * array caches
->  	 */
->  	list_for_each_entry(cachep, &slab_caches, list) {
-> -		struct array_cache *nc;
->  		struct array_cache *shared = NULL;
->  		struct alien_cache **alien = NULL;
->  
-> -		nc = alloc_arraycache(node, cachep->limit,
-> -					cachep->batchcount, GFP_KERNEL);
-> -		if (!nc)
-> -			goto bad;
->  		if (cachep->shared) {
->  			shared = alloc_arraycache(node,
->  				cachep->shared * cachep->batchcount,
->  				0xbaadf00d, GFP_KERNEL);
-> -			if (!shared) {
-> -				kfree(nc);
-> +			if (!shared)
->  				goto bad;
-> -			}
->  		}
->  		if (use_alien_caches) {
->  			alien = alloc_alien_cache(node, cachep->limit, GFP_KERNEL);
->  			if (!alien) {
->  				kfree(shared);
-> -				kfree(nc);
->  				goto bad;
->  			}
->  		}
-> -		cachep->array[cpu] = nc;
->  		n = get_node(cachep, node);
->  		BUG_ON(!n);
->  
-> @@ -1389,15 +1374,6 @@ static void __init set_up_node(struct kmem_cache *cachep, int index)
->  }
->  
->  /*
-> - * The memory after the last cpu cache pointer is used for the
-> - * the node pointer.
-> - */
-> -static void setup_node_pointer(struct kmem_cache *cachep)
-> -{
-> -	cachep->node = (struct kmem_cache_node **)&cachep->array[nr_cpu_ids];
-> -}
-> -
-> -/*
->   * Initialisation.  Called after the page allocator have been initialised and
->   * before smp_init().
->   */
-> @@ -1408,7 +1384,6 @@ void __init kmem_cache_init(void)
->  	BUILD_BUG_ON(sizeof(((struct page *)NULL)->lru) <
->  					sizeof(struct rcu_head));
->  	kmem_cache = &kmem_cache_boot;
-> -	setup_node_pointer(kmem_cache);
->  
->  	if (num_possible_nodes() == 1)
->  		use_alien_caches = 0;
-> @@ -1416,8 +1391,6 @@ void __init kmem_cache_init(void)
->  	for (i = 0; i < NUM_INIT_LISTS; i++)
->  		kmem_cache_node_init(&init_kmem_cache_node[i]);
->  
-> -	set_up_node(kmem_cache, CACHE_CACHE);
-> -
->  	/*
->  	 * Fragmentation resistance on low memory - only use bigger
->  	 * page orders on machines with more than 32MB of memory if
-> @@ -1452,49 +1425,22 @@ void __init kmem_cache_init(void)
->  	 * struct kmem_cache size depends on nr_node_ids & nr_cpu_ids
->  	 */
->  	create_boot_cache(kmem_cache, "kmem_cache",
-> -		offsetof(struct kmem_cache, array[nr_cpu_ids]) +
-> +		offsetof(struct kmem_cache, node) +
->  				  nr_node_ids * sizeof(struct kmem_cache_node *),
->  				  SLAB_HWCACHE_ALIGN);
->  	list_add(&kmem_cache->list, &slab_caches);
-> -
-> -	/* 2+3) create the kmalloc caches */
-> +	slab_state = PARTIAL;
->  
->  	/*
-> -	 * Initialize the caches that provide memory for the array cache and the
-> -	 * kmem_cache_node structures first.  Without this, further allocations will
-> -	 * bug.
-> +	 * Initialize the caches that provide memory for the  kmem_cache_node
-> +	 * structures first.  Without this, further allocations will bug.
->  	 */
-> -
-> -	kmalloc_caches[INDEX_AC] = create_kmalloc_cache("kmalloc-ac",
-> -					kmalloc_size(INDEX_AC), ARCH_KMALLOC_FLAGS);
-> -
-> -	if (INDEX_AC != INDEX_NODE)
-> -		kmalloc_caches[INDEX_NODE] =
-> -			create_kmalloc_cache("kmalloc-node",
-> +	kmalloc_caches[INDEX_NODE] = create_kmalloc_cache("kmalloc-node",
->  				kmalloc_size(INDEX_NODE), ARCH_KMALLOC_FLAGS);
-> +	slab_state = PARTIAL_NODE;
->  
->  	slab_early_init = 0;
->  
-> -	/* 4) Replace the bootstrap head arrays */
-> -	{
-> -		struct array_cache *ptr;
-> -
-> -		ptr = kmalloc(sizeof(struct arraycache_init), GFP_NOWAIT);
-> -
-> -		memcpy(ptr, cpu_cache_get(kmem_cache),
-> -		       sizeof(struct arraycache_init));
-> -
-> -		kmem_cache->array[smp_processor_id()] = ptr;
-> -
-> -		ptr = kmalloc(sizeof(struct arraycache_init), GFP_NOWAIT);
-> -
-> -		BUG_ON(cpu_cache_get(kmalloc_caches[INDEX_AC])
-> -		       != &initarray_generic.cache);
-> -		memcpy(ptr, cpu_cache_get(kmalloc_caches[INDEX_AC]),
-> -		       sizeof(struct arraycache_init));
-> -
-> -		kmalloc_caches[INDEX_AC]->array[smp_processor_id()] = ptr;
-> -	}
->  	/* 5) Replace the bootstrap kmem_cache_node */
->  	{
->  		int nid;
-> @@ -1502,13 +1448,8 @@ void __init kmem_cache_init(void)
->  		for_each_online_node(nid) {
->  			init_list(kmem_cache, &init_kmem_cache_node[CACHE_CACHE + nid], nid);
->  
-> -			init_list(kmalloc_caches[INDEX_AC],
-> -				  &init_kmem_cache_node[SIZE_AC + nid], nid);
-> -
-> -			if (INDEX_AC != INDEX_NODE) {
-> -				init_list(kmalloc_caches[INDEX_NODE],
-> +			init_list(kmalloc_caches[INDEX_NODE],
->  					  &init_kmem_cache_node[SIZE_NODE + nid], nid);
-> -			}
->  		}
->  	}
->  
-> @@ -2041,56 +1982,63 @@ static size_t calculate_slab_order(struct kmem_cache *cachep,
->  	return left_over;
->  }
->  
-> +static struct array_cache __percpu *__alloc_kmem_cache_cpus(
-> +		struct kmem_cache *cachep, int entries, int batchcount)
-> +{
-> +	int cpu;
-> +	size_t size;
-> +	struct array_cache __percpu *cpu_cache;
-> +
-> +	size = sizeof(void *) * entries + sizeof(struct array_cache);
-> +	cpu_cache = __alloc_percpu(size, 0);
-> +
-> +	if (!cpu_cache)
-> +		return NULL;
-> +
-> +	for_each_possible_cpu(cpu) {
-> +		init_arraycache(per_cpu_ptr(cpu_cache, cpu),
-> +				entries, batchcount);
-> +	}
-> +
-> +	return cpu_cache;
-> +}
-> +
-> +static int alloc_kmem_cache_cpus(struct kmem_cache *cachep, int entries,
-> +				int batchcount)
-> +{
-> +	cachep->cpu_cache = __alloc_kmem_cache_cpus(cachep, entries,
-> +							batchcount);
-> +	if (!cachep->cpu_cache)
-> +		return 1;
-> +
-> +	return 0;
-> +}
-> +
->  static int __init_refok setup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
->  {
->  	if (slab_state >= FULL)
->  		return enable_cpucache(cachep, gfp);
->  
-> +	if (alloc_kmem_cache_cpus(cachep, 1, 1))
-> +		return 1;
-> +
->  	if (slab_state == DOWN) {
-> -		/*
-> -		 * Note: Creation of first cache (kmem_cache).
-> -		 * The setup_node is taken care
-> -		 * of by the caller of __kmem_cache_create
-> -		 */
-> -		cachep->array[smp_processor_id()] = &initarray_generic.cache;
-> -		slab_state = PARTIAL;
-> +		/* Creation of first cache (kmem_cache). */
-> +		set_up_node(kmem_cache, CACHE_CACHE);
->  	} else if (slab_state == PARTIAL) {
-> -		/*
-> -		 * Note: the second kmem_cache_create must create the cache
-> -		 * that's used by kmalloc(24), otherwise the creation of
-> -		 * further caches will BUG().
-> -		 */
-> -		cachep->array[smp_processor_id()] = &initarray_generic.cache;
-> -
-> -		/*
-> -		 * If the cache that's used by kmalloc(sizeof(kmem_cache_node)) is
-> -		 * the second cache, then we need to set up all its node/,
-> -		 * otherwise the creation of further caches will BUG().
-> -		 */
-> -		set_up_node(cachep, SIZE_AC);
-> -		if (INDEX_AC == INDEX_NODE)
-> -			slab_state = PARTIAL_NODE;
-> -		else
-> -			slab_state = PARTIAL_ARRAYCACHE;
-> +		/* For kmem_cache_node */
-> +		set_up_node(cachep, SIZE_NODE);
->  	} else {
-> -		/* Remaining boot caches */
-> -		cachep->array[smp_processor_id()] =
-> -			kmalloc(sizeof(struct arraycache_init), gfp);
-> +		int node;
->  
-> -		if (slab_state == PARTIAL_ARRAYCACHE) {
-> -			set_up_node(cachep, SIZE_NODE);
-> -			slab_state = PARTIAL_NODE;
-> -		} else {
-> -			int node;
-> -			for_each_online_node(node) {
-> -				cachep->node[node] =
-> -				    kmalloc_node(sizeof(struct kmem_cache_node),
-> -						gfp, node);
-> -				BUG_ON(!cachep->node[node]);
-> -				kmem_cache_node_init(cachep->node[node]);
-> -			}
-> +		for_each_online_node(node) {
-> +			cachep->node[node] = kmalloc_node(
-> +				sizeof(struct kmem_cache_node), gfp, node);
-> +			BUG_ON(!cachep->node[node]);
-> +			kmem_cache_node_init(cachep->node[node]);
->  		}
->  	}
-> +
->  	cachep->node[numa_mem_id()]->next_reap =
->  			jiffies + REAPTIMEOUT_NODE +
->  			((unsigned long)cachep) % REAPTIMEOUT_NODE;
-> @@ -2194,7 +2142,6 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
->  	else
->  		gfp = GFP_NOWAIT;
->  
-> -	setup_node_pointer(cachep);
->  #if DEBUG
->  
->  	/*
-> @@ -2451,8 +2398,7 @@ int __kmem_cache_shutdown(struct kmem_cache *cachep)
->  	if (rc)
->  		return rc;
->  
-> -	for_each_online_cpu(i)
-> -	    kfree(cachep->array[i]);
-> +	free_percpu(cachep->cpu_cache);
->  
->  	/* NUMA: free the node structures */
->  	for_each_kmem_cache_node(cachep, i, n) {
-> @@ -3700,72 +3646,45 @@ fail:
->  	return -ENOMEM;
->  }
->  
-> -struct ccupdate_struct {
-> -	struct kmem_cache *cachep;
-> -	struct array_cache *new[0];
-> -};
-> -
-> -static void do_ccupdate_local(void *info)
-> -{
-> -	struct ccupdate_struct *new = info;
-> -	struct array_cache *old;
-> -
-> -	check_irq_off();
-> -	old = cpu_cache_get(new->cachep);
-> -
-> -	new->cachep->array[smp_processor_id()] = new->new[smp_processor_id()];
-> -	new->new[smp_processor_id()] = old;
-> -}
-> -
->  /* Always called with the slab_mutex held */
->  static int __do_tune_cpucache(struct kmem_cache *cachep, int limit,
->  				int batchcount, int shared, gfp_t gfp)
->  {
-> -	struct ccupdate_struct *new;
-> -	int i;
-> +	struct array_cache __percpu *cpu_cache, *prev;
-> +	int cpu;
->  
-> -	new = kzalloc(sizeof(*new) + nr_cpu_ids * sizeof(struct array_cache *),
-> -		      gfp);
-> -	if (!new)
-> +	cpu_cache = __alloc_kmem_cache_cpus(cachep, limit, batchcount);
-> +	if (!cpu_cache)
->  		return -ENOMEM;
->  
-> -	for_each_online_cpu(i) {
-> -		new->new[i] = alloc_arraycache(cpu_to_mem(i), limit,
-> -						batchcount, gfp);
-> -		if (!new->new[i]) {
-> -			for (i--; i >= 0; i--)
-> -				kfree(new->new[i]);
-> -			kfree(new);
-> -			return -ENOMEM;
-> -		}
-> -	}
-> -	new->cachep = cachep;
-> -
-> -	on_each_cpu(do_ccupdate_local, (void *)new, 1);
-> +	prev = cachep->cpu_cache;
-> +	cachep->cpu_cache = cpu_cache;
-> +	kick_all_cpus_sync();
->  
->  	check_irq_on();
->  	cachep->batchcount = batchcount;
->  	cachep->limit = limit;
->  	cachep->shared = shared;
->  
-> -	for_each_online_cpu(i) {
-> +	if (!prev)
-> +		goto alloc_node;
-> +
-> +	for_each_online_cpu(cpu) {
->  		LIST_HEAD(list);
-> -		struct array_cache *ccold = new->new[i];
->  		int node;
->  		struct kmem_cache_node *n;
-> +		struct array_cache *ac = per_cpu_ptr(prev, cpu);
->  
-> -		if (!ccold)
-> -			continue;
-> -
-> -		node = cpu_to_mem(i);
-> +		node = cpu_to_mem(cpu);
->  		n = get_node(cachep, node);
->  		spin_lock_irq(&n->list_lock);
-> -		free_block(cachep, ccold->entry, ccold->avail, node, &list);
-> +		free_block(cachep, ac->entry, ac->avail, node, &list);
->  		spin_unlock_irq(&n->list_lock);
->  		slabs_destroy(cachep, &list);
-> -		kfree(ccold);
->  	}
-> -	kfree(new);
-> +	free_percpu(prev);
-> +
-> +alloc_node:
->  	return alloc_kmem_cache_node(cachep, gfp);
->  }
->  
-> diff --git a/mm/slab.h b/mm/slab.h
-> index bd1c54a..5cb4649 100644
-> --- a/mm/slab.h
-> +++ b/mm/slab.h
-> @@ -48,7 +48,6 @@ struct kmem_cache {
->  enum slab_state {
->  	DOWN,			/* No slab functionality yet */
->  	PARTIAL,		/* SLUB: kmem_cache_node available */
-> -	PARTIAL_ARRAYCACHE,	/* SLAB: kmalloc size for arraycache available */
->  	PARTIAL_NODE,		/* SLAB: kmalloc size for node struct available */
->  	UP,			/* Slab caches usable but not all extras yet */
->  	FULL			/* Everything is working */
-> -- 
-> 1.7.9.5
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> Heh. I was previously referring to the int *locked param , not the
+> _(un)locked suffix. That param is all about the mmap semaphore, so why
+> not name it less ambiguously. It's essentially a tristate.
 
-I just encountered a problem on a Lenovo Carbon X1 where it will
-suspend but won't resume.  A bisect indicated that this patch
-is causing the problem.
+I got you were referring to the parameter name, problem I didn't want
+to call the function get_user_pages_mmap_sem_hold(), and if I call it
+get_user_pages_locked() calling the parameter "*locked" just like you
+did in your patch looked more intuitive.
 
-997888488ef92da365b870247de773255227ce1f
+Suggestions to a better than gup_locked are welcome though!
 
-I imagine the patch author, Joonsoo Kim, might have a better idea
-why this is happening than I do.  But if I can provide any information
-or run any tests that might be of help just let me know.
+> My suggestion is that you just make gup behave as your proposed
+> gup_locked, and no need to introduce another call. But I understand if
+> you want to phase this out politely.
 
--- 
-Jeremiah Mahler
-jmmahler@gmail.com
-http://github.com/jmahler
+Yes replacing gup would be ideal but there are various drivers that
+make use if and have a larger critical section and I didn't want to
+have to deal with all that immediately. Not to tell if anything uses
+the "vmas" parameter that prevent releasing the mmap_sem by design and
+will require larger modifications to get rid of.
+
+So with this patch there's an optimal version of gup_locked|unlocked,
+and a "nonscalable" one that allows for a large critical section
+before and after gup with the vmas parameter too.
+
+> > Then I added an _unlocked kind which is a drop in replacement for many
+> > places just to clean it up.
+> >
+> > get_user_pages_unlocked and get_user_pages_fast are equivalent in
+> > semantics, so any call of get_user_pages_unlocked(current,
+> > current->mm, ...) has no reason to exist and should be replaced to
+> > get_user_pages_fast unless "force = 1" (gup_fast has no force param
+> > just to make the argument list a bit more confusing across the various
+> > versions of gup).
+> >
+> > get_user_pages over time should be phased out and dropped.
+> 
+> Please. Too many variants. So the end goal is
+> * __gup_fast
+> * gup_fast == __gup_fast + gup_unlocked for fallback
+> * gup (or gup_locked)
+> * gup_unlocked
+> (and flat __gup remains buried in the impl)?
+
+That's exactly the end goal, yes.
+
+> Basically all this discussion should go into the patch as comments.
+> Help people shortcut git blame.
+
+Sure, I added the comments of the commit header inline too.
+
+> > +static inline long __get_user_pages_locked(struct task_struct *tsk,
+> > +                                          struct mm_struct *mm,
+> > +                                          unsigned long start,
+> > +                                          unsigned long nr_pages,
+> > +                                          int write, int force,
+> > +                                          struct page **pages,
+> > +                                          struct vm_area_struct **vmas,
+> > +                                          int *locked,
+> > +                                          bool immediate_unlock)
+> s/immediate_unlock/notify_drop/
+
+Applied.
+
+> > +{
+> > +       int flags = FOLL_TOUCH;
+> > +       long ret, pages_done;
+> > +       bool lock_dropped;
+> s/lock_dropped/sem_dropped/
+
+Well, this sounds a bit more confusing actually, unless we stop
+calling the parameter "locked" first.
+
+I mean it's the very "locked" parameter the "lock_dropped" variable
+refers to. So I wouldn't bother to change to "sem" and stick to the
+generic concept of locked/unlocked regardless of the underlying
+implementation (the rwsem for reading).
+
+> > +
+> > +       if (locked) {
+> > +               /* if VM_FAULT_RETRY can be returned, vmas become invalid */
+> > +               BUG_ON(vmas);
+> > +               /* check caller initialized locked */
+> > +               BUG_ON(*locked != 1);
+> > +       } else {
+> > +               /*
+> > +                * Not really important, the value is irrelevant if
+> > +                * locked is NULL, but BUILD_BUG_ON costs nothing.
+> > +                */
+> > +               BUILD_BUG_ON(immediate_unlock);
+> > +       }
+> > +
+> > +       if (pages)
+> > +               flags |= FOLL_GET;
+> > +       if (write)
+> > +               flags |= FOLL_WRITE;
+> > +       if (force)
+> > +               flags |= FOLL_FORCE;
+> > +
+> > +       pages_done = 0;
+> > +       lock_dropped = false;
+> > +       for (;;) {
+> > +               ret = __get_user_pages(tsk, mm, start, nr_pages, flags, pages,
+> > +                                      vmas, locked);
+> > +               if (!locked)
+> > +                       /* VM_FAULT_RETRY couldn't trigger, bypass */
+> > +                       return ret;
+> > +
+> > +               /* VM_FAULT_RETRY cannot return errors */
+> > +               if (!*locked) {
+> 
+> Set lock_dropped = 1. In case we break out too soon (which we do if
+> nr_pages drops to zero a couple lines below) and report a stale value.
+
+This is purely a debug path (I suppose the compiler will nuke the
+!*locked check too and the branch, if BUG_ON() is defined to a noop).
+
+We don't need to set lock_dropped if the mmap_sem was released because
+*locked is checked later:
+
+	if (notify_drop && lock_dropped && *locked) {
+
+So I set lock_dropped only by the time I "reacquire" the mmap_sem for
+reading and I force *locked back to 1. As long as *locked == 0,
+there's no point to set lock_dropped.
+
+> > +                       BUG_ON(ret < 0);
+> > +                       BUG_ON(nr_pages == 1 && ret);
+> > +               }
+> > +
+> > +               if (!pages)
+> > +                       /* If it's a prefault don't insist harder */
+> > +                       return ret;
+> > +
+> > +               if (ret > 0) {
+> > +                       nr_pages -= ret;
+> > +                       pages_done += ret;
+> > +                       if (!nr_pages)
+> > +                               break;
+> > +               }
+> > +               if (*locked) {
+> > +                       /* VM_FAULT_RETRY didn't trigger */
+> > +                       if (!pages_done)
+> > +                               pages_done = ret;
+> 
+> Replace top two lines with
+> if (ret >0)
+>     pages_done += ret;
+
+I don't get what to change above exactly. In general every time
+pages_done is increased nr_pages shall be decreased so just doing
+pages_done += ret doesn't look right so it's not clear.
+
+> > +                       break;
+> > +               }
+> > +               /* VM_FAULT_RETRY triggered, so seek to the faulting offset */
+> > +               pages += ret;
+> > +               start += ret << PAGE_SHIFT;
+> > +
+> > +               /*
+> > +                * Repeat on the address that fired VM_FAULT_RETRY
+> > +                * without FAULT_FLAG_ALLOW_RETRY but with
+> > +                * FAULT_FLAG_TRIED.
+> > +                */
+> > +               *locked = 1;
+> > +               lock_dropped = true;
+> 
+> Not really needed if set where previously suggested.
+
+Yes, I just thought it's simpler to set it here, because lock_dropped
+only is meant to cover the case of when we "reacquire" the mmap_sem
+and override *locked = 1 (to notify the caller we destroyed the
+critical section if the caller gets locked == 1 and it thinks it was
+never released). Just in case the caller does something like:
+
+      down_read(mmap_sem);
+      vma = find_vma_somehow();
+      ...
+      locked = 1;
+      gup_locked(&locked);
+      if (!locked) {
+      	 down_read(mmap_sem);
+	 vma = find_vma_somehow();
+      }
+      use vma
+      up_read(mmap_sem);
+
+that's what notify_drop and lock_dropped are all about and it only
+matters for gup_locked (only gup_locked will set notify_drop to true).
+
+> > +               down_read(&mm->mmap_sem);
+> > +               ret = __get_user_pages(tsk, mm, start, nr_pages, flags | FOLL_TRIED,
+> > +                                      pages, NULL, NULL);
+> 
+> s/nr_pages/1/ otherwise we block on everything left ahead, not just
+> the one that fired RETRY.
+
+Applied. This just slipped. At least there would have been no risk
+this would go unnoticed, it would BUG_ON below at the first O_DIRECT
+just below with ret > 1 :).
+
+> > +               if (ret != 1) {
+> > +                       BUG_ON(ret > 1);
+> 
+> Can ret ever be zero here with count == 1? (ENOENT for a stack guard
+> page TTBOMK, but what the heck are we doing gup'ing stacks. Suggest
+> fixing that one case inside __gup impl so count == 1 never returns
+> zero)
+
+I'm ok with that change but I'd leave for later. I'd rather prefer to
+leave get_user_pages API indentical for the legacy callers of gup().
+
+> 
+> > +                       if (!pages_done)
+> > +                               pages_done = ret;
+> 
+> Don't think so. ret is --errno at this point (maybe zero). So remove.
+
+Hmm I don't get what's wrong with the above if ret is --errno or zero.
+
+If we get anything but 1 int the gup(locked == NULL) invocation on the
+page that return VM_FAULT_RETRY we must stop and that is definitive
+retval of __gup_locked (we must forget that error and return the
+pages_done if any earlier pass of the loop succeeded).
+
+Or if I drop it, we could leak all pinned pages in the previous loops
+that succeeded or miss the error if we got an error and this was the
+first loop.
+
+This is __gup behavior too:
+
+		if (IS_ERR(page))
+			return i ? i : PTR_ERR(page);
+
+It's up to the caller to figure that the page at address "start +
+(pages_done << PAGE_SHIFT)" failed gup, and should be retried from
+that address, if the caller wants to get a meaningful -errno.
+
+> > +                       break;
+> > +               }
+> > +               nr_pages--;
+> > +               pages_done++;
+> > +               if (!nr_pages)
+> > +                       break;
+> > +               pages++;
+> > +               start += PAGE_SIZE;
+> > +       }
+> > +       if (!immediate_unlock && lock_dropped && *locked) {
+> > +               /*
+> > +                * We must let the caller know we temporarily dropped the lock
+> > +                * and so the critical section protected by it was lost.
+> > +                */
+> > +               up_read(&mm->mmap_sem);
+> 
+> With my suggestion of s/immediate_unlock/notify_drop/ this gets a lot
+> more understandable (IMHO).
+
+It become like this yes:
+
+	if (notify_drop && lock_dropped && *locked) {
+		/*
+		 * We must let the caller know we temporarily dropped the lock
+		 * and so the critical section protected by it was lost.
+		 */
+		up_read(&mm->mmap_sem);
+		*locked = 0;
+	}
+
+And only gup_locked pass it to true (unlocked would drop the lock
+anyway if it was set before returning so it doesn't need a notify).
+
+[..]
+long get_user_pages_locked(struct task_struct *tsk, struct mm_struct *mm,
+[..]
+	return __get_user_pages_locked(tsk, mm, start, nr_pages, write, force,
+				       pages, NULL, locked, true);
+[..]
+long get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
+[..]
+	ret = __get_user_pages_locked(tsk, mm, start, nr_pages, write, force,
+				      pages, NULL, &locked, false);
+[..]
+long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+[..]
+	return __get_user_pages_locked(tsk, mm, start, nr_pages, write, force,
+				       pages, vmas, NULL, false);
+[..]
+
+
+> *Or*, forget about gup_locked and just leave gup as proposed in this
+> patch. Then gup_unlocked (again IMHO) becomes more meaningful ... "Ah,
+> that's the one I call when I have no locks taken".
+
+Yes, that's the longer term objective but that will require also
+getting rid of vmas argument and more auditing.
+
+> > -               npages = get_user_pages_fast(addr, 1, write_fault,
+> > -                                            page);
+> > +               npages = get_user_pages_unlocked(current, current->mm, addr, 1,
+> > +                                                write_fault, 0, page);
+> >         if (npages != 1)
+> >                 return npages;
+> 
+> Acked, for the spirit. Likely my patch will go in and then you can
+> just throw this one on top, removing kvm_get_user_page_io in the
+> process.
+
+Sure, that's fine. I'm very happy with your patch and it should go in
+first as it's a first step in the right direction. Making this
+incremental is trivial.
+
+Also note gup_fast would also be doing the right thing with my patch
+applied so we could theoretically still call gup_fast in the kvm slow
+path, but I figure from the review of your patch the __gup_fast was
+already tried shortly earlier by the time we got there, so it should
+be more efficient to skip the irq-disabled path and just take the
+gup_locked() slow-path. So replacing kvm_get_user_page_io with
+gup_locked sounds better than going back to the original gup_fast.
+
+> > While at it I also converted some obvious candidate for gup_fast that
+> > had no point in running slower (which I should split off in a separate
+> > patch).
+> 
+> Yes to all.
+
+Thanks for the review! 
+
+> The part that I'm missing is how would MADV_USERFAULT handle this. It
+> would be buried in faultin_page, if no RETRY possible raise sigbus,
+> otherwise drop the mmap semaphore and signal and sleep on the
+> userfaultfd?
+
+Below are the userfaultfd entry points.
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index af61e57..26f59af 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -728,6 +732,20 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
+ 		pte_free(mm, pgtable);
+ 	} else {
+ 		pmd_t entry;
++
++		/* Deliver the page fault to userland */
++		if (vma->vm_flags & VM_USERFAULT) {
++			int ret;
++
++			spin_unlock(ptl);
++			mem_cgroup_uncharge_page(page);
++			put_page(page);
++			pte_free(mm, pgtable);
++			ret = handle_userfault(vma, haddr, flags);
++			VM_BUG_ON(ret & VM_FAULT_FALLBACK);
++			return ret;
++		}
++
+ 		entry = mk_huge_pmd(page, vma);
+ 		page_add_new_anon_rmap(page, vma, haddr);
+ 		pgtable_trans_huge_deposit(mm, pmd, pgtable);
+@@ -808,14 +825,27 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			return VM_FAULT_FALLBACK;
+ 		}
+ 		ptl = pmd_lock(mm, pmd);
+-		set = set_huge_zero_page(pgtable, mm, vma, haddr, pmd,
+-				zero_page);
+-		spin_unlock(ptl);
++		ret = 0;
++		set = false;
++		if (pmd_none(*pmd)) {
++			if (vma->vm_flags & VM_USERFAULT) {
++				spin_unlock(ptl);
++				ret = handle_userfault(vma, haddr, flags);
++				VM_BUG_ON(ret & VM_FAULT_FALLBACK);
++			} else {
++				set_huge_zero_page(pgtable, mm, vma,
++						   haddr, pmd,
++						   zero_page);
++				spin_unlock(ptl);
++				set = true;
++			}
++		} else
++			spin_unlock(ptl);
+ 		if (!set) {
+ 			pte_free(mm, pgtable);
+ 			put_huge_zero_page();
+ 		}
+-		return 0;
++		return ret;
+ 	}
+ 	page = alloc_hugepage_vma(transparent_hugepage_defrag(vma),
+ 			vma, haddr, numa_node_id(), 0);
+diff --git a/mm/memory.c b/mm/memory.c
+index 986ddb2..18b8dde 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3244,6 +3245,11 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
+ 		if (!pte_none(*page_table))
+ 			goto unlock;
++		/* Deliver the page fault to userland, check inside PT lock */
++		if (vma->vm_flags & VM_USERFAULT) {
++			pte_unmap_unlock(page_table, ptl);
++			return handle_userfault(vma, address, flags);
++		}
+ 		goto setpte;
+ 	}
+ 
+@@ -3271,6 +3277,14 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	if (!pte_none(*page_table))
+ 		goto release;
+ 
++	/* Deliver the page fault to userland, check inside PT lock */
++	if (vma->vm_flags & VM_USERFAULT) {
++		pte_unmap_unlock(page_table, ptl);
++		mem_cgroup_uncharge_page(page);
++		page_cache_release(page);
++		return handle_userfault(vma, address, flags);
++	}
++
+ 	inc_mm_counter_fast(mm, MM_ANONPAGES);
+ 	page_add_new_anon_rmap(page, vma, address);
+ setpte:
+
+I hope the developers working on the volatile pages could help to add
+the pagecache entry points for tmpfs too so they can use
+MADV_USERFAULT (and userfaultfd) on tmpfs backed memory in combination
+with volatile pages (so they don't need to use syscalls before
+touching the volatile memory and they can catch the fault in userland
+with SIGBUS or the userfaultfd protocol). Then we've to decide how to
+resolve the fault if they want to do it all on-demand paging. For
+anonymous memory we do it with a newly introduced remap_anon_pages
+which is like a strict and optimized version of mremap that only
+touches two trans_huge_pmds/ptes and takes only the mmap_sem for
+reading (and won't ever risk to lead to silent memory corruption if
+userland is buggy because it triggers all sort of errors if src
+pmd/pte is null or the dst pmd/pte is not null). But if there's a
+fault they could also just drop the volatile range and rebuild the
+area (similarly to what would happen with the syscall, just it avoids
+to run the syscall in the fast path). The slow path is probably not
+performance critical because it's not as common as in the KVM case (in
+KVM case we know we'll fire a flood of userfaults so the userfault
+handler must be as efficient as possible with remap_anon_pages THP
+aware too, the volatile pages slow path shouldn't ever run normally
+instead).
+
+Anyway the first priority is to solve the above problem with
+gup_locked, my last userfaultfd patch was rock solid in practice on
+KVM but I was too aggressive at dropping the mmap_sem even when I
+should have not, so it wasn't yet production quality and I just can't
+allow userland to indefinitely keep the mmap_sem hold for reading
+without special user privileges either (and no, I don't want
+userfaultfd to require special permissions).
+
+In the meantime I also implemented the range
+registration/deregistration ops so you can have an infinite numbers of
+userfaultfds for each process so shared libs are free to use
+userfaultfd independently of each other as long as each one is
+tracking its own ranges as vmas (supposedly each library will use
+userfaultfd for its own memory not stepping into each other toes, two
+different libraries pretending to handle userfaults on the same memory
+wouldn't make sense by design in the first place, so this constraint
+looks fine).
+
+I had to extend vma_merge though, it still looks cleaner to work with
+native vmas than building up a per-process range registration layer
+inside userfaultfd without collisions. The vmas are already solving
+99% of that problem so it felt better to make a small extension to the
+vmas, exactly like it was done for the vma_policy earlier.
+
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
