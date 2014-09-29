@@ -1,276 +1,323 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 40A6E6B0035
-	for <linux-mm@kvack.org>; Mon, 29 Sep 2014 09:57:14 -0400 (EDT)
-Received: by mail-wi0-f177.google.com with SMTP id cc10so1101286wib.16
-        for <linux-mm@kvack.org>; Mon, 29 Sep 2014 06:57:13 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id de7si16871366wjc.25.2014.09.29.06.57.11
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 7204D6B0035
+	for <linux-mm@kvack.org>; Mon, 29 Sep 2014 10:05:19 -0400 (EDT)
+Received: by mail-we0-f182.google.com with SMTP id x48so1890863wes.41
+        for <linux-mm@kvack.org>; Mon, 29 Sep 2014 07:05:18 -0700 (PDT)
+Received: from mail-we0-x22d.google.com (mail-we0-x22d.google.com [2a00:1450:400c:c03::22d])
+        by mx.google.com with ESMTPS id ws1si16813327wjb.85.2014.09.29.07.05.17
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 29 Sep 2014 06:57:12 -0700 (PDT)
-Date: Mon, 29 Sep 2014 15:57:07 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 3/3] mm: memcontrol: fix transparent huge page
- allocations under pressure
-Message-ID: <20140929135707.GA25956@dhcp22.suse.cz>
-References: <1411571338-8178-1-git-send-email-hannes@cmpxchg.org>
- <1411571338-8178-4-git-send-email-hannes@cmpxchg.org>
+        Mon, 29 Sep 2014 07:05:18 -0700 (PDT)
+Received: by mail-we0-f173.google.com with SMTP id p10so3589857wes.18
+        for <linux-mm@kvack.org>; Mon, 29 Sep 2014 07:05:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1411571338-8178-4-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1411976727-29421-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1411976727-29421-1-git-send-email-iamjoonsoo.kim@lge.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Mon, 29 Sep 2014 10:04:57 -0400
+Message-ID: <CALZtONCFQ1gt8sdHNy8+JerGZ4OD3XKa2sr4bKOXX=pq-h6zww@mail.gmail.com>
+Subject: Re: [PATCH v4] zsmalloc: merge size_class to reduce fragmentation
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Dave Hansen <dave@sr71.net>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Luigi Semenzato <semenzato@google.com>, juno.choi@lge.com, "seungho1.park" <seungho1.park@lge.com>
 
-On Wed 24-09-14 11:08:58, Johannes Weiner wrote:
-> In a memcg with even just moderate cache pressure, success rates for
-> transparent huge page allocations drop to zero, wasting a lot of
-> effort that the allocator puts into assembling these pages.
-> 
-> The reason for this is that the memcg reclaim code was never designed
-> for higher-order charges.  It reclaims in small batches until there is
-> room for at least one page.  Huge page charges only succeed when these
-> batches add up over a series of huge faults, which is unlikely under
-> any significant load involving order-0 allocations in the group.
-> 
-> Remove that loop on the memcg side in favor of passing the actual
-> reclaim goal to direct reclaim, which is already set up and optimized
-> to meet higher-order goals efficiently.
+On Mon, Sep 29, 2014 at 3:45 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> zsmalloc has many size_classes to reduce fragmentation and they are
+> in 16 bytes unit, for example, 16, 32, 48, etc., if PAGE_SIZE is 4096.
+> And, zsmalloc has constraint that each zspage has 4 pages at maximum.
+>
+> In this situation, we can see interesting aspect.
+> Let's think about size_class for 1488, 1472, ..., 1376.
+> To prevent external fragmentation, they uses 4 pages per zspage and
+> so all they can contain 11 objects at maximum.
+>
+> 16384 (4096 * 4) = 1488 * 11 + remains
+> 16384 (4096 * 4) = 1472 * 11 + remains
+> 16384 (4096 * 4) = ...
+> 16384 (4096 * 4) = 1376 * 11 + remains
+>
+> It means that they have same characteristics and classification between
+> them isn't needed. If we use one size_class for them, we can reduce
+> fragementation and save some memory since both the 1488 and 1472 sized
+> classes can only fit 11 objects into 4 pages, and an object that's
+> 1472 bytes can fit into an object that's 1488 bytes, merging these
+> classes to always use objects that are 1488 bytes will reduce the total
+> number of size classes. And reducing the total number of size classes
+> reduces overall fragmentation, because a wider range of compressed pages
+> can fit into a single size class, leaving less unused objects in each
+> size class.
+>
+> For this purpose, this patch implement size_class merging. If there is
+> size_class that have same pages_per_zspage and same number of objects
+> per zspage with previous size_class, we don't create new size_class.
+> Instead, we use previous, same characteristic size_class. With this way,
+> above example sizes (1488, 1472, ..., 1376) use just one size_class
+> so we can get much more memory utilization.
+>
+> Below is result of my simple test.
+>
+> TEST ENV: EXT4 on zram, mount with discard option
+> WORKLOAD: untar kernel source code, remove directory in descending order
+> in size. (drivers arch fs sound include net Documentation firmware
+> kernel tools)
+>
+> Each line represents orig_data_size, compr_data_size, mem_used_total,
+> fragmentation overhead (mem_used - compr_data_size) and overhead ratio
+> (overhead to compr_data_size), respectively, after untar and remove
+> operation is executed.
+>
+> * untar-nomerge.out
+>
+> orig_size compr_size used_size overhead overhead_ratio
+> 525.88MB 199.16MB 210.23MB  11.08MB 5.56%
+> 288.32MB  97.43MB 105.63MB   8.20MB 8.41%
+> 177.32MB  61.12MB  69.40MB   8.28MB 13.55%
+> 146.47MB  47.32MB  56.10MB   8.78MB 18.55%
+> 124.16MB  38.85MB  48.41MB   9.55MB 24.58%
+> 103.93MB  31.68MB  40.93MB   9.25MB 29.21%
+>  84.34MB  22.86MB  32.72MB   9.86MB 43.13%
+>  66.87MB  14.83MB  23.83MB   9.00MB 60.70%
+>  60.67MB  11.11MB  18.60MB   7.49MB 67.48%
+>  55.86MB   8.83MB  16.61MB   7.77MB 88.03%
+>  53.32MB   8.01MB  15.32MB   7.31MB 91.24%
+>
+> * untar-merge.out
+>
+> orig_size compr_size used_size overhead overhead_ratio
+> 526.23MB 199.18MB 209.81MB  10.64MB 5.34%
+> 288.68MB  97.45MB 104.08MB   6.63MB 6.80%
+> 177.68MB  61.14MB  66.93MB   5.79MB 9.47%
+> 146.83MB  47.34MB  52.79MB   5.45MB 11.51%
+> 124.52MB  38.87MB  44.30MB   5.43MB 13.96%
+> 104.29MB  31.70MB  36.83MB   5.13MB 16.19%
+>  84.70MB  22.88MB  27.92MB   5.04MB 22.04%
+>  67.11MB  14.83MB  19.26MB   4.43MB 29.86%
+>  60.82MB  11.10MB  14.90MB   3.79MB 34.17%
+>  55.90MB   8.82MB  12.61MB   3.79MB 42.97%
+>  53.32MB   8.01MB  11.73MB   3.73MB 46.53%
+>
+> As you can see above result, merged one has better utilization (overhead
+> ratio, 5th column) and uses less memory (mem_used_total, 3rd column).
+>
+> Changes from v1:
+> - More commit description about what to do in this patch.
+> - Remove nr_obj in size_class, because it isn't need after initialization.
+> - Rename __size_class to size_class, size_class to merged_size_class.
+> - Add code comment for merged_size_class of struct zs_pool.
+> - Add code comment how merging works in zs_create_pool().
+>
+> Changes from v2:
+> - Add more commit description (Dan)
+> - dynamically allocate size_class structure (Dan)
+> - rename objs_per_zspage to get_maxobj_per_zspage (Minchan)
+>
+> Changes from v3:
+> - Add error handling logic in zs_create_pool (Dan)
 
-I had concerns the last time you were posting similar patch
-(http://marc.info/?l=linux-mm&m=140803277013080&w=2) but I do not see
-any of them neither mentioned nor addressed here. Especially unexpected
-long stalls and excessive swapout. 512 pages target for direct reclaim
-is too much. Especially for smaller memcgs where we would need to drop
-the priority considerably to even scan that many pages.
+Looks good to me, thanks!
 
-THP charges close to the limit are definitely a problem but this
-is way too risky to fix this problem IMO. Maybe a better approach
-would be to limit the reclaim to (clean) page cache (aka
-MEM_CGROUP_RECLAIM_NOSWAP). The risk of long stalls should be much
-lower and excessive swapouts shouldn't happen at all. What is the point
-to swap out a large number of pages just to allow THP charge which can
-be used very sparsely?
+>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-> This brings memcg's THP policy in line with the system policy: if the
-> allocator painstakingly assembles a hugepage, memcg will at least make
-> an honest effort to charge it.  As a result, transparent hugepage
-> allocation rates amid cache activity are drastically improved:
-> 
->                                       vanilla                 patched
-> pgalloc                 4717530.80 (  +0.00%)   4451376.40 (  -5.64%)
-> pgfault                  491370.60 (  +0.00%)    225477.40 ( -54.11%)
-> pgmajfault                    2.00 (  +0.00%)         1.80 (  -6.67%)
-> thp_fault_alloc               0.00 (  +0.00%)       531.60 (+100.00%)
-> thp_fault_fallback          749.00 (  +0.00%)       217.40 ( -70.88%)
+Reviewed-by: Dan Streetman <ddstreet@ieee.org>
 
-What is the load and configuration that you have measured?
- 
-> [ Note: this may in turn increase memory consumption from internal
->   fragmentation, which is an inherent risk of transparent hugepages.
->   Some setups may have to adjust the memcg limits accordingly to
->   accomodate this - or, if the machine is already packed to capacity,
->   disable the transparent huge page feature. ]
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
 > ---
->  include/linux/swap.h |  6 +++--
->  mm/memcontrol.c      | 69 +++++++++++++---------------------------------------
->  mm/vmscan.c          |  7 +++---
->  3 files changed, 25 insertions(+), 57 deletions(-)
-> 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index ea4f926e6b9b..37a585beef5c 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -327,8 +327,10 @@ extern void lru_cache_add_active_or_unevictable(struct page *page,
->  extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
->  					gfp_t gfp_mask, nodemask_t *mask);
->  extern int __isolate_lru_page(struct page *page, isolate_mode_t mode);
-> -extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
-> -						  gfp_t gfp_mask, bool noswap);
-> +extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
-> +						  unsigned long nr_pages,
-> +						  gfp_t gfp_mask,
-> +						  bool may_swap);
->  extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
->  						gfp_t gfp_mask, bool noswap,
->  						struct zone *zone,
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 89c920156c2a..c2c75262a209 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -478,14 +478,6 @@ enum res_type {
->  #define OOM_CONTROL		(0)
->  
->  /*
-> - * Reclaim flags for mem_cgroup_hierarchical_reclaim
-> - */
-> -#define MEM_CGROUP_RECLAIM_NOSWAP_BIT	0x0
-> -#define MEM_CGROUP_RECLAIM_NOSWAP	(1 << MEM_CGROUP_RECLAIM_NOSWAP_BIT)
-> -#define MEM_CGROUP_RECLAIM_SHRINK_BIT	0x1
-> -#define MEM_CGROUP_RECLAIM_SHRINK	(1 << MEM_CGROUP_RECLAIM_SHRINK_BIT)
-> -
-> -/*
->   * The memcg_create_mutex will be held whenever a new cgroup is created.
->   * As a consequence, any change that needs to protect against new child cgroups
->   * appearing has to hold it as well.
-> @@ -1791,40 +1783,6 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
->  			 NULL, "Memory cgroup out of memory");
+>  mm/zsmalloc.c |   84 +++++++++++++++++++++++++++++++++++++++++++++++----------
+>  1 file changed, 70 insertions(+), 14 deletions(-)
+>
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index c4a9157..11556ae 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -187,6 +187,7 @@ enum fullness_group {
+>  static const int fullness_threshold_frac = 4;
+>
+>  struct size_class {
+> +       int ref;
+>         /*
+>          * Size of objects stored in this class. Must be multiple
+>          * of ZS_ALIGN.
+> @@ -214,7 +215,7 @@ struct link_free {
+>  };
+>
+>  struct zs_pool {
+> -       struct size_class size_class[ZS_SIZE_CLASSES];
+> +       struct size_class *size_class[ZS_SIZE_CLASSES];
+>
+>         gfp_t flags;    /* allocation flags used when growing pool */
+>         atomic_long_t pages_allocated;
+> @@ -468,7 +469,7 @@ static enum fullness_group fix_fullness_group(struct zs_pool *pool,
+>         if (newfg == currfg)
+>                 goto out;
+>
+> -       class = &pool->size_class[class_idx];
+> +       class = pool->size_class[class_idx];
+>         remove_zspage(page, class, currfg);
+>         insert_zspage(page, class, newfg);
+>         set_zspage_mapping(page, class_idx, newfg);
+> @@ -929,6 +930,23 @@ fail:
+>         return notifier_to_errno(ret);
 >  }
->  
-> -static unsigned long mem_cgroup_reclaim(struct mem_cgroup *memcg,
-> -					gfp_t gfp_mask,
-> -					unsigned long flags)
-> -{
-> -	unsigned long total = 0;
-> -	bool noswap = false;
-> -	int loop;
-> -
-> -	if (flags & MEM_CGROUP_RECLAIM_NOSWAP)
-> -		noswap = true;
-> -
-> -	for (loop = 0; loop < MEM_CGROUP_MAX_RECLAIM_LOOPS; loop++) {
-> -		if (loop)
-> -			drain_all_stock_async(memcg);
-> -		total += try_to_free_mem_cgroup_pages(memcg, gfp_mask, noswap);
-> -		/*
-> -		 * Allow limit shrinkers, which are triggered directly
-> -		 * by userspace, to catch signals and stop reclaim
-> -		 * after minimal progress, regardless of the margin.
-> -		 */
-> -		if (total && (flags & MEM_CGROUP_RECLAIM_SHRINK))
-> -			break;
-> -		if (mem_cgroup_margin(memcg))
-> -			break;
-> -		/*
-> -		 * If nothing was reclaimed after two attempts, there
-> -		 * may be no reclaimable pages in this hierarchy.
-> -		 */
-> -		if (loop && !total)
-> -			break;
-> -	}
-> -	return total;
-> -}
-> -
+>
+> +static unsigned int get_maxobj_per_zspage(int size, int pages_per_zspage)
+> +{
+> +       return pages_per_zspage * PAGE_SIZE / size;
+> +}
+> +
+> +static bool can_merge(struct size_class *prev, int size, int pages_per_zspage)
+> +{
+> +       if (prev->pages_per_zspage != pages_per_zspage)
+> +               return false;
+> +
+> +       if (get_maxobj_per_zspage(prev->size, prev->pages_per_zspage)
+> +               != get_maxobj_per_zspage(size, pages_per_zspage))
+> +               return false;
+> +
+> +       return true;
+> +}
+> +
 >  /**
->   * test_mem_cgroup_node_reclaimable
->   * @memcg: the target memcg
-> @@ -2527,8 +2485,9 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
->  	struct mem_cgroup *mem_over_limit;
->  	struct res_counter *fail_res;
->  	unsigned long nr_reclaimed;
-> -	unsigned long flags = 0;
->  	unsigned long long size;
-> +	bool may_swap = true;
-> +	bool drained = false;
->  	int ret = 0;
->  
->  	if (mem_cgroup_is_root(memcg))
-> @@ -2547,7 +2506,7 @@ retry:
->  		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
->  	} else {
->  		mem_over_limit = mem_cgroup_from_res_counter(fail_res, memsw);
-> -		flags |= MEM_CGROUP_RECLAIM_NOSWAP;
-> +		may_swap = false;
->  	}
->  
->  	if (batch > nr_pages) {
-> @@ -2572,11 +2531,18 @@ retry:
->  	if (!(gfp_mask & __GFP_WAIT))
->  		goto nomem;
->  
-> -	nr_reclaimed = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
-> +	nr_reclaimed = try_to_free_mem_cgroup_pages(mem_over_limit, nr_pages,
-> +						    gfp_mask, may_swap);
->  
->  	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
->  		goto retry;
->  
-> +	if (!drained) {
-> +		drain_all_stock_async(mem_over_limit);
-> +		drained = true;
-> +		goto retry;
-> +	}
+>   * zs_create_pool - Creates an allocation pool to work from.
+>   * @flags: allocation flags used to allocate pool metadata
+> @@ -949,25 +967,58 @@ struct zs_pool *zs_create_pool(gfp_t flags)
+>         if (!pool)
+>                 return NULL;
+>
+> -       for (i = 0; i < ZS_SIZE_CLASSES; i++) {
+> +       /*
+> +        * Iterate reversly, because, size of size_class that we want to use
+> +        * for merging should be larger or equal to current size.
+> +        */
+> +       for (i = ZS_SIZE_CLASSES - 1; i >= 0; i--) {
+>                 int size;
+> +               int pages_per_zspage;
+>                 struct size_class *class;
+> +               struct size_class *prev_class;
+>
+>                 size = ZS_MIN_ALLOC_SIZE + i * ZS_SIZE_CLASS_DELTA;
+>                 if (size > ZS_MAX_ALLOC_SIZE)
+>                         size = ZS_MAX_ALLOC_SIZE;
+> +               pages_per_zspage = get_pages_per_zspage(size);
+>
+> -               class = &pool->size_class[i];
+> +               /*
+> +                * size_class is used for normal zsmalloc operation such
+> +                * as alloc/free for that size. Although it is natural that we
+> +                * have one size_class for each size, there is a chance that we
+> +                * can get more memory utilization if we use one size_class for
+> +                * many different sizes whose size_class have same
+> +                * characteristics. So, we makes size_class point to
+> +                * previous size_class if possible.
+> +                */
+> +               if (i < ZS_SIZE_CLASSES - 1) {
+> +                       prev_class = pool->size_class[i + 1];
+> +                       if (can_merge(prev_class, size, pages_per_zspage)) {
+> +                               pool->size_class[i] = prev_class;
+> +                               prev_class->ref++;
+> +                               continue;
+> +                       }
+> +               }
 > +
->  	if (gfp_mask & __GFP_NORETRY)
->  		goto nomem;
->  	/*
-> @@ -3652,8 +3618,8 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
->  		if (!ret)
->  			break;
->  
-> -		mem_cgroup_reclaim(memcg, GFP_KERNEL,
-> -				   MEM_CGROUP_RECLAIM_SHRINK);
-> +		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, true);
+> +               class = kzalloc(sizeof(struct size_class), GFP_KERNEL);
+> +               if (!class)
+> +                       goto err;
 > +
->  		curusage = res_counter_read_u64(&memcg->res, RES_USAGE);
->  		/* Usage is reduced ? */
->  		if (curusage >= oldusage)
-> @@ -3703,9 +3669,8 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
->  		if (!ret)
->  			break;
->  
-> -		mem_cgroup_reclaim(memcg, GFP_KERNEL,
-> -				   MEM_CGROUP_RECLAIM_NOSWAP |
-> -				   MEM_CGROUP_RECLAIM_SHRINK);
-> +		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, false);
+> +               class->ref = 1;
+>                 class->size = size;
+>                 class->index = i;
+> +               class->pages_per_zspage = pages_per_zspage;
+>                 spin_lock_init(&class->lock);
+> -               class->pages_per_zspage = get_pages_per_zspage(size);
+> -
+> +               pool->size_class[i] = class;
+>         }
+>
+>         pool->flags = flags;
+>
+>         return pool;
 > +
->  		curusage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
->  		/* Usage is reduced ? */
->  		if (curusage >= oldusage)
-> @@ -3954,8 +3919,8 @@ static int mem_cgroup_force_empty(struct mem_cgroup *memcg)
->  		if (signal_pending(current))
->  			return -EINTR;
->  
-> -		progress = try_to_free_mem_cgroup_pages(memcg, GFP_KERNEL,
-> -						false);
-> +		progress = try_to_free_mem_cgroup_pages(memcg, 1,
-> +							GFP_KERNEL, true);
->  		if (!progress) {
->  			nr_retries--;
->  			/* maybe some writeback is necessary */
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 06123f20a326..dcb47074ae03 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2759,21 +2759,22 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *memcg,
+> +err:
+> +       zs_destroy_pool(pool);
+> +       return NULL;
 >  }
->  
->  unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
-> +					   unsigned long nr_pages,
->  					   gfp_t gfp_mask,
-> -					   bool noswap)
-> +					   bool may_swap)
+>  EXPORT_SYMBOL_GPL(zs_create_pool);
+>
+> @@ -977,7 +1028,14 @@ void zs_destroy_pool(struct zs_pool *pool)
+>
+>         for (i = 0; i < ZS_SIZE_CLASSES; i++) {
+>                 int fg;
+> -               struct size_class *class = &pool->size_class[i];
+> +               struct size_class *class = pool->size_class[i];
+> +
+> +               if (!class)
+> +                       continue;
+> +
+> +               class->ref--;
+> +               if (class->ref)
+> +                       continue;
+>
+>                 for (fg = 0; fg < _ZS_NR_FULLNESS_GROUPS; fg++) {
+>                         if (class->fullness_list[fg]) {
+> @@ -985,6 +1043,7 @@ void zs_destroy_pool(struct zs_pool *pool)
+>                                         class->size, fg);
+>                         }
+>                 }
+> +               kfree(class);
+>         }
+>         kfree(pool);
+>  }
+> @@ -1003,7 +1062,6 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
 >  {
->  	struct zonelist *zonelist;
->  	unsigned long nr_reclaimed;
->  	int nid;
->  	struct scan_control sc = {
-> -		.nr_to_reclaim = SWAP_CLUSTER_MAX,
-> +		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
->  		.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
->  				(GFP_HIGHUSER_MOVABLE & ~GFP_RECLAIM_MASK),
->  		.target_mem_cgroup = memcg,
->  		.priority = DEF_PRIORITY,
->  		.may_writepage = !laptop_mode,
->  		.may_unmap = 1,
-> -		.may_swap = !noswap,
-> +		.may_swap = may_swap,
->  	};
->  
->  	/*
-> -- 
-> 2.1.0
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+>         unsigned long obj;
+>         struct link_free *link;
+> -       int class_idx;
+>         struct size_class *class;
+>
+>         struct page *first_page, *m_page;
+> @@ -1012,9 +1070,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+>         if (unlikely(!size || size > ZS_MAX_ALLOC_SIZE))
+>                 return 0;
+>
+> -       class_idx = get_size_class_index(size);
+> -       class = &pool->size_class[class_idx];
+> -       BUG_ON(class_idx != class->index);
+> +       class = pool->size_class[get_size_class_index(size)];
+>
+>         spin_lock(&class->lock);
+>         first_page = find_get_zspage(class);
+> @@ -1067,7 +1123,7 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
+>         first_page = get_first_page(f_page);
+>
+>         get_zspage_mapping(first_page, &class_idx, &fullness);
+> -       class = &pool->size_class[class_idx];
+> +       class = pool->size_class[class_idx];
+>         f_offset = obj_idx_to_offset(f_page, f_objidx, class->size);
+>
+>         spin_lock(&class->lock);
+> @@ -1128,7 +1184,7 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
+>
+>         obj_handle_to_location(handle, &page, &obj_idx);
+>         get_zspage_mapping(get_first_page(page), &class_idx, &fg);
+> -       class = &pool->size_class[class_idx];
+> +       class = pool->size_class[class_idx];
+>         off = obj_idx_to_offset(page, obj_idx, class->size);
+>
+>         area = &get_cpu_var(zs_map_area);
+> @@ -1162,7 +1218,7 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
+>
+>         obj_handle_to_location(handle, &page, &obj_idx);
+>         get_zspage_mapping(get_first_page(page), &class_idx, &fg);
+> -       class = &pool->size_class[class_idx];
+> +       class = pool->size_class[class_idx];
+>         off = obj_idx_to_offset(page, obj_idx, class->size);
+>
+>         area = this_cpu_ptr(&zs_map_area);
+> --
+> 1.7.9.5
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
