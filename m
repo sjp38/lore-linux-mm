@@ -1,477 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BC736B0035
-	for <linux-mm@kvack.org>; Mon, 29 Sep 2014 17:53:13 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id et14so3452007pad.31
-        for <linux-mm@kvack.org>; Mon, 29 Sep 2014 14:53:12 -0700 (PDT)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id ib4si24753419pbc.249.2014.09.29.14.53.11
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 29 Sep 2014 14:53:12 -0700 (PDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so5224673pad.2
-        for <linux-mm@kvack.org>; Mon, 29 Sep 2014 14:53:11 -0700 (PDT)
-Date: Mon, 29 Sep 2014 14:51:25 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH V4 1/6] mm: Introduce a general RCU
- get_user_pages_fast.
-In-Reply-To: <1411740233-28038-2-git-send-email-steve.capper@linaro.org>
-Message-ID: <alpine.LSU.2.11.1409291443210.2800@eggly.anvils>
-References: <1411740233-28038-1-git-send-email-steve.capper@linaro.org> <1411740233-28038-2-git-send-email-steve.capper@linaro.org>
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id EB9226B0035
+	for <linux-mm@kvack.org>; Mon, 29 Sep 2014 19:09:24 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id y13so1724030pdi.33
+        for <linux-mm@kvack.org>; Mon, 29 Sep 2014 16:09:24 -0700 (PDT)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id iq10si25271172pbc.7.2014.09.29.16.09.22
+        for <linux-mm@kvack.org>;
+        Mon, 29 Sep 2014 16:09:23 -0700 (PDT)
+Date: Tue, 30 Sep 2014 08:10:22 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v4] zsmalloc: merge size_class to reduce fragmentation
+Message-ID: <20140929231022.GC18318@bbox>
+References: <1411976727-29421-1-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <1411976727-29421-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steve Capper <steve.capper@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, linux@arm.linux.org.uk, linux-arch@vger.kernel.org, linux-mm@kvack.org, will.deacon@arm.com, gary.robertson@linaro.org, christoffer.dall@linaro.org, peterz@infradead.org, anders.roxell@linaro.org, dann.frazier@canonical.com, mark.rutland@arm.com, mgorman@suse.de, hughd@google.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Luigi Semenzato <semenzato@google.com>, juno.choi@lge.com, "seungho1.park" <seungho1.park@lge.com>
 
-On Fri, 26 Sep 2014, Steve Capper wrote:
+Hey Joonsoo,
 
-> get_user_pages_fast attempts to pin user pages by walking the page
-> tables directly and avoids taking locks. Thus the walker needs to be
-> protected from page table pages being freed from under it, and needs
-> to block any THP splits.
+On Mon, Sep 29, 2014 at 04:45:27PM +0900, Joonsoo Kim wrote:
+> zsmalloc has many size_classes to reduce fragmentation and they are
+> in 16 bytes unit, for example, 16, 32, 48, etc., if PAGE_SIZE is 4096.
+> And, zsmalloc has constraint that each zspage has 4 pages at maximum.
 > 
-> One way to achieve this is to have the walker disable interrupts, and
-> rely on IPIs from the TLB flushing code blocking before the page table
-> pages are freed.
+> In this situation, we can see interesting aspect.
+> Let's think about size_class for 1488, 1472, ..., 1376.
+> To prevent external fragmentation, they uses 4 pages per zspage and
+> so all they can contain 11 objects at maximum.
 > 
-> On some platforms we have hardware broadcast of TLB invalidations, thus
-> the TLB flushing code doesn't necessarily need to broadcast IPIs; and
-> spuriously broadcasting IPIs can hurt system performance if done too
-> often.
+> 16384 (4096 * 4) = 1488 * 11 + remains
+> 16384 (4096 * 4) = 1472 * 11 + remains
+> 16384 (4096 * 4) = ...
+> 16384 (4096 * 4) = 1376 * 11 + remains
 > 
-> This problem has been solved on PowerPC and Sparc by batching up page
-> table pages belonging to more than one mm_user, then scheduling an
-> rcu_sched callback to free the pages. This RCU page table free logic
-> has been promoted to core code and is activated when one enables
-> HAVE_RCU_TABLE_FREE. Unfortunately, these architectures implement
-> their own get_user_pages_fast routines.
+> It means that they have same characteristics and classification between
+> them isn't needed. If we use one size_class for them, we can reduce
+> fragementation and save some memory since both the 1488 and 1472 sized
+> classes can only fit 11 objects into 4 pages, and an object that's
+> 1472 bytes can fit into an object that's 1488 bytes, merging these
+> classes to always use objects that are 1488 bytes will reduce the total
+> number of size classes. And reducing the total number of size classes
+> reduces overall fragmentation, because a wider range of compressed pages
+> can fit into a single size class, leaving less unused objects in each
+> size class.
 > 
-> The RCU page table free logic coupled with a an IPI broadcast on THP
-> split (which is a rare event), allows one to protect a page table
-> walker by merely disabling the interrupts during the walk.
+> For this purpose, this patch implement size_class merging. If there is
+> size_class that have same pages_per_zspage and same number of objects
+> per zspage with previous size_class, we don't create new size_class.
+> Instead, we use previous, same characteristic size_class. With this way,
+> above example sizes (1488, 1472, ..., 1376) use just one size_class
+> so we can get much more memory utilization.
 > 
-> This patch provides a general RCU implementation of get_user_pages_fast
-> that can be used by architectures that perform hardware broadcast of
-> TLB invalidations.
+> Below is result of my simple test.
 > 
-> It is based heavily on the PowerPC implementation by Nick Piggin.
+> TEST ENV: EXT4 on zram, mount with discard option
+> WORKLOAD: untar kernel source code, remove directory in descending order
+> in size. (drivers arch fs sound include net Documentation firmware
+> kernel tools)
 > 
-> Signed-off-by: Steve Capper <steve.capper@linaro.org>
-> Tested-by: Dann Frazier <dann.frazier@canonical.com>
-> Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
-
-Acked-by: Hugh Dickins <hughd@google.com>
-
-Thanks for making all those clarifications, Steve: this looks very
-good to me now.  I'm not sure which tree you're hoping will take this
-and the arm+arm64 patches 2-6: although this one would normally go
-through akpm, I expect it's easier for you to synchronize if it goes
-in along with the arm+arm64 2-6 - would that be okay with you, Andrew?
-I see no clash with what's currently in mmotm.
-
+> Each line represents orig_data_size, compr_data_size, mem_used_total,
+> fragmentation overhead (mem_used - compr_data_size) and overhead ratio
+> (overhead to compr_data_size), respectively, after untar and remove
+> operation is executed.
+> 
+> * untar-nomerge.out
+> 
+> orig_size compr_size used_size overhead overhead_ratio
+> 525.88MB 199.16MB 210.23MB  11.08MB 5.56%
+> 288.32MB  97.43MB 105.63MB   8.20MB 8.41%
+> 177.32MB  61.12MB  69.40MB   8.28MB 13.55%
+> 146.47MB  47.32MB  56.10MB   8.78MB 18.55%
+> 124.16MB  38.85MB  48.41MB   9.55MB 24.58%
+> 103.93MB  31.68MB  40.93MB   9.25MB 29.21%
+>  84.34MB  22.86MB  32.72MB   9.86MB 43.13%
+>  66.87MB  14.83MB  23.83MB   9.00MB 60.70%
+>  60.67MB  11.11MB  18.60MB   7.49MB 67.48%
+>  55.86MB   8.83MB  16.61MB   7.77MB 88.03%
+>  53.32MB   8.01MB  15.32MB   7.31MB 91.24%
+> 
+> * untar-merge.out
+> 
+> orig_size compr_size used_size overhead overhead_ratio
+> 526.23MB 199.18MB 209.81MB  10.64MB 5.34%
+> 288.68MB  97.45MB 104.08MB   6.63MB 6.80%
+> 177.68MB  61.14MB  66.93MB   5.79MB 9.47%
+> 146.83MB  47.34MB  52.79MB   5.45MB 11.51%
+> 124.52MB  38.87MB  44.30MB   5.43MB 13.96%
+> 104.29MB  31.70MB  36.83MB   5.13MB 16.19%
+>  84.70MB  22.88MB  27.92MB   5.04MB 22.04%
+>  67.11MB  14.83MB  19.26MB   4.43MB 29.86%
+>  60.82MB  11.10MB  14.90MB   3.79MB 34.17%
+>  55.90MB   8.82MB  12.61MB   3.79MB 42.97%
+>  53.32MB   8.01MB  11.73MB   3.73MB 46.53%
+> 
+> As you can see above result, merged one has better utilization (overhead
+> ratio, 5th column) and uses less memory (mem_used_total, 3rd column).
+> 
+> Changes from v1:
+> - More commit description about what to do in this patch.
+> - Remove nr_obj in size_class, because it isn't need after initialization.
+> - Rename __size_class to size_class, size_class to merged_size_class.
+> - Add code comment for merged_size_class of struct zs_pool.
+> - Add code comment how merging works in zs_create_pool().
+> 
+> Changes from v2:
+> - Add more commit description (Dan)
+> - dynamically allocate size_class structure (Dan)
+> - rename objs_per_zspage to get_maxobj_per_zspage (Minchan)
+> 
+> Changes from v3:
+> - Add error handling logic in zs_create_pool (Dan)
+> 
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > ---
-> Changed in V4:
->  * Added pte_numa and pmd_numa calls.
->  * Added comments to clarify what assumptions are being made by the
->    implementation.
->  * Cleaned up formatting for checkpatch.
+>  mm/zsmalloc.c |   84 +++++++++++++++++++++++++++++++++++++++++++++++----------
+>  1 file changed, 70 insertions(+), 14 deletions(-)
 > 
-> Catalin, I've kept your Reviewed-by, please shout if you dislike the
-> pte_numa and pmd_numa calls.
-> ---
->  mm/Kconfig |   3 +
->  mm/gup.c   | 354 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
->  2 files changed, 357 insertions(+)
-> 
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 886db21..0ceb8a5 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -137,6 +137,9 @@ config HAVE_MEMBLOCK_NODE_MAP
->  config HAVE_MEMBLOCK_PHYS_MAP
->  	boolean
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index c4a9157..11556ae 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -187,6 +187,7 @@ enum fullness_group {
+>  static const int fullness_threshold_frac = 4;
 >  
-> +config HAVE_GENERIC_RCU_GUP
-> +	boolean
-> +
->  config ARCH_DISCARD_MEMBLOCK
->  	boolean
->  
-> diff --git a/mm/gup.c b/mm/gup.c
-> index 91d044b..35c0160 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -10,6 +10,10 @@
->  #include <linux/swap.h>
->  #include <linux/swapops.h>
->  
-> +#include <linux/sched.h>
-> +#include <linux/rwsem.h>
-> +#include <asm/pgtable.h>
-> +
->  #include "internal.h"
->  
->  static struct page *no_page_table(struct vm_area_struct *vma,
-> @@ -672,3 +676,353 @@ struct page *get_dump_page(unsigned long addr)
->  	return page;
->  }
->  #endif /* CONFIG_ELF_CORE */
-> +
-> +/**
-> + * Generic RCU Fast GUP
-> + *
-> + * get_user_pages_fast attempts to pin user pages by walking the page
-> + * tables directly and avoids taking locks. Thus the walker needs to be
-> + * protected from page table pages being freed from under it, and should
-> + * block any THP splits.
-> + *
-> + * One way to achieve this is to have the walker disable interrupts, and
-> + * rely on IPIs from the TLB flushing code blocking before the page table
-> + * pages are freed. This is unsuitable for architectures that do not need
-> + * to broadcast an IPI when invalidating TLBs.
-> + *
-> + * Another way to achieve this is to batch up page table containing pages
-> + * belonging to more than one mm_user, then rcu_sched a callback to free those
-> + * pages. Disabling interrupts will allow the fast_gup walker to both block
-> + * the rcu_sched callback, and an IPI that we broadcast for splitting THPs
-> + * (which is a relatively rare event). The code below adopts this strategy.
-> + *
-> + * Before activating this code, please be aware that the following assumptions
-> + * are currently made:
-> + *
-> + *  *) HAVE_RCU_TABLE_FREE is enabled, and tlb_remove_table is used to free
-> + *      pages containing page tables.
-> + *
-> + *  *) THP splits will broadcast an IPI, this can be achieved by overriding
-> + *      pmdp_splitting_flush.
-> + *
-> + *  *) ptes can be read atomically by the architecture.
-> + *
-> + *  *) access_ok is sufficient to validate userspace address ranges.
-> + *
-> + * The last two assumptions can be relaxed by the addition of helper functions.
-> + *
-> + * This code is based heavily on the PowerPC implementation by Nick Piggin.
-> + */
-> +#ifdef CONFIG_HAVE_GENERIC_RCU_GUP
-> +
-> +#ifdef __HAVE_ARCH_PTE_SPECIAL
-> +static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
-> +			 int write, struct page **pages, int *nr)
-> +{
-> +	pte_t *ptep, *ptem;
-> +	int ret = 0;
-> +
-> +	ptem = ptep = pte_offset_map(&pmd, addr);
-> +	do {
-> +		/*
-> +		 * In the line below we are assuming that the pte can be read
-> +		 * atomically. If this is not the case for your architecture,
-> +		 * please wrap this in a helper function!
-> +		 *
-> +		 * for an example see gup_get_pte in arch/x86/mm/gup.c
-> +		 */
-> +		pte_t pte = ACCESS_ONCE(*ptep);
-> +		struct page *page;
-> +
-> +		/*
-> +		 * Similar to the PMD case below, NUMA hinting must take slow
-> +		 * path
-> +		 */
-> +		if (!pte_present(pte) || pte_special(pte) ||
-> +			pte_numa(pte) || (write && !pte_write(pte)))
-> +			goto pte_unmap;
-> +
-> +		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
-> +		page = pte_page(pte);
-> +
-> +		if (!page_cache_get_speculative(page))
-> +			goto pte_unmap;
-> +
-> +		if (unlikely(pte_val(pte) != pte_val(*ptep))) {
-> +			put_page(page);
-> +			goto pte_unmap;
-> +		}
-> +
-> +		pages[*nr] = page;
-> +		(*nr)++;
-> +
-> +	} while (ptep++, addr += PAGE_SIZE, addr != end);
-> +
-> +	ret = 1;
-> +
-> +pte_unmap:
-> +	pte_unmap(ptem);
-> +	return ret;
-> +}
-> +#else
-> +
-> +/*
-> + * If we can't determine whether or not a pte is special, then fail immediately
-> + * for ptes. Note, we can still pin HugeTLB and THP as these are guaranteed not
-> + * to be special.
-> + *
-> + * For a futex to be placed on a THP tail page, get_futex_key requires a
-> + * __get_user_pages_fast implementation that can pin pages. Thus it's still
-> + * useful to have gup_huge_pmd even if we can't operate on ptes.
-> + */
-> +static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
-> +			 int write, struct page **pages, int *nr)
-> +{
-> +	return 0;
-> +}
-> +#endif /* __HAVE_ARCH_PTE_SPECIAL */
-> +
-> +static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
-> +		unsigned long end, int write, struct page **pages, int *nr)
-> +{
-> +	struct page *head, *page, *tail;
-> +	int refs;
-> +
-> +	if (write && !pmd_write(orig))
-> +		return 0;
-> +
-> +	refs = 0;
-> +	head = pmd_page(orig);
-> +	page = head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
-> +	tail = page;
-> +	do {
-> +		VM_BUG_ON_PAGE(compound_head(page) != head, page);
-> +		pages[*nr] = page;
-> +		(*nr)++;
-> +		page++;
-> +		refs++;
-> +	} while (addr += PAGE_SIZE, addr != end);
-> +
-> +	if (!page_cache_add_speculative(head, refs)) {
-> +		*nr -= refs;
-> +		return 0;
-> +	}
-> +
-> +	if (unlikely(pmd_val(orig) != pmd_val(*pmdp))) {
-> +		*nr -= refs;
-> +		while (refs--)
-> +			put_page(head);
-> +		return 0;
-> +	}
-> +
-> +	/*
-> +	 * Any tail pages need their mapcount reference taken before we
-> +	 * return. (This allows the THP code to bump their ref count when
-> +	 * they are split into base pages).
-> +	 */
-> +	while (refs--) {
-> +		if (PageTail(tail))
-> +			get_huge_page_tail(tail);
-> +		tail++;
-> +	}
-> +
-> +	return 1;
-> +}
-> +
-> +static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
-> +		unsigned long end, int write, struct page **pages, int *nr)
-> +{
-> +	struct page *head, *page, *tail;
-> +	int refs;
-> +
-> +	if (write && !pud_write(orig))
-> +		return 0;
-> +
-> +	refs = 0;
-> +	head = pud_page(orig);
-> +	page = head + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
-> +	tail = page;
-> +	do {
-> +		VM_BUG_ON_PAGE(compound_head(page) != head, page);
-> +		pages[*nr] = page;
-> +		(*nr)++;
-> +		page++;
-> +		refs++;
-> +	} while (addr += PAGE_SIZE, addr != end);
-> +
-> +	if (!page_cache_add_speculative(head, refs)) {
-> +		*nr -= refs;
-> +		return 0;
-> +	}
-> +
-> +	if (unlikely(pud_val(orig) != pud_val(*pudp))) {
-> +		*nr -= refs;
-> +		while (refs--)
-> +			put_page(head);
-> +		return 0;
-> +	}
-> +
-> +	while (refs--) {
-> +		if (PageTail(tail))
-> +			get_huge_page_tail(tail);
-> +		tail++;
-> +	}
-> +
-> +	return 1;
-> +}
-> +
-> +static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
-> +		int write, struct page **pages, int *nr)
-> +{
-> +	unsigned long next;
-> +	pmd_t *pmdp;
-> +
-> +	pmdp = pmd_offset(&pud, addr);
-> +	do {
-> +		pmd_t pmd = ACCESS_ONCE(*pmdp);
-> +
-> +		next = pmd_addr_end(addr, end);
-> +		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
-> +			return 0;
-> +
-> +		if (unlikely(pmd_trans_huge(pmd) || pmd_huge(pmd))) {
-> +			/*
-> +			 * NUMA hinting faults need to be handled in the GUP
-> +			 * slowpath for accounting purposes and so that they
-> +			 * can be serialised against THP migration.
-> +			 */
-> +			if (pmd_numa(pmd))
-> +				return 0;
-> +
-> +			if (!gup_huge_pmd(pmd, pmdp, addr, next, write,
-> +				pages, nr))
-> +				return 0;
-> +
-> +		} else if (!gup_pte_range(pmd, addr, next, write, pages, nr))
-> +				return 0;
-> +	} while (pmdp++, addr = next, addr != end);
-> +
-> +	return 1;
-> +}
-> +
-> +static int gup_pud_range(pgd_t *pgdp, unsigned long addr, unsigned long end,
-> +		int write, struct page **pages, int *nr)
-> +{
-> +	unsigned long next;
-> +	pud_t *pudp;
-> +
-> +	pudp = pud_offset(pgdp, addr);
-> +	do {
-> +		pud_t pud = ACCESS_ONCE(*pudp);
-> +
-> +		next = pud_addr_end(addr, end);
-> +		if (pud_none(pud))
-> +			return 0;
-> +		if (pud_huge(pud)) {
-> +			if (!gup_huge_pud(pud, pudp, addr, next, write,
-> +					pages, nr))
-> +				return 0;
-> +		} else if (!gup_pmd_range(pud, addr, next, write, pages, nr))
-> +			return 0;
-> +	} while (pudp++, addr = next, addr != end);
-> +
-> +	return 1;
-> +}
-> +
-> +/*
-> + * Like get_user_pages_fast() except its IRQ-safe in that it won't fall
-> + * back to the regular GUP. It will only return non-negative values.
-> + */
-> +int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
-> +			  struct page **pages)
-> +{
-> +	struct mm_struct *mm = current->mm;
-> +	unsigned long addr, len, end;
-> +	unsigned long next, flags;
-> +	pgd_t *pgdp;
-> +	int nr = 0;
-> +
-> +	start &= PAGE_MASK;
-> +	addr = start;
-> +	len = (unsigned long) nr_pages << PAGE_SHIFT;
-> +	end = start + len;
-> +
-> +	if (unlikely(!access_ok(write ? VERIFY_WRITE : VERIFY_READ,
-> +					start, len)))
-> +		return 0;
-> +
-> +	/*
-> +	 * Disable interrupts, we use the nested form as we can already
-> +	 * have interrupts disabled by get_futex_key.
-> +	 *
-> +	 * With interrupts disabled, we block page table pages from being
-> +	 * freed from under us. See mmu_gather_tlb in asm-generic/tlb.h
-> +	 * for more details.
-> +	 *
-> +	 * We do not adopt an rcu_read_lock(.) here as we also want to
-> +	 * block IPIs that come from THPs splitting.
-> +	 */
-> +
-> +	local_irq_save(flags);
-> +	pgdp = pgd_offset(mm, addr);
-> +	do {
-> +		next = pgd_addr_end(addr, end);
-> +		if (pgd_none(*pgdp))
-> +			break;
-> +		else if (!gup_pud_range(pgdp, addr, next, write, pages, &nr))
-> +			break;
-> +	} while (pgdp++, addr = next, addr != end);
-> +	local_irq_restore(flags);
-> +
-> +	return nr;
-> +}
-> +
-> +/**
-> + * get_user_pages_fast() - pin user pages in memory
-> + * @start:	starting user address
-> + * @nr_pages:	number of pages from start to pin
-> + * @write:	whether pages will be written to
-> + * @pages:	array that receives pointers to the pages pinned.
-> + *		Should be at least nr_pages long.
-> + *
-> + * Attempt to pin user pages in memory without taking mm->mmap_sem.
-> + * If not successful, it will fall back to taking the lock and
-> + * calling get_user_pages().
-> + *
-> + * Returns number of pages pinned. This may be fewer than the number
-> + * requested. If nr_pages is 0 or negative, returns 0. If no pages
-> + * were pinned, returns -errno.
-> + */
-> +int get_user_pages_fast(unsigned long start, int nr_pages, int write,
-> +			struct page **pages)
-> +{
-> +	struct mm_struct *mm = current->mm;
-> +	int nr, ret;
-> +
-> +	start &= PAGE_MASK;
-> +	nr = __get_user_pages_fast(start, nr_pages, write, pages);
-> +	ret = nr;
-> +
-> +	if (nr < nr_pages) {
-> +		/* Try to get the remaining pages with get_user_pages */
-> +		start += nr << PAGE_SHIFT;
-> +		pages += nr;
-> +
-> +		down_read(&mm->mmap_sem);
-> +		ret = get_user_pages(current, mm, start,
-> +				     nr_pages - nr, write, 0, pages, NULL);
-> +		up_read(&mm->mmap_sem);
-> +
-> +		/* Have to be a bit careful with return values */
-> +		if (nr > 0) {
-> +			if (ret < 0)
-> +				ret = nr;
-> +			else
-> +				ret += nr;
-> +		}
-> +	}
-> +
-> +	return ret;
-> +}
-> +
-> +#endif /* CONFIG_HAVE_GENERIC_RCU_GUP */
-> -- 
-> 1.9.3
-> 
-> 
+>  struct size_class {
+> +	int ref;
+
+Couldn't we remove the ref from size_class by making zs_destroy_pool
+aware of merged size class like zs_create_pool?
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
