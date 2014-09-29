@@ -1,60 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f49.google.com (mail-oi0-f49.google.com [209.85.218.49])
-	by kanga.kvack.org (Postfix) with ESMTP id BBB266B0035
-	for <linux-mm@kvack.org>; Mon, 29 Sep 2014 03:25:37 -0400 (EDT)
-Received: by mail-oi0-f49.google.com with SMTP id e131so2539044oig.8
-        for <linux-mm@kvack.org>; Mon, 29 Sep 2014 00:25:37 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id m4si13291458obn.4.2014.09.29.00.25.35
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 29 Sep 2014 00:25:37 -0700 (PDT)
-Message-ID: <54290962.8010603@huawei.com>
-Date: Mon, 29 Sep 2014 15:25:22 +0800
-From: Zefan Li <lizefan@huawei.com>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 867916B0035
+	for <linux-mm@kvack.org>; Mon, 29 Sep 2014 03:44:23 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id eu11so1639382pac.14
+        for <linux-mm@kvack.org>; Mon, 29 Sep 2014 00:44:23 -0700 (PDT)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id ze3si21502781pbb.208.2014.09.29.00.44.20
+        for <linux-mm@kvack.org>;
+        Mon, 29 Sep 2014 00:44:22 -0700 (PDT)
+Date: Mon, 29 Sep 2014 16:44:18 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [REGRESSION] [PATCH 1/3] mm/slab: use percpu allocator for cpu
+ cache
+Message-ID: <20140929074418.GA29310@js1304-P5Q-DELUXE>
+References: <1408608675-20420-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20140928062449.GA1277@hudson.localdomain>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] Simplify cpuset API and fix cpuset check in SL[AU]B
-References: <cover.1411741632.git.vdavydov@parallels.com>
-In-Reply-To: <cover.1411741632.git.vdavydov@parallels.com>
-Content-Type: text/plain; charset="GB2312"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140928062449.GA1277@hudson.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, Pekka
- Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo
- Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Jeremiah Mahler <jmmahler@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2014/9/26 22:50, Vladimir Davydov wrote:
-> Hi,
+On Sat, Sep 27, 2014 at 11:24:49PM -0700, Jeremiah Mahler wrote:
+> On Thu, Aug 21, 2014 at 05:11:13PM +0900, Joonsoo Kim wrote:
+> > Because of chicken and egg problem, initializaion of SLAB is really
+> > complicated. We need to allocate cpu cache through SLAB to make
+> > the kmem_cache works, but, before initialization of kmem_cache,
+> > allocation through SLAB is impossible.
+> > 
+> > On the other hand, SLUB does initialization with more simple way. It
+> > uses percpu allocator to allocate cpu cache so there is no chicken and
+> > egg problem.
+> > 
+> > So, this patch try to use percpu allocator in SLAB. This simplify
+> > initialization step in SLAB so that we could maintain SLAB code more
+> > easily.
+> > 
+> > From my testing, there is no performance difference.
+> > 
+> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
-> SLAB and SLUB use hardwall cpuset check on fallback alloc, while the
-> page allocator uses softwall check for all kernel allocations. This may
-> result in falling into the page allocator even if there are free objects
-> on other nodes. SLAB algorithm is especially affected: the number of
-> objects allocated in vain is unlimited, so that they theoretically can
-> eat up a whole NUMA node. For more details see comments to patches 3, 4.
+> I just encountered a problem on a Lenovo Carbon X1 where it will
+> suspend but won't resume.  A bisect indicated that this patch
+> is causing the problem.
 > 
-> When I last sent a fix (https://lkml.org/lkml/2014/8/10/100), David
-> found the whole cpuset API being cumbersome and proposed to simplify it
-> before getting to fixing its users. So this patch set addresses both
-> David's complain (patches 1, 2) and the SL[AU]B issues (patches 3, 4).
+> 997888488ef92da365b870247de773255227ce1f
 > 
-> Reviews are appreciated.
-> 
-> Thanks,
-> 
-> Vladimir Davydov (4):
->   cpuset: convert callback_mutex to a spinlock
->   cpuset: simplify cpuset_node_allowed API
->   slab: fix cpuset check in fallback_alloc
->   slub: fix cpuset check in get_any_partial
-> 
+> I imagine the patch author, Joonsoo Kim, might have a better idea
+> why this is happening than I do.  But if I can provide any information
+> or run any tests that might be of help just let me know.
 
-Acked-by: Zefan Li <lizefan@huawei.com>
+Hello,
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Yeah, there is a bug. Below will fix your issue.
+Could you test it and report the result?
+
+Thanks for reporting it.
+
+--------->8---------------
