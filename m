@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
-	by kanga.kvack.org (Postfix) with ESMTP id AF4626B0039
-	for <linux-mm@kvack.org>; Mon, 29 Sep 2014 21:54:51 -0400 (EDT)
-Received: by mail-ob0-f182.google.com with SMTP id wo20so14112374obc.41
-        for <linux-mm@kvack.org>; Mon, 29 Sep 2014 18:54:51 -0700 (PDT)
+Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 523FF6B003A
+	for <linux-mm@kvack.org>; Mon, 29 Sep 2014 21:54:52 -0400 (EDT)
+Received: by mail-ob0-f181.google.com with SMTP id wo20so13641551obc.26
+        for <linux-mm@kvack.org>; Mon, 29 Sep 2014 18:54:52 -0700 (PDT)
 Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id c5si21670810obj.80.2014.09.29.18.54.50
+        by mx.google.com with ESMTPS id wr2si21740111obb.28.2014.09.29.18.54.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
         Mon, 29 Sep 2014 18:54:50 -0700 (PDT)
 From: Sasha Levin <sasha.levin@oracle.com>
-Subject: [PATCH 2/5] mm: constify dump_page and friends
-Date: Mon, 29 Sep 2014 21:47:16 -0400
-Message-Id: <1412041639-23617-3-git-send-email-sasha.levin@oracle.com>
+Subject: [PATCH 5/5] mm: poison page struct
+Date: Mon, 29 Sep 2014 21:47:19 -0400
+Message-Id: <1412041639-23617-6-git-send-email-sasha.levin@oracle.com>
 In-Reply-To: <1412041639-23617-1-git-send-email-sasha.levin@oracle.com>
 References: <1412041639-23617-1-git-send-email-sasha.levin@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,176 +20,154 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, mgorman@suse.de, Sasha Levin <sasha.levin@oracle.com>
 
-Constify dump_page so that we could dump_page const pages, there is no
-functional change here.
+Add poisoning to page struct to catch corruption at either the beginning or
+the end of the struct.
 
 Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
 ---
- include/linux/memcontrol.h  | 8 ++++----
- include/linux/mm.h          | 2 +-
- include/linux/mmdebug.h     | 4 ++--
- include/linux/page_cgroup.h | 4 ++--
- mm/debug.c                  | 4 ++--
- mm/memcontrol.c             | 6 +++---
- mm/page_cgroup.c            | 4 ++--
- 7 files changed, 16 insertions(+), 16 deletions(-)
+ include/linux/mm.h         |  9 +++++++++
+ include/linux/mm_types.h   |  6 ++++++
+ include/linux/mmdebug.h    |  6 ++++++
+ include/linux/page-flags.h | 24 ++++++++++++++++--------
+ 4 files changed, 37 insertions(+), 8 deletions(-)
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 19df5d8..534633f 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -200,8 +200,8 @@ void mem_cgroup_split_huge_fixup(struct page *head);
- #endif
- 
- #ifdef CONFIG_DEBUG_VM
--bool mem_cgroup_bad_page_check(struct page *page);
--void mem_cgroup_print_bad_page(struct page *page);
-+bool mem_cgroup_bad_page_check(const struct page *page);
-+void mem_cgroup_print_bad_page(const struct page *page);
- #endif
- #else /* CONFIG_MEMCG */
- struct mem_cgroup;
-@@ -373,13 +373,13 @@ void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
- 
- #if !defined(CONFIG_MEMCG) || !defined(CONFIG_DEBUG_VM)
- static inline bool
--mem_cgroup_bad_page_check(struct page *page)
-+mem_cgroup_bad_page_check(const struct page *page)
- {
- 	return false;
- }
- 
- static inline void
--mem_cgroup_print_bad_page(struct page *page)
-+mem_cgroup_print_bad_page(const struct page *page)
- {
- }
- #endif
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a91874b..0c13412 100644
+index 0c13412..c48c4e2 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -447,7 +447,7 @@ static inline void page_mapcount_reset(struct page *page)
- 	atomic_set(&(page)->_mapcount, -1);
+@@ -524,6 +524,10 @@ static inline struct page *virt_to_head_page(const void *x)
+  */
+ static inline void init_page_count(struct page *page)
+ {
++#ifdef CONFIG_DEBUG_VM_POISON
++	page->poison_start = MM_POISON_BEGIN;
++	page->poison_end = MM_POISON_END;
++#endif
+ 	atomic_set(&page->_count, 1);
  }
  
--static inline int page_mapcount(struct page *page)
-+static inline int page_mapcount(const struct page *page)
+@@ -1482,12 +1486,17 @@ static inline void pgtable_init(void)
+ 
+ static inline bool pgtable_page_ctor(struct page *page)
  {
- 	return atomic_read(&(page)->_mapcount) + 1;
++#ifdef CONFIG_DEBUG_VM_POISON
++	page->poison_start = MM_POISON_BEGIN;
++	page->poison_end = MM_POISON_END;
++#endif
+ 	inc_zone_page_state(page, NR_PAGETABLE);
+ 	return ptlock_init(page);
  }
+ 
+ static inline void pgtable_page_dtor(struct page *page)
+ {
++	VM_CHECK_POISON_PAGE(page);
+ 	pte_lock_deinit(page);
+ 	dec_zone_page_state(page, NR_PAGETABLE);
+ }
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 4e2cf93..7cab56a 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -42,6 +42,9 @@ struct address_space;
+  * and lru list pointers also.
+  */
+ struct page {
++#ifdef CONFIG_DEBUG_VM_POISON
++	u32 poison_start;
++#endif
+ 	/* First double word block */
+ 	unsigned long flags;		/* Atomic flags, some possibly
+ 					 * updated asynchronously */
+@@ -196,6 +199,9 @@ struct page {
+ #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
+ 	int _last_cpupid;
+ #endif
++#ifdef CONFIG_DEBUG_VM_POISON
++	u32 poison_end;
++#endif
+ }
+ /*
+  * The struct page can be forced to be double word aligned so that atomic ops
 diff --git a/include/linux/mmdebug.h b/include/linux/mmdebug.h
-index 877ef22..7d05557 100644
+index 75bc69d..461c452 100644
 --- a/include/linux/mmdebug.h
 +++ b/include/linux/mmdebug.h
-@@ -7,8 +7,8 @@ struct page;
- struct vm_area_struct;
- struct mm_struct;
- 
--extern void dump_page(struct page *page, const char *reason);
--extern void dump_page_badflags(struct page *page, const char *reason,
-+extern void dump_page(const struct page *page, const char *reason);
-+extern void dump_page_badflags(const struct page *page, const char *reason,
- 			       unsigned long badflags);
- void dump_vma(const struct vm_area_struct *vma);
- void dump_mm(const struct mm_struct *mm);
-diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
-index 5c831f1..fa30115 100644
---- a/include/linux/page_cgroup.h
-+++ b/include/linux/page_cgroup.h
-@@ -39,7 +39,7 @@ static inline void page_cgroup_init(void)
- }
+@@ -50,6 +50,11 @@ void dump_mm(const struct mm_struct *mm);
+ 		VM_BUG_ON_VMA((vma)->poison_start != MM_POISON_BEGIN, (vma));\
+ 		VM_BUG_ON_VMA((vma)->poison_end != MM_POISON_END, (vma));\
+ 	} while (0)
++#define VM_CHECK_POISON_PAGE(page)					\
++	do {                                                            \
++		VM_BUG_ON_PAGE((page)->poison_start != MM_POISON_BEGIN, (page));\
++		VM_BUG_ON_PAGE((page)->poison_end != MM_POISON_END, (page));\
++	} while (0)
+ #endif
+ #else
+ #define VM_BUG_ON(cond) BUILD_BUG_ON_INVALID(cond)
+@@ -61,6 +66,7 @@ void dump_mm(const struct mm_struct *mm);
+ #define VM_WARN_ONCE(cond, format...) BUILD_BUG_ON_INVALID(cond)
+ #define VM_CHECK_POISON_MM(mm) do { } while(0)
+ #define VM_CHECK_POISON_VMA(vma) do { } while(0)
++#define VM_CHECK_POISON_PAGE(page) do { } while(0)
  #endif
  
--struct page_cgroup *lookup_page_cgroup(struct page *page);
-+struct page_cgroup *lookup_page_cgroup(const struct page *page);
+ #ifdef CONFIG_DEBUG_VIRTUAL
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index e1f5fcd..688f72c 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -135,35 +135,43 @@ enum pageflags {
+  */
+ #define TESTPAGEFLAG(uname, lname)					\
+ static inline int Page##uname(const struct page *page)			\
+-			{ return test_bit(PG_##lname, &page->flags); }
++			{ VM_CHECK_POISON_PAGE(page);			\
++			  return test_bit(PG_##lname, &page->flags); }
  
- static inline int PageCgroupUsed(struct page_cgroup *pc)
- {
-@@ -52,7 +52,7 @@ static inline void pgdat_page_cgroup_init(struct pglist_data *pgdat)
- {
- }
+ #define SETPAGEFLAG(uname, lname)					\
+ static inline void SetPage##uname(struct page *page)			\
+-			{ set_bit(PG_##lname, &page->flags); }
++			{ VM_CHECK_POISON_PAGE(page);			\
++			  set_bit(PG_##lname, &page->flags); }
  
--static inline struct page_cgroup *lookup_page_cgroup(struct page *page)
-+static inline struct page_cgroup *lookup_page_cgroup(const struct page *page)
- {
- 	return NULL;
- }
-diff --git a/mm/debug.c b/mm/debug.c
-index 5ce45c9..d699471 100644
---- a/mm/debug.c
-+++ b/mm/debug.c
-@@ -80,7 +80,7 @@ static void dump_flags(unsigned long flags,
- 	pr_cont(")\n");
- }
+ #define CLEARPAGEFLAG(uname, lname)					\
+ static inline void ClearPage##uname(struct page *page)			\
+-			{ clear_bit(PG_##lname, &page->flags); }
++			{ VM_CHECK_POISON_PAGE(page);			\
++			  clear_bit(PG_##lname, &page->flags); }
  
--void dump_page_badflags(struct page *page, const char *reason,
-+void dump_page_badflags(const struct page *page, const char *reason,
- 		unsigned long badflags)
- {
- 	pr_emerg("page:%p count:%d mapcount:%d mapping:%p index:%#lx\n",
-@@ -98,7 +98,7 @@ void dump_page_badflags(struct page *page, const char *reason,
- 	mem_cgroup_print_bad_page(page);
- }
+ #define __SETPAGEFLAG(uname, lname)					\
+ static inline void __SetPage##uname(struct page *page)			\
+-			{ __set_bit(PG_##lname, &page->flags); }
++			{ VM_CHECK_POISON_PAGE(page);			\
++			  __set_bit(PG_##lname, &page->flags); }
  
--void dump_page(struct page *page, const char *reason)
-+void dump_page(const struct page *page, const char *reason)
- {
- 	dump_page_badflags(page, reason, 0);
- }
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 23976fd..b698778 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3546,7 +3546,7 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
- #endif
+ #define __CLEARPAGEFLAG(uname, lname)					\
+ static inline void __ClearPage##uname(struct page *page)		\
+-			{ __clear_bit(PG_##lname, &page->flags); }
++			{ VM_CHECK_POISON_PAGE(page);			\
++			  __clear_bit(PG_##lname, &page->flags); }
  
- #ifdef CONFIG_DEBUG_VM
--static struct page_cgroup *lookup_page_cgroup_used(struct page *page)
-+static struct page_cgroup *lookup_page_cgroup_used(const struct page *page)
- {
- 	struct page_cgroup *pc;
+ #define TESTSETFLAG(uname, lname)					\
+ static inline int TestSetPage##uname(struct page *page)			\
+-		{ return test_and_set_bit(PG_##lname, &page->flags); }
++		{ VM_CHECK_POISON_PAGE(page);				\
++		  return test_and_set_bit(PG_##lname, &page->flags); }
  
-@@ -3561,7 +3561,7 @@ static struct page_cgroup *lookup_page_cgroup_used(struct page *page)
- 	return NULL;
- }
+ #define TESTCLEARFLAG(uname, lname)					\
+ static inline int TestClearPage##uname(struct page *page)		\
+-		{ return test_and_clear_bit(PG_##lname, &page->flags); }
++		{ VM_CHECK_POISON_PAGE(page);				\
++		  return test_and_clear_bit(PG_##lname, &page->flags); }
  
--bool mem_cgroup_bad_page_check(struct page *page)
-+bool mem_cgroup_bad_page_check(const struct page *page)
- {
- 	if (mem_cgroup_disabled())
- 		return false;
-@@ -3569,7 +3569,7 @@ bool mem_cgroup_bad_page_check(struct page *page)
- 	return lookup_page_cgroup_used(page) != NULL;
- }
+ #define __TESTCLEARFLAG(uname, lname)					\
+ static inline int __TestClearPage##uname(struct page *page)		\
+-		{ return __test_and_clear_bit(PG_##lname, &page->flags); }
++		{ VM_CHECK_POISON_PAGE(page);				\
++		  return __test_and_clear_bit(PG_##lname, &page->flags); }
  
--void mem_cgroup_print_bad_page(struct page *page)
-+void mem_cgroup_print_bad_page(const struct page *page)
- {
- 	struct page_cgroup *pc;
- 
-diff --git a/mm/page_cgroup.c b/mm/page_cgroup.c
-index 3708264..0f14421 100644
---- a/mm/page_cgroup.c
-+++ b/mm/page_cgroup.c
-@@ -21,7 +21,7 @@ void __meminit pgdat_page_cgroup_init(struct pglist_data *pgdat)
- 	pgdat->node_page_cgroup = NULL;
- }
- 
--struct page_cgroup *lookup_page_cgroup(struct page *page)
-+struct page_cgroup *lookup_page_cgroup(const struct page *page)
- {
- 	unsigned long pfn = page_to_pfn(page);
- 	unsigned long offset;
-@@ -89,7 +89,7 @@ fail:
- 
- #else /* CONFIG_FLAT_NODE_MEM_MAP */
- 
--struct page_cgroup *lookup_page_cgroup(struct page *page)
-+struct page_cgroup *lookup_page_cgroup(const struct page *page)
- {
- 	unsigned long pfn = page_to_pfn(page);
- 	struct mem_section *section = __pfn_to_section(pfn);
+ #define PAGEFLAG(uname, lname) TESTPAGEFLAG(uname, lname)		\
+ 	SETPAGEFLAG(uname, lname) CLEARPAGEFLAG(uname, lname)
 -- 
 1.9.1
 
