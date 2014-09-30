@@ -1,64 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 57E656B0035
-	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 03:17:37 -0400 (EDT)
-Received: by mail-lb0-f174.google.com with SMTP id p9so874826lbv.5
-        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 00:17:36 -0700 (PDT)
-Received: from metis.ext.pengutronix.de (metis.ext.pengutronix.de. [92.198.50.35])
-        by mx.google.com with ESMTPS id p1si21253432lap.104.2014.09.30.00.17.34
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 27D6D6B0035
+	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 03:27:28 -0400 (EDT)
+Received: by mail-wg0-f44.google.com with SMTP id y10so2299226wgg.3
+        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 00:27:27 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gt1si19720707wjc.54.2014.09.30.00.27.26
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 30 Sep 2014 00:17:35 -0700 (PDT)
-Date: Tue, 30 Sep 2014 09:02:09 +0200
-From: Uwe =?iso-8859-1?Q?Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
-Subject: Re: [PATCH resend] arm:extend the reserved memory for initrd to be
- page aligned
-Message-ID: <20140930070209.GG31554@pengutronix.de>
-References: <35FD53F367049845BC99AC72306C23D103D6DB49161F@CNBJMBX05.corpusers.net>
- <20140919095959.GA2295@e104818-lin.cambridge.arm.com>
- <20140925143142.GF5182@n2100.arm.linux.org.uk>
- <20140925154403.GL10390@e104818-lin.cambridge.arm.com>
- <35FD53F367049845BC99AC72306C23D103D6DB49163B@CNBJMBX05.corpusers.net>
- <15815.1412018518@turing-police.cc.vt.edu>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 30 Sep 2014 00:27:26 -0700 (PDT)
+Message-ID: <542A5B5B.7060207@suse.cz>
+Date: Tue, 30 Sep 2014 09:27:23 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <15815.1412018518@turing-police.cc.vt.edu>
+Subject: Re: [PATCH] mm, compaction: using uninitialized_var insteads setting
+ 'flags' to 0 directly.
+References: <1411961425-8045-1-git-send-email-Li.Xiubo@freescale.com>
+In-Reply-To: <1411961425-8045-1-git-send-email-Li.Xiubo@freescale.com>
+Content-Type: text/plain; charset=iso-8859-2
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Valdis.Kletnieks@vt.edu
-Cc: "Wang, Yalin" <Yalin.Wang@sonymobile.com>, 'Catalin Marinas' <catalin.marinas@arm.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Will Deacon <Will.Deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-msm@vger.kernel.org'" <linux-arm-msm@vger.kernel.org>, DL-WW-ContributionOfficers-Linux <DL-WW-ContributionOfficers-Linux@sonymobile.com>
+To: Xiubo Li <Li.Xiubo@freescale.com>, akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, mgorman@suse.de, rientjes@google.com, minchan@kernel.org
 
-Hello,
+On 09/29/2014 05:30 AM, Xiubo Li wrote:
+> Setting 'flags' to zero will be certainly a misleading way to avoid
+> warning of 'flags' may be used uninitialized. uninitialized_var is
+> a correct way because the warning is a false possitive.
 
-On Mon, Sep 29, 2014 at 03:21:58PM -0400, Valdis.Kletnieks@vt.edu wrote:
-> On Fri, 26 Sep 2014 10:40:54 +0800, "Wang, Yalin" said:
+Agree.
+
+> Signed-off-by: Xiubo Li <Li.Xiubo@freescale.com>
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+> ---
+>  mm/compaction.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
 > 
-> > I am really confused,
-> > I read this web:
-> > http://www.arm.linux.org.uk/developer/patches/info.php
-> > it said use diff -urN to generate patch like this:
-> >
-> > diff -Nru linux.orig/lib/string.c linux/lib/string.c
-> >
-> > but I see other developers use git format-patch to generate patch and
-> > submit to the patch system.
-> > Git format-patch format can also be accepted by the patch system correctly ?
-> > If yes, I think this web should update,
-> > Use git format-patch to generate patch is more convenient than use diff -urN
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 92075d5..59a116d 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -344,7 +344,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+>  {
+>  	int nr_scanned = 0, total_isolated = 0;
+>  	struct page *cursor, *valid_page = NULL;
+> -	unsigned long flags = 0;
+> +	unsigned long uninitialized_var(flags);
+>  	bool locked = false;
+>  	unsigned long blockpfn = *start_pfn;
+>  
+> @@ -573,7 +573,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+>  	unsigned long nr_scanned = 0, nr_isolated = 0;
+>  	struct list_head *migratelist = &cc->migratepages;
+>  	struct lruvec *lruvec;
+> -	unsigned long flags = 0;
+> +	unsigned long uninitialized_var(flags);
+>  	bool locked = false;
+>  	struct page *page = NULL, *valid_page = NULL;
+>  
 > 
-> 'diff -urN' has the advantage that it will work against a tree extracted
-> from a release tarball, and doesn't have a requirement that you have git
-That's wrong, patches generated by git-format-patch are also applicable
-just fine on top of an extracted tar ball by patch(1).
-
-Best regards
-Uwe
-
--- 
-Pengutronix e.K.                           | Uwe Kleine-Konig            |
-Industrial Linux Solutions                 | http://www.pengutronix.de/  |
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
