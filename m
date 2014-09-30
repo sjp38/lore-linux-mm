@@ -1,50 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id BA8026B0035
-	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 12:08:57 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id g10so2071022pdj.18
-        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 09:08:57 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id na4si27134312pbc.235.2014.09.30.09.08.56
-        for <linux-mm@kvack.org>;
-        Tue, 30 Sep 2014 09:08:56 -0700 (PDT)
-Date: Tue, 30 Sep 2014 12:08:41 -0400
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v11 00/21] Add support for NV-DIMMs to ext4
-Message-ID: <20140930160841.GB5098@wil.cx>
-References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
- <15705.1412070301@turing-police.cc.vt.edu>
- <20140930144854.GA5098@wil.cx>
- <123795.1412088827@turing-police.cc.vt.edu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <123795.1412088827@turing-police.cc.vt.edu>
+Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 146816B0035
+	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 12:25:29 -0400 (EDT)
+Received: by mail-ig0-f175.google.com with SMTP id r2so873210igi.2
+        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 09:25:28 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v4si17058999igh.50.2014.09.30.09.25.27
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Sep 2014 09:25:28 -0700 (PDT)
+From: Frantisek Hrbata <fhrbata@redhat.com>
+Subject: [PATCH v2 0/4] x86: /dev/mem fixes
+Date: Tue, 30 Sep 2014 18:24:59 +0200
+Message-Id: <1412094303-28183-1-git-send-email-fhrbata@redhat.com>
+In-Reply-To: <1411990382-11902-1-git-send-email-fhrbata@redhat.com>
+References: <1411990382-11902-1-git-send-email-fhrbata@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Valdis.Kletnieks@vt.edu
-Cc: Matthew Wilcox <willy@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, oleg@redhat.com, kamaleshb@in.ibm.com, hechjie@cn.ibm.com, akpm@linux-foundation.org, dave.hansen@intel.com, dvlasenk@redhat.com, prarit@redhat.com, lwoodman@redhat.com, hannsj_uhl@de.ibm.com, torvalds@linux-foundation.org
 
-On Tue, Sep 30, 2014 at 10:53:47AM -0400, Valdis.Kletnieks@vt.edu wrote:
-> On Tue, 30 Sep 2014 10:48:54 -0400, Matthew Wilcox said:
-> 
-> > No, it doesn't try to do that.  Wouldn't you be better served with an
-> > LD_PRELOAD that forces O_DIRECT on?
-> 
-> Not when you don't want it on every file, and users are creating and
-> deleting files once in a while.  A chattr-like command is easier and
-> more scalable than rebuilding the LD_PRELOAD every time the list of
-> files gets changed....
+This is a second version of the patch set. The only change is in
 
-The more I think about this, the more I think this is a bad idea.
-When you have a file open with O_DIRECT, your I/O has to be done in
-512-byte multiples, and it has to be aligned to 512-byte boundaries
-in memory.  If an unsuspecting application has O_DIRECT forced on it,
-it isn't going to know to do that, and so all its I/Os will fail.
-It'll also be horribly inefficient if a program has the file mmaped.
+2/4 x86: add phys addr validity check for /dev/mem mmap
 
-What problem are you really trying to solve?  Some big files hogging
-the page cache?
+where the "count" was replaced with "len_bytes" for better readability.
+
+The rest is just a refresh because of this change.
+
+The original message follows ...
+
+Hi all,
+
+this is a combination of two patch sets I sent a while ago
+1) Prevent possible PTE corruption with /dev/mem mmap
+2) x86: allow read/write /dev/mem to access non-system RAM above high_memory
+
+The original thread with both patch sets can be found here
+   https://lkml.org/lkml/2014/8/14/229
+   lkml: <1408025927-16826-1-git-send-email-fhrbata@redhat.com>
+
+1) Prevent possible PTE corruption with /dev/mem mmap
+x86: add arch_pfn_possible helper
+x86: add phys addr validity check for /dev/mem mmap
+
+Many thanks goes to Dave Hansen, who helped with the "final" check. Other than
+that it did not get much attention, except H. Peter Anvin's complain that having
+two checks for mmap and read/write for /dev/mem access is ridiculous. I for sure
+do not object to this, but AFAICT it's not that simple to unify them and it's not
+"directly" related to the PTE corruption. Please note that there are other
+archs(ia64, arm) using these check. But I for sure can be missing something.
+
+What this patch set does is using the existing interface to implement x86 specific
+check in the least invasive way.
+
+Anyway I tried to remove the high_memory check with a follow-up patch set 2)
+
+2) x86: allow read/write /dev/mem to access non-system RAM above high_memory
+x86: add high_memory check to (xlate|unxlate)_dev_mem_ptr
+x86: remove high_memory check from valid_phys_addr_range
+
+This is an attempt to remove the high_memory limit for the read/write access to
+/dev/mem. IMHO there is no reason for this limit on x86. It is presented in
+the generic valid_phys_addr_range, which is used only by (read|write)_mem. IIUIC
+it's main purpose is for the generic xlate_dev_mem_ptr, which is using only the
+direct kernel mapping __va translation. Since the valid_phys_addr_range is
+called as the first check in (read|write)_mem, it basically does not allow to
+access anything above high_memory on x86.
+
+The first patch adds high_memory check to x86's (xlate|unxlate)_dev_mem_ptr, so
+the direct kernel mapping can be safely used for system RAM bellow high_memory.
+This is IMHO the only valid reason to use high_memory check in (read|write)_mem.
+
+The second patch removes the high_memory check from valid_phys_addr_range,
+allowing read/write to access non-system RAM above high_memory. So far this
+was possible only by using mmap.
+
+I hope I haven't overlooked something.
+
+Many thanks
+
+Frantisek Hrbata (4):
+  x86: add arch_pfn_possible helper
+  x86: add phys addr validity check for /dev/mem mmap
+  x86: add high_memory check to (xlate|unxlate)_dev_mem_ptr
+  x86: remove high_memory check from valid_phys_addr_range
+
+ arch/x86/include/asm/io.h |  4 ++++
+ arch/x86/mm/ioremap.c     |  9 ++++++---
+ arch/x86/mm/mmap.c        | 12 ++++++++++++
+ arch/x86/mm/physaddr.h    |  9 +++++++--
+ 4 files changed, 29 insertions(+), 5 deletions(-)
+
+-- 
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
