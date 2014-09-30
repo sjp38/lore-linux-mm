@@ -1,55 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id DB4176B0035
-	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 01:53:41 -0400 (EDT)
-Received: by mail-lb0-f182.google.com with SMTP id z11so7583512lbi.27
-        for <linux-mm@kvack.org>; Mon, 29 Sep 2014 22:53:41 -0700 (PDT)
-Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
-        by mx.google.com with ESMTPS id lm5si16061627lac.87.2014.09.29.22.53.39
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 57E656B0035
+	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 03:17:37 -0400 (EDT)
+Received: by mail-lb0-f174.google.com with SMTP id p9so874826lbv.5
+        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 00:17:36 -0700 (PDT)
+Received: from metis.ext.pengutronix.de (metis.ext.pengutronix.de. [92.198.50.35])
+        by mx.google.com with ESMTPS id p1si21253432lap.104.2014.09.30.00.17.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 29 Sep 2014 22:53:40 -0700 (PDT)
-Received: by mail-lb0-f176.google.com with SMTP id p9so3650041lbv.7
-        for <linux-mm@kvack.org>; Mon, 29 Sep 2014 22:53:39 -0700 (PDT)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 30 Sep 2014 00:17:35 -0700 (PDT)
+Date: Tue, 30 Sep 2014 09:02:09 +0200
+From: Uwe =?iso-8859-1?Q?Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
+Subject: Re: [PATCH resend] arm:extend the reserved memory for initrd to be
+ page aligned
+Message-ID: <20140930070209.GG31554@pengutronix.de>
+References: <35FD53F367049845BC99AC72306C23D103D6DB49161F@CNBJMBX05.corpusers.net>
+ <20140919095959.GA2295@e104818-lin.cambridge.arm.com>
+ <20140925143142.GF5182@n2100.arm.linux.org.uk>
+ <20140925154403.GL10390@e104818-lin.cambridge.arm.com>
+ <35FD53F367049845BC99AC72306C23D103D6DB49163B@CNBJMBX05.corpusers.net>
+ <15815.1412018518@turing-police.cc.vt.edu>
 MIME-Version: 1.0
-In-Reply-To: <1412052900-1722-1-git-send-email-danielmicay@gmail.com>
-References: <1412052900-1722-1-git-send-email-danielmicay@gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 29 Sep 2014 22:53:18 -0700
-Message-ID: <CALCETrX6D7X7zm3qCn8kaBtYHCQvdR06LAAwzBA=1GteHAaLKA@mail.gmail.com>
-Subject: Re: [PATCH v3] mm: add mremap flag for preserving the old mapping
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <15815.1412018518@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Micay <danielmicay@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, jasone@canonware.com
+To: Valdis.Kletnieks@vt.edu
+Cc: "Wang, Yalin" <Yalin.Wang@sonymobile.com>, 'Catalin Marinas' <catalin.marinas@arm.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Will Deacon <Will.Deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-arm-msm@vger.kernel.org'" <linux-arm-msm@vger.kernel.org>, DL-WW-ContributionOfficers-Linux <DL-WW-ContributionOfficers-Linux@sonymobile.com>
 
-On Mon, Sep 29, 2014 at 9:55 PM, Daniel Micay <danielmicay@gmail.com> wrote:
-> This introduces the MREMAP_RETAIN flag for preserving the source mapping
-> when MREMAP_MAYMOVE moves the pages to a new destination. Accesses to
-> the source location will fault and cause fresh pages to be mapped in.
->
-> For consistency, the old_len >= new_len case could decommit the pages
-> instead of unmapping. However, userspace can accomplish the same thing
-> via madvise and a coherent definition of the flag is possible without
-> the extra complexity.
+Hello,
 
-IMO this needs very clear documentation of exactly what it does.
+On Mon, Sep 29, 2014 at 03:21:58PM -0400, Valdis.Kletnieks@vt.edu wrote:
+> On Fri, 26 Sep 2014 10:40:54 +0800, "Wang, Yalin" said:
+> 
+> > I am really confused,
+> > I read this web:
+> > http://www.arm.linux.org.uk/developer/patches/info.php
+> > it said use diff -urN to generate patch like this:
+> >
+> > diff -Nru linux.orig/lib/string.c linux/lib/string.c
+> >
+> > but I see other developers use git format-patch to generate patch and
+> > submit to the patch system.
+> > Git format-patch format can also be accepted by the patch system correctly ?
+> > If yes, I think this web should update,
+> > Use git format-patch to generate patch is more convenient than use diff -urN
+> 
+> 'diff -urN' has the advantage that it will work against a tree extracted
+> from a release tarball, and doesn't have a requirement that you have git
+That's wrong, patches generated by git-format-patch are also applicable
+just fine on top of an extracted tar ball by patch(1).
 
-Does it preserve the contents of the source pages?  (If so, why?
-Aren't you wasting a bunch of time on page faults and possibly
-unnecessary COWs?)
+Best regards
+Uwe
 
-Does it work on file mappings?  Can it extend file mappings while it moves them?
-
-If you MREMAP_RETAIN a partially COWed private mapping, what happens?
-
-Does it work on special mappings?  If so, please prevent it from doing
-so.  mremapping x86's vdso is a thing, and duplicating x86's vdso
-should not become a thing, because x86_32 in particular will become
-extremely confused.
-
---Andy
+-- 
+Pengutronix e.K.                           | Uwe Kleine-Konig            |
+Industrial Linux Solutions                 | http://www.pengutronix.de/  |
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
