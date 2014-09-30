@@ -1,121 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 080D06B0035
-	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 05:36:50 -0400 (EDT)
-Received: by mail-ig0-f181.google.com with SMTP id r10so342565igi.8
-        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 02:36:50 -0700 (PDT)
-Received: from mail-ie0-x22e.google.com (mail-ie0-x22e.google.com [2607:f8b0:4001:c03::22e])
-        by mx.google.com with ESMTPS id lo3si14680404igb.41.2014.09.30.02.36.50
+Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 336556B0035
+	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 05:45:13 -0400 (EDT)
+Received: by mail-qa0-f54.google.com with SMTP id n8so9849072qaq.27
+        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 02:45:12 -0700 (PDT)
+Received: from omr1.cc.vt.edu (omr1.cc.ipv6.vt.edu. [2001:468:c80:2105:0:2fc:76e3:30de])
+        by mx.google.com with ESMTPS id b9si17052695qar.75.2014.09.30.02.45.11
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 30 Sep 2014 02:36:50 -0700 (PDT)
-Received: by mail-ie0-f174.google.com with SMTP id tr6so3390174ieb.33
-        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 02:36:49 -0700 (PDT)
-Message-ID: <542A79AF.8060602@gmail.com>
-Date: Tue, 30 Sep 2014 05:36:47 -0400
-From: Daniel Micay <danielmicay@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v3] mm: add mremap flag for preserving the old mapping
-References: <1412052900-1722-1-git-send-email-danielmicay@gmail.com> <CALCETrX6D7X7zm3qCn8kaBtYHCQvdR06LAAwzBA=1GteHAaLKA@mail.gmail.com>
-In-Reply-To: <CALCETrX6D7X7zm3qCn8kaBtYHCQvdR06LAAwzBA=1GteHAaLKA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Sep 2014 02:45:11 -0700 (PDT)
+Subject: Re: [PATCH v11 00/21] Add support for NV-DIMMs to ext4
+In-Reply-To: Your message of "Thu, 25 Sep 2014 16:33:17 -0400."
+             <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
+From: Valdis.Kletnieks@vt.edu
+References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1412070301_2231P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Tue, 30 Sep 2014 05:45:01 -0400
+Message-ID: <15705.1412070301@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, jasone@canonware.com
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>
 
-On 30/09/14 01:53 AM, Andy Lutomirski wrote:
-> On Mon, Sep 29, 2014 at 9:55 PM, Daniel Micay <danielmicay@gmail.com> wrote:
->> This introduces the MREMAP_RETAIN flag for preserving the source mapping
->> when MREMAP_MAYMOVE moves the pages to a new destination. Accesses to
->> the source location will fault and cause fresh pages to be mapped in.
->>
->> For consistency, the old_len >= new_len case could decommit the pages
->> instead of unmapping. However, userspace can accomplish the same thing
->> via madvise and a coherent definition of the flag is possible without
->> the extra complexity.
-> 
-> IMO this needs very clear documentation of exactly what it does.
+--==_Exmh_1412070301_2231P
+Content-Type: text/plain; charset=us-ascii
 
-Agreed, and thanks for the review. I'll post a slightly modified version
-of the patch soon (mostly more commit message changes).
+On Thu, 25 Sep 2014 16:33:17 -0400, Matthew Wilcox said:
 
-> Does it preserve the contents of the source pages?  (If so, why?
-> Aren't you wasting a bunch of time on page faults and possibly
-> unnecessary COWs?)
+> Patch 19 adds some DAX infrastructure to support ext4.
+>
+> Patch 20 adds DAX support to ext4.  It is broadly similar to ext2's DAX
+> support, but it is more efficient than ext4's due to its support for
+> unwritten extents.
 
-The source will act as if it was just created. For an anonymous memory
-mapping, it will fault on any accesses and bring in new zeroed pages.
+I don't currently have a use case for NV-DIMM support.
 
-In jemalloc, it replaces an enormous memset(dst, src, size) followed by
-madvise(src, size, MADV_DONTNEED) with mremap. Using mremap also ends up
-eliding page faults from writes at the destination.
+However, it would be nice if this code could be leveraged to support
+'force O_DIRECT on all I/O to this file' - that I *do* have a use
+case for.  Patch 20 looks to my untrained eye like it *almost* gets
+there.
 
-TCMalloc has nearly the same page allocation design, although it tries
-to throttle the purging so it won't always gain as much.
+(And if in fact it *does* do the whole enchilada, the Changelog etc should
+mention it :)
 
-> Does it work on file mappings?  Can it extend file mappings while it moves them?
 
-It works on file mappings. If a move occurs, there will be the usual
-extended destination mapping but with the source mapping left intact.
+--==_Exmh_1412070301_2231P
+Content-Type: application/pgp-signature
 
-It wouldn't be useful with existing allocators, but in theory a general
-purpose allocator could expose an MMIO API in order to reuse the same
-address space via MAP_FIXED/MREMAP_FIXED to reduce VM fragmentation.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+Comment: Exmh version 2.5 07/13/2001
 
-> If you MREMAP_RETAIN a partially COWed private mapping, what happens?
+iQIVAwUBVCp7nQdmEQWDXROgAQLv+Q/+MJrrdItGQo9RwAqKyVmn7uJA2UWWmBJ2
+8otETBMl0IQHv+JHbQTUynXMD6AgKpBrAjkW56dTVc5XhnHIwR7ZzYfriYmp6jpe
+TdNb3iYP1zpKbixfHSCIhmacmJEk9tNYJdSTH1RKagFGM7DRA3LaG5A3PvEr/RGZ
+NpMgADZDUA3AbDT0CQkBVGJ5Y6osPAVq/fD6S0vyvUsmLAVsrtpYMPsJXXh6NaNw
+5qoFjnBNkopPVIDY0vqcqJgNUC0bVRtgkrxhiwDnhzxVdz+qOAri8GbiHkKzAhB+
+iXIbxUl+IH+BVAgmrMZPJA3MDr4U1bCj+dfNlfYI+Mgubm1hzSQEf4re9wcVjWiG
+lyV2NpxhQHkV1P+nw0gVvGd8e5qOWd2WLMdqo4UOGeUSYukhlR4BrkUs8FVt/4Jh
+a/nWascldQ4Lap270vrHRN8oKp9VRz8WoIqzugOg3Nuhtplg6bol5p6y3HnaCUFI
+dclwFW3OT0dDWODZFzXdOZQfCDoEbDwP0Zbk6C42XriNgm7cHEv4Mr06aahC81zo
+/oCZAosXBy61k13hKxRbDR4AHen1oEW/rKNlzhviOCbiIfk2eIrpwgSWtaKRyU5b
+nAvNr0JrjjmNG+K3AftGxa5wPl+cU1lSYM2gKYiawTH5210CbwfCSQ6j+1q4l2ch
+EMrC7MqtG0o=
+=q9v8
+-----END PGP SIGNATURE-----
 
-The original mapping is zeroed in the following test, as it would be
-without fork:
-
-#define _GNU_SOURCE
-
-#include <string.h>
-#include <stdlib.h>
-#include <sys/mman.h>
-#include <unistd.h>
-#include <sys/wait.h>
-
-int main(void) {
-  size_t size = 1024 * 1024;
-  char *orig = mmap(NULL, size, PROT_READ|PROT_WRITE,
-                    MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-  memset(orig, 5, size);
-  int pid = fork();
-  if (pid == -1)
-    return 1;
-  if (pid == 0) {
-    memset(orig, 5, 1024);
-    char *new = mremap(orig, size, size * 128, MREMAP_MAYMOVE|4);
-    if (new == orig) return 1;
-    for (size_t i = 0; i < size; i++)
-      if (new[i] != 5)
-        return 1;
-    for (size_t i = 0; i < size; i++)
-      if (orig[i] != 0)
-        return 1;
-    return 0;
-  }
-  int status;
-  if (wait(&status) < -1) return 1;
-  if (WIFEXITED(status))
-    return WEXITSTATUS(status);
-  return 1;
-}
-
-Hopefully this is the case you're referring to. :)
-
-> Does it work on special mappings?  If so, please prevent it from doing
-> so.  mremapping x86's vdso is a thing, and duplicating x86's vdso
-> should not become a thing, because x86_32 in particular will become
-> extremely confused.
-
-I'll add a check for arch_vma_name(vma) == NULL.
-
-There's an existing check for VM_DONTEXPAND | VM_PFNMAP when expanding
-allocations (the only case this flag impacts). Are there other kinds of
-special mappings that you're referring to?
+--==_Exmh_1412070301_2231P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
