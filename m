@@ -1,123 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id E17AE6B0039
-	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 05:26:44 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y13so2488103pdi.19
-        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 02:26:44 -0700 (PDT)
-Received: from fgwmail6.fujitsu.co.jp (fgwmail6.fujitsu.co.jp. [192.51.44.36])
-        by mx.google.com with ESMTPS id c7si26445513pat.121.2014.09.30.02.26.43
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 080D06B0035
+	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 05:36:50 -0400 (EDT)
+Received: by mail-ig0-f181.google.com with SMTP id r10so342565igi.8
+        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 02:36:50 -0700 (PDT)
+Received: from mail-ie0-x22e.google.com (mail-ie0-x22e.google.com [2607:f8b0:4001:c03::22e])
+        by mx.google.com with ESMTPS id lo3si14680404igb.41.2014.09.30.02.36.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 30 Sep 2014 02:26:44 -0700 (PDT)
-Received: from kw-mxq.gw.nic.fujitsu.com (unknown [10.0.237.131])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 776FB3EE0AE
-	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 18:26:42 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.fujitsu.co.jp [10.0.50.94])
-	by kw-mxq.gw.nic.fujitsu.com (Postfix) with ESMTP id 7C88FAC067C
-	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 18:26:41 +0900 (JST)
-Received: from g01jpfmpwkw03.exch.g01.fujitsu.local (g01jpfmpwkw03.exch.g01.fujitsu.local [10.0.193.57])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 25AB8E38001
-	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 18:26:41 +0900 (JST)
-Message-ID: <542A771C.9040605@jp.fujitsu.com>
-Date: Tue, 30 Sep 2014 18:25:48 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 30 Sep 2014 02:36:50 -0700 (PDT)
+Received: by mail-ie0-f174.google.com with SMTP id tr6so3390174ieb.33
+        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 02:36:49 -0700 (PDT)
+Message-ID: <542A79AF.8060602@gmail.com>
+Date: Tue, 30 Sep 2014 05:36:47 -0400
+From: Daniel Micay <danielmicay@gmail.com>
 MIME-Version: 1.0
-Subject: [PATCH] driver/firmware/memmap: don't create memmap sysfs of same
- firmware_map_entry
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH v3] mm: add mremap flag for preserving the old mapping
+References: <1412052900-1722-1-git-send-email-danielmicay@gmail.com> <CALCETrX6D7X7zm3qCn8kaBtYHCQvdR06LAAwzBA=1GteHAaLKA@mail.gmail.com>
+In-Reply-To: <CALCETrX6D7X7zm3qCn8kaBtYHCQvdR06LAAwzBA=1GteHAaLKA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, jasone@canonware.com
 
-By the following commits, we prevented from allocating firmware_map_entry
-of same memory range:
-  f0093ede: drivers/firmware/memmap.c: don't allocate firmware_map_entry
-            of same memory range
-  49c8b24d: drivers/firmware/memmap.c: pass the correct argument to
-            firmware_map_find_entry_bootmem()
+On 30/09/14 01:53 AM, Andy Lutomirski wrote:
+> On Mon, Sep 29, 2014 at 9:55 PM, Daniel Micay <danielmicay@gmail.com> wrote:
+>> This introduces the MREMAP_RETAIN flag for preserving the source mapping
+>> when MREMAP_MAYMOVE moves the pages to a new destination. Accesses to
+>> the source location will fault and cause fresh pages to be mapped in.
+>>
+>> For consistency, the old_len >= new_len case could decommit the pages
+>> instead of unmapping. However, userspace can accomplish the same thing
+>> via madvise and a coherent definition of the flag is possible without
+>> the extra complexity.
+> 
+> IMO this needs very clear documentation of exactly what it does.
 
-But it's not enough. When PNP0C80 device is added by acpi_scan_init(),
-memmap sysfses of same firmware_map_entry are created twice as follows:
+Agreed, and thanks for the review. I'll post a slightly modified version
+of the patch soon (mostly more commit message changes).
 
-  # cat /sys/firmware/memmap/*/start
-  0x40000000000
-  0x60000000000
-  0x4a837000
-  0x4a83a000
-  0x4a8b5000
-  ...
-  0x40000000000
-  0x60000000000
-  ...
+> Does it preserve the contents of the source pages?  (If so, why?
+> Aren't you wasting a bunch of time on page faults and possibly
+> unnecessary COWs?)
 
-The flows of the issues are as follows:
+The source will act as if it was just created. For an anonymous memory
+mapping, it will fault on any accesses and bring in new zeroed pages.
 
-  1. e820_reserve_resources() allocates firmware_map_entrys of all
-     memory ranges defined in e820. And, these firmware_map_entrys
-     are linked with map_entries list.
+In jemalloc, it replaces an enormous memset(dst, src, size) followed by
+madvise(src, size, MADV_DONTNEED) with mremap. Using mremap also ends up
+eliding page faults from writes at the destination.
 
-     map_entries -> entry 1 -> ... -> entry N
+TCMalloc has nearly the same page allocation design, although it tries
+to throttle the purging so it won't always gain as much.
 
-  2. When PNP0C80 device is limited by mem= boot option, acpi_scan_init()
-     added the memory device. In this case, firmware_map_add_hotplug()
-     allocates firmware_map_entry and creates memmap sysfs.
+> Does it work on file mappings?  Can it extend file mappings while it moves them?
 
-     map_entries -> entry 1 -> ... -> entry N -> entry N+1
-                                                 |
-                                                 memmap 1
+It works on file mappings. If a move occurs, there will be the usual
+extended destination mapping but with the source mapping left intact.
 
-  3. firmware_memmap_init() creates memmap sysfses of firmware_map_entrys
-     linked with map_entries.
+It wouldn't be useful with existing allocators, but in theory a general
+purpose allocator could expose an MMIO API in order to reuse the same
+address space via MAP_FIXED/MREMAP_FIXED to reduce VM fragmentation.
 
-     map_entries -> entry 1 -> ... -> entry N -> entry N+1
-                     |                 |             |
-                     memmap 2          memmap N+1    memmap 1
-                                                     memmap N+2
+> If you MREMAP_RETAIN a partially COWed private mapping, what happens?
 
-So while hot removing the PNP0C80 device, kernel panic occurs as follows:
+The original mapping is zeroed in the following test, as it would be
+without fork:
 
-     BUG: unable to handle kernel paging request at 00000001003e000b
-      IP: sysfs_open_file+0x46/0x2b0
-      PGD 203a89fe067 PUD 0
-      Oops: 0000 [#1] SMP
-      ...
-      Call Trace:
-        do_dentry_open+0x1ef/0x2a0
-        finish_open+0x31/0x40
-        do_last+0x57c/0x1220
-        path_openat+0xc2/0x4c0
-        do_filp_open+0x4b/0xb0
-        do_sys_open+0xf3/0x1f0
-        SyS_open+0x1e/0x20
-        system_call_fastpath+0x16/0x1b
+#define _GNU_SOURCE
 
-The patch adds a check of confirming whether memmap sysfs of
-firmware_map_entry has been created, and does not create memmap
-sysfs of same firmware_map_entry.
+#include <string.h>
+#include <stdlib.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
----
- drivers/firmware/memmap.c | 3 +++
- 1 file changed, 3 insertions(+)
+int main(void) {
+  size_t size = 1024 * 1024;
+  char *orig = mmap(NULL, size, PROT_READ|PROT_WRITE,
+                    MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+  memset(orig, 5, size);
+  int pid = fork();
+  if (pid == -1)
+    return 1;
+  if (pid == 0) {
+    memset(orig, 5, 1024);
+    char *new = mremap(orig, size, size * 128, MREMAP_MAYMOVE|4);
+    if (new == orig) return 1;
+    for (size_t i = 0; i < size; i++)
+      if (new[i] != 5)
+        return 1;
+    for (size_t i = 0; i < size; i++)
+      if (orig[i] != 0)
+        return 1;
+    return 0;
+  }
+  int status;
+  if (wait(&status) < -1) return 1;
+  if (WIFEXITED(status))
+    return WEXITSTATUS(status);
+  return 1;
+}
 
-diff --git a/drivers/firmware/memmap.c b/drivers/firmware/memmap.c
-index 79f18e6..cc016c6 100644
---- a/drivers/firmware/memmap.c
-+++ b/drivers/firmware/memmap.c
-@@ -184,6 +184,9 @@ static int add_sysfs_fw_map_entry(struct firmware_map_entry *entry)
- 	static int map_entries_nr;
- 	static struct kset *mmap_kset;
+Hopefully this is the case you're referring to. :)
 
-+	if (entry->kobj.state_in_sysfs)
-+		return -EEXIST;
-+
- 	if (!mmap_kset) {
- 		mmap_kset = kset_create_and_add("memmap", NULL, firmware_kobj);
- 		if (!mmap_kset)
--- 
-1.8.3.1
+> Does it work on special mappings?  If so, please prevent it from doing
+> so.  mremapping x86's vdso is a thing, and duplicating x86's vdso
+> should not become a thing, because x86_32 in particular will become
+> extremely confused.
+
+I'll add a check for arch_vma_name(vma) == NULL.
+
+There's an existing check for VM_DONTEXPAND | VM_PFNMAP when expanding
+allocations (the only case this flag impacts). Are there other kinds of
+special mappings that you're referring to?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
