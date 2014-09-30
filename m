@@ -1,109 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
-	by kanga.kvack.org (Postfix) with ESMTP id B16CC6B0038
-	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 12:55:10 -0400 (EDT)
-Received: by mail-la0-f42.google.com with SMTP id mk6so4357389lab.1
-        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 09:55:09 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.234])
-        by mx.google.com with ESMTP id jp10si13756063lab.19.2014.09.30.09.55.07
-        for <linux-mm@kvack.org>;
-        Tue, 30 Sep 2014 09:55:08 -0700 (PDT)
-Date: Tue, 30 Sep 2014 19:54:53 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v3 2/6] mm/hugetlb: take page table lock in
- follow_huge_(addr|pmd|pud)()
-Message-ID: <20140930165453.GA29843@node.dhcp.inet.fi>
-References: <1409276340-7054-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1409276340-7054-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <alpine.LSU.2.11.1409031243420.9023@eggly.anvils>
- <20140905052751.GA6883@nhori.redhat.com>
- <alpine.LSU.2.11.1409072307430.1298@eggly.anvils>
+Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 67CE26B003A
+	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 13:11:41 -0400 (EDT)
+Received: by mail-yk0-f170.google.com with SMTP id 20so1142895yks.29
+        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 10:11:41 -0700 (PDT)
+Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
+        by mx.google.com with ESMTPS id v23si16517776yha.104.2014.09.30.10.11.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 30 Sep 2014 10:11:40 -0700 (PDT)
+From: "Zuckerman, Boris" <borisz@hp.com>
+Subject: RE: [PATCH v11 00/21] Add support for NV-DIMMs to ext4
+Date: Tue, 30 Sep 2014 17:10:26 +0000
+Message-ID: <4C30833E5CDF444D84D942543DF65BDA6E047B9B@G4W3303.americas.hpqcorp.net>
+References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
+ <15705.1412070301@turing-police.cc.vt.edu> <20140930144854.GA5098@wil.cx>
+ <123795.1412088827@turing-police.cc.vt.edu> <20140930160841.GB5098@wil.cx>
+In-Reply-To: <20140930160841.GB5098@wil.cx>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1409072307430.1298@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Matthew Wilcox <willy@linux.intel.com>, "Valdis.Kletnieks@vt.edu" <Valdis.Kletnieks@vt.edu>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Mon, Sep 08, 2014 at 12:13:16AM -0700, Hugh Dickins wrote:
-> > > One subtlety to take care over: it's a long time since I've had to
-> > > worry about pmd folding and pud folding (what happens when you only
-> > > have 2 or 3 levels of page table instead of the full 4): macros get
-> > > defined to each other, and levels get optimized out (perhaps
-> > > differently on different architectures).
-> > > 
-> > > So although at first sight the lock to take in follow_huge_pud()
-> > > would seem to be mm->page_table_lock, I am not at this point certain
-> > > that that's necessarily so - sometimes pud_huge might be pmd_huge,
-> > > and the size PMD_SIZE, and pmd_lockptr appropriate at what appears
-> > > to be the pud level.  Maybe: needs checking through the architectures
-> > > and their configs, not obvious to me.
-> > 
-> > I think that every architecture uses mm->page_table_lock for pud-level
-> > locking at least for now, but that could be changed in the future,
-> > for example when 1GB hugepages or pud-based hugepages become common and
-> > someone are interested in splitting lock for pud level.
-> 
-> I'm not convinced by your answer, that you understand the (perhaps
-> imaginary!) issue I'm referring to.  Try grep for __PAGETABLE_P.D_FOLDED.
-> 
-> Our infrastructure allows for 4 levels of pagetable, pgd pud pmd pte,
-> but many architectures/configurations support only 2 or 3 levels.
-> What pud functions and pmd functions work out to be in those
-> configs is confusing, and varies from architecture to architecture.
-> 
-> In particular, pud and pmd may be different expressions of the same
-> thing (with 1 pmd per pud, instead of say 512).  In that case PUD_SIZE
-> will equal PMD_SIZE: and then at the pud level huge_pte_lockptr()
-> will be using split locking instead of mm->page_table_lock.
+>=20
+> The more I think about this, the more I think this is a bad idea.
+> When you have a file open with O_DIRECT, your I/O has to be done in 512-b=
+yte
+> multiples, and it has to be aligned to 512-byte boundaries in memory.  If=
+ an
+> unsuspecting application has O_DIRECT forced on it, it isn't going to kno=
+w to do that,
+> and so all its I/Os will fail.
+> It'll also be horribly inefficient if a program has the file mmaped.
+>=20
+> What problem are you really trying to solve?  Some big files hogging the =
+page cache?
+> --
 
-<sorry for delay -- just back from vacation>
-
-Look like we can't have PMD folded unless PUD is folded too:
-
-include/asm-generic/pgtable-nopmd.h:#include <asm-generic/pgtable-nopud.h>
-
-It means we have three cases:
-
-- Both PMD and PUD are not folded. PUD_SIZE == PMD_SIZE can be true only
-  if PUD table consits from one entry which is emm.. strange.
-- PUD folded, PMD is not. In this case PUD_SIZE is equal to PGDIR_SIZE
-  which is always (I believe) greater than PMD_SIZE.
-- Both are folded: PMD_SIZE == PUD_SIZE == PGDIR_SIZE, but we solve it
-  with ARCH_ENABLE_SPLIT_PMD_PTLOCK. It only enabled on configuration with
-  where PMD is not folded. Without ARCH_ENABLE_SPLIT_PMD_PTLOCK,
-  pmd_lockptr() points to mm->page_table_lock.
-
-Does it make sense?
-
-> Many of the hugetlb architectures have a pud_huge() which just returns
-> 0, and we need not worry about those, nor the follow_huge_addr() powerpc.
-> But arm64, mips, tile, x86 look more interesting.
-> 
-> Frankly, I find myself too dumb to be sure of the right answer for all:
-> and think that when we put the proper locking into follow_huge_pud(),
-> we shall have to include a PUD_SIZE == PMD_SIZE test, to let the
-> compiler decide for us which is the appropriate locking to match
-> huge_pte_lockptr().
-> 
-> Unless Kirill can illuminate: I may be afraid of complications
-> where actually there are none.
-
-I'm more worry about false-negative result of huge_page_size(h) ==
-PMD_SIZE check. I can imagine that some architectures (power and ia64, i
-guess) allows several page sizes on the same page table level, but only
-one of them is PMD_SIZE.
-
-It seems not a problem currently since we enable split PMD lock only on
-x86 and s390.
-
-Possible solution is to annotate each hstate with page table level it
-corresponds to.
-
--- 
- Kirill A. Shutemov
+Page cache? As another copy in RAM?=20
+NV_DIMMs may be viewed as a caching device. This caching can be implemented=
+ on the level of NV block/offset or may have some hints from FS and applica=
+tions. Temporary files is one example. They may not need to hit NV domain e=
+ver. Some transactional journals or DB files is another example. They may s=
+tay in RAM until power off.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
