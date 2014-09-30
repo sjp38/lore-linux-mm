@@ -1,184 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id ECC0C6B003B
-	for <linux-mm@kvack.org>; Mon, 29 Sep 2014 21:54:52 -0400 (EDT)
-Received: by mail-ob0-f178.google.com with SMTP id uy5so3263290obc.37
-        for <linux-mm@kvack.org>; Mon, 29 Sep 2014 18:54:52 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id kf7si21645782oeb.98.2014.09.29.18.54.50
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id E19886B0035
+	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 00:34:07 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id z10so4485820pdj.40
+        for <linux-mm@kvack.org>; Mon, 29 Sep 2014 21:34:07 -0700 (PDT)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id dd3si5144063pdb.47.2014.09.29.21.34.06
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 29 Sep 2014 18:54:50 -0700 (PDT)
-From: Sasha Levin <sasha.levin@oracle.com>
-Subject: [PATCH 3/5] mm: poison mm_struct
-Date: Mon, 29 Sep 2014 21:47:17 -0400
-Message-Id: <1412041639-23617-4-git-send-email-sasha.levin@oracle.com>
-In-Reply-To: <1412041639-23617-1-git-send-email-sasha.levin@oracle.com>
-References: <1412041639-23617-1-git-send-email-sasha.levin@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 29 Sep 2014 21:34:06 -0700 (PDT)
+Received: by mail-pa0-f47.google.com with SMTP id rd3so8436563pab.34
+        for <linux-mm@kvack.org>; Mon, 29 Sep 2014 21:34:06 -0700 (PDT)
+Date: Mon, 29 Sep 2014 21:32:20 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH v3 2/5] mm/hugetlb: take page table lock in
+ follow_huge_pmd()
+In-Reply-To: <1410820799-27278-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Message-ID: <alpine.LSU.2.11.1409292041540.4640@eggly.anvils>
+References: <1410820799-27278-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1410820799-27278-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, mgorman@suse.de, Sasha Levin <sasha.levin@oracle.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>, stable@vger.kernel.org
 
-Add poisoning to mm_struct to catch corruption at either the beginning or the
-end of the struct.
+On Mon, 15 Sep 2014, Naoya Horiguchi wrote:
+> We have a race condition between move_pages() and freeing hugepages,
 
-Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
----
- include/linux/mm_types.h |  6 ++++++
- include/linux/mmdebug.h  |  8 ++++++++
- kernel/fork.c            | 11 +++++++++++
- mm/debug.c               |  7 +++++++
- mm/mmap.c                |  2 ++
- mm/vmacache.c            |  2 ++
- 6 files changed, 36 insertions(+)
+I've been looking through these 5 today, and they're much better now,
+thank you.  But a new concern below, and a minor correction to 3/5.
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 6e0b286..0b0d324 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -343,6 +343,9 @@ struct mm_rss_stat {
- 
- struct kioctx_table;
- struct mm_struct {
-+#ifdef CONFIG_DEBUG_VM_POISON
-+	u32 poison_start;
-+#endif
- 	struct vm_area_struct *mmap;		/* list of VMAs */
- 	struct rb_root mm_rb;
- 	u32 vmacache_seqnum;                   /* per-thread vmacache */
-@@ -454,6 +457,9 @@ struct mm_struct {
- 	bool tlb_flush_pending;
- #endif
- 	struct uprobes_state uprobes_state;
-+#ifdef CONFIG_DEBUG_VM_POISON
-+	u32 poison_end;
-+#endif
- };
- 
- static inline void mm_init_cpumask(struct mm_struct *mm)
-diff --git a/include/linux/mmdebug.h b/include/linux/mmdebug.h
-index 7d05557..339e40f 100644
---- a/include/linux/mmdebug.h
-+++ b/include/linux/mmdebug.h
-@@ -39,6 +39,13 @@ void dump_mm(const struct mm_struct *mm);
- #define VM_WARN_ON(cond) WARN_ON(cond)
- #define VM_WARN_ON_ONCE(cond) WARN_ON_ONCE(cond)
- #define VM_WARN_ONCE(cond, format...) WARN_ONCE(cond, format)
-+#ifdef CONFIG_DEBUG_VM_POISON
-+#define VM_CHECK_POISON_MM(mm)						\
-+	do {								\
-+		VM_BUG_ON_MM((mm)->poison_start != MM_POISON_BEGIN, (mm));\
-+		VM_BUG_ON_MM((mm)->poison_end != MM_POISON_END, (mm));	\
-+	} while (0)
-+#endif
- #else
- #define VM_BUG_ON(cond) BUILD_BUG_ON_INVALID(cond)
- #define VM_BUG_ON_PAGE(cond, page) VM_BUG_ON(cond)
-@@ -47,6 +54,7 @@ void dump_mm(const struct mm_struct *mm);
- #define VM_WARN_ON(cond) BUILD_BUG_ON_INVALID(cond)
- #define VM_WARN_ON_ONCE(cond) BUILD_BUG_ON_INVALID(cond)
- #define VM_WARN_ONCE(cond, format...) BUILD_BUG_ON_INVALID(cond)
-+#define VM_CHECK_POISON_MM(mm) do { } while(0)
- #endif
- 
- #ifdef CONFIG_DEBUG_VIRTUAL
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 807633f..26bedfa 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -600,6 +600,8 @@ static void check_mm(struct mm_struct *mm)
- {
- 	int i;
- 
-+	VM_CHECK_POISON_MM(mm);
-+
- 	for (i = 0; i < NR_MM_COUNTERS; i++) {
- 		long x = atomic_long_read(&mm->rss_stat.count[i]);
- 
-@@ -624,6 +626,12 @@ struct mm_struct *mm_alloc(void)
- 		return NULL;
- 
- 	memset(mm, 0, sizeof(*mm));
-+
-+#ifdef CONFIG_DEBUG_VM_POISON
-+	mm->poison_start = MM_POISON_BEGIN;
-+	mm->poison_end = MM_POISON_END;
-+#endif
-+
- 	return mm_init(mm, current);
- }
- 
-@@ -650,6 +658,8 @@ void mmput(struct mm_struct *mm)
- {
- 	might_sleep();
- 
-+	VM_CHECK_POISON_MM(mm);
-+
- 	if (atomic_dec_and_test(&mm->mm_users)) {
- 		uprobe_clear_state(mm);
- 		exit_aio(mm);
-@@ -714,6 +724,7 @@ struct mm_struct *get_task_mm(struct task_struct *task)
- 	task_lock(task);
- 	mm = task->mm;
- 	if (mm) {
-+		VM_CHECK_POISON_MM(mm);
- 		if (task->flags & PF_KTHREAD)
- 			mm = NULL;
- 		else
-diff --git a/mm/debug.c b/mm/debug.c
-index d699471..a1ebc5e 100644
---- a/mm/debug.c
-+++ b/mm/debug.c
-@@ -167,6 +167,9 @@ EXPORT_SYMBOL(dump_vma);
- void dump_mm(const struct mm_struct *mm)
- {
- 	pr_emerg("mm %p mmap %p seqnum %d task_size %lu\n"
-+#ifdef CONFIG_DEBUG_VM_POISON
-+		"start poison: %s end poison: %s\n"
-+#endif
- #ifdef CONFIG_MMU
- 		"get_unmapped_area %p\n"
- #endif
-@@ -197,6 +200,10 @@ void dump_mm(const struct mm_struct *mm)
- 		"%s",	/* This is here to hold the comma */
- 
- 		mm, mm->mmap, mm->vmacache_seqnum, mm->task_size,
-+#ifdef CONFIG_DEBUG_VM_POISON
-+		(mm->poison_start == MM_POISON_BEGIN) ? "valid" : "invalid",
-+		(mm->poison_end == MM_POISON_END) ? "valid" : "invalid",
-+#endif
- #ifdef CONFIG_MMU
- 		mm->get_unmapped_area,
- #endif
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 9156612..3240bbc 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -469,6 +469,8 @@ static void validate_mm(struct mm_struct *mm)
- 		bug = 1;
- 	}
- 	VM_BUG_ON_MM(bug, mm);
-+
-+	VM_CHECK_POISON_MM(mm);
- }
- #else
- #define validate_mm_rb(root, ignore) do { } while (0)
-diff --git a/mm/vmacache.c b/mm/vmacache.c
-index 9f25af8..d507caa 100644
---- a/mm/vmacache.c
-+++ b/mm/vmacache.c
-@@ -52,6 +52,8 @@ void vmacache_flush_all(struct mm_struct *mm)
-  */
- static bool vmacache_valid_mm(struct mm_struct *mm)
- {
-+	VM_CHECK_POISON_MM(mm);
-+
- 	return current->mm == mm && !(current->flags & PF_KTHREAD);
- }
- 
--- 
-1.9.1
+> --- mmotm-2014-09-09-14-42.orig/mm/gup.c
+> +++ mmotm-2014-09-09-14-42/mm/gup.c
+> @@ -162,33 +162,16 @@ struct page *follow_page_mask(struct vm_area_struct *vma,
+>  
+>  	pmd = pmd_offset(pud, address);
+>  	if (pmd_none(*pmd))
+>  		return no_page_table(vma, flags);
+> -	if (pmd_huge(*pmd) && vma->vm_flags & VM_HUGETLB) {
+> -		page = follow_huge_pmd(mm, address, pmd, flags & FOLL_WRITE);
+> -		if (flags & FOLL_GET) {
+> -			/*
+> -			 * Refcount on tail pages are not well-defined and
+> -			 * shouldn't be taken. The caller should handle a NULL
+> -			 * return when trying to follow tail pages.
+> -			 */
+> -			if (PageHead(page))
+> -				get_page(page);
+> -			else
+> -				page = NULL;
+> -		}
+> -		return page;
+> -	}
+> +	if (pmd_huge(*pmd) && vma->vm_flags & VM_HUGETLB)
+> +		return follow_huge_pmd(mm, address, pmd, flags);
+
+This code here allows for pmd_none() and pmd_huge(), and for pmd_numa()
+and pmd_trans_huge() below; but makes no explicit allowance for !present
+migration and hwpoison entries.
+
+Is it assumed that the pmd_bad() test in follow_page_pte() will catch
+those?  But what of races? migration entries are highly volatile.  And
+is it assumed that a migration entry cannot pass the pmd_huge() test?
+
+That may be true of x86 today, I'm not certain; but if the soft-dirty
+people catch up with the hugetlb-migration people, that might change
+(they #define _PAGE_SWP_SOFT_DIRTY _PAGE_PSE).
+
+Why pmd_huge() does not itself test for present, I cannot say; but it
+probably didn't matter at all before hwpoison and migration were added.
+
+Mind you, with __get_user_pages()'s is_vm_hugtlb_page() test avoiding
+all this code, maybe the only thing that can stumble here is your own
+hugetlb migration code; but that appears to be guarded only by
+down_read of mmap_sem, so races would be possible (if userspace
+is silly enough or malicious enough to do so).
+
+What we have here today looks too fragile to me, but it's probably
+best dealt with by a separate patch.
+
+Or I may be over-anxious, and there may be something "obvious"
+that I'm missing, which saves us from further change.
+
+>  	if ((flags & FOLL_NUMA) && pmd_numa(*pmd))
+>  		return no_page_table(vma, flags);
+>  	if (pmd_trans_huge(*pmd)) {
+> diff --git mmotm-2014-09-09-14-42.orig/mm/hugetlb.c mmotm-2014-09-09-14-42/mm/hugetlb.c
+> index 34351251e164..941832ee3d5a 100644
+> --- mmotm-2014-09-09-14-42.orig/mm/hugetlb.c
+> +++ mmotm-2014-09-09-14-42/mm/hugetlb.c
+> @@ -3668,26 +3668,34 @@ follow_huge_addr(struct mm_struct *mm, unsigned long address,
+>  
+>  struct page * __weak
+>  follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+> -		pmd_t *pmd, int write)
+> +		pmd_t *pmd, int flags)
+>  {
+> -	struct page *page;
+> +	struct page *page = NULL;
+> +	spinlock_t *ptl;
+>  
+> -	page = pte_page(*(pte_t *)pmd);
+> -	if (page)
+> -		page += ((address & ~PMD_MASK) >> PAGE_SHIFT);
+> +	ptl = pmd_lockptr(mm, pmd);
+> +	spin_lock(ptl);
+> +
+> +	if (!pmd_huge(*pmd))
+> +		goto out;
+
+And similarly here.  Though at least here we now have the necessary
+lock, so it's no longer racy, and maybe this pmd_huge() test just needs
+to be replaced by a pmd_present() test?  Or are both needed?
+
+> +
+> +	page = pte_page(*(pte_t *)pmd) + ((address & ~PMD_MASK) >> PAGE_SHIFT);
+> +
+> +	if (flags & FOLL_GET)
+> +		get_page(page);
+> +out:
+> +	spin_unlock(ptl);
+>  	return page;
+>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
