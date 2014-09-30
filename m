@@ -1,43 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 05B546B0035
-	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 17:57:53 -0400 (EDT)
-Received: by mail-wg0-f46.google.com with SMTP id k14so6086565wgh.17
-        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 14:57:53 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id de9si22339961wjb.109.2014.09.30.14.57.52
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 10F566B0069
+	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 18:48:44 -0400 (EDT)
+Received: by mail-wg0-f45.google.com with SMTP id m15so3436284wgh.4
+        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 15:48:44 -0700 (PDT)
+Received: from mail-wg0-x231.google.com (mail-wg0-x231.google.com [2a00:1450:400c:c00::231])
+        by mx.google.com with ESMTPS id m13si18262291wiv.32.2014.09.30.15.48.43
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Tue, 30 Sep 2014 14:57:52 -0700 (PDT)
-Date: Tue, 30 Sep 2014 23:57:46 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [RESEND PATCH 2/4] x86: add phys addr validity check for /dev/mem
- mmap
-In-Reply-To: <20140930163353.GC3073@localhost.localdomain>
-Message-ID: <alpine.DEB.2.11.1409302357290.4455@nanos>
-References: <1411990382-11902-1-git-send-email-fhrbata@redhat.com> <1411990382-11902-3-git-send-email-fhrbata@redhat.com> <alpine.DEB.2.02.1409292211560.22082@ionos.tec.linutronix.de> <20140930124121.GB3073@localhost.localdomain> <542ABDE7.7090808@intel.com>
- <20140930163353.GC3073@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 30 Sep 2014 15:48:43 -0700 (PDT)
+Received: by mail-wg0-f49.google.com with SMTP id x12so3406606wgg.20
+        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 15:48:43 -0700 (PDT)
+From: Paul McQuade <paulmcquad@gmail.com>
+Subject: [PATCH] mm: filemap Remove trailing whitespace
+Date: Tue, 30 Sep 2014 23:48:29 +0100
+Message-Id: <1412117309-20721-1-git-send-email-paulmcquad@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Frantisek Hrbata <fhrbata@redhat.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, oleg@redhat.com, kamaleshb@in.ibm.com, hechjie@cn.ibm.com, akpm@linux-foundation.org, dvlasenk@redhat.com, prarit@redhat.com, lwoodman@redhat.com, hannsj_uhl@de.ibm.com, torvalds@linux-foundation.org
+To: paulmcquad@gmail.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, sasha.levin@oracle.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, riel@redhat.com, hannes@cmpxchg.org, viro@zeniv.linux.org.uk, akpm@linux-foundation.org
 
-On Tue, 30 Sep 2014, Frantisek Hrbata wrote:
-> On Tue, Sep 30, 2014 at 07:27:51AM -0700, Dave Hansen wrote:
-> > On 09/30/2014 05:41 AM, Frantisek Hrbata wrote:
-> > > Does it make sense to replace "count" with "size" so it's consistent with the
-> > > rest or do you prefer "nr_bytes" or as Dave proposed "len_bytes"?
-> > 
-> > I don't care what it is as long as it has a unit in it.
-> 
-> Hi Dave/Thomas,
-> 
-> I sent v2 of this patch set, which uses the "len_bytes". Again, I'm sorry I
-> forgot to fix this the first time.
+Remove 2 trailing whitespace errors
 
-No problem. Shit happens.
+Signed-off-by: Paul McQuade <paulmcquad@gmail.com>
+---
+ mm/filemap.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 90effcd..30ffd32 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1744,7 +1744,7 @@ EXPORT_SYMBOL(generic_file_read_iter);
+ static int page_cache_read(struct file *file, pgoff_t offset)
+ {
+ 	struct address_space *mapping = file->f_mapping;
+-	struct page *page; 
++	struct page *page;
+ 	int ret;
+ 
+ 	do {
+@@ -1761,7 +1761,7 @@ static int page_cache_read(struct file *file, pgoff_t offset)
+ 		page_cache_release(page);
+ 
+ 	} while (ret == AOP_TRUNCATED_PAGE);
+-		
++
+ 	return ret;
+ }
+ 
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
