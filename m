@@ -1,97 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 146816B0035
-	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 12:25:29 -0400 (EDT)
-Received: by mail-ig0-f175.google.com with SMTP id r2so873210igi.2
-        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 09:25:28 -0700 (PDT)
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C46B6B0039
+	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 12:25:37 -0400 (EDT)
+Received: by mail-ig0-f170.google.com with SMTP id a13so1525471igq.5
+        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 09:25:37 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v4si17058999igh.50.2014.09.30.09.25.27
+        by mx.google.com with ESMTPS id g8si13895372icw.4.2014.09.30.09.25.36
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Sep 2014 09:25:28 -0700 (PDT)
+        Tue, 30 Sep 2014 09:25:36 -0700 (PDT)
 From: Frantisek Hrbata <fhrbata@redhat.com>
-Subject: [PATCH v2 0/4] x86: /dev/mem fixes
-Date: Tue, 30 Sep 2014 18:24:59 +0200
-Message-Id: <1412094303-28183-1-git-send-email-fhrbata@redhat.com>
-In-Reply-To: <1411990382-11902-1-git-send-email-fhrbata@redhat.com>
+Subject: [PATCH v2 1/4] x86: add arch_pfn_possible helper
+Date: Tue, 30 Sep 2014 18:25:00 +0200
+Message-Id: <1412094303-28183-2-git-send-email-fhrbata@redhat.com>
+In-Reply-To: <1412094303-28183-1-git-send-email-fhrbata@redhat.com>
 References: <1411990382-11902-1-git-send-email-fhrbata@redhat.com>
+ <1412094303-28183-1-git-send-email-fhrbata@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, oleg@redhat.com, kamaleshb@in.ibm.com, hechjie@cn.ibm.com, akpm@linux-foundation.org, dave.hansen@intel.com, dvlasenk@redhat.com, prarit@redhat.com, lwoodman@redhat.com, hannsj_uhl@de.ibm.com, torvalds@linux-foundation.org
 
-This is a second version of the patch set. The only change is in
+Add helper to check maximum possible pfn on x86. Also make the current
+phys_addr_valid helper using it internally.
 
-2/4 x86: add phys addr validity check for /dev/mem mmap
+Signed-off-by: Frantisek Hrbata <fhrbata@redhat.com>
+---
+ arch/x86/mm/physaddr.h | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
 
-where the "count" was replaced with "len_bytes" for better readability.
-
-The rest is just a refresh because of this change.
-
-The original message follows ...
-
-Hi all,
-
-this is a combination of two patch sets I sent a while ago
-1) Prevent possible PTE corruption with /dev/mem mmap
-2) x86: allow read/write /dev/mem to access non-system RAM above high_memory
-
-The original thread with both patch sets can be found here
-   https://lkml.org/lkml/2014/8/14/229
-   lkml: <1408025927-16826-1-git-send-email-fhrbata@redhat.com>
-
-1) Prevent possible PTE corruption with /dev/mem mmap
-x86: add arch_pfn_possible helper
-x86: add phys addr validity check for /dev/mem mmap
-
-Many thanks goes to Dave Hansen, who helped with the "final" check. Other than
-that it did not get much attention, except H. Peter Anvin's complain that having
-two checks for mmap and read/write for /dev/mem access is ridiculous. I for sure
-do not object to this, but AFAICT it's not that simple to unify them and it's not
-"directly" related to the PTE corruption. Please note that there are other
-archs(ia64, arm) using these check. But I for sure can be missing something.
-
-What this patch set does is using the existing interface to implement x86 specific
-check in the least invasive way.
-
-Anyway I tried to remove the high_memory check with a follow-up patch set 2)
-
-2) x86: allow read/write /dev/mem to access non-system RAM above high_memory
-x86: add high_memory check to (xlate|unxlate)_dev_mem_ptr
-x86: remove high_memory check from valid_phys_addr_range
-
-This is an attempt to remove the high_memory limit for the read/write access to
-/dev/mem. IMHO there is no reason for this limit on x86. It is presented in
-the generic valid_phys_addr_range, which is used only by (read|write)_mem. IIUIC
-it's main purpose is for the generic xlate_dev_mem_ptr, which is using only the
-direct kernel mapping __va translation. Since the valid_phys_addr_range is
-called as the first check in (read|write)_mem, it basically does not allow to
-access anything above high_memory on x86.
-
-The first patch adds high_memory check to x86's (xlate|unxlate)_dev_mem_ptr, so
-the direct kernel mapping can be safely used for system RAM bellow high_memory.
-This is IMHO the only valid reason to use high_memory check in (read|write)_mem.
-
-The second patch removes the high_memory check from valid_phys_addr_range,
-allowing read/write to access non-system RAM above high_memory. So far this
-was possible only by using mmap.
-
-I hope I haven't overlooked something.
-
-Many thanks
-
-Frantisek Hrbata (4):
-  x86: add arch_pfn_possible helper
-  x86: add phys addr validity check for /dev/mem mmap
-  x86: add high_memory check to (xlate|unxlate)_dev_mem_ptr
-  x86: remove high_memory check from valid_phys_addr_range
-
- arch/x86/include/asm/io.h |  4 ++++
- arch/x86/mm/ioremap.c     |  9 ++++++---
- arch/x86/mm/mmap.c        | 12 ++++++++++++
- arch/x86/mm/physaddr.h    |  9 +++++++--
- 4 files changed, 29 insertions(+), 5 deletions(-)
-
+diff --git a/arch/x86/mm/physaddr.h b/arch/x86/mm/physaddr.h
+index a3cd5a0..9df8e3a 100644
+--- a/arch/x86/mm/physaddr.h
++++ b/arch/x86/mm/physaddr.h
+@@ -1,10 +1,15 @@
+ #include <asm/processor.h>
+ 
+-static inline int phys_addr_valid(resource_size_t addr)
++static inline int arch_pfn_possible(unsigned long pfn)
+ {
+ #ifdef CONFIG_PHYS_ADDR_T_64BIT
+-	return !(addr >> boot_cpu_data.x86_phys_bits);
++	return !(pfn >> (boot_cpu_data.x86_phys_bits - PAGE_SHIFT));
+ #else
+ 	return 1;
+ #endif
+ }
++
++static inline int phys_addr_valid(resource_size_t addr)
++{
++	return arch_pfn_possible(addr >> PAGE_SHIFT);
++}
 -- 
 1.9.3
 
