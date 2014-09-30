@@ -1,141 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 129726B0038
-	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 13:49:59 -0400 (EDT)
-Received: by mail-lb0-f177.google.com with SMTP id w7so3693150lbi.22
-        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 10:49:59 -0700 (PDT)
-Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
-        by mx.google.com with ESMTPS id n3si23859872lae.22.2014.09.30.10.49.56
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 30 Sep 2014 10:49:57 -0700 (PDT)
-Received: by mail-la0-f49.google.com with SMTP id ge10so5928324lab.8
-        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 10:49:56 -0700 (PDT)
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id A57546B0038
+	for <linux-mm@kvack.org>; Tue, 30 Sep 2014 15:24:39 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id ey11so8539136pad.41
+        for <linux-mm@kvack.org>; Tue, 30 Sep 2014 12:24:39 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id hh2si27790687pbb.80.2014.09.30.12.24.38
+        for <linux-mm@kvack.org>;
+        Tue, 30 Sep 2014 12:24:38 -0700 (PDT)
+Date: Tue, 30 Sep 2014 15:24:28 -0400
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH v11 00/21] Add support for NV-DIMMs to ext4
+Message-ID: <20140930192428.GF5098@wil.cx>
+References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
+ <15705.1412070301@turing-police.cc.vt.edu>
+ <20140930144854.GA5098@wil.cx>
+ <123795.1412088827@turing-police.cc.vt.edu>
+ <20140930160841.GB5098@wil.cx>
+ <4C30833E5CDF444D84D942543DF65BDA6E047B9B@G4W3303.americas.hpqcorp.net>
 MIME-Version: 1.0
-In-Reply-To: <542A79AF.8060602@gmail.com>
-References: <1412052900-1722-1-git-send-email-danielmicay@gmail.com>
- <CALCETrX6D7X7zm3qCn8kaBtYHCQvdR06LAAwzBA=1GteHAaLKA@mail.gmail.com> <542A79AF.8060602@gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 30 Sep 2014 10:49:36 -0700
-Message-ID: <CALCETrVHgvhAN3neoOpJEk94uM7QKm2izZpp+=1UA6qieaQiTQ@mail.gmail.com>
-Subject: Re: [PATCH v3] mm: add mremap flag for preserving the old mapping
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4C30833E5CDF444D84D942543DF65BDA6E047B9B@G4W3303.americas.hpqcorp.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Micay <danielmicay@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jason Evans <jasone@canonware.com>, Linux API <linux-api@vger.kernel.org>
+To: "Zuckerman, Boris" <borisz@hp.com>
+Cc: Matthew Wilcox <willy@linux.intel.com>, "Valdis.Kletnieks@vt.edu" <Valdis.Kletnieks@vt.edu>, Matthew Wilcox <matthew.r.wilcox@intel.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Sep 30, 2014 2:36 AM, "Daniel Micay" <danielmicay@gmail.com> wrote:
->
-> On 30/09/14 01:53 AM, Andy Lutomirski wrote:
-> > On Mon, Sep 29, 2014 at 9:55 PM, Daniel Micay <danielmicay@gmail.com> wrote:
-> >> This introduces the MREMAP_RETAIN flag for preserving the source mapping
-> >> when MREMAP_MAYMOVE moves the pages to a new destination. Accesses to
-> >> the source location will fault and cause fresh pages to be mapped in.
-> >>
-> >> For consistency, the old_len >= new_len case could decommit the pages
-> >> instead of unmapping. However, userspace can accomplish the same thing
-> >> via madvise and a coherent definition of the flag is possible without
-> >> the extra complexity.
-> >
-> > IMO this needs very clear documentation of exactly what it does.
->
-> Agreed, and thanks for the review. I'll post a slightly modified version
-> of the patch soon (mostly more commit message changes).
->
-> > Does it preserve the contents of the source pages?  (If so, why?
-> > Aren't you wasting a bunch of time on page faults and possibly
-> > unnecessary COWs?)
->
-> The source will act as if it was just created. For an anonymous memory
-> mapping, it will fault on any accesses and bring in new zeroed pages.
->
-> In jemalloc, it replaces an enormous memset(dst, src, size) followed by
-> madvise(src, size, MADV_DONTNEED) with mremap. Using mremap also ends up
-> eliding page faults from writes at the destination.
->
-> TCMalloc has nearly the same page allocation design, although it tries
-> to throttle the purging so it won't always gain as much.
->
-> > Does it work on file mappings?  Can it extend file mappings while it moves them?
->
-> It works on file mappings. If a move occurs, there will be the usual
-> extended destination mapping but with the source mapping left intact.
->
-> It wouldn't be useful with existing allocators, but in theory a general
-> purpose allocator could expose an MMIO API in order to reuse the same
-> address space via MAP_FIXED/MREMAP_FIXED to reduce VM fragmentation.
->
-> > If you MREMAP_RETAIN a partially COWed private mapping, what happens?
->
-> The original mapping is zeroed in the following test, as it would be
-> without fork:
->
-> #define _GNU_SOURCE
->
-> #include <string.h>
-> #include <stdlib.h>
-> #include <sys/mman.h>
-> #include <unistd.h>
-> #include <sys/wait.h>
->
-> int main(void) {
->   size_t size = 1024 * 1024;
->   char *orig = mmap(NULL, size, PROT_READ|PROT_WRITE,
->                     MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
->   memset(orig, 5, size);
->   int pid = fork();
->   if (pid == -1)
->     return 1;
->   if (pid == 0) {
->     memset(orig, 5, 1024);
->     char *new = mremap(orig, size, size * 128, MREMAP_MAYMOVE|4);
->     if (new == orig) return 1;
->     for (size_t i = 0; i < size; i++)
->       if (new[i] != 5)
->         return 1;
->     for (size_t i = 0; i < size; i++)
->       if (orig[i] != 0)
->         return 1;
->     return 0;
->   }
->   int status;
->   if (wait(&status) < -1) return 1;
->   if (WIFEXITED(status))
->     return WEXITSTATUS(status);
->   return 1;
-> }
->
-> Hopefully this is the case you're referring to. :)
+On Tue, Sep 30, 2014 at 05:10:26PM +0000, Zuckerman, Boris wrote:
+> > 
+> > The more I think about this, the more I think this is a bad idea.
+> > When you have a file open with O_DIRECT, your I/O has to be done in 512-byte
+> > multiples, and it has to be aligned to 512-byte boundaries in memory.  If an
+> > unsuspecting application has O_DIRECT forced on it, it isn't going to know to do that,
+> > and so all its I/Os will fail.
+> > It'll also be horribly inefficient if a program has the file mmaped.
+> > 
+> > What problem are you really trying to solve?  Some big files hogging the page cache?
+> > --
+> 
+> Page cache? As another copy in RAM? 
+> NV_DIMMs may be viewed as a caching device. This caching can be implemented on the level of NV block/offset or may have some hints from FS and applications. Temporary files is one example. They may not need to hit NV domain ever. Some transactional journals or DB files is another example. They may stay in RAM until power off.
 
-What about private file mappings?
-
->
-> > Does it work on special mappings?  If so, please prevent it from doing
-> > so.  mremapping x86's vdso is a thing, and duplicating x86's vdso
-> > should not become a thing, because x86_32 in particular will become
-> > extremely confused.
->
-> I'll add a check for arch_vma_name(vma) == NULL.
-
-Careful!  That function is deprecated in favor of vm_ops->name.
-
-I think it might pay to add an explicit vm_op to authorize
-duplication, especially for non-cow mappings.  IOW this kind of
-extension seems quite magical for anything that doesn't have the
-normal COW semantics, including for plain old read-only mappings.
-
->
-> There's an existing check for VM_DONTEXPAND | VM_PFNMAP when expanding
-> allocations (the only case this flag impacts). Are there other kinds of
-> special mappings that you're referring to?
-
-I was referring to special mappings in the install_special_mapping
-sense.  Those may or may not have VM_PFNMAP set.
-
-If VM_DONTEXPAND blocks this new feature entirely, that's probably good.
-
---Andy
+Boris, you're confused.  Valdis is trying to solve an unrelated problem
+(and hopes my DAX patches will do it for him).  I'm explaining to him why
+what he wants to do is a bad idea.  This tangent is unrelated to NV-DIMMs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
