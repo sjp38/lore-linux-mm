@@ -1,90 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E97B6B0069
-	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 05:26:55 -0400 (EDT)
-Received: by mail-lb0-f176.google.com with SMTP id p9so385406lbv.35
-        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 02:26:54 -0700 (PDT)
-Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
-        by mx.google.com with ESMTPS id y4si566160laa.107.2014.10.01.02.26.52
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 01 Oct 2014 02:26:53 -0700 (PDT)
-Message-ID: <542BC8D6.7060306@canonical.com>
-Date: Wed, 01 Oct 2014 11:26:46 +0200
-From: Maarten Lankhorst <maarten.lankhorst@canonical.com>
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id E6E186B0069
+	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 06:39:52 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id fp1so46504pdb.11
+        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 03:39:52 -0700 (PDT)
+Received: from foss-mx-na.foss.arm.com (foss-mx-na.foss.arm.com. [217.140.108.86])
+        by mx.google.com with ESMTP id ew4si334996pdb.247.2014.10.01.03.39.51
+        for <linux-mm@kvack.org>;
+        Wed, 01 Oct 2014 03:39:51 -0700 (PDT)
+Date: Wed, 1 Oct 2014 11:39:30 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH v3 11/13] kmemleak: disable kasan instrumentation for
+ kmemleak
+Message-ID: <20141001103930.GG20364@e104818-lin.cambridge.arm.com>
+References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
+ <1411562649-28231-1-git-send-email-a.ryabinin@samsung.com>
+ <1411562649-28231-12-git-send-email-a.ryabinin@samsung.com>
+ <CACT4Y+aJ9htaruQ1Nn7+MSGwtNzRb_hfytQo98J1wq5N6oh1BA@mail.gmail.com>
+ <CAPAsAGxLxCxOayqcu=PbgFG6J7JEuL8J3+ouz94p_k0v0Hy=wA@mail.gmail.com>
+ <CACT4Y+Z4N5hpz_ZXFOCCbv7sbz2kzrF6gYHMbasDFNwpdOK30Q@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: page allocator bug in 3.16?
-References: <54246506.50401@hurleysoftware.com> <CADnq5_OyRMNsc5L1a-BYbmKe94t+pun+nEh3UvFKLmpb2=1ukg@mail.gmail.com> <542484BF.7080908@hurleysoftware.com>
-In-Reply-To: <542484BF.7080908@hurleysoftware.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACT4Y+Z4N5hpz_ZXFOCCbv7sbz2kzrF6gYHMbasDFNwpdOK30Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Hurley <peter@hurleysoftware.com>, Alex Deucher <alexdeucher@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Thomas Hellstrom <thellstrom@vmware.com>, Hugh Dickens <hughd@google.com>, Linux kernel <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Andrey Ryabinin <a.ryabinin@samsung.com>, LKML <linux-kernel@vger.kernel.org>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Op 25-09-14 om 23:10 schreef Peter Hurley:
-> On 09/25/2014 04:33 PM, Alex Deucher wrote:
->> On Thu, Sep 25, 2014 at 2:55 PM, Peter Hurley <peter@hurleysoftware.com> wrote:
->>> After several days uptime with a 3.16 kernel (generally running
->>> Thunderbird, emacs, kernel builds, several Chrome tabs on multiple
->>> desktop workspaces) I've been seeing some really extreme slowdowns.
->>>
->>> Mostly the slowdowns are associated with gpu-related tasks, like
->>> opening new emacs windows, switching workspaces, laughing at internet
->>> gifs, etc. Because this x86_64 desktop is nouveau-based, I didn't pursue
->>> it right away -- 3.15 is the first time suspend has worked reliably.
->>>
->>> This week I started looking into what the slowdown was and discovered
->>> it's happening during dma allocation through swiotlb (the cpus can do
->>> intel iommu but I don't use it because it's not the default for most users).
->>>
->>> I'm still working on a bisection but each step takes 8+ hours to
->>> validate and even then I'm no longer sure I still have the 'bad'
->>> commit in the bisection. [edit: yup, I started over]
->>>
->>> I just discovered a smattering of these in my logs and only on 3.16-rc+ kernels:
->>> Sep 25 07:57:59 thor kernel: [28786.001300] alloc_contig_range test_pages_isolated(2bf560, 2bf562) failed
->>>
->>> This dual-Xeon box has 10GB and sysrq Show Memory isn't showing heavy
->>> fragmentation [1].
->>>
->>> Besides Mel's page allocator changes in 3.16, another suspect commit is:
->>>
->>> commit b13b1d2d8692b437203de7a404c6b809d2cc4d99
->>> Author: Shaohua Li <shli@kernel.org>
->>> Date:   Tue Apr 8 15:58:09 2014 +0800
->>>
->>>     x86/mm: In the PTE swapout page reclaim case clear the accessed bit instead of flushing the TLB
->>>
->>> Specifically, this statement:
->>>
->>>     It could cause incorrect page aging and the (mistaken) reclaim of
->>>     hot pages, but the chance of that should be relatively low.
->>>
->>> I'm wondering if this could cause worse-case behavior with TTM? I'm
->>> testing a revert of this on mainline 3.16-final now, with no results yet.
->>>
->>> Thoughts?
->> You may also be seeing this:
->> https://lkml.org/lkml/2014/8/8/445
-> Thanks Alex. That is indeed the problem.
->
-> Still reading the email thread to find out where the patches
-> are that fix this. Although it doesn't make much sense to me
-> that nouveau sets up a 1GB GART and then uses TTM which is
-> trying to shove all the DMA through a 16MB CMA window
-> (which turns out to be the base Ubuntu config).
->
-> Regards,
-> Peter Hurley
->
->
-https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1362261
+On Mon, Sep 29, 2014 at 03:10:01PM +0100, Dmitry Vyukov wrote:
+> On Fri, Sep 26, 2014 at 9:36 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com> wrote:
+> > 2014-09-26 21:10 GMT+04:00 Dmitry Vyukov <dvyukov@google.com>:
+> >> Looks good to me.
+> >>
+> >> We can disable kasan instrumentation of this file as well.
+> >
+> > Yes, but why? I don't think we need that.
+> 
+> Just gut feeling. Such tools usually don't play well together. For
+> example, due to asan quarantine lots of leaks will be missed (if we
+> pretend that tools work together, end users will use them together and
+> miss bugs). I won't be surprised if leak detector touches freed
+> objects under some circumstances as well.
+> We can do this if/when discover actual compatibility issues, of course.
 
-CMA's already disabled on x86 in most recent ubuntu kernels. :-)
+I think it's worth testing them together first.
 
-~Maarten
+One issue, as mentioned in the patch log, is that the size information
+that kmemleak gets is the one from the kmem_cache object rather than the
+original allocation size, so this would be rounded up.
+
+Kmemleak should not touch freed objects (if an object is freed during a
+scan, it is protected by some lock until the scan completes). There is a
+bug however which I haven't got to fixing it yet, if kmemleak fails for
+some reason (cannot allocate memory) and disables itself, it may access
+some freed object (though usually hard to trigger).
+
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
