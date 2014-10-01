@@ -1,55 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id F0D5A6B0069
-	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 11:45:00 -0400 (EDT)
-Received: by mail-wi0-f176.google.com with SMTP id hi2so1068590wib.3
-        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 08:45:00 -0700 (PDT)
-Received: from mail-wg0-x229.google.com (mail-wg0-x229.google.com [2a00:1450:400c:c00::229])
-        by mx.google.com with ESMTPS id b11si1642472wjb.152.2014.10.01.08.45.00
+Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 300176B006C
+	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 11:45:53 -0400 (EDT)
+Received: by mail-ie0-f173.google.com with SMTP id tp5so624838ieb.4
+        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 08:45:53 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w2si4606168icy.81.2014.10.01.08.45.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 01 Oct 2014 08:45:00 -0700 (PDT)
-Received: by mail-wg0-f41.google.com with SMTP id b13so854726wgh.0
-        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 08:45:00 -0700 (PDT)
-From: Paul McQuade <paulmcquad@gmail.com>
-Subject: [PATCH] mm: memcontrol Use #include <linux/uaccess.h>
-Date: Wed,  1 Oct 2014 16:44:56 +0100
-Message-Id: <1412178296-2972-1-git-send-email-paulmcquad@gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Oct 2014 08:45:52 -0700 (PDT)
+From: Jeff Moyer <jmoyer@redhat.com>
+Subject: Re: [PATCH v11 00/21] Add support for NV-DIMMs to ext4
+References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
+	<15705.1412070301@turing-police.cc.vt.edu>
+	<20140930144854.GA5098@wil.cx>
+	<123795.1412088827@turing-police.cc.vt.edu>
+	<20140930160841.GB5098@wil.cx>
+	<15704.1412109476@turing-police.cc.vt.edu>
+	<A8F88370-512D-45D0-8414-C478D64E46E5@dilger.ca>
+	<62749.1412113956@turing-police.cc.vt.edu>
+Date: Wed, 01 Oct 2014 11:45:47 -0400
+In-Reply-To: <62749.1412113956@turing-police.cc.vt.edu> (Valdis Kletnieks's
+	message of "Tue, 30 Sep 2014 17:52:36 -0400")
+Message-ID: <x49r3yrn68k.fsf@segfault.boston.devel.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmcquad@gmail.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, mhocko@suse.cz, hannes@cmpxchg.org
+To: Valdis.Kletnieks@vt.edu
+Cc: Andreas Dilger <adilger@dilger.ca>, Matthew Wilcox <willy@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Remove asm headers for linux headers
+Valdis.Kletnieks@vt.edu writes:
 
-Signed-off-by: Paul McQuade <paulmcquad@gmail.com>
----
- mm/memcontrol.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+> As long as we're at it, if we go that route we probably *also* want a
+> way for a program to specify it at open() time (for instance, for the
+> use of backup programs) - that should minimize the infamous "everything
+> runs like a pig after the backup finishes running because  the *useful*
+> pages are all cache-cold".
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 085dc6d..51dbe80 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -56,14 +56,14 @@
- #include <linux/oom.h>
- #include <linux/lockdep.h>
- #include <linux/file.h>
-+#include <linux/uaccess.h>
-+
- #include "internal.h"
- #include <net/sock.h>
- #include <net/ip.h>
- #include <net/tcp_memcontrol.h>
- #include "slab.h"
- 
--#include <asm/uaccess.h>
--
- #include <trace/events/vmscan.h>
- 
- struct cgroup_subsys memory_cgrp_subsys __read_mostly;
--- 
-1.9.1
+This sounds an awful lot like posix_fadvise' POSIX_FADV_NOREUSE flag.
+Whether the implementation lives up to your expectations is another
+matter, but at least the interface is already there.
+
+Cheers,
+Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
