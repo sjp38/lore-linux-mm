@@ -1,48 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
-	by kanga.kvack.org (Postfix) with ESMTP id B35496B0069
-	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 16:16:36 -0400 (EDT)
-Received: by mail-ie0-f173.google.com with SMTP id tp5so1156558ieb.32
-        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 13:16:36 -0700 (PDT)
-Received: from mail-ie0-x232.google.com (mail-ie0-x232.google.com [2607:f8b0:4001:c03::232])
-        by mx.google.com with ESMTPS id e9si25385738igi.24.2014.10.01.13.16.35
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id DDCAC6B0069
+	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 16:35:38 -0400 (EDT)
+Received: by mail-wi0-f181.google.com with SMTP id hi2so1987119wib.2
+        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 13:35:38 -0700 (PDT)
+Received: from mail-wg0-x22a.google.com (mail-wg0-x22a.google.com [2a00:1450:400c:c00::22a])
+        by mx.google.com with ESMTPS id q9si22198579wiz.17.2014.10.01.13.35.38
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 01 Oct 2014 13:16:35 -0700 (PDT)
-Received: by mail-ie0-f178.google.com with SMTP id rl12so1117724iec.23
-        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 13:16:35 -0700 (PDT)
-Date: Wed, 1 Oct 2014 13:16:33 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm, compaction: using uninitialized_var insteads setting
- 'flags' to 0 directly.
-In-Reply-To: <542A5B5B.7060207@suse.cz>
-Message-ID: <alpine.DEB.2.02.1410011314180.21593@chino.kir.corp.google.com>
-References: <1411961425-8045-1-git-send-email-Li.Xiubo@freescale.com> <542A5B5B.7060207@suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Wed, 01 Oct 2014 13:35:38 -0700 (PDT)
+Received: by mail-wg0-f42.google.com with SMTP id z12so1512374wgg.13
+        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 13:35:38 -0700 (PDT)
+From: Paul McQuade <paulmcquad@gmail.com>
+Subject: [PATCH] mm: ksm use pr_err instead of printk
+Date: Wed,  1 Oct 2014 21:35:30 +0100
+Message-Id: <1412195730-9629-1-git-send-email-paulmcquad@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Xiubo Li <Li.Xiubo@freescale.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, minchan@kernel.org
+To: paulmcquad@gmail.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, neilb@suse.de, sasha.levin@oracle.com, rientjes@google.com, hughd@google.com, joe@perches.com, paul.gortmaker@windriver.com, liwanp@linux.vnet.ibm.com, n-horiguchi@ah.jp.nec.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org
 
-On Tue, 30 Sep 2014, Vlastimil Babka wrote:
+WARNING: Prefer: pr_err(...  to printk(KERN_ERR ...
 
-> On 09/29/2014 05:30 AM, Xiubo Li wrote:
-> > Setting 'flags' to zero will be certainly a misleading way to avoid
-> > warning of 'flags' may be used uninitialized. uninitialized_var is
-> > a correct way because the warning is a false possitive.
-> 
-> Agree.
-> 
-> > Signed-off-by: Xiubo Li <Li.Xiubo@freescale.com>
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> 
+Signed-off-by: Paul McQuade <paulmcquad@gmail.com>
+---
+ mm/ksm.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-I thought we just discussed this when 
-mm-compaction-fix-warning-of-flags-may-be-used-uninitialized.patch was 
-merged and, although I liked it, it was stated that we shouldn't add any 
-new users of uninitialized_var().
+diff --git a/mm/ksm.c b/mm/ksm.c
+index fb75902..79a26b4 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -2310,7 +2310,7 @@ static int __init ksm_init(void)
+ 
+ 	ksm_thread = kthread_run(ksm_scan_thread, NULL, "ksmd");
+ 	if (IS_ERR(ksm_thread)) {
+-		printk(KERN_ERR "ksm: creating kthread failed\n");
++		pr_err(KERN_ERR "ksm: creating kthread failed\n");
+ 		err = PTR_ERR(ksm_thread);
+ 		goto out_free;
+ 	}
+@@ -2318,7 +2318,7 @@ static int __init ksm_init(void)
+ #ifdef CONFIG_SYSFS
+ 	err = sysfs_create_group(mm_kobj, &ksm_attr_group);
+ 	if (err) {
+-		printk(KERN_ERR "ksm: register sysfs failed\n");
++		pr_err(KERN_ERR "ksm: register sysfs failed\n");
+ 		kthread_stop(ksm_thread);
+ 		goto out_free;
+ 	}
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
