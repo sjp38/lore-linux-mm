@@ -1,60 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id E6E186B0069
-	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 06:39:52 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id fp1so46504pdb.11
-        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 03:39:52 -0700 (PDT)
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id A16076B0069
+	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 07:11:54 -0400 (EDT)
+Received: by mail-wg0-f47.google.com with SMTP id x13so127056wgg.30
+        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 04:11:54 -0700 (PDT)
 Received: from foss-mx-na.foss.arm.com (foss-mx-na.foss.arm.com. [217.140.108.86])
-        by mx.google.com with ESMTP id ew4si334996pdb.247.2014.10.01.03.39.51
+        by mx.google.com with ESMTP id ch6si741037wjb.106.2014.10.01.04.11.52
         for <linux-mm@kvack.org>;
-        Wed, 01 Oct 2014 03:39:51 -0700 (PDT)
-Date: Wed, 1 Oct 2014 11:39:30 +0100
+        Wed, 01 Oct 2014 04:11:53 -0700 (PDT)
+Date: Wed, 1 Oct 2014 12:11:28 +0100
 From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v3 11/13] kmemleak: disable kasan instrumentation for
- kmemleak
-Message-ID: <20141001103930.GG20364@e104818-lin.cambridge.arm.com>
-References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
- <1411562649-28231-1-git-send-email-a.ryabinin@samsung.com>
- <1411562649-28231-12-git-send-email-a.ryabinin@samsung.com>
- <CACT4Y+aJ9htaruQ1Nn7+MSGwtNzRb_hfytQo98J1wq5N6oh1BA@mail.gmail.com>
- <CAPAsAGxLxCxOayqcu=PbgFG6J7JEuL8J3+ouz94p_k0v0Hy=wA@mail.gmail.com>
- <CACT4Y+Z4N5hpz_ZXFOCCbv7sbz2kzrF6gYHMbasDFNwpdOK30Q@mail.gmail.com>
+Subject: Re: [PATCH V4 1/6] mm: Introduce a general RCU get_user_pages_fast.
+Message-ID: <20141001111127.GG12702@e104818-lin.cambridge.arm.com>
+References: <1411740233-28038-1-git-send-email-steve.capper@linaro.org>
+ <1411740233-28038-2-git-send-email-steve.capper@linaro.org>
+ <alpine.LSU.2.11.1409291443210.2800@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CACT4Y+Z4N5hpz_ZXFOCCbv7sbz2kzrF6gYHMbasDFNwpdOK30Q@mail.gmail.com>
+In-Reply-To: <alpine.LSU.2.11.1409291443210.2800@eggly.anvils>
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrey Ryabinin <ryabinin.a.a@gmail.com>, Andrey Ryabinin <a.ryabinin@samsung.com>, LKML <linux-kernel@vger.kernel.org>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, "x86@kernel.org" <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Steve Capper <steve.capper@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Will Deacon <Will.Deacon@arm.com>, "gary.robertson@linaro.org" <gary.robertson@linaro.org>, "christoffer.dall@linaro.org" <christoffer.dall@linaro.org>, "peterz@infradead.org" <peterz@infradead.org>, "anders.roxell@linaro.org" <anders.roxell@linaro.org>, "dann.frazier@canonical.com" <dann.frazier@canonical.com>, Mark Rutland <Mark.Rutland@arm.com>, "mgorman@suse.de" <mgorman@suse.de>
 
-On Mon, Sep 29, 2014 at 03:10:01PM +0100, Dmitry Vyukov wrote:
-> On Fri, Sep 26, 2014 at 9:36 PM, Andrey Ryabinin <ryabinin.a.a@gmail.com> wrote:
-> > 2014-09-26 21:10 GMT+04:00 Dmitry Vyukov <dvyukov@google.com>:
-> >> Looks good to me.
-> >>
-> >> We can disable kasan instrumentation of this file as well.
+On Mon, Sep 29, 2014 at 10:51:25PM +0100, Hugh Dickins wrote:
+> On Fri, 26 Sep 2014, Steve Capper wrote:
+> > This patch provides a general RCU implementation of get_user_pages_fast
+> > that can be used by architectures that perform hardware broadcast of
+> > TLB invalidations.
 > >
-> > Yes, but why? I don't think we need that.
+> > It is based heavily on the PowerPC implementation by Nick Piggin.
+> >
+> > Signed-off-by: Steve Capper <steve.capper@linaro.org>
+> > Tested-by: Dann Frazier <dann.frazier@canonical.com>
+> > Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
 > 
-> Just gut feeling. Such tools usually don't play well together. For
-> example, due to asan quarantine lots of leaks will be missed (if we
-> pretend that tools work together, end users will use them together and
-> miss bugs). I won't be surprised if leak detector touches freed
-> objects under some circumstances as well.
-> We can do this if/when discover actual compatibility issues, of course.
+> Acked-by: Hugh Dickins <hughd@google.com>
+> 
+> Thanks for making all those clarifications, Steve: this looks very
+> good to me now.  I'm not sure which tree you're hoping will take this
+> and the arm+arm64 patches 2-6: although this one would normally go
+> through akpm, I expect it's easier for you to synchronize if it goes
+> in along with the arm+arm64 2-6 - would that be okay with you, Andrew?
+> I see no clash with what's currently in mmotm.
 
-I think it's worth testing them together first.
+>From an arm64 perspective, I'm more than happy for Andrew to pick up the
+entire series. I already reviewed the patches.
 
-One issue, as mentioned in the patch log, is that the size information
-that kmemleak gets is the one from the kmem_cache object rather than the
-original allocation size, so this would be rounded up.
-
-Kmemleak should not touch freed objects (if an object is freed during a
-scan, it is protected by some lock until the scan completes). There is a
-bug however which I haven't got to fixing it yet, if kmemleak fails for
-some reason (cannot allocate memory) and disables itself, it may access
-some freed object (though usually hard to trigger).
+Thanks.
 
 -- 
 Catalin
