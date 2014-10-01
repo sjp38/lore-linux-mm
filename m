@@ -1,85 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DDD96B006E
-	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 11:52:04 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id v10so434342pde.34
-        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 08:52:03 -0700 (PDT)
-Received: from mail-pa0-x24a.google.com (mail-pa0-x24a.google.com [2607:f8b0:400e:c03::24a])
-        by mx.google.com with ESMTPS id b5si1142797pdb.199.2014.10.01.08.52.01
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C9196B0071
+	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 11:56:38 -0400 (EDT)
+Received: by mail-wi0-f180.google.com with SMTP id em10so1143775wid.7
+        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 08:56:37 -0700 (PDT)
+Received: from mail-wi0-x229.google.com (mail-wi0-x229.google.com [2a00:1450:400c:c05::229])
+        by mx.google.com with ESMTPS id b10si21201021wic.34.2014.10.01.08.56.37
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 01 Oct 2014 08:52:02 -0700 (PDT)
-Received: by mail-pa0-f74.google.com with SMTP id kq14so15246pab.1
-        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 08:52:01 -0700 (PDT)
-Date: Wed, 1 Oct 2014 08:51:59 -0700
-From: Peter Feiner <pfeiner@google.com>
-Subject: Re: [PATCH 2/4] mm: gup: add get_user_pages_locked and
- get_user_pages_unlocked
-Message-ID: <20141001155159.GA7019@google.com>
-References: <1412153797-6667-1-git-send-email-aarcange@redhat.com>
- <1412153797-6667-3-git-send-email-aarcange@redhat.com>
+        Wed, 01 Oct 2014 08:56:37 -0700 (PDT)
+Received: by mail-wi0-f169.google.com with SMTP id cc10so975893wib.0
+        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 08:56:37 -0700 (PDT)
+Date: Wed, 1 Oct 2014 17:56:34 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: memcontrol Use #include <linux/uaccess.h>
+Message-ID: <20141001155634.GB4405@dhcp22.suse.cz>
+References: <1412178296-2972-1-git-send-email-paulmcquad@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1412153797-6667-3-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1412178296-2972-1-git-send-email-paulmcquad@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andres Lagar-Cavilla <andreslc@google.com>, Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, "\\\"Dr. David Alan Gilbert\\\"" <dgilbert@redhat.com>
+To: Paul McQuade <paulmcquad@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, hannes@cmpxchg.org
 
-On Wed, Oct 01, 2014 at 10:56:35AM +0200, Andrea Arcangeli wrote:
-> +static inline long __get_user_pages_locked(struct task_struct *tsk,
-> +					   struct mm_struct *mm,
-> +					   unsigned long start,
-> +					   unsigned long nr_pages,
-> +					   int write, int force,
-> +					   struct page **pages,
-> +					   struct vm_area_struct **vmas,
-> +					   int *locked,
-> +					   bool notify_drop)
-> +{
-> +	int flags = FOLL_TOUCH;
-> +	long ret, pages_done;
-> +	bool lock_dropped;
+On Wed 01-10-14 16:44:56, Paul McQuade wrote:
+> Remove asm headers for linux headers
+
+I think we do not need this header at all these days. There are no
+direct operations on user memory in memcontrol.c.
+
+> Signed-off-by: Paul McQuade <paulmcquad@gmail.com>
+> ---
+>  mm/memcontrol.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 085dc6d..51dbe80 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -56,14 +56,14 @@
+>  #include <linux/oom.h>
+>  #include <linux/lockdep.h>
+>  #include <linux/file.h>
+> +#include <linux/uaccess.h>
 > +
-> +	if (locked) {
-> +		/* if VM_FAULT_RETRY can be returned, vmas become invalid */
-> +		BUG_ON(vmas);
-> +		/* check caller initialized locked */
-> +		BUG_ON(*locked != 1);
-> +	}
-> +
-> +	if (pages)
-> +		flags |= FOLL_GET;
-> +	if (write)
-> +		flags |= FOLL_WRITE;
-> +	if (force)
-> +		flags |= FOLL_FORCE;
-> +
-> +	pages_done = 0;
-> +	lock_dropped = false;
-> +	for (;;) {
-> +		ret = __get_user_pages(tsk, mm, start, nr_pages, flags, pages,
-> +				       vmas, locked);
-> +		if (!locked)
-> +			/* VM_FAULT_RETRY couldn't trigger, bypass */
-> +			return ret;
-> +
-> +		/* VM_FAULT_RETRY cannot return errors */
-> +		if (!*locked) {
-> +			BUG_ON(ret < 0);
-> +			BUG_ON(nr_pages == 1 && ret);
+>  #include "internal.h"
+>  #include <net/sock.h>
+>  #include <net/ip.h>
+>  #include <net/tcp_memcontrol.h>
+>  #include "slab.h"
+>  
+> -#include <asm/uaccess.h>
+> -
+>  #include <trace/events/vmscan.h>
+>  
+>  struct cgroup_subsys memory_cgrp_subsys __read_mostly;
+> -- 
+> 1.9.1
+> 
 
-If I understand correctly, this second BUG_ON is asserting that when
-__get_user_pages is asked for a single page and it is successfully gets the
-page, then it shouldn't have dropped the mmap_sem. If that's the case, then
-you could generalize this assertion to
-
-			BUG_ON(nr_pages == ret);
-
-Otherwise, looks good!
-
-Peter
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
