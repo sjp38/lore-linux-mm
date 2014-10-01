@@ -1,49 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id A31AD6B0069
-	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 16:05:26 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id v10so754286pde.8
-        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 13:05:26 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id qb4si1879390pdb.40.2014.10.01.13.05.24
+Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
+	by kanga.kvack.org (Postfix) with ESMTP id B35496B0069
+	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 16:16:36 -0400 (EDT)
+Received: by mail-ie0-f173.google.com with SMTP id tp5so1156558ieb.32
+        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 13:16:36 -0700 (PDT)
+Received: from mail-ie0-x232.google.com (mail-ie0-x232.google.com [2607:f8b0:4001:c03::232])
+        by mx.google.com with ESMTPS id e9si25385738igi.24.2014.10.01.13.16.35
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Oct 2014 13:05:25 -0700 (PDT)
-Date: Wed, 1 Oct 2014 13:05:23 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/3] mm: generalize VM_BUG_ON() macros
-Message-Id: <20141001130523.d7cf46e735089d681194e8e6@linux-foundation.org>
-In-Reply-To: <1412163121-4295-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1412163121-4295-1-git-send-email-kirill.shutemov@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 01 Oct 2014 13:16:35 -0700 (PDT)
+Received: by mail-ie0-f178.google.com with SMTP id rl12so1117724iec.23
+        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 13:16:35 -0700 (PDT)
+Date: Wed, 1 Oct 2014 13:16:33 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm, compaction: using uninitialized_var insteads setting
+ 'flags' to 0 directly.
+In-Reply-To: <542A5B5B.7060207@suse.cz>
+Message-ID: <alpine.DEB.2.02.1410011314180.21593@chino.kir.corp.google.com>
+References: <1411961425-8045-1-git-send-email-Li.Xiubo@freescale.com> <542A5B5B.7060207@suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Xiubo Li <Li.Xiubo@freescale.com>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mgorman@suse.de, minchan@kernel.org
 
-On Wed,  1 Oct 2014 14:31:59 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+On Tue, 30 Sep 2014, Vlastimil Babka wrote:
 
-> This patch makes VM_BUG_ON() to accept one to three arguments after the
-> condition. Any of these arguments can be page, vma or mm. VM_BUG_ON()
-> will dump info about the argument using appropriate dump_* function.
+> On 09/29/2014 05:30 AM, Xiubo Li wrote:
+> > Setting 'flags' to zero will be certainly a misleading way to avoid
+> > warning of 'flags' may be used uninitialized. uninitialized_var is
+> > a correct way because the warning is a false possitive.
 > 
-> It's intended to replace separate VM_BUG_ON_PAGE(), VM_BUG_ON_VMA(),
-> VM_BUG_ON_MM() and allows additional use-cases like:
+> Agree.
 > 
->   VM_BUG_ON(cond, vma, page);
->   VM_BUG_ON(cond, vma, src_page, dst_page);
->   VM_BUG_ON(cond, mm, src_vma, dst_vma);
->   ...
+> > Signed-off-by: Xiubo Li <Li.Xiubo@freescale.com>
+> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> 
 
-I can't say I'm a fan of this.  We don't do this sort of thing anywhere
-else in the kernel and passing different types to the same thing in
-different places is unusual and exceptional.  We gain very little from
-this so why bother?
-
-Adding new printk(%p) thingies for vmas and pages would be more
-consistent but still of dubious value.
+I thought we just discussed this when 
+mm-compaction-fix-warning-of-flags-may-be-used-uninitialized.patch was 
+merged and, although I liked it, it was stated that we shouldn't add any 
+new users of uninitialized_var().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
