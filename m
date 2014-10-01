@@ -1,58 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id A16076B0069
-	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 07:11:54 -0400 (EDT)
-Received: by mail-wg0-f47.google.com with SMTP id x13so127056wgg.30
-        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 04:11:54 -0700 (PDT)
-Received: from foss-mx-na.foss.arm.com (foss-mx-na.foss.arm.com. [217.140.108.86])
-        by mx.google.com with ESMTP id ch6si741037wjb.106.2014.10.01.04.11.52
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 2185C6B0069
+	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 07:31:42 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id kq14so108829pab.26
+        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 04:31:41 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id zd2si666669pbb.44.2014.10.01.04.31.40
         for <linux-mm@kvack.org>;
-        Wed, 01 Oct 2014 04:11:53 -0700 (PDT)
-Date: Wed, 1 Oct 2014 12:11:28 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH V4 1/6] mm: Introduce a general RCU get_user_pages_fast.
-Message-ID: <20141001111127.GG12702@e104818-lin.cambridge.arm.com>
-References: <1411740233-28038-1-git-send-email-steve.capper@linaro.org>
- <1411740233-28038-2-git-send-email-steve.capper@linaro.org>
- <alpine.LSU.2.11.1409291443210.2800@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1409291443210.2800@eggly.anvils>
-Content-Language: en-US
+        Wed, 01 Oct 2014 04:31:41 -0700 (PDT)
+Message-ID: <1412163094.3126.0.camel@linux.intel.com>
+Subject: Re: [PATCH] MM: dmapool: Fixed a brace coding style issue
+From: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+Date: Wed, 01 Oct 2014 14:31:34 +0300
+In-Reply-To: <542B176E.6000007@gmail.com>
+References: <542B176E.6000007@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Steve Capper <steve.capper@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Will Deacon <Will.Deacon@arm.com>, "gary.robertson@linaro.org" <gary.robertson@linaro.org>, "christoffer.dall@linaro.org" <christoffer.dall@linaro.org>, "peterz@infradead.org" <peterz@infradead.org>, "anders.roxell@linaro.org" <anders.roxell@linaro.org>, "dann.frazier@canonical.com" <dann.frazier@canonical.com>, Mark Rutland <Mark.Rutland@arm.com>, "mgorman@suse.de" <mgorman@suse.de>
+To: Paul McQuade <paulmcquad@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Krzysztof =?UTF-8?Q?Ha=C5=82asa?= <khalasa@piap.pl>, jiri Kosina <jkosina@suse.cz>, Hiroshige Sato <sato.vintage@gmail.com>, Daeseok Youn <daeseok.youn@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Mon, Sep 29, 2014 at 10:51:25PM +0100, Hugh Dickins wrote:
-> On Fri, 26 Sep 2014, Steve Capper wrote:
-> > This patch provides a general RCU implementation of get_user_pages_fast
-> > that can be used by architectures that perform hardware broadcast of
-> > TLB invalidations.
-> >
-> > It is based heavily on the PowerPC implementation by Nick Piggin.
-> >
-> > Signed-off-by: Steve Capper <steve.capper@linaro.org>
-> > Tested-by: Dann Frazier <dann.frazier@canonical.com>
-> > Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+On Tue, 2014-09-30 at 21:49 +0100, Paul McQuade wrote:
+> From 33890970bfffc2bd64b307c41e5c1c92aaba8a2e Mon Sep 17 00:00:00 2001
+> From: Paul McQuade <paulmcquad@gmail.com>
+> Date: Tue, 30 Sep 2014 21:39:37 +0100
+> Subject: [PATCH] MM: dmapool: Fixed a brace coding style issue
 > 
-> Acked-by: Hugh Dickins <hughd@google.com>
+> Removed 3 brace coding style for any arm of this statement
 > 
-> Thanks for making all those clarifications, Steve: this looks very
-> good to me now.  I'm not sure which tree you're hoping will take this
-> and the arm+arm64 patches 2-6: although this one would normally go
-> through akpm, I expect it's easier for you to synchronize if it goes
-> in along with the arm+arm64 2-6 - would that be okay with you, Andrew?
-> I see no clash with what's currently in mmotm.
+> Signed-off-by: Paul McQuade <paulmcquad@gmail.com>
+> ---
+>  mm/dmapool.c | 17 ++++++++---------
+>  1 file changed, 8 insertions(+), 9 deletions(-)
+> 
+> diff --git a/mm/dmapool.c b/mm/dmapool.c
+> index ba8019b..8b3b050 100644
+> --- a/mm/dmapool.c
+> +++ b/mm/dmapool.c
+> @@ -133,28 +133,27 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
+>      struct dma_pool *retval;
+>      size_t allocation;
+>  
+> -    if (align == 0) {
+> +    if (align == 0)
+>          align = 1;
+> -    } else if (align & (align - 1)) {
+> +    else if (align & (align - 1))
+>          return NULL;
+> -    }
+>  
+> -    if (size == 0) {
+> +
 
->From an arm64 perspective, I'm more than happy for Andrew to pick up the
-entire series. I already reviewed the patches.
+Extra empty line?
 
-Thanks.
+
+> +    if (size == 0)
+>          return NULL;
+> -    } else if (size < 4) {
+> +    else if (size < 4)
+
+>          size = 4;
+> -    }
+> +
+>  
+>      if ((size % align) != 0)
+>          size = ALIGN(size, align);
+>  
+>      allocation = max_t(size_t, size, PAGE_SIZE);
+>  
+> -    if (!boundary) {
+> +    if (!boundary)
+>          boundary = allocation;
+> -    } else if ((boundary < size) || (boundary & (boundary - 1))) {
+> +    else if ((boundary < size) || (boundary & (boundary - 1)))
+>          return NULL;
+> -    }
+>  
+>      retval = kmalloc_node(sizeof(*retval), GFP_KERNEL, dev_to_node(dev));
+>      if (!retval)
+
 
 -- 
-Catalin
+Andy Shevchenko <andriy.shevchenko@intel.com>
+Intel Finland Oy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
