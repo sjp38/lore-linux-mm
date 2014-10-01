@@ -1,65 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 363746B0069
+Received: from mail-qa0-f45.google.com (mail-qa0-f45.google.com [209.85.216.45])
+	by kanga.kvack.org (Postfix) with ESMTP id E40A46B006C
 	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 04:57:17 -0400 (EDT)
-Received: by mail-qa0-f48.google.com with SMTP id dc16so111098qab.7
-        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 01:57:16 -0700 (PDT)
+Received: by mail-qa0-f45.google.com with SMTP id s7so200383qap.32
+        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 01:57:17 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q8si556500qgq.4.2014.10.01.01.57.16
+        by mx.google.com with ESMTPS id g2si528382qcz.19.2014.10.01.01.57.17
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Oct 2014 01:57:16 -0700 (PDT)
+        Wed, 01 Oct 2014 01:57:17 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 1/4] mm: gup: add FOLL_TRIED
-Date: Wed,  1 Oct 2014 10:56:34 +0200
-Message-Id: <1412153797-6667-2-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 4/4] mm: gup: use get_user_pages_unlocked within get_user_pages_fast
+Date: Wed,  1 Oct 2014 10:56:37 +0200
+Message-Id: <1412153797-6667-5-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1412153797-6667-1-git-send-email-aarcange@redhat.com>
 References: <1412153797-6667-1-git-send-email-aarcange@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Andres Lagar-Cavilla <andreslc@google.com>, Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "\\\"Dr. David Alan Gilbert\\\"" <dgilbert@redhat.com>
 
-From: Andres Lagar-Cavilla <andreslc@google.com>
-
-Reviewed-by: Radim KrA?mA!A? <rkrcmar@redhat.com>
-Signed-off-by: Andres Lagar-Cavilla <andreslc@google.com>
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- include/linux/mm.h | 1 +
- mm/gup.c           | 4 ++++
- 2 files changed, 5 insertions(+)
+ arch/mips/mm/gup.c       | 8 +++-----
+ arch/powerpc/mm/gup.c    | 6 ++----
+ arch/s390/kvm/kvm-s390.c | 4 +---
+ arch/s390/mm/gup.c       | 6 ++----
+ arch/sh/mm/gup.c         | 6 ++----
+ arch/sparc/mm/gup.c      | 6 ++----
+ arch/x86/mm/gup.c        | 7 +++----
+ 7 files changed, 15 insertions(+), 28 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 8981cc8..0f4196a 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1985,6 +1985,7 @@ static inline struct page *follow_page(struct vm_area_struct *vma,
- #define FOLL_HWPOISON	0x100	/* check page is hwpoisoned */
- #define FOLL_NUMA	0x200	/* force NUMA hinting page fault */
- #define FOLL_MIGRATION	0x400	/* wait for page to replace migration entry */
-+#define FOLL_TRIED	0x800	/* a retry, previous pass started an IO */
+diff --git a/arch/mips/mm/gup.c b/arch/mips/mm/gup.c
+index 06ce17c..20884f5 100644
+--- a/arch/mips/mm/gup.c
++++ b/arch/mips/mm/gup.c
+@@ -301,11 +301,9 @@ slow_irqon:
+ 	start += nr << PAGE_SHIFT;
+ 	pages += nr;
  
- typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
- 			void *data);
-diff --git a/mm/gup.c b/mm/gup.c
-index 91d044b..af7ea3e 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -281,6 +281,10 @@ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
- 		fault_flags |= FAULT_FLAG_ALLOW_RETRY;
- 	if (*flags & FOLL_NOWAIT)
- 		fault_flags |= FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT;
-+	if (*flags & FOLL_TRIED) {
-+		VM_WARN_ON_ONCE(fault_flags & FAULT_FLAG_ALLOW_RETRY);
-+		fault_flags |= FAULT_FLAG_TRIED;
-+	}
+-	down_read(&mm->mmap_sem);
+-	ret = get_user_pages(current, mm, start,
+-				(end - start) >> PAGE_SHIFT,
+-				write, 0, pages, NULL);
+-	up_read(&mm->mmap_sem);
++	ret = get_user_pages_unlocked(current, mm, start,
++				      (end - start) >> PAGE_SHIFT,
++				      write, 0, pages);
  
- 	ret = handle_mm_fault(mm, vma, address, fault_flags);
- 	if (ret & VM_FAULT_ERROR) {
+ 	/* Have to be a bit careful with return values */
+ 	if (nr > 0) {
+diff --git a/arch/powerpc/mm/gup.c b/arch/powerpc/mm/gup.c
+index d874668..b70c34a 100644
+--- a/arch/powerpc/mm/gup.c
++++ b/arch/powerpc/mm/gup.c
+@@ -215,10 +215,8 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 		start += nr << PAGE_SHIFT;
+ 		pages += nr;
+ 
+-		down_read(&mm->mmap_sem);
+-		ret = get_user_pages(current, mm, start,
+-				     nr_pages - nr, write, 0, pages, NULL);
+-		up_read(&mm->mmap_sem);
++		ret = get_user_pages_unlocked(current, mm, start,
++					      nr_pages - nr, write, 0, pages);
+ 
+ 		/* Have to be a bit careful with return values */
+ 		if (nr > 0) {
+diff --git a/arch/s390/kvm/kvm-s390.c b/arch/s390/kvm/kvm-s390.c
+index 81b0e11..37ca29a 100644
+--- a/arch/s390/kvm/kvm-s390.c
++++ b/arch/s390/kvm/kvm-s390.c
+@@ -1092,9 +1092,7 @@ long kvm_arch_fault_in_page(struct kvm_vcpu *vcpu, gpa_t gpa, int writable)
+ 	hva = gmap_fault(gpa, vcpu->arch.gmap);
+ 	if (IS_ERR_VALUE(hva))
+ 		return (long)hva;
+-	down_read(&mm->mmap_sem);
+-	rc = get_user_pages(current, mm, hva, 1, writable, 0, NULL, NULL);
+-	up_read(&mm->mmap_sem);
++	rc = get_user_pages_unlocked(current, mm, hva, 1, writable, 0, NULL);
+ 
+ 	return rc < 0 ? rc : 0;
+ }
+diff --git a/arch/s390/mm/gup.c b/arch/s390/mm/gup.c
+index 639fce46..5c586c7 100644
+--- a/arch/s390/mm/gup.c
++++ b/arch/s390/mm/gup.c
+@@ -235,10 +235,8 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 	/* Try to get the remaining pages with get_user_pages */
+ 	start += nr << PAGE_SHIFT;
+ 	pages += nr;
+-	down_read(&mm->mmap_sem);
+-	ret = get_user_pages(current, mm, start,
+-			     nr_pages - nr, write, 0, pages, NULL);
+-	up_read(&mm->mmap_sem);
++	ret = get_user_pages_unlocked(current, mm, start,
++			     nr_pages - nr, write, 0, pages);
+ 	/* Have to be a bit careful with return values */
+ 	if (nr > 0)
+ 		ret = (ret < 0) ? nr : ret + nr;
+diff --git a/arch/sh/mm/gup.c b/arch/sh/mm/gup.c
+index 37458f3..e15f52a 100644
+--- a/arch/sh/mm/gup.c
++++ b/arch/sh/mm/gup.c
+@@ -257,10 +257,8 @@ slow_irqon:
+ 		start += nr << PAGE_SHIFT;
+ 		pages += nr;
+ 
+-		down_read(&mm->mmap_sem);
+-		ret = get_user_pages(current, mm, start,
+-			(end - start) >> PAGE_SHIFT, write, 0, pages, NULL);
+-		up_read(&mm->mmap_sem);
++		ret = get_user_pages_unlocked(current, mm, start,
++			(end - start) >> PAGE_SHIFT, write, 0, pages);
+ 
+ 		/* Have to be a bit careful with return values */
+ 		if (nr > 0) {
+diff --git a/arch/sparc/mm/gup.c b/arch/sparc/mm/gup.c
+index 1aed043..fa7de7d 100644
+--- a/arch/sparc/mm/gup.c
++++ b/arch/sparc/mm/gup.c
+@@ -219,10 +219,8 @@ slow:
+ 		start += nr << PAGE_SHIFT;
+ 		pages += nr;
+ 
+-		down_read(&mm->mmap_sem);
+-		ret = get_user_pages(current, mm, start,
+-			(end - start) >> PAGE_SHIFT, write, 0, pages, NULL);
+-		up_read(&mm->mmap_sem);
++		ret = get_user_pages_unlocked(current, mm, start,
++			(end - start) >> PAGE_SHIFT, write, 0, pages);
+ 
+ 		/* Have to be a bit careful with return values */
+ 		if (nr > 0) {
+diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
+index 207d9aef..2ab183b 100644
+--- a/arch/x86/mm/gup.c
++++ b/arch/x86/mm/gup.c
+@@ -388,10 +388,9 @@ slow_irqon:
+ 		start += nr << PAGE_SHIFT;
+ 		pages += nr;
+ 
+-		down_read(&mm->mmap_sem);
+-		ret = get_user_pages(current, mm, start,
+-			(end - start) >> PAGE_SHIFT, write, 0, pages, NULL);
+-		up_read(&mm->mmap_sem);
++		ret = get_user_pages_unlocked(current, mm, start,
++					      (end - start) >> PAGE_SHIFT,
++					      write, 0, pages);
+ 
+ 		/* Have to be a bit careful with return values */
+ 		if (nr > 0) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
