@@ -1,109 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 46A9A6B0072
-	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 04:57:19 -0400 (EDT)
-Received: by mail-qg0-f41.google.com with SMTP id f51so239689qge.0
-        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 01:57:19 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e2si370697qga.116.2014.10.01.01.57.17
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 87C406B0072
+	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 04:58:02 -0400 (EDT)
+Received: by mail-wi0-f177.google.com with SMTP id ho1so730865wib.10
+        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 01:58:01 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bf5si373035wjc.82.2014.10.01.01.58.00
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Oct 2014 01:57:18 -0700 (PDT)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 0/4] leverage FAULT_FOLL_ALLOW_RETRY in get_user_pages
-Date: Wed,  1 Oct 2014 10:56:33 +0200
-Message-Id: <1412153797-6667-1-git-send-email-aarcange@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 01 Oct 2014 01:58:01 -0700 (PDT)
+From: Jiri Slaby <jslaby@suse.cz>
+Subject: [PATCH 3.12 60/96] x86/mm: In the PTE swapout page reclaim case clear the accessed bit instead of flushing the TLB
+Date: Wed,  1 Oct 2014 10:57:21 +0200
+Message-Id: <c32064785ad77722a76437f7d0826f063158d3f2.1412147522.git.jslaby@suse.cz>
+In-Reply-To: <c3bd31a1700393488d631dce29e38a71bf1c413f.1412147522.git.jslaby@suse.cz>
+References: <c3bd31a1700393488d631dce29e38a71bf1c413f.1412147522.git.jslaby@suse.cz>
+In-Reply-To: <cover.1412147522.git.jslaby@suse.cz>
+References: <cover.1412147522.git.jslaby@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Andres Lagar-Cavilla <andreslc@google.com>, Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "\\\"Dr. David Alan Gilbert\\\"" <dgilbert@redhat.com>
+To: stable@vger.kernel.org
+Cc: Shaohua Li <shli@kernel.org>, Shaohua Li <shli@fusionio.com>, linux-mm@kvack.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>, Jiri Slaby <jslaby@suse.cz>
 
-FAULT_FOLL_ALLOW_RETRY allows the page fault to drop the mmap_sem for
-reading to reduce the mmap_sem contention (for writing), like while
-waiting for I/O completion. The problem is that right now practically
-no get_user_pages call uses FAULT_FOLL_ALLOW_RETRY, so we're not
-leveraging that nifty feature.
+From: Shaohua Li <shli@kernel.org>
 
-Andres fixed it for the KVM page fault. However get_user_pages_fast
-remains uncovered, and 99% of other get_user_pages aren't using it
-either (the only exception being FOLL_NOWAIT in KVM which is really
-nonblocking and in fact it doesn't even release the mmap_sem).
+3.12-stable review patch.  If anyone has any objections, please let me know.
 
-So this patchsets extends the optimization Andres did in the KVM page
-fault to the whole kernel. It makes most important places (including
-gup_fast) to use FAULT_FOLL_ALLOW_RETRY to reduce the mmap_sem hold
-times during I/O.
+===============
 
-The only few places that remains uncovered are drivers like v4l and
-other exceptions that tends to work on their own memory and they're
-not working on random user memory (for example like O_DIRECT that uses
-gup_fast and is fully covered by this patch).
+commit b13b1d2d8692b437203de7a404c6b809d2cc4d99 upstream.
 
-A follow up patch should probably also add a printk_once warning to
-get_user_pages that should go obsolete and be phased out
-eventually. The "vmas" parameter of get_user_pages makes it
-fundamentally incompatible with FAULT_FOLL_ALLOW_RETRY (vmas array
-becomes meaningless the moment the mmap_sem is released). 
+We use the accessed bit to age a page at page reclaim time,
+and currently we also flush the TLB when doing so.
 
-While this is just an optimization, this becomes an absolute
-requirement for the userfaultfd. The userfaultfd allows to block the
-page fault, and in order to do so I need to drop the mmap_sem
-first. So this patch also ensures that all memory where
-userfaultfd could be registered by KVM, the very first fault (no
-matter if it is a regular page fault, or a get_user_pages) always
-has FAULT_FOLL_ALLOW_RETRY set. Then the userfaultfd blocks and it is
-waken only when the pagetable is already mapped. The second fault
-attempt after the wakeup doesn't need FAULT_FOLL_ALLOW_RETRY, so it's
-ok to retry without it.
+But in some workloads TLB flush overhead is very heavy. In my
+simple multithreaded app with a lot of swap to several pcie
+SSDs, removing the tlb flush gives about 20% ~ 30% swapout
+speedup.
 
-So I need this merged before I can attempt to merge the userfaultfd.
+Fortunately just removing the TLB flush is a valid optimization:
+on x86 CPUs, clearing the accessed bit without a TLB flush
+doesn't cause data corruption.
 
-This has been running fully stable on a heavy KVM postcopy live
-migration workload that also includes the new userfaultfd API allows
-an unlimited number of userfaultfds per process and each one can at
-any time register and unregister memory ranges, so each thread or each
-shared lib can do userfaults in its own private memory independently
-of each other and independently of the main process. This is also the
-same load that exposed the nfs silent memory corruption and it uses
-O_DIRECT also on nfs so get_user_pages_fast and all sort of
-get_user_pages are exercised both by NFS and KVM at the same time on
-the userfaultfd backed memory.
+It could cause incorrect page aging and the (mistaken) reclaim of
+hot pages, but the chance of that should be relatively low.
 
-Reviews would be welcome, thanks,
-Andrea
+So as a performance optimization don't flush the TLB when
+clearing the accessed bit, it will eventually be flushed by
+a context switch or a VM operation anyway. [ In the rare
+event of it not getting flushed for a long time the delay
+shouldn't really matter because there's no real memory
+pressure for swapout to react to. ]
 
-Andrea Arcangeli (3):
-  mm: gup: add get_user_pages_locked and get_user_pages_unlocked
-  mm: gup: use get_user_pages_fast and get_user_pages_unlocked
-  mm: gup: use get_user_pages_unlocked within get_user_pages_fast
+Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
+Signed-off-by: Shaohua Li <shli@fusionio.com>
+Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mgorman@suse.de>
+Acked-by: Hugh Dickins <hughd@google.com>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Link: http://lkml.kernel.org/r/20140408075809.GA1764@kernel.org
+[ Rewrote the changelog and the code comments. ]
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Jiri Slaby <jslaby@suse.cz>
+---
+ arch/x86/mm/pgtable.c | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)
 
-Andres Lagar-Cavilla (1):
-  mm: gup: add FOLL_TRIED
-
- arch/mips/mm/gup.c                 |   8 +-
- arch/powerpc/mm/gup.c              |   6 +-
- arch/s390/kvm/kvm-s390.c           |   4 +-
- arch/s390/mm/gup.c                 |   6 +-
- arch/sh/mm/gup.c                   |   6 +-
- arch/sparc/mm/gup.c                |   6 +-
- arch/x86/mm/gup.c                  |   7 +-
- drivers/dma/iovlock.c              |  10 +-
- drivers/iommu/amd_iommu_v2.c       |   6 +-
- drivers/media/pci/ivtv/ivtv-udma.c |   6 +-
- drivers/misc/sgi-gru/grufault.c    |   3 +-
- drivers/scsi/st.c                  |  10 +-
- drivers/video/fbdev/pvr2fb.c       |   5 +-
- include/linux/mm.h                 |   8 ++
- mm/gup.c                           | 182 ++++++++++++++++++++++++++++++++++---
- mm/mempolicy.c                     |   2 +-
- mm/nommu.c                         |  23 +++++
- mm/process_vm_access.c             |   7 +-
- mm/util.c                          |  10 +-
- net/ceph/pagevec.c                 |   9 +-
- 20 files changed, 236 insertions(+), 88 deletions(-)
+diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
+index dfa537a03be1..5da29d04de2f 100644
+--- a/arch/x86/mm/pgtable.c
++++ b/arch/x86/mm/pgtable.c
+@@ -386,13 +386,20 @@ int pmdp_test_and_clear_young(struct vm_area_struct *vma,
+ int ptep_clear_flush_young(struct vm_area_struct *vma,
+ 			   unsigned long address, pte_t *ptep)
+ {
+-	int young;
+-
+-	young = ptep_test_and_clear_young(vma, address, ptep);
+-	if (young)
+-		flush_tlb_page(vma, address);
+-
+-	return young;
++	/*
++	 * On x86 CPUs, clearing the accessed bit without a TLB flush
++	 * doesn't cause data corruption. [ It could cause incorrect
++	 * page aging and the (mistaken) reclaim of hot pages, but the
++	 * chance of that should be relatively low. ]
++	 *
++	 * So as a performance optimization don't flush the TLB when
++	 * clearing the accessed bit, it will eventually be flushed by
++	 * a context switch or a VM operation anyway. [ In the rare
++	 * event of it not getting flushed for a long time the delay
++	 * shouldn't really matter because there's no real memory
++	 * pressure for swapout to react to. ]
++	 */
++	return ptep_test_and_clear_young(vma, address, ptep);
+ }
+ 
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
