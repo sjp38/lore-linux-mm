@@ -1,62 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f173.google.com (mail-vc0-f173.google.com [209.85.220.173])
-	by kanga.kvack.org (Postfix) with ESMTP id CBDFE6B0069
-	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 05:11:10 -0400 (EDT)
-Received: by mail-vc0-f173.google.com with SMTP id ij19so248732vcb.32
-        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 02:11:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id fo3si141326vdc.78.2014.10.01.02.11.08
+Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E97B6B0069
+	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 05:26:55 -0400 (EDT)
+Received: by mail-lb0-f176.google.com with SMTP id p9so385406lbv.35
+        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 02:26:54 -0700 (PDT)
+Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
+        by mx.google.com with ESMTPS id y4si566160laa.107.2014.10.01.02.26.52
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Oct 2014 02:11:09 -0700 (PDT)
-Date: Wed, 1 Oct 2014 11:10:27 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 3/4] mm: gup: use get_user_pages_fast and
- get_user_pages_unlocked
-Message-ID: <20141001091027.GQ4590@redhat.com>
-References: <1412153797-6667-1-git-send-email-aarcange@redhat.com>
- <1412153797-6667-4-git-send-email-aarcange@redhat.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 01 Oct 2014 02:26:53 -0700 (PDT)
+Message-ID: <542BC8D6.7060306@canonical.com>
+Date: Wed, 01 Oct 2014 11:26:46 +0200
+From: Maarten Lankhorst <maarten.lankhorst@canonical.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1412153797-6667-4-git-send-email-aarcange@redhat.com>
+Subject: Re: page allocator bug in 3.16?
+References: <54246506.50401@hurleysoftware.com> <CADnq5_OyRMNsc5L1a-BYbmKe94t+pun+nEh3UvFKLmpb2=1ukg@mail.gmail.com> <542484BF.7080908@hurleysoftware.com>
+In-Reply-To: <542484BF.7080908@hurleysoftware.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Andres Lagar-Cavilla <andreslc@google.com>, Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "\\\"Dr. David Alan Gilbert\\\"" <dgilbert@redhat.com>
+To: Peter Hurley <peter@hurleysoftware.com>, Alex Deucher <alexdeucher@gmail.com>
+Cc: Mel Gorman <mgorman@suse.de>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Thomas Hellstrom <thellstrom@vmware.com>, Hugh Dickens <hughd@google.com>, Linux kernel <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>
 
-On Wed, Oct 01, 2014 at 10:56:36AM +0200, Andrea Arcangeli wrote:
-> diff --git a/drivers/misc/sgi-gru/grufault.c b/drivers/misc/sgi-gru/grufault.c
-> index f74fc0c..cd20669 100644
-> --- a/drivers/misc/sgi-gru/grufault.c
-> +++ b/drivers/misc/sgi-gru/grufault.c
-> @@ -198,8 +198,7 @@ static int non_atomic_pte_lookup(struct vm_area_struct *vma,
->  #else
->  	*pageshift = PAGE_SHIFT;
->  #endif
-> -	if (get_user_pages
-> -	    (current, current->mm, vaddr, 1, write, 0, &page, NULL) <= 0)
-> +	if (get_user_pages_fast(vaddr, 1, write, &page) <= 0)
->  		return -EFAULT;
->  	*paddr = page_to_phys(page);
->  	put_page(page);
+Op 25-09-14 om 23:10 schreef Peter Hurley:
+> On 09/25/2014 04:33 PM, Alex Deucher wrote:
+>> On Thu, Sep 25, 2014 at 2:55 PM, Peter Hurley <peter@hurleysoftware.com> wrote:
+>>> After several days uptime with a 3.16 kernel (generally running
+>>> Thunderbird, emacs, kernel builds, several Chrome tabs on multiple
+>>> desktop workspaces) I've been seeing some really extreme slowdowns.
+>>>
+>>> Mostly the slowdowns are associated with gpu-related tasks, like
+>>> opening new emacs windows, switching workspaces, laughing at internet
+>>> gifs, etc. Because this x86_64 desktop is nouveau-based, I didn't pursue
+>>> it right away -- 3.15 is the first time suspend has worked reliably.
+>>>
+>>> This week I started looking into what the slowdown was and discovered
+>>> it's happening during dma allocation through swiotlb (the cpus can do
+>>> intel iommu but I don't use it because it's not the default for most users).
+>>>
+>>> I'm still working on a bisection but each step takes 8+ hours to
+>>> validate and even then I'm no longer sure I still have the 'bad'
+>>> commit in the bisection. [edit: yup, I started over]
+>>>
+>>> I just discovered a smattering of these in my logs and only on 3.16-rc+ kernels:
+>>> Sep 25 07:57:59 thor kernel: [28786.001300] alloc_contig_range test_pages_isolated(2bf560, 2bf562) failed
+>>>
+>>> This dual-Xeon box has 10GB and sysrq Show Memory isn't showing heavy
+>>> fragmentation [1].
+>>>
+>>> Besides Mel's page allocator changes in 3.16, another suspect commit is:
+>>>
+>>> commit b13b1d2d8692b437203de7a404c6b809d2cc4d99
+>>> Author: Shaohua Li <shli@kernel.org>
+>>> Date:   Tue Apr 8 15:58:09 2014 +0800
+>>>
+>>>     x86/mm: In the PTE swapout page reclaim case clear the accessed bit instead of flushing the TLB
+>>>
+>>> Specifically, this statement:
+>>>
+>>>     It could cause incorrect page aging and the (mistaken) reclaim of
+>>>     hot pages, but the chance of that should be relatively low.
+>>>
+>>> I'm wondering if this could cause worse-case behavior with TTM? I'm
+>>> testing a revert of this on mainline 3.16-final now, with no results yet.
+>>>
+>>> Thoughts?
+>> You may also be seeing this:
+>> https://lkml.org/lkml/2014/8/8/445
+> Thanks Alex. That is indeed the problem.
+>
+> Still reading the email thread to find out where the patches
+> are that fix this. Although it doesn't make much sense to me
+> that nouveau sets up a 1GB GART and then uses TTM which is
+> trying to shove all the DMA through a 16MB CMA window
+> (which turns out to be the base Ubuntu config).
+>
+> Regards,
+> Peter Hurley
+>
+>
+https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1362261
 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 8f5330d..6606c10 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -881,7 +881,7 @@ static int lookup_node(struct mm_struct *mm, unsigned long addr)
->  	struct page *p;
->  	int err;
->  
-> -	err = get_user_pages(current, mm, addr & PAGE_MASK, 1, 0, 0, &p, NULL);
-> +	err = get_user_pages_fast(addr & PAGE_MASK, 1, 0, &p);
->  	if (err >= 0) {
->  		err = page_to_nid(p);
->  		put_page(p);
+CMA's already disabled on x86 in most recent ubuntu kernels. :-)
 
-I just noticed I need to revert the above two changes... (both weren't
-exercised during the testing).
+~Maarten
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
