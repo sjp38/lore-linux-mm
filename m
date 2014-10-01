@@ -1,96 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E5006B0069
-	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 13:06:30 -0400 (EDT)
-Received: by mail-qg0-f45.google.com with SMTP id e89so594504qgf.4
-        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 10:06:29 -0700 (PDT)
-Received: from mail-yk0-x236.google.com (mail-yk0-x236.google.com [2607:f8b0:4002:c07::236])
-        by mx.google.com with ESMTPS id i4si2798082qar.15.2014.10.01.10.06.28
+Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 571596B0069
+	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 13:10:43 -0400 (EDT)
+Received: by mail-qc0-f177.google.com with SMTP id c9so719644qcz.8
+        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 10:10:43 -0700 (PDT)
+Received: from omr2.cc.vt.edu (omr2.cc.ipv6.vt.edu. [2001:468:c80:2105:0:24d:7091:8b9c])
+        by mx.google.com with ESMTPS id d32si2741151qgf.62.2014.10.01.10.10.41
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 01 Oct 2014 10:06:28 -0700 (PDT)
-Received: by mail-yk0-f182.google.com with SMTP id 131so263142ykp.41
-        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 10:06:28 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20141001155159.GA7019@google.com>
-References: <1412153797-6667-1-git-send-email-aarcange@redhat.com>
-	<1412153797-6667-3-git-send-email-aarcange@redhat.com>
-	<20141001155159.GA7019@google.com>
-Date: Wed, 1 Oct 2014 10:06:27 -0700
-Message-ID: <CAJu=L58vaT7BXfR+RHZ397zJJYL9KwozN0qzCQRadm-=wVYcUw@mail.gmail.com>
-Subject: Re: [PATCH 2/4] mm: gup: add get_user_pages_locked and get_user_pages_unlocked
-From: Andres Lagar-Cavilla <andreslc@google.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Oct 2014 10:10:42 -0700 (PDT)
+Subject: Re: [PATCH v11 00/21] Add support for NV-DIMMs to ext4
+In-Reply-To: Your message of "Wed, 01 Oct 2014 11:45:47 -0400."
+             <x49r3yrn68k.fsf@segfault.boston.devel.redhat.com>
+From: Valdis.Kletnieks@vt.edu
+References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com> <15705.1412070301@turing-police.cc.vt.edu> <20140930144854.GA5098@wil.cx> <123795.1412088827@turing-police.cc.vt.edu> <20140930160841.GB5098@wil.cx> <15704.1412109476@turing-police.cc.vt.edu> <A8F88370-512D-45D0-8414-C478D64E46E5@dilger.ca> <62749.1412113956@turing-police.cc.vt.edu>
+            <x49r3yrn68k.fsf@segfault.boston.devel.redhat.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1412183429_2347P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Wed, 01 Oct 2014 13:10:29 -0400
+Message-ID: <9056.1412183429@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Feiner <pfeiner@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, "\\Dr. David Alan Gilbert\\" <dgilbert@redhat.com>
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: Andreas Dilger <adilger@dilger.ca>, Matthew Wilcox <willy@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Oct 1, 2014 at 8:51 AM, Peter Feiner <pfeiner@google.com> wrote:
-> On Wed, Oct 01, 2014 at 10:56:35AM +0200, Andrea Arcangeli wrote:
->> +static inline long __get_user_pages_locked(struct task_struct *tsk,
->> +                                        struct mm_struct *mm,
->> +                                        unsigned long start,
->> +                                        unsigned long nr_pages,
->> +                                        int write, int force,
->> +                                        struct page **pages,
->> +                                        struct vm_area_struct **vmas,
->> +                                        int *locked,
->> +                                        bool notify_drop)
->> +{
->> +     int flags = FOLL_TOUCH;
->> +     long ret, pages_done;
->> +     bool lock_dropped;
->> +
->> +     if (locked) {
->> +             /* if VM_FAULT_RETRY can be returned, vmas become invalid */
->> +             BUG_ON(vmas);
->> +             /* check caller initialized locked */
->> +             BUG_ON(*locked != 1);
->> +     }
->> +
->> +     if (pages)
->> +             flags |= FOLL_GET;
->> +     if (write)
->> +             flags |= FOLL_WRITE;
->> +     if (force)
->> +             flags |= FOLL_FORCE;
->> +
->> +     pages_done = 0;
->> +     lock_dropped = false;
->> +     for (;;) {
->> +             ret = __get_user_pages(tsk, mm, start, nr_pages, flags, pages,
->> +                                    vmas, locked);
->> +             if (!locked)
->> +                     /* VM_FAULT_RETRY couldn't trigger, bypass */
->> +                     return ret;
->> +
->> +             /* VM_FAULT_RETRY cannot return errors */
->> +             if (!*locked) {
->> +                     BUG_ON(ret < 0);
->> +                     BUG_ON(nr_pages == 1 && ret);
->
-> If I understand correctly, this second BUG_ON is asserting that when
-> __get_user_pages is asked for a single page and it is successfully gets the
-> page, then it shouldn't have dropped the mmap_sem. If that's the case, then
-> you could generalize this assertion to
->
->                         BUG_ON(nr_pages == ret);
+--==_Exmh_1412183429_2347P
+Content-Type: text/plain; charset=us-ascii
 
-Even more strict:
-     BUG_ON(ret >= nr_pages);
+On Wed, 01 Oct 2014 11:45:47 -0400, Jeff Moyer said:
 
-Reviewed-by: Andres Lagar-Cavilla <andreslc@google.com>
+> This sounds an awful lot like posix_fadvise' POSIX_FADV_NOREUSE flag.
 
->
-> Otherwise, looks good!
->
-> Peter
+Gaah.  No wonder 'man madvise' worked but 'man fadvise' came up empty :)
 
+-ENOCAFFIENE :)
 
+--==_Exmh_1412183429_2347P
+Content-Type: application/pgp-signature
 
--- 
-Andres Lagar-Cavilla | Google Kernel Team | andreslc@google.com
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+Comment: Exmh version 2.5 07/13/2001
+
+iQIVAwUBVCw1hQdmEQWDXROgAQJsPg/9EGdZtaCeB6xXvoTMD7Hr3g3Qs4Mj5naC
+tNM/hAPT1UnTx6O0QkRhWvL4nbqlkdyhYCoXqJcHDFcGRVC9z//mJahuT+cOiV+H
+UrNrsVfk3UeCiZjFyTjQoGYVJSWt26K0mYfLEgjW4dIs4j0xRJNWjNPQ7PJKRQNW
+IeciK8aKqylutF1mciszvbMYFKTDiYLx7L8wQV0L0N1UUNcxUR7XyvFCbKV25eSr
+71CC1tNwbBxy8F2u3YYjgGY6emHAYGR19lZLuX+Ut9uA6ez/3eRR30Bc6PzAQmPM
+m0jZGMbhB4+Bb5H//sCVcyuAkG0Npjm2P1/Q4gHlELuGS9rbNwM5v5sJs3MiU2N0
+C0+uM/a2XfaPwNld7UUCQCVqv+c/dZ8FZzT/y5a0f2V0e/6STkNjohqUgzkwRAC9
+ZuyF9Jucm0GV72y0hdwVGUc6IOZD7eB5sIzIPoW8fxWF4T57nx6mcAhw2+Ob7kq6
+gyTK9Nc0cUnhj7kpet4KG+Cs/r8onlbqXPityBPfOOaCmldXRPBo/V1rXST4nic0
+bZuV5jx3qa+lw0xCEITdBasV/e/I/WF1l+FU3fQsi667KoLTHkNXClaJbj8d9yp4
+q+I/CWHtNi2Ojw80xhtZwQf2bV2Y/t9l2/7io3vJzRtgIJKeIliImTRUsqxh4LHf
+E5ZWHfLBzZc=
+=mR70
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1412183429_2347P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
