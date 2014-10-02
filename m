@@ -1,65 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 70A376B0038
-	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 12:44:33 -0400 (EDT)
-Received: by mail-wg0-f46.google.com with SMTP id l18so845527wgh.17
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 09:44:32 -0700 (PDT)
-Received: from mail-wg0-x22c.google.com (mail-wg0-x22c.google.com [2a00:1450:400c:c00::22c])
-        by mx.google.com with ESMTPS id dc9si1752539wib.58.2014.10.02.09.44.32
+Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A7F86B0038
+	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 12:55:19 -0400 (EDT)
+Received: by mail-qa0-f48.google.com with SMTP id dc16so2073571qab.7
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 09:55:19 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c20si8272118qax.63.2014.10.02.09.55.17
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 02 Oct 2014 09:44:32 -0700 (PDT)
-Received: by mail-wg0-f44.google.com with SMTP id y10so3667597wgg.3
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 09:44:32 -0700 (PDT)
-From: Paul McQuade <paulmcquad@gmail.com>
-Subject: [PATCH] mm: highmem remove 3 errors
-Date: Thu,  2 Oct 2014 17:44:22 +0100
-Message-Id: <1412268262-4827-1-git-send-email-paulmcquad@gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Oct 2014 09:55:18 -0700 (PDT)
+Date: Thu, 2 Oct 2014 18:54:30 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH V4 1/6] mm: Introduce a general RCU get_user_pages_fast.
+Message-ID: <20141002165430.GK2342@redhat.com>
+References: <1411740233-28038-1-git-send-email-steve.capper@linaro.org>
+ <1411740233-28038-2-git-send-email-steve.capper@linaro.org>
+ <20141002121902.GA2342@redhat.com>
+ <CAPvkgC3VkmctmD9dROqkAEwi-Njm9zQqVx1=Byttr5_n-J7wYw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPvkgC3VkmctmD9dROqkAEwi-Njm9zQqVx1=Byttr5_n-J7wYw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmcquad@gmail.com
-Cc: akpm@linux-foundation.org, jcmvbkbc@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Steve Capper <steve.capper@linaro.org>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Will Deacon <will.deacon@arm.com>, Gary Robertson <gary.robertson@linaro.org>, Christoffer Dall <christoffer.dall@linaro.org>, Peter Zijlstra <peterz@infradead.org>, Anders Roxell <anders.roxell@linaro.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Dann Frazier <dann.frazier@canonical.com>, Mark Rutland <mark.rutland@arm.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>
 
-pointers should be foo *bar or (foo *)
+On Thu, Oct 02, 2014 at 11:18:00PM +0700, Steve Capper wrote:
+> mm/gup.c was recently created?
+> It may even make sense to move the weak version in a future patch?
 
-Signed-off-by: Paul McQuade <paulmcquad@gmail.com>
----
- mm/highmem.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+I think the __weak stuff tends to go in lib, that's probably why it's
+there. I don't mind either ways.
 
-diff --git a/mm/highmem.c b/mm/highmem.c
-index 123bcd3..996c1d8 100644
---- a/mm/highmem.c
-+++ b/mm/highmem.c
-@@ -130,7 +130,7 @@ unsigned int nr_free_highpages (void)
- static int pkmap_count[LAST_PKMAP];
- static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(kmap_lock);
- 
--pte_t * pkmap_page_table;
-+pte_t *pkmap_page_table;
- 
- /*
-  * Most architectures have no use for kmap_high_get(), so let's abstract
-@@ -291,7 +291,7 @@ void *kmap_high(struct page *page)
- 	pkmap_count[PKMAP_NR(vaddr)]++;
- 	BUG_ON(pkmap_count[PKMAP_NR(vaddr)] < 2);
- 	unlock_kmap();
--	return (void*) vaddr;
-+	return (void *)vaddr;
- }
- 
- EXPORT_SYMBOL(kmap_high);
-@@ -318,7 +318,7 @@ void *kmap_high_get(struct page *page)
- 		pkmap_count[PKMAP_NR(vaddr)]++;
- 	}
- 	unlock_kmap_any(flags);
--	return (void*) vaddr;
-+	return (void *)vaddr;
- }
- #endif
- 
--- 
-1.9.1
+> I'm currently on holiday and have very limited access to email, I'd
+> appreciate it if someone can keep an eye out for this during the merge
+> window if this conflict arises?
+
+No problem, I assume Andrew will merge your patchset first, so I can
+resubmit against -mm patching the gup_fast_rcu too.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
