@@ -1,399 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 93E9F6B0038
-	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 11:01:42 -0400 (EDT)
-Received: by mail-la0-f45.google.com with SMTP id q1so2524075lam.18
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 08:01:41 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id e9si6894499lbc.128.2014.10.02.08.01.40
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 63A076B0038
+	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 11:04:53 -0400 (EDT)
+Received: by mail-ob0-f170.google.com with SMTP id uz6so2331951obc.29
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 08:04:52 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id iw12si7865480obc.21.2014.10.02.08.04.50
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Oct 2014 08:01:40 -0700 (PDT)
-Date: Thu, 2 Oct 2014 11:01:35 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 1/3] mm: memcontrol: lockless page counters
-Message-ID: <20141002150135.GA1394@cmpxchg.org>
-References: <1411573390-9601-1-git-send-email-hannes@cmpxchg.org>
- <1411573390-9601-2-git-send-email-hannes@cmpxchg.org>
- <20140930110622.GB4456@dhcp22.suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 02 Oct 2014 08:04:51 -0700 (PDT)
+Message-ID: <542D680E.8010909@oracle.com>
+Date: Thu, 02 Oct 2014 10:58:22 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140930110622.GB4456@dhcp22.suse.cz>
+Subject: Re: [PATCH 0/5] mm: poison critical mm/ structs
+References: <1412041639-23617-1-git-send-email-sasha.levin@oracle.com> <20141001140725.fd7f1d0cf933fbc2aa9fc1b1@linux-foundation.org> <542C749B.1040103@oracle.com> <alpine.LSU.2.11.1410020154500.6444@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1410020154500.6444@eggly.anvils>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, Dave Hansen <dave@sr71.net>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de
 
-Hi Michal,
-
-On Tue, Sep 30, 2014 at 01:06:22PM +0200, Michal Hocko wrote:
-> On Wed 24-09-14 11:43:08, Johannes Weiner wrote:
-> > Memory is internally accounted in bytes, using spinlock-protected
-> > 64-bit counters, even though the smallest accounting delta is a page.
-> > The counter interface is also convoluted and does too many things.
-> > 
-> > Introduce a new lockless word-sized page counter API, then change all
-> > memory accounting over to it and remove the old one.  The translation
-> > from and to bytes then only happens when interfacing with userspace.
-> > 
-> > Aside from the locking costs, this gets rid of the icky unsigned long
-> > long types in the very heart of memcg, which is great for 32 bit and
-> > also makes the code a lot more readable.
+On 10/02/2014 05:23 AM, Hugh Dickins wrote:
+> On Wed, 1 Oct 2014, Sasha Levin wrote:
+>> On 10/01/2014 05:07 PM, Andrew Morton wrote:
+>>> On Mon, 29 Sep 2014 21:47:14 -0400 Sasha Levin <sasha.levin@oracle.com> wrote:
+>>>
+>>>> Currently we're seeing a few issues which are unexplainable by looking at the
+>>>> data we see and are most likely caused by a memory corruption caused
+>>>> elsewhere.
+>>>>
+>>>> This is wasting time for folks who are trying to figure out an issue provided
+>>>> a stack trace that can't really point out the real issue.
+>>>>
+>>>> This patch introduces poisoning on struct page, vm_area_struct, and mm_struct,
+>>>> and places checks in busy paths to catch corruption early.
+>>>>
+>>>> This series was tested, and it detects corruption in vm_area_struct. Right now
+>>>> I'm working on figuring out the source of the corruption, (which is a long
+>>>> standing bug) using KASan, but the current code is useful as it is.
+>>>
+>>> Is this still useful if/when kasan is in place?
+>>
+>> Yes, the corruption we're seeing happens inside the struct rather than around it.
+>> kasan doesn't look there.
+>>
+>> When kasan is merged, we could complement this patchset by making kasan trap on
+>> when the poison is getting written, rather than triggering a BUG in some place
+>> else after we saw the corruption.
+>>
+>>> It looks fairly cheap - I wonder if it should simply fall under
+>>> CONFIG_DEBUG_VM rather than the new CONFIG_DEBUG_VM_POISON.
+>>
+>> Config options are cheap as well :)
+>>
+>> I'd rather expand it further and add poison/kasan trapping into other places such
+>> as the vma interval tree rather than having to keep it "cheap".
 > 
-> Please describe the usual use pattern of the API. It is much easier to
-> read it here than pulling it out from the source.
-
-Could you explain what you are looking for?  I can't find any examples
-in git log that I could base this on.
-
-> Also I would expect some testing results. Especially on a larger machine
-> (I guess you rely on Dave here, right?).
-
-Yes, I will supply that as soon as we have results for the higher-end
-machines.
-
-> Thanks for splitting the original patch and extracting the counter
-> to a separate file. I think we should add F: mm/page_counter.c under
-> MEMCG maintenance section.
-
-Good idea, I'll do that.
-
-> More comments inline (I only got to page_counter for now and will check
-> the res_counter replacement in another go)
+> I like to run with CONFIG_DEBUG_VM, and would not want this stuff
+> turned on in my builds (especially not the struct page enlargement);
+> so I'm certainly with you in preferring a separate option.
 > 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > ---
-> >  Documentation/cgroups/memory.txt |   4 +-
-> >  include/linux/memcontrol.h       |   5 +-
-> >  include/linux/page_counter.h     |  49 +++
-> >  include/net/sock.h               |  26 +-
-> >  init/Kconfig                     |   5 +-
-> >  mm/Makefile                      |   1 +
-> >  mm/memcontrol.c                  | 635 ++++++++++++++++++---------------------
-> >  mm/page_counter.c                | 191 ++++++++++++
-> >  net/ipv4/tcp_memcontrol.c        |  87 +++---
-> >  9 files changed, 598 insertions(+), 405 deletions(-)
-> >  create mode 100644 include/linux/page_counter.h
-> >  create mode 100644 mm/page_counter.c
-> > 
-> [...]
-> > diff --git a/include/linux/page_counter.h b/include/linux/page_counter.h
-> > new file mode 100644
-> > index 000000000000..d92d18949474
-> > --- /dev/null
-> > +++ b/include/linux/page_counter.h
-> > @@ -0,0 +1,49 @@
-> > +#ifndef _LINUX_PAGE_COUNTER_H
-> > +#define _LINUX_PAGE_COUNTER_H
-> > +
-> > +#include <linux/atomic.h>
-> > +
-> > +struct page_counter {
-> > +	atomic_long_t count;
-> > +	unsigned long limit;
-> > +	struct page_counter *parent;
-> > +
-> > +	/* legacy */
-> > +	unsigned long watermark;
-> 
-> The name suggest this is a restriction not a highest usage mark.
-> max_count would be less confusing.
+> But it all seems very ad hoc to me.  Are people going to be adding
+> more and more mm structures into it, ad infinitum?  And adding
+> CONFIG_DEBUG_SCHED_POISON one day when someone notices corruption
+> of a scheduler structure? etc etc.
 
-Interesting, where do you get restriction?  We use the watermark term
-all over the kernel to mean "highest usage"; it's based on this:
+That was my plan, yes.
 
-http://en.wikipedia.org/wiki/High_water_mark
+> What does this add on top of slab poisoning?  Some checks in some
+> mm places while the object is active, I guess: why not base those
+> on slab poisoning?  And add them in as appropriate to the problem
+> at hand, when a problem is seen.
 
-> > +	unsigned long failcnt;
-> > +};
-> > +
-> > +#if BITS_PER_LONG == 32
-> > +#define PAGE_COUNTER_MAX LONG_MAX
-> > +#else
-> > +#define PAGE_COUNTER_MAX (LONG_MAX / PAGE_SIZE)
-> > +#endif
-> 
-> It is not clear to me why you need a separate definitions here. LONG_MAX
-> seems to be good for both 32b and 64b.
+The extra you're getting is detecting corruption that happened
+inside the object rather than around it. In the case of poisoning
+working along with kasan you don't have to limit it to slab either,
+so you can detect issues in static objects as well.
 
-Because we need space to convert these to 64-bit bytes for the user
-interface.  On 32 bit, we naturally have another 33 to spare above
-LONG_MAX, but on 64 bit we need to reserve the necessary bits.
+fwiw, there's currently a long standing issue with corruption inside
+spinlocks in sched code. This sort of issues always exist, so (at least)
+my kernel would always have poisoning in some form from now on.
 
-(u64)PAGE_COUNTER_MAX * PAGE_SIZE can't overflow.
+> I think these patches are fine for investigating whatever is the
+> problem currently afflicting you and mm under trinity; but we all
+> have our temporary debugging patches, I don't think all deserve
+> preservation in everyone else's kernel, that amounts to far more
+> clutter than any are worth.
 
-> [...]
-> > diff --git a/mm/page_counter.c b/mm/page_counter.c
-> > new file mode 100644
-> > index 000000000000..51c45921b8d1
-> > --- /dev/null
-> > +++ b/mm/page_counter.c
-> > @@ -0,0 +1,191 @@
-> > +/*
-> > + * Lockless hierarchical page accounting & limiting
-> > + *
-> > + * Copyright (C) 2014 Red Hat, Inc., Johannes Weiner
-> > + */
-> > +#include <linux/page_counter.h>
-> > +#include <linux/atomic.h>
-> > +
-> > +/**
-> > + * page_counter_cancel - take pages out of the local counter
-> > + * @counter: counter
-> > + * @nr_pages: number of pages to cancel
-> > + *
-> > + * Returns whether there are remaining pages in the counter.
-> > + */
-> > +int page_counter_cancel(struct page_counter *counter, unsigned long nr_pages)
-> > +{
-> > +	long new;
-> > +
-> > +	new = atomic_long_sub_return(nr_pages, &counter->count);
-> > +
-> 
-> This really deserves a comment IMO. Something like the following:
-> 	/*
-> 	 * Charges and uncharges are always ordered properly from memory
-> 	 * ordering point of view. The only case where underflow can happen
-> 	 * is a mismatched uncharge. Report it and fix it up now rather
-> 	 * than blow up later.
-> 	 */
-> > +	if (WARN_ON_ONCE(new < 0))
-> > +		atomic_long_add(nr_pages, &counter->count);
-> 
-> anyway this doesn't look correct because you can have false positives:
-> [counter->count = 1]
-> 	CPU0					CPU1
-> new = atomic_long_sub_return(THP)
-> 					new = atomic_long_sub_return(1)
-> (new < 0)				(new < 0)
->   atomic_long_add(THP)			  atomic_add(1)
-> 
-> So we will end up with counter->count = 1 rather than 0. I think you
-> need to use a lock in the slow path. Something like
-> 
-> 	if (new < 0) {
-> 		unsigned long flags;
-> 
-> 		/*
-> 		 * Multiple uncharger might race together and we do not
-> 		 * want to let any of them revert the uncharge just
-> 		 * because a faulty uncharge and the fixup are not
-> 		 * atomic.
-> 		 */
-> 		atomic_lond_add(nr_pages, &counter->count);
-> 
-> 		spin_lock_irqsave(&counter->lock, flags);
-> 		new = atomic_long_sub_return(nr_pages, &counter->count);
-> 		if (WARN_ON(new < 0))
-> 			atomic_long_add(nr_pages, &counter->count);
-> 		spin_unlock_irqrestore(&counter->lock, flags);
-> 	}
+If the issue is lines of code we can look into making it cleaner.
 
-What are we trying to accomplish here?  We know the counter value no
-longer reflects reality when it underflows.  Reverting an unrelated
-charge doesn't change that.  I'm just going to leave the warning in
-there with a comment and then remove the fix-up.
+> I'm glad to hear they've confirmed some vm_area_struct corruption:
+> any ideas on where that's coming from?
 
-> > +/**
-> > + * page_counter_charge - hierarchically charge pages
-> > + * @counter: counter
-> > + * @nr_pages: number of pages to charge
-> > + *
-> > + * NOTE: This may exceed the configured counter limits.
-> 
-> The name is rather awkward. It sounds like a standard way to charge the
-> counter. I would rather stick to _nofail suffix and the following
-> addition to the doc.
-> "
-> Can be called only from contexts where the charge failure cannot be
-> handled. This should be rare and used with extreme caution.
-> "
+Nope, I've added kasan poisoning to vm_area_struct but it has not
+reproduced since then, I've just hit bunch of different issues.
 
-We extensively use the do()/try_do() pattern for operations that can
-fail conditionally, and it never implies a standard way - it depends
-on the user which one is used more often.  There are more css_tryget()
-than css_get() for example.
 
-As per your request, this is now a generic hierarchical page counter
-library, and we may very well grow users that don't even use the
-optional limit feature.  For them, page_counter_charge() is the only
-sensible way to add pages.
-
-Using this function doesn't require any more or less caution than
-using any other function.  The code just has to make sense.
-
-> > + */
-> > +void page_counter_charge(struct page_counter *counter, unsigned long nr_pages)
-> > +{
-> > +	struct page_counter *c;
-> > +
-> > +	for (c = counter; c; c = c->parent) {
-> > +		long new;
-> > +
-> > +		new = atomic_long_add_return(nr_pages, &c->count);
-> > +		/*
-> > +		 * This is racy, but with the per-cpu caches on top
-> > +		 * it's just a ballpark metric anyway; and with lazy
-> > +		 * cache reclaim, the majority of workloads peg the
-> > +		 * watermark to the group limit soon after launch.
-> > +		 */
-> > +		if (new > c->watermark)
-> > +			c->watermark = new;
-> > +	}
-> > +}
-> > +
-> > +/**
-> > + * page_counter_try_charge - try to hierarchically charge pages
-> > + * @counter: counter
-> > + * @nr_pages: number of pages to charge
-> > + * @fail: points first counter to hit its limit, if any
-> > + *
-> > + * Returns 0 on success, or -ENOMEM and @fail if the counter or one of
-> > + * its ancestors has hit its limit.
-> > + */
-> > +int page_counter_try_charge(struct page_counter *counter,
-> > +			    unsigned long nr_pages,
-> > +			    struct page_counter **fail)
-> > +{
-> > +	struct page_counter *c;
-> > +
-> > +	for (c = counter; c; c = c->parent) {
-> > +		long new;
-> > +		/*
-> > +		 * Charge speculatively to avoid an expensive CAS.  If
-> > +		 * a bigger charge fails, it might falsely lock out a
-> > +		 * racing smaller charge and send it into reclaim
-> > +		 * eraly, but the error is limited to the difference
-> > +		 * between the two sizes, which is less than 2M/4M in
-> > +		 * case of a THP locking out a regular page charge.
-> > +		 */
-> 
-> If this ever turns out to be a problem then we can check the size of the
-> overflow and retry if it is > nr_online_cpus or something like that. Not
-> worth bothering now I guess but definitely good to have this documented.
-> I would even like to have it in the changelog for users bisecting an
-> excessive reclaim because it is easier to find that in the changelog
-> than in the code.
-
-If a failing THP charge races with a bunch of order-0 allocations they
-will enter reclaim less than 2MB before they would have had to enter
-reclaim anyway.  It's like temporarily lowering the limit by lt 2MB.
-
-So workloads whose workingsets come within one THP of the limit might
-see temporary increases in reclaim activity when a THP happens to be
-the allocation exceeding the limit.  But THP allocations are not
-reliable in the first place, so anything operating within such a range
-is liable to variation anyway and we'd contribute marginally to the
-noise.  Is this worth bothering?
-
-> > +/**
-> > + * page_counter_limit - limit the number of pages allowed
-> > + * @counter: counter
-> > + * @limit: limit to set
-> > + *
-> > + * Returns 0 on success, -EBUSY if the current number of pages on the
-> > + * counter already exceeds the specified limit.
-> > + *
-> > + * The caller must serialize invocations on the same counter.
-> > + */
-> > +int page_counter_limit(struct page_counter *counter, unsigned long limit)
-> > +{
-> > +	for (;;) {
-> > +		unsigned long old;
-> > +		long count;
-> > +
-> > +		count = atomic_long_read(&counter->count);
-> > +
-> > +		old = xchg(&counter->limit, limit);
-> > +
-> > +		if (atomic_long_read(&counter->count) != count) {
-> > +			counter->limit = old;
-> > +			continue;
-> > +		}
-> > +
-> > +		if (count > limit) {
-> > +			counter->limit = old;
-> > +			return -EBUSY;
-> > +		}
-> 
-> Ordering doesn't make much sense to me here. Say you really want to set
-> limit < count. You are effectively pushing all concurrent charges to
-> the reclaim even though you would revert your change and return with
-> EBUSY later on.
->
-> Wouldn't (count > limit) check make more sense right after the first
-> atomic_long_read?
-> Also the second count check should be sufficient to check > count and
-> retry only when the count has increased.
-> Finally continuous flow of charges can keep this loop running for quite
-> some time and trigger lockup detector. cond_resched before continue
-> would handle that. Something like the following:
-> 
-> 	for (;;) {
-> 		unsigned long old;
-> 		long count;
-> 
-> 		count = atomic_long_read(&counter->count);
-> 		if (count > limit)
-> 			return -EBUSY;
-> 
-> 		old = xchg(&counter->limit, limit);
-> 
-> 		/* Recheck for concurrent charges */
-> 		if (atomic_long_read(&counter->count) > count) {
-> 			counter->limit = old;
-> 			cond_resched();
-> 			continue;
-> 		}
-> 
-> 		return 0;
-> 	}
-
-This is susceptible to spurious -EBUSY during races with speculative
-charges and uncharges.  My code avoids that by retrying until we set
-the limit without any concurrent counter operations first, before
-moving on to implementing policy and rollback.
-
-Some reclaim activity caused by a limit that the user is trying to set
-anyway should be okay.  I'd rather have a reliable syscall.
-
-But the cond_resched() is a good idea, I'll add that, thanks.
-
-> > +/**
-> > + * page_counter_memparse - memparse() for page counter limits
-> > + * @buf: string to parse
-> > + * @nr_pages: returns the result in number of pages
-> > + *
-> > + * Returns -EINVAL, or 0 and @nr_pages on success.  @nr_pages will be
-> > + * limited to %PAGE_COUNTER_MAX.
-> > + */
-> > +int page_counter_memparse(const char *buf, unsigned long *nr_pages)
-> > +{
-> > +	char unlimited[] = "-1";
-> > +	char *end;
-> > +	u64 bytes;
-> > +
-> > +	if (!strncmp(buf, unlimited, sizeof(unlimited))) {
-> > +		*nr_pages = PAGE_COUNTER_MAX;
-> > +		return 0;
-> > +	}
-> > +
-> > +	bytes = memparse(buf, &end);
-> > +	if (*end != '\0')
-> > +		return -EINVAL;
-> 
-> res_counter used to round up to the next page boundary and there is no
-> reason to not do the same here.
-
-The user is specifying an exact number of bytes that she doesn't want
-the cgroup to exceed under the threat of OOM.  I see two options: if
-those few bytes really matter, it would be rude to round up a strict
-upper limit.  If they don't, it's pointless additional code.
-
-I'm guessing the latter is the case, but either way it doesn't make
-sense to round up.
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
