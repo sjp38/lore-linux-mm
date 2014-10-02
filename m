@@ -1,106 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 63A076B0038
-	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 11:04:53 -0400 (EDT)
-Received: by mail-ob0-f170.google.com with SMTP id uz6so2331951obc.29
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 08:04:52 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id iw12si7865480obc.21.2014.10.02.08.04.50
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F6F16B0038
+	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 11:22:01 -0400 (EDT)
+Received: by mail-ig0-f169.google.com with SMTP id uq10so932601igb.2
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 08:22:00 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s8si11056214icx.26.2014.10.02.08.21.57
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 02 Oct 2014 08:04:51 -0700 (PDT)
-Message-ID: <542D680E.8010909@oracle.com>
-Date: Thu, 02 Oct 2014 10:58:22 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
-MIME-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Oct 2014 08:21:57 -0700 (PDT)
+Date: Thu, 2 Oct 2014 11:13:02 -0400
+From: Dave Jones <davej@redhat.com>
 Subject: Re: [PATCH 0/5] mm: poison critical mm/ structs
-References: <1412041639-23617-1-git-send-email-sasha.levin@oracle.com> <20141001140725.fd7f1d0cf933fbc2aa9fc1b1@linux-foundation.org> <542C749B.1040103@oracle.com> <alpine.LSU.2.11.1410020154500.6444@eggly.anvils>
+Message-ID: <20141002151302.GA15348@redhat.com>
+References: <1412041639-23617-1-git-send-email-sasha.levin@oracle.com>
+ <20141001140725.fd7f1d0cf933fbc2aa9fc1b1@linux-foundation.org>
+ <542C749B.1040103@oracle.com>
+ <alpine.LSU.2.11.1410020154500.6444@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <alpine.LSU.2.11.1410020154500.6444@eggly.anvils>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de
+Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de
 
-On 10/02/2014 05:23 AM, Hugh Dickins wrote:
-> On Wed, 1 Oct 2014, Sasha Levin wrote:
->> On 10/01/2014 05:07 PM, Andrew Morton wrote:
->>> On Mon, 29 Sep 2014 21:47:14 -0400 Sasha Levin <sasha.levin@oracle.com> wrote:
->>>
->>>> Currently we're seeing a few issues which are unexplainable by looking at the
->>>> data we see and are most likely caused by a memory corruption caused
->>>> elsewhere.
->>>>
->>>> This is wasting time for folks who are trying to figure out an issue provided
->>>> a stack trace that can't really point out the real issue.
->>>>
->>>> This patch introduces poisoning on struct page, vm_area_struct, and mm_struct,
->>>> and places checks in busy paths to catch corruption early.
->>>>
->>>> This series was tested, and it detects corruption in vm_area_struct. Right now
->>>> I'm working on figuring out the source of the corruption, (which is a long
->>>> standing bug) using KASan, but the current code is useful as it is.
->>>
->>> Is this still useful if/when kasan is in place?
->>
->> Yes, the corruption we're seeing happens inside the struct rather than around it.
->> kasan doesn't look there.
->>
->> When kasan is merged, we could complement this patchset by making kasan trap on
->> when the poison is getting written, rather than triggering a BUG in some place
->> else after we saw the corruption.
->>
->>> It looks fairly cheap - I wonder if it should simply fall under
->>> CONFIG_DEBUG_VM rather than the new CONFIG_DEBUG_VM_POISON.
->>
->> Config options are cheap as well :)
->>
->> I'd rather expand it further and add poison/kasan trapping into other places such
->> as the vma interval tree rather than having to keep it "cheap".
-> 
-> I like to run with CONFIG_DEBUG_VM, and would not want this stuff
-> turned on in my builds (especially not the struct page enlargement);
-> so I'm certainly with you in preferring a separate option.
-> 
-> But it all seems very ad hoc to me.  Are people going to be adding
-> more and more mm structures into it, ad infinitum?  And adding
-> CONFIG_DEBUG_SCHED_POISON one day when someone notices corruption
-> of a scheduler structure? etc etc.
+On Thu, Oct 02, 2014 at 02:23:08AM -0700, Hugh Dickins wrote:
 
-That was my plan, yes.
+ > I think these patches are fine for investigating whatever is the
+ > problem currently afflicting you and mm under trinity; but we all
+ > have our temporary debugging patches, I don't think all deserve
+ > preservation in everyone else's kernel, that amounts to far more
+ > clutter than any are worth.
 
-> What does this add on top of slab poisoning?  Some checks in some
-> mm places while the object is active, I guess: why not base those
-> on slab poisoning?  And add them in as appropriate to the problem
-> at hand, when a problem is seen.
+One problem with keeping things like this in -mm (or other non-Linus tree)
+is that they bit-rot quickly, and become a pain to apply, especially if
+they are perpetually on top of other changes in -mm.
 
-The extra you're getting is detecting corruption that happened
-inside the object rather than around it. In the case of poisoning
-working along with kasan you don't have to limit it to slab either,
-so you can detect issues in static objects as well.
+I looked at trying these patches on Linus' tree when Sasha posted them,
+but lost motivation when I realized they needed other bits of -mm too.
 
-fwiw, there's currently a long standing issue with corruption inside
-spinlocks in sched code. This sort of issues always exist, so (at least)
-my kernel would always have poisoning in some form from now on.
+It may be that after Andrews 3.18+ mega-merge things would be simpler,
+but I have a feeling it wouldn't be long before the situation would
+arise again.
 
-> I think these patches are fine for investigating whatever is the
-> problem currently afflicting you and mm under trinity; but we all
-> have our temporary debugging patches, I don't think all deserve
-> preservation in everyone else's kernel, that amounts to far more
-> clutter than any are worth.
-
-If the issue is lines of code we can look into making it cleaner.
-
-> I'm glad to hear they've confirmed some vm_area_struct corruption:
-> any ideas on where that's coming from?
-
-Nope, I've added kasan poisoning to vm_area_struct but it has not
-reproduced since then, I've just hit bunch of different issues.
-
-
-Thanks,
-Sasha
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
