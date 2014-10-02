@@ -1,95 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f172.google.com (mail-yk0-f172.google.com [209.85.160.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D2AB6B006E
-	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 12:18:02 -0400 (EDT)
-Received: by mail-yk0-f172.google.com with SMTP id 19so1289225ykq.31
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 09:18:02 -0700 (PDT)
-Received: from mail-yk0-f171.google.com (mail-yk0-f171.google.com [209.85.160.171])
-        by mx.google.com with ESMTPS id o40si7336801yha.159.2014.10.02.09.18.01
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 70A376B0038
+	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 12:44:33 -0400 (EDT)
+Received: by mail-wg0-f46.google.com with SMTP id l18so845527wgh.17
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 09:44:32 -0700 (PDT)
+Received: from mail-wg0-x22c.google.com (mail-wg0-x22c.google.com [2a00:1450:400c:c00::22c])
+        by mx.google.com with ESMTPS id dc9si1752539wib.58.2014.10.02.09.44.32
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 02 Oct 2014 09:18:01 -0700 (PDT)
-Received: by mail-yk0-f171.google.com with SMTP id 79so1334165ykr.30
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 09:18:01 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20141002121902.GA2342@redhat.com>
-References: <1411740233-28038-1-git-send-email-steve.capper@linaro.org>
-	<1411740233-28038-2-git-send-email-steve.capper@linaro.org>
-	<20141002121902.GA2342@redhat.com>
-Date: Thu, 2 Oct 2014 23:18:00 +0700
-Message-ID: <CAPvkgC3VkmctmD9dROqkAEwi-Njm9zQqVx1=Byttr5_n-J7wYw@mail.gmail.com>
-Subject: Re: [PATCH V4 1/6] mm: Introduce a general RCU get_user_pages_fast.
-From: Steve Capper <steve.capper@linaro.org>
-Content-Type: text/plain; charset=UTF-8
+        Thu, 02 Oct 2014 09:44:32 -0700 (PDT)
+Received: by mail-wg0-f44.google.com with SMTP id y10so3667597wgg.3
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 09:44:32 -0700 (PDT)
+From: Paul McQuade <paulmcquad@gmail.com>
+Subject: [PATCH] mm: highmem remove 3 errors
+Date: Thu,  2 Oct 2014 17:44:22 +0100
+Message-Id: <1412268262-4827-1-git-send-email-paulmcquad@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Will Deacon <will.deacon@arm.com>, Gary Robertson <gary.robertson@linaro.org>, Christoffer Dall <christoffer.dall@linaro.org>, Peter Zijlstra <peterz@infradead.org>, Anders Roxell <anders.roxell@linaro.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Dann Frazier <dann.frazier@canonical.com>, Mark Rutland <mark.rutland@arm.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>
+To: paulmcquad@gmail.com
+Cc: akpm@linux-foundation.org, jcmvbkbc@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2 October 2014 19:19, Andrea Arcangeli <aarcange@redhat.com> wrote:
-> Hi Steve,
->
+pointers should be foo *bar or (foo *)
 
-Hi Andrea,
+Signed-off-by: Paul McQuade <paulmcquad@gmail.com>
+---
+ mm/highmem.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-> On Fri, Sep 26, 2014 at 03:03:48PM +0100, Steve Capper wrote:
->> This patch provides a general RCU implementation of get_user_pages_fast
->> that can be used by architectures that perform hardware broadcast of
->> TLB invalidations.
->>
->> It is based heavily on the PowerPC implementation by Nick Piggin.
->
-> It'd be nice if you could also at the same time apply it to sparc and
-> powerpc in this same patchset to show the effectiveness of having a
-> generic version. Because if it's not a trivial drop-in replacement,
-> then this should go in arch/arm* instead of mm/gup.c...
-
-I think it should be adapted (if need be) and adopted for sparc, power
-and others, especially as it will result in a reduction in code size
-and make future alterations to gup easier.
-I would prefer to get this in iteratively; and have people who are
-knowledgeable of those architectures and have a means of testing the
-code thoroughly to help out. (it will be very hard for me to implement
-this on my own, but likely trivial for people who know and can test
-those architectures).
-
->
-> Also I wonder if it wouldn't be better to add it to mm/util.c along
-> with the __weak gup_fast but then this is ok too. I'm just saying
-> because we never had sings of gup_fast code in mm/gup.c so far but
-> then this isn't exactly a __weak version of it... so I don't mind
-> either ways.
-
-mm/gup.c was recently created?
-It may even make sense to move the weak version in a future patch?
-
->
->> +             down_read(&mm->mmap_sem);
->> +             ret = get_user_pages(current, mm, start,
->> +                                  nr_pages - nr, write, 0, pages, NULL);
->> +             up_read(&mm->mmap_sem);
->
-> This has a collision with a patchset I posted, but it's trivial to
-> solve, the above three lines need to be replaced with:
->
-> +               ret = get_user_pages_unlocked(current, mm, start,
-> +                                    nr_pages - nr, write, 0, pages);
->
-> And then arm gup_fast will also page fault with FOLL_FAULT_ALLOW_RETRY
-> the first time to release the mmap_sem before I/O.
->
-
-Ahh thanks.
-I'm currently on holiday and have very limited access to email, I'd
-appreciate it if someone can keep an eye out for this during the merge
-window if this conflict arises?
-
-> Thanks,
-> Andrea
-
-Cheers,
---
-Steve
+diff --git a/mm/highmem.c b/mm/highmem.c
+index 123bcd3..996c1d8 100644
+--- a/mm/highmem.c
++++ b/mm/highmem.c
+@@ -130,7 +130,7 @@ unsigned int nr_free_highpages (void)
+ static int pkmap_count[LAST_PKMAP];
+ static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(kmap_lock);
+ 
+-pte_t * pkmap_page_table;
++pte_t *pkmap_page_table;
+ 
+ /*
+  * Most architectures have no use for kmap_high_get(), so let's abstract
+@@ -291,7 +291,7 @@ void *kmap_high(struct page *page)
+ 	pkmap_count[PKMAP_NR(vaddr)]++;
+ 	BUG_ON(pkmap_count[PKMAP_NR(vaddr)] < 2);
+ 	unlock_kmap();
+-	return (void*) vaddr;
++	return (void *)vaddr;
+ }
+ 
+ EXPORT_SYMBOL(kmap_high);
+@@ -318,7 +318,7 @@ void *kmap_high_get(struct page *page)
+ 		pkmap_count[PKMAP_NR(vaddr)]++;
+ 	}
+ 	unlock_kmap_any(flags);
+-	return (void*) vaddr;
++	return (void *)vaddr;
+ }
+ #endif
+ 
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
