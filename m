@@ -1,66 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 18EAE6B0038
-	for <linux-mm@kvack.org>; Wed,  1 Oct 2014 23:54:53 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id bj1so1497475pad.15
-        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 20:54:52 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id br4si2629964pbc.155.2014.10.01.20.54.50
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 01 Oct 2014 20:54:51 -0700 (PDT)
-Message-ID: <542CCBCB.9000709@oracle.com>
-Date: Wed, 01 Oct 2014 23:51:39 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/5] mm: poison critical mm/ structs
-References: <1412041639-23617-1-git-send-email-sasha.levin@oracle.com>	<20141001140725.fd7f1d0cf933fbc2aa9fc1b1@linux-foundation.org>	<542C749B.1040103@oracle.com> <20141001144834.ff3ff0349951df734d159fb3@linux-foundation.org>
-In-Reply-To: <20141001144834.ff3ff0349951df734d159fb3@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F5546B0038
+	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 00:08:25 -0400 (EDT)
+Received: by mail-ig0-f178.google.com with SMTP id l13so1703367iga.5
+        for <linux-mm@kvack.org>; Wed, 01 Oct 2014 21:08:24 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0056.hostedemail.com. [216.40.44.56])
+        by mx.google.com with ESMTP id g19si487679igz.43.2014.10.01.21.08.23
+        for <linux-mm@kvack.org>;
+        Wed, 01 Oct 2014 21:08:23 -0700 (PDT)
+Message-ID: <1412222900.3247.33.camel@joe-AO725>
+Subject: [PATCH] checkpatch: Warn on logging functions with KERN_<LEVEL>
+From: Joe Perches <joe@perches.com>
+Date: Wed, 01 Oct 2014 21:08:20 -0700
+In-Reply-To: <20141001135055.c849d1a34e9c687775a40a0f@linux-foundation.org>
+References: <1412195730-9629-1-git-send-email-paulmcquad@gmail.com>
+	 <20141001135055.c849d1a34e9c687775a40a0f@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, mgorman@suse.de
+Cc: Paul McQuade <paulmcquad@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, neilb@suse.de, sasha.levin@oracle.com, rientjes@google.com, hughd@google.com, paul.gortmaker@windriver.com, liwanp@linux.vnet.ibm.com, n-horiguchi@ah.jp.nec.com, iamjoonsoo.kim@lge.com
 
-On 10/01/2014 05:48 PM, Andrew Morton wrote:
-> On Wed, 01 Oct 2014 17:39:39 -0400 Sasha Levin <sasha.levin@oracle.com> wrote:
-> 
->>> It looks fairly cheap - I wonder if it should simply fall under
->>> CONFIG_DEBUG_VM rather than the new CONFIG_DEBUG_VM_POISON.
->>
->> Config options are cheap as well :)
-> 
-> Thing is, lots of people are enabling CONFIG_DEBUG_VM, but a smaller
-> number of people will enable CONFIG_DEBUG_VM_POISON.  Less coverage. 
-> 
-> Defaulting to y if CONFIG_DEBUG_VM might help, but if people do `make
-> oldconfig' when CONFIG_DEBUG_VM=n, their CONFIG_DEBUG_VM_POISON will
-> get set to `n' and will remain that way when they set CONFIG_DEBUG_VM
-> again.
+Warn on probable misuses of logging functions with KERN_<LEVEL>
+like pr_err(KERN_ERR "foo\n");
 
-In that case, what about:
+Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Joe Perches <joe@perches.com>
 
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index db41b15..b2c7038 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -546,6 +546,7 @@ config DEBUG_VM_RB
- config DEBUG_VM_POISON
-        bool "Poison VM structures"
-        depends on DEBUG_VM
-+       def_bool y
-        help
-          Add poison to the beggining and end of various VM structure to
-          detect memory corruption in VM management code.
+---
+> > -		printk(KERN_ERR "ksm: register sysfs failed\n");
+> > +		pr_err(KERN_ERR "ksm: register sysfs failed\n");
 
-We'll default to "Y" in 'make oldconfig' and it'll automatically be switched
-on when the user selects CONFIG_DEBUG_VM=y, but we still keep the advantages
-of having it in a different config option.
+> A quick grep indicates that we have the same mistake in tens of places.
+> checkpatch rule, please?
 
+ scripts/checkpatch.pl | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
 
-Thanks,
-Sasha
+diff --git a/scripts/checkpatch.pl b/scripts/checkpatch.pl
+index 52a223e..374abf4 100755
+--- a/scripts/checkpatch.pl
++++ b/scripts/checkpatch.pl
+@@ -4447,6 +4447,17 @@ sub process {
+ 			}
+ 		}
+ 
++# check for logging functions with KERN_<LEVEL>
++		if ($line !~ /printk\s*\(/ &&
++		    $line =~ /\b$logFunctions\s*\(.*\b(KERN_[A-Z]+)\b/) {
++			my $level = $1;
++			if (WARN("UNNECESSARY_KERN_LEVEL",
++				 "Possible unnecessary $level\n" . $herecurr) &&
++			    $fix) {
++				$fixed[$fixlinenr] =~ s/\s*$level\s*//;
++			}
++		}
++
+ # check for bad placement of section $InitAttribute (e.g.: __initdata)
+ 		if ($line =~ /(\b$InitAttribute\b)/) {
+ 			my $attr = $1;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
