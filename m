@@ -1,68 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
-	by kanga.kvack.org (Postfix) with ESMTP id EBB876B006E
-	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 15:43:17 -0400 (EDT)
-Received: by mail-ob0-f169.google.com with SMTP id m8so2867127obr.14
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 12:43:17 -0700 (PDT)
-Received: from mail-oi0-x232.google.com (mail-oi0-x232.google.com [2607:f8b0:4003:c06::232])
-        by mx.google.com with ESMTPS id zl1si3804456obc.11.2014.10.02.12.43.16
+Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
+	by kanga.kvack.org (Postfix) with ESMTP id A3A426B0069
+	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 15:52:23 -0400 (EDT)
+Received: by mail-lb0-f171.google.com with SMTP id z12so2881060lbi.2
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 12:52:23 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id j10si8060943laf.95.2014.10.02.12.52.22
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 02 Oct 2014 12:43:16 -0700 (PDT)
-Received: by mail-oi0-f50.google.com with SMTP id i138so2357374oig.37
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 12:43:16 -0700 (PDT)
-Date: Thu, 2 Oct 2014 12:41:30 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: mempolicy: Skip inaccessible VMAs when setting
- MPOL_MF_LAZY
-In-Reply-To: <20141002191703.GN17501@suse.de>
-Message-ID: <alpine.LSU.2.11.1410021233280.7589@eggly.anvils>
-References: <20141002191703.GN17501@suse.de>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Oct 2014 12:52:22 -0700 (PDT)
+Date: Thu, 2 Oct 2014 15:52:14 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 1/3] mm: memcontrol: lockless page counters
+Message-ID: <20141002195214.GA2705@cmpxchg.org>
+References: <1411573390-9601-1-git-send-email-hannes@cmpxchg.org>
+ <1411573390-9601-2-git-send-email-hannes@cmpxchg.org>
+ <20140930110622.GB4456@dhcp22.suse.cz>
+ <20141002150135.GA1394@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141002150135.GA1394@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Hugh Dickins <hughd@google.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, Dave Hansen <dave@sr71.net>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, 2 Oct 2014, Mel Gorman wrote:
-
-> PROT_NUMA VMAs are skipped to avoid problems distinguishing between
-> present, prot_none and special entries. MPOL_MF_LAZY is not visible from
-> userspace since commit a720094ded8c ("mm: mempolicy: Hide MPOL_NOOP and
-> MPOL_MF_LAZY from userspace for now") but it should still skip VMAs the
-> same way task_numa_work does.
+On Thu, Oct 02, 2014 at 11:01:35AM -0400, Johannes Weiner wrote:
+> On Tue, Sep 30, 2014 at 01:06:22PM +0200, Michal Hocko wrote:
+> > > +/**
+> > > + * page_counter_limit - limit the number of pages allowed
+> > > + * @counter: counter
+> > > + * @limit: limit to set
+> > > + *
+> > > + * Returns 0 on success, -EBUSY if the current number of pages on the
+> > > + * counter already exceeds the specified limit.
+> > > + *
+> > > + * The caller must serialize invocations on the same counter.
+> > > + */
+> > > +int page_counter_limit(struct page_counter *counter, unsigned long limit)
+> > > +{
+> > > +	for (;;) {
+> > > +		unsigned long old;
+> > > +		long count;
+> > > +
+> > > +		count = atomic_long_read(&counter->count);
+> > > +
+> > > +		old = xchg(&counter->limit, limit);
+> > > +
+> > > +		if (atomic_long_read(&counter->count) != count) {
+> > > +			counter->limit = old;
+> > > +			continue;
+> > > +		}
+> > > +
+> > > +		if (count > limit) {
+> > > +			counter->limit = old;
+> > > +			return -EBUSY;
+> > > +		}
+> > 
+> > Ordering doesn't make much sense to me here. Say you really want to set
+> > limit < count. You are effectively pushing all concurrent charges to
+> > the reclaim even though you would revert your change and return with
+> > EBUSY later on.
+> >
+> > Wouldn't (count > limit) check make more sense right after the first
+> > atomic_long_read?
+> > Also the second count check should be sufficient to check > count and
+> > retry only when the count has increased.
+> > Finally continuous flow of charges can keep this loop running for quite
+> > some time and trigger lockup detector. cond_resched before continue
+> > would handle that. Something like the following:
+> > 
+> > 	for (;;) {
+> > 		unsigned long old;
+> > 		long count;
+> > 
+> > 		count = atomic_long_read(&counter->count);
+> > 		if (count > limit)
+> > 			return -EBUSY;
+> > 
+> > 		old = xchg(&counter->limit, limit);
+> > 
+> > 		/* Recheck for concurrent charges */
+> > 		if (atomic_long_read(&counter->count) > count) {
+> > 			counter->limit = old;
+> > 			cond_resched();
+> > 			continue;
+> > 		}
+> > 
+> > 		return 0;
+> > 	}
 > 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> Acked-by: Rik van Riel <riel@redhat.com>
-
-Acked-by: Hugh Dickins <hughd@google.com>
-
-Yes, this is much the same as the patch I wrote for Linus two days ago,
-then discovered that we don't need until MPOL_MF_LAZY gets brought back
-into MPOL_MF_VALID.  (As a bonus, my patch did also remove the currently
-bogus paragraph of comment above change_prot_numa(); and I would prefer a
-code comment to make clear that we never exercise this path at present.) 
-
-> ---
->  mm/mempolicy.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
+> This is susceptible to spurious -EBUSY during races with speculative
+> charges and uncharges.  My code avoids that by retrying until we set
+> the limit without any concurrent counter operations first, before
+> moving on to implementing policy and rollback.
 > 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 8f5330d..a5877ce 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -683,7 +683,9 @@ queue_pages_range(struct mm_struct *mm, unsigned long start, unsigned long end,
->  		}
->  
->  		if (flags & MPOL_MF_LAZY) {
-> -			change_prot_numa(vma, start, endvma);
-> +			/* Similar to task_numa_work, skip inaccessible VMAs */
-> +			if (vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))
-> +				change_prot_numa(vma, start, endvma);
->  			goto next;
->  		}
->  
+> Some reclaim activity caused by a limit that the user is trying to set
+> anyway should be okay.  I'd rather have a reliable syscall.
+> 
+> But the cond_resched() is a good idea, I'll add that, thanks.
+
+Thinking more about it, my code doesn't really avoid that if the
+speculative charges persist over the two reads, it just widens the
+window a bit.  But your suggestion seems indeed more readable,
+although I'd invert the second branch.
+
+How about this delta on top?
+
+diff --git a/mm/page_counter.c b/mm/page_counter.c
+index 4bdab1c7a057..7eb17135d4a4 100644
+--- a/mm/page_counter.c
++++ b/mm/page_counter.c
+@@ -19,8 +19,8 @@ int page_counter_cancel(struct page_counter *counter, unsigned long nr_pages)
+ 
+ 	new = atomic_long_sub_return(nr_pages, &counter->count);
+ 
+-	if (WARN_ON_ONCE(new < 0))
+-		atomic_long_add(nr_pages, &counter->count);
++	/* More uncharges than charges? */
++	WARN_ON_ONCE(new < 0);
+ 
+ 	return new > 0;
+ }
+@@ -146,29 +146,29 @@ int page_counter_limit(struct page_counter *counter, unsigned long limit)
+ 		unsigned long old;
+ 		long count;
+ 
+-		count = atomic_long_read(&counter->count);
+ 		/*
++		 * Update the limit while making sure that it's not
++		 * below the (concurrently changing) counter value.
++		 *
+ 		 * The xchg implies two full memory barriers before
+ 		 * and after, so the read-swap-read is ordered and
+ 		 * ensures coherency with page_counter_try_charge():
+ 		 * that function modifies the count before checking
+ 		 * the limit, so if it sees the old limit, we see the
+-		 * modified counter and retry.  This guarantees we
+-		 * never successfully set a limit below the counter.
++		 * modified counter and retry.
+ 		 */
+-		old = xchg(&counter->limit, limit);
+-
+-		if (atomic_long_read(&counter->count) != count) {
+-			counter->limit = old;
+-			continue;
+-		}
++		count = atomic_long_read(&counter->count);
+ 
+-		if (count > limit) {
+-			counter->limit = old;
++		if (count > limit)
+ 			return -EBUSY;
+-		}
+ 
+-		return 0;
++		old = xchg(&counter->limit, limit);
++
++		if (atomic_long_read(&counter->count) <= count)
++			return 0;
++
++		counter->limit = old;
++		cond_resched();
+ 	}
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
