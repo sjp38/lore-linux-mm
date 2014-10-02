@@ -1,75 +1,542 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 617626B0069
-	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 17:09:47 -0400 (EDT)
-Received: by mail-ig0-f171.google.com with SMTP id h15so2723216igd.4
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 14:09:47 -0700 (PDT)
-Received: from mail-ie0-x236.google.com (mail-ie0-x236.google.com [2607:f8b0:4001:c03::236])
-        by mx.google.com with ESMTPS id fu3si4351229igd.37.2014.10.02.14.09.46
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id BE3A06B0069
+	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 19:22:55 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id ey11so228114pad.13
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 16:22:55 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id wq7si5492379pbc.257.2014.10.02.16.22.53
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 02 Oct 2014 14:09:46 -0700 (PDT)
-Received: by mail-ie0-f182.google.com with SMTP id rp18so3391279iec.27
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 14:09:45 -0700 (PDT)
-Message-ID: <542DBF13.6000305@gmail.com>
-Date: Thu, 02 Oct 2014 17:09:39 -0400
-From: Daniel Micay <danielmicay@gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Oct 2014 16:22:53 -0700 (PDT)
+Date: Thu, 02 Oct 2014 16:22:52 -0700
+From: akpm@linux-foundation.org
+Subject: mmotm 2014-10-02-16-22 uploaded
+Message-ID: <542dde4c.uoQAbw1Ng2akSWKx%akpm@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3] mm: add mremap flag for preserving the old mapping
-References: <1412052900-1722-1-git-send-email-danielmicay@gmail.com> <CALCETrX6D7X7zm3qCn8kaBtYHCQvdR06LAAwzBA=1GteHAaLKA@mail.gmail.com> <542A79AF.8060602@gmail.com> <CALCETrVHgvhAN3neoOpJEk94uM7QKm2izZpp+=1UA6qieaQiTQ@mail.gmail.com>
-In-Reply-To: <CALCETrVHgvhAN3neoOpJEk94uM7QKm2izZpp+=1UA6qieaQiTQ@mail.gmail.com>
-Content-Type: multipart/signed; micalg=pgp-sha1;
- protocol="application/pgp-signature";
- boundary="PRlCVIkmvMIs5cCoIexuIIqIjW92QRa2D"
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jason Evans <jasone@canonware.com>, Linux API <linux-api@vger.kernel.org>
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---PRlCVIkmvMIs5cCoIexuIIqIjW92QRa2D
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+The mm-of-the-moment snapshot 2014-10-02-16-22 has been uploaded to
 
-On 30/09/14 01:49 PM, Andy Lutomirski wrote:
->=20
-> I think it might pay to add an explicit vm_op to authorize
-> duplication, especially for non-cow mappings.  IOW this kind of
-> extension seems quite magical for anything that doesn't have the
-> normal COW semantics, including for plain old read-only mappings.
+   http://www.ozlabs.org/~akpm/mmotm/
 
-Adding a vm_ops table to MAP_PRIVATE|MAP_ANONYMOUS mappings has a
-significant performance impact. I haven't yet narrowed it down, but
-there's at least one code path a check of `!vma->vm_ops` for the fast
-path. One is for transparent huge page faults, so the performance impact
-makes sense. I'll use a simpler implementation for now since the
-requirements are very narrow / simple.
+mmotm-readme.txt says
+
+README for mm-of-the-moment:
+
+http://www.ozlabs.org/~akpm/mmotm/
+
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
+
+You will need quilt to apply these patches to the latest Linus release (3.x
+or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
+
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
+
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
+
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
 
 
---PRlCVIkmvMIs5cCoIexuIIqIjW92QRa2D
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
+http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary
 
-iQIcBAEBAgAGBQJULb8WAAoJEPnnEuWa9fIqSNAP/A7LCl/XGzXIE2tl5P6OOodp
-oTI8okG15yxG4jXYOH7dT5//3qdvkeU5mU86/IOde+qmts2i5W+wNnM1rYHyOZka
-hil/u1vF3flo+SiI47r9alh2JOyS7Yl51VFNQZ2ExIX9eUdAAahhdASCAQDia/D8
-bITv3Z5XSGPRCxglo6vUYjRgv1l9Hrx+riwcwe9ceyNFx6Q7dD9/FzDs0nAu4Oy7
-45caIcaVlBUpKiyhjwWFYF3wFO1J3LTC6zJyaA1TkbCTC5mbokGMDO6ghvGrzLE7
-/jZIxJdsoNp3ifjgXlRg+9nO3UAP3LwsueHJlWuC2Xn5iNq9XNWyvxSvtWND/30d
-TMwLS4ox1UFfd3TQhla100j2h0kAJECL+l2Rm61uNWlwN3+SdnzhLNHN9nKC2gAA
-uuhFaM+jNWwSjN3d8NMM2L01eZZi1Fy18jcb/iGEDAZ3O83rYBIGy2WZJTJVQOnc
-xjxyQl7NuBLugIUAkSC5OqJGEQ84ur56wX1HmlRbV7sdd8bbpNuXQS3qZuoY+p8H
-fQSCW3w4hJ8mQBS4l5MZ/Oc44XuNNdQbEzL60Af0uxQbC46C83tJyqOUHKLysKnH
-7lnEsm7tIXtisw5mg9blovJUSOZ5ZL5MshD0kdSLjkPUhjXm5bBJFsC3b2MsmI/A
-MUa1auMJAdsi3LBa3uw6
-=mK1z
------END PGP SIGNATURE-----
+To develop on top of mmotm git:
 
---PRlCVIkmvMIs5cCoIexuIIqIjW92QRa2D--
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
+
+To rebase a branch with older patches to a new mmotm release:
+
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
+
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/?p=linux-mmots.git;a=summary
+
+and use of this tree is similar to
+http://git.cmpxchg.org/?p=linux-mmotm.git, described above.
+
+
+This mmotm tree contains the following patches against 3.17-rc7:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+  i-need-old-gcc.patch
+  arch-alpha-kernel-systblss-remove-debug-check.patch
+* ocfs2-dlm-should-put-mle-when-goto-kill-in-dlm_assert_master_handler.patch
+* mm-memcontrol-do-not-iterate-uninitialized-memcgs.patch
+* maintainers-change-git-url-for-mpc5xxx-tree.patch
+* perf-fix-perf-bug-in-fork.patch
+* mm-page_alloc-fix-zone-allocation-fairness-on-up.patch
+* mm-migrate-close-race-between-migration-completion-and-mprotect.patch
+* mm-numa-do-not-mark-ptes-pte_numa-when-splitting-huge-pages.patch
+* mn10300-use-kbuild-logic-to-include-asm-generic-sectionsh.patch
+* cris-use-kbuild-logic-to-include-asm-generic-sectionsh.patch
+* fs-cifs-remove-obsolete-__constant.patch
+* fs-cifs-filec-replace-countsize-kzalloc-by-kcalloc.patch
+* fs-cifs-smb2filec-replace-countsize-kzalloc-by-kcalloc.patch
+* efi-bgrt-add-error-handling-inform-the-user-when-ignoring-the-bgrt.patch
+* fs-notify-groupc-make-fsnotify_final_destroy_group-static.patch
+* fsnotify-dont-put-user-context-if-it-was-never-assigned.patch
+* kernel-posix-timersc-code-clean-up.patch
+* kernel-posix-timersc-code-clean-up-checkpatch-fixes.patch
+* input-route-kbd-leds-through-the-generic-leds-layer.patch
+* input-route-kbd-leds-through-the-generic-leds-layer-fix.patch
+* input-route-kbd-leds-through-the-generic-leds-layer-fix-2.patch
+* kernel-add-support-for-gcc-5.patch
+* kernel-add-support-for-gcc-5-checkpatch-fixes.patch
+* m32r-use-kbuild-logic-to-include-asm-generic-sectionsh.patch
+* m32r-remove-deprecated-irqf_disabled.patch
+* use-find_get_page_flags-to-mark-page-accessed-as-it-is-no-longer-marked-later-on.patch
+* score-use-kbuild-logic-to-include-asm-generic-sectionsh.patch
+* score-remove-deprecated-irqf_disabled.patch
+* fs-ext4-fsyncc-generic_file_fsync-call-based-on-barrier-flag.patch
+* fs-ocfs2-stack_userc-fix-typo-in-ocfs2_control_release.patch
+* ocfs2-dlm-refactor-error-handling-in-dlm_alloc_ctxt.patch
+* ocfs2-fix-shift-left-operations-overflow.patch
+* ocfs2-call-o2quo_exit-if-malloc-failed-in-o2net_init.patch
+* ocfs2-dlm-call-dlm_lockres_put-without-resource-spinlock.patch
+* o2dlm-fix-null-pointer-dereference-in-o2dlm_blocking_ast_wrapper.patch
+* o2dlm-fix-null-pointer-dereference-in-o2dlm_blocking_ast_wrapper-checkpatch-fixes.patch
+* ocfs2-remove-unused-code-in-dlm_new_lockres.patch
+* fs-ocfs2-dlm-dlmdebugc-use-seq_open_private-not-seq_open.patch
+* fs-ocfs2-cluster-netdebugc-use-seq_open_private-not-seq_open.patch
+* fs-ocfs2-dlmgluec-use-__seq_open_private-not-seq_open.patch
+* ocfs2-dont-fire-quorum-before-connection-established.patch
+* ocfs2-free-inode-when-i_count-becomes-zero.patch
+* ocfs2-call-ocfs2_journal_access_di-before-ocfs2_journal_dirty-in-ocfs2_write_end_nolock.patch
+* ocfs2-avoid-access-invalid-address-when-read-o2dlm-debug-messages.patch
+* ocfs2-avoid-access-invalid-address-when-read-o2dlm-debug-messages-v2.patch
+* ocfs2-dlm-fix-race-between-dispatched_work-and-dlm_lockres_grab_inflight_worker.patch
+* ocfs2-reflink-fix-slow-unlink-for-refcounted-file.patch
+* ocfs2-fix-journal-commit-deadlock.patch
+* ocfs2-fix-deadlock-between-o2hb-thread-and-o2net_wq.patch
+* ocfs2-fix-deadlock-due-to-wrong-locking-order.patch
+* ocfs2-fix-deadlock-due-to-wrong-locking-order-fix.patch
+* ocfs2-eliminate-the-static-flag-of-some-functions.patch
+* ocfs2-add-two-functions-of-add-and-remove-inode-in-orphan-dir.patch
+* ocfs2-add-orphan-recovery-types-in-ocfs2_recover_orphans.patch
+* ocfs2-add-orphan-recovery-types-in-ocfs2_recover_orphans-fix.patch
+* ocfs2-add-and-remove-inode-in-orphan-dir-in-ocfs2_direct_io.patch
+* ocfs2-allocate-blocks-in-ocfs2_direct_io_get_blocks.patch
+* ocfs2-do-not-fallback-to-buffer-i-o-write-if-appending.patch
+* ocfs2-do-not-fallback-to-buffer-i-o-write-if-fill-holes.patch
+* bio-integrity-remove-the-needless-fail-handle-of-bip_slab-creating.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+* softlockup-make-detector-be-aware-of-task-switch-of-processes-hogging-cpu.patch
+* softlockup-make-detector-be-aware-of-task-switch-of-processes-hogging-cpu-fix.patch
+  mm.patch
+* fs-proc-task_mmuc-dont-use-task-mm-in-m_start-and-show_map.patch
+* fs-proc-task_mmuc-unify-simplify-do_maps_open-and-numa_maps_open.patch
+* proc-introduce-proc_mem_open.patch
+* fs-proc-task_mmuc-shift-mm_access-from-m_start-to-proc_maps_open.patch
+* fs-proc-task_mmuc-shift-mm_access-from-m_start-to-proc_maps_open-checkpatch-fixes.patch
+* fs-proc-task_mmuc-simplify-the-vma_stop-logic.patch
+* fs-proc-task_mmuc-simplify-the-vma_stop-logic-checkpatch-fixes.patch
+* fs-proc-task_mmuc-cleanup-the-tail_vma-horror-in-m_next.patch
+* fs-proc-task_mmuc-shift-priv-task-=-null-from-m_start-to-m_stop.patch
+* fs-proc-task_mmuc-kill-the-suboptimal-and-confusing-m-version-logic.patch
+* fs-proc-task_mmuc-simplify-m_start-to-make-it-readable.patch
+* fs-proc-task_mmuc-introduce-m_next_vma-helper.patch
+* fs-proc-task_mmuc-reintroduce-m-version-logic.patch
+* fs-proc-task_mmuc-update-m-version-in-the-main-loop-in-m_start.patch
+* fs-proc-task_nommuc-change-maps_open-to-use-__seq_open_private.patch
+* fs-proc-task_nommuc-change-maps_open-to-use-__seq_open_private-fix.patch
+* fs-proc-task_nommuc-shift-mm_access-from-m_start-to-proc_maps_open.patch
+* fs-proc-task_nommuc-shift-mm_access-from-m_start-to-proc_maps_open-checkpatch-fixes.patch
+* fs-proc-task_nommuc-dont-use-priv-task-mm.patch
+* proc-maps-replace-proc_maps_private-pid-with-struct-inode-inode.patch
+* proc-maps-make-vm_is_stack-logic-namespace-friendly.patch
+* not-adding-modules-range-to-kcore-if-its-equal-to-vmcore-range.patch
+* not-adding-modules-range-to-kcore-if-its-equal-to-vmcore-range-checkpatch-fixes.patch
+* mm-slab_commonc-suppress-warning.patch
+* mm-slab_common-move-kmem_cache-definition-to-internal-header.patch
+* mm-slab_common-move-kmem_cache-definition-to-internal-header-fix.patch
+* mm-slab_common-move-kmem_cache-definition-to-internal-header-fix-2.patch
+* mm-slab_common-move-kmem_cache-definition-to-internal-header-fix-2-fix.patch
+* mm-slb-always-track-caller-in-kmalloc_node_track_caller.patch
+* mm-slab-move-cache_flusharray-out-of-unlikelytext-section.patch
+* mm-slab-noinline-__ac_put_obj.patch
+* mm-slab-factor-out-unlikely-part-of-cache_free_alien.patch
+* slub-disable-tracing-and-failslab-for-merged-slabs.patch
+* topology-add-support-for-node_to_mem_node-to-determine-the-fallback-node.patch
+* slub-fallback-to-node_to_mem_node-node-if-allocating-on-memoryless-node.patch
+* partial-revert-of-81c98869faa5-kthread-ensure-locality-of-task_struct-allocations.patch
+* slab-fix-for_each_kmem_cache_node.patch
+* mm-slab_common-commonize-slab-merge-logic.patch
+* mm-slab_common-commonize-slab-merge-logic-fix.patch
+* mm-slab-support-slab-merge.patch
+* mm-slab-support-slab-merge-fix.patch
+* mm-slab-use-percpu-allocator-for-cpu-cache.patch
+* mm-slab-use-percpu-allocator-for-cpu-cache-fix.patch
+* fix-checkpatch-errors-for-mm-mmapc.patch
+* memory-hotplug-add-sysfs-zones_online_to-attribute.patch
+* memory-hotplug-add-sysfs-zones_online_to-attribute-fix.patch
+* memory-hotplug-add-sysfs-zones_online_to-attribute-fix-2.patch
+* memory-hotplug-add-sysfs-zones_online_to-attribute-fix-3.patch
+* memory-hotplug-add-sysfs-zones_online_to-attribute-fix-3-fix.patch
+* memory-hotplug-add-sysfs-zones_online_to-attribute-fix-4.patch
+* mm-remove-misleading-arch_uses_numa_prot_none.patch
+* lib-genallocc-add-power-aligned-algorithm.patch
+* lib-genallocc-add-genpool-range-check-function.patch
+* common-dma-mapping-introduce-common-remapping-functions.patch
+* common-dma-mapping-introduce-common-remapping-functions-fix.patch
+* common-dma-mapping-introduce-common-remapping-functions-fix-2.patch
+* common-dma-mapping-introduce-common-remapping-functions-fix-4.patch
+* arm-use-genalloc-for-the-atomic-pool.patch
+* arm64-add-atomic-pool-for-non-coherent-and-cma-allocations.patch
+* mm-cma-adjust-address-limit-to-avoid-hitting-low-high-memory-boundary.patch
+* arm-mm-dont-limit-default-cma-region-only-to-low-memory.patch
+* mm-page_alloc-determine-migratetype-only-once.patch
+* vfs-make-guard_bh_eod-more-generic.patch
+* vfs-guard-end-of-device-for-mpage-interface.patch
+* block_dev-implement-readpages-to-optimize-sequential-read.patch
+* mm-thp-dont-hold-mmap_sem-in-khugepaged-when-allocating-thp.patch
+* mm-compaction-defer-each-zone-individually-instead-of-preferred-zone.patch
+* mm-compaction-defer-each-zone-individually-instead-of-preferred-zone-fix.patch
+* mm-compaction-do-not-count-compact_stall-if-all-zones-skipped-compaction.patch
+* mm-compaction-do-not-recheck-suitable_migration_target-under-lock.patch
+* mm-compaction-move-pageblock-checks-up-from-isolate_migratepages_range.patch
+* mm-compaction-move-pageblock-checks-up-from-isolate_migratepages_range-fix.patch
+* mm-compaction-reduce-zone-checking-frequency-in-the-migration-scanner.patch
+* mm-compaction-khugepaged-should-not-give-up-due-to-need_resched.patch
+* mm-compaction-khugepaged-should-not-give-up-due-to-need_resched-fix.patch
+* mm-compaction-periodically-drop-lock-and-restore-irqs-in-scanners.patch
+* mm-compaction-skip-rechecks-when-lock-was-already-held.patch
+* mm-compaction-remember-position-within-pageblock-in-free-pages-scanner.patch
+* mm-compaction-skip-buddy-pages-by-their-order-in-the-migrate-scanner.patch
+* mm-rename-allocflags_to_migratetype-for-clarity.patch
+* mm-compaction-pass-gfp-mask-to-compact_control.patch
+* mm-introduce-check_data_rlimit-helper-v2.patch
+* mm-use-may_adjust_brk-helper.patch
+* prctl-pr_set_mm-factor-out-mmap_sem-when-update-mm-exe_file.patch
+* prctl-pr_set_mm-introduce-pr_set_mm_map-operation-v3.patch
+* prctl-pr_set_mm-introduce-pr_set_mm_map-operation-v4.patch
+* prctl-pr_set_mm-introduce-pr_set_mm_map-operation-v3-fix.patch
+* prctl-pr_set_mm-introduce-pr_set_mm_map-operation-v4-fix.patch
+* prctl-pr_set_mm-introduce-pr_set_mm_map-operation-v4-fix-2.patch
+* mm-remove-noisy-remainder-of-the-scan_unevictable-interface.patch
+* mempolicy-change-alloc_pages_vma-to-use-mpol_cond_put.patch
+* mempolicy-change-get_task_policy-to-return-default_policy-rather-than-null.patch
+* mempolicy-sanitize-the-usage-of-get_task_policy.patch
+* mempolicy-remove-the-task-arg-of-vma_policy_mof-and-simplify-it.patch
+* mempolicy-introduce-__get_vma_policy-export-get_task_policy.patch
+* mempolicy-fix-show_numa_map-vs-exec-do_set_mempolicy-race.patch
+* mempolicy-kill-do_set_mempolicy-down_writemm-mmap_sem.patch
+* mempolicy-unexport-get_vma_policy-and-remove-its-task-arg.patch
+* include-linux-migrateh-remove-migratepage-define.patch
+* mm-use-seq_open_private-instead-of-seq_open.patch
+* mm-use-__seq_open_private-instead-of-seq_open.patch
+* introduce-dump_vma.patch
+* introduce-dump_vma-fix.patch
+* introduce-dump_vma-fix-2.patch
+* introduce-vm_bug_on_vma.patch
+* convert-a-few-vm_bug_on-callers-to-vm_bug_on_vma.patch
+* convert-a-few-vm_bug_on-callers-to-vm_bug_on_vma-checkpatch-fixes.patch
+* mm-page_alloc-avoid-wakeup-kswapd-on-the-unintended-node.patch
+* mm-use-min3-max3-macros-to-avoid-shadow-warnings.patch
+* mm-clean-up-zone-flags.patch
+* mm-mmapc-clean-up-config_debug_vm_rb-checks.patch
+* mm-compaction-fix-warning-of-flags-may-be-used-uninitialized.patch
+* mm-clear-__gfp_fs-when-pf_memalloc_noio-is-set.patch
+* ocfs2-fix-a-deadlock-while-o2net_wq-doing-direct-memory-reclaim.patch
+* mm-page_alloc-make-paranoid-check-in-move_freepages-a-vm_bug_on.patch
+* mm-page_alloc-default-node-ordering-on-64-bit-numa-zone-ordering-on-32-bit-v2.patch
+* mm-softdirty-unmapped-addresses-between-vmas-are-clean.patch
+* mm-softdirty-unmapped-addresses-between-vmas-are-clean-v2.patch
+* mm-softdirty-unmapped-addresses-between-vmas-are-clean-v2-fix.patch
+* mm-move-debug-code-out-of-page_allocc.patch
+* mm-introduce-vm_bug_on_mm.patch
+* mm-introduce-vm_bug_on_mm-checkpatch-fixes.patch
+* mm-debug-mm-introduce-vm_bug_on_mm-fixpatch.patch
+* mm-debug-mm-introduce-vm_bug_on_mm-fix-fixpatch.patch
+* mm-debug-mm-introduce-vm_bug_on_mm-fix-fixpatch-fix.patch
+* mm-use-vm_bug_on_mm-where-possible.patch
+* mm-debugc-use-pr_emerg.patch
+* memcg-move-memcg_allocfree_cache_params-to-slab_commonc.patch
+* memcg-dont-call-memcg_update_all_caches-if-new-cache-id-fits.patch
+* memcg-move-memcg_update_cache_size-to-slab_commonc.patch
+* mm-dmapool-add-remove-sysfs-file-outside-of-the-pool-lock-lock.patch
+* mm-memcontrol-do-not-kill-uncharge-batching-in-free_pages_and_swap_cache.patch
+* mm-memcontrol-simplify-detecting-when-the-memoryswap-limit-is-hit.patch
+* mm-memcontrol-fix-transparent-huge-page-allocations-under-pressure.patch
+* memcg-zap-memcg_can_account_kmem.patch
+* drivers-dma-coherent-add-initialization-from-device-tree.patch
+* drivers-dma-coherent-add-initialization-from-device-tree-fix.patch
+* drivers-dma-coherent-add-initialization-from-device-tree-fix-fix.patch
+* drivers-dma-coherent-add-initialization-from-device-tree-checkpatch-fixes.patch
+* drivers-dma-contiguous-add-initialization-from-device-tree.patch
+* drivers-dma-contiguous-add-initialization-from-device-tree-checkpatch-fixes.patch
+* mm-mremap-use-linux-headers.patch
+* mm-filemap-remove-trailing-whitespace.patch
+* mm-bootmem-added-headers.patch
+* driver-firmware-memmap-dont-create-memmap-sysfs-of-same-firmware_map_entry.patch
+* mm-ksm-use-pr_err-instead-of-printk.patch
+* mm-ksm-use-pr_err-instead-of-printk-fix.patch
+* mm-dmapool-fixed-a-brace-coding-style-issue.patch
+* mm-introduce-a-general-rcu-get_user_pages_fast.patch
+* mm-introduce-a-general-rcu-get_user_pages_fast-fix.patch
+* arm-mm-introduce-special-ptes-for-lpae.patch
+* arm-mm-enable-have_rcu_table_free-logic.patch
+* arm-mm-enable-rcu-fast_gup.patch
+* arm64-mm-enable-have_rcu_table_free-logic.patch
+* arm64-mm-enable-rcu-fast_gup.patch
+* arm64-mm-enable-rcu-fast_gup-checkpatch-fixes.patch
+* mm-balloon_compaction-redesign-ballooned-pages-management.patch
+* mm-balloon_compaction-remove-balloon-mapping-and-flag-as_balloon_map.patch
+* mm-balloon_compaction-add-vmstat-counters-and-kpageflags-bit.patch
+* selftests-vm-transhuge-stress-stress-test-for-memory-compaction.patch
+* mm-mempolicy-skip-inaccessible-vmas-when-setting-mpol_mf_lazy.patch
+* vmstat-on-demand-vmstat-workers-v8.patch
+* vmstat-on-demand-vmstat-workers-v8-fix.patch
+* vmstat-on-demand-vmstat-workers-v8-do-not-open-code-alloc_cpumask_var.patch
+* vmstat-on-demand-vmstat-workers-v8-fix-2.patch
+* mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix.patch
+* fs-mpagec-forgotten-write_sync-in-case-of-data-integrity-write.patch
+* m68k-call-find_vma-with-the-mmap_sem-held-in-sys_cacheflush.patch
+* m68k-call-find_vma-with-the-mmap_sem-held-in-sys_cacheflush-v2.patch
+* zsmalloc-move-pages_allocated-to-zs_pool.patch
+* zsmalloc-change-return-value-unit-of-zs_get_total_size_bytes.patch
+* zram-zram-memory-size-limitation.patch
+* zram-zram-memory-size-limitation-fix.patch
+* zram-zram-memory-size-limitation-fix-fix.patch
+* zram-zram-memory-size-limitation-fix-2.patch
+* zram-report-maximum-used-memory.patch
+* zram-use-notify_free-to-account-all-free-notifications.patch
+* mm-correct-comment-for-fullness-group-computation-in-zsmallocc.patch
+* zsmalloc-simplify-init_zspage-free-obj-linking.patch
+* zbud-avoid-accessing-in-last-unused-freelist.patch
+* do_shared_fault-check-that-mmap_sem-is-held.patch
+* frv-remove-unused-cpuinfo_frv-and-friends-to-fix-future-build-error.patch
+* frv-remove-deprecated-irqf_disabled.patch
+* alpha-use-kbuild-logic-to-include-asm-generic-sectionsh.patch
+* include-kernelh-rewrite-min3-max3-and-clamp-using-min-and-max.patch
+* include-kernelh-deduplicate-code-implementing-clamp-macros.patch
+* blkdev-use-null-instead-of-zero.patch
+* kernel-async-fixed-coding-style-issues.patch
+* acct-eliminate-compile-warning.patch
+* acct-eliminate-compile-warning-fix.patch
+* kernel-fix-for-checkpatch-errors-in-sys-file.patch
+* kern-sys-compat-sysinfo-syscall-fix-undefined-behavior.patch
+* include-linux-screen_infoh-remove-unused-orig_-macros.patch
+* nosave-consolidate-__nosave_beginend-in-asm-sectionsh.patch
+* drivers-misc-ti-st-st_corec-fix-null-dereference-on-protocol-type-check.patch
+* printk-dont-bother-using-log_cpu_max_buf_shift-on-smp.patch
+* printk-git-rid-of-message-for-printk_deferred.patch
+* lib-vsprintf-add-%pt-format-specifier.patch
+* maintainers-assing-systemace-driver-to-xilinx.patch
+* remove-non-existent-files-from-maintainerspatch-added-to-mm-tree.patch
+* maintainers-linaro-mm-sig-is-moderated.patch
+* maintainers-add-entry-for-kernel-selftest-framework.patch
+* maintainers-add-atmel-nand-driver-maintainer-entry.patch
+* maintainers-orphan-m32r.patch
+* maintainers-remove-chirag-kantharia-invalid-e-mail.patch
+* drivers-video-backlight-backlightc-remove-backlight-sysfs-uevent.patch
+* list-include-linux-kernelh.patch
+* lib-use-seq_open_private-instead-of-seq_open.patch
+* removing-textsearch_put-reference-from-the-comments.patch
+* lib-remove-prio_heap.patch
+* lib-rename-test_module-to-test_lkm.patch
+* mm-utilc-add-kstrimdup.patch
+* lib-add-crc64-ecma-module.patch
+* checkpatch-fix-spello.patch
+* checkpatch-remove-debugging-message.patch
+* checkpatch-update-allowed_asm_includes-macros-add-rebooth-and-timeh.patch
+* checkpatch-enable-whitespace-checks-for-dts-files.patch
+* checkpatch-allow-optional-shorter-config-descriptions.patch
+* checkpatch-allow-optional-shorter-config-descriptions-v4.patch
+* checkpatch-add-strict-test-for-concatenated-string-elements.patch
+* checkpatch-remove-unnecessary-after-88.patch
+* checkpatch-warn-on-macros-with-flow-control-statements.patch
+* checkpatch-look-for-common-misspellings.patch
+* checkpatch-add-exception-to-return-then-else-test.patch
+* checkpatch-warn-on-logging-functions-with-kern_level.patch
+* binfmt_misc-expand-the-register-format-limit-to-1920-bytes.patch
+* binfmt_misc-touch-up-documentation-a-bit.patch
+* binfmt_misc-work-around-gcc-49-warning.patch
+* kernel-kallsymsc-use-__seq_open_private.patch
+* fs-ncpfs-dirc-remove-redundant-sys_tz-declaration.patch
+* autofs4-allow-rcu-walk-to-walk-through-autofs4.patch
+* autofs4-factor-should_expire-out-of-autofs4_expire_indirect.patch
+* autofs4-make-autofs4_can_expire-idempotent.patch
+* autofs4-avoid-taking-fs_lock-during-rcu-walk.patch
+* autofs4-d_manage-should-return-eisdir-when-appropriate-in-rcu-walk-mode.patch
+* autofs4-d_manage-should-return-eisdir-when-appropriate-in-rcu-walk-mode-fix.patch
+* autofs-the-documentation-i-wanted-to-read.patch
+* rtc-use-c99-initializers-in-structures.patch
+* rtc-s3c-define-s3c_rtc-structure-to-remove-global-variables.patch
+* rtc-s3c-remove-warning-message-when-checking-coding-style-with-checkpatch-script.patch
+* rtc-s3c-add-s3c_rtc_data-structure-to-use-variant-data-instead-of-s3c_cpu_type.patch
+* rtc-s3c-add-support-for-rtc-of-exynos3250-soc.patch
+* arm-dts-fix-wrong-compatible-string-of-exynos3250-rtc-dt-node.patch
+* rtc-make-of_device_ids-const.patch
+* rtc-rk808-add-rtc-driver-for-rk808.patch
+* rtc-rk808-add-rtc-driver-for-rk808-fix.patch
+* rtc-rk808-add-rtc-driver-for-rk808-fix-2.patch
+* clk-rk808-add-clkout-driver-for-rk808.patch
+* documentation-dt-bindings-trickle-charger-dt-binding-document-for-ds1339.patch
+* rtc-ds1307-add-trickle-charger-device-tree-binding.patch
+* rtc-bq32000-add-trickle-charger-option-with-device-tree-binding.patch
+* rtc-bq32000-add-trickle-charger-option-with-device-tree-binding-checkpatch-fixes.patch
+* rtc-bq32000-add-trickle-charger-option-with-device-tree-binding-fix.patch
+* rtc-bq32000-add-trickle-charger-device-tree-binding.patch
+* rtc-max77686-allow-the-max77686-rtc-to-wakeup-the-system.patch
+* rtc-max77686-remove-dead-code-for-smpl-and-wtsr.patch
+* rtc-max77686-fail-to-probe-if-no-rtc-regmap-irqchip-is-set.patch
+* rtc-max77686-remove-unneded-info-log.patch
+* rtc-max77686-use-ffs-to-calculate-tm_wday.patch
+* rtc-max77686-use-ffs-to-calculate-tm_wday-fix.patch
+* rtc-add-driver-for-maxim-77802-pmic-real-time-clock.patch
+* rtc-add-driver-for-maxim-77802-pmic-real-time-clock-v10.patch
+* rtc-add-driver-for-maxim-77802-pmic-real-time-clock-v10-fix.patch
+* rtc-pcf8563-fix-uninitialized-use-warning.patch
+* rtc-pcf8563-fix-pcf8563_irq-error-return-value.patch
+* rtc-rtc-rs5c372-use-%ph-to-dump-small-buffers.patch
+* drivers-rtc-kconfig-let-several-drivers-depend-on-has_iomem-to-avoid-compiling-issue.patch
+* rtc-pm8xxx-rework-to-support-pm8941-rtc.patch
+* rtc-pm8xxx-rework-to-support-pm8941-rtc-checkpatch-fixes.patch
+* fs-befs-btreec-remove-typedef-befs_btree_node.patch
+* nilfs2-add-missing-blkdev_issue_flush-to-nilfs_sync_fs.patch
+* nilfs2-improve-the-performance-of-fdatasync.patch
+* fs-hfs-hfs_fsh-remove-redundant-sys_tz-declaration.patch
+* hfsplus-fix-longname-handling.patch
+* fs-ufs-ballocc-remove-unused-variable.patch
+* fs-reiserfs-journalc-fix-sparse-context-imbalance-warning.patch
+* fat-remove-redundant-sys_tz-declaration.patch
+* signal-use-build_bug-instead-of-_nsig_words_is_unsupported_size.patch
+* signal-use-build_bug-instead-of-_nsig_words_is_unsupported_sizefix.patch
+* coredump-add-%i-%i-in-core_pattern-to-report-the-tid-of-the-crashed-thread.patch
+* try-to-use-automatic-variable-in-kexec-purgatory-makefile.patch
+* take-the-segment-adding-out-of-locate_mem_hole-functions.patch
+* check-if-crashk_res_low-exists-when-exclude-it-from-crash-mem-ranges.patch
+* kexec-remove-the-unused-function-parameter.patch
+* kexec-bzimage64-fix-sparse-warnings.patch
+* rbtree-add-comment-to-rb_insert_augmented.patch
+* fs-affs-superc-remove-unused-variable.patch
+* fs-affs-inodec-remove-unused-variable.patch
+* fs-affs-filec-fix-shadow-warnings.patch
+* fs-affs-remove-redundant-sys_tz-declarations.patch
+* memstick-r592-fix-build-warnings-for-pm_sleep.patch
+* fs-omfs-block-number-sanity-check-during-fill_super-operation.patch
+* kgdb-timeout-if-secondary-cpus-ignore-the-roundup.patch
+* x86-optimize-resource-lookups-for-ioremap.patch
+* x86-optimize-resource-lookups-for-ioremap-fix.patch
+* x86-use-optimized-ioresource-lookup-in-ioremap-function.patch
+* init-resolve-shadow-warnings.patch
+* init-resolve-shadow-warnings-checkpatch-fixes.patch
+* ipc-always-handle-a-new-value-of-auto_msgmni.patch
+* ipc-shm-kill-the-historical-wrong-mm-start_stack-check.patch
+* ipc-use-__seq_open_private-instead-of-seq_open.patch
+* ipc-resolve-shadow-warnings.patch
+* build-trivia-scripts-headers_installsh.patch
+* scripts-sortextable-suppress-warning-relocs_size-may-be-used-uninitialized.patch
+  linux-next.patch
+  linux-next-rejects.patch
+  linux-next-git-rejects.patch
+* drivers-gpio-gpio-zevioc-fix-build.patch
+* arch-x86-kernel-cpu-commonc-fix-unused-symbol-warning.patch
+* sched-fix-typo.patch
+* lib-string-remove-duplicated-function.patch
+* lib-string-make-all-calls-to-strnicmp-into-calls-to-strncasecmp.patch
+* arm-replace-strnicmp-with-strncasecmp.patch
+* netfilter-replace-strnicmp-with-strncasecmp.patch
+* video-fbdev-replace-strnicmp-with-strncasecmp.patch
+* cifs-replace-strnicmp-with-strncasecmp.patch
+* ocfs2-replace-strnicmp-with-strncasecmp.patch
+* isofs-replace-strnicmp-with-strncasecmp.patch
+* batman-adv-replace-strnicmp-with-strncasecmp.patch
+* scsi-replace-strnicmp-with-strncasecmp.patch
+* ib_srpt-replace-strnicmp-with-strncasecmp.patch
+* input-edt-ft5x06-replace-strnicmp-with-strncasecmp.patch
+* altera-stapl-replace-strnicmp-with-strncasecmp.patch
+* thinkpad_acpi-replace-strnicmp-with-strncasecmp.patch
+* pnp-replace-strnicmp-with-strncasecmp.patch
+* s390-cio-replace-strnicmp-with-strncasecmp.patch
+* staging-r8188eu-replace-strnicmp-with-strncasecmp.patch
+* thermal-replace-strnicmp-with-strncasecmp.patch
+* kdb-replace-strnicmp-with-strncasecmp.patch
+* fs-check-bh-blocknr-earlier-when-searching-lru.patch
+* mem-hotplug-fix-boot-failed-in-case-all-the-nodes-are-hotpluggable.patch
+* mem-hotplug-fix-boot-failed-in-case-all-the-nodes-are-hotpluggable-checkpatch-fixes.patch
+* include-linux-remove-strict_strto-definitions.patch
+* lib-string_helpers-move-documentation-to-c-file.patch
+* lib-string_helpers-refactoring-the-test-suite.patch
+* lib-string_helpers-introduce-string_escape_mem.patch
+* lib-string_helpers-introduce-string_escape_mem-fix.patch
+* lib-vsprintf-add-%pe-format-specifier.patch
+* lib-vsprintf-add-%pe-format-specifier-fix.patch
+* wireless-libertas-print-esaped-string-via-%pe.patch
+* wireless-ipw2x00-print-ssid-via-%pe.patch
+* wireless-hostap-proc-print-properly-escaped-ssid.patch
+* wireless-hostap-proc-print-properly-escaped-ssid-fix.patch
+* wireless-hostap-proc-print-properly-escaped-ssid-fix-2.patch
+* lib80211-remove-unused-print_ssid.patch
+* staging-wlan-ng-use-%pehp-to-print-sn.patch
+* staging-rtl8192e-use-%pen-to-escape-buffer.patch
+* staging-rtl8192u-use-%pen-to-escape-buffer.patch
+* watchdog-control-hard-lockup-detection-default.patch
+* watchdog-control-hard-lockup-detection-default-fix.patch
+* watchdog-control-hard-lockup-detection-default-fix-2.patch
+* kvm-ensure-hard-lockup-detection-is-disabled-by-default.patch
+* frv-remove-unused-declarations-of-__start___ex_table-and-__stop___ex_table.patch
+* ia64-remove-duplicate-declarations-of-__per_cpu_start-and-__per_cpu_end.patch
+* kernel-param-consolidate-__startstop___param-in-linux-moduleparamh.patch
+* mm-softdirty-enable-write-notifications-on-vmas-after-vm_softdirty-cleared.patch
+* mm-softdirty-enable-write-notifications-on-vmas-after-vm_softdirty-cleared-fix.patch
+* fat-add-i_disksize-to-represent-uninitialized-size.patch
+* fat-add-fat_fallocate-operation.patch
+* fat-skip-cluster-allocation-on-fallocated-region.patch
+* fat-permit-to-return-phy-block-number-by-fibmap-in-fallocated-region.patch
+* documentation-filesystems-vfattxt-update-the-limitation-for-fat-fallocate.patch
+* mm-replace-remap_file_pages-syscall-with-emulation.patch
+* w1-call-put_device-if-device_register-fails.patch
+* mm-add-strictlimit-knob-v2.patch
+  debugging-keep-track-of-page-owners.patch
+  debugging-keep-track-of-page-owners-fix.patch
+  page-owners-correct-page-order-when-to-free-page.patch
+  make-sure-nobodys-leaking-resources.patch
+  journal_add_journal_head-debug.patch
+  journal_add_journal_head-debug-fix.patch
+  releasing-resources-with-children.patch
+  make-frame_pointer-default=y.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  mutex-subsystem-synchro-test-module.patch
+  slab-leaks3-default-y.patch
+  add-debugging-aid-for-memory-initialisation-problems.patch
+  workaround-for-a-pci-restoring-bug.patch
+  single_open-seq_release-leak-diagnostics.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
