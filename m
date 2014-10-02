@@ -1,60 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id CD0306B0069
-	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 15:59:12 -0400 (EDT)
-Received: by mail-wg0-f52.google.com with SMTP id a1so4132238wgh.11
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 12:59:12 -0700 (PDT)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id el5si2349069wib.22.2014.10.02.12.59.10
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 617626B0069
+	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 17:09:47 -0400 (EDT)
+Received: by mail-ig0-f171.google.com with SMTP id h15so2723216igd.4
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 14:09:47 -0700 (PDT)
+Received: from mail-ie0-x236.google.com (mail-ie0-x236.google.com [2607:f8b0:4001:c03::236])
+        by mx.google.com with ESMTPS id fu3si4351229igd.37.2014.10.02.14.09.46
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Oct 2014 12:59:10 -0700 (PDT)
-Date: Thu, 2 Oct 2014 21:59:03 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] mm: mempolicy: Skip inaccessible VMAs when setting
- MPOL_MF_LAZY
-Message-ID: <20141002195903.GE10583@worktop.programming.kicks-ass.net>
-References: <20141002191703.GN17501@suse.de>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 02 Oct 2014 14:09:46 -0700 (PDT)
+Received: by mail-ie0-f182.google.com with SMTP id rp18so3391279iec.27
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 14:09:45 -0700 (PDT)
+Message-ID: <542DBF13.6000305@gmail.com>
+Date: Thu, 02 Oct 2014 17:09:39 -0400
+From: Daniel Micay <danielmicay@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141002191703.GN17501@suse.de>
+Subject: Re: [PATCH v3] mm: add mremap flag for preserving the old mapping
+References: <1412052900-1722-1-git-send-email-danielmicay@gmail.com> <CALCETrX6D7X7zm3qCn8kaBtYHCQvdR06LAAwzBA=1GteHAaLKA@mail.gmail.com> <542A79AF.8060602@gmail.com> <CALCETrVHgvhAN3neoOpJEk94uM7QKm2izZpp+=1UA6qieaQiTQ@mail.gmail.com>
+In-Reply-To: <CALCETrVHgvhAN3neoOpJEk94uM7QKm2izZpp+=1UA6qieaQiTQ@mail.gmail.com>
+Content-Type: multipart/signed; micalg=pgp-sha1;
+ protocol="application/pgp-signature";
+ boundary="PRlCVIkmvMIs5cCoIexuIIqIjW92QRa2D"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Jason Evans <jasone@canonware.com>, Linux API <linux-api@vger.kernel.org>
 
-On Thu, Oct 02, 2014 at 08:17:03PM +0100, Mel Gorman wrote:
-> PROT_NUMA VMAs are skipped to avoid problems distinguishing between
-> present, prot_none and special entries. MPOL_MF_LAZY is not visible from
-> userspace since commit a720094ded8c ("mm: mempolicy: Hide MPOL_NOOP and
-> MPOL_MF_LAZY from userspace for now") but it should still skip VMAs the
-> same way task_numa_work does.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> Acked-by: Rik van Riel <riel@redhat.com>
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--PRlCVIkmvMIs5cCoIexuIIqIjW92QRa2D
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-Acked-by: Peter Zijlstra <peterz@infradead.org>
+On 30/09/14 01:49 PM, Andy Lutomirski wrote:
+>=20
+> I think it might pay to add an explicit vm_op to authorize
+> duplication, especially for non-cow mappings.  IOW this kind of
+> extension seems quite magical for anything that doesn't have the
+> normal COW semantics, including for plain old read-only mappings.
 
-> ---
->  mm/mempolicy.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 8f5330d..a5877ce 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -683,7 +683,9 @@ queue_pages_range(struct mm_struct *mm, unsigned long start, unsigned long end,
->  		}
->  
->  		if (flags & MPOL_MF_LAZY) {
-> -			change_prot_numa(vma, start, endvma);
-> +			/* Similar to task_numa_work, skip inaccessible VMAs */
-> +			if (vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))
-> +				change_prot_numa(vma, start, endvma);
->  			goto next;
->  		}
->  
+Adding a vm_ops table to MAP_PRIVATE|MAP_ANONYMOUS mappings has a
+significant performance impact. I haven't yet narrowed it down, but
+there's at least one code path a check of `!vma->vm_ops` for the fast
+path. One is for transparent huge page faults, so the performance impact
+makes sense. I'll use a simpler implementation for now since the
+requirements are very narrow / simple.
+
+
+--PRlCVIkmvMIs5cCoIexuIIqIjW92QRa2D
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBAgAGBQJULb8WAAoJEPnnEuWa9fIqSNAP/A7LCl/XGzXIE2tl5P6OOodp
+oTI8okG15yxG4jXYOH7dT5//3qdvkeU5mU86/IOde+qmts2i5W+wNnM1rYHyOZka
+hil/u1vF3flo+SiI47r9alh2JOyS7Yl51VFNQZ2ExIX9eUdAAahhdASCAQDia/D8
+bITv3Z5XSGPRCxglo6vUYjRgv1l9Hrx+riwcwe9ceyNFx6Q7dD9/FzDs0nAu4Oy7
+45caIcaVlBUpKiyhjwWFYF3wFO1J3LTC6zJyaA1TkbCTC5mbokGMDO6ghvGrzLE7
+/jZIxJdsoNp3ifjgXlRg+9nO3UAP3LwsueHJlWuC2Xn5iNq9XNWyvxSvtWND/30d
+TMwLS4ox1UFfd3TQhla100j2h0kAJECL+l2Rm61uNWlwN3+SdnzhLNHN9nKC2gAA
+uuhFaM+jNWwSjN3d8NMM2L01eZZi1Fy18jcb/iGEDAZ3O83rYBIGy2WZJTJVQOnc
+xjxyQl7NuBLugIUAkSC5OqJGEQ84ur56wX1HmlRbV7sdd8bbpNuXQS3qZuoY+p8H
+fQSCW3w4hJ8mQBS4l5MZ/Oc44XuNNdQbEzL60Af0uxQbC46C83tJyqOUHKLysKnH
+7lnEsm7tIXtisw5mg9blovJUSOZ5ZL5MshD0kdSLjkPUhjXm5bBJFsC3b2MsmI/A
+MUa1auMJAdsi3LBa3uw6
+=mK1z
+-----END PGP SIGNATURE-----
+
+--PRlCVIkmvMIs5cCoIexuIIqIjW92QRa2D--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
