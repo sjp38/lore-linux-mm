@@ -1,54 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 4750E6B006E
-	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 11:58:03 -0400 (EDT)
-Received: by mail-la0-f43.google.com with SMTP id mc6so2664915lab.30
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 08:58:02 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id e4si7267485lbs.54.2014.10.02.08.58.01
+Received: from mail-yk0-f172.google.com (mail-yk0-f172.google.com [209.85.160.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D2DC6B0070
+	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 12:00:44 -0400 (EDT)
+Received: by mail-yk0-f172.google.com with SMTP id 19so1339928ykq.3
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 09:00:44 -0700 (PDT)
+Received: from mail-yh0-f49.google.com (mail-yh0-f49.google.com [209.85.213.49])
+        by mx.google.com with ESMTPS id e48si6667524yho.212.2014.10.02.09.00.43
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Oct 2014 08:58:01 -0700 (PDT)
-Date: Thu, 2 Oct 2014 11:57:50 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 1/3] mm: memcontrol: do not kill uncharge batching in
- free_pages_and_swap_cache
-Message-ID: <20141002155750.GB2035@cmpxchg.org>
-References: <1411571338-8178-1-git-send-email-hannes@cmpxchg.org>
- <1411571338-8178-2-git-send-email-hannes@cmpxchg.org>
- <20140924124234.3fdb59d6cdf7e9c4d6260adb@linux-foundation.org>
- <20140924210322.GA11017@cmpxchg.org>
- <20140925134403.GA11080@dhcp22.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 02 Oct 2014 09:00:43 -0700 (PDT)
+Received: by mail-yh0-f49.google.com with SMTP id a41so332846yho.22
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 09:00:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140925134403.GA11080@dhcp22.suse.cz>
+In-Reply-To: <alpine.LSU.2.11.1409291443210.2800@eggly.anvils>
+References: <1411740233-28038-1-git-send-email-steve.capper@linaro.org>
+	<1411740233-28038-2-git-send-email-steve.capper@linaro.org>
+	<alpine.LSU.2.11.1409291443210.2800@eggly.anvils>
+Date: Thu, 2 Oct 2014 23:00:43 +0700
+Message-ID: <CAPvkgC1RcgeraaUyHLs0qA=G-mMoNFEneypkvUiPWEjZWWExfA@mail.gmail.com>
+Subject: Re: [PATCH V4 1/6] mm: Introduce a general RCU get_user_pages_fast.
+From: Steve Capper <steve.capper@linaro.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Dave Hansen <dave@sr71.net>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Will Deacon <will.deacon@arm.com>, Gary Robertson <gary.robertson@linaro.org>, Christoffer Dall <christoffer.dall@linaro.org>, Peter Zijlstra <peterz@infradead.org>, Anders Roxell <anders.roxell@linaro.org>, Dann Frazier <dann.frazier@canonical.com>, Mark Rutland <mark.rutland@arm.com>, Mel Gorman <mgorman@suse.de>
 
-On Thu, Sep 25, 2014 at 03:44:03PM +0200, Michal Hocko wrote:
-> On Wed 24-09-14 17:03:22, Johannes Weiner wrote:
-> [...]
-> > In release_pages, break the lock at least every SWAP_CLUSTER_MAX (32)
-> > pages, then remove the batching from free_pages_and_swap_cache.
-> 
-> Actually I had something like that originally but then decided to
-> not change the break out logic to prevent from strange and subtle
-> regressions. I have focused only on the memcg batching POV and led the
-> rest untouched.
-> 
-> I do agree that lru_lock batching can be improved as well. Your change
-> looks almost correct but you should count all the pages while the lock
-> is held otherwise you might happen to hold the lock for too long just
-> because most pages are off the LRU already for some reason. At least
-> that is what my original attempt was doing. Something like the following
-> on top of the current patch:
+On 30 September 2014 04:51, Hugh Dickins <hughd@google.com> wrote:
+> On Fri, 26 Sep 2014, Steve Capper wrote:
+>
+>> get_user_pages_fast attempts to pin user pages by walking the page
+>> tables directly and avoids taking locks. Thus the walker needs to be
+>> protected from page table pages being freed from under it, and needs
+>> to block any THP splits.
+>>
+>> One way to achieve this is to have the walker disable interrupts, and
+>> rely on IPIs from the TLB flushing code blocking before the page table
+>> pages are freed.
+>>
+>> On some platforms we have hardware broadcast of TLB invalidations, thus
+>> the TLB flushing code doesn't necessarily need to broadcast IPIs; and
+>> spuriously broadcasting IPIs can hurt system performance if done too
+>> often.
+>>
+>> This problem has been solved on PowerPC and Sparc by batching up page
+>> table pages belonging to more than one mm_user, then scheduling an
+>> rcu_sched callback to free the pages. This RCU page table free logic
+>> has been promoted to core code and is activated when one enables
+>> HAVE_RCU_TABLE_FREE. Unfortunately, these architectures implement
+>> their own get_user_pages_fast routines.
+>>
+>> The RCU page table free logic coupled with a an IPI broadcast on THP
+>> split (which is a rare event), allows one to protect a page table
+>> walker by merely disabling the interrupts during the walk.
+>>
+>> This patch provides a general RCU implementation of get_user_pages_fast
+>> that can be used by architectures that perform hardware broadcast of
+>> TLB invalidations.
+>>
+>> It is based heavily on the PowerPC implementation by Nick Piggin.
+>>
+>> Signed-off-by: Steve Capper <steve.capper@linaro.org>
+>> Tested-by: Dann Frazier <dann.frazier@canonical.com>
+>> Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+>
+> Acked-by: Hugh Dickins <hughd@google.com>
+>
 
-Yep, that makes sense.
+Thanks Hugh!
 
-Would you care to send it in such that Andrew can pick it up?  Thanks!
+> Thanks for making all those clarifications, Steve: this looks very
+> good to me now.  I'm not sure which tree you're hoping will take this
+> and the arm+arm64 patches 2-6: although this one would normally go
+> through akpm, I expect it's easier for you to synchronize if it goes
+> in along with the arm+arm64 2-6 - would that be okay with you, Andrew?
+> I see no clash with what's currently in mmotm.
+
+I see it's gone into mmotm.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
