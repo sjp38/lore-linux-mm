@@ -1,62 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f175.google.com (mail-vc0-f175.google.com [209.85.220.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 099C26B0038
-	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 08:41:19 -0400 (EDT)
-Received: by mail-vc0-f175.google.com with SMTP id id10so1285386vcb.6
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 05:41:19 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id jq10si2886295vdb.75.2014.10.02.05.41.18
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id D1ECD6B0038
+	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 08:50:57 -0400 (EDT)
+Received: by mail-wi0-f178.google.com with SMTP id cc10so3901454wib.11
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 05:50:57 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id m3si1057009wiy.46.2014.10.02.05.50.56
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Oct 2014 05:41:18 -0700 (PDT)
-Date: Thu, 2 Oct 2014 14:40:43 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 2/4] mm: gup: add get_user_pages_locked and
- get_user_pages_unlocked
-Message-ID: <20141002124043.GC2342@redhat.com>
-References: <1412153797-6667-1-git-send-email-aarcange@redhat.com>
- <1412153797-6667-3-git-send-email-aarcange@redhat.com>
- <20141001155159.GA7019@google.com>
- <CAJu=L58vaT7BXfR+RHZ397zJJYL9KwozN0qzCQRadm-=wVYcUw@mail.gmail.com>
+        Thu, 02 Oct 2014 05:50:56 -0700 (PDT)
+Date: Thu, 2 Oct 2014 14:50:52 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: RFC: get_user_pages_locked|unlocked to leverage VM_FAULT_RETRY
+Message-ID: <20141002125052.GF2849@worktop.programming.kicks-ass.net>
+References: <20140926172535.GC4590@redhat.com>
+ <20141001153611.GC2843@worktop.programming.kicks-ass.net>
+ <20141002123117.GB2342@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJu=L58vaT7BXfR+RHZ397zJJYL9KwozN0qzCQRadm-=wVYcUw@mail.gmail.com>
+In-Reply-To: <20141002123117.GB2342@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andres Lagar-Cavilla <andreslc@google.com>
-Cc: Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, "\\Dr. David Alan Gilbert\\" <dgilbert@redhat.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andres Lagar-Cavilla <andreslc@google.com>, Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Dr. David Alan Gilbert" <dgilbert@redhat.com>
 
-On Wed, Oct 01, 2014 at 10:06:27AM -0700, Andres Lagar-Cavilla wrote:
-> On Wed, Oct 1, 2014 at 8:51 AM, Peter Feiner <pfeiner@google.com> wrote:
-> > On Wed, Oct 01, 2014 at 10:56:35AM +0200, Andrea Arcangeli wrote:
-> >> +             /* VM_FAULT_RETRY cannot return errors */
-> >> +             if (!*locked) {
-> >> +                     BUG_ON(ret < 0);
-> >> +                     BUG_ON(nr_pages == 1 && ret);
-> >
-> > If I understand correctly, this second BUG_ON is asserting that when
-> > __get_user_pages is asked for a single page and it is successfully gets the
-> > page, then it shouldn't have dropped the mmap_sem. If that's the case, then
-> > you could generalize this assertion to
-> >
-> >                         BUG_ON(nr_pages == ret);
-
-Agreed.
-
+On Thu, Oct 02, 2014 at 02:31:17PM +0200, Andrea Arcangeli wrote:
+> On Wed, Oct 01, 2014 at 05:36:11PM +0200, Peter Zijlstra wrote:
+> > For all these and the other _fast() users, is there an actual limit to
+> > the nr_pages passed in? Because we used to have the 64 pages limit from
+> > DIO, but without that we get rather long IRQ-off latencies.
 > 
-> Even more strict:
->      BUG_ON(ret >= nr_pages);
+> Ok, I would tend to think this is an issue to solve in gup_fast
+> implementation, I wouldn't blame or modify the callers for it.
+> 
+> I don't think there's anything that prevents gup_fast to enable irqs
+> after certain number of pages have been taken, nop; and disable the
+> irqs again.
+> 
 
-Agreed too, plus this should be quicker than my weaker check.
+Agreed, I once upon a time had a patch set converting the 2 (x86 and
+powerpc) gup_fast implementations at the time, but somehow that never
+got anywhere.
 
-Maybe some BUG_ON can be deleted later or converted to VM_BUG_ON, but
-initially I feel safer with the BUG_ON considering that is a slow
-path.
-
-> Reviewed-by: Andres Lagar-Cavilla <andreslc@google.com>
-
-Thanks!
+Just saying we should probably do that before we add callers with
+unlimited nr_pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
