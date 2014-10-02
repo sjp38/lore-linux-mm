@@ -1,56 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 3271C6B0038
-	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 08:56:42 -0400 (EDT)
-Received: by mail-wi0-f182.google.com with SMTP id n3so3946511wiv.3
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 05:56:41 -0700 (PDT)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id ew1si1089289wib.36.2014.10.02.05.56.41
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Oct 2014 05:56:41 -0700 (PDT)
-Date: Thu, 2 Oct 2014 14:56:38 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: RFC: get_user_pages_locked|unlocked to leverage VM_FAULT_RETRY
-Message-ID: <20141002125638.GE6324@worktop.programming.kicks-ass.net>
-References: <20140926172535.GC4590@redhat.com>
- <20141001153611.GC2843@worktop.programming.kicks-ass.net>
- <20141002123117.GB2342@redhat.com>
- <20141002125052.GF2849@worktop.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141002125052.GF2849@worktop.programming.kicks-ass.net>
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id AF3B56B0038
+	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 10:11:39 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id et14so2491188pad.17
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 07:11:39 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id zl8si4065206pac.135.2014.10.02.07.11.37
+        for <linux-mm@kvack.org>;
+        Thu, 02 Oct 2014 07:11:38 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <20141001130523.d7cf46e735089d681194e8e6@linux-foundation.org>
+References: <1412163121-4295-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20141001130523.d7cf46e735089d681194e8e6@linux-foundation.org>
+Subject: Re: [PATCH 1/3] mm: generalize VM_BUG_ON() macros
+Content-Transfer-Encoding: 7bit
+Message-Id: <20141002141133.B56A6E00A3@blue.fi.intel.com>
+Date: Thu,  2 Oct 2014 17:11:33 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andres Lagar-Cavilla <andreslc@google.com>, Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Oct 02, 2014 at 02:50:52PM +0200, Peter Zijlstra wrote:
-> On Thu, Oct 02, 2014 at 02:31:17PM +0200, Andrea Arcangeli wrote:
-> > On Wed, Oct 01, 2014 at 05:36:11PM +0200, Peter Zijlstra wrote:
-> > > For all these and the other _fast() users, is there an actual limit to
-> > > the nr_pages passed in? Because we used to have the 64 pages limit from
-> > > DIO, but without that we get rather long IRQ-off latencies.
-> > 
-> > Ok, I would tend to think this is an issue to solve in gup_fast
-> > implementation, I wouldn't blame or modify the callers for it.
-> > 
-> > I don't think there's anything that prevents gup_fast to enable irqs
-> > after certain number of pages have been taken, nop; and disable the
-> > irqs again.
-> > 
+Andrew Morton wrote:
+> On Wed,  1 Oct 2014 14:31:59 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 > 
-> Agreed, I once upon a time had a patch set converting the 2 (x86 and
-> powerpc) gup_fast implementations at the time, but somehow that never
-> got anywhere.
+> > This patch makes VM_BUG_ON() to accept one to three arguments after the
+> > condition. Any of these arguments can be page, vma or mm. VM_BUG_ON()
+> > will dump info about the argument using appropriate dump_* function.
+> > 
+> > It's intended to replace separate VM_BUG_ON_PAGE(), VM_BUG_ON_VMA(),
+> > VM_BUG_ON_MM() and allows additional use-cases like:
+> > 
+> >   VM_BUG_ON(cond, vma, page);
+> >   VM_BUG_ON(cond, vma, src_page, dst_page);
+> >   VM_BUG_ON(cond, mm, src_vma, dst_vma);
+> >   ...
 > 
-> Just saying we should probably do that before we add callers with
-> unlimited nr_pages.
+> I can't say I'm a fan of this.  We don't do this sort of thing anywhere
+> else in the kernel and passing different types to the same thing in
+> different places is unusual and exceptional.  We gain very little from
+> this so why bother?
 
-https://lkml.org/lkml/2009/6/24/457
+We had bug like this: lkml.kernel.org/r/53F487EB.7070703@oracle.com where
+it's useful to see more than one structure dumped: vma + page in this
+case.
 
-Clearly there's more work these days. Many more archs grew a gup.c
+We can keep inventing new macros: VM_BUG_ON_PAGE_AND_VM() for the case.
+But why not have one to rule them all? ;)
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
