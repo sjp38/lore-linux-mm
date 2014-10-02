@@ -1,56 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B8F06B0038
-	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 08:31:51 -0400 (EDT)
-Received: by mail-qg0-f48.google.com with SMTP id i50so1781615qgf.35
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 05:31:51 -0700 (PDT)
+Received: from mail-vc0-f175.google.com (mail-vc0-f175.google.com [209.85.220.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 099C26B0038
+	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 08:41:19 -0400 (EDT)
+Received: by mail-vc0-f175.google.com with SMTP id id10so1285386vcb.6
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 05:41:19 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 3si6971061qak.110.2014.10.02.05.31.49
+        by mx.google.com with ESMTPS id jq10si2886295vdb.75.2014.10.02.05.41.18
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Oct 2014 05:31:50 -0700 (PDT)
-Date: Thu, 2 Oct 2014 14:31:17 +0200
+        Thu, 02 Oct 2014 05:41:18 -0700 (PDT)
+Date: Thu, 2 Oct 2014 14:40:43 +0200
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: RFC: get_user_pages_locked|unlocked to leverage VM_FAULT_RETRY
-Message-ID: <20141002123117.GB2342@redhat.com>
-References: <20140926172535.GC4590@redhat.com>
- <20141001153611.GC2843@worktop.programming.kicks-ass.net>
+Subject: Re: [PATCH 2/4] mm: gup: add get_user_pages_locked and
+ get_user_pages_unlocked
+Message-ID: <20141002124043.GC2342@redhat.com>
+References: <1412153797-6667-1-git-send-email-aarcange@redhat.com>
+ <1412153797-6667-3-git-send-email-aarcange@redhat.com>
+ <20141001155159.GA7019@google.com>
+ <CAJu=L58vaT7BXfR+RHZ397zJJYL9KwozN0qzCQRadm-=wVYcUw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141001153611.GC2843@worktop.programming.kicks-ass.net>
+In-Reply-To: <CAJu=L58vaT7BXfR+RHZ397zJJYL9KwozN0qzCQRadm-=wVYcUw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andres Lagar-Cavilla <andreslc@google.com>, Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+To: Andres Lagar-Cavilla <andreslc@google.com>
+Cc: Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, "\\Dr. David Alan Gilbert\\" <dgilbert@redhat.com>
 
-On Wed, Oct 01, 2014 at 05:36:11PM +0200, Peter Zijlstra wrote:
-> For all these and the other _fast() users, is there an actual limit to
-> the nr_pages passed in? Because we used to have the 64 pages limit from
-> DIO, but without that we get rather long IRQ-off latencies.
+On Wed, Oct 01, 2014 at 10:06:27AM -0700, Andres Lagar-Cavilla wrote:
+> On Wed, Oct 1, 2014 at 8:51 AM, Peter Feiner <pfeiner@google.com> wrote:
+> > On Wed, Oct 01, 2014 at 10:56:35AM +0200, Andrea Arcangeli wrote:
+> >> +             /* VM_FAULT_RETRY cannot return errors */
+> >> +             if (!*locked) {
+> >> +                     BUG_ON(ret < 0);
+> >> +                     BUG_ON(nr_pages == 1 && ret);
+> >
+> > If I understand correctly, this second BUG_ON is asserting that when
+> > __get_user_pages is asked for a single page and it is successfully gets the
+> > page, then it shouldn't have dropped the mmap_sem. If that's the case, then
+> > you could generalize this assertion to
+> >
+> >                         BUG_ON(nr_pages == ret);
 
-Ok, I would tend to think this is an issue to solve in gup_fast
-implementation, I wouldn't blame or modify the callers for it.
+Agreed.
 
-I don't think there's anything that prevents gup_fast to enable irqs
-after certain number of pages have been taken, nop; and disable the
-irqs again.
+> 
+> Even more strict:
+>      BUG_ON(ret >= nr_pages);
 
-If the TLB flush runs in parallel with gup_fast the result is
-undefined anyway so there's no point to wait all pages to be taken
-before letting the TLB flush go through. All it matters is that
-gup_fast don't take pages that have been invalidated after the
-tlb_flush returns on the other side. So I don't see issues in
-releasing irqs and be latency friendly inside gup_fast fast path loop.
+Agreed too, plus this should be quicker than my weaker check.
 
-In fact gup_fast should also cond_resched() after releasing irqs, it's
-not just an irq latency matter.
+Maybe some BUG_ON can be deleted later or converted to VM_BUG_ON, but
+initially I feel safer with the BUG_ON considering that is a slow
+path.
 
-I could fix x86-64 for it in the same patchset unless somebody sees a
-problem in releasing irqs inside the gup_fast fast path loop.
+> Reviewed-by: Andres Lagar-Cavilla <andreslc@google.com>
 
-__gup_fast is an entirely different beast and that needs the callers to
-be fixed but I didn't alter its callers.
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
