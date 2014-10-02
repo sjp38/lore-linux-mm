@@ -1,74 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f170.google.com (mail-vc0-f170.google.com [209.85.220.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 827C46B0038
-	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 11:54:25 -0400 (EDT)
-Received: by mail-vc0-f170.google.com with SMTP id hy10so1557509vcb.29
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 08:54:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 9si3125110vcq.96.2014.10.02.08.54.23
+Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 967896B006C
+	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 11:54:48 -0400 (EDT)
+Received: by mail-oi0-f43.google.com with SMTP id u20so2081777oif.2
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 08:54:48 -0700 (PDT)
+Received: from mail-ob0-x22a.google.com (mail-ob0-x22a.google.com [2607:f8b0:4003:c01::22a])
+        by mx.google.com with ESMTPS id ek10si7986002obb.96.2014.10.02.08.54.47
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Oct 2014 08:54:24 -0700 (PDT)
-Date: Thu, 2 Oct 2014 17:53:48 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: RFC: get_user_pages_locked|unlocked to leverage VM_FAULT_RETRY
-Message-ID: <20141002155348.GI2342@redhat.com>
-References: <20140926172535.GC4590@redhat.com>
- <20141001153611.GC2843@worktop.programming.kicks-ass.net>
- <20141002123117.GB2342@redhat.com>
- <20141002125052.GF2849@worktop.programming.kicks-ass.net>
- <20141002125638.GE6324@worktop.programming.kicks-ass.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 02 Oct 2014 08:54:47 -0700 (PDT)
+Received: by mail-ob0-f170.google.com with SMTP id uz6so2437458obc.1
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 08:54:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141002125638.GE6324@worktop.programming.kicks-ass.net>
+In-Reply-To: <1412264685-3368-1-git-send-email-paulmcquad@gmail.com>
+References: <1412264685-3368-1-git-send-email-paulmcquad@gmail.com>
+Date: Thu, 2 Oct 2014 19:54:46 +0400
+Message-ID: <CAMo8BfKvvGg7QAH1GqGH98Qsw9v8=Ok0cV+uxKL5RP97p--KpQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: highmem remove 3 errors
+From: Max Filippov <jcmvbkbc@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andres Lagar-Cavilla <andreslc@google.com>, Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+To: Paul McQuade <paulmcquad@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Oct 02, 2014 at 02:56:38PM +0200, Peter Zijlstra wrote:
-> On Thu, Oct 02, 2014 at 02:50:52PM +0200, Peter Zijlstra wrote:
-> > On Thu, Oct 02, 2014 at 02:31:17PM +0200, Andrea Arcangeli wrote:
-> > > On Wed, Oct 01, 2014 at 05:36:11PM +0200, Peter Zijlstra wrote:
-> > > > For all these and the other _fast() users, is there an actual limit to
-> > > > the nr_pages passed in? Because we used to have the 64 pages limit from
-> > > > DIO, but without that we get rather long IRQ-off latencies.
-> > > 
-> > > Ok, I would tend to think this is an issue to solve in gup_fast
-> > > implementation, I wouldn't blame or modify the callers for it.
-> > > 
-> > > I don't think there's anything that prevents gup_fast to enable irqs
-> > > after certain number of pages have been taken, nop; and disable the
-> > > irqs again.
-> > > 
-> > 
-> > Agreed, I once upon a time had a patch set converting the 2 (x86 and
-> > powerpc) gup_fast implementations at the time, but somehow that never
-> > got anywhere.
-> > 
-> > Just saying we should probably do that before we add callers with
-> > unlimited nr_pages.
-> 
-> https://lkml.org/lkml/2009/6/24/457
-> 
-> Clearly there's more work these days. Many more archs grew a gup.c
+On Thu, Oct 2, 2014 at 7:44 PM, Paul McQuade <paulmcquad@gmail.com> wrote:
+> pointers should be foo *bar or (foo *)
+>
+> Signed-off-by: Paul McQuade <paulmcquad@gmail.com>
+> ---
+>  mm/highmem.c | 6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
+>
+> diff --git a/mm/highmem.c b/mm/highmem.c
+> index 123bcd3..f6dae74 100644
+> --- a/mm/highmem.c
+> +++ b/mm/highmem.c
+> @@ -130,7 +130,7 @@ unsigned int nr_free_highpages (void)
+>  static int pkmap_count[LAST_PKMAP];
+>  static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(kmap_lock);
+>
+> -pte_t * pkmap_page_table;
+> +pte_t *pkmap_page_table;
+>
+>  /*
+>   * Most architectures have no use for kmap_high_get(), so let's abstract
+> @@ -291,7 +291,7 @@ void *kmap_high(struct page *page)
+>         pkmap_count[PKMAP_NR(vaddr)]++;
+>         BUG_ON(pkmap_count[PKMAP_NR(vaddr)] < 2);
+>         unlock_kmap();
+> -       return (void*) vaddr;
+> +       return (void *) vaddr;
 
-What about this? The alternative is that I do s/gup_fast/gup_unlocked/
-to still retain the mmap_sem scalability benefit. It'd be still better
-than the current plain gup() (and it would be equivalent for
-userfaultfd point of view).
+checkpatch suggests that
+CHECK: No space is necessary after a cast
 
-Or if the below is ok, should I modify all other archs too or are the
-respective maintainers going to fix it themself? For example the arm*
-gup_fast is a moving target in development on linux-mm right now and I
-should only patch the gup_rcu version that didn't hit upstream yet. In
-fact after that gup_rcu merge, supposedly the powerpc and sparc
-gup_fast can be dropped from arch/* entirely and they can use the
-generic version (otherwise having the arm gup_fast in mm/ instead of
-arch/ would be a mistake). Right now, I wouldn't touch at least
-arm/sparc/powerpc until the gup_rcu hit upstream as those are all
-about to disappear.
+>  }
+>
+>  EXPORT_SYMBOL(kmap_high);
+> @@ -318,7 +318,7 @@ void *kmap_high_get(struct page *page)
+>                 pkmap_count[PKMAP_NR(vaddr)]++;
+>         }
+>         unlock_kmap_any(flags);
+> -       return (void*) vaddr;
+> +       return (void *) vaddr;
 
-Thanks,
-Andrea
+Here as well.
+
+-- 
+Thanks.
+-- Max
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
