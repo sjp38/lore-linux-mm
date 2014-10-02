@@ -1,47 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F3906B006E
-	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 12:06:08 -0400 (EDT)
-Received: by mail-wg0-f41.google.com with SMTP id b13so3550822wgh.12
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 09:06:08 -0700 (PDT)
-Received: from mail-wi0-x236.google.com (mail-wi0-x236.google.com [2a00:1450:400c:c05::236])
-        by mx.google.com with ESMTPS id bk8si1635255wib.57.2014.10.02.09.06.07
+Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
+	by kanga.kvack.org (Postfix) with ESMTP id EF3BC6B006E
+	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 12:14:00 -0400 (EDT)
+Received: by mail-ob0-f182.google.com with SMTP id uy5so2418741obc.13
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 09:14:00 -0700 (PDT)
+Received: from mail-ob0-x22a.google.com (mail-ob0-x22a.google.com [2607:f8b0:4003:c01::22a])
+        by mx.google.com with ESMTPS id y9si8135704oec.71.2014.10.02.09.13.59
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 02 Oct 2014 09:06:07 -0700 (PDT)
-Received: by mail-wi0-f182.google.com with SMTP id n3so4570751wiv.15
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 09:06:07 -0700 (PDT)
-From: Paul McQuade <paulmcquad@gmail.com>
-Subject: [PATCH] mm: highmem fix pointers
-Date: Thu,  2 Oct 2014 17:06:00 +0100
-Message-Id: <1412265960-3948-1-git-send-email-paulmcquad@gmail.com>
+        Thu, 02 Oct 2014 09:13:59 -0700 (PDT)
+Received: by mail-ob0-f170.google.com with SMTP id uz6so2473955obc.1
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 09:13:59 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CAMo8BfKvvGg7QAH1GqGH98Qsw9v8=Ok0cV+uxKL5RP97p--KpQ@mail.gmail.com>
+References: <1412264685-3368-1-git-send-email-paulmcquad@gmail.com>
+	<CAMo8BfKvvGg7QAH1GqGH98Qsw9v8=Ok0cV+uxKL5RP97p--KpQ@mail.gmail.com>
+Date: Thu, 2 Oct 2014 20:13:59 +0400
+Message-ID: <CAMo8BfLkZvH9zG+O7cTJmwAs5WCTRfV6VmN8p=apUuRZut5i-Q@mail.gmail.com>
+Subject: Re: [PATCH] mm: highmem remove 3 errors
+From: Max Filippov <jcmvbkbc@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmcquad@gmail.com
-Cc: jcmvbkbc@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Paul McQuade <paulmcquad@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-pointers should be foo *bar
+On Thu, Oct 2, 2014 at 7:54 PM, Max Filippov <jcmvbkbc@gmail.com> wrote:
+> On Thu, Oct 2, 2014 at 7:44 PM, Paul McQuade <paulmcquad@gmail.com> wrote:
+>> -       return (void*) vaddr;
+>> +       return (void *) vaddr;
+>
+> checkpatch suggests that
+> CHECK: No space is necessary after a cast
 
-Signed-off-by: Paul McQuade <paulmcquad@gmail.com>
----
- mm/highmem.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Sorry, wasn't clear enough. 'After a cast' means between ')' and 'vaddr' in the
+above case. Space insertion between 'void' and '*' is correct.
 
-diff --git a/mm/highmem.c b/mm/highmem.c
-index 123bcd3..7543624 100644
---- a/mm/highmem.c
-+++ b/mm/highmem.c
-@@ -130,7 +130,7 @@ unsigned int nr_free_highpages (void)
- static int pkmap_count[LAST_PKMAP];
- static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(kmap_lock);
- 
--pte_t * pkmap_page_table;
-+pte_t *pkmap_page_table;
- 
- /*
-  * Most architectures have no use for kmap_high_get(), so let's abstract
 -- 
-1.9.1
+Thanks.
+-- Max
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
