@@ -1,53 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 49FF86B0038
-	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 11:57:25 -0400 (EDT)
-Received: by mail-wi0-f173.google.com with SMTP id fb4so73530wid.0
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 08:57:24 -0700 (PDT)
-Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com [2a00:1450:400c:c05::235])
-        by mx.google.com with ESMTPS id bp4si5851522wjc.41.2014.10.02.08.57.24
+Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 4750E6B006E
+	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 11:58:03 -0400 (EDT)
+Received: by mail-la0-f43.google.com with SMTP id mc6so2664915lab.30
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 08:58:02 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id e4si7267485lbs.54.2014.10.02.08.58.01
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 02 Oct 2014 08:57:24 -0700 (PDT)
-Received: by mail-wi0-f181.google.com with SMTP id hi2so4549584wib.14
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 08:57:24 -0700 (PDT)
-From: Paul McQuade <paulmcquad@gmail.com>
-Subject: [PATCH] mm: hugetlb braces not needed
-Date: Thu,  2 Oct 2014 16:57:19 +0100
-Message-Id: <1412265439-3654-1-git-send-email-paulmcquad@gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Oct 2014 08:58:01 -0700 (PDT)
+Date: Thu, 2 Oct 2014 11:57:50 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 1/3] mm: memcontrol: do not kill uncharge batching in
+ free_pages_and_swap_cache
+Message-ID: <20141002155750.GB2035@cmpxchg.org>
+References: <1411571338-8178-1-git-send-email-hannes@cmpxchg.org>
+ <1411571338-8178-2-git-send-email-hannes@cmpxchg.org>
+ <20140924124234.3fdb59d6cdf7e9c4d6260adb@linux-foundation.org>
+ <20140924210322.GA11017@cmpxchg.org>
+ <20140925134403.GA11080@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140925134403.GA11080@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmcquad@gmail.com
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, davidlohr@hp.com, lcapitulino@redhat.com, iamjoonsoo.kim@lge.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Dave Hansen <dave@sr71.net>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-braces {} are not necessary for any arm of this statement
+On Thu, Sep 25, 2014 at 03:44:03PM +0200, Michal Hocko wrote:
+> On Wed 24-09-14 17:03:22, Johannes Weiner wrote:
+> [...]
+> > In release_pages, break the lock at least every SWAP_CLUSTER_MAX (32)
+> > pages, then remove the batching from free_pages_and_swap_cache.
+> 
+> Actually I had something like that originally but then decided to
+> not change the break out logic to prevent from strange and subtle
+> regressions. I have focused only on the memcg batching POV and led the
+> rest untouched.
+> 
+> I do agree that lru_lock batching can be improved as well. Your change
+> looks almost correct but you should count all the pages while the lock
+> is held otherwise you might happen to hold the lock for too long just
+> because most pages are off the LRU already for some reason. At least
+> that is what my original attempt was doing. Something like the following
+> on top of the current patch:
 
-Signed-off-by: Paul McQuade <paulmcquad@gmail.com>
----
- mm/hugetlb.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+Yep, that makes sense.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index eeceeeb..565b403 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -106,11 +106,11 @@ static int hugepage_subpool_get_pages(struct hugepage_subpool *spool,
- 		return 0;
- 
- 	spin_lock(&spool->lock);
--	if ((spool->used_hpages + delta) <= spool->max_hpages) {
-+	if ((spool->used_hpages + delta) <= spool->max_hpages)
- 		spool->used_hpages += delta;
--	} else {
-+	else
- 		ret = -ENOMEM;
--	}
-+
- 	spin_unlock(&spool->lock);
- 
- 	return ret;
--- 
-1.9.1
+Would you care to send it in such that Andrew can pick it up?  Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
