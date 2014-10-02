@@ -1,53 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E87B6B0038
-	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 11:34:25 -0400 (EDT)
-Received: by mail-wg0-f51.google.com with SMTP id b13so3464371wgh.22
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 08:34:24 -0700 (PDT)
-Received: from mail-wg0-x22d.google.com (mail-wg0-x22d.google.com [2a00:1450:400c:c00::22d])
-        by mx.google.com with ESMTPS id i7si1530479wix.66.2014.10.02.08.34.24
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AB2A6B0038
+	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 11:44:51 -0400 (EDT)
+Received: by mail-wg0-f43.google.com with SMTP id m15so701162wgh.26
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 08:44:50 -0700 (PDT)
+Received: from mail-wg0-x231.google.com (mail-wg0-x231.google.com [2a00:1450:400c:c00::231])
+        by mx.google.com with ESMTPS id b10si1593638wic.34.2014.10.02.08.44.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 02 Oct 2014 08:34:24 -0700 (PDT)
-Received: by mail-wg0-f45.google.com with SMTP id m15so3530565wgh.4
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 08:34:24 -0700 (PDT)
+        Thu, 02 Oct 2014 08:44:50 -0700 (PDT)
+Received: by mail-wg0-f49.google.com with SMTP id x12so3606652wgg.32
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 08:44:50 -0700 (PDT)
 From: Paul McQuade <paulmcquad@gmail.com>
-Subject: [PATCH] mm: fremap use linux header
-Date: Thu,  2 Oct 2014 16:34:17 +0100
-Message-Id: <1412264057-3146-1-git-send-email-paulmcquad@gmail.com>
+Subject: [PATCH] mm: highmem remove 3 errors
+Date: Thu,  2 Oct 2014 16:44:45 +0100
+Message-Id: <1412264685-3368-1-git-send-email-paulmcquad@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: paulmcquad@gmail.com
-Cc: akpm@linux-foundation.org, hughd@google.com, gorcunov@openvz.org, kirill.shutemov@linux.intel.com, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, jcmvbkbc@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Use #include <linux/mmu_context.h> instead of <asm/mmu_context.h>
+pointers should be foo *bar or (foo *)
 
 Signed-off-by: Paul McQuade <paulmcquad@gmail.com>
 ---
- mm/fremap.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/highmem.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/mm/fremap.c b/mm/fremap.c
-index 72b8fa3..d614f1c 100644
---- a/mm/fremap.c
-+++ b/mm/fremap.c
-@@ -1,6 +1,6 @@
- /*
-  *   linux/mm/fremap.c
-- * 
-+ *
-  * Explicit pagetable population and nonlinear (random) mappings support.
-  *
-  * started by Ingo Molnar, Copyright (C) 2002, 2003
-@@ -16,8 +16,8 @@
- #include <linux/rmap.h>
- #include <linux/syscalls.h>
- #include <linux/mmu_notifier.h>
-+#include <linux/mmu_context.h>
+diff --git a/mm/highmem.c b/mm/highmem.c
+index 123bcd3..f6dae74 100644
+--- a/mm/highmem.c
++++ b/mm/highmem.c
+@@ -130,7 +130,7 @@ unsigned int nr_free_highpages (void)
+ static int pkmap_count[LAST_PKMAP];
+ static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(kmap_lock);
  
--#include <asm/mmu_context.h>
- #include <asm/cacheflush.h>
- #include <asm/tlbflush.h>
+-pte_t * pkmap_page_table;
++pte_t *pkmap_page_table;
+ 
+ /*
+  * Most architectures have no use for kmap_high_get(), so let's abstract
+@@ -291,7 +291,7 @@ void *kmap_high(struct page *page)
+ 	pkmap_count[PKMAP_NR(vaddr)]++;
+ 	BUG_ON(pkmap_count[PKMAP_NR(vaddr)] < 2);
+ 	unlock_kmap();
+-	return (void*) vaddr;
++	return (void *) vaddr;
+ }
+ 
+ EXPORT_SYMBOL(kmap_high);
+@@ -318,7 +318,7 @@ void *kmap_high_get(struct page *page)
+ 		pkmap_count[PKMAP_NR(vaddr)]++;
+ 	}
+ 	unlock_kmap_any(flags);
+-	return (void*) vaddr;
++	return (void *) vaddr;
+ }
+ #endif
  
 -- 
 1.9.1
