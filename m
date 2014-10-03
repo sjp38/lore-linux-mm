@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CE636B0078
-	for <linux-mm@kvack.org>; Fri,  3 Oct 2014 13:08:53 -0400 (EDT)
-Received: by mail-qa0-f46.google.com with SMTP id w8so1118376qac.5
-        for <linux-mm@kvack.org>; Fri, 03 Oct 2014 10:08:52 -0700 (PDT)
+Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 8934D6B0069
+	for <linux-mm@kvack.org>; Fri,  3 Oct 2014 13:22:05 -0400 (EDT)
+Received: by mail-qa0-f54.google.com with SMTP id i13so1153251qae.27
+        for <linux-mm@kvack.org>; Fri, 03 Oct 2014 10:22:05 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k4si13249915qae.95.2014.10.03.10.08.47
+        by mx.google.com with ESMTPS id ls5si12368213qcb.2.2014.10.03.10.22.03
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Oct 2014 10:08:47 -0700 (PDT)
+        Fri, 03 Oct 2014 10:22:04 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 13/17] waitqueue: add nr wake parameter to __wake_up_locked_key
-Date: Fri,  3 Oct 2014 19:08:03 +0200
-Message-Id: <1412356087-16115-14-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 09/17] mm: PT lock: export double_pt_lock/unlock
+Date: Fri,  3 Oct 2014 19:07:59 +0200
+Message-Id: <1412356087-16115-10-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1412356087-16115-1-git-send-email-aarcange@redhat.com>
 References: <1412356087-16115-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,79 +20,66 @@ List-ID: <linux-mm.kvack.org>
 To: qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave@sr71.net>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "\\\"Dr. David Alan Gilbert\\\"" <dgilbert@redhat.com>, Christopher Covington <cov@codeaurora.org>, Johannes Weiner <hannes@cmpxchg.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, Keith Packard <keithp@keithp.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Isaku Yamahata <yamahata@valinux.co.jp>, Anthony Liguori <anthony@codemonkey.ws>, Stefan Hajnoczi <stefanha@gmail.com>, Wenchao Xia <wenchaoqemu@gmail.com>, Andrew Jones <drjones@redhat.com>, Juan Quintela <quintela@redhat.com>
 
-Userfaultfd needs to wake all waitqueues (pass 0 as nr parameter),
-instead of the current hardcoded 1 (that would wake just the first
-waitqueue in the head list).
+Those two helpers are needed by remap_anon_pages.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- include/linux/wait.h | 5 +++--
- kernel/sched/wait.c  | 7 ++++---
- net/sunrpc/sched.c   | 2 +-
- 3 files changed, 8 insertions(+), 6 deletions(-)
+ include/linux/mm.h |  4 ++++
+ mm/fremap.c        | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)
 
-diff --git a/include/linux/wait.h b/include/linux/wait.h
-index 6fb1ba5..f8271cb 100644
---- a/include/linux/wait.h
-+++ b/include/linux/wait.h
-@@ -144,7 +144,8 @@ __remove_wait_queue(wait_queue_head_t *head, wait_queue_t *old)
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index bf3df07..71dbe03 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1408,6 +1408,10 @@ static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long a
+ }
+ #endif /* CONFIG_MMU && !__ARCH_HAS_4LEVEL_HACK */
  
- typedef int wait_bit_action_f(struct wait_bit_key *);
- void __wake_up(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
--void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, void *key);
-+void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, int nr,
-+			  void *key);
- void __wake_up_sync_key(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
- void __wake_up_locked(wait_queue_head_t *q, unsigned int mode, int nr);
- void __wake_up_sync(wait_queue_head_t *q, unsigned int mode, int nr);
-@@ -175,7 +176,7 @@ wait_queue_head_t *bit_waitqueue(void *, int);
- #define wake_up_poll(x, m)						\
- 	__wake_up(x, TASK_NORMAL, 1, (void *) (m))
- #define wake_up_locked_poll(x, m)					\
--	__wake_up_locked_key((x), TASK_NORMAL, (void *) (m))
-+	__wake_up_locked_key((x), TASK_NORMAL, 1, (void *) (m))
- #define wake_up_interruptible_poll(x, m)				\
- 	__wake_up(x, TASK_INTERRUPTIBLE, 1, (void *) (m))
- #define wake_up_interruptible_sync_poll(x, m)				\
-diff --git a/kernel/sched/wait.c b/kernel/sched/wait.c
-index 15cab1a..d848738 100644
---- a/kernel/sched/wait.c
-+++ b/kernel/sched/wait.c
-@@ -105,9 +105,10 @@ void __wake_up_locked(wait_queue_head_t *q, unsigned int mode, int nr)
- }
- EXPORT_SYMBOL_GPL(__wake_up_locked);
++/* mm/fremap.c */
++extern void double_pt_lock(spinlock_t *ptl1, spinlock_t *ptl2);
++extern void double_pt_unlock(spinlock_t *ptl1, spinlock_t *ptl2);
++
+ #if USE_SPLIT_PTE_PTLOCKS
+ #if ALLOC_SPLIT_PTLOCKS
+ void __init ptlock_cache_init(void);
+diff --git a/mm/fremap.c b/mm/fremap.c
+index 72b8fa3..1e509f7 100644
+--- a/mm/fremap.c
++++ b/mm/fremap.c
+@@ -281,3 +281,32 @@ out_freed:
  
--void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, void *key)
-+void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, int nr,
-+			  void *key)
- {
--	__wake_up_common(q, mode, 1, 0, key);
-+	__wake_up_common(q, mode, nr, 0, key);
+ 	return err;
  }
- EXPORT_SYMBOL_GPL(__wake_up_locked_key);
- 
-@@ -282,7 +283,7 @@ void abort_exclusive_wait(wait_queue_head_t *q, wait_queue_t *wait,
- 	if (!list_empty(&wait->task_list))
- 		list_del_init(&wait->task_list);
- 	else if (waitqueue_active(q))
--		__wake_up_locked_key(q, mode, key);
-+		__wake_up_locked_key(q, mode, 1, key);
- 	spin_unlock_irqrestore(&q->lock, flags);
- }
- EXPORT_SYMBOL(abort_exclusive_wait);
-diff --git a/net/sunrpc/sched.c b/net/sunrpc/sched.c
-index 9358c79..39b7496 100644
---- a/net/sunrpc/sched.c
-+++ b/net/sunrpc/sched.c
-@@ -297,7 +297,7 @@ static int rpc_complete_task(struct rpc_task *task)
- 	clear_bit(RPC_TASK_ACTIVE, &task->tk_runstate);
- 	ret = atomic_dec_and_test(&task->tk_count);
- 	if (waitqueue_active(wq))
--		__wake_up_locked_key(wq, TASK_NORMAL, &k);
-+		__wake_up_locked_key(wq, TASK_NORMAL, 1, &k);
- 	spin_unlock_irqrestore(&wq->lock, flags);
- 	return ret;
- }
++
++void double_pt_lock(spinlock_t *ptl1,
++		    spinlock_t *ptl2)
++	__acquires(ptl1)
++	__acquires(ptl2)
++{
++	spinlock_t *ptl_tmp;
++
++	if (ptl1 > ptl2) {
++		/* exchange ptl1 and ptl2 */
++		ptl_tmp = ptl1;
++		ptl1 = ptl2;
++		ptl2 = ptl_tmp;
++	}
++	/* lock in virtual address order to avoid lock inversion */
++	spin_lock(ptl1);
++	if (ptl1 != ptl2)
++		spin_lock_nested(ptl2, SINGLE_DEPTH_NESTING);
++}
++
++void double_pt_unlock(spinlock_t *ptl1,
++		      spinlock_t *ptl2)
++	__releases(ptl1)
++	__releases(ptl2)
++{
++	spin_unlock(ptl1);
++	if (ptl1 != ptl2)
++		spin_unlock(ptl2);
++}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
