@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 9965C6B0069
-	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 21:13:43 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id lf10so460040pab.30
-        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 18:13:43 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id sq1si5776726pab.228.2014.10.02.18.13.40
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id BB4096B0069
+	for <linux-mm@kvack.org>; Thu,  2 Oct 2014 21:17:56 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id fa1so477084pad.33
+        for <linux-mm@kvack.org>; Thu, 02 Oct 2014 18:17:56 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id lc11si5919960pab.104.2014.10.02.18.17.54
         for <linux-mm@kvack.org>;
-        Thu, 02 Oct 2014 18:13:42 -0700 (PDT)
-Date: Fri, 03 Oct 2014 09:12:31 +0800
+        Thu, 02 Oct 2014 18:17:55 -0700 (PDT)
+Date: Fri, 03 Oct 2014 09:16:59 +0800
 From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 202/445] drivers/base/dma-coherent.c:303:2:
+Subject: [mmotm:master 206/445] drivers/base/dma-contiguous.c:243:2:
  warning: initialization from incompatible pointer type
-Message-ID: <542df7ff.Tge9yMW1ZMRHGWcR%fengguang.wu@intel.com>
+Message-ID: <542df90b.qnhfgoXTZlB3R8KK%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: multipart/mixed;
- boundary="=_542df7ff.8ObiPlW2GnQTYAV/GygCzEmFIDVWsQxLLgJ7VAX7ZQe7ixaL"
+ boundary="=_542df90b.8aejb8zegahZR7SYnj+ksc8SagdjGZn+Gc7U+CECt84azjSF"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Marek Szyprowski <m.szyprowski@samsung.com>
@@ -23,62 +23,62 @@ Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux
 
 This is a multi-part message in MIME format.
 
---=_542df7ff.8ObiPlW2GnQTYAV/GygCzEmFIDVWsQxLLgJ7VAX7ZQe7ixaL
+--=_542df90b.8aejb8zegahZR7SYnj+ksc8SagdjGZn+Gc7U+CECt84azjSF
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 
 tree:   git://git.cmpxchg.org/linux-mmotm.git master
 head:   5d74e104f9872d5fe45c56f5cafd1fc44c6f2676
-commit: 69f9dba0447d9b3876b9be77f05f3a50f41bf258 [202/445] drivers: dma-coherent: add initialization from device tree
+commit: 6dd3adc8b59b55c1522eeebb68d92649f3ad4b83 [206/445] drivers: dma-contiguous: add initialization from device tree
 config: arm-omap2plus_defconfig (attached as .config)
 reproduce:
   wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
   chmod +x ~/bin/make.cross
-  git checkout 69f9dba0447d9b3876b9be77f05f3a50f41bf258
+  git checkout 6dd3adc8b59b55c1522eeebb68d92649f3ad4b83
   # save the attached .config to linux build tree
   make.cross ARCH=arm 
 
 All warnings:
 
->> drivers/base/dma-coherent.c:303:2: warning: initialization from incompatible pointer type
-     .device_init = rmem_dma_device_init,
+>> drivers/base/dma-contiguous.c:243:2: warning: initialization from incompatible pointer type
+     .device_init = rmem_cma_device_init,
      ^
->> drivers/base/dma-coherent.c:303:2: warning: (near initialization for 'rmem_dma_ops.device_init')
+>> drivers/base/dma-contiguous.c:243:2: warning: (near initialization for 'rmem_cma_ops.device_init')
 
-vim +303 drivers/base/dma-coherent.c
+vim +243 drivers/base/dma-contiguous.c
 
-   287			pr_info("Reserved memory: failed to init DMA memory pool at %pa, size %ld MiB\n",
-   288				&rmem->base, (unsigned long)rmem->size / SZ_1M);
-   289			return -ENODEV;
-   290		}
-   291		rmem->priv = mem;
-   292		dma_assign_coherent_memory(dev, mem);
-   293		return 0;
-   294	}
-   295	
-   296	static void rmem_dma_device_release(struct reserved_mem *rmem,
-   297					    struct device *dev)
-   298	{
-   299		dev->dma_mem = NULL;
-   300	}
-   301	
-   302	static const struct reserved_mem_ops rmem_dma_ops = {
- > 303		.device_init	= rmem_dma_device_init,
-   304		.device_release	= rmem_dma_device_release,
-   305	};
-   306	
-   307	static int __init rmem_dma_setup(struct reserved_mem *rmem)
-   308	{
-   309		unsigned long node = rmem->fdt_node;
-   310	
-   311		if (of_get_flat_dt_prop(node, "reusable", NULL))
+   227	{
+   228		struct cma *cma = rmem->priv;
+   229		if (!cma)
+   230			return -ENODEV;
+   231	
+   232		dev_set_cma_area(dev, cma);
+   233		return 0;
+   234	}
+   235	
+   236	static void rmem_cma_device_release(struct reserved_mem *rmem,
+   237					    struct device *dev)
+   238	{
+   239		dev_set_cma_area(dev, NULL);
+   240	}
+   241	
+   242	static const struct reserved_mem_ops rmem_cma_ops = {
+ > 243		.device_init	= rmem_cma_device_init,
+   244		.device_release = rmem_cma_device_release,
+   245	};
+   246	
+   247	static int __init rmem_cma_setup(struct reserved_mem *rmem)
+   248	{
+   249		phys_addr_t align = PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order);
+   250		phys_addr_t mask = align - 1;
+   251		unsigned long node = rmem->fdt_node;
 
 ---
 0-DAY kernel build testing backend              Open Source Technology Center
 http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
---=_542df7ff.8ObiPlW2GnQTYAV/GygCzEmFIDVWsQxLLgJ7VAX7ZQe7ixaL
+--=_542df90b.8aejb8zegahZR7SYnj+ksc8SagdjGZn+Gc7U+CECt84azjSF
 Content-Type: text/plain;
  charset=us-ascii
 Content-Transfer-Encoding: 7bit
@@ -3522,7 +3522,7 @@ CONFIG_FONT_8x16=y
 CONFIG_ARCH_HAS_SG_CHAIN=y
 # CONFIG_VIRTUALIZATION is not set
 
---=_542df7ff.8ObiPlW2GnQTYAV/GygCzEmFIDVWsQxLLgJ7VAX7ZQe7ixaL--
+--=_542df90b.8aejb8zegahZR7SYnj+ksc8SagdjGZn+Gc7U+CECt84azjSF--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
