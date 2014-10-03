@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f177.google.com (mail-vc0-f177.google.com [209.85.220.177])
-	by kanga.kvack.org (Postfix) with ESMTP id C9F416B0069
-	for <linux-mm@kvack.org>; Fri,  3 Oct 2014 13:23:08 -0400 (EDT)
-Received: by mail-vc0-f177.google.com with SMTP id hq11so953345vcb.36
-        for <linux-mm@kvack.org>; Fri, 03 Oct 2014 10:23:08 -0700 (PDT)
+Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
+	by kanga.kvack.org (Postfix) with ESMTP id E19606B0069
+	for <linux-mm@kvack.org>; Fri,  3 Oct 2014 14:01:24 -0400 (EDT)
+Received: by mail-qa0-f49.google.com with SMTP id f12so1175652qad.36
+        for <linux-mm@kvack.org>; Fri, 03 Oct 2014 11:01:24 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id xe7si4775176vcb.14.2014.10.03.10.23.07
+        by mx.google.com with ESMTPS id c6si13440668qag.131.2014.10.03.11.01.23
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Oct 2014 10:23:07 -0700 (PDT)
+        Fri, 03 Oct 2014 11:01:24 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 07/17] mm: madvise MADV_USERFAULT: prepare vm_flags to allow more than 32bits
-Date: Fri,  3 Oct 2014 19:07:57 +0200
-Message-Id: <1412356087-16115-8-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 10/17] mm: rmap preparation for remap_anon_pages
+Date: Fri,  3 Oct 2014 19:08:00 +0200
+Message-Id: <1412356087-16115-11-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1412356087-16115-1-git-send-email-aarcange@redhat.com>
 References: <1412356087-16115-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,147 +20,122 @@ List-ID: <linux-mm.kvack.org>
 To: qemu-devel@nongnu.org, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave@sr71.net>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "\\\"Dr. David Alan Gilbert\\\"" <dgilbert@redhat.com>, Christopher Covington <cov@codeaurora.org>, Johannes Weiner <hannes@cmpxchg.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, Keith Packard <keithp@keithp.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Isaku Yamahata <yamahata@valinux.co.jp>, Anthony Liguori <anthony@codemonkey.ws>, Stefan Hajnoczi <stefanha@gmail.com>, Wenchao Xia <wenchaoqemu@gmail.com>, Andrew Jones <drjones@redhat.com>, Juan Quintela <quintela@redhat.com>
 
-We run out of 32bits in vm_flags, noop change for 64bit archs.
+remap_anon_pages (unlike remap_file_pages) tries to be non intrusive
+in the rmap code.
+
+As far as the rmap code is concerned, rmap_anon_pages only alters the
+page->mapping and page->index. It does it while holding the page
+lock. However there are a few places that in presence of anon pages
+are allowed to do rmap walks without the page lock (split_huge_page
+and page_referenced_anon). Those places that are doing rmap walks
+without taking the page lock first, must be updated to re-check that
+the page->mapping didn't change after they obtained the anon_vma
+lock. remap_anon_pages takes the anon_vma lock for writing before
+altering the page->mapping, so if the page->mapping is still the same
+after obtaining the anon_vma lock (without the page lock), the rmap
+walks can go ahead safely (and remap_anon_pages will wait them to
+complete before proceeding).
+
+remap_anon_pages serializes against itself with the page lock.
+
+All other places taking the anon_vma lock while holding the mmap_sem
+for writing, don't need to check if the page->mapping has changed
+after taking the anon_vma lock, regardless of the page lock, because
+remap_anon_pages holds the mmap_sem for reading.
+
+Overall this looks a fairly small change to the rmap code, notably
+less intrusive than the nonlinear vmas created by remap_file_pages.
+
+There's one constraint enforced to allow this simplification: the
+source pages passed to remap_anon_pages must be mapped only in one
+vma, but this is not a limitation when used to handle userland page
+faults with MADV_USERFAULT. The source addresses passed to
+remap_anon_pages should be set as VM_DONTCOPY with MADV_DONTFORK to
+avoid any risk of the mapcount of the pages increasing, if fork runs
+in parallel in another thread, before or while remap_anon_pages runs.
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- fs/proc/task_mmu.c       | 4 ++--
- include/linux/huge_mm.h  | 4 ++--
- include/linux/ksm.h      | 4 ++--
- include/linux/mm_types.h | 2 +-
- mm/huge_memory.c         | 2 +-
- mm/ksm.c                 | 2 +-
- mm/madvise.c             | 2 +-
- mm/mremap.c              | 2 +-
- 8 files changed, 11 insertions(+), 11 deletions(-)
+ mm/huge_memory.c | 24 ++++++++++++++++++++----
+ mm/rmap.c        |  9 +++++++++
+ 2 files changed, 29 insertions(+), 4 deletions(-)
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index c341568..ee1c3a2 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -532,11 +532,11 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
- 	/*
- 	 * Don't forget to update Documentation/ on changes.
- 	 */
--	static const char mnemonics[BITS_PER_LONG][2] = {
-+	static const char mnemonics[BITS_PER_LONG+1][2] = {
- 		/*
- 		 * In case if we meet a flag we don't know about.
- 		 */
--		[0 ... (BITS_PER_LONG-1)] = "??",
-+		[0 ... (BITS_PER_LONG)] = "??",
- 
- 		[ilog2(VM_READ)]	= "rd",
- 		[ilog2(VM_WRITE)]	= "wr",
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 63579cb..3aa10e0 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -121,7 +121,7 @@ extern void split_huge_page_pmd_mm(struct mm_struct *mm, unsigned long address,
- #error "hugepages can't be allocated by the buddy allocator"
- #endif
- extern int hugepage_madvise(struct vm_area_struct *vma,
--			    unsigned long *vm_flags, int advice);
-+			    vm_flags_t *vm_flags, int advice);
- extern void __vma_adjust_trans_huge(struct vm_area_struct *vma,
- 				    unsigned long start,
- 				    unsigned long end,
-@@ -183,7 +183,7 @@ static inline int split_huge_page(struct page *page)
- #define split_huge_page_pmd_mm(__mm, __address, __pmd)	\
- 	do { } while (0)
- static inline int hugepage_madvise(struct vm_area_struct *vma,
--				   unsigned long *vm_flags, int advice)
-+				   vm_flags_t *vm_flags, int advice)
- {
- 	BUG();
- 	return 0;
-diff --git a/include/linux/ksm.h b/include/linux/ksm.h
-index 3be6bb1..8b35253 100644
---- a/include/linux/ksm.h
-+++ b/include/linux/ksm.h
-@@ -18,7 +18,7 @@ struct mem_cgroup;
- 
- #ifdef CONFIG_KSM
- int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
--		unsigned long end, int advice, unsigned long *vm_flags);
-+		unsigned long end, int advice, vm_flags_t *vm_flags);
- int __ksm_enter(struct mm_struct *mm);
- void __ksm_exit(struct mm_struct *mm);
- 
-@@ -94,7 +94,7 @@ static inline int PageKsm(struct page *page)
- 
- #ifdef CONFIG_MMU
- static inline int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
--		unsigned long end, int advice, unsigned long *vm_flags)
-+		unsigned long end, int advice, vm_flags_t *vm_flags)
- {
- 	return 0;
- }
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 6e0b286..2c876d1 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -217,7 +217,7 @@ struct page_frag {
- #endif
- };
- 
--typedef unsigned long __nocast vm_flags_t;
-+typedef unsigned long long __nocast vm_flags_t;
- 
- /*
-  * A region containing a mapping of a non-memory backed file under NOMMU
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index d9a21d06..e913a19 100644
+index b402d60..4277ed7 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -1942,7 +1942,7 @@ out:
- #define VM_NO_THP (VM_SPECIAL | VM_HUGETLB | VM_SHARED | VM_MAYSHARE)
- 
- int hugepage_madvise(struct vm_area_struct *vma,
--		     unsigned long *vm_flags, int advice)
-+		     vm_flags_t *vm_flags, int advice)
+@@ -1921,6 +1921,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
  {
- 	switch (advice) {
- 	case MADV_HUGEPAGE:
-diff --git a/mm/ksm.c b/mm/ksm.c
-index fb75902..faf319e 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1736,7 +1736,7 @@ static int ksm_scan_thread(void *nothing)
- }
+ 	struct anon_vma *anon_vma;
+ 	int ret = 1;
++	struct address_space *mapping;
  
- int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
--		unsigned long end, int advice, unsigned long *vm_flags)
-+		unsigned long end, int advice, vm_flags_t *vm_flags)
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	int err;
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 0938b30..d5aee71 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -49,7 +49,7 @@ static long madvise_behavior(struct vm_area_struct *vma,
- 	struct mm_struct *mm = vma->vm_mm;
- 	int error = 0;
- 	pgoff_t pgoff;
--	unsigned long new_flags = vma->vm_flags;
-+	vm_flags_t new_flags = vma->vm_flags;
+ 	BUG_ON(is_huge_zero_page(page));
+ 	BUG_ON(!PageAnon(page));
+@@ -1932,10 +1933,24 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 	 * page_lock_anon_vma_read except the write lock is taken to serialise
+ 	 * against parallel split or collapse operations.
+ 	 */
+-	anon_vma = page_get_anon_vma(page);
+-	if (!anon_vma)
+-		goto out;
+-	anon_vma_lock_write(anon_vma);
++	for (;;) {
++		mapping = ACCESS_ONCE(page->mapping);
++		anon_vma = page_get_anon_vma(page);
++		if (!anon_vma)
++			goto out;
++		anon_vma_lock_write(anon_vma);
++		/*
++		 * We don't hold the page lock here so
++		 * remap_anon_pages_huge_pmd can change the anon_vma
++		 * from under us until we obtain the anon_vma
++		 * lock. Verify that we obtained the anon_vma lock
++		 * before remap_anon_pages did.
++		 */
++		if (likely(mapping == ACCESS_ONCE(page->mapping)))
++			break;
++		anon_vma_unlock_write(anon_vma);
++		put_anon_vma(anon_vma);
++	}
  
- 	switch (behavior) {
- 	case MADV_NORMAL:
-diff --git a/mm/mremap.c b/mm/mremap.c
-index 05f1180..fa7db87 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -239,7 +239,7 @@ static unsigned long move_vma(struct vm_area_struct *vma,
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	struct vm_area_struct *new_vma;
--	unsigned long vm_flags = vma->vm_flags;
-+	vm_flags_t vm_flags = vma->vm_flags;
- 	unsigned long new_pgoff;
- 	unsigned long moved_len;
- 	unsigned long excess = 0;
+ 	ret = 0;
+ 	if (!PageCompound(page))
+@@ -2460,6 +2475,7 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 	 * Prevent all access to pagetables with the exception of
+ 	 * gup_fast later hanlded by the ptep_clear_flush and the VM
+ 	 * handled by the anon_vma lock + PG_lock.
++	 * remap_anon_pages is prevented to race as well by the mmap_sem.
+ 	 */
+ 	down_write(&mm->mmap_sem);
+ 	if (unlikely(khugepaged_test_exit(mm)))
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 3e8491c..6d875eb 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -450,6 +450,7 @@ struct anon_vma *page_lock_anon_vma_read(struct page *page)
+ 	struct anon_vma *root_anon_vma;
+ 	unsigned long anon_mapping;
+ 
++repeat:
+ 	rcu_read_lock();
+ 	anon_mapping = (unsigned long) ACCESS_ONCE(page->mapping);
+ 	if ((anon_mapping & PAGE_MAPPING_FLAGS) != PAGE_MAPPING_ANON)
+@@ -488,6 +489,14 @@ struct anon_vma *page_lock_anon_vma_read(struct page *page)
+ 	rcu_read_unlock();
+ 	anon_vma_lock_read(anon_vma);
+ 
++	/* check if remap_anon_pages changed the anon_vma */
++	if (unlikely((unsigned long) ACCESS_ONCE(page->mapping) != anon_mapping)) {
++		anon_vma_unlock_read(anon_vma);
++		put_anon_vma(anon_vma);
++		anon_vma = NULL;
++		goto repeat;
++	}
++
+ 	if (atomic_dec_and_test(&anon_vma->refcount)) {
+ 		/*
+ 		 * Oops, we held the last refcount, release the lock
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
