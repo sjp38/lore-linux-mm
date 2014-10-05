@@ -1,186 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BE116B0069
-	for <linux-mm@kvack.org>; Sat,  4 Oct 2014 22:48:08 -0400 (EDT)
-Received: by mail-ig0-f180.google.com with SMTP id uq10so1165174igb.7
-        for <linux-mm@kvack.org>; Sat, 04 Oct 2014 19:48:08 -0700 (PDT)
-Received: from mail-ig0-x22f.google.com (mail-ig0-x22f.google.com [2607:f8b0:4001:c05::22f])
-        by mx.google.com with ESMTPS id g13si24568612icm.33.2014.10.04.19.48.07
+Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 26F016B0069
+	for <linux-mm@kvack.org>; Sun,  5 Oct 2014 04:58:52 -0400 (EDT)
+Received: by mail-lb0-f179.google.com with SMTP id l4so2886686lbv.10
+        for <linux-mm@kvack.org>; Sun, 05 Oct 2014 01:58:51 -0700 (PDT)
+Received: from metis.ext.pengutronix.de (metis.ext.pengutronix.de. [2001:6f8:1178:4:290:27ff:fe1d:cc33])
+        by mx.google.com with ESMTPS id e7si18686402lag.100.2014.10.05.01.58.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 04 Oct 2014 19:48:07 -0700 (PDT)
-Received: by mail-ig0-f175.google.com with SMTP id uq10so1080397igb.14
-        for <linux-mm@kvack.org>; Sat, 04 Oct 2014 19:48:07 -0700 (PDT)
-Date: Sat, 4 Oct 2014 19:48:04 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch for-3.17] mm, thp: fix collapsing of hugepages on madvise
-Message-ID: <alpine.DEB.2.02.1410041947080.7055@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 05 Oct 2014 01:58:50 -0700 (PDT)
+From: =?UTF-8?q?Uwe=20Kleine-K=C3=B6nig?= <u.kleine-koenig@pengutronix.de>
+Subject: [PATCH] vfs: fix compilation for no-MMU configurations
+Date: Sun,  5 Oct 2014 10:58:36 +0200
+Message-Id: <1412499516-12839-1-git-send-email-u.kleine-koenig@pengutronix.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Suleiman Souhlal <suleiman@google.com>, stable@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>, Theodore Ts'o <tytso@mit.edu>
+Cc: kernel@pengutronix.de, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
 
-If an anonymous mapping is not allowed to fault thp memory and then
-madvise(MADV_HUGEPAGE) is used after fault, khugepaged will never
-collapse this memory into thp memory.
+Commit ac4dd23b76ce introduced a new function pagecache_isize_extended.
+In <linux/mm.h> it was declared static inline and empty for no-MMU and
+defined unconditionally in mm/truncate.c which results a compiler
+error:
 
-This occurs because the madvise(2) handler for thp, hugepage_advise(),
-clears VM_NOHUGEPAGE on the stack and it isn't stored in vma->vm_flags
-until the final action of madvise_behavior().  This causes the
-khugepaged_enter_vma_merge() to be a no-op in hugepage_advise() when the
-vma had previously had VM_NOHUGEPAGE set.
+	  CC      mm/truncate.o
+	mm/truncate.c:751:6: error: redefinition of 'pagecache_isize_extended'
+	 void pagecache_isize_extended(struct inode *inode, loff_t from, loff_t to)
+	      ^
+	In file included from mm/truncate.c:13:0:
+	include/linux/mm.h:1161:91: note: previous definition of 'pagecache_isize_extended' was here
+	 static inline void pagecache_isize_extended(struct inode *inode, loff_t from,
+												   ^
+	scripts/Makefile.build:257: recipe for target 'mm/truncate.o' failed
 
-Fix this by passing the correct vma flags to the khugepaged mm slot
-handler.  There's no chance khugepaged can run on this vma until after
-madvise_behavior() returns since we hold mm->mmap_sem.
+(tested with ARCH=arm efm32_defconfig).
 
-It would be possible to clear VM_NOHUGEPAGE directly from vma->vm_flags
-in hugepage_advise(), but I didn't want to introduce special case
-behavior into madvise_behavior().  I think it's best to just let it
-always set vma->vm_flags itself.
-
-Cc: <stable@vger.kernel.org>
-Reported-by: Suleiman Souhlal <suleiman@google.com>
-Signed-off-by: David Rientjes <rientjes@google.com>
+Fixes: ac4dd23b76ce ("vfs: fix data corruption when blocksize < pagesize for mmaped data")
+Signed-off-by: Uwe Kleine-KA?nig <u.kleine-koenig@pengutronix.de>
 ---
- include/linux/khugepaged.h | 17 ++++++++++-------
- mm/huge_memory.c           | 11 ++++++-----
- mm/mmap.c                  |  8 ++++----
- 3 files changed, 20 insertions(+), 16 deletions(-)
+Hello,
 
-diff --git a/include/linux/khugepaged.h b/include/linux/khugepaged.h
---- a/include/linux/khugepaged.h
-+++ b/include/linux/khugepaged.h
-@@ -6,7 +6,8 @@
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- extern int __khugepaged_enter(struct mm_struct *mm);
- extern void __khugepaged_exit(struct mm_struct *mm);
--extern int khugepaged_enter_vma_merge(struct vm_area_struct *vma);
-+extern int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
-+				      unsigned long vm_flags);
+the bad commit sits in
+
+git://git.kernel.org/pub/scm/linux/kernel/git/tytso/ext4.git#dev
+
+and is included in next.
+
+Best regards
+Uwe
+
+ mm/truncate.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mm/truncate.c b/mm/truncate.c
+index 261eaf6e5a19..0d9c4ebd5ecc 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -729,6 +729,7 @@ void truncate_setsize(struct inode *inode, loff_t newsize)
+ }
+ EXPORT_SYMBOL(truncate_setsize);
  
- #define khugepaged_enabled()					       \
- 	(transparent_hugepage_flags &				       \
-@@ -35,13 +36,13 @@ static inline void khugepaged_exit(struct mm_struct *mm)
- 		__khugepaged_exit(mm);
++#ifdef CONFIG_MMU
+ /**
+  * pagecache_isize_extended - update pagecache after extension of i_size
+  * @inode:	inode for which i_size was extended
+@@ -780,6 +781,7 @@ void pagecache_isize_extended(struct inode *inode, loff_t from, loff_t to)
+ 	page_cache_release(page);
  }
+ EXPORT_SYMBOL(pagecache_isize_extended);
++#endif
  
--static inline int khugepaged_enter(struct vm_area_struct *vma)
-+static inline int khugepaged_enter(struct vm_area_struct *vma,
-+				   unsigned long vm_flags)
- {
- 	if (!test_bit(MMF_VM_HUGEPAGE, &vma->vm_mm->flags))
- 		if ((khugepaged_always() ||
--		     (khugepaged_req_madv() &&
--		      vma->vm_flags & VM_HUGEPAGE)) &&
--		    !(vma->vm_flags & VM_NOHUGEPAGE))
-+		     (khugepaged_req_madv() && (vm_flags & VM_HUGEPAGE))) &&
-+		    !(vm_flags & VM_NOHUGEPAGE))
- 			if (__khugepaged_enter(vma->vm_mm))
- 				return -ENOMEM;
- 	return 0;
-@@ -54,11 +55,13 @@ static inline int khugepaged_fork(struct mm_struct *mm, struct mm_struct *oldmm)
- static inline void khugepaged_exit(struct mm_struct *mm)
- {
- }
--static inline int khugepaged_enter(struct vm_area_struct *vma)
-+static inline int khugepaged_enter(struct vm_area_struct *vma,
-+				   unsigned long vm_flags)
- {
- 	return 0;
- }
--static inline int khugepaged_enter_vma_merge(struct vm_area_struct *vma)
-+static inline int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
-+					     unsigned long vm_flags)
- {
- 	return 0;
- }
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -803,7 +803,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		return VM_FAULT_FALLBACK;
- 	if (unlikely(anon_vma_prepare(vma)))
- 		return VM_FAULT_OOM;
--	if (unlikely(khugepaged_enter(vma)))
-+	if (unlikely(khugepaged_enter(vma, vma->vm_flags)))
- 		return VM_FAULT_OOM;
- 	if (!(flags & FAULT_FLAG_WRITE) &&
- 			transparent_hugepage_use_zero_page()) {
-@@ -1970,7 +1970,7 @@ int hugepage_madvise(struct vm_area_struct *vma,
- 		 * register it here without waiting a page fault that
- 		 * may not happen any time soon.
- 		 */
--		if (unlikely(khugepaged_enter_vma_merge(vma)))
-+		if (unlikely(khugepaged_enter_vma_merge(vma, *vm_flags)))
- 			return -ENOMEM;
- 		break;
- 	case MADV_NOHUGEPAGE:
-@@ -2071,7 +2071,8 @@ int __khugepaged_enter(struct mm_struct *mm)
- 	return 0;
- }
- 
--int khugepaged_enter_vma_merge(struct vm_area_struct *vma)
-+int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
-+			       unsigned long vm_flags)
- {
- 	unsigned long hstart, hend;
- 	if (!vma->anon_vma)
-@@ -2083,11 +2084,11 @@ int khugepaged_enter_vma_merge(struct vm_area_struct *vma)
- 	if (vma->vm_ops)
- 		/* khugepaged not yet working on file or special mappings */
- 		return 0;
--	VM_BUG_ON(vma->vm_flags & VM_NO_THP);
-+	VM_BUG_ON(vm_flags & VM_NO_THP);
- 	hstart = (vma->vm_start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
- 	hend = vma->vm_end & HPAGE_PMD_MASK;
- 	if (hstart < hend)
--		return khugepaged_enter(vma);
-+		return khugepaged_enter(vma, vm_flags);
- 	return 0;
- }
- 
-diff --git a/mm/mmap.c b/mm/mmap.c
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1056,7 +1056,7 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
- 				end, prev->vm_pgoff, NULL);
- 		if (err)
- 			return NULL;
--		khugepaged_enter_vma_merge(prev);
-+		khugepaged_enter_vma_merge(prev, vm_flags);
- 		return prev;
- 	}
- 
-@@ -1075,7 +1075,7 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
- 				next->vm_pgoff - pglen, NULL);
- 		if (err)
- 			return NULL;
--		khugepaged_enter_vma_merge(area);
-+		khugepaged_enter_vma_merge(area, vm_flags);
- 		return area;
- 	}
- 
-@@ -2192,7 +2192,7 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address)
- 		}
- 	}
- 	vma_unlock_anon_vma(vma);
--	khugepaged_enter_vma_merge(vma);
-+	khugepaged_enter_vma_merge(vma, vma->vm_flags);
- 	validate_mm(vma->vm_mm);
- 	return error;
- }
-@@ -2261,7 +2261,7 @@ int expand_downwards(struct vm_area_struct *vma,
- 		}
- 	}
- 	vma_unlock_anon_vma(vma);
--	khugepaged_enter_vma_merge(vma);
-+	khugepaged_enter_vma_merge(vma, vma->vm_flags);
- 	validate_mm(vma->vm_mm);
- 	return error;
- }
+ /**
+  * truncate_pagecache_range - unmap and remove pagecache that is hole-punched
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
