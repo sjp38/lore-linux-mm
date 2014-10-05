@@ -1,82 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 26F016B0069
-	for <linux-mm@kvack.org>; Sun,  5 Oct 2014 04:58:52 -0400 (EDT)
-Received: by mail-lb0-f179.google.com with SMTP id l4so2886686lbv.10
-        for <linux-mm@kvack.org>; Sun, 05 Oct 2014 01:58:51 -0700 (PDT)
-Received: from metis.ext.pengutronix.de (metis.ext.pengutronix.de. [2001:6f8:1178:4:290:27ff:fe1d:cc33])
-        by mx.google.com with ESMTPS id e7si18686402lag.100.2014.10.05.01.58.50
+Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 47F886B0069
+	for <linux-mm@kvack.org>; Sun,  5 Oct 2014 07:20:36 -0400 (EDT)
+Received: by mail-la0-f51.google.com with SMTP id ge10so2990132lab.24
+        for <linux-mm@kvack.org>; Sun, 05 Oct 2014 04:20:35 -0700 (PDT)
+Received: from hygieia.santi-shop.eu (hygieia.santi-shop.eu. [78.46.175.2])
+        by mx.google.com with ESMTPS id m4si19150314lbd.106.2014.10.05.04.20.32
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 05 Oct 2014 01:58:50 -0700 (PDT)
-From: =?UTF-8?q?Uwe=20Kleine-K=C3=B6nig?= <u.kleine-koenig@pengutronix.de>
-Subject: [PATCH] vfs: fix compilation for no-MMU configurations
-Date: Sun,  5 Oct 2014 10:58:36 +0200
-Message-Id: <1412499516-12839-1-git-send-email-u.kleine-koenig@pengutronix.de>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 05 Oct 2014 04:20:32 -0700 (PDT)
+Date: Sun, 5 Oct 2014 13:20:28 +0200
+From: Bruno =?UTF-8?B?UHLDqW1vbnQ=?= <bonbons@linux-vserver.org>
+Subject: x86_64 3.x kernels with SMP=n and up with incorrect dirty memory
+ accounting
+Message-ID: <20141005132028.7c0fab9a@neptune.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>, Theodore Ts'o <tytso@mit.edu>
-Cc: kernel@pengutronix.de, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Commit ac4dd23b76ce introduced a new function pagecache_isize_extended.
-In <linux/mm.h> it was declared static inline and empty for no-MMU and
-defined unconditionally in mm/truncate.c which results a compiler
-error:
+Since about any 3.x kernel release (I don't know since what release
+exactly) more or less randomly system starts to starve more or less
+because of dirty memory.
 
-	  CC      mm/truncate.o
-	mm/truncate.c:751:6: error: redefinition of 'pagecache_isize_extended'
-	 void pagecache_isize_extended(struct inode *inode, loff_t from, loff_t to)
-	      ^
-	In file included from mm/truncate.c:13:0:
-	include/linux/mm.h:1161:91: note: previous definition of 'pagecache_isize_extended' was here
-	 static inline void pagecache_isize_extended(struct inode *inode, loff_t from,
-												   ^
-	scripts/Makefile.build:257: recipe for target 'mm/truncate.o' failed
+When it happens I get /proc/meminfo looking as follows:
+MemTotal:         508392 kB
+MemFree:           24120 kB
+MemAvailable:     322184 kB
+Buffers:               0 kB
+Cached:           229884 kB
+SwapCached:         2380 kB
+Active:           178616 kB
+Inactive:         160760 kB
+Active(anon):      51172 kB
+Inactive(anon):    68860 kB
+Active(file):     127444 kB
+Inactive(file):    91900 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:        524284 kB
+SwapFree:         502372 kB
+Dirty:          18446744073709551408 kB
+Writeback:             0 kB
+AnonPages:        107816 kB
+Mapped:            37096 kB
+Shmem:             10540 kB
+Slab:             105604 kB
+SReclaimable:      89340 kB
+SUnreclaim:        16264 kB
+KernelStack:        2128 kB
+PageTables:         4212 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:      778480 kB
+Committed_AS:     875200 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:        4452 kB
+VmallocChunk:   34359704615 kB
+AnonHugePages:         0 kB
+DirectMap4k:       10228 kB
+DirectMap2M:      514048 kB
 
-(tested with ARCH=arm efm32_defconfig).
+As seen above Dirty is very large (looks like small negative
+value interpreted as unsigned - too large compare to available
+memory!).
 
-Fixes: ac4dd23b76ce ("vfs: fix data corruption when blocksize < pagesize for mmaped data")
-Signed-off-by: Uwe Kleine-KA?nig <u.kleine-koenig@pengutronix.de>
----
-Hello,
+System is running under kvm/qemu with a single CPU and 512MB of
+RAM while making use of memory cgroup.
 
-the bad commit sits in
+The userspace process triggering it and being mostly affected is
+rrdcached (from rrdtool) as it's the one dirtying memory at regular
+intervals and in reasonable amounts - it may very well be affected
+by memory pressure in its cgroup (at least all the RRDs don't fit
+in its soft/hard cgroup memory limit).
 
-git://git.kernel.org/pub/scm/linux/kernel/git/tytso/ext4.git#dev
+Probably most critical parts of the config are CONFIG_SMP=n in combination
+with pretty tight memory availability.
 
-and is included in next.
+As soon as it hits, wchan for rrdcached looks like this:
+ grep . /proc/10045/task/*/wchan
+ /proc/10045/task/10045/wchan:poll_schedule_timeout
+ /proc/10045/task/10047/wchan:balance_dirty_pages_ratelimited
+ /proc/10045/task/10048/wchan:balance_dirty_pages_ratelimited
+ /proc/10045/task/10049/wchan:balance_dirty_pages_ratelimited
+ /proc/10045/task/10050/wchan:balance_dirty_pages_ratelimited
+ /proc/10045/task/10051/wchan:futex_wait_queue_me
+ /proc/10045/task/10052/wchan:poll_schedule_timeout
 
-Best regards
-Uwe
+I can kill rrdcached (but must use -KILL for it not to take an
+eternity) to stop system thinking to be in permanent IO-wait
+but when retarting rrdcached I pretty quickly get back into
+original state. Only way I know to get out of this is to reboot.
 
- mm/truncate.c | 2 ++
- 1 file changed, 2 insertions(+)
 
-diff --git a/mm/truncate.c b/mm/truncate.c
-index 261eaf6e5a19..0d9c4ebd5ecc 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -729,6 +729,7 @@ void truncate_setsize(struct inode *inode, loff_t newsize)
- }
- EXPORT_SYMBOL(truncate_setsize);
- 
-+#ifdef CONFIG_MMU
- /**
-  * pagecache_isize_extended - update pagecache after extension of i_size
-  * @inode:	inode for which i_size was extended
-@@ -780,6 +781,7 @@ void pagecache_isize_extended(struct inode *inode, loff_t from, loff_t to)
- 	page_cache_release(page);
- }
- EXPORT_SYMBOL(pagecache_isize_extended);
-+#endif
- 
- /**
-  * truncate_pagecache_range - unmap and remove pagecache that is hole-punched
--- 
-2.1.0
+How is dirty memory accounting happening, would it be possible for
+the accounting to complain if dirty memory goes "negative" and
+in such case reset accounting to 0 (or pause everything the time
+needed to recalculate correct accounting value)?
+
+Of all the systems I'm monitoring these x86_64 systems are the only
+ones I've seen this issue on, though they are probably the only ones
+running under such tight memory constraints.
+
+Bruno
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
