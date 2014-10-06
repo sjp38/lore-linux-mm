@@ -1,336 +1,223 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EE7B6B0096
-	for <linux-mm@kvack.org>; Mon,  6 Oct 2014 12:01:37 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id y10so3439187pdj.23
-        for <linux-mm@kvack.org>; Mon, 06 Oct 2014 09:01:37 -0700 (PDT)
-Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
-        by mx.google.com with ESMTPS id js4si13653107pbb.57.2014.10.06.09.01.35
+	by kanga.kvack.org (Postfix) with ESMTP id 3DF296B0099
+	for <linux-mm@kvack.org>; Mon,  6 Oct 2014 12:01:39 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id y10so3439226pdj.23
+        for <linux-mm@kvack.org>; Mon, 06 Oct 2014 09:01:38 -0700 (PDT)
+Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
+        by mx.google.com with ESMTPS id b3si11062034pdc.11.2014.10.06.09.01.37
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Mon, 06 Oct 2014 09:01:35 -0700 (PDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout4.w1.samsung.com
+        Mon, 06 Oct 2014 09:01:37 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout3.w1.samsung.com
  (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0ND100FPY5Z8QG80@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Mon, 06 Oct 2014 17:04:20 +0100 (BST)
+ 17 2011)) with ESMTP id <0ND1009NU5ZE8M80@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Mon, 06 Oct 2014 17:04:26 +0100 (BST)
 From: Andrey Ryabinin <a.ryabinin@samsung.com>
-Subject: [PATCH v4 12/13] lib: add kasan test module
-Date: Mon, 06 Oct 2014 19:54:06 +0400
-Message-id: <1412610847-27671-13-git-send-email-a.ryabinin@samsung.com>
+Subject: [RFC PATCH v4 13/13] kasan: introduce inline instrumentation
+Date: Mon, 06 Oct 2014 19:54:07 +0400
+Message-id: <1412610847-27671-14-git-send-email-a.ryabinin@samsung.com>
 In-reply-to: <1412610847-27671-1-git-send-email-a.ryabinin@samsung.com>
 References: <1404905415-9046-1-git-send-email-a.ryabinin@samsung.com>
  <1412610847-27671-1-git-send-email-a.ryabinin@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, x86@kernel.org, linux-mm@kvack.org
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, Dmitry Vyukov <dvyukov@google.com>, Konstantin Serebryany <kcc@google.com>, Dmitry Chernenkov <dmitryc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Yuri Gribov <tetra2005@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi@firstfloor.org>, Vegard Nossum <vegard.nossum@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Jones <davej@redhat.com>, x86@kernel.org, linux-mm@kvack.org, Michal Marek <mmarek@suse.cz>
 
-This is a test module doing various nasty things like
-out of bounds accesses, use after free. It is useful for testing
-kernel debugging features like kernel address sanitizer.
+This patch only demonstration how easy this could be achieved.
+GCC doesn't support this feature yet. Two patches required for this:
+    https://gcc.gnu.org/ml/gcc-patches/2014-09/msg00452.html
+    https://gcc.gnu.org/ml/gcc-patches/2014-09/msg00605.html
 
-It mostly concentrates on testing of slab allocator, but we
-might want to add more different stuff here in future (like
-stack/global variables out of bounds accesses and so on).
+In inline instrumentation mode compiler directly inserts code
+checking shadow memory instead of __asan_load/__asan_store
+calls.
+This is usually faster than outline. In some workloads inline is
+2 times faster than outline instrumentation.
+
+The downside of inline instrumentation is bloated kernel's .text size:
+
+size noasan/vmlinux
+   text     data     bss      dec     hex    filename
+11759720  1566560  946176  14272456  d9c7c8  noasan/vmlinux
+
+size outline/vmlinux
+   text    data     bss      dec      hex    filename
+16553474  1602592  950272  19106338  1238a22 outline/vmlinux
+
+size inline/vmlinux
+   text    data     bss      dec      hex    filename
+32064759  1598688  946176  34609623  21019d7 inline/vmlinux
 
 Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
 ---
- lib/Kconfig.kasan |   8 ++
- lib/Makefile      |   1 +
- lib/test_kasan.c  | 254 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 263 insertions(+)
- create mode 100644 lib/test_kasan.c
+ Makefile          |  6 +++++-
+ lib/Kconfig.kasan | 24 ++++++++++++++++++++++++
+ mm/kasan/kasan.c  | 14 +-------------
+ mm/kasan/kasan.h  | 22 ++++++++++++++++++++++
+ mm/kasan/report.c | 37 +++++++++++++++++++++++++++++++++++++
+ 5 files changed, 89 insertions(+), 14 deletions(-)
 
+diff --git a/Makefile b/Makefile
+index 6f8be78..01cfa71 100644
+--- a/Makefile
++++ b/Makefile
+@@ -758,7 +758,11 @@ KBUILD_CFLAGS += $(call cc-option, -fno-inline-functions-called-once)
+ endif
+ 
+ ifdef CONFIG_KASAN
+-  ifeq ($(CFLAGS_KASAN),)
++ifdef CONFIG_KASAN_INLINE
++CFLAGS_KASAN += $(call cc-option, -fasan-shadow-offset=$(CONFIG_KASAN_SHADOW_OFFSET)) \
++		 $(call cc-option, --param asan-instrumentation-with-call-threshold=10000)
++endif
++  ifeq ($(strip $(CFLAGS_KASAN)),)
+     $(warning Cannot use CONFIG_KASAN: \
+ 	      -fsanitize=kernel-address not supported by compiler)
+   endif
 diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
-index d16b899..94293c8 100644
+index 94293c8..ec5d680 100644
 --- a/lib/Kconfig.kasan
 +++ b/lib/Kconfig.kasan
-@@ -19,4 +19,12 @@ config KASAN_SHADOW_OFFSET
- 	hex
- 	default 0xdfffe90000000000 if X86_64
+@@ -27,4 +27,28 @@ config TEST_KASAN
+ 	  out of bounds accesses, use after free. It is useful for testing
+ 	  kernel debugging features like kernel address sanitizer.
  
-+config TEST_KASAN
-+	tristate "Module for testing kasan for bug detection"
-+	depends on m
++choice
++	prompt "Instrumentation type"
++	depends on KASAN
++	default KASAN_INLINE if X86_64
++
++config KASAN_OUTLINE
++	bool "Outline instrumentation"
 +	help
-+	  This is a test module doing various nasty things like
-+	  out of bounds accesses, use after free. It is useful for testing
-+	  kernel debugging features like kernel address sanitizer.
++	  Before every memory access compiler insert function call
++	  __asan_load*/__asan_store*. These functions performs check
++	  of shadow memory. This is slower than inline instrumentation,
++	  however it doesn't bloat size of kernel's .text section so
++	  much as inline does.
++
++config KASAN_INLINE
++	bool "Inline instrumentation"
++	help
++	  Compiler directly inserts code checking shadow memory before
++	  memory accesses. This is faster than outline (in some workloads
++	  it gives about x2 boost over outline instrumentation), but
++	  make kernel's .text size much bigger.
++
++endchoice
 +
  endif
-diff --git a/lib/Makefile b/lib/Makefile
-index 84000ec..b387570 100644
---- a/lib/Makefile
-+++ b/lib/Makefile
-@@ -35,6 +35,7 @@ obj-$(CONFIG_TEST_LKM) += test_module.o
- obj-$(CONFIG_TEST_USER_COPY) += test_user_copy.o
- obj-$(CONFIG_TEST_BPF) += test_bpf.o
- obj-$(CONFIG_TEST_FIRMWARE) += test_firmware.o
-+obj-$(CONFIG_TEST_KASAN) += test_kasan.o
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index d4552a2..6e34fdb 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -32,11 +32,6 @@
+ #include "kasan.h"
+ #include "../slab.h"
  
- ifeq ($(CONFIG_DEBUG_KOBJECT),y)
- CFLAGS_kobject.o += -DDEBUG
-diff --git a/lib/test_kasan.c b/lib/test_kasan.c
-new file mode 100644
-index 0000000..66a04eb
---- /dev/null
-+++ b/lib/test_kasan.c
-@@ -0,0 +1,254 @@
-+/*
-+ *
-+ * Copyright (c) 2014 Samsung Electronics Co., Ltd.
-+ * Author: Andrey Ryabinin <a.ryabinin@samsung.com>
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License version 2 as
-+ * published by the Free Software Foundation.
-+ *
-+ */
-+
-+#define pr_fmt(fmt) "kasan test: %s " fmt, __func__
-+
-+#include <linux/kernel.h>
-+#include <linux/printk.h>
-+#include <linux/slab.h>
-+#include <linux/string.h>
-+#include <linux/module.h>
-+
-+static noinline void __init kmalloc_oob_right(void)
+-static inline bool kasan_enabled(void)
+-{
+-	return !current->kasan_depth;
+-}
+-
+ /*
+  * Poisons the shadow memory for 'size' bytes starting from 'addr'.
+  * Memory addresses should be aligned to KASAN_SHADOW_SCALE_SIZE.
+@@ -250,14 +245,7 @@ static __always_inline void check_memory_region(unsigned long addr,
+ 	if (likely(!memory_is_poisoned(addr, size)))
+ 		return;
+ 
+-	if (likely(!kasan_enabled()))
+-		return;
+-
+-	info.access_addr = addr;
+-	info.access_size = size;
+-	info.is_write = write;
+-	info.ip = _RET_IP_;
+-	kasan_report_error(&info);
++	kasan_report(addr, size, write);
+ }
+ 
+ void kasan_alloc_pages(struct page *page, unsigned int order)
+diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+index b70a3d1..049349b 100644
+--- a/mm/kasan/kasan.h
++++ b/mm/kasan/kasan.h
+@@ -29,4 +29,26 @@ static inline unsigned long kasan_shadow_to_mem(unsigned long shadow_addr)
+ 	return (shadow_addr - KASAN_SHADOW_OFFSET) << KASAN_SHADOW_SCALE_SHIFT;
+ }
+ 
++static inline bool kasan_enabled(void)
 +{
-+	char *ptr;
-+	size_t size = 123;
-+
-+	pr_info("out-of-bounds to right\n");
-+	ptr = kmalloc(size , GFP_KERNEL);
-+	if (!ptr) {
-+		pr_err("Allocation failed\n");
-+		return;
-+	}
-+
-+	ptr[size] = 'x';
-+	kfree(ptr);
++	return !current->kasan_depth;
 +}
 +
-+static noinline void __init kmalloc_oob_left(void)
++static __always_inline void kasan_report(unsigned long addr,
++					size_t size,
++					bool is_write)
 +{
-+	char *ptr;
-+	size_t size = 15;
++	struct access_info info;
 +
-+	pr_info("out-of-bounds to left\n");
-+	ptr = kmalloc(size, GFP_KERNEL);
-+	if (!ptr) {
-+		pr_err("Allocation failed\n");
++	if (likely(!kasan_enabled()))
 +		return;
-+	}
 +
-+	*ptr = *(ptr - 1);
-+	kfree(ptr);
++	info.access_addr = addr;
++	info.access_size = size;
++	info.is_write = is_write;
++	info.ip = _RET_IP_;
++	kasan_report_error(&info);
 +}
 +
-+static noinline void __init kmalloc_node_oob_right(void)
++
+ #endif
+diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+index 03ce28e..39ec639 100644
+--- a/mm/kasan/report.c
++++ b/mm/kasan/report.c
+@@ -199,3 +199,40 @@ void kasan_report_user_access(struct access_info *info)
+ 		"=================================\n");
+ 	spin_unlock_irqrestore(&report_lock, flags);
+ }
++
++#define DEFINE_ASAN_REPORT_LOAD(size)                     \
++void __asan_report_recover_load##size(unsigned long addr) \
++{                                                         \
++	kasan_report(addr, size, false);                  \
++}                                                         \
++EXPORT_SYMBOL(__asan_report_recover_load##size)
++
++#define DEFINE_ASAN_REPORT_STORE(size)                     \
++void __asan_report_recover_store##size(unsigned long addr) \
++{                                                          \
++	kasan_report(addr, size, true);                    \
++}                                                          \
++EXPORT_SYMBOL(__asan_report_recover_store##size)
++
++DEFINE_ASAN_REPORT_LOAD(1);
++DEFINE_ASAN_REPORT_LOAD(2);
++DEFINE_ASAN_REPORT_LOAD(4);
++DEFINE_ASAN_REPORT_LOAD(8);
++DEFINE_ASAN_REPORT_LOAD(16);
++DEFINE_ASAN_REPORT_STORE(1);
++DEFINE_ASAN_REPORT_STORE(2);
++DEFINE_ASAN_REPORT_STORE(4);
++DEFINE_ASAN_REPORT_STORE(8);
++DEFINE_ASAN_REPORT_STORE(16);
++
++void __asan_report_recover_load_n(unsigned long addr, size_t size)
 +{
-+	char *ptr;
-+	size_t size = 4096;
-+
-+	pr_info("kmalloc_node(): out-of-bounds to right\n");
-+	ptr = kmalloc_node(size , GFP_KERNEL, 0);
-+	if (!ptr) {
-+		pr_err("Allocation failed\n");
-+		return;
-+	}
-+
-+	ptr[size] = 0;
-+	kfree(ptr);
++	kasan_report(addr, size, false);
 +}
++EXPORT_SYMBOL(__asan_report_recover_load_n);
 +
-+static noinline void __init kmalloc_large_oob_rigth(void)
++void __asan_report_recover_store_n(unsigned long addr, size_t size)
 +{
-+	char *ptr;
-+	size_t size = KMALLOC_MAX_CACHE_SIZE + 10;
-+
-+	pr_info("kmalloc large allocation: out-of-bounds to right\n");
-+	ptr = kmalloc(size , GFP_KERNEL);
-+	if (!ptr) {
-+		pr_err("Allocation failed\n");
-+		return;
-+	}
-+
-+	ptr[size] = 0;
-+	kfree(ptr);
++	kasan_report(addr, size, true);
 +}
-+
-+static noinline void __init kmalloc_oob_krealloc_more(void)
-+{
-+	char *ptr1, *ptr2;
-+	size_t size1 = 17;
-+	size_t size2 = 19;
-+
-+	pr_info("out-of-bounds after krealloc more\n");
-+	ptr1 = kmalloc(size1, GFP_KERNEL);
-+	ptr2 = krealloc(ptr1, size2, GFP_KERNEL);
-+	if (!ptr1 || !ptr2) {
-+		pr_err("Allocation failed\n");
-+		kfree(ptr1);
-+		return;
-+	}
-+
-+	ptr2[size2] = 'x';
-+	kfree(ptr2);
-+}
-+
-+static noinline void __init kmalloc_oob_krealloc_less(void)
-+{
-+	char *ptr1, *ptr2;
-+	size_t size1 = 17;
-+	size_t size2 = 15;
-+
-+	pr_info("out-of-bounds after krealloc less\n");
-+	ptr1 = kmalloc(size1, GFP_KERNEL);
-+	ptr2 = krealloc(ptr1, size2, GFP_KERNEL);
-+	if (!ptr1 || !ptr2) {
-+		pr_err("Allocation failed\n");
-+		kfree(ptr1);
-+		return;
-+	}
-+	ptr2[size1] = 'x';
-+	kfree(ptr2);
-+}
-+
-+static noinline void __init kmalloc_oob_16(void)
-+{
-+	struct {
-+		u64 words[2];
-+	} *ptr1, *ptr2;
-+
-+	pr_info("kmalloc out-of-bounds for 16-bytes access\n");
-+	ptr1 = kmalloc(sizeof(*ptr1) - 3, GFP_KERNEL);
-+	ptr2 = kmalloc(sizeof(*ptr2), GFP_KERNEL);
-+	if (!ptr1 || !ptr2) {
-+		pr_err("Allocation failed\n");
-+		kfree(ptr1);
-+		kfree(ptr2);
-+		return;
-+	}
-+	*ptr1 = *ptr2;
-+	kfree(ptr1);
-+	kfree(ptr2);
-+}
-+
-+static noinline void __init kmalloc_oob_in_memset(void)
-+{
-+	char *ptr;
-+	size_t size = 666;
-+
-+	pr_info("out-of-bounds in memset\n");
-+	ptr = kmalloc(size, GFP_KERNEL);
-+	if (!ptr) {
-+		pr_err("Allocation failed\n");
-+		return;
-+	}
-+
-+	memset(ptr, 0, size+5);
-+	kfree(ptr);
-+}
-+
-+static noinline void __init kmalloc_uaf(void)
-+{
-+	char *ptr;
-+	size_t size = 10;
-+
-+	pr_info("use-after-free\n");
-+	ptr = kmalloc(size, GFP_KERNEL);
-+	if (!ptr) {
-+		pr_err("Allocation failed\n");
-+		return;
-+	}
-+
-+	kfree(ptr);
-+	*(ptr + 8) = 'x';
-+}
-+
-+static noinline void __init kmalloc_uaf_memset(void)
-+{
-+	char *ptr;
-+	size_t size = 33;
-+
-+	pr_info("use-after-free in memset\n");
-+	ptr = kmalloc(size, GFP_KERNEL);
-+	if (!ptr) {
-+		pr_err("Allocation failed\n");
-+		return;
-+	}
-+
-+	kfree(ptr);
-+	memset(ptr, 0, size);
-+}
-+
-+static noinline void __init kmalloc_uaf2(void)
-+{
-+	char *ptr1, *ptr2;
-+	size_t size = 43;
-+
-+	pr_info("use-after-free after another kmalloc\n");
-+	ptr1 = kmalloc(size, GFP_KERNEL);
-+	if (!ptr1) {
-+		pr_err("Allocation failed\n");
-+		return;
-+	}
-+
-+	kfree(ptr1);
-+	ptr2 = kmalloc(size, GFP_KERNEL);
-+	if (!ptr2) {
-+		pr_err("Allocation failed\n");
-+		return;
-+	}
-+
-+	ptr1[40] = 'x';
-+	kfree(ptr2);
-+}
-+
-+static noinline void __init kmem_cache_oob(void)
-+{
-+	char *p;
-+	size_t size = 200;
-+	struct kmem_cache *cache = kmem_cache_create("test_cache",
-+						size, 0,
-+						0, NULL);
-+	if (!cache) {
-+		pr_err("Cache allocation failed\n");
-+		return;
-+	}
-+	pr_info("out-of-bounds in kmem_cache_alloc\n");
-+	p = kmem_cache_alloc(cache, GFP_KERNEL);
-+	if (!p) {
-+		pr_err("Allocation failed\n");
-+		kmem_cache_destroy(cache);
-+		return;
-+	}
-+
-+	*p = p[size];
-+	kmem_cache_free(cache, p);
-+	kmem_cache_destroy(cache);
-+}
-+
-+int __init kmalloc_tests_init(void)
-+{
-+	kmalloc_oob_right();
-+	kmalloc_oob_left();
-+	kmalloc_node_oob_right();
-+	kmalloc_large_oob_rigth();
-+	kmalloc_oob_krealloc_more();
-+	kmalloc_oob_krealloc_less();
-+	kmalloc_oob_16();
-+	kmalloc_oob_in_memset();
-+	kmalloc_uaf();
-+	kmalloc_uaf_memset();
-+	kmalloc_uaf2();
-+	kmem_cache_oob();
-+	return -EAGAIN;
-+}
-+
-+module_init(kmalloc_tests_init);
-+MODULE_LICENSE("GPL");
++EXPORT_SYMBOL(__asan_report_recover_store_n);
 -- 
 2.1.2
 
