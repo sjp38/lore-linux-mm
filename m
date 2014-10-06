@@ -1,69 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id A55066B0069
-	for <linux-mm@kvack.org>; Mon,  6 Oct 2014 03:25:56 -0400 (EDT)
-Received: by mail-wi0-f173.google.com with SMTP id fb4so3648104wid.0
-        for <linux-mm@kvack.org>; Mon, 06 Oct 2014 00:25:56 -0700 (PDT)
-Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com [2a00:1450:400c:c05::231])
-        by mx.google.com with ESMTPS id fb15si8105092wid.76.2014.10.06.00.25.55
+Received: from mail-qa0-f47.google.com (mail-qa0-f47.google.com [209.85.216.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A1D46B0069
+	for <linux-mm@kvack.org>; Mon,  6 Oct 2014 04:56:39 -0400 (EDT)
+Received: by mail-qa0-f47.google.com with SMTP id cm18so3203237qab.6
+        for <linux-mm@kvack.org>; Mon, 06 Oct 2014 01:56:39 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 44si24162240qgh.65.2014.10.06.01.56.37
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 06 Oct 2014 00:25:55 -0700 (PDT)
-Received: by mail-wi0-f177.google.com with SMTP id fb4so3628378wid.10
-        for <linux-mm@kvack.org>; Mon, 06 Oct 2014 00:25:55 -0700 (PDT)
-Date: Mon, 6 Oct 2014 09:25:52 +0200
-From: Daniel Vetter <daniel@ffwll.ch>
-Subject: Re: Kswapd 100% CPU since 3.8 on Sandybridge
-Message-ID: <20141006072552.GC26941@phenom.ffwll.local>
-References: <CABe+QzA=0YVpQ8rN+3X-cbH6JP1nWTvp2spb93P9PqJhmjBROA@mail.gmail.com>
- <CABe+QzA-E40bFFXYJBc663Kx0KrE3xy2uZq5xOH2XL6mFPA6+w@mail.gmail.com>
- <CABe+QzCn_7xm1x62o5d2VoiQrf_7LorhnVOD905Zzd+uu_EuqQ@mail.gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Oct 2014 01:56:38 -0700 (PDT)
+Date: Mon, 6 Oct 2014 09:55:41 +0100
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Subject: Re: [PATCH 10/17] mm: rmap preparation for remap_anon_pages
+Message-ID: <20141006085540.GD2336@work-vm>
+References: <1412356087-16115-1-git-send-email-aarcange@redhat.com>
+ <1412356087-16115-11-git-send-email-aarcange@redhat.com>
+ <CA+55aFx++R42L75ooE=Fmaem73=V=q7f6pYTcALxgrA1y98G-A@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CABe+QzCn_7xm1x62o5d2VoiQrf_7LorhnVOD905Zzd+uu_EuqQ@mail.gmail.com>
+In-Reply-To: <CA+55aFx++R42L75ooE=Fmaem73=V=q7f6pYTcALxgrA1y98G-A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sarah A Sharp <sarah@thesharps.us>
-Cc: linux-mm@kvack.org, mgorman@suse.de, intel-gfx@lists.freedesktop.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, qemu-devel@nongnu.org, KVM list <kvm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave@sr71.net>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "\\Dr. David Alan Gilbert\\" <dgilbert@redhat.com>, Christopher Covington <cov@codeaurora.org>, Johannes Weiner <hannes@cmpxchg.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, Keith Packard <keithp@keithp.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Isaku Yamahata <yamahata@valinux.co.jp>, Anthony Liguori <anthony@codemonkey.ws>, Stefan Hajnoczi <stefanha@gmail.com>, Wenchao Xia <wenchaoqemu@gmail.com>, Andrew Jones <drjones@redhat.com>, Juan Quintela <quintela@redhat.com>
 
-On Sat, Oct 04, 2014 at 10:05:20AM -0700, Sarah A Sharp wrote:
-> Please excuse the non-wrapped email. My personal system is currently
-> b0rked, so I'm sending this in frustration from my phone.
+* Linus Torvalds (torvalds@linux-foundation.org) wrote:
+> On Fri, Oct 3, 2014 at 10:08 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> >
+> > Overall this looks a fairly small change to the rmap code, notably
+> > less intrusive than the nonlinear vmas created by remap_file_pages.
 > 
-> My laptop is currently completely hosed. Disk light on full solid
-> Mouse movement sluggish to the point of moving a couple cms per second.
-> Firefox window greyed out but not OOM killed yet. When this behavior
-> occurred in the past, if I ran top, I would see kswapd taking up 100% of
-> one of my two CPUs.
+> Considering that remap_file_pages() was an unmitigated disaster, and
+> -mm has a patch to remove it entirely, I'm not at all convinced this
+> is a good argument.
 > 
-> If I can catch the system in time before mouse movement becomes too
-> sluggish, closing the browser window will cause kswapd usage to drop, and
-> the system goes back to a normal state. If I don't catch it in time, I
-> can't even ssh into the box to kill Firefox because the login times out.
-> Occasionally Firefox gets OOM killed, but most of the time I have to use
-> sysreq keys to reboot the system.
-> 
-> This can be reproduced by using either Chrome or Firefox. Chrome fails
-> faster. I'm not sure whether it's related to loading tabs with a bunch of
-> images, maybe flash, but it takes around 10-15 tabs being open before it
-> starts to fail. I can try to characterize it further.
-> 
-> System: Lenovo x220 Intel Sandy Bridge graphics
-> Ubuntu 14.04 with edgers PPA for Mesa
-> 3.16.3 kernel
-> 
-> Since around the 3.8 kernel time frame, I've been able to reproduce this
-> behavior. I'm pretty sure it was a kernel change.
+> We thought remap_file_pages() was a good idea, and it really really
+> really wasn't. Almost nobody used it, why would the anonymous page
+> case be any different?
 
-Hm, doesn't ring any bell for i915 bugs, but to make sure can you please
-sample debugfs/dri/0/i915_gem_objects while things go south?
+I've posted code that uses this interface to qemu-devel and it works nicely;
+so chalk up at least one user.
 
-Thanks, Daniel
--- 
-Daniel Vetter
-Software Engineer, Intel Corporation
-+41 (0) 79 365 57 48 - http://blog.ffwll.ch
+For the postcopy case I'm using it for, we need to place a page, atomically
+  some thread might try and access it, and must either
+     1) get caught by userfault etc or
+     2) must succeed in it's access
+
+and we'll have that happening somewhere between thousands and millions of times
+to pages in no particular order, so we need to avoid creating millions of mappings.
+
+Dave
+
+
+
+> 
+>             Linus
+--
+Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
