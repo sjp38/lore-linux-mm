@@ -1,63 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f47.google.com (mail-qa0-f47.google.com [209.85.216.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A1D46B0069
-	for <linux-mm@kvack.org>; Mon,  6 Oct 2014 04:56:39 -0400 (EDT)
-Received: by mail-qa0-f47.google.com with SMTP id cm18so3203237qab.6
-        for <linux-mm@kvack.org>; Mon, 06 Oct 2014 01:56:39 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 44si24162240qgh.65.2014.10.06.01.56.37
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id C6B4F6B0069
+	for <linux-mm@kvack.org>; Mon,  6 Oct 2014 05:25:31 -0400 (EDT)
+Received: by mail-wi0-f170.google.com with SMTP id hi2so6167821wib.1
+        for <linux-mm@kvack.org>; Mon, 06 Oct 2014 02:25:31 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gt1si16716167wjc.54.2014.10.06.02.25.30
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Oct 2014 01:56:38 -0700 (PDT)
-Date: Mon, 6 Oct 2014 09:55:41 +0100
-From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
-Subject: Re: [PATCH 10/17] mm: rmap preparation for remap_anon_pages
-Message-ID: <20141006085540.GD2336@work-vm>
-References: <1412356087-16115-1-git-send-email-aarcange@redhat.com>
- <1412356087-16115-11-git-send-email-aarcange@redhat.com>
- <CA+55aFx++R42L75ooE=Fmaem73=V=q7f6pYTcALxgrA1y98G-A@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 06 Oct 2014 02:25:30 -0700 (PDT)
+Date: Mon, 6 Oct 2014 11:25:29 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] vfs: fix compilation for no-MMU configurations
+Message-ID: <20141006092529.GB7526@quack.suse.cz>
+References: <1412499516-12839-1-git-send-email-u.kleine-koenig@pengutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <CA+55aFx++R42L75ooE=Fmaem73=V=q7f6pYTcALxgrA1y98G-A@mail.gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1412499516-12839-1-git-send-email-u.kleine-koenig@pengutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, qemu-devel@nongnu.org, KVM list <kvm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave@sr71.net>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "\\Dr. David Alan Gilbert\\" <dgilbert@redhat.com>, Christopher Covington <cov@codeaurora.org>, Johannes Weiner <hannes@cmpxchg.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, Keith Packard <keithp@keithp.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Isaku Yamahata <yamahata@valinux.co.jp>, Anthony Liguori <anthony@codemonkey.ws>, Stefan Hajnoczi <stefanha@gmail.com>, Wenchao Xia <wenchaoqemu@gmail.com>, Andrew Jones <drjones@redhat.com>, Juan Quintela <quintela@redhat.com>
+To: Uwe =?iso-8859-1?Q?Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
+Cc: Jan Kara <jack@suse.cz>, Theodore Ts'o <tytso@mit.edu>, kernel@pengutronix.de, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
 
-* Linus Torvalds (torvalds@linux-foundation.org) wrote:
-> On Fri, Oct 3, 2014 at 10:08 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
-> >
-> > Overall this looks a fairly small change to the rmap code, notably
-> > less intrusive than the nonlinear vmas created by remap_file_pages.
+On Sun 05-10-14 10:58:36, Uwe Kleine-Konig wrote:
+> Commit ac4dd23b76ce introduced a new function pagecache_isize_extended.
+> In <linux/mm.h> it was declared static inline and empty for no-MMU and
+> defined unconditionally in mm/truncate.c which results a compiler
+> error:
 > 
-> Considering that remap_file_pages() was an unmitigated disaster, and
-> -mm has a patch to remove it entirely, I'm not at all convinced this
-> is a good argument.
+> 	  CC      mm/truncate.o
+> 	mm/truncate.c:751:6: error: redefinition of 'pagecache_isize_extended'
+> 	 void pagecache_isize_extended(struct inode *inode, loff_t from, loff_t to)
+> 	      ^
+> 	In file included from mm/truncate.c:13:0:
+> 	include/linux/mm.h:1161:91: note: previous definition of 'pagecache_isize_extended' was here
+> 	 static inline void pagecache_isize_extended(struct inode *inode, loff_t from,
+> 												   ^
+> 	scripts/Makefile.build:257: recipe for target 'mm/truncate.o' failed
 > 
-> We thought remap_file_pages() was a good idea, and it really really
-> really wasn't. Almost nobody used it, why would the anonymous page
-> case be any different?
-
-I've posted code that uses this interface to qemu-devel and it works nicely;
-so chalk up at least one user.
-
-For the postcopy case I'm using it for, we need to place a page, atomically
-  some thread might try and access it, and must either
-     1) get caught by userfault etc or
-     2) must succeed in it's access
-
-and we'll have that happening somewhere between thousands and millions of times
-to pages in no particular order, so we need to avoid creating millions of mappings.
-
-Dave
-
-
-
+> (tested with ARCH=arm efm32_defconfig).
 > 
->             Linus
---
-Dr. David Alan Gilbert / dgilbert@redhat.com / Manchester, UK
+> Fixes: ac4dd23b76ce ("vfs: fix data corruption when blocksize < pagesize for mmaped data")
+> Signed-off-by: Uwe Kleine-Konig <u.kleine-koenig@pengutronix.de>
+  Yeah, sorry for the breakage. It should be already fixed in Ted's tree.
+I've actually chosen to just remove the inline definition. It is true that
+currently the function doesn't need to do anything for systems not
+supporting mmap but that may change in future and the functions is
+reasonably cheap anyway...
+
+								Honza
+> ---
+> Hello,
+> 
+> the bad commit sits in
+> 
+> git://git.kernel.org/pub/scm/linux/kernel/git/tytso/ext4.git#dev
+> 
+> and is included in next.
+> 
+> Best regards
+> Uwe
+> 
+>  mm/truncate.c | 2 ++
+>  1 file changed, 2 insertions(+)
+> 
+> diff --git a/mm/truncate.c b/mm/truncate.c
+> index 261eaf6e5a19..0d9c4ebd5ecc 100644
+> --- a/mm/truncate.c
+> +++ b/mm/truncate.c
+> @@ -729,6 +729,7 @@ void truncate_setsize(struct inode *inode, loff_t newsize)
+>  }
+>  EXPORT_SYMBOL(truncate_setsize);
+>  
+> +#ifdef CONFIG_MMU
+>  /**
+>   * pagecache_isize_extended - update pagecache after extension of i_size
+>   * @inode:	inode for which i_size was extended
+> @@ -780,6 +781,7 @@ void pagecache_isize_extended(struct inode *inode, loff_t from, loff_t to)
+>  	page_cache_release(page);
+>  }
+>  EXPORT_SYMBOL(pagecache_isize_extended);
+> +#endif
+>  
+>  /**
+>   * truncate_pagecache_range - unmap and remove pagecache that is hole-punched
+> -- 
+> 2.1.0
+> 
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
