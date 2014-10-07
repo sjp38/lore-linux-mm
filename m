@@ -1,66 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id ABCD06B0038
-	for <linux-mm@kvack.org>; Tue,  7 Oct 2014 18:04:21 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id rd3so7902908pab.20
-        for <linux-mm@kvack.org>; Tue, 07 Oct 2014 15:04:21 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id xg7si16676662pbc.90.2014.10.07.15.04.19
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id B1FFA6B0038
+	for <linux-mm@kvack.org>; Tue,  7 Oct 2014 18:16:13 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so7929466pab.32
+        for <linux-mm@kvack.org>; Tue, 07 Oct 2014 15:16:13 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id i7si16680186pat.139.2014.10.07.15.16.11
         for <linux-mm@kvack.org>;
-        Tue, 07 Oct 2014 15:04:20 -0700 (PDT)
-Message-ID: <5434630C.3070006@intel.com>
-Date: Tue, 07 Oct 2014 15:02:52 -0700
+        Tue, 07 Oct 2014 15:16:12 -0700 (PDT)
+Message-ID: <54346623.6000309@intel.com>
+Date: Tue, 07 Oct 2014 15:16:03 -0700
 From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/5] mm: poison page struct
-References: <1412041639-23617-1-git-send-email-sasha.levin@oracle.com> <1412041639-23617-6-git-send-email-sasha.levin@oracle.com>
-In-Reply-To: <1412041639-23617-6-git-send-email-sasha.levin@oracle.com>
+Subject: Re: [PATCH 0/5] mm: poison critical mm/ structs
+References: <1412041639-23617-1-git-send-email-sasha.levin@oracle.com> <20141001140725.fd7f1d0cf933fbc2aa9fc1b1@linux-foundation.org> <542C749B.1040103@oracle.com> <alpine.LSU.2.11.1410020154500.6444@eggly.anvils> <542D680E.8010909@oracle.com>
+In-Reply-To: <542D680E.8010909@oracle.com>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, mgorman@suse.de, Christoph Lameter <cl@linux.com>
+To: Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de
 
-On 09/29/2014 06:47 PM, Sasha Levin wrote:
->  struct page {
-> +#ifdef CONFIG_DEBUG_VM_POISON
-> +	u32 poison_start;
-> +#endif
->  	/* First double word block */
->  	unsigned long flags;		/* Atomic flags, some possibly
->  					 * updated asynchronously */
-> @@ -196,6 +199,9 @@ struct page {
->  #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
->  	int _last_cpupid;
->  #endif
-> +#ifdef CONFIG_DEBUG_VM_POISON
-> +	u32 poison_end;
-> +#endif
->  }
+On 10/02/2014 07:58 AM, Sasha Levin wrote:
+>> > What does this add on top of slab poisoning?  Some checks in some
+>> > mm places while the object is active, I guess: why not base those
+>> > on slab poisoning?  And add them in as appropriate to the problem
+>> > at hand, when a problem is seen.
+> The extra you're getting is detecting corruption that happened
+> inside the object rather than around it.
 
-Does this break slub's __cmpxchg_double_slab trick?  I thought it
-required page->freelist and page->counters to be doubleword-aligned.
+Isn't this more akin to redzoning that poisoning?
 
-It's not like we really require this optimization when we're debugging,
-but trying to use it will unnecessarily slow things down.
+I'm not sure I follow the logic here.  The poison is inside the object,
+but it's now at the edges.  With slub at least, you get a redzone right
+after the object(s):
 
-FWIW, if you're looking to trim down the number of lines of code, you
-could certainly play some macro tricks and #ifdef tricks.
+	{ OBJ } | REDZONE | { OBJ } | REDZONE | ...
 
-struct vm_poison {
-#ifdef CONFIG_DEBUG_VM_POISON
-	u32 val;
-#endif	
-};
+With this patch, you'd get something along these lines:
 
-Then, instead of #ifdefs in each structure, you do:
+	{ POISON | OBJ | POISON } { POISON | OBJ | POISON }  ...
 
-struct page {
-	struct vm_poison poison_start;
-	... other gunk
-	struct vm_poison poison_end;
-};
+So if somebody overflows OBJ, they'll hit the redzone/poison in either
+case.  If they're randomly scribbling on memory, their likelihood of
+hitting the redzone/poison is proportional to the size of the
+redzone/poison.
+
+The only place this really helps is if someone overflows from a
+non-redzoned page or structure in to the beginning of a slub redzoned
+one.  The fact that the redzone is at the end means we'll miss it.
+
+But, all that means is that we should probably add redzones to the
+beginning of slub objects, not just the end.  That doesn't help us with
+'struct page' of course, but it does for the mm_struct and vma.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
