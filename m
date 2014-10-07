@@ -1,307 +1,329 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id A91896B00A0
-	for <linux-mm@kvack.org>; Mon,  6 Oct 2014 19:46:12 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id r10so4007470pdi.24
-        for <linux-mm@kvack.org>; Mon, 06 Oct 2014 16:46:12 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id v5si11837122pdo.24.2014.10.06.16.46.09
-        for <linux-mm@kvack.org>;
-        Mon, 06 Oct 2014 16:46:11 -0700 (PDT)
-Date: Tue, 7 Oct 2014 08:46:29 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v1 4/5] zram: add swap full hint
-Message-ID: <20141006234629.GB19445@bbox>
-References: <1411344191-2842-1-git-send-email-minchan@kernel.org>
- <1411344191-2842-5-git-send-email-minchan@kernel.org>
- <CALZtONB+NBMa8xf8xuAoeYHDoMtS56VLGP-a46LZgpppFyz7ag@mail.gmail.com>
- <20140925010229.GA17364@bbox>
- <CALZtONDnrqPZEBgJb5t8v_pmgh5YMSCA649sCPObb+U=5hAX_A@mail.gmail.com>
- <20141006233608.GA19445@bbox>
+Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
+	by kanga.kvack.org (Postfix) with ESMTP id E9DEE6B0038
+	for <linux-mm@kvack.org>; Tue,  7 Oct 2014 03:42:35 -0400 (EDT)
+Received: by mail-ob0-f182.google.com with SMTP id uy5so5306413obc.27
+        for <linux-mm@kvack.org>; Tue, 07 Oct 2014 00:42:35 -0700 (PDT)
+Received: from mail-ob0-x22c.google.com (mail-ob0-x22c.google.com [2607:f8b0:4003:c01::22c])
+        by mx.google.com with ESMTPS id kx1si29979812obc.25.2014.10.07.00.42.34
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 07 Oct 2014 00:42:34 -0700 (PDT)
+Received: by mail-ob0-f172.google.com with SMTP id wo20so5254808obc.3
+        for <linux-mm@kvack.org>; Tue, 07 Oct 2014 00:42:34 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20141006233608.GA19445@bbox>
+In-Reply-To: <20140929195337.GA9177@cerebellum.variantweb.net>
+References: <1411714395-18115-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<20140929195337.GA9177@cerebellum.variantweb.net>
+Date: Tue, 7 Oct 2014 16:42:33 +0900
+Message-ID: <CAAmzW4PV5JAVg_StBtV2O+XyMwNHDuLFR01CXwL+cY48Ws7QoA@mail.gmail.com>
+Subject: Re: [RFC PATCH 1/2] mm/afmalloc: introduce anti-fragmentation memory allocator
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Luigi Semenzato <semenzato@google.com>, juno.choi@lge.com
+To: Seth Jennings <sjennings@variantweb.net>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>
 
-On Tue, Oct 07, 2014 at 08:36:08AM +0900, Minchan Kim wrote:
-> Hello Dan,
-> 
-> Sorry for the delay. I had internal works which should be handled
-> urgent. I hope you don't lose your interest due to my bad response
-> latency.
-> 
-> On Thu, Sep 25, 2014 at 11:52:22AM -0400, Dan Streetman wrote:
-> > On Wed, Sep 24, 2014 at 9:02 PM, Minchan Kim <minchan@kernel.org> wrote:
-> > > On Wed, Sep 24, 2014 at 10:01:03AM -0400, Dan Streetman wrote:
-> > >> On Sun, Sep 21, 2014 at 8:03 PM, Minchan Kim <minchan@kernel.org> wrote:
-> > >> > This patch implement SWAP_FULL handler in zram so that VM can
-> > >> > know whether zram is full or not and use it to stop anonymous
-> > >> > page reclaim.
-> > >> >
-> > >> > How to judge fullness is below,
-> > >> >
-> > >> > fullness = (100 * used space / total space)
-> > >> >
-> > >> > It means the higher fullness is, the slower we reach zram full.
-> > >> > Now, default of fullness is 80 so that it biased more momory
-> > >> > consumption rather than early OOM kill.
-> > >> >
-> > >> > Above logic works only when used space of zram hit over the limit
-> > >> > but zram also pretend to be full once 32 consecutive allocation
-> > >> > fail happens. It's safe guard to prevent system hang caused by
-> > >> > fragment uncertainty.
-> > >> >
-> > >> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > >> > ---
-> > >> >  drivers/block/zram/zram_drv.c | 60 ++++++++++++++++++++++++++++++++++++++++---
-> > >> >  drivers/block/zram/zram_drv.h |  1 +
-> > >> >  2 files changed, 57 insertions(+), 4 deletions(-)
-> > >> >
-> > >> > diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> > >> > index 22a37764c409..649cad9d0b1c 100644
-> > >> > --- a/drivers/block/zram/zram_drv.c
-> > >> > +++ b/drivers/block/zram/zram_drv.c
-> > >> > @@ -43,6 +43,20 @@ static const char *default_compressor = "lzo";
-> > >> >  /* Module params (documentation at end) */
-> > >> >  static unsigned int num_devices = 1;
-> > >> >
-> > >> > +/*
-> > >> > + * If (100 * used_pages / total_pages) >= ZRAM_FULLNESS_PERCENT),
-> > >> > + * we regards it as zram-full. It means that the higher
-> > >> > + * ZRAM_FULLNESS_PERCENT is, the slower we reach zram full.
-> > >> > + */
-> > >> > +#define ZRAM_FULLNESS_PERCENT 80
-> > >>
-> > >> As Andrew said, this (or the user-configurable fullness param from the
-> > >> next patch) should have more detail about exactly why it's needed and
-> > >> what it does.  The details of how zram considers itself "full" should
-> > >> be clear, which probably includes explaining zsmalloc fragmentation.
-> > >> It should be also clear this param only matters when limit_pages is
-> > >> set, and this param is only checked when zsmalloc's total size has
-> > >> reached that limit.
-> > >
-> > > Sure, How about this?
-> > >
-> > >                 The fullness file is read/write and specifies how easily
-> > >                 zram become full state. Normally, we can think "full"
-> > >                 once all of memory is consumed but it's not simple with
-> > >                 zram because zsmalloc has some issue by internal design
-> > >                 so that write could fail once consumed *page* by zram
-> > >                 reaches the mem_limit and zsmalloc cannot have a empty
-> > >                 slot for the compressed object's size on fragmenet space
-> > >                 although it has more empty slots for other sizes.
-> > 
-> > I understand that, but it might be confusing or unclear to anyone
-> > who's not familiar with how zsmalloc works.
-> > 
-> > Maybe it could be explained by referencing the existing
-> > compr_data_size and mem_used_total?  In addition to some or all of the
-> > above, you could add something like:
-> > 
-> > This controls when zram decides that it is "full".  It is a percent
-> > value, checked against compr_data_size / mem_used_total.  When
-> > mem_used_total is equal to mem_limit, the fullness is checked and if
-> > the compr_data_size / mem_used_total percentage is higher than this
-> > specified fullness value, zram is considered "full".
-> 
-> Better than my verbose version.
-> 
-> > 
-> > 
-> > >
-> > >                 We regard zram as full once consumed *page* reaches the
-> > >                 mem_limit and consumed memory until now is higher the value
-> > >                 resulted from the knob. So, if you set the value high,
-> > >                 you can squeeze more pages into fragment space so you could
-> > >                 avoid early OOM while you could see more write-fail warning,
-> > >                 overhead to fail-write recovering by VM and reclaim latency.
-> > >                 If you set the value low, you can see OOM kill easily
-> > >                 even though there are memory space in zram but you could
-> > >                 avoid shortcomings mentioned above.
-> > 
-> > You should clarify also that this is currently only used by
-> > swap-on-zram, and this value prevents swap from writing to zram once
-> > it is "full".  This setting has no effect when using zram for a
-> > mounted filesystem.
-> 
-> Sure.
-> 
-> > 
-> > >
-> > >                 This knobs is valid ony if you set mem_limit.
-> > >                 Currently, initial value is 80% but it could be changed.
-> > >
-> > > I didn't decide how to change it from percent.
-> > > Decimal fraction Jerome mentioned does make sense to me so please ignore
-> > > percent part in above.
-> > >
-> > >>
-> > >> Also, since the next patch changes it to be used only as a default,
-> > >> shouldn't it be DEFAULT_ZRAM_FULLNESS_PERCENT or similar?
-> > >
-> > > Okay, I will do it in 5/5.
-> > >
-> > >>
-> > >> > +
-> > >> > +/*
-> > >> > + * If zram fails to allocate memory consecutively up to this,
-> > >> > + * we regard it as zram-full. It's safe guard to prevent too
-> > >> > + * many swap write fail due to lack of fragmentation uncertainty.
-> > >> > + */
-> > >> > +#define ALLOC_FAIL_MAX 32
-> > >> > +
-> > >> >  #define ZRAM_ATTR_RO(name)                                             \
-> > >> >  static ssize_t zram_attr_##name##_show(struct device *d,               \
-> > >> >                                 struct device_attribute *attr, char *b) \
-> > >> > @@ -148,6 +162,7 @@ static ssize_t mem_limit_store(struct device *dev,
-> > >> >
-> > >> >         down_write(&zram->init_lock);
-> > >> >         zram->limit_pages = PAGE_ALIGN(limit) >> PAGE_SHIFT;
-> > >> > +       atomic_set(&zram->alloc_fail, 0);
-> > >> >         up_write(&zram->init_lock);
-> > >> >
-> > >> >         return len;
-> > >> > @@ -410,6 +425,7 @@ static void zram_free_page(struct zram *zram, size_t index)
-> > >> >         atomic64_sub(zram_get_obj_size(meta, index),
-> > >> >                         &zram->stats.compr_data_size);
-> > >> >         atomic64_dec(&zram->stats.pages_stored);
-> > >> > +       atomic_set(&zram->alloc_fail, 0);
-> > >> >
-> > >> >         meta->table[index].handle = 0;
-> > >> >         zram_set_obj_size(meta, index, 0);
-> > >> > @@ -597,10 +613,15 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
-> > >> >         }
-> > >> >
-> > >> >         alloced_pages = zs_get_total_pages(meta->mem_pool);
-> > >> > -       if (zram->limit_pages && alloced_pages > zram->limit_pages) {
-> > >> > -               zs_free(meta->mem_pool, handle);
-> > >> > -               ret = -ENOMEM;
-> > >> > -               goto out;
-> > >> > +       if (zram->limit_pages) {
-> > >> > +               if (alloced_pages > zram->limit_pages) {
-> > >> > +                       zs_free(meta->mem_pool, handle);
-> > >> > +                       atomic_inc(&zram->alloc_fail);
-> > >> > +                       ret = -ENOMEM;
-> > >> > +                       goto out;
-> > >> > +               } else {
-> > >> > +                       atomic_set(&zram->alloc_fail, 0);
-> > >> > +               }
-> > >>
-> > >> So, with zram_full() checking for alloced_pages >= limit_pages, this
-> > >> will need to be changed; the way it is now it prevents that from ever
-> > >> being true.
-> > >>
-> > >> Instead I believe this check has to be moved to before zs_malloc(), so
-> > >> that alloced_pages > limit_pages is true.
-> > >
-> > > I don't get it why you said "it prevents that from ever being true".
-> > > Now, zram can use up until limit_pages (ie, used memory == zram->limit_pages)
-> > > and trying to get more is failed. so zram_full checks it as
-> > > toal_pages >= zram->limit_pages so what is problem?
-> > > If I miss your point, could you explain more?
-> > 
-> > ok, that's true, it's possible for alloc_pages == limit_pages, but
-> > since zsmalloc will increase its size by a full zspage, and those can
-> > be anywhere between 1 and 4 pages in size, it's only a (very roughly)
-> > 25% chance that an alloc will cause alloc_pages == limit_pages, it's
-> > more likely that an alloc will cause alloc_pages > limit_pages.  Now,
-> > after some number of write failures, that 25% (-ish) probability will
-> > be met, and alloc_pages == limit_pages will happen, but there's a
-> > rather high chance that there will be some number of write failures
-> > first.
-> > 
-> > To summarize or restate that, I guess what I'm saying is that for
-> > users who don't care about some write failures and/or users with no
-> > other swap devices except zram, it probably does not matter.  However
-> > for them, they probably will rely on the 32 write failure limit, and
-> > not the fullness limit.  For users where zram is only the primary swap
-> > device, and there is a backup swap device, they probably will want
-> > zram to fail over to the backup fairly quickly, with as few write
-> > failures as possible (preferably, none, I would think).  And this
-> > situation makes that highly unlikely - since there's only about a 25%
-> > chance of alloc_pages == limit_pages with no previous write failures,
-> > it's almost a certainty that there will be write failures before zram
-> > is decided to be "full", even if "fullness" is set to 0.
-> > 
-> > With that said, you're right that it will eventually work, and those
-> > few write failures while trying to get to alloc_pages == limit_pages
-> > would probably not be noticable.  However, do remember that zram won't
-> > stay full forever, so if it is only the primary swap device, it's
-> > likely it will move between "full" and "not full" quite a lot, and
-> > those few write failures may start adding up.
-> 
-> Fair enough.
-> 
-> But it is possible to see write-failure even though we correct
-> it because there is potential chance for zram to fail to allocate
-> order-0 page by a few reason which one of them is CMA I got several
-> reports because zRAM cannot allocate a movable page due to lack of
-> migration while usersapce goes with it well. I have a plan to fix it
-> with zsmalloc migration work but there are another chances to make
-> fail order-0 page by serval ways so I don't think we cannot prevent
-> write-failure completely unless we have reserved memory for zram.
-> 
-> Having said that, I agree it would be better to reduce such fails
-> with small code piece so I will check zram_full as follows,
-> 
-> /*
->  * XXX: zsmalloc_maxpages check should be removed when zsmalloc
->  * implement using of fragmented spaces in last page of zspage.
->  */
-> if (total_pages >= zram->limit_pages - zsmalloc_maxpages()) {
->         ...
-> }
-> 
+Hello, Seth.
+Sorry for late response. :)
 
-How about this?
+2014-09-30 4:53 GMT+09:00 Seth Jennings <sjennings@variantweb.net>:
+> On Fri, Sep 26, 2014 at 03:53:14PM +0900, Joonsoo Kim wrote:
+>> WARNING: This is just RFC patchset. patch 2/2 is only for testing.
+>> If you know useful place to use this allocator, please let me know.
+>>
+>> This is brand-new allocator, called anti-fragmentation memory allocator
+>> (aka afmalloc), in order to deal with arbitrary sized object allocation
+>> efficiently. zram and zswap uses arbitrary sized object to store
+>> compressed data so they can use this allocator. If there are any other
+>> use cases, they can use it, too.
+>>
+>> This work is motivated by observation of fragmentation on zsmalloc which
+>> intended for storing arbitrary sized object with low fragmentation.
+>> Although it works well on allocation-intensive workload, memory could be
+>> highly fragmented after many free occurs. In some cases, unused memory due
+>> to fragmentation occupy 20% ~ 50% amount of real used memory. The other
+>> problem is that other subsystem cannot use these unused memory. These
+>> fragmented memory are zsmalloc specific, so most of other subsystem cannot
+>> use it until zspage is freed to page allocator.
+>
+> Yes, zsmalloc has a fragmentation issue.  This has been a topic lately.
+> I and others are looking at putting compaction logic into zsmalloc to
+> help with this.
+>
+>>
+>> I guess that there are similar fragmentation problem in zbud, but, I
+>> didn't deeply investigate it.
+>>
+>> This new allocator uses SLAB allocator to solve above problems. When
+>> request comes, it returns handle that is pointer of metatdata to point
+>> many small chunks. These small chunks are in power of 2 size and
+>> build up whole requested memory. We can easily acquire these chunks
+>> using SLAB allocator. Following is conceptual represetation of metadata
+>> used in this allocator to help understanding of this allocator.
+>>
+>> Handle A for 400 bytes
+>> {
+>>       Pointer for 256 bytes chunk
+>>       Pointer for 128 bytes chunk
+>>       Pointer for 16 bytes chunk
+>>
+>>       (256 + 128 + 16 = 400)
+>> }
+>>
+>> As you can see, 400 bytes memory are not contiguous in afmalloc so that
+>> allocator specific store/load functions are needed. These require some
+>> computation overhead and I guess that this is the only drawback this
+>> allocator has.
+>
+> One problem with using the SLAB allocator is that kmalloc caches greater
+> than 256 bytes, at least on my x86_64 machine, have slabs that require
+> high order page allocations, which are going to be really hard to come
+> by in the memory stressed environment in which zswap/zram are expected
+> to operate.  I guess you could max out at 256 byte chunks to overcome
+> this.  However, if you have a 3k object, that would require copying 12
+> chunks from potentially 12 different pages into a contiguous area at
+> mapping time and a larger metadata size.
 
-diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-index 19da34aaf4f5..f03a94d7aa17 100644
---- a/drivers/block/zram/zram_drv.c
-+++ b/drivers/block/zram/zram_drv.c
-@@ -978,7 +978,7 @@ static void zram_full(struct block_device *bdev, bool *full)
- 	meta = zram->meta;
- 	total_pages = zs_get_total_pages(meta->mem_pool);
- 
--	if (total_pages >= zram->limit_pages) {
-+	if (total_pages > zram->limit_pages - zs_get_maxpages_per_zspage()) {
- 
- 		compr_pages = atomic64_read(&zram->stats.compr_data_size)
- 					>> PAGE_SHIFT;
-diff --git a/include/linux/zsmalloc.h b/include/linux/zsmalloc.h
-index 05c214760977..73eb87bc5a4e 100644
---- a/include/linux/zsmalloc.h
-+++ b/include/linux/zsmalloc.h
-@@ -48,4 +48,5 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle);
- 
- unsigned long zs_get_total_pages(struct zs_pool *pool);
- 
-+int zs_get_maxpages_per_zspage(void);
- #endif
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 839a48c3ca27..6b6653455573 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -316,6 +316,12 @@ static struct zpool_driver zs_zpool_driver = {
- MODULE_ALIAS("zpool-zsmalloc");
- #endif /* CONFIG_ZPOOL */
- 
-+int zs_get_maxpages_per_zspage(void)
-+{
-+	return ZS_MAX_PAGES_PER_ZSPAGE;
-+}
-+EXPORT_SYMBOL_GPL(zs_get_maxpages_per_zspage);
-+
- /* per-cpu VM mapping areas for zspage accesses that cross page boundaries */
- static DEFINE_PER_CPU(struct mapping_area, zs_map_area);
- 
--- 
-Kind regards,
-Minchan Kim
+SLUB uses high order allocation by default, but, it has fallback method. It
+uses low order allocation if failed with high order allocation. So, we don't
+need to worry about high order allocation.
+
+>>
+>> For optimization, it uses another approach for power of 2 sized request.
+>> Instead of returning handle for metadata, it adds tag on pointer from
+>> SLAB allocator and directly returns this value as handle. With this tag,
+>> afmalloc can recognize whether handle is for metadata or not and do proper
+>> processing on it. This optimization can save some memory.
+>>
+>> Although afmalloc use some memory for metadata, overall utilization of
+>> memory is really good due to zero internal fragmentation by using power
+>
+> Smallest kmalloc cache is 8 bytes so up to 7 bytes of internal
+> fragmentation per object right?  If so, "near zero".
+>
+>> of 2 sized object. Although zsmalloc has many size class, there is
+>> considerable internal fragmentation in zsmalloc.
+>
+> Lets put a number on it. Internal fragmentation on objects with size >
+> ZS_MIN_ALLOC_SIZE is ZS_SIZE_CLASS_DELTA-1, which is 15 bytes with
+> PAGE_SIZE of 4k.  If the allocation is less than ZS_MIN_ALLOC_SIZE,
+> fragmentation could be as high as ZS_MIN_ALLOC_SIZE-1 which is 31 on a
+> 64-bit system with 4k pages.  (Note: I don't think that is it possible to
+> compress a 4k page to less than 32 bytes, so for zswap, there will be no
+> allocations in this size range).
+>
+> So we are looking at up to 7 vs 15 bytes of internal fragmentation per
+> object in the case when allocations are > ZS_MIN_ALLOC_SIZE.  Once you
+> take into account the per-object metadata overhead of afmalloc, I think
+> zsmalloc comes out ahead here.
+
+Sorry for misleading word usage.
+What I want to tell is that the unused space at the end of zspage when
+zspage isn't perfectly divided. For example, think about 2064 bytes size_class.
+It's zspage would be 4 pages and it can have only 7 objects at maximum.
+Remainder is 1936 bytes and we can't use this space. This is 11% of total
+space on zspage. If we only use power of 2 size, there is no remainder and
+no this type of unused space.
+
+>>
+>> In workload that needs many free, memory could be fragmented like
+>> zsmalloc, but, there is big difference. These unused portion of memory
+>> are SLAB specific memory so that other subsystem can use it. Therefore,
+>> fragmented memory could not be a big problem in this allocator.
+>
+> While freeing chunks back to the slab allocator does make that memory
+> available to other _kernel_ users, the fragmentation problem is just
+> moved one level down.  The fragmentation will exist in the slabs and
+> those fragmented slabs won't be freed to the page allocator, which would
+> make them available to _any_ user, not just the kernel.  Additionally,
+> there is little visibility into how chunks are organized in the slab,
+> making compaction at the afmalloc level nearly impossible.  (The only
+> visibility being the address returned by kmalloc())
+
+Okay. Free objects in slab subsystem isn't perfect solution, but, it is better
+than current situation.
+
+And, I think that afmalloc could be compacted just with returned address.
+My idea is sorting chunks by memory address and copying their contents
+to temporary buffer in ascending order. After copy is complete, chunks could
+be freed. These freed objects would be in contiguous range so SLAB would
+free the slab to the page allocator. After some free are done, we allocate
+chunks from SLAB again and copy contents in temporary buffers to these
+newly allocated chunks. These chunks would be positioned in fragmented
+slab so that fragmentation would be reduced.
+
+>>
+>> Extra benefit of this allocator design is NUMA awareness. This allocator
+>> allocates real memory from SLAB allocator. SLAB considers client's NUMA
+>> affinity, so these allocated memory is NUMA-friendly. Currently, zsmalloc
+>> and zbud which are backend of zram and zswap, respectively, are not NUMA
+>> awareness so that remote node's memory could be returned to requestor.
+>> I think that it could be solved easily if NUMA awareness turns out to be
+>> real problem. But, it may enlarge fragmentation depending on number of
+>> nodes. Anyway, there is no NUMA awareness issue in this allocator.
+>>
+>> Although I'd like to replace zsmalloc with this allocator, it cannot be
+>> possible, because zsmalloc supports HIGHMEM. In 32-bits world, SLAB memory
+>> would be very limited so supporting HIGHMEM would be really good advantage
+>> of zsmalloc. Because there is no HIGHMEM in 32-bits low memory device or
+>> 64-bits world, this allocator may be good option for this system. I
+>> didn't deeply consider whether this allocator can replace zbud or not.
+>>
+>> Below is the result of my simple test.
+>> (zsmalloc used in experiments is patched with my previous patch:
+>> zsmalloc: merge size_class to reduce fragmentation)
+>>
+>> TEST ENV: EXT4 on zram, mount with discard option
+>> WORKLOAD: untar kernel source, remove dir in descending order in size.
+>> (drivers arch fs sound include)
+>>
+>> Each line represents orig_data_size, compr_data_size, mem_used_total,
+>> fragmentation overhead (mem_used - compr_data_size) and overhead ratio
+>> (overhead to compr_data_size), respectively, after untar and remove
+>> operation is executed. In afmalloc case, overhead is calculated by
+>> before/after 'SUnreclaim' on /proc/meminfo. And there are two more columns
+>> in afmalloc, one is real_overhead which represents metadata usage and
+>> overhead of internal fragmentation, and the other is a ratio,
+>> real_overhead to compr_data_size. Unlike zsmalloc, only metadata and
+>> internal fragmented memory cannot be used by other subsystem. So,
+>> comparing real_overhead in afmalloc with overhead on zsmalloc seems to
+>> be proper comparison.
+>
+> See last comment about why the real measure of memory usage should be
+> total pages not returned to the page allocator.  I don't consider chunks
+> freed to the slab allocator to be truly freed unless the slab containing
+> the chunks is also freed to the page allocator.
+>
+> The closest thing I can think of to measure the memory utilization of
+> this allocator is, for each kmalloc cache, do a before/after of how many
+> slabs are in the cache, then multiply that delta by pagesperslab and sum
+> the results.  This would give a rough measure of the number of pages
+> utilized in the slab allocator either by or as a result of afmalloc.
+> Of course, there will be noise from other components doing allocations
+> during the time between the before and after measurement.
+
+It was already in below benchmark result. overhead and overhead ratio on
+intar-afmalloc.out result are measured by number of allocated page in SLAB.
+You can see that overhead and overhead ratio of afmalloc is less than
+zsmalloc even in this metric.
+
+Thanks.
+
+> Seth
+>
+>>
+>> * untar-merge.out
+>>
+>> orig_size compr_size used_size overhead overhead_ratio
+>> 526.23MB 199.18MB 209.81MB  10.64MB 5.34%
+>> 288.68MB  97.45MB 104.08MB   6.63MB 6.80%
+>> 177.68MB  61.14MB  66.93MB   5.79MB 9.47%
+>> 146.83MB  47.34MB  52.79MB   5.45MB 11.51%
+>> 124.52MB  38.87MB  44.30MB   5.43MB 13.96%
+>> 104.29MB  31.70MB  36.83MB   5.13MB 16.19%
+>>
+>> * untar-afmalloc.out
+>>
+>> orig_size compr_size used_size overhead overhead_ratio real real-ratio
+>> 526.27MB 199.18MB 206.37MB   8.00MB 4.02%   7.19MB 3.61%
+>> 288.71MB  97.45MB 101.25MB   5.86MB 6.01%   3.80MB 3.90%
+>> 177.71MB  61.14MB  63.44MB   4.39MB 7.19%   2.30MB 3.76%
+>> 146.86MB  47.34MB  49.20MB   3.97MB 8.39%   1.86MB 3.93%
+>> 124.55MB  38.88MB  40.41MB   3.71MB 9.54%   1.53MB 3.95%
+>> 104.32MB  31.70MB  32.96MB   3.43MB 10.81%   1.26MB 3.96%
+>>
+>> As you can see above result, real_overhead_ratio in afmalloc is
+>> just 3% ~ 4% while overhead_ratio on zsmalloc varies 5% ~ 17%.
+>>
+>> And, 4% ~ 11% overhead_ratio in afmalloc is also slightly better
+>> than overhead_ratio in zsmalloc which is 5% ~ 17%.
+>>
+>> Below is another simple test to check fragmentation effect in alloc/free
+>> repetition workload.
+>>
+>> TEST ENV: EXT4 on zram, mount with discard option
+>> WORKLOAD: untar kernel source, remove dir in descending order in size
+>> (drivers arch fs sound include). Repeat this untar and remove 10 times.
+>>
+>> * untar-merge.out
+>>
+>> orig_size compr_size used_size overhead overhead_ratio
+>> 526.24MB 199.18MB 209.79MB  10.61MB 5.33%
+>> 288.69MB  97.45MB 104.09MB   6.64MB 6.81%
+>> 177.69MB  61.14MB  66.89MB   5.75MB 9.40%
+>> 146.84MB  47.34MB  52.77MB   5.43MB 11.46%
+>> 124.53MB  38.88MB  44.28MB   5.40MB 13.90%
+>> 104.29MB  31.71MB  36.87MB   5.17MB 16.29%
+>> 535.59MB 200.30MB 211.77MB  11.47MB 5.73%
+>> 294.84MB  98.28MB 106.24MB   7.97MB 8.11%
+>> 179.99MB  61.58MB  69.34MB   7.76MB 12.60%
+>> 148.67MB  47.75MB  55.19MB   7.43MB 15.57%
+>> 125.98MB  39.26MB  46.62MB   7.36MB 18.75%
+>> 105.05MB  32.03MB  39.18MB   7.15MB 22.32%
+>> (snip...)
+>> 535.59MB 200.31MB 211.88MB  11.57MB 5.77%
+>> 294.84MB  98.28MB 106.62MB   8.34MB 8.49%
+>> 179.99MB  61.59MB  73.83MB  12.24MB 19.88%
+>> 148.67MB  47.76MB  59.58MB  11.82MB 24.76%
+>> 125.98MB  39.27MB  51.10MB  11.84MB 30.14%
+>> 105.05MB  32.04MB  43.68MB  11.64MB 36.31%
+>> 535.59MB 200.31MB 211.89MB  11.58MB 5.78%
+>> 294.84MB  98.28MB 106.68MB   8.40MB 8.55%
+>> 179.99MB  61.59MB  74.14MB  12.55MB 20.37%
+>> 148.67MB  47.76MB  59.94MB  12.18MB 25.50%
+>> 125.98MB  39.27MB  51.46MB  12.19MB 31.04%
+>> 105.05MB  32.04MB  44.01MB  11.97MB 37.35%
+>>
+>> * untar-afmalloc.out
+>>
+>> orig_size compr_size used_size overhead overhead_ratio real real-ratio
+>> 526.23MB 199.17MB 206.36MB   8.02MB 4.03%   7.19MB 3.61%
+>> 288.68MB  97.45MB 101.25MB   5.42MB 5.56%   3.80MB 3.90%
+>> 177.68MB  61.14MB  63.43MB   4.00MB 6.54%   2.30MB 3.76%
+>> 146.83MB  47.34MB  49.20MB   3.66MB 7.74%   1.86MB 3.93%
+>> 124.52MB  38.87MB  40.41MB   3.33MB 8.57%   1.54MB 3.96%
+>> 104.29MB  31.70MB  32.95MB   3.23MB 10.19%   1.26MB 3.97%
+>> 535.59MB 200.30MB 207.59MB   9.21MB 4.60%   7.29MB 3.64%
+>> 294.84MB  98.27MB 102.14MB   6.23MB 6.34%   3.87MB 3.94%
+>> 179.99MB  61.58MB  63.91MB   4.98MB 8.09%   2.33MB 3.78%
+>> 148.67MB  47.75MB  49.64MB   4.48MB 9.37%   1.89MB 3.95%
+>> 125.98MB  39.26MB  40.82MB   4.23MB 10.78%   1.56MB 3.97%
+>> 105.05MB  32.03MB  33.30MB   4.10MB 12.81%   1.27MB 3.98%
+>> (snip...)
+>> 535.59MB 200.30MB 207.60MB   8.94MB 4.46%   7.29MB 3.64%
+>> 294.84MB  98.27MB 102.14MB   6.19MB 6.29%   3.87MB 3.94%
+>> 179.99MB  61.58MB  63.91MB   8.25MB 13.39%   2.33MB 3.79%
+>> 148.67MB  47.75MB  49.64MB   7.98MB 16.71%   1.89MB 3.96%
+>> 125.98MB  39.26MB  40.82MB   7.52MB 19.15%   1.56MB 3.98%
+>> 105.05MB  32.03MB  33.31MB   7.04MB 21.97%   1.28MB 3.98%
+>> 535.59MB 200.31MB 207.60MB   9.26MB 4.62%   7.30MB 3.64%
+>> 294.84MB  98.28MB 102.15MB   6.85MB 6.97%   3.87MB 3.94%
+>> 179.99MB  61.58MB  63.91MB   9.08MB 14.74%   2.33MB 3.79%
+>> 148.67MB  47.75MB  49.64MB   8.77MB 18.36%   1.89MB 3.96%
+>> 125.98MB  39.26MB  40.82MB   8.35MB 21.28%   1.56MB 3.98%
+>> 105.05MB  32.03MB  33.31MB   8.24MB 25.71%   1.28MB 3.98%
+>>
+>> As you can see above result, fragmentation grows continuously at each run.
+>> But, real_overhead_ratio in afmalloc is always just 3% ~ 4%,
+>> while overhead_ratio on zsmalloc varies 5% ~ 38%.
+>> Fragmented slab memory can be used for other system, so we don't
+>> have to much worry about overhead metric in afmalloc. Anyway, overhead
+>> metric is also better in afmalloc, 4% ~ 26%.
+>>
+>> As a result, I think that afmalloc is better than zsmalloc in terms of
+>> memory efficiency. But, I could be wrong so any comments are welcome. :)
+>>
+>> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> ---
+>>  include/linux/afmalloc.h |   21 ++
+>>  mm/Kconfig               |    7 +
+>>  mm/Makefile              |    1 +
+>>  mm/afmalloc.c            |  590 ++++++++++++++++++++++++++++++++++++++++++++++
+>>  4 files changed, 619 insertions(+)
+>>  create mode 100644 include/linux/afmalloc.h
+>>  create mode 100644 mm/afmalloc.c
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
