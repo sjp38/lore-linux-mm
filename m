@@ -1,121 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 62D256B0069
-	for <linux-mm@kvack.org>; Tue,  7 Oct 2014 11:10:31 -0400 (EDT)
-Received: by mail-qc0-f169.google.com with SMTP id i8so5978411qcq.14
-        for <linux-mm@kvack.org>; Tue, 07 Oct 2014 08:10:30 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z32si24588214qge.13.2014.10.07.08.10.27
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id D08816B0069
+	for <linux-mm@kvack.org>; Tue,  7 Oct 2014 11:15:43 -0400 (EDT)
+Received: by mail-wi0-f173.google.com with SMTP id fb4so8209136wid.12
+        for <linux-mm@kvack.org>; Tue, 07 Oct 2014 08:15:43 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t19si14501877wiv.68.2014.10.07.08.15.42
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Oct 2014 08:10:29 -0700 (PDT)
-Date: Tue, 7 Oct 2014 16:19:13 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 10/17] mm: rmap preparation for remap_anon_pages
-Message-ID: <20141007141913.GC2342@redhat.com>
-References: <1412356087-16115-1-git-send-email-aarcange@redhat.com>
- <1412356087-16115-11-git-send-email-aarcange@redhat.com>
- <CA+55aFx++R42L75ooE=Fmaem73=V=q7f6pYTcALxgrA1y98G-A@mail.gmail.com>
- <20141006085540.GD2336@work-vm>
- <20141006164156.GA31075@redhat.com>
- <CA+55aFxAOYBny+QwXfkPy-P3rs-RPr5SLYLcPNBiFO3waBXtQA@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 07 Oct 2014 08:15:42 -0700 (PDT)
+Date: Tue, 7 Oct 2014 17:15:43 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 1/3] mm: memcontrol: lockless page counters
+Message-ID: <20141007151543.GE14243@dhcp22.suse.cz>
+References: <1411573390-9601-1-git-send-email-hannes@cmpxchg.org>
+ <1411573390-9601-2-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFxAOYBny+QwXfkPy-P3rs-RPr5SLYLcPNBiFO3waBXtQA@mail.gmail.com>
+In-Reply-To: <1411573390-9601-2-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: "Dr. David Alan Gilbert" <dgilbert@redhat.com>, qemu-devel@nongnu.org, KVM list <kvm@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, Andres Lagar-Cavilla <andreslc@google.com>, Dave Hansen <dave@sr71.net>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, Christopher Covington <cov@codeaurora.org>, Johannes Weiner <hannes@cmpxchg.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, Keith Packard <keithp@keithp.com>, "Huangpeng (Peter)" <peter.huangpeng@huawei.com>, Isaku Yamahata <yamahata@valinux.co.jp>, Anthony Liguori <anthony@codemonkey.ws>, Stefan Hajnoczi <stefanha@gmail.com>, Wenchao Xia <wenchaoqemu@gmail.com>, Andrew Jones <drjones@redhat.com>, Juan Quintela <quintela@redhat.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, Dave Hansen <dave@sr71.net>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hello,
-
-On Tue, Oct 07, 2014 at 08:47:59AM -0400, Linus Torvalds wrote:
-> On Mon, Oct 6, 2014 at 12:41 PM, Andrea Arcangeli <aarcange@redhat.com> wrote:
-> >
-> > Of course if somebody has better ideas on how to resolve an anonymous
-> > userfault they're welcome.
+On Wed 24-09-14 11:43:08, Johannes Weiner wrote:
+> Memory is internally accounted in bytes, using spinlock-protected
+> 64-bit counters, even though the smallest accounting delta is a page.
+> The counter interface is also convoluted and does too many things.
 > 
-> So I'd *much* rather have a "write()" style interface (ie _copying_
-> bytes from user space into a newly allocated page that gets mapped)
-> than a "remap page" style interface
+> Introduce a new lockless word-sized page counter API, then change all
+> memory accounting over to it and remove the old one.  The translation
+> from and to bytes then only happens when interfacing with userspace.
 > 
-> remapping anonymous pages involves page table games that really aren't
-> necessarily a good idea, and tlb invalidates for the old page etc.
-> Just don't do it.
+> Aside from the locking costs, this gets rid of the icky unsigned long
+> long types in the very heart of memcg, which is great for 32 bit and
+> also makes the code a lot more readable.
+> 
 
-I see what you mean. The only cons I see is that we couldn't use then
-recv(tmp_addr, PAGE_SIZE), remap_anon_pages(faultaddr, tmp_addr,
-PAGE_SIZE, ..)  and retain the zerocopy behavior. Or how could we?
-There's no recvfile(userfaultfd, socketfd, PAGE_SIZE).
+I only now got to the res_counter -> page_counter change. It looks
+correct to me. Some really minor comments below.
 
-Ideally if we could prevent the page data coming from the network to
-ever become visible in the kernel we could avoid the TLB flush and
-also be zerocopy but I can't see how we could achieve that.
+[...]
+>  static inline void memcg_memory_allocated_sub(struct cg_proto *prot,
+>  					      unsigned long amt)
+>  {
+> -	res_counter_uncharge(&prot->memory_allocated, amt << PAGE_SHIFT);
+> -}
+> -
+> -static inline u64 memcg_memory_allocated_read(struct cg_proto *prot)
+> -{
+> -	u64 ret;
+> -	ret = res_counter_read_u64(&prot->memory_allocated, RES_USAGE);
+> -	return ret >> PAGE_SHIFT;
+> +	page_counter_uncharge(&prot->memory_allocated, amt);
+>  }
 
-The page data could come through a ssh pipe or anything (qemu supports
-all kind of network transports for live migration), this is why
-leaving the network protocol into userland is preferable.
+There is only one caller of memcg_memory_allocated_sub and the caller
+can use the counter directly same as memcg_memory_allocated_read
+original users.
 
-As things stands now, I'm afraid with a write() syscall we couldn't do
-it zerocopy. We'd still need to receive the memory in a temporary page
-and then copy it to a kernel page (invisible to userland while we
-write to it) to later map into the userfault address.
+[...]
+> diff --git a/init/Kconfig b/init/Kconfig
+> index ed4f42d79bd1..88b56940cb9e 100644
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -983,9 +983,12 @@ config RESOURCE_COUNTERS
+>  	  This option enables controller independent resource accounting
+>  	  infrastructure that works with cgroups.
+>  
+> +config PAGE_COUNTER
+> +       bool
+> +
+>  config MEMCG
+>  	bool "Memory Resource Controller for Control Groups"
+> -	depends on RESOURCE_COUNTERS
+> +	select PAGE_COUNTER
+>  	select EVENTFD
+>  	help
+>  	  Provides a memory resource controller that manages both anonymous
 
-If it wasn't for the TLB flush of the old page, the remap_anon_pages
-variant would be more optimal than doing a copy through a write
-syscall. Is the copy cheaper than a TLB flush? I probably naively
-assumed the TLB flush was always cheaper.
+Thanks for this!
 
-Now another idea that comes to mind to be able to add the ability to
-switch between copy and TLB flush is using a RAP_FORCE_COPY flag, that
-would then do a copy inside remap_anon_pages and leave the original
-page mapped in place... (and such flag would also disable the -EBUSY
-error if page_mapcount is > 1).
+[...]
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index c2c75262a209..52c24119be69 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+[...]
+> @@ -1490,12 +1495,23 @@ int mem_cgroup_inactive_anon_is_low(struct lruvec *lruvec)
+>   */
+>  static unsigned long mem_cgroup_margin(struct mem_cgroup *memcg)
+>  {
+> -	unsigned long long margin;
+> +	unsigned long margin = 0;
+> +	unsigned long count;
+> +	unsigned long limit;
+>  
+> -	margin = res_counter_margin(&memcg->res);
+> -	if (do_swap_account)
+> -		margin = min(margin, res_counter_margin(&memcg->memsw));
+> -	return margin >> PAGE_SHIFT;
+> +	count = page_counter_read(&memcg->memory);
+> +	limit = ACCESS_ONCE(memcg->memory.limit);
+> +	if (count < limit)
+> +		margin = limit - count;
+> +
+> +	if (do_swap_account) {
+> +		count = page_counter_read(&memcg->memsw);
+> +		limit = ACCESS_ONCE(memcg->memsw.limit);
+> +		if (count < limit)
 
-So then if the RAP_FORCE_COPY flag is set remap_anon_pages would
-behave like you suggested (but with a mremap-like interface, instead
-of a write syscall) and we could benchmark the difference between copy
-and TLB flush too. We could even periodically benchmark it at runtime
-and switch over the faster method (the more CPUs there are in the host
-and the more threads the process has, the faster the copy will be
-compared to the TLB flush).
+I guess you wanted (count <= limit) here?
 
-Of course in terms of API I could implement the exact same mechanism
-as described above for remap_anon_pages inside a write() to the
-userfaultfd (it's a pseudo inode). It'd need two different commands to
-prepare for the coming write (with a len multiple of PAGE_SIZE) to
-know the address where the page should be mapped into and if to behave
-zerocopy or if to skip the TLB flush and copy.
+> +			margin = min(margin, limit - count);
+> +	}
+> +
+> +	return margin;
+>  }
+>  
+>  int mem_cgroup_swappiness(struct mem_cgroup *memcg)
+[...]
+> @@ -2293,33 +2295,31 @@ static DEFINE_MUTEX(percpu_charge_mutex);
+>  static bool consume_stock(struct mem_cgroup *memcg, unsigned int nr_pages)
+>  {
+>  	struct memcg_stock_pcp *stock;
+> -	bool ret = true;
+> +	bool ret = false;
+>  
+>  	if (nr_pages > CHARGE_BATCH)
+> -		return false;
+> +		return ret;
+>  
+>  	stock = &get_cpu_var(memcg_stock);
+> -	if (memcg == stock->cached && stock->nr_pages >= nr_pages)
+> +	if (memcg == stock->cached && stock->nr_pages >= nr_pages) {
+>  		stock->nr_pages -= nr_pages;
+> -	else /* need to call res_counter_charge */
+> -		ret = false;
+> +		ret = true;
+> +	}
+>  	put_cpu_var(memcg_stock);
+>  	return ret;
 
-Because the copy vs TLB flush trade off is possible to achieve with
-both interfaces, I think it really boils down to choosing between a
-mremap like interface, or file+commands protocol interface. I tend to
-like mremap more, that's why I opted for a remap_anon_pages syscall
-kept orthogonal to the userfaultfd functionality (remap_anon_pages
-could be also used standalone as an accelerated mremap in some
-circumstances) but nothing prevents to just embed the same mechanism
-inside userfaultfd if a file+commands API is preferable. Or we could
-add a different syscall (separated from userfaultfd) that creates
-another pseudofd to write a command plus the page data into it. Just I
-wouldn't see the point of creating a pseudofd just to copy a page
-atomically, the write() syscall would look more ideal if the
-userfaultfd is already open for other reasons and the pseudofd
-overhead is required anyway.
+This change is not really needed but at least it woke me up after some
+monotonic and mechanical changes...
 
-Last thing to keep in mind is that if using userfaults with SIGBUS and
-without userfaultfd, remap_anon_pages would have been still useful, so
-if we retain the SIGBUS behavior for volatile pages and we don't force
-the usage for userfaultfd, it may be cleaner not to use userfaultfd
-but a separate pseudofd to do the write() syscall though. Otherwise
-the app would need to open the userfaultfd to resolve the fault even
-though it's not using the userfaultfd protocol which doesn't look an
-intuitive interface to me.
+[...]
+> @@ -4389,14 +4346,16 @@ static int memcg_stat_show(struct seq_file *m, void *v)
+>  			   mem_cgroup_nr_lru_pages(memcg, BIT(i)) * PAGE_SIZE);
+>  
+>  	/* Hierarchical information */
+> -	{
+> -		unsigned long long limit, memsw_limit;
+> -		memcg_get_hierarchical_limit(memcg, &limit, &memsw_limit);
+> -		seq_printf(m, "hierarchical_memory_limit %llu\n", limit);
+> -		if (do_swap_account)
+> -			seq_printf(m, "hierarchical_memsw_limit %llu\n",
+> -				   memsw_limit);
+> +	memory = memsw = PAGE_COUNTER_MAX;
+> +	for (mi = memcg; mi; mi = parent_mem_cgroup(mi)) {
+> +		memory = min(memory, mi->memory.limit);
+> +		memsw = min(memsw, mi->memsw.limit);
+>  	}
 
-Comments welcome.
+This looks much better!
 
-Thanks,
-Andrea
+> +	seq_printf(m, "hierarchical_memory_limit %llu\n",
+> +		   (u64)memory * PAGE_SIZE);
+> +	if (do_swap_account)
+> +		seq_printf(m, "hierarchical_memsw_limit %llu\n",
+> +			   (u64)memsw * PAGE_SIZE);
+>  
+>  	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
+>  		long long val = 0;
+
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
