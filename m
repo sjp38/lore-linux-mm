@@ -1,101 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id D05BD6B0072
-	for <linux-mm@kvack.org>; Wed,  8 Oct 2014 11:33:33 -0400 (EDT)
-Received: by mail-wg0-f52.google.com with SMTP id a1so11772759wgh.35
-        for <linux-mm@kvack.org>; Wed, 08 Oct 2014 08:33:33 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t3si303577wjz.143.2014.10.08.08.33.32
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 08 Oct 2014 08:33:32 -0700 (PDT)
-Date: Wed, 8 Oct 2014 17:33:29 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 3/3] mm: memcontrol: fix transparent huge page
- allocations under pressure
-Message-ID: <20141008153329.GF4592@dhcp22.suse.cz>
-References: <1411571338-8178-1-git-send-email-hannes@cmpxchg.org>
- <1411571338-8178-4-git-send-email-hannes@cmpxchg.org>
- <20140929135707.GA25956@dhcp22.suse.cz>
- <20140929175700.GA20053@cmpxchg.org>
- <20141007135950.GD14243@dhcp22.suse.cz>
- <20141008011106.GA12339@cmpxchg.org>
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 46E586B0069
+	for <linux-mm@kvack.org>; Wed,  8 Oct 2014 11:58:05 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id ft15so7098641pdb.31
+        for <linux-mm@kvack.org>; Wed, 08 Oct 2014 08:58:05 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id j14si324416pdl.60.2014.10.08.08.58.03
+        for <linux-mm@kvack.org>;
+        Wed, 08 Oct 2014 08:58:03 -0700 (PDT)
+Date: Wed, 8 Oct 2014 11:57:58 -0400
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH v1 2/7] mm: Prepare for DAX huge pages
+Message-ID: <20141008155758.GK5098@wil.cx>
+References: <1412774729-23956-1-git-send-email-matthew.r.wilcox@intel.com>
+ <1412774729-23956-3-git-send-email-matthew.r.wilcox@intel.com>
+ <20141008152124.GA7288@node.dhcp.inet.fi>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141008011106.GA12339@cmpxchg.org>
+In-Reply-To: <20141008152124.GA7288@node.dhcp.inet.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Dave Hansen <dave@sr71.net>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.krenel.org, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>
 
-[I do not have time to get over all points here and will be offline
-until Monday - will get back to the rest then]
-
-On Tue 07-10-14 21:11:06, Johannes Weiner wrote:
-> On Tue, Oct 07, 2014 at 03:59:50PM +0200, Michal Hocko wrote:
-[...]
-> > I am completely missing any notes about potential excessive
-> > swapouts or longer reclaim stalls which are a natural side effect of direct
-> > reclaim with a larger target (or is this something we do not agree on?).
+On Wed, Oct 08, 2014 at 06:21:24PM +0300, Kirill A. Shutemov wrote:
+> On Wed, Oct 08, 2014 at 09:25:24AM -0400, Matthew Wilcox wrote:
+> > From: Matthew Wilcox <willy@linux.intel.com>
+> > 
+> > DAX wants to use the 'special' bit to mark PMD entries that are not backed
+> > by struct page, just as for PTEs. 
 > 
-> Yes, we disagree here.  Why is reclaiming 2MB once worse than entering
-> reclaim 16 times to reclaim SWAP_CLUSTER_MAX?
+> Hm. I don't see where you use PMD without special set.
 
-You can enter DEF_PRIORITY reclaim 16 times and reclaim your target but
-you need at least 512<<DEF_PRIORITY pages on your LRUs to do it in a
-single run on that priority. So especially small groups will pay more
-and would be subject to mentioned problems (e.g. over-reclaim).
+Right ... I don't currently insert PMDs that point to huge pages of DRAM,
+only to huge pages of PMEM.
 
-> There is no inherent difference in reclaiming a big chunk and
-> reclaiming many small chunks that add up to the same size.
- 
-[...]
-
-> > Another part that matters is the size. Memcgs might be really small and
-> > that changes the math. Large reclaim target will get to low prio reclaim
-> > and thus the excessive reclaim.
+> > @@ -1104,9 +1103,20 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
+> >  	if (unlikely(!pmd_same(*pmd, orig_pmd)))
+> >  		goto out_unlock;
+> >  
+> > -	page = pmd_page(orig_pmd);
+> > -	VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
+> > -	if (page_mapcount(page) == 1) {
+> > +	if (pmd_special(orig_pmd)) {
+> > +		/* VM_MIXEDMAP !pfn_valid() case */
+> > +		if ((vma->vm_flags & (VM_WRITE|VM_SHARED)) !=
+> > +				     (VM_WRITE|VM_SHARED)) {
+> > +			pmdp_clear_flush(vma, haddr, pmd);
+> > +			ret = VM_FAULT_FALLBACK;
 > 
-> I already addressed page size vs. memcg size before.
+> No private THP pages with THP? Why?
+> It should be trivial: we already have a code path for !page case for zero
+> page and it shouldn't be too hard to modify do_dax_pmd_fault() to support
+> COW.
 > 
-> However, low priority reclaim does not result in excessive reclaim.
-> The reclaim goal is checked every time it scanned SWAP_CLUSTER_MAX
-> pages, and it exits if the goal has been met.  See shrink_lruvec(),
-> shrink_zone() etc.
+> I remeber I've mentioned that you don't think it's reasonable to allocate
+> 2M page on COW, but that's what we do for anon memory...
 
-Now I am confused. shrink_zone will bail out but shrink_lruvec will loop
-over nr[...] until they are empty and only updates the numbers to be
-roughly proportional once:
-
-                if (nr_reclaimed < nr_to_reclaim || scan_adjusted)
-                        continue;
-
-                /*
-                 * For kswapd and memcg, reclaim at least the number of pages
-                 * requested. Ensure that the anon and file LRUs are scanned
-                 * proportionally what was requested by get_scan_count(). We
-                 * stop reclaiming one LRU and reduce the amount scanning
-                 * proportional to the original scan target.
-                 */
-		[...]
-		scan_adjusted = true;
-
-Or do you rely on
-                /*
-                 * It's just vindictive to attack the larger once the smaller
-                 * has gone to zero.  And given the way we stop scanning the
-                 * smaller below, this makes sure that we only make one nudge
-                 * towards proportionality once we've got nr_to_reclaim.
-                 */
-                if (!nr_file || !nr_anon)
-                        break;
-
-and SCAN_FILE because !inactive_file_is_low?
-
-[...]
--- 
-Michal Hocko
-SUSE Labs
+I agree that it shouldn't be too hard, but I have no evidence that it'll
+be a performance win to COW 2MB pages for MAP_PRIVATE.  I'd rather be
+cautious for now and we can explore COWing 2MB chunks in a future patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
