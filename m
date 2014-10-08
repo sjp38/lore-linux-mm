@@ -1,17 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 462776B0080
-	for <linux-mm@kvack.org>; Wed,  8 Oct 2014 09:25:44 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id kq14so9119856pab.12
-        for <linux-mm@kvack.org>; Wed, 08 Oct 2014 06:25:43 -0700 (PDT)
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id E94D36B0081
+	for <linux-mm@kvack.org>; Wed,  8 Oct 2014 09:25:46 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id fp1so6818156pdb.7
+        for <linux-mm@kvack.org>; Wed, 08 Oct 2014 06:25:46 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id c8si18124511pat.196.2014.10.08.06.25.42
+        by mx.google.com with ESMTP id c8si18124511pat.196.2014.10.08.06.25.44
         for <linux-mm@kvack.org>;
-        Wed, 08 Oct 2014 06:25:42 -0700 (PDT)
+        Wed, 08 Oct 2014 06:25:45 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v1 0/7] Huge page support for DAX
-Date: Wed,  8 Oct 2014 09:25:22 -0400
-Message-Id: <1412774729-23956-1-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH v1 3/7] mm: Add vm_insert_pfn_pmd()
+Date: Wed,  8 Oct 2014 09:25:25 -0400
+Message-Id: <1412774729-23956-4-git-send-email-matthew.r.wilcox@intel.com>
+In-Reply-To: <1412774729-23956-1-git-send-email-matthew.r.wilcox@intel.com>
+References: <1412774729-23956-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-kernel@vger.krenel.org, linux-mm@kvack.org
@@ -19,52 +21,87 @@ Cc: Matthew Wilcox <willy@linux.intel.com>
 
 From: Matthew Wilcox <willy@linux.intel.com>
 
-This patchset, on top of the v11 DAX patchset I posted recently, adds
-support for transparent huge pages.  In-memory databases and HPC apps are
-particularly fond of using huge pages for their massive data sets.
+Similar to vm_insert_pfn(), but for PMDs rather than PTEs.  Should this
+be in m/huge_memory.c?
 
-The actual DAX code here is not how I want it to be, for example it
-will allocate on read-faults instead of using zero pages to fill until
-we have a write fault (which is going to prove tricky without at least
-some of Kirill's patches for supporting huge pages in the page cache).
+Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+---
+ include/linux/mm.h |  2 ++
+ mm/memory.c        | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+)
 
-I'm posting this for review now since I clearly don't understand the
-Linux MM very well and I'm expecting to be told I've done all the huge
-memory bits wrongly :-)
-
-I'd like to thank Kirill for all his helpful suggestions ... I may not
-have taken all of them, but this would be in a lot worse shape without
-him.
-
-The first patch is from Kirill's patchset to allow huge pages in the
-page cache.  Patches 2-4 are the ones that touch the MM and I'd really
-like reviewed.  Patch 5 is the DAX code that is easily critiqued, and
-patches 6 & 7 are very boring, just hooking up the dax-hugepage code to
-ext2 & ext4.
-
-Kirill A. Shutemov (1):
-  thp: vma_adjust_trans_huge(): adjust file-backed VMA too
-
-Matthew Wilcox (6):
-  mm: Prepare for DAX huge pages
-  mm: Add vm_insert_pfn_pmd()
-  mm: Add a pmd_fault handler
-  dax: Add huge page fault support
-  ext2: Huge page fault support
-  ext4: Huge page fault support
-
- Documentation/filesystems/dax.txt |   7 +-
- arch/x86/include/asm/pgtable.h    |  10 +++
- fs/dax.c                          | 133 ++++++++++++++++++++++++++++++++++++++
- fs/ext2/file.c                    |   9 ++-
- fs/ext4/file.c                    |   9 ++-
- include/linux/fs.h                |   2 +
- include/linux/huge_mm.h           |  11 +---
- include/linux/mm.h                |   4 ++
- mm/huge_memory.c                  |  53 +++++++++------
- mm/memory.c                       |  63 ++++++++++++++++--
- 10 files changed, 262 insertions(+), 39 deletions(-)
-
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 0a47817..d0de9fa 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1960,6 +1960,8 @@ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
+ 			unsigned long pfn);
+ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+ 			unsigned long pfn);
++int vm_insert_pfn_pmd(struct vm_area_struct *, unsigned long addr, pmd_t *,
++			unsigned long pfn);
+ int vm_iomap_memory(struct vm_area_struct *vma, phys_addr_t start, unsigned long len);
+ 
+ 
+diff --git a/mm/memory.c b/mm/memory.c
+index 3368785..993be2b 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1648,6 +1648,54 @@ int vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
+ }
+ EXPORT_SYMBOL(vm_insert_mixed);
+ 
++static int insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
++			pmd_t *pmd, unsigned long pfn, pgprot_t prot)
++{
++	struct mm_struct *mm = vma->vm_mm;
++	int retval;
++	pmd_t entry;
++	spinlock_t *ptl;
++
++	ptl = pmd_lock(mm, pmd);
++	retval = -EBUSY;
++	if (!pmd_none(*pmd))
++		goto out_unlock;
++
++	/* Ok, finally just insert the thing.. */
++	entry = pmd_mkspecial(pmd_mkhuge(pfn_pmd(pfn, prot)));
++	set_pmd_at(mm, addr, pmd, entry);
++	update_mmu_cache_pmd(vma, addr, pmd);
++
++	retval = 0;
++ out_unlock:
++	spin_unlock(ptl);
++	return retval;
++}
++
++int vm_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
++					pmd_t *pmd, unsigned long pfn)
++{
++	pgprot_t pgprot = vma->vm_page_prot;
++	/*
++	 * Technically, architectures with pte_special can avoid all these
++	 * restrictions (same for remap_pfn_range).  However we would like
++	 * consistency in testing and feature parity among all, so we should
++	 * try to keep these invariants in place for everybody.
++	 */
++	BUG_ON(!(vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)));
++	BUG_ON((vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)) ==
++						(VM_PFNMAP|VM_MIXEDMAP));
++	BUG_ON((vma->vm_flags & VM_PFNMAP) && is_cow_mapping(vma->vm_flags));
++	BUG_ON((vma->vm_flags & VM_MIXEDMAP) && pfn_valid(pfn));
++
++	if (addr < vma->vm_start || addr >= vma->vm_end)
++		return -EFAULT;
++	if (track_pfn_insert(vma, &pgprot, pfn))
++		return -EINVAL;
++	return insert_pfn_pmd(vma, addr, pmd, pfn, pgprot);
++}
++EXPORT_SYMBOL(vm_insert_pfn_pmd);
++
+ /*
+  * maps a range of physical memory into the requested pages. the old
+  * mappings are removed. any references to nonexistent pages results
 -- 
 2.1.0
 
