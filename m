@@ -1,61 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 5580A90001C
-	for <linux-mm@kvack.org>; Wed,  8 Oct 2014 10:18:02 -0400 (EDT)
-Received: by mail-wi0-f179.google.com with SMTP id d1so10825250wiv.0
-        for <linux-mm@kvack.org>; Wed, 08 Oct 2014 07:18:01 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id db5si259627wjb.19.2014.10.08.07.18.01
+Received: from mail-vc0-f175.google.com (mail-vc0-f175.google.com [209.85.220.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 521BC90001C
+	for <linux-mm@kvack.org>; Wed,  8 Oct 2014 10:23:12 -0400 (EDT)
+Received: by mail-vc0-f175.google.com with SMTP id id10so6658953vcb.6
+        for <linux-mm@kvack.org>; Wed, 08 Oct 2014 07:23:12 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id s62si439594yho.16.2014.10.08.07.23.10
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Oct 2014 07:18:01 -0700 (PDT)
-Date: Wed, 8 Oct 2014 10:17:54 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 0/3] mm: memcontrol: eliminate charge reparenting
-Message-ID: <20141008141754.GD15948@cmpxchg.org>
-References: <1411243235-24680-1-git-send-email-hannes@cmpxchg.org>
- <20141008124823.GA4592@dhcp22.suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 08 Oct 2014 07:23:11 -0700 (PDT)
+Message-ID: <543548C3.7030003@oracle.com>
+Date: Wed, 08 Oct 2014 10:22:59 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141008124823.GA4592@dhcp22.suse.cz>
+Subject: Re: [PATCH 5/5] mm: poison page struct
+References: <1412041639-23617-1-git-send-email-sasha.levin@oracle.com> <1412041639-23617-6-git-send-email-sasha.levin@oracle.com> <5434630C.3070006@intel.com>
+In-Reply-To: <5434630C.3070006@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave.hansen@intel.com>, akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, mgorman@suse.de, Christoph Lameter <cl@linux.com>
 
-On Wed, Oct 08, 2014 at 02:48:23PM +0200, Michal Hocko wrote:
-> On Sat 20-09-14 16:00:32, Johannes Weiner wrote:
-> > Hi,
-> > 
-> > we've come a looong way when it comes to the basic cgroups model, and
-> > the recent changes there open up a lot of opportunity to make drastic
-> > simplifications to memory cgroups as well.
-> > 
-> > The decoupling of css from the user-visible cgroup, word-sized per-cpu
-> > css reference counters, and css iterators that include offlined groups
-> > means we can take per-charge css references, continue to reclaim from
-> > offlined groups, and so get rid of the error-prone charge reparenting.
-> > 
-> > Combined with the higher-order reclaim fixes, lockless page counters,
-> > and memcg iterator simplification I sent on Friday, the memory cgroup
-> > core code is finally no longer the biggest file in mm/.  Yay!
+On 10/07/2014 06:02 PM, Dave Hansen wrote:
+> On 09/29/2014 06:47 PM, Sasha Levin wrote:
+>>  struct page {
+>> +#ifdef CONFIG_DEBUG_VM_POISON
+>> +	u32 poison_start;
+>> +#endif
+>>  	/* First double word block */
+>>  	unsigned long flags;		/* Atomic flags, some possibly
+>>  					 * updated asynchronously */
+>> @@ -196,6 +199,9 @@ struct page {
+>>  #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
+>>  	int _last_cpupid;
+>>  #endif
+>> +#ifdef CONFIG_DEBUG_VM_POISON
+>> +	u32 poison_end;
+>> +#endif
+>>  }
 > 
-> Yeah, the code reduction (as per the diffstat - I didn't get to the code
-> yet) seems really promising.
+> Does this break slub's __cmpxchg_double_slab trick?  I thought it
+> required page->freelist and page->counters to be doubleword-aligned.
 
-:)
+I'll probably have to switch it to 8 bytes anyways to make it work with
+kasan. This should take care of the slub optimization as well.
 
-> > These patches are based on mmotm + the above-mentioned changes
+> It's not like we really require this optimization when we're debugging,
+> but trying to use it will unnecessarily slow things down.
 > 
-> > + Tj's percpu-refcount conversion to atomic_long_t.
+> FWIW, if you're looking to trim down the number of lines of code, you
+> could certainly play some macro tricks and #ifdef tricks.
 > 
-> This is https://lkml.org/lkml/2014/9/20/11 right?
+> struct vm_poison {
+> #ifdef CONFIG_DEBUG_VM_POISON
+> 	u32 val;
+> #endif	
+> };
+> 
+> Then, instead of #ifdefs in each structure, you do:
+> 
+> struct page {
+> 	struct vm_poison poison_start;
+> 	... other gunk
+> 	struct vm_poison poison_end;
+> };
 
-Yep, exactly.  All these moving parts are now in -next, though, so as
-soon as Andrew flushes his tree for 3.18, I'll rebase and resubmit.
+Agreed, I'll reword that in the next version.
 
-Thanks!
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
