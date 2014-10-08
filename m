@@ -1,259 +1,273 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E8A36B0038
-	for <linux-mm@kvack.org>; Tue,  7 Oct 2014 21:11:23 -0400 (EDT)
-Received: by mail-wi0-f174.google.com with SMTP id cc10so9480297wib.1
-        for <linux-mm@kvack.org>; Tue, 07 Oct 2014 18:11:22 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id gq6si15961754wib.42.2014.10.07.18.11.21
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Oct 2014 18:11:22 -0700 (PDT)
-Date: Tue, 7 Oct 2014 21:11:06 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 3/3] mm: memcontrol: fix transparent huge page
- allocations under pressure
-Message-ID: <20141008011106.GA12339@cmpxchg.org>
-References: <1411571338-8178-1-git-send-email-hannes@cmpxchg.org>
- <1411571338-8178-4-git-send-email-hannes@cmpxchg.org>
- <20140929135707.GA25956@dhcp22.suse.cz>
- <20140929175700.GA20053@cmpxchg.org>
- <20141007135950.GD14243@dhcp22.suse.cz>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 3082E6B0038
+	for <linux-mm@kvack.org>; Tue,  7 Oct 2014 22:31:47 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so8217522pab.4
+        for <linux-mm@kvack.org>; Tue, 07 Oct 2014 19:31:46 -0700 (PDT)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id t5si3554360pda.50.2014.10.07.19.31.43
+        for <linux-mm@kvack.org>;
+        Tue, 07 Oct 2014 19:31:45 -0700 (PDT)
+Date: Wed, 8 Oct 2014 11:31:48 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [RFC PATCH 1/2] mm/afmalloc: introduce anti-fragmentation memory
+ allocator
+Message-ID: <20141008023148.GA11036@js1304-P5Q-DELUXE>
+References: <1411714395-18115-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <20140929195337.GA9177@cerebellum.variantweb.net>
+ <CAAmzW4PV5JAVg_StBtV2O+XyMwNHDuLFR01CXwL+cY48Ws7QoA@mail.gmail.com>
+ <20141007202635.GA9176@cerebellum.variantweb.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141007135950.GD14243@dhcp22.suse.cz>
+In-Reply-To: <20141007202635.GA9176@cerebellum.variantweb.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Dave Hansen <dave@sr71.net>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Seth Jennings <sjennings@variantweb.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>
 
-On Tue, Oct 07, 2014 at 03:59:50PM +0200, Michal Hocko wrote:
-> On Mon 29-09-14 13:57:00, Johannes Weiner wrote:
-> > Every change we make is a trade-off and bears a certain risk.  THP is
-> > a trade-off, it's pretty pointless to ignore the upsides and ride
-> > around on the downsides.  Of course there are downsides.  This patch
-> > makes THP work properly inside memcg, which invites both the upsides
-> > as well as the downsides of THP into memcg.  But they are well known
-> > and we can deal with them. 
-> 
-> I do not see any evaluation nor discussion of the upsides and downsides
-> in the changelog. You are selling this as a net win which I cannot
-> agree with.
-
-I'm not sure why you want me to regurgitate the pros and cons of
-transparent huge pages here.  They have been a well-established
-default feature for a while now, and they are currently not working
-properly inside memcg, which this patch addresses.
-
-The only valid argument against merging this patch at this point can
-be that THP inside memcg will lead to distinct issues that do not
-exist on the global level.  So let's find out if there are any, okay?
-
-> I am completely missing any notes about potential excessive
-> swapouts or longer reclaim stalls which are a natural side effect of direct
-> reclaim with a larger target (or is this something we do not agree on?).
-
-Yes, we disagree here.  Why is reclaiming 2MB once worse than entering
-reclaim 16 times to reclaim SWAP_CLUSTER_MAX?  There is no inherent
-difference in reclaiming a big chunk and reclaiming many small chunks
-that add up to the same size.
-
-It's only different if you don't actually use the full 2MB pages, but
-then the issue simply boils down to increased memory consumption.  But
-that is easy to deal with and I offered two solutions in my changelog.
-
-> What is an admin/user supposed to do when one of the above happens?
-> Disable THP globally?
-
-I already wrote all that.  It would be easier if you read my entire
-line of reasoning instead of attacking fragments in isolation, so that
-we can make forward progress on this.
-
-> I still remember when THP was introduced and we have seen boatload of
-> reclaim related bugs. These were exactly those long stalls, excessive
-> swapouts and reclaim.
-
-THP certainly had a bumpy introduction, and I can understand that you
-want to prevent the same happening to memcg.
-
-But it's important to evaluate which THP costs actually translate to
-memcg.  The worst problems we had came *not* from faulting in bigger
-steps, but from creating physically contiguous pages: aggressive lumpy
-reclaim, (synchroneous) migration, reclaim beyond the allocation size
-to create breathing room for compaction etc.  This is a massive amount
-of work ON TOP of the bigger fault granularity.
-
-Memcg only has to reclaim the allocation size in individual 4k pages.
-Our only risk from THP is internal fragmentation from users not fully
-utilizing the entire 2MB regions, but the work we MIGHT waste is
-negligible compared to the work we are DEFINITELY wasting right now by
-failing to charge already allocated THPs.
-
-> > Why is THP inside memcg special?
-> 
-> For one thing the global case is hitting its limit (watermarks) much
-> more slowly and gracefully because it has kswapd working on the
-> background before we are getting into troubles. Memcg will just hit the
-> wall and rely solely on the direct reclaim so everything we do will end
-> up latency sensitive.
-
-THP allocations do not wake up kswapd, they go into direct reclaim.
-It's likely that kswapd balancing triggered by concurrent order-0
-allocations will help THP somewhat, but because the global level needs
-contiguous pages, it will still likely enter direct reclaim and direct
-compaction.  For example, on my 16G desktop, there are 12MB between
-the high and low watermark in the Normal zone; compaction needs double
-the allocation size to work, so kswapd can cache reclaim work for up
-to 3 THP in the best case (which those concurrent order-0 allocations
-that woke kswapd in the first place will likely eat into), and direct
-compaction will still have to run.
-
-So AFAICS the synchroneous work required to fit a THP inside memcg is
-much less.  And again, under pressure all this global work is already
-expensed at that point anyway.
-
-> Moreover, THP allocations have self regulatory mechanisms to prevent
-> from excessive stalls. This means that THP allocations are less probable
-> under heavy memory pressure.
-
-These mechanisms exist for migration/compaction, but direct reclaim is
-still fairly persistent - again, see should_continue_reclaim().
-
-Am I missing something?
-
-> On the other hand, memcg might be under serious memory pressure when
-> THP charge comes. The only back off mechanism we use in memcg is
-> GFP_NORETRY and that happens after one round of the reclaim. So we
-> should make sure that the first round of the reclaim doesn't take
-> terribly long.
-
-The same applies globally.  ANY allocation under serious memory
-pressure will have a high latency, but nobody forces you to use THP in
-an already underprovisioned environment.
-
-> Another part that matters is the size. Memcgs might be really small and
-> that changes the math. Large reclaim target will get to low prio reclaim
-> and thus the excessive reclaim.
-
-I already addressed page size vs. memcg size before.
-
-However, low priority reclaim does not result in excessive reclaim.
-The reclaim goal is checked every time it scanned SWAP_CLUSTER_MAX
-pages, and it exits if the goal has been met.  See shrink_lruvec(),
-shrink_zone() etc.
-
-> The size also makes any potential problem much more probable because the
-> limit would be hit much more often than extremely low memory conditions
-> globally.
->
-> Also the reclaim decisions are subtly different for memcg because of the
-> missing per-memcg dirty throttling and flushing. So we can stall on
-> pages under writeback or get stuck in the write out path which is not
-> the case for direct reclaim during THP allocation. A large reclaim
-> target is more probable to hit into dirty or writeback pages.
-
-These things again boil down to potential internal fragmentation and
-higher memory consumption, as 16 128k reclaims are equally likely to
-hit both problems as one 2MB reclaim.
-
-> > Preventing THP faults from swapping is a reasonable proposal, but
-> > again has nothing to do with memcg.
-> 
-> If we can do this inside the direct reclaim path then I am all for it
-> because this means less trickery in the memcg code.
-> 
-> I am still not sure this is sufficient because memcg still might stall
-> on IO so the safest approach would be ~GFP_IO reclaim for memcg reclaim
-> path.
-> 
-> I feel strong about the first one (.may_swap = 0) and would be OK with
-> your patch if this is added (to the memcg or common path).
-> GFP_IO is an extra safety step. Smaller groups would be more likely to
-> fail to reclaim enough and so THP success rate will be lower but that
-> doesn't sound terribly wrong to me. I am not insisting on it, though.
-
-Would you like to propose the no-swapping patch for the generic
-reclaim code?  I'm certainly not against it, but I think the reason
-nobody has proposed this yet is that the VM is heavily tuned to prefer
-cache reclaim anyway and it's rare that environments run out of cache
-and actually swap.  It usually means that memory is underprovisioned.
-
-So I wouldn't be opposed to it as a fail-safe, in case worst comes to
-worst, but I think it's a lot less important than you do.
-
-> > However, in this particular case a regression is trivial to pinpoint
-> > (comparing vmstat, profiles), and trivial to rectify in the field by
-> > changing the memcg limits or disabling THP.
-> 
-> > What we DO know is that there are very good use cases for THP, but THP
-> > inside memcg is broken:
-> 
-> All those usecases rely on amortizing THP initial costs by less faults
-> (assuming the memory range is not used sparsely too much) and the TLB
-> pressure reduction. Once we are hitting swap or excessive reclaim all
-> the bets are off and THP is no longer beneficial.
-
-Yes, we agree on this, just disagree on the importance of that case.
-And both problem and solution would be unrelated to this patch.
-
-> > THP does worse inside a memcg when compared to
-> > bare metal environments of the same size, both in terms of success
-> > rate, as well as in fault latency due to wasted page allocator work.
-> 
-> Because memcg is not equivalent to the bare metal with the same amount
-> of memory. If for nothing else then because the background reclaim is
-> missing.
-
-Which THP is explicitely not using globally.
-
-> > Plus, the code is illogical, redundant, and full of magic numbers.
-> 
-> I am not objecting to the removal of magic numbers and to getting rid of
-> retry loops outside of direct reclaim path (aka mem_cgroup_reclaim). I
-> would be willing to take a risk and get rid of them just to make the
-> code saner. Because those were never justified properly and look more or
-> less random. This would be a separate patch of course.
->  
-> > Based on this, this patch seems like a net improvement.
-> 
-> Sigh, yes, if we ignore all the downsides everything will look like a
-> net improvement :/
-
-I don't think you honestly read my email.
-
-> > > > This brings memcg's THP policy in line with the system policy: if the
-> > > > allocator painstakingly assembles a hugepage, memcg will at least make
-> > > > an honest effort to charge it.  As a result, transparent hugepage
-> > > > allocation rates amid cache activity are drastically improved:
-> > > > 
-> > > >                                       vanilla                 patched
-> > > > pgalloc                 4717530.80 (  +0.00%)   4451376.40 (  -5.64%)
-> > > > pgfault                  491370.60 (  +0.00%)    225477.40 ( -54.11%)
-> > > > pgmajfault                    2.00 (  +0.00%)         1.80 (  -6.67%)
-> > > > thp_fault_alloc               0.00 (  +0.00%)       531.60 (+100.00%)
-> > > > thp_fault_fallback          749.00 (  +0.00%)       217.40 ( -70.88%)
-> > > 
-> > > What is the load and configuration that you have measured?
+On Tue, Oct 07, 2014 at 03:26:35PM -0500, Seth Jennings wrote:
+> On Tue, Oct 07, 2014 at 04:42:33PM +0900, Joonsoo Kim wrote:
+> > Hello, Seth.
+> > Sorry for late response. :)
 > > 
-> > It's just a single linear disk writer and another thread that faults
-> > in an anonymous range in 4k steps.
+> > 2014-09-30 4:53 GMT+09:00 Seth Jennings <sjennings@variantweb.net>:
+> > > On Fri, Sep 26, 2014 at 03:53:14PM +0900, Joonsoo Kim wrote:
+> > >> WARNING: This is just RFC patchset. patch 2/2 is only for testing.
+> > >> If you know useful place to use this allocator, please let me know.
+> > >>
+> > >> This is brand-new allocator, called anti-fragmentation memory allocator
+> > >> (aka afmalloc), in order to deal with arbitrary sized object allocation
+> > >> efficiently. zram and zswap uses arbitrary sized object to store
+> > >> compressed data so they can use this allocator. If there are any other
+> > >> use cases, they can use it, too.
+> > >>
+> > >> This work is motivated by observation of fragmentation on zsmalloc which
+> > >> intended for storing arbitrary sized object with low fragmentation.
+> > >> Although it works well on allocation-intensive workload, memory could be
+> > >> highly fragmented after many free occurs. In some cases, unused memory due
+> > >> to fragmentation occupy 20% ~ 50% amount of real used memory. The other
+> > >> problem is that other subsystem cannot use these unused memory. These
+> > >> fragmented memory are zsmalloc specific, so most of other subsystem cannot
+> > >> use it until zspage is freed to page allocator.
+> > >
+> > > Yes, zsmalloc has a fragmentation issue.  This has been a topic lately.
+> > > I and others are looking at putting compaction logic into zsmalloc to
+> > > help with this.
+> > >
+> > >>
+> > >> I guess that there are similar fragmentation problem in zbud, but, I
+> > >> didn't deeply investigate it.
+> > >>
+> > >> This new allocator uses SLAB allocator to solve above problems. When
+> > >> request comes, it returns handle that is pointer of metatdata to point
+> > >> many small chunks. These small chunks are in power of 2 size and
+> > >> build up whole requested memory. We can easily acquire these chunks
+> > >> using SLAB allocator. Following is conceptual represetation of metadata
+> > >> used in this allocator to help understanding of this allocator.
+> > >>
+> > >> Handle A for 400 bytes
+> > >> {
+> > >>       Pointer for 256 bytes chunk
+> > >>       Pointer for 128 bytes chunk
+> > >>       Pointer for 16 bytes chunk
+> > >>
+> > >>       (256 + 128 + 16 = 400)
+> > >> }
+> > >>
+> > >> As you can see, 400 bytes memory are not contiguous in afmalloc so that
+> > >> allocator specific store/load functions are needed. These require some
+> > >> computation overhead and I guess that this is the only drawback this
+> > >> allocator has.
+> > >
+> > > One problem with using the SLAB allocator is that kmalloc caches greater
+> > > than 256 bytes, at least on my x86_64 machine, have slabs that require
+> > > high order page allocations, which are going to be really hard to come
+> > > by in the memory stressed environment in which zswap/zram are expected
+> > > to operate.  I guess you could max out at 256 byte chunks to overcome
+> > > this.  However, if you have a 3k object, that would require copying 12
+> > > chunks from potentially 12 different pages into a contiguous area at
+> > > mapping time and a larger metadata size.
+> > 
+> > SLUB uses high order allocation by default, but, it has fallback method. It
+> > uses low order allocation if failed with high order allocation. So, we don't
+> > need to worry about high order allocation.
 > 
-> This is really vague description...
-> Which portion of the limit is the anon consumer, what is the memcg limit
-> size, IO size, etc...? I find it really interesting that _all_ THP
-> charges failed so the memcg had to be almost fully populated by the page
-> cache already when the thread tries so fault in the first huge page.
->
-> Also 4k steps is basically the best case for THP because the full THP
-> block is populated. The question is how the system behaves when THP
-> ranges are populated sparsely (because this is often the case).
+> Didn't know about the fallback method :)
+> 
+> > 
+> > >>
+> > >> For optimization, it uses another approach for power of 2 sized request.
+> > >> Instead of returning handle for metadata, it adds tag on pointer from
+> > >> SLAB allocator and directly returns this value as handle. With this tag,
+> > >> afmalloc can recognize whether handle is for metadata or not and do proper
+> > >> processing on it. This optimization can save some memory.
+> > >>
+> > >> Although afmalloc use some memory for metadata, overall utilization of
+> > >> memory is really good due to zero internal fragmentation by using power
+> > >
+> > > Smallest kmalloc cache is 8 bytes so up to 7 bytes of internal
+> > > fragmentation per object right?  If so, "near zero".
+> > >
+> > >> of 2 sized object. Although zsmalloc has many size class, there is
+> > >> considerable internal fragmentation in zsmalloc.
+> > >
+> > > Lets put a number on it. Internal fragmentation on objects with size >
+> > > ZS_MIN_ALLOC_SIZE is ZS_SIZE_CLASS_DELTA-1, which is 15 bytes with
+> > > PAGE_SIZE of 4k.  If the allocation is less than ZS_MIN_ALLOC_SIZE,
+> > > fragmentation could be as high as ZS_MIN_ALLOC_SIZE-1 which is 31 on a
+> > > 64-bit system with 4k pages.  (Note: I don't think that is it possible to
+> > > compress a 4k page to less than 32 bytes, so for zswap, there will be no
+> > > allocations in this size range).
+> > >
+> > > So we are looking at up to 7 vs 15 bytes of internal fragmentation per
+> > > object in the case when allocations are > ZS_MIN_ALLOC_SIZE.  Once you
+> > > take into account the per-object metadata overhead of afmalloc, I think
+> > > zsmalloc comes out ahead here.
+> > 
+> > Sorry for misleading word usage.
+> > What I want to tell is that the unused space at the end of zspage when
+> > zspage isn't perfectly divided. For example, think about 2064 bytes size_class.
+> > It's zspage would be 4 pages and it can have only 7 objects at maximum.
+> > Remainder is 1936 bytes and we can't use this space. This is 11% of total
+> > space on zspage. If we only use power of 2 size, there is no remainder and
+> > no this type of unused space.
+> 
+> Ah, ok.  That's true.
+> 
+> > 
+> > >>
+> > >> In workload that needs many free, memory could be fragmented like
+> > >> zsmalloc, but, there is big difference. These unused portion of memory
+> > >> are SLAB specific memory so that other subsystem can use it. Therefore,
+> > >> fragmented memory could not be a big problem in this allocator.
+> > >
+> > > While freeing chunks back to the slab allocator does make that memory
+> > > available to other _kernel_ users, the fragmentation problem is just
+> > > moved one level down.  The fragmentation will exist in the slabs and
+> > > those fragmented slabs won't be freed to the page allocator, which would
+> > > make them available to _any_ user, not just the kernel.  Additionally,
+> > > there is little visibility into how chunks are organized in the slab,
+> > > making compaction at the afmalloc level nearly impossible.  (The only
+> > > visibility being the address returned by kmalloc())
+> > 
+> > Okay. Free objects in slab subsystem isn't perfect solution, but, it is better
+> > than current situation.
+> > 
+> > And, I think that afmalloc could be compacted just with returned address.
+> > My idea is sorting chunks by memory address and copying their contents
+> > to temporary buffer in ascending order. After copy is complete, chunks could
+> > be freed. These freed objects would be in contiguous range so SLAB would
+> > free the slab to the page allocator. After some free are done, we allocate
+> > chunks from SLAB again and copy contents in temporary buffers to these
+> > newly allocated chunks. These chunks would be positioned in fragmented
+> > slab so that fragmentation would be reduced.
+> 
+> I guess something that could be a problem is that the slabs might not
+> contain only afmalloc allocations.  If another kernel process is
+> allocating objects from the same slabs, then afmalloc might not be able
+> to evacuate entire slabs.  A side effect of not having unilateral
+> control of the memory pool at the page level.
 
-You are missing the point :(
+Yes, it could be a problem. But, if we decide to implement compaction
+in afmalloc, we don't need to adhere using general kmem_cache, because
+fragmentation would be not an issue with compaction. In this case, afmalloc
+can use its own private kmem_caches for power of 2 sized objects and
+this would solves above concern.
 
-Sure there are cases that don't benefit from THP, this test just shows
-that THP inside memcg can be trivially broken - which harms cases that
-WOULD benefit.
+> 
+> > 
+> > >>
+> > >> Extra benefit of this allocator design is NUMA awareness. This allocator
+> > >> allocates real memory from SLAB allocator. SLAB considers client's NUMA
+> > >> affinity, so these allocated memory is NUMA-friendly. Currently, zsmalloc
+> > >> and zbud which are backend of zram and zswap, respectively, are not NUMA
+> > >> awareness so that remote node's memory could be returned to requestor.
+> > >> I think that it could be solved easily if NUMA awareness turns out to be
+> > >> real problem. But, it may enlarge fragmentation depending on number of
+> > >> nodes. Anyway, there is no NUMA awareness issue in this allocator.
+> > >>
+> > >> Although I'd like to replace zsmalloc with this allocator, it cannot be
+> > >> possible, because zsmalloc supports HIGHMEM. In 32-bits world, SLAB memory
+> > >> would be very limited so supporting HIGHMEM would be really good advantage
+> > >> of zsmalloc. Because there is no HIGHMEM in 32-bits low memory device or
+> > >> 64-bits world, this allocator may be good option for this system. I
+> > >> didn't deeply consider whether this allocator can replace zbud or not.
+> > >>
+> > >> Below is the result of my simple test.
+> > >> (zsmalloc used in experiments is patched with my previous patch:
+> > >> zsmalloc: merge size_class to reduce fragmentation)
+> > >>
+> > >> TEST ENV: EXT4 on zram, mount with discard option
+> > >> WORKLOAD: untar kernel source, remove dir in descending order in size.
+> > >> (drivers arch fs sound include)
+> > >>
+> > >> Each line represents orig_data_size, compr_data_size, mem_used_total,
+> > >> fragmentation overhead (mem_used - compr_data_size) and overhead ratio
+> > >> (overhead to compr_data_size), respectively, after untar and remove
+> > >> operation is executed. In afmalloc case, overhead is calculated by
+> > >> before/after 'SUnreclaim' on /proc/meminfo. And there are two more columns
+> > >> in afmalloc, one is real_overhead which represents metadata usage and
+> > >> overhead of internal fragmentation, and the other is a ratio,
+> > >> real_overhead to compr_data_size. Unlike zsmalloc, only metadata and
+> > >> internal fragmented memory cannot be used by other subsystem. So,
+> > >> comparing real_overhead in afmalloc with overhead on zsmalloc seems to
+> > >> be proper comparison.
+> > >
+> > > See last comment about why the real measure of memory usage should be
+> > > total pages not returned to the page allocator.  I don't consider chunks
+> > > freed to the slab allocator to be truly freed unless the slab containing
+> > > the chunks is also freed to the page allocator.
+> > >
+> > > The closest thing I can think of to measure the memory utilization of
+> > > this allocator is, for each kmalloc cache, do a before/after of how many
+> > > slabs are in the cache, then multiply that delta by pagesperslab and sum
+> > > the results.  This would give a rough measure of the number of pages
+> > > utilized in the slab allocator either by or as a result of afmalloc.
+> > > Of course, there will be noise from other components doing allocations
+> > > during the time between the before and after measurement.
+> > 
+> > It was already in below benchmark result. overhead and overhead ratio on
+> > intar-afmalloc.out result are measured by number of allocated page in SLAB.
+> > You can see that overhead and overhead ratio of afmalloc is less than
+> > zsmalloc even in this metric.
+> 
+> Ah yes, I didn't equate SUnreclaim with "slab usage".
+> 
+> It does look interesting.  I like the simplicity vs zsmalloc.
+> 
+> There would be more memcpy() calls in the map/unmap process. I guess you
+> can tune the worse case number of memcpy()s by adjusting
+> afmalloc_OBJ_MIN_SIZE in exchange for added fragmentation.  There is
+> also the impact of many kmalloc() calls per allocated object: 1 for
+> metadata and up to 7 for chunks on 64-bit.  Compression efficiency is
+> important but so is speed.  Performance under memory pressure is also a
+> factor that isn't accounted for in these results.
+
+Yes... As I already mentioned in patch description, performance is
+the problem this allocator has.
+
+In fact, I guess that many kmalloc() calls would be no problem, because
+SLAB allocation is really fast. Real factor of performance would be how
+many pages we allocate from page allocator. If we allocate too many pages
+from page allocator, kswapd would be invoked more or direct reclaim would
+occurs more. These would be dominent factor of allocation performance.
+afmalloc has good memory utilization so that page allocation happens
+infrequently than zsmalloc. Therefore, it would be good performance
+in this case.
+
+But, it does many memcpy() than zsmalloc and it really affects
+performance. IIUC, iozone test with afmalloc on ext4 on zram showed worse
+performance than zsmalloc, roughly, 5 ~ 10%. This workload has no diverse
+memory contents so there is no factor that affect to performance
+except memcpy(). Therefore, I guess that it is upper bound of afmalloc's
+performance loss to zsmalloc's. Meanwhile, simple swap test using kernel
+build didn't have any noticible difference on performance.
+
+> I'll try to build it and kick the tires soon.  Thanks!
+
+Really appreciate for your interest and trying. :)
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
