@@ -1,66 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 46E586B0069
-	for <linux-mm@kvack.org>; Wed,  8 Oct 2014 11:58:05 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id ft15so7098641pdb.31
-        for <linux-mm@kvack.org>; Wed, 08 Oct 2014 08:58:05 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id j14si324416pdl.60.2014.10.08.08.58.03
-        for <linux-mm@kvack.org>;
-        Wed, 08 Oct 2014 08:58:03 -0700 (PDT)
-Date: Wed, 8 Oct 2014 11:57:58 -0400
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v1 2/7] mm: Prepare for DAX huge pages
-Message-ID: <20141008155758.GK5098@wil.cx>
-References: <1412774729-23956-1-git-send-email-matthew.r.wilcox@intel.com>
- <1412774729-23956-3-git-send-email-matthew.r.wilcox@intel.com>
- <20141008152124.GA7288@node.dhcp.inet.fi>
+Received: from mail-yh0-f46.google.com (mail-yh0-f46.google.com [209.85.213.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AA616B0069
+	for <linux-mm@kvack.org>; Wed,  8 Oct 2014 12:44:10 -0400 (EDT)
+Received: by mail-yh0-f46.google.com with SMTP id f73so4119370yha.19
+        for <linux-mm@kvack.org>; Wed, 08 Oct 2014 09:44:09 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id i47si772799yha.133.2014.10.08.09.44.07
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 08 Oct 2014 09:44:08 -0700 (PDT)
+Message-ID: <543569CD.4060309@oracle.com>
+Date: Wed, 08 Oct 2014 12:43:57 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141008152124.GA7288@node.dhcp.inet.fi>
+Subject: Re: [PATCH 0/5] mm: poison critical mm/ structs
+References: <1412041639-23617-1-git-send-email-sasha.levin@oracle.com> <20141001140725.fd7f1d0cf933fbc2aa9fc1b1@linux-foundation.org> <542C749B.1040103@oracle.com> <alpine.LSU.2.11.1410020154500.6444@eggly.anvils> <542D680E.8010909@oracle.com> <54346623.6000309@intel.com>
+In-Reply-To: <54346623.6000309@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.krenel.org, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>
+To: Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de
 
-On Wed, Oct 08, 2014 at 06:21:24PM +0300, Kirill A. Shutemov wrote:
-> On Wed, Oct 08, 2014 at 09:25:24AM -0400, Matthew Wilcox wrote:
-> > From: Matthew Wilcox <willy@linux.intel.com>
-> > 
-> > DAX wants to use the 'special' bit to mark PMD entries that are not backed
-> > by struct page, just as for PTEs. 
+On 10/07/2014 06:16 PM, Dave Hansen wrote:
+> On 10/02/2014 07:58 AM, Sasha Levin wrote:
+>>>> What does this add on top of slab poisoning?  Some checks in some
+>>>> mm places while the object is active, I guess: why not base those
+>>>> on slab poisoning?  And add them in as appropriate to the problem
+>>>> at hand, when a problem is seen.
+>> The extra you're getting is detecting corruption that happened
+>> inside the object rather than around it.
 > 
-> Hm. I don't see where you use PMD without special set.
-
-Right ... I don't currently insert PMDs that point to huge pages of DRAM,
-only to huge pages of PMEM.
-
-> > @@ -1104,9 +1103,20 @@ int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
-> >  	if (unlikely(!pmd_same(*pmd, orig_pmd)))
-> >  		goto out_unlock;
-> >  
-> > -	page = pmd_page(orig_pmd);
-> > -	VM_BUG_ON_PAGE(!PageCompound(page) || !PageHead(page), page);
-> > -	if (page_mapcount(page) == 1) {
-> > +	if (pmd_special(orig_pmd)) {
-> > +		/* VM_MIXEDMAP !pfn_valid() case */
-> > +		if ((vma->vm_flags & (VM_WRITE|VM_SHARED)) !=
-> > +				     (VM_WRITE|VM_SHARED)) {
-> > +			pmdp_clear_flush(vma, haddr, pmd);
-> > +			ret = VM_FAULT_FALLBACK;
+> Isn't this more akin to redzoning that poisoning?
 > 
-> No private THP pages with THP? Why?
-> It should be trivial: we already have a code path for !page case for zero
-> page and it shouldn't be too hard to modify do_dax_pmd_fault() to support
-> COW.
+> I'm not sure I follow the logic here.  The poison is inside the object,
+> but it's now at the edges.  With slub at least, you get a redzone right
+> after the object(s):
 > 
-> I remeber I've mentioned that you don't think it's reasonable to allocate
-> 2M page on COW, but that's what we do for anon memory...
+> 	{ OBJ } | REDZONE | { OBJ } | REDZONE | ...
+> 
+> With this patch, you'd get something along these lines:
+> 
+> 	{ POISON | OBJ | POISON } { POISON | OBJ | POISON }  ...
+> 
+> So if somebody overflows OBJ, they'll hit the redzone/poison in either
+> case.  If they're randomly scribbling on memory, their likelihood of
+> hitting the redzone/poison is proportional to the size of the
+> redzone/poison.
+> 
+> The only place this really helps is if someone overflows from a
+> non-redzoned page or structure in to the beginning of a slub redzoned
+> one.  The fact that the redzone is at the end means we'll miss it.
+> 
+> But, all that means is that we should probably add redzones to the
+> beginning of slub objects, not just the end.  That doesn't help us with
+> 'struct page' of course, but it does for the mm_struct and vma.
 
-I agree that it shouldn't be too hard, but I have no evidence that it'll
-be a performance win to COW 2MB pages for MAP_PRIVATE.  I'd rather be
-cautious for now and we can explore COWing 2MB chunks in a future patch.
+This patchset is based on an actual issue we're seeing where the vma
+gets corrupted without triggering any of the slub redzones.
+
+Testing this patchset locally confirmed that while slub redzones stay
+intact, the poison fields get overwritten - so now we're able to catch
+the corruption after it happened.
+
+I'm not sure what's the scenario that causes that, but once we figure
+that out I could have a better response to your question...
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
