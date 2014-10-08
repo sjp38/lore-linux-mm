@@ -1,86 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id C32BA6B0075
-	for <linux-mm@kvack.org>; Wed,  8 Oct 2014 08:39:41 -0400 (EDT)
-Received: by mail-wi0-f174.google.com with SMTP id cc10so10455799wib.7
-        for <linux-mm@kvack.org>; Wed, 08 Oct 2014 05:39:41 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id t5si7579210wiy.1.2014.10.08.05.39.40
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id B015E6B007B
+	for <linux-mm@kvack.org>; Wed,  8 Oct 2014 08:48:29 -0400 (EDT)
+Received: by mail-wi0-f169.google.com with SMTP id cc10so12142851wib.0
+        for <linux-mm@kvack.org>; Wed, 08 Oct 2014 05:48:29 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h5si720830wiy.3.2014.10.08.05.48.28
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Oct 2014 05:39:40 -0700 (PDT)
-Date: Wed, 8 Oct 2014 08:39:38 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 2/3] mm: hugetlb_controller: convert to lockless page
- counters
-Message-ID: <20141008123938.GB14361@cmpxchg.org>
-References: <1411573390-9601-1-git-send-email-hannes@cmpxchg.org>
- <1411573390-9601-3-git-send-email-hannes@cmpxchg.org>
- <20141007152149.GF14243@dhcp22.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 08 Oct 2014 05:48:28 -0700 (PDT)
+Date: Wed, 8 Oct 2014 14:48:23 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 0/3] mm: memcontrol: eliminate charge reparenting
+Message-ID: <20141008124823.GA4592@dhcp22.suse.cz>
+References: <1411243235-24680-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141007152149.GF14243@dhcp22.suse.cz>
+In-Reply-To: <1411243235-24680-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, Dave Hansen <dave@sr71.net>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Oct 07, 2014 at 05:21:49PM +0200, Michal Hocko wrote:
-> On Wed 24-09-14 11:43:09, Johannes Weiner wrote:
-> > Abandon the spinlock-protected byte counters in favor of the unlocked
-> > page counters in the hugetlb controller as well.
-> > 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+On Sat 20-09-14 16:00:32, Johannes Weiner wrote:
+> Hi,
 > 
-> One minor thing below:
-> Acked-by: Michal Hocko <mhocko@suse.cz>
-
-Thank you!
-
-> >  static ssize_t hugetlb_cgroup_write(struct kernfs_open_file *of,
-> >  				    char *buf, size_t nbytes, loff_t off)
-> >  {
-> > -	int idx, name, ret;
-> > -	unsigned long long val;
-> > +	int ret, idx;
-> > +	unsigned long nr_pages;
-> >  	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(of_css(of));
-> >  
-> > +	if (hugetlb_cgroup_is_root(h_cg)) /* Can't set limit on root */
-> > +		return -EINVAL;
-> > +
-> >  	buf = strstrip(buf);
-> > +	ret = page_counter_memparse(buf, &nr_pages);
-> > +	if (ret)
-> > +		return ret;
-> > +
-> >  	idx = MEMFILE_IDX(of_cft(of)->private);
-> > -	name = MEMFILE_ATTR(of_cft(of)->private);
-> >  
-> > -	switch (name) {
-> > +	switch (MEMFILE_ATTR(of_cft(of)->private)) {
-> >  	case RES_LIMIT:
-> > -		if (hugetlb_cgroup_is_root(h_cg)) {
-> > -			/* Can't set limit on root */
-> > -			ret = -EINVAL;
-> > -			break;
-> > -		}
-> > -		/* This function does all necessary parse...reuse it */
-> > -		ret = res_counter_memparse_write_strategy(buf, &val);
-> > -		if (ret)
-> > -			break;
-> > -		val = ALIGN(val, 1ULL << huge_page_shift(&hstates[idx]));
-> > -		ret = res_counter_set_limit(&h_cg->hugepage[idx], val);
-> > +		nr_pages = ALIGN(nr_pages, 1UL<<huge_page_order(&hstates[idx]));
+> we've come a looong way when it comes to the basic cgroups model, and
+> the recent changes there open up a lot of opportunity to make drastic
+> simplifications to memory cgroups as well.
 > 
-> memcg doesn't round up to the next page so I guess we do not have to do
-> it here as well.
+> The decoupling of css from the user-visible cgroup, word-sized per-cpu
+> css reference counters, and css iterators that include offlined groups
+> means we can take per-charge css references, continue to reclaim from
+> offlined groups, and so get rid of the error-prone charge reparenting.
+> 
+> Combined with the higher-order reclaim fixes, lockless page counters,
+> and memcg iterator simplification I sent on Friday, the memory cgroup
+> core code is finally no longer the biggest file in mm/.  Yay!
 
-That rounding was introduced very recently and for no good reason
-except that "memcg rounds up too".  Meh.  I'll remove it.
+Yeah, the code reduction (as per the diffstat - I didn't get to the code
+yet) seems really promising.
 
-Thanks!
+> These patches are based on mmotm + the above-mentioned changes
+
+> + Tj's percpu-refcount conversion to atomic_long_t.
+
+This is https://lkml.org/lkml/2014/9/20/11 right?
+
+> Thanks!
+> 
+>  include/linux/cgroup.h          |  26 +++
+>  include/linux/percpu-refcount.h |  43 ++++-
+>  mm/memcontrol.c                 | 337 ++------------------------------------
+>  3 files changed, 75 insertions(+), 331 deletions(-)
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
