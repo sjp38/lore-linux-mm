@@ -1,82 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 5342A900014
-	for <linux-mm@kvack.org>; Wed,  8 Oct 2014 09:26:03 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id kx10so8979817pab.23
-        for <linux-mm@kvack.org>; Wed, 08 Oct 2014 06:26:03 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id y5si3204222pdc.219.2014.10.08.06.26.01
-        for <linux-mm@kvack.org>;
-        Wed, 08 Oct 2014 06:26:02 -0700 (PDT)
-From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v1 4/7] mm: Add a pmd_fault handler
-Date: Wed,  8 Oct 2014 09:25:26 -0400
-Message-Id: <1412774729-23956-5-git-send-email-matthew.r.wilcox@intel.com>
-In-Reply-To: <1412774729-23956-1-git-send-email-matthew.r.wilcox@intel.com>
-References: <1412774729-23956-1-git-send-email-matthew.r.wilcox@intel.com>
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id ACDA2900014
+	for <linux-mm@kvack.org>; Wed,  8 Oct 2014 09:27:57 -0400 (EDT)
+Received: by mail-wg0-f49.google.com with SMTP id x12so11529639wgg.8
+        for <linux-mm@kvack.org>; Wed, 08 Oct 2014 06:27:57 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n6si20230wjx.83.2014.10.08.06.27.56
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 08 Oct 2014 06:27:56 -0700 (PDT)
+Date: Wed, 8 Oct 2014 15:27:54 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 1/3] mm: memcontrol: take a css reference for each
+ charged page
+Message-ID: <20141008132754.GB4592@dhcp22.suse.cz>
+References: <1411243235-24680-1-git-send-email-hannes@cmpxchg.org>
+ <1411243235-24680-2-git-send-email-hannes@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1411243235-24680-2-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-fsdevel@vger.kernel.org, linux-kernel@vger.krenel.org, linux-mm@kvack.org
-Cc: Matthew Wilcox <willy@linux.intel.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Vladimir Davydov <vdavydov@parallels.com>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-From: Matthew Wilcox <willy@linux.intel.com>
+On Sat 20-09-14 16:00:33, Johannes Weiner wrote:
+> Charges currently pin the css indirectly by playing tricks during
+> css_offline(): user pages stall the offlining process until all of
+> them have been reparented, whereas kmemcg acquires a keep-alive
+> reference if outstanding kernel pages are detected at that point.
+> 
+> In preparation for removing all this complexity, make the pinning
+> explicit and acquire a css references for every charged page.
 
-Allow non-anonymous VMAs to provide huge pages in response to a page fault.
+OK, all the added {un}charges/atomics happen in a page_counter paths so
+there shouldn't be any noticeable overhead.
 
-Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
----
- include/linux/mm.h |  2 ++
- mm/memory.c        | 15 +++++++++++----
- 2 files changed, 13 insertions(+), 4 deletions(-)
+I cannot judge the percpu counter part but the rest seems OK to me.
+Two minor suggestions below.
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index d0de9fa..c0b4f74 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -229,6 +229,8 @@ struct vm_operations_struct {
- 	void (*open)(struct vm_area_struct * area);
- 	void (*close)(struct vm_area_struct * area);
- 	int (*fault)(struct vm_area_struct *vma, struct vm_fault *vmf);
-+	int (*pmd_fault)(struct vm_area_struct *, unsigned long address,
-+						pmd_t *, unsigned int flags);
- 	void (*map_pages)(struct vm_area_struct *vma, struct vm_fault *vmf);
- 
- 	/* notification that a previously read-only page is about to become
-diff --git a/mm/memory.c b/mm/memory.c
-index 993be2b..ec51b0f 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3238,6 +3238,16 @@ out:
- 	return 0;
- }
- 
-+static int create_huge_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
-+			unsigned long address, pmd_t *pmd, unsigned int flags)
-+{
-+	if (!vma->vm_ops)
-+		return do_huge_pmd_anonymous_page(mm, vma, address, pmd, flags);
-+	if (vma->vm_ops->pmd_fault)
-+		return vma->vm_ops->pmd_fault(vma, address, pmd, flags);
-+	return VM_FAULT_FALLBACK;
-+}
-+
- /*
-  * These routines also need to handle stuff like marking pages dirty
-  * and/or accessed for architectures that don't do it in hardware (most
-@@ -3335,10 +3345,7 @@ static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	if (!pmd)
- 		return VM_FAULT_OOM;
- 	if (pmd_none(*pmd) && transparent_hugepage_enabled(vma)) {
--		int ret = VM_FAULT_FALLBACK;
--		if (!vma->vm_ops)
--			ret = do_huge_pmd_anonymous_page(mm, vma, address,
--					pmd, flags);
-+		int ret = create_huge_pmd(mm, vma, address, pmd, flags);
- 		if (!(ret & VM_FAULT_FALLBACK))
- 			return ret;
- 	} else {
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+
+For the memcg part
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  include/linux/cgroup.h          | 26 +++++++++++++++++++++++++
+>  include/linux/percpu-refcount.h | 43 ++++++++++++++++++++++++++++++++---------
+>  mm/memcontrol.c                 | 17 +++++++++++++++-
+>  3 files changed, 76 insertions(+), 10 deletions(-)
+> 
+[...]
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 154161bb7d4c..b832c87ec43b 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2317,6 +2317,7 @@ static void drain_stock(struct memcg_stock_pcp *stock)
+>  		page_counter_uncharge(&old->memory, stock->nr_pages);
+>  		if (do_swap_account)
+>  			page_counter_uncharge(&old->memsw, stock->nr_pages);
+
+		/* pairs with css_get_many in try_charge */
+> +		css_put_many(&old->css, stock->nr_pages);
+>  		stock->nr_pages = 0;
+>  	}
+>  	stock->cached = NULL;
+[...]
+> @@ -2803,8 +2808,10 @@ static void memcg_uncharge_kmem(struct mem_cgroup *memcg,
+>  		page_counter_uncharge(&memcg->memsw, nr_pages);
+>  
+
+Wouldn't a single out_css_put be more readable? I was quite confused
+when I start reading the patch before I saw the next hunk.
+
+>  	/* Not down to 0 */
+> -	if (page_counter_uncharge(&memcg->kmem, nr_pages))
+		goto out_css_put;
+
+> +	if (page_counter_uncharge(&memcg->kmem, nr_pages)) {
+> +		css_put_many(&memcg->css, nr_pages);
+>  		return;
+> +	}
+>  
+>  	/*
+>  	 * Releases a reference taken in kmem_cgroup_css_offline in case
+> @@ -2816,6 +2823,8 @@ static void memcg_uncharge_kmem(struct mem_cgroup *memcg,
+>  	 */
+>  	if (memcg_kmem_test_and_clear_dead(memcg))
+>  		css_put(&memcg->css);
+> +
+
+out_css_put:
+> +	css_put_many(&memcg->css, nr_pages);
+>  }
+>  
+>  /*
 -- 
-2.1.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
