@@ -1,40 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id D94F16B006E
-	for <linux-mm@kvack.org>; Wed,  8 Oct 2014 03:10:16 -0400 (EDT)
-Received: by mail-ig0-f182.google.com with SMTP id hn18so7366874igb.3
-        for <linux-mm@kvack.org>; Wed, 08 Oct 2014 00:10:16 -0700 (PDT)
-Received: from resqmta-po-11v.sys.comcast.net (resqmta-po-11v.sys.comcast.net. [2001:558:fe16:19:96:114:154:170])
-        by mx.google.com with ESMTPS id hs7si1573320igb.22.2014.10.08.00.10.14
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 08 Oct 2014 00:10:15 -0700 (PDT)
-Date: Wed, 8 Oct 2014 02:10:13 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 5/5] mm: poison page struct
-In-Reply-To: <5434630C.3070006@intel.com>
-Message-ID: <alpine.DEB.2.11.1410080208410.9795@gentwo.org>
-References: <1412041639-23617-1-git-send-email-sasha.levin@oracle.com> <1412041639-23617-6-git-send-email-sasha.levin@oracle.com> <5434630C.3070006@intel.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id E0DC86B006C
+	for <linux-mm@kvack.org>; Wed,  8 Oct 2014 06:05:51 -0400 (EDT)
+Received: by mail-wi0-f180.google.com with SMTP id em10so10216576wid.13
+        for <linux-mm@kvack.org>; Wed, 08 Oct 2014 03:05:51 -0700 (PDT)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.226])
+        by mx.google.com with ESMTP id pm1si23916092wjb.68.2014.10.08.03.05.50
+        for <linux-mm@kvack.org>;
+        Wed, 08 Oct 2014 03:05:50 -0700 (PDT)
+Date: Wed, 8 Oct 2014 13:03:14 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 1/8] mm: replace remap_file_pages() syscall with emulation
+Message-ID: <20141008100314.GA1795@node.dhcp.inet.fi>
+References: <1399387052-31660-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1399387052-31660-2-git-send-email-kirill.shutemov@linux.intel.com>
+ <5434DEBD.8040607@synopsys.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5434DEBD.8040607@synopsys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, mgorman@suse.de
+To: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, peterz@infradead.org, mingo@kernel.org
 
-On Tue, 7 Oct 2014, Dave Hansen wrote:
+On Wed, Oct 08, 2014 at 12:20:37PM +0530, Vineet Gupta wrote:
+> Hi Kirill,
+> 
+> Due to broken PAGE_FILE on arc, I was giving this emulation patch a try and it
+> seems we need a minor fix to this patch. I know this is not slated for merge soon,
+> but u can add the fix nevertheless and my Tested-by:
+> 
+> Problem showed up with Ingo Korb's remap-demo.c test case from [1]
+> 
+> [1] https://lkml.org/lkml/2014/7/14/335
+> 
+> > +
+> > +	ret = do_mmap_pgoff(vma->vm_file, start, size,
+> > +			prot, flags, pgoff, &populate);
+> > +	if (populate)
+> > +		mm_populate(ret, populate);
+> > +out:
+> > +	up_write(&mm->mmap_sem);
+> 
+> On success needs to return 0, not mapped addr.
+> 
+> 	if (!IS_ERR_VALUE(ret))
+> 		ret = 0;
 
-> Does this break slub's __cmpxchg_double_slab trick?  I thought it
-> required page->freelist and page->counters to be doubleword-aligned.
+This bug (and few more) has been fixed long ago in -mm tree.
 
-Sure that would be required for it to work.
+Thanks for testing, anyway.
 
-> It's not like we really require this optimization when we're debugging,
-> but trying to use it will unnecessarily slow things down.
-
-Debugging by inserting more data into the page struct will already cause a
-significant slow down because the cache footprint of key functions will
-increase significantly. I would think that using the fallback functions
-is reasonable in this scenario,
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
