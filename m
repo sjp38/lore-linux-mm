@@ -1,66 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 0969C6B0069
-	for <linux-mm@kvack.org>; Wed,  8 Oct 2014 16:11:09 -0400 (EDT)
-Received: by mail-wg0-f52.google.com with SMTP id a1so12221749wgh.23
-        for <linux-mm@kvack.org>; Wed, 08 Oct 2014 13:11:09 -0700 (PDT)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.197])
-        by mx.google.com with ESMTP id cw9si1187303wjc.49.2014.10.08.13.11.08
+Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C1926B0069
+	for <linux-mm@kvack.org>; Wed,  8 Oct 2014 17:51:25 -0400 (EDT)
+Received: by mail-la0-f50.google.com with SMTP id s18so9363949lam.37
+        for <linux-mm@kvack.org>; Wed, 08 Oct 2014 14:51:25 -0700 (PDT)
+Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
+        by mx.google.com with SMTP id pi7si1889052lbb.15.2014.10.08.14.51.24
         for <linux-mm@kvack.org>;
-        Wed, 08 Oct 2014 13:11:08 -0700 (PDT)
-Date: Wed, 8 Oct 2014 23:11:00 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v1 5/7] dax: Add huge page fault support
-Message-ID: <20141008201100.GB9232@node.dhcp.inet.fi>
-References: <1412774729-23956-1-git-send-email-matthew.r.wilcox@intel.com>
- <1412774729-23956-6-git-send-email-matthew.r.wilcox@intel.com>
+        Wed, 08 Oct 2014 14:51:25 -0700 (PDT)
+From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Subject: Re: [PATCH 0/3] OOM vs. freezer interaction fixes
+Date: Thu, 09 Oct 2014 00:11:33 +0200
+Message-ID: <2107592.sy6uXko7kW@vostro.rjw.lan>
+In-Reply-To: <1412777266-8251-1-git-send-email-mhocko@suse.cz>
+References: <1412777266-8251-1-git-send-email-mhocko@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1412774729-23956-6-git-send-email-matthew.r.wilcox@intel.com>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
 
-On Wed, Oct 08, 2014 at 09:25:27AM -0400, Matthew Wilcox wrote:
-> +
-> +	pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-> +	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
-> +	if (pgoff >= size)
-> +		return VM_FAULT_SIGBUS;
-> +	/* If the PMD would cover blocks out of the file */
-> +	if ((pgoff | PG_PMD_COLOUR) >= size)
-> +		return VM_FAULT_FALLBACK;
+On Wednesday, October 08, 2014 04:07:43 PM Michal Hocko wrote:
+> Hi Andrew, Rafael,
+> 
+> this has been originally discussed here [1] but didn't lead anywhere AFAICS
+> so I would like to resurrect them.
 
-IIUC, zero pading would work too.
+OK
 
-> +
-> +	memset(&bh, 0, sizeof(bh));
-> +	block = ((sector_t)pgoff & ~PG_PMD_COLOUR) << (PAGE_SHIFT - blkbits);
-> +
-> +	/* Start by seeing if we already have an allocated block */
-> +	bh.b_size = PMD_SIZE;
-> +	length = get_block(inode, block, &bh, 0);
+So any chance to CC linux-pm too next time?  There are people on that list
+who may be interested as well and are not in the CC directly either.
 
-This makes me confused. get_block() return zero on success, right?
-Why the var called 'lenght'?
+> The first and third patch are regression fixes and they are a stable
+> material IMO. The second patch is a simple cleanup.
+> 
+> The 1st patch is fixing a regression introduced in 3.3 since when OOM
+> killer is not able to kill any frozen task and live lock as a result.
+> The fix gets us back to the 3.2. As it turned out during the discussion [2]
+> this was still not 100% sufficient and that's why we need the 3rd patch.
+> 
+> I was thinking about the proper 1st vs. 3rd patch ordering because
+> the 1st patch basically opens a race window fixed by the later patch.
+> Original patch from Cong Wang has covered this by cgroup_freezing(current)
+> check in should_thaw_current(). But this approach still suffers from OOM
+> vs. PM freezer interaction (OOM killer would still live lock waiting for a
+> PM frozen task this time).
+> 
+> So I think the most straight forward way is to address only OOM vs.
+> frozen task interaction in the first patch, mark it for stable 3.3+ and
+> leave the race to a separate follow up patch which is applicable to
+> stable 3.2+ (before a3201227f803 made it inefficient).
+> 
+> Switching 1st and 3rd patches would make some sense as well but then
+> it might end up even more confusing because we would be fixing a
+> non-existent issue in upstream first...
+> 
+> ---
+> [1] http://marc.info/?l=linux-kernel&m=140986986423092
+> [2] http://marc.info/?l=linux-kernel&m=141074263721166
+> 
 
-> +	sector = bh.b_blocknr << (blkbits - 9);
-> +	length = bdev_direct_access(bh.b_bdev, sector, &kaddr, &pfn, bh.b_size);
-> +	if (length < 0)
-> +		goto sigbus;
-> +	if (length < PMD_SIZE)
-> +		goto fallback;
-> +	if (pfn & PG_PMD_COLOUR)
-> +		goto fallback;	/* not aligned */
-
-So, are you rely on pure luck to make get_block() allocate 2M aligned pfn?
-Not really productive. You would need assistance from fs and
-arch_get_unmapped_area() sides.
+I'm fine with the approach in general, but I need to stare at patch 3
+for a little bit longer before I ACK it.  Which may not happen really
+soon as I'll be rather busy on Thu/Fri and then I'll be traveling to
+the LPC/LCEU next week.
 
 -- 
- Kirill A. Shutemov
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
