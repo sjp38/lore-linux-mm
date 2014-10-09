@@ -1,35 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 46B616B0069
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2014 06:52:47 -0400 (EDT)
-Received: by mail-wg0-f42.google.com with SMTP id z12so951096wgg.1
-        for <linux-mm@kvack.org>; Thu, 09 Oct 2014 03:52:46 -0700 (PDT)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id ej7si20697011wib.96.2014.10.09.03.52.46
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Oct 2014 03:52:46 -0700 (PDT)
-Date: Thu, 9 Oct 2014 12:52:45 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 3/4] mm: gup: use get_user_pages_fast and
- get_user_pages_unlocked
-Message-ID: <20141009105245.GN4750@worktop.programming.kicks-ass.net>
-References: <1412153797-6667-1-git-send-email-aarcange@redhat.com>
- <1412153797-6667-4-git-send-email-aarcange@redhat.com>
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E0C36B0069
+	for <linux-mm@kvack.org>; Thu,  9 Oct 2014 12:37:05 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id w10so75364pde.14
+        for <linux-mm@kvack.org>; Thu, 09 Oct 2014 09:37:04 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id v11si1118831pas.219.2014.10.09.09.37.02
+        for <linux-mm@kvack.org>;
+        Thu, 09 Oct 2014 09:37:03 -0700 (PDT)
+Message-ID: <5436B98E.1070407@intel.com>
+Date: Thu, 09 Oct 2014 09:36:30 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1412153797-6667-4-git-send-email-aarcange@redhat.com>
+Subject: Re: [PATCH] smaps should deal with huge zero page exactly same as
+ normal zero page
+References: <CADUXgx7QTWBMxesxgCet5rjpGu-V-xK_-5f2rX9R+v-ggi902A@mail.gmail.com>
+In-Reply-To: <CADUXgx7QTWBMxesxgCet5rjpGu-V-xK_-5f2rX9R+v-ggi902A@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andres Lagar-Cavilla <andreslc@google.com>, Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "\\\"Dr. David Alan Gilbert\\\"" <dgilbert@redhat.com>
+To: Fengwei Yin <yfw.kernel@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: fengguang.wu@intel.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, Oct 01, 2014 at 10:56:36AM +0200, Andrea Arcangeli wrote:
-> Just an optimization.
+On 10/09/2014 02:19 AM, Fengwei Yin wrote:
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 80ca4fb..8550b27 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -476,7 +476,7 @@ static void smaps_pte_entry(pte_t ptent, unsigned long addr,
+>  			mss->nonlinear += ptent_size;
+>  	}
+>  
+> -	if (!page)
+> +	if (!page || is_huge_zero_page(page))
+>  		return;
 
-Does it make sense to split the thing in two? One where you apply
-_unlocked and then one where you apply _fast?
+This really seems like a bit of a hack.  A normal (small) zero page
+won't make it to this point because of the vm_normal_page() check in
+smaps_pte_entry() which hits the _PAGE_SPECIAL bit in the pte.
+
+Is there a reason we can't set _PAGE_SPECIAL on the huge_zero_page ptes?
+ If we did that, we wouldn't need a special case here.
+
+If we can't do that for some reason, can we at least teach
+vm_normal_page() about the huge_zero_page in some other way?
+
+>  	if (PageAnon(page))
+> @@ -516,7 +516,8 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+>  	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
+>  		smaps_pte_entry(*(pte_t *)pmd, addr, HPAGE_PMD_SIZE, walk);
+>  		spin_unlock(ptl);
+> -		mss->anonymous_thp += HPAGE_PMD_SIZE;
+> +		if (!is_huge_zero_pmd(*pmd))
+> +			mss->anonymous_thp += HPAGE_PMD_SIZE;
+>  		return 0;
+>  	}
+
+How about we just move this hunk in to smaps_pte_entry()?  Something
+along these lines:
+
+...
+        if (PageAnon(page)) {
+                mss->anonymous += ptent_size;
++		if (PageTransHuge(page))
++			mss->anonymous_thp += ptent_size;
+	}
+
+If we do that, plus teaching vm_normal_page() about huge_zero_pages, it
+will help keep the hacks and the extra code due to huge pages to a miniumum.
+
+> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+> index 63579cb..758f569 100644
+> --- a/include/linux/huge_mm.h
+> +++ b/include/linux/huge_mm.h
+> @@ -34,6 +34,10 @@ extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+>  			unsigned long addr, pgprot_t newprot,
+>  			int prot_numa);
+>  
+> +extern bool is_huge_zero_page(struct page *page);
+> +
+> +extern bool is_huge_zero_pmd(pmd_t pmd);
+> +
+>  enum transparent_hugepage_flag {
+>  	TRANSPARENT_HUGEPAGE_FLAG,
+>  	TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index d9a21d06..bedc3ae 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -173,12 +173,12 @@ static int start_khugepaged(void)
+>  static atomic_t huge_zero_refcount;
+>  static struct page *huge_zero_page __read_mostly;
+>  
+> -static inline bool is_huge_zero_page(struct page *page)
+> +bool is_huge_zero_page(struct page *page)
+>  {
+>  	return ACCESS_ONCE(huge_zero_page) == page;
+>  }
+>  
+> -static inline bool is_huge_zero_pmd(pmd_t pmd)
+> +bool is_huge_zero_pmd(pmd_t pmd)
+>  {
+>  	return is_huge_zero_page(pmd_page(pmd));
+>  }
+
+^^^ And all these exports.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
