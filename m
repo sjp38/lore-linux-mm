@@ -1,103 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f179.google.com (mail-vc0-f179.google.com [209.85.220.179])
-	by kanga.kvack.org (Postfix) with ESMTP id C17976B0069
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2014 05:19:56 -0400 (EDT)
-Received: by mail-vc0-f179.google.com with SMTP id im17so638615vcb.10
-        for <linux-mm@kvack.org>; Thu, 09 Oct 2014 02:19:56 -0700 (PDT)
-Received: from mail-vc0-x233.google.com (mail-vc0-x233.google.com [2607:f8b0:400c:c03::233])
-        by mx.google.com with ESMTPS id tf4si3327308vcb.1.2014.10.09.02.19.55
+Received: from mail-oi0-f43.google.com (mail-oi0-f43.google.com [209.85.218.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B58D6B0069
+	for <linux-mm@kvack.org>; Thu,  9 Oct 2014 06:36:07 -0400 (EDT)
+Received: by mail-oi0-f43.google.com with SMTP id u20so1933001oif.30
+        for <linux-mm@kvack.org>; Thu, 09 Oct 2014 03:36:06 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id f9si2753458oel.66.2014.10.09.03.36.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 09 Oct 2014 02:19:55 -0700 (PDT)
-Received: by mail-vc0-f179.google.com with SMTP id im17so608218vcb.24
-        for <linux-mm@kvack.org>; Thu, 09 Oct 2014 02:19:55 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Oct 2014 03:36:05 -0700 (PDT)
+Date: Thu, 9 Oct 2014 12:35:59 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 1/4] mm: gup: add FOLL_TRIED
+Message-ID: <20141009103559.GK4750@worktop.programming.kicks-ass.net>
+References: <1412153797-6667-1-git-send-email-aarcange@redhat.com>
+ <1412153797-6667-2-git-send-email-aarcange@redhat.com>
 MIME-Version: 1.0
-Date: Thu, 9 Oct 2014 17:19:54 +0800
-Message-ID: <CADUXgx7QTWBMxesxgCet5rjpGu-V-xK_-5f2rX9R+v-ggi902A@mail.gmail.com>
-Subject: [PATCH] smaps should deal with huge zero page exactly same as normal
- zero page
-From: Fengwei Yin <yfw.kernel@gmail.com>
-Content-Type: multipart/mixed; boundary=089e010d9f147fb4e90504f9ef6f
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1412153797-6667-2-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
-Cc: fengguang.wu@intel.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andres Lagar-Cavilla <andreslc@google.com>, Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "\\\"Dr. David Alan Gilbert\\\"" <dgilbert@redhat.com>
 
---089e010d9f147fb4e90504f9ef6f
-Content-Type: text/plain; charset=UTF-8
+On Wed, Oct 01, 2014 at 10:56:34AM +0200, Andrea Arcangeli wrote:
+> From: Andres Lagar-Cavilla <andreslc@google.com>
 
-Hi,
-Fengguang found that the RSS/PSS shown in smaps is not correct
-if the file is /dev/zero.
+This needs a changelog....
 
-Example:
-7bea458b3000-7fea458b3000 r--p 00000000 00:13 39989
-  /dev/zero
-Size:           4294967296 kB
-Rss:            10612736 kB
-Pss:            10612736 kB
-Shared_Clean:          0 kB
-Shared_Dirty:          0 kB
-Private_Clean:  10612736 kB
-Private_Dirty:         0 kB
-Referenced:     10612736 kB
-Anonymous:             0 kB
-AnonHugePages:  10612736 kB
-Swap:                  0 kB
-KernelPageSize:        4 kB
-MMUPageSize:           4 kB
-Locked:                0 kB
-VmFlags: rd mr mw me
-
---089e010d9f147fb4e90504f9ef6f
-Content-Type: application/octet-stream;
-	name="0001-smaps-should-deal-with-huge-zero-page-exactly-same.patch"
-Content-Disposition: attachment;
-	filename="0001-smaps-should-deal-with-huge-zero-page-exactly-same.patch"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_i11w94zu0
-
-RnJvbSA1ZTg2MWQ1NTBmODUxMDQwYzRkMDQ1OGViZDNmMGZkOGZlOTRkYWRkIE1vbiBTZXAgMTcg
-MDA6MDA6MDAgMjAwMQpGcm9tOiBGZW5nd2VpIFlpbiA8eWZ3Lmtlcm5lbEBnbWFpbC5jb20+CkRh
-dGU6IFRodSwgOSBPY3QgMjAxNCAyMjoyMDo1OCArMDgwMApTdWJqZWN0OiBbUEFUQ0hdIHNtYXBz
-IHNob3VsZCBkZWFsIHdpdGggaHVnZSB6ZXJvIHBhZ2UgZXhhY3RseSBzYW1lIGFzIG5vcm1hbAog
-emVybyBwYWdlLgoKU2lnbmVkLW9mZi1ieTogRmVuZ3dlaSBZaW4gPHlmdy5rZXJuZWxAZ21haWwu
-Y29tPgotLS0KIGZzL3Byb2MvdGFza19tbXUuYyAgICAgIHwgNSArKystLQogaW5jbHVkZS9saW51
-eC9odWdlX21tLmggfCA0ICsrKysKIG1tL2h1Z2VfbWVtb3J5LmMgICAgICAgIHwgNCArKy0tCiAz
-IGZpbGVzIGNoYW5nZWQsIDkgaW5zZXJ0aW9ucygrKSwgNCBkZWxldGlvbnMoLSkKCmRpZmYgLS1n
-aXQgYS9mcy9wcm9jL3Rhc2tfbW11LmMgYi9mcy9wcm9jL3Rhc2tfbW11LmMKaW5kZXggODBjYTRm
-Yi4uODU1MGIyNyAxMDA2NDQKLS0tIGEvZnMvcHJvYy90YXNrX21tdS5jCisrKyBiL2ZzL3Byb2Mv
-dGFza19tbXUuYwpAQCAtNDc2LDcgKzQ3Niw3IEBAIHN0YXRpYyB2b2lkIHNtYXBzX3B0ZV9lbnRy
-eShwdGVfdCBwdGVudCwgdW5zaWduZWQgbG9uZyBhZGRyLAogCQkJbXNzLT5ub25saW5lYXIgKz0g
-cHRlbnRfc2l6ZTsKIAl9CiAKLQlpZiAoIXBhZ2UpCisJaWYgKCFwYWdlIHx8IGlzX2h1Z2VfemVy
-b19wYWdlKHBhZ2UpKQogCQlyZXR1cm47CiAKIAlpZiAoUGFnZUFub24ocGFnZSkpCkBAIC01MTYs
-NyArNTE2LDggQEAgc3RhdGljIGludCBzbWFwc19wdGVfcmFuZ2UocG1kX3QgKnBtZCwgdW5zaWdu
-ZWQgbG9uZyBhZGRyLCB1bnNpZ25lZCBsb25nIGVuZCwKIAlpZiAocG1kX3RyYW5zX2h1Z2VfbG9j
-ayhwbWQsIHZtYSwgJnB0bCkgPT0gMSkgewogCQlzbWFwc19wdGVfZW50cnkoKihwdGVfdCAqKXBt
-ZCwgYWRkciwgSFBBR0VfUE1EX1NJWkUsIHdhbGspOwogCQlzcGluX3VubG9jayhwdGwpOwotCQlt
-c3MtPmFub255bW91c190aHAgKz0gSFBBR0VfUE1EX1NJWkU7CisJCWlmICghaXNfaHVnZV96ZXJv
-X3BtZCgqcG1kKSkKKwkJCW1zcy0+YW5vbnltb3VzX3RocCArPSBIUEFHRV9QTURfU0laRTsKIAkJ
-cmV0dXJuIDA7CiAJfQogCmRpZmYgLS1naXQgYS9pbmNsdWRlL2xpbnV4L2h1Z2VfbW0uaCBiL2lu
-Y2x1ZGUvbGludXgvaHVnZV9tbS5oCmluZGV4IDYzNTc5Y2IuLjc1OGY1NjkgMTAwNjQ0Ci0tLSBh
-L2luY2x1ZGUvbGludXgvaHVnZV9tbS5oCisrKyBiL2luY2x1ZGUvbGludXgvaHVnZV9tbS5oCkBA
-IC0zNCw2ICszNCwxMCBAQCBleHRlcm4gaW50IGNoYW5nZV9odWdlX3BtZChzdHJ1Y3Qgdm1fYXJl
-YV9zdHJ1Y3QgKnZtYSwgcG1kX3QgKnBtZCwKIAkJCXVuc2lnbmVkIGxvbmcgYWRkciwgcGdwcm90
-X3QgbmV3cHJvdCwKIAkJCWludCBwcm90X251bWEpOwogCitleHRlcm4gYm9vbCBpc19odWdlX3pl
-cm9fcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSk7CisKK2V4dGVybiBib29sIGlzX2h1Z2VfemVyb19w
-bWQocG1kX3QgcG1kKTsKKwogZW51bSB0cmFuc3BhcmVudF9odWdlcGFnZV9mbGFnIHsKIAlUUkFO
-U1BBUkVOVF9IVUdFUEFHRV9GTEFHLAogCVRSQU5TUEFSRU5UX0hVR0VQQUdFX1JFUV9NQURWX0ZM
-QUcsCmRpZmYgLS1naXQgYS9tbS9odWdlX21lbW9yeS5jIGIvbW0vaHVnZV9tZW1vcnkuYwppbmRl
-eCBkOWEyMWQwNi4uYmVkYzNhZSAxMDA2NDQKLS0tIGEvbW0vaHVnZV9tZW1vcnkuYworKysgYi9t
-bS9odWdlX21lbW9yeS5jCkBAIC0xNzMsMTIgKzE3MywxMiBAQCBzdGF0aWMgaW50IHN0YXJ0X2to
-dWdlcGFnZWQodm9pZCkKIHN0YXRpYyBhdG9taWNfdCBodWdlX3plcm9fcmVmY291bnQ7CiBzdGF0
-aWMgc3RydWN0IHBhZ2UgKmh1Z2VfemVyb19wYWdlIF9fcmVhZF9tb3N0bHk7CiAKLXN0YXRpYyBp
-bmxpbmUgYm9vbCBpc19odWdlX3plcm9fcGFnZShzdHJ1Y3QgcGFnZSAqcGFnZSkKK2Jvb2wgaXNf
-aHVnZV96ZXJvX3BhZ2Uoc3RydWN0IHBhZ2UgKnBhZ2UpCiB7CiAJcmV0dXJuIEFDQ0VTU19PTkNF
-KGh1Z2VfemVyb19wYWdlKSA9PSBwYWdlOwogfQogCi1zdGF0aWMgaW5saW5lIGJvb2wgaXNfaHVn
-ZV96ZXJvX3BtZChwbWRfdCBwbWQpCitib29sIGlzX2h1Z2VfemVyb19wbWQocG1kX3QgcG1kKQog
-ewogCXJldHVybiBpc19odWdlX3plcm9fcGFnZShwbWRfcGFnZShwbWQpKTsKIH0KLS0gCjIuMC4x
-Cgo=
---089e010d9f147fb4e90504f9ef6f--
+> Reviewed-by: Radim KrA?mA!A? <rkrcmar@redhat.com>
+> Signed-off-by: Andres Lagar-Cavilla <andreslc@google.com>
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  include/linux/mm.h | 1 +
+>  mm/gup.c           | 4 ++++
+>  2 files changed, 5 insertions(+)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 8981cc8..0f4196a 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1985,6 +1985,7 @@ static inline struct page *follow_page(struct vm_area_struct *vma,
+>  #define FOLL_HWPOISON	0x100	/* check page is hwpoisoned */
+>  #define FOLL_NUMA	0x200	/* force NUMA hinting page fault */
+>  #define FOLL_MIGRATION	0x400	/* wait for page to replace migration entry */
+> +#define FOLL_TRIED	0x800	/* a retry, previous pass started an IO */
+>  
+>  typedef int (*pte_fn_t)(pte_t *pte, pgtable_t token, unsigned long addr,
+>  			void *data);
+> diff --git a/mm/gup.c b/mm/gup.c
+> index 91d044b..af7ea3e 100644
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -281,6 +281,10 @@ static int faultin_page(struct task_struct *tsk, struct vm_area_struct *vma,
+>  		fault_flags |= FAULT_FLAG_ALLOW_RETRY;
+>  	if (*flags & FOLL_NOWAIT)
+>  		fault_flags |= FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_RETRY_NOWAIT;
+> +	if (*flags & FOLL_TRIED) {
+> +		VM_WARN_ON_ONCE(fault_flags & FAULT_FLAG_ALLOW_RETRY);
+> +		fault_flags |= FAULT_FLAG_TRIED;
+> +	}
+>  
+>  	ret = handle_mm_fault(mm, vma, address, fault_flags);
+>  	if (ret & VM_FAULT_ERROR) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
