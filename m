@@ -1,111 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E0C36B0069
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2014 12:37:05 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id w10so75364pde.14
-        for <linux-mm@kvack.org>; Thu, 09 Oct 2014 09:37:04 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id v11si1118831pas.219.2014.10.09.09.37.02
-        for <linux-mm@kvack.org>;
-        Thu, 09 Oct 2014 09:37:03 -0700 (PDT)
-Message-ID: <5436B98E.1070407@intel.com>
-Date: Thu, 09 Oct 2014 09:36:30 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CC516B0038
+	for <linux-mm@kvack.org>; Thu,  9 Oct 2014 15:14:41 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id rd3so285308pab.6
+        for <linux-mm@kvack.org>; Thu, 09 Oct 2014 12:14:40 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id ub8si1682950pac.5.2014.10.09.12.14.39
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 09 Oct 2014 12:14:39 -0700 (PDT)
+Message-ID: <5436DDEB.5090004@oracle.com>
+Date: Thu, 09 Oct 2014 15:11:39 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] smaps should deal with huge zero page exactly same as
- normal zero page
-References: <CADUXgx7QTWBMxesxgCet5rjpGu-V-xK_-5f2rX9R+v-ggi902A@mail.gmail.com>
-In-Reply-To: <CADUXgx7QTWBMxesxgCet5rjpGu-V-xK_-5f2rX9R+v-ggi902A@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH 0/5] mm: poison critical mm/ structs
+References: <1412041639-23617-1-git-send-email-sasha.levin@oracle.com> <20141001140725.fd7f1d0cf933fbc2aa9fc1b1@linux-foundation.org> <542C749B.1040103@oracle.com> <alpine.LSU.2.11.1410020154500.6444@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1410020154500.6444@eggly.anvils>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengwei Yin <yfw.kernel@gmail.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
-Cc: fengguang.wu@intel.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@suse.de
 
-On 10/09/2014 02:19 AM, Fengwei Yin wrote:
-> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 80ca4fb..8550b27 100644
-> --- a/fs/proc/task_mmu.c
-> +++ b/fs/proc/task_mmu.c
-> @@ -476,7 +476,7 @@ static void smaps_pte_entry(pte_t ptent, unsigned long addr,
->  			mss->nonlinear += ptent_size;
->  	}
->  
-> -	if (!page)
-> +	if (!page || is_huge_zero_page(page))
->  		return;
+On 10/02/2014 05:23 AM, Hugh Dickins wrote:
+> I'm glad to hear they've confirmed some vm_area_struct corruption:
+> any ideas on where that's coming from?
 
-This really seems like a bit of a hack.  A normal (small) zero page
-won't make it to this point because of the vm_normal_page() check in
-smaps_pte_entry() which hits the _PAGE_SPECIAL bit in the pte.
+Hugh,
 
-Is there a reason we can't set _PAGE_SPECIAL on the huge_zero_page ptes?
- If we did that, we wouldn't need a special case here.
+I think that what we're seeing isn't a corruption of vm_area_struct
+per-se, but something weirder.
 
-If we can't do that for some reason, can we at least teach
-vm_normal_page() about the huge_zero_page in some other way?
+I've poisoned every spot where vm_area_struct is allocated, and yet
+there seems to be nothing that's hitting that field before we end
+up using a "zeroed out" vm_area_struct.
 
->  	if (PageAnon(page))
-> @@ -516,7 +516,8 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
->  	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
->  		smaps_pte_entry(*(pte_t *)pmd, addr, HPAGE_PMD_SIZE, walk);
->  		spin_unlock(ptl);
-> -		mss->anonymous_thp += HPAGE_PMD_SIZE;
-> +		if (!is_huge_zero_pmd(*pmd))
-> +			mss->anonymous_thp += HPAGE_PMD_SIZE;
->  		return 0;
->  	}
+The results are the same both with and without kasan, there seems
+to be no corruption happening anywhere, but we somehow end up with
+an empty vm_area_struct.
 
-How about we just move this hunk in to smaps_pte_entry()?  Something
-along these lines:
+It also somewhat makes sense considering that we're seeing no slub
+corruption either. Either something is zeroing out *exactly*
+vm_area_struct, or it's not really corruption...
 
-...
-        if (PageAnon(page)) {
-                mss->anonymous += ptent_size;
-+		if (PageTransHuge(page))
-+			mss->anonymous_thp += ptent_size;
-	}
 
-If we do that, plus teaching vm_normal_page() about huge_zero_pages, it
-will help keep the hacks and the extra code due to huge pages to a miniumum.
-
-> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> index 63579cb..758f569 100644
-> --- a/include/linux/huge_mm.h
-> +++ b/include/linux/huge_mm.h
-> @@ -34,6 +34,10 @@ extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
->  			unsigned long addr, pgprot_t newprot,
->  			int prot_numa);
->  
-> +extern bool is_huge_zero_page(struct page *page);
-> +
-> +extern bool is_huge_zero_pmd(pmd_t pmd);
-> +
->  enum transparent_hugepage_flag {
->  	TRANSPARENT_HUGEPAGE_FLAG,
->  	TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index d9a21d06..bedc3ae 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -173,12 +173,12 @@ static int start_khugepaged(void)
->  static atomic_t huge_zero_refcount;
->  static struct page *huge_zero_page __read_mostly;
->  
-> -static inline bool is_huge_zero_page(struct page *page)
-> +bool is_huge_zero_page(struct page *page)
->  {
->  	return ACCESS_ONCE(huge_zero_page) == page;
->  }
->  
-> -static inline bool is_huge_zero_pmd(pmd_t pmd)
-> +bool is_huge_zero_pmd(pmd_t pmd)
->  {
->  	return is_huge_zero_page(pmd_page(pmd));
->  }
-
-^^^ And all these exports.
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
