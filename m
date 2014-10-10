@@ -1,94 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 516EB6B0038
-	for <linux-mm@kvack.org>; Fri, 10 Oct 2014 05:55:38 -0400 (EDT)
-Received: by mail-lb0-f179.google.com with SMTP id l4so2723641lbv.38
-        for <linux-mm@kvack.org>; Fri, 10 Oct 2014 02:55:37 -0700 (PDT)
-Received: from plane.gmane.org (plane.gmane.org. [80.91.229.3])
-        by mx.google.com with ESMTPS id r5si8452178lal.3.2014.10.10.02.55.24
+Received: from mail-la0-f46.google.com (mail-la0-f46.google.com [209.85.215.46])
+	by kanga.kvack.org (Postfix) with ESMTP id BBBAB6B0038
+	for <linux-mm@kvack.org>; Fri, 10 Oct 2014 10:19:01 -0400 (EDT)
+Received: by mail-la0-f46.google.com with SMTP id gi9so3349371lab.33
+        for <linux-mm@kvack.org>; Fri, 10 Oct 2014 07:19:01 -0700 (PDT)
+Received: from mail-la0-x22a.google.com (mail-la0-x22a.google.com [2a00:1450:4010:c03::22a])
+        by mx.google.com with ESMTPS id k3si9473738lag.80.2014.10.10.07.18.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 10 Oct 2014 02:55:25 -0700 (PDT)
-Received: from list by plane.gmane.org with local (Exim 4.69)
-	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
-	id 1XcWue-0008Mg-AT
-	for linux-mm@kvack.org; Fri, 10 Oct 2014 11:55:04 +0200
-Received: from proxye.avm.de ([212.42.244.241])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Fri, 10 Oct 2014 11:55:04 +0200
-Received: from kugel by proxye.avm.de with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Fri, 10 Oct 2014 11:55:04 +0200
-From: Thomas Martitz <kugel@rockbox.org>
-Subject: Re: [PATCH 14/17] userfaultfd: add new syscall to provide memory externalization
-Date: Fri, 10 Oct 2014 09:39:10 +0000 (UTC)
-Message-ID: <loom.20141010T113521-675@post.gmane.org>
-References: <1412356087-16115-1-git-send-email-aarcange@redhat.com> <1412356087-16115-15-git-send-email-aarcange@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 10 Oct 2014 07:18:59 -0700 (PDT)
+Received: by mail-la0-f42.google.com with SMTP id mk6so3296224lab.15
+        for <linux-mm@kvack.org>; Fri, 10 Oct 2014 07:18:59 -0700 (PDT)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH] mm/cma: fix cma bitmap aligned mask computing
+In-Reply-To: <000301cfe430$504b0290$f0e107b0$%yang@samsung.com>
+References: <000301cfe430$504b0290$f0e107b0$%yang@samsung.com>
+Date: Fri, 10 Oct 2014 16:18:54 +0200
+Message-ID: <xa1tvbns2ek1.fsf@mina86.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Weijie Yang <weijie.yang@samsung.com>, iamjoonsoo.kim@lge.com
+Cc: aneesh.kumar@linux.vnet.ibm.com, m.szyprowski@samsung.com, 'Andrew Morton' <akpm@linux-foundation.org>, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>
 
-Andrea Arcangeli <aarcange <at> redhat.com> writes:
+On Fri, Oct 10 2014, Weijie Yang wrote:
+> The current cma bitmap aligned mask compute way is incorrect, it could
+> cause an unexpected align when using cma_alloc() if wanted align order
+> is bigger than cma->order_per_bit.
+>
+> Take kvm for example (PAGE_SHIFT =3D 12), kvm_cma->order_per_bit is set t=
+o 6,
+> when kvm_alloc_rma() tries to alloc kvm_rma_pages, it will input 15 as
+> expected align value, after using current computing, however, we get 0 as
+> cma bitmap aligned mask other than 511.
+>
+> This patch fixes the cma bitmap aligned mask compute way.
+>
+> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
 
-> 
-> Once an userfaultfd is created MADV_USERFAULT regions talks through
-> the userfaultfd protocol with the thread responsible for doing the
-> memory externalization of the process.
-> 
-> The protocol starts by userland writing the requested/preferred
-> USERFAULT_PROTOCOL version into the userfault fd (64bit write), if
-> kernel knows it, it will ack it by allowing userland to read 64bit
-> from the userfault fd that will contain the same 64bit
-> USERFAULT_PROTOCOL version that userland asked. Otherwise userfault
-> will read __u64 value -1ULL (aka USERFAULTFD_UNKNOWN_PROTOCOL) and it
-> will have to try again by writing an older protocol version if
-> suitable for its usage too, and read it back again until it stops
-> reading -1ULL. After that the userfaultfd protocol starts.
-> 
-> The protocol consists in the userfault fd reads 64bit in size
-> providing userland the fault addresses. After a userfault address has
-> been read and the fault is resolved by userland, the application must
-> write back 128bits in the form of [ start, end ] range (64bit each)
-> that will tell the kernel such a range has been mapped. Multiple read
-> userfaults can be resolved in a single range write. poll() can be used
-> to know when there are new userfaults to read (POLLIN) and when there
-> are threads waiting a wakeup through a range write (POLLOUT).
-> 
-> Signed-off-by: Andrea Arcangeli <aarcange <at> redhat.com>
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
+
+Should that also get:
+
+Cc: <stable@vger.kernel.org> # v3.17
+
 > ---
->  arch/x86/syscalls/syscall_32.tbl |   1 +
->  arch/x86/syscalls/syscall_64.tbl |   1 +
->  fs/Makefile                      |   1 +
->  fs/userfaultfd.c                 | 643
-+++++++++++++++++++++++++++++++++++++++
->  include/linux/syscalls.h         |   1 +
->  include/linux/userfaultfd.h      |  42 +++
->  init/Kconfig                     |  11 +
->  kernel/sys_ni.c                  |   1 +
->  mm/huge_memory.c                 |  24 +-
->  mm/memory.c                      |   5 +-
->  10 files changed, 720 insertions(+), 10 deletions(-)
->  create mode 100644 fs/userfaultfd.c
->  create mode 100644 include/linux/userfaultfd.h
-> 
+>  mm/cma.c |    5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
+>
+> diff --git a/mm/cma.c b/mm/cma.c
+> index c17751c..f6207ef 100644
+> --- a/mm/cma.c
+> +++ b/mm/cma.c
+> @@ -57,7 +57,10 @@ unsigned long cma_get_size(struct cma *cma)
+>=20=20
+>  static unsigned long cma_bitmap_aligned_mask(struct cma *cma, int align_=
+order)
+>  {
+> -	return (1UL << (align_order >> cma->order_per_bit)) - 1;
+> +	if (align_order <=3D cma->order_per_bit)
+> +		return 0;
+> +	else
+> +		return (1UL << (align_order - cma->order_per_bit)) - 1;
+>  }
+>=20=20
+>  static unsigned long cma_bitmap_maxno(struct cma *cma)
+> --=20
+> 1.7.10.4
+>
+>
 
-
-Hello,
-
-I am wondering if, instead of a new syscall, a suitable fd could be obtained
-by opening a special file (say /dev/userfault, analogous to /dev/shm). This
-has the added bonus that system admins can tweak access to this feature via
-normal file permissions. And if the file doesn't exist then the kernel has
-simply no support for it.
-
-I was wondering the same for memfd() when it was added to the kernel but
-this time I decided to actually ask :)
-
-Best regards
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
