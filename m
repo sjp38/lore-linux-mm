@@ -1,85 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id A0F6A6B006C
-	for <linux-mm@kvack.org>; Thu,  9 Oct 2014 16:47:29 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id ey11so400077pad.27
-        for <linux-mm@kvack.org>; Thu, 09 Oct 2014 13:47:29 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id vb9si1808719pac.60.2014.10.09.13.47.27
-        for <linux-mm@kvack.org>;
-        Thu, 09 Oct 2014 13:47:28 -0700 (PDT)
-Date: Thu, 9 Oct 2014 16:47:16 -0400
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v1 5/7] dax: Add huge page fault support
-Message-ID: <20141009204716.GQ5098@wil.cx>
-References: <1412774729-23956-1-git-send-email-matthew.r.wilcox@intel.com>
- <1412774729-23956-6-git-send-email-matthew.r.wilcox@intel.com>
- <20141008201100.GB9232@node.dhcp.inet.fi>
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 05C7F6B0038
+	for <linux-mm@kvack.org>; Thu,  9 Oct 2014 21:37:06 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id ft15so713095pdb.30
+        for <linux-mm@kvack.org>; Thu, 09 Oct 2014 18:37:06 -0700 (PDT)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id zg1si2140791pbc.101.2014.10.09.18.37.04
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 09 Oct 2014 18:37:05 -0700 (PDT)
+Received: by mail-pa0-f47.google.com with SMTP id rd3so740546pab.20
+        for <linux-mm@kvack.org>; Thu, 09 Oct 2014 18:37:04 -0700 (PDT)
+Date: Fri, 10 Oct 2014 17:33:50 +0800
+From: Fengwei Yin <yfw.kernel@gmail.com>
+Subject: Re: [PATCH] smaps should deal with huge zero page exactly same as
+ normal zero page
+Message-ID: <20141010093302.GA25038@gmail.com>
+References: <CADUXgx7QTWBMxesxgCet5rjpGu-V-xK_-5f2rX9R+v-ggi902A@mail.gmail.com>
+ <5436B98E.1070407@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141008201100.GB9232@node.dhcp.inet.fi>
+In-Reply-To: <5436B98E.1070407@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <willy@linux.intel.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, fengguang.wu@intel.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, Oct 08, 2014 at 11:11:00PM +0300, Kirill A. Shutemov wrote:
-> On Wed, Oct 08, 2014 at 09:25:27AM -0400, Matthew Wilcox wrote:
-> > +	pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-> > +	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
-> > +	if (pgoff >= size)
-> > +		return VM_FAULT_SIGBUS;
-> > +	/* If the PMD would cover blocks out of the file */
-> > +	if ((pgoff | PG_PMD_COLOUR) >= size)
-> > +		return VM_FAULT_FALLBACK;
+On Thu, Oct 09, 2014 at 09:36:30AM -0700, Dave Hansen wrote:
+> On 10/09/2014 02:19 AM, Fengwei Yin wrote:
+> > diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> > index 80ca4fb..8550b27 100644
+> > --- a/fs/proc/task_mmu.c
+> > +++ b/fs/proc/task_mmu.c
+> > @@ -476,7 +476,7 @@ static void smaps_pte_entry(pte_t ptent, unsigned long addr,
+> >  			mss->nonlinear += ptent_size;
+> >  	}
+> >  
+> > -	if (!page)
+> > +	if (!page || is_huge_zero_page(page))
+> >  		return;
 > 
-> IIUC, zero pading would work too.
+> This really seems like a bit of a hack.  A normal (small) zero page
+> won't make it to this point because of the vm_normal_page() check in
+> smaps_pte_entry() which hits the _PAGE_SPECIAL bit in the pte.
+> 
+> Is there a reason we can't set _PAGE_SPECIAL on the huge_zero_page ptes?
+>  If we did that, we wouldn't need a special case here.
+> 
+> If we can't do that for some reason, can we at least teach
+> vm_normal_page() about the huge_zero_page in some other way?
+> 
+Thanks a lot for the comments. I will check whether could remove the
+hack.
 
-The blocks after this file might be allocated to another file already.
-I suppose we could ask the filesystem if it wants to allocate them to
-this file.
-
-Dave, Jan, is it acceptable to call get_block() for blocks that extend
-beyond the current i_size?
-
+> >  	if (PageAnon(page))
+> > @@ -516,7 +516,8 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+> >  	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
+> >  		smaps_pte_entry(*(pte_t *)pmd, addr, HPAGE_PMD_SIZE, walk);
+> >  		spin_unlock(ptl);
+> > -		mss->anonymous_thp += HPAGE_PMD_SIZE;
+> > +		if (!is_huge_zero_pmd(*pmd))
+> > +			mss->anonymous_thp += HPAGE_PMD_SIZE;
+> >  		return 0;
+> >  	}
+> 
+> How about we just move this hunk in to smaps_pte_entry()?  Something
+> along these lines:
+> 
+> ...
+>         if (PageAnon(page)) {
+>                 mss->anonymous += ptent_size;
+> +		if (PageTransHuge(page))
+> +			mss->anonymous_thp += ptent_size;
+> 	}
+> 
+> If we do that, plus teaching vm_normal_page() about huge_zero_pages, it
+> will help keep the hacks and the extra code due to huge pages to a miniumum.
+> 
+> > diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+> > index 63579cb..758f569 100644
+> > --- a/include/linux/huge_mm.h
+> > +++ b/include/linux/huge_mm.h
+> > @@ -34,6 +34,10 @@ extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+> >  			unsigned long addr, pgprot_t newprot,
+> >  			int prot_numa);
+> >  
+> > +extern bool is_huge_zero_page(struct page *page);
 > > +
-> > +	memset(&bh, 0, sizeof(bh));
-> > +	block = ((sector_t)pgoff & ~PG_PMD_COLOUR) << (PAGE_SHIFT - blkbits);
+> > +extern bool is_huge_zero_pmd(pmd_t pmd);
 > > +
-> > +	/* Start by seeing if we already have an allocated block */
-> > +	bh.b_size = PMD_SIZE;
-> > +	length = get_block(inode, block, &bh, 0);
+> >  enum transparent_hugepage_flag {
+> >  	TRANSPARENT_HUGEPAGE_FLAG,
+> >  	TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
+> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > index d9a21d06..bedc3ae 100644
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -173,12 +173,12 @@ static int start_khugepaged(void)
+> >  static atomic_t huge_zero_refcount;
+> >  static struct page *huge_zero_page __read_mostly;
+> >  
+> > -static inline bool is_huge_zero_page(struct page *page)
+> > +bool is_huge_zero_page(struct page *page)
+> >  {
+> >  	return ACCESS_ONCE(huge_zero_page) == page;
+> >  }
+> >  
+> > -static inline bool is_huge_zero_pmd(pmd_t pmd)
+> > +bool is_huge_zero_pmd(pmd_t pmd)
+> >  {
+> >  	return is_huge_zero_page(pmd_page(pmd));
+> >  }
 > 
-> This makes me confused. get_block() return zero on success, right?
-> Why the var called 'lenght'?
-
-Historical reasons.  I can go back and change the name of the variable.
-
-> > +	sector = bh.b_blocknr << (blkbits - 9);
-> > +	length = bdev_direct_access(bh.b_bdev, sector, &kaddr, &pfn, bh.b_size);
-> > +	if (length < 0)
-> > +		goto sigbus;
-> > +	if (length < PMD_SIZE)
-> > +		goto fallback;
-> > +	if (pfn & PG_PMD_COLOUR)
-> > +		goto fallback;	/* not aligned */
-> 
-> So, are you rely on pure luck to make get_block() allocate 2M aligned pfn?
-> Not really productive. You would need assistance from fs and
-> arch_get_unmapped_area() sides.
-
-Certainly ext4 and XFS will align their allocations; if you ask it for a
-2MB block, it will try to allocate a 2MB block aligned on a 2MB boundary.
-
-I started looking into the get_unampped_area (and have the code sitting
-around to align specially marked files on special boundaries), but when
-I mentioned it to the author of the NVM Library, he said "Oh, I'll just
-pick a 1GB aligned area to request it be mapped at", so I haven't taken
-it any further.
-
-The upshot is that (confirmed with debugging code), when the tests run,
-they pretty much always get a correctly aligned block.
+> ^^^ And all these exports.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
