@@ -1,53 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id BD0666B0038
-	for <linux-mm@kvack.org>; Sun, 12 Oct 2014 08:03:53 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id fb1so4285111pad.25
-        for <linux-mm@kvack.org>; Sun, 12 Oct 2014 05:03:53 -0700 (PDT)
-Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
-        by mx.google.com with ESMTPS id yn9si8096469pac.118.2014.10.12.05.03.52
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E2596B0038
+	for <linux-mm@kvack.org>; Sun, 12 Oct 2014 09:25:24 -0400 (EDT)
+Received: by mail-wi0-f174.google.com with SMTP id h11so1584893wiw.1
+        for <linux-mm@kvack.org>; Sun, 12 Oct 2014 06:25:24 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id ch4si14524714wjc.105.2014.10.12.06.25.22
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Sun, 12 Oct 2014 05:03:52 -0700 (PDT)
-Received: from epcpsbgr3.samsung.com
- (u143.gpu120.samsung.co.kr [203.254.230.143])
- by mailout4.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTP id <0NDB00EB1YUEJ000@mailout4.samsung.com> for linux-mm@kvack.org;
- Sun, 12 Oct 2014 21:03:50 +0900 (KST)
-From: Pintu Kumar <pintu.k@samsung.com>
-Subject: [PATCH 1/1] [mm]: vmalloc: replace printk with pr_warn
-Date: Sun, 12 Oct 2014 17:26:01 +0530
-Message-id: <1413114961-10831-1-git-send-email-pintu.k@samsung.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 12 Oct 2014 06:25:23 -0700 (PDT)
+Date: Sun, 12 Oct 2014 15:24:43 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 3/4] mm: gup: use get_user_pages_fast and
+ get_user_pages_unlocked
+Message-ID: <20141012132443.GA26015@redhat.com>
+References: <1412153797-6667-1-git-send-email-aarcange@redhat.com>
+ <1412153797-6667-4-git-send-email-aarcange@redhat.com>
+ <20141009105245.GN4750@worktop.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141009105245.GN4750@worktop.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, liwanp@linux.vnet.ibm.com, zhangyanfei@cn.fujitsu.com, rientjes@google.com, edumazet@google.com, chaowang@redhat.com, fabf@skynet.be, catalin.marinas@arm.com, nasa4836@gmail.com, av1474@comtv.ru, gioh.kim@lge.com, rob.jones@codethink.co.uk
-Cc: cpgs@samsung.com, pintu.k@samsung.com, pintu_agarwal@yahoo.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, ed.savinay@samsung.com, iqbal.ams@samsung.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andres Lagar-Cavilla <andreslc@google.com>, Gleb Natapov <gleb@kernel.org>, Radim Krcmar <rkrcmar@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Jianyu Zhan <nasa4836@gmail.com>, Paul Cassella <cassella@cray.com>, Hugh Dickins <hughd@google.com>, Peter Feiner <pfeiner@google.com>, "\\\"Dr. David Alan Gilbert\\\"" <dgilbert@redhat.com>
 
-This patch replaces printk(KERN_WARNING..) with pr_warn.
-Thus it also reduces one line extra because of formatting.
+On Thu, Oct 09, 2014 at 12:52:45PM +0200, Peter Zijlstra wrote:
+> On Wed, Oct 01, 2014 at 10:56:36AM +0200, Andrea Arcangeli wrote:
+> > Just an optimization.
+> 
+> Does it make sense to split the thing in two? One where you apply
+> _unlocked and then one where you apply _fast?
 
-Signed-off-by: Pintu Kumar <pintu.k@samsung.com>
----
- mm/vmalloc.c |    3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+Yes but I already dropped the _fast optimization, as the latency
+enhancements to gup_fast were NAKed earlier in this thread. So this
+patch has already been updated to only apply _unlocked.
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 90520af..8a18196 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -463,8 +463,7 @@ overflow:
- 		goto retry;
- 	}
- 	if (printk_ratelimit())
--		printk(KERN_WARNING
--			"vmap allocation for size %lu failed: "
-+		pr_warn("vmap allocation for size %lu failed: "
- 			"use vmalloc=<size> to increase size.\n", size);
- 	kfree(va);
- 	return ERR_PTR(-EBUSY);
--- 
-1.7.9.5
+http://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?id=bc2e0473b601c6a330ddb4adbcf4c048b2233d4e
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
