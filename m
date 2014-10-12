@@ -1,65 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 426DD6B0038
-	for <linux-mm@kvack.org>; Sun, 12 Oct 2014 13:20:17 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id z10so4371544pdj.40
-        for <linux-mm@kvack.org>; Sun, 12 Oct 2014 10:20:16 -0700 (PDT)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id aj8si8436232pad.241.2014.10.12.10.20.15
-        for <linux-mm@kvack.org>;
-        Sun, 12 Oct 2014 10:20:16 -0700 (PDT)
-Date: Sun, 12 Oct 2014 13:20:12 -0400 (EDT)
-Message-Id: <20141012.132012.254712930139255731.davem@davemloft.net>
-Subject: Re: unaligned accesses in SLAB etc.
-From: David Miller <davem@davemloft.net>
+Received: from mail-oi0-f41.google.com (mail-oi0-f41.google.com [209.85.218.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 887AC6B0038
+	for <linux-mm@kvack.org>; Sun, 12 Oct 2014 13:22:16 -0400 (EDT)
+Received: by mail-oi0-f41.google.com with SMTP id u20so11157520oif.0
+        for <linux-mm@kvack.org>; Sun, 12 Oct 2014 10:22:16 -0700 (PDT)
+Received: from mail-oi0-x22f.google.com (mail-oi0-x22f.google.com [2607:f8b0:4003:c06::22f])
+        by mx.google.com with ESMTPS id 1si10926990oia.139.2014.10.12.10.22.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 12 Oct 2014 10:22:15 -0700 (PDT)
+Received: by mail-oi0-f47.google.com with SMTP id a141so11301576oig.6
+        for <linux-mm@kvack.org>; Sun, 12 Oct 2014 10:22:15 -0700 (PDT)
+MIME-Version: 1.0
 In-Reply-To: <20141011.221510.1574777235900788349.davem@davemloft.net>
 References: <20141011.221510.1574777235900788349.davem@davemloft.net>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Date: Mon, 13 Oct 2014 02:22:15 +0900
+Message-ID: <CAAmzW4Nrzp8TKurmevqmAV5kVRP2af1wZKqYcYH9RXroTZavpw@mail.gmail.com>
+Subject: Re: unaligned accesses in SLAB etc.
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, mroos@linux.ee, sparclinux@vger.kernel.org
+To: David Miller <davem@davemloft.net>
+Cc: LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-From: David Miller <davem@davemloft.net>
-Date: Sat, 11 Oct 2014 22:15:10 -0400 (EDT)
-
-> 
+2014-10-12 11:15 GMT+09:00 David Miller <davem@davemloft.net>:
+>
 > I'm getting tons of the following on sparc64:
-> 
+>
 > [603965.383447] Kernel unaligned access at TPC[546b58] free_block+0x98/0x1a0
 > [603965.396987] Kernel unaligned access at TPC[546b60] free_block+0xa0/0x1a0
 > [603965.410523] Kernel unaligned access at TPC[546b58] free_block+0x98/0x1a0
+> [603965.424061] Kernel unaligned access at TPC[546b60] free_block+0xa0/0x1a0
+> [603965.437617] Kernel unaligned access at TPC[546b58] free_block+0x98/0x1a0
+> [603970.554394] log_unaligned: 333 callbacks suppressed
+> [603970.564041] Kernel unaligned access at TPC[546b58] free_block+0x98/0x1a0
+> [603970.577576] Kernel unaligned access at TPC[546b60] free_block+0xa0/0x1a0
+> [603970.591122] Kernel unaligned access at TPC[546b58] free_block+0x98/0x1a0
+> [603970.604669] Kernel unaligned access at TPC[546b60] free_block+0xa0/0x1a0
+> [603970.618216] Kernel unaligned access at TPC[546b58] free_block+0x98/0x1a0
+> [603976.515633] log_unaligned: 31 callbacks suppressed
+> [603976.525092] Kernel unaligned access at TPC[548080] cache_alloc_refill+0x180/0x3a0
+> [603976.540196] Kernel unaligned access at TPC[548080] cache_alloc_refill+0x180/0x3a0
+> [603976.555308] Kernel unaligned access at TPC[548080] cache_alloc_refill+0x180/0x3a0
+> [603976.570411] Kernel unaligned access at TPC[548080] cache_alloc_refill+0x180/0x3a0
+> [603976.585526] Kernel unaligned access at TPC[548080] cache_alloc_refill+0x180/0x3a0
+> [603982.476424] log_unaligned: 43 callbacks suppressed
+> [603982.485881] Kernel unaligned access at TPC[549378] kmem_cache_alloc+0xd8/0x1e0
+> [603982.501590] Kernel unaligned access at TPC[5470a8] kmem_cache_free+0xc8/0x200
+> [603982.501605] Kernel unaligned access at TPC[549378] kmem_cache_alloc+0xd8/0x1e0
+> [603982.530382] Kernel unaligned access at TPC[5470a8] kmem_cache_free+0xc8/0x200
+> [603982.544820] Kernel unaligned access at TPC[549378] kmem_cache_alloc+0xd8/0x1e0
+> [603987.567130] log_unaligned: 11 callbacks suppressed
+> [603987.576582] Kernel unaligned access at TPC[548080] cache_alloc_refill+0x180/0x3a0
+> [603987.591696] Kernel unaligned access at TPC[548080] cache_alloc_refill+0x180/0x3a0
+> [603987.606811] Kernel unaligned access at TPC[548080] cache_alloc_refill+0x180/0x3a0
+> [603987.621904] Kernel unaligned access at TPC[548080] cache_alloc_refill+0x180/0x3a0
+> [603987.637017] Kernel unaligned access at TPC[548080] cache_alloc_refill+0x180/0x3a0
 
-The unaligned accesses are happening in the SLAB_OBJ_PFMEMALLOC code,
-which assumes that all object pointers are "unsigned long" aligned:
+Hello,
 
-static inline void set_obj_pfmemalloc(void **objp)
-{
-        *objp = (void *)((unsigned long)*objp | SLAB_OBJ_PFMEMALLOC);
-        return;
-}
+Could you test below patch?
+If it fixes your problem, I will send it with proper description.
 
-etc. etc.
+Thanks.
 
-But that code has been there working forever.  Something changed
-recently such that this assumption no longer holds.
+---------->8----------------
+diff --git a/mm/slab.c b/mm/slab.c
+index 154aac8..eb2b2ea 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1992,7 +1992,7 @@ static struct array_cache __percpu *alloc_kmem_cache_cpus(
+        struct array_cache __percpu *cpu_cache;
 
-In all of the cases, the address is 4-byte aligned but not 8-byte
-aligned.  And they are vmalloc addresses.
+        size = sizeof(void *) * entries + sizeof(struct array_cache);
+-       cpu_cache = __alloc_percpu(size, 0);
++       cpu_cache = __alloc_percpu(size, sizeof(void *));
 
-Which made me suspect the percpu commit:
-
-====================
-commit bf0dea23a9c094ae869a88bb694fbe966671bf6d
-Author: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Date:   Thu Oct 9 15:26:27 2014 -0700
-
-    mm/slab: use percpu allocator for cpu cache
-====================
-
-And indeed, reverting this commit fixes the problem.
+        if (!cpu_cache)
+                return NULL;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
