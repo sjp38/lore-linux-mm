@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 09560900017
-	for <linux-mm@kvack.org>; Sun, 12 Oct 2014 00:51:58 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id fp1so3795742pdb.25
-        for <linux-mm@kvack.org>; Sat, 11 Oct 2014 21:51:58 -0700 (PDT)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id EDB30900017
+	for <linux-mm@kvack.org>; Sun, 12 Oct 2014 00:51:59 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id eu11so4060286pac.35
+        for <linux-mm@kvack.org>; Sat, 11 Oct 2014 21:51:59 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id hn2si7395970pbc.82.2014.10.11.21.51.55
+        by mx.google.com with ESMTP id ov9si7510017pdb.7.2014.10.11.21.51.55
         for <linux-mm@kvack.org>;
         Sat, 11 Oct 2014 21:51:55 -0700 (PDT)
 From: Qiaowei Ren <qiaowei.ren@intel.com>
-Subject: [PATCH v9 09/12] x86, mpx: decode MPX instruction to get bound violation information
-Date: Sun, 12 Oct 2014 12:41:52 +0800
-Message-Id: <1413088915-13428-10-git-send-email-qiaowei.ren@intel.com>
+Subject: [PATCH v9 10/12] x86, mpx: add prctl commands PR_MPX_ENABLE_MANAGEMENT, PR_MPX_DISABLE_MANAGEMENT
+Date: Sun, 12 Oct 2014 12:41:53 +0800
+Message-Id: <1413088915-13428-11-git-send-email-qiaowei.ren@intel.com>
 In-Reply-To: <1413088915-13428-1-git-send-email-qiaowei.ren@intel.com>
 References: <1413088915-13428-1-git-send-email-qiaowei.ren@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,409 +19,489 @@ List-ID: <linux-mm.kvack.org>
 To: "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Dave Hansen <dave.hansen@intel.com>
 Cc: x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org, Qiaowei Ren <qiaowei.ren@intel.com>
 
-This patch sets bound violation fields of siginfo struct in #BR
-exception handler by decoding the user instruction and constructing
-the faulting pointer.
+This patch adds two prctl() commands to provide one explicit interaction
+mechanism to enable or disable the management of bounds tables in kernel,
+including on-demand kernel allocation (See the patch "on-demand kernel
+allocation of bounds tables") and cleanup (See the patch "cleanup unused
+bound tables"). Applications do not strictly need the kernel to manage
+bounds tables and we expect some applications to use MPX without taking
+advantage of the kernel support. This means the kernel can not simply
+infer whether an application needs bounds table management from the
+MPX registers. prctl() is an explicit signal from userspace.
 
-This patch does't use the generic decoder, and implements a limited
-special-purpose decoder to decode MPX instructions, simply because the
-generic decoder is very heavyweight not just in terms of performance
-but in terms of interface -- because it has to.
+PR_MPX_ENABLE_MANAGEMENT is meant to be a signal from userspace to
+require kernel's help in managing bounds tables. And
+PR_MPX_DISABLE_MANAGEMENT is the opposite, meaning that userspace don't
+want kernel's help any more. With PR_MPX_DISABLE_MANAGEMENT, kernel
+won't allocate and free the bounds table, even if the CPU supports MPX
+feature.
+
+PR_MPX_ENABLE_MANAGEMENT will do an xsave and fetch the base address
+of bounds directory from the xsave buffer and then cache it into new
+filed "bd_addr" of struct mm_struct. PR_MPX_DISABLE_MANAGEMENT will
+set "bd_addr" to one invalid address. Then we can check "bd_addr" to
+judge whether the management of bounds tables in kernel is enabled.
+
+xsaves are expensive, so "bd_addr" is kept for caching to reduce the
+number of we have to do at munmap() time. But we still have to do
+xsave to get the value of BNDSTATUS at #BR fault time. In addition,
+with this caching, userspace can't just move the bounds directory
+around willy-nilly. For sane applications, base address of the bounds
+directory won't be changed, otherwise we would be in a world of hurt.
+But we will still check whether it is changed by users at #BR fault
+time.
 
 Signed-off-by: Qiaowei Ren <qiaowei.ren@intel.com>
 ---
- arch/x86/include/asm/mpx.h |   23 ++++
- arch/x86/kernel/mpx.c      |  299 ++++++++++++++++++++++++++++++++++++++++++++
- arch/x86/kernel/traps.c    |    6 +
- 3 files changed, 328 insertions(+), 0 deletions(-)
+ arch/x86/include/asm/mmu_context.h |    9 ++++
+ arch/x86/include/asm/mpx.h         |   11 +++++
+ arch/x86/include/asm/processor.h   |   18 +++++++
+ arch/x86/kernel/mpx.c              |   88 ++++++++++++++++++++++++++++++++++++
+ arch/x86/kernel/setup.c            |    8 +++
+ arch/x86/kernel/traps.c            |   30 ++++++++++++-
+ arch/x86/mm/mpx.c                  |   25 +++-------
+ fs/exec.c                          |    2 +
+ include/asm-generic/mmu_context.h  |    5 ++
+ include/linux/mm_types.h           |    3 +
+ include/uapi/linux/prctl.h         |    6 +++
+ kernel/sys.c                       |   12 +++++
+ 12 files changed, 198 insertions(+), 19 deletions(-)
 
+diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
+index 166af2a..e33ddb7 100644
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -10,6 +10,7 @@
+ #include <asm/pgalloc.h>
+ #include <asm/tlbflush.h>
+ #include <asm/paravirt.h>
++#include <asm/mpx.h>
+ #ifndef CONFIG_PARAVIRT
+ #include <asm-generic/mm_hooks.h>
+ 
+@@ -102,4 +103,12 @@ do {						\
+ } while (0)
+ #endif
+ 
++static inline void arch_bprm_mm_init(struct mm_struct *mm,
++		struct vm_area_struct *vma)
++{
++#ifdef CONFIG_X86_INTEL_MPX
++	mm->bd_addr = MPX_INVALID_BOUNDS_DIR;
++#endif
++}
++
+ #endif /* _ASM_X86_MMU_CONTEXT_H */
 diff --git a/arch/x86/include/asm/mpx.h b/arch/x86/include/asm/mpx.h
-index b7598ac..780af63 100644
+index 780af63..32f13f5 100644
 --- a/arch/x86/include/asm/mpx.h
 +++ b/arch/x86/include/asm/mpx.h
-@@ -3,6 +3,7 @@
- 
- #include <linux/types.h>
+@@ -5,6 +5,12 @@
  #include <asm/ptrace.h>
-+#include <asm/insn.h>
+ #include <asm/insn.h>
  
++/*
++ * NULL is theoretically a valid place to put the bounds
++ * directory, so point this at an invalid address.
++ */
++#define MPX_INVALID_BOUNDS_DIR ((void __user *)-1)
++
  #ifdef CONFIG_X86_64
  
-@@ -44,15 +45,37 @@
+ /* upper 28 bits [47:20] of the virtual address in 64-bit used to
+@@ -43,6 +49,7 @@
+ #define MPX_BT_SIZE_BYTES (1UL<<(MPX_BT_ENTRY_OFFSET+MPX_BT_ENTRY_SHIFT))
+ 
  #define MPX_BNDSTA_ERROR_CODE	0x3
++#define MPX_BNDCFG_ENABLE_FLAG	0x1
  #define MPX_BD_ENTRY_VALID_FLAG	0x1
  
-+struct mpx_insn {
-+	struct insn_field rex_prefix;	/* REX prefix */
-+	struct insn_field modrm;
-+	struct insn_field sib;
-+	struct insn_field displacement;
-+
-+	unsigned char addr_bytes;	/* effective address size */
-+	unsigned char limit;
-+	unsigned char x86_64;
-+
-+	const unsigned char *kaddr;	/* kernel address of insn to analyze */
-+	const unsigned char *next_byte;
-+};
-+
-+#define MAX_MPX_INSN_SIZE	15
-+
+ struct mpx_insn {
+@@ -61,6 +68,10 @@ struct mpx_insn {
+ 
+ #define MAX_MPX_INSN_SIZE	15
+ 
++static inline int kernel_managing_mpx_tables(struct mm_struct *mm)
++{
++	return (mm->bd_addr != MPX_INVALID_BOUNDS_DIR);
++}
  unsigned long mpx_mmap(unsigned long len);
  
  #ifdef CONFIG_X86_INTEL_MPX
- int do_mpx_bt_fault(struct xsave_struct *xsave_buf);
-+void do_mpx_bounds(struct pt_regs *regs, siginfo_t *info,
-+		struct xsave_struct *xsave_buf);
- #else
- static inline int do_mpx_bt_fault(struct xsave_struct *xsave_buf)
- {
- 	return -EINVAL;
- }
-+static inline void do_mpx_bounds(struct pt_regs *regs, siginfo_t *info,
-+		struct xsave_struct *xsave_buf)
-+{
-+}
- #endif /* CONFIG_X86_INTEL_MPX */
+diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
+index 020142f..b35aefa 100644
+--- a/arch/x86/include/asm/processor.h
++++ b/arch/x86/include/asm/processor.h
+@@ -953,6 +953,24 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
+ extern int get_tsc_mode(unsigned long adr);
+ extern int set_tsc_mode(unsigned int val);
  
- #endif /* _ASM_X86_MPX_H */
++/* Register/unregister a process' MPX related resource */
++#define MPX_ENABLE_MANAGEMENT(tsk)	mpx_enable_management((tsk))
++#define MPX_DISABLE_MANAGEMENT(tsk)	mpx_disable_management((tsk))
++
++#ifdef CONFIG_X86_INTEL_MPX
++extern int mpx_enable_management(struct task_struct *tsk);
++extern int mpx_disable_management(struct task_struct *tsk);
++#else
++static inline int mpx_enable_management(struct task_struct *tsk)
++{
++	return -EINVAL;
++}
++static inline int mpx_disable_management(struct task_struct *tsk)
++{
++	return -EINVAL;
++}
++#endif /* CONFIG_X86_INTEL_MPX */
++
+ extern u16 amd_get_nb_id(int cpu);
+ 
+ static inline uint32_t hypervisor_cpuid_base(const char *sig, uint32_t leaves)
 diff --git a/arch/x86/kernel/mpx.c b/arch/x86/kernel/mpx.c
-index 2103b5e..b7e4c0e 100644
+index b7e4c0e..36df3a5 100644
 --- a/arch/x86/kernel/mpx.c
 +++ b/arch/x86/kernel/mpx.c
-@@ -10,6 +10,275 @@
- #include <linux/syscalls.h>
- #include <asm/mpx.h>
+@@ -8,7 +8,78 @@
  
-+enum reg_type {
-+	REG_TYPE_RM = 0,
-+	REG_TYPE_INDEX,
-+	REG_TYPE_BASE,
-+};
+ #include <linux/kernel.h>
+ #include <linux/syscalls.h>
++#include <linux/prctl.h>
+ #include <asm/mpx.h>
++#include <asm/i387.h>
++#include <asm/fpu-internal.h>
 +
-+static unsigned long get_reg(struct mpx_insn *insn, struct pt_regs *regs,
-+			     enum reg_type type)
++static __user void *task_get_bounds_dir(struct task_struct *tsk)
 +{
-+	int regno = 0;
-+	unsigned char modrm = (unsigned char)insn->modrm.value;
-+	unsigned char sib = (unsigned char)insn->sib.value;
++	struct xsave_struct *xsave_buf;
 +
-+	static const int regoff[] = {
-+		offsetof(struct pt_regs, ax),
-+		offsetof(struct pt_regs, cx),
-+		offsetof(struct pt_regs, dx),
-+		offsetof(struct pt_regs, bx),
-+		offsetof(struct pt_regs, sp),
-+		offsetof(struct pt_regs, bp),
-+		offsetof(struct pt_regs, si),
-+		offsetof(struct pt_regs, di),
-+#ifdef CONFIG_X86_64
-+		offsetof(struct pt_regs, r8),
-+		offsetof(struct pt_regs, r9),
-+		offsetof(struct pt_regs, r10),
-+		offsetof(struct pt_regs, r11),
-+		offsetof(struct pt_regs, r12),
-+		offsetof(struct pt_regs, r13),
-+		offsetof(struct pt_regs, r14),
-+		offsetof(struct pt_regs, r15),
-+#endif
-+	};
-+
-+	switch (type) {
-+	case REG_TYPE_RM:
-+		regno = X86_MODRM_RM(modrm);
-+		if (X86_REX_B(insn->rex_prefix.value) == 1)
-+			regno += 8;
-+		break;
-+
-+	case REG_TYPE_INDEX:
-+		regno = X86_SIB_INDEX(sib);
-+		if (X86_REX_X(insn->rex_prefix.value) == 1)
-+			regno += 8;
-+		break;
-+
-+	case REG_TYPE_BASE:
-+		regno = X86_SIB_BASE(sib);
-+		if (X86_REX_B(insn->rex_prefix.value) == 1)
-+			regno += 8;
-+		break;
-+
-+	default:
-+		break;
-+	}
-+
-+	return regs_get_register(regs, regoff[regno]);
-+}
-+
-+/*
-+ * return the address being referenced be instruction
-+ * for rm=3 returning the content of the rm reg
-+ * for rm!=3 calculates the address using SIB and Disp
-+ */
-+static unsigned long get_addr_ref(struct mpx_insn *insn, struct pt_regs *regs)
-+{
-+	unsigned long addr;
-+	unsigned long base;
-+	unsigned long indx;
-+	unsigned char modrm = (unsigned char)insn->modrm.value;
-+	unsigned char sib = (unsigned char)insn->sib.value;
-+
-+	if (X86_MODRM_MOD(modrm) == 3) {
-+		addr = get_reg(insn, regs, REG_TYPE_RM);
-+	} else {
-+		if (insn->sib.nbytes) {
-+			base = get_reg(insn, regs, REG_TYPE_BASE);
-+			indx = get_reg(insn, regs, REG_TYPE_INDEX);
-+			addr = base + indx * (1 << X86_SIB_SCALE(sib));
-+		} else {
-+			addr = get_reg(insn, regs, REG_TYPE_RM);
-+		}
-+		addr += insn->displacement.value;
-+	}
-+
-+	return addr;
-+}
-+
-+/* Verify next sizeof(t) bytes can be on the same instruction */
-+#define validate_next(t, insn, n)	\
-+	((insn)->next_byte + sizeof(t) + n - (insn)->kaddr <= (insn)->limit)
-+
-+#define __get_next(t, insn)		\
-+({					\
-+	t r = *(t *)insn->next_byte;	\
-+	insn->next_byte += sizeof(t);	\
-+	r;				\
-+})
-+
-+#define __peek_next(t, insn)		\
-+({					\
-+	t r = *(t *)insn->next_byte;	\
-+	r;				\
-+})
-+
-+#define get_next(t, insn)		\
-+({					\
-+	if (unlikely(!validate_next(t, insn, 0)))	\
-+		goto err_out;		\
-+	__get_next(t, insn);		\
-+})
-+
-+#define peek_next(t, insn)		\
-+({					\
-+	if (unlikely(!validate_next(t, insn, 0)))	\
-+		goto err_out;		\
-+	__peek_next(t, insn);		\
-+})
-+
-+static void mpx_insn_get_prefixes(struct mpx_insn *insn)
-+{
-+	unsigned char b;
-+
-+	/* Decode legacy prefix and REX prefix */
-+	b = peek_next(unsigned char, insn);
-+	while (b != 0x0f) {
-+		/*
-+		 * look for a rex prefix
-+		 * a REX prefix cannot be followed by a legacy prefix.
-+		 */
-+		if (insn->x86_64 && ((b&0xf0) == 0x40)) {
-+			insn->rex_prefix.value = b;
-+			insn->rex_prefix.nbytes = 1;
-+			insn->next_byte++;
-+			break;
-+		}
-+
-+		/* check the other legacy prefixes */
-+		switch (b) {
-+		case 0xf2:
-+		case 0xf3:
-+		case 0xf0:
-+		case 0x64:
-+		case 0x65:
-+		case 0x2e:
-+		case 0x3e:
-+		case 0x26:
-+		case 0x36:
-+		case 0x66:
-+		case 0x67:
-+			insn->next_byte++;
-+			break;
-+		default: /* everything else is garbage */
-+			goto err_out;
-+		}
-+		b = peek_next(unsigned char, insn);
-+	}
-+
-+err_out:
-+	return;
-+}
-+
-+static void mpx_insn_get_modrm(struct mpx_insn *insn)
-+{
-+	insn->modrm.value = get_next(unsigned char, insn);
-+	insn->modrm.nbytes = 1;
-+
-+err_out:
-+	return;
-+}
-+
-+static void mpx_insn_get_sib(struct mpx_insn *insn)
-+{
-+	unsigned char modrm = (unsigned char)insn->modrm.value;
-+
-+	if (X86_MODRM_MOD(modrm) != 3 && X86_MODRM_RM(modrm) == 4) {
-+		insn->sib.value = get_next(unsigned char, insn);
-+		insn->sib.nbytes = 1;
-+	}
-+
-+err_out:
-+	return;
-+}
-+
-+static void mpx_insn_get_displacement(struct mpx_insn *insn)
-+{
-+	unsigned char mod, rm, base;
++	if (!cpu_feature_enabled(X86_FEATURE_MPX))
++		return MPX_INVALID_BOUNDS_DIR;
 +
 +	/*
-+	 * Interpreting the modrm byte:
-+	 * mod = 00 - no displacement fields (exceptions below)
-+	 * mod = 01 - 1-byte displacement field
-+	 * mod = 10 - displacement field is 4 bytes
-+	 * mod = 11 - no memory operand
++	 * The bounds directory pointer is stored in a register
++	 * only accessible if we first do an xsave.
++	 */
++	fpu_xsave(&tsk->thread.fpu);
++	xsave_buf = &(tsk->thread.fpu.state->xsave);
++
++	/*
++	 * Make sure the register looks valid by checking the
++	 * enable bit.
++	 */
++	if (!(xsave_buf->bndcsr.bndcfgu & MPX_BNDCFG_ENABLE_FLAG))
++		return MPX_INVALID_BOUNDS_DIR;
++
++	/*
++	 * Lastly, mask off the low bits used for configuration
++	 * flags, and return the address of the bounds table.
++	 */
++	return (void __user *)(unsigned long)
++		(xsave_buf->bndcsr.bndcfgu & MPX_BNDCFG_ADDR_MASK);
++}
++
++int mpx_enable_management(struct task_struct *tsk)
++{
++	struct mm_struct *mm = tsk->mm;
++	void __user *bd_base = MPX_INVALID_BOUNDS_DIR;
++	int ret = 0;
++
++	/*
++	 * runtime in the userspace will be responsible for allocation of
++	 * the bounds directory. Then, it will save the base of the bounds
++	 * directory into XSAVE/XRSTOR Save Area and enable MPX through
++	 * XRSTOR instruction.
 +	 *
-+	 * mod != 11, r/m = 100 - SIB byte exists
-+	 * mod = 00, SIB base = 101 - displacement field is 4 bytes
-+	 * mod = 00, r/m = 101 - rip-relative addressing, displacement
-+	 *	field is 4 bytes
++	 * fpu_xsave() is expected to be very expensive. Storing the bounds
++	 * directory here means that we do not have to do xsave in the unmap
++	 * path; we can just use mm->bd_addr instead.
 +	 */
-+	mod = X86_MODRM_MOD(insn->modrm.value);
-+	rm = X86_MODRM_RM(insn->modrm.value);
-+	base = X86_SIB_BASE(insn->sib.value);
-+	if (mod == 3)
-+		return;
-+	if (mod == 1) {
-+		insn->displacement.value = get_next(unsigned char, insn);
-+		insn->displacement.nbytes = 1;
-+	} else if ((mod == 0 && rm == 5) || mod == 2 ||
-+			(mod == 0 && base == 5)) {
-+		insn->displacement.value = get_next(int, insn);
-+		insn->displacement.nbytes = 4;
-+	}
++	bd_base = task_get_bounds_dir(tsk);
++	down_write(&mm->mmap_sem);
++	mm->bd_addr = bd_base;
++	if (mm->bd_addr == MPX_INVALID_BOUNDS_DIR)
++		ret = -ENXIO;
 +
-+err_out:
-+	return;
++	up_write(&mm->mmap_sem);
++	return ret;
 +}
 +
-+static void mpx_insn_init(struct mpx_insn *insn, struct pt_regs *regs)
++int mpx_disable_management(struct task_struct *tsk)
 +{
-+	unsigned char buf[MAX_MPX_INSN_SIZE];
-+	int bytes;
++	struct mm_struct *mm = current->mm;
 +
-+	memset(insn, 0, sizeof(*insn));
++	if (!cpu_feature_enabled(X86_FEATURE_MPX))
++		return -ENXIO;
 +
-+	bytes = copy_from_user(buf, (void __user *)regs->ip, MAX_MPX_INSN_SIZE);
-+	insn->limit = MAX_MPX_INSN_SIZE - bytes;
-+	insn->kaddr = buf;
-+	insn->next_byte = buf;
-+
-+	/*
-+	 * In 64-bit Mode, all Intel MPX instructions use 64-bit
-+	 * operands for bounds and 64 bit addressing, i.e. REX.W &
-+	 * 67H have no effect on data or address size.
-+	 *
-+	 * In compatibility and legacy modes (including 16-bit code
-+	 * segments, real and virtual 8086 modes) all Intel MPX
-+	 * instructions use 32-bit operands for bounds and 32 bit
-+	 * addressing.
-+	 */
-+#ifdef CONFIG_X86_64
-+	insn->x86_64 = 1;
-+	insn->addr_bytes = 8;
-+#else
-+	insn->x86_64 = 0;
-+	insn->addr_bytes = 4;
-+#endif
++	down_write(&mm->mmap_sem);
++	mm->bd_addr = MPX_INVALID_BOUNDS_DIR;
++	up_write(&mm->mmap_sem);
++	return 0;
 +}
-+
-+static unsigned long mpx_insn_decode(struct mpx_insn *insn,
-+				     struct pt_regs *regs)
-+{
-+	mpx_insn_init(insn, regs);
-+
-+	/*
-+	 * In this case, we only need decode bndcl/bndcn/bndcu,
-+	 * so we can use private diassembly interfaces to get
-+	 * prefixes, modrm, sib, displacement, etc..
-+	 */
-+	mpx_insn_get_prefixes(insn);
-+	insn->next_byte += 2; /* ignore opcode */
-+	mpx_insn_get_modrm(insn);
-+	mpx_insn_get_sib(insn);
-+	mpx_insn_get_displacement(insn);
-+
-+	return get_addr_ref(insn, regs);
-+}
-+
- /*
+ 
+ enum reg_type {
+ 	REG_TYPE_RM = 0,
+@@ -283,6 +354,9 @@ static unsigned long mpx_insn_decode(struct mpx_insn *insn,
   * With 32-bit mode, MPX_BT_SIZE_BYTES is 4MB, and the size of each
   * bounds table is 16KB. With 64-bit mode, MPX_BT_SIZE_BYTES is 2GB,
-@@ -99,3 +368,33 @@ int do_mpx_bt_fault(struct xsave_struct *xsave_buf)
+  * and the size of each bounds table is 4MB.
++ *
++ * This function will be called holding mmap_sem for write. And it
++ * will downgrade this write lock to read lock.
+  */
+ static int allocate_bt(long __user *bd_entry)
+ {
+@@ -304,6 +378,11 @@ static int allocate_bt(long __user *bd_entry)
+ 	bt_addr = bt_addr | MPX_BD_ENTRY_VALID_FLAG;
  
- 	return allocate_bt((long __user *)bd_entry);
- }
+ 	/*
++	 * Access to the bounds directory possibly fault, so we
++	 * need to downgrade write lock to read lock.
++	 */
++	downgrade_write(&current->mm->mmap_sem);
++	/*
+ 	 * Go poke the address of the new bounds table in to the
+ 	 * bounds directory entry out in userspace memory.  Note:
+ 	 * we may race with another CPU instantiating the same table.
+@@ -351,6 +430,15 @@ int do_mpx_bt_fault(struct xsave_struct *xsave_buf)
+ 	unsigned long bd_entry, bd_base;
+ 
+ 	bd_base = xsave_buf->bndcsr.bndcfgu & MPX_BNDCFG_ADDR_MASK;
 +
-+/*
-+ * If a bounds overflow occurs then a #BR is generated. The fault
-+ * handler will decode MPX instructions to get violation address
-+ * and set this address into extended struct siginfo.
-+ */
-+void do_mpx_bounds(struct pt_regs *regs, siginfo_t *info,
-+		struct xsave_struct *xsave_buf)
-+{
-+	struct mpx_insn insn;
-+	uint8_t bndregno;
-+	unsigned long addr_vio;
-+
-+	addr_vio = mpx_insn_decode(&insn, regs);
-+
-+	bndregno = X86_MODRM_REG(insn.modrm.value);
-+	if (bndregno > 3)
-+		return;
-+
-+	/* Note: the upper 32 bits are ignored in 32-bit mode. */
-+	info->si_lower = (void __user *)(unsigned long)
-+		(xsave_buf->bndregs.bndregs[2*bndregno]);
-+	info->si_upper = (void __user *)(unsigned long)
-+		(~xsave_buf->bndregs.bndregs[2*bndregno+1]);
-+	info->si_addr_lsb = 0;
-+	info->si_signo = SIGSEGV;
-+	info->si_errno = 0;
-+	info->si_code = SEGV_BNDERR;
-+	info->si_addr = (void __user *)addr_vio;
-+}
++	/*
++	 * Make sure the bounds directory being pointed to by the
++	 * configuration register agrees with the place userspace
++	 * told us it was going to be. Otherwise, this -EINVAL return
++	 * will cause a one SIGSEGV.
++	 */
++	if (bd_base != (unsigned long)current->mm->bd_addr)
++		return -EINVAL;
+ 	status = xsave_buf->bndcsr.bndstatus;
+ 
+ 	/*
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index 41ead8d..8a58c98 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -110,6 +110,7 @@
+ #include <asm/mce.h>
+ #include <asm/alternative.h>
+ #include <asm/prom.h>
++#include <asm/mpx.h>
+ 
+ /*
+  * max_low_pfn_mapped: highest direct mapped pfn under 4GB
+@@ -950,6 +951,13 @@ void __init setup_arch(char **cmdline_p)
+ 	init_mm.end_code = (unsigned long) _etext;
+ 	init_mm.end_data = (unsigned long) _edata;
+ 	init_mm.brk = _brk_end;
++#ifdef CONFIG_X86_INTEL_MPX
++	/*
++	 * NULL is theoretically a valid place to put the bounds
++	 * directory, so point this at an invalid address.
++	 */
++	init_mm.bd_addr = MPX_INVALID_BOUNDS_DIR;
++#endif
+ 
+ 	code_resource.start = __pa_symbol(_text);
+ 	code_resource.end = __pa_symbol(_etext)-1;
 diff --git a/arch/x86/kernel/traps.c b/arch/x86/kernel/traps.c
-index 611b6ec..b2a916b 100644
+index b2a916b..5e5b299 100644
 --- a/arch/x86/kernel/traps.c
 +++ b/arch/x86/kernel/traps.c
-@@ -284,6 +284,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
- 	unsigned long status;
+@@ -285,6 +285,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
  	struct xsave_struct *xsave_buf;
  	struct task_struct *tsk = current;
-+	siginfo_t info;
+ 	siginfo_t info;
++	int ret = 0;
  
  	prev_state = exception_enter();
  	if (notify_die(DIE_TRAP, "bounds", regs, error_code,
-@@ -316,6 +317,11 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
+@@ -312,8 +313,35 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
+ 	 */
+ 	switch (status & MPX_BNDSTA_ERROR_CODE) {
+ 	case 2: /* Bound directory has invalid entry. */
+-		if (do_mpx_bt_fault(xsave_buf))
++		down_write(&current->mm->mmap_sem);
++		/*
++		 * Userspace never asked us to manage the bounds tables,
++		 * so refuse to help.
++		 */
++		if (!kernel_managing_mpx_tables(current->mm)) {
++			do_trap(X86_TRAP_BR, SIGSEGV, "bounds", regs,
++					error_code, NULL);
++			up_write(&current->mm->mmap_sem);
++			goto exit;
++		}
++
++		ret = do_mpx_bt_fault(xsave_buf);
++		if (!ret || ret == -EFAULT) {
++			/*
++			 * Successfully handle bounds table fault, or the
++			 * cmpxchg which updates bounds directory entry
++			 * fails.
++			 *
++			 * For this case, write lock has been downgraded
++			 * to read lock in allocate_bt() called by
++			 * do_mpx_bt_fault().
++			 */
++			up_read(&current->mm->mmap_sem);
++			goto exit;
++		}
++		if (ret)
+ 			force_sig(SIGSEGV, tsk);
++		up_write(&current->mm->mmap_sem);
  		break;
  
  	case 1: /* Bound violation. */
-+		do_mpx_bounds(regs, &info, xsave_buf);
-+		do_trap(X86_TRAP_BR, SIGSEGV, "bounds", regs,
-+				error_code, &info);
-+		break;
+diff --git a/arch/x86/mm/mpx.c b/arch/x86/mm/mpx.c
+index e1b28e6..376f2ee 100644
+--- a/arch/x86/mm/mpx.c
++++ b/arch/x86/mm/mpx.c
+@@ -33,22 +33,16 @@ unsigned long mpx_mmap(unsigned long len)
+ 	if (len != MPX_BD_SIZE_BYTES && len != MPX_BT_SIZE_BYTES)
+ 		return -EINVAL;
+ 
+-	down_write(&mm->mmap_sem);
+-
+ 	/* Too many mappings? */
+-	if (mm->map_count > sysctl_max_map_count) {
+-		ret = -ENOMEM;
+-		goto out;
+-	}
++	if (mm->map_count > sysctl_max_map_count)
++		return -ENOMEM;
+ 
+ 	/* Obtain the address to map to. we verify (or select) it and ensure
+ 	 * that it represents a valid section of the address space.
+ 	 */
+ 	addr = get_unmapped_area(NULL, 0, len, 0, MAP_ANONYMOUS | MAP_PRIVATE);
+-	if (addr & ~PAGE_MASK) {
+-		ret = addr;
+-		goto out;
+-	}
++	if (addr & ~PAGE_MASK)
++		return addr;
+ 
+ 	vm_flags = VM_READ | VM_WRITE | VM_MPX |
+ 			mm->def_flags | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
+@@ -58,22 +52,17 @@ unsigned long mpx_mmap(unsigned long len)
+ 
+ 	ret = mmap_region(NULL, addr, len, vm_flags, pgoff);
+ 	if (IS_ERR_VALUE(ret))
+-		goto out;
++		return ret;
+ 
+ 	vma = find_vma(mm, ret);
+-	if (!vma) {
+-		ret = -ENOMEM;
+-		goto out;
+-	}
++	if (!vma)
++		return -ENOMEM;
+ 	vma->vm_ops = &mpx_vma_ops;
+ 
+ 	if (vm_flags & VM_LOCKED) {
+ 		up_write(&mm->mmap_sem);
+ 		mm_populate(ret, len);
+-		return ret;
+ 	}
+ 
+-out:
+-	up_write(&mm->mmap_sem);
+ 	return ret;
+ }
+diff --git a/fs/exec.c b/fs/exec.c
+index a2b42a9..16d1606 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -60,6 +60,7 @@
+ #include <asm/uaccess.h>
+ #include <asm/mmu_context.h>
+ #include <asm/tlb.h>
++#include <asm/mpx.h>
+ 
+ #include <trace/events/task.h>
+ #include "internal.h"
+@@ -277,6 +278,7 @@ static int __bprm_mm_init(struct linux_binprm *bprm)
+ 		goto err;
+ 
+ 	mm->stack_vm = mm->total_vm = 1;
++	arch_bprm_mm_init(mm, vma);
+ 	up_write(&mm->mmap_sem);
+ 	bprm->p = vma->vm_end - sizeof(void *);
+ 	return 0;
+diff --git a/include/asm-generic/mmu_context.h b/include/asm-generic/mmu_context.h
+index a7eec91..1f2a8f9 100644
+--- a/include/asm-generic/mmu_context.h
++++ b/include/asm-generic/mmu_context.h
+@@ -42,4 +42,9 @@ static inline void activate_mm(struct mm_struct *prev_mm,
+ {
+ }
+ 
++static inline void arch_bprm_mm_init(struct mm_struct *mm,
++			struct vm_area_struct *vma)
++{
++}
 +
- 	case 0: /* No exception caused by Intel MPX operations. */
- 		do_trap(X86_TRAP_BR, SIGSEGV, "bounds", regs, error_code, NULL);
+ #endif /* __ASM_GENERIC_MMU_CONTEXT_H */
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 6e0b286..760aee3 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -454,6 +454,9 @@ struct mm_struct {
+ 	bool tlb_flush_pending;
+ #endif
+ 	struct uprobes_state uprobes_state;
++#ifdef CONFIG_X86_INTEL_MPX
++	void __user *bd_addr;		/* address of the bounds directory */
++#endif
+ };
+ 
+ static inline void mm_init_cpumask(struct mm_struct *mm)
+diff --git a/include/uapi/linux/prctl.h b/include/uapi/linux/prctl.h
+index 58afc04..b7a8cf4 100644
+--- a/include/uapi/linux/prctl.h
++++ b/include/uapi/linux/prctl.h
+@@ -152,4 +152,10 @@
+ #define PR_SET_THP_DISABLE	41
+ #define PR_GET_THP_DISABLE	42
+ 
++/*
++ * Tell the kernel to start/stop helping userspace manage bounds tables.
++ */
++#define PR_MPX_ENABLE_MANAGEMENT  43
++#define PR_MPX_DISABLE_MANAGEMENT 44
++
+ #endif /* _LINUX_PRCTL_H */
+diff --git a/kernel/sys.c b/kernel/sys.c
+index b663664..4713585 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -91,6 +91,12 @@
+ #ifndef SET_TSC_CTL
+ # define SET_TSC_CTL(a)		(-EINVAL)
+ #endif
++#ifndef MPX_ENABLE_MANAGEMENT
++# define MPX_ENABLE_MANAGEMENT(a)	(-EINVAL)
++#endif
++#ifndef MPX_DISABLE_MANAGEMENT
++# define MPX_DISABLE_MANAGEMENT(a)	(-EINVAL)
++#endif
+ 
+ /*
+  * this is where the system-wide overflow UID and GID are defined, for
+@@ -2009,6 +2015,12 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
+ 			me->mm->def_flags &= ~VM_NOHUGEPAGE;
+ 		up_write(&me->mm->mmap_sem);
+ 		break;
++	case PR_MPX_ENABLE_MANAGEMENT:
++		error = MPX_ENABLE_MANAGEMENT(me);
++		break;
++	case PR_MPX_DISABLE_MANAGEMENT:
++		error = MPX_DISABLE_MANAGEMENT(me);
++		break;
+ 	default:
+ 		error = -EINVAL;
  		break;
 -- 
 1.7.1
