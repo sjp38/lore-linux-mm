@@ -1,72 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id D80ED6B0069
-	for <linux-mm@kvack.org>; Mon, 13 Oct 2014 15:07:44 -0400 (EDT)
-Received: by mail-ig0-f176.google.com with SMTP id hn15so11600908igb.15
-        for <linux-mm@kvack.org>; Mon, 13 Oct 2014 12:07:44 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0125.hostedemail.com. [216.40.44.125])
-        by mx.google.com with ESMTP id h10si1034015igt.36.2014.10.13.12.07.43
+Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
+	by kanga.kvack.org (Postfix) with ESMTP id E62386B0069
+	for <linux-mm@kvack.org>; Mon, 13 Oct 2014 16:22:40 -0400 (EDT)
+Received: by mail-la0-f44.google.com with SMTP id hs14so7376254lab.3
+        for <linux-mm@kvack.org>; Mon, 13 Oct 2014 13:22:40 -0700 (PDT)
+Received: from smtp2.it.da.ut.ee (smtp2.it.da.ut.ee. [2001:bb8:2002:500:20f:1fff:fe04:1bbb])
+        by mx.google.com with ESMTP id wn2si23703012lbb.96.2014.10.13.13.22.38
         for <linux-mm@kvack.org>;
-        Mon, 13 Oct 2014 12:07:44 -0700 (PDT)
-Message-ID: <1413227261.1287.14.camel@joe-AO725>
-Subject: Re: [PATCH] mm, debug: mm-introduce-vm_bug_on_mm-fix-fix.patch
-From: Joe Perches <joe@perches.com>
-Date: Mon, 13 Oct 2014 12:07:41 -0700
-In-Reply-To: <20141013185156.GA1959@redhat.com>
-References: <5420b8b0.9HdYLyyuTikszzH8%akpm@linux-foundation.org>
-	 <1411464279-20158-1-git-send-email-mhocko@suse.cz>
-	 <20140923112848.GA10046@dhcp22.suse.cz> <20140923201204.GB4252@redhat.com>
-	 <20141013185156.GA1959@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Mon, 13 Oct 2014 13:22:39 -0700 (PDT)
+Date: Mon, 13 Oct 2014 23:22:37 +0300 (EEST)
+From: mroos@linux.ee
+Subject: Re: unaligned accesses in SLAB etc.
+In-Reply-To: <20141012.132012.254712930139255731.davem@davemloft.net>
+Message-ID: <alpine.LRH.2.11.1410132320110.9586@adalberg.ut.ee>
+References: <20141011.221510.1574777235900788349.davem@davemloft.net> <20141012.132012.254712930139255731.davem@davemloft.net>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Sasha Levin <sasha.levin@oracle.com>
+To: David Miller <davem@davemloft.net>
+Cc: Linux Kernel list <linux-kernel@vger.kernel.org>, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org
 
-On Mon, 2014-10-13 at 14:51 -0400, Dave Jones wrote:
-> On Tue, Sep 23, 2014 at 04:12:04PM -0400, Dave Jones wrote:
->  > On Tue, Sep 23, 2014 at 01:28:48PM +0200, Michal Hocko wrote:
->  >  > And there is another one hitting during randconfig. The patch makes my
->  >  > eyes bleed but I don't know about other way without breaking out the
->  >  > thing into separate parts sounds worse because we can mix with other
->  >  > messages then.
->  > 
->  > how about something along the lines of..
->  > 
->  >  bufptr = buffer = kmalloc()
-[]
->  > It does introduce an allocation though, which may be problematic
->  > in this situation. Depending how big this gets, perhaps make it static
->  > instead?
+> From: David Miller <davem@davemloft.net>
+> Date: Sat, 11 Oct 2014 22:15:10 -0400 (EDT)
 > 
-> Now that this landed in Linus tree, I took another stab at it.
-> Something like this ? (Untested beyond compiling).
+> > 
+> > I'm getting tons of the following on sparc64:
+> > 
+> > [603965.383447] Kernel unaligned access at TPC[546b58] free_block+0x98/0x1a0
+> > [603965.396987] Kernel unaligned access at TPC[546b60] free_block+0xa0/0x1a0
+> > [603965.410523] Kernel unaligned access at TPC[546b58] free_block+0x98/0x1a0
+
+> In all of the cases, the address is 4-byte aligned but not 8-byte
+> aligned.  And they are vmalloc addresses.
 > 
-> (The diff doesn't really do it justice, it looks a lot easier to read
->  imo after applying).
+> Which made me suspect the percpu commit:
 > 
-> There's still some checkpatch style nits, but this should be a lot
-> more maintainable assuming it works.
+> ====================
+> commit bf0dea23a9c094ae869a88bb694fbe966671bf6d
+> Author: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Date:   Thu Oct 9 15:26:27 2014 -0700
 > 
-> My one open question is do we care that this isn't reentrant ?
-> Do we expect parallel calls to dump_mm from multiple cpus ever ?
+>     mm/slab: use percpu allocator for cpu cache
+> ====================
+> 
+> And indeed, reverting this commit fixes the problem.
 
+I tested Joonsoo Kim's fix and it gets rid of the kernel unaligned 
+access messages, yes.
 
-> diff --git a/mm/debug.c b/mm/debug.c
-[]
-> @@ -164,74 +164,85 @@ void dump_vma(const struct vm_area_struct *vma)
->  }
->  EXPORT_SYMBOL(dump_vma);
->  
-> +static char dumpmm_buffer[4096];
+But the instability on UltraSparc II era machines still remains - 
+occassional Bus Errors during kernel compilation, messages like this:
 
-Given the maximum single printk is 1024 bytes,
-a buffer larger than that 1024 bytes is useless.
+sh[11771]: segfault at ffd6a4d1 ip 00000000f7cc5714 (rpc 00000000f7cc562c) sp 00000000ffd69d90 error 30002 in libc-2.19.so[f7c44000+16a000]
 
-grep LOG_LINE_MAX
-
+-- 
+Meelis Roos (mroos@linux.ee)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
