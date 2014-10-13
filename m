@@ -1,47 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
-	by kanga.kvack.org (Postfix) with ESMTP id F139E6B0069
-	for <linux-mm@kvack.org>; Mon, 13 Oct 2014 11:14:40 -0400 (EDT)
-Received: by mail-la0-f42.google.com with SMTP id mk6so6847906lab.15
-        for <linux-mm@kvack.org>; Mon, 13 Oct 2014 08:14:39 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ir4si22542606lac.116.2014.10.13.08.14.37
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 13 Oct 2014 08:14:37 -0700 (PDT)
-Date: Mon, 13 Oct 2014 17:14:35 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 0/3] OOM vs. freezer interaction fixes
-Message-ID: <20141013151435.GB15129@dhcp22.suse.cz>
-References: <1412777266-8251-1-git-send-email-mhocko@suse.cz>
- <2107592.sy6uXko7kW@vostro.rjw.lan>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2107592.sy6uXko7kW@vostro.rjw.lan>
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 286C66B0069
+	for <linux-mm@kvack.org>; Mon, 13 Oct 2014 12:06:28 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id r10so5751294pdi.24
+        for <linux-mm@kvack.org>; Mon, 13 Oct 2014 09:06:27 -0700 (PDT)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
+        by mx.google.com with ESMTP id sn9si10724953pac.108.2014.10.13.09.06.22
+        for <linux-mm@kvack.org>;
+        Mon, 13 Oct 2014 09:06:22 -0700 (PDT)
+Date: Mon, 13 Oct 2014 12:06:18 -0400 (EDT)
+Message-Id: <20141013.120618.1470323732942174784.davem@davemloft.net>
+Subject: Re: [PATCH V4 1/6] mm: Introduce a general RCU get_user_pages_fast.
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <20141013114428.GA28113@linaro.org>
+References: <87d29w1rf7.fsf@linux.vnet.ibm.com>
+	<20141013.012146.992477977260812742.davem@davemloft.net>
+	<20141013114428.GA28113@linaro.org>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
+To: steve.capper@linaro.org
+Cc: aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, linux@arm.linux.org.uk, linux-arch@vger.kernel.org, linux-mm@kvack.org, will.deacon@arm.com, gary.robertson@linaro.org, christoffer.dall@linaro.org, peterz@infradead.org, anders.roxell@linaro.org, akpm@linux-foundation.org, dann.frazier@canonical.com, mark.rutland@arm.com, mgorman@suse.de, hughd@google.com
 
-On Thu 09-10-14 00:11:33, Rafael J. Wysocki wrote:
-> On Wednesday, October 08, 2014 04:07:43 PM Michal Hocko wrote:
-> > Hi Andrew, Rafael,
-> > 
-> > this has been originally discussed here [1] but didn't lead anywhere AFAICS
-> > so I would like to resurrect them.
-> 
-> OK
-> 
-> So any chance to CC linux-pm too next time?  There are people on that list
-> who may be interested as well and are not in the CC directly either.
+From: Steve Capper <steve.capper@linaro.org>
+Date: Mon, 13 Oct 2014 12:44:28 +0100
 
-Sure, sorry about that! I've simply used the same CC list as the
-previous post without realizing PM list was missing.
+> Also, as a heads up for Sparc. I don't see any definition of
+> __get_user_pages_fast. Does this mean that a futex on THP tail page
+> can cause an infinite loop?
 
--- 
-Michal Hocko
-SUSE Labs
+I have no idea, I didn't realize this was required to be implemented.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
