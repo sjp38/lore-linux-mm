@@ -1,94 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id B4D006B0069
-	for <linux-mm@kvack.org>; Sun, 12 Oct 2014 21:13:40 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id r10so4692602pdi.24
-        for <linux-mm@kvack.org>; Sun, 12 Oct 2014 18:13:40 -0700 (PDT)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id ip5si8887655pbc.246.2014.10.12.18.13.38
-        for <linux-mm@kvack.org>;
-        Sun, 12 Oct 2014 18:13:39 -0700 (PDT)
-Date: Mon, 13 Oct 2014 12:13:15 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v1 5/7] dax: Add huge page fault support
-Message-ID: <20141013011315.GB4503@dastard>
-References: <1412774729-23956-1-git-send-email-matthew.r.wilcox@intel.com>
- <1412774729-23956-6-git-send-email-matthew.r.wilcox@intel.com>
- <20141008201100.GB9232@node.dhcp.inet.fi>
- <20141009204716.GQ5098@wil.cx>
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 32AF56B0069
+	for <linux-mm@kvack.org>; Mon, 13 Oct 2014 01:15:43 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id et14so5242939pad.17
+        for <linux-mm@kvack.org>; Sun, 12 Oct 2014 22:15:42 -0700 (PDT)
+Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com. [202.81.31.143])
+        by mx.google.com with ESMTPS id pp3si9333029pdb.218.2014.10.12.22.15.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 12 Oct 2014 22:15:41 -0700 (PDT)
+Received: from /spool/local
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Mon, 13 Oct 2014 15:15:37 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id BA1A8357804E
+	for <linux-mm@kvack.org>; Mon, 13 Oct 2014 16:15:31 +1100 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay04.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s9D4uu7g21299372
+	for <linux-mm@kvack.org>; Mon, 13 Oct 2014 15:56:56 +1100
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s9D5FUlH025862
+	for <linux-mm@kvack.org>; Mon, 13 Oct 2014 16:15:30 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH V4 1/6] mm: Introduce a general RCU get_user_pages_fast.
+In-Reply-To: <20141002121902.GA2342@redhat.com>
+References: <1411740233-28038-1-git-send-email-steve.capper@linaro.org> <1411740233-28038-2-git-send-email-steve.capper@linaro.org> <20141002121902.GA2342@redhat.com>
+Date: Mon, 13 Oct 2014 10:45:24 +0530
+Message-ID: <87d29w1rf7.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141009204716.GQ5098@wil.cx>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>, Steve Capper <steve.capper@linaro.org>
+Cc: linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, linux@arm.linux.org.uk, linux-arch@vger.kernel.org, linux-mm@kvack.org, will.deacon@arm.com, gary.robertson@linaro.org, christoffer.dall@linaro.org, peterz@infradead.org, anders.roxell@linaro.org, akpm@linux-foundation.org, dann.frazier@canonical.com, mark.rutland@arm.com, mgorman@suse.de, hughd@google.com
 
-On Thu, Oct 09, 2014 at 04:47:16PM -0400, Matthew Wilcox wrote:
-> On Wed, Oct 08, 2014 at 11:11:00PM +0300, Kirill A. Shutemov wrote:
-> > On Wed, Oct 08, 2014 at 09:25:27AM -0400, Matthew Wilcox wrote:
-> > > +	pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-> > > +	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
-> > > +	if (pgoff >= size)
-> > > +		return VM_FAULT_SIGBUS;
-> > > +	/* If the PMD would cover blocks out of the file */
-> > > +	if ((pgoff | PG_PMD_COLOUR) >= size)
-> > > +		return VM_FAULT_FALLBACK;
-> > 
-> > IIUC, zero pading would work too.
-> 
-> The blocks after this file might be allocated to another file already.
-> I suppose we could ask the filesystem if it wants to allocate them to
-> this file.
-> 
-> Dave, Jan, is it acceptable to call get_block() for blocks that extend
-> beyond the current i_size?
+Andrea Arcangeli <aarcange@redhat.com> writes:
 
-In what context? XFS basically does nothing for certain cases (e.g.
-read mapping for direct IO) where zeroes are always going to be
-returned, so essentially filesystems right now may actually just
-return a "hole" for any read mapping request beyond EOF.
+> Hi Steve,
+>
+> On Fri, Sep 26, 2014 at 03:03:48PM +0100, Steve Capper wrote:
+>> This patch provides a general RCU implementation of get_user_pages_fast
+>> that can be used by architectures that perform hardware broadcast of
+>> TLB invalidations.
+>> 
+>> It is based heavily on the PowerPC implementation by Nick Piggin.
+>
+> It'd be nice if you could also at the same time apply it to sparc and
+> powerpc in this same patchset to show the effectiveness of having a
+> generic version. Because if it's not a trivial drop-in replacement,
+> then this should go in arch/arm* instead of mm/gup.c...
 
-If "create" is set, then we'll either create or map existing blocks
-beyond EOF because the we have to reserve space or allocate blocks
-before the EOF gets extended when the write succeeds fully...
+on ppc64 we have one challenge, we do need to support hugepd. At the pmd
+level we can have hugepte, normal pmd pointer or a pointer to hugepage
+directory which is used in case of some sub-architectures/platforms. ie,
+the below part of gup implementation in ppc64
 
-> > > +	if (length < PMD_SIZE)
-> > > +		goto fallback;
-> > > +	if (pfn & PG_PMD_COLOUR)
-> > > +		goto fallback;	/* not aligned */
-> > 
-> > So, are you rely on pure luck to make get_block() allocate 2M aligned pfn?
-> > Not really productive. You would need assistance from fs and
-> > arch_get_unmapped_area() sides.
-> 
-> Certainly ext4 and XFS will align their allocations; if you ask it for a
-> 2MB block, it will try to allocate a 2MB block aligned on a 2MB boundary.
+else if (is_hugepd(pmdp)) {
+	if (!gup_hugepd((hugepd_t *)pmdp, PMD_SHIFT,
+			addr, next, write, pages, nr))
+		return 0;
 
-As a sweeping generalisation, that's wrong. Empty filesystems might
-behave that way, but we don't *guarantee* that this sort of
-alignment will occur.
 
-XFS has several different extent alignment strategies and
-none of them will always work that way. Many of them are dependent
-on mkfs parameters, and even then are used only as *guidelines*.
-Further, alignment is dependent on the size of the write being done
-- on some filesystem configs a 2MB write might be aligned, but on
-others it won't be. More complex still is that mount options can
-change alignment behaviour, as can per-file extent size hints, as
-can truncation that removes post-eof blocks...
-
-IOWs, if you want the filesystem to guarantee alignment to the
-underlying hardware in this way for DAX, we're going to need to make
-some modifications to the allocator alignment strategy.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
