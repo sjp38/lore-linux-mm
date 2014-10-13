@@ -1,103 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 334BB6B0069
-	for <linux-mm@kvack.org>; Mon, 13 Oct 2014 07:30:26 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id ft15so5486566pdb.17
-        for <linux-mm@kvack.org>; Mon, 13 Oct 2014 04:30:25 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id rm10si10184878pab.97.2014.10.13.04.30.24
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 685976B006E
+	for <linux-mm@kvack.org>; Mon, 13 Oct 2014 07:44:37 -0400 (EDT)
+Received: by mail-wi0-f174.google.com with SMTP id h11so3457897wiw.1
+        for <linux-mm@kvack.org>; Mon, 13 Oct 2014 04:44:36 -0700 (PDT)
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com. [209.85.212.179])
+        by mx.google.com with ESMTPS id cq6si12381906wib.34.2014.10.13.04.44.35
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Oct 2014 04:30:25 -0700 (PDT)
-Date: Mon, 13 Oct 2014 22:30:21 +1100
-From: Anton Blanchard <anton@samba.org>
-Subject: [PATCH] mm: page_alloc: Convert boot printks without log level to
- pr_info
-Message-ID: <20141013223021.431284a7@kryten>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 13 Oct 2014 04:44:35 -0700 (PDT)
+Received: by mail-wi0-f179.google.com with SMTP id d1so7180755wiv.6
+        for <linux-mm@kvack.org>; Mon, 13 Oct 2014 04:44:35 -0700 (PDT)
+Date: Mon, 13 Oct 2014 12:44:28 +0100
+From: Steve Capper <steve.capper@linaro.org>
+Subject: Re: [PATCH V4 1/6] mm: Introduce a general RCU get_user_pages_fast.
+Message-ID: <20141013114428.GA28113@linaro.org>
+References: <1411740233-28038-2-git-send-email-steve.capper@linaro.org>
+ <20141002121902.GA2342@redhat.com>
+ <87d29w1rf7.fsf@linux.vnet.ibm.com>
+ <20141013.012146.992477977260812742.davem@davemloft.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141013.012146.992477977260812742.davem@davemloft.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org, riel@redhat.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Miller <davem@davemloft.net>, aneesh.kumar@linux.vnet.ibm.com
+Cc: aarcange@redhat.com, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, linux@arm.linux.org.uk, linux-arch@vger.kernel.org, linux-mm@kvack.org, will.deacon@arm.com, gary.robertson@linaro.org, christoffer.dall@linaro.org, peterz@infradead.org, anders.roxell@linaro.org, akpm@linux-foundation.org, dann.frazier@canonical.com, mark.rutland@arm.com, mgorman@suse.de, hughd@google.com
 
+On Mon, Oct 13, 2014 at 01:21:46AM -0400, David Miller wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> Date: Mon, 13 Oct 2014 10:45:24 +0530
+> 
+> > Andrea Arcangeli <aarcange@redhat.com> writes:
+> > 
+> >> Hi Steve,
+> >>
+> >> On Fri, Sep 26, 2014 at 03:03:48PM +0100, Steve Capper wrote:
+> >>> This patch provides a general RCU implementation of get_user_pages_fast
+> >>> that can be used by architectures that perform hardware broadcast of
+> >>> TLB invalidations.
+> >>> 
+> >>> It is based heavily on the PowerPC implementation by Nick Piggin.
+> >>
+> >> It'd be nice if you could also at the same time apply it to sparc and
+> >> powerpc in this same patchset to show the effectiveness of having a
+> >> generic version. Because if it's not a trivial drop-in replacement,
+> >> then this should go in arch/arm* instead of mm/gup.c...
+> > 
+> > on ppc64 we have one challenge, we do need to support hugepd. At the pmd
+> > level we can have hugepte, normal pmd pointer or a pointer to hugepage
+> > directory which is used in case of some sub-architectures/platforms. ie,
+> > the below part of gup implementation in ppc64
+> > 
+> > else if (is_hugepd(pmdp)) {
+> > 	if (!gup_hugepd((hugepd_t *)pmdp, PMD_SHIFT,
+> > 			addr, next, write, pages, nr))
+> > 		return 0;
+> 
+> Sparc has to deal with the same issue.
 
-Signed-off-by: Anton Blanchard <anton@samba.org>
----
+Hi Aneesh, David,
 
-Index: b/mm/page_alloc.c
-===================================================================
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3894,14 +3894,14 @@ void __ref build_all_zonelists(pg_data_t
- 	else
- 		page_group_by_mobility_disabled = 0;
- 
--	printk("Built %i zonelists in %s order, mobility grouping %s.  "
-+	pr_info("Built %i zonelists in %s order, mobility grouping %s.  "
- 		"Total pages: %ld\n",
- 			nr_online_nodes,
- 			zonelist_order_name[current_zonelist_order],
- 			page_group_by_mobility_disabled ? "off" : "on",
- 			vm_total_pages);
- #ifdef CONFIG_NUMA
--	printk("Policy zone: %s\n", zone_names[policy_zone]);
-+	pr_info("Policy zone: %s\n", zone_names[policy_zone]);
- #endif
- }
- 
-@@ -5333,33 +5333,33 @@ void __init free_area_init_nodes(unsigne
- 	find_zone_movable_pfns_for_nodes();
- 
- 	/* Print out the zone ranges */
--	printk("Zone ranges:\n");
-+	pr_info("Zone ranges:\n");
- 	for (i = 0; i < MAX_NR_ZONES; i++) {
- 		if (i == ZONE_MOVABLE)
- 			continue;
--		printk(KERN_CONT "  %-8s ", zone_names[i]);
-+		pr_info("  %-8s ", zone_names[i]);
- 		if (arch_zone_lowest_possible_pfn[i] ==
- 				arch_zone_highest_possible_pfn[i])
--			printk(KERN_CONT "empty\n");
-+			pr_cont("empty\n");
- 		else
--			printk(KERN_CONT "[mem %0#10lx-%0#10lx]\n",
-+			pr_cont("[mem %0#10lx-%0#10lx]\n",
- 				arch_zone_lowest_possible_pfn[i] << PAGE_SHIFT,
- 				(arch_zone_highest_possible_pfn[i]
- 					<< PAGE_SHIFT) - 1);
- 	}
- 
- 	/* Print out the PFNs ZONE_MOVABLE begins at in each node */
--	printk("Movable zone start for each node\n");
-+	pr_info("Movable zone start for each node\n");
- 	for (i = 0; i < MAX_NUMNODES; i++) {
- 		if (zone_movable_pfn[i])
--			printk("  Node %d: %#010lx\n", i,
-+			pr_info("  Node %d: %#010lx\n", i,
- 			       zone_movable_pfn[i] << PAGE_SHIFT);
- 	}
- 
- 	/* Print out the early node map */
--	printk("Early memory node ranges\n");
-+	pr_info("Early memory node ranges\n");
- 	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid)
--		printk("  node %3d: [mem %#010lx-%#010lx]\n", nid,
-+		pr_info("  node %3d: [mem %#010lx-%#010lx]\n", nid,
- 		       start_pfn << PAGE_SHIFT, (end_pfn << PAGE_SHIFT) - 1);
- 
- 	/* Initialise every node */
-@@ -5495,7 +5495,7 @@ void __init mem_init_print_info(const ch
- 
- #undef	adj_init_size
- 
--	printk("Memory: %luK/%luK available "
-+	pr_info("Memory: %luK/%luK available "
- 	       "(%luK kernel code, %luK rwdata, %luK rodata, "
- 	       "%luK init, %luK bss, %luK reserved"
- #ifdef	CONFIG_HIGHMEM
+Could we add some helpers to mm/gup.c to deal with the hugepage
+directory cases? If my understanding is correct, this arises for
+HugeTLB pages rather than THP? (I should have listed under the
+assumptions made that HugeTLB and THP have the same page table
+entries).
+
+For Sparc, if the huge pte case were to be separated out from the
+normal pte case we could use page_cache_add_speculative rather than
+make repeated calls to page_cache_get_speculative?
+
+Also, as a heads up for Sparc. I don't see any definition of
+__get_user_pages_fast. Does this mean that a futex on THP tail page
+can cause an infinite loop?
+
+I don't have the means to thoroughly test patches for PowerPC and Sparc
+(nor do I have enough knowledge to safely write them). I was going to
+ask if you could please have a go at enabling this for PowerPC and
+Sparc and I could check the ARM side and help out with mm/gup.c?
+
+Cheers,
+-- 
+Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
