@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D1206B006E
-	for <linux-mm@kvack.org>; Mon, 13 Oct 2014 21:46:20 -0400 (EDT)
-Received: by mail-lb0-f176.google.com with SMTP id p9so7513039lbv.35
-        for <linux-mm@kvack.org>; Mon, 13 Oct 2014 18:46:19 -0700 (PDT)
+Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id B86226B0070
+	for <linux-mm@kvack.org>; Mon, 13 Oct 2014 21:46:21 -0400 (EDT)
+Received: by mail-la0-f49.google.com with SMTP id q1so7681690lam.36
+        for <linux-mm@kvack.org>; Mon, 13 Oct 2014 18:46:21 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id ap3si24482777lbc.33.2014.10.13.18.46.17
+        by mx.google.com with ESMTPS id wb3si4567872lbb.112.2014.10.13.18.46.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Oct 2014 18:46:18 -0700 (PDT)
+        Mon, 13 Oct 2014 18:46:19 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 2/3] mm: hugetlb_cgroup: convert to lockless page counters
-Date: Mon, 13 Oct 2014 21:46:02 -0400
-Message-Id: <1413251163-8517-3-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 3/3] kernel: res_counter: remove the unused API
+Date: Mon, 13 Oct 2014 21:46:03 -0400
+Message-Id: <1413251163-8517-4-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1413251163-8517-1-git-send-email-hannes@cmpxchg.org>
 References: <1413251163-8517-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,289 +20,701 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Abandon the spinlock-protected byte counters in favor of the unlocked
-page counters in the hugetlb controller as well.
+All memory accounting and limiting has been switched over to the
+lockless page counters.  Bye, res_counter!
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
+Acked-by: Vladimir Davydov <vdavydov@parallels.com>
 Acked-by: Michal Hocko <mhocko@suse.cz>
 ---
- Documentation/cgroups/hugetlb.txt |   2 +-
- include/linux/hugetlb_cgroup.h    |   1 -
- init/Kconfig                      |   3 +-
- mm/hugetlb_cgroup.c               | 103 +++++++++++++++++++++-----------------
- 4 files changed, 61 insertions(+), 48 deletions(-)
+ Documentation/cgroups/resource_counter.txt | 197 -------------------------
+ include/linux/res_counter.h                | 223 -----------------------------
+ init/Kconfig                               |   6 -
+ kernel/Makefile                            |   1 -
+ kernel/res_counter.c                       | 211 ---------------------------
+ 5 files changed, 638 deletions(-)
+ delete mode 100644 Documentation/cgroups/resource_counter.txt
+ delete mode 100644 include/linux/res_counter.h
+ delete mode 100644 kernel/res_counter.c
 
-diff --git a/Documentation/cgroups/hugetlb.txt b/Documentation/cgroups/hugetlb.txt
-index a9faaca1f029..106245c3aecc 100644
---- a/Documentation/cgroups/hugetlb.txt
-+++ b/Documentation/cgroups/hugetlb.txt
-@@ -29,7 +29,7 @@ Brief summary of control files
- 
-  hugetlb.<hugepagesize>.limit_in_bytes     # set/show limit of "hugepagesize" hugetlb usage
-  hugetlb.<hugepagesize>.max_usage_in_bytes # show max "hugepagesize" hugetlb  usage recorded
-- hugetlb.<hugepagesize>.usage_in_bytes     # show current res_counter usage for "hugepagesize" hugetlb
-+ hugetlb.<hugepagesize>.usage_in_bytes     # show current usage for "hugepagesize" hugetlb
-  hugetlb.<hugepagesize>.failcnt		   # show the number of allocation failure due to HugeTLB limit
- 
- For a system supporting two hugepage size (16M and 16G) the control
-diff --git a/include/linux/hugetlb_cgroup.h b/include/linux/hugetlb_cgroup.h
-index 0129f89cf98d..bcc853eccc85 100644
---- a/include/linux/hugetlb_cgroup.h
-+++ b/include/linux/hugetlb_cgroup.h
-@@ -16,7 +16,6 @@
- #define _LINUX_HUGETLB_CGROUP_H
- 
- #include <linux/mmdebug.h>
--#include <linux/res_counter.h>
- 
- struct hugetlb_cgroup;
- /*
+diff --git a/Documentation/cgroups/resource_counter.txt b/Documentation/cgroups/resource_counter.txt
+deleted file mode 100644
+index 762ca54eb929..000000000000
+--- a/Documentation/cgroups/resource_counter.txt
++++ /dev/null
+@@ -1,197 +0,0 @@
+-
+-		The Resource Counter
+-
+-The resource counter, declared at include/linux/res_counter.h,
+-is supposed to facilitate the resource management by controllers
+-by providing common stuff for accounting.
+-
+-This "stuff" includes the res_counter structure and routines
+-to work with it.
+-
+-
+-
+-1. Crucial parts of the res_counter structure
+-
+- a. unsigned long long usage
+-
+- 	The usage value shows the amount of a resource that is consumed
+-	by a group at a given time. The units of measurement should be
+-	determined by the controller that uses this counter. E.g. it can
+-	be bytes, items or any other unit the controller operates on.
+-
+- b. unsigned long long max_usage
+-
+- 	The maximal value of the usage over time.
+-
+- 	This value is useful when gathering statistical information about
+-	the particular group, as it shows the actual resource requirements
+-	for a particular group, not just some usage snapshot.
+-
+- c. unsigned long long limit
+-
+- 	The maximal allowed amount of resource to consume by the group. In
+-	case the group requests for more resources, so that the usage value
+-	would exceed the limit, the resource allocation is rejected (see
+-	the next section).
+-
+- d. unsigned long long failcnt
+-
+- 	The failcnt stands for "failures counter". This is the number of
+-	resource allocation attempts that failed.
+-
+- c. spinlock_t lock
+-
+- 	Protects changes of the above values.
+-
+-
+-
+-2. Basic accounting routines
+-
+- a. void res_counter_init(struct res_counter *rc,
+-				struct res_counter *rc_parent)
+-
+- 	Initializes the resource counter. As usual, should be the first
+-	routine called for a new counter.
+-
+-	The struct res_counter *parent can be used to define a hierarchical
+-	child -> parent relationship directly in the res_counter structure,
+-	NULL can be used to define no relationship.
+-
+- c. int res_counter_charge(struct res_counter *rc, unsigned long val,
+-				struct res_counter **limit_fail_at)
+-
+-	When a resource is about to be allocated it has to be accounted
+-	with the appropriate resource counter (controller should determine
+-	which one to use on its own). This operation is called "charging".
+-
+-	This is not very important which operation - resource allocation
+-	or charging - is performed first, but
+-	  * if the allocation is performed first, this may create a
+-	    temporary resource over-usage by the time resource counter is
+-	    charged;
+-	  * if the charging is performed first, then it should be uncharged
+-	    on error path (if the one is called).
+-
+-	If the charging fails and a hierarchical dependency exists, the
+-	limit_fail_at parameter is set to the particular res_counter element
+-	where the charging failed.
+-
+- d. u64 res_counter_uncharge(struct res_counter *rc, unsigned long val)
+-
+-	When a resource is released (freed) it should be de-accounted
+-	from the resource counter it was accounted to.  This is called
+-	"uncharging". The return value of this function indicate the amount
+-	of charges still present in the counter.
+-
+-	The _locked routines imply that the res_counter->lock is taken.
+-
+- e. u64 res_counter_uncharge_until
+-		(struct res_counter *rc, struct res_counter *top,
+-		 unsigned long val)
+-
+-	Almost same as res_counter_uncharge() but propagation of uncharge
+-	stops when rc == top. This is useful when kill a res_counter in
+-	child cgroup.
+-
+- 2.1 Other accounting routines
+-
+-    There are more routines that may help you with common needs, like
+-    checking whether the limit is reached or resetting the max_usage
+-    value. They are all declared in include/linux/res_counter.h.
+-
+-
+-
+-3. Analyzing the resource counter registrations
+-
+- a. If the failcnt value constantly grows, this means that the counter's
+-    limit is too tight. Either the group is misbehaving and consumes too
+-    many resources, or the configuration is not suitable for the group
+-    and the limit should be increased.
+-
+- b. The max_usage value can be used to quickly tune the group. One may
+-    set the limits to maximal values and either load the container with
+-    a common pattern or leave one for a while. After this the max_usage
+-    value shows the amount of memory the container would require during
+-    its common activity.
+-
+-    Setting the limit a bit above this value gives a pretty good
+-    configuration that works in most of the cases.
+-
+- c. If the max_usage is much less than the limit, but the failcnt value
+-    is growing, then the group tries to allocate a big chunk of resource
+-    at once.
+-
+- d. If the max_usage is much less than the limit, but the failcnt value
+-    is 0, then this group is given too high limit, that it does not
+-    require. It is better to lower the limit a bit leaving more resource
+-    for other groups.
+-
+-
+-
+-4. Communication with the control groups subsystem (cgroups)
+-
+-All the resource controllers that are using cgroups and resource counters
+-should provide files (in the cgroup filesystem) to work with the resource
+-counter fields. They are recommended to adhere to the following rules:
+-
+- a. File names
+-
+- 	Field name	File name
+-	---------------------------------------------------
+-	usage		usage_in_<unit_of_measurement>
+-	max_usage	max_usage_in_<unit_of_measurement>
+-	limit		limit_in_<unit_of_measurement>
+-	failcnt		failcnt
+-	lock		no file :)
+-
+- b. Reading from file should show the corresponding field value in the
+-    appropriate format.
+-
+- c. Writing to file
+-
+- 	Field		Expected behavior
+-	----------------------------------
+-	usage		prohibited
+-	max_usage	reset to usage
+-	limit		set the limit
+-	failcnt		reset to zero
+-
+-
+-
+-5. Usage example
+-
+- a. Declare a task group (take a look at cgroups subsystem for this) and
+-    fold a res_counter into it
+-
+-	struct my_group {
+-		struct res_counter res;
+-
+-		<other fields>
+-	}
+-
+- b. Put hooks in resource allocation/release paths
+-
+- 	int alloc_something(...)
+-	{
+-		if (res_counter_charge(res_counter_ptr, amount) < 0)
+-			return -ENOMEM;
+-
+-		<allocate the resource and return to the caller>
+-	}
+-
+-	void release_something(...)
+-	{
+-		res_counter_uncharge(res_counter_ptr, amount);
+-
+-		<release the resource>
+-	}
+-
+-    In order to keep the usage value self-consistent, both the
+-    "res_counter_ptr" and the "amount" in release_something() should be
+-    the same as they were in the alloc_something() when the releasing
+-    resource was allocated.
+-
+- c. Provide the way to read res_counter values and set them (the cgroups
+-    still can help with it).
+-
+- c. Compile and run :)
+diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
+deleted file mode 100644
+index 56b7bc32db4f..000000000000
+--- a/include/linux/res_counter.h
++++ /dev/null
+@@ -1,223 +0,0 @@
+-#ifndef __RES_COUNTER_H__
+-#define __RES_COUNTER_H__
+-
+-/*
+- * Resource Counters
+- * Contain common data types and routines for resource accounting
+- *
+- * Copyright 2007 OpenVZ SWsoft Inc
+- *
+- * Author: Pavel Emelianov <xemul@openvz.org>
+- *
+- * See Documentation/cgroups/resource_counter.txt for more
+- * info about what this counter is.
+- */
+-
+-#include <linux/spinlock.h>
+-#include <linux/errno.h>
+-
+-/*
+- * The core object. the cgroup that wishes to account for some
+- * resource may include this counter into its structures and use
+- * the helpers described beyond
+- */
+-
+-struct res_counter {
+-	/*
+-	 * the current resource consumption level
+-	 */
+-	unsigned long long usage;
+-	/*
+-	 * the maximal value of the usage from the counter creation
+-	 */
+-	unsigned long long max_usage;
+-	/*
+-	 * the limit that usage cannot exceed
+-	 */
+-	unsigned long long limit;
+-	/*
+-	 * the limit that usage can be exceed
+-	 */
+-	unsigned long long soft_limit;
+-	/*
+-	 * the number of unsuccessful attempts to consume the resource
+-	 */
+-	unsigned long long failcnt;
+-	/*
+-	 * the lock to protect all of the above.
+-	 * the routines below consider this to be IRQ-safe
+-	 */
+-	spinlock_t lock;
+-	/*
+-	 * Parent counter, used for hierarchial resource accounting
+-	 */
+-	struct res_counter *parent;
+-};
+-
+-#define RES_COUNTER_MAX ULLONG_MAX
+-
+-/**
+- * Helpers to interact with userspace
+- * res_counter_read_u64() - returns the value of the specified member.
+- * res_counter_read/_write - put/get the specified fields from the
+- * res_counter struct to/from the user
+- *
+- * @counter:     the counter in question
+- * @member:  the field to work with (see RES_xxx below)
+- * @buf:     the buffer to opeate on,...
+- * @nbytes:  its size...
+- * @pos:     and the offset.
+- */
+-
+-u64 res_counter_read_u64(struct res_counter *counter, int member);
+-
+-ssize_t res_counter_read(struct res_counter *counter, int member,
+-		const char __user *buf, size_t nbytes, loff_t *pos,
+-		int (*read_strategy)(unsigned long long val, char *s));
+-
+-int res_counter_memparse_write_strategy(const char *buf,
+-					unsigned long long *res);
+-
+-/*
+- * the field descriptors. one for each member of res_counter
+- */
+-
+-enum {
+-	RES_USAGE,
+-	RES_MAX_USAGE,
+-	RES_LIMIT,
+-	RES_FAILCNT,
+-	RES_SOFT_LIMIT,
+-};
+-
+-/*
+- * helpers for accounting
+- */
+-
+-void res_counter_init(struct res_counter *counter, struct res_counter *parent);
+-
+-/*
+- * charge - try to consume more resource.
+- *
+- * @counter: the counter
+- * @val: the amount of the resource. each controller defines its own
+- *       units, e.g. numbers, bytes, Kbytes, etc
+- *
+- * returns 0 on success and <0 if the counter->usage will exceed the
+- * counter->limit
+- *
+- * charge_nofail works the same, except that it charges the resource
+- * counter unconditionally, and returns < 0 if the after the current
+- * charge we are over limit.
+- */
+-
+-int __must_check res_counter_charge(struct res_counter *counter,
+-		unsigned long val, struct res_counter **limit_fail_at);
+-int res_counter_charge_nofail(struct res_counter *counter,
+-		unsigned long val, struct res_counter **limit_fail_at);
+-
+-/*
+- * uncharge - tell that some portion of the resource is released
+- *
+- * @counter: the counter
+- * @val: the amount of the resource
+- *
+- * these calls check for usage underflow and show a warning on the console
+- *
+- * returns the total charges still present in @counter.
+- */
+-
+-u64 res_counter_uncharge(struct res_counter *counter, unsigned long val);
+-
+-u64 res_counter_uncharge_until(struct res_counter *counter,
+-			       struct res_counter *top,
+-			       unsigned long val);
+-/**
+- * res_counter_margin - calculate chargeable space of a counter
+- * @cnt: the counter
+- *
+- * Returns the difference between the hard limit and the current usage
+- * of resource counter @cnt.
+- */
+-static inline unsigned long long res_counter_margin(struct res_counter *cnt)
+-{
+-	unsigned long long margin;
+-	unsigned long flags;
+-
+-	spin_lock_irqsave(&cnt->lock, flags);
+-	if (cnt->limit > cnt->usage)
+-		margin = cnt->limit - cnt->usage;
+-	else
+-		margin = 0;
+-	spin_unlock_irqrestore(&cnt->lock, flags);
+-	return margin;
+-}
+-
+-/**
+- * Get the difference between the usage and the soft limit
+- * @cnt: The counter
+- *
+- * Returns 0 if usage is less than or equal to soft limit
+- * The difference between usage and soft limit, otherwise.
+- */
+-static inline unsigned long long
+-res_counter_soft_limit_excess(struct res_counter *cnt)
+-{
+-	unsigned long long excess;
+-	unsigned long flags;
+-
+-	spin_lock_irqsave(&cnt->lock, flags);
+-	if (cnt->usage <= cnt->soft_limit)
+-		excess = 0;
+-	else
+-		excess = cnt->usage - cnt->soft_limit;
+-	spin_unlock_irqrestore(&cnt->lock, flags);
+-	return excess;
+-}
+-
+-static inline void res_counter_reset_max(struct res_counter *cnt)
+-{
+-	unsigned long flags;
+-
+-	spin_lock_irqsave(&cnt->lock, flags);
+-	cnt->max_usage = cnt->usage;
+-	spin_unlock_irqrestore(&cnt->lock, flags);
+-}
+-
+-static inline void res_counter_reset_failcnt(struct res_counter *cnt)
+-{
+-	unsigned long flags;
+-
+-	spin_lock_irqsave(&cnt->lock, flags);
+-	cnt->failcnt = 0;
+-	spin_unlock_irqrestore(&cnt->lock, flags);
+-}
+-
+-static inline int res_counter_set_limit(struct res_counter *cnt,
+-		unsigned long long limit)
+-{
+-	unsigned long flags;
+-	int ret = -EBUSY;
+-
+-	spin_lock_irqsave(&cnt->lock, flags);
+-	if (cnt->usage <= limit) {
+-		cnt->limit = limit;
+-		ret = 0;
+-	}
+-	spin_unlock_irqrestore(&cnt->lock, flags);
+-	return ret;
+-}
+-
+-static inline int
+-res_counter_set_soft_limit(struct res_counter *cnt,
+-				unsigned long long soft_limit)
+-{
+-	unsigned long flags;
+-
+-	spin_lock_irqsave(&cnt->lock, flags);
+-	cnt->soft_limit = soft_limit;
+-	spin_unlock_irqrestore(&cnt->lock, flags);
+-	return 0;
+-}
+-
+-#endif
 diff --git a/init/Kconfig b/init/Kconfig
-index 3fc577e9de75..d07a1c78d4e7 100644
+index d07a1c78d4e7..2229611528db 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -1058,7 +1058,8 @@ config MEMCG_KMEM
+@@ -979,12 +979,6 @@ config CGROUP_CPUACCT
+ 	  Provides a simple Resource Controller for monitoring the
+ 	  total CPU consumed by the tasks in a cgroup.
  
- config CGROUP_HUGETLB
- 	bool "HugeTLB Resource Controller for Control Groups"
--	depends on RESOURCE_COUNTERS && HUGETLB_PAGE
-+	depends on HUGETLB_PAGE
-+	select PAGE_COUNTER
- 	default n
- 	help
- 	  Provides a cgroup Resource Controller for HugeTLB pages.
-diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
-index a67c26e0f360..037e1c00a5b7 100644
---- a/mm/hugetlb_cgroup.c
-+++ b/mm/hugetlb_cgroup.c
-@@ -14,6 +14,7 @@
-  */
- 
- #include <linux/cgroup.h>
-+#include <linux/page_counter.h>
- #include <linux/slab.h>
- #include <linux/hugetlb.h>
- #include <linux/hugetlb_cgroup.h>
-@@ -23,7 +24,7 @@ struct hugetlb_cgroup {
- 	/*
- 	 * the counter to account for hugepages from hugetlb.
- 	 */
--	struct res_counter hugepage[HUGE_MAX_HSTATE];
-+	struct page_counter hugepage[HUGE_MAX_HSTATE];
- };
- 
- #define MEMFILE_PRIVATE(x, val)	(((x) << 16) | (val))
-@@ -60,7 +61,7 @@ static inline bool hugetlb_cgroup_have_usage(struct hugetlb_cgroup *h_cg)
- 	int idx;
- 
- 	for (idx = 0; idx < hugetlb_max_hstate; idx++) {
--		if ((res_counter_read_u64(&h_cg->hugepage[idx], RES_USAGE)) > 0)
-+		if (page_counter_read(&h_cg->hugepage[idx]))
- 			return true;
- 	}
- 	return false;
-@@ -79,12 +80,12 @@ hugetlb_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
- 
- 	if (parent_h_cgroup) {
- 		for (idx = 0; idx < HUGE_MAX_HSTATE; idx++)
--			res_counter_init(&h_cgroup->hugepage[idx],
--					 &parent_h_cgroup->hugepage[idx]);
-+			page_counter_init(&h_cgroup->hugepage[idx],
-+					  &parent_h_cgroup->hugepage[idx]);
- 	} else {
- 		root_h_cgroup = h_cgroup;
- 		for (idx = 0; idx < HUGE_MAX_HSTATE; idx++)
--			res_counter_init(&h_cgroup->hugepage[idx], NULL);
-+			page_counter_init(&h_cgroup->hugepage[idx], NULL);
- 	}
- 	return &h_cgroup->css;
- }
-@@ -108,9 +109,8 @@ static void hugetlb_cgroup_css_free(struct cgroup_subsys_state *css)
- static void hugetlb_cgroup_move_parent(int idx, struct hugetlb_cgroup *h_cg,
- 				       struct page *page)
- {
--	int csize;
--	struct res_counter *counter;
--	struct res_counter *fail_res;
-+	unsigned int nr_pages;
-+	struct page_counter *counter;
- 	struct hugetlb_cgroup *page_hcg;
- 	struct hugetlb_cgroup *parent = parent_hugetlb_cgroup(h_cg);
- 
-@@ -123,15 +123,15 @@ static void hugetlb_cgroup_move_parent(int idx, struct hugetlb_cgroup *h_cg,
- 	if (!page_hcg || page_hcg != h_cg)
- 		goto out;
- 
--	csize = PAGE_SIZE << compound_order(page);
-+	nr_pages = 1 << compound_order(page);
- 	if (!parent) {
- 		parent = root_h_cgroup;
- 		/* root has no limit */
--		res_counter_charge_nofail(&parent->hugepage[idx],
--					  csize, &fail_res);
-+		page_counter_charge(&parent->hugepage[idx], nr_pages);
- 	}
- 	counter = &h_cg->hugepage[idx];
--	res_counter_uncharge_until(counter, counter->parent, csize);
-+	/* Take the pages off the local counter */
-+	page_counter_cancel(counter, nr_pages);
- 
- 	set_hugetlb_cgroup(page, parent);
- out:
-@@ -166,9 +166,8 @@ int hugetlb_cgroup_charge_cgroup(int idx, unsigned long nr_pages,
- 				 struct hugetlb_cgroup **ptr)
- {
- 	int ret = 0;
--	struct res_counter *fail_res;
-+	struct page_counter *counter;
- 	struct hugetlb_cgroup *h_cg = NULL;
--	unsigned long csize = nr_pages * PAGE_SIZE;
- 
- 	if (hugetlb_cgroup_disabled())
- 		goto done;
-@@ -187,7 +186,7 @@ again:
- 	}
- 	rcu_read_unlock();
- 
--	ret = res_counter_charge(&h_cg->hugepage[idx], csize, &fail_res);
-+	ret = page_counter_try_charge(&h_cg->hugepage[idx], nr_pages, &counter);
- 	css_put(&h_cg->css);
- done:
- 	*ptr = h_cg;
-@@ -213,7 +212,6 @@ void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
- 				  struct page *page)
- {
- 	struct hugetlb_cgroup *h_cg;
--	unsigned long csize = nr_pages * PAGE_SIZE;
- 
- 	if (hugetlb_cgroup_disabled())
- 		return;
-@@ -222,61 +220,76 @@ void hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages,
- 	if (unlikely(!h_cg))
- 		return;
- 	set_hugetlb_cgroup(page, NULL);
--	res_counter_uncharge(&h_cg->hugepage[idx], csize);
-+	page_counter_uncharge(&h_cg->hugepage[idx], nr_pages);
- 	return;
- }
- 
- void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
- 				    struct hugetlb_cgroup *h_cg)
- {
--	unsigned long csize = nr_pages * PAGE_SIZE;
+-config RESOURCE_COUNTERS
+-	bool "Resource counters"
+-	help
+-	  This option enables controller independent resource accounting
+-	  infrastructure that works with cgroups.
 -
- 	if (hugetlb_cgroup_disabled() || !h_cg)
- 		return;
+ config PAGE_COUNTER
+        bool
  
- 	if (huge_page_order(&hstates[idx]) < HUGETLB_CGROUP_MIN_ORDER)
- 		return;
- 
--	res_counter_uncharge(&h_cg->hugepage[idx], csize);
-+	page_counter_uncharge(&h_cg->hugepage[idx], nr_pages);
- 	return;
- }
- 
-+enum {
-+	RES_USAGE,
-+	RES_LIMIT,
-+	RES_MAX_USAGE,
-+	RES_FAILCNT,
-+};
-+
- static u64 hugetlb_cgroup_read_u64(struct cgroup_subsys_state *css,
- 				   struct cftype *cft)
- {
--	int idx, name;
-+	struct page_counter *counter;
- 	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(css);
- 
--	idx = MEMFILE_IDX(cft->private);
--	name = MEMFILE_ATTR(cft->private);
-+	counter = &h_cg->hugepage[MEMFILE_IDX(cft->private)];
- 
--	return res_counter_read_u64(&h_cg->hugepage[idx], name);
-+	switch (MEMFILE_ATTR(cft->private)) {
-+	case RES_USAGE:
-+		return (u64)page_counter_read(counter) * PAGE_SIZE;
-+	case RES_LIMIT:
-+		return (u64)counter->limit * PAGE_SIZE;
-+	case RES_MAX_USAGE:
-+		return (u64)counter->watermark * PAGE_SIZE;
-+	case RES_FAILCNT:
-+		return counter->failcnt;
-+	default:
-+		BUG();
-+	}
- }
- 
-+static DEFINE_MUTEX(hugetlb_limit_mutex);
-+
- static ssize_t hugetlb_cgroup_write(struct kernfs_open_file *of,
- 				    char *buf, size_t nbytes, loff_t off)
- {
--	int idx, name, ret;
--	unsigned long long val;
-+	int ret, idx;
-+	unsigned long nr_pages;
- 	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(of_css(of));
- 
-+	if (hugetlb_cgroup_is_root(h_cg)) /* Can't set limit on root */
-+		return -EINVAL;
-+
- 	buf = strstrip(buf);
-+	ret = page_counter_memparse(buf, &nr_pages);
-+	if (ret)
-+		return ret;
-+
- 	idx = MEMFILE_IDX(of_cft(of)->private);
--	name = MEMFILE_ATTR(of_cft(of)->private);
- 
--	switch (name) {
-+	switch (MEMFILE_ATTR(of_cft(of)->private)) {
- 	case RES_LIMIT:
--		if (hugetlb_cgroup_is_root(h_cg)) {
--			/* Can't set limit on root */
--			ret = -EINVAL;
--			break;
+diff --git a/kernel/Makefile b/kernel/Makefile
+index 726e18443da0..245953354974 100644
+--- a/kernel/Makefile
++++ b/kernel/Makefile
+@@ -58,7 +58,6 @@ obj-$(CONFIG_USER_NS) += user_namespace.o
+ obj-$(CONFIG_PID_NS) += pid_namespace.o
+ obj-$(CONFIG_DEBUG_SYNCHRO_TEST) += synchro-test.o
+ obj-$(CONFIG_IKCONFIG) += configs.o
+-obj-$(CONFIG_RESOURCE_COUNTERS) += res_counter.o
+ obj-$(CONFIG_SMP) += stop_machine.o
+ obj-$(CONFIG_KPROBES_SANITY_TEST) += test_kprobes.o
+ obj-$(CONFIG_AUDIT) += audit.o auditfilter.o
+diff --git a/kernel/res_counter.c b/kernel/res_counter.c
+deleted file mode 100644
+index e791130f85a7..000000000000
+--- a/kernel/res_counter.c
++++ /dev/null
+@@ -1,211 +0,0 @@
+-/*
+- * resource cgroups
+- *
+- * Copyright 2007 OpenVZ SWsoft Inc
+- *
+- * Author: Pavel Emelianov <xemul@openvz.org>
+- *
+- */
+-
+-#include <linux/types.h>
+-#include <linux/parser.h>
+-#include <linux/fs.h>
+-#include <linux/res_counter.h>
+-#include <linux/uaccess.h>
+-#include <linux/mm.h>
+-
+-void res_counter_init(struct res_counter *counter, struct res_counter *parent)
+-{
+-	spin_lock_init(&counter->lock);
+-	counter->limit = RES_COUNTER_MAX;
+-	counter->soft_limit = RES_COUNTER_MAX;
+-	counter->parent = parent;
+-}
+-
+-static u64 res_counter_uncharge_locked(struct res_counter *counter,
+-				       unsigned long val)
+-{
+-	if (WARN_ON(counter->usage < val))
+-		val = counter->usage;
+-
+-	counter->usage -= val;
+-	return counter->usage;
+-}
+-
+-static int res_counter_charge_locked(struct res_counter *counter,
+-				     unsigned long val, bool force)
+-{
+-	int ret = 0;
+-
+-	if (counter->usage + val > counter->limit) {
+-		counter->failcnt++;
+-		ret = -ENOMEM;
+-		if (!force)
+-			return ret;
+-	}
+-
+-	counter->usage += val;
+-	if (counter->usage > counter->max_usage)
+-		counter->max_usage = counter->usage;
+-	return ret;
+-}
+-
+-static int __res_counter_charge(struct res_counter *counter, unsigned long val,
+-				struct res_counter **limit_fail_at, bool force)
+-{
+-	int ret, r;
+-	unsigned long flags;
+-	struct res_counter *c, *u;
+-
+-	r = ret = 0;
+-	*limit_fail_at = NULL;
+-	local_irq_save(flags);
+-	for (c = counter; c != NULL; c = c->parent) {
+-		spin_lock(&c->lock);
+-		r = res_counter_charge_locked(c, val, force);
+-		spin_unlock(&c->lock);
+-		if (r < 0 && !ret) {
+-			ret = r;
+-			*limit_fail_at = c;
+-			if (!force)
+-				break;
 -		}
--		/* This function does all necessary parse...reuse it */
--		ret = res_counter_memparse_write_strategy(buf, &val);
--		if (ret)
--			break;
--		val = ALIGN(val, 1ULL << huge_page_shift(&hstates[idx]));
--		ret = res_counter_set_limit(&h_cg->hugepage[idx], val);
-+		mutex_lock(&hugetlb_limit_mutex);
-+		ret = page_counter_limit(&h_cg->hugepage[idx], nr_pages);
-+		mutex_unlock(&hugetlb_limit_mutex);
- 		break;
- 	default:
- 		ret = -EINVAL;
-@@ -288,18 +301,18 @@ static ssize_t hugetlb_cgroup_write(struct kernfs_open_file *of,
- static ssize_t hugetlb_cgroup_reset(struct kernfs_open_file *of,
- 				    char *buf, size_t nbytes, loff_t off)
- {
--	int idx, name, ret = 0;
-+	int ret = 0;
-+	struct page_counter *counter;
- 	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(of_css(of));
- 
--	idx = MEMFILE_IDX(of_cft(of)->private);
--	name = MEMFILE_ATTR(of_cft(of)->private);
-+	counter = &h_cg->hugepage[MEMFILE_IDX(of_cft(of)->private)];
- 
--	switch (name) {
-+	switch (MEMFILE_ATTR(of_cft(of)->private)) {
- 	case RES_MAX_USAGE:
--		res_counter_reset_max(&h_cg->hugepage[idx]);
-+		page_counter_reset_watermark(counter);
- 		break;
- 	case RES_FAILCNT:
--		res_counter_reset_failcnt(&h_cg->hugepage[idx]);
-+		counter->failcnt = 0;
- 		break;
- 	default:
- 		ret = -EINVAL;
+-	}
+-
+-	if (ret < 0 && !force) {
+-		for (u = counter; u != c; u = u->parent) {
+-			spin_lock(&u->lock);
+-			res_counter_uncharge_locked(u, val);
+-			spin_unlock(&u->lock);
+-		}
+-	}
+-	local_irq_restore(flags);
+-
+-	return ret;
+-}
+-
+-int res_counter_charge(struct res_counter *counter, unsigned long val,
+-			struct res_counter **limit_fail_at)
+-{
+-	return __res_counter_charge(counter, val, limit_fail_at, false);
+-}
+-
+-int res_counter_charge_nofail(struct res_counter *counter, unsigned long val,
+-			      struct res_counter **limit_fail_at)
+-{
+-	return __res_counter_charge(counter, val, limit_fail_at, true);
+-}
+-
+-u64 res_counter_uncharge_until(struct res_counter *counter,
+-			       struct res_counter *top,
+-			       unsigned long val)
+-{
+-	unsigned long flags;
+-	struct res_counter *c;
+-	u64 ret = 0;
+-
+-	local_irq_save(flags);
+-	for (c = counter; c != top; c = c->parent) {
+-		u64 r;
+-		spin_lock(&c->lock);
+-		r = res_counter_uncharge_locked(c, val);
+-		if (c == counter)
+-			ret = r;
+-		spin_unlock(&c->lock);
+-	}
+-	local_irq_restore(flags);
+-	return ret;
+-}
+-
+-u64 res_counter_uncharge(struct res_counter *counter, unsigned long val)
+-{
+-	return res_counter_uncharge_until(counter, NULL, val);
+-}
+-
+-static inline unsigned long long *
+-res_counter_member(struct res_counter *counter, int member)
+-{
+-	switch (member) {
+-	case RES_USAGE:
+-		return &counter->usage;
+-	case RES_MAX_USAGE:
+-		return &counter->max_usage;
+-	case RES_LIMIT:
+-		return &counter->limit;
+-	case RES_FAILCNT:
+-		return &counter->failcnt;
+-	case RES_SOFT_LIMIT:
+-		return &counter->soft_limit;
+-	};
+-
+-	BUG();
+-	return NULL;
+-}
+-
+-ssize_t res_counter_read(struct res_counter *counter, int member,
+-		const char __user *userbuf, size_t nbytes, loff_t *pos,
+-		int (*read_strategy)(unsigned long long val, char *st_buf))
+-{
+-	unsigned long long *val;
+-	char buf[64], *s;
+-
+-	s = buf;
+-	val = res_counter_member(counter, member);
+-	if (read_strategy)
+-		s += read_strategy(*val, s);
+-	else
+-		s += sprintf(s, "%llu\n", *val);
+-	return simple_read_from_buffer((void __user *)userbuf, nbytes,
+-			pos, buf, s - buf);
+-}
+-
+-#if BITS_PER_LONG == 32
+-u64 res_counter_read_u64(struct res_counter *counter, int member)
+-{
+-	unsigned long flags;
+-	u64 ret;
+-
+-	spin_lock_irqsave(&counter->lock, flags);
+-	ret = *res_counter_member(counter, member);
+-	spin_unlock_irqrestore(&counter->lock, flags);
+-
+-	return ret;
+-}
+-#else
+-u64 res_counter_read_u64(struct res_counter *counter, int member)
+-{
+-	return *res_counter_member(counter, member);
+-}
+-#endif
+-
+-int res_counter_memparse_write_strategy(const char *buf,
+-					unsigned long long *resp)
+-{
+-	char *end;
+-	unsigned long long res;
+-
+-	/* return RES_COUNTER_MAX(unlimited) if "-1" is specified */
+-	if (*buf == '-') {
+-		int rc = kstrtoull(buf + 1, 10, &res);
+-
+-		if (rc)
+-			return rc;
+-		if (res != 1)
+-			return -EINVAL;
+-		*resp = RES_COUNTER_MAX;
+-		return 0;
+-	}
+-
+-	res = memparse(buf, &end);
+-	if (*end != '\0')
+-		return -EINVAL;
+-
+-	if (PAGE_ALIGN(res) >= res)
+-		res = PAGE_ALIGN(res);
+-	else
+-		res = RES_COUNTER_MAX;
+-
+-	*resp = res;
+-
+-	return 0;
+-}
 -- 
 2.1.2
 
