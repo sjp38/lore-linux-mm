@@ -1,48 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id A18A06B006C
-	for <linux-mm@kvack.org>; Tue, 14 Oct 2014 13:39:16 -0400 (EDT)
-Received: by mail-wg0-f49.google.com with SMTP id x12so11455052wgg.8
-        for <linux-mm@kvack.org>; Tue, 14 Oct 2014 10:39:15 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.234])
-        by mx.google.com with ESMTP id fq11si22006851wjc.169.2014.10.14.10.39.14
-        for <linux-mm@kvack.org>;
-        Tue, 14 Oct 2014 10:39:14 -0700 (PDT)
-Date: Tue, 14 Oct 2014 20:38:37 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [BUG] mm, thp: khugepaged can't allocate on requested node when
- confined to a cpuset
-Message-ID: <20141014173837.GA8919@node.dhcp.inet.fi>
-References: <20141008191050.GK3778@sgi.com>
- <20141014114828.GA6524@node.dhcp.inet.fi>
- <20141014145435.GA7369@worktop.fdxtended.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141014145435.GA7369@worktop.fdxtended.com>
+Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
+	by kanga.kvack.org (Postfix) with ESMTP id C2FB86B0069
+	for <linux-mm@kvack.org>; Tue, 14 Oct 2014 16:16:53 -0400 (EDT)
+Received: by mail-yk0-f174.google.com with SMTP id 142so4185753ykq.5
+        for <linux-mm@kvack.org>; Tue, 14 Oct 2014 13:16:53 -0700 (PDT)
+Received: from mail-yh0-x24a.google.com (mail-yh0-x24a.google.com [2607:f8b0:4002:c01::24a])
+        by mx.google.com with ESMTPS id g68si31643633yha.193.2014.10.14.13.16.53
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 14 Oct 2014 13:16:53 -0700 (PDT)
+Received: by mail-yh0-f74.google.com with SMTP id f73so901550yha.1
+        for <linux-mm@kvack.org>; Tue, 14 Oct 2014 13:16:52 -0700 (PDT)
+From: Yu Zhao <yuzhao@google.com>
+Subject: [PATCH 1/2] mm: free compound page with correct order
+Date: Tue, 14 Oct 2014 13:16:39 -0700
+Message-Id: <1413317800-25450-1-git-send-email-yuzhao@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Alex Thorlton <athorlton@sgi.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Bob Liu <lliubbo@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, Bob Liu <lliubbo@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yu Zhao <yuzhao@google.com>
 
-On Tue, Oct 14, 2014 at 04:54:35PM +0200, Peter Zijlstra wrote:
-> > Is there a reason why we should respect cpuset limitation for kernel
-> > threads?
-> 
-> Yes, because we want to allow isolating CPUs from 'random' activity.
+Compound page should be freed by put_page() or free_pages() with
+correct order. Not doing so with causing the tail pages leaked.
 
-Okay, it makes sense for cpus_allowed. But we're talking about
-mems_allowed, right?
+The compound order can be obtained by compound_order() or use
+HPAGE_PMD_ORDER in our case. Some people would argue the latter
+is faster but I prefer the former which is more general.
+
+Signed-off-by: Yu Zhao <yuzhao@google.com>
+---
+ mm/huge_memory.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 74c78aa..780d12c 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -200,7 +200,7 @@ retry:
+ 	preempt_disable();
+ 	if (cmpxchg(&huge_zero_page, NULL, zero_page)) {
+ 		preempt_enable();
+-		__free_page(zero_page);
++		__free_pages(zero_page, compound_order(zero_page));
+ 		goto retry;
+ 	}
  
-> 
-> > Should we bypass cpuset for PF_KTHREAD completely?
-> 
-> No. That'll break stuff.
-
-Like what?
-
+@@ -232,7 +232,7 @@ static unsigned long shrink_huge_zero_page_scan(struct shrinker *shrink,
+ 	if (atomic_cmpxchg(&huge_zero_refcount, 1, 0) == 1) {
+ 		struct page *zero_page = xchg(&huge_zero_page, NULL);
+ 		BUG_ON(zero_page == NULL);
+-		__free_page(zero_page);
++		__free_pages(zero_page, compound_order(zero_page));
+ 		return HPAGE_PMD_NR;
+ 	}
+ 
 -- 
- Kirill A. Shutemov
+2.1.0.rc2.206.gedb03e5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
