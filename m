@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E1996B007B
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F14A6B0081
 	for <linux-mm@kvack.org>; Tue, 14 Oct 2014 12:20:56 -0400 (EDT)
-Received: by mail-wi0-f174.google.com with SMTP id h11so7274184wiw.7
-        for <linux-mm@kvack.org>; Tue, 14 Oct 2014 09:20:55 -0700 (PDT)
+Received: by mail-wi0-f177.google.com with SMTP id fb4so10725094wid.4
+        for <linux-mm@kvack.org>; Tue, 14 Oct 2014 09:20:54 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id gw5si16888408wib.44.2014.10.14.09.20.54
+        by mx.google.com with ESMTPS id v9si22966335wjz.0.2014.10.14.09.20.52
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Oct 2014 09:20:54 -0700 (PDT)
+        Tue, 14 Oct 2014 09:20:52 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 5/5] mm: memcontrol: remove synchroneous stock draining code
-Date: Tue, 14 Oct 2014 12:20:37 -0400
-Message-Id: <1413303637-23862-6-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 3/5] mm: memcontrol: remove obsolete kmemcg pinning tricks
+Date: Tue, 14 Oct 2014 12:20:35 -0400
+Message-Id: <1413303637-23862-4-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1413303637-23862-1-git-send-email-hannes@cmpxchg.org>
 References: <1413303637-23862-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,96 +20,212 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vladimir Davydov <vdavydov@parallels.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-With charge reparenting, the last synchroneous stock drainer left.
+As charges now pin the css explicitely, there is no more need for
+kmemcg to acquire a proxy reference for outstanding pages during
+offlining, or maintain state to identify such "dead" groups.
+
+This was the last user of the uncharge functions' return values, so
+remove them as well.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- mm/memcontrol.c | 46 ++++++----------------------------------------
- 1 file changed, 6 insertions(+), 40 deletions(-)
+ include/linux/page_counter.h |  4 +--
+ mm/memcontrol.c              | 74 +-------------------------------------------
+ mm/page_counter.c            | 23 +++-----------
+ 3 files changed, 7 insertions(+), 94 deletions(-)
 
+diff --git a/include/linux/page_counter.h b/include/linux/page_counter.h
+index d92d18949474..a878ef61d073 100644
+--- a/include/linux/page_counter.h
++++ b/include/linux/page_counter.h
+@@ -32,12 +32,12 @@ static inline unsigned long page_counter_read(struct page_counter *counter)
+ 	return atomic_long_read(&counter->count);
+ }
+ 
+-int page_counter_cancel(struct page_counter *counter, unsigned long nr_pages);
++void page_counter_cancel(struct page_counter *counter, unsigned long nr_pages);
+ void page_counter_charge(struct page_counter *counter, unsigned long nr_pages);
+ int page_counter_try_charge(struct page_counter *counter,
+ 			    unsigned long nr_pages,
+ 			    struct page_counter **fail);
+-int page_counter_uncharge(struct page_counter *counter, unsigned long nr_pages);
++void page_counter_uncharge(struct page_counter *counter, unsigned long nr_pages);
+ int page_counter_limit(struct page_counter *counter, unsigned long limit);
+ int page_counter_memparse(const char *buf, unsigned long *nr_pages);
+ 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index ce3ed7cc5c30..ac7d6cefcc63 100644
+index a3feead6be15..7551e12f8ff7 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -634,8 +634,6 @@ static void disarm_static_keys(struct mem_cgroup *memcg)
- 	disarm_kmem_keys(memcg);
+@@ -369,7 +369,6 @@ struct mem_cgroup {
+ /* internal only representation about the status of kmem accounting. */
+ enum {
+ 	KMEM_ACCOUNTED_ACTIVE, /* accounted by this cgroup itself */
+-	KMEM_ACCOUNTED_DEAD, /* dead memcg with pending kmem charges */
+ };
+ 
+ #ifdef CONFIG_MEMCG_KMEM
+@@ -383,22 +382,6 @@ static bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+ 	return test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
  }
  
--static void drain_all_stock_async(struct mem_cgroup *memcg);
--
- static struct mem_cgroup_per_zone *
- mem_cgroup_zone_zoneinfo(struct mem_cgroup *memcg, struct zone *zone)
- {
-@@ -2285,13 +2283,15 @@ static void refill_stock(struct mem_cgroup *memcg, unsigned int nr_pages)
- 
- /*
-  * Drains all per-CPU charge caches for given root_memcg resp. subtree
-- * of the hierarchy under it. sync flag says whether we should block
-- * until the work is done.
-+ * of the hierarchy under it.
-  */
--static void drain_all_stock(struct mem_cgroup *root_memcg, bool sync)
-+static void drain_all_stock(struct mem_cgroup *root_memcg)
- {
- 	int cpu, curcpu;
- 
-+	/* If someone's already draining, avoid adding running more workers. */
-+	if (!mutex_trylock(&percpu_charge_mutex))
-+		return;
- 	/* Notify other cpus that system-wide "drain" is running */
- 	get_online_cpus();
- 	curcpu = get_cpu();
-@@ -2312,41 +2312,7 @@ static void drain_all_stock(struct mem_cgroup *root_memcg, bool sync)
- 		}
- 	}
- 	put_cpu();
--
--	if (!sync)
--		goto out;
--
--	for_each_online_cpu(cpu) {
--		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
--		if (test_bit(FLUSHING_CACHED_CHARGE, &stock->flags))
--			flush_work(&stock->work);
--	}
--out:
- 	put_online_cpus();
--}
--
--/*
-- * Tries to drain stocked charges in other cpus. This function is asynchronous
-- * and just put a work per cpu for draining localy on each cpu. Caller can
-- * expects some charges will be back later but cannot wait for it.
-- */
--static void drain_all_stock_async(struct mem_cgroup *root_memcg)
+-static void memcg_kmem_mark_dead(struct mem_cgroup *memcg)
 -{
 -	/*
--	 * If someone calls draining, avoid adding more kworker runs.
+-	 * Our caller must use css_get() first, because memcg_uncharge_kmem()
+-	 * will call css_put() if it sees the memcg is dead.
 -	 */
--	if (!mutex_trylock(&percpu_charge_mutex))
--		return;
--	drain_all_stock(root_memcg, false);
--	mutex_unlock(&percpu_charge_mutex);
+-	smp_wmb();
+-	if (test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags))
+-		set_bit(KMEM_ACCOUNTED_DEAD, &memcg->kmem_account_flags);
 -}
 -
--/* This is a synchronous drain interface. */
--static void drain_all_stock_sync(struct mem_cgroup *root_memcg)
+-static bool memcg_kmem_test_and_clear_dead(struct mem_cgroup *memcg)
 -{
--	/* called when force_empty is called */
--	mutex_lock(&percpu_charge_mutex);
--	drain_all_stock(root_memcg, true);
- 	mutex_unlock(&percpu_charge_mutex);
+-	return test_and_clear_bit(KMEM_ACCOUNTED_DEAD,
+-				  &memcg->kmem_account_flags);
+-}
+ #endif
+ 
+ /* Stuffs for move charges at task migration. */
+@@ -2741,22 +2724,7 @@ static void memcg_uncharge_kmem(struct mem_cgroup *memcg,
+ 	if (do_swap_account)
+ 		page_counter_uncharge(&memcg->memsw, nr_pages);
+ 
+-	/* Not down to 0 */
+-	if (page_counter_uncharge(&memcg->kmem, nr_pages)) {
+-		css_put_many(&memcg->css, nr_pages);
+-		return;
+-	}
+-
+-	/*
+-	 * Releases a reference taken in kmem_cgroup_css_offline in case
+-	 * this last uncharge is racing with the offlining code or it is
+-	 * outliving the memcg existence.
+-	 *
+-	 * The memory barrier imposed by test&clear is paired with the
+-	 * explicit one in memcg_kmem_mark_dead().
+-	 */
+-	if (memcg_kmem_test_and_clear_dead(memcg))
+-		css_put(&memcg->css);
++	page_counter_uncharge(&memcg->kmem, nr_pages);
+ 
+ 	css_put_many(&memcg->css, nr_pages);
+ }
+@@ -4740,40 +4708,6 @@ static void memcg_destroy_kmem(struct mem_cgroup *memcg)
+ {
+ 	mem_cgroup_sockets_destroy(memcg);
+ }
+-
+-static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
+-{
+-	if (!memcg_kmem_is_active(memcg))
+-		return;
+-
+-	/*
+-	 * kmem charges can outlive the cgroup. In the case of slab
+-	 * pages, for instance, a page contain objects from various
+-	 * processes. As we prevent from taking a reference for every
+-	 * such allocation we have to be careful when doing uncharge
+-	 * (see memcg_uncharge_kmem) and here during offlining.
+-	 *
+-	 * The idea is that that only the _last_ uncharge which sees
+-	 * the dead memcg will drop the last reference. An additional
+-	 * reference is taken here before the group is marked dead
+-	 * which is then paired with css_put during uncharge resp. here.
+-	 *
+-	 * Although this might sound strange as this path is called from
+-	 * css_offline() when the referencemight have dropped down to 0 and
+-	 * shouldn't be incremented anymore (css_tryget_online() would
+-	 * fail) we do not have other options because of the kmem
+-	 * allocations lifetime.
+-	 */
+-	css_get(&memcg->css);
+-
+-	memcg_kmem_mark_dead(memcg);
+-
+-	if (page_counter_read(&memcg->kmem))
+-		return;
+-
+-	if (memcg_kmem_test_and_clear_dead(memcg))
+-		css_put(&memcg->css);
+-}
+ #else
+ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+ {
+@@ -4783,10 +4717,6 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+ static void memcg_destroy_kmem(struct mem_cgroup *memcg)
+ {
+ }
+-
+-static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
+-{
+-}
+ #endif
+ 
+ /*
+@@ -5390,8 +5320,6 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
+ 	}
+ 	spin_unlock(&memcg->event_list_lock);
+ 
+-	kmem_cgroup_css_offline(memcg);
+-
+ 	/*
+ 	 * This requires that offlining is serialized.  Right now that is
+ 	 * guaranteed because css_killed_work_fn() holds the cgroup_mutex.
+diff --git a/mm/page_counter.c b/mm/page_counter.c
+index fc4990c6bb5b..71a0e92e7051 100644
+--- a/mm/page_counter.c
++++ b/mm/page_counter.c
+@@ -12,19 +12,14 @@
+  * page_counter_cancel - take pages out of the local counter
+  * @counter: counter
+  * @nr_pages: number of pages to cancel
+- *
+- * Returns whether there are remaining pages in the counter.
+  */
+-int page_counter_cancel(struct page_counter *counter, unsigned long nr_pages)
++void page_counter_cancel(struct page_counter *counter, unsigned long nr_pages)
+ {
+ 	long new;
+ 
+ 	new = atomic_long_sub_return(nr_pages, &counter->count);
+-
+ 	/* More uncharges than charges? */
+ 	WARN_ON_ONCE(new < 0);
+-
+-	return new > 0;
  }
  
-@@ -2455,7 +2421,7 @@ retry:
- 		goto retry;
+ /**
+@@ -113,23 +108,13 @@ failed:
+  * page_counter_uncharge - hierarchically uncharge pages
+  * @counter: counter
+  * @nr_pages: number of pages to uncharge
+- *
+- * Returns whether there are remaining charges in @counter.
+  */
+-int page_counter_uncharge(struct page_counter *counter, unsigned long nr_pages)
++void page_counter_uncharge(struct page_counter *counter, unsigned long nr_pages)
+ {
+ 	struct page_counter *c;
+-	int ret = 1;
  
- 	if (!drained) {
--		drain_all_stock_async(mem_over_limit);
-+		drain_all_stock(mem_over_limit);
- 		drained = true;
- 		goto retry;
- 	}
+-	for (c = counter; c; c = c->parent) {
+-		int remainder;
+-
+-		remainder = page_counter_cancel(c, nr_pages);
+-		if (c == counter && !remainder)
+-			ret = 0;
+-	}
+-
+-	return ret;
++	for (c = counter; c; c = c->parent)
++		page_counter_cancel(c, nr_pages);
+ }
+ 
+ /**
 -- 
 2.1.2
 
