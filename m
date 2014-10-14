@@ -1,87 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id AE1F46B0069
-	for <linux-mm@kvack.org>; Tue, 14 Oct 2014 07:59:03 -0400 (EDT)
-Received: by mail-wg0-f46.google.com with SMTP id l18so10783315wgh.5
-        for <linux-mm@kvack.org>; Tue, 14 Oct 2014 04:59:03 -0700 (PDT)
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-        by mx.google.com with ESMTPS id bc1si15981474wib.32.2014.10.14.04.59.01
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 786026B006C
+	for <linux-mm@kvack.org>; Tue, 14 Oct 2014 07:59:55 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id y10so7474625pdj.13
+        for <linux-mm@kvack.org>; Tue, 14 Oct 2014 04:59:55 -0700 (PDT)
+Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
+        by mx.google.com with ESMTPS id hh5si4219864pbc.151.2014.10.14.04.59.53
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 14 Oct 2014 04:59:02 -0700 (PDT)
-Received: by mail-wi0-f174.google.com with SMTP id h11so6472320wiw.7
-        for <linux-mm@kvack.org>; Tue, 14 Oct 2014 04:59:01 -0700 (PDT)
-Date: Tue, 14 Oct 2014 12:58:55 +0100
-From: Steve Capper <steve.capper@linaro.org>
-Subject: Re: [PATCH 1/2] mm: Introduce a general RCU get_user_pages_fast.
-Message-ID: <20141014115854.GA32351@linaro.org>
-References: <1413284274-13521-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1413284274-13521-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Tue, 14 Oct 2014 04:59:54 -0700 (PDT)
+Received: from epcpsbgr4.samsung.com
+ (u144.gpu120.samsung.co.kr [203.254.230.144])
+ by mailout4.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTP id <0NDF008XWNZR2110@mailout4.samsung.com> for linux-mm@kvack.org;
+ Tue, 14 Oct 2014 20:59:51 +0900 (KST)
+From: Heesub Shin <heesub.shin@samsung.com>
+Subject: [RFC PATCH 0/9] mm/zbud: support highmem pages
+Date: Tue, 14 Oct 2014 20:59:19 +0900
+Message-id: <1413287968-13940-1-git-send-email-heesub.shin@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjennings@variantweb.net>
+Cc: Nitin Gupta <ngupta@vflare.org>, Dan Streetman <ddstreet@ieee.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sunae Seo <sunae.seo@samsung.com>, Heesub Shin <heesub.shin@samsung.com>
 
-On Tue, Oct 14, 2014 at 04:27:53PM +0530, Aneesh Kumar K.V wrote:
-> get_user_pages_fast attempts to pin user pages by walking the page
-> tables directly and avoids taking locks. Thus the walker needs to be
-> protected from page table pages being freed from under it, and needs
-> to block any THP splits.
-> 
-> One way to achieve this is to have the walker disable interrupts, and
-> rely on IPIs from the TLB flushing code blocking before the page table
-> pages are freed.
-> 
-> On some platforms we have hardware broadcast of TLB invalidations, thus
-> the TLB flushing code doesn't necessarily need to broadcast IPIs; and
-> spuriously broadcasting IPIs can hurt system performance if done too
-> often.
-> 
-> This problem has been solved on PowerPC and Sparc by batching up page
-> table pages belonging to more than one mm_user, then scheduling an
-> rcu_sched callback to free the pages. This RCU page table free logic
-> has been promoted to core code and is activated when one enables
-> HAVE_RCU_TABLE_FREE. Unfortunately, these architectures implement
-> their own get_user_pages_fast routines.
-> 
-> The RCU page table free logic coupled with a an IPI broadcast on THP
-> split (which is a rare event), allows one to protect a page table
-> walker by merely disabling the interrupts during the walk.
-> 
-> This patch provides a general RCU implementation of get_user_pages_fast
-> that can be used by architectures that perform hardware broadcast of
-> TLB invalidations.
-> 
-> It is based heavily on the PowerPC implementation.
-> 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> ---
-> 
-> NOTE: I kept the description of patch as it is and also retained the documentation.
-> I also dropped the tested-by and other SOB, because i was not sure whether they want
-> to be blamed for the bugs here. Please feel free to update.
+zbud is a memory allocator for storing compressed data pages. It keeps
+two data objects of arbitrary size on a single page. This simple design
+provides very deterministic behavior on reclamation, which is one of
+reasons why zswap selected zbud as a default allocator over zsmalloc.
 
-Hi Aneesh,
-Thank you for coding this up.
+Unlike zsmalloc, however, zbud does not support highmem. This is
+problomatic especially on 32-bit machines having relatively small
+lowmem. Compressing anonymous pages from highmem and storing them into
+lowmem could eat up lowmem spaces.
 
-I've compiled and briefly tested this on arm (with and without LPAE),
-and arm64. I ran a custom futex on THP tail test, and this passed.
-I'll test this a little more aggressively with ltp.
+This limitation is due to the fact that zbud manages its internal data
+structures on zbud_header which is kept in the head of zbud_page. For
+example, zbud_pages are tracked by several lists and have some status
+information, which are being referenced at any time by the kernel. Thus,
+zbud_pages should be allocated on a memory region directly mapped,
+lowmem.
 
-I think Linus has already pulled in the RCU gup I posted, could you
-please instead write a patch against?
-2667f50 mm: introduce a general RCU get_user_pages_fast()
+After some digging out, I found that internal data structures of zbud
+can be kept in the struct page, the same way as zsmalloc does. So, this
+series moves out all fields in zbud_header to struct page. Though it
+alters quite a lot, it does not add any functional differences except
+highmem support. I am afraid that this kind of modification abusing
+several fields in struct page would be ok.
 
-I had one issue compiling this, pgd_huge was undefined. I think this
-is only defined for PowerPC? Could a stub definition of pgd_huge be
-added?
+Heesub Shin (9):
+  mm/zbud: tidy up a bit
+  mm/zbud: remove buddied list from zbud_pool
+  mm/zbud: remove lru from zbud_header
+  mm/zbud: remove first|last_chunks from zbud_header
+  mm/zbud: encode zbud handle using struct page
+  mm/zbud: remove list_head for buddied list from zbud_header
+  mm/zbud: drop zbud_header
+  mm/zbud: allow clients to use highmem pages
+  mm/zswap: use highmem pages for compressed pool
 
-Cheers,
+ mm/zbud.c  | 244 ++++++++++++++++++++++++++++++-------------------------------
+ mm/zswap.c |   4 +-
+ 2 files changed, 121 insertions(+), 127 deletions(-)
+
 -- 
-Steve
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
