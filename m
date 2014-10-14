@@ -1,63 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id BE0376B0085
-	for <linux-mm@kvack.org>; Tue, 14 Oct 2014 12:34:02 -0400 (EDT)
-Received: by mail-wg0-f45.google.com with SMTP id m15so11543201wgh.16
-        for <linux-mm@kvack.org>; Tue, 14 Oct 2014 09:34:02 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id bj4si16943675wib.23.2014.10.14.09.34.01
+Received: from mail-vc0-f177.google.com (mail-vc0-f177.google.com [209.85.220.177])
+	by kanga.kvack.org (Postfix) with ESMTP id A11BA6B0085
+	for <linux-mm@kvack.org>; Tue, 14 Oct 2014 12:50:43 -0400 (EDT)
+Received: by mail-vc0-f177.google.com with SMTP id hq11so7781025vcb.36
+        for <linux-mm@kvack.org>; Tue, 14 Oct 2014 09:50:43 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w18si15771917vdj.103.2014.10.14.09.50.41
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Oct 2014 09:34:01 -0700 (PDT)
-Date: Tue, 14 Oct 2014 12:33:54 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 1/3] mm: memcontrol: lockless page counters
-Message-ID: <20141014163354.GA23911@phnom.home.cmpxchg.org>
-References: <1413251163-8517-1-git-send-email-hannes@cmpxchg.org>
- <1413251163-8517-2-git-send-email-hannes@cmpxchg.org>
- <20141014155647.GA6414@dhcp22.suse.cz>
+        Tue, 14 Oct 2014 09:50:42 -0700 (PDT)
+Date: Tue, 14 Oct 2014 12:50:27 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: [PATCH] mm, debug: mm-introduce-vm_bug_on_mm-fix-fix.patch
+Message-ID: <20141014165027.GA26886@redhat.com>
+References: <5420b8b0.9HdYLyyuTikszzH8%akpm@linux-foundation.org>
+ <1411464279-20158-1-git-send-email-mhocko@suse.cz>
+ <20140923112848.GA10046@dhcp22.suse.cz>
+ <20140923201204.GB4252@redhat.com>
+ <20141013185156.GA1959@redhat.com>
+ <20141014115554.GB8727@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141014155647.GA6414@dhcp22.suse.cz>
+In-Reply-To: <20141014115554.GB8727@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Sasha Levin <sasha.levin@oracle.com>
 
-On Tue, Oct 14, 2014 at 05:56:47PM +0200, Michal Hocko wrote:
-> On Mon 13-10-14 21:46:01, Johannes Weiner wrote:
-> > Memory is internally accounted in bytes, using spinlock-protected
-> > 64-bit counters, even though the smallest accounting delta is a page.
-> > The counter interface is also convoluted and does too many things.
-> > 
-> > Introduce a new lockless word-sized page counter API, then change all
-> > memory accounting over to it.  The translation from and to bytes then
-> > only happens when interfacing with userspace.
-> > 
-> > The removed locking overhead is noticable when scaling beyond the
-> > per-cpu charge caches - on a 4-socket machine with 144-threads, the
-> > following test shows the performance differences of 288 memcgs
-> > concurrently running a page fault benchmark:
-> 
-> I assume you had root.use_hierarchy = 1, right? Processes wouldn't bounce
-> on the same lock otherwise.
+On Tue, Oct 14, 2014 at 01:55:54PM +0200, Michal Hocko wrote:
 
-Yep.  That's already the default on most distros, and will be in the
-kernel in unified hierarchy.
+ > > -#ifdef CONFIG_NUMA_BALANCING
+ > > -		"numa_next_scan %lu numa_scan_offset %lu numa_scan_seq %d\n"
+ > > -#endif
+ > > -#if defined(CONFIG_NUMA_BALANCING) || defined(CONFIG_COMPACTION)
+ > > -		"tlb_flush_pending %d\n"
+ > > -#endif
+ > > -		"%s",	/* This is here to hold the comma */
+ > > +	char *p = dumpmm_buffer;
+ > > +
+ > > +	memset(dumpmm_buffer, 0, 4096);
+ > 
+ > I do not see any locking here. Previously we had internal printk log as
+ > a natural synchronization. Now two threads are allowed to scribble over
+ > their messages leaving an unusable output in a better case.
 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> You have only missed MAINTAINERS...
+That's why I asked in the part of the mail you didn't quote whether
+we cared if it wasn't reentrant.  Ok we do. That's 3 lines of change to
+add a lock.
 
-Hm, we can add it, but then again scripts/get_maintainer.pl should
-already do the right thing.  I find myself using it with --git all the
-time to find the people that actually worked on the code recently, not
-just the ones listed in there - which might be stale information.
+ > Besides that the %s with "" trick is not really that ugly and handles
+ > the situation quite nicely. So do we really want to make it more
+ > complicated?
 
-> Acked-by: Michal Hocko <mhocko@suse.cz>
+That hack goes away entirely with this diff.  And by keeping the
+parameters with the format string they're associated with, it should be
+more maintainable should we decide to add more fields to be output in the future.
+The number of ifdefs in the function are halved (which becomes even
+bigger deal if we do add more output).
 
-Thank you, Michal!
+We saw how many times we had to go around to get it right this time.
+In its current incarnation, it looks like a matter of time before
+someone screws it up again due to missing some CONFIG combination.
+
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
