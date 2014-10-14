@@ -1,52 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 613186B0071
-	for <linux-mm@kvack.org>; Tue, 14 Oct 2014 12:30:16 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id hz1so8180656pad.36
-        for <linux-mm@kvack.org>; Tue, 14 Oct 2014 09:30:16 -0700 (PDT)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id mo3si8738107pbc.36.2014.10.14.09.30.14
-        for <linux-mm@kvack.org>;
-        Tue, 14 Oct 2014 09:30:14 -0700 (PDT)
-Date: Tue, 14 Oct 2014 12:30:05 -0400 (EDT)
-Message-Id: <20141014.123005.1217065336505722315.davem@davemloft.net>
-Subject: Re: [PATCH V4 1/6] mm: Introduce a general RCU get_user_pages_fast.
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20141014123834.GA1110@linaro.org>
-References: <20141013114428.GA28113@linaro.org>
-	<20141013.120618.1470323732942174784.davem@davemloft.net>
-	<20141014123834.GA1110@linaro.org>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id BE0376B0085
+	for <linux-mm@kvack.org>; Tue, 14 Oct 2014 12:34:02 -0400 (EDT)
+Received: by mail-wg0-f45.google.com with SMTP id m15so11543201wgh.16
+        for <linux-mm@kvack.org>; Tue, 14 Oct 2014 09:34:02 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id bj4si16943675wib.23.2014.10.14.09.34.01
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 Oct 2014 09:34:01 -0700 (PDT)
+Date: Tue, 14 Oct 2014 12:33:54 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 1/3] mm: memcontrol: lockless page counters
+Message-ID: <20141014163354.GA23911@phnom.home.cmpxchg.org>
+References: <1413251163-8517-1-git-send-email-hannes@cmpxchg.org>
+ <1413251163-8517-2-git-send-email-hannes@cmpxchg.org>
+ <20141014155647.GA6414@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141014155647.GA6414@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: steve.capper@linaro.org
-Cc: aneesh.kumar@linux.vnet.ibm.com, aarcange@redhat.com, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, linux@arm.linux.org.uk, linux-arch@vger.kernel.org, linux-mm@kvack.org, will.deacon@arm.com, gary.robertson@linaro.org, christoffer.dall@linaro.org, peterz@infradead.org, anders.roxell@linaro.org, akpm@linux-foundation.org, dann.frazier@canonical.com, mark.rutland@arm.com, mgorman@suse.de, hughd@google.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Steve Capper <steve.capper@linaro.org>
-Date: Tue, 14 Oct 2014 13:38:34 +0100
-
-> On Mon, Oct 13, 2014 at 12:06:18PM -0400, David Miller wrote:
->> From: Steve Capper <steve.capper@linaro.org>
->> Date: Mon, 13 Oct 2014 12:44:28 +0100
->> 
->> > Also, as a heads up for Sparc. I don't see any definition of
->> > __get_user_pages_fast. Does this mean that a futex on THP tail page
->> > can cause an infinite loop?
->> 
->> I have no idea, I didn't realize this was required to be implemented.
+On Tue, Oct 14, 2014 at 05:56:47PM +0200, Michal Hocko wrote:
+> On Mon 13-10-14 21:46:01, Johannes Weiner wrote:
+> > Memory is internally accounted in bytes, using spinlock-protected
+> > 64-bit counters, even though the smallest accounting delta is a page.
+> > The counter interface is also convoluted and does too many things.
+> > 
+> > Introduce a new lockless word-sized page counter API, then change all
+> > memory accounting over to it.  The translation from and to bytes then
+> > only happens when interfacing with userspace.
+> > 
+> > The removed locking overhead is noticable when scaling beyond the
+> > per-cpu charge caches - on a 4-socket machine with 144-threads, the
+> > following test shows the performance differences of 288 memcgs
+> > concurrently running a page fault benchmark:
 > 
-> In get_futex_key, a call is made to __get_user_pages_fast to handle the
-> case where a THP tail page needs to be pinned for the futex. There is a
-> stock implementation of __get_user_pages_fast, but this is just an
-> empty function that returns 0. Unfortunately this will provoke a goto
-> to "again:" and end up in an infinite loop. The process will appear
-> to hang with a high system cpu usage.
+> I assume you had root.use_hierarchy = 1, right? Processes wouldn't bounce
+> on the same lock otherwise.
 
-I'd rather the build fail and force me to implement the interface for
-my architecture than have a default implementation that causes issues
-like that.
+Yep.  That's already the default on most distros, and will be in the
+kernel in unified hierarchy.
+
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> 
+> You have only missed MAINTAINERS...
+
+Hm, we can add it, but then again scripts/get_maintainer.pl should
+already do the right thing.  I find myself using it with --git all the
+time to find the people that actually worked on the code recently, not
+just the ones listed in there - which might be stale information.
+
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+
+Thank you, Michal!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
