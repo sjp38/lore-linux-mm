@@ -1,301 +1,515 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 057446B0069
-	for <linux-mm@kvack.org>; Tue, 14 Oct 2014 01:16:14 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id fb1so7051754pad.25
-        for <linux-mm@kvack.org>; Mon, 13 Oct 2014 22:16:14 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id v5si12110566pdo.24.2014.10.13.22.16.12
-        for <linux-mm@kvack.org>;
-        Mon, 13 Oct 2014 22:16:13 -0700 (PDT)
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v5] zsmalloc: merge size_class to reduce fragmentation
-Date: Tue, 14 Oct 2014 14:16:39 +0900
-Message-Id: <1413263799-23206-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id F2E1C6B0069
+	for <linux-mm@kvack.org>; Tue, 14 Oct 2014 06:58:14 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id ft15so7319635pdb.17
+        for <linux-mm@kvack.org>; Tue, 14 Oct 2014 03:58:14 -0700 (PDT)
+Received: from e28smtp02.in.ibm.com (e28smtp02.in.ibm.com. [122.248.162.2])
+        by mx.google.com with ESMTPS id gy9si12714374pbc.22.2014.10.14.03.58.10
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 14 Oct 2014 03:58:12 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 14 Oct 2014 16:28:04 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id C57363940043
+	for <linux-mm@kvack.org>; Tue, 14 Oct 2014 16:28:02 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay05.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s9EAwXgp62456062
+	for <linux-mm@kvack.org>; Tue, 14 Oct 2014 16:28:33 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s9EAw1JM027201
+	for <linux-mm@kvack.org>; Tue, 14 Oct 2014 16:28:01 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH 2/2] arch/powerpc: Switch to generic RCU get_user_pages_fast
+Date: Tue, 14 Oct 2014 16:27:54 +0530
+Message-Id: <1413284274-13521-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <1413284274-13521-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+References: <1413284274-13521-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>
-Cc: Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Jerome Marchand <jmarchan@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Dan Streetman <ddstreet@ieee.org>, Luigi Semenzato <semenzato@google.com>, juno.choi@lge.com, "seungho1.park" <seungho1.park@lge.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Steve Capper <steve.capper@linaro.org>
+Cc: linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-zsmalloc has many size_classes to reduce fragmentation and they are
-in 16 bytes unit, for example, 16, 32, 48, etc., if PAGE_SIZE is 4096.
-And, zsmalloc has constraint that each zspage has 4 pages at maximum.
+This patch switch the ppc arch to use the generic RCU based
+gup implementation.
 
-In this situation, we can see interesting aspect.
-Let's think about size_class for 1488, 1472, ..., 1376.
-To prevent external fragmentation, they uses 4 pages per zspage and
-so all they can contain 11 objects at maximum.
-
-16384 (4096 * 4) = 1488 * 11 + remains
-16384 (4096 * 4) = 1472 * 11 + remains
-16384 (4096 * 4) = ...
-16384 (4096 * 4) = 1376 * 11 + remains
-
-It means that they have same characteristics and classification between
-them isn't needed. If we use one size_class for them, we can reduce
-fragementation and save some memory since both the 1488 and 1472 sized
-classes can only fit 11 objects into 4 pages, and an object that's
-1472 bytes can fit into an object that's 1488 bytes, merging these
-classes to always use objects that are 1488 bytes will reduce the total
-number of size classes. And reducing the total number of size classes
-reduces overall fragmentation, because a wider range of compressed pages
-can fit into a single size class, leaving less unused objects in each
-size class.
-
-For this purpose, this patch implement size_class merging. If there is
-size_class that have same pages_per_zspage and same number of objects
-per zspage with previous size_class, we don't create new size_class.
-Instead, we use previous, same characteristic size_class. With this way,
-above example sizes (1488, 1472, ..., 1376) use just one size_class
-so we can get much more memory utilization.
-
-Below is result of my simple test.
-
-TEST ENV: EXT4 on zram, mount with discard option
-WORKLOAD: untar kernel source code, remove directory in descending order
-in size. (drivers arch fs sound include net Documentation firmware
-kernel tools)
-
-Each line represents orig_data_size, compr_data_size, mem_used_total,
-fragmentation overhead (mem_used - compr_data_size) and overhead ratio
-(overhead to compr_data_size), respectively, after untar and remove
-operation is executed.
-
-* untar-nomerge.out
-
-orig_size compr_size used_size overhead overhead_ratio
-525.88MB 199.16MB 210.23MB  11.08MB 5.56%
-288.32MB  97.43MB 105.63MB   8.20MB 8.41%
-177.32MB  61.12MB  69.40MB   8.28MB 13.55%
-146.47MB  47.32MB  56.10MB   8.78MB 18.55%
-124.16MB  38.85MB  48.41MB   9.55MB 24.58%
-103.93MB  31.68MB  40.93MB   9.25MB 29.21%
- 84.34MB  22.86MB  32.72MB   9.86MB 43.13%
- 66.87MB  14.83MB  23.83MB   9.00MB 60.70%
- 60.67MB  11.11MB  18.60MB   7.49MB 67.48%
- 55.86MB   8.83MB  16.61MB   7.77MB 88.03%
- 53.32MB   8.01MB  15.32MB   7.31MB 91.24%
-
-* untar-merge.out
-
-orig_size compr_size used_size overhead overhead_ratio
-526.23MB 199.18MB 209.81MB  10.64MB 5.34%
-288.68MB  97.45MB 104.08MB   6.63MB 6.80%
-177.68MB  61.14MB  66.93MB   5.79MB 9.47%
-146.83MB  47.34MB  52.79MB   5.45MB 11.51%
-124.52MB  38.87MB  44.30MB   5.43MB 13.96%
-104.29MB  31.70MB  36.83MB   5.13MB 16.19%
- 84.70MB  22.88MB  27.92MB   5.04MB 22.04%
- 67.11MB  14.83MB  19.26MB   4.43MB 29.86%
- 60.82MB  11.10MB  14.90MB   3.79MB 34.17%
- 55.90MB   8.82MB  12.61MB   3.79MB 42.97%
- 53.32MB   8.01MB  11.73MB   3.73MB 46.53%
-
-As you can see above result, merged one has better utilization (overhead
-ratio, 5th column) and uses less memory (mem_used_total, 3rd column).
-
-Changes from v1:
-- More commit description about what to do in this patch.
-- Remove nr_obj in size_class, because it isn't need after initialization.
-- Rename __size_class to size_class, size_class to merged_size_class.
-- Add code comment for merged_size_class of struct zs_pool.
-- Add code comment how merging works in zs_create_pool().
-
-Changes from v2:
-- Add more commit description (Dan)
-- dynamically allocate size_class structure (Dan)
-- rename objs_per_zspage to get_maxobj_per_zspage (Minchan)
-
-Changes from v3:
-- Add error handling logic in zs_create_pool (Dan)
-
-Changes from v4:
-- Remove reference count. Instead, use class->index to identify
-merged size_class (Minchan, Dan)
-
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- mm/zsmalloc.c |   80 +++++++++++++++++++++++++++++++++++++++++++++++----------
- 1 file changed, 66 insertions(+), 14 deletions(-)
+ arch/powerpc/Kconfig                     |   1 +
+ arch/powerpc/include/asm/hugetlb.h       |   8 +-
+ arch/powerpc/include/asm/page.h          |   3 +-
+ arch/powerpc/include/asm/pgtable-ppc64.h |   1 -
+ arch/powerpc/include/asm/pgtable.h       |   5 -
+ arch/powerpc/mm/Makefile                 |   2 +-
+ arch/powerpc/mm/gup.c                    | 235 -------------------------------
+ arch/powerpc/mm/hugetlbpage.c            |  32 +++--
+ 8 files changed, 26 insertions(+), 261 deletions(-)
+ delete mode 100644 arch/powerpc/mm/gup.c
 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index c4a9157..058a243 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -214,7 +214,7 @@ struct link_free {
- };
+diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
+index 4bc7b62fb4b6..5f8f699d5a1c 100644
+--- a/arch/powerpc/Kconfig
++++ b/arch/powerpc/Kconfig
+@@ -147,6 +147,7 @@ config PPC
+ 	select ARCH_USE_CMPXCHG_LOCKREF if PPC64
+ 	select HAVE_ARCH_AUDITSYSCALL
+ 	select ARCH_SUPPORTS_ATOMIC_RMW
++	select HAVE_GENERIC_RCU_GUP
  
- struct zs_pool {
--	struct size_class size_class[ZS_SIZE_CLASSES];
-+	struct size_class *size_class[ZS_SIZE_CLASSES];
+ config GENERIC_CSUM
+ 	def_bool CPU_LITTLE_ENDIAN
+diff --git a/arch/powerpc/include/asm/hugetlb.h b/arch/powerpc/include/asm/hugetlb.h
+index 623f2971ce0e..7855cce9c969 100644
+--- a/arch/powerpc/include/asm/hugetlb.h
++++ b/arch/powerpc/include/asm/hugetlb.h
+@@ -48,7 +48,7 @@ static inline unsigned int hugepd_shift(hugepd_t hpd)
+ #endif /* CONFIG_PPC_BOOK3S_64 */
  
- 	gfp_t flags;	/* allocation flags used when growing pool */
- 	atomic_long_t pages_allocated;
-@@ -468,7 +468,7 @@ static enum fullness_group fix_fullness_group(struct zs_pool *pool,
- 	if (newfg == currfg)
- 		goto out;
  
--	class = &pool->size_class[class_idx];
-+	class = pool->size_class[class_idx];
- 	remove_zspage(page, class, currfg);
- 	insert_zspage(page, class, newfg);
- 	set_zspage_mapping(page, class_idx, newfg);
-@@ -929,6 +929,23 @@ fail:
- 	return notifier_to_errno(ret);
+-static inline pte_t *hugepte_offset(hugepd_t *hpdp, unsigned long addr,
++static inline pte_t *hugepte_offset(hugepd_t hpd, unsigned long addr,
+ 				    unsigned pdshift)
+ {
+ 	/*
+@@ -58,9 +58,9 @@ static inline pte_t *hugepte_offset(hugepd_t *hpdp, unsigned long addr,
+ 	 */
+ 	unsigned long idx = 0;
+ 
+-	pte_t *dir = hugepd_page(*hpdp);
++	pte_t *dir = hugepd_page(hpd);
+ #ifndef CONFIG_PPC_FSL_BOOK3E
+-	idx = (addr & ((1UL << pdshift) - 1)) >> hugepd_shift(*hpdp);
++	idx = (addr & ((1UL << pdshift) - 1)) >> hugepd_shift(hpd);
+ #endif
+ 
+ 	return dir + idx;
+@@ -193,7 +193,7 @@ static inline void flush_hugetlb_page(struct vm_area_struct *vma,
  }
  
-+static unsigned int get_maxobj_per_zspage(int size, int pages_per_zspage)
-+{
-+	return pages_per_zspage * PAGE_SIZE / size;
-+}
-+
-+static bool can_merge(struct size_class *prev, int size, int pages_per_zspage)
-+{
-+	if (prev->pages_per_zspage != pages_per_zspage)
-+		return false;
-+
-+	if (get_maxobj_per_zspage(prev->size, prev->pages_per_zspage)
-+		!= get_maxobj_per_zspage(size, pages_per_zspage))
-+		return false;
-+
-+	return true;
-+}
-+
- /**
-  * zs_create_pool - Creates an allocation pool to work from.
-  * @flags: allocation flags used to allocate pool metadata
-@@ -949,25 +966,56 @@ struct zs_pool *zs_create_pool(gfp_t flags)
- 	if (!pool)
+ #define hugepd_shift(x) 0
+-static inline pte_t *hugepte_offset(hugepd_t *hpdp, unsigned long addr,
++static inline pte_t *hugepte_offset(hugepd_t hpd, unsigned long addr,
+ 				    unsigned pdshift)
+ {
+ 	return 0;
+diff --git a/arch/powerpc/include/asm/page.h b/arch/powerpc/include/asm/page.h
+index 26fe1ae15212..aeca81947dc6 100644
+--- a/arch/powerpc/include/asm/page.h
++++ b/arch/powerpc/include/asm/page.h
+@@ -379,12 +379,13 @@ static inline int hugepd_ok(hugepd_t hpd)
+ }
+ #endif
+ 
+-#define is_hugepd(pdep)               (hugepd_ok(*((hugepd_t *)(pdep))))
++#define is_hugepd(hpd)               (hugepd_ok(hpd))
+ int pgd_huge(pgd_t pgd);
+ #else /* CONFIG_HUGETLB_PAGE */
+ #define is_hugepd(pdep)			0
+ #define pgd_huge(pgd)			0
+ #endif /* CONFIG_HUGETLB_PAGE */
++#define __hugepd(x) ((hugepd_t) { (x) })
+ 
+ struct page;
+ extern void clear_user_page(void *page, unsigned long vaddr, struct page *pg);
+diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
+index 7b3d54fae46f..889c6fa9ee01 100644
+--- a/arch/powerpc/include/asm/pgtable-ppc64.h
++++ b/arch/powerpc/include/asm/pgtable-ppc64.h
+@@ -575,6 +575,5 @@ static inline int pmd_move_must_withdraw(struct spinlock *new_pmd_ptl,
+ 	 */
+ 	return true;
+ }
+-
+ #endif /* __ASSEMBLY__ */
+ #endif /* _ASM_POWERPC_PGTABLE_PPC64_H_ */
+diff --git a/arch/powerpc/include/asm/pgtable.h b/arch/powerpc/include/asm/pgtable.h
+index d98c1ecc3266..2854349d9818 100644
+--- a/arch/powerpc/include/asm/pgtable.h
++++ b/arch/powerpc/include/asm/pgtable.h
+@@ -304,11 +304,6 @@ extern void paging_init(void);
+  */
+ extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
+ 
+-extern int gup_hugepd(hugepd_t *hugepd, unsigned pdshift, unsigned long addr,
+-		      unsigned long end, int write, struct page **pages, int *nr);
+-
+-extern int gup_hugepte(pte_t *ptep, unsigned long sz, unsigned long addr,
+-		       unsigned long end, int write, struct page **pages, int *nr);
+ #ifndef CONFIG_TRANSPARENT_HUGEPAGE
+ #define pmd_large(pmd)		0
+ #define has_transparent_hugepage() 0
+diff --git a/arch/powerpc/mm/Makefile b/arch/powerpc/mm/Makefile
+index d0130fff20e5..765cd77a1aac 100644
+--- a/arch/powerpc/mm/Makefile
++++ b/arch/powerpc/mm/Makefile
+@@ -6,7 +6,7 @@ subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
+ 
+ ccflags-$(CONFIG_PPC64)	:= $(NO_MINIMAL_TOC)
+ 
+-obj-y				:= fault.o mem.o pgtable.o gup.o mmap.o \
++obj-y				:= fault.o mem.o pgtable.o mmap.o \
+ 				   init_$(CONFIG_WORD_SIZE).o \
+ 				   pgtable_$(CONFIG_WORD_SIZE).o
+ obj-$(CONFIG_PPC_MMU_NOHASH)	+= mmu_context_nohash.o tlb_nohash.o \
+diff --git a/arch/powerpc/mm/gup.c b/arch/powerpc/mm/gup.c
+deleted file mode 100644
+index d8746684f606..000000000000
+--- a/arch/powerpc/mm/gup.c
++++ /dev/null
+@@ -1,235 +0,0 @@
+-/*
+- * Lockless get_user_pages_fast for powerpc
+- *
+- * Copyright (C) 2008 Nick Piggin
+- * Copyright (C) 2008 Novell Inc.
+- */
+-#undef DEBUG
+-
+-#include <linux/sched.h>
+-#include <linux/mm.h>
+-#include <linux/hugetlb.h>
+-#include <linux/vmstat.h>
+-#include <linux/pagemap.h>
+-#include <linux/rwsem.h>
+-#include <asm/pgtable.h>
+-
+-#ifdef __HAVE_ARCH_PTE_SPECIAL
+-
+-/*
+- * The performance critical leaf functions are made noinline otherwise gcc
+- * inlines everything into a single function which results in too much
+- * register pressure.
+- */
+-static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
+-		unsigned long end, int write, struct page **pages, int *nr)
+-{
+-	unsigned long mask, result;
+-	pte_t *ptep;
+-
+-	result = _PAGE_PRESENT|_PAGE_USER;
+-	if (write)
+-		result |= _PAGE_RW;
+-	mask = result | _PAGE_SPECIAL;
+-
+-	ptep = pte_offset_kernel(&pmd, addr);
+-	do {
+-		pte_t pte = ACCESS_ONCE(*ptep);
+-		struct page *page;
+-		/*
+-		 * Similar to the PMD case, NUMA hinting must take slow path
+-		 */
+-		if (pte_numa(pte))
+-			return 0;
+-
+-		if ((pte_val(pte) & mask) != result)
+-			return 0;
+-		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+-		page = pte_page(pte);
+-		if (!page_cache_get_speculative(page))
+-			return 0;
+-		if (unlikely(pte_val(pte) != pte_val(*ptep))) {
+-			put_page(page);
+-			return 0;
+-		}
+-		pages[*nr] = page;
+-		(*nr)++;
+-
+-	} while (ptep++, addr += PAGE_SIZE, addr != end);
+-
+-	return 1;
+-}
+-
+-static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+-		int write, struct page **pages, int *nr)
+-{
+-	unsigned long next;
+-	pmd_t *pmdp;
+-
+-	pmdp = pmd_offset(&pud, addr);
+-	do {
+-		pmd_t pmd = ACCESS_ONCE(*pmdp);
+-
+-		next = pmd_addr_end(addr, end);
+-		/*
+-		 * If we find a splitting transparent hugepage we
+-		 * return zero. That will result in taking the slow
+-		 * path which will call wait_split_huge_page()
+-		 * if the pmd is still in splitting state
+-		 */
+-		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
+-			return 0;
+-		if (pmd_huge(pmd) || pmd_large(pmd)) {
+-			/*
+-			 * NUMA hinting faults need to be handled in the GUP
+-			 * slowpath for accounting purposes and so that they
+-			 * can be serialised against THP migration.
+-			 */
+-			if (pmd_numa(pmd))
+-				return 0;
+-
+-			if (!gup_hugepte((pte_t *)pmdp, PMD_SIZE, addr, next,
+-					 write, pages, nr))
+-				return 0;
+-		} else if (is_hugepd(pmdp)) {
+-			if (!gup_hugepd((hugepd_t *)pmdp, PMD_SHIFT,
+-					addr, next, write, pages, nr))
+-				return 0;
+-		} else if (!gup_pte_range(pmd, addr, next, write, pages, nr))
+-			return 0;
+-	} while (pmdp++, addr = next, addr != end);
+-
+-	return 1;
+-}
+-
+-static int gup_pud_range(pgd_t pgd, unsigned long addr, unsigned long end,
+-		int write, struct page **pages, int *nr)
+-{
+-	unsigned long next;
+-	pud_t *pudp;
+-
+-	pudp = pud_offset(&pgd, addr);
+-	do {
+-		pud_t pud = ACCESS_ONCE(*pudp);
+-
+-		next = pud_addr_end(addr, end);
+-		if (pud_none(pud))
+-			return 0;
+-		if (pud_huge(pud)) {
+-			if (!gup_hugepte((pte_t *)pudp, PUD_SIZE, addr, next,
+-					 write, pages, nr))
+-				return 0;
+-		} else if (is_hugepd(pudp)) {
+-			if (!gup_hugepd((hugepd_t *)pudp, PUD_SHIFT,
+-					addr, next, write, pages, nr))
+-				return 0;
+-		} else if (!gup_pmd_range(pud, addr, next, write, pages, nr))
+-			return 0;
+-	} while (pudp++, addr = next, addr != end);
+-
+-	return 1;
+-}
+-
+-int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+-			  struct page **pages)
+-{
+-	struct mm_struct *mm = current->mm;
+-	unsigned long addr, len, end;
+-	unsigned long next;
+-	unsigned long flags;
+-	pgd_t *pgdp;
+-	int nr = 0;
+-
+-	pr_devel("%s(%lx,%x,%s)\n", __func__, start, nr_pages, write ? "write" : "read");
+-
+-	start &= PAGE_MASK;
+-	addr = start;
+-	len = (unsigned long) nr_pages << PAGE_SHIFT;
+-	end = start + len;
+-
+-	if (unlikely(!access_ok(write ? VERIFY_WRITE : VERIFY_READ,
+-					start, len)))
+-		return 0;
+-
+-	pr_devel("  aligned: %lx .. %lx\n", start, end);
+-
+-	/*
+-	 * XXX: batch / limit 'nr', to avoid large irq off latency
+-	 * needs some instrumenting to determine the common sizes used by
+-	 * important workloads (eg. DB2), and whether limiting the batch size
+-	 * will decrease performance.
+-	 *
+-	 * It seems like we're in the clear for the moment. Direct-IO is
+-	 * the main guy that batches up lots of get_user_pages, and even
+-	 * they are limited to 64-at-a-time which is not so many.
+-	 */
+-	/*
+-	 * This doesn't prevent pagetable teardown, but does prevent
+-	 * the pagetables from being freed on powerpc.
+-	 *
+-	 * So long as we atomically load page table pointers versus teardown,
+-	 * we can follow the address down to the the page and take a ref on it.
+-	 */
+-	local_irq_save(flags);
+-
+-	pgdp = pgd_offset(mm, addr);
+-	do {
+-		pgd_t pgd = ACCESS_ONCE(*pgdp);
+-
+-		pr_devel("  %016lx: normal pgd %p\n", addr,
+-			 (void *)pgd_val(pgd));
+-		next = pgd_addr_end(addr, end);
+-		if (pgd_none(pgd))
+-			break;
+-		if (pgd_huge(pgd)) {
+-			if (!gup_hugepte((pte_t *)pgdp, PGDIR_SIZE, addr, next,
+-					 write, pages, &nr))
+-				break;
+-		} else if (is_hugepd(pgdp)) {
+-			if (!gup_hugepd((hugepd_t *)pgdp, PGDIR_SHIFT,
+-					addr, next, write, pages, &nr))
+-				break;
+-		} else if (!gup_pud_range(pgd, addr, next, write, pages, &nr))
+-			break;
+-	} while (pgdp++, addr = next, addr != end);
+-
+-	local_irq_restore(flags);
+-
+-	return nr;
+-}
+-
+-int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+-			struct page **pages)
+-{
+-	struct mm_struct *mm = current->mm;
+-	int nr, ret;
+-
+-	start &= PAGE_MASK;
+-	nr = __get_user_pages_fast(start, nr_pages, write, pages);
+-	ret = nr;
+-
+-	if (nr < nr_pages) {
+-		pr_devel("  slow path ! nr = %d\n", nr);
+-
+-		/* Try to get the remaining pages with get_user_pages */
+-		start += nr << PAGE_SHIFT;
+-		pages += nr;
+-
+-		down_read(&mm->mmap_sem);
+-		ret = get_user_pages(current, mm, start,
+-				     nr_pages - nr, write, 0, pages, NULL);
+-		up_read(&mm->mmap_sem);
+-
+-		/* Have to be a bit careful with return values */
+-		if (nr > 0) {
+-			if (ret < 0)
+-				ret = nr;
+-			else
+-				ret += nr;
+-		}
+-	}
+-
+-	return ret;
+-}
+-
+-#endif /* __HAVE_ARCH_PTE_SPECIAL */
+diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
+index 7e70ae968e5f..f2cecaa39960 100644
+--- a/arch/powerpc/mm/hugetlbpage.c
++++ b/arch/powerpc/mm/hugetlbpage.c
+@@ -230,7 +230,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz
+ 	if (hugepd_none(*hpdp) && __hugepte_alloc(mm, hpdp, addr, pdshift, pshift))
  		return NULL;
  
--	for (i = 0; i < ZS_SIZE_CLASSES; i++) {
-+	/*
-+	 * Iterate reversly, because, size of size_class that we want to use
-+	 * for merging should be larger or equal to current size.
-+	 */
-+	for (i = ZS_SIZE_CLASSES - 1; i >= 0; i--) {
- 		int size;
-+		int pages_per_zspage;
- 		struct size_class *class;
-+		struct size_class *prev_class;
- 
- 		size = ZS_MIN_ALLOC_SIZE + i * ZS_SIZE_CLASS_DELTA;
- 		if (size > ZS_MAX_ALLOC_SIZE)
- 			size = ZS_MAX_ALLOC_SIZE;
-+		pages_per_zspage = get_pages_per_zspage(size);
-+
-+		/*
-+		 * size_class is used for normal zsmalloc operation such
-+		 * as alloc/free for that size. Although it is natural that we
-+		 * have one size_class for each size, there is a chance that we
-+		 * can get more memory utilization if we use one size_class for
-+		 * many different sizes whose size_class have same
-+		 * characteristics. So, we makes size_class point to
-+		 * previous size_class if possible.
-+		 */
-+		if (i < ZS_SIZE_CLASSES - 1) {
-+			prev_class = pool->size_class[i + 1];
-+			if (can_merge(prev_class, size, pages_per_zspage)) {
-+				pool->size_class[i] = prev_class;
-+				continue;
-+			}
-+		}
-+
-+		class = kzalloc(sizeof(struct size_class), GFP_KERNEL);
-+		if (!class)
-+			goto err;
- 
--		class = &pool->size_class[i];
- 		class->size = size;
- 		class->index = i;
-+		class->pages_per_zspage = pages_per_zspage;
- 		spin_lock_init(&class->lock);
--		class->pages_per_zspage = get_pages_per_zspage(size);
--
-+		pool->size_class[i] = class;
- 	}
- 
- 	pool->flags = flags;
- 
- 	return pool;
-+
-+err:
-+	zs_destroy_pool(pool);
-+	return NULL;
+-	return hugepte_offset(hpdp, addr, pdshift);
++	return hugepte_offset(*hpdp, addr, pdshift);
  }
- EXPORT_SYMBOL_GPL(zs_create_pool);
  
-@@ -977,7 +1025,13 @@ void zs_destroy_pool(struct zs_pool *pool)
+ #else
+@@ -270,7 +270,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz
+ 	if (hugepd_none(*hpdp) && __hugepte_alloc(mm, hpdp, addr, pdshift, pshift))
+ 		return NULL;
  
- 	for (i = 0; i < ZS_SIZE_CLASSES; i++) {
- 		int fg;
--		struct size_class *class = &pool->size_class[i];
-+		struct size_class *class = pool->size_class[i];
-+
-+		if (!class)
-+			continue;
-+
-+		if (class->index != i)
-+			continue;
- 
- 		for (fg = 0; fg < _ZS_NR_FULLNESS_GROUPS; fg++) {
- 			if (class->fullness_list[fg]) {
-@@ -985,6 +1039,7 @@ void zs_destroy_pool(struct zs_pool *pool)
- 					class->size, fg);
- 			}
- 		}
-+		kfree(class);
- 	}
- 	kfree(pool);
+-	return hugepte_offset(hpdp, addr, pdshift);
++	return hugepte_offset(*hpdp, addr, pdshift);
  }
-@@ -1003,7 +1058,6 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
+ #endif
+ 
+@@ -538,7 +538,7 @@ static void hugetlb_free_pmd_range(struct mmu_gather *tlb, pud_t *pud,
+ 	do {
+ 		pmd = pmd_offset(pud, addr);
+ 		next = pmd_addr_end(addr, end);
+-		if (!is_hugepd(pmd)) {
++		if (!is_hugepd(__hugepd(pmd_val(*pmd)))) {
+ 			/*
+ 			 * if it is not hugepd pointer, we should already find
+ 			 * it cleared.
+@@ -587,7 +587,7 @@ static void hugetlb_free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
+ 	do {
+ 		pud = pud_offset(pgd, addr);
+ 		next = pud_addr_end(addr, end);
+-		if (!is_hugepd(pud)) {
++		if (!is_hugepd(__hugepd(pud_val(*pud)))) {
+ 			if (pud_none_or_clear_bad(pud))
+ 				continue;
+ 			hugetlb_free_pmd_range(tlb, pud, addr, next, floor,
+@@ -653,7 +653,7 @@ void hugetlb_free_pgd_range(struct mmu_gather *tlb,
+ 	do {
+ 		next = pgd_addr_end(addr, end);
+ 		pgd = pgd_offset(tlb->mm, addr);
+-		if (!is_hugepd(pgd)) {
++		if (!is_hugepd(__hugepd(pgd_val(*pgd)))) {
+ 			if (pgd_none_or_clear_bad(pgd))
+ 				continue;
+ 			hugetlb_free_pud_range(tlb, pgd, addr, next, floor, ceiling);
+@@ -713,18 +713,22 @@ static unsigned long hugepte_addr_end(unsigned long addr, unsigned long end,
+ 	return (__boundary - 1 < end - 1) ? __boundary : end;
+ }
+ 
+-int gup_hugepd(hugepd_t *hugepd, unsigned pdshift,
+-	       unsigned long addr, unsigned long end,
+-	       int write, struct page **pages, int *nr)
++extern int gup_huge_pte(pte_t orig, pte_t *ptep, unsigned long addr,
++			unsigned long size, unsigned long end, int write,
++			struct page **pages, int *nr);
++
++int gup_hugepd(hugepd_t hugepd, unsigned long addr, unsigned pdshift,
++	       unsigned long end, int write, struct page **pages, int *nr)
  {
- 	unsigned long obj;
- 	struct link_free *link;
--	int class_idx;
- 	struct size_class *class;
+ 	pte_t *ptep;
+-	unsigned long sz = 1UL << hugepd_shift(*hugepd);
++	unsigned long sz = 1UL << hugepd_shift(hugepd);
+ 	unsigned long next;
  
- 	struct page *first_page, *m_page;
-@@ -1012,9 +1066,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size)
- 	if (unlikely(!size || size > ZS_MAX_ALLOC_SIZE))
- 		return 0;
+ 	ptep = hugepte_offset(hugepd, addr, pdshift);
+ 	do {
+ 		next = hugepte_addr_end(addr, end, sz);
+-		if (!gup_hugepte(ptep, sz, addr, end, write, pages, nr))
++		if (!gup_huge_pte(ACCESS_ONCE(*ptep), ptep, addr, sz, end,
++				  write, pages, nr))
+ 			return 0;
+ 	} while (ptep++, addr = next, addr != end);
  
--	class_idx = get_size_class_index(size);
--	class = &pool->size_class[class_idx];
--	BUG_ON(class_idx != class->index);
-+	class = pool->size_class[get_size_class_index(size)];
+@@ -961,7 +965,7 @@ pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea, unsigned *shift
+ 	else if (pgd_huge(pgd)) {
+ 		ret_pte = (pte_t *) pgdp;
+ 		goto out;
+-	} else if (is_hugepd(&pgd))
++	} else if (is_hugepd(__hugepd(pgd_val(pgd))))
+ 		hpdp = (hugepd_t *)&pgd;
+ 	else {
+ 		/*
+@@ -978,7 +982,7 @@ pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea, unsigned *shift
+ 		else if (pud_huge(pud)) {
+ 			ret_pte = (pte_t *) pudp;
+ 			goto out;
+-		} else if (is_hugepd(&pud))
++		} else if (is_hugepd(__hugepd(pud_val(pud))))
+ 			hpdp = (hugepd_t *)&pud;
+ 		else {
+ 			pdshift = PMD_SHIFT;
+@@ -999,7 +1003,7 @@ pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea, unsigned *shift
+ 			if (pmd_huge(pmd) || pmd_large(pmd)) {
+ 				ret_pte = (pte_t *) pmdp;
+ 				goto out;
+-			} else if (is_hugepd(&pmd))
++			} else if (is_hugepd(__hugepd(pmd_val(pmd))))
+ 				hpdp = (hugepd_t *)&pmd;
+ 			else
+ 				return pte_offset_kernel(&pmd, ea);
+@@ -1008,7 +1012,7 @@ pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea, unsigned *shift
+ 	if (!hpdp)
+ 		return NULL;
  
- 	spin_lock(&class->lock);
- 	first_page = find_get_zspage(class);
-@@ -1067,7 +1119,7 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
- 	first_page = get_first_page(f_page);
- 
- 	get_zspage_mapping(first_page, &class_idx, &fullness);
--	class = &pool->size_class[class_idx];
-+	class = pool->size_class[class_idx];
- 	f_offset = obj_idx_to_offset(f_page, f_objidx, class->size);
- 
- 	spin_lock(&class->lock);
-@@ -1128,7 +1180,7 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
- 
- 	obj_handle_to_location(handle, &page, &obj_idx);
- 	get_zspage_mapping(get_first_page(page), &class_idx, &fg);
--	class = &pool->size_class[class_idx];
-+	class = pool->size_class[class_idx];
- 	off = obj_idx_to_offset(page, obj_idx, class->size);
- 
- 	area = &get_cpu_var(zs_map_area);
-@@ -1162,7 +1214,7 @@ void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
- 
- 	obj_handle_to_location(handle, &page, &obj_idx);
- 	get_zspage_mapping(get_first_page(page), &class_idx, &fg);
--	class = &pool->size_class[class_idx];
-+	class = pool->size_class[class_idx];
- 	off = obj_idx_to_offset(page, obj_idx, class->size);
- 
- 	area = this_cpu_ptr(&zs_map_area);
+-	ret_pte = hugepte_offset(hpdp, ea, pdshift);
++	ret_pte = hugepte_offset(*hpdp, ea, pdshift);
+ 	pdshift = hugepd_shift(*hpdp);
+ out:
+ 	if (shift)
 -- 
-1.7.9.5
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
