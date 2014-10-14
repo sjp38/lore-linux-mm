@@ -1,36 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D2466B0069
-	for <linux-mm@kvack.org>; Tue, 14 Oct 2014 07:50:32 -0400 (EDT)
-Received: by mail-wg0-f52.google.com with SMTP id a1so10643326wgh.23
-        for <linux-mm@kvack.org>; Tue, 14 Oct 2014 04:50:31 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id x15si20926218wjq.97.2014.10.14.04.50.29
+Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
+	by kanga.kvack.org (Postfix) with ESMTP id D82696B006C
+	for <linux-mm@kvack.org>; Tue, 14 Oct 2014 07:50:40 -0400 (EDT)
+Received: by mail-la0-f42.google.com with SMTP id mk6so8322715lab.15
+        for <linux-mm@kvack.org>; Tue, 14 Oct 2014 04:50:39 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 6si2851538laz.98.2014.10.14.04.50.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 14 Oct 2014 04:50:31 -0700 (PDT)
-Message-ID: <543D0DD8.10201@huawei.com>
-Date: Tue, 14 Oct 2014 19:49:44 +0800
-From: Wang Nan <wangnan0@huawei.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 14 Oct 2014 04:50:36 -0700 (PDT)
+Date: Tue, 14 Oct 2014 13:50:34 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH resend] cgroup/kmemleak: add kmemleak_free() for cgroup
+ deallocations.
+Message-ID: <20141014115034.GA8727@dhcp22.suse.cz>
+References: <1413287164-77051-1-git-send-email-wangnan0@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] cgroup/kmemleak: add kmemleak_free() for cgroup deallocations.
-References: <1411004285-42101-1-git-send-email-wangnan0@huawei.com>
-In-Reply-To: <1411004285-42101-1-git-send-email-wangnan0@huawei.com>
-Content-Type: text/plain; charset="GB2312"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1413287164-77051-1-git-send-email-wangnan0@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Steven Rostedt <rostedt@goodmis.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Li Zefan <lizefan@huawei.com>
+To: Wang Nan <wangnan0@huawei.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Steven Rostedt <rostedt@goodmis.org>, lizefan@huawei.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-Hi,
+[Adding Andrew who seems to be the right one to pick this up]
 
-I can't find this patch appear in any tree, is there any problem?
-
-As Michal Hocko's suggestion, I resent this patch with stable tag added. Please review.
-
-Thanks.
-
-On 2014/9/18 9:38, Wang Nan wrote:
+On Tue 14-10-14 19:46:04, Wang Nan wrote:
 > Commit ff7ee93f4 introduces kmemleak_alloc() for alloc_page_cgroup(),
 > but corresponding kmemleak_free() is missing, which makes kmemleak be
 > wrongly disabled after memory offlining. Log is pasted at the end of
@@ -81,8 +77,18 @@ On 2014/9/18 9:38, Wang Nan wrote:
 > [   46.617892]      [<ffffffff81ce46a9>] x86_64_start_kernel+0xf5/0xfc
 > [   46.617892]      [<ffffffffffffffff>] 0xffffffffffffffff
 > 
-> Signed-off-by: Wang Nan <wangnan0@huawei.com>
+> Fixes: ff7ee93f4 (cgroup/kmemleak: Annotate alloc_page() for cgroup allocations)
+> Cc: <stable@vger.kernel.org> # v3.2+
 > Cc: Steven Rostedt <rostedt@goodmis.org>
+> Signed-off-by: Wang Nan <wangnan0@huawei.com>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+> ---
+> 
+> Resend with stable tag.
+> 
+> Please refer to https://lkml.org/lkml/2014/9/17/746
+> 
 > ---
 >  mm/page_cgroup.c | 1 +
 >  1 file changed, 1 insertion(+)
@@ -99,8 +105,13 @@ On 2014/9/18 9:38, Wang Nan wrote:
 >  		free_pages_exact(addr, table_size);
 >  	}
 >  }
+> -- 
+> 1.8.4
 > 
 
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
