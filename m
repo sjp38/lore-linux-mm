@@ -1,47 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 70CBA6B0069
-	for <linux-mm@kvack.org>; Wed, 15 Oct 2014 16:11:37 -0400 (EDT)
-Received: by mail-lb0-f178.google.com with SMTP id w7so1717727lbi.9
-        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 13:11:36 -0700 (PDT)
-Received: from smtp2.it.da.ut.ee (smtp2.it.da.ut.ee. [2001:bb8:2002:500:20f:1fff:fe04:1bbb])
-        by mx.google.com with ESMTP id wb3si12117643lbb.112.2014.10.15.13.11.35
-        for <linux-mm@kvack.org>;
-        Wed, 15 Oct 2014 13:11:35 -0700 (PDT)
-Date: Wed, 15 Oct 2014 23:11:34 +0300 (EEST)
-From: Meelis Roos <mroos@linux.ee>
-Subject: Re: unaligned accesses in SLAB etc.
-In-Reply-To: <20141015.143624.941838991598108211.davem@davemloft.net>
-Message-ID: <alpine.LRH.2.11.1410152310080.11974@adalberg.ut.ee>
-References: <alpine.LRH.2.11.1410150012001.11850@adalberg.ut.ee> <20141014.173246.921084057467310731.davem@davemloft.net> <alpine.LRH.2.11.1410151059520.8050@adalberg.ut.ee> <20141015.143624.941838991598108211.davem@davemloft.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id D03CC6B0069
+	for <linux-mm@kvack.org>; Wed, 15 Oct 2014 16:17:13 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id ey11so1921911pad.41
+        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 13:17:13 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id ov3si12250779pbc.228.2014.10.15.13.17.12
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Oct 2014 13:17:12 -0700 (PDT)
+Date: Wed, 15 Oct 2014 13:17:10 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/zbud: init user ops only when it is needed
+Message-Id: <20141015131710.ffd6c40996cd1ce6c16dbae8@linux-foundation.org>
+In-Reply-To: <1413367243-23524-1-git-send-email-heesub.shin@samsung.com>
+References: <1413367243-23524-1-git-send-email-heesub.shin@samsung.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org
+To: Heesub Shin <heesub.shin@samsung.com>
+Cc: Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjennings@variantweb.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sunae Seo <sunae.seo@samsung.com>
 
-> >> The gcc-4.9 case is interesting, are you saying that a gcc-4.9 compiled
-> >> kernel works fine on other systems?
-> > 
-> > Yes, all USII based systems work fine with Debian gcc-4.9, as does 
-> > T2000. Of USIII* systems, V210 and V440 exhibit the boot hang with 
-> > gcc-4.9 and V480 crashes wit FATAL exception during boot that is 
-> > probably earlier than the gcc boot hang so I do not know about V480 and 
-> > gcc-4.9. V240 not tested because of fan failures, V245 is in the queue 
-> > for setup but not tested so far.
+On Wed, 15 Oct 2014 19:00:43 +0900 Heesub Shin <heesub.shin@samsung.com> wrote:
+
+> When zbud is initialized through the zpool wrapper, pool->ops which
+> points to user-defined operations is always set regardless of whether it
+> is specified from the upper layer. This causes zbud_reclaim_page() to
+> iterate its loop for evicting pool pages out without any gain.
 > 
-> Ok, on the V210/V440 can you boot with "-p" on the kernel boot command
-> line and post the log?  Let's start by seeing how far it gets, maybe
-> we can figure out roughly where it dies.
+> This patch sets the user-defined ops only when it is needed, so that
+> zbud_reclaim_page() can bail out the reclamation loop earlier if there
+> is no user-defined operations specified.
 
-http://www.spinics.net/lists/sparclinux/msg12238.html and 
-http://www.spinics.net/lists/sparclinux/msg12468.html are my relevant 
-posts about it. Should I get something more? It would be easy because of 
-ALOM.
+Which callsite is calling zbud_zpool_create(..., NULL)?
 
--- 
-Meelis Roos (mroos@linux.ee)
+> ...
+> --- a/mm/zbud.c
+> +++ b/mm/zbud.c
+> @@ -132,7 +132,7 @@ static struct zbud_ops zbud_zpool_ops = {
+>  
+>  static void *zbud_zpool_create(gfp_t gfp, struct zpool_ops *zpool_ops)
+>  {
+> -	return zbud_create_pool(gfp, &zbud_zpool_ops);
+> +	return zbud_create_pool(gfp, zpool_ops ? &zbud_zpool_ops : NULL);
+>  }
+>  
+>  static void zbud_zpool_destroy(void *pool)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
