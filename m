@@ -1,51 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id B17A76B006C
-	for <linux-mm@kvack.org>; Wed, 15 Oct 2014 16:05:45 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id hz1so1927192pad.36
-        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 13:05:45 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ci5si14658723pdb.178.2014.10.15.13.05.44
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Oct 2014 13:05:44 -0700 (PDT)
-Date: Wed, 15 Oct 2014 13:05:44 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: vmscan: count only dirty pages as congested
-Message-Id: <20141015130544.380aca0acfcb1413459520b0@linux-foundation.org>
-In-Reply-To: <1413403115-1551-1-git-send-email-jamieliu@google.com>
-References: <1413403115-1551-1-git-send-email-jamieliu@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id B06236B0069
+	for <linux-mm@kvack.org>; Wed, 15 Oct 2014 16:07:55 -0400 (EDT)
+Received: by mail-wi0-f176.google.com with SMTP id hi2so13945791wib.15
+        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 13:07:54 -0700 (PDT)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.226])
+        by mx.google.com with ESMTP id i3si26789867wjw.74.2014.10.15.13.07.53
+        for <linux-mm@kvack.org>;
+        Wed, 15 Oct 2014 13:07:54 -0700 (PDT)
+Date: Wed, 15 Oct 2014 23:07:45 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH v2 2/2] mm: verify compound order when freeing a page
+Message-ID: <20141015200745.GB17066@node.dhcp.inet.fi>
+References: <1413400805-15547-1-git-send-email-yuzhao@google.com>
+ <1413400805-15547-2-git-send-email-yuzhao@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1413400805-15547-2-git-send-email-yuzhao@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jamie Liu <jamieliu@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Yu Zhao <yuzhao@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, Bob Liu <lliubbo@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-On Wed, 15 Oct 2014 12:58:35 -0700 Jamie Liu <jamieliu@google.com> wrote:
-
-> shrink_page_list() counts all pages with a mapping, including clean
-> pages, toward nr_congested if they're on a write-congested BDI.
-> shrink_inactive_list() then sets ZONE_CONGESTED if nr_dirty ==
-> nr_congested. Fix this apples-to-oranges comparison by only counting
-> pages for nr_congested if they count for nr_dirty.
+On Wed, Oct 15, 2014 at 12:20:05PM -0700, Yu Zhao wrote:
+> This allows us to catch the bug fixed in the previous patch
+> (mm: free compound page with correct order).
 > 
-> ...
->
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -875,7 +875,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		 * end of the LRU a second time.
->  		 */
->  		mapping = page_mapping(page);
-> -		if ((mapping && bdi_write_congested(mapping->backing_dev_info)) ||
-> +		if (((dirty || writeback) && mapping &&
-> +		     bdi_write_congested(mapping->backing_dev_info)) ||
->  		    (writeback && PageReclaim(page)))
->  			nr_congested++;
+> Here we also verify whether a page is tail page or not -- tail
+> pages are supposed to be freed along with their head, not by
+> themselves.
+> 
+> Reviewed-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-What are the observed runtime effects of this change?
+I didn't give this tag. It's okay in this case, but please do not assume
+that you've got Reviewed-by, unless the person said it explicitly.
+
+> Signed-off-by: Yu Zhao <yuzhao@google.com>
+
+Your Singed-off-by should come first.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
