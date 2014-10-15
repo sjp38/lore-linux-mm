@@ -1,47 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id B06236B0069
-	for <linux-mm@kvack.org>; Wed, 15 Oct 2014 16:07:55 -0400 (EDT)
-Received: by mail-wi0-f176.google.com with SMTP id hi2so13945791wib.15
-        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 13:07:54 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.226])
-        by mx.google.com with ESMTP id i3si26789867wjw.74.2014.10.15.13.07.53
+Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 70CBA6B0069
+	for <linux-mm@kvack.org>; Wed, 15 Oct 2014 16:11:37 -0400 (EDT)
+Received: by mail-lb0-f178.google.com with SMTP id w7so1717727lbi.9
+        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 13:11:36 -0700 (PDT)
+Received: from smtp2.it.da.ut.ee (smtp2.it.da.ut.ee. [2001:bb8:2002:500:20f:1fff:fe04:1bbb])
+        by mx.google.com with ESMTP id wb3si12117643lbb.112.2014.10.15.13.11.35
         for <linux-mm@kvack.org>;
-        Wed, 15 Oct 2014 13:07:54 -0700 (PDT)
-Date: Wed, 15 Oct 2014 23:07:45 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v2 2/2] mm: verify compound order when freeing a page
-Message-ID: <20141015200745.GB17066@node.dhcp.inet.fi>
-References: <1413400805-15547-1-git-send-email-yuzhao@google.com>
- <1413400805-15547-2-git-send-email-yuzhao@google.com>
+        Wed, 15 Oct 2014 13:11:35 -0700 (PDT)
+Date: Wed, 15 Oct 2014 23:11:34 +0300 (EEST)
+From: Meelis Roos <mroos@linux.ee>
+Subject: Re: unaligned accesses in SLAB etc.
+In-Reply-To: <20141015.143624.941838991598108211.davem@davemloft.net>
+Message-ID: <alpine.LRH.2.11.1410152310080.11974@adalberg.ut.ee>
+References: <alpine.LRH.2.11.1410150012001.11850@adalberg.ut.ee> <20141014.173246.921084057467310731.davem@davemloft.net> <alpine.LRH.2.11.1410151059520.8050@adalberg.ut.ee> <20141015.143624.941838991598108211.davem@davemloft.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1413400805-15547-2-git-send-email-yuzhao@google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu Zhao <yuzhao@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>, Bob Liu <lliubbo@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: David Miller <davem@davemloft.net>
+Cc: iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org
 
-On Wed, Oct 15, 2014 at 12:20:05PM -0700, Yu Zhao wrote:
-> This allows us to catch the bug fixed in the previous patch
-> (mm: free compound page with correct order).
+> >> The gcc-4.9 case is interesting, are you saying that a gcc-4.9 compiled
+> >> kernel works fine on other systems?
+> > 
+> > Yes, all USII based systems work fine with Debian gcc-4.9, as does 
+> > T2000. Of USIII* systems, V210 and V440 exhibit the boot hang with 
+> > gcc-4.9 and V480 crashes wit FATAL exception during boot that is 
+> > probably earlier than the gcc boot hang so I do not know about V480 and 
+> > gcc-4.9. V240 not tested because of fan failures, V245 is in the queue 
+> > for setup but not tested so far.
 > 
-> Here we also verify whether a page is tail page or not -- tail
-> pages are supposed to be freed along with their head, not by
-> themselves.
-> 
-> Reviewed-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Ok, on the V210/V440 can you boot with "-p" on the kernel boot command
+> line and post the log?  Let's start by seeing how far it gets, maybe
+> we can figure out roughly where it dies.
 
-I didn't give this tag. It's okay in this case, but please do not assume
-that you've got Reviewed-by, unless the person said it explicitly.
-
-> Signed-off-by: Yu Zhao <yuzhao@google.com>
-
-Your Singed-off-by should come first.
+http://www.spinics.net/lists/sparclinux/msg12238.html and 
+http://www.spinics.net/lists/sparclinux/msg12468.html are my relevant 
+posts about it. Should I get something more? It would be easy because of 
+ALOM.
 
 -- 
- Kirill A. Shutemov
+Meelis Roos (mroos@linux.ee)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
