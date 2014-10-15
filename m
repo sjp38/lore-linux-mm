@@ -1,55 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 3609D6B0069
-	for <linux-mm@kvack.org>; Wed, 15 Oct 2014 14:36:29 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y13so1700972pdi.19
-        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 11:36:28 -0700 (PDT)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id xi4si14035705pab.67.2014.10.15.11.36.28
-        for <linux-mm@kvack.org>;
-        Wed, 15 Oct 2014 11:36:28 -0700 (PDT)
-Date: Wed, 15 Oct 2014 14:36:24 -0400 (EDT)
-Message-Id: <20141015.143624.941838991598108211.davem@davemloft.net>
-Subject: Re: unaligned accesses in SLAB etc.
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <alpine.LRH.2.11.1410151059520.8050@adalberg.ut.ee>
-References: <alpine.LRH.2.11.1410150012001.11850@adalberg.ut.ee>
-	<20141014.173246.921084057467310731.davem@davemloft.net>
-	<alpine.LRH.2.11.1410151059520.8050@adalberg.ut.ee>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 777E96B0069
+	for <linux-mm@kvack.org>; Wed, 15 Oct 2014 14:44:17 -0400 (EDT)
+Received: by mail-wi0-f176.google.com with SMTP id hi2so13784283wib.9
+        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 11:44:16 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id wh1si26581186wjb.22.2014.10.15.11.44.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Oct 2014 11:44:15 -0700 (PDT)
+Date: Wed, 15 Oct 2014 14:44:10 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 2/5] mm: memcontrol: take a css reference for each
+ charged page
+Message-ID: <20141015184410.GB6442@phnom.home.cmpxchg.org>
+References: <1413303637-23862-1-git-send-email-hannes@cmpxchg.org>
+ <1413303637-23862-3-git-send-email-hannes@cmpxchg.org>
+ <20141015151836.GG23547@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141015151836.GG23547@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mroos@linux.ee
-Cc: iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-From: Meelis Roos <mroos@linux.ee>
-Date: Wed, 15 Oct 2014 11:04:49 +0300 (EEST)
-
->> > My only other current sparc64 problems that I am seeing - V210/V440 die 
->> > during bootup if compiled with gcc 4.9 and V480 dies with FATAL 
->> > exceptions during bootups since previous kernel release. Maybe also 
->> > exit_mmap warning - I do not know if they have been fixed, I see them 
->> > rarely.
->> 
->> The gcc-4.9 case is interesting, are you saying that a gcc-4.9 compiled
->> kernel works fine on other systems?
+On Wed, Oct 15, 2014 at 05:18:36PM +0200, Michal Hocko wrote:
+> On Tue 14-10-14 12:20:34, Johannes Weiner wrote:
+> > Charges currently pin the css indirectly by playing tricks during
+> > css_offline(): user pages stall the offlining process until all of
+> > them have been reparented, whereas kmemcg acquires a keep-alive
+> > reference if outstanding kernel pages are detected at that point.
+> > 
+> > In preparation for removing all this complexity, make the pinning
+> > explicit and acquire a css references for every charged page.
+> > 
+> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
 > 
-> Yes, all USII based systems work fine with Debian gcc-4.9, as does 
-> T2000. Of USIII* systems, V210 and V440 exhibit the boot hang with 
-> gcc-4.9 and V480 crashes wit FATAL exception during boot that is 
-> probably earlier than the gcc boot hang so I do not know about V480 and 
-> gcc-4.9. V240 not tested because of fan failures, V245 is in the queue 
-> for setup but not tested so far.
+> Acked-by: Michal Hocko <mhocko@suse.cz>
+> 
+> > ---
+> >  include/linux/cgroup.h          | 26 +++++++++++++++++++++++
+> >  include/linux/percpu-refcount.h | 47 +++++++++++++++++++++++++++++++++--------
+> >  mm/memcontrol.c                 | 21 ++++++++++++++----
+> >  3 files changed, 81 insertions(+), 13 deletions(-)
+> > 
+> [...]
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 67dabe8b0aa6..a3feead6be15 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -2256,6 +2256,7 @@ static void drain_stock(struct memcg_stock_pcp *stock)
+> >  		page_counter_uncharge(&old->memory, stock->nr_pages);
+> >  		if (do_swap_account)
+> >  			page_counter_uncharge(&old->memsw, stock->nr_pages);
+> > +		css_put_many(&old->css, stock->nr_pages);
+> 
+> I have suggested to add a comment about pairing css_get here because the
+> corresponding refill_stock doesn't take any reference which might be
+> little bit confusing. Nothing earth shattering of course...
 
-Ok, on the V210/V440 can you boot with "-p" on the kernel boot command
-line and post the log?  Let's start by seeing how far it gets, maybe
-we can figure out roughly where it dies.
-
-A boot hang should be relatively easy to diagnose and pinpoint.
-
-Thanks.
+Ah, but this isn't the counter-part to refill_stock(), consume_stock()
+is.  The references are taken for the charges, and those two functions
+do not change the account.  css get/put pair exactly like page counter
+charge/uncharge.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
