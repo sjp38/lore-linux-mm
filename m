@@ -1,61 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 96F7B6B006E
-	for <linux-mm@kvack.org>; Wed, 15 Oct 2014 06:00:49 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id hz1so1024117pad.22
-        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 03:00:49 -0700 (PDT)
-Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
-        by mx.google.com with ESMTPS id pt9si15344757pdb.130.2014.10.15.03.00.48
+Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
+	by kanga.kvack.org (Postfix) with ESMTP id F0D5A6B0069
+	for <linux-mm@kvack.org>; Wed, 15 Oct 2014 11:03:00 -0400 (EDT)
+Received: by mail-la0-f53.google.com with SMTP id gq15so1194903lab.40
+        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 08:03:00 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s7si30926801lbb.38.2014.10.15.08.02.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Wed, 15 Oct 2014 03:00:48 -0700 (PDT)
-Received: from epcpsbgr1.samsung.com
- (u141.gpu120.samsung.co.kr [203.254.230.141])
- by mailout2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTP id <0NDH00F37D5AXC40@mailout2.samsung.com> for linux-mm@kvack.org;
- Wed, 15 Oct 2014 19:00:46 +0900 (KST)
-From: Heesub Shin <heesub.shin@samsung.com>
-Subject: [PATCH] mm/zbud: init user ops only when it is needed
-Date: Wed, 15 Oct 2014 19:00:43 +0900
-Message-id: <1413367243-23524-1-git-send-email-heesub.shin@samsung.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 15 Oct 2014 08:02:58 -0700 (PDT)
+Date: Wed, 15 Oct 2014 17:02:56 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 1/5] mm: memcontrol: convert reclaim iterator to simple
+ css refcounting
+Message-ID: <20141015150256.GF23547@dhcp22.suse.cz>
+References: <1413303637-23862-1-git-send-email-hannes@cmpxchg.org>
+ <1413303637-23862-2-git-send-email-hannes@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1413303637-23862-2-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjennings@variantweb.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sunae Seo <sunae.seo@samsung.com>, Heesub Shin <heesub.shin@samsung.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-When zbud is initialized through the zpool wrapper, pool->ops which
-points to user-defined operations is always set regardless of whether it
-is specified from the upper layer. This causes zbud_reclaim_page() to
-iterate its loop for evicting pool pages out without any gain.
+On Tue 14-10-14 12:20:33, Johannes Weiner wrote:
+> The memcg reclaim iterators use a complicated weak reference scheme to
+> prevent pinning cgroups indefinitely in the absence of memory pressure.
+> 
+> However, during the ongoing cgroup core rework, css lifetime has been
+> decoupled such that a pinned css no longer interferes with removal of
+> the user-visible cgroup, and all this complexity is now unnecessary.
+>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  mm/memcontrol.c | 250 +++++++++++++++++---------------------------------------
+>  1 file changed, 76 insertions(+), 174 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index b62972c80055..67dabe8b0aa6 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+[...]
+> +		do {
+> +			pos = ACCESS_ONCE(iter->position);
+> +			/*
+> +			 * A racing update may change the position and
+> +			 * put the last reference, hence css_tryget(),
+> +			 * or retry to see the updated position.
+> +			 */
+> +		} while (pos && !css_tryget(&pos->css));
+> +	}
+[...]
+> +	if (reclaim) {
+> +		if (cmpxchg(&iter->position, pos, memcg) == pos && memcg)
+> +			css_get(&memcg->css);
+> +
+> +		if (pos)
+> +			css_put(&pos->css);
 
-This patch sets the user-defined ops only when it is needed, so that
-zbud_reclaim_page() can bail out the reclamation loop earlier if there
-is no user-defined operations specified.
-
-Signed-off-by: Heesub Shin <heesub.shin@samsung.com>
+This looks like a reference leak. css_put pairs with the above
+css_tryget but no css_put pairs with css_get for the cached one. We
+need:
 ---
- mm/zbud.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/zbud.c b/mm/zbud.c
-index ecf1dbe..db8de74 100644
---- a/mm/zbud.c
-+++ b/mm/zbud.c
-@@ -132,7 +132,7 @@ static struct zbud_ops zbud_zpool_ops = {
- 
- static void *zbud_zpool_create(gfp_t gfp, struct zpool_ops *zpool_ops)
- {
--	return zbud_create_pool(gfp, &zbud_zpool_ops);
-+	return zbud_create_pool(gfp, zpool_ops ? &zbud_zpool_ops : NULL);
- }
- 
- static void zbud_zpool_destroy(void *pool)
--- 
-1.9.1
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
