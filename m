@@ -1,109 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 589476B0069
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 02:18:46 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id p10so202887pdj.29
-        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 23:18:46 -0700 (PDT)
-Received: from manager.mioffice.cn ([42.62.48.242])
-        by mx.google.com with ESMTP id rb8si244121pab.197.2014.10.16.23.18.43
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C49F6B0069
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 03:18:51 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id fp1so292804pdb.21
+        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 00:18:50 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id nz10si346046pdb.211.2014.10.17.00.18.49
         for <linux-mm@kvack.org>;
-        Thu, 16 Oct 2014 23:18:45 -0700 (PDT)
-From: =?gb2312?B?1uy71A==?= <zhuhui@xiaomi.com>
-Subject: Re: [PATCH 2/4] (CMA_AGGRESSIVE) Add argument hibernation to
- function shrink_all_memory
-Date: Fri, 17 Oct 2014 06:18:39 +0000
-Message-ID: <70d41b6fdea74d5fb88f314708879acc@cnbox4.mioffice.cn>
-References: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com>
- <1413430551-22392-3-git-send-email-zhuhui@xiaomi.com>
- <1471435.6q4YYkTopF@vostro.rjw.lan>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+        Fri, 17 Oct 2014 00:18:50 -0700 (PDT)
+Date: Thu, 16 Oct 2014 17:29:23 -0400
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH v11 09/21] dax,ext2: Replace the XIP page fault handler
+ with the DAX page fault handler
+Message-ID: <20141016212923.GG11522@wil.cx>
+References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
+ <1411677218-29146-10-git-send-email-matthew.r.wilcox@intel.com>
+ <20141016102047.GG19075@thinkos.etherlink>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141016102047.GG19075@thinkos.etherlink>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Calvin Owens <jcalvinowens@gmail.com>
 
-CgpPbiAxMC8xNi8xNCAxNjoyOSwgUmFmYWVsIEouIFd5c29ja2kgd3JvdGU6Cj4gW0NDIGxpc3Qg
-dHJpbW1lZF0KPgo+IE9uIFRodXJzZGF5LCBPY3RvYmVyIDE2LCAyMDE0IDExOjM1OjQ5IEFNIEh1
-aSBaaHUgd3JvdGU6Cj4+IEZ1bmN0aW9uIHNocmlua19hbGxfbWVtb3J5IHRyeSB0byBmcmVlIGBu
-cl90b19yZWNsYWltJyBvZiBtZW1vcnkuCj4+IENNQV9BR0dSRVNTSVZFX1NIUklOSyBmdW5jdGlv
-biB3aWxsIGNhbGwgdGhpcyBmdW5jdG9uIHRvIGZyZWUgYG5yX3RvX3JlY2xhaW0nIG9mCj4+IG1l
-bW9yeS4gIEl0IG5lZWQgZGlmZmVyZW50IHNjYW5fY29udHJvbCB3aXRoIGN1cnJlbnQgY2FsbGVy
-IGZ1bmN0aW9uCj4+IGhpYmVybmF0ZV9wcmVhbGxvY2F0ZV9tZW1vcnkuCj4+Cj4+IElmIGhpYmVy
-bmF0aW9uIGlzIHRydWUsIHRoZSBjYWxsZXIgaXMgaGliZXJuYXRlX3ByZWFsbG9jYXRlX21lbW9y
-eS4KPj4gaWYgbm90LCB0aGUgY2FsbGVyIGlzIENNQSBhbGxvYyBmdW5jdGlvbi4KPj4KPj4gU2ln
-bmVkLW9mZi1ieTogSHVpIFpodSA8emh1aHVpQHhpYW9taS5jb20+Cj4+IC0tLQo+PiAgIGluY2x1
-ZGUvbGludXgvc3dhcC5oICAgIHwgIDMgKystCj4+ICAga2VybmVsL3Bvd2VyL3NuYXBzaG90LmMg
-fCAgMiArLQo+PiAgIG1tL3Ztc2Nhbi5jICAgICAgICAgICAgIHwgMTkgKysrKysrKysrKysrKy0t
-LS0tLQo+PiAgIDMgZmlsZXMgY2hhbmdlZCwgMTYgaW5zZXJ0aW9ucygrKSwgOCBkZWxldGlvbnMo
-LSkKPj4KPj4gZGlmZiAtLWdpdCBhL2luY2x1ZGUvbGludXgvc3dhcC5oIGIvaW5jbHVkZS9saW51
-eC9zd2FwLmgKPj4gaW5kZXggMzdhNTg1Yi4uOWYyY2I0MyAxMDA2NDQKPj4gLS0tIGEvaW5jbHVk
-ZS9saW51eC9zd2FwLmgKPj4gKysrIGIvaW5jbHVkZS9saW51eC9zd2FwLmgKPj4gQEAgLTMzNSw3
-ICszMzUsOCBAQCBleHRlcm4gdW5zaWduZWQgbG9uZyBtZW1fY2dyb3VwX3Nocmlua19ub2RlX3pv
-bmUoc3RydWN0IG1lbV9jZ3JvdXAgKm1lbSwKPj4gICAJCQkJCQlnZnBfdCBnZnBfbWFzaywgYm9v
-bCBub3N3YXAsCj4+ICAgCQkJCQkJc3RydWN0IHpvbmUgKnpvbmUsCj4+ICAgCQkJCQkJdW5zaWdu
-ZWQgbG9uZyAqbnJfc2Nhbm5lZCk7Cj4+IC1leHRlcm4gdW5zaWduZWQgbG9uZyBzaHJpbmtfYWxs
-X21lbW9yeSh1bnNpZ25lZCBsb25nIG5yX3BhZ2VzKTsKPj4gK2V4dGVybiB1bnNpZ25lZCBsb25n
-IHNocmlua19hbGxfbWVtb3J5KHVuc2lnbmVkIGxvbmcgbnJfcGFnZXMsCj4+ICsJCQkJICAgICAg
-IGJvb2wgaGliZXJuYXRpb24pOwo+PiAgIGV4dGVybiBpbnQgdm1fc3dhcHBpbmVzczsKPj4gICBl
-eHRlcm4gaW50IHJlbW92ZV9tYXBwaW5nKHN0cnVjdCBhZGRyZXNzX3NwYWNlICptYXBwaW5nLCBz
-dHJ1Y3QgcGFnZSAqcGFnZSk7Cj4+ICAgZXh0ZXJuIHVuc2lnbmVkIGxvbmcgdm1fdG90YWxfcGFn
-ZXM7Cj4+IGRpZmYgLS1naXQgYS9rZXJuZWwvcG93ZXIvc25hcHNob3QuYyBiL2tlcm5lbC9wb3dl
-ci9zbmFwc2hvdC5jCj4+IGluZGV4IDc5MWE2MTguLmEwMGZjMzUgMTAwNjQ0Cj4+IC0tLSBhL2tl
-cm5lbC9wb3dlci9zbmFwc2hvdC5jCj4+ICsrKyBiL2tlcm5lbC9wb3dlci9zbmFwc2hvdC5jCj4+
-IEBAIC0xNjU3LDcgKzE2NTcsNyBAQCBpbnQgaGliZXJuYXRlX3ByZWFsbG9jYXRlX21lbW9yeSh2
-b2lkKQo+PiAgIAkgKiBOT1RFOiBJZiB0aGlzIGlzIG5vdCBkb25lLCBwZXJmb3JtYW5jZSB3aWxs
-IGJlIGh1cnQgYmFkbHkgaW4gc29tZQo+PiAgIAkgKiB0ZXN0IGNhc2VzLgo+PiAgIAkgKi8KPj4g
-LQlzaHJpbmtfYWxsX21lbW9yeShzYXZlYWJsZSAtIHNpemUpOwo+PiArCXNocmlua19hbGxfbWVt
-b3J5KHNhdmVhYmxlIC0gc2l6ZSwgdHJ1ZSk7Cj4KPiBJbnN0ZWFkIG9mIGRvaW5nIHRoaXMsIGNh
-biB5b3UgcGxlYXNlIGRlZmluZQo+Cj4gX19zaHJpbmtfYWxsX21lbW9yeSgpCj4KPiB0aGF0IHdp
-bGwgdGFrZSB0aGUgYXBwcm9wcmlhdGUgc3RydWN0IHNjYW5fY29udHJvbCBhcyBhbiBhcmd1bWVu
-dCBhbmQKPiB0aGVuIGRlZmluZSB0d28gd3JhcHBlcnMgYXJvdW5kIHRoYXQsIG9uZSBmb3IgaGli
-ZXJuYXRpb24gYW5kIG9uZSBmb3IgQ01BPwo+Cj4gVGhlIHdheSB5b3UgZGlkIGl0IG9wZW5zIGEg
-ZmllbGQgZm9yIGJ1Z3MgY2F1c2VkIGJ5IHBhc3NpbmcgYSB3cm9uZyB2YWx1ZQo+IGFzIHRoZSBz
-ZWNvbmQgYXJndW1lbnQuCgpUaGFua3MgUmFmYWVsLgpJIHdpbGwgdXBkYXRlIHBhdGNoIGFjY29y
-ZGluZyB0byB5b3VyIGNvbW1lbnRzLgoKQmVzdCwKSHVpCgo+Cj4+Cj4+ICAgCS8qCj4+ICAgCSAq
-IFRoZSBudW1iZXIgb2Ygc2F2ZWFibGUgcGFnZXMgaW4gbWVtb3J5IHdhcyB0b28gaGlnaCwgc28g
-YXBwbHkgc29tZQo+PiBkaWZmIC0tZ2l0IGEvbW0vdm1zY2FuLmMgYi9tbS92bXNjYW4uYwo+PiBp
-bmRleCBkY2I0NzA3Li5mZGNmYTMwIDEwMDY0NAo+PiAtLS0gYS9tbS92bXNjYW4uYwo+PiArKysg
-Yi9tbS92bXNjYW4uYwo+PiBAQCAtMzQwNCw3ICszNDA0LDcgQEAgdm9pZCB3YWtldXBfa3N3YXBk
-KHN0cnVjdCB6b25lICp6b25lLCBpbnQgb3JkZXIsIGVudW0gem9uZV90eXBlIGNsYXNzem9uZV9p
-ZHgpCj4+ICAgCXdha2VfdXBfaW50ZXJydXB0aWJsZSgmcGdkYXQtPmtzd2FwZF93YWl0KTsKPj4g
-ICB9Cj4+Cj4+IC0jaWZkZWYgQ09ORklHX0hJQkVSTkFUSU9OCj4+ICsjaWYgZGVmaW5lZCBDT05G
-SUdfSElCRVJOQVRJT04gfHwgZGVmaW5lZCBDT05GSUdfQ01BX0FHR1JFU1NJVkUKPj4gICAvKgo+
-PiAgICAqIFRyeSB0byBmcmVlIGBucl90b19yZWNsYWltJyBvZiBtZW1vcnksIHN5c3RlbS13aWRl
-LCBhbmQgcmV0dXJuIHRoZSBudW1iZXIgb2YKPj4gICAgKiBmcmVlZCBwYWdlcy4KPj4gQEAgLTM0
-MTMsMjIgKzM0MTMsMjkgQEAgdm9pZCB3YWtldXBfa3N3YXBkKHN0cnVjdCB6b25lICp6b25lLCBp
-bnQgb3JkZXIsIGVudW0gem9uZV90eXBlIGNsYXNzem9uZV9pZHgpCj4+ICAgICogTFJVIG9yZGVy
-IGJ5IHJlY2xhaW1pbmcgcHJlZmVyZW50aWFsbHkKPj4gICAgKiBpbmFjdGl2ZSA+IGFjdGl2ZSA+
-IGFjdGl2ZSByZWZlcmVuY2VkID4gYWN0aXZlIG1hcHBlZAo+PiAgICAqLwo+PiAtdW5zaWduZWQg
-bG9uZyBzaHJpbmtfYWxsX21lbW9yeSh1bnNpZ25lZCBsb25nIG5yX3RvX3JlY2xhaW0pCj4+ICt1
-bnNpZ25lZCBsb25nIHNocmlua19hbGxfbWVtb3J5KHVuc2lnbmVkIGxvbmcgbnJfdG9fcmVjbGFp
-bSwgYm9vbCBoaWJlcm5hdGlvbikKPj4gICB7Cj4+ICAgCXN0cnVjdCByZWNsYWltX3N0YXRlIHJl
-Y2xhaW1fc3RhdGU7Cj4+ICAgCXN0cnVjdCBzY2FuX2NvbnRyb2wgc2MgPSB7Cj4+ICAgCQkubnJf
-dG9fcmVjbGFpbSA9IG5yX3RvX3JlY2xhaW0sCj4+IC0JCS5nZnBfbWFzayA9IEdGUF9ISUdIVVNF
-Ul9NT1ZBQkxFLAo+PiAgIAkJLnByaW9yaXR5ID0gREVGX1BSSU9SSVRZLAo+PiAtCQkubWF5X3dy
-aXRlcGFnZSA9IDEsCj4+ICAgCQkubWF5X3VubWFwID0gMSwKPj4gICAJCS5tYXlfc3dhcCA9IDEs
-Cj4+IC0JCS5oaWJlcm5hdGlvbl9tb2RlID0gMSwKPj4gICAJfTsKPj4gICAJc3RydWN0IHpvbmVs
-aXN0ICp6b25lbGlzdCA9IG5vZGVfem9uZWxpc3QobnVtYV9ub2RlX2lkKCksIHNjLmdmcF9tYXNr
-KTsKPj4gICAJc3RydWN0IHRhc2tfc3RydWN0ICpwID0gY3VycmVudDsKPj4gICAJdW5zaWduZWQg
-bG9uZyBucl9yZWNsYWltZWQ7Cj4+Cj4+ICsJaWYgKGhpYmVybmF0aW9uKSB7Cj4+ICsJCXNjLmhp
-YmVybmF0aW9uX21vZGUgPSAxOwo+PiArCQlzYy5tYXlfd3JpdGVwYWdlID0gMTsKPj4gKwkJc2Mu
-Z2ZwX21hc2sgPSBHRlBfSElHSFVTRVJfTU9WQUJMRTsKPj4gKwl9IGVsc2Ugewo+PiArCQlzYy5o
-aWJlcm5hdGlvbl9tb2RlID0gMDsKPj4gKwkJc2MubWF5X3dyaXRlcGFnZSA9ICFsYXB0b3BfbW9k
-ZTsKPj4gKwkJc2MuZ2ZwX21hc2sgPSBHRlBfVVNFUiB8IF9fR0ZQX01PVkFCTEUgfCBfX0dGUF9I
-SUdITUVNOwo+PiArCX0KPj4gKwo+PiAgIAlwLT5mbGFncyB8PSBQRl9NRU1BTExPQzsKPj4gICAJ
-bG9ja2RlcF9zZXRfY3VycmVudF9yZWNsYWltX3N0YXRlKHNjLmdmcF9tYXNrKTsKPj4gICAJcmVj
-bGFpbV9zdGF0ZS5yZWNsYWltZWRfc2xhYiA9IDA7Cj4+IEBAIC0zNDQyLDcgKzM0NDksNyBAQCB1
-bnNpZ25lZCBsb25nIHNocmlua19hbGxfbWVtb3J5KHVuc2lnbmVkIGxvbmcgbnJfdG9fcmVjbGFp
-bSkKPj4KPj4gICAJcmV0dXJuIG5yX3JlY2xhaW1lZDsKPj4gICB9Cj4+IC0jZW5kaWYgLyogQ09O
-RklHX0hJQkVSTkFUSU9OICovCj4+ICsjZW5kaWYgLyogQ09ORklHX0hJQkVSTkFUSU9OIHx8IENP
-TkZJR19DTUFfQUdHUkVTU0lWRSAqLwo+Pgo+PiAgIC8qIEl0J3Mgb3B0aW1hbCB0byBrZWVwIGtz
-d2FwZHMgb24gdGhlIHNhbWUgQ1BVcyBhcyB0aGVpciBtZW1vcnksIGJ1dAo+PiAgICAgIG5vdCBy
-ZXF1aXJlZCBmb3IgY29ycmVjdG5lc3MuICBTbyBpZiB0aGUgbGFzdCBjcHUgaW4gYSBub2RlIGdv
-ZXMKPj4KPgo=
+On Thu, Oct 16, 2014 at 12:20:47PM +0200, Mathieu Desnoyers wrote:
+> > +/*
+> > + * The user has performed a load from a hole in the file.  Allocating
+> > + * a new page in the file would cause excessive storage usage for
+> > + * workloads with sparse files.  We allocate a page cache page instead.
+> > + * We'll kick it out of the page cache if it's ever written to,
+> > + * otherwise it will simply fall out of the page cache under memory
+> > + * pressure without ever having been dirtied.
+> 
+> Nice trick :)
+
+It's basically what the page cache does.  Unfortunately, I had to step
+out of the room while Calvin detailed his trick for doing it differently,
+but if his patch goes in, we should follow suit.
+
+> > +		if (!page) {
+> > +			mutex_lock(&mapping->i_mmap_mutex);
+> > +			/* Check we didn't race with truncate */
+> > +			size = (i_size_read(inode) + PAGE_SIZE - 1) >>
+> > +								PAGE_SHIFT;
+> > +			if (vmf->pgoff >= size) {
+> > +				mutex_unlock(&mapping->i_mmap_mutex);
+> > +				error = -EIO;
+> > +				goto out;
+> > +			}
+> > +		}
+> 
+> If page is non-NULL, is it possible that we return VM_FAULT_LOCKED
+> without actually holding i_mmap_mutex ? Is it on purpose ?
+> 
+> > +		return VM_FAULT_LOCKED;
+> > +	}
+
+That's right; this is the original meaning of VM_FAULT_LOCKED, that the
+page lock is held.  We took it before the call to get_block(), ensuring
+that we don't hit the truncate race.  Er ... hang on.  At some point in
+the revising of patches, I dropped the stanza where we re-check i_size
+after grabbing the page lock.  Sod ... a v12 of this patchset will have
+to be forthcoming!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
