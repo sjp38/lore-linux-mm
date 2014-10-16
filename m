@@ -1,65 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id AD6DA6B0074
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 03:22:53 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id y10so294826pdj.23
-        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 00:22:53 -0700 (PDT)
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 5089C6B0075
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 03:22:55 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id bj1so311085pad.29
+        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 00:22:55 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id fx15si319067pdb.251.2014.10.17.00.22.52
+        by mx.google.com with ESMTP id fx15si319067pdb.251.2014.10.17.00.22.54
         for <linux-mm@kvack.org>;
-        Fri, 17 Oct 2014 00:22:52 -0700 (PDT)
-Date: Thu, 16 Oct 2014 18:33:31 -0400
+        Fri, 17 Oct 2014 00:22:54 -0700 (PDT)
+Date: Thu, 16 Oct 2014 17:52:56 -0400
 From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v11 07/21] dax,ext2: Replace XIP read and write with DAX
- I/O
-Message-ID: <20141016223331.GA11169@wil.cx>
+Subject: Re: [PATCH v11 16/21] vfs,ext2: Remove CONFIG_EXT2_FS_XIP and rename
+ CONFIG_FS_XIP to CONFIG_FS_DAX
+Message-ID: <20141016215256.GJ11522@wil.cx>
 References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
- <1411677218-29146-8-git-send-email-matthew.r.wilcox@intel.com>
- <20141016095027.GE19075@thinkos.etherlink>
- <20141016195112.GE11522@wil.cx>
+ <1411677218-29146-17-git-send-email-matthew.r.wilcox@intel.com>
+ <20141016122618.GN19075@thinkos.etherlink>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141016195112.GE11522@wil.cx>
+In-Reply-To: <20141016122618.GN19075@thinkos.etherlink>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Oct 16, 2014 at 03:51:12PM -0400, Matthew Wilcox wrote:
-> On Thu, Oct 16, 2014 at 11:50:27AM +0200, Mathieu Desnoyers wrote:
-> > > +			if (rw == WRITE) {
-> > > +				if (!buffer_mapped(bh)) {
-> > > +					retval = -EIO;
-> > > +					/* FIXME: fall back to buffered I/O */
-> > 
-> > Fallback on buffered I/O would void guarantee about having data stored
-> > into persistent memory after write returns. Not sure we actually want
-> > that.
+On Thu, Oct 16, 2014 at 02:26:18PM +0200, Mathieu Desnoyers wrote:
+> > +	bool "Direct Access support"
+> > +	depends on MMU
+> > +	help
+> > +	  Direct Access (DAX) can be used on memory-backed block devices.
+> > +	  If the block device supports DAX and the filesystem supports DAX,
+> > +	  then you can avoid using the pagecache to buffer I/Os.  Turning
+> > +	  on this option will compile in support for DAX; you will need to
+> > +	  mount the filesystem using the -o xip option.
 > 
-> Yeah, I think that comment is just stale.  I can't see a way in which
-> buffered I/O would succeed after DAX I/O falis.
+> There is a mismatch between the documentation file (earlier patch): -o
+> dax, and this config description: -o xip.
 
-On further consideration, I think the whole thing is just foolish.
-I don't see how get_block(create == 1) can return success *and* a buffer
-that is !mapped.
+Whoops!  Good catch.
 
-So I did this nice simplification:
+> I guess we might want to switch the mount option to "-o dax" and
+> document it as such, and since it should be usable transparently for the
+> same use-cases "-o xip" was enabling, we might want to keep parsing of
+> "-o xip" in the code for backward compatibility.
+> 
+> Thoughts ?
 
--                       if (rw == WRITE) {
--                               if (!buffer_mapped(bh)) {
--                                       retval = -EIO;
--                                       /* FIXME: fall back to buffered I/O */
--                                       break;
--                               }
--                               hole = false;
--                       } else {
--                               hole = !buffer_written(bh);
--                       }
-+                       hole = (rw != WRITE) && !buffer_written(bh);
-
-(compile-tested only; I'm going to run all the changes through xfstests
-next week when I'm back home before sending out a v12).
+That's exactly what we do for ext2.  For ext4, we force people to use
+the new -o dax option.  We stop documenting that -o xip exist, and we
+print a message to tell people to switch over to -o dax.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
