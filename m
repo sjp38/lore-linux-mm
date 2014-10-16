@@ -1,79 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 958B96B0038
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 10:55:46 -0400 (EDT)
-Received: by mail-qa0-f42.google.com with SMTP id j7so2532900qaq.29
-        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 07:55:46 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c44si40928465qgd.93.2014.10.16.07.55.45
+Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id B9E3C6B0038
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 11:05:58 -0400 (EDT)
+Received: by mail-la0-f49.google.com with SMTP id q1so3017631lam.22
+        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 08:05:58 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ba16si35256799lab.35.2014.10.16.08.05.56
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Oct 2014 07:55:46 -0700 (PDT)
-Date: Thu, 16 Oct 2014 10:55:34 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [PATCH] slab: implement kmalloc guard
-In-Reply-To: <20140915021133.GC2676@js1304-P5Q-DELUXE>
-Message-ID: <alpine.LRH.2.02.1410161049280.25043@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1409051833510.9790@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.11.1409080932490.20388@gentwo.org> <alpine.LRH.2.02.1409081041160.29432@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.11.1409081108190.20388@gentwo.org>
- <alpine.LRH.2.02.1409112211060.30537@file01.intranet.prod.int.rdu2.redhat.com> <20140915021133.GC2676@js1304-P5Q-DELUXE>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 16 Oct 2014 08:05:57 -0700 (PDT)
+Date: Thu, 16 Oct 2014 17:05:53 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 3/3] kernel: res_counter: remove the unused API
+Message-ID: <20141016150553.GA26234@dhcp22.suse.cz>
+References: <1413251163-8517-1-git-send-email-hannes@cmpxchg.org>
+ <1413251163-8517-4-git-send-email-hannes@cmpxchg.org>
+ <1413444034.2128.27.camel@x220>
+ <20141016112021.GC338@dhcp22.suse.cz>
+ <20141016144641.GC9180@phnom.home.cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141016144641.GC9180@phnom.home.cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Alasdair G. Kergon" <agk@redhat.com>, Mike Snitzer <msnitzer@redhat.com>, Milan Broz <gmazyland@gmail.com>, kkolasa@winsoft.pl, dm-devel@redhat.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Bolle <pebolle@tiscali.nl>, Valentin Rothberg <valentinrothberg@gmail.com>, Vladimir Davydov <vdavydov@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-
-
-On Mon, 15 Sep 2014, Joonsoo Kim wrote:
-
-> On Thu, Sep 11, 2014 at 10:32:52PM -0400, Mikulas Patocka wrote:
-> > 
-> > 
-> > On Mon, 8 Sep 2014, Christoph Lameter wrote:
-> > 
-> > > On Mon, 8 Sep 2014, Mikulas Patocka wrote:
+On Thu 16-10-14 10:46:41, Johannes Weiner wrote:
+> On Thu, Oct 16, 2014 at 01:20:21PM +0200, Michal Hocko wrote:
+> > On Thu 16-10-14 09:20:34, Paul Bolle wrote:
+> > > On Mon, 2014-10-13 at 21:46 -0400, Johannes Weiner wrote:
+> > > > All memory accounting and limiting has been switched over to the
+> > > > lockless page counters.  Bye, res_counter!
+> > > > 
+> > > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > > > Acked-by: Vladimir Davydov <vdavydov@parallels.com>
+> > > > Acked-by: Michal Hocko <mhocko@suse.cz>
 > > > 
-> > > > I don't know what you mean. If someone allocates 10000 objects with sizes
-> > > > from 1 to 10000, you can't have 10000 slab caches - you can't have a slab
-> > > > cache for each used size. Also - you can't create a slab cache in
-> > > > interrupt context.
+> > > This patch landed in today's linux-next (ie, next 20141016).
 > > > 
-> > > Oh you can create them up front on bootup. And I think only the small
-> > > sizes matter. Allocations >=8K are pushed to the page allocator anyways.
+> > > >  Documentation/cgroups/resource_counter.txt | 197 -------------------------
+> > > >  include/linux/res_counter.h                | 223 -----------------------------
+> > > >  init/Kconfig                               |   6 -
+> > > >  kernel/Makefile                            |   1 -
+> > > >  kernel/res_counter.c                       | 211 ---------------------------
+> > > >  5 files changed, 638 deletions(-)
+> > > >  delete mode 100644 Documentation/cgroups/resource_counter.txt
+> > > >  delete mode 100644 include/linux/res_counter.h
+> > > >  delete mode 100644 kernel/res_counter.c
+> > > 
+> > > There's a last reference to CONFIG_RESOURCE_COUNTERS in
+> > > Documentation/cgroups/memory.txt. That reference could be dropped too,
+> > > couldn't it?
+> > ---
+> > From a54e375e85c814199f480cb4ee7a133a395c5a00 Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.cz>
+> > Date: Thu, 16 Oct 2014 13:15:24 +0200
+> > Subject: [PATCH] kernel-res_counter-remove-the-unused-api-fix
 > > 
-> > Only for SLUB. For SLAB, large allocations are still use SLAB caches up to 
-> > 4M. But anyway - having 8K preallocated slab caches is too much.
+> > ditch the last remainings of res_counter
 > > 
-> > If you want to integrate this patch into the slab/slub subsystem, a better 
-> > solution would be to store the exact size requested with kmalloc along the 
-> > slab/slub object itself (before the preceding redzone). But it would 
-> > result in duplicating the work - you'd have to repeat the logic in this 
-> > patch three times - once for slab, once for slub and once for 
-> > kmalloc_large/kmalloc_large_node.
-> > 
-> > I don't know if it would be better than this patch.
+> > Reported-by: Paul Bolle <pebolle@tiscali.nl>
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
 > 
-> Hello,
-> 
-> Out of bound write could be detected by kernel address asanitizer(KASan).
-> See following link.
-> 
-> https://lkml.org/lkml/2014/9/10/441
-> 
-> Although this patch also looks good to me, I think that KASan is
-> better than this, because it could detect out of bound write and
-> has more features for debugging.
-> 
-> Thanks.
+> That makes sense, although that document is still littered with
+> out-of-date and seemingly irrelevant information, which is why I
+> didn't bother to update it.
 
-Surely, KAsan detects more bugs. But it has also high overhead. The 
-overhead of kmalloc guard is very low.
+I would also prefer to re-write or remove it long term.
 
-The kmalloc guard already helped to find one previously unknown bug: 
-http://lkml.iu.edu/hypermail/linux/kernel/1409.1/02325.html
-
-Mikulas
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
