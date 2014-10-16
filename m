@@ -1,375 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
-	by kanga.kvack.org (Postfix) with ESMTP id A5CEC6B0069
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 04:46:54 -0400 (EDT)
-Received: by mail-la0-f52.google.com with SMTP id hz20so2415063lab.25
-        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 01:46:54 -0700 (PDT)
-Received: from mail.efficios.com (mail.efficios.com. [78.47.125.74])
-        by mx.google.com with ESMTP id f9si33728512lbs.67.2014.10.16.01.46.52
-        for <linux-mm@kvack.org>;
-        Thu, 16 Oct 2014 01:46:52 -0700 (PDT)
-Date: Thu, 16 Oct 2014 10:45:50 +0200
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Subject: Re: [PATCH v11 02/21] block: Change direct_access calling convention
-Message-ID: <20141016084550.GA19075@thinkos.etherlink>
-References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
- <1411677218-29146-3-git-send-email-matthew.r.wilcox@intel.com>
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 499666B0069
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 04:55:58 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id ey11so3009136pad.41
+        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 01:55:58 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id p6si18407973pdj.32.2014.10.16.01.55.57
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Oct 2014 01:55:57 -0700 (PDT)
+Message-ID: <543F8812.2020002@codeaurora.org>
+Date: Thu, 16 Oct 2014 01:55:46 -0700
+From: Laura Abbott <lauraa@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1411677218-29146-3-git-send-email-matthew.r.wilcox@intel.com>
+Subject: Re: [PATCH 0/4] (CMA_AGGRESSIVE) Make CMA memory be more aggressive
+ about allocation
+References: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com>
+In-Reply-To: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hui Zhu <zhuhui@xiaomi.com>, rjw@rjwysocki.net, len.brown@intel.com, pavel@ucw.cz, m.szyprowski@samsung.com, akpm@linux-foundation.org, mina86@mina86.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@suse.de, minchan@kernel.org, nasa4836@gmail.com, ddstreet@ieee.org, hughd@google.com, mingo@kernel.org, rientjes@google.com, peterz@infradead.org, keescook@chromium.org, atomlin@redhat.com, raistlin@linux.it, axboe@fb.com, paulmck@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, k.khlebnikov@samsung.com, msalter@redhat.com, deller@gmx.de, tangchen@cn.fujitsu.com, ben@decadent.org.uk, akinobu.mita@gmail.com, vbabka@suse.cz, sasha.levin@oracle.com, vdavydov@parallels.com, suleiman@google.com
+Cc: linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
 
-On 25-Sep-2014 04:33:19 PM, Matthew Wilcox wrote:
-> In order to support accesses to larger chunks of memory, pass in a
-> 'size' parameter (counted in bytes), and return the amount available at
-> that address.
-> 
-> Add a new helper function, bdev_direct_access(), to handle common
-> functionality including partition handling, checking the length requested
-> is positive, checking for the sector being page-aligned, and checking
-> the length of the request does not pass the end of the partition.
-> 
-> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-> Reviewed-by: Jan Kara <jack@suse.cz>
-> Reviewed-by: Boaz Harrosh <boaz@plexistor.com>
-> ---
->  Documentation/filesystems/xip.txt | 15 +++++++++------
->  arch/powerpc/sysdev/axonram.c     | 17 ++++-------------
->  drivers/block/brd.c               | 12 +++++-------
->  drivers/s390/block/dcssblk.c      | 21 +++++++++-----------
->  fs/block_dev.c                    | 40 +++++++++++++++++++++++++++++++++++++++
->  fs/ext2/xip.c                     | 31 +++++++++++++-----------------
->  include/linux/blkdev.h            |  6 ++++--
->  7 files changed, 84 insertions(+), 58 deletions(-)
-> 
-> diff --git a/Documentation/filesystems/xip.txt b/Documentation/filesystems/xip.txt
-> index 0466ee5..b774729 100644
-> --- a/Documentation/filesystems/xip.txt
-> +++ b/Documentation/filesystems/xip.txt
-> @@ -28,12 +28,15 @@ Implementation
->  Execute-in-place is implemented in three steps: block device operation,
->  address space operation, and file operations.
->  
-> -A block device operation named direct_access is used to retrieve a
-> -reference (pointer) to a block on-disk. The reference is supposed to be
-> -cpu-addressable, physical address and remain valid until the release operation
-> -is performed. A struct block_device reference is used to address the device,
-> -and a sector_t argument is used to identify the individual block. As an
-> -alternative, memory technology devices can be used for this.
-> +A block device operation named direct_access is used to translate the
-> +block device sector number to a page frame number (pfn) that identifies
-> +the physical page for the memory.  It also returns a kernel virtual
-> +address that can be used to access the memory.
-> +
-> +The direct_access method takes a 'size' parameter that indicates the
-> +number of bytes being requested.  The function should return the number
-> +of bytes that can be contiguously accessed at that offset.  It may also
-> +return a negative errno if an error occurs.
->  
->  The block device operation is optional, these block devices support it as of
->  today:
-> diff --git a/arch/powerpc/sysdev/axonram.c b/arch/powerpc/sysdev/axonram.c
-> index 830edc8..8709b9f 100644
-> --- a/arch/powerpc/sysdev/axonram.c
-> +++ b/arch/powerpc/sysdev/axonram.c
-> @@ -139,26 +139,17 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
->   * axon_ram_direct_access - direct_access() method for block device
->   * @device, @sector, @data: see block_device_operations method
->   */
-> -static int
-> +static long
->  axon_ram_direct_access(struct block_device *device, sector_t sector,
-> -		       void **kaddr, unsigned long *pfn)
-> +		       void **kaddr, unsigned long *pfn, long size)
+On 10/15/2014 8:35 PM, Hui Zhu wrote:
+> In fallbacks of page_alloc.c, MIGRATE_CMA is the fallback of
+> MIGRATE_MOVABLE.
+> MIGRATE_MOVABLE will use MIGRATE_CMA when it doesn't have a page in
+> order that Linux kernel want.
+>
+> If a system that has a lot of user space program is running, for
+> instance, an Android board, most of memory is in MIGRATE_MOVABLE and
+> allocated.  Before function __rmqueue_fallback get memory from
+> MIGRATE_CMA, the oom_killer will kill a task to release memory when
+> kernel want get MIGRATE_UNMOVABLE memory because fallbacks of
+> MIGRATE_UNMOVABLE are MIGRATE_RECLAIMABLE and MIGRATE_MOVABLE.
+> This status is odd.  The MIGRATE_CMA has a lot free memory but Linux
+> kernel kill some tasks to release memory.
+>
+> This patch series adds a new function CMA_AGGRESSIVE to make CMA memory
+> be more aggressive about allocation.
+> If function CMA_AGGRESSIVE is available, when Linux kernel call function
+> __rmqueue try to get pages from MIGRATE_MOVABLE and conditions allow,
+> MIGRATE_CMA will be allocated as MIGRATE_MOVABLE first.  If MIGRATE_CMA
+> doesn't have enough pages for allocation, go back to allocate memory from
+> MIGRATE_MOVABLE.
+> Then the memory of MIGRATE_MOVABLE can be kept for MIGRATE_UNMOVABLE and
+> MIGRATE_RECLAIMABLE which doesn't have fallback MIGRATE_CMA.
+>
 
-Why "long" as type for size ? What is the intent to have it signed, and
-why using a 32-bit type on 32-bit architectures rather than 64-bit ?
-Can we run into issues if we try to map a >2GB file on 32-bit
-architectures ?
-
->  {
->  	struct axon_ram_bank *bank = device->bd_disk->private_data;
-> -	loff_t offset;
-> -
-> -	offset = sector;
-> -	if (device->bd_part != NULL)
-> -		offset += device->bd_part->start_sect;
-> -	offset <<= AXON_RAM_SECTOR_SHIFT;
-> -	if (offset >= bank->size) {
-> -		dev_err(&bank->device->dev, "Access outside of address space\n");
-> -		return -ERANGE;
-> -	}
-> +	loff_t offset = (loff_t)sector << AXON_RAM_SECTOR_SHIFT;
->  
->  	*kaddr = (void *)(bank->ph_addr + offset);
->  	*pfn = virt_to_phys(*kaddr) >> PAGE_SHIFT;
->  
-> -	return 0;
-> +	return bank->size - offset;
-
-
->  }
->  
->  static const struct block_device_operations axon_ram_devops = {
-> diff --git a/drivers/block/brd.c b/drivers/block/brd.c
-> index 3598110..78fe510 100644
-> --- a/drivers/block/brd.c
-> +++ b/drivers/block/brd.c
-> @@ -370,25 +370,23 @@ static int brd_rw_page(struct block_device *bdev, sector_t sector,
->  }
->  
->  #ifdef CONFIG_BLK_DEV_XIP
-> -static int brd_direct_access(struct block_device *bdev, sector_t sector,
-> -			void **kaddr, unsigned long *pfn)
-> +static long brd_direct_access(struct block_device *bdev, sector_t sector,
-> +			void **kaddr, unsigned long *pfn, long size)
->  {
->  	struct brd_device *brd = bdev->bd_disk->private_data;
->  	struct page *page;
->  
->  	if (!brd)
->  		return -ENODEV;
-> -	if (sector & (PAGE_SECTORS-1))
-> -		return -EINVAL;
-> -	if (sector + PAGE_SECTORS > get_capacity(bdev->bd_disk))
-> -		return -ERANGE;
->  	page = brd_insert_page(brd, sector);
->  	if (!page)
->  		return -ENOSPC;
->  	*kaddr = page_address(page);
->  	*pfn = page_to_pfn(page);
->  
-> -	return 0;
-> +	/* If size > PAGE_SIZE, we could look to see if the next page in the
-> +	 * file happens to be mapped to the next page of physical RAM */
-
-The style for this comment should be:
-
-/*
- * ....
- */
-
-Perhaps with a "TODO" ?
-
-> +	return PAGE_SIZE;
->  }
->  #endif
->  
-> diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
-> index 0f47175..96bc411 100644
-> --- a/drivers/s390/block/dcssblk.c
-> +++ b/drivers/s390/block/dcssblk.c
-> @@ -28,8 +28,8 @@
->  static int dcssblk_open(struct block_device *bdev, fmode_t mode);
->  static void dcssblk_release(struct gendisk *disk, fmode_t mode);
->  static void dcssblk_make_request(struct request_queue *q, struct bio *bio);
-> -static int dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
-> -				 void **kaddr, unsigned long *pfn);
-> +static long dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
-> +				 void **kaddr, unsigned long *pfn, long size);
->  
->  static char dcssblk_segments[DCSSBLK_PARM_LEN] = "\0";
->  
-> @@ -866,25 +866,22 @@ fail:
->  	bio_io_error(bio);
->  }
->  
-> -static int
-> +static long
->  dcssblk_direct_access (struct block_device *bdev, sector_t secnum,
-> -			void **kaddr, unsigned long *pfn)
-> +			void **kaddr, unsigned long *pfn, long size)
->  {
->  	struct dcssblk_dev_info *dev_info;
-> -	unsigned long pgoff;
-> +	unsigned long offset, dev_sz;
->  
->  	dev_info = bdev->bd_disk->private_data;
->  	if (!dev_info)
->  		return -ENODEV;
-> -	if (secnum % (PAGE_SIZE/512))
-> -		return -EINVAL;
-> -	pgoff = secnum / (PAGE_SIZE / 512);
-> -	if ((pgoff+1)*PAGE_SIZE-1 > dev_info->end - dev_info->start)
-> -		return -ERANGE;
-> -	*kaddr = (void *) (dev_info->start+pgoff*PAGE_SIZE);
-> +	dev_sz = dev_info->end - dev_info->start;
-> +	offset = secnum * 512;
-> +	*kaddr = (void *) (dev_info->start + offset);
->  	*pfn = virt_to_phys(*kaddr) >> PAGE_SHIFT;
->  
-> -	return 0;
-> +	return dev_sz - offset;
->  }
->  
->  static void
-> diff --git a/fs/block_dev.c b/fs/block_dev.c
-> index 6d72746..ffe0761 100644
-> --- a/fs/block_dev.c
-> +++ b/fs/block_dev.c
-> @@ -427,6 +427,46 @@ int bdev_write_page(struct block_device *bdev, sector_t sector,
->  }
->  EXPORT_SYMBOL_GPL(bdev_write_page);
->  
-> +/**
-> + * bdev_direct_access() - Get the address for directly-accessibly memory
-> + * @bdev: The device containing the memory
-> + * @sector: The offset within the device
-> + * @addr: Where to put the address of the memory
-> + * @pfn: The Page Frame Number for the memory
-> + * @size: The number of bytes requested
-> + *
-> + * If a block device is made up of directly addressable memory, this function
-> + * will tell the caller the PFN and the address of the memory.  The address
-> + * may be directly dereferenced within the kernel without the need to call
-> + * ioremap(), kmap() or similar.  The PFN is suitable for inserting into
-> + * page tables.
-> + *
-> + * Return: negative errno if an error occurs, otherwise the number of bytes
-> + * accessible at this address.
-> + */
-> +long bdev_direct_access(struct block_device *bdev, sector_t sector,
-> +			void **addr, unsigned long *pfn, long size)
-> +{
-> +	long avail;
-> +	const struct block_device_operations *ops = bdev->bd_disk->fops;
-> +
-> +	if (size < 0)
-> +		return size;
-
-I'm wondering how we should handle size == 0 here. Should it be accepted
-or refused ?
+It's good to see another proposal to fix CMA utilization. Do you have
+any data about the success rate of CMA contiguous allocation after
+this patch series? I played around with a similar approach of using
+CMA for MIGRATE_MOVABLE allocations and found that although utilization
+did increase, contiguous allocations failed at a higher rate and were
+much slower. I see what this series is trying to do with avoiding
+allocation from CMA pages when a contiguous allocation is progress.
+My concern is that there would still be problems with contiguous
+allocation after all the MIGRATE_MOVABLE fallback has happened.
 
 Thanks,
-
-Mathieu
-
-> +	if (!ops->direct_access)
-> +		return -EOPNOTSUPP;
-> +	if ((sector + DIV_ROUND_UP(size, 512)) >
-> +					part_nr_sects_read(bdev->bd_part))
-> +		return -ERANGE;
-> +	sector += get_start_sect(bdev);
-> +	if (sector % (PAGE_SIZE / 512))
-> +		return -EINVAL;
-> +	avail = ops->direct_access(bdev, sector, addr, pfn, size);
-> +	if (!avail)
-> +		return -ERANGE;
-> +	return min(avail, size);
-> +}
-> +EXPORT_SYMBOL_GPL(bdev_direct_access);
-> +
->  /*
->   * pseudo-fs
->   */
-> diff --git a/fs/ext2/xip.c b/fs/ext2/xip.c
-> index e98171a..bbc5fec 100644
-> --- a/fs/ext2/xip.c
-> +++ b/fs/ext2/xip.c
-> @@ -13,18 +13,12 @@
->  #include "ext2.h"
->  #include "xip.h"
->  
-> -static inline int
-> -__inode_direct_access(struct inode *inode, sector_t block,
-> -		      void **kaddr, unsigned long *pfn)
-> +static inline long __inode_direct_access(struct inode *inode, sector_t block,
-> +				void **kaddr, unsigned long *pfn, long size)
->  {
->  	struct block_device *bdev = inode->i_sb->s_bdev;
-> -	const struct block_device_operations *ops = bdev->bd_disk->fops;
-> -	sector_t sector;
-> -
-> -	sector = block * (PAGE_SIZE / 512); /* ext2 block to bdev sector */
-> -
-> -	BUG_ON(!ops->direct_access);
-> -	return ops->direct_access(bdev, sector, kaddr, pfn);
-> +	sector_t sector = block * (PAGE_SIZE / 512);
-> +	return bdev_direct_access(bdev, sector, kaddr, pfn, size);
->  }
->  
->  static inline int
-> @@ -53,12 +47,13 @@ ext2_clear_xip_target(struct inode *inode, sector_t block)
->  {
->  	void *kaddr;
->  	unsigned long pfn;
-> -	int rc;
-> +	long size;
->  
-> -	rc = __inode_direct_access(inode, block, &kaddr, &pfn);
-> -	if (!rc)
-> -		clear_page(kaddr);
-> -	return rc;
-> +	size = __inode_direct_access(inode, block, &kaddr, &pfn, PAGE_SIZE);
-> +	if (size < 0)
-> +		return size;
-> +	clear_page(kaddr);
-> +	return 0;
->  }
->  
->  void ext2_xip_verify_sb(struct super_block *sb)
-> @@ -77,7 +72,7 @@ void ext2_xip_verify_sb(struct super_block *sb)
->  int ext2_get_xip_mem(struct address_space *mapping, pgoff_t pgoff, int create,
->  				void **kmem, unsigned long *pfn)
->  {
-> -	int rc;
-> +	long rc;
->  	sector_t block;
->  
->  	/* first, retrieve the sector number */
-> @@ -86,6 +81,6 @@ int ext2_get_xip_mem(struct address_space *mapping, pgoff_t pgoff, int create,
->  		return rc;
->  
->  	/* retrieve address of the target data */
-> -	rc = __inode_direct_access(mapping->host, block, kmem, pfn);
-> -	return rc;
-> +	rc = __inode_direct_access(mapping->host, block, kmem, pfn, PAGE_SIZE);
-> +	return (rc < 0) ? rc : 0;
->  }
-> diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-> index 518b465..ac25166 100644
-> --- a/include/linux/blkdev.h
-> +++ b/include/linux/blkdev.h
-> @@ -1615,8 +1615,8 @@ struct block_device_operations {
->  	int (*rw_page)(struct block_device *, sector_t, struct page *, int rw);
->  	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
->  	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
-> -	int (*direct_access) (struct block_device *, sector_t,
-> -						void **, unsigned long *);
-> +	long (*direct_access)(struct block_device *, sector_t,
-> +					void **, unsigned long *pfn, long size);
->  	unsigned int (*check_events) (struct gendisk *disk,
->  				      unsigned int clearing);
->  	/* ->media_changed() is DEPRECATED, use ->check_events() instead */
-> @@ -1634,6 +1634,8 @@ extern int __blkdev_driver_ioctl(struct block_device *, fmode_t, unsigned int,
->  extern int bdev_read_page(struct block_device *, sector_t, struct page *);
->  extern int bdev_write_page(struct block_device *, sector_t, struct page *,
->  						struct writeback_control *);
-> +extern long bdev_direct_access(struct block_device *, sector_t, void **addr,
-> +						unsigned long *pfn, long size);
->  #else /* CONFIG_BLOCK */
->  
->  struct block_device;
-> -- 
-> 2.1.0
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> 
+Laura
 
 -- 
-Mathieu Desnoyers
-EfficiOS Inc.
-http://www.efficios.com
-Key fingerprint: 2A0B 4ED9 15F2 D3FA 45F5  B162 1728 0A97 8118 6ACF
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
