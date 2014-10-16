@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id A89146B006E
-	for <linux-mm@kvack.org>; Wed, 15 Oct 2014 23:36:19 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id v10so2436039pde.20
-        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 20:36:19 -0700 (PDT)
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 503666B0070
+	for <linux-mm@kvack.org>; Wed, 15 Oct 2014 23:36:20 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id rd3so2587335pab.4
+        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 20:36:20 -0700 (PDT)
 Received: from manager.mioffice.cn ([42.62.48.242])
-        by mx.google.com with ESMTP id rf9si17524319pbc.221.2014.10.15.20.36.17
+        by mx.google.com with ESMTP id et10si13404875pad.131.2014.10.15.20.36.17
         for <linux-mm@kvack.org>;
-        Wed, 15 Oct 2014 20:36:18 -0700 (PDT)
+        Wed, 15 Oct 2014 20:36:19 -0700 (PDT)
 From: Hui Zhu <zhuhui@xiaomi.com>
-Subject: [PATCH 2/4] (CMA_AGGRESSIVE) Add argument hibernation to function shrink_all_memory
-Date: Thu, 16 Oct 2014 11:35:49 +0800
-Message-ID: <1413430551-22392-3-git-send-email-zhuhui@xiaomi.com>
+Subject: [PATCH 3/4] (CMA_AGGRESSIVE) Update reserve custom contiguous area code
+Date: Thu, 16 Oct 2014 11:35:50 +0800
+Message-ID: <1413430551-22392-4-git-send-email-zhuhui@xiaomi.com>
 In-Reply-To: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com>
 References: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com>
 MIME-Version: 1.0
@@ -21,104 +21,197 @@ List-ID: <linux-mm.kvack.org>
 To: rjw@rjwysocki.net, len.brown@intel.com, pavel@ucw.cz, m.szyprowski@samsung.com, akpm@linux-foundation.org, mina86@mina86.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@suse.de, minchan@kernel.org, nasa4836@gmail.com, ddstreet@ieee.org, hughd@google.com, mingo@kernel.org, rientjes@google.com, peterz@infradead.org, keescook@chromium.org, atomlin@redhat.com, raistlin@linux.it, axboe@fb.com, paulmck@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, k.khlebnikov@samsung.com, msalter@redhat.com, deller@gmx.de, tangchen@cn.fujitsu.com, ben@decadent.org.uk, akinobu.mita@gmail.com, lauraa@codeaurora.org, vbabka@suse.cz, sasha.levin@oracle.com, vdavydov@parallels.com, suleiman@google.com
 Cc: linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org, Hui Zhu <zhuhui@xiaomi.com>
 
-Function shrink_all_memory try to free `nr_to_reclaim' of memory.
-CMA_AGGRESSIVE_SHRINK function will call this functon to free `nr_to_reclaim' of
-memory.  It need different scan_control with current caller function
-hibernate_preallocate_memory.
+Add cma_alloc_counter, cma_aggressive_switch, cma_aggressive_free_min and
+cma_aggressive_shrink_switch.
 
-If hibernation is true, the caller is hibernate_preallocate_memory.
-if not, the caller is CMA alloc function.
+cma_aggressive_switch is the swith for all CMA_AGGRESSIVE function.  It can be
+controlled by sysctl vm.cma-aggressive-switch.
+
+cma_aggressive_free_min can be controlled by sysctl
+"vm.cma-aggressive-free-min".  If the number of CMA free pages is small than
+this sysctl value, CMA_AGGRESSIVE will not work in page alloc code.
+
+cma_aggressive_shrink_switch can be controlled by sysctl
+"vm.cma-aggressive-shrink-switch".  If sysctl "vm.cma-aggressive-shrink-switch"
+is true and free normal memory's size is smaller than the size that it want to
+allocate, do memory shrink with function shrink_all_memory before driver
+allocate pages from CMA.
+
+When Linux kernel try to reserve custom contiguous area, increase the value of
+cma_alloc_counter.  CMA_AGGRESSIVE will not work in page alloc code.
+After reserve custom contiguous area function return, decreases the value of
+cma_alloc_counter.
 
 Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
 ---
- include/linux/swap.h    |  3 ++-
- kernel/power/snapshot.c |  2 +-
- mm/vmscan.c             | 19 +++++++++++++------
- 3 files changed, 16 insertions(+), 8 deletions(-)
+ include/linux/cma.h |  7 +++++++
+ kernel/sysctl.c     | 27 +++++++++++++++++++++++++++
+ mm/cma.c            | 54 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 88 insertions(+)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 37a585b..9f2cb43 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -335,7 +335,8 @@ extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,
- 						gfp_t gfp_mask, bool noswap,
- 						struct zone *zone,
- 						unsigned long *nr_scanned);
--extern unsigned long shrink_all_memory(unsigned long nr_pages);
-+extern unsigned long shrink_all_memory(unsigned long nr_pages,
-+				       bool hibernation);
- extern int vm_swappiness;
- extern int remove_mapping(struct address_space *mapping, struct page *page);
- extern unsigned long vm_total_pages;
-diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
-index 791a618..a00fc35 100644
---- a/kernel/power/snapshot.c
-+++ b/kernel/power/snapshot.c
-@@ -1657,7 +1657,7 @@ int hibernate_preallocate_memory(void)
- 	 * NOTE: If this is not done, performance will be hurt badly in some
- 	 * test cases.
- 	 */
--	shrink_all_memory(saveable - size);
-+	shrink_all_memory(saveable - size, true);
+diff --git a/include/linux/cma.h b/include/linux/cma.h
+index 0430ed0..df96abf 100644
+--- a/include/linux/cma.h
++++ b/include/linux/cma.h
+@@ -15,6 +15,13 @@
  
- 	/*
- 	 * The number of saveable pages in memory was too high, so apply some
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index dcb4707..fdcfa30 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3404,7 +3404,7 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
- 	wake_up_interruptible(&pgdat->kswapd_wait);
- }
+ struct cma;
  
--#ifdef CONFIG_HIBERNATION
-+#if defined CONFIG_HIBERNATION || defined CONFIG_CMA_AGGRESSIVE
- /*
-  * Try to free `nr_to_reclaim' of memory, system-wide, and return the number of
-  * freed pages.
-@@ -3413,22 +3413,29 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
-  * LRU order by reclaiming preferentially
-  * inactive > active > active referenced > active mapped
-  */
--unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
-+unsigned long shrink_all_memory(unsigned long nr_to_reclaim, bool hibernation)
- {
- 	struct reclaim_state reclaim_state;
- 	struct scan_control sc = {
- 		.nr_to_reclaim = nr_to_reclaim,
--		.gfp_mask = GFP_HIGHUSER_MOVABLE,
- 		.priority = DEF_PRIORITY,
--		.may_writepage = 1,
- 		.may_unmap = 1,
- 		.may_swap = 1,
--		.hibernation_mode = 1,
- 	};
- 	struct zonelist *zonelist = node_zonelist(numa_node_id(), sc.gfp_mask);
- 	struct task_struct *p = current;
- 	unsigned long nr_reclaimed;
- 
-+	if (hibernation) {
-+		sc.hibernation_mode = 1;
-+		sc.may_writepage = 1;
-+		sc.gfp_mask = GFP_HIGHUSER_MOVABLE;
-+	} else {
-+		sc.hibernation_mode = 0;
-+		sc.may_writepage = !laptop_mode;
-+		sc.gfp_mask = GFP_USER | __GFP_MOVABLE | __GFP_HIGHMEM;
-+	}
++#ifdef CONFIG_CMA_AGGRESSIVE
++extern atomic_t cma_alloc_counter;
++extern int cma_aggressive_switch;
++extern unsigned long cma_aggressive_free_min;
++extern int cma_aggressive_shrink_switch;
++#endif
 +
- 	p->flags |= PF_MEMALLOC;
- 	lockdep_set_current_reclaim_state(sc.gfp_mask);
- 	reclaim_state.reclaimed_slab = 0;
-@@ -3442,7 +3449,7 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
+ extern phys_addr_t cma_get_base(struct cma *cma);
+ extern unsigned long cma_get_size(struct cma *cma);
  
- 	return nr_reclaimed;
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 4aada6d..646929e2 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -92,6 +92,10 @@
+ #include <linux/nmi.h>
+ #endif
+ 
++#ifdef CONFIG_CMA_AGGRESSIVE
++#include <linux/cma.h>
++#endif
++
+ 
+ #if defined(CONFIG_SYSCTL)
+ 
+@@ -1485,6 +1489,29 @@ static struct ctl_table vm_table[] = {
+ 		.mode		= 0644,
+ 		.proc_handler	= proc_doulongvec_minmax,
+ 	},
++#ifdef CONFIG_CMA_AGGRESSIVE
++	{
++		.procname	= "cma-aggressive-switch",
++		.data		= &cma_aggressive_switch,
++		.maxlen		= sizeof(int),
++		.mode		= 0600,
++		.proc_handler	= proc_dointvec,
++	},
++	{
++		.procname	= "cma-aggressive-free-min",
++		.data		= &cma_aggressive_free_min,
++		.maxlen		= sizeof(unsigned long),
++		.mode		= 0600,
++		.proc_handler	= proc_doulongvec_minmax,
++	},
++	{
++		.procname	= "cma-aggressive-shrink-switch",
++		.data		= &cma_aggressive_shrink_switch,
++		.maxlen		= sizeof(int),
++		.mode		= 0600,
++		.proc_handler	= proc_dointvec,
++	},
++#endif
+ 	{ }
+ };
+ 
+diff --git a/mm/cma.c b/mm/cma.c
+index 963bc4a..566ed5f 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -33,6 +33,7 @@
+ #include <linux/log2.h>
+ #include <linux/cma.h>
+ #include <linux/highmem.h>
++#include <linux/swap.h>
+ 
+ struct cma {
+ 	unsigned long	base_pfn;
+@@ -127,6 +128,27 @@ err:
+ 	return -EINVAL;
  }
--#endif /* CONFIG_HIBERNATION */
-+#endif /* CONFIG_HIBERNATION || CONFIG_CMA_AGGRESSIVE */
  
- /* It's optimal to keep kswapds on the same CPUs as their memory, but
-    not required for correctness.  So if the last cpu in a node goes
++#ifdef CONFIG_CMA_AGGRESSIVE
++/* The counter for the dma_alloc_from_contiguous and
++   dma_release_from_contiguous.  */
++atomic_t cma_alloc_counter = ATOMIC_INIT(0);
++
++/* Swich of CMA_AGGRESSIVE.  */
++int cma_aggressive_switch __read_mostly;
++
++/* If the number of CMA free pages is small than this value, CMA_AGGRESSIVE will
++   not work. */
++#ifdef CONFIG_CMA_AGGRESSIVE_FREE_MIN
++unsigned long cma_aggressive_free_min __read_mostly =
++					CONFIG_CMA_AGGRESSIVE_FREE_MIN;
++#else
++unsigned long cma_aggressive_free_min __read_mostly = 500;
++#endif
++
++/* Swich of CMA_AGGRESSIVE shink.  */
++int cma_aggressive_shrink_switch __read_mostly;
++#endif
++
+ static int __init cma_init_reserved_areas(void)
+ {
+ 	int i;
+@@ -138,6 +160,22 @@ static int __init cma_init_reserved_areas(void)
+ 			return ret;
+ 	}
+ 
++#ifdef CONFIG_CMA_AGGRESSIVE
++	cma_aggressive_switch = 0;
++#ifdef CONFIG_CMA_AGGRESSIVE_PHY_MAX
++	if (memblock_phys_mem_size() <= CONFIG_CMA_AGGRESSIVE_PHY_MAX)
++#else
++	if (memblock_phys_mem_size() <= 0x40000000)
++#endif
++		cma_aggressive_switch = 1;
++
++	cma_aggressive_shrink_switch = 0;
++#ifdef CONFIG_CMA_AGGRESSIVE_SHRINK
++	if (cma_aggressive_switch)
++		cma_aggressive_shrink_switch = 1;
++#endif
++#endif
++
+ 	return 0;
+ }
+ core_initcall(cma_init_reserved_areas);
+@@ -312,6 +350,11 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
+ 	unsigned long bitmap_maxno, bitmap_no, bitmap_count;
+ 	struct page *page = NULL;
+ 	int ret;
++#ifdef CONFIG_CMA_AGGRESSIVE
++	int free = global_page_state(NR_FREE_PAGES)
++			- global_page_state(NR_FREE_CMA_PAGES)
++			- totalreserve_pages;
++#endif
+ 
+ 	if (!cma || !cma->count)
+ 		return NULL;
+@@ -326,6 +369,13 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
+ 	bitmap_maxno = cma_bitmap_maxno(cma);
+ 	bitmap_count = cma_bitmap_pages_to_bits(cma, count);
+ 
++#ifdef CONFIG_CMA_AGGRESSIVE
++	atomic_inc(&cma_alloc_counter);
++	if (cma_aggressive_switch && cma_aggressive_shrink_switch
++	    && free < count)
++		shrink_all_memory(count - free, false);
++#endif
++
+ 	for (;;) {
+ 		mutex_lock(&cma->lock);
+ 		bitmap_no = bitmap_find_next_zero_area(cma->bitmap,
+@@ -361,6 +411,10 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
+ 		start = bitmap_no + mask + 1;
+ 	}
+ 
++#ifdef CONFIG_CMA_AGGRESSIVE
++	atomic_dec(&cma_alloc_counter);
++#endif
++
+ 	pr_debug("%s(): returned %p\n", __func__, page);
+ 	return page;
+ }
 -- 
 1.9.1
 
