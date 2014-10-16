@@ -1,148 +1,409 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
-	by kanga.kvack.org (Postfix) with ESMTP id C263E6B0038
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 09:00:41 -0400 (EDT)
-Received: by mail-la0-f54.google.com with SMTP id gm9so2841291lab.13
-        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 06:00:41 -0700 (PDT)
+Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
+	by kanga.kvack.org (Postfix) with ESMTP id B6E816B0069
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 09:34:19 -0400 (EDT)
+Received: by mail-lb0-f182.google.com with SMTP id z11so2824519lbi.27
+        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 06:34:18 -0700 (PDT)
 Received: from mail.efficios.com (mail.efficios.com. [78.47.125.74])
-        by mx.google.com with ESMTP id e3si11811963lam.28.2014.10.16.06.00.39
+        by mx.google.com with ESMTP id k1si4971554lah.55.2014.10.16.06.34.17
         for <linux-mm@kvack.org>;
-        Thu, 16 Oct 2014 06:00:39 -0700 (PDT)
-Date: Thu, 16 Oct 2014 15:00:16 +0200
+        Thu, 16 Oct 2014 06:34:17 -0700 (PDT)
+Date: Thu, 16 Oct 2014 15:33:55 +0200
 From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Subject: Re: [PATCH v11 21/21] brd: Rename XIP to DAX
-Message-ID: <20141016130016.GS19075@thinkos.etherlink>
+Subject: Re: [PATCH v11 06/21] vfs: Add copy_to_iter(), copy_from_iter() and
+ iov_iter_zero()
+Message-ID: <20141016133355.GT19075@thinkos.etherlink>
 References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
- <1411677218-29146-22-git-send-email-matthew.r.wilcox@intel.com>
+ <1411677218-29146-7-git-send-email-matthew.r.wilcox@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1411677218-29146-22-git-send-email-matthew.r.wilcox@intel.com>
+In-Reply-To: <1411677218-29146-7-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <matthew.r.wilcox@intel.com>
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>
 
-On 25-Sep-2014 04:33:38 PM, Matthew Wilcox wrote:
+On 25-Sep-2014 04:33:23 PM, Matthew Wilcox wrote:
 > From: Matthew Wilcox <willy@linux.intel.com>
 > 
-> Since this is relating to FS_XIP, not KERNEL_XIP, it should be called
-> DAX instead of XIP.
+> For DAX, we want to be able to copy between iovecs and kernel addresses
+> that don't necessarily have a struct page.  This is a fairly simple
+> rearrangement for bvec iters to kmap the pages outside and pass them in,
+> but for user iovecs it gets more complicated because we might try various
+> different ways to kmap the memory.  Duplicating the existing logic works
+> out best in this case.
 > 
-> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
+> We need to be able to write zeroes to an iovec for reads from unwritten
+> ranges in a file.  This is performed by the new iov_iter_zero() function,
+> again patterned after the existing code that handles iovec iterators.
+> 
+> Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 > ---
->  drivers/block/Kconfig | 13 +++++++------
->  drivers/block/brd.c   | 14 +++++++-------
->  fs/Kconfig            |  4 ++--
->  3 files changed, 16 insertions(+), 15 deletions(-)
+>  include/linux/uio.h |   3 +
+>  mm/iov_iter.c       | 237 ++++++++++++++++++++++++++++++++++++++++++++++++----
+>  2 files changed, 226 insertions(+), 14 deletions(-)
 > 
-> diff --git a/drivers/block/Kconfig b/drivers/block/Kconfig
-> index 014a1cf..1b8094d 100644
-> --- a/drivers/block/Kconfig
-> +++ b/drivers/block/Kconfig
-> @@ -393,14 +393,15 @@ config BLK_DEV_RAM_SIZE
->  	  The default value is 4096 kilobytes. Only change this if you know
->  	  what you are doing.
+> diff --git a/include/linux/uio.h b/include/linux/uio.h
+> index 48d64e6..1863ddd 100644
+> --- a/include/linux/uio.h
+> +++ b/include/linux/uio.h
+> @@ -80,6 +80,9 @@ size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
+>  			 struct iov_iter *i);
+>  size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
+>  			 struct iov_iter *i);
+> +size_t copy_to_iter(void *addr, size_t bytes, struct iov_iter *i);
+> +size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i);
+> +size_t iov_iter_zero(size_t bytes, struct iov_iter *);
+>  unsigned long iov_iter_alignment(const struct iov_iter *i);
+>  void iov_iter_init(struct iov_iter *i, int direction, const struct iovec *iov,
+>  			unsigned long nr_segs, size_t count);
+> diff --git a/mm/iov_iter.c b/mm/iov_iter.c
+> index ab88dc0..d481fd8 100644
+> --- a/mm/iov_iter.c
+> +++ b/mm/iov_iter.c
+> @@ -4,6 +4,96 @@
+>  #include <linux/slab.h>
+>  #include <linux/vmalloc.h>
 >  
-> -config BLK_DEV_XIP
-> -	bool "Support XIP filesystems on RAM block device"
-> -	depends on BLK_DEV_RAM
-> +config BLK_DEV_RAM_DAX
-> +	bool "Support Direct Access (DAX) to RAM block devices"
-> +	depends on BLK_DEV_RAM && FS_DAX
->  	default n
->  	help
-> -	  Support XIP filesystems (such as ext2 with XIP support on) on
-> -	  top of block ram device. This will slightly enlarge the kernel, and
-> -	  will prevent RAM block device backing store memory from being
-> +	  Support filesystems using DAX to access RAM block devices.  This
-> +	  avoids double-buffering data in the page cache before copying it
-> +	  to the block device.  Answering Y will slightly enlarge the kernel,
-> +	  and will prevent RAM block device backing store memory from being
->  	  allocated from highmem (only a problem for highmem systems).
->  
->  config CDROM_PKTCDVD
-> diff --git a/drivers/block/brd.c b/drivers/block/brd.c
-> index 78fe510..97c55db 100644
-> --- a/drivers/block/brd.c
-> +++ b/drivers/block/brd.c
-> @@ -97,13 +97,13 @@ static struct page *brd_insert_page(struct brd_device *brd, sector_t sector)
->  	 * Must use NOIO because we don't want to recurse back into the
->  	 * block or filesystem layers from page reclaim.
->  	 *
-> -	 * Cannot support XIP and highmem, because our ->direct_access
-> -	 * routine for XIP must return memory that is always addressable.
-> -	 * If XIP was reworked to use pfns and kmap throughout, this
-> +	 * Cannot support DAX and highmem, because our ->direct_access
-> +	 * routine for DAX must return memory that is always addressable.
-> +	 * If DAX was reworked to use pfns and kmap throughout, this
+> +static size_t copy_to_iter_iovec(void *from, size_t bytes, struct iov_iter *i)
+> +{
+> +	size_t skip, copy, left, wanted;
+> +	const struct iovec *iov;
+> +	char __user *buf;
+> +
+> +	if (unlikely(bytes > i->count))
+> +		bytes = i->count;
+> +
+> +	if (unlikely(!bytes))
+> +		return 0;
+> +
+> +	wanted = bytes;
+> +	iov = i->iov;
+> +	skip = i->iov_offset;
+> +	buf = iov->iov_base + skip;
+> +	copy = min(bytes, iov->iov_len - skip);
+> +
+> +	left = __copy_to_user(buf, from, copy);
 
-So this might be an important limitation on x86-32 with PAE, am I
-correct ? It should be eventually investigated if anyone still care, but
-it does not appear to be a roadblocking limitation.
+How comes this function uses __copy_to_user without any access_ok()
+check ? This has security implications.
+
+> +	copy -= left;
+> +	skip += copy;
+> +	from += copy;
+> +	bytes -= copy;
+> +	while (unlikely(!left && bytes)) {
+> +		iov++;
+> +		buf = iov->iov_base;
+> +		copy = min(bytes, iov->iov_len);
+> +		left = __copy_to_user(buf, from, copy);
+
+same here.
+
+> +		copy -= left;
+> +		skip = copy;
+> +		from += copy;
+> +		bytes -= copy;
+> +	}
+> +
+> +	if (skip == iov->iov_len) {
+> +		iov++;
+> +		skip = 0;
+> +	}
+> +	i->count -= wanted - bytes;
+> +	i->nr_segs -= iov - i->iov;
+> +	i->iov = iov;
+> +	i->iov_offset = skip;
+> +	return wanted - bytes;
+> +}
+> +
+> +static size_t copy_from_iter_iovec(void *to, size_t bytes, struct iov_iter *i)
+> +{
+> +	size_t skip, copy, left, wanted;
+> +	const struct iovec *iov;
+> +	char __user *buf;
+> +
+> +	if (unlikely(bytes > i->count))
+> +		bytes = i->count;
+> +
+> +	if (unlikely(!bytes))
+> +		return 0;
+> +
+> +	wanted = bytes;
+> +	iov = i->iov;
+> +	skip = i->iov_offset;
+> +	buf = iov->iov_base + skip;
+> +	copy = min(bytes, iov->iov_len - skip);
+> +
+> +	left = __copy_from_user(to, buf, copy);
+
+same here.
+
+> +	copy -= left;
+> +	skip += copy;
+> +	to += copy;
+> +	bytes -= copy;
+> +	while (unlikely(!left && bytes)) {
+> +		iov++;
+> +		buf = iov->iov_base;
+> +		copy = min(bytes, iov->iov_len);
+> +		left = __copy_from_user(to, buf, copy);
+
+same.
+
+> +		copy -= left;
+> +		skip = copy;
+> +		to += copy;
+> +		bytes -= copy;
+> +	}
+> +
+> +	if (skip == iov->iov_len) {
+> +		iov++;
+> +		skip = 0;
+> +	}
+> +	i->count -= wanted - bytes;
+> +	i->nr_segs -= iov - i->iov;
+> +	i->iov = iov;
+> +	i->iov_offset = skip;
+> +	return wanted - bytes;
+> +}
+> +
+>  static size_t copy_page_to_iter_iovec(struct page *page, size_t offset, size_t bytes,
+>  			 struct iov_iter *i)
+>  {
+> @@ -166,6 +256,50 @@ done:
+>  	return wanted - bytes;
+>  }
+>  
+> +static size_t zero_iovec(size_t bytes, struct iov_iter *i)
+> +{
+> +	size_t skip, copy, left, wanted;
+> +	const struct iovec *iov;
+> +	char __user *buf;
+> +
+> +	if (unlikely(bytes > i->count))
+> +		bytes = i->count;
+> +
+> +	if (unlikely(!bytes))
+> +		return 0;
+> +
+> +	wanted = bytes;
+> +	iov = i->iov;
+> +	skip = i->iov_offset;
+> +	buf = iov->iov_base + skip;
+> +	copy = min(bytes, iov->iov_len - skip);
+> +
+> +	left = __clear_user(buf, copy);
+
+I would guess an access_ok() would be needed here too.
+
+> +	copy -= left;
+> +	skip += copy;
+> +	bytes -= copy;
+> +
+> +	while (unlikely(!left && bytes)) {
+> +		iov++;
+> +		buf = iov->iov_base;
+> +		copy = min(bytes, iov->iov_len);
+> +		left = __clear_user(buf, copy);
+
+Same.
+
+> +		copy -= left;
+> +		skip = copy;
+> +		bytes -= copy;
+> +	}
+> +
+> +	if (skip == iov->iov_len) {
+> +		iov++;
+> +		skip = 0;
+> +	}
+> +	i->count -= wanted - bytes;
+> +	i->nr_segs -= iov - i->iov;
+> +	i->iov = iov;
+> +	i->iov_offset = skip;
+> +	return wanted - bytes;
+> +}
+> +
+>  static size_t __iovec_copy_from_user_inatomic(char *vaddr,
+>  			const struct iovec *iov, size_t base, size_t bytes)
+>  {
+> @@ -412,12 +546,17 @@ static void memcpy_to_page(struct page *page, size_t offset, char *from, size_t
+>  	kunmap_atomic(to);
+>  }
+>  
+> -static size_t copy_page_to_iter_bvec(struct page *page, size_t offset, size_t bytes,
+> -			 struct iov_iter *i)
+> +static void memzero_page(struct page *page, size_t offset, size_t len)
+> +{
+> +	char *addr = kmap_atomic(page);
+> +	memset(addr + offset, 0, len);
+> +	kunmap_atomic(addr);
+> +}
+> +
+> +static size_t copy_to_iter_bvec(void *from, size_t bytes, struct iov_iter *i)
+>  {
+>  	size_t skip, copy, wanted;
+>  	const struct bio_vec *bvec;
+> -	void *kaddr, *from;
+>  
+>  	if (unlikely(bytes > i->count))
+>  		bytes = i->count;
+> @@ -430,8 +569,6 @@ static size_t copy_page_to_iter_bvec(struct page *page, size_t offset, size_t by
+>  	skip = i->iov_offset;
+>  	copy = min_t(size_t, bytes, bvec->bv_len - skip);
+>  
+> -	kaddr = kmap_atomic(page);
+> -	from = kaddr + offset;
+>  	memcpy_to_page(bvec->bv_page, skip + bvec->bv_offset, from, copy);
+>  	skip += copy;
+>  	from += copy;
+> @@ -444,7 +581,6 @@ static size_t copy_page_to_iter_bvec(struct page *page, size_t offset, size_t by
+>  		from += copy;
+>  		bytes -= copy;
+>  	}
+> -	kunmap_atomic(kaddr);
+>  	if (skip == bvec->bv_len) {
+>  		bvec++;
+>  		skip = 0;
+> @@ -456,12 +592,10 @@ static size_t copy_page_to_iter_bvec(struct page *page, size_t offset, size_t by
+>  	return wanted - bytes;
+>  }
+>  
+> -static size_t copy_page_from_iter_bvec(struct page *page, size_t offset, size_t bytes,
+> -			 struct iov_iter *i)
+> +static size_t copy_from_iter_bvec(void *to, size_t bytes, struct iov_iter *i)
+>  {
+>  	size_t skip, copy, wanted;
+>  	const struct bio_vec *bvec;
+> -	void *kaddr, *to;
+>  
+>  	if (unlikely(bytes > i->count))
+>  		bytes = i->count;
+> @@ -473,10 +607,6 @@ static size_t copy_page_from_iter_bvec(struct page *page, size_t offset, size_t
+>  	bvec = i->bvec;
+>  	skip = i->iov_offset;
+>  
+> -	kaddr = kmap_atomic(page);
+> -
+> -	to = kaddr + offset;
+> -
+>  	copy = min(bytes, bvec->bv_len - skip);
+>  
+>  	memcpy_from_page(to, bvec->bv_page, bvec->bv_offset + skip, copy);
+> @@ -493,7 +623,6 @@ static size_t copy_page_from_iter_bvec(struct page *page, size_t offset, size_t
+>  		to += copy;
+>  		bytes -= copy;
+>  	}
+> -	kunmap_atomic(kaddr);
+>  	if (skip == bvec->bv_len) {
+>  		bvec++;
+>  		skip = 0;
+> @@ -505,6 +634,61 @@ static size_t copy_page_from_iter_bvec(struct page *page, size_t offset, size_t
+>  	return wanted;
+>  }
+>  
+> +static size_t copy_page_to_iter_bvec(struct page *page, size_t offset,
+> +					size_t bytes, struct iov_iter *i)
+> +{
+> +	void *kaddr = kmap_atomic(page);
+> +	size_t wanted = copy_to_iter_bvec(kaddr + offset, bytes, i);
+
+missing newline.
+
+> +	kunmap_atomic(kaddr);
+> +	return wanted;
+> +}
+> +
+> +static size_t copy_page_from_iter_bvec(struct page *page, size_t offset,
+> +					size_t bytes, struct iov_iter *i)
+> +{
+> +	void *kaddr = kmap_atomic(page);
+> +	size_t wanted = copy_from_iter_bvec(kaddr + offset, bytes, i);
+
+missing newline.
 
 Thanks,
 
 Mathieu
 
->  	 * restriction might be able to be lifted.
->  	 */
->  	gfp_flags = GFP_NOIO | __GFP_ZERO;
-> -#ifndef CONFIG_BLK_DEV_XIP
-> +#ifndef CONFIG_BLK_DEV_RAM_DAX
->  	gfp_flags |= __GFP_HIGHMEM;
->  #endif
->  	page = alloc_page(gfp_flags);
-> @@ -369,7 +369,7 @@ static int brd_rw_page(struct block_device *bdev, sector_t sector,
->  	return err;
->  }
->  
-> -#ifdef CONFIG_BLK_DEV_XIP
-> +#ifdef CONFIG_BLK_DEV_RAM_DAX
->  static long brd_direct_access(struct block_device *bdev, sector_t sector,
->  			void **kaddr, unsigned long *pfn, long size)
+> +	kunmap_atomic(kaddr);
+> +	return wanted;
+> +}
+> +
+> +static size_t zero_bvec(size_t bytes, struct iov_iter *i)
+> +{
+> +	size_t skip, copy, wanted;
+> +	const struct bio_vec *bvec;
+> +
+> +	if (unlikely(bytes > i->count))
+> +		bytes = i->count;
+> +
+> +	if (unlikely(!bytes))
+> +		return 0;
+> +
+> +	wanted = bytes;
+> +	bvec = i->bvec;
+> +	skip = i->iov_offset;
+> +	copy = min_t(size_t, bytes, bvec->bv_len - skip);
+> +
+> +	memzero_page(bvec->bv_page, skip + bvec->bv_offset, copy);
+> +	skip += copy;
+> +	bytes -= copy;
+> +	while (bytes) {
+> +		bvec++;
+> +		copy = min(bytes, (size_t)bvec->bv_len);
+> +		memzero_page(bvec->bv_page, bvec->bv_offset, copy);
+> +		skip = copy;
+> +		bytes -= copy;
+> +	}
+> +	if (skip == bvec->bv_len) {
+> +		bvec++;
+> +		skip = 0;
+> +	}
+> +	i->count -= wanted - bytes;
+> +	i->nr_segs -= bvec - i->bvec;
+> +	i->bvec = bvec;
+> +	i->iov_offset = skip;
+> +	return wanted - bytes;
+> +}
+> +
+>  static size_t copy_from_user_bvec(struct page *page,
+>  		struct iov_iter *i, unsigned long offset, size_t bytes)
 >  {
-> @@ -388,6 +388,8 @@ static long brd_direct_access(struct block_device *bdev, sector_t sector,
->  	 * file happens to be mapped to the next page of physical RAM */
->  	return PAGE_SIZE;
+> @@ -668,6 +852,31 @@ size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
 >  }
-> +#else
-> +#define brd_direct_access NULL
->  #endif
+>  EXPORT_SYMBOL(copy_page_from_iter);
 >  
->  static int brd_ioctl(struct block_device *bdev, fmode_t mode,
-> @@ -428,9 +430,7 @@ static const struct block_device_operations brd_fops = {
->  	.owner =		THIS_MODULE,
->  	.rw_page =		brd_rw_page,
->  	.ioctl =		brd_ioctl,
-> -#ifdef CONFIG_BLK_DEV_XIP
->  	.direct_access =	brd_direct_access,
-> -#endif
->  };
->  
->  /*
-> diff --git a/fs/Kconfig b/fs/Kconfig
-> index a9eb53d..117900f 100644
-> --- a/fs/Kconfig
-> +++ b/fs/Kconfig
-> @@ -34,7 +34,7 @@ source "fs/btrfs/Kconfig"
->  source "fs/nilfs2/Kconfig"
->  
->  config FS_DAX
-> -	bool "Direct Access support"
-> +	bool "Direct Access (DAX) support"
->  	depends on MMU
->  	help
->  	  Direct Access (DAX) can be used on memory-backed block devices.
-> @@ -45,7 +45,7 @@ config FS_DAX
->  
->  	  If you do not have a block device that is capable of using this,
->  	  or if unsure, say N.  Saying Y will increase the size of the kernel
-> -	  by about 2kB.
-> +	  by about 5kB.
->  
->  endif # BLOCK
->  
+> +size_t copy_to_iter(void *addr, size_t bytes, struct iov_iter *i)
+> +{
+> +	if (i->type & ITER_BVEC)
+> +		return copy_to_iter_bvec(addr, bytes, i);
+> +	else
+> +		return copy_to_iter_iovec(addr, bytes, i);
+> +}
+> +
+> +size_t copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
+> +{
+> +	if (i->type & ITER_BVEC)
+> +		return copy_from_iter_bvec(addr, bytes, i);
+> +	else
+> +		return copy_from_iter_iovec(addr, bytes, i);
+> +}
+> +
+> +size_t iov_iter_zero(size_t bytes, struct iov_iter *i)
+> +{
+> +	if (i->type & ITER_BVEC) {
+> +		return zero_bvec(bytes, i);
+> +	} else {
+> +		return zero_iovec(bytes, i);
+> +	}
+> +}
+> +
+>  size_t iov_iter_copy_from_user_atomic(struct page *page,
+>  		struct iov_iter *i, unsigned long offset, size_t bytes)
+>  {
 > -- 
 > 2.1.0
 > 
