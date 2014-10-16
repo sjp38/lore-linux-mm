@@ -1,82 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 64AFC6B0069
-	for <linux-mm@kvack.org>; Wed, 15 Oct 2014 22:19:12 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id g10so2331153pdj.32
-        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 19:19:12 -0700 (PDT)
-Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com. [202.81.31.145])
-        by mx.google.com with ESMTPS id g5si17498622pdf.179.2014.10.15.19.19.10
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 15 Oct 2014 19:19:11 -0700 (PDT)
-Received: from /spool/local
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 16 Oct 2014 12:19:06 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 05C4F2CE804E
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 13:19:05 +1100 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay05.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s9G1sTlU4587612
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 12:54:30 +1100
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s9G2J3xj010921
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 13:19:03 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH] mm/numa balancing: Rearrange Kconfig entry
-Date: Thu, 16 Oct 2014 07:48:55 +0530
-Message-Id: <1413425935-24767-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id AEFC86B0069
+	for <linux-mm@kvack.org>; Wed, 15 Oct 2014 23:12:00 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id fb1so2509470pad.25
+        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 20:12:00 -0700 (PDT)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
+        by mx.google.com with ESMTP id pp4si9097897pbb.47.2014.10.15.20.11.59
+        for <linux-mm@kvack.org>;
+        Wed, 15 Oct 2014 20:11:59 -0700 (PDT)
+Date: Wed, 15 Oct 2014 23:11:54 -0400 (EDT)
+Message-Id: <20141015.231154.1804074463934900124.davem@davemloft.net>
+Subject: Re: unaligned accesses in SLAB etc.
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <alpine.LRH.2.11.1410152310080.11974@adalberg.ut.ee>
+References: <alpine.LRH.2.11.1410151059520.8050@adalberg.ut.ee>
+	<20141015.143624.941838991598108211.davem@davemloft.net>
+	<alpine.LRH.2.11.1410152310080.11974@adalberg.ut.ee>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: mroos@linux.ee
+Cc: iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org
 
-Add the default enable config option after the NUMA_BALANCING option
-so that it appears related in the nconfig interface.
+From: Meelis Roos <mroos@linux.ee>
+Date: Wed, 15 Oct 2014 23:11:34 +0300 (EEST)
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
-NOTE: Resending with linux-mm on cc:
+>> >> The gcc-4.9 case is interesting, are you saying that a gcc-4.9 compiled
+>> >> kernel works fine on other systems?
+>> > 
+>> > Yes, all USII based systems work fine with Debian gcc-4.9, as does 
+>> > T2000. Of USIII* systems, V210 and V440 exhibit the boot hang with 
+>> > gcc-4.9 and V480 crashes wit FATAL exception during boot that is 
+>> > probably earlier than the gcc boot hang so I do not know about V480 and 
+>> > gcc-4.9. V240 not tested because of fan failures, V245 is in the queue 
+>> > for setup but not tested so far.
+>> 
+>> Ok, on the V210/V440 can you boot with "-p" on the kernel boot command
+>> line and post the log?  Let's start by seeing how far it gets, maybe
+>> we can figure out roughly where it dies.
+> 
+> http://www.spinics.net/lists/sparclinux/msg12238.html and 
+> http://www.spinics.net/lists/sparclinux/msg12468.html are my relevant 
+> posts about it. Should I get something more? It would be easy because of 
+> ALOM.
 
- init/Kconfig | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
+Less information than I had hoped :-/
 
-diff --git a/init/Kconfig b/init/Kconfig
-index 5a5613ed49bc..d73c934f9e77 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -889,14 +889,6 @@ config ARCH_SUPPORTS_INT128
- config ARCH_WANT_NUMA_VARIABLE_LOCALITY
- 	bool
- 
--config NUMA_BALANCING_DEFAULT_ENABLED
--	bool "Automatically enable NUMA aware memory/task placement"
--	default y
--	depends on NUMA_BALANCING
--	help
--	  If set, automatic NUMA balancing will be enabled if running on a NUMA
--	  machine.
--
- config NUMA_BALANCING
- 	bool "Memory placement aware NUMA scheduler"
- 	depends on ARCH_SUPPORTS_NUMA_BALANCING
-@@ -909,6 +901,14 @@ config NUMA_BALANCING
- 
- 	  This system will be inactive on UMA systems.
- 
-+config NUMA_BALANCING_DEFAULT_ENABLED
-+	bool "Automatically enable NUMA aware memory/task placement"
-+	default y
-+	depends on NUMA_BALANCING
-+	help
-+	  If set, automatic NUMA balancing will be enabled if running on a NUMA
-+	  machine.
-+
- menuconfig CGROUPS
- 	boolean "Control Group support"
- 	select KERNFS
--- 
-1.9.1
+I thought it was hanging "during boot" meaning before we try to
+execute userspace.  When in fact it seems to die exactly when we start
+running the init process.
+
+Wrt. disassembly of fault_in_user_windows(), that's not likely the
+cause because if it were being miscompiled it would equally not work
+on the other systems.
+
+Something in the UltraSPARC-III specific code paths is going wrong
+(either it is miscompiled, or the code makes an assumption that isn't
+valid which has happened in the past).
+
+Do you happen to have both gcc-4.9 and a previously working compiler
+on these systems?  If you do, we can build a kernel with gcc-4.9 and
+then selectively compile certain failes with the older working
+compiler to narrow down what compiles into something non-working with
+gcc-4.9
+
+I would start with the following files:
+
+	arch/sparc/mm/init_64.c
+	arch/sparc/mm/tlb.c
+	arch/sparc/mm/tsb.c
+	arch/sparc/mm/fault_64.c
+
+And failing that, go for various files under arch/sparc/kernel/ such as:
+
+	arch/sparc/kernel/process_64.c
+	arch/sparc/kernel/smp_64.c
+	arch/sparc/kernel/sys_sparc_64.c
+	arch/sparc/kernel/sys_sparc32.c
+	arch/sparc/kernel/traps_64.c
+
+Hopefully, this should be a simply matter of doing a complete build
+with gcc-4.9, then removing the object file we want to selectively
+build with the older compiler and then going:
+
+	make CC="gcc-4.6" arch/sparc/mm/init_64.o
+
+then relinking with plain 'make'.
+
+If the build system rebuilds the object file on you when you try
+to relink the final kernel image, we'll have to do some of this
+by hand to make the test.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
