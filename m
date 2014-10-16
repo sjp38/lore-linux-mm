@@ -1,78 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DCA36B0069
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 01:48:28 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id fp1so2599174pdb.7
-        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 22:48:28 -0700 (PDT)
-Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
-        by mx.google.com with ESMTPS id th2si18033299pab.109.2014.10.15.22.48.27
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Wed, 15 Oct 2014 22:48:27 -0700 (PDT)
-Received: from epcpsbgr5.samsung.com
- (u145.gpu120.samsung.co.kr [203.254.230.145])
- by mailout2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTP id <0NDI00HKHW4P4070@mailout2.samsung.com> for linux-mm@kvack.org;
- Thu, 16 Oct 2014 14:48:25 +0900 (KST)
-Message-id: <543F5C3A.1070503@samsung.com>
-Date: Thu, 16 Oct 2014 14:48:42 +0900
-From: Heesub Shin <heesub.shin@samsung.com>
-MIME-version: 1.0
-Subject: Re: [PATCH] mm/zbud: init user ops only when it is needed
-References: <1413367243-23524-1-git-send-email-heesub.shin@samsung.com>
- <20141015131710.ffd6c40996cd1ce6c16dbae8@linux-foundation.org>
-In-reply-to: <20141015131710.ffd6c40996cd1ce6c16dbae8@linux-foundation.org>
-Content-type: text/plain; charset=ISO-8859-1; format=flowed
-Content-transfer-encoding: 7bit
+Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
+	by kanga.kvack.org (Postfix) with ESMTP id F35C46B0069
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 03:03:00 -0400 (EDT)
+Received: by mail-lb0-f180.google.com with SMTP id n15so2327385lbi.11
+        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 00:03:00 -0700 (PDT)
+Received: from smtp2.it.da.ut.ee (smtp2.it.da.ut.ee. [2001:bb8:2002:500:20f:1fff:fe04:1bbb])
+        by mx.google.com with ESMTP id j4si33354835lbn.98.2014.10.16.00.02.58
+        for <linux-mm@kvack.org>;
+        Thu, 16 Oct 2014 00:02:59 -0700 (PDT)
+Date: Thu, 16 Oct 2014 10:02:57 +0300 (EEST)
+From: Meelis Roos <mroos@linux.ee>
+Subject: Re: unaligned accesses in SLAB etc.
+In-Reply-To: <20141014.173246.921084057467310731.davem@davemloft.net>
+Message-ID: <alpine.LRH.2.11.1410160956090.13273@adalberg.ut.ee>
+References: <20141013235219.GA11191@js1304-P5Q-DELUXE> <20141013.200416.641735303627599182.davem@davemloft.net> <alpine.LRH.2.11.1410150012001.11850@adalberg.ut.ee> <20141014.173246.921084057467310731.davem@davemloft.net>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjennings@variantweb.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sunae Seo <sunae.seo@samsung.com>
+To: David Miller <davem@davemloft.net>
+Cc: iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org
 
-Hello,
+> >> > I'd like to know that your another problem is related to commit
+> >> > bf0dea23a9c0 ("mm/slab: use percpu allocator for cpu cache").  So,
+> >> > if the commit is reverted, your another problem is also gone
+> >> > completely?
+> >> 
+> >> The other problem has been present forever.
+> > 
+> > Umm? I am afraid I have been describing it badly. This random 
+> > SIGBUS+SIGSEGV problem is new - I have not seen it before.
+> 
+> Sorry, I thought it was the same bug that causes git corruptions
+> for you.  I misunderstood.
+> 
+> > I have been able to do kernel compiles for years on sparc64 (modulo 
+> > specific bugs in specific configurations) and 3.17 + start/end swap 
+> > patch seems also stable for most machine. With yesterdays git + align 
+> > patch, it dies with SIGBUS multiple times during compilation so it's a 
+> > new regression for me.
+> > 
+> > Will try reverting that commit tomorrow.
+> 
+> If that fails, please try to bisect, it will help us a lot.
 
-On 10/16/2014 05:17 AM, Andrew Morton wrote:
-> On Wed, 15 Oct 2014 19:00:43 +0900 Heesub Shin <heesub.shin@samsung.com> wrote:
->
->> When zbud is initialized through the zpool wrapper, pool->ops which
->> points to user-defined operations is always set regardless of whether it
->> is specified from the upper layer. This causes zbud_reclaim_page() to
->> iterate its loop for evicting pool pages out without any gain.
->>
->> This patch sets the user-defined ops only when it is needed, so that
->> zbud_reclaim_page() can bail out the reclamation loop earlier if there
->> is no user-defined operations specified.
->
-> Which callsite is calling zbud_zpool_create(..., NULL)?
+Commit bf0dea23a9c0 is working OK with no revert needed (checked out 
+this revision and it tested OK).
 
-Currently nowhere. zswap is the only user of zbud and always passes a 
-pointer to user-defined operation on pool creation. In addition, there 
-may be less possibility that pool shrinking is requested by users who 
-did not provide the user-defined ops. So, we may not need to worry much 
-about what I wrote in the changelog. However, it is definitely weird to 
-pass an argument, zpool_ops, which even will not be referenced by 
-zbud_zpool_create(). Above all, it would be more useful to avoid the 
-possibility in the future rather than just ignoring it.
+So far I know that the breakage seems to have happened between
+cadbb58039f7cab1def9c931012ab04c953a6997 (first sparc commit of 
+the batch, working OK on V100) and 
+bdcf81b658ebc4c2640c3c2c55c8b31c601b6996 (last sparc commit before the 
+merge, breaks on E3500). Will continue bisecting the sparc64 commits.
 
-regards,
-heesub
+Also, I noticed that when the problem happens, it's deterministic - with 
+some kernels, sshd dies reproducibly on login. With most kernels, 
+building kernel breaks in one specific location, not randomly.
 
->
->> ...
->> --- a/mm/zbud.c
->> +++ b/mm/zbud.c
->> @@ -132,7 +132,7 @@ static struct zbud_ops zbud_zpool_ops = {
->>
->>   static void *zbud_zpool_create(gfp_t gfp, struct zpool_ops *zpool_ops)
->>   {
->> -	return zbud_create_pool(gfp, &zbud_zpool_ops);
->> +	return zbud_create_pool(gfp, zpool_ops ? &zbud_zpool_ops : NULL);
->>   }
->>
->>   static void zbud_zpool_destroy(void *pool)
->
->
+scripts/Makefile.build:352: recipe for target 'sound/modules.order' failed
+make[1]: *** [sound/modules.order] Bus error
+make[1]: *** Deleting file 'sound/modules.order'
+Makefile:929: recipe for target 'sound' failed
+
+Will tell when I get more details.
+
+-- 
+Meelis Roos (mroos@linux.ee)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
