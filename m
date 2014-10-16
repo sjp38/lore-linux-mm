@@ -1,71 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 499666B0069
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 04:55:58 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id ey11so3009136pad.41
-        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 01:55:58 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id p6si18407973pdj.32.2014.10.16.01.55.57
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Oct 2014 01:55:57 -0700 (PDT)
-Message-ID: <543F8812.2020002@codeaurora.org>
-Date: Thu, 16 Oct 2014 01:55:46 -0700
-From: Laura Abbott <lauraa@codeaurora.org>
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+	by kanga.kvack.org (Postfix) with ESMTP id B4B656B0069
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 04:58:55 -0400 (EDT)
+Received: by mail-lb0-f175.google.com with SMTP id u10so2405843lbd.20
+        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 01:58:54 -0700 (PDT)
+Received: from mail.efficios.com (mail.efficios.com. [78.47.125.74])
+        by mx.google.com with ESMTP id b11si33660673lbq.121.2014.10.16.01.58.53
+        for <linux-mm@kvack.org>;
+        Thu, 16 Oct 2014 01:58:54 -0700 (PDT)
+Date: Thu, 16 Oct 2014 10:56:42 +0200
+From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Subject: Re: [PATCH v11 03/21] mm: Fix XIP fault vs truncate race
+Message-ID: <20141016085642.GB19075@thinkos.etherlink>
+References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
+ <1411677218-29146-4-git-send-email-matthew.r.wilcox@intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] (CMA_AGGRESSIVE) Make CMA memory be more aggressive
- about allocation
-References: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com>
-In-Reply-To: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1411677218-29146-4-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hui Zhu <zhuhui@xiaomi.com>, rjw@rjwysocki.net, len.brown@intel.com, pavel@ucw.cz, m.szyprowski@samsung.com, akpm@linux-foundation.org, mina86@mina86.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@suse.de, minchan@kernel.org, nasa4836@gmail.com, ddstreet@ieee.org, hughd@google.com, mingo@kernel.org, rientjes@google.com, peterz@infradead.org, keescook@chromium.org, atomlin@redhat.com, raistlin@linux.it, axboe@fb.com, paulmck@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, k.khlebnikov@samsung.com, msalter@redhat.com, deller@gmx.de, tangchen@cn.fujitsu.com, ben@decadent.org.uk, akinobu.mita@gmail.com, vbabka@suse.cz, sasha.levin@oracle.com, vdavydov@parallels.com, suleiman@google.com
-Cc: linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 10/15/2014 8:35 PM, Hui Zhu wrote:
-> In fallbacks of page_alloc.c, MIGRATE_CMA is the fallback of
-> MIGRATE_MOVABLE.
-> MIGRATE_MOVABLE will use MIGRATE_CMA when it doesn't have a page in
-> order that Linux kernel want.
->
-> If a system that has a lot of user space program is running, for
-> instance, an Android board, most of memory is in MIGRATE_MOVABLE and
-> allocated.  Before function __rmqueue_fallback get memory from
-> MIGRATE_CMA, the oom_killer will kill a task to release memory when
-> kernel want get MIGRATE_UNMOVABLE memory because fallbacks of
-> MIGRATE_UNMOVABLE are MIGRATE_RECLAIMABLE and MIGRATE_MOVABLE.
-> This status is odd.  The MIGRATE_CMA has a lot free memory but Linux
-> kernel kill some tasks to release memory.
->
-> This patch series adds a new function CMA_AGGRESSIVE to make CMA memory
-> be more aggressive about allocation.
-> If function CMA_AGGRESSIVE is available, when Linux kernel call function
-> __rmqueue try to get pages from MIGRATE_MOVABLE and conditions allow,
-> MIGRATE_CMA will be allocated as MIGRATE_MOVABLE first.  If MIGRATE_CMA
-> doesn't have enough pages for allocation, go back to allocate memory from
-> MIGRATE_MOVABLE.
-> Then the memory of MIGRATE_MOVABLE can be kept for MIGRATE_UNMOVABLE and
-> MIGRATE_RECLAIMABLE which doesn't have fallback MIGRATE_CMA.
->
+On 25-Sep-2014 04:33:20 PM, Matthew Wilcox wrote:
+> Pagecache faults recheck i_size after taking the page lock to ensure that
+> the fault didn't race against a truncate.  We don't have a page to lock
+> in the XIP case, so use the i_mmap_mutex instead.  It is locked in the
+> truncate path in unmap_mapping_range() after updating i_size.  So while
+> we hold it in the fault path, we are guaranteed that either i_size has
+> already been updated in the truncate path, or that the truncate will
+> subsequently call zap_page_range_single() and so remove the mapping we
+> have just inserted.
+> 
+> There is a window of time in which i_size has been reduced and the
+> thread has a mapping to a page which will be removed from the file,
+> but this is harmless as the page will not be allocated to a different
+> purpose before the thread's access to it is revoked.
+> 
+> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
+> Reviewed-by: Jan Kara <jack@suse.cz>
+> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-It's good to see another proposal to fix CMA utilization. Do you have
-any data about the success rate of CMA contiguous allocation after
-this patch series? I played around with a similar approach of using
-CMA for MIGRATE_MOVABLE allocations and found that although utilization
-did increase, contiguous allocations failed at a higher rate and were
-much slower. I see what this series is trying to do with avoiding
-allocation from CMA pages when a contiguous allocation is progress.
-My concern is that there would still be problems with contiguous
-allocation after all the MIGRATE_MOVABLE fallback has happened.
+Reviewed-by: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
 
-Thanks,
-Laura
+> ---
+>  mm/filemap_xip.c | 24 ++++++++++++++++++++++--
+>  1 file changed, 22 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/filemap_xip.c b/mm/filemap_xip.c
+> index d8d9fe3..c8d23e9 100644
+> --- a/mm/filemap_xip.c
+> +++ b/mm/filemap_xip.c
+> @@ -260,8 +260,17 @@ again:
+>  		__xip_unmap(mapping, vmf->pgoff);
+>  
+>  found:
+> +		/* We must recheck i_size under i_mmap_mutex */
+> +		mutex_lock(&mapping->i_mmap_mutex);
+> +		size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
+> +							PAGE_CACHE_SHIFT;
+> +		if (unlikely(vmf->pgoff >= size)) {
+> +			mutex_unlock(&mapping->i_mmap_mutex);
+> +			return VM_FAULT_SIGBUS;
+> +		}
+>  		err = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
+>  							xip_pfn);
+> +		mutex_unlock(&mapping->i_mmap_mutex);
+>  		if (err == -ENOMEM)
+>  			return VM_FAULT_OOM;
+>  		/*
+> @@ -285,16 +294,27 @@ found:
+>  		}
+>  		if (error != -ENODATA)
+>  			goto out;
+> +
+> +		/* We must recheck i_size under i_mmap_mutex */
+> +		mutex_lock(&mapping->i_mmap_mutex);
+> +		size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
+> +							PAGE_CACHE_SHIFT;
+> +		if (unlikely(vmf->pgoff >= size)) {
+> +			ret = VM_FAULT_SIGBUS;
+> +			goto unlock;
+> +		}
+>  		/* not shared and writable, use xip_sparse_page() */
+>  		page = xip_sparse_page();
+>  		if (!page)
+> -			goto out;
+> +			goto unlock;
+>  		err = vm_insert_page(vma, (unsigned long)vmf->virtual_address,
+>  							page);
+>  		if (err == -ENOMEM)
+> -			goto out;
+> +			goto unlock;
+>  
+>  		ret = VM_FAULT_NOPAGE;
+> +unlock:
+> +		mutex_unlock(&mapping->i_mmap_mutex);
+>  out:
+>  		write_seqcount_end(&xip_sparse_seq);
+>  		mutex_unlock(&xip_sparse_mutex);
+> -- 
+> 2.1.0
+> 
+> 
 
 -- 
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-hosted by The Linux Foundation
+Mathieu Desnoyers
+EfficiOS Inc.
+http://www.efficios.com
+Key fingerprint: 2A0B 4ED9 15F2 D3FA 45F5  B162 1728 0A97 8118 6ACF
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
