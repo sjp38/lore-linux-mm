@@ -1,72 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id D962D6B0069
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 01:13:58 -0400 (EDT)
-Received: by mail-ig0-f170.google.com with SMTP id hn15so457119igb.3
-        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 22:13:58 -0700 (PDT)
-Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com [2607:f8b0:4001:c05::229])
-        by mx.google.com with ESMTPS id f20si38991772icj.76.2014.10.15.22.13.58
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DCA36B0069
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 01:48:28 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id fp1so2599174pdb.7
+        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 22:48:28 -0700 (PDT)
+Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
+        by mx.google.com with ESMTPS id th2si18033299pab.109.2014.10.15.22.48.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 15 Oct 2014 22:13:58 -0700 (PDT)
-Received: by mail-ig0-f169.google.com with SMTP id uq10so454717igb.4
-        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 22:13:58 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com>
-References: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com>
-Date: Thu, 16 Oct 2014 13:13:57 +0800
-Message-ID: <CAL1ERfPJbbMUMe=5TvN2fbnJga4oP2oNUZ7zG-NRy0NbUMh=Ag@mail.gmail.com>
-Subject: Re: [PATCH 0/4] (CMA_AGGRESSIVE) Make CMA memory be more aggressive
- about allocation
-From: Weijie Yang <weijie.yang.kh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Wed, 15 Oct 2014 22:48:27 -0700 (PDT)
+Received: from epcpsbgr5.samsung.com
+ (u145.gpu120.samsung.co.kr [203.254.230.145])
+ by mailout2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTP id <0NDI00HKHW4P4070@mailout2.samsung.com> for linux-mm@kvack.org;
+ Thu, 16 Oct 2014 14:48:25 +0900 (KST)
+Message-id: <543F5C3A.1070503@samsung.com>
+Date: Thu, 16 Oct 2014 14:48:42 +0900
+From: Heesub Shin <heesub.shin@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH] mm/zbud: init user ops only when it is needed
+References: <1413367243-23524-1-git-send-email-heesub.shin@samsung.com>
+ <20141015131710.ffd6c40996cd1ce6c16dbae8@linux-foundation.org>
+In-reply-to: <20141015131710.ffd6c40996cd1ce6c16dbae8@linux-foundation.org>
+Content-type: text/plain; charset=ISO-8859-1; format=flowed
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hui Zhu <zhuhui@xiaomi.com>
-Cc: rjw@rjwysocki.net, len.brown@intel.com, pavel@ucw.cz, m.szyprowski@samsung.com, akpm@linux-foundation.org, mina86@mina86.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@suse.de, minchan@kernel.org, nasa4836@gmail.com, ddstreet@ieee.org, hughd@google.com, mingo@kernel.org, rientjes@google.com, peterz@infradead.org, keescook@chromium.org, atomlin@redhat.com, raistlin@linux.it, axboe@fb.com, paulmck@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, k.khlebnikov@samsung.com, msalter@redhat.com, deller@gmx.de, tangchen@cn.fujitsu.com, ben@decadent.org.uk, akinobu.mita@gmail.com, lauraa@codeaurora.org, vbabka@suse.cz, sasha.levin@oracle.com, vdavydov@parallels.com, suleiman@google.com, linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjennings@variantweb.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sunae Seo <sunae.seo@samsung.com>
 
-On Thu, Oct 16, 2014 at 11:35 AM, Hui Zhu <zhuhui@xiaomi.com> wrote:
-> In fallbacks of page_alloc.c, MIGRATE_CMA is the fallback of
-> MIGRATE_MOVABLE.
-> MIGRATE_MOVABLE will use MIGRATE_CMA when it doesn't have a page in
-> order that Linux kernel want.
+Hello,
+
+On 10/16/2014 05:17 AM, Andrew Morton wrote:
+> On Wed, 15 Oct 2014 19:00:43 +0900 Heesub Shin <heesub.shin@samsung.com> wrote:
 >
-> If a system that has a lot of user space program is running, for
-> instance, an Android board, most of memory is in MIGRATE_MOVABLE and
-> allocated.  Before function __rmqueue_fallback get memory from
-> MIGRATE_CMA, the oom_killer will kill a task to release memory when
-> kernel want get MIGRATE_UNMOVABLE memory because fallbacks of
-> MIGRATE_UNMOVABLE are MIGRATE_RECLAIMABLE and MIGRATE_MOVABLE.
-> This status is odd.  The MIGRATE_CMA has a lot free memory but Linux
-> kernel kill some tasks to release memory.
+>> When zbud is initialized through the zpool wrapper, pool->ops which
+>> points to user-defined operations is always set regardless of whether it
+>> is specified from the upper layer. This causes zbud_reclaim_page() to
+>> iterate its loop for evicting pool pages out without any gain.
+>>
+>> This patch sets the user-defined ops only when it is needed, so that
+>> zbud_reclaim_page() can bail out the reclamation loop earlier if there
+>> is no user-defined operations specified.
+>
+> Which callsite is calling zbud_zpool_create(..., NULL)?
 
-I'm not very clear to this description, what issue do you try to solve?
-Make MIGRATE_CMA be the fallback of desired MIGRATE_UNMOVABLE?
+Currently nowhere. zswap is the only user of zbud and always passes a 
+pointer to user-defined operation on pool creation. In addition, there 
+may be less possibility that pool shrinking is requested by users who 
+did not provide the user-defined ops. So, we may not need to worry much 
+about what I wrote in the changelog. However, it is definitely weird to 
+pass an argument, zpool_ops, which even will not be referenced by 
+zbud_zpool_create(). Above all, it would be more useful to avoid the 
+possibility in the future rather than just ignoring it.
 
-> This patch series adds a new function CMA_AGGRESSIVE to make CMA memory
-> be more aggressive about allocation.
-> If function CMA_AGGRESSIVE is available, when Linux kernel call function
-> __rmqueue try to get pages from MIGRATE_MOVABLE and conditions allow,
-> MIGRATE_CMA will be allocated as MIGRATE_MOVABLE first.  If MIGRATE_CMA
-> doesn't have enough pages for allocation, go back to allocate memory from
-> MIGRATE_MOVABLE.
+regards,
+heesub
 
-I don't think so. That will cause MIGRATE_CMA depleted prematurely, and when a
-user(such as camera) wants CMA memory, he will not get the wanted memory.
-
-> Then the memory of MIGRATE_MOVABLE can be kept for MIGRATE_UNMOVABLE and
-> MIGRATE_RECLAIMABLE which doesn't have fallback MIGRATE_CMA.
-
-I don't think this is the root cause of oom.
-But I am interested in the CMA shrinker idea, I will follow this mail.
-
-Thanks for your work, add some test data will be better.
-
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+>
+>> ...
+>> --- a/mm/zbud.c
+>> +++ b/mm/zbud.c
+>> @@ -132,7 +132,7 @@ static struct zbud_ops zbud_zpool_ops = {
+>>
+>>   static void *zbud_zpool_create(gfp_t gfp, struct zpool_ops *zpool_ops)
+>>   {
+>> -	return zbud_create_pool(gfp, &zbud_zpool_ops);
+>> +	return zbud_create_pool(gfp, zpool_ops ? &zbud_zpool_ops : NULL);
+>>   }
+>>
+>>   static void zbud_zpool_destroy(void *pool)
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
