@@ -1,120 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C0D76B006C
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 03:20:39 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y13so302477pdi.5
-        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 00:20:38 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id xf5si381571pab.170.2014.10.17.00.20.37
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id E790B6B006E
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 03:20:48 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id eu11so316326pac.14
+        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 00:20:48 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id x3si486419pdm.53.2014.10.17.00.20.47
         for <linux-mm@kvack.org>;
-        Fri, 17 Oct 2014 00:20:38 -0700 (PDT)
-Date: Thu, 16 Oct 2014 18:16:24 -0400
+        Fri, 17 Oct 2014 00:20:48 -0700 (PDT)
+Date: Thu, 16 Oct 2014 17:22:34 -0400
 From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v11 20/21] ext4: Add DAX functionality
-Message-ID: <20141016221624.GL11522@wil.cx>
+Subject: Re: [PATCH v11 08/21] dax,ext2: Replace ext2_clear_xip_target with
+ dax_clear_blocks
+Message-ID: <20141016212234.GF11522@wil.cx>
 References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
- <1411677218-29146-21-git-send-email-matthew.r.wilcox@intel.com>
- <20141016125625.GR19075@thinkos.etherlink>
+ <1411677218-29146-9-git-send-email-matthew.r.wilcox@intel.com>
+ <20141016100525.GF19075@thinkos.etherlink>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141016125625.GR19075@thinkos.etherlink>
+In-Reply-To: <20141016100525.GF19075@thinkos.etherlink>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Oct 16, 2014 at 02:56:25PM +0200, Mathieu Desnoyers wrote:
-> > +#define EXT4_MOUNT_DAX			0x00200	/* Execute in place */
-> 
-> Execute in place -> Direct Access stuff... (comment above)
-
-Thanks!  Fixed.
-
-> > +static int ext4_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+On Thu, Oct 16, 2014 at 12:05:25PM +0200, Mathieu Desnoyers wrote:
+> > +int dax_clear_blocks(struct inode *inode, sector_t block, long size)
 > > +{
-> > +	return dax_fault(vma, vmf, ext4_get_block);
-> > +					/* Is this the right get_block? */
+> > +	struct block_device *bdev = inode->i_sb->s_bdev;
+> > +	sector_t sector = block << (inode->i_blkbits - 9);
 > 
-> perhaps this needs a TODO or FIXME or XXX to make sure an ext4
-> maintainer does not miss this question.
+> Is there a define e.g. SECTOR_SHIFT rather than using this hardcoded "9"
+> value ?
 
-Maybe I can ambush Ted in the halls tomorrow and find out?  :-)
+Yeah ... in half a dozen drivers, so introducing them globally spews
+warnings about redefining macros.  The '9' and '512' are sprinkled all
+over the storage parts of the kernel, it's a complete flustercluck that
+I wasn't about to try to unscrew.
 
-> > +	.fsync		= ext4_sync_file,
-> > +	.fallocate	= ext4_fallocate,
+> > +		while (count > 0) {
+> > +			unsigned pgsz = PAGE_SIZE - offset_in_page(addr);
 > 
-> Perhaps adding comments saying that .splice_read and .splice_write are
-> unavailable here would help understanding why we need a different file
-> operations structure.
+> unsigned -> unsigned int
 
-Good idea.  Done.
+Any particular reason?  Omitting it in some places helps stay within
+the 80-column limit without sacrificing readability.
 
-> > +static void ext4_end_io_unwritten(struct buffer_head *bh, int uptodate)
-> > +{
-> > +	struct inode *inode = bh->b_assoc_map->host;
-> > +	/* XXX: breaks on 32-bit > 16GB. Is that even supported? */
+> > +		}
+> > +	} while (size);
 > 
-> Good question! It would be interesting to get an answer :)
+> Just to stay on the safe side, can we do while (size > 0) ? Just in case
+> an unforeseen issue makes size negative, and gets us in a very long loop.
 
-Another thing to check tomorrow ...
+If size < 0, we should BUG, because that means we've zeroed more than
+we were asked to do, which is data corruption.
 
-> > +	if (!uptodate)
-> > +		return;
-> > +	WARN_ON(!buffer_unwritten(bh));
-> > +	err = ext4_convert_unwritten_extents(NULL, inode, offset, bh->b_size);
-> 
-> err is simply unused here, that does not look good (silent failure).
+There's probably some other hardening we should do for this loop.
+For example, if 'count' is < 512, it can go into an infinite loop.
 
-I don't think I can do more than WARN_ON here.  Maybe we can change
-b_end_io() to return an int instead of void ... I think Dave Chinner has
-grand plans for changes in this area as part of replacing the buffer_head
-abstraction.
+        do {
+                void *addr;
+                unsigned long pfn;
+                long count;
 
-> > @@ -3238,14 +3249,6 @@ static int ext4_block_zero_page_range(handle_t *handle,
-> >  		return -ENOMEM;
-> >  
-> >  	blocksize = inode->i_sb->s_blocksize;
-> > -	max = blocksize - (offset & (blocksize - 1));
-> > -
-> > -	/*
-> > -	 * correct length if it does not fall between
-> > -	 * 'from' and the end of the block
-> > -	 */
-> > -	if (length > max || length < 0)
-> > -		length = max;
-> >  
-> >  	iblock = index << (PAGE_CACHE_SHIFT - inode->i_sb->s_blocksize_bits);
-[...]
-> > +
-> > +	/*
-> > +	 * correct length if it does not fall between
-> > +	 * 'from' and the end of the block
-> > +	 */
-> 
-> Shouldn't a length < 0 be treated as an error instead ?
-> 
-> > +	if (length > max || length < 0)
-> > +		length = max;
+                count = bdev_direct_access(bdev, sector, &addr, &pfn, size);
+                if (count < 0)
+                        return count;
+                while (count > 0) {
+                        unsigned pgsz = PAGE_SIZE - offset_in_page(addr);
+                        if (pgsz > count)
+                                pgsz = count;
+                        if (pgsz < PAGE_SIZE)
+                                memset(addr, 0, pgsz);
+                        else
+                                clear_page(addr);
+                        addr += pgsz;
+                        size -= pgsz;
+                        count -= pgsz;
+			BUG_ON(pgsz & 511);
+                        sector += pgsz / 512;
+                        cond_resched();
+                }
+		BUG_ON(size < 0);
+        } while (size);
 
-Monkey see code in wrong place.  Monkey move code.  monkey not understand
-code.
-
-> > @@ -3572,6 +3579,11 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
-> >  				 "both data=journal and dioread_nolock");
-> >  			goto failed_mount;
-> >  		}
-> > +		if (test_opt(sb, DAX)) {
-> > +			ext4_msg(sb, KERN_ERR, "can't mount with "
-> > +				 "both data=journal and dax");
-> 
-> This limitation regarding ext4 and dax should be documented in dax
-> Documentation.
-
-Maybe the ext4 documentation too?  It seems kind of obvious to me that if
-ypu're enabling in-place-updates that you can't journal the data you're
-updating (well ... you could implement undo-log journalling, I suppose,
-which would be quite a change for ext4)
+I think that should do the job ... ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
