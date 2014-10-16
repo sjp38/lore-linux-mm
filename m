@@ -1,78 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id B9E3C6B0038
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 11:05:58 -0400 (EDT)
-Received: by mail-la0-f49.google.com with SMTP id q1so3017631lam.22
-        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 08:05:58 -0700 (PDT)
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 166B36B006E
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 11:11:27 -0400 (EDT)
+Received: by mail-la0-f47.google.com with SMTP id pv20so3018917lab.20
+        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 08:11:27 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ba16si35256799lab.35.2014.10.16.08.05.56
+        by mx.google.com with ESMTPS id j15si35283239lbg.30.2014.10.16.08.11.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 16 Oct 2014 08:05:57 -0700 (PDT)
-Date: Thu, 16 Oct 2014 17:05:53 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 3/3] kernel: res_counter: remove the unused API
-Message-ID: <20141016150553.GA26234@dhcp22.suse.cz>
-References: <1413251163-8517-1-git-send-email-hannes@cmpxchg.org>
- <1413251163-8517-4-git-send-email-hannes@cmpxchg.org>
- <1413444034.2128.27.camel@x220>
- <20141016112021.GC338@dhcp22.suse.cz>
- <20141016144641.GC9180@phnom.home.cmpxchg.org>
+        Thu, 16 Oct 2014 08:11:26 -0700 (PDT)
+Message-ID: <543FE01A.5020205@suse.cz>
+Date: Thu, 16 Oct 2014 17:11:22 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141016144641.GC9180@phnom.home.cmpxchg.org>
+Subject: Re: [PATCH 2/5] mm, compaction: simplify deferred compaction
+References: <1412696019-21761-1-git-send-email-vbabka@suse.cz>	<1412696019-21761-3-git-send-email-vbabka@suse.cz> <20141015153212.7b9029c8bb8e9c1b8736181d@linux-foundation.org>
+In-Reply-To: <20141015153212.7b9029c8bb8e9c1b8736181d@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Bolle <pebolle@tiscali.nl>, Valentin Rothberg <valentinrothberg@gmail.com>, Vladimir Davydov <vdavydov@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>
 
-On Thu 16-10-14 10:46:41, Johannes Weiner wrote:
-> On Thu, Oct 16, 2014 at 01:20:21PM +0200, Michal Hocko wrote:
-> > On Thu 16-10-14 09:20:34, Paul Bolle wrote:
-> > > On Mon, 2014-10-13 at 21:46 -0400, Johannes Weiner wrote:
-> > > > All memory accounting and limiting has been switched over to the
-> > > > lockless page counters.  Bye, res_counter!
-> > > > 
-> > > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > > > Acked-by: Vladimir Davydov <vdavydov@parallels.com>
-> > > > Acked-by: Michal Hocko <mhocko@suse.cz>
-> > > 
-> > > This patch landed in today's linux-next (ie, next 20141016).
-> > > 
-> > > >  Documentation/cgroups/resource_counter.txt | 197 -------------------------
-> > > >  include/linux/res_counter.h                | 223 -----------------------------
-> > > >  init/Kconfig                               |   6 -
-> > > >  kernel/Makefile                            |   1 -
-> > > >  kernel/res_counter.c                       | 211 ---------------------------
-> > > >  5 files changed, 638 deletions(-)
-> > > >  delete mode 100644 Documentation/cgroups/resource_counter.txt
-> > > >  delete mode 100644 include/linux/res_counter.h
-> > > >  delete mode 100644 kernel/res_counter.c
-> > > 
-> > > There's a last reference to CONFIG_RESOURCE_COUNTERS in
-> > > Documentation/cgroups/memory.txt. That reference could be dropped too,
-> > > couldn't it?
-> > ---
-> > From a54e375e85c814199f480cb4ee7a133a395c5a00 Mon Sep 17 00:00:00 2001
-> > From: Michal Hocko <mhocko@suse.cz>
-> > Date: Thu, 16 Oct 2014 13:15:24 +0200
-> > Subject: [PATCH] kernel-res_counter-remove-the-unused-api-fix
-> > 
-> > ditch the last remainings of res_counter
-> > 
-> > Reported-by: Paul Bolle <pebolle@tiscali.nl>
-> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+On 10/16/2014 12:32 AM, Andrew Morton wrote:
+> On Tue,  7 Oct 2014 17:33:36 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
+>> @@ -105,8 +104,7 @@ static inline bool compaction_restarting(struct zone *zone, int order)
+>>  static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
+>>  			int order, gfp_t gfp_mask, nodemask_t *nodemask,
+>>  			enum migrate_mode mode, int *contended,
+>> -			int alloc_flags, int classzone_idx,
+>> -			struct zone **candidate_zone)
+>> +			int alloc_flags, int classzone_idx);
+>>  {
+>>  	return COMPACT_CONTINUE;
+>>  }
 > 
-> That makes sense, although that document is still littered with
-> out-of-date and seemingly irrelevant information, which is why I
-> didn't bother to update it.
+> --- a/include/linux/compaction.h~mm-compaction-simplify-deferred-compaction-fix
+> +++ a/include/linux/compaction.h
+> @@ -104,7 +104,7 @@ static inline bool compaction_restarting
+>  static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
+>  			int order, gfp_t gfp_mask, nodemask_t *nodemask,
+>  			enum migrate_mode mode, int *contended,
+> -			int alloc_flags, int classzone_idx);
+> +			int alloc_flags, int classzone_idx)
+>  {
+>  	return COMPACT_CONTINUE;
+>  }
+> 
+> It clearly wasn't tested with this config.  Please do so and let us
+> know the result?
 
-I would also prefer to re-write or remove it long term.
+Sorry, forgot. Hopefully will get better next time, since I learned
+about the undertaker/vampyr tool [1] today.
 
--- 
-Michal Hocko
-SUSE Labs
+You patch does fix the compilation, thanks. Boot+stress-highalloc tests
+are now running through the series but I don't expect any surprises -
+the series is basically a no-op with CONFIG_COMPACTION disabled.
+
+[1] http://lwn.net/Articles/616098/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
