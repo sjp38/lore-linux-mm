@@ -1,42 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id C03C56B006E
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 15:51:16 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id fb1so4005635pad.25
-        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 12:51:16 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id sf2si2363232pac.191.2014.10.16.12.51.15
-        for <linux-mm@kvack.org>;
-        Thu, 16 Oct 2014 12:51:15 -0700 (PDT)
-Date: Thu, 16 Oct 2014 15:51:12 -0400
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v11 07/21] dax,ext2: Replace XIP read and write with DAX
- I/O
-Message-ID: <20141016195112.GE11522@wil.cx>
-References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
- <1411677218-29146-8-git-send-email-matthew.r.wilcox@intel.com>
- <20141016095027.GE19075@thinkos.etherlink>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141016095027.GE19075@thinkos.etherlink>
+Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 262136B0038
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 16:07:53 -0400 (EDT)
+Received: by mail-qa0-f51.google.com with SMTP id k15so2846898qaq.24
+        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 13:07:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o80si10227093qge.76.2014.10.16.13.07.51
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Oct 2014 13:07:52 -0700 (PDT)
+Date: Thu, 16 Oct 2014 16:07:42 -0400 (EDT)
+Message-Id: <20141016.160742.1639247937393238792.davem@redhat.com>
+Subject: Re: unaligned accesses in SLAB etc.
+From: David Miller <davem@redhat.com>
+In-Reply-To: <alpine.LRH.2.11.1410160956090.13273@adalberg.ut.ee>
+References: <alpine.LRH.2.11.1410150012001.11850@adalberg.ut.ee>
+	<20141014.173246.921084057467310731.davem@davemloft.net>
+	<alpine.LRH.2.11.1410160956090.13273@adalberg.ut.ee>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: mroos@linux.ee
+Cc: iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org
 
-On Thu, Oct 16, 2014 at 11:50:27AM +0200, Mathieu Desnoyers wrote:
-> > +			if (rw == WRITE) {
-> > +				if (!buffer_mapped(bh)) {
-> > +					retval = -EIO;
-> > +					/* FIXME: fall back to buffered I/O */
-> 
-> Fallback on buffered I/O would void guarantee about having data stored
-> into persistent memory after write returns. Not sure we actually want
-> that.
+From: Meelis Roos <mroos@linux.ee>
+Date: Thu, 16 Oct 2014 10:02:57 +0300 (EEST)
 
-Yeah, I think that comment is just stale.  I can't see a way in which
-buffered I/O would succeed after DAX I/O falis.
+> scripts/Makefile.build:352: recipe for target 'sound/modules.order' failed
+> make[1]: *** [sound/modules.order] Bus error
+> make[1]: *** Deleting file 'sound/modules.order'
+> Makefile:929: recipe for target 'sound' failed
+
+I just reproduced this on my Sun Blade 2500, so it can trigger on UltraSPARC-IIIi
+systems too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
