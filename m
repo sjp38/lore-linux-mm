@@ -1,54 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id B69986B0069
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 03:20:36 -0400 (EDT)
-Received: by mail-wi0-f178.google.com with SMTP id h11so4268800wiw.5
-        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 00:20:36 -0700 (PDT)
-Received: from cpsmtpb-ews03.kpnxchange.com (cpsmtpb-ews03.kpnxchange.com. [213.75.39.6])
-        by mx.google.com with ESMTP id fs5si8450170wjb.119.2014.10.16.00.20.34
+Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 676646B0069
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 03:22:59 -0400 (EDT)
+Received: by mail-la0-f41.google.com with SMTP id pn19so2365324lab.14
+        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 00:22:58 -0700 (PDT)
+Received: from smtp1.it.da.ut.ee (mailhost6-1.ut.ee. [2001:bb8:2002:500::46])
+        by mx.google.com with ESMTP id j10si33418130laf.95.2014.10.16.00.22.57
         for <linux-mm@kvack.org>;
-        Thu, 16 Oct 2014 00:20:35 -0700 (PDT)
-Message-ID: <1413444034.2128.27.camel@x220>
-Subject: Re: [patch 3/3] kernel: res_counter: remove the unused API
-From: Paul Bolle <pebolle@tiscali.nl>
-Date: Thu, 16 Oct 2014 09:20:34 +0200
-In-Reply-To: <1413251163-8517-4-git-send-email-hannes@cmpxchg.org>
-References: <1413251163-8517-1-git-send-email-hannes@cmpxchg.org>
-	 <1413251163-8517-4-git-send-email-hannes@cmpxchg.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Thu, 16 Oct 2014 00:22:57 -0700 (PDT)
+Date: Thu, 16 Oct 2014 10:22:56 +0300 (EEST)
+From: Meelis Roos <mroos@linux.ee>
+Subject: Re: unaligned accesses in SLAB etc.
+In-Reply-To: <20141015.231154.1804074463934900124.davem@davemloft.net>
+Message-ID: <alpine.LRH.2.11.1410161021130.5119@adalberg.ut.ee>
+References: <alpine.LRH.2.11.1410151059520.8050@adalberg.ut.ee> <20141015.143624.941838991598108211.davem@davemloft.net> <alpine.LRH.2.11.1410152310080.11974@adalberg.ut.ee> <20141015.231154.1804074463934900124.davem@davemloft.net>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Valentin Rothberg <valentinrothberg@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Miller <davem@davemloft.net>
+Cc: iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org
 
-On Mon, 2014-10-13 at 21:46 -0400, Johannes Weiner wrote:
-> All memory accounting and limiting has been switched over to the
-> lockless page counters.  Bye, res_counter!
+> Do you happen to have both gcc-4.9 and a previously working compiler
+> on these systems?  If you do, we can build a kernel with gcc-4.9 and
+> then selectively compile certain failes with the older working
+> compiler to narrow down what compiles into something non-working with
+> gcc-4.9
+
+Yes, I kept gcc-4.6 to help resolving it.
+
+[...]
+
+> Hopefully, this should be a simply matter of doing a complete build
+> with gcc-4.9, then removing the object file we want to selectively
+> build with the older compiler and then going:
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Acked-by: Vladimir Davydov <vdavydov@parallels.com>
-> Acked-by: Michal Hocko <mhocko@suse.cz>
+> 	make CC="gcc-4.6" arch/sparc/mm/init_64.o
+> 
+> then relinking with plain 'make'.
+> 
+> If the build system rebuilds the object file on you when you try
+> to relink the final kernel image, we'll have to do some of this
+> by hand to make the test.
 
-This patch landed in today's linux-next (ie, next 20141016).
+Unfortunately it starts a full rebuild with plain make after compiling 
+some files with gcc-4.6 - detects CC change?
 
->  Documentation/cgroups/resource_counter.txt | 197 -------------------------
->  include/linux/res_counter.h                | 223 -----------------------------
->  init/Kconfig                               |   6 -
->  kernel/Makefile                            |   1 -
->  kernel/res_counter.c                       | 211 ---------------------------
->  5 files changed, 638 deletions(-)
->  delete mode 100644 Documentation/cgroups/resource_counter.txt
->  delete mode 100644 include/linux/res_counter.h
->  delete mode 100644 kernel/res_counter.c
-
-There's a last reference to CONFIG_RESOURCE_COUNTERS in
-Documentation/cgroups/memory.txt. That reference could be dropped too,
-couldn't it?
-
-
-Paul Bolle
+-- 
+Meelis Roos (mroos@linux.ee)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
