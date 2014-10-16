@@ -1,91 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id E790B6B006E
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 03:20:48 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id eu11so316326pac.14
-        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 00:20:48 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id x3si486419pdm.53.2014.10.17.00.20.47
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EE996B0070
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 03:20:55 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id eu11so309223pac.21
+        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 00:20:55 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id bf2si466306pbb.76.2014.10.17.00.20.54
         for <linux-mm@kvack.org>;
-        Fri, 17 Oct 2014 00:20:48 -0700 (PDT)
-Date: Thu, 16 Oct 2014 17:22:34 -0400
+        Fri, 17 Oct 2014 00:20:54 -0700 (PDT)
+Date: Thu, 16 Oct 2014 18:01:26 -0400
 From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v11 08/21] dax,ext2: Replace ext2_clear_xip_target with
- dax_clear_blocks
-Message-ID: <20141016212234.GF11522@wil.cx>
+Subject: Re: [PATCH v11 19/21] dax: Add dax_zero_page_range
+Message-ID: <20141016220126.GK11522@wil.cx>
 References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
- <1411677218-29146-9-git-send-email-matthew.r.wilcox@intel.com>
- <20141016100525.GF19075@thinkos.etherlink>
+ <1411677218-29146-20-git-send-email-matthew.r.wilcox@intel.com>
+ <20141016123824.GQ19075@thinkos.etherlink>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141016100525.GF19075@thinkos.etherlink>
+In-Reply-To: <20141016123824.GQ19075@thinkos.etherlink>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Thu, Oct 16, 2014 at 12:05:25PM +0200, Mathieu Desnoyers wrote:
-> > +int dax_clear_blocks(struct inode *inode, sector_t block, long size)
+On Thu, Oct 16, 2014 at 02:38:24PM +0200, Mathieu Desnoyers wrote:
+> > +int dax_zero_page_range(struct inode *inode, loff_t from, unsigned length,
+> 
+> nit: unsigned -> unsigned int ?
+> 
+> Do we want a unsigned int or unsigned long here ?
+
+It's supposed to be for a fragment of a page, so until we see a machine
+with PAGE_SIZE > 4GB, we're good to use an unsigned int.
+
+> >  	if (!length)
+> >  		return 0;
+> > +	BUG_ON((offset + length) > PAGE_CACHE_SIZE);
+> 
+> Isn't it a bit extreme to BUG_ON this condition ? We could return an
+> error to the caller, and perhaps WARN_ON_ONCE(), but BUG_ON() appears to
+> be slightly too strong here.
+
+Dave Chinner asked for it :-)  The filesystem is supposed to be doing
+this clamping (until the last version, I had this function doing the
+clamping, and I was told off for "leaving landmines lying around".
+
+> > +static inline int dax_zero_page_range(struct inode *i, loff_t frm,
+> > +						unsigned len, get_block_t gb)
 > > +{
-> > +	struct block_device *bdev = inode->i_sb->s_bdev;
-> > +	sector_t sector = block << (inode->i_blkbits - 9);
+> > +	return 0;
 > 
-> Is there a define e.g. SECTOR_SHIFT rather than using this hardcoded "9"
-> value ?
+> Should we return 0 or -ENOSYS here ?
 
-Yeah ... in half a dozen drivers, so introducing them globally spews
-warnings about redefining macros.  The '9' and '512' are sprinkled all
-over the storage parts of the kernel, it's a complete flustercluck that
-I wasn't about to try to unscrew.
+I kind of wonder if we shouldn't just declare the function.  It's called
+like this:
 
-> > +		while (count > 0) {
-> > +			unsigned pgsz = PAGE_SIZE - offset_in_page(addr);
-> 
-> unsigned -> unsigned int
+        if (IS_DAX(inode))
+                return dax_zero_page_range(inode, from, length, ext4_get_block);
+        return __ext4_block_zero_page_range(handle, mapping, from, length);
 
-Any particular reason?  Omitting it in some places helps stay within
-the 80-column limit without sacrificing readability.
-
-> > +		}
-> > +	} while (size);
-> 
-> Just to stay on the safe side, can we do while (size > 0) ? Just in case
-> an unforeseen issue makes size negative, and gets us in a very long loop.
-
-If size < 0, we should BUG, because that means we've zeroed more than
-we were asked to do, which is data corruption.
-
-There's probably some other hardening we should do for this loop.
-For example, if 'count' is < 512, it can go into an infinite loop.
-
-        do {
-                void *addr;
-                unsigned long pfn;
-                long count;
-
-                count = bdev_direct_access(bdev, sector, &addr, &pfn, size);
-                if (count < 0)
-                        return count;
-                while (count > 0) {
-                        unsigned pgsz = PAGE_SIZE - offset_in_page(addr);
-                        if (pgsz > count)
-                                pgsz = count;
-                        if (pgsz < PAGE_SIZE)
-                                memset(addr, 0, pgsz);
-                        else
-                                clear_page(addr);
-                        addr += pgsz;
-                        size -= pgsz;
-                        count -= pgsz;
-			BUG_ON(pgsz & 511);
-                        sector += pgsz / 512;
-                        cond_resched();
-                }
-		BUG_ON(size < 0);
-        } while (size);
-
-I think that should do the job ... ?
+and if CONFIG_DAX is not set, IS_DAX evaluates to 0 at compile time, so
+the compiler will optimise out the call to dax_zero_page_range() anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
