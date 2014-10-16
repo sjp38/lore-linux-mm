@@ -1,100 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 34C036B0071
-	for <linux-mm@kvack.org>; Wed, 15 Oct 2014 23:36:21 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id fp1so2426494pdb.39
-        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 20:36:20 -0700 (PDT)
-Received: from manager.mioffice.cn ([42.62.48.242])
-        by mx.google.com with ESMTP id rf9si17524319pbc.221.2014.10.15.20.36.19
-        for <linux-mm@kvack.org>;
-        Wed, 15 Oct 2014 20:36:20 -0700 (PDT)
-From: Hui Zhu <zhuhui@xiaomi.com>
-Subject: [PATCH 4/4] (CMA_AGGRESSIVE) Update page alloc function
-Date: Thu, 16 Oct 2014 11:35:51 +0800
-Message-ID: <1413430551-22392-5-git-send-email-zhuhui@xiaomi.com>
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id D962D6B0069
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 01:13:58 -0400 (EDT)
+Received: by mail-ig0-f170.google.com with SMTP id hn15so457119igb.3
+        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 22:13:58 -0700 (PDT)
+Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com [2607:f8b0:4001:c05::229])
+        by mx.google.com with ESMTPS id f20si38991772icj.76.2014.10.15.22.13.58
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 15 Oct 2014 22:13:58 -0700 (PDT)
+Received: by mail-ig0-f169.google.com with SMTP id uq10so454717igb.4
+        for <linux-mm@kvack.org>; Wed, 15 Oct 2014 22:13:58 -0700 (PDT)
+MIME-Version: 1.0
 In-Reply-To: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com>
 References: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Date: Thu, 16 Oct 2014 13:13:57 +0800
+Message-ID: <CAL1ERfPJbbMUMe=5TvN2fbnJga4oP2oNUZ7zG-NRy0NbUMh=Ag@mail.gmail.com>
+Subject: Re: [PATCH 0/4] (CMA_AGGRESSIVE) Make CMA memory be more aggressive
+ about allocation
+From: Weijie Yang <weijie.yang.kh@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rjw@rjwysocki.net, len.brown@intel.com, pavel@ucw.cz, m.szyprowski@samsung.com, akpm@linux-foundation.org, mina86@mina86.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@suse.de, minchan@kernel.org, nasa4836@gmail.com, ddstreet@ieee.org, hughd@google.com, mingo@kernel.org, rientjes@google.com, peterz@infradead.org, keescook@chromium.org, atomlin@redhat.com, raistlin@linux.it, axboe@fb.com, paulmck@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, k.khlebnikov@samsung.com, msalter@redhat.com, deller@gmx.de, tangchen@cn.fujitsu.com, ben@decadent.org.uk, akinobu.mita@gmail.com, lauraa@codeaurora.org, vbabka@suse.cz, sasha.levin@oracle.com, vdavydov@parallels.com, suleiman@google.com
-Cc: linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org, Hui Zhu <zhuhui@xiaomi.com>
+To: Hui Zhu <zhuhui@xiaomi.com>
+Cc: rjw@rjwysocki.net, len.brown@intel.com, pavel@ucw.cz, m.szyprowski@samsung.com, akpm@linux-foundation.org, mina86@mina86.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, hannes@cmpxchg.org, riel@redhat.com, mgorman@suse.de, minchan@kernel.org, nasa4836@gmail.com, ddstreet@ieee.org, hughd@google.com, mingo@kernel.org, rientjes@google.com, peterz@infradead.org, keescook@chromium.org, atomlin@redhat.com, raistlin@linux.it, axboe@fb.com, paulmck@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, k.khlebnikov@samsung.com, msalter@redhat.com, deller@gmx.de, tangchen@cn.fujitsu.com, ben@decadent.org.uk, akinobu.mita@gmail.com, lauraa@codeaurora.org, vbabka@suse.cz, sasha.levin@oracle.com, vdavydov@parallels.com, suleiman@google.com, linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
 
-If page alloc function __rmqueue try to get pages from MIGRATE_MOVABLE and
-conditions (cma_alloc_counter, cma_aggressive_free_min, cma_alloc_counter)
-allow, MIGRATE_CMA will be allocated as MIGRATE_MOVABLE first.
+On Thu, Oct 16, 2014 at 11:35 AM, Hui Zhu <zhuhui@xiaomi.com> wrote:
+> In fallbacks of page_alloc.c, MIGRATE_CMA is the fallback of
+> MIGRATE_MOVABLE.
+> MIGRATE_MOVABLE will use MIGRATE_CMA when it doesn't have a page in
+> order that Linux kernel want.
+>
+> If a system that has a lot of user space program is running, for
+> instance, an Android board, most of memory is in MIGRATE_MOVABLE and
+> allocated.  Before function __rmqueue_fallback get memory from
+> MIGRATE_CMA, the oom_killer will kill a task to release memory when
+> kernel want get MIGRATE_UNMOVABLE memory because fallbacks of
+> MIGRATE_UNMOVABLE are MIGRATE_RECLAIMABLE and MIGRATE_MOVABLE.
+> This status is odd.  The MIGRATE_CMA has a lot free memory but Linux
+> kernel kill some tasks to release memory.
 
-Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
----
- mm/page_alloc.c | 42 +++++++++++++++++++++++++++++++-----------
- 1 file changed, 31 insertions(+), 11 deletions(-)
+I'm not very clear to this description, what issue do you try to solve?
+Make MIGRATE_CMA be the fallback of desired MIGRATE_UNMOVABLE?
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 736d8e1..87bc326 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -65,6 +65,10 @@
- #include <asm/div64.h>
- #include "internal.h"
- 
-+#ifdef CONFIG_CMA_AGGRESSIVE
-+#include <linux/cma.h>
-+#endif
-+
- /* prevent >1 _updater_ of zone percpu pageset ->high and ->batch fields */
- static DEFINE_MUTEX(pcp_batch_high_lock);
- #define MIN_PERCPU_PAGELIST_FRACTION	(8)
-@@ -1189,20 +1193,36 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
- {
- 	struct page *page;
- 
--retry_reserve:
-+#ifdef CONFIG_CMA_AGGRESSIVE
-+	if (cma_aggressive_switch
-+	    && migratetype == MIGRATE_MOVABLE
-+	    && atomic_read(&cma_alloc_counter) == 0
-+	    && global_page_state(NR_FREE_CMA_PAGES) > cma_aggressive_free_min
-+							+ (1 << order))
-+		migratetype = MIGRATE_CMA;
-+#endif
-+retry:
- 	page = __rmqueue_smallest(zone, order, migratetype);
- 
--	if (unlikely(!page) && migratetype != MIGRATE_RESERVE) {
--		page = __rmqueue_fallback(zone, order, migratetype);
-+	if (unlikely(!page)) {
-+#ifdef CONFIG_CMA_AGGRESSIVE
-+		if (migratetype == MIGRATE_CMA) {
-+			migratetype = MIGRATE_MOVABLE;
-+			goto retry;
-+		}
-+#endif
-+		if (migratetype != MIGRATE_RESERVE) {
-+			page = __rmqueue_fallback(zone, order, migratetype);
- 
--		/*
--		 * Use MIGRATE_RESERVE rather than fail an allocation. goto
--		 * is used because __rmqueue_smallest is an inline function
--		 * and we want just one call site
--		 */
--		if (!page) {
--			migratetype = MIGRATE_RESERVE;
--			goto retry_reserve;
-+			/*
-+			* Use MIGRATE_RESERVE rather than fail an allocation.
-+			* goto is used because __rmqueue_smallest is an inline
-+			* function and we want just one call site
-+			*/
-+			if (!page) {
-+				migratetype = MIGRATE_RESERVE;
-+				goto retry;
-+			}
- 		}
- 	}
- 
--- 
-1.9.1
+> This patch series adds a new function CMA_AGGRESSIVE to make CMA memory
+> be more aggressive about allocation.
+> If function CMA_AGGRESSIVE is available, when Linux kernel call function
+> __rmqueue try to get pages from MIGRATE_MOVABLE and conditions allow,
+> MIGRATE_CMA will be allocated as MIGRATE_MOVABLE first.  If MIGRATE_CMA
+> doesn't have enough pages for allocation, go back to allocate memory from
+> MIGRATE_MOVABLE.
+
+I don't think so. That will cause MIGRATE_CMA depleted prematurely, and when a
+user(such as camera) wants CMA memory, he will not get the wanted memory.
+
+> Then the memory of MIGRATE_MOVABLE can be kept for MIGRATE_UNMOVABLE and
+> MIGRATE_RECLAIMABLE which doesn't have fallback MIGRATE_CMA.
+
+I don't think this is the root cause of oom.
+But I am interested in the CMA shrinker idea, I will follow this mail.
+
+Thanks for your work, add some test data will be better.
+
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
