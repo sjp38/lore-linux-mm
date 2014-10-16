@@ -1,42 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 46B596B0038
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 15:23:18 -0400 (EDT)
-Received: by mail-ob0-f176.google.com with SMTP id m8so3427904obr.7
-        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 12:23:17 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id x80si23450531oix.117.2014.10.16.12.23.16
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Oct 2014 12:23:17 -0700 (PDT)
-Date: Thu, 16 Oct 2014 12:23:15 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -mm v6 00/13] pagewalk: improve vma handling, apply to
- new users
-Message-Id: <20141016122315.6e1b300596f74b49b8a5e36f@linux-foundation.org>
-In-Reply-To: <20141016145106.GA22351@node.dhcp.inet.fi>
-References: <1406920849-25908-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<20141016145106.GA22351@node.dhcp.inet.fi>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id AE7136B0038
+	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 15:39:25 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id eu11so4071280pac.0
+        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 12:39:25 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id hu1si18771486pbb.245.2014.10.16.12.39.24
+        for <linux-mm@kvack.org>;
+        Thu, 16 Oct 2014 12:39:24 -0700 (PDT)
+Date: Thu, 16 Oct 2014 15:39:21 -0400
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH v11 02/21] block: Change direct_access calling convention
+Message-ID: <20141016193921.GC11522@wil.cx>
+References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com>
+ <1411677218-29146-3-git-send-email-matthew.r.wilcox@intel.com>
+ <20141016084550.GA19075@thinkos.etherlink>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141016084550.GA19075@thinkos.etherlink>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Jerome Marchand <jmarchan@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
+To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 16 Oct 2014 17:51:06 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
-
-> On Fri, Aug 01, 2014 at 03:20:36PM -0400, Naoya Horiguchi wrote:
-> > This series is ver.6 of page table walker patchset.
-> > I just rebased this onto mmotm-2014-07-30-15-57 with no major change.
-> > Trinity shows no bug at least in my environment.
+On Thu, Oct 16, 2014 at 10:45:50AM +0200, Mathieu Desnoyers wrote:
+> > -static int
+> > +static long
+> >  axon_ram_direct_access(struct block_device *device, sector_t sector,
+> > -		       void **kaddr, unsigned long *pfn)
+> > +		       void **kaddr, unsigned long *pfn, long size)
 > 
-> Andrew, is there any reason why the patchset is not yet applied?
+> Why "long" as type for size ? What is the intent to have it signed, and
+> why using a 32-bit type on 32-bit architectures rather than 64-bit ?
+> Can we run into issues if we try to map a >2GB file on 32-bit
+> architectures ?
 
-Not really, just timing.  The v2 series was a bit of a disaster so I'd
-want to give a new series quiet a long testing period to get it shaken
-down.
+The interface requires that the entirety of the pmem be mapped at
+all times (see the void **kaddr).  So the total amount of pmem in the
+system can't be larger than 4GB on a 32-bit system.  On x86-32, that's
+actually limited to 1GB (because we give userspace 3GB), so the problem
+doesn't come up.  Maybe this would be more of a potetial problem on
+other architectures.
+
+As noted elsewhere in the thread, it would be possible, and maybe
+desirable, to remove the need to have all of pmem mapped into the kernel
+address space at all times, but I'm not looking to solve that problem
+with this patch-set.
+
+The intent of having it signed is that users pass in the size they want
+to have and are returned the size they actually got.  Since the function
+must be able to return an error, keeping size signed is natural.
+
+> > +long bdev_direct_access(struct block_device *bdev, sector_t sector,
+> > +			void **addr, unsigned long *pfn, long size)
+> > +{
+> > +	long avail;
+> > +	const struct block_device_operations *ops = bdev->bd_disk->fops;
+> > +
+> > +	if (size < 0)
+> > +		return size;
+> 
+> I'm wondering how we should handle size == 0 here. Should it be accepted
+> or refused ?
+
+It is a bit of a bizarre case.  I'm inclined to the current behaviour
+of saying "this is the address where you can access zero bytes" :-)
+
+But maybe it indicates a bug in the caller, and being noisy about it
+would result in the caller getting fixed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
