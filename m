@@ -1,95 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
-	by kanga.kvack.org (Postfix) with ESMTP id E88816B0069
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 10:00:26 -0400 (EDT)
-Received: by mail-lb0-f171.google.com with SMTP id z12so730624lbi.30
-        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 07:00:26 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x2si2146405lae.118.2014.10.17.07.00.24
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id ABE856B006C
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 10:10:10 -0400 (EDT)
+Received: by mail-wi0-f181.google.com with SMTP id hi2so1356610wib.14
+        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 07:10:10 -0700 (PDT)
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com. [195.75.94.107])
+        by mx.google.com with ESMTPS id fb15si2022094wid.76.2014.10.17.07.10.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 17 Oct 2014 07:00:24 -0700 (PDT)
-Date: Fri, 17 Oct 2014 16:00:22 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 4/5] mm: memcontrol: continue cache reclaim from offlined
- groups
-Message-ID: <20141017140022.GF8076@dhcp22.suse.cz>
-References: <1413303637-23862-1-git-send-email-hannes@cmpxchg.org>
- <1413303637-23862-5-git-send-email-hannes@cmpxchg.org>
- <20141017084011.GC5641@esperanza>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141017084011.GC5641@esperanza>
+        Fri, 17 Oct 2014 07:10:09 -0700 (PDT)
+Received: from /spool/local
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <dingel@linux.vnet.ibm.com>;
+	Fri, 17 Oct 2014 15:10:08 +0100
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 7F3E717D8043
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 15:12:23 +0100 (BST)
+Received: from d06av08.portsmouth.uk.ibm.com (d06av08.portsmouth.uk.ibm.com [9.149.37.249])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s9HEA6pg54591508
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 14:10:06 GMT
+Received: from d06av08.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av08.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s9HEA4B0015001
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 08:10:05 -0600
+From: Dominik Dingel <dingel@linux.vnet.ibm.com>
+Subject: [PATCH 0/4] mm: new flag to forbid zero page mappings for a vma
+Date: Fri, 17 Oct 2014 16:09:46 +0200
+Message-Id: <1413554990-48512-1-git-send-email-dingel@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Bob Liu <lliubbo@gmail.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Gleb Natapov <gleb@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jianyu Zhan <nasa4836@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Weitz <konstantin.weitz@gmail.com>, kvm@vger.kernel.org, linux390@de.ibm.com, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Paolo Bonzini <pbonzini@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Sasha Levin <sasha.levin@oracle.com>, Dominik Dingel <dingel@linux.vnet.ibm.com>
 
-On Fri 17-10-14 10:40:11, Vladimir Davydov wrote:
-> On Tue, Oct 14, 2014 at 12:20:36PM -0400, Johannes Weiner wrote:
-> > On cgroup deletion, outstanding page cache charges are moved to the
-> > parent group so that they're not lost and can be reclaimed during
-> > pressure on/inside said parent.  But this reparenting is fairly tricky
-> > and its synchroneous nature has led to several lock-ups in the past.
-> > 
-> > Since css iterators now also include offlined css, memcg iterators can
-> > be changed to include offlined children during reclaim of a group, and
-> > leftover cache can just stay put.
-> > 
-> > There is a slight change of behavior in that charges of deleted groups
-> > no longer show up as local charges in the parent.  But they are still
-> > included in the parent's hierarchical statistics.
-> > 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > ---
-> >  mm/memcontrol.c | 218 +-------------------------------------------------------
-> >  1 file changed, 1 insertion(+), 217 deletions(-)
-> 
-> I do like the stats :-) However, as I've already mentioned, on big
-> machines we can end up with hundred of thousands of dead css's.
+s390 has the special notion of storage keys which are some sort of page flags
+associated with physical pages and live outside of direct addressable memory.
+These storage keys can be queried and changed with a special set of instructions.
+The mentioned instructions behave quite nicely under virtualization, if there is: 
+- an invalid pte, then the instructions will work on some memory reserved in the host page table
+- a valid pte, then the instructions will work with the real storage key
 
-css->id is bound to the css life so this is bound to the maximum number
-of allowed cgroups AFAIR. It is true that dead memcgs might block
-creation of new. This is a good point. It would be a problem either when
-there is no reclaim (global or memcg) or when groups are very short
-lived. One possible way out would be counting dead memcgs and kick
-background mem_cgroup_force_empty loop over those that are dead once we
-hit a threshold. This should be pretty trivial to implement.
+Thanks to Martin with his software reference and dirty bit tracking, the kernel does not issue any 
+storage key instructions as now a software based approach will be taken, on the other hand 
+distributions in the wild are currently using them.
 
-> Iterating over all of them during reclaim may result in noticeable lags.
-> One day we'll have to do something about that I guess.
->
-> Another issue is that AFAICT currently we can't have more than 64K
-> cgroups due to the MEM_CGROUP_ID_MAX limit.The limit exists, because we
-> use css ids for tagging swap entries and we don't want to spend too much
-> memory on this. May be, we should simply use the mem_cgroup pointer
-> instead of the css id?
+However, for virtualized guests we still have a problem with guest pages mapped to zero pages
+and the kernel same page merging.  WIth each one multiple guest pages will point to the same 
+physical page and share the same storage key.
 
-We are using the id to reduce the memory footprint. We cannot effort 8B
-per each swappage (we can have GBs of swap space in the system).
- 
-> OTOH, the reparenting code looks really ugly. And we can't easily
-> reparent swap and kmem. So I think it's a reasonable change.
+Let's fix this by introducing a new flag which will forbid new zero page mappings.
+If the guest issues a storage key related instruction we flag all vmas and drop existing 
+zero page mappings and unmerge the guest memory.
 
-At least swap shouldn't be a big deal. Hugh already had a patch for
-that. You would simply have to go over all swap entries and change the
-id. kmem should be doable as well as you have already shown in your
-patches. The main question is. Do we really need it? I think we are good
-now and should make the code more complicated once this starts being a
-practical problem.
+Dominik Dingel (4):
+  s390/mm: recfactor global pgste updates
+  mm: introduce new VM_NOZEROPAGE flag
+  s390/mm: prevent and break zero page mappings in case of storage keys
+  s390/mm: disable KSM for storage key enabled pages
 
-> Acked-by: Vladimir Davydov <vdavydov@parallels.com>
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+ arch/s390/Kconfig               |   3 +
+ arch/s390/include/asm/pgalloc.h |   2 -
+ arch/s390/include/asm/pgtable.h |   3 +-
+ arch/s390/kvm/kvm-s390.c        |   2 +-
+ arch/s390/kvm/priv.c            |  17 ++--
+ arch/s390/mm/pgtable.c          | 181 ++++++++++++++++++----------------------
+ include/linux/mm.h              |  13 ++-
+ mm/huge_memory.c                |   2 +-
+ mm/memory.c                     |   2 +-
+ 9 files changed, 112 insertions(+), 113 deletions(-)
 
 -- 
-Michal Hocko
-SUSE Labs
+1.8.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
