@@ -1,70 +1,306 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AB606B006E
-	for <linux-mm@kvack.org>; Thu, 16 Oct 2014 23:02:33 -0400 (EDT)
-Received: by mail-la0-f51.google.com with SMTP id ge10so3941822lab.38
-        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 20:02:32 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id k10si28756621lbp.126.2014.10.16.20.02.30
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 592746B0069
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 00:38:23 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id et14so84279pad.3
+        for <linux-mm@kvack.org>; Thu, 16 Oct 2014 21:38:23 -0700 (PDT)
+Received: from e28smtp06.in.ibm.com (e28smtp06.in.ibm.com. [122.248.162.6])
+        by mx.google.com with ESMTPS id lp3si39699pab.230.2014.10.16.21.38.21
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Oct 2014 20:02:31 -0700 (PDT)
-Date: Thu, 16 Oct 2014 23:02:21 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 4/5] mm: memcontrol: continue cache reclaim from offlined
- groups
-Message-ID: <20141017030221.GA8506@phnom.home.cmpxchg.org>
-References: <1413303637-23862-1-git-send-email-hannes@cmpxchg.org>
- <1413303637-23862-5-git-send-email-hannes@cmpxchg.org>
- <20141015152555.GI23547@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141015152555.GI23547@dhcp22.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 16 Oct 2014 21:38:22 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Fri, 17 Oct 2014 10:08:19 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 4C918394004C
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 10:08:16 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay02.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s9H4cZcS59572342
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 10:08:35 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s9H4cEwh000615
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 10:08:14 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH V2 1/2] mm: Update generic gup implementation to handle hugepage directory
+Date: Fri, 17 Oct 2014 10:08:06 +0530
+Message-Id: <1413520687-31729-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org, Steve Capper <steve.capper@linaro.org>, Andrea Arcangeli <aarcange@redhat.com>, benh@kernel.crashing.org, mpe@ellerman.id.au
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Wed, Oct 15, 2014 at 05:25:55PM +0200, Michal Hocko wrote:
-> On Tue 14-10-14 12:20:36, Johannes Weiner wrote:
-> > On cgroup deletion, outstanding page cache charges are moved to the
-> > parent group so that they're not lost and can be reclaimed during
-> > pressure on/inside said parent.  But this reparenting is fairly tricky
-> > and its synchroneous nature has led to several lock-ups in the past.
-> > 
-> > Since css iterators now also include offlined css, memcg iterators can
-> > be changed to include offlined children during reclaim of a group, and
-> > leftover cache can just stay put.
-> 
-> I think it would be nice to mention c2931b70a32c (cgroup: iterate
-> cgroup_subsys_states directly) here to have a full context about the
-> tryget vs tryget_online.
+Update generic gup implementation with powerpc specific details.
+On powerpc at pmd level we can have hugepte, normal pmd pointer
+or a pointer to the hugepage directory.
 
-Yes, that commit is probably the most direct dependency.
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+Changes from V1: 
+* Folded arm/arm64 related changes into the patch
+* Dropped pgd_huge from generic header
 
-Andrew, could you update the changelog in place to have that paragraph
-read
+ arch/arm/include/asm/pgtable.h   |   2 +
+ arch/arm64/include/asm/pgtable.h |   2 +
+ include/linux/mm.h               |  26 +++++++++
+ mm/gup.c                         | 113 +++++++++++++++++++--------------------
+ 4 files changed, 84 insertions(+), 59 deletions(-)
 
-Since c2931b70a32c ("cgroup: iterate cgroup_subsys_states directly")
-css iterators now also include offlined css, so memcg iterators can be
-changed to include offlined children during reclaim of a group, and
-leftover cache can just stay put.
-
-please?  Thanks!
-
-> > There is a slight change of behavior in that charges of deleted groups
-> > no longer show up as local charges in the parent.  But they are still
-> > included in the parent's hierarchical statistics.
-> 
-> Thank you for pulling drain_stock cleanup out. This made the patch so
-> much easier to review.
->  
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> Acked-by: Michal Hocko <mhocko@suse.cz>
-
-Thanks you!
+diff --git a/arch/arm/include/asm/pgtable.h b/arch/arm/include/asm/pgtable.h
+index 90aa4583b308..46f81fbaa4a5 100644
+--- a/arch/arm/include/asm/pgtable.h
++++ b/arch/arm/include/asm/pgtable.h
+@@ -181,6 +181,8 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
+ /* to find an entry in a kernel page-table-directory */
+ #define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
+ 
++#define pgd_huge(pgd)		(0)
++
+ #define pmd_none(pmd)		(!pmd_val(pmd))
+ #define pmd_present(pmd)	(pmd_val(pmd))
+ 
+diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+index cefd3e825612..ed8f42497ac4 100644
+--- a/arch/arm64/include/asm/pgtable.h
++++ b/arch/arm64/include/asm/pgtable.h
+@@ -464,6 +464,8 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
+ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
+ extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
+ 
++#define pgd_huge(pgd)		(0)
++
+ /*
+  * Encode and decode a swap entry:
+  *	bits 0-1:	present (must be zero)
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 02d11ee7f19d..f97732412cb4 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1219,6 +1219,32 @@ long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		    struct vm_area_struct **vmas);
+ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 			struct page **pages);
++
++#ifdef CONFIG_HAVE_GENERIC_RCU_GUP
++#ifndef is_hugepd
++/*
++ * Some architectures support hugepage directory format that is
++ * required to support different hugetlbfs sizes.
++ */
++typedef struct { unsigned long pd; } hugepd_t;
++#define is_hugepd(hugepd) (0)
++#define __hugepd(x) ((hugepd_t) { (x) })
++static inline int gup_hugepd(hugepd_t hugepd, unsigned long addr,
++			     unsigned pdshift, unsigned long end,
++			     int write, struct page **pages, int *nr)
++{
++	return 0;
++}
++#else
++extern int gup_hugepd(hugepd_t hugepd, unsigned long addr,
++		      unsigned pdshift, unsigned long end,
++		      int write, struct page **pages, int *nr);
++#endif
++extern int gup_huge_pte(pte_t orig, pte_t *ptep, unsigned long addr,
++			unsigned long sz, unsigned long end, int write,
++			struct page **pages, int *nr);
++#endif
++
+ struct kvec;
+ int get_kernel_pages(const struct kvec *iov, int nr_pages, int write,
+ 			struct page **pages);
+diff --git a/mm/gup.c b/mm/gup.c
+index cd62c8c90d4a..13c560ef9ddf 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -786,65 +786,31 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
+ }
+ #endif /* __HAVE_ARCH_PTE_SPECIAL */
+ 
+-static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
+-		unsigned long end, int write, struct page **pages, int *nr)
++int gup_huge_pte(pte_t orig, pte_t *ptep, unsigned long addr,
++		 unsigned long sz, unsigned long end, int write,
++		 struct page **pages, int *nr)
+ {
+-	struct page *head, *page, *tail;
+ 	int refs;
++	unsigned long pte_end;
++	struct page *head, *page, *tail;
+ 
+-	if (write && !pmd_write(orig))
+-		return 0;
+-
+-	refs = 0;
+-	head = pmd_page(orig);
+-	page = head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
+-	tail = page;
+-	do {
+-		VM_BUG_ON_PAGE(compound_head(page) != head, page);
+-		pages[*nr] = page;
+-		(*nr)++;
+-		page++;
+-		refs++;
+-	} while (addr += PAGE_SIZE, addr != end);
+ 
+-	if (!page_cache_add_speculative(head, refs)) {
+-		*nr -= refs;
++	if (write && !pte_write(orig))
+ 		return 0;
+-	}
+ 
+-	if (unlikely(pmd_val(orig) != pmd_val(*pmdp))) {
+-		*nr -= refs;
+-		while (refs--)
+-			put_page(head);
++	if (!pte_present(orig))
+ 		return 0;
+-	}
+ 
+-	/*
+-	 * Any tail pages need their mapcount reference taken before we
+-	 * return. (This allows the THP code to bump their ref count when
+-	 * they are split into base pages).
+-	 */
+-	while (refs--) {
+-		if (PageTail(tail))
+-			get_huge_page_tail(tail);
+-		tail++;
+-	}
+-
+-	return 1;
+-}
+-
+-static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
+-		unsigned long end, int write, struct page **pages, int *nr)
+-{
+-	struct page *head, *page, *tail;
+-	int refs;
++	pte_end = (addr + sz) & ~(sz-1);
++	if (pte_end < end)
++		end = pte_end;
+ 
+-	if (write && !pud_write(orig))
+-		return 0;
++	/* hugepages are never "special" */
++	VM_BUG_ON(!pfn_valid(pte_pfn(orig)));
+ 
+ 	refs = 0;
+-	head = pud_page(orig);
+-	page = head + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
++	head = pte_page(orig);
++	page = head + ((addr & (sz-1)) >> PAGE_SHIFT);
+ 	tail = page;
+ 	do {
+ 		VM_BUG_ON_PAGE(compound_head(page) != head, page);
+@@ -859,13 +825,18 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
+ 		return 0;
+ 	}
+ 
+-	if (unlikely(pud_val(orig) != pud_val(*pudp))) {
++	if (unlikely(pte_val(orig) != pte_val(*ptep))) {
+ 		*nr -= refs;
+ 		while (refs--)
+ 			put_page(head);
+ 		return 0;
+ 	}
+ 
++	/*
++	 * Any tail pages need their mapcount reference taken before we
++	 * return. (This allows the THP code to bump their ref count when
++	 * they are split into base pages).
++	 */
+ 	while (refs--) {
+ 		if (PageTail(tail))
+ 			get_huge_page_tail(tail);
+@@ -898,10 +869,19 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+ 			if (pmd_numa(pmd))
+ 				return 0;
+ 
+-			if (!gup_huge_pmd(pmd, pmdp, addr, next, write,
+-				pages, nr))
++			if (!gup_huge_pte(__pte(pmd_val(pmd)), (pte_t *)pmdp,
++					  addr, PMD_SIZE, next,
++					  write, pages, nr))
+ 				return 0;
+ 
++		} else if (unlikely(is_hugepd(__hugepd(pmd_val(pmd))))) {
++			/*
++			 * architecture have different format for hugetlbfs
++			 * pmd format and THP pmd format
++			 */
++			if (!gup_hugepd(__hugepd(pmd_val(pmd)), addr, PMD_SHIFT,
++					next, write, pages, nr))
++				return 0;
+ 		} else if (!gup_pte_range(pmd, addr, next, write, pages, nr))
+ 				return 0;
+ 	} while (pmdp++, addr = next, addr != end);
+@@ -909,22 +889,27 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+ 	return 1;
+ }
+ 
+-static int gup_pud_range(pgd_t *pgdp, unsigned long addr, unsigned long end,
++static int gup_pud_range(pgd_t pgd, unsigned long addr, unsigned long end,
+ 		int write, struct page **pages, int *nr)
+ {
+ 	unsigned long next;
+ 	pud_t *pudp;
+ 
+-	pudp = pud_offset(pgdp, addr);
++	pudp = pud_offset(&pgd, addr);
+ 	do {
+ 		pud_t pud = ACCESS_ONCE(*pudp);
+ 
+ 		next = pud_addr_end(addr, end);
+ 		if (pud_none(pud))
+ 			return 0;
+-		if (pud_huge(pud)) {
+-			if (!gup_huge_pud(pud, pudp, addr, next, write,
+-					pages, nr))
++		if (unlikely(pud_huge(pud))) {
++			if (!gup_huge_pte(__pte(pud_val(pud)), (pte_t *)pudp,
++					  addr, PUD_SIZE, next,
++					  write, pages, nr))
++				return 0;
++		} else if (unlikely(is_hugepd(__hugepd(pud_val(pud))))) {
++			if (!gup_hugepd(__hugepd(pud_val(pud)), addr, PUD_SHIFT,
++					next, write, pages, nr))
+ 				return 0;
+ 		} else if (!gup_pmd_range(pud, addr, next, write, pages, nr))
+ 			return 0;
+@@ -970,10 +955,21 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 	local_irq_save(flags);
+ 	pgdp = pgd_offset(mm, addr);
+ 	do {
++		pgd_t pgd = ACCESS_ONCE(*pgdp);
++
+ 		next = pgd_addr_end(addr, end);
+-		if (pgd_none(*pgdp))
++		if (pgd_none(pgd))
+ 			break;
+-		else if (!gup_pud_range(pgdp, addr, next, write, pages, &nr))
++		if (unlikely(pgd_huge(pgd))) {
++			if (!gup_huge_pte(__pte(pgd_val(pgd)), (pte_t *)pgdp,
++					  addr, PGDIR_SIZE, next,
++					  write, pages, &nr))
++				break;
++		} else if (unlikely(is_hugepd(__hugepd(pgd_val(pgd))))) {
++			if (!gup_hugepd(__hugepd(pgd_val(pgd)), addr, PGDIR_SHIFT,
++					next, write, pages, &nr))
++				break;
++		} else if (!gup_pud_range(pgd, addr, next, write, pages, &nr))
+ 			break;
+ 	} while (pgdp++, addr = next, addr != end);
+ 	local_irq_restore(flags);
+@@ -1028,5 +1024,4 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 
+ 	return ret;
+ }
+-
+ #endif /* CONFIG_HAVE_GENERIC_RCU_GUP */
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
