@@ -1,100 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id C14856B0069
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 11:20:39 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id kq14so1016423pab.12
-        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 08:20:39 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id fa6si1471098pab.53.2014.10.17.08.20.38
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Oct 2014 08:20:38 -0700 (PDT)
-Date: Fri, 17 Oct 2014 17:20:07 +0200
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [patch 4/5] mm: memcontrol: continue cache reclaim from offlined
- groups
-Message-ID: <20141017152007.GD16496@esperanza>
-References: <1413303637-23862-1-git-send-email-hannes@cmpxchg.org>
- <1413303637-23862-5-git-send-email-hannes@cmpxchg.org>
- <20141017084011.GC5641@esperanza>
- <20141017140022.GF8076@dhcp22.suse.cz>
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BD286B006E
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 11:35:12 -0400 (EDT)
+Received: by mail-lb0-f174.google.com with SMTP id p9so882852lbv.5
+        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 08:35:11 -0700 (PDT)
+Received: from mail.efficios.com (mail.efficios.com. [78.47.125.74])
+        by mx.google.com with ESMTP id lm5si2562505lac.87.2014.10.17.08.35.09
+        for <linux-mm@kvack.org>;
+        Fri, 17 Oct 2014 08:35:09 -0700 (PDT)
+Date: Fri, 17 Oct 2014 15:35:01 +0000 (UTC)
+From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Message-ID: <289646725.10903.1413560101974.JavaMail.zimbra@efficios.com>
+In-Reply-To: <20141016194815.GD11522@wil.cx>
+References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com> <1411677218-29146-5-git-send-email-matthew.r.wilcox@intel.com> <20141016091136.GC19075@thinkos.etherlink> <20141016194815.GD11522@wil.cx>
+Subject: Re: [PATCH v11 04/21] mm: Allow page fault handlers to perform the
+ COW
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20141017140022.GF8076@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Oct 17, 2014 at 04:00:22PM +0200, Michal Hocko wrote:
-> On Fri 17-10-14 10:40:11, Vladimir Davydov wrote:
-> > On Tue, Oct 14, 2014 at 12:20:36PM -0400, Johannes Weiner wrote:
-> > > On cgroup deletion, outstanding page cache charges are moved to the
-> > > parent group so that they're not lost and can be reclaimed during
-> > > pressure on/inside said parent.  But this reparenting is fairly tricky
-> > > and its synchroneous nature has led to several lock-ups in the past.
-> > > 
-> > > Since css iterators now also include offlined css, memcg iterators can
-> > > be changed to include offlined children during reclaim of a group, and
-> > > leftover cache can just stay put.
-> > > 
-> > > There is a slight change of behavior in that charges of deleted groups
-> > > no longer show up as local charges in the parent.  But they are still
-> > > included in the parent's hierarchical statistics.
-> > > 
-> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > > ---
-> > >  mm/memcontrol.c | 218 +-------------------------------------------------------
-> > >  1 file changed, 1 insertion(+), 217 deletions(-)
+----- Original Message -----
+> From: "Matthew Wilcox" <willy@linux.intel.com>
+> To: "Mathieu Desnoyers" <mathieu.desnoyers@efficios.com>
+> Cc: "Matthew Wilcox" <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
+> linux-kernel@vger.kernel.org
+> Sent: Thursday, October 16, 2014 9:48:15 PM
+> Subject: Re: [PATCH v11 04/21] mm: Allow page fault handlers to perform the COW
+> 
+> On Thu, Oct 16, 2014 at 11:12:22AM +0200, Mathieu Desnoyers wrote:
+> > On 25-Sep-2014 04:33:21 PM, Matthew Wilcox wrote:
+[...]
+> > > diff --git a/include/linux/mm.h b/include/linux/mm.h
+> > > index 8981cc8..0a47817 100644
+> > > --- a/include/linux/mm.h
+> > > +++ b/include/linux/mm.h
+> > > @@ -208,6 +208,7 @@ struct vm_fault {
+> > >  	pgoff_t pgoff;			/* Logical page offset based on vma */
+> > >  	void __user *virtual_address;	/* Faulting virtual address */
+> > >  
+> > > +	struct page *cow_page;		/* Handler may choose to COW */
 > > 
-> > I do like the stats :-) However, as I've already mentioned, on big
-> > machines we can end up with hundred of thousands of dead css's.
+> > The page fault handler being very much performance sensitive, I'm
+> > wondering if it would not be better to move cow_page near the end of
+> > struct vm_fault, so that the "page" field can stay on the first
+> > cache line.
 > 
-> css->id is bound to the css life so this is bound to the maximum number
-> of allowed cgroups AFAIR. It is true that dead memcgs might block
-> creation of new. This is a good point. It would be a problem either when
-> there is no reclaim (global or memcg) or when groups are very short
-> lived. One possible way out would be counting dead memcgs and kick
-> background mem_cgroup_force_empty loop over those that are dead once we
-> hit a threshold. This should be pretty trivial to implement.
-
-Right, this shouldn't be a problem.
-
-> > Iterating over all of them during reclaim may result in noticeable lags.
-> > One day we'll have to do something about that I guess.
-> >
-> > Another issue is that AFAICT currently we can't have more than 64K
-> > cgroups due to the MEM_CGROUP_ID_MAX limit.The limit exists, because we
-> > use css ids for tagging swap entries and we don't want to spend too much
-> > memory on this. May be, we should simply use the mem_cgroup pointer
-> > instead of the css id?
+> I think your mental arithmetic has an "off by double" there:
 > 
-> We are using the id to reduce the memory footprint. We cannot effort 8B
-> per each swappage (we can have GBs of swap space in the system).
-
->From my experience nowadays most servers have much more RAM than swap
-space, that's why I'm wondering if it really makes any difference
-to have 2 bytes allocated per swap entry vs 8 bytes.
-
-> > OTOH, the reparenting code looks really ugly. And we can't easily
-> > reparent swap and kmem. So I think it's a reasonable change.
+> struct vm_fault {
+>         unsigned int               flags;                /*     0     4 */
 > 
-> At least swap shouldn't be a big deal. Hugh already had a patch for
-> that. You would simply have to go over all swap entries and change the
-> id. kmem should be doable as well as you have already shown in your
-> patches. The main question is. Do we really need it? I think we are good
-> now and should make the code more complicated once this starts being a
-> practical problem.
+>         /* XXX 4 bytes hole, try to pack */
+> 
+>         long unsigned int          pgoff;                /*     8     8 */
+>         void *                     virtual_address;      /*    16     8 */
+>         struct page *              cow_page;             /*    24     8 */
+>         struct page *              page;                 /*    32     8 */
+>         long unsigned int          max_pgoff;            /*    40     8 */
+>         pte_t *                    pte;                  /*    48     8 */
+> 
+>         /* size: 56, cachelines: 1, members: 7 */
+>         /* sum members: 52, holes: 1, sum holes: 4 */
+>         /* last cacheline: 56 bytes */
+> };
 
-For kmem it isn't that simple. We can't merge slab caches due to their
-high performance nature, so we have no choice rather having them hanging
-around after css death attached either to the dead css or some other
-intermediate structure (a kind of kmem context). But I agree there's no
-point bothering until nobody complains.
+Although it's pretty much always true that recent architectures L2 cache
+lines are 64 bytes, I was more thinking about L1 cache lines, which are,
+at least on moderately old Intel Pentium HW, 32 bytes in size (AFAIK
+Pentium II and III).
+
+It remains to be seen whether we care about performance that much on this
+kind of HW though.
+
+> 
+> > > @@ -2000,6 +2000,7 @@ static int do_page_mkwrite(struct vm_area_struct
+> > > *vma, struct page *page,
+> > >  	vmf.pgoff = page->index;
+> > >  	vmf.flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
+> > >  	vmf.page = page;
+> > > +	vmf.cow_page = NULL;
+> > 
+> > Could we add a FAULT_FLAG_COW_PAGE to vmf.flags, so we don't have to set
+> > cow_page to NULL in the common case (when it is not used) ?
+> 
+> I don't think we're short on bits, so I'm not opposed.  Any MM people
+> want to weigh in before I make this change?
+
+Well since new HW seem to have standardized on 64-bytes L1 cache lines
+(recent Intel and ARM Cortex A7 and A15), perhaps it's not worth it. However
+I'd be curious if there are other architectures out there we care about
+performance-wise that still have 32-byte cache lines.
 
 Thanks,
-Vladimir
+
+Mathieu
+
+-- 
+Mathieu Desnoyers
+EfficiOS Inc.
+http://www.efficios.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
