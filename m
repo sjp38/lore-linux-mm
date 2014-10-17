@@ -1,161 +1,325 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 616716B0073
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 10:10:14 -0400 (EDT)
-Received: by mail-wi0-f180.google.com with SMTP id em10so1378965wid.1
-        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 07:10:13 -0700 (PDT)
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com. [195.75.94.110])
-        by mx.google.com with ESMTPS id l1si1673645wjb.38.2014.10.17.07.10.10
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D5E36B0073
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 10:10:18 -0400 (EDT)
+Received: by mail-wi0-f178.google.com with SMTP id h11so1500230wiw.11
+        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 07:10:17 -0700 (PDT)
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com. [74.125.82.49])
+        by mx.google.com with ESMTPS id dg8si1567197wjc.157.2014.10.17.07.10.16
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 17 Oct 2014 07:10:10 -0700 (PDT)
-Received: from /spool/local
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dingel@linux.vnet.ibm.com>;
-	Fri, 17 Oct 2014 15:10:09 +0100
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id C488717D8062
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 15:12:23 +0100 (BST)
-Received: from d06av06.portsmouth.uk.ibm.com (d06av06.portsmouth.uk.ibm.com [9.149.37.217])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s9HEA6a95570938
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 14:10:06 GMT
-Received: from d06av06.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av06.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s9H97p0p022181
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 05:07:52 -0400
-From: Dominik Dingel <dingel@linux.vnet.ibm.com>
-Subject: [PATCH 4/4] s390/mm: disable KSM for storage key enabled pages
-Date: Fri, 17 Oct 2014 16:09:50 +0200
-Message-Id: <1413554990-48512-5-git-send-email-dingel@linux.vnet.ibm.com>
-In-Reply-To: <1413554990-48512-1-git-send-email-dingel@linux.vnet.ibm.com>
-References: <1413554990-48512-1-git-send-email-dingel@linux.vnet.ibm.com>
+        Fri, 17 Oct 2014 07:10:16 -0700 (PDT)
+Received: by mail-wg0-f49.google.com with SMTP id x12so1007819wgg.20
+        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 07:10:16 -0700 (PDT)
+Date: Fri, 17 Oct 2014 15:10:10 +0100
+From: Steve Capper <steve.capper@linaro.org>
+Subject: Re: [PATCH V2 1/2] mm: Update generic gup implementation to handle
+ hugepage directory
+Message-ID: <20141017141009.GA24167@linaro.org>
+References: <1413520687-31729-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1413520687-31729-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Bob Liu <lliubbo@gmail.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Gleb Natapov <gleb@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jianyu Zhan <nasa4836@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Weitz <konstantin.weitz@gmail.com>, kvm@vger.kernel.org, linux390@de.ibm.com, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Paolo Bonzini <pbonzini@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Sasha Levin <sasha.levin@oracle.com>, Dominik Dingel <dingel@linux.vnet.ibm.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, Andrea Arcangeli <aarcange@redhat.com>, benh@kernel.crashing.org, mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org, linux@arm.linux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com
 
-When storage keys are enabled unmerge already merged pages and prevent
-new pages from being merged.
+On Fri, Oct 17, 2014 at 10:08:06AM +0530, Aneesh Kumar K.V wrote:
+> Update generic gup implementation with powerpc specific details.
+> On powerpc at pmd level we can have hugepte, normal pmd pointer
+> or a pointer to the hugepage directory.
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+> Changes from V1: 
+> * Folded arm/arm64 related changes into the patch
+> * Dropped pgd_huge from generic header
+> 
+>  arch/arm/include/asm/pgtable.h   |   2 +
+>  arch/arm64/include/asm/pgtable.h |   2 +
+>  include/linux/mm.h               |  26 +++++++++
+>  mm/gup.c                         | 113 +++++++++++++++++++--------------------
+>  4 files changed, 84 insertions(+), 59 deletions(-)
+> 
 
-Signed-off-by: Dominik Dingel <dingel@linux.vnet.ibm.com>
-Acked-by: Christian Borntraeger <borntraeger@de.ibm.com>
-Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
----
- arch/s390/include/asm/pgtable.h |  2 +-
- arch/s390/kvm/priv.c            | 17 ++++++++++++-----
- arch/s390/mm/pgtable.c          | 15 +++++++++++++--
- 3 files changed, 26 insertions(+), 8 deletions(-)
+Hi Aneesh,
+Thanks for coding this up. I've tested this for arm (Arndale board) and
+arm64 (Juno); it builds without any issues and passes my futex on THP
+tail test.
 
-diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-index 1e991f6a..a5362e4 100644
---- a/arch/s390/include/asm/pgtable.h
-+++ b/arch/s390/include/asm/pgtable.h
-@@ -1749,7 +1749,7 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
- extern int vmem_add_mapping(unsigned long start, unsigned long size);
- extern int vmem_remove_mapping(unsigned long start, unsigned long size);
- extern int s390_enable_sie(void);
--extern void s390_enable_skey(void);
-+extern int s390_enable_skey(void);
- extern void s390_reset_cmma(struct mm_struct *mm);
- 
- /*
-diff --git a/arch/s390/kvm/priv.c b/arch/s390/kvm/priv.c
-index f89c1cd..e0967fd 100644
---- a/arch/s390/kvm/priv.c
-+++ b/arch/s390/kvm/priv.c
-@@ -156,21 +156,25 @@ static int handle_store_cpu_address(struct kvm_vcpu *vcpu)
- 	return 0;
- }
- 
--static void __skey_check_enable(struct kvm_vcpu *vcpu)
-+static int __skey_check_enable(struct kvm_vcpu *vcpu)
- {
-+	int rc = 0;
- 	if (!(vcpu->arch.sie_block->ictl & (ICTL_ISKE | ICTL_SSKE | ICTL_RRBE)))
--		return;
-+		return rc;
- 
--	s390_enable_skey();
-+	rc = s390_enable_skey();
- 	trace_kvm_s390_skey_related_inst(vcpu);
- 	vcpu->arch.sie_block->ictl &= ~(ICTL_ISKE | ICTL_SSKE | ICTL_RRBE);
-+	return rc;
- }
- 
- 
- static int handle_skey(struct kvm_vcpu *vcpu)
- {
--	__skey_check_enable(vcpu);
-+	int rc = __skey_check_enable(vcpu);
- 
-+	if (rc)
-+		return rc;
- 	vcpu->stat.instruction_storage_key++;
- 
- 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
-@@ -692,7 +696,10 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
- 		}
- 
- 		if (vcpu->run->s.regs.gprs[reg1] & PFMF_SK) {
--			__skey_check_enable(vcpu);
-+			int rc = __skey_check_enable(vcpu);
-+
-+			if (rc)
-+				return rc;
- 			if (set_guest_storage_key(current->mm, useraddr,
- 					vcpu->run->s.regs.gprs[reg1] & PFMF_KEY,
- 					vcpu->run->s.regs.gprs[reg1] & PFMF_NQ))
-diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
-index 6321692..b3311c1 100644
---- a/arch/s390/mm/pgtable.c
-+++ b/arch/s390/mm/pgtable.c
-@@ -18,6 +18,8 @@
- #include <linux/rcupdate.h>
- #include <linux/slab.h>
- #include <linux/swapops.h>
-+#include <linux/ksm.h>
-+#include <linux/mman.h>
- 
- #include <asm/pgtable.h>
- #include <asm/pgalloc.h>
-@@ -1328,18 +1330,26 @@ static int __s390_enable_skey(pte_t *pte, unsigned long addr,
- 	return 0;
- }
- 
--void s390_enable_skey(void)
-+int s390_enable_skey(void)
- {
- 	struct mm_walk walk = { .pte_entry = __s390_enable_skey };
- 	struct mm_struct *mm = current->mm;
- 	struct vm_area_struct *vma;
-+	int rc = 0;
- 
- 	down_write(&mm->mmap_sem);
- 	if (mm_use_skey(mm))
- 		goto out_up;
- 
--	for (vma = mm->mmap; vma; vma = vma->vm_next)
-+	for (vma = mm->mmap; vma; vma = vma->vm_next) {
-+		if (ksm_madvise(vma, vma->vm_start, vma->vm_end,
-+				MADV_UNMERGEABLE, &vma->vm_flags)) {
-+			rc = -ENOMEM;
-+			goto out_up;
-+		}
- 		vma->vm_flags |= VM_NOZEROPAGE;
-+	}
-+	mm->def_flags &= ~VM_MERGEABLE;
- 	mm->def_flags |= VM_NOZEROPAGE;
- 
- 	walk.mm = mm;
-@@ -1348,6 +1358,7 @@ void s390_enable_skey(void)
- 
- out_up:
- 	up_write(&mm->mmap_sem);
-+	return rc;
- }
- EXPORT_SYMBOL_GPL(s390_enable_skey);
- 
+Please add my:
+Tested-by: Steve Capper <steve.capper@linaro.org>
+
+As this patch progresses through -mm, the arm maintainer:
+Russell King <linux@arm.linux.org.uk>
+
+and arm64 maintainers:
+Catalin Marinas <catalin.marinas@arm.com>
+Will Deacon <will.deacon@arm.com>
+
+should also be on CC.
+
+Cheers,
 -- 
-1.8.5.5
+Steve
+
+> diff --git a/arch/arm/include/asm/pgtable.h b/arch/arm/include/asm/pgtable.h
+> index 90aa4583b308..46f81fbaa4a5 100644
+> --- a/arch/arm/include/asm/pgtable.h
+> +++ b/arch/arm/include/asm/pgtable.h
+> @@ -181,6 +181,8 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
+>  /* to find an entry in a kernel page-table-directory */
+>  #define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
+>  
+> +#define pgd_huge(pgd)		(0)
+> +
+>  #define pmd_none(pmd)		(!pmd_val(pmd))
+>  #define pmd_present(pmd)	(pmd_val(pmd))
+>  
+> diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+> index cefd3e825612..ed8f42497ac4 100644
+> --- a/arch/arm64/include/asm/pgtable.h
+> +++ b/arch/arm64/include/asm/pgtable.h
+> @@ -464,6 +464,8 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
+>  extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
+>  extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
+>  
+> +#define pgd_huge(pgd)		(0)
+> +
+>  /*
+>   * Encode and decode a swap entry:
+>   *	bits 0-1:	present (must be zero)
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 02d11ee7f19d..f97732412cb4 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1219,6 +1219,32 @@ long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>  		    struct vm_area_struct **vmas);
+>  int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+>  			struct page **pages);
+> +
+> +#ifdef CONFIG_HAVE_GENERIC_RCU_GUP
+> +#ifndef is_hugepd
+> +/*
+> + * Some architectures support hugepage directory format that is
+> + * required to support different hugetlbfs sizes.
+> + */
+> +typedef struct { unsigned long pd; } hugepd_t;
+> +#define is_hugepd(hugepd) (0)
+> +#define __hugepd(x) ((hugepd_t) { (x) })
+> +static inline int gup_hugepd(hugepd_t hugepd, unsigned long addr,
+> +			     unsigned pdshift, unsigned long end,
+> +			     int write, struct page **pages, int *nr)
+> +{
+> +	return 0;
+> +}
+> +#else
+> +extern int gup_hugepd(hugepd_t hugepd, unsigned long addr,
+> +		      unsigned pdshift, unsigned long end,
+> +		      int write, struct page **pages, int *nr);
+> +#endif
+> +extern int gup_huge_pte(pte_t orig, pte_t *ptep, unsigned long addr,
+> +			unsigned long sz, unsigned long end, int write,
+> +			struct page **pages, int *nr);
+> +#endif
+> +
+>  struct kvec;
+>  int get_kernel_pages(const struct kvec *iov, int nr_pages, int write,
+>  			struct page **pages);
+> diff --git a/mm/gup.c b/mm/gup.c
+> index cd62c8c90d4a..13c560ef9ddf 100644
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -786,65 +786,31 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
+>  }
+>  #endif /* __HAVE_ARCH_PTE_SPECIAL */
+>  
+> -static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
+> -		unsigned long end, int write, struct page **pages, int *nr)
+> +int gup_huge_pte(pte_t orig, pte_t *ptep, unsigned long addr,
+> +		 unsigned long sz, unsigned long end, int write,
+> +		 struct page **pages, int *nr)
+>  {
+> -	struct page *head, *page, *tail;
+>  	int refs;
+> +	unsigned long pte_end;
+> +	struct page *head, *page, *tail;
+>  
+> -	if (write && !pmd_write(orig))
+> -		return 0;
+> -
+> -	refs = 0;
+> -	head = pmd_page(orig);
+> -	page = head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
+> -	tail = page;
+> -	do {
+> -		VM_BUG_ON_PAGE(compound_head(page) != head, page);
+> -		pages[*nr] = page;
+> -		(*nr)++;
+> -		page++;
+> -		refs++;
+> -	} while (addr += PAGE_SIZE, addr != end);
+>  
+> -	if (!page_cache_add_speculative(head, refs)) {
+> -		*nr -= refs;
+> +	if (write && !pte_write(orig))
+>  		return 0;
+> -	}
+>  
+> -	if (unlikely(pmd_val(orig) != pmd_val(*pmdp))) {
+> -		*nr -= refs;
+> -		while (refs--)
+> -			put_page(head);
+> +	if (!pte_present(orig))
+>  		return 0;
+> -	}
+>  
+> -	/*
+> -	 * Any tail pages need their mapcount reference taken before we
+> -	 * return. (This allows the THP code to bump their ref count when
+> -	 * they are split into base pages).
+> -	 */
+> -	while (refs--) {
+> -		if (PageTail(tail))
+> -			get_huge_page_tail(tail);
+> -		tail++;
+> -	}
+> -
+> -	return 1;
+> -}
+> -
+> -static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
+> -		unsigned long end, int write, struct page **pages, int *nr)
+> -{
+> -	struct page *head, *page, *tail;
+> -	int refs;
+> +	pte_end = (addr + sz) & ~(sz-1);
+> +	if (pte_end < end)
+> +		end = pte_end;
+>  
+> -	if (write && !pud_write(orig))
+> -		return 0;
+> +	/* hugepages are never "special" */
+> +	VM_BUG_ON(!pfn_valid(pte_pfn(orig)));
+>  
+>  	refs = 0;
+> -	head = pud_page(orig);
+> -	page = head + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
+> +	head = pte_page(orig);
+> +	page = head + ((addr & (sz-1)) >> PAGE_SHIFT);
+>  	tail = page;
+>  	do {
+>  		VM_BUG_ON_PAGE(compound_head(page) != head, page);
+> @@ -859,13 +825,18 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
+>  		return 0;
+>  	}
+>  
+> -	if (unlikely(pud_val(orig) != pud_val(*pudp))) {
+> +	if (unlikely(pte_val(orig) != pte_val(*ptep))) {
+>  		*nr -= refs;
+>  		while (refs--)
+>  			put_page(head);
+>  		return 0;
+>  	}
+>  
+> +	/*
+> +	 * Any tail pages need their mapcount reference taken before we
+> +	 * return. (This allows the THP code to bump their ref count when
+> +	 * they are split into base pages).
+> +	 */
+>  	while (refs--) {
+>  		if (PageTail(tail))
+>  			get_huge_page_tail(tail);
+> @@ -898,10 +869,19 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+>  			if (pmd_numa(pmd))
+>  				return 0;
+>  
+> -			if (!gup_huge_pmd(pmd, pmdp, addr, next, write,
+> -				pages, nr))
+> +			if (!gup_huge_pte(__pte(pmd_val(pmd)), (pte_t *)pmdp,
+> +					  addr, PMD_SIZE, next,
+> +					  write, pages, nr))
+>  				return 0;
+>  
+> +		} else if (unlikely(is_hugepd(__hugepd(pmd_val(pmd))))) {
+> +			/*
+> +			 * architecture have different format for hugetlbfs
+> +			 * pmd format and THP pmd format
+> +			 */
+> +			if (!gup_hugepd(__hugepd(pmd_val(pmd)), addr, PMD_SHIFT,
+> +					next, write, pages, nr))
+> +				return 0;
+>  		} else if (!gup_pte_range(pmd, addr, next, write, pages, nr))
+>  				return 0;
+>  	} while (pmdp++, addr = next, addr != end);
+> @@ -909,22 +889,27 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+>  	return 1;
+>  }
+>  
+> -static int gup_pud_range(pgd_t *pgdp, unsigned long addr, unsigned long end,
+> +static int gup_pud_range(pgd_t pgd, unsigned long addr, unsigned long end,
+>  		int write, struct page **pages, int *nr)
+>  {
+>  	unsigned long next;
+>  	pud_t *pudp;
+>  
+> -	pudp = pud_offset(pgdp, addr);
+> +	pudp = pud_offset(&pgd, addr);
+>  	do {
+>  		pud_t pud = ACCESS_ONCE(*pudp);
+>  
+>  		next = pud_addr_end(addr, end);
+>  		if (pud_none(pud))
+>  			return 0;
+> -		if (pud_huge(pud)) {
+> -			if (!gup_huge_pud(pud, pudp, addr, next, write,
+> -					pages, nr))
+> +		if (unlikely(pud_huge(pud))) {
+> +			if (!gup_huge_pte(__pte(pud_val(pud)), (pte_t *)pudp,
+> +					  addr, PUD_SIZE, next,
+> +					  write, pages, nr))
+> +				return 0;
+> +		} else if (unlikely(is_hugepd(__hugepd(pud_val(pud))))) {
+> +			if (!gup_hugepd(__hugepd(pud_val(pud)), addr, PUD_SHIFT,
+> +					next, write, pages, nr))
+>  				return 0;
+>  		} else if (!gup_pmd_range(pud, addr, next, write, pages, nr))
+>  			return 0;
+> @@ -970,10 +955,21 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+>  	local_irq_save(flags);
+>  	pgdp = pgd_offset(mm, addr);
+>  	do {
+> +		pgd_t pgd = ACCESS_ONCE(*pgdp);
+> +
+>  		next = pgd_addr_end(addr, end);
+> -		if (pgd_none(*pgdp))
+> +		if (pgd_none(pgd))
+>  			break;
+> -		else if (!gup_pud_range(pgdp, addr, next, write, pages, &nr))
+> +		if (unlikely(pgd_huge(pgd))) {
+> +			if (!gup_huge_pte(__pte(pgd_val(pgd)), (pte_t *)pgdp,
+> +					  addr, PGDIR_SIZE, next,
+> +					  write, pages, &nr))
+> +				break;
+> +		} else if (unlikely(is_hugepd(__hugepd(pgd_val(pgd))))) {
+> +			if (!gup_hugepd(__hugepd(pgd_val(pgd)), addr, PGDIR_SHIFT,
+> +					next, write, pages, &nr))
+> +				break;
+> +		} else if (!gup_pud_range(pgd, addr, next, write, pages, &nr))
+>  			break;
+>  	} while (pgdp++, addr = next, addr != end);
+>  	local_irq_restore(flags);
+> @@ -1028,5 +1024,4 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+>  
+>  	return ret;
+>  }
+> -
+>  #endif /* CONFIG_HAVE_GENERIC_RCU_GUP */
+> -- 
+> 1.9.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
