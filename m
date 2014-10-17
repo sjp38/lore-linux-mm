@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E8DF6B0069
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 05:28:54 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id r10so490658pdi.10
-        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 02:28:54 -0700 (PDT)
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id A69016B006C
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 05:30:33 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id fp1so474743pdb.25
+        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 02:30:33 -0700 (PDT)
 Received: from manager.mioffice.cn ([42.62.48.242])
-        by mx.google.com with ESMTP id te6si580252pbc.227.2014.10.17.02.28.49
+        by mx.google.com with ESMTP id ra2si599374pbb.207.2014.10.17.02.30.16
         for <linux-mm@kvack.org>;
-        Fri, 17 Oct 2014 02:28:53 -0700 (PDT)
+        Fri, 17 Oct 2014 02:30:32 -0700 (PDT)
 From: Hui Zhu <zhuhui@xiaomi.com>
-Subject: [PATCH v2 2/4] (CMA_AGGRESSIVE) Add new function shrink_all_memory_for_cma
-Date: Fri, 17 Oct 2014 17:28:04 +0800
-Message-ID: <1413538084-15743-1-git-send-email-zhuhui@xiaomi.com>
-In-Reply-To: <1471435.6q4YYkTopF@vostro.rjw.lan>
-References: <1471435.6q4YYkTopF@vostro.rjw.lan>
+Subject: [PATCH v2 3/4] (CMA_AGGRESSIVE) Update reserve custom contiguous area code
+Date: Fri, 17 Oct 2014 17:30:05 +0800
+Message-ID: <1413538205-15915-1-git-send-email-zhuhui@xiaomi.com>
+In-Reply-To: <1413430551-22392-4-git-send-email-zhuhui@xiaomi.com>
+References: <1413430551-22392-4-git-send-email-zhuhui@xiaomi.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -23,102 +23,197 @@ Cc: linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org, 
 
 Update this patch according to the comments from Rafael.
 
-Function shrink_all_memory_for_cma try to free `nr_to_reclaim' of memory.
-CMA aggressive shrink function will call this functon to free `nr_to_reclaim' of
-memory.
+Add cma_alloc_counter, cma_aggressive_switch, cma_aggressive_free_min and
+cma_aggressive_shrink_switch.
+
+cma_aggressive_switch is the swith for all CMA_AGGRESSIVE function.  It can be
+controlled by sysctl vm.cma-aggressive-switch.
+
+cma_aggressive_free_min can be controlled by sysctl
+"vm.cma-aggressive-free-min".  If the number of CMA free pages is small than
+this sysctl value, CMA_AGGRESSIVE will not work in page alloc code.
+
+cma_aggressive_shrink_switch can be controlled by sysctl
+"vm.cma-aggressive-shrink-switch".  If sysctl "vm.cma-aggressive-shrink-switch"
+is true and free normal memory's size is smaller than the size that it want to
+allocate, do memory shrink with function git commit -a --amend before driver
+allocate pages from CMA.
+
+When Linux kernel try to reserve custom contiguous area, increase the value of
+cma_alloc_counter.  CMA_AGGRESSIVE will not work in page alloc code.
+After reserve custom contiguous area function return, decreases the value of
+cma_alloc_counter.
 
 Signed-off-by: Hui Zhu <zhuhui@xiaomi.com>
 ---
- mm/vmscan.c | 58 +++++++++++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 43 insertions(+), 15 deletions(-)
+ include/linux/cma.h |  7 +++++++
+ kernel/sysctl.c     | 27 +++++++++++++++++++++++++++
+ mm/cma.c            | 54 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 88 insertions(+)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index dcb4707..658dc8d 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3404,6 +3404,28 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
- 	wake_up_interruptible(&pgdat->kswapd_wait);
- }
+diff --git a/include/linux/cma.h b/include/linux/cma.h
+index 0430ed0..df96abf 100644
+--- a/include/linux/cma.h
++++ b/include/linux/cma.h
+@@ -15,6 +15,13 @@
  
-+#if defined CONFIG_HIBERNATION || defined CONFIG_CMA_AGGRESSIVE
-+static unsigned long __shrink_all_memory(struct scan_control *sc)
-+{
-+	struct reclaim_state reclaim_state;
-+	struct zonelist *zonelist = node_zonelist(numa_node_id(), sc->gfp_mask);
-+	struct task_struct *p = current;
-+	unsigned long nr_reclaimed;
-+
-+	p->flags |= PF_MEMALLOC;
-+	lockdep_set_current_reclaim_state(sc->gfp_mask);
-+	reclaim_state.reclaimed_slab = 0;
-+	p->reclaim_state = &reclaim_state;
-+
-+	nr_reclaimed = do_try_to_free_pages(zonelist, sc);
-+
-+	p->reclaim_state = NULL;
-+	lockdep_clear_current_reclaim_state();
-+	p->flags &= ~PF_MEMALLOC;
-+
-+	return nr_reclaimed;
-+}
-+
- #ifdef CONFIG_HIBERNATION
- /*
-  * Try to free `nr_to_reclaim' of memory, system-wide, and return the number of
-@@ -3415,7 +3437,6 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
-  */
- unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
- {
--	struct reclaim_state reclaim_state;
- 	struct scan_control sc = {
- 		.nr_to_reclaim = nr_to_reclaim,
- 		.gfp_mask = GFP_HIGHUSER_MOVABLE,
-@@ -3425,24 +3446,31 @@ unsigned long shrink_all_memory(unsigned long nr_to_reclaim)
- 		.may_swap = 1,
- 		.hibernation_mode = 1,
- 	};
--	struct zonelist *zonelist = node_zonelist(numa_node_id(), sc.gfp_mask);
--	struct task_struct *p = current;
--	unsigned long nr_reclaimed;
--
--	p->flags |= PF_MEMALLOC;
--	lockdep_set_current_reclaim_state(sc.gfp_mask);
--	reclaim_state.reclaimed_slab = 0;
--	p->reclaim_state = &reclaim_state;
+ struct cma;
  
--	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
-+	return __shrink_all_memory(&sc);
-+}
-+#endif /* CONFIG_HIBERNATION */
- 
--	p->reclaim_state = NULL;
--	lockdep_clear_current_reclaim_state();
--	p->flags &= ~PF_MEMALLOC;
 +#ifdef CONFIG_CMA_AGGRESSIVE
-+/*
-+ * Try to free `nr_to_reclaim' of memory, system-wide, for CMA aggressive
-+ * shrink function.
-+ */
-+void shrink_all_memory_for_cma(unsigned long nr_to_reclaim)
-+{
-+	struct scan_control sc = {
-+		.nr_to_reclaim = nr_to_reclaim,
-+		.gfp_mask = GFP_USER | __GFP_MOVABLE | __GFP_HIGHMEM,
-+		.priority = DEF_PRIORITY,
-+		.may_writepage = !laptop_mode,
-+		.may_unmap = 1,
-+		.may_swap = 1,
-+	};
++extern atomic_t cma_alloc_counter;
++extern int cma_aggressive_switch;
++extern unsigned long cma_aggressive_free_min;
++extern int cma_aggressive_shrink_switch;
++#endif
++
+ extern phys_addr_t cma_get_base(struct cma *cma);
+ extern unsigned long cma_get_size(struct cma *cma);
  
--	return nr_reclaimed;
-+	__shrink_all_memory(&sc);
+diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+index 4aada6d..646929e2 100644
+--- a/kernel/sysctl.c
++++ b/kernel/sysctl.c
+@@ -92,6 +92,10 @@
+ #include <linux/nmi.h>
+ #endif
+ 
++#ifdef CONFIG_CMA_AGGRESSIVE
++#include <linux/cma.h>
++#endif
++
+ 
+ #if defined(CONFIG_SYSCTL)
+ 
+@@ -1485,6 +1489,29 @@ static struct ctl_table vm_table[] = {
+ 		.mode		= 0644,
+ 		.proc_handler	= proc_doulongvec_minmax,
+ 	},
++#ifdef CONFIG_CMA_AGGRESSIVE
++	{
++		.procname	= "cma-aggressive-switch",
++		.data		= &cma_aggressive_switch,
++		.maxlen		= sizeof(int),
++		.mode		= 0600,
++		.proc_handler	= proc_dointvec,
++	},
++	{
++		.procname	= "cma-aggressive-free-min",
++		.data		= &cma_aggressive_free_min,
++		.maxlen		= sizeof(unsigned long),
++		.mode		= 0600,
++		.proc_handler	= proc_doulongvec_minmax,
++	},
++	{
++		.procname	= "cma-aggressive-shrink-switch",
++		.data		= &cma_aggressive_shrink_switch,
++		.maxlen		= sizeof(int),
++		.mode		= 0600,
++		.proc_handler	= proc_dointvec,
++	},
++#endif
+ 	{ }
+ };
+ 
+diff --git a/mm/cma.c b/mm/cma.c
+index 963bc4a..1cf341c 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -33,6 +33,7 @@
+ #include <linux/log2.h>
+ #include <linux/cma.h>
+ #include <linux/highmem.h>
++#include <linux/swap.h>
+ 
+ struct cma {
+ 	unsigned long	base_pfn;
+@@ -127,6 +128,27 @@ err:
+ 	return -EINVAL;
  }
--#endif /* CONFIG_HIBERNATION */
-+#endif /* CONFIG_CMA_AGGRESSIVE */
-+#endif /* CONFIG_HIBERNATION || CONFIG_CMA_AGGRESSIVE */
  
- /* It's optimal to keep kswapds on the same CPUs as their memory, but
-    not required for correctness.  So if the last cpu in a node goes
++#ifdef CONFIG_CMA_AGGRESSIVE
++/* The counter for the dma_alloc_from_contiguous and
++   dma_release_from_contiguous.  */
++atomic_t cma_alloc_counter = ATOMIC_INIT(0);
++
++/* Swich of CMA_AGGRESSIVE.  */
++int cma_aggressive_switch __read_mostly;
++
++/* If the number of CMA free pages is small than this value, CMA_AGGRESSIVE will
++   not work. */
++#ifdef CONFIG_CMA_AGGRESSIVE_FREE_MIN
++unsigned long cma_aggressive_free_min __read_mostly =
++					CONFIG_CMA_AGGRESSIVE_FREE_MIN;
++#else
++unsigned long cma_aggressive_free_min __read_mostly = 500;
++#endif
++
++/* Swich of CMA_AGGRESSIVE shink.  */
++int cma_aggressive_shrink_switch __read_mostly;
++#endif
++
+ static int __init cma_init_reserved_areas(void)
+ {
+ 	int i;
+@@ -138,6 +160,22 @@ static int __init cma_init_reserved_areas(void)
+ 			return ret;
+ 	}
+ 
++#ifdef CONFIG_CMA_AGGRESSIVE
++	cma_aggressive_switch = 0;
++#ifdef CONFIG_CMA_AGGRESSIVE_PHY_MAX
++	if (memblock_phys_mem_size() <= CONFIG_CMA_AGGRESSIVE_PHY_MAX)
++#else
++	if (memblock_phys_mem_size() <= 0x40000000)
++#endif
++		cma_aggressive_switch = 1;
++
++	cma_aggressive_shrink_switch = 0;
++#ifdef CONFIG_CMA_AGGRESSIVE_SHRINK
++	if (cma_aggressive_switch)
++		cma_aggressive_shrink_switch = 1;
++#endif
++#endif
++
+ 	return 0;
+ }
+ core_initcall(cma_init_reserved_areas);
+@@ -312,6 +350,11 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
+ 	unsigned long bitmap_maxno, bitmap_no, bitmap_count;
+ 	struct page *page = NULL;
+ 	int ret;
++#ifdef CONFIG_CMA_AGGRESSIVE
++	int free = global_page_state(NR_FREE_PAGES)
++			- global_page_state(NR_FREE_CMA_PAGES)
++			- totalreserve_pages;
++#endif
+ 
+ 	if (!cma || !cma->count)
+ 		return NULL;
+@@ -326,6 +369,13 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
+ 	bitmap_maxno = cma_bitmap_maxno(cma);
+ 	bitmap_count = cma_bitmap_pages_to_bits(cma, count);
+ 
++#ifdef CONFIG_CMA_AGGRESSIVE
++	atomic_inc(&cma_alloc_counter);
++	if (cma_aggressive_switch && cma_aggressive_shrink_switch
++	    && free < count)
++		shrink_all_memory_for_cma(count - free);
++#endif
++
+ 	for (;;) {
+ 		mutex_lock(&cma->lock);
+ 		bitmap_no = bitmap_find_next_zero_area(cma->bitmap,
+@@ -361,6 +411,10 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
+ 		start = bitmap_no + mask + 1;
+ 	}
+ 
++#ifdef CONFIG_CMA_AGGRESSIVE
++	atomic_dec(&cma_alloc_counter);
++#endif
++
+ 	pr_debug("%s(): returned %p\n", __func__, page);
+ 	return page;
+ }
 -- 
 1.9.1
 
