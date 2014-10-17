@@ -1,114 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 32FC46B0070
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 11:46:05 -0400 (EDT)
-Received: by mail-lb0-f175.google.com with SMTP id u10so919276lbd.34
-        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 08:46:04 -0700 (PDT)
+Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 143B66B0073
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 11:49:49 -0400 (EDT)
+Received: by mail-lb0-f179.google.com with SMTP id l4so906982lbv.38
+        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 08:49:49 -0700 (PDT)
 Received: from mail.efficios.com (mail.efficios.com. [78.47.125.74])
-        by mx.google.com with ESMTP id be18si2581637lab.113.2014.10.17.08.46.02
+        by mx.google.com with ESMTP id sf5si2659256lbb.46.2014.10.17.08.49.47
         for <linux-mm@kvack.org>;
-        Fri, 17 Oct 2014 08:46:03 -0700 (PDT)
-Date: Fri, 17 Oct 2014 15:45:42 +0000 (UTC)
+        Fri, 17 Oct 2014 08:49:48 -0700 (PDT)
+Date: Fri, 17 Oct 2014 15:49:39 +0000 (UTC)
 From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Message-ID: <1063411139.10919.1413560742957.JavaMail.zimbra@efficios.com>
-In-Reply-To: <20141016212234.GF11522@wil.cx>
-References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com> <1411677218-29146-9-git-send-email-matthew.r.wilcox@intel.com> <20141016100525.GF19075@thinkos.etherlink> <20141016212234.GF11522@wil.cx>
-Subject: Re: [PATCH v11 08/21] dax,ext2: Replace ext2_clear_xip_target with
- dax_clear_blocks
+Message-ID: <1868658383.10922.1413560979310.JavaMail.zimbra@efficios.com>
+In-Reply-To: <20141016220126.GK11522@wil.cx>
+References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com> <1411677218-29146-20-git-send-email-matthew.r.wilcox@intel.com> <20141016123824.GQ19075@thinkos.etherlink> <20141016220126.GK11522@wil.cx>
+Subject: Re: [PATCH v11 19/21] dax: Add dax_zero_page_range
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>
 
 ----- Original Message -----
 > From: "Matthew Wilcox" <willy@linux.intel.com>
 > To: "Mathieu Desnoyers" <mathieu.desnoyers@efficios.com>
 > Cc: "Matthew Wilcox" <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
-> linux-kernel@vger.kernel.org
-> Sent: Thursday, October 16, 2014 11:22:34 PM
-> Subject: Re: [PATCH v11 08/21] dax,ext2: Replace ext2_clear_xip_target with dax_clear_blocks
+> linux-kernel@vger.kernel.org, "Ross Zwisler" <ross.zwisler@linux.intel.com>
+> Sent: Friday, October 17, 2014 12:01:26 AM
+> Subject: Re: [PATCH v11 19/21] dax: Add dax_zero_page_range
 > 
-> On Thu, Oct 16, 2014 at 12:05:25PM +0200, Mathieu Desnoyers wrote:
-> > > +int dax_clear_blocks(struct inode *inode, sector_t block, long size)
+> On Thu, Oct 16, 2014 at 02:38:24PM +0200, Mathieu Desnoyers wrote:
+> > > +int dax_zero_page_range(struct inode *inode, loff_t from, unsigned
+> > > length,
+> > 
+> > nit: unsigned -> unsigned int ?
+> > 
+> > Do we want a unsigned int or unsigned long here ?
+> 
+> It's supposed to be for a fragment of a page, so until we see a machine
+> with PAGE_SIZE > 4GB, we're good to use an unsigned int.
+
+OK
+
+> 
+> > >  	if (!length)
+> > >  		return 0;
+> > > +	BUG_ON((offset + length) > PAGE_CACHE_SIZE);
+> > 
+> > Isn't it a bit extreme to BUG_ON this condition ? We could return an
+> > error to the caller, and perhaps WARN_ON_ONCE(), but BUG_ON() appears to
+> > be slightly too strong here.
+> 
+> Dave Chinner asked for it :-)  The filesystem is supposed to be doing
+> this clamping (until the last version, I had this function doing the
+> clamping, and I was told off for "leaving landmines lying around".
+
+Makes sense,
+
+> 
+> > > +static inline int dax_zero_page_range(struct inode *i, loff_t frm,
+> > > +						unsigned len, get_block_t gb)
 > > > +{
-> > > +	struct block_device *bdev = inode->i_sb->s_bdev;
-> > > +	sector_t sector = block << (inode->i_blkbits - 9);
+> > > +	return 0;
 > > 
-> > Is there a define e.g. SECTOR_SHIFT rather than using this hardcoded "9"
-> > value ?
+> > Should we return 0 or -ENOSYS here ?
 > 
-> Yeah ... in half a dozen drivers, so introducing them globally spews
-> warnings about redefining macros.  The '9' and '512' are sprinkled all
-> over the storage parts of the kernel, it's a complete flustercluck that
-> I wasn't about to try to unscrew.
+> I kind of wonder if we shouldn't just declare the function.  It's called
+> like this:
+> 
+>         if (IS_DAX(inode))
+>                 return dax_zero_page_range(inode, from, length,
+>                 ext4_get_block);
+>         return __ext4_block_zero_page_range(handle, mapping, from, length);
+> 
+> and if CONFIG_DAX is not set, IS_DAX evaluates to 0 at compile time, so
+> the compiler will optimise out the call to dax_zero_page_range() anyway.
 
-Fair enough.
+I strongly prefer to implement "unimplemented stub" as static inlines
+rather than defining to 0, because the compiler can check that the types
+passed to the function are valid, even in the #else configuration which
+uses the stubs.
 
-> 
-> > > +		while (count > 0) {
-> > > +			unsigned pgsz = PAGE_SIZE - offset_in_page(addr);
-> > 
-> > unsigned -> unsigned int
-> 
-> Any particular reason?  Omitting it in some places helps stay within
-> the 80-column limit without sacrificing readability.
-
-It looks like FS code often uses "unsigned", so I'm not too concerned.
-
-It's just that I'm used to the Linux core kernel style, which tend to
-use "unsigned int".
-
-> 
-> > > +		}
-> > > +	} while (size);
-> > 
-> > Just to stay on the safe side, can we do while (size > 0) ? Just in case
-> > an unforeseen issue makes size negative, and gets us in a very long loop.
-> 
-> If size < 0, we should BUG, because that means we've zeroed more than
-> we were asked to do, which is data corruption.
-> 
-> There's probably some other hardening we should do for this loop.
-> For example, if 'count' is < 512, it can go into an infinite loop.
-> 
->         do {
->                 void *addr;
->                 unsigned long pfn;
->                 long count;
-> 
->                 count = bdev_direct_access(bdev, sector, &addr, &pfn, size);
->                 if (count < 0)
->                         return count;
->                 while (count > 0) {
->                         unsigned pgsz = PAGE_SIZE - offset_in_page(addr);
->                         if (pgsz > count)
->                                 pgsz = count;
->                         if (pgsz < PAGE_SIZE)
->                                 memset(addr, 0, pgsz);
->                         else
->                                 clear_page(addr);
->                         addr += pgsz;
->                         size -= pgsz;
->                         count -= pgsz;
-> 			BUG_ON(pgsz & 511);
->                         sector += pgsz / 512;
->                         cond_resched();
->                 }
-> 		BUG_ON(size < 0);
->         } while (size);
-> 
-> I think that should do the job ... ?
-> 
-
-Yep. I love defensive programming, especially for filesystems. :)
+The only reason why I have not pointed this out for some of your other
+patches was because it was clear that the local style of those files was
+to define stubbed functions as 0. But I still dislike it.
 
 Thanks,
 
 Mathieu
-
 
 -- 
 Mathieu Desnoyers
