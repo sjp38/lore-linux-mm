@@ -1,86 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id D8EC06B0073
-	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 11:52:22 -0400 (EDT)
-Received: by mail-lb0-f182.google.com with SMTP id z11so912220lbi.27
-        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 08:52:22 -0700 (PDT)
-Received: from mail.efficios.com (mail.efficios.com. [78.47.125.74])
-        by mx.google.com with ESMTP id lj3si2608566lab.112.2014.10.17.08.52.20
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 227186B0069
+	for <linux-mm@kvack.org>; Fri, 17 Oct 2014 18:04:47 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id fb1so1565824pad.39
+        for <linux-mm@kvack.org>; Fri, 17 Oct 2014 15:04:46 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id ov3si2044972pbc.228.2014.10.17.15.04.45
         for <linux-mm@kvack.org>;
-        Fri, 17 Oct 2014 08:52:21 -0700 (PDT)
-Date: Fri, 17 Oct 2014 15:52:14 +0000 (UTC)
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Message-ID: <616734389.10923.1413561134767.JavaMail.zimbra@efficios.com>
-In-Reply-To: <20141016223331.GA11169@wil.cx>
-References: <1411677218-29146-1-git-send-email-matthew.r.wilcox@intel.com> <1411677218-29146-8-git-send-email-matthew.r.wilcox@intel.com> <20141016095027.GE19075@thinkos.etherlink> <20141016195112.GE11522@wil.cx> <20141016223331.GA11169@wil.cx>
-Subject: Re: [PATCH v11 07/21] dax,ext2: Replace XIP read and write with DAX
- I/O
+        Fri, 17 Oct 2014 15:04:46 -0700 (PDT)
+Message-ID: <54419265.9000000@intel.com>
+Date: Fri, 17 Oct 2014 15:04:21 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Subject: Re: [PATCH 2/4] mm: introduce new VM_NOZEROPAGE flag
+References: <1413554990-48512-1-git-send-email-dingel@linux.vnet.ibm.com> <1413554990-48512-3-git-send-email-dingel@linux.vnet.ibm.com>
+In-Reply-To: <1413554990-48512-3-git-send-email-dingel@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dominik Dingel <dingel@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Bob Liu <lliubbo@gmail.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Gleb Natapov <gleb@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jianyu Zhan <nasa4836@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Weitz <konstantin.weitz@gmail.com>, kvm@vger.kernel.org, linux390@de.ibm.com, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Paolo Bonzini <pbonzini@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Sasha Levin <sasha.levin@oracle.com>
 
------ Original Message -----
-> From: "Matthew Wilcox" <willy@linux.intel.com>
-> To: "Mathieu Desnoyers" <mathieu.desnoyers@efficios.com>
-> Cc: "Matthew Wilcox" <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
-> linux-kernel@vger.kernel.org
-> Sent: Friday, October 17, 2014 12:33:31 AM
-> Subject: Re: [PATCH v11 07/21] dax,ext2: Replace XIP read and write with DAX I/O
-> 
-> On Thu, Oct 16, 2014 at 03:51:12PM -0400, Matthew Wilcox wrote:
-> > On Thu, Oct 16, 2014 at 11:50:27AM +0200, Mathieu Desnoyers wrote:
-> > > > +			if (rw == WRITE) {
-> > > > +				if (!buffer_mapped(bh)) {
-> > > > +					retval = -EIO;
-> > > > +					/* FIXME: fall back to buffered I/O */
-> > > 
-> > > Fallback on buffered I/O would void guarantee about having data stored
-> > > into persistent memory after write returns. Not sure we actually want
-> > > that.
-> > 
-> > Yeah, I think that comment is just stale.  I can't see a way in which
-> > buffered I/O would succeed after DAX I/O falis.
-> 
-> On further consideration, I think the whole thing is just foolish.
-> I don't see how get_block(create == 1) can return success *and* a buffer
-> that is !mapped.
+On 10/17/2014 07:09 AM, Dominik Dingel wrote:
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index cd33ae2..8f09c91 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -113,7 +113,7 @@ extern unsigned int kobjsize(const void *objp);
+>  #define VM_GROWSDOWN	0x00000100	/* general info on the segment */
+>  #define VM_PFNMAP	0x00000400	/* Page-ranges managed without "struct page", just pure PFN */
+>  #define VM_DENYWRITE	0x00000800	/* ETXTBSY on write attempts.. */
+> -
+> +#define VM_NOZEROPAGE	0x00001000	/* forbid new zero page mappings */
+>  #define VM_LOCKED	0x00002000
+>  #define VM_IO           0x00004000	/* Memory mapped I/O or similar */
 
-Perhaps a safe approach could be to put a BUG_ON() to check this assumption ?
+This seems like an awfully obscure use for a very constrained resource
+(VM_ flags).
 
-Thanks,
+Is there ever a time where the VMAs under an mm have mixed VM_NOZEROPAGE
+status?  Reading the patches, it _looks_ like it might be an all or
+nothing thing.
 
-Mathieu
-
-> 
-> So I did this nice simplification:
-> 
-> -                       if (rw == WRITE) {
-> -                               if (!buffer_mapped(bh)) {
-> -                                       retval = -EIO;
-> -                                       /* FIXME: fall back to buffered I/O
-> */
-> -                                       break;
-> -                               }
-> -                               hole = false;
-> -                       } else {
-> -                               hole = !buffer_written(bh);
-> -                       }
-> +                       hole = (rw != WRITE) && !buffer_written(bh);
-> 
-> (compile-tested only; I'm going to run all the changes through xfstests
-> next week when I'm back home before sending out a v12).
-> 
-
-
-
--- 
-Mathieu Desnoyers
-EfficiOS Inc.
-http://www.efficios.com
+Full disclosure: I've got an x86-specific feature I want to steal a flag
+for.  Maybe we should just define another VM_ARCH bit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
