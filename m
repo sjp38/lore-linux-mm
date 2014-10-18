@@ -1,58 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 910476B0069
-	for <linux-mm@kvack.org>; Sat, 18 Oct 2014 12:28:22 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id g10so2461500pdj.18
-        for <linux-mm@kvack.org>; Sat, 18 Oct 2014 09:28:22 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id pp3si3688095pdb.218.2014.10.18.09.28.19
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EE086B0069
+	for <linux-mm@kvack.org>; Sat, 18 Oct 2014 13:59:11 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id eu11so2687155pac.0
+        for <linux-mm@kvack.org>; Sat, 18 Oct 2014 10:59:10 -0700 (PDT)
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
+        by mx.google.com with ESMTP id m13si3931832pdj.84.2014.10.18.10.59.09
         for <linux-mm@kvack.org>;
-        Sat, 18 Oct 2014 09:28:20 -0700 (PDT)
-Message-ID: <54429521.80402@intel.com>
-Date: Sat, 18 Oct 2014 09:28:17 -0700
-From: Dave Hansen <dave.hansen@intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] mm: introduce new VM_NOZEROPAGE flag
-References: <1413554990-48512-1-git-send-email-dingel@linux.vnet.ibm.com>	<1413554990-48512-3-git-send-email-dingel@linux.vnet.ibm.com>	<54419265.9000000@intel.com> <20141018164928.2341415f@BR9TG4T3.de.ibm.com>
-In-Reply-To: <20141018164928.2341415f@BR9TG4T3.de.ibm.com>
-Content-Type: text/plain; charset=windows-1252
+        Sat, 18 Oct 2014 10:59:09 -0700 (PDT)
+Date: Sat, 18 Oct 2014 13:59:07 -0400 (EDT)
+Message-Id: <20141018.135907.356113264227709132.davem@davemloft.net>
+Subject: Re: unaligned accesses in SLAB etc.
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <alpine.LRH.2.11.1410171410210.25429@adalberg.ut.ee>
+References: <20141016.162001.599580415052560455.davem@redhat.com>
+	<20141016.165017.1151349565275102498.davem@davemloft.net>
+	<alpine.LRH.2.11.1410171410210.25429@adalberg.ut.ee>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dominik Dingel <dingel@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Bob Liu <lliubbo@gmail.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Gleb Natapov <gleb@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jianyu Zhan <nasa4836@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Weitz <konstantin.weitz@gmail.com>, kvm@vger.kernel.org, linux390@de.ibm.com, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Paolo Bonzini <pbonzini@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Sasha Levin <sasha.levin@oracle.com>
+To: mroos@linux.ee
+Cc: iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, sparclinux@vger.kernel.org
 
-On 10/18/2014 07:49 AM, Dominik Dingel wrote:
-> On Fri, 17 Oct 2014 15:04:21 -0700
-> Dave Hansen <dave.hansen@intel.com> wrote:
->> Is there ever a time where the VMAs under an mm have mixed VM_NOZEROPAGE
->> status?  Reading the patches, it _looks_ like it might be an all or
->> nothing thing.
-> 
-> Currently it is an all or nothing thing, but for a future change we might want to just
-> tag the guest memory instead of the complete user address space.
+From: Meelis Roos <mroos@linux.ee>
+Date: Fri, 17 Oct 2014 14:12:09 +0300 (EEST)
 
-I think it's a bad idea to reserve a flag for potential future use.  If
-you _need_ it in the future, let's have the discussion then.  For now, I
-think it should probably just be stored in the mm somewhere.
+> However, on top of mainline HEAD 3.17.0-09670-g0429fbc it explodes with 
+> scheduler BUG - just reported to LKML + sched maintainers.
 
->> Full disclosure: I've got an x86-specific feature I want to steal a flag
->> for.  Maybe we should just define another VM_ARCH bit.
->>
-> 
-> So you think of something like:
-> 
-> #if defined(CONFIG_S390)
-> # define VM_NOZEROPAGE	VM_ARCH_1
-> #endif
-> 
-> #ifndef VM_NOZEROPAGE
-> # define VM_NOZEROPAGE	VM_NONE
-> #endif
-> 
-> right?
+task_stack_end_corrupted() cannot work properly on sparc64.
 
-Yeah, something like that.
+It stores the magic value at "task_thread_info(p) + 1", but on
+sparc64 that's where we store the nested array of FPU register
+saves.
+
+In fact this facility could be corrupting FPU register state in
+certain circumstances.
+
+The current sparc64 design is intentional, the CPU stack grows down
+toward the thread_info, and the FPU stack saving area grows up from
+the end of thread_info.
+
+I don't want to define the array size of the fpregs save area
+explicitly and thereby placing an artificial limit there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
