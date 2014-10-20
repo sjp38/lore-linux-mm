@@ -1,58 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id C51056B0072
-	for <linux-mm@kvack.org>; Mon, 20 Oct 2014 06:11:55 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id kq14so4884992pab.40
-        for <linux-mm@kvack.org>; Mon, 20 Oct 2014 03:11:55 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id p1si7372573pdp.169.2014.10.20.03.11.48
-        for <linux-mm@kvack.org>;
-        Mon, 20 Oct 2014 03:11:49 -0700 (PDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v17 4/7] powerpc: add pmd_[dirty|mkclean] for THP
-Date: Mon, 20 Oct 2014 19:12:01 +0900
-Message-Id: <1413799924-17946-5-git-send-email-minchan@kernel.org>
-In-Reply-To: <1413799924-17946-1-git-send-email-minchan@kernel.org>
-References: <1413799924-17946-1-git-send-email-minchan@kernel.org>
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id C60636B0069
+	for <linux-mm@kvack.org>; Mon, 20 Oct 2014 07:50:47 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id v10so4802484pde.22
+        for <linux-mm@kvack.org>; Mon, 20 Oct 2014 04:50:47 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id cg2si7693405pad.34.2014.10.20.04.50.46
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 20 Oct 2014 04:50:46 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH RESEND 0/4] Simplify cpuset API and fix cpuset check in SL[AU]B
+Date: Mon, 20 Oct 2014 15:50:28 +0400
+Message-ID: <cover.1413804554.git.vdavydov@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, zhangyanfei@cn.fujitsu.com, "Kirill A. Shutemov" <kirill@shutemov.name>, Minchan Kim <minchan@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Zefan Li <lizefan@huawei.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-MADV_FREE needs pmd_dirty and pmd_mkclean for detecting recent
-overwrite of the contents since MADV_FREE syscall is called for
-THP page.
+[Rebased on top of 3.18-rc1 and added acks from Christoph and Zefan]
 
-This patch adds pmd_dirty and pmd_mkclean for THP page MADV_FREE
-support.
+Hi,
 
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: linuxppc-dev@lists.ozlabs.org
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- arch/powerpc/include/asm/pgtable-ppc64.h | 2 ++
- 1 file changed, 2 insertions(+)
+SLAB and SLUB use hardwall cpuset check on fallback alloc, while the
+page allocator uses softwall check for all kernel allocations. This may
+result in falling into the page allocator even if there are free objects
+on other nodes. SLAB algorithm is especially affected: the number of
+objects allocated in vain is unlimited, so that they theoretically can
+eat up a whole NUMA node. For more details see comments to patches 3, 4.
 
-diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
-index 889c6fa9ee01..7c07e5975871 100644
---- a/arch/powerpc/include/asm/pgtable-ppc64.h
-+++ b/arch/powerpc/include/asm/pgtable-ppc64.h
-@@ -468,9 +468,11 @@ static inline pte_t *pmdp_ptep(pmd_t *pmd)
- 
- #define pmd_pfn(pmd)		pte_pfn(pmd_pte(pmd))
- #define pmd_young(pmd)		pte_young(pmd_pte(pmd))
-+#define pmd_dirty(pmd)		pte_dirty(pmd_pte(pmd))
- #define pmd_mkold(pmd)		pte_pmd(pte_mkold(pmd_pte(pmd)))
- #define pmd_wrprotect(pmd)	pte_pmd(pte_wrprotect(pmd_pte(pmd)))
- #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
-+#define pmd_mkclean(pmd)	pte_pmd(pte_mkclean(pmd_pte(pmd)))
- #define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
- #define pmd_mkwrite(pmd)	pte_pmd(pte_mkwrite(pmd_pte(pmd)))
- 
+When I last sent a fix (https://lkml.org/lkml/2014/8/10/100), David
+found the whole cpuset API being cumbersome and proposed to simplify it
+before getting to fixing its users. So this patch set addresses both
+David's complain (patches 1, 2) and the SL[AU]B issues (patches 3, 4).
+
+Reviews are appreciated.
+
+Thanks,
+
+Vladimir Davydov (4):
+  cpuset: convert callback_mutex to a spinlock
+  cpuset: simplify cpuset_node_allowed API
+  slab: fix cpuset check in fallback_alloc
+  slub: fix cpuset check in get_any_partial
+
+ include/linux/cpuset.h |   37 +++--------
+ kernel/cpuset.c        |  162 +++++++++++++++++-------------------------------
+ mm/hugetlb.c           |    2 +-
+ mm/oom_kill.c          |    2 +-
+ mm/page_alloc.c        |    6 +-
+ mm/slab.c              |    2 +-
+ mm/slub.c              |    2 +-
+ mm/vmscan.c            |    5 +-
+ 8 files changed, 74 insertions(+), 144 deletions(-)
+
 -- 
-2.0.0
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
