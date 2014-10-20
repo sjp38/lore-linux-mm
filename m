@@ -1,84 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
-	by kanga.kvack.org (Postfix) with ESMTP id E4EC46B007B
-	for <linux-mm@kvack.org>; Mon, 20 Oct 2014 11:45:26 -0400 (EDT)
-Received: by mail-qc0-f177.google.com with SMTP id c9so3841504qcz.22
-        for <linux-mm@kvack.org>; Mon, 20 Oct 2014 08:45:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id kt5si16951574qcb.18.2014.10.20.08.45.25
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B5636B0069
+	for <linux-mm@kvack.org>; Mon, 20 Oct 2014 11:56:05 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id rd3so5449912pab.20
+        for <linux-mm@kvack.org>; Mon, 20 Oct 2014 08:56:05 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id kw1si8205830pab.195.2014.10.20.08.56.04
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Oct 2014 08:45:26 -0700 (PDT)
-Message-ID: <54452E0A.2050702@redhat.com>
-Date: Mon, 20 Oct 2014 11:45:14 -0400
-From: Rik van Riel <riel@redhat.com>
+        Mon, 20 Oct 2014 08:56:04 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH] memcg: simplify unreclaimable groups handling in soft limit reclaim
+Date: Mon, 20 Oct 2014 19:55:54 +0400
+Message-ID: <1413820554-15611-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/5] mm, compaction: pass classzone_idx and alloc_flags
- to watermark checking
-References: <1412696019-21761-1-git-send-email-vbabka@suse.cz> <1412696019-21761-2-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1412696019-21761-2-git-send-email-vbabka@suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 10/07/2014 11:33 AM, Vlastimil Babka wrote:
-> Compaction relies on zone watermark checks for decisions such as if it's worth
-> to start compacting in compaction_suitable() or whether compaction should stop
-> in compact_finished(). The watermark checks take classzone_idx and alloc_flags
-> parameters, which are related to the memory allocation request. But from the
-> context of compaction they are currently passed as 0, including the direct
-> compaction which is invoked to satisfy the allocation request, and could
-> therefore know the proper values.
->
-> The lack of proper values can lead to mismatch between decisions taken during
-> compaction and decisions related to the allocation request. Lack of proper
-> classzone_idx value means that lowmem_reserve is not taken into account.
-> This has manifested (during recent changes to deferred compaction) when DMA
-> zone was used as fallback for preferred Normal zone. compaction_suitable()
-> without proper classzone_idx would think that the watermarks are already
-> satisfied, but watermark check in get_page_from_freelist() would fail. Because
-> of this problem, deferring compaction has extra complexity that can be removed
-> in the following patch.
->
-> The issue (not confirmed in practice) with missing alloc_flags is opposite in
-> nature. For allocations that include ALLOC_HIGH, ALLOC_HIGHER or ALLOC_CMA in
-> alloc_flags (the last includes all MOVABLE allocations on CMA-enabled systems)
-> the watermark checking in compaction with 0 passed will be stricter than in
-> get_page_from_freelist(). In these cases compaction might be running for a
-> longer time than is really needed.
->
-> This patch fixes these problems by adding alloc_flags and classzone_idx to
-> struct compact_control and related functions involved in direct compaction and
-> watermark checking. Where possible, all other callers of compaction_suitable()
-> pass proper values where those are known. This is currently limited to
-> classzone_idx, which is sometimes known in kswapd context. However, the direct
-> reclaim callers should_continue_reclaim() and compaction_ready() do not
-> currently know the proper values, so the coordination between reclaim and
-> compaction may still not be as accurate as it could. This can be fixed later,
-> if it's shown to be an issue.
->
-> The effect of this patch should be slightly better high-order allocation
-> success rates and/or less compaction overhead, depending on the type of
-> allocations and presence of CMA. It allows simplifying deferred compaction
-> code in a followup patch.
->
-> When testing with stress-highalloc, there was some slight improvement (which
-> might be just due to variance) in success rates of non-THP-like allocations.
->
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Michal Nazarewicz <mina86@mina86.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: David Rientjes <rientjes@google.com>
+If we fail to reclaim anything from a cgroup during a soft reclaim pass
+we want to get the next largest cgroup exceeding its soft limit. To
+achieve this, we should obviously remove the current group from the tree
+and then pick the largest group. Currently we have a weird loop instead.
+Let's simplify it.
 
-Acked-by: Rik van Riel <riel@redhat.com>
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+---
+ mm/memcontrol.c |   26 ++++----------------------
+ 1 file changed, 4 insertions(+), 22 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index e957f0c80c6e..53393e27ff03 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3507,34 +3507,16 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
+ 		nr_reclaimed += reclaimed;
+ 		*total_scanned += nr_scanned;
+ 		spin_lock_irq(&mctz->lock);
++		__mem_cgroup_remove_exceeded(mz, mctz);
+ 
+ 		/*
+ 		 * If we failed to reclaim anything from this memory cgroup
+ 		 * it is time to move on to the next cgroup
+ 		 */
+ 		next_mz = NULL;
+-		if (!reclaimed) {
+-			do {
+-				/*
+-				 * Loop until we find yet another one.
+-				 *
+-				 * By the time we get the soft_limit lock
+-				 * again, someone might have aded the
+-				 * group back on the RB tree. Iterate to
+-				 * make sure we get a different mem.
+-				 * mem_cgroup_largest_soft_limit_node returns
+-				 * NULL if no other cgroup is present on
+-				 * the tree
+-				 */
+-				next_mz =
+-				__mem_cgroup_largest_soft_limit_node(mctz);
+-				if (next_mz == mz)
+-					css_put(&next_mz->memcg->css);
+-				else /* next_mz == NULL or other memcg */
+-					break;
+-			} while (1);
+-		}
+-		__mem_cgroup_remove_exceeded(mz, mctz);
++		if (!reclaimed)
++			next_mz = __mem_cgroup_largest_soft_limit_node(mctz);
++
+ 		excess = soft_limit_excess(mz->memcg);
+ 		/*
+ 		 * One school of thought says that we should not add
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
