@@ -1,112 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id A7C186B0069
-	for <linux-mm@kvack.org>; Mon, 20 Oct 2014 06:06:48 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id y10so4649260pdj.23
-        for <linux-mm@kvack.org>; Mon, 20 Oct 2014 03:06:48 -0700 (PDT)
-Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
-        by mx.google.com with ESMTPS id fr3si7308368pdb.233.2014.10.20.03.06.47
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 20 Oct 2014 03:06:47 -0700 (PDT)
-Received: from kw-mxoi1.gw.nic.fujitsu.com (unknown [10.0.237.133])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 4791F3EE1B8
-	for <linux-mm@kvack.org>; Mon, 20 Oct 2014 19:06:46 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
-	by kw-mxoi1.gw.nic.fujitsu.com (Postfix) with ESMTP id 3A44EAC02AB
-	for <linux-mm@kvack.org>; Mon, 20 Oct 2014 19:06:45 +0900 (JST)
-Received: from g01jpfmpwyt02.exch.g01.fujitsu.local (g01jpfmpwyt02.exch.g01.fujitsu.local [10.128.193.56])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id DE43C1DB8038
-	for <linux-mm@kvack.org>; Mon, 20 Oct 2014 19:06:44 +0900 (JST)
-Message-ID: <5444DE75.6010206@jp.fujitsu.com>
-Date: Mon, 20 Oct 2014 19:05:41 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: [PATCH] memory-hotplug: Clear pgdat which is allocated by bootmem
- in try_offline_node()
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B4326B0069
+	for <linux-mm@kvack.org>; Mon, 20 Oct 2014 06:11:50 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id ft15so4708043pdb.31
+        for <linux-mm@kvack.org>; Mon, 20 Oct 2014 03:11:50 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id tv2si7498176pac.25.2014.10.20.03.11.47
+        for <linux-mm@kvack.org>;
+        Mon, 20 Oct 2014 03:11:48 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH v17 0/7] MADV_FREE support
+Date: Mon, 20 Oct 2014 19:11:57 +0900
+Message-Id: <1413799924-17946-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: zhenzhang.zhang@huawei.com, wangnan0@huawei.com, tangchen@cn.fujitsu.com, toshi.kani@hp.com, dave.hansen@intel.com, rientjes@google.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, zhangyanfei@cn.fujitsu.com, "Kirill A. Shutemov" <kirill@shutemov.name>, Minchan Kim <minchan@kernel.org>
 
-When hot adding the same memory after hot removing a memory,
-the following messages are shown:
+This patch enable MADV_FREE hint for madvise syscall, which have
+been supported by other OSes. [PATCH 1] includes the details.
 
-WARNING: CPU: 20 PID: 6 at mm/page_alloc.c:4968 free_area_init_node+0x3fe/0x426()
-...
-Call Trace:
- [<...>] dump_stack+0x46/0x58
- [<...>] warn_slowpath_common+0x81/0xa0
- [<...>] warn_slowpath_null+0x1a/0x20
- [<...>] free_area_init_node+0x3fe/0x426
- [<...>] ? up+0x32/0x50
- [<...>] hotadd_new_pgdat+0x90/0x110
- [<...>] add_memory+0xd4/0x200
- [<...>] acpi_memory_device_add+0x1aa/0x289
- [<...>] acpi_bus_attach+0xfd/0x204
- [<...>] ? device_register+0x1e/0x30
- [<...>] acpi_bus_attach+0x178/0x204
- [<...>] acpi_bus_scan+0x6a/0x90
- [<...>] ? acpi_bus_get_status+0x2d/0x5f
- [<...>] acpi_device_hotplug+0xe8/0x418
- [<...>] acpi_hotplug_work_fn+0x1f/0x2b
- [<...>] process_one_work+0x14e/0x3f0
- [<...>] worker_thread+0x11b/0x510
- [<...>] ? rescuer_thread+0x350/0x350
- [<...>] kthread+0xe1/0x100
- [<...>] ? kthread_create_on_node+0x1b0/0x1b0
- [<...>] ret_from_fork+0x7c/0xb0
- [<...>] ? kthread_create_on_node+0x1b0/0x1b0
+[1] support MADVISE_FREE for !THP page so if VM encounter
+THP page in syscall context, it splits THP page.
+[2-6] is to preparing to call madvise syscall without THP plitting
+[7] enable THP page support for MADV_FREE.
 
-The detaled explanation is as follows:
+* from v16
+ * Rebased on mmotm-2014-10-15-16-57
 
-When hot removing memory, pgdat is set to 0 in try_offline_node().
-But if the pgdat is allocated by bootmem allocator, the clearing
-step is skipped. And when hot adding the same memory, the uninitialized
-pgdat is reused. But free_area_init_node() chacks wether pgdat is set
-to zero. As a result, free_area_init_node() hits WARN_ON().
+* from v15
+ * Add more Acked-by - Rik van Riel
+ * Rebased on mmotom-08-29-15-15
 
-This patch clears pgdat which is allocated by bootmem allocator
-in try_offline_node().
+* from v14
+ * Add more Ackedy-by from arch people(sparc, arm64 and arm)
+ * Drop s390 since pmd_dirty/clean was merged
 
-Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-CC: Zhang Zhen <zhenzhang.zhang@huawei.com>
-CC: Wang Nan <wangnan0@huawei.com>
-CC: Tang Chen <tangchen@cn.fujitsu.com>
-CC: Toshi Kani <toshi.kani@hp.com>
-CC: Dave Hansen <dave.hansen@intel.com>
-CC: David Rientjes <rientjes@google.com>
+* from v13
+ * Add more Ackedy-by from arch people(arm, arm64 and ppc)
+ * Rebased on mmotm 2014-08-13-14-29
 
----
- mm/memory_hotplug.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+* from v12
+ * Fix - skip to mark free pte on try_to_free_swap failed page - Kirill
+ * Add more Acked-by from arch maintainers and Kirill
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 29d8693..7649f7c 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1943,7 +1943,7 @@ void try_offline_node(int nid)
+* From v11
+ * Fix arm build - Steve
+ * Separate patch for arm and arm64 - Steve
+ * Remove unnecessary check - Kirill
+ * Skip non-vm_normal page - Kirill
+ * Add Acked-by - Zhang
+ * Sparc64 build fix
+ * Pagetable walker THP handling fix
 
- 	if (!PageSlab(pgdat_page) && !PageCompound(pgdat_page))
- 		/* node data is allocated from boot memory */
--		return;
-+		goto out;
+* From v10
+ * Add Acked-by from arch stuff(x86, s390)
+ * Pagewalker based pagetable working - Kirill
+ * Fix try_to_unmap_one broken with hwpoison - Kirill
+ * Use VM_BUG_ON_PAGE in madvise_free_pmd - Kirill
+ * Fix pgtable-3level.h for arm - Steve
 
- 	/* free waittable in each zone */
- 	for (i = 0; i < MAX_NR_ZONES; i++) {
-@@ -1957,6 +1957,7 @@ void try_offline_node(int nid)
- 			vfree(zone->wait_table);
- 	}
+* From v9
+ * Add Acked-by - Rik
+ * Add THP page support - Kirill
 
-+out:
- 	/*
- 	 * Since there is no way to guarentee the address of pgdat/zone is not
- 	 * on stack of any kernel threads or used by other kernel objects
+* From v8
+ * Rebased-on v3.16-rc2-mmotm-2014-06-25-16-44
+
+* From v7
+ * Rebased-on next-20140613
+
+* From v6
+ * Remove page from swapcache in syscal time
+ * Move utility functions from memory.c to madvise.c - Johannes
+ * Rename untilify functtions - Johannes
+ * Remove unnecessary checks from vmscan.c - Johannes
+ * Rebased-on v3.15-rc5-mmotm-2014-05-16-16-56
+ * Drop Reviewe-by because there was some changes since then.
+
+* From v5
+ * Fix PPC problem which don't flush TLB - Rik
+ * Remove unnecessary lazyfree_range stub function - Rik
+ * Rebased on v3.15-rc5
+
+* From v4
+ * Add Reviewed-by: Zhang Yanfei
+ * Rebase on v3.15-rc1-mmotm-2014-04-15-16-14
+
+* From v3
+ * Add "how to work part" in description - Zhang
+ * Add page_discardable utility function - Zhang
+ * Clean up
+
+* From v2
+ * Remove forceful dirty marking of swap-readed page - Johannes
+ * Remove deactivation logic of lazyfreed page
+ * Rebased on 3.14
+ * Remove RFC tag
+
+* From v1
+ * Use custom page table walker for madvise_free - Johannes
+ * Remove PG_lazypage flag - Johannes
+ * Do madvise_dontneed instead of madvise_freein swapless system
+
+
+
+Minchan Kim (7):
+  mm: support madvise(MADV_FREE)
+  x86: add pmd_[dirty|mkclean] for THP
+  sparc: add pmd_[dirty|mkclean] for THP
+  powerpc: add pmd_[dirty|mkclean] for THP
+  arm: add pmd_mkclean for THP
+  arm64: add pmd_[dirty|mkclean] for THP
+  mm: Don't split THP page when syscall is called
+
+ arch/arm/include/asm/pgtable-3level.h    |   1 +
+ arch/arm64/include/asm/pgtable.h         |   2 +
+ arch/powerpc/include/asm/pgtable-ppc64.h |   2 +
+ arch/sparc/include/asm/pgtable_64.h      |  16 ++++
+ arch/x86/include/asm/pgtable.h           |  10 ++
+ include/linux/huge_mm.h                  |   4 +
+ include/linux/rmap.h                     |   9 +-
+ include/linux/vm_event_item.h            |   1 +
+ include/uapi/asm-generic/mman-common.h   |   1 +
+ mm/huge_memory.c                         |  35 +++++++
+ mm/madvise.c                             | 159 +++++++++++++++++++++++++++++++
+ mm/rmap.c                                |  46 ++++++++-
+ mm/vmscan.c                              |  64 +++++++++----
+ mm/vmstat.c                              |   1 +
+ 14 files changed, 331 insertions(+), 20 deletions(-)
+
 -- 
-1.8.3.1
-
+2.0.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
