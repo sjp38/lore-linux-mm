@@ -1,68 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id EF33C6B006E
-	for <linux-mm@kvack.org>; Mon, 20 Oct 2014 14:59:47 -0400 (EDT)
-Received: by mail-wg0-f47.google.com with SMTP id x13so6179771wgg.30
-        for <linux-mm@kvack.org>; Mon, 20 Oct 2014 11:59:46 -0700 (PDT)
-Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com. [2a00:1450:400c:c05::232])
-        by mx.google.com with ESMTPS id wt4si11575561wjc.61.2014.10.20.11.59.45
+Received: from mail-la0-f48.google.com (mail-la0-f48.google.com [209.85.215.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 72E4D6B0070
+	for <linux-mm@kvack.org>; Mon, 20 Oct 2014 14:59:55 -0400 (EDT)
+Received: by mail-la0-f48.google.com with SMTP id gi9so4472420lab.21
+        for <linux-mm@kvack.org>; Mon, 20 Oct 2014 11:59:54 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id kh7si15709820lbc.17.2014.10.20.11.59.52
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 20 Oct 2014 11:59:46 -0700 (PDT)
-Received: by mail-wi0-f178.google.com with SMTP id r20so103273wiv.5
-        for <linux-mm@kvack.org>; Mon, 20 Oct 2014 11:59:45 -0700 (PDT)
-Date: Mon, 20 Oct 2014 20:59:44 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm: memcontrol: micro-optimize
- mem_cgroup_update_page_stat()
-Message-ID: <20141020185944.GC505@dhcp22.suse.cz>
-References: <1413818259-10913-1-git-send-email-hannes@cmpxchg.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 20 Oct 2014 11:59:53 -0700 (PDT)
+Date: Mon, 20 Oct 2014 14:59:47 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] memcg: simplify unreclaimable groups handling in soft
+ limit reclaim
+Message-ID: <20141020185947.GB11973@phnom.home.cmpxchg.org>
+References: <1413820554-15611-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1413818259-10913-1-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1413820554-15611-1-git-send-email-vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 20-10-14 11:17:39, Johannes Weiner wrote:
-> Do not look up the page_cgroup when the memory controller is
-> runtime-disabled, but do assert that the locking protocol is followed
-> under DEBUG_VM regardless.  Also remove the unused flags variable.
+On Mon, Oct 20, 2014 at 07:55:54PM +0400, Vladimir Davydov wrote:
+> If we fail to reclaim anything from a cgroup during a soft reclaim pass
+> we want to get the next largest cgroup exceeding its soft limit. To
+> achieve this, we should obviously remove the current group from the tree
+> and then pick the largest group. Currently we have a weird loop instead.
+> Let's simplify it.
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+I wonder if there will be anything left once we removed all that which
+is pointless and the unnecessary from the memcg code.
 
-mem_cgroup_split_huge_fixup is following the same pattern and might be
-folded into this one. I can send a separate patch if you prefer, though.
----
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 3a203c7ec6c7..544e32292c7f 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3167,7 +3167,7 @@ static inline void memcg_unregister_all_caches(struct mem_cgroup *memcg)
-  */
- void mem_cgroup_split_huge_fixup(struct page *head)
- {
--	struct page_cgroup *head_pc = lookup_page_cgroup(head);
-+	struct page_cgroup *head_pc;
- 	struct page_cgroup *pc;
- 	struct mem_cgroup *memcg;
- 	int i;
-@@ -3175,6 +3175,8 @@ void mem_cgroup_split_huge_fixup(struct page *head)
- 	if (mem_cgroup_disabled())
- 		return;
- 
-+	head_pc = lookup_page_cgroup(head);
-+
- 	memcg = head_pc->mem_cgroup;
- 	for (i = 1; i < HPAGE_PMD_NR; i++) {
- 		pc = head_pc + i;
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
