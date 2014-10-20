@@ -1,97 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 2090F6B0069
-	for <linux-mm@kvack.org>; Mon, 20 Oct 2014 11:11:51 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id eu11so5433985pac.0
-        for <linux-mm@kvack.org>; Mon, 20 Oct 2014 08:11:50 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id gm1si8223442pbd.6.2014.10.20.08.11.39
+Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
+	by kanga.kvack.org (Postfix) with ESMTP id DA2CC6B006E
+	for <linux-mm@kvack.org>; Mon, 20 Oct 2014 11:17:47 -0400 (EDT)
+Received: by mail-la0-f42.google.com with SMTP id gf13so4601219lab.29
+        for <linux-mm@kvack.org>; Mon, 20 Oct 2014 08:17:47 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id rs4si14815503lbb.12.2014.10.20.08.17.45
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Oct 2014 08:11:39 -0700 (PDT)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm] memcg: remove activate_kmem_mutex
-Date: Mon, 20 Oct 2014 19:11:29 +0400
-Message-ID: <1413817889-13915-1-git-send-email-vdavydov@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Mon, 20 Oct 2014 08:17:46 -0700 (PDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch] mm: memcontrol: micro-optimize mem_cgroup_update_page_stat()
+Date: Mon, 20 Oct 2014 11:17:39 -0400
+Message-Id: <1413818259-10913-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-The activate_kmem_mutex is used to serialize memcg.kmem.limit updates,
-but we already serialize them with memcg_limit_mutex so let's remove the
-former.
+Do not look up the page_cgroup when the memory controller is
+runtime-disabled, but do assert that the locking protocol is followed
+under DEBUG_VM regardless.  Also remove the unused flags variable.
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/memcontrol.c |   24 +++++-------------------
- 1 file changed, 5 insertions(+), 19 deletions(-)
+ mm/memcontrol.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 3a203c7ec6c7..e957f0c80c6e 100644
+index 76892eb89d26..bea3fddb3372 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2618,8 +2618,6 @@ static void commit_charge(struct page *page, struct mem_cgroup *memcg,
-  */
- static DEFINE_MUTEX(memcg_slab_mutex);
- 
--static DEFINE_MUTEX(activate_kmem_mutex);
--
- /*
-  * This is a bit cumbersome, but it is rarely used and avoids a backpointer
-  * in the memcg_cache_params struct.
-@@ -3756,9 +3754,8 @@ static u64 mem_cgroup_read_u64(struct cgroup_subsys_state *css,
- }
- 
- #ifdef CONFIG_MEMCG_KMEM
--/* should be called with activate_kmem_mutex held */
--static int __memcg_activate_kmem(struct mem_cgroup *memcg,
--				 unsigned long nr_pages)
-+static int memcg_activate_kmem(struct mem_cgroup *memcg,
-+			       unsigned long nr_pages)
+@@ -2177,13 +2177,14 @@ void mem_cgroup_update_page_stat(struct page *page,
+ 				 enum mem_cgroup_stat_index idx, int val)
  {
- 	int err = 0;
- 	int memcg_id;
-@@ -3820,17 +3817,6 @@ out:
- 	return err;
- }
+ 	struct mem_cgroup *memcg;
+-	struct page_cgroup *pc = lookup_page_cgroup(page);
+-	unsigned long uninitialized_var(flags);
++	struct page_cgroup *pc;
++
++	VM_BUG_ON(!rcu_read_lock_held());
  
--static int memcg_activate_kmem(struct mem_cgroup *memcg,
--			       unsigned long nr_pages)
--{
--	int ret;
--
--	mutex_lock(&activate_kmem_mutex);
--	ret = __memcg_activate_kmem(memcg, nr_pages);
--	mutex_unlock(&activate_kmem_mutex);
--	return ret;
--}
--
- static int memcg_update_kmem_limit(struct mem_cgroup *memcg,
- 				   unsigned long limit)
- {
-@@ -3853,14 +3839,14 @@ static int memcg_propagate_kmem(struct mem_cgroup *memcg)
- 	if (!parent)
- 		return 0;
+ 	if (mem_cgroup_disabled())
+ 		return;
  
--	mutex_lock(&activate_kmem_mutex);
-+	mutex_lock(&memcg_limit_mutex);
- 	/*
- 	 * If the parent cgroup is not kmem-active now, it cannot be activated
- 	 * after this point, because it has at least one child already.
- 	 */
- 	if (memcg_kmem_is_active(parent))
--		ret = __memcg_activate_kmem(memcg, PAGE_COUNTER_MAX);
--	mutex_unlock(&activate_kmem_mutex);
-+		ret = memcg_activate_kmem(memcg, PAGE_COUNTER_MAX);
-+	mutex_unlock(&memcg_limit_mutex);
- 	return ret;
- }
- #else
+-	VM_BUG_ON(!rcu_read_lock_held());
++	pc = lookup_page_cgroup(page);
+ 	memcg = pc->mem_cgroup;
+ 	if (unlikely(!memcg || !PageCgroupUsed(pc)))
+ 		return;
 -- 
-1.7.10.4
+2.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
