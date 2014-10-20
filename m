@@ -1,55 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E3ED6B006C
-	for <linux-mm@kvack.org>; Mon, 20 Oct 2014 19:27:25 -0400 (EDT)
-Received: by mail-qc0-f170.google.com with SMTP id m20so61818qcx.15
-        for <linux-mm@kvack.org>; Mon, 20 Oct 2014 16:27:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j104si19101722qgd.15.2014.10.20.16.27.24
+Received: from mail-yh0-f41.google.com (mail-yh0-f41.google.com [209.85.213.41])
+	by kanga.kvack.org (Postfix) with ESMTP id D6ED96B0069
+	for <linux-mm@kvack.org>; Mon, 20 Oct 2014 19:41:45 -0400 (EDT)
+Received: by mail-yh0-f41.google.com with SMTP id i57so163452yha.0
+        for <linux-mm@kvack.org>; Mon, 20 Oct 2014 16:41:45 -0700 (PDT)
+Received: from mail-yh0-x22f.google.com (mail-yh0-x22f.google.com. [2607:f8b0:4002:c01::22f])
+        by mx.google.com with ESMTPS id 23si20398955yhg.118.2014.10.20.16.41.45
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Oct 2014 16:27:24 -0700 (PDT)
-From: Petr Holasek <pholasek@redhat.com>
-Subject: [RFC][PATCH] add pagesize field to /proc/pid/numa_maps
-Date: Tue, 21 Oct 2014 01:27:14 +0200
-Message-Id: <1413847634-20039-1-git-send-email-pholasek@redhat.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 20 Oct 2014 16:41:45 -0700 (PDT)
+Received: by mail-yh0-f47.google.com with SMTP id c41so140584yho.20
+        for <linux-mm@kvack.org>; Mon, 20 Oct 2014 16:41:45 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20141020222841.419869904@infradead.org>
+References: <20141020215633.717315139@infradead.org>
+	<20141020222841.419869904@infradead.org>
+Date: Mon, 20 Oct 2014 16:41:45 -0700
+Message-ID: <CA+55aFwd04q+O5ejbmDL-H7_GB6DEBMiiHkn+2R1u4uWxfDO9w@mail.gmail.com>
+Subject: Re: [RFC][PATCH 4/6] SRCU free VMAs
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: David Rientjes <rientjes@google.com>, Dave Hansen <dave.hansen@intel.com>, pholasek@redhat.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Al Viro <viro@zeniv.linux.org.uk>, Lai Jiangshan <laijs@cn.fujitsu.com>, Davidlohr Bueso <dave@stgolabs.net>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-There were some similar attempts to add vma's pagesize to numa_maps in the past,
-so I've distilled the most straightforward one - adding pagesize field
-expressing size in kbytes to each line. Although page size can be also obtained
-from smaps file, adding pagesize to numa_maps makes the interface more compact
-and easier to use without need for traversing other files.
+On Mon, Oct 20, 2014 at 2:56 PM, Peter Zijlstra <peterz@infradead.org> wrote:
+> Manage the VMAs with SRCU such that we can do a lockless VMA lookup.
 
-New numa_maps output looks like that:
+Can you explain why srcu, and not plain regular rcu?
 
-2aaaaac00000 default file=/dev/hugepages/hugepagefile huge pagesize=2097152 dirty=1 N0=1
-7f302441a000 default file=/usr/lib64/libc-2.17.so pagesize=4096 mapped=65 mapmax=38 N0=65
+Especially as you then *note* some of the problems srcu can have.
+Making it regular rcu would also seem to make it possible to make the
+seqlock be just a seqcount, no?
 
-Signed-off-by: Petr Holasek <pholasek@redhat.com>
----
- fs/proc/task_mmu.c | 3 +++
- 1 file changed, 3 insertions(+)
-
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 4e0388c..964c4de 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -1498,6 +1498,9 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	if (!md->pages)
- 		goto out;
- 
-+	seq_puts(m, " pagesize=");
-+	seq_printf(m, "%lu", vma_kernel_pagesize(vma));
-+
- 	if (md->anon)
- 		seq_printf(m, " anon=%lu", md->anon);
- 
--- 
-1.9.3
+                  Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
