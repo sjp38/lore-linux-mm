@@ -1,85 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 54F016B0070
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 13:10:09 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id fb1so1806232pad.39
-        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 10:10:09 -0700 (PDT)
-Received: from g2t2352.austin.hp.com (g2t2352.austin.hp.com. [15.217.128.51])
-        by mx.google.com with ESMTPS id ih1si11761158pbc.185.2014.10.21.10.10.08
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 21 Oct 2014 10:10:08 -0700 (PDT)
-Message-ID: <1413910581.12798.25.camel@misato.fc.hp.com>
-Subject: Re: [PATCH] memory-hotplug: Clear pgdat which is allocated by
- bootmem in try_offline_node()
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Tue, 21 Oct 2014 10:56:21 -0600
-In-Reply-To: <5444DE75.6010206@jp.fujitsu.com>
-References: <5444DE75.6010206@jp.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 842896B0074
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 13:12:52 -0400 (EDT)
+Received: by mail-wg0-f44.google.com with SMTP id y10so1864129wgg.3
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 10:12:52 -0700 (PDT)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.194])
+        by mx.google.com with ESMTP id s7si13468173wix.49.2014.10.21.10.12.47
+        for <linux-mm@kvack.org>;
+        Tue, 21 Oct 2014 10:12:48 -0700 (PDT)
+Date: Tue, 21 Oct 2014 20:09:48 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC][PATCH 0/6] Another go at speculative page faults
+Message-ID: <20141021170948.GA25964@node.dhcp.inet.fi>
+References: <20141020215633.717315139@infradead.org>
+ <20141021162340.GA5508@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141021162340.GA5508@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zhenzhang.zhang@huawei.com, wangnan0@huawei.com, tangchen@cn.fujitsu.com, dave.hansen@intel.com, rientjes@google.com
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, torvalds@linux-foundation.org, paulmck@linux.vnet.ibm.com, tglx@linutronix.de, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, oleg@redhat.com, mingo@redhat.com, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, viro@zeniv.linux.org.uk, laijs@cn.fujitsu.com, dave@stgolabs.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 2014-10-20 at 19:05 +0900, Yasuaki Ishimatsu wrote:
- :
-> When hot removing memory, pgdat is set to 0 in try_offline_node().
-> But if the pgdat is allocated by bootmem allocator, the clearing
-> step is skipped. And when hot adding the same memory, the uninitialized
-> pgdat is reused. But free_area_init_node() chacks wether pgdat is set
-
-s/chacks/checks
-
-
-> to zero. As a result, free_area_init_node() hits WARN_ON().
+On Tue, Oct 21, 2014 at 06:23:40PM +0200, Ingo Molnar wrote:
 > 
-> This patch clears pgdat which is allocated by bootmem allocator
-> in try_offline_node().
+> * Peter Zijlstra <peterz@infradead.org> wrote:
 > 
-> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-> CC: Zhang Zhen <zhenzhang.zhang@huawei.com>
-> CC: Wang Nan <wangnan0@huawei.com>
-> CC: Tang Chen <tangchen@cn.fujitsu.com>
-> CC: Toshi Kani <toshi.kani@hp.com>
-> CC: Dave Hansen <dave.hansen@intel.com>
-> CC: David Rientjes <rientjes@google.com>
+> > My Ivy Bridge EP (2*10*2) has a ~58% improvement in pagefault throughput:
+> > 
+> > PRE:
+> >        149,441,555      page-faults                  ( +-  1.25% )
+> >
+> > POST:
+> >        236,442,626      page-faults                  ( +-  0.08% )
 > 
-> ---
->  mm/memory_hotplug.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
+> > My Ivy Bridge EX (4*15*2) has a ~78% improvement in pagefault throughput:
+> > 
+> > PRE:
+> >        105,789,078      page-faults                 ( +-  2.24% )
+> >
+> > POST:
+> >        187,751,767      page-faults                 ( +-  2.24% )
 > 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 29d8693..7649f7c 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1943,7 +1943,7 @@ void try_offline_node(int nid)
-> 
->  	if (!PageSlab(pgdat_page) && !PageCompound(pgdat_page))
->  		/* node data is allocated from boot memory */
-> -		return;
-> +		goto out;
+> I guess the 'PRE' and 'POST' numbers should be flipped around?
 
-Do we still need this if-statement?  That is, do we have to skip the
-for-loop below even though it checks with is_vmalloc_addr()?
+I think it's faults per second.
 
-Thanks,
--Toshi
+It would be interesting to see if the patchset affects non-condended case.
+Like a one-threaded workload.
 
-
->  	/* free waittable in each zone */
->  	for (i = 0; i < MAX_NR_ZONES; i++) {
-> @@ -1957,6 +1957,7 @@ void try_offline_node(int nid)
->  			vfree(zone->wait_table);
->  	}
-> 
-> +out:
->  	/*
->  	 * Since there is no way to guarentee the address of pgdat/zone is not
->  	 * on stack of any kernel threads or used by other kernel objects
-
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
