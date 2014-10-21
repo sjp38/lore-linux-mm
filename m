@@ -1,121 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 96BFD82BDD
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 09:19:57 -0400 (EDT)
-Received: by mail-wg0-f41.google.com with SMTP id b13so1359403wgh.12
-        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 06:19:57 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id jt3si12479667wid.25.2014.10.21.06.19.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 21 Oct 2014 06:19:56 -0700 (PDT)
-Date: Tue, 21 Oct 2014 15:19:53 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 4/4] PM: convert do_each_thread to for_each_process_thread
-Message-ID: <20141021131953.GD9415@dhcp22.suse.cz>
-References: <1413876435-11720-1-git-send-email-mhocko@suse.cz>
- <1413876435-11720-5-git-send-email-mhocko@suse.cz>
- <2670728.8H9BNSArM8@vostro.rjw.lan>
+Received: from mail-la0-f48.google.com (mail-la0-f48.google.com [209.85.215.48])
+	by kanga.kvack.org (Postfix) with ESMTP id CE64F82BDD
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 09:22:03 -0400 (EDT)
+Received: by mail-la0-f48.google.com with SMTP id gi9so997665lab.21
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 06:22:01 -0700 (PDT)
+Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
+        by mx.google.com with SMTP id ui10si14664851lbb.62.2014.10.21.06.21.58
+        for <linux-mm@kvack.org>;
+        Tue, 21 Oct 2014 06:21:59 -0700 (PDT)
+From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Subject: Re: [PATCH 3/4] OOM, PM: OOM killed task shouldn't escape PM suspend
+Date: Tue, 21 Oct 2014 15:42:23 +0200
+Message-ID: <2156351.pWp6MNRoWm@vostro.rjw.lan>
+In-Reply-To: <20141021131445.GC9415@dhcp22.suse.cz>
+References: <1413876435-11720-1-git-send-email-mhocko@suse.cz> <3778374.avm26S62SZ@vostro.rjw.lan> <20141021131445.GC9415@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2670728.8H9BNSArM8@vostro.rjw.lan>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+To: Michal Hocko <mhocko@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
 
-On Tue 21-10-14 14:10:18, Rafael J. Wysocki wrote:
-> On Tuesday, October 21, 2014 09:27:15 AM Michal Hocko wrote:
-> > as per 0c740d0afc3b (introduce for_each_thread() to replace the buggy
-> > while_each_thread()) get rid of do_each_thread { } while_each_thread()
-> > construct and replace it by a more error prone for_each_thread.
+On Tuesday, October 21, 2014 03:14:45 PM Michal Hocko wrote:
+> On Tue 21-10-14 14:09:27, Rafael J. Wysocki wrote:
+> [...]
+> > > @@ -131,12 +132,40 @@ int freeze_processes(void)
+> > >  
+> > >  	printk("Freezing user space processes ... ");
+> > >  	pm_freezing = true;
+> > > +	oom_kills_saved = oom_kills_count();
+> > >  	error = try_to_freeze_tasks(true);
+> > >  	if (!error) {
+> > > -		printk("done.");
+> > >  		__usermodehelper_set_disable_depth(UMH_DISABLED);
+> > >  		oom_killer_disable();
+> > > +
+> > > +		/*
+> > > +		 * There might have been an OOM kill while we were
+> > > +		 * freezing tasks and the killed task might be still
+> > > +		 * on the way out so we have to double check for race.
+> > > +		 */
+> > > +		if (oom_kills_count() != oom_kills_saved) {
+> > > +			struct task_struct *g, *p;
+> > > +
+> > > +			read_lock(&tasklist_lock);
+> > > +			for_each_process_thread(g, p) {
+> > > +				if (p == current || freezer_should_skip(p) ||
+> > > +				    frozen(p))
+> > > +					continue;
+> > > +				error = -EBUSY;
+> > > +				goto out_loop;
+> > > +			}
+> > > +out_loop:
 > > 
-> > This patch doesn't introduce any user visible change.
+> > Well, it looks like this will work here too:
 > > 
-> > Suggested-by: Oleg Nesterov <oleg@redhat.com>
-> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > 			for_each_process_thread(g, p)
+> > 				if (p != current && !frozen(p) &&
+> > 				    !freezer_should_skip(p)) {
+> > 					error = -EBUSY;
+> > 					break;
+> > 				}
+> > 
+> > or I am helplessly misreading the code.
 > 
-> ACK
-> 
-> Or do you want me to handle this series?
+> break will not work because for_each_process_thread is a double loop.
 
-I don't know, I hoped either you or Andrew to pick it up.
+I see.  In that case I'd do:
 
-> > ---
-> >  kernel/power/process.c | 16 ++++++++--------
-> >  1 file changed, 8 insertions(+), 8 deletions(-)
-> > 
-> > diff --git a/kernel/power/process.c b/kernel/power/process.c
-> > index a397fa161d11..7fd7b72554fe 100644
-> > --- a/kernel/power/process.c
-> > +++ b/kernel/power/process.c
-> > @@ -46,13 +46,13 @@ static int try_to_freeze_tasks(bool user_only)
-> >  	while (true) {
-> >  		todo = 0;
-> >  		read_lock(&tasklist_lock);
-> > -		do_each_thread(g, p) {
-> > +		for_each_process_thread(g, p) {
-> >  			if (p == current || !freeze_task(p))
-> >  				continue;
-> >  
-> >  			if (!freezer_should_skip(p))
-> >  				todo++;
-> > -		} while_each_thread(g, p);
-> > +		}
-> >  		read_unlock(&tasklist_lock);
-> >  
-> >  		if (!user_only) {
-> > @@ -93,11 +93,11 @@ static int try_to_freeze_tasks(bool user_only)
-> >  
-> >  		if (!wakeup) {
-> >  			read_lock(&tasklist_lock);
-> > -			do_each_thread(g, p) {
-> > +			for_each_process_thread(g, p) {
-> >  				if (p != current && !freezer_should_skip(p)
-> >  				    && freezing(p) && !frozen(p))
-> >  					sched_show_task(p);
-> > -			} while_each_thread(g, p);
-> > +			}
-> >  			read_unlock(&tasklist_lock);
-> >  		}
-> >  	} else {
-> > @@ -219,11 +219,11 @@ void thaw_processes(void)
-> >  	thaw_workqueues();
-> >  
-> >  	read_lock(&tasklist_lock);
-> > -	do_each_thread(g, p) {
-> > +	for_each_process_thread(g, p) {
-> >  		/* No other threads should have PF_SUSPEND_TASK set */
-> >  		WARN_ON((p != curr) && (p->flags & PF_SUSPEND_TASK));
-> >  		__thaw_task(p);
-> > -	} while_each_thread(g, p);
-> > +	}
-> >  	read_unlock(&tasklist_lock);
-> >  
-> >  	WARN_ON(!(curr->flags & PF_SUSPEND_TASK));
-> > @@ -246,10 +246,10 @@ void thaw_kernel_threads(void)
-> >  	thaw_workqueues();
-> >  
-> >  	read_lock(&tasklist_lock);
-> > -	do_each_thread(g, p) {
-> > +	for_each_process_thread(g, p) {
-> >  		if (p->flags & (PF_KTHREAD | PF_WQ_WORKER))
-> >  			__thaw_task(p);
-> > -	} while_each_thread(g, p);
-> > +	}
-> >  	read_unlock(&tasklist_lock);
-> >  
-> >  	schedule();
-> > 
-> 
-> -- 
-> I speak only for myself.
-> Rafael J. Wysocki, Intel Open Source Technology Center.
+                        for_each_process_thread(g, p)
+                                if (p != current && !frozen(p) &&
+                                    !freezer_should_skip(p)) {
+
+					read_unlock(&tasklist_lock);
+
+					__usermodehelper_set_disable_depth(UMH_ENABLED);
+					printk("OOM in progress.");
+                                        error = -EBUSY;
+                                        goto done;
+                                }
+
+to avoid adding the new label that looks odd.
 
 -- 
-Michal Hocko
-SUSE Labs
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
