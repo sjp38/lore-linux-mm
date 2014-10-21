@@ -1,144 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B5826B0069
-	for <linux-mm@kvack.org>; Mon, 20 Oct 2014 22:31:06 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id v10so328605pde.20
-        for <linux-mm@kvack.org>; Mon, 20 Oct 2014 19:31:06 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id s9si9558054pdm.59.2014.10.20.19.31.02
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 20 Oct 2014 19:31:05 -0700 (PDT)
-From: Jijiagang <jijiagang@hisilicon.com>
-Subject: RE: UBIFS assert failed in ubifs_set_page_dirty at 1421
-Date: Tue, 21 Oct 2014 02:30:41 +0000
-Message-ID: <BE257DAADD2C0D439647A271332966573949F835@SZXEMA511-MBS.china.huawei.com>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D5656B0069
+	for <linux-mm@kvack.org>; Mon, 20 Oct 2014 23:38:52 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id kx10so439634pab.23
+        for <linux-mm@kvack.org>; Mon, 20 Oct 2014 20:38:52 -0700 (PDT)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id oe4si9560119pdb.197.2014.10.20.20.38.50
+        for <linux-mm@kvack.org>;
+        Mon, 20 Oct 2014 20:38:51 -0700 (PDT)
+Date: Tue, 21 Oct 2014 14:38:47 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: UBIFS assert failed in ubifs_set_page_dirty at 1421
+Message-ID: <20141021033847.GS17506@dastard>
 References: <BE257DAADD2C0D439647A271332966573949EFEC@SZXEMA511-MBS.china.huawei.com>
-	 <1413805935.7906.225.camel@sauron.fi.intel.com>
-	 <C3050A4DBA34F345975765E43127F10F62CC5D9B@SZXEMA512-MBX.china.huawei.com>
+ <1413805935.7906.225.camel@sauron.fi.intel.com>
+ <C3050A4DBA34F345975765E43127F10F62CC5D9B@SZXEMA512-MBX.china.huawei.com>
  <1413810719.7906.268.camel@sauron.fi.intel.com>
-In-Reply-To: <1413810719.7906.268.camel@sauron.fi.intel.com>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1413810719.7906.268.camel@sauron.fi.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "dedekind1@gmail.com" <dedekind1@gmail.com>, Caizhiyong <caizhiyong@hisilicon.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "adrian.hunter@intel.com" <adrian.hunter@intel.com>, "linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>, "Wanli
- (welly)" <welly.wan@hisilicon.com>, "Liuhui (B)" <liuhui88.liuhui@hisilicon.com>
+To: Artem Bityutskiy <dedekind1@gmail.com>
+Cc: Caizhiyong <caizhiyong@hisilicon.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, Jijiagang <jijiagang@hisilicon.com>, "adrian.hunter@intel.com" <adrian.hunter@intel.com>, "linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>, "Wanli (welly)" <welly.wan@hisilicon.com>
 
-SGksDQpUaGFua3MgZm9yIHlvdXIgcmVwbHkuDQoNCj4gZmlyc3Qgb2YgYWxsLCB3aGF0IGlzIHlv
-dXIgYXJjaGl0ZWN0dXJlPyBBUk0/IEFuZCBob3cgZWFzaWx5IGNhbiB5b3UgcmVwcm9kdWNlIHRo
-aXM/IEFuZCBjYW4geW91IHRyeSBhIGtlcm5lbCBuZXdlciB0aGFuIDMuMTA/DQpUaGUgYXJjaGl0
-ZWN0dXJlIGlzIEFSTS4gSXQgY2FuIGJlIHJlcHJvZHVjZWQgaW4gYWJvdXQgMTAgbWludXRlcyBi
-eSBydW4gTW9ua2V5IHRlc3QuDQpUaGUgdGVzdCBjb21tYW5kIGlzOg0KbW9ua2V5IC1zIDEwMDAg
-LS1pZ25vcmUtY3Jhc2hlcyAtLWlnbm9yZS10aW1lb3V0cyAtLWlnbm9yZS1zZWN1cml0eS1leGNl
-cHRpb25zIC0tcGN0LXRyYWNrYmFsbCAwIC0tcGN0LW5hdiAwIC0tcGN0LW1ham9ybmF2IDAgLS1w
-Y3QtYW55ZXZlbnQgMCAtdiAtdiAtdiAtLXRocm90dGxlIDMwMCAxMjAwMDAwMDAwID4gL3NkY2Fy
-ZC9tb25rZXkubG9nIDI+JjEgJg0KDQpXZSBoYXZlIHNlYXJjaGVkIGNvbW1pdHMgaW4gdGhlIGxp
-bnV4IHN0YWJsZSBnaXQgcmVwb3NpdG9yeSwgYnV0IGZvdW5kIG5vIHJlbGF0ZWQgY29tbWl0cy4N
-Cg0KTG93bW9tZXJ5IGtpbGxlciBzdGFydHMgb2Z0ZW4gb24gYW5kcm9pZCBwbGF0Zm9ybS4NCg0K
-PiBOb3cgdGhlIHF1ZXN0aW9uIGlzOiBpcyBpdCBVQklGUyB3aGljaCBoYXMgaW5jb3JyZWN0IGFz
-c3VtcHRpb25zLCBvciB0aGlzIGlzIHRoZSBMaW51eCBNTSB3aGljaCBpcyBub3QgZG9pbmcgdGhl
-IHJpZ2h0IHRoaW5nPyBJIGRvIG5vdCBrbm93IHRoZSBhbnN3ZXIsIGxldCdzIHNlZSBpZiB0aGUg
-TU0gbGlzdCBtYXkgZ2l2ZSB1cyBhIGNsdWUuDQpQbGVhc2UgZ2l2ZSB1cyBhIGhhbmQsIGFueSBy
-ZXBseSB3aWxsIGJlIGFwcHJlY2lhdGVkLiANCg0KVGhhbmtzIQ0KDQotLS0tLU9yaWdpbmFsIE1l
-c3NhZ2UtLS0tLQ0KRnJvbTogQXJ0ZW0gQml0eXV0c2tpeSBbbWFpbHRvOmRlZGVraW5kMUBnbWFp
-bC5jb21dIA0KU2VudDogTW9uZGF5LCBPY3RvYmVyIDIwLCAyMDE0IDk6MTIgUE0NClRvOiBDYWl6
-aGl5b25nOyBsaW51eC1mc2RldmVsQHZnZXIua2VybmVsLm9yZzsgbGludXgtbW1Aa3ZhY2sub3Jn
-DQpDYzogSmlqaWFnYW5nOyBhZHJpYW4uaHVudGVyQGludGVsLmNvbTsgbGludXgtbXRkQGxpc3Rz
-LmluZnJhZGVhZC5vcmc7IFdhbmxpICh3ZWxseSkNClN1YmplY3Q6IFJlOiBVQklGUyBhc3NlcnQg
-ZmFpbGVkIGluIHViaWZzX3NldF9wYWdlX2RpcnR5IGF0IDE0MjENCg0KSGksDQoNCmZpcnN0IG9m
-IGFsbCwgd2hhdCBpcyB5b3VyIGFyY2hpdGVjdHVyZT8gQVJNPyBBbmQgaG93IGVhc2lseSBjYW4g
-eW91IHJlcHJvZHVjZSB0aGlzPyBBbmQgY2FuIHlvdSB0cnkgYSBrZXJuZWwgbmV3ZXIgdGhhbiAz
-LjEwPw0KDQpBbmQgZm9yIGZzLWRldmVsIGFuZCBtbSBwZW9wbGUsIGhlcmUgaXMgdGhlIGxpbmsg
-dG8gdGhlIG9yaWdpbmFsIHJlcG9ydDoNCmh0dHA6Ly9saXN0cy5pbmZyYWRlYWQub3JnL3BpcGVy
-bWFpbC9saW51eC1tdGQvMjAxNC1PY3RvYmVyLzA1NTkzMC5odG1sLCANCg0KT24gTW9uLCAyMDE0
-LTEwLTIwIGF0IDEyOjAxICswMDAwLCBDYWl6aGl5b25nIHdyb3RlOg0KPiBIZXJlIGlzIHBhcnQg
-b2YgdGhlIGxvZywgbGludXggdmVyc2lvbiAzLjEwOg0KPiAgICBjYWNoZSAxNjI0MGtCIGlzIGJl
-bG93IGxpbWl0IDE2Mzg0a0IgZm9yIG9vbV9zY29yZV9hZGogNTI5DQo+ICAgIEZyZWUgbWVtb3J5
-IGlzIC0xODIwa0IgYWJvdmUgcmVzZXJ2ZWQNCj4gbG93bWVtb3J5a2lsbGVyOiBLaWxsaW5nICcu
-bmV0d29ya3VwZ3JhZGUnICg2OTI0KSwgYWRqIDcwNSwNCj4gICAgdG8gZnJlZSAyMDk2OGtCIG9u
-IGJlaGFsZiBvZiAna3N3YXBkMCcgKDU0MykgYmVjYXVzZQ0KPiAgICBjYWNoZSAxNjI0MGtCIGlz
-IGJlbG93IGxpbWl0IDE2Mzg0a0IgZm9yIG9vbV9zY29yZV9hZGogNTI5DQo+ICAgIEZyZWUgbWVt
-b3J5IGlzIC0yMTkya0IgYWJvdmUgcmVzZXJ2ZWQNCg0KT0ssIG5vIG1lbW9yeSBhbmQgT09NIHN0
-YXJ0cy4gU28geW91ciBzeXN0ZW0gaXMgaW4gdHJvdWJsZSBhbnl3YXkgOi0pDQoNCj4gVUJJRlMg
-YXNzZXJ0IGZhaWxlZCBpbiB1Ymlmc19zZXRfcGFnZV9kaXJ0eSBhdCAxNDIxIChwaWQgNTQzKQ0K
-DQpVQklGUyBjb21wbGFpbiBoZXJlIHRoYXQgc29tZW9uZSBtYXJrcyBhIHBhZ2UgYXMgZGlydHkg
-ImRpcmVjdGx5Iiwgbm90IHRocm91Z2ggb25lIG9mIHRoZSBVQklGUyBmdW5jdGlvbnMuIEFuZCB0
-aGF0IHNvbWVvbmUgaXMgdGhlIHBhZ2UgcmVjbGFpbSBwYXRoLg0KDQpOb3csIEkgZG8gbm90IHJl
-YWxseSBrbm93IHdoYXQgaXMgZ29pbmcgb24gaGVyZSwgc28gSSBhbSBDQ2luZyBhIGNvdXBsZSBv
-ZiBtYWlsaW5nIGxpc3RzLCBtYXkgYmUgc29tZW9uZSB3aWxsIGhlbHAuDQoNCkhlcmUgaXMgd2hh
-dCBJIHNlZSBpcyBnb2luZyBvbi4NCg0KMS4gVUJJRlMgd2FudHMgdG8gbWFrZSBzdXJlIHRoYXQg
-bm8gb25lIG1hcmtzIFVCSUZTLWJhY2tlZCBwYWdlcyAoYW5kIGFjdHVhbGx5IGlub2RlcyB0b28p
-IGFzIGRpcnR5IGRpcmVjdGx5LiBVQklGUyB3YW50cyBldmVyeW9uZSB0byBhc2sgVUJJRlMgdG8g
-bWFyayBhIHBhZ2UgYXMgZGlydHkuDQoNCjIuIFRoaXMgaXMgYmVjYXVzZSBmb3IgZXZlcnkgZGly
-dHkgcGFnZSwgVUJJRlMgbmVlZHMgdG8gcmVzZXJ2ZSBjZXJ0YWluIGFtb3VudCBvZiBzcGFjZSBv
-biB0aGUgZmxhc2ggbWVkaWEsIGJlY2F1c2UgYWxsIHdyaXRlcyBhcmUgb3V0LW9mLXBsYWNlLCBl
-dmVuIHdoZW4geW91IGFyZSBjaGFuZ2luZyBhbiBleGlzdGluZyBmaWxlLg0KDQozLiBUaGVyZSBh
-cmUgZXhhY3RseSAyIHBsYWNlcyB3aGVyZSBVQklGUy1iYWNrZWQgcGFnZXMgbWF5IGJlIG1hcmtl
-ZCBhcw0KZGlydHk6DQoNCiAgYSkgdWJpZnNfd3JpdGVfZW5kKCkgWy0+d2lydGVfZW5kXSAtIHRo
-ZSBmaWxlIHdyaXRlIHBhdGgNCiAgYikgdWJpZnNfcGFnZV9ta3dyaXRlKCkgWy0+cGFnZV9ta3dp
-cnRlXSAtIHRoZSBmaWxlIG1tYXAoKSBwYXRoDQoNCjQuIElmIGFueXRoaW5nIGNhbGxzICd1Ymlm
-c19zZXRfcGFnZV9kaXJ0eSgpJyBkaXJlY3RseSAobm90IHRocm91Z2ggd3JpdGVfZW5kKCkvbWt3
-cml0ZSgpKSwgYW5kIHRoZSBwYWdlIHdhcyBub3QgZGlydHksIFVCSUZTIHdpbGwgY29tcGxhaW4g
-d2l0aCB0aGUgYXNzZXJ0aW9uIHRoYXQgeW91IHNlZS4NCg0KPiBDUFU6IDMgUElEOiA1NDMgQ29t
-bToga3N3YXBkMCBUYWludGVkOiBQICAgICAgICAgICBPIDMuMTAuMF9zNDAgIzENCj4gWzw4MDAx
-ZDhhMD5dICh1bndpbmRfYmFja3RyYWNlKzB4MC8weDEwOCkgZnJvbSBbPDgwMDE5ZjQ0Pl0gDQo+
-IChzaG93X3N0YWNrKzB4MjAvMHgyNCkgWzw4MDAxOWY0ND5dIChzaG93X3N0YWNrKzB4MjAvMHgy
-NCkgZnJvbSANCj4gWzw4MGFmMmVmOD5dIChkdW1wX3N0YWNrKzB4MjQvMHgyYykgWzw4MGFmMmVm
-OD5dIA0KPiAoZHVtcF9zdGFjaysweDI0LzB4MmMpIGZyb20gWzw4MDI5NzIzND5dIA0KPiAodWJp
-ZnNfc2V0X3BhZ2VfZGlydHkrMHg1NC8weDVjKSBbPDgwMjk3MjM0Pl0gDQo+ICh1Ymlmc19zZXRf
-cGFnZV9kaXJ0eSsweDU0LzB4NWMpIGZyb20gWzw4MDBjZWE2MD5dIA0KPiAoc2V0X3BhZ2VfZGly
-dHkrMHg1MC8weDc4KSBbPDgwMGNlYTYwPl0gKHNldF9wYWdlX2RpcnR5KzB4NTAvMHg3OCkgDQo+
-IGZyb20gWzw4MDBmNGJlND5dICh0cnlfdG9fdW5tYXBfb25lKzB4MWY4LzB4M2QwKSBbPDgwMGY0
-YmU0Pl0gDQo+ICh0cnlfdG9fdW5tYXBfb25lKzB4MWY4LzB4M2QwKSBmcm9tIFs8ODAwZjRmNDQ+
-XSANCj4gKHRyeV90b191bm1hcF9maWxlKzB4OWMvMHg3NDApIFs8ODAwZjRmNDQ+XSANCj4gKHRy
-eV90b191bm1hcF9maWxlKzB4OWMvMHg3NDApIGZyb20gWzw4MDBmNTY3OD5dIA0KPiAodHJ5X3Rv
-X3VubWFwKzB4NDAvMHg3OCkgWzw4MDBmNTY3OD5dICh0cnlfdG9fdW5tYXArMHg0MC8weDc4KSBm
-cm9tIA0KPiBbPDgwMGQ2YTA0Pl0gKHNocmlua19wYWdlX2xpc3QrMHgyM2MvMHg4ODQpIFs8ODAw
-ZDZhMDQ+XSANCj4gKHNocmlua19wYWdlX2xpc3QrMHgyM2MvMHg4ODQpIGZyb20gWzw4MDBkNzZj
-OD5dIA0KPiAoc2hyaW5rX2luYWN0aXZlX2xpc3QrMHgyMWMvMHgzYzgpDQo+IFs8ODAwZDc2Yzg+
-XSAoc2hyaW5rX2luYWN0aXZlX2xpc3QrMHgyMWMvMHgzYzgpIGZyb20gWzw4MDBkN2MyMD5dIA0K
-PiAoc2hyaW5rX2xydXZlYysweDNhYy8weDUyNCkgWzw4MDBkN2MyMD5dIChzaHJpbmtfbHJ1dmVj
-KzB4M2FjLzB4NTI0KSANCj4gZnJvbSBbPDgwMGQ4OTcwPl0gKGtzd2FwZCsweDg1NC8weGRjMCkg
-Wzw4MDBkODk3MD5dIA0KPiAoa3N3YXBkKzB4ODU0LzB4ZGMwKSBmcm9tIFs8ODAwNTFlMjg+XSAo
-a3RocmVhZCsweGM4LzB4Y2MpIA0KPiBbPDgwMDUxZTI4Pl0gKGt0aHJlYWQrMHhjOC8weGNjKSBm
-cm9tIFs8ODAwMTUxOTg+XSANCj4gKHJldF9mcm9tX2ZvcmsrMHgxNC8weDIwKQ0KDQoNClNvIHRo
-ZSByZWNsYWltIHBhdGggc2VlbXMgdG8gYmUgbWFya2luZyBVQklGUy1iYWNrZWQgcGFnZXMgYXMg
-ZGlydHkgZGlyZWN0bHksIEkgZG8gbm90IGtub3cgd2h5LCB0aGUgcmVjbGFpbSBwYXRoIGlzIGV4
-dHJlbWVseSBjb21wbGV4IGFuZCBJIGFtIG5vIGV4cGVydCB0aGVyZS4gQnV0IG1heSBiZSBzb21l
-b25lIG9uIHRoZSBNTSBsaXN0IG1heSBoZWxwLg0KDQpOb3RlLCB0aGlzIHdhcm5pbmcgaXMgbm90
-IG5lY2Vzc2FyaWx5IGZhdGFsLiBJdCBqdXN0IGluZGljYXRlcyB0aGF0IFVCSUZTIHNlZXMgc29t
-ZXRoaW5nIHdoaWNoIGl0IGJlbGlldmVzIHNob3VsZCBub3QgaGFwcGVuLg0KDQo+IFVCSUZTIGFz
-c2VydCBmYWlsZWQgaW4gZG9fd3JpdGVwYWdlIGF0IDkzNiAocGlkIDU0MykNCj4gQ1BVOiAxIFBJ
-RDogNTQzIENvbW06IGtzd2FwZDAgVGFpbnRlZDogUCAgICAgICAgICAgTyAzLjEwLjBfczQwICMx
-DQo+IFs8ODAwMWQ4YTA+XSAodW53aW5kX2JhY2t0cmFjZSsweDAvMHgxMDgpIGZyb20gWzw4MDAx
-OWY0ND5dIA0KPiAoc2hvd19zdGFjaysweDIwLzB4MjQpIFs8ODAwMTlmNDQ+XSAoc2hvd19zdGFj
-aysweDIwLzB4MjQpIGZyb20gDQo+IFs8ODBhZjJlZjg+XSAoZHVtcF9zdGFjaysweDI0LzB4MmMp
-IFs8ODBhZjJlZjg+XSANCj4gKGR1bXBfc3RhY2srMHgyNC8weDJjKSBmcm9tIFs8ODAyOTkwYjg+
-XSAoZG9fd3JpdGVwYWdlKzB4MWI4LzB4MWM0KSANCj4gWzw4MDI5OTBiOD5dIChkb193cml0ZXBh
-Z2UrMHgxYjgvMHgxYzQpIGZyb20gWzw4MDI5OTFlOD5dIA0KPiAodWJpZnNfd3JpdGVwYWdlKzB4
-MTI0LzB4MWRjKSBbPDgwMjk5MWU4Pl0gDQo+ICh1Ymlmc193cml0ZXBhZ2UrMHgxMjQvMHgxZGMp
-IGZyb20gWzw4MDBkNmViOD5dIA0KPiAoc2hyaW5rX3BhZ2VfbGlzdCsweDZmMC8weDg4NCkgWzw4
-MDBkNmViOD5dIA0KPiAoc2hyaW5rX3BhZ2VfbGlzdCsweDZmMC8weDg4NCkgZnJvbSBbPDgwMGQ3
-NmM4Pl0gDQo+IChzaHJpbmtfaW5hY3RpdmVfbGlzdCsweDIxYy8weDNjOCkNCj4gWzw4MDBkNzZj
-OD5dIChzaHJpbmtfaW5hY3RpdmVfbGlzdCsweDIxYy8weDNjOCkgZnJvbSBbPDgwMGQ3YzIwPl0g
-DQo+IChzaHJpbmtfbHJ1dmVjKzB4M2FjLzB4NTI0KSBbPDgwMGQ3YzIwPl0gKHNocmlua19scnV2
-ZWMrMHgzYWMvMHg1MjQpIA0KPiBmcm9tIFs8ODAwZDg5NzA+XSAoa3N3YXBkKzB4ODU0LzB4ZGMw
-KSBbPDgwMGQ4OTcwPl0gDQo+IChrc3dhcGQrMHg4NTQvMHhkYzApIGZyb20gWzw4MDA1MWUyOD5d
-IChrdGhyZWFkKzB4YzgvMHhjYykgDQo+IFs8ODAwNTFlMjg+XSAoa3RocmVhZCsweGM4LzB4Y2Mp
-IGZyb20gWzw4MDAxNTE5OD5dIA0KPiAocmV0X2Zyb21fZm9yaysweDE0LzB4MjApDQoNCkFuZCBo
-ZXJlIFVCSUZTIHNlZXMgYSBwYWdlIGJlaW5nIHdyaXR0ZWQsIGJ1dCB0aGVyZSBpcyBubyBidWRn
-ZXQgYWxsb2NhdGVkIGZvciBpdCwgc28gdGhlIHdyaXRlIG1heSBmYWlsIHdpdGggLUVOT1NQQyAo
-bm8gc3BhY2UpLCB3aGljaCBpcyBub3Qgc3VwcG9zZWQgdG8gZXZlciBoYXBwZW4uDQoNClRoaXMg
-aXMgbm90IG5lY2Vzc2FyaWx5IGZhdGFsIGVpdGhlciwgYnV0IGluZGljYXRlcyB0aGF0IFVCSUZT
-J3MgYXNzdW1wdGlvbnMgYWJvdXQgaG93IHRoZSBzeXN0ZW0gZnVuY3Rpb25zIGFyZSB3cm9uZy4N
-Cg0KTm93IHRoZSBxdWVzdGlvbiBpczogaXMgaXQgVUJJRlMgd2hpY2ggaGFzIGluY29ycmVjdCBh
-c3N1bXB0aW9ucywgb3IgdGhpcyBpcyB0aGUgTGludXggTU0gd2hpY2ggaXMgbm90IGRvaW5nIHRo
-ZSByaWdodCB0aGluZz8gSSBkbyBub3Qga25vdyB0aGUgYW5zd2VyLCBsZXQncyBzZWUgaWYgdGhl
-IE1NIGxpc3QgbWF5IGdpdmUgdXMgYSBjbHVlLg0KDQpUaGFua3MhDQoNCg==
+On Mon, Oct 20, 2014 at 04:11:59PM +0300, Artem Bityutskiy wrote:
+> 3. There are exactly 2 places where UBIFS-backed pages may be marked as
+> dirty:
+> 
+>   a) ubifs_write_end() [->wirte_end] - the file write path
+>   b) ubifs_page_mkwrite() [->page_mkwirte] - the file mmap() path
+> 
+> 4. If anything calls 'ubifs_set_page_dirty()' directly (not through
+> write_end()/mkwrite()), and the page was not dirty, UBIFS will complain
+> with the assertion that you see.
+> 
+> > CPU: 3 PID: 543 Comm: kswapd0 Tainted: P           O 3.10.0_s40 #1
+
+Kernel is tainted. Not worth wasting time on unless it can be
+reproduced on an untainted kernel...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
