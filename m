@@ -1,96 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 56B1D82BDD
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 08:53:04 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id rd3so640167pab.41
-        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 05:53:04 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id bd15si11091080pdb.71.2014.10.21.05.53.02
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C77182BDD
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 09:14:50 -0400 (EDT)
+Received: by mail-wg0-f42.google.com with SMTP id z12so1329022wgg.13
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 06:14:49 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id lc5si14477947wjc.104.2014.10.21.06.14.46
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Oct 2014 05:53:03 -0700 (PDT)
-Date: Tue, 21 Oct 2014 16:52:52 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [patch 1/4] mm: memcontrol: uncharge pages on swapout
-Message-ID: <20141021125252.GN16496@esperanza>
-References: <1413818532-11042-1-git-send-email-hannes@cmpxchg.org>
- <1413818532-11042-2-git-send-email-hannes@cmpxchg.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 21 Oct 2014 06:14:46 -0700 (PDT)
+Date: Tue, 21 Oct 2014 15:14:45 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/4] OOM, PM: OOM killed task shouldn't escape PM suspend
+Message-ID: <20141021131445.GC9415@dhcp22.suse.cz>
+References: <1413876435-11720-1-git-send-email-mhocko@suse.cz>
+ <1413876435-11720-4-git-send-email-mhocko@suse.cz>
+ <3778374.avm26S62SZ@vostro.rjw.lan>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1413818532-11042-2-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <3778374.avm26S62SZ@vostro.rjw.lan>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
 
-On Mon, Oct 20, 2014 at 11:22:09AM -0400, Johannes Weiner wrote:
-> mem_cgroup_swapout() is called with exclusive access to the page at
-> the end of the page's lifetime.  Instead of clearing the PCG_MEMSW
-> flag and deferring the uncharge, just do it right away.  This allows
-> follow-up patches to simplify the uncharge code.
+On Tue 21-10-14 14:09:27, Rafael J. Wysocki wrote:
+[...]
+> > @@ -131,12 +132,40 @@ int freeze_processes(void)
+> >  
+> >  	printk("Freezing user space processes ... ");
+> >  	pm_freezing = true;
+> > +	oom_kills_saved = oom_kills_count();
+> >  	error = try_to_freeze_tasks(true);
+> >  	if (!error) {
+> > -		printk("done.");
+> >  		__usermodehelper_set_disable_depth(UMH_DISABLED);
+> >  		oom_killer_disable();
+> > +
+> > +		/*
+> > +		 * There might have been an OOM kill while we were
+> > +		 * freezing tasks and the killed task might be still
+> > +		 * on the way out so we have to double check for race.
+> > +		 */
+> > +		if (oom_kills_count() != oom_kills_saved) {
+> > +			struct task_struct *g, *p;
+> > +
+> > +			read_lock(&tasklist_lock);
+> > +			for_each_process_thread(g, p) {
+> > +				if (p == current || freezer_should_skip(p) ||
+> > +				    frozen(p))
+> > +					continue;
+> > +				error = -EBUSY;
+> > +				goto out_loop;
+> > +			}
+> > +out_loop:
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  mm/memcontrol.c | 17 +++++++++++++----
->  1 file changed, 13 insertions(+), 4 deletions(-)
+> Well, it looks like this will work here too:
 > 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index bea3fddb3372..7709f17347f3 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -5799,6 +5799,7 @@ static void __init enable_swap_cgroup(void)
->   */
->  void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
->  {
-> +	struct mem_cgroup *memcg;
->  	struct page_cgroup *pc;
->  	unsigned short oldid;
->  
-> @@ -5815,13 +5816,21 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
->  		return;
->  
->  	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEMSW), page);
-> +	memcg = pc->mem_cgroup;
->  
-> -	oldid = swap_cgroup_record(entry, mem_cgroup_id(pc->mem_cgroup));
-> +	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg));
->  	VM_BUG_ON_PAGE(oldid, page);
-> +	mem_cgroup_swap_statistics(memcg, true);
->  
-> -	pc->flags &= ~PCG_MEMSW;
-> -	css_get(&pc->mem_cgroup->css);
-> -	mem_cgroup_swap_statistics(pc->mem_cgroup, true);
-> +	pc->flags = 0;
-> +
-> +	if (!mem_cgroup_is_root(memcg))
-> +		page_counter_uncharge(&memcg->memory, 1);
-
-AFAIU it removes batched uncharge of swapped out pages, doesn't it? Will
-it affect performance?
-
-Besides, it looks asymmetric with respect to the page cache uncharge
-path, where we still defer uncharge to mem_cgroup_uncharge_list(), and I
-personally rather dislike this asymmetry.
-
-> +
-> +	local_irq_disable();
-> +	mem_cgroup_charge_statistics(memcg, page, -1);
-> +	memcg_check_events(memcg, page);
-> +	local_irq_enable();
-
-AFAICT mem_cgroup_swapout() is called under mapping->tree_lock with irqs
-disabled, so we should use irq_save/restore here.
-
-Thanks,
-Vladimir
-
->  }
->  
->  /**
-> -- 
-> 2.1.2
+> 			for_each_process_thread(g, p)
+> 				if (p != current && !frozen(p) &&
+> 				    !freezer_should_skip(p)) {
+> 					error = -EBUSY;
+> 					break;
+> 				}
 > 
+> or I am helplessly misreading the code.
+
+break will not work because for_each_process_thread is a double loop.
+Except for that the negated condition is OK as well. I can change that
+if you prefer.
+
+> > +			read_unlock(&tasklist_lock);
+> > +
+> > +			if (error) {
+> > +				__usermodehelper_set_disable_depth(UMH_ENABLED);
+> > +				printk("OOM in progress.");
+> > +				goto done;
+> > +			}
+> > +		}
+> > +		printk("done.");
+> >  	}
+> > +done:
+> >  	printk("\n");
+> >  	BUG_ON(in_atomic());
+> >  
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
