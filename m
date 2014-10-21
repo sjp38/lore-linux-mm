@@ -1,66 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 049D26B0072
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 11:58:41 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id y10so1617718pdj.13
-        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 08:58:41 -0700 (PDT)
-Received: from foss-mx-na.foss.arm.com (foss-mx-na.foss.arm.com. [217.140.108.86])
-        by mx.google.com with ESMTP id h2si11656341pdk.90.2014.10.21.08.58.40
-        for <linux-mm@kvack.org>;
-        Tue, 21 Oct 2014 08:58:41 -0700 (PDT)
-Date: Tue, 21 Oct 2014 16:58:22 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH] mm/kmemleak: Do not skip stack frames
-Message-ID: <20141021155821.GB17528@e104818-lin.cambridge.arm.com>
-References: <1413893969-25798-1-git-send-email-thierry.reding@gmail.com>
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id EEC226B0081
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 12:23:50 -0400 (EDT)
+Received: by mail-wi0-f169.google.com with SMTP id r20so2419994wiv.2
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 09:23:50 -0700 (PDT)
+Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com. [2a00:1450:400c:c05::231])
+        by mx.google.com with ESMTPS id n6si15326174wjx.83.2014.10.21.09.23.47
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 21 Oct 2014 09:23:47 -0700 (PDT)
+Received: by mail-wi0-f177.google.com with SMTP id fb4so2398319wid.4
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 09:23:47 -0700 (PDT)
+Date: Tue, 21 Oct 2014 18:23:40 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [RFC][PATCH 0/6] Another go at speculative page faults
+Message-ID: <20141021162340.GA5508@gmail.com>
+References: <20141020215633.717315139@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1413893969-25798-1-git-send-email-thierry.reding@gmail.com>
+In-Reply-To: <20141020215633.717315139@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thierry Reding <thierry.reding@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: torvalds@linux-foundation.org, paulmck@linux.vnet.ibm.com, tglx@linutronix.de, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, oleg@redhat.com, mingo@redhat.com, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, viro@zeniv.linux.org.uk, laijs@cn.fujitsu.com, dave@stgolabs.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Oct 21, 2014 at 01:19:29PM +0100, Thierry Reding wrote:
-> From: Thierry Reding <treding@nvidia.com>
+
+* Peter Zijlstra <peterz@infradead.org> wrote:
+
+> My Ivy Bridge EP (2*10*2) has a ~58% improvement in pagefault throughput:
 > 
-> Trying to chase down memory leaks is much easier when the complete stack
-> trace is available.
+> PRE:
+>        149,441,555      page-faults                  ( +-  1.25% )
+>
+> POST:
+>        236,442,626      page-faults                  ( +-  0.08% )
+
+> My Ivy Bridge EX (4*15*2) has a ~78% improvement in pagefault throughput:
 > 
-> Signed-off-by: Thierry Reding <treding@nvidia.com>
-> ---
-> It seems like this was initially set to 1 when merged in commit
-> 3c7b4e6b8be4 (kmemleak: Add the base support) and later increased to 2
-> in commit fd6789675ebf (kmemleak: Save the stack trace for early
-> allocations). Perhaps there was a reason to skip the first few frames,
-> but I've certainly found it difficult to find leaks when the stack trace
-> doesn't point at the proper location.
-> ---
->  mm/kmemleak.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-> index 3cda50c1e394..55d9ad0f40d4 100644
-> --- a/mm/kmemleak.c
-> +++ b/mm/kmemleak.c
-> @@ -503,7 +503,7 @@ static int __save_stack_trace(unsigned long *trace)
->  	stack_trace.max_entries = MAX_TRACE;
->  	stack_trace.nr_entries = 0;
->  	stack_trace.entries = trace;
-> -	stack_trace.skip = 2;
-> +	stack_trace.skip = 0;
+> PRE:
+>        105,789,078      page-faults                 ( +-  2.24% )
+>
+> POST:
+>        187,751,767      page-faults                 ( +-  2.24% )
 
-The reason for this was to avoid listing some of the kmemleak internals
-(kmemleak_alloc -> create_object -> __save_stack_trace). I can see how
-inlining of __save_stack_trace() would cause some of the last frames to
-be missed. I would still prefer to keep it at 1 rather than 0?
+I guess the 'PRE' and 'POST' numbers should be flipped around?
 
-Which architecture are you testing on? What's the additional trace you
-get with this patch?
+Thanks,
 
--- 
-Catalin
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
