@@ -1,57 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id E5BE782BDD
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 08:19:34 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id lf10so1310482pab.2
-        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 05:19:34 -0700 (PDT)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id i7si4070286pdo.22.2014.10.21.05.19.33
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 56B1D82BDD
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 08:53:04 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id rd3so640167pab.41
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 05:53:04 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id bd15si11091080pdb.71.2014.10.21.05.53.02
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 21 Oct 2014 05:19:33 -0700 (PDT)
-Received: by mail-pa0-f52.google.com with SMTP id fb1so1305654pad.11
-        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 05:19:33 -0700 (PDT)
-From: Thierry Reding <thierry.reding@gmail.com>
-Subject: [PATCH] mm/kmemleak: Do not skip stack frames
-Date: Tue, 21 Oct 2014 14:19:29 +0200
-Message-Id: <1413893969-25798-1-git-send-email-thierry.reding@gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Oct 2014 05:53:03 -0700 (PDT)
+Date: Tue, 21 Oct 2014 16:52:52 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [patch 1/4] mm: memcontrol: uncharge pages on swapout
+Message-ID: <20141021125252.GN16496@esperanza>
+References: <1413818532-11042-1-git-send-email-hannes@cmpxchg.org>
+ <1413818532-11042-2-git-send-email-hannes@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <1413818532-11042-2-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-From: Thierry Reding <treding@nvidia.com>
+On Mon, Oct 20, 2014 at 11:22:09AM -0400, Johannes Weiner wrote:
+> mem_cgroup_swapout() is called with exclusive access to the page at
+> the end of the page's lifetime.  Instead of clearing the PCG_MEMSW
+> flag and deferring the uncharge, just do it right away.  This allows
+> follow-up patches to simplify the uncharge code.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  mm/memcontrol.c | 17 +++++++++++++----
+>  1 file changed, 13 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index bea3fddb3372..7709f17347f3 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -5799,6 +5799,7 @@ static void __init enable_swap_cgroup(void)
+>   */
+>  void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+>  {
+> +	struct mem_cgroup *memcg;
+>  	struct page_cgroup *pc;
+>  	unsigned short oldid;
+>  
+> @@ -5815,13 +5816,21 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+>  		return;
+>  
+>  	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEMSW), page);
+> +	memcg = pc->mem_cgroup;
+>  
+> -	oldid = swap_cgroup_record(entry, mem_cgroup_id(pc->mem_cgroup));
+> +	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg));
+>  	VM_BUG_ON_PAGE(oldid, page);
+> +	mem_cgroup_swap_statistics(memcg, true);
+>  
+> -	pc->flags &= ~PCG_MEMSW;
+> -	css_get(&pc->mem_cgroup->css);
+> -	mem_cgroup_swap_statistics(pc->mem_cgroup, true);
+> +	pc->flags = 0;
+> +
+> +	if (!mem_cgroup_is_root(memcg))
+> +		page_counter_uncharge(&memcg->memory, 1);
 
-Trying to chase down memory leaks is much easier when the complete stack
-trace is available.
+AFAIU it removes batched uncharge of swapped out pages, doesn't it? Will
+it affect performance?
 
-Signed-off-by: Thierry Reding <treding@nvidia.com>
----
-It seems like this was initially set to 1 when merged in commit
-3c7b4e6b8be4 (kmemleak: Add the base support) and later increased to 2
-in commit fd6789675ebf (kmemleak: Save the stack trace for early
-allocations). Perhaps there was a reason to skip the first few frames,
-but I've certainly found it difficult to find leaks when the stack trace
-doesn't point at the proper location.
----
- mm/kmemleak.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Besides, it looks asymmetric with respect to the page cache uncharge
+path, where we still defer uncharge to mem_cgroup_uncharge_list(), and I
+personally rather dislike this asymmetry.
 
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 3cda50c1e394..55d9ad0f40d4 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -503,7 +503,7 @@ static int __save_stack_trace(unsigned long *trace)
- 	stack_trace.max_entries = MAX_TRACE;
- 	stack_trace.nr_entries = 0;
- 	stack_trace.entries = trace;
--	stack_trace.skip = 2;
-+	stack_trace.skip = 0;
- 	save_stack_trace(&stack_trace);
- 
- 	return stack_trace.nr_entries;
--- 
-2.1.2
+> +
+> +	local_irq_disable();
+> +	mem_cgroup_charge_statistics(memcg, page, -1);
+> +	memcg_check_events(memcg, page);
+> +	local_irq_enable();
+
+AFAICT mem_cgroup_swapout() is called under mapping->tree_lock with irqs
+disabled, so we should use irq_save/restore here.
+
+Thanks,
+Vladimir
+
+>  }
+>  
+>  /**
+> -- 
+> 2.1.2
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
