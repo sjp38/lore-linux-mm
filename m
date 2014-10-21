@@ -1,100 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id C71396B0073
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 03:27:38 -0400 (EDT)
-Received: by mail-wi0-f169.google.com with SMTP id r20so1088423wiv.2
-        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 00:27:38 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id wi7si13105593wjb.150.2014.10.21.00.27.36
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id ADE226B007B
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 04:07:51 -0400 (EDT)
+Received: by mail-wg0-f46.google.com with SMTP id l18so687185wgh.17
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 01:07:50 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id pz9si13317114wjc.69.2014.10.21.01.07.47
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 21 Oct 2014 00:27:37 -0700 (PDT)
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH 4/4] PM: convert do_each_thread to for_each_process_thread
-Date: Tue, 21 Oct 2014 09:27:15 +0200
-Message-Id: <1413876435-11720-5-git-send-email-mhocko@suse.cz>
-In-Reply-To: <1413876435-11720-1-git-send-email-mhocko@suse.cz>
-References: <1413876435-11720-1-git-send-email-mhocko@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Oct 2014 01:07:47 -0700 (PDT)
+Date: Tue, 21 Oct 2014 10:07:40 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC][PATCH 4/6] SRCU free VMAs
+Message-ID: <20141021080740.GJ23531@worktop.programming.kicks-ass.net>
+References: <20141020215633.717315139@infradead.org>
+ <20141020222841.419869904@infradead.org>
+ <CA+55aFwd04q+O5ejbmDL-H7_GB6DEBMiiHkn+2R1u4uWxfDO9w@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFwd04q+O5ejbmDL-H7_GB6DEBMiiHkn+2R1u4uWxfDO9w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>
-Cc: Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Al Viro <viro@zeniv.linux.org.uk>, Lai Jiangshan <laijs@cn.fujitsu.com>, Davidlohr Bueso <dave@stgolabs.net>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-as per 0c740d0afc3b (introduce for_each_thread() to replace the buggy
-while_each_thread()) get rid of do_each_thread { } while_each_thread()
-construct and replace it by a more error prone for_each_thread.
+On Mon, Oct 20, 2014 at 04:41:45PM -0700, Linus Torvalds wrote:
+> On Mon, Oct 20, 2014 at 2:56 PM, Peter Zijlstra <peterz@infradead.org> wrote:
+> > Manage the VMAs with SRCU such that we can do a lockless VMA lookup.
+> 
+> Can you explain why srcu, and not plain regular rcu?
+> 
+> Especially as you then *note* some of the problems srcu can have.
+> Making it regular rcu would also seem to make it possible to make the
+> seqlock be just a seqcount, no?
 
-This patch doesn't introduce any user visible change.
-
-Suggested-by: Oleg Nesterov <oleg@redhat.com>
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
----
- kernel/power/process.c | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
-
-diff --git a/kernel/power/process.c b/kernel/power/process.c
-index a397fa161d11..7fd7b72554fe 100644
---- a/kernel/power/process.c
-+++ b/kernel/power/process.c
-@@ -46,13 +46,13 @@ static int try_to_freeze_tasks(bool user_only)
- 	while (true) {
- 		todo = 0;
- 		read_lock(&tasklist_lock);
--		do_each_thread(g, p) {
-+		for_each_process_thread(g, p) {
- 			if (p == current || !freeze_task(p))
- 				continue;
- 
- 			if (!freezer_should_skip(p))
- 				todo++;
--		} while_each_thread(g, p);
-+		}
- 		read_unlock(&tasklist_lock);
- 
- 		if (!user_only) {
-@@ -93,11 +93,11 @@ static int try_to_freeze_tasks(bool user_only)
- 
- 		if (!wakeup) {
- 			read_lock(&tasklist_lock);
--			do_each_thread(g, p) {
-+			for_each_process_thread(g, p) {
- 				if (p != current && !freezer_should_skip(p)
- 				    && freezing(p) && !frozen(p))
- 					sched_show_task(p);
--			} while_each_thread(g, p);
-+			}
- 			read_unlock(&tasklist_lock);
- 		}
- 	} else {
-@@ -219,11 +219,11 @@ void thaw_processes(void)
- 	thaw_workqueues();
- 
- 	read_lock(&tasklist_lock);
--	do_each_thread(g, p) {
-+	for_each_process_thread(g, p) {
- 		/* No other threads should have PF_SUSPEND_TASK set */
- 		WARN_ON((p != curr) && (p->flags & PF_SUSPEND_TASK));
- 		__thaw_task(p);
--	} while_each_thread(g, p);
-+	}
- 	read_unlock(&tasklist_lock);
- 
- 	WARN_ON(!(curr->flags & PF_SUSPEND_TASK));
-@@ -246,10 +246,10 @@ void thaw_kernel_threads(void)
- 	thaw_workqueues();
- 
- 	read_lock(&tasklist_lock);
--	do_each_thread(g, p) {
-+	for_each_process_thread(g, p) {
- 		if (p->flags & (PF_KTHREAD | PF_WQ_WORKER))
- 			__thaw_task(p);
--	} while_each_thread(g, p);
-+	}
- 	read_unlock(&tasklist_lock);
- 
- 	schedule();
--- 
-2.1.1
+Because we need to hold onto the RCU read side lock across the entire
+fault, which can involve IO and all kinds of other blocking ops.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
