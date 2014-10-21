@@ -1,17 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 842896B0074
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 13:12:52 -0400 (EDT)
-Received: by mail-wg0-f44.google.com with SMTP id y10so1864129wgg.3
-        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 10:12:52 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.194])
-        by mx.google.com with ESMTP id s7si13468173wix.49.2014.10.21.10.12.47
-        for <linux-mm@kvack.org>;
-        Tue, 21 Oct 2014 10:12:48 -0700 (PDT)
-Date: Tue, 21 Oct 2014 20:09:48 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id E21D76B0088
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 13:25:37 -0400 (EDT)
+Received: by mail-wi0-f170.google.com with SMTP id hi2so11602234wib.3
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 10:25:36 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id m6si13442071wiy.107.2014.10.21.10.25.35
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Oct 2014 10:25:35 -0700 (PDT)
+Date: Tue, 21 Oct 2014 19:25:27 +0200
+From: Peter Zijlstra <peterz@infradead.org>
 Subject: Re: [RFC][PATCH 0/6] Another go at speculative page faults
-Message-ID: <20141021170948.GA25964@node.dhcp.inet.fi>
+Message-ID: <20141021172527.GH3219@twins.programming.kicks-ass.net>
 References: <20141020215633.717315139@infradead.org>
  <20141021162340.GA5508@gmail.com>
 MIME-Version: 1.0
@@ -21,7 +22,7 @@ In-Reply-To: <20141021162340.GA5508@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, torvalds@linux-foundation.org, paulmck@linux.vnet.ibm.com, tglx@linutronix.de, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, oleg@redhat.com, mingo@redhat.com, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, viro@zeniv.linux.org.uk, laijs@cn.fujitsu.com, dave@stgolabs.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: torvalds@linux-foundation.org, paulmck@linux.vnet.ibm.com, tglx@linutronix.de, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, oleg@redhat.com, mingo@redhat.com, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, viro@zeniv.linux.org.uk, laijs@cn.fujitsu.com, dave@stgolabs.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 On Tue, Oct 21, 2014 at 06:23:40PM +0200, Ingo Molnar wrote:
 > 
@@ -45,13 +46,8 @@ On Tue, Oct 21, 2014 at 06:23:40PM +0200, Ingo Molnar wrote:
 > 
 > I guess the 'PRE' and 'POST' numbers should be flipped around?
 
-I think it's faults per second.
-
-It would be interesting to see if the patchset affects non-condended case.
-Like a one-threaded workload.
-
--- 
- Kirill A. Shutemov
+Nope, its the number of page-faults serviced in a fixed amount of time
+(60 seconds), therefore higher is better.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
