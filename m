@@ -1,112 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A9DB82BDD
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 09:16:05 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id y10so1323103pdj.37
-        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 06:16:05 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id h1si11171377pat.65.2014.10.21.06.16.04
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 96BFD82BDD
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 09:19:57 -0400 (EDT)
+Received: by mail-wg0-f41.google.com with SMTP id b13so1359403wgh.12
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 06:19:57 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id jt3si12479667wid.25.2014.10.21.06.19.55
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Oct 2014 06:16:04 -0700 (PDT)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH] memcg: remove mem_cgroup_reclaimable check from soft reclaim
-Date: Tue, 21 Oct 2014 17:15:50 +0400
-Message-ID: <1413897350-32553-1-git-send-email-vdavydov@parallels.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 21 Oct 2014 06:19:56 -0700 (PDT)
+Date: Tue, 21 Oct 2014 15:19:53 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 4/4] PM: convert do_each_thread to for_each_process_thread
+Message-ID: <20141021131953.GD9415@dhcp22.suse.cz>
+References: <1413876435-11720-1-git-send-email-mhocko@suse.cz>
+ <1413876435-11720-5-git-send-email-mhocko@suse.cz>
+ <2670728.8H9BNSArM8@vostro.rjw.lan>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2670728.8H9BNSArM8@vostro.rjw.lan>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
 
-mem_cgroup_reclaimable() checks whether a cgroup has reclaimable pages
-on *any* NUMA node. However, the only place where it's called is
-mem_cgroup_soft_reclaim(), which tries to reclaim memory from a
-*specific* zone. So the way how it's used is incorrect - it will return
-true even if the cgroup doesn't have pages on the zone we're scanning.
+On Tue 21-10-14 14:10:18, Rafael J. Wysocki wrote:
+> On Tuesday, October 21, 2014 09:27:15 AM Michal Hocko wrote:
+> > as per 0c740d0afc3b (introduce for_each_thread() to replace the buggy
+> > while_each_thread()) get rid of do_each_thread { } while_each_thread()
+> > construct and replace it by a more error prone for_each_thread.
+> > 
+> > This patch doesn't introduce any user visible change.
+> > 
+> > Suggested-by: Oleg Nesterov <oleg@redhat.com>
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> 
+> ACK
+> 
+> Or do you want me to handle this series?
 
-I think we can get rid of this check completely, because
-mem_cgroup_shrink_node_zone(), which is called by
-mem_cgroup_soft_reclaim() if mem_cgroup_reclaimable() returns true, is
-equivalent to shrink_lruvec(), which exits almost immediately if the
-lruvec passed to it is empty. So there's no need to optimize anything
-here. Besides, we don't have such a check in the general scan path
-(shrink_zone) either.
+I don't know, I hoped either you or Andrew to pick it up.
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
----
- mm/memcontrol.c |   43 -------------------------------------------
- 1 file changed, 43 deletions(-)
+> > ---
+> >  kernel/power/process.c | 16 ++++++++--------
+> >  1 file changed, 8 insertions(+), 8 deletions(-)
+> > 
+> > diff --git a/kernel/power/process.c b/kernel/power/process.c
+> > index a397fa161d11..7fd7b72554fe 100644
+> > --- a/kernel/power/process.c
+> > +++ b/kernel/power/process.c
+> > @@ -46,13 +46,13 @@ static int try_to_freeze_tasks(bool user_only)
+> >  	while (true) {
+> >  		todo = 0;
+> >  		read_lock(&tasklist_lock);
+> > -		do_each_thread(g, p) {
+> > +		for_each_process_thread(g, p) {
+> >  			if (p == current || !freeze_task(p))
+> >  				continue;
+> >  
+> >  			if (!freezer_should_skip(p))
+> >  				todo++;
+> > -		} while_each_thread(g, p);
+> > +		}
+> >  		read_unlock(&tasklist_lock);
+> >  
+> >  		if (!user_only) {
+> > @@ -93,11 +93,11 @@ static int try_to_freeze_tasks(bool user_only)
+> >  
+> >  		if (!wakeup) {
+> >  			read_lock(&tasklist_lock);
+> > -			do_each_thread(g, p) {
+> > +			for_each_process_thread(g, p) {
+> >  				if (p != current && !freezer_should_skip(p)
+> >  				    && freezing(p) && !frozen(p))
+> >  					sched_show_task(p);
+> > -			} while_each_thread(g, p);
+> > +			}
+> >  			read_unlock(&tasklist_lock);
+> >  		}
+> >  	} else {
+> > @@ -219,11 +219,11 @@ void thaw_processes(void)
+> >  	thaw_workqueues();
+> >  
+> >  	read_lock(&tasklist_lock);
+> > -	do_each_thread(g, p) {
+> > +	for_each_process_thread(g, p) {
+> >  		/* No other threads should have PF_SUSPEND_TASK set */
+> >  		WARN_ON((p != curr) && (p->flags & PF_SUSPEND_TASK));
+> >  		__thaw_task(p);
+> > -	} while_each_thread(g, p);
+> > +	}
+> >  	read_unlock(&tasklist_lock);
+> >  
+> >  	WARN_ON(!(curr->flags & PF_SUSPEND_TASK));
+> > @@ -246,10 +246,10 @@ void thaw_kernel_threads(void)
+> >  	thaw_workqueues();
+> >  
+> >  	read_lock(&tasklist_lock);
+> > -	do_each_thread(g, p) {
+> > +	for_each_process_thread(g, p) {
+> >  		if (p->flags & (PF_KTHREAD | PF_WQ_WORKER))
+> >  			__thaw_task(p);
+> > -	} while_each_thread(g, p);
+> > +	}
+> >  	read_unlock(&tasklist_lock);
+> >  
+> >  	schedule();
+> > 
+> 
+> -- 
+> I speak only for myself.
+> Rafael J. Wysocki, Intel Open Source Technology Center.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 53393e27ff03..833b6a696aab 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1799,52 +1799,11 @@ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg)
- 	memcg->last_scanned_node = node;
- 	return node;
- }
--
--/*
-- * Check all nodes whether it contains reclaimable pages or not.
-- * For quick scan, we make use of scan_nodes. This will allow us to skip
-- * unused nodes. But scan_nodes is lazily updated and may not cotain
-- * enough new information. We need to do double check.
-- */
--static bool mem_cgroup_reclaimable(struct mem_cgroup *memcg, bool noswap)
--{
--	int nid;
--
--	/*
--	 * quick check...making use of scan_node.
--	 * We can skip unused nodes.
--	 */
--	if (!nodes_empty(memcg->scan_nodes)) {
--		for (nid = first_node(memcg->scan_nodes);
--		     nid < MAX_NUMNODES;
--		     nid = next_node(nid, memcg->scan_nodes)) {
--
--			if (test_mem_cgroup_node_reclaimable(memcg, nid, noswap))
--				return true;
--		}
--	}
--	/*
--	 * Check rest of nodes.
--	 */
--	for_each_node_state(nid, N_MEMORY) {
--		if (node_isset(nid, memcg->scan_nodes))
--			continue;
--		if (test_mem_cgroup_node_reclaimable(memcg, nid, noswap))
--			return true;
--	}
--	return false;
--}
--
- #else
- int mem_cgroup_select_victim_node(struct mem_cgroup *memcg)
- {
- 	return 0;
- }
--
--static bool mem_cgroup_reclaimable(struct mem_cgroup *memcg, bool noswap)
--{
--	return test_mem_cgroup_node_reclaimable(memcg, 0, noswap);
--}
- #endif
- 
- static int mem_cgroup_soft_reclaim(struct mem_cgroup *root_memcg,
-@@ -1888,8 +1847,6 @@ static int mem_cgroup_soft_reclaim(struct mem_cgroup *root_memcg,
- 			}
- 			continue;
- 		}
--		if (!mem_cgroup_reclaimable(victim, false))
--			continue;
- 		total += mem_cgroup_shrink_node_zone(victim, gfp_mask, false,
- 						     zone, &nr_scanned);
- 		*total_scanned += nr_scanned;
 -- 
-1.7.10.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
