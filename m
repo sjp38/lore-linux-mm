@@ -1,77 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 4124F6B0069
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 03:27:25 -0400 (EDT)
-Received: by mail-wi0-f176.google.com with SMTP id hi2so9134877wib.9
-        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 00:27:24 -0700 (PDT)
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A0F76B006E
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 03:27:36 -0400 (EDT)
+Received: by mail-wi0-f174.google.com with SMTP id r20so1223302wiv.7
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 00:27:35 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w20si10558729wie.92.2014.10.21.00.27.21
+        by mx.google.com with ESMTPS id l2si11116796wix.39.2014.10.21.00.27.34
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 21 Oct 2014 00:27:22 -0700 (PDT)
+        Tue, 21 Oct 2014 00:27:34 -0700 (PDT)
 From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH 0/4 -v2] OOM vs. freezer interaction fixes
-Date: Tue, 21 Oct 2014 09:27:11 +0200
-Message-Id: <1413876435-11720-1-git-send-email-mhocko@suse.cz>
+Subject: [PATCH 1/4] freezer: Do not freeze tasks killed by OOM killer
+Date: Tue, 21 Oct 2014 09:27:12 +0200
+Message-Id: <1413876435-11720-2-git-send-email-mhocko@suse.cz>
+In-Reply-To: <1413876435-11720-1-git-send-email-mhocko@suse.cz>
+References: <1413876435-11720-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>
 Cc: Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
 
-Hi Andrew, Rafael,
+From: Cong Wang <xiyou.wangcong@gmail.com>
 
-this has been originally discussed here [1] and previously posted here [2].
-I have updated patches according to feedback from Oleg.
+Since f660daac474c6f (oom: thaw threads if oom killed thread is frozen
+before deferring) OOM killer relies on being able to thaw a frozen task
+to handle OOM situation but a3201227f803 (freezer: make freezing() test
+freeze conditions in effect instead of TIF_FREEZE) has reorganized the
+code and stopped clearing freeze flag in __thaw_task. This means that
+the target task only wakes up and goes into the fridge again because the
+freezing condition hasn't changed for it. This reintroduces the bug
+fixed by f660daac474c6f.
 
-The first and third patch are regression fixes and they are a stable
-material IMO. The second and fourth patch are simple cleanups.
+Fix the issue by checking for TIF_MEMDIE thread flag in
+freezing_slow_path and exclude the task from freezing completely. If a
+task was already frozen it would get woken by __thaw_task from OOM killer
+and get out of freezer after rechecking freezing().
 
-The 1st patch is fixing a regression introduced in 3.3 since when OOM
-killer is not able to kill any frozen task and live lock as a result.
-The fix gets us back to the 3.2. As it turned out during the discussion [3]
-this was still not 100% sufficient and that's why we need the 3rd patch.
+Changes since v1
+- put TIF_MEMDIE check into freezing_slowpath rather than in __refrigerator
+  as per Oleg
+- return __thaw_task into oom_scan_process_thread because
+  oom_kill_process will not wake task in the fridge because it is
+  sleeping uninterruptible
 
-I was thinking about the proper 1st vs. 3rd patch ordering because
-the 1st patch basically opens a race window considerably reduced by the
-later patch. This path is hard to do completely race free without a complete
-synchronization of OOM path (including the allocator) and freezer which is not
-worth the trouble.
-
-Original patch from Cong Wang has covered this by checking
-cgroup_freezing(current) in __refrigarator path [4]. But this approach
-still suffers from OOM vs. PM freezer interaction (OOM killer would
-still live lock waiting for a PM frozen task this time).
-
-So I think the most straight forward way is to address only OOM vs.
-frozen task interaction in the first patch, mark it for stable 3.3+ and
-leave the race to a separate follow up patch which is applicable to
-stable 3.2+ (before a3201227f803 made it inefficient).
-
-Switching 1st and 3rd patches would make some sense as well but then
-it might end up even more confusing because we would be fixing a
-non-existent issue in upstream first...
-
-Cong Wang (2):
-      freezer: Do not freeze tasks killed by OOM killer
-      freezer: remove obsolete comments in __thaw_task()
-
-Michal Hocko (2):
-      OOM, PM: OOM killed task shouldn't escape PM suspend
-      PM: convert do_each_thread to for_each_process_thread
-
-And diffstat says:
- include/linux/oom.h    |  3 +++
- kernel/freezer.c       |  9 +++------
- kernel/power/process.c | 47 ++++++++++++++++++++++++++++++++++++++---------
- mm/oom_kill.c          | 17 +++++++++++++++++
- mm/page_alloc.c        |  8 ++++++++
- 5 files changed, 69 insertions(+), 15 deletions(-)
-
+[mhocko@suse.cz: rewrote the changelog]
+Fixes: a3201227f803 (freezer: make freezing() test freeze conditions in effect instead of TIF_FREEZE)
+Cc: stable@vger.kernel.org # 3.3+
+Cc: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Cong Wang <xiyou.wangcong@gmail.com>
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: Oleg Nesterov <oleg@redhat.com>
 ---
-[1] http://marc.info/?l=linux-kernel&m=140986986423092
-[2] http://marc.info/?l=linux-mm&m=141277728508500&w=2
-[3] http://marc.info/?l=linux-kernel&m=141074263721166
-[4] http://marc.info/?l=linux-kernel&m=140986986423092
+ kernel/freezer.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/kernel/freezer.c b/kernel/freezer.c
+index aa6a8aadb911..8f9279b9c6d7 100644
+--- a/kernel/freezer.c
++++ b/kernel/freezer.c
+@@ -42,6 +42,9 @@ bool freezing_slow_path(struct task_struct *p)
+ 	if (p->flags & (PF_NOFREEZE | PF_SUSPEND_TASK))
+ 		return false;
+ 
++	if (test_thread_flag(TIF_MEMDIE))
++		return false;
++
+ 	if (pm_nosig_freezing || cgroup_freezing(p))
+ 		return true;
+ 
+-- 
+2.1.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
