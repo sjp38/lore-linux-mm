@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B1436B006C
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 16:21:49 -0400 (EDT)
-Received: by mail-lb0-f174.google.com with SMTP id p9so1705019lbv.33
-        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 13:21:48 -0700 (PDT)
+Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 09EBA6B006E
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 16:21:50 -0400 (EDT)
+Received: by mail-la0-f44.google.com with SMTP id hs14so1764569lab.17
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 13:21:50 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id k16si20658603laa.47.2014.10.21.13.21.47
+        by mx.google.com with ESMTPS id xq2si717971lbb.10.2014.10.21.13.21.49
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Oct 2014 13:21:47 -0700 (PDT)
+        Tue, 21 Oct 2014 13:21:49 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 2/4] mm: memcontrol: don't pass a NULL memcg to mem_cgroup_end_move()
-Date: Tue, 21 Oct 2014 16:21:34 -0400
-Message-Id: <1413922896-29042-2-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 3/4] mm: page-writeback: inline account_page_dirtied() into single caller
+Date: Tue, 21 Oct 2014 16:21:35 -0400
+Message-Id: <1413922896-29042-3-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1413922896-29042-1-git-send-email-hannes@cmpxchg.org>
 References: <1413922896-29042-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,50 +20,68 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-mem_cgroup_end_move() checks if the passed memcg is NULL, along with a
-lengthy comment to explain why this seemingly non-sensical situation
-is even possible.
-
-Check in cancel_attach() itself whether can_attach() set up the move
-context or not, it's a lot more obvious from there.  Then remove the
-check and comment in mem_cgroup_end_move().
+A follow-up patch would have changed the call signature.  To save the
+trouble, just fold it instead.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/memcontrol.c | 13 ++++---------
- 1 file changed, 4 insertions(+), 9 deletions(-)
+ include/linux/mm.h  |  1 -
+ mm/page-writeback.c | 23 ++++-------------------
+ 2 files changed, 4 insertions(+), 20 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 1ff125d2a427..c1fe774d712a 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1452,14 +1452,8 @@ static void mem_cgroup_start_move(struct mem_cgroup *memcg)
- 
- static void mem_cgroup_end_move(struct mem_cgroup *memcg)
- {
--	/*
--	 * Now, mem_cgroup_clear_mc() may call this function with NULL.
--	 * We check NULL in callee rather than caller.
--	 */
--	if (memcg) {
--		atomic_dec(&memcg_moving);
--		atomic_dec(&memcg->moving_account);
--	}
-+	atomic_dec(&memcg_moving);
-+	atomic_dec(&memcg->moving_account);
- }
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 27eb1bfbe704..b46461116cd2 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1235,7 +1235,6 @@ int __set_page_dirty_no_writeback(struct page *page);
+ int redirty_page_for_writepage(struct writeback_control *wbc,
+ 				struct page *page);
+ void account_page_dirtied(struct page *page, struct address_space *mapping);
+-void account_page_writeback(struct page *page);
+ int set_page_dirty(struct page *page);
+ int set_page_dirty_lock(struct page *page);
+ int clear_page_dirty_for_io(struct page *page);
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index ff24c9d83112..ff6a5b07211e 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -2116,23 +2116,6 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
+ EXPORT_SYMBOL(account_page_dirtied);
  
  /*
-@@ -5383,7 +5377,8 @@ static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
- static void mem_cgroup_cancel_attach(struct cgroup_subsys_state *css,
- 				     struct cgroup_taskset *tset)
- {
--	mem_cgroup_clear_mc();
-+	if (mc.to)
-+		mem_cgroup_clear_mc();
- }
+- * Helper function for set_page_writeback family.
+- *
+- * The caller must hold mem_cgroup_begin/end_update_page_stat() lock
+- * while calling this function.
+- * See test_set_page_writeback for example.
+- *
+- * NOTE: Unlike account_page_dirtied this does not rely on being atomic
+- * wrt interrupts.
+- */
+-void account_page_writeback(struct page *page)
+-{
+-	mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_WRITEBACK);
+-	inc_zone_page_state(page, NR_WRITEBACK);
+-}
+-EXPORT_SYMBOL(account_page_writeback);
+-
+-/*
+  * For address_spaces which do not use buffers.  Just tag the page as dirty in
+  * its radix tree.
+  *
+@@ -2410,8 +2393,10 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
+ 	} else {
+ 		ret = TestSetPageWriteback(page);
+ 	}
+-	if (!ret)
+-		account_page_writeback(page);
++	if (!ret) {
++		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_WRITEBACK);
++		inc_zone_page_state(page, NR_WRITEBACK);
++	}
+ 	mem_cgroup_end_update_page_stat(page, &locked, &memcg_flags);
+ 	return ret;
  
- static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
 -- 
 2.1.2
 
