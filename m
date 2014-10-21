@@ -1,93 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C77182BDD
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 09:14:50 -0400 (EDT)
-Received: by mail-wg0-f42.google.com with SMTP id z12so1329022wgg.13
-        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 06:14:49 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lc5si14477947wjc.104.2014.10.21.06.14.46
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A9DB82BDD
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 09:16:05 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id y10so1323103pdj.37
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 06:16:05 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id h1si11171377pat.65.2014.10.21.06.16.04
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 21 Oct 2014 06:14:46 -0700 (PDT)
-Date: Tue, 21 Oct 2014 15:14:45 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/4] OOM, PM: OOM killed task shouldn't escape PM suspend
-Message-ID: <20141021131445.GC9415@dhcp22.suse.cz>
-References: <1413876435-11720-1-git-send-email-mhocko@suse.cz>
- <1413876435-11720-4-git-send-email-mhocko@suse.cz>
- <3778374.avm26S62SZ@vostro.rjw.lan>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Oct 2014 06:16:04 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH] memcg: remove mem_cgroup_reclaimable check from soft reclaim
+Date: Tue, 21 Oct 2014 17:15:50 +0400
+Message-ID: <1413897350-32553-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3778374.avm26S62SZ@vostro.rjw.lan>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 21-10-14 14:09:27, Rafael J. Wysocki wrote:
-[...]
-> > @@ -131,12 +132,40 @@ int freeze_processes(void)
-> >  
-> >  	printk("Freezing user space processes ... ");
-> >  	pm_freezing = true;
-> > +	oom_kills_saved = oom_kills_count();
-> >  	error = try_to_freeze_tasks(true);
-> >  	if (!error) {
-> > -		printk("done.");
-> >  		__usermodehelper_set_disable_depth(UMH_DISABLED);
-> >  		oom_killer_disable();
-> > +
-> > +		/*
-> > +		 * There might have been an OOM kill while we were
-> > +		 * freezing tasks and the killed task might be still
-> > +		 * on the way out so we have to double check for race.
-> > +		 */
-> > +		if (oom_kills_count() != oom_kills_saved) {
-> > +			struct task_struct *g, *p;
-> > +
-> > +			read_lock(&tasklist_lock);
-> > +			for_each_process_thread(g, p) {
-> > +				if (p == current || freezer_should_skip(p) ||
-> > +				    frozen(p))
-> > +					continue;
-> > +				error = -EBUSY;
-> > +				goto out_loop;
-> > +			}
-> > +out_loop:
-> 
-> Well, it looks like this will work here too:
-> 
-> 			for_each_process_thread(g, p)
-> 				if (p != current && !frozen(p) &&
-> 				    !freezer_should_skip(p)) {
-> 					error = -EBUSY;
-> 					break;
-> 				}
-> 
-> or I am helplessly misreading the code.
+mem_cgroup_reclaimable() checks whether a cgroup has reclaimable pages
+on *any* NUMA node. However, the only place where it's called is
+mem_cgroup_soft_reclaim(), which tries to reclaim memory from a
+*specific* zone. So the way how it's used is incorrect - it will return
+true even if the cgroup doesn't have pages on the zone we're scanning.
 
-break will not work because for_each_process_thread is a double loop.
-Except for that the negated condition is OK as well. I can change that
-if you prefer.
+I think we can get rid of this check completely, because
+mem_cgroup_shrink_node_zone(), which is called by
+mem_cgroup_soft_reclaim() if mem_cgroup_reclaimable() returns true, is
+equivalent to shrink_lruvec(), which exits almost immediately if the
+lruvec passed to it is empty. So there's no need to optimize anything
+here. Besides, we don't have such a check in the general scan path
+(shrink_zone) either.
 
-> > +			read_unlock(&tasklist_lock);
-> > +
-> > +			if (error) {
-> > +				__usermodehelper_set_disable_depth(UMH_ENABLED);
-> > +				printk("OOM in progress.");
-> > +				goto done;
-> > +			}
-> > +		}
-> > +		printk("done.");
-> >  	}
-> > +done:
-> >  	printk("\n");
-> >  	BUG_ON(in_atomic());
-> >  
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+---
+ mm/memcontrol.c |   43 -------------------------------------------
+ 1 file changed, 43 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 53393e27ff03..833b6a696aab 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1799,52 +1799,11 @@ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg)
+ 	memcg->last_scanned_node = node;
+ 	return node;
+ }
+-
+-/*
+- * Check all nodes whether it contains reclaimable pages or not.
+- * For quick scan, we make use of scan_nodes. This will allow us to skip
+- * unused nodes. But scan_nodes is lazily updated and may not cotain
+- * enough new information. We need to do double check.
+- */
+-static bool mem_cgroup_reclaimable(struct mem_cgroup *memcg, bool noswap)
+-{
+-	int nid;
+-
+-	/*
+-	 * quick check...making use of scan_node.
+-	 * We can skip unused nodes.
+-	 */
+-	if (!nodes_empty(memcg->scan_nodes)) {
+-		for (nid = first_node(memcg->scan_nodes);
+-		     nid < MAX_NUMNODES;
+-		     nid = next_node(nid, memcg->scan_nodes)) {
+-
+-			if (test_mem_cgroup_node_reclaimable(memcg, nid, noswap))
+-				return true;
+-		}
+-	}
+-	/*
+-	 * Check rest of nodes.
+-	 */
+-	for_each_node_state(nid, N_MEMORY) {
+-		if (node_isset(nid, memcg->scan_nodes))
+-			continue;
+-		if (test_mem_cgroup_node_reclaimable(memcg, nid, noswap))
+-			return true;
+-	}
+-	return false;
+-}
+-
+ #else
+ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg)
+ {
+ 	return 0;
+ }
+-
+-static bool mem_cgroup_reclaimable(struct mem_cgroup *memcg, bool noswap)
+-{
+-	return test_mem_cgroup_node_reclaimable(memcg, 0, noswap);
+-}
+ #endif
+ 
+ static int mem_cgroup_soft_reclaim(struct mem_cgroup *root_memcg,
+@@ -1888,8 +1847,6 @@ static int mem_cgroup_soft_reclaim(struct mem_cgroup *root_memcg,
+ 			}
+ 			continue;
+ 		}
+-		if (!mem_cgroup_reclaimable(victim, false))
+-			continue;
+ 		total += mem_cgroup_shrink_node_zone(victim, gfp_mask, false,
+ 						     zone, &nr_scanned);
+ 		*total_scanned += nr_scanned;
 -- 
-Michal Hocko
-SUSE Labs
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
