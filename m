@@ -1,94 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id E36D96B007D
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 04:10:12 -0400 (EDT)
-Received: by mail-wi0-f179.google.com with SMTP id d1so1034944wiv.12
-        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 01:10:12 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id az10si13274904wjb.127.2014.10.21.01.10.10
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 94B996B0081
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 04:12:05 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id y13so841393pdi.19
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 01:12:05 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id s4si10111039pds.235.2014.10.21.01.12.04
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 21 Oct 2014 01:10:11 -0700 (PDT)
-Date: Tue, 21 Oct 2014 10:10:09 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: simplify unreclaimable groups handling in soft
- limit reclaim
-Message-ID: <20141021081009.GB9415@dhcp22.suse.cz>
-References: <1413820554-15611-1-git-send-email-vdavydov@parallels.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Oct 2014 01:12:04 -0700 (PDT)
+Date: Tue, 21 Oct 2014 10:11:59 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC][PATCH 0/6] Another go at speculative page faults
+Message-ID: <20141021081159.GK23531@worktop.programming.kicks-ass.net>
+References: <20141020215633.717315139@infradead.org>
+ <5445A3A6.2@amacapital.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1413820554-15611-1-git-send-email-vdavydov@parallels.com>
+In-Reply-To: <5445A3A6.2@amacapital.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: torvalds@linux-foundation.org, paulmck@linux.vnet.ibm.com, tglx@linutronix.de, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, oleg@redhat.com, mingo@redhat.com, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, viro@zeniv.linux.org.uk, laijs@cn.fujitsu.com, dave@stgolabs.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon 20-10-14 19:55:54, Vladimir Davydov wrote:
-> If we fail to reclaim anything from a cgroup during a soft reclaim pass
-> we want to get the next largest cgroup exceeding its soft limit. To
-> achieve this, we should obviously remove the current group from the tree
-> and then pick the largest group. Currently we have a weird loop instead.
-> Let's simplify it.
+On Mon, Oct 20, 2014 at 05:07:02PM -0700, Andy Lutomirski wrote:
+> On 10/20/2014 02:56 PM, Peter Zijlstra wrote:
+> > Hi,
+> > 
+> > I figured I'd give my 2010 speculative fault series another spin:
+> > 
+> >   https://lkml.org/lkml/2010/1/4/257
+> > 
+> > Since then I think many of the outstanding issues have changed sufficiently to
+> > warrant another go. In particular Al Viro's delayed fput seems to have made it
+> > entirely 'normal' to delay fput(). Lai Jiangshan's SRCU rewrite provided us
+> > with call_srcu() and my preemptible mmu_gather removed the TLB flushes from
+> > under the PTL.
+> > 
+> > The code needs way more attention but builds a kernel and runs the
+> > micro-benchmark so I figured I'd post it before sinking more time into it.
+> > 
+> > I realize the micro-bench is about as good as it gets for this series and not
+> > very realistic otherwise, but I think it does show the potential benefit the
+> > approach has.
 > 
-> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+> Does this mean that an entire fault can complete without ever taking
+> mmap_sem at all?  If so, that's a *huge* win.
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Yep.
 
-> ---
->  mm/memcontrol.c |   26 ++++----------------------
->  1 file changed, 4 insertions(+), 22 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index e957f0c80c6e..53393e27ff03 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3507,34 +3507,16 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
->  		nr_reclaimed += reclaimed;
->  		*total_scanned += nr_scanned;
->  		spin_lock_irq(&mctz->lock);
-> +		__mem_cgroup_remove_exceeded(mz, mctz);
->  
->  		/*
->  		 * If we failed to reclaim anything from this memory cgroup
->  		 * it is time to move on to the next cgroup
->  		 */
->  		next_mz = NULL;
-> -		if (!reclaimed) {
-> -			do {
-> -				/*
-> -				 * Loop until we find yet another one.
-> -				 *
-> -				 * By the time we get the soft_limit lock
-> -				 * again, someone might have aded the
-> -				 * group back on the RB tree. Iterate to
-> -				 * make sure we get a different mem.
-> -				 * mem_cgroup_largest_soft_limit_node returns
-> -				 * NULL if no other cgroup is present on
-> -				 * the tree
-> -				 */
-> -				next_mz =
-> -				__mem_cgroup_largest_soft_limit_node(mctz);
-> -				if (next_mz == mz)
-> -					css_put(&next_mz->memcg->css);
-> -				else /* next_mz == NULL or other memcg */
-> -					break;
-> -			} while (1);
-> -		}
-> -		__mem_cgroup_remove_exceeded(mz, mctz);
-> +		if (!reclaimed)
-> +			next_mz = __mem_cgroup_largest_soft_limit_node(mctz);
-> +
->  		excess = soft_limit_excess(mz->memcg);
->  		/*
->  		 * One school of thought says that we should not add
-> -- 
-> 1.7.10.4
-> 
+> I'm a bit concerned about drivers that assume that the vma is unchanged
+> during .fault processing.  In particular, is there a race between .close
+> and .fault?  Would it make sense to add a per-vma rw lock and hold it
+> during vma modification and .fault calls?
 
--- 
-Michal Hocko
-SUSE Labs
+VMA granularity contention would be about as bad as mmap_sem for many
+workloads. But yes, that is one of the things we need to look at, I was
+_hoping_ that holding the file open would sort most these problems, but
+I'm sure there plenty 'interesting' cruft left.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
