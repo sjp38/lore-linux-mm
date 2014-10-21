@@ -1,51 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 96F546B0069
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 02:49:39 -0400 (EDT)
-Received: by mail-wg0-f47.google.com with SMTP id x13so537335wgg.30
-        for <linux-mm@kvack.org>; Mon, 20 Oct 2014 23:49:39 -0700 (PDT)
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 4124F6B0069
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 03:27:25 -0400 (EDT)
+Received: by mail-wi0-f176.google.com with SMTP id hi2so9134877wib.9
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 00:27:24 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u2si5145637wiy.51.2014.10.20.23.49.36
+        by mx.google.com with ESMTPS id w20si10558729wie.92.2014.10.21.00.27.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 20 Oct 2014 23:49:37 -0700 (PDT)
-Date: Tue, 21 Oct 2014 08:49:35 +0200
+        Tue, 21 Oct 2014 00:27:22 -0700 (PDT)
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -mm] memcg: remove activate_kmem_mutex
-Message-ID: <20141021064935.GA9415@dhcp22.suse.cz>
-References: <1413817889-13915-1-git-send-email-vdavydov@parallels.com>
- <20141020185306.GB505@dhcp22.suse.cz>
- <20141021063119.GM16496@esperanza>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141021063119.GM16496@esperanza>
+Subject: [PATCH 0/4 -v2] OOM vs. freezer interaction fixes
+Date: Tue, 21 Oct 2014 09:27:11 +0200
+Message-Id: <1413876435-11720-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, "\\\"Rafael J. Wysocki\\\"" <rjw@rjwysocki.net>
+Cc: Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
 
-On Tue 21-10-14 10:31:19, Vladimir Davydov wrote:
-> On Mon, Oct 20, 2014 at 08:53:06PM +0200, Michal Hocko wrote:
-> > On Mon 20-10-14 19:11:29, Vladimir Davydov wrote:
-> > > The activate_kmem_mutex is used to serialize memcg.kmem.limit updates,
-> > > but we already serialize them with memcg_limit_mutex so let's remove the
-> > > former.
-> > > 
-> > > Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-> > 
-> > Is this the case since bd67314586a3 (memcg, slab: simplify
-> > synchronization scheme)?
-> 
-> No, it's since Johannes' lockless page counters patch where we have the
-> memcg_limit_mutex introduced to synchronize concurrent limit updates (mm
-> commit dc1815408849 "mm: memcontrol: lockless page counters").
+Hi Andrew, Rafael,
 
-Ahh, ok. Thanks for the clarification.
+this has been originally discussed here [1] and previously posted here [2].
+I have updated patches according to feedback from Oleg.
 
--- 
-Michal Hocko
-SUSE Labs
+The first and third patch are regression fixes and they are a stable
+material IMO. The second and fourth patch are simple cleanups.
+
+The 1st patch is fixing a regression introduced in 3.3 since when OOM
+killer is not able to kill any frozen task and live lock as a result.
+The fix gets us back to the 3.2. As it turned out during the discussion [3]
+this was still not 100% sufficient and that's why we need the 3rd patch.
+
+I was thinking about the proper 1st vs. 3rd patch ordering because
+the 1st patch basically opens a race window considerably reduced by the
+later patch. This path is hard to do completely race free without a complete
+synchronization of OOM path (including the allocator) and freezer which is not
+worth the trouble.
+
+Original patch from Cong Wang has covered this by checking
+cgroup_freezing(current) in __refrigarator path [4]. But this approach
+still suffers from OOM vs. PM freezer interaction (OOM killer would
+still live lock waiting for a PM frozen task this time).
+
+So I think the most straight forward way is to address only OOM vs.
+frozen task interaction in the first patch, mark it for stable 3.3+ and
+leave the race to a separate follow up patch which is applicable to
+stable 3.2+ (before a3201227f803 made it inefficient).
+
+Switching 1st and 3rd patches would make some sense as well but then
+it might end up even more confusing because we would be fixing a
+non-existent issue in upstream first...
+
+Cong Wang (2):
+      freezer: Do not freeze tasks killed by OOM killer
+      freezer: remove obsolete comments in __thaw_task()
+
+Michal Hocko (2):
+      OOM, PM: OOM killed task shouldn't escape PM suspend
+      PM: convert do_each_thread to for_each_process_thread
+
+And diffstat says:
+ include/linux/oom.h    |  3 +++
+ kernel/freezer.c       |  9 +++------
+ kernel/power/process.c | 47 ++++++++++++++++++++++++++++++++++++++---------
+ mm/oom_kill.c          | 17 +++++++++++++++++
+ mm/page_alloc.c        |  8 ++++++++
+ 5 files changed, 69 insertions(+), 15 deletions(-)
+
+---
+[1] http://marc.info/?l=linux-kernel&m=140986986423092
+[2] http://marc.info/?l=linux-mm&m=141277728508500&w=2
+[3] http://marc.info/?l=linux-kernel&m=141074263721166
+[4] http://marc.info/?l=linux-kernel&m=140986986423092
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
