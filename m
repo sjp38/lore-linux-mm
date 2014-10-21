@@ -1,172 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B4146B0089
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 04:38:40 -0400 (EDT)
-Received: by mail-wg0-f50.google.com with SMTP id a1so743875wgh.33
-        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 01:38:39 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.226])
-        by mx.google.com with ESMTP id ba7si13367048wjb.133.2014.10.21.01.38.38
-        for <linux-mm@kvack.org>;
-        Tue, 21 Oct 2014 01:38:38 -0700 (PDT)
-Date: Tue, 21 Oct 2014 11:35:48 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC][PATCH 5/6] mm: Provide speculative fault infrastructure
-Message-ID: <20141021083548.GA22200@node.dhcp.inet.fi>
-References: <20141020215633.717315139@infradead.org>
- <20141020222841.490529442@infradead.org>
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 8801C6B008C
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 04:42:17 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id lf10so952589pab.2
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 01:42:17 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id ov3si10168301pbc.228.2014.10.21.01.42.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 21 Oct 2014 01:42:16 -0700 (PDT)
+From: Jijiagang <jijiagang@hisilicon.com>
+Subject: RE: UBIFS assert failed in ubifs_set_page_dirty at 1421
+Date: Tue, 21 Oct 2014 08:41:38 +0000
+Message-ID: <BE257DAADD2C0D439647A271332966573949F870@SZXEMA511-MBS.china.huawei.com>
+References: <BE257DAADD2C0D439647A271332966573949EFEC@SZXEMA511-MBS.china.huawei.com>
+ <1413805935.7906.225.camel@sauron.fi.intel.com>
+ <C3050A4DBA34F345975765E43127F10F62CC5D9B@SZXEMA512-MBX.china.huawei.com>
+ <1413810719.7906.268.camel@sauron.fi.intel.com>
+ <20141021033847.GS17506@dastard>
+In-Reply-To: <20141021033847.GS17506@dastard>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141020222841.490529442@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: torvalds@linux-foundation.org, paulmck@linux.vnet.ibm.com, tglx@linutronix.de, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, oleg@redhat.com, mingo@redhat.com, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, viro@zeniv.linux.org.uk, laijs@cn.fujitsu.com, dave@stgolabs.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Chinner <david@fromorbit.com>, Artem Bityutskiy <dedekind1@gmail.com>
+Cc: Caizhiyong <caizhiyong@hisilicon.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "adrian.hunter@intel.com" <adrian.hunter@intel.com>, "linux-mtd@lists.infradead.org" <linux-mtd@lists.infradead.org>, "Wanli
+ (welly)" <welly.wan@hisilicon.com>, "Liuhui (B)" <liuhui88.liuhui@hisilicon.com>
 
-On Mon, Oct 20, 2014 at 11:56:38PM +0200, Peter Zijlstra wrote:
-> Provide infrastructure to do a speculative fault (not holding
-> mmap_sem).
-> 
-> The not holding of mmap_sem means we can race against VMA
-> change/removal and page-table destruction. We use the SRCU VMA freeing
-> to keep the VMA around. We use the VMA seqcount to detect change
-> (including umapping / page-table deletion) and we use gup_fast() style
-> page-table walking to deal with page-table races.
-> 
-> Once we've obtained the page and are ready to update the PTE, we
-> validate if the state we started the fault with is still valid, if
-> not, we'll fail the fault with VM_FAULT_RETRY, otherwise we update the
-> PTE and we're done.
-> 
-> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-> ---
->  include/linux/mm.h |    2 
->  mm/memory.c        |  118 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
->  2 files changed, 119 insertions(+), 1 deletion(-)
-> 
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1162,6 +1162,8 @@ int generic_error_remove_page(struct add
->  int invalidate_inode_page(struct page *page);
->  
->  #ifdef CONFIG_MMU
-> +extern int handle_speculative_fault(struct mm_struct *mm,
-> +			unsigned long address, unsigned int flags);
->  extern int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
->  			unsigned long address, unsigned int flags);
->  extern int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2004,12 +2004,40 @@ struct fault_env {
->  	pte_t entry;
->  	spinlock_t *ptl;
->  	unsigned int flags;
-> +	unsigned int sequence;
->  };
->  
->  static bool pte_map_lock(struct fault_env *fe)
->  {
-> +	bool ret = false;
-> +
-> +	if (!(fe->flags & FAULT_FLAG_SPECULATIVE)) {
-> +		fe->pte = pte_offset_map_lock(fe->mm, fe->pmd, fe->address, &fe->ptl);
-> +		return true;
-> +	}
-> +
-> +	/*
-> +	 * The first vma_is_dead() guarantees the page-tables are still valid,
-> +	 * having IRQs disabled ensures they stay around, hence the second
-> +	 * vma_is_dead() to make sure they are still valid once we've got the
-> +	 * lock. After that a concurrent zap_pte_range() will block on the PTL
-> +	 * and thus we're safe.
-> +	 */
-> +	local_irq_disable();
-> +	if (vma_is_dead(fe->vma, fe->sequence))
-> +		goto out;
-> +
->  	fe->pte = pte_offset_map_lock(fe->mm, fe->pmd, fe->address, &fe->ptl);
-> -	return true;
-> +
-> +	if (vma_is_dead(fe->vma, fe->sequence)) {
-> +		pte_unmap_unlock(fe->pte, fe->ptl);
-> +		goto out;
-> +	}
-> +
-> +	ret = true;
-> +out:
-> +	local_irq_enable();
-> +	return ret;
->  }
->  
->  /*
-> @@ -2432,6 +2460,7 @@ static int do_swap_page(struct fault_env
->  	entry = pte_to_swp_entry(fe->entry);
->  	if (unlikely(non_swap_entry(entry))) {
->  		if (is_migration_entry(entry)) {
-> +			/* XXX fe->pmd might be dead */
->  			migration_entry_wait(fe->mm, fe->pmd, fe->address);
->  		} else if (is_hwpoison_entry(entry)) {
->  			ret = VM_FAULT_HWPOISON;
-> @@ -3357,6 +3386,93 @@ static int __handle_mm_fault(struct mm_s
->  	return handle_pte_fault(&fe);
->  }
->  
-> +int handle_speculative_fault(struct mm_struct *mm, unsigned long address, unsigned int flags)
-> +{
-> +	struct fault_env fe = {
-> +		.mm = mm,
-> +		.address = address,
-> +		.flags = flags | FAULT_FLAG_SPECULATIVE,
-> +	};
-> +	pgd_t *pgd;
-> +	pud_t *pud;
-> +	pmd_t *pmd;
-> +	pte_t *pte;
-> +	int dead, seq, idx, ret = VM_FAULT_RETRY;
-> +	struct vm_area_struct *vma;
-> +
-> +	idx = srcu_read_lock(&vma_srcu);
-> +	vma = find_vma_srcu(mm, address);
-> +	if (!vma)
-> +		goto unlock;
-> +
-> +	/*
-> +	 * Validate the VMA found by the lockless lookup.
-> +	 */
-> +	dead = RB_EMPTY_NODE(&vma->vm_rb);
-> +	seq = raw_read_seqcount(&vma->vm_sequence); /* rmb <-> seqlock,vma_rb_erase() */
-> +	if ((seq & 1) || dead) /* XXX wait for !&1 instead? */
-> +		goto unlock;
-> +
-> +	if (address < vma->vm_start || vma->vm_end <= address)
-> +		goto unlock;
-> +
-> +	/*
-> +	 * We need to re-validate the VMA after checking the bounds, otherwise
-> +	 * we might have a false positive on the bounds.
-> +	 */
-> +	if (read_seqcount_retry(&vma->vm_sequence, seq))
-> +		goto unlock;
-> +
-> +	/*
-> +	 * Do a speculative lookup of the PTE entry.
-> +	 */
-> +	local_irq_disable();
-> +	pgd = pgd_offset(mm, address);
-> +	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
-> +		goto out_walk;
-> +
-> +	pud = pud_offset(pgd, address);
-> +	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
-> +		goto out_walk;
+Dear Dave,
+Thanks for your reply.
+We removed some modules to keep kernel untainted. It still can be reproduce=
+d.
 
-pud_huge() too. Or filter out VM_HUGETLB altogether.
+Here is the log:
+UBIFS assert failed in ubifs_set_page_dirty at 1421 (pid 543)
+CPU: 1 PID: 543 Comm: kswapd0 Not tainted 3.10.0_s40 #1
+[<8001d8a0>] (unwind_backtrace+0x0/0x108) from [<80019f44>] (show_stack+0x2=
+0/0x24)
+[<80019f44>] (show_stack+0x20/0x24) from [<80af2ef8>] (dump_stack+0x24/0x2c=
+)
+[<80af2ef8>] (dump_stack+0x24/0x2c) from [<80297234>] (ubifs_set_page_dirty=
++0x54/0x5c)
+[<80297234>] (ubifs_set_page_dirty+0x54/0x5c) from [<800cea60>] (set_page_d=
+irty+0x50/0x78)
+[<800cea60>] (set_page_dirty+0x50/0x78) from [<800f4be4>] (try_to_unmap_one=
++0x1f8/0x3d0)
+[<800f4be4>] (try_to_unmap_one+0x1f8/0x3d0) from [<800f4f44>] (try_to_unmap=
+_file+0x9c/0x740)
+[<800f4f44>] (try_to_unmap_file+0x9c/0x740) from [<800f5678>] (try_to_unmap=
++0x40/0x78)
+[<800f5678>] (try_to_unmap+0x40/0x78) from [<800d6a04>] (shrink_page_list+0=
+x23c/0x884)
+[<800d6a04>] (shrink_page_list+0x23c/0x884) from [<800d76c8>] (shrink_inact=
+ive_list+0x21c/0x3c8)
+[<800d76c8>] (shrink_inactive_list+0x21c/0x3c8) from [<800d7c20>] (shrink_l=
+ruvec+0x3ac/0x524)
+[<800d7c20>] (shrink_lruvec+0x3ac/0x524) from [<800d8970>] (kswapd+0x854/0x=
+dc0)
+[<800d8970>] (kswapd+0x854/0xdc0) from [<80051e28>] (kthread+0xc8/0xcc)
+[<80051e28>] (kthread+0xc8/0xcc) from [<80015198>] (ret_from_fork+0x14/0x20=
+)
+UBIFS assert failed in ubifs_writepage at 1009 (pid 6)
+CPU: 0 PID: 6 Comm: kworker/u8:0 Not tainted 3.10.0_s40 #1
+Workqueue: writeback bdi_writeback_workfn (flush-ubifs_1_0)
+[<8001d8a0>] (unwind_backtrace+0x0/0x108) from [<80019f44>] (show_stack+0x2=
+0/0x24)
+[<80019f44>] (show_stack+0x20/0x24) from [<80af2ef8>] (dump_stack+0x24/0x2c=
+)
+[<80af2ef8>] (dump_stack+0x24/0x2c) from [<80299294>] (ubifs_writepage+0x1d=
+0/0x1dc)
+[<80299294>] (ubifs_writepage+0x1d0/0x1dc) from [<800cefc0>] (__writepage+0=
+x24/0x4c)
+[<800cefc0>] (__writepage+0x24/0x4c) from [<800cf288>] (write_cache_pages+0=
+x1b0/0x408)
+[<800cf288>] (write_cache_pages+0x1b0/0x408) from [<800cf538>] (generic_wri=
+tepages+0x58/0x70)
+[<800cf538>] (generic_writepages+0x58/0x70) from [<800cf594>] (do_writepage=
+s+0x44/0x48)
+[<800cf594>] (do_writepages+0x44/0x48) from [<80139a30>] (__writeback_singl=
+e_inode+0x50/0x238)
+[<80139a30>] (__writeback_single_inode+0x50/0x238) from [<8013ae48>] (write=
+back_sb_inodes+0x264/0x44c)
+[<8013ae48>] (writeback_sb_inodes+0x264/0x44c) from [<8013b0c4>] (__writeba=
+ck_inodes_wb+0x94/0xcc)
+[<8013b0c4>] (__writeback_inodes_wb+0x94/0xcc) from [<8013b3dc>] (wb_writeb=
+ack+0x228/0x2f8)
+[<8013b3dc>] (wb_writeback+0x228/0x2f8) from [<8013b6b4>] (wb_do_writeback+=
+0x208/0x24c)
+[<8013b6b4>] (wb_do_writeback+0x208/0x24c) from [<8013b774>] (bdi_writeback=
+_workfn+0x7c/0x1dc)
+[<8013b774>] (bdi_writeback_workfn+0x7c/0x1dc) from [<8004ac64>] (process_o=
+ne_work+0x160/0x460)
+[<8004ac64>] (process_one_work+0x160/0x460) from [<8004b0ac>] (worker_threa=
+d+0x148/0x49c)
+[<8004b0ac>] (worker_thread+0x148/0x49c) from [<80051e28>] (kthread+0xc8/0x=
+cc)
+[<80051e28>] (kthread+0xc8/0xcc) from [<80015198>] (ret_from_fork+0x14/0x20=
+)
+UBIFS assert failed in do_writepage at 936 (pid 6)
+CPU: 3 PID: 6 Comm: kworker/u8:0 Not tainted 3.10.0_s40 #1
+Workqueue: writeback bdi_writeback_workfn (flush-ubifs_1_0)
+[<8001d8a0>] (unwind_backtrace+0x0/0x108) from [<80019f44>] (show_stack+0x2=
+0/0x24)
+[<80019f44>] (show_stack+0x20/0x24) from [<80af2ef8>] (dump_stack+0x24/0x2c=
+)
+[<80af2ef8>] (dump_stack+0x24/0x2c) from [<802990b8>] (do_writepage+0x1b8/0=
+x1c4)
+[<802990b8>] (do_writepage+0x1b8/0x1c4) from [<802991e8>] (ubifs_writepage+=
+0x124/0x1dc)
+[<802991e8>] (ubifs_writepage+0x124/0x1dc) from [<800cefc0>] (__writepage+0=
+x24/0x4c)
+[<800cefc0>] (__writepage+0x24/0x4c) from [<800cf288>] (write_cache_pages+0=
+x1b0/0x408)
+[<800cf288>] (write_cache_pages+0x1b0/0x408) from [<800cf538>] (generic_wri=
+tepages+0x58/0x70)
+[<800cf538>] (generic_writepages+0x58/0x70) from [<800cf594>] (do_writepage=
+s+0x44/0x48)
+[<800cf594>] (do_writepages+0x44/0x48) from [<80139a30>] (__writeback_singl=
+e_inode+0x50/0x238)
+[<80139a30>] (__writeback_single_inode+0x50/0x238) from [<8013ae48>] (write=
+back_sb_inodes+0x264/0x44c)
+[<8013ae48>] (writeback_sb_inodes+0x264/0x44c) from [<8013b0c4>] (__writeba=
+ck_inodes_wb+0x94/0xcc)
+[<8013b0c4>] (__writeback_inodes_wb+0x94/0xcc) from [<8013b3dc>] (wb_writeb=
+ack+0x228/0x2f8)
+[<8013b3dc>] (wb_writeback+0x228/0x2f8) from [<8013b6b4>] (wb_do_writeback+=
+0x208/0x24c)
+[<8013b6b4>] (wb_do_writeback+0x208/0x24c) from [<8013b774>] (bdi_writeback=
+_workfn+0x7c/0x1dc)
+[<8013b774>] (bdi_writeback_workfn+0x7c/0x1dc) from [<8004ac64>] (process_o=
+ne_work+0x160/0x460)
+[<8004ac64>] (process_one_work+0x160/0x460) from [<8004b0ac>] (worker_threa=
+d+0x148/0x49c)
+[<8004b0ac>] (worker_thread+0x148/0x49c) from [<80051e28>] (kthread+0xc8/0x=
+cc)
+[<80051e28>] (kthread+0xc8/0xcc) from [<80015198>] (ret_from_fork+0x14/0x20=
+)
+UBIFS assert failed in ubifs_release_budget at 567 (pid 6)
+CPU: 3 PID: 6 Comm: kworker/u8:0 Not tainted 3.10.0_s40 #1
+Workqueue: writeback bdi_writeback_workfn (flush-ubifs_1_0)
 
-BTW, what keeps mm_struct around? It seems we don't take reference during
-page fault.
+-----Original Message-----
+From: Dave Chinner [mailto:david@fromorbit.com]=20
+Sent: Tuesday, October 21, 2014 11:39 AM
+To: Artem Bityutskiy
+Cc: Caizhiyong; linux-fsdevel@vger.kernel.org; linux-mm@kvack.org; Jijiagan=
+g; adrian.hunter@intel.com; linux-mtd@lists.infradead.org; Wanli (welly)
+Subject: Re: UBIFS assert failed in ubifs_set_page_dirty at 1421
 
--- 
- Kirill A. Shutemov
+On Mon, Oct 20, 2014 at 04:11:59PM +0300, Artem Bityutskiy wrote:
+> 3. There are exactly 2 places where UBIFS-backed pages may be marked=20
+> as
+> dirty:
+>=20
+>   a) ubifs_write_end() [->wirte_end] - the file write path
+>   b) ubifs_page_mkwrite() [->page_mkwirte] - the file mmap() path
+>=20
+> 4. If anything calls 'ubifs_set_page_dirty()' directly (not through=20
+> write_end()/mkwrite()), and the page was not dirty, UBIFS will=20
+> complain with the assertion that you see.
+>=20
+> > CPU: 3 PID: 543 Comm: kswapd0 Tainted: P           O 3.10.0_s40 #1
+
+Kernel is tainted. Not worth wasting time on unless it can be reproduced on=
+ an untainted kernel...
+
+Cheers,
+
+Dave.
+--
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
