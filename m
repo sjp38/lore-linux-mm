@@ -1,111 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 327B682BDD
-	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 07:49:55 -0400 (EDT)
-Received: by mail-lb0-f173.google.com with SMTP id 10so834812lbg.18
-        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 04:49:53 -0700 (PDT)
-Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
-        by mx.google.com with SMTP id bm5si1966766lbb.59.2014.10.21.04.49.51
-        for <linux-mm@kvack.org>;
-        Tue, 21 Oct 2014 04:49:52 -0700 (PDT)
-From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Subject: Re: [PATCH 4/4] PM: convert do_each_thread to for_each_process_thread
-Date: Tue, 21 Oct 2014 14:10:18 +0200
-Message-ID: <2670728.8H9BNSArM8@vostro.rjw.lan>
-In-Reply-To: <1413876435-11720-5-git-send-email-mhocko@suse.cz>
-References: <1413876435-11720-1-git-send-email-mhocko@suse.cz> <1413876435-11720-5-git-send-email-mhocko@suse.cz>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F0B36B00A5
+	for <linux-mm@kvack.org>; Tue, 21 Oct 2014 08:15:02 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id kq14so1298546pab.12
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 05:15:02 -0700 (PDT)
+Received: from mail-pd0-x233.google.com (mail-pd0-x233.google.com. [2607:f8b0:400e:c02::233])
+        by mx.google.com with ESMTPS id z3si10836498pbw.195.2014.10.21.05.15.01
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 21 Oct 2014 05:15:01 -0700 (PDT)
+Received: by mail-pd0-f179.google.com with SMTP id r10so1252643pdi.10
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 05:15:01 -0700 (PDT)
+From: Thierry Reding <thierry.reding@gmail.com>
+Subject: [PATCH] mm/cma: Make kmemleak ignore CMA regions
+Date: Tue, 21 Oct 2014 14:14:56 +0200
+Message-Id: <1413893696-25484-1-git-send-email-thierry.reding@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tuesday, October 21, 2014 09:27:15 AM Michal Hocko wrote:
-> as per 0c740d0afc3b (introduce for_each_thread() to replace the buggy
-> while_each_thread()) get rid of do_each_thread { } while_each_thread()
-> construct and replace it by a more error prone for_each_thread.
-> 
-> This patch doesn't introduce any user visible change.
-> 
-> Suggested-by: Oleg Nesterov <oleg@redhat.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+From: Thierry Reding <treding@nvidia.com>
 
-ACK
+kmemleak will add allocations as objects to a pool. The memory allocated
+for each object in this pool is periodically searched for pointers to
+other allocated objects. This only works for memory that is mapped into
+the kernel's virtual address space, which happens not to be the case for
+most CMA regions.
 
-Or do you want me to handle this series?
+Furthermore, CMA regions are typically used to store data transferred to
+or from a device and therefore don't contain pointers to other objects.
 
-> ---
->  kernel/power/process.c | 16 ++++++++--------
->  1 file changed, 8 insertions(+), 8 deletions(-)
-> 
-> diff --git a/kernel/power/process.c b/kernel/power/process.c
-> index a397fa161d11..7fd7b72554fe 100644
-> --- a/kernel/power/process.c
-> +++ b/kernel/power/process.c
-> @@ -46,13 +46,13 @@ static int try_to_freeze_tasks(bool user_only)
->  	while (true) {
->  		todo = 0;
->  		read_lock(&tasklist_lock);
-> -		do_each_thread(g, p) {
-> +		for_each_process_thread(g, p) {
->  			if (p == current || !freeze_task(p))
->  				continue;
->  
->  			if (!freezer_should_skip(p))
->  				todo++;
-> -		} while_each_thread(g, p);
-> +		}
->  		read_unlock(&tasklist_lock);
->  
->  		if (!user_only) {
-> @@ -93,11 +93,11 @@ static int try_to_freeze_tasks(bool user_only)
->  
->  		if (!wakeup) {
->  			read_lock(&tasklist_lock);
-> -			do_each_thread(g, p) {
-> +			for_each_process_thread(g, p) {
->  				if (p != current && !freezer_should_skip(p)
->  				    && freezing(p) && !frozen(p))
->  					sched_show_task(p);
-> -			} while_each_thread(g, p);
-> +			}
->  			read_unlock(&tasklist_lock);
->  		}
->  	} else {
-> @@ -219,11 +219,11 @@ void thaw_processes(void)
->  	thaw_workqueues();
->  
->  	read_lock(&tasklist_lock);
-> -	do_each_thread(g, p) {
-> +	for_each_process_thread(g, p) {
->  		/* No other threads should have PF_SUSPEND_TASK set */
->  		WARN_ON((p != curr) && (p->flags & PF_SUSPEND_TASK));
->  		__thaw_task(p);
-> -	} while_each_thread(g, p);
-> +	}
->  	read_unlock(&tasklist_lock);
->  
->  	WARN_ON(!(curr->flags & PF_SUSPEND_TASK));
-> @@ -246,10 +246,10 @@ void thaw_kernel_threads(void)
->  	thaw_workqueues();
->  
->  	read_lock(&tasklist_lock);
-> -	do_each_thread(g, p) {
-> +	for_each_process_thread(g, p) {
->  		if (p->flags & (PF_KTHREAD | PF_WQ_WORKER))
->  			__thaw_task(p);
-> -	} while_each_thread(g, p);
-> +	}
->  	read_unlock(&tasklist_lock);
->  
->  	schedule();
-> 
+Signed-off-by: Thierry Reding <treding@nvidia.com>
+---
+Note: I'm not sure this is really the right fix. But without this, the
+kernel crashes on the first execution of the scan_gray_list() because
+it tries to access highmem. Perhaps a more appropriate fix would be to
+reject any object that can't map to a kernel virtual address?
+---
+ mm/cma.c | 1 +
+ 1 file changed, 1 insertion(+)
 
+diff --git a/mm/cma.c b/mm/cma.c
+index 963bc4add9af..349f9266f6d3 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -280,6 +280,7 @@ int __init cma_declare_contiguous(phys_addr_t base,
+ 			ret = -ENOMEM;
+ 			goto err;
+ 		} else {
++			kmemleak_ignore(phys_to_virt(addr));
+ 			base = addr;
+ 		}
+ 	}
 -- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+2.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
