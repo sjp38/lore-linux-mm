@@ -1,82 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 737546B0069
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 06:32:19 -0400 (EDT)
-Received: by mail-wi0-f170.google.com with SMTP id n3so405114wiv.3
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 03:32:18 -0700 (PDT)
-Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com. [195.75.94.107])
-        by mx.google.com with ESMTPS id fq9si1293261wib.81.2014.10.22.03.32.16
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id BD6CC6B0069
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 07:09:37 -0400 (EDT)
+Received: by mail-wi0-f177.google.com with SMTP id fb4so1018652wid.4
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 04:09:37 -0700 (PDT)
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com. [195.75.94.106])
+        by mx.google.com with ESMTPS id r3si1434842wic.31.2014.10.22.04.09.35
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 22 Oct 2014 03:32:18 -0700 (PDT)
+        Wed, 22 Oct 2014 04:09:36 -0700 (PDT)
 Received: from /spool/local
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <dingel@linux.vnet.ibm.com>;
-	Wed, 22 Oct 2014 11:32:16 +0100
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id E78E32190043
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 11:31:48 +0100 (BST)
-Received: from d06av09.portsmouth.uk.ibm.com (d06av09.portsmouth.uk.ibm.com [9.149.37.250])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s9MAWCcr15729130
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 10:32:12 GMT
-Received: from d06av09.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av09.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s9MAWBcW012821
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 04:32:12 -0600
-Date: Wed, 22 Oct 2014 12:32:08 +0200
+	Wed, 22 Oct 2014 12:09:35 +0100
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 42CDB17D8067
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 12:09:33 +0100 (BST)
+Received: from d06av08.portsmouth.uk.ibm.com (d06av08.portsmouth.uk.ibm.com [9.149.37.249])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s9MB9XaT17301822
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 11:09:33 GMT
+Received: from d06av08.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av08.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s9MB9VxD030762
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 05:09:33 -0600
 From: Dominik Dingel <dingel@linux.vnet.ibm.com>
-Subject: Re: [PATCH 3/4] s390/mm: prevent and break zero page mappings in
- case of storage keys
-Message-ID: <20141022123208.3bcb6cfb@BR9TG4T3.de.ibm.com>
-In-Reply-To: <5447825B.5040608@redhat.com>
-References: <1413966624-12447-1-git-send-email-dingel@linux.vnet.ibm.com>
-	<1413966624-12447-4-git-send-email-dingel@linux.vnet.ibm.com>
-	<5447825B.5040608@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH v3 0/4] mm: new function to forbid zeropage mappings for a process
+Date: Wed, 22 Oct 2014 13:09:26 +0200
+Message-Id: <1413976170-42501-1-git-send-email-dingel@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paolo Bonzini <pbonzini@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, "Aneesh Kumar
- K.V" <aneesh.kumar@linux.vnet.ibm.com>, Bob Liu <lliubbo@gmail.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Gleb Natapov <gleb@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jianyu Zhan <nasa4836@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A.
- Shutemov" <kirill.shutemov@linux.intel.com>, kvm@vger.kernel.org, linux390@de.ibm.com, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Paolo Bonzini <pbonzini@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Bob Liu <lliubbo@gmail.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Gleb Natapov <gleb@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jianyu Zhan <nasa4836@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, kvm@vger.kernel.org, linux390@de.ibm.com, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Sasha Levin <sasha.levin@oracle.com>, Dominik Dingel <dingel@linux.vnet.ibm.com>
 
-On Wed, 22 Oct 2014 12:09:31 +0200
-Paolo Bonzini <pbonzini@redhat.com> wrote:
+s390 has the special notion of storage keys which are some sort of page flags
+associated with physical pages and live outside of direct addressable memory.
+These storage keys can be queried and changed with a special set of instructions.
+The mentioned instructions behave quite nicely under virtualization, if there is: 
+- an invalid pte, then the instructions will work on memory in the host page table
+- a valid pte, then the instructions will work with the real storage key
 
-> On 10/22/2014 10:30 AM, Dominik Dingel wrote:
-> > As use_skey is already the condition on which we call s390_enable_skey
-> > we need to introduce a new flag for the mm->context on which we decide
-> > if zero page mapping is allowed.
-> 
-> Can you explain better why "mm->context.use_skey = 1" cannot be done
-> before the walk_page_range?  Where does the walk or __s390_enable_skey
-> or (after the next patch) ksm_madvise rely on
-> "mm->context.forbids_zeropage && !mm->context.use_skey"?
+Thanks to Martin with his software reference and dirty bit tracking,
+the kernel does not issue any storage key instructions as now a 
+software based approach will be taken, on the other hand distributions 
+in the wild are currently using them.
 
-I can't, my reasoning there is wrong.
-I remembered incorrectly that we use mm_use_skey in arch/s390/kvm/priv.c to
-check if we need to call s390_enable_skey, but that does happen
-with the interception bits.
+However, for virtualized guests we still have a problem with guest pages 
+mapped to zero pages and the kernel same page merging.  
+With each one multiple guest pages will point to the same physical page
+and share the same storage key.
 
-So every vCPU which get the a interception for a storage key instruction
-will call s390_enable_skey and wait there for the mmap_sem.
+Let's fix this by introducing a new function which s390 will define to
+forbid new zero page mappings.  If the guest issues a storage key related 
+instruction we flag the mm_struct, drop existing zero page mappings
+and unmerge the guest memory.
 
-> The only reason I can think of, is that the next patch does not reset
-> "mm->context.forbids_zeropage" to 0 if the ksm_madvise fails.  Why
-> doesn't it do that---or is it a bug?
+v2 -> v3:
+ - Clearing up patch description Patch 3/4
+ - removing unnecessary flag in mmu_context (Paolo)
 
-You are right, this is a bug, where we will drop to userspace with -ENOMEM.
+v1 -> v2: 
+ - Following Dave and Paolo suggestion removing the vma flag
 
-I will fix this as well. 
+Dominik Dingel (4):
+  s390/mm: recfactor global pgste updates
+  mm: introduce mm_forbids_zeropage function
+  s390/mm: prevent and break zero page mappings in case of storage keys
+  s390/mm: disable KSM for storage key enabled pages
 
+ arch/s390/include/asm/pgalloc.h |   2 -
+ arch/s390/include/asm/pgtable.h |   8 +-
+ arch/s390/kvm/kvm-s390.c        |   2 +-
+ arch/s390/kvm/priv.c            |  17 ++--
+ arch/s390/mm/pgtable.c          | 180 ++++++++++++++++++----------------------
+ include/linux/mm.h              |   4 +
+ mm/huge_memory.c                |   2 +-
+ mm/memory.c                     |   2 +-
+ 8 files changed, 106 insertions(+), 111 deletions(-)
 
-> Thanks, and sorry for the flurry of questions! :)
-
-I really appreciate your questions and remarks. Thank you!
-
-> Paolo
-> 
+-- 
+1.8.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
