@@ -1,96 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 423A86B0069
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 12:30:53 -0400 (EDT)
-Received: by mail-la0-f43.google.com with SMTP id mc6so3319083lab.30
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 09:30:52 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p8si23979949lag.62.2014.10.22.09.30.50
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id B6AE66B0069
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 12:58:03 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so2074337pab.28
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 09:58:03 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id gx10si4281056pbd.136.2014.10.22.09.57.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 22 Oct 2014 09:30:51 -0700 (PDT)
-Date: Wed, 22 Oct 2014 18:30:51 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm: memcontrol: fix missed end-writeback accounting
-Message-ID: <20141022163051.GH30802@dhcp22.suse.cz>
-References: <1413915550-5651-1-git-send-email-hannes@cmpxchg.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Oct 2014 09:57:55 -0700 (PDT)
+Message-ID: <5447E210.8020902@codeaurora.org>
+Date: Wed, 22 Oct 2014 09:57:52 -0700
+From: Laura Abbott <lauraa@codeaurora.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1413915550-5651-1-git-send-email-hannes@cmpxchg.org>
+Subject: Deadlock with CMA and CPU hotplug
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: mgorman@suse.de, m.szyprowski@samsung.com, mina86@mina86.com
+Cc: linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, pratikp@codeaurora.org
 
-On Tue 21-10-14 14:19:10, Johannes Weiner wrote:
-> 0a31bc97c80c ("mm: memcontrol: rewrite uncharge API") changed page
-> migration to uncharge the old page right away.  The page is locked,
-> unmapped, truncated, and off the LRU.  But it could race with a
-> finishing writeback, which then doesn't get unaccounted properly:
-> 
-> test_clear_page_writeback()              migration
->   acquire pc->mem_cgroup->move_lock
->                                            wait_on_page_writeback()
->   TestClearPageWriteback()
->                                            mem_cgroup_migrate()
->                                              clear PCG_USED
->   if (PageCgroupUsed(pc))
->     decrease memcg pages under writeback
->   release pc->mem_cgroup->move_lock
-> 
-> One solution for this would be to simply remove the PageCgroupUsed()
-> check, as RCU protects the memcg anyway.
-> 
-> However, it's more robust to acknowledge that migration is really
-> modifying the charge state of alive pages in this case, and so it
-> should participate in the protocol specifically designed for this.
+Hi,
 
-It's been a long day so I might be missing something really obvious
-here. But how can move_lock help here when the fast path (no task
-migration is going on) takes only RCU read lock?
+We've run into a AB/BA deadlock situation involving a driver lock and
+the CPU hotplug lock on a 3.10 based kernel. The situation is this:
 
-> Fixes: 0a31bc97c80c ("mm: memcontrol: rewrite uncharge API")
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: "3.17" <stable@vger.kernel.org>
-> ---
->  mm/memcontrol.c | 8 ++++++++
->  1 file changed, 8 insertions(+)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 3a203c7ec6c7..b35a44e9cd37 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -6148,6 +6148,7 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
->  			bool lrucare)
->  {
->  	struct page_cgroup *pc;
-> +	unsigned long flags;
->  	int isolated;
->  
->  	VM_BUG_ON_PAGE(!PageLocked(oldpage), oldpage);
-> @@ -6177,7 +6178,14 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
->  	if (lrucare)
->  		lock_page_lru(oldpage, &isolated);
->  
-> +	/*
-> +	 * The page is locked, unmapped, truncated, and off the LRU,
-> +	 * but there might still be references, e.g. from finishing
-> +	 * writeback.  Follow the charge moving protocol here.
-> +	 */
-> +	move_lock_mem_cgroup(pc->mem_cgroup, &flags);
->  	pc->flags = 0;
-> +	move_unlock_mem_cgroup(pc->mem_cgroup, &flags);
->  
->  	if (lrucare)
->  		unlock_page_lru(oldpage, isolated);
-> -- 
-> 2.1.2
-> 
+CPU 0				CPU 1
+-----				----
+Start CPU hotplug
+mutex_lock(&cpu_hotplug.lock)
+Run CPU hotplug notifier
+				data for driver comes in
+				mutex_lock(&driver_lock)
+				driver calls dma_alloc_coherent
+				alloc_contig_range
+				lru_add_drain_all
+				get_online_cpus()
+				mutex_lock(&cpu_hotplug.lock)
+
+Driver hotplug notifier runs
+mutex_lock(&driver_lock)
+
+The driver itself is out of tree right now[1] and we're looking at
+ways to rework the driver. The best option for rework right now
+though might result in some performance penalties. The size that's
+being allocated can't easily be converted to an atomic allocation either
+It seems like this might be a limitation of where CMA/
+dma_alloc_coherent could potentially be used and make drivers
+unnecessarily aware of CPU hotplug locking.
+
+Does this seem like an actual problem that needs to be fixed or
+is trying to use CMA in a CPU hotplug notifier path just asking
+for trouble?
+
+Thanks,
+Laura
+
+[1] For reference, the driver is a version of
+https://lkml.org/lkml/2014/10/7/495 although that particular
+posted version allocates memory at probe instead of runtime
+and probably doesn't have the deadlock.
 
 -- 
-Michal Hocko
-SUSE Labs
+Qualcomm Innovation Center, Inc.
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum, a 
+Linux Foundation Collaborative Project
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
