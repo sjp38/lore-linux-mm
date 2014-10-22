@@ -1,148 +1,238 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 67A916B006E
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 01:59:26 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id y13so815368pdi.6
-        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 22:59:26 -0700 (PDT)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id f9si11533217pdp.157.2014.10.21.22.59.25
+	by kanga.kvack.org (Postfix) with ESMTP id EBBB56B0069
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 02:40:56 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id y13so882955pdi.20
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 23:40:56 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id uf6si13487311pac.6.2014.10.21.23.40.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 21 Oct 2014 22:59:25 -0700 (PDT)
-Received: by mail-pa0-f44.google.com with SMTP id et14so3035423pad.3
-        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 22:59:25 -0700 (PDT)
-Message-ID: <1413957522.7070.5.camel@debian>
-Subject: Re: [PATCH] x86, MCE: support memory error recovery for both UCNA
- and Deferred error in machine_check_poll
-From: Chen Yucong <slaoub@gmail.com>
-Date: Wed, 22 Oct 2014 13:58:42 +0800
-In-Reply-To: <1412921020.3631.7.camel@debian>
-References: <1412921020.3631.7.camel@debian>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Oct 2014 23:40:55 -0700 (PDT)
+Date: Wed, 22 Oct 2014 10:40:44 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH] memcg: remove mem_cgroup_reclaimable check from soft
+ reclaim
+Message-ID: <20141022064044.GQ16496@esperanza>
+References: <1413897350-32553-1-git-send-email-vdavydov@parallels.com>
+ <20141021182239.GA24899@phnom.home.cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20141021182239.GA24899@phnom.home.cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: Andi Kleen <ak@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-edac@vger.kernel.org" <linux-edac@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tony Luck <tony.luck@gmail.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 2014-10-10 at 14:03 +0800, Chen Yucong wrote:
-> From: Chen Yucong <slaoub@gmail.com>
+On Tue, Oct 21, 2014 at 02:22:39PM -0400, Johannes Weiner wrote:
+> On Tue, Oct 21, 2014 at 05:15:50PM +0400, Vladimir Davydov wrote:
+> > mem_cgroup_reclaimable() checks whether a cgroup has reclaimable pages
+> > on *any* NUMA node. However, the only place where it's called is
+> > mem_cgroup_soft_reclaim(), which tries to reclaim memory from a
+> > *specific* zone. So the way how it's used is incorrect - it will return
+> > true even if the cgroup doesn't have pages on the zone we're scanning.
+> > 
+> > I think we can get rid of this check completely, because
+> > mem_cgroup_shrink_node_zone(), which is called by
+> > mem_cgroup_soft_reclaim() if mem_cgroup_reclaimable() returns true, is
+> > equivalent to shrink_lruvec(), which exits almost immediately if the
+> > lruvec passed to it is empty. So there's no need to optimize anything
+> > here. Besides, we don't have such a check in the general scan path
+> > (shrink_zone) either.
+> > 
+> > Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 > 
-> dram_ce_error() stems from Boris's patch set. Thanks!
-> Link: http://lkml.org/lkml/2014/7/1/545
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 > 
-> Uncorrected no action required (UCNA) - is a UCR error that is not
-> signaled via a machine check exception and, instead, is reported to
-> system software as a corrected machine check error. UCNA errors indicate
-> that some data in the system is corrupted, but the data has not been
-> consumed and the processor state is valid and you may continue execution
-> on this processor. UCNA errors require no action from system software
-> to continue execution. Note that UCNA errors are supported by the
-> processor only when IA32_MCG_CAP[24] (MCG_SER_P) is set.
->                                            -- Intel SDM Volume 3B
+> How about this on top?
 > 
-> Deferred errors are errors that cannot be corrected by hardware, but
-> do not cause an immediate interruption in program flow, loss of data
-> integrity, or corruption of processor state. These errors indicate
-> that data has been corrupted but not consumed. Hardware writes information
-> to the status and address registers in the corresponding bank that
-> identifies the source of the error if deferred errors are enabled for
-> logging. Deferred errors are not reported via machine check exceptions;
-> they can be seen by polling the MCi_STATUS registers.
->                                             -- ADM64 APM Volume 2
-> 
-> Above two items, both UCNA and Deferred errors belong to detected
-> errors, but they can't be corrected by hardware, and this is very
-> similar to Software Recoverable Action Optional (SRAO) errors.
-> Therefore, we can take some actions that have been used for handling
-> SRAO errors to handle UCNA and Deferred errors.
-> 
-> Signed-off-by: Chen Yucong <slaoub@gmail.com>
 > ---
->  arch/x86/include/asm/mce.h       |    4 ++++
->  arch/x86/kernel/cpu/mcheck/mce.c |   39 ++++++++++++++++++++++++++++++++++++++
->  2 files changed, 43 insertions(+)
 > 
-> diff --git a/arch/x86/include/asm/mce.h b/arch/x86/include/asm/mce.h
-> index 958b90f..c9ac7df4 100644
-> --- a/arch/x86/include/asm/mce.h
-> +++ b/arch/x86/include/asm/mce.h
-> @@ -34,6 +34,10 @@
->  #define MCI_STATUS_S	 (1ULL<<56)  /* Signaled machine check */
->  #define MCI_STATUS_AR	 (1ULL<<55)  /* Action required */
+> From 27bd24b00433d9f6c8d60ba2b13dbff158b06c13 Mon Sep 17 00:00:00 2001
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Date: Tue, 21 Oct 2014 09:53:54 -0400
+> Subject: [patch] mm: memcontrol: do not filter reclaimable nodes in NUMA
+>  round-robin
+> 
+> The round-robin node reclaim currently tries to include only nodes
+> that have memory of the memcg in question, which is quite elaborate.
+> 
+> Just use plain round-robin over the nodes that are allowed by the
+> task's cpuset, which are the most likely to contain that memcg's
+> memory.  But even if zones without memcg memory are encountered,
+> direct reclaim will skip over them without too much hassle.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+
+Totally agree.
+
+Acked-by: Vladimir Davydov <vdavydov@parallels.com>
+
+> ---
+>  mm/memcontrol.c | 97 +++------------------------------------------------------
+>  1 file changed, 5 insertions(+), 92 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index d353d9e1fdca..293db8234179 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -54,6 +54,7 @@
+>  #include <linux/page_cgroup.h>
+>  #include <linux/cpu.h>
+>  #include <linux/oom.h>
+> +#include <linux/cpuset.h>
+>  #include <linux/lockdep.h>
+>  #include <linux/file.h>
+>  #include "internal.h"
+> @@ -129,12 +130,10 @@ static const char * const mem_cgroup_lru_names[] = {
+>  enum mem_cgroup_events_target {
+>  	MEM_CGROUP_TARGET_THRESH,
+>  	MEM_CGROUP_TARGET_SOFTLIMIT,
+> -	MEM_CGROUP_TARGET_NUMAINFO,
+>  	MEM_CGROUP_NTARGETS,
+>  };
+>  #define THRESHOLDS_EVENTS_TARGET 128
+>  #define SOFTLIMIT_EVENTS_TARGET 1024
+> -#define NUMAINFO_EVENTS_TARGET	1024
 >  
-> +/* AMD-specific bits */
-> +#define MCI_STATUS_DEFERRED     (1ULL<<44)  /* declare an uncorrected error */
-> +#define MCI_STATUS_POISON       (1ULL<<43)  /* access poisonous data */
-> +
->  /*
->   * Note that the full MCACOD field of IA32_MCi_STATUS MSR is
->   * bits 15:0.  But bit 12 is the 'F' bit, defined for corrected
-> diff --git a/arch/x86/kernel/cpu/mcheck/mce.c b/arch/x86/kernel/cpu/mcheck/mce.c
-> index 61a9668ce..4030c77 100644
-> --- a/arch/x86/kernel/cpu/mcheck/mce.c
-> +++ b/arch/x86/kernel/cpu/mcheck/mce.c
-> @@ -575,6 +575,35 @@ static void mce_read_aux(struct mce *m, int i)
+>  struct mem_cgroup_stat_cpu {
+>  	long count[MEM_CGROUP_STAT_NSTATS];
+> @@ -352,11 +351,6 @@ struct mem_cgroup {
+>  #endif
+>  
+>  	int last_scanned_node;
+> -#if MAX_NUMNODES > 1
+> -	nodemask_t	scan_nodes;
+> -	atomic_t	numainfo_events;
+> -	atomic_t	numainfo_updating;
+> -#endif
+>  
+>  	/* List of events which userspace want to receive */
+>  	struct list_head event_list;
+> @@ -965,9 +959,6 @@ static bool mem_cgroup_event_ratelimit(struct mem_cgroup *memcg,
+>  		case MEM_CGROUP_TARGET_SOFTLIMIT:
+>  			next = val + SOFTLIMIT_EVENTS_TARGET;
+>  			break;
+> -		case MEM_CGROUP_TARGET_NUMAINFO:
+> -			next = val + NUMAINFO_EVENTS_TARGET;
+> -			break;
+>  		default:
+>  			break;
+>  		}
+> @@ -986,22 +977,10 @@ static void memcg_check_events(struct mem_cgroup *memcg, struct page *page)
+>  	/* threshold event is triggered in finer grain than soft limit */
+>  	if (unlikely(mem_cgroup_event_ratelimit(memcg,
+>  						MEM_CGROUP_TARGET_THRESH))) {
+> -		bool do_softlimit;
+> -		bool do_numainfo __maybe_unused;
+> -
+> -		do_softlimit = mem_cgroup_event_ratelimit(memcg,
+> -						MEM_CGROUP_TARGET_SOFTLIMIT);
+> -#if MAX_NUMNODES > 1
+> -		do_numainfo = mem_cgroup_event_ratelimit(memcg,
+> -						MEM_CGROUP_TARGET_NUMAINFO);
+> -#endif
+>  		mem_cgroup_threshold(memcg);
+> -		if (unlikely(do_softlimit))
+> +		if (mem_cgroup_event_ratelimit(memcg,
+> +					       MEM_CGROUP_TARGET_SOFTLIMIT))
+>  			mem_cgroup_update_tree(memcg, page);
+> -#if MAX_NUMNODES > 1
+> -		if (unlikely(do_numainfo))
+> -			atomic_inc(&memcg->numainfo_events);
+> -#endif
 >  	}
 >  }
 >  
-> +static bool dram_ce_error(struct mce *m)
-> +{
-> +	struct cpuinfo_x86 *c = &boot_cpu_data;
-> +
-> +	if (c->x86_vendor == X86_VENDOR_AMD) {
-> +		/* ErrCodeExt[20:16] */
-> +		u8 xec = (m->status >> 16) & 0x1f;
-> +
-> +		if (m->status & MCI_STATUS_DEFERRED)
-> +			return (xec == 0x0 || xec == 0x8);
-> +	} else if (c->x86_vendor == X86_VENDOR_INTEL) {
-> +		/*
-> +		 * SDM Volume 3B - 15.9.2 Compound Error Codes (Table 15-9)
-> +		 *
-> +		 * Bit 7 of the MCACOD field of IA32_MCi_STATUS is used for
-> +		 * indicating a memory error. But we can't just blindly check
-> +		 * bit 7 because if bit 8 is set, then this is a cache error,
-> +		 * and if bit 11 is set, then it is a bus/ interconnect error
-> +		 * - and either way bit 7 just gives more detail on what
-> +		 * cache/bus/interconnect error happened. Note that we can
-> +		 * ignore bit 12, as it's the "filter" bit.
-> +		 */
-> +		if ((m->mcgcap & MCG_SER_P) && (m->status & MCI_STATUS_UC))
-> +			return (m->status & 0xef80) == BIT(7);
-> +	}
-> +
-> +	return false;
-> +}
-> +
->  DEFINE_PER_CPU(unsigned, mce_poll_count);
+> @@ -1708,61 +1687,7 @@ static void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  			 NULL, "Memory cgroup out of memory");
+>  }
 >  
+> -/**
+> - * test_mem_cgroup_node_reclaimable
+> - * @memcg: the target memcg
+> - * @nid: the node ID to be checked.
+> - * @noswap : specify true here if the user wants flle only information.
+> - *
+> - * This function returns whether the specified memcg contains any
+> - * reclaimable pages on a node. Returns true if there are any reclaimable
+> - * pages in the node.
+> - */
+> -static bool test_mem_cgroup_node_reclaimable(struct mem_cgroup *memcg,
+> -		int nid, bool noswap)
+> -{
+> -	if (mem_cgroup_node_nr_lru_pages(memcg, nid, LRU_ALL_FILE))
+> -		return true;
+> -	if (noswap || !total_swap_pages)
+> -		return false;
+> -	if (mem_cgroup_node_nr_lru_pages(memcg, nid, LRU_ALL_ANON))
+> -		return true;
+> -	return false;
+> -
+> -}
+>  #if MAX_NUMNODES > 1
+> -
+> -/*
+> - * Always updating the nodemask is not very good - even if we have an empty
+> - * list or the wrong list here, we can start from some node and traverse all
+> - * nodes based on the zonelist. So update the list loosely once per 10 secs.
+> - *
+> - */
+> -static void mem_cgroup_may_update_nodemask(struct mem_cgroup *memcg)
+> -{
+> -	int nid;
+> -	/*
+> -	 * numainfo_events > 0 means there was at least NUMAINFO_EVENTS_TARGET
+> -	 * pagein/pageout changes since the last update.
+> -	 */
+> -	if (!atomic_read(&memcg->numainfo_events))
+> -		return;
+> -	if (atomic_inc_return(&memcg->numainfo_updating) > 1)
+> -		return;
+> -
+> -	/* make a nodemask where this memcg uses memory from */
+> -	memcg->scan_nodes = node_states[N_MEMORY];
+> -
+> -	for_each_node_mask(nid, node_states[N_MEMORY]) {
+> -
+> -		if (!test_mem_cgroup_node_reclaimable(memcg, nid, false))
+> -			node_clear(nid, memcg->scan_nodes);
+> -	}
+> -
+> -	atomic_set(&memcg->numainfo_events, 0);
+> -	atomic_set(&memcg->numainfo_updating, 0);
+> -}
+> -
 >  /*
-> @@ -630,6 +659,16 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
+>   * Selecting a node where we start reclaim from. Because what we need is just
+>   * reducing usage counter, start from anywhere is O,K. Considering
+> @@ -1779,21 +1704,9 @@ int mem_cgroup_select_victim_node(struct mem_cgroup *memcg)
+>  {
+>  	int node;
 >  
->  		if (!(flags & MCP_TIMESTAMP))
->  			m.tsc = 0;
-> +
-> +		/*
-> +		 * In the cases where we don't have a valid address after all,
-> +		 * do not add it into the ring buffer.
-> +		 */
-> +		if (dram_ce_error(&m) && (m.status & MCI_STATUS_ADDRV)) {
-> +			mce_ring_add(m.addr >> PAGE_SHIFT);
-> +			mce_schedule_work();
-> +		}
-> +
->  		/*
->  		 * Don't get the IP here because it's unlikely to
->  		 * have anything to do with the actual error location.
-
-Hi Boris,
-
-Do you have any comments on this patch?
-
-thx!
-cyc
+> -	mem_cgroup_may_update_nodemask(memcg);
+> -	node = memcg->last_scanned_node;
+> -
+> -	node = next_node(node, memcg->scan_nodes);
+> +	node = next_node(memcg->last_scanned_node, cpuset_current_mems_allowed);
+>  	if (node == MAX_NUMNODES)
+> -		node = first_node(memcg->scan_nodes);
+> -	/*
+> -	 * We call this when we hit limit, not when pages are added to LRU.
+> -	 * No LRU may hold pages because all pages are UNEVICTABLE or
+> -	 * memcg is too small and all pages are not on LRU. In that case,
+> -	 * we use curret node.
+> -	 */
+> -	if (unlikely(node == MAX_NUMNODES))
+> -		node = numa_node_id();
+> -
+> +		node = first_node(cpuset_current_mems_allowed);
+>  	memcg->last_scanned_node = node;
+>  	return node;
+>  }
+> -- 
+> 2.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
