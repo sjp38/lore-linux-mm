@@ -1,78 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 69D9E6B006E
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 08:40:35 -0400 (EDT)
-Received: by mail-la0-f50.google.com with SMTP id s18so2832193lam.23
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 05:40:34 -0700 (PDT)
+Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 510A46B0069
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 09:20:51 -0400 (EDT)
+Received: by mail-la0-f44.google.com with SMTP id hs14so2917586lab.17
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 06:20:50 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id g2si23194013laf.43.2014.10.22.05.40.32
+        by mx.google.com with ESMTPS id d3si23368300lbc.14.2014.10.22.06.20.48
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Oct 2014 05:40:33 -0700 (PDT)
-Date: Wed, 22 Oct 2014 08:40:25 -0400
+        Wed, 22 Oct 2014 06:20:49 -0700 (PDT)
+Date: Wed, 22 Oct 2014 09:20:38 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] memcg: remove mem_cgroup_reclaimable check from soft
- reclaim
-Message-ID: <20141022124025.GA17161@phnom.home.cmpxchg.org>
-References: <1413897350-32553-1-git-send-email-vdavydov@parallels.com>
- <20141021182239.GA24899@phnom.home.cmpxchg.org>
- <20141022112116.GA30802@dhcp22.suse.cz>
+Subject: Re: [patch 1/4] mm: memcontrol: uncharge pages on swapout
+Message-ID: <20141022132038.GB17161@phnom.home.cmpxchg.org>
+References: <1413818532-11042-1-git-send-email-hannes@cmpxchg.org>
+ <1413818532-11042-2-git-send-email-hannes@cmpxchg.org>
+ <20141021125252.GN16496@esperanza>
+ <20141021210328.GB29116@phnom.home.cmpxchg.org>
+ <20141022083353.GU16496@esperanza>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141022112116.GA30802@dhcp22.suse.cz>
+In-Reply-To: <20141022083353.GU16496@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Oct 22, 2014 at 01:21:16PM +0200, Michal Hocko wrote:
-> On Tue 21-10-14 14:22:39, Johannes Weiner wrote:
-> [...]
-> > From 27bd24b00433d9f6c8d60ba2b13dbff158b06c13 Mon Sep 17 00:00:00 2001
-> > From: Johannes Weiner <hannes@cmpxchg.org>
-> > Date: Tue, 21 Oct 2014 09:53:54 -0400
-> > Subject: [patch] mm: memcontrol: do not filter reclaimable nodes in NUMA
-> >  round-robin
+On Wed, Oct 22, 2014 at 12:33:53PM +0400, Vladimir Davydov wrote:
+> On Tue, Oct 21, 2014 at 05:03:28PM -0400, Johannes Weiner wrote:
+> > On Tue, Oct 21, 2014 at 04:52:52PM +0400, Vladimir Davydov wrote:
+> > > On Mon, Oct 20, 2014 at 11:22:09AM -0400, Johannes Weiner wrote:
+> > > > mem_cgroup_swapout() is called with exclusive access to the page at
+> > > > the end of the page's lifetime.  Instead of clearing the PCG_MEMSW
+> > > > flag and deferring the uncharge, just do it right away.  This allows
+> > > > follow-up patches to simplify the uncharge code.
+> > > > 
+> > > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > > > ---
+> > > >  mm/memcontrol.c | 17 +++++++++++++----
+> > > >  1 file changed, 13 insertions(+), 4 deletions(-)
+> > > > 
+> > > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > > > index bea3fddb3372..7709f17347f3 100644
+> > > > --- a/mm/memcontrol.c
+> > > > +++ b/mm/memcontrol.c
+> > > > @@ -5799,6 +5799,7 @@ static void __init enable_swap_cgroup(void)
+> > > >   */
+> > > >  void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+> > > >  {
+> > > > +	struct mem_cgroup *memcg;
+> > > >  	struct page_cgroup *pc;
+> > > >  	unsigned short oldid;
+> > > >  
+> > > > @@ -5815,13 +5816,21 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+> > > >  		return;
+> > > >  
+> > > >  	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEMSW), page);
+> > > > +	memcg = pc->mem_cgroup;
+> > > >  
+> > > > -	oldid = swap_cgroup_record(entry, mem_cgroup_id(pc->mem_cgroup));
+> > > > +	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg));
+> > > >  	VM_BUG_ON_PAGE(oldid, page);
+> > > > +	mem_cgroup_swap_statistics(memcg, true);
+> > > >  
+> > > > -	pc->flags &= ~PCG_MEMSW;
+> > > > -	css_get(&pc->mem_cgroup->css);
+> > > > -	mem_cgroup_swap_statistics(pc->mem_cgroup, true);
+> > > > +	pc->flags = 0;
+> > > > +
+> > > > +	if (!mem_cgroup_is_root(memcg))
+> > > > +		page_counter_uncharge(&memcg->memory, 1);
+> > > 
+> > > AFAIU it removes batched uncharge of swapped out pages, doesn't it? Will
+> > > it affect performance?
 > > 
-> > The round-robin node reclaim currently tries to include only nodes
-> > that have memory of the memcg in question, which is quite elaborate.
-> > 
-> > Just use plain round-robin over the nodes that are allowed by the
-> > task's cpuset, which are the most likely to contain that memcg's
-> > memory.  But even if zones without memcg memory are encountered,
-> > direct reclaim will skip over them without too much hassle.
+> > During swapout and with lockless page counters?  I don't think so.
 > 
-> I do not think that using the current's node mask is correct. Different
-> tasks in the same memcg might be bound to different nodes and then a set
-> of nodes might be reclaimed much more if a particular task hits limit
-> more often. It also doesn't make much sense from semantical POV, we are
-> reclaiming memcg so the mask should be union of all tasks allowed nodes.
+> How is this different from page cache out? I mean, we can have a lot of
+> pages in the swap cache that have already been swapped out, and are
+> waiting to be unmapped, uncharged, and freed, just like usual page
+> cache. Why do we use batching for file cache pages then?
 
-Unless the cpuset hierarchy is separate from the memcg hierarchy, all
-tasks in the memcg belong to the same cpuset.  And the whole point of
-cpusets is that a group of tasks has the same nodemask, no?
+The batching is mostly for munmap().  We do it for reclaim because
+it's convenient, but I don't think an extra word per struct page to
+batch one, sometimes a few, locked subtractions per swapped out page
+is a reasonable trade-off.
 
-Sure, there are *possible* configurations for which this assumption
-breaks, like multiple hierarchies, but are they sensible?  Do we care?
+> > > Besides, it looks asymmetric with respect to the page cache uncharge
+> > > path, where we still defer uncharge to mem_cgroup_uncharge_list(), and I
+> > > personally rather dislike this asymmetry.
+> > 
+> > The asymmetry is inherent in the fact that we mave memory and
+> > memory+swap accounting, and here a memory charge is transferred out to
+> > swap.  Before, the asymmetry was in mem_cgroup_uncharge_list() where
+> > we separate out memory and memsw pages (which the next patch fixes).
+> 
+> I agree that memsw is inherently asymmetric, but IMO it isn't the case
+> for swap *cache* vs page *cache*. We handle them similarly - removing
+> from a mapping, uncharging, freeing. If one wants batching, why
+> shouldn't the other?
 
-> What we do currently is overly complicated though and I agree that there
-> is no good reason for it.
-> Let's just s@cpuset_current_mems_allowed@node_online_map@ and round
-> robin over all nodes. As you said we do not have to optimize for empty
-> zones.
+It has to be worth it in practical terms.  You can argue symmetry
+between swap cache and page cache, but swapping simply is a much
+colder path than reclaiming page cache.  Our reclaim algorithm avoids
+it like the plague.
 
-That was what I first had.  And cpuset_current_mems_allowed defaults
-to node_online_map, but once the user sets up cpusets in conjunction
-with memcgs, it seems to be the preferred value.
+> > So nothing changed, the ugliness was just moved around.  I actually
+> > like it better now that it's part of the swap controller, because
+> > that's where the nastiness actually comes from.  This will all go away
+> > when we account swap separately.  Then, swapped pages can keep their
+> > memory charge until mem_cgroup_uncharge() again and the swap charge
+> > will be completely independent from it.  This reshuffling is just
+> > necessary because it allows us to get rid of the per-page flag.
+> 
+> Do you mean that swap cache uncharge batching will be back soon?
 
-The other end of this is that if you have 16 nodes and use cpuset to
-bind the task to node 14 and 15, round-robin iterations of node 1-13
-will reclaim the group's memory on 14 and only the 15 iteration will
-actually look at memory from node 15 first.
-
-It seems using the cpuset bindings, while theoretically independent,
-would do the right thing for all intents and purposes.
+Well, yes, once we switch from memsw to a separate swap couter, it
+comes automatically.  Pages no longer carry two charges, and so the
+uncharging of pages doesn't have to distinguish between swapped out
+pages and other pages anymore.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
