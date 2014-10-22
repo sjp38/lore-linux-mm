@@ -1,71 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id B6AE66B0069
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 12:58:03 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so2074337pab.28
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 09:58:03 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id gx10si4281056pbd.136.2014.10.22.09.57.54
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id A2C2A6B0069
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 14:04:23 -0400 (EDT)
+Received: by mail-wi0-f178.google.com with SMTP id r20so2096286wiv.17
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 11:04:22 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id bl7si14302834wjc.30.2014.10.22.11.04.21
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Oct 2014 09:57:55 -0700 (PDT)
-Message-ID: <5447E210.8020902@codeaurora.org>
-Date: Wed, 22 Oct 2014 09:57:52 -0700
-From: Laura Abbott <lauraa@codeaurora.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Wed, 22 Oct 2014 11:04:21 -0700 (PDT)
+Date: Wed, 22 Oct 2014 20:04:17 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [RFC 1/4] slub: Remove __slab_alloc code duplication
+In-Reply-To: <20141022155526.942670823@linux.com>
+Message-ID: <alpine.DEB.2.11.1410222002380.5308@nanos>
+References: <20141022155517.560385718@linux.com> <20141022155526.942670823@linux.com>
 MIME-Version: 1.0
-Subject: Deadlock with CMA and CPU hotplug
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mgorman@suse.de, m.szyprowski@samsung.com, mina86@mina86.com
-Cc: linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, pratikp@codeaurora.org
+To: Christoph Lameter <cl@linux.com>
+Cc: akpm@linuxfoundation.org, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com
 
-Hi,
+On Wed, 22 Oct 2014, Christoph Lameter wrote:
 
-We've run into a AB/BA deadlock situation involving a driver lock and
-the CPU hotplug lock on a 3.10 based kernel. The situation is this:
+> Somehow the two branches in __slab_alloc do the same.
+> Unify them.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
+> 
+> Index: linux/mm/slub.c
+> ===================================================================
+> --- linux.orig/mm/slub.c
+> +++ linux/mm/slub.c
+> @@ -2280,12 +2280,8 @@ redo:
+>  		if (node != NUMA_NO_NODE && !node_present_pages(node))
+>  			searchnode = node_to_mem_node(node);
+>  
+> -		if (unlikely(!node_match(page, searchnode))) {
+> -			stat(s, ALLOC_NODE_MISMATCH);
+> -			deactivate_slab(s, page, c->freelist);
+> -			c->page = NULL;
+> -			c->freelist = NULL;
+> -			goto new_slab;
+> +		if (unlikely(!node_match(page, searchnode)))
+> +			goto deactivate;
+>  		}
 
-CPU 0				CPU 1
------				----
-Start CPU hotplug
-mutex_lock(&cpu_hotplug.lock)
-Run CPU hotplug notifier
-				data for driver comes in
-				mutex_lock(&driver_lock)
-				driver calls dma_alloc_coherent
-				alloc_contig_range
-				lru_add_drain_all
-				get_online_cpus()
-				mutex_lock(&cpu_hotplug.lock)
+That's not compiling at all due to the left over '}' !
 
-Driver hotplug notifier runs
-mutex_lock(&driver_lock)
-
-The driver itself is out of tree right now[1] and we're looking at
-ways to rework the driver. The best option for rework right now
-though might result in some performance penalties. The size that's
-being allocated can't easily be converted to an atomic allocation either
-It seems like this might be a limitation of where CMA/
-dma_alloc_coherent could potentially be used and make drivers
-unnecessarily aware of CPU hotplug locking.
-
-Does this seem like an actual problem that needs to be fixed or
-is trying to use CMA in a CPU hotplug notifier path just asking
-for trouble?
+And shouldn't you keep the stat(); call in that code path?
 
 Thanks,
-Laura
 
-[1] For reference, the driver is a version of
-https://lkml.org/lkml/2014/10/7/495 although that particular
-posted version allocates memory at probe instead of runtime
-and probably doesn't have the deadlock.
-
--- 
-Qualcomm Innovation Center, Inc.
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum, a 
-Linux Foundation Collaborative Project
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
