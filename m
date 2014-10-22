@@ -1,49 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id D3C1F6B0038
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 16:00:49 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id r10so4112917pdi.24
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 13:00:49 -0700 (PDT)
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B07A6B0038
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 16:13:09 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id eu11so1713pac.2
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 13:13:09 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id bz6si3621188pad.70.2014.10.22.13.00.47
+        by mx.google.com with ESMTPS id qn8si15105055pab.104.2014.10.22.13.13.08
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Oct 2014 13:00:48 -0700 (PDT)
-Date: Wed, 22 Oct 2014 13:00:46 -0700
+        Wed, 22 Oct 2014 13:13:08 -0700 (PDT)
+Date: Wed, 22 Oct 2014 13:13:08 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 2/2] fs: proc: Include cma info in proc/meminfo
-Message-Id: <20141022130046.f4c7bb9cfc5805d2bef188a4@linux-foundation.org>
-In-Reply-To: <1413986796-19732-2-git-send-email-pintu.k@samsung.com>
-References: <1413790391-31686-1-git-send-email-pintu.k@samsung.com>
-	<1413986796-19732-1-git-send-email-pintu.k@samsung.com>
-	<1413986796-19732-2-git-send-email-pintu.k@samsung.com>
+Subject: Re: [PATCH] mm, hugetlb: correct bit shift in hstate_sizelog
+Message-Id: <20141022131308.361a72ba7c6fbf1bd778445a@linux-foundation.org>
+In-Reply-To: <5447FC6E.2000207@oracle.com>
+References: <1413915307-20536-1-git-send-email-sasha.levin@oracle.com>
+	<544743D6.6040103@samsung.com>
+	<20141022114437.72eb61ce3e2348c52ab3d1db@linux-foundation.org>
+	<5447FC6E.2000207@oracle.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pintu Kumar <pintu.k@samsung.com>
-Cc: riel@redhat.com, aquini@redhat.com, paul.gortmaker@windriver.com, jmarchan@redhat.com, lcapitulino@redhat.com, kirill.shutemov@linux.intel.com, m.szyprowski@samsung.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, mina86@mina86.com, lauraa@codeaurora.org, gioh.kim@lge.com, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org, vbabka@suse.cz, sasha.levin@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pintu_agarwal@yahoo.com, cpgs@samsung.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, ed.savinay@samsung.com
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Andrey Ryabinin <a.ryabinin@samsung.com>, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, mgorman@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 22 Oct 2014 19:36:35 +0530 Pintu Kumar <pintu.k@samsung.com> wrote:
+On Wed, 22 Oct 2014 14:50:22 -0400 Sasha Levin <sasha.levin@oracle.com> wrote:
 
-> This patch include CMA info (CMATotal, CMAFree) in /proc/meminfo.
-> Currently, in a CMA enabled system, if somebody wants to know the
-> total CMA size declared, there is no way to tell, other than the dmesg
-> or /var/log/messages logs.
-> With this patch we are showing the CMA info as part of meminfo, so that
-> it can be determined at any point of time.
-> This will be populated only when CMA is enabled.
+> On 10/22/2014 02:44 PM, Andrew Morton wrote:
+> > On Wed, 22 Oct 2014 09:42:46 +0400 Andrey Ryabinin <a.ryabinin@samsung.com> wrote:
+> > 
+> >> > On 10/21/2014 10:15 PM, Sasha Levin wrote:
+> >>> > > hstate_sizelog() would shift left an int rather than long, triggering
+> >>> > > undefined behaviour and passing an incorrect value when the requested
+> >>> > > page size was more than 4GB, thus breaking >4GB pages.
+> >> > 
+> >>> > > 
+> >>> > > Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
+> >>> > > ---
+> >>> > >  include/linux/hugetlb.h |    3 ++-
+> >>> > >  1 file changed, 2 insertions(+), 1 deletion(-)
+> >>> > > 
+> >>> > > diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> >>> > > index 65e12a2..57e0dfd 100644
+> >>> > > --- a/include/linux/hugetlb.h
+> >>> > > +++ b/include/linux/hugetlb.h
+> >>> > > @@ -312,7 +312,8 @@ static inline struct hstate *hstate_sizelog(int page_size_log)
+> >>> > >  {
+> >>> > >  	if (!page_size_log)
+> >>> > >  		return &default_hstate;
+> >>> > > -	return size_to_hstate(1 << page_size_log);
+> >>> > > +
+> >>> > > +	return size_to_hstate(1UL << page_size_log);
+> >> > 
+> >> > That still could be undefined on 32-bits. Either use 1ULL or reduce SHM_HUGE_MASK on 32bits.
+> >> > 
+> > But
+> > 
+> > struct hstate *size_to_hstate(unsigned long size)
+> 
+> True, but "(1 << page_size_log)" produces an integer rather than long because "1"
+> is an int and not long.
 
-Fair enough.
-
-We should be pretty careful about what we put in meminfo - it's the
-top-level, most-important procfs file and I expect that quite a lot of
-userspace reads it with some frequency.  We don't want to clutter it
-up.  /proc/vmstat is a suitable place for the less important info which
-is more kernel developer oriented.
-
-But CMATotal and CMAFree do pass the "should be in meminfo" test, IMO.
+My point is that there's no point in using 1ULL because
+size_to_hstate() will truncate it anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
