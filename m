@@ -1,58 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id E75D46B0038
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 15:49:32 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id w10so4154772pde.12
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 12:49:32 -0700 (PDT)
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id D3C1F6B0038
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 16:00:49 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id r10so4112917pdi.24
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 13:00:49 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id dx1si11163138pbc.95.2014.10.22.12.49.31
+        by mx.google.com with ESMTPS id bz6si3621188pad.70.2014.10.22.13.00.47
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Oct 2014 12:49:32 -0700 (PDT)
-Date: Wed, 22 Oct 2014 12:49:30 -0700
+        Wed, 22 Oct 2014 13:00:48 -0700 (PDT)
+Date: Wed, 22 Oct 2014 13:00:46 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/4] mm: introduce mm_forbids_zeropage function
-Message-Id: <20141022124930.d723008daf5465be0a761b82@linux-foundation.org>
-In-Reply-To: <20141022214552.0c954692@BR9TG4T3.de.ibm.com>
-References: <1413976170-42501-1-git-send-email-dingel@linux.vnet.ibm.com>
-	<1413976170-42501-3-git-send-email-dingel@linux.vnet.ibm.com>
-	<20141022122223.f3bef0f497941fa8e0805dbf@linux-foundation.org>
-	<20141022214552.0c954692@BR9TG4T3.de.ibm.com>
+Subject: Re: [PATCH v2 2/2] fs: proc: Include cma info in proc/meminfo
+Message-Id: <20141022130046.f4c7bb9cfc5805d2bef188a4@linux-foundation.org>
+In-Reply-To: <1413986796-19732-2-git-send-email-pintu.k@samsung.com>
+References: <1413790391-31686-1-git-send-email-pintu.k@samsung.com>
+	<1413986796-19732-1-git-send-email-pintu.k@samsung.com>
+	<1413986796-19732-2-git-send-email-pintu.k@samsung.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dominik Dingel <dingel@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Paolo Bonzini <pbonzini@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Bob Liu <lliubbo@gmail.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Gleb Natapov <gleb@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jianyu Zhan <nasa4836@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, kvm@vger.kernel.org, linux390@de.ibm.com, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Sasha Levin <sasha.levin@oracle.com>
+To: Pintu Kumar <pintu.k@samsung.com>
+Cc: riel@redhat.com, aquini@redhat.com, paul.gortmaker@windriver.com, jmarchan@redhat.com, lcapitulino@redhat.com, kirill.shutemov@linux.intel.com, m.szyprowski@samsung.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, mina86@mina86.com, lauraa@codeaurora.org, gioh.kim@lge.com, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org, vbabka@suse.cz, sasha.levin@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pintu_agarwal@yahoo.com, cpgs@samsung.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, ed.savinay@samsung.com
 
-On Wed, 22 Oct 2014 21:45:52 +0200 Dominik Dingel <dingel@linux.vnet.ibm.com> wrote:
+On Wed, 22 Oct 2014 19:36:35 +0530 Pintu Kumar <pintu.k@samsung.com> wrote:
 
-> > > +#ifndef mm_forbids_zeropage
-> > > +#define mm_forbids_zeropage(X)  (0)
-> > > +#endif
-> > 
-> > Can we document this please?  What it does, why it does it.  We should
-> > also specify precisely which arch header file is responsible for
-> > defining mm_forbids_zeropage.
-> > 
-> 
-> I will add a comment like:
-> 
-> /*
->  * To prevent common memory management code establishing
->  * a zero page mapping on a read fault.
->  * This function should be implemented within <asm/pgtable.h>.
+> This patch include CMA info (CMATotal, CMAFree) in /proc/meminfo.
+> Currently, in a CMA enabled system, if somebody wants to know the
+> total CMA size declared, there is no way to tell, other than the dmesg
+> or /var/log/messages logs.
+> With this patch we are showing the CMA info as part of meminfo, so that
+> it can be determined at any point of time.
+> This will be populated only when CMA is enabled.
 
-s/function should be implemented/macro should be defined/
+Fair enough.
 
->  * s390 does this to prevent multiplexing of hardware bits
->  * related to the physical page in case of virtualization.
->  */
-> 
-> Okay?
+We should be pretty careful about what we put in meminfo - it's the
+top-level, most-important procfs file and I expect that quite a lot of
+userspace reads it with some frequency.  We don't want to clutter it
+up.  /proc/vmstat is a suitable place for the less important info which
+is more kernel developer oriented.
 
-Looks great, thanks.
+But CMATotal and CMAFree do pass the "should be in meminfo" test, IMO.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
