@@ -1,55 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 9115B6B006E
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 01:44:30 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id w10so2788769pde.26
-        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 22:44:30 -0700 (PDT)
-Received: from manager.mioffice.cn ([42.62.48.242])
-        by mx.google.com with ESMTP id p1si13236941pdp.169.2014.10.21.22.44.27
-        for <linux-mm@kvack.org>;
-        Tue, 21 Oct 2014 22:44:29 -0700 (PDT)
-From: =?gb2312?B?1uy71A==?= <zhuhui@xiaomi.com>
-Subject: Re: [PATCH 1/4] (CMA_AGGRESSIVE) Add CMA_AGGRESSIVE to Kconfig
-Date: Wed, 22 Oct 2014 05:44:24 +0000
-Message-ID: <2c27ad87839b42ca85c03c9541550d30@cnbox4.mioffice.cn>
-References: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com>
- <1413430551-22392-2-git-send-email-zhuhui@xiaomi.com>
- <201410220126.s9M1Qita026502@spam.xiaomi.com>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 67A916B006E
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 01:59:26 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id y13so815368pdi.6
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 22:59:26 -0700 (PDT)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id f9si11533217pdp.157.2014.10.21.22.59.25
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 21 Oct 2014 22:59:25 -0700 (PDT)
+Received: by mail-pa0-f44.google.com with SMTP id et14so3035423pad.3
+        for <linux-mm@kvack.org>; Tue, 21 Oct 2014 22:59:25 -0700 (PDT)
+Message-ID: <1413957522.7070.5.camel@debian>
+Subject: Re: [PATCH] x86, MCE: support memory error recovery for both UCNA
+ and Deferred error in machine_check_poll
+From: Chen Yucong <slaoub@gmail.com>
+Date: Wed, 22 Oct 2014 13:58:42 +0800
+In-Reply-To: <1412921020.3631.7.camel@debian>
+References: <1412921020.3631.7.camel@debian>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@denx.de>
-Cc: "rjw@rjwysocki.net" <rjw@rjwysocki.net>, "len.brown@intel.com" <len.brown@intel.com>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mina86@mina86.com" <mina86@mina86.com>, "aneesh.kumar@linux.vnet.ibm.com" <aneesh.kumar@linux.vnet.ibm.com>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "riel@redhat.com" <riel@redhat.com>, "mgorman@suse.de" <mgorman@suse.de>, "minchan@kernel.org" <minchan@kernel.org>, "nasa4836@gmail.com" <nasa4836@gmail.com>, "ddstreet@ieee.org" <ddstreet@ieee.org>, "hughd@google.com" <hughd@google.com>, "mingo@kernel.org" <mingo@kernel.org>, "rientjes@google.com" <rientjes@google.com>, "peterz@infradead.org" <peterz@infradead.org>, "keescook@chromium.org" <keescook@chromium.org>, "atomlin@redhat.com" <atomlin@redhat.com>, "raistlin@linux.it" <raistlin@linux.it>, "axboe@fb.com" <axboe@fb.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, "k.khlebnikov@samsung.com" <k.khlebnikov@samsung.com>, "msalter@redhat.com" <msalter@redhat.com>, "deller@gmx.de" <deller@gmx.de>, "tangchen@cn.fujitsu.com" <tangchen@cn.fujitsu.com>, "ben@decadent.org.uk" <ben@decadent.org.uk>, "akinobu.mita@gmail.com" <akinobu.mita@gmail.com>, "lauraa@codeaurora.org" <lauraa@codeaurora.org>, "vbabka@suse.cz" <vbabka@suse.cz>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "vdavydov@parallels.com" <vdavydov@parallels.com>, "suleiman@google.com" <suleiman@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Borislav Petkov <bp@alien8.de>
+Cc: Andi Kleen <ak@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-edac@vger.kernel.org" <linux-edac@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Tony Luck <tony.luck@gmail.com>
 
-CgpPbiAxMC8yMi8xNCAwOToyNywgUGF2ZWwgTWFjaGVrIHdyb3RlOgo+IEhpIQo+Cj4+IEFkZCBD
-TUFfQUdHUkVTU0lWRSBjb25maWcgdGhhdCBkZXBlbmQgb24gQ01BIHRvIExpbnV4IGtlcm5lbCBj
-b25maWcuCj4+IEFkZCBDTUFfQUdHUkVTU0lWRV9QSFlfTUFYLCBDTUFfQUdHUkVTU0lWRV9GUkVF
-X01JTiBhbmQgQ01BX0FHR1JFU1NJVkVfU0hSSU5LCj4+IHRoYXQgZGVwZW5kIG9uIENNQV9BR0dS
-RVNTSVZFLgo+Pgo+PiBJZiBwaHlzaWNhbCBtZW1vcnkgc2l6ZSAobm90IGluY2x1ZGUgQ01BIG1l
-bW9yeSkgaW4gYnl0ZSBsZXNzIHRoYW4gb3IgZXF1YWwgdG8KPj4gQ01BX0FHR1JFU1NJVkVfUEhZ
-X01BWCwgQ01BIGFnZ3Jlc3NpdmUgc3dpdGNoIChzeXNjdGwgdm0uY21hLWFnZ3Jlc3NpdmUtc3dp
-dGNoKQo+PiB3aWxsIGJlIG9wZW5lZC4KPgo+IE9rLi4uCj4KPiBEbyBJIHVuZGVyc3RhbmQgaXQg
-Y29ycmVjdGx5IHRoYXQgdGhlcmUgaXMgc29tZSBwcm9ibGVtIHdpdGgKPiBoaWJlcm5hdGlvbiBu
-b3Qgd29ya2luZyBvbiBtYWNoaW5lcyBub3Qgd29ya2luZyBvbiBtYWNoaW5lcyB3aXRoIGJpZwo+
-IENNQSBhcmVhcy4uLj8KCk5vLCB0aGVzZSBwYXRjaGVzIHdhbnQgdG8gaGFuZGxlIHRoaXMgaXNz
-dWUgdGhhdCBtb3N0IG9mIENNQSBtZW1vcnkgaXMgCm5vdCBhbGxvY2F0ZWQgYmVmb3JlIGxvd21l
-bW9yeWtpbGxlciBvciBvb21fa2lsbGVyIGJlZ2luIHRvIGtpbGwgdGFza3MuCgo+Cj4gQnV0IGFk
-ZGluZyA0IGNvbmZpZyBvcHRpb25zIGVuZC11c2VyIGhhcyBubyBjaGFuY2UgdG8gc2V0IHJpZ2h0
-IGNhbgo+IG5vdCBiZSB0aGUgYmVzdCBzb2x1dGlvbiwgY2FuIGl0Pwo+Cj4+ICtjb25maWcgQ01B
-X0FHR1JFU1NJVkVfUEhZX01BWAo+PiArCWhleCAiUGh5c2ljYWwgbWVtb3J5IHNpemUgaW4gQnl0
-ZXMgdGhhdCBhdXRvIHR1cm4gb24gdGhlIENNQSBhZ2dyZXNzaXZlIHN3aXRjaCIKPj4gKwlkZXBl
-bmRzIG9uIENNQV9BR0dSRVNTSVZFCj4+ICsJZGVmYXVsdCAweDQwMDAwMDAwCj4+ICsJaGVscAo+
-PiArCSAgSWYgcGh5c2ljYWwgbWVtb3J5IHNpemUgKG5vdCBpbmNsdWRlIENNQSBtZW1vcnkpIGlu
-IGJ5dGUgbGVzcyB0aGFuIG9yCj4+ICsJICBlcXVhbCB0byB0aGlzIHZhbHVlLCBDTUEgYWdncmVz
-c2l2ZSBzd2l0Y2ggd2lsbCBiZSBvcGVuZWQuCj4+ICsJICBBZnRlciB0aGUgTGludXggYm9vdCwg
-c3lzY3RsICJ2bS5jbWEtYWdncmVzc2l2ZS1zd2l0Y2giIGNhbiBjb250cm9sCj4+ICsJICB0aGUg
-Q01BIEFHR1JFU1NJVkUgc3dpdGNoLgo+Cj4gRm9yIGV4YW1wbGUuLi4gaG93IGFtIEkgZXhwZWN0
-ZWQgdG8gZmlndXJlIHJpZ2h0IHZhbHVlIHRvIHBsYWNlIGhlcmU/CgpJIGFncmVlIHdpdGggdGhh
-dC4gIEkgd2lsbCB1cGRhdGUgdGhpcyBjb25maWcgdG8gYXV0byBzZXQgaW4gbmV4dCB2ZXJzaW9u
-LgoKVGhhbmtzLApIdWkKCj4KPiAJCQkJCQkJCQlQYXZlbAo+Cg==
+On Fri, 2014-10-10 at 14:03 +0800, Chen Yucong wrote:
+> From: Chen Yucong <slaoub@gmail.com>
+> 
+> dram_ce_error() stems from Boris's patch set. Thanks!
+> Link: http://lkml.org/lkml/2014/7/1/545
+> 
+> Uncorrected no action required (UCNA) - is a UCR error that is not
+> signaled via a machine check exception and, instead, is reported to
+> system software as a corrected machine check error. UCNA errors indicate
+> that some data in the system is corrupted, but the data has not been
+> consumed and the processor state is valid and you may continue execution
+> on this processor. UCNA errors require no action from system software
+> to continue execution. Note that UCNA errors are supported by the
+> processor only when IA32_MCG_CAP[24] (MCG_SER_P) is set.
+>                                            -- Intel SDM Volume 3B
+> 
+> Deferred errors are errors that cannot be corrected by hardware, but
+> do not cause an immediate interruption in program flow, loss of data
+> integrity, or corruption of processor state. These errors indicate
+> that data has been corrupted but not consumed. Hardware writes information
+> to the status and address registers in the corresponding bank that
+> identifies the source of the error if deferred errors are enabled for
+> logging. Deferred errors are not reported via machine check exceptions;
+> they can be seen by polling the MCi_STATUS registers.
+>                                             -- ADM64 APM Volume 2
+> 
+> Above two items, both UCNA and Deferred errors belong to detected
+> errors, but they can't be corrected by hardware, and this is very
+> similar to Software Recoverable Action Optional (SRAO) errors.
+> Therefore, we can take some actions that have been used for handling
+> SRAO errors to handle UCNA and Deferred errors.
+> 
+> Signed-off-by: Chen Yucong <slaoub@gmail.com>
+> ---
+>  arch/x86/include/asm/mce.h       |    4 ++++
+>  arch/x86/kernel/cpu/mcheck/mce.c |   39 ++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 43 insertions(+)
+> 
+> diff --git a/arch/x86/include/asm/mce.h b/arch/x86/include/asm/mce.h
+> index 958b90f..c9ac7df4 100644
+> --- a/arch/x86/include/asm/mce.h
+> +++ b/arch/x86/include/asm/mce.h
+> @@ -34,6 +34,10 @@
+>  #define MCI_STATUS_S	 (1ULL<<56)  /* Signaled machine check */
+>  #define MCI_STATUS_AR	 (1ULL<<55)  /* Action required */
+>  
+> +/* AMD-specific bits */
+> +#define MCI_STATUS_DEFERRED     (1ULL<<44)  /* declare an uncorrected error */
+> +#define MCI_STATUS_POISON       (1ULL<<43)  /* access poisonous data */
+> +
+>  /*
+>   * Note that the full MCACOD field of IA32_MCi_STATUS MSR is
+>   * bits 15:0.  But bit 12 is the 'F' bit, defined for corrected
+> diff --git a/arch/x86/kernel/cpu/mcheck/mce.c b/arch/x86/kernel/cpu/mcheck/mce.c
+> index 61a9668ce..4030c77 100644
+> --- a/arch/x86/kernel/cpu/mcheck/mce.c
+> +++ b/arch/x86/kernel/cpu/mcheck/mce.c
+> @@ -575,6 +575,35 @@ static void mce_read_aux(struct mce *m, int i)
+>  	}
+>  }
+>  
+> +static bool dram_ce_error(struct mce *m)
+> +{
+> +	struct cpuinfo_x86 *c = &boot_cpu_data;
+> +
+> +	if (c->x86_vendor == X86_VENDOR_AMD) {
+> +		/* ErrCodeExt[20:16] */
+> +		u8 xec = (m->status >> 16) & 0x1f;
+> +
+> +		if (m->status & MCI_STATUS_DEFERRED)
+> +			return (xec == 0x0 || xec == 0x8);
+> +	} else if (c->x86_vendor == X86_VENDOR_INTEL) {
+> +		/*
+> +		 * SDM Volume 3B - 15.9.2 Compound Error Codes (Table 15-9)
+> +		 *
+> +		 * Bit 7 of the MCACOD field of IA32_MCi_STATUS is used for
+> +		 * indicating a memory error. But we can't just blindly check
+> +		 * bit 7 because if bit 8 is set, then this is a cache error,
+> +		 * and if bit 11 is set, then it is a bus/ interconnect error
+> +		 * - and either way bit 7 just gives more detail on what
+> +		 * cache/bus/interconnect error happened. Note that we can
+> +		 * ignore bit 12, as it's the "filter" bit.
+> +		 */
+> +		if ((m->mcgcap & MCG_SER_P) && (m->status & MCI_STATUS_UC))
+> +			return (m->status & 0xef80) == BIT(7);
+> +	}
+> +
+> +	return false;
+> +}
+> +
+>  DEFINE_PER_CPU(unsigned, mce_poll_count);
+>  
+>  /*
+> @@ -630,6 +659,16 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
+>  
+>  		if (!(flags & MCP_TIMESTAMP))
+>  			m.tsc = 0;
+> +
+> +		/*
+> +		 * In the cases where we don't have a valid address after all,
+> +		 * do not add it into the ring buffer.
+> +		 */
+> +		if (dram_ce_error(&m) && (m.status & MCI_STATUS_ADDRV)) {
+> +			mce_ring_add(m.addr >> PAGE_SHIFT);
+> +			mce_schedule_work();
+> +		}
+> +
+>  		/*
+>  		 * Don't get the IP here because it's unlikely to
+>  		 * have anything to do with the actual error location.
+
+Hi Boris,
+
+Do you have any comments on this patch?
+
+thx!
+cyc
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
