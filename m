@@ -1,80 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id F1DDD6B0072
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 04:30:49 -0400 (EDT)
-Received: by mail-wi0-f180.google.com with SMTP id em10so628321wid.13
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 01:30:49 -0700 (PDT)
-Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com. [195.75.94.107])
-        by mx.google.com with ESMTPS id ba6si1021674wib.32.2014.10.22.01.30.48
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B63C900014
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 04:34:17 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id eu11so149236pac.9
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 01:34:17 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id us9si3863598pac.193.2014.10.22.01.34.04
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 22 Oct 2014 01:30:48 -0700 (PDT)
-Received: from /spool/local
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <dingel@linux.vnet.ibm.com>;
-	Wed, 22 Oct 2014 09:30:48 +0100
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id E116E17D8024
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 09:30:44 +0100 (BST)
-Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s9M8Uiun19398996
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 08:30:44 GMT
-Received: from d06av03.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s9M8Ueno023800
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 02:30:44 -0600
-From: Dominik Dingel <dingel@linux.vnet.ibm.com>
-Subject: [PATCH v2 0/4] mm: new function to forbid zeropage mappings for a process
-Date: Wed, 22 Oct 2014 10:30:20 +0200
-Message-Id: <1413966624-12447-1-git-send-email-dingel@linux.vnet.ibm.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Oct 2014 01:34:05 -0700 (PDT)
+Date: Wed, 22 Oct 2014 12:33:53 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [patch 1/4] mm: memcontrol: uncharge pages on swapout
+Message-ID: <20141022083353.GU16496@esperanza>
+References: <1413818532-11042-1-git-send-email-hannes@cmpxchg.org>
+ <1413818532-11042-2-git-send-email-hannes@cmpxchg.org>
+ <20141021125252.GN16496@esperanza>
+ <20141021210328.GB29116@phnom.home.cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20141021210328.GB29116@phnom.home.cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Paolo Bonzini <pbonzini@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Bob Liu <lliubbo@gmail.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Gleb Natapov <gleb@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jianyu Zhan <nasa4836@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Weitz <konstantin.weitz@gmail.com>, kvm@vger.kernel.org, linux390@de.ibm.com, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Sasha Levin <sasha.levin@oracle.com>, Dominik Dingel <dingel@linux.vnet.ibm.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-s390 has the special notion of storage keys which are some sort of page flags
-associated with physical pages and live outside of direct addressable memory.
-These storage keys can be queried and changed with a special set of instructions.
-The mentioned instructions behave quite nicely under virtualization, if there is: 
-- an invalid pte, then the instructions will work on memory in the host page table
-- a valid pte, then the instructions will work with the real storage key
+On Tue, Oct 21, 2014 at 05:03:28PM -0400, Johannes Weiner wrote:
+> On Tue, Oct 21, 2014 at 04:52:52PM +0400, Vladimir Davydov wrote:
+> > On Mon, Oct 20, 2014 at 11:22:09AM -0400, Johannes Weiner wrote:
+> > > mem_cgroup_swapout() is called with exclusive access to the page at
+> > > the end of the page's lifetime.  Instead of clearing the PCG_MEMSW
+> > > flag and deferring the uncharge, just do it right away.  This allows
+> > > follow-up patches to simplify the uncharge code.
+> > > 
+> > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > > ---
+> > >  mm/memcontrol.c | 17 +++++++++++++----
+> > >  1 file changed, 13 insertions(+), 4 deletions(-)
+> > > 
+> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > > index bea3fddb3372..7709f17347f3 100644
+> > > --- a/mm/memcontrol.c
+> > > +++ b/mm/memcontrol.c
+> > > @@ -5799,6 +5799,7 @@ static void __init enable_swap_cgroup(void)
+> > >   */
+> > >  void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+> > >  {
+> > > +	struct mem_cgroup *memcg;
+> > >  	struct page_cgroup *pc;
+> > >  	unsigned short oldid;
+> > >  
+> > > @@ -5815,13 +5816,21 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+> > >  		return;
+> > >  
+> > >  	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEMSW), page);
+> > > +	memcg = pc->mem_cgroup;
+> > >  
+> > > -	oldid = swap_cgroup_record(entry, mem_cgroup_id(pc->mem_cgroup));
+> > > +	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg));
+> > >  	VM_BUG_ON_PAGE(oldid, page);
+> > > +	mem_cgroup_swap_statistics(memcg, true);
+> > >  
+> > > -	pc->flags &= ~PCG_MEMSW;
+> > > -	css_get(&pc->mem_cgroup->css);
+> > > -	mem_cgroup_swap_statistics(pc->mem_cgroup, true);
+> > > +	pc->flags = 0;
+> > > +
+> > > +	if (!mem_cgroup_is_root(memcg))
+> > > +		page_counter_uncharge(&memcg->memory, 1);
+> > 
+> > AFAIU it removes batched uncharge of swapped out pages, doesn't it? Will
+> > it affect performance?
+> 
+> During swapout and with lockless page counters?  I don't think so.
 
-Thanks to Martin with his software reference and dirty bit tracking,
-the kernel does not issue any storage key instructions as now a 
-software based approach will be taken, on the other hand distributions 
-in the wild are currently using them.
+How is this different from page cache out? I mean, we can have a lot of
+pages in the swap cache that have already been swapped out, and are
+waiting to be unmapped, uncharged, and freed, just like usual page
+cache. Why do we use batching for file cache pages then?
 
-However, for virtualized guests we still have a problem with guest pages 
-mapped to zero pages and the kernel same page merging.  
-With each one multiple guest pages will point to the same physical page
-and share the same storage key.
+> 
+> > Besides, it looks asymmetric with respect to the page cache uncharge
+> > path, where we still defer uncharge to mem_cgroup_uncharge_list(), and I
+> > personally rather dislike this asymmetry.
+> 
+> The asymmetry is inherent in the fact that we mave memory and
+> memory+swap accounting, and here a memory charge is transferred out to
+> swap.  Before, the asymmetry was in mem_cgroup_uncharge_list() where
+> we separate out memory and memsw pages (which the next patch fixes).
 
-Let's fix this by introducing a new function which s390 will define to
-forbid new zero page mappings.  If the guest issues a storage key related 
-instruction we flag the mm_struct, drop existing zero page mappings
-and unmerge the guest memory.
+I agree that memsw is inherently asymmetric, but IMO it isn't the case
+for swap *cache* vs page *cache*. We handle them similarly - removing
+from a mapping, uncharging, freeing. If one wants batching, why
+shouldn't the other?
 
-v1 -> v2: 
- - Following Dave and Paolo suggestion removing the vma flag
+> 
+> So nothing changed, the ugliness was just moved around.  I actually
+> like it better now that it's part of the swap controller, because
+> that's where the nastiness actually comes from.  This will all go away
+> when we account swap separately.  Then, swapped pages can keep their
+> memory charge until mem_cgroup_uncharge() again and the swap charge
+> will be completely independent from it.  This reshuffling is just
+> necessary because it allows us to get rid of the per-page flag.
 
-Dominik Dingel (4):
-  s390/mm: recfactor global pgste updates
-  mm: introduce mm_forbids_zeropage function
-  s390/mm: prevent and break zero page mappings in case of storage keys
-  s390/mm: disable KSM for storage key enabled pages
+Do you mean that swap cache uncharge batching will be back soon?
 
- arch/s390/include/asm/mmu.h     |   2 +
- arch/s390/include/asm/pgalloc.h |   2 -
- arch/s390/include/asm/pgtable.h |  17 +++-
- arch/s390/kvm/kvm-s390.c        |   2 +-
- arch/s390/kvm/priv.c            |  17 ++--
- arch/s390/mm/pgtable.c          | 180 ++++++++++++++++++----------------------
- include/linux/mm.h              |   4 +
- mm/huge_memory.c                |   2 +-
- mm/memory.c                     |   2 +-
- 9 files changed, 117 insertions(+), 111 deletions(-)
+> 
+> > > +	local_irq_disable();
+> > > +	mem_cgroup_charge_statistics(memcg, page, -1);
+> > > +	memcg_check_events(memcg, page);
+> > > +	local_irq_enable();
+> > 
+> > AFAICT mem_cgroup_swapout() is called under mapping->tree_lock with irqs
+> > disabled, so we should use irq_save/restore here.
+> 
+> Good catch!  I don't think this function actually needs to be called
+> under the tree_lock, so I'd rather send a follow-up that moves it out.
 
--- 
-1.8.5.5
+That's exactly what I though after sending that message.
+
+> For now, this should be sufficient:
+> 
+> ---
+> 
+> From 3a40bd3b85a70db104ade873007dbb84b5117993 Mon Sep 17 00:00:00 2001
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Date: Tue, 21 Oct 2014 16:53:14 -0400
+> Subject: [patch] mm: memcontrol: uncharge pages on swapout fix
+> 
+> Vladimir notes:
+> 
+> > > +   local_irq_disable();
+> > > +   mem_cgroup_charge_statistics(memcg, page, -1);
+> > > +   memcg_check_events(memcg, page);
+> > > +   local_irq_enable();
+> >
+> > AFAICT mem_cgroup_swapout() is called under mapping->tree_lock with irqs
+> > disabled, so we should use irq_save/restore here.
+> 
+> But this function doesn't actually need to be called under the tree
+> lock.  So for now, simply remove the irq-disabling altogether and rely
+> on the caller's IRQ state.  Later on, we'll move it out from there and
+> add back the simple, non-saving IRQ-disabling.
+> 
+> Reported-by: Vladimir Davydov <vdavydov@parallels.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+
+The fix looks good to me.
+
+Acked-by: Vladimir Davydov <vdavydov@parallels.com>
+
+But I'm still unsure about the original patch.
+
+> ---
+>  mm/memcontrol.c | 5 +++--
+>  1 file changed, 3 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 8dc46aa9ae8f..c688fb73ff35 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -5806,6 +5806,9 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+>  	VM_BUG_ON_PAGE(PageLRU(page), page);
+>  	VM_BUG_ON_PAGE(page_count(page), page);
+>  
+> +	/* XXX: caller holds IRQ-safe mapping->tree_lock */
+> +	VM_BUG_ON(!irqs_disabled());
+> +
+>  	if (!do_swap_account)
+>  		return;
+>  
+> @@ -5827,10 +5830,8 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+>  	if (!mem_cgroup_is_root(memcg))
+>  		page_counter_uncharge(&memcg->memory, 1);
+>  
+> -	local_irq_disable();
+>  	mem_cgroup_charge_statistics(memcg, page, -1);
+>  	memcg_check_events(memcg, page);
+> -	local_irq_enable();
+>  }
+>  
+>  /**
+> -- 
+> 2.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
