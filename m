@@ -1,80 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 565C96B0038
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 16:57:55 -0400 (EDT)
-Received: by mail-la0-f47.google.com with SMTP id pv20so3631002lab.6
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 13:57:54 -0700 (PDT)
-Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
-        by mx.google.com with SMTP id li6si24832316lbc.87.2014.10.22.13.57.52
-        for <linux-mm@kvack.org>;
-        Wed, 22 Oct 2014 13:57:53 -0700 (PDT)
-From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Subject: Re: [PATCH 3/4] OOM, PM: OOM killed task shouldn't escape PM suspend
-Date: Wed, 22 Oct 2014 23:18:20 +0200
-Message-ID: <2145559.zOULAq9xLg@vostro.rjw.lan>
-In-Reply-To: <20141022142226.GC30802@dhcp22.suse.cz>
-References: <1413876435-11720-1-git-send-email-mhocko@suse.cz> <3987583.vdsuvlAsHc@vostro.rjw.lan> <20141022142226.GC30802@dhcp22.suse.cz>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 90D1E6B0038
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 18:47:00 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id kx10so167218pab.6
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 15:47:00 -0700 (PDT)
+Received: from fgwmail6.fujitsu.co.jp (fgwmail6.fujitsu.co.jp. [192.51.44.36])
+        by mx.google.com with ESMTPS id cq3si15252215pbb.193.2014.10.22.15.46.58
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 22 Oct 2014 15:46:59 -0700 (PDT)
+Received: from kw-mxauth.gw.nic.fujitsu.com (unknown [10.0.237.134])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id BDF9B3EE0B6
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 07:46:57 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.fujitsu.co.jp [10.0.50.92])
+	by kw-mxauth.gw.nic.fujitsu.com (Postfix) with ESMTP id B73EDAC07F1
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 07:46:56 +0900 (JST)
+Received: from g01jpfmpwkw03.exch.g01.fujitsu.local (g01jpfmpwkw03.exch.g01.fujitsu.local [10.0.193.57])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 69E4C1DB8038
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 07:46:56 +0900 (JST)
+Message-ID: <54483398.7040005@jp.fujitsu.com>
+Date: Thu, 23 Oct 2014 07:45:44 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+Subject: Re: [PATCH v2] memory-hotplug: Clear pgdat which is allocated by
+ bootmem in try_offline_node()
+References: <54476215.3010006@jp.fujitsu.com> <1414004531.12798.27.camel@misato.fc.hp.com>
+In-Reply-To: <1414004531.12798.27.camel@misato.fc.hp.com>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
+To: Toshi Kani <toshi.kani@hp.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zhenzhang.zhang@huawei.com, wangnan0@huawei.com, tangchen@cn.fujitsu.com, dave.hansen@intel.com, rientjes@google.com
 
-On Wednesday, October 22, 2014 04:22:26 PM Michal Hocko wrote:
-> On Wed 22-10-14 16:39:12, Rafael J. Wysocki wrote:
-> > On Tuesday, October 21, 2014 04:29:39 PM Michal Hocko wrote:
-> > > On Tue 21-10-14 16:41:07, Rafael J. Wysocki wrote:
-> > > > On Tuesday, October 21, 2014 04:11:59 PM Michal Hocko wrote:
-> > > [...]
-> > > > > OK, incremental diff on top. I will post the complete patch if you are
-> > > > > happier with this change
-> > > > 
-> > > > Yes, I am.
-> > > ---
-> > > From 9ab46fe539cded8e7b6425b2cd23ba9184002fde Mon Sep 17 00:00:00 2001
-> > > From: Michal Hocko <mhocko@suse.cz>
-> > > Date: Mon, 20 Oct 2014 18:12:32 +0200
-> > > Subject: [PATCH -v2] OOM, PM: OOM killed task shouldn't escape PM suspend
-> > > 
-> > > PM freezer relies on having all tasks frozen by the time devices are
-> > > getting frozen so that no task will touch them while they are getting
-> > > frozen. But OOM killer is allowed to kill an already frozen task in
-> > > order to handle OOM situtation. In order to protect from late wake ups
-> > > OOM killer is disabled after all tasks are frozen. This, however, still
-> > > keeps a window open when a killed task didn't manage to die by the time
-> > > freeze_processes finishes.
-> > > 
-> > > Reduce the race window by checking all tasks after OOM killer has been
-> > > disabled. This is still not race free completely unfortunately because
-> > > oom_killer_disable cannot stop an already ongoing OOM killer so a task
-> > > might still wake up from the fridge and get killed without
-> > > freeze_processes noticing. Full synchronization of OOM and freezer is,
-> > > however, too heavy weight for this highly unlikely case.
-> > > 
-> > > Introduce and check oom_kills counter which gets incremented early when
-> > > the allocator enters __alloc_pages_may_oom path and only check all the
-> > > tasks if the counter changes during the freezing attempt. The counter
-> > > is updated so early to reduce the race window since allocator checked
-> > > oom_killer_disabled which is set by PM-freezing code. A false positive
-> > > will push the PM-freezer into a slow path but that is not a big deal.
-> > > 
-> > > Changes since v1
-> > > - push the re-check loop out of freeze_processes into
-> > >   check_frozen_processes and invert the condition to make the code more
-> > >   readable as per Rafael
-> > 
-> > I've applied that along with the rest of the series, but what about the
-> > following cleanup patch on top of it?
-> 
-> Sure, looks good to me.
+(2014/10/23 4:02), Toshi Kani wrote:
+> On Wed, 2014-10-22 at 16:51 +0900, Yasuaki Ishimatsu wrote:
+>> When hot adding the same memory after hot removing a memory,
+>> the following messages are shown:
+>>
+>> WARNING: CPU: 20 PID: 6 at mm/page_alloc.c:4968 free_area_init_node+0x3fe/0x426()
+>> ...
+>> Call Trace:
+>>   [<...>] dump_stack+0x46/0x58
+>>   [<...>] warn_slowpath_common+0x81/0xa0
+>>   [<...>] warn_slowpath_null+0x1a/0x20
+>>   [<...>] free_area_init_node+0x3fe/0x426
+>>   [<...>] ? up+0x32/0x50
+>>   [<...>] hotadd_new_pgdat+0x90/0x110
+>>   [<...>] add_memory+0xd4/0x200
+>>   [<...>] acpi_memory_device_add+0x1aa/0x289
+>>   [<...>] acpi_bus_attach+0xfd/0x204
+>>   [<...>] ? device_register+0x1e/0x30
+>>   [<...>] acpi_bus_attach+0x178/0x204
+>>   [<...>] acpi_bus_scan+0x6a/0x90
+>>   [<...>] ? acpi_bus_get_status+0x2d/0x5f
+>>   [<...>] acpi_device_hotplug+0xe8/0x418
+>>   [<...>] acpi_hotplug_work_fn+0x1f/0x2b
+>>   [<...>] process_one_work+0x14e/0x3f0
+>>   [<...>] worker_thread+0x11b/0x510
+>>   [<...>] ? rescuer_thread+0x350/0x350
+>>   [<...>] kthread+0xe1/0x100
+>>   [<...>] ? kthread_create_on_node+0x1b0/0x1b0
+>>   [<...>] ret_from_fork+0x7c/0xb0
+>>   [<...>] ? kthread_create_on_node+0x1b0/0x1b0
+>>
+>> The detaled explanation is as follows:
+>>
+>> When hot removing memory, pgdat is set to 0 in try_offline_node().
+>> But if the pgdat is allocated by bootmem allocator, the clearing
+>> step is skipped. And when hot adding the same memory, the uninitialized
+>> pgdat is reused. But free_area_init_node() checks wether pgdat is set
+>> to zero. As a result, free_area_init_node() hits WARN_ON().
+>>
+>> This patch clears pgdat which is allocated by bootmem allocator
+>> in try_offline_node().
+>>
+>> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>
+> Thanks for the update. It looks good.
+>
 
-I'll apply it then, thanks!
+> Reviewed-by: Toshi Kani <toshi.kani@hp.com>
 
--- 
-I speak only for myself.
-Rafael J. Wysocki, Intel Open Source Technology Center.
+Thank you for your  review.
+
+Thanks,
+Yasuaki Ishimatasu
+
+>
+> -Toshi
+>
+>
+>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
