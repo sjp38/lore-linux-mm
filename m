@@ -1,212 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id DFF52900014
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 11:55:33 -0400 (EDT)
-Received: by mail-ie0-f175.google.com with SMTP id at20so3633426iec.6
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 08:55:33 -0700 (PDT)
-Received: from resqmta-po-01v.sys.comcast.net (resqmta-po-01v.sys.comcast.net. [2001:558:fe16:19:96:114:154:160])
-        by mx.google.com with ESMTPS id jg6si2378743igb.0.2014.10.22.08.55.33
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A82E900014
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 11:55:35 -0400 (EDT)
+Received: by mail-ig0-f172.google.com with SMTP id r2so1171920igi.5
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 08:55:34 -0700 (PDT)
+Received: from resqmta-po-08v.sys.comcast.net (resqmta-po-08v.sys.comcast.net. [2001:558:fe16:19:96:114:154:167])
+        by mx.google.com with ESMTPS id jg2si2326751igb.14.2014.10.22.08.55.34
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 22 Oct 2014 08:55:33 -0700 (PDT)
-Message-Id: <20141022155527.158407162@linux.com>
-Date: Wed, 22 Oct 2014 10:55:20 -0500
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 22 Oct 2014 08:55:34 -0700 (PDT)
+Message-Id: <20141022155527.268224371@linux.com>
+Date: Wed, 22 Oct 2014 10:55:21 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [RFC 3/4] slub: Drop ->page field from kmem_cache_cpu
+Subject: [RFC 4/4] slub: Remove preemption disable/enable from fastpath
 References: <20141022155517.560385718@linux.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=slub_drop_kmem_cache_cpu_page_Field
+Content-Disposition: inline; filename=slub_fastpath_remove_preempt
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linuxfoundation.org
 Cc: rostedt@goodmis.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com
 
-Dropping the page field is possible since the page struct address
-of an object or a freelist pointer can now always be calcualted from
-the address. No freelist pointer will be NULL anymore so use
-NULL to signify the condition that the current cpu has no
-percpu slab attached to it.
+We can now use a this_cpu_cmpxchg_double to update two 64
+bit values that are the entire description of the per cpu
+freelist. There is no need anymore to disable preempt.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Index: linux/include/linux/slub_def.h
-===================================================================
---- linux.orig/include/linux/slub_def.h
-+++ linux/include/linux/slub_def.h
-@@ -40,7 +40,6 @@ enum stat_item {
- struct kmem_cache_cpu {
- 	void **freelist;	/* Pointer to next available object */
- 	unsigned long tid;	/* Globally unique transaction id */
--	struct page *page;	/* The slab from which we are allocating */
- 	struct page *partial;	/* Partially allocated frozen slabs */
- #ifdef CONFIG_SLUB_STATS
- 	unsigned stat[NR_SLUB_STAT_ITEMS];
 Index: linux/mm/slub.c
 ===================================================================
 --- linux.orig/mm/slub.c
 +++ linux/mm/slub.c
-@@ -1611,7 +1611,6 @@ static void *get_partial_node(struct kme
- 
- 		available += objects;
- 		if (!object) {
--			c->page = page;
- 			stat(s, ALLOC_FROM_PARTIAL);
- 			object = t;
- 		} else {
-@@ -2049,10 +2048,9 @@ static void put_cpu_partial(struct kmem_
- static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
+@@ -2261,21 +2261,15 @@ static inline void *get_freelist(struct
+  * a call to the page allocator and the setup of a new slab.
+  */
+ static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
+-			  unsigned long addr, struct kmem_cache_cpu *c)
++			  unsigned long addr)
  {
- 	stat(s, CPUSLAB_FLUSH);
--	deactivate_slab(s, c->page, c->freelist);
-+	deactivate_slab(s, virt_to_head_page(c->freelist), c->freelist);
+ 	void *freelist;
+ 	struct page *page;
+ 	unsigned long flags;
++	struct kmem_cache_cpu *c;
  
- 	c->tid = next_tid(c->tid);
--	c->page = NULL;
- 	c->freelist = NULL;
- }
- 
-@@ -2066,7 +2064,7 @@ static inline void __flush_cpu_slab(stru
- 	struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
- 
- 	if (likely(c)) {
--		if (c->page)
-+		if (c->freelist)
- 			flush_slab(s, c);
- 
- 		unfreeze_partials(s, c);
-@@ -2085,7 +2083,7 @@ static bool has_cpu_slab(int cpu, void *
- 	struct kmem_cache *s = info;
- 	struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
- 
--	return c->page || c->partial;
-+	return c->freelist || c->partial;
- }
- 
- static void flush_all(struct kmem_cache *s)
-@@ -2186,7 +2184,7 @@ static inline void *new_slab_objects(str
- 	page = new_slab(s, flags, node);
- 	if (page) {
- 		c = raw_cpu_ptr(s->cpu_slab);
--		if (c->page)
-+		if (c->freelist)
- 			flush_slab(s, c);
- 
- 		/*
-@@ -2197,7 +2195,6 @@ static inline void *new_slab_objects(str
- 		page->freelist = end_token(freelist);
- 
- 		stat(s, ALLOC_SLAB);
--		c->page = page;
- 		*pc = c;
- 	} else
- 		freelist = NULL;
-@@ -2280,9 +2277,10 @@ static void *__slab_alloc(struct kmem_ca
+ 	local_irq_save(flags);
+-#ifdef CONFIG_PREEMPT
+-	/*
+-	 * We may have been preempted and rescheduled on a different
+-	 * cpu before disabling interrupts. Need to reload cpu area
+-	 * pointer.
+-	 */
  	c = this_cpu_ptr(s->cpu_slab);
- #endif
+-#endif
  
--	page = c->page;
--	if (!page)
-+	if (!c->freelist || is_end_token(c->freelist))
+ 	if (!c->freelist || is_end_token(c->freelist))
  		goto new_slab;
-+
-+	page = virt_to_head_page(c->freelist);
- redo:
- 
- 	if (unlikely(!node_match(page, node))) {
-@@ -2311,7 +2309,7 @@ redo:
- 	freelist = get_freelist(s, page);
- 
- 	if (!freelist || is_end_token(freelist)) {
--		c->page = NULL;
-+		c->freelist = NULL;
- 		stat(s, DEACTIVATE_BYPASS);
- 		goto new_slab;
- 	}
-@@ -2324,7 +2322,7 @@ load_freelist:
- 	 * page is pointing to the page from which the objects are obtained.
- 	 * That page must be frozen for per cpu allocations to work.
- 	 */
--	VM_BUG_ON(!c->page->frozen);
-+	VM_BUG_ON(!virt_to_head_page(freelist)->frozen);
- 	c->freelist = get_freepointer(s, freelist);
- 	c->tid = next_tid(c->tid);
- 	local_irq_restore(flags);
-@@ -2332,16 +2330,15 @@ load_freelist:
- 
- deactivate:
- 	deactivate_slab(s, page, c->freelist);
--	c->page = NULL;
- 	c->freelist = NULL;
- 
- new_slab:
- 
- 	if (c->partial) {
--		page = c->page = c->partial;
-+		page = c->partial;
- 		c->partial = page->next;
- 		stat(s, CPU_PARTIAL_ALLOC);
--		c->freelist = NULL;
-+		c->freelist = end_token(page_address(page));
- 		goto redo;
- 	}
- 
-@@ -2353,7 +2350,7 @@ new_slab:
- 		return NULL;
- 	}
- 
--	page = c->page;
-+	page = virt_to_head_page(freelist);
- 	if (likely(!kmem_cache_debug(s) && pfmemalloc_match(page, gfpflags)))
- 		goto load_freelist;
- 
-@@ -2363,7 +2360,6 @@ new_slab:
- 		goto new_slab;	/* Slab failed checks. Next slab needed */
- 
- 	deactivate_slab(s, page, get_freepointer(s, freelist));
--	c->page = NULL;
- 	c->freelist = NULL;
- 	local_irq_restore(flags);
- 	return freelist;
-@@ -2384,7 +2380,6 @@ static __always_inline void *slab_alloc_
+@@ -2379,7 +2373,6 @@ static __always_inline void *slab_alloc_
+ 		gfp_t gfpflags, int node, unsigned long addr)
  {
  	void **object;
- 	struct kmem_cache_cpu *c;
--	struct page *page;
+-	struct kmem_cache_cpu *c;
  	unsigned long tid;
  
  	if (slab_pre_alloc_hook(s, gfpflags))
-@@ -2416,8 +2411,7 @@ redo:
- 	preempt_enable();
- 
- 	object = c->freelist;
--	page = c->page;
--	if (unlikely(!object || is_end_token(object) || !node_match(page, node))) {
-+	if (unlikely(!object || is_end_token(object) || !node_match(virt_to_head_page(object), node))) {
- 		object = __slab_alloc(s, gfpflags, node, addr, c);
+@@ -2388,31 +2381,15 @@ static __always_inline void *slab_alloc_
+ 	s = memcg_kmem_get_cache(s, gfpflags);
+ redo:
+ 	/*
+-	 * Must read kmem_cache cpu data via this cpu ptr. Preemption is
+-	 * enabled. We may switch back and forth between cpus while
+-	 * reading from one cpu area. That does not matter as long
+-	 * as we end up on the original cpu again when doing the cmpxchg.
+-	 *
+-	 * Preemption is disabled for the retrieval of the tid because that
+-	 * must occur from the current processor. We cannot allow rescheduling
+-	 * on a different processor between the determination of the pointer
+-	 * and the retrieval of the tid.
+-	 */
+-	preempt_disable();
+-	c = this_cpu_ptr(s->cpu_slab);
+-
+-	/*
+ 	 * The transaction ids are globally unique per cpu and per operation on
+ 	 * a per cpu queue. Thus they can be guarantee that the cmpxchg_double
+ 	 * occurs on the right processor and that there was no operation on the
+ 	 * linked list in between.
+ 	 */
+-	tid = c->tid;
+-	preempt_enable();
+-
+-	object = c->freelist;
++	tid = this_cpu_read(s->cpu_slab->tid);
++	object = this_cpu_read(s->cpu_slab->freelist);
+ 	if (unlikely(!object || is_end_token(object) || !node_match(virt_to_head_page(object), node))) {
+-		object = __slab_alloc(s, gfpflags, node, addr, c);
++		object = __slab_alloc(s, gfpflags, node, addr);
  		stat(s, ALLOC_SLOWPATH);
  	} else {
-@@ -2665,7 +2659,7 @@ redo:
- 	tid = c->tid;
- 	preempt_enable();
+ 		void *next_object = get_freepointer_safe(s, object);
+@@ -2641,30 +2618,21 @@ static __always_inline void slab_free(st
+ 			struct page *page, void *x, unsigned long addr)
+ {
+ 	void **object = (void *)x;
+-	struct kmem_cache_cpu *c;
++	void *freelist;
+ 	unsigned long tid;
  
--	if (likely(page == c->page)) {
-+	if (likely(c->freelist && page == virt_to_head_page(c->freelist))) {
- 		set_freepointer(s, object, c->freelist);
+ 	slab_free_hook(s, x);
+ 
+ redo:
+-	/*
+-	 * Determine the currently cpus per cpu slab.
+-	 * The cpu may change afterward. However that does not matter since
+-	 * data is retrieved via this pointer. If we are on the same cpu
+-	 * during the cmpxchg then the free will succedd.
+-	 */
+-	preempt_disable();
+-	c = this_cpu_ptr(s->cpu_slab);
+-
+-	tid = c->tid;
+-	preempt_enable();
++	tid = this_cpu_read(s->cpu_slab->tid);
++	freelist = this_cpu_read(s->cpu_slab->freelist);
+ 
+-	if (likely(c->freelist && page == virt_to_head_page(c->freelist))) {
+-		set_freepointer(s, object, c->freelist);
++	if (likely(freelist && page == virt_to_head_page(freelist))) {
++		set_freepointer(s, object, freelist);
  
  		if (unlikely(!this_cpu_cmpxchg_double(
-@@ -4191,10 +4185,10 @@ static ssize_t show_slab_objects(struct
- 			int node;
- 			struct page *page;
+ 				s->cpu_slab->freelist, s->cpu_slab->tid,
+-				c->freelist, tid,
++				freelist, tid,
+ 				object, next_tid(tid)))) {
  
--			page = ACCESS_ONCE(c->page);
--			if (!page)
-+			if (!c->freelist)
- 				continue;
- 
-+			page = virt_to_head_page(c->freelist);
- 			node = page_to_nid(page);
- 			if (flags & SO_TOTAL)
- 				x = page->objects;
+ 			note_cmpxchg_failure("slab_free", s, tid);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
