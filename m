@@ -1,87 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
-	by kanga.kvack.org (Postfix) with ESMTP id E90DE6B007B
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 11:49:19 -0400 (EDT)
-Received: by mail-lb0-f171.google.com with SMTP id z12so3102889lbi.30
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 08:49:18 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w3si601149law.79.2014.10.22.08.49.17
+Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BA826B007B
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 11:55:29 -0400 (EDT)
+Received: by mail-ie0-f180.google.com with SMTP id at20so3626657iec.25
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 08:55:29 -0700 (PDT)
+Received: from resqmta-po-09v.sys.comcast.net (resqmta-po-09v.sys.comcast.net. [2001:558:fe16:19:96:114:154:168])
+        by mx.google.com with ESMTPS id o128si21337588ioo.32.2014.10.22.08.55.28
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 22 Oct 2014 08:49:18 -0700 (PDT)
-Date: Wed, 22 Oct 2014 17:49:18 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 3/4] mm: memcontrol: remove unnecessary PCG_MEM memory
- charge flag
-Message-ID: <20141022154918.GF30802@dhcp22.suse.cz>
-References: <1413818532-11042-1-git-send-email-hannes@cmpxchg.org>
- <1413818532-11042-4-git-send-email-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1413818532-11042-4-git-send-email-hannes@cmpxchg.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 22 Oct 2014 08:55:28 -0700 (PDT)
+Message-Id: <20141022155517.560385718@linux.com>
+Date: Wed, 22 Oct 2014 10:55:17 -0500
+From: Christoph Lameter <cl@linux.com>
+Subject: [RFC 0/4] [RFC] slub: Fastpath optimization (especially for RT) 
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: akpm@linuxfoundation.org
+Cc: rostedt@goodmis.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com
 
-On Mon 20-10-14 11:22:11, Johannes Weiner wrote:
-> PCG_MEM is a remnant from an earlier version of 0a31bc97c80c ("mm:
-> memcontrol: rewrite uncharge API"), used to tell whether migration
-> cleared a charge while leaving pc->mem_cgroup valid and PCG_USED set.
-> But in the final version, mem_cgroup_migrate() directly uncharges the
-> source page, rendering this distinction unnecessary.  Remove it.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+We had to insert a preempt enable/disable in the fastpath a while ago. This
+was mainly due to a lot of state that is kept to be allocating from the per
+cpu freelist. In particular the page field is not covered by
+this_cpu_cmpxchg used in the fastpath to do the necessary atomic state
+change for fast path allocation and freeing.
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+This patch removes the need for the page field to describe the state of the
+per cpu list. The freelist pointer can be used to determine the page struct
+address if necessary.
 
-> ---
->  include/linux/page_cgroup.h | 1 -
->  mm/memcontrol.c             | 4 +---
->  2 files changed, 1 insertion(+), 4 deletions(-)
-> 
-> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
-> index da62ee2be28b..97536e685843 100644
-> --- a/include/linux/page_cgroup.h
-> +++ b/include/linux/page_cgroup.h
-> @@ -4,7 +4,6 @@
->  enum {
->  	/* flags for mem_cgroup */
->  	PCG_USED = 0x01,	/* This page is charged to a memcg */
-> -	PCG_MEM = 0x02,		/* This page holds a memory charge */
->  };
->  
->  struct pglist_data;
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 9bab35fc3e9e..1d66ac49e702 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2606,7 +2606,7 @@ static void commit_charge(struct page *page, struct mem_cgroup *memcg,
->  	 *   have the page locked
->  	 */
->  	pc->mem_cgroup = memcg;
-> -	pc->flags = PCG_USED | PCG_MEM;
-> +	pc->flags = PCG_USED;
->  
->  	if (lrucare)
->  		unlock_page_lru(page, isolated);
-> @@ -6177,8 +6177,6 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
->  	if (!PageCgroupUsed(pc))
->  		return;
->  
-> -	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEM), oldpage);
-> -
->  	if (lrucare)
->  		lock_page_lru(oldpage, &isolated);
->  
-> -- 
-> 2.1.2
-> 
+However, currently this does not work for the termination value of a list
+which is NULL and the same for all slab pages. If we use a valid pointer
+into the page as well as set the last bit then all freelist pointers can
+always be used to determine the address of the page struct and we will not
+need the page field anymore in the per cpu are for a slab. Testing for the
+end of the list is a test if the first bit is set.
 
--- 
-Michal Hocko
-SUSE Labs
+So the first patch changes the termination pointer for freelists to do just
+that. The second removes the page field and then third can then remove the
+preempt enable/disable.
+
+There are currently a number of caveats because we are adding calls to
+page_address() and virt_to_head_page() in a number of code paths. These
+can hopefully be removed one way or the other.
+
+Removing the ->page field reduces the cache footprint of the fastpath so hopefully overall
+allocator effectiveness will increase further. Also RT uses full preemption which means
+that currently pretty expensive code has to be inserted into the fastpath. This approach
+allows the removal of that code and a corresponding performance increase.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
