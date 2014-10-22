@@ -1,21 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f43.google.com (mail-qa0-f43.google.com [209.85.216.43])
-	by kanga.kvack.org (Postfix) with ESMTP id A49AA6B0070
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 10:01:01 -0400 (EDT)
-Received: by mail-qa0-f43.google.com with SMTP id j7so2433154qaq.16
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 07:01:00 -0700 (PDT)
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 476AF6B0072
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 10:01:10 -0400 (EDT)
+Received: by mail-qg0-f48.google.com with SMTP id i50so2553100qgf.21
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 07:01:10 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i65si18345187qge.20.2014.10.22.07.00.56
+        by mx.google.com with ESMTPS id m10si24609061qct.44.2014.10.22.07.01.04
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Oct 2014 07:00:57 -0700 (PDT)
-Message-ID: <5447B859.4040001@redhat.com>
-Date: Wed, 22 Oct 2014 15:59:53 +0200
+        Wed, 22 Oct 2014 07:01:05 -0700 (PDT)
+Message-ID: <5447B862.4060707@redhat.com>
+Date: Wed, 22 Oct 2014 16:00:02 +0200
 From: Paolo Bonzini <pbonzini@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] mm: introduce mm_forbids_zeropage function
-References: <1413976170-42501-1-git-send-email-dingel@linux.vnet.ibm.com> <1413976170-42501-3-git-send-email-dingel@linux.vnet.ibm.com>
-In-Reply-To: <1413976170-42501-3-git-send-email-dingel@linux.vnet.ibm.com>
+Subject: Re: [PATCH 3/4] s390/mm: prevent and break zero page mappings in
+ case of storage keys
+References: <1413976170-42501-1-git-send-email-dingel@linux.vnet.ibm.com> <1413976170-42501-4-git-send-email-dingel@linux.vnet.ibm.com>
+In-Reply-To: <1413976170-42501-4-git-send-email-dingel@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -26,58 +27,83 @@ Cc: Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net
 Reviewed-by: Paolo Bonzini <pbonzini@redhat.com>
 
 On 10/22/2014 01:09 PM, Dominik Dingel wrote:
-> Add a new function stub to allow architectures to disable for
-> an mm_structthe backing of non-present, anonymous pages with
-> read-only empty zero pages.
+> As soon as storage keys are enabled we need to stop working on zero page
+> mappings to prevent inconsistencies between storage keys and pgste.
+> 
+> Otherwise following data corruption could happen:
+> 1) guest enables storage key
+> 2) guest sets storage key for not mapped page X
+>    -> change goes to PGSTE
+> 3) guest reads from page X
+>    -> as X was not dirty before, the page will be zero page backed,
+>       storage key from PGSTE for X will go to storage key for zero page
+> 4) guest sets storage key for not mapped page Y (same logic as above
+> 5) guest reads from page Y
+>    -> as Y was not dirty before, the page will be zero page backed,
+>       storage key from PGSTE for Y will got to storage key for zero page
+>       overwriting storage key for X
+> 
+> While holding the mmap sem, we are safe against changes on entries we
+> already fixed, as every fault would need to take the mmap_sem (read).
+> 
+> Other vCPUs executing storage key instructions will get a one time interception
+> and be serialized also with mmap_sem.
 > 
 > Signed-off-by: Dominik Dingel <dingel@linux.vnet.ibm.com>
 > ---
->  include/linux/mm.h | 4 ++++
->  mm/huge_memory.c   | 2 +-
->  mm/memory.c        | 2 +-
->  3 files changed, 6 insertions(+), 2 deletions(-)
+>  arch/s390/include/asm/pgtable.h |  5 +++++
+>  arch/s390/mm/pgtable.c          | 13 ++++++++++++-
+>  2 files changed, 17 insertions(+), 1 deletion(-)
 > 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index cd33ae2..0a2022e 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -56,6 +56,10 @@ extern int sysctl_legacy_va_layout;
->  #define __pa_symbol(x)  __pa(RELOC_HIDE((unsigned long)(x), 0))
->  #endif
+> diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
+> index 1e991f6a..0da98d6 100644
+> --- a/arch/s390/include/asm/pgtable.h
+> +++ b/arch/s390/include/asm/pgtable.h
+> @@ -481,6 +481,11 @@ static inline int mm_has_pgste(struct mm_struct *mm)
+>  	return 0;
+>  }
 >  
-> +#ifndef mm_forbids_zeropage
-> +#define mm_forbids_zeropage(X)  (0)
-> +#endif
+> +/*
+> + * In the case that a guest uses storage keys
+> + * faults should no longer be backed by zero pages
+> + */
+> +#define mm_forbids_zeropage mm_use_skey
+>  static inline int mm_use_skey(struct mm_struct *mm)
+>  {
+>  #ifdef CONFIG_PGSTE
+> diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
+> index ab55ba8..58d7eb2 100644
+> --- a/arch/s390/mm/pgtable.c
+> +++ b/arch/s390/mm/pgtable.c
+> @@ -1309,6 +1309,15 @@ static int __s390_enable_skey(pte_t *pte, unsigned long addr,
+>  	pgste_t pgste;
+>  
+>  	pgste = pgste_get_lock(pte);
+> +	/*
+> +	 * Remove all zero page mappings,
+> +	 * after establishing a policy to forbid zero page mappings
+> +	 * following faults for that page will get fresh anonymous pages
+> +	 */
+> +	if (is_zero_pfn(pte_pfn(*pte))) {
+> +		ptep_flush_direct(walk->mm, addr, pte);
+> +		pte_val(*pte) = _PAGE_INVALID;
+> +	}
+>  	/* Clear storage key */
+>  	pgste_val(pgste) &= ~(PGSTE_ACC_BITS | PGSTE_FP_BIT |
+>  			      PGSTE_GR_BIT | PGSTE_GC_BIT);
+> @@ -1327,9 +1336,11 @@ void s390_enable_skey(void)
+>  	down_write(&mm->mmap_sem);
+>  	if (mm_use_skey(mm))
+>  		goto out_up;
 > +
->  extern unsigned long sysctl_user_reserve_kbytes;
->  extern unsigned long sysctl_admin_reserve_kbytes;
+> +	mm->context.use_skey = 1;
+> +
+>  	walk.mm = mm;
+>  	walk_page_range(0, TASK_SIZE, &walk);
+> -	mm->context.use_skey = 1;
 >  
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index de98415..357a381 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -805,7 +805,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  		return VM_FAULT_OOM;
->  	if (unlikely(khugepaged_enter(vma, vma->vm_flags)))
->  		return VM_FAULT_OOM;
-> -	if (!(flags & FAULT_FLAG_WRITE) &&
-> +	if (!(flags & FAULT_FLAG_WRITE) && !mm_forbids_zeropage(mm) &&
->  			transparent_hugepage_use_zero_page()) {
->  		spinlock_t *ptl;
->  		pgtable_t pgtable;
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 64f82aa..f275a9d 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2640,7 +2640,7 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
->  		return VM_FAULT_SIGBUS;
->  
->  	/* Use the zero-page for reads */
-> -	if (!(flags & FAULT_FLAG_WRITE)) {
-> +	if (!(flags & FAULT_FLAG_WRITE) && !mm_forbids_zeropage(mm)) {
->  		entry = pte_mkspecial(pfn_pte(my_zero_pfn(address),
->  						vma->vm_page_prot));
->  		page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
+>  out_up:
+>  	up_write(&mm->mmap_sem);
 > 
 
 --
