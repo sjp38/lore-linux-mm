@@ -1,22 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 476AF6B0072
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 10:01:10 -0400 (EDT)
-Received: by mail-qg0-f48.google.com with SMTP id i50so2553100qgf.21
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 07:01:10 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id BF3E26B0073
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 10:01:22 -0400 (EDT)
+Received: by mail-wi0-f181.google.com with SMTP id n3so985172wiv.8
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 07:01:21 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m10si24609061qct.44.2014.10.22.07.01.04
+        by mx.google.com with ESMTPS id bf4si1876056wib.53.2014.10.22.07.01.19
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Oct 2014 07:01:05 -0700 (PDT)
-Message-ID: <5447B862.4060707@redhat.com>
-Date: Wed, 22 Oct 2014 16:00:02 +0200
+        Wed, 22 Oct 2014 07:01:20 -0700 (PDT)
+Message-ID: <5447B874.5060206@redhat.com>
+Date: Wed, 22 Oct 2014 16:00:20 +0200
 From: Paolo Bonzini <pbonzini@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/4] s390/mm: prevent and break zero page mappings in
- case of storage keys
-References: <1413976170-42501-1-git-send-email-dingel@linux.vnet.ibm.com> <1413976170-42501-4-git-send-email-dingel@linux.vnet.ibm.com>
-In-Reply-To: <1413976170-42501-4-git-send-email-dingel@linux.vnet.ibm.com>
+Subject: Re: [PATCH 4/4] s390/mm: disable KSM for storage key enabled pages
+References: <1413976170-42501-1-git-send-email-dingel@linux.vnet.ibm.com> <1413976170-42501-5-git-send-email-dingel@linux.vnet.ibm.com>
+In-Reply-To: <1413976170-42501-5-git-send-email-dingel@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -26,84 +25,130 @@ Cc: Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net
 
 Reviewed-by: Paolo Bonzini <pbonzini@redhat.com>
 
+(missing R-b on patch 1 is _not_ a mistake :))
+
+Paolo
+
 On 10/22/2014 01:09 PM, Dominik Dingel wrote:
-> As soon as storage keys are enabled we need to stop working on zero page
-> mappings to prevent inconsistencies between storage keys and pgste.
-> 
-> Otherwise following data corruption could happen:
-> 1) guest enables storage key
-> 2) guest sets storage key for not mapped page X
->    -> change goes to PGSTE
-> 3) guest reads from page X
->    -> as X was not dirty before, the page will be zero page backed,
->       storage key from PGSTE for X will go to storage key for zero page
-> 4) guest sets storage key for not mapped page Y (same logic as above
-> 5) guest reads from page Y
->    -> as Y was not dirty before, the page will be zero page backed,
->       storage key from PGSTE for Y will got to storage key for zero page
->       overwriting storage key for X
-> 
-> While holding the mmap sem, we are safe against changes on entries we
-> already fixed, as every fault would need to take the mmap_sem (read).
-> 
-> Other vCPUs executing storage key instructions will get a one time interception
-> and be serialized also with mmap_sem.
+> When storage keys are enabled unmerge already merged pages and prevent
+> new pages from being merged.
 > 
 > Signed-off-by: Dominik Dingel <dingel@linux.vnet.ibm.com>
+> Acked-by: Christian Borntraeger <borntraeger@de.ibm.com>
 > ---
->  arch/s390/include/asm/pgtable.h |  5 +++++
->  arch/s390/mm/pgtable.c          | 13 ++++++++++++-
->  2 files changed, 17 insertions(+), 1 deletion(-)
+>  arch/s390/include/asm/pgtable.h |  2 +-
+>  arch/s390/kvm/priv.c            | 17 ++++++++++++-----
+>  arch/s390/mm/pgtable.c          | 16 +++++++++++++++-
+>  3 files changed, 28 insertions(+), 7 deletions(-)
 > 
 > diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-> index 1e991f6a..0da98d6 100644
+> index 0da98d6..dfb38af 100644
 > --- a/arch/s390/include/asm/pgtable.h
 > +++ b/arch/s390/include/asm/pgtable.h
-> @@ -481,6 +481,11 @@ static inline int mm_has_pgste(struct mm_struct *mm)
+> @@ -1754,7 +1754,7 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
+>  extern int vmem_add_mapping(unsigned long start, unsigned long size);
+>  extern int vmem_remove_mapping(unsigned long start, unsigned long size);
+>  extern int s390_enable_sie(void);
+> -extern void s390_enable_skey(void);
+> +extern int s390_enable_skey(void);
+>  extern void s390_reset_cmma(struct mm_struct *mm);
+>  
+>  /*
+> diff --git a/arch/s390/kvm/priv.c b/arch/s390/kvm/priv.c
+> index f89c1cd..e0967fd 100644
+> --- a/arch/s390/kvm/priv.c
+> +++ b/arch/s390/kvm/priv.c
+> @@ -156,21 +156,25 @@ static int handle_store_cpu_address(struct kvm_vcpu *vcpu)
 >  	return 0;
 >  }
 >  
-> +/*
-> + * In the case that a guest uses storage keys
-> + * faults should no longer be backed by zero pages
-> + */
-> +#define mm_forbids_zeropage mm_use_skey
->  static inline int mm_use_skey(struct mm_struct *mm)
+> -static void __skey_check_enable(struct kvm_vcpu *vcpu)
+> +static int __skey_check_enable(struct kvm_vcpu *vcpu)
 >  {
->  #ifdef CONFIG_PGSTE
+> +	int rc = 0;
+>  	if (!(vcpu->arch.sie_block->ictl & (ICTL_ISKE | ICTL_SSKE | ICTL_RRBE)))
+> -		return;
+> +		return rc;
+>  
+> -	s390_enable_skey();
+> +	rc = s390_enable_skey();
+>  	trace_kvm_s390_skey_related_inst(vcpu);
+>  	vcpu->arch.sie_block->ictl &= ~(ICTL_ISKE | ICTL_SSKE | ICTL_RRBE);
+> +	return rc;
+>  }
+>  
+>  
+>  static int handle_skey(struct kvm_vcpu *vcpu)
+>  {
+> -	__skey_check_enable(vcpu);
+> +	int rc = __skey_check_enable(vcpu);
+>  
+> +	if (rc)
+> +		return rc;
+>  	vcpu->stat.instruction_storage_key++;
+>  
+>  	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+> @@ -692,7 +696,10 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
+>  		}
+>  
+>  		if (vcpu->run->s.regs.gprs[reg1] & PFMF_SK) {
+> -			__skey_check_enable(vcpu);
+> +			int rc = __skey_check_enable(vcpu);
+> +
+> +			if (rc)
+> +				return rc;
+>  			if (set_guest_storage_key(current->mm, useraddr,
+>  					vcpu->run->s.regs.gprs[reg1] & PFMF_KEY,
+>  					vcpu->run->s.regs.gprs[reg1] & PFMF_NQ))
 > diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
-> index ab55ba8..58d7eb2 100644
+> index 58d7eb2..82aa528 100644
 > --- a/arch/s390/mm/pgtable.c
 > +++ b/arch/s390/mm/pgtable.c
-> @@ -1309,6 +1309,15 @@ static int __s390_enable_skey(pte_t *pte, unsigned long addr,
->  	pgste_t pgste;
+> @@ -18,6 +18,8 @@
+>  #include <linux/rcupdate.h>
+>  #include <linux/slab.h>
+>  #include <linux/swapops.h>
+> +#include <linux/ksm.h>
+> +#include <linux/mman.h>
 >  
->  	pgste = pgste_get_lock(pte);
-> +	/*
-> +	 * Remove all zero page mappings,
-> +	 * after establishing a policy to forbid zero page mappings
-> +	 * following faults for that page will get fresh anonymous pages
-> +	 */
-> +	if (is_zero_pfn(pte_pfn(*pte))) {
-> +		ptep_flush_direct(walk->mm, addr, pte);
-> +		pte_val(*pte) = _PAGE_INVALID;
-> +	}
->  	/* Clear storage key */
->  	pgste_val(pgste) &= ~(PGSTE_ACC_BITS | PGSTE_FP_BIT |
->  			      PGSTE_GR_BIT | PGSTE_GC_BIT);
-> @@ -1327,9 +1336,11 @@ void s390_enable_skey(void)
+>  #include <asm/pgtable.h>
+>  #include <asm/pgalloc.h>
+> @@ -1328,22 +1330,34 @@ static int __s390_enable_skey(pte_t *pte, unsigned long addr,
+>  	return 0;
+>  }
+>  
+> -void s390_enable_skey(void)
+> +int s390_enable_skey(void)
+>  {
+>  	struct mm_walk walk = { .pte_entry = __s390_enable_skey };
+>  	struct mm_struct *mm = current->mm;
+> +	struct vm_area_struct *vma;
+> +	int rc = 0;
+>  
 >  	down_write(&mm->mmap_sem);
 >  	if (mm_use_skey(mm))
 >  		goto out_up;
-> +
-> +	mm->context.use_skey = 1;
-> +
+>  
+>  	mm->context.use_skey = 1;
+> +	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+> +		if (ksm_madvise(vma, vma->vm_start, vma->vm_end,
+> +				MADV_UNMERGEABLE, &vma->vm_flags)) {
+> +			mm->context.use_skey = 0;
+> +			rc = -ENOMEM;
+> +			goto out_up;
+> +		}
+> +	}
+> +	mm->def_flags &= ~VM_MERGEABLE;
+>  
 >  	walk.mm = mm;
 >  	walk_page_range(0, TASK_SIZE, &walk);
-> -	mm->context.use_skey = 1;
 >  
 >  out_up:
 >  	up_write(&mm->mmap_sem);
+> +	return rc;
+>  }
+>  EXPORT_SYMBOL_GPL(s390_enable_skey);
+>  
 > 
 
 --
