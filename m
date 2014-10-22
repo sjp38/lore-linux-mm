@@ -1,78 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B9D56B0038
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 15:15:59 -0400 (EDT)
-Received: by mail-ob0-f175.google.com with SMTP id wn1so3451991obc.6
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 12:15:59 -0700 (PDT)
-Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
-        by mx.google.com with ESMTPS id 11si17758985oij.129.2014.10.22.12.15.58
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 829026B0038
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 15:22:25 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id w10so4091763pde.40
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 12:22:25 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id qi8si3642190pac.31.2014.10.22.12.22.24
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 22 Oct 2014 12:15:58 -0700 (PDT)
-Message-ID: <1414004531.12798.27.camel@misato.fc.hp.com>
-Subject: Re: [PATCH v2] memory-hotplug: Clear pgdat which is allocated by
- bootmem in try_offline_node()
-From: Toshi Kani <toshi.kani@hp.com>
-Date: Wed, 22 Oct 2014 13:02:11 -0600
-In-Reply-To: <54476215.3010006@jp.fujitsu.com>
-References: <54476215.3010006@jp.fujitsu.com>
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Oct 2014 12:22:24 -0700 (PDT)
+Date: Wed, 22 Oct 2014 12:22:23 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/4] mm: introduce mm_forbids_zeropage function
+Message-Id: <20141022122223.f3bef0f497941fa8e0805dbf@linux-foundation.org>
+In-Reply-To: <1413976170-42501-3-git-send-email-dingel@linux.vnet.ibm.com>
+References: <1413976170-42501-1-git-send-email-dingel@linux.vnet.ibm.com>
+	<1413976170-42501-3-git-send-email-dingel@linux.vnet.ibm.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zhenzhang.zhang@huawei.com, wangnan0@huawei.com, tangchen@cn.fujitsu.com, dave.hansen@intel.com, rientjes@google.com
+To: Dominik Dingel <dingel@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Paolo Bonzini <pbonzini@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Bob Liu <lliubbo@gmail.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Gleb Natapov <gleb@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jianyu Zhan <nasa4836@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, kvm@vger.kernel.org, linux390@de.ibm.com, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Sasha Levin <sasha.levin@oracle.com>
 
-On Wed, 2014-10-22 at 16:51 +0900, Yasuaki Ishimatsu wrote:
-> When hot adding the same memory after hot removing a memory,
-> the following messages are shown:
+On Wed, 22 Oct 2014 13:09:28 +0200 Dominik Dingel <dingel@linux.vnet.ibm.com> wrote:
+
+> Add a new function stub to allow architectures to disable for
+> an mm_structthe backing of non-present, anonymous pages with
+> read-only empty zero pages.
 > 
-> WARNING: CPU: 20 PID: 6 at mm/page_alloc.c:4968 free_area_init_node+0x3fe/0x426()
 > ...
-> Call Trace:
->  [<...>] dump_stack+0x46/0x58
->  [<...>] warn_slowpath_common+0x81/0xa0
->  [<...>] warn_slowpath_null+0x1a/0x20
->  [<...>] free_area_init_node+0x3fe/0x426
->  [<...>] ? up+0x32/0x50
->  [<...>] hotadd_new_pgdat+0x90/0x110
->  [<...>] add_memory+0xd4/0x200
->  [<...>] acpi_memory_device_add+0x1aa/0x289
->  [<...>] acpi_bus_attach+0xfd/0x204
->  [<...>] ? device_register+0x1e/0x30
->  [<...>] acpi_bus_attach+0x178/0x204
->  [<...>] acpi_bus_scan+0x6a/0x90
->  [<...>] ? acpi_bus_get_status+0x2d/0x5f
->  [<...>] acpi_device_hotplug+0xe8/0x418
->  [<...>] acpi_hotplug_work_fn+0x1f/0x2b
->  [<...>] process_one_work+0x14e/0x3f0
->  [<...>] worker_thread+0x11b/0x510
->  [<...>] ? rescuer_thread+0x350/0x350
->  [<...>] kthread+0xe1/0x100
->  [<...>] ? kthread_create_on_node+0x1b0/0x1b0
->  [<...>] ret_from_fork+0x7c/0xb0
->  [<...>] ? kthread_create_on_node+0x1b0/0x1b0
-> 
-> The detaled explanation is as follows:
-> 
-> When hot removing memory, pgdat is set to 0 in try_offline_node().
-> But if the pgdat is allocated by bootmem allocator, the clearing
-> step is skipped. And when hot adding the same memory, the uninitialized
-> pgdat is reused. But free_area_init_node() checks wether pgdat is set
-> to zero. As a result, free_area_init_node() hits WARN_ON().
-> 
-> This patch clears pgdat which is allocated by bootmem allocator
-> in try_offline_node().
-> 
-> Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+>
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -56,6 +56,10 @@ extern int sysctl_legacy_va_layout;
+>  #define __pa_symbol(x)  __pa(RELOC_HIDE((unsigned long)(x), 0))
+>  #endif
+>  
+> +#ifndef mm_forbids_zeropage
+> +#define mm_forbids_zeropage(X)  (0)
+> +#endif
 
-Thanks for the update. It looks good.
-
-Reviewed-by: Toshi Kani <toshi.kani@hp.com>
-
--Toshi
-
+Can we document this please?  What it does, why it does it.  We should
+also specify precisely which arch header file is responsible for
+defining mm_forbids_zeropage.
 
 
 --
