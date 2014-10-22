@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id BD9F96B0069
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 04:30:45 -0400 (EDT)
-Received: by mail-wi0-f182.google.com with SMTP id bs8so634409wib.9
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 01:30:45 -0700 (PDT)
-Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com. [195.75.94.107])
-        by mx.google.com with ESMTPS id r2si1016882wia.37.2014.10.22.01.30.43
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id AC4556B006C
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 04:30:46 -0400 (EDT)
+Received: by mail-wg0-f42.google.com with SMTP id z12so3072063wgg.25
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 01:30:46 -0700 (PDT)
+Received: from e06smtp16.uk.ibm.com (e06smtp16.uk.ibm.com. [195.75.94.112])
+        by mx.google.com with ESMTPS id s6si17239976wjx.58.2014.10.22.01.30.44
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Wed, 22 Oct 2014 01:30:44 -0700 (PDT)
 Received: from /spool/local
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp16.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <dingel@linux.vnet.ibm.com>;
 	Wed, 22 Oct 2014 09:30:43 +0100
 Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id BA2791B0806B
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id D48621B0806E
 	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 09:30:41 +0100 (BST)
-Received: from d06av10.portsmouth.uk.ibm.com (d06av10.portsmouth.uk.ibm.com [9.149.37.251])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s9M8Ufo464225464
+Received: from d06av09.portsmouth.uk.ibm.com (d06av09.portsmouth.uk.ibm.com [9.149.37.250])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s9M8UffZ16056678
 	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 08:30:41 GMT
-Received: from d06av10.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av10.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s9M8Ue9X015896
+Received: from d06av09.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av09.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s9M8Uegn031417
 	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 02:30:41 -0600
 From: Dominik Dingel <dingel@linux.vnet.ibm.com>
-Subject: [PATCH 3/4] s390/mm: prevent and break zero page mappings in case of storage keys
-Date: Wed, 22 Oct 2014 10:30:23 +0200
-Message-Id: <1413966624-12447-4-git-send-email-dingel@linux.vnet.ibm.com>
+Subject: [PATCH 1/4] s390/mm: recfactor global pgste updates
+Date: Wed, 22 Oct 2014 10:30:21 +0200
+Message-Id: <1413966624-12447-2-git-send-email-dingel@linux.vnet.ibm.com>
 In-Reply-To: <1413966624-12447-1-git-send-email-dingel@linux.vnet.ibm.com>
 References: <1413966624-12447-1-git-send-email-dingel@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -33,106 +33,242 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Paolo Bonzini <pbonzini@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>
 Cc: Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Bob Liu <lliubbo@gmail.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Gleb Natapov <gleb@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jianyu Zhan <nasa4836@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Weitz <konstantin.weitz@gmail.com>, kvm@vger.kernel.org, linux390@de.ibm.com, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Sasha Levin <sasha.levin@oracle.com>, Dominik Dingel <dingel@linux.vnet.ibm.com>
 
-As soon as storage keys are enabled we need to stop working on zero page
-mappings to prevent inconsistencies between storage keys and pgste.
-
-Otherwise following data corruption could happen:
-1) guest enables storage key
-2) guest sets storage key for not mapped page X
-   -> change goes to PGSTE
-3) guest reads from page X
-   -> as X was not dirty before, the page will be zero page backed,
-      storage key from PGSTE for X will go to storage key for zero page
-4) guest sets storage key for not mapped page Y (same logic as above
-5) guest reads from page Y
-   -> as Y was not dirty before, the page will be zero page backed,
-      storage key from PGSTE for Y will got to storage key for zero page
-      overwriting storage key for X
-
-While holding the mmap sem, we are safe against changes on entries we
-already fixed, as every fault would need to take the mmap_sem (read).
-As sske and host large pages are also mutual exclusive we do not even
-need to retry the fixup_user_fault.
-
-As use_skey is already the condition on which we call s390_enable_skey
-we need to introduce a new flag for the mm->context on which we decide
-if zero page mapping is allowed.
+Replace the s390 specific page table walker for the pgste updates
+with a call to the common code walk_page_range function.
+There are now two pte modification functions, one for the reset
+of the CMMA state and another one for the initialization of the
+storage keys.
 
 Signed-off-by: Dominik Dingel <dingel@linux.vnet.ibm.com>
 ---
- arch/s390/include/asm/mmu.h     |  2 ++
- arch/s390/include/asm/pgtable.h | 14 ++++++++++++++
- arch/s390/mm/pgtable.c          | 12 ++++++++++++
- 3 files changed, 28 insertions(+)
+ arch/s390/include/asm/pgalloc.h |   2 -
+ arch/s390/include/asm/pgtable.h |   1 +
+ arch/s390/kvm/kvm-s390.c        |   2 +-
+ arch/s390/mm/pgtable.c          | 153 ++++++++++++++--------------------------
+ 4 files changed, 56 insertions(+), 102 deletions(-)
 
-diff --git a/arch/s390/include/asm/mmu.h b/arch/s390/include/asm/mmu.h
-index a5e6562..0f38469 100644
---- a/arch/s390/include/asm/mmu.h
-+++ b/arch/s390/include/asm/mmu.h
-@@ -18,6 +18,8 @@ typedef struct {
- 	unsigned int has_pgste:1;
- 	/* The mmu context uses storage keys. */
- 	unsigned int use_skey:1;
-+	/* The mmu context forbids zeropage mappings. */
-+	unsigned int forbids_zeropage:1;
- } mm_context_t;
+diff --git a/arch/s390/include/asm/pgalloc.h b/arch/s390/include/asm/pgalloc.h
+index 9e18a61..120e126 100644
+--- a/arch/s390/include/asm/pgalloc.h
++++ b/arch/s390/include/asm/pgalloc.h
+@@ -22,8 +22,6 @@ unsigned long *page_table_alloc(struct mm_struct *, unsigned long);
+ void page_table_free(struct mm_struct *, unsigned long *);
+ void page_table_free_rcu(struct mmu_gather *, unsigned long *);
  
- #define INIT_MM_CONTEXT(name)						      \
+-void page_table_reset_pgste(struct mm_struct *, unsigned long, unsigned long,
+-			    bool init_skey);
+ int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
+ 			  unsigned long key, bool nq);
+ 
 diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-index 1e991f6a..fe3cfdf 100644
+index 5efb2fe..1e991f6a 100644
 --- a/arch/s390/include/asm/pgtable.h
 +++ b/arch/s390/include/asm/pgtable.h
-@@ -481,6 +481,20 @@ static inline int mm_has_pgste(struct mm_struct *mm)
- 	return 0;
+@@ -1750,6 +1750,7 @@ extern int vmem_add_mapping(unsigned long start, unsigned long size);
+ extern int vmem_remove_mapping(unsigned long start, unsigned long size);
+ extern int s390_enable_sie(void);
+ extern void s390_enable_skey(void);
++extern void s390_reset_cmma(struct mm_struct *mm);
+ 
+ /*
+  * No page table caches to initialise
+diff --git a/arch/s390/kvm/kvm-s390.c b/arch/s390/kvm/kvm-s390.c
+index 81b0e11..7a33c11 100644
+--- a/arch/s390/kvm/kvm-s390.c
++++ b/arch/s390/kvm/kvm-s390.c
+@@ -281,7 +281,7 @@ static int kvm_s390_mem_control(struct kvm *kvm, struct kvm_device_attr *attr)
+ 	case KVM_S390_VM_MEM_CLR_CMMA:
+ 		mutex_lock(&kvm->lock);
+ 		idx = srcu_read_lock(&kvm->srcu);
+-		page_table_reset_pgste(kvm->arch.gmap->mm, 0, TASK_SIZE, false);
++		s390_reset_cmma(kvm->arch.gmap->mm);
+ 		srcu_read_unlock(&kvm->srcu, idx);
+ 		mutex_unlock(&kvm->lock);
+ 		ret = 0;
+diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
+index 5404a62..ab55ba8 100644
+--- a/arch/s390/mm/pgtable.c
++++ b/arch/s390/mm/pgtable.c
+@@ -885,99 +885,6 @@ static inline void page_table_free_pgste(unsigned long *table)
+ 	__free_page(page);
  }
  
-+/*
-+ * In the case that a guest uses storage keys
-+ * faults should no longer be backed by zero pages
-+ */
-+#define mm_forbids_zeropage mm_forbids_zeropage
-+static inline int mm_forbids_zeropage(struct mm_struct *mm)
+-static inline unsigned long page_table_reset_pte(struct mm_struct *mm, pmd_t *pmd,
+-			unsigned long addr, unsigned long end, bool init_skey)
+-{
+-	pte_t *start_pte, *pte;
+-	spinlock_t *ptl;
+-	pgste_t pgste;
+-
+-	start_pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+-	pte = start_pte;
+-	do {
+-		pgste = pgste_get_lock(pte);
+-		pgste_val(pgste) &= ~_PGSTE_GPS_USAGE_MASK;
+-		if (init_skey) {
+-			unsigned long address;
+-
+-			pgste_val(pgste) &= ~(PGSTE_ACC_BITS | PGSTE_FP_BIT |
+-					      PGSTE_GR_BIT | PGSTE_GC_BIT);
+-
+-			/* skip invalid and not writable pages */
+-			if (pte_val(*pte) & _PAGE_INVALID ||
+-			    !(pte_val(*pte) & _PAGE_WRITE)) {
+-				pgste_set_unlock(pte, pgste);
+-				continue;
+-			}
+-
+-			address = pte_val(*pte) & PAGE_MASK;
+-			page_set_storage_key(address, PAGE_DEFAULT_KEY, 1);
+-		}
+-		pgste_set_unlock(pte, pgste);
+-	} while (pte++, addr += PAGE_SIZE, addr != end);
+-	pte_unmap_unlock(start_pte, ptl);
+-
+-	return addr;
+-}
+-
+-static inline unsigned long page_table_reset_pmd(struct mm_struct *mm, pud_t *pud,
+-			unsigned long addr, unsigned long end, bool init_skey)
+-{
+-	unsigned long next;
+-	pmd_t *pmd;
+-
+-	pmd = pmd_offset(pud, addr);
+-	do {
+-		next = pmd_addr_end(addr, end);
+-		if (pmd_none_or_clear_bad(pmd))
+-			continue;
+-		next = page_table_reset_pte(mm, pmd, addr, next, init_skey);
+-	} while (pmd++, addr = next, addr != end);
+-
+-	return addr;
+-}
+-
+-static inline unsigned long page_table_reset_pud(struct mm_struct *mm, pgd_t *pgd,
+-			unsigned long addr, unsigned long end, bool init_skey)
+-{
+-	unsigned long next;
+-	pud_t *pud;
+-
+-	pud = pud_offset(pgd, addr);
+-	do {
+-		next = pud_addr_end(addr, end);
+-		if (pud_none_or_clear_bad(pud))
+-			continue;
+-		next = page_table_reset_pmd(mm, pud, addr, next, init_skey);
+-	} while (pud++, addr = next, addr != end);
+-
+-	return addr;
+-}
+-
+-void page_table_reset_pgste(struct mm_struct *mm, unsigned long start,
+-			    unsigned long end, bool init_skey)
+-{
+-	unsigned long addr, next;
+-	pgd_t *pgd;
+-
+-	down_write(&mm->mmap_sem);
+-	if (init_skey && mm_use_skey(mm))
+-		goto out_up;
+-	addr = start;
+-	pgd = pgd_offset(mm, addr);
+-	do {
+-		next = pgd_addr_end(addr, end);
+-		if (pgd_none_or_clear_bad(pgd))
+-			continue;
+-		next = page_table_reset_pud(mm, pgd, addr, next, init_skey);
+-	} while (pgd++, addr = next, addr != end);
+-	if (init_skey)
+-		current->mm->context.use_skey = 1;
+-out_up:
+-	up_write(&mm->mmap_sem);
+-}
+-EXPORT_SYMBOL(page_table_reset_pgste);
+-
+ int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
+ 			  unsigned long key, bool nq)
+ {
+@@ -1044,11 +951,6 @@ static inline unsigned long *page_table_alloc_pgste(struct mm_struct *mm,
+ 	return NULL;
+ }
+ 
+-void page_table_reset_pgste(struct mm_struct *mm, unsigned long start,
+-			    unsigned long end, bool init_skey)
+-{
+-}
+-
+ static inline void page_table_free_pgste(unsigned long *table)
+ {
+ }
+@@ -1400,13 +1302,66 @@ EXPORT_SYMBOL_GPL(s390_enable_sie);
+  * Enable storage key handling from now on and initialize the storage
+  * keys with the default key.
+  */
++static int __s390_enable_skey(pte_t *pte, unsigned long addr,
++			      unsigned long next, struct mm_walk *walk)
 +{
-+#ifdef CONFIG_PGSTE
-+	if (mm->context.forbids_zeropage)
-+		return 1;
-+#endif
++	unsigned long ptev;
++	pgste_t pgste;
++
++	pgste = pgste_get_lock(pte);
++	/* Clear storage key */
++	pgste_val(pgste) &= ~(PGSTE_ACC_BITS | PGSTE_FP_BIT |
++			      PGSTE_GR_BIT | PGSTE_GC_BIT);
++	ptev = pte_val(*pte);
++	if (!(ptev & _PAGE_INVALID) && (ptev & _PAGE_WRITE))
++		page_set_storage_key(ptev & PAGE_MASK, PAGE_DEFAULT_KEY, 1);
++	pgste_set_unlock(pte, pgste);
 +	return 0;
 +}
 +
- static inline int mm_use_skey(struct mm_struct *mm)
+ void s390_enable_skey(void)
  {
- #ifdef CONFIG_PGSTE
-diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
-index ab55ba8..1e06fbc 100644
---- a/arch/s390/mm/pgtable.c
-+++ b/arch/s390/mm/pgtable.c
-@@ -1309,6 +1309,15 @@ static int __s390_enable_skey(pte_t *pte, unsigned long addr,
- 	pgste_t pgste;
+-	page_table_reset_pgste(current->mm, 0, TASK_SIZE, true);
++	struct mm_walk walk = { .pte_entry = __s390_enable_skey };
++	struct mm_struct *mm = current->mm;
++
++	down_write(&mm->mmap_sem);
++	if (mm_use_skey(mm))
++		goto out_up;
++	walk.mm = mm;
++	walk_page_range(0, TASK_SIZE, &walk);
++	mm->context.use_skey = 1;
++
++out_up:
++	up_write(&mm->mmap_sem);
+ }
+ EXPORT_SYMBOL_GPL(s390_enable_skey);
  
- 	pgste = pgste_get_lock(pte);
-+	/*
-+	 * Remove all zero page mappings,
-+	 * after establishing a policy to forbid zero page mappings
-+	 * following faults for that page will get fresh anonymous pages
-+	 */
-+	if (is_zero_pfn(pte_pfn(*pte))) {
-+		ptep_flush_direct(walk->mm, addr, pte);
-+		pte_val(*pte) = _PAGE_INVALID;
-+	}
- 	/* Clear storage key */
- 	pgste_val(pgste) &= ~(PGSTE_ACC_BITS | PGSTE_FP_BIT |
- 			      PGSTE_GR_BIT | PGSTE_GC_BIT);
-@@ -1327,6 +1336,9 @@ void s390_enable_skey(void)
- 	down_write(&mm->mmap_sem);
- 	if (mm_use_skey(mm))
- 		goto out_up;
+ /*
++ * Reset CMMA state, make all pages stable again.
++ */
++static int __s390_reset_cmma(pte_t *pte, unsigned long addr,
++			     unsigned long next, struct mm_walk *walk)
++{
++	pgste_t pgste;
 +
-+	mm->context.forbids_zeropage = 1;
++	pgste = pgste_get_lock(pte);
++	pgste_val(pgste) &= ~_PGSTE_GPS_USAGE_MASK;
++	pgste_set_unlock(pte, pgste);
++	return 0;
++}
 +
- 	walk.mm = mm;
- 	walk_page_range(0, TASK_SIZE, &walk);
- 	mm->context.use_skey = 1;
++void s390_reset_cmma(struct mm_struct *mm)
++{
++	struct mm_walk walk = { .pte_entry = __s390_reset_cmma };
++
++	down_write(&mm->mmap_sem);
++	walk.mm = mm;
++	walk_page_range(0, TASK_SIZE, &walk);
++	up_write(&mm->mmap_sem);
++}
++EXPORT_SYMBOL_GPL(s390_reset_cmma);
++
++/*
+  * Test and reset if a guest page is dirty
+  */
+ bool gmap_test_and_clear_dirty(unsigned long address, struct gmap *gmap)
 -- 
 1.8.5.5
 
