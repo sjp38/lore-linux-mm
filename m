@@ -1,175 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 749BD6B006C
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 16:39:37 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id z10so4199015pdj.15
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 13:39:37 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id rf9si15004755pbc.221.2014.10.22.13.39.36
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Oct 2014 13:39:36 -0700 (PDT)
-Date: Wed, 22 Oct 2014 13:39:36 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 2/2] mm: memcontrol: fix missed end-writeback page
- accounting
-Message-Id: <20141022133936.44f2d2931948ce13477b5e64@linux-foundation.org>
-In-Reply-To: <1414002568-21042-3-git-send-email-hannes@cmpxchg.org>
-References: <1414002568-21042-1-git-send-email-hannes@cmpxchg.org>
-	<1414002568-21042-3-git-send-email-hannes@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 565C96B0038
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 16:57:55 -0400 (EDT)
+Received: by mail-la0-f47.google.com with SMTP id pv20so3631002lab.6
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 13:57:54 -0700 (PDT)
+Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
+        by mx.google.com with SMTP id li6si24832316lbc.87.2014.10.22.13.57.52
+        for <linux-mm@kvack.org>;
+        Wed, 22 Oct 2014 13:57:53 -0700 (PDT)
+From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Subject: Re: [PATCH 3/4] OOM, PM: OOM killed task shouldn't escape PM suspend
+Date: Wed, 22 Oct 2014 23:18:20 +0200
+Message-ID: <2145559.zOULAq9xLg@vostro.rjw.lan>
+In-Reply-To: <20141022142226.GC30802@dhcp22.suse.cz>
+References: <1413876435-11720-1-git-send-email-mhocko@suse.cz> <3987583.vdsuvlAsHc@vostro.rjw.lan> <20141022142226.GC30802@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
 
-On Wed, 22 Oct 2014 14:29:28 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Wednesday, October 22, 2014 04:22:26 PM Michal Hocko wrote:
+> On Wed 22-10-14 16:39:12, Rafael J. Wysocki wrote:
+> > On Tuesday, October 21, 2014 04:29:39 PM Michal Hocko wrote:
+> > > On Tue 21-10-14 16:41:07, Rafael J. Wysocki wrote:
+> > > > On Tuesday, October 21, 2014 04:11:59 PM Michal Hocko wrote:
+> > > [...]
+> > > > > OK, incremental diff on top. I will post the complete patch if you are
+> > > > > happier with this change
+> > > > 
+> > > > Yes, I am.
+> > > ---
+> > > From 9ab46fe539cded8e7b6425b2cd23ba9184002fde Mon Sep 17 00:00:00 2001
+> > > From: Michal Hocko <mhocko@suse.cz>
+> > > Date: Mon, 20 Oct 2014 18:12:32 +0200
+> > > Subject: [PATCH -v2] OOM, PM: OOM killed task shouldn't escape PM suspend
+> > > 
+> > > PM freezer relies on having all tasks frozen by the time devices are
+> > > getting frozen so that no task will touch them while they are getting
+> > > frozen. But OOM killer is allowed to kill an already frozen task in
+> > > order to handle OOM situtation. In order to protect from late wake ups
+> > > OOM killer is disabled after all tasks are frozen. This, however, still
+> > > keeps a window open when a killed task didn't manage to die by the time
+> > > freeze_processes finishes.
+> > > 
+> > > Reduce the race window by checking all tasks after OOM killer has been
+> > > disabled. This is still not race free completely unfortunately because
+> > > oom_killer_disable cannot stop an already ongoing OOM killer so a task
+> > > might still wake up from the fridge and get killed without
+> > > freeze_processes noticing. Full synchronization of OOM and freezer is,
+> > > however, too heavy weight for this highly unlikely case.
+> > > 
+> > > Introduce and check oom_kills counter which gets incremented early when
+> > > the allocator enters __alloc_pages_may_oom path and only check all the
+> > > tasks if the counter changes during the freezing attempt. The counter
+> > > is updated so early to reduce the race window since allocator checked
+> > > oom_killer_disabled which is set by PM-freezing code. A false positive
+> > > will push the PM-freezer into a slow path but that is not a big deal.
+> > > 
+> > > Changes since v1
+> > > - push the re-check loop out of freeze_processes into
+> > >   check_frozen_processes and invert the condition to make the code more
+> > >   readable as per Rafael
+> > 
+> > I've applied that along with the rest of the series, but what about the
+> > following cleanup patch on top of it?
+> 
+> Sure, looks good to me.
 
-> 0a31bc97c80c ("mm: memcontrol: rewrite uncharge API") changed page
-> migration to uncharge the old page right away.  The page is locked,
-> unmapped, truncated, and off the LRU, but it could race with writeback
-> ending, which then doesn't unaccount the page properly:
-> 
-> test_clear_page_writeback()              migration
->   acquire pc->mem_cgroup->move_lock
->                                            wait_on_page_writeback()
->   TestClearPageWriteback()
->                                            mem_cgroup_migrate()
->                                              clear PCG_USED
->   if (PageCgroupUsed(pc))
->     decrease memcg pages under writeback
->   release pc->mem_cgroup->move_lock
-> 
-> The per-page statistics interface is heavily optimized to avoid a
-> function call and a lookup_page_cgroup() in the file unmap fast path,
-> which means it doesn't verify whether a page is still charged before
-> clearing PageWriteback() and it has to do it in the stat update later.
-> 
-> Rework it so that it looks up the page's memcg once at the beginning
-> of the transaction and then uses it throughout.  The charge will be
-> verified before clearing PageWriteback() and migration can't uncharge
-> the page as long as that is still set.  The RCU lock will protect the
-> memcg past uncharge.
-> 
-> As far as losing the optimization goes, the following test results are
-> from a microbenchmark that maps, faults, and unmaps a 4GB sparse file
-> three times in a nested fashion, so that there are two negative passes
-> that don't account but still go through the new transaction overhead.
-> There is no actual difference:
-> 
-> old:     33.195102545 seconds time elapsed       ( +-  0.01% )
-> new:     33.199231369 seconds time elapsed       ( +-  0.03% )
-> 
-> The time spent in page_remove_rmap()'s callees still adds up to the
-> same, but the time spent in the function itself seems reduced:
-> 
->     # Children      Self  Command        Shared Object       Symbol
-> old:     0.12%     0.11%  filemapstress  [kernel.kallsyms]   [k] page_remove_rmap
-> new:     0.12%     0.08%  filemapstress  [kernel.kallsyms]   [k] page_remove_rmap
-> 
-> ...
->
-> @@ -2132,26 +2126,32 @@ cleanup:
->   * account and taking the move_lock in the slowpath.
->   */
->  
-> -void __mem_cgroup_begin_update_page_stat(struct page *page,
-> -				bool *locked, unsigned long *flags)
-> +struct mem_cgroup *mem_cgroup_begin_page_stat(struct page *page,
-> +					      bool *locked,
-> +					      unsigned long *flags)
+I'll apply it then, thanks!
 
-It would be useful to document the args here (especially `locked'). 
-Also the new rcu_read_locking protocol is worth a mention: that it
-exists, what it does, why it persists as long as it does.
-
->  {
->  	struct mem_cgroup *memcg;
->  	struct page_cgroup *pc;
->  
-> +	rcu_read_lock();
-> +
-> +	if (mem_cgroup_disabled())
-> +		return NULL;
-> +
->  	pc = lookup_page_cgroup(page);
->  again:
->  	memcg = pc->mem_cgroup;
->  	if (unlikely(!memcg || !PageCgroupUsed(pc)))
-> -		return;
-> +		return NULL;
->  	/*
->  	 * If this memory cgroup is not under account moving, we don't
->  	 * need to take move_lock_mem_cgroup(). Because we already hold
->  	 * rcu_read_lock(), any calls to move_account will be delayed until
->  	 * rcu_read_unlock().
->  	 */
-> -	VM_BUG_ON(!rcu_read_lock_held());
-> +	*locked = false;
->  	if (atomic_read(&memcg->moving_account) <= 0)
-> -		return;
-> +		return memcg;
->  
->  	move_lock_mem_cgroup(memcg, flags);
->  	if (memcg != pc->mem_cgroup || !PageCgroupUsed(pc)) {
-> @@ -2159,36 +2159,26 @@ again:
->  		goto again;
->  	}
->  	*locked = true;
-> +
-> +	return memcg;
->  }
->  
-> 
-> ...
->
-> @@ -1061,9 +1062,10 @@ void page_add_file_rmap(struct page *page)
->   */
->  void page_remove_rmap(struct page *page)
->  {
-> +	struct mem_cgroup *uninitialized_var(memcg);
->  	bool anon = PageAnon(page);
-> -	bool locked;
->  	unsigned long flags;
-> +	bool locked;
->  
->  	/*
->  	 * The anon case has no mem_cgroup page_stat to update; but may
-> @@ -1071,7 +1073,7 @@ void page_remove_rmap(struct page *page)
->  	 * we hold the lock against page_stat move: so avoid it on anon.
->  	 */
->  	if (!anon)
-> -		mem_cgroup_begin_update_page_stat(page, &locked, &flags);
-> +		memcg = mem_cgroup_begin_page_stat(page, &locked, &flags);
->  
->  	/* page still mapped by someone else? */
->  	if (!atomic_add_negative(-1, &page->_mapcount))
-> @@ -1096,8 +1098,7 @@ void page_remove_rmap(struct page *page)
->  				-hpage_nr_pages(page));
->  	} else {
->  		__dec_zone_page_state(page, NR_FILE_MAPPED);
-> -		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
-> -		mem_cgroup_end_update_page_stat(page, &locked, &flags);
-> +		mem_cgroup_dec_page_stat(memcg, MEM_CGROUP_STAT_FILE_MAPPED);
->  	}
->  	if (unlikely(PageMlocked(page)))
->  		clear_page_mlock(page);
-> @@ -1110,10 +1111,9 @@ void page_remove_rmap(struct page *page)
->  	 * Leaving it set also helps swapoff to reinstate ptes
->  	 * faster for those pages still in swapcache.
->  	 */
-> -	return;
->  out:
->  	if (!anon)
-> -		mem_cgroup_end_update_page_stat(page, &locked, &flags);
-> +		mem_cgroup_end_page_stat(memcg, locked, flags);
->  }
-
-The anon and file paths have as much unique code as they do common
-code.  I wonder if page_remove_rmap() would come out better if split
-into two functions?  I gave that a quick try and it came out OK-looking.
+-- 
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
