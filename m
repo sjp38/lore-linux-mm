@@ -1,155 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id BF3E26B0073
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 10:01:22 -0400 (EDT)
-Received: by mail-wi0-f181.google.com with SMTP id n3so985172wiv.8
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 07:01:21 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id bf4si1876056wib.53.2014.10.22.07.01.19
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FD986B007B
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 10:16:48 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id lj1so3777866pab.38
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 07:16:48 -0700 (PDT)
+Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
+        by mx.google.com with ESMTPS id uv6si14194587pbc.255.2014.10.22.07.16.45
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Oct 2014 07:01:20 -0700 (PDT)
-Message-ID: <5447B874.5060206@redhat.com>
-Date: Wed, 22 Oct 2014 16:00:20 +0200
-From: Paolo Bonzini <pbonzini@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] s390/mm: disable KSM for storage key enabled pages
-References: <1413976170-42501-1-git-send-email-dingel@linux.vnet.ibm.com> <1413976170-42501-5-git-send-email-dingel@linux.vnet.ibm.com>
-In-Reply-To: <1413976170-42501-5-git-send-email-dingel@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Wed, 22 Oct 2014 07:16:45 -0700 (PDT)
+Received: from epcpsbgr2.samsung.com
+ (u142.gpu120.samsung.co.kr [203.254.230.142])
+ by mailout2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTP id <0NDU00F0PNNVUQ20@mailout2.samsung.com> for linux-mm@kvack.org;
+ Wed, 22 Oct 2014 23:16:43 +0900 (KST)
+From: Pintu Kumar <pintu.k@samsung.com>
+Subject: [PATCH v2 1/2] mm: cma: split cma-reserved in dmesg log
+Date: Wed, 22 Oct 2014 19:36:34 +0530
+Message-id: <1413986796-19732-1-git-send-email-pintu.k@samsung.com>
+In-reply-to: <1413790391-31686-1-git-send-email-pintu.k@samsung.com>
+References: <1413790391-31686-1-git-send-email-pintu.k@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dominik Dingel <dingel@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Andy Lutomirski <luto@amacapital.net>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Bob Liu <lliubbo@gmail.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Gleb Natapov <gleb@kernel.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, "H. Peter Anvin" <hpa@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@kernel.org>, Jianyu Zhan <nasa4836@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, kvm@vger.kernel.org, linux390@de.ibm.com, linux-kernel@vger.kernel.org, linux-s390@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>, Sasha Levin <sasha.levin@oracle.com>
+To: akpm@linux-foundation.org, riel@redhat.com, pintu.k@samsung.com, aquini@redhat.com, paul.gortmaker@windriver.com, jmarchan@redhat.com, lcapitulino@redhat.com, kirill.shutemov@linux.intel.com, m.szyprowski@samsung.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, mina86@mina86.com, lauraa@codeaurora.org, gioh.kim@lge.com, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org, vbabka@suse.cz, sasha.levin@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: pintu_agarwal@yahoo.com, cpgs@samsung.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, ed.savinay@samsung.com
 
-Reviewed-by: Paolo Bonzini <pbonzini@redhat.com>
+When the system boots up, in the dmesg logs we can see
+the memory statistics along with total reserved as below.
+Memory: 458840k/458840k available, 65448k reserved, 0K highmem
 
-(missing R-b on patch 1 is _not_ a mistake :))
+When CMA is enabled, still the total reserved memory remains the same.
+However, the CMA memory is not considered as reserved.
+But, when we see /proc/meminfo, the CMA memory is part of free memory.
+This creates confusion.
+This patch corrects the problem by properly subtracting the CMA reserved
+memory from the total reserved memory in dmesg logs.
 
-Paolo
+Below is the dmesg snapshot from an arm based device with 512MB RAM and
+12MB single CMA region.
 
-On 10/22/2014 01:09 PM, Dominik Dingel wrote:
-> When storage keys are enabled unmerge already merged pages and prevent
-> new pages from being merged.
-> 
-> Signed-off-by: Dominik Dingel <dingel@linux.vnet.ibm.com>
-> Acked-by: Christian Borntraeger <borntraeger@de.ibm.com>
-> ---
->  arch/s390/include/asm/pgtable.h |  2 +-
->  arch/s390/kvm/priv.c            | 17 ++++++++++++-----
->  arch/s390/mm/pgtable.c          | 16 +++++++++++++++-
->  3 files changed, 28 insertions(+), 7 deletions(-)
-> 
-> diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-> index 0da98d6..dfb38af 100644
-> --- a/arch/s390/include/asm/pgtable.h
-> +++ b/arch/s390/include/asm/pgtable.h
-> @@ -1754,7 +1754,7 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
->  extern int vmem_add_mapping(unsigned long start, unsigned long size);
->  extern int vmem_remove_mapping(unsigned long start, unsigned long size);
->  extern int s390_enable_sie(void);
-> -extern void s390_enable_skey(void);
-> +extern int s390_enable_skey(void);
->  extern void s390_reset_cmma(struct mm_struct *mm);
->  
->  /*
-> diff --git a/arch/s390/kvm/priv.c b/arch/s390/kvm/priv.c
-> index f89c1cd..e0967fd 100644
-> --- a/arch/s390/kvm/priv.c
-> +++ b/arch/s390/kvm/priv.c
-> @@ -156,21 +156,25 @@ static int handle_store_cpu_address(struct kvm_vcpu *vcpu)
->  	return 0;
->  }
->  
-> -static void __skey_check_enable(struct kvm_vcpu *vcpu)
-> +static int __skey_check_enable(struct kvm_vcpu *vcpu)
->  {
-> +	int rc = 0;
->  	if (!(vcpu->arch.sie_block->ictl & (ICTL_ISKE | ICTL_SSKE | ICTL_RRBE)))
-> -		return;
-> +		return rc;
->  
-> -	s390_enable_skey();
-> +	rc = s390_enable_skey();
->  	trace_kvm_s390_skey_related_inst(vcpu);
->  	vcpu->arch.sie_block->ictl &= ~(ICTL_ISKE | ICTL_SSKE | ICTL_RRBE);
-> +	return rc;
->  }
->  
->  
->  static int handle_skey(struct kvm_vcpu *vcpu)
->  {
-> -	__skey_check_enable(vcpu);
-> +	int rc = __skey_check_enable(vcpu);
->  
-> +	if (rc)
-> +		return rc;
->  	vcpu->stat.instruction_storage_key++;
->  
->  	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
-> @@ -692,7 +696,10 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
->  		}
->  
->  		if (vcpu->run->s.regs.gprs[reg1] & PFMF_SK) {
-> -			__skey_check_enable(vcpu);
-> +			int rc = __skey_check_enable(vcpu);
-> +
-> +			if (rc)
-> +				return rc;
->  			if (set_guest_storage_key(current->mm, useraddr,
->  					vcpu->run->s.regs.gprs[reg1] & PFMF_KEY,
->  					vcpu->run->s.regs.gprs[reg1] & PFMF_NQ))
-> diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
-> index 58d7eb2..82aa528 100644
-> --- a/arch/s390/mm/pgtable.c
-> +++ b/arch/s390/mm/pgtable.c
-> @@ -18,6 +18,8 @@
->  #include <linux/rcupdate.h>
->  #include <linux/slab.h>
->  #include <linux/swapops.h>
-> +#include <linux/ksm.h>
-> +#include <linux/mman.h>
->  
->  #include <asm/pgtable.h>
->  #include <asm/pgalloc.h>
-> @@ -1328,22 +1330,34 @@ static int __s390_enable_skey(pte_t *pte, unsigned long addr,
->  	return 0;
->  }
->  
-> -void s390_enable_skey(void)
-> +int s390_enable_skey(void)
->  {
->  	struct mm_walk walk = { .pte_entry = __s390_enable_skey };
->  	struct mm_struct *mm = current->mm;
-> +	struct vm_area_struct *vma;
-> +	int rc = 0;
->  
->  	down_write(&mm->mmap_sem);
->  	if (mm_use_skey(mm))
->  		goto out_up;
->  
->  	mm->context.use_skey = 1;
-> +	for (vma = mm->mmap; vma; vma = vma->vm_next) {
-> +		if (ksm_madvise(vma, vma->vm_start, vma->vm_end,
-> +				MADV_UNMERGEABLE, &vma->vm_flags)) {
-> +			mm->context.use_skey = 0;
-> +			rc = -ENOMEM;
-> +			goto out_up;
-> +		}
-> +	}
-> +	mm->def_flags &= ~VM_MERGEABLE;
->  
->  	walk.mm = mm;
->  	walk_page_range(0, TASK_SIZE, &walk);
->  
->  out_up:
->  	up_write(&mm->mmap_sem);
-> +	return rc;
->  }
->  EXPORT_SYMBOL_GPL(s390_enable_skey);
->  
-> 
+Before this change:
+Memory: 458840k/458840k available, 65448k reserved, 0K highmem
+
+After this change:
+Memory: 458840k/458840k available, 53160k reserved, 12288k cma-reserved, 0K highmem
+
+Signed-off-by: Pintu Kumar <pintu.k@samsung.com>
+Signed-off-by: Vishnu Pratap Singh <vishnu.ps@samsung.com>
+---
+v2: Moved totalcma_pages extern declaration to linux/cma.h
+    Removed CONFIG_CMA while show cma-reserved, from page_alloc.c
+    Moved totalcma_pages declaration to page_alloc.c, so that if will be visible 
+    in non-CMA cases.
+ include/linux/cma.h |    1 +
+ mm/cma.c            |    1 +
+ mm/page_alloc.c     |    6 ++++--
+ 3 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/cma.h b/include/linux/cma.h
+index 0430ed0..0b75896 100644
+--- a/include/linux/cma.h
++++ b/include/linux/cma.h
+@@ -15,6 +15,7 @@
+ 
+ struct cma;
+ 
++extern unsigned long totalcma_pages;
+ extern phys_addr_t cma_get_base(struct cma *cma);
+ extern unsigned long cma_get_size(struct cma *cma);
+ 
+diff --git a/mm/cma.c b/mm/cma.c
+index 963bc4a..8435762 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -288,6 +288,7 @@ int __init cma_declare_contiguous(phys_addr_t base,
+ 	if (ret)
+ 		goto err;
+ 
++	totalcma_pages += (size / PAGE_SIZE);
+ 	pr_info("Reserved %ld MiB at %08lx\n", (unsigned long)size / SZ_1M,
+ 		(unsigned long)base);
+ 	return 0;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index dd73f9a..ababbd8 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -110,6 +110,7 @@ static DEFINE_SPINLOCK(managed_page_count_lock);
+ 
+ unsigned long totalram_pages __read_mostly;
+ unsigned long totalreserve_pages __read_mostly;
++unsigned long totalcma_pages __read_mostly;
+ /*
+  * When calculating the number of globally allowed dirty pages, there
+  * is a certain number of per-zone reserves that should not be
+@@ -5520,7 +5521,7 @@ void __init mem_init_print_info(const char *str)
+ 
+ 	pr_info("Memory: %luK/%luK available "
+ 	       "(%luK kernel code, %luK rwdata, %luK rodata, "
+-	       "%luK init, %luK bss, %luK reserved"
++	       "%luK init, %luK bss, %luK reserved, %luK cma-reserved"
+ #ifdef	CONFIG_HIGHMEM
+ 	       ", %luK highmem"
+ #endif
+@@ -5528,7 +5529,8 @@ void __init mem_init_print_info(const char *str)
+ 	       nr_free_pages() << (PAGE_SHIFT-10), physpages << (PAGE_SHIFT-10),
+ 	       codesize >> 10, datasize >> 10, rosize >> 10,
+ 	       (init_data_size + init_code_size) >> 10, bss_size >> 10,
+-	       (physpages - totalram_pages) << (PAGE_SHIFT-10),
++	       (physpages - totalram_pages - totalcma_pages) << (PAGE_SHIFT-10),
++	       totalcma_pages << (PAGE_SHIFT-10),
+ #ifdef	CONFIG_HIGHMEM
+ 	       totalhigh_pages << (PAGE_SHIFT-10),
+ #endif
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
