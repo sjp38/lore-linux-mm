@@ -1,78 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 27FA76B006E
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 07:56:12 -0400 (EDT)
-Received: by mail-wg0-f51.google.com with SMTP id b13so3428175wgh.34
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 04:56:11 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.194])
-        by mx.google.com with ESMTP id k1si1562516wiz.26.2014.10.22.04.56.10
-        for <linux-mm@kvack.org>;
-        Wed, 22 Oct 2014 04:56:10 -0700 (PDT)
-Date: Wed, 22 Oct 2014 14:55:40 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC][PATCH 0/6] Another go at speculative page faults
-Message-ID: <20141022115540.GB31486@node.dhcp.inet.fi>
-References: <20141020215633.717315139@infradead.org>
- <1413963289.26628.3.camel@linux-t7sj.site>
- <20141022112925.GH30588@node.dhcp.inet.fi>
- <20141022114558.GC21513@worktop.programming.kicks-ass.net>
+Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 22C226B0071
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 08:02:28 -0400 (EDT)
+Received: by mail-qc0-f171.google.com with SMTP id i17so2614311qcy.30
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 05:02:27 -0700 (PDT)
+Received: from n23.mail01.mtsvc.net (mailout32.mail01.mtsvc.net. [216.70.64.70])
+        by mx.google.com with ESMTPS id n69si27503228qga.24.2014.10.22.05.02.25
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Oct 2014 05:02:25 -0700 (PDT)
+Message-ID: <54479CB2.5040408@hurleysoftware.com>
+Date: Wed, 22 Oct 2014 08:01:54 -0400
+From: Peter Hurley <peter@hurleysoftware.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141022114558.GC21513@worktop.programming.kicks-ass.net>
+Subject: Re: [PATCH 0/4] (CMA_AGGRESSIVE) Make CMA memory be more aggressive
+ about allocation
+References: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com> <543F8812.2020002@codeaurora.org>
+In-Reply-To: <543F8812.2020002@codeaurora.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Davidlohr Bueso <dave@stgolabs.net>, torvalds@linux-foundation.org, paulmck@linux.vnet.ibm.com, tglx@linutronix.de, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, oleg@redhat.com, mingo@redhat.com, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, viro@zeniv.linux.org.uk, laijs@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Laura Abbott <lauraa@codeaurora.org>, Hui Zhu <zhuhui@xiaomi.com>, m.szyprowski@samsung.com, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, hughd@google.com, akinobu.mita@gmail.com
+Cc: rjw@rjwysocki.net, len.brown@intel.com, pavel@ucw.cz, mina86@mina86.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, hannes@cmpxchg.org, minchan@kernel.org, nasa4836@gmail.com, ddstreet@ieee.org, mingo@kernel.org, rientjes@google.com, peterz@infradead.org, keescook@chromium.org, atomlin@redhat.com, raistlin@linux.it, axboe@fb.com, paulmck@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, k.khlebnikov@samsung.com, msalter@redhat.com, deller@gmx.de, tangchen@cn.fujitsu.com, ben@decadent.org.uk, vbabka@suse.cz, sasha.levin@oracle.com, vdavydov@parallels.com, suleiman@google.com, linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Oct 22, 2014 at 01:45:58PM +0200, Peter Zijlstra wrote:
-> On Wed, Oct 22, 2014 at 02:29:25PM +0300, Kirill A. Shutemov wrote:
-> > On Wed, Oct 22, 2014 at 12:34:49AM -0700, Davidlohr Bueso wrote:
-> > > On Mon, 2014-10-20 at 23:56 +0200, Peter Zijlstra wrote:
-> > > > Hi,
-> > > > 
-> > > > I figured I'd give my 2010 speculative fault series another spin:
-> > > > 
-> > > >   https://lkml.org/lkml/2010/1/4/257
-> > > > 
-> > > > Since then I think many of the outstanding issues have changed sufficiently to
-> > > > warrant another go. In particular Al Viro's delayed fput seems to have made it
-> > > > entirely 'normal' to delay fput(). Lai Jiangshan's SRCU rewrite provided us
-> > > > with call_srcu() and my preemptible mmu_gather removed the TLB flushes from
-> > > > under the PTL.
-> > > > 
-> > > > The code needs way more attention but builds a kernel and runs the
-> > > > micro-benchmark so I figured I'd post it before sinking more time into it.
-> > > > 
-> > > > I realize the micro-bench is about as good as it gets for this series and not
-> > > > very realistic otherwise, but I think it does show the potential benefit the
-> > > > approach has.
-> > > > 
-> > > > (patches go against .18-rc1+)
-> > > 
-> > > I think patch 2/6 is borken:
-> > > 
-> > > error: patch failed: mm/memory.c:2025
-> > > error: mm/memory.c: patch does not apply
-> > > 
-> > > and related, as you mention, I would very much welcome having the
-> > > introduction of 'struct faut_env' as a separate cleanup patch. May I
-> > > suggest renaming it to fault_cxt?
-> > 
-> > What about extend start using 'struct vm_fault' earlier by stack?
+On 10/16/2014 04:55 AM, Laura Abbott wrote:
+> On 10/15/2014 8:35 PM, Hui Zhu wrote:
+>> In fallbacks of page_alloc.c, MIGRATE_CMA is the fallback of
+>> MIGRATE_MOVABLE.
+>> MIGRATE_MOVABLE will use MIGRATE_CMA when it doesn't have a page in
+>> order that Linux kernel want.
+>>
+>> If a system that has a lot of user space program is running, for
+>> instance, an Android board, most of memory is in MIGRATE_MOVABLE and
+>> allocated.  Before function __rmqueue_fallback get memory from
+>> MIGRATE_CMA, the oom_killer will kill a task to release memory when
+>> kernel want get MIGRATE_UNMOVABLE memory because fallbacks of
+>> MIGRATE_UNMOVABLE are MIGRATE_RECLAIMABLE and MIGRATE_MOVABLE.
+>> This status is odd.  The MIGRATE_CMA has a lot free memory but Linux
+>> kernel kill some tasks to release memory.
+>>
+>> This patch series adds a new function CMA_AGGRESSIVE to make CMA memory
+>> be more aggressive about allocation.
+>> If function CMA_AGGRESSIVE is available, when Linux kernel call function
+>> __rmqueue try to get pages from MIGRATE_MOVABLE and conditions allow,
+>> MIGRATE_CMA will be allocated as MIGRATE_MOVABLE first.  If MIGRATE_CMA
+>> doesn't have enough pages for allocation, go back to allocate memory from
+>> MIGRATE_MOVABLE.
+>> Then the memory of MIGRATE_MOVABLE can be kept for MIGRATE_UNMOVABLE and
+>> MIGRATE_RECLAIMABLE which doesn't have fallback MIGRATE_CMA.
+>>
 > 
-> I'm not sure we should mix the environment for vm_ops::fault, which
-> acquires the page, and the fault path, which deals with changing the
-> PTE. Ideally we should not expose the page-table information to file
-> ops, its a layering violating if nothing else, drivers should not have
-> access to the page tables.
+> It's good to see another proposal to fix CMA utilization. Do you have
+> any data about the success rate of CMA contiguous allocation after
+> this patch series? I played around with a similar approach of using
+> CMA for MIGRATE_MOVABLE allocations and found that although utilization
+> did increase, contiguous allocations failed at a higher rate and were
+> much slower. I see what this series is trying to do with avoiding
+> allocation from CMA pages when a contiguous allocation is progress.
+> My concern is that there would still be problems with contiguous
+> allocation after all the MIGRATE_MOVABLE fallback has happened.
 
-We already have this for ->map_pages() :-P
-I have asked if it's considered layering violation and seems nobody
-cares...
+What impact does this series have on x86 platforms now that CMA is the
+backup allocator for all iommu dma allocations?
 
--- 
- Kirill A. Shutemov
+Regards,
+Peter Hurley
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
