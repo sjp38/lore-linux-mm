@@ -1,71 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 22C226B0071
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 08:02:28 -0400 (EDT)
-Received: by mail-qc0-f171.google.com with SMTP id i17so2614311qcy.30
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 05:02:27 -0700 (PDT)
-Received: from n23.mail01.mtsvc.net (mailout32.mail01.mtsvc.net. [216.70.64.70])
-        by mx.google.com with ESMTPS id n69si27503228qga.24.2014.10.22.05.02.25
+Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 84E9B6B0073
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 08:14:11 -0400 (EDT)
+Received: by mail-qa0-f52.google.com with SMTP id v10so235312qac.39
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 05:14:11 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r8si27547476qaj.16.2014.10.22.05.14.10
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Oct 2014 05:02:25 -0700 (PDT)
-Message-ID: <54479CB2.5040408@hurleysoftware.com>
-Date: Wed, 22 Oct 2014 08:01:54 -0400
-From: Peter Hurley <peter@hurleysoftware.com>
+        Wed, 22 Oct 2014 05:14:10 -0700 (PDT)
+Date: Wed, 22 Oct 2014 14:14:03 +0200
+From: Petr Holasek <pholasek@redhat.com>
+Subject: Re: [RFC][PATCH] add pagesize field to /proc/pid/numa_maps
+Message-ID: <20141022121403.GI2804@localhost.localdomain>
+References: <1413847634-20039-1-git-send-email-pholasek@redhat.com>
+ <alpine.DEB.2.02.1410201803540.2345@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] (CMA_AGGRESSIVE) Make CMA memory be more aggressive
- about allocation
-References: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com> <543F8812.2020002@codeaurora.org>
-In-Reply-To: <543F8812.2020002@codeaurora.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1410201803540.2345@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>, Hui Zhu <zhuhui@xiaomi.com>, m.szyprowski@samsung.com, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, hughd@google.com, akinobu.mita@gmail.com
-Cc: rjw@rjwysocki.net, len.brown@intel.com, pavel@ucw.cz, mina86@mina86.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, hannes@cmpxchg.org, minchan@kernel.org, nasa4836@gmail.com, ddstreet@ieee.org, mingo@kernel.org, rientjes@google.com, peterz@infradead.org, keescook@chromium.org, atomlin@redhat.com, raistlin@linux.it, axboe@fb.com, paulmck@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, n-horiguchi@ah.jp.nec.com, k.khlebnikov@samsung.com, msalter@redhat.com, deller@gmx.de, tangchen@cn.fujitsu.com, ben@decadent.org.uk, vbabka@suse.cz, sasha.levin@oracle.com, vdavydov@parallels.com, suleiman@google.com, linux-kernel@vger.kernel.org, linux-pm@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>
 
-On 10/16/2014 04:55 AM, Laura Abbott wrote:
-> On 10/15/2014 8:35 PM, Hui Zhu wrote:
->> In fallbacks of page_alloc.c, MIGRATE_CMA is the fallback of
->> MIGRATE_MOVABLE.
->> MIGRATE_MOVABLE will use MIGRATE_CMA when it doesn't have a page in
->> order that Linux kernel want.
->>
->> If a system that has a lot of user space program is running, for
->> instance, an Android board, most of memory is in MIGRATE_MOVABLE and
->> allocated.  Before function __rmqueue_fallback get memory from
->> MIGRATE_CMA, the oom_killer will kill a task to release memory when
->> kernel want get MIGRATE_UNMOVABLE memory because fallbacks of
->> MIGRATE_UNMOVABLE are MIGRATE_RECLAIMABLE and MIGRATE_MOVABLE.
->> This status is odd.  The MIGRATE_CMA has a lot free memory but Linux
->> kernel kill some tasks to release memory.
->>
->> This patch series adds a new function CMA_AGGRESSIVE to make CMA memory
->> be more aggressive about allocation.
->> If function CMA_AGGRESSIVE is available, when Linux kernel call function
->> __rmqueue try to get pages from MIGRATE_MOVABLE and conditions allow,
->> MIGRATE_CMA will be allocated as MIGRATE_MOVABLE first.  If MIGRATE_CMA
->> doesn't have enough pages for allocation, go back to allocate memory from
->> MIGRATE_MOVABLE.
->> Then the memory of MIGRATE_MOVABLE can be kept for MIGRATE_UNMOVABLE and
->> MIGRATE_RECLAIMABLE which doesn't have fallback MIGRATE_CMA.
->>
+On Mon, 20 Oct 2014, David Rientjes <rientjes@google.com> wrote:
+> On Tue, 21 Oct 2014, Petr Holasek wrote:
 > 
-> It's good to see another proposal to fix CMA utilization. Do you have
-> any data about the success rate of CMA contiguous allocation after
-> this patch series? I played around with a similar approach of using
-> CMA for MIGRATE_MOVABLE allocations and found that although utilization
-> did increase, contiguous allocations failed at a higher rate and were
-> much slower. I see what this series is trying to do with avoiding
-> allocation from CMA pages when a contiguous allocation is progress.
-> My concern is that there would still be problems with contiguous
-> allocation after all the MIGRATE_MOVABLE fallback has happened.
+> > There were some similar attempts to add vma's pagesize to numa_maps in the past,
+> > so I've distilled the most straightforward one - adding pagesize field
+> > expressing size in kbytes to each line. Although page size can be also obtained
+> > from smaps file, adding pagesize to numa_maps makes the interface more compact
+> > and easier to use without need for traversing other files.
+> > 
+> > New numa_maps output looks like that:
+> > 
+> > 2aaaaac00000 default file=/dev/hugepages/hugepagefile huge pagesize=2097152 dirty=1 N0=1
+> > 7f302441a000 default file=/usr/lib64/libc-2.17.so pagesize=4096 mapped=65 mapmax=38 N0=65
+> > 
+> > Signed-off-by: Petr Holasek <pholasek@redhat.com>
+> 
+> I guess the existing "huge" is insufficient on platforms that support 
+> multiple hugepage sizes.
 
-What impact does this series have on x86 platforms now that CMA is the
-backup allocator for all iommu dma allocations?
+Why do you think so? pagesize= could also distinguish between multiple hugepage
+sizes.
 
-Regards,
-Peter Hurley
+-- 
+Petr Holasek
+pholasek@redhat.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
