@@ -1,131 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CEAF6B006E
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 11:37:38 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id fa1so3880840pad.5
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 08:37:37 -0700 (PDT)
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CC156B0071
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 11:43:14 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id lj1so3929194pab.4
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 08:43:14 -0700 (PDT)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id us5si10679450pab.50.2014.10.22.08.37.36
+        by mx.google.com with ESMTPS id ra10si2661971pab.86.2014.10.22.08.43.13
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Oct 2014 08:37:37 -0700 (PDT)
-Date: Wed, 22 Oct 2014 19:37:25 +0400
+        Wed, 22 Oct 2014 08:43:13 -0700 (PDT)
+Date: Wed, 22 Oct 2014 19:43:02 +0400
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [patch 1/4] mm: memcontrol: uncharge pages on swapout
-Message-ID: <20141022153725.GY16496@esperanza>
+Subject: Re: [patch 2/4] mm: memcontrol: remove unnecessary PCG_MEMSW
+ memory+swap charge flag
+Message-ID: <20141022154302.GZ16496@esperanza>
 References: <1413818532-11042-1-git-send-email-hannes@cmpxchg.org>
- <1413818532-11042-2-git-send-email-hannes@cmpxchg.org>
- <20141021125252.GN16496@esperanza>
- <20141021210328.GB29116@phnom.home.cmpxchg.org>
- <20141022083353.GU16496@esperanza>
- <20141022132038.GB17161@phnom.home.cmpxchg.org>
+ <1413818532-11042-3-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20141022132038.GB17161@phnom.home.cmpxchg.org>
+In-Reply-To: <1413818532-11042-3-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Oct 22, 2014 at 09:20:38AM -0400, Johannes Weiner wrote:
-> On Wed, Oct 22, 2014 at 12:33:53PM +0400, Vladimir Davydov wrote:
-> > On Tue, Oct 21, 2014 at 05:03:28PM -0400, Johannes Weiner wrote:
-> > > On Tue, Oct 21, 2014 at 04:52:52PM +0400, Vladimir Davydov wrote:
-> > > > On Mon, Oct 20, 2014 at 11:22:09AM -0400, Johannes Weiner wrote:
-> > > > > mem_cgroup_swapout() is called with exclusive access to the page at
-> > > > > the end of the page's lifetime.  Instead of clearing the PCG_MEMSW
-> > > > > flag and deferring the uncharge, just do it right away.  This allows
-> > > > > follow-up patches to simplify the uncharge code.
-> > > > > 
-> > > > > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > > > > ---
-> > > > >  mm/memcontrol.c | 17 +++++++++++++----
-> > > > >  1 file changed, 13 insertions(+), 4 deletions(-)
-> > > > > 
-> > > > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > > > index bea3fddb3372..7709f17347f3 100644
-> > > > > --- a/mm/memcontrol.c
-> > > > > +++ b/mm/memcontrol.c
-> > > > > @@ -5799,6 +5799,7 @@ static void __init enable_swap_cgroup(void)
-> > > > >   */
-> > > > >  void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
-> > > > >  {
-> > > > > +	struct mem_cgroup *memcg;
-> > > > >  	struct page_cgroup *pc;
-> > > > >  	unsigned short oldid;
-> > > > >  
-> > > > > @@ -5815,13 +5816,21 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
-> > > > >  		return;
-> > > > >  
-> > > > >  	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEMSW), page);
-> > > > > +	memcg = pc->mem_cgroup;
-> > > > >  
-> > > > > -	oldid = swap_cgroup_record(entry, mem_cgroup_id(pc->mem_cgroup));
-> > > > > +	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg));
-> > > > >  	VM_BUG_ON_PAGE(oldid, page);
-> > > > > +	mem_cgroup_swap_statistics(memcg, true);
-> > > > >  
-> > > > > -	pc->flags &= ~PCG_MEMSW;
-> > > > > -	css_get(&pc->mem_cgroup->css);
-> > > > > -	mem_cgroup_swap_statistics(pc->mem_cgroup, true);
-> > > > > +	pc->flags = 0;
-> > > > > +
-> > > > > +	if (!mem_cgroup_is_root(memcg))
-> > > > > +		page_counter_uncharge(&memcg->memory, 1);
-> > > > 
-> > > > AFAIU it removes batched uncharge of swapped out pages, doesn't it? Will
-> > > > it affect performance?
-> > > 
-> > > During swapout and with lockless page counters?  I don't think so.
-> > 
-> > How is this different from page cache out? I mean, we can have a lot of
-> > pages in the swap cache that have already been swapped out, and are
-> > waiting to be unmapped, uncharged, and freed, just like usual page
-> > cache. Why do we use batching for file cache pages then?
+On Mon, Oct 20, 2014 at 11:22:10AM -0400, Johannes Weiner wrote:
+> Now that mem_cgroup_swapout() fully uncharges the page, every page
+> that is still in use when reaching mem_cgroup_uncharge() is known to
+> carry both the memory and the memory+swap charge.  Simplify the
+> uncharge path and remove the PCG_MEMSW page flag accordingly.
 > 
-> The batching is mostly for munmap().  We do it for reclaim because
-> it's convenient, but I don't think an extra word per struct page to
-> batch one, sometimes a few, locked subtractions per swapped out page
-> is a reasonable trade-off.
-> 
-> > > > Besides, it looks asymmetric with respect to the page cache uncharge
-> > > > path, where we still defer uncharge to mem_cgroup_uncharge_list(), and I
-> > > > personally rather dislike this asymmetry.
-> > > 
-> > > The asymmetry is inherent in the fact that we mave memory and
-> > > memory+swap accounting, and here a memory charge is transferred out to
-> > > swap.  Before, the asymmetry was in mem_cgroup_uncharge_list() where
-> > > we separate out memory and memsw pages (which the next patch fixes).
-> > 
-> > I agree that memsw is inherently asymmetric, but IMO it isn't the case
-> > for swap *cache* vs page *cache*. We handle them similarly - removing
-> > from a mapping, uncharging, freeing. If one wants batching, why
-> > shouldn't the other?
-> 
-> It has to be worth it in practical terms.  You can argue symmetry
-> between swap cache and page cache, but swapping simply is a much
-> colder path than reclaiming page cache.  Our reclaim algorithm avoids
-> it like the plague.
-> 
-> > > So nothing changed, the ugliness was just moved around.  I actually
-> > > like it better now that it's part of the swap controller, because
-> > > that's where the nastiness actually comes from.  This will all go away
-> > > when we account swap separately.  Then, swapped pages can keep their
-> > > memory charge until mem_cgroup_uncharge() again and the swap charge
-> > > will be completely independent from it.  This reshuffling is just
-> > > necessary because it allows us to get rid of the per-page flag.
-> > 
-> > Do you mean that swap cache uncharge batching will be back soon?
-> 
-> Well, yes, once we switch from memsw to a separate swap couter, it
-> comes automatically.  Pages no longer carry two charges, and so the
-> uncharging of pages doesn't have to distinguish between swapped out
-> pages and other pages anymore.
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-With this in mind,
+Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
 
-Acked-by: Vladimir Davydov <vdavydov@parallels.com>
+> ---
+>  include/linux/page_cgroup.h |  1 -
+>  mm/memcontrol.c             | 34 ++++++++++++----------------------
+>  2 files changed, 12 insertions(+), 23 deletions(-)
+> 
+> diff --git a/include/linux/page_cgroup.h b/include/linux/page_cgroup.h
+> index 5c831f1eca79..da62ee2be28b 100644
+> --- a/include/linux/page_cgroup.h
+> +++ b/include/linux/page_cgroup.h
+> @@ -5,7 +5,6 @@ enum {
+>  	/* flags for mem_cgroup */
+>  	PCG_USED = 0x01,	/* This page is charged to a memcg */
+>  	PCG_MEM = 0x02,		/* This page holds a memory charge */
+> -	PCG_MEMSW = 0x04,	/* This page holds a memory+swap charge */
+>  };
+>  
+>  struct pglist_data;
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 7709f17347f3..9bab35fc3e9e 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2606,7 +2606,7 @@ static void commit_charge(struct page *page, struct mem_cgroup *memcg,
+>  	 *   have the page locked
+>  	 */
+>  	pc->mem_cgroup = memcg;
+> -	pc->flags = PCG_USED | PCG_MEM | (do_swap_account ? PCG_MEMSW : 0);
+> +	pc->flags = PCG_USED | PCG_MEM;
+>  
+>  	if (lrucare)
+>  		unlock_page_lru(page, isolated);
+> @@ -5815,7 +5815,6 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+>  	if (!PageCgroupUsed(pc))
+>  		return;
+>  
+> -	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEMSW), page);
+>  	memcg = pc->mem_cgroup;
+>  
+>  	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg));
+> @@ -6010,17 +6009,16 @@ void mem_cgroup_cancel_charge(struct page *page, struct mem_cgroup *memcg)
+>  }
+>  
+>  static void uncharge_batch(struct mem_cgroup *memcg, unsigned long pgpgout,
+> -			   unsigned long nr_mem, unsigned long nr_memsw,
+>  			   unsigned long nr_anon, unsigned long nr_file,
+>  			   unsigned long nr_huge, struct page *dummy_page)
+>  {
+> +	unsigned long nr_pages = nr_anon + nr_file;
+>  	unsigned long flags;
+>  
+>  	if (!mem_cgroup_is_root(memcg)) {
+> -		if (nr_mem)
+> -			page_counter_uncharge(&memcg->memory, nr_mem);
+> -		if (nr_memsw)
+> -			page_counter_uncharge(&memcg->memsw, nr_memsw);
+> +		page_counter_uncharge(&memcg->memory, nr_pages);
+> +		if (do_swap_account)
+> +			page_counter_uncharge(&memcg->memsw, nr_pages);
+>  		memcg_oom_recover(memcg);
+>  	}
+>  
+> @@ -6029,23 +6027,21 @@ static void uncharge_batch(struct mem_cgroup *memcg, unsigned long pgpgout,
+>  	__this_cpu_sub(memcg->stat->count[MEM_CGROUP_STAT_CACHE], nr_file);
+>  	__this_cpu_sub(memcg->stat->count[MEM_CGROUP_STAT_RSS_HUGE], nr_huge);
+>  	__this_cpu_add(memcg->stat->events[MEM_CGROUP_EVENTS_PGPGOUT], pgpgout);
+> -	__this_cpu_add(memcg->stat->nr_page_events, nr_anon + nr_file);
+> +	__this_cpu_add(memcg->stat->nr_page_events, nr_pages);
+>  	memcg_check_events(memcg, dummy_page);
+>  	local_irq_restore(flags);
+>  
+>  	if (!mem_cgroup_is_root(memcg))
+> -		css_put_many(&memcg->css, max(nr_mem, nr_memsw));
+> +		css_put_many(&memcg->css, nr_pages);
+>  }
+>  
+>  static void uncharge_list(struct list_head *page_list)
+>  {
+>  	struct mem_cgroup *memcg = NULL;
+> -	unsigned long nr_memsw = 0;
+>  	unsigned long nr_anon = 0;
+>  	unsigned long nr_file = 0;
+>  	unsigned long nr_huge = 0;
+>  	unsigned long pgpgout = 0;
+> -	unsigned long nr_mem = 0;
+>  	struct list_head *next;
+>  	struct page *page;
+>  
+> @@ -6072,10 +6068,9 @@ static void uncharge_list(struct list_head *page_list)
+>  
+>  		if (memcg != pc->mem_cgroup) {
+>  			if (memcg) {
+> -				uncharge_batch(memcg, pgpgout, nr_mem, nr_memsw,
+> -					       nr_anon, nr_file, nr_huge, page);
+> -				pgpgout = nr_mem = nr_memsw = 0;
+> -				nr_anon = nr_file = nr_huge = 0;
+> +				uncharge_batch(memcg, pgpgout, nr_anon, nr_file,
+> +					       nr_huge, page);
+> +				pgpgout = nr_anon = nr_file = nr_huge = 0;
+>  			}
+>  			memcg = pc->mem_cgroup;
+>  		}
+> @@ -6091,18 +6086,14 @@ static void uncharge_list(struct list_head *page_list)
+>  		else
+>  			nr_file += nr_pages;
+>  
+> -		if (pc->flags & PCG_MEM)
+> -			nr_mem += nr_pages;
+> -		if (pc->flags & PCG_MEMSW)
+> -			nr_memsw += nr_pages;
+>  		pc->flags = 0;
+>  
+>  		pgpgout++;
+>  	} while (next != page_list);
+>  
+>  	if (memcg)
+> -		uncharge_batch(memcg, pgpgout, nr_mem, nr_memsw,
+> -			       nr_anon, nr_file, nr_huge, page);
+> +		uncharge_batch(memcg, pgpgout, nr_anon, nr_file,
+> +			       nr_huge, page);
+>  }
+>  
+>  /**
+> @@ -6187,7 +6178,6 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
+>  		return;
+>  
+>  	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEM), oldpage);
+> -	VM_BUG_ON_PAGE(do_swap_account && !(pc->flags & PCG_MEMSW), oldpage);
+>  
+>  	if (lrucare)
+>  		lock_page_lru(oldpage, &isolated);
+> -- 
+> 2.1.2
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
