@@ -1,154 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F0FB6B007B
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 10:22:29 -0400 (EDT)
-Received: by mail-lb0-f181.google.com with SMTP id l4so2879262lbv.40
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 07:22:28 -0700 (PDT)
+Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 531226B0069
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 11:34:58 -0400 (EDT)
+Received: by mail-la0-f42.google.com with SMTP id gf13so3510846lab.29
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 08:34:57 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f1si23576177lam.8.2014.10.22.07.22.25
+        by mx.google.com with ESMTPS id u2si23728158laa.120.2014.10.22.08.34.56
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 22 Oct 2014 07:22:26 -0700 (PDT)
-Date: Wed, 22 Oct 2014 16:22:26 +0200
+        Wed, 22 Oct 2014 08:34:56 -0700 (PDT)
+Date: Wed, 22 Oct 2014 17:34:55 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/4] OOM, PM: OOM killed task shouldn't escape PM suspend
-Message-ID: <20141022142226.GC30802@dhcp22.suse.cz>
-References: <1413876435-11720-1-git-send-email-mhocko@suse.cz>
- <4766859.KSKPTm3b0x@vostro.rjw.lan>
- <20141021142939.GG9415@dhcp22.suse.cz>
- <3987583.vdsuvlAsHc@vostro.rjw.lan>
+Subject: Re: [patch 1/4] mm: memcontrol: uncharge pages on swapout
+Message-ID: <20141022153455.GD30802@dhcp22.suse.cz>
+References: <1413818532-11042-1-git-send-email-hannes@cmpxchg.org>
+ <1413818532-11042-2-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <3987583.vdsuvlAsHc@vostro.rjw.lan>
+In-Reply-To: <1413818532-11042-2-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Cong Wang <xiyou.wangcong@gmail.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, Oleg Nesterov <oleg@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linux PM list <linux-pm@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed 22-10-14 16:39:12, Rafael J. Wysocki wrote:
-> On Tuesday, October 21, 2014 04:29:39 PM Michal Hocko wrote:
-> > On Tue 21-10-14 16:41:07, Rafael J. Wysocki wrote:
-> > > On Tuesday, October 21, 2014 04:11:59 PM Michal Hocko wrote:
-> > [...]
-> > > > OK, incremental diff on top. I will post the complete patch if you are
-> > > > happier with this change
-> > > 
-> > > Yes, I am.
-> > ---
-> > From 9ab46fe539cded8e7b6425b2cd23ba9184002fde Mon Sep 17 00:00:00 2001
-> > From: Michal Hocko <mhocko@suse.cz>
-> > Date: Mon, 20 Oct 2014 18:12:32 +0200
-> > Subject: [PATCH -v2] OOM, PM: OOM killed task shouldn't escape PM suspend
-> > 
-> > PM freezer relies on having all tasks frozen by the time devices are
-> > getting frozen so that no task will touch them while they are getting
-> > frozen. But OOM killer is allowed to kill an already frozen task in
-> > order to handle OOM situtation. In order to protect from late wake ups
-> > OOM killer is disabled after all tasks are frozen. This, however, still
-> > keeps a window open when a killed task didn't manage to die by the time
-> > freeze_processes finishes.
-> > 
-> > Reduce the race window by checking all tasks after OOM killer has been
-> > disabled. This is still not race free completely unfortunately because
-> > oom_killer_disable cannot stop an already ongoing OOM killer so a task
-> > might still wake up from the fridge and get killed without
-> > freeze_processes noticing. Full synchronization of OOM and freezer is,
-> > however, too heavy weight for this highly unlikely case.
-> > 
-> > Introduce and check oom_kills counter which gets incremented early when
-> > the allocator enters __alloc_pages_may_oom path and only check all the
-> > tasks if the counter changes during the freezing attempt. The counter
-> > is updated so early to reduce the race window since allocator checked
-> > oom_killer_disabled which is set by PM-freezing code. A false positive
-> > will push the PM-freezer into a slow path but that is not a big deal.
-> > 
-> > Changes since v1
-> > - push the re-check loop out of freeze_processes into
-> >   check_frozen_processes and invert the condition to make the code more
-> >   readable as per Rafael
+On Mon 20-10-14 11:22:09, Johannes Weiner wrote:
+> mem_cgroup_swapout() is called with exclusive access to the page at
+> the end of the page's lifetime.  Instead of clearing the PCG_MEMSW
+> flag and deferring the uncharge, just do it right away.  This allows
+> follow-up patches to simplify the uncharge code.
 > 
-> I've applied that along with the rest of the series, but what about the
-> following cleanup patch on top of it?
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Sure, looks good to me.
+OK, it makes sense. With the irq fixup
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-> 
-> Rafael
-> 
-> 
 > ---
->  kernel/power/process.c |   31 ++++++++++++++++---------------
->  1 file changed, 16 insertions(+), 15 deletions(-)
+>  mm/memcontrol.c | 17 +++++++++++++----
+>  1 file changed, 13 insertions(+), 4 deletions(-)
 > 
-> Index: linux-pm/kernel/power/process.c
-> ===================================================================
-> --- linux-pm.orig/kernel/power/process.c
-> +++ linux-pm/kernel/power/process.c
-> @@ -108,25 +108,27 @@ static int try_to_freeze_tasks(bool user
->  	return todo ? -EBUSY : 0;
->  }
->  
-> +static bool __check_frozen_processes(void)
-> +{
-> +	struct task_struct *g, *p;
-> +
-> +	for_each_process_thread(g, p)
-> +		if (p != current && !freezer_should_skip(p) && !frozen(p))
-> +			return false;
-> +
-> +	return true;
-> +}
-> +
->  /*
->   * Returns true if all freezable tasks (except for current) are frozen already
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index bea3fddb3372..7709f17347f3 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -5799,6 +5799,7 @@ static void __init enable_swap_cgroup(void)
 >   */
->  static bool check_frozen_processes(void)
+>  void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
 >  {
-> -	struct task_struct *g, *p;
-> -	bool ret = true;
-> +	bool ret;
+> +	struct mem_cgroup *memcg;
+>  	struct page_cgroup *pc;
+>  	unsigned short oldid;
 >  
->  	read_lock(&tasklist_lock);
-> -	for_each_process_thread(g, p) {
-> -		if (p != current && !freezer_should_skip(p) &&
-> -		    !frozen(p)) {
-> -			ret = false;
-> -			goto done;
-> -		}
-> -	}
-> -done:
-> +	ret = __check_frozen_processes();
->  	read_unlock(&tasklist_lock);
-> -
->  	return ret;
+> @@ -5815,13 +5816,21 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+>  		return;
+>  
+>  	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEMSW), page);
+> +	memcg = pc->mem_cgroup;
+>  
+> -	oldid = swap_cgroup_record(entry, mem_cgroup_id(pc->mem_cgroup));
+> +	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg));
+>  	VM_BUG_ON_PAGE(oldid, page);
+> +	mem_cgroup_swap_statistics(memcg, true);
+>  
+> -	pc->flags &= ~PCG_MEMSW;
+> -	css_get(&pc->mem_cgroup->css);
+> -	mem_cgroup_swap_statistics(pc->mem_cgroup, true);
+> +	pc->flags = 0;
+> +
+> +	if (!mem_cgroup_is_root(memcg))
+> +		page_counter_uncharge(&memcg->memory, 1);
+> +
+> +	local_irq_disable();
+> +	mem_cgroup_charge_statistics(memcg, page, -1);
+> +	memcg_check_events(memcg, page);
+> +	local_irq_enable();
 >  }
 >  
-> @@ -167,15 +169,14 @@ int freeze_processes(void)
->  		 * on the way out so we have to double check for race.
->  		 */
->  		if (oom_kills_count() != oom_kills_saved &&
-> -				!check_frozen_processes()) {
-> +		    !check_frozen_processes()) {
->  			__usermodehelper_set_disable_depth(UMH_ENABLED);
->  			printk("OOM in progress.");
->  			error = -EBUSY;
-> -			goto done;
-> +		} else {
-> +			printk("done.");
->  		}
-> -		printk("done.");
->  	}
-> -done:
->  	printk("\n");
->  	BUG_ON(in_atomic());
->  
+>  /**
+> -- 
+> 2.1.2
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Michal Hocko
