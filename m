@@ -1,38 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id CB6A26B0073
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 08:16:00 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id ft15so3416842pdb.31
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 05:16:00 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id fu3si14071751pbb.74.2014.10.22.05.15.59
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B8F06B0069
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 08:35:29 -0400 (EDT)
+Received: by mail-wi0-f175.google.com with SMTP id d1so1237318wiv.2
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 05:35:29 -0700 (PDT)
+Received: from mail-wg0-x22d.google.com (mail-wg0-x22d.google.com. [2a00:1450:400c:c00::22d])
+        by mx.google.com with ESMTPS id am1si1631102wjc.38.2014.10.22.05.35.27
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Oct 2014 05:16:00 -0700 (PDT)
-Date: Wed, 22 Oct 2014 14:15:54 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC][PATCH 3/6] mm: VMA sequence count
-Message-ID: <20141022121554.GD21513@worktop.programming.kicks-ass.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 22 Oct 2014 05:35:28 -0700 (PDT)
+Received: by mail-wg0-f45.google.com with SMTP id m15so3728081wgh.16
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 05:35:27 -0700 (PDT)
+Date: Wed, 22 Oct 2014 14:35:23 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [RFC][PATCH 0/6] Another go at speculative page faults
+Message-ID: <20141022123523.GA24499@gmail.com>
 References: <20141020215633.717315139@infradead.org>
- <20141020222841.361741939@infradead.org>
- <20141022112657.GG30588@node.dhcp.inet.fi>
- <20141022113951.GB21513@worktop.programming.kicks-ass.net>
- <20141022115304.GA31486@node.dhcp.inet.fi>
+ <20141021162340.GA5508@gmail.com>
+ <20141021172527.GH3219@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141022115304.GA31486@node.dhcp.inet.fi>
+In-Reply-To: <20141021172527.GH3219@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Peter Zijlstra <peterz@infradead.org>
 Cc: torvalds@linux-foundation.org, paulmck@linux.vnet.ibm.com, tglx@linutronix.de, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, oleg@redhat.com, mingo@redhat.com, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, viro@zeniv.linux.org.uk, laijs@cn.fujitsu.com, dave@stgolabs.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Oct 22, 2014 at 02:53:04PM +0300, Kirill A. Shutemov wrote:
-> Em, no. In this case change_protection() will not touch the pte, since
-> it's pte_none() and the pte_same() check will pass just fine.
 
-Oh, that's what you meant. Yes that's a problem, yes vm_page_prot
-needs wrapping too.
+* Peter Zijlstra <peterz@infradead.org> wrote:
+
+> On Tue, Oct 21, 2014 at 06:23:40PM +0200, Ingo Molnar wrote:
+> > 
+> > * Peter Zijlstra <peterz@infradead.org> wrote:
+> > 
+> > > My Ivy Bridge EP (2*10*2) has a ~58% improvement in pagefault throughput:
+> > > 
+> > > PRE:
+> > >        149,441,555      page-faults                  ( +-  1.25% )
+> > >
+> > > POST:
+> > >        236,442,626      page-faults                  ( +-  0.08% )
+> > 
+> > > My Ivy Bridge EX (4*15*2) has a ~78% improvement in pagefault throughput:
+> > > 
+> > > PRE:
+> > >        105,789,078      page-faults                 ( +-  2.24% )
+> > >
+> > > POST:
+> > >        187,751,767      page-faults                 ( +-  2.24% )
+> > 
+> > I guess the 'PRE' and 'POST' numbers should be flipped around?
+> 
+> Nope, its the number of page-faults serviced in a fixed amount of time
+> (60 seconds), therefore higher is better.
+
+Ah, okay!
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
