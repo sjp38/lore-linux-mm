@@ -1,60 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id C4A926B0069
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 03:35:09 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id y10so3020014pdj.27
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 00:35:09 -0700 (PDT)
-Received: from homiemail-a5.g.dreamhost.com (homie.mail.dreamhost.com. [208.97.132.208])
-        by mx.google.com with ESMTP id bc3si13380260pbb.199.2014.10.22.00.35.06
-        for <linux-mm@kvack.org>;
-        Wed, 22 Oct 2014 00:35:08 -0700 (PDT)
-Message-ID: <1413963289.26628.3.camel@linux-t7sj.site>
-Subject: Re: [RFC][PATCH 0/6] Another go at speculative page faults
-From: Davidlohr Bueso <dave@stgolabs.net>
-Date: Wed, 22 Oct 2014 00:34:49 -0700
-In-Reply-To: <20141020215633.717315139@infradead.org>
-References: <20141020215633.717315139@infradead.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AA6B6B006E
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 03:52:15 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id rd3so1186425pab.28
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 00:52:15 -0700 (PDT)
+Received: from fgwmail6.fujitsu.co.jp (fgwmail6.fujitsu.co.jp. [192.51.44.36])
+        by mx.google.com with ESMTPS id pg8si13521339pbb.73.2014.10.22.00.52.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 22 Oct 2014 00:52:15 -0700 (PDT)
+Received: from kw-mxoi2.gw.nic.fujitsu.com (unknown [10.0.237.143])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 9D7253EE0C0
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 16:52:13 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.fujitsu.co.jp [10.0.50.93])
+	by kw-mxoi2.gw.nic.fujitsu.com (Postfix) with ESMTP id 9DBCEAC0867
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 16:52:12 +0900 (JST)
+Received: from g01jpfmpwkw02.exch.g01.fujitsu.local (g01jpfmpwkw02.exch.g01.fujitsu.local [10.0.193.56])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 38F091DB8040
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 16:52:12 +0900 (JST)
+Message-ID: <54476215.3010006@jp.fujitsu.com>
+Date: Wed, 22 Oct 2014 16:51:49 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: [PATCH v2] memory-hotplug: Clear pgdat which is allocated by bootmem
+ in try_offline_node()
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: torvalds@linux-foundation.org, paulmck@linux.vnet.ibm.com, tglx@linutronix.de, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, oleg@redhat.com, mingo@redhat.com, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, viro@zeniv.linux.org.uk, laijs@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org, toshi.kani@hp.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: zhenzhang.zhang@huawei.com, wangnan0@huawei.com, tangchen@cn.fujitsu.com, dave.hansen@intel.com, rientjes@google.com
 
-On Mon, 2014-10-20 at 23:56 +0200, Peter Zijlstra wrote:
-> Hi,
-> 
-> I figured I'd give my 2010 speculative fault series another spin:
-> 
->   https://lkml.org/lkml/2010/1/4/257
-> 
-> Since then I think many of the outstanding issues have changed sufficiently to
-> warrant another go. In particular Al Viro's delayed fput seems to have made it
-> entirely 'normal' to delay fput(). Lai Jiangshan's SRCU rewrite provided us
-> with call_srcu() and my preemptible mmu_gather removed the TLB flushes from
-> under the PTL.
-> 
-> The code needs way more attention but builds a kernel and runs the
-> micro-benchmark so I figured I'd post it before sinking more time into it.
-> 
-> I realize the micro-bench is about as good as it gets for this series and not
-> very realistic otherwise, but I think it does show the potential benefit the
-> approach has.
-> 
-> (patches go against .18-rc1+)
+When hot adding the same memory after hot removing a memory,
+the following messages are shown:
 
-I think patch 2/6 is borken:
+WARNING: CPU: 20 PID: 6 at mm/page_alloc.c:4968 free_area_init_node+0x3fe/0x426()
+...
+Call Trace:
+ [<...>] dump_stack+0x46/0x58
+ [<...>] warn_slowpath_common+0x81/0xa0
+ [<...>] warn_slowpath_null+0x1a/0x20
+ [<...>] free_area_init_node+0x3fe/0x426
+ [<...>] ? up+0x32/0x50
+ [<...>] hotadd_new_pgdat+0x90/0x110
+ [<...>] add_memory+0xd4/0x200
+ [<...>] acpi_memory_device_add+0x1aa/0x289
+ [<...>] acpi_bus_attach+0xfd/0x204
+ [<...>] ? device_register+0x1e/0x30
+ [<...>] acpi_bus_attach+0x178/0x204
+ [<...>] acpi_bus_scan+0x6a/0x90
+ [<...>] ? acpi_bus_get_status+0x2d/0x5f
+ [<...>] acpi_device_hotplug+0xe8/0x418
+ [<...>] acpi_hotplug_work_fn+0x1f/0x2b
+ [<...>] process_one_work+0x14e/0x3f0
+ [<...>] worker_thread+0x11b/0x510
+ [<...>] ? rescuer_thread+0x350/0x350
+ [<...>] kthread+0xe1/0x100
+ [<...>] ? kthread_create_on_node+0x1b0/0x1b0
+ [<...>] ret_from_fork+0x7c/0xb0
+ [<...>] ? kthread_create_on_node+0x1b0/0x1b0
 
-error: patch failed: mm/memory.c:2025
-error: mm/memory.c: patch does not apply
+The detaled explanation is as follows:
 
-and related, as you mention, I would very much welcome having the
-introduction of 'struct faut_env' as a separate cleanup patch. May I
-suggest renaming it to fault_cxt?
+When hot removing memory, pgdat is set to 0 in try_offline_node().
+But if the pgdat is allocated by bootmem allocator, the clearing
+step is skipped. And when hot adding the same memory, the uninitialized
+pgdat is reused. But free_area_init_node() checks wether pgdat is set
+to zero. As a result, free_area_init_node() hits WARN_ON().
 
-Thanks,
-Davidlohr
+This patch clears pgdat which is allocated by bootmem allocator
+in try_offline_node().
+
+Signed-off-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+CC: Zhang Zhen <zhenzhang.zhang@huawei.com>
+CC: Wang Nan <wangnan0@huawei.com>
+CC: Tang Chen <tangchen@cn.fujitsu.com>
+CC: Toshi Kani <toshi.kani@hp.com>
+CC: Dave Hansen <dave.hansen@intel.com>
+CC: David Rientjes <rientjes@google.com>
+---
+v2: remove check of pgdat_page
+
+ mm/memory_hotplug.c | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 29d8693..252e1db 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1912,7 +1912,6 @@ void try_offline_node(int nid)
+ 	unsigned long start_pfn = pgdat->node_start_pfn;
+ 	unsigned long end_pfn = start_pfn + pgdat->node_spanned_pages;
+ 	unsigned long pfn;
+-	struct page *pgdat_page = virt_to_page(pgdat);
+ 	int i;
+
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+@@ -1941,10 +1940,6 @@ void try_offline_node(int nid)
+ 	node_set_offline(nid);
+ 	unregister_one_node(nid);
+
+-	if (!PageSlab(pgdat_page) && !PageCompound(pgdat_page))
+-		/* node data is allocated from boot memory */
+-		return;
+-
+ 	/* free waittable in each zone */
+ 	for (i = 0; i < MAX_NR_ZONES; i++) {
+ 		struct zone *zone = pgdat->node_zones + i;
+-- 
+1.8.3.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
