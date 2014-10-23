@@ -1,50 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 71A016B006C
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 07:04:45 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id hz1so862409pad.22
-        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 04:04:45 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id el11si1334408pdb.108.2014.10.23.04.04.44
+Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BA956B0069
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 08:21:59 -0400 (EDT)
+Received: by mail-la0-f49.google.com with SMTP id q1so715960lam.22
+        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 05:21:58 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l5si2357677lag.57.2014.10.23.05.21.56
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Oct 2014 04:04:44 -0700 (PDT)
-Date: Thu, 23 Oct 2014 13:04:38 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC][PATCH 0/6] Another go at speculative page faults
-Message-ID: <20141023110438.GQ21513@worktop.programming.kicks-ass.net>
-References: <20141020215633.717315139@infradead.org>
- <20141021162340.GA5508@gmail.com>
- <20141021170948.GA25964@node.dhcp.inet.fi>
- <20141021175603.GI3219@twins.programming.kicks-ass.net>
- <5448DB05.5050803@cn.fujitsu.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 23 Oct 2014 05:21:56 -0700 (PDT)
+Date: Thu, 23 Oct 2014 14:21:54 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 1/2] mm: page-writeback: inline account_page_dirtied()
+ into single caller
+Message-ID: <20141023122154.GB23011@dhcp22.suse.cz>
+References: <1414002568-21042-1-git-send-email-hannes@cmpxchg.org>
+ <1414002568-21042-2-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5448DB05.5050803@cn.fujitsu.com>
+In-Reply-To: <1414002568-21042-2-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lai Jiangshan <laijs@cn.fujitsu.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Ingo Molnar <mingo@kernel.org>, torvalds@linux-foundation.org, paulmck@linux.vnet.ibm.com, tglx@linutronix.de, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, oleg@redhat.com, mingo@redhat.com, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, viro@zeniv.linux.org.uk, dave@stgolabs.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Oct 23, 2014 at 06:40:05PM +0800, Lai Jiangshan wrote:
-> On 10/22/2014 01:56 AM, Peter Zijlstra wrote:
-> > On Tue, Oct 21, 2014 at 08:09:48PM +0300, Kirill A. Shutemov wrote:
-> >> It would be interesting to see if the patchset affects non-condended case.
-> >> Like a one-threaded workload.
-> > 
-> > It does, and not in a good way, I'll have to look at that... :/
+On Wed 22-10-14 14:29:27, Johannes Weiner wrote:
+> A follow-up patch would have changed the call signature.  To save the
+> trouble, just fold it instead.
 > 
-> Maybe it is blamed to find_vma_srcu() that it doesn't take the advantage of
-> the vmacache_find() and cause more cache-misses.
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: "3.17" <stable@kernel.org>
 
-Its what I thought initially, I tried doing perf record with and
-without, but then I ran into perf diff not quite working for me and I've
-yet to find time to kick that thing into shape.
+It seems that the function was added just for nilfs but that wasn't using
+the symbol at the time memcg part went in. Funny...
 
-> Is it hard to use the vmacache in the find_vma_srcu()?
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-I've not had time to look at it.
+> ---
+>  include/linux/mm.h  |  1 -
+>  mm/page-writeback.c | 23 ++++-------------------
+>  2 files changed, 4 insertions(+), 20 deletions(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 27eb1bfbe704..b46461116cd2 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1235,7 +1235,6 @@ int __set_page_dirty_no_writeback(struct page *page);
+>  int redirty_page_for_writepage(struct writeback_control *wbc,
+>  				struct page *page);
+>  void account_page_dirtied(struct page *page, struct address_space *mapping);
+> -void account_page_writeback(struct page *page);
+>  int set_page_dirty(struct page *page);
+>  int set_page_dirty_lock(struct page *page);
+>  int clear_page_dirty_for_io(struct page *page);
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index ff24c9d83112..ff6a5b07211e 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -2116,23 +2116,6 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
+>  EXPORT_SYMBOL(account_page_dirtied);
+>  
+>  /*
+> - * Helper function for set_page_writeback family.
+> - *
+> - * The caller must hold mem_cgroup_begin/end_update_page_stat() lock
+> - * while calling this function.
+> - * See test_set_page_writeback for example.
+> - *
+> - * NOTE: Unlike account_page_dirtied this does not rely on being atomic
+> - * wrt interrupts.
+> - */
+> -void account_page_writeback(struct page *page)
+> -{
+> -	mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_WRITEBACK);
+> -	inc_zone_page_state(page, NR_WRITEBACK);
+> -}
+> -EXPORT_SYMBOL(account_page_writeback);
+> -
+> -/*
+>   * For address_spaces which do not use buffers.  Just tag the page as dirty in
+>   * its radix tree.
+>   *
+> @@ -2410,8 +2393,10 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
+>  	} else {
+>  		ret = TestSetPageWriteback(page);
+>  	}
+> -	if (!ret)
+> -		account_page_writeback(page);
+> +	if (!ret) {
+> +		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_WRITEBACK);
+> +		inc_zone_page_state(page, NR_WRITEBACK);
+> +	}
+>  	mem_cgroup_end_update_page_stat(page, &locked, &memcg_flags);
+>  	return ret;
+>  
+> -- 
+> 2.1.2
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
