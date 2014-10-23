@@ -1,89 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 83EE36B0072
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 04:09:27 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id bj1so637807pad.15
-        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 01:09:27 -0700 (PDT)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id t1si1040317pda.50.2014.10.23.01.09.23
-        for <linux-mm@kvack.org>;
-        Thu, 23 Oct 2014 01:09:24 -0700 (PDT)
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v4 4/4] mm/page_alloc: restrict max order of merging on isolated pageblock
-Date: Thu, 23 Oct 2014 17:10:21 +0900
-Message-Id: <1414051821-12769-5-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1414051821-12769-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1414051821-12769-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B02E6B0073
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 04:09:33 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id fp1so599027pdb.25
+        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 01:09:33 -0700 (PDT)
+Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com. [202.81.31.143])
+        by mx.google.com with ESMTPS id oq9si884857pbb.234.2014.10.23.01.09.31
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 23 Oct 2014 01:09:32 -0700 (PDT)
+Received: from /spool/local
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 23 Oct 2014 18:09:27 +1000
+Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id AEA0E2BB0047
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 19:09:23 +1100 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s9N8BFlg17105018
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 19:11:23 +1100
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s9N88oDI008760
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 19:08:50 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH V2 1/2] mm: Update generic gup implementation to handle hugepage directory
+In-Reply-To: <20141022160224.9c2268795e55d5a2eff5b94d@linux-foundation.org>
+References: <1413520687-31729-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20141022160224.9c2268795e55d5a2eff5b94d@linux-foundation.org>
+Date: Thu, 23 Oct 2014 13:38:30 +0530
+Message-ID: <87r3xzgqdd.fsf@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rik van Riel <riel@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Wen Congyang <wency@cn.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Laura Abbott <lauraa@codeaurora.org>, Heesub Shin <heesub.shin@samsung.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Ritesh Harjani <ritesh.list@gmail.com>, t.stanislaws@samsung.com, Gioh Kim <gioh.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, stable@vger.kernel.org
+Cc: Steve Capper <steve.capper@linaro.org>, Andrea Arcangeli <aarcange@redhat.com>, benh@kernel.crashing.org, mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org
 
-Current pageblock isolation logic could isolate each pageblock
-individually. This causes freepage accounting problem if freepage with
-pageblock order on isolate pageblock is merged with other freepage on
-normal pageblock. We can prevent merging by restricting max order of
-merging to pageblock order if freepage is on isolate pageblock.
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-Side-effect of this change is that there could be non-merged buddy
-freepage even if finishing pageblock isolation, because undoing pageblock
-isolation is just to move freepage from isolate buddy list to normal buddy
-list rather than to consider merging. But, I think it doesn't matter
-because 1) almost allocation request are for equal or below pageblock
-order, 2) caller of pageblock isolation will use this freepage so
-freepage will split in any case and 3) merge would happen soon after
-some alloc/free on this and buddy pageblock.
+> On Fri, 17 Oct 2014 10:08:06 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+>
+>> Update generic gup implementation with powerpc specific details.
+>> On powerpc at pmd level we can have hugepte, normal pmd pointer
+>> or a pointer to the hugepage directory.
+>> 
+>> ...
+>>
+>> --- a/arch/arm/include/asm/pgtable.h
+>> +++ b/arch/arm/include/asm/pgtable.h
+>> @@ -181,6 +181,8 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
+>>  /* to find an entry in a kernel page-table-directory */
+>>  #define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
+>>  
+>> +#define pgd_huge(pgd)		(0)
+>> +
+>>  #define pmd_none(pmd)		(!pmd_val(pmd))
+>>  #define pmd_present(pmd)	(pmd_val(pmd))
+>>  
+>> diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+>> index cefd3e825612..ed8f42497ac4 100644
+>> --- a/arch/arm64/include/asm/pgtable.h
+>> +++ b/arch/arm64/include/asm/pgtable.h
+>> @@ -464,6 +464,8 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
+>>  extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
+>>  extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
+>>  
+>> +#define pgd_huge(pgd)		(0)
+>> +
+>
+> So only arm, arm64 and powerpc implement CONFIG_HAVE_GENERIC_RCU_GUP
+> and only powerpc impements pgd_huge().
+>
+> Could we get a bit of documentation in place for pgd_huge() so that
+> people who aren't familiar with powerpc can understand what's going
+> on?
 
-Cc: <stable@vger.kernel.org>
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- mm/page_alloc.c |   15 ++++++++++++---
- 1 file changed, 12 insertions(+), 3 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 433f92c..3ec58db 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -571,6 +571,7 @@ static inline void __free_one_page(struct page *page,
- 	unsigned long combined_idx;
- 	unsigned long uninitialized_var(buddy_idx);
- 	struct page *buddy;
-+	int max_order = MAX_ORDER;
- 
- 	VM_BUG_ON(!zone_is_initialized(zone));
- 
-@@ -582,18 +583,26 @@ static inline void __free_one_page(struct page *page,
- 	if (unlikely(has_isolate_pageblock(zone) ||
- 		is_migrate_isolate(migratetype))) {
- 		migratetype = get_pfnblock_migratetype(page, pfn);
--		if (is_migrate_isolate(migratetype))
-+		if (is_migrate_isolate(migratetype)) {
-+			/*
-+			 * We restrict max order of merging to prevent merge
-+			 * between freepages on isolate pageblock and normal
-+			 * pageblock. Without this, pageblock isolation
-+			 * could cause incorrect freepage accounting.
-+			 */
-+			max_order = min(MAX_ORDER, pageblock_order + 1);
- 			goto skip_counting;
-+		}
- 	}
- 	__mod_zone_freepage_state(zone, 1 << order, migratetype);
- 
- skip_counting:
--	page_idx = pfn & ((1 << MAX_ORDER) - 1);
-+	page_idx = pfn & ((1 << max_order) - 1);
- 
- 	VM_BUG_ON_PAGE(page_idx & ((1 << order) - 1), page);
- 	VM_BUG_ON_PAGE(bad_range(zone, page), page);
- 
--	while (order < MAX_ORDER-1) {
-+	while (order < max_order - 1) {
- 		buddy_idx = __find_buddy_index(page_idx, order);
- 		buddy = page + (buddy_idx - page_idx);
- 		if (!page_is_buddy(page, buddy, order))
--- 
-1.7.9.5
+I ended up moving that to include/linux/hugetlb.h with the below
+comments added. Let me know if the below is ok 
+
+/*
+ * hugepages at page global directory. If arch support
+ * hugepages at pgd level, they need to define this.
+ */
+#ifndef pgd_huge
+#define pgd_huge(x)	0
+#endif
+
+#ifndef is_hugepd
+/*
+ * Some architectures requires a hugepage directory format that is
+ * required to support multiple hugepage sizes. For example
+ * a4fe3ce7699bfe1bd88f816b55d42d8fe1dac655 introduced the same
+ * on powerpc. This allows for a more flexible hugepage pagetable
+ * layout.
+ */
+typedef struct { unsigned long pd; } hugepd_t;
+#define is_hugepd(hugepd) (0)
+#define __hugepd(x) ((hugepd_t) { (x) })
+static inline int gup_huge_pd(hugepd_t hugepd, unsigned long addr,
+			      unsigned pdshift, unsigned long end,
+			      int write, struct page **pages, int *nr)
+{
+	return 0;
+}
+#else
+extern int gup_huge_pd(hugepd_t hugepd, unsigned long addr,
+		       unsigned pdshift, unsigned long end,
+		       int write, struct page **pages, int *nr);
+#endif
+
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
