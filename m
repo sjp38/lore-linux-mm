@@ -1,35 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BC246B008C
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 11:22:23 -0400 (EDT)
-Received: by mail-ie0-f182.google.com with SMTP id rd18so655550iec.13
-        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 08:22:22 -0700 (PDT)
-Received: from resqmta-po-09v.sys.comcast.net (resqmta-po-09v.sys.comcast.net. [2001:558:fe16:19:96:114:154:168])
-        by mx.google.com with ESMTPS id l22si2627346ioi.15.2014.10.23.08.22.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 23 Oct 2014 08:22:22 -0700 (PDT)
-Date: Thu, 23 Oct 2014 10:22:20 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm: slab/slub: coding style: whitespaces and tabs
- mixture
-In-Reply-To: <1414077427-9616-1-git-send-email-lqymgt@gmail.com>
-Message-ID: <alpine.DEB.2.11.1410231021480.19615@gentwo.org>
-References: <1414077427-9616-1-git-send-email-lqymgt@gmail.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 930C3900019
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 11:28:54 -0400 (EDT)
+Received: by mail-ie0-f178.google.com with SMTP id rl12so1204153iec.9
+        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 08:28:54 -0700 (PDT)
+Received: from relay.sgi.com (relay3.sgi.com. [192.48.152.1])
+        by mx.google.com with ESMTP id m4si3119718igx.47.2014.10.23.08.28.53
+        for <linux-mm@kvack.org>;
+        Thu, 23 Oct 2014 08:28:54 -0700 (PDT)
+Date: Thu, 23 Oct 2014 10:29:19 -0500
+From: Alex Thorlton <athorlton@sgi.com>
+Subject: Re: [PATCH] Add pgcollapse controls to task_struct
+Message-ID: <20141023152919.GB15104@sgi.com>
+References: <1414032567-109765-1-git-send-email-athorlton@sgi.com>
+ <1414032567-109765-3-git-send-email-athorlton@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1414032567-109765-3-git-send-email-athorlton@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Quanyang Liu <lqymgt@gmail.com>
-Cc: linux-mm@kvack.org, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org
+To: linux-mm@kvack.org, athorlton@sgi.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Bob Liu <lliubbo@gmail.com>, David Rientjes <rientjes@google.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, Kees Cook <keescook@chromium.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Vladimir Davydov <vdavydov@parallels.com>, linux-kernel@vger.kernel.org
 
-On Thu, 23 Oct 2014, Quanyang Liu wrote:
+On Wed, Oct 22, 2014 at 09:49:25PM -0500, Alex Thorlton wrote:
+> This patch just adds the necessary bits to the task_struct so that the scans can
+> eventually be controlled on a per-mm basis.  As I mentioned previously, we might
+> want to add some more counters here.
 
-> From: LQYMGT <lqymgt@gmail.com>
->
-> Some code in mm/slab.c and mm/slub.c use whitespaces in indent.
-> Clean them up.
-
-Acked-by: Christoph Lameter <cl@linux.com>
+Just noticed that this one didn't get properly numbered when I split
+them out.  This should be patch 2/4 for the first set that I sent. Sorry
+about that!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
