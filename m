@@ -1,82 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 379B16B0069
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 12:58:49 -0400 (EDT)
-Received: by mail-wi0-f181.google.com with SMTP id n3so2539824wiv.14
-        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 09:58:48 -0700 (PDT)
-Received: from mailapp01.imgtec.com (mailapp01.imgtec.com. [195.59.15.196])
-        by mx.google.com with ESMTP id fg6si5695913wib.15.2014.10.23.09.58.47
-        for <linux-mm@kvack.org>;
-        Thu, 23 Oct 2014 09:58:47 -0700 (PDT)
-From: Zubair Lutfullah Kakakhel <Zubair.Kakakhel@imgtec.com>
-Subject: [RFC] mm: memblock: change default cnt for regions from 1 to 0
-Date: Thu, 23 Oct 2014 17:56:53 +0100
-Message-ID: <1414083413-61756-1-git-send-email-Zubair.Kakakhel@imgtec.com>
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C1706B0069
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 13:01:09 -0400 (EDT)
+Received: by mail-la0-f47.google.com with SMTP id pv20so1238953lab.34
+        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 10:01:09 -0700 (PDT)
+Received: from mail-la0-x22d.google.com (mail-la0-x22d.google.com. [2a00:1450:4010:c03::22d])
+        by mx.google.com with ESMTPS id ir2si3448102lac.127.2014.10.23.10.01.07
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 23 Oct 2014 10:01:08 -0700 (PDT)
+Received: by mail-la0-f45.google.com with SMTP id q1so1239481lam.18
+        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 10:01:07 -0700 (PDT)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH v2 1/2] mm: cma: split cma-reserved in dmesg log
+In-Reply-To: <1413986796-19732-1-git-send-email-pintu.k@samsung.com>
+References: <1413790391-31686-1-git-send-email-pintu.k@samsung.com> <1413986796-19732-1-git-send-email-pintu.k@samsung.com>
+Date: Thu, 23 Oct 2014 19:01:02 +0200
+Message-ID: <xa1tegtylnzl.fsf@mina86.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, Zubair.Kakakhel@imgtec.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Pintu Kumar <pintu.k@samsung.com>, akpm@linux-foundation.org, riel@redhat.compintu.k@samsung.com, aquini@redhat.com, paul.gortmaker@windriver.com, jmarchan@redhat.com, lcapitulino@redhat.com, kirill.shutemov@linux.intel.com, m.szyprowski@samsung.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, lauraa@codeaurora.org, gioh.kim@lge.com, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org, vbabka@suse.cz, sasha.levin@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: pintu_agarwal@yahoo.com, cpgs@samsung.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, ed.savinay@samsung.com
 
-The default region counts are set to 1 with a comment saying empty
-dummy entry.
+On Wed, Oct 22 2014, Pintu Kumar wrote:
+> When the system boots up, in the dmesg logs we can see
+> the memory statistics along with total reserved as below.
+> Memory: 458840k/458840k available, 65448k reserved, 0K highmem
+>
+> When CMA is enabled, still the total reserved memory remains the same.
+> However, the CMA memory is not considered as reserved.
+> But, when we see /proc/meminfo, the CMA memory is part of free memory.
+> This creates confusion.
+> This patch corrects the problem by properly subtracting the CMA reserved
+> memory from the total reserved memory in dmesg logs.
+>
+> Below is the dmesg snapshot from an arm based device with 512MB RAM and
+> 12MB single CMA region.
+>
+> Before this change:
+> Memory: 458840k/458840k available, 65448k reserved, 0K highmem
+>
+> After this change:
+> Memory: 458840k/458840k available, 53160k reserved, 12288k cma-reserved, =
+0K highmem
+>
+> Signed-off-by: Pintu Kumar <pintu.k@samsung.com>
+> Signed-off-by: Vishnu Pratap Singh <vishnu.ps@samsung.com>
 
-If this is a dummy entry, should this be changed to 0?
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
 
-We have faced this in mips/kernel/setup.c arch_mem_init.
 
-cma uses memblock. But even with cma disabled.
-The for_each_memblock(reserved, reg) goes inside the loop.
-Even without any reserved regions.
+I'm not sure how Andrew would think about it, and I don't have strong
+feelings, but I would consider a few changes:
 
-Traced it to the following, when the macro
-for_each_memblock(memblock_type, region) is used.
+> ---
+> v2: Moved totalcma_pages extern declaration to linux/cma.h
+>     Removed CONFIG_CMA while show cma-reserved, from page_alloc.c
+>     Moved totalcma_pages declaration to page_alloc.c, so that if will be =
+visible=20
+>     in non-CMA cases.
+>  include/linux/cma.h |    1 +
+>  mm/cma.c            |    1 +
+>  mm/page_alloc.c     |    6 ++++--
+>  3 files changed, 6 insertions(+), 2 deletions(-)
+>
+> diff --git a/include/linux/cma.h b/include/linux/cma.h
+> index 0430ed0..0b75896 100644
+> --- a/include/linux/cma.h
+> +++ b/include/linux/cma.h
+> @@ -15,6 +15,7 @@
+>=20=20
+>  struct cma;
+>=20=20
+> +extern unsigned long totalcma_pages;
 
-It expands to add the cnt variable.
++#ifdef CONFIG_CMA
++extern unsigned long totalcma_pages;
++#else
++#  define totalcma_pages 0UL
++#endif
 
-for (region = memblock.memblock_type.regions; 		\
-	region < (memblock.memblock_type.regions + memblock.memblock_type.cnt); \
-	region++)
+>  extern phys_addr_t cma_get_base(struct cma *cma);
+>  extern unsigned long cma_get_size(struct cma *cma);
+>=20=20
+> diff --git a/mm/cma.c b/mm/cma.c
+> index 963bc4a..8435762 100644
+> --- a/mm/cma.c
+> +++ b/mm/cma.c
+> @@ -288,6 +288,7 @@ int __init cma_declare_contiguous(phys_addr_t base,
+>  	if (ret)
+>  		goto err;
+>=20=20
+> +	totalcma_pages +=3D (size / PAGE_SIZE);
+>  	pr_info("Reserved %ld MiB at %08lx\n", (unsigned long)size / SZ_1M,
+>  		(unsigned long)base);
+>  	return 0;
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index dd73f9a..ababbd8 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -110,6 +110,7 @@ static DEFINE_SPINLOCK(managed_page_count_lock);
+>=20=20
+>  unsigned long totalram_pages __read_mostly;
+>  unsigned long totalreserve_pages __read_mostly;
+> +unsigned long totalcma_pages __read_mostly;
 
-In the corner case, that there are no reserved regions.
-Due to the default 1 value of cnt.
-The loop under for_each_memblock still runs once.
+Move this to cma.c.
 
-Even when there is no reserved region.
+>  /*
+>   * When calculating the number of globally allowed dirty pages, there
+>   * is a certain number of per-zone reserves that should not be
+> @@ -5520,7 +5521,7 @@ void __init mem_init_print_info(const char *str)
+>=20=20
+>  	pr_info("Memory: %luK/%luK available "
+>  	       "(%luK kernel code, %luK rwdata, %luK rodata, "
+> -	       "%luK init, %luK bss, %luK reserved"
+> +	       "%luK init, %luK bss, %luK reserved, %luK cma-reserved"
+>  #ifdef	CONFIG_HIGHMEM
+>  	       ", %luK highmem"
+>  #endif
+> @@ -5528,7 +5529,8 @@ void __init mem_init_print_info(const char *str)
+>  	       nr_free_pages() << (PAGE_SHIFT-10), physpages << (PAGE_SHIFT-10),
+>  	       codesize >> 10, datasize >> 10, rosize >> 10,
+>  	       (init_data_size + init_code_size) >> 10, bss_size >> 10,
+> -	       (physpages - totalram_pages) << (PAGE_SHIFT-10),
+> +	       (physpages - totalram_pages - totalcma_pages) << (PAGE_SHIFT-10),
+> +	       totalcma_pages << (PAGE_SHIFT-10),
+>  #ifdef	CONFIG_HIGHMEM
+>  	       totalhigh_pages << (PAGE_SHIFT-10),
+>  #endif
+> --=20
+> 1.7.9.5
+>
 
-Is this by design? or unintentional?
-It might be that this loop runs an extra time every instance out there?
----
- mm/memblock.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 6d2f219..b91301c 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -33,16 +33,16 @@ static struct memblock_region memblock_physmem_init_regions[INIT_PHYSMEM_REGIONS
- 
- struct memblock memblock __initdata_memblock = {
- 	.memory.regions		= memblock_memory_init_regions,
--	.memory.cnt		= 1,	/* empty dummy entry */
-+	.memory.cnt		= 0,	/* empty dummy entry */
- 	.memory.max		= INIT_MEMBLOCK_REGIONS,
- 
- 	.reserved.regions	= memblock_reserved_init_regions,
--	.reserved.cnt		= 1,	/* empty dummy entry */
-+	.reserved.cnt		= 0,	/* empty dummy entry */
- 	.reserved.max		= INIT_MEMBLOCK_REGIONS,
- 
- #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
- 	.physmem.regions	= memblock_physmem_init_regions,
--	.physmem.cnt		= 1,	/* empty dummy entry */
-+	.physmem.cnt		= 0,	/* empty dummy entry */
- 	.physmem.max		= INIT_PHYSMEM_REGIONS,
- #endif
- 
--- 
-1.9.1
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
