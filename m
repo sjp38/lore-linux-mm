@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
-	by kanga.kvack.org (Postfix) with ESMTP id A2C646B0092
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 10:33:57 -0400 (EDT)
-Received: by mail-lb0-f181.google.com with SMTP id l4so958085lbv.12
-        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 07:33:57 -0700 (PDT)
-Received: from galahad.ideasonboard.com (galahad.ideasonboard.com. [185.26.127.97])
-        by mx.google.com with ESMTPS id z7si2939409lag.18.2014.10.23.07.33.54
+Received: from mail-lb0-f176.google.com (mail-lb0-f176.google.com [209.85.217.176])
+	by kanga.kvack.org (Postfix) with ESMTP id D78216B0093
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 10:33:58 -0400 (EDT)
+Received: by mail-lb0-f176.google.com with SMTP id p9so952731lbv.35
+        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 07:33:58 -0700 (PDT)
+Received: from galahad.ideasonboard.com (galahad.ideasonboard.com. [2001:4b98:dc2:45:216:3eff:febb:480d])
+        by mx.google.com with ESMTPS id bf9si2829609lab.114.2014.10.23.07.33.55
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 23 Oct 2014 07:33:55 -0700 (PDT)
 From: Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>
-Subject: [PATCH 1/4] mm: cma: Don't crash on allocation if CMA area can't be activated
-Date: Thu, 23 Oct 2014 17:33:45 +0300
-Message-Id: <1414074828-4488-2-git-send-email-laurent.pinchart+renesas@ideasonboard.com>
+Subject: [PATCH 2/4] mm: cma: Always consider a 0 base address reservation as dynamic
+Date: Thu, 23 Oct 2014 17:33:46 +0300
+Message-Id: <1414074828-4488-3-git-send-email-laurent.pinchart+renesas@ideasonboard.com>
 In-Reply-To: <1414074828-4488-1-git-send-email-laurent.pinchart+renesas@ideasonboard.com>
 References: <1414074828-4488-1-git-send-email-laurent.pinchart+renesas@ideasonboard.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,65 +20,43 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Michal Nazarewicz <mina86@mina86.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-If activation of the CMA area fails its mutex won't be initialized,
-leading to an oops at allocation time when trying to lock the mutex. Fix
-this by failing allocation if the area hasn't been successfully actived,
-and detect that condition by moving the CMA bitmap allocation after page
-block reservation completion.
+The fixed parameter to cma_declare_contiguous() tells the function
+whether the given base address must be honoured or should be considered
+as a hint only. The API considers a zero base address as meaning any
+base address, which must never be considered as a fixed value.
+
+Part of the implementation correctly checks both fixed and base != 0,
+but two locations check the fixed value only. Set fixed to false when
+base is 0 to fix that and simplify the code.
 
 Signed-off-by: Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>
 ---
- mm/cma.c | 17 ++++++-----------
- 1 file changed, 6 insertions(+), 11 deletions(-)
+ mm/cma.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
 diff --git a/mm/cma.c b/mm/cma.c
-index 963bc4a..16c6650 100644
+index 16c6650..6b14346 100644
 --- a/mm/cma.c
 +++ b/mm/cma.c
-@@ -93,11 +93,6 @@ static int __init cma_activate_area(struct cma *cma)
- 	unsigned i = cma->count >> pageblock_order;
- 	struct zone *zone;
+@@ -239,6 +239,9 @@ int __init cma_declare_contiguous(phys_addr_t base,
+ 	size = ALIGN(size, alignment);
+ 	limit &= ~(alignment - 1);
  
--	cma->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
--
--	if (!cma->bitmap)
--		return -ENOMEM;
--
- 	WARN_ON_ONCE(!pfn_valid(pfn));
- 	zone = page_zone(pfn_to_page(pfn));
- 
-@@ -114,17 +109,17 @@ static int __init cma_activate_area(struct cma *cma)
- 			 * to be in the same zone.
- 			 */
- 			if (page_zone(pfn_to_page(pfn)) != zone)
--				goto err;
-+				return -EINVAL;
- 		}
- 		init_cma_reserved_pageblock(pfn_to_page(base_pfn));
- 	} while (--i);
- 
-+	cma->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
-+	if (!cma->bitmap)
-+		return -ENOMEM;
++	if (!base)
++		fixed = false;
 +
- 	mutex_init(&cma->lock);
- 	return 0;
--
--err:
--	kfree(cma->bitmap);
--	return -EINVAL;
- }
+ 	/* size should be aligned with order_per_bit */
+ 	if (!IS_ALIGNED(size >> PAGE_SHIFT, 1 << order_per_bit))
+ 		return -EINVAL;
+@@ -262,7 +265,7 @@ int __init cma_declare_contiguous(phys_addr_t base,
+ 	}
  
- static int __init cma_init_reserved_areas(void)
-@@ -313,7 +308,7 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
- 	struct page *page = NULL;
- 	int ret;
- 
--	if (!cma || !cma->count)
-+	if (!cma || !cma->count || !cma->bitmap)
- 		return NULL;
- 
- 	pr_debug("%s(cma %p, count %d, align %d)\n", __func__, (void *)cma,
+ 	/* Reserve memory */
+-	if (base && fixed) {
++	if (fixed) {
+ 		if (memblock_is_region_reserved(base, size) ||
+ 		    memblock_reserve(base, size) < 0) {
+ 			ret = -EBUSY;
 -- 
 2.0.4
 
