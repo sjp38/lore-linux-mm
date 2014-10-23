@@ -1,171 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DB9A6B0072
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 11:03:24 -0400 (EDT)
-Received: by mail-lb0-f174.google.com with SMTP id p9so999289lbv.19
-        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 08:03:23 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 1si3048865lax.37.2014.10.23.08.03.21
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 23 Oct 2014 08:03:22 -0700 (PDT)
-Date: Thu, 23 Oct 2014 17:03:21 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 2/2] mm: memcontrol: fix missed end-writeback page
- accounting
-Message-ID: <20141023150321.GJ23011@dhcp22.suse.cz>
-References: <1414002568-21042-1-git-send-email-hannes@cmpxchg.org>
- <1414002568-21042-3-git-send-email-hannes@cmpxchg.org>
- <20141022133936.44f2d2931948ce13477b5e64@linux-foundation.org>
- <20141023135729.GB24269@phnom.home.cmpxchg.org>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 320986B0087
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 11:05:52 -0400 (EDT)
+Received: by mail-wi0-f177.google.com with SMTP id ex7so2087928wid.16
+        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 08:05:51 -0700 (PDT)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.194])
+        by mx.google.com with ESMTP id fq9si5313529wib.81.2014.10.23.08.05.50
+        for <linux-mm@kvack.org>;
+        Thu, 23 Oct 2014 08:05:50 -0700 (PDT)
+Date: Thu, 23 Oct 2014 18:05:08 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC][PATCH 3/6] mm: VMA sequence count
+Message-ID: <20141023150508.GA10316@node.dhcp.inet.fi>
+References: <20141020215633.717315139@infradead.org>
+ <20141020222841.361741939@infradead.org>
+ <20141022112657.GG30588@node.dhcp.inet.fi>
+ <20141022113951.GB21513@worktop.programming.kicks-ass.net>
+ <20141022115304.GA31486@node.dhcp.inet.fi>
+ <20141022121554.GD21513@worktop.programming.kicks-ass.net>
+ <20141022134416.GA15602@worktop.programming.kicks-ass.net>
+ <20141023123616.GA8809@node.dhcp.inet.fi>
+ <20141023142224.GL3219@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141023135729.GB24269@phnom.home.cmpxchg.org>
+In-Reply-To: <20141023142224.GL3219@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: torvalds@linux-foundation.org, paulmck@linux.vnet.ibm.com, tglx@linutronix.de, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, oleg@redhat.com, mingo@redhat.com, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, viro@zeniv.linux.org.uk, laijs@cn.fujitsu.com, dave@stgolabs.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 23-10-14 09:57:29, Johannes Weiner wrote:
-[...]
-> From b518d88254b01be8c6c0c4a496d9f311f0c71b4a Mon Sep 17 00:00:00 2001
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Date: Thu, 23 Oct 2014 09:29:06 -0400
-> Subject: [patch] mm: rmap: split out page_remove_file_rmap()
+On Thu, Oct 23, 2014 at 04:22:24PM +0200, Peter Zijlstra wrote:
+> On Thu, Oct 23, 2014 at 03:36:16PM +0300, Kirill A. Shutemov wrote:
+> > On Wed, Oct 22, 2014 at 03:44:16PM +0200, Peter Zijlstra wrote:
+> > > On Wed, Oct 22, 2014 at 02:15:54PM +0200, Peter Zijlstra wrote:
+> > > > On Wed, Oct 22, 2014 at 02:53:04PM +0300, Kirill A. Shutemov wrote:
+> > > > > Em, no. In this case change_protection() will not touch the pte, since
+> > > > > it's pte_none() and the pte_same() check will pass just fine.
+> > > > 
+> > > > Oh, that's what you meant. Yes that's a problem, yes vm_page_prot
+> > > > needs wrapping too.
+> > > 
+> > > Maybe also vm_policy, is there anything else that can change while a vma
+> > > lives?
+> > 
+> >  - vm_flags, obviously;
 > 
-> page_remove_rmap() has too many branches on PageAnon() and is hard to
-> follow.  Move the file part into a separate function.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Do those ever change?
 
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+The flags which can change (probably incomplete):
 
-> ---
->  mm/rmap.c | 78 +++++++++++++++++++++++++++++++++++++--------------------------
->  1 file changed, 46 insertions(+), 32 deletions(-)
-> 
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index f574046f77d4..19886fb2f13a 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1054,6 +1054,36 @@ void page_add_file_rmap(struct page *page)
->  	mem_cgroup_end_page_stat(memcg, locked, flags);
->  }
->  
-> +static void page_remove_file_rmap(struct page *page)
-> +{
-> +	struct mem_cgroup *memcg;
-> +	unsigned long flags;
-> +	bool locked;
-> +
-> +	memcg = mem_cgroup_begin_page_stat(page, &locked, &flags);
-> +
-> +	/* page still mapped by someone else? */
-> +	if (!atomic_add_negative(-1, &page->_mapcount))
-> +		goto out;
-> +
-> +	/* Hugepages are not counted in NR_FILE_MAPPED for now. */
-> +	if (unlikely(PageHuge(page)))
-> +		goto out;
-> +
-> +	/*
-> +	 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
-> +	 * these counters are not modified in interrupt context, and
-> +	 * pte lock(a spinlock) is held, which implies preemption disabled.
-> +	 */
-> +	__dec_zone_page_state(page, NR_FILE_MAPPED);
-> +	mem_cgroup_dec_page_stat(memcg, MEM_CGROUP_STAT_FILE_MAPPED);
-> +
-> +	if (unlikely(PageMlocked(page)))
-> +		clear_page_mlock(page);
-> +out:
-> +	mem_cgroup_end_page_stat(memcg, locked, flags);
-> +}
-> +
->  /**
->   * page_remove_rmap - take down pte mapping from a page
->   * @page: page to remove mapping from
-> @@ -1062,46 +1092,33 @@ void page_add_file_rmap(struct page *page)
->   */
->  void page_remove_rmap(struct page *page)
->  {
-> -	struct mem_cgroup *uninitialized_var(memcg);
-> -	bool anon = PageAnon(page);
-> -	unsigned long flags;
-> -	bool locked;
-> -
-> -	/*
-> -	 * The anon case has no mem_cgroup page_stat to update; but may
-> -	 * uncharge_page() below, where the lock ordering can deadlock if
-> -	 * we hold the lock against page_stat move: so avoid it on anon.
-> -	 */
-> -	if (!anon)
-> -		memcg = mem_cgroup_begin_page_stat(page, &locked, &flags);
-> +	if (!PageAnon(page)) {
-> +		page_remove_file_rmap(page);
-> +		return;
-> +	}
->  
->  	/* page still mapped by someone else? */
->  	if (!atomic_add_negative(-1, &page->_mapcount))
-> -		goto out;
-> +		return;
-> +
-> +	/* Hugepages are not counted in NR_ANON_PAGES for now. */
-> +	if (unlikely(PageHuge(page)))
-> +		return;
->  
->  	/*
-> -	 * Hugepages are not counted in NR_ANON_PAGES nor NR_FILE_MAPPED
-> -	 * and not charged by memcg for now.
-> -	 *
->  	 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
->  	 * these counters are not modified in interrupt context, and
-> -	 * these counters are not modified in interrupt context, and
->  	 * pte lock(a spinlock) is held, which implies preemption disabled.
->  	 */
-> -	if (unlikely(PageHuge(page)))
-> -		goto out;
-> -	if (anon) {
-> -		if (PageTransHuge(page))
-> -			__dec_zone_page_state(page,
-> -					      NR_ANON_TRANSPARENT_HUGEPAGES);
-> -		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
-> -				-hpage_nr_pages(page));
-> -	} else {
-> -		__dec_zone_page_state(page, NR_FILE_MAPPED);
-> -		mem_cgroup_dec_page_stat(memcg, MEM_CGROUP_STAT_FILE_MAPPED);
-> -	}
-> +	if (PageTransHuge(page))
-> +		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
-> +
-> +	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
-> +			      -hpage_nr_pages(page));
-> +
->  	if (unlikely(PageMlocked(page)))
->  		clear_page_mlock(page);
-> +
->  	/*
->  	 * It would be tidy to reset the PageAnon mapping here,
->  	 * but that might overwrite a racing page_add_anon_rmap
-> @@ -1111,9 +1128,6 @@ void page_remove_rmap(struct page *page)
->  	 * Leaving it set also helps swapoff to reinstate ptes
->  	 * faster for those pages still in swapcache.
->  	 */
-> -out:
-> -	if (!anon)
-> -		mem_cgroup_end_page_stat(memcg, locked, flags);
->  }
->  
->  /*
-> -- 
-> 2.1.2
-> 
+ - prot-related: VM_READ, VM_WRITE, VM_EXEC -- mprotect();
+ - VM_LOCKED - mlock();
+ - VM_SEQ_READ, VM_RAND_READ, VM_DONTCOPY, VM_DONTDUMP, VM_HUGEPAGE,
+   VM_NOHUGEPAGE, VM_MERGEABLE -- madvise();
+ - VM_SOFTDIRTY -- through procfs;
+ 
+> The only thing that jumps out is the VM_LOCKED thing and that should not
+> really matter one way or the other, but sure can do.
+
+I would not be that sure about VM_LOCKED. Consider munlock() vs. write
+fault race.
+
+static int do_wp_page(struct fault_env *fe)
+        __releases(ptl)
+{
+...
+err:
+	if (old_page) {
+		/*
+		 * Don't let another task, with possibly unlocked vma,
+		 * keep the mlocked page.
+		 */
+		if ((ret & VM_FAULT_WRITE) && (fe->vma->vm_flags & VM_LOCKED)) {
+			lock_page(old_page);	/* LRU manipulation */
+			munlock_vma_page(old_page);
+			unlock_page(old_page);
+		}
+		page_cache_release(old_page);
+	}
+	return ret;
+...
+}
+
+The page can leak out mlocked, iiuc.
+
+Some other flags can be problematic too.
+
+> In any case, yes I'll go include them.
+
+I hope it will not hurt single-threaded workloads even more. :-/
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
