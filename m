@@ -1,68 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
-	by kanga.kvack.org (Postfix) with ESMTP id CD75D6B0073
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 19:41:23 -0400 (EDT)
-Received: by mail-qc0-f177.google.com with SMTP id l6so1390705qcy.22
-        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 16:41:23 -0700 (PDT)
-Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id 20si5307402qgn.61.2014.10.23.16.41.20
+Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 1993E6B0074
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 19:42:14 -0400 (EDT)
+Received: by mail-lb0-f169.google.com with SMTP id 10so1685057lbg.14
+        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 16:42:14 -0700 (PDT)
+Received: from galahad.ideasonboard.com (galahad.ideasonboard.com. [2001:4b98:dc2:45:216:3eff:febb:480d])
+        by mx.google.com with ESMTPS id ps4si4724300lbb.16.2014.10.23.16.42.12
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 23 Oct 2014 16:41:20 -0700 (PDT)
-Message-ID: <1414107635.364.91.camel@pasglop>
-Subject: Re: [PATCH V2 1/2] mm: Update generic gup implementation to handle
- hugepage directory
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Fri, 24 Oct 2014 10:40:35 +1100
-In-Reply-To: <20141023.184035.388557314666522484.davem@davemloft.net>
-References: 
-	<1413520687-31729-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	 <20141022160224.9c2268795e55d5a2eff5b94d@linux-foundation.org>
-	 <20141023.184035.388557314666522484.davem@davemloft.net>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Oct 2014 16:42:13 -0700 (PDT)
+From: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+Subject: Re: [PATCH 1/4] mm: cma: Don't crash on allocation if CMA area can't be activated
+Date: Fri, 24 Oct 2014 02:42:10 +0300
+Message-ID: <1463193.4qGZjcvNod@avalon>
+In-Reply-To: <xa1tmw8mlobz.fsf@mina86.com>
+References: <1414074828-4488-1-git-send-email-laurent.pinchart+renesas@ideasonboard.com> <1414074828-4488-2-git-send-email-laurent.pinchart+renesas@ideasonboard.com> <xa1tmw8mlobz.fsf@mina86.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, steve.capper@linaro.org, aarcange@redhat.com, mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org, hannes@cmpxchg.org
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu, 2014-10-23 at 18:40 -0400, David Miller wrote:
-> Hey guys, was looking over the generic GUP while working on a sparc64
-> issue and I noticed that you guys do speculative page gets, and after
-> talking with Johannes Weiner (CC:'d) about this we don't see how it
-> could be necessary.
+Hi Michal,
+
+On Thursday 23 October 2014 18:53:36 Michal Nazarewicz wrote:
+> On Thu, Oct 23 2014, Laurent Pinchart wrote:
+> > If activation of the CMA area fails its mutex won't be initialized,
+> > leading to an oops at allocation time when trying to lock the mutex. Fix
+> > this by failing allocation if the area hasn't been successfully actived,
+> > and detect that condition by moving the CMA bitmap allocation after page
+> > block reservation completion.
+> > 
+> > Signed-off-by: Laurent Pinchart
+> > <laurent.pinchart+renesas@ideasonboard.com>
 > 
-> If interrupts are disabled during the page table scan (which they
-> are), no IPI tlb flushes can arrive.  Therefore any removal from the
-> page tables is guarded by interrupts being re-enabled.  And as a
-> result, page counts of pages we see in the page tables must always
-> have a count > 0.
+> Cc: <stable@vger.kernel.org>  # v3.17
+> Acked-by: Michal Nazarewicz <mina86@mina86.com>
 > 
-> x86 does direct atomic_add() on &page->_count because of this
-> invariant and I would rather see the generic version do this too.
+> As a matter of fact, this is present in kernels earlier than 3.17 but in
+> the 3.17 the code has been moved from drivers/base/dma-contiguous.c to
+> mm/cma.c so this might require separate stable patch.  I can track this
+> and prepare a patch if you want.
 
-This is of course only true of archs who use IPIs for TLB flushes, so if
-we are going down the path of not being speculative, powerpc would have
-to go back to doing its own since our broadcast TLB flush means we
-aren't protected (we are only protected vs. the page tables themselves
-being freed since we do that via sched RCU).
+That could be done, but I'm not sure if it's really worth it. The bug only 
+occurs when the CMA zone activation fails. I've ran into that case due to a 
+bug introduced in v3.18-rc1, but this shouldn't be the case for older kernel 
+versions.
 
-AFAIK, ARM also broadcasts TLB flushes...
+If you think the fix should be backported to stable kernels older than v3.17 
+please feel free to cook up a patch.
 
-Another option would be to make the generic code use something defined
-by the arch to decide whether to use speculative get or
-not. I like the idea of keeping the bulk of that code generic...
+> > ---
+> > 
+> >  mm/cma.c | 17 ++++++-----------
+> >  1 file changed, 6 insertions(+), 11 deletions(-)
+> > 
+> > diff --git a/mm/cma.c b/mm/cma.c
+> > index 963bc4a..16c6650 100644
+> > --- a/mm/cma.c
+> > +++ b/mm/cma.c
+> > @@ -93,11 +93,6 @@ static int __init cma_activate_area(struct cma *cma)
+> >  	unsigned i = cma->count >> pageblock_order;
+> >  	struct zone *zone;
+> > 
+> > -	cma->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
+> > -
+> > -	if (!cma->bitmap)
+> > -		return -ENOMEM;
+> > -
+> >  	WARN_ON_ONCE(!pfn_valid(pfn));
+> >  	zone = page_zone(pfn_to_page(pfn));
+> > 
+> > @@ -114,17 +109,17 @@ static int __init cma_activate_area(struct cma *cma)
+> >  			 * to be in the same zone.
+> >  			 */
+> >  			if (page_zone(pfn_to_page(pfn)) != zone)
+> > -				goto err;
+> > +				return -EINVAL;
+> >  		}
+> >  		init_cma_reserved_pageblock(pfn_to_page(base_pfn));
+> >  	} while (--i);
+> > 
+> > +	cma->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
+> > +	if (!cma->bitmap)
+> > +		return -ENOMEM;
+> > +
+> >  	mutex_init(&cma->lock);
+> >  	return 0;
+> > -
+> > -err:
+> > -	kfree(cma->bitmap);
+> > -	return -EINVAL;
+> >  }
+> >  
+> >  static int __init cma_init_reserved_areas(void)
+> > @@ -313,7 +308,7 @@ struct page *cma_alloc(struct cma *cma, int count,
+> > unsigned int align)
+> >  	struct page *page = NULL;
+> >  	int ret;
+> > 
+> > -	if (!cma || !cma->count)
+> > +	if (!cma || !cma->count || !cma->bitmap)
+> >  		return NULL;
+> >  	
+> >  	pr_debug("%s(cma %p, count %d, align %d)\n", __func__, (void *)cma,
 
-Cheers,
-Ben.
+-- 
+Regards,
 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+Laurent Pinchart
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
