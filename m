@@ -1,98 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 320986B0087
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 11:05:52 -0400 (EDT)
-Received: by mail-wi0-f177.google.com with SMTP id ex7so2087928wid.16
-        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 08:05:51 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.194])
-        by mx.google.com with ESMTP id fq9si5313529wib.81.2014.10.23.08.05.50
-        for <linux-mm@kvack.org>;
-        Thu, 23 Oct 2014 08:05:50 -0700 (PDT)
-Date: Thu, 23 Oct 2014 18:05:08 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC][PATCH 3/6] mm: VMA sequence count
-Message-ID: <20141023150508.GA10316@node.dhcp.inet.fi>
-References: <20141020215633.717315139@infradead.org>
- <20141020222841.361741939@infradead.org>
- <20141022112657.GG30588@node.dhcp.inet.fi>
- <20141022113951.GB21513@worktop.programming.kicks-ass.net>
- <20141022115304.GA31486@node.dhcp.inet.fi>
- <20141022121554.GD21513@worktop.programming.kicks-ass.net>
- <20141022134416.GA15602@worktop.programming.kicks-ass.net>
- <20141023123616.GA8809@node.dhcp.inet.fi>
- <20141023142224.GL3219@twins.programming.kicks-ass.net>
+Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 48CA9900019
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 11:09:43 -0400 (EDT)
+Received: by mail-lb0-f182.google.com with SMTP id z11so978826lbi.41
+        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 08:09:42 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v9si2242858lag.69.2014.10.23.08.09.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 23 Oct 2014 08:09:41 -0700 (PDT)
+Date: Thu, 23 Oct 2014 17:09:40 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch] mm: memcontrol: inline memcg->move_lock locking
+Message-ID: <20141023150940.GL23011@dhcp22.suse.cz>
+References: <1414074782-14340-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20141023142224.GL3219@twins.programming.kicks-ass.net>
+In-Reply-To: <1414074782-14340-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: torvalds@linux-foundation.org, paulmck@linux.vnet.ibm.com, tglx@linutronix.de, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, oleg@redhat.com, mingo@redhat.com, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, viro@zeniv.linux.org.uk, laijs@cn.fujitsu.com, dave@stgolabs.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Oct 23, 2014 at 04:22:24PM +0200, Peter Zijlstra wrote:
-> On Thu, Oct 23, 2014 at 03:36:16PM +0300, Kirill A. Shutemov wrote:
-> > On Wed, Oct 22, 2014 at 03:44:16PM +0200, Peter Zijlstra wrote:
-> > > On Wed, Oct 22, 2014 at 02:15:54PM +0200, Peter Zijlstra wrote:
-> > > > On Wed, Oct 22, 2014 at 02:53:04PM +0300, Kirill A. Shutemov wrote:
-> > > > > Em, no. In this case change_protection() will not touch the pte, since
-> > > > > it's pte_none() and the pte_same() check will pass just fine.
-> > > > 
-> > > > Oh, that's what you meant. Yes that's a problem, yes vm_page_prot
-> > > > needs wrapping too.
-> > > 
-> > > Maybe also vm_policy, is there anything else that can change while a vma
-> > > lives?
-> > 
-> >  - vm_flags, obviously;
+On Thu 23-10-14 10:33:02, Johannes Weiner wrote:
+> The wrappers around taking and dropping the memcg->move_lock spinlock
+> add nothing of value.  Inline the spinlock calls into the callsites.
 > 
-> Do those ever change?
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Acked-by: Vladimir Davydov <vdavydov@parallels.com>
 
-The flags which can change (probably incomplete):
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
- - prot-related: VM_READ, VM_WRITE, VM_EXEC -- mprotect();
- - VM_LOCKED - mlock();
- - VM_SEQ_READ, VM_RAND_READ, VM_DONTCOPY, VM_DONTDUMP, VM_HUGEPAGE,
-   VM_NOHUGEPAGE, VM_MERGEABLE -- madvise();
- - VM_SOFTDIRTY -- through procfs;
- 
-> The only thing that jumps out is the VM_LOCKED thing and that should not
-> really matter one way or the other, but sure can do.
-
-I would not be that sure about VM_LOCKED. Consider munlock() vs. write
-fault race.
-
-static int do_wp_page(struct fault_env *fe)
-        __releases(ptl)
-{
-...
-err:
-	if (old_page) {
-		/*
-		 * Don't let another task, with possibly unlocked vma,
-		 * keep the mlocked page.
-		 */
-		if ((ret & VM_FAULT_WRITE) && (fe->vma->vm_flags & VM_LOCKED)) {
-			lock_page(old_page);	/* LRU manipulation */
-			munlock_vma_page(old_page);
-			unlock_page(old_page);
-		}
-		page_cache_release(old_page);
-	}
-	return ret;
-...
-}
-
-The page can leak out mlocked, iiuc.
-
-Some other flags can be problematic too.
-
-> In any case, yes I'll go include them.
-
-I hope it will not hurt single-threaded workloads even more. :-/
+> ---
+>  mm/memcontrol.c | 28 ++++++----------------------
+>  1 file changed, 6 insertions(+), 22 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 09fece0eb9f1..a5c9aa4688e8 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1522,23 +1522,6 @@ static bool mem_cgroup_wait_acct_move(struct mem_cgroup *memcg)
+>  	return false;
+>  }
+>  
+> -/*
+> - * Take this lock when
+> - * - a code tries to modify page's memcg while it's USED.
+> - * - a code tries to modify page state accounting in a memcg.
+> - */
+> -static void move_lock_mem_cgroup(struct mem_cgroup *memcg,
+> -				  unsigned long *flags)
+> -{
+> -	spin_lock_irqsave(&memcg->move_lock, *flags);
+> -}
+> -
+> -static void move_unlock_mem_cgroup(struct mem_cgroup *memcg,
+> -				unsigned long *flags)
+> -{
+> -	spin_unlock_irqrestore(&memcg->move_lock, *flags);
+> -}
+> -
+>  #define K(x) ((x) << (PAGE_SHIFT-10))
+>  /**
+>   * mem_cgroup_print_oom_info: Print OOM information relevant to memory controller.
+> @@ -2156,9 +2139,9 @@ again:
+>  	if (atomic_read(&memcg->moving_account) <= 0)
+>  		return memcg;
+>  
+> -	move_lock_mem_cgroup(memcg, flags);
+> +	spin_lock_irqsave(&memcg->move_lock, *flags);
+>  	if (memcg != pc->mem_cgroup) {
+> -		move_unlock_mem_cgroup(memcg, flags);
+> +		spin_unlock_irqrestore(&memcg->move_lock, *flags);
+>  		goto again;
+>  	}
+>  	*locked = true;
+> @@ -2176,7 +2159,7 @@ void mem_cgroup_end_page_stat(struct mem_cgroup *memcg, bool locked,
+>  			      unsigned long flags)
+>  {
+>  	if (memcg && locked)
+> -		move_unlock_mem_cgroup(memcg, &flags);
+> +		spin_unlock_irqrestore(&memcg->move_lock, flags);
+>  
+>  	rcu_read_unlock();
+>  }
+> @@ -3219,7 +3202,7 @@ static int mem_cgroup_move_account(struct page *page,
+>  	if (pc->mem_cgroup != from)
+>  		goto out_unlock;
+>  
+> -	move_lock_mem_cgroup(from, &flags);
+> +	spin_lock_irqsave(&from->move_lock, flags);
+>  
+>  	if (!PageAnon(page) && page_mapped(page)) {
+>  		__this_cpu_sub(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED],
+> @@ -3243,7 +3226,8 @@ static int mem_cgroup_move_account(struct page *page,
+>  
+>  	/* caller should have done css_get */
+>  	pc->mem_cgroup = to;
+> -	move_unlock_mem_cgroup(from, &flags);
+> +	spin_unlock_irqrestore(&from->move_lock, flags);
+> +
+>  	ret = 0;
+>  
+>  	local_irq_disable();
+> -- 
+> 2.1.2
+> 
 
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
