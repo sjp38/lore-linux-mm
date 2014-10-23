@@ -1,147 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C1706B0069
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 13:01:09 -0400 (EDT)
-Received: by mail-la0-f47.google.com with SMTP id pv20so1238953lab.34
-        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 10:01:09 -0700 (PDT)
-Received: from mail-la0-x22d.google.com (mail-la0-x22d.google.com. [2a00:1450:4010:c03::22d])
-        by mx.google.com with ESMTPS id ir2si3448102lac.127.2014.10.23.10.01.07
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 23 Oct 2014 10:01:08 -0700 (PDT)
-Received: by mail-la0-f45.google.com with SMTP id q1so1239481lam.18
-        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 10:01:07 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH v2 1/2] mm: cma: split cma-reserved in dmesg log
-In-Reply-To: <1413986796-19732-1-git-send-email-pintu.k@samsung.com>
-References: <1413790391-31686-1-git-send-email-pintu.k@samsung.com> <1413986796-19732-1-git-send-email-pintu.k@samsung.com>
-Date: Thu, 23 Oct 2014 19:01:02 +0200
-Message-ID: <xa1tegtylnzl.fsf@mina86.com>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AD6A6B0069
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 13:19:19 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id fa1so1433901pad.5
+        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 10:19:19 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id ng16si2054602pdb.186.2014.10.23.10.19.18
+        for <linux-mm@kvack.org>;
+        Thu, 23 Oct 2014 10:19:18 -0700 (PDT)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: RE: [PATCH] x86, MCE: support memory error recovery for both UCNA
+ and Deferred error in machine_check_poll
+Date: Thu, 23 Oct 2014 17:18:29 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F3290F9B0@ORSMSX114.amr.corp.intel.com>
+References: <1412921020.3631.7.camel@debian> <20141023104717.GB4619@pd.tnic>
+In-Reply-To: <20141023104717.GB4619@pd.tnic>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pintu Kumar <pintu.k@samsung.com>, akpm@linux-foundation.org, riel@redhat.compintu.k@samsung.com, aquini@redhat.com, paul.gortmaker@windriver.com, jmarchan@redhat.com, lcapitulino@redhat.com, kirill.shutemov@linux.intel.com, m.szyprowski@samsung.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, lauraa@codeaurora.org, gioh.kim@lge.com, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org, vbabka@suse.cz, sasha.levin@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: pintu_agarwal@yahoo.com, cpgs@samsung.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, ed.savinay@samsung.com
+To: Borislav Petkov <bp@alien8.de>, Chen Yucong <slaoub@gmail.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-edac@vger.kernel.org" <linux-edac@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Aravind Gopalakrishnan <aravind.gopalakrishnan@amd.com>
 
-On Wed, Oct 22 2014, Pintu Kumar wrote:
-> When the system boots up, in the dmesg logs we can see
-> the memory statistics along with total reserved as below.
-> Memory: 458840k/458840k available, 65448k reserved, 0K highmem
->
-> When CMA is enabled, still the total reserved memory remains the same.
-> However, the CMA memory is not considered as reserved.
-> But, when we see /proc/meminfo, the CMA memory is part of free memory.
-> This creates confusion.
-> This patch corrects the problem by properly subtracting the CMA reserved
-> memory from the total reserved memory in dmesg logs.
->
-> Below is the dmesg snapshot from an arm based device with 512MB RAM and
-> 12MB single CMA region.
->
-> Before this change:
-> Memory: 458840k/458840k available, 65448k reserved, 0K highmem
->
-> After this change:
-> Memory: 458840k/458840k available, 53160k reserved, 12288k cma-reserved, =
-0K highmem
->
-> Signed-off-by: Pintu Kumar <pintu.k@samsung.com>
-> Signed-off-by: Vishnu Pratap Singh <vishnu.ps@samsung.com>
-
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
-
-
-I'm not sure how Andrew would think about it, and I don't have strong
-feelings, but I would consider a few changes:
-
-> ---
-> v2: Moved totalcma_pages extern declaration to linux/cma.h
->     Removed CONFIG_CMA while show cma-reserved, from page_alloc.c
->     Moved totalcma_pages declaration to page_alloc.c, so that if will be =
-visible=20
->     in non-CMA cases.
->  include/linux/cma.h |    1 +
->  mm/cma.c            |    1 +
->  mm/page_alloc.c     |    6 ++++--
->  3 files changed, 6 insertions(+), 2 deletions(-)
->
-> diff --git a/include/linux/cma.h b/include/linux/cma.h
-> index 0430ed0..0b75896 100644
-> --- a/include/linux/cma.h
-> +++ b/include/linux/cma.h
-> @@ -15,6 +15,7 @@
->=20=20
->  struct cma;
->=20=20
-> +extern unsigned long totalcma_pages;
-
-+#ifdef CONFIG_CMA
-+extern unsigned long totalcma_pages;
-+#else
-+#  define totalcma_pages 0UL
-+#endif
-
->  extern phys_addr_t cma_get_base(struct cma *cma);
->  extern unsigned long cma_get_size(struct cma *cma);
->=20=20
-> diff --git a/mm/cma.c b/mm/cma.c
-> index 963bc4a..8435762 100644
-> --- a/mm/cma.c
-> +++ b/mm/cma.c
-> @@ -288,6 +288,7 @@ int __init cma_declare_contiguous(phys_addr_t base,
->  	if (ret)
->  		goto err;
->=20=20
-> +	totalcma_pages +=3D (size / PAGE_SIZE);
->  	pr_info("Reserved %ld MiB at %08lx\n", (unsigned long)size / SZ_1M,
->  		(unsigned long)base);
->  	return 0;
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index dd73f9a..ababbd8 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -110,6 +110,7 @@ static DEFINE_SPINLOCK(managed_page_count_lock);
->=20=20
->  unsigned long totalram_pages __read_mostly;
->  unsigned long totalreserve_pages __read_mostly;
-> +unsigned long totalcma_pages __read_mostly;
-
-Move this to cma.c.
-
->  /*
->   * When calculating the number of globally allowed dirty pages, there
->   * is a certain number of per-zone reserves that should not be
-> @@ -5520,7 +5521,7 @@ void __init mem_init_print_info(const char *str)
->=20=20
->  	pr_info("Memory: %luK/%luK available "
->  	       "(%luK kernel code, %luK rwdata, %luK rodata, "
-> -	       "%luK init, %luK bss, %luK reserved"
-> +	       "%luK init, %luK bss, %luK reserved, %luK cma-reserved"
->  #ifdef	CONFIG_HIGHMEM
->  	       ", %luK highmem"
->  #endif
-> @@ -5528,7 +5529,8 @@ void __init mem_init_print_info(const char *str)
->  	       nr_free_pages() << (PAGE_SHIFT-10), physpages << (PAGE_SHIFT-10),
->  	       codesize >> 10, datasize >> 10, rosize >> 10,
->  	       (init_data_size + init_code_size) >> 10, bss_size >> 10,
-> -	       (physpages - totalram_pages) << (PAGE_SHIFT-10),
-> +	       (physpages - totalram_pages - totalcma_pages) << (PAGE_SHIFT-10),
-> +	       totalcma_pages << (PAGE_SHIFT-10),
->  #ifdef	CONFIG_HIGHMEM
->  	       totalhigh_pages << (PAGE_SHIFT-10),
->  #endif
-> --=20
-> 1.7.9.5
->
-
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
+PiBUaGUgZ2VuZXJhbCBpZGVhIG9mIHByZWVtcHRpdmVseSBwb2lzb25pbmcgcGFnZXMgd2hpY2gg
+Y29udGFpbiBkZWZlcnJlZA0KPiBlcnJvcnMgaXMgZmluZSB0aG91Z2guDQoNCkFncmVlZC4gSSB1
+c2VkIHRvIHRoaW5rIHRoYXQgaXQgd2Fzbid0IGxpa2VseSB0byBiZSB2ZXJ5IHVzZWZ1bCBiZWNh
+dXNlIGluIG1hbnkNCmNhc2VzIHRoZSBVQ05BIGVycm9ycyBhcmUganVzdCBhIHRyYWlsIG9mIGJy
+ZWFkY3J1bWJzIHNldCBieSBkaWZmZXJlbnQgdW5pdHMNCm9uIHRoZSBjaGlwIGFzIHRoZSBwb2lz
+b24gcGFzc2VkIHRocm91Z2ggb24gdGhlIHdheSB0byBjb25zdW1wdGlvbiAtIHdoZXJlDQp0aGVy
+ZSB3b3VsZCBiZSBhIGZhdGFsIChvciByZWNvdmVyYWJsZSkgZXJyb3IuDQoNCkJ1dCByZWNlbnRs
+eSBJIGZvdW5kIHRoYXQgYSBwYXJ0aWFsIHdyaXRlIHRvIGEgcG9pc29uZWQgY2FjaGUgbGluZSBv
+bmx5IHNldHMgdGhlDQp0cmFpbCBvZiBVQ05BIGVycm9ycyAtIHRoZXJlIGlzIG5vIGNvbnN1bXB0
+aW9uLCBzbyBubyBtYWNoaW5lIGNoZWNrLiAgU28gaW4NCnRoaXMgY2FzZSBpdCB3b3VsZCBkZWZp
+bml0ZWx5IGJlIHdvcnRod2hpbGUgdG8gdHJpZ2dlciB0aGUgc2FtZSBhY3Rpb24gdGhhdCB3ZQ0K
+ZG8gZm9yIFNSQU8gdG8gdW5tYXAgdGhlIHBhZ2UgYmVmb3JlIHNvbWVvbmUgZG9lcyBkbyBhIHJl
+YWQuDQoNCi1Ub255DQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
