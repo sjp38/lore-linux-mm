@@ -1,82 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 601F5900019
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 11:13:22 -0400 (EDT)
-Received: by mail-lb0-f177.google.com with SMTP id w7so997970lbi.22
-        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 08:13:21 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t13si1911471lal.121.2014.10.23.08.13.20
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id C926C900019
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 11:17:17 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id et14so1243423pad.17
+        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 08:17:17 -0700 (PDT)
+Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
+        by mx.google.com with ESMTPS id kk1si1879443pbc.81.2014.10.23.08.17.16
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 23 Oct 2014 08:13:20 -0700 (PDT)
-Date: Thu, 23 Oct 2014 17:13:18 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch] mm: memcontrol: don't pass a NULL memcg to
- mem_cgroup_end_move()
-Message-ID: <20141023151318.GM23011@dhcp22.suse.cz>
-References: <1414074830-14623-1-git-send-email-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1414074830-14623-1-git-send-email-hannes@cmpxchg.org>
+        Thu, 23 Oct 2014 08:17:16 -0700 (PDT)
+Received: by mail-pa0-f48.google.com with SMTP id ey11so1241610pad.21
+        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 08:17:16 -0700 (PDT)
+From: Quanyang Liu <lqymgt@gmail.com>
+Subject: [PATCH] mm: slab/slub: coding style: whitespaces and tabs mixture
+Date: Thu, 23 Oct 2014 23:17:07 +0800
+Message-Id: <1414077427-9616-1-git-send-email-lqymgt@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, LQYMGT <lqymgt@gmail.com>
 
-On Thu 23-10-14 10:33:50, Johannes Weiner wrote:
-> mem_cgroup_end_move() checks if the passed memcg is NULL, along with a
-> lengthy comment to explain why this seemingly non-sensical situation
-> is even possible.
-> 
-> Check in cancel_attach() itself whether can_attach() set up the move
-> context or not, it's a lot more obvious from there.  Then remove the
-> check and comment in mem_cgroup_end_move().
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Acked-by: Vladimir Davydov <vdavydov@parallels.com>
+From: LQYMGT <lqymgt@gmail.com>
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Some code in mm/slab.c and mm/slub.c use whitespaces in indent.
+Clean them up.
 
-> ---
->  mm/memcontrol.c | 10 +++-------
->  1 file changed, 3 insertions(+), 7 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index a5c9aa4688e8..3cd4f1e0bfb3 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1469,12 +1469,7 @@ static void mem_cgroup_start_move(struct mem_cgroup *memcg)
->  
->  static void mem_cgroup_end_move(struct mem_cgroup *memcg)
->  {
-> -	/*
-> -	 * Now, mem_cgroup_clear_mc() may call this function with NULL.
-> -	 * We check NULL in callee rather than caller.
-> -	 */
-> -	if (memcg)
-> -		atomic_dec(&memcg->moving_account);
-> +	atomic_dec(&memcg->moving_account);
->  }
->  
->  /*
-> @@ -5489,7 +5484,8 @@ static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
->  static void mem_cgroup_cancel_attach(struct cgroup_subsys_state *css,
->  				     struct cgroup_taskset *tset)
->  {
-> -	mem_cgroup_clear_mc();
-> +	if (mc.to)
-> +		mem_cgroup_clear_mc();
->  }
->  
->  static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
-> -- 
-> 2.1.2
-> 
+Signed-off-by: LQYMGT <lqymgt@gmail.com>
+---
+ mm/slab.c | 10 +++++-----
+ mm/slub.c | 10 +++++-----
+ 2 files changed, 10 insertions(+), 10 deletions(-)
 
+diff --git a/mm/slab.c b/mm/slab.c
+index eb2b2ea..1830c2d 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -3580,11 +3580,11 @@ static int alloc_kmem_cache_node(struct kmem_cache *cachep, gfp_t gfp)
+ 
+ 	for_each_online_node(node) {
+ 
+-                if (use_alien_caches) {
+-                        new_alien = alloc_alien_cache(node, cachep->limit, gfp);
+-                        if (!new_alien)
+-                                goto fail;
+-                }
++		if (use_alien_caches) {
++			new_alien = alloc_alien_cache(node, cachep->limit, gfp);
++			if (!new_alien)
++				goto fail;
++		}
+ 
+ 		new_shared = NULL;
+ 		if (cachep->shared) {
+diff --git a/mm/slub.c b/mm/slub.c
+index ae7b9f1..761789e 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2554,7 +2554,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 
+ 			} else { /* Needs to be taken off a list */
+ 
+-	                        n = get_node(s, page_to_nid(page));
++				n = get_node(s, page_to_nid(page));
+ 				/*
+ 				 * Speculatively acquire the list_lock.
+ 				 * If the cmpxchg does not succeed then we may
+@@ -2587,10 +2587,10 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
+ 		 * The list lock was not taken therefore no list
+ 		 * activity can be necessary.
+ 		 */
+-                if (was_frozen)
+-                        stat(s, FREE_FROZEN);
+-                return;
+-        }
++		if (was_frozen)
++			stat(s, FREE_FROZEN);
++		return;
++	}
+ 
+ 	if (unlikely(!new.inuse && n->nr_partial >= s->min_partial))
+ 		goto slab_empty;
 -- 
-Michal Hocko
-SUSE Labs
+2.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
