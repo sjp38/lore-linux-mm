@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B5496B0072
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 22:49:37 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id hz1so186627pad.22
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 2934C6B0072
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 22:49:38 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id bj1so515334pad.1
         for <linux-mm@kvack.org>; Wed, 22 Oct 2014 19:49:37 -0700 (PDT)
-Received: from relay.sgi.com (relay2.sgi.com. [192.48.180.65])
-        by mx.google.com with ESMTP id l6si415816pdr.127.2014.10.22.19.49.34
+Received: from relay.sgi.com (relay1.sgi.com. [192.48.180.66])
+        by mx.google.com with ESMTP id oy2si364809pdb.191.2014.10.22.19.49.35
         for <linux-mm@kvack.org>;
         Wed, 22 Oct 2014 19:49:35 -0700 (PDT)
 From: Alex Thorlton <athorlton@sgi.com>
-Subject: [PATCH 1/4] Disable khugepaged thread
-Date: Wed, 22 Oct 2014 21:49:24 -0500
-Message-Id: <1414032567-109765-2-git-send-email-athorlton@sgi.com>
+Subject: [PATCH] Add pgcollapse controls to task_struct
+Date: Wed, 22 Oct 2014 21:49:25 -0500
+Message-Id: <1414032567-109765-3-git-send-email-athorlton@sgi.com>
 In-Reply-To: <1414032567-109765-1-git-send-email-athorlton@sgi.com>
 References: <1414032567-109765-1-git-send-email-athorlton@sgi.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,9 +19,9 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, athorlton@sgi.com
 Cc: Andrew Morton <akpm@linux-foundation.org>, Bob Liu <lliubbo@gmail.com>, David Rientjes <rientjes@google.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, Kees Cook <keescook@chromium.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Vladimir Davydov <vdavydov@parallels.com>, linux-kernel@vger.kernel.org
 
-This patch just removes any call to start khugepaged for now.  If we decide to
-go forward with this new approach, then this patch will also dismantle the other
-bits of khugepaged that we'll no longer need.
+This patch just adds the necessary bits to the task_struct so that the scans can
+eventually be controlled on a per-mm basis.  As I mentioned previously, we might
+want to add some more counters here.
 
 Signed-off-by: Alex Thorlton <athorlton@sgi.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
@@ -41,50 +41,50 @@ Cc: Vladimir Davydov <vdavydov@parallels.com>
 Cc: linux-kernel@vger.kernel.org
 
 ---
- mm/huge_memory.c | 23 +++--------------------
- 1 file changed, 3 insertions(+), 20 deletions(-)
+ include/linux/sched.h | 12 ++++++++++++
+ kernel/fork.c         |  6 ++++++
+ 2 files changed, 18 insertions(+)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 74c78aa..63abf52 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -295,24 +295,9 @@ static ssize_t enabled_store(struct kobject *kobj,
- 			     struct kobj_attribute *attr,
- 			     const char *buf, size_t count)
- {
--	ssize_t ret;
--
--	ret = double_flag_store(kobj, attr, buf, count,
--				TRANSPARENT_HUGEPAGE_FLAG,
--				TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG);
--
--	if (ret > 0) {
--		int err;
--
--		mutex_lock(&khugepaged_mutex);
--		err = start_khugepaged();
--		mutex_unlock(&khugepaged_mutex);
--
--		if (err)
--			ret = err;
--	}
--
--	return ret;
-+	return double_flag_store(kobj, attr, buf, count,
-+				 TRANSPARENT_HUGEPAGE_FLAG,
-+				 TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG);
- }
- static struct kobj_attribute enabled_attr =
- 	__ATTR(enabled, 0644, enabled_show, enabled_store);
-@@ -655,8 +640,6 @@ static int __init hugepage_init(void)
- 	if (totalram_pages < (512 << (20 - PAGE_SHIFT)))
- 		transparent_hugepage_flags = 0;
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 5e344bb..109be66 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1661,6 +1661,18 @@ struct task_struct {
+ 	unsigned int	sequential_io;
+ 	unsigned int	sequential_io_avg;
+ #endif
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	struct callback_head pgcollapse_work;
++	/* default scan 8*512 pte (or vmas) every 30 second */
++	unsigned int pgcollapse_pages_to_scan;
++	unsigned int pgcollapse_pages_collapsed;
++	unsigned int pgcollapse_full_scans;
++	unsigned int pgcollapse_scan_sleep_millisecs;
++	/* during fragmentation poll the hugepage allocator once every minute */
++	unsigned int pgcollapse_alloc_sleep_millisecs;
++	unsigned long pgcollapse_last_scan;
++	unsigned long pgcollapse_scan_address;
++#endif
+ };
  
--	start_khugepaged();
--
- 	return 0;
- out:
- 	hugepage_exit_sysfs(hugepage_kobj);
+ /* Future-safe accessor for struct task_struct's cpus_allowed. */
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 9b7d746..8c55309 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -1355,6 +1355,12 @@ static struct task_struct *copy_process(unsigned long clone_flags,
+ 	p->sequential_io	= 0;
+ 	p->sequential_io_avg	= 0;
+ #endif
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	/* need to pull these values from sysctl or something */
++	p->pgcollapse_pages_to_scan = HPAGE_PMD_NR * 8;
++	p->pgcollapse_scan_sleep_millisecs = 10000;
++	p->pgcollapse_alloc_sleep_millisecs = 60000;
++#endif
+ 
+ 	/* Perform scheduler related setup. Assign this task to a CPU. */
+ 	retval = sched_fork(clone_flags, p);
 -- 
 1.7.12.4
 
