@@ -1,111 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id A99626B0069
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 03:46:47 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so607826pab.14
-        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 00:46:47 -0700 (PDT)
-Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
-        by mx.google.com with ESMTPS id nz8si940511pab.116.2014.10.23.00.46.46
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Thu, 23 Oct 2014 00:46:46 -0700 (PDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout4.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0NDW003OK0EIZT20@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Thu, 23 Oct 2014 08:49:30 +0100 (BST)
-Message-id: <5448B262.5080401@samsung.com>
-Date: Thu, 23 Oct 2014 09:46:42 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-MIME-version: 1.0
-Subject: Re: [mm] BUG: Int 6: CR2 (null)
-References: <20141009020410.GA7968@wfg-t540p.sh.intel.com>
- <CAL1ERfOneR5ix3y0Q6GFyPondQp8MpPZY=8nJWZc9n1FC=d9Gw@mail.gmail.com>
-In-reply-to: 
- <CAL1ERfOneR5ix3y0Q6GFyPondQp8MpPZY=8nJWZc9n1FC=d9Gw@mail.gmail.com>
-Content-type: text/plain; charset=utf-8; format=flowed
-Content-transfer-encoding: 7bit
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 652036B0069
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 04:08:44 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id hz1so628111pad.22
+        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 01:08:43 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id xg3si905996pab.211.2014.10.23.01.08.41
+        for <linux-mm@kvack.org>;
+        Thu, 23 Oct 2014 01:08:43 -0700 (PDT)
+Date: Thu, 23 Oct 2014 17:09:42 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [RFC 0/4] [RFC] slub: Fastpath optimization (especially for RT)
+Message-ID: <20141023080942.GA7598@js1304-P5Q-DELUXE>
+References: <20141022155517.560385718@linux.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141022155517.560385718@linux.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang.kh@gmail.com>, Fengguang Wu <fengguang.wu@intel.com>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, LKML <linux-kernel@vger.kernel.org>, lkp@01.org, mina86@mina86.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: akpm@linuxfoundation.org, rostedt@goodmis.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com
 
-Hello,
+On Wed, Oct 22, 2014 at 10:55:17AM -0500, Christoph Lameter wrote:
+> We had to insert a preempt enable/disable in the fastpath a while ago. This
+> was mainly due to a lot of state that is kept to be allocating from the per
+> cpu freelist. In particular the page field is not covered by
+> this_cpu_cmpxchg used in the fastpath to do the necessary atomic state
+> change for fast path allocation and freeing.
+> 
+> This patch removes the need for the page field to describe the state of the
+> per cpu list. The freelist pointer can be used to determine the page struct
+> address if necessary.
+> 
+> However, currently this does not work for the termination value of a list
+> which is NULL and the same for all slab pages. If we use a valid pointer
+> into the page as well as set the last bit then all freelist pointers can
+> always be used to determine the address of the page struct and we will not
+> need the page field anymore in the per cpu are for a slab. Testing for the
+> end of the list is a test if the first bit is set.
+> 
+> So the first patch changes the termination pointer for freelists to do just
+> that. The second removes the page field and then third can then remove the
+> preempt enable/disable.
+> 
+> There are currently a number of caveats because we are adding calls to
+> page_address() and virt_to_head_page() in a number of code paths. These
+> can hopefully be removed one way or the other.
+> 
+> Removing the ->page field reduces the cache footprint of the fastpath so hopefully overall
+> allocator effectiveness will increase further. Also RT uses full preemption which means
+> that currently pretty expensive code has to be inserted into the fastpath. This approach
+> allows the removal of that code and a corresponding performance increase.
+> 
 
-On 2014-10-23 08:03, Weijie Yang wrote:
-> On Thu, Oct 9, 2014 at 10:04 AM, Fengguang Wu <fengguang.wu@intel.com> wrote:
->> FYI, we noticed the below changes on
->>
->> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
->> commit 478e86d7c8c5f41e29abb81b05b459d24bdc71a2 ("mm: cma: adjust address limit to avoid hitting low/high memory boundary")
->>
->>
->> +------------------------------------------+------------+------------+
->> |                                          | 81febe58a8 | 478e86d7c8 |
->> +------------------------------------------+------------+------------+
->> | boot_successes                           | 10         | 0          |
->> | boot_failures                            | 5          | 10         |
->> | kernel_BUG_at_arch/x86/mm/physaddr.c     | 5          |            |
->> | invalid_opcode                           | 5          |            |
->> | EIP_is_at__phys_addr                     | 5          |            |
->> | Kernel_panic-not_syncing:Fatal_exception | 5          |            |
->> | backtrace:vm_mmap_pgoff                  | 5          |            |
->> | backtrace:SyS_mmap_pgoff                 | 5          |            |
->> | BUG:Int_CR2(null)                        | 0          | 10         |
->> +------------------------------------------+------------+------------+
->>
->> [    0.000000] BRK [0x025ee000, 0x025eefff] PGTABLE
->> [    0.000000] cma: dma_contiguous_reserve(limit 13ffe000)
->> [    0.000000] cma: dma_contiguous_reserve: reserving 31 MiB for global area
->> [    0.000000] BUG: Int 6: CR2   (null)
->> [    0.000000]      EDI c0000000  ESI   (null)  EBP 41c11ea4  EBX 425cc101
->> [    0.000000]      ESP 41c11e98   ES 0000007b   DS 0000007b
->> [    0.000000]      EDX 00000001  ECX   (null)  EAX 41cd8150
->> [    0.000000]      vec 00000006  err   (null)  EIP 41072227   CS 00000060  flg 00210002
->> [    0.000000] Stack: 425cc150   (null)   (null) 41c11ef4 41d4ee4d   (null) 13ffe000 41c11ec4
->> [    0.000000]        41c2d900   (null) 13ffe000   (null) 4185793e 0000002e 410c2982 41c11f00
->> [    0.000000]        410c2df5   (null)   (null)   (null) 425cc150 00013efe   (null) 41c11f28
->> [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 3.17.0-next-20141008 #815
->> [    0.000000]  00000000 425cc101 41c11e48 41850786 41c11ea4 41d2b1db 41d95f71 00000006
->> [    0.000000]  00000000 c0000000 00000000 41c11ea4 425cc101 41c11e98 0000007b 0000007b
->> [    0.000000]  00000001 00000000 41cd8150 00000006 00000000 41072227 00000060 00210002
->> [    0.000000] Call Trace:
->> [    0.000000]  [<41850786>] dump_stack+0x16/0x18
->> [    0.000000]  [<41d2b1db>] early_idt_handler+0x6b/0x6b
->> [    0.000000]  [<41072227>] ? __phys_addr+0x2e/0xca
->> [    0.000000]  [<41d4ee4d>] cma_declare_contiguous+0x3c/0x2d7
->> [    0.000000]  [<4185793e>] ? _raw_spin_unlock_irqrestore+0x59/0x91
->> [    0.000000]  [<410c2982>] ? wake_up_klogd+0x8/0x33
->> [    0.000000]  [<410c2df5>] ? console_unlock+0x448/0x461
->> [    0.000000]  [<41d6d359>] dma_contiguous_reserve_area+0x27/0x47
->> [    0.000000]  [<41d6d4d1>] dma_contiguous_reserve+0x158/0x163
->> [    0.000000]  [<41d33e0f>] setup_arch+0x79b/0xc68
->> [    0.000000]  [<4184c0b4>] ? printk+0x1c/0x1e
->> [    0.000000]  [<41d2b7cf>] start_kernel+0x9c/0x456
->> [    0.000000]  [<41d2b2ca>] i386_start_kernel+0x79/0x7d
->>
-> I notice that code has been merged into mainline kernel without fix,
-> maybe fengguang's mail was missed.
->
-> I review the code, dma_contiguous_reserve() is called before initmem_init(),
-> so the variable high_memory is not initialized and calculated by
-> __pa(high_memory),
-> in x86 arch high_memory is initialized after dma_contiguous_reserve(), while
-> in arm arch high_memory is initialized before dma_contiguous_reserve(),
-> I think that is the reason which causes the BUG in x86.
->
-> However, I'm not familiar with system init sequence, so I send this
-> notice mail rather than a patch :-(
+Hello, Christoph.
 
-Thanks for your analysis. I agree that the simplest way of fixing this 
-issue is
-to move dma_contiguous_reserve() after initmem_init(). Could you prepare 
-such patch?
+Preemption disable during very short code would cause large problem for RT?
 
-Best regards
--- 
-Marek Szyprowski, PhD
-Samsung R&D Institute Poland
+And, if page_address() and virt_to_head_page() remain as current patchset
+implementation, this would work worse than before.
+
+I looked at the patchset quickly and found another idea to remove
+preemption disable. How about just retrieving s->cpu_slab->tid first,
+before accessing s->cpu_slab, in slab_alloc() and slab_free()?
+Retrieved tid may ensure that we aren't migrated to other CPUs so that
+we can remove code for preemption disable.
+
+Following is the patch implementing above idea.
+
+Thanks.
+
+------------->8------------------------
+diff --git a/mm/slub.c b/mm/slub.c
+index ae7b9f1..af622d8 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2386,28 +2386,21 @@ static __always_inline void *slab_alloc_node(struct kmem_cache *s,
+ 	s = memcg_kmem_get_cache(s, gfpflags);
+ redo:
+ 	/*
++	 * The transaction ids are globally unique per cpu and per operation on
++	 * a per cpu queue. Thus they can be guarantee that the cmpxchg_double
++	 * occurs on the right processor and that there was no operation on the
++	 * linked list in between.
++	 */
++	tid = this_cpu_read(s->cpu_slab->tid);
++
++	/*
+ 	 * Must read kmem_cache cpu data via this cpu ptr. Preemption is
+ 	 * enabled. We may switch back and forth between cpus while
+ 	 * reading from one cpu area. That does not matter as long
+ 	 * as we end up on the original cpu again when doing the cmpxchg.
+-	 *
+-	 * Preemption is disabled for the retrieval of the tid because that
+-	 * must occur from the current processor. We cannot allow rescheduling
+-	 * on a different processor between the determination of the pointer
+-	 * and the retrieval of the tid.
+ 	 */
+-	preempt_disable();
+ 	c = this_cpu_ptr(s->cpu_slab);
+ 
+-	/*
+-	 * The transaction ids are globally unique per cpu and per operation on
+-	 * a per cpu queue. Thus they can be guarantee that the cmpxchg_double
+-	 * occurs on the right processor and that there was no operation on the
+-	 * linked list in between.
+-	 */
+-	tid = c->tid;
+-	preempt_enable();
+-
+ 	object = c->freelist;
+ 	page = c->page;
+ 	if (unlikely(!object || !node_match(page, node))) {
+@@ -2646,18 +2639,16 @@ static __always_inline void slab_free(struct kmem_cache *s,
+ 	slab_free_hook(s, x);
+ 
+ redo:
++	tid = this_cpu_read(s->cpu_slab->tid);
++
+ 	/*
+ 	 * Determine the currently cpus per cpu slab.
+ 	 * The cpu may change afterward. However that does not matter since
+ 	 * data is retrieved via this pointer. If we are on the same cpu
+ 	 * during the cmpxchg then the free will succedd.
+ 	 */
+-	preempt_disable();
+ 	c = this_cpu_ptr(s->cpu_slab);
+ 
+-	tid = c->tid;
+-	preempt_enable();
+-
+ 	if (likely(page == c->page)) {
+ 		set_freepointer(s, object, c->freelist);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
