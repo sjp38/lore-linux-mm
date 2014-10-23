@@ -1,154 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AFA886B0069
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 00:29:09 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id lj1so342902pab.10
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 21:29:09 -0700 (PDT)
-Received: from e28smtp04.in.ibm.com (e28smtp04.in.ibm.com. [122.248.162.4])
-        by mx.google.com with ESMTPS id by7si547384pab.179.2014.10.22.21.29.07
+Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CDC06B0069
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 02:03:45 -0400 (EDT)
+Received: by mail-ie0-f172.google.com with SMTP id rl12so345996iec.17
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 23:03:44 -0700 (PDT)
+Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com. [2607:f8b0:4001:c05::235])
+        by mx.google.com with ESMTPS id hj10si1423458igb.33.2014.10.22.23.03.44
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 22 Oct 2014 21:29:08 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 23 Oct 2014 09:59:04 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id CD1A3E0045
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 09:58:50 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay04.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s9N4TTjS59506878
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 09:59:30 +0530
-Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s9N4SwHj018700
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 09:58:59 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH V2 1/2] mm: Update generic gup implementation to handle hugepage directory
-In-Reply-To: <20141022160224.9c2268795e55d5a2eff5b94d@linux-foundation.org>
-References: <1413520687-31729-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20141022160224.9c2268795e55d5a2eff5b94d@linux-foundation.org>
-Date: Thu, 23 Oct 2014 09:58:58 +0530
-Message-ID: <87tx2vh0j9.fsf@linux.vnet.ibm.com>
+        Wed, 22 Oct 2014 23:03:44 -0700 (PDT)
+Received: by mail-ig0-f181.google.com with SMTP id l13so887181iga.14
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 23:03:44 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20141009020410.GA7968@wfg-t540p.sh.intel.com>
+References: <20141009020410.GA7968@wfg-t540p.sh.intel.com>
+Date: Thu, 23 Oct 2014 14:03:43 +0800
+Message-ID: <CAL1ERfOneR5ix3y0Q6GFyPondQp8MpPZY=8nJWZc9n1FC=d9Gw@mail.gmail.com>
+Subject: Re: [mm] BUG: Int 6: CR2 (null)
+From: Weijie Yang <weijie.yang.kh@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Steve Capper <steve.capper@linaro.org>, Andrea Arcangeli <aarcange@redhat.com>, benh@kernel.crashing.org, mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Stephen Rothwell <sfr@canb.auug.org.au>, LKML <linux-kernel@vger.kernel.org>, lkp@01.org, mina86@mina86.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>
 
-Andrew Morton <akpm@linux-foundation.org> writes:
-
-> On Fri, 17 Oct 2014 10:08:06 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+On Thu, Oct 9, 2014 at 10:04 AM, Fengguang Wu <fengguang.wu@intel.com> wrote:
+> Hi Marek,
 >
->> Update generic gup implementation with powerpc specific details.
->> On powerpc at pmd level we can have hugepte, normal pmd pointer
->> or a pointer to the hugepage directory.
->> 
->> ...
->>
->> --- a/arch/arm/include/asm/pgtable.h
->> +++ b/arch/arm/include/asm/pgtable.h
->> @@ -181,6 +181,8 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
->>  /* to find an entry in a kernel page-table-directory */
->>  #define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
->>  
->> +#define pgd_huge(pgd)		(0)
->> +
->>  #define pmd_none(pmd)		(!pmd_val(pmd))
->>  #define pmd_present(pmd)	(pmd_val(pmd))
->>  
->> diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
->> index cefd3e825612..ed8f42497ac4 100644
->> --- a/arch/arm64/include/asm/pgtable.h
->> +++ b/arch/arm64/include/asm/pgtable.h
->> @@ -464,6 +464,8 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
->>  extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
->>  extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
->>  
->> +#define pgd_huge(pgd)		(0)
->> +
+> FYI, we noticed the below changes on
 >
-> So only arm, arm64 and powerpc implement CONFIG_HAVE_GENERIC_RCU_GUP
-> and only powerpc impements pgd_huge().
+> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> commit 478e86d7c8c5f41e29abb81b05b459d24bdc71a2 ("mm: cma: adjust address limit to avoid hitting low/high memory boundary")
 >
-> Could we get a bit of documentation in place for pgd_huge() so that
-> people who aren't familiar with powerpc can understand what's going
-> on?
-
-Will update
-
 >
->>  /*
->>   * Encode and decode a swap entry:
->>   *	bits 0-1:	present (must be zero)
->> diff --git a/include/linux/mm.h b/include/linux/mm.h
->> index 02d11ee7f19d..f97732412cb4 100644
->> --- a/include/linux/mm.h
->> +++ b/include/linux/mm.h
->> @@ -1219,6 +1219,32 @@ long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->>  		    struct vm_area_struct **vmas);
->>  int get_user_pages_fast(unsigned long start, int nr_pages, int write,
->>  			struct page **pages);
->> +
->> +#ifdef CONFIG_HAVE_GENERIC_RCU_GUP
->> +#ifndef is_hugepd
+> +------------------------------------------+------------+------------+
+> |                                          | 81febe58a8 | 478e86d7c8 |
+> +------------------------------------------+------------+------------+
+> | boot_successes                           | 10         | 0          |
+> | boot_failures                            | 5          | 10         |
+> | kernel_BUG_at_arch/x86/mm/physaddr.c     | 5          |            |
+> | invalid_opcode                           | 5          |            |
+> | EIP_is_at__phys_addr                     | 5          |            |
+> | Kernel_panic-not_syncing:Fatal_exception | 5          |            |
+> | backtrace:vm_mmap_pgoff                  | 5          |            |
+> | backtrace:SyS_mmap_pgoff                 | 5          |            |
+> | BUG:Int_CR2(null)                        | 0          | 10         |
+> +------------------------------------------+------------+------------+
 >
-> And is_hugepd is a bit of a mystery.  Let's get some description in
-> place for this as well?  Why it exists, what its role is.  Also,
-> specifically which arch header file is responsible for defining it.
+> [    0.000000] BRK [0x025ee000, 0x025eefff] PGTABLE
+> [    0.000000] cma: dma_contiguous_reserve(limit 13ffe000)
+> [    0.000000] cma: dma_contiguous_reserve: reserving 31 MiB for global area
+> [    0.000000] BUG: Int 6: CR2   (null)
+> [    0.000000]      EDI c0000000  ESI   (null)  EBP 41c11ea4  EBX 425cc101
+> [    0.000000]      ESP 41c11e98   ES 0000007b   DS 0000007b
+> [    0.000000]      EDX 00000001  ECX   (null)  EAX 41cd8150
+> [    0.000000]      vec 00000006  err   (null)  EIP 41072227   CS 00000060  flg 00210002
+> [    0.000000] Stack: 425cc150   (null)   (null) 41c11ef4 41d4ee4d   (null) 13ffe000 41c11ec4
+> [    0.000000]        41c2d900   (null) 13ffe000   (null) 4185793e 0000002e 410c2982 41c11f00
+> [    0.000000]        410c2df5   (null)   (null)   (null) 425cc150 00013efe   (null) 41c11f28
+> [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 3.17.0-next-20141008 #815
+> [    0.000000]  00000000 425cc101 41c11e48 41850786 41c11ea4 41d2b1db 41d95f71 00000006
+> [    0.000000]  00000000 c0000000 00000000 41c11ea4 425cc101 41c11e98 0000007b 0000007b
+> [    0.000000]  00000001 00000000 41cd8150 00000006 00000000 41072227 00000060 00210002
+> [    0.000000] Call Trace:
+> [    0.000000]  [<41850786>] dump_stack+0x16/0x18
+> [    0.000000]  [<41d2b1db>] early_idt_handler+0x6b/0x6b
+> [    0.000000]  [<41072227>] ? __phys_addr+0x2e/0xca
+> [    0.000000]  [<41d4ee4d>] cma_declare_contiguous+0x3c/0x2d7
+> [    0.000000]  [<4185793e>] ? _raw_spin_unlock_irqrestore+0x59/0x91
+> [    0.000000]  [<410c2982>] ? wake_up_klogd+0x8/0x33
+> [    0.000000]  [<410c2df5>] ? console_unlock+0x448/0x461
+> [    0.000000]  [<41d6d359>] dma_contiguous_reserve_area+0x27/0x47
+> [    0.000000]  [<41d6d4d1>] dma_contiguous_reserve+0x158/0x163
+> [    0.000000]  [<41d33e0f>] setup_arch+0x79b/0xc68
+> [    0.000000]  [<4184c0b4>] ? printk+0x1c/0x1e
+> [    0.000000]  [<41d2b7cf>] start_kernel+0x9c/0x456
+> [    0.000000]  [<41d2b2ca>] i386_start_kernel+0x79/0x7d
 >
-> It takes a hugepd_t argument, but hugepd_t is defined later in this
-> header file.  This is weird because any preceding implementation of
-> is_hugepd() can't actually be implemented because it hasn't seen the
-> hugepd_t definition yet!  So any is_hugepd() implementation is forced
-> to be a simple macro which punts to a C function which *has* seen the
-> hugepd_t definition.  What a twisty maze.
 
-arch can definitely do
+I notice that code has been merged into mainline kernel without fix,
+maybe fengguang's mail was missed.
 
-#defne is_hugepd is_hugepd
-typedef struct { unsigned long pd; } hugepd_t;
-static inline int is_hugepd(hugepd_t hpd)
-{
+I review the code, dma_contiguous_reserve() is called before initmem_init(),
+so the variable high_memory is not initialized and calculated by
+__pa(high_memory),
+in x86 arch high_memory is initialized after dma_contiguous_reserve(), while
+in arm arch high_memory is initialized before dma_contiguous_reserve(),
+I think that is the reason which causes the BUG in x86.
 
-}
+However, I'm not familiar with system init sequence, so I send this
+notice mail rather than a patch :-(
 
-I wanted to make sure arch can have their own definition of hugepd_t . 
+cc more people
 
 >
-> It all seems messy, confusing and poorly documented.  Can we clean this
-> up?
->
->> +/*
->> + * Some architectures support hugepage directory format that is
->> + * required to support different hugetlbfs sizes.
->> + */
->> +typedef struct { unsigned long pd; } hugepd_t;
->> +#define is_hugepd(hugepd) (0)
->> +#define __hugepd(x) ((hugepd_t) { (x) })
->
-> What's this.
-
-macro that is used to convert value to type hugepd_t. We use that style
-already for __pte() etc.
-
->
->> +static inline int gup_hugepd(hugepd_t hugepd, unsigned long addr,
->> +			     unsigned pdshift, unsigned long end,
->> +			     int write, struct page **pages, int *nr)
->> +{
->> +	return 0;
->> +}
->> +#else
->> +extern int gup_hugepd(hugepd_t hugepd, unsigned long addr,
->> +		      unsigned pdshift, unsigned long end,
->> +		      int write, struct page **pages, int *nr);
->> +#endif
->> +extern int gup_huge_pte(pte_t orig, pte_t *ptep, unsigned long addr,
->> +			unsigned long sz, unsigned long end, int write,
->> +			struct page **pages, int *nr);
->> +#endif
-
--aneesh
+> Thanks,
+> Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
