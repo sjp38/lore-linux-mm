@@ -1,70 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BB68E6B0069
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 20:41:15 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id lj1so4714350pab.24
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 17:41:15 -0700 (PDT)
-Received: from outbound.mxmail.xiaomi.com ([42.62.48.242])
-        by mx.google.com with ESMTP id hk4si145904pbc.190.2014.10.22.17.41.13
-        for <linux-mm@kvack.org>;
-        Wed, 22 Oct 2014 17:41:14 -0700 (PDT)
-From: =?gb2312?B?1uy71A==?= <zhuhui@xiaomi.com>
-Subject: Re: [PATCH 0/4] (CMA_AGGRESSIVE) Make CMA memory be more aggressive
- about allocation
-Date: Thu, 23 Oct 2014 00:40:57 +0000
-Message-ID: <04a07ed889c840f1919e220f906af3af@cnbox4.mioffice.cn>
-References: <1413430551-22392-1-git-send-email-zhuhui@xiaomi.com>
- <543F8812.2020002@codeaurora.org> <54479CB2.5040408@hurleysoftware.com>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 65BD66B0069
+	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 22:26:10 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id kx10so142938pab.34
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 19:26:09 -0700 (PDT)
+Received: from x35.xmailserver.org (x35.xmailserver.org. [64.71.152.41])
+        by mx.google.com with ESMTPS id uh4si449291pbc.36.2014.10.22.19.26.08
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 22 Oct 2014 19:26:09 -0700 (PDT)
+Received: from davide-lnx3.corp.ebay.com
+	by x35.xmailserver.org with [XMail 1.27 ESMTP Server]
+	id <S3FBD78> for <linux-mm@kvack.org> from <davidel@xmailserver.org>;
+	Wed, 22 Oct 2014 22:31:22 -0400
+Date: Wed, 22 Oct 2014 19:26:07 -0700 (PDT)
+From: Davide Libenzi <davidel@xmailserver.org>
+Subject: [patch][resend] MAP_HUGETLB munmap fails with size not 2MB aligned
+Message-ID: <alpine.DEB.2.10.1410221518160.31326@davide-lnx3>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Hurley <peter@hurleysoftware.com>, Laura Abbott <lauraa@codeaurora.org>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "riel@redhat.com" <riel@redhat.com>, "mgorman@suse.de" <mgorman@suse.de>, "hughd@google.com" <hughd@google.com>, "akinobu.mita@gmail.com" <akinobu.mita@gmail.com>
-Cc: "rjw@rjwysocki.net" <rjw@rjwysocki.net>, "len.brown@intel.com" <len.brown@intel.com>, "pavel@ucw.cz" <pavel@ucw.cz>, "mina86@mina86.com" <mina86@mina86.com>, "aneesh.kumar@linux.vnet.ibm.com" <aneesh.kumar@linux.vnet.ibm.com>, "iamjoonsoo.kim@lge.com" <iamjoonsoo.kim@lge.com>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "minchan@kernel.org" <minchan@kernel.org>, "nasa4836@gmail.com" <nasa4836@gmail.com>, "ddstreet@ieee.org" <ddstreet@ieee.org>, "mingo@kernel.org" <mingo@kernel.org>, "rientjes@google.com" <rientjes@google.com>, "peterz@infradead.org" <peterz@infradead.org>, "keescook@chromium.org" <keescook@chromium.org>, "atomlin@redhat.com" <atomlin@redhat.com>, "raistlin@linux.it" <raistlin@linux.it>, "axboe@fb.com" <axboe@fb.com>, "paulmck@linux.vnet.ibm.com" <paulmck@linux.vnet.ibm.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "n-horiguchi@ah.jp.nec.com" <n-horiguchi@ah.jp.nec.com>, "k.khlebnikov@samsung.com" <k.khlebnikov@samsung.com>, "msalter@redhat.com" <msalter@redhat.com>, "deller@gmx.de" <deller@gmx.de>, "tangchen@cn.fujitsu.com" <tangchen@cn.fujitsu.com>, "ben@decadent.org.uk" <ben@decadent.org.uk>, "vbabka@suse.cz" <vbabka@suse.cz>, "sasha.levin@oracle.com" <sasha.levin@oracle.com>, "vdavydov@parallels.com" <vdavydov@parallels.com>, "suleiman@google.com" <suleiman@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-pm@vger.kernel.org" <linux-pm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org
 
-CgpPbiAxMC8yMi8xNCAyMDowMiwgUGV0ZXIgSHVybGV5IHdyb3RlOgo+IE9uIDEwLzE2LzIwMTQg
-MDQ6NTUgQU0sIExhdXJhIEFiYm90dCB3cm90ZToKPj4gT24gMTAvMTUvMjAxNCA4OjM1IFBNLCBI
-dWkgWmh1IHdyb3RlOgo+Pj4gSW4gZmFsbGJhY2tzIG9mIHBhZ2VfYWxsb2MuYywgTUlHUkFURV9D
-TUEgaXMgdGhlIGZhbGxiYWNrIG9mCj4+PiBNSUdSQVRFX01PVkFCTEUuCj4+PiBNSUdSQVRFX01P
-VkFCTEUgd2lsbCB1c2UgTUlHUkFURV9DTUEgd2hlbiBpdCBkb2Vzbid0IGhhdmUgYSBwYWdlIGlu
-Cj4+PiBvcmRlciB0aGF0IExpbnV4IGtlcm5lbCB3YW50Lgo+Pj4KPj4+IElmIGEgc3lzdGVtIHRo
-YXQgaGFzIGEgbG90IG9mIHVzZXIgc3BhY2UgcHJvZ3JhbSBpcyBydW5uaW5nLCBmb3IKPj4+IGlu
-c3RhbmNlLCBhbiBBbmRyb2lkIGJvYXJkLCBtb3N0IG9mIG1lbW9yeSBpcyBpbiBNSUdSQVRFX01P
-VkFCTEUgYW5kCj4+PiBhbGxvY2F0ZWQuICBCZWZvcmUgZnVuY3Rpb24gX19ybXF1ZXVlX2ZhbGxi
-YWNrIGdldCBtZW1vcnkgZnJvbQo+Pj4gTUlHUkFURV9DTUEsIHRoZSBvb21fa2lsbGVyIHdpbGwg
-a2lsbCBhIHRhc2sgdG8gcmVsZWFzZSBtZW1vcnkgd2hlbgo+Pj4ga2VybmVsIHdhbnQgZ2V0IE1J
-R1JBVEVfVU5NT1ZBQkxFIG1lbW9yeSBiZWNhdXNlIGZhbGxiYWNrcyBvZgo+Pj4gTUlHUkFURV9V
-Tk1PVkFCTEUgYXJlIE1JR1JBVEVfUkVDTEFJTUFCTEUgYW5kIE1JR1JBVEVfTU9WQUJMRS4KPj4+
-IFRoaXMgc3RhdHVzIGlzIG9kZC4gIFRoZSBNSUdSQVRFX0NNQSBoYXMgYSBsb3QgZnJlZSBtZW1v
-cnkgYnV0IExpbnV4Cj4+PiBrZXJuZWwga2lsbCBzb21lIHRhc2tzIHRvIHJlbGVhc2UgbWVtb3J5
-Lgo+Pj4KPj4+IFRoaXMgcGF0Y2ggc2VyaWVzIGFkZHMgYSBuZXcgZnVuY3Rpb24gQ01BX0FHR1JF
-U1NJVkUgdG8gbWFrZSBDTUEgbWVtb3J5Cj4+PiBiZSBtb3JlIGFnZ3Jlc3NpdmUgYWJvdXQgYWxs
-b2NhdGlvbi4KPj4+IElmIGZ1bmN0aW9uIENNQV9BR0dSRVNTSVZFIGlzIGF2YWlsYWJsZSwgd2hl
-biBMaW51eCBrZXJuZWwgY2FsbCBmdW5jdGlvbgo+Pj4gX19ybXF1ZXVlIHRyeSB0byBnZXQgcGFn
-ZXMgZnJvbSBNSUdSQVRFX01PVkFCTEUgYW5kIGNvbmRpdGlvbnMgYWxsb3csCj4+PiBNSUdSQVRF
-X0NNQSB3aWxsIGJlIGFsbG9jYXRlZCBhcyBNSUdSQVRFX01PVkFCTEUgZmlyc3QuICBJZiBNSUdS
-QVRFX0NNQQo+Pj4gZG9lc24ndCBoYXZlIGVub3VnaCBwYWdlcyBmb3IgYWxsb2NhdGlvbiwgZ28g
-YmFjayB0byBhbGxvY2F0ZSBtZW1vcnkgZnJvbQo+Pj4gTUlHUkFURV9NT1ZBQkxFLgo+Pj4gVGhl
-biB0aGUgbWVtb3J5IG9mIE1JR1JBVEVfTU9WQUJMRSBjYW4gYmUga2VwdCBmb3IgTUlHUkFURV9V
-Tk1PVkFCTEUgYW5kCj4+PiBNSUdSQVRFX1JFQ0xBSU1BQkxFIHdoaWNoIGRvZXNuJ3QgaGF2ZSBm
-YWxsYmFjayBNSUdSQVRFX0NNQS4KPj4+Cj4+Cj4+IEl0J3MgZ29vZCB0byBzZWUgYW5vdGhlciBw
-cm9wb3NhbCB0byBmaXggQ01BIHV0aWxpemF0aW9uLiBEbyB5b3UgaGF2ZQo+PiBhbnkgZGF0YSBh
-Ym91dCB0aGUgc3VjY2VzcyByYXRlIG9mIENNQSBjb250aWd1b3VzIGFsbG9jYXRpb24gYWZ0ZXIK
-Pj4gdGhpcyBwYXRjaCBzZXJpZXM/IEkgcGxheWVkIGFyb3VuZCB3aXRoIGEgc2ltaWxhciBhcHBy
-b2FjaCBvZiB1c2luZwo+PiBDTUEgZm9yIE1JR1JBVEVfTU9WQUJMRSBhbGxvY2F0aW9ucyBhbmQg
-Zm91bmQgdGhhdCBhbHRob3VnaCB1dGlsaXphdGlvbgo+PiBkaWQgaW5jcmVhc2UsIGNvbnRpZ3Vv
-dXMgYWxsb2NhdGlvbnMgZmFpbGVkIGF0IGEgaGlnaGVyIHJhdGUgYW5kIHdlcmUKPj4gbXVjaCBz
-bG93ZXIuIEkgc2VlIHdoYXQgdGhpcyBzZXJpZXMgaXMgdHJ5aW5nIHRvIGRvIHdpdGggYXZvaWRp
-bmcKPj4gYWxsb2NhdGlvbiBmcm9tIENNQSBwYWdlcyB3aGVuIGEgY29udGlndW91cyBhbGxvY2F0
-aW9uIGlzIHByb2dyZXNzLgo+PiBNeSBjb25jZXJuIGlzIHRoYXQgdGhlcmUgd291bGQgc3RpbGwg
-YmUgcHJvYmxlbXMgd2l0aCBjb250aWd1b3VzCj4+IGFsbG9jYXRpb24gYWZ0ZXIgYWxsIHRoZSBN
-SUdSQVRFX01PVkFCTEUgZmFsbGJhY2sgaGFzIGhhcHBlbmVkLgo+Cj4gV2hhdCBpbXBhY3QgZG9l
-cyB0aGlzIHNlcmllcyBoYXZlIG9uIHg4NiBwbGF0Zm9ybXMgbm93IHRoYXQgQ01BIGlzIHRoZQo+
-IGJhY2t1cCBhbGxvY2F0b3IgZm9yIGFsbCBpb21tdSBkbWEgYWxsb2NhdGlvbnM/CgpUaGV5IHdp
-bGwgbm90IGFmZmVjdCBkcml2ZXIgQ01BIG1lbW9yeSBhbGxvY2F0aW9uLgoKVGhhbmtzLApIdWkK
-Cj4KPiBSZWdhcmRzLAo+IFBldGVyIEh1cmxleQo+Cg==
+[Resending with proper CC list suggested by Andrew]
+
+Calling munmap on a MAP_HUGETLB area, and a size which is not 2MB aligned, 
+causes munmap to fail.  Tested on 3.13.x but tracking back to 3.2.x.
+In do_munmap() we forcibly want a 4KB default page, and we wrongly 
+calculate the end of the map.  Since the calculated end is within the end 
+address of the target vma, we try to do a split with an address right in 
+the middle of a huge page, which would fail with EINVAL.
+
+Tentative (untested) patch and test case attached (be sure you have a few 
+huge pages available via /proc/sys/vm/nr_hugepages tinkering).
+
+
+Signed-Off-By: Davide Libenzi <davidel@xmailserver.org>
+
+
+- Davide
+
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 7f85520..6dba257 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2528,10 +2528,6 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
+ 	if ((start & ~PAGE_MASK) || start > TASK_SIZE || len > TASK_SIZE-start)
+ 		return -EINVAL;
+ 
+-	len = PAGE_ALIGN(len);
+-	if (len == 0)
+-		return -EINVAL;
+-
+ 	/* Find the first overlapping VMA */
+ 	vma = find_vma(mm, start);
+ 	if (!vma)
+@@ -2539,6 +2535,16 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
+ 	prev = vma->vm_prev;
+ 	/* we have  start < vma->vm_end  */
+ 
++	if (likely(!is_vm_hugetlb_page(vma)))
++		len = PAGE_ALIGN(len);
++	else {
++		unsigned long hpage_size = huge_page_size(hstate_vma(vma));
++
++		len = ALIGN(len, hpage_size);
++	}
++	if (unlikely(len == 0))
++		return -EINVAL;
++
+ 	/* if it doesn't overlap, we have nothing.. */
+ 	end = start + len;
+ 	if (vma->vm_start >= end)
+
+
+
+
+[hugebug.c]
+
+#include <sys/mman.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+
+static void test(int flags, size_t size)
+{
+    void* addr = mmap(NULL, size, PROT_READ | PROT_WRITE,
+                      flags | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+    if (addr == MAP_FAILED)
+    {
+        perror("mmap");
+        exit(1);
+    }
+    *(char*) addr = 17;
+
+    if (munmap(addr, size) != 0)
+    {
+        perror("munmap");
+        exit(1);
+    }
+}
+
+int main(int ac, const char** av)
+{
+    static const size_t hugepage_size = 2 * 1024 * 1024;
+
+    printf("Testing normal pages with 2MB size ...\n");
+    test(0, hugepage_size);
+    printf("OK\n");
+
+    printf("Testing huge pages with 2MB size ...\n");
+    test(MAP_HUGETLB, hugepage_size);
+    printf("OK\n");
+
+
+    printf("Testing normal pages with 4KB byte size ...\n");
+    test(0, 4096);
+    printf("OK\n");
+
+    printf("Testing huge pages with 4KB byte size ...\n");
+    test(MAP_HUGETLB, 4096);
+    printf("OK\n");
+
+
+    printf("Testing normal pages with 1 byte size ...\n");
+    test(0, 1);
+    printf("OK\n");
+
+    printf("Testing huge pages with 1 byte size ...\n");
+    test(MAP_HUGETLB, 1);
+    printf("OK\n");
+
+    return 0;
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
