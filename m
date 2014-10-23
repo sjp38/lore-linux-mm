@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E8946B0069
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id EFB7E6B006C
 	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 23:07:02 -0400 (EDT)
-Received: by mail-ie0-f170.google.com with SMTP id tp5so175571ieb.15
+Received: by mail-ie0-f182.google.com with SMTP id rp18so177858iec.13
         for <linux-mm@kvack.org>; Wed, 22 Oct 2014 20:07:02 -0700 (PDT)
 Received: from relay.sgi.com (relay3.sgi.com. [192.48.152.1])
-        by mx.google.com with ESMTP id f3si1100053ice.21.2014.10.22.20.07.01
+        by mx.google.com with ESMTP id q14si1022228ice.71.2014.10.22.20.07.01
         for <linux-mm@kvack.org>;
         Wed, 22 Oct 2014 20:07:01 -0700 (PDT)
 From: Alex Thorlton <athorlton@sgi.com>
-Subject: [PATCH 2/2] Add /proc files to expose per-mm pgcollapse stats
-Date: Wed, 22 Oct 2014 22:06:26 -0500
-Message-Id: <1414033586-185593-2-git-send-email-athorlton@sgi.com>
+Subject: [PATCH 1/2] Add pgcollapse stat counter to task_struct
+Date: Wed, 22 Oct 2014 22:06:25 -0500
+Message-Id: <1414033586-185593-1-git-send-email-athorlton@sgi.com>
 In-Reply-To: <1414032567-109765-1-git-send-email-athorlton@sgi.com>
 References: <1414032567-109765-1-git-send-email-athorlton@sgi.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,7 +19,8 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Alex Thorlton <athorlton@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <lliubbo@gmail.com>, David Rientjes <rientjes@google.com>, "Eric W . Biederman" <ebiederm@xmission.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, Kees Cook <keescook@chromium.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Vladimir Davydov <vdavydov@parallels.com>, linux-kernel@vger.kernel.org
 
-Just add a proc file to expose the stat counter I added.
+Pretty self explanatory.  Just adding one of the same counters that I used to
+gather data for the other patches.
 
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Bob Liu <lliubbo@gmail.com>
@@ -38,50 +39,36 @@ Cc: Vladimir Davydov <vdavydov@parallels.com>
 Cc: linux-kernel@vger.kernel.org
 
 ---
- fs/proc/base.c | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ include/linux/sched.h | 3 +++
+ mm/huge_memory.c      | 1 +
+ 2 files changed, 4 insertions(+)
 
-diff --git a/fs/proc/base.c b/fs/proc/base.c
-index 772efa4..7517bf4 100644
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -2466,6 +2466,16 @@ static const struct file_operations proc_projid_map_operations = {
- };
- #endif /* CONFIG_USER_NS */
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+int proc_pgcollapse_show(struct seq_file *m, struct pid_namespace *ns,
-+		     struct pid *pid, struct task_struct *tsk)
-+{
-+	seq_printf(m, "pages_collapsed: %u\n", tsk->pgcollapse_pages_collapsed);
-+
-+	return 0;
-+}
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-+
- static int proc_pid_personality(struct seq_file *m, struct pid_namespace *ns,
- 				struct pid *pid, struct task_struct *task)
- {
-@@ -2576,6 +2586,9 @@ static const struct pid_entry tgid_base_stuff[] = {
- #ifdef CONFIG_CHECKPOINT_RESTORE
- 	REG("timers",	  S_IRUGO, proc_timers_operations),
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 5e344bb..9b87d9a 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1661,6 +1661,9 @@ struct task_struct {
+ 	unsigned int	sequential_io;
+ 	unsigned int	sequential_io_avg;
  #endif
 +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	ONE("pgcollapse", S_IRUGO, proc_pgcollapse_show),
++	unsigned int pgcollapse_pages_collapsed;
 +#endif
  };
  
- static int proc_tgid_base_readdir(struct file *file, struct dir_context *ctx)
-@@ -2914,6 +2927,9 @@ static const struct pid_entry tid_base_stuff[] = {
- 	REG("gid_map",    S_IRUGO|S_IWUSR, proc_gid_map_operations),
- 	REG("projid_map", S_IRUGO|S_IWUSR, proc_projid_map_operations),
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	ONE("pgcollapse", S_IRUGO, proc_pgcollapse_show),
-+#endif
- };
+ /* Future-safe accessor for struct task_struct's cpus_allowed. */
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 74c78aa..ca8a813 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2531,6 +2531,7 @@ static void collapse_huge_page(struct mm_struct *mm,
  
- static int proc_tid_base_readdir(struct file *file, struct dir_context *ctx)
+ 	*hpage = NULL;
+ 
++        mm->owner->pgcollapse_pages_collapsed++;
+ 	khugepaged_pages_collapsed++;
+ out_up_write:
+ 	up_write(&mm->mmap_sem);
 -- 
 1.7.12.4
 
