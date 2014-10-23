@@ -1,76 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
-	by kanga.kvack.org (Postfix) with ESMTP id EFB7E6B006C
-	for <linux-mm@kvack.org>; Wed, 22 Oct 2014 23:07:02 -0400 (EDT)
-Received: by mail-ie0-f182.google.com with SMTP id rp18so177858iec.13
-        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 20:07:02 -0700 (PDT)
-Received: from relay.sgi.com (relay3.sgi.com. [192.48.152.1])
-        by mx.google.com with ESMTP id q14si1022228ice.71.2014.10.22.20.07.01
-        for <linux-mm@kvack.org>;
-        Wed, 22 Oct 2014 20:07:01 -0700 (PDT)
-From: Alex Thorlton <athorlton@sgi.com>
-Subject: [PATCH 1/2] Add pgcollapse stat counter to task_struct
-Date: Wed, 22 Oct 2014 22:06:25 -0500
-Message-Id: <1414033586-185593-1-git-send-email-athorlton@sgi.com>
-In-Reply-To: <1414032567-109765-1-git-send-email-athorlton@sgi.com>
-References: <1414032567-109765-1-git-send-email-athorlton@sgi.com>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id AFA886B0069
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 00:29:09 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id lj1so342902pab.10
+        for <linux-mm@kvack.org>; Wed, 22 Oct 2014 21:29:09 -0700 (PDT)
+Received: from e28smtp04.in.ibm.com (e28smtp04.in.ibm.com. [122.248.162.4])
+        by mx.google.com with ESMTPS id by7si547384pab.179.2014.10.22.21.29.07
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 22 Oct 2014 21:29:08 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 23 Oct 2014 09:59:04 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id CD1A3E0045
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 09:58:50 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay04.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id s9N4TTjS59506878
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 09:59:30 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s9N4SwHj018700
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 09:58:59 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH V2 1/2] mm: Update generic gup implementation to handle hugepage directory
+In-Reply-To: <20141022160224.9c2268795e55d5a2eff5b94d@linux-foundation.org>
+References: <1413520687-31729-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20141022160224.9c2268795e55d5a2eff5b94d@linux-foundation.org>
+Date: Thu, 23 Oct 2014 09:58:58 +0530
+Message-ID: <87tx2vh0j9.fsf@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Alex Thorlton <athorlton@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <lliubbo@gmail.com>, David Rientjes <rientjes@google.com>, "Eric W . Biederman" <ebiederm@xmission.com>, Hugh Dickins <hughd@google.com>, Ingo Molnar <mingo@redhat.com>, Kees Cook <keescook@chromium.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Vladimir Davydov <vdavydov@parallels.com>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Steve Capper <steve.capper@linaro.org>, Andrea Arcangeli <aarcange@redhat.com>, benh@kernel.crashing.org, mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org
 
-Pretty self explanatory.  Just adding one of the same counters that I used to
-gather data for the other patches.
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Bob Liu <lliubbo@gmail.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Eric W. Biederman <ebiederm@xmission.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Vladimir Davydov <vdavydov@parallels.com>
-Cc: linux-kernel@vger.kernel.org
+> On Fri, 17 Oct 2014 10:08:06 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+>
+>> Update generic gup implementation with powerpc specific details.
+>> On powerpc at pmd level we can have hugepte, normal pmd pointer
+>> or a pointer to the hugepage directory.
+>> 
+>> ...
+>>
+>> --- a/arch/arm/include/asm/pgtable.h
+>> +++ b/arch/arm/include/asm/pgtable.h
+>> @@ -181,6 +181,8 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
+>>  /* to find an entry in a kernel page-table-directory */
+>>  #define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
+>>  
+>> +#define pgd_huge(pgd)		(0)
+>> +
+>>  #define pmd_none(pmd)		(!pmd_val(pmd))
+>>  #define pmd_present(pmd)	(pmd_val(pmd))
+>>  
+>> diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+>> index cefd3e825612..ed8f42497ac4 100644
+>> --- a/arch/arm64/include/asm/pgtable.h
+>> +++ b/arch/arm64/include/asm/pgtable.h
+>> @@ -464,6 +464,8 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
+>>  extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
+>>  extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
+>>  
+>> +#define pgd_huge(pgd)		(0)
+>> +
+>
+> So only arm, arm64 and powerpc implement CONFIG_HAVE_GENERIC_RCU_GUP
+> and only powerpc impements pgd_huge().
+>
+> Could we get a bit of documentation in place for pgd_huge() so that
+> people who aren't familiar with powerpc can understand what's going
+> on?
 
----
- include/linux/sched.h | 3 +++
- mm/huge_memory.c      | 1 +
- 2 files changed, 4 insertions(+)
+Will update
 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 5e344bb..9b87d9a 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -1661,6 +1661,9 @@ struct task_struct {
- 	unsigned int	sequential_io;
- 	unsigned int	sequential_io_avg;
- #endif
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	unsigned int pgcollapse_pages_collapsed;
-+#endif
- };
- 
- /* Future-safe accessor for struct task_struct's cpus_allowed. */
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 74c78aa..ca8a813 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2531,6 +2531,7 @@ static void collapse_huge_page(struct mm_struct *mm,
- 
- 	*hpage = NULL;
- 
-+        mm->owner->pgcollapse_pages_collapsed++;
- 	khugepaged_pages_collapsed++;
- out_up_write:
- 	up_write(&mm->mmap_sem);
--- 
-1.7.12.4
+>
+>>  /*
+>>   * Encode and decode a swap entry:
+>>   *	bits 0-1:	present (must be zero)
+>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>> index 02d11ee7f19d..f97732412cb4 100644
+>> --- a/include/linux/mm.h
+>> +++ b/include/linux/mm.h
+>> @@ -1219,6 +1219,32 @@ long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+>>  		    struct vm_area_struct **vmas);
+>>  int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+>>  			struct page **pages);
+>> +
+>> +#ifdef CONFIG_HAVE_GENERIC_RCU_GUP
+>> +#ifndef is_hugepd
+>
+> And is_hugepd is a bit of a mystery.  Let's get some description in
+> place for this as well?  Why it exists, what its role is.  Also,
+> specifically which arch header file is responsible for defining it.
+>
+> It takes a hugepd_t argument, but hugepd_t is defined later in this
+> header file.  This is weird because any preceding implementation of
+> is_hugepd() can't actually be implemented because it hasn't seen the
+> hugepd_t definition yet!  So any is_hugepd() implementation is forced
+> to be a simple macro which punts to a C function which *has* seen the
+> hugepd_t definition.  What a twisty maze.
+
+arch can definitely do
+
+#defne is_hugepd is_hugepd
+typedef struct { unsigned long pd; } hugepd_t;
+static inline int is_hugepd(hugepd_t hpd)
+{
+
+}
+
+I wanted to make sure arch can have their own definition of hugepd_t . 
+
+>
+> It all seems messy, confusing and poorly documented.  Can we clean this
+> up?
+>
+>> +/*
+>> + * Some architectures support hugepage directory format that is
+>> + * required to support different hugetlbfs sizes.
+>> + */
+>> +typedef struct { unsigned long pd; } hugepd_t;
+>> +#define is_hugepd(hugepd) (0)
+>> +#define __hugepd(x) ((hugepd_t) { (x) })
+>
+> What's this.
+
+macro that is used to convert value to type hugepd_t. We use that style
+already for __pte() etc.
+
+>
+>> +static inline int gup_hugepd(hugepd_t hugepd, unsigned long addr,
+>> +			     unsigned pdshift, unsigned long end,
+>> +			     int write, struct page **pages, int *nr)
+>> +{
+>> +	return 0;
+>> +}
+>> +#else
+>> +extern int gup_hugepd(hugepd_t hugepd, unsigned long addr,
+>> +		      unsigned pdshift, unsigned long end,
+>> +		      int write, struct page **pages, int *nr);
+>> +#endif
+>> +extern int gup_huge_pte(pte_t orig, pte_t *ptep, unsigned long addr,
+>> +			unsigned long sz, unsigned long end, int write,
+>> +			struct page **pages, int *nr);
+>> +#endif
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
