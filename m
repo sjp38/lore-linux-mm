@@ -1,58 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id E08356B007B
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 10:14:49 -0400 (EDT)
-Received: by mail-la0-f47.google.com with SMTP id pv20so912699lab.20
-        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 07:14:49 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 8si2787179las.83.2014.10.23.07.14.47
+Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 764756B0080
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 10:18:32 -0400 (EDT)
+Received: by mail-qc0-f171.google.com with SMTP id m20so439822qcx.16
+        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 07:18:32 -0700 (PDT)
+Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
+        by mx.google.com with ESMTPS id y104si3022570qgd.126.2014.10.23.07.18.31
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Oct 2014 07:14:48 -0700 (PDT)
-Date: Thu, 23 Oct 2014 10:14:43 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 2/2] mm: memcontrol: fix missed end-writeback page
- accounting
-Message-ID: <20141023141443.GA20526@phnom.home.cmpxchg.org>
-References: <1414002568-21042-1-git-send-email-hannes@cmpxchg.org>
- <1414002568-21042-3-git-send-email-hannes@cmpxchg.org>
- <20141023130331.GC23011@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20141023130331.GC23011@dhcp22.suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 23 Oct 2014 07:18:31 -0700 (PDT)
+Date: Thu, 23 Oct 2014 09:18:29 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC 0/4] [RFC] slub: Fastpath optimization (especially for
+ RT)
+In-Reply-To: <20141023080942.GA7598@js1304-P5Q-DELUXE>
+Message-ID: <alpine.DEB.2.11.1410230916090.19494@gentwo.org>
+References: <20141022155517.560385718@linux.com> <20141023080942.GA7598@js1304-P5Q-DELUXE>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: akpm@linuxfoundation.org, rostedt@goodmis.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com
 
-On Thu, Oct 23, 2014 at 03:03:31PM +0200, Michal Hocko wrote:
-> On Wed 22-10-14 14:29:28, Johannes Weiner wrote:
-> > 0a31bc97c80c ("mm: memcontrol: rewrite uncharge API") changed page
-> > migration to uncharge the old page right away.  The page is locked,
-> > unmapped, truncated, and off the LRU, but it could race with writeback
-> > ending, which then doesn't unaccount the page properly:
-> > 
-> > test_clear_page_writeback()              migration
-> >   acquire pc->mem_cgroup->move_lock
-> 
-> I do not think that mentioning move_lock is important/helpful here
-> because the hot path which is taken all the time (except when there is a
-> task move in progress) doesn't take it.
-> Besides that it is not even relevant for the race.
+On Thu, 23 Oct 2014, Joonsoo Kim wrote:
 
-You're right.  It's not worth mentioning the transaction setup/finish
-at all, because migration does not participate in that protocol.  How
-about this?  Andrew, could you please copy-paste this into the patch?
+> Preemption disable during very short code would cause large problem for RT?
 
-test_clear_page_writeback()              migration
-                                           wait_on_page_writeback()
-  TestClearPageWriteback()
-                                           mem_cgroup_migrate()
-                                             clear PCG_USED
-  mem_cgroup_update_page_stat()
-    if (PageCgroupUsed(pc))
-      decrease memcg pages under writeback
+This is the hotpath and preempt enable/disable adds a significant number
+of cycles.
+
+> And, if page_address() and virt_to_head_page() remain as current patchset
+> implementation, this would work worse than before.
+
+Right.
+
+> I looked at the patchset quickly and found another idea to remove
+> preemption disable. How about just retrieving s->cpu_slab->tid first,
+> before accessing s->cpu_slab, in slab_alloc() and slab_free()?
+> Retrieved tid may ensure that we aren't migrated to other CPUs so that
+> we can remove code for preemption disable.
+
+You cannot do any of these things because you need the tid from the right
+cpu and the scheduler can prempt you and reschedule you on another
+processor at will. tid and c may be from different per cpu areas.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
