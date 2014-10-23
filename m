@@ -1,92 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 8837D6B006C
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 12:56:22 -0400 (EDT)
-Received: by mail-la0-f42.google.com with SMTP id gf13so1362310lab.15
-        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 09:56:21 -0700 (PDT)
-Received: from mail-la0-x22b.google.com (mail-la0-x22b.google.com. [2a00:1450:4010:c03::22b])
-        by mx.google.com with ESMTPS id aq3si3481978lbc.78.2014.10.23.09.56.20
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 23 Oct 2014 09:56:21 -0700 (PDT)
-Received: by mail-la0-f43.google.com with SMTP id mc6so1238397lab.16
-        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 09:56:20 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH 4/4] mm: cma: Use %pa to print physical addresses
-In-Reply-To: <1414074828-4488-5-git-send-email-laurent.pinchart+renesas@ideasonboard.com>
-References: <1414074828-4488-1-git-send-email-laurent.pinchart+renesas@ideasonboard.com> <1414074828-4488-5-git-send-email-laurent.pinchart+renesas@ideasonboard.com>
-Date: Thu, 23 Oct 2014 18:56:15 +0200
-Message-ID: <xa1th9yulo7k.fsf@mina86.com>
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 379B16B0069
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 12:58:49 -0400 (EDT)
+Received: by mail-wi0-f181.google.com with SMTP id n3so2539824wiv.14
+        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 09:58:48 -0700 (PDT)
+Received: from mailapp01.imgtec.com (mailapp01.imgtec.com. [195.59.15.196])
+        by mx.google.com with ESMTP id fg6si5695913wib.15.2014.10.23.09.58.47
+        for <linux-mm@kvack.org>;
+        Thu, 23 Oct 2014 09:58:47 -0700 (PDT)
+From: Zubair Lutfullah Kakakhel <Zubair.Kakakhel@imgtec.com>
+Subject: [RFC] mm: memblock: change default cnt for regions from 1 to 0
+Date: Thu, 23 Oct 2014 17:56:53 +0100
+Message-ID: <1414083413-61756-1-git-send-email-Zubair.Kakakhel@imgtec.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: akpm@linux-foundation.org, Zubair.Kakakhel@imgtec.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Oct 23 2014, Laurent Pinchart wrote:
-> Casting physical addresses to unsigned long and using %lu truncates the
-> values on systems where physical addresses are larger than 32 bits. Use
-> %pa and get rid of the cast instead.
->
-> Signed-off-by: Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.co=
-m>
+The default region counts are set to 1 with a comment saying empty
+dummy entry.
 
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+If this is a dummy entry, should this be changed to 0?
 
-> ---
->  mm/cma.c | 13 ++++++-------
->  1 file changed, 6 insertions(+), 7 deletions(-)
->
-> diff --git a/mm/cma.c b/mm/cma.c
-> index b83597b..741c7ec 100644
-> --- a/mm/cma.c
-> +++ b/mm/cma.c
-> @@ -212,9 +212,8 @@ int __init cma_declare_contiguous(phys_addr_t base,
->  	phys_addr_t highmem_start =3D __pa(high_memory);
->  	int ret =3D 0;
->=20=20
-> -	pr_debug("%s(size %lx, base %08lx, limit %08lx alignment %08lx)\n",
-> -		__func__, (unsigned long)size, (unsigned long)base,
-> -		(unsigned long)limit, (unsigned long)alignment);
-> +	pr_debug("%s(size %pa, base %pa, limit %pa alignment %pa)\n",
-> +		__func__, &size, &base, &limit, &alignment);
->=20=20
->  	if (cma_area_count =3D=3D ARRAY_SIZE(cma_areas)) {
->  		pr_err("Not enough slots for CMA reserved regions!\n");
-> @@ -257,8 +256,8 @@ int __init cma_declare_contiguous(phys_addr_t base,
->  	 */
->  	if (fixed && base < highmem_start && base + size > highmem_start) {
->  		ret =3D -EINVAL;
-> -		pr_err("Region at %08lx defined on low/high memory boundary (%08lx)\n",
-> -			(unsigned long)base, (unsigned long)highmem_start);
-> +		pr_err("Region at %pa defined on low/high memory boundary (%pa)\n",
-> +			&base, &highmem_start);
->  		goto err;
->  	}
->=20=20
-> @@ -316,8 +315,8 @@ int __init cma_declare_contiguous(phys_addr_t base,
->  	if (ret)
->  		goto err;
->=20=20
-> -	pr_info("Reserved %ld MiB at %08lx\n", (unsigned long)size / SZ_1M,
-> -		(unsigned long)base);
-> +	pr_info("Reserved %ld MiB at %pa\n", (unsigned long)size / SZ_1M,
-> +		&base);
->  	return 0;
->=20=20
->  err:
-> --=20
-> 2.0.4
->
+We have faced this in mips/kernel/setup.c arch_mem_init.
 
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
+cma uses memblock. But even with cma disabled.
+The for_each_memblock(reserved, reg) goes inside the loop.
+Even without any reserved regions.
+
+Traced it to the following, when the macro
+for_each_memblock(memblock_type, region) is used.
+
+It expands to add the cnt variable.
+
+for (region = memblock.memblock_type.regions; 		\
+	region < (memblock.memblock_type.regions + memblock.memblock_type.cnt); \
+	region++)
+
+In the corner case, that there are no reserved regions.
+Due to the default 1 value of cnt.
+The loop under for_each_memblock still runs once.
+
+Even when there is no reserved region.
+
+Is this by design? or unintentional?
+It might be that this loop runs an extra time every instance out there?
+---
+ mm/memblock.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 6d2f219..b91301c 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -33,16 +33,16 @@ static struct memblock_region memblock_physmem_init_regions[INIT_PHYSMEM_REGIONS
+ 
+ struct memblock memblock __initdata_memblock = {
+ 	.memory.regions		= memblock_memory_init_regions,
+-	.memory.cnt		= 1,	/* empty dummy entry */
++	.memory.cnt		= 0,	/* empty dummy entry */
+ 	.memory.max		= INIT_MEMBLOCK_REGIONS,
+ 
+ 	.reserved.regions	= memblock_reserved_init_regions,
+-	.reserved.cnt		= 1,	/* empty dummy entry */
++	.reserved.cnt		= 0,	/* empty dummy entry */
+ 	.reserved.max		= INIT_MEMBLOCK_REGIONS,
+ 
+ #ifdef CONFIG_HAVE_MEMBLOCK_PHYS_MAP
+ 	.physmem.regions	= memblock_physmem_init_regions,
+-	.physmem.cnt		= 1,	/* empty dummy entry */
++	.physmem.cnt		= 0,	/* empty dummy entry */
+ 	.physmem.max		= INIT_PHYSMEM_REGIONS,
+ #endif
+ 
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
