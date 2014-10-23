@@ -1,63 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A2E96B0085
-	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 10:31:47 -0400 (EDT)
-Received: by mail-lb0-f172.google.com with SMTP id b6so951740lbj.3
-        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 07:31:47 -0700 (PDT)
+Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 8487D6B0088
+	for <linux-mm@kvack.org>; Thu, 23 Oct 2014 10:33:08 -0400 (EDT)
+Received: by mail-lb0-f181.google.com with SMTP id l4so956627lbv.12
+        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 07:33:07 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id dv6si2892270lbc.52.2014.10.23.07.31.45
+        by mx.google.com with ESMTPS id i3si2890220lae.59.2014.10.23.07.33.06
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Oct 2014 07:31:46 -0700 (PDT)
+        Thu, 23 Oct 2014 07:33:06 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch] mm: memcontrol: uncharge pages on swapout fix
-Date: Thu, 23 Oct 2014 10:31:40 -0400
-Message-Id: <1414074700-13995-1-git-send-email-hannes@cmpxchg.org>
+Subject: [patch] mm: memcontrol: inline memcg->move_lock locking
+Date: Thu, 23 Oct 2014 10:33:02 -0400
+Message-Id: <1414074782-14340-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vladimir Davydov <vdavydov@parallels.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Vladimir notes:
+The wrappers around taking and dropping the memcg->move_lock spinlock
+add nothing of value.  Inline the spinlock calls into the callsites.
 
-> > +   local_irq_disable();
-> > +   mem_cgroup_charge_statistics(memcg, page, -1);
-> > +   memcg_check_events(memcg, page);
-> > +   local_irq_enable();
->
-> AFAICT mem_cgroup_swapout() is called under mapping->tree_lock with irqs
-> disabled, so we should use irq_save/restore here.
-
-Simply remove the irq-disabling altogether and rely on the caller
-holding the mapping->tree_lock for now.
-
-Reported-by: Vladimir Davydov <vdavydov@parallels.com>
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 Acked-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- mm/memcontrol.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
-For "mm: memcontrol: uncharge pages on swapout" in -mm.
+ mm/memcontrol.c | 28 ++++++----------------------
+ 1 file changed, 6 insertions(+), 22 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index ae9b630e928b..09fece0eb9f1 100644
+index 09fece0eb9f1..a5c9aa4688e8 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -5777,10 +5777,11 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
- 	if (!mem_cgroup_is_root(memcg))
- 		page_counter_uncharge(&memcg->memory, 1);
- 
--	local_irq_disable();
-+	/* XXX: caller holds IRQ-safe mapping->tree_lock */
-+	VM_BUG_ON(!irqs_disabled());
-+
- 	mem_cgroup_charge_statistics(memcg, page, -1);
- 	memcg_check_events(memcg, page);
--	local_irq_enable();
+@@ -1522,23 +1522,6 @@ static bool mem_cgroup_wait_acct_move(struct mem_cgroup *memcg)
+ 	return false;
  }
  
+-/*
+- * Take this lock when
+- * - a code tries to modify page's memcg while it's USED.
+- * - a code tries to modify page state accounting in a memcg.
+- */
+-static void move_lock_mem_cgroup(struct mem_cgroup *memcg,
+-				  unsigned long *flags)
+-{
+-	spin_lock_irqsave(&memcg->move_lock, *flags);
+-}
+-
+-static void move_unlock_mem_cgroup(struct mem_cgroup *memcg,
+-				unsigned long *flags)
+-{
+-	spin_unlock_irqrestore(&memcg->move_lock, *flags);
+-}
+-
+ #define K(x) ((x) << (PAGE_SHIFT-10))
  /**
+  * mem_cgroup_print_oom_info: Print OOM information relevant to memory controller.
+@@ -2156,9 +2139,9 @@ again:
+ 	if (atomic_read(&memcg->moving_account) <= 0)
+ 		return memcg;
+ 
+-	move_lock_mem_cgroup(memcg, flags);
++	spin_lock_irqsave(&memcg->move_lock, *flags);
+ 	if (memcg != pc->mem_cgroup) {
+-		move_unlock_mem_cgroup(memcg, flags);
++		spin_unlock_irqrestore(&memcg->move_lock, *flags);
+ 		goto again;
+ 	}
+ 	*locked = true;
+@@ -2176,7 +2159,7 @@ void mem_cgroup_end_page_stat(struct mem_cgroup *memcg, bool locked,
+ 			      unsigned long flags)
+ {
+ 	if (memcg && locked)
+-		move_unlock_mem_cgroup(memcg, &flags);
++		spin_unlock_irqrestore(&memcg->move_lock, flags);
+ 
+ 	rcu_read_unlock();
+ }
+@@ -3219,7 +3202,7 @@ static int mem_cgroup_move_account(struct page *page,
+ 	if (pc->mem_cgroup != from)
+ 		goto out_unlock;
+ 
+-	move_lock_mem_cgroup(from, &flags);
++	spin_lock_irqsave(&from->move_lock, flags);
+ 
+ 	if (!PageAnon(page) && page_mapped(page)) {
+ 		__this_cpu_sub(from->stat->count[MEM_CGROUP_STAT_FILE_MAPPED],
+@@ -3243,7 +3226,8 @@ static int mem_cgroup_move_account(struct page *page,
+ 
+ 	/* caller should have done css_get */
+ 	pc->mem_cgroup = to;
+-	move_unlock_mem_cgroup(from, &flags);
++	spin_unlock_irqrestore(&from->move_lock, flags);
++
+ 	ret = 0;
+ 
+ 	local_irq_disable();
 -- 
 2.1.2
 
