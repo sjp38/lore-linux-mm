@@ -1,172 +1,331 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 657616B0069
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 17:21:08 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id et14so1860685pad.3
-        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 14:21:08 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id gn1si5173035pac.8.2014.10.24.14.21.06
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 626F26B006C
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 17:21:10 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id r10so2120132pdi.31
+        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 14:21:10 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id p5si5173993pdb.8.2014.10.24.14.21.08
         for <linux-mm@kvack.org>;
-        Fri, 24 Oct 2014 14:21:07 -0700 (PDT)
+        Fri, 24 Oct 2014 14:21:09 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v12 00/20] DAX: Page cache bypass for filesystems on memory storage
-Date: Fri, 24 Oct 2014 17:20:32 -0400
-Message-Id: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH v12 02/20] block: Change direct_access calling convention
+Date: Fri, 24 Oct 2014 17:20:34 -0400
+Message-Id: <1414185652-28663-3-git-send-email-matthew.r.wilcox@intel.com>
+In-Reply-To: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
+References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, willy@linux.intel.com, Andrew Morton <akpm@linux-foundation.org>
 
-DAX is a replacement for the variation of XIP currently supported by
-the ext2 filesystem.  We have three different things in the tree called
-'XIP', and the new focus is on access to data rather than executables,
-so a name change was in order.  DAX stands for Direct Access.  The X is
-for eXciting.
+In order to support accesses to larger chunks of memory, pass in a
+'size' parameter (counted in bytes), and return the amount available at
+that address.
 
-The new focus on data access has resulted in more careful attention to
-races that exist in the current XIP code, but are not hit by the use-case
-that it was designed for.  XIP's architecture worked fine for ext2, but
-DAX is architected to work with modern filsystems such as ext4 and XFS.
-DAX is not intended for use with btrfs; the value that btrfs adds relies
-on manipulating data and writing data to different locations, while DAX's
-value is for write-in-place and keeping the kernel from touching the data.
+Add a new helper function, bdev_direct_access(), to handle common
+functionality including partition handling, checking the length requested
+is positive, checking for the sector being page-aligned, and checking
+the length of the request does not pass the end of the partition.
 
-DAX was developed in order to support NV-DIMMs, but it's become clear that
-its usefuless extends beyond NV-DIMMs and there are several potential
-customers including the tracing machinery.  Other people want to place
-the kernel log in an area of memory, as long as they have a BIOS that
-does not clear DRAM on reboot.
+Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Reviewed-by: Jan Kara <jack@suse.cz>
+Reviewed-by: Boaz Harrosh <boaz@plexistor.com>
+---
+ Documentation/filesystems/xip.txt | 15 +++++++++------
+ arch/powerpc/sysdev/axonram.c     | 17 ++++-------------
+ drivers/block/brd.c               | 14 +++++++-------
+ drivers/s390/block/dcssblk.c      | 21 +++++++++-----------
+ fs/block_dev.c                    | 40 +++++++++++++++++++++++++++++++++++++++
+ fs/ext2/xip.c                     | 31 +++++++++++++-----------------
+ include/linux/blkdev.h            |  6 ++++--
+ 7 files changed, 86 insertions(+), 58 deletions(-)
 
-Patch 1 is a bug fix.  It is obviously correct, and should be included
-into 3.18.
-
-Patch 2 starts the transformation by changing how ->direct_access works.
-Much code is moved from the drivers and filesystems into the block layer,
-and we add the flexibility of being able to map more than one page at
-a time.  It would be good to get this patch into 3.18 as it is also
-useful for people who are pursuing non-DAX approaches to working with
-persistent memory.
-
-Patch 3 is also a bug fix, probably worth including in 3.18.
-
-Patches 4 & 5 are infrastructure for DAX.
-
-Patches 6-10 replace the XIP code with its DAX equivalents, transforming
-ext2 to use the DAX code as we go.  Note that patch 10 is the
-Documentation patch.
-
-Patches 11-17 clean up after the XIP code, removing the infrastructure
-that is no longer needed and renaming various XIP things to DAX.
-Most of these patches were added after Jan found things he didn't
-like in an earlier version of the ext4 patch ... that had been copied
-from ext2.  So ext2 i being transformed to do things the same way that
-ext4 will later.  The ability to mount ext2 filesystems with the 'xip'
-option is retained, although the 'dax' option is now preferred.
-
-Patch 18 adds some DAX infrastructure to support ext4.
-
-Patch 19 adds DAX support to ext4.  It is broadly similar to ext2's DAX
-support, but it is more efficient than ext4's due to its support for
-unwritten extents.
-
-Patch 20 is another cleanup patch renaming XIP to DAX.
-
-
-My thanks to Mathieu Desnoyers for his reviews of the v11 patchset.  Most
-of the changes below were based on his feedback.
-
-Changes since v11:
- - Rebased to 3.18-rc1, dropping patch "vfs: Add copy_to_iter(),
-   copy_from_iter() and iov_iter_zero()" as it was merged through Al's tree.
- - Added cc to stable@vger.kernel.org on patch 1
- - Fixed comment style in brd.c (Mathieu)
- - Make more functions in fs.h common with and without CONFIG_FS_DAX set
- - Improve type-checking with !CONFIG_FS_DAX
- - Simplify check for holes in dax_io()
- - Harden the loop in dax_clear_blocks()
- - Add missing check against truncate of a page covering a hole
- - Fix the page-fault handler to work for block devices too
- - Change a few more places that mentioned 'XIP' into 'DAX'
- - Update DAX documentation in a couple of places
-
-Matthew Wilcox (19):
-  axonram: Fix bug in direct_access
-  block: Change direct_access calling convention
-  mm: Fix XIP fault vs truncate race
-  mm: Allow page fault handlers to perform the COW
-  vfs,ext2: Introduce IS_DAX(inode)
-  dax,ext2: Replace XIP read and write with DAX I/O
-  dax,ext2: Replace ext2_clear_xip_target with dax_clear_blocks
-  dax,ext2: Replace the XIP page fault handler with the DAX page fault
-    handler
-  dax,ext2: Replace xip_truncate_page with dax_truncate_page
-  dax: Replace XIP documentation with DAX documentation
-  vfs: Remove get_xip_mem
-  ext2: Remove ext2_xip_verify_sb()
-  ext2: Remove ext2_use_xip
-  ext2: Remove xip.c and xip.h
-  vfs,ext2: Remove CONFIG_EXT2_FS_XIP and rename CONFIG_FS_XIP to
-    CONFIG_FS_DAX
-  ext2: Remove ext2_aops_xip
-  ext2: Get rid of most mentions of XIP in ext2
-  dax: Add dax_zero_page_range
-  brd: Rename XIP to DAX
-
-Ross Zwisler (1):
-  ext4: Add DAX functionality
-
- Documentation/filesystems/00-INDEX |   5 +-
- Documentation/filesystems/Locking  |   3 -
- Documentation/filesystems/dax.txt  |  91 +++++++
- Documentation/filesystems/ext2.txt |   5 +-
- Documentation/filesystems/ext4.txt |   4 +
- Documentation/filesystems/vfs.txt  |   7 -
- Documentation/filesystems/xip.txt  |  68 -----
- MAINTAINERS                        |   6 +
- arch/powerpc/sysdev/axonram.c      |  19 +-
- drivers/block/Kconfig              |  13 +-
- drivers/block/brd.c                |  28 +-
- drivers/s390/block/dcssblk.c       |  21 +-
- fs/Kconfig                         |  21 +-
- fs/Makefile                        |   1 +
- fs/block_dev.c                     |  40 +++
- fs/dax.c                           | 530 +++++++++++++++++++++++++++++++++++++
- fs/exofs/inode.c                   |   1 -
- fs/ext2/Kconfig                    |  11 -
- fs/ext2/Makefile                   |   1 -
- fs/ext2/ext2.h                     |  10 +-
- fs/ext2/file.c                     |  45 +++-
- fs/ext2/inode.c                    |  38 +--
- fs/ext2/namei.c                    |  13 +-
- fs/ext2/super.c                    |  53 ++--
- fs/ext2/xip.c                      |  91 -------
- fs/ext2/xip.h                      |  26 --
- fs/ext4/ext4.h                     |   6 +
- fs/ext4/file.c                     |  50 +++-
- fs/ext4/indirect.c                 |  18 +-
- fs/ext4/inode.c                    |  89 +++++--
- fs/ext4/namei.c                    |  10 +-
- fs/ext4/super.c                    |  39 ++-
- fs/open.c                          |   5 +-
- include/linux/blkdev.h             |   6 +-
- include/linux/fs.h                 |  34 +--
- include/linux/mm.h                 |   1 +
- include/linux/rmap.h               |   2 +-
- mm/Makefile                        |   1 -
- mm/fadvise.c                       |   6 +-
- mm/filemap.c                       |  25 +-
- mm/filemap_xip.c                   | 483 ---------------------------------
- mm/madvise.c                       |   2 +-
- mm/memory.c                        |  33 ++-
- scripts/diffconfig                 |   1 -
- 44 files changed, 1069 insertions(+), 893 deletions(-)
- create mode 100644 Documentation/filesystems/dax.txt
- delete mode 100644 Documentation/filesystems/xip.txt
- create mode 100644 fs/dax.c
- delete mode 100644 fs/ext2/xip.c
- delete mode 100644 fs/ext2/xip.h
- delete mode 100644 mm/filemap_xip.c
-
+diff --git a/Documentation/filesystems/xip.txt b/Documentation/filesystems/xip.txt
+index 0466ee5..b774729 100644
+--- a/Documentation/filesystems/xip.txt
++++ b/Documentation/filesystems/xip.txt
+@@ -28,12 +28,15 @@ Implementation
+ Execute-in-place is implemented in three steps: block device operation,
+ address space operation, and file operations.
+ 
+-A block device operation named direct_access is used to retrieve a
+-reference (pointer) to a block on-disk. The reference is supposed to be
+-cpu-addressable, physical address and remain valid until the release operation
+-is performed. A struct block_device reference is used to address the device,
+-and a sector_t argument is used to identify the individual block. As an
+-alternative, memory technology devices can be used for this.
++A block device operation named direct_access is used to translate the
++block device sector number to a page frame number (pfn) that identifies
++the physical page for the memory.  It also returns a kernel virtual
++address that can be used to access the memory.
++
++The direct_access method takes a 'size' parameter that indicates the
++number of bytes being requested.  The function should return the number
++of bytes that can be contiguously accessed at that offset.  It may also
++return a negative errno if an error occurs.
+ 
+ The block device operation is optional, these block devices support it as of
+ today:
+diff --git a/arch/powerpc/sysdev/axonram.c b/arch/powerpc/sysdev/axonram.c
+index e8bb33b..4afff8d 100644
+--- a/arch/powerpc/sysdev/axonram.c
++++ b/arch/powerpc/sysdev/axonram.c
+@@ -139,26 +139,17 @@ axon_ram_make_request(struct request_queue *queue, struct bio *bio)
+  * axon_ram_direct_access - direct_access() method for block device
+  * @device, @sector, @data: see block_device_operations method
+  */
+-static int
++static long
+ axon_ram_direct_access(struct block_device *device, sector_t sector,
+-		       void **kaddr, unsigned long *pfn)
++		       void **kaddr, unsigned long *pfn, long size)
+ {
+ 	struct axon_ram_bank *bank = device->bd_disk->private_data;
+-	loff_t offset;
+-
+-	offset = sector;
+-	if (device->bd_part != NULL)
+-		offset += device->bd_part->start_sect;
+-	offset <<= AXON_RAM_SECTOR_SHIFT;
+-	if (offset >= bank->size) {
+-		dev_err(&bank->device->dev, "Access outside of address space\n");
+-		return -ERANGE;
+-	}
++	loff_t offset = (loff_t)sector << AXON_RAM_SECTOR_SHIFT;
+ 
+ 	*kaddr = (void *)(bank->ph_addr + offset);
+ 	*pfn = virt_to_phys(*kaddr) >> PAGE_SHIFT;
+ 
+-	return 0;
++	return bank->size - offset;
+ }
+ 
+ static const struct block_device_operations axon_ram_devops = {
+diff --git a/drivers/block/brd.c b/drivers/block/brd.c
+index 3598110..89e90ec 100644
+--- a/drivers/block/brd.c
++++ b/drivers/block/brd.c
+@@ -370,25 +370,25 @@ static int brd_rw_page(struct block_device *bdev, sector_t sector,
+ }
+ 
+ #ifdef CONFIG_BLK_DEV_XIP
+-static int brd_direct_access(struct block_device *bdev, sector_t sector,
+-			void **kaddr, unsigned long *pfn)
++static long brd_direct_access(struct block_device *bdev, sector_t sector,
++			void **kaddr, unsigned long *pfn, long size)
+ {
+ 	struct brd_device *brd = bdev->bd_disk->private_data;
+ 	struct page *page;
+ 
+ 	if (!brd)
+ 		return -ENODEV;
+-	if (sector & (PAGE_SECTORS-1))
+-		return -EINVAL;
+-	if (sector + PAGE_SECTORS > get_capacity(bdev->bd_disk))
+-		return -ERANGE;
+ 	page = brd_insert_page(brd, sector);
+ 	if (!page)
+ 		return -ENOSPC;
+ 	*kaddr = page_address(page);
+ 	*pfn = page_to_pfn(page);
+ 
+-	return 0;
++	/*
++	 * TODO: If size > PAGE_SIZE, we could look to see if the next page in
++	 * the file happens to be mapped to the next page of physical RAM.
++	 */
++	return PAGE_SIZE;
+ }
+ #endif
+ 
+diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
+index 0f47175..96bc411 100644
+--- a/drivers/s390/block/dcssblk.c
++++ b/drivers/s390/block/dcssblk.c
+@@ -28,8 +28,8 @@
+ static int dcssblk_open(struct block_device *bdev, fmode_t mode);
+ static void dcssblk_release(struct gendisk *disk, fmode_t mode);
+ static void dcssblk_make_request(struct request_queue *q, struct bio *bio);
+-static int dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
+-				 void **kaddr, unsigned long *pfn);
++static long dcssblk_direct_access(struct block_device *bdev, sector_t secnum,
++				 void **kaddr, unsigned long *pfn, long size);
+ 
+ static char dcssblk_segments[DCSSBLK_PARM_LEN] = "\0";
+ 
+@@ -866,25 +866,22 @@ fail:
+ 	bio_io_error(bio);
+ }
+ 
+-static int
++static long
+ dcssblk_direct_access (struct block_device *bdev, sector_t secnum,
+-			void **kaddr, unsigned long *pfn)
++			void **kaddr, unsigned long *pfn, long size)
+ {
+ 	struct dcssblk_dev_info *dev_info;
+-	unsigned long pgoff;
++	unsigned long offset, dev_sz;
+ 
+ 	dev_info = bdev->bd_disk->private_data;
+ 	if (!dev_info)
+ 		return -ENODEV;
+-	if (secnum % (PAGE_SIZE/512))
+-		return -EINVAL;
+-	pgoff = secnum / (PAGE_SIZE / 512);
+-	if ((pgoff+1)*PAGE_SIZE-1 > dev_info->end - dev_info->start)
+-		return -ERANGE;
+-	*kaddr = (void *) (dev_info->start+pgoff*PAGE_SIZE);
++	dev_sz = dev_info->end - dev_info->start;
++	offset = secnum * 512;
++	*kaddr = (void *) (dev_info->start + offset);
+ 	*pfn = virt_to_phys(*kaddr) >> PAGE_SHIFT;
+ 
+-	return 0;
++	return dev_sz - offset;
+ }
+ 
+ static void
+diff --git a/fs/block_dev.c b/fs/block_dev.c
+index cc9d411..2d2668b 100644
+--- a/fs/block_dev.c
++++ b/fs/block_dev.c
+@@ -423,6 +423,46 @@ int bdev_write_page(struct block_device *bdev, sector_t sector,
+ }
+ EXPORT_SYMBOL_GPL(bdev_write_page);
+ 
++/**
++ * bdev_direct_access() - Get the address for directly-accessibly memory
++ * @bdev: The device containing the memory
++ * @sector: The offset within the device
++ * @addr: Where to put the address of the memory
++ * @pfn: The Page Frame Number for the memory
++ * @size: The number of bytes requested
++ *
++ * If a block device is made up of directly addressable memory, this function
++ * will tell the caller the PFN and the address of the memory.  The address
++ * may be directly dereferenced within the kernel without the need to call
++ * ioremap(), kmap() or similar.  The PFN is suitable for inserting into
++ * page tables.
++ *
++ * Return: negative errno if an error occurs, otherwise the number of bytes
++ * accessible at this address.
++ */
++long bdev_direct_access(struct block_device *bdev, sector_t sector,
++			void **addr, unsigned long *pfn, long size)
++{
++	long avail;
++	const struct block_device_operations *ops = bdev->bd_disk->fops;
++
++	if (size < 0)
++		return size;
++	if (!ops->direct_access)
++		return -EOPNOTSUPP;
++	if ((sector + DIV_ROUND_UP(size, 512)) >
++					part_nr_sects_read(bdev->bd_part))
++		return -ERANGE;
++	sector += get_start_sect(bdev);
++	if (sector % (PAGE_SIZE / 512))
++		return -EINVAL;
++	avail = ops->direct_access(bdev, sector, addr, pfn, size);
++	if (!avail)
++		return -ERANGE;
++	return min(avail, size);
++}
++EXPORT_SYMBOL_GPL(bdev_direct_access);
++
+ /*
+  * pseudo-fs
+  */
+diff --git a/fs/ext2/xip.c b/fs/ext2/xip.c
+index e98171a..bbc5fec 100644
+--- a/fs/ext2/xip.c
++++ b/fs/ext2/xip.c
+@@ -13,18 +13,12 @@
+ #include "ext2.h"
+ #include "xip.h"
+ 
+-static inline int
+-__inode_direct_access(struct inode *inode, sector_t block,
+-		      void **kaddr, unsigned long *pfn)
++static inline long __inode_direct_access(struct inode *inode, sector_t block,
++				void **kaddr, unsigned long *pfn, long size)
+ {
+ 	struct block_device *bdev = inode->i_sb->s_bdev;
+-	const struct block_device_operations *ops = bdev->bd_disk->fops;
+-	sector_t sector;
+-
+-	sector = block * (PAGE_SIZE / 512); /* ext2 block to bdev sector */
+-
+-	BUG_ON(!ops->direct_access);
+-	return ops->direct_access(bdev, sector, kaddr, pfn);
++	sector_t sector = block * (PAGE_SIZE / 512);
++	return bdev_direct_access(bdev, sector, kaddr, pfn, size);
+ }
+ 
+ static inline int
+@@ -53,12 +47,13 @@ ext2_clear_xip_target(struct inode *inode, sector_t block)
+ {
+ 	void *kaddr;
+ 	unsigned long pfn;
+-	int rc;
++	long size;
+ 
+-	rc = __inode_direct_access(inode, block, &kaddr, &pfn);
+-	if (!rc)
+-		clear_page(kaddr);
+-	return rc;
++	size = __inode_direct_access(inode, block, &kaddr, &pfn, PAGE_SIZE);
++	if (size < 0)
++		return size;
++	clear_page(kaddr);
++	return 0;
+ }
+ 
+ void ext2_xip_verify_sb(struct super_block *sb)
+@@ -77,7 +72,7 @@ void ext2_xip_verify_sb(struct super_block *sb)
+ int ext2_get_xip_mem(struct address_space *mapping, pgoff_t pgoff, int create,
+ 				void **kmem, unsigned long *pfn)
+ {
+-	int rc;
++	long rc;
+ 	sector_t block;
+ 
+ 	/* first, retrieve the sector number */
+@@ -86,6 +81,6 @@ int ext2_get_xip_mem(struct address_space *mapping, pgoff_t pgoff, int create,
+ 		return rc;
+ 
+ 	/* retrieve address of the target data */
+-	rc = __inode_direct_access(mapping->host, block, kmem, pfn);
+-	return rc;
++	rc = __inode_direct_access(mapping->host, block, kmem, pfn, PAGE_SIZE);
++	return (rc < 0) ? rc : 0;
+ }
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index 0207a78..3b93ec7 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -1604,8 +1604,8 @@ struct block_device_operations {
+ 	int (*rw_page)(struct block_device *, sector_t, struct page *, int rw);
+ 	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+ 	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
+-	int (*direct_access) (struct block_device *, sector_t,
+-						void **, unsigned long *);
++	long (*direct_access)(struct block_device *, sector_t,
++					void **, unsigned long *pfn, long size);
+ 	unsigned int (*check_events) (struct gendisk *disk,
+ 				      unsigned int clearing);
+ 	/* ->media_changed() is DEPRECATED, use ->check_events() instead */
+@@ -1623,6 +1623,8 @@ extern int __blkdev_driver_ioctl(struct block_device *, fmode_t, unsigned int,
+ extern int bdev_read_page(struct block_device *, sector_t, struct page *);
+ extern int bdev_write_page(struct block_device *, sector_t, struct page *,
+ 						struct writeback_control *);
++extern long bdev_direct_access(struct block_device *, sector_t, void **addr,
++						unsigned long *pfn, long size);
+ #else /* CONFIG_BLOCK */
+ 
+ struct block_device;
 -- 
 2.1.1
 
