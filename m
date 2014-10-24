@@ -1,50 +1,226 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B3266B0069
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 11:16:36 -0400 (EDT)
-Received: by mail-ie0-f181.google.com with SMTP id y20so2496909ier.40
-        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 08:16:35 -0700 (PDT)
-Received: from resqmta-po-04v.sys.comcast.net (resqmta-po-04v.sys.comcast.net. [2001:558:fe16:19:96:114:154:163])
-        by mx.google.com with ESMTPS id v102si6287378iov.103.2014.10.24.08.16.34
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C6D96B006E
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 11:23:03 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id eu11so1333064pac.9
+        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 08:23:02 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id b3si4364023pat.229.2014.10.24.08.23.01
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 24 Oct 2014 08:16:34 -0700 (PDT)
-Date: Fri, 24 Oct 2014 10:16:24 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC][PATCH 4/6] SRCU free VMAs
-In-Reply-To: <20141021080740.GJ23531@worktop.programming.kicks-ass.net>
-Message-ID: <alpine.DEB.2.11.1410241003430.29419@gentwo.org>
-References: <20141020215633.717315139@infradead.org> <20141020222841.419869904@infradead.org> <CA+55aFwd04q+O5ejbmDL-H7_GB6DEBMiiHkn+2R1u4uWxfDO9w@mail.gmail.com> <20141021080740.GJ23531@worktop.programming.kicks-ass.net>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Oct 2014 08:23:01 -0700 (PDT)
+Date: Fri, 24 Oct 2014 19:22:51 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [patch 3/3] mm: memcontrol: drop bogus RCU locking from
+ mem_cgroup_same_or_subtree()
+Message-ID: <20141024152251.GC28055@esperanza>
+References: <1414158589-26094-1-git-send-email-hannes@cmpxchg.org>
+ <1414158589-26094-3-git-send-email-hannes@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <1414158589-26094-3-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Al Viro <viro@zeniv.linux.org.uk>, Lai Jiangshan <laijs@cn.fujitsu.com>, Davidlohr Bueso <dave@stgolabs.net>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, 21 Oct 2014, Peter Zijlstra wrote:
+On Fri, Oct 24, 2014 at 09:49:49AM -0400, Johannes Weiner wrote:
+> None of the mem_cgroup_same_or_subtree() callers actually require it
+> to take the RCU lock, either because they hold it themselves or they
+> have css references.  Remove it.
 
-> On Mon, Oct 20, 2014 at 04:41:45PM -0700, Linus Torvalds wrote:
-> > On Mon, Oct 20, 2014 at 2:56 PM, Peter Zijlstra <peterz@infradead.org> wrote:
-> > > Manage the VMAs with SRCU such that we can do a lockless VMA lookup.
-> >
-> > Can you explain why srcu, and not plain regular rcu?
-> >
-> > Especially as you then *note* some of the problems srcu can have.
-> > Making it regular rcu would also seem to make it possible to make the
-> > seqlock be just a seqcount, no?
->
-> Because we need to hold onto the RCU read side lock across the entire
-> fault, which can involve IO and all kinds of other blocking ops.
+It seems we don't need these rcu_read_lock/unlock there since commit
+b47f77b5a224 ("memcg: convert to use cgroup_is_descendant()"), which
+removed RCU-ish css_is_ancestor() from mem_cgroup_same_or_subtree().
 
-Hmmm... One optimization to do before we get into these changes is to work
-on allowing the dropping of mmap_sem before we get to sleeping and I/O and
-then reevaluate when I/O etc is complete? This is probably the longest
-hold on mmap_sem that is also frequent. Then it may be easier to use
-standard RCU later.
+Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
 
-
-
-
+> 
+> To make the API change clear, rename the leftover helper to
+> mem_cgroup_is_descendant() to match cgroup_is_descendant().
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  include/linux/memcontrol.h | 13 +++++-----
+>  mm/memcontrol.c            | 59 +++++++++++++---------------------------------
+>  mm/oom_kill.c              |  4 ++--
+>  3 files changed, 24 insertions(+), 52 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index e32ab948f589..d4575a1d6e99 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -68,10 +68,9 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
+>  struct lruvec *mem_cgroup_zone_lruvec(struct zone *, struct mem_cgroup *);
+>  struct lruvec *mem_cgroup_page_lruvec(struct page *, struct zone *);
+>  
+> -bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+> -				  struct mem_cgroup *memcg);
+> -bool task_in_mem_cgroup(struct task_struct *task,
+> -			const struct mem_cgroup *memcg);
+> +bool mem_cgroup_is_descendant(struct mem_cgroup *memcg,
+> +			      struct mem_cgroup *root);
+> +bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg);
+>  
+>  extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
+>  extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+> @@ -79,8 +78,8 @@ extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+>  extern struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg);
+>  extern struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css);
+>  
+> -static inline
+> -bool mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *memcg)
+> +static inline bool mm_match_cgroup(struct mm_struct *mm,
+> +				   struct mem_cgroup *memcg)
+>  {
+>  	struct mem_cgroup *task_memcg;
+>  	bool match = false;
+> @@ -88,7 +87,7 @@ bool mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *memcg)
+>  	rcu_read_lock();
+>  	task_memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
+>  	if (task_memcg)
+> -		match = __mem_cgroup_same_or_subtree(memcg, task_memcg);
+> +		match = mem_cgroup_is_descendant(task_memcg, memcg);
+>  	rcu_read_unlock();
+>  	return match;
+>  }
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 15b1c5110a8f..f75b92a44ac6 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1307,41 +1307,24 @@ void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
+>  	VM_BUG_ON((long)(*lru_size) < 0);
+>  }
+>  
+> -/*
+> - * Checks whether given mem is same or in the root_mem_cgroup's
+> - * hierarchy subtree
+> - */
+> -bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+> -				  struct mem_cgroup *memcg)
+> +bool mem_cgroup_is_descendant(struct mem_cgroup *memcg, struct mem_cgroup *root)
+>  {
+> -	if (root_memcg == memcg)
+> +	if (root == memcg)
+>  		return true;
+> -	if (!root_memcg->use_hierarchy)
+> +	if (!root->use_hierarchy)
+>  		return false;
+> -	return cgroup_is_descendant(memcg->css.cgroup, root_memcg->css.cgroup);
+> -}
+> -
+> -static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+> -				       struct mem_cgroup *memcg)
+> -{
+> -	bool ret;
+> -
+> -	rcu_read_lock();
+> -	ret = __mem_cgroup_same_or_subtree(root_memcg, memcg);
+> -	rcu_read_unlock();
+> -	return ret;
+> +	return cgroup_is_descendant(memcg->css.cgroup, root->css.cgroup);
+>  }
+>  
+> -bool task_in_mem_cgroup(struct task_struct *task,
+> -			const struct mem_cgroup *memcg)
+> +bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg)
+>  {
+> -	struct mem_cgroup *curr;
+> +	struct mem_cgroup *task_memcg;
+>  	struct task_struct *p;
+>  	bool ret;
+>  
+>  	p = find_lock_task_mm(task);
+>  	if (p) {
+> -		curr = get_mem_cgroup_from_mm(p->mm);
+> +		task_memcg = get_mem_cgroup_from_mm(p->mm);
+>  		task_unlock(p);
+>  	} else {
+>  		/*
+> @@ -1350,18 +1333,12 @@ bool task_in_mem_cgroup(struct task_struct *task,
+>  		 * killed to prevent needlessly killing additional tasks.
+>  		 */
+>  		rcu_read_lock();
+> -		curr = mem_cgroup_from_task(task);
+> -		css_get(&curr->css);
+> +		task_memcg = mem_cgroup_from_task(task);
+> +		css_get(&task_memcg->css);
+>  		rcu_read_unlock();
+>  	}
+> -	/*
+> -	 * We should check use_hierarchy of "memcg" not "curr". Because checking
+> -	 * use_hierarchy of "curr" here make this function true if hierarchy is
+> -	 * enabled in "curr" and "curr" is a child of "memcg" in *cgroup*
+> -	 * hierarchy(even if use_hierarchy is disabled in "memcg").
+> -	 */
+> -	ret = mem_cgroup_same_or_subtree(memcg, curr);
+> -	css_put(&curr->css);
+> +	ret = mem_cgroup_is_descendant(task_memcg, memcg);
+> +	css_put(&task_memcg->css);
+>  	return ret;
+>  }
+>  
+> @@ -1446,8 +1423,8 @@ static bool mem_cgroup_under_move(struct mem_cgroup *memcg)
+>  	if (!from)
+>  		goto unlock;
+>  
+> -	ret = mem_cgroup_same_or_subtree(memcg, from)
+> -		|| mem_cgroup_same_or_subtree(memcg, to);
+> +	ret = mem_cgroup_is_descendant(from, memcg) ||
+> +		mem_cgroup_is_descendant(to, memcg);
+>  unlock:
+>  	spin_unlock(&mc.lock);
+>  	return ret;
+> @@ -1813,12 +1790,8 @@ static int memcg_oom_wake_function(wait_queue_t *wait,
+>  	oom_wait_info = container_of(wait, struct oom_wait_info, wait);
+>  	oom_wait_memcg = oom_wait_info->memcg;
+>  
+> -	/*
+> -	 * Both of oom_wait_info->memcg and wake_memcg are stable under us.
+> -	 * Then we can use css_is_ancestor without taking care of RCU.
+> -	 */
+> -	if (!mem_cgroup_same_or_subtree(oom_wait_memcg, wake_memcg)
+> -		&& !mem_cgroup_same_or_subtree(wake_memcg, oom_wait_memcg))
+> +	if (!mem_cgroup_is_descendant(wake_memcg, oom_wait_memcg) &&
+> +	    !mem_cgroup_is_descendant(oom_wait_memcg, wake_memcg))
+>  		return 0;
+>  	return autoremove_wake_function(wait, mode, sync, arg);
+>  }
+> @@ -2138,7 +2111,7 @@ static void drain_all_stock(struct mem_cgroup *root_memcg)
+>  		memcg = stock->cached;
+>  		if (!memcg || !stock->nr_pages)
+>  			continue;
+> -		if (!mem_cgroup_same_or_subtree(root_memcg, memcg))
+> +		if (!mem_cgroup_is_descendant(memcg, root_memcg))
+>  			continue;
+>  		if (!test_and_set_bit(FLUSHING_CACHED_CHARGE, &stock->flags)) {
+>  			if (cpu == curcpu)
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 3348280eef89..864bba992735 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -119,7 +119,7 @@ found:
+>  
+>  /* return true if the task is not adequate as candidate victim task. */
+>  static bool oom_unkillable_task(struct task_struct *p,
+> -		const struct mem_cgroup *memcg, const nodemask_t *nodemask)
+> +		struct mem_cgroup *memcg, const nodemask_t *nodemask)
+>  {
+>  	if (is_global_init(p))
+>  		return true;
+> @@ -353,7 +353,7 @@ static struct task_struct *select_bad_process(unsigned int *ppoints,
+>   * State information includes task's pid, uid, tgid, vm size, rss, nr_ptes,
+>   * swapents, oom_score_adj value, and name.
+>   */
+> -static void dump_tasks(const struct mem_cgroup *memcg, const nodemask_t *nodemask)
+> +static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
+>  {
+>  	struct task_struct *p;
+>  	struct task_struct *task;
+> -- 
+> 2.1.2
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
