@@ -1,123 +1,207 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
-	by kanga.kvack.org (Postfix) with ESMTP id D6DA46B0069
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 06:00:13 -0400 (EDT)
-Received: by mail-la0-f43.google.com with SMTP id mc6so2574685lab.2
-        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 03:00:13 -0700 (PDT)
-Received: from galahad.ideasonboard.com (galahad.ideasonboard.com. [2001:4b98:dc2:45:216:3eff:febb:480d])
-        by mx.google.com with ESMTPS id ao5si6197703lbc.58.2014.10.24.03.00.11
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Oct 2014 03:00:12 -0700 (PDT)
-From: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-Subject: Re: [PATCH 3/4] mm: cma: Ensure that reservations never cross the low/high mem boundary
-Date: Fri, 24 Oct 2014 13:00:11 +0300
-Message-ID: <1874192.vbdvJooA5D@avalon>
-In-Reply-To: <20141024025325.GB15243@js1304-P5Q-DELUXE>
-References: <1414074828-4488-1-git-send-email-laurent.pinchart+renesas@ideasonboard.com> <1414074828-4488-4-git-send-email-laurent.pinchart+renesas@ideasonboard.com> <20141024025325.GB15243@js1304-P5Q-DELUXE>
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 84EAF6B0069
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 06:10:20 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id p10so1201905pdj.33
+        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 03:10:20 -0700 (PDT)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id ps9si3898464pdb.46.2014.10.24.03.10.18
+        for <linux-mm@kvack.org>;
+        Fri, 24 Oct 2014 03:10:19 -0700 (PDT)
+Message-ID: <544A2588.40802@lge.com>
+Date: Fri, 24 Oct 2014 19:10:16 +0900
+From: Gioh Kim <gioh.kim@lge.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Subject: Re: [PATCH v2 2/2] fs: proc: Include cma info in proc/meminfo
+References: <1413790391-31686-1-git-send-email-pintu.k@samsung.com> <1413986796-19732-1-git-send-email-pintu.k@samsung.com> <1413986796-19732-2-git-send-email-pintu.k@samsung.com> <54484993.1090803@lge.com> <018a01cfef68$88d0b450$9a721cf0$@samsung.com>
+In-Reply-To: <018a01cfef68$88d0b450$9a721cf0$@samsung.com>
+Content-Type: text/plain; charset=EUC-KR
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Michal Nazarewicz <mina86@mina86.com>
+To: PINTU KUMAR <pintu.k@samsung.com>, akpm@linux-foundation.org, riel@redhat.com, aquini@redhat.com, paul.gortmaker@windriver.com, jmarchan@redhat.com, lcapitulino@redhat.com, kirill.shutemov@linux.intel.com, m.szyprowski@samsung.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, mina86@mina86.com, lauraa@codeaurora.org, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org, vbabka@suse.cz, sasha.levin@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: pintu_agarwal@yahoo.com, cpgs@samsung.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, ed.savinay@samsung.com
 
-Hi Joonsoo,
 
-Thank you for the review.
 
-On Friday 24 October 2014 11:53:25 Joonsoo Kim wrote:
-> On Thu, Oct 23, 2014 at 05:33:47PM +0300, Laurent Pinchart wrote:
-> > Commit 95b0e655f914 ("ARM: mm: don't limit default CMA region only to
-> > low memory") extended CMA memory reservation to allow usage of high
-> > memory. It relied on commit f7426b983a6a ("mm: cma: adjust address limit
-> > to avoid hitting low/high memory boundary") to ensure that the reserved
-> > block never crossed the low/high memory boundary. While the
-> > implementation correctly lowered the limit, it failed to consider the
-> > case where the base..limit range crossed the low/high memory boundary
-> > with enough space on each side to reserve the requested size on either
-> > low or high memory.
-> > 
-> > Rework the base and limit adjustment to fix the problem. The function
-> > now starts by rejecting the reservation altogether for fixed
-> > reservations that cross the boundary, then adjust the limit if
-> > reservation from high memory is impossible, and finally first try to
-> > reserve from high memory first and then falls back to low memory.
-> > 
-> > Signed-off-by: Laurent Pinchart
-> > <laurent.pinchart+renesas@ideasonboard.com>
-> > ---
-> > 
-> >  mm/cma.c | 58 ++++++++++++++++++++++++++++++++++++++++++++--------------
-> >  1 file changed, 44 insertions(+), 14 deletions(-)
-> > 
-> > diff --git a/mm/cma.c b/mm/cma.c
-> > index 6b14346..b83597b 100644
-> > --- a/mm/cma.c
-> > +++ b/mm/cma.c
-> > @@ -247,23 +247,38 @@ int __init cma_declare_contiguous(phys_addr_t base,
-> >  		return -EINVAL;
-> >  	
-> >  	/*
-> > -	 * adjust limit to avoid crossing low/high memory boundary for
-> > +	 * Adjust limit and base to avoid crossing low/high memory boundary
-> > for
-> >  	 * automatically allocated regions
-> >  	 */
-> > 
-> > -	if (((limit == 0 || limit > memblock_end) &&
-> > -	     (memblock_end - size < highmem_start &&
-> > -	      memblock_end > highmem_start)) ||
-> > -	    (!fixed && limit > highmem_start && limit - size <
-> > highmem_start)) {
-> > -		limit = highmem_start;
-> > -	}
-> > 
-> > -	if (fixed && base < highmem_start && base+size > highmem_start) {
-> > +	/*
-> > +	 * If allocating at a fixed base the request region must not cross
-> > the
-> > +	 * low/high memory boundary.
-> > +	 */
-> > +	if (fixed && base < highmem_start && base + size > highmem_start) {
-> >  		ret = -EINVAL;
-> >  		pr_err("Region at %08lx defined on low/high memory boundary
-> >  		(%08lx)\n",
-> >  			(unsigned long)base, (unsigned long)highmem_start);
-> >  		goto err;
-> >  	}
-> > 
-> > +	/*
-> > +	 * If the limit is unspecified or above the memblock end, its
-> > effective
-> > +	 * value will be the memblock end. Set it explicitly to simplify
-> > further
-> > +	 * checks.
-> > +	 */
-> > +	if (limit == 0 || limit > memblock_end)
-> > +		limit = memblock_end;
-> > +
-> > +	/*
-> > +	 * If the limit is above the highmem start by less than the reserved
-> > +	 * size allocation in highmem won't be possible. Lower the limit to
-> > the
-> > +	 * lowmem end.
-> > +	 */
-> > +	if (limit > highmem_start && limit - size < highmem_start)
-> > +		limit = highmem_start;
-> > +
+2014-10-24 ?AEA 5:57, PINTU KUMAR  3/4 ' +-U:
+> Hi,
 > 
-> How about removing this check?
-> Without this check, memblock_alloc_range would be failed and we can
-> go fallback correctly. So, this is redundant, IMO.
+> ----- Original Message -----
+>> From: Gioh Kim <gioh.kim@lge.com>
+>> To: Pintu Kumar <pintu.k@samsung.com>; akpm@linux-foundation.org;
+> riel@redhat.com; aquini@redhat.com; paul.gortmaker@windriver.com;
+> jmarchan@redhat.com; lcapitulino@redhat.com;
+> kirill.shutemov@linux.intel.com; m.szyprowski@samsung.com;
+> aneesh.kumar@linux.vnet.ibm.com; iamjoonsoo.kim@lge.com; mina86@mina86.com;
+> lauraa@codeaurora.org; mgorman@suse.de; rientjes@google.com; hannes@cmpxchg.
+> org; vbabka@suse.cz; sasha.levin@oracle.com; linux-kernel@vger.kernel.org;
+> linux-mm@kvack.org
+>> Cc: pintu_agarwal@yahoo.com; cpgs@samsung.com; vishnu.ps@samsung.com;
+> rohit.kr@samsung.com; ed.savinay@samsung.com
+>> Sent: Thursday, 23 October 2014 5:49 AM
+>> Subject: Re: [PATCH v2 2/2] fs: proc: Include cma info in proc/meminfo
+>>
+>>
+>>
+>> 2014-10-22 ?AEA 11:06, Pintu Kumar  3/4 ' +-U:
+>>> This patch include CMA info (CMATotal, CMAFree) in /proc/meminfo.
+>>> Currently, in a CMA enabled system, if somebody wants to know the
+>>> total CMA size declared, there is no way to tell, other than the dmesg
+>>> or /var/log/messages logs.
+>>> With this patch we are showing the CMA info as part of meminfo, so that
+>>> it can be determined at any point of time.
+>>> This will be populated only when CMA is enabled.
+>>>
+>>> Below is the sample output from a ARM based device with RAM:512MB and
+>> CMA:16MB.
+>>>
+>>> MemTotal:        471172 kB
+>>> MemFree:          111712 kB
+>>> MemAvailable:    271172 kB
+>>> .
+>>> .
+>>> .
+>>> CmaTotal:          16384 kB
+>>> CmaFree:            6144 kB
+>>>
+>>> This patch also fix below checkpatch errors that were found during these
+>> changes.
+>>
+>> Why don't you split patch for it?
+>> I think there's a rule not to mix separate patchs.
+>>
+> 
+> Last time when we submitted separate patches for checkpatch errors, it was
+> suggested to
+> Include these kinds of fixes along with some meaningful patches together.
+> So, we included it in same patch.
+> 
+>>>
+>>> ERROR: space required after that ',' (ctx:ExV)
+>>> 199: FILE: fs/proc/meminfo.c:199:
+>>> +      ,atomic_long_read(&num_poisoned_pages) << (PAGE_SHIFT -
+>> 10)
+>>>            ^
+>>>
+>>> ERROR: space required after that ',' (ctx:ExV)
+>>> 202: FILE: fs/proc/meminfo.c:202:
+>>> +      ,K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
+>>>            ^
+>>>
+>>> ERROR: space required after that ',' (ctx:ExV)
+>>> 206: FILE: fs/proc/meminfo.c:206:
+>>> +      ,K(totalcma_pages)
+>>>            ^
+>>>
+>>> total: 3 errors, 0 warnings, 2 checks, 236 lines checked
+>>>
+>>> Signed-off-by: Pintu Kumar <pintu.k@samsung.com>
+>>> Signed-off-by: Vishnu Pratap Singh <vishnu.ps@samsung.com>
+>>> ---
+>>>    fs/proc/meminfo.c |  15 +++++++++++++--
+>>>    1 file changed, 13 insertions(+), 2 deletions(-)
+>>>
+>>> diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+>>> index aa1eee0..d3ebf2e 100644
+>>> --- a/fs/proc/meminfo.c
+>>> +++ b/fs/proc/meminfo.c
+>>> @@ -12,6 +12,9 @@
+>>>    #include <linux/vmstat.h>
+>>>    #include <linux/atomic.h>
+>>>    #include <linux/vmalloc.h>
+>>> +#ifdef CONFIG_CMA
+>>> +#include <linux/cma.h>
+>>> +#endif
+>>>    #include <asm/page.h>
+>>>    #include <asm/pgtable.h>
+>>>    #include "internal.h"
+>>> @@ -138,6 +141,10 @@ static int meminfo_proc_show(struct seq_file *m,
+> void
+>> *v)
+>>>    #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>>>            "AnonHugePages:  %8lu kB\n"
+>>>    #endif
+>>> +#ifdef CONFIG_CMA
+>>> +        "CmaTotal:      %8lu kB\n"
+>>> +        "CmaFree:        %8lu kB\n"
+>>> +#endif
+>>>            ,
+>>>            K(i.totalram),
+>>>            K(i.freeram),
+>>> @@ -187,12 +194,16 @@ static int meminfo_proc_show(struct seq_file *m,
+> void
+>> *v)
+>>>            vmi.used >> 10,
+>>>            vmi.largest_chunk >> 10
+>>>    #ifdef CONFIG_MEMORY_FAILURE
+>>> -        ,atomic_long_read(&num_poisoned_pages) << (PAGE_SHIFT -
+>> 10)
+>>> +        , atomic_long_read(&num_poisoned_pages) << (PAGE_SHIFT -
+>> 10)
+>>>    #endif
+>>>    #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>>> -        ,K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
+>>> +        , K(global_page_state(NR_ANON_TRANSPARENT_HUGEPAGES) *
+>>>              HPAGE_PMD_NR)
+>>>    #endif
+>>> +#ifdef CONFIG_CMA
+>>> +        , K(totalcma_pages)
+>>> +        , K(global_page_state(NR_FREE_CMA_PAGES))
+>>> +#endif
+>>>            );
+>>
+>> Just for sure, are zoneinfo and pagetypeinfo not suitable?
+>>
+> 
+> I think zoneinfo shows only current free cma pages.
+> Same is the case with vmstat.
+> # cat /proc/zoneinfo | grep cma
+>      nr_free_cma  2560
+> # cat /proc/vmstat | grep cma
+> nr_free_cma 2560
 
-Good point. I'll remove the check in v2.
+We could add a line to show total cma pages like following and add it all.
+# cat /proc/zoneinfo | grep cma
+      nr_total_cma XXXX
+      nr_free_cma  2560
 
--- 
-Regards,
+Yes. each zone can have cma area and it is annoying to add it all.
+But IMO it is rare and not difficult.
+And I think it'd better that zoneinfo has nr_total_cma line.
 
-Laurent Pinchart
+I think you already considered my thoughts and choosed /proc/meminfo for a certain reason.
+Why is /proc/meminfo better?
+
+Andrew already accepted it. I'm not against your idea. Just curious.
+
+> 
+>> I don't know HOTPLUG feature so I'm just asking for sure.
+>> Does HOTPLUG not need printing message like this?
+>>
+> 
+> Sorry, I am also not sure what hotplug feature you are referring to.
+
+I mean "memory hotplug" feature.
+Forget it ;-)
+
+> 
+>> Thanks a lot.
+>>
+>>
+>>>    
+>>>        hugetlb_report_meminfo(m);
+>>>
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org">
+>> email@kvack.org </a>
+>>
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
