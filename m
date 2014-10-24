@@ -1,78 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 115586B0069
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 11:10:49 -0400 (EDT)
-Received: by mail-wg0-f52.google.com with SMTP id a1so1281219wgh.11
-        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 08:10:49 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id kb4si5641607wjc.46.2014.10.24.08.10.47
+Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B3266B0069
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 11:16:36 -0400 (EDT)
+Received: by mail-ie0-f181.google.com with SMTP id y20so2496909ier.40
+        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 08:16:35 -0700 (PDT)
+Received: from resqmta-po-04v.sys.comcast.net (resqmta-po-04v.sys.comcast.net. [2001:558:fe16:19:96:114:154:163])
+        by mx.google.com with ESMTPS id v102si6287378iov.103.2014.10.24.08.16.34
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 24 Oct 2014 08:10:48 -0700 (PDT)
-Date: Fri, 24 Oct 2014 17:10:35 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v9 10/12] x86, mpx: add prctl commands PR_MPX_ENABLE_MANAGEMENT,
- PR_MPX_DISABLE_MANAGEMENT
-In-Reply-To: <alpine.DEB.2.11.1410241436560.5308@nanos>
-Message-ID: <alpine.DEB.2.11.1410241710020.5308@nanos>
-References: <1413088915-13428-1-git-send-email-qiaowei.ren@intel.com> <1413088915-13428-11-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.11.1410241436560.5308@nanos>
-MIME-Version: 1.0
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 24 Oct 2014 08:16:34 -0700 (PDT)
+Date: Fri, 24 Oct 2014 10:16:24 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC][PATCH 4/6] SRCU free VMAs
+In-Reply-To: <20141021080740.GJ23531@worktop.programming.kicks-ass.net>
+Message-ID: <alpine.DEB.2.11.1410241003430.29419@gentwo.org>
+References: <20141020215633.717315139@infradead.org> <20141020222841.419869904@infradead.org> <CA+55aFwd04q+O5ejbmDL-H7_GB6DEBMiiHkn+2R1u4uWxfDO9w@mail.gmail.com> <20141021080740.GJ23531@worktop.programming.kicks-ass.net>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Qiaowei Ren <qiaowei.ren@intel.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Dave Hansen <dave.hansen@intel.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Al Viro <viro@zeniv.linux.org.uk>, Lai Jiangshan <laijs@cn.fujitsu.com>, Davidlohr Bueso <dave@stgolabs.net>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Fri, 24 Oct 2014, Thomas Gleixner wrote:
-> On Sun, 12 Oct 2014, Qiaowei Ren wrote:
-> > +int mpx_enable_management(struct task_struct *tsk)
-> > +{
-> > +	struct mm_struct *mm = tsk->mm;
-> > +	void __user *bd_base = MPX_INVALID_BOUNDS_DIR;
-> 
-> What's the point of initializing bd_base here. I had to look twice to
-> figure out that it gets overwritten by task_get_bounds_dir()
-> 
-> > @@ -285,6 +285,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
-> >  	struct xsave_struct *xsave_buf;
-> >  	struct task_struct *tsk = current;
-> >  	siginfo_t info;
-> > +	int ret = 0;
-> >  
-> >  	prev_state = exception_enter();
-> >  	if (notify_die(DIE_TRAP, "bounds", regs, error_code,
-> > @@ -312,8 +313,35 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
-> >  	 */
-> >  	switch (status & MPX_BNDSTA_ERROR_CODE) {
-> >  	case 2: /* Bound directory has invalid entry. */
-> > -		if (do_mpx_bt_fault(xsave_buf))
-> > +		down_write(&current->mm->mmap_sem);
-> 
-> The handling of mm->mmap_sem here is horrible. The only reason why you
-> want to hold mmap_sem write locked in the first place is that you want
-> to cover the allocation and the mm->bd_addr check.
-> 
-> I think it's wrong to tie this to mmap_sem in the first place. If MPX
-> is enabled then you should have mm->bd_addr and an explicit mutex to
-> protect it.
-> 
-> So the logic would look like this:
-> 
->    mutex_lock(&mm->bd_mutex);
->    if (!kernel_managed(mm))
->       do_trap();
->    else if (do_mpx_bt_fault())
->       force_sig();
->    mutex_unlock(&mm->bd_mutex);
->    
-> No tricks with mmap_sem, no special return value handling. Straight
-> forward code instead of a convoluted and error prone mess.
+On Tue, 21 Oct 2014, Peter Zijlstra wrote:
 
-After thinking about the deallocation issue, this would be mm->bd_sem.
+> On Mon, Oct 20, 2014 at 04:41:45PM -0700, Linus Torvalds wrote:
+> > On Mon, Oct 20, 2014 at 2:56 PM, Peter Zijlstra <peterz@infradead.org> wrote:
+> > > Manage the VMAs with SRCU such that we can do a lockless VMA lookup.
+> >
+> > Can you explain why srcu, and not plain regular rcu?
+> >
+> > Especially as you then *note* some of the problems srcu can have.
+> > Making it regular rcu would also seem to make it possible to make the
+> > seqlock be just a seqcount, no?
+>
+> Because we need to hold onto the RCU read side lock across the entire
+> fault, which can involve IO and all kinds of other blocking ops.
 
-Thanks,
+Hmmm... One optimization to do before we get into these changes is to work
+on allowing the dropping of mmap_sem before we get to sleeping and I/O and
+then reevaluate when I/O etc is complete? This is probably the longest
+hold on mmap_sem that is also frequent. Then it may be easier to use
+standard RCU later.
 
-	tglx
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
