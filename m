@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 635F96B0074
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 17:21:27 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id ft15so177108pdb.35
+	by kanga.kvack.org (Postfix) with ESMTP id 3F1076B0075
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 17:21:28 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id ft15so177614pdb.7
         for <linux-mm@kvack.org>; Fri, 24 Oct 2014 14:21:27 -0700 (PDT)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id hm1si5038174pbb.151.2014.10.24.14.21.25
+        by mx.google.com with ESMTP id im10si4960519pbc.250.2014.10.24.14.21.26
         for <linux-mm@kvack.org>;
         Fri, 24 Oct 2014 14:21:26 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v12 03/20] mm: Fix XIP fault vs truncate race
-Date: Fri, 24 Oct 2014 17:20:35 -0400
-Message-Id: <1414185652-28663-4-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH v12 07/20] dax,ext2: Replace ext2_clear_xip_target with dax_clear_blocks
+Date: Fri, 24 Oct 2014 17:20:39 -0400
+Message-Id: <1414185652-28663-8-git-send-email-matthew.r.wilcox@intel.com>
 In-Reply-To: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
 References: <1414185652-28663-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,80 +19,150 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, willy@linux.intel.com, Andrew Morton <akpm@linux-foundation.org>
 
-Pagecache faults recheck i_size after taking the page lock to ensure that
-the fault didn't race against a truncate.  We don't have a page to lock
-in the XIP case, so use the i_mmap_mutex instead.  It is locked in the
-truncate path in unmap_mapping_range() after updating i_size.  So while
-we hold it in the fault path, we are guaranteed that either i_size has
-already been updated in the truncate path, or that the truncate will
-subsequently call zap_page_range_single() and so remove the mapping we
-have just inserted.
+This is practically generic code; other filesystems will want to call
+it from other places, but there's nothing ext2-specific about it.
 
-There is a window of time in which i_size has been reduced and the
-thread has a mapping to a page which will be removed from the file,
-but this is harmless as the page will not be allocated to a different
-purpose before the thread's access to it is revoked.
+Make it a little more generic by allowing it to take a count of the number
+of bytes to zero rather than fixing it to a single page.  Thanks to Dave
+Hansen for suggesting that I need to call cond_resched() if zeroing more
+than one page.
 
 Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Reviewed-by: Jan Kara <jack@suse.cz>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reviewed-by: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
 ---
- mm/filemap_xip.c | 24 ++++++++++++++++++++++--
- 1 file changed, 22 insertions(+), 2 deletions(-)
+ fs/dax.c           | 37 +++++++++++++++++++++++++++++++++++++
+ fs/ext2/inode.c    |  8 +++++---
+ fs/ext2/xip.c      | 14 --------------
+ fs/ext2/xip.h      |  3 ---
+ include/linux/fs.h |  1 +
+ 5 files changed, 43 insertions(+), 20 deletions(-)
 
-diff --git a/mm/filemap_xip.c b/mm/filemap_xip.c
-index d8d9fe3..c8d23e9 100644
---- a/mm/filemap_xip.c
-+++ b/mm/filemap_xip.c
-@@ -260,8 +260,17 @@ again:
- 		__xip_unmap(mapping, vmf->pgoff);
+diff --git a/fs/dax.c b/fs/dax.c
+index 1a2bdbf..69c3126 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -20,8 +20,45 @@
+ #include <linux/fs.h>
+ #include <linux/genhd.h>
+ #include <linux/mutex.h>
++#include <linux/sched.h>
+ #include <linux/uio.h>
  
- found:
-+		/* We must recheck i_size under i_mmap_mutex */
-+		mutex_lock(&mapping->i_mmap_mutex);
-+		size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
-+							PAGE_CACHE_SHIFT;
-+		if (unlikely(vmf->pgoff >= size)) {
-+			mutex_unlock(&mapping->i_mmap_mutex);
-+			return VM_FAULT_SIGBUS;
-+		}
- 		err = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
- 							xip_pfn);
-+		mutex_unlock(&mapping->i_mmap_mutex);
- 		if (err == -ENOMEM)
- 			return VM_FAULT_OOM;
- 		/*
-@@ -285,16 +294,27 @@ found:
- 		}
- 		if (error != -ENODATA)
- 			goto out;
++int dax_clear_blocks(struct inode *inode, sector_t block, long size)
++{
++	struct block_device *bdev = inode->i_sb->s_bdev;
++	sector_t sector = block << (inode->i_blkbits - 9);
 +
-+		/* We must recheck i_size under i_mmap_mutex */
-+		mutex_lock(&mapping->i_mmap_mutex);
-+		size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
-+							PAGE_CACHE_SHIFT;
-+		if (unlikely(vmf->pgoff >= size)) {
-+			ret = VM_FAULT_SIGBUS;
-+			goto unlock;
++	might_sleep();
++	do {
++		void *addr;
++		unsigned long pfn;
++		long count;
++
++		count = bdev_direct_access(bdev, sector, &addr, &pfn, size);
++		if (count < 0)
++			return count;
++		BUG_ON(size < count);
++		while (count > 0) {
++			unsigned pgsz = PAGE_SIZE - offset_in_page(addr);
++			if (pgsz > count)
++				pgsz = count;
++			if (pgsz < PAGE_SIZE)
++				memset(addr, 0, pgsz);
++			else
++				clear_page(addr);
++			addr += pgsz;
++			size -= pgsz;
++			count -= pgsz;
++			BUG_ON(pgsz & 511);
++			sector += pgsz / 512;
++			cond_resched();
 +		}
- 		/* not shared and writable, use xip_sparse_page() */
- 		page = xip_sparse_page();
- 		if (!page)
--			goto out;
-+			goto unlock;
- 		err = vm_insert_page(vma, (unsigned long)vmf->virtual_address,
- 							page);
- 		if (err == -ENOMEM)
--			goto out;
-+			goto unlock;
++	} while (size);
++
++	return 0;
++}
++EXPORT_SYMBOL_GPL(dax_clear_blocks);
++
+ static long dax_get_addr(struct buffer_head *bh, void **addr, unsigned blkbits)
+ {
+ 	unsigned long pfn;
+diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
+index 3ccd5fd..52978b8 100644
+--- a/fs/ext2/inode.c
++++ b/fs/ext2/inode.c
+@@ -733,10 +733,12 @@ static int ext2_get_blocks(struct inode *inode,
  
- 		ret = VM_FAULT_NOPAGE;
-+unlock:
-+		mutex_unlock(&mapping->i_mmap_mutex);
- out:
- 		write_seqcount_end(&xip_sparse_seq);
- 		mutex_unlock(&xip_sparse_mutex);
+ 	if (IS_DAX(inode)) {
+ 		/*
+-		 * we need to clear the block
++		 * block must be initialised before we put it in the tree
++		 * so that it's not found by another thread before it's
++		 * initialised
+ 		 */
+-		err = ext2_clear_xip_target (inode,
+-			le32_to_cpu(chain[depth-1].key));
++		err = dax_clear_blocks(inode, le32_to_cpu(chain[depth-1].key),
++						1 << inode->i_blkbits);
+ 		if (err) {
+ 			mutex_unlock(&ei->truncate_mutex);
+ 			goto cleanup;
+diff --git a/fs/ext2/xip.c b/fs/ext2/xip.c
+index bbc5fec..8cfca3a 100644
+--- a/fs/ext2/xip.c
++++ b/fs/ext2/xip.c
+@@ -42,20 +42,6 @@ __ext2_get_block(struct inode *inode, pgoff_t pgoff, int create,
+ 	return rc;
+ }
+ 
+-int
+-ext2_clear_xip_target(struct inode *inode, sector_t block)
+-{
+-	void *kaddr;
+-	unsigned long pfn;
+-	long size;
+-
+-	size = __inode_direct_access(inode, block, &kaddr, &pfn, PAGE_SIZE);
+-	if (size < 0)
+-		return size;
+-	clear_page(kaddr);
+-	return 0;
+-}
+-
+ void ext2_xip_verify_sb(struct super_block *sb)
+ {
+ 	struct ext2_sb_info *sbi = EXT2_SB(sb);
+diff --git a/fs/ext2/xip.h b/fs/ext2/xip.h
+index 29be737..b2592f2 100644
+--- a/fs/ext2/xip.h
++++ b/fs/ext2/xip.h
+@@ -7,8 +7,6 @@
+ 
+ #ifdef CONFIG_EXT2_FS_XIP
+ extern void ext2_xip_verify_sb (struct super_block *);
+-extern int ext2_clear_xip_target (struct inode *, sector_t);
+-
+ static inline int ext2_use_xip (struct super_block *sb)
+ {
+ 	struct ext2_sb_info *sbi = EXT2_SB(sb);
+@@ -19,6 +17,5 @@ int ext2_get_xip_mem(struct address_space *, pgoff_t, int,
+ #else
+ #define ext2_xip_verify_sb(sb)			do { } while (0)
+ #define ext2_use_xip(sb)			0
+-#define ext2_clear_xip_target(inode, chain)	0
+ #define ext2_get_xip_mem			NULL
+ #endif
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index e024dc3..aeff5dd 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -2474,6 +2474,7 @@ extern int nonseekable_open(struct inode * inode, struct file * filp);
+ 
+ ssize_t dax_do_io(int rw, struct kiocb *, struct inode *, struct iov_iter *,
+ 		loff_t, get_block_t, dio_iodone_t, int flags);
++int dax_clear_blocks(struct inode *, sector_t block, long size);
+ 
+ #ifdef CONFIG_FS_XIP
+ extern int xip_file_mmap(struct file * file, struct vm_area_struct * vma);
 -- 
 2.1.1
 
