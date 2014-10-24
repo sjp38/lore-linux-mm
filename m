@@ -1,77 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 003846B0069
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 08:50:04 -0400 (EDT)
-Received: by mail-wg0-f43.google.com with SMTP id n12so996011wgh.2
-        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 05:50:04 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id az9si1773850wib.86.2014.10.24.05.50.03
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C4286B0069
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 09:14:47 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id kx10so1134091pab.12
+        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 06:14:47 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id x13si4196394pdk.119.2014.10.24.06.14.45
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Fri, 24 Oct 2014 05:50:03 -0700 (PDT)
-Date: Fri, 24 Oct 2014 14:49:53 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v9 10/12] x86, mpx: add prctl commands PR_MPX_ENABLE_MANAGEMENT,
- PR_MPX_DISABLE_MANAGEMENT
-In-Reply-To: <1413088915-13428-11-git-send-email-qiaowei.ren@intel.com>
-Message-ID: <alpine.DEB.2.11.1410241436560.5308@nanos>
-References: <1413088915-13428-1-git-send-email-qiaowei.ren@intel.com> <1413088915-13428-11-git-send-email-qiaowei.ren@intel.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Oct 2014 06:14:46 -0700 (PDT)
+Date: Fri, 24 Oct 2014 15:14:40 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC][PATCH 0/6] Another go at speculative page faults
+Message-ID: <20141024131440.GZ21513@worktop.programming.kicks-ass.net>
+References: <20141020215633.717315139@infradead.org>
+ <20141021162340.GA5508@gmail.com>
+ <20141021170948.GA25964@node.dhcp.inet.fi>
+ <20141021175603.GI3219@twins.programming.kicks-ass.net>
+ <5448DB05.5050803@cn.fujitsu.com>
+ <20141023110438.GQ21513@worktop.programming.kicks-ass.net>
+ <20141024075423.GA24479@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20141024075423.GA24479@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Qiaowei Ren <qiaowei.ren@intel.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Dave Hansen <dave.hansen@intel.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Lai Jiangshan <laijs@cn.fujitsu.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, torvalds@linux-foundation.org, paulmck@linux.vnet.ibm.com, tglx@linutronix.de, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, oleg@redhat.com, mingo@redhat.com, minchan@kernel.org, kamezawa.hiroyu@jp.fujitsu.com, viro@zeniv.linux.org.uk, dave@stgolabs.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, 12 Oct 2014, Qiaowei Ren wrote:
-> +int mpx_enable_management(struct task_struct *tsk)
-> +{
-> +	struct mm_struct *mm = tsk->mm;
-> +	void __user *bd_base = MPX_INVALID_BOUNDS_DIR;
+On Fri, Oct 24, 2014 at 09:54:23AM +0200, Ingo Molnar wrote:
+> 
+> * Peter Zijlstra <peterz@infradead.org> wrote:
+> 
+> > On Thu, Oct 23, 2014 at 06:40:05PM +0800, Lai Jiangshan wrote:
+> > > On 10/22/2014 01:56 AM, Peter Zijlstra wrote:
+> > > > On Tue, Oct 21, 2014 at 08:09:48PM +0300, Kirill A. Shutemov wrote:
+> > > >> It would be interesting to see if the patchset affects non-condended case.
+> > > >> Like a one-threaded workload.
+> > > > 
+> > > > It does, and not in a good way, I'll have to look at that... :/
+> > > 
+> > > Maybe it is blamed to find_vma_srcu() that it doesn't take the advantage of
+> > > the vmacache_find() and cause more cache-misses.
+> > 
+> > Its what I thought initially, I tried doing perf record with and
+> > without, but then I ran into perf diff not quite working for me and I've
+> > yet to find time to kick that thing into shape.
+> 
+> Might be the 'perf diff' regression fixed by this:
+> 
+>   9ab1f50876db perf diff: Add missing hists__init() call at tool start
+> 
+> I just pushed it out into tip:master.
 
-What's the point of initializing bd_base here. I had to look twice to
-figure out that it gets overwritten by task_get_bounds_dir()
+I was on tip/master, so unlikely to be that as I was likely already
+having it.
 
-> @@ -285,6 +285,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
->  	struct xsave_struct *xsave_buf;
->  	struct task_struct *tsk = current;
->  	siginfo_t info;
-> +	int ret = 0;
->  
->  	prev_state = exception_enter();
->  	if (notify_die(DIE_TRAP, "bounds", regs, error_code,
-> @@ -312,8 +313,35 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
->  	 */
->  	switch (status & MPX_BNDSTA_ERROR_CODE) {
->  	case 2: /* Bound directory has invalid entry. */
-> -		if (do_mpx_bt_fault(xsave_buf))
-> +		down_write(&current->mm->mmap_sem);
+perf-report was affected too, for some reason my CONFIG_DEBUG_INFO=y
+vmlinux wasn't showing symbols (and I double checked that KASLR crap was
+disabled, so that wasn't confusing stuff either).
 
-The handling of mm->mmap_sem here is horrible. The only reason why you
-want to hold mmap_sem write locked in the first place is that you want
-to cover the allocation and the mm->bd_addr check.
+When I forced perf-report to use kallsyms it works, however perf-diff
+doesn't have that option.
 
-I think it's wrong to tie this to mmap_sem in the first place. If MPX
-is enabled then you should have mm->bd_addr and an explicit mutex to
-protect it.
-
-So the logic would look like this:
-
-   mutex_lock(&mm->bd_mutex);
-   if (!kernel_managed(mm))
-      do_trap();
-   else if (do_mpx_bt_fault())
-      force_sig();
-   mutex_unlock(&mm->bd_mutex);
-   
-No tricks with mmap_sem, no special return value handling. Straight
-forward code instead of a convoluted and error prone mess.
-
-Hmm?
-
-Thanks,
-
-	tglx
+So there's two issues there, 1) perf-report failing to generate useful
+output and 2) per-diff lacking options to force it to behave.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
