@@ -1,77 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id BD34182BDA
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 00:55:33 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id v10so780191pde.8
-        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 21:55:33 -0700 (PDT)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id yh6si3236118pab.171.2014.10.23.21.55.31
-        for <linux-mm@kvack.org>;
-        Thu, 23 Oct 2014 21:55:32 -0700 (PDT)
-Date: Fri, 24 Oct 2014 13:56:30 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC 0/4] [RFC] slub: Fastpath optimization (especially for RT)
-Message-ID: <20141024045630.GD15243@js1304-P5Q-DELUXE>
-References: <20141022155517.560385718@linux.com>
- <20141023080942.GA7598@js1304-P5Q-DELUXE>
- <alpine.DEB.2.11.1410230916090.19494@gentwo.org>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id C95D282BDA
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 01:10:42 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id ey11so471031pad.7
+        for <linux-mm@kvack.org>; Thu, 23 Oct 2014 22:10:42 -0700 (PDT)
+Received: from cnbjrel01.sonyericsson.com (cnbjrel01.sonyericsson.com. [219.141.167.165])
+        by mx.google.com with ESMTPS id z3si3282750pas.143.2014.10.23.22.10.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 23 Oct 2014 22:10:41 -0700 (PDT)
+From: "Wang, Yalin" <Yalin.Wang@sonymobile.com>
+Date: Fri, 24 Oct 2014 13:10:33 +0800
+Subject: [PATCH RFC] arm/arm64:add CONFIG_HAVE_ARCH_BITREVERSE to support
+ rbit
+Message-ID: <35FD53F367049845BC99AC72306C23D103E010D18254@CNBJMBX05.corpusers.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.11.1410230916090.19494@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: akpm@linuxfoundation.org, rostedt@goodmis.org, linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, penberg@kernel.org, iamjoonsoo@lge.com
+To: 'Russell King - ARM Linux' <linux@arm.linux.org.uk>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, 'Will Deacon' <Will.Deacon@arm.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-arm-kernel@lists.infradead.org'" <linux-arm-kernel@lists.infradead.org>, "'akinobu.mita@gmail.com'" <akinobu.mita@gmail.com>
 
-On Thu, Oct 23, 2014 at 09:18:29AM -0500, Christoph Lameter wrote:
-> On Thu, 23 Oct 2014, Joonsoo Kim wrote:
-> 
-> > Preemption disable during very short code would cause large problem for RT?
-> 
-> This is the hotpath and preempt enable/disable adds a significant number
-> of cycles.
-> 
-> > And, if page_address() and virt_to_head_page() remain as current patchset
-> > implementation, this would work worse than before.
-> 
-> Right.
-> 
-> > I looked at the patchset quickly and found another idea to remove
-> > preemption disable. How about just retrieving s->cpu_slab->tid first,
-> > before accessing s->cpu_slab, in slab_alloc() and slab_free()?
-> > Retrieved tid may ensure that we aren't migrated to other CPUs so that
-> > we can remove code for preemption disable.
-> 
-> You cannot do any of these things because you need the tid from the right
-> cpu and the scheduler can prempt you and reschedule you on another
-> processor at will. tid and c may be from different per cpu areas.
+this change add CONFIG_HAVE_ARCH_BITREVERSE config option,
+so that we can use arm/arm64 rbit instruction to do bitrev operation
+by hardware.
 
-I found that you said retrieving tid first is sufficient to do
-things right in old discussion. :)
+Signed-off-by: Yalin Wang <yalin.wang@sonymobile.com>
+---
+ arch/arm/Kconfig                |  1 +
+ arch/arm/include/asm/bitrev.h   | 21 +++++++++++++++++++++
+ arch/arm64/Kconfig              |  1 +
+ arch/arm64/include/asm/bitrev.h | 21 +++++++++++++++++++++
+ include/linux/bitrev.h          |  9 +++++++++
+ lib/Kconfig                     |  8 ++++++++
+ lib/bitrev.c                    |  2 ++
+ 7 files changed, 63 insertions(+)
+ create mode 100644 arch/arm/include/asm/bitrev.h
+ create mode 100644 arch/arm64/include/asm/bitrev.h
 
-https://lkml.org/lkml/2013/1/18/430
-
-Think about following 4 examples.
-
-TID CPU_CACHE CMPX_DOUBLE
-1. cpu0 cpu0 cpu0
-2. cpu0 cpu0 cpu1
-3. cpu0 cpu1 cpu0
-4. cpu0 cpu1 cpu1
-
-1) has no problem and will succeed.
-2, 4) would be failed due to tid mismatch.
-Only complicated case is scenario 3).
-
-In this case, object from cpu1's cpu_cache should be
-different with cpu0's, so allocation would be failed.
-
-Only problem of this method is that it's not easy to understand.
-
-Am I missing something?
-
-Thanks.
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 89c4b5c..426cbcc 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -16,6 +16,7 @@ config ARM
+ 	select DCACHE_WORD_ACCESS if HAVE_EFFICIENT_UNALIGNED_ACCESS
+ 	select GENERIC_ALLOCATOR
+ 	select GENERIC_ATOMIC64 if (CPU_V7M || CPU_V6 || !CPU_32v6K || !AEABI)
++	select HAVE_ARCH_BITREVERSE if (CPU_V7M || CPU_V7)
+ 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+ 	select GENERIC_IDLE_POLL_SETUP
+ 	select GENERIC_IRQ_PROBE
+diff --git a/arch/arm/include/asm/bitrev.h b/arch/arm/include/asm/bitrev.h
+new file mode 100644
+index 0000000..0df5866
+--- /dev/null
++++ b/arch/arm/include/asm/bitrev.h
+@@ -0,0 +1,21 @@
++#ifndef __ASM_ARM_BITREV_H
++#define __ASM_ARM_BITREV_H
++
++static inline __attribute_const__ u32 __arch_bitrev32(u32 x)
++{
++	__asm__ ("rbit %0, %1" : "=3Dr" (x) : "r" (x));
++	return x;
++}
++
++static inline __attribute_const__ u16 __arch_bitrev16(u16 x)
++{
++	return __arch_bitrev32((u32)x) >> 16;
++}
++
++static inline __attribute_const__ u8 __arch_bitrev8(u8 x)
++{
++	return __arch_bitrev32((u32)x) >> 24;
++}
++
++#endif
++
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index ac9afde..a2566d7 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -35,6 +35,7 @@ config ARM64
+ 	select HARDIRQS_SW_RESEND
+ 	select HAVE_ARCH_AUDITSYSCALL
+ 	select HAVE_ARCH_JUMP_LABEL
++	select HAVE_ARCH_BITREVERSE
+ 	select HAVE_ARCH_KGDB
+ 	select HAVE_ARCH_TRACEHOOK
+ 	select HAVE_BPF_JIT
+diff --git a/arch/arm64/include/asm/bitrev.h b/arch/arm64/include/asm/bitre=
+v.h
+new file mode 100644
+index 0000000..5d24c11
+--- /dev/null
++++ b/arch/arm64/include/asm/bitrev.h
+@@ -0,0 +1,21 @@
++#ifndef __ASM_ARM_BITREV_H
++#define __ASM_ARM_BITREV_H
++
++static inline __attribute_const__ u32 __arch_bitrev32(u32 x)
++{
++	__asm__ ("rbit %w0, %w1" : "=3Dr" (x) : "r" (x));
++	return x;
++}
++
++static inline __attribute_const__ u16 __arch_bitrev16(u16 x)
++{
++	return __arch_bitrev32((u32)x) >> 16;
++}
++
++static inline __attribute_const__ u8 __arch_bitrev8(u8 x)
++{
++	return __arch_bitrev32((u32)x) >> 24;
++}
++
++#endif
++
+diff --git a/include/linux/bitrev.h b/include/linux/bitrev.h
+index 7ffe03f..ef5b2bb 100644
+--- a/include/linux/bitrev.h
++++ b/include/linux/bitrev.h
+@@ -3,6 +3,14 @@
+=20
+ #include <linux/types.h>
+=20
++#ifdef CONFIG_HAVE_ARCH_BITREVERSE
++#include <asm/bitrev.h>
++
++#define bitrev32 __arch_bitrev32
++#define bitrev16 __arch_bitrev16
++#define bitrev8 __arch_bitrev8
++
++#else
+ extern u8 const byte_rev_table[256];
+=20
+ static inline u8 bitrev8(u8 byte)
+@@ -13,4 +21,5 @@ static inline u8 bitrev8(u8 byte)
+ extern u16 bitrev16(u16 in);
+ extern u32 bitrev32(u32 in);
+=20
++#endif /* CONFIG_HAVE_ARCH_BITREVERSE */
+ #endif /* _LINUX_BITREV_H */
+diff --git a/lib/Kconfig b/lib/Kconfig
+index 54cf309..e0e0453 100644
+--- a/lib/Kconfig
++++ b/lib/Kconfig
+@@ -13,6 +13,14 @@ config RAID6_PQ
+ config BITREVERSE
+ 	tristate
+=20
++config HAVE_ARCH_BITREVERSE
++	boolean
++	default n
++	help
++	  This option provides an config for the architecture which have instruct=
+ion
++	  can do bitreverse operation, we use the hardware instruction if the arc=
+hitecture
++	  have this capability.
++
+ config RATIONAL
+ 	boolean
+=20
+diff --git a/lib/bitrev.c b/lib/bitrev.c
+index 3956203..93d637a 100644
+--- a/lib/bitrev.c
++++ b/lib/bitrev.c
+@@ -1,3 +1,4 @@
++#ifndef CONFIG_HAVE_ARCH_BITREVERSE
+ #include <linux/types.h>
+ #include <linux/module.h>
+ #include <linux/bitrev.h>
+@@ -57,3 +58,4 @@ u32 bitrev32(u32 x)
+ 	return (bitrev16(x & 0xffff) << 16) | bitrev16(x >> 16);
+ }
+ EXPORT_SYMBOL(bitrev32);
++#endif /* CONFIG_HAVE_ARCH_BITREVERSE */
+--=20
+2.1.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
