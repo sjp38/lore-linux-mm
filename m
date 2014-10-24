@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 0710B6B0070
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 06:38:04 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id rd3so944139pab.0
-        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 03:38:04 -0700 (PDT)
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B5626B0072
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 06:38:06 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id r10so1247938pdi.17
+        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 03:38:06 -0700 (PDT)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ro4si3884216pbc.109.2014.10.24.03.38.03
+        by mx.google.com with ESMTPS id so2si3880307pab.132.2014.10.24.03.38.05
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Oct 2014 03:38:03 -0700 (PDT)
+        Fri, 24 Oct 2014 03:38:05 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm v2 3/9] vmscan: shrink slab on memcg pressure
-Date: Fri, 24 Oct 2014 14:37:34 +0400
-Message-ID: <68df6349e5cecdf8b2950e8eb2c27965163a110b.1414145863.git.vdavydov@parallels.com>
+Subject: [PATCH -mm v2 4/9] memcg: rename some cache id related variables
+Date: Fri, 24 Oct 2014 14:37:35 +0400
+Message-ID: <4e10505f6d6f468f3f336863a2085649c91e6245.1414145863.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1414145862.git.vdavydov@parallels.com>
 References: <cover.1414145862.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,331 +22,133 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Dave Chinner <david@fromorbit.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This patch makes direct reclaim path shrink slab not only on global
-memory pressure, but also when we reach the user memory limit of a
-memcg. To achieve that, it makes shrink_slab() walk over the memcg
-hierarchy and run shrinkers marked as memcg-aware on the target memcg
-and all its descendants. The memcg to scan is passed in a shrink_control
-structure; memcg-unaware shrinkers are still called only on global
-memory pressure with memcg=NULL. It is up to the shrinker how to
-organize the objects it is responsible for to achieve per-memcg reclaim.
+memcg_limited_groups_array_size, which defines the size of memcg_caches
+arrays, sounds rather cumbersome. Also it doesn't point anyhow that it's
+related to kmem/caches stuff. So let's rename it to memcg_max_cache_ids.
+It's concise and points us directly to memcg_cache_id.
+
+Also, rename kmem_limited_groups to memcg_cache_ida, because it's not a
+container for groups, but the memcg_cache_id allocator.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- include/linux/memcontrol.h |   22 +++++++++++
- include/linux/shrinker.h   |   10 ++++-
- mm/memcontrol.c            |   45 ++++++++++++++++++++++-
- mm/vmscan.c                |   87 +++++++++++++++++++++++++++++++++-----------
- 4 files changed, 141 insertions(+), 23 deletions(-)
+ include/linux/memcontrol.h |    9 +++++++--
+ mm/memcontrol.c            |   19 +++++++++----------
+ mm/slab_common.c           |    4 ++--
+ 3 files changed, 18 insertions(+), 14 deletions(-)
 
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index ea007615e8f9..a592fe75192b 100644
+index a592fe75192b..e1a894c1018f 100644
 --- a/include/linux/memcontrol.h
 +++ b/include/linux/memcontrol.h
-@@ -68,6 +68,9 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
- struct lruvec *mem_cgroup_zone_lruvec(struct zone *, struct mem_cgroup *);
- struct lruvec *mem_cgroup_page_lruvec(struct page *, struct zone *);
+@@ -391,7 +391,12 @@ static inline void sock_release_memcg(struct sock *sk)
+ #ifdef CONFIG_MEMCG_KMEM
+ extern struct static_key memcg_kmem_enabled_key;
  
-+unsigned long mem_cgroup_zone_reclaimable_pages(struct zone *zone,
-+						struct mem_cgroup *memcg);
-+
- bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
- 				  struct mem_cgroup *memcg);
- bool task_in_mem_cgroup(struct task_struct *task,
-@@ -226,6 +229,12 @@ static inline struct lruvec *mem_cgroup_page_lruvec(struct page *page,
- 	return &zone->lruvec;
- }
+-extern int memcg_limited_groups_array_size;
++/*
++ * The maximal number of kmem-active memory cgroups that can exist on the
++ * system. May grow, but never shrinks. The value returned by memcg_cache_id()
++ * is always less.
++ */
++extern int memcg_max_cache_ids;
  
-+static inline unsigned long mem_cgroup_zone_reclaimable_pages(struct zone *zone,
-+							struct mem_cgroup *)
-+{
-+	return 0;
-+}
-+
- static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
- {
- 	return NULL;
-@@ -397,6 +406,9 @@ static inline bool memcg_kmem_enabled(void)
- 	return static_key_false(&memcg_kmem_enabled_key);
- }
- 
-+bool memcg_kmem_is_active(struct mem_cgroup *memcg);
-+bool memcg_kmem_is_active_subtree(struct mem_cgroup *memcg);
-+
  /*
-  * In general, we'll do everything in our power to not incur in any overhead
-  * for non-memcg users for the kmem functions. Not even a function call, if we
-@@ -524,6 +536,16 @@ static inline bool memcg_kmem_enabled(void)
- 	return false;
- }
+  * Helper macro to loop through all memcg-specific caches. Callers must still
+@@ -399,7 +404,7 @@ extern int memcg_limited_groups_array_size;
+  * the slab_mutex must be held when looping through those caches
+  */
+ #define for_each_memcg_cache_index(_idx)	\
+-	for ((_idx) = 0; (_idx) < memcg_limited_groups_array_size; (_idx)++)
++	for ((_idx) = 0; (_idx) < memcg_max_cache_ids; (_idx)++)
  
-+static inline bool memcg_kmem_is_active(struct mem_cgroup *memcg)
-+{
-+	return false;
-+}
-+
-+static inline bool memcg_kmem_is_active_subtree(struct mem_cgroup *memcg)
-+{
-+	return false;
-+}
-+
- static inline bool
- memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
+ static inline bool memcg_kmem_enabled(void)
  {
-diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
-index 68c097077ef0..ab79b174bfbe 100644
---- a/include/linux/shrinker.h
-+++ b/include/linux/shrinker.h
-@@ -20,8 +20,15 @@ struct shrink_control {
- 
- 	/* shrink from these nodes */
- 	nodemask_t nodes_to_scan;
-+
-+	/* shrink from this memory cgroup hierarchy (if not NULL) */
-+	struct mem_cgroup *target_mem_cgroup;
-+
- 	/* current node being shrunk (for NUMA aware shrinkers) */
- 	int nid;
-+
-+	/* current memcg being shrunk (for memcg aware shrinkers) */
-+	struct mem_cgroup *memcg;
- };
- 
- #define SHRINK_STOP (~0UL)
-@@ -63,7 +70,8 @@ struct shrinker {
- #define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
- 
- /* Flags */
--#define SHRINKER_NUMA_AWARE (1 << 0)
-+#define SHRINKER_NUMA_AWARE	(1 << 0)
-+#define SHRINKER_MEMCG_AWARE	(1 << 1)
- 
- extern int register_shrinker(struct shrinker *);
- extern void unregister_shrinker(struct shrinker *);
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index c50176429fa3..aa7c1d7b0376 100644
+index aa7c1d7b0376..fc1e2067a4c4 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -371,11 +371,29 @@ static inline void memcg_kmem_set_active(struct mem_cgroup *memcg)
- 	set_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
- }
- 
--static bool memcg_kmem_is_active(struct mem_cgroup *memcg)
-+bool memcg_kmem_is_active(struct mem_cgroup *memcg)
- {
- 	return test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
- }
- 
-+/*
-+ * Returns true if the given cgroup or any of its descendants has kmem
-+ * accounting enabled.
-+ */
-+bool memcg_kmem_is_active_subtree(struct mem_cgroup *memcg)
-+{
-+	struct mem_cgroup *iter;
-+
-+	iter = memcg;
-+	do {
-+		if (memcg_kmem_is_active(iter)) {
-+			mem_cgroup_iter_break(memcg, iter);
-+			return true;
-+		}
-+	} while ((iter = mem_cgroup_iter(memcg, iter, NULL)) != NULL);
-+
-+	return false;
-+}
- #endif
- 
- /* Stuffs for move charges at task migration. */
-@@ -1307,6 +1325,31 @@ void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
- 	VM_BUG_ON((long)(*lru_size) < 0);
- }
- 
-+unsigned long mem_cgroup_zone_reclaimable_pages(struct zone *zone,
-+						struct mem_cgroup *memcg)
-+{
-+	unsigned long nr = 0;
-+	unsigned int lru_mask;
-+	struct mem_cgroup *iter;
-+
-+	lru_mask = LRU_ALL_FILE;
-+	if (get_nr_swap_pages() > 0)
-+		lru_mask |= LRU_ALL_ANON;
-+
-+	iter = memcg;
-+	do {
-+		struct mem_cgroup_per_zone *mz;
-+		enum lru_list lru;
-+
-+		mz = mem_cgroup_zone_zoneinfo(memcg, zone);
-+		for_each_lru(lru)
-+			if (BIT(lru) & lru_mask)
-+				nr += mz->lru_size[lru];
-+	} while ((iter = mem_cgroup_iter(memcg, iter, NULL)) != NULL);
-+
-+	return nr;
-+}
-+
- /*
-  * Checks whether given mem is same or in the root_mem_cgroup's
-  * hierarchy subtree
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a384339bf718..2cf6b04a4e0c 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -339,6 +339,26 @@ shrink_slab_node(struct shrink_control *shrinkctl, struct shrinker *shrinker,
- 	return freed;
- }
- 
-+static unsigned long
-+run_shrinker(struct shrink_control *shrinkctl, struct shrinker *shrinker,
-+	     unsigned long nr_pages_scanned, unsigned long lru_pages)
-+{
-+	unsigned long freed = 0;
-+
-+	if (!(shrinker->flags & SHRINKER_NUMA_AWARE)) {
-+		shrinkctl->nid = 0;
-+		return shrink_slab_node(shrinkctl, shrinker,
-+					nr_pages_scanned, lru_pages);
-+	}
-+
-+	for_each_node_mask(shrinkctl->nid, shrinkctl->nodes_to_scan) {
-+		if (node_online(shrinkctl->nid))
-+			freed += shrink_slab_node(shrinkctl, shrinker,
-+						  nr_pages_scanned, lru_pages);
-+	}
-+	return freed;
-+}
-+
- /*
-  * Call the shrink functions to age shrinkable caches
+@@ -589,12 +589,11 @@ static void disarm_sock_keys(struct mem_cgroup *memcg)
+  *  memcgs, and none but the 200th is kmem-limited, we'd have to have a
+  *  200 entry array for that.
   *
-@@ -380,19 +400,32 @@ unsigned long shrink_slab(struct shrink_control *shrinkctl,
- 	}
+- * The current size of the caches array is stored in
+- * memcg_limited_groups_array_size.  It will double each time we have to
+- * increase it.
++ * The current size of the caches array is stored in memcg_max_cache_ids. It
++ * will double each time we have to increase it.
+  */
+-static DEFINE_IDA(kmem_limited_groups);
+-int memcg_limited_groups_array_size;
++static DEFINE_IDA(memcg_cache_ida);
++int memcg_max_cache_ids;
  
- 	list_for_each_entry(shrinker, &shrinker_list, list) {
--		if (!(shrinker->flags & SHRINKER_NUMA_AWARE)) {
--			shrinkctl->nid = 0;
--			freed += shrink_slab_node(shrinkctl, shrinker,
--					nr_pages_scanned, lru_pages);
-+		/*
-+		 * Call memcg-unaware shrinkers only on global pressure.
-+		 */
-+		if (!(shrinker->flags & SHRINKER_MEMCG_AWARE)) {
-+			if (!shrinkctl->target_mem_cgroup) {
-+				shrinkctl->memcg = NULL;
-+				freed += run_shrinker(shrinkctl, shrinker,
-+						nr_pages_scanned, lru_pages);
-+			}
- 			continue;
- 		}
+ /*
+  * MIN_SIZE is different than 1, because we would like to avoid going through
+@@ -2588,12 +2587,12 @@ static int memcg_alloc_cache_id(void)
+ 	int id, size;
+ 	int err;
  
--		for_each_node_mask(shrinkctl->nid, shrinkctl->nodes_to_scan) {
--			if (node_online(shrinkctl->nid))
--				freed += shrink_slab_node(shrinkctl, shrinker,
-+		/*
-+		 * For memcg-aware shrinkers iterate over the target memcg
-+		 * hierarchy and run the shrinker on each kmem-active memcg
-+		 * found in the hierarchy.
-+		 */
-+		shrinkctl->memcg = shrinkctl->target_mem_cgroup;
-+		do {
-+			if (!shrinkctl->memcg ||
-+			    memcg_kmem_is_active(shrinkctl->memcg))
-+				freed += run_shrinker(shrinkctl, shrinker,
- 						nr_pages_scanned, lru_pages);
--
--		}
-+		} while ((shrinkctl->memcg =
-+			  mem_cgroup_iter(shrinkctl->target_mem_cgroup,
-+					  shrinkctl->memcg, NULL)) != NULL);
- 	}
- 	up_read(&shrinker_rwsem);
- out:
-@@ -2381,6 +2414,7 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
- 	gfp_t orig_mask;
- 	struct shrink_control shrink = {
- 		.gfp_mask = sc->gfp_mask,
-+		.target_mem_cgroup = sc->target_mem_cgroup,
- 	};
- 	enum zone_type requested_highidx = gfp_zone(sc->gfp_mask);
- 	bool reclaimable = false;
-@@ -2400,18 +2434,22 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
- 					gfp_zone(sc->gfp_mask), sc->nodemask) {
- 		if (!populated_zone(zone))
- 			continue;
-+
-+		if (global_reclaim(sc) &&
-+		    !cpuset_zone_allowed(zone, GFP_KERNEL | __GFP_HARDWALL))
-+			continue;
-+
-+		lru_pages += global_reclaim(sc) ?
-+				zone_reclaimable_pages(zone) :
-+				mem_cgroup_zone_reclaimable_pages(zone,
-+						sc->target_mem_cgroup);
-+		node_set(zone_to_nid(zone), shrink.nodes_to_scan);
-+
- 		/*
- 		 * Take care memory controller reclaiming has small influence
- 		 * to global LRU.
- 		 */
- 		if (global_reclaim(sc)) {
--			if (!cpuset_zone_allowed(zone,
--						 GFP_KERNEL | __GFP_HARDWALL))
--				continue;
--
--			lru_pages += zone_reclaimable_pages(zone);
--			node_set(zone_to_nid(zone), shrink.nodes_to_scan);
--
- 			if (sc->priority != DEF_PRIORITY &&
- 			    !zone_reclaimable(zone))
- 				continue;	/* Let kswapd poll it */
-@@ -2459,12 +2497,11 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
- 	}
+-	id = ida_simple_get(&kmem_limited_groups,
++	id = ida_simple_get(&memcg_cache_ida,
+ 			    0, MEMCG_CACHES_MAX_SIZE, GFP_KERNEL);
+ 	if (id < 0)
+ 		return id;
+ 
+-	if (id < memcg_limited_groups_array_size)
++	if (id < memcg_max_cache_ids)
+ 		return id;
  
  	/*
--	 * Don't shrink slabs when reclaiming memory from over limit cgroups
--	 * but do shrink slab at least once when aborting reclaim for
--	 * compaction to avoid unevenly scanning file/anon LRU pages over slab
--	 * pages.
-+	 * Shrink slabs at least once when aborting reclaim for compaction
-+	 * to avoid unevenly scanning file/anon LRU pages over slab pages.
- 	 */
--	if (global_reclaim(sc)) {
-+	if (global_reclaim(sc) ||
-+	    memcg_kmem_is_active_subtree(sc->target_mem_cgroup)) {
- 		shrink_slab(&shrink, sc->nr_scanned, lru_pages);
- 		if (reclaim_state) {
- 			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
-@@ -2767,6 +2804,7 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 	struct zonelist *zonelist;
- 	unsigned long nr_reclaimed;
- 	int nid;
-+	struct reclaim_state reclaim_state;
- 	struct scan_control sc = {
- 		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
- 		.gfp_mask = (gfp_mask & GFP_RECLAIM_MASK) |
-@@ -2787,6 +2825,10 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+@@ -2612,7 +2611,7 @@ static int memcg_alloc_cache_id(void)
+ 	mutex_unlock(&memcg_slab_mutex);
  
- 	zonelist = NODE_DATA(nid)->node_zonelists;
+ 	if (err) {
+-		ida_simple_remove(&kmem_limited_groups, id);
++		ida_simple_remove(&memcg_cache_ida, id);
+ 		return err;
+ 	}
+ 	return id;
+@@ -2620,7 +2619,7 @@ static int memcg_alloc_cache_id(void)
  
-+	lockdep_set_current_reclaim_state(sc.gfp_mask);
-+	reclaim_state.reclaimed_slab = 0;
-+	current->reclaim_state = &reclaim_state;
-+
- 	trace_mm_vmscan_memcg_reclaim_begin(0,
- 					    sc.may_writepage,
- 					    sc.gfp_mask);
-@@ -2795,6 +2837,9 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 
- 	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
- 
-+	current->reclaim_state = NULL;
-+	lockdep_clear_current_reclaim_state();
-+
- 	return nr_reclaimed;
+ static void memcg_free_cache_id(int id)
+ {
+-	ida_simple_remove(&kmem_limited_groups, id);
++	ida_simple_remove(&memcg_cache_ida, id);
  }
- #endif
+ 
+ /*
+@@ -2630,7 +2629,7 @@ static void memcg_free_cache_id(int id)
+  */
+ void memcg_update_array_size(int num)
+ {
+-	memcg_limited_groups_array_size = num;
++	memcg_max_cache_ids = num;
+ }
+ 
+ static void memcg_register_cache(struct mem_cgroup *memcg,
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 406944207b61..41fe0ad199f2 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -116,7 +116,7 @@ static int memcg_alloc_cache_params(struct mem_cgroup *memcg,
+ 
+ 	if (!memcg) {
+ 		size = offsetof(struct memcg_cache_params, memcg_caches);
+-		size += memcg_limited_groups_array_size * sizeof(void *);
++		size += memcg_max_cache_ids * sizeof(void *);
+ 	} else
+ 		size = sizeof(struct memcg_cache_params);
+ 
+@@ -154,7 +154,7 @@ static int memcg_update_cache_params(struct kmem_cache *s, int num_memcgs)
+ 
+ 	cur_params = s->memcg_params;
+ 	memcpy(new_params->memcg_caches, cur_params->memcg_caches,
+-	       memcg_limited_groups_array_size * sizeof(void *));
++	       memcg_max_cache_ids * sizeof(void *));
+ 
+ 	new_params->is_root_cache = true;
+ 
 -- 
 1.7.10.4
 
