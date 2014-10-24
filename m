@@ -1,81 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 070D36B006C
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 10:49:13 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id fa1so1260555pad.5
-        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 07:49:13 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id bb10si4351106pbd.144.2014.10.24.07.49.12
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 115586B0069
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 11:10:49 -0400 (EDT)
+Received: by mail-wg0-f52.google.com with SMTP id a1so1281219wgh.11
+        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 08:10:49 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id kb4si5641607wjc.46.2014.10.24.08.10.47
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Oct 2014 07:49:13 -0700 (PDT)
-Date: Fri, 24 Oct 2014 18:49:03 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [patch 2/3] mm: memcontrol: pull the NULL check from
- __mem_cgroup_same_or_subtree()
-Message-ID: <20141024144903.GB28055@esperanza>
-References: <1414158589-26094-1-git-send-email-hannes@cmpxchg.org>
- <1414158589-26094-2-git-send-email-hannes@cmpxchg.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Fri, 24 Oct 2014 08:10:48 -0700 (PDT)
+Date: Fri, 24 Oct 2014 17:10:35 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH v9 10/12] x86, mpx: add prctl commands PR_MPX_ENABLE_MANAGEMENT,
+ PR_MPX_DISABLE_MANAGEMENT
+In-Reply-To: <alpine.DEB.2.11.1410241436560.5308@nanos>
+Message-ID: <alpine.DEB.2.11.1410241710020.5308@nanos>
+References: <1413088915-13428-1-git-send-email-qiaowei.ren@intel.com> <1413088915-13428-11-git-send-email-qiaowei.ren@intel.com> <alpine.DEB.2.11.1410241436560.5308@nanos>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <1414158589-26094-2-git-send-email-hannes@cmpxchg.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Qiaowei Ren <qiaowei.ren@intel.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, Dave Hansen <dave.hansen@intel.com>, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mips@linux-mips.org
 
-On Fri, Oct 24, 2014 at 09:49:48AM -0400, Johannes Weiner wrote:
-> The NULL in mm_match_cgroup() comes from a possibly exiting mm->owner.
-> It makes a lot more sense to check where it's looked up, rather than
-> check for it in __mem_cgroup_same_or_subtree() where it's unexpected.
+On Fri, 24 Oct 2014, Thomas Gleixner wrote:
+> On Sun, 12 Oct 2014, Qiaowei Ren wrote:
+> > +int mpx_enable_management(struct task_struct *tsk)
+> > +{
+> > +	struct mm_struct *mm = tsk->mm;
+> > +	void __user *bd_base = MPX_INVALID_BOUNDS_DIR;
 > 
-> No other callsite passes NULL to __mem_cgroup_same_or_subtree().
+> What's the point of initializing bd_base here. I had to look twice to
+> figure out that it gets overwritten by task_get_bounds_dir()
 > 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> > @@ -285,6 +285,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
+> >  	struct xsave_struct *xsave_buf;
+> >  	struct task_struct *tsk = current;
+> >  	siginfo_t info;
+> > +	int ret = 0;
+> >  
+> >  	prev_state = exception_enter();
+> >  	if (notify_die(DIE_TRAP, "bounds", regs, error_code,
+> > @@ -312,8 +313,35 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
+> >  	 */
+> >  	switch (status & MPX_BNDSTA_ERROR_CODE) {
+> >  	case 2: /* Bound directory has invalid entry. */
+> > -		if (do_mpx_bt_fault(xsave_buf))
+> > +		down_write(&current->mm->mmap_sem);
+> 
+> The handling of mm->mmap_sem here is horrible. The only reason why you
+> want to hold mmap_sem write locked in the first place is that you want
+> to cover the allocation and the mm->bd_addr check.
+> 
+> I think it's wrong to tie this to mmap_sem in the first place. If MPX
+> is enabled then you should have mm->bd_addr and an explicit mutex to
+> protect it.
+> 
+> So the logic would look like this:
+> 
+>    mutex_lock(&mm->bd_mutex);
+>    if (!kernel_managed(mm))
+>       do_trap();
+>    else if (do_mpx_bt_fault())
+>       force_sig();
+>    mutex_unlock(&mm->bd_mutex);
+>    
+> No tricks with mmap_sem, no special return value handling. Straight
+> forward code instead of a convoluted and error prone mess.
 
-Reviewed-by: Vladimir Davydov <vdavydov@parallels.com>
+After thinking about the deallocation issue, this would be mm->bd_sem.
 
-> ---
->  include/linux/memcontrol.h | 5 +++--
->  mm/memcontrol.c            | 2 +-
->  2 files changed, 4 insertions(+), 3 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index ea007615e8f9..e32ab948f589 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -83,11 +83,12 @@ static inline
->  bool mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *memcg)
->  {
->  	struct mem_cgroup *task_memcg;
-> -	bool match;
-> +	bool match = false;
->  
->  	rcu_read_lock();
->  	task_memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
-> -	match = __mem_cgroup_same_or_subtree(memcg, task_memcg);
-> +	if (task_memcg)
-> +		match = __mem_cgroup_same_or_subtree(memcg, task_memcg);
->  	rcu_read_unlock();
->  	return match;
->  }
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index bdf8520979cf..15b1c5110a8f 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1316,7 +1316,7 @@ bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
->  {
->  	if (root_memcg == memcg)
->  		return true;
-> -	if (!root_memcg->use_hierarchy || !memcg)
-> +	if (!root_memcg->use_hierarchy)
->  		return false;
->  	return cgroup_is_descendant(memcg->css.cgroup, root_memcg->css.cgroup);
->  }
-> -- 
-> 2.1.2
-> 
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
