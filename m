@@ -1,89 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DA6C6B0069
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 12:22:45 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id v10so1716508pde.32
-        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 09:22:44 -0700 (PDT)
-Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
-        by mx.google.com with ESMTP id d1si4576287pdp.112.2014.10.24.09.22.43
-        for <linux-mm@kvack.org>;
-        Fri, 24 Oct 2014 09:22:43 -0700 (PDT)
-Message-ID: <1414167761.19984.17.camel@jarvis.lan>
-Subject: Re: [PATCH V2 1/2] mm: Update generic gup implementation to handle
- hugepage directory
-From: James Bottomley <James.Bottomley@HansenPartnership.com>
-Date: Fri, 24 Oct 2014 09:22:41 -0700
-In-Reply-To: <1414107635.364.91.camel@pasglop>
-References: 
-	<1413520687-31729-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	 <20141022160224.9c2268795e55d5a2eff5b94d@linux-foundation.org>
-	 <20141023.184035.388557314666522484.davem@davemloft.net>
-	 <1414107635.364.91.camel@pasglop>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
+	by kanga.kvack.org (Postfix) with ESMTP id BC7F36B0069
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 12:27:05 -0400 (EDT)
+Received: by mail-lb0-f173.google.com with SMTP id 10so2884606lbg.18
+        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 09:27:05 -0700 (PDT)
+Received: from mail-la0-x231.google.com (mail-la0-x231.google.com. [2a00:1450:4010:c03::231])
+        by mx.google.com with ESMTPS id a4si7728651lbm.77.2014.10.24.09.27.03
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 24 Oct 2014 09:27:03 -0700 (PDT)
+Received: by mail-la0-f49.google.com with SMTP id gf13so1643688lab.36
+        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 09:27:02 -0700 (PDT)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [PATCH v2 3/4] mm: cma: Ensure that reservations never cross the low/high mem boundary
+In-Reply-To: <1414145922-26042-4-git-send-email-laurent.pinchart+renesas@ideasonboard.com>
+References: <1414145922-26042-1-git-send-email-laurent.pinchart+renesas@ideasonboard.com> <1414145922-26042-4-git-send-email-laurent.pinchart+renesas@ideasonboard.com>
+Date: Fri, 24 Oct 2014 18:26:58 +0200
+Message-ID: <xa1toat13031.fsf@mina86.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: David Miller <davem@davemloft.net>, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, steve.capper@linaro.org, aarcange@redhat.com, mpe@ellerman.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-arch@vger.kernel.org, hannes@cmpxchg.org
+To: Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-sh@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Weijie Yang <weijie.yang.kh@gmail.com>
 
-On Fri, 2014-10-24 at 10:40 +1100, Benjamin Herrenschmidt wrote:
-> On Thu, 2014-10-23 at 18:40 -0400, David Miller wrote:
-> > Hey guys, was looking over the generic GUP while working on a sparc64
-> > issue and I noticed that you guys do speculative page gets, and after
-> > talking with Johannes Weiner (CC:'d) about this we don't see how it
-> > could be necessary.
-> > 
-> > If interrupts are disabled during the page table scan (which they
-> > are), no IPI tlb flushes can arrive.  Therefore any removal from the
-> > page tables is guarded by interrupts being re-enabled.  And as a
-> > result, page counts of pages we see in the page tables must always
-> > have a count > 0.
-> > 
-> > x86 does direct atomic_add() on &page->_count because of this
-> > invariant and I would rather see the generic version do this too.
-> 
-> This is of course only true of archs who use IPIs for TLB flushes, so if
-> we are going down the path of not being speculative, powerpc would have
-> to go back to doing its own since our broadcast TLB flush means we
-> aren't protected (we are only protected vs. the page tables themselves
-> being freed since we do that via sched RCU).
-> 
-> AFAIK, ARM also broadcasts TLB flushes...
+On Fri, Oct 24 2014, Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com> wrote:
+> Commit 95b0e655f914 ("ARM: mm: don't limit default CMA region only to
+> low memory") extended CMA memory reservation to allow usage of high
+> memory. It relied on commit f7426b983a6a ("mm: cma: adjust address limit
+> to avoid hitting low/high memory boundary") to ensure that the reserved
+> block never crossed the low/high memory boundary. While the
+> implementation correctly lowered the limit, it failed to consider the
+> case where the base..limit range crossed the low/high memory boundary
+> with enough space on each side to reserve the requested size on either
+> low or high memory.
+>
+> Rework the base and limit adjustment to fix the problem. The function
+> now starts by rejecting the reservation altogether for fixed
+> reservations that cross the boundary, tries to reserve from high memory
+> first and then falls back to low memory.
+>
+> Signed-off-by: Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>
 
-Parisc does this.  As soon as one CPU issues a TLB purge, it's broadcast
-to all the CPUs on the inter-CPU bus.  The next instruction isn't
-executed until they respond.
-
-But this is only for our CPU TLB.  There's no other external
-consequence, so removal from the page tables isn't effected by this TLB
-flush, therefore the theory on which Dave bases the change to
-atomic_add() should work for us (of course, atomic_add is lock add
-unlock on our CPU, so it's not going to be of much benefit).
-
-James
-
-> Another option would be to make the generic code use something defined
-> by the arch to decide whether to use speculative get or
-> not. I like the idea of keeping the bulk of that code generic...
-> 
-> Cheers,
-> Ben.
-> 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
+Acked-by: Michal Nazarewicz <mina86@mina86.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
