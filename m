@@ -1,202 +1,364 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 80B926B0069
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 06:30:34 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id p10so1231409pdj.19
-        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 03:30:34 -0700 (PDT)
-Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
-        by mx.google.com with ESMTPS id fo9si3830155pdb.175.2014.10.24.03.30.32
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id DBCC06B0069
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 06:37:57 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id kx10so912667pab.34
+        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 03:37:57 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id qp3si3866524pac.147.2014.10.24.03.37.56
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Fri, 24 Oct 2014 03:30:33 -0700 (PDT)
-Received: from epcpsbgr2.samsung.com
- (u142.gpu120.samsung.co.kr [203.254.230.142])
- by mailout3.samsung.com (Oracle Communications Messaging Server 7u4-24.01
- (7.0.4.24.0) 64bit (built Nov 17 2011))
- with ESMTP id <0NDY00IAK2IUKTE0@mailout3.samsung.com> for linux-mm@kvack.org;
- Fri, 24 Oct 2014 19:30:31 +0900 (KST)
-From: PINTU KUMAR <pintu.k@samsung.com>
-References: <1413790391-31686-1-git-send-email-pintu.k@samsung.com>
- <1413986796-19732-1-git-send-email-pintu.k@samsung.com>
- <xa1tegtylnzl.fsf@mina86.com>
-In-reply-to: <xa1tegtylnzl.fsf@mina86.com>
-Subject: RE: [PATCH v2 1/2] mm: cma: split cma-reserved in dmesg log
-Date: Fri, 24 Oct 2014 16:00:27 +0530
-Message-id: <019601cfef75$8fbf8860$af3e9920$@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=UTF-8
-Content-transfer-encoding: quoted-printable
-Content-language: en-us
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Oct 2014 03:37:56 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH -mm v2 1/9] list_lru: introduce list_lru_shrink_{count,walk}
+Date: Fri, 24 Oct 2014 14:37:32 +0400
+Message-ID: <71f3f1cd124c69eb2d2494a7aa8c4fbf97c3292b.1414145863.git.vdavydov@parallels.com>
+In-Reply-To: <cover.1414145862.git.vdavydov@parallels.com>
+References: <cover.1414145862.git.vdavydov@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Michal Nazarewicz' <mina86@mina86.com>, akpm@linux-foundation.org, riel@redhat.com, aquini@redhat.com, paul.gortmaker@windriver.com, jmarchan@redhat.com, lcapitulino@redhat.com, kirill.shutemov@linux.intel.com, m.szyprowski@samsung.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, lauraa@codeaurora.org, gioh.kim@lge.com, mgorman@suse.de, rientjes@google.com, hannes@cmpxchg.org, vbabka@suse.cz, sasha.levin@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: pintu_agarwal@yahoo.com, cpgs@samsung.com, vishnu.ps@samsung.com, rohit.kr@samsung.com, ed.savinay@samsung.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Chinner <david@fromorbit.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Greg Thelen <gthelen@google.com>, Glauber Costa <glommer@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+NUMA aware slab shrinkers use the list_lru structure to distribute
+objects coming from different NUMA nodes to different lists. Whenever
+such a shrinker needs to count or scan objects from a particular node,
+it issues commands like this:
 
+        count = list_lru_count_node(lru, sc->nid);
+        freed = list_lru_walk_node(lru, sc->nid, isolate_func,
+                                   isolate_arg, &sc->nr_to_scan);
 
------ Original Message -----
-> From: Michal Nazarewicz <mina86@mina86.com>
-> To: Pintu Kumar <pintu.k@samsung.com>; akpm@linux-foundation.org; =
-riel@redhat.com; pintu.k@samsung.com; aquini@redhat.com; =
-paul.gortmaker@windriver.com; jmarchan@redhat.com; =
-lcapitulino@redhat.com; kirill.shutemov@linux.intel.com; =
-m.szyprowski@samsung.com; aneesh.kumar@linux.vnet.ibm.com; =
-iamjoonsoo.kim@lge.com; lauraa@codeaurora.org; gioh.kim@lge.com; =
-mgorman@suse.de; rientjes@google.com; hannes@cmpxchg.org; =
-vbabka@suse.cz; sasha.levin@oracle.com; linux-kernel@vger.kernel.org; =
-linux-mm@kvack.org
-> Cc: pintu_agarwal@yahoo.com; cpgs@samsung.com; vishnu.ps@samsung.com; =
-rohit.kr@samsung.com; ed.savinay@samsung.com
-> Sent: Thursday, 23 October 2014 10:31 PM
-> Subject: Re: [PATCH v2 1/2] mm: cma: split cma-reserved in dmesg log
->=20
-> On Wed, Oct 22 2014, Pintu Kumar wrote:
->> When the system boots up, in the dmesg logs we can see
->> the memory statistics along with total reserved as below.
->> Memory: 458840k/458840k available, 65448k reserved, 0K highmem
->>=20
->> When CMA is enabled, still the total reserved memory remains the =
-same.
->> However, the CMA memory is not considered as reserved.
->> But, when we see /proc/meminfo, the CMA memory is part of free =
-memory.
->> This creates confusion.
->> This patch corrects the problem by properly subtracting the CMA =
-reserved
->> memory from the total reserved memory in dmesg logs.
->>=20
->> Below is the dmesg snapshot from an arm based device with 512MB RAM =
-and
->> 12MB single CMA region.
->>=20
->> Before this change:
->> Memory: 458840k/458840k available, 65448k reserved, 0K highmem
->>=20
->> After this change:
->> Memory: 458840k/458840k available, 53160k reserved, 12288k =
-cma-reserved, 0K=20
-> highmem
->>=20
->> Signed-off-by: Pintu Kumar <pintu.k@samsung.com>
->> Signed-off-by: Vishnu Pratap Singh <vishnu.ps@samsung.com>
->=20
-> Acked-by: Michal Nazarewicz <mina86@mina86.com>
->=20
->=20
-> I'm not sure how Andrew would think about it, and I don't have strong
-> feelings, but I would consider a few changes:
->=20
->> ---
->> v2: Moved totalcma_pages extern declaration to linux/cma.h
->>     Removed CONFIG_CMA while show cma-reserved, from page_alloc.c
->>     Moved totalcma_pages declaration to page_alloc.c, so that if will =
-be=20
-> visible=20
->>     in non-CMA cases.
->>   include/linux/cma.h |    1 +
->>   mm/cma.c            |    1 +
->>   mm/page_alloc.c    |    6 ++++--
->>   3 files changed, 6 insertions(+), 2 deletions(-)
->>=20
->> diff --git a/include/linux/cma.h b/include/linux/cma.h
->> index 0430ed0..0b75896 100644
->> --- a/include/linux/cma.h
->> +++ b/include/linux/cma.h
->> @@ -15,6 +15,7 @@
->>  =20
->>   struct cma;
->>  =20
->> +extern unsigned long totalcma_pages;
->=20
-> +#ifdef CONFIG_CMA
-> +extern unsigned long totalcma_pages;
-> +#else
-> +#  define totalcma_pages 0UL
-> +#endif
->=20
->>   extern phys_addr_t cma_get_base(struct cma *cma);
->>   extern unsigned long cma_get_size(struct cma *cma);
->>  =20
->> diff --git a/mm/cma.c b/mm/cma.c
->> index 963bc4a..8435762 100644
->> --- a/mm/cma.c
->> +++ b/mm/cma.c
->> @@ -288,6 +288,7 @@ int __init cma_declare_contiguous(phys_addr_t =
-base,
->>       if (ret)
->>           goto err;
->>  =20
->> +    totalcma_pages +=3D (size / PAGE_SIZE);
->>       pr_info("Reserved %ld MiB at %08lx\n", (unsigned=20
-> long)size / SZ_1M,
->>           (unsigned long)base);
->>       return 0;
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index dd73f9a..ababbd8 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -110,6 +110,7 @@ static DEFINE_SPINLOCK(managed_page_count_lock);
->>  =20
->>   unsigned long totalram_pages __read_mostly;
->>   unsigned long totalreserve_pages __read_mostly;
->> +unsigned long totalcma_pages __read_mostly;
->=20
-> Move this to cma.c.
->=20
+where sc is an instance of the shrink_control structure passed to it
+from vmscan.
 
-In our earlier patch (first version), we added it in cmc.c itself.
-But, Andrew wanted this variable to be visible in non-CMA case as well =
-to avoid build error, when we use=20
-this variable in mem_init_print_info, without CONFIG_CMA.
-So, we moved it to page_alloc.c
+To simplify this, let's add special list_lru functions to be used by
+shrinkers, list_lru_shrink_count() and list_lru_shrink_walk(), which
+consolidate the nid and nr_to_scan arguments in the shrink_control
+structure.
 
->>   /*
->>   * When calculating the number of globally allowed dirty pages, =
-there
->>   * is a certain number of per-zone reserves that should not be
->> @@ -5520,7 +5521,7 @@ void __init mem_init_print_info(const char =
-*str)
->>  =20
->>       pr_info("Memory: %luK/%luK available "
->>             "(%luK kernel code, %luK rwdata, %luK rodata, "
->> -          "%luK init, %luK bss, %luK reserved"
->> +          "%luK init, %luK bss, %luK reserved, %luK=20
-> cma-reserved"
->>   #ifdef    CONFIG_HIGHMEM
->>             ", %luK highmem"
->>   #endif
->> @@ -5528,7 +5529,8 @@ void __init mem_init_print_info(const char =
-*str)
->>             nr_free_pages() << (PAGE_SHIFT-10), physpages <<=20
-> (PAGE_SHIFT-10),
->>             codesize >> 10, datasize >> 10, rosize >> 10,
->>             (init_data_size + init_code_size) >> 10, bss_size=20
->>> 10,
->> -          (physpages - totalram_pages) << (PAGE_SHIFT-10),
->> +          (physpages - totalram_pages - totalcma_pages) <<=20
-> (PAGE_SHIFT-10),
->> +          totalcma_pages << (PAGE_SHIFT-10),
->>   #ifdef    CONFIG_HIGHMEM
->>             totalhigh_pages << (PAGE_SHIFT-10),
->>   #endif
->> --=20
->> 1.7.9.5
->>=20
->=20
-> --=20
-> Best regards,                                        _    _
-> .o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-> ..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D =
-Nazarewicz    (o o)
-> ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
->=20
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org">=20
-> email@kvack.org </a>
->
+This will also allow us to avoid patching shrinkers that use list_lru
+when we make shrink_slab() per-memcg - all we will have to do is extend
+the shrink_control structure to include the target memcg and make
+list_lru_shrink_{count,walk} handle this appropriately.
+
+Suggested-by: Dave Chinner <david@fromorbit.com>
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+---
+ fs/dcache.c              |   14 ++++++--------
+ fs/gfs2/quota.c          |    6 +++---
+ fs/inode.c               |    7 +++----
+ fs/internal.h            |    7 +++----
+ fs/super.c               |   24 +++++++++++-------------
+ fs/xfs/xfs_buf.c         |    7 +++----
+ fs/xfs/xfs_qm.c          |    7 +++----
+ include/linux/list_lru.h |   16 ++++++++++++++++
+ mm/workingset.c          |    6 +++---
+ 9 files changed, 51 insertions(+), 43 deletions(-)
+
+diff --git a/fs/dcache.c b/fs/dcache.c
+index d5a23fd0da90..670c925d7c87 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -930,24 +930,22 @@ dentry_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
+ /**
+  * prune_dcache_sb - shrink the dcache
+  * @sb: superblock
+- * @nr_to_scan : number of entries to try to free
+- * @nid: which node to scan for freeable entities
++ * @sc: shrink control, passed to list_lru_shrink_walk()
+  *
+- * Attempt to shrink the superblock dcache LRU by @nr_to_scan entries. This is
+- * done when we need more memory an called from the superblock shrinker
++ * Attempt to shrink the superblock dcache LRU by @sc->nr_to_scan entries. This
++ * is done when we need more memory and called from the superblock shrinker
+  * function.
+  *
+  * This function may fail to free any resources if all the dentries are in
+  * use.
+  */
+-long prune_dcache_sb(struct super_block *sb, unsigned long nr_to_scan,
+-		     int nid)
++long prune_dcache_sb(struct super_block *sb, struct shrink_control *sc)
+ {
+ 	LIST_HEAD(dispose);
+ 	long freed;
+ 
+-	freed = list_lru_walk_node(&sb->s_dentry_lru, nid, dentry_lru_isolate,
+-				       &dispose, &nr_to_scan);
++	freed = list_lru_shrink_walk(&sb->s_dentry_lru, sc,
++				     dentry_lru_isolate, &dispose);
+ 	shrink_dentry_list(&dispose);
+ 	return freed;
+ }
+diff --git a/fs/gfs2/quota.c b/fs/gfs2/quota.c
+index 64b29f7f6b4c..6292d79fc340 100644
+--- a/fs/gfs2/quota.c
++++ b/fs/gfs2/quota.c
+@@ -171,8 +171,8 @@ static unsigned long gfs2_qd_shrink_scan(struct shrinker *shrink,
+ 	if (!(sc->gfp_mask & __GFP_FS))
+ 		return SHRINK_STOP;
+ 
+-	freed = list_lru_walk_node(&gfs2_qd_lru, sc->nid, gfs2_qd_isolate,
+-				   &dispose, &sc->nr_to_scan);
++	freed = list_lru_shrink_walk(&gfs2_qd_lru, sc,
++				     gfs2_qd_isolate, &dispose);
+ 
+ 	gfs2_qd_dispose(&dispose);
+ 
+@@ -182,7 +182,7 @@ static unsigned long gfs2_qd_shrink_scan(struct shrinker *shrink,
+ static unsigned long gfs2_qd_shrink_count(struct shrinker *shrink,
+ 					  struct shrink_control *sc)
+ {
+-	return vfs_pressure_ratio(list_lru_count_node(&gfs2_qd_lru, sc->nid));
++	return vfs_pressure_ratio(list_lru_shrink_count(&gfs2_qd_lru, sc));
+ }
+ 
+ struct shrinker gfs2_qd_shrinker = {
+diff --git a/fs/inode.c b/fs/inode.c
+index 26753ba7b6d6..f08420a3bf50 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -749,14 +749,13 @@ inode_lru_isolate(struct list_head *item, spinlock_t *lru_lock, void *arg)
+  * to trim from the LRU. Inodes to be freed are moved to a temporary list and
+  * then are freed outside inode_lock by dispose_list().
+  */
+-long prune_icache_sb(struct super_block *sb, unsigned long nr_to_scan,
+-		     int nid)
++long prune_icache_sb(struct super_block *sb, struct shrink_control *sc)
+ {
+ 	LIST_HEAD(freeable);
+ 	long freed;
+ 
+-	freed = list_lru_walk_node(&sb->s_inode_lru, nid, inode_lru_isolate,
+-				       &freeable, &nr_to_scan);
++	freed = list_lru_shrink_walk(&sb->s_inode_lru, sc,
++				     inode_lru_isolate, &freeable);
+ 	dispose_list(&freeable);
+ 	return freed;
+ }
+diff --git a/fs/internal.h b/fs/internal.h
+index 9477f8f6aefc..7a6aa641c060 100644
+--- a/fs/internal.h
++++ b/fs/internal.h
+@@ -14,6 +14,7 @@ struct file_system_type;
+ struct linux_binprm;
+ struct path;
+ struct mount;
++struct shrink_control;
+ 
+ /*
+  * block_dev.c
+@@ -112,8 +113,7 @@ extern int open_check_o_direct(struct file *f);
+  * inode.c
+  */
+ extern spinlock_t inode_sb_list_lock;
+-extern long prune_icache_sb(struct super_block *sb, unsigned long nr_to_scan,
+-			    int nid);
++extern long prune_icache_sb(struct super_block *sb, struct shrink_control *sc);
+ extern void inode_add_lru(struct inode *inode);
+ 
+ /*
+@@ -130,8 +130,7 @@ extern int invalidate_inodes(struct super_block *, bool);
+  */
+ extern struct dentry *__d_alloc(struct super_block *, const struct qstr *);
+ extern int d_set_mounted(struct dentry *dentry);
+-extern long prune_dcache_sb(struct super_block *sb, unsigned long nr_to_scan,
+-			    int nid);
++extern long prune_dcache_sb(struct super_block *sb, struct shrink_control *sc);
+ 
+ /*
+  * read_write.c
+diff --git a/fs/super.c b/fs/super.c
+index eae088f6aaae..4554ac257647 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -77,8 +77,8 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
+ 	if (sb->s_op->nr_cached_objects)
+ 		fs_objects = sb->s_op->nr_cached_objects(sb, sc->nid);
+ 
+-	inodes = list_lru_count_node(&sb->s_inode_lru, sc->nid);
+-	dentries = list_lru_count_node(&sb->s_dentry_lru, sc->nid);
++	inodes = list_lru_shrink_count(&sb->s_inode_lru, sc);
++	dentries = list_lru_shrink_count(&sb->s_dentry_lru, sc);
+ 	total_objects = dentries + inodes + fs_objects + 1;
+ 	if (!total_objects)
+ 		total_objects = 1;
+@@ -86,20 +86,20 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
+ 	/* proportion the scan between the caches */
+ 	dentries = mult_frac(sc->nr_to_scan, dentries, total_objects);
+ 	inodes = mult_frac(sc->nr_to_scan, inodes, total_objects);
++	fs_objects = mult_frac(sc->nr_to_scan, fs_objects, total_objects);
+ 
+ 	/*
+ 	 * prune the dcache first as the icache is pinned by it, then
+ 	 * prune the icache, followed by the filesystem specific caches
+ 	 */
+-	freed = prune_dcache_sb(sb, dentries, sc->nid);
+-	freed += prune_icache_sb(sb, inodes, sc->nid);
++	sc->nr_to_scan = dentries;
++	freed = prune_dcache_sb(sb, sc);
++	sc->nr_to_scan = inodes;
++	freed += prune_icache_sb(sb, sc);
+ 
+-	if (fs_objects) {
+-		fs_objects = mult_frac(sc->nr_to_scan, fs_objects,
+-								total_objects);
++	if (fs_objects)
+ 		freed += sb->s_op->free_cached_objects(sb, fs_objects,
+ 						       sc->nid);
+-	}
+ 
+ 	drop_super(sb);
+ 	return freed;
+@@ -118,17 +118,15 @@ static unsigned long super_cache_count(struct shrinker *shrink,
+ 	 * scalability bottleneck. The counts could get updated
+ 	 * between super_cache_count and super_cache_scan anyway.
+ 	 * Call to super_cache_count with shrinker_rwsem held
+-	 * ensures the safety of call to list_lru_count_node() and
++	 * ensures the safety of call to list_lru_shrink_count() and
+ 	 * s_op->nr_cached_objects().
+ 	 */
+ 	if (sb->s_op && sb->s_op->nr_cached_objects)
+ 		total_objects = sb->s_op->nr_cached_objects(sb,
+ 						 sc->nid);
+ 
+-	total_objects += list_lru_count_node(&sb->s_dentry_lru,
+-						 sc->nid);
+-	total_objects += list_lru_count_node(&sb->s_inode_lru,
+-						 sc->nid);
++	total_objects += list_lru_shrink_count(&sb->s_dentry_lru, sc);
++	total_objects += list_lru_shrink_count(&sb->s_inode_lru, sc);
+ 
+ 	total_objects = vfs_pressure_ratio(total_objects);
+ 	return total_objects;
+diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
+index 24b4ebea0d4d..38f6671f75a3 100644
+--- a/fs/xfs/xfs_buf.c
++++ b/fs/xfs/xfs_buf.c
+@@ -1578,10 +1578,9 @@ xfs_buftarg_shrink_scan(
+ 					struct xfs_buftarg, bt_shrinker);
+ 	LIST_HEAD(dispose);
+ 	unsigned long		freed;
+-	unsigned long		nr_to_scan = sc->nr_to_scan;
+ 
+-	freed = list_lru_walk_node(&btp->bt_lru, sc->nid, xfs_buftarg_isolate,
+-				       &dispose, &nr_to_scan);
++	freed = list_lru_shrink_walk(&btp->bt_lru, sc,
++				     xfs_buftarg_isolate, &dispose);
+ 
+ 	while (!list_empty(&dispose)) {
+ 		struct xfs_buf *bp;
+@@ -1600,7 +1599,7 @@ xfs_buftarg_shrink_count(
+ {
+ 	struct xfs_buftarg	*btp = container_of(shrink,
+ 					struct xfs_buftarg, bt_shrinker);
+-	return list_lru_count_node(&btp->bt_lru, sc->nid);
++	return list_lru_shrink_count(&btp->bt_lru, sc);
+ }
+ 
+ void
+diff --git a/fs/xfs/xfs_qm.c b/fs/xfs/xfs_qm.c
+index d68f23021af3..ec92f6b2e0f2 100644
+--- a/fs/xfs/xfs_qm.c
++++ b/fs/xfs/xfs_qm.c
+@@ -525,7 +525,6 @@ xfs_qm_shrink_scan(
+ 	struct xfs_qm_isolate	isol;
+ 	unsigned long		freed;
+ 	int			error;
+-	unsigned long		nr_to_scan = sc->nr_to_scan;
+ 
+ 	if ((sc->gfp_mask & (__GFP_FS|__GFP_WAIT)) != (__GFP_FS|__GFP_WAIT))
+ 		return 0;
+@@ -533,8 +532,8 @@ xfs_qm_shrink_scan(
+ 	INIT_LIST_HEAD(&isol.buffers);
+ 	INIT_LIST_HEAD(&isol.dispose);
+ 
+-	freed = list_lru_walk_node(&qi->qi_lru, sc->nid, xfs_qm_dquot_isolate, &isol,
+-					&nr_to_scan);
++	freed = list_lru_shrink_walk(&qi->qi_lru, sc,
++				     xfs_qm_dquot_isolate, &isol);
+ 
+ 	error = xfs_buf_delwri_submit(&isol.buffers);
+ 	if (error)
+@@ -559,7 +558,7 @@ xfs_qm_shrink_count(
+ 	struct xfs_quotainfo	*qi = container_of(shrink,
+ 					struct xfs_quotainfo, qi_shrinker);
+ 
+-	return list_lru_count_node(&qi->qi_lru, sc->nid);
++	return list_lru_shrink_count(&qi->qi_lru, sc);
+ }
+ 
+ /*
+diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+index f3434533fbf8..f500a2e39b13 100644
+--- a/include/linux/list_lru.h
++++ b/include/linux/list_lru.h
+@@ -9,6 +9,7 @@
+ 
+ #include <linux/list.h>
+ #include <linux/nodemask.h>
++#include <linux/shrinker.h>
+ 
+ /* list_lru_walk_cb has to always return one of those */
+ enum lru_status {
+@@ -81,6 +82,13 @@ bool list_lru_del(struct list_lru *lru, struct list_head *item);
+  * Callers that want such a guarantee need to provide an outer lock.
+  */
+ unsigned long list_lru_count_node(struct list_lru *lru, int nid);
++
++static inline unsigned long list_lru_shrink_count(struct list_lru *lru,
++						  struct shrink_control *sc)
++{
++	return list_lru_count_node(lru, sc->nid);
++}
++
+ static inline unsigned long list_lru_count(struct list_lru *lru)
+ {
+ 	long count = 0;
+@@ -120,6 +128,14 @@ unsigned long list_lru_walk_node(struct list_lru *lru, int nid,
+ 				 unsigned long *nr_to_walk);
+ 
+ static inline unsigned long
++list_lru_shrink_walk(struct list_lru *lru, struct shrink_control *sc,
++		     list_lru_walk_cb isolate, void *cb_arg)
++{
++	return list_lru_walk_node(lru, sc->nid, isolate, cb_arg,
++				  &sc->nr_to_scan);
++}
++
++static inline unsigned long
+ list_lru_walk(struct list_lru *lru, list_lru_walk_cb isolate,
+ 	      void *cb_arg, unsigned long nr_to_walk)
+ {
+diff --git a/mm/workingset.c b/mm/workingset.c
+index f7216fa7da27..d4fa7fb10a52 100644
+--- a/mm/workingset.c
++++ b/mm/workingset.c
+@@ -275,7 +275,7 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+ 
+ 	/* list_lru lock nests inside IRQ-safe mapping->tree_lock */
+ 	local_irq_disable();
+-	shadow_nodes = list_lru_count_node(&workingset_shadow_nodes, sc->nid);
++	shadow_nodes = list_lru_shrink_count(&workingset_shadow_nodes, sc);
+ 	local_irq_enable();
+ 
+ 	pages = node_present_pages(sc->nid);
+@@ -376,8 +376,8 @@ static unsigned long scan_shadow_nodes(struct shrinker *shrinker,
+ 
+ 	/* list_lru lock nests inside IRQ-safe mapping->tree_lock */
+ 	local_irq_disable();
+-	ret =  list_lru_walk_node(&workingset_shadow_nodes, sc->nid,
+-				  shadow_lru_isolate, NULL, &sc->nr_to_scan);
++	ret =  list_lru_shrink_walk(&workingset_shadow_nodes, sc,
++				    shadow_lru_isolate, NULL);
+ 	local_irq_enable();
+ 	return ret;
+ }
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
