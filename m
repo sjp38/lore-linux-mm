@@ -1,124 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D8AB6B006C
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 12:38:25 -0400 (EDT)
-Received: by mail-lb0-f179.google.com with SMTP id l4so2869443lbv.10
-        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 09:38:24 -0700 (PDT)
-Received: from mail-la0-x234.google.com (mail-la0-x234.google.com. [2a00:1450:4010:c03::234])
-        by mx.google.com with ESMTPS id qv3si7351521lbb.86.2014.10.24.09.38.23
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id E9BD16B006C
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 13:08:55 -0400 (EDT)
+Received: by mail-ig0-f173.google.com with SMTP id h18so742058igc.6
+        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 10:08:55 -0700 (PDT)
+Received: from resqmta-po-09v.sys.comcast.net (resqmta-po-09v.sys.comcast.net. [2001:558:fe16:19:96:114:154:168])
+        by mx.google.com with ESMTPS id pz4si7211602icb.95.2014.10.24.10.08.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 24 Oct 2014 09:38:23 -0700 (PDT)
-Received: by mail-la0-f52.google.com with SMTP id hz20so3001954lab.11
-        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 09:38:23 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH] x86, cma: reserve dma contiguous area after initmem_init()
-In-Reply-To: <000101cfef69$31e528a0$95af79e0$%yang@samsung.com>
-References: <000101cfef69$31e528a0$95af79e0$%yang@samsung.com>
-Date: Fri, 24 Oct 2014 18:38:18 +0200
-Message-ID: <xa1ta94l2zk5.fsf@mina86.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 24 Oct 2014 10:08:54 -0700 (PDT)
+Date: Fri, 24 Oct 2014 12:08:50 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC][PATCH 4/6] SRCU free VMAs
+In-Reply-To: <20141024155101.GE21513@worktop.programming.kicks-ass.net>
+Message-ID: <alpine.DEB.2.11.1410241206001.30305@gentwo.org>
+References: <20141020215633.717315139@infradead.org> <20141020222841.419869904@infradead.org> <CA+55aFwd04q+O5ejbmDL-H7_GB6DEBMiiHkn+2R1u4uWxfDO9w@mail.gmail.com> <20141021080740.GJ23531@worktop.programming.kicks-ass.net> <alpine.DEB.2.11.1410241003430.29419@gentwo.org>
+ <20141024155101.GE21513@worktop.programming.kicks-ass.net>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang@samsung.com>, mingo@kernel.org
-Cc: tglx@linutronix.de, hpa@zytor.com, fengguang.wu@intel.com, m.szyprowski@samsung.com, iamjoonsoo.kim@lge.com, 'Andrew Morton' <akpm@linux-foundation.org>, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>, 'Weijie Yang' <weijie.yang.kh@gmail.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Ingo Molnar <mingo@redhat.com>, Minchan Kim <minchan@kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Al Viro <viro@zeniv.linux.org.uk>, Lai Jiangshan <laijs@cn.fujitsu.com>, Davidlohr Bueso <dave@stgolabs.net>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Fri, Oct 24 2014, Weijie Yang <weijie.yang@samsung.com> wrote:
-> Fengguang Wu reported a BUG: Int 6: CR2 (null) on x86 platform in
-> 0-day Linux Kernel Performance Test:
->
-> [    0.000000] BRK [0x025ee000, 0x025eefff] PGTABLE
-> [    0.000000] cma: dma_contiguous_reserve(limit 13ffe000)
-> [    0.000000] cma: dma_contiguous_reserve: reserving 31 MiB for global a=
-rea
-> [    0.000000] BUG: Int 6: CR2   (null)
-> [    0.000000]      EDI c0000000  ESI   (null)  EBP 41c11ea4  EBX 425cc101
-> [    0.000000]      ESP 41c11e98   ES 0000007b   DS 0000007b
-> [    0.000000]      EDX 00000001  ECX   (null)  EAX 41cd8150
-> [    0.000000]      vec 00000006  err   (null)  EIP 41072227   CS 0000006=
-0  flg 00210002
-> [    0.000000] Stack: 425cc150   (null)   (null) 41c11ef4 41d4ee4d   (nul=
-l) 13ffe000 41c11ec4
-> [    0.000000]        41c2d900   (null) 13ffe000   (null) 4185793e 000000=
-2e 410c2982 41c11f00
-> [    0.000000]        410c2df5   (null)   (null)   (null) 425cc150 00013e=
-fe   (null) 41c11f28
-> [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 3.17.0-next-201410=
-08 #815
-> [    0.000000]  00000000 425cc101 41c11e48 41850786 41c11ea4 41d2b1db 41d=
-95f71 00000006
-> [    0.000000]  00000000 c0000000 00000000 41c11ea4 425cc101 41c11e98 000=
-0007b 0000007b
-> [    0.000000]  00000001 00000000 41cd8150 00000006 00000000 41072227 000=
-00060 00210002
-> [    0.000000] Call Trace:
-> [    0.000000]  [<41850786>] dump_stack+0x16/0x18
-> [    0.000000]  [<41d2b1db>] early_idt_handler+0x6b/0x6b
-> [    0.000000]  [<41072227>] ? __phys_addr+0x2e/0xca
-> [    0.000000]  [<41d4ee4d>] cma_declare_contiguous+0x3c/0x2d7
-> [    0.000000]  [<4185793e>] ? _raw_spin_unlock_irqrestore+0x59/0x91
-> [    0.000000]  [<410c2982>] ? wake_up_klogd+0x8/0x33
-> [    0.000000]  [<410c2df5>] ? console_unlock+0x448/0x461
-> [    0.000000]  [<41d6d359>] dma_contiguous_reserve_area+0x27/0x47
-> [    0.000000]  [<41d6d4d1>] dma_contiguous_reserve+0x158/0x163
-> [    0.000000]  [<41d33e0f>] setup_arch+0x79b/0xc68
-> [    0.000000]  [<4184c0b4>] ? printk+0x1c/0x1e
-> [    0.000000]  [<41d2b7cf>] start_kernel+0x9c/0x456
-> [    0.000000]  [<41d2b2ca>] i386_start_kernel+0x79/0x7d
->
-> see detail: https://lkml.org/lkml/2014/10/8/708
->
-> It is because dma_contiguous_reserve() is called before initmem_init() in=
- x86,
-> the variable high_memory is not initialized but accessed by __pa(high_mem=
-ory)
-> in dma_contiguous_reserve().
->
-> This patch moves dma_contiguous_reserve() after initmem_init() so that
-> high_memory is initialized before accessed.
->
-> Reported-by: Fengguang Wu <fengguang.wu@intel.com>
-> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+On Fri, 24 Oct 2014, Peter Zijlstra wrote:
 
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+> The hold time isn't relevant, in fact breaking up the mmap_sem such that
+> we require multiple acquisitions will just increase the cacheline
+> bouncing.
 
-> ---
->  arch/x86/kernel/setup.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
->
-> diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-> index 235cfd3..ab08aa2 100644
-> --- a/arch/x86/kernel/setup.c
-> +++ b/arch/x86/kernel/setup.c
-> @@ -1128,7 +1128,6 @@ void __init setup_arch(char **cmdline_p)
->  	setup_real_mode();
->=20=20
->  	memblock_set_current_limit(get_max_mapped());
-> -	dma_contiguous_reserve(max_pfn_mapped << PAGE_SHIFT);
->=20=20
->  	/*
->  	 * NOTE: On x86-32, only from this point on, fixmaps are ready for use.
-> @@ -1159,6 +1158,7 @@ void __init setup_arch(char **cmdline_p)
->  	early_acpi_boot_init();
->=20=20
->  	initmem_init();
-> +	dma_contiguous_reserve(max_pfn_mapped << PAGE_SHIFT);
->=20=20
->  	/*
->  	 * Reserve memory for crash kernel after SRAT is parsed so that it
-> --=20
-> 1.7.0.4
->
->
+Well this wont be happening anymore once you RCUify the stuff. If you go
+to sleep then its best to release mmap_sem and then the bouncing wont
+matter.
 
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
+Dropping mmap_sem there will also expose you to races you will see later
+too when you RCUify the code paths. That way those can be deal with
+beforehand.
+
+> Also I think it makes more sense to continue an entire fault operation,
+> including blocking, if at all possible. Every retry will just waste more
+> time.
+
+Ok then dont retry. Just drop mmap_sem before going to sleep. When you
+come back evaluate the situation and if we can proceed do so otherwise
+retry.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
