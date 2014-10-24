@@ -1,141 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
-	by kanga.kvack.org (Postfix) with ESMTP id E62B86B0082
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 18:16:51 -0400 (EDT)
-Received: by mail-ob0-f173.google.com with SMTP id wp4so1042894obc.18
-        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 15:16:51 -0700 (PDT)
-Received: from smtp2.provo.novell.com (smtp2.provo.novell.com. [137.65.250.81])
-        by mx.google.com with ESMTPS id e3si5827967obh.37.2014.10.24.15.16.50
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 24 Oct 2014 15:16:50 -0700 (PDT)
-Message-ID: <1414188985.17641.2.camel@linux-t7sj.site>
-Subject: [PATCH 10/10] mm/hugetlb: share the i_mmap_rwsem
-From: Davidlohr Bueso <dbueso@suse.com>
-Date: Fri, 24 Oct 2014 15:16:25 -0700
-In-Reply-To: <1414188380-17376-1-git-send-email-dave@stgolabs.net>
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 4ADCE6B006E
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 18:48:21 -0400 (EDT)
+Received: by mail-wg0-f52.google.com with SMTP id a1so2025991wgh.35
+        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 15:48:20 -0700 (PDT)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.194])
+        by mx.google.com with ESMTP id br6si6570005wjc.156.2014.10.24.15.48.19
+        for <linux-mm@kvack.org>;
+        Fri, 24 Oct 2014 15:48:19 -0700 (PDT)
+Date: Sat, 25 Oct 2014 01:45:37 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 03/10] mm: convert i_mmap_mutex to rwsem
+Message-ID: <20141024224537.GA21108@node.dhcp.inet.fi>
 References: <1414188380-17376-1-git-send-email-dave@stgolabs.net>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <1414188380-17376-4-git-send-email-dave@stgolabs.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1414188380-17376-4-git-send-email-dave@stgolabs.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: hughd@google.com, riel@redhat.com, mgorman@suse.de, peterz@infradead.org, mingo@kernel.org, dbueso@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Davidlohr Bueso <dave@stgolabs.net>
+To: Davidlohr Bueso <dave@stgolabs.net>
+Cc: akpm@linux-foundation.org, hughd@google.com, riel@redhat.com, mgorman@suse.de, peterz@infradead.org, mingo@kernel.org, linux-kernel@vger.kernel.org, dbueso@suse.de, linux-mm@kvack.org
 
-From: Davidlohr Bueso <dave@stgolabs.net>
+On Fri, Oct 24, 2014 at 03:06:13PM -0700, Davidlohr Bueso wrote:
+> diff --git a/mm/fremap.c b/mm/fremap.c
+> index 72b8fa3..11ef7ec 100644
+> --- a/mm/fremap.c
+> +++ b/mm/fremap.c
+> @@ -238,13 +238,13 @@ get_write_lock:
+>  			}
+>  			goto out_freed;
+>  		}
+> -		mutex_lock(&mapping->i_mmap_mutex);
+> +		i_mmap_lock_write(mapping);
+>  		flush_dcache_mmap_lock(mapping);
+>  		vma->vm_flags |= VM_NONLINEAR;
+>  		vma_interval_tree_remove(vma, &mapping->i_mmap);
+>  		vma_nonlinear_insert(vma, &mapping->i_mmap_nonlinear);
+>  		flush_dcache_mmap_unlock(mapping);
+> -		mutex_unlock(&mapping->i_mmap_mutex);
+> +		i_mmap_unlock_write(mapping);
+>  	}
+>  
+>  	if (vma->vm_flags & VM_LOCKED) {
 
-The i_mmap_rwsem protects shared pages against races
-when doing the sharing and unsharing, ultimately
-calling huge_pmd_share/unshare() for PMD pages --
-it also needs it to avoid races when populating the pud
-for pmd allocation when looking for a shareable pmd page
-for hugetlb. Ultimately the interval tree remains intact.
+This should go to previous patch.
 
-Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
----
-Resending this patch due to stupid email quota rules, *sigh*
-
- fs/hugetlbfs/inode.c |  4 ++--
- mm/hugetlb.c         | 12 ++++++------
- mm/memory.c          |  4 ++--
- 3 files changed, 10 insertions(+), 10 deletions(-)
-
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 5eba47f..0dca54d 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -412,10 +412,10 @@ static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
- 	pgoff = offset >> PAGE_SHIFT;
- 
- 	i_size_write(inode, offset);
--	i_mmap_lock_write(mapping);
-+	i_mmap_lock_read(mapping);
- 	if (!RB_EMPTY_ROOT(&mapping->i_mmap))
- 		hugetlb_vmtruncate_list(&mapping->i_mmap, pgoff);
--	i_mmap_unlock_write(mapping);
-+	i_mmap_unlock_read(mapping);
- 	truncate_hugepages(inode, offset);
- 	return 0;
- }
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 7eeab54..f68dd21 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2772,7 +2772,7 @@ static void unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
- 	 * this mapping should be shared between all the VMAs,
- 	 * __unmap_hugepage_range() is called as the lock is already held
- 	 */
--	i_mmap_lock_write(mapping);
-+	i_mmap_lock_read(mapping);
- 	vma_interval_tree_foreach(iter_vma, &mapping->i_mmap, pgoff, pgoff) {
- 		/* Do not unmap the current VMA */
- 		if (iter_vma == vma)
-@@ -2789,7 +2789,7 @@ static void unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
- 			unmap_hugepage_range(iter_vma, address,
- 					     address + huge_page_size(h), page);
- 	}
--	i_mmap_unlock_write(mapping);
-+	i_mmap_unlock_read(mapping);
- }
- 
- /*
-@@ -3346,7 +3346,7 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
- 	flush_cache_range(vma, address, end);
- 
- 	mmu_notifier_invalidate_range_start(mm, start, end);
--	i_mmap_lock_write(vma->vm_file->f_mapping);
-+	i_mmap_lock_read(vma->vm_file->f_mapping);
- 	for (; address < end; address += huge_page_size(h)) {
- 		spinlock_t *ptl;
- 		ptep = huge_pte_offset(mm, address);
-@@ -3374,7 +3374,7 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
- 	 * and that page table be reused and filled with junk.
- 	 */
- 	flush_tlb_range(vma, start, end);
--	i_mmap_unlock_write(vma->vm_file->f_mapping);
-+	i_mmap_unlock_read(vma->vm_file->f_mapping);
- 	mmu_notifier_invalidate_range_end(mm, start, end);
- 
- 	return pages << h->order;
-@@ -3542,7 +3542,7 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
- 	if (!vma_shareable(vma, addr))
- 		return (pte_t *)pmd_alloc(mm, pud, addr);
- 
--	i_mmap_lock_write(mapping);
-+	i_mmap_lock_read(mapping);
- 	vma_interval_tree_foreach(svma, &mapping->i_mmap, idx, idx) {
- 		if (svma == vma)
- 			continue;
-@@ -3570,7 +3570,7 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
- 	spin_unlock(ptl);
- out:
- 	pte = (pte_t *)pmd_alloc(mm, pud, addr);
--	i_mmap_unlock_write(mapping);
-+	i_mmap_unlock_read(mapping);
- 	return pte;
- }
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index d16c662..b1931c1 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1339,9 +1339,9 @@ static void unmap_single_vma(struct mmu_gather *tlb,
- 			 * safe to do nothing in this case.
- 			 */
- 			if (vma->vm_file) {
--				i_mmap_lock_write(vma->vm_file->f_mapping);
-+				i_mmap_lock_read(vma->vm_file->f_mapping);
- 				__unmap_hugepage_range_final(tlb, vma, start, end, NULL);
--				i_mmap_unlock_write(vma->vm_file->f_mapping);
-+				i_mmap_unlock_read(vma->vm_file->f_mapping);
- 			}
- 		} else
- 			unmap_page_range(tlb, vma, start, end, details);
 -- 
-1.8.4.5
-
-
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
