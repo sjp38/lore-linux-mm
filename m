@@ -1,115 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id DDDC46B0069
-	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 13:19:20 -0400 (EDT)
-Received: by mail-wi0-f170.google.com with SMTP id n3so1728714wiv.5
-        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 10:19:20 -0700 (PDT)
-Received: from mail-wg0-x231.google.com (mail-wg0-x231.google.com. [2a00:1450:400c:c00::231])
-        by mx.google.com with ESMTPS id jb20si2523061wic.97.2014.10.24.10.19.17
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D69F6B0069
+	for <linux-mm@kvack.org>; Fri, 24 Oct 2014 14:29:15 -0400 (EDT)
+Received: by mail-wg0-f52.google.com with SMTP id a1so1676042wgh.35
+        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 11:29:15 -0700 (PDT)
+Received: from mail-wg0-x230.google.com (mail-wg0-x230.google.com. [2a00:1450:400c:c00::230])
+        by mx.google.com with ESMTPS id xb3si6140577wjb.53.2014.10.24.11.29.13
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 24 Oct 2014 10:19:17 -0700 (PDT)
-Received: by mail-wg0-f49.google.com with SMTP id x12so1564706wgg.8
-        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 10:19:17 -0700 (PDT)
-Date: Fri, 24 Oct 2014 19:19:13 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH] x86, cma: reserve dma contiguous area after
- initmem_init()
-Message-ID: <20141024171913.GA31052@gmail.com>
-References: <000101cfef69$31e528a0$95af79e0$%yang@samsung.com>
+        Fri, 24 Oct 2014 11:29:14 -0700 (PDT)
+Received: by mail-wg0-f48.google.com with SMTP id k14so1655578wgh.31
+        for <linux-mm@kvack.org>; Fri, 24 Oct 2014 11:29:13 -0700 (PDT)
+Date: Fri, 24 Oct 2014 20:29:11 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 1/3] mm: memcontrol: remove bogus NULL check after
+ mem_cgroup_from_task()
+Message-ID: <20141024182911.GA18956@dhcp22.suse.cz>
+References: <1414158589-26094-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <000101cfef69$31e528a0$95af79e0$%yang@samsung.com>
+In-Reply-To: <1414158589-26094-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang@samsung.com>, Akinobu Mita <akinobu.mita@gmail.com>
-Cc: tglx@linutronix.de, hpa@zytor.com, fengguang.wu@intel.com, m.szyprowski@samsung.com, mina86@mina86.com, iamjoonsoo.kim@lge.com, 'Andrew Morton' <akpm@linux-foundation.org>, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>, 'Weijie Yang' <weijie.yang.kh@gmail.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
+On Fri 24-10-14 09:49:47, Johannes Weiner wrote:
+> That function acts like a typecast - unless NULL is passed in, no NULL
+> can come out.  task_in_mem_cgroup() callers don't pass NULL tasks.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-* Weijie Yang <weijie.yang@samsung.com> wrote:
+Thanks and sorry about my bogus version earlier today.
 
-> Fengguang Wu reported a BUG: Int 6: CR2 (null) on x86 platform in
-> 0-day Linux Kernel Performance Test:
-> 
-> [    0.000000] BRK [0x025ee000, 0x025eefff] PGTABLE
-> [    0.000000] cma: dma_contiguous_reserve(limit 13ffe000)
-> [    0.000000] cma: dma_contiguous_reserve: reserving 31 MiB for global area
-> [    0.000000] BUG: Int 6: CR2   (null)
-> [    0.000000]      EDI c0000000  ESI   (null)  EBP 41c11ea4  EBX 425cc101
-> [    0.000000]      ESP 41c11e98   ES 0000007b   DS 0000007b
-> [    0.000000]      EDX 00000001  ECX   (null)  EAX 41cd8150
-> [    0.000000]      vec 00000006  err   (null)  EIP 41072227   CS 00000060  flg 00210002
-> [    0.000000] Stack: 425cc150   (null)   (null) 41c11ef4 41d4ee4d   (null) 13ffe000 41c11ec4
-> [    0.000000]        41c2d900   (null) 13ffe000   (null) 4185793e 0000002e 410c2982 41c11f00
-> [    0.000000]        410c2df5   (null)   (null)   (null) 425cc150 00013efe   (null) 41c11f28
-> [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 3.17.0-next-20141008 #815
-> [    0.000000]  00000000 425cc101 41c11e48 41850786 41c11ea4 41d2b1db 41d95f71 00000006
-> [    0.000000]  00000000 c0000000 00000000 41c11ea4 425cc101 41c11e98 0000007b 0000007b
-> [    0.000000]  00000001 00000000 41cd8150 00000006 00000000 41072227 00000060 00210002
-> [    0.000000] Call Trace:
-> [    0.000000]  [<41850786>] dump_stack+0x16/0x18
-> [    0.000000]  [<41d2b1db>] early_idt_handler+0x6b/0x6b
-> [    0.000000]  [<41072227>] ? __phys_addr+0x2e/0xca
-> [    0.000000]  [<41d4ee4d>] cma_declare_contiguous+0x3c/0x2d7
-> [    0.000000]  [<4185793e>] ? _raw_spin_unlock_irqrestore+0x59/0x91
-> [    0.000000]  [<410c2982>] ? wake_up_klogd+0x8/0x33
-> [    0.000000]  [<410c2df5>] ? console_unlock+0x448/0x461
-> [    0.000000]  [<41d6d359>] dma_contiguous_reserve_area+0x27/0x47
-> [    0.000000]  [<41d6d4d1>] dma_contiguous_reserve+0x158/0x163
-> [    0.000000]  [<41d33e0f>] setup_arch+0x79b/0xc68
-> [    0.000000]  [<4184c0b4>] ? printk+0x1c/0x1e
-> [    0.000000]  [<41d2b7cf>] start_kernel+0x9c/0x456
-> [    0.000000]  [<41d2b2ca>] i386_start_kernel+0x79/0x7d
-> 
-> see detail: https://lkml.org/lkml/2014/10/8/708
-> 
-> It is because dma_contiguous_reserve() is called before initmem_init() in x86,
-> the variable high_memory is not initialized but accessed by __pa(high_memory)
-> in dma_contiguous_reserve().
-> 
-> This patch moves dma_contiguous_reserve() after initmem_init() so that
-> high_memory is initialized before accessed.
-> 
-> Reported-by: Fengguang Wu <fengguang.wu@intel.com>
-> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+Acked-by: Michal Hocko <mhocko@suse.cz
+
 > ---
->  arch/x86/kernel/setup.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
+>  mm/memcontrol.c | 5 ++---
+>  1 file changed, 2 insertions(+), 3 deletions(-)
 > 
-> diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-> index 235cfd3..ab08aa2 100644
-> --- a/arch/x86/kernel/setup.c
-> +++ b/arch/x86/kernel/setup.c
-> @@ -1128,7 +1128,6 @@ void __init setup_arch(char **cmdline_p)
->  	setup_real_mode();
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 23cf27cca370..bdf8520979cf 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1335,7 +1335,7 @@ static bool mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+>  bool task_in_mem_cgroup(struct task_struct *task,
+>  			const struct mem_cgroup *memcg)
+>  {
+> -	struct mem_cgroup *curr = NULL;
+> +	struct mem_cgroup *curr;
+>  	struct task_struct *p;
+>  	bool ret;
 >  
->  	memblock_set_current_limit(get_max_mapped());
-> -	dma_contiguous_reserve(max_pfn_mapped << PAGE_SHIFT);
->  
+> @@ -1351,8 +1351,7 @@ bool task_in_mem_cgroup(struct task_struct *task,
+>  		 */
+>  		rcu_read_lock();
+>  		curr = mem_cgroup_from_task(task);
+> -		if (curr)
+> -			css_get(&curr->css);
+> +		css_get(&curr->css);
+>  		rcu_read_unlock();
+>  	}
 >  	/*
->  	 * NOTE: On x86-32, only from this point on, fixmaps are ready for use.
-> @@ -1159,6 +1158,7 @@ void __init setup_arch(char **cmdline_p)
->  	early_acpi_boot_init();
->  
->  	initmem_init();
-> +	dma_contiguous_reserve(max_pfn_mapped << PAGE_SHIFT);
->  
->  	/*
->  	 * Reserve memory for crash kernel after SRAT is parsed so that it
+> -- 
+> 2.1.2
+> 
 
-I think this might be a boot regression that went upstream via 
-akpm's tree, via the recent 'cma' change:
-
-5ea3b1b2f8ad cma: add placement specifier for "cma=" kernel parameter
-
-Next time around please put 'x86' into patches that 
-enable features on x86 and which change its early init 
-behavior. The 'cma: ...' prefix was rather misleading.
-
-Thanks,
-
-	Ingo
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
